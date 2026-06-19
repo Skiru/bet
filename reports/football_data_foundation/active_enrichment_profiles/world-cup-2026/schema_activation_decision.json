@@ -1,0 +1,21 @@
+{
+  "profile_id": "world-cup-2026",
+  "matrix_activation": {
+    "status": "ACTIVATED",
+    "matrix_path": "config/provider_capability_matrix.json",
+    "is_additive": true,
+    "fields_checked": {
+      "active_enrichment": true,
+      "selectable_as_projection": true,
+      "production_betting_decision": false,
+      "certification_level": "CERTIFIED_SELECTABLE_ACTIVE_ENRICHMENT"
+    }
+  },
+  "routing_activation": {
+    "status": "ACTIVATED",
+    "routing_path": "config/football_routing.yaml",
+    "is_additive": true,
+    "is_enrichment_only": true,
+    "production_routes_preserved": true
+  }
+}

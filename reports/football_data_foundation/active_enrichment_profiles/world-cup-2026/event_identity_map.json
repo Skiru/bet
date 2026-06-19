@@ -1,0 +1,22 @@
+{
+  "profile_id": "world-cup-2026",
+  "identity_status": "IDENTITY_CONFIRMED",
+  "canonical_competition_scope": "football:world:8/world-championship:lvUBR5F8",
+  "canonical_season_scope": "2026",
+  "scanner_event_id": "66456944",
+  "matched_provider_ids": [
+    "espn-fifa-worldcup",
+    "soccerdata-espn-worldcup",
+    "sportdb-worldcup"
+  ],
+  "mismatch_reasons": [],
+  "time_tolerance_seconds": 18000,
+  "name_normalization_notes": [
+    "Fuzzy home/away matched: United States (USA) vs Australia (AUS) matched with strict normalization.",
+    "Fuzzy home/away matched: Scotland (SCO) vs Morocco (MAR) matched.",
+    "Fuzzy home/away matched: Brazil (BRA) vs Haiti (HAI) matched.",
+    "Fuzzy home/away matched: Turkey (TUR) vs Paraguay (PAR) matched.",
+    "Fuzzy home/away matched: Switzerland (SUI) vs Canada (CAN) matched.",
+    "Fuzzy home/away matched: Scotland (SCO) vs Brazil (BRA) matched."
+  ]
+}

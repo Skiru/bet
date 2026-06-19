@@ -81,14 +81,23 @@ class MatchHistoryConnector(BaseConnector):
                             try:
                                 avail = sd.MatchHistory.available_leagues()
                             except Exception:
-                                avail = ["ENG-Premier League", "ESP-La Liga", "FRA-Ligue 1", "GER-Bundesliga", "ITA-Serie A"]
+                                avail = [
+                                    "ENG-Premier League",
+                                    "ESP-La Liga",
+                                    "FRA-Ligue 1",
+                                    "GER-Bundesliga",
+                                    "ITA-Serie A",
+                                ]
                             if leagues not in avail:
                                 return build_status_result(
                                     self,
                                     operation,
                                     SourceResultStatus.NOT_SUPPORTED,
                                     "unresolved_league_alias",
-                                    {"error": f"League alias '{leagues}' cannot be resolved safely.", "available_leagues": avail},
+                                    {
+                                        "error": f"League alias '{leagues}' cannot be resolved safely.",
+                                        "available_leagues": avail,
+                                    },
                                 )
                 source = sd.MatchHistory(**init_kwargs)
 

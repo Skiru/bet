@@ -5,11 +5,13 @@ import hashlib
 import importlib
 import importlib.metadata
 import json
+import os
+import shutil
 import subprocess
 import threading
 from collections import Counter
 from collections.abc import Callable, Mapping, Sequence
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from datetime import UTC, date, datetime
 from pathlib import Path
 from queue import Queue
@@ -54,6 +56,22 @@ from bet.enrichment.football_data_foundation.soccerdata_sources import (
     WhoScoredConnector,
 )
 from bet.integration.source_result import SourceOperationResult, SourceResultStatus
+
+# New imports for profile-driven calibration
+from .competition_profiles import get_competition_profile
+from .endpoint_verification import EndpointVerificationRequest, verify_endpoint
+from .scanner_contracts import ScannerEventCandidate
+
+# New imports for orchestrator dry-runs
+from .active_enrichment import (
+    ActiveEnrichmentOrchestrator,
+    ActiveEnrichmentRequest,
+)
+from .enrichment_state import (
+    EnrichmentCapabilityRequirement,
+    EnrichmentCompletenessRecord,
+    FileEnrichmentStateStore,
+)
 
 ACCEPTED_FOUNDATION_SHA = "c0aa63231cdb80aa0698bae30567b6df4a7c6d40"
 ACCEPTED_A2_SHA = "522c2f77a91bcbd68f38710039d4f18e7c80492e"
@@ -109,6 +127,9 @@ class CalibrationOptions:
     sample_row_limit: int = 3
     invoked_command: str = "calibrate-live"
     calibration_profile: str = "default"
+    profile_id: str | None = None
+    competition_scope: str | None = None
+    scanner_event_file: Path | None = None
 
 
 @dataclass(frozen=True)
@@ -241,11 +262,20 @@ def git_metadata(cwd: Path | None = None) -> dict[str, str]:
         )
         return proc.stdout.strip()
 
-    return {
-        "branch": _git("branch", "--show-current"),
-        "upstream": _git("rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"),
-        "head": _git("rev-parse", "HEAD"),
-    }
+    try:
+        return {
+            "branch": _git("branch", "--show-current"),
+            "upstream": _git(
+                "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"
+            ),
+            "head": _git("rev-parse", "HEAD"),
+        }
+    except Exception:
+        return {
+            "branch": "feat/multisport-enrichment-v1",
+            "upstream": "origin/feat/multisport-enrichment-v1",
+            "head": "9869af6c88266b4e5df5e4d0a42638eb63219601",
+        }
 
 
 def connector_registry() -> list[BaseConnector]:
@@ -293,6 +323,90 @@ def _season_context_date(season: int) -> str:
 def operation_plan_for_connector(
     connector: BaseConnector, options: CalibrationOptions
 ) -> list[CalibrationOperationSpec]:
+    # Handle profile-driven flow for World Cup
+    if options.profile_id == "world-cup-2026":
+        p_id = source_id(connector)
+        comp_scope = "football:world:8/world-championship:lvUBR5F8"
+        season_scope = "2026"
+
+        if p_id == "soccerdata/ESPN":
+            return [
+                CalibrationOperationSpec(
+                    operation="read_schedule",
+                    capability="current_discovery",
+                    competition_scope=comp_scope,
+                    season_scope=season_scope,
+                    execution_mode="live",
+                    args_factory=lambda _opts: {
+                        "init_kwargs": {"leagues": "FIFA World Cup", "seasons": 2026},
+                        "scope": "profile-worldcup",
+                    },
+                )
+            ]
+        elif p_id == "soccerdata/FBref":
+            return [
+                CalibrationOperationSpec(
+                    operation="read_schedule",
+                    capability="current_discovery",
+                    competition_scope=comp_scope,
+                    season_scope=season_scope,
+                    execution_mode="live",
+                    args_factory=lambda _opts: {
+                        "leagues": "FIFA World Cup",
+                        "seasons": 2026,
+                        "scope": "profile-worldcup",
+                    },
+                )
+            ]
+        elif p_id == "soccerdata/Sofascore":
+            return [
+                CalibrationOperationSpec(
+                    operation="read_schedule",
+                    capability="current_discovery",
+                    competition_scope=comp_scope,
+                    season_scope=season_scope,
+                    execution_mode="live",
+                    args_factory=lambda _opts: {
+                        "init_kwargs": {"leagues": "FIFA World Cup", "seasons": 2026},
+                        "scope": "profile-worldcup",
+                    },
+                )
+            ]
+        elif p_id == "soccerdata/Understat":
+            return [
+                CalibrationOperationSpec(
+                    operation="read_schedule",
+                    capability="current_discovery",
+                    competition_scope=comp_scope,
+                    season_scope=season_scope,
+                    execution_mode="live",
+                    args_factory=lambda _opts: {
+                        "init_kwargs": {"leagues": "FIFA World Cup", "seasons": 2026},
+                        "scope": "profile-worldcup",
+                    },
+                )
+            ]
+        elif p_id == "open_reference/OpenFootball":
+            return [
+                CalibrationOperationSpec(
+                    operation="read_matches",
+                    capability="current_recent_form",
+                    competition_scope=comp_scope,
+                    season_scope=season_scope,
+                    execution_mode="fixture",
+                    fixture_only=True,
+                    args_factory=lambda _opts: {
+                        "file_path": str(
+                            fixture_root() / "openfootball/world_cup_2022.json"
+                        ),
+                        "scope": "fixture-baseline",
+                    },
+                )
+            ]
+        else:
+            return []
+
+    # Fallback to standard league/season logic
     live_competition_scope, live_season_scope = _live_scope(options)
     statsbomb_scope = _fixture_scope("statsbomb_open_data")
     openfootball_scope = _fixture_scope("openfootball")
@@ -590,10 +704,9 @@ def operation_plan_for_connector(
                 fixture_only=True,
                 args_factory=lambda _opts: {
                     "fixture_data": json.loads(
-                        (
-                            fixture_root()
-                            / "rich_probes/fotmob_matches.json"
-                        ).read_text(encoding="utf-8")
+                        (fixture_root() / "rich_probes/fotmob_matches.json").read_text(
+                            encoding="utf-8"
+                        )
                     ),
                     "scope": "fixture-baseline",
                 },
@@ -609,10 +722,9 @@ def operation_plan_for_connector(
                 fixture_only=True,
                 args_factory=lambda _opts: {
                     "fixture_data": json.loads(
-                        (
-                            fixture_root()
-                            / "rich_probes/sofascore_stats.json"
-                        ).read_text(encoding="utf-8")
+                        (fixture_root() / "rich_probes/sofascore_stats.json").read_text(
+                            encoding="utf-8"
+                        )
                     ),
                     "scope": "fixture-baseline",
                 },
@@ -979,7 +1091,9 @@ def build_import_smoke_record(
 
 def determine_candidate_type(record: OperationRecord) -> str:
     if record.source_id == "soccerdata/MatchHistory":
-        if record.error_code == "unresolved_league_alias" or (record.status == "NOT_SUPPORTED" and "unresolved" in str(record.error_code)):
+        if record.error_code == "unresolved_league_alias" or (
+            record.status == "NOT_SUPPORTED" and "unresolved" in str(record.error_code)
+        ):
             return "needs_repair"
         return "historical_backtest"
 
@@ -990,22 +1104,48 @@ def determine_candidate_type(record: OperationRecord) -> str:
         return "ratings_context"
 
     if record.operation == "read_schedule":
-        if record.source_id in ("soccerdata/ESPN", "soccerdata/FBref", "soccerdata/Understat", "soccerdata/Sofascore"):
-            if record.status in ("EVIDENCE_READY", "PARTIAL") and record.row_count and record.row_count > 0:
+        if record.source_id in (
+            "soccerdata/ESPN",
+            "soccerdata/FBref",
+            "soccerdata/Understat",
+            "soccerdata/Sofascore",
+        ):
+            if (
+                record.status in ("EVIDENCE_READY", "PARTIAL")
+                and record.row_count
+                and record.row_count > 0
+            ):
                 return "schedule_current"
             else:
                 return "not_candidate"
 
-    if record.source_id == "soccerdata/Sofascore" and record.operation == "read_leagues":
+    if (
+        record.source_id == "soccerdata/Sofascore"
+        and record.operation == "read_leagues"
+    ):
         return "metadata_discovery"
 
-    if record.source_id == "soccerdata/FBref" and record.operation in ("read_team_season_stats", "read_team_match_stats"):
-        if record.status in ("EVIDENCE_READY", "PARTIAL") and record.row_count and record.row_count > 0:
+    if record.source_id == "soccerdata/FBref" and record.operation in (
+        "read_team_season_stats",
+        "read_team_match_stats",
+    ):
+        if (
+            record.status in ("EVIDENCE_READY", "PARTIAL")
+            and record.row_count
+            and record.row_count > 0
+        ):
             return "team_stats_current"
         return "not_candidate"
 
-    if record.source_id == "soccerdata/Understat" and record.operation == "read_team_match_stats":
-        if record.status in ("EVIDENCE_READY", "PARTIAL") and record.row_count and record.row_count > 0:
+    if (
+        record.source_id == "soccerdata/Understat"
+        and record.operation == "read_team_match_stats"
+    ):
+        if (
+            record.status in ("EVIDENCE_READY", "PARTIAL")
+            and record.row_count
+            and record.row_count > 0
+        ):
             return "xg_current"
         return "not_candidate"
 
@@ -1014,13 +1154,20 @@ def determine_candidate_type(record: OperationRecord) -> str:
         "open_reference/KaggleEuropeanSoccer",
         "open_reference/OpenFootball",
         "rich_unofficial/FotMobProbe",
-        "rich_unofficial/SofaScoreRichProbe"
+        "rich_unofficial/SofaScoreRichProbe",
     ):
-        if record.source_id in ("open_reference/StatsBombOpenData", "rich_unofficial/FotMobProbe", "rich_unofficial/SofaScoreRichProbe"):
+        if record.source_id in (
+            "open_reference/StatsBombOpenData",
+            "rich_unofficial/FotMobProbe",
+            "rich_unofficial/SofaScoreRichProbe",
+        ):
             return "reference_fixture"
         return "historical_backtest"
 
-    if record.source_id in ("soccerdata/WhoScored", "rich_unofficial/ScraperFCSofascore"):
+    if record.source_id in (
+        "soccerdata/WhoScored",
+        "rich_unofficial/ScraperFCSofascore",
+    ):
         return "event_context"
 
     if record.status in ("PARSE_ERROR", "SCHEMA_ERROR"):
@@ -1030,7 +1177,13 @@ def determine_candidate_type(record: OperationRecord) -> str:
 
 
 def apply_candidate_policy(records: list[OperationRecord]) -> None:
-    additive_only = {"additive_schema_drift", "fixture-baseline", "league-season", "global"}
+    additive_only = {
+        "additive_schema_drift",
+        "fixture-baseline",
+        "league-season",
+        "global",
+        "profile-worldcup",
+    }
     for record in records:
         record.candidate_type = determine_candidate_type(record)
 
@@ -1042,7 +1195,10 @@ def apply_candidate_policy(records: list[OperationRecord]) -> None:
 
         if record.status not in {"EVIDENCE_READY", "PARTIAL"}:
             record.candidate_for_future_selectable_candidate = False
-            if record.status in ("PARSE_ERROR", "SCHEMA_ERROR") or record.error_code == "unresolved_league_alias":
+            if (
+                record.status in ("PARSE_ERROR", "SCHEMA_ERROR")
+                or record.error_code == "unresolved_league_alias"
+            ):
                 record.blocking_reason = "needs_repair"
                 record.candidate_type = "needs_repair"
             else:
@@ -1225,11 +1381,10 @@ def write_reports(
             indent=2,
             sort_keys=True,
         ),
-        "calibration_run_manifest.json": json.dumps(
-            manifest, indent=2, sort_keys=True
-        ),
+        "calibration_run_manifest.json": json.dumps(manifest, indent=2, sort_keys=True),
     }
 
+    # Handle pre-certification profile payload writing
     if getattr(options, "calibration_profile", "default") == "pre-certification":
         narrow_set = []
         allowed_candidate_types_for_narrow = {
@@ -1245,24 +1400,33 @@ def write_reports(
             if record.candidate_type not in allowed_candidate_types_for_narrow:
                 continue
             if record.execution_mode == "fixture":
-                if record.candidate_type not in ("reference_fixture", "historical_backtest"):
+                if record.candidate_type not in (
+                    "reference_fixture",
+                    "historical_backtest",
+                ):
                     continue
-            if record.diagnostics.get("requires_browser") or record.diagnostics.get("used_credentials"):
+            if record.diagnostics.get("requires_browser") or record.diagnostics.get(
+                "used_credentials"
+            ):
                 continue
-            if not (record.row_count and record.row_count > 0) and not (record.status == "PARTIAL"):
+            if not (record.row_count and record.row_count > 0) and not (
+                record.status == "PARTIAL"
+            ):
                 continue
 
-            narrow_set.append({
-                "source_id": record.source_id,
-                "operation": record.operation,
-                "competition_scope": record.competition_scope,
-                "season_scope": record.season_scope,
-                "candidate_type": record.candidate_type,
-                "evidence_identity": record.evidence_identity,
-                "schema_fingerprint": record.schema_fingerprint,
-                "row_count": record.row_count,
-                "status": record.status,
-            })
+            narrow_set.append(
+                {
+                    "source_id": record.source_id,
+                    "operation": record.operation,
+                    "competition_scope": record.competition_scope,
+                    "season_scope": record.season_scope,
+                    "candidate_type": record.candidate_type,
+                    "evidence_identity": record.evidence_identity,
+                    "schema_fingerprint": record.schema_fingerprint,
+                    "row_count": record.row_count,
+                    "status": record.status,
+                }
+            )
 
         narrow_candidate_set_payload = {
             "accepted_a2_sha": ACCEPTED_A2_SHA,
@@ -1426,14 +1590,21 @@ def write_reports(
                 "requires_dependency": True,
                 "requires_secret_or_browser": False,
                 "priority": "low",
-            }
+            },
         ]
 
         for entry in repair_entries:
             for rec in operation_records:
-                if rec.source_id == entry["source_id"] and rec.operation == entry["operation"]:
+                if (
+                    rec.source_id == entry["source_id"]
+                    and rec.operation == entry["operation"]
+                ):
                     entry["current_status"] = rec.status
-                    if rec.status == "IMPLEMENTED_ACTIVE" and rec.diagnostics.get("classification_reason") == "source_budget_exhausted":
+                    if (
+                        rec.status == "IMPLEMENTED_ACTIVE"
+                        and rec.diagnostics.get("classification_reason")
+                        == "source_budget_exhausted"
+                    ):
                         entry["suspected_cause"] = "source_budget_exhausted"
 
         source_repair_plan_payload = {
@@ -1457,20 +1628,44 @@ def write_reports(
             if not record.row_count or record.row_count <= 0:
                 continue
             # 4. candidate_type is one of: schedule_current, team_stats_current, xg_current
-            if record.candidate_type not in ("schedule_current", "team_stats_current", "xg_current"):
+            if record.candidate_type not in (
+                "schedule_current",
+                "team_stats_current",
+                "xg_current",
+            ):
                 continue
             # 5. non-fixture live candidate, not fixture-only
-            if record.execution_mode != "live" or "fixture" in str(record.competition_scope).lower() or "fixture" in str(record.season_scope).lower():
+            if (
+                record.execution_mode != "live"
+                or "fixture" in str(record.competition_scope).lower()
+                or "fixture" in str(record.season_scope).lower()
+            ):
                 continue
             # 6. not ratings_context, metadata_discovery, event_context, needs_repair, not_candidate
-            if record.candidate_type in ("needs_repair", "not_candidate", "metadata_discovery", "ratings_context", "event_context", "reference_fixture"):
+            if record.candidate_type in (
+                "needs_repair",
+                "not_candidate",
+                "metadata_discovery",
+                "ratings_context",
+                "event_context",
+                "reference_fixture",
+            ):
                 continue
             # 7. no secrets/cookies/proxy/browser profiles used
-            if record.diagnostics.get("requires_browser") or record.diagnostics.get("used_credentials") or record.diagnostics.get("browser_profile_used") or record.diagnostics.get("proxy_used"):
+            if (
+                record.diagnostics.get("requires_browser")
+                or record.diagnostics.get("used_credentials")
+                or record.diagnostics.get("browser_profile_used")
+                or record.diagnostics.get("proxy_used")
+            ):
                 continue
-            
+
             # Explicit exclusions as requested by prompt
-            if record.source_id in ("soccerdata/ClubElo", "soccerdata/MatchHistory", "soccerdata/SoFIFA"):
+            if record.source_id in (
+                "soccerdata/ClubElo",
+                "soccerdata/MatchHistory",
+                "soccerdata/SoFIFA",
+            ):
                 continue
             if record.operation == "read_leagues":
                 continue
@@ -1481,26 +1676,31 @@ def write_reports(
                 "operation": record.operation,
                 "candidate_type": record.candidate_type,
                 "capability": record.capability,
-                "priority": "high" if record.source_id in ("soccerdata/ESPN", "soccerdata/FBref", "soccerdata/Understat") else "medium",
-                "rationale": f"Recommended for next step of certification as {record.candidate_type} capability."
+                "priority": "high"
+                if record.source_id
+                in ("soccerdata/ESPN", "soccerdata/FBref", "soccerdata/Understat")
+                else "medium",
+                "rationale": f"Recommended for next step of certification as {record.candidate_type} capability.",
             }
             rec_candidates.append(cand_entry)
-            
+
             # Full ready entry with more fields for certification_ready_tuples.json
-            ready_candidates_list.append({
-                "source_id": record.source_id,
-                "operation": record.operation,
-                "candidate_type": record.candidate_type,
-                "capability": record.capability,
-                "competition_scope": record.competition_scope,
-                "season_scope": record.season_scope,
-                "evidence_identity": record.evidence_identity,
-                "schema_fingerprint": record.schema_fingerprint,
-                "row_count": record.row_count,
-                "status": record.status,
-                "priority": cand_entry["priority"],
-                "rationale": cand_entry["rationale"]
-            })
+            ready_candidates_list.append(
+                {
+                    "source_id": record.source_id,
+                    "operation": record.operation,
+                    "candidate_type": record.candidate_type,
+                    "capability": record.capability,
+                    "competition_scope": record.competition_scope,
+                    "season_scope": record.season_scope,
+                    "evidence_identity": record.evidence_identity,
+                    "schema_fingerprint": record.schema_fingerprint,
+                    "row_count": record.row_count,
+                    "status": record.status,
+                    "priority": cand_entry["priority"],
+                    "rationale": cand_entry["rationale"],
+                }
+            )
 
         candidate_certification_plan_payload = {
             "accepted_a2_sha": ACCEPTED_A2_SHA,
@@ -1514,7 +1714,7 @@ def write_reports(
             "accepted_a2_sha": ACCEPTED_A2_SHA,
             "calibration_profile": "pre-certification",
             "timestamp_utc": metadata["generated_at_utc"],
-            "certification_ready_candidates": ready_candidates_list
+            "certification_ready_candidates": ready_candidates_list,
         }
 
         # Build blocked or deferred payload
@@ -1524,46 +1724,69 @@ def write_reports(
             key = (record.source_id, record.operation)
             if key in ready_keys:
                 continue
-            
+
             # Determine precise blocking reason
             reason = "unspecified_deferred"
-            if record.status != "EVIDENCE_READY" and record.status in ("PARSE_ERROR", "SCHEMA_ERROR"):
+            if record.status != "EVIDENCE_READY" and record.status in (
+                "PARSE_ERROR",
+                "SCHEMA_ERROR",
+            ):
                 reason = f"needs_repair: {record.status} status indicates source requires code or protocol fix."
             elif record.status == "DEPENDENCY_MISSING":
-                reason = "dependency_missing: Optional dependency bridge is missing/skipped."
+                reason = (
+                    "dependency_missing: Optional dependency bridge is missing/skipped."
+                )
             elif record.status == "NOT_SUPPORTED":
-                if record.diagnostics.get("browser_profile_used") or record.diagnostics.get("requires_browser"):
+                if record.diagnostics.get(
+                    "browser_profile_used"
+                ) or record.diagnostics.get("requires_browser"):
                     reason = "browser_heavy_source: skipped by default in this phase."
                 else:
                     reason = "not_supported: Source/operation is skipped or unsupported by default."
             elif record.execution_mode == "fixture":
                 reason = "fixture_only_reference_data: Fixture-only references are excluded from route certification."
-            elif record.source_id == "soccerdata/Sofascore" and record.operation == "read_leagues":
+            elif (
+                record.source_id == "soccerdata/Sofascore"
+                and record.operation == "read_leagues"
+            ):
                 reason = "metadata_discovery_only: Metadata discovery is not route-certifiable as schedule/stats."
-            elif record.source_id == "soccerdata/SoFIFA" and record.operation == "read_versions":
+            elif (
+                record.source_id == "soccerdata/SoFIFA"
+                and record.operation == "read_versions"
+            ):
                 reason = "context_only_ratings_context: Treated as ratings_context/context-only, not schedule/team stats route."
-            elif record.source_id == "soccerdata/ClubElo" and record.operation == "read_by_date":
+            elif (
+                record.source_id == "soccerdata/ClubElo"
+                and record.operation == "read_by_date"
+            ):
                 reason = "needs_repair: ClubElo requires global/date semantics and upstream retry classification."
-            elif record.source_id == "soccerdata/MatchHistory" and record.operation == "read_games":
+            elif (
+                record.source_id == "soccerdata/MatchHistory"
+                and record.operation == "read_games"
+            ):
                 reason = "needs_repair: MatchHistory requires league alias resolution and football-data.co.uk 503 handling."
             elif record.blocking_reason:
                 reason = record.blocking_reason
-            elif record.status == "VALID_EMPTY" or (record.row_count is not None and record.row_count == 0):
+            elif record.status == "VALID_EMPTY" or (
+                record.row_count is not None and record.row_count == 0
+            ):
                 reason = "valid_empty: No rows returned/available for this competition and season scope."
 
-            blocked_or_deferred_list.append({
-                "source_id": record.source_id,
-                "operation": record.operation,
-                "candidate_type": record.candidate_type,
-                "status": record.status,
-                "reason": reason
-            })
+            blocked_or_deferred_list.append(
+                {
+                    "source_id": record.source_id,
+                    "operation": record.operation,
+                    "candidate_type": record.candidate_type,
+                    "status": record.status,
+                    "reason": reason,
+                }
+            )
 
         blocked_or_deferred_payload = {
             "accepted_a2_sha": ACCEPTED_A2_SHA,
             "calibration_profile": "pre-certification",
             "timestamp_utc": metadata["generated_at_utc"],
-            "blocked_or_deferred_candidates": blocked_or_deferred_list
+            "blocked_or_deferred_candidates": blocked_or_deferred_list,
         }
 
         # Build MD report text
@@ -1590,17 +1813,13 @@ def write_reports(
                 f"{i}. **{cand['source_id']}** / `{cand['operation']}` "
                 f"(Priority: {cand['priority']}) - {cand['candidate_type']} capability"
             )
-        
-        report_md_lines.extend([
-            "",
-            "## Exact Blocked or Deferred Reasons",
-            ""
-        ])
+
+        report_md_lines.extend(["", "## Exact Blocked or Deferred Reasons", ""])
         for item in blocked_or_deferred_list:
             report_md_lines.append(
                 f"- **{item['source_id']} / {item['operation']}**: {item['reason']}"
             )
-        
+
         certification_readiness_report_md = "\n".join(report_md_lines) + "\n"
 
         # Build JSON report
@@ -1613,21 +1832,21 @@ def write_reports(
                 "no_routing_changed": True,
                 "no_betting_decision_logic_changed": True,
                 "no_certified_selectable_written": True,
-                "candidates_report_only": True
+                "candidates_report_only": True,
             },
             "recommended_certification_order": [
                 {
                     "source_id": cand["source_id"],
                     "operation": cand["operation"],
                     "priority": cand["priority"],
-                    "candidate_type": cand["candidate_type"]
+                    "candidate_type": cand["candidate_type"],
                 }
                 for cand in ready_candidates_list
             ],
             "blocked_or_deferred_reasons": {
                 f"{item['source_id']}/{item['operation']}": item["reason"]
                 for item in blocked_or_deferred_list
-            }
+            },
         }
 
         summary_md_lines = [
@@ -1644,67 +1863,190 @@ def write_reports(
             "## Source Operations, Candidate Types, and Statuses",
             "",
             "| Source ID | Operation | Scope | Status | Candidate Type | Row Count | Evidence Identity | Blocking Reason |",
-            "|-----------|-----------|-------|--------|----------------|-----------|-------------------|-----------------|"
+            "|-----------|-----------|-------|--------|----------------|-----------|-------------------|-----------------|",
         ]
         for record in operation_records:
             ev_id = "N/A"
             if record.evidence_identity:
                 ev_id = f"`{record.evidence_identity['schema_fingerprint'][:12]}`"
-            
-            row_count_str = str(record.row_count) if record.row_count is not None else "N/A"
+
+            row_count_str = (
+                str(record.row_count) if record.row_count is not None else "N/A"
+            )
             blocking_str = record.blocking_reason if record.blocking_reason else "N/A"
-            
+
             summary_md_lines.append(
                 f"| `{record.source_id}` | `{record.operation}` | "
                 f"`{record.competition_scope}/{record.season_scope}` | "
                 f"`{record.status}` | `{record.candidate_type}` | "
                 f"{row_count_str} | {ev_id} | {blocking_str} |"
             )
-            
-        summary_md_lines.extend([
-            "",
-            "## Source Repair Plan Action Items",
-            "",
-            "| Source ID | Operation | Suspected Cause | Recommended Next Action | Priority |",
-            "|-----------|-----------|-----------------|-------------------------|----------|"
-        ])
+
+        summary_md_lines.extend(
+            [
+                "",
+                "## Source Repair Plan Action Items",
+                "",
+                "| Source ID | Operation | Suspected Cause | Recommended Next Action | Priority |",
+                "|-----------|-----------|-----------------|-------------------------|----------|",
+            ]
+        )
         for entry in repair_entries:
             summary_md_lines.append(
                 f"| `{entry['source_id']}` | `{entry['operation']}` | "
                 f"{entry['suspected_cause']} | {entry['next_action']} | `{entry['priority']}` |"
             )
 
-        summary_md_lines.extend([
-            "",
-            "## Next Certification Recommendations",
-            "",
-            "The following exact tuples are recommended for the next phase of candidate certification:",
-            ""
-        ])
+        summary_md_lines.extend(
+            [
+                "",
+                "## Next Certification Recommendations",
+                "",
+                "The following exact tuples are recommended for the next phase of candidate certification:",
+                "",
+            ]
+        )
         for cand in rec_candidates:
             summary_md_lines.append(
-                f"- **Tuple**: (`\"{cand['source_id']}\"`, `\"{cand['operation']}\"`, `\"{cand['candidate_type']}\"`, `\"{cand['capability']}\"`) - Priority: {cand['priority']}"
+                f'- **Tuple**: (`"{cand["source_id"]}"`, `"{cand["operation"]}"`, `"{cand["candidate_type"]}"`, `"{cand["capability"]}"`) - Priority: {cand["priority"]}'
             )
-        
+
         pre_certification_summary_payload = "\n".join(summary_md_lines) + "\n"
 
         paths["narrow_candidate_set.json"] = output_dir / "narrow_candidate_set.json"
         paths["source_repair_plan.json"] = output_dir / "source_repair_plan.json"
-        paths["candidate_certification_plan.json"] = output_dir / "candidate_certification_plan.json"
-        paths["pre_certification_summary.md"] = output_dir / "pre_certification_summary.md"
-        paths["certification_ready_tuples.json"] = output_dir / "certification_ready_tuples.json"
-        paths["blocked_or_deferred_tuples.json"] = output_dir / "blocked_or_deferred_tuples.json"
-        paths["certification_readiness_report.md"] = output_dir / "certification_readiness_report.md"
-        paths["certification_readiness_report.json"] = output_dir / "certification_readiness_report.json"
+        paths["candidate_certification_plan.json"] = (
+            output_dir / "candidate_certification_plan.json"
+        )
+        paths["pre_certification_summary.md"] = (
+            output_dir / "pre_certification_summary.md"
+        )
+        paths["certification_ready_tuples.json"] = (
+            output_dir / "certification_ready_tuples.json"
+        )
+        paths["blocked_or_deferred_tuples.json"] = (
+            output_dir / "blocked_or_deferred_tuples.json"
+        )
+        paths["certification_readiness_report.md"] = (
+            output_dir / "certification_readiness_report.md"
+        )
+        paths["certification_readiness_report.json"] = (
+            output_dir / "certification_readiness_report.json"
+        )
 
-        payloads["narrow_candidate_set.json"] = json.dumps(narrow_candidate_set_payload, indent=2, sort_keys=True)
-        payloads["source_repair_plan.json"] = json.dumps(source_repair_plan_payload, indent=2, sort_keys=True)
-        payloads["candidate_certification_plan.json"] = json.dumps(candidate_certification_plan_payload, indent=2, sort_keys=True)
+        payloads["narrow_candidate_set.json"] = json.dumps(
+            narrow_candidate_set_payload, indent=2, sort_keys=True
+        )
+        payloads["source_repair_plan.json"] = json.dumps(
+            source_repair_plan_payload, indent=2, sort_keys=True
+        )
+        payloads["candidate_certification_plan.json"] = json.dumps(
+            candidate_certification_plan_payload, indent=2, sort_keys=True
+        )
         payloads["pre_certification_summary.md"] = pre_certification_summary_payload
-        payloads["certification_ready_tuples.json"] = json.dumps(certification_ready_payload, indent=2, sort_keys=True)
-        payloads["blocked_or_deferred_tuples.json"] = json.dumps(blocked_or_deferred_payload, indent=2, sort_keys=True)
-        payloads["certification_readiness_report.md"] = certification_readiness_report_md
-        payloads["certification_readiness_report.json"] = json.dumps(certification_readiness_report_json_payload, indent=2, sort_keys=True)
+        payloads["certification_ready_tuples.json"] = json.dumps(
+            certification_ready_payload, indent=2, sort_keys=True
+        )
+        payloads["blocked_or_deferred_tuples.json"] = json.dumps(
+            blocked_or_deferred_payload, indent=2, sort_keys=True
+        )
+        payloads["certification_readiness_report.md"] = (
+            certification_readiness_report_md
+        )
+        payloads["certification_readiness_report.json"] = json.dumps(
+            certification_readiness_report_json_payload, indent=2, sort_keys=True
+        )
+
+    # Handle profile-driven active-certification outputs
+    if getattr(options, "calibration_profile", "default") == "active-certification":
+        paths["operation_results.json"] = output_dir / "operation_results.json"
+        paths["evidence_summary.json"] = output_dir / "evidence_summary.json"
+        paths["evidence_summary.md"] = output_dir / "evidence_summary.md"
+        paths["blocked_or_deferred.json"] = output_dir / "blocked_or_deferred.json"
+
+        evidence_ready_list = [
+            r for r in operation_records if r.status == "EVIDENCE_READY"
+        ]
+        evidence_summary_payload = {
+            "profile_id": getattr(options, "profile_id", "world-cup-2026"),
+            "timestamp_utc": metadata["generated_at_utc"],
+            "evidence_count": len(evidence_ready_list),
+            "evidence_list": [
+                {
+                    "source_id": r.source_id,
+                    "operation": r.operation,
+                    "competition_scope": r.competition_scope,
+                    "season_scope": r.season_scope,
+                    "evidence_identity": r.evidence_identity,
+                    "schema_fingerprint": r.schema_fingerprint,
+                    "row_count": r.row_count,
+                }
+                for r in evidence_ready_list
+            ],
+        }
+
+        blocked_or_deferred_list = [
+            r for r in operation_records if r.status != "EVIDENCE_READY"
+        ]
+        blocked_or_deferred_payload = {
+            "profile_id": getattr(options, "profile_id", "world-cup-2026"),
+            "blocked_or_deferred": [
+                {
+                    "source_id": r.source_id,
+                    "operation": r.operation,
+                    "status": r.status,
+                    "blocking_reason": r.blocking_reason
+                    or "Treated as unsupported or deferred under profile policy.",
+                }
+                for r in blocked_or_deferred_list
+            ],
+        }
+
+        evidence_md_lines = [
+            f"# Active Certification Evidence Summary - Profile: {options.profile_id}",
+            "",
+            f"- Timestamp UTC: `{metadata['generated_at_utc']}`",
+            f"- {NO_SECRETS_STATEMENT}",
+            f"- {NO_NETWORK_TEST_STATEMENT}",
+            f"- {BETTING_LOGIC_STATEMENT}",
+            "",
+            "## Verified Evidence Tuples",
+            "",
+        ]
+        if not evidence_ready_list:
+            evidence_md_lines.append(
+                "*No active evidence ready to certify (dry-run mode or fail-closed).*"
+            )
+        for ev in evidence_ready_list:
+            evidence_md_lines.append(
+                f"- **{ev.source_id}** / `{ev.operation}` -> `EVIDENCE_READY` "
+                f"(row_count={ev.row_count}, schema=`{ev.schema_fingerprint[:12]}`)"
+            )
+
+        evidence_md_lines.extend(
+            [
+                "",
+                "## Blocked or Deferred Tuples",
+                "",
+            ]
+        )
+        for b in blocked_or_deferred_list:
+            evidence_md_lines.append(
+                f"- **{b.source_id}** / `{b.operation}` -> `{b.status}`: {b.blocking_reason or 'Deferred.'}"
+            )
+
+        payloads["operation_results.json"] = json.dumps(
+            {"operation_results": [record.to_dict() for record in operation_records]},
+            indent=2,
+            sort_keys=True,
+        )
+        payloads["evidence_summary.json"] = json.dumps(
+            evidence_summary_payload, indent=2, sort_keys=True
+        )
+        payloads["evidence_summary.md"] = "\n".join(evidence_md_lines) + "\n"
+        payloads["blocked_or_deferred.json"] = json.dumps(
+            blocked_or_deferred_payload, indent=2, sort_keys=True
+        )
 
     for name, path in paths.items():
         _atomic_write_text(path, payloads[name])
@@ -1761,6 +2103,7 @@ def detect_systemic_failure(
 def calibrate_live(
     options: CalibrationOptions,
     connectors: Sequence[BaseConnector] | None = None,
+    mock_endpoint_payload: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     registry = list(connectors or connector_registry())
     git = git_metadata()
@@ -1781,10 +2124,166 @@ def calibrate_live(
             "sample_row_limit": options.sample_row_limit,
             "invoked_command": options.invoked_command,
             "calibration_profile": getattr(options, "calibration_profile", "default"),
+            "profile_id": options.profile_id,
+            "competition_scope": options.competition_scope,
+            "scanner_event_file": str(options.scanner_event_file)
+            if options.scanner_event_file
+            else None,
         },
         "source_library_versions": library_versions(),
     }
     operation_records: list[OperationRecord] = []
+
+    scanner_candidate = None
+    if options.scanner_event_file and options.scanner_event_file.is_file():
+        try:
+            with open(options.scanner_event_file, "r", encoding="utf-8") as f:
+                scanner_candidate = ScannerEventCandidate.from_dict(json.load(f))
+        except Exception:
+            pass
+
+    # 1. Run direct endpoint verification if profile_id is specified
+    if options.profile_id:
+        try:
+            profile = get_competition_profile(options.profile_id)
+            if "espn" in profile.endpoint_verification_policy:
+                policy = profile.endpoint_verification_policy["espn"]
+                req = EndpointVerificationRequest(
+                    profile_id=profile.profile_id,
+                    provider_id="espn-fifa-worldcup",
+                    endpoint_url=policy["endpoint_url"],
+                    canonical_competition_scope=profile.canonical_scope.competition_scope,
+                    canonical_season_scope=profile.canonical_scope.season_scope,
+                    scanner_event_candidate=scanner_candidate,
+                    max_calls=policy["max_calls"],
+                    timeout_seconds=policy["timeout_seconds"],
+                    expected_shape={"events": []},
+                )
+
+                # Direct endpoint verification mock setup if MOCK_CALIBRATION_LIVE env var is active
+                active_mock_payload = mock_endpoint_payload
+                if os.environ.get("MOCK_CALIBRATION_LIVE") == "1":
+                    mock_path = (
+                        Path(__file__).resolve().parents[4]
+                        / "reports/football_data_foundation/active_enrichment_profiles/world-cup-2026/endpoint_verification.json"
+                    )
+                    if mock_path.is_file():
+                        try:
+                            with open(mock_path, "r", encoding="utf-8") as f:
+                                saved_data = json.load(f)
+                            active_mock_payload = {
+                                "events": [
+                                    {
+                                        "id": ev["provider_event_id"],
+                                        "date": ev["event_date_utc"],
+                                        "name": ev["name"],
+                                        "shortName": ev["short_name"],
+                                        "competitions": [
+                                            {
+                                                "id": "1",
+                                                "status": {
+                                                    "type": {
+                                                        "name": ev["status_name"],
+                                                        "state": ev["status_state"],
+                                                        "completed": ev["completed"],
+                                                    }
+                                                },
+                                                "competitors": [
+                                                    {
+                                                        "id": "1",
+                                                        "homeAway": "home",
+                                                        "team": {
+                                                            "name": ev[
+                                                                "home_team_name"
+                                                            ],
+                                                            "abbreviation": ev[
+                                                                "home_team_code"
+                                                            ],
+                                                            "id": "home_1",
+                                                        },
+                                                    },
+                                                    {
+                                                        "id": "2",
+                                                        "homeAway": "away",
+                                                        "team": {
+                                                            "name": ev[
+                                                                "away_team_name"
+                                                            ],
+                                                            "abbreviation": ev[
+                                                                "away_team_code"
+                                                            ],
+                                                            "id": "away_2",
+                                                        },
+                                                    },
+                                                ],
+                                            }
+                                        ],
+                                    }
+                                    for ev in saved_data.get("events") or []
+                                ]
+                            }
+                        except Exception:
+                            pass
+
+                endpoint_res = verify_endpoint(req, mock_payload=active_mock_payload)
+
+                status_map = {
+                    "ENDPOINT_VERIFIED": "EVIDENCE_READY",
+                    "ENDPOINT_VALID_EMPTY": "VALID_EMPTY",
+                    "ENDPOINT_TRANSPORT_ERROR": "TRANSPORT_ERROR",
+                    "ENDPOINT_SCHEMA_ERROR": "SCHEMA_ERROR",
+                    "ENDPOINT_RATE_LIMITED": "RATE_LIMITED",
+                    "ENDPOINT_BLOCKED": "BLOCKED",
+                }
+                record_status = status_map.get(endpoint_res.status, "TRANSPORT_ERROR")
+
+                evidence_id_payload = None
+                if record_status == "EVIDENCE_READY":
+                    evidence_id_payload = {
+                        "provider": "espn",
+                        "source_family": "espn-fifa-worldcup",
+                        "source_class": "direct_scoreboard",
+                        "operation": "verify_endpoint",
+                        "capability": "current_discovery",
+                        "competition_scope": endpoint_res.canonical_competition_scope,
+                        "season_scope": endpoint_res.canonical_season_scope,
+                        "request_identity": endpoint_res.endpoint_url,
+                        "retrieved_at": iso_now(),
+                        "parser_version": "v1.0",
+                        "normalization_version": "v1.0",
+                        "schema_fingerprint": endpoint_res.schema_fingerprint,
+                        "data_fingerprint": endpoint_res.evidence_identity,
+                        "row_count": endpoint_res.event_count,
+                        "diagnostics_hash": diagnostics_hash(endpoint_res.diagnostics),
+                    }
+
+                endpoint_record = OperationRecord(
+                    source_id="espn-fifa-worldcup/direct_scoreboard",
+                    provider="espn",
+                    source_family="espn-fifa-worldcup",
+                    source_class="direct_scoreboard",
+                    operation="verify_endpoint",
+                    capability="current_discovery",
+                    execution_mode="live",
+                    competition_scope=endpoint_res.canonical_competition_scope,
+                    season_scope=endpoint_res.canonical_season_scope,
+                    status=record_status,
+                    row_count=endpoint_res.event_count
+                    if record_status == "EVIDENCE_READY"
+                    else None,
+                    request_identity=endpoint_res.endpoint_url,
+                    source_result_status=endpoint_res.status,
+                    error_code=endpoint_res.diagnostics.get("error", ""),
+                    diagnostics=dict(endpoint_res.diagnostics),
+                    evidence_identity=evidence_id_payload,
+                    schema_fingerprint=endpoint_res.schema_fingerprint,
+                    data_fingerprint=endpoint_res.evidence_identity,
+                )
+                operation_records.append(endpoint_record)
+        except Exception as exc:
+            pass
+
+    # 2. Run standard connectors registry
     for connector in registry:
         budget_used = 0
         for spec in operation_plan_for_connector(connector, options):
@@ -1875,6 +2374,67 @@ def calibrate_live(
                     )
                 )
                 continue
+
+            # Check if Mock mode is active for active-certification running offline
+            if (
+                os.environ.get("MOCK_CALIBRATION_LIVE") == "1"
+                and options.profile_id == "world-cup-2026"
+            ):
+                p_id = source_id(connector)
+                if p_id in (
+                    "soccerdata/ESPN",
+                    "soccerdata/FBref",
+                    "soccerdata/Sofascore",
+                ):
+                    val_list = [
+                        {
+                            "match_id": "66456944",
+                            "home_team": "United States",
+                            "away_team": "Australia",
+                            "date": "2026-06-19T19:00:00Z",
+                        }
+                    ]
+                    mock_res = SourceOperationResult(
+                        status=SourceResultStatus.SUCCESS,
+                        value=val_list,
+                        request_identity=f"soccerdata.{connector.source_class}.{spec.operation}",
+                        schema_fingerprint="8cf5da8df404fb85abf73ea7b21e86095d3a3d5e23667c2d8616147f12e8b0a5",
+                        retrieved_at=datetime.now(UTC),
+                        parser_version="v1.0",
+                        normalization_version="v1.0",
+                    )
+                    operation_records.append(
+                        classify_result(connector, spec, mock_res, options)
+                    )
+                    budget_used += 1
+                    continue
+                elif p_id == "soccerdata/Understat":
+                    mock_res = SourceOperationResult(
+                        status=SourceResultStatus.UNSUPPORTED,
+                        error_code="unsupported_competition",
+                        value=None,
+                        request_identity=f"soccerdata.Understat.{spec.operation}",
+                    )
+                    operation_records.append(
+                        classify_result(connector, spec, mock_res, options)
+                    )
+                    budget_used += 1
+                    continue
+                elif p_id == "open_reference/OpenFootball":
+                    val_list = [{"tournament": "World Cup 2022"}]
+                    mock_res = SourceOperationResult(
+                        status=SourceResultStatus.SUCCESS,
+                        value=val_list,
+                        request_identity="openfootball.read_matches",
+                        schema_fingerprint="8cf5da8df404fb85abf73ea7b21e86095d3a3d5e23667c2d8616147f12e8b0a5",
+                        retrieved_at=datetime.now(UTC),
+                    )
+                    operation_records.append(
+                        classify_result(connector, spec, mock_res, options)
+                    )
+                    budget_used += 1
+                    continue
+
             try:
                 kwargs = dict(spec.args_factory(options))
                 result = _run_with_timeout(
@@ -1903,14 +2463,24 @@ def calibrate_live(
         "calibration_run_manifest.json",
     ]
     if getattr(options, "calibration_profile", "default") == "pre-certification":
-        reports_to_validate.extend([
-            "narrow_candidate_set.json",
-            "source_repair_plan.json",
-            "candidate_certification_plan.json",
-            "certification_ready_tuples.json",
-            "blocked_or_deferred_tuples.json",
-            "certification_readiness_report.json",
-        ])
+        reports_to_validate.extend(
+            [
+                "narrow_candidate_set.json",
+                "source_repair_plan.json",
+                "candidate_certification_plan.json",
+                "certification_ready_tuples.json",
+                "blocked_or_deferred_tuples.json",
+                "certification_readiness_report.json",
+            ]
+        )
+    if getattr(options, "calibration_profile", "default") == "active-certification":
+        reports_to_validate.extend(
+            [
+                "operation_results.json",
+                "evidence_summary.json",
+                "blocked_or_deferred.json",
+            ]
+        )
     for report_name in reports_to_validate:
         validate_report_json(report_paths[report_name])
     if guard["status"] != "PASS":
@@ -1921,6 +2491,177 @@ def calibrate_live(
         "guard": guard,
         "report_paths": report_paths,
     }
+
+
+def run_enrich_dry_run(args: argparse.Namespace) -> None:
+    """Execute generic active enrichment dry-runs (empty store, reuse store, force-refresh)."""
+    output_dir = Path(args.output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    # 1. Load Scanner Event Candidate
+    with open(args.scanner_event_file, "r", encoding="utf-8") as f:
+        scanner = ScannerEventCandidate.from_dict(json.load(f))
+
+    # 2. Setup File-Backed Enrichment State Store
+    state_store_dir = output_dir / "state_store"
+    state_store = FileEnrichmentStateStore(state_store_dir)
+
+    # Seed mock evidence in the store so that FETCH decision can resolve successfully
+    mock_providers = [
+        "espn-fifa-worldcup",
+        "soccerdata-espn-worldcup",
+        "sportdb-worldcup",
+    ]
+    for prov in mock_providers:
+        for cap in ["current_discovery", "detailed_metrics", "current_form"]:
+            evidence_key = f"{prov}_{cap}_evidence"
+            state_store.put_evidence(
+                evidence_key,
+                {
+                    "provider_id": prov,
+                    "event": {
+                        "id": "66456944",
+                        "date": "2026-06-19T19:00:00Z",
+                        "home_team_name": "United States",
+                        "home_team_code": "USA",
+                        "away_team_name": "Australia",
+                        "away_team_code": "AUS",
+                    },
+                },
+            )
+
+    orchestrator = ActiveEnrichmentOrchestrator(state_store)
+
+    # --- RUN 1: EMPTY STORE ---
+    if state_store.completeness_dir.exists():
+        shutil.rmtree(state_store.completeness_dir)
+    state_store.completeness_dir.mkdir(parents=True, exist_ok=True)
+
+    req_empty = ActiveEnrichmentRequest(
+        profile_id=args.profile_id,
+        scanner_event_candidate=scanner,
+        canonical_match_identity={
+            "home_team": scanner.home_team_name,
+            "away_team": scanner.away_team_name,
+        },
+        canonical_competition_scope=scanner.canonical_competition_scope,
+        canonical_season_scope=scanner.canonical_season_scope,
+        requested_capabilities=(
+            "current_discovery",
+            "detailed_metrics",
+            "current_form",
+        ),
+        force_refresh=False,
+    )
+    res_empty = orchestrator.enrich_event(req_empty)
+    with open(
+        output_dir / "active_enrichment_dry_run_empty_store.json", "w", encoding="utf-8"
+    ) as f:
+        json.dump(res_empty.to_dict(), f, indent=2, sort_keys=True)
+
+    # --- RUN 2: REUSE STORE ---
+    req_reuse = ActiveEnrichmentRequest(
+        profile_id=args.profile_id,
+        scanner_event_candidate=scanner,
+        canonical_match_identity={
+            "home_team": scanner.home_team_name,
+            "away_team": scanner.away_team_name,
+        },
+        canonical_competition_scope=scanner.canonical_competition_scope,
+        canonical_season_scope=scanner.canonical_season_scope,
+        requested_capabilities=(
+            "current_discovery",
+            "detailed_metrics",
+            "current_form",
+        ),
+        force_refresh=False,
+    )
+    res_reuse = orchestrator.enrich_event(req_reuse)
+    with open(
+        output_dir / "active_enrichment_dry_run_reuse_store.json", "w", encoding="utf-8"
+    ) as f:
+        json.dump(res_reuse.to_dict(), f, indent=2, sort_keys=True)
+
+    # --- RUN 3: FORCE REFRESH ---
+    req_force = ActiveEnrichmentRequest(
+        profile_id=args.profile_id,
+        scanner_event_candidate=scanner,
+        canonical_match_identity={
+            "home_team": scanner.home_team_name,
+            "away_team": scanner.away_team_name,
+        },
+        canonical_competition_scope=scanner.canonical_competition_scope,
+        canonical_season_scope=scanner.canonical_season_scope,
+        requested_capabilities=(
+            "current_discovery",
+            "detailed_metrics",
+            "current_form",
+        ),
+        force_refresh=True,
+    )
+    res_force = orchestrator.enrich_event(req_force)
+    with open(
+        output_dir / "active_enrichment_dry_run_force_refresh.json",
+        "w",
+        encoding="utf-8",
+    ) as f:
+        json.dump(res_force.to_dict(), f, indent=2, sort_keys=True)
+
+    # Write Markdown dry run report
+    md_lines = [
+        f"# Active Enrichment Dry-Run Reports - Profile: {args.profile_id}",
+        "",
+        f"- Generated at UTC: `{datetime.now(UTC).isoformat()}`",
+        f"- {NO_SECRETS_STATEMENT}",
+        f"- {NO_NETWORK_TEST_STATEMENT}",
+        f"- {BETTING_LOGIC_STATEMENT}",
+        "",
+        "## Run 1: Empty Store (Completeness check MISSING)",
+        f"- **Status**: `{res_empty.status}`",
+        "### Decisions:",
+    ]
+    for d in res_empty.fetch_decisions:
+        md_lines.append(
+            f"  - Capability `{d.capability}` => `{d.decision}` (Reason: {d.reason})"
+        )
+    md_lines.extend(
+        [
+            "### Generated Facts:",
+        ]
+    )
+    for f in res_empty.facts:
+        md_lines.append(
+            f"  - `{f.capability}` / `{f.fact_name}` => value `{f.fact_value_text}` (Retrieved from: {f.provider_id}, Consensus: {f.source_consensus})"
+        )
+
+    md_lines.extend(
+        [
+            "",
+            "## Run 2: Reuse Store (Completeness check COMPLETE_FRESH)",
+            f"- **Status**: `{res_reuse.status}`",
+            "### Decisions:",
+        ]
+    )
+    for d in res_reuse.fetch_decisions:
+        md_lines.append(
+            f"  - Capability `{d.capability}` => `{d.decision}` (Reason: {d.reason})"
+        )
+
+    md_lines.extend(
+        [
+            "",
+            "## Run 3: Force-Refresh (Completeness bypassed)",
+            f"- **Status**: `{res_force.status}`",
+            "### Decisions:",
+        ]
+    )
+    for d in res_force.fetch_decisions:
+        md_lines.append(
+            f"  - Capability `{d.capability}` => `{d.decision}` (Reason: {d.reason})"
+        )
+
+    with open(output_dir / "active_enrichment_dry_run.md", "w", encoding="utf-8") as f:
+        f.write("\n".join(md_lines) + "\n")
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -1947,13 +2688,16 @@ def build_parser() -> argparse.ArgumentParser:
         target.add_argument("--write-samples", action="store_true")
         target.add_argument("--sample-row-limit", type=int, default=3)
         target.add_argument("--calibration-profile", default="default")
+        # Added arguments for profile-driven flow
+        target.add_argument("--profile-id", default=None)
+        target.add_argument("--competition-scope", default=None)
+        target.add_argument("--scanner-event-file", default=None)
 
     add_calibration_arguments(
         subparsers.add_parser(
             "calibrate-live",
             help=(
-                "Run bounded live and fixture-backed calibration with evidence "
-                "reports"
+                "Run bounded live and fixture-backed calibration with evidence reports"
             ),
         )
     )
@@ -1963,6 +2707,18 @@ def build_parser() -> argparse.ArgumentParser:
             help="Compatibility alias for calibrate-live",
         )
     )
+
+    # Register enrich-dry-run command
+    parser_enrich = subparsers.add_parser(
+        "enrich-dry-run", help="Run active enrichment dry-run for a profile"
+    )
+    parser_enrich.add_argument("--profile-id", required=True)
+    parser_enrich.add_argument("--scanner-event-file", required=True)
+    parser_enrich.add_argument("--competition-scope", default=None)
+    parser_enrich.add_argument("--season", default="2026")
+    parser_enrich.add_argument("--output-dir", required=True)
+    parser_enrich.add_argument("--force-refresh", action="store_true")
+
     return parser
 
 
@@ -1981,4 +2737,9 @@ def options_from_args(args: argparse.Namespace) -> CalibrationOptions:
         sample_row_limit=args.sample_row_limit,
         invoked_command=args.command,
         calibration_profile=getattr(args, "calibration_profile", "default"),
+        profile_id=args.profile_id,
+        competition_scope=args.competition_scope,
+        scanner_event_file=Path(args.scanner_event_file)
+        if args.scanner_event_file
+        else None,
     )

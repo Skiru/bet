@@ -1,0 +1,15 @@
+{
+  "profile_id": "world-cup-2026",
+  "competition_scope": "football:world:8/world-championship:lvUBR5F8",
+  "season_scope": "2026",
+  "timestamp_utc": "2026-06-19T21:18:48Z",
+  "acceptance_verdict": "PASS",
+  "certification_conclusions": {
+    "active_enrichment_eligible": true,
+    "total_certified_tuples": 3,
+    "understat_unsupported_confirmed": true,
+    "no_epl_evidence_used": true,
+    "reusable_profile_architecture": true,
+    "production_betting_decision_safe": "All active certified entries explicitly declare production_betting_decision=false, ensuring zero impact on prediction and staking modules."
+  }
+}

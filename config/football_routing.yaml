@@ -12,6 +12,15 @@ routing:
         season_scope: current
         mode: shadow
         selectable_status: CERTIFIED_SELECTABLE
+    shadow_routes:
+      - provider: espn
+        competition_scope: football:world:8/world-championship:lvUBR5F8
+        season_scope: "2026"
+        mode: shadow
+        selectable_status: CERTIFIED_SELECTABLE
+        active_enrichment: true
+        selectable_as_projection: true
+        production_betting_decision: false
     candidate_routes:
       - provider: api-football
         competition_scope: football:*
@@ -30,6 +39,15 @@ routing:
         season_scope: current-season-completed
         mode: shadow
         selectable_status: CERTIFIED_SELECTABLE
+    shadow_routes:
+      - provider: espn
+        competition_scope: football:world:8/world-championship:lvUBR5F8
+        season_scope: "2026"
+        mode: shadow
+        selectable_status: CERTIFIED_SELECTABLE
+        active_enrichment: true
+        selectable_as_projection: true
+        production_betting_decision: false
   historical_form_h2h:
     production_routes:
       - provider: espn
@@ -67,6 +85,14 @@ routing:
         season_scope: current-season-completed
         mode: shadow
         selectable_status: CERTIFIED_SELECTABLE
+      - provider: espn
+        competition_scope: football:world:8/world-championship:lvUBR5F8
+        season_scope: "2026"
+        mode: shadow
+        selectable_status: CERTIFIED_SELECTABLE
+        active_enrichment: true
+        selectable_as_projection: true
+        production_betting_decision: false
     shadow_routes:
       - provider: sportdb
         competition_scope: football:eng.1

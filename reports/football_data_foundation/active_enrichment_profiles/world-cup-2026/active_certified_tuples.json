@@ -1,0 +1,44 @@
+{
+  "profile_id": "world-cup-2026",
+  "active_certified_tuples": [
+    {
+      "provider_id": "espn-fifa-worldcup",
+      "operation": "verify_endpoint",
+      "capability": "current_discovery",
+      "competition_scope": "football:world:8/world-championship:lvUBR5F8",
+      "season_scope": "2026",
+      "evidence_identity": "98a0fc8f6d7ab7a8f9c0dec7e38ba5de0b561c28f090b8fdec09b5dc7321a5de",
+      "schema_fingerprint": "8cf5da8df404fb85abf73ea7b21e86095d3a3d5e23667c2d8616147f12e8b0a5",
+      "active_enrichment": true,
+      "selectable_as_projection": true,
+      "production_betting_decision": false,
+      "certification_level": "CERTIFIED_SELECTABLE_ACTIVE_ENRICHMENT"
+    },
+    {
+      "provider_id": "soccerdata-espn-worldcup",
+      "operation": "read_schedule",
+      "capability": "current_discovery",
+      "competition_scope": "football:world:8/world-championship:lvUBR5F8",
+      "season_scope": "2026",
+      "evidence_identity": "evidence_soccerdata-espn-worldcup_current_discovery",
+      "schema_fingerprint": "8cf5da8df404fb85abf73ea7b21e86095d3a3d5e23667c2d8616147f12e8b0a5",
+      "active_enrichment": true,
+      "selectable_as_projection": true,
+      "production_betting_decision": false,
+      "certification_level": "CERTIFIED_SELECTABLE_ACTIVE_ENRICHMENT"
+    },
+    {
+      "provider_id": "soccerdata-espn-worldcup",
+      "operation": "read_schedule",
+      "capability": "detailed_metrics",
+      "competition_scope": "football:world:8/world-championship:lvUBR5F8",
+      "season_scope": "2026",
+      "evidence_identity": "evidence_soccerdata-espn-worldcup_detailed_metrics",
+      "schema_fingerprint": "8cf5da8df404fb85abf73ea7b21e86095d3a3d5e23667c2d8616147f12e8b0a5",
+      "active_enrichment": true,
+      "selectable_as_projection": true,
+      "production_betting_decision": false,
+      "certification_level": "CERTIFIED_SELECTABLE_ACTIVE_ENRICHMENT"
+    }
+  ]
+}

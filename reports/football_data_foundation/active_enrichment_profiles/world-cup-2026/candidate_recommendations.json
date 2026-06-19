@@ -1,0 +1,72 @@
+{
+  "accepted_foundation_sha": "c0aa63231cdb80aa0698bae30567b6df4a7c6d40",
+  "candidate_recommendations": [
+    {
+      "blocking_reason": "",
+      "candidate_for_future_selectable_candidate": true,
+      "candidate_type": "not_candidate",
+      "competition_scope": "football:world:8/world-championship:lvUBR5F8",
+      "never_write_selectable_candidate_to_config": true,
+      "operation": "verify_endpoint",
+      "report_only": true,
+      "season_scope": "2026",
+      "source_id": "espn-fifa-worldcup/direct_scoreboard"
+    },
+    {
+      "blocking_reason": "",
+      "candidate_for_future_selectable_candidate": true,
+      "candidate_type": "schedule_current",
+      "competition_scope": "football:world:8/world-championship:lvUBR5F8",
+      "never_write_selectable_candidate_to_config": true,
+      "operation": "read_schedule",
+      "report_only": true,
+      "season_scope": "2026",
+      "source_id": "soccerdata/ESPN"
+    },
+    {
+      "blocking_reason": "",
+      "candidate_for_future_selectable_candidate": true,
+      "candidate_type": "schedule_current",
+      "competition_scope": "football:world:8/world-championship:lvUBR5F8",
+      "never_write_selectable_candidate_to_config": true,
+      "operation": "read_schedule",
+      "report_only": true,
+      "season_scope": "2026",
+      "source_id": "soccerdata/FBref"
+    },
+    {
+      "blocking_reason": "",
+      "candidate_for_future_selectable_candidate": true,
+      "candidate_type": "schedule_current",
+      "competition_scope": "football:world:8/world-championship:lvUBR5F8",
+      "never_write_selectable_candidate_to_config": true,
+      "operation": "read_schedule",
+      "report_only": true,
+      "season_scope": "2026",
+      "source_id": "soccerdata/Sofascore"
+    },
+    {
+      "blocking_reason": "operation_has_no_live_evidence",
+      "candidate_for_future_selectable_candidate": false,
+      "candidate_type": "not_candidate",
+      "competition_scope": "football:world:8/world-championship:lvUBR5F8",
+      "never_write_selectable_candidate_to_config": true,
+      "operation": "read_schedule",
+      "report_only": true,
+      "season_scope": "2026",
+      "source_id": "soccerdata/Understat"
+    },
+    {
+      "blocking_reason": "fixture_only_reference_data",
+      "candidate_for_future_selectable_candidate": false,
+      "candidate_type": "historical_backtest",
+      "competition_scope": "football:world:8/world-championship:lvUBR5F8",
+      "never_write_selectable_candidate_to_config": true,
+      "operation": "read_matches",
+      "report_only": true,
+      "season_scope": "2026",
+      "source_id": "open_reference/OpenFootball"
+    }
+  ],
+  "statement": "Recommendations are report-only and do not promote any selectable status into config."
+}

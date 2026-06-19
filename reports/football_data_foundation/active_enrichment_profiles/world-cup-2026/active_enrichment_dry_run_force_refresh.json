@@ -1,0 +1,93 @@
+{
+  "canonical_match_identity": {
+    "away_team": "Australia",
+    "home_team": "United States"
+  },
+  "conflict_diagnostics": [],
+  "evidence_refs": [
+    "evidence_espn-fifa-worldcup_current_discovery",
+    "evidence_espn-fifa-worldcup_detailed_metrics",
+    "evidence_espn-fifa-worldcup_current_form"
+  ],
+  "facts": [
+    {
+      "capability": "current_discovery",
+      "confidence": "high",
+      "evidence_identity": "evidence_espn-fifa-worldcup_current_discovery",
+      "fact_name": "current_discovery_status",
+      "fact_value_num": null,
+      "fact_value_text": "VERIFIED_SCHEDULED",
+      "profile_id": "world-cup-2026",
+      "provider_event_id": "66456944",
+      "provider_id": "espn-fifa-worldcup",
+      "retrieved_at": "2026-06-19T19:53:16.459942+00:00",
+      "schema_fingerprint": "8cf5da8df404fb85abf73ea7b21e86095d3a3d5e23667c2d8616147f12e8b0a5",
+      "source_consensus": "single_source_verified"
+    },
+    {
+      "capability": "detailed_metrics",
+      "confidence": "high",
+      "evidence_identity": "evidence_espn-fifa-worldcup_detailed_metrics",
+      "fact_name": "detailed_metrics_status",
+      "fact_value_num": null,
+      "fact_value_text": "VERIFIED_SCHEDULED",
+      "profile_id": "world-cup-2026",
+      "provider_event_id": "66456944",
+      "provider_id": "espn-fifa-worldcup",
+      "retrieved_at": "2026-06-19T19:53:16.460075+00:00",
+      "schema_fingerprint": "8cf5da8df404fb85abf73ea7b21e86095d3a3d5e23667c2d8616147f12e8b0a5",
+      "source_consensus": "single_source_verified"
+    },
+    {
+      "capability": "current_form",
+      "confidence": "high",
+      "evidence_identity": "evidence_espn-fifa-worldcup_current_form",
+      "fact_name": "current_form_status",
+      "fact_value_num": null,
+      "fact_value_text": "VERIFIED_SCHEDULED",
+      "profile_id": "world-cup-2026",
+      "provider_event_id": "66456944",
+      "provider_id": "espn-fifa-worldcup",
+      "retrieved_at": "2026-06-19T19:53:16.460225+00:00",
+      "schema_fingerprint": "8cf5da8df404fb85abf73ea7b21e86095d3a3d5e23667c2d8616147f12e8b0a5",
+      "source_consensus": "single_source_verified"
+    }
+  ],
+  "fetch_decisions": [
+    {
+      "capability": "current_discovery",
+      "decision": "FETCH_FORCED",
+      "force_refresh": true,
+      "provider_priority": [
+        "espn-fifa-worldcup",
+        "soccerdata-espn-worldcup",
+        "sportdb-worldcup"
+      ],
+      "reason": "Explicit force_refresh flag requested."
+    },
+    {
+      "capability": "detailed_metrics",
+      "decision": "FETCH_FORCED",
+      "force_refresh": true,
+      "provider_priority": [
+        "espn-fifa-worldcup",
+        "soccerdata-espn-worldcup"
+      ],
+      "reason": "Explicit force_refresh flag requested."
+    },
+    {
+      "capability": "current_form",
+      "decision": "FETCH_FORCED",
+      "force_refresh": true,
+      "provider_priority": [
+        "espn-fifa-worldcup"
+      ],
+      "reason": "Explicit force_refresh flag requested."
+    }
+  ],
+  "production_betting_decision": false,
+  "profile_id": "world-cup-2026",
+  "scanner_event_id": "66456944",
+  "status": "ENRICHED_COMPLETE",
+  "unavailable_capabilities": []
+}

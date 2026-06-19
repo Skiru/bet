@@ -1,0 +1,11 @@
+{
+  "blocked_or_deferred": [
+    {
+      "blocking_reason": "operation_has_no_live_evidence",
+      "operation": "read_schedule",
+      "source_id": "soccerdata/Understat",
+      "status": "NOT_SUPPORTED"
+    }
+  ],
+  "profile_id": "world-cup-2026"
+}

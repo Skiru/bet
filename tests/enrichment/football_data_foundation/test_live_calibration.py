@@ -223,8 +223,7 @@ def test_one_failing_source_does_not_fail_whole_calibration(
     )
 
     statuses = {
-        record.source_class: record.status
-        for record in result["operation_records"]
+        record.source_class: record.status for record in result["operation_records"]
     }
     assert statuses == {
         "SuccessSource": "EVIDENCE_READY",
@@ -398,8 +397,7 @@ def test_candidate_policy_blocks_fixture_only_and_missing_evidence() -> None:
     assert fixture_record.blocking_reason == "fixture_only_reference_data"
     assert missing_evidence_record.candidate_for_future_selectable_candidate is False
     assert (
-        missing_evidence_record.blocking_reason
-        == "evidence_identity_or_schema_missing"
+        missing_evidence_record.blocking_reason == "evidence_identity_or_schema_missing"
     )
 
 
@@ -460,7 +458,9 @@ def test_parser_defaults_match_safe_command_shape() -> None:
     assert args.sample_row_limit == 3
 
 
-def test_candidate_type_taxonomy_and_pre_certification_policies(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_candidate_type_taxonomy_and_pre_certification_policies(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     patch_common_metadata(monkeypatch)
 
     # 1. Verification of determine_candidate_type taxonomy
@@ -482,18 +482,31 @@ def test_candidate_type_taxonomy_and_pre_certification_policies(tmp_path: Path, 
     class OfflineMatchHistorySD:
         def __init__(self, *args, **kwargs):
             raise RuntimeError("Network calls are disabled in tests.")
+
         @staticmethod
         def available_leagues():
-            return ["ENG-Premier League", "ESP-La Liga", "FRA-Ligue 1", "GER-Bundesliga", "ITA-Serie A"]
+            return [
+                "ENG-Premier League",
+                "ESP-La Liga",
+                "FRA-Ligue 1",
+                "GER-Bundesliga",
+                "ITA-Serie A",
+            ]
 
     monkeypatch.setattr("soccerdata.MatchHistory", OfflineMatchHistorySD)
 
     # Mock MatchHistory Connector Execute to verify alias resolution
-    from bet.enrichment.football_data_foundation.soccerdata_sources.matchhistory import MatchHistoryConnector
+    from bet.enrichment.football_data_foundation.soccerdata_sources.matchhistory import (
+        MatchHistoryConnector,
+    )
+
     mh = MatchHistoryConnector()
     res1 = mh.execute("read_games", init_kwargs={"leagues": "EPL"})
-    assert res1.status == SourceResultStatus.NOT_SUPPORTED or res1.status == SourceResultStatus.PARSE_ERROR
-    
+    assert (
+        res1.status == SourceResultStatus.NOT_SUPPORTED
+        or res1.status == SourceResultStatus.PARSE_ERROR
+    )
+
     res2 = mh.execute("read_games", init_kwargs={"leagues": "InvalidLeagueNameAbc"})
     assert res2.status == SourceResultStatus.NOT_SUPPORTED
     assert res2.error_code == "unresolved_league_alias"
@@ -545,36 +558,41 @@ def test_candidate_type_taxonomy_and_pre_certification_policies(tmp_path: Path, 
         ),
     )
 
-    from bet.enrichment.football_data_foundation.calibration import operation_plan_for_connector
     monkeypatch.setattr(
         "bet.enrichment.football_data_foundation.calibration.operation_plan_for_connector",
-        lambda connector, _options: [
-            CalibrationOperationSpec(
-                operation="read_schedule",
-                capability="current_discovery",
-                competition_scope="ENG-Premier League",
-                season_scope="2024",
-                execution_mode="live",
-            )
-        ] if connector.source_class == "ESPN" else (
+        lambda connector, _options: (
             [
                 CalibrationOperationSpec(
-                    operation="read_leagues",
+                    operation="read_schedule",
                     capability="current_discovery",
                     competition_scope="ENG-Premier League",
                     season_scope="2024",
                     execution_mode="live",
                 )
-            ] if connector.source_class == "Sofascore" else [
-                CalibrationOperationSpec(
-                    operation="read_by_date",
-                    capability="current_recent_form",
-                    competition_scope="global",
-                    season_scope="date:2024-08-15",
-                    execution_mode="live",
-                )
             ]
-        )
+            if connector.source_class == "ESPN"
+            else (
+                [
+                    CalibrationOperationSpec(
+                        operation="read_leagues",
+                        capability="current_discovery",
+                        competition_scope="ENG-Premier League",
+                        season_scope="2024",
+                        execution_mode="live",
+                    )
+                ]
+                if connector.source_class == "Sofascore"
+                else [
+                    CalibrationOperationSpec(
+                        operation="read_by_date",
+                        capability="current_recent_form",
+                        competition_scope="global",
+                        season_scope="date:2024-08-15",
+                        execution_mode="live",
+                    )
+                ]
+            )
+        ),
     )
 
     opts = CalibrationOptions(
@@ -587,8 +605,10 @@ def test_candidate_type_taxonomy_and_pre_certification_policies(tmp_path: Path, 
         calibration_profile="pre-certification",
     )
 
-    result = calibrate_live(opts, connectors=[connector_espn, connector_sofascore, connector_clubelo])
-    
+    result = calibrate_live(
+        opts, connectors=[connector_espn, connector_sofascore, connector_clubelo]
+    )
+
     # 10. Pre-certification profile writes all report files.
     assert (opts.output_dir / "narrow_candidate_set.json").exists()
     assert (opts.output_dir / "source_repair_plan.json").exists()
@@ -605,9 +625,16 @@ def test_candidate_type_taxonomy_and_pre_certification_policies(tmp_path: Path, 
         assert "CERTIFIED_SELECTABLE" not in content
 
     # 14. Reports include no config/routing/prediction logic changed statement.
-    summary_content = (opts.output_dir / "pre_certification_summary.md").read_text(encoding="utf-8")
-    assert "No config, routing, or betting prediction/decision logic was changed" in summary_content
-    readiness_md = (opts.output_dir / "certification_readiness_report.md").read_text(encoding="utf-8")
+    summary_content = (opts.output_dir / "pre_certification_summary.md").read_text(
+        encoding="utf-8"
+    )
+    assert (
+        "No config, routing, or betting prediction/decision logic was changed"
+        in summary_content
+    )
+    readiness_md = (opts.output_dir / "certification_readiness_report.md").read_text(
+        encoding="utf-8"
+    )
     assert "no config files changed" in readiness_md
     assert "no routing changed" in readiness_md
     assert "no betting decision logic changed" in readiness_md
@@ -627,9 +654,11 @@ def test_candidate_type_taxonomy_and_pre_certification_policies(tmp_path: Path, 
     assert elo_record.season_scope == "date:2024-08-15"
 
     # 7. narrow_candidate_set excludes metadata_discovery and missing evidence
-    narrow_set_data = json.loads((opts.output_dir / "narrow_candidate_set.json").read_text(encoding="utf-8"))
+    narrow_set_data = json.loads(
+        (opts.output_dir / "narrow_candidate_set.json").read_text(encoding="utf-8")
+    )
     narrow_candidates = narrow_set_data["narrow_candidate_set"]
-    
+
     # Sofascore read_leagues is metadata_discovery, so it must not be in the narrow candidate set
     assert not any(c["source_id"] == "soccerdata/Sofascore" for c in narrow_candidates)
     # ESPN and ClubElo should be present
@@ -638,7 +667,11 @@ def test_candidate_type_taxonomy_and_pre_certification_policies(tmp_path: Path, 
 
     # MANDATORY FIX 4 Checks:
     # 1. candidate_certification_plan.json contains no needs_repair entries.
-    cert_plan_data = json.loads((opts.output_dir / "candidate_certification_plan.json").read_text(encoding="utf-8"))
+    cert_plan_data = json.loads(
+        (opts.output_dir / "candidate_certification_plan.json").read_text(
+            encoding="utf-8"
+        )
+    )
     recs = cert_plan_data["recommended_certification_candidates"]
     assert not any(c["candidate_type"] == "needs_repair" for c in recs)
     # 2. candidate_certification_plan.json contains no not_candidate entries.
@@ -649,7 +682,11 @@ def test_candidate_type_taxonomy_and_pre_certification_policies(tmp_path: Path, 
     assert not any(c["candidate_type"] == "reference_fixture" for c in recs)
 
     # 5. certification_ready_tuples.json contains only EVIDENCE_READY entries.
-    ready_data = json.loads((opts.output_dir / "certification_ready_tuples.json").read_text(encoding="utf-8"))
+    ready_data = json.loads(
+        (opts.output_dir / "certification_ready_tuples.json").read_text(
+            encoding="utf-8"
+        )
+    )
     ready_tuples = ready_data["certification_ready_candidates"]
     for t in ready_tuples:
         assert t["status"] == "EVIDENCE_READY"
@@ -662,12 +699,22 @@ def test_candidate_type_taxonomy_and_pre_certification_policies(tmp_path: Path, 
     # 8. certification_ready_tuples.json excludes MatchHistory/read_games while needs_repair.
     assert not any(t["source_id"] == "soccerdata/MatchHistory" for t in ready_tuples)
     # 9. certification_ready_tuples.json excludes Sofascore/read_leagues.
-    assert not any(t["source_id"] == "soccerdata/Sofascore" and t["operation"] == "read_leagues" for t in ready_tuples)
+    assert not any(
+        t["source_id"] == "soccerdata/Sofascore" and t["operation"] == "read_leagues"
+        for t in ready_tuples
+    )
     # 10. SoFIFA/read_versions is context-only and excluded from route certification readiness unless explicitly marked non-route.
     assert not any(t["source_id"] == "soccerdata/SoFIFA" for t in ready_tuples)
 
     # 11. blocked_or_deferred_tuples.json includes all excluded/deferred sources with reasons.
-    blocked_data = json.loads((opts.output_dir / "blocked_or_deferred_tuples.json").read_text(encoding="utf-8"))
+    blocked_data = json.loads(
+        (opts.output_dir / "blocked_or_deferred_tuples.json").read_text(
+            encoding="utf-8"
+        )
+    )
     blocked_tuples = blocked_data["blocked_or_deferred_candidates"]
     assert any(b["source_id"] == "soccerdata/ClubElo" for b in blocked_tuples)
-    assert any(b["source_id"] == "soccerdata/Sofascore" and b["operation"] == "read_leagues" for b in blocked_tuples)
+    assert any(
+        b["source_id"] == "soccerdata/Sofascore" and b["operation"] == "read_leagues"
+        for b in blocked_tuples
+    )

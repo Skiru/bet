@@ -1,0 +1,11 @@
+{
+  "event": {
+    "away_team_code": "AUS",
+    "away_team_name": "Australia",
+    "date": "2026-06-19T19:00:00Z",
+    "home_team_code": "USA",
+    "home_team_name": "United States",
+    "id": "66456944"
+  },
+  "provider_id": "soccerdata-espn-worldcup"
+}
