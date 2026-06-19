@@ -1,0 +1,69 @@
+{
+  "blockers": [],
+  "certification": {
+    "certified_routes": [],
+    "production_routing_changed": false,
+    "selectable_status_changed": false,
+    "verdict": "NOT_CERTIFIED_SCOPE_LIMITED_SHADOW_REGISTRATION_ONLY"
+  },
+  "classification": "SPORTDB_SCOPE_LIMITED_SHADOW_REGISTRATION_APPLIED",
+  "drift_checks": {
+    "accepted_provider_drift_detected": false,
+    "forbidden_status_values_detected": [],
+    "routing_production_drift_detected": false
+  },
+  "evidence_basis": [
+    "certification/football/p2e_sportdb_semantic_gap_review_certification_plan_summary.json",
+    "certification/football/p2e_sportdb_value_replay_against_accepted_provider_summary.json",
+    "certification/football/p2e_accepted_provider_same_match_replay_capture_summary.json",
+    "certification/football/p2e_sportdb_identity_bridge_value_replay_summary.json",
+    "certification/football/p2e_sportdb_evidence_bundle_summary.json",
+    "certification/football/p2e_sportdb_replay_comparison_summary.json",
+    "certification/football/p2e_sportdb_shadow_adapter_summary.json",
+    "certification/football/p2d_highlightly_certification_summary.json"
+  ],
+  "evidence_level": "TRACKED_SCOPE_LIMITED_SHADOW_REGISTRATION_SUMMARY",
+  "final_review": "PASS",
+  "impact_on_p2d": "none_highlightly_remains_accepted",
+  "metric_scope": {
+    "certifiable_metric_scope": [
+      "blocked_shots",
+      "corners",
+      "expected_goals",
+      "fouls",
+      "goalkeeper_saves",
+      "offsides",
+      "possession",
+      "shots_off_target",
+      "shots_on_goal",
+      "yellow_cards"
+    ],
+    "excluded_metric_scope": [
+      "successful_passes",
+      "total_passes"
+    ],
+    "excluded_reason": {
+      "successful_passes": "A10 accepted semantic gap exclusion for reduced certification scope.",
+      "total_passes": "A10 accepted semantic gap exclusion for reduced certification scope."
+    }
+  },
+  "mode": "config_registration_only_no_live_calls",
+  "next_step": "P2E_A12_FINAL_SPORTDB_SHADOW_REGISTRATION_AUDIT",
+  "phase_id": "P2E_A11_SPORTDB_SCOPE_LIMITED_SHADOW_REGISTRATION",
+  "previous_accepted_sha": "a54bbf1fee0942821dc4ebe03f3ac3a65fd79543",
+  "prompt_version": "v1_masterpiece_minimal_shadow_registration_copy_safe",
+  "protected_worktree": "/Users/mkoziol/projects/bet-multisport-enrichment-v1",
+  "provider": "sportdb",
+  "registration": {
+    "applied": true,
+    "certified_selectable_added": false,
+    "current_live_scope_added": false,
+    "matrix_path": "config/provider_capability_matrix.json",
+    "production_route_added": false,
+    "route": "detailed_metrics/sportdb/football:eng.1/current-season-completed/shadow",
+    "routing_path": "config/football_routing.yaml",
+    "selectable_as_projection": false,
+    "status": "CERTIFIED_SHADOW"
+  },
+  "secret_safe": true
+}

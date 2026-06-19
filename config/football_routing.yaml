@@ -67,6 +67,12 @@ routing:
         season_scope: current-season-completed
         mode: shadow
         selectable_status: CERTIFIED_SELECTABLE
+    shadow_routes:
+      - provider: sportdb
+        competition_scope: football:eng.1
+        season_scope: current-season-completed
+        mode: shadow
+        selectable_status: CERTIFIED_SHADOW
   advanced_xg:
     shadow_routes:
       - provider: understat

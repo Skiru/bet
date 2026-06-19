@@ -358,24 +358,52 @@
       ]
     },
     "sportdb": {
-      "classification": "NOT_IMPLEMENTED",
+      "classification": "SCOPE_LIMITED_SHADOW_REGISTERED",
       "provenance_family": "sportdb.dev",
       "transport_type": "metadata_api",
       "capabilities": {
-        "current_discovery": [
+        "detailed_metrics": [
           {
-            "status": "NOT_IMPLEMENTED",
-            "competition_scope": "football:*",
-            "season_scope": "current",
+            "status": "CERTIFIED_SHADOW",
+            "competition_scope": "football:eng.1",
+            "season_scope": "current-season-completed",
             "mode": "shadow",
             "selectable_as_projection": false,
-            "evidence_replay": false,
-            "exact_reason": "No SportDB.dev provider implementation exists in the repository yet, so it remains a future bounded candidate only."
+            "evidence_replay": true,
+            "exact_reason": "A10 semantic-gap review accepted reduced scope; A9 value replay had 10 canonical metrics, 0 hard mismatches, and 2 pass semantic gaps; certifiable metrics exclude total_passes and successful_passes; this registration is not production-selectable and not a current-live certification.",
+            "certifiable_metric_scope": [
+              "blocked_shots",
+              "corners",
+              "expected_goals",
+              "fouls",
+              "goalkeeper_saves",
+              "offsides",
+              "possession",
+              "shots_off_target",
+              "shots_on_goal",
+              "yellow_cards"
+            ],
+            "excluded_metric_scope": [
+              "successful_passes",
+              "total_passes"
+            ],
+            "evidence_basis": [
+              "certification/football/p2e_sportdb_semantic_gap_review_certification_plan_summary.json",
+              "certification/football/p2e_sportdb_value_replay_against_accepted_provider_summary.json",
+              "certification/football/p2e_accepted_provider_same_match_replay_capture_summary.json",
+              "certification/football/p2e_sportdb_identity_bridge_value_replay_summary.json",
+              "certification/football/p2e_sportdb_evidence_bundle_summary.json",
+              "certification/football/p2e_sportdb_replay_comparison_summary.json",
+              "certification/football/p2e_sportdb_shadow_adapter_summary.json",
+              "certification/football/p2d_highlightly_certification_summary.json"
+            ],
+            "registration_phase": "P2E_A11_SPORTDB_SCOPE_LIMITED_SHADOW_REGISTRATION"
           }
         ]
       },
       "risks": [
-        "no provider-native implementation present"
+        "shadow-only completed-season detailed metrics scope excludes pass-count certification",
+        "not production-selectable and not current-live certified"
       ]
     },
     "thesportsdb": {
