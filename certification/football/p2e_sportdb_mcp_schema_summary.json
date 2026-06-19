@@ -1,0 +1,1251 @@
+{
+  "phase_id": "P2E_A2_SPORTDB_MCP_TOOL_SCHEMA_MAPPING",
+  "previous_accepted_sha": "5acd3bf4ce7bc0b8bc900ada0c13e70c588bdc02",
+  "evidence_level": "TRACKED_MCP_SCHEMA_SUMMARY",
+  "provider": "sportdb",
+  "mcp": {
+    "endpoint": "https://api.sportdb.dev/mcp/",
+    "auth_header": "X-API-Key",
+    "response_modes_observed": [
+      "sse"
+    ],
+    "calls": [
+      {
+        "method": "initialize",
+        "status": 200,
+        "content_type": "text/event-stream",
+        "response_mode": "sse",
+        "raw_response_sha256": "edfaee4fed5d9132f90ac87fefa826036f4947e2bb35a45aaffd9be6c2373334",
+        "jsonrpc_id": "initialize-1",
+        "error": null,
+        "names": [],
+        "schemas_returned": [],
+        "rate_limit_headers": {}
+      },
+      {
+        "method": "tools/list",
+        "status": 200,
+        "content_type": "text/event-stream",
+        "response_mode": "sse",
+        "raw_response_sha256": "7ef7dd1af401514c5edb821c1f5029d0804b073a9300c3e4e8280d1073eb1600",
+        "jsonrpc_id": "tools-list-2",
+        "error": null,
+        "names": [
+          "flashscore_list_sports",
+          "flashscore_get_live",
+          "flashscore_get_live_odds",
+          "flashscore_list_countries",
+          "flashscore_list_competitions",
+          "flashscore_list_competition_seasons",
+          "flashscore_get_competition_fixtures",
+          "flashscore_get_competition_results",
+          "flashscore_get_competition_standings",
+          "flashscore_get_match_stats",
+          "flashscore_get_match_events",
+          "flashscore_get_match_lineups",
+          "flashscore_get_team_details",
+          "flashscore_get_player_details",
+          "flashscore_search"
+        ],
+        "schemas_returned": [
+          "flashscore_list_sports",
+          "flashscore_get_live",
+          "flashscore_get_live_odds",
+          "flashscore_list_countries",
+          "flashscore_list_competitions",
+          "flashscore_list_competition_seasons",
+          "flashscore_get_competition_fixtures",
+          "flashscore_get_competition_results",
+          "flashscore_get_competition_standings",
+          "flashscore_get_match_stats",
+          "flashscore_get_match_events",
+          "flashscore_get_match_lineups",
+          "flashscore_get_team_details",
+          "flashscore_get_player_details",
+          "flashscore_search"
+        ],
+        "rate_limit_headers": {}
+      },
+      {
+        "method": "resources/list",
+        "status": 200,
+        "content_type": "text/event-stream",
+        "response_mode": "sse",
+        "raw_response_sha256": "1d48d9f878d05a18572e5dbf0b76e2939d1d4bd367f537bcb2bec89460ce8cd1",
+        "jsonrpc_id": "resources-list-3",
+        "error": null,
+        "names": [],
+        "schemas_returned": [],
+        "rate_limit_headers": {}
+      },
+      {
+        "method": "prompts/list",
+        "status": 200,
+        "content_type": "text/event-stream",
+        "response_mode": "sse",
+        "raw_response_sha256": "64e9812b9e4cc43791f8fbf9a55cc893efea1062f98e4fc3e0485ffc213de864",
+        "jsonrpc_id": "prompts-list-4",
+        "error": null,
+        "names": [],
+        "schemas_returned": [],
+        "rate_limit_headers": {}
+      }
+    ],
+    "tools_count": 15,
+    "resources_count": 0,
+    "prompts_count": 0
+  },
+  "env_preflight": {
+    "required_aliases": [
+      "SPORTDB_API_KEY",
+      "SPORTDB_KEY"
+    ],
+    "found_key": "SPORTDB_API_KEY",
+    "source": "dot_env",
+    "secret_safe": true
+  },
+  "tool_schemas": {
+    "flashscore_list_sports": {
+      "tool_name": "flashscore_list_sports",
+      "description": "List available sports and their live feed links.",
+      "input_schema": {
+        "properties": {},
+        "title": "flashscore_list_sportsArguments",
+        "type": "object"
+      },
+      "required_fields": [],
+      "optional_fields": [],
+      "enum_fields": {},
+      "sport_parameter_support": [],
+      "country_parameters": [],
+      "competition_parameters": [],
+      "season_parameters": [],
+      "match_id_parameters": [],
+      "pagination_or_limit_parameters": [],
+      "date_time_parameters": [],
+      "output_hints": [
+        "List available sports and their live feed links."
+      ],
+      "likely_capability_mapping": "sports discovery"
+    },
+    "flashscore_get_live": {
+      "tool_name": "flashscore_get_live",
+      "description": "Get live events for a sport. Supports day offset and timezone offset.",
+      "input_schema": {
+        "properties": {
+          "sport": {
+            "title": "Sport",
+            "type": "string"
+          },
+          "offset": {
+            "default": 0,
+            "title": "Offset",
+            "type": "integer"
+          },
+          "tz": {
+            "default": 0,
+            "title": "Tz",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "sport"
+        ],
+        "title": "flashscore_get_liveArguments",
+        "type": "object"
+      },
+      "required_fields": [
+        "sport"
+      ],
+      "optional_fields": [
+        "offset",
+        "tz"
+      ],
+      "enum_fields": {},
+      "sport_parameter_support": [
+        "sport"
+      ],
+      "country_parameters": [],
+      "competition_parameters": [],
+      "season_parameters": [],
+      "match_id_parameters": [],
+      "pagination_or_limit_parameters": [
+        "offset"
+      ],
+      "date_time_parameters": [],
+      "output_hints": [
+        "Get live events for a sport. Supports day offset and timezone offset."
+      ],
+      "likely_capability_mapping": "live scoreboard"
+    },
+    "flashscore_get_live_odds": {
+      "tool_name": "flashscore_get_live_odds",
+      "description": "Get live odds for a sport.",
+      "input_schema": {
+        "properties": {
+          "sport": {
+            "title": "Sport",
+            "type": "string"
+          }
+        },
+        "required": [
+          "sport"
+        ],
+        "title": "flashscore_get_live_oddsArguments",
+        "type": "object"
+      },
+      "required_fields": [
+        "sport"
+      ],
+      "optional_fields": [],
+      "enum_fields": {},
+      "sport_parameter_support": [
+        "sport"
+      ],
+      "country_parameters": [],
+      "competition_parameters": [],
+      "season_parameters": [],
+      "match_id_parameters": [],
+      "pagination_or_limit_parameters": [],
+      "date_time_parameters": [],
+      "output_hints": [
+        "Get live odds for a sport."
+      ],
+      "likely_capability_mapping": "live odds"
+    },
+    "flashscore_list_countries": {
+      "tool_name": "flashscore_list_countries",
+      "description": "List countries or regions for a sport.",
+      "input_schema": {
+        "properties": {
+          "sport": {
+            "title": "Sport",
+            "type": "string"
+          }
+        },
+        "required": [
+          "sport"
+        ],
+        "title": "flashscore_list_countriesArguments",
+        "type": "object"
+      },
+      "required_fields": [
+        "sport"
+      ],
+      "optional_fields": [],
+      "enum_fields": {},
+      "sport_parameter_support": [
+        "sport"
+      ],
+      "country_parameters": [],
+      "competition_parameters": [],
+      "season_parameters": [],
+      "match_id_parameters": [],
+      "pagination_or_limit_parameters": [],
+      "date_time_parameters": [],
+      "output_hints": [
+        "List countries or regions for a sport."
+      ],
+      "likely_capability_mapping": "country discovery"
+    },
+    "flashscore_list_competitions": {
+      "tool_name": "flashscore_list_competitions",
+      "description": "List competitions for a country/region in a sport. Pass structured refs: sport=soccer, country_slug=england, country_id=198.",
+      "input_schema": {
+        "properties": {
+          "sport": {
+            "title": "Sport",
+            "type": "string"
+          },
+          "country_slug": {
+            "title": "Country Slug",
+            "type": "string"
+          },
+          "country_id": {
+            "title": "Country Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "sport",
+          "country_slug",
+          "country_id"
+        ],
+        "title": "flashscore_list_competitionsArguments",
+        "type": "object"
+      },
+      "required_fields": [
+        "sport",
+        "country_slug",
+        "country_id"
+      ],
+      "optional_fields": [],
+      "enum_fields": {},
+      "sport_parameter_support": [
+        "sport"
+      ],
+      "country_parameters": [
+        "country_slug",
+        "country_id"
+      ],
+      "competition_parameters": [],
+      "season_parameters": [],
+      "match_id_parameters": [],
+      "pagination_or_limit_parameters": [],
+      "date_time_parameters": [],
+      "output_hints": [
+        "List competitions for a country/region in a sport. Pass structured refs: sport=soccer, country_slug=england, country_id=198."
+      ],
+      "likely_capability_mapping": "competition discovery"
+    },
+    "flashscore_list_competition_seasons": {
+      "tool_name": "flashscore_list_competition_seasons",
+      "description": "List seasons for a competition. Use structured refs: country_slug+country_id and competition_slug+competition_id.",
+      "input_schema": {
+        "properties": {
+          "sport": {
+            "title": "Sport",
+            "type": "string"
+          },
+          "country_slug": {
+            "title": "Country Slug",
+            "type": "string"
+          },
+          "country_id": {
+            "title": "Country Id",
+            "type": "integer"
+          },
+          "competition_slug": {
+            "title": "Competition Slug",
+            "type": "string"
+          },
+          "competition_id": {
+            "title": "Competition Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "sport",
+          "country_slug",
+          "country_id",
+          "competition_slug",
+          "competition_id"
+        ],
+        "title": "flashscore_list_competition_seasonsArguments",
+        "type": "object"
+      },
+      "required_fields": [
+        "sport",
+        "country_slug",
+        "country_id",
+        "competition_slug",
+        "competition_id"
+      ],
+      "optional_fields": [],
+      "enum_fields": {},
+      "sport_parameter_support": [
+        "sport"
+      ],
+      "country_parameters": [
+        "country_slug",
+        "country_id"
+      ],
+      "competition_parameters": [
+        "competition_slug",
+        "competition_id"
+      ],
+      "season_parameters": [],
+      "match_id_parameters": [],
+      "pagination_or_limit_parameters": [],
+      "date_time_parameters": [],
+      "output_hints": [
+        "List seasons for a competition. Use structured refs: country_slug+country_id and competition_slug+competition_id."
+      ],
+      "likely_capability_mapping": "season discovery"
+    },
+    "flashscore_get_competition_fixtures": {
+      "tool_name": "flashscore_get_competition_fixtures",
+      "description": "Get fixtures for a competition season (paged). Use structured refs and season from flashscore_list_competition_seasons.",
+      "input_schema": {
+        "properties": {
+          "sport": {
+            "title": "Sport",
+            "type": "string"
+          },
+          "country_slug": {
+            "title": "Country Slug",
+            "type": "string"
+          },
+          "country_id": {
+            "title": "Country Id",
+            "type": "integer"
+          },
+          "competition_slug": {
+            "title": "Competition Slug",
+            "type": "string"
+          },
+          "competition_id": {
+            "title": "Competition Id",
+            "type": "string"
+          },
+          "season": {
+            "title": "Season",
+            "type": "string"
+          },
+          "page": {
+            "default": 1,
+            "title": "Page",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "sport",
+          "country_slug",
+          "country_id",
+          "competition_slug",
+          "competition_id",
+          "season"
+        ],
+        "title": "flashscore_get_competition_fixturesArguments",
+        "type": "object"
+      },
+      "required_fields": [
+        "sport",
+        "country_slug",
+        "country_id",
+        "competition_slug",
+        "competition_id",
+        "season"
+      ],
+      "optional_fields": [
+        "page"
+      ],
+      "enum_fields": {},
+      "sport_parameter_support": [
+        "sport"
+      ],
+      "country_parameters": [
+        "country_slug",
+        "country_id"
+      ],
+      "competition_parameters": [
+        "competition_slug",
+        "competition_id"
+      ],
+      "season_parameters": [
+        "season"
+      ],
+      "match_id_parameters": [],
+      "pagination_or_limit_parameters": [
+        "page"
+      ],
+      "date_time_parameters": [],
+      "output_hints": [
+        "Get fixtures for a competition season (paged). Use structured refs and season from flashscore_list_competition_seasons."
+      ],
+      "likely_capability_mapping": "fixtures"
+    },
+    "flashscore_get_competition_results": {
+      "tool_name": "flashscore_get_competition_results",
+      "description": "Get results for a competition season (paged). Pass sport/country_slug/country_id/competition_slug/competition_id/season.",
+      "input_schema": {
+        "properties": {
+          "sport": {
+            "title": "Sport",
+            "type": "string"
+          },
+          "country_slug": {
+            "title": "Country Slug",
+            "type": "string"
+          },
+          "country_id": {
+            "title": "Country Id",
+            "type": "integer"
+          },
+          "competition_slug": {
+            "title": "Competition Slug",
+            "type": "string"
+          },
+          "competition_id": {
+            "title": "Competition Id",
+            "type": "string"
+          },
+          "season": {
+            "title": "Season",
+            "type": "string"
+          },
+          "page": {
+            "default": 1,
+            "title": "Page",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "sport",
+          "country_slug",
+          "country_id",
+          "competition_slug",
+          "competition_id",
+          "season"
+        ],
+        "title": "flashscore_get_competition_resultsArguments",
+        "type": "object"
+      },
+      "required_fields": [
+        "sport",
+        "country_slug",
+        "country_id",
+        "competition_slug",
+        "competition_id",
+        "season"
+      ],
+      "optional_fields": [
+        "page"
+      ],
+      "enum_fields": {},
+      "sport_parameter_support": [
+        "sport"
+      ],
+      "country_parameters": [
+        "country_slug",
+        "country_id"
+      ],
+      "competition_parameters": [
+        "competition_slug",
+        "competition_id"
+      ],
+      "season_parameters": [
+        "season"
+      ],
+      "match_id_parameters": [],
+      "pagination_or_limit_parameters": [
+        "page"
+      ],
+      "date_time_parameters": [],
+      "output_hints": [
+        "Get results for a competition season (paged). Pass sport/country_slug/country_id/competition_slug/competition_id/season."
+      ],
+      "likely_capability_mapping": "results"
+    },
+    "flashscore_get_competition_standings": {
+      "tool_name": "flashscore_get_competition_standings",
+      "description": "Get standings for a competition season. Use structured refs and season from flashscore_list_competition_seasons.",
+      "input_schema": {
+        "properties": {
+          "sport": {
+            "title": "Sport",
+            "type": "string"
+          },
+          "country_slug": {
+            "title": "Country Slug",
+            "type": "string"
+          },
+          "country_id": {
+            "title": "Country Id",
+            "type": "integer"
+          },
+          "competition_slug": {
+            "title": "Competition Slug",
+            "type": "string"
+          },
+          "competition_id": {
+            "title": "Competition Id",
+            "type": "string"
+          },
+          "season": {
+            "title": "Season",
+            "type": "string"
+          }
+        },
+        "required": [
+          "sport",
+          "country_slug",
+          "country_id",
+          "competition_slug",
+          "competition_id",
+          "season"
+        ],
+        "title": "flashscore_get_competition_standingsArguments",
+        "type": "object"
+      },
+      "required_fields": [
+        "sport",
+        "country_slug",
+        "country_id",
+        "competition_slug",
+        "competition_id",
+        "season"
+      ],
+      "optional_fields": [],
+      "enum_fields": {},
+      "sport_parameter_support": [
+        "sport"
+      ],
+      "country_parameters": [
+        "country_slug",
+        "country_id"
+      ],
+      "competition_parameters": [
+        "competition_slug",
+        "competition_id"
+      ],
+      "season_parameters": [
+        "season"
+      ],
+      "match_id_parameters": [],
+      "pagination_or_limit_parameters": [],
+      "date_time_parameters": [],
+      "output_hints": [
+        "Get standings for a competition season. Use structured refs and season from flashscore_list_competition_seasons."
+      ],
+      "likely_capability_mapping": "standings"
+    },
+    "flashscore_get_match_stats": {
+      "tool_name": "flashscore_get_match_stats",
+      "description": "Get summary match statistics for the two teams.",
+      "input_schema": {
+        "properties": {
+          "match_id": {
+            "title": "Match Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "match_id"
+        ],
+        "title": "flashscore_get_match_statsArguments",
+        "type": "object"
+      },
+      "required_fields": [
+        "match_id"
+      ],
+      "optional_fields": [],
+      "enum_fields": {},
+      "sport_parameter_support": [],
+      "country_parameters": [],
+      "competition_parameters": [],
+      "season_parameters": [],
+      "match_id_parameters": [
+        "match_id"
+      ],
+      "pagination_or_limit_parameters": [],
+      "date_time_parameters": [],
+      "output_hints": [
+        "Get summary match statistics for the two teams."
+      ],
+      "likely_capability_mapping": "match stats"
+    },
+    "flashscore_get_match_events": {
+      "tool_name": "flashscore_get_match_events",
+      "description": "Get match incidents (goals, substitutions, yellow/red cards). Detailed play-by-play (passes, shot sequence, ball touches) is not available.",
+      "input_schema": {
+        "properties": {
+          "match_id": {
+            "title": "Match Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "match_id"
+        ],
+        "title": "flashscore_get_match_eventsArguments",
+        "type": "object"
+      },
+      "required_fields": [
+        "match_id"
+      ],
+      "optional_fields": [],
+      "enum_fields": {},
+      "sport_parameter_support": [],
+      "country_parameters": [],
+      "competition_parameters": [],
+      "season_parameters": [],
+      "match_id_parameters": [
+        "match_id"
+      ],
+      "pagination_or_limit_parameters": [],
+      "date_time_parameters": [],
+      "output_hints": [
+        "Get match incidents (goals, substitutions, yellow/red cards). Detailed play-by-play (passes, shot sequence, ball touches) is not available."
+      ],
+      "likely_capability_mapping": "match events"
+    },
+    "flashscore_get_match_lineups": {
+      "tool_name": "flashscore_get_match_lineups",
+      "description": "Get lineup details for a match.",
+      "input_schema": {
+        "properties": {
+          "match_id": {
+            "title": "Match Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "match_id"
+        ],
+        "title": "flashscore_get_match_lineupsArguments",
+        "type": "object"
+      },
+      "required_fields": [
+        "match_id"
+      ],
+      "optional_fields": [],
+      "enum_fields": {},
+      "sport_parameter_support": [],
+      "country_parameters": [],
+      "competition_parameters": [],
+      "season_parameters": [],
+      "match_id_parameters": [
+        "match_id"
+      ],
+      "pagination_or_limit_parameters": [],
+      "date_time_parameters": [],
+      "output_hints": [
+        "Get lineup details for a match."
+      ],
+      "likely_capability_mapping": "match lineups"
+    },
+    "flashscore_get_team_details": {
+      "tool_name": "flashscore_get_team_details",
+      "description": "Get details for a team.",
+      "input_schema": {
+        "properties": {
+          "team_slug": {
+            "title": "Team Slug",
+            "type": "string"
+          },
+          "team_id": {
+            "title": "Team Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "team_slug",
+          "team_id"
+        ],
+        "title": "flashscore_get_team_detailsArguments",
+        "type": "object"
+      },
+      "required_fields": [
+        "team_slug",
+        "team_id"
+      ],
+      "optional_fields": [],
+      "enum_fields": {},
+      "sport_parameter_support": [],
+      "country_parameters": [],
+      "competition_parameters": [],
+      "season_parameters": [],
+      "match_id_parameters": [],
+      "pagination_or_limit_parameters": [],
+      "date_time_parameters": [],
+      "output_hints": [
+        "Get details for a team."
+      ],
+      "likely_capability_mapping": "team details"
+    },
+    "flashscore_get_player_details": {
+      "tool_name": "flashscore_get_player_details",
+      "description": "Get details and career history for a player.",
+      "input_schema": {
+        "properties": {
+          "player_slug": {
+            "title": "Player Slug",
+            "type": "string"
+          },
+          "player_id": {
+            "title": "Player Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "player_slug",
+          "player_id"
+        ],
+        "title": "flashscore_get_player_detailsArguments",
+        "type": "object"
+      },
+      "required_fields": [
+        "player_slug",
+        "player_id"
+      ],
+      "optional_fields": [],
+      "enum_fields": {},
+      "sport_parameter_support": [],
+      "country_parameters": [],
+      "competition_parameters": [],
+      "season_parameters": [],
+      "match_id_parameters": [],
+      "pagination_or_limit_parameters": [],
+      "date_time_parameters": [],
+      "output_hints": [
+        "Get details and career history for a player."
+      ],
+      "likely_capability_mapping": "player details"
+    },
+    "flashscore_search": {
+      "tool_name": "flashscore_search",
+      "description": "Search competitions, teams, and players by keyword. Optional type filter: player, team, competition.",
+      "input_schema": {
+        "properties": {
+          "q": {
+            "title": "Q",
+            "type": "string"
+          },
+          "type": {
+            "anyOf": [
+              {
+                "enum": [
+                  "player",
+                  "team",
+                  "competition"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Type"
+          }
+        },
+        "required": [
+          "q"
+        ],
+        "title": "flashscore_searchArguments",
+        "type": "object"
+      },
+      "required_fields": [
+        "q"
+      ],
+      "optional_fields": [
+        "type"
+      ],
+      "enum_fields": {
+        "type": [
+          "player",
+          "team",
+          "competition"
+        ]
+      },
+      "sport_parameter_support": [],
+      "country_parameters": [],
+      "competition_parameters": [],
+      "season_parameters": [],
+      "match_id_parameters": [],
+      "pagination_or_limit_parameters": [],
+      "date_time_parameters": [],
+      "output_hints": [
+        "Search competitions, teams, and players by keyword. Optional type filter: player, team, competition."
+      ],
+      "likely_capability_mapping": "search"
+    }
+  },
+  "tool_buckets": {
+    "football_mapping": [
+      "flashscore_list_sports",
+      "flashscore_list_countries",
+      "flashscore_list_competitions",
+      "flashscore_list_competition_seasons",
+      "flashscore_get_competition_fixtures",
+      "flashscore_get_competition_results",
+      "flashscore_get_competition_standings",
+      "flashscore_get_match_stats",
+      "flashscore_get_match_events",
+      "flashscore_get_match_lineups",
+      "flashscore_search",
+      "flashscore_get_team_details",
+      "flashscore_get_player_details"
+    ],
+    "future_multisport": [
+      {
+        "tool_name": "flashscore_list_sports",
+        "sport_parameter_support": [],
+        "basketball_potential": true,
+        "hockey_potential": true,
+        "tennis_potential": true
+      },
+      {
+        "tool_name": "flashscore_get_live",
+        "sport_parameter_support": [
+          "sport"
+        ],
+        "basketball_potential": true,
+        "hockey_potential": true,
+        "tennis_potential": true
+      },
+      {
+        "tool_name": "flashscore_get_live_odds",
+        "sport_parameter_support": [
+          "sport"
+        ],
+        "basketball_potential": true,
+        "hockey_potential": true,
+        "tennis_potential": true
+      },
+      {
+        "tool_name": "flashscore_list_countries",
+        "sport_parameter_support": [
+          "sport"
+        ],
+        "basketball_potential": true,
+        "hockey_potential": true,
+        "tennis_potential": true
+      },
+      {
+        "tool_name": "flashscore_list_competitions",
+        "sport_parameter_support": [
+          "sport"
+        ],
+        "basketball_potential": true,
+        "hockey_potential": true,
+        "tennis_potential": true
+      },
+      {
+        "tool_name": "flashscore_list_competition_seasons",
+        "sport_parameter_support": [
+          "sport"
+        ],
+        "basketball_potential": true,
+        "hockey_potential": true,
+        "tennis_potential": true
+      },
+      {
+        "tool_name": "flashscore_get_competition_fixtures",
+        "sport_parameter_support": [
+          "sport"
+        ],
+        "basketball_potential": true,
+        "hockey_potential": true,
+        "tennis_potential": true
+      },
+      {
+        "tool_name": "flashscore_get_competition_results",
+        "sport_parameter_support": [
+          "sport"
+        ],
+        "basketball_potential": true,
+        "hockey_potential": true,
+        "tennis_potential": true
+      },
+      {
+        "tool_name": "flashscore_get_competition_standings",
+        "sport_parameter_support": [
+          "sport"
+        ],
+        "basketball_potential": true,
+        "hockey_potential": true,
+        "tennis_potential": true
+      }
+    ],
+    "not_for_canonical_enrichment_now": [
+      {
+        "tool_name": "flashscore_get_live",
+        "reason": "live_feed_not_needed_for_provider_native_eng1_mapping"
+      },
+      {
+        "tool_name": "flashscore_get_live_odds",
+        "reason": "odds_not_for_canonical_enrichment_now"
+      }
+    ],
+    "utility": [
+      {
+        "tool_name": "flashscore_search",
+        "reason": "provider_native_disambiguation_support"
+      }
+    ]
+  },
+  "capability_mapping": {
+    "current_discovery": [
+      "flashscore_list_sports",
+      "flashscore_list_countries",
+      "flashscore_list_competitions",
+      "flashscore_list_competition_seasons",
+      "flashscore_get_competition_fixtures",
+      "flashscore_get_competition_results"
+    ],
+    "standings": [
+      "flashscore_get_competition_standings"
+    ],
+    "current_form": [
+      "flashscore_get_competition_results",
+      "flashscore_search"
+    ],
+    "historical_form_h2h": [
+      "flashscore_get_competition_results",
+      "flashscore_search"
+    ],
+    "detailed_metrics": [
+      "flashscore_get_match_stats"
+    ],
+    "auxiliary_lineups_events": [
+      "flashscore_get_match_events",
+      "flashscore_get_match_lineups"
+    ]
+  },
+  "football_mapping_plan": {
+    "recommended_next_phase": "P2E_A3_SPORTDB_MCP_FOOTBALL_PROVIDER_NATIVE_MAPPING",
+    "tool_sequence": [
+      {
+        "tool_name": "flashscore_list_sports",
+        "goal": "confirm provider-native football sport key",
+        "required_fields": [],
+        "optional_fields": []
+      },
+      {
+        "tool_name": "flashscore_list_countries",
+        "goal": "discover provider-native England country id_or_slug",
+        "required_fields": [
+          "sport"
+        ],
+        "optional_fields": []
+      },
+      {
+        "tool_name": "flashscore_list_competitions",
+        "goal": "discover provider-native Premier League competition id_or_slug",
+        "required_fields": [
+          "sport",
+          "country_slug",
+          "country_id"
+        ],
+        "optional_fields": []
+      },
+      {
+        "tool_name": "flashscore_list_competition_seasons",
+        "goal": "discover exact provider-native season id_or_string",
+        "required_fields": [
+          "sport",
+          "country_slug",
+          "country_id",
+          "competition_slug",
+          "competition_id"
+        ],
+        "optional_fields": []
+      },
+      {
+        "tool_name": "flashscore_get_competition_results",
+        "goal": "discover provider-native finished match ids for the selected season",
+        "required_fields": [
+          "sport",
+          "country_slug",
+          "country_id",
+          "competition_slug",
+          "competition_id",
+          "season"
+        ],
+        "optional_fields": [
+          "page"
+        ]
+      },
+      {
+        "tool_name": "flashscore_get_competition_fixtures",
+        "goal": "fallback to discover provider-native match ids if results are empty",
+        "required_fields": [
+          "sport",
+          "country_slug",
+          "country_id",
+          "competition_slug",
+          "competition_id",
+          "season"
+        ],
+        "optional_fields": [
+          "page"
+        ]
+      },
+      {
+        "tool_name": "flashscore_get_match_stats",
+        "goal": "inspect raw stat field names for one provider-native match id",
+        "required_fields": [
+          "match_id"
+        ],
+        "optional_fields": []
+      },
+      {
+        "tool_name": "flashscore_get_match_events",
+        "goal": "optional later auxiliary context for event structure",
+        "required_fields": [
+          "match_id"
+        ],
+        "optional_fields": []
+      },
+      {
+        "tool_name": "flashscore_get_match_lineups",
+        "goal": "optional later auxiliary context for lineup structure",
+        "required_fields": [
+          "match_id"
+        ],
+        "optional_fields": []
+      },
+      {
+        "tool_name": "flashscore_get_competition_standings",
+        "goal": "optional later standings structure after core mapping succeeds",
+        "required_fields": [
+          "sport",
+          "country_slug",
+          "country_id",
+          "competition_slug",
+          "competition_id",
+          "season"
+        ],
+        "optional_fields": []
+      }
+    ],
+    "tool_call_templates": [
+      {
+        "step": 1,
+        "tool_name": "flashscore_list_sports",
+        "params": {}
+      },
+      {
+        "step": 2,
+        "tool_name": "flashscore_list_countries",
+        "params": {
+          "sport": "<sport_from_step_1>"
+        }
+      },
+      {
+        "step": 3,
+        "tool_name": "flashscore_list_competitions",
+        "params": {
+          "sport": "<sport_from_step_1>",
+          "country_slug": "<england_country_slug_from_step_2>",
+          "country_id": "<england_country_id_from_step_2>"
+        }
+      },
+      {
+        "step": 4,
+        "tool_name": "flashscore_list_competition_seasons",
+        "params": {
+          "sport": "<sport_from_step_1>",
+          "country_slug": "<england_country_slug_from_step_2>",
+          "country_id": "<england_country_id_from_step_2>",
+          "competition_slug": "<premier_league_competition_slug_from_step_3>",
+          "competition_id": "<premier_league_competition_id_from_step_3>"
+        }
+      },
+      {
+        "step": 5,
+        "tool_name": "flashscore_get_competition_results",
+        "params": {
+          "sport": "<sport_from_step_1>",
+          "country_slug": "<england_country_slug_from_step_2>",
+          "country_id": "<england_country_id_from_step_2>",
+          "competition_slug": "<premier_league_competition_slug_from_step_3>",
+          "competition_id": "<premier_league_competition_id_from_step_3>",
+          "season": "<season_from_step_4>"
+        },
+        "fallback_if_empty": "flashscore_get_competition_fixtures"
+      },
+      {
+        "step": 6,
+        "tool_name": "flashscore_get_match_stats",
+        "params": {
+          "match_id": "<match_id_from_step_5>"
+        }
+      },
+      {
+        "step": 7,
+        "tool_name": "flashscore_get_match_events",
+        "params": {
+          "match_id": "<match_id_from_step_5>"
+        },
+        "optional": true
+      },
+      {
+        "step": 8,
+        "tool_name": "flashscore_get_match_lineups",
+        "params": {
+          "match_id": "<match_id_from_step_5>"
+        },
+        "optional": true
+      },
+      {
+        "step": 9,
+        "tool_name": "flashscore_get_competition_standings",
+        "params": {
+          "sport": "<sport_from_step_1>",
+          "country_slug": "<england_country_slug_from_step_2>",
+          "country_id": "<england_country_id_from_step_2>",
+          "competition_slug": "<premier_league_competition_slug_from_step_3>",
+          "competition_id": "<premier_league_competition_id_from_step_3>",
+          "season": "<season_from_step_4>"
+        },
+        "optional": true
+      }
+    ],
+    "required_parameters": {
+      "flashscore_list_sports": [],
+      "flashscore_list_countries": [
+        "sport"
+      ],
+      "flashscore_list_competitions": [
+        "sport",
+        "country_slug",
+        "country_id"
+      ],
+      "flashscore_list_competition_seasons": [
+        "sport",
+        "country_slug",
+        "country_id",
+        "competition_slug",
+        "competition_id"
+      ],
+      "flashscore_get_competition_results": [
+        "sport",
+        "country_slug",
+        "country_id",
+        "competition_slug",
+        "competition_id",
+        "season"
+      ],
+      "flashscore_get_competition_fixtures": [
+        "sport",
+        "country_slug",
+        "country_id",
+        "competition_slug",
+        "competition_id",
+        "season"
+      ],
+      "flashscore_get_match_stats": [
+        "match_id"
+      ],
+      "flashscore_get_match_events": [
+        "match_id"
+      ],
+      "flashscore_get_match_lineups": [
+        "match_id"
+      ],
+      "flashscore_get_competition_standings": [
+        "sport",
+        "country_slug",
+        "country_id",
+        "competition_slug",
+        "competition_id",
+        "season"
+      ]
+    },
+    "call_budget": {
+      "max_mcp_tool_calls": 7,
+      "stop_on_first_429": true
+    },
+    "stop_conditions": [
+      "first_429",
+      "auth_failure",
+      "schema_mismatch",
+      "no_football_sport_key",
+      "no_england_country",
+      "no_premier_league_competition",
+      "no_seasons",
+      "empty_results_for_provider_native_selected_season",
+      "no_match_id",
+      "stats_unavailable"
+    ]
+  },
+  "classification": "SPORTDB_MCP_SCHEMA_READY_FOR_FOOTBALL_MAPPING",
+  "next_step": "sportdb_mcp_football_mapping",
+  "impact_on_p2d": "none_highlightly_remains_accepted",
+  "secret_safe": true,
+  "primary_blocker": null,
+  "final_review": "PASS"
+}
