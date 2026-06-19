@@ -1,0 +1,70 @@
+{
+  "phase_id": "P2E_SPORTDB_STRATEGIC_MULTISPORT_MAPPING_WITH_RATE_LIMIT_GUARD",
+  "previous_accepted_sha": "b51885d86042084aec81c92560b1c51e18519dd0",
+  "evidence_level": "TRACKED_MAPPING_SUMMARY",
+  "provider": "sportdb",
+  "auth": {
+    "key_name_used": "SPORTDB_API_KEY",
+    "secret_safe": true
+  },
+  "football_mapping": {
+    "country_discovery": {
+      "status": 404,
+      "raw_response_sha256": "37ec4665a8102d115ffd1ac20dae94c98b4dac64b0c1a68228aa2a531caeb35d",
+      "response_top_level_keys": [
+        "detail"
+      ],
+      "england_candidates": [],
+      "selected_country_slug": null,
+      "rate_limit_headers": {}
+    },
+    "competition_discovery": {},
+    "season_discovery": {},
+    "fixtures_probe": {},
+    "match_details": {},
+    "match_stats": {},
+    "mcp_metadata": {
+      "performed": true,
+      "status": 406,
+      "raw_response_sha256": "3110c2f64f509cf7835c75d1fe51fb4a4f031645482fef7c0d18d495e305f1a0",
+      "rate_limit_headers": {},
+      "response_top_level_keys": [
+        "error",
+        "id",
+        "jsonrpc"
+      ],
+      "endpoint": "https://api.sportdb.dev/mcp/",
+      "documented_capabilities": [
+        "competitions",
+        "fixtures",
+        "stats",
+        "lineups"
+      ],
+      "tool_names": [],
+      "error": {
+        "code": -32600,
+        "message": "Not Acceptable: Client must accept both application/json and text/event-stream"
+      }
+    }
+  },
+  "classification": "SPORTDB_BLOCKED",
+  "call_budget": {
+    "rest_calls_made": 1,
+    "mcp_calls_made": 1,
+    "stopped_on_429": false
+  },
+  "rate_limit_headers": {
+    "rest_call_1": {},
+    "mcp_call_1": {}
+  },
+  "provider_native_ids": {},
+  "raw_stat_field_names": [],
+  "blockers": [
+    "contradictory_http_status_404_country_discovery",
+    "country_slug_not_found"
+  ],
+  "next_step": "sportdb_mcp_research",
+  "impact_on_p2d": "none_highlightly_remains_accepted",
+  "secret_safe": true,
+  "final_review": "PASS"
+}
