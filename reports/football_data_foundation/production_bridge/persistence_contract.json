@@ -1,0 +1,31 @@
+{
+  "phase_id": "FOOTBALL_DATA_FOUNDATION_A4_PRODUCTION_DB_SCANNER_BRIDGE_AND_PERSISTED_ENRICHMENT_STATE",
+  "contract_status": "PASS",
+  "store_protocol": [
+    "upsert_scanner_event(candidate)",
+    "get_scanner_event(scanner_event_id)",
+    "upsert_evidence(record)",
+    "get_evidence(evidence_identity)",
+    "upsert_fact(fact)",
+    "list_facts(scanner_event_id, capability=None)",
+    "upsert_completeness(record)",
+    "get_completeness(profile_id, scanner_event_id, capability)"
+  ],
+  "persisted_entities": [
+    "PersistedScannerEvent",
+    "PersistedEnrichmentEvidence",
+    "PersistedEnrichmentFact",
+    "PersistedCompletenessState"
+  ],
+  "implemented_store_kinds": [
+    "InMemoryProductionEnrichmentStore",
+    "FileBackedProductionEnrichmentStore"
+  ],
+  "db_adapter_status": "DB_ACTIVATION_DEFERRED",
+  "reason": "No safe existing production table can hold scanner-event-first persistence without inventing canonical fixture linkage or adding new schema.",
+  "payload_handling": {
+    "raw_payload_stored_inline": false,
+    "sidecar_payload_for_temp_and_report_stores": true,
+    "production_db_payload_activation": "DEFERRED"
+  }
+}
