@@ -1,8 +1,15 @@
 from __future__ import annotations
-from datetime import datetime, timezone
-from typing import Any, Mapping
+
+from collections.abc import Mapping
+from datetime import UTC, datetime
+from typing import Any
+
 from bet.enrichment.football_data_foundation.evidence import AtomicEvidence
-from bet.enrichment.football_data_foundation.fingerprints import compute_schema_fingerprint, compute_data_fingerprint
+from bet.enrichment.football_data_foundation.fingerprints import (
+    compute_data_fingerprint,
+    compute_schema_fingerprint,
+)
+
 
 class EvidencePackager:
     def create_package(
@@ -18,14 +25,15 @@ class EvidencePackager:
         normalized_records: list[Mapping[str, Any]],
         cache_hit: bool = False,
         pagination_model: str = "UNKNOWN",
-        diagnostics: Mapping[str, Any] | None = None
+        diagnostics: Mapping[str, Any] | None = None,
+        retrieved_at: str | None = None,
     ) -> AtomicEvidence:
-        retrieved_at = datetime.now(timezone.utc).isoformat()
-        
+        effective_retrieved_at = retrieved_at or datetime.now(UTC).isoformat()
+
         schema_fingerprint = compute_schema_fingerprint(raw_payload)
         raw_fingerprint = compute_data_fingerprint(raw_payload)
         normalized_fingerprint = compute_data_fingerprint(normalized_records)
-        
+
         return AtomicEvidence(
             provider=provider,
             source=f"{source_family}:{source_class}",
@@ -33,7 +41,7 @@ class EvidencePackager:
             capability=capability,
             scope=scope,
             request_identity=request_identity,
-            retrieved_at=retrieved_at,
+            retrieved_at=effective_retrieved_at,
             parser_version="football_foundation_v1",
             normalization_version="football_foundation_v1",
             schema_fingerprint=schema_fingerprint,

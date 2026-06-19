@@ -1,7 +1,16 @@
 from __future__ import annotations
-from typing import Any, Mapping
-from bet.enrichment.football_data_foundation.normalizers import flatten_multiindex_columns, normalize_value, normalize_numeric
+
+from collections.abc import Mapping
+from typing import Any
+
 import pandas as pd
+
+from bet.enrichment.football_data_foundation.normalizers import (
+    flatten_multiindex_columns,
+    normalize_numeric,
+    normalize_value,
+)
+
 
 class RecordNormalizer:
     def __init__(self, column_mappings: Mapping[str, str]):

@@ -1,0 +1,21 @@
+{
+  "retrieved_at": "2024-01-02T00:00:00Z",
+  "competition": {
+    "name": "World Cup 2022",
+    "rounds": [
+      {
+        "name": "Matchday 1",
+        "matches": [
+          {
+            "date": "2022-11-20",
+            "team1": "Qatar",
+            "team2": "Ecuador",
+            "score": {
+              "ft": [0, 2]
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,6 +1,8 @@
 from __future__ import annotations
+
 import importlib.util
-from typing import Mapping, Any
+from collections.abc import Mapping
+
 
 class AccessRequirement:
     def __init__(self, key_name: str, required: bool = True, description: str = ""):

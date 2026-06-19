@@ -1,6 +1,10 @@
 from __future__ import annotations
-from typing import Any, Mapping
+
+from collections.abc import Mapping
+from typing import Any
+
 import pandas as pd
+
 
 def flatten_multiindex_columns(df: pd.DataFrame) -> pd.DataFrame:
     df_new = df.copy()

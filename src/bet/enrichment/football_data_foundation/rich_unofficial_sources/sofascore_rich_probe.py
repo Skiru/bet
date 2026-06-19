@@ -1,8 +1,17 @@
 from __future__ import annotations
-from typing import Any, Mapping
+
+from typing import Any
+
 from bet.enrichment.football_data_foundation.connector_kernel import BaseConnector
-from bet.enrichment.football_data_foundation.connector_kernel.pagination import PaginationModel
+from bet.enrichment.football_data_foundation.connector_kernel.pagination import (
+    PaginationModel,
+)
+from bet.enrichment.football_data_foundation.connector_kernel.results import (
+    build_status_result,
+    normalize_payload_records,
+)
 from bet.integration.source_result import SourceOperationResult, SourceResultStatus
+
 
 class SofaScoreRichProbe(BaseConnector):
     provider = "sofascore"
@@ -39,20 +48,31 @@ class SofaScoreRichProbe(BaseConnector):
 
     def execute(self, operation: str, **kwargs: Any) -> SourceOperationResult[Any]:
         if operation not in self.supported_operations:
-            return SourceOperationResult(
-                status=SourceResultStatus.NOT_SUPPORTED,
-                error_code="operation_not_supported"
+            return build_status_result(
+                self,
+                operation,
+                SourceResultStatus.NOT_SUPPORTED,
+                "operation_not_supported",
             )
-            
-        # Due to browser scraping transport restrictions in production, return research-only
-        mock_data = {
-            "mapping_metadata": self.DOCUMENTATION_MAPPING,
-            "simulated_metrics": {"possession": 54.2, "shots_on_goal": 5, "corners": 4}
-        }
-        return SourceOperationResult(
-            status=SourceResultStatus.SUCCESS,
-            value=mock_data,
-            provider=self.provider,
-            operation=operation,
-            request_identity="SofaScoreRichProbe.probe_stats"
+
+        fixture_data = kwargs.get("fixture_data")
+        if fixture_data is not None:
+            return SourceOperationResult(
+                status=SourceResultStatus.VALID_EMPTY,
+                provider=self.provider,
+                operation=operation,
+                request_identity="SofaScoreRichProbe.fixture_only_normalizer",
+                parser_diagnostics={
+                    "reason": "fixture_only_probe_not_selectable",
+                    "normalized_preview_rows": len(normalize_payload_records(fixture_data)),
+                    "documented_mapping": self.DOCUMENTATION_MAPPING,
+                },
+            )
+
+        return build_status_result(
+            self,
+            operation,
+            SourceResultStatus.NOT_SUPPORTED,
+            "safe_client_unavailable",
+            {"reason": "No safe installed dependency or existing client is available."},
         )

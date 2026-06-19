@@ -1,9 +1,19 @@
 from __future__ import annotations
-from typing import Any, Mapping
+
+from typing import Any
+
 from bet.enrichment.football_data_foundation.connector_kernel import BaseConnector
-from bet.enrichment.football_data_foundation.connector_kernel.access import AccessRequirement, has_dependency
-from bet.enrichment.football_data_foundation.connector_kernel.pagination import PaginationModel
+from bet.enrichment.football_data_foundation.connector_kernel.access import (
+    has_dependency,
+)
+from bet.enrichment.football_data_foundation.connector_kernel.pagination import (
+    PaginationModel,
+)
+from bet.enrichment.football_data_foundation.connector_kernel.results import (
+    build_status_result,
+)
 from bet.integration.source_result import SourceOperationResult, SourceResultStatus
+
 
 class SoccerActionBridge(BaseConnector):
     provider = "socceraction"
@@ -21,32 +31,27 @@ class SoccerActionBridge(BaseConnector):
     drift_policy = "schema_drift_detection"
 
     def execute(self, operation: str, **kwargs: Any) -> SourceOperationResult[Any]:
-        if not has_dependency("socceraction"):
-            return SourceOperationResult(
-                status=SourceResultStatus.NOT_SUPPORTED,
-                error_code="DEPENDENCY_MISSING",
-                parser_diagnostics={"dependency": "socceraction", "reason": "socceraction is an optional dependency and is currently absent."}
-            )
-            
         if operation not in self.supported_operations:
-            return SourceOperationResult(
-                status=SourceResultStatus.NOT_SUPPORTED,
-                error_code="operation_not_supported"
+            return build_status_result(
+                self,
+                operation,
+                SourceResultStatus.NOT_SUPPORTED,
+                "operation_not_supported",
             )
-            
-        try:
-            # We don't train or run xT/VAEP models in this commit, but do support basic operations
-            mock_data = {"event_count": 1420, "actions_converted": 1390}
-            return SourceOperationResult(
-                status=SourceResultStatus.SUCCESS,
-                value=mock_data,
-                provider=self.provider,
-                operation=operation,
-                request_identity="socceraction.spadl.convert"
+
+        if not has_dependency("socceraction"):
+            return build_status_result(
+                self,
+                operation,
+                SourceResultStatus.NOT_SUPPORTED,
+                "dependency_missing",
+                {"dependency": "socceraction"},
             )
-        except Exception as e:
-            return SourceOperationResult(
-                status=SourceResultStatus.PARSE_ERROR,
-                error_code="socceraction_conversion_failed",
-                parser_diagnostics={"error": str(e)}
-            )
+
+        return build_status_result(
+            self,
+            operation,
+            SourceResultStatus.NOT_SUPPORTED,
+            "safe_execution_not_implemented",
+            {"reason": "Bridge execution is intentionally fail-closed without a verified adapter path."},
+        )

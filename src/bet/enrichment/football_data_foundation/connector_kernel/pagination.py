@@ -1,5 +1,7 @@
 from __future__ import annotations
+
 from enum import StrEnum
+
 
 class PaginationModel(StrEnum):
     NO_PAGINATION = "NO_PAGINATION"

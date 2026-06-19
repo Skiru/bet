@@ -1,20 +1,37 @@
 from __future__ import annotations
-from typing import Any, Sequence
-from datetime import datetime, timezone
-import pandas as pd
+
+from typing import Any
+
 from bet.enrichment.football_data_foundation.connector_kernel import BaseConnector
-from bet.enrichment.football_data_foundation.connector_kernel.access import AccessRequirement
-from bet.enrichment.football_data_foundation.connector_kernel.pagination import PaginationModel
-from bet.enrichment.football_data_foundation.connector_kernel.evidence import EvidencePackager
-from bet.enrichment.football_data_foundation.connector_kernel.normalization import RecordNormalizer
+from bet.enrichment.football_data_foundation.connector_kernel.access import (
+    has_dependency,
+)
+from bet.enrichment.football_data_foundation.connector_kernel.pagination import (
+    PaginationModel,
+)
+from bet.enrichment.football_data_foundation.connector_kernel.results import (
+    build_status_result,
+    build_success_result,
+)
 from bet.integration.source_result import SourceOperationResult, SourceResultStatus
+
 
 class SoFIFAConnector(BaseConnector):
     provider = "soccerdata"
     source_family = "soccerdata"
     source_class = "SoFIFA"
-    supported_operations = ("fetch_ratings",)
-    supported_capabilities = ("current_recent_form",)
+    supported_operations = (
+        "read_leagues",
+        "read_versions",
+        "read_teams",
+        "read_players",
+        "read_team_ratings",
+        "read_player_ratings",
+    )
+    supported_capabilities = (
+        "current_recent_form",
+        "roster_availability",
+    )
     access_requirements = ()
     dependency_requirements = ("soccerdata",)
     transport_type = "metadata_api"
@@ -24,63 +41,70 @@ class SoFIFAConnector(BaseConnector):
     evidence_policy = "deterministic_fingerprinting"
     drift_policy = "schema_drift_detection"
 
+    _CAPABILITIES = {
+        "read_leagues": "current_recent_form",
+        "read_versions": "current_recent_form",
+        "read_teams": "roster_availability",
+        "read_players": "roster_availability",
+        "read_team_ratings": "current_recent_form",
+        "read_player_ratings": "current_recent_form",
+    }
+
     def execute(self, operation: str, **kwargs: Any) -> SourceOperationResult[Any]:
         if operation not in self.supported_operations:
-            return SourceOperationResult(
-                status=SourceResultStatus.NOT_SUPPORTED,
-                error_code="operation_not_supported"
+            return build_status_result(
+                self,
+                operation,
+                SourceResultStatus.NOT_SUPPORTED,
+                "operation_not_supported",
             )
-            
+
+        if not has_dependency("soccerdata"):
+            return build_status_result(
+                self,
+                operation,
+                SourceResultStatus.NOT_SUPPORTED,
+                "dependency_missing",
+                {"dependency": "soccerdata"},
+            )
+
         try:
-            import soccerdata as sd
-            if kwargs.get("mock_data") is not None:
-                df = kwargs["mock_data"]
+            if "source" in kwargs:
+                source = kwargs["source"]
             else:
-                sofifa = sd.SoFIFA(**kwargs.get("init_kwargs", {}))
-                # SoFIFA read_ratings expects league and season
-                df = sofifa.read_ratings(
-                    league=kwargs.get("league", "ENG-Premier League"),
-                    season=kwargs.get("season", 2024)
+                import soccerdata as sd
+
+                source = sd.SoFIFA(**dict(kwargs.get("init_kwargs", {})))
+
+            method = getattr(source, operation, None)
+            if method is None:
+                return build_status_result(
+                    self,
+                    operation,
+                    SourceResultStatus.NOT_SUPPORTED,
+                    "documented_method_unavailable",
+                    {"method": operation},
                 )
-                
-            normalizer = RecordNormalizer({
-                "team": "team_name",
-                "overall": "overall_rating",
-                "att": "attack_rating",
-                "mid": "midfield_rating",
-                "def": "defense_rating"
-            })
-            normalized_records = normalizer.normalize(df)
-            
-            packager = EvidencePackager()
-            evidence = packager.create_package(
-                provider=self.provider,
-                source_family=self.source_family,
-                source_class=self.source_class,
-                operation=operation,
-                capability="current_recent_form",
-                scope=kwargs.get("scope", "league"),
-                request_identity="soccerdata.SoFIFA.read_ratings",
-                raw_payload=df,
-                normalized_records=normalized_records,
-                pagination_model=str(self.pagination_model)
+
+            method_kwargs = {}
+            for key in ("max_age", "team", "player"):
+                if key in kwargs:
+                    method_kwargs[key] = kwargs[key]
+
+            raw_payload = method(**method_kwargs)
+            return build_success_result(
+                self,
+                operation,
+                self._CAPABILITIES[operation],
+                raw_payload,
+                request_identity=f"soccerdata.SoFIFA.{operation}",
+                parser_diagnostics={"scope": kwargs.get("scope", "league")},
             )
-            
-            return SourceOperationResult(
-                status=SourceResultStatus.SUCCESS,
-                value=normalized_records,
-                provider=self.provider,
-                operation=operation,
-                request_identity="soccerdata.SoFIFA.read_ratings",
-                parser_version="football_foundation_v1",
-                normalization_version="football_foundation_v1",
-                schema_fingerprint=evidence.schema_fingerprint,
-                bundle_id=evidence.evidence_id
-            )
-            
-        except Exception as e:
-            return SourceOperationResult(
-                status=SourceResultStatus.PARSE_ERROR,
-                error_code="sofifa_fetch_failed",
-                parser_diagnostics={"error": str(e)}
+        except Exception as exc:
+            return build_status_result(
+                self,
+                operation,
+                SourceResultStatus.PARSE_ERROR,
+                "sofifa_read_failed",
+                {"error": str(exc)},
             )

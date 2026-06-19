@@ -1,195 +1,306 @@
 {
-  "schema_version": "1.0",
-  "generated_at": "2026-06-19T15:00:00Z",
-  "sources": {
-    "soccerdata/ClubElo": {
+  "schema_version": "2.0",
+  "generated_at": "2026-06-19T14:45:00Z",
+  "sources": [
+    {
+      "source_id": "soccerdata/ClubElo",
+      "provider": "soccerdata",
       "family": "soccerdata",
       "class": "ClubElo",
-      "operation": "fetch_ratings",
-      "capability": "current_recent_form",
-      "status": "IMPLEMENTED_ACTIVE",
-      "pagination": "NO_PAGINATION",
-      "dependencies": ["soccerdata"]
+      "source_status": "IMPLEMENTED_ACTIVE",
+      "transport_type": "official_api",
+      "dependencies": ["soccerdata"],
+      "operations": [
+        {
+          "operation": "read_by_date",
+          "capability": "current_recent_form",
+          "status": "IMPLEMENTED_ACTIVE",
+          "evidence_identity": null,
+          "additive_schema_action": "KEEP_STATUS_WITH_DIAGNOSTIC",
+          "breaking_schema_action": "QUARANTINE_OPERATION_CAPABILITY_TUPLE"
+        },
+        {
+          "operation": "read_team_history",
+          "capability": "current_recent_form",
+          "status": "IMPLEMENTED_ACTIVE",
+          "evidence_identity": null,
+          "additive_schema_action": "KEEP_STATUS_WITH_DIAGNOSTIC",
+          "breaking_schema_action": "QUARANTINE_OPERATION_CAPABILITY_TUPLE"
+        }
+      ]
     },
-    "soccerdata/ESPN": {
+    {
+      "source_id": "soccerdata/ESPN",
+      "provider": "soccerdata",
       "family": "soccerdata",
       "class": "ESPN",
-      "operation": "fetch_schedule",
-      "capability": "current_recent_form",
-      "status": "IMPLEMENTED_ACTIVE",
-      "pagination": "SEASON_SCOPE",
-      "dependencies": ["soccerdata"]
+      "source_status": "IMPLEMENTED_ACTIVE",
+      "transport_type": "unofficial_api",
+      "dependencies": ["soccerdata"],
+      "operations": [
+        {"operation": "read_schedule", "capability": "current_discovery", "status": "IMPLEMENTED_ACTIVE", "evidence_identity": null, "additive_schema_action": "KEEP_STATUS_WITH_DIAGNOSTIC", "breaking_schema_action": "QUARANTINE_OPERATION_CAPABILITY_TUPLE"},
+        {"operation": "read_matchsheet", "capability": "fixture_team_statistics", "status": "IMPLEMENTED_ACTIVE", "evidence_identity": null, "additive_schema_action": "KEEP_STATUS_WITH_DIAGNOSTIC", "breaking_schema_action": "QUARANTINE_OPERATION_CAPABILITY_TUPLE"},
+        {"operation": "read_lineup", "capability": "confirmed_lineups", "status": "IMPLEMENTED_ACTIVE", "evidence_identity": null, "additive_schema_action": "KEEP_STATUS_WITH_DIAGNOSTIC", "breaking_schema_action": "QUARANTINE_OPERATION_CAPABILITY_TUPLE"}
+      ]
     },
-    "soccerdata/FBref": {
+    {
+      "source_id": "soccerdata/FBref",
+      "provider": "soccerdata",
       "family": "soccerdata",
       "class": "FBref",
-      "operation": "fetch_team_stats",
-      "capability": "fixture_team_statistics",
-      "status": "IMPLEMENTED_ACTIVE",
-      "pagination": "SEASON_SCOPE",
-      "dependencies": ["soccerdata"]
+      "source_status": "IMPLEMENTED_ACTIVE",
+      "transport_type": "metadata_api",
+      "dependencies": ["soccerdata"],
+      "operations": [
+        {"operation": "read_leagues", "capability": "standings_competition_context", "status": "IMPLEMENTED_ACTIVE", "evidence_identity": null, "additive_schema_action": "KEEP_STATUS_WITH_DIAGNOSTIC", "breaking_schema_action": "QUARANTINE_OPERATION_CAPABILITY_TUPLE"},
+        {"operation": "read_seasons", "capability": "standings_competition_context", "status": "IMPLEMENTED_ACTIVE", "evidence_identity": null, "additive_schema_action": "KEEP_STATUS_WITH_DIAGNOSTIC", "breaking_schema_action": "QUARANTINE_OPERATION_CAPABILITY_TUPLE"},
+        {"operation": "read_schedule", "capability": "current_discovery", "status": "IMPLEMENTED_ACTIVE", "evidence_identity": null, "additive_schema_action": "KEEP_STATUS_WITH_DIAGNOSTIC", "breaking_schema_action": "QUARANTINE_OPERATION_CAPABILITY_TUPLE"},
+        {"operation": "read_team_season_stats", "capability": "fixture_team_statistics", "status": "IMPLEMENTED_ACTIVE", "evidence_identity": null, "additive_schema_action": "KEEP_STATUS_WITH_DIAGNOSTIC", "breaking_schema_action": "QUARANTINE_OPERATION_CAPABILITY_TUPLE"},
+        {"operation": "read_team_match_stats", "capability": "fixture_team_statistics", "status": "IMPLEMENTED_ACTIVE", "evidence_identity": null, "additive_schema_action": "KEEP_STATUS_WITH_DIAGNOSTIC", "breaking_schema_action": "QUARANTINE_OPERATION_CAPABILITY_TUPLE"},
+        {"operation": "read_player_season_stats", "capability": "fixture_team_statistics", "status": "IMPLEMENTED_ACTIVE", "evidence_identity": null, "additive_schema_action": "KEEP_STATUS_WITH_DIAGNOSTIC", "breaking_schema_action": "QUARANTINE_OPERATION_CAPABILITY_TUPLE"},
+        {"operation": "read_player_match_stats", "capability": "fixture_team_statistics", "status": "IMPLEMENTED_ACTIVE", "evidence_identity": null, "additive_schema_action": "KEEP_STATUS_WITH_DIAGNOSTIC", "breaking_schema_action": "QUARANTINE_OPERATION_CAPABILITY_TUPLE"},
+        {"operation": "read_lineup", "capability": "confirmed_lineups", "status": "IMPLEMENTED_ACTIVE", "evidence_identity": null, "additive_schema_action": "KEEP_STATUS_WITH_DIAGNOSTIC", "breaking_schema_action": "QUARANTINE_OPERATION_CAPABILITY_TUPLE"},
+        {"operation": "read_events", "capability": "fixture_team_statistics", "status": "IMPLEMENTED_ACTIVE", "evidence_identity": null, "additive_schema_action": "KEEP_STATUS_WITH_DIAGNOSTIC", "breaking_schema_action": "QUARANTINE_OPERATION_CAPABILITY_TUPLE"}
+      ]
     },
-    "soccerdata/FiveThirtyEight": {
+    {
+      "source_id": "soccerdata/FiveThirtyEight",
+      "provider": "soccerdata",
       "family": "soccerdata",
       "class": "FiveThirtyEight",
-      "operation": "fetch_predictions",
-      "capability": "NOT_SUPPORTED",
-      "status": "NOT_SUPPORTED",
-      "pagination": "NO_PAGINATION",
-      "dependencies": ["soccerdata"]
+      "source_status": "NOT_SUPPORTED",
+      "transport_type": "official_api",
+      "dependencies": ["soccerdata"],
+      "diagnostics": ["Installed soccerdata does not expose FiveThirtyEight in this environment."],
+      "operations": []
     },
-    "soccerdata/MatchHistory": {
+    {
+      "source_id": "soccerdata/MatchHistory",
+      "provider": "soccerdata",
       "family": "soccerdata",
       "class": "MatchHistory",
-      "operation": "fetch_results",
-      "capability": "h2h_head_to_head",
-      "status": "IMPLEMENTED_ACTIVE",
-      "pagination": "SEASON_SCOPE",
-      "dependencies": ["soccerdata"]
+      "source_status": "IMPLEMENTED_ACTIVE",
+      "transport_type": "metadata_api",
+      "dependencies": ["soccerdata"],
+      "operations": [
+        {"operation": "read_games", "capability": "h2h_head_to_head", "status": "IMPLEMENTED_ACTIVE", "evidence_identity": null, "additive_schema_action": "KEEP_STATUS_WITH_DIAGNOSTIC", "breaking_schema_action": "QUARANTINE_OPERATION_CAPABILITY_TUPLE"}
+      ]
     },
-    "soccerdata/Sofascore": {
+    {
+      "source_id": "soccerdata/Sofascore",
+      "provider": "soccerdata",
       "family": "soccerdata",
       "class": "Sofascore",
-      "operation": "fetch_ratings",
-      "capability": "current_recent_form",
-      "status": "IMPLEMENTED_ACTIVE",
-      "pagination": "SEASON_SCOPE",
-      "dependencies": ["soccerdata"]
+      "source_status": "IMPLEMENTED_ACTIVE",
+      "transport_type": "metadata_api",
+      "dependencies": ["soccerdata"],
+      "operations": [
+        {"operation": "read_leagues", "capability": "current_discovery", "status": "IMPLEMENTED_ACTIVE", "evidence_identity": null, "additive_schema_action": "KEEP_STATUS_WITH_DIAGNOSTIC", "breaking_schema_action": "QUARANTINE_OPERATION_CAPABILITY_TUPLE"},
+        {"operation": "read_seasons", "capability": "current_discovery", "status": "IMPLEMENTED_ACTIVE", "evidence_identity": null, "additive_schema_action": "KEEP_STATUS_WITH_DIAGNOSTIC", "breaking_schema_action": "QUARANTINE_OPERATION_CAPABILITY_TUPLE"},
+        {"operation": "read_league_table", "capability": "standings_competition_context", "status": "IMPLEMENTED_ACTIVE", "evidence_identity": null, "additive_schema_action": "KEEP_STATUS_WITH_DIAGNOSTIC", "breaking_schema_action": "QUARANTINE_OPERATION_CAPABILITY_TUPLE"},
+        {"operation": "read_schedule", "capability": "current_discovery", "status": "IMPLEMENTED_ACTIVE", "evidence_identity": null, "additive_schema_action": "KEEP_STATUS_WITH_DIAGNOSTIC", "breaking_schema_action": "QUARANTINE_OPERATION_CAPABILITY_TUPLE"}
+      ]
     },
-    "soccerdata/SoFIFA": {
+    {
+      "source_id": "soccerdata/SoFIFA",
+      "provider": "soccerdata",
       "family": "soccerdata",
       "class": "SoFIFA",
-      "operation": "fetch_ratings",
-      "capability": "current_recent_form",
-      "status": "IMPLEMENTED_ACTIVE",
-      "pagination": "SEASON_SCOPE",
-      "dependencies": ["soccerdata"]
+      "source_status": "IMPLEMENTED_ACTIVE",
+      "transport_type": "metadata_api",
+      "dependencies": ["soccerdata"],
+      "operations": [
+        {"operation": "read_leagues", "capability": "current_recent_form", "status": "IMPLEMENTED_ACTIVE", "evidence_identity": null, "additive_schema_action": "KEEP_STATUS_WITH_DIAGNOSTIC", "breaking_schema_action": "QUARANTINE_OPERATION_CAPABILITY_TUPLE"},
+        {"operation": "read_versions", "capability": "current_recent_form", "status": "IMPLEMENTED_ACTIVE", "evidence_identity": null, "additive_schema_action": "KEEP_STATUS_WITH_DIAGNOSTIC", "breaking_schema_action": "QUARANTINE_OPERATION_CAPABILITY_TUPLE"},
+        {"operation": "read_teams", "capability": "roster_availability", "status": "IMPLEMENTED_ACTIVE", "evidence_identity": null, "additive_schema_action": "KEEP_STATUS_WITH_DIAGNOSTIC", "breaking_schema_action": "QUARANTINE_OPERATION_CAPABILITY_TUPLE"},
+        {"operation": "read_players", "capability": "roster_availability", "status": "IMPLEMENTED_ACTIVE", "evidence_identity": null, "additive_schema_action": "KEEP_STATUS_WITH_DIAGNOSTIC", "breaking_schema_action": "QUARANTINE_OPERATION_CAPABILITY_TUPLE"},
+        {"operation": "read_team_ratings", "capability": "current_recent_form", "status": "IMPLEMENTED_ACTIVE", "evidence_identity": null, "additive_schema_action": "KEEP_STATUS_WITH_DIAGNOSTIC", "breaking_schema_action": "QUARANTINE_OPERATION_CAPABILITY_TUPLE"},
+        {"operation": "read_player_ratings", "capability": "current_recent_form", "status": "IMPLEMENTED_ACTIVE", "evidence_identity": null, "additive_schema_action": "KEEP_STATUS_WITH_DIAGNOSTIC", "breaking_schema_action": "QUARANTINE_OPERATION_CAPABILITY_TUPLE"}
+      ]
     },
-    "soccerdata/Understat": {
+    {
+      "source_id": "soccerdata/Understat",
+      "provider": "soccerdata",
       "family": "soccerdata",
       "class": "Understat",
-      "operation": "fetch_xg",
-      "capability": "advanced_xg",
-      "status": "IMPLEMENTED_ACTIVE",
-      "pagination": "SEASON_SCOPE",
-      "dependencies": ["soccerdata"]
+      "source_status": "IMPLEMENTED_ACTIVE",
+      "transport_type": "unofficial_api",
+      "dependencies": ["soccerdata"],
+      "operations": [
+        {"operation": "read_leagues", "capability": "current_discovery", "status": "IMPLEMENTED_ACTIVE", "evidence_identity": null, "additive_schema_action": "KEEP_STATUS_WITH_DIAGNOSTIC", "breaking_schema_action": "QUARANTINE_OPERATION_CAPABILITY_TUPLE"},
+        {"operation": "read_seasons", "capability": "current_discovery", "status": "IMPLEMENTED_ACTIVE", "evidence_identity": null, "additive_schema_action": "KEEP_STATUS_WITH_DIAGNOSTIC", "breaking_schema_action": "QUARANTINE_OPERATION_CAPABILITY_TUPLE"},
+        {"operation": "read_schedule", "capability": "current_discovery", "status": "IMPLEMENTED_ACTIVE", "evidence_identity": null, "additive_schema_action": "KEEP_STATUS_WITH_DIAGNOSTIC", "breaking_schema_action": "QUARANTINE_OPERATION_CAPABILITY_TUPLE"},
+        {"operation": "read_team_match_stats", "capability": "fixture_team_statistics", "status": "IMPLEMENTED_ACTIVE", "evidence_identity": null, "additive_schema_action": "KEEP_STATUS_WITH_DIAGNOSTIC", "breaking_schema_action": "QUARANTINE_OPERATION_CAPABILITY_TUPLE"},
+        {"operation": "read_player_season_stats", "capability": "current_recent_form", "status": "IMPLEMENTED_ACTIVE", "evidence_identity": null, "additive_schema_action": "KEEP_STATUS_WITH_DIAGNOSTIC", "breaking_schema_action": "QUARANTINE_OPERATION_CAPABILITY_TUPLE"},
+        {"operation": "read_player_match_stats", "capability": "fixture_team_statistics", "status": "IMPLEMENTED_ACTIVE", "evidence_identity": null, "additive_schema_action": "KEEP_STATUS_WITH_DIAGNOSTIC", "breaking_schema_action": "QUARANTINE_OPERATION_CAPABILITY_TUPLE"},
+        {"operation": "read_shot_events", "capability": "fixture_team_statistics", "status": "IMPLEMENTED_ACTIVE", "evidence_identity": null, "additive_schema_action": "KEEP_STATUS_WITH_DIAGNOSTIC", "breaking_schema_action": "QUARANTINE_OPERATION_CAPABILITY_TUPLE"}
+      ]
     },
-    "soccerdata/WhoScored": {
+    {
+      "source_id": "soccerdata/WhoScored",
+      "provider": "soccerdata",
       "family": "soccerdata",
       "class": "WhoScored",
-      "operation": "fetch_ratings",
-      "capability": "current_recent_form",
-      "status": "IMPLEMENTED_ACTIVE",
-      "pagination": "SEASON_SCOPE",
-      "dependencies": ["soccerdata"]
+      "source_status": "IMPLEMENTED_ACTIVE",
+      "transport_type": "browser_scraper",
+      "dependencies": ["soccerdata"],
+      "operations": [
+        {"operation": "read_schedule", "capability": "current_discovery", "status": "IMPLEMENTED_ACTIVE", "evidence_identity": null, "additive_schema_action": "KEEP_STATUS_WITH_DIAGNOSTIC", "breaking_schema_action": "QUARANTINE_OPERATION_CAPABILITY_TUPLE"},
+        {"operation": "read_missing_players", "capability": "injuries_suspensions", "status": "IMPLEMENTED_ACTIVE", "evidence_identity": null, "additive_schema_action": "KEEP_STATUS_WITH_DIAGNOSTIC", "breaking_schema_action": "QUARANTINE_OPERATION_CAPABILITY_TUPLE"},
+        {"operation": "read_events", "capability": "fixture_team_statistics", "status": "IMPLEMENTED_ACTIVE", "evidence_identity": null, "additive_schema_action": "KEEP_STATUS_WITH_DIAGNOSTIC", "breaking_schema_action": "QUARANTINE_OPERATION_CAPABILITY_TUPLE"}
+      ]
     },
-    "open_reference/StatsBombOpenData": {
+    {
+      "source_id": "open_reference/StatsBombOpenData",
+      "provider": "statsbomb-open-data",
       "family": "open_reference",
       "class": "StatsBombOpenData",
-      "operation": "parse_matches",
-      "capability": "current_recent_form",
-      "status": "EVIDENCE_READY",
-      "pagination": "FILE_TREE",
-      "dependencies": []
+      "source_status": "EVIDENCE_READY",
+      "transport_type": "file_system",
+      "dependencies": [],
+      "operations": [
+        {"operation": "read_competitions", "capability": "canonical_event_team_identity", "status": "EVIDENCE_READY", "evidence_identity": "fixture_backed_atomic", "additive_schema_action": "KEEP_STATUS_WITH_DIAGNOSTIC", "breaking_schema_action": "QUARANTINE_OPERATION_CAPABILITY_TUPLE"},
+        {"operation": "read_matches", "capability": "current_discovery", "status": "EVIDENCE_READY", "evidence_identity": "fixture_backed_atomic", "additive_schema_action": "KEEP_STATUS_WITH_DIAGNOSTIC", "breaking_schema_action": "QUARANTINE_OPERATION_CAPABILITY_TUPLE"},
+        {"operation": "read_events", "capability": "fixture_team_statistics", "status": "EVIDENCE_READY", "evidence_identity": "fixture_backed_atomic", "additive_schema_action": "KEEP_STATUS_WITH_DIAGNOSTIC", "breaking_schema_action": "QUARANTINE_OPERATION_CAPABILITY_TUPLE"},
+        {"operation": "read_lineups", "capability": "confirmed_lineups", "status": "EVIDENCE_READY", "evidence_identity": "fixture_backed_atomic", "additive_schema_action": "KEEP_STATUS_WITH_DIAGNOSTIC", "breaking_schema_action": "QUARANTINE_OPERATION_CAPABILITY_TUPLE"},
+        {"operation": "read_360", "capability": "fixture_team_statistics", "status": "EVIDENCE_READY", "evidence_identity": "fixture_backed_atomic", "additive_schema_action": "KEEP_STATUS_WITH_DIAGNOSTIC", "breaking_schema_action": "QUARANTINE_OPERATION_CAPABILITY_TUPLE"}
+      ]
     },
-    "open_reference/StatsBombPy": {
+    {
+      "source_id": "open_reference/StatsBombPy",
+      "provider": "statsbombpy",
       "family": "open_reference",
       "class": "StatsBombPy",
-      "operation": "fetch_competitions",
-      "capability": "current_recent_form",
-      "status": "SELECTABLE_CANDIDATE",
-      "pagination": "NO_PAGINATION",
-      "dependencies": ["statsbombpy"]
+      "source_status": "NOT_SUPPORTED",
+      "transport_type": "official_api",
+      "dependencies": ["statsbombpy"],
+      "diagnostics": ["Optional dependency statsbombpy is absent in the test environment."],
+      "operations": [
+        {"operation": "competitions", "capability": "canonical_event_team_identity", "status": "NOT_SUPPORTED", "evidence_identity": null, "additive_schema_action": "KEEP_STATUS_WITH_DIAGNOSTIC", "breaking_schema_action": "QUARANTINE_OPERATION_CAPABILITY_TUPLE"}
+      ]
     },
-    "open_reference/KaggleEuropeanSoccer": {
+    {
+      "source_id": "open_reference/KaggleEuropeanSoccer",
+      "provider": "kaggle",
       "family": "open_reference",
       "class": "KaggleEuropeanSoccer",
-      "operation": "query_matches",
-      "capability": "h2h_head_to_head",
-      "status": "EVIDENCE_READY",
-      "pagination": "NO_PAGINATION",
-      "dependencies": ["sqlite3"]
+      "source_status": "EVIDENCE_READY",
+      "transport_type": "file_system",
+      "dependencies": ["sqlite3"],
+      "operations": [
+        {"operation": "read_matches", "capability": "h2h_head_to_head", "status": "EVIDENCE_READY", "evidence_identity": "fixture_backed_atomic", "additive_schema_action": "KEEP_STATUS_WITH_DIAGNOSTIC", "breaking_schema_action": "QUARANTINE_OPERATION_CAPABILITY_TUPLE"}
+      ]
     },
-    "open_reference/FootballDataOrg": {
+    {
+      "source_id": "open_reference/FootballDataOrg",
+      "provider": "football-data",
       "family": "open_reference",
       "class": "FootballDataOrg",
-      "operation": "fetch_fixtures",
-      "capability": "current_discovery",
-      "status": "CERTIFIED_SELECTABLE",
-      "pagination": "NO_PAGINATION",
-      "dependencies": []
+      "source_status": "IMPLEMENTED_ACTIVE",
+      "transport_type": "official_api",
+      "dependencies": [],
+      "diagnostics": ["Bridge is unit-covered but remains uncertified without retained evidence replay and live routing validation."],
+      "operations": [
+        {"operation": "get_fixtures_result", "capability": "current_discovery", "status": "IMPLEMENTED_ACTIVE", "evidence_identity": null, "additive_schema_action": "KEEP_STATUS_WITH_DIAGNOSTIC", "breaking_schema_action": "QUARANTINE_OPERATION_CAPABILITY_TUPLE"}
+      ]
     },
-    "open_reference/OpenFootball": {
+    {
+      "source_id": "open_reference/OpenFootball",
+      "provider": "openfootball",
       "family": "open_reference",
       "class": "OpenFootball",
-      "operation": "fetch_worldcup_matches",
-      "capability": "current_recent_form",
-      "status": "EVIDENCE_READY",
-      "pagination": "NO_PAGINATION",
-      "dependencies": []
+      "source_status": "EVIDENCE_READY",
+      "transport_type": "file_system",
+      "dependencies": [],
+      "operations": [
+        {"operation": "read_matches", "capability": "current_recent_form", "status": "EVIDENCE_READY", "evidence_identity": "fixture_backed_atomic", "additive_schema_action": "KEEP_STATUS_WITH_DIAGNOSTIC", "breaking_schema_action": "QUARANTINE_OPERATION_CAPABILITY_TUPLE"}
+      ]
     },
-    "rich_unofficial/FotMobProbe": {
+    {
+      "source_id": "rich_unofficial/FotMobProbe",
+      "provider": "fotmob",
       "family": "rich_unofficial",
       "class": "FotMobProbe",
-      "operation": "probe_matches",
-      "capability": "current_discovery",
-      "status": "SELECTABLE_CANDIDATE",
-      "pagination": "NO_PAGINATION",
-      "dependencies": []
+      "source_status": "NOT_SUPPORTED",
+      "transport_type": "unofficial_api",
+      "dependencies": [],
+      "diagnostics": ["Fixture-only normalization is available, but there is no safe client path and no selectable evidence."],
+      "operations": [
+        {"operation": "probe_matches", "capability": "current_discovery", "status": "NOT_SUPPORTED", "evidence_identity": null, "additive_schema_action": "KEEP_STATUS_WITH_DIAGNOSTIC", "breaking_schema_action": "QUARANTINE_OPERATION_CAPABILITY_TUPLE"}
+      ]
     },
-    "rich_unofficial/SofaScoreRichProbe": {
+    {
+      "source_id": "rich_unofficial/SofaScoreRichProbe",
+      "provider": "sofascore",
       "family": "rich_unofficial",
       "class": "SofaScoreRichProbe",
-      "operation": "probe_stats",
-      "capability": "fixture_team_statistics",
-      "status": "SELECTABLE_CANDIDATE",
-      "pagination": "NO_PAGINATION",
-      "dependencies": []
+      "source_status": "NOT_SUPPORTED",
+      "transport_type": "browser_scraper",
+      "dependencies": [],
+      "diagnostics": ["Fixture-only normalization is available, but there is no safe client path and no selectable evidence."],
+      "operations": [
+        {"operation": "probe_stats", "capability": "fixture_team_statistics", "status": "NOT_SUPPORTED", "evidence_identity": null, "additive_schema_action": "KEEP_STATUS_WITH_DIAGNOSTIC", "breaking_schema_action": "QUARANTINE_OPERATION_CAPABILITY_TUPLE"}
+      ]
     },
-    "rich_unofficial/ScraperFCSofascore": {
+    {
+      "source_id": "rich_unofficial/ScraperFCSofascore",
+      "provider": "scraperfc",
       "family": "rich_unofficial",
       "class": "ScraperFCSofascore",
-      "operation": "fetch_match_stats",
-      "capability": "fixture_team_statistics",
-      "status": "NOT_SUPPORTED",
-      "pagination": "NO_PAGINATION",
-      "dependencies": ["ScraperFC"]
+      "source_status": "NOT_SUPPORTED",
+      "transport_type": "browser_scraper",
+      "dependencies": ["ScraperFC"],
+      "operations": [
+        {"operation": "fetch_match_stats", "capability": "fixture_team_statistics", "status": "NOT_SUPPORTED", "evidence_identity": null, "additive_schema_action": "KEEP_STATUS_WITH_DIAGNOSTIC", "breaking_schema_action": "QUARANTINE_OPERATION_CAPABILITY_TUPLE"}
+      ]
     },
-    "event_model/SoccerAction": {
+    {
+      "source_id": "event_model/SoccerAction",
+      "provider": "socceraction",
       "family": "event_model",
-      "class": "SoccerAction",
-      "operation": "convert_events",
-      "capability": "fixture_team_statistics",
-      "status": "NOT_SUPPORTED",
-      "pagination": "NO_PAGINATION",
-      "dependencies": ["socceraction"]
+      "class": "socceraction_bridge",
+      "source_status": "NOT_SUPPORTED",
+      "transport_type": "computation",
+      "dependencies": ["socceraction"],
+      "operations": [
+        {"operation": "convert_events", "capability": "fixture_team_statistics", "status": "NOT_SUPPORTED", "evidence_identity": null, "additive_schema_action": "KEEP_STATUS_WITH_DIAGNOSTIC", "breaking_schema_action": "QUARANTINE_OPERATION_CAPABILITY_TUPLE"}
+      ]
     },
-    "event_model/Kloppy": {
+    {
+      "source_id": "event_model/Kloppy",
+      "provider": "kloppy",
       "family": "event_model",
-      "class": "Kloppy",
-      "operation": "load_tracking_data",
-      "capability": "fixture_team_statistics",
-      "status": "NOT_SUPPORTED",
-      "pagination": "NO_PAGINATION",
-      "dependencies": ["kloppy"]
+      "class": "kloppy_bridge",
+      "source_status": "NOT_SUPPORTED",
+      "transport_type": "computation",
+      "dependencies": ["kloppy"],
+      "operations": [
+        {"operation": "load_tracking_data", "capability": "fixture_team_statistics", "status": "NOT_SUPPORTED", "evidence_identity": null, "additive_schema_action": "KEEP_STATUS_WITH_DIAGNOSTIC", "breaking_schema_action": "QUARANTINE_OPERATION_CAPABILITY_TUPLE"}
+      ]
     },
-    "event_model/Floodlight": {
+    {
+      "source_id": "event_model/Floodlight",
+      "provider": "floodlight",
       "family": "event_model",
-      "class": "Floodlight",
-      "operation": "load_events",
-      "capability": "fixture_team_statistics",
-      "status": "NOT_SUPPORTED",
-      "pagination": "NO_PAGINATION",
-      "dependencies": ["floodlight"]
+      "class": "floodlight_bridge",
+      "source_status": "NOT_SUPPORTED",
+      "transport_type": "computation",
+      "dependencies": ["floodlight"],
+      "operations": [
+        {"operation": "load_events", "capability": "fixture_team_statistics", "status": "NOT_SUPPORTED", "evidence_identity": null, "additive_schema_action": "KEEP_STATUS_WITH_DIAGNOSTIC", "breaking_schema_action": "QUARANTINE_OPERATION_CAPABILITY_TUPLE"}
+      ]
     },
-    "event_model/MplSoccer": {
+    {
+      "source_id": "event_model/MplSoccer",
+      "provider": "mplsoccer",
       "family": "event_model",
-      "class": "MplSoccer",
-      "operation": "draw_pitch",
-      "capability": "fixture_team_statistics",
-      "status": "NOT_SUPPORTED",
-      "pagination": "NO_PAGINATION",
-      "dependencies": ["mplsoccer"]
+      "class": "mplsoccer_bridge",
+      "source_status": "NOT_SUPPORTED",
+      "transport_type": "computation",
+      "dependencies": ["mplsoccer"],
+      "operations": [
+        {"operation": "draw_pitch", "capability": "fixture_team_statistics", "status": "NOT_SUPPORTED", "evidence_identity": null, "additive_schema_action": "KEEP_STATUS_WITH_DIAGNOSTIC", "breaking_schema_action": "QUARANTINE_OPERATION_CAPABILITY_TUPLE"}
+      ]
     }
-  }
+  ]
 }

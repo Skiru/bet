@@ -1,5 +1,7 @@
 from __future__ import annotations
-from typing import Any, Mapping, Sequence
+
+from collections.abc import Sequence
+
 
 class DriftClassification:
     NO_DRIFT = "NO_DRIFT"
@@ -14,13 +16,13 @@ def evaluate_drift(
 ) -> str:
     if not historical_columns:
         return DriftClassification.NO_DRIFT
-        
+
     current_set = set(current_columns)
     historical_set = set(historical_columns)
-    
+
     missing_cols = historical_set - current_set
     new_cols = current_set - historical_set
-    
+
     if missing_cols:
         return DriftClassification.BREAKING_SCHEMA_DRIFT
     elif new_cols:

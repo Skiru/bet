@@ -1,19 +1,26 @@
 from __future__ import annotations
-from typing import Any, Sequence
-from datetime import datetime, timezone
-import pandas as pd
+
+from typing import Any
+
 from bet.enrichment.football_data_foundation.connector_kernel import BaseConnector
-from bet.enrichment.football_data_foundation.connector_kernel.access import AccessRequirement
-from bet.enrichment.football_data_foundation.connector_kernel.pagination import PaginationModel
-from bet.enrichment.football_data_foundation.connector_kernel.evidence import EvidencePackager
-from bet.enrichment.football_data_foundation.connector_kernel.normalization import RecordNormalizer
+from bet.enrichment.football_data_foundation.connector_kernel.access import (
+    has_dependency,
+)
+from bet.enrichment.football_data_foundation.connector_kernel.pagination import (
+    PaginationModel,
+)
+from bet.enrichment.football_data_foundation.connector_kernel.results import (
+    build_status_result,
+    build_success_result,
+)
 from bet.integration.source_result import SourceOperationResult, SourceResultStatus
+
 
 class ClubEloConnector(BaseConnector):
     provider = "soccerdata"
     source_family = "soccerdata"
     source_class = "ClubElo"
-    supported_operations = ("fetch_ratings",)
+    supported_operations = ("read_by_date", "read_team_history")
     supported_capabilities = ("current_recent_form",)
     access_requirements = ()
     dependency_requirements = ("soccerdata",)
@@ -24,60 +31,77 @@ class ClubEloConnector(BaseConnector):
     evidence_policy = "deterministic_fingerprinting"
     drift_policy = "schema_drift_detection"
 
+    _CAPABILITIES = {
+        "read_by_date": "current_recent_form",
+        "read_team_history": "current_recent_form",
+    }
+
     def execute(self, operation: str, **kwargs: Any) -> SourceOperationResult[Any]:
         if operation not in self.supported_operations:
-            return SourceOperationResult(
-                status=SourceResultStatus.NOT_SUPPORTED,
-                error_code="operation_not_supported"
+            return build_status_result(
+                self,
+                operation,
+                SourceResultStatus.NOT_SUPPORTED,
+                "operation_not_supported",
             )
-            
+
+        if not has_dependency("soccerdata"):
+            return build_status_result(
+                self,
+                operation,
+                SourceResultStatus.NOT_SUPPORTED,
+                "dependency_missing",
+                {"dependency": "soccerdata"},
+            )
+
         try:
-            import soccerdata as sd
-            # Use offline/test logic if mocked or requested
-            if kwargs.get("mock_data") is not None:
-                df = kwargs["mock_data"]
+            if "source" in kwargs:
+                source = kwargs["source"]
             else:
-                clubelo = sd.ClubElo(**kwargs.get("init_kwargs", {}))
-                df = clubelo.read_all_ratings()
-                
-            # Perform normalization
-            normalizer = RecordNormalizer({
-                "team": "team_name",
-                "elo": "elo_rating",
-                "date": "as_of_date"
-            })
-            normalized_records = normalizer.normalize(df)
-            
-            # Evidence packaging
-            packager = EvidencePackager()
-            evidence = packager.create_package(
-                provider=self.provider,
-                source_family=self.source_family,
-                source_class=self.source_class,
-                operation=operation,
-                capability="current_recent_form",
-                scope=kwargs.get("scope", "global"),
-                request_identity="soccerdata.ClubElo.read_all_ratings",
-                raw_payload=df,
-                normalized_records=normalized_records,
-                pagination_model=str(self.pagination_model)
+                import soccerdata as sd
+
+                source = sd.ClubElo(**dict(kwargs.get("init_kwargs", {})))
+
+            method = getattr(source, operation, None)
+            if method is None:
+                return build_status_result(
+                    self,
+                    operation,
+                    SourceResultStatus.NOT_SUPPORTED,
+                    "documented_method_unavailable",
+                    {"method": operation},
+                )
+
+            method_kwargs = {}
+            if operation == "read_by_date" and "date" in kwargs:
+                method_kwargs["date"] = kwargs["date"]
+            if operation == "read_team_history":
+                if "team" not in kwargs:
+                    return build_status_result(
+                        self,
+                        operation,
+                        SourceResultStatus.PARSE_ERROR,
+                        "missing_required_parameter",
+                        {"required_parameter": "team"},
+                    )
+                method_kwargs["team"] = kwargs["team"]
+                if "max_age" in kwargs:
+                    method_kwargs["max_age"] = kwargs["max_age"]
+
+            raw_payload = method(**method_kwargs)
+            return build_success_result(
+                self,
+                operation,
+                self._CAPABILITIES[operation],
+                raw_payload,
+                request_identity=f"soccerdata.ClubElo.{operation}",
+                parser_diagnostics={"scope": kwargs.get("scope", "global")},
             )
-            
-            return SourceOperationResult(
-                status=SourceResultStatus.SUCCESS,
-                value=normalized_records,
-                provider=self.provider,
-                operation=operation,
-                request_identity="soccerdata.ClubElo.read_all_ratings",
-                parser_version="football_foundation_v1",
-                normalization_version="football_foundation_v1",
-                schema_fingerprint=evidence.schema_fingerprint,
-                bundle_id=evidence.evidence_id
-            )
-            
-        except Exception as e:
-            return SourceOperationResult(
-                status=SourceResultStatus.PARSE_ERROR,
-                error_code="clubelo_fetch_failed",
-                parser_diagnostics={"error": str(e)}
+        except Exception as exc:
+            return build_status_result(
+                self,
+                operation,
+                SourceResultStatus.PARSE_ERROR,
+                "clubelo_read_failed",
+                {"error": str(exc)},
             )

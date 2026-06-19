@@ -1,7 +1,10 @@
 from __future__ import annotations
-from typing import Any, Mapping
-from pathlib import Path
+
 import json
+from collections.abc import Mapping
+from pathlib import Path
+from typing import Any
+
 
 class TransportResult:
     def __init__(self, raw_data: Any, cache_hit: bool = False, http_status: int | None = None, error: str = ""):
@@ -21,7 +24,7 @@ class LocalFileTransport(BaseTransport):
             return TransportResult(None, error=f"File not found: {url_or_path}", http_status=404)
         try:
             if p.suffix == ".json":
-                with open(p, "r", encoding="utf-8") as f:
+                with open(p, encoding="utf-8") as f:
                     return TransportResult(json.load(f), cache_hit=True, http_status=200)
             else:
                 return TransportResult(p.read_bytes(), cache_hit=True, http_status=200)

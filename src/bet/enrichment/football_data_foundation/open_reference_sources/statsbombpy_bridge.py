@@ -1,15 +1,26 @@
 from __future__ import annotations
-from typing import Any, Mapping
+
+from typing import Any
+
 from bet.enrichment.football_data_foundation.connector_kernel import BaseConnector
-from bet.enrichment.football_data_foundation.connector_kernel.access import AccessRequirement, has_dependency
-from bet.enrichment.football_data_foundation.connector_kernel.pagination import PaginationModel
+from bet.enrichment.football_data_foundation.connector_kernel.access import (
+    has_dependency,
+)
+from bet.enrichment.football_data_foundation.connector_kernel.pagination import (
+    PaginationModel,
+)
+from bet.enrichment.football_data_foundation.connector_kernel.results import (
+    build_status_result,
+    build_success_result,
+)
 from bet.integration.source_result import SourceOperationResult, SourceResultStatus
+
 
 class StatsBombPyBridge(BaseConnector):
     provider = "statsbombpy"
-    source_family = "statsbomb"
-    source_class = "statsbombpy_bridge"
-    supported_operations = ("fetch_competitions",)
+    source_family = "open_reference"
+    source_class = "StatsBombPy"
+    supported_operations = ("competitions",)
     supported_capabilities = ()
     access_requirements = ()
     dependency_requirements = ("statsbombpy",)
@@ -22,46 +33,41 @@ class StatsBombPyBridge(BaseConnector):
 
     def execute(self, operation: str, **kwargs: Any) -> SourceOperationResult[Any]:
         if not has_dependency("statsbombpy"):
-            return SourceOperationResult(
-                status=SourceResultStatus.NOT_SUPPORTED,
-                error_code="DEPENDENCY_MISSING",
-                parser_diagnostics={"dependency": "statsbombpy", "reason": "statsbombpy is an optional dependency and is currently absent."}
+            return build_status_result(
+                self,
+                operation,
+                SourceResultStatus.NOT_SUPPORTED,
+                "dependency_missing",
+                {
+                    "dependency": "statsbombpy",
+                    "reason": "statsbombpy is an optional dependency and is currently absent.",
+                },
             )
-            
+
         if operation not in self.supported_operations:
-            return SourceOperationResult(
-                status=SourceResultStatus.NOT_SUPPORTED,
-                error_code="operation_not_supported"
+            return build_status_result(
+                self,
+                operation,
+                SourceResultStatus.NOT_SUPPORTED,
+                "operation_not_supported",
             )
-            
+
         try:
             from statsbombpy import sb
-            # Use mock_data if provided
-            if kwargs.get("mock_data") is not None:
-                raw_data = kwargs["mock_data"]
-            else:
-                raw_data = sb.competitions(fmt="dict")
-                
-            # Convert to normalized records list
-            normalized_records = []
-            for comp_id, item in raw_data.items():
-                normalized_records.append({
-                    "competition_id": str(comp_id),
-                    "country_name": str(item.get("country_name", "UNKNOWN")),
-                    "competition_name": str(item.get("competition_name", "UNKNOWN")),
-                    "season_name": str(item.get("season_name", "UNKNOWN"))
-                })
-                
-            return SourceOperationResult(
-                status=SourceResultStatus.SUCCESS,
-                value=normalized_records,
-                provider=self.provider,
-                operation=operation,
-                request_identity="statsbombpy.sb.competitions"
+            raw_payload = sb.competitions(fmt=kwargs.get("fmt", "dict"))
+            return build_success_result(
+                self,
+                operation,
+                "canonical_event_team_identity",
+                raw_payload,
+                request_identity="statsbombpy.sb.competitions",
+                parser_diagnostics={"scope": kwargs.get("scope", "global")},
             )
-        except Exception as e:
-            return SourceOperationResult(
-                status=SourceResultStatus.PARSE_ERROR,
-                error_code="statsbombpy_bridge_failed",
-                parser_diagnostics={"error": str(e)}
+        except Exception as exc:
+            return build_status_result(
+                self,
+                operation,
+                SourceResultStatus.PARSE_ERROR,
+                "statsbombpy_bridge_failed",
+                {"error": str(exc)},
             )

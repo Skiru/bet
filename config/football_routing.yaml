@@ -1,6 +1,4 @@
 # Football routing precedence configuration
-anchors:
-  sportdb: &sdb sportdb
 routing:
   current_discovery:
     production_routes:
@@ -75,7 +73,7 @@ routing:
         season_scope: current-season-completed
         mode: shadow
         selectable_status: CERTIFIED_SHADOW
-      - provider: *sdb
+      - provider: sportdb
         competition_scope: football:world:8/world-championship:lvUBR5F8
         season_scope: "2026"
         mode: shadow
