@@ -167,7 +167,6 @@ def build_static_audit() -> dict[str, Any]:
             "rapidapi_base_url": "https://football-highlights-api.p.rapidapi.com",
             "auth_env_aliases": [
                 "HIGHLIGHTLY_API_KEY",
-                "HIGHLIGHTY_API_KEY",
                 "RAPIDAPI_KEY",
             ],
             "auth_header_style": (
@@ -720,7 +719,7 @@ def main() -> int:
         "highlightly": preflight(
             "highlightly",
             "HIGHLIGHTLY_API_KEY",
-            ["HIGHLIGHTLY_API_KEY", "HIGHLIGHTY_API_KEY", "RAPIDAPI_KEY"],
+            ["HIGHLIGHTLY_API_KEY", "RAPIDAPI_KEY"],
             dot_env,
         ),
     }

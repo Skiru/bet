@@ -1,0 +1,64 @@
+{
+  "phase_id": "P2D_B_IMPLEMENT_AND_CERTIFY_HIGHLIGHTLY",
+  "previous_accepted_sha": "3cf67cb9a2697c1fec2159d6b24b0c8c095ef350",
+  "verdict": "PRODUCTION_READY_MULTI_SOURCE_SCOPE_LIMITED",
+  "evidence_level": "TRACKED_CERTIFICATION_SUMMARY",
+  "provider": "highlightly",
+  "certified_scope": "football:eng.1/current-season-completed/shadow",
+  "certified_routes": [
+    "current_form/highlightly/football:eng.1/current-season-completed/shadow",
+    "historical_form_h2h/highlightly/football:eng.1/current-season-completed/shadow",
+    "detailed_metrics/highlightly/football:eng.1/current-season-completed/shadow"
+  ],
+  "non_certified_current_live_routes": [
+    "current_form/highlightly/football:eng.1/current/shadow",
+    "historical_form_h2h/highlightly/football:eng.1/current/shadow",
+    "detailed_metrics/highlightly/football:eng.1/current/shadow"
+  ],
+  "evidence_bundle_ids": [
+    "f2dbac2393fdf9fee747d01c530de47c874b54ef385e0a6efb381773f89fb720",
+    "74f7b8fe8bae69df7433c34d67bcc110f9bbedfd1d5f8e60092e14b63cbd48a2",
+    "1a8de5e28225fd5507ff6e548af406412dd598c404840f694d0026768148e126",
+    "368b08db99edbd38ee464380109a1b65c08365526a2cd77d7e4566e1a9c95eb5",
+    "cc4c2646f19379233f3aa6d28c29e614de9c495c129fe4993aa0c6f54f5f2526",
+    "6f4f9c027675ba0b3b7246b8994e3ce984d6a990f6c152bf6bdcbc106a88c290"
+  ],
+  "replay_proof_ids": [
+    "cc9ca253e5a210160b8aa719ffa7bdcde22165a0fd27735c058f14474785d511"
+  ],
+  "raw_stat_field_names": [
+    "Expected Goals",
+    "Big Chances Created",
+    "Free Kicks",
+    "Throw-Ins",
+    "Goal Kicks",
+    "Shots accuracy",
+    "Shots on target",
+    "Shots off target",
+    "Blocked shots",
+    "Shots within penalty area",
+    "Shots outside penalty area",
+    "Fouls",
+    "Corners",
+    "Offsides",
+    "Possession",
+    "Yellow cards",
+    "Goalkeeper saves",
+    "Total passes",
+    "Successful passes",
+    "Failed passes"
+  ],
+  "missing_target_metrics": [
+    "Red cards"
+  ],
+  "remaining_single_source_risk": [
+    "current_form/espn/football:eng.1/current/shadow",
+    "historical_form_h2h/espn/football:eng.1/current/shadow",
+    "detailed_metrics/espn/football:eng.1/current/shadow"
+  ],
+  "sportdb_strategy": "strategic_p2e_not_rejected",
+  "api_football_strategy": "historical_fallback_only",
+  "football_data_strategy": "current_discovery_and_standings_only",
+  "secret_safe": true,
+  "final_review": "PASS_MANUAL_GPT54_NO_LOCAL_AGENT"
+}

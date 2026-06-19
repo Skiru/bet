@@ -20,7 +20,7 @@ PROVIDER_KEYS = {
     },
     "highlightly": {
         "canonical": "HIGHLIGHTLY_API_KEY",
-        "aliases": ["HIGHLIGHTLY_API_KEY", "HIGHLIGHTY_API_KEY", "RAPIDAPI_KEY"],
+        "aliases": ["HIGHLIGHTLY_API_KEY", "RAPIDAPI_KEY"],
     },
 }
 

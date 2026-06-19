@@ -1,3 +1,5 @@
+# ruff: noqa: E402, F401, I001
+
 """API clients package — adapted from scripts/api_clients/.
 
 Clients return bet.db.models objects (Fixture, MatchStat) instead of raw dicts.
@@ -114,6 +116,12 @@ except ImportError:
     pass
 
 try:
+    from bet.api_clients.highlightly import HighlightlyClient
+    CLIENT_REGISTRY["highlightly"] = HighlightlyClient
+except ImportError:
+    pass
+
+try:
     from bet.api_clients.understat_client import UnderstatClient
     CLIENT_REGISTRY["understat"] = UnderstatClient
 except ImportError:
@@ -183,4 +191,3 @@ try:
     CLIENT_REGISTRY["scrapernhl"] = ScraperNHLClient
 except ImportError:
     pass
-

@@ -189,9 +189,9 @@
       ]
     },
     "highlightly": {
-      "classification": "NOT_IMPLEMENTED",
+      "classification": "CERTIFICATION_CANDIDATE",
       "provenance_family": "highlightly",
-      "transport_type": "editorial_source",
+      "transport_type": "unofficial_api",
       "capabilities": {
         "current_discovery": [
           {
@@ -203,10 +203,71 @@
             "evidence_replay": false,
             "exact_reason": "No Highlightly implementation exists in the repository; defer to a later bounded provider-specific change."
           }
+        ],
+        "current_form": [
+          {
+            "status": "CERTIFIED_SELECTABLE",
+            "competition_scope": "football:eng.1",
+            "season_scope": "current-season-completed",
+            "mode": "shadow",
+            "selectable_as_projection": true,
+            "evidence_replay": true,
+            "exact_reason": "Highlightly completed-season current_form is replay-backed for football:eng.1 only. Evidence bundle ids 1a8de5e28225fd5507ff6e548af406412dd598c404840f694d0026768148e126 and 368b08db99edbd38ee464380109a1b65c08365526a2cd77d7e4566e1a9c95eb5 plus replay proof id cc9ca253e5a210160b8aa719ffa7bdcde22165a0fd27735c058f14474785d511 certify this exact tuple."
+          },
+          {
+            "status": "NOT_TESTED",
+            "competition_scope": "football:eng.1",
+            "season_scope": "current",
+            "mode": "shadow",
+            "selectable_as_projection": false,
+            "evidence_replay": false,
+            "exact_reason": "Completed-season Highlightly proof does not certify current-live current_form selection."
+          }
+        ],
+        "detailed_metrics": [
+          {
+            "status": "CERTIFIED_SELECTABLE",
+            "competition_scope": "football:eng.1",
+            "season_scope": "current-season-completed",
+            "mode": "shadow",
+            "selectable_as_projection": true,
+            "evidence_replay": true,
+            "exact_reason": "Highlightly completed-season detailed_metrics is replay-backed for football:eng.1 only. Evidence bundle id 6f4f9c027675ba0b3b7246b8994e3ce984d6a990f6c152bf6bdcbc106a88c290 plus replay proof id cc9ca253e5a210160b8aa719ffa7bdcde22165a0fd27735c058f14474785d511 certify this exact tuple."
+          },
+          {
+            "status": "NOT_TESTED",
+            "competition_scope": "football:eng.1",
+            "season_scope": "current",
+            "mode": "shadow",
+            "selectable_as_projection": false,
+            "evidence_replay": false,
+            "exact_reason": "Completed-season Highlightly proof does not certify current-live detailed_metrics selection."
+          }
+        ],
+        "historical_form_h2h": [
+          {
+            "status": "CERTIFIED_SELECTABLE",
+            "competition_scope": "football:eng.1",
+            "season_scope": "current-season-completed",
+            "mode": "shadow",
+            "selectable_as_projection": true,
+            "evidence_replay": true,
+            "exact_reason": "Highlightly completed-season historical_form_h2h is replay-backed for football:eng.1 only. Evidence bundle id cc4c2646f19379233f3aa6d28c29e614de9c495c129fe4993aa0c6f54f5f2526 plus replay proof id cc9ca253e5a210160b8aa719ffa7bdcde22165a0fd27735c058f14474785d511 certify this exact tuple."
+          },
+          {
+            "status": "NOT_TESTED",
+            "competition_scope": "football:eng.1",
+            "season_scope": "current",
+            "mode": "shadow",
+            "selectable_as_projection": false,
+            "evidence_replay": false,
+            "exact_reason": "Completed-season Highlightly proof does not certify current-live historical_form_h2h selection."
+          }
         ]
       },
       "risks": [
-        "no repository implementation"
+        "current-live certification is still absent across all Highlightly football routes",
+        "detailed metrics intentionally preserve Red cards as missing until a payload proves it"
       ]
     },
     "oddsportal": {

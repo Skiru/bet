@@ -25,11 +25,21 @@ routing:
         season_scope: current
         mode: shadow
         selectable_status: CERTIFIED_SELECTABLE
+      - provider: highlightly
+        competition_scope: football:eng.1
+        season_scope: current-season-completed
+        mode: shadow
+        selectable_status: CERTIFIED_SELECTABLE
   historical_form_h2h:
     production_routes:
       - provider: espn
         competition_scope: football:eng.1
         season_scope: current
+        mode: shadow
+        selectable_status: CERTIFIED_SELECTABLE
+      - provider: highlightly
+        competition_scope: football:eng.1
+        season_scope: current-season-completed
         mode: shadow
         selectable_status: CERTIFIED_SELECTABLE
   standings:
@@ -50,6 +60,11 @@ routing:
       - provider: espn
         competition_scope: football:eng.1
         season_scope: current
+        mode: shadow
+        selectable_status: CERTIFIED_SELECTABLE
+      - provider: highlightly
+        competition_scope: football:eng.1
+        season_scope: current-season-completed
         mode: shadow
         selectable_status: CERTIFIED_SELECTABLE
   advanced_xg:

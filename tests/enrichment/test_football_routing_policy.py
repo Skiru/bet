@@ -3,22 +3,29 @@ from __future__ import annotations
 
 import copy
 import json
+import os
+import subprocess
+import sys
 from datetime import UTC, datetime
+from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
 
 from bet.api_clients.base_client import SourceOperationResult, SourceResultStatus
 from bet.api_clients.football_data_org import FootballDataOrgClient
+from bet.api_clients.highlightly import HighlightlyClient
 from bet.api_clients.rate_limiter import RateLimiter
 from bet.discovery.sources.football_data_org import FootballDataOrgDiscoveryAdapter
 from bet.enrichment.football_service import (
+    CANDIDATE_REGISTRY,
     FootballDataStandingsAdapter,
     get_route_candidates,
     load_and_validate_config,
     require_production_route,
     select_route_provider,
 )
+from bet.integration.telemetry_wrapper import TransportResult
 
 
 def _config(monkeypatch) -> dict:
@@ -224,15 +231,20 @@ def test_football_data_current_discovery_requires_certified_selectable(monkeypat
 
     # Remove espn from routing to isolate football-data
     config["routing"]["current_discovery"]["production_routes"] = [
-        r for r in config["routing"]["current_discovery"].get("production_routes", []) if r["provider"] != "espn"
+        r
+        for r in config["routing"]["current_discovery"].get("production_routes", [])
+        if r["provider"] != "espn"
     ]
 
-    assert select_route_provider(
-        config,
-        "current_discovery",
-        "football:eng.1",
-        mode="shadow",
-    ) is None
+    assert (
+        select_route_provider(
+            config,
+            "current_discovery",
+            "football:eng.1",
+            mode="shadow",
+        )
+        is None
+    )
 
     config["routing"]["current_discovery"] = {
         "production_routes": [
@@ -289,9 +301,9 @@ def test_football_data_standings_requires_certified_selectable(monkeypatch):
     entry["status"] = "CERTIFIED_SELECTABLE"
     entry["selectable_as_projection"] = True
     entry["evidence_replay"] = True
-    config["routing"]["standings"]["production_routes"][0][
-        "selectable_status"
-    ] = "CERTIFIED_SELECTABLE"
+    config["routing"]["standings"]["production_routes"][0]["selectable_status"] = (
+        "CERTIFIED_SELECTABLE"
+    )
 
     selected = select_route_provider(
         config,
@@ -329,19 +341,25 @@ def test_espn_eng1_scope_does_not_imply_football_star(monkeypatch):
 
 def test_football_data_supported_capabilities_restricted():
     from bet.enrichment.football_service import CANDIDATE_REGISTRY
+
     record = CANDIDATE_REGISTRY["football-data"]
     assert "current_recent_form" not in record.supported_capabilities
     assert "h2h_head_to_head" not in record.supported_capabilities
     assert "fixture_team_statistics" not in record.supported_capabilities
     assert "advanced_xg" not in record.supported_capabilities
-    assert set(record.supported_capabilities) == {"current_discovery", "standings_competition_context"}
+    assert set(record.supported_capabilities) == {
+        "current_discovery",
+        "standings_competition_context",
+    }
 
 
 def test_standings_certification_does_not_make_current_form_selectable(monkeypatch):
     config = _config(monkeypatch)
     # Remove espn from routing to isolate football-data
     config["routing"]["current_form"]["production_routes"] = [
-        r for r in config["routing"]["current_form"].get("production_routes", []) if r["provider"] != "espn"
+        r
+        for r in config["routing"]["current_form"].get("production_routes", [])
+        if r["provider"] != "espn"
     ]
     # Certify standings for football-data
     entry = _football_data_capability(config, "standings")
@@ -350,19 +368,24 @@ def test_standings_certification_does_not_make_current_form_selectable(monkeypat
     entry["evidence_replay"] = True
 
     # But current_form is not certified
-    assert select_route_provider(
-        config,
-        "current_form",
-        "football:eng.1",
-        mode="shadow",
-    ) is None
+    assert (
+        select_route_provider(
+            config,
+            "current_form",
+            "football:eng.1",
+            mode="shadow",
+        )
+        is None
+    )
 
 
 def test_current_discovery_certification_does_not_make_h2h_selectable(monkeypatch):
     config = _config(monkeypatch)
     # Remove espn from routing to isolate football-data
     config["routing"]["historical_form_h2h"]["production_routes"] = [
-        r for r in config["routing"]["historical_form_h2h"].get("production_routes", []) if r["provider"] != "espn"
+        r
+        for r in config["routing"]["historical_form_h2h"].get("production_routes", [])
+        if r["provider"] != "espn"
     ]
     # Certify current_discovery for football-data
     entry = _football_data_capability(config, "current_discovery")
@@ -371,15 +394,20 @@ def test_current_discovery_certification_does_not_make_h2h_selectable(monkeypatc
     entry["evidence_replay"] = True
 
     # But historical_form_h2h is not certified
-    assert select_route_provider(
-        config,
-        "historical_form_h2h",
-        "football:eng.1",
-        mode="shadow",
-    ) is None
+    assert (
+        select_route_provider(
+            config,
+            "historical_form_h2h",
+            "football:eng.1",
+            mode="shadow",
+        )
+        is None
+    )
 
 
-def test_candidate_registry_replay_metadata_cannot_make_any_capability_selectable(monkeypatch):
+def test_candidate_registry_replay_metadata_cannot_make_any_capability_selectable(
+    monkeypatch,
+):
     config = _config(monkeypatch)
     # Ensure football-data is NOT certified at the start of this test
     entry = _football_data_capability(config, "standings")
@@ -400,24 +428,40 @@ def test_candidate_registry_replay_metadata_cannot_make_any_capability_selectabl
     # Even if we mock CandidateRecord to have replay_capabilities or supported_capabilities,
     # it does not make a non-certified matrix entry selectable.
     from bet.enrichment.football_service import CANDIDATE_REGISTRY, CandidateRecord
-    monkeypatch.setitem(CANDIDATE_REGISTRY, "football-data", CandidateRecord(
-        provider_key="football-data",
-        implementation_state="PRODUCTION_READY",
-        credential_requirement=False,
-        governance_state="QUALIFIED_SHADOW",
-        provenance_family="football-data-org",
-        supported_capabilities=("current_recent_form", "h2h_head_to_head", "standings_competition_context"),
-        replay_capabilities=("current_recent_form", "h2h_head_to_head", "standings_competition_context"),
-        live_probe_eligibility=True,
-    ))
+
+    monkeypatch.setitem(
+        CANDIDATE_REGISTRY,
+        "football-data",
+        CandidateRecord(
+            provider_key="football-data",
+            implementation_state="PRODUCTION_READY",
+            credential_requirement=False,
+            governance_state="QUALIFIED_SHADOW",
+            provenance_family="football-data-org",
+            supported_capabilities=(
+                "current_recent_form",
+                "h2h_head_to_head",
+                "standings_competition_context",
+            ),
+            replay_capabilities=(
+                "current_recent_form",
+                "h2h_head_to_head",
+                "standings_competition_context",
+            ),
+            live_probe_eligibility=True,
+        ),
+    )
 
     # The matrix entry for standings is still NOT_TESTED and selectable_as_projection=False
-    assert select_route_provider(
-        config,
-        "standings",
-        "football:eng.1",
-        mode="shadow",
-    ) is None
+    assert (
+        select_route_provider(
+            config,
+            "standings",
+            "football:eng.1",
+            mode="shadow",
+        )
+        is None
+    )
 
 
 def test_only_exact_certified_selectable_tuple_can_be_selected(monkeypatch):
@@ -453,51 +497,67 @@ def test_only_exact_certified_selectable_tuple_can_be_selected(monkeypatch):
     assert selected["provider"] == "football-data"
 
     # Query with non-matching scope -> should NOT be selected
-    assert select_route_provider(
-        config,
-        "standings",
-        "football:esp.1",
-        season_scope="current",
-        mode="shadow",
-    ) is None
+    assert (
+        select_route_provider(
+            config,
+            "standings",
+            "football:esp.1",
+            season_scope="current",
+            mode="shadow",
+        )
+        is None
+    )
 
     # Query with non-matching season -> should NOT be selected
-    assert select_route_provider(
-        config,
-        "standings",
-        "football:eng.1",
-        season_scope="historical",
-        mode="shadow",
-    ) is None
+    assert (
+        select_route_provider(
+            config,
+            "standings",
+            "football:eng.1",
+            season_scope="historical",
+            mode="shadow",
+        )
+        is None
+    )
 
 
 def test_candidate_record_is_metadata_only_not_certification_truth(monkeypatch):
     config = _config(monkeypatch)
     # Remove espn from routing to isolate football-data
     config["routing"]["current_form"]["production_routes"] = [
-        r for r in config["routing"]["current_form"].get("production_routes", []) if r["provider"] != "espn"
+        r
+        for r in config["routing"]["current_form"].get("production_routes", [])
+        if r["provider"] != "espn"
     ]
     # Even if CandidateRecord says a capability is supported, if it's not in the matrix,
     # or if the matrix entry is not certified, it cannot be selected.
     from bet.enrichment.football_service import CANDIDATE_REGISTRY, CandidateRecord
-    monkeypatch.setitem(CANDIDATE_REGISTRY, "football-data", CandidateRecord(
-        provider_key="football-data",
-        implementation_state="PRODUCTION_READY",
-        credential_requirement=False,
-        governance_state="QUALIFIED_SHADOW",
-        provenance_family="football-data-org",
-        supported_capabilities=("current_recent_form",),
-        replay_capabilities=("current_recent_form",),
-        live_probe_eligibility=True,
-    ))
+
+    monkeypatch.setitem(
+        CANDIDATE_REGISTRY,
+        "football-data",
+        CandidateRecord(
+            provider_key="football-data",
+            implementation_state="PRODUCTION_READY",
+            credential_requirement=False,
+            governance_state="QUALIFIED_SHADOW",
+            provenance_family="football-data-org",
+            supported_capabilities=("current_recent_form",),
+            replay_capabilities=("current_recent_form",),
+            live_probe_eligibility=True,
+        ),
+    )
 
     # current_form is not even in the capabilities of football-data in the matrix
-    assert select_route_provider(
-        config,
-        "current_form",
-        "football:eng.1",
-        mode="shadow",
-    ) is None
+    assert (
+        select_route_provider(
+            config,
+            "current_form",
+            "football:eng.1",
+            mode="shadow",
+        )
+        is None
+    )
 
 
 def test_candidate_route_never_selected_even_if_matrix_is_selectable(monkeypatch):
@@ -628,9 +688,9 @@ def test_browser_scrapers_cannot_enter_production_routing(monkeypatch, provider)
     )
     if provider_capabilities["current_discovery"]:
         provider_capabilities["current_discovery"][0]["status"] = "CERTIFIED_SELECTABLE"
-        provider_capabilities["current_discovery"][0][
-            "competition_scope"
-        ] = "football:eng.1"
+        provider_capabilities["current_discovery"][0]["competition_scope"] = (
+            "football:eng.1"
+        )
         provider_capabilities["current_discovery"][0]["season_scope"] = "current"
         provider_capabilities["current_discovery"][0]["mode"] = "shadow"
         provider_capabilities["current_discovery"][0]["selectable_as_projection"] = True
@@ -682,12 +742,15 @@ def test_non_selectable_statuses_fail_production_validation(monkeypatch, status)
     entry["selectable_as_projection"] = False
     entry["evidence_replay"] = False
 
-    assert select_route_provider(
-        config,
-        "current_discovery",
-        "football:eng.1",
-        mode="shadow",
-    ) is None
+    assert (
+        select_route_provider(
+            config,
+            "current_discovery",
+            "football:eng.1",
+            mode="shadow",
+        )
+        is None
+    )
     with pytest.raises(ValueError):
         require_production_route(
             config,
@@ -695,3 +758,244 @@ def test_non_selectable_statuses_fail_production_validation(monkeypatch, status)
             "football:eng.1",
             mode="shadow",
         )
+
+
+def _highlightly_capability(config: dict, capability: str, season_scope: str) -> dict:
+    for entry in config["provider_capability_matrix"]["providers"]["highlightly"][
+        "capabilities"
+    ][capability]:
+        if entry["season_scope"] == season_scope:
+            return entry
+    raise AssertionError(
+        f"missing highlightly capability tuple for {capability}/{season_scope}"
+    )
+
+
+def _transport(
+    payload: object, status_code: int = 200, headers: dict | None = None
+) -> TransportResult:
+    return TransportResult(
+        success=200 <= status_code < 300,
+        status_code=status_code,
+        headers=headers or {"Content-Type": "application/json"},
+        body=json.dumps(payload).encode("utf-8"),
+    )
+
+
+def test_highlightly_exact_scope_is_selectable_only_for_current_season_completed(
+    monkeypatch,
+):
+    config = _config(monkeypatch)
+
+    completed = require_production_route(
+        config,
+        "current_form",
+        "football:eng.1",
+        season_scope="current-season-completed",
+        mode="shadow",
+    )
+    assert completed["provider"] == "highlightly"
+
+    live_route = require_production_route(
+        config,
+        "current_form",
+        "football:eng.1",
+        season_scope="current",
+        mode="shadow",
+    )
+    assert live_route["provider"] == "espn"
+
+
+def test_highlightly_completed_season_proof_does_not_imply_current_live_or_football_star(
+    monkeypatch,
+):
+    config = _config(monkeypatch)
+    config["routing"]["current_form"]["production_routes"] = [
+        route
+        for route in config["routing"]["current_form"]["production_routes"]
+        if route["provider"] == "highlightly"
+    ]
+
+    assert (
+        select_route_provider(
+            config,
+            "current_form",
+            "football:eng.1",
+            season_scope="current",
+            mode="shadow",
+        )
+        is None
+    )
+    assert (
+        select_route_provider(
+            config,
+            "current_form",
+            "football:*",
+            season_scope="current-season-completed",
+            mode="shadow",
+        )
+        is None
+    )
+
+
+def test_highlightly_capability_certification_is_capability_scoped(monkeypatch):
+    config = _config(monkeypatch)
+    config["routing"]["historical_form_h2h"]["production_routes"] = [
+        {
+            "provider": "highlightly",
+            "competition_scope": "football:eng.1",
+            "season_scope": "current-season-completed",
+            "mode": "shadow",
+            "selectable_status": "CERTIFIED_SELECTABLE",
+        }
+    ]
+    h2h_entry = _highlightly_capability(
+        config, "historical_form_h2h", "current-season-completed"
+    )
+    h2h_entry["status"] = "NOT_TESTED"
+    h2h_entry["selectable_as_projection"] = False
+    h2h_entry["evidence_replay"] = False
+
+    assert (
+        select_route_provider(
+            config,
+            "historical_form_h2h",
+            "football:eng.1",
+            season_scope="current-season-completed",
+            mode="shadow",
+        )
+        is None
+    )
+
+    detailed_entry = _highlightly_capability(
+        config, "detailed_metrics", "current-season-completed"
+    )
+    assert detailed_entry["status"] == "CERTIFIED_SELECTABLE"
+
+
+def test_highlightly_statistics_requires_provider_native_team_ids():
+    client = HighlightlyClient(rate_limiter=RateLimiter())
+    result = client.get_statistics_result(
+        "1028343227", home_team_id="", away_team_id="39930"
+    )
+    assert result.status is SourceResultStatus.AMBIGUOUS
+    assert result.error_code == "provider_native_team_ids_required"
+
+
+def test_highlightly_statistics_rejects_basic_match_metadata(monkeypatch, tmp_path):
+    monkeypatch.setenv("BET_EVIDENCE_ROOT", str(tmp_path))
+    monkeypatch.setattr(
+        "bet.integration.telemetry_wrapper.wrap_request",
+        lambda **kwargs: _transport(
+            [
+                {
+                    "team": {"id": 30569, "name": "Bournemouth"},
+                    "state": {"description": "Finished"},
+                }
+            ]
+        ),
+    )
+    client = HighlightlyClient(rate_limiter=RateLimiter())
+    client.api_key = "test-key"
+
+    result = client.get_statistics_result(
+        "1028343227",
+        home_team_id="30569",
+        away_team_id="39930",
+    )
+    assert result.status is SourceResultStatus.SCHEMA_ERROR
+    assert result.error_code == "statistics_list_missing"
+
+
+def test_highlightly_statistics_preserves_raw_stat_names_and_missing_red_cards(
+    monkeypatch, tmp_path
+):
+    monkeypatch.setenv("BET_EVIDENCE_ROOT", str(tmp_path))
+    monkeypatch.setattr(
+        "bet.integration.telemetry_wrapper.wrap_request",
+        lambda **kwargs: _transport(
+            [
+                {
+                    "team": {"id": 30569, "name": "Bournemouth"},
+                    "statistics": [
+                        {"displayName": "Expected Goals", "value": 1.79},
+                        {"displayName": "Shots on target", "value": 7},
+                    ],
+                },
+                {
+                    "team": {"id": 39930, "name": "Leicester"},
+                    "statistics": [
+                        {"displayName": "Expected Goals", "value": 0.52},
+                        {"displayName": "Yellow cards", "value": 1},
+                    ],
+                },
+            ],
+            headers={
+                "Content-Type": "application/json",
+                "x-ratelimit-requests-limit": "100",
+                "x-ratelimit-requests-remaining": "60",
+            },
+        ),
+    )
+    client = HighlightlyClient(rate_limiter=RateLimiter())
+    client.api_key = "test-key"
+
+    result = client.get_statistics_result(
+        "1028343227",
+        home_team_id="30569",
+        away_team_id="39930",
+    )
+    assert result.status is SourceResultStatus.SUCCESS
+    assert result.value is not None
+    assert result.value["raw_stat_field_names"] == [
+        "Expected Goals",
+        "Shots on target",
+        "Yellow cards",
+    ]
+    assert result.value["missing_target_metrics"] == ["Red cards"]
+    assert "red_cards" not in result.value["normalized_metric_names"]
+    assert result.value["statistics"][0]["normalized_metric_name"] == "expected_goals"
+    assert result.quota_metadata == {"minute_limit": 100, "minute_remaining": 60}
+
+
+def test_live_env_preflight_rejects_misspelled_highlightly_alias(tmp_path):
+    repo_root = Path(__file__).resolve().parents[2]
+    env = os.environ.copy()
+    env.pop("HIGHLIGHTLY_API_KEY", None)
+    env.pop("RAPIDAPI_KEY", None)
+    env["HIGHLIGHTY_API_KEY"] = "should-not-be-accepted"
+    env["PYTHONPATH"] = "src:scripts"
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(repo_root / "scripts" / "live_env_preflight.py"),
+            "--provider",
+            "highlightly",
+            "--required",
+        ],
+        cwd=tmp_path,
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 1
+    payload = json.loads(result.stdout.strip())
+    assert payload["present"] is False
+    assert payload["found_key"] == "HIGHLIGHTLY_API_KEY"
+
+
+def test_sportdb_remains_strategic_p2e_and_not_selectable(monkeypatch):
+    config = _config(monkeypatch)
+    assert CANDIDATE_REGISTRY["sportdb"].governance_state == "STRATEGIC_P2E"
+    assert (
+        select_route_provider(
+            config,
+            "current_discovery",
+            "football:eng.1",
+            season_scope="current",
+            mode="shadow",
+        )["provider"]
+        != "sportdb"
+    )
