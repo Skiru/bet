@@ -1,0 +1,193 @@
+{
+  "adapter": {
+    "class": "SportDBMCPShadowAdapter",
+    "module": "src/bet/api_clients/sportdb_mcp.py",
+    "parser_version": "sportdb-mcp-shadow-adapter-v1",
+    "production_registered": false,
+    "routing_registered": false
+  },
+  "blockers": [],
+  "call_budget": {
+    "max_mcp_tool_calls": 5,
+    "mcp_session_calls_made": 5,
+    "mcp_tool_calls_made": 0,
+    "rest_calls_made": 0,
+    "stopped_on_429": false
+  },
+  "certification": {
+    "certified_routes": [],
+    "production_routing_changed": false,
+    "selectable_status_changed": false,
+    "verdict": "NOT_CERTIFIED_SHADOW_ADAPTER_ONLY"
+  },
+  "classification": "SPORTDB_SHADOW_ADAPTER_READY_FOR_REPLAY_COMPARISON",
+  "events_probe": {
+    "available": true,
+    "card_count": 1,
+    "event_count": 14,
+    "event_type_names": [
+      "Assistance",
+      "Goal",
+      "Substitution - In",
+      "Substitution - Out",
+      "Yellow Card"
+    ],
+    "goal_count": 3,
+    "performed": true,
+    "raw_response_sha256": "e924e7c75567a12bc85359bfed80e79b2cf8d4ee63b2fcad3c34ce5b8475e720",
+    "safe_preview": {
+      "preview": "{\"data\": {\"attendance\": \"31 729\", \"awayId\": \"ppjDR086\", \"awayLogo\": \"https://static.flashscore.com/res/image/data/nwSRlyWg-h2pPXz3k.png\", \"awayName\": \"Manchester Utd\", \"awaySlug\": \"manchester-utd\", \"capacity\": \"31 876\", \"events\": [{\"awayScore\": \"1\", \"eventId\": \"MNnPrJSb\", \"homeScore\": \"0\", \"incidentCommentary\": [\"Bruno Fernandes takes the corner and Patrick Dorgu (Manchester United) manages to jump the highest in the box and plants a precise header in off the crossbar. The score is 0:1.\", \"\"], \"incidentHalf\": \"1\", \"incidentPlayerId\": [\"Sf4eaXAH\", \"GYvAMDm2\"], \"incidentPlayerName\": [\"Dorgu P.\", \"Fernandes B.\"], \"incidentPlayerUrl\": [\"/player/dorgu-patrick/Sf4eaXAH/\", \"/player/fernandes-bruno/GYvAMDm2/\"], \"incidentSide\": \"2\", \"incidentTime\": \"33'\", \"incidentType\": [\"3\", \"8\"], \"incidentTypeName\": [\"Goal\", \"Assistance\"]}, {\"awayScore\": \"2\", \"eventId\": \"vquVGige\", \"homeScore\": \"0\", \"incidentCommentary\": [\"Goal! Bryan Mbeumo (Manchester United) scores after an assist by Amad Diallo that allowed him to tap in the ball into an empty net. The score is 0:2.\", \"\"], \"incidentHalf\": \"1\", \"incidentPlayerId\": [\"8KDrOl80\", \"I5Rhq1WL\"], \"incidentPlayerName\": [\"Mbeumo B.\", \"Diallo A.\"], \"incidentPlayerUrl\": [\"/player/mbeumo-bryan/8KDrOl80/\", \"/player/traore-amad/I5Rhq1WL/\"], \"incidentSide\": \"2\", \"incidentTime\": \"44'\", \"incidentType\": [\"3\", \"8\"], \"incidentTypeName\": [\"Goal\", \"Assistance\"]}, {\"eventId\": \"xxnLoW3T\", \"incidentAddedTime\": \"3\", \"incidentCommentary\": \"Kobbie Mainoo (Manchester United) sees a yellow card from Samuel Barrott after he sent one of the opposing players to the ground.\", \"incidentHalf\": \"1\", \"incidentPlayerId\": \"nBy3DbC3\", \"incidentPlayerName\": \"Mainoo K.\", \"incidentPlayerUrl\": \"/player/mainoo-kobbie/nBy3DbC3/\", \"incidentSide\": \"2\", \"incidentSubtype\": \"67\", \"incidentSubtypeName\": \"Foul\", \"incidentTime\": \"45+3'\", \"incidentType\": \"1\", \"incidentTypeName\": \"Yellow Card\"}, {\"eventId\": \"8xKw0JP8\", \"incidentCommentary\": [\"\", \"Fabian Hurzeler makes a half-time substitu...",
+      "truncated": true
+    }
+  },
+  "evidence_level": "TRACKED_MCP_SHADOW_ADAPTER_SUMMARY",
+  "final_review": "PASS",
+  "impact_on_p2d": "none_highlightly_remains_accepted",
+  "lineups_probe": {
+    "available": true,
+    "formation_values": [
+      "1-4-2-3-1"
+    ],
+    "performed": true,
+    "player_count": 42,
+    "raw_response_sha256": "b649a2461ecbbf1191f9750c0f072d1243a8bd32410b8eb733f47fc931e91880",
+    "safe_preview": {
+      "preview": "{\"data\": [{\"away\": [{\"awayTeamRating\": \"7.4\", \"formation\": \"1-4-2-3-1\", \"incidentTooltip\": \"44' Mbeumo B. (Diallo A.)\", \"incidentTypeName\": \"Assistance\", \"lineupIncident\": \"8\", \"participantCountry\": \"Ivory Coast\", \"participantCountryId\": \"58\", \"participantGender\": \"men\", \"participantId\": \"I5Rhq1WL\", \"participantImage\": \"IulhbjJt-xp5ORzz0.png\", \"participantImageVariant108\": \"4dn0dUmg-xp5ORzz0.png\", \"participantImageVariant126\": \"S6oXAT2n-xp5ORzz0.png\", \"participantImageVariant42\": \"h0iOjQHU-xp5ORzz0.png\", \"participantImageVariant72\": \"Q5mdcAYn-xp5ORzz0.png\", \"participantImageVariant84\": \"ULSTB9mt-xp5ORzz0.png\", \"participantName\": \"Diallo A.\", \"participantNumber\": \"16\", \"participantRating\": \"7.7\", \"participantRatingRank\": \"3\", \"participantSurname\": \"Diallo\", \"participantUrl\": \"/player/traore-amad/I5Rhq1WL/\", \"playerType\": \"1\", \"positionId\": \"1\", \"positionKey\": \"8\", \"rowIndex\": \"0\"}, {\"incidentTooltip\": \"62'\", \"incidentTypeName\": \"Lacey S.\", \"incidentUrl\": \"/player/lacey-shea/vBZ4SZZQ/\", \"lineupIncident\": \"6\", \"participantCountry\": \"Denmark\", \"participantCountryId\": \"63\", \"participantGender\": \"men\", \"participantId\": \"Sf4eaXAH\", \"participantImage\": \"KzgzJh13-2JSYbKKF.png\", \"participantImageVariant108\": \"6iirHWVF-2JSYbKKF.png\", \"participantImageVariant126\": \"U1jFVVp9-2JSYbKKF.png\", \"participantImageVariant42\": \"IDqU7Sh2-2JSYbKKF.png\", \"participantImageVariant72\": \"S0hvICG9-2JSYbKKF.png\", \"participantImageVariant84\": \"WGXBWBV2-2JSYbKKF.png\", \"participantName\": \"Dorgu P.\", \"participantNumber\": \"13\", \"participantRating\": \"8.1\", \"participantRatingRank\": \"2\", \"participantSurname\": \"Dorgu\", \"participantUrl\": \"/player/dorgu-patrick/Sf4eaXAH/\", \"playerType\": \"1\", \"positionId\": \"1\", \"positionKey\": \"10\", \"rowIndex\": \"1\"}, {\"incidentTooltip\": [\"33' Dorgu P. (Fernandes B.) ()\", \"48' Fernandes B. (Dorgu P.)\"], \"incidentTypeName\": [\"Assistance\", \"Goal\"], \"lineupIncident\": [\"8\", \"3\"], \"participantCountry\": \"Portugal\", \"participantCountryId\": \"155\", \"participantGender\": \"men\", \"parti...",
+      "truncated": true
+    }
+  },
+  "mapping_source": {
+    "loaded": true,
+    "path": "certification/football/p2e_sportdb_mcp_football_mapping_summary.json",
+    "selected_competition_id": "dYlOSQOD",
+    "selected_competition_slug": "premier-league",
+    "selected_country_id": 198,
+    "selected_country_slug": "england",
+    "selected_match_id": "xQXUa3UG",
+    "selected_season": "2025-2026",
+    "selected_sport_key": "football"
+  },
+  "next_step": "P2E_A5_SPORTDB_REPLAY_COMPARISON_AGAINST_ACCEPTED_PROVIDERS",
+  "phase_id": "P2E_A4_SPORTDB_SHADOW_ADAPTER_MINIMAL",
+  "previous_accepted_sha": "25db7518569384858969b545d82b46e10eb87206",
+  "prompt_version": "v3_scope_locked_corrective_with_kilo_archive_delete",
+  "provider": "sportdb",
+  "results_probe": {
+    "accepted_count": 108,
+    "available": true,
+    "performed": true,
+    "raw_response_sha256": "3c41b97cd60d29f80b34cde75f262009ba984603fbe5a8bee61ee1cb5c175ec5",
+    "rejected_count": 0,
+    "safe_preview": {
+      "preview": "[{\"away_name\": null, \"home_name\": null, \"parser_version\": \"sportdb-mcp-shadow-adapter-v1\", \"provider_match_id\": \"xQXUa3UG\", \"score\": \"0-3\", \"status\": \"FINISHED\"}, {\"away_name\": null, \"home_name\": null, \"parser_version\": \"sportdb-mcp-shadow-adapter-v1\", \"provider_match_id\": \"buMwbsaT\", \"score\": \"1-1\", \"status\": \"FINISHED\"}, {\"away_name\": null, \"home_name\": null, \"parser_version\": \"sportdb-mcp-shadow-adapter-v1\", \"provider_match_id\": \"UNC9hLMj\", \"score\": \"1-2\", \"status\": \"FINISHED\"}, {\"away_name\": null, \"home_name\": null, \"parser_version\": \"sportdb-mcp-shadow-adapter-v1\", \"provider_match_id\": \"pWfdGOEc\", \"score\": \"2-0\", \"status\": \"FINISHED\"}, {\"away_name\": null, \"home_name\": null, \"parser_version\": \"sportdb-mcp-shadow-adapter-v1\", \"provider_match_id\": \"Iqg4E2qA\", \"score\": \"1-1\", \"status\": \"FINISHED\"}, {\"away_name\": null, \"home_name\": null, \"parser_version\": \"sportdb-mcp-shadow-adapter-v1\", \"provider_match_id\": \"zLXUefTr\", \"score\": \"1-2\", \"status\": \"FINISHED\"}, {\"away_name\": null, \"home_name\": null, \"parser_version\": \"sportdb-mcp-shadow-adapter-v1\", \"provider_match_id\": \"roywfYce\", \"score\": \"1-1\", \"status\": \"FINISHED\"}, {\"away_name\": null, \"home_name\": null, \"parser_version\": \"sportdb-mcp-shadow-adapter-v1\", \"provider_match_id\": \"40PohCS7\", \"score\": \"2-1\", \"status\": \"FINISHED\"}, {\"away_name\": null, \"home_name\": null, \"parser_version\": \"sportdb-mcp-shadow-adapter-v1\", \"provider_match_id\": \"W6HXFFKE\", \"score\": \"1-0\", \"status\": \"FINISHED\"}, {\"away_name\": null, \"home_name\": null, \"parser_version\": \"sportdb-mcp-shadow-adapter-v1\", \"provider_match_id\": \"CGPuEgkR\", \"score\": \"3-0\", \"status\": \"FINISHED\"}, {\"away_name\": null, \"home_name\": null, \"parser_version\": \"sportdb-mcp-shadow-adapter-v1\", \"provider_match_id\": \"Uu6uknGb\", \"score\": \"2-1\", \"status\": \"FINISHED\"}, {\"away_name\": null, \"home_name\": null, \"parser_version\": \"sportdb-mcp-shadow-adapter-v1\", \"provider_match_id\": \"rkXMW40U\", \"score\": \"1-1\", \"status\": \"FINISHED\"}, {\"away_name\": null, \"home_name\": null, \"parser_versi...",
+      "truncated": true
+    }
+  },
+  "schema_source": {
+    "loaded": true,
+    "path": "certification/football/p2e_sportdb_mcp_schema_summary.json",
+    "used_for_payload_construction": true
+  },
+  "secret_safe": true,
+  "standings_probe": {
+    "available": true,
+    "performed": true,
+    "raw_response_sha256": "496bfd346561f195fb73f0043b617b0305b1a8f78abf6de43a213c935a79b168",
+    "row_count": 20,
+    "safe_preview": {
+      "preview": "{\"data\": [{\"againstPctg\": \"262.96\", \"draws\": \"7\", \"eventTournamentStageCaptionPart2\": \"5\", \"events\": [{\"awayFullTimeResult\": \"2\", \"eventAwayParticipantId\": \"hA1Zm19f\", \"eventAwayParticipantName\": \"Arsenal\", \"eventAwayScore\": \"2\", \"eventHomeParticipantId\": \"AovF1Mia\", \"eventHomeParticipantName\": \"Crystal Palace\", \"eventHomeScore\": \"1\", \"eventId\": \"UNC9hLMj\", \"eventStageId\": \"3\", \"eventStartTime\": \"1779580800\", \"eventSwitchedParticipant\": \"0\", \"eventSymbol\": \"\", \"eventType\": \"w\", \"homeFullTimeResult\": \"1\"}, {\"awayFullTimeResult\": \"0\", \"eventAwayParticipantId\": \"z3dmTMMO\", \"eventAwayParticipantName\": \"Burnley\", \"eventAwayScore\": \"0\", \"eventHomeParticipantId\": \"hA1Zm19f\", \"eventHomeParticipantName\": \"Arsenal\", \"eventHomeScore\": \"1\", \"eventId\": \"Gxt6zm15\", \"eventStageId\": \"3\", \"eventStartTime\": \"1779062400\", \"eventSwitchedParticipant\": \"0\", \"eventSymbol\": \"\", \"eventType\": \"w\", \"homeFullTimeResult\": \"1\"}, {\"awayFullTimeResult\": \"1\", \"eventAwayParticipantId\": \"hA1Zm19f\", \"eventAwayParticipantName\": \"Arsenal\", \"eventAwayScore\": \"1\", \"eventHomeParticipantId\": \"Cxq57r8g\", \"eventHomeParticipantName\": \"West Ham\", \"eventHomeScore\": \"0\", \"eventId\": \"8Cxbx9Wh\", \"eventStageId\": \"3\", \"eventStartTime\": \"1778371200\", \"eventSwitchedParticipant\": \"0\", \"eventSymbol\": \"\", \"eventType\": \"w\", \"homeFullTimeResult\": \"0\"}, {\"awayFullTimeResult\": \"0\", \"eventAwayParticipantId\": \"69ZiU2Om\", \"eventAwayParticipantName\": \"Fulham\", \"eventAwayScore\": \"0\", \"eventHomeParticipantId\": \"hA1Zm19f\", \"eventHomeParticipantName\": \"Arsenal\", \"eventHomeScore\": \"3\", \"eventId\": \"6sw2IgOM\", \"eventStageId\": \"3\", \"eventStartTime\": \"1777680000\", \"eventSwitchedParticipant\": \"0\", \"eventSymbol\": \"\", \"eventType\": \"w\", \"homeFullTimeResult\": \"3\"}, {\"awayFullTimeResult\": \"0\", \"eventAwayParticipantId\": \"p6ahwuwJ\", \"eventAwayParticipantName\": \"Newcastle\", \"eventAwayScore\": \"0\", \"eventHomeParticipantId\": \"hA1Zm19f\", \"eventHomeParticipantName\": \"Arsenal\", \"eventHomeScore\": \"1\", \"eventId\": \"OQsq6PYa\", \"eventStageId\": \"3\", \"event...",
+      "truncated": true
+    },
+    "team_names": []
+  },
+  "stats_probe": {
+    "available": true,
+    "normalized_metric_names": [
+      "blocked_shots",
+      "corners",
+      "expected_goals",
+      "fouls",
+      "goalkeeper_saves",
+      "offsides",
+      "possession",
+      "shots_off_target",
+      "shots_on_goal",
+      "total_passes",
+      "total_shots",
+      "yellow_cards"
+    ],
+    "performed": true,
+    "provider_match_id": "xQXUa3UG",
+    "raw_response_sha256": "0b541d8ed8910a7978c95c8f0401c62641fc8b2ea0065b3cbaa26982b30a7efc",
+    "raw_stat_field_names": [
+      "Accurate through passes",
+      "Ball possession",
+      "Big chances",
+      "Blocked shots",
+      "Clearances",
+      "Corner kicks",
+      "Crosses",
+      "Duels won",
+      "Errors leading to goal",
+      "Errors leading to shot",
+      "Expected assists (xA)",
+      "Expected goals (xG)",
+      "Fouls",
+      "Free kicks",
+      "Goalkeeper saves",
+      "Goals prevented",
+      "Headed goals",
+      "Hit the woodwork",
+      "Interceptions",
+      "Long passes",
+      "Offsides",
+      "Passes",
+      "Passes in final third",
+      "Shots inside the box",
+      "Shots off target",
+      "Shots on target",
+      "Shots outside the box",
+      "Tackles",
+      "Throw ins",
+      "Total shots",
+      "Touches in opposition box",
+      "Yellow cards",
+      "xG on target (xGOT)",
+      "xGOT faced"
+    ],
+    "safe_preview": {
+      "preview": "{\"data\": [{\"period\": \"Match\", \"stats\": [{\"awayValue\": \"1.66\", \"homeValue\": \"0.78\", \"statId\": \"432\", \"statName\": \"Expected goals (xG)\"}, {\"awayValue\": \"48%\", \"homeValue\": \"52%\", \"statId\": \"12\", \"statName\": \"Ball possession\"}, {\"awayValue\": \"11\", \"homeValue\": \"13\", \"statId\": \"34\", \"statName\": \"Total shots\"}, {\"awayValue\": \"7\", \"homeValue\": \"2\", \"statId\": \"13\", \"statName\": \"Shots on target\"}, {\"awayValue\": \"4\", \"homeValue\": \"0\", \"statId\": \"459\", \"statName\": \"Big chances\"}, {\"awayValue\": \"3\", \"homeValue\": \"0\", \"statId\": \"16\", \"statName\": \"Corner kicks\"}, {\"awayValue\": \"83% (372/450)\", \"homeValue\": \"86% (415/484)\", \"statId\": \"342\", \"statName\": \"Passes\"}, {\"awayValue\": \"1\", \"homeValue\": \"0\", \"statId\": \"23\", \"statName\": \"Yellow cards\"}, {\"awayValue\": \"1.66\", \"homeValue\": \"0.78\", \"statId\": \"432\", \"statName\": \"Expected goals (xG)\"}, {\"awayValue\": \"2.18\", \"homeValue\": \"0.30\", \"statId\": \"499\", \"statName\": \"xG on target (xGOT)\"}, {\"awayValue\": \"11\", \"homeValue\": \"13\", \"statId\": \"34\", \"statName\": \"Total shots\"}, {\"awayValue\": \"7\", \"homeValue\": \"2\", \"statId\": \"13\", \"statName\": \"Shots on target\"}, {\"awayValue\": \"3\", \"homeValue\": \"6\", \"statId\": \"14\", \"statName\": \"Shots off target\"}, {\"awayValue\": \"1\", \"homeValue\": \"5\", \"statId\": \"158\", \"statName\": \"Blocked shots\"}, {\"awayValue\": \"7\", \"homeValue\": \"9\", \"statId\": \"461\", \"statName\": \"Shots inside the box\"}, {\"awayValue\": \"4\", \"homeValue\": \"4\", \"statId\": \"463\", \"statName\": \"Shots outside the box\"}, {\"awayValue\": \"1\", \"homeValue\": \"0\", \"statId\": \"457\", \"statName\": \"Hit the woodwork\"}, {\"awayValue\": \"1\", \"homeValue\": \"0\", \"statId\": \"465\", \"statName\": \"Headed goals\"}, {\"awayValue\": \"4\", \"homeValue\": \"0\", \"statId\": \"459\", \"statName\": \"Big chances\"}, {\"awayValue\": \"3\", \"homeValue\": \"0\", \"statId\": \"16\", \"statName\": \"Corner kicks\"}, {\"awayValue\": \"32\", \"homeValue\": \"32\", \"statId\": \"471\", \"statName\": \"Touches in opposition box\"}, {\"awayValue\": \"1\", \"homeValue\": \"0\", \"statId\": \"521\", \"statName\": \"Accurate through passes\"}, {\"awayValue\": \"0\",...",
+      "truncated": true
+    },
+    "team_side_detection": "DETECTED_HOME_AWAY",
+    "top_level_keys": [
+      "data",
+      "endpoint",
+      "source_status_code"
+    ],
+    "unknown_metrics": [
+      "Accurate through passes",
+      "Big chances",
+      "Clearances",
+      "Crosses",
+      "Duels won",
+      "Errors leading to goal",
+      "Errors leading to shot",
+      "Expected assists (xA)",
+      "Free kicks",
+      "Goals prevented",
+      "Headed goals",
+      "Hit the woodwork",
+      "Interceptions",
+      "Long passes",
+      "Passes in final third",
+      "Shots inside the box",
+      "Shots outside the box",
+      "Tackles",
+      "Throw ins",
+      "Touches in opposition box",
+      "xG on target (xGOT)",
+      "xGOT faced"
+    ]
+  }
+}
