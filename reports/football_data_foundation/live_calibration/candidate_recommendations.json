@@ -1,0 +1,286 @@
+{
+  "accepted_foundation_sha": "c0aa63231cdb80aa0698bae30567b6df4a7c6d40",
+  "candidate_recommendations": [
+    {
+      "blocking_reason": "operation_has_no_live_evidence",
+      "candidate_for_future_selectable_candidate": false,
+      "competition_scope": "ENG-Premier League",
+      "never_write_selectable_candidate_to_config": true,
+      "operation": "read_by_date",
+      "report_only": true,
+      "season_scope": "2024",
+      "source_id": "soccerdata/ClubElo"
+    },
+    {
+      "blocking_reason": "",
+      "candidate_for_future_selectable_candidate": true,
+      "competition_scope": "ENG-Premier League",
+      "never_write_selectable_candidate_to_config": true,
+      "operation": "read_schedule",
+      "report_only": true,
+      "season_scope": "2024",
+      "source_id": "soccerdata/ESPN"
+    },
+    {
+      "blocking_reason": "",
+      "candidate_for_future_selectable_candidate": true,
+      "competition_scope": "ENG-Premier League",
+      "never_write_selectable_candidate_to_config": true,
+      "operation": "read_schedule",
+      "report_only": true,
+      "season_scope": "2024",
+      "source_id": "soccerdata/FBref"
+    },
+    {
+      "blocking_reason": "operation_has_no_live_evidence",
+      "candidate_for_future_selectable_candidate": false,
+      "competition_scope": "ENG-Premier League",
+      "never_write_selectable_candidate_to_config": true,
+      "operation": "read_team_season_stats",
+      "report_only": true,
+      "season_scope": "2024",
+      "source_id": "soccerdata/FBref"
+    },
+    {
+      "blocking_reason": "operation_has_no_live_evidence",
+      "candidate_for_future_selectable_candidate": false,
+      "competition_scope": "ENG-Premier League",
+      "never_write_selectable_candidate_to_config": true,
+      "operation": "read_team_match_stats",
+      "report_only": true,
+      "season_scope": "2024",
+      "source_id": "soccerdata/FBref"
+    },
+    {
+      "blocking_reason": "operation_has_no_live_evidence",
+      "candidate_for_future_selectable_candidate": false,
+      "competition_scope": "ENG-Premier League",
+      "never_write_selectable_candidate_to_config": true,
+      "operation": "availability_probe",
+      "report_only": true,
+      "season_scope": "2024",
+      "source_id": "soccerdata/FiveThirtyEight"
+    },
+    {
+      "blocking_reason": "operation_has_no_live_evidence",
+      "candidate_for_future_selectable_candidate": false,
+      "competition_scope": "ENG-Premier League",
+      "never_write_selectable_candidate_to_config": true,
+      "operation": "read_games",
+      "report_only": true,
+      "season_scope": "2024",
+      "source_id": "soccerdata/MatchHistory"
+    },
+    {
+      "blocking_reason": "",
+      "candidate_for_future_selectable_candidate": true,
+      "competition_scope": "ENG-Premier League",
+      "never_write_selectable_candidate_to_config": true,
+      "operation": "read_leagues",
+      "report_only": true,
+      "season_scope": "2024",
+      "source_id": "soccerdata/Sofascore"
+    },
+    {
+      "blocking_reason": "operation_has_no_live_evidence",
+      "candidate_for_future_selectable_candidate": false,
+      "competition_scope": "ENG-Premier League",
+      "never_write_selectable_candidate_to_config": true,
+      "operation": "read_schedule",
+      "report_only": true,
+      "season_scope": "2024",
+      "source_id": "soccerdata/Sofascore"
+    },
+    {
+      "blocking_reason": "operation_has_no_live_evidence",
+      "candidate_for_future_selectable_candidate": false,
+      "competition_scope": "ENG-Premier League",
+      "never_write_selectable_candidate_to_config": true,
+      "operation": "read_versions",
+      "report_only": true,
+      "season_scope": "2024",
+      "source_id": "soccerdata/SoFIFA"
+    },
+    {
+      "blocking_reason": "",
+      "candidate_for_future_selectable_candidate": true,
+      "competition_scope": "ENG-Premier League",
+      "never_write_selectable_candidate_to_config": true,
+      "operation": "read_schedule",
+      "report_only": true,
+      "season_scope": "2024",
+      "source_id": "soccerdata/Understat"
+    },
+    {
+      "blocking_reason": "operation_has_no_live_evidence",
+      "candidate_for_future_selectable_candidate": false,
+      "competition_scope": "ENG-Premier League",
+      "never_write_selectable_candidate_to_config": true,
+      "operation": "read_team_match_stats",
+      "report_only": true,
+      "season_scope": "2024",
+      "source_id": "soccerdata/Understat"
+    },
+    {
+      "blocking_reason": "operation_has_no_live_evidence",
+      "candidate_for_future_selectable_candidate": false,
+      "competition_scope": "ENG-Premier League",
+      "never_write_selectable_candidate_to_config": true,
+      "operation": "read_shot_events",
+      "report_only": true,
+      "season_scope": "2024",
+      "source_id": "soccerdata/Understat"
+    },
+    {
+      "blocking_reason": "operation_has_no_live_evidence",
+      "candidate_for_future_selectable_candidate": false,
+      "competition_scope": "ENG-Premier League",
+      "never_write_selectable_candidate_to_config": true,
+      "operation": "read_schedule",
+      "report_only": true,
+      "season_scope": "2024",
+      "source_id": "soccerdata/WhoScored"
+    },
+    {
+      "blocking_reason": "operation_has_no_live_evidence",
+      "candidate_for_future_selectable_candidate": false,
+      "competition_scope": "ENG-Premier League",
+      "never_write_selectable_candidate_to_config": true,
+      "operation": "read_missing_players",
+      "report_only": true,
+      "season_scope": "2024",
+      "source_id": "soccerdata/WhoScored"
+    },
+    {
+      "blocking_reason": "operation_has_no_live_evidence",
+      "candidate_for_future_selectable_candidate": false,
+      "competition_scope": "ENG-Premier League",
+      "never_write_selectable_candidate_to_config": true,
+      "operation": "read_events",
+      "report_only": true,
+      "season_scope": "2024",
+      "source_id": "soccerdata/WhoScored"
+    },
+    {
+      "blocking_reason": "fixture_only_reference_data",
+      "candidate_for_future_selectable_candidate": false,
+      "competition_scope": "statsbomb_open_data",
+      "never_write_selectable_candidate_to_config": true,
+      "operation": "read_matches",
+      "report_only": true,
+      "season_scope": "fixture",
+      "source_id": "open_reference/StatsBombOpenData"
+    },
+    {
+      "blocking_reason": "operation_has_no_live_evidence",
+      "candidate_for_future_selectable_candidate": false,
+      "competition_scope": "global",
+      "never_write_selectable_candidate_to_config": true,
+      "operation": "competitions",
+      "report_only": true,
+      "season_scope": "global",
+      "source_id": "open_reference/StatsBombPy"
+    },
+    {
+      "blocking_reason": "fixture_only_reference_data",
+      "candidate_for_future_selectable_candidate": false,
+      "competition_scope": "kaggle_european_soccer",
+      "never_write_selectable_candidate_to_config": true,
+      "operation": "read_matches",
+      "report_only": true,
+      "season_scope": "fixture",
+      "source_id": "open_reference/KaggleEuropeanSoccer"
+    },
+    {
+      "blocking_reason": "operation_has_no_live_evidence",
+      "candidate_for_future_selectable_candidate": false,
+      "competition_scope": "ENG-Premier League",
+      "never_write_selectable_candidate_to_config": true,
+      "operation": "get_fixtures_result",
+      "report_only": true,
+      "season_scope": "2024",
+      "source_id": "open_reference/FootballDataOrg"
+    },
+    {
+      "blocking_reason": "fixture_only_reference_data",
+      "candidate_for_future_selectable_candidate": false,
+      "competition_scope": "openfootball",
+      "never_write_selectable_candidate_to_config": true,
+      "operation": "read_matches",
+      "report_only": true,
+      "season_scope": "fixture",
+      "source_id": "open_reference/OpenFootball"
+    },
+    {
+      "blocking_reason": "operation_has_no_live_evidence",
+      "candidate_for_future_selectable_candidate": false,
+      "competition_scope": "fixture_probe",
+      "never_write_selectable_candidate_to_config": true,
+      "operation": "probe_matches",
+      "report_only": true,
+      "season_scope": "fixture",
+      "source_id": "rich_unofficial/FotMobProbe"
+    },
+    {
+      "blocking_reason": "operation_has_no_live_evidence",
+      "candidate_for_future_selectable_candidate": false,
+      "competition_scope": "fixture_probe",
+      "never_write_selectable_candidate_to_config": true,
+      "operation": "probe_stats",
+      "report_only": true,
+      "season_scope": "fixture",
+      "source_id": "rich_unofficial/SofaScoreRichProbe"
+    },
+    {
+      "blocking_reason": "operation_has_no_live_evidence",
+      "candidate_for_future_selectable_candidate": false,
+      "competition_scope": "ENG-Premier League",
+      "never_write_selectable_candidate_to_config": true,
+      "operation": "read_match_stats",
+      "report_only": true,
+      "season_scope": "2024",
+      "source_id": "rich_unofficial/ScraperFCSofascore"
+    },
+    {
+      "blocking_reason": "operation_has_no_live_evidence",
+      "candidate_for_future_selectable_candidate": false,
+      "competition_scope": "global",
+      "never_write_selectable_candidate_to_config": true,
+      "operation": "convert_events",
+      "report_only": true,
+      "season_scope": "global",
+      "source_id": "event_model/socceraction_bridge"
+    },
+    {
+      "blocking_reason": "operation_has_no_live_evidence",
+      "candidate_for_future_selectable_candidate": false,
+      "competition_scope": "global",
+      "never_write_selectable_candidate_to_config": true,
+      "operation": "load_tracking_data",
+      "report_only": true,
+      "season_scope": "global",
+      "source_id": "event_model/kloppy_bridge"
+    },
+    {
+      "blocking_reason": "operation_has_no_live_evidence",
+      "candidate_for_future_selectable_candidate": false,
+      "competition_scope": "global",
+      "never_write_selectable_candidate_to_config": true,
+      "operation": "load_events",
+      "report_only": true,
+      "season_scope": "global",
+      "source_id": "event_model/floodlight_bridge"
+    },
+    {
+      "blocking_reason": "operation_has_no_live_evidence",
+      "candidate_for_future_selectable_candidate": false,
+      "competition_scope": "global",
+      "never_write_selectable_candidate_to_config": true,
+      "operation": "draw_pitch",
+      "report_only": true,
+      "season_scope": "global",
+      "source_id": "event_model/mplsoccer_bridge"
+    }
+  ],
+  "statement": "Recommendations are report-only and do not promote any selectable status into config."
+}
