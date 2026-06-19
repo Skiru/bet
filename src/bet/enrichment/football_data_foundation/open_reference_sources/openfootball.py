@@ -60,23 +60,33 @@ class OpenFootballConnector(BaseConnector):
                 )
 
             payload = json.loads(path.read_text(encoding="utf-8"))
-            retrieved_at = payload.get("retrieved_at") if isinstance(payload, dict) else None
-            raw_data = payload.get("competition", payload) if isinstance(payload, dict) else payload
+            retrieved_at = (
+                payload.get("retrieved_at") if isinstance(payload, dict) else None
+            )
+            raw_data = (
+                payload.get("competition", payload)
+                if isinstance(payload, dict)
+                else payload
+            )
 
             normalized_records = []
             rounds = raw_data.get("rounds", []) if isinstance(raw_data, dict) else []
             for r in rounds:
                 round_name = r.get("name", "UNKNOWN")
                 for m in r.get("matches", []):
-                    score_ft = m.get("score", {}).get("ft", []) if m.get("score") else []
-                    normalized_records.append({
-                        "round": round_name,
-                        "date": m.get("date", "UNKNOWN"),
-                        "team1": m.get("team1", "UNKNOWN"),
-                        "team2": m.get("team2", "UNKNOWN"),
-                        "score1": score_ft[0] if len(score_ft) > 0 else "UNKNOWN",
-                        "score2": score_ft[1] if len(score_ft) > 1 else "UNKNOWN",
-                    })
+                    score_ft = (
+                        m.get("score", {}).get("ft", []) if m.get("score") else []
+                    )
+                    normalized_records.append(
+                        {
+                            "round": round_name,
+                            "date": m.get("date", "UNKNOWN"),
+                            "team1": m.get("team1", "UNKNOWN"),
+                            "team2": m.get("team2", "UNKNOWN"),
+                            "score1": score_ft[0] if len(score_ft) > 0 else "UNKNOWN",
+                            "score2": score_ft[1] if len(score_ft) > 1 else "UNKNOWN",
+                        }
+                    )
 
             return build_success_result(
                 self,

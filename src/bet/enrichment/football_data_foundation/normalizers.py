@@ -12,10 +12,12 @@ def flatten_multiindex_columns(df: pd.DataFrame) -> pd.DataFrame:
         df_new.columns = ["_".join(map(str, col)).strip("_") for col in df_new.columns]
     return df_new
 
+
 def normalize_value(val: Any) -> Any:
     if val is None or pd.isna(val) or str(val).strip().lower() in ("none", "null", ""):
         return "UNKNOWN"
     return val
+
 
 def normalize_numeric(val: Any) -> Any:
     if val is None or pd.isna(val) or str(val).strip().lower() in ("none", "null", ""):
@@ -31,7 +33,10 @@ def normalize_numeric(val: Any) -> Any:
     except ValueError:
         return "UNKNOWN"
 
-def normalize_record(record: Mapping[str, Any], schema_mappings: Mapping[str, str]) -> dict[str, Any]:
+
+def normalize_record(
+    record: Mapping[str, Any], schema_mappings: Mapping[str, str]
+) -> dict[str, Any]:
     normalized = {}
     for src_col, dest_col in schema_mappings.items():
         val = record.get(src_col)

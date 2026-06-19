@@ -19,7 +19,7 @@ class ScraperFCSofascoreBridge(BaseConnector):
     provider = "scraperfc"
     source_family = "rich_unofficial"
     source_class = "ScraperFCSofascore"
-    supported_operations = ("fetch_match_stats",)
+    supported_operations = ("read_match_stats",)
     supported_capabilities = ()
     access_requirements = ()
     dependency_requirements = ("ScraperFC",)
@@ -39,7 +39,9 @@ class ScraperFCSofascoreBridge(BaseConnector):
                 "dependency_missing",
                 {
                     "dependency": "ScraperFC",
-                    "reason": "ScraperFC is an optional dependency and is currently absent.",
+                    "reason": (
+                        "ScraperFC is an optional dependency and is currently absent."
+                    ),
                 },
             )
 
@@ -56,5 +58,9 @@ class ScraperFCSofascoreBridge(BaseConnector):
             operation,
             SourceResultStatus.NOT_SUPPORTED,
             "safe_client_unavailable",
-            {"reason": "ScraperFC execution is intentionally disabled in this foundation."},
+            {
+                "reason": (
+                    "ScraperFC execution is intentionally disabled in this foundation."
+                )
+            },
         )

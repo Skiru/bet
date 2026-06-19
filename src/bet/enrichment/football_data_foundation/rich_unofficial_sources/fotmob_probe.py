@@ -46,7 +46,9 @@ class FotMobProbe(BaseConnector):
                 request_identity="FotMobProbe.fixture_only_normalizer",
                 parser_diagnostics={
                     "reason": "fixture_only_probe_not_selectable",
-                    "normalized_preview_rows": len(normalize_payload_records(fixture_data)),
+                    "normalized_preview_rows": len(
+                        normalize_payload_records(fixture_data)
+                    ),
                 },
             )
 

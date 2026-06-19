@@ -18,16 +18,10 @@ from bet.enrichment.football_data_foundation.contracts import (
     NormalizedFootballDataRecord,
     RawFootballDataBundle,
 )
-from bet.enrichment.football_data_foundation.event_model_bridges.floodlight_bridge import (
+from bet.enrichment.football_data_foundation.event_model_bridges import (
     FloodlightBridge,
-)
-from bet.enrichment.football_data_foundation.event_model_bridges.kloppy_bridge import (
     KloppyBridge,
-)
-from bet.enrichment.football_data_foundation.event_model_bridges.mplsoccer_bridge import (
     MplSoccerBridge,
-)
-from bet.enrichment.football_data_foundation.event_model_bridges.socceraction_bridge import (
     SoccerActionBridge,
 )
 from bet.enrichment.football_data_foundation.fingerprints import (
@@ -39,55 +33,27 @@ from bet.enrichment.football_data_foundation.normalizers import (
     normalize_numeric,
     normalize_value,
 )
-from bet.enrichment.football_data_foundation.open_reference_sources.football_data_org_bridge import (
+from bet.enrichment.football_data_foundation.open_reference_sources import (
     FootballDataOrgBridge,
-)
-from bet.enrichment.football_data_foundation.open_reference_sources.kaggle_european_soccer import (
     KaggleEuropeanSoccerConnector,
-)
-from bet.enrichment.football_data_foundation.open_reference_sources.openfootball import (
     OpenFootballConnector,
-)
-from bet.enrichment.football_data_foundation.open_reference_sources.statsbomb_open_data import (
     StatsBombOpenDataConnector,
-)
-from bet.enrichment.football_data_foundation.open_reference_sources.statsbombpy_bridge import (
     StatsBombPyBridge,
 )
-from bet.enrichment.football_data_foundation.rich_unofficial_sources.fotmob_probe import (
+from bet.enrichment.football_data_foundation.rich_unofficial_sources import (
     FotMobProbe,
-)
-from bet.enrichment.football_data_foundation.rich_unofficial_sources.scraperfc_sofascore_bridge import (
     ScraperFCSofascoreBridge,
-)
-from bet.enrichment.football_data_foundation.rich_unofficial_sources.sofascore_rich_probe import (
     SofaScoreRichProbe,
 )
-from bet.enrichment.football_data_foundation.soccerdata_sources.clubelo import (
+from bet.enrichment.football_data_foundation.soccerdata_sources import (
     ClubEloConnector,
-)
-from bet.enrichment.football_data_foundation.soccerdata_sources.espn import (
     ESPNConnector,
-)
-from bet.enrichment.football_data_foundation.soccerdata_sources.fbref import (
     FBrefConnector,
-)
-from bet.enrichment.football_data_foundation.soccerdata_sources.fivethirtyeight import (
     FiveThirtyEightConnector,
-)
-from bet.enrichment.football_data_foundation.soccerdata_sources.matchhistory import (
     MatchHistoryConnector,
-)
-from bet.enrichment.football_data_foundation.soccerdata_sources.sofascore import (
     SofascoreConnector,
-)
-from bet.enrichment.football_data_foundation.soccerdata_sources.sofifa import (
     SoFIFAConnector,
-)
-from bet.enrichment.football_data_foundation.soccerdata_sources.understat import (
     UnderstatConnector,
-)
-from bet.enrichment.football_data_foundation.soccerdata_sources.whoscored import (
     WhoScoredConnector,
 )
 from bet.integration.source_result import SourceOperationResult, SourceResultStatus
@@ -100,6 +66,9 @@ FIXTURE_ROOT = REPO_ROOT / "tests/fixtures/football_data_foundation"
 
 SOURCE_MATRIX = json.loads(REPORT_PATH.read_text(encoding="utf-8"))
 SOURCE_INDEX = {entry["source_id"]: entry for entry in SOURCE_MATRIX["sources"]}
+SOURCE_CLASS_INDEX = {
+    (entry["family"], entry["class"]): entry for entry in SOURCE_MATRIX["sources"]
+}
 
 
 def source_operations(source_id: str) -> list[dict[str, object]]:
@@ -121,6 +90,36 @@ def load_fixture(relative_path: str) -> object:
     return json.loads((FIXTURE_ROOT / relative_path).read_text(encoding="utf-8"))
 
 
+def connector_instances() -> list[object]:
+    return [
+        ClubEloConnector(),
+        ESPNConnector(),
+        FBrefConnector(),
+        FiveThirtyEightConnector(),
+        MatchHistoryConnector(),
+        SofascoreConnector(),
+        SoFIFAConnector(),
+        UnderstatConnector(),
+        WhoScoredConnector(),
+        StatsBombOpenDataConnector(),
+        StatsBombPyBridge(),
+        KaggleEuropeanSoccerConnector(),
+        FootballDataOrgBridge(),
+        OpenFootballConnector(),
+        FotMobProbe(),
+        SofaScoreRichProbe(),
+        ScraperFCSofascoreBridge(),
+        SoccerActionBridge(),
+        KloppyBridge(),
+        FloodlightBridge(),
+        MplSoccerBridge(),
+    ]
+
+
+def connector_source_key(connector: object) -> tuple[str, str]:
+    return (getattr(connector, "source_family"), getattr(connector, "source_class"))
+
+
 class FakeFBref:
     def __init__(self, **kwargs: object) -> None:
         self.init_kwargs = kwargs
@@ -137,7 +136,9 @@ class FakeFootballDataOrgClient:
     ) -> SourceOperationResult[list[dict[str, str]]]:
         return SourceOperationResult(
             status=SourceResultStatus.SUCCESS,
-            value=[{"fixture_id": "123", "date": date, "competition": competition or "PL"}],
+            value=[
+                {"fixture_id": "123", "date": date, "competition": competition or "PL"}
+            ],
             request_identity="FootballDataOrgClient.get_fixtures_result",
             parser_diagnostics={"mode": "fake_client"},
             parser_version="test",
@@ -201,17 +202,34 @@ def test_routing_config_contains_no_yaml_aliases_for_provider_identity() -> None
 
 def test_routing_config_changes_are_additive_and_preserve_existing_routes() -> None:
     routing = yaml.safe_load(ROUTING_PATH.read_text(encoding="utf-8"))
-    current_discovery_routes = routing["routing"]["current_discovery"]["production_routes"]
+    current_discovery_routes = routing["routing"]["current_discovery"][
+        "production_routes"
+    ]
     assert {
-        (route["provider"], route["competition_scope"], route["season_scope"], route["mode"], route["selectable_status"])
+        (
+            route["provider"],
+            route["competition_scope"],
+            route["season_scope"],
+            route["mode"],
+            route["selectable_status"],
+        )
         for route in current_discovery_routes
     } == {
         ("espn", "football:eng.1", "current", "shadow", "CERTIFIED_SELECTABLE"),
-        ("football-data", "football:eng.1", "current", "shadow", "CERTIFIED_SELECTABLE"),
+        (
+            "football-data",
+            "football:eng.1",
+            "current",
+            "shadow",
+            "CERTIFIED_SELECTABLE",
+        ),
     }
 
     detailed_metrics_shadow = routing["routing"]["detailed_metrics"]["shadow_routes"]
-    assert [route["provider"] for route in detailed_metrics_shadow] == ["sportdb", "sportdb"]
+    assert [route["provider"] for route in detailed_metrics_shadow] == [
+        "sportdb",
+        "sportdb",
+    ]
 
 
 def test_source_matrix_contains_every_required_source_family() -> None:
@@ -272,7 +290,10 @@ def test_source_matrix_contains_every_required_source_family() -> None:
                 "read_shot_events",
             ],
         ),
-        ("soccerdata/WhoScored", ["read_schedule", "read_missing_players", "read_events"]),
+        (
+            "soccerdata/WhoScored",
+            ["read_schedule", "read_missing_players", "read_events"],
+        ),
         (
             "soccerdata/Sofascore",
             ["read_leagues", "read_seasons", "read_league_table", "read_schedule"],
@@ -291,7 +312,13 @@ def test_source_matrix_contains_every_required_source_family() -> None:
         ("soccerdata/MatchHistory", ["read_games"]),
         (
             "open_reference/StatsBombOpenData",
-            ["read_competitions", "read_matches", "read_events", "read_lineups", "read_360"],
+            [
+                "read_competitions",
+                "read_matches",
+                "read_events",
+                "read_lineups",
+                "read_360",
+            ],
         ),
     ],
 )
@@ -311,11 +338,49 @@ def test_no_selectable_or_certified_status_without_evidence_identity() -> None:
                 assert operation.get("evidence_identity")
 
 
+def test_source_matrix_is_code_synchronized_and_fail_closed() -> None:
+    connectors = connector_instances()
+    connector_index = {
+        connector_source_key(connector): connector for connector in connectors
+    }
+
+    assert set(SOURCE_CLASS_INDEX) == set(connector_index)
+
+    for source_key, connector in connector_index.items():
+        source_entry = SOURCE_CLASS_INDEX[source_key]
+        source_id = str(source_entry["source_id"])
+        report_operations = source_operations(source_id)
+        report_operation_names = [
+            str(operation["operation"]) for operation in report_operations
+        ]
+        connector_operations = list(getattr(connector, "supported_operations"))
+
+        assert report_operation_names == connector_operations
+        assert source_entry["source_status"] not in {
+            "SELECTABLE_CANDIDATE",
+            "CERTIFIED_SELECTABLE",
+        }
+
+        if source_entry["source_status"] == "NOT_SUPPORTED":
+            assert source_entry.get("diagnostics")
+
+        for operation in report_operations:
+            operation_name = str(operation["operation"])
+            assert operation_name in connector_operations
+            assert not operation_name.startswith("fetch_")
+
+            if operation["status"] == "EVIDENCE_READY":
+                assert operation.get("evidence_identity") == "fixture_backed_atomic"
+
+            if operation["status"] == "NOT_SUPPORTED":
+                assert source_entry.get("diagnostics") or operation.get("diagnostics")
+
+
 @pytest.mark.parametrize(
     "connector,operation",
     [
         (StatsBombPyBridge(), "competitions"),
-        (ScraperFCSofascoreBridge(), "fetch_match_stats"),
+        (ScraperFCSofascoreBridge(), "read_match_stats"),
         (SoccerActionBridge(), "convert_events"),
         (KloppyBridge(), "load_tracking_data"),
         (FloodlightBridge(), "load_events"),
@@ -331,10 +396,13 @@ def test_optional_dependency_absence_maps_to_not_supported(
 
 def test_statsbomb_open_data_without_path_is_not_success() -> None:
     result = StatsBombOpenDataConnector().execute("read_matches")
-    assert result.status in {SourceResultStatus.NOT_FOUND, SourceResultStatus.VALID_EMPTY}
+    assert result.status in {
+        SourceResultStatus.NOT_FOUND,
+        SourceResultStatus.VALID_EMPTY,
+    }
 
 
-def test_statsbomb_open_data_fixture_parse_creates_deterministic_atomic_evidence_identity() -> None:
+def test_statsbomb_open_data_fixture_evidence_identity_is_deterministic() -> None:
     connector = StatsBombOpenDataConnector()
     kwargs = {
         "root_path": str(FIXTURE_ROOT / "statsbomb_open_data"),
@@ -385,19 +453,27 @@ def test_statsbomb_open_data_supports_fixture_backed_operations(
 
 def test_openfootball_without_fixture_path_is_not_success() -> None:
     result = OpenFootballConnector().execute("read_matches")
-    assert result.status in {SourceResultStatus.NOT_FOUND, SourceResultStatus.VALID_EMPTY}
+    assert result.status in {
+        SourceResultStatus.NOT_FOUND,
+        SourceResultStatus.VALID_EMPTY,
+    }
 
 
 def test_openfootball_fixture_parse_is_evidence_ready() -> None:
     fixture_path = FIXTURE_ROOT / "openfootball/world_cup_2022.json"
-    result = OpenFootballConnector().execute("read_matches", file_path=str(fixture_path))
+    result = OpenFootballConnector().execute(
+        "read_matches", file_path=str(fixture_path)
+    )
     assert result.status is SourceResultStatus.SUCCESS
     assert result.bundle_id
 
 
 def test_kaggle_without_db_or_csv_path_is_not_success() -> None:
     result = KaggleEuropeanSoccerConnector().execute("read_matches")
-    assert result.status in {SourceResultStatus.NOT_FOUND, SourceResultStatus.VALID_EMPTY}
+    assert result.status in {
+        SourceResultStatus.NOT_FOUND,
+        SourceResultStatus.VALID_EMPTY,
+    }
 
 
 def test_kaggle_csv_fixture_parse_is_evidence_ready() -> None:
@@ -411,23 +487,36 @@ def test_kaggle_csv_fixture_parse_is_evidence_ready() -> None:
     assert result.bundle_id
 
 
-def test_rich_probes_do_not_report_selectable_candidate_from_fixture_only_data() -> None:
+def test_rich_probes_do_not_report_selectable_candidate_from_fixture_only_data() -> (
+    None
+):
     fotmob_fixture = load_fixture("rich_probes/fotmob_matches.json")
     sofascore_fixture = load_fixture("rich_probes/sofascore_stats.json")
 
     fotmob_result = FotMobProbe().execute("probe_matches", fixture_data=fotmob_fixture)
-    sofascore_result = SofaScoreRichProbe().execute("probe_stats", fixture_data=sofascore_fixture)
+    sofascore_result = SofaScoreRichProbe().execute(
+        "probe_stats", fixture_data=sofascore_fixture
+    )
 
     assert fotmob_result.status is SourceResultStatus.VALID_EMPTY
     assert sofascore_result.status is SourceResultStatus.VALID_EMPTY
-    assert SOURCE_INDEX["rich_unofficial/FotMobProbe"]["source_status"] != "SELECTABLE_CANDIDATE"
-    assert SOURCE_INDEX["rich_unofficial/SofaScoreRichProbe"]["source_status"] != "SELECTABLE_CANDIDATE"
+    assert (
+        SOURCE_INDEX["rich_unofficial/FotMobProbe"]["source_status"]
+        != "SELECTABLE_CANDIDATE"
+    )
+    assert (
+        SOURCE_INDEX["rich_unofficial/SofaScoreRichProbe"]["source_status"]
+        != "SELECTABLE_CANDIDATE"
+    )
 
 
 def test_football_data_org_bridge_does_not_certify_without_retained_evidence() -> None:
     result = FootballDataOrgBridge().execute("get_fixtures_result", date="2026-06-19")
     assert result.status is SourceResultStatus.AUTHENTICATION_ERROR
-    assert SOURCE_INDEX["open_reference/FootballDataOrg"]["source_status"] != "CERTIFIED_SELECTABLE"
+    assert (
+        SOURCE_INDEX["open_reference/FootballDataOrg"]["source_status"]
+        != "CERTIFIED_SELECTABLE"
+    )
 
 
 def test_football_data_org_bridge_wraps_existing_client() -> None:
@@ -521,19 +610,28 @@ def test_matchhistory_supported_operation_list_is_exact() -> None:
 
 
 def test_clubelo_supported_operation_list_is_exact() -> None:
-    assert ClubEloConnector.supported_operations == ("read_by_date", "read_team_history")
+    assert ClubEloConnector.supported_operations == (
+        "read_by_date",
+        "read_team_history",
+    )
 
 
 def test_additive_schema_drift_does_not_demote_operation() -> None:
     entry = operation_entry("soccerdata/ClubElo", "read_by_date")
-    assert evaluate_drift(["team", "elo", "country"], ["team", "elo"]) == DriftClassification.ADDITIVE_SCHEMA_DRIFT
+    assert (
+        evaluate_drift(["team", "elo", "country"], ["team", "elo"])
+        == DriftClassification.ADDITIVE_SCHEMA_DRIFT
+    )
     assert entry["status"] == "IMPLEMENTED_ACTIVE"
     assert entry["additive_schema_action"] == "KEEP_STATUS_WITH_DIAGNOSTIC"
 
 
 def test_breaking_schema_drift_quarantines_one_operation_capability_tuple() -> None:
     entry = operation_entry("soccerdata/FBref", "read_team_match_stats")
-    assert evaluate_drift(["team"], ["team", "shots"]) == DriftClassification.BREAKING_SCHEMA_DRIFT
+    assert (
+        evaluate_drift(["team"], ["team", "shots"])
+        == DriftClassification.BREAKING_SCHEMA_DRIFT
+    )
     assert entry["breaking_schema_action"] == "QUARANTINE_OPERATION_CAPABILITY_TUPLE"
 
 
@@ -543,35 +641,15 @@ def test_unit_tests_block_real_network_calls() -> None:
 
 
 def test_pyproject_packaging_still_includes_src_bet() -> None:
-    pyproject = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+    pyproject = tomllib.loads(
+        (REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8")
+    )
     packages = pyproject["tool"]["hatch"]["build"]["targets"]["wheel"]["packages"]
     assert "src/bet" in packages
 
 
 def test_connector_kernel_metadata_is_present() -> None:
-    connectors = [
-        ClubEloConnector(),
-        ESPNConnector(),
-        FBrefConnector(),
-        FiveThirtyEightConnector(),
-        MatchHistoryConnector(),
-        SofascoreConnector(),
-        SoFIFAConnector(),
-        UnderstatConnector(),
-        WhoScoredConnector(),
-        StatsBombOpenDataConnector(),
-        StatsBombPyBridge(),
-        KaggleEuropeanSoccerConnector(),
-        FootballDataOrgBridge(),
-        OpenFootballConnector(),
-        FotMobProbe(),
-        SofaScoreRichProbe(),
-        ScraperFCSofascoreBridge(),
-        SoccerActionBridge(),
-        KloppyBridge(),
-        FloodlightBridge(),
-        MplSoccerBridge(),
-    ]
+    connectors = connector_instances()
     required_attrs = {
         "provider",
         "source_family",

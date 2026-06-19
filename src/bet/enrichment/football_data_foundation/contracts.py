@@ -26,6 +26,7 @@ class RawFootballDataBundle:
     native_names: tuple[str, ...] = field(default_factory=tuple)
     raw_payload: Any = None
 
+
 @dataclass(frozen=True)
 class NormalizedFootballDataRecord:
     provider: str

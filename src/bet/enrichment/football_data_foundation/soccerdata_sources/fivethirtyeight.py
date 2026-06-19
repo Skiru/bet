@@ -66,7 +66,10 @@ class FiveThirtyEightConnector(BaseConnector):
             SourceResultStatus.NOT_SUPPORTED,
             "fivethirtyeight_unavailable",
             {
-                "reason": "Installed soccerdata does not expose FiveThirtyEight in this environment.",
+                "reason": (
+                    "Installed soccerdata does not expose FiveThirtyEight in "
+                    "this environment."
+                ),
                 "available_methods": available_methods,
             },
         )

@@ -14,4 +14,8 @@ class CapabilityTuple:
     season_scope: str
 
     def to_string(self) -> str:
-        return f"{self.provider}:{self.source_family}:{self.source_class}:{self.operation}:{self.capability}:{self.competition_scope}:{self.season_scope}"
+        return (
+            f"{self.provider}:{self.source_family}:{self.source_class}:"
+            f"{self.operation}:{self.capability}:{self.competition_scope}:"
+            f"{self.season_scope}"
+        )

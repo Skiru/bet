@@ -35,15 +35,17 @@ class SofaScoreRichProbe(BaseConnector):
             "match_statistics": "/event/{match_id}/statistics",
             "match_lineups": "/event/{match_id}/lineups",
             "match_h2h": "/event/{match_id}/h2h",
-            "team_standings": "/tournament/{tournament_id}/season/{season_id}/standings/{type}"
+            "team_standings": (
+                "/tournament/{tournament_id}/season/{season_id}/standings/{type}"
+            ),
         },
         "mapped_fields": {
             "ballPossession": "possession",
             "shotsOnTarget": "shots_on_goal",
             "shotsOffTarget": "shots_off_target",
             "fouls": "fouls",
-            "cornerKicks": "corners"
-        }
+            "cornerKicks": "corners",
+        },
     }
 
     def execute(self, operation: str, **kwargs: Any) -> SourceOperationResult[Any]:
@@ -64,7 +66,9 @@ class SofaScoreRichProbe(BaseConnector):
                 request_identity="SofaScoreRichProbe.fixture_only_normalizer",
                 parser_diagnostics={
                     "reason": "fixture_only_probe_not_selectable",
-                    "normalized_preview_rows": len(normalize_payload_records(fixture_data)),
+                    "normalized_preview_rows": len(
+                        normalize_payload_records(fixture_data)
+                    ),
                     "documented_mapping": self.DOCUMENTATION_MAPPING,
                 },
             )

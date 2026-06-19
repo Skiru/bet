@@ -24,7 +24,9 @@ class RecordNormalizer:
             for src_col, dest_col in self.column_mappings.items():
                 if src_col in flat_df.columns:
                     val = row[src_col]
-                    if isinstance(val, (int, float)) or (isinstance(val, pd.Series) and val.dtype in ("int64", "float64")):
+                    if isinstance(val, (int, float)) or (
+                        isinstance(val, pd.Series) and val.dtype in ("int64", "float64")
+                    ):
                         record[dest_col] = normalize_numeric(val)
                     else:
                         record[dest_col] = normalize_value(val)

@@ -75,9 +75,7 @@ class StatsBombOpenDataConnector(BaseConnector):
         if operation == "read_360":
             match_id = kwargs.get("match_id")
             return (
-                None
-                if match_id is None
-                else root / "three-sixty" / f"{match_id}.json"
+                None if match_id is None else root / "three-sixty" / f"{match_id}.json"
             )
         return None
 

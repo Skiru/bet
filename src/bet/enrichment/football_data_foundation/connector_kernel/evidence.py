@@ -50,5 +50,5 @@ class EvidencePackager:
             row_count=len(normalized_records),
             diagnostics=diagnostics or {},
             cache_hit=cache_hit,
-            pagination_model=pagination_model
+            pagination_model=pagination_model,
         )

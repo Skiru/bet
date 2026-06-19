@@ -14,22 +14,25 @@ def compute_dataframe_schema_fingerprint(df: pd.DataFrame) -> str:
     else:
         columns = [str(col) for col in df.columns]
 
-    index_names = [str(name) if name is not None else "" for name in df.index.names] if df.index is not None else []
+    index_names = (
+        [str(name) if name is not None else "" for name in df.index.names]
+        if df.index is not None
+        else []
+    )
     dtypes = {str(col): str(dtype) for col, dtype in df.dtypes.items()}
 
-    schema_info = {
-        "columns": columns,
-        "index_names": index_names,
-        "dtypes": dtypes
-    }
+    schema_info = {"columns": columns, "index_names": index_names, "dtypes": dtypes}
 
     serialized = json.dumps(schema_info, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
 
+
 def compute_dataframe_data_fingerprint(df: pd.DataFrame) -> str:
     df_clean = df.copy()
     if isinstance(df_clean.columns, pd.MultiIndex):
-        df_clean.columns = ["_".join(map(str, col)).strip("_") for col in df_clean.columns]
+        df_clean.columns = [
+            "_".join(map(str, col)).strip("_") for col in df_clean.columns
+        ]
 
     df_clean = df_clean.reset_index()
 
@@ -48,6 +51,7 @@ def compute_dataframe_data_fingerprint(df: pd.DataFrame) -> str:
     serialized = json.dumps(records, sort_keys=True, separators=(",", ":"), default=str)
     return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
 
+
 def compute_schema_fingerprint(data: Any) -> str:
     if isinstance(data, pd.DataFrame):
         return compute_dataframe_schema_fingerprint(data)
@@ -55,14 +59,21 @@ def compute_schema_fingerprint(data: Any) -> str:
         schema_info = {str(k): type(v).__name__ for k, v in data.items()}
     elif isinstance(data, list):
         if data and isinstance(data[0], dict):
-            schema_info = {"type": "list_of_dict", "fields": {str(k): type(v).__name__ for k, v in data[0].items()}}
+            schema_info = {
+                "type": "list_of_dict",
+                "fields": {str(k): type(v).__name__ for k, v in data[0].items()},
+            }
         else:
-            schema_info = {"type": "list", "elements": [type(x).__name__ for x in data[:10]]}
+            schema_info = {
+                "type": "list",
+                "elements": [type(x).__name__ for x in data[:10]],
+            }
     else:
         schema_info = {"type": type(data).__name__}
 
     serialized = json.dumps(schema_info, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
+
 
 def compute_data_fingerprint(data: Any) -> str:
     if isinstance(data, pd.DataFrame):
@@ -73,5 +84,7 @@ def compute_data_fingerprint(data: Any) -> str:
             return obj.isoformat()
         return str(obj)
 
-    serialized = json.dumps(data, sort_keys=True, separators=(",", ":"), default=json_serializer)
+    serialized = json.dumps(
+        data, sort_keys=True, separators=(",", ":"), default=json_serializer
+    )
     return hashlib.sha256(serialized.encode("utf-8")).hexdigest()

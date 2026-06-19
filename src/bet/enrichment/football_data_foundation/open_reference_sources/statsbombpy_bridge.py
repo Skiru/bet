@@ -40,7 +40,9 @@ class StatsBombPyBridge(BaseConnector):
                 "dependency_missing",
                 {
                     "dependency": "statsbombpy",
-                    "reason": "statsbombpy is an optional dependency and is currently absent.",
+                    "reason": (
+                        "statsbombpy is an optional dependency and is currently absent."
+                    ),
                 },
             )
 
@@ -54,6 +56,7 @@ class StatsBombPyBridge(BaseConnector):
 
         try:
             from statsbombpy import sb
+
             raw_payload = sb.competitions(fmt=kwargs.get("fmt", "dict"))
             return build_success_result(
                 self,

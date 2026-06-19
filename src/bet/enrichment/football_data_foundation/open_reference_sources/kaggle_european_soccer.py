@@ -65,7 +65,8 @@ class KaggleEuropeanSoccerConnector(BaseConnector):
                 conn = sqlite3.connect(path)
                 conn.row_factory = sqlite3.Row
                 rows = conn.execute(
-                    "SELECT match_api_id, home_team_api_id, away_team_api_id, home_team_goal, away_team_goal FROM Match LIMIT 50"
+                    "SELECT match_api_id, home_team_api_id, away_team_api_id, "
+                    "home_team_goal, away_team_goal FROM Match LIMIT 50"
                 ).fetchall()
                 conn.close()
                 records = [dict(row) for row in rows]

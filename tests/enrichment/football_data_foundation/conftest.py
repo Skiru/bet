@@ -9,7 +9,9 @@ import pytest
 @pytest.fixture(autouse=True)
 def block_network(monkeypatch: pytest.MonkeyPatch) -> None:
     def blocked(*args: object, **kwargs: object) -> None:
-        raise RuntimeError("network access disabled in football_data_foundation unit tests")
+        raise RuntimeError(
+            "network access disabled in football_data_foundation unit tests"
+        )
 
     monkeypatch.setattr(socket, "create_connection", blocked)
     monkeypatch.setattr(urllib.request, "urlopen", blocked)

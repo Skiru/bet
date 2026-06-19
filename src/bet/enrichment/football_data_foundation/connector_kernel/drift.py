@@ -10,9 +10,9 @@ class DriftClassification:
     STALE_DATA_DRIFT = "STALE_DATA_DRIFT"
     BROKEN_OR_DRIFTED = "BROKEN_OR_DRIFTED"
 
+
 def evaluate_drift(
-    current_columns: Sequence[str],
-    historical_columns: Sequence[str]
+    current_columns: Sequence[str], historical_columns: Sequence[str]
 ) -> str:
     if not historical_columns:
         return DriftClassification.NO_DRIFT

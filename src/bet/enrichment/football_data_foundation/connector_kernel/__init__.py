@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Sequence
 from typing import Any
 
 from bet.enrichment.football_data_foundation.connector_kernel.access import (
@@ -10,9 +10,16 @@ from bet.enrichment.football_data_foundation.connector_kernel.pagination import 
     PaginationModel,
 )
 from bet.enrichment.football_data_foundation.connector_kernel.state import (
-    CapabilityState,
+    CapabilityState as CapabilityState,
 )
 from bet.integration.source_result import SourceOperationResult
+
+__all__ = [
+    "AccessRequirement",
+    "PaginationModel",
+    "CapabilityState",
+    "BaseConnector",
+]
 
 
 class BaseConnector:

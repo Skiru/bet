@@ -53,5 +53,10 @@ class KloppyBridge(BaseConnector):
             operation,
             SourceResultStatus.NOT_SUPPORTED,
             "safe_execution_not_implemented",
-            {"reason": "Bridge execution is intentionally fail-closed without a verified adapter path."},
+            {
+                "reason": (
+                    "Bridge execution is intentionally fail-closed without a "
+                    "verified adapter path."
+                )
+            },
         )

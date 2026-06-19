@@ -12,8 +12,14 @@ class PaginationModel(StrEnum):
     FILE_TREE = "FILE_TREE"
     UNKNOWN = "UNKNOWN"
 
+
 class PaginationState:
-    def __init__(self, model: PaginationModel = PaginationModel.NO_PAGINATION, current_page: int = 1, cursor_value: str | None = None):
+    def __init__(
+        self,
+        model: PaginationModel = PaginationModel.NO_PAGINATION,
+        current_page: int = 1,
+        cursor_value: str | None = None,
+    ):
         self.model = model
         self.current_page = current_page
         self.cursor_value = cursor_value

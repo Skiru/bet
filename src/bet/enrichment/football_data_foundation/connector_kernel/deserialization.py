@@ -20,6 +20,7 @@ class Deserializer:
                 return raw
         return raw
 
+
 class PandasDeserializer(Deserializer):
     def to_dataframe(self, raw: Any) -> pd.DataFrame:
         if isinstance(raw, pd.DataFrame):

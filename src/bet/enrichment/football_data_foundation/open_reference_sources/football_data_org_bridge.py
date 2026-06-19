@@ -89,7 +89,8 @@ class FootballDataOrgBridge(BaseConnector):
                 value=result.value,
                 provider=self.provider,
                 operation=operation,
-                request_identity=result.request_identity or f"FootballDataOrgClient.{operation}",
+                request_identity=result.request_identity
+                or f"FootballDataOrgClient.{operation}",
                 evidence_refs=result.evidence_refs,
                 bundle_id=result.bundle_id,
                 retrieved_at=result.retrieved_at,
