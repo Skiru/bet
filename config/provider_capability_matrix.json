@@ -497,6 +497,48 @@
         "advanced xG only",
         "no retained replay certification in this correction"
       ]
+    },
+    "soccerdata": {
+      "classification": "REFERENCE_ONLY",
+      "provenance_family": "soccerdata",
+      "transport_type": "official_api",
+      "capabilities": {
+        "current_recent_form": [
+          {
+            "status": "REFERENCE_ONLY",
+            "competition_scope": "football:*",
+            "season_scope": "current",
+            "mode": "shadow",
+            "selectable_as_projection": false,
+            "evidence_replay": false,
+            "exact_reason": "SoccerData unified core is integrated for reference, shadow, and local diagnostics."
+          }
+        ]
+      },
+      "risks": [
+        "upstream API drift"
+      ]
+    },
+    "statsbomb": {
+      "classification": "REFERENCE_ONLY",
+      "provenance_family": "statsbomb",
+      "transport_type": "file_system",
+      "capabilities": {},
+      "risks": []
+    },
+    "kaggle": {
+      "classification": "REFERENCE_ONLY",
+      "provenance_family": "kaggle",
+      "transport_type": "file_system",
+      "capabilities": {},
+      "risks": []
+    },
+    "openfootball": {
+      "classification": "REFERENCE_ONLY",
+      "provenance_family": "openfootball",
+      "transport_type": "file_system",
+      "capabilities": {},
+      "risks": []
     }
   }
 }

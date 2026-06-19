@@ -1,0 +1,22 @@
+{
+  "summary": {
+    "total_sources": 21,
+    "active_sources": 15,
+    "optional_bridges": 6,
+    "connector_kernel_version": "1.0.0",
+    "capabilities_mapped": {
+      "current_discovery": ["FootballDataOrg", "FotMobProbe"],
+      "current_recent_form": [
+        "ClubElo",
+        "ESPN",
+        "Sofascore",
+        "SoFIFA",
+        "WhoScored",
+        "StatsBombOpenData",
+        "OpenFootball"
+      ],
+      "h2h_head_to_head": ["MatchHistory", "KaggleEuropeanSoccer"],
+      "fixture_team_statistics": ["FBref", "SofaScoreRichProbe"]
+    }
+  }
+}

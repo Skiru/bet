@@ -1,0 +1,195 @@
+{
+  "schema_version": "1.0",
+  "generated_at": "2026-06-19T15:00:00Z",
+  "sources": {
+    "soccerdata/ClubElo": {
+      "family": "soccerdata",
+      "class": "ClubElo",
+      "operation": "fetch_ratings",
+      "capability": "current_recent_form",
+      "status": "IMPLEMENTED_ACTIVE",
+      "pagination": "NO_PAGINATION",
+      "dependencies": ["soccerdata"]
+    },
+    "soccerdata/ESPN": {
+      "family": "soccerdata",
+      "class": "ESPN",
+      "operation": "fetch_schedule",
+      "capability": "current_recent_form",
+      "status": "IMPLEMENTED_ACTIVE",
+      "pagination": "SEASON_SCOPE",
+      "dependencies": ["soccerdata"]
+    },
+    "soccerdata/FBref": {
+      "family": "soccerdata",
+      "class": "FBref",
+      "operation": "fetch_team_stats",
+      "capability": "fixture_team_statistics",
+      "status": "IMPLEMENTED_ACTIVE",
+      "pagination": "SEASON_SCOPE",
+      "dependencies": ["soccerdata"]
+    },
+    "soccerdata/FiveThirtyEight": {
+      "family": "soccerdata",
+      "class": "FiveThirtyEight",
+      "operation": "fetch_predictions",
+      "capability": "NOT_SUPPORTED",
+      "status": "NOT_SUPPORTED",
+      "pagination": "NO_PAGINATION",
+      "dependencies": ["soccerdata"]
+    },
+    "soccerdata/MatchHistory": {
+      "family": "soccerdata",
+      "class": "MatchHistory",
+      "operation": "fetch_results",
+      "capability": "h2h_head_to_head",
+      "status": "IMPLEMENTED_ACTIVE",
+      "pagination": "SEASON_SCOPE",
+      "dependencies": ["soccerdata"]
+    },
+    "soccerdata/Sofascore": {
+      "family": "soccerdata",
+      "class": "Sofascore",
+      "operation": "fetch_ratings",
+      "capability": "current_recent_form",
+      "status": "IMPLEMENTED_ACTIVE",
+      "pagination": "SEASON_SCOPE",
+      "dependencies": ["soccerdata"]
+    },
+    "soccerdata/SoFIFA": {
+      "family": "soccerdata",
+      "class": "SoFIFA",
+      "operation": "fetch_ratings",
+      "capability": "current_recent_form",
+      "status": "IMPLEMENTED_ACTIVE",
+      "pagination": "SEASON_SCOPE",
+      "dependencies": ["soccerdata"]
+    },
+    "soccerdata/Understat": {
+      "family": "soccerdata",
+      "class": "Understat",
+      "operation": "fetch_xg",
+      "capability": "advanced_xg",
+      "status": "IMPLEMENTED_ACTIVE",
+      "pagination": "SEASON_SCOPE",
+      "dependencies": ["soccerdata"]
+    },
+    "soccerdata/WhoScored": {
+      "family": "soccerdata",
+      "class": "WhoScored",
+      "operation": "fetch_ratings",
+      "capability": "current_recent_form",
+      "status": "IMPLEMENTED_ACTIVE",
+      "pagination": "SEASON_SCOPE",
+      "dependencies": ["soccerdata"]
+    },
+    "open_reference/StatsBombOpenData": {
+      "family": "open_reference",
+      "class": "StatsBombOpenData",
+      "operation": "parse_matches",
+      "capability": "current_recent_form",
+      "status": "EVIDENCE_READY",
+      "pagination": "FILE_TREE",
+      "dependencies": []
+    },
+    "open_reference/StatsBombPy": {
+      "family": "open_reference",
+      "class": "StatsBombPy",
+      "operation": "fetch_competitions",
+      "capability": "current_recent_form",
+      "status": "SELECTABLE_CANDIDATE",
+      "pagination": "NO_PAGINATION",
+      "dependencies": ["statsbombpy"]
+    },
+    "open_reference/KaggleEuropeanSoccer": {
+      "family": "open_reference",
+      "class": "KaggleEuropeanSoccer",
+      "operation": "query_matches",
+      "capability": "h2h_head_to_head",
+      "status": "EVIDENCE_READY",
+      "pagination": "NO_PAGINATION",
+      "dependencies": ["sqlite3"]
+    },
+    "open_reference/FootballDataOrg": {
+      "family": "open_reference",
+      "class": "FootballDataOrg",
+      "operation": "fetch_fixtures",
+      "capability": "current_discovery",
+      "status": "CERTIFIED_SELECTABLE",
+      "pagination": "NO_PAGINATION",
+      "dependencies": []
+    },
+    "open_reference/OpenFootball": {
+      "family": "open_reference",
+      "class": "OpenFootball",
+      "operation": "fetch_worldcup_matches",
+      "capability": "current_recent_form",
+      "status": "EVIDENCE_READY",
+      "pagination": "NO_PAGINATION",
+      "dependencies": []
+    },
+    "rich_unofficial/FotMobProbe": {
+      "family": "rich_unofficial",
+      "class": "FotMobProbe",
+      "operation": "probe_matches",
+      "capability": "current_discovery",
+      "status": "SELECTABLE_CANDIDATE",
+      "pagination": "NO_PAGINATION",
+      "dependencies": []
+    },
+    "rich_unofficial/SofaScoreRichProbe": {
+      "family": "rich_unofficial",
+      "class": "SofaScoreRichProbe",
+      "operation": "probe_stats",
+      "capability": "fixture_team_statistics",
+      "status": "SELECTABLE_CANDIDATE",
+      "pagination": "NO_PAGINATION",
+      "dependencies": []
+    },
+    "rich_unofficial/ScraperFCSofascore": {
+      "family": "rich_unofficial",
+      "class": "ScraperFCSofascore",
+      "operation": "fetch_match_stats",
+      "capability": "fixture_team_statistics",
+      "status": "NOT_SUPPORTED",
+      "pagination": "NO_PAGINATION",
+      "dependencies": ["ScraperFC"]
+    },
+    "event_model/SoccerAction": {
+      "family": "event_model",
+      "class": "SoccerAction",
+      "operation": "convert_events",
+      "capability": "fixture_team_statistics",
+      "status": "NOT_SUPPORTED",
+      "pagination": "NO_PAGINATION",
+      "dependencies": ["socceraction"]
+    },
+    "event_model/Kloppy": {
+      "family": "event_model",
+      "class": "Kloppy",
+      "operation": "load_tracking_data",
+      "capability": "fixture_team_statistics",
+      "status": "NOT_SUPPORTED",
+      "pagination": "NO_PAGINATION",
+      "dependencies": ["kloppy"]
+    },
+    "event_model/Floodlight": {
+      "family": "event_model",
+      "class": "Floodlight",
+      "operation": "load_events",
+      "capability": "fixture_team_statistics",
+      "status": "NOT_SUPPORTED",
+      "pagination": "NO_PAGINATION",
+      "dependencies": ["floodlight"]
+    },
+    "event_model/MplSoccer": {
+      "family": "event_model",
+      "class": "MplSoccer",
+      "operation": "draw_pitch",
+      "capability": "fixture_team_statistics",
+      "status": "NOT_SUPPORTED",
+      "pagination": "NO_PAGINATION",
+      "dependencies": ["mplsoccer"]
+    }
+  }
+}
