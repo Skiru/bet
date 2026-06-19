@@ -60,8 +60,13 @@ from bet.integration.source_result import SourceOperationResult, SourceResultSta
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 ROUTING_PATH = REPO_ROOT / "config/football_routing.yaml"
+CAPABILITY_MATRIX_PATH = REPO_ROOT / "config/provider_capability_matrix.json"
 REPORT_PATH = REPO_ROOT / "reports/football_data_foundation/source_matrix.json"
 SUMMARY_PATH = REPO_ROOT / "reports/football_data_foundation/capability_summary.json"
+ACTIVE_PROFILE_ROOT = (
+    REPO_ROOT
+    / "reports/football_data_foundation/active_enrichment_profiles/world-cup-2026"
+)
 FIXTURE_ROOT = REPO_ROOT / "tests/fixtures/football_data_foundation"
 
 SOURCE_MATRIX = json.loads(REPORT_PATH.read_text(encoding="utf-8"))
@@ -230,6 +235,79 @@ def test_routing_config_changes_are_additive_and_preserve_existing_routes() -> N
         "sportdb",
         "sportdb",
     ]
+
+
+def test_provider_matrix_does_not_add_world_cup_entries_under_generic_espn() -> None:
+    matrix = json.loads(CAPABILITY_MATRIX_PATH.read_text(encoding="utf-8"))
+    espn_capabilities = matrix["providers"]["espn"]["capabilities"]
+    world_cup_scope = "football:world:8/world-championship:lvUBR5F8"
+    for capability_entries in espn_capabilities.values():
+        assert not any(
+            entry.get("competition_scope") == world_cup_scope
+            for entry in capability_entries
+        )
+
+
+def test_routing_does_not_activate_generic_espn_world_cup_routes() -> None:
+    routing = yaml.safe_load(ROUTING_PATH.read_text(encoding="utf-8"))
+    world_cup_scope = "football:world:8/world-championship:lvUBR5F8"
+    for capability in ("current_discovery", "current_form", "detailed_metrics"):
+        for route_group in ("production_routes", "shadow_routes", "candidate_routes"):
+            for route in routing["routing"].get(capability, {}).get(route_group, []):
+                assert not (
+                    route.get("provider") == "espn"
+                    and route.get("competition_scope") == world_cup_scope
+                )
+
+
+def test_active_certified_tuples_require_real_provider_identity_and_capabilities() -> (
+    None
+):
+    payload = json.loads(
+        (ACTIVE_PROFILE_ROOT / "active_certified_tuples.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    tuples = payload["active_certified_tuples"]
+    assert tuples
+    for entry in tuples:
+        assert entry["provider_event_id"]
+        assert entry["scanner_event_id"] == "66456944"
+        assert entry["active_enrichment"] is True
+        assert entry["production_betting_decision"] is False
+        assert entry["evidence_identity"]
+        assert entry["schema_fingerprint"]
+        assert entry["exact_real_fact_capabilities"]
+        assert not (
+            entry["operation"] == "read_schedule"
+            and entry["capability"] == "detailed_metrics"
+        )
+
+
+def test_schema_activation_reports_fail_closed_for_matrix_and_routing() -> None:
+    payload = json.loads(
+        (ACTIVE_PROFILE_ROOT / "schema_activation_decision.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert payload["matrix_activation"]["status"] == "MATRIX_ACTIVATION_DEFERRED"
+    assert payload["routing_activation"]["status"] == "ROUTING_ACTIVATION_DEFERRED"
+
+
+def test_enrichment_foundation_does_not_import_betting_decision_modules() -> None:
+    forbidden_import_fragments = (
+        "bet.prediction",
+        "bet.valuation",
+        "bet.staking",
+        "bet.coupon",
+        "bet.gate",
+        "bet.decision",
+    )
+    for path in (REPO_ROOT / "src/bet/enrichment/football_data_foundation").rglob(
+        "*.py"
+    ):
+        content = path.read_text(encoding="utf-8")
+        assert not any(fragment in content for fragment in forbidden_import_fragments)
 
 
 def test_source_matrix_contains_every_required_source_family() -> None:

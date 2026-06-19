@@ -1,0 +1,70 @@
+{
+  "events": [
+    {
+      "id": "760442",
+      "date": "2026-06-19T19:00Z",
+      "name": "Australia at United States",
+      "shortName": "AUS @ USA",
+      "competitions": [
+        {
+          "status": {
+            "type": {
+              "name": "STATUS_SECOND_HALF",
+              "state": "in",
+              "completed": false,
+              "detail": "54'",
+              "shortDetail": "54'"
+            }
+          },
+          "venue": {
+            "fullName": "Lumen Field",
+            "address": {
+              "city": "Seattle, Washington",
+              "country": "USA"
+            }
+          },
+          "broadcasts": [
+            {"names": ["FOX", "Tele", "FOX One"]}
+          ],
+          "notes": [
+            {"headline": "FIFA World Cup, Group D"}
+          ],
+          "competitors": [
+            {
+              "homeAway": "home",
+              "score": "2",
+              "team": {
+                "displayName": "United States",
+                "abbreviation": "USA"
+              },
+              "records": [
+                {"name": "total", "summary": "1-0-0"}
+              ],
+              "statistics": [
+                {"name": "possessionPct", "displayValue": "71.5"},
+                {"name": "shotsOnTarget", "displayValue": "2"},
+                {"name": "totalShots", "displayValue": "11"}
+              ]
+            },
+            {
+              "homeAway": "away",
+              "score": "0",
+              "team": {
+                "displayName": "Australia",
+                "abbreviation": "AUS"
+              },
+              "records": [
+                {"name": "total", "summary": "1-0-0"}
+              ],
+              "statistics": [
+                {"name": "possessionPct", "displayValue": "28.5"},
+                {"name": "shotsOnTarget", "displayValue": "1"},
+                {"name": "totalShots", "displayValue": "2"}
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

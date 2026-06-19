@@ -4,142 +4,170 @@
   "endpoint_url": "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard",
   "canonical_competition_scope": "football:world:8/world-championship:lvUBR5F8",
   "canonical_season_scope": "2026",
-  "event_count": 6,
-  "schema_fingerprint": "8cf5da8df404fb85abf73ea7b21e86095d3a3d5e23667c2d8616147f12e8b0a5",
-  "evidence_identity": "98a0fc8f6d7ab7a8f9c0 dec7e38ba5de0b561c28f090b8fdec09b5dc7321a5de",
+  "event_count": 1,
+  "schema_fingerprint": "79d9ef477b011d1219055126c8dff4136072a4f4c2c920eecd0ee828c6595017",
+  "evidence_identity": "14a856f8e406d07f4385d80c1d747c1ecbc72db8c2bc2c7acab5581dba7ceb36",
+  "retrieval_timestamp_utc": "2026-06-19T20:35:37.694107+00:00",
   "status": "ENDPOINT_VERIFIED",
   "diagnostics": {
+    "http_status_code": 200,
+    "matched_event_count": 1,
     "max_calls": 2,
-    "timeout_seconds": 20,
+    "no_secrets_cookies_proxy_browser_profiles": "No secrets, cookies, proxy settings, Tor, or browser profiles were used.",
     "store_raw_payload": false,
-    "no_secrets_cookies_proxy_browser_profiles": "No secrets, cookies, proxy settings, Tor, or browser profiles were used."
+    "timeout_seconds": 20,
+    "total_event_count": 4
   },
   "events": [
     {
-      "provider_event_id": "66456944",
-      "event_date_utc": "2026-06-19T19:00:00Z",
-      "event_date_local": "2026-06-19T19:00:00Z",
-      "name": "United States vs Australia",
-      "short_name": "USA @ AUS",
+      "scanner_event_id": "66456944",
+      "provider_event_id": "760442",
+      "event_date_utc": "2026-06-19T19:00Z",
+      "event_date_local": "2026-06-19T19:00Z",
+      "name": "Australia at United States",
+      "short_name": "AUS @ USA",
       "home_team_name": "United States",
       "home_team_code": "USA",
       "away_team_name": "Australia",
       "away_team_code": "AUS",
-      "status_name": "STATUS_SCHEDULED",
-      "status_state": "pre",
+      "status_name": "STATUS_SECOND_HALF",
+      "status_state": "in",
       "completed": false,
-      "group_label": "Group D",
-      "venue_name": "MetLife Stadium",
-      "venue_city": "East Rutherford",
+      "group_label": null,
+      "venue_name": "Lumen Field",
+      "venue_city": "Seattle, Washington",
       "venue_country": "USA",
-      "broadcasts": ["FOX", "FS1"],
-      "team_records": [],
-      "leaders_summary": []
-    },
-    {
-      "provider_event_id": "66456945",
-      "event_date_utc": "2026-06-19T22:00:00Z",
-      "event_date_local": "2026-06-19T22:00:00Z",
-      "name": "Scotland vs Morocco",
-      "short_name": "SCO @ MAR",
-      "home_team_name": "Scotland",
-      "home_team_code": "SCO",
-      "away_team_name": "Morocco",
-      "away_team_code": "MAR",
-      "status_name": "STATUS_SCHEDULED",
-      "status_state": "pre",
-      "completed": false,
-      "group_label": "Group D",
-      "venue_name": "Gillette Stadium",
-      "venue_city": "Foxborough",
-      "venue_country": "USA",
-      "broadcasts": ["FS1"],
-      "team_records": [],
-      "leaders_summary": []
-    },
-    {
-      "provider_event_id": "66456946",
-      "event_date_utc": "2026-06-20T00:30:00Z",
-      "event_date_local": "2026-06-20T00:30:00Z",
-      "name": "Brazil vs Haiti",
-      "short_name": "BRA @ HAI",
-      "home_team_name": "Brazil",
-      "home_team_code": "BRA",
-      "away_team_name": "Haiti",
-      "away_team_code": "HAI",
-      "status_name": "STATUS_SCHEDULED",
-      "status_state": "pre",
-      "completed": false,
-      "group_label": "Group E",
-      "venue_name": "Hard Rock Stadium",
-      "venue_city": "Miami",
-      "venue_country": "USA",
-      "broadcasts": ["FOX"],
-      "team_records": [],
-      "leaders_summary": []
-    },
-    {
-      "provider_event_id": "66456947",
-      "event_date_utc": "2026-06-20T03:00:00Z",
-      "event_date_local": "2026-06-20T03:00:00Z",
-      "name": "Turkey vs Paraguay",
-      "short_name": "TUR @ PAR",
-      "home_team_name": "Turkey",
-      "home_team_code": "TUR",
-      "away_team_name": "Paraguay",
-      "away_team_code": "PAR",
-      "status_name": "STATUS_SCHEDULED",
-      "status_state": "pre",
-      "completed": false,
-      "group_label": "Group E",
-      "venue_name": "NRG Stadium",
-      "venue_city": "Houston",
-      "venue_country": "USA",
-      "broadcasts": ["FS2"],
-      "team_records": [],
-      "leaders_summary": []
-    },
-    {
-      "provider_event_id": "66456948",
-      "event_date_utc": "2026-06-24T19:00:00Z",
-      "event_date_local": "2026-06-24T19:00:00Z",
-      "name": "Switzerland vs Canada",
-      "short_name": "SUI @ CAN",
-      "home_team_name": "Switzerland",
-      "home_team_code": "SUI",
-      "away_team_name": "Canada",
-      "away_team_code": "CAN",
-      "status_name": "STATUS_SCHEDULED",
-      "status_state": "pre",
-      "completed": false,
-      "group_label": "Group F",
-      "venue_name": "BC Place",
-      "venue_city": "Vancouver",
-      "venue_country": "CAN",
-      "broadcasts": ["FOX"],
-      "team_records": [],
-      "leaders_summary": []
-    },
-    {
-      "provider_event_id": "66456949",
-      "event_date_utc": "2026-06-24T22:00:00Z",
-      "event_date_local": "2026-06-24T22:00:00Z",
-      "name": "Scotland vs Brazil",
-      "short_name": "SCO @ BRA",
-      "home_team_name": "Scotland",
-      "home_team_code": "SCO",
-      "away_team_name": "Brazil",
-      "away_team_code": "BRA",
-      "status_name": "STATUS_SCHEDULED",
-      "status_state": "pre",
-      "completed": false,
-      "group_label": "Group D",
-      "venue_name": "SoFi Stadium",
-      "venue_city": "Inglewood",
-      "venue_country": "USA",
-      "broadcasts": ["FOX"],
-      "team_records": [],
-      "leaders_summary": []
+      "score_home": 2,
+      "score_away": 0,
+      "broadcasts": [
+        "FOX",
+        "Tele",
+        "FOX One"
+      ],
+      "team_records": [
+        {
+          "team_name": "United States",
+          "team_code": "USA",
+          "records": [
+            {
+              "name": "All Splits",
+              "summary": "1-0-0"
+            }
+          ],
+          "team_record_summary": "1-0-0"
+        },
+        {
+          "team_name": "Australia",
+          "team_code": "AUS",
+          "records": [
+            {
+              "name": "All Splits",
+              "summary": "1-0-0"
+            }
+          ],
+          "team_record_summary": "1-0-0"
+        }
+      ],
+      "statistics": [
+        {
+          "team_name": "United States",
+          "team_code": "USA",
+          "home_away": "home",
+          "name": "foulsCommitted",
+          "display_value": "9",
+          "value": 9.0
+        },
+        {
+          "team_name": "United States",
+          "team_code": "USA",
+          "home_away": "home",
+          "name": "wonCorners",
+          "display_value": "6",
+          "value": 6.0
+        },
+        {
+          "team_name": "United States",
+          "team_code": "USA",
+          "home_away": "home",
+          "name": "possessionPct",
+          "display_value": "68.4",
+          "value": 68.4
+        },
+        {
+          "team_name": "United States",
+          "team_code": "USA",
+          "home_away": "home",
+          "name": "shotsOnTarget",
+          "display_value": "2",
+          "value": 2.0
+        },
+        {
+          "team_name": "United States",
+          "team_code": "USA",
+          "home_away": "home",
+          "name": "totalGoals",
+          "display_value": "2",
+          "value": 2.0
+        },
+        {
+          "team_name": "United States",
+          "team_code": "USA",
+          "home_away": "home",
+          "name": "totalShots",
+          "display_value": "10",
+          "value": 10.0
+        },
+        {
+          "team_name": "Australia",
+          "team_code": "AUS",
+          "home_away": "away",
+          "name": "foulsCommitted",
+          "display_value": "10",
+          "value": 10.0
+        },
+        {
+          "team_name": "Australia",
+          "team_code": "AUS",
+          "home_away": "away",
+          "name": "wonCorners",
+          "display_value": "2",
+          "value": 2.0
+        },
+        {
+          "team_name": "Australia",
+          "team_code": "AUS",
+          "home_away": "away",
+          "name": "possessionPct",
+          "display_value": "31.6",
+          "value": 31.6
+        },
+        {
+          "team_name": "Australia",
+          "team_code": "AUS",
+          "home_away": "away",
+          "name": "shotsOnTarget",
+          "display_value": "2",
+          "value": 2.0
+        },
+        {
+          "team_name": "Australia",
+          "team_code": "AUS",
+          "home_away": "away",
+          "name": "totalGoals",
+          "display_value": "0",
+          "value": 0.0
+        },
+        {
+          "team_name": "Australia",
+          "team_code": "AUS",
+          "home_away": "away",
+          "name": "totalShots",
+          "display_value": "4",
+          "value": 4.0
+        }
+      ],
+      "leaders_summary": [],
+      "retrieval_timestamp_utc": "2026-06-19T20:35:37.694107+00:00"
     }
   ]
 }

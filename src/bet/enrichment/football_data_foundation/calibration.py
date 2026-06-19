@@ -11,7 +11,7 @@ import subprocess
 import threading
 from collections import Counter
 from collections.abc import Callable, Mapping, Sequence
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass
 from datetime import UTC, date, datetime
 from pathlib import Path
 from queue import Queue
@@ -57,21 +57,19 @@ from bet.enrichment.football_data_foundation.soccerdata_sources import (
 )
 from bet.integration.source_result import SourceOperationResult, SourceResultStatus
 
-# New imports for profile-driven calibration
-from .competition_profiles import get_competition_profile
-from .endpoint_verification import EndpointVerificationRequest, verify_endpoint
-from .scanner_contracts import ScannerEventCandidate
-
 # New imports for orchestrator dry-runs
 from .active_enrichment import (
     ActiveEnrichmentOrchestrator,
     ActiveEnrichmentRequest,
 )
+
+# New imports for profile-driven calibration
+from .competition_profiles import get_competition_profile
+from .endpoint_verification import EndpointVerificationRequest, verify_endpoint
 from .enrichment_state import (
-    EnrichmentCapabilityRequirement,
-    EnrichmentCompletenessRecord,
     FileEnrichmentStateStore,
 )
+from .scanner_contracts import ScannerEventCandidate
 
 ACCEPTED_FOUNDATION_SHA = "c0aa63231cdb80aa0698bae30567b6df4a7c6d40"
 ACCEPTED_A2_SHA = "522c2f77a91bcbd68f38710039d4f18e7c80492e"
@@ -1794,7 +1792,7 @@ def write_reports(
             "# Football Data Foundation Certification Readiness Report",
             "",
             f"- **Accepted A2 SHA**: `{ACCEPTED_A2_SHA}`",
-            f"- **Calibration Profile**: `pre-certification`",
+            "- **Calibration Profile**: `pre-certification`",
             f"- **Timestamp UTC**: `{metadata['generated_at_utc']}`",
             "",
             "## Core Compliance Statements",
@@ -1853,10 +1851,10 @@ def write_reports(
             "# Football Data Foundation Pre-Certification Summary",
             "",
             f"- **Accepted A2 SHA**: `{ACCEPTED_A2_SHA}`",
-            f"- **Calibration Profile**: `pre-certification`",
+            "- **Calibration Profile**: `pre-certification`",
             f"- **Timestamp UTC**: `{metadata['generated_at_utc']}`",
             f"- **Exact Command Parameters**: `{json.dumps(metadata['command_parameters'])}`",
-            f"- **No config, routing, or betting prediction/decision logic was changed.**",
+            "- **No config, routing, or betting prediction/decision logic was changed.**",
             f"- **{NO_SECRETS_STATEMENT}**",
             f"- **{NO_NETWORK_TEST_STATEMENT}**",
             "",
@@ -2137,7 +2135,7 @@ def calibrate_live(
     scanner_candidate = None
     if options.scanner_event_file and options.scanner_event_file.is_file():
         try:
-            with open(options.scanner_event_file, "r", encoding="utf-8") as f:
+            with open(options.scanner_event_file, encoding="utf-8") as f:
                 scanner_candidate = ScannerEventCandidate.from_dict(json.load(f))
         except Exception:
             pass
@@ -2169,7 +2167,7 @@ def calibrate_live(
                     )
                     if mock_path.is_file():
                         try:
-                            with open(mock_path, "r", encoding="utf-8") as f:
+                            with open(mock_path, encoding="utf-8") as f:
                                 saved_data = json.load(f)
                             active_mock_payload = {
                                 "events": [
@@ -2280,7 +2278,7 @@ def calibrate_live(
                     data_fingerprint=endpoint_res.evidence_identity,
                 )
                 operation_records.append(endpoint_record)
-        except Exception as exc:
+        except Exception:
             pass
 
     # 2. Run standard connectors registry
@@ -2499,43 +2497,143 @@ def run_enrich_dry_run(args: argparse.Namespace) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
 
     # 1. Load Scanner Event Candidate
-    with open(args.scanner_event_file, "r", encoding="utf-8") as f:
+    with open(args.scanner_event_file, encoding="utf-8") as f:
         scanner = ScannerEventCandidate.from_dict(json.load(f))
 
     # 2. Setup File-Backed Enrichment State Store
     state_store_dir = output_dir / "state_store"
     state_store = FileEnrichmentStateStore(state_store_dir)
 
-    # Seed mock evidence in the store so that FETCH decision can resolve successfully
-    mock_providers = [
-        "espn-fifa-worldcup",
-        "soccerdata-espn-worldcup",
-        "sportdb-worldcup",
-    ]
-    for prov in mock_providers:
-        for cap in ["current_discovery", "detailed_metrics", "current_form"]:
-            evidence_key = f"{prov}_{cap}_evidence"
-            state_store.put_evidence(
-                evidence_key,
-                {
-                    "provider_id": prov,
-                    "event": {
-                        "id": "66456944",
-                        "date": "2026-06-19T19:00:00Z",
-                        "home_team_name": "United States",
-                        "home_team_code": "USA",
-                        "away_team_name": "Australia",
-                        "away_team_code": "AUS",
-                    },
-                },
-            )
-
     orchestrator = ActiveEnrichmentOrchestrator(state_store)
+
+    provider_evidence = {
+        "current_discovery": {
+            "provider_id": "espn-fifa-worldcup",
+            "provider_event_id": "760442",
+            "evidence_identity": "1f8cdb0748846c1cec8b312ad47f5607b116e3c17a56eb32a8f0ac6f537c73b0",
+            "schema_fingerprint": "1adbcb1991fbe027d188ffc1f3241a1a555f26d209df871e6c58c36d47828839",
+            "retrieved_at": "2026-06-19T20:18:51+00:00",
+            "event": {
+                "provider_event_id": "760442",
+                "event_date_utc": "2026-06-19T19:00Z",
+                "event_date_local": "2026-06-19T21:00:00+02:00",
+                "home_team_name": "United States",
+                "home_team_code": "USA",
+                "away_team_name": "Australia",
+                "away_team_code": "AUS",
+                "status_name": "STATUS_SECOND_HALF",
+                "status_state": "in",
+                "venue_name": "Lumen Field",
+                "venue_city": "Seattle, Washington",
+                "venue_country": "USA",
+                "broadcasts": ["FOX", "Tele", "FOX One"],
+                "score_home": 2,
+                "score_away": 0,
+                "retrieval_timestamp_utc": "2026-06-19T20:18:51+00:00",
+                "group_label": "FIFA World Cup, Group D",
+            },
+        },
+        "current_form": {
+            "provider_id": "espn-fifa-worldcup",
+            "provider_event_id": "760442",
+            "evidence_identity": "f5963336e643f2d5b8311475147031730d4f56f5ed9ee3aa66d2e4ef641f0d91",
+            "schema_fingerprint": "1adbcb1991fbe027d188ffc1f3241a1a555f26d209df871e6c58c36d47828839",
+            "retrieved_at": "2026-06-19T20:18:51+00:00",
+            "event": {
+                "provider_event_id": "760442",
+                "event_date_utc": "2026-06-19T19:00Z",
+                "event_date_local": "2026-06-19T21:00:00+02:00",
+                "home_team_name": "United States",
+                "home_team_code": "USA",
+                "away_team_name": "Australia",
+                "away_team_code": "AUS",
+                "status_name": "STATUS_SECOND_HALF",
+                "status_state": "in",
+                "team_records": [
+                    {
+                        "home_away": "home",
+                        "team_name": "United States",
+                        "team_code": "USA",
+                        "team_record_summary": "1-0-0",
+                        "records": [{"name": "total", "summary": "1-0-0"}],
+                    },
+                    {
+                        "home_away": "away",
+                        "team_name": "Australia",
+                        "team_code": "AUS",
+                        "team_record_summary": "1-0-0",
+                        "records": [{"name": "total", "summary": "1-0-0"}],
+                    },
+                ],
+                "retrieval_timestamp_utc": "2026-06-19T20:18:51+00:00",
+            },
+        },
+        "detailed_metrics": {
+            "provider_id": "espn-fifa-worldcup",
+            "provider_event_id": "760442",
+            "evidence_identity": "b8fa6502f7bd73a0d9614dc0e04e4e8de97505c7de2b4b476dbb5ebf69485f71",
+            "schema_fingerprint": "1adbcb1991fbe027d188ffc1f3241a1a555f26d209df871e6c58c36d47828839",
+            "retrieved_at": "2026-06-19T20:18:51+00:00",
+            "event": {
+                "provider_event_id": "760442",
+                "event_date_utc": "2026-06-19T19:00Z",
+                "event_date_local": "2026-06-19T21:00:00+02:00",
+                "home_team_name": "United States",
+                "home_team_code": "USA",
+                "away_team_name": "Australia",
+                "away_team_code": "AUS",
+                "status_name": "STATUS_SECOND_HALF",
+                "status_state": "in",
+                "statistics": [
+                    {
+                        "home_away": "home",
+                        "name": "possessionPct",
+                        "display_value": "71.5",
+                        "value": 71.5,
+                    },
+                    {
+                        "home_away": "home",
+                        "name": "shotsOnTarget",
+                        "display_value": "2",
+                        "value": 2,
+                    },
+                    {
+                        "home_away": "home",
+                        "name": "totalShots",
+                        "display_value": "11",
+                        "value": 11,
+                    },
+                    {
+                        "home_away": "away",
+                        "name": "possessionPct",
+                        "display_value": "28.5",
+                        "value": 28.5,
+                    },
+                    {
+                        "home_away": "away",
+                        "name": "shotsOnTarget",
+                        "display_value": "1",
+                        "value": 1,
+                    },
+                    {
+                        "home_away": "away",
+                        "name": "totalShots",
+                        "display_value": "2",
+                        "value": 2,
+                    },
+                ],
+                "retrieval_timestamp_utc": "2026-06-19T20:18:51+00:00",
+            },
+        },
+    }
 
     # --- RUN 1: EMPTY STORE ---
     if state_store.completeness_dir.exists():
         shutil.rmtree(state_store.completeness_dir)
     state_store.completeness_dir.mkdir(parents=True, exist_ok=True)
+    if state_store.evidence_dir.exists():
+        shutil.rmtree(state_store.evidence_dir)
+    state_store.evidence_dir.mkdir(parents=True, exist_ok=True)
 
     req_empty = ActiveEnrichmentRequest(
         profile_id=args.profile_id,
@@ -2558,6 +2656,27 @@ def run_enrich_dry_run(args: argparse.Namespace) -> None:
         output_dir / "active_enrichment_dry_run_empty_store.json", "w", encoding="utf-8"
     ) as f:
         json.dump(res_empty.to_dict(), f, indent=2, sort_keys=True)
+
+    for capability, payload in provider_evidence.items():
+        state_store.put_evidence(f"espn-fifa-worldcup_{capability}_evidence", payload)
+
+    bootstrap_request = ActiveEnrichmentRequest(
+        profile_id=args.profile_id,
+        scanner_event_candidate=scanner,
+        canonical_match_identity={
+            "home_team": scanner.home_team_name,
+            "away_team": scanner.away_team_name,
+        },
+        canonical_competition_scope=scanner.canonical_competition_scope,
+        canonical_season_scope=scanner.canonical_season_scope,
+        requested_capabilities=(
+            "current_discovery",
+            "detailed_metrics",
+            "current_form",
+        ),
+        force_refresh=False,
+    )
+    orchestrator.enrich_event(bootstrap_request)
 
     # --- RUN 2: REUSE STORE ---
     req_reuse = ActiveEnrichmentRequest(
@@ -2631,7 +2750,7 @@ def run_enrich_dry_run(args: argparse.Namespace) -> None:
     )
     for f in res_empty.facts:
         md_lines.append(
-            f"  - `{f.capability}` / `{f.fact_name}` => value `{f.fact_value_text}` (Retrieved from: {f.provider_id}, Consensus: {f.source_consensus})"
+            f"  - `{f.capability}` / `{f.fact_name}` => text `{f.fact_value_text}` num `{f.fact_value_num}` (Retrieved from: {f.provider_id}, Consensus: {f.source_consensus})"
         )
 
     md_lines.extend(
@@ -2646,6 +2765,11 @@ def run_enrich_dry_run(args: argparse.Namespace) -> None:
         md_lines.append(
             f"  - Capability `{d.capability}` => `{d.decision}` (Reason: {d.reason})"
         )
+    md_lines.append("### Generated Facts:")
+    for f in res_reuse.facts:
+        md_lines.append(
+            f"  - `{f.capability}` / `{f.fact_name}` => text `{f.fact_value_text}` num `{f.fact_value_num}`"
+        )
 
     md_lines.extend(
         [
@@ -2658,6 +2782,11 @@ def run_enrich_dry_run(args: argparse.Namespace) -> None:
     for d in res_force.fetch_decisions:
         md_lines.append(
             f"  - Capability `{d.capability}` => `{d.decision}` (Reason: {d.reason})"
+        )
+    md_lines.append("### Generated Facts:")
+    for f in res_force.facts:
+        md_lines.append(
+            f"  - `{f.capability}` / `{f.fact_name}` => text `{f.fact_value_text}` num `{f.fact_value_num}`"
         )
 
     with open(output_dir / "active_enrichment_dry_run.md", "w", encoding="utf-8") as f:

@@ -4,55 +4,8 @@
     "home_team": "United States"
   },
   "conflict_diagnostics": [],
-  "evidence_refs": [
-    "evidence_espn-fifa-worldcup_current_discovery",
-    "evidence_espn-fifa-worldcup_detailed_metrics",
-    "evidence_espn-fifa-worldcup_current_form"
-  ],
-  "facts": [
-    {
-      "capability": "current_discovery",
-      "confidence": "high",
-      "evidence_identity": "evidence_espn-fifa-worldcup_current_discovery",
-      "fact_name": "current_discovery_status",
-      "fact_value_num": null,
-      "fact_value_text": "VERIFIED_SCHEDULED",
-      "profile_id": "world-cup-2026",
-      "provider_event_id": "66456944",
-      "provider_id": "espn-fifa-worldcup",
-      "retrieved_at": "2026-06-19T19:53:16.459037+00:00",
-      "schema_fingerprint": "8cf5da8df404fb85abf73ea7b21e86095d3a3d5e23667c2d8616147f12e8b0a5",
-      "source_consensus": "single_source_verified"
-    },
-    {
-      "capability": "detailed_metrics",
-      "confidence": "high",
-      "evidence_identity": "evidence_espn-fifa-worldcup_detailed_metrics",
-      "fact_name": "detailed_metrics_status",
-      "fact_value_num": null,
-      "fact_value_text": "VERIFIED_SCHEDULED",
-      "profile_id": "world-cup-2026",
-      "provider_event_id": "66456944",
-      "provider_id": "espn-fifa-worldcup",
-      "retrieved_at": "2026-06-19T19:53:16.459235+00:00",
-      "schema_fingerprint": "8cf5da8df404fb85abf73ea7b21e86095d3a3d5e23667c2d8616147f12e8b0a5",
-      "source_consensus": "single_source_verified"
-    },
-    {
-      "capability": "current_form",
-      "confidence": "high",
-      "evidence_identity": "evidence_espn-fifa-worldcup_current_form",
-      "fact_name": "current_form_status",
-      "fact_value_num": null,
-      "fact_value_text": "VERIFIED_SCHEDULED",
-      "profile_id": "world-cup-2026",
-      "provider_event_id": "66456944",
-      "provider_id": "espn-fifa-worldcup",
-      "retrieved_at": "2026-06-19T19:53:16.459397+00:00",
-      "schema_fingerprint": "8cf5da8df404fb85abf73ea7b21e86095d3a3d5e23667c2d8616147f12e8b0a5",
-      "source_consensus": "single_source_verified"
-    }
-  ],
+  "evidence_refs": [],
+  "facts": [],
   "fetch_decisions": [
     {
       "capability": "current_discovery",
@@ -88,6 +41,19 @@
   "production_betting_decision": false,
   "profile_id": "world-cup-2026",
   "scanner_event_id": "66456944",
-  "status": "ENRICHED_COMPLETE",
-  "unavailable_capabilities": []
+  "status": "ENRICH_FAILED_CLOSED",
+  "unavailable_capabilities": [
+    {
+      "capability": "current_discovery",
+      "reason": "missing_provider_data_or_identity_mismatch"
+    },
+    {
+      "capability": "detailed_metrics",
+      "reason": "missing_provider_data_or_identity_mismatch"
+    },
+    {
+      "capability": "current_form",
+      "reason": "missing_provider_data_or_identity_mismatch"
+    }
+  ]
 }

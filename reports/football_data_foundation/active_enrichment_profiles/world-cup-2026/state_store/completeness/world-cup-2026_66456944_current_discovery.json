@@ -3,11 +3,11 @@
   "capability": "current_discovery",
   "completeness_status": "COMPLETE_FRESH",
   "entity_type": "fixture",
-  "evidence_identity": "evidence_espn-fifa-worldcup_current_discovery",
-  "last_enriched_at": "2026-06-19T19:53:16.459870+00:00",
-  "last_verified_at": "2026-06-19T19:53:16.459869+00:00",
+  "evidence_identity": "1f8cdb0748846c1cec8b312ad47f5607b116e3c17a56eb32a8f0ac6f537c73b0",
+  "last_enriched_at": "2026-06-19T20:18:51+00:00",
+  "last_verified_at": "2026-06-19T20:35:25.078807+00:00",
   "profile_id": "world-cup-2026",
   "provider_id": "espn-fifa-worldcup",
-  "schema_fingerprint": "8cf5da8df404fb85abf73ea7b21e86095d3a3d5e23667c2d8616147f12e8b0a5",
+  "schema_fingerprint": "1adbcb1991fbe027d188ffc1f3241a1a555f26d209df871e6c58c36d47828839",
   "stale_reason": null
 }

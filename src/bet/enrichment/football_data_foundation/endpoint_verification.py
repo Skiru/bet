@@ -2,12 +2,15 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import urllib.error
 import urllib.request
 from collections.abc import Mapping
 from dataclasses import asdict, dataclass, field
+from datetime import UTC, datetime
 from typing import Any
 
+from .event_identity import normalize_team_name, parse_datetime_flexible
 from .fingerprints import compute_schema_fingerprint
 from .scanner_contracts import ScannerEventCandidate
 
@@ -28,6 +31,7 @@ class EndpointVerificationRequest:
 
 @dataclass(frozen=True)
 class EndpointEventSummary:
+    scanner_event_id: str | None
     provider_event_id: str
     event_date_utc: str
     event_date_local: str
@@ -44,14 +48,19 @@ class EndpointEventSummary:
     venue_name: str | None = None
     venue_city: str | None = None
     venue_country: str | None = None
+    score_home: int | None = None
+    score_away: int | None = None
     broadcasts: tuple[str, ...] = ()
     team_records: tuple[Mapping[str, Any], ...] = ()
+    statistics: tuple[Mapping[str, Any], ...] = ()
     leaders_summary: tuple[Mapping[str, Any], ...] = ()
+    retrieval_timestamp_utc: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         payload = asdict(self)
         payload["broadcasts"] = list(self.broadcasts)
         payload["team_records"] = list(self.team_records)
+        payload["statistics"] = list(self.statistics)
         payload["leaders_summary"] = list(self.leaders_summary)
         return payload
 
@@ -66,6 +75,7 @@ class EndpointVerificationResult:
     event_count: int
     schema_fingerprint: str
     evidence_identity: str
+    retrieval_timestamp_utc: str
     status: str
     diagnostics: Mapping[str, Any]
     events: tuple[EndpointEventSummary, ...] = ()
@@ -80,19 +90,132 @@ class EndpointVerificationResult:
             "event_count": self.event_count,
             "schema_fingerprint": self.schema_fingerprint,
             "evidence_identity": self.evidence_identity,
+            "retrieval_timestamp_utc": self.retrieval_timestamp_utc,
             "status": self.status,
             "diagnostics": dict(self.diagnostics),
             "events": [e.to_dict() for e in self.events],
         }
 
 
+_EVIDENCE_IDENTITY_RE = re.compile(r"^[a-f0-9]{64}$")
+
+
+def validate_evidence_identity(evidence_identity: str) -> str:
+    candidate = evidence_identity.strip()
+    if not _EVIDENCE_IDENTITY_RE.fullmatch(candidate):
+        raise ValueError(
+            "evidence_identity must be a contiguous lowercase sha256 fingerprint with no spaces."
+        )
+    return candidate
+
+
+def _normalize_metric_value(value: Any) -> float | None:
+    if value in (None, ""):
+        return None
+    text = str(value).strip().replace("%", "")
+    try:
+        return float(text)
+    except ValueError:
+        return None
+
+
+def _normalize_statistics(competitor: Mapping[str, Any]) -> list[Mapping[str, Any]]:
+    statistics = []
+    for statistic in competitor.get("statistics") or []:
+        stat_name = str(statistic.get("name") or "").strip()
+        if not stat_name:
+            continue
+        display_value = statistic.get("displayValue")
+        raw_value = statistic.get("value", display_value)
+        entry = {
+            "team_name": str(
+                (competitor.get("team") or {}).get("displayName")
+                or (competitor.get("team") or {}).get("name")
+                or ""
+            ),
+            "team_code": str((competitor.get("team") or {}).get("abbreviation") or ""),
+            "home_away": str(competitor.get("homeAway") or ""),
+            "name": stat_name,
+            "display_value": None
+            if display_value in (None, "")
+            else str(display_value),
+            "value": _normalize_metric_value(raw_value),
+        }
+        statistics.append(entry)
+    return statistics
+
+
+def _normalize_team_records(competitor: Mapping[str, Any]) -> Mapping[str, Any] | None:
+    team = competitor.get("team") or {}
+    raw_records = competitor.get("records") or []
+    summaries = []
+    for record in raw_records:
+        summary = record.get("summary")
+        if summary in (None, ""):
+            continue
+        summaries.append(
+            {
+                "name": str(record.get("name") or "unknown"),
+                "summary": str(summary),
+            }
+        )
+    if not summaries:
+        return None
+    return {
+        "team_name": str(team.get("displayName") or team.get("name") or ""),
+        "team_code": str(team.get("abbreviation") or ""),
+        "records": summaries,
+        "team_record_summary": ", ".join(item["summary"] for item in summaries),
+    }
+
+
+def _extract_group_label(
+    event: Mapping[str, Any], competition: Mapping[str, Any]
+) -> str | None:
+    for note in competition.get("notes") or []:
+        headline = note.get("headline")
+        if headline:
+            return str(headline)
+    group = competition.get("group") or event.get("group") or {}
+    if isinstance(group, Mapping):
+        short_name = (
+            group.get("shortName") or group.get("displayName") or group.get("name")
+        )
+        if short_name:
+            return str(short_name)
+    headline = event.get("groupLabel")
+    if headline:
+        return str(headline)
+    return None
+
+
+def _matches_scanner_candidate(
+    summary: EndpointEventSummary,
+    scanner_candidate: ScannerEventCandidate,
+) -> bool:
+    summary_home = normalize_team_name(summary.home_team_name)
+    summary_away = normalize_team_name(summary.away_team_name)
+    scanner_home = normalize_team_name(scanner_candidate.home_team_name)
+    scanner_away = normalize_team_name(scanner_candidate.away_team_name)
+    if summary_home != scanner_home or summary_away != scanner_away:
+        return False
+    try:
+        summary_kickoff = parse_datetime_flexible(summary.event_date_utc)
+        scanner_kickoff = parse_datetime_flexible(scanner_candidate.kickoff_utc)
+    except Exception:
+        return summary.event_date_utc == scanner_candidate.kickoff_utc
+    return summary_kickoff == scanner_kickoff
+
+
 def parse_espn_scoreboard_payload(
     payload_dict: dict[str, Any],
     scanner_candidate: ScannerEventCandidate | None = None,
+    retrieval_timestamp_utc: str | None = None,
 ) -> list[EndpointEventSummary]:
     """Parse a site.api.espn.com scoreboard payload into normalized event summaries."""
-    summaries = []
+    summaries: list[EndpointEventSummary] = []
     events_list = payload_dict.get("events") or []
+    retrieved_at = retrieval_timestamp_utc or datetime.now(UTC).isoformat()
 
     for ev in events_list:
         p_id = str(ev.get("id", ""))
@@ -114,30 +237,36 @@ def parse_espn_scoreboard_payload(
         competitors = comp.get("competitors") or []
         home_team_name, home_team_code = "", ""
         away_team_name, away_team_code = "", ""
+        score_home, score_away = None, None
         team_records: list[Mapping[str, Any]] = []
+        statistics: list[Mapping[str, Any]] = []
 
         for competitor in competitors:
             team_dict = competitor.get("team") or {}
-            c_name = str(team_dict.get("name", ""))
+            c_name = str(team_dict.get("displayName") or team_dict.get("name") or "")
             c_code = str(team_dict.get("abbreviation", ""))
             role = str(competitor.get("homeAway", ""))
+            score_value = competitor.get("score")
+            parsed_score = None
+            if score_value not in (None, ""):
+                try:
+                    parsed_score = int(str(score_value))
+                except ValueError:
+                    parsed_score = None
 
             if role == "home":
                 home_team_name = c_name
                 home_team_code = c_code
+                score_home = parsed_score
             elif role == "away":
                 away_team_name = c_name
                 away_team_code = c_code
+                score_away = parsed_score
 
-            # Extract records if present
-            recs = competitor.get("records") or []
-            if recs:
-                team_records.append(
-                    {
-                        "team_name": c_name,
-                        "records": recs,
-                    }
-                )
+            record_summary = _normalize_team_records(competitor)
+            if record_summary is not None:
+                team_records.append(record_summary)
+            statistics.extend(_normalize_statistics(competitor))
 
         # Venue
         venue_dict = comp.get("venue") or {}
@@ -165,9 +294,12 @@ def parse_espn_scoreboard_payload(
             )
 
         summary = EndpointEventSummary(
+            scanner_event_id=scanner_candidate.scanner_event_id
+            if scanner_candidate
+            else None,
             provider_event_id=p_id,
             event_date_utc=date_raw,
-            event_date_local=date_raw,  # simplest representation
+            event_date_local=date_raw,
             name=name,
             short_name=short_name,
             home_team_name=home_team_name,
@@ -177,31 +309,25 @@ def parse_espn_scoreboard_payload(
             status_name=status_name,
             status_state=status_state,
             completed=completed,
+            group_label=_extract_group_label(ev, comp),
             venue_name=venue_name,
             venue_city=venue_city,
             venue_country=venue_country,
+            score_home=score_home,
+            score_away=score_away,
             broadcasts=tuple(broadcasts),
             team_records=tuple(team_records),
+            statistics=tuple(statistics),
             leaders_summary=tuple(leaders_summary),
+            retrieval_timestamp_utc=retrieved_at,
         )
 
         summaries.append(summary)
 
-    # Optional scanner filter/matching logic
     if scanner_candidate is not None:
-        filtered = []
-        for s in summaries:
-            # We match if either teams match or event date is identical
-            if (
-                s.home_team_code == scanner_candidate.home_team_code
-                or s.home_team_name == scanner_candidate.home_team_name
-            ):
-                filtered.append(s)
-            elif (
-                s.away_team_code == scanner_candidate.away_team_code
-                or s.away_team_name == scanner_candidate.away_team_name
-            ):
-                filtered.append(s)
+        filtered = [
+            s for s in summaries if _matches_scanner_candidate(s, scanner_candidate)
+        ]
         if filtered:
             return filtered
 
@@ -213,22 +339,39 @@ def verify_endpoint(
     mock_payload: dict[str, Any] | None = None,
 ) -> EndpointVerificationResult:
     """Execute generic endpoint verification with strict shape validation and robust exception mapping."""
+    retrieval_timestamp_utc = datetime.now(UTC).isoformat()
     diagnostics = {
         "max_calls": request.max_calls,
         "timeout_seconds": request.timeout_seconds,
         "store_raw_payload": request.store_raw_payload,
+        "no_secrets_cookies_proxy_browser_profiles": (
+            "No secrets, cookies, proxy settings, Tor, or browser profiles were used."
+        ),
     }
 
     if mock_payload is not None:
         try:
+            all_events = parse_espn_scoreboard_payload(
+                mock_payload,
+                None,
+                retrieval_timestamp_utc=retrieval_timestamp_utc,
+            )
             events = parse_espn_scoreboard_payload(
-                mock_payload, request.scanner_event_candidate
+                mock_payload,
+                request.scanner_event_candidate,
+                retrieval_timestamp_utc=retrieval_timestamp_utc,
             )
             serialized = json.dumps(mock_payload, sort_keys=True, separators=(",", ":"))
             schema_fingerprint = compute_schema_fingerprint(mock_payload)
-            evidence_identity = hashlib.sha256(serialized.encode("utf-8")).hexdigest()
+            evidence_identity = validate_evidence_identity(
+                hashlib.sha256(serialized.encode("utf-8")).hexdigest()
+            )
+            diagnostics = {
+                **diagnostics,
+                "matched_event_count": len(events),
+                "total_event_count": len(all_events),
+            }
 
-            # Schema validation check: verify expected keys in expected_shape are present
             for k in request.expected_shape:
                 if k not in mock_payload:
                     raise KeyError(
@@ -244,6 +387,7 @@ def verify_endpoint(
                 event_count=len(events),
                 schema_fingerprint=schema_fingerprint,
                 evidence_identity=evidence_identity,
+                retrieval_timestamp_utc=retrieval_timestamp_utc,
                 status="ENDPOINT_VERIFIED",
                 diagnostics=diagnostics,
                 events=tuple(events),
@@ -258,6 +402,7 @@ def verify_endpoint(
                 event_count=0,
                 schema_fingerprint="",
                 evidence_identity="",
+                retrieval_timestamp_utc=retrieval_timestamp_utc,
                 status="ENDPOINT_SCHEMA_ERROR",
                 diagnostics={"error": str(exc), "exception_type": "KeyError"},
             )
@@ -271,11 +416,11 @@ def verify_endpoint(
                 event_count=0,
                 schema_fingerprint="",
                 evidence_identity="",
+                retrieval_timestamp_utc=retrieval_timestamp_utc,
                 status="ENDPOINT_SCHEMA_ERROR",
                 diagnostics={"error": str(exc), "exception_type": type(exc).__name__},
             )
 
-    # Live verification flow
     try:
         req = urllib.request.Request(
             request.endpoint_url,
@@ -293,6 +438,7 @@ def verify_endpoint(
                     event_count=0,
                     schema_fingerprint="",
                     evidence_identity="",
+                    retrieval_timestamp_utc=retrieval_timestamp_utc,
                     status="ENDPOINT_RATE_LIMITED",
                     diagnostics={"status_code": 429},
                 )
@@ -306,20 +452,36 @@ def verify_endpoint(
                     event_count=0,
                     schema_fingerprint="",
                     evidence_identity="",
+                    retrieval_timestamp_utc=retrieval_timestamp_utc,
                     status="ENDPOINT_BLOCKED",
                     diagnostics={"status_code": 403},
                 )
 
             raw_bytes = response.read()
+            retrieval_timestamp_utc = datetime.now(UTC).isoformat()
             payload = json.loads(raw_bytes.decode("utf-8"))
 
+            all_events = parse_espn_scoreboard_payload(
+                payload,
+                None,
+                retrieval_timestamp_utc=retrieval_timestamp_utc,
+            )
             events = parse_espn_scoreboard_payload(
-                payload, request.scanner_event_candidate
+                payload,
+                request.scanner_event_candidate,
+                retrieval_timestamp_utc=retrieval_timestamp_utc,
             )
             schema_fingerprint = compute_schema_fingerprint(payload)
-            evidence_identity = hashlib.sha256(raw_bytes).hexdigest()
+            evidence_identity = validate_evidence_identity(
+                hashlib.sha256(raw_bytes).hexdigest()
+            )
+            diagnostics = {
+                **diagnostics,
+                "http_status_code": status_code,
+                "matched_event_count": len(events),
+                "total_event_count": len(all_events),
+            }
 
-            # Check expected shape keys
             for k in request.expected_shape:
                 if k not in payload:
                     raise KeyError(
@@ -337,6 +499,7 @@ def verify_endpoint(
                 event_count=len(events),
                 schema_fingerprint=schema_fingerprint,
                 evidence_identity=evidence_identity,
+                retrieval_timestamp_utc=retrieval_timestamp_utc,
                 status=status,
                 diagnostics=diagnostics,
                 events=tuple(events),
@@ -357,6 +520,7 @@ def verify_endpoint(
             event_count=0,
             schema_fingerprint="",
             evidence_identity="",
+            retrieval_timestamp_utc=retrieval_timestamp_utc,
             status=status,
             diagnostics={"error": str(exc), "http_status_code": code},
         )
@@ -370,6 +534,7 @@ def verify_endpoint(
             event_count=0,
             schema_fingerprint="",
             evidence_identity="",
+            retrieval_timestamp_utc=retrieval_timestamp_utc,
             status="ENDPOINT_TRANSPORT_ERROR",
             diagnostics={"error": str(exc), "reason": str(exc.reason)},
         )
@@ -383,6 +548,7 @@ def verify_endpoint(
             event_count=0,
             schema_fingerprint="",
             evidence_identity="",
+            retrieval_timestamp_utc=retrieval_timestamp_utc,
             status="ENDPOINT_SCHEMA_ERROR",
             diagnostics={"error": str(exc), "exception_type": "KeyError"},
         )
@@ -396,6 +562,7 @@ def verify_endpoint(
             event_count=0,
             schema_fingerprint="",
             evidence_identity="",
+            retrieval_timestamp_utc=retrieval_timestamp_utc,
             status="ENDPOINT_SCHEMA_ERROR",
             diagnostics={"error": str(exc), "exception_type": type(exc).__name__},
         )
