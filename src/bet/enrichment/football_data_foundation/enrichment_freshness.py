@@ -276,3 +276,5 @@ def check_live_status_drift(
         "stale_reason": decision_obj.stale_reason,
         "reason": decision_obj.reason,
     }
+
+# LF-only source integrity

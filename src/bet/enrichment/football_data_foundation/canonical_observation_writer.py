@@ -562,3 +562,5 @@ def write_enrichment_observations(
             attempt_ids=(),
             diagnostics={"error": str(e)},
         )
+
+# LF-only source integrity

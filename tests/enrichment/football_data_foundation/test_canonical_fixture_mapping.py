@@ -1031,3 +1031,5 @@ def test_stale_status_sensitive_evidence_cannot_be_reused_blindly() -> None:
     decision = evaluate_freshness(policy, input_data)
     assert decision.decision == "STALE_REFRESH_REQUIRED"
     assert decision.must_refresh is True
+
+# LF-only source integrity

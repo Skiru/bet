@@ -517,3 +517,5 @@ def resolve_canonical_fixture(
                 "category": "SCHEMA_CONSTRAINT_BLOCKED",
             },
         )
+
+# LF-only source integrity

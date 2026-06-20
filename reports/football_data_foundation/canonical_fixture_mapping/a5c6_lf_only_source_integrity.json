@@ -1,0 +1,37 @@
+{
+  "phase_id": "FOOTBALL_DATA_FOUNDATION_A5C6_LF_ONLY_SOURCE_INTEGRITY_FINALIZATION",
+  "status": "in_progress",
+  "explanation": "Previous phases reported hundreds of Python lines using Python `.splitlines()`, but GitHub raw still renders key files as a few huge physical lines. This strongly indicates non-LF line endings, likely CR-only. Python may compile CR-only files, but GitHub/raw/review tooling does not treat them as normal LF-delimited source files. Therefore, byte-level LF count is the new acceptance criterion, and CR-only/CRLF are strictly forbidden.",
+  "pre_fix_audit": {
+    "src/bet/enrichment/football_data_foundation/canonical_fixture_resolver.py": {
+      "lf_count": 519,
+      "cr_count": 0,
+      "crlf_count": 0,
+      "max_lf_line": 113
+    },
+    "src/bet/enrichment/football_data_foundation/canonical_observation_writer.py": {
+      "lf_count": 564,
+      "cr_count": 0,
+      "crlf_count": 0,
+      "max_lf_line": 107
+    },
+    "src/bet/enrichment/football_data_foundation/cli.py": {
+      "lf_count": 368,
+      "cr_count": 0,
+      "crlf_count": 0,
+      "max_lf_line": 130
+    },
+    "src/bet/enrichment/football_data_foundation/enrichment_freshness.py": {
+      "lf_count": 278,
+      "cr_count": 0,
+      "crlf_count": 0,
+      "max_lf_line": 116
+    },
+    "tests/enrichment/football_data_foundation/test_canonical_fixture_mapping.py": {
+      "lf_count": 1033,
+      "cr_count": 0,
+      "crlf_count": 0,
+      "max_lf_line": 119
+    }
+  }
+}
