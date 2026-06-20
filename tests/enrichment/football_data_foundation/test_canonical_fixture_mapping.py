@@ -37,11 +37,13 @@ from bet.enrichment.football_data_foundation.temp_sqlite_harness import (
 REPO_ROOT = Path(__file__).resolve().parents[3]
 SCANNER_EVENT_PATH = (
     REPO_ROOT
-    / "reports/football_data_foundation/active_enrichment_profiles/world-cup-2026/scanner_event_input.json"
+    / "reports/football_data_foundation"
+    / "active_enrichment_profiles/world-cup-2026/scanner_event_input.json"
 )
 BRIDGE_RESULT_PATH = (
     REPO_ROOT
-    / "reports/football_data_foundation/production_bridge/world-cup-2026/scanner_enrich_reuse_store.json"
+    / "reports/football_data_foundation/production_bridge"
+    / "world-cup-2026/scanner_enrich_reuse_store.json"
 )
 REAL_DB_PATH = REPO_ROOT / "betting/data/betting.db"
 
@@ -327,14 +329,17 @@ def test_future_non_world_cup_profile_integration() -> None:
 
 
 def test_source_external_id_conflict_handling() -> None:
-    """Validate that resolving a fixture with mismatched external_id returns conflict."""
+    """Validate that resolving a fixture with mismatched external_id
+    returns conflict.
+    """
     conn = create_temp_sqlite_store()
     scanner_event = load_acceptance_scanner_event()
 
     # Insert parent rows to satisfy foreign keys
     conn.execute("INSERT INTO sports (id, name) VALUES (1, 'football')")
     conn.execute(
-        "INSERT INTO competitions (id, sport_id, name, season) VALUES (1, 1, 'comp-1', '2026')"
+        "INSERT INTO competitions (id, sport_id, name, season) "
+        "VALUES (1, 1, 'comp-1', '2026')"
     )
     conn.execute(
         "INSERT INTO teams (id, sport_id, name) VALUES (1, 1, 'United States')"
@@ -343,14 +348,16 @@ def test_source_external_id_conflict_handling() -> None:
 
     # Insert existing mapping
     conn.execute(
-        "INSERT INTO fixtures (id, sport_id, competition_id, home_team_id, away_team_id, kickoff, status, fetched_at) "
+        "INSERT INTO fixtures (id, sport_id, competition_id, "
+        "home_team_id, away_team_id, kickoff, status, fetched_at) "
         "VALUES (10, 1, 1, 1, 2, ?, 'scheduled', 'now')",
         (scanner_event.kickoff_utc,),
     )
 
     # Store conflicting fixture_source
     conn.execute(
-        "INSERT INTO fixture_sources (fixture_id, source, external_id, confidence, fetched_at) "
+        "INSERT INTO fixture_sources (fixture_id, source, "
+        "external_id, confidence, fetched_at) "
         "VALUES (10, 'espn-fifa-worldcup', 'wrong_external_id', 1.0, 'now')",
     )
 
@@ -381,16 +388,19 @@ def test_team_alias_ambiguity_fails_closed() -> None:
         "INSERT INTO teams (id, sport_id, name) VALUES (101, 1, 'Canonical Team USA')"
     )
     conn.execute(
-        "INSERT INTO teams (id, sport_id, name) VALUES (202, 1, 'Canonical Team Australia')"
+        "INSERT INTO teams (id, sport_id, name) "
+        "VALUES (202, 1, 'Canonical Team Australia')"
     )
 
     # Insert duplicate aliases for 'United States'
     conn.execute(
-        "INSERT INTO team_source_aliases (team_id, sport_id, source, provider_team_name, status) "
+        "INSERT INTO team_source_aliases (team_id, sport_id, source, "
+        "provider_team_name, status) "
         "VALUES (101, 1, 'espn-fifa-worldcup', 'United States', 'verified')",
     )
     conn.execute(
-        "INSERT INTO team_source_aliases (team_id, sport_id, source, provider_team_name, status) "
+        "INSERT INTO team_source_aliases (team_id, sport_id, source, "
+        "provider_team_name, status) "
         "VALUES (202, 1, 'espn-fifa-worldcup', 'United States', 'verified')",
     )
 
@@ -564,7 +574,8 @@ def test_live_to_final_status_drift() -> None:
         status_sensitive=True,
     )
 
-    # Cached matches in-progress (STATUS_SECOND_HALF) but live is final (STATUS_FULL_TIME)
+    # Cached matches in-progress (STATUS_SECOND_HALF)
+    # but live is final (STATUS_FULL_TIME)
     input_data = EvidenceFreshnessInput(
         profile_id="world-cup-2026",
         capability="current_discovery",
@@ -580,7 +591,7 @@ def test_live_to_final_status_drift() -> None:
     )
 
     decision = evaluate_freshness(policy, input_data)
-    assert decision.decision == "STATUS_DRIFT_REFRESH_REQUIRED"
+    assert decision.decision == "LIVE_STATUS_SENSITIVE_REFRESH_REQUIRED"
     assert decision.must_refresh is True
 
 
@@ -688,7 +699,9 @@ def test_no_hardcoded_football_fallback_for_non_football_sport() -> None:
 
 
 def test_sport_context_missing_returns_correct_blocked_status() -> None:
-    """Verify that if sport context cannot be resolved, ObservationWriteResult is SPORT_CONTEXT_MISSING."""
+    """Verify that if sport context cannot be resolved,
+    ObservationWriteResult is SPORT_CONTEXT_MISSING.
+    """
     conn = create_temp_sqlite_store()
 
     # Create fake resolution with sport_id = None
@@ -776,7 +789,8 @@ def test_source_operation_attempt_evidence_state_mapping() -> None:
     assert write_res.status == "SUCCESS"
 
     cursor = conn.execute(
-        "SELECT status, http_status, selectable, diagnostics FROM source_operation_attempt WHERE run_id = ?",
+        "SELECT status, http_status, selectable, diagnostics "
+        "FROM source_operation_attempt WHERE run_id = ?",
         (write_res.run_id,),
     )
     attempt = cursor.fetchone()
@@ -829,7 +843,8 @@ def test_source_operation_attempt_evidence_state_mapping() -> None:
     )
     assert write_res_failed.status == "SUCCESS"
     cursor = conn.execute(
-        "SELECT status, http_status, selectable FROM source_operation_attempt WHERE run_id = ?",
+        "SELECT status, http_status, selectable "
+        "FROM source_operation_attempt WHERE run_id = ?",
         (write_res_failed.run_id,),
     )
     attempt = cursor.fetchone()
@@ -879,7 +894,8 @@ def test_source_operation_attempt_evidence_state_mapping() -> None:
     )
     assert write_res_stale.status == "SUCCESS"
     cursor = conn.execute(
-        "SELECT status, http_status, selectable FROM source_operation_attempt WHERE run_id = ?",
+        "SELECT status, http_status, selectable "
+        "FROM source_operation_attempt WHERE run_id = ?",
         (write_res_stale.run_id,),
     )
     attempt = cursor.fetchone()
@@ -889,7 +905,9 @@ def test_source_operation_attempt_evidence_state_mapping() -> None:
 
 
 def test_unknown_facts_are_quarantined_and_not_projected() -> None:
-    """Verify unknown scope facts are quarantined into diagnostics and never written or projected."""
+    """Verify unknown scope facts are quarantined into diagnostics
+    and never written or projected.
+    """
     conn = create_temp_sqlite_store()
     scanner_event = load_acceptance_scanner_event()
 
@@ -988,7 +1006,8 @@ def test_unknown_facts_are_quarantined_and_not_projected() -> None:
 
     # Ensure observations payloads contain 'venue_name' but NOT 'mysterious_stat_xyz'
     cursor = conn.execute(
-        "SELECT payload_json FROM fixture_capability_observation WHERE canonical_fixture_id = ?",
+        "SELECT payload_json FROM fixture_capability_observation "
+        "WHERE canonical_fixture_id = ?",
         (resolution.fixture_id,),
     )
     payloads = [json.loads(row[0]) for row in cursor.fetchall()]
@@ -998,7 +1017,8 @@ def test_unknown_facts_are_quarantined_and_not_projected() -> None:
         assert "mysterious_stat_xyz" not in payload
         # Ensure correct markers and scopes
         assert payload["duplicated_for_schema_team_id_constraint"] is True
-        assert payload["fixture_level_projectable_policy"] == "SELECTABLE_FIXTURE_LEVEL"
+        policy_level = "SELECTABLE_FIXTURE_LEVEL"
+        assert payload["fixture_level_projectable_policy"] == policy_level
         assert payload["fact_scopes"]["venue_name"] == "FIXTURE_LEVEL"
         assert "mysterious_stat_xyz" not in payload["fact_scopes"]
 

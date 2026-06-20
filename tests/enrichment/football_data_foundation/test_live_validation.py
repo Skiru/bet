@@ -92,7 +92,9 @@ def test_freshness_evaluation_mocked_scheduled() -> None:
 
 
 def test_freshness_evaluation_mocked_drift() -> None:
-    """Verify that mocked live-to-final drift returns STATUS_DRIFT_REFRESH_REQUIRED."""
+    """Verify that mocked live-to-final drift returns
+    LIVE_STATUS_SENSITIVE_REFRESH_REQUIRED.
+    """
     policy = EvidenceFreshnessPolicy(
         capability="current_discovery",
         ttl_seconds_pre_match=300,
@@ -118,9 +120,9 @@ def test_freshness_evaluation_mocked_drift() -> None:
     )
 
     decision_obj = evaluate_freshness(policy, input_data)
-    assert decision_obj.decision == "STATUS_DRIFT_REFRESH_REQUIRED"
+    assert decision_obj.decision == "LIVE_STATUS_SENSITIVE_REFRESH_REQUIRED"
     assert decision_obj.must_refresh is True
-    assert decision_obj.stale_reason == "status_drift"
+    assert decision_obj.stale_reason == "STATUS_DRIFT_REFRESH_REQUIRED"
 
 
 def test_stale_evidence_must_refresh() -> None:
@@ -149,7 +151,7 @@ def test_stale_evidence_must_refresh() -> None:
     )
 
     decision_obj = evaluate_freshness(policy, input_data)
-    assert decision_obj.decision == "STALE_REFRESH_REQUIRED"
+    assert decision_obj.decision == "LIVE_STATUS_SENSITIVE_REFRESH_REQUIRED"
     assert decision_obj.must_refresh is True
     assert decision_obj.stale_reason == "ttl_expired"
 

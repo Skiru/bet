@@ -791,22 +791,35 @@ def run_live_validation(output_dir_str: str) -> None:
 
         decision_obj = evaluate_freshness(freshness_policy, input_data)
 
-        freshness_results.append(
-            {
-                "scanner_event_id": c.scanner_event_id,
-                "provider_event_id": p_id,
-                "status_state": matching_norm["status_state"],
-                "status_name": matching_norm["status_name"],
-                "freshness_decision": decision_obj.decision,
-                "must_refresh": decision_obj.must_refresh,
-                "stale_reason": decision_obj.stale_reason,
-                "evidence_retrieved_at": retrieved_at_utc,
-                "diagnostics": {
-                    "decision": decision_obj.decision,
-                    "reason": decision_obj.reason,
-                },
-            }
-        )
+        res_entry = {
+            "scanner_event_id": c.scanner_event_id,
+            "provider_event_id": p_id,
+            "status_state": matching_norm["status_state"],
+            "status_name": matching_norm["status_name"],
+            "freshness_decision": decision_obj.decision,
+            "must_refresh": decision_obj.must_refresh,
+            "stale_reason": decision_obj.stale_reason,
+            "evidence_retrieved_at": retrieved_at_utc,
+            "diagnostics": {
+                "decision": decision_obj.decision,
+                "reason": decision_obj.reason,
+            },
+        }
+        if decision_obj.live_ttl_seconds is not None:
+            res_entry["live_ttl_seconds"] = decision_obj.live_ttl_seconds
+        if decision_obj.expires_at_utc is not None:
+            res_entry["expires_at_utc"] = decision_obj.expires_at_utc
+        if decision_obj.snapshot_valid_until_utc is not None:
+            val_until = decision_obj.snapshot_valid_until_utc
+            res_entry["snapshot_valid_until_utc"] = val_until
+        if decision_obj.status_sensitive is not None:
+            res_entry["status_sensitive"] = decision_obj.status_sensitive
+        if decision_obj.complete_kind is not None:
+            res_entry["complete_kind"] = decision_obj.complete_kind
+        if decision_obj.pre_match_ttl_seconds is not None:
+            res_entry["pre_match_ttl_seconds"] = decision_obj.pre_match_ttl_seconds
+
+        freshness_results.append(res_entry)
 
     (output_dir / "freshness_results.json").write_text(
         json.dumps(freshness_results, indent=2) + "\n", encoding="utf-8"
