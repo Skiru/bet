@@ -1,0 +1,858 @@
+{
+  "status": "LIVE_SOURCE_FETCHED",
+  "provider_id": "espn-fifa-worldcup",
+  "retrieved_at_utc": "2026-06-20T14:44:18.110518+00:00",
+  "source_url": "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?limit=950&dates=20260620-20260621",
+  "schema_fingerprint": "88f87137d156a638bff93d3ddc40ef65603cdaeeaa0b9de84f07337bd7fba8d2",
+  "evidence_identity": "6ced5e089305b06727d05c3b300fea79c4298e111cd2b4a79e0e172550c19b62",
+  "events": [
+    {
+      "provider_id": "espn-fifa-worldcup",
+      "provider_event_id": "760447",
+      "event_name": "Netherlands vs Sweden",
+      "short_name": "NED vs SWE",
+      "kickoff_utc": "2026-06-20T17:00Z",
+      "kickoff_local": "2026-06-20T19:00:00+02:00",
+      "home_team_name": "Netherlands",
+      "home_team_code": "NED",
+      "away_team_name": "Sweden",
+      "away_team_code": "SWE",
+      "status_state": "pre",
+      "status_name": "STATUS_SCHEDULED",
+      "completed": false,
+      "score_home": 0,
+      "score_away": 0,
+      "venue_name": "NRG Stadium",
+      "venue_city": "Houston, Texas",
+      "venue_country": "USA",
+      "broadcast_names": [
+        "FOX",
+        "Tele",
+        "FOX One"
+      ],
+      "records": [
+        {
+          "team_name": "Netherlands",
+          "team_code": "NED",
+          "records": [
+            {
+              "name": "All Splits",
+              "summary": "0-1-0"
+            }
+          ],
+          "team_record_summary": "0-1-0"
+        },
+        {
+          "team_name": "Sweden",
+          "team_code": "SWE",
+          "records": [
+            {
+              "name": "All Splits",
+              "summary": "1-0-0"
+            }
+          ],
+          "team_record_summary": "1-0-0"
+        }
+      ],
+      "statistics": [],
+      "group_label": null,
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?limit=950&dates=20260620-20260621",
+      "retrieved_at_utc": "2026-06-20T14:44:18.110518+00:00",
+      "schema_fingerprint": "e3cd3805da9a277574d02356f9c0ce32b19ad63d272a5187c8001d29a1d78e14",
+      "evidence_identity": "92e236b4c071a180ac802247cb178e6c68e0c3e500b8b78bc90dbc951f0dc548",
+      "raw_payload_structure": {
+        "id": "760447",
+        "provider_event_id": "760447",
+        "event_date_utc": "2026-06-20T17:00Z",
+        "event_date_local": "2026-06-20T19:00:00+02:00",
+        "home_team_name": "Netherlands",
+        "home_team_code": "NED",
+        "away_team_name": "Sweden",
+        "away_team_code": "SWE",
+        "status_name": "STATUS_SCHEDULED",
+        "status_state": "pre",
+        "completed": false,
+        "score_home": 0,
+        "score_away": 0,
+        "venue_name": "NRG Stadium",
+        "venue_city": "Houston, Texas",
+        "venue_country": "USA",
+        "broadcasts": [
+          "FOX",
+          "Tele",
+          "FOX One"
+        ],
+        "team_records": [
+          {
+            "team_name": "Netherlands",
+            "team_code": "NED",
+            "records": [
+              {
+                "name": "All Splits",
+                "summary": "0-1-0"
+              }
+            ],
+            "team_record_summary": "0-1-0",
+            "home_away": "home"
+          },
+          {
+            "team_name": "Sweden",
+            "team_code": "SWE",
+            "records": [
+              {
+                "name": "All Splits",
+                "summary": "1-0-0"
+              }
+            ],
+            "team_record_summary": "1-0-0",
+            "home_away": "away"
+          }
+        ],
+        "statistics": [],
+        "group_label": null
+      }
+    },
+    {
+      "provider_id": "espn-fifa-worldcup",
+      "provider_event_id": "760448",
+      "event_name": "Germany vs Ivory Coast",
+      "short_name": "GER vs CIV",
+      "kickoff_utc": "2026-06-20T20:00Z",
+      "kickoff_local": "2026-06-20T22:00:00+02:00",
+      "home_team_name": "Germany",
+      "home_team_code": "GER",
+      "away_team_name": "Ivory Coast",
+      "away_team_code": "CIV",
+      "status_state": "pre",
+      "status_name": "STATUS_SCHEDULED",
+      "completed": false,
+      "score_home": 0,
+      "score_away": 0,
+      "venue_name": "BMO Field",
+      "venue_city": "Toronto",
+      "venue_country": "Canada",
+      "broadcast_names": [
+        "FOX",
+        "Tele",
+        "FOX One"
+      ],
+      "records": [
+        {
+          "team_name": "Germany",
+          "team_code": "GER",
+          "records": [
+            {
+              "name": "All Splits",
+              "summary": "1-0-0"
+            }
+          ],
+          "team_record_summary": "1-0-0"
+        },
+        {
+          "team_name": "Ivory Coast",
+          "team_code": "CIV",
+          "records": [
+            {
+              "name": "All Splits",
+              "summary": "1-0-0"
+            }
+          ],
+          "team_record_summary": "1-0-0"
+        }
+      ],
+      "statistics": [],
+      "group_label": null,
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?limit=950&dates=20260620-20260621",
+      "retrieved_at_utc": "2026-06-20T14:44:18.110518+00:00",
+      "schema_fingerprint": "e3cd3805da9a277574d02356f9c0ce32b19ad63d272a5187c8001d29a1d78e14",
+      "evidence_identity": "d15c4a4ceda19368ce735729921c8f542a0861eae55a088372a65ec025b6ca5d",
+      "raw_payload_structure": {
+        "id": "760448",
+        "provider_event_id": "760448",
+        "event_date_utc": "2026-06-20T20:00Z",
+        "event_date_local": "2026-06-20T22:00:00+02:00",
+        "home_team_name": "Germany",
+        "home_team_code": "GER",
+        "away_team_name": "Ivory Coast",
+        "away_team_code": "CIV",
+        "status_name": "STATUS_SCHEDULED",
+        "status_state": "pre",
+        "completed": false,
+        "score_home": 0,
+        "score_away": 0,
+        "venue_name": "BMO Field",
+        "venue_city": "Toronto",
+        "venue_country": "Canada",
+        "broadcasts": [
+          "FOX",
+          "Tele",
+          "FOX One"
+        ],
+        "team_records": [
+          {
+            "team_name": "Germany",
+            "team_code": "GER",
+            "records": [
+              {
+                "name": "All Splits",
+                "summary": "1-0-0"
+              }
+            ],
+            "team_record_summary": "1-0-0",
+            "home_away": "home"
+          },
+          {
+            "team_name": "Ivory Coast",
+            "team_code": "CIV",
+            "records": [
+              {
+                "name": "All Splits",
+                "summary": "1-0-0"
+              }
+            ],
+            "team_record_summary": "1-0-0",
+            "home_away": "away"
+          }
+        ],
+        "statistics": [],
+        "group_label": null
+      }
+    },
+    {
+      "provider_id": "espn-fifa-worldcup",
+      "provider_event_id": "760446",
+      "event_name": "Ecuador vs Cura\u00e7ao",
+      "short_name": "ECU vs CUW",
+      "kickoff_utc": "2026-06-21T00:00Z",
+      "kickoff_local": "2026-06-21T02:00:00+02:00",
+      "home_team_name": "Ecuador",
+      "home_team_code": "ECU",
+      "away_team_name": "Cura\u00e7ao",
+      "away_team_code": "CUW",
+      "status_state": "pre",
+      "status_name": "STATUS_SCHEDULED",
+      "completed": false,
+      "score_home": 0,
+      "score_away": 0,
+      "venue_name": "GEHA Field at Arrowhead Stadium",
+      "venue_city": "Kansas City, Missouri",
+      "venue_country": "USA",
+      "broadcast_names": [
+        "FS1",
+        "Tele",
+        "FOX One"
+      ],
+      "records": [
+        {
+          "team_name": "Ecuador",
+          "team_code": "ECU",
+          "records": [
+            {
+              "name": "All Splits",
+              "summary": "0-0-1"
+            }
+          ],
+          "team_record_summary": "0-0-1"
+        },
+        {
+          "team_name": "Cura\u00e7ao",
+          "team_code": "CUW",
+          "records": [
+            {
+              "name": "All Splits",
+              "summary": "0-0-1"
+            }
+          ],
+          "team_record_summary": "0-0-1"
+        }
+      ],
+      "statistics": [],
+      "group_label": null,
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?limit=950&dates=20260620-20260621",
+      "retrieved_at_utc": "2026-06-20T14:44:18.110518+00:00",
+      "schema_fingerprint": "e3cd3805da9a277574d02356f9c0ce32b19ad63d272a5187c8001d29a1d78e14",
+      "evidence_identity": "af8af2908c384cb0f48446a5ee54535798085bacb2c665002b68e8a675b12f1f",
+      "raw_payload_structure": {
+        "id": "760446",
+        "provider_event_id": "760446",
+        "event_date_utc": "2026-06-21T00:00Z",
+        "event_date_local": "2026-06-21T02:00:00+02:00",
+        "home_team_name": "Ecuador",
+        "home_team_code": "ECU",
+        "away_team_name": "Cura\u00e7ao",
+        "away_team_code": "CUW",
+        "status_name": "STATUS_SCHEDULED",
+        "status_state": "pre",
+        "completed": false,
+        "score_home": 0,
+        "score_away": 0,
+        "venue_name": "GEHA Field at Arrowhead Stadium",
+        "venue_city": "Kansas City, Missouri",
+        "venue_country": "USA",
+        "broadcasts": [
+          "FS1",
+          "Tele",
+          "FOX One"
+        ],
+        "team_records": [
+          {
+            "team_name": "Ecuador",
+            "team_code": "ECU",
+            "records": [
+              {
+                "name": "All Splits",
+                "summary": "0-0-1"
+              }
+            ],
+            "team_record_summary": "0-0-1",
+            "home_away": "home"
+          },
+          {
+            "team_name": "Cura\u00e7ao",
+            "team_code": "CUW",
+            "records": [
+              {
+                "name": "All Splits",
+                "summary": "0-0-1"
+              }
+            ],
+            "team_record_summary": "0-0-1",
+            "home_away": "away"
+          }
+        ],
+        "statistics": [],
+        "group_label": null
+      }
+    },
+    {
+      "provider_id": "espn-fifa-worldcup",
+      "provider_event_id": "760449",
+      "event_name": "Tunisia vs Japan",
+      "short_name": "TUN vs JPN",
+      "kickoff_utc": "2026-06-21T04:00Z",
+      "kickoff_local": "2026-06-21T06:00:00+02:00",
+      "home_team_name": "Tunisia",
+      "home_team_code": "TUN",
+      "away_team_name": "Japan",
+      "away_team_code": "JPN",
+      "status_state": "pre",
+      "status_name": "STATUS_SCHEDULED",
+      "completed": false,
+      "score_home": 0,
+      "score_away": 0,
+      "venue_name": "Estadio BBVA",
+      "venue_city": "Guadalupe",
+      "venue_country": "Mexico",
+      "broadcast_names": [
+        "FS1",
+        "Tele",
+        "FOX One"
+      ],
+      "records": [
+        {
+          "team_name": "Tunisia",
+          "team_code": "TUN",
+          "records": [
+            {
+              "name": "All Splits",
+              "summary": "0-0-1"
+            }
+          ],
+          "team_record_summary": "0-0-1"
+        },
+        {
+          "team_name": "Japan",
+          "team_code": "JPN",
+          "records": [
+            {
+              "name": "All Splits",
+              "summary": "0-1-0"
+            }
+          ],
+          "team_record_summary": "0-1-0"
+        }
+      ],
+      "statistics": [],
+      "group_label": null,
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?limit=950&dates=20260620-20260621",
+      "retrieved_at_utc": "2026-06-20T14:44:18.110518+00:00",
+      "schema_fingerprint": "e3cd3805da9a277574d02356f9c0ce32b19ad63d272a5187c8001d29a1d78e14",
+      "evidence_identity": "5acb2da984409dca3feed00f974c9d8149bedbe5187915887aca1ec62514c7cb",
+      "raw_payload_structure": {
+        "id": "760449",
+        "provider_event_id": "760449",
+        "event_date_utc": "2026-06-21T04:00Z",
+        "event_date_local": "2026-06-21T06:00:00+02:00",
+        "home_team_name": "Tunisia",
+        "home_team_code": "TUN",
+        "away_team_name": "Japan",
+        "away_team_code": "JPN",
+        "status_name": "STATUS_SCHEDULED",
+        "status_state": "pre",
+        "completed": false,
+        "score_home": 0,
+        "score_away": 0,
+        "venue_name": "Estadio BBVA",
+        "venue_city": "Guadalupe",
+        "venue_country": "Mexico",
+        "broadcasts": [
+          "FS1",
+          "Tele",
+          "FOX One"
+        ],
+        "team_records": [
+          {
+            "team_name": "Tunisia",
+            "team_code": "TUN",
+            "records": [
+              {
+                "name": "All Splits",
+                "summary": "0-0-1"
+              }
+            ],
+            "team_record_summary": "0-0-1",
+            "home_away": "home"
+          },
+          {
+            "team_name": "Japan",
+            "team_code": "JPN",
+            "records": [
+              {
+                "name": "All Splits",
+                "summary": "0-1-0"
+              }
+            ],
+            "team_record_summary": "0-1-0",
+            "home_away": "away"
+          }
+        ],
+        "statistics": [],
+        "group_label": null
+      }
+    },
+    {
+      "provider_id": "espn-fifa-worldcup",
+      "provider_event_id": "760453",
+      "event_name": "Spain vs Saudi Arabia",
+      "short_name": "ESP vs KSA",
+      "kickoff_utc": "2026-06-21T16:00Z",
+      "kickoff_local": "2026-06-21T18:00:00+02:00",
+      "home_team_name": "Spain",
+      "home_team_code": "ESP",
+      "away_team_name": "Saudi Arabia",
+      "away_team_code": "KSA",
+      "status_state": "pre",
+      "status_name": "STATUS_SCHEDULED",
+      "completed": false,
+      "score_home": 0,
+      "score_away": 0,
+      "venue_name": "Mercedes-Benz Stadium",
+      "venue_city": "Atlanta, Georgia",
+      "venue_country": "USA",
+      "broadcast_names": [
+        "FOX",
+        "Tele",
+        "FOX One"
+      ],
+      "records": [
+        {
+          "team_name": "Spain",
+          "team_code": "ESP",
+          "records": [
+            {
+              "name": "All Splits",
+              "summary": "0-1-0"
+            }
+          ],
+          "team_record_summary": "0-1-0"
+        },
+        {
+          "team_name": "Saudi Arabia",
+          "team_code": "KSA",
+          "records": [
+            {
+              "name": "All Splits",
+              "summary": "0-1-0"
+            }
+          ],
+          "team_record_summary": "0-1-0"
+        }
+      ],
+      "statistics": [],
+      "group_label": null,
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?limit=950&dates=20260620-20260621",
+      "retrieved_at_utc": "2026-06-20T14:44:18.110518+00:00",
+      "schema_fingerprint": "e3cd3805da9a277574d02356f9c0ce32b19ad63d272a5187c8001d29a1d78e14",
+      "evidence_identity": "17ea1141e43a7d785b27db7f5e5f47b7deaf023bdc81094b9d331583fa46a85a",
+      "raw_payload_structure": {
+        "id": "760453",
+        "provider_event_id": "760453",
+        "event_date_utc": "2026-06-21T16:00Z",
+        "event_date_local": "2026-06-21T18:00:00+02:00",
+        "home_team_name": "Spain",
+        "home_team_code": "ESP",
+        "away_team_name": "Saudi Arabia",
+        "away_team_code": "KSA",
+        "status_name": "STATUS_SCHEDULED",
+        "status_state": "pre",
+        "completed": false,
+        "score_home": 0,
+        "score_away": 0,
+        "venue_name": "Mercedes-Benz Stadium",
+        "venue_city": "Atlanta, Georgia",
+        "venue_country": "USA",
+        "broadcasts": [
+          "FOX",
+          "Tele",
+          "FOX One"
+        ],
+        "team_records": [
+          {
+            "team_name": "Spain",
+            "team_code": "ESP",
+            "records": [
+              {
+                "name": "All Splits",
+                "summary": "0-1-0"
+              }
+            ],
+            "team_record_summary": "0-1-0",
+            "home_away": "home"
+          },
+          {
+            "team_name": "Saudi Arabia",
+            "team_code": "KSA",
+            "records": [
+              {
+                "name": "All Splits",
+                "summary": "0-1-0"
+              }
+            ],
+            "team_record_summary": "0-1-0",
+            "home_away": "away"
+          }
+        ],
+        "statistics": [],
+        "group_label": null
+      }
+    },
+    {
+      "provider_id": "espn-fifa-worldcup",
+      "provider_event_id": "760451",
+      "event_name": "Belgium vs Iran",
+      "short_name": "BEL vs IRN",
+      "kickoff_utc": "2026-06-21T19:00Z",
+      "kickoff_local": "2026-06-21T21:00:00+02:00",
+      "home_team_name": "Belgium",
+      "home_team_code": "BEL",
+      "away_team_name": "Iran",
+      "away_team_code": "IRN",
+      "status_state": "pre",
+      "status_name": "STATUS_SCHEDULED",
+      "completed": false,
+      "score_home": 0,
+      "score_away": 0,
+      "venue_name": "SoFi Stadium",
+      "venue_city": "Inglewood, California",
+      "venue_country": "USA",
+      "broadcast_names": [
+        "FS1",
+        "Tele",
+        "FOX One"
+      ],
+      "records": [
+        {
+          "team_name": "Belgium",
+          "team_code": "BEL",
+          "records": [
+            {
+              "name": "All Splits",
+              "summary": "0-1-0"
+            }
+          ],
+          "team_record_summary": "0-1-0"
+        },
+        {
+          "team_name": "Iran",
+          "team_code": "IRN",
+          "records": [
+            {
+              "name": "All Splits",
+              "summary": "0-1-0"
+            }
+          ],
+          "team_record_summary": "0-1-0"
+        }
+      ],
+      "statistics": [],
+      "group_label": null,
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?limit=950&dates=20260620-20260621",
+      "retrieved_at_utc": "2026-06-20T14:44:18.110518+00:00",
+      "schema_fingerprint": "e3cd3805da9a277574d02356f9c0ce32b19ad63d272a5187c8001d29a1d78e14",
+      "evidence_identity": "8f797f325feecfcec8185a557fa9ff6828834e27aab0d980c0a0f67680e45a91",
+      "raw_payload_structure": {
+        "id": "760451",
+        "provider_event_id": "760451",
+        "event_date_utc": "2026-06-21T19:00Z",
+        "event_date_local": "2026-06-21T21:00:00+02:00",
+        "home_team_name": "Belgium",
+        "home_team_code": "BEL",
+        "away_team_name": "Iran",
+        "away_team_code": "IRN",
+        "status_name": "STATUS_SCHEDULED",
+        "status_state": "pre",
+        "completed": false,
+        "score_home": 0,
+        "score_away": 0,
+        "venue_name": "SoFi Stadium",
+        "venue_city": "Inglewood, California",
+        "venue_country": "USA",
+        "broadcasts": [
+          "FS1",
+          "Tele",
+          "FOX One"
+        ],
+        "team_records": [
+          {
+            "team_name": "Belgium",
+            "team_code": "BEL",
+            "records": [
+              {
+                "name": "All Splits",
+                "summary": "0-1-0"
+              }
+            ],
+            "team_record_summary": "0-1-0",
+            "home_away": "home"
+          },
+          {
+            "team_name": "Iran",
+            "team_code": "IRN",
+            "records": [
+              {
+                "name": "All Splits",
+                "summary": "0-1-0"
+              }
+            ],
+            "team_record_summary": "0-1-0",
+            "home_away": "away"
+          }
+        ],
+        "statistics": [],
+        "group_label": null
+      }
+    },
+    {
+      "provider_id": "espn-fifa-worldcup",
+      "provider_event_id": "760450",
+      "event_name": "Uruguay vs Cape Verde",
+      "short_name": "URU vs CPV",
+      "kickoff_utc": "2026-06-21T22:00Z",
+      "kickoff_local": "2026-06-22T00:00:00+02:00",
+      "home_team_name": "Uruguay",
+      "home_team_code": "URU",
+      "away_team_name": "Cape Verde",
+      "away_team_code": "CPV",
+      "status_state": "pre",
+      "status_name": "STATUS_SCHEDULED",
+      "completed": false,
+      "score_home": 0,
+      "score_away": 0,
+      "venue_name": "Hard Rock Stadium",
+      "venue_city": "Miami Gardens, Florida",
+      "venue_country": "USA",
+      "broadcast_names": [
+        "FS1",
+        "Tele",
+        "FOX One"
+      ],
+      "records": [
+        {
+          "team_name": "Uruguay",
+          "team_code": "URU",
+          "records": [
+            {
+              "name": "All Splits",
+              "summary": "0-1-0"
+            }
+          ],
+          "team_record_summary": "0-1-0"
+        },
+        {
+          "team_name": "Cape Verde",
+          "team_code": "CPV",
+          "records": [
+            {
+              "name": "All Splits",
+              "summary": "0-1-0"
+            }
+          ],
+          "team_record_summary": "0-1-0"
+        }
+      ],
+      "statistics": [],
+      "group_label": null,
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?limit=950&dates=20260620-20260621",
+      "retrieved_at_utc": "2026-06-20T14:44:18.110518+00:00",
+      "schema_fingerprint": "e3cd3805da9a277574d02356f9c0ce32b19ad63d272a5187c8001d29a1d78e14",
+      "evidence_identity": "297e9832e4a5c1e939b2db4f420339bfa0ac66c442706341d6332ab8d820c431",
+      "raw_payload_structure": {
+        "id": "760450",
+        "provider_event_id": "760450",
+        "event_date_utc": "2026-06-21T22:00Z",
+        "event_date_local": "2026-06-22T00:00:00+02:00",
+        "home_team_name": "Uruguay",
+        "home_team_code": "URU",
+        "away_team_name": "Cape Verde",
+        "away_team_code": "CPV",
+        "status_name": "STATUS_SCHEDULED",
+        "status_state": "pre",
+        "completed": false,
+        "score_home": 0,
+        "score_away": 0,
+        "venue_name": "Hard Rock Stadium",
+        "venue_city": "Miami Gardens, Florida",
+        "venue_country": "USA",
+        "broadcasts": [
+          "FS1",
+          "Tele",
+          "FOX One"
+        ],
+        "team_records": [
+          {
+            "team_name": "Uruguay",
+            "team_code": "URU",
+            "records": [
+              {
+                "name": "All Splits",
+                "summary": "0-1-0"
+              }
+            ],
+            "team_record_summary": "0-1-0",
+            "home_away": "home"
+          },
+          {
+            "team_name": "Cape Verde",
+            "team_code": "CPV",
+            "records": [
+              {
+                "name": "All Splits",
+                "summary": "0-1-0"
+              }
+            ],
+            "team_record_summary": "0-1-0",
+            "home_away": "away"
+          }
+        ],
+        "statistics": [],
+        "group_label": null
+      }
+    },
+    {
+      "provider_id": "espn-fifa-worldcup",
+      "provider_event_id": "760452",
+      "event_name": "New Zealand vs Egypt",
+      "short_name": "NZL vs EGY",
+      "kickoff_utc": "2026-06-22T01:00Z",
+      "kickoff_local": "2026-06-22T03:00:00+02:00",
+      "home_team_name": "New Zealand",
+      "home_team_code": "NZL",
+      "away_team_name": "Egypt",
+      "away_team_code": "EGY",
+      "status_state": "pre",
+      "status_name": "STATUS_SCHEDULED",
+      "completed": false,
+      "score_home": 0,
+      "score_away": 0,
+      "venue_name": "BC Place",
+      "venue_city": "Vancouver",
+      "venue_country": "Canada",
+      "broadcast_names": [
+        "FS1",
+        "Tele",
+        "FOX One"
+      ],
+      "records": [
+        {
+          "team_name": "New Zealand",
+          "team_code": "NZL",
+          "records": [
+            {
+              "name": "All Splits",
+              "summary": "0-1-0"
+            }
+          ],
+          "team_record_summary": "0-1-0"
+        },
+        {
+          "team_name": "Egypt",
+          "team_code": "EGY",
+          "records": [
+            {
+              "name": "All Splits",
+              "summary": "0-1-0"
+            }
+          ],
+          "team_record_summary": "0-1-0"
+        }
+      ],
+      "statistics": [],
+      "group_label": null,
+      "source_url": "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?limit=950&dates=20260620-20260621",
+      "retrieved_at_utc": "2026-06-20T14:44:18.110518+00:00",
+      "schema_fingerprint": "e3cd3805da9a277574d02356f9c0ce32b19ad63d272a5187c8001d29a1d78e14",
+      "evidence_identity": "39e21dacbc4ce0b6c6f259477005b89b41b9ab285c168db252c1b2009030a278",
+      "raw_payload_structure": {
+        "id": "760452",
+        "provider_event_id": "760452",
+        "event_date_utc": "2026-06-22T01:00Z",
+        "event_date_local": "2026-06-22T03:00:00+02:00",
+        "home_team_name": "New Zealand",
+        "home_team_code": "NZL",
+        "away_team_name": "Egypt",
+        "away_team_code": "EGY",
+        "status_name": "STATUS_SCHEDULED",
+        "status_state": "pre",
+        "completed": false,
+        "score_home": 0,
+        "score_away": 0,
+        "venue_name": "BC Place",
+        "venue_city": "Vancouver",
+        "venue_country": "Canada",
+        "broadcasts": [
+          "FS1",
+          "Tele",
+          "FOX One"
+        ],
+        "team_records": [
+          {
+            "team_name": "New Zealand",
+            "team_code": "NZL",
+            "records": [
+              {
+                "name": "All Splits",
+                "summary": "0-1-0"
+              }
+            ],
+            "team_record_summary": "0-1-0",
+            "home_away": "home"
+          },
+          {
+            "team_name": "Egypt",
+            "team_code": "EGY",
+            "records": [
+              {
+                "name": "All Splits",
+                "summary": "0-1-0"
+              }
+            ],
+            "team_record_summary": "0-1-0",
+            "home_away": "away"
+          }
+        ],
+        "statistics": [],
+        "group_label": null
+      }
+    }
+  ]
+}

@@ -355,6 +355,14 @@ def main(argv: Sequence[str] | None = None) -> None:
         args.command = "live-status-drift-check"
         run_live_status_drift_check(args)
         return
+    elif argv_list and argv_list[0] == "live-validation":
+        parser = argparse.ArgumentParser(description="Live Validation CLI")
+        parser.add_argument("--profile-id", default="world-cup-2026")
+        parser.add_argument("--output-dir", required=True)
+        args = parser.parse_args(argv_list[1:])
+        from bet.enrichment.football_data_foundation.live_validation import run_live_validation
+        run_live_validation(args.output_dir)
+        return
 
     parser = build_parser()
     args = parser.parse_args(argv_list)
