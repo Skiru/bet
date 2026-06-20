@@ -2,16 +2,18 @@ from __future__ import annotations
 
 import datetime
 import hashlib
-import sqlite3
 import json
+import sqlite3
+from collections.abc import Mapping
 from dataclasses import dataclass, field
-from typing import Any, Mapping, Sequence
+from typing import Any
 
 from bet.enrichment.football_data_foundation.canonical_fixture_resolver import (
     CanonicalFixtureResolutionResult,
-    table_exists,
 )
-from bet.enrichment.football_data_foundation.scanner_bridge import ScannerEnrichmentRunRecord
+from bet.enrichment.football_data_foundation.scanner_bridge import (
+    ScannerEnrichmentRunRecord,
+)
 
 
 @dataclass(frozen=True)
@@ -24,6 +26,27 @@ class ObservationWriteResult:
     run_id: int | None
     attempt_ids: tuple[int, ...]
     diagnostics: Mapping[str, Any] = field(default_factory=dict)
+
+
+def classify_fact_scope(fact_name: str) -> str:
+    """Classify a fact name into its explicit fact scope."""
+    name_lower = fact_name.lower()
+    if "home" in name_lower or name_lower.endswith("_home"):
+        return "TEAM_HOME"
+    elif "away" in name_lower or name_lower.endswith("_away"):
+        return "TEAM_AWAY"
+    elif name_lower in (
+        "event_status_state",
+        "event_status_name",
+        "venue_name",
+        "venue_city",
+        "venue_country",
+        "kickoff_utc",
+        "kickoff_local",
+    ):
+        return "FIXTURE_LEVEL"
+    else:
+        return "UNKNOWN"
 
 
 def write_enrichment_observations(
@@ -52,9 +75,12 @@ def write_enrichment_observations(
     away_team_id = resolution.away_team_id
     profile_id = bridge_result.profile_id
     scanner_event_id = bridge_result.scanner_event_id
+    sport_name = bridge_result.facts[0].fact_id.split(":")[0] if bridge_result.facts else "football"
+    if "_" in sport_name:
+        sport_name = "football"
 
     diagnostics: dict[str, Any] = {}
-    now_str = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    now_str = datetime.datetime.now(datetime.UTC).isoformat()
 
     try:
         # 1. Create evidence_package_revision rows
@@ -63,14 +89,18 @@ def write_enrichment_observations(
             # Generate package ID
             package_id = f"pkg_{evidence_identity}"
             evidence_package_id = package_id
-            
+
             # Find provider_id from completeness state
             provider_id = "espn-fifa-worldcup"
             for state in bridge_result.completeness_state:
                 if state.evidence_identity == evidence_identity:
                     provider_id = state.provider_id
                     break
-                    
+
+            # Count facts strictly belonging to this evidence package
+            pkg_facts = [f for f in bridge_result.facts if f.evidence_identity == evidence_identity]
+            member_count = len(pkg_facts)
+
             cursor = conn.execute(
                 "SELECT id FROM evidence_package_revision WHERE package_id = ?",
                 (package_id,),
@@ -79,7 +109,9 @@ def write_enrichment_observations(
             if not row:
                 conn.execute(
                     "INSERT INTO evidence_package_revision "
-                    "(package_id, source_key, operation_name, request_identity, parser_version, dto_version, revision_hash, member_count, completeness_state, created_at) "
+                    "(package_id, source_key, operation_name, request_identity, "
+                    "parser_version, dto_version, revision_hash, member_count, "
+                    "completeness_state, created_at) "
                     "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                     (
                         package_id,
@@ -89,7 +121,7 @@ def write_enrichment_observations(
                         "1.0.0",
                         "1",
                         evidence_identity,
-                        len(bridge_result.facts),
+                        member_count,
                         "COMPLETE_FRESH",
                         now_str,
                     ),
@@ -111,11 +143,13 @@ def write_enrichment_observations(
             requested_capabilities_str = ",".join(caps)
             cursor = conn.execute(
                 "INSERT INTO sports_enrichment_run "
-                "(run_identity, sport, canonical_event_id, analysis_cutoff_at, status, started_at, completed_at, policy_config_hash, requested_capabilities, completion_summary) "
+                "(run_identity, sport, canonical_event_id, analysis_cutoff_at, status, "
+                "started_at, completed_at, policy_config_hash, requested_capabilities, "
+                "completion_summary) "
                 "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (
                     run_identity,
-                    "football",
+                    sport_name,
                     fixture_id,
                     analysis_cutoff_at,
                     "COMPLETED",
@@ -133,7 +167,7 @@ def write_enrichment_observations(
         for idx, decision in enumerate(bridge_result.fetch_decisions):
             capability = decision.get("capability", "current_discovery")
             attempt_identity = f"attempt_{profile_id}_{scanner_event_id}_{capability}_{analysis_cutoff_at}"
-            
+
             cursor = conn.execute(
                 "SELECT id FROM source_operation_attempt WHERE attempt_identity = ?",
                 (attempt_identity,),
@@ -144,10 +178,25 @@ def write_enrichment_observations(
             else:
                 provider_priority = decision.get("provider_priority", ["espn-fifa-worldcup"])
                 provider = provider_priority[0] if provider_priority else "espn-fifa-worldcup"
-                
+
+                # Extract status and http_status dynamically from bridge/completeness state
+                status_val = "COMPLETED"
+                http_status_val = 200
+                for state in bridge_result.completeness_state:
+                    if state.capability == capability:
+                        is_err = "ERROR" in state.completeness_status or "FAILED" in state.completeness_status
+                        if is_err:
+                            status_val = "FAILED"
+                            http_status_val = 500
+                        elif "STALE" in state.completeness_status:
+                            status_val = "STALE"
+                            http_status_val = 200
+
                 cursor = conn.execute(
                     "INSERT INTO source_operation_attempt "
-                    "(attempt_identity, run_id, provider, operation, request_identity, status, started_at, completed_at, http_status, retry_count, parser_version, dto_version, evidence_bundle_id, selectable, diagnostics) "
+                    "(attempt_identity, run_id, provider, operation, request_identity, status, "
+                    "started_at, completed_at, http_status, retry_count, parser_version, dto_version, "
+                    "evidence_bundle_id, selectable, diagnostics) "
                     "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                     (
                         attempt_identity,
@@ -155,10 +204,10 @@ def write_enrichment_observations(
                         provider,
                         capability,
                         f"req_{profile_id}_{scanner_event_id}_{capability}",
-                        "COMPLETED",
+                        status_val,
                         now_str,
                         now_str,
-                        200,
+                        http_status_val,
                         0,
                         "1.0.0",
                         "1",
@@ -170,7 +219,6 @@ def write_enrichment_observations(
                 attempt_ids.append(cursor.lastrowid)
 
         # 4. Group facts by (capability, evidence_identity) to build payloads
-        # We need to construct home-team and away-team payloads for each capability
         facts_by_group: dict[tuple[str, str], list[Any]] = {}
         for fact in bridge_result.facts:
             group_key = (fact.capability, fact.evidence_identity)
@@ -193,26 +241,52 @@ def write_enrichment_observations(
                     source_provider = state.provider_id
                     break
 
+            has_fixture_level = False
             for fact in group_facts:
                 fact_name = fact.fact_name
                 fact_val = fact.fact_value_num if fact.fact_value_num is not None else fact.fact_value_text
-                
-                # Deterministic team mapping policy
-                if "home_" in fact_name or fact_name.endswith("_home"):
+                scope = classify_fact_scope(fact_name)
+
+                if scope == "TEAM_HOME":
                     home_payload[fact_name] = fact_val
-                elif "away_" in fact_name or fact_name.endswith("_away"):
+                elif scope == "TEAM_AWAY":
                     away_payload[fact_name] = fact_val
                 else:
-                    # Fixture-level fact: copy to both teams
+                    # Fixture-level or Unknown: copy to both teams
                     home_payload[fact_name] = fact_val
                     away_payload[fact_name] = fact_val
+                    has_fixture_level = True
+
+            # Mark duplication & fact scopes explicitly to avoid double counting
+            if home_payload:
+                home_payload["duplicated_for_schema_team_id_constraint"] = has_fixture_level
+                home_payload["fact_scopes"] = {
+                    name: classify_fact_scope(name)
+                    for name in home_payload
+                    if name not in ("duplicated_for_schema_team_id_constraint", "fact_scopes")
+                }
+            if away_payload:
+                away_payload["duplicated_for_schema_team_id_constraint"] = has_fixture_level
+                away_payload["fact_scopes"] = {
+                    name: classify_fact_scope(name)
+                    for name in away_payload
+                    if name not in ("duplicated_for_schema_team_id_constraint", "fact_scopes")
+                }
 
             # Write observation for home team
             if home_payload and home_team_id is not None:
                 home_payload_str = json.dumps(home_payload, sort_keys=True)
                 home_sha = hashlib.sha256(home_payload_str.encode("utf-8")).hexdigest()
-                logical_identity = f"obs_{fixture_id}_{home_team_id}_{capability}_{evidence_identity}"
-                
+
+                # Robust logical identity containing multiple dimensions
+                dimensions_str = (
+                    f"{fixture_id}_{home_team_id}_{capability}_{source_provider}_"
+                    f"{profile_id}:{scanner_event_id}:{evidence_identity}_"
+                    f"{evidence_identity}_{home_sha}"
+                )
+                logical_identity_hash = hashlib.sha256(dimensions_str.encode("utf-8")).hexdigest()
+                logical_identity = f"obs_{logical_identity_hash[:40]}"
+
                 cursor = conn.execute(
                     "SELECT id FROM fixture_capability_observation WHERE logical_identity = ?",
                     (logical_identity,),
@@ -224,7 +298,9 @@ def write_enrichment_observations(
                 else:
                     cursor = conn.execute(
                         "INSERT INTO fixture_capability_observation "
-                        "(canonical_fixture_id, team_id, capability, source, request_identity, evidence_bundle_id, native_fixture_id, status, http_status, observed_at, valid_at, payload_sha256, payload_json, logical_identity, evidence_package_id) "
+                        "(canonical_fixture_id, team_id, capability, source, request_identity, "
+                        "evidence_bundle_id, native_fixture_id, status, http_status, observed_at, "
+                        "valid_at, payload_sha256, payload_json, logical_identity, evidence_package_id) "
                         "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                         (
                             fixture_id,
@@ -247,10 +323,11 @@ def write_enrichment_observations(
                     home_obs_id = cursor.lastrowid
                     observation_ids.append(home_obs_id)
 
-                # Write projection for home team
+                # Write projection for home team (selecting only safe observations)
                 proj_cursor = conn.execute(
                     "SELECT id FROM fixture_capability_projection "
-                    "WHERE canonical_fixture_id = ? AND team_id = ? AND capability = ? AND analysis_cutoff_at = ?",
+                    "WHERE canonical_fixture_id = ? AND team_id = ? AND capability = ? "
+                    "AND analysis_cutoff_at = ?",
                     (fixture_id, home_team_id, capability, analysis_cutoff_at),
                 )
                 proj_row = proj_cursor.fetchone()
@@ -259,7 +336,9 @@ def write_enrichment_observations(
                 else:
                     cursor = conn.execute(
                         "INSERT INTO fixture_capability_projection "
-                        "(canonical_fixture_id, team_id, capability, analysis_cutoff_at, selected_source, selected_status, selected_observation_id, primary_source, primary_status, created_at, updated_at, snapshot_run_id) "
+                        "(canonical_fixture_id, team_id, capability, analysis_cutoff_at, selected_source, "
+                        "selected_status, selected_observation_id, primary_source, primary_status, "
+                        "created_at, updated_at, snapshot_run_id) "
                         "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                         (
                             fixture_id,
@@ -282,8 +361,16 @@ def write_enrichment_observations(
             if away_payload and away_team_id is not None:
                 away_payload_str = json.dumps(away_payload, sort_keys=True)
                 away_sha = hashlib.sha256(away_payload_str.encode("utf-8")).hexdigest()
-                logical_identity = f"obs_{fixture_id}_{away_team_id}_{capability}_{evidence_identity}"
-                
+
+                # Robust logical identity containing multiple dimensions
+                dimensions_str = (
+                    f"{fixture_id}_{away_team_id}_{capability}_{source_provider}_"
+                    f"{profile_id}:{scanner_event_id}:{evidence_identity}_"
+                    f"{evidence_identity}_{away_sha}"
+                )
+                logical_identity_hash = hashlib.sha256(dimensions_str.encode("utf-8")).hexdigest()
+                logical_identity = f"obs_{logical_identity_hash[:40]}"
+
                 cursor = conn.execute(
                     "SELECT id FROM fixture_capability_observation WHERE logical_identity = ?",
                     (logical_identity,),
@@ -295,7 +382,9 @@ def write_enrichment_observations(
                 else:
                     cursor = conn.execute(
                         "INSERT INTO fixture_capability_observation "
-                        "(canonical_fixture_id, team_id, capability, source, request_identity, evidence_bundle_id, native_fixture_id, status, http_status, observed_at, valid_at, payload_sha256, payload_json, logical_identity, evidence_package_id) "
+                        "(canonical_fixture_id, team_id, capability, source, request_identity, "
+                        "evidence_bundle_id, native_fixture_id, status, http_status, observed_at, "
+                        "valid_at, payload_sha256, payload_json, logical_identity, evidence_package_id) "
                         "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                         (
                             fixture_id,
@@ -321,7 +410,8 @@ def write_enrichment_observations(
                 # Write projection for away team
                 proj_cursor = conn.execute(
                     "SELECT id FROM fixture_capability_projection "
-                    "WHERE canonical_fixture_id = ? AND team_id = ? AND capability = ? AND analysis_cutoff_at = ?",
+                    "WHERE canonical_fixture_id = ? AND team_id = ? AND capability = ? "
+                    "AND analysis_cutoff_at = ?",
                     (fixture_id, away_team_id, capability, analysis_cutoff_at),
                 )
                 proj_row = proj_cursor.fetchone()
@@ -330,7 +420,9 @@ def write_enrichment_observations(
                 else:
                     cursor = conn.execute(
                         "INSERT INTO fixture_capability_projection "
-                        "(canonical_fixture_id, team_id, capability, analysis_cutoff_at, selected_source, selected_status, selected_observation_id, primary_source, primary_status, created_at, updated_at, snapshot_run_id) "
+                        "(canonical_fixture_id, team_id, capability, analysis_cutoff_at, selected_source, "
+                        "selected_status, selected_observation_id, primary_source, primary_status, "
+                        "created_at, updated_at, snapshot_run_id) "
                         "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                         (
                             fixture_id,

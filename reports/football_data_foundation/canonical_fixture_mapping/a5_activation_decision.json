@@ -1,24 +1,40 @@
 {
-  "phase_id": "FOOTBALL_DATA_FOUNDATION_A5_CANONICAL_FIXTURE_RESOLUTION_AND_TEMP_SQLITE_DB_MAPPING_PROOF",
-  "canonical_fixture_mapping_status": "DB_CANONICAL_MAPPING_PROVEN_IN_TEMP_SQLITE",
-  "production_db_adapter": {
-    "status": "PRODUCTION_DB_ADAPTER_DEFERRED",
-    "reason": "Production activation is deferred to prevent schema mutations on the live database before final downstream validation is completed."
+  "phase_id": "FOOTBALL_DATA_FOUNDATION_A5C1_V2_CANONICAL_MAPPING_CODE_QUALITY_FRESHNESS_SCHEMA_SEMANTICS_HARDENING",
+  "status": "TEMP_SQLITE_CANONICAL_MAPPING_PROVEN_WITH_CONSTRAINTS",
+  "activations": {
+    "canonical_fixture_mapping": "TEMP_SQLITE_CANONICAL_MAPPING_PROVEN_WITH_CONSTRAINTS",
+    "production_db_adapter": "PRODUCTION_DB_ADAPTER_DEFERRED",
+    "matrix_activation": "MATRIX_ACTIVATION_DEFERRED",
+    "routing_activation": "ROUTING_ACTIVATION_DEFERRED"
   },
-  "matrix_activation": {
-    "status": "MATRIX_ACTIVATION_DEFERRED",
-    "reason": "Capability matrix activation remains deferred until live provider feeds are integrated and verified."
-  },
-  "routing_activation": {
-    "status": "ROUTING_ACTIVATION_DEFERRED",
-    "reason": "Downstream routing activation is deferred to isolate the new enrichment flow and prevent interference with active production routes."
-  },
-  "next_required_conditions": {
-    "for_real_db_adapter": "Formal sign-off of the dry-run mapping reports and completion of dry-run offline testing.",
-    "for_enrichment_only_routing_activation": "Creation of dedicated, isolated enrichment-only routes that cannot feed prediction, valuation, gate, or coupon consumers."
-  },
-  "temp_sqlite_proof_sufficiency": {
-    "sufficient": true,
-    "reason": "The temporary SQLite proof conclusively demonstrates that the existing database schema is fully sufficient for representing the new enrichment facts and mapping them correctly to canonical concepts."
-  }
+  "remaining_blockers": [
+    {
+      "id": "live_freshness_status",
+      "description": "Requires full integration with live provider status-drift scrapers and scheduling clocks before we can run in automated production loops."
+    },
+    {
+      "id": "real_db_adapter_safety",
+      "description": "Production database connection setup must be validated with non-destructive dry-runs on real databases under safe transaction controls."
+    },
+    {
+      "id": "fixture_level_fact_scope",
+      "description": "Payload-level duplication compliance requires consumers to filter using 'fact_scopes' or 'duplicated_for_schema_team_id_constraint' to avoid metrics corruption."
+    },
+    {
+      "id": "consumer_isolation",
+      "description": "Downstream betting modules must be fully isolated from raw fact tables to prevent feedback loops."
+    },
+    {
+      "id": "source_mapping_conflict_handling",
+      "description": "Ambiguity resolution and team alias updates need an interactive or high-level admin approval tool for conflict cases."
+    },
+    {
+      "id": "schema_version_migration_consistency",
+      "description": "Production DB must be verified to have identical schema version 20 to prevent schema drift errors."
+    },
+    {
+      "id": "production_db_non_destructive_adapter_proof",
+      "description": "Requires automated regression tests to verify that writing observations does not mutate, corrupt, or lock production transaction pools."
+    }
+  ]
 }

@@ -3,6 +3,7 @@
 **Profile ID:** `world-cup-2026`
 **Scanner Event ID:** `66456944`
 **Provider Event ID:** `760442`
+**Schema-only Stale Proof:** `True`
 
 ## Resolution Metrics
 
@@ -41,6 +42,6 @@
 
 ## Safety Assertions Verified
 
-- **No real database touched:** `True` (Used `:memory:` temporary SQLite store)
+- **No real database touched:** `True` (Verified dynamically via SQLite connection check)
 - **Scanner reference separate:** `True` (Scanner event `66456944` and Provider event `760442` stored in distinct mapping records)
 - **All observations/projections successfully linked:** `True`

@@ -1,30 +1,36 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
 import sqlite3
+from pathlib import Path
+from unittest.mock import MagicMock
 
-import pytest
-
-from bet.enrichment.football_data_foundation.temp_sqlite_harness import (
-    create_temp_sqlite_store,
-    get_table_counts,
-)
 from bet.enrichment.football_data_foundation.canonical_fixture_resolver import (
-    resolve_canonical_fixture,
     CanonicalFixtureResolutionRequest,
-    CanonicalFixtureResolutionResult,
+    resolve_canonical_fixture,
     table_exists,
 )
 from bet.enrichment.football_data_foundation.canonical_observation_writer import (
     write_enrichment_observations,
-    ObservationWriteResult,
 )
-from bet.enrichment.football_data_foundation.scanner_contracts import ScannerEventCandidate
-from bet.enrichment.football_data_foundation.scanner_bridge import ScannerEnrichmentRunRecord
+from bet.enrichment.football_data_foundation.enrichment_freshness import (
+    EvidenceFreshnessInput,
+    EvidenceFreshnessPolicy,
+    evaluate_freshness,
+)
 from bet.enrichment.football_data_foundation.persistence_bridge import (
-    PersistedEnrichmentFact,
     PersistedCompletenessState,
+    PersistedEnrichmentFact,
+)
+from bet.enrichment.football_data_foundation.scanner_bridge import (
+    ScannerEnrichmentRunRecord,
+)
+from bet.enrichment.football_data_foundation.scanner_contracts import (
+    ScannerEventCandidate,
+)
+from bet.enrichment.football_data_foundation.temp_sqlite_harness import (
+    create_temp_sqlite_store,
+    get_table_counts,
 )
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -75,14 +81,14 @@ def test_temp_sqlite_harness_initializes_cleanly_without_touching_real_db() -> N
 
     conn = create_temp_sqlite_store()
     assert isinstance(conn, sqlite3.Connection)
-    
+
     # Check tables were initialized successfully
     assert table_exists(conn, "sports")
     assert table_exists(conn, "fixtures")
     assert table_exists(conn, "fixture_sources")
     assert table_exists(conn, "sports_entity")
     assert table_exists(conn, "source_entity_reference")
-    
+
     counts = get_table_counts(conn)
     assert all(count == 0 for count in counts.values())
 
@@ -96,7 +102,6 @@ def test_temp_sqlite_harness_initializes_cleanly_without_touching_real_db() -> N
 def test_resolver_creates_sport_competition_team_fixture_rows_and_mappings() -> None:
     conn = create_temp_sqlite_store()
     scanner_event = load_acceptance_scanner_event()
-    bridge_result = load_acceptance_bridge_result()
 
     request = CanonicalFixtureResolutionRequest(
         scanner_event=scanner_event,
@@ -306,3 +311,273 @@ def test_future_non_world_cup_profile_integration() -> None:
     assert result.fixture_id is not None
     assert result.home_team_id is not None
     assert result.away_team_id is not None
+
+
+# Tightened A5C1 Hardening Tests
+
+def test_source_external_id_conflict_handling() -> None:
+    """Validate that resolving a fixture with mismatched external_id returns conflict."""
+    conn = create_temp_sqlite_store()
+    scanner_event = load_acceptance_scanner_event()
+
+    # Insert parent rows to satisfy foreign keys
+    conn.execute("INSERT INTO sports (id, name) VALUES (1, 'football')")
+    conn.execute("INSERT INTO competitions (id, sport_id, name, season) VALUES (1, 1, 'comp-1', '2026')")
+    conn.execute("INSERT INTO teams (id, sport_id, name) VALUES (1, 1, 'United States')")
+    conn.execute("INSERT INTO teams (id, sport_id, name) VALUES (2, 1, 'Australia')")
+
+    # Insert existing mapping
+    cursor = conn.execute(
+        "INSERT INTO fixtures (id, sport_id, competition_id, home_team_id, away_team_id, kickoff, status, fetched_at) "
+        "VALUES (10, 1, 1, 1, 2, ?, 'scheduled', 'now')",
+        (scanner_event.kickoff_utc,),
+    )
+
+    # Store conflicting fixture_source
+    conn.execute(
+        "INSERT INTO fixture_sources (fixture_id, source, external_id, confidence, fetched_at) "
+        "VALUES (10, 'espn-fifa-worldcup', 'wrong_external_id', 1.0, 'now')",
+    )
+
+    request = CanonicalFixtureResolutionRequest(
+        scanner_event=scanner_event,
+        provider_id="espn-fifa-worldcup",
+        provider_event_id="760442",
+        profile_id="world-cup-2026",
+        competition_scope=scanner_event.canonical_competition_scope,
+        season_scope=scanner_event.canonical_season_scope,
+        evidence_identity="evidence-1",
+        schema_fingerprint="fingerprint-1",
+    )
+
+    result = resolve_canonical_fixture(conn, request)
+    assert result.status == "SOURCE_EXTERNAL_ID_CONFLICT"
+    assert result.fixture_id is None
+
+
+def test_team_alias_ambiguity_fails_closed() -> None:
+    """Validate that team alias lookup ambiguity returns TEAM_ALIAS_AMBIGUOUS."""
+    conn = create_temp_sqlite_store()
+    scanner_event = load_acceptance_scanner_event()
+
+    # Insert parents with different canonical names
+    conn.execute("INSERT INTO sports (id, name) VALUES (1, 'football')")
+    conn.execute("INSERT INTO teams (id, sport_id, name) VALUES (101, 1, 'Canonical Team USA')")
+    conn.execute("INSERT INTO teams (id, sport_id, name) VALUES (202, 1, 'Canonical Team Australia')")
+
+    # Insert duplicate aliases for 'United States'
+    conn.execute(
+        "INSERT INTO team_source_aliases (team_id, sport_id, source, provider_team_name, status) "
+        "VALUES (101, 1, 'espn-fifa-worldcup', 'United States', 'verified')",
+    )
+    conn.execute(
+        "INSERT INTO team_source_aliases (team_id, sport_id, source, provider_team_name, status) "
+        "VALUES (202, 1, 'espn-fifa-worldcup', 'United States', 'verified')",
+    )
+
+    request = CanonicalFixtureResolutionRequest(
+        scanner_event=scanner_event,
+        provider_id="espn-fifa-worldcup",
+        provider_event_id="760442",
+        profile_id="world-cup-2026",
+        competition_scope=scanner_event.canonical_competition_scope,
+        season_scope=scanner_event.canonical_season_scope,
+        evidence_identity="evidence-1",
+        schema_fingerprint="fingerprint-1",
+    )
+
+    result = resolve_canonical_fixture(conn, request)
+    assert result.status == "TEAM_ALIAS_AMBIGUOUS"
+
+
+def test_competition_country_does_not_store_group_label() -> None:
+    """Verify that competition.country stores country or null, never group label."""
+    conn = create_temp_sqlite_store()
+    scanner_event = load_acceptance_scanner_event()
+    # Confirm group_label starts with 'Group ' (e.g. Group D)
+    assert scanner_event.group_label == "Group D"
+
+    request = CanonicalFixtureResolutionRequest(
+        scanner_event=scanner_event,
+        provider_id="espn-fifa-worldcup",
+        provider_event_id="760442",
+        profile_id="world-cup-2026",
+        competition_scope=scanner_event.canonical_competition_scope,
+        season_scope=scanner_event.canonical_season_scope,
+        evidence_identity="evidence-1",
+        schema_fingerprint="fingerprint-1",
+    )
+
+    result = resolve_canonical_fixture(conn, request)
+    assert result.status == "CREATED_CANONICAL_FIXTURE"
+
+    cursor = conn.execute("SELECT country FROM competitions WHERE id = ?", (result.competition_id,))
+    country = cursor.fetchone()[0]
+    # Should be None (null), not Group D
+    assert country is None
+
+
+class MockConnection:
+    def __init__(self, conn):
+        self.conn = conn
+    def execute(self, sql, *args):
+        if "FROM fixtures" in sql and "home_team_id = ?" in sql:
+            mock_cursor = MagicMock()
+            mock_cursor.fetchall.return_value = [(10, 1), (20, 2)]
+            return mock_cursor
+        return self.conn.execute(sql, *args)
+    def commit(self):
+        self.conn.commit()
+    def rollback(self):
+        self.conn.rollback()
+    def close(self):
+        self.conn.close()
+
+
+def test_natural_fixture_conflict_across_competition_returns_ambiguity() -> None:
+    """Verify natural unique fixture conflicts map to AMBIGUOUS_FIXTURE_MATCH."""
+    conn = create_temp_sqlite_store()
+    scanner_event = load_acceptance_scanner_event()
+
+    mock_conn = MockConnection(conn)
+
+    request = CanonicalFixtureResolutionRequest(
+        scanner_event=scanner_event,
+        provider_id="espn-fifa-worldcup",
+        provider_event_id="760442",
+        profile_id="world-cup-2026",
+        competition_scope=scanner_event.canonical_competition_scope,
+        season_scope=scanner_event.canonical_season_scope,
+        evidence_identity="evidence-1",
+        schema_fingerprint="fingerprint-1",
+    )
+
+    result = resolve_canonical_fixture(mock_conn, request) # type: ignore
+    assert result.status == "AMBIGUOUS_FIXTURE_MATCH"
+    assert result.fixture_id is None
+
+
+def test_fact_scoping_and_duplication_flagging() -> None:
+    """Verify fixture-level facts are explicitly scoped and marked duplicated."""
+    conn = create_temp_sqlite_store()
+    scanner_event = load_acceptance_scanner_event()
+    bridge_result = load_acceptance_bridge_result()
+
+    request = CanonicalFixtureResolutionRequest(
+        scanner_event=scanner_event,
+        provider_id="espn-fifa-worldcup",
+        provider_event_id="760442",
+        profile_id="world-cup-2026",
+        competition_scope=scanner_event.canonical_competition_scope,
+        season_scope=scanner_event.canonical_season_scope,
+        evidence_identity="1f8cdb0748846c1cec8b312ad47f5607b116e3c17a56eb32a8f0ac6f537c73b0",
+        schema_fingerprint="1adbcb1991fbe027d188ffc1f3241a1a555f26d209df871e6c58c36d47828839",
+    )
+
+    res = resolve_canonical_fixture(conn, request)
+    write_res = write_enrichment_observations(conn, res, bridge_result, "2026-06-19T22:00:00Z")
+    assert write_res.status == "SUCCESS"
+
+    # Read observation payloads
+    cursor = conn.execute("SELECT payload_json FROM fixture_capability_observation")
+    payloads = [json.loads(row[0]) for row in cursor.fetchall()]
+
+    # Verify each payload has explicit fact scopes and duplication flag
+    for payload in payloads:
+        assert "fact_scopes" in payload
+        assert "duplicated_for_schema_team_id_constraint" in payload
+        # Ensure correct scopes
+        scopes = payload["fact_scopes"]
+        for fact_name, scope in scopes.items():
+            assert scope in ("TEAM_HOME", "TEAM_AWAY", "FIXTURE_LEVEL", "UNKNOWN")
+
+
+def test_evidence_package_revision_member_count() -> None:
+    """Verify member_count corresponds strictly to facts of that evidence_identity."""
+    conn = create_temp_sqlite_store()
+    scanner_event = load_acceptance_scanner_event()
+    bridge_result = load_acceptance_bridge_result()
+
+    request = CanonicalFixtureResolutionRequest(
+        scanner_event=scanner_event,
+        provider_id="espn-fifa-worldcup",
+        provider_event_id="760442",
+        profile_id="world-cup-2026",
+        competition_scope=scanner_event.canonical_competition_scope,
+        season_scope=scanner_event.canonical_season_scope,
+        evidence_identity="1f8cdb0748846c1cec8b312ad47f5607b116e3c17a56eb32a8f0ac6f537c73b0",
+        schema_fingerprint="1adbcb1991fbe027d188ffc1f3241a1a555f26d209df871e6c58c36d47828839",
+    )
+
+    res = resolve_canonical_fixture(conn, request)
+    write_enrichment_observations(conn, res, bridge_result, "2026-06-19T22:00:00Z")
+
+    # Check member counts
+    cursor = conn.execute("SELECT package_id, member_count FROM evidence_package_revision")
+    rows = cursor.fetchall()
+    for pkg_id, count in rows:
+        # Pkg facts count from bridge_result should match member_count
+        hash_seed = pkg_id[4:] # strip pkg_
+        pkg_facts_count = len([f for f in bridge_result.facts if f.evidence_identity == hash_seed])
+        assert count == pkg_facts_count
+
+
+def test_live_to_final_status_drift() -> None:
+    """Validate live-to-final drift evaluates to STATUS_DRIFT_REFRESH_REQUIRED."""
+    policy = EvidenceFreshnessPolicy(
+        capability="current_discovery",
+        ttl_seconds_pre_match=300,
+        ttl_seconds_live=60,
+        ttl_seconds_post_final=86400,
+        final_state_locks=("STATUS_FULL_TIME",),
+        status_sensitive=True,
+    )
+
+    # Cached matches in-progress (STATUS_SECOND_HALF) but live is final (STATUS_FULL_TIME)
+    input_data = EvidenceFreshnessInput(
+        profile_id="world-cup-2026",
+        capability="current_discovery",
+        provider_id="espn-fifa-worldcup",
+        provider_event_id="760442",
+        scanner_event_id="66456944",
+        evidence_retrieved_at="2026-06-20T06:00:00Z",
+        evidence_event_status_state="in",
+        evidence_event_status_name="STATUS_SECOND_HALF",
+        current_event_status_state="post",
+        current_event_status_name="STATUS_FULL_TIME",
+        now_utc="2026-06-20T06:01:00Z",
+    )
+
+    decision = evaluate_freshness(policy, input_data)
+    assert decision.decision == "STATUS_DRIFT_REFRESH_REQUIRED"
+    assert decision.must_refresh is True
+
+
+def test_stale_status_sensitive_evidence_cannot_be_reused_blindly() -> None:
+    """Verify expired TTL status-sensitive evidence requires refresh."""
+    policy = EvidenceFreshnessPolicy(
+        capability="current_discovery",
+        ttl_seconds_pre_match=300,
+        ttl_seconds_live=60,
+        ttl_seconds_post_final=86400,
+        final_state_locks=("STATUS_FULL_TIME",),
+        status_sensitive=True,
+    )
+
+    input_data = EvidenceFreshnessInput(
+        profile_id="world-cup-2026",
+        capability="current_discovery",
+        provider_id="espn-fifa-worldcup",
+        provider_event_id="760442",
+        scanner_event_id="66456944",
+        evidence_retrieved_at="2026-06-20T06:00:00Z",
+        evidence_event_status_state="pre",
+        evidence_event_status_name="STATUS_SCHEDULED",
+        current_event_status_state="pre",
+        current_event_status_name="STATUS_SCHEDULED",
+        now_utc="2026-06-20T06:10:00Z", # 10 minutes later (exceeds pre TTL 300s)
+    )
+
+    decision = evaluate_freshness(policy, input_data)
+    assert decision.decision == "STALE_REFRESH_REQUIRED"
+    assert decision.must_refresh is True

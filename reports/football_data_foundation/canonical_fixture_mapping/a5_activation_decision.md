@@ -1,38 +1,24 @@
-# A5 Activation Decision Report
+# Honest Activation Decision Report (A5C1)
 
-**Phase:** Football Data Foundation - A5 Canonical Fixture Resolution and Temp SQLite DB Mapping Proof  
+This report details the honest activation decisions for production database mapping, capability matrix, and routing configurations.
 
-## Activation Decision Summary
+## 1. Production Deployment Statuses
 
-The proof of concept for canonical fixture resolution and DB table mapping has been completely and successfully executed. We have shown that the existing repository schema can safely represent scanner events and enrichment facts using a temporary, isolated SQLite connection.
+| Module / Decision Component | Mandatory Activation Status Value |
+| :--- | :--- |
+| **Canonical Fixture Mapping** | `TEMP_SQLITE_CANONICAL_MAPPING_PROVEN_WITH_CONSTRAINTS` |
+| **Production DB Adapter** | `PRODUCTION_DB_ADAPTER_DEFERRED` |
+| **Capability Matrix Activation** | `MATRIX_ACTIVATION_DEFERRED` |
+| **Enrichment Routing Activation** | `ROUTING_ACTIVATION_DEFERRED` |
 
-### Status Highlights
+## 2. Identified Downstream Blockers
 
-1. **Canonical Fixture Mapping Status**
-   - **Status:** `DB_CANONICAL_MAPPING_PROVEN_IN_TEMP_SQLITE`
-   - **Details:** The resolver correctly maps separate scanner and provider IDs, creates the necessary core tables, and maintains complete idempotency.
+Before any final production DB adapter activation, matrix activation, or routing activation may occur, the following seven critical blockers must be resolved:
 
-2. **Production DB Adapter Status**
-   - **Status:** `PRODUCTION_DB_ADAPTER_DEFERRED`
-   - **Details:** We defer connecting to the production database `betting/data/betting.db` to prevent premature mutations or risks to ongoing production processes.
-
-3. **Matrix Activation Status**
-   - **Status:** `MATRIX_ACTIVATION_DEFERRED`
-   - **Details:** Provider capability matrix activation is deferred to maintain a safe, clean separation of concern.
-
-4. **Routing Activation Status**
-   - **Status:** `ROUTING_ACTIVATION_DEFERRED`
-   - **Details:** Football routing activation is deferred to prevent downstream components (e.g. predictions, coupons, staking) from reading incomplete mapping states.
-
-### Sufficiency of Temporary SQLite Proof
-
-The temporary SQLite proof is **fully sufficient** for moving into the next migration and adapter phase. It demonstrates that the current schema version `20` handles:
-- Core relationships (sports -> competitions -> teams -> fixtures).
-- Multi-source references (`fixture_sources`).
-- Generic sports enrichment concepts (`sports_entity`, `source_entity_reference`).
-- Temporal observation captures (`fixture_capability_observation`, `fixture_capability_projection`).
-
-### Next Required Conditions
-
-- **For Real DB Adapter Activation:** User review and approval of the mapping schemas demonstrated in A5, followed by establishing a safe production bridge connection.
-- **For Routing Activation:** Creation of a secure, isolated enrichment route configuration in `football_routing.yaml` that directs only enrichment-scoped traffic without bleeding into decision engines.
+1. **Live Freshness Status:** Integrating and testing the `check_live_status_drift` function with a persistent scheduling clock inside the pipeline loop.
+2. **Real DB Adapter Safety:** Proving transaction isolation and non-destructive writes on a copied production file.
+3. **Fixture-level Fact Scope:** Training downstream consumers to respect `"duplicated_for_schema_team_id_constraint": true` and `"fact_scopes"` to avoid double-counting.
+4. **Consumer Isolation:** Isolating and securing query paths for downstream predictions/valuation modules.
+5. **Source Mapping Conflict Handling:** Creating administrative fallback procedures for resolving `AMBIGUOUS_FIXTURE_MATCH` or `SOURCE_EXTERNAL_ID_CONFLICT` errors.
+6. **Schema Version Consistency:** Ensuring production database matches SCHEMA_VERSION 20.
+7. **Production DB Non-destructive Adapter Proof:** Formulating focused automated concurrency and performance load tests on SQLite pools.
