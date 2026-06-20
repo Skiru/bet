@@ -76,11 +76,29 @@ def write_enrichment_observations(
     away_team_id = resolution.away_team_id
     profile_id = bridge_result.profile_id
     scanner_event_id = bridge_result.scanner_event_id
-    sport_name = bridge_result.facts[0].fact_id.split(":")[0] if bridge_result.facts else "football"
-    if "_" in sport_name:
-        sport_name = "football"
 
     diagnostics: dict[str, Any] = {}
+    sport_name = None
+    if resolution.sport_id is not None:
+        cursor = conn.execute(
+            "SELECT name FROM sports WHERE id = ?", (resolution.sport_id,)
+        )
+        row = cursor.fetchone()
+        if row:
+            sport_name = row[0]
+
+    if not sport_name:
+        return ObservationWriteResult(
+            status="SPORT_CONTEXT_MISSING",
+            fixture_id=fixture_id,
+            observation_ids=(),
+            projection_ids=(),
+            evidence_package_id=None,
+            run_id=None,
+            attempt_ids=(),
+            diagnostics={"error": "Sport context missing or cannot be proven"},
+        )
+
     now_str = datetime.datetime.now(datetime.UTC).isoformat()
 
     try:
@@ -99,7 +117,11 @@ def write_enrichment_observations(
                     break
 
             # Count facts strictly belonging to this evidence package
-            pkg_facts = [f for f in bridge_result.facts if f.evidence_identity == evidence_identity]
+            pkg_facts = [
+                f
+                for f in bridge_result.facts
+                if f.evidence_identity == evidence_identity
+            ]
             member_count = len(pkg_facts)
 
             cursor = conn.execute(
@@ -138,7 +160,11 @@ def write_enrichment_observations(
         if run_row:
             run_id = run_row[0]
         else:
-            caps = [d.get("capability") for d in bridge_result.fetch_decisions if d.get("capability")]
+            caps = [
+                d.get("capability")
+                for d in bridge_result.fetch_decisions
+                if d.get("capability")
+            ]
             if not caps:
                 caps = ["current_discovery", "detailed_metrics", "current_form"]
             requested_capabilities_str = ",".join(caps)
@@ -177,21 +203,47 @@ def write_enrichment_observations(
             if att_row:
                 attempt_ids.append(att_row[0])
             else:
-                provider_priority = decision.get("provider_priority", ["espn-fifa-worldcup"])
-                provider = provider_priority[0] if provider_priority else "espn-fifa-worldcup"
+                provider_priority = decision.get(
+                    "provider_priority", ["espn-fifa-worldcup"]
+                )
+                provider = (
+                    provider_priority[0] if provider_priority else "espn-fifa-worldcup"
+                )
 
                 # Extract status and http_status dynamically from bridge/completeness state
-                status_val = "COMPLETED"
-                http_status_val = 200
+                matched_state = None
                 for state in bridge_result.completeness_state:
                     if state.capability == capability:
-                        is_err = "ERROR" in state.completeness_status or "FAILED" in state.completeness_status
-                        if is_err:
-                            status_val = "FAILED"
-                            http_status_val = 500
-                        elif "STALE" in state.completeness_status:
-                            status_val = "STALE"
-                            http_status_val = 200
+                        matched_state = state
+                        break
+
+                if matched_state is None:
+                    status_val = "UNKNOWN_EVIDENCE_STATE"
+                    http_status_val = None
+                    selectable_val = 0
+                    diag_info = dict(decision)
+                    diag_info["missing_completeness_evidence_state"] = (
+                        f"No completeness state found for capability {capability}"
+                    )
+                else:
+                    is_err = (
+                        "ERROR" in matched_state.completeness_status
+                        or "FAILED" in matched_state.completeness_status
+                    )
+                    is_stale = "STALE" in matched_state.completeness_status
+                    if is_err:
+                        status_val = "FAILED"
+                        http_status_val = 500
+                        selectable_val = 0
+                    elif is_stale:
+                        status_val = "STALE"
+                        http_status_val = 200
+                        selectable_val = 0
+                    else:
+                        status_val = "COMPLETED"
+                        http_status_val = 200
+                        selectable_val = 1
+                    diag_info = dict(decision)
 
                 cursor = conn.execute(
                     "INSERT INTO source_operation_attempt "
@@ -212,9 +264,11 @@ def write_enrichment_observations(
                         0,
                         "1.0.0",
                         "1",
-                        bridge_result.evidence_identities[0] if bridge_result.evidence_identities else "",
-                        1,
-                        json.dumps(decision),
+                        bridge_result.evidence_identities[0]
+                        if bridge_result.evidence_identities
+                        else "",
+                        selectable_val,
+                        json.dumps(diag_info),
                     ),
                 )
                 attempt_ids.append(cursor.lastrowid)
@@ -243,35 +297,75 @@ def write_enrichment_observations(
                     break
 
             has_fixture_level = False
+            quarantined_unknown = []
             for fact in group_facts:
                 fact_name = fact.fact_name
-                fact_val = fact.fact_value_num if fact.fact_value_num is not None else fact.fact_value_text
+                fact_val = (
+                    fact.fact_value_num
+                    if fact.fact_value_num is not None
+                    else fact.fact_value_text
+                )
                 scope = classify_fact_scope(fact_name)
 
                 if scope == "TEAM_HOME":
                     home_payload[fact_name] = fact_val
                 elif scope == "TEAM_AWAY":
                     away_payload[fact_name] = fact_val
-                else:
-                    # Fixture-level or Unknown: copy to both teams
+                elif scope == "FIXTURE_LEVEL":
+                    # Fixture-level: copy to both teams
                     home_payload[fact_name] = fact_val
                     away_payload[fact_name] = fact_val
                     has_fixture_level = True
+                else:
+                    # Quarantine UNKNOWN facts into diagnostics and do not write observations/projections
+                    quarantined_unknown.append(
+                        {
+                            "fact_name": fact_name,
+                            "fact_value": fact_val,
+                            "capability": fact.capability,
+                            "evidence_identity": fact.evidence_identity,
+                        }
+                    )
+
+            if quarantined_unknown:
+                if "quarantined_unknown_facts" not in diagnostics:
+                    diagnostics["quarantined_unknown_facts"] = []
+                diagnostics["quarantined_unknown_facts"].extend(quarantined_unknown)
 
             # Mark duplication & fact scopes explicitly to avoid double counting
             if home_payload:
-                home_payload["duplicated_for_schema_team_id_constraint"] = has_fixture_level
+                home_payload["duplicated_for_schema_team_id_constraint"] = (
+                    has_fixture_level
+                )
+                home_payload["fixture_level_projectable_policy"] = (
+                    "SELECTABLE_FIXTURE_LEVEL"
+                )
                 home_payload["fact_scopes"] = {
                     name: classify_fact_scope(name)
                     for name in home_payload
-                    if name not in ("duplicated_for_schema_team_id_constraint", "fact_scopes")
+                    if name
+                    not in (
+                        "duplicated_for_schema_team_id_constraint",
+                        "fact_scopes",
+                        "fixture_level_projectable_policy",
+                    )
                 }
             if away_payload:
-                away_payload["duplicated_for_schema_team_id_constraint"] = has_fixture_level
+                away_payload["duplicated_for_schema_team_id_constraint"] = (
+                    has_fixture_level
+                )
+                away_payload["fixture_level_projectable_policy"] = (
+                    "SELECTABLE_FIXTURE_LEVEL"
+                )
                 away_payload["fact_scopes"] = {
                     name: classify_fact_scope(name)
                     for name in away_payload
-                    if name not in ("duplicated_for_schema_team_id_constraint", "fact_scopes")
+                    if name
+                    not in (
+                        "duplicated_for_schema_team_id_constraint",
+                        "fact_scopes",
+                        "fixture_level_projectable_policy",
+                    )
                 }
 
             # Write observation for home team
@@ -285,7 +379,9 @@ def write_enrichment_observations(
                     f"{profile_id}:{scanner_event_id}:{evidence_identity}_"
                     f"{evidence_identity}_{home_sha}"
                 )
-                logical_identity_hash = hashlib.sha256(dimensions_str.encode("utf-8")).hexdigest()
+                logical_identity_hash = hashlib.sha256(
+                    dimensions_str.encode("utf-8")
+                ).hexdigest()
                 logical_identity = f"obs_{logical_identity_hash[:40]}"
 
                 cursor = conn.execute(
@@ -369,7 +465,9 @@ def write_enrichment_observations(
                     f"{profile_id}:{scanner_event_id}:{evidence_identity}_"
                     f"{evidence_identity}_{away_sha}"
                 )
-                logical_identity_hash = hashlib.sha256(dimensions_str.encode("utf-8")).hexdigest()
+                logical_identity_hash = hashlib.sha256(
+                    dimensions_str.encode("utf-8")
+                ).hexdigest()
                 logical_identity = f"obs_{logical_identity_hash[:40]}"
 
                 cursor = conn.execute(

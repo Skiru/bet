@@ -7,6 +7,7 @@ from unittest.mock import MagicMock
 
 from bet.enrichment.football_data_foundation.canonical_fixture_resolver import (
     CanonicalFixtureResolutionRequest,
+    CanonicalFixtureResolutionResult,
     resolve_canonical_fixture,
     table_exists,
 )
@@ -55,7 +56,9 @@ def load_acceptance_bridge_result() -> ScannerEnrichmentRunRecord:
     data = json.loads(BRIDGE_RESULT_PATH.read_text(encoding="utf-8"))
     res_data = data["result"]
     facts = tuple(PersistedEnrichmentFact.from_dict(f) for f in res_data["facts"])
-    completeness = tuple(PersistedCompletenessState.from_dict(c) for c in res_data["completeness_state"])
+    completeness = tuple(
+        PersistedCompletenessState.from_dict(c) for c in res_data["completeness_state"]
+    )
     return ScannerEnrichmentRunRecord(
         profile_id=res_data["profile_id"],
         scanner_event_id=res_data["scanner_event_id"],
@@ -196,7 +199,7 @@ def test_ambiguous_fixture_match_fails_closed() -> None:
     request_2 = CanonicalFixtureResolutionRequest(
         scanner_event=modified_event,
         provider_id="espn-fifa-worldcup",
-        provider_event_id="760442", # Reuses same provider ID
+        provider_event_id="760442",  # Reuses same provider ID
         profile_id="world-cup-2026",
         competition_scope=scanner_event.canonical_competition_scope,
         season_scope=scanner_event.canonical_season_scope,
@@ -229,7 +232,9 @@ def test_observation_writer_populates_tables_correctly_and_is_idempotent() -> No
     analysis_cutoff_at = "2026-06-19T22:00:00Z"
 
     # First write
-    write_1 = write_enrichment_observations(conn, resolution, bridge_result, analysis_cutoff_at)
+    write_1 = write_enrichment_observations(
+        conn, resolution, bridge_result, analysis_cutoff_at
+    )
     assert write_1.status == "SUCCESS"
     assert write_1.run_id is not None
     assert len(write_1.observation_ids) == 6
@@ -237,7 +242,9 @@ def test_observation_writer_populates_tables_correctly_and_is_idempotent() -> No
     assert len(write_1.attempt_ids) == 3
 
     # Second write (Idempotent)
-    write_2 = write_enrichment_observations(conn, resolution, bridge_result, analysis_cutoff_at)
+    write_2 = write_enrichment_observations(
+        conn, resolution, bridge_result, analysis_cutoff_at
+    )
     assert write_2.status == "SUCCESS"
     assert write_1.run_id == write_2.run_id
     assert write_1.observation_ids == write_2.observation_ids
@@ -261,7 +268,9 @@ def test_no_betting_decision_tables_are_written() -> None:
     )
 
     resolution = resolve_canonical_fixture(conn, request)
-    write_enrichment_observations(conn, resolution, bridge_result, "2026-06-19T22:00:00Z")
+    write_enrichment_observations(
+        conn, resolution, bridge_result, "2026-06-19T22:00:00Z"
+    )
 
     # Verify decision tables are completely empty
     decision_tables = [
@@ -316,6 +325,7 @@ def test_future_non_world_cup_profile_integration() -> None:
 
 # Tightened A5C1 Hardening Tests
 
+
 def test_source_external_id_conflict_handling() -> None:
     """Validate that resolving a fixture with mismatched external_id returns conflict."""
     conn = create_temp_sqlite_store()
@@ -323,8 +333,12 @@ def test_source_external_id_conflict_handling() -> None:
 
     # Insert parent rows to satisfy foreign keys
     conn.execute("INSERT INTO sports (id, name) VALUES (1, 'football')")
-    conn.execute("INSERT INTO competitions (id, sport_id, name, season) VALUES (1, 1, 'comp-1', '2026')")
-    conn.execute("INSERT INTO teams (id, sport_id, name) VALUES (1, 1, 'United States')")
+    conn.execute(
+        "INSERT INTO competitions (id, sport_id, name, season) VALUES (1, 1, 'comp-1', '2026')"
+    )
+    conn.execute(
+        "INSERT INTO teams (id, sport_id, name) VALUES (1, 1, 'United States')"
+    )
     conn.execute("INSERT INTO teams (id, sport_id, name) VALUES (2, 1, 'Australia')")
 
     # Insert existing mapping
@@ -363,8 +377,12 @@ def test_team_alias_ambiguity_fails_closed() -> None:
 
     # Insert parents with different canonical names
     conn.execute("INSERT INTO sports (id, name) VALUES (1, 'football')")
-    conn.execute("INSERT INTO teams (id, sport_id, name) VALUES (101, 1, 'Canonical Team USA')")
-    conn.execute("INSERT INTO teams (id, sport_id, name) VALUES (202, 1, 'Canonical Team Australia')")
+    conn.execute(
+        "INSERT INTO teams (id, sport_id, name) VALUES (101, 1, 'Canonical Team USA')"
+    )
+    conn.execute(
+        "INSERT INTO teams (id, sport_id, name) VALUES (202, 1, 'Canonical Team Australia')"
+    )
 
     # Insert duplicate aliases for 'United States'
     conn.execute(
@@ -412,7 +430,9 @@ def test_competition_country_does_not_store_group_label() -> None:
     result = resolve_canonical_fixture(conn, request)
     assert result.status == "CREATED_CANONICAL_FIXTURE"
 
-    cursor = conn.execute("SELECT country FROM competitions WHERE id = ?", (result.competition_id,))
+    cursor = conn.execute(
+        "SELECT country FROM competitions WHERE id = ?", (result.competition_id,)
+    )
     country = cursor.fetchone()[0]
     # Should be None (null), not Group D
     assert country is None
@@ -421,16 +441,20 @@ def test_competition_country_does_not_store_group_label() -> None:
 class MockConnection:
     def __init__(self, conn):
         self.conn = conn
+
     def execute(self, sql, *args):
         if "FROM fixtures" in sql and "home_team_id = ?" in sql:
             mock_cursor = MagicMock()
             mock_cursor.fetchall.return_value = [(10, 1), (20, 2)]
             return mock_cursor
         return self.conn.execute(sql, *args)
+
     def commit(self):
         self.conn.commit()
+
     def rollback(self):
         self.conn.rollback()
+
     def close(self):
         self.conn.close()
 
@@ -453,7 +477,7 @@ def test_natural_fixture_conflict_across_competition_returns_ambiguity() -> None
         schema_fingerprint="fingerprint-1",
     )
 
-    result = resolve_canonical_fixture(mock_conn, request) # type: ignore
+    result = resolve_canonical_fixture(mock_conn, request)  # type: ignore
     assert result.status == "AMBIGUOUS_FIXTURE_MATCH"
     assert result.fixture_id is None
 
@@ -476,7 +500,9 @@ def test_fact_scoping_and_duplication_flagging() -> None:
     )
 
     res = resolve_canonical_fixture(conn, request)
-    write_res = write_enrichment_observations(conn, res, bridge_result, "2026-06-19T22:00:00Z")
+    write_res = write_enrichment_observations(
+        conn, res, bridge_result, "2026-06-19T22:00:00Z"
+    )
     assert write_res.status == "SUCCESS"
 
     # Read observation payloads
@@ -514,12 +540,16 @@ def test_evidence_package_revision_member_count() -> None:
     write_enrichment_observations(conn, res, bridge_result, "2026-06-19T22:00:00Z")
 
     # Check member counts
-    cursor = conn.execute("SELECT package_id, member_count FROM evidence_package_revision")
+    cursor = conn.execute(
+        "SELECT package_id, member_count FROM evidence_package_revision"
+    )
     rows = cursor.fetchall()
     for pkg_id, count in rows:
         # Pkg facts count from bridge_result should match member_count
-        hash_seed = pkg_id[4:] # strip pkg_
-        pkg_facts_count = len([f for f in bridge_result.facts if f.evidence_identity == hash_seed])
+        hash_seed = pkg_id[4:]  # strip pkg_
+        pkg_facts_count = len(
+            [f for f in bridge_result.facts if f.evidence_identity == hash_seed]
+        )
         assert count == pkg_facts_count
 
 
@@ -554,6 +584,425 @@ def test_live_to_final_status_drift() -> None:
     assert decision.must_refresh is True
 
 
+def test_no_hardcoded_football_fallback_for_non_football_sport() -> None:
+    """Verify that a non-football sport does not fallback to football."""
+    conn = create_temp_sqlite_store()
+
+    # Create non-football scanner event
+    event = ScannerEventCandidate(
+        scanner_event_id="basketball-event-1",
+        profile_id="nba-2026",
+        sport="basketball",
+        canonical_competition_scope="basketball:usa.nba",
+        canonical_season_scope="2026",
+        kickoff_local="2026-06-20T20:00:00-04:00",
+        kickoff_utc="2026-06-21T00:00:00Z",
+        home_team_name="Boston Celtics",
+        home_team_code="BOS",
+        away_team_name="LA Lakers",
+        away_team_code="LAL",
+        group_label=None,
+        scanner_source="nba_scanner",
+        scanner_truth_kind="schedule_snapshot",
+        scanner_confidence="high",
+    )
+
+    request = CanonicalFixtureResolutionRequest(
+        scanner_event=event,
+        provider_id="nba-api",
+        provider_event_id="nba-760442",
+        profile_id="nba-2026",
+        competition_scope=event.canonical_competition_scope,
+        season_scope=event.canonical_season_scope,
+        evidence_identity="basketball_evidence_identity_hash",
+        schema_fingerprint="schema_fingerprint_hash",
+    )
+
+    resolution = resolve_canonical_fixture(conn, request)
+    assert resolution.status == "CREATED_CANONICAL_FIXTURE"
+
+    # Check that sport_id is created and mapped to 'basketball'
+    cursor = conn.execute(
+        "SELECT name FROM sports WHERE id = ?", (resolution.sport_id,)
+    )
+    assert cursor.fetchone()[0] == "basketball"
+
+    # Build fake bridge result
+    bridge_result = ScannerEnrichmentRunRecord(
+        profile_id="nba-2026",
+        scanner_event_id="basketball-event-1",
+        provider_event_id="nba-760442",
+        evidence_identity="basketball_evidence_identity_hash",
+        provider_event_ids=("nba-760442",),
+        evidence_identities=("basketball_evidence_identity_hash",),
+        facts=(
+            PersistedEnrichmentFact(
+                fact_id="basketball:point_spread",
+                evidence_identity="basketball_evidence_identity_hash",
+                scanner_event_id="basketball-event-1",
+                provider_event_id="nba-760442",
+                profile_id="nba-2026",
+                capability="current_discovery",
+                fact_name="point_spread_home",
+                fact_value_num=-4.5,
+                fact_value_text=None,
+                source_consensus="nba-api",
+                schema_fingerprint="schema_fingerprint_hash",
+                created_at="2026-06-20T22:00:00Z",
+            ),
+        ),
+        completeness_state=(
+            PersistedCompletenessState(
+                profile_id="nba-2026",
+                scanner_event_id="basketball-event-1",
+                entity_type="EVENT",
+                capability="current_discovery",
+                provider_id="nba-api",
+                evidence_identity="basketball_evidence_identity_hash",
+                completeness_status="COMPLETE_FRESH",
+                schema_fingerprint="schema_fingerprint_hash",
+                last_enriched_at="2026-06-20T22:00:00Z",
+                last_verified_at="2026-06-20T22:00:00Z",
+            ),
+        ),
+        fetch_decisions=(
+            {"capability": "current_discovery", "provider_priority": ["nba-api"]},
+        ),
+        status="ENRICHED_COMPLETE",
+        storage_kind="temp-sqlite",
+        db_activation_status="deferred",
+        production_betting_decision=False,
+        force_refresh=False,
+    )
+
+    write_res = write_enrichment_observations(
+        conn, resolution, bridge_result, "2026-06-20T22:00:00Z"
+    )
+    assert write_res.status == "SUCCESS"
+
+    # Verify sport in sports_enrichment_run is basketball and not football
+    cursor = conn.execute(
+        "SELECT sport FROM sports_enrichment_run WHERE id = ?", (write_res.run_id,)
+    )
+    assert cursor.fetchone()[0] == "basketball"
+
+
+def test_sport_context_missing_returns_correct_blocked_status() -> None:
+    """Verify that if sport context cannot be resolved, ObservationWriteResult is SPORT_CONTEXT_MISSING."""
+    conn = create_temp_sqlite_store()
+
+    # Create fake resolution with sport_id = None
+    resolution = CanonicalFixtureResolutionResult(
+        status="MATCHED_EXISTING_FIXTURE",
+        scanner_event_id="some-id",
+        provider_event_id="some-provider-id",
+        sport_id=None,  # Missing!
+        competition_id=1,
+        home_team_id=1,
+        away_team_id=2,
+        fixture_id=1,
+        sports_entity_event_id=1,
+        source_reference_ids=(1,),
+        fixture_source_ids=(1,),
+        diagnostics={},
+    )
+
+    bridge_result = load_acceptance_bridge_result()
+    write_res = write_enrichment_observations(
+        conn, resolution, bridge_result, "2026-06-20T22:00:00Z"
+    )
+    assert write_res.status == "SPORT_CONTEXT_MISSING"
+    assert "Sport context missing" in write_res.diagnostics["error"]
+
+
+def test_source_operation_attempt_evidence_state_mapping() -> None:
+    """Verify source_operation_attempt fields under various completeness states."""
+    conn = create_temp_sqlite_store()
+    scanner_event = load_acceptance_scanner_event()
+
+    request = CanonicalFixtureResolutionRequest(
+        scanner_event=scanner_event,
+        provider_id="espn-fifa-worldcup",
+        provider_event_id="760442",
+        profile_id="world-cup-2026",
+        competition_scope=scanner_event.canonical_competition_scope,
+        season_scope=scanner_event.canonical_season_scope,
+        evidence_identity="1f8cdb0748846c1cec8b312ad47f5607b116e3c17a56eb32a8f0ac6f537c73b0",
+        schema_fingerprint="1adbcb1991fbe027d188ffc1f3241a1a555f26d209df871e6c58c36d47828839",
+    )
+    resolution = resolve_canonical_fixture(conn, request)
+
+    # 1. State 1: missing completeness state for detailed_metrics capability
+    bridge_result = ScannerEnrichmentRunRecord(
+        profile_id="world-cup-2026",
+        scanner_event_id="66456944",
+        provider_event_id="760442",
+        evidence_identity="1f8cdb0748846c1cec8b312ad47f5607b116e3c17a56eb32a8f0ac6f537c73b0",
+        provider_event_ids=("760442",),
+        evidence_identities=(
+            "1f8cdb0748846c1cec8b312ad47f5607b116e3c17a56eb32a8f0ac6f537c73b0",
+        ),
+        facts=(),
+        completeness_state=(
+            PersistedCompletenessState(
+                profile_id="world-cup-2026",
+                scanner_event_id="66456944",
+                entity_type="EVENT",
+                capability="current_discovery",
+                provider_id="espn-fifa-worldcup",
+                evidence_identity="1f8cdb0748846c1cec8b312ad47f5607b116e3c17a56eb32a8f0ac6f537c73b0",
+                completeness_status="COMPLETE_FRESH",
+                schema_fingerprint="1adbcb1991fbe027d188ffc1f3241a1a555f26d209df871e6c58c36d47828839",
+                last_enriched_at="2026-06-20T22:00:00Z",
+                last_verified_at="2026-06-20T22:00:00Z",
+            ),
+        ),
+        fetch_decisions=(
+            {
+                "capability": "detailed_metrics",
+                "provider_priority": ["espn-fifa-worldcup"],
+            },
+        ),
+        status="ENRICHED_PARTIAL",
+        storage_kind="temp-sqlite",
+        db_activation_status="deferred",
+        production_betting_decision=False,
+        force_refresh=False,
+    )
+
+    write_res = write_enrichment_observations(
+        conn, resolution, bridge_result, "2026-06-20T22:00:00Z"
+    )
+    assert write_res.status == "SUCCESS"
+
+    cursor = conn.execute(
+        "SELECT status, http_status, selectable, diagnostics FROM source_operation_attempt WHERE run_id = ?",
+        (write_res.run_id,),
+    )
+    attempt = cursor.fetchone()
+    assert attempt is not None
+    assert attempt[0] == "UNKNOWN_EVIDENCE_STATE"
+    assert attempt[1] is None
+    assert attempt[2] == 0
+    diags = json.loads(attempt[3])
+    assert "missing_completeness_evidence_state" in diags
+
+    # 2. State 2: failed state
+    bridge_result_failed = ScannerEnrichmentRunRecord(
+        profile_id="world-cup-2026",
+        scanner_event_id="66456944",
+        provider_event_id="760442",
+        evidence_identity="1f8cdb0748846c1cec8b312ad47f5607b116e3c17a56eb32a8f0ac6f537c73b0",
+        provider_event_ids=("760442",),
+        evidence_identities=(
+            "1f8cdb0748846c1cec8b312ad47f5607b116e3c17a56eb32a8f0ac6f537c73b0",
+        ),
+        facts=(),
+        completeness_state=(
+            PersistedCompletenessState(
+                profile_id="world-cup-2026",
+                scanner_event_id="66456944",
+                entity_type="EVENT",
+                capability="detailed_metrics",
+                provider_id="espn-fifa-worldcup",
+                evidence_identity="1f8cdb0748846c1cec8b312ad47f5607b116e3c17a56eb32a8f0ac6f537c73b0",
+                completeness_status="FAILED_ERROR",
+                schema_fingerprint="1adbcb1991fbe027d188ffc1f3241a1a555f26d209df871e6c58c36d47828839",
+                last_enriched_at="2026-06-20T22:00:00Z",
+                last_verified_at="2026-06-20T22:00:00Z",
+            ),
+        ),
+        fetch_decisions=(
+            {
+                "capability": "detailed_metrics",
+                "provider_priority": ["espn-fifa-worldcup"],
+            },
+        ),
+        status="ENRICHED_PARTIAL",
+        storage_kind="temp-sqlite",
+        db_activation_status="deferred",
+        production_betting_decision=False,
+        force_refresh=False,
+    )
+    write_res_failed = write_enrichment_observations(
+        conn, resolution, bridge_result_failed, "2026-06-21T22:00:00Z"
+    )
+    assert write_res_failed.status == "SUCCESS"
+    cursor = conn.execute(
+        "SELECT status, http_status, selectable FROM source_operation_attempt WHERE run_id = ?",
+        (write_res_failed.run_id,),
+    )
+    attempt = cursor.fetchone()
+    assert attempt[0] == "FAILED"
+    assert attempt[1] == 500
+    assert attempt[2] == 0
+
+    # 3. State 3: stale state
+    bridge_result_stale = ScannerEnrichmentRunRecord(
+        profile_id="world-cup-2026",
+        scanner_event_id="66456944",
+        provider_event_id="760442",
+        evidence_identity="1f8cdb0748846c1cec8b312ad47f5607b116e3c17a56eb32a8f0ac6f537c73b0",
+        provider_event_ids=("760442",),
+        evidence_identities=(
+            "1f8cdb0748846c1cec8b312ad47f5607b116e3c17a56eb32a8f0ac6f537c73b0",
+        ),
+        facts=(),
+        completeness_state=(
+            PersistedCompletenessState(
+                profile_id="world-cup-2026",
+                scanner_event_id="66456944",
+                entity_type="EVENT",
+                capability="detailed_metrics",
+                provider_id="espn-fifa-worldcup",
+                evidence_identity="1f8cdb0748846c1cec8b312ad47f5607b116e3c17a56eb32a8f0ac6f537c73b0",
+                completeness_status="STALE_REFRESH_REQUIRED",
+                schema_fingerprint="1adbcb1991fbe027d188ffc1f3241a1a555f26d209df871e6c58c36d47828839",
+                last_enriched_at="2026-06-20T22:00:00Z",
+                last_verified_at="2026-06-20T22:00:00Z",
+            ),
+        ),
+        fetch_decisions=(
+            {
+                "capability": "detailed_metrics",
+                "provider_priority": ["espn-fifa-worldcup"],
+            },
+        ),
+        status="ENRICHED_PARTIAL",
+        storage_kind="temp-sqlite",
+        db_activation_status="deferred",
+        production_betting_decision=False,
+        force_refresh=False,
+    )
+    write_res_stale = write_enrichment_observations(
+        conn, resolution, bridge_result_stale, "2026-06-22T22:00:00Z"
+    )
+    assert write_res_stale.status == "SUCCESS"
+    cursor = conn.execute(
+        "SELECT status, http_status, selectable FROM source_operation_attempt WHERE run_id = ?",
+        (write_res_stale.run_id,),
+    )
+    attempt = cursor.fetchone()
+    assert attempt[0] == "STALE"
+    assert attempt[1] == 200
+    assert attempt[2] == 0
+
+
+def test_unknown_facts_are_quarantined_and_not_projected() -> None:
+    """Verify unknown scope facts are quarantined into diagnostics and never written or projected."""
+    conn = create_temp_sqlite_store()
+    scanner_event = load_acceptance_scanner_event()
+
+    request = CanonicalFixtureResolutionRequest(
+        scanner_event=scanner_event,
+        provider_id="espn-fifa-worldcup",
+        provider_event_id="760442",
+        profile_id="world-cup-2026",
+        competition_scope=scanner_event.canonical_competition_scope,
+        season_scope=scanner_event.canonical_season_scope,
+        evidence_identity="1f8cdb0748846c1cec8b312ad47f5607b116e3c17a56eb32a8f0ac6f537c73b0",
+        schema_fingerprint="1adbcb1991fbe027d188ffc1f3241a1a555f26d209df871e6c58c36d47828839",
+    )
+    resolution = resolve_canonical_fixture(conn, request)
+
+    # Bridge result with one known fixture-level fact and one UNKNOWN scope fact
+    bridge_result = ScannerEnrichmentRunRecord(
+        profile_id="world-cup-2026",
+        scanner_event_id="66456944",
+        provider_event_id="760442",
+        evidence_identity="1f8cdb0748846c1cec8b312ad47f5607b116e3c17a56eb32a8f0ac6f537c73b0",
+        provider_event_ids=("760442",),
+        evidence_identities=(
+            "1f8cdb0748846c1cec8b312ad47f5607b116e3c17a56eb32a8f0ac6f537c73b0",
+        ),
+        facts=(
+            # Known fixture-level fact
+            PersistedEnrichmentFact(
+                fact_id="football:venue_name",
+                evidence_identity="1f8cdb0748846c1cec8b312ad47f5607b116e3c17a56eb32a8f0ac6f537c73b0",
+                scanner_event_id="66456944",
+                provider_event_id="760442",
+                profile_id="world-cup-2026",
+                capability="current_discovery",
+                fact_name="venue_name",
+                fact_value_num=None,
+                fact_value_text="Gillette Stadium",
+                source_consensus="espn-fifa-worldcup",
+                schema_fingerprint="1adbcb1991fbe027d188ffc1f3241a1a555f26d209df871e6c58c36d47828839",
+                created_at="2026-06-20T22:00:00Z",
+            ),
+            # Unknown scope fact
+            PersistedEnrichmentFact(
+                fact_id="football:mysterious_stat_xyz",
+                evidence_identity="1f8cdb0748846c1cec8b312ad47f5607b116e3c17a56eb32a8f0ac6f537c73b0",
+                scanner_event_id="66456944",
+                provider_event_id="760442",
+                profile_id="world-cup-2026",
+                capability="current_discovery",
+                fact_name="mysterious_stat_xyz",
+                fact_value_num=999.0,
+                fact_value_text=None,
+                source_consensus="espn-fifa-worldcup",
+                schema_fingerprint="1adbcb1991fbe027d188ffc1f3241a1a555f26d209df871e6c58c36d47828839",
+                created_at="2026-06-20T22:00:00Z",
+            ),
+        ),
+        completeness_state=(
+            PersistedCompletenessState(
+                profile_id="world-cup-2026",
+                scanner_event_id="66456944",
+                entity_type="EVENT",
+                capability="current_discovery",
+                provider_id="espn-fifa-worldcup",
+                evidence_identity="1f8cdb0748846c1cec8b312ad47f5607b116e3c17a56eb32a8f0ac6f537c73b0",
+                completeness_status="COMPLETE_FRESH",
+                schema_fingerprint="1adbcb1991fbe027d188ffc1f3241a1a555f26d209df871e6c58c36d47828839",
+                last_enriched_at="2026-06-20T22:00:00Z",
+                last_verified_at="2026-06-20T22:00:00Z",
+            ),
+        ),
+        fetch_decisions=(
+            {
+                "capability": "current_discovery",
+                "provider_priority": ["espn-fifa-worldcup"],
+            },
+        ),
+        status="ENRICHED_COMPLETE",
+        storage_kind="temp-sqlite",
+        db_activation_status="deferred",
+        production_betting_decision=False,
+        force_refresh=False,
+    )
+
+    write_res = write_enrichment_observations(
+        conn, resolution, bridge_result, "2026-06-20T22:00:00Z"
+    )
+    assert write_res.status == "SUCCESS"
+
+    # Ensure unknown fact is quarantined into diagnostics
+    assert "quarantined_unknown_facts" in write_res.diagnostics
+    quarantined = write_res.diagnostics["quarantined_unknown_facts"]
+    assert len(quarantined) == 1
+    assert quarantined[0]["fact_name"] == "mysterious_stat_xyz"
+    assert quarantined[0]["fact_value"] == 999.0
+
+    # Ensure observations payloads contain 'venue_name' but NOT 'mysterious_stat_xyz'
+    cursor = conn.execute(
+        "SELECT payload_json FROM fixture_capability_observation WHERE canonical_fixture_id = ?",
+        (resolution.fixture_id,),
+    )
+    payloads = [json.loads(row[0]) for row in cursor.fetchall()]
+    assert len(payloads) > 0
+    for payload in payloads:
+        assert "venue_name" in payload
+        assert "mysterious_stat_xyz" not in payload
+        # Ensure correct markers and scopes
+        assert payload["duplicated_for_schema_team_id_constraint"] is True
+        assert payload["fixture_level_projectable_policy"] == "SELECTABLE_FIXTURE_LEVEL"
+        assert payload["fact_scopes"]["venue_name"] == "FIXTURE_LEVEL"
+        assert "mysterious_stat_xyz" not in payload["fact_scopes"]
+
+
 def test_stale_status_sensitive_evidence_cannot_be_reused_blindly() -> None:
     """Verify expired TTL status-sensitive evidence requires refresh."""
     policy = EvidenceFreshnessPolicy(
@@ -576,7 +1025,7 @@ def test_stale_status_sensitive_evidence_cannot_be_reused_blindly() -> None:
         evidence_event_status_name="STATUS_SCHEDULED",
         current_event_status_state="pre",
         current_event_status_name="STATUS_SCHEDULED",
-        now_utc="2026-06-20T06:10:00Z", # 10 minutes later (exceeds pre TTL 300s)
+        now_utc="2026-06-20T06:10:00Z",  # 10 minutes later (exceeds pre TTL 300s)
     )
 
     decision = evaluate_freshness(policy, input_data)
