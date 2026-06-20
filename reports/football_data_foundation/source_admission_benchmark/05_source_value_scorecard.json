@@ -1,0 +1,752 @@
+{
+  "schema_version": "2.0",
+  "scorecards": [
+    {
+      "source_family": "espn_live_baseline",
+      "evidence_status": "PARSE_ERROR",
+      "measured_capabilities": [],
+      "measured_limitations": [],
+      "recommended_role": "ACCEPTED_BASELINE",
+      "recommended_next_action": "MAINTAIN",
+      "score_breakdown": {
+        "import_score": 10.0,
+        "dependency_score": 10.0,
+        "offline_parse_score": 0.0,
+        "live_api_score": 0.0,
+        "identity_score": 10.0,
+        "temporal_score": 10.0,
+        "fact_yield_score": 0.0,
+        "unique_fact_value_score": 0.0,
+        "current_live_suitability_score": 10.0,
+        "historical_value_score": 2.0,
+        "governance_risk_score": 10.0,
+        "scraper_volatility_risk": 10.0,
+        "maintenance_cost": 10.0,
+        "consumer_safety_score": 10.0
+      },
+      "hard_gates_failed": [],
+      "can_participate_next_phase": true,
+      "next_phase_kind": "current shadow fusion"
+    },
+    {
+      "source_family": "sportdb",
+      "evidence_status": "OFFLINE_FIXTURE_MISSING",
+      "measured_capabilities": [],
+      "measured_limitations": [],
+      "recommended_role": "METADATA_ONLY",
+      "recommended_next_action": "DEFER",
+      "score_breakdown": {
+        "import_score": 10.0,
+        "dependency_score": 10.0,
+        "offline_parse_score": 0.0,
+        "live_api_score": 0.0,
+        "identity_score": 0.0,
+        "temporal_score": 0.0,
+        "fact_yield_score": 0.0,
+        "unique_fact_value_score": 0.0,
+        "current_live_suitability_score": 5.0,
+        "historical_value_score": 2.0,
+        "governance_risk_score": 4.0,
+        "scraper_volatility_risk": 2.0,
+        "maintenance_cost": 3.0,
+        "consumer_safety_score": 4.0
+      },
+      "hard_gates_failed": [
+        "missing_credential_blocks_live_api_proof",
+        "no_identity_fields",
+        "no_temporal_fields"
+      ],
+      "can_participate_next_phase": false,
+      "next_phase_kind": "credential setup"
+    },
+    {
+      "source_family": "football-data.org",
+      "evidence_status": "OFFLINE_FIXTURE_MISSING",
+      "measured_capabilities": [],
+      "measured_limitations": [],
+      "recommended_role": "CURRENT_SHADOW_CANDIDATE",
+      "recommended_next_action": "DEFER",
+      "score_breakdown": {
+        "import_score": 10.0,
+        "dependency_score": 10.0,
+        "offline_parse_score": 0.0,
+        "live_api_score": 0.0,
+        "identity_score": 0.0,
+        "temporal_score": 0.0,
+        "fact_yield_score": 0.0,
+        "unique_fact_value_score": 0.0,
+        "current_live_suitability_score": 5.0,
+        "historical_value_score": 2.0,
+        "governance_risk_score": 4.0,
+        "scraper_volatility_risk": 2.0,
+        "maintenance_cost": 3.0,
+        "consumer_safety_score": 4.0
+      },
+      "hard_gates_failed": [
+        "missing_credential_blocks_live_api_proof",
+        "no_identity_fields",
+        "no_temporal_fields"
+      ],
+      "can_participate_next_phase": false,
+      "next_phase_kind": "credential setup"
+    },
+    {
+      "source_family": "soccerdata_clubelo",
+      "evidence_status": "OFFLINE_FIXTURE_MISSING",
+      "measured_capabilities": [],
+      "measured_limitations": [
+        "scraping_dependency",
+        "fragile_selectors"
+      ],
+      "recommended_role": "OFFLINE_EVIDENCE_ONLY",
+      "recommended_next_action": "DEFER",
+      "score_breakdown": {
+        "import_score": 10.0,
+        "dependency_score": 10.0,
+        "offline_parse_score": 0.0,
+        "live_api_score": 0.0,
+        "identity_score": 0.0,
+        "temporal_score": 0.0,
+        "fact_yield_score": 0.0,
+        "unique_fact_value_score": 0.0,
+        "current_live_suitability_score": 0.0,
+        "historical_value_score": 10.0,
+        "governance_risk_score": 6.0,
+        "scraper_volatility_risk": 2.0,
+        "maintenance_cost": 4.0,
+        "consumer_safety_score": 5.0
+      },
+      "hard_gates_failed": [
+        "historical_dataset_cannot_confirm_current_live_score",
+        "no_identity_fields",
+        "scraping_only_blocks_current_primary"
+      ],
+      "can_participate_next_phase": false,
+      "next_phase_kind": "rejection/no action"
+    },
+    {
+      "source_family": "soccerdata_espn",
+      "evidence_status": "OFFLINE_FIXTURE_MISSING",
+      "measured_capabilities": [],
+      "measured_limitations": [
+        "scraping_dependency",
+        "fragile_selectors"
+      ],
+      "recommended_role": "OFFLINE_EVIDENCE_ONLY",
+      "recommended_next_action": "DEFER",
+      "score_breakdown": {
+        "import_score": 10.0,
+        "dependency_score": 10.0,
+        "offline_parse_score": 0.0,
+        "live_api_score": 0.0,
+        "identity_score": 0.0,
+        "temporal_score": 0.0,
+        "fact_yield_score": 0.0,
+        "unique_fact_value_score": 0.0,
+        "current_live_suitability_score": 5.0,
+        "historical_value_score": 2.0,
+        "governance_risk_score": 6.0,
+        "scraper_volatility_risk": 2.0,
+        "maintenance_cost": 4.0,
+        "consumer_safety_score": 5.0
+      },
+      "hard_gates_failed": [
+        "no_identity_fields",
+        "no_temporal_fields",
+        "scraping_only_blocks_current_primary"
+      ],
+      "can_participate_next_phase": false,
+      "next_phase_kind": "rejection/no action"
+    },
+    {
+      "source_family": "soccerdata_fbref",
+      "evidence_status": "OFFLINE_FIXTURE_MISSING",
+      "measured_capabilities": [],
+      "measured_limitations": [
+        "scraping_dependency",
+        "fragile_selectors"
+      ],
+      "recommended_role": "OFFLINE_EVIDENCE_ONLY",
+      "recommended_next_action": "DEFER",
+      "score_breakdown": {
+        "import_score": 10.0,
+        "dependency_score": 10.0,
+        "offline_parse_score": 0.0,
+        "live_api_score": 0.0,
+        "identity_score": 0.0,
+        "temporal_score": 0.0,
+        "fact_yield_score": 0.0,
+        "unique_fact_value_score": 0.0,
+        "current_live_suitability_score": 5.0,
+        "historical_value_score": 2.0,
+        "governance_risk_score": 6.0,
+        "scraper_volatility_risk": 2.0,
+        "maintenance_cost": 4.0,
+        "consumer_safety_score": 5.0
+      },
+      "hard_gates_failed": [
+        "no_identity_fields",
+        "no_temporal_fields",
+        "scraping_only_blocks_current_primary"
+      ],
+      "can_participate_next_phase": false,
+      "next_phase_kind": "rejection/no action"
+    },
+    {
+      "source_family": "soccerdata_understat",
+      "evidence_status": "OFFLINE_FIXTURE_MISSING",
+      "measured_capabilities": [],
+      "measured_limitations": [
+        "scraping_dependency",
+        "fragile_selectors"
+      ],
+      "recommended_role": "OFFLINE_EVIDENCE_ONLY",
+      "recommended_next_action": "DEFER",
+      "score_breakdown": {
+        "import_score": 10.0,
+        "dependency_score": 10.0,
+        "offline_parse_score": 0.0,
+        "live_api_score": 0.0,
+        "identity_score": 0.0,
+        "temporal_score": 0.0,
+        "fact_yield_score": 0.0,
+        "unique_fact_value_score": 0.0,
+        "current_live_suitability_score": 5.0,
+        "historical_value_score": 2.0,
+        "governance_risk_score": 6.0,
+        "scraper_volatility_risk": 2.0,
+        "maintenance_cost": 4.0,
+        "consumer_safety_score": 5.0
+      },
+      "hard_gates_failed": [
+        "no_identity_fields",
+        "no_temporal_fields",
+        "scraping_only_blocks_current_primary"
+      ],
+      "can_participate_next_phase": false,
+      "next_phase_kind": "rejection/no action"
+    },
+    {
+      "source_family": "soccerdata_whoscored",
+      "evidence_status": "OFFLINE_FIXTURE_MISSING",
+      "measured_capabilities": [],
+      "measured_limitations": [
+        "scraping_dependency",
+        "fragile_selectors"
+      ],
+      "recommended_role": "OFFLINE_EVIDENCE_ONLY",
+      "recommended_next_action": "DEFER",
+      "score_breakdown": {
+        "import_score": 10.0,
+        "dependency_score": 10.0,
+        "offline_parse_score": 0.0,
+        "live_api_score": 0.0,
+        "identity_score": 0.0,
+        "temporal_score": 0.0,
+        "fact_yield_score": 0.0,
+        "unique_fact_value_score": 0.0,
+        "current_live_suitability_score": 5.0,
+        "historical_value_score": 2.0,
+        "governance_risk_score": 6.0,
+        "scraper_volatility_risk": 2.0,
+        "maintenance_cost": 4.0,
+        "consumer_safety_score": 5.0
+      },
+      "hard_gates_failed": [
+        "no_identity_fields",
+        "no_temporal_fields",
+        "scraping_only_blocks_current_primary"
+      ],
+      "can_participate_next_phase": false,
+      "next_phase_kind": "rejection/no action"
+    },
+    {
+      "source_family": "soccerdata_sofascore",
+      "evidence_status": "OFFLINE_FIXTURE_MISSING",
+      "measured_capabilities": [],
+      "measured_limitations": [
+        "scraping_dependency",
+        "fragile_selectors"
+      ],
+      "recommended_role": "OFFLINE_EVIDENCE_ONLY",
+      "recommended_next_action": "DEFER",
+      "score_breakdown": {
+        "import_score": 10.0,
+        "dependency_score": 10.0,
+        "offline_parse_score": 0.0,
+        "live_api_score": 0.0,
+        "identity_score": 0.0,
+        "temporal_score": 0.0,
+        "fact_yield_score": 0.0,
+        "unique_fact_value_score": 0.0,
+        "current_live_suitability_score": 5.0,
+        "historical_value_score": 2.0,
+        "governance_risk_score": 6.0,
+        "scraper_volatility_risk": 2.0,
+        "maintenance_cost": 4.0,
+        "consumer_safety_score": 5.0
+      },
+      "hard_gates_failed": [
+        "no_identity_fields",
+        "no_temporal_fields",
+        "scraping_only_blocks_current_primary"
+      ],
+      "can_participate_next_phase": false,
+      "next_phase_kind": "rejection/no action"
+    },
+    {
+      "source_family": "soccerdata_sofifa",
+      "evidence_status": "OFFLINE_FIXTURE_MISSING",
+      "measured_capabilities": [],
+      "measured_limitations": [
+        "scraping_dependency",
+        "fragile_selectors"
+      ],
+      "recommended_role": "OFFLINE_EVIDENCE_ONLY",
+      "recommended_next_action": "DEFER",
+      "score_breakdown": {
+        "import_score": 10.0,
+        "dependency_score": 10.0,
+        "offline_parse_score": 0.0,
+        "live_api_score": 0.0,
+        "identity_score": 0.0,
+        "temporal_score": 0.0,
+        "fact_yield_score": 0.0,
+        "unique_fact_value_score": 0.0,
+        "current_live_suitability_score": 0.0,
+        "historical_value_score": 10.0,
+        "governance_risk_score": 6.0,
+        "scraper_volatility_risk": 2.0,
+        "maintenance_cost": 4.0,
+        "consumer_safety_score": 5.0
+      },
+      "hard_gates_failed": [
+        "historical_dataset_cannot_confirm_current_live_score",
+        "no_identity_fields",
+        "scraping_only_blocks_current_primary"
+      ],
+      "can_participate_next_phase": false,
+      "next_phase_kind": "rejection/no action"
+    },
+    {
+      "source_family": "soccerdata_matchhistory",
+      "evidence_status": "OFFLINE_FIXTURE_MISSING",
+      "measured_capabilities": [],
+      "measured_limitations": [
+        "scraping_dependency",
+        "fragile_selectors"
+      ],
+      "recommended_role": "OFFLINE_EVIDENCE_ONLY",
+      "recommended_next_action": "DEFER",
+      "score_breakdown": {
+        "import_score": 10.0,
+        "dependency_score": 10.0,
+        "offline_parse_score": 0.0,
+        "live_api_score": 0.0,
+        "identity_score": 0.0,
+        "temporal_score": 0.0,
+        "fact_yield_score": 0.0,
+        "unique_fact_value_score": 0.0,
+        "current_live_suitability_score": 0.0,
+        "historical_value_score": 10.0,
+        "governance_risk_score": 6.0,
+        "scraper_volatility_risk": 2.0,
+        "maintenance_cost": 4.0,
+        "consumer_safety_score": 5.0
+      },
+      "hard_gates_failed": [
+        "historical_dataset_cannot_confirm_current_live_score",
+        "no_identity_fields",
+        "scraping_only_blocks_current_primary"
+      ],
+      "can_participate_next_phase": false,
+      "next_phase_kind": "rejection/no action"
+    },
+    {
+      "source_family": "soccerdata_fivethirtyeight",
+      "evidence_status": "OFFLINE_FIXTURE_MISSING",
+      "measured_capabilities": [],
+      "measured_limitations": [
+        "scraping_dependency",
+        "fragile_selectors"
+      ],
+      "recommended_role": "OFFLINE_EVIDENCE_ONLY",
+      "recommended_next_action": "DEFER",
+      "score_breakdown": {
+        "import_score": 10.0,
+        "dependency_score": 10.0,
+        "offline_parse_score": 0.0,
+        "live_api_score": 0.0,
+        "identity_score": 0.0,
+        "temporal_score": 0.0,
+        "fact_yield_score": 0.0,
+        "unique_fact_value_score": 0.0,
+        "current_live_suitability_score": 5.0,
+        "historical_value_score": 2.0,
+        "governance_risk_score": 6.0,
+        "scraper_volatility_risk": 2.0,
+        "maintenance_cost": 4.0,
+        "consumer_safety_score": 5.0
+      },
+      "hard_gates_failed": [],
+      "can_participate_next_phase": false,
+      "next_phase_kind": "rejection/no action"
+    },
+    {
+      "source_family": "statsbomb_open_data",
+      "evidence_status": "EVIDENCE_READY",
+      "measured_capabilities": [
+        "match_metadata",
+        "player_lineups",
+        "event_sequences",
+        "shot_coordinates",
+        "xg",
+        "freeze_frames"
+      ],
+      "measured_limitations": [
+        "no_live_data"
+      ],
+      "recommended_role": "HISTORICAL_ENRICHMENT_CANDIDATE",
+      "recommended_next_action": "ADMIT",
+      "score_breakdown": {
+        "import_score": 10.0,
+        "dependency_score": 10.0,
+        "offline_parse_score": 10.0,
+        "live_api_score": 0.0,
+        "identity_score": 10.0,
+        "temporal_score": 10.0,
+        "fact_yield_score": 10.0,
+        "unique_fact_value_score": 10.0,
+        "current_live_suitability_score": 0.0,
+        "historical_value_score": 10.0,
+        "governance_risk_score": 10.0,
+        "scraper_volatility_risk": 10.0,
+        "maintenance_cost": 8.0,
+        "consumer_safety_score": 9.0
+      },
+      "hard_gates_failed": [
+        "historical_dataset_cannot_confirm_current_live_score"
+      ],
+      "can_participate_next_phase": true,
+      "next_phase_kind": "historical enrichment backfill"
+    },
+    {
+      "source_family": "statsbombpy",
+      "evidence_status": "DEPENDENCY_BLOCKED",
+      "measured_capabilities": [],
+      "measured_limitations": [],
+      "recommended_role": "DEPENDENCY_BLOCKED",
+      "recommended_next_action": "REJECT",
+      "score_breakdown": {
+        "import_score": 10.0,
+        "dependency_score": 0.0,
+        "offline_parse_score": 0.0,
+        "live_api_score": 0.0,
+        "identity_score": 0.0,
+        "temporal_score": 0.0,
+        "fact_yield_score": 0.0,
+        "unique_fact_value_score": 0.0,
+        "current_live_suitability_score": 5.0,
+        "historical_value_score": 2.0,
+        "governance_risk_score": 10.0,
+        "scraper_volatility_risk": 10.0,
+        "maintenance_cost": 8.0,
+        "consumer_safety_score": 9.0
+      },
+      "hard_gates_failed": [
+        "dependency_missing",
+        "no_facts_extracted",
+        "no_identity_fields",
+        "no_temporal_fields"
+      ],
+      "can_participate_next_phase": false,
+      "next_phase_kind": "rejection/no action"
+    },
+    {
+      "source_family": "kaggle_european_soccer",
+      "evidence_status": "EVIDENCE_READY",
+      "measured_capabilities": [
+        "historical_matches",
+        "historical_scores"
+      ],
+      "measured_limitations": [
+        "no_live_data"
+      ],
+      "recommended_role": "HISTORICAL_ENRICHMENT_CANDIDATE",
+      "recommended_next_action": "ADMIT",
+      "score_breakdown": {
+        "import_score": 10.0,
+        "dependency_score": 10.0,
+        "offline_parse_score": 10.0,
+        "live_api_score": 0.0,
+        "identity_score": 10.0,
+        "temporal_score": 0.0,
+        "fact_yield_score": 4.0,
+        "unique_fact_value_score": 5.0,
+        "current_live_suitability_score": 0.0,
+        "historical_value_score": 10.0,
+        "governance_risk_score": 10.0,
+        "scraper_volatility_risk": 10.0,
+        "maintenance_cost": 8.0,
+        "consumer_safety_score": 9.0
+      },
+      "hard_gates_failed": [
+        "historical_dataset_cannot_confirm_current_live_score"
+      ],
+      "can_participate_next_phase": true,
+      "next_phase_kind": "historical enrichment backfill"
+    },
+    {
+      "source_family": "openfootball",
+      "evidence_status": "EVIDENCE_READY",
+      "measured_capabilities": [
+        "historical_world_cup_schedule",
+        "scores"
+      ],
+      "measured_limitations": [
+        "no_live_data"
+      ],
+      "recommended_role": "REFERENCE_CANDIDATE",
+      "recommended_next_action": "ADMIT",
+      "score_breakdown": {
+        "import_score": 10.0,
+        "dependency_score": 10.0,
+        "offline_parse_score": 10.0,
+        "live_api_score": 0.0,
+        "identity_score": 10.0,
+        "temporal_score": 10.0,
+        "fact_yield_score": 2.0,
+        "unique_fact_value_score": 0.0,
+        "current_live_suitability_score": 0.0,
+        "historical_value_score": 10.0,
+        "governance_risk_score": 10.0,
+        "scraper_volatility_risk": 10.0,
+        "maintenance_cost": 8.0,
+        "consumer_safety_score": 9.0
+      },
+      "hard_gates_failed": [
+        "historical_dataset_cannot_confirm_current_live_score"
+      ],
+      "can_participate_next_phase": true,
+      "next_phase_kind": "reference identity bridge"
+    },
+    {
+      "source_family": "fotmob_probe",
+      "evidence_status": "OFFLINE_FIXTURE_AVAILABLE",
+      "measured_capabilities": [],
+      "measured_limitations": [],
+      "recommended_role": "OFFLINE_EVIDENCE_ONLY",
+      "recommended_next_action": "DEFER",
+      "score_breakdown": {
+        "import_score": 10.0,
+        "dependency_score": 10.0,
+        "offline_parse_score": 5.0,
+        "live_api_score": 0.0,
+        "identity_score": 10.0,
+        "temporal_score": 10.0,
+        "fact_yield_score": 0.0,
+        "unique_fact_value_score": 0.0,
+        "current_live_suitability_score": 5.0,
+        "historical_value_score": 2.0,
+        "governance_risk_score": 4.0,
+        "scraper_volatility_risk": 2.0,
+        "maintenance_cost": 3.0,
+        "consumer_safety_score": 4.0
+      },
+      "hard_gates_failed": [
+        "no_facts_extracted"
+      ],
+      "can_participate_next_phase": false,
+      "next_phase_kind": "rejection/no action"
+    },
+    {
+      "source_family": "sofascore_rich_probe",
+      "evidence_status": "OFFLINE_FIXTURE_AVAILABLE",
+      "measured_capabilities": [],
+      "measured_limitations": [],
+      "recommended_role": "OFFLINE_EVIDENCE_ONLY",
+      "recommended_next_action": "DEFER",
+      "score_breakdown": {
+        "import_score": 10.0,
+        "dependency_score": 10.0,
+        "offline_parse_score": 5.0,
+        "live_api_score": 0.0,
+        "identity_score": 10.0,
+        "temporal_score": 10.0,
+        "fact_yield_score": 0.0,
+        "unique_fact_value_score": 0.0,
+        "current_live_suitability_score": 5.0,
+        "historical_value_score": 2.0,
+        "governance_risk_score": 4.0,
+        "scraper_volatility_risk": 2.0,
+        "maintenance_cost": 3.0,
+        "consumer_safety_score": 4.0
+      },
+      "hard_gates_failed": [
+        "no_facts_extracted"
+      ],
+      "can_participate_next_phase": false,
+      "next_phase_kind": "rejection/no action"
+    },
+    {
+      "source_family": "scraperfc_sofascore",
+      "evidence_status": "DEPENDENCY_BLOCKED",
+      "measured_capabilities": [],
+      "measured_limitations": [],
+      "recommended_role": "DEPENDENCY_BLOCKED",
+      "recommended_next_action": "REJECT",
+      "score_breakdown": {
+        "import_score": 10.0,
+        "dependency_score": 0.0,
+        "offline_parse_score": 0.0,
+        "live_api_score": 0.0,
+        "identity_score": 0.0,
+        "temporal_score": 0.0,
+        "fact_yield_score": 0.0,
+        "unique_fact_value_score": 0.0,
+        "current_live_suitability_score": 5.0,
+        "historical_value_score": 2.0,
+        "governance_risk_score": 4.0,
+        "scraper_volatility_risk": 2.0,
+        "maintenance_cost": 3.0,
+        "consumer_safety_score": 4.0
+      },
+      "hard_gates_failed": [
+        "dependency_missing",
+        "no_facts_extracted",
+        "no_identity_fields",
+        "no_temporal_fields"
+      ],
+      "can_participate_next_phase": false,
+      "next_phase_kind": "rejection/no action"
+    },
+    {
+      "source_family": "socceraction",
+      "evidence_status": "DEPENDENCY_BLOCKED",
+      "measured_capabilities": [],
+      "measured_limitations": [],
+      "recommended_role": "DEPENDENCY_BLOCKED",
+      "recommended_next_action": "REJECT",
+      "score_breakdown": {
+        "import_score": 10.0,
+        "dependency_score": 0.0,
+        "offline_parse_score": 0.0,
+        "live_api_score": 0.0,
+        "identity_score": 0.0,
+        "temporal_score": 0.0,
+        "fact_yield_score": 0.0,
+        "unique_fact_value_score": 0.0,
+        "current_live_suitability_score": 5.0,
+        "historical_value_score": 2.0,
+        "governance_risk_score": 4.0,
+        "scraper_volatility_risk": 2.0,
+        "maintenance_cost": 3.0,
+        "consumer_safety_score": 4.0
+      },
+      "hard_gates_failed": [
+        "dependency_missing",
+        "no_facts_extracted",
+        "no_identity_fields",
+        "no_temporal_fields"
+      ],
+      "can_participate_next_phase": false,
+      "next_phase_kind": "rejection/no action"
+    },
+    {
+      "source_family": "kloppy",
+      "evidence_status": "DEPENDENCY_BLOCKED",
+      "measured_capabilities": [],
+      "measured_limitations": [],
+      "recommended_role": "DEPENDENCY_BLOCKED",
+      "recommended_next_action": "REJECT",
+      "score_breakdown": {
+        "import_score": 10.0,
+        "dependency_score": 0.0,
+        "offline_parse_score": 0.0,
+        "live_api_score": 0.0,
+        "identity_score": 0.0,
+        "temporal_score": 0.0,
+        "fact_yield_score": 0.0,
+        "unique_fact_value_score": 0.0,
+        "current_live_suitability_score": 5.0,
+        "historical_value_score": 2.0,
+        "governance_risk_score": 4.0,
+        "scraper_volatility_risk": 2.0,
+        "maintenance_cost": 3.0,
+        "consumer_safety_score": 4.0
+      },
+      "hard_gates_failed": [
+        "dependency_missing",
+        "no_facts_extracted",
+        "no_identity_fields",
+        "no_temporal_fields"
+      ],
+      "can_participate_next_phase": false,
+      "next_phase_kind": "rejection/no action"
+    },
+    {
+      "source_family": "floodlight",
+      "evidence_status": "DEPENDENCY_BLOCKED",
+      "measured_capabilities": [],
+      "measured_limitations": [],
+      "recommended_role": "DEPENDENCY_BLOCKED",
+      "recommended_next_action": "REJECT",
+      "score_breakdown": {
+        "import_score": 10.0,
+        "dependency_score": 0.0,
+        "offline_parse_score": 0.0,
+        "live_api_score": 0.0,
+        "identity_score": 0.0,
+        "temporal_score": 0.0,
+        "fact_yield_score": 0.0,
+        "unique_fact_value_score": 0.0,
+        "current_live_suitability_score": 5.0,
+        "historical_value_score": 2.0,
+        "governance_risk_score": 4.0,
+        "scraper_volatility_risk": 2.0,
+        "maintenance_cost": 3.0,
+        "consumer_safety_score": 4.0
+      },
+      "hard_gates_failed": [
+        "dependency_missing",
+        "no_facts_extracted",
+        "no_identity_fields",
+        "no_temporal_fields"
+      ],
+      "can_participate_next_phase": false,
+      "next_phase_kind": "rejection/no action"
+    },
+    {
+      "source_family": "mplsoccer",
+      "evidence_status": "DEPENDENCY_BLOCKED",
+      "measured_capabilities": [],
+      "measured_limitations": [],
+      "recommended_role": "DEPENDENCY_BLOCKED",
+      "recommended_next_action": "REJECT",
+      "score_breakdown": {
+        "import_score": 10.0,
+        "dependency_score": 0.0,
+        "offline_parse_score": 0.0,
+        "live_api_score": 0.0,
+        "identity_score": 0.0,
+        "temporal_score": 0.0,
+        "fact_yield_score": 0.0,
+        "unique_fact_value_score": 0.0,
+        "current_live_suitability_score": 5.0,
+        "historical_value_score": 2.0,
+        "governance_risk_score": 4.0,
+        "scraper_volatility_risk": 2.0,
+        "maintenance_cost": 3.0,
+        "consumer_safety_score": 4.0
+      },
+      "hard_gates_failed": [
+        "dependency_missing",
+        "no_facts_extracted",
+        "no_identity_fields",
+        "no_temporal_fields"
+      ],
+      "can_participate_next_phase": false,
+      "next_phase_kind": "rejection/no action"
+    }
+  ]
+}

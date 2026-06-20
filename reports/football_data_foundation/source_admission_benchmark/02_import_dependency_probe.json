@@ -1,0 +1,472 @@
+{
+  "schema_version": "2.0",
+  "probes": [
+    {
+      "source_family": "espn_live_baseline",
+      "import_status": "IMPORT_OK",
+      "dependency_status": "IMPORT_OK",
+      "constructor_status": "CONSTRUCTOR_FAILED",
+      "offline_fixture_status": "OFFLINE_FIXTURE_AVAILABLE",
+      "declared_operations": [
+        "active_enrichment",
+        "live_validation"
+      ],
+      "declared_capabilities": [
+        "current_discovery",
+        "current_recent_form",
+        "detailed_metrics",
+        "confirmed_lineups"
+      ],
+      "fixture_paths": [
+        "tests/fixtures/football_data_foundation/espn_world_cup_usa_australia_scoreboard.json",
+        "reports/football_data_foundation/live_validation/world-cup-2026/2026-06-20_2026-06-21_clean_final/event_enrichment_results.json"
+      ],
+      "diagnostics": {
+        "module_imported": true,
+        "constructor_error": "ActiveEnrichmentOrchestrator.__init__() missing 1 required positional argument: 'state_store'"
+      }
+    },
+    {
+      "source_family": "sportdb",
+      "import_status": "IMPORT_OK",
+      "dependency_status": "IMPORT_OK",
+      "constructor_status": "UNSAFE_TO_PROBE",
+      "offline_fixture_status": "OFFLINE_FIXTURE_MISSING",
+      "declared_operations": [
+        "detailed_metrics"
+      ],
+      "declared_capabilities": [
+        "detailed_metrics"
+      ],
+      "fixture_paths": [],
+      "diagnostics": {
+        "module_imported": true
+      }
+    },
+    {
+      "source_family": "football-data.org",
+      "import_status": "IMPORT_OK",
+      "dependency_status": "IMPORT_OK",
+      "constructor_status": "UNSAFE_TO_PROBE",
+      "offline_fixture_status": "OFFLINE_FIXTURE_MISSING",
+      "declared_operations": [
+        "get_fixtures_result"
+      ],
+      "declared_capabilities": [
+        "current_discovery"
+      ],
+      "fixture_paths": [],
+      "diagnostics": {
+        "module_imported": true
+      }
+    },
+    {
+      "source_family": "soccerdata_clubelo",
+      "import_status": "IMPORT_OK",
+      "dependency_status": "IMPORT_OK",
+      "constructor_status": "UNSAFE_TO_PROBE",
+      "offline_fixture_status": "OFFLINE_FIXTURE_MISSING",
+      "declared_operations": [
+        "read_by_date",
+        "read_team_history"
+      ],
+      "declared_capabilities": [
+        "current_recent_form"
+      ],
+      "fixture_paths": [],
+      "diagnostics": {
+        "module_imported": true
+      }
+    },
+    {
+      "source_family": "soccerdata_espn",
+      "import_status": "IMPORT_OK",
+      "dependency_status": "IMPORT_OK",
+      "constructor_status": "UNSAFE_TO_PROBE",
+      "offline_fixture_status": "OFFLINE_FIXTURE_MISSING",
+      "declared_operations": [
+        "read_schedule",
+        "read_matchsheet",
+        "read_lineup"
+      ],
+      "declared_capabilities": [
+        "current_discovery",
+        "fixture_team_statistics",
+        "confirmed_lineups"
+      ],
+      "fixture_paths": [],
+      "diagnostics": {
+        "module_imported": true
+      }
+    },
+    {
+      "source_family": "soccerdata_fbref",
+      "import_status": "IMPORT_OK",
+      "dependency_status": "IMPORT_OK",
+      "constructor_status": "UNSAFE_TO_PROBE",
+      "offline_fixture_status": "OFFLINE_FIXTURE_MISSING",
+      "declared_operations": [
+        "read_leagues",
+        "read_seasons",
+        "read_schedule",
+        "read_team_season_stats",
+        "read_team_match_stats",
+        "read_player_season_stats",
+        "read_player_match_stats",
+        "read_lineup",
+        "read_events"
+      ],
+      "declared_capabilities": [
+        "standings_competition_context",
+        "current_discovery",
+        "fixture_team_statistics",
+        "confirmed_lineups"
+      ],
+      "fixture_paths": [],
+      "diagnostics": {
+        "module_imported": true
+      }
+    },
+    {
+      "source_family": "soccerdata_understat",
+      "import_status": "IMPORT_OK",
+      "dependency_status": "IMPORT_OK",
+      "constructor_status": "UNSAFE_TO_PROBE",
+      "offline_fixture_status": "OFFLINE_FIXTURE_MISSING",
+      "declared_operations": [
+        "read_leagues",
+        "read_seasons",
+        "read_schedule",
+        "read_team_match_stats",
+        "read_player_season_stats",
+        "read_player_match_stats",
+        "read_shot_events"
+      ],
+      "declared_capabilities": [
+        "current_discovery",
+        "fixture_team_statistics",
+        "current_recent_form"
+      ],
+      "fixture_paths": [],
+      "diagnostics": {
+        "module_imported": true
+      }
+    },
+    {
+      "source_family": "soccerdata_whoscored",
+      "import_status": "IMPORT_OK",
+      "dependency_status": "IMPORT_OK",
+      "constructor_status": "UNSAFE_TO_PROBE",
+      "offline_fixture_status": "OFFLINE_FIXTURE_MISSING",
+      "declared_operations": [
+        "read_schedule",
+        "read_missing_players",
+        "read_events"
+      ],
+      "declared_capabilities": [
+        "current_discovery",
+        "injuries_suspensions",
+        "fixture_team_statistics"
+      ],
+      "fixture_paths": [],
+      "diagnostics": {
+        "module_imported": true
+      }
+    },
+    {
+      "source_family": "soccerdata_sofascore",
+      "import_status": "IMPORT_OK",
+      "dependency_status": "IMPORT_OK",
+      "constructor_status": "UNSAFE_TO_PROBE",
+      "offline_fixture_status": "OFFLINE_FIXTURE_MISSING",
+      "declared_operations": [
+        "read_leagues",
+        "read_seasons",
+        "read_league_table",
+        "read_schedule"
+      ],
+      "declared_capabilities": [
+        "current_discovery",
+        "standings_competition_context"
+      ],
+      "fixture_paths": [],
+      "diagnostics": {
+        "module_imported": true
+      }
+    },
+    {
+      "source_family": "soccerdata_sofifa",
+      "import_status": "IMPORT_OK",
+      "dependency_status": "IMPORT_OK",
+      "constructor_status": "UNSAFE_TO_PROBE",
+      "offline_fixture_status": "OFFLINE_FIXTURE_MISSING",
+      "declared_operations": [
+        "read_leagues",
+        "read_versions",
+        "read_teams",
+        "read_players",
+        "read_team_ratings",
+        "read_player_ratings"
+      ],
+      "declared_capabilities": [
+        "current_recent_form",
+        "roster_availability"
+      ],
+      "fixture_paths": [],
+      "diagnostics": {
+        "module_imported": true
+      }
+    },
+    {
+      "source_family": "soccerdata_matchhistory",
+      "import_status": "IMPORT_OK",
+      "dependency_status": "IMPORT_OK",
+      "constructor_status": "UNSAFE_TO_PROBE",
+      "offline_fixture_status": "OFFLINE_FIXTURE_MISSING",
+      "declared_operations": [
+        "read_games"
+      ],
+      "declared_capabilities": [
+        "h2h_head_to_head"
+      ],
+      "fixture_paths": [],
+      "diagnostics": {
+        "module_imported": true
+      }
+    },
+    {
+      "source_family": "soccerdata_fivethirtyeight",
+      "import_status": "IMPORT_OK",
+      "dependency_status": "IMPORT_OK",
+      "constructor_status": "CONSTRUCTOR_FAILED",
+      "offline_fixture_status": "OFFLINE_FIXTURE_MISSING",
+      "declared_operations": [],
+      "declared_capabilities": [],
+      "fixture_paths": [],
+      "diagnostics": {
+        "module_imported": true,
+        "constructor_error": "FiveThirtyEight not supported in soccerdata build."
+      }
+    },
+    {
+      "source_family": "statsbomb_open_data",
+      "import_status": "IMPORT_OK",
+      "dependency_status": "IMPORT_OK",
+      "constructor_status": "CONSTRUCTOR_OK",
+      "offline_fixture_status": "OFFLINE_FIXTURE_AVAILABLE",
+      "declared_operations": [
+        "read_competitions",
+        "read_matches",
+        "read_events",
+        "read_lineups",
+        "read_360"
+      ],
+      "declared_capabilities": [
+        "canonical_event_team_identity",
+        "current_discovery",
+        "fixture_team_statistics",
+        "confirmed_lineups"
+      ],
+      "fixture_paths": [
+        "tests/fixtures/football_data_foundation/statsbomb_open_data/competitions.json",
+        "tests/fixtures/football_data_foundation/statsbomb_open_data/matches/43/3.json",
+        "tests/fixtures/football_data_foundation/statsbomb_open_data/events/1001.json",
+        "tests/fixtures/football_data_foundation/statsbomb_open_data/lineups/1001.json",
+        "tests/fixtures/football_data_foundation/statsbomb_open_data/three-sixty/1001.json"
+      ],
+      "diagnostics": {
+        "module_imported": true
+      }
+    },
+    {
+      "source_family": "statsbombpy",
+      "import_status": "IMPORT_OK",
+      "dependency_status": "DEPENDENCY_MISSING",
+      "constructor_status": "CONSTRUCTOR_OK",
+      "offline_fixture_status": "OFFLINE_FIXTURE_MISSING",
+      "declared_operations": [
+        "competitions"
+      ],
+      "declared_capabilities": [],
+      "fixture_paths": [],
+      "diagnostics": {
+        "module_imported": true,
+        "dependency_error_statsbombpy": "No module named 'statsbombpy'",
+        "missing_dependencies": [
+          "statsbombpy"
+        ]
+      }
+    },
+    {
+      "source_family": "kaggle_european_soccer",
+      "import_status": "IMPORT_OK",
+      "dependency_status": "IMPORT_OK",
+      "constructor_status": "CONSTRUCTOR_OK",
+      "offline_fixture_status": "OFFLINE_FIXTURE_AVAILABLE",
+      "declared_operations": [
+        "read_matches"
+      ],
+      "declared_capabilities": [
+        "h2h_head_to_head"
+      ],
+      "fixture_paths": [
+        "tests/fixtures/football_data_foundation/kaggle_european_soccer/matches.csv"
+      ],
+      "diagnostics": {
+        "module_imported": true
+      }
+    },
+    {
+      "source_family": "openfootball",
+      "import_status": "IMPORT_OK",
+      "dependency_status": "IMPORT_OK",
+      "constructor_status": "CONSTRUCTOR_OK",
+      "offline_fixture_status": "OFFLINE_FIXTURE_AVAILABLE",
+      "declared_operations": [
+        "read_matches"
+      ],
+      "declared_capabilities": [
+        "current_recent_form"
+      ],
+      "fixture_paths": [
+        "tests/fixtures/football_data_foundation/openfootball/world_cup_2022.json"
+      ],
+      "diagnostics": {
+        "module_imported": true
+      }
+    },
+    {
+      "source_family": "fotmob_probe",
+      "import_status": "IMPORT_OK",
+      "dependency_status": "IMPORT_OK",
+      "constructor_status": "CONSTRUCTOR_OK",
+      "offline_fixture_status": "OFFLINE_FIXTURE_AVAILABLE",
+      "declared_operations": [
+        "probe_matches"
+      ],
+      "declared_capabilities": [
+        "current_discovery"
+      ],
+      "fixture_paths": [
+        "tests/fixtures/football_data_foundation/rich_probes/fotmob_matches.json"
+      ],
+      "diagnostics": {
+        "module_imported": true
+      }
+    },
+    {
+      "source_family": "sofascore_rich_probe",
+      "import_status": "IMPORT_OK",
+      "dependency_status": "IMPORT_OK",
+      "constructor_status": "CONSTRUCTOR_OK",
+      "offline_fixture_status": "OFFLINE_FIXTURE_AVAILABLE",
+      "declared_operations": [
+        "probe_stats"
+      ],
+      "declared_capabilities": [
+        "fixture_team_statistics"
+      ],
+      "fixture_paths": [
+        "tests/fixtures/football_data_foundation/rich_probes/sofascore_stats.json"
+      ],
+      "diagnostics": {
+        "module_imported": true
+      }
+    },
+    {
+      "source_family": "scraperfc_sofascore",
+      "import_status": "IMPORT_OK",
+      "dependency_status": "DEPENDENCY_MISSING",
+      "constructor_status": "CONSTRUCTOR_OK",
+      "offline_fixture_status": "OFFLINE_FIXTURE_MISSING",
+      "declared_operations": [
+        "read_match_stats"
+      ],
+      "declared_capabilities": [],
+      "fixture_paths": [],
+      "diagnostics": {
+        "module_imported": true,
+        "dependency_error_ScraperFC": "No module named 'ScraperFC'",
+        "missing_dependencies": [
+          "ScraperFC"
+        ]
+      }
+    },
+    {
+      "source_family": "socceraction",
+      "import_status": "IMPORT_OK",
+      "dependency_status": "DEPENDENCY_MISSING",
+      "constructor_status": "CONSTRUCTOR_OK",
+      "offline_fixture_status": "OFFLINE_FIXTURE_MISSING",
+      "declared_operations": [
+        "convert_events"
+      ],
+      "declared_capabilities": [],
+      "fixture_paths": [],
+      "diagnostics": {
+        "module_imported": true,
+        "dependency_error_socceraction": "No module named 'socceraction'",
+        "missing_dependencies": [
+          "socceraction"
+        ]
+      }
+    },
+    {
+      "source_family": "kloppy",
+      "import_status": "IMPORT_OK",
+      "dependency_status": "DEPENDENCY_MISSING",
+      "constructor_status": "CONSTRUCTOR_OK",
+      "offline_fixture_status": "OFFLINE_FIXTURE_MISSING",
+      "declared_operations": [
+        "load_tracking_data"
+      ],
+      "declared_capabilities": [],
+      "fixture_paths": [],
+      "diagnostics": {
+        "module_imported": true,
+        "dependency_error_kloppy": "No module named 'kloppy'",
+        "missing_dependencies": [
+          "kloppy"
+        ]
+      }
+    },
+    {
+      "source_family": "floodlight",
+      "import_status": "IMPORT_OK",
+      "dependency_status": "DEPENDENCY_MISSING",
+      "constructor_status": "CONSTRUCTOR_OK",
+      "offline_fixture_status": "OFFLINE_FIXTURE_MISSING",
+      "declared_operations": [
+        "load_events"
+      ],
+      "declared_capabilities": [],
+      "fixture_paths": [],
+      "diagnostics": {
+        "module_imported": true,
+        "dependency_error_floodlight": "No module named 'floodlight'",
+        "missing_dependencies": [
+          "floodlight"
+        ]
+      }
+    },
+    {
+      "source_family": "mplsoccer",
+      "import_status": "IMPORT_OK",
+      "dependency_status": "DEPENDENCY_MISSING",
+      "constructor_status": "CONSTRUCTOR_OK",
+      "offline_fixture_status": "OFFLINE_FIXTURE_MISSING",
+      "declared_operations": [
+        "draw_pitch"
+      ],
+      "declared_capabilities": [],
+      "fixture_paths": [],
+      "diagnostics": {
+        "module_imported": true,
+        "dependency_error_mplsoccer": "No module named 'mplsoccer'",
+        "missing_dependencies": [
+          "mplsoccer"
+        ]
+      }
+    }
+  ]
+}

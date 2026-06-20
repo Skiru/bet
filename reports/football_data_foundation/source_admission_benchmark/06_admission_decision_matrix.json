@@ -1,0 +1,143 @@
+{
+  "schema_version": "2.0",
+  "decisions": [
+    {
+      "source_family": "espn_live_baseline",
+      "decision": "ADMIT_NEXT_PHASE_CURRENT_SHADOW",
+      "exact_reason": "Official live production baseline platform. Extracted high-frequency live match metrics.",
+      "next_phase_kind": "current shadow fusion"
+    },
+    {
+      "source_family": "sportdb",
+      "decision": "DEFER_CREDENTIAL_REQUIRED",
+      "exact_reason": "Metadata configuration exists, but lacks credentials and physical foundation integration module.",
+      "next_phase_kind": "credential setup"
+    },
+    {
+      "source_family": "football-data.org",
+      "decision": "DEFER_CREDENTIAL_REQUIRED",
+      "exact_reason": "API client exists but remains deferred due to missing live credentials and validation.",
+      "next_phase_kind": "credential setup"
+    },
+    {
+      "source_family": "soccerdata_clubelo",
+      "decision": "ADMIT_OFFLINE_EVIDENCE_ONLY",
+      "exact_reason": "Scraping-only blocks current live primary role. Preserved as offline evidence only.",
+      "next_phase_kind": "rejection/no action"
+    },
+    {
+      "source_family": "soccerdata_espn",
+      "decision": "ADMIT_OFFLINE_EVIDENCE_ONLY",
+      "exact_reason": "Scraping-only blocks current live primary role. Preserved as offline evidence only.",
+      "next_phase_kind": "rejection/no action"
+    },
+    {
+      "source_family": "soccerdata_fbref",
+      "decision": "ADMIT_OFFLINE_EVIDENCE_ONLY",
+      "exact_reason": "Scraping-only blocks current live primary role. Preserved as offline evidence only.",
+      "next_phase_kind": "rejection/no action"
+    },
+    {
+      "source_family": "soccerdata_understat",
+      "decision": "ADMIT_OFFLINE_EVIDENCE_ONLY",
+      "exact_reason": "Scraping-only blocks current live primary role. Preserved as offline evidence only.",
+      "next_phase_kind": "rejection/no action"
+    },
+    {
+      "source_family": "soccerdata_whoscored",
+      "decision": "ADMIT_OFFLINE_EVIDENCE_ONLY",
+      "exact_reason": "Scraping-only blocks current live primary role. Preserved as offline evidence only.",
+      "next_phase_kind": "rejection/no action"
+    },
+    {
+      "source_family": "soccerdata_sofascore",
+      "decision": "ADMIT_OFFLINE_EVIDENCE_ONLY",
+      "exact_reason": "Scraping-only blocks current live primary role. Preserved as offline evidence only.",
+      "next_phase_kind": "rejection/no action"
+    },
+    {
+      "source_family": "soccerdata_sofifa",
+      "decision": "ADMIT_OFFLINE_EVIDENCE_ONLY",
+      "exact_reason": "Scraping-only blocks current live primary role. Preserved as offline evidence only.",
+      "next_phase_kind": "rejection/no action"
+    },
+    {
+      "source_family": "soccerdata_matchhistory",
+      "decision": "ADMIT_OFFLINE_EVIDENCE_ONLY",
+      "exact_reason": "Scraping-only blocks current live primary role. Preserved as offline evidence only.",
+      "next_phase_kind": "rejection/no action"
+    },
+    {
+      "source_family": "soccerdata_fivethirtyeight",
+      "decision": "REJECT_LOW_VALUE",
+      "exact_reason": "No offline fixtures or usable dependency available, yielding zero canonical facts.",
+      "next_phase_kind": "rejection/no action"
+    },
+    {
+      "source_family": "statsbomb_open_data",
+      "decision": "ADMIT_NEXT_PHASE_HISTORICAL_ENRICHMENT",
+      "exact_reason": "Offline parsing proof successfully yields rich event sequences, lineups, shot coordinates, and 360 freeze frames.",
+      "next_phase_kind": "historical enrichment backfill"
+    },
+    {
+      "source_family": "statsbombpy",
+      "decision": "DEFER_DEPENDENCY_REQUIRED",
+      "exact_reason": "Optional dependencies statsbombpy are absent in test environment.",
+      "next_phase_kind": "rejection/no action"
+    },
+    {
+      "source_family": "kaggle_european_soccer",
+      "decision": "ADMIT_NEXT_PHASE_HISTORICAL_ENRICHMENT",
+      "exact_reason": "Offline matches CSV parsing successfully yields historical scores and team API mapping data.",
+      "next_phase_kind": "historical enrichment backfill"
+    },
+    {
+      "source_family": "openfootball",
+      "decision": "ADMIT_NEXT_PHASE_REFERENCE",
+      "exact_reason": "Offline World Cup JSON schedule successfully yields matchday schedule scheduling.",
+      "next_phase_kind": "reference identity bridge"
+    },
+    {
+      "source_family": "fotmob_probe",
+      "decision": "REJECT_LOW_VALUE",
+      "exact_reason": "No offline fixtures or usable dependency available, yielding zero canonical facts.",
+      "next_phase_kind": "rejection/no action"
+    },
+    {
+      "source_family": "sofascore_rich_probe",
+      "decision": "REJECT_LOW_VALUE",
+      "exact_reason": "No offline fixtures or usable dependency available, yielding zero canonical facts.",
+      "next_phase_kind": "rejection/no action"
+    },
+    {
+      "source_family": "scraperfc_sofascore",
+      "decision": "DEFER_DEPENDENCY_REQUIRED",
+      "exact_reason": "Optional dependencies scraperfc_sofascore are absent in test environment.",
+      "next_phase_kind": "rejection/no action"
+    },
+    {
+      "source_family": "socceraction",
+      "decision": "DEFER_DEPENDENCY_REQUIRED",
+      "exact_reason": "Optional dependencies socceraction are absent in test environment.",
+      "next_phase_kind": "rejection/no action"
+    },
+    {
+      "source_family": "kloppy",
+      "decision": "DEFER_DEPENDENCY_REQUIRED",
+      "exact_reason": "Optional dependencies kloppy are absent in test environment.",
+      "next_phase_kind": "rejection/no action"
+    },
+    {
+      "source_family": "floodlight",
+      "decision": "DEFER_DEPENDENCY_REQUIRED",
+      "exact_reason": "Optional dependencies floodlight are absent in test environment.",
+      "next_phase_kind": "rejection/no action"
+    },
+    {
+      "source_family": "mplsoccer",
+      "decision": "DEFER_DEPENDENCY_REQUIRED",
+      "exact_reason": "Optional dependencies mplsoccer are absent in test environment.",
+      "next_phase_kind": "rejection/no action"
+    }
+  ]
+}
