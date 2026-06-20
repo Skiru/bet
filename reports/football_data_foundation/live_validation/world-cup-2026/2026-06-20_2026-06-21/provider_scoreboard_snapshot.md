@@ -2,9 +2,9 @@
 
 - **Source Provider:** `espn-fifa-worldcup`
 - **Fetched URL:** `https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?limit=950&dates=20260620-20260621`
-- **Retrieved At (UTC):** `2026-06-20T14:44:18.110518+00:00`
+- **Retrieved At (UTC):** `2026-06-20T16:28:22.998671+00:00`
 - **Overall Schema Fingerprint:** `88f87137d156a638bff93d3ddc40ef65603cdaeeaa0b9de84f07337bd7fba8d2`
-- **Overall Evidence Identity:** `6ced5e089305b06727d05c3b300fea79c4298e111cd2b4a79e0e172550c19b62`
+- **Overall Evidence Identity:** `94d6af5b94eb498ebead98e212ef0e3fac32427ac86157391a08d8431dd3e6cb`
 - **Total Events Fetched:** `8`
 
 ## Events List

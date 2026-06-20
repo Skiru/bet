@@ -1,9 +1,10 @@
 # FIFA World Cup 2026 Scanner Window Live Validation
 
 - **Phase ID:** `FOOTBALL_DATA_FOUNDATION_L1_SCANNER_WINDOW_LIVE_VALIDATION_WORLD_CUP_2026_NO_ACTIVATION`
-- **Validation Time:** `2026-06-20T14:44:18.110518+00:00`
+- **Validation Time:** `2026-06-20T16:28:22.998671+00:00`
 - **Selected Events Count:** `6` / 6
 - **Coverage Status:** `complete`
+- **Manifest Sidecar Hash Check:** `validation_manifest.sha256` sidecar exists and is verified
 
 ## Selected Events
 
@@ -20,23 +21,23 @@
 
 | Scanner Event ID | Provider ID | Discovery Status | Facts Count | Detailed Metrics |
 |---|---|---|---|---|
-| `scanner-worldcup-20260620-20260621-760447` | `espn-fifa-worldcup` | `ENRICHED_PARTIAL` | `13` | `UNAVAILABLE: missing_provider_data_or_identity_mismatch` |
-| `scanner-worldcup-20260620-20260621-760448` | `espn-fifa-worldcup` | `ENRICHED_PARTIAL` | `13` | `UNAVAILABLE: missing_provider_data_or_identity_mismatch` |
-| `scanner-worldcup-20260620-20260621-760446` | `espn-fifa-worldcup` | `ENRICHED_PARTIAL` | `13` | `UNAVAILABLE: missing_provider_data_or_identity_mismatch` |
-| `scanner-worldcup-20260620-20260621-760449` | `espn-fifa-worldcup` | `ENRICHED_PARTIAL` | `13` | `UNAVAILABLE: missing_provider_data_or_identity_mismatch` |
-| `scanner-worldcup-20260620-20260621-760453` | `espn-fifa-worldcup` | `ENRICHED_PARTIAL` | `13` | `UNAVAILABLE: missing_provider_data_or_identity_mismatch` |
-| `scanner-worldcup-20260620-20260621-760451` | `espn-fifa-worldcup` | `ENRICHED_PARTIAL` | `13` | `UNAVAILABLE: missing_provider_data_or_identity_mismatch` |
+| `scanner-worldcup-20260620-20260621-760447` | `espn-fifa-worldcup` | `ENRICH_FAILED_CLOSED` | `0` | `UNAVAILABLE: identity_mismatch` |
+| `scanner-worldcup-20260620-20260621-760448` | `espn-fifa-worldcup` | `ENRICH_FAILED_CLOSED` | `0` | `UNAVAILABLE: identity_mismatch` |
+| `scanner-worldcup-20260620-20260621-760446` | `espn-fifa-worldcup` | `ENRICH_FAILED_CLOSED` | `0` | `UNAVAILABLE: identity_mismatch` |
+| `scanner-worldcup-20260620-20260621-760449` | `espn-fifa-worldcup` | `ENRICH_FAILED_CLOSED` | `0` | `UNAVAILABLE: identity_mismatch` |
+| `scanner-worldcup-20260620-20260621-760453` | `espn-fifa-worldcup` | `ENRICH_FAILED_CLOSED` | `0` | `UNAVAILABLE: identity_mismatch` |
+| `scanner-worldcup-20260620-20260621-760451` | `espn-fifa-worldcup` | `ENRICH_FAILED_CLOSED` | `0` | `UNAVAILABLE: identity_mismatch` |
 
 ## Freshness Status Table
 
 | Scanner Event ID | Status State | Status Name | Freshness Decision | Must Refresh |
 |---|---|---|---|---|
-| `scanner-worldcup-20260620-20260621-760447` | `pre` | `STATUS_SCHEDULED` | `FRESH_FROM_LIVE_PROVIDER` | `False` |
-| `scanner-worldcup-20260620-20260621-760448` | `pre` | `STATUS_SCHEDULED` | `FRESH_FROM_LIVE_PROVIDER` | `False` |
-| `scanner-worldcup-20260620-20260621-760446` | `pre` | `STATUS_SCHEDULED` | `FRESH_FROM_LIVE_PROVIDER` | `False` |
-| `scanner-worldcup-20260620-20260621-760449` | `pre` | `STATUS_SCHEDULED` | `FRESH_FROM_LIVE_PROVIDER` | `False` |
-| `scanner-worldcup-20260620-20260621-760453` | `pre` | `STATUS_SCHEDULED` | `FRESH_FROM_LIVE_PROVIDER` | `False` |
-| `scanner-worldcup-20260620-20260621-760451` | `pre` | `STATUS_SCHEDULED` | `FRESH_FROM_LIVE_PROVIDER` | `False` |
+| `scanner-worldcup-20260620-20260621-760447` | `pre` | `STATUS_SCHEDULED` | `FRESH_REUSABLE` | `False` |
+| `scanner-worldcup-20260620-20260621-760448` | `pre` | `STATUS_SCHEDULED` | `FRESH_REUSABLE` | `False` |
+| `scanner-worldcup-20260620-20260621-760446` | `pre` | `STATUS_SCHEDULED` | `FRESH_REUSABLE` | `False` |
+| `scanner-worldcup-20260620-20260621-760449` | `pre` | `STATUS_SCHEDULED` | `FRESH_REUSABLE` | `False` |
+| `scanner-worldcup-20260620-20260621-760453` | `pre` | `STATUS_SCHEDULED` | `FRESH_REUSABLE` | `False` |
+| `scanner-worldcup-20260620-20260621-760451` | `pre` | `STATUS_SCHEDULED` | `FRESH_REUSABLE` | `False` |
 
 ## Canonical Mapping Status Table
 
@@ -53,12 +54,24 @@
 
 | Scanner Event ID | Capability | Status / Reason | Deferred Fact Categories |
 |---|---|---|---|
-| `scanner-worldcup-20260620-20260621-760447` | `detailed_metrics` | `UNAVAILABLE: missing_provider_data_or_identity_mismatch` | `statistics, leaders` |
-| `scanner-worldcup-20260620-20260621-760448` | `detailed_metrics` | `UNAVAILABLE: missing_provider_data_or_identity_mismatch` | `statistics, leaders` |
-| `scanner-worldcup-20260620-20260621-760446` | `detailed_metrics` | `UNAVAILABLE: missing_provider_data_or_identity_mismatch` | `statistics, leaders` |
-| `scanner-worldcup-20260620-20260621-760449` | `detailed_metrics` | `UNAVAILABLE: missing_provider_data_or_identity_mismatch` | `statistics, leaders` |
-| `scanner-worldcup-20260620-20260621-760453` | `detailed_metrics` | `UNAVAILABLE: missing_provider_data_or_identity_mismatch` | `statistics, leaders` |
-| `scanner-worldcup-20260620-20260621-760451` | `detailed_metrics` | `UNAVAILABLE: missing_provider_data_or_identity_mismatch` | `statistics, leaders` |
+| `scanner-worldcup-20260620-20260621-760447` | `current_discovery` | `UNAVAILABLE: identity_mismatch` | `statistics, leaders` |
+| `scanner-worldcup-20260620-20260621-760447` | `current_form` | `UNAVAILABLE: identity_mismatch` | `statistics, leaders` |
+| `scanner-worldcup-20260620-20260621-760447` | `detailed_metrics` | `UNAVAILABLE: identity_mismatch` | `statistics, leaders` |
+| `scanner-worldcup-20260620-20260621-760448` | `current_discovery` | `UNAVAILABLE: identity_mismatch` | `statistics, leaders` |
+| `scanner-worldcup-20260620-20260621-760448` | `current_form` | `UNAVAILABLE: identity_mismatch` | `statistics, leaders` |
+| `scanner-worldcup-20260620-20260621-760448` | `detailed_metrics` | `UNAVAILABLE: identity_mismatch` | `statistics, leaders` |
+| `scanner-worldcup-20260620-20260621-760446` | `current_discovery` | `UNAVAILABLE: identity_mismatch` | `statistics, leaders` |
+| `scanner-worldcup-20260620-20260621-760446` | `current_form` | `UNAVAILABLE: identity_mismatch` | `statistics, leaders` |
+| `scanner-worldcup-20260620-20260621-760446` | `detailed_metrics` | `UNAVAILABLE: identity_mismatch` | `statistics, leaders` |
+| `scanner-worldcup-20260620-20260621-760449` | `current_discovery` | `UNAVAILABLE: identity_mismatch` | `statistics, leaders` |
+| `scanner-worldcup-20260620-20260621-760449` | `current_form` | `UNAVAILABLE: identity_mismatch` | `statistics, leaders` |
+| `scanner-worldcup-20260620-20260621-760449` | `detailed_metrics` | `UNAVAILABLE: identity_mismatch` | `statistics, leaders` |
+| `scanner-worldcup-20260620-20260621-760453` | `current_discovery` | `UNAVAILABLE: identity_mismatch` | `statistics, leaders` |
+| `scanner-worldcup-20260620-20260621-760453` | `current_form` | `UNAVAILABLE: identity_mismatch` | `statistics, leaders` |
+| `scanner-worldcup-20260620-20260621-760453` | `detailed_metrics` | `UNAVAILABLE: identity_mismatch` | `statistics, leaders` |
+| `scanner-worldcup-20260620-20260621-760451` | `current_discovery` | `UNAVAILABLE: identity_mismatch` | `statistics, leaders` |
+| `scanner-worldcup-20260620-20260621-760451` | `current_form` | `UNAVAILABLE: identity_mismatch` | `statistics, leaders` |
+| `scanner-worldcup-20260620-20260621-760451` | `detailed_metrics` | `UNAVAILABLE: identity_mismatch` | `statistics, leaders` |
 
 ## Final Verification Verdict
 

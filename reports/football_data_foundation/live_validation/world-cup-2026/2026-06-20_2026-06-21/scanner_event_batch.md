@@ -3,7 +3,7 @@
 - **Profile ID:** `world-cup-2026`
 - **Selected Event Count:** `6` (Expected: 6)
 - **Coverage Status:** `complete`
-- **Generated At:** `2026-06-20T14:44:18.110518+00:00`
+- **Generated At:** `2026-06-20T16:28:22.998671+00:00`
 - **Time Window Start:** `2026-06-20T00:00:00+02:00`
 - **Time Window End (Exclusive):** `2026-06-22T00:00:00+02:00`
 

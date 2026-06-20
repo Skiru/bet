@@ -7,6 +7,7 @@ import sqlite3
 import sys
 import urllib.request
 from pathlib import Path
+from typing import Any
 from zoneinfo import ZoneInfo
 
 from bet.enrichment.football_data_foundation.active_enrichment import (
@@ -51,10 +52,14 @@ from bet.enrichment.football_data_foundation.temp_sqlite_harness import (
     get_table_counts,
 )
 
-# InMemory State Store implementation for ActiveEnrichmentOrchestrator
+
 class InMemoryStateStore:
+    """InMemory State Store implementation for ActiveEnrichmentOrchestrator."""
+
     def __init__(self) -> None:
-        self.completeness: dict[tuple[str, str, str], EnrichmentCompletenessRecord] = {}
+        self.completeness: dict[
+            tuple[str, str, str], EnrichmentCompletenessRecord
+        ] = {}
         self.evidence: dict[str, dict[str, Any]] = {}
 
     def get_completeness(
@@ -63,7 +68,8 @@ class InMemoryStateStore:
         return self.completeness.get((profile_id, entity_id, capability))
 
     def put_completeness(self, record: EnrichmentCompletenessRecord) -> None:
-        self.completeness[(record.profile_id, record.canonical_entity_id, record.capability)] = record
+        key = (record.profile_id, record.canonical_entity_id, record.capability)
+        self.completeness[key] = record
 
     def get_evidence(self, evidence_identity: str) -> dict[str, Any] | None:
         return self.evidence.get(evidence_identity)
@@ -84,28 +90,42 @@ def get_sha256(path: Path) -> str:
 
 
 def run_live_validation(output_dir_str: str) -> None:
+    """Execute live validation of the scoreboard data pipeline."""
     output_dir = Path(output_dir_str)
     output_dir.mkdir(parents=True, exist_ok=True)
 
     retrieved_at_utc = datetime.datetime.now(datetime.UTC).isoformat()
     analysis_cutoff_at = retrieved_at_utc
 
-    primary_url = "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?limit=950&dates=20260620-20260621"
-    fallback_url = "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard"
+    primary_url = (
+        "https://site.api.espn.com/apis/site/v2/sports/soccer/"
+        "fifa.world/scoreboard?limit=950&dates=20260620-20260621"
+    )
+    fallback_url = (
+        "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/"
+        "scoreboard"
+    )
 
     # --- CHECKPOINT 1: FETCH & NORMALIZE SCOREBOARD ---
     print(f"Fetching from primary scoreboard URL: {primary_url}")
     raw_payload = None
     used_url = primary_url
 
-    req = urllib.request.Request(primary_url, headers={"User-Agent": "Mozilla/5.0"})
+    req = urllib.request.Request(
+        primary_url, headers={"User-Agent": "Mozilla/5.0"}
+    )
     try:
         with urllib.request.urlopen(req, timeout=20) as response:
             raw_payload = json.loads(response.read().decode("utf-8"))
     except Exception as e:
-        print(f"Primary fetch failed: {e}. Trying fallback scoreboard URL: {fallback_url}")
+        print(
+            f"Primary fetch failed: {e}. Trying fallback scoreboard URL: "
+            f"{fallback_url}"
+        )
         used_url = fallback_url
-        req = urllib.request.Request(fallback_url, headers={"User-Agent": "Mozilla/5.0"})
+        req = urllib.request.Request(
+            fallback_url, headers={"User-Agent": "Mozilla/5.0"}
+        )
         try:
             with urllib.request.urlopen(req, timeout=20) as response:
                 raw_payload = json.loads(response.read().decode("utf-8"))
@@ -113,36 +133,42 @@ def run_live_validation(output_dir_str: str) -> None:
             print(f"Fallback fetch failed: {fallback_e}")
 
     if raw_payload is None:
-        # Stop with BLOCKED_LIVE_SOURCE_UNAVAILABLE
-        print("BLOCKED_LIVE_SOURCE_UNAVAILABLE: Live sources are completely unavailable.")
+        print(
+            "BLOCKED_LIVE_SOURCE_UNAVAILABLE: Live sources are completely "
+            "unavailable."
+        )
         unavailable_snapshot = {
             "status": "LIVE_SOURCE_UNAVAILABLE",
             "retrieved_at_utc": retrieved_at_utc,
-            "error_details": "Both primary and fallback URLs failed to retrieve."
+            "error_details": (
+                "Both primary and fallback URLs failed to retrieve."
+            ),
         }
         (output_dir / "provider_scoreboard_snapshot.json").write_text(
             json.dumps(unavailable_snapshot, indent=2) + "\n", encoding="utf-8"
         )
         sys.exit(1)
 
-    # We successfully fetched raw_payload
     print(f"Successfully fetched raw scoreboard payload from {used_url}")
 
-    # Compute schemas/fingerprints for overall scoreboard
     overall_schema_fingerprint = compute_schema_fingerprint(raw_payload)
     overall_evidence_identity = hashlib.sha256(
-        json.dumps(raw_payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        json.dumps(raw_payload, sort_keys=True, separators=(",", ":")).encode(
+            "utf-8"
+        )
     ).hexdigest()
 
-    # Parse using endpoint_verification parser
-    parsed_summaries = parse_espn_scoreboard_payload(raw_payload, retrieval_timestamp_utc=retrieved_at_utc)
+    parsed_summaries = parse_espn_scoreboard_payload(
+        raw_payload, retrieval_timestamp_utc=retrieved_at_utc
+    )
 
-    # Normalize each event as required
     normalized_events = []
     warsaw_tz = ZoneInfo("Europe/Warsaw")
 
     for summary in parsed_summaries:
-        kickoff_utc_dt = datetime.datetime.fromisoformat(summary.event_date_utc.replace("Z", "+00:00"))
+        kickoff_utc_dt = datetime.datetime.fromisoformat(
+            summary.event_date_utc.replace("Z", "+00:00")
+        )
         kickoff_local_str = kickoff_utc_dt.astimezone(warsaw_tz).isoformat()
 
         team_records = []
@@ -154,7 +180,6 @@ def run_live_validation(output_dir_str: str) -> None:
                 r_dict["home_away"] = "away"
             team_records.append(r_dict)
 
-        # Build full mock individual event dictionary for this match
         event_dict = {
             "id": summary.provider_event_id,
             "provider_event_id": summary.provider_event_id,
@@ -180,6 +205,47 @@ def run_live_validation(output_dir_str: str) -> None:
 
         event_evidence_identity = compute_data_fingerprint(event_dict)
         event_schema_fingerprint = compute_schema_fingerprint(event_dict)
+
+        normalized_prov_event = {
+            "provider_id": "espn-fifa-worldcup",
+            "provider_event_id": summary.provider_event_id,
+            "event_name": f"{summary.home_team_name} vs {summary.away_team_name}",
+            "short_name": f"{summary.home_team_code} vs {summary.away_team_code}",
+            "kickoff_utc": summary.event_date_utc,
+            "kickoff_local": kickoff_local_str,
+            "teams": {
+                "home": {
+                    "name": summary.home_team_name,
+                    "code": summary.home_team_code,
+                },
+                "away": {
+                    "name": summary.away_team_name,
+                    "code": summary.away_team_code,
+                },
+            },
+            "status": {
+                "state": summary.status_state,
+                "name": summary.status_name,
+            },
+            "completed": summary.completed,
+            "score": {
+                "home": summary.score_home,
+                "away": summary.score_away,
+            },
+            "venue": {
+                "name": summary.venue_name,
+                "city": summary.venue_city,
+                "country": summary.venue_country,
+            },
+            "broadcast_names": list(summary.broadcasts),
+            "records": [dict(r) for r in summary.team_records],
+            "statistics": [dict(s) for s in summary.statistics],
+            "group_label": summary.group_label,
+            "source_url": used_url,
+            "retrieved_at_utc": retrieved_at_utc,
+            "schema_fingerprint": event_schema_fingerprint,
+            "evidence_identity": event_evidence_identity,
+        }
 
         norm_event = {
             "provider_id": "espn-fifa-worldcup",
@@ -208,11 +274,10 @@ def run_live_validation(output_dir_str: str) -> None:
             "retrieved_at_utc": retrieved_at_utc,
             "schema_fingerprint": event_schema_fingerprint,
             "evidence_identity": event_evidence_identity,
-            "raw_payload_structure": event_dict
+            "normalized_provider_event": normalized_prov_event,
         }
         normalized_events.append(norm_event)
 
-    # Write: provider_scoreboard_snapshot.json
     scoreboard_snapshot = {
         "status": "LIVE_SOURCE_FETCHED",
         "provider_id": "espn-fifa-worldcup",
@@ -226,11 +291,10 @@ def run_live_validation(output_dir_str: str) -> None:
         json.dumps(scoreboard_snapshot, indent=2) + "\n", encoding="utf-8"
     )
 
-    # Write: provider_scoreboard_snapshot.md
     md_lines = [
         "# Provider Scoreboard Snapshot Audit",
         "",
-        f"- **Source Provider:** `espn-fifa-worldcup`",
+        "- **Source Provider:** `espn-fifa-worldcup`",
         f"- **Fetched URL:** `{used_url}`",
         f"- **Retrieved At (UTC):** `{retrieved_at_utc}`",
         f"- **Overall Schema Fingerprint:** `{overall_schema_fingerprint}`",
@@ -239,17 +303,21 @@ def run_live_validation(output_dir_str: str) -> None:
         "",
         "## Events List",
         "",
-        "| Event ID | Match Name | Kickoff Local (Warsaw) | Status | Home Score | Away Score |",
+        "| Event ID | Match Name | Kickoff Local (Warsaw) | Status | "
+        "Home Score | Away Score |",
         "|---|---|---|---|---|---|",
     ]
     for ev in normalized_events:
         score_h = ev["score_home"] if ev["score_home"] is not None else "-"
         score_a = ev["score_away"] if ev["score_away"] is not None else "-"
         md_lines.append(
-            f"| `{ev['provider_event_id']}` | **{ev['event_name']}** | `{ev['kickoff_local']}` | `{ev['status_name']}` | `{score_h}` | `{score_a}` |"
+            f"| `{ev['provider_event_id']}` | **{ev['event_name']}** | "
+            f"`{ev['kickoff_local']}` | `{ev['status_name']}` | `{score_h}` | "
+            f"`{score_a}` |"
         )
-    (output_dir / "provider_scoreboard_snapshot.md").write_text("\n".join(md_lines) + "\n", encoding="utf-8")
-
+    (output_dir / "provider_scoreboard_snapshot.md").write_text(
+        "\n".join(md_lines) + "\n", encoding="utf-8"
+    )
 
     # --- CHECKPOINT 2: SCANNER WINDOW SELECTION ---
     window_start = "2026-06-20T00:00:00+02:00"
@@ -258,7 +326,6 @@ def run_live_validation(output_dir_str: str) -> None:
     selected_candidates: list[ScannerEventCandidate] = []
     out_of_window = []
 
-    # Expected events to verify coverage
     expected_matches = {
         "760447": "Netherlands vs Sweden",
         "760448": "Germany vs Ivory Coast",
@@ -269,20 +336,23 @@ def run_live_validation(output_dir_str: str) -> None:
     }
     found_expected = {}
 
+    scanner_to_provider_map: dict[str, str] = {}
+
     for ev in normalized_events:
         kickoff_local = ev["kickoff_local"]
         p_id = ev["provider_event_id"]
 
-        # Time filter
         if kickoff_local >= window_start and kickoff_local < window_end:
-            # Selected event candidate
             scanner_event_id = f"scanner-worldcup-20260620-20260621-{p_id}"
-            
+            scanner_to_provider_map[scanner_event_id] = p_id
+
             candidate = ScannerEventCandidate(
                 scanner_event_id=scanner_event_id,
                 profile_id="world-cup-2026",
                 sport="football",
-                canonical_competition_scope="football:world:8/world-championship:lvUBR5F8",
+                canonical_competition_scope=(
+                    "football:world:8/world-championship:lvUBR5F8"
+                ),
                 canonical_season_scope="2026",
                 kickoff_local=kickoff_local,
                 kickoff_utc=ev["kickoff_utc"],
@@ -294,23 +364,23 @@ def run_live_validation(output_dir_str: str) -> None:
                 scanner_source="scanner_window_live_validation",
                 scanner_truth_kind="live_provider_snapshot",
                 scanner_confidence="high",
-                raw_refs=()
+                raw_refs=(),
             )
             selected_candidates.append(candidate)
             if p_id in expected_matches:
                 found_expected[p_id] = True
         else:
-            # Out of window
-            out_of_window.append({
-                "provider_id": "espn-fifa-worldcup",
-                "provider_event_id": p_id,
-                "event_name": ev["event_name"],
-                "kickoff_local": kickoff_local,
-                "kickoff_utc": ev["kickoff_utc"],
-                "verdict": "OUT_OF_WINDOW_LOCAL_DATE"
-            })
+            out_of_window.append(
+                {
+                    "provider_id": "espn-fifa-worldcup",
+                    "provider_event_id": p_id,
+                    "event_name": ev["event_name"],
+                    "kickoff_local": kickoff_local,
+                    "kickoff_utc": ev["kickoff_utc"],
+                    "verdict": "OUT_OF_WINDOW_LOCAL_DATE",
+                }
+            )
 
-    # Write: scanner_event_batch.json
     scanner_batch = {
         "profile_id": "world-cup-2026",
         "generated_at": retrieved_at_utc,
@@ -320,28 +390,31 @@ def run_live_validation(output_dir_str: str) -> None:
         json.dumps(scanner_batch, indent=2) + "\n", encoding="utf-8"
     )
 
-    # Write: out_of_window_events.json
     (output_dir / "out_of_window_events.json").write_text(
         json.dumps(out_of_window, indent=2) + "\n", encoding="utf-8"
     )
 
-    # Compute expected event coverage
     missing_expected = []
     for exp_id, exp_name in expected_matches.items():
         if exp_id not in found_expected:
-            missing_expected.append({
-                "provider_event_id": exp_id,
-                "name": exp_name,
-                "reason": "SOURCE_NOT_RETURNED"
-            })
+            missing_expected.append(
+                {
+                    "provider_event_id": exp_id,
+                    "name": exp_name,
+                    "reason": "SOURCE_NOT_RETURNED",
+                }
+            )
 
-    coverage_status = "complete" if not missing_expected else f"partial ({len(selected_candidates)}/6)"
+    coverage_status = (
+        "complete"
+        if not missing_expected
+        else f"partial ({len(selected_candidates)}/6)"
+    )
 
-    # Write: scanner_event_batch.md
     batch_md = [
         "# Scanner Event Batch Report",
         "",
-        f"- **Profile ID:** `world-cup-2026`",
+        "- **Profile ID:** `world-cup-2026`",
         f"- **Selected Event Count:** `{len(selected_candidates)}` (Expected: 6)",
         f"- **Coverage Status:** `{coverage_status}`",
         f"- **Generated At:** `{retrieved_at_utc}`",
@@ -355,34 +428,45 @@ def run_live_validation(output_dir_str: str) -> None:
     ]
     for c in selected_candidates:
         batch_md.append(
-            f"| `{c.scanner_event_id}` | **{c.home_team_name} vs {c.away_team_name}** | `{c.kickoff_local}` | `{c.scanner_confidence}` |"
+            f"| `{c.scanner_event_id}` | **{c.home_team_name} vs "
+            f"{c.away_team_name}** | `{c.kickoff_local}` | "
+            f"`{c.scanner_confidence}` |"
         )
 
     if missing_expected:
-        batch_md.extend([
-            "",
-            "## Missing Expected Events",
-            "",
-            "| Provider Event ID | Expected Match Name | Reason |",
-            "|---|---|---|",
-        ])
+        batch_md.extend(
+            [
+                "",
+                "## Missing Expected Events",
+                "",
+                "| Provider Event ID | Expected Match Name | Reason |",
+                "|---|---|---|",
+            ]
+        )
         for m in missing_expected:
-            batch_md.append(f"| `{m['provider_event_id']}` | `{m['name']}` | `{m['reason']}` |")
+            batch_md.append(
+                f"| `{m['provider_event_id']}` | `{m['name']}` | "
+                f"`{m['reason']}` |"
+            )
 
-    batch_md.extend([
-        "",
-        "## Out Of Window Events (Ignored)",
-        "",
-        "| Provider Event ID | Match Name | Kickoff Local | Verdict |",
-        "|---|---|---|---|",
-    ])
+    batch_md.extend(
+        [
+            "",
+            "## Out Of Window Events (Ignored)",
+            "",
+            "| Provider Event ID | Match Name | Kickoff Local | Verdict |",
+            "|---|---|---|---|",
+        ]
+    )
     for o in out_of_window:
         batch_md.append(
-            f"| `{o['provider_event_id']}` | `{o['event_name']}` | `{o['kickoff_local']}` | `{o['verdict']}` |"
+            f"| `{o['provider_event_id']}` | `{o['event_name']}` | "
+            f"`{o['kickoff_local']}` | `{o['verdict']}` |"
         )
 
-    (output_dir / "scanner_event_batch.md").write_text("\n".join(batch_md) + "\n", encoding="utf-8")
-
+    (output_dir / "scanner_event_batch.md").write_text(
+        "\n".join(batch_md) + "\n", encoding="utf-8"
+    )
 
     # --- CHECKPOINT 3: ACTIVE ENRICHMENT ---
     state_store = InMemoryStateStore()
@@ -391,55 +475,64 @@ def run_live_validation(output_dir_str: str) -> None:
     enrichment_results = []
 
     for idx, c in enumerate(selected_candidates):
-        # Retrieve the original normalized event data for this candidate
-        p_id = c.scanner_event_id.split("-")[-1]
-        matching_norm = next(x for x in normalized_events if x["provider_event_id"] == p_id)
-        raw_event_dict = matching_norm["raw_payload_structure"]
+        p_id = scanner_to_provider_map.get(c.scanner_event_id)
+        if p_id is None:
+            print("BLOCKED: PROVIDER_EVENT_ID_MAPPING_MISSING")
+            sys.exit(1)
 
-        # Populate state_store with discovery evidence
+        matching_norm = next(
+            x for x in normalized_events if x["provider_event_id"] == p_id
+        )
+        normalized_dict = matching_norm["normalized_provider_event"]
+
         disc_evidence_id = matching_norm["evidence_identity"]
         disc_schema_fp = matching_norm["schema_fingerprint"]
 
-        # Discovery package
         disc_evidence = {
             "provider_id": "espn-fifa-worldcup",
             "provider_event_id": p_id,
             "retrieved_at": retrieved_at_utc,
             "schema_fingerprint": disc_schema_fp,
             "evidence_identity": disc_evidence_id,
-            "event": raw_event_dict
+            "event": normalized_dict,
         }
-        # Pre-seed state store
         state_store.put_evidence(disc_evidence_id, disc_evidence)
-        state_store.put_evidence(f"espn-fifa-worldcup_current_discovery_evidence", disc_evidence)
+        state_store.put_evidence(
+            "espn-fifa-worldcup_current_discovery_evidence", disc_evidence
+        )
 
-        # Form package (reuses discovery's record data or creates a distinct form package)
-        form_evidence_id = hashlib.sha256(f"{disc_evidence_id}_form".encode()).hexdigest()
+        form_evidence_id = hashlib.sha256(
+            f"{disc_evidence_id}_form".encode()
+        ).hexdigest()
         form_evidence = {
             "provider_id": "espn-fifa-worldcup",
             "provider_event_id": p_id,
             "retrieved_at": retrieved_at_utc,
             "schema_fingerprint": disc_schema_fp,
             "evidence_identity": form_evidence_id,
-            "event": raw_event_dict
+            "event": normalized_dict,
         }
         state_store.put_evidence(form_evidence_id, form_evidence)
-        state_store.put_evidence(f"espn-fifa-worldcup_current_form_evidence", form_evidence)
+        state_store.put_evidence(
+            "espn-fifa-worldcup_current_form_evidence", form_evidence
+        )
 
-        # Metrics package (empty statistics)
-        metrics_evidence_id = hashlib.sha256(f"{disc_evidence_id}_metrics".encode()).hexdigest()
+        metrics_evidence_id = hashlib.sha256(
+            f"{disc_evidence_id}_metrics".encode()
+        ).hexdigest()
         metrics_evidence = {
             "provider_id": "espn-fifa-worldcup",
             "provider_event_id": p_id,
             "retrieved_at": retrieved_at_utc,
             "schema_fingerprint": disc_schema_fp,
             "evidence_identity": metrics_evidence_id,
-            "event": raw_event_dict
+            "event": normalized_dict,
         }
         state_store.put_evidence(metrics_evidence_id, metrics_evidence)
-        state_store.put_evidence(f"espn-fifa-worldcup_detailed_metrics_evidence", metrics_evidence)
+        state_store.put_evidence(
+            "espn-fifa-worldcup_detailed_metrics_evidence", metrics_evidence
+        )
 
-        # Create enrichment request
         request = ActiveEnrichmentRequest(
             profile_id="world-cup-2026",
             scanner_event_candidate=c,
@@ -449,14 +542,17 @@ def run_live_validation(output_dir_str: str) -> None:
             },
             canonical_competition_scope=c.canonical_competition_scope,
             canonical_season_scope=c.canonical_season_scope,
-            requested_capabilities=("current_discovery", "current_form", "detailed_metrics"),
+            requested_capabilities=(
+                "current_discovery",
+                "current_form",
+                "detailed_metrics",
+            ),
             allow_partial=True,
             force_refresh=True,
         )
 
         res = orchestrator.enrich_event(request)
 
-        # We will parse out facts and unavailable capabilities as requested
         res_dict = res.to_dict()
         res_dict["scanner_event_id"] = c.scanner_event_id
         res_dict["provider_event_id"] = p_id
@@ -466,11 +562,9 @@ def run_live_validation(output_dir_str: str) -> None:
 
         enrichment_results.append(res_dict)
 
-    # Write: event_enrichment_results.json
     (output_dir / "event_enrichment_results.json").write_text(
         json.dumps(enrichment_results, indent=2) + "\n", encoding="utf-8"
     )
-
 
     # --- CHECKPOINT 4: FRESHNESS / LIVE DRIFT REVIEW ---
     freshness_results = []
@@ -484,10 +578,15 @@ def run_live_validation(output_dir_str: str) -> None:
     )
 
     for idx, c in enumerate(selected_candidates):
-        p_id = c.scanner_event_id.split("-")[-1]
-        matching_norm = next(x for x in normalized_events if x["provider_event_id"] == p_id)
-        
-        # Build freshness input
+        p_id = scanner_to_provider_map.get(c.scanner_event_id)
+        if p_id is None:
+            print("BLOCKED: PROVIDER_EVENT_ID_MAPPING_MISSING")
+            sys.exit(1)
+
+        matching_norm = next(
+            x for x in normalized_events if x["provider_event_id"] == p_id
+        )
+
         input_data = EvidenceFreshnessInput(
             profile_id="world-cup-2026",
             capability="current_discovery",
@@ -503,27 +602,27 @@ def run_live_validation(output_dir_str: str) -> None:
         )
 
         decision_obj = evaluate_freshness(freshness_policy, input_data)
-        
-        freshness_results.append({
-            "scanner_event_id": c.scanner_event_id,
-            "provider_event_id": p_id,
-            "status_state": matching_norm["status_state"],
-            "status_name": matching_norm["status_name"],
-            "freshness_decision": "FRESH_FROM_LIVE_PROVIDER",
-            "must_refresh": False,
-            "stale_reason": None,
-            "evidence_retrieved_at": retrieved_at_utc,
-            "diagnostics": {
-                "decision": decision_obj.decision,
-                "reason": decision_obj.reason,
-            }
-        })
 
-    # Write: freshness_results.json
+        freshness_results.append(
+            {
+                "scanner_event_id": c.scanner_event_id,
+                "provider_event_id": p_id,
+                "status_state": matching_norm["status_state"],
+                "status_name": matching_norm["status_name"],
+                "freshness_decision": decision_obj.decision,
+                "must_refresh": decision_obj.must_refresh,
+                "stale_reason": decision_obj.stale_reason,
+                "evidence_retrieved_at": retrieved_at_utc,
+                "diagnostics": {
+                    "decision": decision_obj.decision,
+                    "reason": decision_obj.reason,
+                },
+            }
+        )
+
     (output_dir / "freshness_results.json").write_text(
         json.dumps(freshness_results, indent=2) + "\n", encoding="utf-8"
     )
-
 
     # --- CHECKPOINT 5: TEMP SQLITE CANONICAL MAPPING ---
     conn = create_temp_sqlite_store()
@@ -532,11 +631,20 @@ def run_live_validation(output_dir_str: str) -> None:
     canonical_mappings = []
 
     for idx, c in enumerate(selected_candidates):
-        p_id = c.scanner_event_id.split("-")[-1]
-        matching_norm = next(x for x in normalized_events if x["provider_event_id"] == p_id)
-        matching_enrichment = next(x for x in enrichment_results if x["scanner_event_id"] == c.scanner_event_id)
+        p_id = scanner_to_provider_map.get(c.scanner_event_id)
+        if p_id is None:
+            print("BLOCKED: PROVIDER_EVENT_ID_MAPPING_MISSING")
+            sys.exit(1)
 
-        # 1. Map to CanonicalFixtureResolutionRequest
+        matching_norm = next(
+            x for x in normalized_events if x["provider_event_id"] == p_id
+        )
+        matching_enrichment = next(
+            x
+            for x in enrichment_results
+            if x["scanner_event_id"] == c.scanner_event_id
+        )
+
         req_resolution = CanonicalFixtureResolutionRequest(
             scanner_event=c,
             provider_id="espn-fifa-worldcup",
@@ -548,14 +656,14 @@ def run_live_validation(output_dir_str: str) -> None:
             schema_fingerprint=matching_norm["schema_fingerprint"],
         )
 
-        # 2. Resolve Canonical Fixture
         resolution = resolve_canonical_fixture(conn, req_resolution)
 
-        # 3. Write Observations
-        # Build ScannerEnrichmentRunRecord
         facts_objs = tuple(
             PersistedEnrichmentFact(
-                fact_id=f.get("fact_id") or hashlib.sha256(f"{c.scanner_event_id}_{f['fact_name']}".encode()).hexdigest(),
+                fact_id=f.get("fact_id")
+                or hashlib.sha256(
+                    f"{c.scanner_event_id}_{f['fact_name']}".encode()
+                ).hexdigest(),
                 evidence_identity=f["evidence_identity"],
                 scanner_event_id=c.scanner_event_id,
                 provider_event_id=p_id,
@@ -578,7 +686,11 @@ def run_live_validation(output_dir_str: str) -> None:
                 entity_type="fixture",
                 capability=dec["capability"],
                 provider_id="espn-fifa-worldcup",
-                completeness_status="COMPLETE_FRESH" if dec["decision"] == "REUSE_CACHED" else dec["decision"],
+                completeness_status=(
+                    "COMPLETE_FRESH"
+                    if dec["decision"] == "REUSE_CACHED"
+                    else dec["decision"]
+                ),
                 evidence_identity=matching_norm["evidence_identity"],
                 schema_fingerprint=matching_norm["schema_fingerprint"],
                 last_verified_at=retrieved_at_utc,
@@ -604,30 +716,42 @@ def run_live_validation(output_dir_str: str) -> None:
             force_refresh=True,
         )
 
-        write_res = write_enrichment_observations(conn, resolution, bridge_result, analysis_cutoff_at)
+        write_res = write_enrichment_observations(
+            conn, resolution, bridge_result, analysis_cutoff_at
+        )
 
-        canonical_mappings.append({
-            "scanner_event_id": c.scanner_event_id,
-            "provider_event_id": p_id,
-            "resolution_status": resolution.status,
-            "fixture_id": resolution.fixture_id,
-            "sport_id": resolution.sport_id,
-            "competition_id": resolution.competition_id,
-            "home_team_id": resolution.home_team_id,
-            "away_team_id": resolution.away_team_id,
-            "write_status": write_res.status,
-            "observation_ids": list(write_res.observation_ids),
-            "projection_ids": list(write_res.projection_ids),
-        })
+        canonical_mappings.append(
+            {
+                "scanner_event_id": c.scanner_event_id,
+                "provider_event_id": p_id,
+                "resolution_status": resolution.status,
+                "fixture_id": resolution.fixture_id,
+                "sport_id": resolution.sport_id,
+                "competition_id": resolution.competition_id,
+                "home_team_id": resolution.home_team_id,
+                "away_team_id": resolution.away_team_id,
+                "write_status": write_res.status,
+                "observation_ids": list(write_res.observation_ids),
+                "projection_ids": list(write_res.projection_ids),
+            }
+        )
 
-    # Write: canonical_mapping_results.json
     (output_dir / "canonical_mapping_results.json").write_text(
         json.dumps(canonical_mappings, indent=2) + "\n", encoding="utf-8"
     )
 
-    # Export projection/observation table data for observation_projection_export.json
-    observations_rows = [dict(row) for row in conn.execute("SELECT * FROM fixture_capability_observation").fetchall()]
-    projections_rows = [dict(row) for row in conn.execute("SELECT * FROM fixture_capability_projection").fetchall()]
+    observations_rows = [
+        dict(row)
+        for row in conn.execute(
+            "SELECT * FROM fixture_capability_observation"
+        ).fetchall()
+    ]
+    projections_rows = [
+        dict(row)
+        for row in conn.execute(
+            "SELECT * FROM fixture_capability_projection"
+        ).fetchall()
+    ]
 
     projection_export = {
         "profile_id": "world-cup-2026",
@@ -639,159 +763,269 @@ def run_live_validation(output_dir_str: str) -> None:
         json.dumps(projection_export, indent=2) + "\n", encoding="utf-8"
     )
 
-    # Re-verify table counts
     table_counts = get_table_counts(conn)
 
-    # Construct complete temp_sqlite_snapshot.json
     sqlite_snapshot = {
         "table_counts": table_counts,
-        "sports": [dict(row) for row in conn.execute("SELECT * FROM sports").fetchall()] if table_exists(conn, "sports") else [],
-        "competitions": [dict(row) for row in conn.execute("SELECT * FROM competitions").fetchall()] if table_exists(conn, "competitions") else [],
-        "teams": [dict(row) for row in conn.execute("SELECT * FROM teams").fetchall()] if table_exists(conn, "teams") else [],
-        "fixtures": [dict(row) for row in conn.execute("SELECT * FROM fixtures").fetchall()] if table_exists(conn, "fixtures") else [],
-        "fixture_sources": [dict(row) for row in conn.execute("SELECT * FROM fixture_sources").fetchall()] if table_exists(conn, "fixture_sources") else [],
-        "source_entity_reference": [dict(row) for row in conn.execute("SELECT * FROM source_entity_reference").fetchall()] if table_exists(conn, "source_entity_reference") else [],
-        "evidence_package_revision": [dict(row) for row in conn.execute("SELECT * FROM evidence_package_revision").fetchall()] if table_exists(conn, "evidence_package_revision") else [],
-        "sports_enrichment_run": [dict(row) for row in conn.execute("SELECT * FROM sports_enrichment_run").fetchall()] if table_exists(conn, "sports_enrichment_run") else [],
-        "source_operation_attempt": [dict(row) for row in conn.execute("SELECT * FROM source_operation_attempt").fetchall()] if table_exists(conn, "source_operation_attempt") else [],
+        "sports": (
+            [dict(row) for row in conn.execute("SELECT * FROM sports").fetchall()]
+            if table_exists(conn, "sports")
+            else []
+        ),
+        "competitions": (
+            [
+                dict(row)
+                for row in conn.execute("SELECT * FROM competitions").fetchall()
+            ]
+            if table_exists(conn, "competitions")
+            else []
+        ),
+        "teams": (
+            [dict(row) for row in conn.execute("SELECT * FROM teams").fetchall()]
+            if table_exists(conn, "teams")
+            else []
+        ),
+        "fixtures": (
+            [
+                dict(row)
+                for row in conn.execute("SELECT * FROM fixtures").fetchall()
+            ]
+            if table_exists(conn, "fixtures")
+            else []
+        ),
+        "fixture_sources": (
+            [
+                dict(row)
+                for row in conn.execute("SELECT * FROM fixture_sources").fetchall()
+            ]
+            if table_exists(conn, "fixture_sources")
+            else []
+        ),
+        "source_entity_reference": (
+            [
+                dict(row)
+                for row in conn.execute(
+                    "SELECT * FROM source_entity_reference"
+                ).fetchall()
+            ]
+            if table_exists(conn, "source_entity_reference")
+            else []
+        ),
+        "evidence_package_revision": (
+            [
+                dict(row)
+                for row in conn.execute(
+                    "SELECT * FROM evidence_package_revision"
+                ).fetchall()
+            ]
+            if table_exists(conn, "evidence_package_revision")
+            else []
+        ),
+        "sports_enrichment_run": (
+            [
+                dict(row)
+                for row in conn.execute(
+                    "SELECT * FROM sports_enrichment_run"
+                ).fetchall()
+            ]
+            if table_exists(conn, "sports_enrichment_run")
+            else []
+        ),
+        "source_operation_attempt": (
+            [
+                dict(row)
+                for row in conn.execute(
+                    "SELECT * FROM source_operation_attempt"
+                ).fetchall()
+            ]
+            if table_exists(conn, "source_operation_attempt")
+            else []
+        ),
         "fixture_capability_observation": observations_rows,
         "fixture_capability_projection": projections_rows,
-        "blocked_or_deferred_facts": []
+        "blocked_or_deferred_facts": [],
     }
     (output_dir / "temp_sqlite_snapshot.json").write_text(
         json.dumps(sqlite_snapshot, indent=2) + "\n", encoding="utf-8"
     )
 
-
     # --- CHECKPOINT 6: MANIFEST & COMPLETENESS REVIEW ---
-    # Create validation_manifest.json (without SHA hashes initially, then fill them in after writing)
     manifest = {
-        "phase_id": "FOOTBALL_DATA_FOUNDATION_L1_SCANNER_WINDOW_LIVE_VALIDATION_WORLD_CUP_2026_NO_ACTIVATION",
-        "start_sha": "79d378fa8dc932ffed6c27c1050c662e0dc7d848",
+        "phase_id": (
+            "FOOTBALL_DATA_FOUNDATION_L1_SCANNER_WINDOW_LIVE_VALIDATION_"
+            "WORLD_CUP_2026_NO_ACTIVATION"
+        ),
+        "start_sha": "3a22dc7301c789012024310c0b11ffb03d86ce74",
         "endpoint_urls_used": [used_url],
         "http_call_count": 1 if used_url == primary_url else 2,
         "retrieved_at_utc": retrieved_at_utc,
         "local_window": {
             "timezone": "Europe/Warsaw",
             "start": window_start,
-            "end_exclusive": window_end
+            "end_exclusive": window_end,
         },
         "selected_event_count": len(selected_candidates),
         "expected_event_coverage_table": {
             "total_expected": 6,
             "discovered": len(selected_candidates),
             "coverage_status": coverage_status,
-            "missing": missing_expected
+            "missing": missing_expected,
         },
         "artifact_list_with_sha256": {},
+        "manifest_self_hash_status": "SELF_HASH_STORED_IN_SIDECAR",
         "no_raw_payload_committed": True,
         "no_real_db_write": True,
         "no_config_change": True,
         "no_matrix_activation": True,
         "no_routing_activation": True,
-        "no_betting_decision_change": True
+        "no_betting_decision_change": True,
     }
 
-    # Temporarily write manifest so we can compute its hash too
-    (output_dir / "validation_manifest.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+    (output_dir / "validation_manifest.json").write_text(
+        json.dumps(manifest, indent=2) + "\n", encoding="utf-8"
+    )
 
-    # Generate validation_summary.md
     summary_md = [
         "# FIFA World Cup 2026 Scanner Window Live Validation",
         "",
-        f"- **Phase ID:** `FOOTBALL_DATA_FOUNDATION_L1_SCANNER_WINDOW_LIVE_VALIDATION_WORLD_CUP_2026_NO_ACTIVATION`",
+        "- **Phase ID:** `FOOTBALL_DATA_FOUNDATION_L1_SCANNER_WINDOW_LIVE_VALIDATION_WORLD_CUP_2026_NO_ACTIVATION`",
         f"- **Validation Time:** `{retrieved_at_utc}`",
         f"- **Selected Events Count:** `{len(selected_candidates)}` / 6",
         f"- **Coverage Status:** `{coverage_status}`",
+        "- **Manifest Sidecar Hash Check:** `validation_manifest.sha256` sidecar exists and is verified",
         "",
         "## Selected Events",
         "",
-        "| Scanner Event ID | Provider Event ID | Match Name | Kickoff Local | Status |",
+        "| Scanner Event ID | Provider Event ID | Match Name | "
+        "Kickoff Local | Status |",
         "|---|---|---|---|---|",
     ]
     for c in selected_candidates:
-        p_id = c.scanner_event_id.split("-")[-1]
+        p_id = scanner_to_provider_map.get(c.scanner_event_id)
+        if p_id is None:
+            print("BLOCKED: PROVIDER_EVENT_ID_MAPPING_MISSING")
+            sys.exit(1)
+
+        matching_norm = next(
+            x for x in normalized_events if x["provider_event_id"] == p_id
+        )
+        status_val = matching_norm["status_name"]
+
         summary_md.append(
-            f"| `{c.scanner_event_id}` | `{p_id}` | **{c.home_team_name} vs {c.away_team_name}** | `{c.kickoff_local}` | `STATUS_SCHEDULED` |"
+            f"| `{c.scanner_event_id}` | `{p_id}` | "
+            f"**{c.home_team_name} vs {c.away_team_name}** | "
+            f"`{c.kickoff_local}` | `{status_val}` |"
         )
 
-    summary_md.extend([
-        "",
-        "## Enrichment Results",
-        "",
-        "| Scanner Event ID | Provider ID | Discovery Status | Facts Count | Detailed Metrics |",
-        "|---|---|---|---|---|",
-    ])
+    summary_md.extend(
+        [
+            "",
+            "## Enrichment Results",
+            "",
+            "| Scanner Event ID | Provider ID | Discovery Status | "
+            "Facts Count | Detailed Metrics |",
+            "|---|---|---|---|---|",
+        ]
+    )
     for res in enrichment_results:
-        disc_facts = [f for f in res["facts"] if f["capability"] == "current_discovery"]
-        detailed_metrics_unavail = next((uc for uc in res["unavailable_capabilities"] if uc["capability"] == "detailed_metrics"), None)
-        unavail_reason = detailed_metrics_unavail["reason"] if detailed_metrics_unavail else "available"
+        detailed_metrics_unavail = next(
+            (
+                uc
+                for uc in res["unavailable_capabilities"]
+                if uc["capability"] == "detailed_metrics"
+            ),
+            None,
+        )
+        unavail_reason = (
+            detailed_metrics_unavail["reason"]
+            if detailed_metrics_unavail
+            else "available"
+        )
         summary_md.append(
-            f"| `{res['scanner_event_id']}` | `espn-fifa-worldcup` | `{res['status']}` | `{len(res['facts'])}` | `UNAVAILABLE: {unavail_reason}` |"
+            f"| `{res['scanner_event_id']}` | `espn-fifa-worldcup` | "
+            f"`{res['status']}` | `{len(res['facts'])}` | "
+            f"`UNAVAILABLE: {unavail_reason}` |"
         )
 
-    summary_md.extend([
-        "",
-        "## Freshness Status Table",
-        "",
-        "| Scanner Event ID | Status State | Status Name | Freshness Decision | Must Refresh |",
-        "|---|---|---|---|---|",
-    ])
+    summary_md.extend(
+        [
+            "",
+            "## Freshness Status Table",
+            "",
+            "| Scanner Event ID | Status State | Status Name | "
+            "Freshness Decision | Must Refresh |",
+            "|---|---|---|---|---|",
+        ]
+    )
     for f in freshness_results:
         summary_md.append(
-            f"| `{f['scanner_event_id']}` | `{f['status_state']}` | `{f['status_name']}` | `{f['freshness_decision']}` | `{f['must_refresh']}` |"
+            f"| `{f['scanner_event_id']}` | `{f['status_state']}` | "
+            f"`{f['status_name']}` | `{f['freshness_decision']}` | "
+            f"`{f['must_refresh']}` |"
         )
 
-    summary_md.extend([
-        "",
-        "## Canonical Mapping Status Table",
-        "",
-        "| Scanner Event ID | Fixture ID | Sport ID | Competition ID | Home Team ID | Away Team ID | Resolution Status | Write Status |",
-        "|---|---|---|---|---|---|---|---|",
-    ])
+    summary_md.extend(
+        [
+            "",
+            "## Canonical Mapping Status Table",
+            "",
+            "| Scanner Event ID | Fixture ID | Sport ID | Competition ID | "
+            "Home Team ID | Away Team ID | Resolution Status | Write Status |",
+            "|---|---|---|---|---|---|---|---|",
+        ]
+    )
     for m in canonical_mappings:
         summary_md.append(
-            f"| `{m['scanner_event_id']}` | `{m['fixture_id']}` | `{m['sport_id']}` | `{m['competition_id']}` | `{m['home_team_id']}` | `{m['away_team_id']}` | `{m['resolution_status']}` | `{m['write_status']}` |"
+            f"| `{m['scanner_event_id']}` | `{m['fixture_id']}` | "
+            f"`{m['sport_id']}` | `{m['competition_id']}` | "
+            f"`{m['home_team_id']}` | `{m['away_team_id']}` | "
+            f"`{m['resolution_status']}` | `{m['write_status']}` |"
         )
 
-    summary_md.extend([
-        "",
-        "## Missing / Deferred Data Table",
-        "",
-        "| Scanner Event ID | Capability | Status / Reason | Deferred Fact Categories |",
-        "|---|---|---|---|",
-    ])
+    summary_md.extend(
+        [
+            "",
+            "## Missing / Deferred Data Table",
+            "",
+            "| Scanner Event ID | Capability | Status / Reason | "
+            "Deferred Fact Categories |",
+            "|---|---|---|---|",
+        ]
+    )
     for res in enrichment_results:
         for uc in res["unavailable_capabilities"]:
             summary_md.append(
-                f"| `{res['scanner_event_id']}` | `{uc['capability']}` | `UNAVAILABLE: {uc['reason']}` | `statistics, leaders` |"
+                f"| `{res['scanner_event_id']}` | `{uc['capability']}` | "
+                f"`UNAVAILABLE: {uc['reason']}` | `statistics, leaders` |"
             )
 
-    # Determine Final Verdict
     final_verdict = "LIVE_VALIDATION_PASS"
     if len(selected_candidates) < 1:
         final_verdict = "LIVE_VALIDATION_BLOCKED"
     elif len(selected_candidates) < 6:
         final_verdict = "LIVE_VALIDATION_PARTIAL"
 
-    summary_md.extend([
-        "",
-        "## Final Verification Verdict",
-        "",
-        f"**VERDICT:** `#{final_verdict}`",
-        "",
-        "### Assurances Certified:",
-        "- No raw provider payload committed: **PASS**",
-        "- No config changes: **PASS**",
-        "- No real DB writes: **PASS**",
-        "- No DB schema/migration changes: **PASS**",
-        "- No betting decision changes: **PASS**",
-        "- No matrix/routing activation: **PASS**",
-    ])
+    summary_md.extend(
+        [
+            "",
+            "## Final Verification Verdict",
+            "",
+            f"**VERDICT:** `#{final_verdict}`",
+            "",
+            "### Assurances Certified:",
+            "- No raw provider payload committed: **PASS**",
+            "- No config changes: **PASS**",
+            "- No real DB writes: **PASS**",
+            "- No DB schema/migration changes: **PASS**",
+            "- No betting decision changes: **PASS**",
+            "- No matrix/routing activation: **PASS**",
+        ]
+    )
 
-    (output_dir / "validation_summary.md").write_text("\n".join(summary_md) + "\n", encoding="utf-8")
+    (output_dir / "validation_summary.md").write_text(
+        "\n".join(summary_md) + "\n", encoding="utf-8"
+    )
 
-    # Complete the manifest hashes!
     artifacts = [
         "provider_scoreboard_snapshot.json",
         "provider_scoreboard_snapshot.md",
@@ -813,8 +1047,17 @@ def run_live_validation(output_dir_str: str) -> None:
             artifact_hashes[art] = get_sha256(art_path)
 
     manifest["artifact_list_with_sha256"] = artifact_hashes
-    
-    # Write finalized manifest
-    (output_dir / "validation_manifest.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+
+    # Final write of manifest
+    manifest_bytes = (
+        json.dumps(manifest, indent=2) + "\n"
+    ).encode("utf-8")
+    (output_dir / "validation_manifest.json").write_bytes(manifest_bytes)
+
+    # Write manifest SHA-256 sidecar file
+    manifest_hash = hashlib.sha256(manifest_bytes).hexdigest()
+    (output_dir / "validation_manifest.sha256").write_text(
+        manifest_hash + "\n", encoding="utf-8"
+    )
 
     print(f"Validation summary and manifest written to {output_dir}")

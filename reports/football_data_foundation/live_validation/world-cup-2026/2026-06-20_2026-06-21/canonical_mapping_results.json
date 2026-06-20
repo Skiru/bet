@@ -9,18 +9,8 @@
     "home_team_id": 1,
     "away_team_id": 2,
     "write_status": "SUCCESS",
-    "observation_ids": [
-      1,
-      2,
-      3,
-      4
-    ],
-    "projection_ids": [
-      1,
-      2,
-      3,
-      4
-    ]
+    "observation_ids": [],
+    "projection_ids": []
   },
   {
     "scanner_event_id": "scanner-worldcup-20260620-20260621-760448",
@@ -32,18 +22,8 @@
     "home_team_id": 3,
     "away_team_id": 4,
     "write_status": "SUCCESS",
-    "observation_ids": [
-      5,
-      6,
-      7,
-      8
-    ],
-    "projection_ids": [
-      5,
-      6,
-      7,
-      8
-    ]
+    "observation_ids": [],
+    "projection_ids": []
   },
   {
     "scanner_event_id": "scanner-worldcup-20260620-20260621-760446",
@@ -55,18 +35,8 @@
     "home_team_id": 5,
     "away_team_id": 6,
     "write_status": "SUCCESS",
-    "observation_ids": [
-      9,
-      10,
-      11,
-      12
-    ],
-    "projection_ids": [
-      9,
-      10,
-      11,
-      12
-    ]
+    "observation_ids": [],
+    "projection_ids": []
   },
   {
     "scanner_event_id": "scanner-worldcup-20260620-20260621-760449",
@@ -78,18 +48,8 @@
     "home_team_id": 7,
     "away_team_id": 8,
     "write_status": "SUCCESS",
-    "observation_ids": [
-      13,
-      14,
-      15,
-      16
-    ],
-    "projection_ids": [
-      13,
-      14,
-      15,
-      16
-    ]
+    "observation_ids": [],
+    "projection_ids": []
   },
   {
     "scanner_event_id": "scanner-worldcup-20260620-20260621-760453",
@@ -101,18 +61,8 @@
     "home_team_id": 9,
     "away_team_id": 10,
     "write_status": "SUCCESS",
-    "observation_ids": [
-      17,
-      18,
-      19,
-      20
-    ],
-    "projection_ids": [
-      17,
-      18,
-      19,
-      20
-    ]
+    "observation_ids": [],
+    "projection_ids": []
   },
   {
     "scanner_event_id": "scanner-worldcup-20260620-20260621-760451",
@@ -124,17 +74,7 @@
     "home_team_id": 11,
     "away_team_id": 12,
     "write_status": "SUCCESS",
-    "observation_ids": [
-      21,
-      22,
-      23,
-      24
-    ],
-    "projection_ids": [
-      21,
-      22,
-      23,
-      24
-    ]
+    "observation_ids": [],
+    "projection_ids": []
   }
 ]

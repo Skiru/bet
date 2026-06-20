@@ -4,10 +4,10 @@
     "provider_event_id": "760447",
     "status_state": "pre",
     "status_name": "STATUS_SCHEDULED",
-    "freshness_decision": "FRESH_FROM_LIVE_PROVIDER",
+    "freshness_decision": "FRESH_REUSABLE",
     "must_refresh": false,
     "stale_reason": null,
-    "evidence_retrieved_at": "2026-06-20T14:44:18.110518+00:00",
+    "evidence_retrieved_at": "2026-06-20T16:28:22.998671+00:00",
     "diagnostics": {
       "decision": "FRESH_REUSABLE",
       "reason": "Within TTL and status matches"
@@ -18,10 +18,10 @@
     "provider_event_id": "760448",
     "status_state": "pre",
     "status_name": "STATUS_SCHEDULED",
-    "freshness_decision": "FRESH_FROM_LIVE_PROVIDER",
+    "freshness_decision": "FRESH_REUSABLE",
     "must_refresh": false,
     "stale_reason": null,
-    "evidence_retrieved_at": "2026-06-20T14:44:18.110518+00:00",
+    "evidence_retrieved_at": "2026-06-20T16:28:22.998671+00:00",
     "diagnostics": {
       "decision": "FRESH_REUSABLE",
       "reason": "Within TTL and status matches"
@@ -32,10 +32,10 @@
     "provider_event_id": "760446",
     "status_state": "pre",
     "status_name": "STATUS_SCHEDULED",
-    "freshness_decision": "FRESH_FROM_LIVE_PROVIDER",
+    "freshness_decision": "FRESH_REUSABLE",
     "must_refresh": false,
     "stale_reason": null,
-    "evidence_retrieved_at": "2026-06-20T14:44:18.110518+00:00",
+    "evidence_retrieved_at": "2026-06-20T16:28:22.998671+00:00",
     "diagnostics": {
       "decision": "FRESH_REUSABLE",
       "reason": "Within TTL and status matches"
@@ -46,10 +46,10 @@
     "provider_event_id": "760449",
     "status_state": "pre",
     "status_name": "STATUS_SCHEDULED",
-    "freshness_decision": "FRESH_FROM_LIVE_PROVIDER",
+    "freshness_decision": "FRESH_REUSABLE",
     "must_refresh": false,
     "stale_reason": null,
-    "evidence_retrieved_at": "2026-06-20T14:44:18.110518+00:00",
+    "evidence_retrieved_at": "2026-06-20T16:28:22.998671+00:00",
     "diagnostics": {
       "decision": "FRESH_REUSABLE",
       "reason": "Within TTL and status matches"
@@ -60,10 +60,10 @@
     "provider_event_id": "760453",
     "status_state": "pre",
     "status_name": "STATUS_SCHEDULED",
-    "freshness_decision": "FRESH_FROM_LIVE_PROVIDER",
+    "freshness_decision": "FRESH_REUSABLE",
     "must_refresh": false,
     "stale_reason": null,
-    "evidence_retrieved_at": "2026-06-20T14:44:18.110518+00:00",
+    "evidence_retrieved_at": "2026-06-20T16:28:22.998671+00:00",
     "diagnostics": {
       "decision": "FRESH_REUSABLE",
       "reason": "Within TTL and status matches"
@@ -74,10 +74,10 @@
     "provider_event_id": "760451",
     "status_state": "pre",
     "status_name": "STATUS_SCHEDULED",
-    "freshness_decision": "FRESH_FROM_LIVE_PROVIDER",
+    "freshness_decision": "FRESH_REUSABLE",
     "must_refresh": false,
     "stale_reason": null,
-    "evidence_retrieved_at": "2026-06-20T14:44:18.110518+00:00",
+    "evidence_retrieved_at": "2026-06-20T16:28:22.998671+00:00",
     "diagnostics": {
       "decision": "FRESH_REUSABLE",
       "reason": "Within TTL and status matches"
