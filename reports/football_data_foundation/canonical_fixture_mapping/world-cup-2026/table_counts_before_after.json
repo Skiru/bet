@@ -1,0 +1,67 @@
+{
+  "sports": {
+    "before": 0,
+    "after": 1,
+    "diff": 1
+  },
+  "competitions": {
+    "before": 0,
+    "after": 1,
+    "diff": 1
+  },
+  "teams": {
+    "before": 0,
+    "after": 2,
+    "diff": 2
+  },
+  "fixtures": {
+    "before": 0,
+    "after": 1,
+    "diff": 1
+  },
+  "fixture_sources": {
+    "before": 0,
+    "after": 2,
+    "diff": 2
+  },
+  "scan_results": {
+    "before": 0,
+    "after": 0,
+    "diff": 0
+  },
+  "sports_entity": {
+    "before": 0,
+    "after": 1,
+    "diff": 1
+  },
+  "source_entity_reference": {
+    "before": 0,
+    "after": 2,
+    "diff": 2
+  },
+  "evidence_package_revision": {
+    "before": 0,
+    "after": 3,
+    "diff": 3
+  },
+  "sports_enrichment_run": {
+    "before": 0,
+    "after": 1,
+    "diff": 1
+  },
+  "source_operation_attempt": {
+    "before": 0,
+    "after": 3,
+    "diff": 3
+  },
+  "fixture_capability_observation": {
+    "before": 0,
+    "after": 6,
+    "diff": 6
+  },
+  "fixture_capability_projection": {
+    "before": 0,
+    "after": 6,
+    "diff": 6
+  }
+}
