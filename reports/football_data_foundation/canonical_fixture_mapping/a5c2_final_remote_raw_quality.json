@@ -1,0 +1,125 @@
+{
+  "phase_id": "FOOTBALL_DATA_FOUNDATION_A5C2_FINAL_REMOTE_RAW_AND_SEMANTIC_LOCK",
+  "status": "PASS",
+  "pre_fix_metrics": {
+    "src/bet/enrichment/football_data_foundation/canonical_fixture_resolver.py": {
+      "working_tree": {
+        "physical_line_count": 518,
+        "max_line_length": 113,
+        "minified_detected": false
+      },
+      "git_object": {
+        "physical_line_count": 518,
+        "max_line_length": 113,
+        "minified_detected": false
+      },
+      "remote_branch_object": {
+        "physical_line_count": 518,
+        "max_line_length": 113,
+        "minified_detected": false
+      },
+      "github_raw": {
+        "physical_line_count": 518,
+        "max_line_length": 113,
+        "minified_detected": false,
+        "url": "https://raw.githubusercontent.com/Skiru/bet/cf4b83e43dbdf0ade8e61d4f955787eda0a927dd/src/bet/enrichment/football_data_foundation/canonical_fixture_resolver.py"
+      }
+    },
+    "src/bet/enrichment/football_data_foundation/canonical_observation_writer.py": {
+      "working_tree": {
+        "physical_line_count": 465,
+        "max_line_length": 110,
+        "minified_detected": false
+      },
+      "git_object": {
+        "physical_line_count": 465,
+        "max_line_length": 110,
+        "minified_detected": false
+      },
+      "remote_branch_object": {
+        "physical_line_count": 465,
+        "max_line_length": 110,
+        "minified_detected": false
+      },
+      "github_raw": {
+        "physical_line_count": 465,
+        "max_line_length": 110,
+        "minified_detected": false,
+        "url": "https://raw.githubusercontent.com/Skiru/bet/cf4b83e43dbdf0ade8e61d4f955787eda0a927dd/src/bet/enrichment/football_data_foundation/canonical_observation_writer.py"
+      }
+    },
+    "src/bet/enrichment/football_data_foundation/cli.py": {
+      "working_tree": {
+        "physical_line_count": 368,
+        "max_line_length": 130,
+        "minified_detected": false
+      },
+      "git_object": {
+        "physical_line_count": 368,
+        "max_line_length": 130,
+        "minified_detected": false
+      },
+      "remote_branch_object": {
+        "physical_line_count": 368,
+        "max_line_length": 130,
+        "minified_detected": false
+      },
+      "github_raw": {
+        "physical_line_count": 368,
+        "max_line_length": 130,
+        "minified_detected": false,
+        "url": "https://raw.githubusercontent.com/Skiru/bet/cf4b83e43dbdf0ade8e61d4f955787eda0a927dd/src/bet/enrichment/football_data_foundation/cli.py"
+      }
+    },
+    "src/bet/enrichment/football_data_foundation/enrichment_freshness.py": {
+      "working_tree": {
+        "physical_line_count": 276,
+        "max_line_length": 116,
+        "minified_detected": false
+      },
+      "git_object": {
+        "physical_line_count": 276,
+        "max_line_length": 116,
+        "minified_detected": false
+      },
+      "remote_branch_object": {
+        "physical_line_count": 276,
+        "max_line_length": 116,
+        "minified_detected": false
+      },
+      "github_raw": {
+        "physical_line_count": 276,
+        "max_line_length": 116,
+        "minified_detected": false,
+        "url": "https://raw.githubusercontent.com/Skiru/bet/cf4b83e43dbdf0ade8e61d4f955787eda0a927dd/src/bet/enrichment/football_data_foundation/enrichment_freshness.py"
+      }
+    },
+    "tests/enrichment/football_data_foundation/test_canonical_fixture_mapping.py": {
+      "working_tree": {
+        "physical_line_count": 583,
+        "max_line_length": 119,
+        "minified_detected": false
+      },
+      "git_object": {
+        "physical_line_count": 583,
+        "max_line_length": 119,
+        "minified_detected": false
+      },
+      "remote_branch_object": {
+        "physical_line_count": 583,
+        "max_line_length": 119,
+        "minified_detected": false
+      },
+      "github_raw": {
+        "physical_line_count": 583,
+        "max_line_length": 119,
+        "minified_detected": false,
+        "url": "https://raw.githubusercontent.com/Skiru/bet/cf4b83e43dbdf0ade8e61d4f955787eda0a927dd/tests/enrichment/football_data_foundation/test_canonical_fixture_mapping.py"
+      }
+    }
+  },
+  "pre_fix_contradiction": {
+    "evidence_layer_discrepancy": "Previous A5C1 V2 report claimed files on remote were fully expanded (hundreds of lines), but raw files on previous commits like 4f6f0fa6aced0d4505b4e23a599486eb64398aab were minified to single physical lines in remote view. Commit cf4b83e43dbdf0ade8e61d4f955787eda0a927dd successfully normalized and permanently resolved this discrepancy.",
+    "reliability_verdict": "Previous code-quality PASS reports are invalid if they contradict git object or GitHub raw metrics. Local `wc -l` alone is not acceptable evidence. Acceptance source of truth is commit object + GitHub raw."
+  }
+}
