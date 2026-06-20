@@ -1,0 +1,43 @@
+{
+  "phase_id": "FOOTBALL_DATA_FOUNDATION_L1D1_FINAL_PUBLIC_RAW_SOURCE_OF_TRUTH_AND_LIVE_VALIDATION_ACCEPTANCE",
+  "start_sha": "fd6c900377031abd3695b87d455529b51f6b4329",
+  "final_verdict": "LIVE_VALIDATION_ACCEPTED_PRODUCTION_GRADE_NO_ACTIVATION",
+  "semantic_checks": {
+    "source_window": {
+      "status": "PASS",
+      "endpoint": "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?limit=950&dates=20260620-20260621",
+      "local_window_start": "2026-06-20T00:00:00+02:00",
+      "local_window_end_exclusive": "2026-06-22T00:00:00+02:00",
+      "details": "All 6 selected events fall precisely within the local Warsaw window, and June 22 events are correctly excluded."
+    },
+    "scanner_identity": {
+      "status": "PASS",
+      "details": "scanner_event_id is synthetic and distinct from provider_event_id; both exist as separate fields."
+    },
+    "enrichment_facts": {
+      "status": "PASS",
+      "details": "All 6 events have entries in event_enrichment_results.json. Facts count ranges from 22 to 34, containing robust current_discovery data."
+    },
+    "freshness": {
+      "status": "PASS",
+      "details": "Freshness decisions are policy-calculated based on event status states (e.g. status-sensitive for live events and pre-match for scheduled events)."
+    },
+    "canonical_mapping": {
+      "status": "PASS",
+      "details": "Canonical mappings exist for all selected events, with clear separate fields for scanner and provider refs."
+    },
+    "temp_sqlite": {
+      "status": "PASS",
+      "details": "temp_sqlite_snapshot.json is deterministic, fully reviewable, and no binary SQLite DB file or production DB changes were committed."
+    },
+    "artifacts_reviewability": {
+      "status": "PASS",
+      "details": "All JSON and MD files are LF-only, perfectly formatted, and fully reviewable. No raw_payload_structure key exists."
+    },
+    "scope_safety": {
+      "status": "PASS",
+      "details": "No config changes, DB writes, schema changes, provider additions, or betting decision logic updates are performed."
+    }
+  },
+  "review_summary": "The exact-SHA public raw content matches local git blobs perfectly, files meet all line-ending and reviewability criteria, and the live-validation logic is structurally sound, safe, and honest."
+}
