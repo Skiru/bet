@@ -327,7 +327,7 @@ def test_source_external_id_conflict_handling() -> None:
     conn.execute("INSERT INTO teams (id, sport_id, name) VALUES (2, 1, 'Australia')")
 
     # Insert existing mapping
-    cursor = conn.execute(
+    conn.execute(
         "INSERT INTO fixtures (id, sport_id, competition_id, home_team_id, away_team_id, kickoff, status, fetched_at) "
         "VALUES (10, 1, 1, 1, 2, ?, 'scheduled', 'now')",
         (scanner_event.kickoff_utc,),

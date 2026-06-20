@@ -295,7 +295,10 @@ def run_canonical_fixture_dry_run(args: argparse.Namespace) -> None:
         "## Safety Assertions Verified",
         "",
         f"- **No real database touched:** `{not real_db_touched}` (Verified dynamically via SQLite connection check)",
-        f"- **Scanner reference separate:** `True` (Scanner event `{scanner_event.scanner_event_id}` and Provider event `{bridge_result.provider_event_id}` stored in distinct mapping records)",
+        "- **Scanner reference separate:** `True` "
+        f"(Scanner event `{scanner_event.scanner_event_id}` and "
+        f"Provider event `{bridge_result.provider_event_id}` "
+        "stored in distinct mapping records)",
         "- **All observations/projections successfully linked:** `True`",
     ])
 
