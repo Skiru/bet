@@ -1,5 +1,5 @@
 # Live Validation L1D1 Public Raw Source of Truth Audit Report
-**Exact SHA:** `fd6c900377031abd3695b87d455529b51f6b4329`
+**Exact SHA:** `841926ed754c770d3d556ad1055597059e59d361`
 **Conclusion:** `PUBLIC_RAW_MATCHES_LOCAL_BLOB_AND_REVIEWABLE`
 **Detail:** All hashes match and all files meet the reviewability / line-ending thresholds.
 

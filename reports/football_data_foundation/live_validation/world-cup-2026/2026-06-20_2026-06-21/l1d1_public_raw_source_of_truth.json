@@ -1,10 +1,10 @@
 {
-  "start_sha": "fd6c900377031abd3695b87d455529b51f6b4329",
+  "start_sha": "841926ed754c770d3d556ad1055597059e59d361",
   "conclusion": "PUBLIC_RAW_MATCHES_LOCAL_BLOB_AND_REVIEWABLE",
   "conclusion_detail": "All hashes match and all files meet the reviewability / line-ending thresholds.",
   "results": {
     "src/bet/enrichment/football_data_foundation/live_validation.py": {
-      "url": "https://raw.githubusercontent.com/Skiru/bet/fd6c900377031abd3695b87d455529b51f6b4329/src/bet/enrichment/football_data_foundation/live_validation.py",
+      "url": "https://raw.githubusercontent.com/Skiru/bet/841926ed754c770d3d556ad1055597059e59d361/src/bet/enrichment/football_data_foundation/live_validation.py",
       "local_sha256": "3b0aca13412728c8ec62aa137872b32c3441ca7ea90c304b6dffba59ef742173",
       "public_sha256": "3b0aca13412728c8ec62aa137872b32c3441ca7ea90c304b6dffba59ef742173",
       "hashes_match": true,
@@ -68,7 +68,7 @@
       ]
     },
     "tests/enrichment/football_data_foundation/test_live_validation.py": {
-      "url": "https://raw.githubusercontent.com/Skiru/bet/fd6c900377031abd3695b87d455529b51f6b4329/tests/enrichment/football_data_foundation/test_live_validation.py",
+      "url": "https://raw.githubusercontent.com/Skiru/bet/841926ed754c770d3d556ad1055597059e59d361/tests/enrichment/football_data_foundation/test_live_validation.py",
       "local_sha256": "a43f6bb2a98e4bbb42c99f5f2ea59bcc432d32fbce77d8256f22059f350503a6",
       "public_sha256": "a43f6bb2a98e4bbb42c99f5f2ea59bcc432d32fbce77d8256f22059f350503a6",
       "hashes_match": true,
@@ -132,7 +132,7 @@
       ]
     },
     "reports/football_data_foundation/live_validation/world-cup-2026/2026-06-20_2026-06-21/validation_summary.md": {
-      "url": "https://raw.githubusercontent.com/Skiru/bet/fd6c900377031abd3695b87d455529b51f6b4329/reports/football_data_foundation/live_validation/world-cup-2026/2026-06-20_2026-06-21/validation_summary.md",
+      "url": "https://raw.githubusercontent.com/Skiru/bet/841926ed754c770d3d556ad1055597059e59d361/reports/football_data_foundation/live_validation/world-cup-2026/2026-06-20_2026-06-21/validation_summary.md",
       "local_sha256": "76276ea4d9db2b473ea6cf09e839778d23a5ab73927de30941aec0b3c0074608",
       "public_sha256": "76276ea4d9db2b473ea6cf09e839778d23a5ab73927de30941aec0b3c0074608",
       "hashes_match": true,
@@ -196,7 +196,7 @@
       ]
     },
     "reports/football_data_foundation/live_validation/world-cup-2026/2026-06-20_2026-06-21/event_enrichment_results.json": {
-      "url": "https://raw.githubusercontent.com/Skiru/bet/fd6c900377031abd3695b87d455529b51f6b4329/reports/football_data_foundation/live_validation/world-cup-2026/2026-06-20_2026-06-21/event_enrichment_results.json",
+      "url": "https://raw.githubusercontent.com/Skiru/bet/841926ed754c770d3d556ad1055597059e59d361/reports/football_data_foundation/live_validation/world-cup-2026/2026-06-20_2026-06-21/event_enrichment_results.json",
       "local_sha256": "838de575299e1e6382b6bda0e09a02171f6b8b30db05573caa8e0e6adaaa945b",
       "public_sha256": "838de575299e1e6382b6bda0e09a02171f6b8b30db05573caa8e0e6adaaa945b",
       "hashes_match": true,
@@ -260,7 +260,7 @@
       ]
     },
     "reports/football_data_foundation/live_validation/world-cup-2026/2026-06-20_2026-06-21/freshness_results.json": {
-      "url": "https://raw.githubusercontent.com/Skiru/bet/fd6c900377031abd3695b87d455529b51f6b4329/reports/football_data_foundation/live_validation/world-cup-2026/2026-06-20_2026-06-21/freshness_results.json",
+      "url": "https://raw.githubusercontent.com/Skiru/bet/841926ed754c770d3d556ad1055597059e59d361/reports/football_data_foundation/live_validation/world-cup-2026/2026-06-20_2026-06-21/freshness_results.json",
       "local_sha256": "420d1b94598544297a52caa49575cb953c203738214f6f0d0cdf30486337a98a",
       "public_sha256": "420d1b94598544297a52caa49575cb953c203738214f6f0d0cdf30486337a98a",
       "hashes_match": true,
@@ -324,7 +324,7 @@
       ]
     },
     "reports/football_data_foundation/live_validation/world-cup-2026/2026-06-20_2026-06-21/canonical_mapping_results.json": {
-      "url": "https://raw.githubusercontent.com/Skiru/bet/fd6c900377031abd3695b87d455529b51f6b4329/reports/football_data_foundation/live_validation/world-cup-2026/2026-06-20_2026-06-21/canonical_mapping_results.json",
+      "url": "https://raw.githubusercontent.com/Skiru/bet/841926ed754c770d3d556ad1055597059e59d361/reports/football_data_foundation/live_validation/world-cup-2026/2026-06-20_2026-06-21/canonical_mapping_results.json",
       "local_sha256": "4439e57af4191e44ff158820c8dab4ed7b95c8dd325a62475d6e71e95c9bb45e",
       "public_sha256": "4439e57af4191e44ff158820c8dab4ed7b95c8dd325a62475d6e71e95c9bb45e",
       "hashes_match": true,
@@ -388,7 +388,7 @@
       ]
     },
     "reports/football_data_foundation/live_validation/world-cup-2026/2026-06-20_2026-06-21/temp_sqlite_snapshot.json": {
-      "url": "https://raw.githubusercontent.com/Skiru/bet/fd6c900377031abd3695b87d455529b51f6b4329/reports/football_data_foundation/live_validation/world-cup-2026/2026-06-20_2026-06-21/temp_sqlite_snapshot.json",
+      "url": "https://raw.githubusercontent.com/Skiru/bet/841926ed754c770d3d556ad1055597059e59d361/reports/football_data_foundation/live_validation/world-cup-2026/2026-06-20_2026-06-21/temp_sqlite_snapshot.json",
       "local_sha256": "375342740959497962bf7c695c2666e57b1e6e86c1bec4561ad503665df92314",
       "public_sha256": "375342740959497962bf7c695c2666e57b1e6e86c1bec4561ad503665df92314",
       "hashes_match": true,
@@ -452,7 +452,7 @@
       ]
     },
     "reports/football_data_foundation/live_validation/world-cup-2026/2026-06-20_2026-06-21/validation_manifest.json": {
-      "url": "https://raw.githubusercontent.com/Skiru/bet/fd6c900377031abd3695b87d455529b51f6b4329/reports/football_data_foundation/live_validation/world-cup-2026/2026-06-20_2026-06-21/validation_manifest.json",
+      "url": "https://raw.githubusercontent.com/Skiru/bet/841926ed754c770d3d556ad1055597059e59d361/reports/football_data_foundation/live_validation/world-cup-2026/2026-06-20_2026-06-21/validation_manifest.json",
       "local_sha256": "59959f0c4609fb85d49d107fa4440c437bd9b6fafbc8c7eb42dda97d0921107f",
       "public_sha256": "59959f0c4609fb85d49d107fa4440c437bd9b6fafbc8c7eb42dda97d0921107f",
       "hashes_match": true,
@@ -516,7 +516,7 @@
       ]
     },
     "reports/football_data_foundation/live_validation/world-cup-2026/2026-06-20_2026-06-21/validation_manifest.sha256": {
-      "url": "https://raw.githubusercontent.com/Skiru/bet/fd6c900377031abd3695b87d455529b51f6b4329/reports/football_data_foundation/live_validation/world-cup-2026/2026-06-20_2026-06-21/validation_manifest.sha256",
+      "url": "https://raw.githubusercontent.com/Skiru/bet/841926ed754c770d3d556ad1055597059e59d361/reports/football_data_foundation/live_validation/world-cup-2026/2026-06-20_2026-06-21/validation_manifest.sha256",
       "local_sha256": "c310db73562ef883f8f4cfa4fcb80629194f9d5360dff38377724c74f31e1454",
       "public_sha256": "c310db73562ef883f8f4cfa4fcb80629194f9d5360dff38377724c74f31e1454",
       "hashes_match": true,
