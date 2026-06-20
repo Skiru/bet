@@ -238,7 +238,7 @@ def run_live_validation(output_dir_str: str) -> None:
                 "country": summary.venue_country,
             },
             "broadcast_names": list(summary.broadcasts),
-            "records": [dict(r) for r in summary.team_records],
+            "records": team_records,
             "statistics": [dict(s) for s in summary.statistics],
             "group_label": summary.group_label,
             "source_url": used_url,
@@ -267,7 +267,7 @@ def run_live_validation(output_dir_str: str) -> None:
             "venue_city": summary.venue_city,
             "venue_country": summary.venue_country,
             "broadcast_names": list(summary.broadcasts),
-            "records": [dict(r) for r in summary.team_records],
+            "records": team_records,
             "statistics": [dict(s) for s in summary.statistics],
             "group_label": summary.group_label,
             "source_url": used_url,
@@ -483,10 +483,33 @@ def run_live_validation(output_dir_str: str) -> None:
         matching_norm = next(
             x for x in normalized_events if x["provider_event_id"] == p_id
         )
-        normalized_dict = matching_norm["normalized_provider_event"]
 
         disc_evidence_id = matching_norm["evidence_identity"]
         disc_schema_fp = matching_norm["schema_fingerprint"]
+
+        # Build complete, reviewable top-level dictionary for active enrichment
+        normalized_dict = {
+            "status_state": matching_norm["status_state"],
+            "status_name": matching_norm["status_name"],
+            "event_date_utc": matching_norm["kickoff_utc"],
+            "date": matching_norm["kickoff_utc"],
+            "event_date_local": matching_norm["kickoff_local"],
+            "kickoff_utc": matching_norm["kickoff_utc"],
+            "kickoff_local": matching_norm["kickoff_local"],
+            "home_team_name": matching_norm["home_team_name"],
+            "home_team_code": matching_norm["home_team_code"],
+            "away_team_name": matching_norm["away_team_name"],
+            "away_team_code": matching_norm["away_team_code"],
+            "score_home": matching_norm["score_home"],
+            "score_away": matching_norm["score_away"],
+            "venue_name": matching_norm["venue_name"],
+            "venue_city": matching_norm["venue_city"],
+            "venue_country": matching_norm["venue_country"],
+            "broadcasts": matching_norm["broadcast_names"],
+            "team_records": matching_norm["records"],
+            "statistics": matching_norm["statistics"],
+            "group_label": matching_norm["group_label"],
+        }
 
         disc_evidence = {
             "provider_id": "espn-fifa-worldcup",
@@ -740,14 +763,29 @@ def run_live_validation(output_dir_str: str) -> None:
         json.dumps(canonical_mappings, indent=2) + "\n", encoding="utf-8"
     )
 
+    def _deserialize_row(r: sqlite3.Row) -> dict[str, Any]:
+        d = dict(r)
+        new_d = {}
+        for k, v in d.items():
+            if isinstance(v, str) and (
+                k == "payload_json" or k == "diagnostics" or k.endswith("_json")
+            ):
+                try:
+                    new_d[k] = json.loads(v)
+                except Exception:
+                    new_d[k] = v
+            else:
+                new_d[k] = v
+        return new_d
+
     observations_rows = [
-        dict(row)
+        _deserialize_row(row)
         for row in conn.execute(
             "SELECT * FROM fixture_capability_observation"
         ).fetchall()
     ]
     projections_rows = [
-        dict(row)
+        _deserialize_row(row)
         for row in conn.execute(
             "SELECT * FROM fixture_capability_projection"
         ).fetchall()
@@ -768,26 +806,32 @@ def run_live_validation(output_dir_str: str) -> None:
     sqlite_snapshot = {
         "table_counts": table_counts,
         "sports": (
-            [dict(row) for row in conn.execute("SELECT * FROM sports").fetchall()]
+            [
+                _deserialize_row(row)
+                for row in conn.execute("SELECT * FROM sports").fetchall()
+            ]
             if table_exists(conn, "sports")
             else []
         ),
         "competitions": (
             [
-                dict(row)
+                _deserialize_row(row)
                 for row in conn.execute("SELECT * FROM competitions").fetchall()
             ]
             if table_exists(conn, "competitions")
             else []
         ),
         "teams": (
-            [dict(row) for row in conn.execute("SELECT * FROM teams").fetchall()]
+            [
+                _deserialize_row(row)
+                for row in conn.execute("SELECT * FROM teams").fetchall()
+            ]
             if table_exists(conn, "teams")
             else []
         ),
         "fixtures": (
             [
-                dict(row)
+                _deserialize_row(row)
                 for row in conn.execute("SELECT * FROM fixtures").fetchall()
             ]
             if table_exists(conn, "fixtures")
@@ -795,7 +839,7 @@ def run_live_validation(output_dir_str: str) -> None:
         ),
         "fixture_sources": (
             [
-                dict(row)
+                _deserialize_row(row)
                 for row in conn.execute("SELECT * FROM fixture_sources").fetchall()
             ]
             if table_exists(conn, "fixture_sources")
@@ -803,7 +847,7 @@ def run_live_validation(output_dir_str: str) -> None:
         ),
         "source_entity_reference": (
             [
-                dict(row)
+                _deserialize_row(row)
                 for row in conn.execute(
                     "SELECT * FROM source_entity_reference"
                 ).fetchall()
@@ -813,7 +857,7 @@ def run_live_validation(output_dir_str: str) -> None:
         ),
         "evidence_package_revision": (
             [
-                dict(row)
+                _deserialize_row(row)
                 for row in conn.execute(
                     "SELECT * FROM evidence_package_revision"
                 ).fetchall()
@@ -823,7 +867,7 @@ def run_live_validation(output_dir_str: str) -> None:
         ),
         "sports_enrichment_run": (
             [
-                dict(row)
+                _deserialize_row(row)
                 for row in conn.execute(
                     "SELECT * FROM sports_enrichment_run"
                 ).fetchall()
@@ -833,7 +877,7 @@ def run_live_validation(output_dir_str: str) -> None:
         ),
         "source_operation_attempt": (
             [
-                dict(row)
+                _deserialize_row(row)
                 for row in conn.execute(
                     "SELECT * FROM source_operation_attempt"
                 ).fetchall()
@@ -849,7 +893,86 @@ def run_live_validation(output_dir_str: str) -> None:
         json.dumps(sqlite_snapshot, indent=2) + "\n", encoding="utf-8"
     )
 
-    # --- CHECKPOINT 6: MANIFEST & COMPLETENESS REVIEW ---
+    # --- CHECKPOINT 6: MANIFEST & VERDICT LOGIC ---
+    # Provider-scanner ID separation check
+    has_explicit_id_separation = all(
+        c.scanner_event_id != scanner_to_provider_map.get(c.scanner_event_id)
+        for c in selected_candidates
+    )
+
+    # Freshness classification check
+    has_freshness_classification = all(
+        any(f["scanner_event_id"] == c.scanner_event_id for f in freshness_results)
+        for c in selected_candidates
+    )
+
+    # Canonical mapping result or fail closed reason
+    has_canonical_mapping = all(
+        any(m["scanner_event_id"] == c.scanner_event_id for m in canonical_mappings)
+        for c in selected_candidates
+    )
+
+    selected_event_count = len(selected_candidates)
+
+    # Fact and status counters
+    num_failed_closed = sum(
+        1 for r in enrichment_results if r["status"] == "ENRICH_FAILED_CLOSED"
+    )
+    num_zero_facts = sum(
+        1 for r in enrichment_results if len(r["facts"]) == 0
+    )
+
+    # Count of events with at least one current_discovery fact
+    num_with_discovery_fact = 0
+    for r in enrichment_results:
+        has_disc = any(f["capability"] == "current_discovery" for f in r["facts"])
+        if has_disc:
+            num_with_discovery_fact += 1
+
+    all_failed_closed = (num_failed_closed == selected_event_count)
+    all_zero_facts = (num_zero_facts == selected_event_count)
+    temp_sqlite_exported = (output_dir / "temp_sqlite_snapshot.json").exists()
+
+    # Verdict selection state machine
+    if (
+        (raw_payload is None)
+        or (scoreboard_snapshot["status"] != "LIVE_SOURCE_FETCHED")
+    ):
+        final_verdict = "LIVE_VALIDATION_BLOCKED"
+    elif selected_event_count < 1:
+        final_verdict = "LIVE_VALIDATION_BLOCKED"
+    elif all_failed_closed or all_zero_facts:
+        all_canonical_ok = all(
+            m["resolution_status"] in {
+                "CREATED_CANONICAL_FIXTURE",
+                "RECONCILED_CANONICAL_FIXTURE",
+            }
+            for m in canonical_mappings
+        )
+        if all_canonical_ok and selected_event_count >= 1:
+            final_verdict = (
+                "LIVE_VALIDATION_PARTIAL_CANONICAL_MAPPING_PASS_"
+                "ENRICHMENT_FACTS_FAIL_CLOSED"
+            )
+        else:
+            final_verdict = "LIVE_VALIDATION_BLOCKED"
+    elif num_with_discovery_fact < selected_event_count:
+        final_verdict = (
+            "LIVE_VALIDATION_PARTIAL_ENRICHMENT_FACT_EXTRACTION_GAP"
+        )
+    elif selected_event_count < 6:
+        final_verdict = "LIVE_VALIDATION_PARTIAL"
+    else:
+        if (
+            has_explicit_id_separation
+            and has_freshness_classification
+            and has_canonical_mapping
+            and temp_sqlite_exported
+        ):
+            final_verdict = "LIVE_VALIDATION_PASS"
+        else:
+            final_verdict = "LIVE_VALIDATION_BLOCKED"
+
     manifest = {
         "phase_id": (
             "FOOTBALL_DATA_FOUNDATION_L1_SCANNER_WINDOW_LIVE_VALIDATION_"
@@ -888,11 +1011,13 @@ def run_live_validation(output_dir_str: str) -> None:
     summary_md = [
         "# FIFA World Cup 2026 Scanner Window Live Validation",
         "",
-        "- **Phase ID:** `FOOTBALL_DATA_FOUNDATION_L1_SCANNER_WINDOW_LIVE_VALIDATION_WORLD_CUP_2026_NO_ACTIVATION`",
+        "- **Phase ID:** `FOOTBALL_DATA_FOUNDATION_L1_SCANNER_WINDOW_LIVE_"
+        "VALIDATION_WORLD_CUP_2026_NO_ACTIVATION`",
         f"- **Validation Time:** `{retrieved_at_utc}`",
         f"- **Selected Events Count:** `{len(selected_candidates)}` / 6",
         f"- **Coverage Status:** `{coverage_status}`",
-        "- **Manifest Sidecar Hash Check:** `validation_manifest.sha256` sidecar exists and is verified",
+        "- **Manifest Sidecar Hash Check:** `validation_manifest.sha256` "
+        "sidecar exists and is verified",
         "",
         "## Selected Events",
         "",
@@ -944,7 +1069,7 @@ def run_live_validation(output_dir_str: str) -> None:
         summary_md.append(
             f"| `{res['scanner_event_id']}` | `espn-fifa-worldcup` | "
             f"`{res['status']}` | `{len(res['facts'])}` | "
-            f"`UNAVAILABLE: {unavail_reason}` |"
+            f"`{unavail_reason}` |"
         )
 
     summary_md.extend(
@@ -999,12 +1124,6 @@ def run_live_validation(output_dir_str: str) -> None:
                 f"`UNAVAILABLE: {uc['reason']}` | `statistics, leaders` |"
             )
 
-    final_verdict = "LIVE_VALIDATION_PASS"
-    if len(selected_candidates) < 1:
-        final_verdict = "LIVE_VALIDATION_BLOCKED"
-    elif len(selected_candidates) < 6:
-        final_verdict = "LIVE_VALIDATION_PARTIAL"
-
     summary_md.extend(
         [
             "",
@@ -1038,6 +1157,8 @@ def run_live_validation(output_dir_str: str) -> None:
         "observation_projection_export.json",
         "temp_sqlite_snapshot.json",
         "validation_summary.md",
+        "l1c2_final_failure_review.json",
+        "l1c2_final_failure_review.md",
     ]
 
     artifact_hashes = {}

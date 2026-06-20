@@ -1,10 +1,10 @@
 {
   "status": "LIVE_SOURCE_FETCHED",
   "provider_id": "espn-fifa-worldcup",
-  "retrieved_at_utc": "2026-06-20T16:28:22.998671+00:00",
+  "retrieved_at_utc": "2026-06-20T17:19:09.898916+00:00",
   "source_url": "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?limit=950&dates=20260620-20260621",
   "schema_fingerprint": "88f87137d156a638bff93d3ddc40ef65603cdaeeaa0b9de84f07337bd7fba8d2",
-  "evidence_identity": "94d6af5b94eb498ebead98e212ef0e3fac32427ac86157391a08d8431dd3e6cb",
+  "evidence_identity": "69048f5f011a9365ab4fe33cfc87efc73d55b50ecebc98cf8e1311724d265c57",
   "events": [
     {
       "provider_id": "espn-fifa-worldcup",
@@ -17,10 +17,10 @@
       "home_team_code": "NED",
       "away_team_name": "Sweden",
       "away_team_code": "SWE",
-      "status_state": "pre",
-      "status_name": "STATUS_SCHEDULED",
+      "status_state": "in",
+      "status_name": "STATUS_IN_PROGRESS",
       "completed": false,
-      "score_home": 0,
+      "score_home": 1,
       "score_away": 0,
       "venue_name": "NRG Stadium",
       "venue_city": "Houston, Texas",
@@ -40,7 +40,8 @@
               "summary": "0-1-0"
             }
           ],
-          "team_record_summary": "0-1-0"
+          "team_record_summary": "0-1-0",
+          "home_away": "home"
         },
         {
           "team_name": "Sweden",
@@ -51,7 +52,8 @@
               "summary": "1-0-0"
             }
           ],
-          "team_record_summary": "1-0-0"
+          "team_record_summary": "1-0-0",
+          "home_away": "away"
         }
       ],
       "statistics": [
@@ -68,64 +70,64 @@
           "team_code": "NED",
           "home_away": "home",
           "name": "foulsCommitted",
-          "display_value": "0",
-          "value": 0.0
+          "display_value": "1",
+          "value": 1.0
         },
         {
           "team_name": "Netherlands",
           "team_code": "NED",
           "home_away": "home",
           "name": "wonCorners",
-          "display_value": "0",
-          "value": 0.0
+          "display_value": "1",
+          "value": 1.0
         },
         {
           "team_name": "Netherlands",
           "team_code": "NED",
           "home_away": "home",
           "name": "goalAssists",
-          "display_value": "0",
-          "value": 0.0
+          "display_value": "1",
+          "value": 1.0
         },
         {
           "team_name": "Netherlands",
           "team_code": "NED",
           "home_away": "home",
           "name": "possessionPct",
-          "display_value": "0",
-          "value": 0.0
+          "display_value": "63.2",
+          "value": 63.2
         },
         {
           "team_name": "Netherlands",
           "team_code": "NED",
           "home_away": "home",
           "name": "shotAssists",
-          "display_value": "0",
-          "value": 0.0
+          "display_value": "2",
+          "value": 2.0
         },
         {
           "team_name": "Netherlands",
           "team_code": "NED",
           "home_away": "home",
           "name": "shotsOnTarget",
-          "display_value": "0",
-          "value": 0.0
+          "display_value": "2",
+          "value": 2.0
         },
         {
           "team_name": "Netherlands",
           "team_code": "NED",
           "home_away": "home",
           "name": "totalGoals",
-          "display_value": "0",
-          "value": 0.0
+          "display_value": "1",
+          "value": 1.0
         },
         {
           "team_name": "Netherlands",
           "team_code": "NED",
           "home_away": "home",
           "name": "totalShots",
-          "display_value": "0",
-          "value": 0.0
+          "display_value": "3",
+          "value": 3.0
         },
         {
           "team_name": "Sweden",
@@ -140,16 +142,16 @@
           "team_code": "SWE",
           "home_away": "away",
           "name": "foulsCommitted",
-          "display_value": "0",
-          "value": 0.0
+          "display_value": "1",
+          "value": 1.0
         },
         {
           "team_name": "Sweden",
           "team_code": "SWE",
           "home_away": "away",
           "name": "wonCorners",
-          "display_value": "0",
-          "value": 0.0
+          "display_value": "1",
+          "value": 1.0
         },
         {
           "team_name": "Sweden",
@@ -164,24 +166,24 @@
           "team_code": "SWE",
           "home_away": "away",
           "name": "possessionPct",
-          "display_value": "0",
-          "value": 0.0
+          "display_value": "36.8",
+          "value": 36.8
         },
         {
           "team_name": "Sweden",
           "team_code": "SWE",
           "home_away": "away",
           "name": "shotAssists",
-          "display_value": "0",
-          "value": 0.0
+          "display_value": "1",
+          "value": 1.0
         },
         {
           "team_name": "Sweden",
           "team_code": "SWE",
           "home_away": "away",
           "name": "shotsOnTarget",
-          "display_value": "0",
-          "value": 0.0
+          "display_value": "1",
+          "value": 1.0
         },
         {
           "team_name": "Sweden",
@@ -196,15 +198,15 @@
           "team_code": "SWE",
           "home_away": "away",
           "name": "totalShots",
-          "display_value": "0",
-          "value": 0.0
+          "display_value": "1",
+          "value": 1.0
         }
       ],
       "group_label": null,
       "source_url": "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?limit=950&dates=20260620-20260621",
-      "retrieved_at_utc": "2026-06-20T16:28:22.998671+00:00",
+      "retrieved_at_utc": "2026-06-20T17:19:09.898916+00:00",
       "schema_fingerprint": "e3cd3805da9a277574d02356f9c0ce32b19ad63d272a5187c8001d29a1d78e14",
-      "evidence_identity": "dd2b8b46cee8804314114889904f9b0dc3990aec93c3195ac944c988728f283e",
+      "evidence_identity": "3c8bcd06fbecd2cb7926c34bd2b1afd3b1894b44ede2fc109a8b4f54732a5972",
       "normalized_provider_event": {
         "provider_id": "espn-fifa-worldcup",
         "provider_event_id": "760447",
@@ -223,12 +225,12 @@
           }
         },
         "status": {
-          "state": "pre",
-          "name": "STATUS_SCHEDULED"
+          "state": "in",
+          "name": "STATUS_IN_PROGRESS"
         },
         "completed": false,
         "score": {
-          "home": 0,
+          "home": 1,
           "away": 0
         },
         "venue": {
@@ -251,7 +253,8 @@
                 "summary": "0-1-0"
               }
             ],
-            "team_record_summary": "0-1-0"
+            "team_record_summary": "0-1-0",
+            "home_away": "home"
           },
           {
             "team_name": "Sweden",
@@ -262,7 +265,8 @@
                 "summary": "1-0-0"
               }
             ],
-            "team_record_summary": "1-0-0"
+            "team_record_summary": "1-0-0",
+            "home_away": "away"
           }
         ],
         "statistics": [
@@ -279,64 +283,64 @@
             "team_code": "NED",
             "home_away": "home",
             "name": "foulsCommitted",
-            "display_value": "0",
-            "value": 0.0
+            "display_value": "1",
+            "value": 1.0
           },
           {
             "team_name": "Netherlands",
             "team_code": "NED",
             "home_away": "home",
             "name": "wonCorners",
-            "display_value": "0",
-            "value": 0.0
+            "display_value": "1",
+            "value": 1.0
           },
           {
             "team_name": "Netherlands",
             "team_code": "NED",
             "home_away": "home",
             "name": "goalAssists",
-            "display_value": "0",
-            "value": 0.0
+            "display_value": "1",
+            "value": 1.0
           },
           {
             "team_name": "Netherlands",
             "team_code": "NED",
             "home_away": "home",
             "name": "possessionPct",
-            "display_value": "0",
-            "value": 0.0
+            "display_value": "63.2",
+            "value": 63.2
           },
           {
             "team_name": "Netherlands",
             "team_code": "NED",
             "home_away": "home",
             "name": "shotAssists",
-            "display_value": "0",
-            "value": 0.0
+            "display_value": "2",
+            "value": 2.0
           },
           {
             "team_name": "Netherlands",
             "team_code": "NED",
             "home_away": "home",
             "name": "shotsOnTarget",
-            "display_value": "0",
-            "value": 0.0
+            "display_value": "2",
+            "value": 2.0
           },
           {
             "team_name": "Netherlands",
             "team_code": "NED",
             "home_away": "home",
             "name": "totalGoals",
-            "display_value": "0",
-            "value": 0.0
+            "display_value": "1",
+            "value": 1.0
           },
           {
             "team_name": "Netherlands",
             "team_code": "NED",
             "home_away": "home",
             "name": "totalShots",
-            "display_value": "0",
-            "value": 0.0
+            "display_value": "3",
+            "value": 3.0
           },
           {
             "team_name": "Sweden",
@@ -351,16 +355,16 @@
             "team_code": "SWE",
             "home_away": "away",
             "name": "foulsCommitted",
-            "display_value": "0",
-            "value": 0.0
+            "display_value": "1",
+            "value": 1.0
           },
           {
             "team_name": "Sweden",
             "team_code": "SWE",
             "home_away": "away",
             "name": "wonCorners",
-            "display_value": "0",
-            "value": 0.0
+            "display_value": "1",
+            "value": 1.0
           },
           {
             "team_name": "Sweden",
@@ -375,24 +379,24 @@
             "team_code": "SWE",
             "home_away": "away",
             "name": "possessionPct",
-            "display_value": "0",
-            "value": 0.0
+            "display_value": "36.8",
+            "value": 36.8
           },
           {
             "team_name": "Sweden",
             "team_code": "SWE",
             "home_away": "away",
             "name": "shotAssists",
-            "display_value": "0",
-            "value": 0.0
+            "display_value": "1",
+            "value": 1.0
           },
           {
             "team_name": "Sweden",
             "team_code": "SWE",
             "home_away": "away",
             "name": "shotsOnTarget",
-            "display_value": "0",
-            "value": 0.0
+            "display_value": "1",
+            "value": 1.0
           },
           {
             "team_name": "Sweden",
@@ -407,15 +411,15 @@
             "team_code": "SWE",
             "home_away": "away",
             "name": "totalShots",
-            "display_value": "0",
-            "value": 0.0
+            "display_value": "1",
+            "value": 1.0
           }
         ],
         "group_label": null,
         "source_url": "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?limit=950&dates=20260620-20260621",
-        "retrieved_at_utc": "2026-06-20T16:28:22.998671+00:00",
+        "retrieved_at_utc": "2026-06-20T17:19:09.898916+00:00",
         "schema_fingerprint": "e3cd3805da9a277574d02356f9c0ce32b19ad63d272a5187c8001d29a1d78e14",
-        "evidence_identity": "dd2b8b46cee8804314114889904f9b0dc3990aec93c3195ac944c988728f283e"
+        "evidence_identity": "3c8bcd06fbecd2cb7926c34bd2b1afd3b1894b44ede2fc109a8b4f54732a5972"
       }
     },
     {
@@ -452,7 +456,8 @@
               "summary": "1-0-0"
             }
           ],
-          "team_record_summary": "1-0-0"
+          "team_record_summary": "1-0-0",
+          "home_away": "home"
         },
         {
           "team_name": "Ivory Coast",
@@ -463,13 +468,14 @@
               "summary": "1-0-0"
             }
           ],
-          "team_record_summary": "1-0-0"
+          "team_record_summary": "1-0-0",
+          "home_away": "away"
         }
       ],
       "statistics": [],
       "group_label": null,
       "source_url": "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?limit=950&dates=20260620-20260621",
-      "retrieved_at_utc": "2026-06-20T16:28:22.998671+00:00",
+      "retrieved_at_utc": "2026-06-20T17:19:09.898916+00:00",
       "schema_fingerprint": "e3cd3805da9a277574d02356f9c0ce32b19ad63d272a5187c8001d29a1d78e14",
       "evidence_identity": "d15c4a4ceda19368ce735729921c8f542a0861eae55a088372a65ec025b6ca5d",
       "normalized_provider_event": {
@@ -518,7 +524,8 @@
                 "summary": "1-0-0"
               }
             ],
-            "team_record_summary": "1-0-0"
+            "team_record_summary": "1-0-0",
+            "home_away": "home"
           },
           {
             "team_name": "Ivory Coast",
@@ -529,13 +536,14 @@
                 "summary": "1-0-0"
               }
             ],
-            "team_record_summary": "1-0-0"
+            "team_record_summary": "1-0-0",
+            "home_away": "away"
           }
         ],
         "statistics": [],
         "group_label": null,
         "source_url": "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?limit=950&dates=20260620-20260621",
-        "retrieved_at_utc": "2026-06-20T16:28:22.998671+00:00",
+        "retrieved_at_utc": "2026-06-20T17:19:09.898916+00:00",
         "schema_fingerprint": "e3cd3805da9a277574d02356f9c0ce32b19ad63d272a5187c8001d29a1d78e14",
         "evidence_identity": "d15c4a4ceda19368ce735729921c8f542a0861eae55a088372a65ec025b6ca5d"
       }
@@ -574,7 +582,8 @@
               "summary": "0-0-1"
             }
           ],
-          "team_record_summary": "0-0-1"
+          "team_record_summary": "0-0-1",
+          "home_away": "home"
         },
         {
           "team_name": "Cura\u00e7ao",
@@ -585,13 +594,14 @@
               "summary": "0-0-1"
             }
           ],
-          "team_record_summary": "0-0-1"
+          "team_record_summary": "0-0-1",
+          "home_away": "away"
         }
       ],
       "statistics": [],
       "group_label": null,
       "source_url": "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?limit=950&dates=20260620-20260621",
-      "retrieved_at_utc": "2026-06-20T16:28:22.998671+00:00",
+      "retrieved_at_utc": "2026-06-20T17:19:09.898916+00:00",
       "schema_fingerprint": "e3cd3805da9a277574d02356f9c0ce32b19ad63d272a5187c8001d29a1d78e14",
       "evidence_identity": "af8af2908c384cb0f48446a5ee54535798085bacb2c665002b68e8a675b12f1f",
       "normalized_provider_event": {
@@ -640,7 +650,8 @@
                 "summary": "0-0-1"
               }
             ],
-            "team_record_summary": "0-0-1"
+            "team_record_summary": "0-0-1",
+            "home_away": "home"
           },
           {
             "team_name": "Cura\u00e7ao",
@@ -651,13 +662,14 @@
                 "summary": "0-0-1"
               }
             ],
-            "team_record_summary": "0-0-1"
+            "team_record_summary": "0-0-1",
+            "home_away": "away"
           }
         ],
         "statistics": [],
         "group_label": null,
         "source_url": "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?limit=950&dates=20260620-20260621",
-        "retrieved_at_utc": "2026-06-20T16:28:22.998671+00:00",
+        "retrieved_at_utc": "2026-06-20T17:19:09.898916+00:00",
         "schema_fingerprint": "e3cd3805da9a277574d02356f9c0ce32b19ad63d272a5187c8001d29a1d78e14",
         "evidence_identity": "af8af2908c384cb0f48446a5ee54535798085bacb2c665002b68e8a675b12f1f"
       }
@@ -696,7 +708,8 @@
               "summary": "0-0-1"
             }
           ],
-          "team_record_summary": "0-0-1"
+          "team_record_summary": "0-0-1",
+          "home_away": "home"
         },
         {
           "team_name": "Japan",
@@ -707,13 +720,14 @@
               "summary": "0-1-0"
             }
           ],
-          "team_record_summary": "0-1-0"
+          "team_record_summary": "0-1-0",
+          "home_away": "away"
         }
       ],
       "statistics": [],
       "group_label": null,
       "source_url": "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?limit=950&dates=20260620-20260621",
-      "retrieved_at_utc": "2026-06-20T16:28:22.998671+00:00",
+      "retrieved_at_utc": "2026-06-20T17:19:09.898916+00:00",
       "schema_fingerprint": "e3cd3805da9a277574d02356f9c0ce32b19ad63d272a5187c8001d29a1d78e14",
       "evidence_identity": "5acb2da984409dca3feed00f974c9d8149bedbe5187915887aca1ec62514c7cb",
       "normalized_provider_event": {
@@ -762,7 +776,8 @@
                 "summary": "0-0-1"
               }
             ],
-            "team_record_summary": "0-0-1"
+            "team_record_summary": "0-0-1",
+            "home_away": "home"
           },
           {
             "team_name": "Japan",
@@ -773,13 +788,14 @@
                 "summary": "0-1-0"
               }
             ],
-            "team_record_summary": "0-1-0"
+            "team_record_summary": "0-1-0",
+            "home_away": "away"
           }
         ],
         "statistics": [],
         "group_label": null,
         "source_url": "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?limit=950&dates=20260620-20260621",
-        "retrieved_at_utc": "2026-06-20T16:28:22.998671+00:00",
+        "retrieved_at_utc": "2026-06-20T17:19:09.898916+00:00",
         "schema_fingerprint": "e3cd3805da9a277574d02356f9c0ce32b19ad63d272a5187c8001d29a1d78e14",
         "evidence_identity": "5acb2da984409dca3feed00f974c9d8149bedbe5187915887aca1ec62514c7cb"
       }
@@ -818,7 +834,8 @@
               "summary": "0-1-0"
             }
           ],
-          "team_record_summary": "0-1-0"
+          "team_record_summary": "0-1-0",
+          "home_away": "home"
         },
         {
           "team_name": "Saudi Arabia",
@@ -829,13 +846,14 @@
               "summary": "0-1-0"
             }
           ],
-          "team_record_summary": "0-1-0"
+          "team_record_summary": "0-1-0",
+          "home_away": "away"
         }
       ],
       "statistics": [],
       "group_label": null,
       "source_url": "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?limit=950&dates=20260620-20260621",
-      "retrieved_at_utc": "2026-06-20T16:28:22.998671+00:00",
+      "retrieved_at_utc": "2026-06-20T17:19:09.898916+00:00",
       "schema_fingerprint": "e3cd3805da9a277574d02356f9c0ce32b19ad63d272a5187c8001d29a1d78e14",
       "evidence_identity": "17ea1141e43a7d785b27db7f5e5f47b7deaf023bdc81094b9d331583fa46a85a",
       "normalized_provider_event": {
@@ -884,7 +902,8 @@
                 "summary": "0-1-0"
               }
             ],
-            "team_record_summary": "0-1-0"
+            "team_record_summary": "0-1-0",
+            "home_away": "home"
           },
           {
             "team_name": "Saudi Arabia",
@@ -895,13 +914,14 @@
                 "summary": "0-1-0"
               }
             ],
-            "team_record_summary": "0-1-0"
+            "team_record_summary": "0-1-0",
+            "home_away": "away"
           }
         ],
         "statistics": [],
         "group_label": null,
         "source_url": "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?limit=950&dates=20260620-20260621",
-        "retrieved_at_utc": "2026-06-20T16:28:22.998671+00:00",
+        "retrieved_at_utc": "2026-06-20T17:19:09.898916+00:00",
         "schema_fingerprint": "e3cd3805da9a277574d02356f9c0ce32b19ad63d272a5187c8001d29a1d78e14",
         "evidence_identity": "17ea1141e43a7d785b27db7f5e5f47b7deaf023bdc81094b9d331583fa46a85a"
       }
@@ -940,7 +960,8 @@
               "summary": "0-1-0"
             }
           ],
-          "team_record_summary": "0-1-0"
+          "team_record_summary": "0-1-0",
+          "home_away": "home"
         },
         {
           "team_name": "Iran",
@@ -951,13 +972,14 @@
               "summary": "0-1-0"
             }
           ],
-          "team_record_summary": "0-1-0"
+          "team_record_summary": "0-1-0",
+          "home_away": "away"
         }
       ],
       "statistics": [],
       "group_label": null,
       "source_url": "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?limit=950&dates=20260620-20260621",
-      "retrieved_at_utc": "2026-06-20T16:28:22.998671+00:00",
+      "retrieved_at_utc": "2026-06-20T17:19:09.898916+00:00",
       "schema_fingerprint": "e3cd3805da9a277574d02356f9c0ce32b19ad63d272a5187c8001d29a1d78e14",
       "evidence_identity": "8f797f325feecfcec8185a557fa9ff6828834e27aab0d980c0a0f67680e45a91",
       "normalized_provider_event": {
@@ -1006,7 +1028,8 @@
                 "summary": "0-1-0"
               }
             ],
-            "team_record_summary": "0-1-0"
+            "team_record_summary": "0-1-0",
+            "home_away": "home"
           },
           {
             "team_name": "Iran",
@@ -1017,13 +1040,14 @@
                 "summary": "0-1-0"
               }
             ],
-            "team_record_summary": "0-1-0"
+            "team_record_summary": "0-1-0",
+            "home_away": "away"
           }
         ],
         "statistics": [],
         "group_label": null,
         "source_url": "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?limit=950&dates=20260620-20260621",
-        "retrieved_at_utc": "2026-06-20T16:28:22.998671+00:00",
+        "retrieved_at_utc": "2026-06-20T17:19:09.898916+00:00",
         "schema_fingerprint": "e3cd3805da9a277574d02356f9c0ce32b19ad63d272a5187c8001d29a1d78e14",
         "evidence_identity": "8f797f325feecfcec8185a557fa9ff6828834e27aab0d980c0a0f67680e45a91"
       }
@@ -1062,7 +1086,8 @@
               "summary": "0-1-0"
             }
           ],
-          "team_record_summary": "0-1-0"
+          "team_record_summary": "0-1-0",
+          "home_away": "home"
         },
         {
           "team_name": "Cape Verde",
@@ -1073,13 +1098,14 @@
               "summary": "0-1-0"
             }
           ],
-          "team_record_summary": "0-1-0"
+          "team_record_summary": "0-1-0",
+          "home_away": "away"
         }
       ],
       "statistics": [],
       "group_label": null,
       "source_url": "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?limit=950&dates=20260620-20260621",
-      "retrieved_at_utc": "2026-06-20T16:28:22.998671+00:00",
+      "retrieved_at_utc": "2026-06-20T17:19:09.898916+00:00",
       "schema_fingerprint": "e3cd3805da9a277574d02356f9c0ce32b19ad63d272a5187c8001d29a1d78e14",
       "evidence_identity": "297e9832e4a5c1e939b2db4f420339bfa0ac66c442706341d6332ab8d820c431",
       "normalized_provider_event": {
@@ -1128,7 +1154,8 @@
                 "summary": "0-1-0"
               }
             ],
-            "team_record_summary": "0-1-0"
+            "team_record_summary": "0-1-0",
+            "home_away": "home"
           },
           {
             "team_name": "Cape Verde",
@@ -1139,13 +1166,14 @@
                 "summary": "0-1-0"
               }
             ],
-            "team_record_summary": "0-1-0"
+            "team_record_summary": "0-1-0",
+            "home_away": "away"
           }
         ],
         "statistics": [],
         "group_label": null,
         "source_url": "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?limit=950&dates=20260620-20260621",
-        "retrieved_at_utc": "2026-06-20T16:28:22.998671+00:00",
+        "retrieved_at_utc": "2026-06-20T17:19:09.898916+00:00",
         "schema_fingerprint": "e3cd3805da9a277574d02356f9c0ce32b19ad63d272a5187c8001d29a1d78e14",
         "evidence_identity": "297e9832e4a5c1e939b2db4f420339bfa0ac66c442706341d6332ab8d820c431"
       }
@@ -1184,7 +1212,8 @@
               "summary": "0-1-0"
             }
           ],
-          "team_record_summary": "0-1-0"
+          "team_record_summary": "0-1-0",
+          "home_away": "home"
         },
         {
           "team_name": "Egypt",
@@ -1195,13 +1224,14 @@
               "summary": "0-1-0"
             }
           ],
-          "team_record_summary": "0-1-0"
+          "team_record_summary": "0-1-0",
+          "home_away": "away"
         }
       ],
       "statistics": [],
       "group_label": null,
       "source_url": "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?limit=950&dates=20260620-20260621",
-      "retrieved_at_utc": "2026-06-20T16:28:22.998671+00:00",
+      "retrieved_at_utc": "2026-06-20T17:19:09.898916+00:00",
       "schema_fingerprint": "e3cd3805da9a277574d02356f9c0ce32b19ad63d272a5187c8001d29a1d78e14",
       "evidence_identity": "39e21dacbc4ce0b6c6f259477005b89b41b9ab285c168db252c1b2009030a278",
       "normalized_provider_event": {
@@ -1250,7 +1280,8 @@
                 "summary": "0-1-0"
               }
             ],
-            "team_record_summary": "0-1-0"
+            "team_record_summary": "0-1-0",
+            "home_away": "home"
           },
           {
             "team_name": "Egypt",
@@ -1261,13 +1292,14 @@
                 "summary": "0-1-0"
               }
             ],
-            "team_record_summary": "0-1-0"
+            "team_record_summary": "0-1-0",
+            "home_away": "away"
           }
         ],
         "statistics": [],
         "group_label": null,
         "source_url": "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?limit=950&dates=20260620-20260621",
-        "retrieved_at_utc": "2026-06-20T16:28:22.998671+00:00",
+        "retrieved_at_utc": "2026-06-20T17:19:09.898916+00:00",
         "schema_fingerprint": "e3cd3805da9a277574d02356f9c0ce32b19ad63d272a5187c8001d29a1d78e14",
         "evidence_identity": "39e21dacbc4ce0b6c6f259477005b89b41b9ab285c168db252c1b2009030a278"
       }

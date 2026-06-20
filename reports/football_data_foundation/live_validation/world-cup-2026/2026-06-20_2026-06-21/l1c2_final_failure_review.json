@@ -1,0 +1,46 @@
+{
+  "phase_id": "FOOTBALL_DATA_FOUNDATION_L1C2_FINAL_LIVE_VALIDATION_RAW_AND_VERDICT_LOCK",
+  "start_sha": "7061f912010e8efa51018222ce8ebab3f9d5bf4d",
+  "defects_identified": {
+    "false_pass_when_enrich_failed": "The system returned LIVE_VALIDATION_PASS despite 6/6 events ending in ENRICH_FAILED_CLOSED and 0 facts being produced.",
+    "identity_mismatch": "Detailed metrics and capabilities were marked UNAVAILABLE: identity_mismatch because the active enrichment pipeline identity comparison was too strict or improperly matched."
+  },
+  "byte_level_metrics": [
+    {
+      "path": "src/bet/enrichment/football_data_foundation/live_validation.py",
+      "lf_count": 1063,
+      "cr_count": 0,
+      "crlf_count": 0,
+      "max_lf_line": 116,
+      "exact_raw_url": "https://raw.githubusercontent.com/Skiru/bet/7061f912010e8efa51018222ce8ebab3f9d5bf4d/src/bet/enrichment/football_data_foundation/live_validation.py",
+      "reviewable": true
+    },
+    {
+      "path": "tests/enrichment/football_data_foundation/test_live_validation.py",
+      "lf_count": 240,
+      "cr_count": 0,
+      "crlf_count": 0,
+      "max_lf_line": 90,
+      "exact_raw_url": "https://raw.githubusercontent.com/Skiru/bet/7061f912010e8efa51018222ce8ebab3f9d5bf4d/tests/enrichment/football_data_foundation/test_live_validation.py",
+      "reviewable": true
+    },
+    {
+      "path": "reports/football_data_foundation/live_validation/world-cup-2026/2026-06-20_2026-06-21/validation_summary.md",
+      "lf_count": 86,
+      "cr_count": 0,
+      "crlf_count": 0,
+      "max_lf_line": 138,
+      "exact_raw_url": "https://raw.githubusercontent.com/Skiru/bet/7061f912010e8efa51018222ce8ebab3f9d5bf4d/reports/football_data_foundation/live_validation/world-cup-2026/2026-06-20_2026-06-21/validation_summary.md",
+      "reviewable": true
+    },
+    {
+      "path": "reports/football_data_foundation/live_validation/world-cup-2026/2026-06-20_2026-06-21/event_enrichment_results.json",
+      "lf_count": 530,
+      "cr_count": 0,
+      "crlf_count": 0,
+      "max_lf_line": 93,
+      "exact_raw_url": "https://raw.githubusercontent.com/Skiru/bet/7061f912010e8efa51018222ce8ebab3f9d5bf4d/reports/football_data_foundation/live_validation/world-cup-2026/2026-06-20_2026-06-21/event_enrichment_results.json",
+      "reviewable": true
+    }
+  ]
+}

@@ -5,7 +5,7 @@
     "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?limit=950&dates=20260620-20260621"
   ],
   "http_call_count": 1,
-  "retrieved_at_utc": "2026-06-20T16:28:22.998671+00:00",
+  "retrieved_at_utc": "2026-06-20T17:19:09.898916+00:00",
   "local_window": {
     "timezone": "Europe/Warsaw",
     "start": "2026-06-20T00:00:00+02:00",
@@ -19,17 +19,19 @@
     "missing": []
   },
   "artifact_list_with_sha256": {
-    "provider_scoreboard_snapshot.json": "fa0ced5db9ded462aeaa036263434480a90c54d960ffbb75809ea72250df2758",
-    "provider_scoreboard_snapshot.md": "ea8513c24b367fbad1312899181851988b9a06a984e35fdf58cc7a8f44b5ed96",
-    "scanner_event_batch.json": "56e6df01fb8e23ca302909d7eb0a3e93c9a7389004a6a74aade4710cc08e2b3d",
-    "scanner_event_batch.md": "ecffcc7cb8f626a72d99bad904f8bd1b3f7e9b8a146f83d99c4f1d17ddb9129b",
+    "provider_scoreboard_snapshot.json": "823ff3e7a1d5149b4f6b032bbc52fc29ac78fb1e7349cca37ed5c0a2959342be",
+    "provider_scoreboard_snapshot.md": "adfa3cd736a785fe087accbf316aa47c6f03d4c387e0ead2beecd391c9a30ec0",
+    "scanner_event_batch.json": "ab4ab9601da64a466b8a1f43e10369cb652fa90ce82acde7ed66325951445b35",
+    "scanner_event_batch.md": "63fb5aaed95bc967b410efe9ca6f1bc34930769873f65c41d4a863671fb90d28",
     "out_of_window_events.json": "0ae5e750b77cad96155809cddf672511853558c18763c3322a6de17f5b232c61",
-    "event_enrichment_results.json": "eb7efabf2bb40b8243f701a67981835135265f8b28a441e14795b671f0c911cf",
-    "freshness_results.json": "396111cf16655002e41711afa6a806a7e2193d1ea9f9177dd234ed0316127515",
-    "canonical_mapping_results.json": "67ec00fa94c44124fc8b9d1ef659ba4bb40606aca629f027059f6e642a906e6e",
-    "observation_projection_export.json": "6139af9f9d3b7cc7e22dbb37e4e005fdf83f831409eb77a7ceaeea959148cc35",
-    "temp_sqlite_snapshot.json": "0208e97bb090d4abd7707b7e4bb98a266d99d58280142e04ed2727b836e85882",
-    "validation_summary.md": "c09a05e96382944b660a1502152092bd6f42fcc39a54dcf110470c46db40d878"
+    "event_enrichment_results.json": "1ddbc232d6ce7ec1e8e5e60cabcb414e0053f0611fe8a3f00951df351a295808",
+    "freshness_results.json": "32c04e04d106bf2251f94cac3fbd628cdc3b6996d197e71b240e5264c91dda5c",
+    "canonical_mapping_results.json": "4439e57af4191e44ff158820c8dab4ed7b95c8dd325a62475d6e71e95c9bb45e",
+    "observation_projection_export.json": "908289bd122b958f51a953f79c1772ec67b3dabef8dda53e6e6c7a3b0377707b",
+    "temp_sqlite_snapshot.json": "57f4b94355bee6351b59e68da5ea868bc5fb6fb1386b6c6e57c93abfba07fbb6",
+    "validation_summary.md": "587f9ce90f8a3585d0e7865afae041a86864631ee9264771c1eb208631995087",
+    "l1c2_final_failure_review.json": "3b8717f216691376970482799eb6ef1013497e2f000c4fd625daba062c0c74a1",
+    "l1c2_final_failure_review.md": "cd69c0d9d203d875faacbf315b21bc77143378e755d78b25929fd3614150c4cc"
   },
   "manifest_self_hash_status": "SELF_HASH_STORED_IN_SIDECAR",
   "no_raw_payload_committed": true,
