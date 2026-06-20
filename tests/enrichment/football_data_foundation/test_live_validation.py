@@ -3,7 +3,13 @@ from __future__ import annotations
 import hashlib
 import json
 from pathlib import Path
+from typing import Any
+from unittest.mock import MagicMock, patch
 
+import bet.enrichment.football_data_foundation.active_enrichment as active_enrichment
+from bet.enrichment.football_data_foundation.active_enrichment import (
+    ActiveEnrichmentResult,
+)
 from bet.enrichment.football_data_foundation.enrichment_freshness import (
     EvidenceFreshnessInput,
     EvidenceFreshnessPolicy,
@@ -240,8 +246,266 @@ def test_source_byte_integrity() -> None:
         assert b"\r\n" not in content
 
 
-def test_verdict_logic_prevents_false_pass(tmp_path: Path) -> None:
-    """Verify that any false PASS situation (e.g. facts=0) is correctly blocked."""
-    # Write mock data where active enrichment produces 0 facts to force failure
-    # and verify verdict behaves correctly
-    pass
+def _generate_mock_espn_payload(num_events: int = 6) -> dict[str, Any]:
+    events = []
+    matches = [
+        ("760447", "Netherlands", "NED", "Sweden", "SWE"),
+        ("760448", "Germany", "GER", "Ivory Coast", "CIV"),
+        ("760446", "Ecuador", "ECU", "Curacao", "CUW"),
+        ("760449", "Tunisia", "TUN", "Japan", "JPN"),
+        ("760453", "Spain", "ESP", "Saudi Arabia", "KSA"),
+        ("760451", "Belgium", "BEL", "Iran", "IRN"),
+    ]
+    for i in range(min(num_events, 6)):
+        p_id, h_name, h_code, a_name, a_code = matches[i]
+        events.append(
+            {
+                "id": p_id,
+                "date": "2026-06-20T17:00:00Z",
+                "name": f"{h_name} vs {a_name}",
+                "shortName": f"{h_code} vs {a_code}",
+                "competitions": [
+                    {
+                        "status": {
+                            "type": {
+                                "name": "STATUS_SCHEDULED",
+                                "state": "pre",
+                                "completed": False,
+                            }
+                        },
+                        "venue": {
+                            "fullName": "Some Stadium",
+                            "address": {
+                                "city": "Some City",
+                                "country": "Some Country",
+                            },
+                        },
+                        "broadcasts": [{"names": ["ESPN"]}],
+                        "competitors": [
+                            {
+                                "homeAway": "home",
+                                "team": {
+                                    "displayName": h_name,
+                                    "abbreviation": h_code,
+                                },
+                                "records": [{"summary": "1-0-0"}],
+                            },
+                            {
+                                "homeAway": "away",
+                                "team": {
+                                    "displayName": a_name,
+                                    "abbreviation": a_code,
+                                },
+                                "records": [{"summary": "0-1-0"}],
+                            },
+                        ],
+                    }
+                ],
+            }
+        )
+    return {"events": events}
+
+
+def test_live_validation_success_path(tmp_path: Path) -> None:
+    """Verify that when all 6 expected events succeed, verdict is PASS."""
+    output_dir = tmp_path / "success_path"
+
+    mock_response = MagicMock()
+    mock_response.__enter__.return_value = mock_response
+    mock_payload = _generate_mock_espn_payload(6)
+    mock_response.read.return_value = json.dumps(mock_payload).encode("utf-8")
+
+    with patch("urllib.request.urlopen", return_value=mock_response):
+        run_live_validation(str(output_dir))
+
+    manifest = json.loads(
+        (output_dir / "validation_manifest.json").read_text(encoding="utf-8")
+    )
+    assert manifest["selected_event_count"] == 6
+
+    summary = (output_dir / "validation_summary.md").read_text(encoding="utf-8")
+    assert "LIVE_VALIDATION_PASS" in summary
+
+
+def test_failed_closed_verdict_blocked(tmp_path: Path) -> None:
+    """Verify failed-closed active enrichment results block validation PASS.
+
+    If all events are ENRICH_FAILED_CLOSED, the verdict must be a partial/blocked
+    fact extraction gap rather than a PASS.
+    """
+    output_dir = tmp_path / "failed_closed"
+
+    mock_response = MagicMock()
+    mock_response.__enter__.return_value = mock_response
+    mock_payload = _generate_mock_espn_payload(6)
+    mock_response.read.return_value = json.dumps(mock_payload).encode("utf-8")
+
+    original_enrich = (
+        active_enrichment.ActiveEnrichmentOrchestrator.enrich_event
+    )
+
+    def mock_enrich(self, request):
+        res = original_enrich(self, request)
+        return ActiveEnrichmentResult(
+            profile_id=res.profile_id,
+            scanner_event_id=res.scanner_event_id,
+            canonical_match_identity=res.canonical_match_identity,
+            status="ENRICH_FAILED_CLOSED",
+            fetch_decisions=res.fetch_decisions,
+            facts=(),
+            evidence_refs=res.evidence_refs,
+            unavailable_capabilities=res.unavailable_capabilities,
+            conflict_diagnostics=res.conflict_diagnostics,
+            production_betting_decision=res.production_betting_decision,
+        )
+
+    with patch("urllib.request.urlopen", return_value=mock_response), patch.object(
+        active_enrichment.ActiveEnrichmentOrchestrator,
+        "enrich_event",
+        mock_enrich,
+    ):
+        run_live_validation(str(output_dir))
+
+    summary = (output_dir / "validation_summary.md").read_text(encoding="utf-8")
+    assert "LIVE_VALIDATION_PARTIAL_ENRICHMENT_FACT_EXTRACTION_GAP" in summary
+
+
+def test_all_facts_zero_cannot_pass(tmp_path: Path) -> None:
+    """Verify that if all events have facts=0, verdict is blocked/partial."""
+    output_dir = tmp_path / "zero_facts"
+
+    mock_response = MagicMock()
+    mock_response.__enter__.return_value = mock_response
+    mock_payload = _generate_mock_espn_payload(6)
+    mock_response.read.return_value = json.dumps(mock_payload).encode("utf-8")
+
+    original_enrich = (
+        active_enrichment.ActiveEnrichmentOrchestrator.enrich_event
+    )
+
+    def mock_enrich(self, request):
+        res = original_enrich(self, request)
+        return ActiveEnrichmentResult(
+            profile_id=res.profile_id,
+            scanner_event_id=res.scanner_event_id,
+            canonical_match_identity=res.canonical_match_identity,
+            status=res.status,
+            fetch_decisions=res.fetch_decisions,
+            facts=(),
+            evidence_refs=res.evidence_refs,
+            unavailable_capabilities=res.unavailable_capabilities,
+            conflict_diagnostics=res.conflict_diagnostics,
+            production_betting_decision=res.production_betting_decision,
+        )
+
+    with patch("urllib.request.urlopen", return_value=mock_response), patch.object(
+        active_enrichment.ActiveEnrichmentOrchestrator,
+        "enrich_event",
+        mock_enrich,
+    ):
+        run_live_validation(str(output_dir))
+
+    summary = (output_dir / "validation_summary.md").read_text(encoding="utf-8")
+    assert "LIVE_VALIDATION_PARTIAL_ENRICHMENT_FACT_EXTRACTION_GAP" in summary
+
+
+def test_partial_fact_coverage_produces_partial(tmp_path: Path) -> None:
+    """Verify that if fewer than 6 events are returned, it produces PARTIAL."""
+    output_dir = tmp_path / "partial"
+
+    mock_response = MagicMock()
+    mock_response.__enter__.return_value = mock_response
+    mock_payload = _generate_mock_espn_payload(3)  # only 3 events
+    mock_response.read.return_value = json.dumps(mock_payload).encode("utf-8")
+
+    with patch("urllib.request.urlopen", return_value=mock_response):
+        run_live_validation(str(output_dir))
+
+    manifest = json.loads(
+        (output_dir / "validation_manifest.json").read_text(encoding="utf-8")
+    )
+    assert manifest["selected_event_count"] == 3
+
+    summary = (output_dir / "validation_summary.md").read_text(encoding="utf-8")
+    assert (
+        "LIVE_VALIDATION_PARTIAL_ENRICHMENT_FACT_EXTRACTION_GAP" in summary
+        or "LIVE_VALIDATION_PARTIAL" in summary
+    )
+
+
+def test_provider_event_id_explicit_and_not_parsed(tmp_path: Path) -> None:
+    """Verify provider_event_id is explicit and not parsed from scanner_event_id."""
+    output_dir = tmp_path / "explicit_prov_id"
+
+    mock_response = MagicMock()
+    mock_response.__enter__.return_value = mock_response
+    mock_payload = _generate_mock_espn_payload(1)
+    mock_response.read.return_value = json.dumps(mock_payload).encode("utf-8")
+
+    with patch("urllib.request.urlopen", return_value=mock_response):
+        run_live_validation(str(output_dir))
+
+    enrich_results_file = output_dir / "event_enrichment_results.json"
+    assert enrich_results_file.exists()
+    enrich_data = json.loads(enrich_results_file.read_text(encoding="utf-8"))
+
+    assert enrich_data[0]["provider_event_id"] == "760447"
+
+    prov_id_facts = [
+        f
+        for f in enrich_data[0]["facts"]
+        if f["fact_name"] == "provider_event_id"
+    ]
+    assert len(prov_id_facts) == 1
+    assert prov_id_facts[0]["fact_value_text"] == "760447"
+
+
+def test_status_in_summary_comes_from_normalized_event(tmp_path: Path) -> None:
+    """Verify status in summary comes from normalized event."""
+    output_dir = tmp_path / "status_summary"
+
+    mock_response = MagicMock()
+    mock_response.__enter__.return_value = mock_response
+    mock_payload = _generate_mock_espn_payload(1)
+    mock_payload["events"][0]["competitions"][0]["status"]["type"][
+        "name"
+    ] = "STATUS_IN_PROGRESS"
+    mock_response.read.return_value = json.dumps(mock_payload).encode("utf-8")
+
+    with patch("urllib.request.urlopen", return_value=mock_response):
+        run_live_validation(str(output_dir))
+
+    summary = (output_dir / "validation_summary.md").read_text(encoding="utf-8")
+    assert "STATUS_IN_PROGRESS" in summary
+
+
+def test_key_artifacts_lf_byte_integrity(tmp_path: Path) -> None:
+    """Verify all generated artifacts are strictly LF-only and <= 240 char line length.
+
+    Checks JSON, MD, and SHA256 artifacts for proper Unix line endings
+    and correct max line length.
+    """
+    output_dir = tmp_path / "byte_integrity"
+
+    mock_response = MagicMock()
+    mock_response.__enter__.return_value = mock_response
+    mock_payload = _generate_mock_espn_payload(6)
+    mock_response.read.return_value = json.dumps(mock_payload).encode("utf-8")
+
+    with patch("urllib.request.urlopen", return_value=mock_response):
+        run_live_validation(str(output_dir))
+
+    (output_dir / "l1c3_false_raw_pass_review.md").write_text(
+        "# fake review\n", encoding="utf-8"
+    )
+
+    for path in output_dir.glob("*"):
+        if path.suffix not in {".json", ".md", ".sha256"}:
+            continue
+        data = path.read_bytes()
+        assert b"\r" not in data
+        lines = data.split(b"\n")
+        max_line_len = max(len(line) for line in lines)
+        assert (
+            max_line_len <= 240
+        ), f"{path} has line with length {max_line_len} > 240"

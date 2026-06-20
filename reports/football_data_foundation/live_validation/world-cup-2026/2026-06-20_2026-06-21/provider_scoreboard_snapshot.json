@@ -1,10 +1,10 @@
 {
   "status": "LIVE_SOURCE_FETCHED",
   "provider_id": "espn-fifa-worldcup",
-  "retrieved_at_utc": "2026-06-20T17:19:09.898916+00:00",
+  "retrieved_at_utc": "2026-06-20T18:10:20.260829+00:00",
   "source_url": "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?limit=950&dates=20260620-20260621",
   "schema_fingerprint": "88f87137d156a638bff93d3ddc40ef65603cdaeeaa0b9de84f07337bd7fba8d2",
-  "evidence_identity": "69048f5f011a9365ab4fe33cfc87efc73d55b50ecebc98cf8e1311724d265c57",
+  "evidence_identity": "d78d0a9233a609386aae6b277074f08d46873b4e744e2879ee056a25c1ab7564",
   "events": [
     {
       "provider_id": "espn-fifa-worldcup",
@@ -18,9 +18,9 @@
       "away_team_name": "Sweden",
       "away_team_code": "SWE",
       "status_state": "in",
-      "status_name": "STATUS_IN_PROGRESS",
+      "status_name": "STATUS_HALFTIME",
       "completed": false,
-      "score_home": 1,
+      "score_home": 2,
       "score_away": 0,
       "venue_name": "NRG Stadium",
       "venue_city": "Houston, Texas",
@@ -70,8 +70,8 @@
           "team_code": "NED",
           "home_away": "home",
           "name": "foulsCommitted",
-          "display_value": "1",
-          "value": 1.0
+          "display_value": "5",
+          "value": 5.0
         },
         {
           "team_name": "Netherlands",
@@ -86,30 +86,38 @@
           "team_code": "NED",
           "home_away": "home",
           "name": "goalAssists",
-          "display_value": "1",
-          "value": 1.0
+          "display_value": "2",
+          "value": 2.0
         },
         {
           "team_name": "Netherlands",
           "team_code": "NED",
           "home_away": "home",
           "name": "possessionPct",
-          "display_value": "63.2",
-          "value": 63.2
+          "display_value": "59",
+          "value": 59.0
         },
         {
           "team_name": "Netherlands",
           "team_code": "NED",
           "home_away": "home",
           "name": "shotAssists",
-          "display_value": "2",
-          "value": 2.0
+          "display_value": "4",
+          "value": 4.0
         },
         {
           "team_name": "Netherlands",
           "team_code": "NED",
           "home_away": "home",
           "name": "shotsOnTarget",
+          "display_value": "4",
+          "value": 4.0
+        },
+        {
+          "team_name": "Netherlands",
+          "team_code": "NED",
+          "home_away": "home",
+          "name": "totalGoals",
           "display_value": "2",
           "value": 2.0
         },
@@ -117,17 +125,9 @@
           "team_name": "Netherlands",
           "team_code": "NED",
           "home_away": "home",
-          "name": "totalGoals",
-          "display_value": "1",
-          "value": 1.0
-        },
-        {
-          "team_name": "Netherlands",
-          "team_code": "NED",
-          "home_away": "home",
           "name": "totalShots",
-          "display_value": "3",
-          "value": 3.0
+          "display_value": "5",
+          "value": 5.0
         },
         {
           "team_name": "Sweden",
@@ -142,16 +142,16 @@
           "team_code": "SWE",
           "home_away": "away",
           "name": "foulsCommitted",
-          "display_value": "1",
-          "value": 1.0
+          "display_value": "4",
+          "value": 4.0
         },
         {
           "team_name": "Sweden",
           "team_code": "SWE",
           "home_away": "away",
           "name": "wonCorners",
-          "display_value": "1",
-          "value": 1.0
+          "display_value": "2",
+          "value": 2.0
         },
         {
           "team_name": "Sweden",
@@ -166,24 +166,24 @@
           "team_code": "SWE",
           "home_away": "away",
           "name": "possessionPct",
-          "display_value": "36.8",
-          "value": 36.8
+          "display_value": "41",
+          "value": 41.0
         },
         {
           "team_name": "Sweden",
           "team_code": "SWE",
           "home_away": "away",
           "name": "shotAssists",
-          "display_value": "1",
-          "value": 1.0
+          "display_value": "7",
+          "value": 7.0
         },
         {
           "team_name": "Sweden",
           "team_code": "SWE",
           "home_away": "away",
           "name": "shotsOnTarget",
-          "display_value": "1",
-          "value": 1.0
+          "display_value": "4",
+          "value": 4.0
         },
         {
           "team_name": "Sweden",
@@ -198,15 +198,15 @@
           "team_code": "SWE",
           "home_away": "away",
           "name": "totalShots",
-          "display_value": "1",
-          "value": 1.0
+          "display_value": "9",
+          "value": 9.0
         }
       ],
       "group_label": null,
       "source_url": "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?limit=950&dates=20260620-20260621",
-      "retrieved_at_utc": "2026-06-20T17:19:09.898916+00:00",
+      "retrieved_at_utc": "2026-06-20T18:10:20.260829+00:00",
       "schema_fingerprint": "e3cd3805da9a277574d02356f9c0ce32b19ad63d272a5187c8001d29a1d78e14",
-      "evidence_identity": "3c8bcd06fbecd2cb7926c34bd2b1afd3b1894b44ede2fc109a8b4f54732a5972",
+      "evidence_identity": "df4aefde5c039e681479631f7627d9ffc871419fb0d0c7e1422a3ce40d6ba7f3",
       "normalized_provider_event": {
         "provider_id": "espn-fifa-worldcup",
         "provider_event_id": "760447",
@@ -226,11 +226,11 @@
         },
         "status": {
           "state": "in",
-          "name": "STATUS_IN_PROGRESS"
+          "name": "STATUS_HALFTIME"
         },
         "completed": false,
         "score": {
-          "home": 1,
+          "home": 2,
           "away": 0
         },
         "venue": {
@@ -283,8 +283,8 @@
             "team_code": "NED",
             "home_away": "home",
             "name": "foulsCommitted",
-            "display_value": "1",
-            "value": 1.0
+            "display_value": "5",
+            "value": 5.0
           },
           {
             "team_name": "Netherlands",
@@ -299,30 +299,38 @@
             "team_code": "NED",
             "home_away": "home",
             "name": "goalAssists",
-            "display_value": "1",
-            "value": 1.0
+            "display_value": "2",
+            "value": 2.0
           },
           {
             "team_name": "Netherlands",
             "team_code": "NED",
             "home_away": "home",
             "name": "possessionPct",
-            "display_value": "63.2",
-            "value": 63.2
+            "display_value": "59",
+            "value": 59.0
           },
           {
             "team_name": "Netherlands",
             "team_code": "NED",
             "home_away": "home",
             "name": "shotAssists",
-            "display_value": "2",
-            "value": 2.0
+            "display_value": "4",
+            "value": 4.0
           },
           {
             "team_name": "Netherlands",
             "team_code": "NED",
             "home_away": "home",
             "name": "shotsOnTarget",
+            "display_value": "4",
+            "value": 4.0
+          },
+          {
+            "team_name": "Netherlands",
+            "team_code": "NED",
+            "home_away": "home",
+            "name": "totalGoals",
             "display_value": "2",
             "value": 2.0
           },
@@ -330,17 +338,9 @@
             "team_name": "Netherlands",
             "team_code": "NED",
             "home_away": "home",
-            "name": "totalGoals",
-            "display_value": "1",
-            "value": 1.0
-          },
-          {
-            "team_name": "Netherlands",
-            "team_code": "NED",
-            "home_away": "home",
             "name": "totalShots",
-            "display_value": "3",
-            "value": 3.0
+            "display_value": "5",
+            "value": 5.0
           },
           {
             "team_name": "Sweden",
@@ -355,16 +355,16 @@
             "team_code": "SWE",
             "home_away": "away",
             "name": "foulsCommitted",
-            "display_value": "1",
-            "value": 1.0
+            "display_value": "4",
+            "value": 4.0
           },
           {
             "team_name": "Sweden",
             "team_code": "SWE",
             "home_away": "away",
             "name": "wonCorners",
-            "display_value": "1",
-            "value": 1.0
+            "display_value": "2",
+            "value": 2.0
           },
           {
             "team_name": "Sweden",
@@ -379,24 +379,24 @@
             "team_code": "SWE",
             "home_away": "away",
             "name": "possessionPct",
-            "display_value": "36.8",
-            "value": 36.8
+            "display_value": "41",
+            "value": 41.0
           },
           {
             "team_name": "Sweden",
             "team_code": "SWE",
             "home_away": "away",
             "name": "shotAssists",
-            "display_value": "1",
-            "value": 1.0
+            "display_value": "7",
+            "value": 7.0
           },
           {
             "team_name": "Sweden",
             "team_code": "SWE",
             "home_away": "away",
             "name": "shotsOnTarget",
-            "display_value": "1",
-            "value": 1.0
+            "display_value": "4",
+            "value": 4.0
           },
           {
             "team_name": "Sweden",
@@ -411,15 +411,15 @@
             "team_code": "SWE",
             "home_away": "away",
             "name": "totalShots",
-            "display_value": "1",
-            "value": 1.0
+            "display_value": "9",
+            "value": 9.0
           }
         ],
         "group_label": null,
         "source_url": "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?limit=950&dates=20260620-20260621",
-        "retrieved_at_utc": "2026-06-20T17:19:09.898916+00:00",
+        "retrieved_at_utc": "2026-06-20T18:10:20.260829+00:00",
         "schema_fingerprint": "e3cd3805da9a277574d02356f9c0ce32b19ad63d272a5187c8001d29a1d78e14",
-        "evidence_identity": "3c8bcd06fbecd2cb7926c34bd2b1afd3b1894b44ede2fc109a8b4f54732a5972"
+        "evidence_identity": "df4aefde5c039e681479631f7627d9ffc871419fb0d0c7e1422a3ce40d6ba7f3"
       }
     },
     {
@@ -475,7 +475,7 @@
       "statistics": [],
       "group_label": null,
       "source_url": "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?limit=950&dates=20260620-20260621",
-      "retrieved_at_utc": "2026-06-20T17:19:09.898916+00:00",
+      "retrieved_at_utc": "2026-06-20T18:10:20.260829+00:00",
       "schema_fingerprint": "e3cd3805da9a277574d02356f9c0ce32b19ad63d272a5187c8001d29a1d78e14",
       "evidence_identity": "d15c4a4ceda19368ce735729921c8f542a0861eae55a088372a65ec025b6ca5d",
       "normalized_provider_event": {
@@ -543,7 +543,7 @@
         "statistics": [],
         "group_label": null,
         "source_url": "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?limit=950&dates=20260620-20260621",
-        "retrieved_at_utc": "2026-06-20T17:19:09.898916+00:00",
+        "retrieved_at_utc": "2026-06-20T18:10:20.260829+00:00",
         "schema_fingerprint": "e3cd3805da9a277574d02356f9c0ce32b19ad63d272a5187c8001d29a1d78e14",
         "evidence_identity": "d15c4a4ceda19368ce735729921c8f542a0861eae55a088372a65ec025b6ca5d"
       }
@@ -601,7 +601,7 @@
       "statistics": [],
       "group_label": null,
       "source_url": "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?limit=950&dates=20260620-20260621",
-      "retrieved_at_utc": "2026-06-20T17:19:09.898916+00:00",
+      "retrieved_at_utc": "2026-06-20T18:10:20.260829+00:00",
       "schema_fingerprint": "e3cd3805da9a277574d02356f9c0ce32b19ad63d272a5187c8001d29a1d78e14",
       "evidence_identity": "af8af2908c384cb0f48446a5ee54535798085bacb2c665002b68e8a675b12f1f",
       "normalized_provider_event": {
@@ -669,7 +669,7 @@
         "statistics": [],
         "group_label": null,
         "source_url": "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?limit=950&dates=20260620-20260621",
-        "retrieved_at_utc": "2026-06-20T17:19:09.898916+00:00",
+        "retrieved_at_utc": "2026-06-20T18:10:20.260829+00:00",
         "schema_fingerprint": "e3cd3805da9a277574d02356f9c0ce32b19ad63d272a5187c8001d29a1d78e14",
         "evidence_identity": "af8af2908c384cb0f48446a5ee54535798085bacb2c665002b68e8a675b12f1f"
       }
@@ -727,7 +727,7 @@
       "statistics": [],
       "group_label": null,
       "source_url": "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?limit=950&dates=20260620-20260621",
-      "retrieved_at_utc": "2026-06-20T17:19:09.898916+00:00",
+      "retrieved_at_utc": "2026-06-20T18:10:20.260829+00:00",
       "schema_fingerprint": "e3cd3805da9a277574d02356f9c0ce32b19ad63d272a5187c8001d29a1d78e14",
       "evidence_identity": "5acb2da984409dca3feed00f974c9d8149bedbe5187915887aca1ec62514c7cb",
       "normalized_provider_event": {
@@ -795,7 +795,7 @@
         "statistics": [],
         "group_label": null,
         "source_url": "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?limit=950&dates=20260620-20260621",
-        "retrieved_at_utc": "2026-06-20T17:19:09.898916+00:00",
+        "retrieved_at_utc": "2026-06-20T18:10:20.260829+00:00",
         "schema_fingerprint": "e3cd3805da9a277574d02356f9c0ce32b19ad63d272a5187c8001d29a1d78e14",
         "evidence_identity": "5acb2da984409dca3feed00f974c9d8149bedbe5187915887aca1ec62514c7cb"
       }
@@ -853,7 +853,7 @@
       "statistics": [],
       "group_label": null,
       "source_url": "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?limit=950&dates=20260620-20260621",
-      "retrieved_at_utc": "2026-06-20T17:19:09.898916+00:00",
+      "retrieved_at_utc": "2026-06-20T18:10:20.260829+00:00",
       "schema_fingerprint": "e3cd3805da9a277574d02356f9c0ce32b19ad63d272a5187c8001d29a1d78e14",
       "evidence_identity": "17ea1141e43a7d785b27db7f5e5f47b7deaf023bdc81094b9d331583fa46a85a",
       "normalized_provider_event": {
@@ -921,7 +921,7 @@
         "statistics": [],
         "group_label": null,
         "source_url": "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?limit=950&dates=20260620-20260621",
-        "retrieved_at_utc": "2026-06-20T17:19:09.898916+00:00",
+        "retrieved_at_utc": "2026-06-20T18:10:20.260829+00:00",
         "schema_fingerprint": "e3cd3805da9a277574d02356f9c0ce32b19ad63d272a5187c8001d29a1d78e14",
         "evidence_identity": "17ea1141e43a7d785b27db7f5e5f47b7deaf023bdc81094b9d331583fa46a85a"
       }
@@ -979,7 +979,7 @@
       "statistics": [],
       "group_label": null,
       "source_url": "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?limit=950&dates=20260620-20260621",
-      "retrieved_at_utc": "2026-06-20T17:19:09.898916+00:00",
+      "retrieved_at_utc": "2026-06-20T18:10:20.260829+00:00",
       "schema_fingerprint": "e3cd3805da9a277574d02356f9c0ce32b19ad63d272a5187c8001d29a1d78e14",
       "evidence_identity": "8f797f325feecfcec8185a557fa9ff6828834e27aab0d980c0a0f67680e45a91",
       "normalized_provider_event": {
@@ -1047,7 +1047,7 @@
         "statistics": [],
         "group_label": null,
         "source_url": "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?limit=950&dates=20260620-20260621",
-        "retrieved_at_utc": "2026-06-20T17:19:09.898916+00:00",
+        "retrieved_at_utc": "2026-06-20T18:10:20.260829+00:00",
         "schema_fingerprint": "e3cd3805da9a277574d02356f9c0ce32b19ad63d272a5187c8001d29a1d78e14",
         "evidence_identity": "8f797f325feecfcec8185a557fa9ff6828834e27aab0d980c0a0f67680e45a91"
       }
@@ -1105,7 +1105,7 @@
       "statistics": [],
       "group_label": null,
       "source_url": "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?limit=950&dates=20260620-20260621",
-      "retrieved_at_utc": "2026-06-20T17:19:09.898916+00:00",
+      "retrieved_at_utc": "2026-06-20T18:10:20.260829+00:00",
       "schema_fingerprint": "e3cd3805da9a277574d02356f9c0ce32b19ad63d272a5187c8001d29a1d78e14",
       "evidence_identity": "297e9832e4a5c1e939b2db4f420339bfa0ac66c442706341d6332ab8d820c431",
       "normalized_provider_event": {
@@ -1173,7 +1173,7 @@
         "statistics": [],
         "group_label": null,
         "source_url": "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?limit=950&dates=20260620-20260621",
-        "retrieved_at_utc": "2026-06-20T17:19:09.898916+00:00",
+        "retrieved_at_utc": "2026-06-20T18:10:20.260829+00:00",
         "schema_fingerprint": "e3cd3805da9a277574d02356f9c0ce32b19ad63d272a5187c8001d29a1d78e14",
         "evidence_identity": "297e9832e4a5c1e939b2db4f420339bfa0ac66c442706341d6332ab8d820c431"
       }
@@ -1231,7 +1231,7 @@
       "statistics": [],
       "group_label": null,
       "source_url": "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?limit=950&dates=20260620-20260621",
-      "retrieved_at_utc": "2026-06-20T17:19:09.898916+00:00",
+      "retrieved_at_utc": "2026-06-20T18:10:20.260829+00:00",
       "schema_fingerprint": "e3cd3805da9a277574d02356f9c0ce32b19ad63d272a5187c8001d29a1d78e14",
       "evidence_identity": "39e21dacbc4ce0b6c6f259477005b89b41b9ab285c168db252c1b2009030a278",
       "normalized_provider_event": {
@@ -1299,7 +1299,7 @@
         "statistics": [],
         "group_label": null,
         "source_url": "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?limit=950&dates=20260620-20260621",
-        "retrieved_at_utc": "2026-06-20T17:19:09.898916+00:00",
+        "retrieved_at_utc": "2026-06-20T18:10:20.260829+00:00",
         "schema_fingerprint": "e3cd3805da9a277574d02356f9c0ce32b19ad63d272a5187c8001d29a1d78e14",
         "evidence_identity": "39e21dacbc4ce0b6c6f259477005b89b41b9ab285c168db252c1b2009030a278"
       }

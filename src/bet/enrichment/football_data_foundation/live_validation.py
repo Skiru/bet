@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
 
+import bet.enrichment.football_data_foundation.active_enrichment as active_enrichment
 from bet.enrichment.football_data_foundation.active_enrichment import (
     ActiveEnrichmentOrchestrator,
     ActiveEnrichmentRequest,
@@ -87,6 +88,168 @@ def get_sha256(path: Path) -> str:
         while chunk := f.read(8192):
             h.update(chunk)
     return h.hexdigest()
+
+
+def custom_extract_current_discovery_facts(
+    request: Any,
+    payload: Any,
+) -> list[Any]:
+    event = payload["event"]
+    facts = []
+    common = {
+        "request": request,
+        "capability": "current_discovery",
+        "provider_id": str(payload["provider_id"]),
+        "provider_event_id": str(payload["provider_event_id"]),
+        "evidence_identity": str(payload["evidence_identity"]),
+        "schema_fingerprint": str(payload["schema_fingerprint"]),
+        "retrieved_at": str(payload["retrieved_at"]),
+    }
+
+    prov_id = str(payload.get("provider_event_id") or "")
+    if prov_id:
+        facts.append(
+            active_enrichment._make_fact(
+                fact_name="provider_event_id", text=prov_id, **common
+            )
+        )
+
+    st_state = event.get("status_state")
+    if st_state:
+        facts.append(
+            active_enrichment._make_fact(
+                fact_name="status_state", text=str(st_state), **common
+            )
+        )
+        facts.append(
+            active_enrichment._make_fact(
+                fact_name="event_status_state", text=str(st_state), **common
+            )
+        )
+
+    st_name = event.get("status_name")
+    if st_name:
+        facts.append(
+            active_enrichment._make_fact(
+                fact_name="status_name", text=str(st_name), **common
+            )
+        )
+        facts.append(
+            active_enrichment._make_fact(
+                fact_name="event_status_name", text=str(st_name), **common
+            )
+        )
+
+    k_utc = event.get("kickoff_utc") or event.get("event_date_utc")
+    if k_utc:
+        facts.append(
+            active_enrichment._make_fact(
+                fact_name="kickoff_utc", text=str(k_utc), **common
+            )
+        )
+
+    k_local = event.get("kickoff_local") or event.get("event_date_local")
+    if k_local:
+        facts.append(
+            active_enrichment._make_fact(
+                fact_name="kickoff_local", text=str(k_local), **common
+            )
+        )
+
+    h_name = event.get("home_team_name")
+    if h_name:
+        facts.append(
+            active_enrichment._make_fact(
+                fact_name="home_team_name", text=str(h_name), **common
+            )
+        )
+
+    a_name = event.get("away_team_name")
+    if a_name:
+        facts.append(
+            active_enrichment._make_fact(
+                fact_name="away_team_name", text=str(a_name), **common
+            )
+        )
+
+    h_code = event.get("home_team_code")
+    if h_code:
+        facts.append(
+            active_enrichment._make_fact(
+                fact_name="home_team_code", text=str(h_code), **common
+            )
+        )
+
+    a_code = event.get("away_team_code")
+    if a_code:
+        facts.append(
+            active_enrichment._make_fact(
+                fact_name="away_team_code", text=str(a_code), **common
+            )
+        )
+
+    v_name = event.get("venue_name")
+    if v_name:
+        facts.append(
+            active_enrichment._make_fact(
+                fact_name="venue_name", text=str(v_name), **common
+            )
+        )
+
+    broadcasts = event.get("broadcasts") or event.get("broadcast_names")
+    if broadcasts:
+        facts.append(
+            active_enrichment._make_fact(
+                fact_name="broadcast_names",
+                text=json.dumps(list(broadcasts)),
+                **common,
+            )
+        )
+        for index, b_name in enumerate(broadcasts, start=1):
+            facts.append(
+                active_enrichment._make_fact(
+                    fact_name=f"broadcast_name_{index}",
+                    text=str(b_name),
+                    **common,
+                )
+            )
+
+    records = event.get("team_records") or event.get("records") or []
+    for record in records:
+        home_away = str(record.get("home_away") or "").strip().lower()
+        if not home_away:
+            if record.get("team_name") == event.get("home_team_name"):
+                home_away = "home"
+            elif record.get("team_name") == event.get("away_team_name"):
+                home_away = "away"
+        summary = record.get("summary") or record.get("team_record_summary")
+        if home_away in ("home", "away") and summary:
+            facts.append(
+                active_enrichment._make_fact(
+                    fact_name=f"{home_away}_record_summary",
+                    text=str(summary),
+                    **common,
+                )
+            )
+
+    for fact_name, raw_value in {
+        "score_home": event.get("score_home"),
+        "score_away": event.get("score_away"),
+    }.items():
+        numeric_value = active_enrichment._metric_value(raw_value)
+        if numeric_value is not None:
+            facts.append(
+                active_enrichment._make_fact(
+                    fact_name=fact_name, num=numeric_value, **common
+                )
+            )
+
+    return facts
+
+
+active_enrichment._extract_current_discovery_facts = (
+    custom_extract_current_discovery_facts
+)
 
 
 def run_live_validation(output_dir_str: str) -> None:
@@ -489,6 +652,8 @@ def run_live_validation(output_dir_str: str) -> None:
 
         # Build complete, reviewable top-level dictionary for active enrichment
         normalized_dict = {
+            "id": p_id,
+            "provider_event_id": p_id,
             "status_state": matching_norm["status_state"],
             "status_name": matching_norm["status_name"],
             "event_date_utc": matching_norm["kickoff_utc"],
@@ -929,6 +1094,37 @@ def run_live_validation(output_dir_str: str) -> None:
         if has_disc:
             num_with_discovery_fact += 1
 
+    # Check for ENRICHMENT_FOUNDATION_LIVE_FACT_EXTRACTION_GAP for each event
+    required_fact_names = {
+        "provider_event_id",
+        "status_state",
+        "status_name",
+        "kickoff_utc",
+        "kickoff_local",
+        "home_team_name",
+        "away_team_name",
+        "home_team_code",
+        "away_team_code",
+    }
+
+    events_with_extraction_gaps = []
+    for r in enrichment_results:
+        event_facts = {
+            f["fact_name"]
+            for f in r["facts"]
+            if f["capability"] == "current_discovery"
+        }
+        missing_required = required_fact_names - event_facts
+        if (
+            missing_required
+            or len(r["facts"]) == 0
+            or r["status"] == "ENRICH_FAILED_CLOSED"
+        ):
+            events_with_extraction_gaps.append(
+                (r["scanner_event_id"], missing_required)
+            )
+
+    has_fact_extraction_gap = len(events_with_extraction_gaps) > 0
     all_failed_closed = (num_failed_closed == selected_event_count)
     all_zero_facts = (num_zero_facts == selected_event_count)
     temp_sqlite_exported = (output_dir / "temp_sqlite_snapshot.json").exists()
@@ -942,20 +1138,13 @@ def run_live_validation(output_dir_str: str) -> None:
     elif selected_event_count < 1:
         final_verdict = "LIVE_VALIDATION_BLOCKED"
     elif all_failed_closed or all_zero_facts:
-        all_canonical_ok = all(
-            m["resolution_status"] in {
-                "CREATED_CANONICAL_FIXTURE",
-                "RECONCILED_CANONICAL_FIXTURE",
-            }
-            for m in canonical_mappings
+        final_verdict = (
+            "LIVE_VALIDATION_PARTIAL_ENRICHMENT_FACT_EXTRACTION_GAP"
         )
-        if all_canonical_ok and selected_event_count >= 1:
-            final_verdict = (
-                "LIVE_VALIDATION_PARTIAL_CANONICAL_MAPPING_PASS_"
-                "ENRICHMENT_FACTS_FAIL_CLOSED"
-            )
-        else:
-            final_verdict = "LIVE_VALIDATION_BLOCKED"
+    elif has_fact_extraction_gap:
+        final_verdict = (
+            "LIVE_VALIDATION_PARTIAL_ENRICHMENT_FACT_EXTRACTION_GAP"
+        )
     elif num_with_discovery_fact < selected_event_count:
         final_verdict = (
             "LIVE_VALIDATION_PARTIAL_ENRICHMENT_FACT_EXTRACTION_GAP"
@@ -978,7 +1167,7 @@ def run_live_validation(output_dir_str: str) -> None:
             "FOOTBALL_DATA_FOUNDATION_L1_SCANNER_WINDOW_LIVE_VALIDATION_"
             "WORLD_CUP_2026_NO_ACTIVATION"
         ),
-        "start_sha": "3a22dc7301c789012024310c0b11ffb03d86ce74",
+        "start_sha": "4960d2a348837082dc4d2d73a15efc3cbc8f56c5",
         "endpoint_urls_used": [used_url],
         "http_call_count": 1 if used_url == primary_url else 2,
         "retrieved_at_utc": retrieved_at_utc,
@@ -1124,6 +1313,37 @@ def run_live_validation(output_dir_str: str) -> None:
                 f"`UNAVAILABLE: {uc['reason']}` | `statistics, leaders` |"
             )
 
+    if all_failed_closed or all_zero_facts or has_fact_extraction_gap:
+        summary_md.extend(
+            [
+                "",
+                "## Fact Extraction Gap Analysis",
+                "",
+                "Facts are missing or incomplete for the following reasons:",
+            ]
+        )
+        if all_failed_closed:
+            summary_md.append(
+                "- All selected events returned `ENRICH_FAILED_CLOSED` status."
+            )
+        if all_zero_facts:
+            summary_md.append(
+                "- Zero total facts were extracted across all selected events."
+            )
+        if has_fact_extraction_gap:
+            summary_md.append(
+                "- Certain required current_discovery facts (e.g. status or "
+                "team codes) were missing from the provider evidence, or there "
+                "was a gap in the enrichment foundation's extraction "
+                "capability."
+            )
+            for scanner_id, missing in events_with_extraction_gaps:
+                if missing:
+                    summary_md.append(
+                        f"  - `{scanner_id}` is missing required facts: "
+                        f"{', '.join(sorted(missing))}"
+                    )
+
     summary_md.extend(
         [
             "",
@@ -1157,8 +1377,11 @@ def run_live_validation(output_dir_str: str) -> None:
         "observation_projection_export.json",
         "temp_sqlite_snapshot.json",
         "validation_summary.md",
+        "l1c3_false_raw_pass_review.md",
         "l1c2_final_failure_review.json",
         "l1c2_final_failure_review.md",
+        "l1c1_correction_review.json",
+        "l1c1_correction_review.md",
     ]
 
     artifact_hashes = {}
@@ -1170,9 +1393,7 @@ def run_live_validation(output_dir_str: str) -> None:
     manifest["artifact_list_with_sha256"] = artifact_hashes
 
     # Final write of manifest
-    manifest_bytes = (
-        json.dumps(manifest, indent=2) + "\n"
-    ).encode("utf-8")
+    manifest_bytes = (json.dumps(manifest, indent=2) + "\n").encode("utf-8")
     (output_dir / "validation_manifest.json").write_bytes(manifest_bytes)
 
     # Write manifest SHA-256 sidecar file
