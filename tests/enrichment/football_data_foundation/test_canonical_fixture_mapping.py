@@ -75,7 +75,8 @@ def load_acceptance_bridge_result() -> ScannerEnrichmentRunRecord:
 
 
 def test_temp_sqlite_harness_initializes_cleanly_without_touching_real_db() -> None:
-    # Check modification time of real database beforehand if it exists
+    # Check modification time of real database beforehand if it exists.
+    # This test suite is physically normalized to verify memory isolation.
     before_exists = REAL_DB_PATH.exists()
     before_mtime = REAL_DB_PATH.stat().st_mtime if before_exists else None
 

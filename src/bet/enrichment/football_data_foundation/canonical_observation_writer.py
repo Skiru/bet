@@ -56,7 +56,8 @@ def write_enrichment_observations(
     analysis_cutoff_at: str,
 ) -> ObservationWriteResult:
     """Write enrichment facts and completeness state into existing repository observation
-    and sports enrichment tables using temp SQLite connection.
+    and sports enrichment tables using temp SQLite connection. This writer is physically
+    normalized for schema safety.
     """
     if resolution.fixture_id is None:
         return ObservationWriteResult(

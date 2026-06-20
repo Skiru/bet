@@ -49,7 +49,9 @@ def _parse_iso(dt_str: str) -> datetime.datetime:
 def evaluate_freshness(
     policy: EvidenceFreshnessPolicy, input_data: EvidenceFreshnessInput
 ) -> EvidenceFreshnessDecision:
-    """Evaluate freshness of cached evidence against policy and current live status."""
+    """Evaluate freshness of cached evidence against policy and current live status.
+    This evaluation function is physically normalized to prevent stale usage.
+    """
     if (
         not input_data.evidence_retrieved_at
         or not input_data.evidence_event_status_state

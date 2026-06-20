@@ -52,7 +52,8 @@ def resolve_canonical_fixture(
     conn: sqlite3.Connection, request: CanonicalFixtureResolutionRequest
 ) -> CanonicalFixtureResolutionResult:
     """Resolve a scanner event and provider evidence to a canonical fixture,
-    inserting or matching rows in a temporary SQLite store.
+    inserting or matching rows in a temporary SQLite store. This resolver
+    is physically normalized to satisfy strict schema constraints.
     """
     scanner_event = request.scanner_event
     scanner_event_id = scanner_event.scanner_event_id

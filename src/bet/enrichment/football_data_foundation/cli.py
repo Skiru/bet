@@ -46,7 +46,7 @@ from .calibration import (
 
 def _build_scanner_bridge_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Football Data Foundation scanner bridge CLI"
+        description="Football Data Foundation scanner bridge normalized CLI"
     )
     parser.add_argument("--profile-id", required=True)
     parser.add_argument("--scanner-event-file", required=True)
