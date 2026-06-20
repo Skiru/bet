@@ -3,19 +3,24 @@
   "scorecards": [
     {
       "source_family": "espn_live_baseline",
-      "evidence_status": "PARSE_ERROR",
-      "measured_capabilities": [],
+      "evidence_status": "EVIDENCE_READY",
+      "measured_capabilities": [
+        "current_live_score",
+        "lineups",
+        "detailed_metrics",
+        "status"
+      ],
       "measured_limitations": [],
       "recommended_role": "ACCEPTED_BASELINE",
       "recommended_next_action": "MAINTAIN",
       "score_breakdown": {
         "import_score": 10.0,
         "dependency_score": 10.0,
-        "offline_parse_score": 0.0,
+        "offline_parse_score": 10.0,
         "live_api_score": 0.0,
         "identity_score": 10.0,
         "temporal_score": 10.0,
-        "fact_yield_score": 0.0,
+        "fact_yield_score": 10.0,
         "unique_fact_value_score": 0.0,
         "current_live_suitability_score": 10.0,
         "historical_value_score": 2.0,

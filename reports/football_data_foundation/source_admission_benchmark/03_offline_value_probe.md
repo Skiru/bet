@@ -4,7 +4,7 @@ Extracted factual counts, identity availability, and suitability details from of
 
 | Source Family | Facts Extracted | Fact Families | Current/Historical | Probe Status |
 | :--- | :--- | :--- | :--- | :--- |
-| **espn_live_baseline** | 0 |  | current | PARSE_ERROR |
+| **espn_live_baseline** | 156 | current_live_score, lineups, detailed_metrics, status | current | EVIDENCE_READY |
 | **sportdb** | 0 |  | current | OFFLINE_FIXTURE_MISSING |
 | **football-data.org** | 0 |  | current | OFFLINE_FIXTURE_MISSING |
 | **soccerdata_clubelo** | 0 |  | historical | OFFLINE_FIXTURE_MISSING |

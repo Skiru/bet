@@ -64,8 +64,12 @@ def run_offline_probes() -> list[dict[str, Any]]:
                 try:
                     payload = json.loads(enrichment_path.read_text(encoding="utf-8"))
                     # Count total facts inside all elements
-                    for ev in payload.get("results", []):
-                        facts_count += len(ev.get("facts", []))
+                    if isinstance(payload, list):
+                        for ev in payload:
+                            facts_count += len(ev.get("facts", []))
+                    else:
+                        for ev in payload.get("results", []):
+                            facts_count += len(ev.get("facts", []))
                     fact_families = ["current_live_score", "lineups", "detailed_metrics", "status"]
                     status = "EVIDENCE_READY"
                     quality_notes = "Official high-frequency live baseline. Extracted exact factual tuples."

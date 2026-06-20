@@ -3,8 +3,13 @@
   "offline_probes": [
     {
       "source_family": "espn_live_baseline",
-      "facts_extracted_count": 0,
-      "fact_families_extracted": [],
+      "facts_extracted_count": 156,
+      "fact_families_extracted": [
+        "current_live_score",
+        "lineups",
+        "detailed_metrics",
+        "status"
+      ],
       "unique_fact_families_vs_espn": [],
       "current_or_historical": "current",
       "identity_fields_available": [
@@ -16,8 +21,8 @@
       "temporal_fields_available": [
         "date"
       ],
-      "quality_notes": "Failed to parse active enrichment results: 'list' object has no attribute 'get'",
-      "probe_status": "PARSE_ERROR"
+      "quality_notes": "Official high-frequency live baseline. Extracted exact factual tuples.",
+      "probe_status": "EVIDENCE_READY"
     },
     {
       "source_family": "sportdb",
