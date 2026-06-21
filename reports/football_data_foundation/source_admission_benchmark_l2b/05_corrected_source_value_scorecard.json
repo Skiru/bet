@@ -1,0 +1,365 @@
+{
+  "schema_version": "2.0",
+  "scorecards": [
+    {
+      "source_family": "espn_live_baseline",
+      "l2a_decision": "ADMIT_NEXT_PHASE_CURRENT_SHADOW",
+      "l2a_problem": "None",
+      "l2b_probe_result": "SUCCESS",
+      "proof_level": "REAL_ACCEPTED_ARTIFACT_PROOF",
+      "real_value_facts_count": 156,
+      "contract_facts_count": 0,
+      "docs_capability_summary": "Official high-frequency live match scorecard.",
+      "corrected_recommended_role": "ACCEPTED_BASELINE",
+      "confidence": "high",
+      "remaining_blockers": [],
+      "next_action": "MAINTAIN"
+    },
+    {
+      "source_family": "sportdb",
+      "l2a_decision": "DEFER_CREDENTIAL_REQUIRED",
+      "l2a_problem": "Lacked local test fixture and credentials in L2A.",
+      "l2b_probe_result": "SUCCESS",
+      "proof_level": "SYNTHETIC_CONTRACT_PROOF",
+      "real_value_facts_count": 0,
+      "contract_facts_count": 1,
+      "docs_capability_summary": "Provides leagues, matches, standings, and matchday live scoring capability.",
+      "corrected_recommended_role": "REFERENCE_CANDIDATE",
+      "confidence": "medium",
+      "remaining_blockers": [
+        "credential_setup"
+      ],
+      "next_action": "OFFLINE_CONTRACT_WORK"
+    },
+    {
+      "source_family": "football-data.org",
+      "l2a_decision": "DEFER_CREDENTIAL_REQUIRED",
+      "l2a_problem": "Lacked local test fixture and credentials in L2A.",
+      "l2b_probe_result": "SUCCESS",
+      "proof_level": "SYNTHETIC_CONTRACT_PROOF",
+      "real_value_facts_count": 0,
+      "contract_facts_count": 2,
+      "docs_capability_summary": "Provides leagues, matches, standings, and matchday live scoring capability.",
+      "corrected_recommended_role": "CURRENT_SHADOW_CANDIDATE",
+      "confidence": "medium",
+      "remaining_blockers": [
+        "credential_setup"
+      ],
+      "next_action": "CREDENTIAL_SETUP"
+    },
+    {
+      "source_family": "soccerdata_clubelo",
+      "l2a_decision": "ADMIT_OFFLINE_EVIDENCE_ONLY",
+      "l2a_problem": "Lacked replay/offline test fixture and had unsafe scraper initialization.",
+      "l2b_probe_result": "SUCCESS",
+      "proof_level": "SYNTHETIC_CONTRACT_PROOF",
+      "real_value_facts_count": 0,
+      "contract_facts_count": 2,
+      "docs_capability_summary": "ClubElo historical team ratings.",
+      "corrected_recommended_role": "CONNECTOR_REPLAY_CANDIDATE",
+      "confidence": "medium",
+      "remaining_blockers": [
+        "scraping_only_blocks_current_primary"
+      ],
+      "next_action": "IMPLEMENT_CONNECTOR_REPLAY"
+    },
+    {
+      "source_family": "soccerdata_espn",
+      "l2a_decision": "ADMIT_OFFLINE_EVIDENCE_ONLY",
+      "l2a_problem": "Lacked replay/offline test fixture and had unsafe scraper initialization.",
+      "l2b_probe_result": "SUCCESS",
+      "proof_level": "SYNTHETIC_CONTRACT_PROOF",
+      "real_value_facts_count": 0,
+      "contract_facts_count": 1,
+      "docs_capability_summary": "ESPN lineups and statistics scraper.",
+      "corrected_recommended_role": "CONNECTOR_REPLAY_CANDIDATE",
+      "confidence": "medium",
+      "remaining_blockers": [
+        "scraping_only_blocks_current_primary"
+      ],
+      "next_action": "IMPLEMENT_CONNECTOR_REPLAY"
+    },
+    {
+      "source_family": "soccerdata_fbref",
+      "l2a_decision": "ADMIT_OFFLINE_EVIDENCE_ONLY",
+      "l2a_problem": "Lacked replay/offline test fixture and had unsafe scraper initialization.",
+      "l2b_probe_result": "SUCCESS",
+      "proof_level": "SYNTHETIC_CONTRACT_PROOF",
+      "real_value_facts_count": 0,
+      "contract_facts_count": 1,
+      "docs_capability_summary": "FBref team and player match/season statistics.",
+      "corrected_recommended_role": "CONNECTOR_REPLAY_CANDIDATE",
+      "confidence": "medium",
+      "remaining_blockers": [
+        "scraping_only_blocks_current_primary"
+      ],
+      "next_action": "IMPLEMENT_CONNECTOR_REPLAY"
+    },
+    {
+      "source_family": "soccerdata_understat",
+      "l2a_decision": "ADMIT_OFFLINE_EVIDENCE_ONLY",
+      "l2a_problem": "Lacked replay/offline test fixture and had unsafe scraper initialization.",
+      "l2b_probe_result": "SUCCESS",
+      "proof_level": "SYNTHETIC_CONTRACT_PROOF",
+      "real_value_facts_count": 0,
+      "contract_facts_count": 1,
+      "docs_capability_summary": "Understat team match statistics and shot-event coordinates.",
+      "corrected_recommended_role": "CONNECTOR_REPLAY_CANDIDATE",
+      "confidence": "medium",
+      "remaining_blockers": [
+        "scraping_only_blocks_current_primary"
+      ],
+      "next_action": "IMPLEMENT_CONNECTOR_REPLAY"
+    },
+    {
+      "source_family": "soccerdata_whoscored",
+      "l2a_decision": "ADMIT_OFFLINE_EVIDENCE_ONLY",
+      "l2a_problem": "Lacked replay/offline test fixture and had unsafe scraper initialization.",
+      "l2b_probe_result": "SUCCESS",
+      "proof_level": "DOCS_CAPABILITY_ONLY",
+      "real_value_facts_count": 0,
+      "contract_facts_count": 0,
+      "docs_capability_summary": "Scrapers for schedules, injuries, standings, and historical results.",
+      "corrected_recommended_role": "OFFLINE_EVIDENCE_ONLY",
+      "confidence": "low",
+      "remaining_blockers": [
+        "no_offline_fixture"
+      ],
+      "next_action": "DEFER_REAL_PROOF_REQUIRED"
+    },
+    {
+      "source_family": "soccerdata_sofascore",
+      "l2a_decision": "ADMIT_OFFLINE_EVIDENCE_ONLY",
+      "l2a_problem": "Lacked replay/offline test fixture and had unsafe scraper initialization.",
+      "l2b_probe_result": "SUCCESS",
+      "proof_level": "DOCS_CAPABILITY_ONLY",
+      "real_value_facts_count": 0,
+      "contract_facts_count": 0,
+      "docs_capability_summary": "Scrapers for schedules, injuries, standings, and historical results.",
+      "corrected_recommended_role": "OFFLINE_EVIDENCE_ONLY",
+      "confidence": "low",
+      "remaining_blockers": [
+        "no_offline_fixture"
+      ],
+      "next_action": "DEFER_REAL_PROOF_REQUIRED"
+    },
+    {
+      "source_family": "soccerdata_sofifa",
+      "l2a_decision": "ADMIT_OFFLINE_EVIDENCE_ONLY",
+      "l2a_problem": "Lacked replay/offline test fixture and had unsafe scraper initialization.",
+      "l2b_probe_result": "SUCCESS",
+      "proof_level": "DOCS_CAPABILITY_ONLY",
+      "real_value_facts_count": 0,
+      "contract_facts_count": 0,
+      "docs_capability_summary": "Scrapers for schedules, injuries, standings, and historical results.",
+      "corrected_recommended_role": "OFFLINE_EVIDENCE_ONLY",
+      "confidence": "low",
+      "remaining_blockers": [
+        "no_offline_fixture"
+      ],
+      "next_action": "DEFER_REAL_PROOF_REQUIRED"
+    },
+    {
+      "source_family": "soccerdata_matchhistory",
+      "l2a_decision": "ADMIT_OFFLINE_EVIDENCE_ONLY",
+      "l2a_problem": "Lacked replay/offline test fixture and had unsafe scraper initialization.",
+      "l2b_probe_result": "SUCCESS",
+      "proof_level": "DOCS_CAPABILITY_ONLY",
+      "real_value_facts_count": 0,
+      "contract_facts_count": 0,
+      "docs_capability_summary": "Scrapers for schedules, injuries, standings, and historical results.",
+      "corrected_recommended_role": "OFFLINE_EVIDENCE_ONLY",
+      "confidence": "low",
+      "remaining_blockers": [
+        "no_offline_fixture"
+      ],
+      "next_action": "DEFER_REAL_PROOF_REQUIRED"
+    },
+    {
+      "source_family": "soccerdata_fivethirtyeight",
+      "l2a_decision": "ADMIT_OFFLINE_EVIDENCE_ONLY",
+      "l2a_problem": "Retired and low value.",
+      "l2b_probe_result": "SUCCESS",
+      "proof_level": "DOCS_CAPABILITY_ONLY",
+      "real_value_facts_count": 0,
+      "contract_facts_count": 0,
+      "docs_capability_summary": "Retired soccer predictions.",
+      "corrected_recommended_role": "REJECT_LOW_VALUE",
+      "confidence": "low",
+      "remaining_blockers": [
+        "retired_provider"
+      ],
+      "next_action": "NONE"
+    },
+    {
+      "source_family": "statsbomb_open_data",
+      "l2a_decision": "ADMIT_NEXT_PHASE_HISTORICAL_ENRICHMENT",
+      "l2a_problem": "None",
+      "l2b_probe_result": "SUCCESS",
+      "proof_level": "REAL_LOCAL_OPEN_DATA_PROOF",
+      "real_value_facts_count": 5,
+      "contract_facts_count": 0,
+      "docs_capability_summary": "StatsBomb events, lineups, and threesixty metadata.",
+      "corrected_recommended_role": "HISTORICAL_ENRICHMENT_CANDIDATE",
+      "confidence": "high",
+      "remaining_blockers": [],
+      "next_action": "ADMIT_HISTORICAL"
+    },
+    {
+      "source_family": "statsbombpy",
+      "l2a_decision": "DEFER_DEPENDENCY_REQUIRED",
+      "l2a_problem": "Missing system dependencies.",
+      "l2b_probe_result": "SUCCESS",
+      "proof_level": "DOCS_CAPABILITY_ONLY",
+      "real_value_facts_count": 0,
+      "contract_facts_count": 0,
+      "docs_capability_summary": "Advanced open event/tracking libraries.",
+      "corrected_recommended_role": "DEPENDENCY_BLOCKED",
+      "confidence": "low",
+      "remaining_blockers": [
+        "dependency_missing"
+      ],
+      "next_action": "DEFER_DEPENDENCY_REQUIRED"
+    },
+    {
+      "source_family": "kaggle_european_soccer",
+      "l2a_decision": "ADMIT_NEXT_PHASE_HISTORICAL_ENRICHMENT",
+      "l2a_problem": "None",
+      "l2b_probe_result": "SUCCESS",
+      "proof_level": "REAL_LOCAL_OPEN_DATA_PROOF",
+      "real_value_facts_count": 2,
+      "contract_facts_count": 0,
+      "docs_capability_summary": "Kaggle European matches database.",
+      "corrected_recommended_role": "HISTORICAL_ENRICHMENT_CANDIDATE",
+      "confidence": "high",
+      "remaining_blockers": [],
+      "next_action": "ADMIT_HISTORICAL"
+    },
+    {
+      "source_family": "openfootball",
+      "l2a_decision": "ADMIT_NEXT_PHASE_REFERENCE",
+      "l2a_problem": "None",
+      "l2b_probe_result": "SUCCESS",
+      "proof_level": "REAL_LOCAL_OPEN_DATA_PROOF",
+      "real_value_facts_count": 1,
+      "contract_facts_count": 0,
+      "docs_capability_summary": "OpenFootball World Cup schedule schemas.",
+      "corrected_recommended_role": "REFERENCE_CANDIDATE",
+      "confidence": "high",
+      "remaining_blockers": [],
+      "next_action": "ADMIT_REFERENCE"
+    },
+    {
+      "source_family": "fotmob_probe",
+      "l2a_decision": "ADMIT_OFFLINE_EVIDENCE_ONLY",
+      "l2a_problem": "Lacked parser integration yielding zero facts.",
+      "l2b_probe_result": "SUCCESS",
+      "proof_level": "DOCS_CAPABILITY_ONLY",
+      "real_value_facts_count": 0,
+      "contract_facts_count": 0,
+      "docs_capability_summary": "Unofficial web API match events and statistics.",
+      "corrected_recommended_role": "OFFLINE_EVIDENCE_ONLY",
+      "confidence": "low",
+      "remaining_blockers": [
+        "parser_gap"
+      ],
+      "next_action": "DEFER_PARSER_REPAIR_REQUIRED"
+    },
+    {
+      "source_family": "sofascore_rich_probe",
+      "l2a_decision": "ADMIT_OFFLINE_EVIDENCE_ONLY",
+      "l2a_problem": "Lacked parser integration yielding zero facts.",
+      "l2b_probe_result": "SUCCESS",
+      "proof_level": "DOCS_CAPABILITY_ONLY",
+      "real_value_facts_count": 0,
+      "contract_facts_count": 0,
+      "docs_capability_summary": "Unofficial web API match events and statistics.",
+      "corrected_recommended_role": "OFFLINE_EVIDENCE_ONLY",
+      "confidence": "low",
+      "remaining_blockers": [
+        "parser_gap"
+      ],
+      "next_action": "DEFER_PARSER_REPAIR_REQUIRED"
+    },
+    {
+      "source_family": "scraperfc_sofascore",
+      "l2a_decision": "DEFER_DEPENDENCY_REQUIRED",
+      "l2a_problem": "Missing system dependencies.",
+      "l2b_probe_result": "SUCCESS",
+      "proof_level": "DOCS_CAPABILITY_ONLY",
+      "real_value_facts_count": 0,
+      "contract_facts_count": 0,
+      "docs_capability_summary": "Advanced open event/tracking libraries.",
+      "corrected_recommended_role": "DEPENDENCY_BLOCKED",
+      "confidence": "low",
+      "remaining_blockers": [
+        "dependency_missing"
+      ],
+      "next_action": "DEFER_DEPENDENCY_REQUIRED"
+    },
+    {
+      "source_family": "socceraction",
+      "l2a_decision": "DEFER_DEPENDENCY_REQUIRED",
+      "l2a_problem": "Missing system dependencies.",
+      "l2b_probe_result": "SUCCESS",
+      "proof_level": "DOCS_CAPABILITY_ONLY",
+      "real_value_facts_count": 0,
+      "contract_facts_count": 0,
+      "docs_capability_summary": "Advanced open event/tracking libraries.",
+      "corrected_recommended_role": "DEPENDENCY_BLOCKED",
+      "confidence": "low",
+      "remaining_blockers": [
+        "dependency_missing"
+      ],
+      "next_action": "DEFER_DEPENDENCY_REQUIRED"
+    },
+    {
+      "source_family": "kloppy",
+      "l2a_decision": "DEFER_DEPENDENCY_REQUIRED",
+      "l2a_problem": "Missing system dependencies.",
+      "l2b_probe_result": "SUCCESS",
+      "proof_level": "DOCS_CAPABILITY_ONLY",
+      "real_value_facts_count": 0,
+      "contract_facts_count": 0,
+      "docs_capability_summary": "Advanced open event/tracking libraries.",
+      "corrected_recommended_role": "DEPENDENCY_BLOCKED",
+      "confidence": "low",
+      "remaining_blockers": [
+        "dependency_missing"
+      ],
+      "next_action": "DEFER_DEPENDENCY_REQUIRED"
+    },
+    {
+      "source_family": "floodlight",
+      "l2a_decision": "DEFER_DEPENDENCY_REQUIRED",
+      "l2a_problem": "Missing system dependencies.",
+      "l2b_probe_result": "SUCCESS",
+      "proof_level": "DOCS_CAPABILITY_ONLY",
+      "real_value_facts_count": 0,
+      "contract_facts_count": 0,
+      "docs_capability_summary": "Advanced open event/tracking libraries.",
+      "corrected_recommended_role": "DEPENDENCY_BLOCKED",
+      "confidence": "low",
+      "remaining_blockers": [
+        "dependency_missing"
+      ],
+      "next_action": "DEFER_DEPENDENCY_REQUIRED"
+    },
+    {
+      "source_family": "mplsoccer",
+      "l2a_decision": "DEFER_DEPENDENCY_REQUIRED",
+      "l2a_problem": "Missing system dependencies.",
+      "l2b_probe_result": "SUCCESS",
+      "proof_level": "DOCS_CAPABILITY_ONLY",
+      "real_value_facts_count": 0,
+      "contract_facts_count": 0,
+      "docs_capability_summary": "Advanced open event/tracking libraries.",
+      "corrected_recommended_role": "DEPENDENCY_BLOCKED",
+      "confidence": "low",
+      "remaining_blockers": [
+        "dependency_missing"
+      ],
+      "next_action": "DEFER_DEPENDENCY_REQUIRED"
+    }
+  ]
+}

@@ -1,0 +1,61 @@
+{
+  "schema_version": "2.0",
+  "plan_steps": [
+    {
+      "sequence": 1,
+      "source_family": "espn_live_baseline",
+      "decision": "ADMIT_NEXT_PHASE_CURRENT_SHADOW",
+      "next_phase_kind": "current shadow fusion",
+      "rationale": "Official live validation baseline."
+    },
+    {
+      "sequence": 2,
+      "source_family": "soccerdata_clubelo",
+      "decision": "ADMIT_NEXT_PHASE_CONNECTOR_REPLAY",
+      "next_phase_kind": "connector replay",
+      "rationale": "Synthetic replay proof validates offline parser contract shapes safely."
+    },
+    {
+      "sequence": 3,
+      "source_family": "soccerdata_espn",
+      "decision": "ADMIT_NEXT_PHASE_CONNECTOR_REPLAY",
+      "next_phase_kind": "connector replay",
+      "rationale": "Synthetic replay proof validates offline parser contract shapes safely."
+    },
+    {
+      "sequence": 4,
+      "source_family": "soccerdata_fbref",
+      "decision": "ADMIT_NEXT_PHASE_CONNECTOR_REPLAY",
+      "next_phase_kind": "connector replay",
+      "rationale": "Synthetic replay proof validates offline parser contract shapes safely."
+    },
+    {
+      "sequence": 5,
+      "source_family": "soccerdata_understat",
+      "decision": "ADMIT_NEXT_PHASE_CONNECTOR_REPLAY",
+      "next_phase_kind": "connector replay",
+      "rationale": "Synthetic replay proof validates offline parser contract shapes safely."
+    },
+    {
+      "sequence": 6,
+      "source_family": "statsbomb_open_data",
+      "decision": "ADMIT_NEXT_PHASE_HISTORICAL_ENRICHMENT",
+      "next_phase_kind": "historical enrichment backfill",
+      "rationale": "Measured offline open data values exist."
+    },
+    {
+      "sequence": 7,
+      "source_family": "kaggle_european_soccer",
+      "decision": "ADMIT_NEXT_PHASE_HISTORICAL_ENRICHMENT",
+      "next_phase_kind": "historical enrichment backfill",
+      "rationale": "Measured offline open data values exist."
+    },
+    {
+      "sequence": 8,
+      "source_family": "openfootball",
+      "decision": "ADMIT_NEXT_PHASE_REFERENCE",
+      "next_phase_kind": "reference identity bridge",
+      "rationale": "Measured offline reference datasets exist."
+    }
+  ]
+}

@@ -1,0 +1,143 @@
+{
+  "schema_version": "2.0",
+  "decisions": [
+    {
+      "source_family": "espn_live_baseline",
+      "corrected_decision": "ADMIT_NEXT_PHASE_CURRENT_SHADOW",
+      "exact_reason": "Official live validation baseline.",
+      "next_phase_kind": "current shadow fusion"
+    },
+    {
+      "source_family": "sportdb",
+      "corrected_decision": "DEFER_CREDENTIAL_REQUIRED",
+      "exact_reason": "Offline contract compatibility proven via synthetic fixture, but credentials are required for live integration.",
+      "next_phase_kind": "credential setup"
+    },
+    {
+      "source_family": "football-data.org",
+      "corrected_decision": "DEFER_CREDENTIAL_REQUIRED",
+      "exact_reason": "Offline contract compatibility proven via synthetic fixture, but credentials are required for live integration.",
+      "next_phase_kind": "credential setup"
+    },
+    {
+      "source_family": "soccerdata_clubelo",
+      "corrected_decision": "ADMIT_NEXT_PHASE_CONNECTOR_REPLAY",
+      "exact_reason": "Synthetic replay proof validates offline parser contract shapes safely.",
+      "next_phase_kind": "connector replay"
+    },
+    {
+      "source_family": "soccerdata_espn",
+      "corrected_decision": "ADMIT_NEXT_PHASE_CONNECTOR_REPLAY",
+      "exact_reason": "Synthetic replay proof validates offline parser contract shapes safely.",
+      "next_phase_kind": "connector replay"
+    },
+    {
+      "source_family": "soccerdata_fbref",
+      "corrected_decision": "ADMIT_NEXT_PHASE_CONNECTOR_REPLAY",
+      "exact_reason": "Synthetic replay proof validates offline parser contract shapes safely.",
+      "next_phase_kind": "connector replay"
+    },
+    {
+      "source_family": "soccerdata_understat",
+      "corrected_decision": "ADMIT_NEXT_PHASE_CONNECTOR_REPLAY",
+      "exact_reason": "Synthetic replay proof validates offline parser contract shapes safely.",
+      "next_phase_kind": "connector replay"
+    },
+    {
+      "source_family": "soccerdata_whoscored",
+      "corrected_decision": "DEFER_REAL_PROOF_REQUIRED",
+      "exact_reason": "Scraping blocks current live. Lacks local offline replay fixtures for contract safety validation.",
+      "next_phase_kind": "offline contract fixture"
+    },
+    {
+      "source_family": "soccerdata_sofascore",
+      "corrected_decision": "DEFER_REAL_PROOF_REQUIRED",
+      "exact_reason": "Scraping blocks current live. Lacks local offline replay fixtures for contract safety validation.",
+      "next_phase_kind": "offline contract fixture"
+    },
+    {
+      "source_family": "soccerdata_sofifa",
+      "corrected_decision": "DEFER_REAL_PROOF_REQUIRED",
+      "exact_reason": "Scraping blocks current live. Lacks local offline replay fixtures for contract safety validation.",
+      "next_phase_kind": "offline contract fixture"
+    },
+    {
+      "source_family": "soccerdata_matchhistory",
+      "corrected_decision": "DEFER_REAL_PROOF_REQUIRED",
+      "exact_reason": "Scraping blocks current live. Lacks local offline replay fixtures for contract safety validation.",
+      "next_phase_kind": "offline contract fixture"
+    },
+    {
+      "source_family": "soccerdata_fivethirtyeight",
+      "corrected_decision": "REJECT_LOW_VALUE",
+      "exact_reason": "Retired predication platform.",
+      "next_phase_kind": "none"
+    },
+    {
+      "source_family": "statsbomb_open_data",
+      "corrected_decision": "ADMIT_NEXT_PHASE_HISTORICAL_ENRICHMENT",
+      "exact_reason": "Measured offline open data values exist.",
+      "next_phase_kind": "historical enrichment backfill"
+    },
+    {
+      "source_family": "statsbombpy",
+      "corrected_decision": "DEFER_DEPENDENCY_REQUIRED",
+      "exact_reason": "Optional library dependencies are absent in current test environment.",
+      "next_phase_kind": "dependency setup"
+    },
+    {
+      "source_family": "kaggle_european_soccer",
+      "corrected_decision": "ADMIT_NEXT_PHASE_HISTORICAL_ENRICHMENT",
+      "exact_reason": "Measured offline open data values exist.",
+      "next_phase_kind": "historical enrichment backfill"
+    },
+    {
+      "source_family": "openfootball",
+      "corrected_decision": "ADMIT_NEXT_PHASE_REFERENCE",
+      "exact_reason": "Measured offline reference datasets exist.",
+      "next_phase_kind": "reference identity bridge"
+    },
+    {
+      "source_family": "fotmob_probe",
+      "corrected_decision": "DEFER_PARSER_REPAIR_REQUIRED",
+      "exact_reason": "Available local offline fixtures exist but yield zero facts due to parsing gaps.",
+      "next_phase_kind": "parser repair"
+    },
+    {
+      "source_family": "sofascore_rich_probe",
+      "corrected_decision": "DEFER_PARSER_REPAIR_REQUIRED",
+      "exact_reason": "Available local offline fixtures exist but yield zero facts due to parsing gaps.",
+      "next_phase_kind": "parser repair"
+    },
+    {
+      "source_family": "scraperfc_sofascore",
+      "corrected_decision": "DEFER_DEPENDENCY_REQUIRED",
+      "exact_reason": "Optional library dependencies are absent in current test environment.",
+      "next_phase_kind": "dependency setup"
+    },
+    {
+      "source_family": "socceraction",
+      "corrected_decision": "DEFER_DEPENDENCY_REQUIRED",
+      "exact_reason": "Optional library dependencies are absent in current test environment.",
+      "next_phase_kind": "dependency setup"
+    },
+    {
+      "source_family": "kloppy",
+      "corrected_decision": "DEFER_DEPENDENCY_REQUIRED",
+      "exact_reason": "Optional library dependencies are absent in current test environment.",
+      "next_phase_kind": "dependency setup"
+    },
+    {
+      "source_family": "floodlight",
+      "corrected_decision": "DEFER_DEPENDENCY_REQUIRED",
+      "exact_reason": "Optional library dependencies are absent in current test environment.",
+      "next_phase_kind": "dependency setup"
+    },
+    {
+      "source_family": "mplsoccer",
+      "corrected_decision": "DEFER_DEPENDENCY_REQUIRED",
+      "exact_reason": "Optional library dependencies are absent in current test environment.",
+      "next_phase_kind": "dependency setup"
+    }
+  ]
+}

@@ -37,7 +37,9 @@ def run_probe(source_family: str) -> SourceProbeResult:
             "module": "bet.api_clients.sportdb_mcp",
             "class": "SportDBMCPClient",  # illustrative
             "deps": [],
-            "fixtures": [],
+            "fixtures": [
+                "tests/fixtures/football_data_foundation/sportdb_shadow/sportdb_worldcup_minimal_normalized.json"
+            ],
             "ops": ["detailed_metrics"],
             "caps": ["detailed_metrics"]
         },
@@ -45,7 +47,9 @@ def run_probe(source_family: str) -> SourceProbeResult:
             "module": "bet.enrichment.football_data_foundation.open_reference_sources.football_data_org_bridge",
             "class": "FootballDataOrgBridge",
             "deps": [],
-            "fixtures": [],
+            "fixtures": [
+                "tests/fixtures/football_data_foundation/football_data_org_shadow/football_data_org_matches_standings_minimal.json"
+            ],
             "ops": ["get_fixtures_result"],
             "caps": ["current_discovery"]
         },
@@ -53,7 +57,9 @@ def run_probe(source_family: str) -> SourceProbeResult:
             "module": "bet.enrichment.football_data_foundation.soccerdata_sources.clubelo",
             "class": "ClubEloConnector",
             "deps": ["soccerdata"],
-            "fixtures": [],
+            "fixtures": [
+                "tests/fixtures/football_data_foundation/soccerdata_replay/clubelo_team_history.json"
+            ],
             "ops": ["read_by_date", "read_team_history"],
             "caps": ["current_recent_form"]
         },
@@ -61,7 +67,9 @@ def run_probe(source_family: str) -> SourceProbeResult:
             "module": "bet.enrichment.football_data_foundation.soccerdata_sources.espn",
             "class": "ESPNConnector",
             "deps": ["soccerdata"],
-            "fixtures": [],
+            "fixtures": [
+                "tests/fixtures/football_data_foundation/soccerdata_replay/soccerdata_espn_schedule_lineup.json"
+            ],
             "ops": ["read_schedule", "read_matchsheet", "read_lineup"],
             "caps": ["current_discovery", "fixture_team_statistics", "confirmed_lineups"]
         },
@@ -69,7 +77,9 @@ def run_probe(source_family: str) -> SourceProbeResult:
             "module": "bet.enrichment.football_data_foundation.soccerdata_sources.fbref",
             "class": "FBrefConnector",
             "deps": ["soccerdata"],
-            "fixtures": [],
+            "fixtures": [
+                "tests/fixtures/football_data_foundation/soccerdata_replay/fbref_team_match_stats.json"
+            ],
             "ops": [
                 "read_leagues", "read_seasons", "read_schedule",
                 "read_team_season_stats", "read_team_match_stats",
@@ -82,7 +92,9 @@ def run_probe(source_family: str) -> SourceProbeResult:
             "module": "bet.enrichment.football_data_foundation.soccerdata_sources.understat",
             "class": "UnderstatConnector",
             "deps": ["soccerdata"],
-            "fixtures": [],
+            "fixtures": [
+                "tests/fixtures/football_data_foundation/soccerdata_replay/understat_shot_events.json"
+            ],
             "ops": [
                 "read_leagues", "read_seasons", "read_schedule",
                 "read_team_match_stats", "read_player_season_stats",

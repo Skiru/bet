@@ -1,0 +1,19 @@
+{
+  "synthetic_normalized_probe_fixture": true,
+  "proof_level": "SYNTHETIC_CONTRACT_PROOF",
+  "source_family": "soccerdata_fbref",
+  "records": [
+    {
+      "match_id": "fbref_2026_usa_aus",
+      "team": "USA",
+      "opponent": "Australia",
+      "date": "2026-06-20",
+      "goals_for": 2,
+      "goals_against": 1,
+      "shots": 14,
+      "shots_on_target": 6,
+      "xg": 1.85,
+      "possession": 53.0
+    }
+  ]
+}

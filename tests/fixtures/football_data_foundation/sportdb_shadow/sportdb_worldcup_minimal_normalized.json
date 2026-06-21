@@ -1,0 +1,37 @@
+{
+  "synthetic_normalized_probe_fixture": true,
+  "proof_level": "SYNTHETIC_CONTRACT_PROOF",
+  "records": [
+    {
+      "provider_id": "sportdb_wc_2026",
+      "competition": "World Cup 2026",
+      "season": "2026",
+      "scope": "international",
+      "matches": [
+        {
+          "match_id": "sportdb:match:2026:usa_aus",
+          "kickoff": "2026-06-20T20:00:00Z",
+          "home_team": {
+            "id": "sportdb:team:usa",
+            "name": "USA"
+          },
+          "away_team": {
+            "id": "sportdb:team:aus",
+            "name": "Australia"
+          },
+          "status": "scheduled",
+          "score": null,
+          "stats_candidate": {
+            "possession_home": 50,
+            "possession_away": 50
+          },
+          "standings_candidate": {
+            "group": "A",
+            "points_home": 0,
+            "points_away": 0
+          }
+        }
+      ]
+    }
+  ]
+}

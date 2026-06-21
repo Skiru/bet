@@ -1,0 +1,25 @@
+# L2A Weak Classification Diagnosis Report
+
+This report diagnoses why key source families were undermeasured or weakly classified during the L2A phase, distinguishing structural test limitations from actual source value.
+
+| Source Family | L2A Decision | L2A Problem / Gap | Corrected L2B Classification Reason | Corrected Action / Remedy |
+| :--- | :--- | :--- | :--- | :--- |
+| `sportdb` | `DEFER_CREDENTIAL_REQUIRED` | No offline fixture evaluated; missing live credentials caused a zero-fact assessment. | `SOURCE_UNMEASURED_NO_FIXTURE`, `SOURCE_UNMEASURED_NO_CREDENTIAL` | Create a minimal normalized contract fixture to prove structural parsing compatibility offline. |
+| `football-data.org` | `DEFER_CREDENTIAL_REQUIRED` | No offline fixture evaluated; missing live credentials caused a zero-fact assessment. | `SOURCE_UNMEASURED_NO_FIXTURE`, `SOURCE_UNMEASURED_NO_CREDENTIAL` | Create a minimal normalized contract fixture to prove structural parsing compatibility offline. |
+| `soccerdata_clubelo` | `ADMIT_OFFLINE_EVIDENCE_ONLY` | No offline replay fixture evaluated; live class instantiation is unsafe in a testing environment. | `SOURCE_UNMEASURED_NO_FIXTURE`, `SOURCE_UNMEASURED_UNSAFE_PROBE` | Generate a soccerdata_replay contract fixture for ELO team history. |
+| `soccerdata_espn` | `ADMIT_OFFLINE_EVIDENCE_ONLY` | No offline replay fixture evaluated; live class instantiation is unsafe in a testing environment. | `SOURCE_UNMEASURED_NO_FIXTURE`, `SOURCE_UNMEASURED_UNSAFE_PROBE` | Generate a soccerdata_replay contract fixture for ESPN lineup schedules. |
+| `soccerdata_fbref` | `ADMIT_OFFLINE_EVIDENCE_ONLY` | No offline replay fixture evaluated; live class instantiation is unsafe in a testing environment. | `SOURCE_UNMEASURED_NO_FIXTURE`, `SOURCE_UNMEASURED_UNSAFE_PROBE` | Generate a soccerdata_replay contract fixture for FBref team match stats. |
+| `soccerdata_understat` | `ADMIT_OFFLINE_EVIDENCE_ONLY` | No offline replay fixture evaluated; live class instantiation is unsafe in a testing environment. | `SOURCE_UNMEASURED_NO_FIXTURE`, `SOURCE_UNMEASURED_UNSAFE_PROBE` | Generate a soccerdata_replay contract fixture for Understat shot events. |
+| `soccerdata_whoscored` | `ADMIT_OFFLINE_EVIDENCE_ONLY` | No offline replay fixture evaluated; live class instantiation is unsafe in a testing environment. | `SOURCE_UNMEASURED_NO_FIXTURE`, `SOURCE_UNMEASURED_UNSAFE_PROBE` | Acknowledge missing offline fixture and scraping-only primary block. |
+| `soccerdata_sofascore` | `ADMIT_OFFLINE_EVIDENCE_ONLY` | No offline replay fixture evaluated; live class instantiation is unsafe in a testing environment. | `SOURCE_UNMEASURED_NO_FIXTURE`, `SOURCE_UNMEASURED_UNSAFE_PROBE` | Acknowledge missing offline fixture and scraping-only primary block. |
+| `soccerdata_sofifa` | `ADMIT_OFFLINE_EVIDENCE_ONLY` | No offline replay fixture evaluated; live class instantiation is unsafe in a testing environment. | `SOURCE_UNMEASURED_NO_FIXTURE`, `SOURCE_UNMEASURED_UNSAFE_PROBE` | Acknowledge missing offline fixture and scraping-only primary block. |
+| `soccerdata_matchhistory` | `ADMIT_OFFLINE_EVIDENCE_ONLY` | No offline replay fixture evaluated; live class instantiation is unsafe in a testing environment. | `SOURCE_UNMEASURED_NO_FIXTURE`, `SOURCE_UNMEASURED_UNSAFE_PROBE` | Acknowledge missing offline fixture and scraping-only primary block. |
+| `soccerdata_fivethirtyeight` | `ADMIT_OFFLINE_EVIDENCE_ONLY` | No offline replay fixture evaluated. Prediction endpoints are archived/retired. | `SOURCE_LOW_VALUE`, `SOURCE_UNMEASURED_NO_FIXTURE`, `GOVERNANCE_GAP` | Reject as low value due to provider retirement. |
+| `fotmob_probe` | `ADMIT_OFFLINE_EVIDENCE_ONLY` | Yielded zero facts even though offline test fixture was available in the repository. | `PARSER_GAP`, `DOCS_CAPABILITY_ONLY` | Review fixture structure. Document the specific missing keys and parser capabilities, classifying as PARSER_GAP. |
+| `sofascore_rich_probe` | `ADMIT_OFFLINE_EVIDENCE_ONLY` | Yielded zero facts even though offline test fixture was available in the repository. | `PARSER_GAP`, `DOCS_CAPABILITY_ONLY` | Review fixture structure. Document the specific missing keys and parser capabilities, classifying as PARSER_GAP. |
+
+## Crucial Takeaways
+
+1. **No Coercion of Missing Credentials to Low Value**: Sources like SportDB and football-data.org were incorrectly evaluated as low-value/metadata-only. L2B corrects this by separating missing live credentials and missing local fixtures from inherent source capability.
+2. **Parser Gaps Recognized**: FotMob and SofaScore rich probes had files in the repository but lacked an implementation to extract those facts into the metrics scorecard. This is now classified as a `PARSER_GAP` rather than `SOURCE_LOW_VALUE`.
+3. **Safety Isolation**: All soccerdata scraper wrappers are unsafe to initialize/probe online in automated tests. Their zero-fact evaluation was due to lack of local replay fixtures, which we now remedy with synthetic contract proof replay data.
