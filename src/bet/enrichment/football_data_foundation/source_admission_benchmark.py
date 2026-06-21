@@ -1000,7 +1000,10 @@ def generate_l2b_artifacts(
 
     # Write 05_corrected_source_value_scorecard.json
     (l2b_dir / "05_corrected_source_value_scorecard.json").write_text(
-        json.dumps({"schema_version": "2.0", "scorecards": scorecards}, indent=2) + "\n", encoding="utf-8"
+        json.dumps(
+            {"schema_version": "2.0", "scorecards": scorecards},
+            indent=2, ensure_ascii=False, sort_keys=False
+        ) + "\n", encoding="utf-8"
     )
 
     # Write 05_corrected_source_value_scorecard.md
@@ -1073,7 +1076,10 @@ def generate_l2b_artifacts(
 
     # Write 06_corrected_admission_decision_matrix.json
     (l2b_dir / "06_corrected_admission_decision_matrix.json").write_text(
-        json.dumps({"schema_version": "2.0", "decisions": decisions}, indent=2) + "\n", encoding="utf-8"
+        json.dumps(
+            {"schema_version": "2.0", "decisions": decisions},
+            indent=2, ensure_ascii=False, sort_keys=False
+        ) + "\n", encoding="utf-8"
     )
 
     # Write 06_corrected_admission_decision_matrix.md
@@ -1162,7 +1168,10 @@ def generate_l2b_artifacts(
 
     # Write 07_corrected_next_implementation_plan.json
     (l2b_dir / "07_corrected_next_implementation_plan.json").write_text(
-        json.dumps({"schema_version": "2.0", "plan_steps": plan_steps}, indent=2) + "\n", encoding="utf-8"
+        json.dumps(
+            {"schema_version": "2.0", "plan_steps": plan_steps},
+            indent=2, ensure_ascii=False, sort_keys=False
+        ) + "\n", encoding="utf-8"
     )
 
     # Write 07_corrected_next_implementation_plan.md
@@ -1217,7 +1226,7 @@ def generate_l2b_artifacts(
     }
 
     (l2b_dir / "no_production_activation_proof.json").write_text(
-        json.dumps(no_activation_proof, indent=2) + "\n", encoding="utf-8"
+        json.dumps(no_activation_proof, indent=2, ensure_ascii=False, sort_keys=False) + "\n", encoding="utf-8"
     )
 
     md_lines = [
@@ -1240,7 +1249,10 @@ def generate_l2b_artifacts(
 
     # 4.5 Generate R2 Consistency Validation Report (Checkpoint 3)
     val_res, val_md = validate_r2_consistency(scorecards, decisions, plan_steps)
-    (l2b_dir / "r2_consistency_validation.json").write_text(json.dumps(val_res, indent=2) + "\n", encoding="utf-8")
+    (l2b_dir / "r2_consistency_validation.json").write_text(
+        json.dumps(val_res, indent=2, ensure_ascii=False, sort_keys=False) + "\n",
+        encoding="utf-8"
+    )
     (l2b_dir / "r2_consistency_validation.md").write_text(val_md, encoding="utf-8")
 
     # 5. Manifest and Integrity (Checklist 11)
@@ -1286,7 +1298,7 @@ def generate_l2b_artifacts(
     }
 
     manifest_path = l2b_dir / "l2b_corrected_admission_manifest.json"
-    manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+    manifest_path.write_text(json.dumps(manifest, indent=2, ensure_ascii=False, sort_keys=False) + "\n", encoding="utf-8")
 
     sha256_val = hashlib.sha256(manifest_path.read_bytes()).hexdigest()
     (l2b_dir / "l2b_corrected_admission_manifest.sha256").write_text(sha256_val + "\n", encoding="utf-8")
@@ -1304,7 +1316,10 @@ def main() -> None:
 
     # Pretty-print 03_offline_value_probe.json & md
     (benchmark_dir / "03_offline_value_probe.json").write_text(
-        json.dumps({"schema_version": "2.0", "offline_probes": offline_l2a}, indent=2) + "\n", encoding="utf-8"
+        json.dumps(
+            {"schema_version": "2.0", "offline_probes": offline_l2a},
+            indent=2, ensure_ascii=False, sort_keys=False
+        ) + "\n", encoding="utf-8"
     )
 
     md_lines = [
@@ -1329,7 +1344,10 @@ def main() -> None:
 
     # Pretty-print 04_optional_live_api_probe.json & md
     (benchmark_dir / "04_optional_live_api_probe.json").write_text(
-        json.dumps({"schema_version": "2.0", "live_probes": live_l2a}, indent=2) + "\n", encoding="utf-8"
+        json.dumps(
+            {"schema_version": "2.0", "live_probes": live_l2a},
+            indent=2, ensure_ascii=False, sort_keys=False
+        ) + "\n", encoding="utf-8"
     )
 
     md_lines = [
@@ -1354,7 +1372,10 @@ def main() -> None:
 
     # Pretty-print 05_source_value_scorecard.json & md
     (benchmark_dir / "05_source_value_scorecard.json").write_text(
-        json.dumps({"schema_version": "2.0", "scorecards": scorecards_l2a}, indent=2) + "\n", encoding="utf-8"
+        json.dumps(
+            {"schema_version": "2.0", "scorecards": scorecards_l2a},
+            indent=2, ensure_ascii=False, sort_keys=False
+        ) + "\n", encoding="utf-8"
     )
 
     md_lines = [
@@ -1375,7 +1396,10 @@ def main() -> None:
 
     # Pretty-print 06_admission_decision_matrix.json & md
     (benchmark_dir / "06_admission_decision_matrix.json").write_text(
-        json.dumps({"schema_version": "2.0", "decisions": decisions_l2a}, indent=2) + "\n", encoding="utf-8"
+        json.dumps(
+            {"schema_version": "2.0", "decisions": decisions_l2a},
+            indent=2, ensure_ascii=False, sort_keys=False
+        ) + "\n", encoding="utf-8"
     )
 
     md_lines = [
@@ -1407,7 +1431,10 @@ def main() -> None:
             })
 
     (benchmark_dir / "07_next_implementation_plan.json").write_text(
-        json.dumps({"schema_version": "2.0", "plan_steps": plan_steps}, indent=2) + "\n", encoding="utf-8"
+        json.dumps(
+            {"schema_version": "2.0", "plan_steps": plan_steps},
+            indent=2, ensure_ascii=False, sort_keys=False
+        ) + "\n", encoding="utf-8"
     )
 
     md_lines = [
@@ -1431,7 +1458,7 @@ def main() -> None:
 
     manifest = run_manifest(offline_l2a, live_l2a, scorecards_l2a, decisions_l2a)
     manifest_path = benchmark_dir / "l2a_source_admission_manifest.json"
-    manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+    manifest_path.write_text(json.dumps(manifest, indent=2, ensure_ascii=False, sort_keys=False) + "\n", encoding="utf-8")
 
     sha256_val = hashlib.sha256(manifest_path.read_bytes()).hexdigest()
     (benchmark_dir / "l2a_source_admission_manifest.sha256").write_text(sha256_val + "\n", encoding="utf-8")

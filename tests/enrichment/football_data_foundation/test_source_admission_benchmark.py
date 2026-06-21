@@ -452,3 +452,115 @@ def test_l2b_no_production_activation_fields_are_true() -> None:
     assert proof["no_production_activation"] is True
     for k, v in proof["checks_executed"].items():
         assert v is True
+
+
+def test_l2b_and_l2a_json_pretty_printed() -> None:
+    # JSON reports are pretty printed (i.e. have multiple lines) and are not single line
+    for p in L2B_DIR.glob("**/*.json"):
+        content = p.read_text(encoding="utf-8")
+        lines = content.splitlines()
+        assert len(lines) > 5
+
+
+def test_markdown_next_plan_multiline() -> None:
+    # Markdown next plan is multi-line
+    plan_md = L2B_DIR / "07_corrected_next_implementation_plan.md"
+    assert plan_md.exists()
+    lines = plan_md.read_text(encoding="utf-8").splitlines()
+    assert len(lines) >= 20
+
+
+def test_source_files_exceed_lf_thresholds() -> None:
+    # source files exceed LF thresholds
+    # source_admission_benchmark.py: LF >= 800
+    # source_probe_runner.py: LF >= 350
+    # source_probe_contracts.py: LF >= 30
+    assert len(Path(
+        "src/bet/enrichment/football_data_foundation/"
+        "source_admission_benchmark.py"
+    ).read_text(encoding="utf-8").splitlines()) >= 800
+    assert len(Path("src/bet/enrichment/football_data_foundation/source_probe_runner.py").read_text(encoding="utf-8").splitlines()) >= 350
+    assert len(Path("src/bet/enrichment/football_data_foundation/source_probe_contracts.py").read_text(encoding="utf-8").splitlines()) >= 30
+
+
+def test_no_python_source_line_exceeds_140() -> None:
+    # No Python source has max line > 140
+    src_files = [
+        "src/bet/enrichment/football_data_foundation/source_admission_benchmark.py",
+        "src/bet/enrichment/football_data_foundation/source_probe_runner.py",
+        "src/bet/enrichment/football_data_foundation/source_probe_contracts.py",
+        "tests/enrichment/football_data_foundation/test_source_admission_benchmark.py"
+    ]
+    for sf in src_files:
+        lines = Path(sf).read_text(encoding="utf-8").splitlines()
+        for line in lines:
+            assert len(line) <= 140
+
+
+def test_no_report_line_exceeds_240() -> None:
+    # No report has max line > 240 (for JSON reports and next plan Markdown)
+    for p in L2B_DIR.glob("**/*.json"):
+        lines = p.read_text(encoding="utf-8").splitlines()
+        for line in lines:
+            assert len(line) <= 240
+
+    plan_md = L2B_DIR / "07_corrected_next_implementation_plan.md"
+    assert plan_md.exists()
+    for line in plan_md.read_text(encoding="utf-8").splitlines():
+        assert len(line) <= 240
+
+
+def test_public_raw_verifier_sha_validation() -> None:
+    from scripts.verify_public_raw_exact_sha import is_valid_sha
+    assert is_valid_sha("df487b2fced1da6bc72a66754a9e2793d8de084d") is True
+    assert is_valid_sha("main") is False
+    assert is_valid_sha("feat/multisport-enrichment-v1") is False
+    assert is_valid_sha("12345") is False
+
+
+def test_public_raw_verifier_builds_exact_sha_urls_only() -> None:
+    # Check that public raw URL build does not accept branch names and builds exact sha url
+    import subprocess
+    import sys
+    res = subprocess.run(
+        [sys.executable, "scripts/verify_public_raw_exact_sha.py", "main", "some_path.py"],
+        capture_output=True,
+        text=True
+    )
+    assert res.returncode != 0
+    assert "Invalid END_SHA format" in res.stderr
+
+
+def test_mismatch_detection_on_different_bytes() -> None:
+    from unittest.mock import MagicMock, patch
+
+    import scripts.verify_public_raw_exact_sha as verifier
+
+    # Mock urllib to return dummy bytes
+    mock_response = MagicMock()
+    mock_response.__enter__.return_value = mock_response
+    mock_response.getcode.return_code = 200
+    mock_response.getcode.return_value = 200
+    mock_response.read.return_value = b"mismatched_public_bytes_different_from_git"
+
+    # Mock subprocess to return different git bytes
+    mock_subprocess = MagicMock()
+    mock_subprocess.returncode = 0
+    mock_subprocess.stdout = b"git_bytes_here"
+
+    with patch("urllib.request.urlopen", return_value=mock_response), \
+         patch("subprocess.run", return_value=mock_subprocess), \
+         patch("sys.exit"):
+
+        # We need to temporarily mock sys.argv
+        with patch("sys.argv", ["verify_public_raw_exact_sha.py", "df487b2fced1da6bc72a66754a9e2793d8de084d", "some_path.py"]):
+            # We capture stdout to inspect JSON
+            from io import StringIO
+            with patch("sys.stdout", new=StringIO()) as fake_out:
+                verifier.main()
+
+                # Check JSON output
+                output = json.loads(fake_out.getvalue())
+                assert output["overall_success"] is False
+                assert output["results"][0]["bytes_match"] is False
+                assert output["results"][0]["status"] == "FAILED"
