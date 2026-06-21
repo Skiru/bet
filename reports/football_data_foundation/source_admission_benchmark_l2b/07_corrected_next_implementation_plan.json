@@ -10,52 +10,80 @@
     },
     {
       "sequence": 2,
-      "source_family": "soccerdata_clubelo",
-      "decision": "ADMIT_NEXT_PHASE_CONNECTOR_REPLAY",
-      "next_phase_kind": "connector replay",
-      "rationale": "Synthetic replay proof validates offline parser contract shapes safely."
-    },
-    {
-      "sequence": 3,
-      "source_family": "soccerdata_espn",
-      "decision": "ADMIT_NEXT_PHASE_CONNECTOR_REPLAY",
-      "next_phase_kind": "connector replay",
-      "rationale": "Synthetic replay proof validates offline parser contract shapes safely."
-    },
-    {
-      "sequence": 4,
-      "source_family": "soccerdata_fbref",
-      "decision": "ADMIT_NEXT_PHASE_CONNECTOR_REPLAY",
-      "next_phase_kind": "connector replay",
-      "rationale": "Synthetic replay proof validates offline parser contract shapes safely."
-    },
-    {
-      "sequence": 5,
-      "source_family": "soccerdata_understat",
-      "decision": "ADMIT_NEXT_PHASE_CONNECTOR_REPLAY",
-      "next_phase_kind": "connector replay",
-      "rationale": "Synthetic replay proof validates offline parser contract shapes safely."
-    },
-    {
-      "sequence": 6,
       "source_family": "statsbomb_open_data",
       "decision": "ADMIT_NEXT_PHASE_HISTORICAL_ENRICHMENT",
       "next_phase_kind": "historical enrichment backfill",
       "rationale": "Measured offline open data values exist."
     },
     {
-      "sequence": 7,
+      "sequence": 3,
       "source_family": "kaggle_european_soccer",
       "decision": "ADMIT_NEXT_PHASE_HISTORICAL_ENRICHMENT",
       "next_phase_kind": "historical enrichment backfill",
       "rationale": "Measured offline open data values exist."
     },
     {
-      "sequence": 8,
+      "sequence": 4,
       "source_family": "openfootball",
       "decision": "ADMIT_NEXT_PHASE_REFERENCE",
       "next_phase_kind": "reference identity bridge",
       "rationale": "Measured offline reference datasets exist."
+    },
+    {
+      "sequence": 5,
+      "source_family": "sportdb",
+      "decision": "DEFER_CREDENTIAL_REQUIRED",
+      "next_phase_kind": "credential/live proof setup",
+      "rationale": "Offline contract compatibility proven via synthetic fixture, but credentials are required for live integration."
+    },
+    {
+      "sequence": 6,
+      "source_family": "football-data.org",
+      "decision": "DEFER_CREDENTIAL_REQUIRED",
+      "next_phase_kind": "credential/live proof setup",
+      "rationale": "Offline contract compatibility proven via synthetic fixture, but credentials are required for live integration."
+    },
+    {
+      "sequence": 7,
+      "source_family": "soccerdata_clubelo",
+      "decision": "DEFER_CONNECTOR_REPLAY_CAPTURE",
+      "next_phase_kind": "real replay capture phase",
+      "rationale": "Synthetic contract proof validated, but requires real-world replay capture before implementation."
+    },
+    {
+      "sequence": 8,
+      "source_family": "soccerdata_espn",
+      "decision": "DEFER_CONNECTOR_REPLAY_CAPTURE",
+      "next_phase_kind": "real replay capture phase",
+      "rationale": "Synthetic contract proof validated, but requires real-world replay capture before implementation."
+    },
+    {
+      "sequence": 9,
+      "source_family": "soccerdata_fbref",
+      "decision": "DEFER_CONNECTOR_REPLAY_CAPTURE",
+      "next_phase_kind": "real replay capture phase",
+      "rationale": "Synthetic contract proof validated, but requires real-world replay capture before implementation."
+    },
+    {
+      "sequence": 10,
+      "source_family": "soccerdata_understat",
+      "decision": "DEFER_CONNECTOR_REPLAY_CAPTURE",
+      "next_phase_kind": "real replay capture phase",
+      "rationale": "Synthetic contract proof validated, but requires real-world replay capture before implementation."
+    },
+    {
+      "sequence": 11,
+      "source_family": "fotmob_probe",
+      "decision": "DEFER_REAL_PROOF_REQUIRED",
+      "next_phase_kind": "parser repair",
+      "rationale": "Available local offline fixtures exist but yield zero facts due to parsing gaps; requires parser repair."
+    },
+    {
+      "sequence": 12,
+      "source_family": "sofascore_rich_probe",
+      "decision": "DEFER_REAL_PROOF_REQUIRED",
+      "next_phase_kind": "parser repair",
+      "rationale": "Available local offline fixtures exist but yield zero facts due to parsing gaps; requires parser repair."
     }
   ]
 }

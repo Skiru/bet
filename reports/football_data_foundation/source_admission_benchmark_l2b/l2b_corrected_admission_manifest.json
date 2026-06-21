@@ -1,7 +1,7 @@
 {
   "schema_version": "2.0",
-  "generated_at": "2026-06-21T05:52:53.641650+00:00",
-  "phase_id": "FOOTBALL_SOURCE_ADMISSION_L2B_R1_REPAIR_RAW_AND_CORRECT_UNDERMEASURED_SOURCES",
+  "generated_at": "2026-06-21T06:45:19.897729+00:00",
+  "phase_id": "FOOTBALL_SOURCE_ADMISSION_L2B_R2_PUBLIC_RAW_AND_DECISION_CONSISTENCY_CORRECTION",
   "no_production_activation": true,
   "no_source_promoted": true,
   "source_families_evaluated": [
@@ -30,10 +30,10 @@
     "mplsoccer"
   ],
   "proof_levels_recorded": [
-    "SYNTHETIC_CONTRACT_PROOF",
-    "REAL_LOCAL_OPEN_DATA_PROOF",
     "DOCS_CAPABILITY_ONLY",
-    "REAL_ACCEPTED_ARTIFACT_PROOF"
+    "REAL_ACCEPTED_ARTIFACT_PROOF",
+    "REAL_LOCAL_OPEN_DATA_PROOF",
+    "SYNTHETIC_CONTRACT_PROOF"
   ],
   "total_calls_executed": 0,
   "credentials_present": {
@@ -47,11 +47,13 @@
     "01_l2a_weak_classification_diagnosis.md": "7077bf5d399e57a4a7139722f1d4cdfd4372f9cd900d2aff2c5f97f464f37203",
     "05_corrected_source_value_scorecard.json": "7366457b7810f05c62bc81b48a64efb576874cb6b616764d5c9bcd1cb9d39c82",
     "05_corrected_source_value_scorecard.md": "7bc2674e1225caa537784eed4222e1af0e961e5c70e40b2bdadf1fdf8cfaf041",
-    "06_corrected_admission_decision_matrix.json": "f6aaa0ae0d893c86e57ea4cd13414f5a046a4a675e36fd86e297a28157e14ebd",
-    "06_corrected_admission_decision_matrix.md": "6f0d44882ccafc4068b4612f52c760aa203f55b776f2841dbd5c8ba45c19afba",
-    "07_corrected_next_implementation_plan.json": "2e82c1bdd4ad0449b896e7b2e1e68294eba85b5be168b71b224c4c8fe111a4d0",
-    "07_corrected_next_implementation_plan.md": "fd137179818f290f33e50a18db56017f6b5327650241b912268b0e2773c5829d",
-    "no_production_activation_proof.json": "cf7885aa2d589d3b5e4e788bcdee8279969cb9ea38d79961fd5525b5249495d2",
-    "no_production_activation_proof.md": "98a5487fc9658a901a246f1e279eece2dfcd4c17e4fa57c7dd6a9c35159c475a"
+    "06_corrected_admission_decision_matrix.json": "61a4a74b382de91ac7ab5ac0de5586ae85a16997f521dd5738e38fe415455a7a",
+    "06_corrected_admission_decision_matrix.md": "2f865b71ac185506eda7b610b58289254f51d435ffef477fa14295f7e5eaca00",
+    "07_corrected_next_implementation_plan.json": "d2f4ebc52c1f6f1837e59847740a8c90b7cf7332f46b01a739e766ef2fdc0e25",
+    "07_corrected_next_implementation_plan.md": "19c5dae7cd50bcce2ed082784c636ecc4699d37e4dbebbd90928a9651fead4ff",
+    "no_production_activation_proof.json": "6d4287c5673fc5b32a976a5596c9760fbeb81ddb25245e968aafc12a5d376afe",
+    "no_production_activation_proof.md": "98a5487fc9658a901a246f1e279eece2dfcd4c17e4fa57c7dd6a9c35159c475a",
+    "r2_consistency_validation.json": "53b108a4b0f210e16968074ebf06c52388902d124f4e6fff69f95c7b0d1daa94",
+    "r2_consistency_validation.md": "6641785eb73514af7b5cd3222be4ef1d64aba49838170d623888f3febd3f62f8"
   }
 }

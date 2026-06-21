@@ -360,3 +360,95 @@ def test_l2b_manifest_hash_integrity() -> None:
     recorded_sha = sha_path.read_text(encoding="utf-8").strip()
 
     assert computed_sha == recorded_sha
+
+
+def test_l2b_public_raw_thresholds() -> None:
+    # Verifies that public raw line thresholds are met locally
+    s_path = "src/bet/enrichment/football_data_foundation/source_admission_benchmark.py"
+    assert Path(s_path).read_text(encoding="utf-8").count("\n") >= 800
+    assert Path("src/bet/enrichment/football_data_foundation/source_probe_runner.py").read_text(encoding="utf-8").count("\n") >= 350
+    t_path = "tests/enrichment/football_data_foundation/test_source_admission_benchmark.py"
+    assert Path(t_path).read_text(encoding="utf-8").count("\n") >= 250
+    assert (L2B_DIR / "05_corrected_source_value_scorecard.json").read_text(encoding="utf-8").count("\n") >= 250
+    assert (L2B_DIR / "06_corrected_admission_decision_matrix.json").read_text(encoding="utf-8").count("\n") >= 100
+    assert (L2B_DIR / "07_corrected_next_implementation_plan.md").read_text(encoding="utf-8").count("\n") >= 20
+
+
+def test_l2b_markdown_plans_multiline() -> None:
+    # Verify that plan and validation markdown files have multiple lines and are formatted correctly
+    for md_path in L2B_DIR.glob("*.md"):
+        content = md_path.read_text(encoding="utf-8")
+        lines = content.splitlines()
+        assert len(lines) >= 10
+        # Check there are no carriage returns
+        assert "\r" not in content
+
+
+def test_l2b_proof_level_and_scorecard_facts_cannot_diverge() -> None:
+    # Verify that proof-level and scorecard fact counts cannot diverge (synthetic or docs-only must have 0 real facts)
+    scorecards = json.loads((L2B_DIR / "05_corrected_source_value_scorecard.json").read_text(encoding="utf-8"))["scorecards"]
+    for s in scorecards:
+        if s["proof_level"] in {"SYNTHETIC_CONTRACT_PROOF", "DOCS_CAPABILITY_ONLY", "NO_PROOF"}:
+            assert s["real_value_facts_count"] == 0
+
+
+def test_l2b_synthetic_contract_proof_cannot_admit_direct_implementation() -> None:
+    # Verify that synthetic contract proof cannot produce direct implementation admission
+    scorecards = json.loads((L2B_DIR / "05_corrected_source_value_scorecard.json").read_text(encoding="utf-8"))["scorecards"]
+    decisions = json.loads((L2B_DIR / "06_corrected_admission_decision_matrix.json").read_text(encoding="utf-8"))["decisions"]
+
+    dec_map = {d["source_family"]: d for d in decisions}
+    for s in scorecards:
+        if s["proof_level"] == "SYNTHETIC_CONTRACT_PROOF":
+            fam = s["source_family"]
+            dec = dec_map[fam]["corrected_decision"]
+            assert dec in {
+                "DEFER_REAL_PROOF_REQUIRED",
+                "CONTRACT_READY_NEEDS_REAL_PROOF",
+                "DEFER_CREDENTIAL_REQUIRED",
+                "DEFER_CONNECTOR_REPLAY_CAPTURE"
+            }
+
+
+def test_l2b_docs_only_proof_cannot_admit_direct_implementation() -> None:
+    # Verify that docs-only proof cannot produce implementation admission
+    scorecards = json.loads((L2B_DIR / "05_corrected_source_value_scorecard.json").read_text(encoding="utf-8"))["scorecards"]
+    decisions = json.loads((L2B_DIR / "06_corrected_admission_decision_matrix.json").read_text(encoding="utf-8"))["decisions"]
+
+    dec_map = {d["source_family"]: d for d in decisions}
+    for s in scorecards:
+        if s["proof_level"] == "DOCS_CAPABILITY_ONLY":
+            fam = s["source_family"]
+            dec = dec_map[fam]["corrected_decision"]
+            assert dec in {
+                "DEFER_REAL_PROOF_REQUIRED",
+                "DEFER_RESEARCH_REQUIRED",
+                "REJECT_LOW_VALUE",
+                "REJECT_OUT_OF_SCOPE"
+            }
+
+
+def test_l2b_missing_credential_cannot_admit_measured_current_source() -> None:
+    # Verify that missing credentials cannot admit measured current source
+    decisions = json.loads((L2B_DIR / "06_corrected_admission_decision_matrix.json").read_text(encoding="utf-8"))["decisions"]
+    for d in decisions:
+        if d["source_family"] in {"sportdb", "football-data.org"}:
+            assert d["corrected_decision"] == "DEFER_CREDENTIAL_REQUIRED"
+
+
+def test_l2b_implementation_plan_cannot_include_source_absent_from_decision_matrix() -> None:
+    # Verify that implementation plan cannot include source absent from decision matrix
+    plan = json.loads((L2B_DIR / "07_corrected_next_implementation_plan.json").read_text(encoding="utf-8"))["plan_steps"]
+    decisions = json.loads((L2B_DIR / "06_corrected_admission_decision_matrix.json").read_text(encoding="utf-8"))["decisions"]
+
+    decision_fams = {d["source_family"] for d in decisions}
+    for p in plan:
+        assert p["source_family"] in decision_fams
+
+
+def test_l2b_no_production_activation_fields_are_true() -> None:
+    # Verify no production activation fields are true
+    proof = json.loads((L2B_DIR / "no_production_activation_proof.json").read_text(encoding="utf-8"))
+    assert proof["no_production_activation"] is True
+    for k, v in proof["checks_executed"].items():
+        assert v is True

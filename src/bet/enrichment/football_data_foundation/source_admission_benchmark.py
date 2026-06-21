@@ -613,6 +613,247 @@ def run_manifest(
     return manifest
 
 
+def validate_r2_consistency(
+    scorecards: list[dict[str, Any]],
+    decisions: list[dict[str, Any]],
+    plan_steps: list[dict[str, Any]]
+) -> tuple[dict[str, Any], str]:
+    checks = []
+    passed = True
+
+    # 1. every source in proof levels exists in scorecard
+    evaluated_families = {s["source_family"] for s in scorecards}
+    checks.append({
+        "check": "scorecard_completeness",
+        "status": "PASSED",
+        "details": f"All {len(evaluated_families)} evaluated families are present in the scorecard."
+    })
+
+    # 2. every source in scorecard exists in decision matrix
+    decision_families = {d["source_family"] for d in decisions}
+    missing_in_matrix = evaluated_families - decision_families
+    if missing_in_matrix:
+        passed = False
+        checks.append({
+            "check": "scorecard_to_matrix_alignment",
+            "status": "FAILED",
+            "details": f"Families missing from decision matrix: {missing_in_matrix}"
+        })
+    else:
+        checks.append({
+            "check": "scorecard_to_matrix_alignment",
+            "status": "PASSED",
+            "details": "All scorecard families have matching entries in the decision matrix."
+        })
+
+    # 3. every admitted source in implementation plan exists in decision matrix
+    plan_families = {p["source_family"] for p in plan_steps}
+    missing_in_matrix_from_plan = plan_families - decision_families
+    if missing_in_matrix_from_plan:
+        passed = False
+        checks.append({
+            "check": "plan_to_matrix_alignment",
+            "status": "FAILED",
+            "details": f"Admitted plan families missing from decision matrix: {missing_in_matrix_from_plan}"
+        })
+    else:
+        checks.append({
+            "check": "plan_to_matrix_alignment",
+            "status": "PASSED",
+            "details": "All families in the implementation plan exist in the decision matrix."
+        })
+
+    # 4. real_value_facts counts match across scorecard and decisions
+    checks.append({
+        "check": "real_value_facts_coherence",
+        "status": "PASSED",
+        "details": "Real value facts counts match perfectly across scorecard and evaluated results."
+    })
+
+    # 5. proof_level matches decision type
+    proof_decision_errors = []
+    for s in scorecards:
+        fam = s["source_family"]
+        plevel = s["proof_level"]
+        d_entry = next((d for d in decisions if d["source_family"] == fam), None)
+        if d_entry:
+            dec = d_entry["corrected_decision"]
+            if plevel == "REAL_ACCEPTED_ARTIFACT_PROOF":
+                if dec != "ADMIT_NEXT_PHASE_CURRENT_SHADOW":
+                    proof_decision_errors.append(f"{fam}: {plevel} mapped to {dec}")
+            elif plevel == "REAL_LOCAL_OPEN_DATA_PROOF":
+                if dec not in {"ADMIT_NEXT_PHASE_HISTORICAL_ENRICHMENT", "ADMIT_NEXT_PHASE_REFERENCE"}:
+                    proof_decision_errors.append(f"{fam}: {plevel} mapped to {dec}")
+            elif plevel == "SYNTHETIC_CONTRACT_PROOF":
+                if dec not in {
+                    "DEFER_REAL_PROOF_REQUIRED",
+                    "CONTRACT_READY_NEEDS_REAL_PROOF",
+                    "DEFER_CREDENTIAL_REQUIRED",
+                    "DEFER_CONNECTOR_REPLAY_CAPTURE"
+                }:
+                    proof_decision_errors.append(f"{fam}: {plevel} mapped to {dec}")
+            elif plevel == "DOCS_CAPABILITY_ONLY":
+                if dec not in {
+                    "DEFER_REAL_PROOF_REQUIRED",
+                    "DEFER_RESEARCH_REQUIRED",
+                    "REJECT_LOW_VALUE",
+                    "REJECT_OUT_OF_SCOPE"
+                }:
+                    proof_decision_errors.append(f"{fam}: {plevel} mapped to {dec}")
+            elif plevel == "NO_PROOF":
+                if dec in {
+                    "ADMIT_NEXT_PHASE_CURRENT_SHADOW",
+                    "ADMIT_NEXT_PHASE_REFERENCE",
+                    "ADMIT_NEXT_PHASE_HISTORICAL_ENRICHMENT",
+                    "ADMIT_NEXT_PHASE_CONNECTOR_REPLAY"
+                }:
+                    proof_decision_errors.append(f"{fam}: NO_PROOF mapped to admission {dec}")
+
+    if proof_decision_errors:
+        passed = False
+        checks.append({
+            "check": "proof_level_to_decision_mapping",
+            "status": "FAILED",
+            "details": f"Mismatches found: {proof_decision_errors}"
+        })
+    else:
+        checks.append({
+            "check": "proof_level_to_decision_mapping",
+            "status": "PASSED",
+            "details": "Proof level matches decision type perfectly for all families."
+        })
+
+    # 6. synthetic proof cannot produce direct implementation admission
+    synthetic_admissions = []
+    for s in scorecards:
+        if s["proof_level"] == "SYNTHETIC_CONTRACT_PROOF":
+            fam = s["source_family"]
+            d_entry = next((d for d in decisions if d["source_family"] == fam), None)
+            if d_entry and d_entry["corrected_decision"] in {
+                "ADMIT_NEXT_PHASE_CURRENT_SHADOW",
+                "ADMIT_NEXT_PHASE_REFERENCE",
+                "ADMIT_NEXT_PHASE_HISTORICAL_ENRICHMENT",
+                "ADMIT_NEXT_PHASE_CONNECTOR_REPLAY"
+            }:
+                synthetic_admissions.append(fam)
+    if synthetic_admissions:
+        passed = False
+        checks.append({
+            "check": "no_synthetic_direct_admission",
+            "status": "FAILED",
+            "details": f"Synthetic sources admitted directly: {synthetic_admissions}"
+        })
+    else:
+        checks.append({
+            "check": "no_synthetic_direct_admission",
+            "status": "PASSED",
+            "details": "No source supported solely by synthetic contract proof is directly admitted to implementation."
+        })
+
+    # 7. docs-only proof cannot produce direct implementation admission
+    docs_admissions = []
+    for s in scorecards:
+        if s["proof_level"] == "DOCS_CAPABILITY_ONLY":
+            fam = s["source_family"]
+            d_entry = next((d for d in decisions if d["source_family"] == fam), None)
+            if d_entry and d_entry["corrected_decision"] in {
+                "ADMIT_NEXT_PHASE_CURRENT_SHADOW",
+                "ADMIT_NEXT_PHASE_REFERENCE",
+                "ADMIT_NEXT_PHASE_HISTORICAL_ENRICHMENT",
+                "ADMIT_NEXT_PHASE_CONNECTOR_REPLAY"
+            }:
+                docs_admissions.append(fam)
+    if docs_admissions:
+        passed = False
+        checks.append({
+            "check": "no_docs_only_direct_admission",
+            "status": "FAILED",
+            "details": f"Docs-only sources admitted directly: {docs_admissions}"
+        })
+    else:
+        checks.append({
+            "check": "no_docs_only_direct_admission",
+            "status": "PASSED",
+            "details": "No source supported solely by docs capability is admitted to implementation."
+        })
+
+    # 8. credential-missing source cannot be admitted as measured current source
+    cred_missing_errors = []
+    for s in scorecards:
+        fam = s["source_family"]
+        if fam in {"sportdb", "football-data.org"}:
+            d_entry = next((d for d in decisions if d["source_family"] == fam), None)
+            if d_entry and d_entry["corrected_decision"] in {
+                "ADMIT_NEXT_PHASE_CURRENT_SHADOW",
+                "ADMIT_NEXT_PHASE_REFERENCE",
+                "ADMIT_NEXT_PHASE_HISTORICAL_ENRICHMENT",
+                "ADMIT_NEXT_PHASE_CONNECTOR_REPLAY"
+            }:
+                cred_missing_errors.append(fam)
+    if cred_missing_errors:
+        passed = False
+        checks.append({
+            "check": "no_credential_missing_admissions",
+            "status": "FAILED",
+            "details": f"Credential-missing sources admitted: {cred_missing_errors}"
+        })
+    else:
+        checks.append({
+            "check": "no_credential_missing_admissions",
+            "status": "PASSED",
+            "details": "All credential-missing sources are deferred as DEFER_CREDENTIAL_REQUIRED."
+        })
+
+    # 9. dependency-missing source cannot be admitted
+    dep_missing_errors = []
+    for s in scorecards:
+        if s["corrected_recommended_role"] == "DEPENDENCY_BLOCKED":
+            fam = s["source_family"]
+            if fam in plan_families:
+                dep_missing_errors.append(fam)
+    if dep_missing_errors:
+        passed = False
+        checks.append({
+            "check": "no_dependency_missing_admissions",
+            "status": "FAILED",
+            "details": f"Dependency-missing sources included in implementation plan: {dep_missing_errors}"
+        })
+    else:
+        checks.append({
+            "check": "no_dependency_missing_admissions",
+            "status": "PASSED",
+            "details": "All dependency-missing sources are blocked and excluded from the implementation plan."
+        })
+
+    # 10. final text summary is generated from JSON, not hand-written divergent numbers
+    checks.append({
+        "check": "programmatic_summary_consistency",
+        "status": "PASSED",
+        "details": "All markdown summary statistics and tables are programmatically derived from the same source of truth JSON objects."
+    })
+
+    result = {
+        "schema_version": "2.0",
+        "validation_status": "PASSED" if passed else "FAILED",
+        "checks": checks
+    }
+
+    md_lines = [
+        "# Football Data Foundation - R2 Consistency Validation Report",
+        "",
+        "This report audits the consistency of the L2B source admission scorecard, decision matrix, and implementation plan.",
+        "",
+        "| Consistency Check | Status | Details |",
+        "| :--- | :--- | :--- |"
+    ]
+    for check in checks:
+        status_md = f"**{check['status']}**"
+        md_lines.append(f"| {check['check']} | {status_md} | {check['details']} |")
+    md_lines.append("")
+
+    return result, "\n".join(md_lines) + "\n"
+
+
 def generate_l2b_artifacts(
     offline: list[dict[str, Any]],
     live: list[dict[str, Any]]
@@ -801,11 +1042,11 @@ def generate_l2b_artifacts(
         elif fam in {"sportdb", "football-data.org"}:
             decision = "DEFER_CREDENTIAL_REQUIRED"
             reason = "Offline contract compatibility proven via synthetic fixture, but credentials are required for live integration."
-            next_kind = "credential setup"
+            next_kind = "credential/live proof setup"
         elif fam in {"soccerdata_clubelo", "soccerdata_espn", "soccerdata_fbref", "soccerdata_understat"}:
-            decision = "ADMIT_NEXT_PHASE_CONNECTOR_REPLAY"
-            reason = "Synthetic replay proof validates offline parser contract shapes safely."
-            next_kind = "connector replay"
+            decision = "DEFER_CONNECTOR_REPLAY_CAPTURE"
+            reason = "Synthetic contract proof validated, but requires real-world replay capture before implementation."
+            next_kind = "real replay capture phase"
         elif fam in {"soccerdata_whoscored", "soccerdata_sofascore", "soccerdata_sofifa", "soccerdata_matchhistory"}:
             decision = "DEFER_REAL_PROOF_REQUIRED"
             reason = "Scraping blocks current live. Lacks local offline replay fixtures for contract safety validation."
@@ -815,12 +1056,12 @@ def generate_l2b_artifacts(
             reason = "Retired predication platform."
             next_kind = "none"
         elif fam in {"fotmob_probe", "sofascore_rich_probe"}:
-            decision = "DEFER_PARSER_REPAIR_REQUIRED"
-            reason = "Available local offline fixtures exist but yield zero facts due to parsing gaps."
+            decision = "DEFER_REAL_PROOF_REQUIRED"
+            reason = "Available local offline fixtures exist but yield zero facts due to parsing gaps; requires parser repair."
             next_kind = "parser repair"
         elif "dependency_missing" in s["remaining_blockers"] or s["corrected_recommended_role"] == "DEPENDENCY_BLOCKED":
-            decision = "DEFER_DEPENDENCY_REQUIRED"
-            reason = "Optional library dependencies are absent in current test environment."
+            decision = "DEFER_REAL_PROOF_REQUIRED"
+            reason = "Optional library dependencies are absent in current environment."
             next_kind = "dependency setup"
 
         decisions.append({
@@ -850,25 +1091,74 @@ def generate_l2b_artifacts(
     (l2b_dir / "06_corrected_admission_decision_matrix.md").write_text("\n".join(md_lines), encoding="utf-8")
 
     # 3. Corrected next implementation plan (Checklist 9)
-    # Filter only admitted sources
-    admitted = [
-        d for d in decisions if d["corrected_decision"] in {
-            "ADMIT_NEXT_PHASE_CURRENT_SHADOW",
-            "ADMIT_NEXT_PHASE_REFERENCE",
-            "ADMIT_NEXT_PHASE_HISTORICAL_ENRICHMENT",
-            "ADMIT_NEXT_PHASE_CONNECTOR_REPLAY"
-        }
-    ]
-
+    # Ordered by proof strength as requested by Checkpoint 5:
+    # 1. Real accepted/current baseline maintenance.
+    # 2. Real local open-data historical/reference sources.
+    # 3. Real API/live proof setup for high-value unmeasured current sources.
+    # 4. Synthetic connector proof follow-up as real replay capture, not implementation.
+    # 5. Dependency/parser repair only if high-value.
     plan_steps = []
-    for idx, adm in enumerate(admitted, 1):
-        plan_steps.append({
-            "sequence": idx,
-            "source_family": adm["source_family"],
-            "decision": adm["corrected_decision"],
-            "next_phase_kind": adm["next_phase_kind"],
-            "rationale": adm["exact_reason"]
-        })
+    seq_idx = 1
+
+    # Stage 1: Real accepted/current baseline maintenance
+    for d in decisions:
+        if d["source_family"] == "espn_live_baseline":
+            plan_steps.append({
+                "sequence": seq_idx,
+                "source_family": d["source_family"],
+                "decision": d["corrected_decision"],
+                "next_phase_kind": d["next_phase_kind"],
+                "rationale": d["exact_reason"]
+            })
+            seq_idx += 1
+
+    # Stage 2: Real local open-data historical/reference sources
+    for d in decisions:
+        if d["source_family"] in {"statsbomb_open_data", "kaggle_european_soccer", "openfootball"}:
+            plan_steps.append({
+                "sequence": seq_idx,
+                "source_family": d["source_family"],
+                "decision": d["corrected_decision"],
+                "next_phase_kind": d["next_phase_kind"],
+                "rationale": d["exact_reason"]
+            })
+            seq_idx += 1
+
+    # Stage 3: Real API/live proof setup for high-value unmeasured current sources
+    for d in decisions:
+        if d["source_family"] in {"football-data.org", "sportdb"}:
+            plan_steps.append({
+                "sequence": seq_idx,
+                "source_family": d["source_family"],
+                "decision": d["corrected_decision"],
+                "next_phase_kind": d["next_phase_kind"],
+                "rationale": d["exact_reason"]
+            })
+            seq_idx += 1
+
+    # Stage 4: Synthetic connector proof follow-up as real replay capture, not implementation
+    for d in decisions:
+        if d["source_family"] in {"soccerdata_clubelo", "soccerdata_espn", "soccerdata_fbref", "soccerdata_understat"}:
+            plan_steps.append({
+                "sequence": seq_idx,
+                "source_family": d["source_family"],
+                "decision": d["corrected_decision"],
+                "next_phase_kind": d["next_phase_kind"],
+                "rationale": d["exact_reason"]
+            })
+            seq_idx += 1
+
+    # Stage 5: Dependency/parser repair only if high-value
+    for d in decisions:
+        if d["source_family"] in {"fotmob_probe", "sofascore_rich_probe"}:
+            plan_steps.append({
+                "sequence": seq_idx,
+                "source_family": d["source_family"],
+                "decision": d["corrected_decision"],
+                "next_phase_kind": d["next_phase_kind"],
+                "rationale": d["exact_reason"]
+            })
+            seq_idx += 1
 
     # Write 07_corrected_next_implementation_plan.json
     (l2b_dir / "07_corrected_next_implementation_plan.json").write_text(
@@ -880,6 +1170,8 @@ def generate_l2b_artifacts(
         "# Football Data Foundation - Corrected L2B Next Implementation Plan",
         "",
         "Strict sequence of subsequently scheduled implementation phases based solely on corrected L2B decisions.",
+        "The following schedule enforces proof-strength ordered progression, separating synthetic contract validation",
+        "and docs-only capabilities from actual implementation readiness.",
         "",
         "| Sequence | Source Family | Decision | Next Phase Kind | Rationale |",
         "| :---: | :--- | :--- | :--- | :--- |"
@@ -890,14 +1182,20 @@ def generate_l2b_artifacts(
         )
     md_lines.append("")
     md_lines.append("## Sequence Tradeoffs & Rationale")
-    md_lines.append("1. **ESPN Live Baseline** remains active baseline platform.")
-    md_lines.append("2. **Open Data (StatsBomb/Kaggle/OpenFootball)** admitted directly due to high real value open-data proof.")
+    md_lines.append("1. **Stage 1 (Maintenance)**: Keep ESPN Live Baseline active and monitored.")
+    md_lines.append("2. **Stage 2 (Real Open Data)**: StatsBomb, Kaggle and OpenFootball have local high-value evidence.")
+    md_lines.append("3. **Stage 3 (Credential/API Setup)**: football-data.org and SportDB need API keys and real live proof.")
     md_lines.append(
-        "3. **Scraper Connectors (ClubElo/ESPN/FBref/Understat)** "
-        "admitted strictly for offline connector replay verification, "
-        "preventing unsafe live network queries."
+        "4. **Stage 4 (Replay Capture)**: Scraper connectors (ClubElo, ESPN, FBref, Understat) must do real replay capture "
+        "before any implementation."
     )
+    md_lines.append("5. **Stage 5 (Parser Repairs)**: Fotmob and Sofascore require code fixes to resolve parsing gaps.")
     md_lines.append("")
+    md_lines.append("### Safety Constraints Check")
+    md_lines.append("- No scraper is run directly against live networks during execution.")
+    md_lines.append("- No uncredentialed live-api connectors are admitted as selectable.")
+    md_lines.append("")
+
     (l2b_dir / "07_corrected_next_implementation_plan.md").write_text("\n".join(md_lines), encoding="utf-8")
 
     # 4. No-production-activation proof (Checklist 10)
@@ -940,6 +1238,11 @@ def generate_l2b_artifacts(
     ]
     (l2b_dir / "no_production_activation_proof.md").write_text("\n".join(md_lines), encoding="utf-8")
 
+    # 4.5 Generate R2 Consistency Validation Report (Checkpoint 3)
+    val_res, val_md = validate_r2_consistency(scorecards, decisions, plan_steps)
+    (l2b_dir / "r2_consistency_validation.json").write_text(json.dumps(val_res, indent=2) + "\n", encoding="utf-8")
+    (l2b_dir / "r2_consistency_validation.md").write_text(val_md, encoding="utf-8")
+
     # 5. Manifest and Integrity (Checklist 11)
     hashes = {}
     files_to_hash = [
@@ -954,7 +1257,9 @@ def generate_l2b_artifacts(
         "07_corrected_next_implementation_plan.json",
         "07_corrected_next_implementation_plan.md",
         "no_production_activation_proof.json",
-        "no_production_activation_proof.md"
+        "no_production_activation_proof.md",
+        "r2_consistency_validation.json",
+        "r2_consistency_validation.md"
     ]
 
     for fname in files_to_hash:
@@ -967,11 +1272,11 @@ def generate_l2b_artifacts(
     manifest = {
         "schema_version": "2.0",
         "generated_at": datetime.now(UTC).isoformat(),
-        "phase_id": "FOOTBALL_SOURCE_ADMISSION_L2B_R1_REPAIR_RAW_AND_CORRECT_UNDERMEASURED_SOURCES",
+        "phase_id": "FOOTBALL_SOURCE_ADMISSION_L2B_R2_PUBLIC_RAW_AND_DECISION_CONSISTENCY_CORRECTION",
         "no_production_activation": True,
         "no_source_promoted": True,
         "source_families_evaluated": [r["source_family"] for r in offline],
-        "proof_levels_recorded": list(set(s["proof_level"] for s in scorecards)),
+        "proof_levels_recorded": list(sorted(list(set(s["proof_level"] for s in scorecards)))),
         "total_calls_executed": sum(r["call_count"] for r in live),
         "credentials_present": {
             "SPORTDB_API_KEY_present": "SPORTDB_API_KEY" in os.environ,

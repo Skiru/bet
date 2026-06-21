@@ -11,37 +11,37 @@
       "source_family": "sportdb",
       "corrected_decision": "DEFER_CREDENTIAL_REQUIRED",
       "exact_reason": "Offline contract compatibility proven via synthetic fixture, but credentials are required for live integration.",
-      "next_phase_kind": "credential setup"
+      "next_phase_kind": "credential/live proof setup"
     },
     {
       "source_family": "football-data.org",
       "corrected_decision": "DEFER_CREDENTIAL_REQUIRED",
       "exact_reason": "Offline contract compatibility proven via synthetic fixture, but credentials are required for live integration.",
-      "next_phase_kind": "credential setup"
+      "next_phase_kind": "credential/live proof setup"
     },
     {
       "source_family": "soccerdata_clubelo",
-      "corrected_decision": "ADMIT_NEXT_PHASE_CONNECTOR_REPLAY",
-      "exact_reason": "Synthetic replay proof validates offline parser contract shapes safely.",
-      "next_phase_kind": "connector replay"
+      "corrected_decision": "DEFER_CONNECTOR_REPLAY_CAPTURE",
+      "exact_reason": "Synthetic contract proof validated, but requires real-world replay capture before implementation.",
+      "next_phase_kind": "real replay capture phase"
     },
     {
       "source_family": "soccerdata_espn",
-      "corrected_decision": "ADMIT_NEXT_PHASE_CONNECTOR_REPLAY",
-      "exact_reason": "Synthetic replay proof validates offline parser contract shapes safely.",
-      "next_phase_kind": "connector replay"
+      "corrected_decision": "DEFER_CONNECTOR_REPLAY_CAPTURE",
+      "exact_reason": "Synthetic contract proof validated, but requires real-world replay capture before implementation.",
+      "next_phase_kind": "real replay capture phase"
     },
     {
       "source_family": "soccerdata_fbref",
-      "corrected_decision": "ADMIT_NEXT_PHASE_CONNECTOR_REPLAY",
-      "exact_reason": "Synthetic replay proof validates offline parser contract shapes safely.",
-      "next_phase_kind": "connector replay"
+      "corrected_decision": "DEFER_CONNECTOR_REPLAY_CAPTURE",
+      "exact_reason": "Synthetic contract proof validated, but requires real-world replay capture before implementation.",
+      "next_phase_kind": "real replay capture phase"
     },
     {
       "source_family": "soccerdata_understat",
-      "corrected_decision": "ADMIT_NEXT_PHASE_CONNECTOR_REPLAY",
-      "exact_reason": "Synthetic replay proof validates offline parser contract shapes safely.",
-      "next_phase_kind": "connector replay"
+      "corrected_decision": "DEFER_CONNECTOR_REPLAY_CAPTURE",
+      "exact_reason": "Synthetic contract proof validated, but requires real-world replay capture before implementation.",
+      "next_phase_kind": "real replay capture phase"
     },
     {
       "source_family": "soccerdata_whoscored",
@@ -81,8 +81,8 @@
     },
     {
       "source_family": "statsbombpy",
-      "corrected_decision": "DEFER_DEPENDENCY_REQUIRED",
-      "exact_reason": "Optional library dependencies are absent in current test environment.",
+      "corrected_decision": "DEFER_REAL_PROOF_REQUIRED",
+      "exact_reason": "Optional library dependencies are absent in current environment.",
       "next_phase_kind": "dependency setup"
     },
     {
@@ -99,44 +99,44 @@
     },
     {
       "source_family": "fotmob_probe",
-      "corrected_decision": "DEFER_PARSER_REPAIR_REQUIRED",
-      "exact_reason": "Available local offline fixtures exist but yield zero facts due to parsing gaps.",
+      "corrected_decision": "DEFER_REAL_PROOF_REQUIRED",
+      "exact_reason": "Available local offline fixtures exist but yield zero facts due to parsing gaps; requires parser repair.",
       "next_phase_kind": "parser repair"
     },
     {
       "source_family": "sofascore_rich_probe",
-      "corrected_decision": "DEFER_PARSER_REPAIR_REQUIRED",
-      "exact_reason": "Available local offline fixtures exist but yield zero facts due to parsing gaps.",
+      "corrected_decision": "DEFER_REAL_PROOF_REQUIRED",
+      "exact_reason": "Available local offline fixtures exist but yield zero facts due to parsing gaps; requires parser repair.",
       "next_phase_kind": "parser repair"
     },
     {
       "source_family": "scraperfc_sofascore",
-      "corrected_decision": "DEFER_DEPENDENCY_REQUIRED",
-      "exact_reason": "Optional library dependencies are absent in current test environment.",
+      "corrected_decision": "DEFER_REAL_PROOF_REQUIRED",
+      "exact_reason": "Optional library dependencies are absent in current environment.",
       "next_phase_kind": "dependency setup"
     },
     {
       "source_family": "socceraction",
-      "corrected_decision": "DEFER_DEPENDENCY_REQUIRED",
-      "exact_reason": "Optional library dependencies are absent in current test environment.",
+      "corrected_decision": "DEFER_REAL_PROOF_REQUIRED",
+      "exact_reason": "Optional library dependencies are absent in current environment.",
       "next_phase_kind": "dependency setup"
     },
     {
       "source_family": "kloppy",
-      "corrected_decision": "DEFER_DEPENDENCY_REQUIRED",
-      "exact_reason": "Optional library dependencies are absent in current test environment.",
+      "corrected_decision": "DEFER_REAL_PROOF_REQUIRED",
+      "exact_reason": "Optional library dependencies are absent in current environment.",
       "next_phase_kind": "dependency setup"
     },
     {
       "source_family": "floodlight",
-      "corrected_decision": "DEFER_DEPENDENCY_REQUIRED",
-      "exact_reason": "Optional library dependencies are absent in current test environment.",
+      "corrected_decision": "DEFER_REAL_PROOF_REQUIRED",
+      "exact_reason": "Optional library dependencies are absent in current environment.",
       "next_phase_kind": "dependency setup"
     },
     {
       "source_family": "mplsoccer",
-      "corrected_decision": "DEFER_DEPENDENCY_REQUIRED",
-      "exact_reason": "Optional library dependencies are absent in current test environment.",
+      "corrected_decision": "DEFER_REAL_PROOF_REQUIRED",
+      "exact_reason": "Optional library dependencies are absent in current environment.",
       "next_phase_kind": "dependency setup"
     }
   ]
