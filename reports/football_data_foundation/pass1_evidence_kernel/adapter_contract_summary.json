@@ -1,0 +1,166 @@
+{
+  "total_sources": 23,
+  "sources": [
+    {
+      "source_key": "espn-accepted-baseline",
+      "role": "CURRENT_LIVE_BENCHMARK",
+      "requires_credentials": false,
+      "supports_live": true,
+      "proof_levels": ["REAL_ACCEPTED_ARTIFACT_PROOF", "SYNTHETIC_CONTRACT_PROOF"]
+    },
+    {
+      "source_key": "highlightly",
+      "role": "CURRENT_LIVE_OR_RECENT_DETAILED_SHADOW",
+      "requires_credentials": true,
+      "supports_live": true,
+      "proof_levels": ["SYNTHETIC_CONTRACT_PROOF", "REAL_DEPENDENCY_REPLAY_PROOF", "REAL_LIVE_API_PROOF"]
+    },
+    {
+      "source_key": "sportdb",
+      "role": "CURRENT_LIVE",
+      "requires_credentials": true,
+      "supports_live": true,
+      "proof_levels": ["DOCS_CAPABILITY_ONLY", "SYNTHETIC_CONTRACT_PROOF", "REAL_DEPENDENCY_REPLAY_PROOF", "REAL_LIVE_API_PROOF"]
+    },
+    {
+      "source_key": "football-data-org",
+      "role": "CURRENT_REFERENCE",
+      "requires_credentials": true,
+      "supports_live": true,
+      "proof_levels": ["DOCS_CAPABILITY_ONLY", "SYNTHETIC_CONTRACT_PROOF", "REAL_DEPENDENCY_REPLAY_PROOF", "REAL_LIVE_API_PROOF"]
+    },
+    {
+      "source_key": "api-football",
+      "role": "LATER_PROVIDER_CANDIDATE",
+      "requires_credentials": true,
+      "supports_live": true,
+      "proof_levels": ["DOCS_CAPABILITY_ONLY", "SYNTHETIC_CONTRACT_PROOF", "NO_PROOF"]
+    },
+    {
+      "source_key": "thesportsdb",
+      "role": "REFERENCE_METADATA_SHADOW",
+      "requires_credentials": true,
+      "supports_live": false,
+      "proof_levels": ["DOCS_CAPABILITY_ONLY", "SYNTHETIC_CONTRACT_PROOF", "REAL_DEPENDENCY_REPLAY_PROOF"]
+    },
+    {
+      "source_key": "statsbomb-open-data",
+      "role": "HISTORICAL_DEEP",
+      "requires_credentials": false,
+      "supports_live": false,
+      "proof_levels": ["DOCS_CAPABILITY_ONLY", "SYNTHETIC_CONTRACT_PROOF", "REAL_LOCAL_OPEN_DATA_PROOF"]
+    },
+    {
+      "source_key": "statsbombpy",
+      "role": "OPTIONAL_LIBRARY_BRIDGE",
+      "requires_credentials": false,
+      "supports_live": false,
+      "proof_levels": ["DOCS_CAPABILITY_ONLY", "SYNTHETIC_CONTRACT_PROOF", "NO_PROOF"]
+    },
+    {
+      "source_key": "openfootball",
+      "role": "REFERENCE_IDENTITY",
+      "requires_credentials": false,
+      "supports_live": false,
+      "proof_levels": ["DOCS_CAPABILITY_ONLY", "SYNTHETIC_CONTRACT_PROOF", "REAL_LOCAL_OPEN_DATA_PROOF"]
+    },
+    {
+      "source_key": "kaggle-european-soccer",
+      "role": "HISTORICAL_DEEP",
+      "requires_credentials": false,
+      "supports_live": false,
+      "proof_levels": ["DOCS_CAPABILITY_ONLY", "SYNTHETIC_CONTRACT_PROOF", "REAL_LOCAL_OPEN_DATA_PROOF"]
+    },
+    {
+      "source_key": "sportdb-open-source-tooling",
+      "role": "OPTIONAL_LIBRARY_BRIDGE",
+      "requires_credentials": false,
+      "supports_live": false,
+      "proof_levels": ["DOCS_CAPABILITY_ONLY", "NO_PROOF"]
+    },
+    {
+      "source_key": "soccerdata-clubelo",
+      "role": "DEPENDENCY_REPLAY",
+      "requires_credentials": false,
+      "supports_live": false,
+      "proof_levels": ["DOCS_CAPABILITY_ONLY", "SYNTHETIC_CONTRACT_PROOF", "REAL_DEPENDENCY_REPLAY_PROOF", "NO_PROOF"]
+    },
+    {
+      "source_key": "soccerdata-espn",
+      "role": "DEPENDENCY_REPLAY",
+      "requires_credentials": false,
+      "supports_live": false,
+      "proof_levels": ["DOCS_CAPABILITY_ONLY", "SYNTHETIC_CONTRACT_PROOF", "REAL_DEPENDENCY_REPLAY_PROOF", "NO_PROOF"]
+    },
+    {
+      "source_key": "soccerdata-fbref",
+      "role": "DEPENDENCY_REPLAY",
+      "requires_credentials": false,
+      "supports_live": false,
+      "proof_levels": ["DOCS_CAPABILITY_ONLY", "SYNTHETIC_CONTRACT_PROOF", "REAL_DEPENDENCY_REPLAY_PROOF", "NO_PROOF"]
+    },
+    {
+      "source_key": "soccerdata-fivethirtyeight",
+      "role": "DEPENDENCY_REPLAY",
+      "requires_credentials": false,
+      "supports_live": false,
+      "proof_levels": ["DOCS_CAPABILITY_ONLY", "SYNTHETIC_CONTRACT_PROOF", "REAL_DEPENDENCY_REPLAY_PROOF", "NO_PROOF"]
+    },
+    {
+      "source_key": "soccerdata-matchhistory",
+      "role": "DEPENDENCY_REPLAY",
+      "requires_credentials": false,
+      "supports_live": false,
+      "proof_levels": ["DOCS_CAPABILITY_ONLY", "SYNTHETIC_CONTRACT_PROOF", "REAL_DEPENDENCY_REPLAY_PROOF", "NO_PROOF"]
+    },
+    {
+      "source_key": "soccerdata-sofascore",
+      "role": "DEPENDENCY_REPLAY",
+      "requires_credentials": false,
+      "supports_live": false,
+      "proof_levels": ["DOCS_CAPABILITY_ONLY", "SYNTHETIC_CONTRACT_PROOF", "REAL_DEPENDENCY_REPLAY_PROOF", "NO_PROOF"]
+    },
+    {
+      "source_key": "soccerdata-sofifa",
+      "role": "DEPENDENCY_REPLAY",
+      "requires_credentials": false,
+      "supports_live": false,
+      "proof_levels": ["DOCS_CAPABILITY_ONLY", "SYNTHETIC_CONTRACT_PROOF", "REAL_DEPENDENCY_REPLAY_PROOF", "NO_PROOF"]
+    },
+    {
+      "source_key": "soccerdata-understat",
+      "role": "DEPENDENCY_REPLAY",
+      "requires_credentials": false,
+      "supports_live": false,
+      "proof_levels": ["DOCS_CAPABILITY_ONLY", "SYNTHETIC_CONTRACT_PROOF", "REAL_DEPENDENCY_REPLAY_PROOF", "NO_PROOF"]
+    },
+    {
+      "source_key": "soccerdata-whoscored",
+      "role": "DEPENDENCY_REPLAY",
+      "requires_credentials": false,
+      "supports_live": false,
+      "proof_levels": ["DOCS_CAPABILITY_ONLY", "SYNTHETIC_CONTRACT_PROOF", "REAL_DEPENDENCY_REPLAY_PROOF", "NO_PROOF"]
+    },
+    {
+      "source_key": "fotmob-probe",
+      "role": "EXPERIMENTAL_PROBE",
+      "requires_credentials": false,
+      "supports_live": false,
+      "proof_levels": ["DOCS_CAPABILITY_ONLY", "SYNTHETIC_CONTRACT_PROOF", "NO_PROOF", "REAL_DEPENDENCY_REPLAY_PROOF"]
+    },
+    {
+      "source_key": "sofascore-rich-probe",
+      "role": "EXPERIMENTAL_PROBE",
+      "requires_credentials": false,
+      "supports_live": false,
+      "proof_levels": ["DOCS_CAPABILITY_ONLY", "SYNTHETIC_CONTRACT_PROOF", "NO_PROOF", "REAL_DEPENDENCY_REPLAY_PROOF"]
+    },
+    {
+      "source_key": "scraperfc-sofascore-bridge",
+      "role": "EXPERIMENTAL_PROBE",
+      "requires_credentials": false,
+      "supports_live": false,
+      "proof_levels": ["DOCS_CAPABILITY_ONLY", "SYNTHETIC_CONTRACT_PROOF", "NO_PROOF", "REAL_DEPENDENCY_REPLAY_PROOF"]
+    }
+  ]
+}

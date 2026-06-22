@@ -1,0 +1,39 @@
+{
+  "proof_levels": {
+    "REAL_ACCEPTED_ARTIFACT_PROOF": {
+      "confidence_range": [0.8, 1.0],
+      "requires_value": true,
+      "description": "Production-grade gold standard benchmark artifacts."
+    },
+    "REAL_LOCAL_OPEN_DATA_PROOF": {
+      "confidence_range": [0.5, 0.9],
+      "requires_value": true,
+      "description": "Locally parsed open-data source claims."
+    },
+    "REAL_DEPENDENCY_REPLAY_PROOF": {
+      "confidence_range": [0.4, 0.8],
+      "requires_value": true,
+      "description": "Cached or local dependency replay claims."
+    },
+    "REAL_LIVE_API_PROOF": {
+      "confidence_range": [0.6, 1.0],
+      "requires_value": true,
+      "description": "Fresh live API claims from active fetch sessions."
+    },
+    "SYNTHETIC_CONTRACT_PROOF": {
+      "confidence_range": [0.0, 0.0],
+      "requires_value": false,
+      "description": "Contract probe only; no real value allowed."
+    },
+    "DOCS_CAPABILITY_ONLY": {
+      "confidence_range": [0.0, 0.0],
+      "requires_value": false,
+      "description": "Docs-only metadata without concrete parser/implementation."
+    },
+    "NO_PROOF": {
+      "confidence_range": [0.0, 0.0],
+      "requires_value": false,
+      "description": "Verification failed; must carry explicit errors."
+    }
+  }
+}
