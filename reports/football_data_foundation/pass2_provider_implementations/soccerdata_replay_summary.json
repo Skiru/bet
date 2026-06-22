@@ -1,0 +1,26 @@
+{
+  "parser": {
+    "function": "normalize_soccerdata_replay",
+    "proof_level": "REAL_DEPENDENCY_REPLAY_PROOF",
+    "current_truth_allowed": false,
+    "sources_supported": {
+      "clubelo": "TEAM_RATING",
+      "espn": "REFERENCE_RESULT",
+      "fbref": "MATCH_STATISTIC",
+      "fivethirtyeight": {
+        "fact_type": "HISTORICAL_PRIOR",
+        "warnings": "FiveThirtyEight legacy/staleness warning"
+      },
+      "matchhistory": {
+        "fact_type": "ODDS_REFERENCE",
+        "guardrail": "odds_reference_not_decision=True"
+      },
+      "sofascore": "MATCH_STATISTIC",
+      "sofifa": "PLAYER_DATA_CONTEXT",
+      "understat": "XG",
+      "whoscored": {
+        "status": "FAIL_CLOSED_DEFERRED"
+      }
+    }
+  }
+}

@@ -20,7 +20,7 @@ from bet.enrichment.football_data_foundation.providers._helpers import (
 
 
 class SoccerDataReplayAdapter:
-    VERSION = "prototype-v2"
+    VERSION = "football-foundation-pass2"
     source_key = "soccerdata-generic"
     display_name = "soccerdata generic"
     fact_type = FactType.HISTORICAL_PRIOR

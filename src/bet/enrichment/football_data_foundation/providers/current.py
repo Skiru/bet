@@ -22,7 +22,7 @@ from bet.enrichment.football_data_foundation.providers._helpers import (
 
 
 class BaseAdapter:
-    VERSION = "prototype-v2"
+    VERSION = "football-foundation-pass2"
 
     def adapter_name(self) -> str:
         return self.__class__.__name__
@@ -67,7 +67,7 @@ class ESPNAcceptedBaselineAdapter(BaseAdapter):
         )
 
     def fetch_shadow_live(self, query: Mapping[str, Any]) -> EvidenceClaimBatch:
-        raise ProviderCapabilityError("ESPN accepted baseline is not re-fetched in this prototype")
+        raise ProviderCapabilityError("ESPN accepted baseline is not re-fetched in this shadow contract")
 
 
 class HighlightlyAdapter(BaseAdapter):
@@ -100,7 +100,7 @@ class HighlightlyAdapter(BaseAdapter):
 
     def fetch_shadow_live(self, query: Mapping[str, Any]) -> EvidenceClaimBatch:
         require_env("HIGHLIGHTLY_API_KEY")
-        raise ProviderCapabilityError("Network live fetch is credential-gated and intentionally not implemented in prototype")
+        raise ProviderCapabilityError("Network live fetch is credential-gated and intentionally not implemented in this pass2 implementation")
 
 
 class SportDBFootballAdapter(BaseAdapter):
@@ -132,7 +132,7 @@ class SportDBFootballAdapter(BaseAdapter):
 
     def fetch_shadow_live(self, query: Mapping[str, Any]) -> EvidenceClaimBatch:
         require_env("SPORTDB_API_KEY")
-        raise ProviderCapabilityError("Network live fetch is credential-gated and intentionally not implemented in prototype")
+        raise ProviderCapabilityError("Network live fetch is credential-gated and intentionally not implemented in this pass2 implementation")
 
 
 class FootballDataOrgAdapter(BaseAdapter):
@@ -162,7 +162,7 @@ class FootballDataOrgAdapter(BaseAdapter):
 
     def fetch_shadow_live(self, query: Mapping[str, Any]) -> EvidenceClaimBatch:
         require_env("FOOTBALL_DATA_API_KEY")
-        raise ProviderCapabilityError("Network live fetch is credential-gated and intentionally not implemented in prototype")
+        raise ProviderCapabilityError("Network live fetch is credential-gated and intentionally not implemented in this pass2 implementation")
 
 
 class APIFootballDeferredAdapter(BaseAdapter):
@@ -221,4 +221,4 @@ class TheSportsDBMetadataAdapter(BaseAdapter):
         return replay_claim(self, FactType.METADATA, {"team_count": len(data.get("teams", []))}, fixture_id=None)
 
     def fetch_shadow_live(self, query: Mapping[str, Any]) -> EvidenceClaimBatch:
-        raise ProviderCapabilityError("TheSportsDB is metadata/reference shadow only in this prototype")
+        raise ProviderCapabilityError("TheSportsDB is metadata/reference shadow only in this shadow contract")

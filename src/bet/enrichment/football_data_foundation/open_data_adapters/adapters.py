@@ -21,7 +21,7 @@ from bet.enrichment.football_data_foundation.providers._helpers import (
 
 
 class BaseAdapter:
-    VERSION = "prototype-v2"
+    VERSION = "football-foundation-pass2"
 
     def adapter_name(self) -> str:
         return self.__class__.__name__
