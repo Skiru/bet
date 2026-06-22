@@ -17,6 +17,7 @@ class OfficialFixtureContext:
     away_team: Optional[str] = None
     kickoff_at: Optional[str] = None
     venue: Optional[str] = None
+    city: Optional[str] = None
     raw_payload_stored: bool = False
     selectable_for_production: bool = False
 

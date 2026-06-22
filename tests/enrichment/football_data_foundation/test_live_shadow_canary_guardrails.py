@@ -76,3 +76,36 @@ def test_guardrails_no_secrets_or_forbidden_markers_in_reports() -> None:
             assert "auth_token" not in text.lower(), (
                 f"Secret-like key 'auth_token' found in report {report_file.name}"
             )
+
+
+def test_public_reviewability_verification() -> None:
+    import ast
+    paths = list(Path("src/bet/enrichment/football_data_foundation/live_shadow_canary").glob("*.py"))
+    paths += list(Path("tests/enrichment/football_data_foundation").glob("test_live_shadow_canary_*.py"))
+    
+    for path in paths:
+        text = path.read_text(encoding="utf-8")
+        raw = path.read_bytes()
+        
+        # AST check
+        try:
+            ast.parse(text, filename=str(path))
+            ast_ok = True
+        except SyntaxError:
+            ast_ok = False
+            
+        assert ast_ok, f"AST parsing failed for {path}"
+        
+        # future import check
+        bad_future = "from " + "future " + "import annotations" in text
+        assert not bad_future, f"Forbidden future import found in {path}"
+        
+        # carriage return check
+        has_cr = b"\r" in raw
+        assert not has_cr, f"Carriage returns found in {path}"
+        
+        # Line count check (exclude __init__.py)
+        lines = text.count("\n") + 1
+        if path.name != "__init__.py":
+            assert lines >= 20, f"File {path} has fewer than 20 lines ({lines} lines)"
+

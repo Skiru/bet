@@ -67,7 +67,7 @@ def test_runner_no_credentials(tmp_path: Path, clean_env) -> None:
     ):
         summary = run_bounded_live_shadow_canary(tmp_path)
         
-        assert summary.status == "BOUNDED_LIVE_SHADOW_CANARY_SKIPPED_CREDENTIALS_MISSING"
+        assert summary.status == "BOUNDED_LIVE_SHADOW_CANARY_OFFICIAL_CONTEXT_ONLY_READY_FOR_MANUAL_REVIEW"
         assert summary.network_used is True
         assert summary.provider_network_calls == 0
         

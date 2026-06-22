@@ -33,11 +33,23 @@ def run_provider_shadow_probes(
                 selectable_for_production=False,
             )
         )
+    elif not context.match_id:
+        results.append(
+            ProviderProbeResult(
+                provider="sportdb",
+                credential_env="SPORTDB_API_KEY",
+                credential_present=True,
+                status="BLOCKED_MISSING_PROVIDER_MATCH_ID",
+                request_attempted=False,
+                evidence_claim_count=0,
+                error="SportDB probe blocked: match_id is missing from official context.",
+                selectable_for_production=False,
+            )
+        )
     else:
         try:
             client = SportDBLiveClient(transport=transport)
-            fixture_id = context.match_id or "canary-fixture-1"
-            batch = client.fetch_match_stats(fixture_id)
+            batch = client.fetch_match_stats(context.match_id)
             if out_batches is not None:
                 out_batches.append(batch)
             results.append(
@@ -129,11 +141,23 @@ def run_provider_shadow_probes(
                 selectable_for_production=False,
             )
         )
+    elif not context.match_id:
+        results.append(
+            ProviderProbeResult(
+                provider="highlightly",
+                credential_env="HIGHLIGHTLY_API_KEY",
+                credential_present=True,
+                status="BLOCKED_MISSING_PROVIDER_MATCH_ID",
+                request_attempted=False,
+                evidence_claim_count=0,
+                error="Highlightly probe blocked: match_id is missing from official context.",
+                selectable_for_production=False,
+            )
+        )
     else:
         try:
             client = HighlightlyLiveClient(transport=transport)
-            fixture_id = context.match_id or "canary-fixture-1"
-            batch = client.fetch_match_statistics(fixture_id)
+            batch = client.fetch_match_statistics(context.match_id)
             if out_batches is not None:
                 out_batches.append(batch)
             results.append(
