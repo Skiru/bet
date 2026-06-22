@@ -1,13 +1,17 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Sequence
+
 from bet.enrichment.football_data_foundation.fusion.output import FusionRunSummary
 
-SECRETISH = re.compile(r"(?i)(api[_-]?key|secret|token|authorization|x-api-key|x-auth-token)")
+SECRETISH = re.compile(
+    r"(?i)(api[_-]?key|secret|token|authorization|x-api-key|x-auth-token)"
+)
 RAWISH = re.compile(r"(?i)(raw_payload|response_body|json_raw|raw_html|<html|payload)")
+FORBIDDEN_MARKER = re.compile(r"(?i)production_ready")
 
 
 @dataclass(frozen=True)
@@ -31,8 +35,7 @@ def _clean_text_for_check(text: str) -> str:
 
 
 def certify_shadow_football_enrichment(
-    summary: FusionRunSummary,
-    artifact_paths: Sequence[Path | str]
+    summary: FusionRunSummary, artifact_paths: Sequence[Path | str]
 ) -> FootballEnrichmentCertificationResult:
     blockers: list[str] = []
     warnings: list[str] = []
@@ -46,14 +49,22 @@ def certify_shadow_football_enrichment(
             if not path.exists():
                 blockers.append(f"Artifact does not exist: {path.name}")
             else:
-                # 2. raw/secret markers => blocker
+                # 2. raw/secret/forbidden markers => blocker
                 try:
                     text = path.read_text(encoding="utf-8")
                     check_text = _clean_text_for_check(text)
                     if SECRETISH.search(check_text):
-                        blockers.append(f"Artifact {path.name} contains secret-like marker")
+                        blockers.append(
+                            f"Artifact {path.name} contains secret-like marker"
+                        )
                     if RAWISH.search(check_text):
-                        blockers.append(f"Artifact {path.name} contains raw-payload-like marker")
+                        blockers.append(
+                            f"Artifact {path.name} contains raw-payload-like marker"
+                        )
+                    if FORBIDDEN_MARKER.search(check_text):
+                        blockers.append(
+                            f"Artifact {path.name} contains forbidden production marker"
+                        )
                 except Exception as e:
                     blockers.append(f"Failed to read artifact {path.name}: {e}")
 
@@ -82,5 +93,3 @@ def certify_shadow_football_enrichment(
         blockers=tuple(blockers),
         warnings=tuple(warnings),
     )
-
-# Line-endings normalization proof

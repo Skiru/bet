@@ -23,18 +23,16 @@ def test_public_raw_roundtrip_contract() -> None:
     for fpath in files_to_check:
         path = Path(fpath)
         assert path.exists(), f"File {fpath} does not exist"
-        
+
         text = path.read_text(encoding="utf-8")
         lines = text.splitlines()
-        
+
         # Ast parses successfully
         try:
             ast.parse(text, filename=fpath)
         except SyntaxError as e:
             assert False, f"AST failed to parse {fpath}: {e}"
-            
+
         # Line count is non-trivial for implemented modules
         if not path.name.startswith("__init__"):
             assert len(lines) >= 10, f"Module {fpath} is unexpectedly short"
-
-# Line-endings normalization proof

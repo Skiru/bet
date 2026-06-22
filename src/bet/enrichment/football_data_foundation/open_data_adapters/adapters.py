@@ -30,7 +30,9 @@ class BaseAdapter:
         return self.VERSION
 
     def fetch_shadow_live(self, query: Mapping[str, Any]) -> EvidenceClaimBatch:
-        raise ProviderCapabilityError(f"{self.source_descriptor().source_key} is not a live source")
+        raise ProviderCapabilityError(
+            f"{self.source_descriptor().source_key} is not a live source"
+        )
 
 
 class StatsBombOpenDataAdapter(BaseAdapter):
@@ -44,12 +46,24 @@ class StatsBombOpenDataAdapter(BaseAdapter):
             supports_historical=True,
             supports_reference=True,
             supports_replay=True,
-            allowed_proof_levels=(ProofLevel.DOCS_CAPABILITY_ONLY, ProofLevel.SYNTHETIC_CONTRACT_PROOF, ProofLevel.REAL_LOCAL_OPEN_DATA_PROOF),
+            allowed_proof_levels=(
+                ProofLevel.DOCS_CAPABILITY_ONLY,
+                ProofLevel.SYNTHETIC_CONTRACT_PROOF,
+                ProofLevel.REAL_LOCAL_OPEN_DATA_PROOF,
+            ),
             forbidden_fact_types=(),
         )
 
     def capabilities(self) -> Mapping[str, Any]:
-        return {"local_files": ["competitions.json", "events/*.json", "lineups", "three-sixty"], "current_truth": False}
+        return {
+            "local_files": [
+                "competitions.json",
+                "events/*.json",
+                "lineups",
+                "three-sixty",
+            ],
+            "current_truth": False,
+        }
 
     def build_contract_probe(self) -> EvidenceClaimBatch:
         return synthetic_batch(self, FactType.MATCH_EVENT)
@@ -59,12 +73,24 @@ class StatsBombOpenDataAdapter(BaseAdapter):
         for path in sorted((input_path / "events").glob("*.json")):
             events.extend(json.loads(path.read_text()))
         shot_count = sum(1 for event in events if event.get("type") == "Shot")
-        xg_sum = round(sum(float(event.get("xg", 0.0)) for event in events if event.get("type") == "Shot"), 4)
+        xg_sum = round(
+            sum(
+                float(event.get("xg", 0.0))
+                for event in events
+                if event.get("type") == "Shot"
+            ),
+            4,
+        )
         has_360 = (input_path / "three-sixty").exists()
         return replay_claim(
             self,
             FactType.MATCH_EVENT,
-            {"event_count": len(events), "shot_count": shot_count, "xg_sum": xg_sum, "has_three_sixty": has_360},
+            {
+                "event_count": len(events),
+                "shot_count": shot_count,
+                "xg_sum": xg_sum,
+                "has_three_sixty": has_360,
+            },
             proof_level=ProofLevel.REAL_LOCAL_OPEN_DATA_PROOF,
             confidence=0.8,
             freshness_reason="local open data historical proof",
@@ -82,7 +108,11 @@ class StatsBombPyBridgeAdapter(BaseAdapter):
             supports_historical=True,
             supports_reference=True,
             supports_replay=True,
-            allowed_proof_levels=(ProofLevel.DOCS_CAPABILITY_ONLY, ProofLevel.SYNTHETIC_CONTRACT_PROOF, ProofLevel.NO_PROOF),
+            allowed_proof_levels=(
+                ProofLevel.DOCS_CAPABILITY_ONLY,
+                ProofLevel.SYNTHETIC_CONTRACT_PROOF,
+                ProofLevel.NO_PROOF,
+            ),
             forbidden_fact_types=(),
             notes=("Optional bridge only; no hard dependency in Pass 1.",),
         )
@@ -94,7 +124,9 @@ class StatsBombPyBridgeAdapter(BaseAdapter):
         return docs_only_batch(self, FactType.MATCH_EVENT)
 
     def normalize_replay_fixture(self, input_path: Path) -> EvidenceClaimBatch:
-        raise ProviderCapabilityError("statsbombpy bridge is optional/docs-only in Pass 1")
+        raise ProviderCapabilityError(
+            "statsbombpy bridge is optional/docs-only in Pass 1"
+        )
 
 
 class OpenFootballAdapter(BaseAdapter):
@@ -108,8 +140,18 @@ class OpenFootballAdapter(BaseAdapter):
             supports_historical=True,
             supports_reference=True,
             supports_replay=True,
-            allowed_proof_levels=(ProofLevel.DOCS_CAPABILITY_ONLY, ProofLevel.SYNTHETIC_CONTRACT_PROOF, ProofLevel.REAL_LOCAL_OPEN_DATA_PROOF),
-            forbidden_fact_types=(FactType.XG, FactType.SHOT, FactType.LINEUP, FactType.MATCH_STATISTIC, FactType.THREE_SIXTY_FRAME),
+            allowed_proof_levels=(
+                ProofLevel.DOCS_CAPABILITY_ONLY,
+                ProofLevel.SYNTHETIC_CONTRACT_PROOF,
+                ProofLevel.REAL_LOCAL_OPEN_DATA_PROOF,
+            ),
+            forbidden_fact_types=(
+                FactType.XG,
+                FactType.SHOT,
+                FactType.LINEUP,
+                FactType.MATCH_STATISTIC,
+                FactType.THREE_SIXTY_FRAME,
+            ),
         )
 
     def capabilities(self) -> Mapping[str, Any]:
@@ -119,8 +161,18 @@ class OpenFootballAdapter(BaseAdapter):
         return synthetic_batch(self, FactType.REFERENCE_RESULT)
 
     def normalize_replay_fixture(self, input_path: Path) -> EvidenceClaimBatch:
-        lines = [line for line in input_path.read_text().splitlines() if line.strip() and not line.startswith("#")]
-        return replay_claim(self, FactType.REFERENCE_RESULT, {"result_line_count": len(lines)}, proof_level=ProofLevel.REAL_LOCAL_OPEN_DATA_PROOF, fixture_id=None)
+        lines = [
+            line
+            for line in input_path.read_text().splitlines()
+            if line.strip() and not line.startswith("#")
+        ]
+        return replay_claim(
+            self,
+            FactType.REFERENCE_RESULT,
+            {"result_line_count": len(lines)},
+            proof_level=ProofLevel.REAL_LOCAL_OPEN_DATA_PROOF,
+            fixture_id=None,
+        )
 
 
 class KaggleEuropeanSoccerAdapter(BaseAdapter):
@@ -134,7 +186,11 @@ class KaggleEuropeanSoccerAdapter(BaseAdapter):
             supports_historical=True,
             supports_reference=True,
             supports_replay=True,
-            allowed_proof_levels=(ProofLevel.DOCS_CAPABILITY_ONLY, ProofLevel.SYNTHETIC_CONTRACT_PROOF, ProofLevel.REAL_LOCAL_OPEN_DATA_PROOF),
+            allowed_proof_levels=(
+                ProofLevel.DOCS_CAPABILITY_ONLY,
+                ProofLevel.SYNTHETIC_CONTRACT_PROOF,
+                ProofLevel.REAL_LOCAL_OPEN_DATA_PROOF,
+            ),
             forbidden_fact_types=(FactType.THREE_SIXTY_FRAME,),
         )
 
@@ -146,7 +202,13 @@ class KaggleEuropeanSoccerAdapter(BaseAdapter):
 
     def normalize_replay_fixture(self, input_path: Path) -> EvidenceClaimBatch:
         rows = list(csv.DictReader(input_path.read_text().splitlines()))
-        return replay_claim(self, FactType.HISTORICAL_PRIOR, {"match_count": len(rows), "temporal_decay_required": True}, proof_level=ProofLevel.REAL_LOCAL_OPEN_DATA_PROOF, fixture_id=None)
+        return replay_claim(
+            self,
+            FactType.HISTORICAL_PRIOR,
+            {"match_count": len(rows), "temporal_decay_required": True},
+            proof_level=ProofLevel.REAL_LOCAL_OPEN_DATA_PROOF,
+            fixture_id=None,
+        )
 
 
 class SportDBOpenSourceToolingAdapter(BaseAdapter):
@@ -161,8 +223,15 @@ class SportDBOpenSourceToolingAdapter(BaseAdapter):
             supports_reference=True,
             supports_replay=False,
             allowed_proof_levels=(ProofLevel.DOCS_CAPABILITY_ONLY, ProofLevel.NO_PROOF),
-            forbidden_fact_types=(FactType.XG, FactType.SHOT, FactType.MATCH_STATISTIC, FactType.THREE_SIXTY_FRAME),
-            notes=("Do not confuse with SportDB.dev API; optional tooling for Football.TXT style datasets.",),
+            forbidden_fact_types=(
+                FactType.XG,
+                FactType.SHOT,
+                FactType.MATCH_STATISTIC,
+                FactType.THREE_SIXTY_FRAME,
+            ),
+            notes=(
+                "Do not confuse with SportDB.dev API; optional tooling for Football.TXT style datasets.",
+            ),
         )
 
     def capabilities(self) -> Mapping[str, Any]:

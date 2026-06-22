@@ -1,0 +1,14 @@
+{
+  "credentials_present": {
+    "football_data_org": false,
+    "highlightly": false,
+    "sportdb": false
+  },
+  "live_shadow_probe_status": "SKIPPED_CREDENTIALS_MISSING",
+  "manual_authorization_required": true,
+  "network_used": false,
+  "no_betting_decisions": true,
+  "no_db_writes": true,
+  "official_worldcup_context_status": "BLOCKED_OFFICIAL_CONTEXT_UNAVAILABLE",
+  "production_selectable_enabled": false
+}

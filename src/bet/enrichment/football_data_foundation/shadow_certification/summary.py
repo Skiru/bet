@@ -25,7 +25,7 @@ def summarize_shadow_certification(
 ) -> dict[str, ProviderCertificationSummary]:
     by_source: dict[str, list] = {}
     source_roles: dict[str, SourceRole] = {}
-    
+
     for batch in batches:
         source_key = batch.source_key
         if source_key not in by_source:
@@ -73,5 +73,3 @@ def summarize_shadow_certification(
         )
 
     return summaries
-
-# Line-endings normalization proof

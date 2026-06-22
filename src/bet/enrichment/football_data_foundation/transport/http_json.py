@@ -6,7 +6,9 @@ import urllib.error
 import urllib.request
 from dataclasses import dataclass
 from typing import Any, Mapping
-from bet.enrichment.football_data_foundation.kernel.errors import ProviderCapabilityError
+from bet.enrichment.football_data_foundation.kernel.errors import (
+    ProviderCapabilityError,
+)
 
 
 @dataclass(frozen=True)
@@ -19,7 +21,9 @@ class HttpJsonResponse:
     url: str
 
     @classmethod
-    def from_raw(cls, status_code: int, raw_body_bytes: bytes, url: str) -> HttpJsonResponse:
+    def from_raw(
+        cls, status_code: int, raw_body_bytes: bytes, url: str
+    ) -> HttpJsonResponse:
         try:
             body = json.loads(raw_body_bytes.decode("utf-8"))
         except Exception as e:
@@ -67,12 +71,16 @@ class HttpJsonTransport:
                 status_code = response.status
                 content_length = response.headers.get("Content-Length")
                 if content_length is not None and int(content_length) > max_bytes:
-                    raise ProviderCapabilityError(f"Response exceeds max_bytes cap of {max_bytes}")
-                
+                    raise ProviderCapabilityError(
+                        f"Response exceeds max_bytes cap of {max_bytes}"
+                    )
+
                 raw_body = response.read(max_bytes + 1)
                 if len(raw_body) > max_bytes:
-                    raise ProviderCapabilityError(f"Response body exceeds max_bytes cap of {max_bytes}")
-                
+                    raise ProviderCapabilityError(
+                        f"Response body exceeds max_bytes cap of {max_bytes}"
+                    )
+
                 return HttpJsonResponse.from_raw(status_code, raw_body, url)
         except urllib.error.HTTPError as e:
             raise ProviderCapabilityError(f"HTTP Error {e.code}: {e.reason}") from e
@@ -96,26 +104,28 @@ class MockHttpJsonTransport:
         timeout: float = 10.0,
         max_bytes: int = 10 * 1024 * 1024,
     ) -> HttpJsonResponse:
-        self.calls.append({
-            "url": url,
-            "headers": headers,
-            "timeout": timeout,
-            "max_bytes": max_bytes,
-        })
-        
+        self.calls.append(
+            {
+                "url": url,
+                "headers": headers,
+                "timeout": timeout,
+                "max_bytes": max_bytes,
+            }
+        )
+
         matched_body = None
         for key, body in self.url_mapping.items():
             if key in url:
                 matched_body = body
                 break
-                
+
         if matched_body is None:
-            raise ProviderCapabilityError(f"MockHttpJsonTransport: URL not found in mapping: {url}")
-            
+            raise ProviderCapabilityError(
+                f"MockHttpJsonTransport: URL not found in mapping: {url}"
+            )
+
         raw_body_bytes = json.dumps(matched_body).encode("utf-8")
         if len(raw_body_bytes) > max_bytes:
             raise ProviderCapabilityError("Mock response exceeds max_bytes")
-            
-        return HttpJsonResponse.from_raw(200, raw_body_bytes, url)
 
-# Line-endings normalization proof
+        return HttpJsonResponse.from_raw(200, raw_body_bytes, url)

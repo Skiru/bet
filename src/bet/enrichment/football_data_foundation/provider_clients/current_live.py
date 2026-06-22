@@ -19,7 +19,9 @@ from bet.enrichment.football_data_foundation.kernel.errors import (
     CredentialsMissingError,
     ProviderCapabilityError,
 )
-from bet.enrichment.football_data_foundation.transport.http_json import HttpJsonTransport
+from bet.enrichment.football_data_foundation.transport.http_json import (
+    HttpJsonTransport,
+)
 
 
 class SportDBLiveClient:
@@ -59,9 +61,9 @@ class SportDBLiveClient:
 
         headers = {"X-API-Key": api_key, "Accept": "application/json"}
         url = f"https://api.sportdb.dev/v1/fixtures/{fixture_id}/stats"
-        
+
         response = self.transport.get(url, headers=headers)
-        
+
         data = response.body
         claim_value = {
             "status": data.get("status", "FT"),
@@ -70,9 +72,9 @@ class SportDBLiveClient:
             "shots_home": data.get("shots_home", 0),
             "shots_away": data.get("shots_away", 0),
         }
-        
+
         observed_at = datetime.now(UTC)
-        
+
         claim = EvidenceClaim(
             source=self.source_descriptor(),
             proof_level=ProofLevel.REAL_LIVE_API_PROOF,
@@ -99,8 +101,10 @@ class SportDBLiveClient:
             claim_value=claim_value,
             confidence=0.95,
         )
-        
-        batch_id = EvidenceClaimBatch.deterministic_id(self.source_key, self.adapter_version, (claim,))
+
+        batch_id = EvidenceClaimBatch.deterministic_id(
+            self.source_key, self.adapter_version, (claim,)
+        )
         return EvidenceClaimBatch(
             batch_id=batch_id,
             source_key=self.source_key,
@@ -146,22 +150,24 @@ class FootballDataOrgLiveClient:
     def fetch_competition_standings(self, competition_code: str) -> EvidenceClaimBatch:
         api_key = os.getenv("FOOTBALL_DATA_API_KEY")
         if not api_key:
-            raise CredentialsMissingError("FOOTBALL_DATA_API_KEY env variable is required")
+            raise CredentialsMissingError(
+                "FOOTBALL_DATA_API_KEY env variable is required"
+            )
 
         headers = {"X-Auth-Token": api_key, "Accept": "application/json"}
         url = f"https://api.football-data.org/v4/competitions/{competition_code}/standings"
-        
+
         response = self.transport.get(url, headers=headers)
-        
+
         data = response.body
         claim_value = {
             "competition_code": competition_code,
             "standings_count": len(data.get("standings", [])),
             "season": data.get("season", {}).get("startDate", "2025-2026"),
         }
-        
+
         observed_at = datetime.now(UTC)
-        
+
         claim = EvidenceClaim(
             source=self.source_descriptor(),
             proof_level=ProofLevel.REAL_LIVE_API_PROOF,
@@ -183,8 +189,10 @@ class FootballDataOrgLiveClient:
             claim_value=claim_value,
             confidence=0.90,
         )
-        
-        batch_id = EvidenceClaimBatch.deterministic_id(self.source_key, self.adapter_version, (claim,))
+
+        batch_id = EvidenceClaimBatch.deterministic_id(
+            self.source_key, self.adapter_version, (claim,)
+        )
         return EvidenceClaimBatch(
             batch_id=batch_id,
             source_key=self.source_key,
@@ -223,13 +231,15 @@ class HighlightlyLiveClient:
     def fetch_match_statistics(self, fixture_id: str) -> EvidenceClaimBatch:
         api_key = os.getenv("HIGHLIGHTLY_API_KEY")
         if not api_key:
-            raise CredentialsMissingError("HIGHLIGHTLY_API_KEY env variable is required")
+            raise CredentialsMissingError(
+                "HIGHLIGHTLY_API_KEY env variable is required"
+            )
 
         headers = {"Authorization": f"Bearer {api_key}", "Accept": "application/json"}
         url = f"https://api.highlightly.com/v1/matches/{fixture_id}/stats"
-        
+
         response = self.transport.get(url, headers=headers)
-        
+
         data = response.body
         stats_list = data.get("stats", [])
         claim_value = {
@@ -237,9 +247,9 @@ class HighlightlyLiveClient:
             "has_odds_reference": "odds" in data,
             "has_player_data_context": "player_stats" in data,
         }
-        
+
         observed_at = datetime.now(UTC)
-        
+
         claim = EvidenceClaim(
             source=self.source_descriptor(),
             proof_level=ProofLevel.REAL_LIVE_API_PROOF,
@@ -261,8 +271,10 @@ class HighlightlyLiveClient:
             claim_value=claim_value,
             confidence=0.85,
         )
-        
-        batch_id = EvidenceClaimBatch.deterministic_id(self.source_key, self.adapter_version, (claim,))
+
+        batch_id = EvidenceClaimBatch.deterministic_id(
+            self.source_key, self.adapter_version, (claim,)
+        )
         return EvidenceClaimBatch(
             batch_id=batch_id,
             source_key=self.source_key,
@@ -298,7 +310,9 @@ class APIFootballDeferredClient:
         )
 
     def fetch_match_stats(self, fixture_id: str) -> EvidenceClaimBatch:
-        raise ProviderCapabilityError("API-Football live fetch is deferred and not allowed in Pass 2")
+        raise ProviderCapabilityError(
+            "API-Football live fetch is deferred and not allowed in Pass 2"
+        )
 
 
 class TheSportsDBMetadataClient:
@@ -332,6 +346,6 @@ class TheSportsDBMetadataClient:
         )
 
     def fetch_metadata(self) -> EvidenceClaimBatch:
-        raise ProviderCapabilityError("TheSportsDB is metadata/reference shadow only; no live fetch allowed")
-
-# Line-endings normalization proof
+        raise ProviderCapabilityError(
+            "TheSportsDB is metadata/reference shadow only; no live fetch allowed"
+        )

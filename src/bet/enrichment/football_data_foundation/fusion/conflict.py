@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Any
+
 from bet.enrichment.football_data_foundation.kernel.contracts import FactType
 
 
@@ -8,14 +10,14 @@ from bet.enrichment.football_data_foundation.kernel.contracts import FactType
 class FusionConflict:
     """
     Represents a conflict between multiple evidence sources during the fusion process.
-    
-    This class captures the fact type that caused the conflict, a human-readable 
-    reason detailing why the sources diverged, and the specific source keys involved
-    in the contradiction.
     """
+
     fact_type: FactType
-    reason: str
+    identity_key: str
     source_keys: tuple[str, ...]
+    values_by_source: dict[str, dict[str, Any]]
+    reason: str
+    severity: str = "BLOCKING"
 
     def is_empty(self) -> bool:
         """Checks if the conflict is empty or has no sources."""
@@ -23,6 +25,4 @@ class FusionConflict:
 
     def short_description(self) -> str:
         """Returns a short description of the conflict."""
-        return f"Conflict on {self.fact_type}: {self.reason}"
-
-# Line-endings normalization proof
+        return f"Conflict on {self.fact_type} for {self.identity_key}: {self.reason}"

@@ -1,22 +1,29 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 from bet.enrichment.football_data_foundation.kernel.contracts import (
     EvidenceClaim,
-    SourceDescriptor,
-    ProviderIdentity,
     EvidenceFreshness,
+    FactType,
     PayloadPolicy,
     ProofLevel,
+    ProviderIdentity,
+    SourceDescriptor,
     SourceRole,
-    FactType,
 )
 
-FORBIDDEN_RAW_KEYS = {"raw_payload", "response_body", "json_raw", "raw_json", "html", "raw_html"}
+FORBIDDEN_RAW_KEYS = {
+    "raw_payload",
+    "response_body",
+    "json_raw",
+    "raw_json",
+    "html",
+    "raw_html",
+}
 
 
 def _validate_no_forbidden_keys(data: Any) -> None:
@@ -53,7 +60,7 @@ def load_fixture_context_fixture(path: Path | str) -> tuple[EvidenceClaim, ...]:
         sdata = cdata.get("source")
         if not sdata:
             raise ValueError(f"Claim at index {idx} is missing 'source'")
-        
+
         allowed_proofs = tuple(
             [ProofLevel(p) for p in sdata.get("allowed_proof_levels", [])]
         )
@@ -95,8 +102,10 @@ def load_fixture_context_fixture(path: Path | str) -> tuple[EvidenceClaim, ...]:
         fdata = cdata.get("freshness", {})
         observed_at_str = fdata.get("observed_at")
         if not observed_at_str:
-            raise ValueError(f"Claim at index {idx} is missing observed_at in freshness")
-        
+            raise ValueError(
+                f"Claim at index {idx} is missing observed_at in freshness"
+            )
+
         observed_at = datetime.fromisoformat(observed_at_str.replace("Z", "+00:00"))
         if observed_at.tzinfo is None:
             observed_at = observed_at.replace(tzinfo=UTC)
@@ -157,5 +166,3 @@ def load_fixture_context_fixture(path: Path | str) -> tuple[EvidenceClaim, ...]:
         claims.append(claim)
 
     return tuple(claims)
-
-# Line-endings normalization proof

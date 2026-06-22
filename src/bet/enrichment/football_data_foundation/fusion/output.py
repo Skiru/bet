@@ -2,16 +2,25 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Any
-from bet.enrichment.football_data_foundation.kernel.contracts import FactType, EvidenceClaim
+
+from bet.enrichment.football_data_foundation.kernel.contracts import (
+    EvidenceClaim,
+    FactType,
+)
+
 from .conflict import FusionConflict
 
 
 @dataclass(frozen=True)
 class FusedFootballFact:
     fact_type: FactType
+    identity_key: str
     value: dict[str, Any]
-    source_keys: tuple[str, ...]
+    primary_source_key: str
+    supporting_source_keys: tuple[str, ...]
     proof_levels: tuple[str, ...]
+    confidence: float
+    selected_reason: str
     selectable_for_production: bool = False
 
 
@@ -32,9 +41,13 @@ class FusionRunSummary:
             "fused_facts": [
                 {
                     "fact_type": f.fact_type.value,
+                    "identity_key": f.identity_key,
                     "value": f.value,
-                    "source_keys": list(f.source_keys),
+                    "primary_source_key": f.primary_source_key,
+                    "supporting_source_keys": list(f.supporting_source_keys),
                     "proof_levels": list(f.proof_levels),
+                    "confidence": f.confidence,
+                    "selected_reason": f.selected_reason,
                     "selectable_for_production": f.selectable_for_production,
                 }
                 for f in self.fused_facts
@@ -42,8 +55,11 @@ class FusionRunSummary:
             "conflicts": [
                 {
                     "fact_type": c.fact_type.value,
-                    "reason": c.reason,
+                    "identity_key": c.identity_key,
                     "source_keys": list(c.source_keys),
+                    "values_by_source": c.values_by_source,
+                    "reason": c.reason,
+                    "severity": c.severity,
                 }
                 for c in self.conflicts
             ],
@@ -60,5 +76,3 @@ class FusionRunSummary:
             "manual_authorization_required": self.manual_authorization_required,
             "selectable_for_production": self.selectable_for_production,
         }
-
-# Line-endings normalization proof

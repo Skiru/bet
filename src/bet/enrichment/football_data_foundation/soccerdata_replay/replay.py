@@ -42,13 +42,25 @@ class SoccerDataReplayAdapter:
             supports_historical=True,
             supports_reference=True,
             supports_replay=True,
-            allowed_proof_levels=(ProofLevel.DOCS_CAPABILITY_ONLY, ProofLevel.SYNTHETIC_CONTRACT_PROOF, ProofLevel.REAL_DEPENDENCY_REPLAY_PROOF, ProofLevel.NO_PROOF),
+            allowed_proof_levels=(
+                ProofLevel.DOCS_CAPABILITY_ONLY,
+                ProofLevel.SYNTHETIC_CONTRACT_PROOF,
+                ProofLevel.REAL_DEPENDENCY_REPLAY_PROOF,
+                ProofLevel.NO_PROOF,
+            ),
             forbidden_fact_types=(),
-            notes=("soccerdata is replay/cached dependency layer only; no blind live scraping.",),
+            notes=(
+                "soccerdata is replay/cached dependency layer only; no blind live scraping.",
+            ),
         )
 
     def capabilities(self) -> Mapping[str, Any]:
-        return {"library": "soccerdata", "blind_live_scraping": False, "hard_dependency": False, "source": self.source_key}
+        return {
+            "library": "soccerdata",
+            "blind_live_scraping": False,
+            "hard_dependency": False,
+            "source": self.source_key,
+        }
 
     def build_contract_probe(self) -> EvidenceClaimBatch:
         if self.docs_only:
@@ -57,7 +69,9 @@ class SoccerDataReplayAdapter:
 
     def normalize_replay_fixture(self, input_path: Path) -> EvidenceClaimBatch:
         if self.docs_only:
-            raise ProviderCapabilityError(f"{self.source_key} is docs-only until sanitized replay fixture exists")
+            raise ProviderCapabilityError(
+                f"{self.source_key} is docs-only until sanitized replay fixture exists"
+            )
         data = read_json(input_path)
         if not data.get("sanitized"):
             raise ProviderCapabilityError("soccerdata replay fixture must be sanitized")
@@ -69,7 +83,9 @@ class SoccerDataReplayAdapter:
         return replay_claim(self, self.fact_type, value)
 
     def fetch_shadow_live(self, query: Mapping[str, Any]) -> EvidenceClaimBatch:
-        raise ProviderCapabilityError("soccerdata wrappers are replay-only in this workflow")
+        raise ProviderCapabilityError(
+            "soccerdata wrappers are replay-only in this workflow"
+        )
 
 
 class SoccerDataClubEloAdapter(SoccerDataReplayAdapter):

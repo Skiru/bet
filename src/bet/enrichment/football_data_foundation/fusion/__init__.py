@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from .policy import FusionPolicy
 from .conflict import FusionConflict
-from .output import FusedFootballFact, FusionRunSummary
 from .fuser import ShadowFactFuser
+from .output import FusedFootballFact, FusionRunSummary
+from .policy import FusionPolicy
 
 __all__ = [
     "FusionPolicy",

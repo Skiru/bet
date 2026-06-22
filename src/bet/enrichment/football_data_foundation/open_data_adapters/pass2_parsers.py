@@ -23,14 +23,14 @@ def parse_statsbomb_tree(root: Path) -> EvidenceClaimBatch:
     comp_data = []
     if comp_path.exists():
         comp_data = json.loads(comp_path.read_text(encoding="utf-8"))
-    
+
     events_dir = root / "events"
     events_files = list(events_dir.glob("*.json")) if events_dir.exists() else []
-    
+
     event_count = 0
     shot_count = 0
     xg_sum = 0.0
-    
+
     for f in events_files:
         try:
             data = json.loads(f.read_text(encoding="utf-8"))
@@ -46,14 +46,18 @@ def parse_statsbomb_tree(root: Path) -> EvidenceClaimBatch:
                 if type_name == "Shot":
                     shot_count += 1
                     xg = 0.0
-                    if "shot" in ev and isinstance(ev["shot"], dict) and "statsbomb_xg" in ev["shot"]:
+                    if (
+                        "shot" in ev
+                        and isinstance(ev["shot"], dict)
+                        and "statsbomb_xg" in ev["shot"]
+                    ):
                         xg = float(ev["shot"]["statsbomb_xg"])
                     elif "xg" in ev:
                         xg = float(ev["xg"])
                     xg_sum += xg
         except Exception:
             pass
-            
+
     lineups_dir = root / "lineups"
     lineups_count = 0
     if lineups_dir.exists():
@@ -62,13 +66,15 @@ def parse_statsbomb_tree(root: Path) -> EvidenceClaimBatch:
                 lineups_count += len(json.loads(f.read_text(encoding="utf-8")))
             except Exception:
                 pass
-                
+
     three_sixty_dir = root / "three-sixty"
     three_sixty_frame_count = 0
     if three_sixty_dir.exists():
         for f in three_sixty_dir.glob("*.json"):
             try:
-                three_sixty_frame_count += len(json.loads(f.read_text(encoding="utf-8")))
+                three_sixty_frame_count += len(
+                    json.loads(f.read_text(encoding="utf-8"))
+                )
             except Exception:
                 pass
 
@@ -83,7 +89,7 @@ def parse_statsbomb_tree(root: Path) -> EvidenceClaimBatch:
         supports_replay=True,
         allowed_proof_levels=(ProofLevel.REAL_LOCAL_OPEN_DATA_PROOF,),
     )
-    
+
     claim_value = {
         "competition_count": len(comp_data),
         "event_count": event_count,
@@ -92,9 +98,9 @@ def parse_statsbomb_tree(root: Path) -> EvidenceClaimBatch:
         "lineups_count": lineups_count,
         "three_sixty_frame_count": three_sixty_frame_count,
     }
-    
+
     observed_at = datetime.now(UTC)
-    
+
     claim = EvidenceClaim(
         source=source,
         proof_level=ProofLevel.REAL_LOCAL_OPEN_DATA_PROOF,
@@ -109,8 +115,10 @@ def parse_statsbomb_tree(root: Path) -> EvidenceClaimBatch:
         claim_value=claim_value,
         confidence=0.8,
     )
-    
-    batch_id = EvidenceClaimBatch.deterministic_id("statsbomb-open-data", "football-foundation-pass2", (claim,))
+
+    batch_id = EvidenceClaimBatch.deterministic_id(
+        "statsbomb-open-data", "football-foundation-pass2", (claim,)
+    )
     return EvidenceClaimBatch(
         batch_id=batch_id,
         source_key="statsbomb-open-data",
@@ -124,17 +132,23 @@ def parse_statsbomb_tree(root: Path) -> EvidenceClaimBatch:
 def parse_openfootball_text(path: Path) -> EvidenceClaimBatch:
     lines = []
     if path.exists():
-        lines = [line for line in path.read_text(encoding="utf-8").splitlines() if line.strip() and not line.startswith("#")]
-        
+        lines = [
+            line
+            for line in path.read_text(encoding="utf-8").splitlines()
+            if line.strip() and not line.startswith("#")
+        ]
+
     fixtures = []
     for line in lines:
         if ";" in line:
             parts = line.split(";")
-            fixtures.append({
-                "raw_line": line,
-                "parts_count": len(parts),
-            })
-            
+            fixtures.append(
+                {
+                    "raw_line": line,
+                    "parts_count": len(parts),
+                }
+            )
+
     source = SourceDescriptor(
         source_key="openfootball",
         display_name="OpenFootball",
@@ -145,16 +159,22 @@ def parse_openfootball_text(path: Path) -> EvidenceClaimBatch:
         supports_reference=True,
         supports_replay=True,
         allowed_proof_levels=(ProofLevel.REAL_LOCAL_OPEN_DATA_PROOF,),
-        forbidden_fact_types=(FactType.XG, FactType.SHOT, FactType.LINEUP, FactType.MATCH_STATISTIC, FactType.THREE_SIXTY_FRAME),
+        forbidden_fact_types=(
+            FactType.XG,
+            FactType.SHOT,
+            FactType.LINEUP,
+            FactType.MATCH_STATISTIC,
+            FactType.THREE_SIXTY_FRAME,
+        ),
     )
-    
+
     claim_value = {
         "line_count": len(lines),
         "fixture_count": len(fixtures),
     }
-    
+
     observed_at = datetime.now(UTC)
-    
+
     claim = EvidenceClaim(
         source=source,
         proof_level=ProofLevel.REAL_LOCAL_OPEN_DATA_PROOF,
@@ -169,8 +189,10 @@ def parse_openfootball_text(path: Path) -> EvidenceClaimBatch:
         claim_value=claim_value,
         confidence=0.75,
     )
-    
-    batch_id = EvidenceClaimBatch.deterministic_id("openfootball", "football-foundation-pass2", (claim,))
+
+    batch_id = EvidenceClaimBatch.deterministic_id(
+        "openfootball", "football-foundation-pass2", (claim,)
+    )
     return EvidenceClaimBatch(
         batch_id=batch_id,
         source_key="openfootball",
@@ -188,7 +210,7 @@ def parse_kaggle_european_soccer_csv(path: Path) -> EvidenceClaimBatch:
             reader = csv.DictReader(f)
             for row in reader:
                 rows.append(row)
-                
+
     source = SourceDescriptor(
         source_key="kaggle-european-soccer",
         display_name="Kaggle European Soccer Database",
@@ -200,14 +222,14 @@ def parse_kaggle_european_soccer_csv(path: Path) -> EvidenceClaimBatch:
         supports_replay=True,
         allowed_proof_levels=(ProofLevel.REAL_LOCAL_OPEN_DATA_PROOF,),
     )
-    
+
     claim_value = {
         "record_count": len(rows),
         "temporal_decay_required": True,
     }
-    
+
     observed_at = datetime.now(UTC)
-    
+
     claim = EvidenceClaim(
         source=source,
         proof_level=ProofLevel.REAL_LOCAL_OPEN_DATA_PROOF,
@@ -222,8 +244,10 @@ def parse_kaggle_european_soccer_csv(path: Path) -> EvidenceClaimBatch:
         claim_value=claim_value,
         confidence=0.7,
     )
-    
-    batch_id = EvidenceClaimBatch.deterministic_id("kaggle-european-soccer", "football-foundation-pass2", (claim,))
+
+    batch_id = EvidenceClaimBatch.deterministic_id(
+        "kaggle-european-soccer", "football-foundation-pass2", (claim,)
+    )
     return EvidenceClaimBatch(
         batch_id=batch_id,
         source_key="kaggle-european-soccer",
@@ -232,5 +256,3 @@ def parse_kaggle_european_soccer_csv(path: Path) -> EvidenceClaimBatch:
         generated_at=observed_at,
         claims=(claim,),
     )
-
-# Line-endings normalization proof
