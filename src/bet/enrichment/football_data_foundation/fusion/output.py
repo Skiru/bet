@@ -75,4 +75,4 @@ class FusionRunSummary:
             "source_coverage": self.source_coverage,
             "manual_authorization_required": self.manual_authorization_required,
             "selectable_for_production": self.selectable_for_production,
-        }
+        }  # guardrail

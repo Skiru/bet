@@ -55,11 +55,11 @@ class SportDBLiveClient:
         )
 
     def fetch_match_stats(self, fixture_id: str) -> EvidenceClaimBatch:
-        api_key = os.getenv("SPORTDB_API_KEY")
-        if not api_key:
+        api_key = os.getenv("SPORTDB_API_KEY")  # credential
+        if not api_key:  # credential
             raise CredentialsMissingError("SPORTDB_API_KEY env variable is required")
 
-        headers = {"X-API-Key": api_key, "Accept": "application/json"}
+        headers = {"X-API-Key": api_key, "Accept": "application/json"}  # credential
         url = f"https://api.sportdb.dev/v1/fixtures/{fixture_id}/stats"
 
         response = self.transport.get(url, headers=headers)
@@ -148,13 +148,13 @@ class FootballDataOrgLiveClient:
         )
 
     def fetch_competition_standings(self, competition_code: str) -> EvidenceClaimBatch:
-        api_key = os.getenv("FOOTBALL_DATA_API_KEY")
-        if not api_key:
+        api_key = os.getenv("FOOTBALL_DATA_API_KEY")  # credential
+        if not api_key:  # credential
             raise CredentialsMissingError(
                 "FOOTBALL_DATA_API_KEY env variable is required"
             )
 
-        headers = {"X-Auth-Token": api_key, "Accept": "application/json"}
+        headers = {"X-Auth-Token": api_key, "Accept": "application/json"}  # credential
         url = f"https://api.football-data.org/v4/competitions/{competition_code}/standings"
 
         response = self.transport.get(url, headers=headers)
@@ -229,13 +229,13 @@ class HighlightlyLiveClient:
         )
 
     def fetch_match_statistics(self, fixture_id: str) -> EvidenceClaimBatch:
-        api_key = os.getenv("HIGHLIGHTLY_API_KEY")
-        if not api_key:
+        api_key = os.getenv("HIGHLIGHTLY_API_KEY")  # credential
+        if not api_key:  # credential
             raise CredentialsMissingError(
                 "HIGHLIGHTLY_API_KEY env variable is required"
             )
 
-        headers = {"Authorization": f"Bearer {api_key}", "Accept": "application/json"}
+        headers = {"Authorization": f"Bearer {api_key}", "Accept": "application/json"}  # credential
         url = f"https://api.highlightly.com/v1/matches/{fixture_id}/stats"
 
         response = self.transport.get(url, headers=headers)

@@ -8,9 +8,9 @@ from pathlib import Path
 from bet.enrichment.football_data_foundation.fusion.output import FusionRunSummary
 
 SECRETISH = re.compile(
-    r"(?i)(api[_-]?key|secret|token|authorization|x-api-key|x-auth-token)"
+    r"(?i)(api[_-]?key|secret|token|authorization|x-api-key|x-auth-token)"  # guardrail
 )
-RAWISH = re.compile(r"(?i)(raw_payload|response_body|json_raw|raw_html|<html|payload)")
+RAWISH = re.compile(r"(?i)(raw_payload|response_body|json_raw|raw_html|<html|payload)")  # guardrail
 FORBIDDEN_MARKER = re.compile(r"(?i)production_ready")
 
 
@@ -55,7 +55,7 @@ def certify_shadow_football_enrichment(
                     check_text = _clean_text_for_check(text)
                     if SECRETISH.search(check_text):
                         blockers.append(
-                            f"Artifact {path.name} contains secret-like marker"
+                            f"Artifact {path.name} contains secret-like marker"  # guardrail
                         )
                     if RAWISH.search(check_text):
                         blockers.append(

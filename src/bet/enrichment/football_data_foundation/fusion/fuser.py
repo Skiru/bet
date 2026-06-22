@@ -242,4 +242,4 @@ class ShadowFactFuser:
             source_coverage=sorted_coverage,
             manual_authorization_required=True,
             selectable_for_production=False,
-        )
+        )  # guardrail

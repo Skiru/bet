@@ -35,4 +35,4 @@ def test_public_raw_roundtrip_contract() -> None:
 
         # Line count is non-trivial for implemented modules
         if not path.name.startswith("__init__"):
-            assert len(lines) >= 10, f"Module {fpath} is unexpectedly short"
+            assert len(lines) >= 10, f"Module {fpath} is unexpectedly short"  # guardrail

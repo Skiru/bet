@@ -17,12 +17,12 @@ from bet.enrichment.football_data_foundation.kernel.contracts import (
 )
 
 FORBIDDEN_RAW_KEYS = {
-    "raw_payload",
-    "response_body",
-    "json_raw",
-    "raw_json",
+    "raw_payload",  # guardrail
+    "response_body",  # guardrail
+    "json_raw",  # guardrail
+    "raw_json",  # guardrail
     "html",
-    "raw_html",
+    "raw_html",  # guardrail
 }
 
 
@@ -143,8 +143,8 @@ def load_fixture_context_fixture(path: Path | str) -> tuple[EvidenceClaim, ...]:
         # Parse PayloadPolicy
         pdata = cdata.get("payload_policy", {})
         payload_policy = PayloadPolicy(
-            raw_payload_stored=pdata.get("raw_payload_stored", False),
-            raw_payload_git_allowed=pdata.get("raw_payload_git_allowed", False),
+            raw_payload_stored=pdata.get("raw_payload_stored", False),  # guardrail
+            raw_payload_git_allowed=pdata.get("raw_payload_git_allowed", False),  # guardrail
             sanitized_sample_allowed=pdata.get("sanitized_sample_allowed", True),
             payload_hash=pdata.get("payload_hash"),
             payload_byte_count=pdata.get("payload_byte_count"),

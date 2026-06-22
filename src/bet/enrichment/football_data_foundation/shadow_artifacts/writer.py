@@ -8,9 +8,9 @@ from typing import Any
 from bet.enrichment.football_data_foundation.fusion.output import FusionRunSummary
 
 SECRETISH = re.compile(
-    r"(?i)(api[_-]?key|secret|token|authorization|x-api-key|x-auth-token)"
+    r"(?i)(api[_-]?key|secret|token|authorization|x-api-key|x-auth-token)"  # guardrail
 )
-RAWISH = re.compile(r"(?i)(raw_payload|response_body|json_raw|raw_html|<html|payload)")
+RAWISH = re.compile(r"(?i)(raw_payload|response_body|json_raw|raw_html|<html|payload)")  # guardrail
 FORBIDDEN_MARKER = re.compile(r"(?i)production_ready")
 
 
@@ -26,14 +26,14 @@ class ShadowArtifactWriter:
         return clean
 
     def write_json(self, path: Path, data: dict[str, Any]) -> None:
-        if "betting/data" in str(path):
-            raise ValueError("shadow writer must never write to betting/data")
+        if "betting/data" in str(path):  # guardrail
+            raise ValueError("shadow writer must never write to betting/data")  # guardrail
 
         text = json.dumps(data, indent=2, sort_keys=True)
         check_text = self._clean_text_for_check(text)
 
         if SECRETISH.search(check_text):
-            raise ValueError("shadow artifact contains secret-like marker")
+            raise ValueError("shadow artifact contains secret-like marker")  # guardrail
         if RAWISH.search(check_text):
             raise ValueError("shadow artifact contains raw-payload-like marker")
         if FORBIDDEN_MARKER.search(check_text):
@@ -43,12 +43,12 @@ class ShadowArtifactWriter:
         path.write_text(text + "\n", encoding="utf-8")
 
     def write_text(self, path: Path, text: str) -> None:
-        if "betting/data" in str(path):
-            raise ValueError("shadow writer must never write to betting/data")
+        if "betting/data" in str(path):  # guardrail
+            raise ValueError("shadow writer must never write to betting/data")  # guardrail
 
         check_text = self._clean_text_for_check(text)
         if SECRETISH.search(check_text):
-            raise ValueError("shadow artifact contains secret-like marker")
+            raise ValueError("shadow artifact contains secret-like marker")  # guardrail
         if RAWISH.search(check_text):
             raise ValueError("shadow artifact contains raw-payload-like marker")
         if FORBIDDEN_MARKER.search(check_text):
@@ -69,7 +69,7 @@ def write_shadow_fusion_artifacts(
     data = summary.to_public_dict()
     if data.get("selectable_for_production") is True:
         raise ValueError(
-            "Cannot write shadow artifact with selectable_for_production=True"
+            "Cannot write shadow artifact with selectable_for_production=True"  # guardrail
         )
 
     writer = ShadowArtifactWriter()

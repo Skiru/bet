@@ -119,4 +119,3 @@ def test_deferred_and_metadata_clients() -> None:
     with pytest.raises(ProviderCapabilityError):
         client_metadata.fetch_metadata()
 
-# Line-endings normalization proof

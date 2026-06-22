@@ -128,4 +128,4 @@ class MockHttpJsonTransport:
         if len(raw_body_bytes) > max_bytes:
             raise ProviderCapabilityError("Mock response exceeds max_bytes")
 
-        return HttpJsonResponse.from_raw(200, raw_body_bytes, url)
+        return HttpJsonResponse.from_raw(200, raw_body_bytes, url)  # guardrail

@@ -61,4 +61,3 @@ def test_kaggle_parser() -> None:
     assert claim.claim_value["temporal_decay_required"] is True
     assert claim.freshness.is_current_truth_allowed is False
 
-# Line-endings normalization proof

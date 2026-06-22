@@ -62,4 +62,3 @@ def test_unsupported_source() -> None:
     with pytest.raises(ProviderCapabilityError):
         normalize_soccerdata_replay("invalid-source", FIXTURES_DIR / "soccerdata" / "clubelo.json")
 
-# Line-endings normalization proof
