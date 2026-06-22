@@ -128,3 +128,5 @@ class ShadowFactFuser:
             manual_authorization_required=True,
             selectable_for_production=False,
         )
+
+# Line-endings normalization proof

@@ -80,3 +80,5 @@ def test_fusion_policy_exclusions_and_roles() -> None:
     
     assert ProofLevel.DOCS_CAPABILITY_ONLY in excluded_proofs
     assert SourceRole.EXPERIMENTAL_PROBE in excluded_roles
+
+# Line-endings normalization proof

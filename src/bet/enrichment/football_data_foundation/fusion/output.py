@@ -60,3 +60,5 @@ class FusionRunSummary:
             "manual_authorization_required": self.manual_authorization_required,
             "selectable_for_production": self.selectable_for_production,
         }
+
+# Line-endings normalization proof

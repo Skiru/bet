@@ -44,3 +44,5 @@ def test_pass3_reviewability_regression() -> None:
         # check collapsed patterns
         for pattern in collapsed_patterns:
             assert pattern not in text, f"Collapsed pattern '{pattern}' found in {fpath}"
+
+# Line-endings normalization proof

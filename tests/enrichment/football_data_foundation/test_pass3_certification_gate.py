@@ -70,3 +70,5 @@ def test_certification_gate_missing_required_facts(tmp_path: Path) -> None:
     
     assert result.status == "SHADOW_BLOCKED_FOR_MANUAL_REVIEW"
     assert any("Required fact type missing from fusion: SCORE" in b for b in result.blockers)
+
+# Line-endings normalization proof

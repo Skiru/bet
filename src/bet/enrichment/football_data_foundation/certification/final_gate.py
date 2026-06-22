@@ -82,3 +82,5 @@ def certify_shadow_football_enrichment(
         blockers=tuple(blockers),
         warnings=tuple(warnings),
     )
+
+# Line-endings normalization proof

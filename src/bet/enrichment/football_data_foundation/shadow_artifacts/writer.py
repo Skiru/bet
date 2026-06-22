@@ -103,3 +103,5 @@ def write_shadow_fusion_artifacts(summary: FusionRunSummary, output_dir: Path | 
 
     writer.write_text(md_path, md_content)
     return json_path, md_path
+
+# Line-endings normalization proof

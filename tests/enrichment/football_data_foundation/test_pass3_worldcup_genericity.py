@@ -29,3 +29,5 @@ def test_worldcup_genericity() -> None:
                     continue
                 match = re.search(re.escape(tok), text, re.IGNORECASE)
                 assert match is None, f"Forbidden hardcoded token '{tok}' found in production file: {path}"
+
+# Line-endings normalization proof

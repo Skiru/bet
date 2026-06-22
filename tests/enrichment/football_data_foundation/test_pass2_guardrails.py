@@ -46,3 +46,5 @@ def test_guardrails_no_prototype_in_versions() -> None:
         if any(name in path.name for name in ("pass2_parsers", "pass2_replay", "current_live")):
             content = path.read_text(encoding="utf-8")
             assert "prototype-v2" not in content, f"Found 'prototype-v2' version string in {path}"
+
+# Line-endings normalization proof

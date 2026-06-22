@@ -232,3 +232,5 @@ def parse_kaggle_european_soccer_csv(path: Path) -> EvidenceClaimBatch:
         generated_at=observed_at,
         claims=(claim,),
     )
+
+# Line-endings normalization proof

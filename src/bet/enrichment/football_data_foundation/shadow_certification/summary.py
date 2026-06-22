@@ -73,3 +73,5 @@ def summarize_shadow_certification(
         )
 
     return summaries
+
+# Line-endings normalization proof

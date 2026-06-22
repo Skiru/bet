@@ -60,3 +60,5 @@ def test_shadow_artifacts_writer_blocks_betting_data(tmp_path: Path) -> None:
     bad_path = Path("betting/data/test.json")
     with pytest.raises(ValueError, match="shadow writer must never write to betting/data"):
         writer.write_json(bad_path, {"test": 1})
+
+# Line-endings normalization proof

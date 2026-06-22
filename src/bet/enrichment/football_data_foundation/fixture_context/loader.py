@@ -157,3 +157,5 @@ def load_fixture_context_fixture(path: Path | str) -> tuple[EvidenceClaim, ...]:
         claims.append(claim)
 
     return tuple(claims)
+
+# Line-endings normalization proof

@@ -112,3 +112,5 @@ def normalize_soccerdata_replay(source: str, input_path: Path) -> EvidenceClaimB
         generated_at=observed_at,
         claims=(claim,),
     )
+
+# Line-endings normalization proof

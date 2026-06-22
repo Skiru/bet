@@ -4,3 +4,5 @@
 *.txt text eol=lf
 *.csv text eol=lf
 *.fish text eol=lf
+
+# Line-endings normalization proof

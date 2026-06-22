@@ -24,3 +24,5 @@ class FusionConflict:
     def short_description(self) -> str:
         """Returns a short description of the conflict."""
         return f"Conflict on {self.fact_type}: {self.reason}"
+
+# Line-endings normalization proof

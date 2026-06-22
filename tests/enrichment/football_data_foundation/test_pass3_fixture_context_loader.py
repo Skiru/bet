@@ -91,3 +91,5 @@ def test_fixture_context_loader_rejects_raw_payload_keys(tmp_path: Path) -> None
     
     with pytest.raises(ValueError, match="Forbidden raw payload key found: response_body"):
         load_fixture_context_fixture(bad_path)
+
+# Line-endings normalization proof

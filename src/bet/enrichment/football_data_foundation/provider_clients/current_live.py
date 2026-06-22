@@ -333,3 +333,5 @@ class TheSportsDBMetadataClient:
 
     def fetch_metadata(self) -> EvidenceClaimBatch:
         raise ProviderCapabilityError("TheSportsDB is metadata/reference shadow only; no live fetch allowed")
+
+# Line-endings normalization proof

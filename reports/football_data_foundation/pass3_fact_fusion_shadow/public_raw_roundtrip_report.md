@@ -40,3 +40,5 @@
 - **Status:** PASS
 - **Reviewable:** Yes
 - **Multi-line Formatting Preserved:** Yes
+
+<!-- Line-endings normalization proof -->

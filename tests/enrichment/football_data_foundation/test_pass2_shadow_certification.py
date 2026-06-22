@@ -97,3 +97,5 @@ def test_summarize_shadow_certification() -> None:
     assert summary_probe.synthetic_count == 1
     assert summary_probe.selectable_for_production is False
     assert any("experimental" in r for r in summary_probe.missing_authorization_reasons)
+
+# Line-endings normalization proof

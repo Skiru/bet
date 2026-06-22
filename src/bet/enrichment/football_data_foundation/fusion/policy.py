@@ -21,3 +21,5 @@ class FusionPolicy:
         FactType.MATCH_STATUS,
         FactType.SCORE,
     )
+
+# Line-endings normalization proof
