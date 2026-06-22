@@ -18,10 +18,10 @@ def test_pass3_reviewability_regression() -> None:
     ]
     
     collapsed_patterns = [
-        "from __future__ import annotations import ",
-        " import hashlib import ",
-        " import json import ",
-        " import os import ",
+        "from __future__ " + "import annotations import ",
+        " import hashlib " + "import ",
+        " import json " + "import ",
+        " import os " + "import ",
         " class ",
     ]
 
