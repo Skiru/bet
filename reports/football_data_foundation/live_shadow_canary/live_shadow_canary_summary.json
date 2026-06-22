@@ -1,0 +1,16 @@
+{
+  "certification_result": null,
+  "fusion_summary": null,
+  "manual_authorization_required": true,
+  "network_used": true,
+  "no_betting_decisions": true,
+  "no_db_writes": true,
+  "official_context": {
+    "status": "UNAVAILABLE"
+  },
+  "provider_network_calls": 0,
+  "provider_results": [],
+  "run_id": "043501c3-c0ff-4374-b53b-4395d2b84f73",
+  "selectable_for_production": false,
+  "status": "BOUNDED_LIVE_SHADOW_CANARY_SKIPPED_OFFICIAL_CONTEXT_UNAVAILABLE"
+}
