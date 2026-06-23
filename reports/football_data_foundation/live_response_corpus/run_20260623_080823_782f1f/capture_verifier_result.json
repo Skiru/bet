@@ -1,0 +1,46 @@
+{
+  "checked_requirements": [
+    "REQ-VERIFIER-004",
+    "REQ-VERIFIER-002",
+    "REQ-VERIFIER-003",
+    "REQ-VERIFIER-005"
+  ],
+  "credential_presence": {
+    "api_football": true,
+    "espn_baseline": false,
+    "football_data_org": true,
+    "highlightly": true,
+    "sportdb": true
+  },
+  "failed_requirements": [],
+  "files_checked": [
+    "api-football/worldcup2026-norway-senegal.json",
+    "espn-baseline/worldcup2026-norway-senegal.json",
+    "fixtures_discovered.json",
+    "football-data-org/worldcup2026-norway-senegal.json",
+    "highlightly/worldcup2026-norway-senegal.json",
+    "manifest.json",
+    "manifest.json",
+    "sportdb/worldcup2026-norway-senegal.json"
+  ],
+  "manifest_path": "reports/football_data_foundation/live_response_corpus/run_20260623_080823_782f1f/manifest.json",
+  "provider_statuses": {
+    "api-football": [
+      "BLOCKED_PROVIDER_MAPPING_MISSING"
+    ],
+    "espn-baseline": [
+      "BLOCKED_PROVIDER_MAPPING_MISSING"
+    ],
+    "football-data-org": [
+      "BLOCKED_PROVIDER_MAPPING_MISSING"
+    ],
+    "highlightly": [
+      "BLOCKED_PROVIDER_MAPPING_MISSING"
+    ],
+    "sportdb": [
+      "BLOCKED_PROVIDER_MAPPING_MISSING"
+    ]
+  },
+  "secret_leak_check": "pass",
+  "verdict": "PASS"
+}
