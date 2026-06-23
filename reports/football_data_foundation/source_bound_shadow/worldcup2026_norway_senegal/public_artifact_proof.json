@@ -1,6 +1,6 @@
 {
-  "artifact_commit_sha": "f6d050fc3e79b6992e355658e64ac034db7856d9",
-  "checked_commit_sha": "f6d050fc3e79b6992e355658e64ac034db7856d9",
+  "artifact_commit_sha": "6f6f3b0b69fa974fa66607eefde164e43e16ade8",
+  "checked_commit_sha": "6f6f3b0b69fa974fa66607eefde164e43e16ade8",
   "committed_sqlite_header_ok": true,
   "committed_sqlite_provider_row_counts": {
     "api-football": 17,
