@@ -1,3 +1,4 @@
+import pytest
 from bet.enrichment.football_data_foundation.source_bound_shadow.contracts import NormalizedFact
 from bet.enrichment.football_data_foundation.source_bound_shadow.fuser import fuse_match_snapshot
 
@@ -22,6 +23,12 @@ def test_fuser_builds_snapshot_with_five_provider_ids():
         make_dummy_fact("espn-baseline", "provider_mapping", "espn-baseline.provider_match_id", "760454", "760454"),
         make_dummy_fact("api-football", "score", "full_time_score", {"home": 3, "away": 2}),
         make_dummy_fact("sportdb", "score", "full_time_score", {"home": 3, "away": 2}),
+        make_dummy_fact("api-football", "fixture_identity", "teams", {"home": "Norway", "away": "Senegal"}),
+        make_dummy_fact("api-football", "match_status", "status", "FINISHED"),
+        make_dummy_fact("api-football", "kickoff", "kickoff_utc", "2026-06-23T00:00:00Z"),
+        make_dummy_fact("api-football", "competition", "competition", "FIFA World Cup"),
+        make_dummy_fact("api-football", "venue", "venue", "MetLife Stadium"),
+        make_dummy_fact("api-football", "referee", "referee", "Wilton Sampaio"),
     ]
     snapshot = fuse_match_snapshot(facts)
     assert snapshot.provider_ids == {
@@ -38,7 +45,28 @@ def test_fuser_detects_conflict_on_inconsistent_score():
     facts = [
         make_dummy_fact("api-football", "score", "full_time_score", {"home": 3, "away": 2}),
         make_dummy_fact("sportdb", "score", "full_time_score", {"home": 1, "away": 1}),
+        make_dummy_fact("api-football", "fixture_identity", "teams", {"home": "Norway", "away": "Senegal"}),
+        make_dummy_fact("api-football", "match_status", "status", "FINISHED"),
+        make_dummy_fact("api-football", "kickoff", "kickoff_utc", "2026-06-23T00:00:00Z"),
+        make_dummy_fact("api-football", "competition", "competition", "FIFA World Cup"),
+        make_dummy_fact("api-football", "venue", "venue", "MetLife Stadium"),
+        make_dummy_fact("api-football", "referee", "referee", "Wilton Sampaio"),
     ]
     snapshot = fuse_match_snapshot(facts)
     assert len(snapshot.conflicts) == 1
     assert snapshot.conflicts[0]["type"] == "score_conflict"
+
+def test_fuser_fails_closed_when_score_facts_missing():
+    facts = [
+        make_dummy_fact("api-football", "fixture_identity", "teams", {"home": "Norway", "away": "Senegal"}),
+    ]
+    with pytest.raises(ValueError, match="No full_time_score facts available"):
+        fuse_match_snapshot(facts)
+
+def test_fuser_fails_closed_when_teams_facts_missing():
+    facts = [
+        make_dummy_fact("api-football", "score", "full_time_score", {"home": 3, "away": 2}),
+    ]
+    with pytest.raises(ValueError, match="No teams facts available"):
+        fuse_match_snapshot(facts)
+

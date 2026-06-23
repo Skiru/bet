@@ -32,11 +32,9 @@ def _provider_ids(facts: List[NormalizedFact]) -> Dict[str, str]:
     return ids
 
 def _score_conflicts(facts: List[NormalizedFact]) -> List[Dict[str, Any]]:
-    # Group score facts by value representation to check for conflicts
     scores: Dict[str, List[NormalizedFact]] = defaultdict(list)
     for fact in facts:
         if fact.fact_type == "score" and fact.key == "full_time_score":
-            # Normalize dict value representation for hashing
             val = fact.value
             if isinstance(val, dict):
                 norm_str = f"{val.get('home')}-{val.get('away')}"
@@ -44,7 +42,6 @@ def _score_conflicts(facts: List[NormalizedFact]) -> List[Dict[str, Any]]:
     if len(scores) <= 1:
         return []
     
-    # Conflict found
     conflict_dict = {}
     for norm_str, fact_list in scores.items():
         conflict_dict[norm_str] = sorted(list(set(f.source for f in fact_list)))
@@ -55,7 +52,7 @@ def _score_conflicts(facts: List[NormalizedFact]) -> List[Dict[str, Any]]:
     }]
 
 def get_provider_fact_counts(facts: List[NormalizedFact]) -> Dict[str, int]:
-    counts: Dict[str, int] = {
+    counts = {
         "api-football": 0,
         "sportdb": 0,
         "highlightly": 0,
@@ -68,13 +65,11 @@ def get_provider_fact_counts(facts: List[NormalizedFact]) -> Dict[str, int]:
     return counts
 
 def get_normalization_diagnostics(facts: List[NormalizedFact]) -> Dict[str, Any]:
-    # We want to identify missing optional fields for each provider
-    # By analyzing the facts that are present vs expected
     expected_fields = {
-        "api-football": ["teams", "full_time_score", "status", "kickoff_utc", "venue", "events", "lineups"],
+        "api-football": ["teams", "full_time_score", "status", "kickoff_utc", "venue", "event_summary", "lineup_summary"],
         "football-data-org": ["teams", "full_time_score", "status", "kickoff_utc", "stage", "group", "referee", "competition"],
-        "sportdb": ["teams", "full_time_score", "referee", "venue", "events", "statistics", "lineups", "odds_reference_available"],
-        "highlightly": ["teams", "full_time_score", "status", "venue", "statistics", "lineups", "events"],
+        "sportdb": ["teams", "full_time_score", "referee", "venue", "event_summary", "statistics_summary", "lineup_summary", "odds_reference_available"],
+        "highlightly": ["teams", "full_time_score", "status", "venue", "statistics_summary", "lineup_summary", "event_summary"],
         "espn-baseline": ["teams", "full_time_score", "status", "kickoff_utc"]
     }
 
@@ -98,28 +93,47 @@ def get_normalization_diagnostics(facts: List[NormalizedFact]) -> Dict[str, Any]
 
 def fuse_match_snapshot(facts: List[NormalizedFact]) -> NormalizedMatchSnapshot:
     score_fact = _best_fact(facts, "score", "full_time_score")
+    if not score_fact:
+        raise ValueError("No full_time_score facts available; do not use hardcoded fallback values")
+
     teams_fact = _best_fact(facts, "fixture_identity", "teams")
+    if not teams_fact:
+        raise ValueError("No teams facts available; do not use hardcoded fallback values")
+
     status_fact = _best_fact(facts, "match_status", "status")
+    if not status_fact:
+        raise ValueError("No status facts available; do not use hardcoded fallback values")
+
     kickoff_fact = _best_fact(facts, "kickoff", "kickoff_utc")
+    if not kickoff_fact:
+        raise ValueError("No kickoff_utc facts available; do not use hardcoded fallback values")
+
     comp_fact = _best_fact(facts, "competition", "competition")
+    if not comp_fact:
+        raise ValueError("No competition facts available; do not use hardcoded fallback values")
+
     venue_fact = _best_fact(facts, "venue", "venue")
+    if not venue_fact:
+        raise ValueError("No venue facts available; do not use hardcoded fallback values")
+
     referee_fact = _best_fact(facts, "referee", "referee")
+    if not referee_fact:
+        raise ValueError("No referee facts available; do not use hardcoded fallback values")
 
     fixture_slug = "worldcup2026-norway-senegal"
-
     provider_ids = _provider_ids(facts)
     conflicts = _score_conflicts(facts)
 
     return NormalizedMatchSnapshot(
         fixture_slug=fixture_slug,
         provider_ids=provider_ids,
-        teams=teams_fact.value if teams_fact else {"home": "Norway", "away": "Senegal"},
-        status=status_fact.value if status_fact else "FINISHED",
-        score=score_fact.value if score_fact else {"home": None, "away": None},
-        kickoff_utc=kickoff_fact.value if kickoff_fact else "2026-06-23T00:00:00Z",
-        competition=comp_fact.value if comp_fact else "FIFA World Cup 2026",
-        venue=venue_fact.value if venue_fact else "MetLife Stadium",
-        referee=referee_fact.value if referee_fact else "Wilton Sampaio",
+        teams=teams_fact.value,
+        status=status_fact.value,
+        score=score_fact.value,
+        kickoff_utc=kickoff_fact.value,
+        competition=comp_fact.value,
+        venue=venue_fact.value,
+        referee=referee_fact.value,
         facts=facts,
         conflicts=conflicts,
         source_priority=SOURCE_PRIORITY,

@@ -1,8 +1,8 @@
 import ast
 import socket
-import urllib.request
 import pytest
 from pathlib import Path
+from bet.enrichment.football_data_foundation.source_bound_shadow.runner import run_source_bound_shadow_enrichment
 
 def test_guardrail_forbids_live_network_usage():
     # Attempt to block socket connections during execution of this test block
@@ -12,10 +12,13 @@ def test_guardrail_forbids_live_network_usage():
         
     socket.socket = forbidden_socket
     try:
-        # If any socket is created, it will fail
-        # This proves the guardrail works
-        with pytest.raises(RuntimeError, match="Live network socket usage detected"):
-            socket.socket()
+        # Run the real runner under socket block! (REQ-TEST-022)
+        result = run_source_bound_shadow_enrichment(
+            project_root=Path("."),
+            output_root=Path("reports/football_data_foundation/source_bound_shadow/worldcup2026_norway_senegal_test"),
+            fixture_slug="worldcup2026-norway-senegal",
+        )
+        assert result["verdict"] == "PASS"
     finally:
         socket.socket = original_socket
 
@@ -26,17 +29,27 @@ def test_changed_files_ast_parseable_and_multiline():
     
     for f in files:
         content = f.read_text(encoding="utf-8")
-        # Assert ast-parseable
+        # Assert ast-parseable (REQ-REVIEW-003)
         tree = ast.parse(content)
         assert tree is not None
         
-        # Assert no CR bytes
-        assert "\r" not in content
+        # Assert no CR bytes (REQ-REVIEW-002)
+        assert b"\r" not in f.read_bytes()
         
-        # Assert line count >= 20 (unless __init__.py)
-        lines = content.splitlines()
+        # Assert line count >= 40 (unless __init__.py) (REQ-REVIEW-004)
+        lines = content.split("\n")
         if f.name != "__init__.py":
-            assert len(lines) >= 20, f"File {f.name} has only {len(lines)} lines, must be >= 20"
+            assert len(lines) >= 40, f"File {f.name} has only {len(lines)} lines, must be >= 40"
             
-        # Assert no from __future__ import annotations
+        # Assert no from __future__ import annotations (REQ-REVIEW-006)
         assert "from __future__ import annotations" not in content, f"File {f.name} contains forbidden import annotations"
+        assert "from future import annotations" not in content, f"File {f.name} contains forbidden import annotations"
+
+        # Assert no line-ending proof comments (REQ-REVIEW-007)
+        for idx, line in enumerate(lines, 1):
+            if "#" in line:
+                comment = line.split("#", 1)[1].lower()
+                assert "line ending" not in comment, f"Forbidden line-ending comment in {f.name}:{idx}"
+                assert "lf only" not in comment, f"Forbidden line-ending comment in {f.name}:{idx}"
+                assert "line-ending" not in comment, f"Forbidden line-ending comment in {f.name}:{idx}"
+

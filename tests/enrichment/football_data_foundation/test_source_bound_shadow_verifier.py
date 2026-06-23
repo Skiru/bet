@@ -27,12 +27,12 @@ def _valid_bundle_data() -> dict:
         "facts": [
             {"source": "sportdb", "source_role": "source_bound_flashscore_replay", "fact_type": "fixture_identity", "key": "fixture_slug", "value": "x", "body_sha256": "sha", "source_file": "file"},
             {"source": "highlightly", "source_role": "source_bound_detailed_replay", "fact_type": "fixture_identity", "key": "fixture_slug", "value": "x", "body_sha256": "sha", "source_file": "file"},
-            {"source": "api-football", "source_role": "primary_detailed_replay", "fact_type": "match_event", "key": "events", "value": "x", "body_sha256": "sha", "source_file": "file"},
-            {"source": "football-data-org", "source_role": "current_reference_replay", "fact_type": "score", "key": "full_time_score", "value": "x", "body_sha256": "sha", "source_file": "file"},
+            {"source": "api-football", "source_role": "primary_detailed_replay", "fact_type": "match_event_summary", "key": "event_summary", "value": {"event_count": 10, "goals": [], "cards_count": 0, "substitutions_count": 0, "provider_event_categories": []}, "body_sha256": "sha", "source_file": "file"},
+            {"source": "football-data-org", "source_role": "current_reference_replay", "fact_type": "score", "key": "full_time_score", "value": {"home": 3, "away": 2}, "body_sha256": "sha", "source_file": "file"},
             {"source": "espn-baseline", "source_role": "unofficial_shadow_cross_check", "fact_type": "fixture_identity", "key": "fixture_slug", "value": "x", "body_sha256": "sha", "source_file": "file"},
-            {"source": "sportdb", "source_role": "source_bound_flashscore_replay", "fact_type": "odds_reference", "key": "odds_reference_available", "value": "x", "body_sha256": "sha", "source_file": "file"},
-            {"source": "sportdb", "source_role": "source_bound_flashscore_replay", "fact_type": "match_event", "key": "events", "value": "x", "body_sha256": "sha", "source_file": "file"},
-            {"source": "highlightly", "source_role": "source_bound_detailed_replay", "fact_type": "match_event", "key": "events", "value": "x", "body_sha256": "sha", "source_file": "file"}
+            {"source": "sportdb", "source_role": "source_bound_flashscore_replay", "fact_type": "odds_reference", "key": "odds_reference_available", "value": {"odds_reference_available": True, "bookmaker_count": 1, "market_count": 1, "decision_use": "forbidden_reference_only"}, "body_sha256": "sha", "source_file": "file"},
+            {"source": "sportdb", "source_role": "source_bound_flashscore_replay", "fact_type": "match_event_summary", "key": "event_summary", "value": {"event_count": 5, "goals": [], "cards_count": 0, "substitutions_count": 0, "provider_event_categories": []}, "body_sha256": "sha", "source_file": "file"},
+            {"source": "highlightly", "source_role": "source_bound_detailed_replay", "fact_type": "match_event_summary", "key": "event_summary", "value": {"event_count": 8, "goals": [], "cards_count": 0, "substitutions_count": 0, "provider_event_categories": []}, "body_sha256": "sha", "source_file": "file"}
         ],
         "conflicts": [],
         "source_priority": ["api-football", "sportdb", "highlightly", "football-data-org", "espn-baseline"],
@@ -42,8 +42,18 @@ def _valid_bundle_data() -> dict:
     }
 
 def test_verifier_passes_valid_snapshot(tmp_path):
+    # Ensure SQLite exists to pass sqlite content check
+    sqlite_path = tmp_path / "reports/football_data_foundation/source_bound_shadow/db.sqlite"
+    sqlite_path.parent.mkdir(parents=True, exist_ok=True)
+    import sqlite3
+    conn = sqlite3.connect(sqlite_path)
+    conn.execute("CREATE TABLE IF NOT EXISTS test (val TEXT)")
+    conn.execute("INSERT INTO test VALUES ('ok')")
+    conn.commit()
+    conn.close()
+
     json_path = _write_file(tmp_path / "reports/football_data_foundation/source_bound_shadow/valid.json", _valid_bundle_data())
-    res = verify_shadow_bundle(json_path, json_path.parent / "db.sqlite", Path("d"), Path("c"))
+    res = verify_shadow_bundle(json_path, sqlite_path, Path("d"), Path("c"))
     assert res["verdict"] == "PASS"
     assert not res["failed_requirements"]
 
@@ -89,7 +99,6 @@ def test_verifier_fails_betting_decisions(tmp_path):
 
 def test_verifier_fails_fewer_than_five_providers(tmp_path):
     data = _valid_bundle_data()
-    # Remove espn-baseline fact
     data["facts"] = [f for f in data["facts"] if f["source"] != "espn-baseline"]
     json_path = _write_file(tmp_path / "reports/football_data_foundation/source_bound_shadow/few_prov.json", data)
     res = verify_shadow_bundle(json_path, json_path.parent / "db.sqlite", Path("d"), Path("c"))
@@ -98,7 +107,6 @@ def test_verifier_fails_fewer_than_five_providers(tmp_path):
 
 def test_verifier_fails_sportdb_odds_as_betting_decision(tmp_path):
     data = _valid_bundle_data()
-    # Modify sportdb odds fact to contain betting decision text
     for f in data["facts"]:
         if f["source"] == "sportdb" and f["fact_type"] == "odds_reference":
             f["value"] = "recommending a betting tip"
@@ -106,3 +114,20 @@ def test_verifier_fails_sportdb_odds_as_betting_decision(tmp_path):
     res = verify_shadow_bundle(json_path, json_path.parent / "db.sqlite", Path("d"), Path("c"))
     assert res["verdict"] == "FAIL"
     assert "SPORTDB_ODDS_CLASSIFIED_AS_BETTING_DECISION" in res["failed_requirements"]
+
+def test_verifier_fails_raw_like_fact_types(tmp_path):
+    data = _valid_bundle_data()
+    data["facts"].append({"source": "api-football", "source_role": "primary_detailed_replay", "fact_type": "match_event", "key": "events", "value": "raw", "body_sha256": "sha", "source_file": "file"})
+    json_path = _write_file(tmp_path / "reports/football_data_foundation/source_bound_shadow/raw_like.json", data)
+    res = verify_shadow_bundle(json_path, json_path.parent / "db.sqlite", Path("d"), Path("c"))
+    assert res["verdict"] == "FAIL"
+    assert any("RAW_LIKE_FACT_TYPE_PRESENT" in f for f in res["failed_requirements"])
+
+def test_verifier_fails_oversized_fact_value(tmp_path):
+    data = _valid_bundle_data()
+    data["facts"][0]["value"] = "x" * 13000
+    json_path = _write_file(tmp_path / "reports/football_data_foundation/source_bound_shadow/oversized.json", data)
+    res = verify_shadow_bundle(json_path, json_path.parent / "db.sqlite", Path("d"), Path("c"))
+    assert res["verdict"] == "FAIL"
+    assert any("FACT_VALUE_TOO_LARGE" in f for f in res["failed_requirements"])
+

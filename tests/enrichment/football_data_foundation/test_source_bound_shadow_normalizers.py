@@ -26,20 +26,21 @@ def test_normalizers_extract_all_provider_ids_and_details(tmp_path):
     write("sportdb", "match_details.json", {
         "eventId": "xSUJLPV8", "homeName": "Norway", "awayName": "Senegal",
         "referee": "Sampaio W.", "venue": "MetLife Stadium",
-        "events": [{"homeScore": "3", "awayScore": "2"}]
+        "events": [{"homeScore": "3", "awayScore": "2", "type": "goal", "elapsed": 45, "playerName": "Haaland", "teamName": "home"}]
     })
-    write("sportdb", "match_stats.json", [{"stats": []}])
-    write("sportdb", "match_lineups.json", {"lineups": []})
-    write("sportdb", "match_odds.json", [{"bookmakerName": "Midnite"}])
+    write("sportdb", "match_stats.json", [{"type": "Shots on Goal", "value": "5"}])
+    write("sportdb", "match_lineups.json", [{"teamName": "Norway", "formation": "4-3-3", "players": [{"name": "Haaland"}]}])
+    write("sportdb", "match_odds.json", [{"bookmakerName": "Midnite", "odds": [{"name": "1X2"}]}])
     
     # Highlightly files
     write("highlightly", "match_detail.json", {
         "id": 1267481035, "homeTeam": {"name": "Norway"}, "awayTeam": {"name": "Senegal"},
-        "state": {"score": {"current": "3-2"}}
+        "state": {"score": {"current": "3-2"}},
+        "venue": {"name": "MetLife Stadium"}
     })
-    write("highlightly", "statistics.json", {"stats": []})
-    write("highlightly", "lineups.json", {"lineups": []})
-    write("highlightly", "events.json", {"events": []})
+    write("highlightly", "statistics.json", {"Expected Goals": 1.5})
+    write("highlightly", "lineups.json", [{"name": "Norway", "system": "4-3-3", "lineup": [{"name": "Haaland"}]}])
+    write("highlightly", "events.json", [{"type": "Goal", "time": {"elapsed": 45}, "team": {"name": "Norway"}, "player": {"name": "Haaland"}}])
 
     # API-Football
     write("api-football", "fixture.json", {
@@ -47,8 +48,9 @@ def test_normalizers_extract_all_provider_ids_and_details(tmp_path):
             "fixture": {"id": 1489401, "status": {"long": "Finished"}},
             "teams": {"home": {"name": "Norway"}, "away": {"name": "Senegal"}},
             "goals": {"home": 3, "away": 2},
-            "events": [{"type": "Goal"}],
-            "lineups": [{"formation": "4-3-3"}]
+            "events": [{"type": "Goal", "time": {"elapsed": 45}, "team": {"name": "Norway"}, "player": {"name": "Haaland"}}],
+            "lineups": [{"team": {"name": "Norway"}, "formation": "4-3-3", "startXI": [{"player": {"name": "Haaland"}}]}],
+            "statistics": [{"team": {"name": "Norway"}, "statistics": [{"type": "Shots on Goal", "value": "10"}]}]
         }]
     })
 
@@ -95,31 +97,58 @@ def test_normalizers_extract_all_provider_ids_and_details(tmp_path):
     for f in score_facts:
         assert f.value == {"home": 3, "away": 2}
 
-    # REQ-TEST-004 SportDB extracts events/stats/lineups/odds_reference
-    sdb_facts = [f for f in facts if f.source == "sportdb"]
-    assert any(f.fact_type == "match_event" for f in sdb_facts)
-    assert any(f.fact_type == "match_statistic" for f in sdb_facts)
-    assert any(f.fact_type == "lineup" for f in sdb_facts)
-    assert any(f.fact_type == "odds_reference" and f.key == "odds_reference_available" for f in sdb_facts)
+    # REQ-TEST-002: normalizers emit summary fact types, not raw match_event/lineup/match_statistic payload facts
+    for f in facts:
+        assert f.fact_type not in {"match_event", "lineup", "match_statistic"}
 
-    # REQ-TEST-005 Highlightly extracts statistics/lineups/events
-    hl_facts = [f for f in facts if f.source == "highlightly"]
-    assert any(f.fact_type == "match_statistic" for f in hl_facts)
-    assert any(f.fact_type == "lineup" for f in hl_facts)
-    assert any(f.fact_type == "match_event" for f in hl_facts)
+    # REQ-TEST-003: event summary strips raw nested payload keys while preserving useful counts/goals
+    event_summaries = [f for f in facts if f.fact_type == "match_event_summary" and f.key == "event_summary"]
+    assert len(event_summaries) >= 3
+    for f in event_summaries:
+        val = f.value
+        assert "event_count" in val
+        assert "goals" in val
+        assert "cards_count" in val
+        assert "substitutions_count" in val
+        assert "provider_event_categories" in val
+        for g in val["goals"]:
+            assert "minute" in g
+            assert "team" in g
+            assert "player" in g
 
-    # REQ-TEST-006 API-Football extracts detailed facts
-    af_facts = [f for f in facts if f.source == "api-football"]
-    assert any(f.fact_type == "match_event" for f in af_facts)
-    assert any(f.fact_type == "lineup" for f in af_facts)
+    # REQ-TEST-004: lineup summary strips raw player payloads while preserving formations/counts
+    lineup_summaries = [f for f in facts if f.fact_type == "lineup_summary" and f.key == "lineup_summary"]
+    assert len(lineup_summaries) >= 3
+    for f in lineup_summaries:
+        val = f.value
+        assert "teams_with_lineups" in val
+        assert "formations" in val
+        assert "listed_player_count" in val
+        assert "unavailable_suspension_injury_counts" in val
+        # Ensure no raw players list is exposed
+        assert "players" not in val
+        assert "startXI" not in val
 
-    # REQ-TEST-007 football-data.org extracts reference/status/score facts
-    fdo_facts = [f for f in facts if f.source == "football-data-org"]
-    assert any(f.fact_type == "competition" for f in fdo_facts)
-    assert any(f.fact_type == "match_status" for f in fdo_facts)
-    assert any(f.fact_type == "score" for f in fdo_facts)
+    # REQ-TEST-005: statistics summary strips raw stats payload while preserving groups/scalars
+    stat_summaries = [f for f in facts if f.fact_type == "statistics_summary" and f.key == "statistics_summary"]
+    assert len(stat_summaries) >= 3
+    for f in stat_summaries:
+        val = f.value
+        assert "stat_group_count" in val
+        assert "stat_groups" in val
+        assert "selected_numeric_stats" in val
+        # Ensure no raw stats array is exposed
+        assert "stats" not in val
 
-    # REQ-TEST-008 ESPN excludes story/media/article text
+    # REQ-TEST-006: odds are odds_reference only
+    odds_facts = [f for f in facts if f.fact_type == "odds_reference"]
+    assert len(odds_facts) >= 1
+    for f in odds_facts:
+        if f.key == "odds_reference_available":
+            assert f.value["odds_reference_available"] is True
+            assert f.value["decision_use"] == "forbidden_reference_only"
+
+    # REQ-TEST-007: ESPN story/article/media is excluded
     espn_facts = [f for f in facts if f.source == "espn-baseline"]
     for f in espn_facts:
         val_str = str(f.value).lower()
