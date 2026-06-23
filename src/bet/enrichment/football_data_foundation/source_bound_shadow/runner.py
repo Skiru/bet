@@ -237,6 +237,7 @@ def run_source_bound_shadow_enrichment(
         "sqlite_row_count_check": verifier_result.get("sqlite_row_count_check"),
         "committed_test_artifact_check": verifier_result.get("committed_test_artifact_check"),
         "public_raw_reviewability_check": verifier_result.get("public_raw_reviewability_check"),
+        "public_raw_report_format_check": verifier_result.get("public_raw_report_format_check"),
         "committed_blob_sqlite_check": verifier_result.get("committed_blob_sqlite_check"),
         "public_raw_sqlite_check": verifier_result.get("public_raw_sqlite_check"),
     }

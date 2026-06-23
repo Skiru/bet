@@ -1,14 +1,17 @@
 {
+  "artifact_commit_sha": "f6d050fc3e79b6992e355658e64ac034db7856d9",
   "committed_blob_sqlite_check": "pass",
   "committed_test_artifact_check": "PASS",
   "conflicts": [],
   "failed_requirements": [],
+  "final_public_proof_commit_sha": "NONE",
   "fixture_slug_source_check": "PASS",
   "forbidden_payload_check": "PASS",
   "live_network_check": "PASS",
   "network_probe_check": "PASS",
   "odds_reference_check": "PASS",
   "production_activation_check": "PASS",
+  "proof_commit_sha": "NONE",
   "provider_fact_counts": {
     "api-football": 17,
     "espn-baseline": 7,
@@ -24,6 +27,7 @@
     "sportdb": "xSUJLPV8"
   },
   "public_artifact_proof_path": "reports/football_data_foundation/source_bound_shadow/worldcup2026_norway_senegal/public_artifact_proof.json",
+  "public_raw_report_format_check": "pass",
   "public_raw_reviewability_check": "pass",
   "public_raw_sqlite_check": "pass",
   "reviewability_check": "PASS",

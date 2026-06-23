@@ -1,5 +1,6 @@
 {
-  "checked_commit_sha": "668b73d46481515ff7ad0ccde2862a3a025ccfd6",
+  "artifact_commit_sha": "f6d050fc3e79b6992e355658e64ac034db7856d9",
+  "checked_commit_sha": "f6d050fc3e79b6992e355658e64ac034db7856d9",
   "committed_sqlite_header_ok": true,
   "committed_sqlite_provider_row_counts": {
     "api-football": 17,
@@ -21,6 +22,8 @@
     "sqlite_sequence"
   ],
   "failed_requirements": [],
+  "final_public_proof_commit_sha": null,
+  "proof_commit_sha": null,
   "public_raw_report_fetch_status": {
     "public_artifact_proof.json": 200,
     "source_bound_shadow_snapshot.json": 200,
@@ -37,6 +40,13 @@
     "writer.py": 200
   },
   "public_raw_sqlite_header_ok": true,
+  "public_raw_sqlite_provider_row_counts": {
+    "api-football": 17,
+    "espn-baseline": 7,
+    "football-data-org": 11,
+    "highlightly": 14,
+    "sportdb": 27
+  },
   "public_raw_sqlite_size_bytes": 286720,
   "report_file_checks": {
     "public_artifact_proof.json": true,
