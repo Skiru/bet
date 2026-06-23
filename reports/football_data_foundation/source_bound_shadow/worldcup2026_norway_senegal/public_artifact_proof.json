@@ -22,8 +22,8 @@
     "sqlite_sequence"
   ],
   "failed_requirements": [],
-  "final_public_proof_commit_sha": null,
-  "proof_commit_sha": null,
+  "final_public_proof_commit_sha": "66659e8ab300d09cbb0d74e26ca0358c770108b5",
+  "proof_commit_sha": "66659e8ab300d09cbb0d74e26ca0358c770108b5",
   "public_raw_report_fetch_status": {
     "public_artifact_proof.json": 200,
     "source_bound_shadow_snapshot.json": 200,
