@@ -14,31 +14,36 @@ def test_runner_mock_execution(tmp_path):
     mock_sportdb_envelope = MagicMock()
     mock_sportdb_envelope.status = "FETCHED"
     mock_sportdb_envelope.provider = "sportdb"
-    mock_sportdb_envelope.to_dict = lambda: {"status": "FETCHED", "provider": "sportdb", "raw_headers_stored": False, "secrets_stored": False, "selectable_for_production": False}
+    mock_sportdb_envelope.request_purpose = "fixture_detail"
+    mock_sportdb_envelope.to_dict = lambda: {"status": "FETCHED", "provider": "sportdb", "request_purpose": "fixture_detail", "raw_headers_stored": False, "secrets_stored": False, "selectable_for_production": False}
     mock_sportdb_envelope.validate = lambda: None
 
     mock_fdo_envelope = MagicMock()
     mock_fdo_envelope.status = "SKIPPED_CREDENTIALS_MISSING"
     mock_fdo_envelope.provider = "football-data-org"
-    mock_fdo_envelope.to_dict = lambda: {"status": "SKIPPED_CREDENTIALS_MISSING", "provider": "football-data-org", "raw_headers_stored": False, "secrets_stored": False, "selectable_for_production": False}
+    mock_fdo_envelope.request_purpose = "date_range_match_discovery"
+    mock_fdo_envelope.to_dict = lambda: {"status": "SKIPPED_CREDENTIALS_MISSING", "provider": "football-data-org", "request_purpose": "date_range_match_discovery", "raw_headers_stored": False, "secrets_stored": False, "selectable_for_production": False}
     mock_fdo_envelope.validate = lambda: None
 
     mock_hl_envelope = MagicMock()
     mock_hl_envelope.status = "BLOCKED_PROVIDER_MAPPING_MISSING"
     mock_hl_envelope.provider = "highlightly"
-    mock_hl_envelope.to_dict = lambda: {"status": "BLOCKED_PROVIDER_MAPPING_MISSING", "provider": "highlightly", "raw_headers_stored": False, "secrets_stored": False, "selectable_for_production": False}
+    mock_hl_envelope.request_purpose = "fixture_detail"
+    mock_hl_envelope.to_dict = lambda: {"status": "BLOCKED_PROVIDER_MAPPING_MISSING", "provider": "highlightly", "request_purpose": "fixture_detail", "raw_headers_stored": False, "secrets_stored": False, "selectable_for_production": False}
     mock_hl_envelope.validate = lambda: None
 
     mock_af_envelope = MagicMock()
     mock_af_envelope.status = "SKIPPED_CREDENTIALS_MISSING"
     mock_af_envelope.provider = "api-football"
-    mock_af_envelope.to_dict = lambda: {"status": "SKIPPED_CREDENTIALS_MISSING", "provider": "api-football", "raw_headers_stored": False, "secrets_stored": False, "selectable_for_production": False}
+    mock_af_envelope.request_purpose = "date_fixture_discovery"
+    mock_af_envelope.to_dict = lambda: {"status": "SKIPPED_CREDENTIALS_MISSING", "provider": "api-football", "request_purpose": "date_fixture_discovery", "raw_headers_stored": False, "secrets_stored": False, "selectable_for_production": False}
     mock_af_envelope.validate = lambda: None
 
     mock_espn_envelope = MagicMock()
     mock_espn_envelope.status = "BLOCKED_PROVIDER_MAPPING_MISSING"
     mock_espn_envelope.provider = "espn-baseline"
-    mock_espn_envelope.to_dict = lambda: {"status": "BLOCKED_PROVIDER_MAPPING_MISSING", "provider": "espn-baseline", "raw_headers_stored": False, "secrets_stored": False, "selectable_for_production": False}
+    mock_espn_envelope.request_purpose = "fixture_detail"
+    mock_espn_envelope.to_dict = lambda: {"status": "BLOCKED_PROVIDER_MAPPING_MISSING", "provider": "espn-baseline", "request_purpose": "fixture_detail", "raw_headers_stored": False, "secrets_stored": False, "selectable_for_production": False}
     mock_espn_envelope.validate = lambda: None
 
     mock_sportdb = MagicMock(return_value=mock_sportdb_envelope)

@@ -29,7 +29,7 @@ from bet.enrichment.football_data_foundation.live_response_corpus_capture.saniti
 
 def run_live_response_corpus_capture(corpus_root: Path, max_fixtures: int = 3) -> LiveCorpusManifest:
     """
-    REQ-RUNNER-001 Execute the full capture process.
+    Execute the full capture process.
     Discover fixtures, invoke providers, write envelopes and manifest.
     """
     # 1. Setup run_id and run directory
@@ -39,7 +39,6 @@ def run_live_response_corpus_capture(corpus_root: Path, max_fixtures: int = 3) -
     run_dir.mkdir(parents=True, exist_ok=True)
 
     # 2. Load environment variables
-    # Let's find project root. Project root is /Users/mkoziol/projects/bet-multisport-enrichment-v1
     project_root = Path("/Users/mkoziol/projects/bet-multisport-enrichment-v1")
     load_project_dotenv(project_root)
     cred_map = credential_presence_map()
@@ -52,7 +51,6 @@ def run_live_response_corpus_capture(corpus_root: Path, max_fixtures: int = 3) -
 
     # 3. Discover fixtures
     fixtures = discover_canary_fixtures(max_fixtures)
-    # Truncate to max_fixtures if needed
     fixtures = fixtures[:max_fixtures]
 
     write_json(run_dir / "fixtures_discovered.json", fixtures)
@@ -63,6 +61,7 @@ def run_live_response_corpus_capture(corpus_root: Path, max_fixtures: int = 3) -
     skipped_count = 0
     failed_count = 0
     provider_count = 5  # We have 5 providers
+    mapping_candidates = []
 
     for fixture in fixtures:
         slug = fixture["fixture_slug"]
@@ -77,24 +76,53 @@ def run_live_response_corpus_capture(corpus_root: Path, max_fixtures: int = 3) -
         ]
         
         for prov_name, capture_fn, cred in attempts:
-            envelope = capture_fn(fixture, cred)
-            envelope.validate()
-            
-            # Count statuses
-            status = envelope.status
-            if status == CaptureStatus.FETCHED.value:
-                fetched_count += 1
-            elif status in (CaptureStatus.SKIPPED_CREDENTIALS_MISSING.value, CaptureStatus.SKIPPED_PROVIDER_NOT_CONFIGURED.value, CaptureStatus.BLOCKED_PROVIDER_MAPPING_MISSING.value):
-                skipped_count += 1
+            envelopes_or_single = capture_fn(fixture, cred)
+            if isinstance(envelopes_or_single, list):
+                envelopes = envelopes_or_single
             else:
-                failed_count += 1
+                envelopes = [envelopes_or_single]
                 
-            # Write envelope JSON
-            rel_envelope_path = f"{prov_name}/{slug}.json"
-            write_json(run_dir / rel_envelope_path, envelope.to_dict())
-            files_written.append(rel_envelope_path)
+            for envelope in envelopes:
+                envelope.validate()
+                
+                # Count statuses
+                status = envelope.status
+                if status in (CaptureStatus.FETCHED.value, CaptureStatus.DISCOVERY_FETCHED.value):
+                    fetched_count += 1
+                elif status in (
+                    CaptureStatus.SKIPPED_CREDENTIALS_MISSING.value,
+                    CaptureStatus.SKIPPED_PROVIDER_NOT_CONFIGURED.value,
+                    CaptureStatus.BLOCKED_PROVIDER_MAPPING_MISSING.value,
+                    CaptureStatus.BLOCKED_DISCOVERY_ENDPOINT_UNKNOWN.value,
+                    CaptureStatus.DISCOVERY_NO_MATCH_FOUND.value,
+                ):
+                    skipped_count += 1
+                else:
+                    failed_count += 1
+                    
+                # Track mapping candidate if found
+                if status == CaptureStatus.DISCOVERY_FETCHED.value and envelope.provider_fixture_id:
+                    mapping_candidates.append({
+                        "provider": envelope.provider,
+                        "fixture_slug": slug,
+                        "provider_fixture_id": envelope.provider_fixture_id,
+                        "discovered_at_utc": envelope.captured_at_utc,
+                    })
+                    
+                # Determine file path
+                if envelope.request_purpose.endswith("discovery") or "discovery" in envelope.request_purpose:
+                    rel_envelope_path = f"{prov_name}/{slug}_discovery.json"
+                else:
+                    rel_envelope_path = f"{prov_name}/{slug}.json"
+                    
+                write_json(run_dir / rel_envelope_path, envelope.to_dict())
+                files_written.append(rel_envelope_path)
 
-    # 5. Build and write manifest
+    # 5. Write mapping candidates
+    write_json(run_dir / "mapping_candidate.json", mapping_candidates)
+    files_written.append("mapping_candidate.json")
+
+    # 6. Build and write manifest
     manifest = LiveCorpusManifest(
         run_id=run_id,
         run_started_at_utc=now_utc.isoformat() + "Z",
@@ -113,7 +141,7 @@ def run_live_response_corpus_capture(corpus_root: Path, max_fixtures: int = 3) -
     write_json(run_dir / "manifest.json", manifest.to_dict())
     files_written.append("manifest.json")
 
-    # 6. Write README.md
+    # 7. Write README.md
     readme_path = run_dir / "README.md"
     readme_content = f"""# Live Response Corpus Run: {run_id}
 

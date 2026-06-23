@@ -13,8 +13,11 @@ class Provider(str, Enum):
 
 class CaptureStatus(str, Enum):
     FETCHED = "FETCHED"
+    DISCOVERY_FETCHED = "DISCOVERY_FETCHED"
+    DISCOVERY_NO_MATCH_FOUND = "DISCOVERY_NO_MATCH_FOUND"
     SKIPPED_CREDENTIALS_MISSING = "SKIPPED_CREDENTIALS_MISSING"
     SKIPPED_PROVIDER_NOT_CONFIGURED = "SKIPPED_PROVIDER_NOT_CONFIGURED"
+    BLOCKED_DISCOVERY_ENDPOINT_UNKNOWN = "BLOCKED_DISCOVERY_ENDPOINT_UNKNOWN"
     BLOCKED_PROVIDER_MAPPING_MISSING = "BLOCKED_PROVIDER_MAPPING_MISSING"
     BLOCKED_OFFICIAL_CONTEXT_UNAVAILABLE = "BLOCKED_OFFICIAL_CONTEXT_UNAVAILABLE"
     FAILED_HTTP = "FAILED_HTTP"
@@ -29,6 +32,11 @@ class ProviderResponseEnvelope:
     fixture_slug: str
     source_url: str | None
     captured_at_utc: str
+    request_purpose: str = "fixture_detail"
+    request_attempted: bool = True
+    network_used: bool = True
+    provider_fixture_id: str | None = None
+    provider_mapping_status: str = "UNKNOWN"
     status_code: int | None = None
     body: Any = None
     body_sha256: str | None = None
@@ -52,6 +60,11 @@ class ProviderResponseEnvelope:
             "fixture_slug": self.fixture_slug,
             "source_url": self.source_url,
             "captured_at_utc": self.captured_at_utc,
+            "request_purpose": self.request_purpose,
+            "request_attempted": self.request_attempted,
+            "network_used": self.network_used,
+            "provider_fixture_id": self.provider_fixture_id,
+            "provider_mapping_status": self.provider_mapping_status,
             "status_code": self.status_code,
             "body": self.body,
             "body_sha256": self.body_sha256,

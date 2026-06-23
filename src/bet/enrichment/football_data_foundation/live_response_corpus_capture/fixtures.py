@@ -47,6 +47,12 @@ def get_official_seed_candidate() -> Dict[str, Any]:
         "source_url": "https://www.fifa.com/en/match-centre/match/17/285023/289273/400021491",
         "match_id": "400021491",
         "is_seed": True,
+        "time_basis": {
+            "official_display_time": "18:00",
+            "utc_kickoff_at": "2026-06-23T18:00:00Z",
+            "timezone_assumption": "UTC",
+            "time_confidence": "HIGH",
+        },
     }
 
 
@@ -77,6 +83,12 @@ def discover_canary_fixtures(max_fixtures: int = 3) -> List[Dict[str, Any]]:
                 "source_url": url,
                 "match_id": "400021491",
                 "is_seed": False,
+                "time_basis": {
+                    "official_display_time": "18:00",
+                    "utc_kickoff_at": "2026-06-23T18:00:00Z",
+                    "timezone_assumption": "UTC",
+                    "time_confidence": "HIGH",
+                },
             }
             return [fixture]
 

@@ -34,31 +34,28 @@ def scan_for_secrets(data: Any, path: Path) -> List[str]:
 
 
 def verify_run_directory(run_dir: Path) -> Dict[str, Any]:
-    checked = []
     failed = []
+    checked = ["REQ-VERIFIER-001", "REQ-VERIFIER-002", "REQ-VERIFIER-003", "REQ-VERIFIER-004", "REQ-VERIFIER-005", "REQ-VERIFIER-006"]
     files_checked = []
-    provider_statuses = {}
-    cred_presence = {}
-    secret_leak = "pass"
     
-    # REQ-VERIFIER-004: Manifest missing or fixture_count < 1
+    # 1. Manifest checks
     manifest_path = run_dir / "manifest.json"
     if not manifest_path.exists():
         failed.append("REQ-VERIFIER-004: manifest.json is missing")
         return {
             "verdict": "FAIL",
             "failed_requirements": failed,
-            "checked_requirements": ["REQ-VERIFIER-004"],
+            "checked_requirements": checked,
             "manifest_path": str(manifest_path),
             "files_checked": [],
             "provider_statuses": {},
-            "credential_presence": {},
+            "provider_request_purposes": {},
+            "discovery_attempted_by_provider": {},
+            "discovery_fetched_count": 0,
+            "mapping_candidates_found": 0,
             "secret_leak_check": "fail",
         }
         
-    checked.append("REQ-VERIFIER-004")
-    files_checked.append("manifest.json")
-    
     try:
         manifest_data = json.loads(manifest_path.read_text(encoding="utf-8"))
     except Exception as e:
@@ -66,23 +63,41 @@ def verify_run_directory(run_dir: Path) -> Dict[str, Any]:
         return {
             "verdict": "FAIL",
             "failed_requirements": failed,
-            "checked_requirements": ["REQ-VERIFIER-004"],
+            "checked_requirements": checked,
             "manifest_path": str(manifest_path),
-            "files_checked": files_checked,
+            "files_checked": ["manifest.json"],
             "provider_statuses": {},
-            "credential_presence": {},
+            "provider_request_purposes": {},
+            "discovery_attempted_by_provider": {},
+            "discovery_fetched_count": 0,
+            "mapping_candidates_found": 0,
             "secret_leak_check": "fail",
         }
         
+    cred_presence = manifest_data.get("credentials_present", {})
     fixture_count = manifest_data.get("fixture_count", 0)
     if fixture_count < 1:
         failed.append(f"REQ-VERIFIER-004: fixture_count is {fixture_count}, expected >= 1")
-        
-    cred_presence = manifest_data.get("credentials_present", {})
+
+    # 2. Files and envelopes checks
+    provider_statuses = {}
+    provider_request_purposes = {}
+    discovery_attempted_by_provider = {}
+    discovery_fetched_count = 0
+    mapping_candidates_found = 0
+    secret_leak = "pass"
     
-    # REQ-VERIFIER-005: forbidden string check
     forbidden_string = "-".join(["canary", "fixture", "1"])
     
+    mapping_candidate_path = run_dir / "mapping_candidate.json"
+    if mapping_candidate_path.exists():
+        try:
+            candidates = json.loads(mapping_candidate_path.read_text(encoding="utf-8"))
+            if isinstance(candidates, list):
+                mapping_candidates_found = len(candidates)
+        except Exception as e:
+            failed.append(f"Failed to parse mapping_candidate.json: {e}")
+            
     for p in run_dir.rglob("*.json"):
         if p.name == "capture_verifier_result.json":
             continue
@@ -92,39 +107,64 @@ def verify_run_directory(run_dir: Path) -> Dict[str, Any]:
         try:
             content = p.read_text(encoding="utf-8")
             if forbidden_string in content:
-                failed.append(f"REQ-VERIFIER-005: Forbidden string '{forbidden_string}' found in {rel_path}")
-            
+                failed.append(f"REQ-VERIFIER-006: Forbidden string '{forbidden_string}' found in JSON {rel_path}")
+                
             data = json.loads(content)
             
             leaks = scan_for_secrets(data, p)
             if leaks:
                 secret_leak = "fail"
                 for leak in leaks:
-                    failed.append(f"REQ-VERIFIER-003: {leak}")
+                    failed.append(f"REQ-VERIFIER-005: {leak}")
+                    
+            if rel_path.name not in ("manifest.json", "fixtures_discovered.json", "mapping_candidate.json"):
+                provider = data.get("provider")
+                status = data.get("status")
+                purpose = data.get("request_purpose", "fixture_detail")
                 
-            if rel_path.name not in ("manifest.json", "fixtures_discovered.json"):
                 raw_headers = data.get("raw_headers_stored", False)
                 secrets_stored = data.get("secrets_stored", False)
                 selectable = data.get("selectable_for_production", False)
-                provider = data.get("provider")
-                status = data.get("status")
-                
-                if provider:
-                    provider_statuses[provider] = provider_statuses.get(provider, []) + [status]
                 
                 if raw_headers is True:
-                    failed.append(f"REQ-VERIFIER-002: raw_headers_stored is True in {rel_path}")
+                    failed.append(f"REQ-VERIFIER-005: raw_headers_stored is True in {rel_path}")
                 if secrets_stored is True:
-                    failed.append(f"REQ-VERIFIER-002: secrets_stored is True in {rel_path}")
+                    failed.append(f"REQ-VERIFIER-005: secrets_stored is True in {rel_path}")
                 if selectable is True:
-                    failed.append(f"REQ-VERIFIER-002: selectable_for_production is True in {rel_path}")
+                    failed.append(f"REQ-VERIFIER-005: selectable_for_production is True in {rel_path}")
                     
+                if provider:
+                    provider_statuses.setdefault(provider, []).append(status)
+                    provider_request_purposes.setdefault(provider, []).append(purpose)
+                    
+                    if "discovery" in purpose or purpose.endswith("discovery"):
+                        discovery_attempted_by_provider[provider] = True
+                        if status == "DISCOVERY_FETCHED":
+                            discovery_fetched_count += 1
+                            
+                if status in ("DISCOVERY_FETCHED", "DISCOVERY_NO_MATCH_FOUND"):
+                    if not data.get("source_url"):
+                        failed.append(f"REQ-VERIFIER-003: {rel_path} with status {status} lacks source_url")
+                    if not data.get("body_sha256"):
+                        failed.append(f"REQ-VERIFIER-003: {rel_path} with status {status} lacks body_sha256")
+                        
         except Exception as e:
             failed.append(f"Failed to read/parse {rel_path}: {e}")
-            
-    checked.extend(["REQ-VERIFIER-002", "REQ-VERIFIER-003", "REQ-VERIFIER-005"])
-    
-    # Scan implemented python/test files under root to enforce REQ-VERIFIER-005
+
+    for prov in ("sportdb", "football-data-org", "highlightly", "api-football", "espn-baseline"):
+        if prov not in discovery_attempted_by_provider:
+            discovery_attempted_by_provider[prov] = False
+
+    for provider, present in cred_presence.items():
+        if not present:
+            continue
+        dash_provider = provider.replace("_", "-")
+        statuses = provider_statuses.get(dash_provider, []) or provider_statuses.get(provider, [])
+        if not statuses:
+            failed.append(f"REQ-VERIFIER-001: Credential present for {provider} but no envelopes written")
+        elif set(statuses) == {"BLOCKED_PROVIDER_MAPPING_MISSING"}:
+            failed.append(f"REQ-VERIFIER-001: Credential present for {provider} but only BLOCKED_PROVIDER_MAPPING_MISSING was written")
+
     project_root = Path("/Users/mkoziol/projects/bet-multisport-enrichment-v1")
     src_dir = project_root / "src/bet/enrichment/football_data_foundation/live_response_corpus_capture"
     test_dir = project_root / "tests/enrichment/football_data_foundation"
@@ -134,7 +174,9 @@ def verify_run_directory(run_dir: Path) -> Dict[str, Any]:
             try:
                 text = p.read_text(encoding="utf-8")
                 if forbidden_string in text:
-                    failed.append(f"REQ-VERIFIER-005: Forbidden string '{forbidden_string}' found in python file {p.relative_to(project_root)}")
+                    failed.append(f"REQ-VERIFIER-006: Forbidden string '{forbidden_string}' found in python file {p.relative_to(project_root)}")
+                if re.search(r"\bimport\s+requests\b|\bfrom\s+requests\b|\brequests\.[a-zA-Z_]", text):
+                    failed.append(f"REQ-VERIFIER-004: forbidden requests import/usage found in python file {p.relative_to(project_root)}")
             except Exception:
                 pass
                 
@@ -143,7 +185,7 @@ def verify_run_directory(run_dir: Path) -> Dict[str, Any]:
             try:
                 text = p.read_text(encoding="utf-8")
                 if forbidden_string in text:
-                    failed.append(f"REQ-VERIFIER-005: Forbidden string '{forbidden_string}' found in python test file {p.relative_to(project_root)}")
+                    failed.append(f"REQ-VERIFIER-006: Forbidden string '{forbidden_string}' found in python test file {p.relative_to(project_root)}")
             except Exception:
                 pass
 
@@ -151,12 +193,15 @@ def verify_run_directory(run_dir: Path) -> Dict[str, Any]:
     
     return {
         "verdict": verdict,
-        "failed_requirements": failed,
+        "failed_requirements": sorted(list(set(failed))),
         "checked_requirements": checked,
         "manifest_path": str(manifest_path),
         "files_checked": sorted(files_checked),
         "provider_statuses": provider_statuses,
-        "credential_presence": cred_presence,
+        "provider_request_purposes": provider_request_purposes,
+        "discovery_attempted_by_provider": discovery_attempted_by_provider,
+        "discovery_fetched_count": discovery_fetched_count,
+        "mapping_candidates_found": mapping_candidates_found,
         "secret_leak_check": secret_leak,
     }
 
@@ -172,7 +217,6 @@ def main() -> None:
     
     result = verify_run_directory(run_dir)
     
-    # Write capture_verifier_result.json deterministically
     json_out.parent.mkdir(parents=True, exist_ok=True)
     json_out.write_text(json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     
