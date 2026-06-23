@@ -1,6 +1,6 @@
 import pytest
 from bet.enrichment.football_data_foundation.source_bound_shadow.contracts import NormalizedFact
-from bet.enrichment.football_data_foundation.source_bound_shadow.fuser import fuse_match_snapshot
+from bet.enrichment.football_data_foundation.source_bound_shadow.fuser import fuse_match_snapshot, fuse_snapshot
 
 def make_dummy_fact(source: str, fact_type: str, key: str, value: object, provider_match_id: str = None) -> NormalizedFact:
     return NormalizedFact(
@@ -30,7 +30,7 @@ def test_fuser_builds_snapshot_with_five_provider_ids():
         make_dummy_fact("api-football", "venue", "venue", "MetLife Stadium"),
         make_dummy_fact("api-football", "referee", "referee", "Wilton Sampaio"),
     ]
-    snapshot = fuse_match_snapshot(facts)
+    snapshot = fuse_match_snapshot(facts, "worldcup2026-norway-senegal")
     assert snapshot.provider_ids == {
         "api-football": "1489401",
         "sportdb": "xSUJLPV8",
@@ -52,7 +52,7 @@ def test_fuser_detects_conflict_on_inconsistent_score():
         make_dummy_fact("api-football", "venue", "venue", "MetLife Stadium"),
         make_dummy_fact("api-football", "referee", "referee", "Wilton Sampaio"),
     ]
-    snapshot = fuse_match_snapshot(facts)
+    snapshot = fuse_match_snapshot(facts, "worldcup2026-norway-senegal")
     assert len(snapshot.conflicts) == 1
     assert snapshot.conflicts[0]["type"] == "score_conflict"
 
@@ -61,12 +61,25 @@ def test_fuser_fails_closed_when_score_facts_missing():
         make_dummy_fact("api-football", "fixture_identity", "teams", {"home": "Norway", "away": "Senegal"}),
     ]
     with pytest.raises(ValueError, match="No full_time_score facts available"):
-        fuse_match_snapshot(facts)
+        fuse_match_snapshot(facts, "worldcup2026-norway-senegal")
 
 def test_fuser_fails_closed_when_teams_facts_missing():
     facts = [
         make_dummy_fact("api-football", "score", "full_time_score", {"home": 3, "away": 2}),
     ]
     with pytest.raises(ValueError, match="No teams facts available"):
-        fuse_match_snapshot(facts)
+        fuse_match_snapshot(facts, "worldcup2026-norway-senegal")
 
+def test_fuser_uses_input_fixture_slug():
+    facts = [
+        make_dummy_fact("api-football", "provider_mapping", "api-football.provider_match_id", "1489401", "1489401"),
+        make_dummy_fact("api-football", "score", "full_time_score", {"home": 3, "away": 2}),
+        make_dummy_fact("api-football", "fixture_identity", "teams", {"home": "Norway", "away": "Senegal"}),
+        make_dummy_fact("api-football", "match_status", "status", "FINISHED"),
+        make_dummy_fact("api-football", "kickoff", "kickoff_utc", "2026-06-23T00:00:00Z"),
+        make_dummy_fact("api-football", "competition", "competition", "FIFA World Cup"),
+        make_dummy_fact("api-football", "venue", "venue", "MetLife Stadium"),
+        make_dummy_fact("api-football", "referee", "referee", "Wilton Sampaio"),
+    ]
+    snapshot = fuse_snapshot("custom-fixture-slug", facts)
+    assert snapshot.fixture_slug == "custom-fixture-slug"

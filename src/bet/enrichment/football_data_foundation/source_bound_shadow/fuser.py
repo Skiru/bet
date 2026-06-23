@@ -91,7 +91,7 @@ def get_normalization_diagnostics(facts: List[NormalizedFact]) -> Dict[str, Any]
         }
     return diagnostics
 
-def fuse_match_snapshot(facts: List[NormalizedFact]) -> NormalizedMatchSnapshot:
+def fuse_match_snapshot(facts: List[NormalizedFact], fixture_slug: str) -> NormalizedMatchSnapshot:
     score_fact = _best_fact(facts, "score", "full_time_score")
     if not score_fact:
         raise ValueError("No full_time_score facts available; do not use hardcoded fallback values")
@@ -120,7 +120,6 @@ def fuse_match_snapshot(facts: List[NormalizedFact]) -> NormalizedMatchSnapshot:
     if not referee_fact:
         raise ValueError("No referee facts available; do not use hardcoded fallback values")
 
-    fixture_slug = "worldcup2026-norway-senegal"
     provider_ids = _provider_ids(facts)
     conflicts = _score_conflicts(facts)
 
@@ -141,3 +140,6 @@ def fuse_match_snapshot(facts: List[NormalizedFact]) -> NormalizedMatchSnapshot:
         manual_authorization_required=True,
         shadow_status="SHADOW_ENRICHMENT_READY_FOR_MANUAL_REVIEW"
     )
+
+def fuse_snapshot(fixture_slug: str, facts: List[NormalizedFact]) -> NormalizedMatchSnapshot:
+    return fuse_match_snapshot(facts, fixture_slug)

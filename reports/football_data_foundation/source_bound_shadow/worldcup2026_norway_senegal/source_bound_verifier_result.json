@@ -1,8 +1,11 @@
 {
+  "committed_test_artifact_check": "PASS",
   "conflicts": [],
   "failed_requirements": [],
+  "fixture_slug_source_check": "PASS",
   "forbidden_payload_check": "PASS",
   "live_network_check": "PASS",
+  "network_probe_check": "PASS",
   "odds_reference_check": "PASS",
   "production_activation_check": "PASS",
   "provider_fact_counts": {
@@ -28,5 +31,8 @@
   "shadow_status": "SHADOW_ENRICHMENT_READY_FOR_MANUAL_REVIEW",
   "sqlite_artifact_check": "PASS",
   "sqlite_content_check": "PASS",
+  "sqlite_row_count_check": "PASS",
+  "sqlite_table_check": "PASS",
+  "structural_forbidden_content_check": "PASS",
   "verdict": "PASS"
 }

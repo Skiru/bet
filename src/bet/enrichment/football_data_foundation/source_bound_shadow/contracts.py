@@ -47,3 +47,10 @@ class NormalizedMatchSnapshot:
         data = asdict(self)
         data["facts"] = [fact.to_json() for fact in self.facts]
         return data
+
+@dataclass(frozen=True)
+class NetworkProbeResult:
+    runner_executed_under_socket_block: bool
+    network_attempts_detected: int
+    socket_blocking_mode: str
+    output_root: str

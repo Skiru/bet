@@ -11,4 +11,3 @@ Included files:
 - `source_bound_shadow.sqlite`: Isolated report SQLite DB.
 - `normalization_diagnostics.json`: Diagnostics of missing optional fields.
 - `provider_fact_counts.json`: Detailed fact counts per provider.
-- `source_bound_verifier_result.json`: Pass B verifier output.

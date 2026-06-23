@@ -4,23 +4,20 @@ import pytest
 from pathlib import Path
 from bet.enrichment.football_data_foundation.source_bound_shadow.runner import run_source_bound_shadow_enrichment
 
-def test_guardrail_forbids_live_network_usage():
-    # Attempt to block socket connections during execution of this test block
-    original_socket = socket.socket
-    def forbidden_socket(*args, **kwargs):
-        raise RuntimeError("Forbidden: Live network socket usage detected in PASS B enrichment!")
-        
-    socket.socket = forbidden_socket
-    try:
-        # Run the real runner under socket block! (REQ-TEST-022)
+def test_guardrail_forbids_live_network_usage(tmp_path):
+    from bet.enrichment.football_data_foundation.source_bound_shadow.runner import socket_block_context
+    with socket_block_context() as attempts:
         result = run_source_bound_shadow_enrichment(
             project_root=Path("."),
-            output_root=Path("reports/football_data_foundation/source_bound_shadow/worldcup2026_norway_senegal_test"),
+            output_root=tmp_path / "reports/football_data_foundation/source_bound_shadow/worldcup2026_norway_senegal_test",
             fixture_slug="worldcup2026-norway-senegal",
         )
         assert result["verdict"] == "PASS"
-    finally:
-        socket.socket = original_socket
+        assert result["network_probe_check"] == "PASS"
+        
+        # Verify no committed test reports were written to the standard workspace path
+        workspace_test_report = Path("reports/football_data_foundation/source_bound_shadow/worldcup2026_norway_senegal_test")
+        assert not workspace_test_report.exists()
 
 def test_changed_files_ast_parseable_and_multiline():
     src_dir = Path("src/bet/enrichment/football_data_foundation/source_bound_shadow")
@@ -52,4 +49,3 @@ def test_changed_files_ast_parseable_and_multiline():
                 assert "line ending" not in comment, f"Forbidden line-ending comment in {f.name}:{idx}"
                 assert "lf only" not in comment, f"Forbidden line-ending comment in {f.name}:{idx}"
                 assert "line-ending" not in comment, f"Forbidden line-ending comment in {f.name}:{idx}"
-
