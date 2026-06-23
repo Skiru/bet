@@ -54,3 +54,31 @@ class NetworkProbeResult:
     network_attempts_detected: int
     socket_blocking_mode: str
     output_root: str
+
+@dataclass(frozen=True)
+class PublicRawResult:
+    path: str
+    line_count: int
+    max_line_length: int
+    ast_parse_ok: bool
+    collapsed: bool
+    failures: Tuple[str, ...] = field(default_factory=tuple)
+
+    @property
+    def passed(self) -> bool:
+        return not self.failures
+
+@dataclass(frozen=True)
+class ArtifactBlobResult:
+    path: str
+    size_bytes: int
+    sqlite_header_ok: bool
+    required_tables_present: bool
+    facts_row_count: int
+    provider_count: int
+    provider_row_counts: Dict[str, int] = field(default_factory=dict)
+    failures: Tuple[str, ...] = field(default_factory=tuple)
+
+    @property
+    def passed(self) -> bool:
+        return not self.failures

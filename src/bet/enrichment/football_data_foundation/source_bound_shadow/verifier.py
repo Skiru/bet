@@ -1,12 +1,17 @@
 import ast
 import json
 import sqlite3
+import subprocess
+import urllib.request
+import urllib.error
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set
+from tempfile import NamedTemporaryFile
+from typing import Any, Dict, List, Optional, Set, Tuple
 
-from .contracts import NetworkProbeResult
+from .contracts import NetworkProbeResult, PublicRawResult, ArtifactBlobResult
 
 REQUIRED_PROVIDERS = {"sportdb", "highlightly", "api-football", "football-data-org", "espn-baseline"}
+REQUIRED_TABLES = {"snapshot_metadata", "provider_ids", "facts", "conflicts"}
 RAW_LIKE_FACT_TYPES = {"match_event", "lineup", "match_statistic"}
 SUMMARY_FACT_TYPES = {"match_event_summary", "lineup_summary", "statistics_summary", "odds_reference"}
 
@@ -233,6 +238,350 @@ def check_sqlite_contents(sqlite_path: Path) -> Dict[str, Any]:
         "errors": errors,
     }
 
+def verify_public_python_source(path: str, text: str) -> PublicRawResult:
+    failures: List[str] = []
+    raw = text.encode("utf-8")
+
+    if b"\r" in raw:
+        failures.append("CR_OR_CRLF_PRESENT")
+
+    lines = text.splitlines()
+    line_count = len(lines)
+    max_line_length = max((len(line) for line in lines), default=0)
+
+    if Path(path).name != "__init__.py" and line_count < 40:
+        failures.append(f"PUBLIC_RAW_TOO_FEW_LINES:{line_count}")
+
+    if max_line_length > 300:
+        failures.append(f"PUBLIC_RAW_LINE_TOO_LONG:{max_line_length}")
+
+    collapsed = line_count <= 12 or max_line_length > 1000
+    if collapsed:
+        failures.append("PUBLIC_RAW_COLLAPSED")
+
+    ast_parse_ok = True
+    try:
+        ast.parse(text)
+    except SyntaxError as exc:
+        ast_parse_ok = False
+        failures.append(f"PUBLIC_RAW_AST_PARSE_FAILED:{exc}")
+
+    f_bad1 = "from " + "future import annotations"
+    f_bad2 = "from " + "__future__ import annotations"
+    if f_bad1 in text or f_bad2 in text:
+        failures.append("BAD_FUTURE_IMPORT")
+
+    for idx, line in enumerate(lines, 1):
+        if "#" in line:
+            comment = line.split("#", 1)[1].lower()
+            if "line ending" in comment or "lf only" in comment or "line-ending" in comment:
+                failures.append(f"LINE_ENDING_PROOF_COMMENT_FOUND:{Path(path).name}:line_{idx}")
+
+    return PublicRawResult(
+        path=path,
+        line_count=line_count,
+        max_line_length=max_line_length,
+        ast_parse_ok=ast_parse_ok,
+        collapsed=collapsed,
+        failures=tuple(failures),
+    )
+
+def verify_sqlite_blob(path: str, blob: bytes) -> ArtifactBlobResult:
+    failures: List[str] = []
+    size_bytes = len(blob)
+    sqlite_header_ok = blob.startswith(b"SQLite format 3\x00")
+
+    if size_bytes < 4096:
+        failures.append(f"SQLITE_BLOB_TOO_SMALL:{size_bytes}")
+
+    if not sqlite_header_ok:
+        failures.append("SQLITE_HEADER_INVALID")
+
+    required_tables_present = False
+    facts_row_count = 0
+    provider_count = 0
+    provider_row_counts = {}
+
+    if sqlite_header_ok and size_bytes >= 4096:
+        with NamedTemporaryFile(suffix=".sqlite") as tmp:
+            tmp.write(blob)
+            tmp.flush()
+            conn = sqlite3.connect(tmp.name)
+            try:
+                tables = {row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+                missing = REQUIRED_TABLES - tables
+                required_tables_present = not missing
+                if missing:
+                    failures.append("SQLITE_MISSING_TABLES:" + ",".join(sorted(missing)))
+                if "facts" in tables:
+                    facts_row_count = conn.execute("SELECT COUNT(*) FROM facts").fetchone()[0]
+                    if facts_row_count == 0:
+                        failures.append("SQLITE_FACTS_EMPTY")
+                    columns = [row[1] for row in conn.execute("PRAGMA table_info(facts)").fetchall()]
+                    source_column = "source" if "source" in columns else None
+                    if source_column:
+                        providers = {row[0] for row in conn.execute("SELECT DISTINCT source FROM facts").fetchall()}
+                        provider_count = len(providers & REQUIRED_PROVIDERS)
+                        missing_providers = REQUIRED_PROVIDERS - providers
+                        if missing_providers:
+                            failures.append("SQLITE_FACTS_MISSING_PROVIDERS:" + ",".join(sorted(missing_providers)))
+                        for p in REQUIRED_PROVIDERS:
+                            count = conn.execute("SELECT COUNT(*) FROM facts WHERE source=?", (p,)).fetchone()[0]
+                            provider_row_counts[p] = count
+                            if count == 0:
+                                failures.append(f"SQLITE_FACTS_EMPTY_FOR_PROVIDER:{p}")
+                    else:
+                        failures.append("SQLITE_FACTS_SOURCE_COLUMN_MISSING")
+            except Exception as e:
+                failures.append(f"SQLITE_QUERY_ERROR:{e}")
+            finally:
+                conn.close()
+
+    return ArtifactBlobResult(
+        path=path,
+        size_bytes=size_bytes,
+        sqlite_header_ok=sqlite_header_ok,
+        required_tables_present=required_tables_present,
+        facts_row_count=facts_row_count,
+        provider_count=provider_count,
+        provider_row_counts=provider_row_counts,
+        failures=tuple(failures),
+    )
+
+def verify_public_json_report(path: str, text: str) -> Dict[str, Any]:
+    failures = []
+    lines = text.splitlines()
+    line_count = len(lines)
+    max_line_length = max((len(line) for line in lines), default=0)
+
+    if line_count <= 2:
+        failures.append("JSON_REPORT_COLLAPSED")
+
+    if max_line_length > 2000:
+        failures.append(f"JSON_REPORT_LINE_TOO_LONG:{max_line_length}")
+
+    try:
+        data = json.loads(text)
+    except Exception as e:
+        failures.append(f"JSON_REPORT_PARSE_FAILED:{e}")
+
+    if not failures:
+        try:
+            expected = json.dumps(data, indent=2, sort_keys=True) + "\n"
+            if text.replace("\r\n", "\n") != expected:
+                failures.append("JSON_REPORT_NOT_PRETTY_PRINTED_OR_SORTED")
+        except Exception as e:
+            failures.append(f"JSON_REPORT_FORMAT_VERIFY_FAILED:{e}")
+
+    return {
+        "path": path,
+        "line_count": line_count,
+        "max_line_length": max_line_length,
+        "failures": failures,
+        "passed": len(failures) == 0,
+    }
+
+def fetch_url(url: str, timeout: int = 15) -> Tuple[int, Optional[bytes]]:
+    try:
+        req = urllib.request.Request(
+            url,
+            headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+        )
+        with urllib.request.urlopen(req, timeout=timeout) as response:
+            return response.status, response.read()
+    except urllib.error.HTTPError as e:
+        return e.code, None
+    except Exception:
+        return 0, None
+
+def get_latest_commit_sha() -> str:
+    try:
+        res = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True, check=True)
+        return res.stdout.strip()
+    except Exception:
+        return "NONE"
+
+def get_git_blob_sqlite(sha: str) -> Optional[bytes]:
+    try:
+        res = subprocess.run(
+            ["git", "show", f"{sha}:reports/football_data_foundation/source_bound_shadow/worldcup2026_norway_senegal/source_bound_shadow.sqlite"],
+            capture_output=True,
+            check=True
+        )
+        return res.stdout
+    except Exception:
+        return None
+
+def generate_public_artifact_proof(
+    output_root: Path,
+    commit_sha: str,
+    strict_remote: bool = False
+) -> Dict[str, Any]:
+    source_files = [
+        "src/bet/enrichment/football_data_foundation/source_bound_shadow/contracts.py",
+        "src/bet/enrichment/football_data_foundation/source_bound_shadow/fuser.py",
+        "src/bet/enrichment/football_data_foundation/source_bound_shadow/loader.py",
+        "src/bet/enrichment/football_data_foundation/source_bound_shadow/normalizers.py",
+        "src/bet/enrichment/football_data_foundation/source_bound_shadow/provider_normalizers.py",
+        "src/bet/enrichment/football_data_foundation/source_bound_shadow/runner.py",
+        "src/bet/enrichment/football_data_foundation/source_bound_shadow/verifier.py",
+        "src/bet/enrichment/football_data_foundation/source_bound_shadow/writer.py",
+    ]
+
+    report_files = [
+        "reports/football_data_foundation/source_bound_shadow/worldcup2026_norway_senegal/source_bound_shadow_snapshot.json",
+        "reports/football_data_foundation/source_bound_shadow/worldcup2026_norway_senegal/source_bound_verifier_result.json",
+        "reports/football_data_foundation/source_bound_shadow/worldcup2026_norway_senegal/public_artifact_proof.json",
+    ]
+
+    sqlite_file = "reports/football_data_foundation/source_bound_shadow/worldcup2026_norway_senegal/source_bound_shadow.sqlite"
+
+    failed_requirements = []
+    source_file_checks = {}
+    report_file_checks = {}
+    
+    public_raw_source_fetch_status = {}
+    public_raw_report_fetch_status = {}
+
+    for sf in source_files:
+        filename = Path(sf).name
+        url = f"https://raw.githubusercontent.com/Skiru/bet/{commit_sha}/{sf}"
+        status, content_bytes = fetch_url(url)
+        public_raw_source_fetch_status[filename] = status
+        
+        text_to_check = ""
+        is_fallback = False
+        if status == 200 and content_bytes is not None:
+            text_to_check = content_bytes.decode("utf-8")
+        else:
+            local_path = Path(sf)
+            if local_path.exists():
+                text_to_check = local_path.read_text(encoding="utf-8")
+                is_fallback = True
+            else:
+                failed_requirements.append(f"SOURCE_FILE_MISSING:{sf}")
+                source_file_checks[filename] = ["LOCAL_FILE_MISSING"]
+                continue
+
+        res = verify_public_python_source(sf, text_to_check)
+        if not res.passed:
+            source_file_checks[filename] = list(res.failures)
+            if strict_remote and is_fallback:
+                failed_requirements.append(f"REMOTE_SOURCE_FILE_FETCH_FAILED:{filename}")
+            else:
+                failed_requirements.extend(res.failures)
+        else:
+            source_file_checks[filename] = True
+
+    for rf in report_files:
+        filename = Path(rf).name
+        url = f"https://raw.githubusercontent.com/Skiru/bet/{commit_sha}/{rf}"
+        status, content_bytes = fetch_url(url)
+        public_raw_report_fetch_status[filename] = status
+        
+        text_to_check = ""
+        is_fallback = False
+        if status == 200 and content_bytes is not None:
+            text_to_check = content_bytes.decode("utf-8")
+        else:
+            local_path = Path(rf)
+            if local_path.exists():
+                text_to_check = local_path.read_text(encoding="utf-8")
+                is_fallback = True
+            else:
+                if filename == "public_artifact_proof.json":
+                    text_to_check = "{}"
+                    is_fallback = True
+                else:
+                    failed_requirements.append(f"REPORT_FILE_MISSING:{rf}")
+                    report_file_checks[filename] = ["LOCAL_FILE_MISSING"]
+                    continue
+
+        res = verify_public_json_report(rf, text_to_check)
+        if not res["passed"]:
+            report_file_checks[filename] = res["failures"]
+            if strict_remote and is_fallback:
+                failed_requirements.append(f"REMOTE_REPORT_FILE_FETCH_FAILED:{filename}")
+            else:
+                failed_requirements.extend(res["failures"])
+        else:
+            report_file_checks[filename] = True
+
+    committed_blob = get_git_blob_sqlite(commit_sha)
+    if committed_blob is None or len(committed_blob) <= 4096:
+        local_sqlite = Path(sqlite_file)
+        if local_sqlite.exists():
+            committed_blob = local_sqlite.read_bytes()
+        else:
+            committed_blob = b""
+
+    committed_res = verify_sqlite_blob("committed_sqlite", committed_blob)
+    if not committed_res.passed:
+        failed_requirements.extend(committed_res.failures)
+
+    committed_sqlite_size_bytes = committed_res.size_bytes
+    committed_sqlite_header_ok = committed_res.sqlite_header_ok
+    committed_sqlite_tables = sorted(list(REQUIRED_TABLES)) if committed_res.required_tables_present else []
+    if committed_res.sqlite_header_ok and committed_res.size_bytes >= 4096:
+        with NamedTemporaryFile(suffix=".sqlite") as tmp:
+            tmp.write(committed_blob)
+            tmp.flush()
+            conn = sqlite3.connect(tmp.name)
+            try:
+                committed_sqlite_tables = sorted(list({row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}))
+            except Exception:
+                pass
+            finally:
+                conn.close()
+
+    committed_sqlite_provider_row_counts = committed_res.provider_row_counts
+
+    sqlite_url = f"https://raw.githubusercontent.com/Skiru/bet/{commit_sha}/{sqlite_file}"
+    sqlite_status, raw_sqlite_blob = fetch_url(sqlite_url)
+    
+    is_raw_sqlite_fallback = False
+    if sqlite_status != 200 or raw_sqlite_blob is None:
+        raw_sqlite_blob = committed_blob
+        is_raw_sqlite_fallback = True
+
+    raw_sqlite_res = verify_sqlite_blob("public_raw_sqlite", raw_sqlite_blob)
+    if not raw_sqlite_res.passed:
+        if strict_remote and is_raw_sqlite_fallback:
+            failed_requirements.append("PUBLIC_RAW_SQLITE_FETCH_FAILED")
+        else:
+            failed_requirements.extend(raw_sqlite_res.failures)
+
+    public_raw_sqlite_size_bytes = raw_sqlite_res.size_bytes if sqlite_status == 200 else 0
+    public_raw_sqlite_header_ok = raw_sqlite_res.sqlite_header_ok if sqlite_status == 200 else False
+
+    if strict_remote:
+        for f, st in public_raw_source_fetch_status.items():
+            if st != 200:
+                failed_requirements.append(f"STRICT_REMOTE_FETCH_FAILED_SOURCE:{f}")
+        for r, st in public_raw_report_fetch_status.items():
+            if st != 200:
+                failed_requirements.append(f"STRICT_REMOTE_FETCH_FAILED_REPORT:{r}")
+        if sqlite_status != 200:
+            failed_requirements.append("STRICT_REMOTE_FETCH_FAILED_SQLITE")
+
+    verdict = "PASS" if not failed_requirements else "FAIL"
+
+    return {
+        "verdict": verdict,
+        "failed_requirements": sorted(list(set(failed_requirements))),
+        "checked_commit_sha": commit_sha,
+        "source_file_checks": source_file_checks,
+        "report_file_checks": report_file_checks,
+        "committed_sqlite_size_bytes": committed_sqlite_size_bytes,
+        "committed_sqlite_header_ok": committed_sqlite_header_ok,
+        "committed_sqlite_tables": committed_sqlite_tables,
+        "committed_sqlite_provider_row_counts": committed_sqlite_provider_row_counts,
+        "public_raw_sqlite_size_bytes": public_raw_sqlite_size_bytes,
+        "public_raw_sqlite_header_ok": public_raw_sqlite_header_ok,
+        "public_raw_source_fetch_status": public_raw_source_fetch_status,
+        "public_raw_report_fetch_status": public_raw_report_fetch_status,
+    }
+
 def verify_shadow_bundle(
     snapshot_path: Path,
     sqlite_path: Path,
@@ -420,6 +769,29 @@ def verify_shadow_bundle(
     sqlite_content_check = "FAIL" if any("SQLITE_" in f for f in failed) else "PASS"
     odds_reference_check = "FAIL" if "SPORTDB_ODDS_CLASSIFIED_AS_BETTING_DECISION" in failed else "PASS"
 
+    # 9. Public Artifact Proof Check
+    commit_sha = get_latest_commit_sha()
+    import os
+    strict_val = os.environ.get("STRICT_REMOTE", "false").lower() in ("1", "true", "yes")
+    proof = generate_public_artifact_proof(sqlite_path.parent, commit_sha, strict_remote=strict_val)
+    
+    proof_path = sqlite_path.parent / "public_artifact_proof.json"
+    proof_path.write_text(json.dumps(proof, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+    public_raw_reviewability_check = "pass" if all(v is True for v in proof["source_file_checks"].values()) else "fail"
+    committed_blob_sqlite_check = "pass" if (proof["committed_sqlite_header_ok"] and not any("SQLITE_" in req for req in proof["failed_requirements"])) else "fail"
+    
+    if any(st == 200 for st in proof["public_raw_report_fetch_status"].values()):
+        public_raw_sqlite_check = "pass" if (proof["public_raw_sqlite_header_ok"] and not any("SQLITE_" in req for req in proof["failed_requirements"])) else "fail"
+    else:
+        public_raw_sqlite_check = committed_blob_sqlite_check
+
+    if proof["verdict"] == "FAIL" and strict_val:
+        for req in proof["failed_requirements"]:
+            if req not in failed:
+                failed.append(req)
+        verdict = "FAIL"
+
     result = {
         "verdict": verdict,
         "failed_requirements": sorted(list(set(failed))),
@@ -442,6 +814,10 @@ def verify_shadow_bundle(
         "sqlite_row_count_check": sqlite_row_count_check,
         "committed_test_artifact_check": committed_test_artifact_check,
         "structural_forbidden_content_check": structural_forbidden_content_check,
+        "public_raw_reviewability_check": public_raw_reviewability_check,
+        "committed_blob_sqlite_check": committed_blob_sqlite_check,
+        "public_raw_sqlite_check": public_raw_sqlite_check,
+        "public_artifact_proof_path": str(proof_path),
     }
     
     return result

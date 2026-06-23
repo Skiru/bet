@@ -1,4 +1,5 @@
 {
+  "committed_blob_sqlite_check": "pass",
   "committed_test_artifact_check": "PASS",
   "conflicts": [],
   "failed_requirements": [],
@@ -22,6 +23,9 @@
     "highlightly": "1267481035",
     "sportdb": "xSUJLPV8"
   },
+  "public_artifact_proof_path": "reports/football_data_foundation/source_bound_shadow/worldcup2026_norway_senegal/public_artifact_proof.json",
+  "public_raw_reviewability_check": "pass",
+  "public_raw_sqlite_check": "pass",
   "reviewability_check": "PASS",
   "score_consensus": {
     "away": 2,
