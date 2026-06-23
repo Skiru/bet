@@ -369,6 +369,80 @@ class SportDBMCPClient:
 
         return result
 
+    def list_tools(self) -> Any:
+        """Execute HTTP POST to list MCP tools."""
+        if not self.api_key:
+            raise SportDBMCPAuthError("SPORTDB_API_KEY is not configured.")
+
+        headers = {
+            "X-API-Key": self.api_key,
+            "Content-Type": "application/json",
+            "Accept": SPORTDB_MCP_ACCEPT,
+            "User-Agent": "bet-sportdb-shadow-adapter/1.0",
+        }
+        if self.session_id:
+            headers["MCP-Session-Id"] = self.session_id
+
+        rpc_id = f"list-{int(time.time() * 1000)}"
+        body = {
+            "jsonrpc": "2.0",
+            "id": rpc_id,
+            "method": "tools/list",
+            "params": {},
+        }
+
+        req = urllib.request.Request(
+            self.endpoint,
+            data=json.dumps(body).encode("utf-8"),
+            headers=headers,
+            method="POST",
+        )
+
+        try:
+            with urllib.request.urlopen(req, timeout=30) as resp:
+                resp_headers = dict(resp.headers.items())
+                content_type = resp_headers.get("Content-Type", "")
+                
+                sess_id = resp_headers.get("MCP-Session-Id") or resp_headers.get("mcp-session-id")
+                if sess_id:
+                    self.session_id = str(sess_id).strip()
+
+                raw_bytes = resp.read()
+                status = resp.status
+        except urllib.error.HTTPError as exc:
+            status = exc.code
+            if status in (401, 403):
+                raise SportDBMCPAuthError(f"Authentication failed with status {status}")
+            elif status == 429:
+                raise SportDBMCPRateLimitError("Rate limit exceeded")
+            elif status == 406:
+                raise SportDBMCPNotAcceptableError("Format not acceptable")
+            elif status >= 500:
+                raise SportDBMCPServerError(f"Server error with status {status}")
+            else:
+                raise SportDBMCPError(f"HTTP error with status {status}")
+        except Exception as exc:
+            raise SportDBMCPError(f"Transport/network failure: {exc}")
+
+        is_sse = "text/event-stream" in content_type.lower()
+        raw_text = raw_bytes.decode("utf-8", errors="replace")
+
+        try:
+            if is_sse:
+                parsed_payload = self._parse_sse_payloads(raw_text)
+                response_mode = "sse"
+            else:
+                parsed_payload = json.loads(raw_text)
+                response_mode = "json"
+        except Exception as exc:
+            raise SportDBMCPParserError(f"Failed to parse response: {exc}")
+
+        primary_payload = self._extract_primary_payload(response_mode, parsed_payload)
+        result_payload = self._extract_tool_result_payload(primary_payload)
+
+        self._record_successful_rpc_call(body["method"], None)
+        return result_payload
+
     def call_tool(self, tool_name: str, arguments: dict[str, Any]) -> Any:
         """Execute HTTP POST to call an MCP tool."""
         if not self.api_key:

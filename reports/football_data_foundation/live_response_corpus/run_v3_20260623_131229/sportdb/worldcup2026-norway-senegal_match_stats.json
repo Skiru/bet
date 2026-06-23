@@ -1,0 +1,718 @@
+{
+  "access_mode": "REST",
+  "body": [
+    {
+      "period": "Match",
+      "stats": [
+        {
+          "awayValue": "1.71",
+          "homeValue": "2.19",
+          "statId": "432",
+          "statName": "Expected goals (xG)"
+        },
+        {
+          "awayValue": "58%",
+          "homeValue": "42%",
+          "statId": "12",
+          "statName": "Ball possession"
+        },
+        {
+          "awayValue": "16",
+          "homeValue": "13",
+          "statId": "34",
+          "statName": "Total shots"
+        },
+        {
+          "awayValue": "4",
+          "homeValue": "7",
+          "statId": "13",
+          "statName": "Shots on target"
+        },
+        {
+          "awayValue": "3",
+          "homeValue": "5",
+          "statId": "459",
+          "statName": "Big chances"
+        },
+        {
+          "awayValue": "4",
+          "homeValue": "5",
+          "statId": "16",
+          "statName": "Corner kicks"
+        },
+        {
+          "awayValue": "88% (430/489)",
+          "homeValue": "80% (282/353)",
+          "statId": "342",
+          "statName": "Passes"
+        },
+        {
+          "awayValue": "1.71",
+          "homeValue": "2.19",
+          "statId": "432",
+          "statName": "Expected goals (xG)"
+        },
+        {
+          "awayValue": "1.35",
+          "homeValue": "1.95",
+          "statId": "499",
+          "statName": "xG on target (xGOT)"
+        },
+        {
+          "awayValue": "16",
+          "homeValue": "13",
+          "statId": "34",
+          "statName": "Total shots"
+        },
+        {
+          "awayValue": "4",
+          "homeValue": "7",
+          "statId": "13",
+          "statName": "Shots on target"
+        },
+        {
+          "awayValue": "7",
+          "homeValue": "3",
+          "statId": "14",
+          "statName": "Shots off target"
+        },
+        {
+          "awayValue": "5",
+          "homeValue": "3",
+          "statId": "158",
+          "statName": "Blocked shots"
+        },
+        {
+          "awayValue": "10",
+          "homeValue": "11",
+          "statId": "461",
+          "statName": "Shots inside the box"
+        },
+        {
+          "awayValue": "6",
+          "homeValue": "2",
+          "statId": "463",
+          "statName": "Shots outside the box"
+        },
+        {
+          "awayValue": "0",
+          "homeValue": "1",
+          "statId": "457",
+          "statName": "Hit the woodwork"
+        },
+        {
+          "awayValue": "3",
+          "homeValue": "5",
+          "statId": "459",
+          "statName": "Big chances"
+        },
+        {
+          "awayValue": "4",
+          "homeValue": "5",
+          "statId": "16",
+          "statName": "Corner kicks"
+        },
+        {
+          "awayValue": "26",
+          "homeValue": "24",
+          "statId": "471",
+          "statName": "Touches in opposition box"
+        },
+        {
+          "awayValue": "1",
+          "homeValue": "2",
+          "statId": "521",
+          "statName": "Accurate through passes"
+        },
+        {
+          "awayValue": "4",
+          "homeValue": "0",
+          "statId": "17",
+          "statName": "Offsides"
+        },
+        {
+          "awayValue": "13",
+          "homeValue": "5",
+          "statId": "15",
+          "statName": "Free kicks"
+        },
+        {
+          "awayValue": "88% (430/489)",
+          "homeValue": "80% (282/353)",
+          "statId": "342",
+          "statName": "Passes"
+        },
+        {
+          "awayValue": "64% (37/58)",
+          "homeValue": "49% (25/51)",
+          "statId": "517",
+          "statName": "Long passes"
+        },
+        {
+          "awayValue": "81% (134/166)",
+          "homeValue": "61% (60/99)",
+          "statId": "467",
+          "statName": "Passes in final third"
+        },
+        {
+          "awayValue": "35% (8/23)",
+          "homeValue": "30% (3/10)",
+          "statId": "433",
+          "statName": "Crosses"
+        },
+        {
+          "awayValue": "1.75",
+          "homeValue": "1.57",
+          "statId": "503",
+          "statName": "Expected assists (xA)"
+        },
+        {
+          "awayValue": "20",
+          "homeValue": "16",
+          "statId": "18",
+          "statName": "Throw ins"
+        },
+        {
+          "awayValue": "5",
+          "homeValue": "13",
+          "statId": "21",
+          "statName": "Fouls"
+        },
+        {
+          "awayValue": "44% (7/16)",
+          "homeValue": "90% (9/10)",
+          "statId": "475",
+          "statName": "Tackles"
+        },
+        {
+          "awayValue": "57",
+          "homeValue": "39",
+          "statId": "513",
+          "statName": "Duels won"
+        },
+        {
+          "awayValue": "18",
+          "homeValue": "26",
+          "statId": "479",
+          "statName": "Clearances"
+        },
+        {
+          "awayValue": "10",
+          "homeValue": "8",
+          "statId": "434",
+          "statName": "Interceptions"
+        },
+        {
+          "awayValue": "2",
+          "homeValue": "0",
+          "statId": "507",
+          "statName": "Errors leading to shot"
+        },
+        {
+          "awayValue": "2",
+          "homeValue": "0",
+          "statId": "509",
+          "statName": "Errors leading to goal"
+        },
+        {
+          "awayValue": "3",
+          "homeValue": "2",
+          "statId": "19",
+          "statName": "Goalkeeper saves"
+        },
+        {
+          "awayValue": "1.95",
+          "homeValue": "1.35",
+          "statId": "501",
+          "statName": "xGOT faced"
+        },
+        {
+          "awayValue": "-1.05",
+          "homeValue": "-0.65",
+          "statId": "511",
+          "statName": "Goals prevented"
+        }
+      ]
+    },
+    {
+      "period": "1st Half",
+      "stats": [
+        {
+          "awayValue": "0.31",
+          "homeValue": "1.26",
+          "statId": "432",
+          "statName": "Expected goals (xG)"
+        },
+        {
+          "awayValue": "50%",
+          "homeValue": "50%",
+          "statId": "12",
+          "statName": "Ball possession"
+        },
+        {
+          "awayValue": "6",
+          "homeValue": "8",
+          "statId": "34",
+          "statName": "Total shots"
+        },
+        {
+          "awayValue": "1",
+          "homeValue": "4",
+          "statId": "13",
+          "statName": "Shots on target"
+        },
+        {
+          "awayValue": "0",
+          "homeValue": "3",
+          "statId": "459",
+          "statName": "Big chances"
+        },
+        {
+          "awayValue": "1",
+          "homeValue": "4",
+          "statId": "16",
+          "statName": "Corner kicks"
+        },
+        {
+          "awayValue": "87% (193/221)",
+          "homeValue": "85% (189/223)",
+          "statId": "342",
+          "statName": "Passes"
+        },
+        {
+          "awayValue": "0.31",
+          "homeValue": "1.26",
+          "statId": "432",
+          "statName": "Expected goals (xG)"
+        },
+        {
+          "awayValue": "0.43",
+          "homeValue": "0.85",
+          "statId": "499",
+          "statName": "xG on target (xGOT)"
+        },
+        {
+          "awayValue": "6",
+          "homeValue": "8",
+          "statId": "34",
+          "statName": "Total shots"
+        },
+        {
+          "awayValue": "1",
+          "homeValue": "4",
+          "statId": "13",
+          "statName": "Shots on target"
+        },
+        {
+          "awayValue": "3",
+          "homeValue": "3",
+          "statId": "14",
+          "statName": "Shots off target"
+        },
+        {
+          "awayValue": "2",
+          "homeValue": "1",
+          "statId": "158",
+          "statName": "Blocked shots"
+        },
+        {
+          "awayValue": "3",
+          "homeValue": "6",
+          "statId": "461",
+          "statName": "Shots inside the box"
+        },
+        {
+          "awayValue": "3",
+          "homeValue": "2",
+          "statId": "463",
+          "statName": "Shots outside the box"
+        },
+        {
+          "awayValue": "0",
+          "homeValue": "1",
+          "statId": "457",
+          "statName": "Hit the woodwork"
+        },
+        {
+          "awayValue": "0",
+          "homeValue": "3",
+          "statId": "459",
+          "statName": "Big chances"
+        },
+        {
+          "awayValue": "1",
+          "homeValue": "4",
+          "statId": "16",
+          "statName": "Corner kicks"
+        },
+        {
+          "awayValue": "11",
+          "homeValue": "10",
+          "statId": "471",
+          "statName": "Touches in opposition box"
+        },
+        {
+          "awayValue": "1",
+          "homeValue": "0",
+          "statId": "521",
+          "statName": "Accurate through passes"
+        },
+        {
+          "awayValue": "2",
+          "homeValue": "0",
+          "statId": "17",
+          "statName": "Offsides"
+        },
+        {
+          "awayValue": "6",
+          "homeValue": "1",
+          "statId": "15",
+          "statName": "Free kicks"
+        },
+        {
+          "awayValue": "87% (193/221)",
+          "homeValue": "85% (189/223)",
+          "statId": "342",
+          "statName": "Passes"
+        },
+        {
+          "awayValue": "59% (16/27)",
+          "homeValue": "68% (13/19)",
+          "statId": "517",
+          "statName": "Long passes"
+        },
+        {
+          "awayValue": "81% (62/77)",
+          "homeValue": "66% (39/59)",
+          "statId": "467",
+          "statName": "Passes in final third"
+        },
+        {
+          "awayValue": "38% (3/8)",
+          "homeValue": "25% (2/8)",
+          "statId": "433",
+          "statName": "Crosses"
+        },
+        {
+          "awayValue": "0.81",
+          "homeValue": "0.59",
+          "statId": "503",
+          "statName": "Expected assists (xA)"
+        },
+        {
+          "awayValue": "11",
+          "homeValue": "12",
+          "statId": "18",
+          "statName": "Throw ins"
+        },
+        {
+          "awayValue": "1",
+          "homeValue": "6",
+          "statId": "21",
+          "statName": "Fouls"
+        },
+        {
+          "awayValue": "30% (3/10)",
+          "homeValue": "89% (8/9)",
+          "statId": "475",
+          "statName": "Tackles"
+        },
+        {
+          "awayValue": "27",
+          "homeValue": "24",
+          "statId": "513",
+          "statName": "Duels won"
+        },
+        {
+          "awayValue": "12",
+          "homeValue": "11",
+          "statId": "479",
+          "statName": "Clearances"
+        },
+        {
+          "awayValue": "4",
+          "homeValue": "4",
+          "statId": "434",
+          "statName": "Interceptions"
+        },
+        {
+          "awayValue": "1",
+          "homeValue": "0",
+          "statId": "507",
+          "statName": "Errors leading to shot"
+        },
+        {
+          "awayValue": "1",
+          "homeValue": "0",
+          "statId": "509",
+          "statName": "Errors leading to goal"
+        },
+        {
+          "awayValue": "3",
+          "homeValue": "1",
+          "statId": "19",
+          "statName": "Goalkeeper saves"
+        },
+        {
+          "awayValue": "0.85",
+          "homeValue": "0.43",
+          "statId": "501",
+          "statName": "xGOT faced"
+        },
+        {
+          "awayValue": "-0.15",
+          "homeValue": "0.43",
+          "statId": "511",
+          "statName": "Goals prevented"
+        }
+      ]
+    },
+    {
+      "period": "2nd Half",
+      "stats": [
+        {
+          "awayValue": "1.40",
+          "homeValue": "0.93",
+          "statId": "432",
+          "statName": "Expected goals (xG)"
+        },
+        {
+          "awayValue": "68%",
+          "homeValue": "32%",
+          "statId": "12",
+          "statName": "Ball possession"
+        },
+        {
+          "awayValue": "10",
+          "homeValue": "5",
+          "statId": "34",
+          "statName": "Total shots"
+        },
+        {
+          "awayValue": "3",
+          "homeValue": "3",
+          "statId": "13",
+          "statName": "Shots on target"
+        },
+        {
+          "awayValue": "3",
+          "homeValue": "2",
+          "statId": "459",
+          "statName": "Big chances"
+        },
+        {
+          "awayValue": "3",
+          "homeValue": "1",
+          "statId": "16",
+          "statName": "Corner kicks"
+        },
+        {
+          "awayValue": "88% (237/268)",
+          "homeValue": "72% (93/130)",
+          "statId": "342",
+          "statName": "Passes"
+        },
+        {
+          "awayValue": "1.40",
+          "homeValue": "0.93",
+          "statId": "432",
+          "statName": "Expected goals (xG)"
+        },
+        {
+          "awayValue": "0.92",
+          "homeValue": "1.10",
+          "statId": "499",
+          "statName": "xG on target (xGOT)"
+        },
+        {
+          "awayValue": "10",
+          "homeValue": "5",
+          "statId": "34",
+          "statName": "Total shots"
+        },
+        {
+          "awayValue": "3",
+          "homeValue": "3",
+          "statId": "13",
+          "statName": "Shots on target"
+        },
+        {
+          "awayValue": "4",
+          "homeValue": "0",
+          "statId": "14",
+          "statName": "Shots off target"
+        },
+        {
+          "awayValue": "3",
+          "homeValue": "2",
+          "statId": "158",
+          "statName": "Blocked shots"
+        },
+        {
+          "awayValue": "7",
+          "homeValue": "5",
+          "statId": "461",
+          "statName": "Shots inside the box"
+        },
+        {
+          "awayValue": "3",
+          "homeValue": "0",
+          "statId": "463",
+          "statName": "Shots outside the box"
+        },
+        {
+          "awayValue": "0",
+          "homeValue": "0",
+          "statId": "457",
+          "statName": "Hit the woodwork"
+        },
+        {
+          "awayValue": "3",
+          "homeValue": "2",
+          "statId": "459",
+          "statName": "Big chances"
+        },
+        {
+          "awayValue": "3",
+          "homeValue": "1",
+          "statId": "16",
+          "statName": "Corner kicks"
+        },
+        {
+          "awayValue": "15",
+          "homeValue": "14",
+          "statId": "471",
+          "statName": "Touches in opposition box"
+        },
+        {
+          "awayValue": "0",
+          "homeValue": "2",
+          "statId": "521",
+          "statName": "Accurate through passes"
+        },
+        {
+          "awayValue": "2",
+          "homeValue": "0",
+          "statId": "17",
+          "statName": "Offsides"
+        },
+        {
+          "awayValue": "7",
+          "homeValue": "4",
+          "statId": "15",
+          "statName": "Free kicks"
+        },
+        {
+          "awayValue": "88% (237/268)",
+          "homeValue": "72% (93/130)",
+          "statId": "342",
+          "statName": "Passes"
+        },
+        {
+          "awayValue": "68% (21/31)",
+          "homeValue": "38% (12/32)",
+          "statId": "517",
+          "statName": "Long passes"
+        },
+        {
+          "awayValue": "81% (72/89)",
+          "homeValue": "53% (21/40)",
+          "statId": "467",
+          "statName": "Passes in final third"
+        },
+        {
+          "awayValue": "33% (5/15)",
+          "homeValue": "50% (1/2)",
+          "statId": "433",
+          "statName": "Crosses"
+        },
+        {
+          "awayValue": "0.94",
+          "homeValue": "0.98",
+          "statId": "503",
+          "statName": "Expected assists (xA)"
+        },
+        {
+          "awayValue": "9",
+          "homeValue": "4",
+          "statId": "18",
+          "statName": "Throw ins"
+        },
+        {
+          "awayValue": "4",
+          "homeValue": "7",
+          "statId": "21",
+          "statName": "Fouls"
+        },
+        {
+          "awayValue": "67% (4/6)",
+          "homeValue": "100% (1/1)",
+          "statId": "475",
+          "statName": "Tackles"
+        },
+        {
+          "awayValue": "30",
+          "homeValue": "15",
+          "statId": "513",
+          "statName": "Duels won"
+        },
+        {
+          "awayValue": "6",
+          "homeValue": "15",
+          "statId": "479",
+          "statName": "Clearances"
+        },
+        {
+          "awayValue": "6",
+          "homeValue": "4",
+          "statId": "434",
+          "statName": "Interceptions"
+        },
+        {
+          "awayValue": "1",
+          "homeValue": "0",
+          "statId": "507",
+          "statName": "Errors leading to shot"
+        },
+        {
+          "awayValue": "1",
+          "homeValue": "0",
+          "statId": "509",
+          "statName": "Errors leading to goal"
+        },
+        {
+          "awayValue": "0",
+          "homeValue": "1",
+          "statId": "19",
+          "statName": "Goalkeeper saves"
+        },
+        {
+          "awayValue": "1.10",
+          "homeValue": "0.92",
+          "statId": "501",
+          "statName": "xGOT faced"
+        },
+        {
+          "awayValue": "-0.90",
+          "homeValue": "-1.08",
+          "statId": "511",
+          "statName": "Goals prevented"
+        }
+      ]
+    }
+  ],
+  "body_sha256": "bc85e90f6d9c377224fe30321e50645e2a89778e022ced4d87379ca3ba1d2fe4",
+  "contributes_to_enrichment": true,
+  "error": null,
+  "network_used": true,
+  "provider": "sportdb",
+  "raw_headers_stored": false,
+  "request_attempted": true,
+  "request_purpose": "sportdb_match_stats",
+  "secrets_stored": false,
+  "selectable_for_production": false,
+  "source_url": "https://api.sportdb.dev/api/flashscore/match/xSUJLPV8/stats",
+  "status": "SUCCESS",
+  "status_code": 200,
+  "transport": "urllib"
+}

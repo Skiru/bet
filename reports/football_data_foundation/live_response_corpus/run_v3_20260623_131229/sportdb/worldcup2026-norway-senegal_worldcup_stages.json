@@ -1,0 +1,226 @@
+{
+  "access_mode": "REST",
+  "body": {
+    "groups": [
+      {
+        "id": "1",
+        "name": "Qualification",
+        "stages": [
+          {
+            "countryId": "3",
+            "countryName": "South America",
+            "groupId": "1",
+            "groupName": "Qualification",
+            "id": "GUncR9aR",
+            "link": "/api/flashscore/football/world:8/world-championship:lvUBR5F8/2026/stages/zeSHfCx3/GUncR9aR/table",
+            "name": "Main",
+            "statsType": "table"
+          },
+          {
+            "countryId": "1",
+            "countryName": "Africa",
+            "groupId": "1",
+            "groupName": "Qualification",
+            "id": "jV1yMmNl",
+            "link": "/api/flashscore/football/world:8/world-championship:lvUBR5F8/2026/stages/zeSHfCx3/jV1yMmNl/table",
+            "name": "Main",
+            "statsType": "table"
+          },
+          {
+            "countryId": "6",
+            "countryName": "Europe",
+            "groupId": "1",
+            "groupName": "Qualification",
+            "id": "QmflJo77",
+            "link": "/api/flashscore/football/world:8/world-championship:lvUBR5F8/2026/stages/zeSHfCx3/QmflJo77/table",
+            "name": "Main",
+            "statsType": "table"
+          },
+          {
+            "countryId": "5",
+            "countryName": "Asia",
+            "groupId": "1",
+            "groupName": "Qualification",
+            "id": "Y5chSkpL",
+            "link": "/api/flashscore/football/world:8/world-championship:lvUBR5F8/2026/stages/zeSHfCx3/Y5chSkpL/draw",
+            "name": "First stage",
+            "statsType": "draw"
+          },
+          {
+            "countryId": "559",
+            "countryName": "Oceania",
+            "groupId": "1",
+            "groupName": "Qualification",
+            "id": "EDGLhSrK",
+            "link": "/api/flashscore/football/world:8/world-championship:lvUBR5F8/2026/stages/zeSHfCx3/EDGLhSrK/draw",
+            "name": "First stage",
+            "statsType": "draw"
+          },
+          {
+            "countryId": "2",
+            "countryName": "North & Central America",
+            "groupId": "1",
+            "groupName": "Qualification",
+            "id": "SKddnQLm",
+            "link": "/api/flashscore/football/world:8/world-championship:lvUBR5F8/2026/stages/zeSHfCx3/SKddnQLm/draw",
+            "name": "First stage",
+            "statsType": "draw"
+          },
+          {
+            "countryId": "5",
+            "countryName": "Asia",
+            "groupId": "1",
+            "groupName": "Qualification",
+            "id": "d82XMT7r",
+            "link": "/api/flashscore/football/world:8/world-championship:lvUBR5F8/2026/stages/zeSHfCx3/d82XMT7r/table",
+            "name": "Second stage",
+            "statsType": "table"
+          },
+          {
+            "countryId": "2",
+            "countryName": "North & Central America",
+            "groupId": "1",
+            "groupName": "Qualification",
+            "id": "UL0uL7xe",
+            "link": "/api/flashscore/football/world:8/world-championship:lvUBR5F8/2026/stages/zeSHfCx3/UL0uL7xe/table",
+            "name": "Second stage",
+            "statsType": "table"
+          },
+          {
+            "countryId": "559",
+            "countryName": "Oceania",
+            "groupId": "1",
+            "groupName": "Qualification",
+            "id": "8zGPinbQ",
+            "link": "/api/flashscore/football/world:8/world-championship:lvUBR5F8/2026/stages/zeSHfCx3/8zGPinbQ/table",
+            "name": "Second stage",
+            "statsType": "table"
+          },
+          {
+            "countryId": "5",
+            "countryName": "Asia",
+            "groupId": "1",
+            "groupName": "Qualification",
+            "id": "ncepKRi1",
+            "link": "/api/flashscore/football/world:8/world-championship:lvUBR5F8/2026/stages/zeSHfCx3/ncepKRi1/table",
+            "name": "Third stage",
+            "statsType": "table"
+          },
+          {
+            "countryId": "2",
+            "countryName": "North & Central America",
+            "groupId": "1",
+            "groupName": "Qualification",
+            "id": "OIEnt9EK",
+            "link": "/api/flashscore/football/world:8/world-championship:lvUBR5F8/2026/stages/zeSHfCx3/OIEnt9EK/table",
+            "name": "Third stage",
+            "statsType": "table"
+          },
+          {
+            "countryId": "559",
+            "countryName": "Oceania",
+            "groupId": "1",
+            "groupName": "Qualification",
+            "id": "KYHZYQ6f",
+            "link": "/api/flashscore/football/world:8/world-championship:lvUBR5F8/2026/stages/zeSHfCx3/KYHZYQ6f/draw",
+            "name": "Third stage",
+            "statsType": "draw"
+          },
+          {
+            "countryId": "5",
+            "countryName": "Asia",
+            "groupId": "1",
+            "groupName": "Qualification",
+            "id": "xASUZ6il",
+            "link": "/api/flashscore/football/world:8/world-championship:lvUBR5F8/2026/stages/zeSHfCx3/xASUZ6il/table",
+            "name": "Fourth stage",
+            "statsType": "table"
+          },
+          {
+            "countryId": "5",
+            "countryName": "Asia",
+            "groupId": "1",
+            "groupName": "Qualification",
+            "id": "Y11nB0rh",
+            "link": "/api/flashscore/football/world:8/world-championship:lvUBR5F8/2026/stages/zeSHfCx3/Y11nB0rh/draw",
+            "name": "Fifth stage",
+            "statsType": "draw"
+          },
+          {
+            "countryId": "1",
+            "countryName": "Africa",
+            "groupId": "1",
+            "groupName": "Qualification",
+            "id": "r96vrVq8",
+            "link": "/api/flashscore/football/world:8/world-championship:lvUBR5F8/2026/stages/zeSHfCx3/r96vrVq8/draw",
+            "name": "Promotion",
+            "statsType": "draw"
+          },
+          {
+            "countryId": "6",
+            "countryName": "Europe",
+            "groupId": "1",
+            "groupName": "Qualification",
+            "id": "f15Izmxr",
+            "link": "/api/flashscore/football/world:8/world-championship:lvUBR5F8/2026/stages/zeSHfCx3/f15Izmxr/draw",
+            "name": "Promotion",
+            "statsType": "draw"
+          },
+          {
+            "countryId": "8",
+            "countryName": "World",
+            "groupId": "1",
+            "groupName": "Qualification",
+            "id": "YyMwYpM0",
+            "link": "/api/flashscore/football/world:8/world-championship:lvUBR5F8/2026/stages/zeSHfCx3/YyMwYpM0/draw",
+            "name": "Promotion",
+            "statsType": "draw"
+          }
+        ]
+      },
+      {
+        "id": "2",
+        "name": "Final tournament",
+        "stages": [
+          {
+            "countryId": "8",
+            "countryName": "World",
+            "groupId": "2",
+            "groupName": "Final tournament",
+            "id": "SbLsX4y7",
+            "link": "/api/flashscore/football/world:8/world-championship:lvUBR5F8/2026/stages/zeSHfCx3/SbLsX4y7/table",
+            "name": "Main",
+            "statsType": "table"
+          },
+          {
+            "countryId": "8",
+            "countryName": "World",
+            "groupId": "2",
+            "groupName": "Final tournament",
+            "id": "6kKoWOjD",
+            "link": "/api/flashscore/football/world:8/world-championship:lvUBR5F8/2026/stages/zeSHfCx3/6kKoWOjD/draw",
+            "name": "Play Offs",
+            "statsType": "draw"
+          }
+        ]
+      }
+    ],
+    "selectedStageId": "SbLsX4y7",
+    "tournamentId": "zeSHfCx3",
+    "ungroupedStages": []
+  },
+  "body_sha256": "dcc1509d1266e35623a47964c80b7c664e3985859adcaccc22db2c8e6506b898",
+  "contributes_to_enrichment": true,
+  "error": null,
+  "network_used": true,
+  "provider": "sportdb",
+  "raw_headers_stored": false,
+  "request_attempted": true,
+  "request_purpose": "sportdb_worldcup_stages",
+  "secrets_stored": false,
+  "selectable_for_production": false,
+  "source_url": "https://api.sportdb.dev/api/flashscore/football/world:8/world-championship:lvUBR5F8/2026/stages",
+  "status": "SUCCESS",
+  "status_code": 200,
+  "transport": "urllib"
+}

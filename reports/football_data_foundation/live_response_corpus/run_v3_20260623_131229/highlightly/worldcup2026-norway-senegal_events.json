@@ -1,0 +1,229 @@
+{
+  "access_mode": "DIRECT",
+  "body": [
+    {
+      "assist": null,
+      "assistingPlayerId": 6337436,
+      "player": "J. Ryerson",
+      "playerId": 4000199,
+      "substituted": "M. Pedersen",
+      "team": {
+        "id": 928374,
+        "logo": "https://highlightly.net/soccer/images/teams/928374.png",
+        "name": "Norway"
+      },
+      "time": "13",
+      "type": "Substitution"
+    },
+    {
+      "assist": null,
+      "assistingPlayerId": null,
+      "player": "M. Pedersen",
+      "playerId": 6337436,
+      "substituted": null,
+      "team": {
+        "id": 928374,
+        "logo": "https://highlightly.net/soccer/images/teams/928374.png",
+        "name": "Norway"
+      },
+      "time": "43",
+      "type": "Goal"
+    },
+    {
+      "assist": null,
+      "assistingPlayerId": 6289458,
+      "player": "F. Aursnes",
+      "playerId": 6286077,
+      "substituted": "P. Berg",
+      "team": {
+        "id": 928374,
+        "logo": "https://highlightly.net/soccer/images/teams/928374.png",
+        "name": "Norway"
+      },
+      "time": "46",
+      "type": "Substitution"
+    },
+    {
+      "assist": "M. Odegaard",
+      "assistingPlayerId": 5977601,
+      "player": "E. Haaland",
+      "playerId": 177254,
+      "substituted": null,
+      "team": {
+        "id": 928374,
+        "logo": "https://highlightly.net/soccer/images/teams/928374.png",
+        "name": "Norway"
+      },
+      "time": "48",
+      "type": "Goal"
+    },
+    {
+      "assist": "S. Mane",
+      "assistingPlayerId": 49098,
+      "player": "I. Sarr",
+      "playerId": 357252,
+      "substituted": null,
+      "team": {
+        "id": 11847,
+        "logo": "https://highlightly.net/soccer/images/teams/11847.png",
+        "name": "Senegal"
+      },
+      "time": "53",
+      "type": "Goal"
+    },
+    {
+      "assist": null,
+      "assistingPlayerId": 25457635,
+      "player": "M. Diouf",
+      "playerId": 65897937,
+      "substituted": "I. Jakobs",
+      "team": {
+        "id": 11847,
+        "logo": "https://highlightly.net/soccer/images/teams/11847.png",
+        "name": "Senegal"
+      },
+      "time": "54",
+      "type": "Substitution"
+    },
+    {
+      "assist": null,
+      "assistingPlayerId": 71846243,
+      "player": "P. Gueye",
+      "playerId": 3332210,
+      "substituted": "I. Mbaye",
+      "team": {
+        "id": 11847,
+        "logo": "https://highlightly.net/soccer/images/teams/11847.png",
+        "name": "Senegal"
+      },
+      "time": "54",
+      "type": "Substitution"
+    },
+    {
+      "assist": "P. Berg",
+      "assistingPlayerId": 6289458,
+      "player": "E. Haaland",
+      "playerId": 177254,
+      "substituted": null,
+      "team": {
+        "id": 928374,
+        "logo": "https://highlightly.net/soccer/images/teams/928374.png",
+        "name": "Norway"
+      },
+      "time": "58",
+      "type": "Goal"
+    },
+    {
+      "assist": null,
+      "assistingPlayerId": 19296487,
+      "player": "E. Mendy",
+      "playerId": 480900,
+      "substituted": "M. Diaw",
+      "team": {
+        "id": 11847,
+        "logo": "https://highlightly.net/soccer/images/teams/11847.png",
+        "name": "Senegal"
+      },
+      "time": "63",
+      "type": "Substitution"
+    },
+    {
+      "assist": null,
+      "assistingPlayerId": 6690026,
+      "player": "L. Camara",
+      "playerId": 60223492,
+      "substituted": "P. Ciss",
+      "team": {
+        "id": 11847,
+        "logo": "https://highlightly.net/soccer/images/teams/11847.png",
+        "name": "Senegal"
+      },
+      "time": "63",
+      "type": "Substitution"
+    },
+    {
+      "assist": null,
+      "assistingPlayerId": 48546162,
+      "player": "A. Nusa",
+      "playerId": 50636425,
+      "substituted": "A. Schjelderup",
+      "team": {
+        "id": 928374,
+        "logo": "https://highlightly.net/soccer/images/teams/928374.png",
+        "name": "Norway"
+      },
+      "time": "71",
+      "type": "Substitution"
+    },
+    {
+      "assist": null,
+      "assistingPlayerId": 38177923,
+      "player": "K. Koulibaly",
+      "playerId": 51352,
+      "substituted": "P. M. Sarr",
+      "team": {
+        "id": 11847,
+        "logo": "https://highlightly.net/soccer/images/teams/11847.png",
+        "name": "Senegal"
+      },
+      "time": "72",
+      "type": "Substitution"
+    },
+    {
+      "assist": null,
+      "assistingPlayerId": 3053841,
+      "player": "T. Heggem",
+      "playerId": 6320048,
+      "substituted": "L. Ostigard",
+      "team": {
+        "id": 928374,
+        "logo": "https://highlightly.net/soccer/images/teams/928374.png",
+        "name": "Norway"
+      },
+      "time": "84",
+      "type": "Substitution"
+    },
+    {
+      "assist": null,
+      "assistingPlayerId": 44779567,
+      "player": "A. Sorloth",
+      "playerId": 1367366,
+      "substituted": "O. Bobb",
+      "team": {
+        "id": 928374,
+        "logo": "https://highlightly.net/soccer/images/teams/928374.png",
+        "name": "Norway"
+      },
+      "time": "84",
+      "type": "Substitution"
+    },
+    {
+      "assist": "N. Jackson",
+      "assistingPlayerId": 45572492,
+      "player": "I. Sarr",
+      "playerId": 357252,
+      "substituted": null,
+      "team": {
+        "id": 11847,
+        "logo": "https://highlightly.net/soccer/images/teams/11847.png",
+        "name": "Senegal"
+      },
+      "time": "90+3",
+      "type": "Goal"
+    }
+  ],
+  "body_sha256": "8424de066aaba067867a2b63b939b0b36650d6ea5fb9f04a673eacc677026c7e",
+  "contributes_to_enrichment": true,
+  "error": null,
+  "network_used": true,
+  "provider": "highlightly",
+  "raw_headers_stored": false,
+  "request_attempted": true,
+  "request_purpose": "highlightly_events",
+  "secrets_stored": false,
+  "selectable_for_production": false,
+  "source_url": "https://soccer.highlightly.net/events/1267481035",
+  "status": "SUCCESS",
+  "status_code": 200,
+  "transport": "urllib"
+}

@@ -1,0 +1,4 @@
+{
+  "actual_sportdb_pacing": "<= 2.5 RPS enforced",
+  "sportdb_rps_limit": 3.0
+}

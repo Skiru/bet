@@ -1,0 +1,3430 @@
+{
+  "access_mode": "DIRECT",
+  "body": {
+    "data": [
+      {
+        "awayTeam": {
+          "id": 22079128,
+          "logo": null,
+          "name": "Montgomery United"
+        },
+        "country": {
+          "code": "US",
+          "logo": "https://highlightly.net/soccer/images/countries/US.svg",
+          "name": "USA"
+        },
+        "date": "2026-06-23T23:30:00.000Z",
+        "homeTeam": {
+          "id": 23422006,
+          "logo": null,
+          "name": "Swarm Fc"
+        },
+        "id": 1297831950,
+        "league": {
+          "id": 218640,
+          "logo": "https://highlightly.net/soccer/images/leagues/218640.png",
+          "name": "USL League Two",
+          "season": 2026
+        },
+        "round": "Group Stage",
+        "state": {
+          "clock": null,
+          "description": "Not started",
+          "score": {
+            "current": null,
+            "penalties": null
+          }
+        }
+      },
+      {
+        "awayTeam": {
+          "id": 16082982,
+          "logo": "https://highlightly.net/soccer/images/teams/16082982.png",
+          "name": "Lansing City Football Club"
+        },
+        "country": {
+          "code": "US",
+          "logo": "https://highlightly.net/soccer/images/countries/US.svg",
+          "name": "USA"
+        },
+        "date": "2026-06-23T23:00:00.000Z",
+        "homeTeam": {
+          "id": 19680159,
+          "logo": null,
+          "name": "Union Macomb"
+        },
+        "id": 1297829397,
+        "league": {
+          "id": 218640,
+          "logo": "https://highlightly.net/soccer/images/leagues/218640.png",
+          "name": "USL League Two",
+          "season": 2026
+        },
+        "round": "Group Stage",
+        "state": {
+          "clock": null,
+          "description": "Not started",
+          "score": {
+            "current": null,
+            "penalties": null
+          }
+        }
+      },
+      {
+        "awayTeam": {
+          "id": 20366065,
+          "logo": null,
+          "name": "Asheville City Women"
+        },
+        "country": {
+          "code": "US",
+          "logo": "https://highlightly.net/soccer/images/countries/US.svg",
+          "name": "USA"
+        },
+        "date": "2026-06-23T23:00:00.000Z",
+        "homeTeam": {
+          "id": 21997432,
+          "logo": null,
+          "name": "Knoxville"
+        },
+        "id": 1303963405,
+        "league": {
+          "id": 951351,
+          "logo": null,
+          "name": "USL W League",
+          "season": 2026
+        },
+        "round": "Regular Season - 1",
+        "state": {
+          "clock": null,
+          "description": "Not started",
+          "score": {
+            "current": null,
+            "penalties": null
+          }
+        }
+      },
+      {
+        "awayTeam": {
+          "id": 23416049,
+          "logo": null,
+          "name": "Edgewater Castle"
+        },
+        "country": {
+          "code": "US",
+          "logo": "https://highlightly.net/soccer/images/countries/US.svg",
+          "name": "USA"
+        },
+        "date": "2026-06-23T23:00:00.000Z",
+        "homeTeam": {
+          "id": 20388191,
+          "logo": null,
+          "name": "River Light Women"
+        },
+        "id": 1304039144,
+        "league": {
+          "id": 951351,
+          "logo": null,
+          "name": "USL W League",
+          "season": 2026
+        },
+        "round": "Regular Season - 1",
+        "state": {
+          "clock": null,
+          "description": "Not started",
+          "score": {
+            "current": null,
+            "penalties": null
+          }
+        }
+      },
+      {
+        "awayTeam": {
+          "id": 8590778,
+          "logo": "https://highlightly.net/soccer/images/teams/8590778.png",
+          "name": "Asheville City"
+        },
+        "country": {
+          "code": "US",
+          "logo": "https://highlightly.net/soccer/images/countries/US.svg",
+          "name": "USA"
+        },
+        "date": "2026-06-23T23:00:00.000Z",
+        "homeTeam": {
+          "id": 3460950,
+          "logo": "https://highlightly.net/soccer/images/teams/3460950.png",
+          "name": "North Carolina Fusion"
+        },
+        "id": 1297826844,
+        "league": {
+          "id": 218640,
+          "logo": "https://highlightly.net/soccer/images/leagues/218640.png",
+          "name": "USL League Two",
+          "season": 2026
+        },
+        "round": "Group Stage",
+        "state": {
+          "clock": null,
+          "description": "Not started",
+          "score": {
+            "current": null,
+            "penalties": null
+          }
+        }
+      },
+      {
+        "awayTeam": {
+          "id": 3443079,
+          "logo": "https://highlightly.net/soccer/images/teams/3443079.png",
+          "name": "Dayton Dutch Lions"
+        },
+        "country": {
+          "code": "US",
+          "logo": "https://highlightly.net/soccer/images/countries/US.svg",
+          "name": "USA"
+        },
+        "date": "2026-06-23T23:00:00.000Z",
+        "homeTeam": {
+          "id": 14203974,
+          "logo": "https://highlightly.net/soccer/images/teams/14203974.png",
+          "name": "Toledo Villa"
+        },
+        "id": 1297828546,
+        "league": {
+          "id": 218640,
+          "logo": "https://highlightly.net/soccer/images/leagues/218640.png",
+          "name": "USL League Two",
+          "season": 2026
+        },
+        "round": "Group Stage",
+        "state": {
+          "clock": null,
+          "description": "Not started",
+          "score": {
+            "current": null,
+            "penalties": null
+          }
+        }
+      },
+      {
+        "awayTeam": {
+          "id": 19669096,
+          "logo": null,
+          "name": "Brooke House"
+        },
+        "country": {
+          "code": "US",
+          "logo": "https://highlightly.net/soccer/images/countries/US.svg",
+          "name": "USA"
+        },
+        "date": "2026-06-23T23:00:00.000Z",
+        "homeTeam": {
+          "id": 16087237,
+          "logo": "https://highlightly.net/soccer/images/teams/16087237.png",
+          "name": "Nona"
+        },
+        "id": 1297825993,
+        "league": {
+          "id": 218640,
+          "logo": "https://highlightly.net/soccer/images/leagues/218640.png",
+          "name": "USL League Two",
+          "season": 2026
+        },
+        "round": "Group Stage",
+        "state": {
+          "clock": null,
+          "description": "Not started",
+          "score": {
+            "current": null,
+            "penalties": null
+          }
+        }
+      },
+      {
+        "awayTeam": {
+          "id": 3431165,
+          "logo": "https://highlightly.net/soccer/images/teams/3431165.png",
+          "name": "AC Connecticut"
+        },
+        "country": {
+          "code": "US",
+          "logo": "https://highlightly.net/soccer/images/countries/US.svg",
+          "name": "USA"
+        },
+        "date": "2026-06-23T23:00:00.000Z",
+        "homeTeam": {
+          "id": 3433718,
+          "logo": "https://highlightly.net/soccer/images/teams/3433718.png",
+          "name": "Black Rock"
+        },
+        "id": 1297823440,
+        "league": {
+          "id": 218640,
+          "logo": "https://highlightly.net/soccer/images/leagues/218640.png",
+          "name": "USL League Two",
+          "season": 2026
+        },
+        "round": "Group Stage",
+        "state": {
+          "clock": null,
+          "description": "Not started",
+          "score": {
+            "current": null,
+            "penalties": null
+          }
+        }
+      },
+      {
+        "awayTeam": {
+          "id": 119924,
+          "logo": "https://highlightly.net/soccer/images/teams/119924.png",
+          "name": "Crici\u00fama"
+        },
+        "country": {
+          "code": "BR",
+          "logo": "https://highlightly.net/soccer/images/countries/BR.svg",
+          "name": "Brazil"
+        },
+        "date": "2026-06-23T23:00:00.000Z",
+        "homeTeam": {
+          "id": 107159,
+          "logo": "https://highlightly.net/soccer/images/teams/107159.png",
+          "name": "Am\u00e9rica Mineiro"
+        },
+        "id": 1294142014,
+        "league": {
+          "id": 62056,
+          "logo": "https://highlightly.net/soccer/images/leagues/62056.png",
+          "name": "Serie B",
+          "season": 2026
+        },
+        "round": "Regular Season - 14",
+        "state": {
+          "clock": null,
+          "description": "Not started",
+          "score": {
+            "current": null,
+            "penalties": null
+          }
+        }
+      },
+      {
+        "awayTeam": {
+          "id": 3337,
+          "logo": "https://highlightly.net/soccer/images/teams/3337.png",
+          "name": "Croatia"
+        },
+        "country": {
+          "code": "World",
+          "logo": "https://highlightly.net/soccer/images/countries/World.png",
+          "name": "World"
+        },
+        "date": "2026-06-23T23:00:00.000Z",
+        "homeTeam": {
+          "id": 10145,
+          "logo": "https://highlightly.net/soccer/images/teams/10145.png",
+          "name": "Panama"
+        },
+        "id": 1267482737,
+        "league": {
+          "id": 1635,
+          "logo": null,
+          "name": "World Cup",
+          "season": 2026
+        },
+        "round": "Group Stage - 2",
+        "state": {
+          "clock": null,
+          "description": "Not started",
+          "score": {
+            "current": null,
+            "penalties": null
+          }
+        }
+      },
+      {
+        "awayTeam": {
+          "id": 16094896,
+          "logo": "https://highlightly.net/soccer/images/teams/16094896.png",
+          "name": "Vermont Green"
+        },
+        "country": {
+          "code": "US",
+          "logo": "https://highlightly.net/soccer/images/countries/US.svg",
+          "name": "USA"
+        },
+        "date": "2026-06-23T23:00:00.000Z",
+        "homeTeam": {
+          "id": 7720205,
+          "logo": "https://highlightly.net/soccer/images/teams/7720205.png",
+          "name": "Boston City"
+        },
+        "id": 1297824291,
+        "league": {
+          "id": 218640,
+          "logo": "https://highlightly.net/soccer/images/leagues/218640.png",
+          "name": "USL League Two",
+          "season": 2026
+        },
+        "round": "Group Stage",
+        "state": {
+          "clock": null,
+          "description": "Not started",
+          "score": {
+            "current": null,
+            "penalties": null
+          }
+        }
+      },
+      {
+        "awayTeam": {
+          "id": 20348194,
+          "logo": null,
+          "name": "Minnesota Aurora FC"
+        },
+        "country": {
+          "code": "US",
+          "logo": "https://highlightly.net/soccer/images/countries/US.svg",
+          "name": "USA"
+        },
+        "date": "2026-06-23T23:00:00.000Z",
+        "homeTeam": {
+          "id": 20389042,
+          "logo": null,
+          "name": "Rochester Women"
+        },
+        "id": 1303959150,
+        "league": {
+          "id": 951351,
+          "logo": null,
+          "name": "USL W League",
+          "season": 2026
+        },
+        "round": "Regular Season - 1",
+        "state": {
+          "clock": null,
+          "description": "Not started",
+          "score": {
+            "current": null,
+            "penalties": null
+          }
+        }
+      },
+      {
+        "awayTeam": {
+          "id": 23423708,
+          "logo": null,
+          "name": "Shark Coast"
+        },
+        "country": {
+          "code": "US",
+          "logo": "https://highlightly.net/soccer/images/countries/US.svg",
+          "name": "USA"
+        },
+        "date": "2026-06-23T23:00:00.000Z",
+        "homeTeam": {
+          "id": 23422857,
+          "logo": null,
+          "name": "Sporting Jax 2"
+        },
+        "id": 1297827695,
+        "league": {
+          "id": 218640,
+          "logo": "https://highlightly.net/soccer/images/leagues/218640.png",
+          "name": "USL League Two",
+          "season": 2026
+        },
+        "round": "Group Stage",
+        "state": {
+          "clock": null,
+          "description": "Not started",
+          "score": {
+            "current": null,
+            "penalties": null
+          }
+        }
+      },
+      {
+        "awayTeam": {
+          "id": 3489884,
+          "logo": "https://highlightly.net/soccer/images/teams/3489884.png",
+          "name": "Western Mass Pioneers"
+        },
+        "country": {
+          "code": "US",
+          "logo": "https://highlightly.net/soccer/images/countries/US.svg",
+          "name": "USA"
+        },
+        "date": "2026-06-23T23:00:00.000Z",
+        "homeTeam": {
+          "id": 16071068,
+          "logo": "https://highlightly.net/soccer/images/teams/16071068.png",
+          "name": "Blackwatch Rush"
+        },
+        "id": 1297822589,
+        "league": {
+          "id": 218640,
+          "logo": "https://highlightly.net/soccer/images/leagues/218640.png",
+          "name": "USL League Two",
+          "season": 2026
+        },
+        "round": "Group Stage",
+        "state": {
+          "clock": null,
+          "description": "Not started",
+          "score": {
+            "current": null,
+            "penalties": null
+          }
+        }
+      },
+      {
+        "awayTeam": {
+          "id": 20275859,
+          "logo": null,
+          "name": "PA Classics"
+        },
+        "country": {
+          "code": "US",
+          "logo": "https://highlightly.net/soccer/images/countries/US.svg",
+          "name": "USA"
+        },
+        "date": "2026-06-23T23:00:00.000Z",
+        "homeTeam": {
+          "id": 20338833,
+          "logo": null,
+          "name": "Eagle FC"
+        },
+        "id": 1298125545,
+        "league": {
+          "id": 218640,
+          "logo": "https://highlightly.net/soccer/images/leagues/218640.png",
+          "name": "USL League Two",
+          "season": 2026
+        },
+        "round": "Group Stage",
+        "state": {
+          "clock": null,
+          "description": "Not started",
+          "score": {
+            "current": null,
+            "penalties": null
+          }
+        }
+      },
+      {
+        "awayTeam": {
+          "id": 21999985,
+          "logo": null,
+          "name": "Norfolk"
+        },
+        "country": {
+          "code": "US",
+          "logo": "https://highlightly.net/soccer/images/countries/US.svg",
+          "name": "USA"
+        },
+        "date": "2026-06-23T23:00:00.000Z",
+        "homeTeam": {
+          "id": 20357555,
+          "logo": null,
+          "name": "Richmond"
+        },
+        "id": 1303957448,
+        "league": {
+          "id": 951351,
+          "logo": null,
+          "name": "USL W League",
+          "season": 2026
+        },
+        "round": "Regular Season - 1",
+        "state": {
+          "clock": null,
+          "description": "Not started",
+          "score": {
+            "current": null,
+            "penalties": null
+          }
+        }
+      },
+      {
+        "awayTeam": {
+          "id": 1945319,
+          "logo": "https://highlightly.net/soccer/images/teams/1945319.png",
+          "name": "Santos Laguna"
+        },
+        "country": {
+          "code": "World",
+          "logo": "https://highlightly.net/soccer/images/countries/World.png",
+          "name": "World"
+        },
+        "date": "2026-06-23T23:00:00.000Z",
+        "homeTeam": {
+          "id": 20400105,
+          "logo": null,
+          "name": "Annapolis Blues"
+        },
+        "id": 1322886241,
+        "league": {
+          "id": 568401,
+          "logo": "https://highlightly.net/soccer/images/leagues/568401.png",
+          "name": "Friendlies Clubs",
+          "season": 2026
+        },
+        "round": "Club Friendlies",
+        "state": {
+          "clock": null,
+          "description": "Not started",
+          "score": {
+            "current": null,
+            "penalties": null
+          }
+        }
+      },
+      {
+        "awayTeam": {
+          "id": 10448511,
+          "logo": "https://highlightly.net/soccer/images/teams/10448511.png",
+          "name": "Ipatinga"
+        },
+        "country": {
+          "code": "BR",
+          "logo": "https://highlightly.net/soccer/images/countries/BR.svg",
+          "name": "Brazil"
+        },
+        "date": "2026-06-23T23:00:00.000Z",
+        "homeTeam": {
+          "id": 19783981,
+          "logo": null,
+          "name": "Valeriodoce"
+        },
+        "id": 1317090080,
+        "league": {
+          "id": 527553,
+          "logo": "https://highlightly.net/soccer/images/leagues/527553.png",
+          "name": "Mineiro - 2",
+          "season": 2026
+        },
+        "round": "Regular Season - 6",
+        "state": {
+          "clock": null,
+          "description": "Not started",
+          "score": {
+            "current": null,
+            "penalties": null
+          }
+        }
+      },
+      {
+        "awayTeam": {
+          "id": 23425410,
+          "logo": null,
+          "name": "Rockford Raptors"
+        },
+        "country": {
+          "code": "US",
+          "logo": "https://highlightly.net/soccer/images/countries/US.svg",
+          "name": "USA"
+        },
+        "date": "2026-06-23T23:00:00.000Z",
+        "homeTeam": {
+          "id": 20300538,
+          "logo": null,
+          "name": "Sioux Falls City"
+        },
+        "id": 1304039995,
+        "league": {
+          "id": 951351,
+          "logo": null,
+          "name": "USL W League",
+          "season": 2026
+        },
+        "round": "Regular Season - 1",
+        "state": {
+          "clock": null,
+          "description": "Not started",
+          "score": {
+            "current": null,
+            "penalties": null
+          }
+        }
+      },
+      {
+        "awayTeam": {
+          "id": 21992326,
+          "logo": null,
+          "name": "Carolina Ascent II"
+        },
+        "country": {
+          "code": "US",
+          "logo": "https://highlightly.net/soccer/images/countries/US.svg",
+          "name": "USA"
+        },
+        "date": "2026-06-23T23:00:00.000Z",
+        "homeTeam": {
+          "id": 20396701,
+          "logo": null,
+          "name": "Wake Women"
+        },
+        "id": 1303960852,
+        "league": {
+          "id": 951351,
+          "logo": null,
+          "name": "USL W League",
+          "season": 2026
+        },
+        "round": "Regular Season - 1",
+        "state": {
+          "clock": null,
+          "description": "Not started",
+          "score": {
+            "current": null,
+            "penalties": null
+          }
+        }
+      },
+      {
+        "awayTeam": {
+          "id": 3469460,
+          "logo": "https://highlightly.net/soccer/images/teams/3469460.png",
+          "name": "SC United Bantams"
+        },
+        "country": {
+          "code": "US",
+          "logo": "https://highlightly.net/soccer/images/countries/US.svg",
+          "name": "USA"
+        },
+        "date": "2026-06-23T22:30:00.000Z",
+        "homeTeam": {
+          "id": 22811839,
+          "logo": null,
+          "name": "Port City"
+        },
+        "id": 1297843864,
+        "league": {
+          "id": 218640,
+          "logo": "https://highlightly.net/soccer/images/leagues/218640.png",
+          "name": "USL League Two",
+          "season": 2026
+        },
+        "round": "Group Stage",
+        "state": {
+          "clock": null,
+          "description": "Not started",
+          "score": {
+            "current": null,
+            "penalties": null
+          }
+        }
+      },
+      {
+        "awayTeam": {
+          "id": 19024038,
+          "logo": null,
+          "name": "SE Belford Roxo"
+        },
+        "country": {
+          "code": "BR",
+          "logo": "https://highlightly.net/soccer/images/countries/BR.svg",
+          "name": "Brazil"
+        },
+        "date": "2026-06-23T22:30:00.000Z",
+        "homeTeam": {
+          "id": 4134091,
+          "logo": "https://highlightly.net/soccer/images/teams/4134091.png",
+          "name": "Resende FC"
+        },
+        "id": 1327913949,
+        "league": {
+          "id": 881569,
+          "logo": null,
+          "name": "Copa Rio",
+          "season": 2026
+        },
+        "round": "Round 1",
+        "state": {
+          "clock": null,
+          "description": "Not started",
+          "score": {
+            "current": null,
+            "penalties": null
+          }
+        }
+      },
+      {
+        "awayTeam": {
+          "id": 20358406,
+          "logo": null,
+          "name": "SSA Royals"
+        },
+        "country": {
+          "code": "US",
+          "logo": "https://highlightly.net/soccer/images/countries/US.svg",
+          "name": "USA"
+        },
+        "date": "2026-06-23T22:30:00.000Z",
+        "homeTeam": {
+          "id": 20371171,
+          "logo": null,
+          "name": "Chattanooga Red Wolves Women"
+        },
+        "id": 1303962554,
+        "league": {
+          "id": 951351,
+          "logo": null,
+          "name": "USL W League",
+          "season": 2026
+        },
+        "round": "Regular Season - 1",
+        "state": {
+          "clock": null,
+          "description": "Not started",
+          "score": {
+            "current": null,
+            "penalties": null
+          }
+        }
+      },
+      {
+        "awayTeam": {
+          "id": 10464680,
+          "logo": "https://highlightly.net/soccer/images/teams/10464680.png",
+          "name": "Guaran\u00ed MG"
+        },
+        "country": {
+          "code": "BR",
+          "logo": "https://highlightly.net/soccer/images/countries/BR.svg",
+          "name": "Brazil"
+        },
+        "date": "2026-06-23T22:30:00.000Z",
+        "homeTeam": {
+          "id": 15995329,
+          "logo": "https://highlightly.net/soccer/images/teams/15995329.png",
+          "name": "Uberaba"
+        },
+        "id": 1317088378,
+        "league": {
+          "id": 527553,
+          "logo": "https://highlightly.net/soccer/images/leagues/527553.png",
+          "name": "Mineiro - 2",
+          "season": 2026
+        },
+        "round": "Regular Season - 6",
+        "state": {
+          "clock": null,
+          "description": "Not started",
+          "score": {
+            "current": null,
+            "penalties": null
+          }
+        }
+      },
+      {
+        "awayTeam": {
+          "id": 20399254,
+          "logo": null,
+          "name": "Akron City"
+        },
+        "country": {
+          "code": "US",
+          "logo": "https://highlightly.net/soccer/images/countries/US.svg",
+          "name": "USA"
+        },
+        "date": "2026-06-23T22:00:00.000Z",
+        "homeTeam": {
+          "id": 23421155,
+          "logo": null,
+          "name": "Pittsburgh Riverhounds 2"
+        },
+        "id": 1297820887,
+        "league": {
+          "id": 218640,
+          "logo": "https://highlightly.net/soccer/images/leagues/218640.png",
+          "name": "USL League Two",
+          "season": 2026
+        },
+        "round": "Group Stage",
+        "state": {
+          "clock": null,
+          "description": "Not started",
+          "score": {
+            "current": null,
+            "penalties": null
+          }
+        }
+      },
+      {
+        "awayTeam": {
+          "id": 22076575,
+          "logo": null,
+          "name": "Kings Hammer Columbus"
+        },
+        "country": {
+          "code": "US",
+          "logo": "https://highlightly.net/soccer/images/countries/US.svg",
+          "name": "USA"
+        },
+        "date": "2026-06-23T22:00:00.000Z",
+        "homeTeam": {
+          "id": 22079979,
+          "logo": null,
+          "name": "Northern Indiana"
+        },
+        "id": 1297820036,
+        "league": {
+          "id": 218640,
+          "logo": "https://highlightly.net/soccer/images/leagues/218640.png",
+          "name": "USL League Two",
+          "season": 2026
+        },
+        "round": "Group Stage",
+        "state": {
+          "clock": null,
+          "description": "Not started",
+          "score": {
+            "current": null,
+            "penalties": null
+          }
+        }
+      },
+      {
+        "awayTeam": {
+          "id": 21993177,
+          "logo": null,
+          "name": "Erie Sports Center"
+        },
+        "country": {
+          "code": "US",
+          "logo": "https://highlightly.net/soccer/images/countries/US.svg",
+          "name": "USA"
+        },
+        "date": "2026-06-23T22:00:00.000Z",
+        "homeTeam": {
+          "id": 22008495,
+          "logo": null,
+          "name": "Steel City Women"
+        },
+        "id": 1303961703,
+        "league": {
+          "id": 951351,
+          "logo": null,
+          "name": "USL W League",
+          "season": 2026
+        },
+        "round": "Regular Season - 1",
+        "state": {
+          "clock": null,
+          "description": "Not started",
+          "score": {
+            "current": null,
+            "penalties": null
+          }
+        }
+      },
+      {
+        "awayTeam": {
+          "id": 13284043,
+          "logo": "https://highlightly.net/soccer/images/teams/13284043.png",
+          "name": "Vilavelhense"
+        },
+        "country": {
+          "code": "BR",
+          "logo": "https://highlightly.net/soccer/images/countries/BR.svg",
+          "name": "Brazil"
+        },
+        "date": "2026-06-23T21:45:00.000Z",
+        "homeTeam": {
+          "id": 6670071,
+          "logo": "https://highlightly.net/soccer/images/teams/6670071.png",
+          "name": "Vit\u00f3ria ES"
+        },
+        "id": 1319601381,
+        "league": {
+          "id": 934331,
+          "logo": null,
+          "name": "Copa Esp\u00edrito Santo",
+          "season": 2026
+        },
+        "round": "Semi-finals",
+        "state": {
+          "clock": null,
+          "description": "Not started",
+          "score": {
+            "current": null,
+            "penalties": null
+          }
+        }
+      },
+      {
+        "awayTeam": {
+          "id": 396499,
+          "logo": "https://highlightly.net/soccer/images/teams/396499.png",
+          "name": "Atletico de Rafaela"
+        },
+        "country": {
+          "code": "AR",
+          "logo": "https://highlightly.net/soccer/images/countries/AR.svg",
+          "name": "Argentina"
+        },
+        "date": "2026-06-23T21:30:00.000Z",
+        "homeTeam": {
+          "id": 412668,
+          "logo": "https://highlightly.net/soccer/images/teams/412668.png",
+          "name": "Nueva Chicago"
+        },
+        "id": 1275101740,
+        "league": {
+          "id": 110563,
+          "logo": "https://highlightly.net/soccer/images/leagues/110563.png",
+          "name": "Primera Nacional",
+          "season": 2026
+        },
+        "round": "Regular Season - 4",
+        "state": {
+          "clock": null,
+          "description": "Not started",
+          "score": {
+            "current": null,
+            "penalties": null
+          }
+        }
+      },
+      {
+        "awayTeam": {
+          "id": 8592480,
+          "logo": "https://highlightly.net/soccer/images/teams/8592480.png",
+          "name": "Charlotte Independence II"
+        },
+        "country": {
+          "code": "US",
+          "logo": "https://highlightly.net/soccer/images/countries/US.svg",
+          "name": "USA"
+        },
+        "date": "2026-06-23T20:30:00.000Z",
+        "homeTeam": {
+          "id": 3487331,
+          "logo": "https://highlightly.net/soccer/images/teams/3487331.png",
+          "name": "Wake"
+        },
+        "id": 1297830248,
+        "league": {
+          "id": 218640,
+          "logo": "https://highlightly.net/soccer/images/leagues/218640.png",
+          "name": "USL League Two",
+          "season": 2026
+        },
+        "round": "Group Stage",
+        "state": {
+          "clock": null,
+          "description": "Not started",
+          "score": {
+            "current": null,
+            "penalties": null
+          }
+        }
+      },
+      {
+        "awayTeam": {
+          "id": 20378830,
+          "logo": null,
+          "name": "Kalamazoo FC Women"
+        },
+        "country": {
+          "code": "US",
+          "logo": "https://highlightly.net/soccer/images/countries/US.svg",
+          "name": "USA"
+        },
+        "date": "2026-06-23T20:30:00.000Z",
+        "homeTeam": {
+          "id": 22010197,
+          "logo": null,
+          "name": "Union Macomb Women"
+        },
+        "id": 1303958299,
+        "league": {
+          "id": 951351,
+          "logo": null,
+          "name": "USL W League",
+          "season": 2026
+        },
+        "round": "Regular Season - 1",
+        "state": {
+          "clock": null,
+          "description": "Not started",
+          "score": {
+            "current": null,
+            "penalties": null
+          }
+        }
+      },
+      {
+        "awayTeam": {
+          "id": 1280688,
+          "logo": "https://highlightly.net/soccer/images/teams/1280688.png",
+          "name": "Ghana"
+        },
+        "country": {
+          "code": "World",
+          "logo": "https://highlightly.net/soccer/images/countries/World.png",
+          "name": "World"
+        },
+        "date": "2026-06-23T20:00:00.000Z",
+        "homeTeam": {
+          "id": 9294,
+          "logo": "https://highlightly.net/soccer/images/teams/9294.png",
+          "name": "England"
+        },
+        "id": 1267481886,
+        "league": {
+          "id": 1635,
+          "logo": null,
+          "name": "World Cup",
+          "season": 2026
+        },
+        "round": "Group Stage - 2",
+        "state": {
+          "clock": null,
+          "description": "Not started",
+          "score": {
+            "current": null,
+            "penalties": null
+          }
+        }
+      },
+      {
+        "awayTeam": {
+          "id": 14238014,
+          "logo": "https://highlightly.net/soccer/images/teams/14238014.png",
+          "name": "Deportes Limache"
+        },
+        "country": {
+          "code": "CL",
+          "logo": "https://highlightly.net/soccer/images/countries/CL.svg",
+          "name": "Chile"
+        },
+        "date": "2026-06-23T19:00:00.000Z",
+        "homeTeam": {
+          "id": 1983614,
+          "logo": "https://highlightly.net/soccer/images/teams/1983614.png",
+          "name": "Coquimbo Unido"
+        },
+        "id": 1314303906,
+        "league": {
+          "id": 228001,
+          "logo": "https://highlightly.net/soccer/images/leagues/228001.png",
+          "name": "Copa Chile",
+          "season": 2026
+        },
+        "round": "Group Stage - 1",
+        "state": {
+          "clock": null,
+          "description": "Not started",
+          "score": {
+            "current": null,
+            "penalties": null
+          }
+        }
+      },
+      {
+        "awayTeam": {
+          "id": 20360959,
+          "logo": null,
+          "name": "TLH Reckoning"
+        },
+        "country": {
+          "code": "US",
+          "logo": "https://highlightly.net/soccer/images/countries/US.svg",
+          "name": "USA"
+        },
+        "date": "2026-06-23T19:00:00.000Z",
+        "homeTeam": {
+          "id": 22003389,
+          "logo": null,
+          "name": "Sporting JAX"
+        },
+        "id": 1303960001,
+        "league": {
+          "id": 951351,
+          "logo": null,
+          "name": "USL W League",
+          "season": 2026
+        },
+        "round": "Regular Season - 1",
+        "state": {
+          "clock": null,
+          "description": "Not started",
+          "score": {
+            "current": null,
+            "penalties": null
+          }
+        }
+      },
+      {
+        "awayTeam": {
+          "id": 11080804,
+          "logo": null,
+          "name": "Juventude U20"
+        },
+        "country": {
+          "code": "BR",
+          "logo": "https://highlightly.net/soccer/images/countries/BR.svg",
+          "name": "Brazil"
+        },
+        "date": "2026-06-23T19:00:00.000Z",
+        "homeTeam": {
+          "id": 11064635,
+          "logo": null,
+          "name": "Cuiab\u00e1 U20"
+        },
+        "id": 1298793580,
+        "league": {
+          "id": 630524,
+          "logo": "https://highlightly.net/soccer/images/leagues/630524.png",
+          "name": "CBF Brasileiro U20",
+          "season": 2026
+        },
+        "round": "Regular Season - 18",
+        "state": {
+          "clock": null,
+          "description": "Not started",
+          "score": {
+            "current": null,
+            "penalties": null
+          }
+        }
+      },
+      {
+        "awayTeam": {
+          "id": 769237,
+          "logo": "https://highlightly.net/soccer/images/teams/769237.png",
+          "name": "Inverness CT"
+        },
+        "country": {
+          "code": "World",
+          "logo": "https://highlightly.net/soccer/images/countries/World.png",
+          "name": "World"
+        },
+        "date": "2026-06-23T18:30:00.000Z",
+        "homeTeam": {
+          "id": 6339032,
+          "logo": "https://highlightly.net/soccer/images/teams/6339032.png",
+          "name": "Nairn County"
+        },
+        "id": 1317947037,
+        "league": {
+          "id": 568401,
+          "logo": "https://highlightly.net/soccer/images/leagues/568401.png",
+          "name": "Friendlies Clubs",
+          "season": 2026
+        },
+        "round": "Club Friendlies",
+        "state": {
+          "clock": null,
+          "description": "Not started",
+          "score": {
+            "current": null,
+            "penalties": null
+          }
+        }
+      },
+      {
+        "awayTeam": {
+          "id": 308846,
+          "logo": "https://highlightly.net/soccer/images/teams/308846.png",
+          "name": "Llandudno"
+        },
+        "country": {
+          "code": "World",
+          "logo": "https://highlightly.net/soccer/images/countries/World.png",
+          "name": "World"
+        },
+        "date": "2026-06-23T18:30:00.000Z",
+        "homeTeam": {
+          "id": 4774043,
+          "logo": null,
+          "name": "Buckley Town"
+        },
+        "id": 1327932671,
+        "league": {
+          "id": 568401,
+          "logo": "https://highlightly.net/soccer/images/leagues/568401.png",
+          "name": "Friendlies Clubs",
+          "season": 2026
+        },
+        "round": "Club Friendlies",
+        "state": {
+          "clock": null,
+          "description": "Not started",
+          "score": {
+            "current": null,
+            "penalties": null
+          }
+        }
+      },
+      {
+        "awayTeam": {
+          "id": 6327118,
+          "logo": "https://highlightly.net/soccer/images/teams/6327118.png",
+          "name": "Civil Service Strollers"
+        },
+        "country": {
+          "code": "World",
+          "logo": "https://highlightly.net/soccer/images/countries/World.png",
+          "name": "World"
+        },
+        "date": "2026-06-23T18:30:00.000Z",
+        "homeTeam": {
+          "id": 1184525,
+          "logo": "https://highlightly.net/soccer/images/teams/1184525.png",
+          "name": "Alloa Athletic"
+        },
+        "id": 1319454158,
+        "league": {
+          "id": 568401,
+          "logo": "https://highlightly.net/soccer/images/leagues/568401.png",
+          "name": "Friendlies Clubs",
+          "season": 2026
+        },
+        "round": "Club Friendlies",
+        "state": {
+          "clock": null,
+          "description": "Not started",
+          "score": {
+            "current": null,
+            "penalties": null
+          }
+        }
+      },
+      {
+        "awayTeam": {
+          "id": 22641639,
+          "logo": null,
+          "name": " Johnstone Burgh"
+        },
+        "country": {
+          "code": "World",
+          "logo": "https://highlightly.net/soccer/images/countries/World.png",
+          "name": "World"
+        },
+        "date": "2026-06-23T18:30:00.000Z",
+        "homeTeam": {
+          "id": 5750991,
+          "logo": "https://highlightly.net/soccer/images/teams/5750991.png",
+          "name": "Annan Athletic"
+        },
+        "id": 1322885390,
+        "league": {
+          "id": 568401,
+          "logo": "https://highlightly.net/soccer/images/leagues/568401.png",
+          "name": "Friendlies Clubs",
+          "season": 2026
+        },
+        "round": "Club Friendlies",
+        "state": {
+          "clock": null,
+          "description": "Not started",
+          "score": {
+            "current": null,
+            "penalties": null
+          }
+        }
+      },
+      {
+        "awayTeam": {
+          "id": 11071443,
+          "logo": null,
+          "name": "Fortaleza U20"
+        },
+        "country": {
+          "code": "BR",
+          "logo": "https://highlightly.net/soccer/images/countries/BR.svg",
+          "name": "Brazil"
+        },
+        "date": "2026-06-23T18:00:00.000Z",
+        "homeTeam": {
+          "id": 11040807,
+          "logo": null,
+          "name": "S\u00e3o Paulo U20"
+        },
+        "id": 1298796984,
+        "league": {
+          "id": 630524,
+          "logo": "https://highlightly.net/soccer/images/leagues/630524.png",
+          "name": "CBF Brasileiro U20",
+          "season": 2026
+        },
+        "round": "Regular Season - 18",
+        "state": {
+          "clock": null,
+          "description": "Not started",
+          "score": {
+            "current": null,
+            "penalties": null
+          }
+        }
+      },
+      {
+        "awayTeam": {
+          "id": 11047615,
+          "logo": null,
+          "name": "Am\u00e9rica Mineiro U20"
+        },
+        "country": {
+          "code": "BR",
+          "logo": "https://highlightly.net/soccer/images/countries/BR.svg",
+          "name": "Brazil"
+        },
+        "date": "2026-06-23T18:00:00.000Z",
+        "homeTeam": {
+          "id": 11063784,
+          "logo": null,
+          "name": "Cruzeiro U20"
+        },
+        "id": 1298792729,
+        "league": {
+          "id": 630524,
+          "logo": "https://highlightly.net/soccer/images/leagues/630524.png",
+          "name": "CBF Brasileiro U20",
+          "season": 2026
+        },
+        "round": "Regular Season - 18",
+        "state": {
+          "clock": null,
+          "description": "Not started",
+          "score": {
+            "current": null,
+            "penalties": null
+          }
+        }
+      },
+      {
+        "awayTeam": {
+          "id": 20829860,
+          "logo": null,
+          "name": "Cruzeiro U17"
+        },
+        "country": {
+          "code": "BR",
+          "logo": "https://highlightly.net/soccer/images/countries/BR.svg",
+          "name": "Brazil"
+        },
+        "date": "2026-06-23T18:00:00.000Z",
+        "homeTeam": {
+          "id": 21954031,
+          "logo": null,
+          "name": "Juventude U17"
+        },
+        "id": 1313875002,
+        "league": {
+          "id": 960712,
+          "logo": null,
+          "name": "Brasileiro U17",
+          "season": 2026
+        },
+        "round": "Regular Season - 5",
+        "state": {
+          "clock": null,
+          "description": "Not started",
+          "score": {
+            "current": null,
+            "penalties": null
+          }
+        }
+      },
+      {
+        "awayTeam": {
+          "id": 20834966,
+          "logo": null,
+          "name": "Gremio U17"
+        },
+        "country": {
+          "code": "BR",
+          "logo": "https://highlightly.net/soccer/images/countries/BR.svg",
+          "name": "Brazil"
+        },
+        "date": "2026-06-23T18:00:00.000Z",
+        "homeTeam": {
+          "id": 20838370,
+          "logo": null,
+          "name": "Santos U17"
+        },
+        "id": 1313875853,
+        "league": {
+          "id": 960712,
+          "logo": null,
+          "name": "Brasileiro U17",
+          "season": 2026
+        },
+        "round": "Regular Season - 5",
+        "state": {
+          "clock": null,
+          "description": "Not started",
+          "score": {
+            "current": null,
+            "penalties": null
+          }
+        }
+      },
+      {
+        "awayTeam": {
+          "id": 20839221,
+          "logo": null,
+          "name": "S\u00e3o Paulo U17"
+        },
+        "country": {
+          "code": "BR",
+          "logo": "https://highlightly.net/soccer/images/countries/BR.svg",
+          "name": "Brazil"
+        },
+        "date": "2026-06-23T18:00:00.000Z",
+        "homeTeam": {
+          "id": 20823052,
+          "logo": null,
+          "name": "America MG U17"
+        },
+        "id": 1313869045,
+        "league": {
+          "id": 960712,
+          "logo": null,
+          "name": "Brasileiro U17",
+          "season": 2026
+        },
+        "round": "Regular Season - 5",
+        "state": {
+          "clock": null,
+          "description": "Not started",
+          "score": {
+            "current": null,
+            "penalties": null
+          }
+        }
+      },
+      {
+        "awayTeam": {
+          "id": 20835817,
+          "logo": null,
+          "name": "Internacional U17"
+        },
+        "country": {
+          "code": "BR",
+          "logo": "https://highlightly.net/soccer/images/countries/BR.svg",
+          "name": "Brazil"
+        },
+        "date": "2026-06-23T18:00:00.000Z",
+        "homeTeam": {
+          "id": 20823903,
+          "logo": null,
+          "name": "Athletico PR U17"
+        },
+        "id": 1313869896,
+        "league": {
+          "id": 960712,
+          "logo": null,
+          "name": "Brasileiro U17",
+          "season": 2026
+        },
+        "round": "Regular Season - 5",
+        "state": {
+          "clock": null,
+          "description": "Not started",
+          "score": {
+            "current": null,
+            "penalties": null
+          }
+        }
+      },
+      {
+        "awayTeam": {
+          "id": 20831562,
+          "logo": null,
+          "name": "Flamengo RJ U17"
+        },
+        "country": {
+          "code": "BR",
+          "logo": "https://highlightly.net/soccer/images/countries/BR.svg",
+          "name": "Brazil"
+        },
+        "date": "2026-06-23T18:00:00.000Z",
+        "homeTeam": {
+          "id": 21962541,
+          "logo": null,
+          "name": "Vasco U17"
+        },
+        "id": 1313876704,
+        "league": {
+          "id": 960712,
+          "logo": null,
+          "name": "Brasileiro U17",
+          "season": 2026
+        },
+        "round": "Regular Season - 5",
+        "state": {
+          "clock": null,
+          "description": "Not started",
+          "score": {
+            "current": null,
+            "penalties": null
+          }
+        }
+      },
+      {
+        "awayTeam": {
+          "id": 20827307,
+          "logo": null,
+          "name": "Botafogo U17"
+        },
+        "country": {
+          "code": "BR",
+          "logo": "https://highlightly.net/soccer/images/countries/BR.svg",
+          "name": "Brazil"
+        },
+        "date": "2026-06-23T18:00:00.000Z",
+        "homeTeam": {
+          "id": 20829009,
+          "logo": null,
+          "name": "Corinthians U17"
+        },
+        "id": 1313873300,
+        "league": {
+          "id": 960712,
+          "logo": null,
+          "name": "Brasileiro U17",
+          "season": 2026
+        },
+        "round": "Regular Season - 5",
+        "state": {
+          "clock": null,
+          "description": "Not started",
+          "score": {
+            "current": null,
+            "penalties": null
+          }
+        }
+      },
+      {
+        "awayTeam": {
+          "id": 20836668,
+          "logo": null,
+          "name": "Palmeiras U17"
+        },
+        "country": {
+          "code": "BR",
+          "logo": "https://highlightly.net/soccer/images/countries/BR.svg",
+          "name": "Brazil"
+        },
+        "date": "2026-06-23T18:00:00.000Z",
+        "homeTeam": {
+          "id": 20825605,
+          "logo": null,
+          "name": "Atl\u00e9tico Mineiro U17"
+        },
+        "id": 1313871598,
+        "league": {
+          "id": 960712,
+          "logo": null,
+          "name": "Brasileiro U17",
+          "season": 2026
+        },
+        "round": "Regular Season - 5",
+        "state": {
+          "clock": null,
+          "description": "Not started",
+          "score": {
+            "current": null,
+            "penalties": null
+          }
+        }
+      },
+      {
+        "awayTeam": {
+          "id": 3135868,
+          "logo": "https://highlightly.net/soccer/images/teams/3135868.png",
+          "name": "Artsakh"
+        },
+        "country": {
+          "code": "World",
+          "logo": "https://highlightly.net/soccer/images/countries/World.png",
+          "name": "World"
+        },
+        "date": "2026-06-23T18:00:00.000Z",
+        "homeTeam": {
+          "id": 3723058,
+          "logo": "https://highlightly.net/soccer/images/teams/3723058.png",
+          "name": "Koper"
+        },
+        "id": 1322880284,
+        "league": {
+          "id": 568401,
+          "logo": "https://highlightly.net/soccer/images/leagues/568401.png",
+          "name": "Friendlies Clubs",
+          "season": 2026
+        },
+        "round": "Club Friendlies",
+        "state": {
+          "clock": null,
+          "description": "Not started",
+          "score": {
+            "current": null,
+            "penalties": null
+          }
+        }
+      },
+      {
+        "awayTeam": {
+          "id": 11110589,
+          "logo": null,
+          "name": "Santos U20"
+        },
+        "country": {
+          "code": "BR",
+          "logo": "https://highlightly.net/soccer/images/countries/BR.svg",
+          "name": "Brazil"
+        },
+        "date": "2026-06-23T18:00:00.000Z",
+        "homeTeam": {
+          "id": 11125056,
+          "logo": null,
+          "name": "Vit\u00f3ria U20"
+        },
+        "id": 1298798686,
+        "league": {
+          "id": 630524,
+          "logo": "https://highlightly.net/soccer/images/leagues/630524.png",
+          "name": "CBF Brasileiro U20",
+          "season": 2026
+        },
+        "round": "Regular Season - 18",
+        "state": {
+          "clock": null,
+          "description": "Not started",
+          "score": {
+            "current": null,
+            "penalties": null
+          }
+        }
+      },
+      {
+        "awayTeam": {
+          "id": 11024638,
+          "logo": null,
+          "name": "Bahia U20"
+        },
+        "country": {
+          "code": "BR",
+          "logo": "https://highlightly.net/soccer/images/countries/BR.svg",
+          "name": "Brazil"
+        },
+        "date": "2026-06-23T18:00:00.000Z",
+        "homeTeam": {
+          "id": 11073145,
+          "logo": null,
+          "name": "Gr\u00eamio U20"
+        },
+        "id": 1298795282,
+        "league": {
+          "id": 630524,
+          "logo": "https://highlightly.net/soccer/images/leagues/630524.png",
+          "name": "CBF Brasileiro U20",
+          "season": 2026
+        },
+        "round": "Regular Season - 18",
+        "state": {
+          "clock": null,
+          "description": "Not started",
+          "score": {
+            "current": null,
+            "penalties": null
+          }
+        }
+      },
+      {
+        "awayTeam": {
+          "id": 20833264,
+          "logo": null,
+          "name": "Fortaleza U17"
+        },
+        "country": {
+          "code": "BR",
+          "logo": "https://highlightly.net/soccer/images/countries/BR.svg",
+          "name": "Brazil"
+        },
+        "date": "2026-06-23T18:00:00.000Z",
+        "homeTeam": {
+          "id": 20824754,
+          "logo": null,
+          "name": "Atl\u00e9tico Goianiense U17"
+        },
+        "id": 1313870747,
+        "league": {
+          "id": 960712,
+          "logo": null,
+          "name": "Brasileiro U17",
+          "season": 2026
+        },
+        "round": "Regular Season - 5",
+        "state": {
+          "clock": null,
+          "description": "Not started",
+          "score": {
+            "current": null,
+            "penalties": null
+          }
+        }
+      },
+      {
+        "awayTeam": {
+          "id": 20837519,
+          "logo": null,
+          "name": "RB Bragantino U17"
+        },
+        "country": {
+          "code": "BR",
+          "logo": "https://highlightly.net/soccer/images/countries/BR.svg",
+          "name": "Brazil"
+        },
+        "date": "2026-06-23T18:00:00.000Z",
+        "homeTeam": {
+          "id": 20832413,
+          "logo": null,
+          "name": "Fluminense U17"
+        },
+        "id": 1313874151,
+        "league": {
+          "id": 960712,
+          "logo": null,
+          "name": "Brasileiro U17",
+          "season": 2026
+        },
+        "round": "Regular Season - 5",
+        "state": {
+          "clock": null,
+          "description": "Not started",
+          "score": {
+            "current": null,
+            "penalties": null
+          }
+        }
+      },
+      {
+        "awayTeam": {
+          "id": 11156543,
+          "logo": "https://highlightly.net/soccer/images/teams/11156543.png",
+          "name": "Bonsucesso"
+        },
+        "country": {
+          "code": "BR",
+          "logo": "https://highlightly.net/soccer/images/countries/BR.svg",
+          "name": "Brazil"
+        },
+        "date": "2026-06-23T17:45:00.000Z",
+        "homeTeam": {
+          "id": 9082656,
+          "logo": "https://highlightly.net/soccer/images/teams/9082656.png",
+          "name": "Cabofriense"
+        },
+        "id": 1327910545,
+        "league": {
+          "id": 881569,
+          "logo": null,
+          "name": "Copa Rio",
+          "season": 2026
+        },
+        "round": "Round 1",
+        "state": {
+          "clock": null,
+          "description": "Not started",
+          "score": {
+            "current": null,
+            "penalties": null
+          }
+        }
+      },
+      {
+        "awayTeam": {
+          "id": 6651349,
+          "logo": "https://highlightly.net/soccer/images/teams/6651349.png",
+          "name": "Maca\u00e9"
+        },
+        "country": {
+          "code": "BR",
+          "logo": "https://highlightly.net/soccer/images/countries/BR.svg",
+          "name": "Brazil"
+        },
+        "date": "2026-06-23T17:45:00.000Z",
+        "homeTeam": {
+          "id": 1875537,
+          "logo": "https://highlightly.net/soccer/images/teams/1875537.png",
+          "name": "Americano Campos"
+        },
+        "id": 1327912247,
+        "league": {
+          "id": 881569,
+          "logo": null,
+          "name": "Copa Rio",
+          "season": 2026
+        },
+        "round": "Round 1",
+        "state": {
+          "clock": null,
+          "description": "Not started",
+          "score": {
+            "current": null,
+            "penalties": null
+          }
+        }
+      },
+      {
+        "awayTeam": {
+          "id": 10449362,
+          "logo": "https://highlightly.net/soccer/images/teams/10449362.png",
+          "name": "Duque de Caxias"
+        },
+        "country": {
+          "code": "BR",
+          "logo": "https://highlightly.net/soccer/images/countries/BR.svg",
+          "name": "Brazil"
+        },
+        "date": "2026-06-23T17:45:00.000Z",
+        "homeTeam": {
+          "id": 11160798,
+          "logo": "https://highlightly.net/soccer/images/teams/11160798.png",
+          "name": "Olaria"
+        },
+        "id": 1327911396,
+        "league": {
+          "id": 881569,
+          "logo": null,
+          "name": "Copa Rio",
+          "season": 2026
+        },
+        "round": "Round 1",
+        "state": {
+          "clock": null,
+          "description": "Not started",
+          "score": {
+            "current": null,
+            "penalties": null
+          }
+        }
+      },
+      {
+        "awayTeam": {
+          "id": 20118424,
+          "logo": null,
+          "name": "Santa Cruz RJ"
+        },
+        "country": {
+          "code": "BR",
+          "logo": "https://highlightly.net/soccer/images/countries/BR.svg",
+          "name": "Brazil"
+        },
+        "date": "2026-06-23T17:45:00.000Z",
+        "homeTeam": {
+          "id": 15095822,
+          "logo": null,
+          "name": "P\u00e9rolas Negras"
+        },
+        "id": 1327913098,
+        "league": {
+          "id": 881569,
+          "logo": null,
+          "name": "Copa Rio",
+          "season": 2026
+        },
+        "round": "Round 1",
+        "state": {
+          "clock": null,
+          "description": "Not started",
+          "score": {
+            "current": null,
+            "penalties": null
+          }
+        }
+      },
+      {
+        "awayTeam": {
+          "id": 23320737,
+          "logo": null,
+          "name": "1. Fc Passau"
+        },
+        "country": {
+          "code": "World",
+          "logo": "https://highlightly.net/soccer/images/countries/World.png",
+          "name": "World"
+        },
+        "date": "2026-06-23T17:30:00.000Z",
+        "homeTeam": {
+          "id": 7937210,
+          "logo": "https://highlightly.net/soccer/images/teams/7937210.png",
+          "name": "Buchbach"
+        },
+        "id": 1317946186,
+        "league": {
+          "id": 568401,
+          "logo": "https://highlightly.net/soccer/images/leagues/568401.png",
+          "name": "Friendlies Clubs",
+          "season": 2026
+        },
+        "round": "Club Friendlies",
+        "state": {
+          "clock": null,
+          "description": "Not started",
+          "score": {
+            "current": null,
+            "penalties": null
+          }
+        }
+      },
+      {
+        "awayTeam": {
+          "id": 14124831,
+          "logo": "https://highlightly.net/soccer/images/teams/14124831.png",
+          "name": "Arlanda"
+        },
+        "country": {
+          "code": "SE",
+          "logo": "https://highlightly.net/soccer/images/countries/SE.svg",
+          "name": "Sweden"
+        },
+        "date": "2026-06-23T17:30:00.000Z",
+        "homeTeam": {
+          "id": 14125682,
+          "logo": "https://highlightly.net/soccer/images/teams/14125682.png",
+          "name": "J\u00e4rf\u00e4lla"
+        },
+        "id": 1315342977,
+        "league": {
+          "id": 98649,
+          "logo": "https://highlightly.net/soccer/images/leagues/98649.png",
+          "name": "Svenska Cupen",
+          "season": 2026
+        },
+        "round": "Semi-finals",
+        "state": {
+          "clock": null,
+          "description": "Not started",
+          "score": {
+            "current": null,
+            "penalties": null
+          }
+        }
+      },
+      {
+        "awayTeam": {
+          "id": 600739,
+          "logo": "https://highlightly.net/soccer/images/teams/600739.png",
+          "name": "Dinamo Batumi"
+        },
+        "country": {
+          "code": "GE",
+          "logo": "https://highlightly.net/soccer/images/countries/GE.svg",
+          "name": "Georgia"
+        },
+        "date": "2026-06-23T17:00:00.000Z",
+        "homeTeam": {
+          "id": 1925746,
+          "logo": "https://highlightly.net/soccer/images/teams/1925746.png",
+          "name": "Dinamo Tbilisi"
+        },
+        "id": 1284286583,
+        "league": {
+          "id": 279061,
+          "logo": "https://highlightly.net/soccer/images/leagues/279061.png",
+          "name": "Erovnuli Liga",
+          "season": 2026
+        },
+        "round": "Regular Season - 19",
+        "state": {
+          "clock": null,
+          "description": "Not started",
+          "score": {
+            "current": null,
+            "penalties": null
+          }
+        }
+      },
+      {
+        "awayTeam": {
+          "id": 1845752,
+          "logo": "https://highlightly.net/soccer/images/teams/1845752.png",
+          "name": "\u00c4ngelholms FF"
+        },
+        "country": {
+          "code": "SE",
+          "logo": "https://highlightly.net/soccer/images/countries/SE.svg",
+          "name": "Sweden"
+        },
+        "date": "2026-06-23T17:00:00.000Z",
+        "homeTeam": {
+          "id": 5665891,
+          "logo": "https://highlightly.net/soccer/images/teams/5665891.png",
+          "name": "Astrio"
+        },
+        "id": 1315342126,
+        "league": {
+          "id": 98649,
+          "logo": "https://highlightly.net/soccer/images/leagues/98649.png",
+          "name": "Svenska Cupen",
+          "season": 2026
+        },
+        "round": "Semi-finals",
+        "state": {
+          "clock": null,
+          "description": "Not started",
+          "score": {
+            "current": null,
+            "penalties": null
+          }
+        }
+      },
+      {
+        "awayTeam": {
+          "id": 553083,
+          "logo": "https://highlightly.net/soccer/images/teams/553083.png",
+          "name": "HJK Helsinki"
+        },
+        "country": {
+          "code": "FI",
+          "logo": "https://highlightly.net/soccer/images/countries/FI.svg",
+          "name": "Finland"
+        },
+        "date": "2026-06-23T17:00:00.000Z",
+        "homeTeam": {
+          "id": 500321,
+          "logo": "https://highlightly.net/soccer/images/teams/500321.png",
+          "name": "IFK Mariehamn"
+        },
+        "id": 1272853398,
+        "league": {
+          "id": 208428,
+          "logo": "https://highlightly.net/soccer/images/leagues/208428.png",
+          "name": "Veikkausliiga",
+          "season": 2026
+        },
+        "round": "Regular Season - 12",
+        "state": {
+          "clock": null,
+          "description": "Not started",
+          "score": {
+            "current": null,
+            "penalties": null
+          }
+        }
+      },
+      {
+        "awayTeam": {
+          "id": 1335152,
+          "logo": "https://highlightly.net/soccer/images/teams/1335152.png",
+          "name": "Uzbekistan"
+        },
+        "country": {
+          "code": "World",
+          "logo": "https://highlightly.net/soccer/images/countries/World.png",
+          "name": "World"
+        },
+        "date": "2026-06-23T17:00:00.000Z",
+        "homeTeam": {
+          "id": 23761,
+          "logo": "https://highlightly.net/soccer/images/teams/23761.png",
+          "name": "Portugal"
+        },
+        "id": 1267483588,
+        "league": {
+          "id": 1635,
+          "logo": null,
+          "name": "World Cup",
+          "season": 2026
+        },
+        "round": "Group Stage - 2",
+        "state": {
+          "clock": null,
+          "description": "Not started",
+          "score": {
+            "current": null,
+            "penalties": null
+          }
+        }
+      },
+      {
+        "awayTeam": {
+          "id": 3627746,
+          "logo": "https://highlightly.net/soccer/images/teams/3627746.png",
+          "name": "Eichst\u00e4tt"
+        },
+        "country": {
+          "code": "World",
+          "logo": "https://highlightly.net/soccer/images/countries/World.png",
+          "name": "World"
+        },
+        "date": "2026-06-23T17:00:00.000Z",
+        "homeTeam": {
+          "id": 18197717,
+          "logo": null,
+          "name": "Gro\u00dfschwarzenlohe"
+        },
+        "id": 1317225389,
+        "league": {
+          "id": 568401,
+          "logo": "https://highlightly.net/soccer/images/leagues/568401.png",
+          "name": "Friendlies Clubs",
+          "season": 2026
+        },
+        "round": "Club Friendlies",
+        "state": {
+          "clock": null,
+          "description": "Not started",
+          "score": {
+            "current": null,
+            "penalties": null
+          }
+        }
+      },
+      {
+        "awayTeam": {
+          "id": 518192,
+          "logo": "https://highlightly.net/soccer/images/teams/518192.png",
+          "name": "HNK Hajduk Split"
+        },
+        "country": {
+          "code": "World",
+          "logo": "https://highlightly.net/soccer/images/countries/World.png",
+          "name": "World"
+        },
+        "date": "2026-06-23T16:15:00.000Z",
+        "homeTeam": {
+          "id": 519043,
+          "logo": "https://highlightly.net/soccer/images/teams/519043.png",
+          "name": "Shk\u00ebndija Tetovo"
+        },
+        "id": 1322881986,
+        "league": {
+          "id": 568401,
+          "logo": "https://highlightly.net/soccer/images/leagues/568401.png",
+          "name": "Friendlies Clubs",
+          "season": 2026
+        },
+        "round": "Club Friendlies",
+        "state": {
+          "clock": null,
+          "description": "Not started",
+          "score": {
+            "current": null,
+            "penalties": null
+          }
+        }
+      },
+      {
+        "awayTeam": {
+          "id": 573507,
+          "logo": "https://highlightly.net/soccer/images/teams/573507.png",
+          "name": "Sutjeska"
+        },
+        "country": {
+          "code": "World",
+          "logo": "https://highlightly.net/soccer/images/countries/World.png",
+          "name": "World"
+        },
+        "date": "2026-06-23T16:00:00.000Z",
+        "homeTeam": {
+          "id": 2863548,
+          "logo": "https://highlightly.net/soccer/images/teams/2863548.png",
+          "name": "Borac Banja Luka"
+        },
+        "id": 1327931820,
+        "league": {
+          "id": 568401,
+          "logo": "https://highlightly.net/soccer/images/leagues/568401.png",
+          "name": "Friendlies Clubs",
+          "season": 2026
+        },
+        "round": "Club Friendlies",
+        "state": {
+          "clock": null,
+          "description": "Not started",
+          "score": {
+            "current": null,
+            "penalties": null
+          }
+        }
+      },
+      {
+        "awayTeam": {
+          "id": 587123,
+          "logo": "https://highlightly.net/soccer/images/teams/587123.png",
+          "name": "SJK Seinajoki"
+        },
+        "country": {
+          "code": "FI",
+          "logo": "https://highlightly.net/soccer/images/countries/FI.svg",
+          "name": "Finland"
+        },
+        "date": "2026-06-23T16:00:00.000Z",
+        "homeTeam": {
+          "id": 991348,
+          "logo": "https://highlightly.net/soccer/images/teams/991348.png",
+          "name": "Inter Turku"
+        },
+        "id": 1272851696,
+        "league": {
+          "id": 208428,
+          "logo": "https://highlightly.net/soccer/images/leagues/208428.png",
+          "name": "Veikkausliiga",
+          "season": 2026
+        },
+        "round": "Regular Season - 12",
+        "state": {
+          "clock": null,
+          "description": "Not started",
+          "score": {
+            "current": null,
+            "penalties": null
+          }
+        }
+      },
+      {
+        "awayTeam": {
+          "id": 1772566,
+          "logo": "https://highlightly.net/soccer/images/teams/1772566.png",
+          "name": "IF Gnistan"
+        },
+        "country": {
+          "code": "FI",
+          "logo": "https://highlightly.net/soccer/images/countries/FI.svg",
+          "name": "Finland"
+        },
+        "date": "2026-06-23T16:00:00.000Z",
+        "homeTeam": {
+          "id": 1766609,
+          "logo": "https://highlightly.net/soccer/images/teams/1766609.png",
+          "name": "FF Jaro"
+        },
+        "id": 1272852547,
+        "league": {
+          "id": 208428,
+          "logo": "https://highlightly.net/soccer/images/leagues/208428.png",
+          "name": "Veikkausliiga",
+          "season": 2026
+        },
+        "round": "Regular Season - 12",
+        "state": {
+          "clock": null,
+          "description": "Not started",
+          "score": {
+            "current": null,
+            "penalties": null
+          }
+        }
+      },
+      {
+        "awayTeam": {
+          "id": 2842273,
+          "logo": "https://highlightly.net/soccer/images/teams/2842273.png",
+          "name": "Vllaznia Shkod\u00ebr"
+        },
+        "country": {
+          "code": "World",
+          "logo": "https://highlightly.net/soccer/images/countries/World.png",
+          "name": "World"
+        },
+        "date": "2026-06-23T16:00:00.000Z",
+        "homeTeam": {
+          "id": 576911,
+          "logo": "https://highlightly.net/soccer/images/teams/576911.png",
+          "name": "Olimpija Ljubljana"
+        },
+        "id": 1322881135,
+        "league": {
+          "id": 568401,
+          "logo": "https://highlightly.net/soccer/images/leagues/568401.png",
+          "name": "Friendlies Clubs",
+          "season": 2026
+        },
+        "round": "Club Friendlies",
+        "state": {
+          "clock": null,
+          "description": "Not started",
+          "score": {
+            "current": null,
+            "penalties": null
+          }
+        }
+      },
+      {
+        "awayTeam": {
+          "id": 927523,
+          "logo": "https://highlightly.net/soccer/images/teams/927523.png",
+          "name": "Enisey"
+        },
+        "country": {
+          "code": "World",
+          "logo": "https://highlightly.net/soccer/images/countries/World.png",
+          "name": "World"
+        },
+        "date": "2026-06-23T15:30:00.000Z",
+        "homeTeam": {
+          "id": 331823,
+          "logo": "https://highlightly.net/soccer/images/teams/331823.png",
+          "name": "FC Gomel"
+        },
+        "id": 1322884539,
+        "league": {
+          "id": 568401,
+          "logo": "https://highlightly.net/soccer/images/leagues/568401.png",
+          "name": "Friendlies Clubs",
+          "season": 2026
+        },
+        "round": "Club Friendlies",
+        "state": {
+          "clock": null,
+          "description": "Not started",
+          "score": {
+            "current": null,
+            "penalties": null
+          }
+        }
+      },
+      {
+        "awayTeam": {
+          "id": 2831210,
+          "logo": "https://highlightly.net/soccer/images/teams/2831210.png",
+          "name": "Dinamo Tirana"
+        },
+        "country": {
+          "code": "World",
+          "logo": "https://highlightly.net/soccer/images/countries/World.png",
+          "name": "World"
+        },
+        "date": "2026-06-23T15:30:00.000Z",
+        "homeTeam": {
+          "id": 3686465,
+          "logo": "https://highlightly.net/soccer/images/teams/3686465.png",
+          "name": "Sileks"
+        },
+        "id": 1322883688,
+        "league": {
+          "id": 568401,
+          "logo": "https://highlightly.net/soccer/images/leagues/568401.png",
+          "name": "Friendlies Clubs",
+          "season": 2026
+        },
+        "round": "Club Friendlies",
+        "state": {
+          "clock": null,
+          "description": "Not started",
+          "score": {
+            "current": null,
+            "penalties": null
+          }
+        }
+      },
+      {
+        "awayTeam": {
+          "id": 3297558,
+          "logo": "https://highlightly.net/soccer/images/teams/3297558.png",
+          "name": "Panev\u0117\u017eys"
+        },
+        "country": {
+          "code": "LT",
+          "logo": "https://highlightly.net/soccer/images/countries/LT.svg",
+          "name": "Lithuania"
+        },
+        "date": "2026-06-23T15:30:00.000Z",
+        "homeTeam": {
+          "id": 3289048,
+          "logo": "https://highlightly.net/soccer/images/teams/3289048.png",
+          "name": "Minija"
+        },
+        "id": 1316690110,
+        "league": {
+          "id": 563295,
+          "logo": "https://highlightly.net/soccer/images/leagues/563295.png",
+          "name": "Cup",
+          "season": 2026
+        },
+        "round": "Quarter-finals",
+        "state": {
+          "clock": null,
+          "description": "Not started",
+          "score": {
+            "current": null,
+            "penalties": null
+          }
+        }
+      },
+      {
+        "awayTeam": {
+          "id": 1207502,
+          "logo": "https://highlightly.net/soccer/images/teams/1207502.png",
+          "name": "Spartak Pleven"
+        },
+        "country": {
+          "code": "World",
+          "logo": "https://highlightly.net/soccer/images/countries/World.png",
+          "name": "World"
+        },
+        "date": "2026-06-23T15:30:00.000Z",
+        "homeTeam": {
+          "id": 540318,
+          "logo": "https://highlightly.net/soccer/images/teams/540318.png",
+          "name": "Botev Plovdiv"
+        },
+        "id": 1322878582,
+        "league": {
+          "id": 568401,
+          "logo": "https://highlightly.net/soccer/images/leagues/568401.png",
+          "name": "Friendlies Clubs",
+          "season": 2026
+        },
+        "round": "Club Friendlies",
+        "state": {
+          "clock": null,
+          "description": "Not started",
+          "score": {
+            "current": null,
+            "penalties": null
+          }
+        }
+      },
+      {
+        "awayTeam": {
+          "id": 728389,
+          "logo": "https://highlightly.net/soccer/images/teams/728389.png",
+          "name": "Etar Veliko Tarnovo"
+        },
+        "country": {
+          "code": "World",
+          "logo": "https://highlightly.net/soccer/images/countries/World.png",
+          "name": "World"
+        },
+        "date": "2026-06-23T15:30:00.000Z",
+        "homeTeam": {
+          "id": 550530,
+          "logo": "https://highlightly.net/soccer/images/teams/550530.png",
+          "name": "Levski Sofia"
+        },
+        "id": 1317945335,
+        "league": {
+          "id": 568401,
+          "logo": "https://highlightly.net/soccer/images/leagues/568401.png",
+          "name": "Friendlies Clubs",
+          "season": 2026
+        },
+        "round": "Club Friendlies",
+        "state": {
+          "clock": null,
+          "description": "Not started",
+          "score": {
+            "current": null,
+            "penalties": null
+          }
+        }
+      },
+      {
+        "awayTeam": {
+          "id": 3295856,
+          "logo": "https://highlightly.net/soccer/images/teams/3295856.png",
+          "name": "Kauno \u017dalgiris"
+        },
+        "country": {
+          "code": "LT",
+          "logo": "https://highlightly.net/soccer/images/countries/LT.svg",
+          "name": "Lithuania"
+        },
+        "date": "2026-06-23T15:00:00.000Z",
+        "homeTeam": {
+          "id": 3283091,
+          "logo": "https://highlightly.net/soccer/images/teams/3283091.png",
+          "name": "BFA"
+        },
+        "id": 1316687557,
+        "league": {
+          "id": 563295,
+          "logo": "https://highlightly.net/soccer/images/leagues/563295.png",
+          "name": "Cup",
+          "season": 2026
+        },
+        "round": "Quarter-finals",
+        "state": {
+          "clock": null,
+          "description": "Not started",
+          "score": {
+            "current": null,
+            "penalties": null
+          }
+        }
+      },
+      {
+        "awayTeam": {
+          "id": 990497,
+          "logo": "https://highlightly.net/soccer/images/teams/990497.png",
+          "name": "Ilves"
+        },
+        "country": {
+          "code": "FI",
+          "logo": "https://highlightly.net/soccer/images/countries/FI.svg",
+          "name": "Finland"
+        },
+        "date": "2026-06-23T15:00:00.000Z",
+        "homeTeam": {
+          "id": 992199,
+          "logo": "https://highlightly.net/soccer/images/teams/992199.png",
+          "name": "KuPS"
+        },
+        "id": 1272849143,
+        "league": {
+          "id": 208428,
+          "logo": "https://highlightly.net/soccer/images/leagues/208428.png",
+          "name": "Veikkausliiga",
+          "season": 2026
+        },
+        "round": "Regular Season - 12",
+        "state": {
+          "clock": null,
+          "description": "Not started",
+          "score": {
+            "current": null,
+            "penalties": null
+          }
+        }
+      },
+      {
+        "awayTeam": {
+          "id": 994752,
+          "logo": "https://highlightly.net/soccer/images/teams/994752.png",
+          "name": "Turku PS"
+        },
+        "country": {
+          "code": "FI",
+          "logo": "https://highlightly.net/soccer/images/countries/FI.svg",
+          "name": "Finland"
+        },
+        "date": "2026-06-23T15:00:00.000Z",
+        "homeTeam": {
+          "id": 993050,
+          "logo": "https://highlightly.net/soccer/images/teams/993050.png",
+          "name": "FC Lahti"
+        },
+        "id": 1272849994,
+        "league": {
+          "id": 208428,
+          "logo": "https://highlightly.net/soccer/images/leagues/208428.png",
+          "name": "Veikkausliiga",
+          "season": 2026
+        },
+        "round": "Regular Season - 12",
+        "state": {
+          "clock": null,
+          "description": "Not started",
+          "score": {
+            "current": null,
+            "penalties": null
+          }
+        }
+      },
+      {
+        "awayTeam": {
+          "id": 1768311,
+          "logo": "https://highlightly.net/soccer/images/teams/1768311.png",
+          "name": "AC Oulu"
+        },
+        "country": {
+          "code": "FI",
+          "logo": "https://highlightly.net/soccer/images/countries/FI.svg",
+          "name": "Finland"
+        },
+        "date": "2026-06-23T15:00:00.000Z",
+        "homeTeam": {
+          "id": 553934,
+          "logo": "https://highlightly.net/soccer/images/teams/553934.png",
+          "name": "Vaasan Palloseura"
+        },
+        "id": 1272850845,
+        "league": {
+          "id": 208428,
+          "logo": "https://highlightly.net/soccer/images/leagues/208428.png",
+          "name": "Veikkausliiga",
+          "season": 2026
+        },
+        "round": "Regular Season - 12",
+        "state": {
+          "clock": null,
+          "description": "Not started",
+          "score": {
+            "current": null,
+            "penalties": null
+          }
+        }
+      },
+      {
+        "awayTeam": {
+          "id": 11784581,
+          "logo": "https://highlightly.net/soccer/images/teams/11784581.png",
+          "name": "Meshakhte"
+        },
+        "country": {
+          "code": "GE",
+          "logo": "https://highlightly.net/soccer/images/countries/GE.svg",
+          "name": "Georgia"
+        },
+        "date": "2026-06-23T15:00:00.000Z",
+        "homeTeam": {
+          "id": 2980986,
+          "logo": "https://highlightly.net/soccer/images/teams/2980986.png",
+          "name": "Saburtalo"
+        },
+        "id": 1284288285,
+        "league": {
+          "id": 279061,
+          "logo": "https://highlightly.net/soccer/images/leagues/279061.png",
+          "name": "Erovnuli Liga",
+          "season": 2026
+        },
+        "round": "Regular Season - 19",
+        "state": {
+          "clock": null,
+          "description": "Not started",
+          "score": {
+            "current": null,
+            "penalties": null
+          }
+        }
+      },
+      {
+        "awayTeam": {
+          "id": 3170759,
+          "logo": "https://highlightly.net/soccer/images/teams/3170759.png",
+          "name": "Prost\u011bjov"
+        },
+        "country": {
+          "code": "World",
+          "logo": "https://highlightly.net/soccer/images/countries/World.png",
+          "name": "World"
+        },
+        "date": "2026-06-23T15:00:00.000Z",
+        "homeTeam": {
+          "id": 3177567,
+          "logo": "https://highlightly.net/soccer/images/teams/3177567.png",
+          "name": "Zbrojovka Brno"
+        },
+        "id": 1322882837,
+        "league": {
+          "id": 568401,
+          "logo": "https://highlightly.net/soccer/images/leagues/568401.png",
+          "name": "Friendlies Clubs",
+          "season": 2026
+        },
+        "round": "Club Friendlies",
+        "state": {
+          "clock": null,
+          "description": "Not started",
+          "score": {
+            "current": null,
+            "penalties": null
+          }
+        }
+      },
+      {
+        "awayTeam": {
+          "id": 21926799,
+          "logo": null,
+          "name": "Bars"
+        },
+        "country": {
+          "code": "KG",
+          "logo": "https://highlightly.net/soccer/images/countries/KG.svg",
+          "name": "Kyrgyzstan"
+        },
+        "date": "2026-06-23T14:30:00.000Z",
+        "homeTeam": {
+          "id": 10412769,
+          "logo": "https://highlightly.net/soccer/images/teams/10412769.png",
+          "name": "Alga"
+        },
+        "id": 1300006255,
+        "league": {
+          "id": 485003,
+          "logo": "https://highlightly.net/soccer/images/leagues/485003.png",
+          "name": "Premier League",
+          "season": 2026
+        },
+        "round": "Regular Season - 13",
+        "state": {
+          "clock": null,
+          "description": "Not started",
+          "score": {
+            "current": null,
+            "penalties": null
+          }
+        }
+      },
+      {
+        "awayTeam": {
+          "id": 6830910,
+          "logo": "https://highlightly.net/soccer/images/teams/6830910.png",
+          "name": "Dordoi Bishkek"
+        },
+        "country": {
+          "code": "KG",
+          "logo": "https://highlightly.net/soccer/images/countries/KG.svg",
+          "name": "Kyrgyzstan"
+        },
+        "date": "2026-06-23T14:30:00.000Z",
+        "homeTeam": {
+          "id": 10417024,
+          "logo": "https://highlightly.net/soccer/images/teams/10417024.png",
+          "name": "Neftchi"
+        },
+        "id": 1300007106,
+        "league": {
+          "id": 485003,
+          "logo": "https://highlightly.net/soccer/images/leagues/485003.png",
+          "name": "Premier League",
+          "season": 2026
+        },
+        "round": "Regular Season - 13",
+        "state": {
+          "clock": null,
+          "description": "Not started",
+          "score": {
+            "current": null,
+            "penalties": null
+          }
+        }
+      },
+      {
+        "awayTeam": {
+          "id": 3023536,
+          "logo": "https://highlightly.net/soccer/images/teams/3023536.png",
+          "name": "Zempl\u00edn Michalovce"
+        },
+        "country": {
+          "code": "World",
+          "logo": "https://highlightly.net/soccer/images/countries/World.png",
+          "name": "World"
+        },
+        "date": "2026-06-23T14:00:00.000Z",
+        "homeTeam": {
+          "id": 11972652,
+          "logo": "https://highlightly.net/soccer/images/teams/11972652.png",
+          "name": "Humenn\u00e9"
+        },
+        "id": 1322879433,
+        "league": {
+          "id": 568401,
+          "logo": "https://highlightly.net/soccer/images/leagues/568401.png",
+          "name": "Friendlies Clubs",
+          "season": 2026
+        },
+        "round": "Club Friendlies",
+        "state": {
+          "clock": null,
+          "description": "Not started",
+          "score": {
+            "current": null,
+            "penalties": null
+          }
+        }
+      },
+      {
+        "awayTeam": {
+          "id": 2212533,
+          "logo": "https://highlightly.net/soccer/images/teams/2212533.png",
+          "name": "Universitatea Cluj"
+        },
+        "country": {
+          "code": "World",
+          "logo": "https://highlightly.net/soccer/images/countries/World.png",
+          "name": "World"
+        },
+        "date": "2026-06-23T12:00:00.000Z",
+        "homeTeam": {
+          "id": 3709442,
+          "logo": "https://highlightly.net/soccer/images/teams/3709442.png",
+          "name": "Aluminij"
+        },
+        "id": 1322877731,
+        "league": {
+          "id": 568401,
+          "logo": "https://highlightly.net/soccer/images/leagues/568401.png",
+          "name": "Friendlies Clubs",
+          "season": 2026
+        },
+        "round": "Club Friendlies",
+        "state": {
+          "clock": null,
+          "description": "Cancelled",
+          "score": {
+            "current": null,
+            "penalties": null
+          }
+        }
+      },
+      {
+        "awayTeam": {
+          "id": 21935309,
+          "logo": null,
+          "name": "Guizhou Zhucheng"
+        },
+        "country": {
+          "code": "CN",
+          "logo": "https://highlightly.net/soccer/images/countries/CN.svg",
+          "name": "China"
+        },
+        "date": "2026-06-23T11:30:00.000Z",
+        "homeTeam": {
+          "id": 21933607,
+          "logo": null,
+          "name": "Guangdong Mingtu"
+        },
+        "id": 1304392309,
+        "league": {
+          "id": 791363,
+          "logo": "https://highlightly.net/soccer/images/leagues/791363.png",
+          "name": "League Two",
+          "season": 2026
+        },
+        "round": "Regular Season - 13",
+        "state": {
+          "clock": 84,
+          "description": "Second half",
+          "score": {
+            "current": "0 - 0",
+            "penalties": null
+          }
+        }
+      },
+      {
+        "awayTeam": {
+          "id": 19819723,
+          "logo": null,
+          "name": "Shanghai Port II"
+        },
+        "country": {
+          "code": "CN",
+          "logo": "https://highlightly.net/soccer/images/countries/CN.svg",
+          "name": "China"
+        },
+        "date": "2026-06-23T11:30:00.000Z",
+        "homeTeam": {
+          "id": 16441253,
+          "logo": "https://highlightly.net/soccer/images/teams/16441253.png",
+          "name": "Nantong Haimen Codion"
+        },
+        "id": 1304393160,
+        "league": {
+          "id": 791363,
+          "logo": "https://highlightly.net/soccer/images/leagues/791363.png",
+          "name": "League Two",
+          "season": 2026
+        },
+        "round": "Regular Season - 13",
+        "state": {
+          "clock": 84,
+          "description": "Second half",
+          "score": {
+            "current": "2 - 1",
+            "penalties": null
+          }
+        }
+      },
+      {
+        "awayTeam": {
+          "id": 9513262,
+          "logo": "https://highlightly.net/soccer/images/teams/9513262.png",
+          "name": "Holland Park Hawks"
+        },
+        "country": {
+          "code": "AU",
+          "logo": "https://highlightly.net/soccer/images/countries/AU.svg",
+          "name": "Australia"
+        },
+        "date": "2026-06-23T10:30:00.000Z",
+        "homeTeam": {
+          "id": 9514964,
+          "logo": "https://highlightly.net/soccer/images/teams/9514964.png",
+          "name": "Logan Lightning"
+        },
+        "id": 1297052434,
+        "league": {
+          "id": 709667,
+          "logo": "https://highlightly.net/soccer/images/leagues/709667.png",
+          "name": "Queensland Premier League",
+          "season": 2026
+        },
+        "round": "Regular Season - 13",
+        "state": {
+          "clock": 90,
+          "description": "Finished",
+          "score": {
+            "current": "2 - 3",
+            "penalties": null
+          }
+        }
+      },
+      {
+        "awayTeam": {
+          "id": 16175741,
+          "logo": null,
+          "name": "Ugyen Academy"
+        },
+        "country": {
+          "code": "BT",
+          "logo": "https://highlightly.net/soccer/images/countries/BT.svg",
+          "name": "Bhutan"
+        },
+        "date": "2026-06-23T10:00:00.000Z",
+        "homeTeam": {
+          "id": 8022310,
+          "logo": "https://highlightly.net/soccer/images/teams/8022310.png",
+          "name": "Paro"
+        },
+        "id": 1313590768,
+        "league": {
+          "id": 878165,
+          "logo": null,
+          "name": "Premier League",
+          "season": 2026
+        },
+        "round": "Unknown",
+        "state": {
+          "clock": 90,
+          "description": "Finished",
+          "score": {
+            "current": "11 - 0",
+            "penalties": null
+          }
+        }
+      },
+      {
+        "awayTeam": {
+          "id": 8686941,
+          "logo": "https://highlightly.net/soccer/images/teams/8686941.png",
+          "name": "Lambton Jaffas"
+        },
+        "country": {
+          "code": "AU",
+          "logo": "https://highlightly.net/soccer/images/countries/AU.svg",
+          "name": "Australia"
+        },
+        "date": "2026-06-23T10:00:00.000Z",
+        "homeTeam": {
+          "id": 8684388,
+          "logo": "https://highlightly.net/soccer/images/teams/8684388.png",
+          "name": "Edgeworth Eagles"
+        },
+        "id": 1296713736,
+        "league": {
+          "id": 410115,
+          "logo": "https://highlightly.net/soccer/images/leagues/410115.png",
+          "name": "Northern NSW NPL",
+          "season": 2026
+        },
+        "round": "Regular Season - 13",
+        "state": {
+          "clock": 90,
+          "description": "Finished",
+          "score": {
+            "current": "3 - 2",
+            "penalties": null
+          }
+        }
+      },
+      {
+        "awayTeam": {
+          "id": 8692898,
+          "logo": "https://highlightly.net/soccer/images/teams/8692898.png",
+          "name": "Capalaba"
+        },
+        "country": {
+          "code": "AU",
+          "logo": "https://highlightly.net/soccer/images/countries/AU.svg",
+          "name": "Australia"
+        },
+        "date": "2026-06-23T09:30:00.000Z",
+        "homeTeam": {
+          "id": 23413496,
+          "logo": null,
+          "name": "Robina City"
+        },
+        "id": 1297104345,
+        "league": {
+          "id": 709667,
+          "logo": "https://highlightly.net/soccer/images/leagues/709667.png",
+          "name": "Queensland Premier League",
+          "season": 2026
+        },
+        "round": "Regular Season - 11",
+        "state": {
+          "clock": 90,
+          "description": "Finished",
+          "score": {
+            "current": "5 - 1",
+            "penalties": null
+          }
+        }
+      },
+      {
+        "awayTeam": {
+          "id": 2154665,
+          "logo": "https://highlightly.net/soccer/images/teams/2154665.png",
+          "name": "Eastern Suburbs"
+        },
+        "country": {
+          "code": "AU",
+          "logo": "https://highlightly.net/soccer/images/countries/AU.svg",
+          "name": "Australia"
+        },
+        "date": "2026-06-23T09:30:00.000Z",
+        "homeTeam": {
+          "id": 8693749,
+          "logo": "https://highlightly.net/soccer/images/teams/8693749.png",
+          "name": "Gold Coast Knights"
+        },
+        "id": 1296961377,
+        "league": {
+          "id": 410966,
+          "logo": "https://highlightly.net/soccer/images/leagues/410966.png",
+          "name": "Queensland NPL",
+          "season": 2026
+        },
+        "round": "Regular Season - 13",
+        "state": {
+          "clock": 90,
+          "description": "Finished",
+          "score": {
+            "current": "4 - 1",
+            "penalties": null
+          }
+        }
+      },
+      {
+        "awayTeam": {
+          "id": 4817444,
+          "logo": "https://highlightly.net/soccer/images/teams/4817444.png",
+          "name": "Hubei Chufeng Heli"
+        },
+        "country": {
+          "code": "CN",
+          "logo": "https://highlightly.net/soccer/images/countries/CN.svg",
+          "name": "China"
+        },
+        "date": "2026-06-23T08:00:00.000Z",
+        "homeTeam": {
+          "id": 23507106,
+          "logo": null,
+          "name": "Xiamen Feilu"
+        },
+        "id": 1304391458,
+        "league": {
+          "id": 791363,
+          "logo": "https://highlightly.net/soccer/images/leagues/791363.png",
+          "name": "League Two",
+          "season": 2026
+        },
+        "round": "Regular Season - 13",
+        "state": {
+          "clock": 90,
+          "description": "Finished",
+          "score": {
+            "current": "0 - 0",
+            "penalties": null
+          }
+        }
+      },
+      {
+        "awayTeam": {
+          "id": 18150912,
+          "logo": null,
+          "name": "Rizhao Yuqi"
+        },
+        "country": {
+          "code": "CN",
+          "logo": "https://highlightly.net/soccer/images/countries/CN.svg",
+          "name": "China"
+        },
+        "date": "2026-06-23T08:00:00.000Z",
+        "homeTeam": {
+          "id": 19686116,
+          "logo": null,
+          "name": "Changchun Xidu"
+        },
+        "id": 1304388905,
+        "league": {
+          "id": 791363,
+          "logo": "https://highlightly.net/soccer/images/leagues/791363.png",
+          "name": "League Two",
+          "season": 2026
+        },
+        "round": "Regular Season - 13",
+        "state": {
+          "clock": 90,
+          "description": "Finished",
+          "score": {
+            "current": "0 - 0",
+            "penalties": null
+          }
+        }
+      },
+      {
+        "awayTeam": {
+          "id": 23505404,
+          "logo": null,
+          "name": "Dalian Kewei"
+        },
+        "country": {
+          "code": "CN",
+          "logo": "https://highlightly.net/soccer/images/countries/CN.svg",
+          "name": "China"
+        },
+        "date": "2026-06-23T08:00:00.000Z",
+        "homeTeam": {
+          "id": 4833613,
+          "logo": "https://highlightly.net/soccer/images/teams/4833613.png",
+          "name": "Qingdao Red Lions"
+        },
+        "id": 1304389756,
+        "league": {
+          "id": 791363,
+          "logo": "https://highlightly.net/soccer/images/leagues/791363.png",
+          "name": "League Two",
+          "season": 2026
+        },
+        "round": "Regular Season - 13",
+        "state": {
+          "clock": 90,
+          "description": "Finished",
+          "score": {
+            "current": "0 - 0",
+            "penalties": null
+          }
+        }
+      },
+      {
+        "awayTeam": {
+          "id": 23506255,
+          "logo": null,
+          "name": "Dalian Yingbo B"
+        },
+        "country": {
+          "code": "CN",
+          "logo": "https://highlightly.net/soccer/images/countries/CN.svg",
+          "name": "China"
+        },
+        "date": "2026-06-23T08:00:00.000Z",
+        "homeTeam": {
+          "id": 23504553,
+          "logo": null,
+          "name": "Shanghai Second"
+        },
+        "id": 1304390607,
+        "league": {
+          "id": 791363,
+          "logo": "https://highlightly.net/soccer/images/leagues/791363.png",
+          "name": "League Two",
+          "season": 2026
+        },
+        "round": "Regular Season - 13",
+        "state": {
+          "clock": 90,
+          "description": "Finished",
+          "score": {
+            "current": "1 - 2",
+            "penalties": null
+          }
+        }
+      },
+      {
+        "awayTeam": {
+          "id": 23499447,
+          "logo": null,
+          "name": "New England Mutiny Women"
+        },
+        "country": {
+          "code": "US",
+          "logo": "https://highlightly.net/soccer/images/countries/US.svg",
+          "name": "USA"
+        },
+        "date": "2026-06-23T04:00:00.000Z",
+        "homeTeam": {
+          "id": 20363512,
+          "logo": null,
+          "name": "AC Connecticut Women"
+        },
+        "id": 1304124244,
+        "league": {
+          "id": 951351,
+          "logo": null,
+          "name": "USL W League",
+          "season": 2026
+        },
+        "round": "Regular Season - 1",
+        "state": {
+          "clock": null,
+          "description": "Not started",
+          "score": {
+            "current": null,
+            "penalties": null
+          }
+        }
+      },
+      {
+        "awayTeam": {
+          "id": 1304516,
+          "logo": "https://highlightly.net/soccer/images/teams/1304516.png",
+          "name": "Algeria"
+        },
+        "country": {
+          "code": "World",
+          "logo": "https://highlightly.net/soccer/images/countries/World.png",
+          "name": "World"
+        },
+        "date": "2026-06-23T03:00:00.000Z",
+        "homeTeam": {
+          "id": 1318132,
+          "logo": "https://highlightly.net/soccer/images/teams/1318132.png",
+          "name": "Jordan"
+        },
+        "id": 1267480184,
+        "league": {
+          "id": 1635,
+          "logo": null,
+          "name": "World Cup",
+          "season": 2026
+        },
+        "round": "Group Stage - 2",
+        "state": {
+          "clock": 90,
+          "description": "Finished",
+          "score": {
+            "current": "1 - 2",
+            "penalties": null
+          }
+        }
+      },
+      {
+        "awayTeam": {
+          "id": 3371595,
+          "logo": null,
+          "name": "Uni\u00f3n Villa Krause"
+        },
+        "country": {
+          "code": "US",
+          "logo": "https://highlightly.net/soccer/images/countries/US.svg",
+          "name": "USA"
+        },
+        "date": "2026-06-23T01:00:00.000Z",
+        "homeTeam": {
+          "id": 16080429,
+          "logo": "https://highlightly.net/soccer/images/teams/16080429.png",
+          "name": "Flatirons Rush"
+        },
+        "id": 1297819185,
+        "league": {
+          "id": 218640,
+          "logo": "https://highlightly.net/soccer/images/leagues/218640.png",
+          "name": "USL League Two",
+          "season": 2026
+        },
+        "round": "Group Stage",
+        "state": {
+          "clock": null,
+          "description": "Not started",
+          "score": {
+            "current": null,
+            "penalties": null
+          }
+        }
+      },
+      {
+        "awayTeam": {
+          "id": 22078277,
+          "logo": null,
+          "name": "McKinney Chupacabras"
+        },
+        "country": {
+          "code": "US",
+          "logo": "https://highlightly.net/soccer/images/countries/US.svg",
+          "name": "USA"
+        },
+        "date": "2026-06-23T00:30:00.000Z",
+        "homeTeam": {
+          "id": 8566950,
+          "logo": "https://highlightly.net/soccer/images/teams/8566950.png",
+          "name": "Denton Diablos"
+        },
+        "id": 1297603882,
+        "league": {
+          "id": 218640,
+          "logo": "https://highlightly.net/soccer/images/leagues/218640.png",
+          "name": "USL League Two",
+          "season": 2026
+        },
+        "round": "Group Stage",
+        "state": {
+          "clock": 90,
+          "description": "Finished",
+          "score": {
+            "current": "3 - 1",
+            "penalties": null
+          }
+        }
+      },
+      {
+        "awayTeam": {
+          "id": 11847,
+          "logo": "https://highlightly.net/soccer/images/teams/11847.png",
+          "name": "Senegal"
+        },
+        "country": {
+          "code": "World",
+          "logo": "https://highlightly.net/soccer/images/countries/World.png",
+          "name": "World"
+        },
+        "date": "2026-06-23T00:00:00.000Z",
+        "homeTeam": {
+          "id": 928374,
+          "logo": "https://highlightly.net/soccer/images/teams/928374.png",
+          "name": "Norway"
+        },
+        "id": 1267481035,
+        "league": {
+          "id": 1635,
+          "logo": null,
+          "name": "World Cup",
+          "season": 2026
+        },
+        "round": "Group Stage - 2",
+        "state": {
+          "clock": 90,
+          "description": "Finished",
+          "score": {
+            "current": "3 - 2",
+            "penalties": null
+          }
+        }
+      }
+    ],
+    "pagination": {
+      "limit": 100,
+      "offset": 0,
+      "totalCount": 100
+    },
+    "plan": {
+      "message": "All data available with current plan.",
+      "tier": "BASIC"
+    }
+  },
+  "body_sha256": "eea75fd603c6e2c9708049e726972a99451f8411464b83b2cf7bcfcf480e4abc",
+  "contributes_to_enrichment": true,
+  "error": null,
+  "network_used": true,
+  "provider": "highlightly",
+  "raw_headers_stored": false,
+  "request_attempted": true,
+  "request_purpose": "highlightly_matches_by_date",
+  "secrets_stored": false,
+  "selectable_for_production": false,
+  "source_url": "https://soccer.highlightly.net/matches?date=2026-06-23&timezone=Etc/UTC&limit=100",
+  "status": "SUCCESS",
+  "status_code": 200,
+  "transport": "urllib"
+}
