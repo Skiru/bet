@@ -35,7 +35,7 @@ def scan_for_secrets(data: Any, path: Path) -> List[str]:
 
 def verify_run_directory(run_dir: Path) -> Dict[str, Any]:
     failed = []
-    checked = ["REQ-VERIFIER-001", "REQ-VERIFIER-002", "REQ-VERIFIER-003", "REQ-VERIFIER-004", "REQ-VERIFIER-005", "REQ-VERIFIER-006"]
+    checked = ["REQ-VERIFIER-001", "REQ-VERIFIER-002", "REQ-VERIFIER-003", "REQ-VERIFIER-004", "REQ-VERIFIER-005", "REQ-VERIFIER-006", "REQ-VERIFIER-007", "REQ-VERIFIER-008"]
     files_checked = []
     
     # 1. Manifest checks
@@ -54,6 +54,10 @@ def verify_run_directory(run_dir: Path) -> Dict[str, Any]:
             "discovery_fetched_count": 0,
             "mapping_candidates_found": 0,
             "secret_leak_check": "fail",
+            "rescue_provider_statuses": {},
+            "rescue_attempted_by_provider": {},
+            "rescue_fetched_count": 0,
+            "requests_dependency_present": False,
         }
         
     try:
@@ -72,6 +76,10 @@ def verify_run_directory(run_dir: Path) -> Dict[str, Any]:
             "discovery_fetched_count": 0,
             "mapping_candidates_found": 0,
             "secret_leak_check": "fail",
+            "rescue_provider_statuses": {},
+            "rescue_attempted_by_provider": {},
+            "rescue_fetched_count": 0,
+            "requests_dependency_present": False,
         }
         
     cred_presence = manifest_data.get("credentials_present", {})
@@ -86,6 +94,12 @@ def verify_run_directory(run_dir: Path) -> Dict[str, Any]:
     discovery_fetched_count = 0
     mapping_candidates_found = 0
     secret_leak = "pass"
+    
+    is_rescue_run = False
+    rescue_provider_statuses = {}
+    rescue_attempted_by_provider = {"sportdb": False, "highlightly": False, "espn-baseline": False}
+    rescue_fetched_count = 0
+    requests_dependency_present = False
     
     forbidden_string = "-".join(["canary", "fixture", "1"])
     
@@ -107,7 +121,12 @@ def verify_run_directory(run_dir: Path) -> Dict[str, Any]:
         try:
             content = p.read_text(encoding="utf-8")
             if forbidden_string in content:
-                failed.append(f"REQ-VERIFIER-006: Forbidden string '{forbidden_string}' found in JSON {rel_path}")
+                failed.append(f"REQ-VERIFIER-007: Forbidden string '{forbidden_string}' found in JSON {rel_path}")
+            if "PRODUCTION_" + "READY" in content:
+                failed.append(f"REQ-VERIFIER-007: Forbidden string 'PRODUCTION_READY' found in JSON {rel_path}")
+            for marker in ["betting/data", "sqlite_write_query", "INSERT", "UPDATE", "DELETE", "activate", "matrix", "routing"]:
+                if marker in content:
+                    failed.append(f"REQ-VERIFIER-007: Forbidden DB/routing/betting marker '{marker}' found in JSON {rel_path}")
                 
             data = json.loads(content)
             
@@ -115,7 +134,7 @@ def verify_run_directory(run_dir: Path) -> Dict[str, Any]:
             if leaks:
                 secret_leak = "fail"
                 for leak in leaks:
-                    failed.append(f"REQ-VERIFIER-005: {leak}")
+                    failed.append(f"REQ-VERIFIER-007: {leak}")
                     
             if rel_path.name not in ("manifest.json", "fixtures_discovered.json", "mapping_candidate.json"):
                 provider = data.get("provider")
@@ -125,45 +144,103 @@ def verify_run_directory(run_dir: Path) -> Dict[str, Any]:
                 raw_headers = data.get("raw_headers_stored", False)
                 secrets_stored = data.get("secrets_stored", False)
                 selectable = data.get("selectable_for_production", False)
+                rescue_attempt = data.get("rescue_attempt", False)
+                rescue_prov = data.get("rescue_provider") or provider
+                rescue_attempted = data.get("request_attempted", True)
+                net_used = data.get("network_used", True)
                 
                 if raw_headers is True:
-                    failed.append(f"REQ-VERIFIER-005: raw_headers_stored is True in {rel_path}")
+                    failed.append(f"REQ-VERIFIER-007: raw_headers_stored is True in {rel_path}")
                 if secrets_stored is True:
-                    failed.append(f"REQ-VERIFIER-005: secrets_stored is True in {rel_path}")
+                    failed.append(f"REQ-VERIFIER-007: secrets_stored is True in {rel_path}")
                 if selectable is True:
-                    failed.append(f"REQ-VERIFIER-005: selectable_for_production is True in {rel_path}")
+                    failed.append(f"REQ-VERIFIER-007: selectable_for_production is True in {rel_path}")
                     
-                if provider:
-                    provider_statuses.setdefault(provider, []).append(status)
-                    provider_request_purposes.setdefault(provider, []).append(purpose)
-                    
-                    if "discovery" in purpose or purpose.endswith("discovery"):
-                        discovery_attempted_by_provider[provider] = True
-                        if status == "DISCOVERY_FETCHED":
-                            discovery_fetched_count += 1
+                if rescue_attempt:
+                    is_rescue_run = True
+                    if rescue_prov:
+                        rescue_provider_statuses.setdefault(rescue_prov, []).append(status)
+                        if rescue_attempted:
+                            rescue_attempted_by_provider[rescue_prov] = True
                             
-                if status in ("DISCOVERY_FETCHED", "DISCOVERY_NO_MATCH_FOUND"):
-                    if not data.get("source_url"):
-                        failed.append(f"REQ-VERIFIER-003: {rel_path} with status {status} lacks source_url")
-                    if not data.get("body_sha256"):
-                        failed.append(f"REQ-VERIFIER-003: {rel_path} with status {status} lacks body_sha256")
+                    if status == "RESCUE_FETCHED":
+                        rescue_fetched_count += 1
                         
+                    # REQ-VERIFIER-006 Checks
+                    if not isinstance(rescue_attempted, bool):
+                        failed.append(f"REQ-VERIFIER-006: rescue envelope {rel_path} must have boolean request_attempted")
+                    if not isinstance(net_used, bool):
+                        failed.append(f"REQ-VERIFIER-006: rescue envelope {rel_path} must have boolean network_used")
+                    if not isinstance(purpose, str):
+                        failed.append(f"REQ-VERIFIER-006: rescue envelope {rel_path} must have string request_purpose")
+                    if rescue_attempt is not True:
+                        failed.append(f"REQ-VERIFIER-006: rescue envelope {rel_path} must have rescue_attempt=True")
+                    if selectable is not False:
+                        failed.append(f"REQ-VERIFIER-006: rescue envelope {rel_path} must have selectable_for_production=False")
+                        
+                    # REQ-VERIFIER-004 Checks
+                    if status == "RESCUE_BLOCKED_ENDPOINT_UNAVAILABLE" and rescue_prov == "highlightly":
+                        error_msg = data.get("error") or ""
+                        if "highlightly_base_url_or_auth_header_not_available_in_repo_or_docs" not in error_msg:
+                            failed.append(f"REQ-VERIFIER-004: highlightly RESCUE_BLOCKED_ENDPOINT_UNAVAILABLE must have exact reason in error field: {rel_path}")
+                            
+                    # REQ-VERIFIER-005 Checks
+                    if status in ("RESCUE_FETCHED", "RESCUE_NO_MATCH_FOUND"):
+                        if not data.get("source_url"):
+                            failed.append(f"REQ-VERIFIER-005: {rel_path} with status {status} lacks source_url")
+                        if not data.get("body_sha256"):
+                            failed.append(f"REQ-VERIFIER-005: {rel_path} with status {status} lacks body_sha256")
+                else:
+                    if provider:
+                        provider_statuses.setdefault(provider, []).append(status)
+                        provider_request_purposes.setdefault(provider, []).append(purpose)
+                        
+                        if "discovery" in purpose or purpose.endswith("discovery"):
+                            discovery_attempted_by_provider[provider] = True
+                            if status == "DISCOVERY_FETCHED":
+                                discovery_fetched_count += 1
+                                
+                    if status in ("DISCOVERY_FETCHED", "DISCOVERY_NO_MATCH_FOUND"):
+                        if not data.get("source_url"):
+                            failed.append(f"REQ-VERIFIER-003: {rel_path} with status {status} lacks source_url")
+                        if not data.get("body_sha256"):
+                            failed.append(f"REQ-VERIFIER-003: {rel_path} with status {status} lacks body_sha256")
+                            
         except Exception as e:
             failed.append(f"Failed to read/parse {rel_path}: {e}")
 
-    for prov in ("sportdb", "football-data-org", "highlightly", "api-football", "espn-baseline"):
-        if prov not in discovery_attempted_by_provider:
-            discovery_attempted_by_provider[prov] = False
+    # Rescue Run Checks
+    if is_rescue_run:
+        # REQ-VERIFIER-001 Checks
+        for prov in ["sportdb", "highlightly", "espn-baseline"]:
+            if prov not in rescue_provider_statuses:
+                failed.append(f"REQ-VERIFIER-001: Missing rescue evidence/envelope for provider {prov}")
+                
+        # REQ-VERIFIER-002 Checks
+        sportdb_present = cred_presence.get("sportdb") or cred_presence.get("SPORTDB_API_KEY")
+        if sportdb_present:
+            sportdb_attempted = rescue_attempted_by_provider.get("sportdb", False)
+            if not sportdb_attempted:
+                failed.append("REQ-VERIFIER-002: SportDB credential is present but no SportDB request was attempted")
+                
+        # REQ-VERIFIER-003 Checks
+        espn_attempted = rescue_attempted_by_provider.get("espn-baseline", False)
+        if not espn_attempted:
+            failed.append("REQ-VERIFIER-003: ESPN request was not attempted")
+    else:
+        for prov in ("sportdb", "football-data-org", "highlightly", "api-football", "espn-baseline"):
+            if prov not in discovery_attempted_by_provider:
+                discovery_attempted_by_provider[prov] = False
 
-    for provider, present in cred_presence.items():
-        if not present:
-            continue
-        dash_provider = provider.replace("_", "-")
-        statuses = provider_statuses.get(dash_provider, []) or provider_statuses.get(provider, [])
-        if not statuses:
-            failed.append(f"REQ-VERIFIER-001: Credential present for {provider} but no envelopes written")
-        elif set(statuses) == {"BLOCKED_PROVIDER_MAPPING_MISSING"}:
-            failed.append(f"REQ-VERIFIER-001: Credential present for {provider} but only BLOCKED_PROVIDER_MAPPING_MISSING was written")
+        for provider, present in cred_presence.items():
+            if not present:
+                continue
+            dash_provider = provider.replace("_", "-")
+            statuses = provider_statuses.get(dash_provider, []) or provider_statuses.get(provider, [])
+            if not statuses:
+                failed.append(f"REQ-VERIFIER-001: Credential present for {provider} but no envelopes written")
+            elif set(statuses) == {"BLOCKED_PROVIDER_MAPPING_MISSING"}:
+                failed.append(f"REQ-VERIFIER-001: Credential present for {provider} but only BLOCKED_PROVIDER_MAPPING_MISSING was written")
 
     project_root = Path("/Users/mkoziol/projects/bet-multisport-enrichment-v1")
     src_dir = project_root / "src/bet/enrichment/football_data_foundation/live_response_corpus_capture"
@@ -171,12 +248,20 @@ def verify_run_directory(run_dir: Path) -> Dict[str, Any]:
     
     if src_dir.exists():
         for p in src_dir.rglob("*.py"):
+            if p.name == "verifier.py":
+                continue
             try:
                 text = p.read_text(encoding="utf-8")
                 if forbidden_string in text:
-                    failed.append(f"REQ-VERIFIER-006: Forbidden string '{forbidden_string}' found in python file {p.relative_to(project_root)}")
+                    failed.append(f"REQ-VERIFIER-007: Forbidden string '{forbidden_string}' found in python file {p.relative_to(project_root)}")
+                if "PRODUCTION_" + "READY" in text:
+                    failed.append(f"REQ-VERIFIER-007: Forbidden string 'PRODUCTION_READY' found in python file {p.relative_to(project_root)}")
                 if re.search(r"\bimport\s+requests\b|\bfrom\s+requests\b|\brequests\.[a-zA-Z_]", text):
-                    failed.append(f"REQ-VERIFIER-004: forbidden requests import/usage found in python file {p.relative_to(project_root)}")
+                    requests_dependency_present = True
+                    failed.append(f"REQ-VERIFIER-007: forbidden requests import/usage found in python file {p.relative_to(project_root)}")
+                for marker in ["betting/data", "sqlite_write_query", "INSERT", "UPDATE", "DELETE", "activate", "matrix", "routing"]:
+                    if marker in text:
+                        failed.append(f"REQ-VERIFIER-007: Forbidden DB/routing/betting marker '{marker}' found in python file {p.relative_to(project_root)}")
             except Exception:
                 pass
                 
@@ -185,7 +270,7 @@ def verify_run_directory(run_dir: Path) -> Dict[str, Any]:
             try:
                 text = p.read_text(encoding="utf-8")
                 if forbidden_string in text:
-                    failed.append(f"REQ-VERIFIER-006: Forbidden string '{forbidden_string}' found in python test file {p.relative_to(project_root)}")
+                    failed.append(f"REQ-VERIFIER-007: Forbidden string '{forbidden_string}' found in python test file {p.relative_to(project_root)}")
             except Exception:
                 pass
 
@@ -203,6 +288,10 @@ def verify_run_directory(run_dir: Path) -> Dict[str, Any]:
         "discovery_fetched_count": discovery_fetched_count,
         "mapping_candidates_found": mapping_candidates_found,
         "secret_leak_check": secret_leak,
+        "rescue_provider_statuses": rescue_provider_statuses,
+        "rescue_attempted_by_provider": rescue_attempted_by_provider,
+        "rescue_fetched_count": rescue_fetched_count,
+        "requests_dependency_present": requests_dependency_present,
     }
 
 

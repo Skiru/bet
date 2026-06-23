@@ -23,6 +23,12 @@ class CaptureStatus(str, Enum):
     FAILED_HTTP = "FAILED_HTTP"
     FAILED_PARSE = "FAILED_PARSE"
     FAILED_PROVIDER_ERROR = "FAILED_PROVIDER_ERROR"
+    RESCUE_FETCHED = "RESCUE_FETCHED"
+    RESCUE_NO_MATCH_FOUND = "RESCUE_NO_MATCH_FOUND"
+    RESCUE_FAILED_HTTP = "RESCUE_FAILED_HTTP"
+    RESCUE_FAILED_PARSE = "RESCUE_FAILED_PARSE"
+    RESCUE_BLOCKED_ENDPOINT_UNAVAILABLE = "RESCUE_BLOCKED_ENDPOINT_UNAVAILABLE"
+    RESCUE_SKIPPED_NOT_APPLICABLE = "RESCUE_SKIPPED_NOT_APPLICABLE"
 
 
 @dataclass(frozen=True)
@@ -44,6 +50,10 @@ class ProviderResponseEnvelope:
     raw_headers_stored: bool = False
     secrets_stored: bool = False
     selectable_for_production: bool = False
+    rescue_attempt: bool = False
+    rescue_provider: str | None = None
+    rescue_endpoint_family: str | None = None
+    unofficial_shadow_baseline: bool = False
 
     def validate(self) -> None:
         if self.raw_headers_stored:
@@ -72,6 +82,10 @@ class ProviderResponseEnvelope:
             "raw_headers_stored": self.raw_headers_stored,
             "secrets_stored": self.secrets_stored,
             "selectable_for_production": self.selectable_for_production,
+            "rescue_attempt": self.rescue_attempt,
+            "rescue_provider": self.rescue_provider,
+            "rescue_endpoint_family": self.rescue_endpoint_family,
+            "unofficial_shadow_baseline": self.unofficial_shadow_baseline,
         }
 
 

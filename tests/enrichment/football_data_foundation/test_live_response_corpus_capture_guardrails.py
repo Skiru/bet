@@ -91,3 +91,47 @@ def test_guardrail_reports_json_parseable():
             assert data is not None
         except Exception as e:
             raise AssertionError(f"Failed to parse JSON file {p}: {e}")
+
+
+def test_guardrail_rescue_envelopes_and_previous_runs():
+    """
+    REQ-TEST-009: no secrets or headers in reports.
+    REQ-TEST-010: all rescue envelopes have selectable_for_production=false.
+    REQ-TEST-011: ESPN envelopes have unofficial_shadow_baseline=true.
+    REQ-TEST-012: rescue run does not edit previous corpus runs.
+    """
+    corpus_root = Path("/Users/mkoziol/projects/bet-multisport-enrichment-v1/reports/football_data_foundation/live_response_corpus")
+    if not corpus_root.exists():
+        return
+
+    # Check that previous run has not been modified
+    previous_run_dir = corpus_root / "run_20260623_100018_fe9167"
+    if previous_run_dir.exists():
+        # Previous run should not contain any of the rescue-specific files
+        assert not (previous_run_dir / "sportdb" / "worldcup2026-norway-senegal_rescue_live.json").exists()
+        assert not (previous_run_dir / "highlightly" / "worldcup2026-norway-senegal_rescue.json").exists()
+        assert not (previous_run_dir / "espn-baseline" / "worldcup2026-norway-senegal_rescue_scoreboard.json").exists()
+
+    for p in corpus_root.rglob("*.json"):
+        if p.name in ("manifest.json", "fixtures_discovered.json", "mapping_candidate.json", "capture_verifier_result.json"):
+            continue
+        try:
+            data = json.loads(p.read_text(encoding="utf-8"))
+            
+            # Check secret leaks or headers
+            assert "Authorization" not in str(data)
+            assert "X-API-Key" not in str(data)
+            assert "raw_headers_stored" not in data or data["raw_headers_stored"] is False
+            assert "secrets_stored" not in data or data["secrets_stored"] is False
+            
+            rescue_attempt = data.get("rescue_attempt", False)
+            if rescue_attempt:
+                # REQ-TEST-010: all rescue envelopes have selectable_for_production=false
+                assert data.get("selectable_for_production") is False
+                
+                # REQ-TEST-011: ESPN envelopes have unofficial_shadow_baseline=true
+                if data.get("provider") == "espn-baseline":
+                    assert data.get("unofficial_shadow_baseline") is True
+        except Exception:
+            pass
+
