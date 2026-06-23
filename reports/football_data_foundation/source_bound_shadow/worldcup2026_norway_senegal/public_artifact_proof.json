@@ -1,5 +1,5 @@
 {
-  "checked_commit_sha": "96a94bdcd8a06da6ecbe2ff92cfb635ce5097b10",
+  "checked_commit_sha": "668b73d46481515ff7ad0ccde2862a3a025ccfd6",
   "committed_sqlite_header_ok": true,
   "committed_sqlite_provider_row_counts": {
     "api-football": 17,
@@ -22,7 +22,7 @@
   ],
   "failed_requirements": [],
   "public_raw_report_fetch_status": {
-    "public_artifact_proof.json": 404,
+    "public_artifact_proof.json": 200,
     "source_bound_shadow_snapshot.json": 200,
     "source_bound_verifier_result.json": 200
   },
