@@ -1,7 +1,7 @@
 {
   "acceptance_source": "external_verifier",
-  "artifact_commit_sha": "ce6234ebfd57af4a0dfd5d1a33022394c9f99b93",
-  "checked_commit_sha": "ce6234ebfd57af4a0dfd5d1a33022394c9f99b93",
+  "artifact_commit_sha": "9ae9b09860d84909f6635d8488443b5b663a89cb",
+  "checked_commit_sha": "9ae9b09860d84909f6635d8488443b5b663a89cb",
   "committed_sqlite_header_ok": true,
   "committed_sqlite_provider_row_counts": {
     "api-football": 17,

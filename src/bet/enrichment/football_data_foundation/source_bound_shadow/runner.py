@@ -153,7 +153,11 @@ def _run_enrichment_flow(
     snapshot_md_path.write_text(md_report, encoding="utf-8")
     
     diagnostics_path.write_text(json.dumps(diagnostics, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    fact_counts_path.write_text(json.dumps(fact_counts, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    extended_fact_counts = dict(fact_counts)
+    extended_fact_counts["meta_as_of"] = "2026-06-23"
+    extended_fact_counts["meta_fixture_slug"] = fixture_slug
+    extended_fact_counts["meta_phase"] = "FOOTBALL_ENRICHMENT_B6_RAW_LINE_TRUTH_REPAIR"
+    fact_counts_path.write_text(json.dumps(extended_fact_counts, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     
     write_shadow_sqlite(snapshot, sqlite_path, diagnostics)
     
