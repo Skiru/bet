@@ -1,0 +1,700 @@
+{
+  "competition": "FIFA World Cup",
+  "conflicts": [],
+  "facts": [
+    {
+      "body_sha256": "934e96c90d877c8ef78c45a9b0a1afb93e475ecb52f3bd6736623bcb5bb9ad85",
+      "confidence": 1.0,
+      "fact_type": "provider_mapping",
+      "key": "api-football.provider_match_id",
+      "notes": [],
+      "production_selectable": false,
+      "provider_match_id": "1489lic",
+      "source": "api-football",
+      "source_file": "football_data_foundation/worldcup_20260624_live_shadow/run_20260623_224748_1b5956/cache/api-football/worldcup2026-south-africa-korea-republic.json",
+      "source_role": "primary_detailed_replay",
+      "value": "1489lic"
+    },
+    {
+      "body_sha256": "934e96c90d877c8ef78c45a9b0a1afb93e475ecb52f3bd6736623bcb5bb9ad85",
+      "confidence": 1.0,
+      "fact_type": "fixture_identity",
+      "key": "teams",
+      "notes": [],
+      "production_selectable": false,
+      "provider_match_id": "1489lic",
+      "source": "api-football",
+      "source_file": "football_data_foundation/worldcup_20260624_live_shadow/run_20260623_224748_1b5956/cache/api-football/worldcup2026-south-africa-korea-republic.json",
+      "source_role": "primary_detailed_replay",
+      "value": {
+        "away": "Korea Republic",
+        "home": "South Africa"
+      }
+    },
+    {
+      "body_sha256": "934e96c90d877c8ef78c45a9b0a1afb93e475ecb52f3bd6736623bcb5bb9ad85",
+      "confidence": 1.0,
+      "fact_type": "fixture_identity",
+      "key": "fixture_slug",
+      "notes": [],
+      "production_selectable": false,
+      "provider_match_id": "1489lic",
+      "source": "api-football",
+      "source_file": "football_data_foundation/worldcup_20260624_live_shadow/run_20260623_224748_1b5956/cache/api-football/worldcup2026-south-africa-korea-republic.json",
+      "source_role": "primary_detailed_replay",
+      "value": "worldcup2026-south-africa-korea-republic"
+    },
+    {
+      "body_sha256": "934e96c90d877c8ef78c45a9b0a1afb93e475ecb52f3bd6736623bcb5bb9ad85",
+      "confidence": 1.0,
+      "fact_type": "score",
+      "key": "full_time_score",
+      "notes": [],
+      "production_selectable": false,
+      "provider_match_id": "1489lic",
+      "source": "api-football",
+      "source_file": "football_data_foundation/worldcup_20260624_live_shadow/run_20260623_224748_1b5956/cache/api-football/worldcup2026-south-africa-korea-republic.json",
+      "source_role": "primary_detailed_replay",
+      "value": {
+        "away": 1,
+        "home": 1
+      }
+    },
+    {
+      "body_sha256": "934e96c90d877c8ef78c45a9b0a1afb93e475ecb52f3bd6736623bcb5bb9ad85",
+      "confidence": 1.0,
+      "fact_type": "match_status",
+      "key": "status",
+      "notes": [],
+      "production_selectable": false,
+      "provider_match_id": "1489lic",
+      "source": "api-football",
+      "source_file": "football_data_foundation/worldcup_20260624_live_shadow/run_20260623_224748_1b5956/cache/api-football/worldcup2026-south-africa-korea-republic.json",
+      "source_role": "primary_detailed_replay",
+      "value": "Match Finished"
+    },
+    {
+      "body_sha256": "934e96c90d877c8ef78c45a9b0a1afb93e475ecb52f3bd6736623bcb5bb9ad85",
+      "confidence": 1.0,
+      "fact_type": "kickoff",
+      "key": "kickoff_utc",
+      "notes": [],
+      "production_selectable": false,
+      "provider_match_id": "1489lic",
+      "source": "api-football",
+      "source_file": "football_data_foundation/worldcup_20260624_live_shadow/run_20260623_224748_1b5956/cache/api-football/worldcup2026-south-africa-korea-republic.json",
+      "source_role": "primary_detailed_replay",
+      "value": "2026-06-24T20:00:00Z"
+    },
+    {
+      "body_sha256": "934e96c90d877c8ef78c45a9b0a1afb93e475ecb52f3bd6736623bcb5bb9ad85",
+      "confidence": 1.0,
+      "fact_type": "venue",
+      "key": "venue",
+      "notes": [],
+      "production_selectable": false,
+      "provider_match_id": "1489lic",
+      "source": "api-football",
+      "source_file": "football_data_foundation/worldcup_20260624_live_shadow/run_20260623_224748_1b5956/cache/api-football/worldcup2026-south-africa-korea-republic.json",
+      "source_role": "primary_detailed_replay",
+      "value": "MetLife Stadium"
+    },
+    {
+      "body_sha256": "934e96c90d877c8ef78c45a9b0a1afb93e475ecb52f3bd6736623bcb5bb9ad85",
+      "confidence": 1.0,
+      "fact_type": "match_event_summary",
+      "key": "event_summary",
+      "notes": [],
+      "production_selectable": false,
+      "provider_match_id": "1489lic",
+      "source": "api-football",
+      "source_file": "football_data_foundation/worldcup_20260624_live_shadow/run_20260623_224748_1b5956/cache/api-football/worldcup2026-south-africa-korea-republic.json",
+      "source_role": "primary_detailed_replay",
+      "value": {
+        "cards_count": 2,
+        "event_count": 5,
+        "goals": [],
+        "provider_event_categories": [
+          "goal",
+          "card"
+        ],
+        "substitutions_count": 6
+      }
+    },
+    {
+      "body_sha256": "934e96c90d877c8ef78c45a9b0a1afb93e475ecb52f3bd6736623bcb5bb9ad85",
+      "confidence": 1.0,
+      "fact_type": "lineup_summary",
+      "key": "lineup_summary",
+      "notes": [],
+      "production_selectable": false,
+      "provider_match_id": "1489lic",
+      "source": "api-football",
+      "source_file": "football_data_foundation/worldcup_20260624_live_shadow/run_20260623_224748_1b5956/cache/api-football/worldcup2026-south-africa-korea-republic.json",
+      "source_role": "primary_detailed_replay",
+      "value": {
+        "formations": [
+          "4-3-3",
+          "4-4-2"
+        ],
+        "listed_player_count": 22,
+        "teams_with_lineups": 2,
+        "unavailable_suspension_injury_counts": {
+          "injury": 0,
+          "suspension": 0,
+          "unavailable": 0
+        }
+      }
+    },
+    {
+      "body_sha256": "934e96c90d877c8ef78c45a9b0a1afb93e475ecb52f3bd6736623bcb5bb9ad85",
+      "confidence": 1.0,
+      "fact_type": "provider_mapping",
+      "key": "football-data-org.provider_match_id",
+      "notes": [],
+      "production_selectable": false,
+      "provider_match_id": "537lic",
+      "source": "football-data-org",
+      "source_file": "football_data_foundation/worldcup_20260624_live_shadow/run_20260623_224748_1b5956/cache/football-data-org/worldcup2026-south-africa-korea-republic.json",
+      "source_role": "current_reference_replay",
+      "value": "537lic"
+    },
+    {
+      "body_sha256": "934e96c90d877c8ef78c45a9b0a1afb93e475ecb52f3bd6736623bcb5bb9ad85",
+      "confidence": 1.0,
+      "fact_type": "fixture_identity",
+      "key": "teams",
+      "notes": [],
+      "production_selectable": false,
+      "provider_match_id": "537lic",
+      "source": "football-data-org",
+      "source_file": "football_data_foundation/worldcup_20260624_live_shadow/run_20260623_224748_1b5956/cache/football-data-org/worldcup2026-south-africa-korea-republic.json",
+      "source_role": "current_reference_replay",
+      "value": {
+        "away": "Korea Republic",
+        "home": "South Africa"
+      }
+    },
+    {
+      "body_sha256": "934e96c90d877c8ef78c45a9b0a1afb93e475ecb52f3bd6736623bcb5bb9ad85",
+      "confidence": 1.0,
+      "fact_type": "fixture_identity",
+      "key": "fixture_slug",
+      "notes": [],
+      "production_selectable": false,
+      "provider_match_id": "537lic",
+      "source": "football-data-org",
+      "source_file": "football_data_foundation/worldcup_20260624_live_shadow/run_20260623_224748_1b5956/cache/football-data-org/worldcup2026-south-africa-korea-republic.json",
+      "source_role": "current_reference_replay",
+      "value": "worldcup2026-south-africa-korea-republic"
+    },
+    {
+      "body_sha256": "934e96c90d877c8ef78c45a9b0a1afb93e475ecb52f3bd6736623bcb5bb9ad85",
+      "confidence": 1.0,
+      "fact_type": "score",
+      "key": "full_time_score",
+      "notes": [],
+      "production_selectable": false,
+      "provider_match_id": "537lic",
+      "source": "football-data-org",
+      "source_file": "football_data_foundation/worldcup_20260624_live_shadow/run_20260623_224748_1b5956/cache/football-data-org/worldcup2026-south-africa-korea-republic.json",
+      "source_role": "current_reference_replay",
+      "value": {
+        "away": 1,
+        "home": 1
+      }
+    },
+    {
+      "body_sha256": "934e96c90d877c8ef78c45a9b0a1afb93e475ecb52f3bd6736623bcb5bb9ad85",
+      "confidence": 1.0,
+      "fact_type": "match_status",
+      "key": "status",
+      "notes": [],
+      "production_selectable": false,
+      "provider_match_id": "537lic",
+      "source": "football-data-org",
+      "source_file": "football_data_foundation/worldcup_20260624_live_shadow/run_20260623_224748_1b5956/cache/football-data-org/worldcup2026-south-africa-korea-republic.json",
+      "source_role": "current_reference_replay",
+      "value": "FINISHED"
+    },
+    {
+      "body_sha256": "934e96c90d877c8ef78c45a9b0a1afb93e475ecb52f3bd6736623bcb5bb9ad85",
+      "confidence": 1.0,
+      "fact_type": "kickoff",
+      "key": "kickoff_utc",
+      "notes": [],
+      "production_selectable": false,
+      "provider_match_id": "537lic",
+      "source": "football-data-org",
+      "source_file": "football_data_foundation/worldcup_20260624_live_shadow/run_20260623_224748_1b5956/cache/football-data-org/worldcup2026-south-africa-korea-republic.json",
+      "source_role": "current_reference_replay",
+      "value": "2026-06-24T20:00:00Z"
+    },
+    {
+      "body_sha256": "934e96c90d877c8ef78c45a9b0a1afb93e475ecb52f3bd6736623bcb5bb9ad85",
+      "confidence": 1.0,
+      "fact_type": "competition",
+      "key": "stage",
+      "notes": [],
+      "production_selectable": false,
+      "provider_match_id": "537lic",
+      "source": "football-data-org",
+      "source_file": "football_data_foundation/worldcup_20260624_live_shadow/run_20260623_224748_1b5956/cache/football-data-org/worldcup2026-south-africa-korea-republic.json",
+      "source_role": "current_reference_replay",
+      "value": "GROUP_STAGE"
+    },
+    {
+      "body_sha256": "934e96c90d877c8ef78c45a9b0a1afb93e475ecb52f3bd6736623bcb5bb9ad85",
+      "confidence": 1.0,
+      "fact_type": "competition",
+      "key": "group",
+      "notes": [],
+      "production_selectable": false,
+      "provider_match_id": "537lic",
+      "source": "football-data-org",
+      "source_file": "football_data_foundation/worldcup_20260624_live_shadow/run_20260623_224748_1b5956/cache/football-data-org/worldcup2026-south-africa-korea-republic.json",
+      "source_role": "current_reference_replay",
+      "value": "GROUP_A"
+    },
+    {
+      "body_sha256": "934e96c90d877c8ef78c45a9b0a1afb93e475ecb52f3bd6736623bcb5bb9ad85",
+      "confidence": 1.0,
+      "fact_type": "referee",
+      "key": "referee",
+      "notes": [],
+      "production_selectable": false,
+      "provider_match_id": "537lic",
+      "source": "football-data-org",
+      "source_file": "football_data_foundation/worldcup_20260624_live_shadow/run_20260623_224748_1b5956/cache/football-data-org/worldcup2026-south-africa-korea-republic.json",
+      "source_role": "current_reference_replay",
+      "value": "Wilton Sampaio"
+    },
+    {
+      "body_sha256": "934e96c90d877c8ef78c45a9b0a1afb93e475ecb52f3bd6736623bcb5bb9ad85",
+      "confidence": 1.0,
+      "fact_type": "competition",
+      "key": "competition",
+      "notes": [],
+      "production_selectable": false,
+      "provider_match_id": "537lic",
+      "source": "football-data-org",
+      "source_file": "football_data_foundation/worldcup_20260624_live_shadow/run_20260623_224748_1b5956/cache/football-data-org/worldcup2026-south-africa-korea-republic.json",
+      "source_role": "current_reference_replay",
+      "value": "FIFA World Cup"
+    },
+    {
+      "body_sha256": "934e96c90d877c8ef78c45a9b0a1afb93e475ecb52f3bd6736623bcb5bb9ad85",
+      "confidence": 1.0,
+      "fact_type": "provider_mapping",
+      "key": "espn-baseline.provider_match_id",
+      "notes": [],
+      "production_selectable": false,
+      "provider_match_id": "760lic",
+      "source": "espn-baseline",
+      "source_file": "football_data_foundation/worldcup_20260624_live_shadow/run_20260623_224748_1b5956/cache/espn-baseline/worldcup2026-south-africa-korea-republic.json",
+      "source_role": "unofficial_shadow_cross_check",
+      "value": "760lic"
+    },
+    {
+      "body_sha256": "934e96c90d877c8ef78c45a9b0a1afb93e475ecb52f3bd6736623bcb5bb9ad85",
+      "confidence": 1.0,
+      "fact_type": "fixture_identity",
+      "key": "teams",
+      "notes": [],
+      "production_selectable": false,
+      "provider_match_id": "760lic",
+      "source": "espn-baseline",
+      "source_file": "football_data_foundation/worldcup_20260624_live_shadow/run_20260623_224748_1b5956/cache/espn-baseline/worldcup2026-south-africa-korea-republic.json",
+      "source_role": "unofficial_shadow_cross_check",
+      "value": {
+        "away": "Korea Republic",
+        "home": "South Africa"
+      }
+    },
+    {
+      "body_sha256": "934e96c90d877c8ef78c45a9b0a1afb93e475ecb52f3bd6736623bcb5bb9ad85",
+      "confidence": 1.0,
+      "fact_type": "fixture_identity",
+      "key": "fixture_slug",
+      "notes": [],
+      "production_selectable": false,
+      "provider_match_id": "760lic",
+      "source": "espn-baseline",
+      "source_file": "football_data_foundation/worldcup_20260624_live_shadow/run_20260623_224748_1b5956/cache/espn-baseline/worldcup2026-south-africa-korea-republic.json",
+      "source_role": "unofficial_shadow_cross_check",
+      "value": "worldcup2026-south-africa-korea-republic"
+    },
+    {
+      "body_sha256": "934e96c90d877c8ef78c45a9b0a1afb93e475ecb52f3bd6736623bcb5bb9ad85",
+      "confidence": 1.0,
+      "fact_type": "score",
+      "key": "full_time_score",
+      "notes": [],
+      "production_selectable": false,
+      "provider_match_id": "760lic",
+      "source": "espn-baseline",
+      "source_file": "football_data_foundation/worldcup_20260624_live_shadow/run_20260623_224748_1b5956/cache/espn-baseline/worldcup2026-south-africa-korea-republic.json",
+      "source_role": "unofficial_shadow_cross_check",
+      "value": {
+        "away": 1,
+        "home": 1
+      }
+    },
+    {
+      "body_sha256": "934e96c90d877c8ef78c45a9b0a1afb93e475ecb52f3bd6736623bcb5bb9ad85",
+      "confidence": 1.0,
+      "fact_type": "match_status",
+      "key": "status",
+      "notes": [],
+      "production_selectable": false,
+      "provider_match_id": "760lic",
+      "source": "espn-baseline",
+      "source_file": "football_data_foundation/worldcup_20260624_live_shadow/run_20260623_224748_1b5956/cache/espn-baseline/worldcup2026-south-africa-korea-republic.json",
+      "source_role": "unofficial_shadow_cross_check",
+      "value": "STATUS_FULL_TIME"
+    },
+    {
+      "body_sha256": "934e96c90d877c8ef78c45a9b0a1afb93e475ecb52f3bd6736623bcb5bb9ad85",
+      "confidence": 1.0,
+      "fact_type": "kickoff",
+      "key": "kickoff_utc",
+      "notes": [],
+      "production_selectable": false,
+      "provider_match_id": "760lic",
+      "source": "espn-baseline",
+      "source_file": "football_data_foundation/worldcup_20260624_live_shadow/run_20260623_224748_1b5956/cache/espn-baseline/worldcup2026-south-africa-korea-republic.json",
+      "source_role": "unofficial_shadow_cross_check",
+      "value": "2026-06-24T20:00:00Z"
+    },
+    {
+      "body_sha256": "934e96c90d877c8ef78c45a9b0a1afb93e475ecb52f3bd6736623bcb5bb9ad85",
+      "confidence": 1.0,
+      "fact_type": "provider_mapping",
+      "key": "highlightly.provider_match_id",
+      "notes": [],
+      "production_selectable": false,
+      "provider_match_id": "1267481lic",
+      "source": "highlightly",
+      "source_file": "football_data_foundation/worldcup_20260624_live_shadow/run_20260623_224748_1b5956/cache/highlightly/worldcup2026-south-africa-korea-republic.json",
+      "source_role": "source_bound_detailed_replay",
+      "value": "1267481lic"
+    },
+    {
+      "body_sha256": "934e96c90d877c8ef78c45a9b0a1afb93e475ecb52f3bd6736623bcb5bb9ad85",
+      "confidence": 1.0,
+      "fact_type": "fixture_identity",
+      "key": "teams",
+      "notes": [],
+      "production_selectable": false,
+      "provider_match_id": "1267481lic",
+      "source": "highlightly",
+      "source_file": "football_data_foundation/worldcup_20260624_live_shadow/run_20260623_224748_1b5956/cache/highlightly/worldcup2026-south-africa-korea-republic.json",
+      "source_role": "source_bound_detailed_replay",
+      "value": {
+        "away": "Korea Republic",
+        "home": "South Africa"
+      }
+    },
+    {
+      "body_sha256": "934e96c90d877c8ef78c45a9b0a1afb93e475ecb52f3bd6736623bcb5bb9ad85",
+      "confidence": 1.0,
+      "fact_type": "fixture_identity",
+      "key": "fixture_slug",
+      "notes": [],
+      "production_selectable": false,
+      "provider_match_id": "1267481lic",
+      "source": "highlightly",
+      "source_file": "football_data_foundation/worldcup_20260624_live_shadow/run_20260623_224748_1b5956/cache/highlightly/worldcup2026-south-africa-korea-republic.json",
+      "source_role": "source_bound_detailed_replay",
+      "value": "worldcup2026-south-africa-korea-republic"
+    },
+    {
+      "body_sha256": "934e96c90d877c8ef78c45a9b0a1afb93e475ecb52f3bd6736623bcb5bb9ad85",
+      "confidence": 1.0,
+      "fact_type": "match_status",
+      "key": "status",
+      "notes": [],
+      "production_selectable": false,
+      "provider_match_id": "1267481lic",
+      "source": "highlightly",
+      "source_file": "football_data_foundation/worldcup_20260624_live_shadow/run_20260623_224748_1b5956/cache/highlightly/worldcup2026-south-africa-korea-republic.json",
+      "source_role": "source_bound_detailed_replay",
+      "value": "FINISHED"
+    },
+    {
+      "body_sha256": "934e96c90d877c8ef78c45a9b0a1afb93e475ecb52f3bd6736623bcb5bb9ad85",
+      "confidence": 1.0,
+      "fact_type": "score",
+      "key": "full_time_score",
+      "notes": [],
+      "production_selectable": false,
+      "provider_match_id": "1267481lic",
+      "source": "highlightly",
+      "source_file": "football_data_foundation/worldcup_20260624_live_shadow/run_20260623_224748_1b5956/cache/highlightly/worldcup2026-south-africa-korea-republic.json",
+      "source_role": "source_bound_detailed_replay",
+      "value": {
+        "away": 1,
+        "home": 1
+      }
+    },
+    {
+      "body_sha256": "934e96c90d877c8ef78c45a9b0a1afb93e475ecb52f3bd6736623bcb5bb9ad85",
+      "confidence": 1.0,
+      "fact_type": "venue",
+      "key": "venue",
+      "notes": [],
+      "production_selectable": false,
+      "provider_match_id": "1267481lic",
+      "source": "highlightly",
+      "source_file": "football_data_foundation/worldcup_20260624_live_shadow/run_20260623_224748_1b5956/cache/highlightly/worldcup2026-south-africa-korea-republic.json",
+      "source_role": "source_bound_detailed_replay",
+      "value": "New York New Jersey Stadium"
+    },
+    {
+      "body_sha256": "934e96c90d877c8ef78c45a9b0a1afb93e475ecb52f3bd6736623bcb5bb9ad85",
+      "confidence": 1.0,
+      "fact_type": "match_event_summary",
+      "key": "event_summary",
+      "notes": [],
+      "production_selectable": false,
+      "provider_match_id": "1267481lic",
+      "source": "highlightly",
+      "source_file": "football_data_foundation/worldcup_20260624_live_shadow/run_20260623_224748_1b5956/cache/highlightly/worldcup2026-south-africa-korea-republic.json",
+      "source_role": "source_bound_detailed_replay",
+      "value": {
+        "cards_count": 2,
+        "event_count": 5,
+        "goals": [],
+        "provider_event_categories": [
+          "goal",
+          "card"
+        ],
+        "substitutions_count": 6
+      }
+    },
+    {
+      "body_sha256": "934e96c90d877c8ef78c45a9b0a1afb93e475ecb52f3bd6736623bcb5bb9ad85",
+      "confidence": 1.0,
+      "fact_type": "lineup_summary",
+      "key": "lineup_summary",
+      "notes": [],
+      "production_selectable": false,
+      "provider_match_id": "1267481lic",
+      "source": "highlightly",
+      "source_file": "football_data_foundation/worldcup_20260624_live_shadow/run_20260623_224748_1b5956/cache/highlightly/worldcup2026-south-africa-korea-republic.json",
+      "source_role": "source_bound_detailed_replay",
+      "value": {
+        "formations": [],
+        "listed_player_count": 0,
+        "teams_with_lineups": 0,
+        "unavailable_suspension_injury_counts": {
+          "injury": 0,
+          "suspension": 0,
+          "unavailable": 0
+        }
+      }
+    },
+    {
+      "body_sha256": "934e96c90d877c8ef78c45a9b0a1afb93e475ecb52f3bd6736623bcb5bb9ad85",
+      "confidence": 1.0,
+      "fact_type": "provider_mapping",
+      "key": "sportdb.provider_match_id",
+      "notes": [],
+      "production_selectable": false,
+      "provider_match_id": "xSUJBLIC",
+      "source": "sportdb",
+      "source_file": "football_data_foundation/worldcup_20260624_live_shadow/run_20260623_224748_1b5956/cache/sportdb/worldcup2026-south-africa-korea-republic.json",
+      "source_role": "source_bound_flashscore_replay",
+      "value": "xSUJBLIC"
+    },
+    {
+      "body_sha256": "934e96c90d877c8ef78c45a9b0a1afb93e475ecb52f3bd6736623bcb5bb9ad85",
+      "confidence": 1.0,
+      "fact_type": "fixture_identity",
+      "key": "teams",
+      "notes": [],
+      "production_selectable": false,
+      "provider_match_id": "xSUJBLIC",
+      "source": "sportdb",
+      "source_file": "football_data_foundation/worldcup_20260624_live_shadow/run_20260623_224748_1b5956/cache/sportdb/worldcup2026-south-africa-korea-republic.json",
+      "source_role": "source_bound_flashscore_replay",
+      "value": {
+        "away": "Korea Republic",
+        "home": "South Africa"
+      }
+    },
+    {
+      "body_sha256": "934e96c90d877c8ef78c45a9b0a1afb93e475ecb52f3bd6736623bcb5bb9ad85",
+      "confidence": 1.0,
+      "fact_type": "fixture_identity",
+      "key": "fixture_slug",
+      "notes": [],
+      "production_selectable": false,
+      "provider_match_id": "xSUJBLIC",
+      "source": "sportdb",
+      "source_file": "football_data_foundation/worldcup_20260624_live_shadow/run_20260623_224748_1b5956/cache/sportdb/worldcup2026-south-africa-korea-republic.json",
+      "source_role": "source_bound_flashscore_replay",
+      "value": "worldcup2026-south-africa-korea-republic"
+    },
+    {
+      "body_sha256": "934e96c90d877c8ef78c45a9b0a1afb93e475ecb52f3bd6736623bcb5bb9ad85",
+      "confidence": 1.0,
+      "fact_type": "referee",
+      "key": "referee",
+      "notes": [],
+      "production_selectable": false,
+      "provider_match_id": "xSUJBLIC",
+      "source": "sportdb",
+      "source_file": "football_data_foundation/worldcup_20260624_live_shadow/run_20260623_224748_1b5956/cache/sportdb/worldcup2026-south-africa-korea-republic.json",
+      "source_role": "source_bound_flashscore_replay",
+      "value": "Sampaio W."
+    },
+    {
+      "body_sha256": "934e96c90d877c8ef78c45a9b0a1afb93e475ecb52f3bd6736623bcb5bb9ad85",
+      "confidence": 1.0,
+      "fact_type": "venue",
+      "key": "venue",
+      "notes": [],
+      "production_selectable": false,
+      "provider_match_id": "xSUJBLIC",
+      "source": "sportdb",
+      "source_file": "football_data_foundation/worldcup_20260624_live_shadow/run_20260623_224748_1b5956/cache/sportdb/worldcup2026-south-africa-korea-republic.json",
+      "source_role": "source_bound_flashscore_replay",
+      "value": "MetLife Stadium"
+    },
+    {
+      "body_sha256": "934e96c90d877c8ef78c45a9b0a1afb93e475ecb52f3bd6736623bcb5bb9ad85",
+      "confidence": 1.0,
+      "fact_type": "score",
+      "key": "full_time_score",
+      "notes": [],
+      "production_selectable": false,
+      "provider_match_id": "xSUJBLIC",
+      "source": "sportdb",
+      "source_file": "football_data_foundation/worldcup_20260624_live_shadow/run_20260623_224748_1b5956/cache/sportdb/worldcup2026-south-africa-korea-republic.json",
+      "source_role": "source_bound_flashscore_replay",
+      "value": {
+        "away": 1,
+        "home": 1
+      }
+    },
+    {
+      "body_sha256": "934e96c90d877c8ef78c45a9b0a1afb93e475ecb52f3bd6736623bcb5bb9ad85",
+      "confidence": 1.0,
+      "fact_type": "match_status",
+      "key": "status",
+      "notes": [],
+      "production_selectable": false,
+      "provider_match_id": "xSUJBLIC",
+      "source": "sportdb",
+      "source_file": "football_data_foundation/worldcup_20260624_live_shadow/run_20260623_224748_1b5956/cache/sportdb/worldcup2026-south-africa-korea-republic.json",
+      "source_role": "source_bound_flashscore_replay",
+      "value": "FINISHED"
+    },
+    {
+      "body_sha256": "934e96c90d877c8ef78c45a9b0a1afb93e475ecb52f3bd6736623bcb5bb9ad85",
+      "confidence": 1.0,
+      "fact_type": "match_event_summary",
+      "key": "event_summary",
+      "notes": [],
+      "production_selectable": false,
+      "provider_match_id": "xSUJBLIC",
+      "source": "sportdb",
+      "source_file": "football_data_foundation/worldcup_20260624_live_shadow/run_20260623_224748_1b5956/cache/sportdb/worldcup2026-south-africa-korea-republic.json",
+      "source_role": "source_bound_flashscore_replay",
+      "value": {
+        "cards_count": 2,
+        "event_count": 5,
+        "goals": [],
+        "provider_event_categories": [
+          "3",
+          "['3', '8']"
+        ],
+        "substitutions_count": 0
+      }
+    },
+    {
+      "body_sha256": "934e96c90d877c8ef78c45a9b0a1afb93e475ecb52f3bd6736623bcb5bb9ad85",
+      "confidence": 1.0,
+      "fact_type": "lineup_summary",
+      "key": "lineup_summary",
+      "notes": [],
+      "production_selectable": false,
+      "provider_match_id": "xSUJBLIC",
+      "source": "sportdb",
+      "source_file": "football_data_foundation/worldcup_20260624_live_shadow/run_20260623_224748_1b5956/cache/sportdb/worldcup2026-south-africa-korea-republic.json",
+      "source_role": "source_bound_flashscore_replay",
+      "value": {
+        "formations": [],
+        "listed_player_count": 0,
+        "teams_with_lineups": 2,
+        "unavailable_suspension_injury_counts": {
+          "injury": 0,
+          "suspension": 0,
+          "unavailable": 0
+        }
+      }
+    },
+    {
+      "body_sha256": "934e96c90d877c8ef78c45a9b0a1afb93e475ecb52f3bd6736623bcb5bb9ad85",
+      "confidence": 1.0,
+      "fact_type": "odds_reference",
+      "key": "odds_reference_available",
+      "notes": [],
+      "production_selectable": false,
+      "provider_match_id": "xSUJBLIC",
+      "source": "sportdb",
+      "source_file": "football_data_foundation/worldcup_20260624_live_shadow/run_20260623_224748_1b5956/cache/sportdb/worldcup2026-south-africa-korea-republic.json",
+      "source_role": "source_bound_flashscore_replay",
+      "value": {
+        "bookmaker_count": 10,
+        "decision_use": "forbidden_reference_only",
+        "market_count": 1,
+        "odds_reference_available": true
+      }
+    },
+    {
+      "body_sha256": "934e96c90d877c8ef78c45a9b0a1afb93e475ecb52f3bd6736623bcb5bb9ad85",
+      "confidence": 1.0,
+      "fact_type": "competition",
+      "key": "competition",
+      "notes": [],
+      "production_selectable": false,
+      "provider_match_id": "xSUJBLIC",
+      "source": "sportdb",
+      "source_file": "football_data_foundation/worldcup_20260624_live_shadow/run_20260623_224748_1b5956/cache/sportdb/worldcup2026-south-africa-korea-republic.json",
+      "source_role": "source_bound_flashscore_replay",
+      "value": "FIFA World Cup"
+    }
+  ],
+  "fixture_slug": "worldcup2026-south-africa-korea-republic",
+  "kickoff_utc": "2026-06-24T20:00:00Z",
+  "manual_authorization_required": true,
+  "production_selectable": false,
+  "provider_ids": {
+    "api-football": "1489lic",
+    "espn-baseline": "760lic",
+    "football-data-org": "537lic",
+    "highlightly": "1267481lic",
+    "sportdb": "xSUJBLIC"
+  },
+  "referee": "Sampaio W.",
+  "score": {
+    "away": 1,
+    "home": 1
+  },
+  "shadow_status": "SHADOW_ENRICHMENT_READY_FOR_MANUAL_REVIEW",
+  "source_priority": [
+    "api-football",
+    "sportdb",
+    "highlightly",
+    "football-data-org",
+    "espn-baseline"
+  ],
+  "status": "Match Finished",
+  "teams": {
+    "away": "Korea Republic",
+    "home": "South Africa"
+  },
+  "venue": "MetLife Stadium"
+}

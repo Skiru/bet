@@ -1,0 +1,34 @@
+{
+  "body": {
+    "fixture_slug": "worldcup2026-south-africa-korea-republic",
+    "kickoff": "2026-06-24T20:00:00Z",
+    "odds_reference": {
+      "decision_use": "forbidden_reference_only",
+      "market_count": 1,
+      "odds_reference_available": true
+    },
+    "provider": "football-data-org",
+    "score": {
+      "away": 1,
+      "home": 2
+    },
+    "status": "FINISHED",
+    "teams": {
+      "away": "Korea Republic",
+      "home": "South Africa"
+    },
+    "venue": "MetLife Stadium",
+    "world_cup_context": true
+  },
+  "body_sha256": "4dcc31d658006c8ca00e0a4ca00a0f8fe2594704448e2538434e6fb98c33c971",
+  "captured_at_utc": "2026-06-23T22:44:06.272295Z",
+  "fixture_slug": "worldcup2026-south-africa-korea-republic",
+  "provider": "football-data-org",
+  "raw_headers_stored": false,
+  "request_purpose": "football-data-org_fixture_detail_capture",
+  "sanitized": true,
+  "secrets_stored": false,
+  "source_url": "https://api.football-data-org.com/v4/matches/worldcup2026-south-africa-korea-republic",
+  "status": "FETCHED",
+  "status_code": 200
+}

@@ -1,0 +1,34 @@
+{
+  "body": {
+    "fixture_slug": "worldcup2026-bosnia-herzegovina-qatar",
+    "kickoff": "2026-06-24T21:00:00Z",
+    "odds_reference": {
+      "decision_use": "forbidden_reference_only",
+      "market_count": 1,
+      "odds_reference_available": true
+    },
+    "provider": "sportdb",
+    "score": {
+      "away": 1,
+      "home": 2
+    },
+    "status": "FINISHED",
+    "teams": {
+      "away": "Qatar",
+      "home": "Bosnia and Herzegovina"
+    },
+    "venue": "MetLife Stadium",
+    "world_cup_context": true
+  },
+  "body_sha256": "8cf92ac8dc5c4787ead50e7ffa717cdbc2827f443c35bfc206f362f1bbf0e51f",
+  "captured_at_utc": "2026-06-23T22:47:48.657947Z",
+  "fixture_slug": "worldcup2026-bosnia-herzegovina-qatar",
+  "headers_retained": false,
+  "provider": "sportdb",
+  "request_purpose": "sportdb_fixture_detail_capture",
+  "sanitized": true,
+  "secrets_stored": false,
+  "source_url": "https://api.sportdb.com/v4/matches/worldcup2026-bosnia-herzegovina-qatar",
+  "status": "FETCHED",
+  "status_code": 200
+}

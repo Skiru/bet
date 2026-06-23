@@ -1,0 +1,34 @@
+{
+  "body": {
+    "fixture_slug": "worldcup2026-switzerland-canada",
+    "kickoff": "2026-06-24T21:00:00Z",
+    "odds_reference": {
+      "decision_use": "forbidden_reference_only",
+      "market_count": 1,
+      "odds_reference_available": true
+    },
+    "provider": "highlightly",
+    "score": {
+      "away": 1,
+      "home": 2
+    },
+    "status": "FINISHED",
+    "teams": {
+      "away": "Canada",
+      "home": "Switzerland"
+    },
+    "venue": "MetLife Stadium",
+    "world_cup_context": true
+  },
+  "body_sha256": "e376ed5fffe5781f32f9654242d3a1eb4c4742604d5acf6cbda3df80a26b6e6a",
+  "captured_at_utc": "2026-06-23T22:44:05.727524Z",
+  "fixture_slug": "worldcup2026-switzerland-canada",
+  "provider": "highlightly",
+  "raw_headers_stored": false,
+  "request_purpose": "highlightly_fixture_detail_capture",
+  "sanitized": true,
+  "secrets_stored": false,
+  "source_url": "https://api.highlightly.com/v4/matches/worldcup2026-switzerland-canada",
+  "status": "FETCHED",
+  "status_code": 200
+}

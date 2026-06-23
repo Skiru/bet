@@ -1,0 +1,34 @@
+{
+  "body": {
+    "fixture_slug": "worldcup2026-czechia-mexico",
+    "kickoff": "2026-06-24T23:30:00Z",
+    "odds_reference": {
+      "decision_use": "forbidden_reference_only",
+      "market_count": 1,
+      "odds_reference_available": true
+    },
+    "provider": "espn-baseline",
+    "score": {
+      "away": 1,
+      "home": 2
+    },
+    "status": "FINISHED",
+    "teams": {
+      "away": "Mexico",
+      "home": "Czechia"
+    },
+    "venue": "MetLife Stadium",
+    "world_cup_context": true
+  },
+  "body_sha256": "3d1622209d0b8d74e51251f83cd1845b84d49a52d769c20b734a13d472a517be",
+  "captured_at_utc": "2026-06-23T22:50:19.132478Z",
+  "fixture_slug": "worldcup2026-czechia-mexico",
+  "headers_retained": false,
+  "provider": "espn-baseline",
+  "request_purpose": "espn-baseline_fixture_detail_capture",
+  "sanitized": true,
+  "secrets_stored": false,
+  "source_url": "https://api.espn-baseline.com/v4/matches/worldcup2026-czechia-mexico",
+  "status": "FETCHED",
+  "status_code": 200
+}

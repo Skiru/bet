@@ -1,0 +1,34 @@
+{
+  "body": {
+    "fixture_slug": "worldcup2026-morocco-haiti",
+    "kickoff": "2026-06-24T18:00:00Z",
+    "odds_reference": {
+      "decision_use": "forbidden_reference_only",
+      "market_count": 1,
+      "odds_reference_available": true
+    },
+    "provider": "espn-baseline",
+    "score": {
+      "away": 1,
+      "home": 2
+    },
+    "status": "FINISHED",
+    "teams": {
+      "away": "Haiti",
+      "home": "Morocco"
+    },
+    "venue": "MetLife Stadium",
+    "world_cup_context": true
+  },
+  "body_sha256": "e238ac3380266070b3fae90be0a123cf9a6b79eeba885b23f3265f2f5d600418",
+  "captured_at_utc": "2026-06-23T22:44:06.061571Z",
+  "fixture_slug": "worldcup2026-morocco-haiti",
+  "provider": "espn-baseline",
+  "raw_headers_stored": false,
+  "request_purpose": "espn-baseline_fixture_detail_capture",
+  "sanitized": true,
+  "secrets_stored": false,
+  "source_url": "https://api.espn-baseline.com/v4/matches/worldcup2026-morocco-haiti",
+  "status": "FETCHED",
+  "status_code": 200
+}

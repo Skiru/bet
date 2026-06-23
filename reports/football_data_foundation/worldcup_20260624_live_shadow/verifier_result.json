@@ -1,0 +1,12 @@
+{
+  "checks": {
+    "activation_bridge_ok": "PASS",
+    "four_shadow_ready": "PASS",
+    "no_cache_leak": "PASS",
+    "no_forbidden_tokens": "PASS",
+    "no_raw_headers": "PASS",
+    "six_fixtures_attempted": "PASS"
+  },
+  "failed_requirements": [],
+  "verdict": "PASS"
+}

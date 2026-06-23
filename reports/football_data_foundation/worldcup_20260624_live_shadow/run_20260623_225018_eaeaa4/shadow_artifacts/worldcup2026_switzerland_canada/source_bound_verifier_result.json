@@ -1,0 +1,46 @@
+{
+  "artifact_commit_sha": "87184fe",
+  "committed_blob_sqlite_check": "pass",
+  "committed_test_artifact_check": "PASS",
+  "conflicts": [],
+  "failed_requirements": [],
+  "final_public_proof_commit_sha": "NONE",
+  "fixture_slug_source_check": "PASS",
+  "forbidden_payload_check": "PASS",
+  "live_network_check": "PASS",
+  "network_probe_check": "PASS",
+  "odds_reference_check": "PASS",
+  "production_activation_check": "PASS",
+  "proof_commit_sha": "NONE",
+  "provider_fact_counts": {
+    "api-football": 9,
+    "espn-baseline": 6,
+    "football-data-org": 10,
+    "highlightly": 8,
+    "sportdb": 11
+  },
+  "provider_ids": {
+    "api-football": "1489ada",
+    "espn-baseline": "760ada",
+    "football-data-org": "537ada",
+    "highlightly": "1267481ada",
+    "sportdb": "xSUJNADA"
+  },
+  "public_artifact_proof_path": "reports/football_data_foundation/worldcup_20260624_live_shadow/shadow_artifacts/worldcup2026_switzerland_canada/public_artifact_proof.json",
+  "public_raw_report_format_check": "pass",
+  "public_raw_reviewability_check": "pass",
+  "public_raw_sqlite_check": "pass",
+  "reviewability_check": "PASS",
+  "score_consensus": {
+    "away": 1,
+    "home": 2
+  },
+  "secret_leak_check": "PASS",
+  "shadow_status": "SHADOW_ENRICHMENT_READY_FOR_MANUAL_REVIEW",
+  "sqlite_artifact_check": "PASS",
+  "sqlite_content_check": "PASS",
+  "sqlite_row_count_check": "PASS",
+  "sqlite_table_check": "PASS",
+  "structural_forbidden_content_check": "PASS",
+  "verdict": "PASS"
+}
