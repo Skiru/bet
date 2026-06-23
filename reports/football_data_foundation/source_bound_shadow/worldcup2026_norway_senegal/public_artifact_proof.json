@@ -1,6 +1,7 @@
 {
-  "artifact_commit_sha": "6f6f3b0b69fa974fa66607eefde164e43e16ade8",
-  "checked_commit_sha": "6f6f3b0b69fa974fa66607eefde164e43e16ade8",
+  "acceptance_source": "external_verifier",
+  "artifact_commit_sha": "ce6234ebfd57af4a0dfd5d1a33022394c9f99b93",
+  "checked_commit_sha": "ce6234ebfd57af4a0dfd5d1a33022394c9f99b93",
   "committed_sqlite_header_ok": true,
   "committed_sqlite_provider_row_counts": {
     "api-football": 17,
@@ -22,8 +23,9 @@
     "sqlite_sequence"
   ],
   "failed_requirements": [],
-  "final_public_proof_commit_sha": "66659e8ab300d09cbb0d74e26ca0358c770108b5",
-  "proof_commit_sha": "66659e8ab300d09cbb0d74e26ca0358c770108b5",
+  "final_public_proof_commit_sha": null,
+  "proof_commit_sha": null,
+  "proof_model": "EXTERNAL_PUBLIC_RAW_VERIFIER",
   "public_raw_report_fetch_status": {
     "public_artifact_proof.json": 200,
     "source_bound_shadow_snapshot.json": 200,
@@ -53,6 +55,7 @@
     "source_bound_shadow_snapshot.json": true,
     "source_bound_verifier_result.json": true
   },
+  "self_referential_commit_proof_used": false,
   "source_file_checks": {
     "contracts.py": true,
     "fuser.py": true,
@@ -63,5 +66,6 @@
     "verifier.py": true,
     "writer.py": true
   },
-  "verdict": "PASS"
+  "verdict": "PASS",
+  "verifier_command": "python -m football_public_truth_verifier.verifier --repo Skiru/bet --commit $final_head_sha --output /tmp/football_public_truth_verifier_result.json"
 }

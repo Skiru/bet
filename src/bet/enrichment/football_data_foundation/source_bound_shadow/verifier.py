@@ -774,6 +774,10 @@ def generate_public_artifact_proof(
         "public_raw_sqlite_provider_row_counts": public_raw_sqlite_provider_row_counts,
         "public_raw_source_fetch_status": public_raw_source_fetch_status,
         "public_raw_report_fetch_status": public_raw_report_fetch_status,
+        "proof_model": "EXTERNAL_PUBLIC_RAW_VERIFIER",
+        "acceptance_source": "external_verifier",
+        "self_referential_commit_proof_used": False,
+        "verifier_command": "python -m football_public_truth_verifier.verifier --repo Skiru/bet --commit $final_head_sha --output /tmp/football_public_truth_verifier_result.json",
     }
 
 def verify_shadow_bundle(
