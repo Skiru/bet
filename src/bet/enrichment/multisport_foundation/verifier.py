@@ -540,4 +540,156 @@ def verify_provider_access_gate() -> VerificationResult:
     )
 
 
+def verify_single_flight_probes() -> VerificationResult:
+    """Verify single-flight probe contracts, status derivation, and report invariants."""
+    from .single_flight_probe import (
+        TARGET_SPORTS,
+        SingleFlightProbeStatus,
+        SingleFlightProbePolicy,
+        SingleFlightProbeArtifact,
+        default_policy_for_sport,
+        build_default_single_flight_report,
+        validate_single_flight_report,
+    )
+
+    failed: list[str] = []
+
+    # 1. Target sports must cover exactly seven target sports
+    if set(TARGET_SPORTS) != {"basketball", "volleyball", "hockey", "tennis", "cs2", "dota2", "valorant"}:
+        failed.append("target_sports_mismatch")
+
+    # 2. Check defaults in default policy
+    for sport in TARGET_SPORTS:
+        policy = default_policy_for_sport(sport)
+        if policy.allow_real_network is not False:
+            failed.append(f"default_allow_real_network_not_false:{sport}")
+        if policy.max_requests != 1:
+            failed.append(f"default_max_requests_not_1:{sport}")
+        if policy.sanitized_probe_only is not True:
+            failed.append(f"default_sanitized_probe_only_not_true:{sport}")
+        if policy.production_selectable is not False:
+            failed.append(f"default_production_selectable_not_false:{sport}")
+        if policy.betting_decisions_enabled is not False:
+            failed.append(f"default_betting_decisions_enabled_not_false:{sport}")
+
+    # 3. Check strict policy validation limits
+    try:
+        SingleFlightProbePolicy("basketball", "api-sports-family", "api_basketball_games", "status", "status", max_requests=2)
+        failed.append("policy_did_not_reject_max_requests_not_1")
+    except ValueError:
+        pass
+
+    try:
+        SingleFlightProbePolicy("basketball", "api-sports-family", "api_basketball_games", "status", "status", sanitized_probe_only=False)
+        failed.append("policy_did_not_reject_sanitized_probe_only_false")
+    except ValueError:
+        pass
+
+    try:
+        SingleFlightProbePolicy("basketball", "api-sports-family", "api_basketball_games", "status", "status", production_selectable=True)
+        failed.append("policy_did_not_reject_production_selectable_true")
+    except ValueError:
+        pass
+
+    try:
+        SingleFlightProbePolicy("basketball", "api-sports-family", "api_basketball_games", "status", "status", betting_decisions_enabled=True)
+        failed.append("policy_did_not_reject_betting_decisions_enabled_true")
+    except ValueError:
+        pass
+
+    # 4. Check strict artifact validation limits
+    try:
+        SingleFlightProbeArtifact(
+            artifact_id="id", sport="basketball", provider_key="key", route_key="route",
+            status=SingleFlightProbeStatus.SINGLE_FLIGHT_BLOCKED_ACCESS_GATE,
+            source_access_status="BLOCKED", source_mapping_status="BLOCKED",
+            request_method="GET", request_url_template="url",
+            sanitized_request_metadata={}, sanitized_response_envelope={},
+            proof_fields_observed=("fixture_id",), missing_proof_fields=(),
+            live_call_made=False, provider_access_attempted=False, max_requests=1,
+            blocked_reason="blocked", production_selectable=False, betting_decisions_enabled=False
+        )
+        failed.append("artifact_did_not_reject_observed_fields_when_blocked")
+    except ValueError:
+        pass
+
+    try:
+        SingleFlightProbeArtifact(
+            artifact_id="id", sport="basketball", provider_key="key", route_key="route",
+            status=SingleFlightProbeStatus.SINGLE_FLIGHT_RESULT_CAPTURED_SANITIZED,
+            source_access_status="AUTHORIZED", source_mapping_status="READY",
+            request_method="GET", request_url_template="url",
+            sanitized_request_metadata={}, sanitized_response_envelope={},
+            proof_fields_observed=("fixture_id",), missing_proof_fields=(),
+            live_call_made=False, provider_access_attempted=True, max_requests=1,
+            blocked_reason="", production_selectable=False, betting_decisions_enabled=False
+        )
+        failed.append("artifact_did_not_reject_captured_status_without_live_call")
+    except ValueError:
+        pass
+
+    # 5. Validate the default report structure
+    report = build_default_single_flight_report()
+    errors = validate_single_flight_report(report)
+    if errors:
+        failed.extend(errors)
+
+    # Validate detailed requirements:
+    # - default reports cover exactly seven sports
+    if len(report.get("target_sports", [])) != 7:
+        failed.append("default_report_must_cover_exactly_seven_sports")
+    
+    # - default reports have no live calls and no provider access attempted
+    if report.get("live_calls_made") is not False:
+        failed.append("default_report_must_have_no_live_calls")
+    if report.get("provider_access_attempted") is not False:
+        failed.append("default_report_must_have_no_provider_access_attempted")
+        
+    # - no production activation and no betting decisions
+    if report.get("production_activation") is not False:
+        failed.append("production_activation_not_false")
+    if report.get("betting_decisions") is not False:
+        failed.append("betting_decisions_not_false")
+
+    for sport, items in report.get("single_flight_probe_by_sport", {}).items():
+        for item in items:
+            # - source_probe_status is present in every artifact
+            if "source_probe_status" not in item:
+                failed.append(f"source_probe_status_missing:{sport}")
+            
+            # - no artifact can reach transport unless source_probe_status == SANITIZED_PROBE_READY_DRY_RUN
+            # Transport is reached/attempted if live_call_made or provider_access_attempted is true
+            if (item.get("live_call_made") or item.get("provider_access_attempted")):
+                if item.get("source_probe_status") != "SANITIZED_PROBE_READY_DRY_RUN":
+                    failed.append(f"transport_attempted_without_dry_run_ready:{sport}")
+            
+            # - raw_payload_persisted=false
+            env = item.get("sanitized_response_envelope", {})
+            if env.get("raw_payload_persisted") is not False:
+                failed.append(f"raw_payload_persisted_not_false:{sport}")
+
+            if item.get("production_selectable") is not False:
+                failed.append(f"production_selectable_must_be_false:{sport}")
+            if item.get("betting_decisions_enabled") is not False:
+                failed.append(f"betting_decisions_enabled_must_be_false:{sport}")
+
+    # 6. Verify default report maps all sports to SINGLE_FLIGHT_BLOCKED_ACCESS_GATE
+    for sport in TARGET_SPORTS:
+        status = report["status_by_sport"].get(sport)
+        if status != SingleFlightProbeStatus.SINGLE_FLIGHT_BLOCKED_ACCESS_GATE:
+            failed.append(f"default_report_sport_not_blocked_access_gate:{sport}:{status}")
+
+    metrics = {
+        "target_sports_count": len(TARGET_SPORTS),
+        "total_policies_checked": len(TARGET_SPORTS),
+    }
+
+    return VerificationResult(
+        verdict="PASS" if not failed else "FAIL",
+        failed_requirements=failed,
+        metrics=metrics,
+    )
+
+
+
 

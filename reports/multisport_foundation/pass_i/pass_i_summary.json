@@ -1,0 +1,30 @@
+{
+  "betting_decisions": false,
+  "live_calls_made": false,
+  "metrics": {
+    "single_flight_blocked_access_gate_count": 7,
+    "single_flight_result_captured_sanitized_count": 0,
+    "total_target_sports": 7
+  },
+  "phase_id": "MULTISPORT_PASS_I_AUTHORIZED_SINGLE_FLIGHT_SANITIZED_PROBE",
+  "production_activation": false,
+  "provider_access_attempted": false,
+  "status_by_sport": {
+    "basketball": "SINGLE_FLIGHT_BLOCKED_ACCESS_GATE",
+    "cs2": "SINGLE_FLIGHT_BLOCKED_ACCESS_GATE",
+    "dota2": "SINGLE_FLIGHT_BLOCKED_ACCESS_GATE",
+    "hockey": "SINGLE_FLIGHT_BLOCKED_ACCESS_GATE",
+    "tennis": "SINGLE_FLIGHT_BLOCKED_ACCESS_GATE",
+    "valorant": "SINGLE_FLIGHT_BLOCKED_ACCESS_GATE",
+    "volleyball": "SINGLE_FLIGHT_BLOCKED_ACCESS_GATE"
+  },
+  "target_sports": [
+    "basketball",
+    "volleyball",
+    "hockey",
+    "tennis",
+    "cs2",
+    "dota2",
+    "valorant"
+  ]
+}
