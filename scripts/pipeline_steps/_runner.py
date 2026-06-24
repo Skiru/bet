@@ -36,10 +36,18 @@ def _init_temp_db(db_path: str) -> None:
             conn.close()
 
 
-def run_scripts(scripts: Iterable[str], date: str | None = None, dry_run: bool = True, allow_write: bool = False, date_arg: str = "--date", continue_on_codes: Iterable[int] | None = None) -> int:
+def run_scripts(
+    scripts: Iterable[str],
+    date: str | None = None,
+    dry_run: bool = True,
+    allow_write: bool = False,
+    date_arg: str = "--date",
+    continue_on_codes: Iterable[int] | None = None,
+    write_ack_env_key: str = "BET_PIPELINE_WRITE_ACK",
+) -> int:
     """Run one or more script paths (relative to repo root `scripts/`).
 
-    - `date` is passed as `--date` to the script if provided.
+    - `date` is passed as `date_arg` to the script if provided.
     - When `dry_run` is True and `allow_write` False, `DATABASE_URL` will be
       temporarily set to a temp file DB to avoid persisting changes.
     - `continue_on_codes`: Exit codes that should NOT stop the sequence (default: [0]).
@@ -49,12 +57,24 @@ def run_scripts(scripts: Iterable[str], date: str | None = None, dry_run: bool =
     if continue_on_codes is None:
         continue_on_codes = [0]
     env = os.environ.copy()
-    # Allow an environment override to force DB writes for full pipeline runs.
+
+    write_ack = env.get(write_ack_env_key, "")
     force_allow = env.get("FORCE_ALLOW_WRITE", "").lower() in ("1", "true", "yes")
-    if force_allow:
-        allow_write = True
+
+    if allow_write:
         dry_run = False
-        print("⚠️ FORCE_ALLOW_WRITE is set: enabling DB writes and disabling dry-run")
+
+    if force_allow:
+        if not (allow_write and write_ack == "I_UNDERSTAND_PRODUCTION_WRITE"):
+            print("BLOCKED_FORCE_ALLOW_WRITE_UNSAFE")
+            return 4
+        dry_run = False
+        allow_write = True
+    elif allow_write:
+        if write_ack != "I_UNDERSTAND_PRODUCTION_WRITE":
+            print("BLOCKED_WRITE_ACK_MISSING")
+            return 3
+        dry_run = False
 
     temp_db_path = None
     try:
