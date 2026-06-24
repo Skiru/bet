@@ -10,7 +10,7 @@ By centralizing the steps, associated agents, execution modes, outputs, permitte
 
 The pipeline progresses sequentially through 17 explicit steps in this exact order:
 
-1. **S0**: Settler (Phase: `POST_EVENT`, Agent: `bet-settler`)
+1. **S0**: Settler (Phase: `DATA`, Agent: `bet-settler`) — The first DATA step of the daily pipeline, which may settle prior events before current-day discovery.
 2. **S1**: Discover (Phase: `DATA`, Agent: `bet-scanner`)
 3. **S1e**: Events Discovery (Phase: `DATA`, Agent: `bet-scanner`)
 4. **S2**: Tipsters Discovery (Phase: `DATA`, Agent: `bet-scout`)
@@ -26,7 +26,7 @@ The pipeline progresses sequentially through 17 explicit steps in this exact ord
 14. **S7b**: Market Availability Validation (Phase: `ANALYSIS_BUILD`, Agent: `bet-test-engineer`)
 15. **S8**: Coupon Construction (Phase: `ANALYSIS_BUILD`, Agent: `bet-builder`)
 16. **S9**: Human Execution Gate (Phase: `EXECUTION`, Agent: `bet-challenger`)
-17. **S10**: Settlement Handoff (Phase: `POST_EVENT`, Agent: `bet-settler`)
+17. **S10**: Settlement Handoff (Phase: `POST_EVENT`, Agent: `bet-settler`) — The POST_EVENT settlement/learning handoff.
 
 ## Execution Modes
 

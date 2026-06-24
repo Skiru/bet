@@ -71,7 +71,7 @@ class TestPipelineState:
             state.advance("S99")
 
     def test_phase_determination(self):
-        assert _determine_phase("S0") == "POST_EVENT"
+        assert _determine_phase("S0") == "DATA"
         assert _determine_phase("S2.9") == "DATA"
         assert _determine_phase("S3") == "ANALYSIS_BUILD"
         assert _determine_phase("S8") == "ANALYSIS_BUILD"

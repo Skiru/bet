@@ -18,7 +18,7 @@
     {
       "id": "S0",
       "name": "Settler",
-      "phase": "POST_EVENT",
+      "phase": "DATA",
       "agent": "bet-settler",
       "execution_mode": "script",
       "wrapper": "scripts/pipeline_steps/s0_settler.py",

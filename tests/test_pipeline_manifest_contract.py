@@ -241,3 +241,17 @@ def test_corrected_semantic_names_and_phases():
 
     assert state._determine_phase("S9") == "EXECUTION"
     assert state._determine_phase("S10") == "POST_EVENT"
+
+
+def test_s0_and_s10_phases_and_order():
+    """Verify S0 and S10 phases and position in the manifest step order."""
+    manifest = load_pipeline_manifest()
+    steps = manifest.steps
+    assert steps[0].id == "S0"
+    assert steps[0].phase == "DATA"
+    assert steps[-1].id == "S10"
+    assert steps[-1].phase == "POST_EVENT"
+
+    # only S10 has phase POST_EVENT
+    post_event_steps = [s.id for s in steps if s.phase == "POST_EVENT"]
+    assert post_event_steps == ["S10"]
