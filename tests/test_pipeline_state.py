@@ -71,10 +71,12 @@ class TestPipelineState:
             state.advance("S99")
 
     def test_phase_determination(self):
-        assert _determine_phase("S0") == "DATA"
+        assert _determine_phase("S0") == "POST_EVENT"
         assert _determine_phase("S2.9") == "DATA"
         assert _determine_phase("S3") == "ANALYSIS_BUILD"
-        assert _determine_phase("S10") == "ANALYSIS_BUILD"
+        assert _determine_phase("S8") == "ANALYSIS_BUILD"
+        assert _determine_phase("S9") == "EXECUTION"
+        assert _determine_phase("S10") == "POST_EVENT"
 
     def test_resume_mid_session(self, tmp_data_dir):
         """Simulate context reset: save state, create new instance, resume."""
@@ -112,3 +114,16 @@ class TestPipelineState:
         state.advance("S1", {"fixtures": 200})
         assert state.data_summary["S0"]["pnl"] == 5.0
         assert state.data_summary["S1"]["fixtures"] == 200
+
+    def test_no_test_specific_runtime_hacks(self):
+        """Regression test ensuring state.py contains no stack-inspection or test-specific hacks."""
+        source_path = Path(__file__).parent.parent / "src/bet/pipeline/state.py"
+        source = source_path.read_text(encoding="utf-8")
+        forbidden_patterns = [
+            "sys._getframe",
+            "test_pipeline_state",
+            "frame.f_code",
+            "To maintain backward compatibility",
+        ]
+        for pattern in forbidden_patterns:
+            assert pattern not in source, f"Forbidden pattern found in production code: {pattern!r}"
