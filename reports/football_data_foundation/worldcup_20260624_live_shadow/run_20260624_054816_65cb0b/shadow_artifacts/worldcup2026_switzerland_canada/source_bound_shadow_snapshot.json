@@ -1,0 +1,159 @@
+{
+  "competition": "FIFA World Cup",
+  "conflicts": [],
+  "facts": [
+    {
+      "body_sha256": "90f0b8e93e03582c4379ce447db338180c99021c49e2b1cb297e1a87d7c8bfc1",
+      "confidence": 1.0,
+      "fact_type": "provider_mapping",
+      "key": "api-football.provider_match_id",
+      "notes": [],
+      "production_selectable": false,
+      "provider_match_id": "1524966",
+      "source": "api-football",
+      "source_file": "reports/football_data_foundation/worldcup_20260624_live_shadow/run_20260624_054816_65cb0b/cache/api-football/worldcup2026-switzerland-canada.json",
+      "source_role": "primary_detailed_replay",
+      "value": "1524966"
+    },
+    {
+      "body_sha256": "90f0b8e93e03582c4379ce447db338180c99021c49e2b1cb297e1a87d7c8bfc1",
+      "confidence": 1.0,
+      "fact_type": "fixture_identity",
+      "key": "teams",
+      "notes": [],
+      "production_selectable": false,
+      "provider_match_id": "1524966",
+      "source": "api-football",
+      "source_file": "reports/football_data_foundation/worldcup_20260624_live_shadow/run_20260624_054816_65cb0b/cache/api-football/worldcup2026-switzerland-canada.json",
+      "source_role": "primary_detailed_replay",
+      "value": {
+        "away": "Canada",
+        "home": "Switzerland"
+      }
+    },
+    {
+      "body_sha256": "90f0b8e93e03582c4379ce447db338180c99021c49e2b1cb297e1a87d7c8bfc1",
+      "confidence": 1.0,
+      "fact_type": "fixture_identity",
+      "key": "fixture_slug",
+      "notes": [],
+      "production_selectable": false,
+      "provider_match_id": "1524966",
+      "source": "api-football",
+      "source_file": "reports/football_data_foundation/worldcup_20260624_live_shadow/run_20260624_054816_65cb0b/cache/api-football/worldcup2026-switzerland-canada.json",
+      "source_role": "primary_detailed_replay",
+      "value": "worldcup2026-switzerland-canada"
+    },
+    {
+      "body_sha256": "90f0b8e93e03582c4379ce447db338180c99021c49e2b1cb297e1a87d7c8bfc1",
+      "confidence": 1.0,
+      "fact_type": "kickoff",
+      "key": "kickoff_utc",
+      "notes": [],
+      "production_selectable": false,
+      "provider_match_id": "1524966",
+      "source": "api-football",
+      "source_file": "reports/football_data_foundation/worldcup_20260624_live_shadow/run_20260624_054816_65cb0b/cache/api-football/worldcup2026-switzerland-canada.json",
+      "source_role": "primary_detailed_replay",
+      "value": "2026-06-24T21:00:00Z"
+    },
+    {
+      "body_sha256": "90f0b8e93e03582c4379ce447db338180c99021c49e2b1cb297e1a87d7c8bfc1",
+      "confidence": 1.0,
+      "fact_type": "score",
+      "key": "full_time_score",
+      "notes": [],
+      "production_selectable": false,
+      "provider_match_id": "1524966",
+      "source": "api-football",
+      "source_file": "reports/football_data_foundation/worldcup_20260624_live_shadow/run_20260624_054816_65cb0b/cache/api-football/worldcup2026-switzerland-canada.json",
+      "source_role": "primary_detailed_replay",
+      "value": {
+        "away": 1,
+        "home": 3
+      }
+    },
+    {
+      "body_sha256": "90f0b8e93e03582c4379ce447db338180c99021c49e2b1cb297e1a87d7c8bfc1",
+      "confidence": 1.0,
+      "fact_type": "match_status",
+      "key": "status",
+      "notes": [],
+      "production_selectable": false,
+      "provider_match_id": "1524966",
+      "source": "api-football",
+      "source_file": "reports/football_data_foundation/worldcup_20260624_live_shadow/run_20260624_054816_65cb0b/cache/api-football/worldcup2026-switzerland-canada.json",
+      "source_role": "primary_detailed_replay",
+      "value": "Match Finished"
+    },
+    {
+      "body_sha256": "90f0b8e93e03582c4379ce447db338180c99021c49e2b1cb297e1a87d7c8bfc1",
+      "confidence": 1.0,
+      "fact_type": "venue",
+      "key": "venue",
+      "notes": [],
+      "production_selectable": false,
+      "provider_match_id": "1524966",
+      "source": "api-football",
+      "source_file": "reports/football_data_foundation/worldcup_20260624_live_shadow/run_20260624_054816_65cb0b/cache/api-football/worldcup2026-switzerland-canada.json",
+      "source_role": "primary_detailed_replay",
+      "value": "UNKNOWN"
+    },
+    {
+      "body_sha256": "90f0b8e93e03582c4379ce447db338180c99021c49e2b1cb297e1a87d7c8bfc1",
+      "confidence": 1.0,
+      "fact_type": "referee",
+      "key": "referee",
+      "notes": [],
+      "production_selectable": false,
+      "provider_match_id": "1524966",
+      "source": "api-football",
+      "source_file": "reports/football_data_foundation/worldcup_20260624_live_shadow/run_20260624_054816_65cb0b/cache/api-football/worldcup2026-switzerland-canada.json",
+      "source_role": "primary_detailed_replay",
+      "value": "UNKNOWN"
+    },
+    {
+      "body_sha256": "90f0b8e93e03582c4379ce447db338180c99021c49e2b1cb297e1a87d7c8bfc1",
+      "confidence": 1.0,
+      "fact_type": "odds_reference",
+      "key": "odds_reference_available",
+      "notes": [],
+      "production_selectable": false,
+      "provider_match_id": "1524966",
+      "source": "api-football",
+      "source_file": "reports/football_data_foundation/worldcup_20260624_live_shadow/run_20260624_054816_65cb0b/cache/api-football/worldcup2026-switzerland-canada.json",
+      "source_role": "primary_detailed_replay",
+      "value": {
+        "decision_use": "forbidden_reference_only",
+        "market_count": 0,
+        "odds_reference_available": false
+      }
+    }
+  ],
+  "fixture_slug": "worldcup2026-switzerland-canada",
+  "kickoff_utc": "2026-06-24T21:00:00Z",
+  "manual_authorization_required": true,
+  "production_selectable": false,
+  "provider_ids": {
+    "api-football": "1524966"
+  },
+  "referee": "UNKNOWN",
+  "score": {
+    "away": 1,
+    "home": 3
+  },
+  "shadow_status": "BLOCKED",
+  "source_priority": [
+    "sportdb",
+    "highlightly",
+    "api-football",
+    "football-data-org",
+    "espn-baseline"
+  ],
+  "status": "BLOCKED_MAPPING_NOT_FOUND",
+  "teams": {
+    "away": "Canada",
+    "home": "Switzerland"
+  },
+  "venue": "UNKNOWN"
+}

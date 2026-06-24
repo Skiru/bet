@@ -1,0 +1,29 @@
+{
+  "competition": "FIFA World Cup",
+  "conflicts": [],
+  "facts": [],
+  "fixture_slug": "worldcup2026-czechia-mexico",
+  "kickoff_utc": "2026-06-24T23:30:00Z",
+  "manual_authorization_required": true,
+  "production_selectable": false,
+  "provider_ids": {},
+  "referee": "UNKNOWN",
+  "score": {
+    "away": null,
+    "home": null
+  },
+  "shadow_status": "BLOCKED",
+  "source_priority": [
+    "sportdb",
+    "highlightly",
+    "api-football",
+    "football-data-org",
+    "espn-baseline"
+  ],
+  "status": "BLOCKED_MAPPING_NOT_FOUND",
+  "teams": {
+    "away": "Mexico",
+    "home": "Czechia"
+  },
+  "venue": "UNKNOWN"
+}

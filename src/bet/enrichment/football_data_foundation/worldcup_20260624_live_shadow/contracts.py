@@ -28,7 +28,7 @@ class ProviderCaptureEnvelope:
     body_sha256: str
     captured_at_utc: str
     sanitized: bool = True
-    raw_headers_stored: bool = False
+    headers_redacted: bool = True
     secrets_stored: bool = False
     network_used: bool = True
     real_response_proof: Optional[Dict[str, Any]] = None
@@ -72,6 +72,9 @@ class LiveShadowRunSummary:
     betting_decision_check: str
     activation_bridge_success_count: int
     final_status: str
+    real_fetched_envelope_count: int = 0
+    mock_envelope_count: int = 0
+    real_response_unmapped_count: int = 0
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)

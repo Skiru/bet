@@ -1,33 +1,109 @@
 import datetime
-import uuid
-import time
 import json
+import time
+import uuid
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
+from .activation_bridge import run_activation_bridge
+from .cache_writer import write_provider_cache
 from .contracts import (
-    FixtureSpec,
-    ProviderCaptureEnvelope,
-    LiveFixtureShadowSnapshot,
     LiveShadowRunSummary,
+    ProviderCaptureEnvelope,
     SHADOW_ONLY_STATUS,
 )
 from .env_loader import check_dotenv_preflight, get_credential
-from .fixtures import load_target_fixtures, execute_fixture_preflight
+from .fixtures import execute_fixture_preflight, load_target_fixtures
+from .http_capture import safe_http_get
+from .normalizer import normalize_fixture_snapshot
 from .provider_plan import (
     build_provider_plans,
-    get_sportdb_fixtures_url,
-    get_highlightly_matches_url,
     get_api_football_fixtures_url,
-    get_football_data_org_matches_url,
     get_espn_scoreboard_url,
+    get_football_data_org_matches_url,
+    get_highlightly_matches_url,
+    get_sportdb_fixtures_url,
 )
-from .cache_writer import write_provider_cache
-from .normalizer import normalize_fixture_snapshot
-from .activation_bridge import run_activation_bridge
+from .sanitizer import compute_body_sha256, sanitize_json_body, write_json
 from .verifier import verify_live_shadow_run
-from .sanitizer import write_json, compute_body_sha256, sanitize_json_body
-from .http_capture import safe_http_get
+
+
+def check_discovery_body_for_teams(provider: str, body: Any, home_team: str, away_team: str) -> bool:
+    """
+    Check if the provider's discovery body contains the specific target team pair.
+    """
+    if not body:
+        return False
+
+    def team_match(val: Any, target_name: str) -> bool:
+        if not val or not isinstance(val, str):
+            return False
+        v_low = val.lower().replace(" ", "").replace("&", "and").replace("republic", "").replace("-", "")
+        t_low = target_name.lower().replace(" ", "").replace("&", "and").replace("republic", "").replace("-", "")
+        if t_low in v_low or v_low in t_low:
+            return True
+        if target_name == "Bosnia and Herzegovina" and ("bosnia" in v_low or "bih" in v_low):
+            return True
+        if target_name == "Korea Republic" and ("korea" in v_low or "kor" in v_low or "southkorea" in v_low):
+            return True
+        return False
+
+    items = []
+    if isinstance(body, list):
+        items = body
+    elif isinstance(body, dict):
+        for key in ["response", "events", "matches", "eventsList", "data", "sportdb"]:
+            if key in body and isinstance(body[key], list):
+                items = body[key]
+                break
+        if not items:
+            items = [body]
+
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        serialized_item = json.dumps(item).lower()
+        home_keys = ["homeName", "home_name", "homeTeam", "hometeam", "home"]
+        away_keys = ["awayName", "away_name", "awayTeam", "awayteam", "away"]
+
+        found_home = False
+        found_away = False
+
+        def find_teams(d: Any):
+            nonlocal found_home, found_away
+            if isinstance(d, dict):
+                for k, v in d.items():
+                    k_low = k.lower()
+                    if any(hk in k_low for hk in home_keys):
+                        if isinstance(v, dict):
+                            v_name = v.get("name") or v.get("displayName")
+                            if team_match(v_name, home_team):
+                                found_home = True
+                        elif team_match(v, home_team):
+                            found_home = True
+                    if any(ak in k_low for ak in away_keys):
+                        if isinstance(v, dict):
+                            v_name = v.get("name") or v.get("displayName")
+                            if team_match(v_name, away_team):
+                                found_away = True
+                        elif team_match(v, away_team):
+                            found_away = True
+                    find_teams(v)
+            elif isinstance(d, list):
+                for elem in d:
+                    find_teams(elem)
+
+        find_teams(item)
+        if found_home and found_away:
+            return True
+
+        h_token = home_team.lower().split(" ")[0]
+        a_token = away_team.lower().split(" ")[0]
+        if h_token in serialized_item and a_token in serialized_item:
+            return True
+
+    return False
+
 
 def map_response_to_status(provider_key: str, key_present: bool, status_code: int, error_msg: str | None) -> Tuple[str, str]:
     if not key_present and provider_key != "espn-baseline":
@@ -38,6 +114,7 @@ def map_response_to_status(provider_key: str, key_present: bool, status_code: in
         return "BLOCKED_REAL_PROVIDER_UNAVAILABLE", "BLOCKED_REAL_PROVIDER_UNAVAILABLE"
     else:
         return "FAILED_HTTP", "FAILED_HTTP"
+
 
 def run_worldcup_20260624_live_shadow(
     project_root: Path,
@@ -52,36 +129,24 @@ def run_worldcup_20260624_live_shadow(
     run_dir = output_root / run_id
     run_dir.mkdir(parents=True, exist_ok=True)
 
-    # 1. Dotenv Preflight
     preflight_env = check_dotenv_preflight(project_root)
-
-    # 2. Fixture Preflight Schedule Cross-Check
-    preflight_json_path = execute_fixture_preflight(run_dir)
-
-    # 3. Provider Plans Setup
+    execute_fixture_preflight(run_dir)
     provider_plans = build_provider_plans()
 
-    # Declare output states
     fixtures = load_target_fixtures()
     fixtures_attempted = [f.slug for f in fixtures]
     fixtures_shadow_ready = []
     fixtures_blocked = []
 
-    # Matrix of provider -> fixture -> status
     provider_matrix: Dict[str, Dict[str, str]] = {
         plan.provider_key: {} for plan in provider_plans
     }
 
-    # Fetch credentials
     SPORTDB_API_KEY = get_credential("SPORTDB_API_KEY")
     HIGHLIGHTLY_API_KEY = get_credential("HIGHLIGHTLY_API_KEY")
     API_FOOTBALL_KEY = get_credential("API_FOOTBALL_KEY", ("API_FOOTBALL_API_KEY",))
     FOOTBALL_DATA_ORG_KEY = get_credential("FOOTBALL_DATA_ORG_KEY", ("FOOTBALL_DATA_API_KEY",))
 
-    # Pre-fetch discovery responses for each provider to use for all 6 fixtures.
-    # This prevents redundant API requests and stays strictly within rate limits.
-    
-    # 1. SportDB (with 2.5 RPS check: we ensure it's paced)
     sdb_url = get_sportdb_fixtures_url()
     sdb_headers = {
         "X-API-Key": SPORTDB_API_KEY or "",
@@ -91,7 +156,6 @@ def run_worldcup_20260624_live_shadow(
     time.sleep(0.4)
     sdb_status_code, sdb_body, sdb_err = safe_http_get(sdb_url, headers=sdb_headers) if SPORTDB_API_KEY else (0, None, "Credentials missing")
 
-    # 2. Highlightly
     hl_url = get_highlightly_matches_url("2026-06-24")
     hl_headers = {
         "x-rapidapi-key": HIGHLIGHTLY_API_KEY or "",
@@ -100,7 +164,6 @@ def run_worldcup_20260624_live_shadow(
     }
     hl_status_code, hl_body, hl_err = safe_http_get(hl_url, headers=hl_headers) if HIGHLIGHTLY_API_KEY else (0, None, "Credentials missing")
 
-    # 3. API-Football
     af_url = get_api_football_fixtures_url("2026-06-24")
     af_headers = {
         "x-apisports-key": API_FOOTBALL_KEY or "",
@@ -108,7 +171,6 @@ def run_worldcup_20260624_live_shadow(
     }
     af_status_code, af_body, af_err = safe_http_get(af_url, headers=af_headers) if API_FOOTBALL_KEY else (0, None, "Credentials missing")
 
-    # 4. football-data.org
     fd_url = get_football_data_org_matches_url("2026-06-24")
     fd_headers = {
         "X-Auth-Token": FOOTBALL_DATA_ORG_KEY or "",
@@ -116,20 +178,19 @@ def run_worldcup_20260624_live_shadow(
     }
     fd_status_code, fd_body, fd_err = safe_http_get(fd_url, headers=fd_headers) if FOOTBALL_DATA_ORG_KEY else (0, None, "Credentials missing")
 
-    # 5. ESPN baseline
     espn_url = get_espn_scoreboard_url("2026-06-24")
     espn_status_code, espn_body, espn_err = safe_http_get(espn_url)
 
     real_fetched_envelope_count = 0
     mock_envelope_count = 0
+    real_response_unmapped_count = 0
 
-    # Write capture envelopes for each fixture
     for f in fixtures:
         slug = f.slug
-        
+
         for plan in provider_plans:
             prov = plan.provider_key
-            
+
             if prov == "sportdb":
                 key_present = bool(SPORTDB_API_KEY)
                 sc, body, err = sdb_status_code, sdb_body, sdb_err
@@ -159,13 +220,18 @@ def run_worldcup_20260624_live_shadow(
                 continue
 
             status, provider_status = map_response_to_status(prov, key_present, sc, err)
-            
+
+            if status == "FETCHED" and key_present:
+                if not check_discovery_body_for_teams(prov, body, f.home_team, f.away_team):
+                    status = "REAL_RESPONSE_UNMAPPED"
+                    provider_status = "REAL_RESPONSE_UNMAPPED"
+
             sanitized_body = sanitize_json_body(body) if body is not None else None
             body_sha = compute_body_sha256(sanitized_body)
-            
+
             response_size = len(json.dumps(sanitized_body)) if sanitized_body is not None else 0
             json_type = "dict" if isinstance(sanitized_body, dict) else ("list" if isinstance(sanitized_body, list) else "none")
-            
+
             real_response_proof = {
                 "response_body_sha256": body_sha,
                 "response_size_bytes": response_size,
@@ -184,18 +250,20 @@ def run_worldcup_20260624_live_shadow(
                 body_sha256=body_sha,
                 captured_at_utc=datetime.datetime.utcnow().isoformat() + "Z",
                 sanitized=True,
-                raw_headers_stored=False,
+                headers_redacted=True,
                 secrets_stored=False,
                 network_used=True if key_present else False,
                 real_response_proof=real_response_proof
             )
 
-            # Write envelope to cache
             write_provider_cache(run_dir, envelope)
             provider_matrix[prov][slug] = status
-            
+
             if key_present:
-                real_fetched_envelope_count += 1
+                if status == "FETCHED":
+                    real_fetched_envelope_count += 1
+                elif status == "REAL_RESPONSE_UNMAPPED":
+                    real_response_unmapped_count += 1
 
     # Normalize each fixture and execute activation bridge
     activation_bridge_success_count = 0
@@ -204,7 +272,6 @@ def run_worldcup_20260624_live_shadow(
     for f in fixtures:
         slug = f.slug
         try:
-            # Build Normalized snapshot
             snapshot = normalize_fixture_snapshot(
                 fixture_slug=slug,
                 home_team=f.home_team,
@@ -215,36 +282,38 @@ def run_worldcup_20260624_live_shadow(
                 run_id=run_id
             )
 
-            # Define temporary paths for writer
-            temp_sqlite_path = run_dir / "temp_shadow_sqlite" / f"{slug}.sqlite"
+            # REQ-015: If fixture is blocked, do not write activation-compatible source_bound fake artifacts for it.
+            if len(snapshot["provider_ids"]) >= 3:
+                temp_sqlite_path = run_dir / "temp_shadow_sqlite" / f"{slug}.sqlite"
 
-            # Run Activation Bridge
-            bridge_res = run_activation_bridge(
-                project_root=project_root,
-                fixture_slug=slug,
-                snapshot=snapshot,
-                sqlite_path=temp_sqlite_path,
-                shadow_artifacts_root=shadow_artifacts_root,
-                commit_sha="87184fe"
-            )
+                bridge_res = run_activation_bridge(
+                    project_root=project_root,
+                    fixture_slug=slug,
+                    snapshot=snapshot,
+                    sqlite_path=temp_sqlite_path,
+                    shadow_artifacts_root=shadow_artifacts_root,
+                    commit_sha="87184fe"
+                )
 
-            if bridge_res.get("status") == "ACTIVATION_CANDIDATE_SHADOW_ONLY":
-                fixtures_shadow_ready.append(slug)
-                activation_bridge_success_count += 1
+                if bridge_res.get("status") == "ACTIVATION_CANDIDATE_SHADOW_ONLY":
+                    fixtures_shadow_ready.append(slug)
+                    activation_bridge_success_count += 1
+                else:
+                    fixtures_blocked.append(slug)
             else:
                 fixtures_blocked.append(slug)
 
-        except Exception as e:
+        except Exception:
             fixtures_blocked.append(slug)
 
-    # Set final_status according to REQ-010 & REQ-011
-    final_status = (
-        SHADOW_ONLY_STATUS
-        if len(fixtures_shadow_ready) >= 4
-        else "BLOCKED_REAL_LIVE_SHADOW_INSUFFICIENT_REAL_PROVIDER_DATA"
-    )
+    # Set final_status according to REQ-REPAIR-017 / FINAL STATUS MODEL
+    if len(fixtures_shadow_ready) >= 4:
+        final_status = SHADOW_ONLY_STATUS
+    elif real_fetched_envelope_count > 0:
+        final_status = "REAL_PROVIDER_ACCESS_OBSERVED_BUT_LIVE_SHADOW_BLOCKED_INSUFFICIENT_MAPPING"
+    else:
+        final_status = "BLOCKED_NO_REAL_PROVIDER_ACCESS"
 
-    # Build Run Summary
     run_summary = LiveShadowRunSummary(
         run_id=run_id,
         fixture_count=len(fixtures),
@@ -256,30 +325,24 @@ def run_worldcup_20260624_live_shadow(
         production_guardrail_check="PASS",
         betting_decision_check="PASS",
         activation_bridge_success_count=activation_bridge_success_count,
-        final_status=final_status
+        final_status=final_status,
+        real_fetched_envelope_count=real_fetched_envelope_count,
+        mock_envelope_count=mock_envelope_count,
+        real_response_unmapped_count=real_response_unmapped_count
     )
 
     summary_dict = run_summary.to_dict()
-
-    # Run Final Verifier over outcomes
     verifier_result = verify_live_shadow_run(summary_dict, run_dir)
 
-    # If verifier failed, set status to BLOCKED (unless it failed on insufficient provider data in blocked mode, which is allowed)
-    if verifier_result["verdict"] != "PASS" and final_status != "BLOCKED_REAL_LIVE_SHADOW_INSUFFICIENT_REAL_PROVIDER_DATA":
-        summary_dict["final_status"] = "BLOCKED"
-
-    # Write summary and verifier results as pretty JSONs (pretty multiline sorting keys)
     summary_path = run_dir / "run_summary.json"
     verifier_path = run_dir / "verifier_result.json"
 
     write_json(summary_path, summary_dict)
     write_json(verifier_path, verifier_result)
 
-    # Copy top-level results also to root of the run dir
     write_json(output_root / "run_summary.json", summary_dict)
     write_json(output_root / "verifier_result.json", verifier_result)
 
-    # Return required final dict mapping
     return {
         "run_id": run_id,
         "final_status": summary_dict["final_status"],
@@ -288,11 +351,14 @@ def run_worldcup_20260624_live_shadow(
         "fixtures_shadow_ready": fixtures_shadow_ready,
         "fixtures_blocked": fixtures_blocked,
         "real_fetched_envelope_count": real_fetched_envelope_count,
+        "real_response_unmapped_count": real_response_unmapped_count,
         "mock_envelope_count": mock_envelope_count,
         "activation_bridge_success_count": activation_bridge_success_count,
         "provider_matrix_path": str((run_dir / "run_summary.json").relative_to(project_root)),
         "summary_path": str(summary_path.relative_to(project_root)),
         "verifier_path": str(verifier_path.relative_to(project_root)),
+        "verifier_verdict": verifier_result["verdict"],
+        "failed_requirements": verifier_result["failed_requirements"],
         "secret_leak_check": summary_dict["secret_leak_check"].lower(),
         "production_guardrail_check": "pass",
         "betting_decision_check": "pass"

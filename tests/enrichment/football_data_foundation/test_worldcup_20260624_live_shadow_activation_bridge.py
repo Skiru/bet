@@ -13,14 +13,14 @@ def write_valid_fetched_envelope(cache_dir: Path, provider: str, slug: str) -> N
         "source_url": f"https://api.{provider}.dev/v1/detail",
         "status": "FETCHED",
         "status_code": 200,
-        "body": {"eventId": "12345", "response": [{"goals": {"home": 2, "away": 1}}]},
+        "body": {"eventId": "999999", "response": [{"goals": {"home": 2, "away": 1}}]},
         "body_sha256": "abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890",
         "captured_at_utc": "2026-06-24T12:00:00Z",
         "sanitized": True,
-        "raw_headers_stored": False,
+        "headers_redacted": True,
         "secrets_stored": False,
         "network_used": True,
-        "provider_fixture_id": "12345"
+        "provider_fixture_id": "999999"
     }
     prov_dir = cache_dir / "cache" / provider
     prov_dir.mkdir(parents=True, exist_ok=True)

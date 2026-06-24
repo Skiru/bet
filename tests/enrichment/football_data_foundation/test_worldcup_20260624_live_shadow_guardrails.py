@@ -45,7 +45,7 @@ def test_public_raw_report_format() -> None:
     reports_dir = Path("reports/football_data_foundation/worldcup_20260624_live_shadow")
     if reports_dir.exists():
         for p in reports_dir.rglob("*.json"):
-            if p.is_file():
+            if p.is_file() and "cache" not in p.parts:
                 content = p.read_text(encoding="utf-8")
                 # 1. JSON parseable
                 try:

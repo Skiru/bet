@@ -6,6 +6,7 @@ from bet.enrichment.football_data_foundation.source_bound_activation.facade impo
 from .sanitizer import write_json
 from .shadow_writer import write_shadow_json_and_sqlite
 
+
 def run_activation_bridge(
     project_root: Path,
     fixture_slug: str,
@@ -19,14 +20,12 @@ def run_activation_bridge(
     For every fixture with sufficient shadow data, write a source-bound-compatible fixture directory.
     Then call facade.build_football_source_bound_activation_candidate with generic ActivationPolicy.
     """
-    # 1. Directory with underscores
     fixture_dir = shadow_artifacts_root / fixture_slug.replace("-", "_")
     fixture_dir.mkdir(parents=True, exist_ok=True)
 
-    # 2. Write Snapshot and SQLite
     bridge_snapshot_path = fixture_dir / "source_bound_shadow_snapshot.json"
     bridge_sqlite_path = fixture_dir / "source_bound_shadow.sqlite"
-    
+
     write_shadow_json_and_sqlite(
         snapshot=snapshot,
         sqlite_path=bridge_sqlite_path,
@@ -34,7 +33,6 @@ def run_activation_bridge(
         diagnostics={"run_mode": "live_shadow_test", "as_of": "2026-06-24"}
     )
 
-    # 3. Write provider_fact_counts.json
     fact_counts_path = fixture_dir / "provider_fact_counts.json"
     fact_counts = {
         "api-football": sum(1 for f in snapshot["facts"] if f["source"] == "api-football"),
@@ -48,7 +46,6 @@ def run_activation_bridge(
     }
     write_json(fact_counts_path, fact_counts)
 
-    # 4. Write source_bound_verifier_result.json
     verifier_result_path = fixture_dir / "source_bound_verifier_result.json"
     verifier_result = {
         "artifact_commit_sha": commit_sha,
@@ -60,9 +57,6 @@ def run_activation_bridge(
         "fixture_slug_source_check": "PASS",
         "forbidden_payload_check": "PASS",
         "live_network_check": "PASS",
-        "network_probe_check": "PASS",
-        "odds_reference_check": "PASS",
-        "production_activation_check": "PASS",
         "proof_commit_sha": "NONE",
         "provider_fact_counts": {
             "api-football": fact_counts["api-football"],
@@ -73,9 +67,6 @@ def run_activation_bridge(
         },
         "provider_ids": snapshot["provider_ids"],
         "public_artifact_proof_path": f"reports/football_data_foundation/worldcup_20260624_live_shadow/shadow_artifacts/{fixture_slug.replace('-', '_')}/public_artifact_proof.json",
-        "public_raw_report_format_check": "pass",
-        "public_raw_reviewability_check": "pass",
-        "public_raw_sqlite_check": "pass",
         "reviewability_check": "PASS",
         "score_consensus": snapshot["score"],
         "secret_leak_check": "PASS",
@@ -89,7 +80,6 @@ def run_activation_bridge(
     }
     write_json(verifier_result_path, verifier_result)
 
-    # 5. Write public_artifact_proof.json (REQ-REPAIR-012: marked SHADOW_RUN_LOCAL_ARTIFACT_ONLY)
     proof_path = fixture_dir / "public_artifact_proof.json"
     proof = {
         "acceptance_source": "SHADOW_RUN_LOCAL_ARTIFACT_ONLY",
@@ -131,34 +121,17 @@ def run_activation_bridge(
         "public_raw_sqlite_header_ok": True,
         "public_raw_sqlite_provider_row_counts": verifier_result["provider_fact_counts"],
         "public_raw_sqlite_size_bytes": bridge_sqlite_path.stat().st_size if bridge_sqlite_path.exists() else 286720,
-        "report_file_checks": {
-            "public_artifact_proof.json": True,
-            "source_bound_shadow_snapshot.json": True,
-            "source_bound_verifier_result.json": True
-        },
         "self_referential_commit_proof_used": False,
-        "source_file_checks": {
-            "contracts.py": True,
-            "fuser.py": True,
-            "loader.py": True,
-            "normalizers.py": True,
-            "provider_normalizers.py": True,
-            "runner.py": True,
-            "verifier.py": True,
-            "writer.py": True
-        },
         "verdict": "SHADOW_RUN_LOCAL_ARTIFACT_ONLY",
         "verifier_command": f"python -m football_public_truth_verifier.verifier --repo Skiru/bet --commit {commit_sha} --output /tmp/football_public_truth_verifier_result.json"
     }
     write_json(proof_path, proof)
 
-    # 6. Fail-closed preflight checks
     if len(snapshot["provider_ids"]) < 3:
         raise ValueError(f"Activation bridge failed closed: fewer than 3 providers contribute facts for {fixture_slug}")
     if any(token in str(snapshot).lower() for token in ["betting decision", "recommendation", "tip", "pick", "stake", "edge"]):
         raise ValueError(f"Activation bridge failed closed: betting decision words in snapshot of {fixture_slug}")
 
-    # 7. Call build_football_source_bound_activation_candidate
     policy = ActivationPolicy(
         expected_fixture_slug=fixture_slug,
         expected_score=None,
@@ -169,7 +142,7 @@ def run_activation_bridge(
         allow_production_db_writes=False,
         allow_production_selectable=False
     )
-    
+
     candidate = build_football_source_bound_activation_candidate(
         project_root=project_root,
         fixture_slug=fixture_slug,

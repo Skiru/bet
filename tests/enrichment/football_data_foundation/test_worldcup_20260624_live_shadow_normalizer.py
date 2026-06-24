@@ -8,17 +8,17 @@ def write_valid_fetched_envelope(cache_dir: Path, provider: str, slug: str, body
         "fixture_slug": slug,
         "provider": provider,
         "request_purpose": f"{provider}_fixture_detail_capture",
-        "source_url": "https://v3.football.api-sports.io/fixtures?id=12345",
+        "source_url": "https://v3.football.api-sports.io/fixtures?id=999999",
         "status": "FETCHED",
         "status_code": 200,
         "body": body,
         "body_sha256": "abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890",
         "captured_at_utc": "2026-06-24T12:00:00Z",
         "sanitized": True,
-        "raw_headers_stored": False,
+        "headers_redacted": True,
         "secrets_stored": False,
         "network_used": True,
-        "provider_fixture_id": "12345"
+        "provider_fixture_id": "999999"
     }
     prov_dir = cache_dir / "cache" / provider
     prov_dir.mkdir(parents=True, exist_ok=True)
@@ -107,6 +107,119 @@ def test_odds_are_reference_only() -> None:
         for fact in odds_facts:
             assert fact["key"] == "odds_reference_available"
             assert isinstance(fact["value"], dict)
-            assert fact["value"]["odds_reference_available"] is True
+            assert fact["value"]["odds_reference_available"] is False
             assert "price" not in str(fact["value"]).lower()
             assert "edge" not in str(fact["value"]).lower()
+
+
+def test_normalizer_fails_on_fallback_provider_id() -> None:
+    # TEST-001 normalizer fails if fallback provider ID appears.
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        cache_dir = Path(tmp_dir)
+        envelope = {
+            "fixture_slug": "worldcup2026-switzerland-canada",
+            "provider": "api-football",
+            "status": "FETCHED",
+            "status_code": 200,
+            "body": {"response": [{"fixture": {"id": 12345}}]},
+            "provider_fixture_id": "12345"
+        }
+        prov_dir = cache_dir / "cache" / "api-football"
+        prov_dir.mkdir(parents=True, exist_ok=True)
+        (prov_dir / "worldcup2026-switzerland-canada.json").write_text(json.dumps(envelope))
+
+        snapshot = normalize_fixture_snapshot(
+            fixture_slug="worldcup2026-switzerland-canada",
+            home_team="Switzerland",
+            away_team="Canada",
+            group="B",
+            kickoff_utc="2026-06-24T21:00:00Z",
+            cache_dir=cache_dir,
+            run_id="run_123"
+        )
+        assert "api-football" not in snapshot["provider_ids"]
+
+
+def test_normalizer_fails_on_fallback_score() -> None:
+    # TEST-002 normalizer fails if fallback score 2-1 is used without source body score.
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        cache_dir = Path(tmp_dir)
+        envelope = {
+            "fixture_slug": "worldcup2026-switzerland-canada",
+            "provider": "api-football",
+            "status": "FETCHED",
+            "status_code": 200,
+            "body": {"response": [{"fixture": {"id": 999999}}]},
+            "provider_fixture_id": "999999"
+        }
+        prov_dir = cache_dir / "cache" / "api-football"
+        prov_dir.mkdir(parents=True, exist_ok=True)
+        (prov_dir / "worldcup2026-switzerland-canada.json").write_text(json.dumps(envelope))
+
+        snapshot = normalize_fixture_snapshot(
+            fixture_slug="worldcup2026-switzerland-canada",
+            home_team="Switzerland",
+            away_team="Canada",
+            group="B",
+            kickoff_utc="2026-06-24T21:00:00Z",
+            cache_dir=cache_dir,
+            run_id="run_123"
+        )
+        assert snapshot["score"] == {"home": None, "away": None}
+
+
+def test_normalizer_fails_on_fallback_status() -> None:
+    # TEST-003 normalizer fails if Match Finished is used without source body status.
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        cache_dir = Path(tmp_dir)
+        envelope = {
+            "fixture_slug": "worldcup2026-switzerland-canada",
+            "provider": "api-football",
+            "status": "FETCHED",
+            "status_code": 200,
+            "body": {"response": [{"fixture": {"id": 999999}}]},
+            "provider_fixture_id": "999999"
+        }
+        prov_dir = cache_dir / "cache" / "api-football"
+        prov_dir.mkdir(parents=True, exist_ok=True)
+        (prov_dir / "worldcup2026-switzerland-canada.json").write_text(json.dumps(envelope))
+
+        snapshot = normalize_fixture_snapshot(
+            fixture_slug="worldcup2026-switzerland-canada",
+            home_team="Switzerland",
+            away_team="Canada",
+            group="B",
+            kickoff_utc="2026-06-24T21:00:00Z",
+            cache_dir=cache_dir,
+            run_id="run_123"
+        )
+        assert snapshot["status"] == "BLOCKED_MAPPING_NOT_FOUND"
+
+
+def test_normalizer_fails_on_fallback_venue_referee() -> None:
+    # TEST-004 normalizer fails if MetLife Stadium or Sampaio W. appears without source body.
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        cache_dir = Path(tmp_dir)
+        envelope = {
+            "fixture_slug": "worldcup2026-switzerland-canada",
+            "provider": "api-football",
+            "status": "FETCHED",
+            "status_code": 200,
+            "body": {"response": [{"fixture": {"id": 999999}}]},
+            "provider_fixture_id": "999999"
+        }
+        prov_dir = cache_dir / "cache" / "api-football"
+        prov_dir.mkdir(parents=True, exist_ok=True)
+        (prov_dir / "worldcup2026-switzerland-canada.json").write_text(json.dumps(envelope))
+
+        snapshot = normalize_fixture_snapshot(
+            fixture_slug="worldcup2026-switzerland-canada",
+            home_team="Switzerland",
+            away_team="Canada",
+            group="B",
+            kickoff_utc="2026-06-24T21:00:00Z",
+            cache_dir=cache_dir,
+            run_id="run_123"
+        )
+        assert snapshot["venue"] == "UNKNOWN"
+        assert snapshot["referee"] == "UNKNOWN"

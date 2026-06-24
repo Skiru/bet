@@ -1,0 +1,29 @@
+{
+  "checks": {
+    "activation_bridge_ok": "PASS",
+    "four_shadow_ready": "PASS",
+    "no_cache_leak": "PASS",
+    "no_forbidden_tokens": "FAIL",
+    "no_raw_headers": "PASS",
+    "six_fixtures_attempted": "PASS"
+  },
+  "failed_requirements": [
+    "forbidden_token_in_file:worldcup2026-czechia-mexico.json:tip",
+    "forbidden_token_in_file:worldcup2026-czechia-mexico.json:edge",
+    "forbidden_token_in_file:worldcup2026-scotland-brazil.json:tip",
+    "forbidden_token_in_file:worldcup2026-scotland-brazil.json:edge",
+    "forbidden_token_in_file:worldcup2026-switzerland-canada.json:tip",
+    "forbidden_token_in_file:worldcup2026-switzerland-canada.json:edge",
+    "forbidden_token_in_file:worldcup2026-south-africa-korea-republic.json:tip",
+    "forbidden_token_in_file:worldcup2026-south-africa-korea-republic.json:edge",
+    "forbidden_token_in_file:worldcup2026-bosnia-herzegovina-qatar.json:tip",
+    "forbidden_token_in_file:worldcup2026-bosnia-herzegovina-qatar.json:edge",
+    "forbidden_token_in_file:worldcup2026-morocco-haiti.json:tip",
+    "forbidden_token_in_file:worldcup2026-morocco-haiti.json:edge",
+    "fallback_text_found:source_bound_shadow_snapshot.json:match finished",
+    "fallback_text_found:source_bound_shadow_snapshot.json:match finished",
+    "fallback_text_found:source_bound_shadow_snapshot.json:match finished",
+    "fallback_text_found:source_bound_shadow_snapshot.json:match finished"
+  ],
+  "verdict": "FAIL"
+}
