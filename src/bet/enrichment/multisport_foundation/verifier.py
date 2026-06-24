@@ -634,6 +634,45 @@ def verify_single_flight_probes() -> VerificationResult:
     if errors:
         failed.extend(errors)
 
+    # Validate detailed requirements:
+    # - default reports cover exactly seven sports
+    if len(report.get("target_sports", [])) != 7:
+        failed.append("default_report_must_cover_exactly_seven_sports")
+    
+    # - default reports have no live calls and no provider access attempted
+    if report.get("live_calls_made") is not False:
+        failed.append("default_report_must_have_no_live_calls")
+    if report.get("provider_access_attempted") is not False:
+        failed.append("default_report_must_have_no_provider_access_attempted")
+        
+    # - no production activation and no betting decisions
+    if report.get("production_activation") is not False:
+        failed.append("production_activation_not_false")
+    if report.get("betting_decisions") is not False:
+        failed.append("betting_decisions_not_false")
+
+    for sport, items in report.get("single_flight_probe_by_sport", {}).items():
+        for item in items:
+            # - source_probe_status is present in every artifact
+            if "source_probe_status" not in item:
+                failed.append(f"source_probe_status_missing:{sport}")
+            
+            # - no artifact can reach transport unless source_probe_status == SANITIZED_PROBE_READY_DRY_RUN
+            # Transport is reached/attempted if live_call_made or provider_access_attempted is true
+            if (item.get("live_call_made") or item.get("provider_access_attempted")):
+                if item.get("source_probe_status") != "SANITIZED_PROBE_READY_DRY_RUN":
+                    failed.append(f"transport_attempted_without_dry_run_ready:{sport}")
+            
+            # - raw_payload_persisted=false
+            env = item.get("sanitized_response_envelope", {})
+            if env.get("raw_payload_persisted") is not False:
+                failed.append(f"raw_payload_persisted_not_false:{sport}")
+
+            if item.get("production_selectable") is not False:
+                failed.append(f"production_selectable_must_be_false:{sport}")
+            if item.get("betting_decisions_enabled") is not False:
+                failed.append(f"betting_decisions_enabled_must_be_false:{sport}")
+
     # 6. Verify default report maps all sports to SINGLE_FLIGHT_BLOCKED_ACCESS_GATE
     for sport in TARGET_SPORTS:
         status = report["status_by_sport"].get(sport)

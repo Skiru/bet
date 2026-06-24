@@ -12,6 +12,7 @@ class SingleFlightProbeStatus(StrEnum):
     SINGLE_FLIGHT_BLOCKED_ACCESS_GATE = "SINGLE_FLIGHT_BLOCKED_ACCESS_GATE"
     SINGLE_FLIGHT_BLOCKED_OPERATOR_FLAG = "SINGLE_FLIGHT_BLOCKED_OPERATOR_FLAG"
     SINGLE_FLIGHT_BLOCKED_MAPPING_NOT_READY = "SINGLE_FLIGHT_BLOCKED_MAPPING_NOT_READY"
+    SINGLE_FLIGHT_BLOCKED_PASS_F_PROBE_NOT_READY = "SINGLE_FLIGHT_BLOCKED_PASS_F_PROBE_NOT_READY"
     SINGLE_FLIGHT_BLOCKED_TRANSPORT_UNAVAILABLE = "SINGLE_FLIGHT_BLOCKED_TRANSPORT_UNAVAILABLE"
     SINGLE_FLIGHT_BLOCKED_PROVIDER_ACCESS = "SINGLE_FLIGHT_BLOCKED_PROVIDER_ACCESS"
     SINGLE_FLIGHT_RESULT_CAPTURED_SANITIZED = "SINGLE_FLIGHT_RESULT_CAPTURED_SANITIZED"
@@ -26,6 +27,7 @@ class SingleFlightProbePolicy:
     route_key: str
     source_access_status: str
     source_mapping_status: str
+    source_probe_status: str = "SANITIZED_PROBE_BLOCKED_NO_CREDENTIALS"
     allow_real_network: bool = False
     max_requests: int = 1
     sanitized_probe_only: bool = True
@@ -64,6 +66,7 @@ class SingleFlightProbeArtifact:
     blocked_reason: str
     production_selectable: bool
     betting_decisions_enabled: bool
+    source_probe_status: str = "SANITIZED_PROBE_BLOCKED_NO_CREDENTIALS"
     evidence_refs: tuple[str, ...] = field(default_factory=tuple)
 
     def __post_init__(self) -> None:
@@ -88,7 +91,8 @@ class SingleFlightProbeArtifact:
 def default_policy_for_sport(
     sport: str,
     access_status: str = "BLOCKED_NO_CREDENTIALS",
-    mapping_status: str = "BLOCKED_NO_CREDENTIALS"
+    mapping_status: str = "BLOCKED_NO_CREDENTIALS",
+    probe_status: str = "SANITIZED_PROBE_BLOCKED_NO_CREDENTIALS"
 ) -> SingleFlightProbePolicy:
     provider_key = "pandascore" if sport in {"cs2", "dota2", "valorant"} else "api-sports-family"
     route_key = {
@@ -106,6 +110,7 @@ def default_policy_for_sport(
         route_key=route_key,
         source_access_status=access_status,
         source_mapping_status=mapping_status,
+        source_probe_status=probe_status,
         request_url_template=f"https://provider.example.invalid/{provider_key}/{route_key}"
     )
 
@@ -123,6 +128,153 @@ def _empty_request_metadata() -> dict[str, Any]:
         "credential_value": "redacted_presence_only",
         "query_parameter_values": "redacted_presence_only"
     }
+
+@dataclass(frozen=True)
+class ProofFieldSpec:
+    logical_name: str
+    accepted_paths: tuple[str, ...]
+
+PROOF_FIELD_SPECS = {
+    "fixture_id": ProofFieldSpec(
+        "fixture_id",
+        (
+            "fixture_id",
+            "id",
+            "game.id",
+            "fixture.id",
+            "response[].id",
+            "response[].game.id",
+        )
+    ),
+    "home_team": ProofFieldSpec(
+        "home_team",
+        (
+            "home_team",
+            "teams.home.name",
+            "home.name",
+            "response[].teams.home.name",
+            "response[].home.name",
+        )
+    ),
+    "away_team": ProofFieldSpec(
+        "away_team",
+        (
+            "away_team",
+            "teams.away.name",
+            "away.name",
+            "response[].teams.away.name",
+            "response[].away.name",
+        )
+    ),
+    "start_time": ProofFieldSpec(
+        "start_time",
+        (
+            "start_time",
+            "date",
+            "time",
+            "begin_at",
+            "fixture.date",
+            "game.date",
+            "response[].date",
+            "response[].time",
+            "response[].game.date",
+        )
+    ),
+    "participant_a": ProofFieldSpec(
+        "participant_a",
+        (
+            "participant_a",
+            "player_or_team_a",
+            "players.home.name",
+            "participants.0.name",
+            "response[].players.home.name",
+            "response[].participants.0.name",
+        )
+    ),
+    "participant_b": ProofFieldSpec(
+        "participant_b",
+        (
+            "participant_b",
+            "player_or_team_b",
+            "players.away.name",
+            "participants.1.name",
+            "response[].players.away.name",
+            "response[].participants.1.name",
+        )
+    ),
+    "match_id": ProofFieldSpec(
+        "match_id",
+        (
+            "match_id",
+            "id",
+            "response[].id",
+        )
+    ),
+    "opponents": ProofFieldSpec(
+        "opponents",
+        (
+            "opponents",
+            "response[].opponents",
+            "competitors",
+            "response[].competitors",
+        )
+    ),
+    "begin_at": ProofFieldSpec(
+        "begin_at",
+        (
+            "begin_at",
+            "scheduled_at",
+            "start_time",
+            "response[].begin_at",
+            "response[].scheduled_at",
+        )
+    ),
+}
+
+def evaluate_segments(obj: Any, segments: list[str]) -> bool:
+    if not segments:
+        return obj not in (None, "", [], {})
+
+    current = segments[0]
+    remaining = segments[1:]
+
+    # Check if current segment represents a list iteration, e.g. "response[]"
+    if current.endswith("[]"):
+        key = current[:-2]
+        if not isinstance(obj, dict) or key not in obj:
+            return False
+        val = obj[key]
+        if not isinstance(val, list) or not val:
+            return False
+        # If there are remaining segments, at least one item must satisfy them
+        if remaining:
+            return any(evaluate_segments(item, remaining) for item in val)
+        else:
+            return val not in (None, "", [], {})
+
+    # Check if current segment is numeric (list index), e.g. "0" or "1"
+    if current.isdigit():
+        idx = int(current)
+        if not isinstance(obj, list) or idx < 0 or idx >= len(obj):
+            return False
+        val = obj[idx]
+        return evaluate_segments(val, remaining)
+
+    # Otherwise, it's a standard dictionary key lookup
+    if not isinstance(obj, dict) or current not in obj:
+        return False
+    val = obj[current]
+    return evaluate_segments(val, remaining)
+
+def check_logical_field(raw: dict[str, Any], logical_name: str) -> bool:
+    spec = PROOF_FIELD_SPECS.get(logical_name)
+    if not spec:
+        return False
+    for path in spec.accepted_paths:
+        segments = path.split(".")
+        if evaluate_segments(raw, segments):
+            return True
+    return False
 
 def _sanitize_response(raw: dict[str, Any], proof_fields: tuple[str, ...]) -> tuple[dict[str, Any], tuple[str, ...], tuple[str, ...]]:
     forbidden = {"odds", "prediction", "predictions", "pick", "stake", "edge", "recommendation", "bookmaker"}
@@ -142,20 +294,16 @@ def _sanitize_response(raw: dict[str, Any], proof_fields: tuple[str, ...]) -> tu
 
     forbidden_found = sorted(list(set(has_forbidden(raw))))
     
-    def extract_keys_from_json(obj: Any) -> set[str]:
-        keys = set()
-        if isinstance(obj, dict):
-            for k, v in obj.items():
-                keys.add(k)
-                keys.update(extract_keys_from_json(v))
-        elif isinstance(obj, list):
-            for item in obj:
-                keys.update(extract_keys_from_json(item))
-        return keys
-
-    found_keys = extract_keys_from_json(raw)
-    observed = tuple(f for f in proof_fields if f in found_keys and raw.get(f) not in (None, "", [], {}))
-    missing = tuple(f for f in proof_fields if f not in observed)
+    observed_list = []
+    missing_list = []
+    for f in proof_fields:
+        if check_logical_field(raw, f):
+            observed_list.append(f)
+        else:
+            missing_list.append(f)
+            
+    observed = tuple(observed_list)
+    missing = tuple(missing_list)
     
     envelope = {
         "payload_shape": "object",
@@ -183,6 +331,7 @@ def run_single_flight_probe(
         route_key=policy.route_key,
         source_access_status=policy.source_access_status,
         source_mapping_status=policy.source_mapping_status,
+        source_probe_status=policy.source_probe_status,
         request_method="GET",
         request_url_template=policy.request_url_template,
         sanitized_request_metadata=_empty_request_metadata(),
@@ -208,6 +357,8 @@ def run_single_flight_probe(
         return art(SingleFlightProbeStatus.SINGLE_FLIGHT_BLOCKED_ACCESS_GATE, "pass_h_access_gate_not_authorized")
     if policy.source_mapping_status != "MAPPING_READY_FOR_SANITIZED_PROBE":
         return art(SingleFlightProbeStatus.SINGLE_FLIGHT_BLOCKED_MAPPING_NOT_READY, "pass_e_mapping_not_ready")
+    if policy.source_probe_status != "SANITIZED_PROBE_READY_DRY_RUN":
+        return art(SingleFlightProbeStatus.SINGLE_FLIGHT_BLOCKED_PASS_F_PROBE_NOT_READY, "pass_f_probe_not_ready")
     if not (policy.allow_real_network and operator_network_flag):
         return art(SingleFlightProbeStatus.SINGLE_FLIGHT_BLOCKED_OPERATOR_FLAG, "explicit_operator_network_flag_missing")
     if transport is None:
@@ -261,12 +412,14 @@ def run_single_flight_probe(
     )
 
 def build_default_single_flight_report() -> dict[str, Any]:
-    # Dynamic load from Pass H and Pass E
+    # Dynamic load from Pass H, Pass E and Pass F
     access_statuses = {}
     mapping_statuses = {}
+    probe_statuses = {}
     for s in TARGET_SPORTS:
         access_statuses[s] = "BLOCKED_NO_CREDENTIALS"
         mapping_statuses[s] = "BLOCKED_NO_CREDENTIALS"
+        probe_statuses[s] = "SANITIZED_PROBE_BLOCKED_NO_CREDENTIALS"
 
     try:
         p_h_path = Path("reports/multisport_foundation/pass_h/provider_access_by_sport.json")
@@ -289,12 +442,24 @@ def build_default_single_flight_report() -> dict[str, Any]:
     except Exception:
         pass
 
+    try:
+        p_f_path = Path("reports/multisport_foundation/pass_f/provider_probe_results_by_sport.json")
+        if p_f_path.exists():
+            data = json.loads(p_f_path.read_text(encoding="utf-8"))
+            probe_by_sport = data.get("provider_probe_results_by_sport", {})
+            for sport, items in probe_by_sport.items():
+                if items:
+                    probe_statuses[sport] = items[0].get("status", "SANITIZED_PROBE_BLOCKED_NO_CREDENTIALS")
+    except Exception:
+        pass
+
     by_sport = {}
     for sport in TARGET_SPORTS:
         p = default_policy_for_sport(
             sport,
             access_status=access_statuses[sport],
-            mapping_status=mapping_statuses[sport]
+            mapping_status=mapping_statuses[sport],
+            probe_status=probe_statuses[sport]
         )
         by_sport[sport] = [run_single_flight_probe(p).to_jsonable()]
 

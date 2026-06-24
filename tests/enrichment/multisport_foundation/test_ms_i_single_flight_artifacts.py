@@ -21,7 +21,8 @@ def enabled_policy(sport="basketball"):
     p = default_policy_for_sport(
         sport,
         access_status="AUTHORIZED_FOR_SANITIZED_LIVE_PROBE",
-        mapping_status="MAPPING_READY_FOR_SANITIZED_PROBE"
+        mapping_status="MAPPING_READY_FOR_SANITIZED_PROBE",
+        probe_status="SANITIZED_PROBE_READY_DRY_RUN"
     )
     object.__setattr__(p, "allow_real_network", True)
     return p
@@ -41,7 +42,8 @@ def test_authorized_access_still_blocks_without_operator_network_flag():
     p = default_policy_for_sport(
         "basketball",
         access_status="AUTHORIZED_FOR_SANITIZED_LIVE_PROBE",
-        mapping_status="MAPPING_READY_FOR_SANITIZED_PROBE"
+        mapping_status="MAPPING_READY_FOR_SANITIZED_PROBE",
+        probe_status="SANITIZED_PROBE_READY_DRY_RUN"
     )
     # allow_real_network is false by default in policy, and operator_network_flag defaults to false
     a = run_single_flight_probe(p)
@@ -118,3 +120,104 @@ def test_transport_exception_stores_only_sanitized_error_class():
     assert "leak_some_private_key" not in combined
     assert a.sanitized_response_envelope["status"] == "error"
     assert a.sanitized_response_envelope["error_class"] == "RuntimeError"
+
+def test_pass_f_not_ready_blocks_before_transport():
+    p = default_policy_for_sport(
+        "basketball",
+        access_status="AUTHORIZED_FOR_SANITIZED_LIVE_PROBE",
+        mapping_status="MAPPING_READY_FOR_SANITIZED_PROBE",
+        probe_status="SANITIZED_PROBE_BLOCKED_NO_CREDENTIALS"
+    )
+    object.__setattr__(p, "allow_real_network", True)
+    t = FakeTransport({"fixture_id": "1", "home_team": "A", "away_team": "B", "start_time": "2026"})
+    a = run_single_flight_probe(p, operator_network_flag=True, transport=t)
+    assert a.status == SingleFlightProbeStatus.SINGLE_FLIGHT_BLOCKED_PASS_F_PROBE_NOT_READY
+    assert a.live_call_made is False
+    assert a.provider_access_attempted is False
+    assert t.calls == 0
+
+def test_nested_proof_extraction_api_sports():
+    payload = {
+        "response": [
+            {
+                "game": {"id": 391053, "date": "2026-01-01T00:00:00Z"},
+                "teams": {
+                    "home": {"name": "A"},
+                    "away": {"name": "B"}
+                }
+            }
+        ]
+    }
+    t = FakeTransport(payload)
+    a = run_single_flight_probe(enabled_policy(), operator_network_flag=True, transport=t)
+    assert a.status == SingleFlightProbeStatus.SINGLE_FLIGHT_RESULT_CAPTURED_SANITIZED
+    assert set(a.proof_fields_observed) == {"fixture_id", "home_team", "away_team", "start_time"}
+
+def test_raw_value_safety():
+    payload = {
+        "response": [
+            {
+                "game": {"id": 391053, "date": "2026-01-01T00:00:00Z"},
+                "teams": {
+                    "home": {"name": "A"},
+                    "away": {"name": "B"}
+                }
+            }
+        ]
+    }
+    t = FakeTransport(payload)
+    a = run_single_flight_probe(enabled_policy(), operator_network_flag=True, transport=t)
+    
+    # Check that artifact / response envelope has no raw payload values
+    combined = str(a.to_jsonable())
+    assert "391053" not in combined
+    assert "2026-01-01T00:00:00Z" not in combined
+    # Let's make sure the raw team values 'A' or 'B' are not in observed fields or envelope (though single characters like 'A' could exist elsewhere, but we can check specifically)
+    assert a.sanitized_response_envelope.get("minimum_fact_fields_observed") == ["fixture_id", "home_team", "away_team", "start_time"]
+    
+    env = a.sanitized_response_envelope
+    # sanitized_response_envelope may contain only logical field names, missing logical field names, payload shape, forbidden field names and raw_payload_persisted=false
+    allowed_keys = {
+        "payload_shape",
+        "minimum_fact_fields_observed",
+        "minimum_fact_fields_missing",
+        "forbidden_domain_fields_present",
+        "raw_payload_persisted"
+    }
+    assert set(env.keys()) == allowed_keys
+
+def test_nested_forbidden_fields_block_capture():
+    payload_odds = {
+        "response": [
+            {
+                "game": {"id": 391053, "date": "2026-01-01T00:00:00Z"},
+                "teams": {
+                    "home": {"name": "A", "odds": 1.5},
+                    "away": {"name": "B"}
+                }
+            }
+        ]
+    }
+    t = FakeTransport(payload_odds)
+    a = run_single_flight_probe(enabled_policy(), operator_network_flag=True, transport=t)
+    assert a.status == SingleFlightProbeStatus.SINGLE_FLIGHT_BLOCKED_PROVIDER_ACCESS
+    assert a.blocked_reason == "forbidden_domain_fields_in_provider_payload"
+    assert "odds" in a.sanitized_response_envelope["forbidden_domain_fields_present"]
+
+    payload_bookmaker = {
+        "response": [
+            {
+                "game": {"id": 391053, "date": "2026-01-01T00:00:00Z"},
+                "teams": {
+                    "home": {"name": "A"},
+                    "away": {"name": "B"}
+                },
+                "bookmaker": "Betclic"
+            }
+        ]
+    }
+    t2 = FakeTransport(payload_bookmaker)
+    a2 = run_single_flight_probe(enabled_policy(), operator_network_flag=True, transport=t2)
+    assert a2.status == SingleFlightProbeStatus.SINGLE_FLIGHT_BLOCKED_PROVIDER_ACCESS
+    assert a2.blocked_reason == "forbidden_domain_fields_in_provider_payload"
+    assert "bookmaker" in a2.sanitized_response_envelope["forbidden_domain_fields_present"]

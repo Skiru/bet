@@ -35,6 +35,7 @@
       },
       "source_access_status": "BLOCKED_NO_CREDENTIALS",
       "source_mapping_status": "BLOCKED_NO_CREDENTIALS",
+      "source_probe_status": "SANITIZED_PROBE_BLOCKED_NO_CREDENTIALS",
       "sport": "basketball",
       "status": "SINGLE_FLIGHT_BLOCKED_ACCESS_GATE"
     }
@@ -74,6 +75,7 @@
       },
       "source_access_status": "BLOCKED_NO_CREDENTIALS",
       "source_mapping_status": "BLOCKED_PROVIDER_TERMS_OR_SCOPE",
+      "source_probe_status": "SANITIZED_PROBE_BLOCKED_PROVIDER_TERMS_OR_SCOPE",
       "sport": "cs2",
       "status": "SINGLE_FLIGHT_BLOCKED_ACCESS_GATE"
     }
@@ -113,6 +115,7 @@
       },
       "source_access_status": "BLOCKED_NO_CREDENTIALS",
       "source_mapping_status": "BLOCKED_PROVIDER_TERMS_OR_SCOPE",
+      "source_probe_status": "SANITIZED_PROBE_BLOCKED_PROVIDER_TERMS_OR_SCOPE",
       "sport": "dota2",
       "status": "SINGLE_FLIGHT_BLOCKED_ACCESS_GATE"
     }
@@ -153,6 +156,7 @@
       },
       "source_access_status": "BLOCKED_NO_CREDENTIALS",
       "source_mapping_status": "BLOCKED_NO_CREDENTIALS",
+      "source_probe_status": "SANITIZED_PROBE_BLOCKED_NO_CREDENTIALS",
       "sport": "hockey",
       "status": "SINGLE_FLIGHT_BLOCKED_ACCESS_GATE"
     }
@@ -193,6 +197,7 @@
       },
       "source_access_status": "BLOCKED_NO_CREDENTIALS",
       "source_mapping_status": "BLOCKED_NO_CREDENTIALS",
+      "source_probe_status": "SANITIZED_PROBE_BLOCKED_NO_CREDENTIALS",
       "sport": "tennis",
       "status": "SINGLE_FLIGHT_BLOCKED_ACCESS_GATE"
     }
@@ -232,6 +237,7 @@
       },
       "source_access_status": "BLOCKED_NO_CREDENTIALS",
       "source_mapping_status": "BLOCKED_PROVIDER_TERMS_OR_SCOPE",
+      "source_probe_status": "SANITIZED_PROBE_BLOCKED_PROVIDER_TERMS_OR_SCOPE",
       "sport": "valorant",
       "status": "SINGLE_FLIGHT_BLOCKED_ACCESS_GATE"
     }
@@ -272,6 +278,7 @@
       },
       "source_access_status": "BLOCKED_NO_CREDENTIALS",
       "source_mapping_status": "BLOCKED_NO_CREDENTIALS",
+      "source_probe_status": "SANITIZED_PROBE_BLOCKED_NO_CREDENTIALS",
       "sport": "volleyball",
       "status": "SINGLE_FLIGHT_BLOCKED_ACCESS_GATE"
     }
