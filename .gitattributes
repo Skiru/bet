@@ -5,3 +5,6 @@
 *.csv text eol=lf
 *.fish text eol=lf
 
+
+# Betting journal ledgers may contain historical mixed EOL; do not normalize them implicitly.
+betting/journal/*.csv -text
