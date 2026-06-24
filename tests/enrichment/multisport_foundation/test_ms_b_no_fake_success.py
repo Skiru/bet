@@ -38,3 +38,31 @@ def test_no_raw_headers_secrets_tokens_cookies() -> None:
 def test_forbidden_success_text_fails_fast() -> None:
     with pytest.raises(AssertionError):
         assert_no_forbidden_success_text({"note": "fallback provider id accepted"})
+
+
+def test_no_accidental_promotion_of_blocked_statuses() -> None:
+    from bet.enrichment.multisport_foundation.source_bound_shadow import build_source_bound_shadow
+    from bet.enrichment.multisport_foundation.provider_corpus import build_blocked_corpus_record
+
+    # Test that BLOCKED_NO_CREDENTIALS is preserved and NOT promoted to REAL_PROVIDER_ACCESS_OBSERVED_BUT_MAPPING_INSUFFICIENT
+    rec = build_blocked_corpus_record("pandascore", "cs2", "BLOCKED_NO_CREDENTIALS", "matches", "missing PANDASCORE_API_KEY")
+    art = build_source_bound_shadow("cs2", [rec], ("fixture_identity", "participants"))
+    assert art.status == "BLOCKED_NO_CREDENTIALS"
+    assert art.status != "REAL_PROVIDER_ACCESS_OBSERVED_BUT_MAPPING_INSUFFICIENT"
+
+    # Test that BLOCKED_PROVIDER_TERMS_OR_SCOPE is preserved
+    rec2 = build_blocked_corpus_record("pandascore", "cs2", "BLOCKED_PROVIDER_TERMS_OR_SCOPE", "matches", "scope limitation")
+    art2 = build_source_bound_shadow("cs2", [rec2], ("fixture_identity", "participants"))
+    assert art2.status == "BLOCKED_PROVIDER_TERMS_OR_SCOPE"
+    assert art2.status != "REAL_PROVIDER_ACCESS_OBSERVED_BUT_MAPPING_INSUFFICIENT"
+
+    # Test that BLOCKED_PROVIDER_ACCESS is preserved
+    rec3 = build_blocked_corpus_record("pandascore", "cs2", "BLOCKED_PROVIDER_ACCESS", "matches", "ip blocked")
+    art3 = build_source_bound_shadow("cs2", [rec3], ("fixture_identity", "participants"))
+    assert art3.status == "BLOCKED_PROVIDER_ACCESS"
+    assert art3.status != "REAL_PROVIDER_ACCESS_OBSERVED_BUT_MAPPING_INSUFFICIENT"
+
+    # Only when record explicitly has REAL_PROVIDER_ACCESS_OBSERVED_BUT_MAPPING_INSUFFICIENT is it produced
+    rec4 = build_blocked_corpus_record("pandascore", "cs2", "REAL_PROVIDER_ACCESS_OBSERVED_BUT_MAPPING_INSUFFICIENT", "matches", "mapping missing")
+    art4 = build_source_bound_shadow("cs2", [rec4], ("fixture_identity", "participants"))
+    assert art4.status == "REAL_PROVIDER_ACCESS_OBSERVED_BUT_MAPPING_INSUFFICIENT"

@@ -29,6 +29,15 @@ Blocked states are correct, valid, and expected Pass B statuses. They protect ag
 - `BLOCKED_PROVIDER_TERMS_OR_SCOPE`
 - `BLOCKED_PROVIDER_MAPPING_NOT_FOUND`
 
+### Status Precedence Correction
+To preserve explicit blocked statuses in source-bound shadow artifacts and avoid mislabeling them as mapping-insufficient, deterministic status precedence is enforced when resolving shadow status:
+1. `SOURCE_BOUND_SHADOW_READY` (if non-empty participant evidence exists)
+2. `REAL_PROVIDER_ACCESS_OBSERVED_BUT_MAPPING_INSUFFICIENT`
+3. `BLOCKED_NO_CREDENTIALS`
+4. `BLOCKED_PROVIDER_TERMS_OR_SCOPE`
+5. `BLOCKED_PROVIDER_ACCESS`
+6. `BLOCKED_PROVIDER_MAPPING_NOT_FOUND`
+
 ## 5. No Fake Success Policy
 - **Redaction of Secrets:** Every generated report/corpus record must redact `Authorization`, `Cookie`, `Bearer` tokens, `x-api-key`, `x-apisports-key`, `x-rapidapi-key`, and other secret-like values (replacing them with `<redacted>`). No raw headers are persisted.
 - **Verification Gates:** Automated verification predicates ensure that no placeholder, default, or fallback values (IDs, scores, statuses, rosters, venues, or winners) can slip into success artifacts.
