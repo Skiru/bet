@@ -4,7 +4,11 @@ Design:
 - state.json is a POINTER + SUMMARY, never >50 lines of JSON
 - Candidate data lives in DB (unlimited rows)
 - State enables session resume after context reset between phases
-- 2-phase model: DATA (S0-S2.9) → ANALYSIS_BUILD (S3-S10)
+- Phases are manifest-driven and currently include:
+  - DATA
+  - ANALYSIS_BUILD
+  - EXECUTION
+  - POST_EVENT
 """
 
 from __future__ import annotations
@@ -15,23 +19,20 @@ from datetime import datetime
 from pathlib import Path
 from typing import Literal
 
-# Phase transition boundary
-_PHASE_BOUNDARY = "S3"  # S3 and above = ANALYSIS_BUILD
+from bet.pipeline.manifest import get_step_order, get_phase_boundary_step, get_step_phase
 
-# Valid step progression
-STEP_ORDER = [
-    "S0", "S1", "S1e", "S2", "S2.3", "S2.5", "S2.7", "S2.9",
-    "S3", "S4", "S5", "S6", "S7", "S8", "S9", "S10",
-]
+# Valid step progression loaded from manifest
+STEP_ORDER = get_step_order()
+
+# Phase transition boundary
+_PHASE_BOUNDARY = get_phase_boundary_step()  # S3 and above = ANALYSIS_BUILD
 
 DATA_DIR = Path("betting/data")
 
 
 def _determine_phase(step: str) -> str:
-    """Determine phase from step position."""
-    idx = STEP_ORDER.index(step) if step in STEP_ORDER else 0
-    boundary_idx = STEP_ORDER.index(_PHASE_BOUNDARY)
-    return "ANALYSIS_BUILD" if idx >= boundary_idx else "DATA"
+    """Determine phase from the canonical pipeline manifest."""
+    return get_step_phase(step)
 
 
 @dataclass
@@ -39,7 +40,7 @@ class PipelineState:
     """Pipeline state — serialized to {date}_state.json."""
 
     date: str
-    phase: Literal["DATA", "ANALYSIS_BUILD"] = "DATA"
+    phase: Literal["DATA", "ANALYSIS_BUILD", "EXECUTION", "POST_EVENT"] = "DATA"
     position: str = "S0"
     data_summary: dict = field(default_factory=dict)
     decisions: list[str] = field(default_factory=list)
