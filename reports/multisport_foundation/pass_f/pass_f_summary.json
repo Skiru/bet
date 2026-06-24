@@ -1,0 +1,33 @@
+{
+  "metrics": {
+    "betting_decisions": false,
+    "live_calls_allowed": false,
+    "production_activation": false,
+    "sanitized_probe_blocked_mapping_not_ready_count": 0,
+    "sanitized_probe_blocked_no_credentials_count": 4,
+    "sanitized_probe_blocked_provider_access_count": 0,
+    "sanitized_probe_blocked_provider_terms_or_scope_count": 3,
+    "sanitized_probe_ready_dry_run_count": 0,
+    "sanitized_probe_result_captured_sanitized_count": 0,
+    "total_target_sports": 7
+  },
+  "provider_probe_statuses": {
+    "basketball": "SANITIZED_PROBE_BLOCKED_NO_CREDENTIALS",
+    "cs2": "SANITIZED_PROBE_BLOCKED_PROVIDER_TERMS_OR_SCOPE",
+    "dota2": "SANITIZED_PROBE_BLOCKED_PROVIDER_TERMS_OR_SCOPE",
+    "hockey": "SANITIZED_PROBE_BLOCKED_NO_CREDENTIALS",
+    "tennis": "SANITIZED_PROBE_BLOCKED_NO_CREDENTIALS",
+    "valorant": "SANITIZED_PROBE_BLOCKED_PROVIDER_TERMS_OR_SCOPE",
+    "volleyball": "SANITIZED_PROBE_BLOCKED_NO_CREDENTIALS"
+  },
+  "summary_version": "ms-f-summary-v1",
+  "target_sports": [
+    "basketball",
+    "volleyball",
+    "hockey",
+    "tennis",
+    "cs2",
+    "dota2",
+    "valorant"
+  ]
+}

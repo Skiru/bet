@@ -26,6 +26,16 @@ from .verifier import (
     verify_activation_candidates,
     verify_live_observations,
     verify_provider_mapping,
+    verify_provider_probes,
+)
+from .provider_probe import (
+    ProviderProbeStatus,
+    ProviderProbePolicy,
+    ProviderProbeArtifact,
+    run_provider_probe,
+)
+from .provider_probe_report import (
+    write_pass_f_reports,
 )
 from .provider_mapping import (
     ProviderMappingStatus,
@@ -131,4 +141,10 @@ __all__ = [
     "VALID_FAIL_CLOSED_STATUSES",
     "is_valid_pass_b_status",
     "assert_no_forbidden_success_text",
+    "verify_provider_probes",
+    "ProviderProbeStatus",
+    "ProviderProbePolicy",
+    "ProviderProbeArtifact",
+    "run_provider_probe",
+    "write_pass_f_reports",
 ]
