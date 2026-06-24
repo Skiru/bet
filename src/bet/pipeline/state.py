@@ -15,14 +15,13 @@ from datetime import datetime
 from pathlib import Path
 from typing import Literal
 
-# Phase transition boundary
-_PHASE_BOUNDARY = "S3"  # S3 and above = ANALYSIS_BUILD
+from bet.pipeline.manifest import get_step_order, get_phase_boundary_step
 
-# Valid step progression
-STEP_ORDER = [
-    "S0", "S1", "S1e", "S2", "S2.3", "S2.5", "S2.7", "S2.9",
-    "S3", "S4", "S5", "S6", "S7", "S8", "S9", "S10",
-]
+# Valid step progression loaded from manifest
+STEP_ORDER = get_step_order()
+
+# Phase transition boundary
+_PHASE_BOUNDARY = get_phase_boundary_step()  # S3 and above = ANALYSIS_BUILD
 
 DATA_DIR = Path("betting/data")
 

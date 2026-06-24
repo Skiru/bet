@@ -1,0 +1,247 @@
+{
+  "schema_version": 1,
+  "pipeline_id": "bet_pipeline_v1",
+  "timezone": "Europe/Warsaw",
+  "betting_day": "dynamic",
+  "global_rules": {
+    "fail_closed": true,
+    "point_in_time_required": true,
+    "no_pick_before_s7": true,
+    "no_coupon_before_s8": true,
+    "all_picks_conditional_until_user_betclic_verification": true,
+    "enrichment_must_not_emit_pick_edge_stake_or_coupon": true,
+    "s2_9_required_before_s3": true,
+    "no_live_provider_calls_in_contract_pass": true,
+    "no_production_db_writes_in_contract_pass": true
+  },
+  "steps": [
+    {
+      "id": "S0",
+      "name": "Settler",
+      "phase": "POST_EVENT",
+      "agent": "bet-settler",
+      "execution_mode": "script",
+      "wrapper": "scripts/pipeline_steps/s0_settler.py",
+      "canonical_script": "scripts/pipeline_steps/s0_settler.py",
+      "output": "historical_pnl",
+      "next": ["S1"],
+      "hard_rules": ["verify_settlement_pnl_against_db"]
+    },
+    {
+      "id": "S1",
+      "name": "Discover",
+      "phase": "DATA",
+      "agent": "bet-scanner",
+      "execution_mode": "script",
+      "wrapper": "scripts/pipeline_steps/s1_discover.py",
+      "canonical_script": "scripts/pipeline_steps/s1_discover.py",
+      "output": "fixtures_shortlist",
+      "next": ["S1e"],
+      "hard_rules": ["verify_fixture_identity"]
+    },
+    {
+      "id": "S1e",
+      "name": "Events Discovery",
+      "phase": "DATA",
+      "agent": "bet-scanner",
+      "execution_mode": "state_only",
+      "output": "discovered_events",
+      "next": ["S2"],
+      "hard_rules": ["event_identity_validation"]
+    },
+    {
+      "id": "S2",
+      "name": "Tipsters Discovery",
+      "phase": "DATA",
+      "agent": "bet-scout",
+      "execution_mode": "script",
+      "wrapper": "scripts/pipeline_steps/s2_tipsters.py",
+      "canonical_script": "scripts/pipeline_steps/s2_tipsters.py",
+      "output": "tipster_consensus",
+      "next": ["S2.3"],
+      "hard_rules": ["minimum_one_valid_tip"]
+    },
+    {
+      "id": "S2.3",
+      "name": "Enrichment Source 1",
+      "phase": "DATA",
+      "agent": "bet-enricher",
+      "execution_mode": "agent_artifact",
+      "output": "enriched_features_s1",
+      "next": ["S2.5"],
+      "hard_rules": [
+        "no_pick",
+        "no_edge",
+        "no_stake",
+        "no_coupon",
+        "source_bound_only",
+        "unknown_or_blocked_for_missing_data",
+        "no_production_db_write",
+        "no_betting_data_write",
+        "point_in_time_required"
+      ]
+    },
+    {
+      "id": "S2.5",
+      "name": "Enrichment Source 2",
+      "phase": "DATA",
+      "agent": "bet-enricher",
+      "execution_mode": "agent_artifact",
+      "output": "enriched_features_s2",
+      "next": ["S2.7"],
+      "hard_rules": [
+        "no_pick",
+        "no_edge",
+        "no_stake",
+        "no_coupon",
+        "source_bound_only",
+        "unknown_or_blocked_for_missing_data",
+        "no_production_db_write",
+        "no_betting_data_write",
+        "point_in_time_required"
+      ]
+    },
+    {
+      "id": "S2.7",
+      "name": "Enrichment Source 3",
+      "phase": "DATA",
+      "agent": "bet-enricher",
+      "execution_mode": "agent_artifact",
+      "output": "enriched_features_s3",
+      "next": ["S2.9"],
+      "hard_rules": [
+        "no_pick",
+        "no_edge",
+        "no_stake",
+        "no_coupon",
+        "source_bound_only",
+        "unknown_or_blocked_for_missing_data",
+        "no_production_db_write",
+        "no_betting_data_write",
+        "point_in_time_required"
+      ]
+    },
+    {
+      "id": "S2.9",
+      "name": "Enrichment Source 4",
+      "phase": "DATA",
+      "agent": "bet-enricher",
+      "execution_mode": "agent_artifact",
+      "output": "enriched_features_s4",
+      "next": ["S3"],
+      "hard_rules": [
+        "no_pick",
+        "no_edge",
+        "no_stake",
+        "no_coupon",
+        "source_bound_only",
+        "unknown_or_blocked_for_missing_data",
+        "no_production_db_write",
+        "no_betting_data_write",
+        "point_in_time_required"
+      ]
+    },
+    {
+      "id": "S3",
+      "name": "Stats & Probability",
+      "phase": "ANALYSIS_BUILD",
+      "agent": "bet-statistician",
+      "execution_mode": "script",
+      "wrapper": "scripts/pipeline_steps/s3_stats.py",
+      "canonical_script": "scripts/pipeline_steps/s3_stats.py",
+      "output": "calibrated_probabilities",
+      "next": ["S4"],
+      "hard_rules": ["reproducible_statistical_evidence"]
+    },
+    {
+      "id": "S4",
+      "name": "Valuator & CLV",
+      "phase": "ANALYSIS_BUILD",
+      "agent": "bet-valuator",
+      "execution_mode": "script",
+      "wrapper": "scripts/pipeline_steps/s4_valuator.py",
+      "canonical_script": "scripts/pipeline_steps/s4_valuator.py",
+      "output": "expected_value_estimates",
+      "next": ["S5"],
+      "hard_rules": ["clv_validation"]
+    },
+    {
+      "id": "S5",
+      "name": "Odds Valuation Calibration",
+      "phase": "ANALYSIS_BUILD",
+      "agent": "bet-valuator",
+      "execution_mode": "agent_artifact",
+      "output": "calibrated_odds",
+      "next": ["S6"],
+      "hard_rules": ["odds_boundary_checks"]
+    },
+    {
+      "id": "S6",
+      "name": "Repeats Discovery",
+      "phase": "ANALYSIS_BUILD",
+      "agent": "bet-challenger",
+      "execution_mode": "script",
+      "wrapper": "scripts/pipeline_steps/s6_repeats.py",
+      "canonical_script": "scripts/pipeline_steps/s6_repeats.py",
+      "output": "deduplicated_signals",
+      "next": ["S7"],
+      "hard_rules": ["repeat_signals_removal"]
+    },
+    {
+      "id": "S7",
+      "name": "Hard Approval Gate",
+      "phase": "ANALYSIS_BUILD",
+      "agent": "bet-challenger",
+      "execution_mode": "script",
+      "wrapper": "scripts/pipeline_steps/s5_gate.py",
+      "canonical_script": "scripts/pipeline_steps/s5_gate.py",
+      "output": "approved_picks",
+      "next": ["S7b"],
+      "hard_rules": ["hard_approval_verdict_gate"]
+    },
+    {
+      "id": "S7b",
+      "name": "Market Availability Validation",
+      "phase": "ANALYSIS_BUILD",
+      "agent": "bet-test-engineer",
+      "execution_mode": "script",
+      "wrapper": "scripts/pipeline_steps/s7_validate.py",
+      "canonical_script": "scripts/pipeline_steps/s7_validate.py",
+      "output": "verified_market_availability",
+      "next": ["S8"],
+      "hard_rules": ["betclic_market_boundary_validation"]
+    },
+    {
+      "id": "S8",
+      "name": "Coupon Construction",
+      "phase": "ANALYSIS_BUILD",
+      "agent": "bet-builder",
+      "execution_mode": "script",
+      "wrapper": "scripts/pipeline_steps/s8_build_coupons.py",
+      "canonical_script": "scripts/pipeline_steps/s8_build_coupons.py",
+      "output": "final_coupons",
+      "next": ["S9"],
+      "hard_rules": ["correlation_and_stake_mechanics_check"]
+    },
+    {
+      "id": "S9",
+      "name": "Human Execution Gate",
+      "phase": "EXECUTION",
+      "agent": "bet-challenger",
+      "execution_mode": "human_gate",
+      "output": "executed_bets_journal",
+      "next": ["S10"],
+      "hard_rules": ["manual_user_verification_in_betclic"]
+    },
+    {
+      "id": "S10",
+      "name": "Post-execution Reconciliation",
+      "phase": "EXECUTION",
+      "agent": "bet-test-engineer",
+      "execution_mode": "state_only",
+      "output": "state_closed",
+      "next": [],
+      "hard_rules": ["final_accounting_verification"]
+    }
+  ]
+}
