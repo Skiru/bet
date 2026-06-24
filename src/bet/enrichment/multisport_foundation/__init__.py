@@ -27,6 +27,7 @@ from .verifier import (
     verify_live_observations,
     verify_provider_mapping,
     verify_provider_probes,
+    verify_provider_access_gate,
 )
 from .provider_probe import (
     ProviderProbeStatus,
@@ -36,6 +37,18 @@ from .provider_probe import (
 )
 from .provider_probe_report import (
     write_pass_f_reports,
+)
+from .provider_authorization import (
+    ProviderAuthorizationStatus,
+    ProviderAuthorizationSpec,
+    ProviderAuthorizationArtifact,
+    default_authorization_specs,
+    authorize_probe,
+    build_authorization_report,
+    validate_authorization_report,
+)
+from .provider_authorization_report import (
+    write_authorization_reports,
 )
 from .provider_mapping import (
     ProviderMappingStatus,
@@ -147,4 +160,13 @@ __all__ = [
     "ProviderProbeArtifact",
     "run_provider_probe",
     "write_pass_f_reports",
+    "verify_provider_access_gate",
+    "ProviderAuthorizationStatus",
+    "ProviderAuthorizationSpec",
+    "ProviderAuthorizationArtifact",
+    "default_authorization_specs",
+    "authorize_probe",
+    "build_authorization_report",
+    "validate_authorization_report",
+    "write_authorization_reports",
 ]

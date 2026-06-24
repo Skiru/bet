@@ -481,3 +481,63 @@ def verify_provider_probes() -> VerificationResult:
     )
 
 
+def verify_provider_access_gate() -> VerificationResult:
+    """Verify provider access gate policies, status derivation, and invariants in Pass H."""
+    from .provider_authorization import (
+        TARGET_SPORTS,
+        ProviderAuthorizationStatus,
+        build_authorization_report,
+        default_authorization_specs,
+        validate_authorization_report,
+    )
+
+    failed: list[str] = []
+
+    # 1. Check default authorization specs and their invariants
+    specs = default_authorization_specs()
+    sports_covered = {s.sport for s in specs}
+    if sports_covered != set(TARGET_SPORTS):
+        failed.append("target_sports_mismatch_in_specs")
+
+    for spec in specs:
+        if spec.allow_real_network:
+            failed.append(f"spec_allow_real_network_true:{spec.sport}")
+        if spec.max_requests > 1:
+            failed.append(f"spec_max_requests_gt_1:{spec.sport}")
+        if spec.production_selectable:
+            failed.append(f"spec_production_selectable_true:{spec.sport}")
+        if spec.betting_decisions_enabled:
+            failed.append(f"spec_betting_decisions_enabled_true:{spec.sport}")
+
+    # 2. Check default report state (empty env)
+    report_empty = build_authorization_report({})
+    if report_empty.get("live_calls_made") is not False:
+        failed.append("live_calls_made_not_false_by_default")
+    if report_empty.get("provider_access_attempted") is not False:
+        failed.append("provider_access_attempted_not_false_by_default")
+
+    # All sports must be BLOCKED_NO_CREDENTIALS in default state
+    status_by_sport = report_empty.get("status_by_sport", {})
+    for sport in TARGET_SPORTS:
+        status = status_by_sport.get(sport)
+        if status != ProviderAuthorizationStatus.BLOCKED_NO_CREDENTIALS:
+            failed.append(f"expected_blocked_no_credentials:{sport}:{status}")
+
+    # 3. Check report validation against default state
+    errors = validate_authorization_report(report_empty)
+    if errors:
+        failed.extend(errors)
+
+    metrics = {
+        "target_sports_count": len(TARGET_SPORTS),
+        "specs_count": len(specs),
+    }
+
+    return VerificationResult(
+        verdict="PASS" if not failed else "FAIL",
+        failed_requirements=failed,
+        metrics=metrics,
+    )
+
+
+
