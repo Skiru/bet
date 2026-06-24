@@ -25,6 +25,20 @@ from .verifier import (
     PassCVerificationResult,
     verify_activation_candidates,
     verify_live_observations,
+    verify_provider_mapping,
+)
+from .provider_mapping import (
+    ProviderMappingStatus,
+    ProviderRouteSpec,
+    ProviderMappingArtifact,
+    default_route_specs,
+    build_mapping_artifact,
+    build_provider_mapping_plan,
+    validate_mapping_plan,
+)
+from .provider_mapping_report import (
+    write_provider_mapping_plan,
+    write_pass_e_summary,
 )
 from .source_inventory import (
     SourceInventoryEntry,
@@ -85,6 +99,16 @@ __all__ = [
     "verify_shadow_artifacts",
     "verify_activation_candidates",
     "verify_live_observations",
+    "verify_provider_mapping",
+    "ProviderMappingStatus",
+    "ProviderRouteSpec",
+    "ProviderMappingArtifact",
+    "default_route_specs",
+    "build_mapping_artifact",
+    "build_provider_mapping_plan",
+    "validate_mapping_plan",
+    "write_provider_mapping_plan",
+    "write_pass_e_summary",
     "SourceInventoryEntry",
     "build_source_inventory",
     "inventory_by_key",

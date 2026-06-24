@@ -273,3 +273,84 @@ def verify_live_observations(artifacts: list[LiveObservationArtifact]) -> PassCV
             failed.append(f"forbidden_success_text:{artifact.artifact_id}:{exc}")
 
     return PassCVerificationResult("PASS" if not failed else "FAIL", failed, {"artifact_count": len(artifacts)})
+
+
+def verify_provider_mapping() -> VerificationResult:
+    """Verify the provider mapping contracts and status derivation."""
+    from .provider_mapping import (
+        TARGET_SPORTS,
+        ProviderMappingStatus,
+        build_provider_mapping_plan,
+        validate_mapping_plan,
+        default_route_specs,
+    )
+    
+    failed: list[str] = []
+    
+    # 1. Target sports must exactly match seven sports
+    plan_empty = build_provider_mapping_plan({})
+    sports = set(plan_empty.get("target_sports", []))
+    if sports != set(TARGET_SPORTS):
+        failed.append("target_sports_mismatch")
+        
+    # 2. No route has live_call_allowed=True, production_selectable=True, or betting_decisions_enabled=True
+    for spec in default_route_specs():
+        if spec.live_call_allowed:
+            failed.append(f"spec_live_call_allowed_true:{spec.route_key}")
+        if spec.production_selectable:
+            failed.append(f"spec_production_selectable_true:{spec.route_key}")
+        if spec.betting_decisions_enabled:
+            failed.append(f"spec_betting_decisions_enabled_true:{spec.route_key}")
+        # Odds/predictions/picks/stakes/recommendations/edges are forbidden in proof_fields_required
+        for forbidden in ["odds", "prediction", "pick", "stake", "edge", "recommendation"]:
+            if any(forbidden in f.lower() for f in spec.proof_fields_required):
+                failed.append(f"forbidden_proof_field_in_spec:{spec.route_key}:{forbidden}")
+
+    # Check status derivation invariants:
+    # 3. Missing API-Sports env keys produce BLOCKED_NO_CREDENTIALS
+    plan_no_keys = build_provider_mapping_plan({})
+    for sport in ["basketball", "volleyball", "hockey", "tennis"]:
+        items = plan_no_keys["provider_mapping_by_sport"].get(sport, [])
+        if not items:
+            failed.append(f"missing_mapping_for_sport:{sport}")
+        for item in items:
+            if item["status"] != ProviderMappingStatus.BLOCKED_NO_CREDENTIALS:
+                failed.append(f"expected_blocked_no_credentials:{sport}:{item['status']}")
+
+    # 4. PandaScore remains BLOCKED_PROVIDER_TERMS_OR_SCOPE even if PANDASCORE_TOKEN is present
+    plan_pandascore_token = build_provider_mapping_plan({"PANDASCORE_TOKEN": "secret"})
+    for sport in ["cs2", "dota2", "valorant"]:
+        items = plan_pandascore_token["provider_mapping_by_sport"].get(sport, [])
+        if not items:
+            failed.append(f"missing_mapping_for_sport:{sport}")
+        for item in items:
+            if item["status"] != ProviderMappingStatus.BLOCKED_PROVIDER_TERMS_OR_SCOPE:
+                failed.append(f"expected_blocked_provider_terms_or_scope:{sport}:{item['status']}")
+
+    # 5. A sport-specific API-Sports env key can produce MAPPING_READY_FOR_SANITIZED_PROBE
+    plan_basketball_key = build_provider_mapping_plan({"API_BASKETBALL_KEY": "secret"})
+    basket_items = plan_basketball_key["provider_mapping_by_sport"].get("basketball", [])
+    for item in basket_items:
+        if item["status"] != ProviderMappingStatus.MAPPING_READY_FOR_SANITIZED_PROBE:
+            failed.append(f"expected_mapping_ready_for_sanitized_probe:basketball:{item['status']}")
+        if item["sanitized_probe_only"] is not True:
+            failed.append("expected_sanitized_probe_only_true")
+        if item["production_selectable"] is not False:
+            failed.append("expected_production_selectable_false")
+
+    # 6. Validate the plan structure itself
+    errors = validate_mapping_plan(plan_empty)
+    if errors:
+        failed.extend(errors)
+
+    metrics = {
+        "target_sports_count": len(TARGET_SPORTS),
+        "route_specs_count": len(default_route_specs()),
+    }
+    
+    return VerificationResult(
+        verdict="PASS" if not failed else "FAIL",
+        failed_requirements=failed,
+        metrics=metrics,
+    )
+
