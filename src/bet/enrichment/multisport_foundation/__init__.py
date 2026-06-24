@@ -22,6 +22,9 @@ from .verifier import (
     verify_source_inventory,
     verify_provider_corpus,
     verify_shadow_artifacts,
+    PassCVerificationResult,
+    verify_activation_candidates,
+    verify_live_observations,
 )
 from .source_inventory import (
     SourceInventoryEntry,
@@ -40,6 +43,15 @@ from .provider_corpus import (
 from .source_bound_shadow import (
     SourceBoundShadowArtifact,
     build_source_bound_shadow,
+)
+from .activation_candidate import (
+    ActivationCandidateArtifact,
+    build_activation_candidate,
+)
+from .live_observation import (
+    LiveObservationArtifact,
+    build_live_observation,
+    write_pass_c_reports,
 )
 from .fail_closed import (
     PASS_B_STATUSES,
@@ -66,10 +78,13 @@ __all__ = [
     "provider_matrix",
     "VerificationResult",
     "PassBVerificationResult",
+    "PassCVerificationResult",
     "verify_plan",
     "verify_source_inventory",
     "verify_provider_corpus",
     "verify_shadow_artifacts",
+    "verify_activation_candidates",
+    "verify_live_observations",
     "SourceInventoryEntry",
     "build_source_inventory",
     "inventory_by_key",
@@ -82,6 +97,11 @@ __all__ = [
     "contains_raw_secret",
     "SourceBoundShadowArtifact",
     "build_source_bound_shadow",
+    "ActivationCandidateArtifact",
+    "build_activation_candidate",
+    "LiveObservationArtifact",
+    "build_live_observation",
+    "write_pass_c_reports",
     "PASS_B_STATUSES",
     "BLOCKED_STATUSES",
     "VALID_FAIL_CLOSED_STATUSES",

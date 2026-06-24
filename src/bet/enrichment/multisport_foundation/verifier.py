@@ -7,6 +7,8 @@ from .fail_closed import PASS_B_STATUSES, assert_no_forbidden_success_text, is_v
 from .provider_corpus import ProviderCorpusRecord, contains_raw_secret
 from .source_bound_shadow import SourceBoundShadowArtifact
 from .source_inventory import FOOTBALL_ERA_SOURCE_KEYS, TARGET_SPORTS, build_source_inventory
+from .activation_candidate import ActivationCandidateArtifact
+from .live_observation import LiveObservationArtifact
 
 
 @dataclass
@@ -178,3 +180,96 @@ def verify_shadow_artifacts(artifacts: list[SourceBoundShadowArtifact]) -> PassB
         except AssertionError as exc:
             failed.append(f"forbidden_success_text:{artifact.artifact_id}:{exc}")
     return PassBVerificationResult("PASS" if not failed else "FAIL", failed, {"artifact_count": len(artifacts)})
+
+
+@dataclass
+class PassCVerificationResult:
+    verdict: str
+    failed_requirements: list[str] = field(default_factory=list)
+    metrics: dict[str, Any] = field(default_factory=dict)
+
+    def to_json(self) -> dict[str, Any]:
+        return {
+            "verdict": self.verdict,
+            "failed_requirements": self.failed_requirements,
+            "metrics": self.metrics,
+        }
+
+
+def verify_activation_candidates(artifacts: list[ActivationCandidateArtifact]) -> PassCVerificationResult:
+    failed: list[str] = []
+    for artifact in artifacts:
+        if not artifact.manual_authorization_required:
+            failed.append(f"manual_authorization_required_false:{artifact.artifact_id}")
+        if artifact.production_selectable:
+            failed.append(f"production_selectable_forbidden:{artifact.artifact_id}")
+        if artifact.betting_decisions_enabled:
+            failed.append(f"betting_decisions_forbidden:{artifact.artifact_id}")
+        
+        if artifact.activation_candidate and artifact.status != "ACTIVATION_CANDIDATE_SHADOW_ONLY":
+            failed.append(f"activation_candidate_true_without_shadow_only_status:{artifact.artifact_id}")
+        
+        if artifact.status == "ACTIVATION_CANDIDATE_SHADOW_ONLY":
+            if artifact.source_pass_b_status != "SOURCE_BOUND_SHADOW_READY":
+                failed.append(f"activation_candidate_shadow_only_requires_pass_b_shadow_ready:{artifact.artifact_id}")
+            if not artifact.source_keys or not artifact.corpus_ids:
+                failed.append(f"activation_candidate_shadow_only_requires_sources_and_corpus_ids:{artifact.artifact_id}")
+        
+        if artifact.source_pass_b_status == "BLOCKED_PROVIDER_MAPPING_NOT_FOUND" and artifact.status != "BLOCKED_NO_REAL_PROVIDER_ACCESS":
+            failed.append(f"mapping_not_found_must_map_to_blocked_no_real_provider_access:{artifact.artifact_id}")
+        if artifact.source_pass_b_status == "BLOCKED_PROVIDER_TERMS_OR_SCOPE" and artifact.status != "BLOCKED_PROVIDER_TERMS_OR_SCOPE":
+            failed.append(f"terms_or_scope_must_map_to_terms_or_scope:{artifact.artifact_id}")
+        if artifact.source_pass_b_status == "REAL_PROVIDER_ACCESS_OBSERVED_BUT_MAPPING_INSUFFICIENT" and artifact.status != "REAL_PROVIDER_ACCESS_OBSERVED_BUT_LIVE_SHADOW_BLOCKED_INSUFFICIENT_MAPPING":
+            failed.append(f"mapping_insufficient_must_map_to_observed_but_live_shadow_blocked:{artifact.artifact_id}")
+
+        payload = dict(artifact.to_json())
+        payload.pop("manual_authorization_required", None)
+        for key in ["status", "source_pass_b_status", "artifact_id", "blocked_reason", "required_manual_steps", "evidence_refs", "source_shadow_report_path"]:
+            if key in payload:
+                payload[key] = "<redacted>"
+        if contains_raw_secret(payload):
+            failed.append(f"raw_secret_in_record:{artifact.artifact_id}")
+        try:
+            assert_no_forbidden_success_text(artifact.to_json())
+        except AssertionError as exc:
+            failed.append(f"forbidden_success_text:{artifact.artifact_id}:{exc}")
+            
+    return PassCVerificationResult("PASS" if not failed else "FAIL", failed, {"artifact_count": len(artifacts)})
+
+
+def verify_live_observations(artifacts: list[LiveObservationArtifact]) -> PassCVerificationResult:
+    failed: list[str] = []
+    for artifact in artifacts:
+        if not artifact.manual_authorization_required:
+            failed.append(f"manual_authorization_required_false:{artifact.artifact_id}")
+        if artifact.production_selectable:
+            failed.append(f"production_selectable_forbidden:{artifact.artifact_id}")
+        if artifact.betting_decisions_enabled:
+            failed.append(f"betting_decisions_forbidden:{artifact.artifact_id}")
+        if artifact.live_call_made:
+            failed.append(f"live_call_made_true_forbidden:{artifact.artifact_id}")
+        if artifact.provider_access_attempted:
+            failed.append(f"provider_access_attempted_true_forbidden:{artifact.artifact_id}")
+        if artifact.observation_mode != "fail_closed_no_live_call":
+            failed.append(f"observation_mode_not_fail_closed_no_live_call:{artifact.artifact_id}")
+
+        if artifact.source_pass_b_status == "BLOCKED_PROVIDER_MAPPING_NOT_FOUND" and artifact.status != "BLOCKED_NO_REAL_PROVIDER_ACCESS":
+            failed.append(f"mapping_not_found_must_map_to_blocked_no_real_provider_access:{artifact.artifact_id}")
+        if artifact.source_pass_b_status == "BLOCKED_PROVIDER_TERMS_OR_SCOPE" and artifact.status != "BLOCKED_PROVIDER_TERMS_OR_SCOPE":
+            failed.append(f"terms_or_scope_must_map_to_terms_or_scope:{artifact.artifact_id}")
+        if artifact.source_pass_b_status == "REAL_PROVIDER_ACCESS_OBSERVED_BUT_MAPPING_INSUFFICIENT" and artifact.status != "REAL_PROVIDER_ACCESS_OBSERVED_BUT_LIVE_SHADOW_BLOCKED_INSUFFICIENT_MAPPING":
+            failed.append(f"mapping_insufficient_must_map_to_observed_but_live_shadow_blocked:{artifact.artifact_id}")
+
+        payload = dict(artifact.to_json())
+        payload.pop("manual_authorization_required", None)
+        for key in ["status", "source_pass_b_status", "artifact_id", "blocked_reason", "required_manual_steps", "evidence_refs", "source_shadow_report_path"]:
+            if key in payload:
+                payload[key] = "<redacted>"
+        if contains_raw_secret(payload):
+            failed.append(f"raw_secret_in_record:{artifact.artifact_id}")
+        try:
+            assert_no_forbidden_success_text(artifact.to_json())
+        except AssertionError as exc:
+            failed.append(f"forbidden_success_text:{artifact.artifact_id}:{exc}")
+
+    return PassCVerificationResult("PASS" if not failed else "FAIL", failed, {"artifact_count": len(artifacts)})
