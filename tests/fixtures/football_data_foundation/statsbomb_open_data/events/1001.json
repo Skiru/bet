@@ -1,0 +1,10 @@
+{
+  "retrieved_at": "2024-01-01T00:00:00Z",
+  "records": [
+    {
+      "event_id": "evt-1",
+      "type": "Pass",
+      "player": "Starter One"
+    }
+  ]
+}

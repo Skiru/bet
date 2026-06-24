@@ -1,0 +1,52 @@
+{
+  "source_roles": {
+    "CURRENT_LIVE": {
+      "supports_live": true,
+      "description": "Standard live provider with immediate updates."
+    },
+    "CURRENT_LIVE_BENCHMARK": {
+      "supports_live": true,
+      "description": "Anchor or baseline used for direct comparison/calibration."
+    },
+    "CURRENT_LIVE_OR_RECENT_DETAILED_SHADOW": {
+      "supports_live": true,
+      "description": "Highly detailed recent shadow provider."
+    },
+    "CURRENT_REFERENCE": {
+      "supports_live": true,
+      "description": "Current reference source (e.g. schedules, standings)."
+    },
+    "HISTORICAL_DEEP": {
+      "supports_live": false,
+      "description": "Deep backfill historical database."
+    },
+    "REFERENCE_IDENTITY": {
+      "supports_live": false,
+      "description": "Provides team names, aliases, and schedules; strictly forbids detailed stats."
+    },
+    "REFERENCE_METADATA_SHADOW": {
+      "supports_live": false,
+      "description": "Metadata shadow for supplemental details."
+    },
+    "DEPENDENCY_REPLAY": {
+      "supports_live": false,
+      "description": "Cached or local library replay source."
+    },
+    "OPTIONAL_LIBRARY_BRIDGE": {
+      "supports_live": false,
+      "description": "Optional third-party package wrapper."
+    },
+    "EXPERIMENTAL_PROBE": {
+      "supports_live": false,
+      "description": "Unofficial scrapers or experimental probes."
+    },
+    "LATER_PROVIDER_CANDIDATE": {
+      "supports_live": true,
+      "description": "Deferred provider candidate awaiting certification."
+    },
+    "REJECTED_OR_DEFERRED": {
+      "supports_live": false,
+      "description": "Completely excluded or permanently deferred source."
+    }
+  }
+}

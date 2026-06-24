@@ -1,0 +1,9 @@
+{
+  "retrieved_at": "2024-01-01T00:00:00Z",
+  "records": [
+    {
+      "event_uuid": "evt-1",
+      "visible_area": [1, 2, 3, 4]
+    }
+  ]
+}

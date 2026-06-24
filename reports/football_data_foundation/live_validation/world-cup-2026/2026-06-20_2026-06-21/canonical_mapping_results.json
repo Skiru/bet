@@ -1,0 +1,144 @@
+[
+  {
+    "scanner_event_id": "scanner-worldcup-20260620-20260621-760447",
+    "provider_event_id": "760447",
+    "resolution_status": "CREATED_CANONICAL_FIXTURE",
+    "fixture_id": 1,
+    "sport_id": 1,
+    "competition_id": 1,
+    "home_team_id": 1,
+    "away_team_id": 2,
+    "write_status": "SUCCESS",
+    "observation_ids": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6
+    ],
+    "projection_ids": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6
+    ]
+  },
+  {
+    "scanner_event_id": "scanner-worldcup-20260620-20260621-760448",
+    "provider_event_id": "760448",
+    "resolution_status": "CREATED_CANONICAL_FIXTURE",
+    "fixture_id": 2,
+    "sport_id": 1,
+    "competition_id": 1,
+    "home_team_id": 3,
+    "away_team_id": 4,
+    "write_status": "SUCCESS",
+    "observation_ids": [
+      7,
+      8,
+      9,
+      10
+    ],
+    "projection_ids": [
+      7,
+      8,
+      9,
+      10
+    ]
+  },
+  {
+    "scanner_event_id": "scanner-worldcup-20260620-20260621-760446",
+    "provider_event_id": "760446",
+    "resolution_status": "CREATED_CANONICAL_FIXTURE",
+    "fixture_id": 3,
+    "sport_id": 1,
+    "competition_id": 1,
+    "home_team_id": 5,
+    "away_team_id": 6,
+    "write_status": "SUCCESS",
+    "observation_ids": [
+      11,
+      12,
+      13,
+      14
+    ],
+    "projection_ids": [
+      11,
+      12,
+      13,
+      14
+    ]
+  },
+  {
+    "scanner_event_id": "scanner-worldcup-20260620-20260621-760449",
+    "provider_event_id": "760449",
+    "resolution_status": "CREATED_CANONICAL_FIXTURE",
+    "fixture_id": 4,
+    "sport_id": 1,
+    "competition_id": 1,
+    "home_team_id": 7,
+    "away_team_id": 8,
+    "write_status": "SUCCESS",
+    "observation_ids": [
+      15,
+      16,
+      17,
+      18
+    ],
+    "projection_ids": [
+      15,
+      16,
+      17,
+      18
+    ]
+  },
+  {
+    "scanner_event_id": "scanner-worldcup-20260620-20260621-760453",
+    "provider_event_id": "760453",
+    "resolution_status": "CREATED_CANONICAL_FIXTURE",
+    "fixture_id": 5,
+    "sport_id": 1,
+    "competition_id": 1,
+    "home_team_id": 9,
+    "away_team_id": 10,
+    "write_status": "SUCCESS",
+    "observation_ids": [
+      19,
+      20,
+      21,
+      22
+    ],
+    "projection_ids": [
+      19,
+      20,
+      21,
+      22
+    ]
+  },
+  {
+    "scanner_event_id": "scanner-worldcup-20260620-20260621-760451",
+    "provider_event_id": "760451",
+    "resolution_status": "CREATED_CANONICAL_FIXTURE",
+    "fixture_id": 6,
+    "sport_id": 1,
+    "competition_id": 1,
+    "home_team_id": 11,
+    "away_team_id": 12,
+    "write_status": "SUCCESS",
+    "observation_ids": [
+      23,
+      24,
+      25,
+      26
+    ],
+    "projection_ids": [
+      23,
+      24,
+      25,
+      26
+    ]
+  }
+]

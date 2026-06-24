@@ -1,0 +1,17 @@
+{
+  "synthetic_normalized_probe_fixture": true,
+  "proof_level": "SYNTHETIC_CONTRACT_PROOF",
+  "source_family": "soccerdata_clubelo",
+  "records": [
+    {
+      "team": "USA",
+      "date": "2026-06-20",
+      "elo": 1750.5
+    },
+    {
+      "team": "Australia",
+      "date": "2026-06-20",
+      "elo": 1680.2
+    }
+  ]
+}

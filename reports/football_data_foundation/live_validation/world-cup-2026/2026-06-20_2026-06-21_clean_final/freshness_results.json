@@ -1,0 +1,110 @@
+[
+  {
+    "scanner_event_id": "scanner-worldcup-20260620-20260621-760447",
+    "provider_event_id": "760447",
+    "status_state": "post",
+    "status_name": "STATUS_FULL_TIME",
+    "freshness_decision": "FINAL_LOCKED_REUSABLE",
+    "must_refresh": false,
+    "stale_reason": null,
+    "evidence_retrieved_at": "2026-06-20T21:20:03.349534+00:00",
+    "diagnostics": {
+      "decision": "FINAL_LOCKED_REUSABLE",
+      "reason": "Final state matches current state and is locked"
+    },
+    "expires_at_utc": "2026-06-21T21:20:03.349534+00:00",
+    "snapshot_valid_until_utc": "2026-06-21T21:20:03.349534+00:00",
+    "status_sensitive": true
+  },
+  {
+    "scanner_event_id": "scanner-worldcup-20260620-20260621-760448",
+    "provider_event_id": "760448",
+    "status_state": "in",
+    "status_name": "STATUS_IN_PROGRESS",
+    "freshness_decision": "LIVE_SHORT_TTL_REUSABLE",
+    "must_refresh": false,
+    "stale_reason": null,
+    "evidence_retrieved_at": "2026-06-20T21:20:03.349534+00:00",
+    "diagnostics": {
+      "decision": "LIVE_SHORT_TTL_REUSABLE",
+      "reason": "Within TTL and status matches"
+    },
+    "live_ttl_seconds": 60,
+    "expires_at_utc": "2026-06-20T21:21:03.349534+00:00",
+    "snapshot_valid_until_utc": "2026-06-20T21:21:03.349534+00:00",
+    "status_sensitive": true,
+    "complete_kind": "COMPLETE_FOR_SNAPSHOT"
+  },
+  {
+    "scanner_event_id": "scanner-worldcup-20260620-20260621-760446",
+    "provider_event_id": "760446",
+    "status_state": "pre",
+    "status_name": "STATUS_SCHEDULED",
+    "freshness_decision": "FRESH_REUSABLE",
+    "must_refresh": false,
+    "stale_reason": null,
+    "evidence_retrieved_at": "2026-06-20T21:20:03.349534+00:00",
+    "diagnostics": {
+      "decision": "FRESH_REUSABLE",
+      "reason": "Within TTL and status matches"
+    },
+    "expires_at_utc": "2026-06-20T21:25:03.349534+00:00",
+    "snapshot_valid_until_utc": "2026-06-20T21:25:03.349534+00:00",
+    "status_sensitive": true,
+    "pre_match_ttl_seconds": 300
+  },
+  {
+    "scanner_event_id": "scanner-worldcup-20260620-20260621-760449",
+    "provider_event_id": "760449",
+    "status_state": "pre",
+    "status_name": "STATUS_SCHEDULED",
+    "freshness_decision": "FRESH_REUSABLE",
+    "must_refresh": false,
+    "stale_reason": null,
+    "evidence_retrieved_at": "2026-06-20T21:20:03.349534+00:00",
+    "diagnostics": {
+      "decision": "FRESH_REUSABLE",
+      "reason": "Within TTL and status matches"
+    },
+    "expires_at_utc": "2026-06-20T21:25:03.349534+00:00",
+    "snapshot_valid_until_utc": "2026-06-20T21:25:03.349534+00:00",
+    "status_sensitive": true,
+    "pre_match_ttl_seconds": 300
+  },
+  {
+    "scanner_event_id": "scanner-worldcup-20260620-20260621-760453",
+    "provider_event_id": "760453",
+    "status_state": "pre",
+    "status_name": "STATUS_SCHEDULED",
+    "freshness_decision": "FRESH_REUSABLE",
+    "must_refresh": false,
+    "stale_reason": null,
+    "evidence_retrieved_at": "2026-06-20T21:20:03.349534+00:00",
+    "diagnostics": {
+      "decision": "FRESH_REUSABLE",
+      "reason": "Within TTL and status matches"
+    },
+    "expires_at_utc": "2026-06-20T21:25:03.349534+00:00",
+    "snapshot_valid_until_utc": "2026-06-20T21:25:03.349534+00:00",
+    "status_sensitive": true,
+    "pre_match_ttl_seconds": 300
+  },
+  {
+    "scanner_event_id": "scanner-worldcup-20260620-20260621-760451",
+    "provider_event_id": "760451",
+    "status_state": "pre",
+    "status_name": "STATUS_SCHEDULED",
+    "freshness_decision": "FRESH_REUSABLE",
+    "must_refresh": false,
+    "stale_reason": null,
+    "evidence_retrieved_at": "2026-06-20T21:20:03.349534+00:00",
+    "diagnostics": {
+      "decision": "FRESH_REUSABLE",
+      "reason": "Within TTL and status matches"
+    },
+    "expires_at_utc": "2026-06-20T21:25:03.349534+00:00",
+    "snapshot_valid_until_utc": "2026-06-20T21:25:03.349534+00:00",
+    "status_sensitive": true,
+    "pre_match_ttl_seconds": 300
+  }
+]

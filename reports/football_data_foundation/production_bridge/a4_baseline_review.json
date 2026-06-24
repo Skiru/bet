@@ -1,0 +1,43 @@
+{
+  "phase_id": "FOOTBALL_DATA_FOUNDATION_A4_PRODUCTION_DB_SCANNER_BRIDGE_AND_PERSISTED_ENRICHMENT_STATE",
+  "profile_id": "world-cup-2026",
+  "baseline_status": "PASS",
+  "assertions": {
+    "provider_event_id_corrected_to_real_espn_id": {
+      "status": "PASS",
+      "scanner_event_id": "66456944",
+      "provider_event_id": "760442",
+      "evidence_paths": [
+        "reports/football_data_foundation/active_enrichment_profiles/world-cup-2026/a3c1_defect_review.json",
+        "reports/football_data_foundation/active_enrichment_profiles/world-cup-2026/endpoint_verification.json",
+        "reports/football_data_foundation/active_enrichment_profiles/world-cup-2026/event_identity_map.json"
+      ]
+    },
+    "empty_store_fails_closed": {
+      "status": "PASS",
+      "evidence_path": "reports/football_data_foundation/active_enrichment_profiles/world-cup-2026/active_enrichment_dry_run_empty_store.json",
+      "observed_status": "ENRICH_FAILED_CLOSED",
+      "fact_count": 0
+    },
+    "reuse_store_returns_real_facts": {
+      "status": "PASS",
+      "evidence_path": "reports/football_data_foundation/active_enrichment_profiles/world-cup-2026/active_enrichment_dry_run_reuse_store.json",
+      "placeholder_verified_scheduled_absent": true,
+      "provider_event_id": "760442"
+    },
+    "matrix_activation_deferred": {
+      "status": "PASS",
+      "evidence_path": "reports/football_data_foundation/active_enrichment_profiles/world-cup-2026/schema_activation_decision.json",
+      "observed_status": "MATRIX_ACTIVATION_DEFERRED"
+    },
+    "routing_activation_deferred": {
+      "status": "PASS",
+      "evidence_path": "reports/football_data_foundation/active_enrichment_profiles/world-cup-2026/schema_activation_decision.json",
+      "observed_status": "ROUTING_ACTIVATION_DEFERRED"
+    },
+    "no_prediction_or_betting_decision_modules_touched_by_a3c1": {
+      "status": "PASS",
+      "evidence": "git show ed34a52c732ac1e977f847e568549037ea8104d7 lists only football_data_foundation reports/tests/fixtures and no prediction, valuation, staking, coupon, gate, or decision paths."
+    }
+  }
+}

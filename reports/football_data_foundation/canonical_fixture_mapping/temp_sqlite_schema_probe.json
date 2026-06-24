@@ -1,0 +1,39 @@
+{
+  "schema_version": 20,
+  "foreign_keys_enabled": true,
+  "table_existence": {
+    "sports": true,
+    "competitions": true,
+    "teams": true,
+    "fixtures": true,
+    "fixture_sources": true,
+    "scan_results": true,
+    "sports_entity": true,
+    "source_entity_reference": true,
+    "evidence_package_revision": true,
+    "sports_enrichment_run": true,
+    "source_operation_attempt": true,
+    "fixture_capability_observation": true,
+    "fixture_capability_projection": true
+  },
+  "initial_table_counts": {
+    "sports": 0,
+    "competitions": 0,
+    "teams": 0,
+    "fixtures": 0,
+    "fixture_sources": 0,
+    "scan_results": 0,
+    "sports_entity": 0,
+    "source_entity_reference": 0,
+    "evidence_package_revision": 0,
+    "sports_enrichment_run": 0,
+    "source_operation_attempt": 0,
+    "fixture_capability_observation": 0,
+    "fixture_capability_projection": 0
+  },
+  "no_real_db_writes_confirmed": true,
+  "diagnostics": {
+    "journal_mode": "memory",
+    "sqlite_connection": ":memory:"
+  }
+}

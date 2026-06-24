@@ -1,0 +1,26 @@
+{
+  "sanitized": true,
+  "competition_id": "PL",
+  "season": {
+    "startDate": "2025-08-11"
+  },
+  "standings": [
+    {
+      "stage": "REGULAR_SEASON",
+      "type": "TOTAL",
+      "table": [
+        {
+          "position": 1,
+          "team": {"id": 57, "name": "Arsenal FC"},
+          "points": 3
+        }
+      ]
+    }
+  ],
+  "table": [
+    {
+      "team": "Arsenal FC",
+      "points": 3
+    }
+  ]
+}

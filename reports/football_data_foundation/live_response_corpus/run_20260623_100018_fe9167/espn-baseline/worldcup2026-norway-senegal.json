@@ -1,0 +1,19 @@
+{
+  "body": null,
+  "body_sha256": null,
+  "captured_at_utc": "2026-06-23T10:00:20.893565Z",
+  "error": null,
+  "fixture_slug": "worldcup2026-norway-senegal",
+  "network_used": false,
+  "provider": "espn-baseline",
+  "provider_fixture_id": null,
+  "provider_mapping_status": "UNKNOWN",
+  "raw_headers_stored": false,
+  "request_attempted": false,
+  "request_purpose": "fixture_detail",
+  "secrets_stored": false,
+  "selectable_for_production": false,
+  "source_url": null,
+  "status": "BLOCKED_PROVIDER_MAPPING_MISSING",
+  "status_code": null
+}

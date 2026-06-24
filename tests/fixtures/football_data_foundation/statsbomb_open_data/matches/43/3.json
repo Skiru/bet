@@ -1,0 +1,12 @@
+{
+  "retrieved_at": "2024-01-01T00:00:00Z",
+  "records": [
+    {
+      "match_id": 1001,
+      "home_team": "Alpha FC",
+      "away_team": "Beta FC",
+      "home_score": 2,
+      "away_score": 1
+    }
+  ]
+}

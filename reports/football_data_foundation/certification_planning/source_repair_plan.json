@@ -1,0 +1,161 @@
+{
+  "accepted_a2_sha": "522c2f77a91bcbd68f38710039d4f18e7c80492e",
+  "calibration_profile": "pre-certification",
+  "source_repair_plan": [
+    {
+      "current_status": "PARSE_ERROR",
+      "next_action": "Use global/date semantics. Ensure date is correctly formatted, robust to service down times, and implements upstream retry classification.",
+      "operation": "read_by_date",
+      "priority": "high",
+      "requires_dependency": false,
+      "requires_secret_or_browser": false,
+      "safe_to_retry_live": true,
+      "source_id": "soccerdata/ClubElo",
+      "suspected_cause": "ClubElo API has no league schedule filtering and expects global date queries. Upstream service can also be down with 503."
+    },
+    {
+      "current_status": "PARSE_ERROR",
+      "next_action": "Implement robust league alias resolution mapping. Gracefully handle HTTP 503 / ConnectionError from football-data.co.uk.",
+      "operation": "read_games",
+      "priority": "high",
+      "requires_dependency": false,
+      "requires_secret_or_browser": false,
+      "safe_to_retry_live": true,
+      "source_id": "soccerdata/MatchHistory",
+      "suspected_cause": "Upstream football-data.co.uk service was offline returning 503, or league/season human label was passed raw instead of using explicit alias resolution mapping."
+    },
+    {
+      "current_status": "EVIDENCE_READY",
+      "next_action": "Remove init_kwargs like leagues and seasons for SoFIFA. Run read_versions globally without league schedule semantics. Treated as ratings_context/context-only, not schedule/team stats route.",
+      "operation": "read_versions",
+      "priority": "high",
+      "requires_dependency": false,
+      "requires_secret_or_browser": false,
+      "safe_to_retry_live": true,
+      "source_id": "soccerdata/SoFIFA",
+      "suspected_cause": "TypeError because SoFIFA constructor got unexpected seasons argument. SoFIFA does not accept leagues/seasons in constructor."
+    },
+    {
+      "current_status": "IMPLEMENTED_ACTIVE",
+      "next_action": "Increase source_budget parameter to 3 or run with specific rich stats selection under pre-certification profile.",
+      "operation": "read_team_match_stats",
+      "priority": "medium",
+      "requires_dependency": false,
+      "requires_secret_or_browser": false,
+      "safe_to_retry_live": true,
+      "source_id": "soccerdata/FBref",
+      "suspected_cause": "source_budget_exhausted"
+    },
+    {
+      "current_status": "EVIDENCE_READY",
+      "next_action": "Increase source_budget parameter to 2 or run with specific rich stats selection.",
+      "operation": "read_team_match_stats",
+      "priority": "medium",
+      "requires_dependency": false,
+      "requires_secret_or_browser": false,
+      "safe_to_retry_live": true,
+      "source_id": "soccerdata/Understat",
+      "suspected_cause": "source_budget_exhausted"
+    },
+    {
+      "current_status": "NOT_SUPPORTED",
+      "next_action": "Ensure browser-heavy scrapers are correctly skipped by default. Enable only when headless Playwright is pre-certified and safe.",
+      "operation": "read_schedule",
+      "priority": "low",
+      "requires_dependency": true,
+      "requires_secret_or_browser": true,
+      "safe_to_retry_live": false,
+      "source_id": "soccerdata/WhoScored",
+      "suspected_cause": "browser_source_disabled"
+    },
+    {
+      "current_status": "NOT_SUPPORTED",
+      "next_action": "Skip by default. Playwright headless browser setup required.",
+      "operation": "read_missing_players",
+      "priority": "low",
+      "requires_dependency": true,
+      "requires_secret_or_browser": true,
+      "safe_to_retry_live": false,
+      "source_id": "soccerdata/WhoScored",
+      "suspected_cause": "browser_source_disabled"
+    },
+    {
+      "current_status": "NOT_SUPPORTED",
+      "next_action": "Skip by default. Requires headless browser and high source budget/time.",
+      "operation": "read_events",
+      "priority": "low",
+      "requires_dependency": true,
+      "requires_secret_or_browser": true,
+      "safe_to_retry_live": false,
+      "source_id": "soccerdata/WhoScored",
+      "suspected_cause": "browser_source_disabled"
+    },
+    {
+      "current_status": "NOT_SUPPORTED",
+      "next_action": "Keep as optional smoke import bridge only. Playwright required.",
+      "operation": "read_match_stats",
+      "priority": "low",
+      "requires_dependency": true,
+      "requires_secret_or_browser": true,
+      "safe_to_retry_live": false,
+      "source_id": "rich_unofficial/ScraperFCSofascore",
+      "suspected_cause": "browser_source_disabled or optional dependency ScraperFC missing"
+    },
+    {
+      "current_status": "DEPENDENCY_MISSING",
+      "next_action": "Ensure statsbombpy optional bridge works offline via import checks.",
+      "operation": "competitions",
+      "priority": "low",
+      "requires_dependency": true,
+      "requires_secret_or_browser": false,
+      "safe_to_retry_live": false,
+      "source_id": "open_reference/StatsBombPy",
+      "suspected_cause": "Optional dependency statsbombpy is missing or skipped as import smoke"
+    },
+    {
+      "current_status": "DEPENDENCY_MISSING",
+      "next_action": "Check offline import bridge.",
+      "operation": "convert_events",
+      "priority": "low",
+      "requires_dependency": true,
+      "requires_secret_or_browser": false,
+      "safe_to_retry_live": false,
+      "source_id": "event_model/socceraction_bridge",
+      "suspected_cause": "Optional dependency socceraction is missing or skipped as import smoke"
+    },
+    {
+      "current_status": "DEPENDENCY_MISSING",
+      "next_action": "Check offline import bridge.",
+      "operation": "load_tracking_data",
+      "priority": "low",
+      "requires_dependency": true,
+      "requires_secret_or_browser": false,
+      "safe_to_retry_live": false,
+      "source_id": "event_model/kloppy_bridge",
+      "suspected_cause": "Optional dependency kloppy is missing or skipped as import smoke"
+    },
+    {
+      "current_status": "DEPENDENCY_MISSING",
+      "next_action": "Check offline import bridge.",
+      "operation": "load_events",
+      "priority": "low",
+      "requires_dependency": true,
+      "requires_secret_or_browser": false,
+      "safe_to_retry_live": false,
+      "source_id": "event_model/floodlight_bridge",
+      "suspected_cause": "Optional dependency floodlight is missing or skipped as import smoke"
+    },
+    {
+      "current_status": "DEPENDENCY_MISSING",
+      "next_action": "Check offline import bridge.",
+      "operation": "draw_pitch",
+      "priority": "low",
+      "requires_dependency": true,
+      "requires_secret_or_browser": false,
+      "safe_to_retry_live": false,
+      "source_id": "event_model/mplsoccer_bridge",
+      "suspected_cause": "Optional dependency mplsoccer is missing or skipped as import smoke"
+    }
+  ],
+  "timestamp_utc": "2026-06-19T17:27:13.199708+00:00"
+}

@@ -1,0 +1,1309 @@
+{
+  "access_mode": "DIRECT",
+  "body": [
+    {
+      "code": "AS",
+      "logo": "https://highlightly.net/soccer/images/countries/AS.svg",
+      "name": "American Samoa"
+    },
+    {
+      "code": "AD",
+      "logo": "https://highlightly.net/soccer/images/countries/AD.svg",
+      "name": "Andorra"
+    },
+    {
+      "code": "AO",
+      "logo": "https://highlightly.net/soccer/images/countries/AO.svg",
+      "name": "Angola"
+    },
+    {
+      "code": "AZ",
+      "logo": "https://highlightly.net/soccer/images/countries/AZ.svg",
+      "name": "Azerbaidjan"
+    },
+    {
+      "code": "AR",
+      "logo": "https://highlightly.net/soccer/images/countries/AR.svg",
+      "name": "Argentina"
+    },
+    {
+      "code": "AT",
+      "logo": "https://highlightly.net/soccer/images/countries/AT.svg",
+      "name": "Austria"
+    },
+    {
+      "code": "BS",
+      "logo": "https://highlightly.net/soccer/images/countries/BS.svg",
+      "name": "Bahamas"
+    },
+    {
+      "code": "BH",
+      "logo": "https://highlightly.net/soccer/images/countries/BH.svg",
+      "name": "Bahrain"
+    },
+    {
+      "code": "BD",
+      "logo": "https://highlightly.net/soccer/images/countries/BD.svg",
+      "name": "Bangladesh"
+    },
+    {
+      "code": "AM",
+      "logo": "https://highlightly.net/soccer/images/countries/AM.svg",
+      "name": "Armenia"
+    },
+    {
+      "code": "BB",
+      "logo": "https://highlightly.net/soccer/images/countries/BB.svg",
+      "name": "Barbados"
+    },
+    {
+      "code": "BE",
+      "logo": "https://highlightly.net/soccer/images/countries/BE.svg",
+      "name": "Belgium"
+    },
+    {
+      "code": "BA",
+      "logo": "https://highlightly.net/soccer/images/countries/BA.svg",
+      "name": "Bosnia"
+    },
+    {
+      "code": "BW",
+      "logo": "https://highlightly.net/soccer/images/countries/BW.svg",
+      "name": "Botswana"
+    },
+    {
+      "code": "BV",
+      "logo": "https://highlightly.net/soccer/images/countries/BV.svg",
+      "name": "Bouvet Island"
+    },
+    {
+      "code": "BR",
+      "logo": "https://highlightly.net/soccer/images/countries/BR.svg",
+      "name": "Brazil"
+    },
+    {
+      "code": "BZ",
+      "logo": "https://highlightly.net/soccer/images/countries/BZ.svg",
+      "name": "Belize"
+    },
+    {
+      "code": "SB",
+      "logo": "https://highlightly.net/soccer/images/countries/SB.svg",
+      "name": "Solomon Islands"
+    },
+    {
+      "code": "VG",
+      "logo": "https://highlightly.net/soccer/images/countries/VG.svg",
+      "name": "British Virgin Islands"
+    },
+    {
+      "code": "BG",
+      "logo": "https://highlightly.net/soccer/images/countries/BG.svg",
+      "name": "Bulgaria"
+    },
+    {
+      "code": "MM",
+      "logo": "https://highlightly.net/soccer/images/countries/MM.svg",
+      "name": "Myanmar"
+    },
+    {
+      "code": "BI",
+      "logo": "https://highlightly.net/soccer/images/countries/BI.svg",
+      "name": "Burundi"
+    },
+    {
+      "code": "BY",
+      "logo": "https://highlightly.net/soccer/images/countries/BY.svg",
+      "name": "Belarus"
+    },
+    {
+      "code": "KH",
+      "logo": "https://highlightly.net/soccer/images/countries/KH.svg",
+      "name": "Cambodia"
+    },
+    {
+      "code": "CM",
+      "logo": "https://highlightly.net/soccer/images/countries/CM.svg",
+      "name": "Cameroon"
+    },
+    {
+      "code": "CV",
+      "logo": "https://highlightly.net/soccer/images/countries/CV.svg",
+      "name": "Cape Verde"
+    },
+    {
+      "code": "KY",
+      "logo": "https://highlightly.net/soccer/images/countries/KY.svg",
+      "name": "Cayman Islands"
+    },
+    {
+      "code": "LK",
+      "logo": "https://highlightly.net/soccer/images/countries/LK.svg",
+      "name": "Sri Lanka"
+    },
+    {
+      "code": "TD",
+      "logo": "https://highlightly.net/soccer/images/countries/TD.svg",
+      "name": "Chad"
+    },
+    {
+      "code": "CL",
+      "logo": "https://highlightly.net/soccer/images/countries/CL.svg",
+      "name": "Chile"
+    },
+    {
+      "code": "CN",
+      "logo": "https://highlightly.net/soccer/images/countries/CN.svg",
+      "name": "China"
+    },
+    {
+      "code": "CC",
+      "logo": "https://highlightly.net/soccer/images/countries/CC.svg",
+      "name": "Cocos (Keeling) Islands"
+    },
+    {
+      "code": "TT",
+      "logo": "https://highlightly.net/soccer/images/countries/TT.svg",
+      "name": "Trinidad And Tobago"
+    },
+    {
+      "code": "CO",
+      "logo": "https://highlightly.net/soccer/images/countries/CO.svg",
+      "name": "Colombia"
+    },
+    {
+      "code": "KM",
+      "logo": "https://highlightly.net/soccer/images/countries/KM.svg",
+      "name": "Comoros"
+    },
+    {
+      "code": "YT",
+      "logo": "https://highlightly.net/soccer/images/countries/YT.svg",
+      "name": "Mayotte"
+    },
+    {
+      "code": "CG",
+      "logo": "https://highlightly.net/soccer/images/countries/CG.svg",
+      "name": "Congo DR"
+    },
+    {
+      "code": "CD",
+      "logo": "https://highlightly.net/soccer/images/countries/CD.svg",
+      "name": "Congo"
+    },
+    {
+      "code": "CK",
+      "logo": "https://highlightly.net/soccer/images/countries/CK.svg",
+      "name": "Cook Islands"
+    },
+    {
+      "code": "CU",
+      "logo": "https://highlightly.net/soccer/images/countries/CU.svg",
+      "name": "Cuba"
+    },
+    {
+      "code": "CY",
+      "logo": "https://highlightly.net/soccer/images/countries/CY.svg",
+      "name": "Cyprus"
+    },
+    {
+      "code": "CZ",
+      "logo": "https://highlightly.net/soccer/images/countries/CZ.svg",
+      "name": "Czech Republic"
+    },
+    {
+      "code": "BJ",
+      "logo": "https://highlightly.net/soccer/images/countries/BJ.svg",
+      "name": "Benin"
+    },
+    {
+      "code": "DK",
+      "logo": "https://highlightly.net/soccer/images/countries/DK.svg",
+      "name": "Denmark"
+    },
+    {
+      "code": "DM",
+      "logo": "https://highlightly.net/soccer/images/countries/DM.svg",
+      "name": "Dominica"
+    },
+    {
+      "code": "DO",
+      "logo": "https://highlightly.net/soccer/images/countries/DO.svg",
+      "name": "Dominican Republic"
+    },
+    {
+      "code": "SV",
+      "logo": "https://highlightly.net/soccer/images/countries/SV.svg",
+      "name": "El Salvador"
+    },
+    {
+      "code": "ET",
+      "logo": "https://highlightly.net/soccer/images/countries/ET.svg",
+      "name": "Ethiopia"
+    },
+    {
+      "code": "ER",
+      "logo": "https://highlightly.net/soccer/images/countries/ER.svg",
+      "name": "Eritrea"
+    },
+    {
+      "code": "EE",
+      "logo": "https://highlightly.net/soccer/images/countries/EE.svg",
+      "name": "Estonia"
+    },
+    {
+      "code": "FO",
+      "logo": "https://highlightly.net/soccer/images/countries/FO.svg",
+      "name": "Faroe Islands"
+    },
+    {
+      "code": "GS",
+      "logo": "https://highlightly.net/soccer/images/countries/GS.svg",
+      "name": "South Georgia and the South Sandwich Islands"
+    },
+    {
+      "code": "FJ",
+      "logo": "https://highlightly.net/soccer/images/countries/FJ.svg",
+      "name": "Fiji"
+    },
+    {
+      "code": "FI",
+      "logo": "https://highlightly.net/soccer/images/countries/FI.svg",
+      "name": "Finland"
+    },
+    {
+      "code": "AX",
+      "logo": "https://highlightly.net/soccer/images/countries/AX.svg",
+      "name": "?land Islands"
+    },
+    {
+      "code": "FR",
+      "logo": "https://highlightly.net/soccer/images/countries/FR.svg",
+      "name": "France"
+    },
+    {
+      "code": "PF",
+      "logo": "https://highlightly.net/soccer/images/countries/PF.svg",
+      "name": "French Polynesia"
+    },
+    {
+      "code": "TF",
+      "logo": "https://highlightly.net/soccer/images/countries/TF.svg",
+      "name": "French Southern Territories"
+    },
+    {
+      "code": "DJ",
+      "logo": "https://highlightly.net/soccer/images/countries/DJ.svg",
+      "name": "Djibouti"
+    },
+    {
+      "code": "GA",
+      "logo": "https://highlightly.net/soccer/images/countries/GA.svg",
+      "name": "Gabon"
+    },
+    {
+      "code": "GE",
+      "logo": "https://highlightly.net/soccer/images/countries/GE.svg",
+      "name": "Georgia"
+    },
+    {
+      "code": "GM",
+      "logo": "https://highlightly.net/soccer/images/countries/GM.svg",
+      "name": "Gambia"
+    },
+    {
+      "code": "GH",
+      "logo": "https://highlightly.net/soccer/images/countries/GH.svg",
+      "name": "Ghana"
+    },
+    {
+      "code": "GI",
+      "logo": "https://highlightly.net/soccer/images/countries/GI.svg",
+      "name": "Gibraltar"
+    },
+    {
+      "code": "KI",
+      "logo": "https://highlightly.net/soccer/images/countries/KI.svg",
+      "name": "Kiribati"
+    },
+    {
+      "code": "GL",
+      "logo": "https://highlightly.net/soccer/images/countries/GL.svg",
+      "name": "Greenland"
+    },
+    {
+      "code": "GD",
+      "logo": "https://highlightly.net/soccer/images/countries/GD.svg",
+      "name": "Grenada"
+    },
+    {
+      "code": "SZ",
+      "logo": "https://highlightly.net/soccer/images/countries/SZ.svg",
+      "name": "Eswatini"
+    },
+    {
+      "code": "US",
+      "logo": "https://highlightly.net/soccer/images/countries/US.svg",
+      "name": "USA"
+    },
+    {
+      "code": "LA",
+      "logo": "https://highlightly.net/soccer/images/countries/LA.svg",
+      "name": "Laos"
+    },
+    {
+      "code": "WLS",
+      "logo": "https://highlightly.net/soccer/images/countries/WLS.svg",
+      "name": "Wales"
+    },
+    {
+      "code": "GY",
+      "logo": "https://highlightly.net/soccer/images/countries/GY.svg",
+      "name": "Guyana"
+    },
+    {
+      "code": "HT",
+      "logo": "https://highlightly.net/soccer/images/countries/HT.svg",
+      "name": "Haiti"
+    },
+    {
+      "code": "HN",
+      "logo": "https://highlightly.net/soccer/images/countries/HN.svg",
+      "name": "Honduras"
+    },
+    {
+      "code": "HK",
+      "logo": "https://highlightly.net/soccer/images/countries/HK.svg",
+      "name": "Hong Kong"
+    },
+    {
+      "code": "DZ",
+      "logo": "https://highlightly.net/soccer/images/countries/DZ.svg",
+      "name": "Algeria"
+    },
+    {
+      "code": "IN",
+      "logo": "https://highlightly.net/soccer/images/countries/IN.svg",
+      "name": "India"
+    },
+    {
+      "code": "ID",
+      "logo": "https://highlightly.net/soccer/images/countries/ID.svg",
+      "name": "Indonesia"
+    },
+    {
+      "code": "IR",
+      "logo": "https://highlightly.net/soccer/images/countries/IR.svg",
+      "name": "Iran"
+    },
+    {
+      "code": "IQ",
+      "logo": "https://highlightly.net/soccer/images/countries/IQ.svg",
+      "name": "Iraq"
+    },
+    {
+      "code": "IE",
+      "logo": "https://highlightly.net/soccer/images/countries/IE.svg",
+      "name": "Ireland"
+    },
+    {
+      "code": "IL",
+      "logo": "https://highlightly.net/soccer/images/countries/IL.svg",
+      "name": "Israel"
+    },
+    {
+      "code": "IT",
+      "logo": "https://highlightly.net/soccer/images/countries/IT.svg",
+      "name": "Italy"
+    },
+    {
+      "code": "KZ",
+      "logo": "https://highlightly.net/soccer/images/countries/KZ.svg",
+      "name": "Kazakhstan"
+    },
+    {
+      "code": "JO",
+      "logo": "https://highlightly.net/soccer/images/countries/JO.svg",
+      "name": "Jordan"
+    },
+    {
+      "code": "KE",
+      "logo": "https://highlightly.net/soccer/images/countries/KE.svg",
+      "name": "Kenya"
+    },
+    {
+      "code": "KP",
+      "logo": "https://highlightly.net/soccer/images/countries/KP.svg",
+      "name": "Korea"
+    },
+    {
+      "code": "KR",
+      "logo": "https://highlightly.net/soccer/images/countries/KR.svg",
+      "name": "South Korea"
+    },
+    {
+      "code": "KW",
+      "logo": "https://highlightly.net/soccer/images/countries/KW.svg",
+      "name": "Kuwait"
+    },
+    {
+      "code": "KG",
+      "logo": "https://highlightly.net/soccer/images/countries/KG.svg",
+      "name": "Kyrgyzstan"
+    },
+    {
+      "code": "LS",
+      "logo": "https://highlightly.net/soccer/images/countries/LS.svg",
+      "name": "Lesotho"
+    },
+    {
+      "code": "LV",
+      "logo": "https://highlightly.net/soccer/images/countries/LV.svg",
+      "name": "Latvia"
+    },
+    {
+      "code": "LT",
+      "logo": "https://highlightly.net/soccer/images/countries/LT.svg",
+      "name": "Lithuania"
+    },
+    {
+      "code": "LU",
+      "logo": "https://highlightly.net/soccer/images/countries/LU.svg",
+      "name": "Luxembourg"
+    },
+    {
+      "code": "MO",
+      "logo": "https://highlightly.net/soccer/images/countries/MO.svg",
+      "name": "Macao"
+    },
+    {
+      "code": "MG",
+      "logo": "https://highlightly.net/soccer/images/countries/MG.svg",
+      "name": "Madagascar"
+    },
+    {
+      "code": "MW",
+      "logo": "https://highlightly.net/soccer/images/countries/MW.svg",
+      "name": "Malawi"
+    },
+    {
+      "code": "MY",
+      "logo": "https://highlightly.net/soccer/images/countries/MY.svg",
+      "name": "Malaysia"
+    },
+    {
+      "code": "MV",
+      "logo": "https://highlightly.net/soccer/images/countries/MV.svg",
+      "name": "Maldives"
+    },
+    {
+      "code": "ML",
+      "logo": "https://highlightly.net/soccer/images/countries/ML.svg",
+      "name": "Mali"
+    },
+    {
+      "code": "MQ",
+      "logo": "https://highlightly.net/soccer/images/countries/MQ.svg",
+      "name": "Martinique"
+    },
+    {
+      "code": "MR",
+      "logo": "https://highlightly.net/soccer/images/countries/MR.svg",
+      "name": "Mauritania"
+    },
+    {
+      "code": "MU",
+      "logo": "https://highlightly.net/soccer/images/countries/MU.svg",
+      "name": "Mauritius"
+    },
+    {
+      "code": "MX",
+      "logo": "https://highlightly.net/soccer/images/countries/MX.svg",
+      "name": "Mexico"
+    },
+    {
+      "code": "MC",
+      "logo": "https://highlightly.net/soccer/images/countries/MC.svg",
+      "name": "Monaco"
+    },
+    {
+      "code": "MN",
+      "logo": "https://highlightly.net/soccer/images/countries/MN.svg",
+      "name": "Mongolia"
+    },
+    {
+      "code": "MD",
+      "logo": "https://highlightly.net/soccer/images/countries/MD.svg",
+      "name": "Moldova"
+    },
+    {
+      "code": "MS",
+      "logo": "https://highlightly.net/soccer/images/countries/MS.svg",
+      "name": "Montserrat"
+    },
+    {
+      "code": "MZ",
+      "logo": "https://highlightly.net/soccer/images/countries/MZ.svg",
+      "name": "Mozambique"
+    },
+    {
+      "code": "OM",
+      "logo": "https://highlightly.net/soccer/images/countries/OM.svg",
+      "name": "Oman"
+    },
+    {
+      "code": "NA",
+      "logo": "https://highlightly.net/soccer/images/countries/NA.svg",
+      "name": "Namibia"
+    },
+    {
+      "code": "NR",
+      "logo": "https://highlightly.net/soccer/images/countries/NR.svg",
+      "name": "Nauru"
+    },
+    {
+      "code": "NP",
+      "logo": "https://highlightly.net/soccer/images/countries/NP.svg",
+      "name": "Nepal"
+    },
+    {
+      "code": "NL",
+      "logo": "https://highlightly.net/soccer/images/countries/NL.svg",
+      "name": "Netherlands"
+    },
+    {
+      "code": "CW",
+      "logo": "https://highlightly.net/soccer/images/countries/CW.svg",
+      "name": "Curacao"
+    },
+    {
+      "code": "AW",
+      "logo": "https://highlightly.net/soccer/images/countries/AW.svg",
+      "name": "Aruba"
+    },
+    {
+      "code": "NC",
+      "logo": "https://highlightly.net/soccer/images/countries/NC.svg",
+      "name": "New Caledonia"
+    },
+    {
+      "code": "VU",
+      "logo": "https://highlightly.net/soccer/images/countries/VU.svg",
+      "name": "Vanuatu"
+    },
+    {
+      "code": "NZ",
+      "logo": "https://highlightly.net/soccer/images/countries/NZ.svg",
+      "name": "New Zealand"
+    },
+    {
+      "code": "NI",
+      "logo": "https://highlightly.net/soccer/images/countries/NI.svg",
+      "name": "Nicaragua"
+    },
+    {
+      "code": "NE",
+      "logo": "https://highlightly.net/soccer/images/countries/NE.svg",
+      "name": "Niger"
+    },
+    {
+      "code": "NG",
+      "logo": "https://highlightly.net/soccer/images/countries/NG.svg",
+      "name": "Nigeria"
+    },
+    {
+      "code": "NU",
+      "logo": "https://highlightly.net/soccer/images/countries/NU.svg",
+      "name": "Niue"
+    },
+    {
+      "code": "NF",
+      "logo": "https://highlightly.net/soccer/images/countries/NF.svg",
+      "name": "Norfolk Island"
+    },
+    {
+      "code": "NO",
+      "logo": "https://highlightly.net/soccer/images/countries/NO.svg",
+      "name": "Norway"
+    },
+    {
+      "code": "FM",
+      "logo": "https://highlightly.net/soccer/images/countries/FM.svg",
+      "name": "Micronesia"
+    },
+    {
+      "code": "MH",
+      "logo": "https://highlightly.net/soccer/images/countries/MH.svg",
+      "name": "Marshall Islands"
+    },
+    {
+      "code": "PW",
+      "logo": "https://highlightly.net/soccer/images/countries/PW.svg",
+      "name": "Palau"
+    },
+    {
+      "code": "PK",
+      "logo": "https://highlightly.net/soccer/images/countries/PK.svg",
+      "name": "Pakistan"
+    },
+    {
+      "code": "PA",
+      "logo": "https://highlightly.net/soccer/images/countries/PA.svg",
+      "name": "Panama"
+    },
+    {
+      "code": "PG",
+      "logo": "https://highlightly.net/soccer/images/countries/PG.svg",
+      "name": "Papua New Guinea"
+    },
+    {
+      "code": "PY",
+      "logo": "https://highlightly.net/soccer/images/countries/PY.svg",
+      "name": "Paraguay"
+    },
+    {
+      "code": "PE",
+      "logo": "https://highlightly.net/soccer/images/countries/PE.svg",
+      "name": "Peru"
+    },
+    {
+      "code": "PN",
+      "logo": "https://highlightly.net/soccer/images/countries/PN.svg",
+      "name": "Pitcairn Islands"
+    },
+    {
+      "code": "PL",
+      "logo": "https://highlightly.net/soccer/images/countries/PL.svg",
+      "name": "Poland"
+    },
+    {
+      "code": "PT",
+      "logo": "https://highlightly.net/soccer/images/countries/PT.svg",
+      "name": "Portugal"
+    },
+    {
+      "code": "GW",
+      "logo": "https://highlightly.net/soccer/images/countries/GW.svg",
+      "name": "Guinea Bissau"
+    },
+    {
+      "code": "TL",
+      "logo": "https://highlightly.net/soccer/images/countries/TL.svg",
+      "name": "Timor Leste"
+    },
+    {
+      "code": "QA",
+      "logo": "https://highlightly.net/soccer/images/countries/QA.svg",
+      "name": "Qatar"
+    },
+    {
+      "code": "RE",
+      "logo": "https://highlightly.net/soccer/images/countries/RE.svg",
+      "name": "Reunion"
+    },
+    {
+      "code": "GP",
+      "logo": "https://highlightly.net/soccer/images/countries/GP.svg",
+      "name": "Guadeloupe"
+    },
+    {
+      "code": "GU",
+      "logo": "https://highlightly.net/soccer/images/countries/GU.svg",
+      "name": "Guam"
+    },
+    {
+      "code": "GT",
+      "logo": "https://highlightly.net/soccer/images/countries/GT.svg",
+      "name": "Guatemala"
+    },
+    {
+      "code": "GN",
+      "logo": "https://highlightly.net/soccer/images/countries/GN.svg",
+      "name": "Guinea"
+    },
+    {
+      "code": "AI",
+      "logo": "https://highlightly.net/soccer/images/countries/AI.svg",
+      "name": "Anguilla"
+    },
+    {
+      "code": "LC",
+      "logo": "https://highlightly.net/soccer/images/countries/LC.svg",
+      "name": "Saint Lucia"
+    },
+    {
+      "code": "PM",
+      "logo": "https://highlightly.net/soccer/images/countries/PM.svg",
+      "name": "Saint Pierre and Miquelon"
+    },
+    {
+      "code": "VC",
+      "logo": "https://highlightly.net/soccer/images/countries/VC.svg",
+      "name": "Saint Vincent and the Grenadines"
+    },
+    {
+      "code": "SM",
+      "logo": "https://highlightly.net/soccer/images/countries/SM.svg",
+      "name": "San Marino"
+    },
+    {
+      "code": "SA",
+      "logo": "https://highlightly.net/soccer/images/countries/SA.svg",
+      "name": "Saudi Arabia"
+    },
+    {
+      "code": "SN",
+      "logo": "https://highlightly.net/soccer/images/countries/SN.svg",
+      "name": "Senegal"
+    },
+    {
+      "code": "RS",
+      "logo": "https://highlightly.net/soccer/images/countries/RS.svg",
+      "name": "Serbia"
+    },
+    {
+      "code": "SC",
+      "logo": "https://highlightly.net/soccer/images/countries/SC.svg",
+      "name": "Seychelles"
+    },
+    {
+      "code": "SK",
+      "logo": "https://highlightly.net/soccer/images/countries/SK.svg",
+      "name": "Slovakia"
+    },
+    {
+      "code": "VN",
+      "logo": "https://highlightly.net/soccer/images/countries/VN.svg",
+      "name": "Vietnam"
+    },
+    {
+      "code": "SI",
+      "logo": "https://highlightly.net/soccer/images/countries/SI.svg",
+      "name": "Slovenia"
+    },
+    {
+      "code": "SO",
+      "logo": "https://highlightly.net/soccer/images/countries/SO.svg",
+      "name": "Somalia"
+    },
+    {
+      "code": "ZW",
+      "logo": "https://highlightly.net/soccer/images/countries/ZW.svg",
+      "name": "Zimbabwe"
+    },
+    {
+      "code": "SD",
+      "logo": "https://highlightly.net/soccer/images/countries/SD.svg",
+      "name": "Sudan"
+    },
+    {
+      "code": "SR",
+      "logo": "https://highlightly.net/soccer/images/countries/SR.svg",
+      "name": "Surinam"
+    },
+    {
+      "code": "SJ",
+      "logo": "https://highlightly.net/soccer/images/countries/SJ.svg",
+      "name": "Svalbard & Jan Mayen Islands"
+    },
+    {
+      "code": "SE",
+      "logo": "https://highlightly.net/soccer/images/countries/SE.svg",
+      "name": "Sweden"
+    },
+    {
+      "code": "CH",
+      "logo": "https://highlightly.net/soccer/images/countries/CH.svg",
+      "name": "Switzerland"
+    },
+    {
+      "code": "SY",
+      "logo": "https://highlightly.net/soccer/images/countries/SY.svg",
+      "name": "Syria"
+    },
+    {
+      "code": "TH",
+      "logo": "https://highlightly.net/soccer/images/countries/TH.svg",
+      "name": "Thailand"
+    },
+    {
+      "code": "TG",
+      "logo": "https://highlightly.net/soccer/images/countries/TG.svg",
+      "name": "Togo"
+    },
+    {
+      "code": "TO",
+      "logo": "https://highlightly.net/soccer/images/countries/TO.svg",
+      "name": "Tonga"
+    },
+    {
+      "code": "AE",
+      "logo": "https://highlightly.net/soccer/images/countries/AE.svg",
+      "name": "United Arab Emirates"
+    },
+    {
+      "code": "TN",
+      "logo": "https://highlightly.net/soccer/images/countries/TN.svg",
+      "name": "Tunisia"
+    },
+    {
+      "code": "TR",
+      "logo": "https://highlightly.net/soccer/images/countries/TR.svg",
+      "name": "Turkey"
+    },
+    {
+      "code": "TW",
+      "logo": "https://highlightly.net/soccer/images/countries/TW.svg",
+      "name": "Chinese Taipei"
+    },
+    {
+      "code": "TC",
+      "logo": "https://highlightly.net/soccer/images/countries/TC.svg",
+      "name": "Turks and Caicos Islands"
+    },
+    {
+      "code": "TV",
+      "logo": "https://highlightly.net/soccer/images/countries/TV.svg",
+      "name": "Tuvalu"
+    },
+    {
+      "code": "UG",
+      "logo": "https://highlightly.net/soccer/images/countries/UG.svg",
+      "name": "Uganda"
+    },
+    {
+      "code": "MK",
+      "logo": "https://highlightly.net/soccer/images/countries/MK.svg",
+      "name": "Macedonia"
+    },
+    {
+      "code": "EG",
+      "logo": "https://highlightly.net/soccer/images/countries/EG.svg",
+      "name": "Egypt"
+    },
+    {
+      "code": "GB",
+      "logo": "https://highlightly.net/soccer/images/countries/GB.svg",
+      "name": "United Kingdom"
+    },
+    {
+      "code": "GG",
+      "logo": "https://highlightly.net/soccer/images/countries/GG.svg",
+      "name": "Guernsey"
+    },
+    {
+      "code": "IM",
+      "logo": "https://highlightly.net/soccer/images/countries/IM.svg",
+      "name": "Isle of Man"
+    },
+    {
+      "code": "TZ",
+      "logo": "https://highlightly.net/soccer/images/countries/TZ.svg",
+      "name": "Tanzania"
+    },
+    {
+      "code": "BF",
+      "logo": "https://highlightly.net/soccer/images/countries/BF.svg",
+      "name": "Burkina Faso"
+    },
+    {
+      "code": "UY",
+      "logo": "https://highlightly.net/soccer/images/countries/UY.svg",
+      "name": "Uruguay"
+    },
+    {
+      "code": "UZ",
+      "logo": "https://highlightly.net/soccer/images/countries/UZ.svg",
+      "name": "Uzbekistan"
+    },
+    {
+      "code": "VE",
+      "logo": "https://highlightly.net/soccer/images/countries/VE.svg",
+      "name": "Venezuela"
+    },
+    {
+      "code": "WF",
+      "logo": "https://highlightly.net/soccer/images/countries/WF.svg",
+      "name": "Wallis and Futuna"
+    },
+    {
+      "code": "YE",
+      "logo": "https://highlightly.net/soccer/images/countries/YE.svg",
+      "name": "Yemen"
+    },
+    {
+      "code": "ZM",
+      "logo": "https://highlightly.net/soccer/images/countries/ZM.svg",
+      "name": "Zambia"
+    },
+    {
+      "code": "EU",
+      "logo": "https://highlightly.net/soccer/images/countries/EU.svg",
+      "name": "Europe"
+    },
+    {
+      "code": "ZA",
+      "logo": "https://highlightly.net/soccer/images/countries/ZA.svg",
+      "name": "South Africa"
+    },
+    {
+      "code": "PS",
+      "logo": "https://highlightly.net/soccer/images/countries/PS.svg",
+      "name": "Palestine"
+    },
+    {
+      "code": "CI",
+      "logo": "https://highlightly.net/soccer/images/countries/CI.svg",
+      "name": "Ivory Coast"
+    },
+    {
+      "code": "BM",
+      "logo": "https://highlightly.net/soccer/images/countries/BM.svg",
+      "name": "Bermuda"
+    },
+    {
+      "code": "XK",
+      "logo": "https://highlightly.net/soccer/images/countries/XK.svg",
+      "name": "Kosovo"
+    },
+    {
+      "code": "GB-NIR",
+      "logo": "https://highlightly.net/soccer/images/countries/GB-NIR.svg",
+      "name": "Northern Ireland"
+    },
+    {
+      "code": "AF",
+      "logo": "https://highlightly.net/soccer/images/countries/AF.svg",
+      "name": "Afghanistan"
+    },
+    {
+      "code": "RW",
+      "logo": "https://highlightly.net/soccer/images/countries/RW.svg",
+      "name": "Rwanda"
+    },
+    {
+      "code": "AQ",
+      "logo": "https://highlightly.net/soccer/images/countries/AQ.svg",
+      "name": "Antarctica"
+    },
+    {
+      "code": "AU",
+      "logo": "https://highlightly.net/soccer/images/countries/AU.svg",
+      "name": "Australia"
+    },
+    {
+      "code": "IO",
+      "logo": "https://highlightly.net/soccer/images/countries/IO.svg",
+      "name": "British Indian Ocean Territory"
+    },
+    {
+      "code": "CA",
+      "logo": "https://highlightly.net/soccer/images/countries/CA.svg",
+      "name": "Canada"
+    },
+    {
+      "code": "CX",
+      "logo": "https://highlightly.net/soccer/images/countries/CX.svg",
+      "name": "Christmas Island"
+    },
+    {
+      "code": "HR",
+      "logo": "https://highlightly.net/soccer/images/countries/HR.svg",
+      "name": "Croatia"
+    },
+    {
+      "code": "EC",
+      "logo": "https://highlightly.net/soccer/images/countries/EC.svg",
+      "name": "Ecuador"
+    },
+    {
+      "code": "FK",
+      "logo": "https://highlightly.net/soccer/images/countries/FK.svg",
+      "name": "Falkland Islands (Malvinas)"
+    },
+    {
+      "code": "DE",
+      "logo": "https://highlightly.net/soccer/images/countries/DE.svg",
+      "name": "Germany"
+    },
+    {
+      "code": "JP",
+      "logo": "https://highlightly.net/soccer/images/countries/JP.svg",
+      "name": "Japan"
+    },
+    {
+      "code": "LB",
+      "logo": "https://highlightly.net/soccer/images/countries/LB.svg",
+      "name": "Lebanon"
+    },
+    {
+      "code": "LY",
+      "logo": "https://highlightly.net/soccer/images/countries/LY.svg",
+      "name": "Libya"
+    },
+    {
+      "code": "LI",
+      "logo": "https://highlightly.net/soccer/images/countries/LI.svg",
+      "name": "Liechtenstein"
+    },
+    {
+      "code": "MA",
+      "logo": "https://highlightly.net/soccer/images/countries/MA.svg",
+      "name": "Morocco"
+    },
+    {
+      "code": "RU",
+      "logo": "https://highlightly.net/soccer/images/countries/RU.svg",
+      "name": "Russia"
+    },
+    {
+      "code": "SH",
+      "logo": "https://highlightly.net/soccer/images/countries/SH.svg",
+      "name": "Saint Helena"
+    },
+    {
+      "code": "KN",
+      "logo": "https://highlightly.net/soccer/images/countries/KN.svg",
+      "name": "Saint Kitts and Nevis"
+    },
+    {
+      "code": "AL",
+      "logo": "https://highlightly.net/soccer/images/countries/AL.svg",
+      "name": "Albania"
+    },
+    {
+      "code": "SX",
+      "logo": "https://highlightly.net/soccer/images/countries/SX.svg",
+      "name": "Sint Maarten (Netherlands)"
+    },
+    {
+      "code": "MP",
+      "logo": "https://highlightly.net/soccer/images/countries/MP.svg",
+      "name": "Northern Mariana Islands"
+    },
+    {
+      "code": "PH",
+      "logo": "https://highlightly.net/soccer/images/countries/PH.svg",
+      "name": "Philippines"
+    },
+    {
+      "code": "RO",
+      "logo": "https://highlightly.net/soccer/images/countries/RO.svg",
+      "name": "Romania"
+    },
+    {
+      "code": "BL",
+      "logo": "https://highlightly.net/soccer/images/countries/BL.svg",
+      "name": "Saint Barthelemy"
+    },
+    {
+      "code": "ST",
+      "logo": "https://highlightly.net/soccer/images/countries/ST.svg",
+      "name": "Sao Tome and Principe"
+    },
+    {
+      "code": "ES",
+      "logo": "https://highlightly.net/soccer/images/countries/ES.svg",
+      "name": "Spain"
+    },
+    {
+      "code": "TJ",
+      "logo": "https://highlightly.net/soccer/images/countries/TJ.svg",
+      "name": "Tajikistan"
+    },
+    {
+      "code": "TM",
+      "logo": "https://highlightly.net/soccer/images/countries/TM.svg",
+      "name": "Turkmenistan"
+    },
+    {
+      "code": "JE",
+      "logo": "https://highlightly.net/soccer/images/countries/JE.svg",
+      "name": "Jersey"
+    },
+    {
+      "code": "WS",
+      "logo": "https://highlightly.net/soccer/images/countries/WS.svg",
+      "name": "Samoa"
+    },
+    {
+      "code": "GB-SCT",
+      "logo": "https://highlightly.net/soccer/images/countries/GB-SCT.svg",
+      "name": "Scotland"
+    },
+    {
+      "code": "UA-43",
+      "logo": "https://highlightly.net/soccer/images/countries/UA-43.svg",
+      "name": "Crimea"
+    },
+    {
+      "code": "SG",
+      "logo": "https://highlightly.net/soccer/images/countries/SG.svg",
+      "name": "Singapore"
+    },
+    {
+      "code": "IS",
+      "logo": "https://highlightly.net/soccer/images/countries/IS.svg",
+      "name": "Iceland"
+    },
+    {
+      "code": "EH",
+      "logo": "https://highlightly.net/soccer/images/countries/EH.svg",
+      "name": "Western Sahara"
+    },
+    {
+      "code": "AG",
+      "logo": "https://highlightly.net/soccer/images/countries/AG.svg",
+      "name": "Antigua and Barbuda"
+    },
+    {
+      "code": "BO",
+      "logo": "https://highlightly.net/soccer/images/countries/BO.svg",
+      "name": "Bolivia"
+    },
+    {
+      "code": "BN",
+      "logo": "https://highlightly.net/soccer/images/countries/BN.svg",
+      "name": "Brunei Darussalam"
+    },
+    {
+      "code": "CF",
+      "logo": "https://highlightly.net/soccer/images/countries/CF.svg",
+      "name": "Central African Republic"
+    },
+    {
+      "code": "CR",
+      "logo": "https://highlightly.net/soccer/images/countries/CR.svg",
+      "name": "Costa Rica"
+    },
+    {
+      "code": "GQ",
+      "logo": "https://highlightly.net/soccer/images/countries/GQ.svg",
+      "name": "Equatorial Guinea"
+    },
+    {
+      "code": "GF",
+      "logo": "https://highlightly.net/soccer/images/countries/GF.svg",
+      "name": "French Guiana"
+    },
+    {
+      "code": "GR",
+      "logo": "https://highlightly.net/soccer/images/countries/GR.svg",
+      "name": "Greece"
+    },
+    {
+      "code": "HM",
+      "logo": "https://highlightly.net/soccer/images/countries/HM.svg",
+      "name": "Heard Island and McDonald Islands"
+    },
+    {
+      "code": "HU",
+      "logo": "https://highlightly.net/soccer/images/countries/HU.svg",
+      "name": "Hungary"
+    },
+    {
+      "code": "JM",
+      "logo": "https://highlightly.net/soccer/images/countries/JM.svg",
+      "name": "Jamaica"
+    },
+    {
+      "code": "LR",
+      "logo": "https://highlightly.net/soccer/images/countries/LR.svg",
+      "name": "Liberia"
+    },
+    {
+      "code": "MT",
+      "logo": "https://highlightly.net/soccer/images/countries/MT.svg",
+      "name": "Malta"
+    },
+    {
+      "code": "ME",
+      "logo": "https://highlightly.net/soccer/images/countries/ME.svg",
+      "name": "Montenegro"
+    },
+    {
+      "code": "BQ",
+      "logo": "https://highlightly.net/soccer/images/countries/BQ.svg",
+      "name": "Bonaire, Sint Eustatius and Saba"
+    },
+    {
+      "code": "UM",
+      "logo": "https://highlightly.net/soccer/images/countries/UM.svg",
+      "name": "United States Minor Outlying Islands"
+    },
+    {
+      "code": "PR",
+      "logo": "https://highlightly.net/soccer/images/countries/PR.svg",
+      "name": "Puerto Rico"
+    },
+    {
+      "code": "MF",
+      "logo": "https://highlightly.net/soccer/images/countries/MF.svg",
+      "name": "Saint Martin"
+    },
+    {
+      "code": "SL",
+      "logo": "https://highlightly.net/soccer/images/countries/SL.svg",
+      "name": "Sierra Leone"
+    },
+    {
+      "code": "SS",
+      "logo": "https://highlightly.net/soccer/images/countries/SS.svg",
+      "name": "South Sudan"
+    },
+    {
+      "code": "TK",
+      "logo": "https://highlightly.net/soccer/images/countries/TK.svg",
+      "name": "Tokelau"
+    },
+    {
+      "code": "UA",
+      "logo": "https://highlightly.net/soccer/images/countries/UA.svg",
+      "name": "Ukraine"
+    },
+    {
+      "code": "VI",
+      "logo": "https://highlightly.net/soccer/images/countries/VI.svg",
+      "name": "United States Virgin Islands"
+    },
+    {
+      "code": "World",
+      "logo": "https://highlightly.net/soccer/images/countries/World.png",
+      "name": "World"
+    },
+    {
+      "code": "BT",
+      "logo": "https://highlightly.net/soccer/images/countries/BT.svg",
+      "name": "Bhutan"
+    },
+    {
+      "code": "VA",
+      "logo": "https://highlightly.net/soccer/images/countries/VA.svg",
+      "name": "Holy See (Vatican City State)"
+    },
+    {
+      "code": "GB-ENG",
+      "logo": "https://highlightly.net/soccer/images/countries/GB-ENG.svg",
+      "name": "England"
+    },
+    {
+      "code": "WI",
+      "logo": "http://highlightly.net/soccer/images/countries/WI.svg",
+      "name": "West Indies"
+    }
+  ],
+  "body_sha256": "9dbd8a508889e296b4aa61ac06c4f5f288e949537a6ffd59a2d6959c25d29ac2",
+  "contributes_to_enrichment": false,
+  "error": null,
+  "network_used": true,
+  "provider": "highlightly",
+  "raw_headers_stored": false,
+  "request_attempted": true,
+  "request_purpose": "highlightly_countries_preflight",
+  "secrets_stored": false,
+  "selectable_for_production": false,
+  "source_url": "https://soccer.highlightly.net/countries",
+  "status": "SUCCESS",
+  "status_code": 200,
+  "transport": "urllib"
+}

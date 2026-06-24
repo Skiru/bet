@@ -1,0 +1,18 @@
+{
+  "scanner_event_id": "66456944",
+  "profile_id": "world-cup-2026",
+  "sport": "football",
+  "canonical_competition_scope": "football:world:8/world-championship:lvUBR5F8",
+  "canonical_season_scope": "2026",
+  "kickoff_local": "2026-06-19T21:00:00+02:00",
+  "kickoff_utc": "2026-06-19T19:00:00Z",
+  "home_team_name": "United States",
+  "home_team_code": "USA",
+  "away_team_name": "Australia",
+  "away_team_code": "AUS",
+  "group_label": "Group D",
+  "scanner_truth_kind": "schedule_snapshot",
+  "scanner_confidence": "high",
+  "scanner_source": "acceptance_fixture_seed",
+  "raw_refs": []
+}

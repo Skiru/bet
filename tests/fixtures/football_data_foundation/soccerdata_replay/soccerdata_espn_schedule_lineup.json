@@ -1,0 +1,21 @@
+{
+  "synthetic_normalized_probe_fixture": true,
+  "proof_level": "SYNTHETIC_CONTRACT_PROOF",
+  "source_family": "soccerdata_espn",
+  "records": [
+    {
+      "match_id": "espn_2026_usa_aus",
+      "date": "2026-06-20",
+      "home_team": "USA",
+      "away_team": "Australia",
+      "lineups": {
+        "home": [
+          {"player": "Matt Turner", "position": "GK", "number": 1}
+        ],
+        "away": [
+          {"player": "Mathew Ryan", "position": "GK", "number": 1}
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,59 @@
+{
+  "batch_id": "batch-success",
+  "source_key": "sportdb",
+  "adapter_name": "SportDBLiveClient",
+  "adapter_version": "football-foundation-pass2",
+  "generated_at": "2026-06-22T12:00:00Z",
+  "claims": [
+    {
+      "source_key": "sportdb",
+      "source_role": "CURRENT_LIVE",
+      "proof_level": "REAL_LIVE_API_PROOF",
+      "fact_type": "FIXTURE_IDENTITY",
+      "claim_value": {
+        "away_team": "Mexico",
+        "competition_name": "FIFA World Cup 2026",
+        "home_team": "Poland"
+      },
+      "confidence": 0.95,
+      "warnings": [],
+      "errors": []
+    },
+    {
+      "source_key": "sportdb",
+      "source_role": "CURRENT_LIVE",
+      "proof_level": "REAL_LIVE_API_PROOF",
+      "fact_type": "MATCH_STATUS",
+      "claim_value": {
+        "status": "FT"
+      },
+      "confidence": 0.95,
+      "warnings": [],
+      "errors": []
+    },
+    {
+      "source_key": "sportdb",
+      "source_role": "CURRENT_LIVE",
+      "proof_level": "REAL_LIVE_API_PROOF",
+      "fact_type": "SCORE",
+      "claim_value": {
+        "score_away": 1,
+        "score_home": 2
+      },
+      "confidence": 0.95,
+      "warnings": [],
+      "errors": []
+    }
+  ],
+  "summary_counts": {
+    "proof_level": {
+      "REAL_LIVE_API_PROOF": 3
+    },
+    "fact_type": {
+      "FIXTURE_IDENTITY": 1,
+      "MATCH_STATUS": 1,
+      "SCORE": 1
+    }
+  },
+  "selectable_for_production": false
+}

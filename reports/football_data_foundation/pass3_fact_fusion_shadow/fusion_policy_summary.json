@@ -1,0 +1,24 @@
+{
+  "current_truth_required_for": [
+    "MATCH_STATUS",
+    "SCORE",
+    "STANDINGS"
+  ],
+  "excluded_proof_levels": [
+    "DOCS_CAPABILITY_ONLY",
+    "SYNTHETIC_CONTRACT_PROOF",
+    "NO_PROOF"
+  ],
+  "excluded_source_roles": [
+    "EXPERIMENTAL_PROBE",
+    "LATER_PROVIDER_CANDIDATE",
+    "REJECTED_OR_DEFERRED"
+  ],
+  "manual_authorization_required": true,
+  "required_fact_types": [
+    "FIXTURE_IDENTITY",
+    "MATCH_STATUS",
+    "SCORE"
+  ],
+  "selectable_for_production": false
+}

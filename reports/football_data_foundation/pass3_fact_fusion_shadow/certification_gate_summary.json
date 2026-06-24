@@ -1,0 +1,16 @@
+{
+  "generic_club_match": {
+    "blockers": [],
+    "manual_authorization_required": true,
+    "selectable_for_production": false,
+    "status": "SHADOW_READY_FOR_MANUAL_REVIEW",
+    "warnings": []
+  },
+  "worldcup_2026_argentina_austria": {
+    "blockers": [],
+    "manual_authorization_required": true,
+    "selectable_for_production": false,
+    "status": "SHADOW_READY_FOR_MANUAL_REVIEW",
+    "warnings": []
+  }
+}

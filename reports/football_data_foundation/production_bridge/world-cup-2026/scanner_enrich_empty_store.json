@@ -1,0 +1,97 @@
+{
+  "error_code": "fetch_required",
+  "operation": "scanner_event_enrichment",
+  "parser_diagnostics": {
+    "db_activation_status": "DB_ACTIVATION_DEFERRED",
+    "fetch_decisions": [
+      {
+        "capability": "current_discovery",
+        "decision": "FETCH_REQUIRED",
+        "force_refresh": false,
+        "provider_priority": [
+          "espn-fifa-worldcup",
+          "soccerdata-espn-worldcup",
+          "sportdb-worldcup"
+        ],
+        "reason": "No completeness record exists for capability current_discovery."
+      },
+      {
+        "capability": "detailed_metrics",
+        "decision": "FETCH_REQUIRED",
+        "force_refresh": false,
+        "provider_priority": [
+          "espn-fifa-worldcup",
+          "soccerdata-espn-worldcup"
+        ],
+        "reason": "No completeness record exists for capability detailed_metrics."
+      },
+      {
+        "capability": "current_form",
+        "decision": "FETCH_REQUIRED",
+        "force_refresh": false,
+        "provider_priority": [
+          "espn-fifa-worldcup"
+        ],
+        "reason": "No completeness record exists for capability current_form."
+      }
+    ],
+    "production_betting_decision": false,
+    "requested_capabilities": [
+      "current_discovery",
+      "detailed_metrics",
+      "current_form"
+    ],
+    "storage_kind": "temp"
+  },
+  "provider": "scanner-bridge",
+  "request_identity": "world-cup-2026:66456944:current_discovery,detailed_metrics,current_form:normal",
+  "result": {
+    "completeness_state": [],
+    "db_activation_status": "DB_ACTIVATION_DEFERRED",
+    "evidence_identities": [],
+    "evidence_identity": null,
+    "facts": [],
+    "fetch_decisions": [
+      {
+        "capability": "current_discovery",
+        "decision": "FETCH_REQUIRED",
+        "force_refresh": false,
+        "provider_priority": [
+          "espn-fifa-worldcup",
+          "soccerdata-espn-worldcup",
+          "sportdb-worldcup"
+        ],
+        "reason": "No completeness record exists for capability current_discovery."
+      },
+      {
+        "capability": "detailed_metrics",
+        "decision": "FETCH_REQUIRED",
+        "force_refresh": false,
+        "provider_priority": [
+          "espn-fifa-worldcup",
+          "soccerdata-espn-worldcup"
+        ],
+        "reason": "No completeness record exists for capability detailed_metrics."
+      },
+      {
+        "capability": "current_form",
+        "decision": "FETCH_REQUIRED",
+        "force_refresh": false,
+        "provider_priority": [
+          "espn-fifa-worldcup"
+        ],
+        "reason": "No completeness record exists for capability current_form."
+      }
+    ],
+    "force_refresh": false,
+    "production_betting_decision": false,
+    "profile_id": "world-cup-2026",
+    "provider_event_id": null,
+    "provider_event_ids": [],
+    "scanner_event_id": "66456944",
+    "status": "ENRICH_FAILED_CLOSED",
+    "storage_kind": "temp"
+  },
+  "retrieved_at": "2026-06-19T21:24:13.575344+00:00",
+  "source_result_status": "EVIDENCE_ERROR"
+}

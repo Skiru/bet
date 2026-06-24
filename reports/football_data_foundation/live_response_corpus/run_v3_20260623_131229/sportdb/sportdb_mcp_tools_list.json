@@ -1,0 +1,495 @@
+{
+  "access_mode": "MCP",
+  "body": {
+    "tools": [
+      {
+        "description": "List available sports and their live feed links.",
+        "inputSchema": {
+          "properties": {},
+          "title": "flashscore_list_sportsArguments",
+          "type": "object"
+        },
+        "name": "flashscore_list_sports",
+        "outputSchema": {
+          "additionalProperties": true,
+          "title": "flashscore_list_sportsDictOutput",
+          "type": "object"
+        }
+      },
+      {
+        "description": "Get live events for a sport. Supports day offset and timezone offset.",
+        "inputSchema": {
+          "properties": {
+            "offset": {
+              "default": 0,
+              "title": "Offset",
+              "type": "integer"
+            },
+            "sport": {
+              "title": "Sport",
+              "type": "string"
+            },
+            "tz": {
+              "default": 0,
+              "title": "Tz",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "sport"
+          ],
+          "title": "flashscore_get_liveArguments",
+          "type": "object"
+        },
+        "name": "flashscore_get_live",
+        "outputSchema": {
+          "additionalProperties": true,
+          "title": "flashscore_get_liveDictOutput",
+          "type": "object"
+        }
+      },
+      {
+        "description": "Get live odds for a sport.",
+        "inputSchema": {
+          "properties": {
+            "sport": {
+              "title": "Sport",
+              "type": "string"
+            }
+          },
+          "required": [
+            "sport"
+          ],
+          "title": "flashscore_get_live_oddsArguments",
+          "type": "object"
+        },
+        "name": "flashscore_get_live_odds",
+        "outputSchema": {
+          "additionalProperties": true,
+          "title": "flashscore_get_live_oddsDictOutput",
+          "type": "object"
+        }
+      },
+      {
+        "description": "List countries or regions for a sport.",
+        "inputSchema": {
+          "properties": {
+            "sport": {
+              "title": "Sport",
+              "type": "string"
+            }
+          },
+          "required": [
+            "sport"
+          ],
+          "title": "flashscore_list_countriesArguments",
+          "type": "object"
+        },
+        "name": "flashscore_list_countries",
+        "outputSchema": {
+          "additionalProperties": true,
+          "title": "flashscore_list_countriesDictOutput",
+          "type": "object"
+        }
+      },
+      {
+        "description": "List competitions for a country/region in a sport. Pass structured refs: sport=soccer, country_slug=england, country_id=198.",
+        "inputSchema": {
+          "properties": {
+            "country_id": {
+              "title": "Country Id",
+              "type": "integer"
+            },
+            "country_slug": {
+              "title": "Country Slug",
+              "type": "string"
+            },
+            "sport": {
+              "title": "Sport",
+              "type": "string"
+            }
+          },
+          "required": [
+            "sport",
+            "country_slug",
+            "country_id"
+          ],
+          "title": "flashscore_list_competitionsArguments",
+          "type": "object"
+        },
+        "name": "flashscore_list_competitions",
+        "outputSchema": {
+          "additionalProperties": true,
+          "title": "flashscore_list_competitionsDictOutput",
+          "type": "object"
+        }
+      },
+      {
+        "description": "List seasons for a competition. Use structured refs: country_slug+country_id and competition_slug+competition_id.",
+        "inputSchema": {
+          "properties": {
+            "competition_id": {
+              "title": "Competition Id",
+              "type": "string"
+            },
+            "competition_slug": {
+              "title": "Competition Slug",
+              "type": "string"
+            },
+            "country_id": {
+              "title": "Country Id",
+              "type": "integer"
+            },
+            "country_slug": {
+              "title": "Country Slug",
+              "type": "string"
+            },
+            "sport": {
+              "title": "Sport",
+              "type": "string"
+            }
+          },
+          "required": [
+            "sport",
+            "country_slug",
+            "country_id",
+            "competition_slug",
+            "competition_id"
+          ],
+          "title": "flashscore_list_competition_seasonsArguments",
+          "type": "object"
+        },
+        "name": "flashscore_list_competition_seasons",
+        "outputSchema": {
+          "additionalProperties": true,
+          "title": "flashscore_list_competition_seasonsDictOutput",
+          "type": "object"
+        }
+      },
+      {
+        "description": "Get fixtures for a competition season (paged). Use structured refs and season from flashscore_list_competition_seasons.",
+        "inputSchema": {
+          "properties": {
+            "competition_id": {
+              "title": "Competition Id",
+              "type": "string"
+            },
+            "competition_slug": {
+              "title": "Competition Slug",
+              "type": "string"
+            },
+            "country_id": {
+              "title": "Country Id",
+              "type": "integer"
+            },
+            "country_slug": {
+              "title": "Country Slug",
+              "type": "string"
+            },
+            "page": {
+              "default": 1,
+              "title": "Page",
+              "type": "integer"
+            },
+            "season": {
+              "title": "Season",
+              "type": "string"
+            },
+            "sport": {
+              "title": "Sport",
+              "type": "string"
+            }
+          },
+          "required": [
+            "sport",
+            "country_slug",
+            "country_id",
+            "competition_slug",
+            "competition_id",
+            "season"
+          ],
+          "title": "flashscore_get_competition_fixturesArguments",
+          "type": "object"
+        },
+        "name": "flashscore_get_competition_fixtures",
+        "outputSchema": {
+          "additionalProperties": true,
+          "title": "flashscore_get_competition_fixturesDictOutput",
+          "type": "object"
+        }
+      },
+      {
+        "description": "Get results for a competition season (paged). Pass sport/country_slug/country_id/competition_slug/competition_id/season.",
+        "inputSchema": {
+          "properties": {
+            "competition_id": {
+              "title": "Competition Id",
+              "type": "string"
+            },
+            "competition_slug": {
+              "title": "Competition Slug",
+              "type": "string"
+            },
+            "country_id": {
+              "title": "Country Id",
+              "type": "integer"
+            },
+            "country_slug": {
+              "title": "Country Slug",
+              "type": "string"
+            },
+            "page": {
+              "default": 1,
+              "title": "Page",
+              "type": "integer"
+            },
+            "season": {
+              "title": "Season",
+              "type": "string"
+            },
+            "sport": {
+              "title": "Sport",
+              "type": "string"
+            }
+          },
+          "required": [
+            "sport",
+            "country_slug",
+            "country_id",
+            "competition_slug",
+            "competition_id",
+            "season"
+          ],
+          "title": "flashscore_get_competition_resultsArguments",
+          "type": "object"
+        },
+        "name": "flashscore_get_competition_results",
+        "outputSchema": {
+          "additionalProperties": true,
+          "title": "flashscore_get_competition_resultsDictOutput",
+          "type": "object"
+        }
+      },
+      {
+        "description": "Get standings for a competition season. Use structured refs and season from flashscore_list_competition_seasons.",
+        "inputSchema": {
+          "properties": {
+            "competition_id": {
+              "title": "Competition Id",
+              "type": "string"
+            },
+            "competition_slug": {
+              "title": "Competition Slug",
+              "type": "string"
+            },
+            "country_id": {
+              "title": "Country Id",
+              "type": "integer"
+            },
+            "country_slug": {
+              "title": "Country Slug",
+              "type": "string"
+            },
+            "season": {
+              "title": "Season",
+              "type": "string"
+            },
+            "sport": {
+              "title": "Sport",
+              "type": "string"
+            }
+          },
+          "required": [
+            "sport",
+            "country_slug",
+            "country_id",
+            "competition_slug",
+            "competition_id",
+            "season"
+          ],
+          "title": "flashscore_get_competition_standingsArguments",
+          "type": "object"
+        },
+        "name": "flashscore_get_competition_standings",
+        "outputSchema": {
+          "additionalProperties": true,
+          "title": "flashscore_get_competition_standingsDictOutput",
+          "type": "object"
+        }
+      },
+      {
+        "description": "Get summary match statistics for the two teams.",
+        "inputSchema": {
+          "properties": {
+            "match_id": {
+              "title": "Match Id",
+              "type": "string"
+            }
+          },
+          "required": [
+            "match_id"
+          ],
+          "title": "flashscore_get_match_statsArguments",
+          "type": "object"
+        },
+        "name": "flashscore_get_match_stats",
+        "outputSchema": {
+          "additionalProperties": true,
+          "title": "flashscore_get_match_statsDictOutput",
+          "type": "object"
+        }
+      },
+      {
+        "description": "Get match incidents (goals, substitutions, yellow/red cards). Detailed play-by-play (passes, shot sequence, ball touches) is not available.",
+        "inputSchema": {
+          "properties": {
+            "match_id": {
+              "title": "Match Id",
+              "type": "string"
+            }
+          },
+          "required": [
+            "match_id"
+          ],
+          "title": "flashscore_get_match_eventsArguments",
+          "type": "object"
+        },
+        "name": "flashscore_get_match_events",
+        "outputSchema": {
+          "additionalProperties": true,
+          "title": "flashscore_get_match_eventsDictOutput",
+          "type": "object"
+        }
+      },
+      {
+        "description": "Get lineup details for a match.",
+        "inputSchema": {
+          "properties": {
+            "match_id": {
+              "title": "Match Id",
+              "type": "string"
+            }
+          },
+          "required": [
+            "match_id"
+          ],
+          "title": "flashscore_get_match_lineupsArguments",
+          "type": "object"
+        },
+        "name": "flashscore_get_match_lineups",
+        "outputSchema": {
+          "additionalProperties": true,
+          "title": "flashscore_get_match_lineupsDictOutput",
+          "type": "object"
+        }
+      },
+      {
+        "description": "Get details for a team.",
+        "inputSchema": {
+          "properties": {
+            "team_id": {
+              "title": "Team Id",
+              "type": "string"
+            },
+            "team_slug": {
+              "title": "Team Slug",
+              "type": "string"
+            }
+          },
+          "required": [
+            "team_slug",
+            "team_id"
+          ],
+          "title": "flashscore_get_team_detailsArguments",
+          "type": "object"
+        },
+        "name": "flashscore_get_team_details",
+        "outputSchema": {
+          "additionalProperties": true,
+          "title": "flashscore_get_team_detailsDictOutput",
+          "type": "object"
+        }
+      },
+      {
+        "description": "Get details and career history for a player.",
+        "inputSchema": {
+          "properties": {
+            "player_id": {
+              "title": "Player Id",
+              "type": "string"
+            },
+            "player_slug": {
+              "title": "Player Slug",
+              "type": "string"
+            }
+          },
+          "required": [
+            "player_slug",
+            "player_id"
+          ],
+          "title": "flashscore_get_player_detailsArguments",
+          "type": "object"
+        },
+        "name": "flashscore_get_player_details",
+        "outputSchema": {
+          "additionalProperties": true,
+          "title": "flashscore_get_player_detailsDictOutput",
+          "type": "object"
+        }
+      },
+      {
+        "description": "Search competitions, teams, and players by keyword. Optional type filter: player, team, competition.",
+        "inputSchema": {
+          "properties": {
+            "q": {
+              "title": "Q",
+              "type": "string"
+            },
+            "type": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "player",
+                    "team",
+                    "competition"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Type"
+            }
+          },
+          "required": [
+            "q"
+          ],
+          "title": "flashscore_searchArguments",
+          "type": "object"
+        },
+        "name": "flashscore_search",
+        "outputSchema": {
+          "additionalProperties": true,
+          "title": "flashscore_searchDictOutput",
+          "type": "object"
+        }
+      }
+    ]
+  },
+  "body_sha256": "3e8df26225560bdf4e94e4c2978af9a85d156fcf2c188a22d26ba48ed9da5e40",
+  "contributes_to_enrichment": false,
+  "error": null,
+  "network_used": true,
+  "provider": "sportdb",
+  "raw_headers_stored": false,
+  "request_attempted": true,
+  "request_purpose": "sportdb_mcp_tools_list",
+  "secrets_stored": false,
+  "selectable_for_production": false,
+  "source_url": "https://api.sportdb.dev/mcp/",
+  "status": "SUCCESS",
+  "status_code": 200,
+  "transport": "urllib"
+}

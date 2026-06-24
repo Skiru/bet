@@ -1,0 +1,15 @@
+{
+  "profile_id": "world-cup-2026",
+  "matrix_activation": {
+    "status": "MATRIX_ACTIVATION_DEFERRED",
+    "matrix_path": "config/provider_capability_matrix.json",
+    "generic_espn_world_cup_entries_reverted": true,
+    "reason": "No schema-safe consumer proof exists that isolated active-enrichment-only provider ids can be activated without widening generic espn semantics."
+  },
+  "routing_activation": {
+    "status": "ROUTING_ACTIVATION_DEFERRED",
+    "routing_path": "config/football_routing.yaml",
+    "generic_espn_world_cup_routes_reverted": true,
+    "reason": "The routing schema does not prove enrichment-only isolation from production/current route selection, so activation remains fail-closed."
+  }
+}

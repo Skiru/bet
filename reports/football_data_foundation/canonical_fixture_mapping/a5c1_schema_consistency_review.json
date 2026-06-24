@@ -1,0 +1,24 @@
+{
+  "phase_id": "FOOTBALL_DATA_FOUNDATION_A5C1_V2_CANONICAL_MAPPING_CODE_QUALITY_FRESHNESS_SCHEMA_SEMANTICS_HARDENING",
+  "schema_consistency": {
+    "schema_version_effective": 20,
+    "schema_version_source_of_truth": "src/bet/db/schema.py (SCHEMA_VERSION = 20)",
+    "schema_sql_comment_status": "MATCHED_AND_CONSISTENT",
+    "migration_consistency_status": "CONSISTENT",
+    "tables_checked": [
+      "sports",
+      "competitions",
+      "teams",
+      "fixtures",
+      "fixture_sources",
+      "sports_entity",
+      "source_entity_reference",
+      "evidence_package_revision",
+      "sports_enrichment_run",
+      "source_operation_attempt",
+      "fixture_capability_observation",
+      "fixture_capability_projection"
+    ],
+    "conclusion": "The effective schema version is exactly 20. Temp SQLite initialization successfully sets schema_meta value to 20, aligning with schema.py and schema.sql comments. No migration mismatch exists that blocks development; however, real production database adapter integration remains deferred to prevent premature live mutations."
+  }
+}

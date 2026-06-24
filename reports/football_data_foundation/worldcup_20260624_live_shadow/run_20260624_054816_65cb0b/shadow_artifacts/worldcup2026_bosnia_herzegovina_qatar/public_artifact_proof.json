@@ -1,0 +1,56 @@
+{
+  "acceptance_source": "SHADOW_RUN_LOCAL_ARTIFACT_ONLY",
+  "artifact_commit_sha": "87184fe",
+  "checked_commit_sha": "87184fe",
+  "committed_sqlite_header_ok": true,
+  "committed_sqlite_provider_row_counts": {
+    "api-football": 9,
+    "espn-baseline": 0,
+    "football-data-org": 0,
+    "highlightly": 0,
+    "sportdb": 0
+  },
+  "committed_sqlite_size_bytes": 65536,
+  "committed_sqlite_tables": [
+    "conflicts",
+    "facts",
+    "provider_ids",
+    "shadow_conflicts_diagnostics",
+    "shadow_facts",
+    "shadow_match_snapshot",
+    "shadow_provider_ids",
+    "snapshot_metadata",
+    "sqlite_sequence"
+  ],
+  "failed_requirements": [],
+  "final_public_proof_commit_sha": null,
+  "proof_commit_sha": null,
+  "proof_model": "SHADOW_RUN_LOCAL_ARTIFACT_ONLY",
+  "public_raw_report_fetch_status": {
+    "public_artifact_proof.json": 200,
+    "source_bound_shadow_snapshot.json": 200,
+    "source_bound_verifier_result.json": 200
+  },
+  "public_raw_source_fetch_status": {
+    "contracts.py": 200,
+    "fuser.py": 200,
+    "loader.py": 200,
+    "normalizers.py": 200,
+    "provider_normalizers.py": 200,
+    "runner.py": 200,
+    "verifier.py": 200,
+    "writer.py": 200
+  },
+  "public_raw_sqlite_header_ok": true,
+  "public_raw_sqlite_provider_row_counts": {
+    "api-football": 9,
+    "espn-baseline": 0,
+    "football-data-org": 0,
+    "highlightly": 0,
+    "sportdb": 0
+  },
+  "public_raw_sqlite_size_bytes": 65536,
+  "self_referential_commit_proof_used": false,
+  "verdict": "SHADOW_RUN_LOCAL_ARTIFACT_ONLY",
+  "verifier_command": "python -m football_public_truth_verifier.verifier --repo Skiru/bet --commit 87184fe --output /tmp/football_public_truth_verifier_result.json"
+}

@@ -1,0 +1,24 @@
+{
+  "status": "CREATED_CANONICAL_FIXTURE",
+  "scanner_event_id": "66456944",
+  "provider_event_id": "760442",
+  "sport_id": 1,
+  "competition_id": 1,
+  "home_team_id": 1,
+  "away_team_id": 2,
+  "fixture_id": 1,
+  "sports_entity_event_id": 1,
+  "source_reference_ids": [
+    1,
+    2
+  ],
+  "fixture_source_ids": [
+    1,
+    2
+  ],
+  "idempotency": {
+    "resolution_2_status": "MATCHED_EXISTING_FIXTURE",
+    "resolution_2_fixture_id": 1,
+    "idempotent": true
+  }
+}

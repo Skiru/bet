@@ -1,0 +1,5199 @@
+{
+  "body": {
+    "events": [
+      {
+        "competitions": [
+          {
+            "altGameNote": "FIFA World Cup, Group B",
+            "attendance": 0,
+            "broadcast": "",
+            "broadcasts": [
+              {
+                "market": "national",
+                "names": [
+                  "FS1",
+                  "Universo",
+                  "FOX One"
+                ]
+              }
+            ],
+            "competitors": [
+              {
+                "form": "LDDDW",
+                "homeAway": "home",
+                "id": "452",
+                "leaders": [
+                  {
+                    "abbreviation": "G",
+                    "displayName": "Goals",
+                    "leaders": [
+                      {
+                        "athlete": {
+                          "active": true,
+                          "displayName": "Jovo Lukic",
+                          "fullName": "Jovo Lukic",
+                          "id": "305118",
+                          "jersey": "25",
+                          "links": [
+                            {
+                              "href": "https://www.espn.com/soccer/player/_/id/305118/jovo-lukic",
+                              "isHidden": false,
+                              "rel": [
+                                "playercard",
+                                "desktop",
+                                "athlete"
+                              ]
+                            }
+                          ],
+                          "position": {
+                            "abbreviation": "F"
+                          },
+                          "shortName": "J. Lukic",
+                          "team": {
+                            "id": "452"
+                          }
+                        },
+                        "displayValue": "1",
+                        "team": {
+                          "id": "452"
+                        },
+                        "value": 1.0
+                      }
+                    ],
+                    "name": "goals",
+                    "shortDisplayName": "Goals"
+                  },
+                  {
+                    "abbreviation": "G",
+                    "displayName": "Goals",
+                    "leaders": [
+                      {
+                        "athlete": {
+                          "active": true,
+                          "displayName": "Jovo Lukic",
+                          "fullName": "Jovo Lukic",
+                          "id": "305118",
+                          "jersey": "25",
+                          "links": [
+                            {
+                              "href": "https://www.espn.com/soccer/player/_/id/305118/jovo-lukic",
+                              "isHidden": false,
+                              "rel": [
+                                "playercard",
+                                "desktop",
+                                "athlete"
+                              ]
+                            }
+                          ],
+                          "position": {
+                            "abbreviation": "F"
+                          },
+                          "shortName": "J. Lukic",
+                          "team": {
+                            "id": "452"
+                          }
+                        },
+                        "displayValue": "1",
+                        "team": {
+                          "id": "452"
+                        },
+                        "value": 1.0
+                      }
+                    ],
+                    "name": "goalsLeaders",
+                    "shortDisplayName": "Goals"
+                  }
+                ],
+                "order": 0,
+                "records": [
+                  {
+                    "abbreviation": "Total",
+                    "name": "All Splits",
+                    "summary": "0-1-1",
+                    "type": "total"
+                  }
+                ],
+                "score": "0",
+                "statistics": [],
+                "team": {
+                  "abbreviation": "BIH",
+                  "alternateColor": "ffffff",
+                  "color": "112855",
+                  "displayName": "Bosnia-Herzegovina",
+                  "id": "452",
+                  "isActive": true,
+                  "links": [
+                    {
+                      "href": "https://www.espn.com/soccer/team/_/id/452/bosnia-herzegovina",
+                      "isExternal": false,
+                      "isHidden": false,
+                      "isPremium": false,
+                      "rel": [
+                        "clubhouse",
+                        "desktop",
+                        "team"
+                      ],
+                      "text": "Clubhouse"
+                    },
+                    {
+                      "href": "https://www.espn.com/soccer/team/stats/_/id/452/bosnia-herzegovina",
+                      "isExternal": false,
+                      "isHidden": false,
+                      "isPremium": false,
+                      "rel": [
+                        "stats",
+                        "desktop",
+                        "team"
+                      ],
+                      "text": "Stats"
+                    },
+                    {
+                      "href": "sportscenter://x-callback-url/showClubhouse?uid=s:600~t:452&section=stats",
+                      "isExternal": false,
+                      "isHidden": false,
+                      "isPremium": false,
+                      "rel": [
+                        "stats",
+                        "sportscenter",
+                        "app",
+                        "team"
+                      ],
+                      "text": "Stats"
+                    },
+                    {
+                      "href": "https://www.espn.com/soccer/team/fixtures/_/id/452/bosnia-herzegovina",
+                      "isExternal": false,
+                      "isHidden": false,
+                      "isPremium": false,
+                      "rel": [
+                        "schedule",
+                        "desktop",
+                        "team"
+                      ],
+                      "text": "Fixtures"
+                    },
+                    {
+                      "href": "sportscenter://x-callback-url/showClubhouse?uid=s:600~t:452&section=scores",
+                      "isExternal": false,
+                      "isHidden": false,
+                      "isPremium": false,
+                      "rel": [
+                        "schedule",
+                        "sportscenter",
+                        "app",
+                        "team"
+                      ],
+                      "text": "Fixtures"
+                    },
+                    {
+                      "href": "https://www.espn.com/soccer/team/squad/_/id/452/bosnia-herzegovina",
+                      "isExternal": false,
+                      "isHidden": false,
+                      "isPremium": false,
+                      "rel": [
+                        "squad",
+                        "desktop",
+                        "team"
+                      ],
+                      "text": "Squad"
+                    },
+                    {
+                      "href": "sportscenter://x-callback-url/showClubhouse?uid=s:600~t:452&section=squad",
+                      "isExternal": false,
+                      "isHidden": false,
+                      "isPremium": false,
+                      "rel": [
+                        "squad",
+                        "sportscenter",
+                        "app",
+                        "team"
+                      ],
+                      "text": "Squad"
+                    }
+                  ],
+                  "location": "Bosnia-Herzegovina",
+                  "logo": "https://a.espncdn.com/i/teamlogos/countries/500/bih.png",
+                  "name": "Bosnia-Herzegovina",
+                  "shortDisplayName": "Bosnia-Herz",
+                  "uid": "s:600~t:452",
+                  "venue": {
+                    "id": "5895"
+                  }
+                },
+                "type": "team",
+                "uid": "s:600~t:452",
+                "winner": false
+              },
+              {
+                "form": "LDDLL",
+                "homeAway": "away",
+                "id": "4398",
+                "leaders": [
+                  {
+                    "abbreviation": "G",
+                    "displayName": "Goals",
+                    "leaders": [
+                      {
+                        "athlete": {
+                          "active": true,
+                          "displayName": "Pedro Miguel",
+                          "fullName": "Pedro Miguel",
+                          "id": "101982",
+                          "jersey": "2",
+                          "links": [
+                            {
+                              "href": "https://www.espn.com/soccer/player/_/id/101982/pedro-miguel",
+                              "isHidden": false,
+                              "rel": [
+                                "playercard",
+                                "desktop",
+                                "athlete"
+                              ]
+                            }
+                          ],
+                          "position": {
+                            "abbreviation": "D"
+                          },
+                          "shortName": "P. Miguel",
+                          "team": {
+                            "id": "4398"
+                          }
+                        },
+                        "displayValue": "0",
+                        "team": {
+                          "id": "4398"
+                        },
+                        "value": 0.0
+                      }
+                    ],
+                    "name": "goals",
+                    "shortDisplayName": "Goals"
+                  },
+                  {
+                    "abbreviation": "G",
+                    "displayName": "Goals",
+                    "leaders": [
+                      {
+                        "athlete": {
+                          "active": true,
+                          "displayName": "Pedro Miguel",
+                          "fullName": "Pedro Miguel",
+                          "id": "101982",
+                          "jersey": "2",
+                          "links": [
+                            {
+                              "href": "https://www.espn.com/soccer/player/_/id/101982/pedro-miguel",
+                              "isHidden": false,
+                              "rel": [
+                                "playercard",
+                                "desktop",
+                                "athlete"
+                              ]
+                            }
+                          ],
+                          "position": {
+                            "abbreviation": "D"
+                          },
+                          "shortName": "P. Miguel",
+                          "team": {
+                            "id": "4398"
+                          }
+                        },
+                        "displayValue": "0",
+                        "team": {
+                          "id": "4398"
+                        },
+                        "value": 0.0
+                      }
+                    ],
+                    "name": "goalsLeaders",
+                    "shortDisplayName": "Goals"
+                  }
+                ],
+                "order": 1,
+                "records": [
+                  {
+                    "abbreviation": "Total",
+                    "name": "All Splits",
+                    "summary": "0-1-1",
+                    "type": "total"
+                  }
+                ],
+                "score": "0",
+                "statistics": [],
+                "team": {
+                  "abbreviation": "QAT",
+                  "alternateColor": "FFFFFF",
+                  "color": "691a40",
+                  "displayName": "Qatar",
+                  "id": "4398",
+                  "isActive": true,
+                  "links": [
+                    {
+                      "href": "https://www.espn.com/soccer/team/_/id/4398/qatar",
+                      "isExternal": false,
+                      "isHidden": false,
+                      "isPremium": false,
+                      "rel": [
+                        "clubhouse",
+                        "desktop",
+                        "team"
+                      ],
+                      "text": "Clubhouse"
+                    },
+                    {
+                      "href": "https://www.espn.com/soccer/team/stats/_/id/4398/qatar",
+                      "isExternal": false,
+                      "isHidden": false,
+                      "isPremium": false,
+                      "rel": [
+                        "stats",
+                        "desktop",
+                        "team"
+                      ],
+                      "text": "Stats"
+                    },
+                    {
+                      "href": "sportscenter://x-callback-url/showClubhouse?uid=s:600~t:4398&section=stats",
+                      "isExternal": false,
+                      "isHidden": false,
+                      "isPremium": false,
+                      "rel": [
+                        "stats",
+                        "sportscenter",
+                        "app",
+                        "team"
+                      ],
+                      "text": "Stats"
+                    },
+                    {
+                      "href": "https://www.espn.com/soccer/team/fixtures/_/id/4398/qatar",
+                      "isExternal": false,
+                      "isHidden": false,
+                      "isPremium": false,
+                      "rel": [
+                        "schedule",
+                        "desktop",
+                        "team"
+                      ],
+                      "text": "Fixtures"
+                    },
+                    {
+                      "href": "sportscenter://x-callback-url/showClubhouse?uid=s:600~t:4398&section=scores",
+                      "isExternal": false,
+                      "isHidden": false,
+                      "isPremium": false,
+                      "rel": [
+                        "schedule",
+                        "sportscenter",
+                        "app",
+                        "team"
+                      ],
+                      "text": "Fixtures"
+                    },
+                    {
+                      "href": "https://www.espn.com/soccer/team/squad/_/id/4398/qatar",
+                      "isExternal": false,
+                      "isHidden": false,
+                      "isPremium": false,
+                      "rel": [
+                        "squad",
+                        "desktop",
+                        "team"
+                      ],
+                      "text": "Squad"
+                    },
+                    {
+                      "href": "sportscenter://x-callback-url/showClubhouse?uid=s:600~t:4398&section=squad",
+                      "isExternal": false,
+                      "isHidden": false,
+                      "isPremium": false,
+                      "rel": [
+                        "squad",
+                        "sportscenter",
+                        "app",
+                        "team"
+                      ],
+                      "text": "Squad"
+                    }
+                  ],
+                  "location": "Qatar",
+                  "logo": "https://a.espncdn.com/i/teamlogos/countries/500/qat.png",
+                  "name": "Qatar",
+                  "shortDisplayName": "Qatar",
+                  "uid": "s:600~t:4398"
+                },
+                "type": "team",
+                "uid": "s:600~t:4398",
+                "winner": false
+              }
+            ],
+            "date": "2026-06-24T19:00Z",
+            "details": [],
+            "format": {
+              "regulation": {
+                "periods": 2
+              }
+            },
+            "geoBroadcasts": [
+              {
+                "lang": "en",
+                "market": {
+                  "id": "1",
+                  "type": "National"
+                },
+                "media": {
+                  "shortName": "FS1"
+                },
+                "region": "us",
+                "type": {
+                  "id": "1",
+                  "shortName": "TV"
+                }
+              },
+              {
+                "lang": "en",
+                "market": {
+                  "id": "1",
+                  "type": "National"
+                },
+                "media": {
+                  "shortName": "Universo"
+                },
+                "region": "us",
+                "type": {
+                  "id": "4",
+                  "shortName": "STREAMING"
+                }
+              },
+              {
+                "lang": "en",
+                "market": {
+                  "id": "1",
+                  "type": "National"
+                },
+                "media": {
+                  "shortName": "FOX One"
+                },
+                "region": "us",
+                "type": {
+                  "id": "4",
+                  "shortName": "STREAMING"
+                }
+              }
+            ],
+            "id": "760462",
+            "notes": [],
+            "odds": [
+              {
+                "details": "BIH -245",
+                "drawOdds": {
+                  "link": {
+                    "href": "https://sportsbook.draftkings.com/gateway?s=__s__&wpcid=__wpcid__&wpsrc=413&wpcn=ESPN&wpscn=Widget&wpcrn=BetSlipDeepLink&wpscid=__wpscid__&wpcrid=xx&preurl=https%3A%2F%2Fsportsbook.draftkings.com%2Fevent%2F34206865%3Foutcomes%3D0ML84944364_2",
+                    "isExternal": true,
+                    "isHidden": false,
+                    "isPremium": false,
+                    "language": "en-US",
+                    "rel": [
+                      "draw",
+                      "desktop",
+                      "bets",
+                      "draftkings"
+                    ],
+                    "shortText": "Draw Bet",
+                    "text": "Draw Bet"
+                  },
+                  "moneyLine": 425
+                },
+                "link": {
+                  "href": "https://sportsbook.draftkings.com/gateway?s=__s__&wpcid=__wpcid__&wpsrc=413&wpcn=ESPN&wpscn=Widget&wpcrn=BetSlipDeepLink&wpscid=__wpscid__&wpcrid=xx&preurl=https%3A%2F%2Fsportsbook.draftkings.com%2Fevent%2F34206865",
+                  "isExternal": true,
+                  "isHidden": false,
+                  "isPremium": false,
+                  "language": "en-US",
+                  "rel": [
+                    "game",
+                    "desktop",
+                    "bets"
+                  ],
+                  "shortText": "Game",
+                  "text": "Game"
+                },
+                "moneyline": {
+                  "away": {
+                    "close": {
+                      "link": {
+                        "href": "https://sportsbook.draftkings.com/gateway?s=__s__&wpcid=__wpcid__&wpsrc=413&wpcn=ESPN&wpscn=Widget&wpcrn=BetSlipDeepLink&wpscid=__wpscid__&wpcrid=xx&preurl=https%3A%2F%2Fsportsbook.draftkings.com%2Fevent%2F34206865%3Foutcomes%3D0ML84944364_3",
+                        "rel": [
+                          "away",
+                          "bets"
+                        ],
+                        "tracking": {
+                          "campaign": "betting-integrations",
+                          "tags": {
+                            "betSide": "away",
+                            "betType": "straight",
+                            "gameId": 760462,
+                            "league": "fifa.world",
+                            "sport": "soccer"
+                          }
+                        }
+                      },
+                      "odds": "+650"
+                    },
+                    "open": {
+                      "odds": "+400"
+                    }
+                  },
+                  "displayName": "Moneyline",
+                  "draw": {
+                    "close": {
+                      "link": {
+                        "href": "https://sportsbook.draftkings.com/gateway?s=__s__&wpcid=__wpcid__&wpsrc=413&wpcn=ESPN&wpscn=Widget&wpcrn=BetSlipDeepLink&wpscid=__wpscid__&wpcrid=xx&preurl=https%3A%2F%2Fsportsbook.draftkings.com%2Fevent%2F34206865%3Foutcomes%3D0ML84944364_2",
+                        "rel": [
+                          "draw",
+                          "bets"
+                        ],
+                        "tracking": {
+                          "campaign": "betting-integrations",
+                          "tags": {
+                            "betSide": "draw",
+                            "betType": "straight",
+                            "gameId": 760462,
+                            "league": "fifa.world",
+                            "sport": "soccer"
+                          }
+                        }
+                      },
+                      "odds": "+425"
+                    },
+                    "open": {
+                      "odds": "+275"
+                    }
+                  },
+                  "home": {
+                    "close": {
+                      "link": {
+                        "href": "https://sportsbook.draftkings.com/gateway?s=__s__&wpcid=__wpcid__&wpsrc=413&wpcn=ESPN&wpscn=Widget&wpcrn=BetSlipDeepLink&wpscid=__wpscid__&wpcrid=xx&preurl=https%3A%2F%2Fsportsbook.draftkings.com%2Fevent%2F34206865%3Foutcomes%3D0ML84944364_1",
+                        "rel": [
+                          "home",
+                          "bets"
+                        ],
+                        "tracking": {
+                          "campaign": "betting-integrations",
+                          "tags": {
+                            "betSide": "home",
+                            "betType": "straight",
+                            "gameId": 760462,
+                            "league": "fifa.world",
+                            "sport": "soccer"
+                          }
+                        }
+                      },
+                      "odds": "-245"
+                    },
+                    "open": {
+                      "odds": "-140"
+                    }
+                  },
+                  "shortDisplayName": "ML"
+                },
+                "overUnder": 2.5,
+                "pointSpread": {
+                  "away": {
+                    "close": {
+                      "line": "+1.5",
+                      "link": {
+                        "href": "https://sportsbook.draftkings.com/gateway?s=__s__&wpcid=__wpcid__&wpsrc=413&wpcn=ESPN&wpscn=Widget&wpcrn=BetSlipDeepLink&wpscid=__wpscid__&wpcrid=xx&preurl=https%3A%2F%2Fsportsbook.draftkings.com%2Fevent%2F34206865%3Foutcomes%3D0HC84978482P150_3",
+                        "rel": [
+                          "awaySpread",
+                          "bets"
+                        ],
+                        "tracking": {
+                          "campaign": "betting-integrations",
+                          "tags": {
+                            "betDetails": "Spread:QAT+1.5",
+                            "betSide": "away",
+                            "betType": "straight",
+                            "gameId": 760462,
+                            "league": "fifa.world",
+                            "sport": "soccer"
+                          }
+                        }
+                      },
+                      "odds": "-135"
+                    },
+                    "open": {
+                      "line": "+0.5",
+                      "odds": "+110"
+                    }
+                  },
+                  "displayName": "Spread",
+                  "home": {
+                    "close": {
+                      "line": "-1.5",
+                      "link": {
+                        "href": "https://sportsbook.draftkings.com/gateway?s=__s__&wpcid=__wpcid__&wpsrc=413&wpcn=ESPN&wpscn=Widget&wpcrn=BetSlipDeepLink&wpscid=__wpscid__&wpcrid=xx&preurl=https%3A%2F%2Fsportsbook.draftkings.com%2Fevent%2F34206865%3Foutcomes%3D0HC84978482N150_1",
+                        "rel": [
+                          "homeSpread",
+                          "bets"
+                        ],
+                        "tracking": {
+                          "campaign": "betting-integrations",
+                          "tags": {
+                            "betDetails": "Spread:BIH-1.5",
+                            "betSide": "home",
+                            "betType": "straight",
+                            "gameId": 760462,
+                            "league": "fifa.world",
+                            "sport": "soccer"
+                          }
+                        }
+                      },
+                      "odds": "+105"
+                    },
+                    "open": {
+                      "line": "-0.5",
+                      "odds": "-155"
+                    }
+                  },
+                  "shortDisplayName": "Spread"
+                },
+                "provider": {
+                  "displayName": "DraftKings",
+                  "id": "100",
+                  "logos": [
+                    {
+                      "href": "https://a.espncdn.com/i/betting/Draftkings_Light.svg",
+                      "rel": [
+                        "light"
+                      ]
+                    },
+                    {
+                      "href": "https://a.espncdn.com/i/betting/Draftkings_Dark.svg",
+                      "rel": [
+                        "dark"
+                      ]
+                    }
+                  ],
+                  "name": "DraftKings",
+                  "priority": 1
+                },
+                "total": {
+                  "displayName": "Total",
+                  "over": {
+                    "close": {
+                      "line": "o2.5",
+                      "link": {
+                        "href": "https://sportsbook.draftkings.com/gateway?s=__s__&wpcid=__wpcid__&wpsrc=413&wpcn=ESPN&wpscn=Widget&wpcrn=BetSlipDeepLink&wpscid=__wpscid__&wpcrid=xx&preurl=https%3A%2F%2Fsportsbook.draftkings.com%2Fevent%2F34206865%3Foutcomes%3D0OU84978477O250_1",
+                        "rel": [
+                          "over",
+                          "bets"
+                        ],
+                        "tracking": {
+                          "campaign": "betting-integrations",
+                          "tags": {
+                            "betDetails": "Over:2.5",
+                            "betSide": "over",
+                            "betType": "straight",
+                            "gameId": 760462,
+                            "league": "fifa.world",
+                            "sport": "soccer"
+                          }
+                        }
+                      },
+                      "odds": "-175"
+                    },
+                    "open": {
+                      "line": "o2.5",
+                      "odds": "+105"
+                    }
+                  },
+                  "shortDisplayName": "Total",
+                  "under": {
+                    "close": {
+                      "line": "u2.5",
+                      "link": {
+                        "href": "https://sportsbook.draftkings.com/gateway?s=__s__&wpcid=__wpcid__&wpsrc=413&wpcn=ESPN&wpscn=Widget&wpcrn=BetSlipDeepLink&wpscid=__wpscid__&wpcrid=xx&preurl=https%3A%2F%2Fsportsbook.draftkings.com%2Fevent%2F34206865%3Foutcomes%3D0OU84978477U250_3",
+                        "rel": [
+                          "under",
+                          "bets"
+                        ],
+                        "tracking": {
+                          "campaign": "betting-integrations",
+                          "tags": {
+                            "betDetails": "Under:2.5",
+                            "betSide": "under",
+                            "betType": "straight",
+                            "gameId": 760462,
+                            "league": "fifa.world",
+                            "sport": "soccer"
+                          }
+                        }
+                      },
+                      "odds": "+140"
+                    },
+                    "open": {
+                      "line": "u2.5",
+                      "odds": "-135"
+                    }
+                  }
+                }
+              }
+            ],
+            "playByPlayAthletes": true,
+            "playByPlayAvailable": true,
+            "recent": false,
+            "startDate": "2026-06-24T19:00Z",
+            "status": {
+              "clock": 0.0,
+              "displayClock": "0'",
+              "type": {
+                "completed": false,
+                "description": "Scheduled",
+                "detail": "Wed, June 24th at 3:00 PM EDT",
+                "id": "1",
+                "name": "STATUS_SCHEDULED",
+                "shortDetail": "Scheduled",
+                "state": "pre"
+              }
+            },
+            "tickets": [
+              {
+                "links": [
+                  {
+                    "href": "https://www.vividseats.com/world-cup-soccer-tickets-lumen-field-6-24-2026--sports-soccer/production/5080607?wsUser=717"
+                  },
+                  {
+                    "href": "https://www.vividseats.com/lumen-field-tickets/venue/2440?wsUser=717"
+                  }
+                ],
+                "numberAvailable": 469,
+                "summary": "Tickets as low as $355"
+              }
+            ],
+            "timeValid": true,
+            "uid": "s:600~l:606~e:760462~c:760462",
+            "venue": {
+              "address": {
+                "city": "Seattle, Washington",
+                "country": "USA"
+              },
+              "fullName": "Lumen Field",
+              "id": "4485"
+            },
+            "wasSuspended": false
+          }
+        ],
+        "date": "2026-06-24T19:00Z",
+        "id": "760462",
+        "links": [
+          {
+            "href": "https://www.espn.com/soccer/match/_/gameId/760462/qatar-bosnia-herzegovina",
+            "isExternal": false,
+            "isHidden": false,
+            "isPremium": false,
+            "language": "en-US",
+            "rel": [
+              "summary",
+              "desktop",
+              "event"
+            ],
+            "shortText": "Summary",
+            "text": "Summary"
+          },
+          {
+            "href": "https://www.espn.com/soccer/matchstats/_/gameId/760462",
+            "isExternal": false,
+            "isHidden": false,
+            "isPremium": false,
+            "language": "en-US",
+            "rel": [
+              "stats",
+              "desktop",
+              "event"
+            ],
+            "shortText": "Statistics",
+            "text": "Statistics"
+          },
+          {
+            "href": "https://www.espn.com/soccer/bracket/_/season/2026/league/fifa.world",
+            "isExternal": false,
+            "isHidden": false,
+            "isPremium": false,
+            "language": "en-US",
+            "rel": [
+              "bracket",
+              "desktop",
+              "event"
+            ],
+            "shortText": "Bracket",
+            "text": "Bracket"
+          }
+        ],
+        "name": "Qatar at Bosnia-Herzegovina",
+        "season": {
+          "slug": "group-stage",
+          "type": 13802,
+          "year": 2026
+        },
+        "shortName": "QAT @ BIH",
+        "status": {
+          "clock": 0.0,
+          "displayClock": "0'",
+          "type": {
+            "completed": false,
+            "description": "Scheduled",
+            "detail": "Wed, June 24th at 3:00 PM EDT",
+            "id": "1",
+            "name": "STATUS_SCHEDULED",
+            "shortDetail": "Scheduled",
+            "state": "pre"
+          }
+        },
+        "uid": "s:600~l:606~e:760462",
+        "venue": {
+          "displayName": "Lumen Field"
+        }
+      },
+      {
+        "competitions": [
+          {
+            "altGameNote": "FIFA World Cup, Group B",
+            "attendance": 0,
+            "broadcast": "",
+            "broadcasts": [
+              {
+                "market": "national",
+                "names": [
+                  "FOX",
+                  "Tele",
+                  "FOX One"
+                ]
+              }
+            ],
+            "competitors": [
+              {
+                "form": "WDDWD",
+                "homeAway": "home",
+                "id": "475",
+                "leaders": [
+                  {
+                    "abbreviation": "G",
+                    "displayName": "Goals",
+                    "leaders": [
+                      {
+                        "athlete": {
+                          "active": true,
+                          "displayName": "Johan Manzambi",
+                          "fullName": "Johan Manzambi",
+                          "id": "386992",
+                          "jersey": "9",
+                          "links": [
+                            {
+                              "href": "https://www.espn.com/soccer/player/_/id/386992/johan-manzambi",
+                              "isHidden": false,
+                              "rel": [
+                                "playercard",
+                                "desktop",
+                                "athlete"
+                              ]
+                            }
+                          ],
+                          "position": {
+                            "abbreviation": "M"
+                          },
+                          "shortName": "J. Manzambi",
+                          "team": {
+                            "id": "475"
+                          }
+                        },
+                        "displayValue": "2",
+                        "team": {
+                          "id": "475"
+                        },
+                        "value": 2.0
+                      }
+                    ],
+                    "name": "goals",
+                    "shortDisplayName": "Goals"
+                  },
+                  {
+                    "abbreviation": "G",
+                    "displayName": "Goals",
+                    "leaders": [
+                      {
+                        "athlete": {
+                          "active": true,
+                          "displayName": "Johan Manzambi",
+                          "fullName": "Johan Manzambi",
+                          "id": "386992",
+                          "jersey": "9",
+                          "links": [
+                            {
+                              "href": "https://www.espn.com/soccer/player/_/id/386992/johan-manzambi",
+                              "isHidden": false,
+                              "rel": [
+                                "playercard",
+                                "desktop",
+                                "athlete"
+                              ]
+                            }
+                          ],
+                          "position": {
+                            "abbreviation": "M"
+                          },
+                          "shortName": "J. Manzambi",
+                          "team": {
+                            "id": "475"
+                          }
+                        },
+                        "displayValue": "2",
+                        "team": {
+                          "id": "475"
+                        },
+                        "value": 2.0
+                      }
+                    ],
+                    "name": "goalsLeaders",
+                    "shortDisplayName": "Goals"
+                  }
+                ],
+                "order": 0,
+                "records": [
+                  {
+                    "abbreviation": "Total",
+                    "name": "All Splits",
+                    "summary": "1-1-0",
+                    "type": "total"
+                  }
+                ],
+                "score": "0",
+                "statistics": [],
+                "team": {
+                  "abbreviation": "SUI",
+                  "alternateColor": "BCECAC",
+                  "color": "FF0000",
+                  "displayName": "Switzerland",
+                  "id": "475",
+                  "isActive": true,
+                  "links": [
+                    {
+                      "href": "https://www.espn.com/soccer/team/_/id/475/switzerland",
+                      "isExternal": false,
+                      "isHidden": false,
+                      "isPremium": false,
+                      "rel": [
+                        "clubhouse",
+                        "desktop",
+                        "team"
+                      ],
+                      "text": "Clubhouse"
+                    },
+                    {
+                      "href": "https://www.espn.com/soccer/team/stats/_/id/475/switzerland",
+                      "isExternal": false,
+                      "isHidden": false,
+                      "isPremium": false,
+                      "rel": [
+                        "stats",
+                        "desktop",
+                        "team"
+                      ],
+                      "text": "Stats"
+                    },
+                    {
+                      "href": "sportscenter://x-callback-url/showClubhouse?uid=s:600~t:475&section=stats",
+                      "isExternal": false,
+                      "isHidden": false,
+                      "isPremium": false,
+                      "rel": [
+                        "stats",
+                        "sportscenter",
+                        "app",
+                        "team"
+                      ],
+                      "text": "Stats"
+                    },
+                    {
+                      "href": "https://www.espn.com/soccer/team/fixtures/_/id/475/switzerland",
+                      "isExternal": false,
+                      "isHidden": false,
+                      "isPremium": false,
+                      "rel": [
+                        "schedule",
+                        "desktop",
+                        "team"
+                      ],
+                      "text": "Fixtures"
+                    },
+                    {
+                      "href": "sportscenter://x-callback-url/showClubhouse?uid=s:600~t:475&section=scores",
+                      "isExternal": false,
+                      "isHidden": false,
+                      "isPremium": false,
+                      "rel": [
+                        "schedule",
+                        "sportscenter",
+                        "app",
+                        "team"
+                      ],
+                      "text": "Fixtures"
+                    },
+                    {
+                      "href": "https://www.espn.com/soccer/team/squad/_/id/475/switzerland",
+                      "isExternal": false,
+                      "isHidden": false,
+                      "isPremium": false,
+                      "rel": [
+                        "squad",
+                        "desktop",
+                        "team"
+                      ],
+                      "text": "Squad"
+                    },
+                    {
+                      "href": "sportscenter://x-callback-url/showClubhouse?uid=s:600~t:475&section=squad",
+                      "isExternal": false,
+                      "isHidden": false,
+                      "isPremium": false,
+                      "rel": [
+                        "squad",
+                        "sportscenter",
+                        "app",
+                        "team"
+                      ],
+                      "text": "Squad"
+                    }
+                  ],
+                  "location": "Switzerland",
+                  "logo": "https://a.espncdn.com/i/teamlogos/countries/500/sui.png",
+                  "name": "Switzerland",
+                  "shortDisplayName": "Switzerland",
+                  "uid": "s:600~t:475",
+                  "venue": {
+                    "id": "10742"
+                  }
+                },
+                "type": "team",
+                "uid": "s:600~t:475",
+                "winner": false
+              },
+              {
+                "form": "WDDWD",
+                "homeAway": "away",
+                "id": "206",
+                "leaders": [
+                  {
+                    "abbreviation": "G",
+                    "displayName": "Goals",
+                    "leaders": [
+                      {
+                        "athlete": {
+                          "active": true,
+                          "displayName": "Jonathan David",
+                          "fullName": "Jonathan David",
+                          "id": "273499",
+                          "jersey": "10",
+                          "links": [
+                            {
+                              "href": "https://www.espn.com/soccer/player/_/id/273499/jonathan-david",
+                              "isHidden": false,
+                              "rel": [
+                                "playercard",
+                                "desktop",
+                                "athlete"
+                              ]
+                            }
+                          ],
+                          "position": {
+                            "abbreviation": "F"
+                          },
+                          "shortName": "J. David",
+                          "team": {
+                            "id": "206"
+                          }
+                        },
+                        "displayValue": "3",
+                        "team": {
+                          "id": "206"
+                        },
+                        "value": 3.0
+                      }
+                    ],
+                    "name": "goals",
+                    "shortDisplayName": "Goals"
+                  },
+                  {
+                    "abbreviation": "G",
+                    "displayName": "Goals",
+                    "leaders": [
+                      {
+                        "athlete": {
+                          "active": true,
+                          "displayName": "Jonathan David",
+                          "fullName": "Jonathan David",
+                          "id": "273499",
+                          "jersey": "10",
+                          "links": [
+                            {
+                              "href": "https://www.espn.com/soccer/player/_/id/273499/jonathan-david",
+                              "isHidden": false,
+                              "rel": [
+                                "playercard",
+                                "desktop",
+                                "athlete"
+                              ]
+                            }
+                          ],
+                          "position": {
+                            "abbreviation": "F"
+                          },
+                          "shortName": "J. David",
+                          "team": {
+                            "id": "206"
+                          }
+                        },
+                        "displayValue": "3",
+                        "team": {
+                          "id": "206"
+                        },
+                        "value": 3.0
+                      }
+                    ],
+                    "name": "goalsLeaders",
+                    "shortDisplayName": "Goals"
+                  }
+                ],
+                "order": 1,
+                "records": [
+                  {
+                    "abbreviation": "Total",
+                    "name": "All Splits",
+                    "summary": "1-1-0",
+                    "type": "total"
+                  }
+                ],
+                "score": "0",
+                "statistics": [],
+                "team": {
+                  "abbreviation": "CAN",
+                  "alternateColor": "000000",
+                  "color": "ed2224",
+                  "displayName": "Canada",
+                  "id": "206",
+                  "isActive": true,
+                  "links": [
+                    {
+                      "href": "https://www.espn.com/soccer/team/_/id/206/canada",
+                      "isExternal": false,
+                      "isHidden": false,
+                      "isPremium": false,
+                      "rel": [
+                        "clubhouse",
+                        "desktop",
+                        "team"
+                      ],
+                      "text": "Clubhouse"
+                    },
+                    {
+                      "href": "https://www.espn.com/soccer/team/stats/_/id/206/canada",
+                      "isExternal": false,
+                      "isHidden": false,
+                      "isPremium": false,
+                      "rel": [
+                        "stats",
+                        "desktop",
+                        "team"
+                      ],
+                      "text": "Stats"
+                    },
+                    {
+                      "href": "sportscenter://x-callback-url/showClubhouse?uid=s:600~t:206&section=stats",
+                      "isExternal": false,
+                      "isHidden": false,
+                      "isPremium": false,
+                      "rel": [
+                        "stats",
+                        "sportscenter",
+                        "app",
+                        "team"
+                      ],
+                      "text": "Stats"
+                    },
+                    {
+                      "href": "https://www.espn.com/soccer/team/fixtures/_/id/206/canada",
+                      "isExternal": false,
+                      "isHidden": false,
+                      "isPremium": false,
+                      "rel": [
+                        "schedule",
+                        "desktop",
+                        "team"
+                      ],
+                      "text": "Fixtures"
+                    },
+                    {
+                      "href": "sportscenter://x-callback-url/showClubhouse?uid=s:600~t:206&section=scores",
+                      "isExternal": false,
+                      "isHidden": false,
+                      "isPremium": false,
+                      "rel": [
+                        "schedule",
+                        "sportscenter",
+                        "app",
+                        "team"
+                      ],
+                      "text": "Fixtures"
+                    },
+                    {
+                      "href": "https://www.espn.com/soccer/team/squad/_/id/206/canada",
+                      "isExternal": false,
+                      "isHidden": false,
+                      "isPremium": false,
+                      "rel": [
+                        "squad",
+                        "desktop",
+                        "team"
+                      ],
+                      "text": "Squad"
+                    },
+                    {
+                      "href": "sportscenter://x-callback-url/showClubhouse?uid=s:600~t:206&section=squad",
+                      "isExternal": false,
+                      "isHidden": false,
+                      "isPremium": false,
+                      "rel": [
+                        "squad",
+                        "sportscenter",
+                        "app",
+                        "team"
+                      ],
+                      "text": "Squad"
+                    }
+                  ],
+                  "location": "Canada",
+                  "logo": "https://a.espncdn.com/i/teamlogos/countries/500/can.png",
+                  "name": "Canada",
+                  "shortDisplayName": "Canada",
+                  "uid": "s:600~t:206",
+                  "venue": {
+                    "id": "7605"
+                  }
+                },
+                "type": "team",
+                "uid": "s:600~t:206",
+                "winner": false
+              }
+            ],
+            "date": "2026-06-24T19:00Z",
+            "details": [],
+            "format": {
+              "regulation": {
+                "periods": 2
+              }
+            },
+            "geoBroadcasts": [
+              {
+                "lang": "en",
+                "market": {
+                  "id": "1",
+                  "type": "National"
+                },
+                "media": {
+                  "shortName": "FOX"
+                },
+                "region": "us",
+                "type": {
+                  "id": "1",
+                  "shortName": "TV"
+                }
+              },
+              {
+                "lang": "en",
+                "market": {
+                  "id": "1",
+                  "type": "National"
+                },
+                "media": {
+                  "shortName": "Tele"
+                },
+                "region": "us",
+                "type": {
+                  "id": "1",
+                  "shortName": "TV"
+                }
+              },
+              {
+                "lang": "en",
+                "market": {
+                  "id": "1",
+                  "type": "National"
+                },
+                "media": {
+                  "shortName": "FOX One"
+                },
+                "region": "us",
+                "type": {
+                  "id": "4",
+                  "shortName": "STREAMING"
+                }
+              }
+            ],
+            "id": "760463",
+            "notes": [],
+            "odds": [
+              {
+                "details": "SUI +140",
+                "drawOdds": {
+                  "link": {
+                    "href": "https://sportsbook.draftkings.com/gateway?s=__s__&wpcid=__wpcid__&wpsrc=413&wpcn=ESPN&wpscn=Widget&wpcrn=BetSlipDeepLink&wpscid=__wpscid__&wpcrid=xx&preurl=https%3A%2F%2Fsportsbook.draftkings.com%2Fevent%2F34206870%3Foutcomes%3D0ML84944369_2",
+                    "isExternal": true,
+                    "isHidden": false,
+                    "isPremium": false,
+                    "language": "en-US",
+                    "rel": [
+                      "draw",
+                      "desktop",
+                      "bets",
+                      "draftkings"
+                    ],
+                    "shortText": "Draw Bet",
+                    "text": "Draw Bet"
+                  },
+                  "moneyLine": 205
+                },
+                "link": {
+                  "href": "https://sportsbook.draftkings.com/gateway?s=__s__&wpcid=__wpcid__&wpsrc=413&wpcn=ESPN&wpscn=Widget&wpcrn=BetSlipDeepLink&wpscid=__wpscid__&wpcrid=xx&preurl=https%3A%2F%2Fsportsbook.draftkings.com%2Fevent%2F34206870",
+                  "isExternal": true,
+                  "isHidden": false,
+                  "isPremium": false,
+                  "language": "en-US",
+                  "rel": [
+                    "game",
+                    "desktop",
+                    "bets"
+                  ],
+                  "shortText": "Game",
+                  "text": "Game"
+                },
+                "moneyline": {
+                  "away": {
+                    "close": {
+                      "link": {
+                        "href": "https://sportsbook.draftkings.com/gateway?s=__s__&wpcid=__wpcid__&wpsrc=413&wpcn=ESPN&wpscn=Widget&wpcrn=BetSlipDeepLink&wpscid=__wpscid__&wpcrid=xx&preurl=https%3A%2F%2Fsportsbook.draftkings.com%2Fevent%2F34206870%3Foutcomes%3D0ML84944369_3",
+                        "rel": [
+                          "away",
+                          "bets"
+                        ],
+                        "tracking": {
+                          "campaign": "betting-integrations",
+                          "tags": {
+                            "betSide": "away",
+                            "betType": "straight",
+                            "gameId": 760463,
+                            "league": "fifa.world",
+                            "sport": "soccer"
+                          }
+                        }
+                      },
+                      "odds": "+235"
+                    },
+                    "open": {
+                      "odds": "+265"
+                    }
+                  },
+                  "displayName": "Moneyline",
+                  "draw": {
+                    "close": {
+                      "link": {
+                        "href": "https://sportsbook.draftkings.com/gateway?s=__s__&wpcid=__wpcid__&wpsrc=413&wpcn=ESPN&wpscn=Widget&wpcrn=BetSlipDeepLink&wpscid=__wpscid__&wpcrid=xx&preurl=https%3A%2F%2Fsportsbook.draftkings.com%2Fevent%2F34206870%3Foutcomes%3D0ML84944369_2",
+                        "rel": [
+                          "draw",
+                          "bets"
+                        ],
+                        "tracking": {
+                          "campaign": "betting-integrations",
+                          "tags": {
+                            "betSide": "draw",
+                            "betType": "straight",
+                            "gameId": 760463,
+                            "league": "fifa.world",
+                            "sport": "soccer"
+                          }
+                        }
+                      },
+                      "odds": "+205"
+                    },
+                    "open": {
+                      "odds": "+235"
+                    }
+                  },
+                  "home": {
+                    "close": {
+                      "link": {
+                        "href": "https://sportsbook.draftkings.com/gateway?s=__s__&wpcid=__wpcid__&wpsrc=413&wpcn=ESPN&wpscn=Widget&wpcrn=BetSlipDeepLink&wpscid=__wpscid__&wpcrid=xx&preurl=https%3A%2F%2Fsportsbook.draftkings.com%2Fevent%2F34206870%3Foutcomes%3D0ML84944369_1",
+                        "rel": [
+                          "home",
+                          "bets"
+                        ],
+                        "tracking": {
+                          "campaign": "betting-integrations",
+                          "tags": {
+                            "betSide": "home",
+                            "betType": "straight",
+                            "gameId": 760463,
+                            "league": "fifa.world",
+                            "sport": "soccer"
+                          }
+                        }
+                      },
+                      "odds": "+140"
+                    },
+                    "open": {
+                      "odds": "+110"
+                    }
+                  },
+                  "shortDisplayName": "ML"
+                },
+                "overUnder": 2.5,
+                "pointSpread": {
+                  "away": {
+                    "close": {
+                      "line": "+0.5",
+                      "link": {
+                        "href": "https://sportsbook.draftkings.com/gateway?s=__s__&wpcid=__wpcid__&wpsrc=413&wpcn=ESPN&wpscn=Widget&wpcrn=BetSlipDeepLink&wpscid=__wpscid__&wpcrid=xx&preurl=https%3A%2F%2Fsportsbook.draftkings.com%2Fevent%2F34206870%3Foutcomes%3D0HC84978526P50_3",
+                        "rel": [
+                          "awaySpread",
+                          "bets"
+                        ],
+                        "tracking": {
+                          "campaign": "betting-integrations",
+                          "tags": {
+                            "betDetails": "Spread:CAN+0.5",
+                            "betSide": "away",
+                            "betType": "straight",
+                            "gameId": 760463,
+                            "league": "fifa.world",
+                            "sport": "soccer"
+                          }
+                        }
+                      },
+                      "odds": "-165"
+                    },
+                    "open": {
+                      "line": "+0.5",
+                      "odds": "-140"
+                    }
+                  },
+                  "displayName": "Spread",
+                  "home": {
+                    "close": {
+                      "line": "-0.5",
+                      "link": {
+                        "href": "https://sportsbook.draftkings.com/gateway?s=__s__&wpcid=__wpcid__&wpsrc=413&wpcn=ESPN&wpscn=Widget&wpcrn=BetSlipDeepLink&wpscid=__wpscid__&wpcrid=xx&preurl=https%3A%2F%2Fsportsbook.draftkings.com%2Fevent%2F34206870%3Foutcomes%3D0HC84978526N50_1",
+                        "rel": [
+                          "homeSpread",
+                          "bets"
+                        ],
+                        "tracking": {
+                          "campaign": "betting-integrations",
+                          "tags": {
+                            "betDetails": "Spread:SUI-0.5",
+                            "betSide": "home",
+                            "betType": "straight",
+                            "gameId": 760463,
+                            "league": "fifa.world",
+                            "sport": "soccer"
+                          }
+                        }
+                      },
+                      "odds": "+130"
+                    },
+                    "open": {
+                      "line": "-0.5",
+                      "odds": "+100"
+                    }
+                  },
+                  "shortDisplayName": "Spread"
+                },
+                "provider": {
+                  "id": "100",
+                  "name": "DraftKings",
+                  "priority": 1
+                },
+                "total": {
+                  "displayName": "Total",
+                  "over": {
+                    "close": {
+                      "line": "o2.5",
+                      "link": {
+                        "href": "https://sportsbook.draftkings.com/gateway?s=__s__&wpcid=__wpcid__&wpsrc=413&wpcn=ESPN&wpscn=Widget&wpcrn=BetSlipDeepLink&wpscid=__wpscid__&wpcrid=xx&preurl=https%3A%2F%2Fsportsbook.draftkings.com%2Fevent%2F34206870%3Foutcomes%3D0OU84978521O250_1",
+                        "rel": [
+                          "over",
+                          "bets"
+                        ],
+                        "tracking": {
+                          "campaign": "betting-integrations",
+                          "tags": {
+                            "betDetails": "Over:2.5",
+                            "betSide": "over",
+                            "betType": "straight",
+                            "gameId": 760463,
+                            "league": "fifa.world",
+                            "sport": "soccer"
+                          }
+                        }
+                      },
+                      "odds": "+110"
+                    },
+                    "open": {
+                      "line": "o2.5",
+                      "odds": "+110"
+                    }
+                  },
+                  "shortDisplayName": "Total",
+                  "under": {
+                    "close": {
+                      "line": "u2.5",
+                      "link": {
+                        "href": "https://sportsbook.draftkings.com/gateway?s=__s__&wpcid=__wpcid__&wpsrc=413&wpcn=ESPN&wpscn=Widget&wpcrn=BetSlipDeepLink&wpscid=__wpscid__&wpcrid=xx&preurl=https%3A%2F%2Fsportsbook.draftkings.com%2Fevent%2F34206870%3Foutcomes%3D0OU84978521U250_3",
+                        "rel": [
+                          "under",
+                          "bets"
+                        ],
+                        "tracking": {
+                          "campaign": "betting-integrations",
+                          "tags": {
+                            "betDetails": "Under:2.5",
+                            "betSide": "under",
+                            "betType": "straight",
+                            "gameId": 760463,
+                            "league": "fifa.world",
+                            "sport": "soccer"
+                          }
+                        }
+                      },
+                      "odds": "-135"
+                    },
+                    "open": {
+                      "line": "u2.5",
+                      "odds": "-140"
+                    }
+                  }
+                }
+              }
+            ],
+            "playByPlayAthletes": true,
+            "playByPlayAvailable": true,
+            "recent": false,
+            "startDate": "2026-06-24T19:00Z",
+            "status": {
+              "clock": 0.0,
+              "displayClock": "0'",
+              "type": {
+                "completed": false,
+                "description": "Scheduled",
+                "detail": "Wed, June 24th at 3:00 PM EDT",
+                "id": "1",
+                "name": "STATUS_SCHEDULED",
+                "shortDetail": "Scheduled",
+                "state": "pre"
+              }
+            },
+            "tickets": [
+              {
+                "links": [
+                  {
+                    "href": "https://www.vividseats.com/world-cup-soccer-tickets-bc-place-stadium-6-24-2026--sports-soccer/production/5080604?wsUser=717"
+                  },
+                  {
+                    "href": "https://www.vividseats.com/bc-place-stadium-tickets/venue/2739?wsUser=717"
+                  }
+                ],
+                "numberAvailable": 333,
+                "summary": "Tickets as low as $849"
+              }
+            ],
+            "timeValid": true,
+            "uid": "s:600~l:606~e:760463~c:760463",
+            "venue": {
+              "address": {
+                "city": "Vancouver",
+                "country": "Canada"
+              },
+              "fullName": "BC Place",
+              "id": "4370"
+            },
+            "wasSuspended": false
+          }
+        ],
+        "date": "2026-06-24T19:00Z",
+        "id": "760463",
+        "links": [
+          {
+            "href": "https://www.espn.com/soccer/match/_/gameId/760463/canada-switzerland",
+            "isExternal": false,
+            "isHidden": false,
+            "isPremium": false,
+            "language": "en-US",
+            "rel": [
+              "summary",
+              "desktop",
+              "event"
+            ],
+            "shortText": "Summary",
+            "text": "Summary"
+          },
+          {
+            "href": "https://www.espn.com/soccer/matchstats/_/gameId/760463",
+            "isExternal": false,
+            "isHidden": false,
+            "isPremium": false,
+            "language": "en-US",
+            "rel": [
+              "stats",
+              "desktop",
+              "event"
+            ],
+            "shortText": "Statistics",
+            "text": "Statistics"
+          },
+          {
+            "href": "https://www.espn.com/soccer/bracket/_/season/2026/league/fifa.world",
+            "isExternal": false,
+            "isHidden": false,
+            "isPremium": false,
+            "language": "en-US",
+            "rel": [
+              "bracket",
+              "desktop",
+              "event"
+            ],
+            "shortText": "Bracket",
+            "text": "Bracket"
+          }
+        ],
+        "name": "Canada at Switzerland",
+        "season": {
+          "slug": "group-stage",
+          "type": 13802,
+          "year": 2026
+        },
+        "shortName": "CAN @ SUI",
+        "status": {
+          "clock": 0.0,
+          "displayClock": "0'",
+          "type": {
+            "completed": false,
+            "description": "Scheduled",
+            "detail": "Wed, June 24th at 3:00 PM EDT",
+            "id": "1",
+            "name": "STATUS_SCHEDULED",
+            "shortDetail": "Scheduled",
+            "state": "pre"
+          }
+        },
+        "uid": "s:600~l:606~e:760463",
+        "venue": {
+          "displayName": "BC Place"
+        }
+      },
+      {
+        "competitions": [
+          {
+            "altGameNote": "FIFA World Cup, Group C",
+            "attendance": 0,
+            "broadcast": "",
+            "broadcasts": [
+              {
+                "market": "national",
+                "names": [
+                  "FS1",
+                  "Universo",
+                  "FOX One"
+                ]
+              }
+            ],
+            "competitors": [
+              {
+                "form": "WDDWW",
+                "homeAway": "home",
+                "id": "2869",
+                "leaders": [
+                  {
+                    "abbreviation": "G",
+                    "displayName": "Goals",
+                    "leaders": [
+                      {
+                        "athlete": {
+                          "active": true,
+                          "displayName": "Ismael Saibari",
+                          "fullName": "Ismael Saibari",
+                          "headshot": "https://a.espncdn.com/i/headshots/soccer/players/full/304572.png",
+                          "id": "304572",
+                          "jersey": "11",
+                          "links": [
+                            {
+                              "href": "https://www.espn.com/soccer/player/_/id/304572/ismael-saibari",
+                              "isHidden": false,
+                              "rel": [
+                                "playercard",
+                                "desktop",
+                                "athlete"
+                              ]
+                            }
+                          ],
+                          "position": {
+                            "abbreviation": "M"
+                          },
+                          "shortName": "I. Saibari",
+                          "team": {
+                            "id": "2869"
+                          }
+                        },
+                        "displayValue": "2",
+                        "team": {
+                          "id": "2869"
+                        },
+                        "value": 2.0
+                      }
+                    ],
+                    "name": "goals",
+                    "shortDisplayName": "Goals"
+                  },
+                  {
+                    "abbreviation": "G",
+                    "displayName": "Goals",
+                    "leaders": [
+                      {
+                        "athlete": {
+                          "active": true,
+                          "displayName": "Ismael Saibari",
+                          "fullName": "Ismael Saibari",
+                          "headshot": "https://a.espncdn.com/i/headshots/soccer/players/full/304572.png",
+                          "id": "304572",
+                          "jersey": "11",
+                          "links": [
+                            {
+                              "href": "https://www.espn.com/soccer/player/_/id/304572/ismael-saibari",
+                              "isHidden": false,
+                              "rel": [
+                                "playercard",
+                                "desktop",
+                                "athlete"
+                              ]
+                            }
+                          ],
+                          "position": {
+                            "abbreviation": "M"
+                          },
+                          "shortName": "I. Saibari",
+                          "team": {
+                            "id": "2869"
+                          }
+                        },
+                        "displayValue": "2",
+                        "team": {
+                          "id": "2869"
+                        },
+                        "value": 2.0
+                      }
+                    ],
+                    "name": "goalsLeaders",
+                    "shortDisplayName": "Goals"
+                  }
+                ],
+                "order": 0,
+                "records": [
+                  {
+                    "abbreviation": "Total",
+                    "name": "All Splits",
+                    "summary": "1-1-0",
+                    "type": "total"
+                  }
+                ],
+                "score": "0",
+                "statistics": [],
+                "team": {
+                  "abbreviation": "MAR",
+                  "alternateColor": "ffffff",
+                  "color": "df2027",
+                  "displayName": "Morocco",
+                  "id": "2869",
+                  "isActive": true,
+                  "links": [
+                    {
+                      "href": "https://www.espn.com/soccer/team/_/id/2869/morocco",
+                      "isExternal": false,
+                      "isHidden": false,
+                      "isPremium": false,
+                      "rel": [
+                        "clubhouse",
+                        "desktop",
+                        "team"
+                      ],
+                      "text": "Clubhouse"
+                    },
+                    {
+                      "href": "https://www.espn.com/soccer/team/stats/_/id/2869/morocco",
+                      "isExternal": false,
+                      "isHidden": false,
+                      "isPremium": false,
+                      "rel": [
+                        "stats",
+                        "desktop",
+                        "team"
+                      ],
+                      "text": "Stats"
+                    },
+                    {
+                      "href": "sportscenter://x-callback-url/showClubhouse?uid=s:600~t:2869&section=stats",
+                      "isExternal": false,
+                      "isHidden": false,
+                      "isPremium": false,
+                      "rel": [
+                        "stats",
+                        "sportscenter",
+                        "app",
+                        "team"
+                      ],
+                      "text": "Stats"
+                    },
+                    {
+                      "href": "https://www.espn.com/soccer/team/fixtures/_/id/2869/morocco",
+                      "isExternal": false,
+                      "isHidden": false,
+                      "isPremium": false,
+                      "rel": [
+                        "schedule",
+                        "desktop",
+                        "team"
+                      ],
+                      "text": "Fixtures"
+                    },
+                    {
+                      "href": "sportscenter://x-callback-url/showClubhouse?uid=s:600~t:2869&section=scores",
+                      "isExternal": false,
+                      "isHidden": false,
+                      "isPremium": false,
+                      "rel": [
+                        "schedule",
+                        "sportscenter",
+                        "app",
+                        "team"
+                      ],
+                      "text": "Fixtures"
+                    },
+                    {
+                      "href": "https://www.espn.com/soccer/team/squad/_/id/2869/morocco",
+                      "isExternal": false,
+                      "isHidden": false,
+                      "isPremium": false,
+                      "rel": [
+                        "squad",
+                        "desktop",
+                        "team"
+                      ],
+                      "text": "Squad"
+                    },
+                    {
+                      "href": "sportscenter://x-callback-url/showClubhouse?uid=s:600~t:2869&section=squad",
+                      "isExternal": false,
+                      "isHidden": false,
+                      "isPremium": false,
+                      "rel": [
+                        "squad",
+                        "sportscenter",
+                        "app",
+                        "team"
+                      ],
+                      "text": "Squad"
+                    }
+                  ],
+                  "location": "Morocco",
+                  "logo": "https://a.espncdn.com/i/teamlogos/countries/500/mar.png",
+                  "name": "Morocco",
+                  "shortDisplayName": "Morocco",
+                  "uid": "s:600~t:2869",
+                  "venue": {
+                    "id": "10633"
+                  }
+                },
+                "type": "team",
+                "uid": "s:600~t:2869",
+                "winner": false
+              },
+              {
+                "form": "LLLWD",
+                "homeAway": "away",
+                "id": "2654",
+                "leaders": [
+                  {
+                    "abbreviation": "G",
+                    "displayName": "Goals",
+                    "leaders": [
+                      {
+                        "athlete": {
+                          "active": true,
+                          "displayName": "Johny Placide",
+                          "fullName": "Johny Placide",
+                          "id": "89090",
+                          "jersey": "1",
+                          "links": [
+                            {
+                              "href": "https://www.espn.com/soccer/player/_/id/89090/johny-placide",
+                              "isHidden": false,
+                              "rel": [
+                                "playercard",
+                                "desktop",
+                                "athlete"
+                              ]
+                            }
+                          ],
+                          "position": {
+                            "abbreviation": "G"
+                          },
+                          "shortName": "J. Placide",
+                          "team": {
+                            "id": "2654"
+                          }
+                        },
+                        "displayValue": "0",
+                        "team": {
+                          "id": "2654"
+                        },
+                        "value": 0.0
+                      }
+                    ],
+                    "name": "goals",
+                    "shortDisplayName": "Goals"
+                  },
+                  {
+                    "abbreviation": "G",
+                    "displayName": "Goals",
+                    "leaders": [
+                      {
+                        "athlete": {
+                          "active": true,
+                          "displayName": "Johny Placide",
+                          "fullName": "Johny Placide",
+                          "id": "89090",
+                          "jersey": "1",
+                          "links": [
+                            {
+                              "href": "https://www.espn.com/soccer/player/_/id/89090/johny-placide",
+                              "isHidden": false,
+                              "rel": [
+                                "playercard",
+                                "desktop",
+                                "athlete"
+                              ]
+                            }
+                          ],
+                          "position": {
+                            "abbreviation": "G"
+                          },
+                          "shortName": "J. Placide",
+                          "team": {
+                            "id": "2654"
+                          }
+                        },
+                        "displayValue": "0",
+                        "team": {
+                          "id": "2654"
+                        },
+                        "value": 0.0
+                      }
+                    ],
+                    "name": "goalsLeaders",
+                    "shortDisplayName": "Goals"
+                  }
+                ],
+                "order": 1,
+                "records": [
+                  {
+                    "abbreviation": "Total",
+                    "name": "All Splits",
+                    "summary": "0-0-2",
+                    "type": "total"
+                  }
+                ],
+                "score": "0",
+                "statistics": [],
+                "team": {
+                  "abbreviation": "HAI",
+                  "alternateColor": "FFFFFF",
+                  "color": "0033a0",
+                  "displayName": "Haiti",
+                  "id": "2654",
+                  "isActive": true,
+                  "links": [
+                    {
+                      "href": "https://www.espn.com/soccer/team/_/id/2654/haiti",
+                      "isExternal": false,
+                      "isHidden": false,
+                      "isPremium": false,
+                      "rel": [
+                        "clubhouse",
+                        "desktop",
+                        "team"
+                      ],
+                      "text": "Clubhouse"
+                    },
+                    {
+                      "href": "https://www.espn.com/soccer/team/stats/_/id/2654/haiti",
+                      "isExternal": false,
+                      "isHidden": false,
+                      "isPremium": false,
+                      "rel": [
+                        "stats",
+                        "desktop",
+                        "team"
+                      ],
+                      "text": "Stats"
+                    },
+                    {
+                      "href": "sportscenter://x-callback-url/showClubhouse?uid=s:600~t:2654&section=stats",
+                      "isExternal": false,
+                      "isHidden": false,
+                      "isPremium": false,
+                      "rel": [
+                        "stats",
+                        "sportscenter",
+                        "app",
+                        "team"
+                      ],
+                      "text": "Stats"
+                    },
+                    {
+                      "href": "https://www.espn.com/soccer/team/fixtures/_/id/2654/haiti",
+                      "isExternal": false,
+                      "isHidden": false,
+                      "isPremium": false,
+                      "rel": [
+                        "schedule",
+                        "desktop",
+                        "team"
+                      ],
+                      "text": "Fixtures"
+                    },
+                    {
+                      "href": "sportscenter://x-callback-url/showClubhouse?uid=s:600~t:2654&section=scores",
+                      "isExternal": false,
+                      "isHidden": false,
+                      "isPremium": false,
+                      "rel": [
+                        "schedule",
+                        "sportscenter",
+                        "app",
+                        "team"
+                      ],
+                      "text": "Fixtures"
+                    },
+                    {
+                      "href": "https://www.espn.com/soccer/team/squad/_/id/2654/haiti",
+                      "isExternal": false,
+                      "isHidden": false,
+                      "isPremium": false,
+                      "rel": [
+                        "squad",
+                        "desktop",
+                        "team"
+                      ],
+                      "text": "Squad"
+                    },
+                    {
+                      "href": "sportscenter://x-callback-url/showClubhouse?uid=s:600~t:2654&section=squad",
+                      "isExternal": false,
+                      "isHidden": false,
+                      "isPremium": false,
+                      "rel": [
+                        "squad",
+                        "sportscenter",
+                        "app",
+                        "team"
+                      ],
+                      "text": "Squad"
+                    }
+                  ],
+                  "location": "Haiti",
+                  "logo": "https://a.espncdn.com/i/teamlogos/countries/500/hai.png",
+                  "name": "Haiti",
+                  "shortDisplayName": "Haiti",
+                  "uid": "s:600~t:2654",
+                  "venue": {
+                    "id": "10143"
+                  }
+                },
+                "type": "team",
+                "uid": "s:600~t:2654",
+                "winner": false
+              }
+            ],
+            "date": "2026-06-24T22:00Z",
+            "details": [],
+            "format": {
+              "regulation": {
+                "periods": 2
+              }
+            },
+            "geoBroadcasts": [
+              {
+                "lang": "en",
+                "market": {
+                  "id": "1",
+                  "type": "National"
+                },
+                "media": {
+                  "shortName": "FS1"
+                },
+                "region": "us",
+                "type": {
+                  "id": "1",
+                  "shortName": "TV"
+                }
+              },
+              {
+                "lang": "en",
+                "market": {
+                  "id": "1",
+                  "type": "National"
+                },
+                "media": {
+                  "shortName": "Universo"
+                },
+                "region": "us",
+                "type": {
+                  "id": "4",
+                  "shortName": "STREAMING"
+                }
+              },
+              {
+                "lang": "en",
+                "market": {
+                  "id": "1",
+                  "type": "National"
+                },
+                "media": {
+                  "shortName": "FOX One"
+                },
+                "region": "us",
+                "type": {
+                  "id": "4",
+                  "shortName": "STREAMING"
+                }
+              }
+            ],
+            "id": "760464",
+            "notes": [],
+            "odds": [
+              {
+                "details": "MAR -525",
+                "drawOdds": {
+                  "link": {
+                    "href": "https://sportsbook.draftkings.com/gateway?s=__s__&wpcid=__wpcid__&wpsrc=413&wpcn=ESPN&wpscn=Widget&wpcrn=BetSlipDeepLink&wpscid=__wpscid__&wpcrid=xx&preurl=https%3A%2F%2Fsportsbook.draftkings.com%2Fevent%2F34206872%3Foutcomes%3D0ML84944370_2",
+                    "isExternal": true,
+                    "isHidden": false,
+                    "isPremium": false,
+                    "language": "en-US",
+                    "rel": [
+                      "draw",
+                      "desktop",
+                      "bets",
+                      "draftkings"
+                    ],
+                    "shortText": "Draw Bet",
+                    "text": "Draw Bet"
+                  },
+                  "moneyLine": 650
+                },
+                "link": {
+                  "href": "https://sportsbook.draftkings.com/gateway?s=__s__&wpcid=__wpcid__&wpsrc=413&wpcn=ESPN&wpscn=Widget&wpcrn=BetSlipDeepLink&wpscid=__wpscid__&wpcrid=xx&preurl=https%3A%2F%2Fsportsbook.draftkings.com%2Fevent%2F34206872",
+                  "isExternal": true,
+                  "isHidden": false,
+                  "isPremium": false,
+                  "language": "en-US",
+                  "rel": [
+                    "game",
+                    "desktop",
+                    "bets"
+                  ],
+                  "shortText": "Game",
+                  "text": "Game"
+                },
+                "moneyline": {
+                  "away": {
+                    "close": {
+                      "link": {
+                        "href": "https://sportsbook.draftkings.com/gateway?s=__s__&wpcid=__wpcid__&wpsrc=413&wpcn=ESPN&wpscn=Widget&wpcrn=BetSlipDeepLink&wpscid=__wpscid__&wpcrid=xx&preurl=https%3A%2F%2Fsportsbook.draftkings.com%2Fevent%2F34206872%3Foutcomes%3D0ML84944370_3",
+                        "rel": [
+                          "away",
+                          "bets"
+                        ],
+                        "tracking": {
+                          "campaign": "betting-integrations",
+                          "tags": {
+                            "betSide": "away",
+                            "betType": "straight",
+                            "gameId": 760464,
+                            "league": "fifa.world",
+                            "sport": "soccer"
+                          }
+                        }
+                      },
+                      "odds": "+1400"
+                    },
+                    "open": {
+                      "odds": "+750"
+                    }
+                  },
+                  "displayName": "Moneyline",
+                  "draw": {
+                    "close": {
+                      "link": {
+                        "href": "https://sportsbook.draftkings.com/gateway?s=__s__&wpcid=__wpcid__&wpsrc=413&wpcn=ESPN&wpscn=Widget&wpcrn=BetSlipDeepLink&wpscid=__wpscid__&wpcrid=xx&preurl=https%3A%2F%2Fsportsbook.draftkings.com%2Fevent%2F34206872%3Foutcomes%3D0ML84944370_2",
+                        "rel": [
+                          "draw",
+                          "bets"
+                        ],
+                        "tracking": {
+                          "campaign": "betting-integrations",
+                          "tags": {
+                            "betSide": "draw",
+                            "betType": "straight",
+                            "gameId": 760464,
+                            "league": "fifa.world",
+                            "sport": "soccer"
+                          }
+                        }
+                      },
+                      "odds": "+650"
+                    },
+                    "open": {
+                      "odds": "+425"
+                    }
+                  },
+                  "home": {
+                    "close": {
+                      "link": {
+                        "href": "https://sportsbook.draftkings.com/gateway?s=__s__&wpcid=__wpcid__&wpsrc=413&wpcn=ESPN&wpscn=Widget&wpcrn=BetSlipDeepLink&wpscid=__wpscid__&wpcrid=xx&preurl=https%3A%2F%2Fsportsbook.draftkings.com%2Fevent%2F34206872%3Foutcomes%3D0ML84944370_1",
+                        "rel": [
+                          "home",
+                          "bets"
+                        ],
+                        "tracking": {
+                          "campaign": "betting-integrations",
+                          "tags": {
+                            "betSide": "home",
+                            "betType": "straight",
+                            "gameId": 760464,
+                            "league": "fifa.world",
+                            "sport": "soccer"
+                          }
+                        }
+                      },
+                      "odds": "-525"
+                    },
+                    "open": {
+                      "odds": "-275"
+                    }
+                  },
+                  "shortDisplayName": "ML"
+                },
+                "overUnder": 3.5,
+                "pointSpread": {
+                  "away": {
+                    "close": {
+                      "line": "+1.5",
+                      "link": {
+                        "href": "https://sportsbook.draftkings.com/gateway?s=__s__&wpcid=__wpcid__&wpsrc=413&wpcn=ESPN&wpscn=Widget&wpcrn=BetSlipDeepLink&wpscid=__wpscid__&wpcrid=xx&preurl=https%3A%2F%2Fsportsbook.draftkings.com%2Fevent%2F34206872%3Foutcomes%3D0HC84978552P150_3",
+                        "rel": [
+                          "awaySpread",
+                          "bets"
+                        ],
+                        "tracking": {
+                          "campaign": "betting-integrations",
+                          "tags": {
+                            "betDetails": "Spread:HAI+1.5",
+                            "betSide": "away",
+                            "betType": "straight",
+                            "gameId": 760464,
+                            "league": "fifa.world",
+                            "sport": "soccer"
+                          }
+                        }
+                      },
+                      "odds": "+135"
+                    },
+                    "open": {
+                      "line": "+1.5",
+                      "odds": "-125"
+                    }
+                  },
+                  "displayName": "Spread",
+                  "home": {
+                    "close": {
+                      "line": "-1.5",
+                      "link": {
+                        "href": "https://sportsbook.draftkings.com/gateway?s=__s__&wpcid=__wpcid__&wpsrc=413&wpcn=ESPN&wpscn=Widget&wpcrn=BetSlipDeepLink&wpscid=__wpscid__&wpcrid=xx&preurl=https%3A%2F%2Fsportsbook.draftkings.com%2Fevent%2F34206872%3Foutcomes%3D0HC84978552N150_1",
+                        "rel": [
+                          "homeSpread",
+                          "bets"
+                        ],
+                        "tracking": {
+                          "campaign": "betting-integrations",
+                          "tags": {
+                            "betDetails": "Spread:MAR-1.5",
+                            "betSide": "home",
+                            "betType": "straight",
+                            "gameId": 760464,
+                            "league": "fifa.world",
+                            "sport": "soccer"
+                          }
+                        }
+                      },
+                      "odds": "-175"
+                    },
+                    "open": {
+                      "line": "-1.5",
+                      "odds": "-110"
+                    }
+                  },
+                  "shortDisplayName": "Spread"
+                },
+                "provider": {
+                  "id": "100",
+                  "name": "DraftKings",
+                  "priority": 1
+                },
+                "total": {
+                  "displayName": "Total",
+                  "over": {
+                    "close": {
+                      "line": "o3.5",
+                      "link": {
+                        "href": "https://sportsbook.draftkings.com/gateway?s=__s__&wpcid=__wpcid__&wpsrc=413&wpcn=ESPN&wpscn=Widget&wpcrn=BetSlipDeepLink&wpscid=__wpscid__&wpcrid=xx&preurl=https%3A%2F%2Fsportsbook.draftkings.com%2Fevent%2F34206872%3Foutcomes%3D0OU84978547O350_1",
+                        "rel": [
+                          "over",
+                          "bets"
+                        ],
+                        "tracking": {
+                          "campaign": "betting-integrations",
+                          "tags": {
+                            "betDetails": "Over:3.5",
+                            "betSide": "over",
+                            "betType": "straight",
+                            "gameId": 760464,
+                            "league": "fifa.world",
+                            "sport": "soccer"
+                          }
+                        }
+                      },
+                      "odds": "+140"
+                    },
+                    "open": {
+                      "line": "o2.5",
+                      "odds": "-140"
+                    }
+                  },
+                  "shortDisplayName": "Total",
+                  "under": {
+                    "close": {
+                      "line": "u3.5",
+                      "link": {
+                        "href": "https://sportsbook.draftkings.com/gateway?s=__s__&wpcid=__wpcid__&wpsrc=413&wpcn=ESPN&wpscn=Widget&wpcrn=BetSlipDeepLink&wpscid=__wpscid__&wpcrid=xx&preurl=https%3A%2F%2Fsportsbook.draftkings.com%2Fevent%2F34206872%3Foutcomes%3D0OU84978547U350_3",
+                        "rel": [
+                          "under",
+                          "bets"
+                        ],
+                        "tracking": {
+                          "campaign": "betting-integrations",
+                          "tags": {
+                            "betDetails": "Under:3.5",
+                            "betSide": "under",
+                            "betType": "straight",
+                            "gameId": 760464,
+                            "league": "fifa.world",
+                            "sport": "soccer"
+                          }
+                        }
+                      },
+                      "odds": "-175"
+                    },
+                    "open": {
+                      "line": "u2.5",
+                      "odds": "+110"
+                    }
+                  }
+                }
+              }
+            ],
+            "playByPlayAthletes": true,
+            "playByPlayAvailable": true,
+            "recent": false,
+            "startDate": "2026-06-24T22:00Z",
+            "status": {
+              "clock": 0.0,
+              "displayClock": "0'",
+              "type": {
+                "completed": false,
+                "description": "Scheduled",
+                "detail": "Wed, June 24th at 6:00 PM EDT",
+                "id": "1",
+                "name": "STATUS_SCHEDULED",
+                "shortDetail": "Scheduled",
+                "state": "pre"
+              }
+            },
+            "tickets": [
+              {
+                "links": [
+                  {
+                    "href": "https://www.vividseats.com/world-cup-soccer-tickets-mercedes-benz-stadium-6-24-2026--sports-soccer/production/5080602?wsUser=717"
+                  },
+                  {
+                    "href": "https://www.vividseats.com/mercedesbenz-stadium-tickets/venue/14188?wsUser=717"
+                  }
+                ],
+                "numberAvailable": 524,
+                "summary": "Tickets as low as $443"
+              }
+            ],
+            "timeValid": true,
+            "uid": "s:600~l:606~e:760464~c:760464",
+            "venue": {
+              "address": {
+                "city": "Atlanta, Georgia",
+                "country": "USA"
+              },
+              "fullName": "Mercedes-Benz Stadium",
+              "id": "7485"
+            },
+            "wasSuspended": false
+          }
+        ],
+        "date": "2026-06-24T22:00Z",
+        "id": "760464",
+        "links": [
+          {
+            "href": "https://www.espn.com/soccer/match/_/gameId/760464/haiti-morocco",
+            "isExternal": false,
+            "isHidden": false,
+            "isPremium": false,
+            "language": "en-US",
+            "rel": [
+              "summary",
+              "desktop",
+              "event"
+            ],
+            "shortText": "Summary",
+            "text": "Summary"
+          },
+          {
+            "href": "https://www.espn.com/soccer/matchstats/_/gameId/760464",
+            "isExternal": false,
+            "isHidden": false,
+            "isPremium": false,
+            "language": "en-US",
+            "rel": [
+              "stats",
+              "desktop",
+              "event"
+            ],
+            "shortText": "Statistics",
+            "text": "Statistics"
+          },
+          {
+            "href": "https://www.espn.com/soccer/bracket/_/season/2026/league/fifa.world",
+            "isExternal": false,
+            "isHidden": false,
+            "isPremium": false,
+            "language": "en-US",
+            "rel": [
+              "bracket",
+              "desktop",
+              "event"
+            ],
+            "shortText": "Bracket",
+            "text": "Bracket"
+          }
+        ],
+        "name": "Haiti at Morocco",
+        "season": {
+          "slug": "group-stage",
+          "type": 13802,
+          "year": 2026
+        },
+        "shortName": "HAI @ MAR",
+        "status": {
+          "clock": 0.0,
+          "displayClock": "0'",
+          "type": {
+            "completed": false,
+            "description": "Scheduled",
+            "detail": "Wed, June 24th at 6:00 PM EDT",
+            "id": "1",
+            "name": "STATUS_SCHEDULED",
+            "shortDetail": "Scheduled",
+            "state": "pre"
+          }
+        },
+        "uid": "s:600~l:606~e:760464",
+        "venue": {
+          "displayName": "Mercedes-Benz Stadium"
+        }
+      },
+      {
+        "competitions": [
+          {
+            "altGameNote": "FIFA World Cup, Group C",
+            "attendance": 0,
+            "broadcast": "",
+            "broadcasts": [
+              {
+                "market": "national",
+                "names": [
+                  "FOX",
+                  "Tele",
+                  "FOX One"
+                ]
+              }
+            ],
+            "competitors": [
+              {
+                "form": "LWWWL",
+                "homeAway": "home",
+                "id": "580",
+                "leaders": [
+                  {
+                    "abbreviation": "G",
+                    "displayName": "Goals",
+                    "leaders": [
+                      {
+                        "athlete": {
+                          "active": true,
+                          "displayName": "John McGinn",
+                          "fullName": "John McGinn",
+                          "id": "162843",
+                          "jersey": "7",
+                          "links": [
+                            {
+                              "href": "https://www.espn.com/soccer/player/_/id/162843/john-mcginn",
+                              "isHidden": false,
+                              "rel": [
+                                "playercard",
+                                "desktop",
+                                "athlete"
+                              ]
+                            }
+                          ],
+                          "position": {
+                            "abbreviation": "M"
+                          },
+                          "shortName": "J. McGinn",
+                          "team": {
+                            "id": "580"
+                          }
+                        },
+                        "displayValue": "1",
+                        "team": {
+                          "id": "580"
+                        },
+                        "value": 1.0
+                      }
+                    ],
+                    "name": "goals",
+                    "shortDisplayName": "Goals"
+                  },
+                  {
+                    "abbreviation": "G",
+                    "displayName": "Goals",
+                    "leaders": [
+                      {
+                        "athlete": {
+                          "active": true,
+                          "displayName": "John McGinn",
+                          "fullName": "John McGinn",
+                          "id": "162843",
+                          "jersey": "7",
+                          "links": [
+                            {
+                              "href": "https://www.espn.com/soccer/player/_/id/162843/john-mcginn",
+                              "isHidden": false,
+                              "rel": [
+                                "playercard",
+                                "desktop",
+                                "athlete"
+                              ]
+                            }
+                          ],
+                          "position": {
+                            "abbreviation": "M"
+                          },
+                          "shortName": "J. McGinn",
+                          "team": {
+                            "id": "580"
+                          }
+                        },
+                        "displayValue": "1",
+                        "team": {
+                          "id": "580"
+                        },
+                        "value": 1.0
+                      }
+                    ],
+                    "name": "goalsLeaders",
+                    "shortDisplayName": "Goals"
+                  }
+                ],
+                "order": 0,
+                "records": [
+                  {
+                    "abbreviation": "Total",
+                    "name": "All Splits",
+                    "summary": "1-0-1",
+                    "type": "total"
+                  }
+                ],
+                "score": "0",
+                "statistics": [],
+                "team": {
+                  "abbreviation": "SCO",
+                  "alternateColor": "de4e44",
+                  "color": "1a2d69",
+                  "displayName": "Scotland",
+                  "id": "580",
+                  "isActive": true,
+                  "links": [
+                    {
+                      "href": "https://www.espn.com/soccer/team/_/id/580/scotland",
+                      "isExternal": false,
+                      "isHidden": false,
+                      "isPremium": false,
+                      "rel": [
+                        "clubhouse",
+                        "desktop",
+                        "team"
+                      ],
+                      "text": "Clubhouse"
+                    },
+                    {
+                      "href": "https://www.espn.com/soccer/team/stats/_/id/580/scotland",
+                      "isExternal": false,
+                      "isHidden": false,
+                      "isPremium": false,
+                      "rel": [
+                        "stats",
+                        "desktop",
+                        "team"
+                      ],
+                      "text": "Stats"
+                    },
+                    {
+                      "href": "sportscenter://x-callback-url/showClubhouse?uid=s:600~t:580&section=stats",
+                      "isExternal": false,
+                      "isHidden": false,
+                      "isPremium": false,
+                      "rel": [
+                        "stats",
+                        "sportscenter",
+                        "app",
+                        "team"
+                      ],
+                      "text": "Stats"
+                    },
+                    {
+                      "href": "https://www.espn.com/soccer/team/fixtures/_/id/580/scotland",
+                      "isExternal": false,
+                      "isHidden": false,
+                      "isPremium": false,
+                      "rel": [
+                        "schedule",
+                        "desktop",
+                        "team"
+                      ],
+                      "text": "Fixtures"
+                    },
+                    {
+                      "href": "sportscenter://x-callback-url/showClubhouse?uid=s:600~t:580&section=scores",
+                      "isExternal": false,
+                      "isHidden": false,
+                      "isPremium": false,
+                      "rel": [
+                        "schedule",
+                        "sportscenter",
+                        "app",
+                        "team"
+                      ],
+                      "text": "Fixtures"
+                    },
+                    {
+                      "href": "https://www.espn.com/soccer/team/squad/_/id/580/scotland",
+                      "isExternal": false,
+                      "isHidden": false,
+                      "isPremium": false,
+                      "rel": [
+                        "squad",
+                        "desktop",
+                        "team"
+                      ],
+                      "text": "Squad"
+                    },
+                    {
+                      "href": "sportscenter://x-callback-url/showClubhouse?uid=s:600~t:580&section=squad",
+                      "isExternal": false,
+                      "isHidden": false,
+                      "isPremium": false,
+                      "rel": [
+                        "squad",
+                        "sportscenter",
+                        "app",
+                        "team"
+                      ],
+                      "text": "Squad"
+                    }
+                  ],
+                  "location": "Scotland",
+                  "logo": "https://a.espncdn.com/i/teamlogos/countries/500/sco.png",
+                  "name": "Scotland",
+                  "shortDisplayName": "Scotland",
+                  "uid": "s:600~t:580",
+                  "venue": {
+                    "id": "178"
+                  }
+                },
+                "type": "team",
+                "uid": "s:600~t:580",
+                "winner": false
+              },
+              {
+                "form": "WDWWW",
+                "homeAway": "away",
+                "id": "205",
+                "leaders": [
+                  {
+                    "abbreviation": "G",
+                    "displayName": "Goals",
+                    "leaders": [
+                      {
+                        "athlete": {
+                          "active": true,
+                          "displayName": "Vin\u00edcius J\u00fanior",
+                          "fullName": "Vin\u00edcius J\u00fanior ",
+                          "id": "252107",
+                          "jersey": "7",
+                          "links": [
+                            {
+                              "href": "https://www.espn.com/soccer/player/_/id/252107/vinicius-junior",
+                              "isHidden": false,
+                              "rel": [
+                                "playercard",
+                                "desktop",
+                                "athlete"
+                              ]
+                            }
+                          ],
+                          "position": {
+                            "abbreviation": "F"
+                          },
+                          "shortName": "Vin\u00edcius J\u00fanior",
+                          "team": {
+                            "id": "205"
+                          }
+                        },
+                        "displayValue": "2",
+                        "team": {
+                          "id": "205"
+                        },
+                        "value": 2.0
+                      }
+                    ],
+                    "name": "goals",
+                    "shortDisplayName": "Goals"
+                  },
+                  {
+                    "abbreviation": "G",
+                    "displayName": "Goals",
+                    "leaders": [
+                      {
+                        "athlete": {
+                          "active": true,
+                          "displayName": "Vin\u00edcius J\u00fanior",
+                          "fullName": "Vin\u00edcius J\u00fanior ",
+                          "id": "252107",
+                          "jersey": "7",
+                          "links": [
+                            {
+                              "href": "https://www.espn.com/soccer/player/_/id/252107/vinicius-junior",
+                              "isHidden": false,
+                              "rel": [
+                                "playercard",
+                                "desktop",
+                                "athlete"
+                              ]
+                            }
+                          ],
+                          "position": {
+                            "abbreviation": "F"
+                          },
+                          "shortName": "Vin\u00edcius J\u00fanior",
+                          "team": {
+                            "id": "205"
+                          }
+                        },
+                        "displayValue": "2",
+                        "team": {
+                          "id": "205"
+                        },
+                        "value": 2.0
+                      }
+                    ],
+                    "name": "goalsLeaders",
+                    "shortDisplayName": "Goals"
+                  }
+                ],
+                "order": 1,
+                "records": [
+                  {
+                    "abbreviation": "Total",
+                    "name": "All Splits",
+                    "summary": "1-1-0",
+                    "type": "total"
+                  }
+                ],
+                "score": "0",
+                "statistics": [],
+                "team": {
+                  "abbreviation": "BRA",
+                  "alternateColor": "193375",
+                  "color": "fee000",
+                  "displayName": "Brazil",
+                  "id": "205",
+                  "isActive": true,
+                  "links": [
+                    {
+                      "href": "https://www.espn.com/soccer/team/_/id/205/brazil",
+                      "isExternal": false,
+                      "isHidden": false,
+                      "isPremium": false,
+                      "rel": [
+                        "clubhouse",
+                        "desktop",
+                        "team"
+                      ],
+                      "text": "Clubhouse"
+                    },
+                    {
+                      "href": "https://www.espn.com/soccer/team/stats/_/id/205/brazil",
+                      "isExternal": false,
+                      "isHidden": false,
+                      "isPremium": false,
+                      "rel": [
+                        "stats",
+                        "desktop",
+                        "team"
+                      ],
+                      "text": "Stats"
+                    },
+                    {
+                      "href": "sportscenter://x-callback-url/showClubhouse?uid=s:600~t:205&section=stats",
+                      "isExternal": false,
+                      "isHidden": false,
+                      "isPremium": false,
+                      "rel": [
+                        "stats",
+                        "sportscenter",
+                        "app",
+                        "team"
+                      ],
+                      "text": "Stats"
+                    },
+                    {
+                      "href": "https://www.espn.com/soccer/team/fixtures/_/id/205/brazil",
+                      "isExternal": false,
+                      "isHidden": false,
+                      "isPremium": false,
+                      "rel": [
+                        "schedule",
+                        "desktop",
+                        "team"
+                      ],
+                      "text": "Fixtures"
+                    },
+                    {
+                      "href": "sportscenter://x-callback-url/showClubhouse?uid=s:600~t:205&section=scores",
+                      "isExternal": false,
+                      "isHidden": false,
+                      "isPremium": false,
+                      "rel": [
+                        "schedule",
+                        "sportscenter",
+                        "app",
+                        "team"
+                      ],
+                      "text": "Fixtures"
+                    },
+                    {
+                      "href": "https://www.espn.com/soccer/team/squad/_/id/205/brazil",
+                      "isExternal": false,
+                      "isHidden": false,
+                      "isPremium": false,
+                      "rel": [
+                        "squad",
+                        "desktop",
+                        "team"
+                      ],
+                      "text": "Squad"
+                    },
+                    {
+                      "href": "sportscenter://x-callback-url/showClubhouse?uid=s:600~t:205&section=squad",
+                      "isExternal": false,
+                      "isHidden": false,
+                      "isPremium": false,
+                      "rel": [
+                        "squad",
+                        "sportscenter",
+                        "app",
+                        "team"
+                      ],
+                      "text": "Squad"
+                    }
+                  ],
+                  "location": "Brazil",
+                  "logo": "https://a.espncdn.com/i/teamlogos/countries/500/bra.png",
+                  "name": "Brazil",
+                  "shortDisplayName": "Brazil",
+                  "uid": "s:600~t:205",
+                  "venue": {
+                    "id": "10660"
+                  }
+                },
+                "type": "team",
+                "uid": "s:600~t:205",
+                "winner": false
+              }
+            ],
+            "date": "2026-06-24T22:00Z",
+            "details": [],
+            "format": {
+              "regulation": {
+                "periods": 2
+              }
+            },
+            "geoBroadcasts": [
+              {
+                "lang": "en",
+                "market": {
+                  "id": "1",
+                  "type": "National"
+                },
+                "media": {
+                  "shortName": "FOX"
+                },
+                "region": "us",
+                "type": {
+                  "id": "1",
+                  "shortName": "TV"
+                }
+              },
+              {
+                "lang": "en",
+                "market": {
+                  "id": "1",
+                  "type": "National"
+                },
+                "media": {
+                  "shortName": "Tele"
+                },
+                "region": "us",
+                "type": {
+                  "id": "1",
+                  "shortName": "TV"
+                }
+              },
+              {
+                "lang": "en",
+                "market": {
+                  "id": "1",
+                  "type": "National"
+                },
+                "media": {
+                  "shortName": "FOX One"
+                },
+                "region": "us",
+                "type": {
+                  "id": "4",
+                  "shortName": "STREAMING"
+                }
+              }
+            ],
+            "id": "760465",
+            "notes": [],
+            "odds": [
+              {
+                "details": "BRA -295",
+                "drawOdds": {
+                  "link": {
+                    "href": "https://sportsbook.draftkings.com/gateway?s=__s__&wpcid=__wpcid__&wpsrc=413&wpcn=ESPN&wpscn=Widget&wpcrn=BetSlipDeepLink&wpscid=__wpscid__&wpcrid=xx&preurl=https%3A%2F%2Fsportsbook.draftkings.com%2Fevent%2F34206864%3Foutcomes%3D0ML84944363_2",
+                    "isExternal": true,
+                    "isHidden": false,
+                    "isPremium": false,
+                    "language": "en-US",
+                    "rel": [
+                      "draw",
+                      "desktop",
+                      "bets",
+                      "draftkings"
+                    ],
+                    "shortText": "Draw Bet",
+                    "text": "Draw Bet"
+                  },
+                  "moneyLine": 425
+                },
+                "link": {
+                  "href": "https://sportsbook.draftkings.com/gateway?s=__s__&wpcid=__wpcid__&wpsrc=413&wpcn=ESPN&wpscn=Widget&wpcrn=BetSlipDeepLink&wpscid=__wpscid__&wpcrid=xx&preurl=https%3A%2F%2Fsportsbook.draftkings.com%2Fevent%2F34206864",
+                  "isExternal": true,
+                  "isHidden": false,
+                  "isPremium": false,
+                  "language": "en-US",
+                  "rel": [
+                    "game",
+                    "desktop",
+                    "bets"
+                  ],
+                  "shortText": "Game",
+                  "text": "Game"
+                },
+                "moneyline": {
+                  "away": {
+                    "close": {
+                      "link": {
+                        "href": "https://sportsbook.draftkings.com/gateway?s=__s__&wpcid=__wpcid__&wpsrc=413&wpcn=ESPN&wpscn=Widget&wpcrn=BetSlipDeepLink&wpscid=__wpscid__&wpcrid=xx&preurl=https%3A%2F%2Fsportsbook.draftkings.com%2Fevent%2F34206864%3Foutcomes%3D0ML84944363_3",
+                        "rel": [
+                          "away",
+                          "bets"
+                        ],
+                        "tracking": {
+                          "campaign": "betting-integrations",
+                          "tags": {
+                            "betSide": "away",
+                            "betType": "straight",
+                            "gameId": 760465,
+                            "league": "fifa.world",
+                            "sport": "soccer"
+                          }
+                        }
+                      },
+                      "odds": "-295"
+                    },
+                    "open": {
+                      "odds": "-250"
+                    }
+                  },
+                  "displayName": "Moneyline",
+                  "draw": {
+                    "close": {
+                      "link": {
+                        "href": "https://sportsbook.draftkings.com/gateway?s=__s__&wpcid=__wpcid__&wpsrc=413&wpcn=ESPN&wpscn=Widget&wpcrn=BetSlipDeepLink&wpscid=__wpscid__&wpcrid=xx&preurl=https%3A%2F%2Fsportsbook.draftkings.com%2Fevent%2F34206864%3Foutcomes%3D0ML84944363_2",
+                        "rel": [
+                          "draw",
+                          "bets"
+                        ],
+                        "tracking": {
+                          "campaign": "betting-integrations",
+                          "tags": {
+                            "betSide": "draw",
+                            "betType": "straight",
+                            "gameId": 760465,
+                            "league": "fifa.world",
+                            "sport": "soccer"
+                          }
+                        }
+                      },
+                      "odds": "+425"
+                    },
+                    "open": {
+                      "odds": "+390"
+                    }
+                  },
+                  "home": {
+                    "close": {
+                      "link": {
+                        "href": "https://sportsbook.draftkings.com/gateway?s=__s__&wpcid=__wpcid__&wpsrc=413&wpcn=ESPN&wpscn=Widget&wpcrn=BetSlipDeepLink&wpscid=__wpscid__&wpcrid=xx&preurl=https%3A%2F%2Fsportsbook.draftkings.com%2Fevent%2F34206864%3Foutcomes%3D0ML84944363_1",
+                        "rel": [
+                          "home",
+                          "bets"
+                        ],
+                        "tracking": {
+                          "campaign": "betting-integrations",
+                          "tags": {
+                            "betSide": "home",
+                            "betType": "straight",
+                            "gameId": 760465,
+                            "league": "fifa.world",
+                            "sport": "soccer"
+                          }
+                        }
+                      },
+                      "odds": "+850"
+                    },
+                    "open": {
+                      "odds": "+650"
+                    }
+                  },
+                  "shortDisplayName": "ML"
+                },
+                "overUnder": 2.5,
+                "pointSpread": {
+                  "away": {
+                    "close": {
+                      "line": "-1.5",
+                      "link": {
+                        "href": "https://sportsbook.draftkings.com/gateway?s=__s__&wpcid=__wpcid__&wpsrc=413&wpcn=ESPN&wpscn=Widget&wpcrn=BetSlipDeepLink&wpscid=__wpscid__&wpcrid=xx&preurl=https%3A%2F%2Fsportsbook.draftkings.com%2Fevent%2F34206864%3Foutcomes%3D0HC84978462N150_3",
+                        "rel": [
+                          "awaySpread",
+                          "bets"
+                        ],
+                        "tracking": {
+                          "campaign": "betting-integrations",
+                          "tags": {
+                            "betDetails": "Spread:BRA-1.5",
+                            "betSide": "away",
+                            "betType": "straight",
+                            "gameId": 760465,
+                            "league": "fifa.world",
+                            "sport": "soccer"
+                          }
+                        }
+                      },
+                      "odds": "-105"
+                    },
+                    "open": {
+                      "line": "-1.5",
+                      "odds": "+105"
+                    }
+                  },
+                  "displayName": "Spread",
+                  "home": {
+                    "close": {
+                      "line": "+1.5",
+                      "link": {
+                        "href": "https://sportsbook.draftkings.com/gateway?s=__s__&wpcid=__wpcid__&wpsrc=413&wpcn=ESPN&wpscn=Widget&wpcrn=BetSlipDeepLink&wpscid=__wpscid__&wpcrid=xx&preurl=https%3A%2F%2Fsportsbook.draftkings.com%2Fevent%2F34206864%3Foutcomes%3D0HC84978462P150_1",
+                        "rel": [
+                          "homeSpread",
+                          "bets"
+                        ],
+                        "tracking": {
+                          "campaign": "betting-integrations",
+                          "tags": {
+                            "betDetails": "Spread:SCO+1.5",
+                            "betSide": "home",
+                            "betType": "straight",
+                            "gameId": 760465,
+                            "league": "fifa.world",
+                            "sport": "soccer"
+                          }
+                        }
+                      },
+                      "odds": "-125"
+                    },
+                    "open": {
+                      "line": "+1.5",
+                      "odds": "-150"
+                    }
+                  },
+                  "shortDisplayName": "Spread"
+                },
+                "provider": {
+                  "id": "100",
+                  "name": "DraftKings",
+                  "priority": 1
+                },
+                "total": {
+                  "displayName": "Total",
+                  "over": {
+                    "close": {
+                      "line": "o2.5",
+                      "link": {
+                        "href": "https://sportsbook.draftkings.com/gateway?s=__s__&wpcid=__wpcid__&wpsrc=413&wpcn=ESPN&wpscn=Widget&wpcrn=BetSlipDeepLink&wpscid=__wpscid__&wpcrid=xx&preurl=https%3A%2F%2Fsportsbook.draftkings.com%2Fevent%2F34206864%3Foutcomes%3D0OU84978457O250_1",
+                        "rel": [
+                          "over",
+                          "bets"
+                        ],
+                        "tracking": {
+                          "campaign": "betting-integrations",
+                          "tags": {
+                            "betDetails": "Over:2.5",
+                            "betSide": "over",
+                            "betType": "straight",
+                            "gameId": 760465,
+                            "league": "fifa.world",
+                            "sport": "soccer"
+                          }
+                        }
+                      },
+                      "odds": "-120"
+                    },
+                    "open": {
+                      "line": "o2.5",
+                      "odds": "-125"
+                    }
+                  },
+                  "shortDisplayName": "Total",
+                  "under": {
+                    "close": {
+                      "line": "u2.5",
+                      "link": {
+                        "href": "https://sportsbook.draftkings.com/gateway?s=__s__&wpcid=__wpcid__&wpsrc=413&wpcn=ESPN&wpscn=Widget&wpcrn=BetSlipDeepLink&wpscid=__wpscid__&wpcrid=xx&preurl=https%3A%2F%2Fsportsbook.draftkings.com%2Fevent%2F34206864%3Foutcomes%3D0OU84978457U250_3",
+                        "rel": [
+                          "under",
+                          "bets"
+                        ],
+                        "tracking": {
+                          "campaign": "betting-integrations",
+                          "tags": {
+                            "betDetails": "Under:2.5",
+                            "betSide": "under",
+                            "betType": "straight",
+                            "gameId": 760465,
+                            "league": "fifa.world",
+                            "sport": "soccer"
+                          }
+                        }
+                      },
+                      "odds": "+100"
+                    },
+                    "open": {
+                      "line": "u2.5",
+                      "odds": "-105"
+                    }
+                  }
+                }
+              }
+            ],
+            "playByPlayAthletes": true,
+            "playByPlayAvailable": true,
+            "recent": false,
+            "startDate": "2026-06-24T22:00Z",
+            "status": {
+              "clock": 0.0,
+              "displayClock": "0'",
+              "type": {
+                "completed": false,
+                "description": "Scheduled",
+                "detail": "Wed, June 24th at 6:00 PM EDT",
+                "id": "1",
+                "name": "STATUS_SCHEDULED",
+                "shortDetail": "Scheduled",
+                "state": "pre"
+              }
+            },
+            "tickets": [
+              {
+                "links": [
+                  {
+                    "href": "https://www.vividseats.com/world-cup-soccer-tickets-hard-rock-stadium-6-24-2026--sports-soccer/production/5080601?wsUser=717"
+                  },
+                  {
+                    "href": "https://www.vividseats.com/hard-rock-stadium-tickets/venue/1366?wsUser=717"
+                  }
+                ],
+                "numberAvailable": 148,
+                "summary": "Tickets as low as $2,962"
+              }
+            ],
+            "timeValid": true,
+            "uid": "s:600~l:606~e:760465~c:760465",
+            "venue": {
+              "address": {
+                "city": "Miami Gardens, Florida",
+                "country": "USA"
+              },
+              "fullName": "Hard Rock Stadium",
+              "id": "4643"
+            },
+            "wasSuspended": false
+          }
+        ],
+        "date": "2026-06-24T22:00Z",
+        "id": "760465",
+        "links": [
+          {
+            "href": "https://www.espn.com/soccer/match/_/gameId/760465/brazil-scotland",
+            "isExternal": false,
+            "isHidden": false,
+            "isPremium": false,
+            "language": "en-US",
+            "rel": [
+              "summary",
+              "desktop",
+              "event"
+            ],
+            "shortText": "Summary",
+            "text": "Summary"
+          },
+          {
+            "href": "https://www.espn.com/soccer/matchstats/_/gameId/760465",
+            "isExternal": false,
+            "isHidden": false,
+            "isPremium": false,
+            "language": "en-US",
+            "rel": [
+              "stats",
+              "desktop",
+              "event"
+            ],
+            "shortText": "Statistics",
+            "text": "Statistics"
+          },
+          {
+            "href": "https://www.espn.com/soccer/bracket/_/season/2026/league/fifa.world",
+            "isExternal": false,
+            "isHidden": false,
+            "isPremium": false,
+            "language": "en-US",
+            "rel": [
+              "bracket",
+              "desktop",
+              "event"
+            ],
+            "shortText": "Bracket",
+            "text": "Bracket"
+          }
+        ],
+        "name": "Brazil at Scotland",
+        "season": {
+          "slug": "group-stage",
+          "type": 13802,
+          "year": 2026
+        },
+        "shortName": "BRA @ SCO",
+        "status": {
+          "clock": 0.0,
+          "displayClock": "0'",
+          "type": {
+            "completed": false,
+            "description": "Scheduled",
+            "detail": "Wed, June 24th at 6:00 PM EDT",
+            "id": "1",
+            "name": "STATUS_SCHEDULED",
+            "shortDetail": "Scheduled",
+            "state": "pre"
+          }
+        },
+        "uid": "s:600~l:606~e:760465",
+        "venue": {
+          "displayName": "Hard Rock Stadium"
+        }
+      },
+      {
+        "competitions": [
+          {
+            "altGameNote": "FIFA World Cup, Group A",
+            "attendance": 0,
+            "broadcast": "",
+            "broadcasts": [
+              {
+                "market": "national",
+                "names": [
+                  "FOX",
+                  "Tele",
+                  "FOX One"
+                ]
+              }
+            ],
+            "competitors": [
+              {
+                "form": "DLWWW",
+                "homeAway": "home",
+                "id": "450",
+                "leaders": [
+                  {
+                    "abbreviation": "G",
+                    "displayName": "Goals",
+                    "leaders": [
+                      {
+                        "athlete": {
+                          "active": true,
+                          "displayName": "Ladislav Krejc\u00ed",
+                          "fullName": "Ladislav Krejc\u00ed",
+                          "id": "151714",
+                          "jersey": "7",
+                          "links": [
+                            {
+                              "href": "https://www.espn.com/soccer/player/_/id/151714/ladislav-krejci",
+                              "isHidden": false,
+                              "rel": [
+                                "playercard",
+                                "desktop",
+                                "athlete"
+                              ]
+                            }
+                          ],
+                          "position": {
+                            "abbreviation": "D"
+                          },
+                          "shortName": "L. Krejc\u00ed",
+                          "team": {
+                            "id": "450"
+                          }
+                        },
+                        "displayValue": "1",
+                        "team": {
+                          "id": "450"
+                        },
+                        "value": 1.0
+                      }
+                    ],
+                    "name": "goals",
+                    "shortDisplayName": "Goals"
+                  },
+                  {
+                    "abbreviation": "G",
+                    "displayName": "Goals",
+                    "leaders": [
+                      {
+                        "athlete": {
+                          "active": true,
+                          "displayName": "Ladislav Krejc\u00ed",
+                          "fullName": "Ladislav Krejc\u00ed",
+                          "id": "151714",
+                          "jersey": "7",
+                          "links": [
+                            {
+                              "href": "https://www.espn.com/soccer/player/_/id/151714/ladislav-krejci",
+                              "isHidden": false,
+                              "rel": [
+                                "playercard",
+                                "desktop",
+                                "athlete"
+                              ]
+                            }
+                          ],
+                          "position": {
+                            "abbreviation": "D"
+                          },
+                          "shortName": "L. Krejc\u00ed",
+                          "team": {
+                            "id": "450"
+                          }
+                        },
+                        "displayValue": "1",
+                        "team": {
+                          "id": "450"
+                        },
+                        "value": 1.0
+                      }
+                    ],
+                    "name": "goalsLeaders",
+                    "shortDisplayName": "Goals"
+                  }
+                ],
+                "order": 0,
+                "records": [
+                  {
+                    "abbreviation": "Total",
+                    "name": "All Splits",
+                    "summary": "0-1-1",
+                    "type": "total"
+                  }
+                ],
+                "score": "0",
+                "statistics": [],
+                "team": {
+                  "abbreviation": "CZE",
+                  "alternateColor": "ffffff",
+                  "color": "d7141a",
+                  "displayName": "Czechia",
+                  "id": "450",
+                  "isActive": true,
+                  "links": [
+                    {
+                      "href": "https://www.espn.com/soccer/team/_/id/450/czechia",
+                      "isExternal": false,
+                      "isHidden": false,
+                      "isPremium": false,
+                      "rel": [
+                        "clubhouse",
+                        "desktop",
+                        "team"
+                      ],
+                      "text": "Clubhouse"
+                    },
+                    {
+                      "href": "https://www.espn.com/soccer/team/stats/_/id/450/czechia",
+                      "isExternal": false,
+                      "isHidden": false,
+                      "isPremium": false,
+                      "rel": [
+                        "stats",
+                        "desktop",
+                        "team"
+                      ],
+                      "text": "Stats"
+                    },
+                    {
+                      "href": "sportscenter://x-callback-url/showClubhouse?uid=s:600~t:450&section=stats",
+                      "isExternal": false,
+                      "isHidden": false,
+                      "isPremium": false,
+                      "rel": [
+                        "stats",
+                        "sportscenter",
+                        "app",
+                        "team"
+                      ],
+                      "text": "Stats"
+                    },
+                    {
+                      "href": "https://www.espn.com/soccer/team/fixtures/_/id/450/czechia",
+                      "isExternal": false,
+                      "isHidden": false,
+                      "isPremium": false,
+                      "rel": [
+                        "schedule",
+                        "desktop",
+                        "team"
+                      ],
+                      "text": "Fixtures"
+                    },
+                    {
+                      "href": "sportscenter://x-callback-url/showClubhouse?uid=s:600~t:450&section=scores",
+                      "isExternal": false,
+                      "isHidden": false,
+                      "isPremium": false,
+                      "rel": [
+                        "schedule",
+                        "sportscenter",
+                        "app",
+                        "team"
+                      ],
+                      "text": "Fixtures"
+                    },
+                    {
+                      "href": "https://www.espn.com/soccer/team/squad/_/id/450/czechia",
+                      "isExternal": false,
+                      "isHidden": false,
+                      "isPremium": false,
+                      "rel": [
+                        "squad",
+                        "desktop",
+                        "team"
+                      ],
+                      "text": "Squad"
+                    },
+                    {
+                      "href": "sportscenter://x-callback-url/showClubhouse?uid=s:600~t:450&section=squad",
+                      "isExternal": false,
+                      "isHidden": false,
+                      "isPremium": false,
+                      "rel": [
+                        "squad",
+                        "sportscenter",
+                        "app",
+                        "team"
+                      ],
+                      "text": "Squad"
+                    }
+                  ],
+                  "location": "Czechia",
+                  "logo": "https://a.espncdn.com/i/teamlogos/countries/500/cze.png",
+                  "name": "Czechia",
+                  "shortDisplayName": "Czechia",
+                  "uid": "s:600~t:450",
+                  "venue": {
+                    "id": "10944"
+                  }
+                },
+                "type": "team",
+                "uid": "s:600~t:450",
+                "winner": false
+              },
+              {
+                "form": "WWWWW",
+                "homeAway": "away",
+                "id": "203",
+                "leaders": [
+                  {
+                    "abbreviation": "G",
+                    "displayName": "Goals",
+                    "leaders": [
+                      {
+                        "athlete": {
+                          "active": true,
+                          "displayName": "Juli\u00e1n Qui\u00f1ones",
+                          "fullName": "Juli\u00e1n Qui\u00f1ones",
+                          "id": "233075",
+                          "jersey": "16",
+                          "links": [
+                            {
+                              "href": "https://www.espn.com/soccer/player/_/id/233075/julian-quinones",
+                              "isHidden": false,
+                              "rel": [
+                                "playercard",
+                                "desktop",
+                                "athlete"
+                              ]
+                            }
+                          ],
+                          "position": {
+                            "abbreviation": "F"
+                          },
+                          "shortName": "J. Qui\u00f1ones",
+                          "team": {
+                            "id": "203"
+                          }
+                        },
+                        "displayValue": "1",
+                        "team": {
+                          "id": "203"
+                        },
+                        "value": 1.0
+                      }
+                    ],
+                    "name": "goals",
+                    "shortDisplayName": "Goals"
+                  },
+                  {
+                    "abbreviation": "G",
+                    "displayName": "Goals",
+                    "leaders": [
+                      {
+                        "athlete": {
+                          "active": true,
+                          "displayName": "Juli\u00e1n Qui\u00f1ones",
+                          "fullName": "Juli\u00e1n Qui\u00f1ones",
+                          "id": "233075",
+                          "jersey": "16",
+                          "links": [
+                            {
+                              "href": "https://www.espn.com/soccer/player/_/id/233075/julian-quinones",
+                              "isHidden": false,
+                              "rel": [
+                                "playercard",
+                                "desktop",
+                                "athlete"
+                              ]
+                            }
+                          ],
+                          "position": {
+                            "abbreviation": "F"
+                          },
+                          "shortName": "J. Qui\u00f1ones",
+                          "team": {
+                            "id": "203"
+                          }
+                        },
+                        "displayValue": "1",
+                        "team": {
+                          "id": "203"
+                        },
+                        "value": 1.0
+                      }
+                    ],
+                    "name": "goalsLeaders",
+                    "shortDisplayName": "Goals"
+                  }
+                ],
+                "order": 1,
+                "records": [
+                  {
+                    "abbreviation": "Total",
+                    "name": "All Splits",
+                    "summary": "2-0-0",
+                    "type": "total"
+                  }
+                ],
+                "score": "0",
+                "statistics": [],
+                "team": {
+                  "abbreviation": "MEX",
+                  "alternateColor": "000000",
+                  "color": "006847",
+                  "displayName": "Mexico",
+                  "id": "203",
+                  "isActive": true,
+                  "links": [
+                    {
+                      "href": "https://www.espn.com/soccer/team/_/id/203/mexico",
+                      "isExternal": false,
+                      "isHidden": false,
+                      "isPremium": false,
+                      "rel": [
+                        "clubhouse",
+                        "desktop",
+                        "team"
+                      ],
+                      "text": "Clubhouse"
+                    },
+                    {
+                      "href": "https://www.espn.com/soccer/team/stats/_/id/203/mexico",
+                      "isExternal": false,
+                      "isHidden": false,
+                      "isPremium": false,
+                      "rel": [
+                        "stats",
+                        "desktop",
+                        "team"
+                      ],
+                      "text": "Stats"
+                    },
+                    {
+                      "href": "sportscenter://x-callback-url/showClubhouse?uid=s:600~t:203&section=stats",
+                      "isExternal": false,
+                      "isHidden": false,
+                      "isPremium": false,
+                      "rel": [
+                        "stats",
+                        "sportscenter",
+                        "app",
+                        "team"
+                      ],
+                      "text": "Stats"
+                    },
+                    {
+                      "href": "https://www.espn.com/soccer/team/fixtures/_/id/203/mexico",
+                      "isExternal": false,
+                      "isHidden": false,
+                      "isPremium": false,
+                      "rel": [
+                        "schedule",
+                        "desktop",
+                        "team"
+                      ],
+                      "text": "Fixtures"
+                    },
+                    {
+                      "href": "sportscenter://x-callback-url/showClubhouse?uid=s:600~t:203&section=scores",
+                      "isExternal": false,
+                      "isHidden": false,
+                      "isPremium": false,
+                      "rel": [
+                        "schedule",
+                        "sportscenter",
+                        "app",
+                        "team"
+                      ],
+                      "text": "Fixtures"
+                    },
+                    {
+                      "href": "https://www.espn.com/soccer/team/squad/_/id/203/mexico",
+                      "isExternal": false,
+                      "isHidden": false,
+                      "isPremium": false,
+                      "rel": [
+                        "squad",
+                        "desktop",
+                        "team"
+                      ],
+                      "text": "Squad"
+                    },
+                    {
+                      "href": "sportscenter://x-callback-url/showClubhouse?uid=s:600~t:203&section=squad",
+                      "isExternal": false,
+                      "isHidden": false,
+                      "isPremium": false,
+                      "rel": [
+                        "squad",
+                        "sportscenter",
+                        "app",
+                        "team"
+                      ],
+                      "text": "Squad"
+                    }
+                  ],
+                  "location": "Mexico",
+                  "logo": "https://a.espncdn.com/i/teamlogos/countries/500/mex.png",
+                  "name": "Mexico",
+                  "shortDisplayName": "Mexico",
+                  "uid": "s:600~t:203",
+                  "venue": {
+                    "id": "4685"
+                  }
+                },
+                "type": "team",
+                "uid": "s:600~t:203",
+                "winner": false
+              }
+            ],
+            "date": "2026-06-25T01:00Z",
+            "details": [],
+            "format": {
+              "regulation": {
+                "periods": 2
+              }
+            },
+            "geoBroadcasts": [
+              {
+                "lang": "en",
+                "market": {
+                  "id": "1",
+                  "type": "National"
+                },
+                "media": {
+                  "shortName": "FOX"
+                },
+                "region": "us",
+                "type": {
+                  "id": "1",
+                  "shortName": "TV"
+                }
+              },
+              {
+                "lang": "en",
+                "market": {
+                  "id": "1",
+                  "type": "National"
+                },
+                "media": {
+                  "shortName": "Tele"
+                },
+                "region": "us",
+                "type": {
+                  "id": "1",
+                  "shortName": "TV"
+                }
+              },
+              {
+                "lang": "en",
+                "market": {
+                  "id": "1",
+                  "type": "National"
+                },
+                "media": {
+                  "shortName": "FOX One"
+                },
+                "region": "us",
+                "type": {
+                  "id": "4",
+                  "shortName": "STREAMING"
+                }
+              }
+            ],
+            "id": "760467",
+            "notes": [],
+            "odds": [
+              {
+                "details": "MEX -105",
+                "drawOdds": {
+                  "link": {
+                    "href": "https://sportsbook.draftkings.com/gateway?s=__s__&wpcid=__wpcid__&wpsrc=413&wpcn=ESPN&wpscn=Widget&wpcrn=BetSlipDeepLink&wpscid=__wpscid__&wpcrid=xx&preurl=https%3A%2F%2Fsportsbook.draftkings.com%2Fevent%2F34206873%3Foutcomes%3D0ML84944372_2",
+                    "isExternal": true,
+                    "isHidden": false,
+                    "isPremium": false,
+                    "language": "en-US",
+                    "rel": [
+                      "draw",
+                      "desktop",
+                      "bets",
+                      "draftkings"
+                    ],
+                    "shortText": "Draw Bet",
+                    "text": "Draw Bet"
+                  },
+                  "moneyLine": 275
+                },
+                "link": {
+                  "href": "https://sportsbook.draftkings.com/gateway?s=__s__&wpcid=__wpcid__&wpsrc=413&wpcn=ESPN&wpscn=Widget&wpcrn=BetSlipDeepLink&wpscid=__wpscid__&wpcrid=xx&preurl=https%3A%2F%2Fsportsbook.draftkings.com%2Fevent%2F34206873",
+                  "isExternal": true,
+                  "isHidden": false,
+                  "isPremium": false,
+                  "language": "en-US",
+                  "rel": [
+                    "game",
+                    "desktop",
+                    "bets"
+                  ],
+                  "shortText": "Game",
+                  "text": "Game"
+                },
+                "moneyline": {
+                  "away": {
+                    "close": {
+                      "link": {
+                        "href": "https://sportsbook.draftkings.com/gateway?s=__s__&wpcid=__wpcid__&wpsrc=413&wpcn=ESPN&wpscn=Widget&wpcrn=BetSlipDeepLink&wpscid=__wpscid__&wpcrid=xx&preurl=https%3A%2F%2Fsportsbook.draftkings.com%2Fevent%2F34206873%3Foutcomes%3D0ML84944372_3",
+                        "rel": [
+                          "away",
+                          "bets"
+                        ],
+                        "tracking": {
+                          "campaign": "betting-integrations",
+                          "tags": {
+                            "betSide": "away",
+                            "betType": "straight",
+                            "gameId": 760467,
+                            "league": "fifa.world",
+                            "sport": "soccer"
+                          }
+                        }
+                      },
+                      "odds": "-105"
+                    },
+                    "open": {
+                      "odds": "-105"
+                    }
+                  },
+                  "displayName": "Moneyline",
+                  "draw": {
+                    "close": {
+                      "link": {
+                        "href": "https://sportsbook.draftkings.com/gateway?s=__s__&wpcid=__wpcid__&wpsrc=413&wpcn=ESPN&wpscn=Widget&wpcrn=BetSlipDeepLink&wpscid=__wpscid__&wpcrid=xx&preurl=https%3A%2F%2Fsportsbook.draftkings.com%2Fevent%2F34206873%3Foutcomes%3D0ML84944372_2",
+                        "rel": [
+                          "draw",
+                          "bets"
+                        ],
+                        "tracking": {
+                          "campaign": "betting-integrations",
+                          "tags": {
+                            "betSide": "draw",
+                            "betType": "straight",
+                            "gameId": 760467,
+                            "league": "fifa.world",
+                            "sport": "soccer"
+                          }
+                        }
+                      },
+                      "odds": "+275"
+                    },
+                    "open": {
+                      "odds": "+245"
+                    }
+                  },
+                  "home": {
+                    "close": {
+                      "link": {
+                        "href": "https://sportsbook.draftkings.com/gateway?s=__s__&wpcid=__wpcid__&wpsrc=413&wpcn=ESPN&wpscn=Widget&wpcrn=BetSlipDeepLink&wpscid=__wpscid__&wpcrid=xx&preurl=https%3A%2F%2Fsportsbook.draftkings.com%2Fevent%2F34206873%3Foutcomes%3D0ML84944372_1",
+                        "rel": [
+                          "home",
+                          "bets"
+                        ],
+                        "tracking": {
+                          "campaign": "betting-integrations",
+                          "tags": {
+                            "betSide": "home",
+                            "betType": "straight",
+                            "gameId": 760467,
+                            "league": "fifa.world",
+                            "sport": "soccer"
+                          }
+                        }
+                      },
+                      "odds": "+285"
+                    },
+                    "open": {
+                      "odds": "+300"
+                    }
+                  },
+                  "shortDisplayName": "ML"
+                },
+                "overUnder": 2.5,
+                "pointSpread": {
+                  "away": {
+                    "close": {
+                      "line": "-0.5",
+                      "link": {
+                        "href": "https://sportsbook.draftkings.com/gateway?s=__s__&wpcid=__wpcid__&wpsrc=413&wpcn=ESPN&wpscn=Widget&wpcrn=BetSlipDeepLink&wpscid=__wpscid__&wpcrid=xx&preurl=https%3A%2F%2Fsportsbook.draftkings.com%2Fevent%2F34206873%3Foutcomes%3D0HC84978572N50_3",
+                        "rel": [
+                          "awaySpread",
+                          "bets"
+                        ],
+                        "tracking": {
+                          "campaign": "betting-integrations",
+                          "tags": {
+                            "betDetails": "Spread:MEX-0.5",
+                            "betSide": "away",
+                            "betType": "straight",
+                            "gameId": 760467,
+                            "league": "fifa.world",
+                            "sport": "soccer"
+                          }
+                        }
+                      },
+                      "odds": "-115"
+                    },
+                    "open": {
+                      "line": "-0.5",
+                      "odds": "-110"
+                    }
+                  },
+                  "displayName": "Spread",
+                  "home": {
+                    "close": {
+                      "line": "+0.5",
+                      "link": {
+                        "href": "https://sportsbook.draftkings.com/gateway?s=__s__&wpcid=__wpcid__&wpsrc=413&wpcn=ESPN&wpscn=Widget&wpcrn=BetSlipDeepLink&wpscid=__wpscid__&wpcrid=xx&preurl=https%3A%2F%2Fsportsbook.draftkings.com%2Fevent%2F34206873%3Foutcomes%3D0HC84978572P50_1",
+                        "rel": [
+                          "homeSpread",
+                          "bets"
+                        ],
+                        "tracking": {
+                          "campaign": "betting-integrations",
+                          "tags": {
+                            "betDetails": "Spread:CZE+0.5",
+                            "betSide": "home",
+                            "betType": "straight",
+                            "gameId": 760467,
+                            "league": "fifa.world",
+                            "sport": "soccer"
+                          }
+                        }
+                      },
+                      "odds": "-110"
+                    },
+                    "open": {
+                      "line": "+0.5",
+                      "odds": "-130"
+                    }
+                  },
+                  "shortDisplayName": "Spread"
+                },
+                "provider": {
+                  "id": "100",
+                  "name": "DraftKings",
+                  "priority": 1
+                },
+                "total": {
+                  "displayName": "Total",
+                  "over": {
+                    "close": {
+                      "line": "o2.5",
+                      "link": {
+                        "href": "https://sportsbook.draftkings.com/gateway?s=__s__&wpcid=__wpcid__&wpsrc=413&wpcn=ESPN&wpscn=Widget&wpcrn=BetSlipDeepLink&wpscid=__wpscid__&wpcrid=xx&preurl=https%3A%2F%2Fsportsbook.draftkings.com%2Fevent%2F34206873%3Foutcomes%3D0OU84978567O250_1",
+                        "rel": [
+                          "over",
+                          "bets"
+                        ],
+                        "tracking": {
+                          "campaign": "betting-integrations",
+                          "tags": {
+                            "betDetails": "Over:2.5",
+                            "betSide": "over",
+                            "betType": "straight",
+                            "gameId": 760467,
+                            "league": "fifa.world",
+                            "sport": "soccer"
+                          }
+                        }
+                      },
+                      "odds": "+105"
+                    },
+                    "open": {
+                      "line": "o2.5",
+                      "odds": "+110"
+                    }
+                  },
+                  "shortDisplayName": "Total",
+                  "under": {
+                    "close": {
+                      "line": "u2.5",
+                      "link": {
+                        "href": "https://sportsbook.draftkings.com/gateway?s=__s__&wpcid=__wpcid__&wpsrc=413&wpcn=ESPN&wpscn=Widget&wpcrn=BetSlipDeepLink&wpscid=__wpscid__&wpcrid=xx&preurl=https%3A%2F%2Fsportsbook.draftkings.com%2Fevent%2F34206873%3Foutcomes%3D0OU84978567U250_3",
+                        "rel": [
+                          "under",
+                          "bets"
+                        ],
+                        "tracking": {
+                          "campaign": "betting-integrations",
+                          "tags": {
+                            "betDetails": "Under:2.5",
+                            "betSide": "under",
+                            "betType": "straight",
+                            "gameId": 760467,
+                            "league": "fifa.world",
+                            "sport": "soccer"
+                          }
+                        }
+                      },
+                      "odds": "-130"
+                    },
+                    "open": {
+                      "line": "u2.5",
+                      "odds": "-140"
+                    }
+                  }
+                }
+              }
+            ],
+            "playByPlayAthletes": true,
+            "playByPlayAvailable": true,
+            "recent": false,
+            "startDate": "2026-06-25T01:00Z",
+            "status": {
+              "clock": 0.0,
+              "displayClock": "0'",
+              "type": {
+                "completed": false,
+                "description": "Scheduled",
+                "detail": "Wed, June 24th at 9:00 PM EDT",
+                "id": "1",
+                "name": "STATUS_SCHEDULED",
+                "shortDetail": "Scheduled",
+                "state": "pre"
+              }
+            },
+            "timeValid": true,
+            "uid": "s:600~l:606~e:760467~c:760467",
+            "venue": {
+              "address": {
+                "city": "Mexico City",
+                "country": "Mexico"
+              },
+              "fullName": "Estadio Banorte",
+              "id": "1672"
+            },
+            "wasSuspended": false
+          }
+        ],
+        "date": "2026-06-25T01:00Z",
+        "id": "760467",
+        "links": [
+          {
+            "href": "https://www.espn.com/soccer/match/_/gameId/760467/mexico-czechia",
+            "isExternal": false,
+            "isHidden": false,
+            "isPremium": false,
+            "language": "en-US",
+            "rel": [
+              "summary",
+              "desktop",
+              "event"
+            ],
+            "shortText": "Summary",
+            "text": "Summary"
+          },
+          {
+            "href": "https://www.espn.com/soccer/matchstats/_/gameId/760467",
+            "isExternal": false,
+            "isHidden": false,
+            "isPremium": false,
+            "language": "en-US",
+            "rel": [
+              "stats",
+              "desktop",
+              "event"
+            ],
+            "shortText": "Statistics",
+            "text": "Statistics"
+          },
+          {
+            "href": "https://www.espn.com/soccer/bracket/_/season/2026/league/fifa.world",
+            "isExternal": false,
+            "isHidden": false,
+            "isPremium": false,
+            "language": "en-US",
+            "rel": [
+              "bracket",
+              "desktop",
+              "event"
+            ],
+            "shortText": "Bracket",
+            "text": "Bracket"
+          }
+        ],
+        "name": "Mexico at Czechia",
+        "season": {
+          "slug": "group-stage",
+          "type": 13802,
+          "year": 2026
+        },
+        "shortName": "MEX @ CZE",
+        "status": {
+          "clock": 0.0,
+          "displayClock": "0'",
+          "type": {
+            "completed": false,
+            "description": "Scheduled",
+            "detail": "Wed, June 24th at 9:00 PM EDT",
+            "id": "1",
+            "name": "STATUS_SCHEDULED",
+            "shortDetail": "Scheduled",
+            "state": "pre"
+          }
+        },
+        "uid": "s:600~l:606~e:760467",
+        "venue": {
+          "displayName": "Estadio Banorte"
+        }
+      },
+      {
+        "competitions": [
+          {
+            "altGameNote": "FIFA World Cup, Group A",
+            "attendance": 0,
+            "broadcast": "",
+            "broadcasts": [
+              {
+                "market": "national",
+                "names": [
+                  "FS1",
+                  "Universo",
+                  "FOX One"
+                ]
+              }
+            ],
+            "competitors": [
+              {
+                "form": "DLWDL",
+                "homeAway": "home",
+                "id": "467",
+                "leaders": [
+                  {
+                    "abbreviation": "G",
+                    "displayName": "Goals",
+                    "leaders": [
+                      {
+                        "athlete": {
+                          "active": true,
+                          "displayName": "Teboho Mokoena",
+                          "fullName": "Teboho Mokoena",
+                          "id": "256691",
+                          "jersey": "4",
+                          "links": [
+                            {
+                              "href": "https://www.espn.com/soccer/player/_/id/256691/teboho-mokoena",
+                              "isHidden": false,
+                              "rel": [
+                                "playercard",
+                                "desktop",
+                                "athlete"
+                              ]
+                            }
+                          ],
+                          "position": {
+                            "abbreviation": "M"
+                          },
+                          "shortName": "T. Mokoena",
+                          "team": {
+                            "id": "467"
+                          }
+                        },
+                        "displayValue": "1",
+                        "team": {
+                          "id": "467"
+                        },
+                        "value": 1.0
+                      }
+                    ],
+                    "name": "goals",
+                    "shortDisplayName": "Goals"
+                  },
+                  {
+                    "abbreviation": "G",
+                    "displayName": "Goals",
+                    "leaders": [
+                      {
+                        "athlete": {
+                          "active": true,
+                          "displayName": "Teboho Mokoena",
+                          "fullName": "Teboho Mokoena",
+                          "id": "256691",
+                          "jersey": "4",
+                          "links": [
+                            {
+                              "href": "https://www.espn.com/soccer/player/_/id/256691/teboho-mokoena",
+                              "isHidden": false,
+                              "rel": [
+                                "playercard",
+                                "desktop",
+                                "athlete"
+                              ]
+                            }
+                          ],
+                          "position": {
+                            "abbreviation": "M"
+                          },
+                          "shortName": "T. Mokoena",
+                          "team": {
+                            "id": "467"
+                          }
+                        },
+                        "displayValue": "1",
+                        "team": {
+                          "id": "467"
+                        },
+                        "value": 1.0
+                      }
+                    ],
+                    "name": "goalsLeaders",
+                    "shortDisplayName": "Goals"
+                  }
+                ],
+                "order": 0,
+                "records": [
+                  {
+                    "abbreviation": "Total",
+                    "name": "All Splits",
+                    "summary": "0-1-1",
+                    "type": "total"
+                  }
+                ],
+                "score": "0",
+                "statistics": [],
+                "team": {
+                  "abbreviation": "RSA",
+                  "alternateColor": "0C562E",
+                  "color": "FFB81C",
+                  "displayName": "South Africa",
+                  "id": "467",
+                  "isActive": true,
+                  "links": [
+                    {
+                      "href": "https://www.espn.com/soccer/team/_/id/467/south-africa",
+                      "isExternal": false,
+                      "isHidden": false,
+                      "isPremium": false,
+                      "rel": [
+                        "clubhouse",
+                        "desktop",
+                        "team"
+                      ],
+                      "text": "Clubhouse"
+                    },
+                    {
+                      "href": "https://www.espn.com/soccer/team/stats/_/id/467/south-africa",
+                      "isExternal": false,
+                      "isHidden": false,
+                      "isPremium": false,
+                      "rel": [
+                        "stats",
+                        "desktop",
+                        "team"
+                      ],
+                      "text": "Stats"
+                    },
+                    {
+                      "href": "sportscenter://x-callback-url/showClubhouse?uid=s:600~t:467&section=stats",
+                      "isExternal": false,
+                      "isHidden": false,
+                      "isPremium": false,
+                      "rel": [
+                        "stats",
+                        "sportscenter",
+                        "app",
+                        "team"
+                      ],
+                      "text": "Stats"
+                    },
+                    {
+                      "href": "https://www.espn.com/soccer/team/fixtures/_/id/467/south-africa",
+                      "isExternal": false,
+                      "isHidden": false,
+                      "isPremium": false,
+                      "rel": [
+                        "schedule",
+                        "desktop",
+                        "team"
+                      ],
+                      "text": "Fixtures"
+                    },
+                    {
+                      "href": "sportscenter://x-callback-url/showClubhouse?uid=s:600~t:467&section=scores",
+                      "isExternal": false,
+                      "isHidden": false,
+                      "isPremium": false,
+                      "rel": [
+                        "schedule",
+                        "sportscenter",
+                        "app",
+                        "team"
+                      ],
+                      "text": "Fixtures"
+                    },
+                    {
+                      "href": "https://www.espn.com/soccer/team/squad/_/id/467/south-africa",
+                      "isExternal": false,
+                      "isHidden": false,
+                      "isPremium": false,
+                      "rel": [
+                        "squad",
+                        "desktop",
+                        "team"
+                      ],
+                      "text": "Squad"
+                    },
+                    {
+                      "href": "sportscenter://x-callback-url/showClubhouse?uid=s:600~t:467&section=squad",
+                      "isExternal": false,
+                      "isHidden": false,
+                      "isPremium": false,
+                      "rel": [
+                        "squad",
+                        "sportscenter",
+                        "app",
+                        "team"
+                      ],
+                      "text": "Squad"
+                    }
+                  ],
+                  "location": "South Africa",
+                  "logo": "https://a.espncdn.com/i/teamlogos/countries/500/rsa.png",
+                  "name": "South Africa",
+                  "shortDisplayName": "South Africa",
+                  "uid": "s:600~t:467",
+                  "venue": {
+                    "id": "4164"
+                  }
+                },
+                "type": "team",
+                "uid": "s:600~t:467",
+                "winner": false
+              },
+              {
+                "form": "LWWWL",
+                "homeAway": "away",
+                "id": "451",
+                "leaders": [
+                  {
+                    "abbreviation": "G",
+                    "displayName": "Goals",
+                    "leaders": [
+                      {
+                        "athlete": {
+                          "active": true,
+                          "displayName": "Hwang In-Beom",
+                          "fullName": "Hwang In-Beom",
+                          "headshot": "https://a.espncdn.com/i/headshots/soccer/players/full/280061.png",
+                          "id": "280061",
+                          "jersey": "6",
+                          "links": [
+                            {
+                              "href": "https://www.espn.com/soccer/player/_/id/280061/hwang-in-beom",
+                              "isHidden": false,
+                              "rel": [
+                                "playercard",
+                                "desktop",
+                                "athlete"
+                              ]
+                            }
+                          ],
+                          "position": {
+                            "abbreviation": "M"
+                          },
+                          "shortName": "H. In-Beom",
+                          "team": {
+                            "id": "451"
+                          }
+                        },
+                        "displayValue": "1",
+                        "team": {
+                          "id": "451"
+                        },
+                        "value": 1.0
+                      }
+                    ],
+                    "name": "goals",
+                    "shortDisplayName": "Goals"
+                  },
+                  {
+                    "abbreviation": "G",
+                    "displayName": "Goals",
+                    "leaders": [
+                      {
+                        "athlete": {
+                          "active": true,
+                          "displayName": "Hwang In-Beom",
+                          "fullName": "Hwang In-Beom",
+                          "headshot": "https://a.espncdn.com/i/headshots/soccer/players/full/280061.png",
+                          "id": "280061",
+                          "jersey": "6",
+                          "links": [
+                            {
+                              "href": "https://www.espn.com/soccer/player/_/id/280061/hwang-in-beom",
+                              "isHidden": false,
+                              "rel": [
+                                "playercard",
+                                "desktop",
+                                "athlete"
+                              ]
+                            }
+                          ],
+                          "position": {
+                            "abbreviation": "M"
+                          },
+                          "shortName": "H. In-Beom",
+                          "team": {
+                            "id": "451"
+                          }
+                        },
+                        "displayValue": "1",
+                        "team": {
+                          "id": "451"
+                        },
+                        "value": 1.0
+                      }
+                    ],
+                    "name": "goalsLeaders",
+                    "shortDisplayName": "Goals"
+                  }
+                ],
+                "order": 1,
+                "records": [
+                  {
+                    "abbreviation": "Total",
+                    "name": "All Splits",
+                    "summary": "1-0-1",
+                    "type": "total"
+                  }
+                ],
+                "score": "0",
+                "statistics": [],
+                "team": {
+                  "abbreviation": "KOR",
+                  "alternateColor": "9E82C8",
+                  "color": "ce2028",
+                  "displayName": "South Korea",
+                  "id": "451",
+                  "isActive": true,
+                  "links": [
+                    {
+                      "href": "https://www.espn.com/soccer/team/_/id/451/south-korea",
+                      "isExternal": false,
+                      "isHidden": false,
+                      "isPremium": false,
+                      "rel": [
+                        "clubhouse",
+                        "desktop",
+                        "team"
+                      ],
+                      "text": "Clubhouse"
+                    },
+                    {
+                      "href": "https://www.espn.com/soccer/team/stats/_/id/451/south-korea",
+                      "isExternal": false,
+                      "isHidden": false,
+                      "isPremium": false,
+                      "rel": [
+                        "stats",
+                        "desktop",
+                        "team"
+                      ],
+                      "text": "Stats"
+                    },
+                    {
+                      "href": "sportscenter://x-callback-url/showClubhouse?uid=s:600~t:451&section=stats",
+                      "isExternal": false,
+                      "isHidden": false,
+                      "isPremium": false,
+                      "rel": [
+                        "stats",
+                        "sportscenter",
+                        "app",
+                        "team"
+                      ],
+                      "text": "Stats"
+                    },
+                    {
+                      "href": "https://www.espn.com/soccer/team/fixtures/_/id/451/south-korea",
+                      "isExternal": false,
+                      "isHidden": false,
+                      "isPremium": false,
+                      "rel": [
+                        "schedule",
+                        "desktop",
+                        "team"
+                      ],
+                      "text": "Fixtures"
+                    },
+                    {
+                      "href": "sportscenter://x-callback-url/showClubhouse?uid=s:600~t:451&section=scores",
+                      "isExternal": false,
+                      "isHidden": false,
+                      "isPremium": false,
+                      "rel": [
+                        "schedule",
+                        "sportscenter",
+                        "app",
+                        "team"
+                      ],
+                      "text": "Fixtures"
+                    },
+                    {
+                      "href": "https://www.espn.com/soccer/team/squad/_/id/451/south-korea",
+                      "isExternal": false,
+                      "isHidden": false,
+                      "isPremium": false,
+                      "rel": [
+                        "squad",
+                        "desktop",
+                        "team"
+                      ],
+                      "text": "Squad"
+                    },
+                    {
+                      "href": "sportscenter://x-callback-url/showClubhouse?uid=s:600~t:451&section=squad",
+                      "isExternal": false,
+                      "isHidden": false,
+                      "isPremium": false,
+                      "rel": [
+                        "squad",
+                        "sportscenter",
+                        "app",
+                        "team"
+                      ],
+                      "text": "Squad"
+                    }
+                  ],
+                  "location": "South Korea",
+                  "logo": "https://a.espncdn.com/i/teamlogos/countries/500/kors.png",
+                  "name": "South Korea",
+                  "shortDisplayName": "South Korea",
+                  "uid": "s:600~t:451",
+                  "venue": {
+                    "id": "3082"
+                  }
+                },
+                "type": "team",
+                "uid": "s:600~t:451",
+                "winner": false
+              }
+            ],
+            "date": "2026-06-25T01:00Z",
+            "details": [],
+            "format": {
+              "regulation": {
+                "periods": 2
+              }
+            },
+            "geoBroadcasts": [
+              {
+                "lang": "en",
+                "market": {
+                  "id": "1",
+                  "type": "National"
+                },
+                "media": {
+                  "shortName": "FS1"
+                },
+                "region": "us",
+                "type": {
+                  "id": "1",
+                  "shortName": "TV"
+                }
+              },
+              {
+                "lang": "en",
+                "market": {
+                  "id": "1",
+                  "type": "National"
+                },
+                "media": {
+                  "shortName": "Universo"
+                },
+                "region": "us",
+                "type": {
+                  "id": "4",
+                  "shortName": "STREAMING"
+                }
+              },
+              {
+                "lang": "en",
+                "market": {
+                  "id": "1",
+                  "type": "National"
+                },
+                "media": {
+                  "shortName": "FOX One"
+                },
+                "region": "us",
+                "type": {
+                  "id": "4",
+                  "shortName": "STREAMING"
+                }
+              }
+            ],
+            "id": "760466",
+            "notes": [],
+            "odds": [
+              {
+                "details": "KOR -150",
+                "drawOdds": {
+                  "link": {
+                    "href": "https://sportsbook.draftkings.com/gateway?s=__s__&wpcid=__wpcid__&wpsrc=413&wpcn=ESPN&wpscn=Widget&wpcrn=BetSlipDeepLink&wpscid=__wpscid__&wpcrid=xx&preurl=https%3A%2F%2Fsportsbook.draftkings.com%2Fevent%2F34206874%3Foutcomes%3D0ML84944375_2",
+                    "isExternal": true,
+                    "isHidden": false,
+                    "isPremium": false,
+                    "language": "en-US",
+                    "rel": [
+                      "draw",
+                      "desktop",
+                      "bets",
+                      "draftkings"
+                    ],
+                    "shortText": "Draw Bet",
+                    "text": "Draw Bet"
+                  },
+                  "moneyLine": 295
+                },
+                "link": {
+                  "href": "https://sportsbook.draftkings.com/gateway?s=__s__&wpcid=__wpcid__&wpsrc=413&wpcn=ESPN&wpscn=Widget&wpcrn=BetSlipDeepLink&wpscid=__wpscid__&wpcrid=xx&preurl=https%3A%2F%2Fsportsbook.draftkings.com%2Fevent%2F34206874",
+                  "isExternal": true,
+                  "isHidden": false,
+                  "isPremium": false,
+                  "language": "en-US",
+                  "rel": [
+                    "game",
+                    "desktop",
+                    "bets"
+                  ],
+                  "shortText": "Game",
+                  "text": "Game"
+                },
+                "moneyline": {
+                  "away": {
+                    "close": {
+                      "link": {
+                        "href": "https://sportsbook.draftkings.com/gateway?s=__s__&wpcid=__wpcid__&wpsrc=413&wpcn=ESPN&wpscn=Widget&wpcrn=BetSlipDeepLink&wpscid=__wpscid__&wpcrid=xx&preurl=https%3A%2F%2Fsportsbook.draftkings.com%2Fevent%2F34206874%3Foutcomes%3D0ML84944375_3",
+                        "rel": [
+                          "away",
+                          "bets"
+                        ],
+                        "tracking": {
+                          "campaign": "betting-integrations",
+                          "tags": {
+                            "betSide": "away",
+                            "betType": "straight",
+                            "gameId": 760466,
+                            "league": "fifa.world",
+                            "sport": "soccer"
+                          }
+                        }
+                      },
+                      "odds": "-150"
+                    },
+                    "open": {
+                      "odds": "+110"
+                    }
+                  },
+                  "displayName": "Moneyline",
+                  "draw": {
+                    "close": {
+                      "link": {
+                        "href": "https://sportsbook.draftkings.com/gateway?s=__s__&wpcid=__wpcid__&wpsrc=413&wpcn=ESPN&wpscn=Widget&wpcrn=BetSlipDeepLink&wpscid=__wpscid__&wpcrid=xx&preurl=https%3A%2F%2Fsportsbook.draftkings.com%2Fevent%2F34206874%3Foutcomes%3D0ML84944375_2",
+                        "rel": [
+                          "draw",
+                          "bets"
+                        ],
+                        "tracking": {
+                          "campaign": "betting-integrations",
+                          "tags": {
+                            "betSide": "draw",
+                            "betType": "straight",
+                            "gameId": 760466,
+                            "league": "fifa.world",
+                            "sport": "soccer"
+                          }
+                        }
+                      },
+                      "odds": "+295"
+                    },
+                    "open": {
+                      "odds": "+235"
+                    }
+                  },
+                  "home": {
+                    "close": {
+                      "link": {
+                        "href": "https://sportsbook.draftkings.com/gateway?s=__s__&wpcid=__wpcid__&wpsrc=413&wpcn=ESPN&wpscn=Widget&wpcrn=BetSlipDeepLink&wpscid=__wpscid__&wpcrid=xx&preurl=https%3A%2F%2Fsportsbook.draftkings.com%2Fevent%2F34206874%3Foutcomes%3D0ML84944375_1",
+                        "rel": [
+                          "home",
+                          "bets"
+                        ],
+                        "tracking": {
+                          "campaign": "betting-integrations",
+                          "tags": {
+                            "betSide": "home",
+                            "betType": "straight",
+                            "gameId": 760466,
+                            "league": "fifa.world",
+                            "sport": "soccer"
+                          }
+                        }
+                      },
+                      "odds": "+425"
+                    },
+                    "open": {
+                      "odds": "+265"
+                    }
+                  },
+                  "shortDisplayName": "ML"
+                },
+                "overUnder": 2.5,
+                "pointSpread": {
+                  "away": {
+                    "close": {
+                      "line": "-0.5",
+                      "link": {
+                        "href": "https://sportsbook.draftkings.com/gateway?s=__s__&wpcid=__wpcid__&wpsrc=413&wpcn=ESPN&wpscn=Widget&wpcrn=BetSlipDeepLink&wpscid=__wpscid__&wpcrid=xx&preurl=https%3A%2F%2Fsportsbook.draftkings.com%2Fevent%2F34206874%3Foutcomes%3D0HC84978592N50_3",
+                        "rel": [
+                          "awaySpread",
+                          "bets"
+                        ],
+                        "tracking": {
+                          "campaign": "betting-integrations",
+                          "tags": {
+                            "betDetails": "Spread:KOR-0.5",
+                            "betSide": "away",
+                            "betType": "straight",
+                            "gameId": 760466,
+                            "league": "fifa.world",
+                            "sport": "soccer"
+                          }
+                        }
+                      },
+                      "odds": "-160"
+                    },
+                    "open": {
+                      "line": "-0.5",
+                      "odds": "+100"
+                    }
+                  },
+                  "displayName": "Spread",
+                  "home": {
+                    "close": {
+                      "line": "+0.5",
+                      "link": {
+                        "href": "https://sportsbook.draftkings.com/gateway?s=__s__&wpcid=__wpcid__&wpsrc=413&wpcn=ESPN&wpscn=Widget&wpcrn=BetSlipDeepLink&wpscid=__wpscid__&wpcrid=xx&preurl=https%3A%2F%2Fsportsbook.draftkings.com%2Fevent%2F34206874%3Foutcomes%3D0HC84978592P50_1",
+                        "rel": [
+                          "homeSpread",
+                          "bets"
+                        ],
+                        "tracking": {
+                          "campaign": "betting-integrations",
+                          "tags": {
+                            "betDetails": "Spread:RSA+0.5",
+                            "betSide": "home",
+                            "betType": "straight",
+                            "gameId": 760466,
+                            "league": "fifa.world",
+                            "sport": "soccer"
+                          }
+                        }
+                      },
+                      "odds": "+125"
+                    },
+                    "open": {
+                      "line": "+0.5",
+                      "odds": "-140"
+                    }
+                  },
+                  "shortDisplayName": "Spread"
+                },
+                "provider": {
+                  "id": "100",
+                  "name": "DraftKings",
+                  "priority": 1
+                },
+                "total": {
+                  "displayName": "Total",
+                  "over": {
+                    "close": {
+                      "line": "o2.5",
+                      "link": {
+                        "href": "https://sportsbook.draftkings.com/gateway?s=__s__&wpcid=__wpcid__&wpsrc=413&wpcn=ESPN&wpscn=Widget&wpcrn=BetSlipDeepLink&wpscid=__wpscid__&wpcrid=xx&preurl=https%3A%2F%2Fsportsbook.draftkings.com%2Fevent%2F34206874%3Foutcomes%3D0OU84978587O250_1",
+                        "rel": [
+                          "over",
+                          "bets"
+                        ],
+                        "tracking": {
+                          "campaign": "betting-integrations",
+                          "tags": {
+                            "betDetails": "Over:2.5",
+                            "betSide": "over",
+                            "betType": "straight",
+                            "gameId": 760466,
+                            "league": "fifa.world",
+                            "sport": "soccer"
+                          }
+                        }
+                      },
+                      "odds": "+105"
+                    },
+                    "open": {
+                      "line": "o2.5",
+                      "odds": "+115"
+                    }
+                  },
+                  "shortDisplayName": "Total",
+                  "under": {
+                    "close": {
+                      "line": "u2.5",
+                      "link": {
+                        "href": "https://sportsbook.draftkings.com/gateway?s=__s__&wpcid=__wpcid__&wpsrc=413&wpcn=ESPN&wpscn=Widget&wpcrn=BetSlipDeepLink&wpscid=__wpscid__&wpcrid=xx&preurl=https%3A%2F%2Fsportsbook.draftkings.com%2Fevent%2F34206874%3Foutcomes%3D0OU84978587U250_3",
+                        "rel": [
+                          "under",
+                          "bets"
+                        ],
+                        "tracking": {
+                          "campaign": "betting-integrations",
+                          "tags": {
+                            "betDetails": "Under:2.5",
+                            "betSide": "under",
+                            "betType": "straight",
+                            "gameId": 760466,
+                            "league": "fifa.world",
+                            "sport": "soccer"
+                          }
+                        }
+                      },
+                      "odds": "-130"
+                    },
+                    "open": {
+                      "line": "u2.5",
+                      "odds": "-145"
+                    }
+                  }
+                }
+              }
+            ],
+            "playByPlayAthletes": true,
+            "playByPlayAvailable": true,
+            "recent": false,
+            "startDate": "2026-06-25T01:00Z",
+            "status": {
+              "clock": 0.0,
+              "displayClock": "0'",
+              "type": {
+                "completed": false,
+                "description": "Scheduled",
+                "detail": "Wed, June 24th at 9:00 PM EDT",
+                "id": "1",
+                "name": "STATUS_SCHEDULED",
+                "shortDetail": "Scheduled",
+                "state": "pre"
+              }
+            },
+            "timeValid": true,
+            "uid": "s:600~l:606~e:760466~c:760466",
+            "venue": {
+              "address": {
+                "city": "Guadalupe",
+                "country": "Mexico"
+              },
+              "fullName": "Estadio BBVA",
+              "id": "6351"
+            },
+            "wasSuspended": false
+          }
+        ],
+        "date": "2026-06-25T01:00Z",
+        "id": "760466",
+        "links": [
+          {
+            "href": "https://www.espn.com/soccer/match/_/gameId/760466/south-korea-south-africa",
+            "isExternal": false,
+            "isHidden": false,
+            "isPremium": false,
+            "language": "en-US",
+            "rel": [
+              "summary",
+              "desktop",
+              "event"
+            ],
+            "shortText": "Summary",
+            "text": "Summary"
+          },
+          {
+            "href": "https://www.espn.com/soccer/matchstats/_/gameId/760466",
+            "isExternal": false,
+            "isHidden": false,
+            "isPremium": false,
+            "language": "en-US",
+            "rel": [
+              "stats",
+              "desktop",
+              "event"
+            ],
+            "shortText": "Statistics",
+            "text": "Statistics"
+          },
+          {
+            "href": "https://www.espn.com/soccer/bracket/_/season/2026/league/fifa.world",
+            "isExternal": false,
+            "isHidden": false,
+            "isPremium": false,
+            "language": "en-US",
+            "rel": [
+              "bracket",
+              "desktop",
+              "event"
+            ],
+            "shortText": "Bracket",
+            "text": "Bracket"
+          }
+        ],
+        "name": "South Korea at South Africa",
+        "season": {
+          "slug": "group-stage",
+          "type": 13802,
+          "year": 2026
+        },
+        "shortName": "KOR @ RSA",
+        "status": {
+          "clock": 0.0,
+          "displayClock": "0'",
+          "type": {
+            "completed": false,
+            "description": "Scheduled",
+            "detail": "Wed, June 24th at 9:00 PM EDT",
+            "id": "1",
+            "name": "STATUS_SCHEDULED",
+            "shortDetail": "Scheduled",
+            "state": "pre"
+          }
+        },
+        "uid": "s:600~l:606~e:760466",
+        "venue": {
+          "displayName": "Estadio BBVA"
+        }
+      }
+    ],
+    "leagues": [
+      {
+        "abbreviation": "FIFA World Cup",
+        "calendar": [
+          {
+            "endDate": "2026-12-31T04:59Z",
+            "entries": [
+              {
+                "detail": "Jun 11-27",
+                "endDate": "2026-06-28T06:59Z",
+                "label": "Group",
+                "startDate": "2026-06-11T07:00Z",
+                "value": "1"
+              },
+              {
+                "detail": "Jun 28-Jul 3",
+                "endDate": "2026-07-04T06:59Z",
+                "label": "Round of 32",
+                "startDate": "2026-06-28T07:00Z",
+                "value": "2"
+              },
+              {
+                "detail": "Jul 4-7",
+                "endDate": "2026-07-09T06:59Z",
+                "label": "Rd of 16",
+                "startDate": "2026-07-04T07:00Z",
+                "value": "3"
+              },
+              {
+                "detail": "Jul 9-11",
+                "endDate": "2026-07-14T06:59Z",
+                "label": "Quarterfinals",
+                "startDate": "2026-07-09T07:00Z",
+                "value": "4"
+              },
+              {
+                "detail": "Jul 14-15",
+                "endDate": "2026-07-19T06:59Z",
+                "label": "Semifinals",
+                "startDate": "2026-07-14T07:00Z",
+                "value": "5"
+              },
+              {
+                "detail": "Jul 18",
+                "endDate": "2026-07-19T06:59Z",
+                "label": "3rd-Place Match",
+                "startDate": "2026-07-18T07:00Z",
+                "value": "6"
+              },
+              {
+                "detail": "Jul 19",
+                "endDate": "2026-08-01T06:59Z",
+                "label": "Final",
+                "startDate": "2026-07-19T07:00Z",
+                "value": "7"
+              }
+            ],
+            "label": "FIFA World Cup",
+            "startDate": "2026-06-11T04:00Z"
+          }
+        ],
+        "calendarEndDate": "2026-12-31T04:59Z",
+        "calendarIsWhitelist": true,
+        "calendarStartDate": "2026-06-11T04:00Z",
+        "calendarType": "list",
+        "id": "606",
+        "logos": [
+          {
+            "alt": "",
+            "height": 500,
+            "href": "https://a.espncdn.com/i/leaguelogos/soccer/500/4.png",
+            "lastUpdated": "2025-06-16T14:56Z",
+            "rel": [
+              "full",
+              "default"
+            ],
+            "width": 500
+          },
+          {
+            "alt": "",
+            "height": 500,
+            "href": "https://a.espncdn.com/i/leaguelogos/soccer/500-dark/4.png",
+            "lastUpdated": "2025-06-16T14:56Z",
+            "rel": [
+              "full",
+              "dark"
+            ],
+            "width": 500
+          }
+        ],
+        "midsizeName": "FIFA.WORLD",
+        "name": "FIFA World Cup",
+        "season": {
+          "displayName": "2026 FIFA World Cup",
+          "endDate": "2026-12-31T04:59Z",
+          "startDate": "2026-06-11T04:00Z",
+          "type": {
+            "abbreviation": "Group Stage",
+            "id": "1",
+            "name": "Group Stage",
+            "type": 13802
+          },
+          "year": 2026
+        },
+        "slug": "fifa.world",
+        "uid": "s:600~l:606"
+      }
+    ],
+    "provider": {
+      "displayName": "DraftKings",
+      "id": "100",
+      "logos": [
+        {
+          "href": "https://a.espncdn.com/i/betting/Draftkings_Light.svg",
+          "rel": [
+            "light"
+          ]
+        },
+        {
+          "href": "https://a.espncdn.com/i/betting/Draftkings_Dark.svg",
+          "rel": [
+            "dark"
+          ]
+        }
+      ],
+      "name": "DraftKings",
+      "priority": 1
+    }
+  },
+  "body_sha256": "4debd051ff0995155b3bf4f3de5463c11cadade18a51c7754986debc253c5a3c",
+  "captured_at_utc": "2026-06-24T05:48:20.239856Z",
+  "fixture_slug": "worldcup2026-switzerland-canada",
+  "headers_redacted": true,
+  "headers_retained": false,
+  "network_used": true,
+  "provider": "espn-baseline",
+  "real_response_proof": {
+    "parsed_json_type": "dict",
+    "provider_status": "BLOCKED_MAPPING_NOT_FOUND",
+    "response_body_sha256": "4debd051ff0995155b3bf4f3de5463c11cadade18a51c7754986debc253c5a3c",
+    "response_size_bytes": 86217
+  },
+  "request_purpose": "espn_scoreboard_discovery",
+  "sanitized": true,
+  "secrets_stored": false,
+  "source_url": "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?dates=20260624",
+  "status": "FETCHED",
+  "status_code": 200
+}

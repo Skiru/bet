@@ -1,0 +1,41 @@
+{
+  "parsers": {
+    "statsbomb-open-data": {
+      "function": "parse_statsbomb_tree",
+      "fact_type": "MATCH_EVENT",
+      "proof_level": "REAL_LOCAL_OPEN_DATA_PROOF",
+      "role": "HISTORICAL_DEEP",
+      "is_current_truth_allowed": false,
+      "metrics_extracted": [
+        "competition_count",
+        "event_count",
+        "shot_count",
+        "xg_sum",
+        "lineups_count",
+        "three_sixty_frame_count"
+      ]
+    },
+    "openfootball": {
+      "function": "parse_openfootball_text",
+      "fact_type": "REFERENCE_RESULT",
+      "proof_level": "REAL_LOCAL_OPEN_DATA_PROOF",
+      "role": "REFERENCE_IDENTITY",
+      "is_current_truth_allowed": false,
+      "metrics_extracted": [
+        "line_count",
+        "fixture_count"
+      ]
+    },
+    "kaggle-european-soccer": {
+      "function": "parse_kaggle_european_soccer_csv",
+      "fact_type": "HISTORICAL_PRIOR",
+      "proof_level": "REAL_LOCAL_OPEN_DATA_PROOF",
+      "role": "HISTORICAL_DEEP",
+      "is_current_truth_allowed": false,
+      "metrics_extracted": [
+        "record_count",
+        "temporal_decay_required"
+      ]
+    }
+  }
+}

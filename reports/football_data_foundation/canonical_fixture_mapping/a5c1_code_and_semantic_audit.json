@@ -1,0 +1,106 @@
+{
+  "phase_id": "FOOTBALL_DATA_FOUNDATION_A5C1_V2_CANONICAL_MAPPING_CODE_QUALITY_FRESHNESS_SCHEMA_SEMANTICS_HARDENING",
+  "audit": {
+    "status": "COMPLETED",
+    "touched_files": {
+      "src/bet/enrichment/football_data_foundation/canonical_fixture_resolver.py": {
+        "physical_line_count": 375,
+        "max_line_length": 157,
+        "is_minified": false,
+        "reviewable": true,
+        "hardcoded_football": true,
+        "external_id_verification": "weak_upsert_without_conflict_handling",
+        "team_alias_constraints": "broad_lookup_without_provider_or_competition_hint"
+      },
+      "src/bet/enrichment/football_data_foundation/canonical_observation_writer.py": {
+        "physical_line_count": 379,
+        "max_line_length": 249,
+        "is_minified": false,
+        "reviewable": true,
+        "hardcoded_football": true,
+        "fact_scoping": "missing_explicit_scope_and_duplicated_without_clear_metadata"
+      },
+      "src/bet/enrichment/football_data_foundation/temp_sqlite_harness.py": {
+        "physical_line_count": 50,
+        "max_line_length": 90,
+        "is_minified": false,
+        "reviewable": true,
+        "hardcoded_football": false
+      },
+      "src/bet/enrichment/football_data_foundation/cli.py": {
+        "physical_line_count": 253,
+        "max_line_length": 194,
+        "is_minified": false,
+        "reviewable": true,
+        "hardcoded_cutoff_at": "2026-06-19T22:00:00Z",
+        "hardcoded_real_db_touched": true
+      },
+      "tests/enrichment/football_data_foundation/test_canonical_fixture_mapping.py": {
+        "physical_line_count": 308,
+        "max_line_length": 108,
+        "is_minified": false,
+        "reviewable": true
+      },
+      "src/bet/enrichment/football_data_foundation/persistence_bridge.py": {
+        "physical_line_count": 751,
+        "max_line_length": 89,
+        "is_minified": false,
+        "reviewable": true
+      },
+      "src/bet/enrichment/football_data_foundation/scanner_bridge.py": {
+        "physical_line_count": 399,
+        "max_line_length": 97,
+        "is_minified": false,
+        "reviewable": true
+      },
+      "tests/enrichment/football_data_foundation/test_production_bridge.py": {
+        "physical_line_count": 363,
+        "max_line_length": 86,
+        "is_minified": false,
+        "reviewable": true
+      }
+    },
+    "semantic_defects": {
+      "hardcoded_football_use": {
+        "description": "Generic resolver/writer paths hardcode 'football' and sports_entity/source_entity_reference fields instead of utilizing scanner_event.sport or profile-derived sport.",
+        "severity": "HIGH",
+        "blocker": true
+      },
+      "stale_evidence_reuse_without_freshness_checks": {
+        "description": "A5 consumed A4/A3C1 cached evidence without performing TTL, status-sensitive, or live-to-final status drift validation.",
+        "severity": "HIGH",
+        "blocker": true
+      },
+      "weak_external_id_validation": {
+        "description": "The fixture_sources upsert can silently map an existing row with a different external_id to the same canonical fixture, risking incorrect mappings.",
+        "severity": "HIGH",
+        "blocker": true
+      },
+      "over_broad_alias_lookup": {
+        "description": "Team alias lookup maps names broadly without checking provider/source context, status verification, or provider_competition_hint.",
+        "severity": "MEDIUM",
+        "blocker": false
+      },
+      "competition_country_corruption": {
+        "description": "competition.country is populated with a group label (e.g., 'Group D') instead of a country string or null.",
+        "severity": "MEDIUM",
+        "blocker": true
+      },
+      "fact_duplication_without_explicit_scope": {
+        "description": "Fixture-level facts are duplicated to both home/away teams without clear isolation metadata, risking double-counting by consumers.",
+        "severity": "HIGH",
+        "blocker": true
+      },
+      "hardcoded_cli_arguments": {
+        "description": "CLI hardcodes analysis_cutoff_at and real_db_touched proofs, making validation of temporal and connection safety inflexible/unreliable.",
+        "severity": "HIGH",
+        "blocker": true
+      },
+      "schema_sufficiency_overstatement": {
+        "description": "A5 overstates schema sufficiency while downstream database adapters, provider matrix config, and yaml routing remain deferred.",
+        "severity": "MEDIUM",
+        "blocker": false
+      }
+    }
+  }
+}

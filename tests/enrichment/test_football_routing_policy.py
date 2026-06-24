@@ -4,6 +4,7 @@ from __future__ import annotations
 import copy
 import json
 import os
+import shutil
 import subprocess
 import sys
 from datetime import UTC, datetime
@@ -11,6 +12,7 @@ from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
+import yaml
 
 from bet.api_clients.base_client import SourceOperationResult, SourceResultStatus
 from bet.api_clients.football_data_org import FootballDataOrgClient
@@ -31,6 +33,12 @@ from bet.integration.telemetry_wrapper import TransportResult
 def _config(monkeypatch) -> dict:
     monkeypatch.setenv("FOOTBALL_ENRICHMENT_MODE", "shadow")
     return copy.deepcopy(load_and_validate_config())
+
+
+def _config_dir_copy(tmp_path: Path) -> Path:
+    config_dir = tmp_path / "config"
+    shutil.copytree(Path("config"), config_dir)
+    return config_dir
 
 
 def _football_data_capability(config: dict, capability: str) -> dict:
@@ -626,6 +634,33 @@ def test_shadow_route_never_selected_even_if_matrix_is_selectable(monkeypatch):
         mode="shadow",
     )
     assert selected is None
+
+
+def test_route_validation_allows_same_provider_when_scope_differs(tmp_path, monkeypatch):
+    monkeypatch.setenv("FOOTBALL_ENRICHMENT_MODE", "shadow")
+    config_dir = _config_dir_copy(tmp_path)
+
+    config = yaml.safe_load((config_dir / "football_routing.yaml").read_text(encoding="utf-8"))
+    shadow_routes = config["routing"]["detailed_metrics"]["shadow_routes"]
+    assert [route["provider"] for route in shadow_routes] == ["sportdb", "sportdb"]
+
+    validated = load_and_validate_config(config_dir)
+    validated_shadow_routes = validated["routing"]["detailed_metrics"]["shadow_routes"]
+    assert [route["provider"] for route in validated_shadow_routes] == ["sportdb", "sportdb"]
+
+
+def test_route_validation_rejects_exact_duplicate_route_identity(tmp_path, monkeypatch):
+    monkeypatch.setenv("FOOTBALL_ENRICHMENT_MODE", "shadow")
+    config_dir = _config_dir_copy(tmp_path)
+
+    routing_path = config_dir / "football_routing.yaml"
+    config = yaml.safe_load(routing_path.read_text(encoding="utf-8"))
+    duplicate_route = copy.deepcopy(config["routing"]["detailed_metrics"]["shadow_routes"][0])
+    config["routing"]["detailed_metrics"]["shadow_routes"].append(duplicate_route)
+    routing_path.write_text(yaml.safe_dump(config, sort_keys=False), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="Duplicate route identity"):
+        load_and_validate_config(config_dir)
 
 
 def test_understat_cannot_be_selected_outside_advanced_xg(monkeypatch):

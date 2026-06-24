@@ -195,6 +195,21 @@ def _normalize_route_entries(route_info: dict[str, Any]) -> list[dict[str, Any]]
     return normalized_routes
 
 
+def _route_identity_tuple(
+    route_name: str,
+    route_entry: dict[str, Any],
+) -> tuple[str, str, str, str, str, str, str]:
+    return (
+        route_name,
+        str(route_entry.get("bucket") or ""),
+        str(route_entry.get("provider") or ""),
+        str(route_entry.get("competition_scope") or "football:*"),
+        str(route_entry.get("season_scope") or "current"),
+        str(route_entry.get("mode") or "shadow"),
+        str(route_entry.get("selectable_status") or ""),
+    )
+
+
 def _find_matching_matrix_entry(
     matrix: dict[str, Any],
     *,
@@ -433,9 +448,15 @@ def load_and_validate_config(config_dir: Path | str = "config") -> dict[str, Any
     # 3. Validate routing
     for route_name, route_info in routing.items():
         normalized_routes = _normalize_route_entries(route_info or {})
-        providers = [route["provider"] for route in normalized_routes]
-        if len(providers) != len(set(providers)):
-            raise ValueError(f"Duplicate providers in route {route_name}: {providers}")
+        seen_route_identities: set[tuple[str, str, str, str, str, str, str]] = set()
+        for route_entry in normalized_routes:
+            route_identity = _route_identity_tuple(route_name, route_entry)
+            if route_identity in seen_route_identities:
+                raise ValueError(
+                    "Duplicate route identity in route "
+                    f"{route_name}: {route_identity}"
+                )
+            seen_route_identities.add(route_identity)
 
         for route_entry in normalized_routes:
             provider = route_entry["provider"]

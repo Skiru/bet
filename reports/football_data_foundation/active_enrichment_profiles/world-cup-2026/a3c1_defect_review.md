@@ -1,0 +1,24 @@
+# A3C1 Defect Review
+
+- `endpoint_verification.json` event ids: `CONFIRMED DEFECT`
+  - Previous report used scanner seed `66456944` as provider event id.
+  - Corrected live endpoint verification preserves ESPN event id `760442`.
+- Real ESPN `fifa.world` ids: `CONFIRMED`
+  - Bounded live verifier saw `4` live scoreboard events and matched USA/Australia to provider event id `760442`.
+- `active_certified_tuples.json`: `CONFIRMED DEFECT`
+  - Previous file certified `soccerdata-espn-worldcup / read_schedule / detailed_metrics`.
+  - Corrected file certifies only direct endpoint tuples with real facts.
+- `provider_capability_matrix.json` World Cup additions: `CONFIRMED DEFECT`
+  - Generic `espn` World Cup entries were unsafe and have been reverted.
+- `football_routing.yaml` World Cup additions: `CONFIRMED DEFECT`
+  - Generic `espn` World Cup active routes were unsafe and have been reverted.
+- Active enrichment dry-runs: `CONFIRMED DEFECT`
+  - Previous empty-store dry-run returned `ENRICHED_COMPLETE`.
+  - Corrected empty-store dry-run returns `ENRICH_FAILED_CLOSED`.
+- Placeholder facts: `CONFIRMED DEFECT`
+  - Previous runs used `VERIFIED_SCHEDULED` for `current_form` and `detailed_metrics`.
+  - Corrected runs use only real status, record, score, venue, and metric facts.
+- `read_schedule` certifying `detailed_metrics`: `CONFIRMED DEFECT`
+  - Corrected certification removes that path and records it as deferred.
+- Scanner seed confused with provider event id: `CONFIRMED DEFECT`
+  - Corrected endpoint and identity artifacts preserve separate `scanner_event_id` and `provider_event_id` fields.

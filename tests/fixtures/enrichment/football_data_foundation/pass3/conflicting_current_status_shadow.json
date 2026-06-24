@@ -1,0 +1,131 @@
+{
+  "claims": [
+    {
+      "source": {
+        "source_key": "sportdb",
+        "display_name": "SportDB Live Client",
+        "role": "CURRENT_LIVE",
+        "requires_credentials": true,
+        "supports_live": true,
+        "supports_historical": false,
+        "supports_reference": true,
+        "supports_replay": true,
+        "allowed_proof_levels": ["REAL_LIVE_API_PROOF", "REAL_DEPENDENCY_REPLAY_PROOF"],
+        "forbidden_fact_types": ["HISTORICAL_PRIOR"]
+      },
+      "proof_level": "REAL_LIVE_API_PROOF",
+      "fact_type": "FIXTURE_IDENTITY",
+      "identity": {
+        "source_key": "sportdb",
+        "provider_fixture_id": "conflict-match-1"
+      },
+      "freshness": {
+        "observed_at": "2026-06-22T10:00:00Z",
+        "is_current_truth_allowed": true
+      },
+      "payload_policy": {
+        "payload_hash": "c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4"
+      },
+      "claim_value": {
+        "competition": "La Liga",
+        "home_team": "Real Madrid",
+        "away_team": "Barcelona"
+      },
+      "confidence": 0.95
+    },
+    {
+      "source": {
+        "source_key": "sportdb",
+        "display_name": "SportDB Live Client",
+        "role": "CURRENT_LIVE",
+        "requires_credentials": true,
+        "supports_live": true,
+        "supports_historical": false,
+        "supports_reference": true,
+        "supports_replay": true,
+        "allowed_proof_levels": ["REAL_LIVE_API_PROOF", "REAL_DEPENDENCY_REPLAY_PROOF"],
+        "forbidden_fact_types": ["HISTORICAL_PRIOR"]
+      },
+      "proof_level": "REAL_LIVE_API_PROOF",
+      "fact_type": "MATCH_STATUS",
+      "identity": {
+        "source_key": "sportdb",
+        "provider_fixture_id": "conflict-match-1"
+      },
+      "freshness": {
+        "observed_at": "2026-06-22T10:00:00Z",
+        "is_current_truth_allowed": true
+      },
+      "payload_policy": {
+        "payload_hash": "c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4"
+      },
+      "claim_value": {
+        "status": "LIVE"
+      },
+      "confidence": 0.95
+    },
+    {
+      "source": {
+        "source_key": "highlightly",
+        "display_name": "Highlightly Live Client",
+        "role": "CURRENT_LIVE_OR_RECENT_DETAILED_SHADOW",
+        "requires_credentials": true,
+        "supports_live": true,
+        "supports_historical": true,
+        "supports_reference": true,
+        "supports_replay": true,
+        "allowed_proof_levels": ["REAL_LIVE_API_PROOF", "REAL_DEPENDENCY_REPLAY_PROOF"],
+        "forbidden_fact_types": ["THREE_SIXTY_FRAME"]
+      },
+      "proof_level": "REAL_LIVE_API_PROOF",
+      "fact_type": "MATCH_STATUS",
+      "identity": {
+        "source_key": "highlightly",
+        "provider_fixture_id": "conflict-match-1"
+      },
+      "freshness": {
+        "observed_at": "2026-06-22T10:00:01Z",
+        "is_current_truth_allowed": true
+      },
+      "payload_policy": {
+        "payload_hash": "d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5"
+      },
+      "claim_value": {
+        "status": "FT"
+      },
+      "confidence": 0.90
+    },
+    {
+      "source": {
+        "source_key": "sportdb",
+        "display_name": "SportDB Live Client",
+        "role": "CURRENT_LIVE",
+        "requires_credentials": true,
+        "supports_live": true,
+        "supports_historical": false,
+        "supports_reference": true,
+        "supports_replay": true,
+        "allowed_proof_levels": ["REAL_LIVE_API_PROOF", "REAL_DEPENDENCY_REPLAY_PROOF"],
+        "forbidden_fact_types": ["HISTORICAL_PRIOR"]
+      },
+      "proof_level": "REAL_LIVE_API_PROOF",
+      "fact_type": "SCORE",
+      "identity": {
+        "source_key": "sportdb",
+        "provider_fixture_id": "conflict-match-1"
+      },
+      "freshness": {
+        "observed_at": "2026-06-22T10:00:00Z",
+        "is_current_truth_allowed": true
+      },
+      "payload_policy": {
+        "payload_hash": "c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4"
+      },
+      "claim_value": {
+        "score_home": 3,
+        "score_away": 2
+      },
+      "confidence": 0.95
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+{
+  "credentials_present": {
+    "api_football": true,
+    "espn_baseline": false,
+    "football_data_org": true,
+    "highlightly": true,
+    "sportdb": true
+  },
+  "failed_count": 0,
+  "fetched_count": 0,
+  "files_written": [
+    "fixtures_discovered.json",
+    "sportdb/worldcup2026-norway-senegal.json",
+    "football-data-org/worldcup2026-norway-senegal.json",
+    "highlightly/worldcup2026-norway-senegal.json",
+    "api-football/worldcup2026-norway-senegal.json",
+    "espn-baseline/worldcup2026-norway-senegal.json",
+    "manifest.json",
+    "README.md"
+  ],
+  "fixture_count": 1,
+  "provider_count": 5,
+  "run_id": "run_20260623_080823_782f1f",
+  "run_started_at_utc": "2026-06-23T08:08:23.278531Z",
+  "selectable_for_production": false,
+  "skipped_count": 5,
+  "target_date_utc": "2026-06-23"
+}

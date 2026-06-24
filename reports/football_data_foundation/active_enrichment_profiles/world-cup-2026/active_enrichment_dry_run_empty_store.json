@@ -1,0 +1,59 @@
+{
+  "canonical_match_identity": {
+    "away_team": "Australia",
+    "home_team": "United States"
+  },
+  "conflict_diagnostics": [],
+  "evidence_refs": [],
+  "facts": [],
+  "fetch_decisions": [
+    {
+      "capability": "current_discovery",
+      "decision": "FETCH_REQUIRED",
+      "force_refresh": false,
+      "provider_priority": [
+        "espn-fifa-worldcup",
+        "soccerdata-espn-worldcup",
+        "sportdb-worldcup"
+      ],
+      "reason": "No completeness record exists for capability current_discovery."
+    },
+    {
+      "capability": "detailed_metrics",
+      "decision": "FETCH_REQUIRED",
+      "force_refresh": false,
+      "provider_priority": [
+        "espn-fifa-worldcup",
+        "soccerdata-espn-worldcup"
+      ],
+      "reason": "No completeness record exists for capability detailed_metrics."
+    },
+    {
+      "capability": "current_form",
+      "decision": "FETCH_REQUIRED",
+      "force_refresh": false,
+      "provider_priority": [
+        "espn-fifa-worldcup"
+      ],
+      "reason": "No completeness record exists for capability current_form."
+    }
+  ],
+  "production_betting_decision": false,
+  "profile_id": "world-cup-2026",
+  "scanner_event_id": "66456944",
+  "status": "ENRICH_FAILED_CLOSED",
+  "unavailable_capabilities": [
+    {
+      "capability": "current_discovery",
+      "reason": "missing_provider_data_or_identity_mismatch"
+    },
+    {
+      "capability": "detailed_metrics",
+      "reason": "missing_provider_data_or_identity_mismatch"
+    },
+    {
+      "capability": "current_form",
+      "reason": "missing_provider_data_or_identity_mismatch"
+    }
+  ]
+}

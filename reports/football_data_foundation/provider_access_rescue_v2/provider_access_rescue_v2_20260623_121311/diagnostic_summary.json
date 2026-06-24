@@ -1,0 +1,32 @@
+{
+  "blocked_bindings": {
+    "highlightly": {
+      "direct_matches_status": 403,
+      "rapid_matches_status": 403,
+      "selectable_for_production": false,
+      "verdict": "HIGHLIGHTLY_DIRECT_WAF_CLIENT_BLOCKED"
+    },
+    "sportdb": {
+      "mcp_init_statuses": [
+        403,
+        403
+      ],
+      "rest_countries_status": 403,
+      "rest_live_status": 403,
+      "selectable_for_production": false,
+      "verdict": "SPORTDB_REST_WAF_CLIENT_BLOCKED"
+    }
+  },
+  "failed_requirements": [],
+  "headers_stored": false,
+  "highlightly_direct_request_attempted": true,
+  "highlightly_rapidapi_request_attempted": true,
+  "highlightly_verdict": "HIGHLIGHTLY_DIRECT_WAF_CLIENT_BLOCKED",
+  "mapping_candidates_found": 0,
+  "secret_leak_check": "PASS",
+  "selectable_for_production": false,
+  "sportdb_request_attempted": true,
+  "sportdb_verdict": "SPORTDB_REST_WAF_CLIENT_BLOCKED",
+  "verdict": "FAIL",
+  "working_bindings": {}
+}

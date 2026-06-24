@@ -1,0 +1,10 @@
+{
+  "mapping_metadata": {
+    "api_endpoint": "https://api.sofascore.com/api/v1"
+  },
+  "statistics": {
+    "possession": 54.2,
+    "shots_on_goal": 5,
+    "corners": 4
+  }
+}

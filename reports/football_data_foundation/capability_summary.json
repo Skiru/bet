@@ -1,0 +1,38 @@
+{
+  "summary": {
+    "total_sources": 21,
+    "connector_kernel_version": "1.1.0",
+    "implemented_active_sources": [
+      "ClubElo",
+      "ESPN",
+      "FBref",
+      "MatchHistory",
+      "Sofascore",
+      "SoFIFA",
+      "Understat",
+      "WhoScored",
+      "FootballDataOrg"
+    ],
+    "evidence_ready_sources": [
+      "StatsBombOpenData",
+      "OpenFootball",
+      "KaggleEuropeanSoccer"
+    ],
+    "not_supported_sources": [
+      "FiveThirtyEight",
+      "StatsBombPy",
+      "FotMobProbe",
+      "SofaScoreRichProbe",
+      "ScraperFCSofascore",
+      "SoccerAction",
+      "Kloppy",
+      "Floodlight",
+      "MplSoccer"
+    ],
+    "notes": [
+      "No source is promoted to SELECTABLE_CANDIDATE or CERTIFIED_SELECTABLE in this foundation report.",
+      "Fixture-backed local parsers are the only operations marked EVIDENCE_READY.",
+      "Optional dependency absence maps to NOT_SUPPORTED with diagnostics."
+    ]
+  }
+}

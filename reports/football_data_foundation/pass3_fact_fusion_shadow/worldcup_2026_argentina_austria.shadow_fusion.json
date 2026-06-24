@@ -1,0 +1,59 @@
+{
+  "conflicts": [],
+  "excluded_claims": [],
+  "fused_facts": [
+    {
+      "fact_type": "FIXTURE_IDENTITY",
+      "proof_levels": [
+        "REAL_LIVE_API_PROOF"
+      ],
+      "selectable_for_production": false,
+      "source_keys": [
+        "sportdb"
+      ],
+      "value": {
+        "away_team": "Austria",
+        "competition": "World Cup 2026",
+        "home_team": "Argentina"
+      }
+    },
+    {
+      "fact_type": "MATCH_STATUS",
+      "proof_levels": [
+        "REAL_LIVE_API_PROOF"
+      ],
+      "selectable_for_production": false,
+      "source_keys": [
+        "sportdb"
+      ],
+      "value": {
+        "status": "FT"
+      }
+    },
+    {
+      "fact_type": "SCORE",
+      "proof_levels": [
+        "REAL_LIVE_API_PROOF"
+      ],
+      "selectable_for_production": false,
+      "source_keys": [
+        "sportdb"
+      ],
+      "value": {
+        "score_away": 1,
+        "score_home": 2
+      }
+    }
+  ],
+  "manual_authorization_required": true,
+  "missing_fact_types": [],
+  "run_id": "run_f07da4ff2404",
+  "selectable_for_production": false,
+  "source_coverage": {
+    "sportdb": [
+      "FIXTURE_IDENTITY",
+      "MATCH_STATUS",
+      "SCORE"
+    ]
+  }
+}

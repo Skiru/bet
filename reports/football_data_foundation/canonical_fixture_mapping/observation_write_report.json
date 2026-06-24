@@ -1,0 +1,43 @@
+{
+  "phase_id": "FOOTBALL_DATA_FOUNDATION_A5_CANONICAL_FIXTURE_RESOLUTION_AND_TEMP_SQLITE_DB_MAPPING_PROOF",
+  "observation_write_report": {
+    "status": "PASS",
+    "tables_populated": {
+      "evidence_package_revision": {
+        "status": "PASS",
+        "record_count_inserted": 3,
+        "purpose": "Groups evidence bundle hashes and validates parser completeness"
+      },
+      "sports_enrichment_run": {
+        "status": "PASS",
+        "record_count_inserted": 1,
+        "purpose": "Tracks the execution scope and requested capabilities of an enrichment cycle"
+      },
+      "source_operation_attempt": {
+        "status": "PASS",
+        "record_count_inserted": 3,
+        "purpose": "Logs individual fetch attempts and mapping decisions per capability"
+      },
+      "fixture_capability_observation": {
+        "status": "PASS",
+        "record_count_inserted": 6,
+        "purpose": "Stores serialized fact payloads mapped to canonical fixture and team"
+      },
+      "fixture_capability_projection": {
+        "status": "PASS",
+        "record_count_inserted": 6,
+        "purpose": "Links the current selected observation for each capability to the active run"
+      }
+    },
+    "deterministic_team_mapping_policy": {
+      "status": "PASS",
+      "policy_implemented": "Team-Specific Mapping with Multi-Observation Fixture-Level Copying",
+      "details": "Facts starting/containing 'home_' or ending with '_home' map to home_team_id; facts starting/containing 'away_' or ending with '_away' map to away_team_id. General fixture-level facts are duplicated as separate observations for both home and away teams to satisfy the NOT NULL team_id constraint in the existing repository schema safely."
+    },
+    "idempotency_proof": {
+      "status": "PASS",
+      "resolution_idempotent": true,
+      "observation_write_idempotent": true
+    }
+  }
+}

@@ -1,0 +1,148 @@
+{
+  "a9_validation": {
+    "canonical_metrics_compared_count": 10,
+    "errors": [],
+    "hard_mismatch_count": 0,
+    "same_match_proof_valid": true,
+    "semantic_gap_count": 2,
+    "team_side_alignment_valid": true,
+    "valid": true,
+    "value_replay_performed": true
+  },
+  "accepted_provider": "highlightly",
+  "blockers": [],
+  "certification": {
+    "certified_routes": [],
+    "production_routing_changed": false,
+    "selectable_status_changed": false,
+    "verdict": "NOT_CERTIFIED_SEMANTIC_GAP_REVIEW_ONLY"
+  },
+  "certification_plan": {
+    "certifiable_metric_scope": [
+      "blocked_shots",
+      "corners",
+      "expected_goals",
+      "fouls",
+      "goalkeeper_saves",
+      "offsides",
+      "possession",
+      "shots_off_target",
+      "shots_on_goal",
+      "yellow_cards"
+    ],
+    "certification_status_to_apply_next": "SCOPE_LIMITED_SHADOW_REGISTRATION_ONLY",
+    "excluded_metric_scope": [
+      "successful_passes",
+      "total_passes"
+    ],
+    "minimum_evidence_basis": [
+      "certification/football/p2e_sportdb_value_replay_against_accepted_provider_summary.json",
+      "certification/football/p2e_accepted_provider_same_match_replay_capture_summary.json",
+      "certification/football/p2e_sportdb_identity_bridge_value_replay_summary.json",
+      "certification/football/p2e_sportdb_evidence_bundle_summary.json",
+      "certification/football/p2e_sportdb_replay_comparison_summary.json",
+      "certification/football/p2e_sportdb_shadow_adapter_summary.json",
+      "certification/football/p2d_highlightly_certification_summary.json",
+      "config/provider_capability_matrix.json",
+      "config/football_routing.yaml"
+    ],
+    "plan_allowed": true,
+    "planned_routes": [
+      "detailed_metrics/sportdb/football:eng.1/current-season-completed/shadow"
+    ],
+    "provider_extra_metrics_excluded": [
+      "big_chances_created",
+      "failed_passes",
+      "free_kicks",
+      "goal_kicks",
+      "shots_accuracy",
+      "shots_outside_penalty_area",
+      "shots_within_penalty_area",
+      "throw_ins"
+    ],
+    "unknown_metrics_excluded": [
+      "Accurate through passes",
+      "Aerial Duels",
+      "Backward Passes",
+      "Big chances",
+      "Clearances",
+      "Crosses",
+      "Dribbles",
+      "Duels won",
+      "Errors leading to goal",
+      "Errors leading to shot",
+      "Expected Assists",
+      "Expected assists (xA)",
+      "Free kicks",
+      "Goals prevented",
+      "Headed goals",
+      "Hit the woodwork",
+      "Interceptions",
+      "Key Passes",
+      "Long Passes",
+      "Long passes",
+      "Passes Into Final Third",
+      "Passes Opposition Half",
+      "Passes Own Half",
+      "Passes in final third",
+      "Red cards",
+      "Shots inside the box",
+      "Shots outside the box",
+      "Successful Aerial Duels",
+      "Successful Crosses",
+      "Successful Dribbles",
+      "Successful Long Passes",
+      "Successful Tackles",
+      "Tackles",
+      "Throw ins",
+      "Touches in opposition box",
+      "xG on target (xGOT)",
+      "xGOT faced"
+    ]
+  },
+  "classification": "SPORTDB_SEMANTIC_GAP_REVIEW_READY_FOR_SCOPE_LIMITED_SHADOW_REGISTRATION",
+  "evidence_level": "TRACKED_SEMANTIC_GAP_REVIEW_CERTIFICATION_PLAN_SUMMARY",
+  "final_review": "PASS",
+  "impact_on_p2d": "none_highlightly_remains_accepted",
+  "mode": "replay_review_no_live_calls",
+  "next_step": "P2E_A11_SPORTDB_SCOPE_LIMITED_SHADOW_REGISTRATION",
+  "phase_id": "P2E_A10_SEMANTIC_GAP_REVIEW_AND_SCOPE_LIMITED_CERTIFICATION_PLAN",
+  "previous_accepted_sha": "5851038402d4c23401390da610a330629fd04a9b",
+  "prompt_version": "v1_compact_masterpiece_certification_readiness_gate",
+  "protected_worktree": "/Users/mkoziol/projects/bet-multisport-enrichment-v1",
+  "provider": "sportdb",
+  "secret_safe": true,
+  "semantic_gap_review": {
+    "accepted_as_non_blocking_if_excluded": [
+      "successful_passes",
+      "total_passes"
+    ],
+    "blocking_for_reduced_scope": false,
+    "requires_future_normalization": [
+      "successful_passes",
+      "total_passes"
+    ],
+    "reviewed_gaps": [
+      {
+        "blocking_for_reduced_scope": false,
+        "exclude_from_certifiable_scope": true,
+        "metric": "successful_passes",
+        "non_blocking_if_excluded": true,
+        "reason_key": "sportdb_successful_passes_rate_vs_highlightly_successful_passes_count",
+        "requires_future_normalization": true,
+        "semantic_type": "pass_rate_vs_pass_count",
+        "summary": "provider semantic mismatch: pass rate vs successful pass count"
+      },
+      {
+        "blocking_for_reduced_scope": false,
+        "exclude_from_certifiable_scope": true,
+        "metric": "total_passes",
+        "non_blocking_if_excluded": true,
+        "reason_key": "sportdb_total_passes_aligns_to_highlightly_successful_passes_not_total_passes",
+        "requires_future_normalization": true,
+        "semantic_type": "pass_count_alignment_mismatch",
+        "summary": "provider semantic mismatch: successful pass count vs total pass count"
+      }
+    ]
+  }
+}

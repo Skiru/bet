@@ -1,0 +1,42 @@
+{
+  "profile_id": "world-cup-2026",
+  "phase_id": "FOOTBALL_DATA_FOUNDATION_A3C1_ACTIVE_ENRICHMENT_EVIDENCE_CORRECTION",
+  "review_timestamp_utc": "2026-06-19T20:35:37.694107+00:00",
+  "defects": [
+    {
+      "id": "endpoint_verification_ids",
+      "classification": "CONFIRMED",
+      "evidence": "Previously committed endpoint_verification.json used provider_event_id 66456944; bounded live verifier returned ESPN event id 760442 for USA vs Australia."
+    },
+    {
+      "id": "real_espn_id_preservation",
+      "classification": "CONFIRMED",
+      "evidence": "The corrected live verifier preserves scanner_event_id 66456944 separately from provider_event_id 760442 in endpoint_verification.json and event_identity_map.json."
+    },
+    {
+      "id": "read_schedule_certifies_detailed_metrics",
+      "classification": "CONFIRMED",
+      "evidence": "Previously committed active_certified_tuples.json certified soccerdata-espn-worldcup/read_schedule/detailed_metrics. The corrected file removes that tuple and blocked_or_deferred.json records the defer reason."
+    },
+    {
+      "id": "unsafe_generic_espn_activation",
+      "classification": "CONFIRMED",
+      "evidence": "provider_capability_matrix.json and football_routing.yaml contained World Cup entries under generic espn. The corrected config reverts them and schema_activation_decision.json marks both matrix and routing activation deferred."
+    },
+    {
+      "id": "empty_store_false_complete",
+      "classification": "CONFIRMED",
+      "evidence": "Previously committed active_enrichment_dry_run_empty_store.json returned ENRICHED_COMPLETE. The regenerated file returns ENRICH_FAILED_CLOSED with zero facts."
+    },
+    {
+      "id": "placeholder_facts",
+      "classification": "CONFIRMED",
+      "evidence": "Previously committed dry-run files used VERIFIED_SCHEDULED for current_form and detailed_metrics. The regenerated reuse and force-refresh files contain only real event, record, and metric facts."
+    },
+    {
+      "id": "scanner_seed_as_provider_evidence",
+      "classification": "CONFIRMED",
+      "evidence": "Previously committed endpoint_verification.json and active_enrichment facts used the scanner seed id as provider evidence. The corrected runtime now keeps scanner input and provider evidence identities separate throughout."
+    }
+  ]
+}

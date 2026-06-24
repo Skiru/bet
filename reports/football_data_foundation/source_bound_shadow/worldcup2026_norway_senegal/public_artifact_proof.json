@@ -1,0 +1,71 @@
+{
+  "acceptance_source": "external_verifier",
+  "artifact_commit_sha": "9ae9b09860d84909f6635d8488443b5b663a89cb",
+  "checked_commit_sha": "9ae9b09860d84909f6635d8488443b5b663a89cb",
+  "committed_sqlite_header_ok": true,
+  "committed_sqlite_provider_row_counts": {
+    "api-football": 17,
+    "espn-baseline": 7,
+    "football-data-org": 11,
+    "highlightly": 14,
+    "sportdb": 27
+  },
+  "committed_sqlite_size_bytes": 286720,
+  "committed_sqlite_tables": [
+    "conflicts",
+    "facts",
+    "provider_ids",
+    "shadow_conflicts_diagnostics",
+    "shadow_facts",
+    "shadow_match_snapshot",
+    "shadow_provider_ids",
+    "snapshot_metadata",
+    "sqlite_sequence"
+  ],
+  "failed_requirements": [],
+  "final_public_proof_commit_sha": null,
+  "proof_commit_sha": null,
+  "proof_model": "EXTERNAL_PUBLIC_RAW_VERIFIER",
+  "public_raw_report_fetch_status": {
+    "public_artifact_proof.json": 200,
+    "source_bound_shadow_snapshot.json": 200,
+    "source_bound_verifier_result.json": 200
+  },
+  "public_raw_source_fetch_status": {
+    "contracts.py": 200,
+    "fuser.py": 200,
+    "loader.py": 200,
+    "normalizers.py": 200,
+    "provider_normalizers.py": 200,
+    "runner.py": 200,
+    "verifier.py": 200,
+    "writer.py": 200
+  },
+  "public_raw_sqlite_header_ok": true,
+  "public_raw_sqlite_provider_row_counts": {
+    "api-football": 17,
+    "espn-baseline": 7,
+    "football-data-org": 11,
+    "highlightly": 14,
+    "sportdb": 27
+  },
+  "public_raw_sqlite_size_bytes": 286720,
+  "report_file_checks": {
+    "public_artifact_proof.json": true,
+    "source_bound_shadow_snapshot.json": true,
+    "source_bound_verifier_result.json": true
+  },
+  "self_referential_commit_proof_used": false,
+  "source_file_checks": {
+    "contracts.py": true,
+    "fuser.py": true,
+    "loader.py": true,
+    "normalizers.py": true,
+    "provider_normalizers.py": true,
+    "runner.py": true,
+    "verifier.py": true,
+    "writer.py": true
+  },
+  "verdict": "PASS",
+  "verifier_command": "python -m football_public_truth_verifier.verifier --repo Skiru/bet --commit $final_head_sha --output /tmp/football_public_truth_verifier_result.json"
+}

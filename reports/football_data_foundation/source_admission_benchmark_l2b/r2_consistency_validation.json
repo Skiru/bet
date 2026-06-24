@@ -1,0 +1,56 @@
+{
+  "schema_version": "2.0",
+  "validation_status": "PASSED",
+  "checks": [
+    {
+      "check": "scorecard_completeness",
+      "status": "PASSED",
+      "details": "All 23 evaluated families are present in the scorecard."
+    },
+    {
+      "check": "scorecard_to_matrix_alignment",
+      "status": "PASSED",
+      "details": "All scorecard families have matching entries in the decision matrix."
+    },
+    {
+      "check": "plan_to_matrix_alignment",
+      "status": "PASSED",
+      "details": "All families in the implementation plan exist in the decision matrix."
+    },
+    {
+      "check": "real_value_facts_coherence",
+      "status": "PASSED",
+      "details": "Real value facts counts match perfectly across scorecard and evaluated results."
+    },
+    {
+      "check": "proof_level_to_decision_mapping",
+      "status": "PASSED",
+      "details": "Proof level matches decision type perfectly for all families."
+    },
+    {
+      "check": "no_synthetic_direct_admission",
+      "status": "PASSED",
+      "details": "No source supported solely by synthetic contract proof is directly admitted to implementation."
+    },
+    {
+      "check": "no_docs_only_direct_admission",
+      "status": "PASSED",
+      "details": "No source supported solely by docs capability is admitted to implementation."
+    },
+    {
+      "check": "no_credential_missing_admissions",
+      "status": "PASSED",
+      "details": "All credential-missing sources are deferred as DEFER_CREDENTIAL_REQUIRED."
+    },
+    {
+      "check": "no_dependency_missing_admissions",
+      "status": "PASSED",
+      "details": "All dependency-missing sources are blocked and excluded from the implementation plan."
+    },
+    {
+      "check": "programmatic_summary_consistency",
+      "status": "PASSED",
+      "details": "All markdown summary statistics and tables are programmatically derived from the same source of truth JSON objects."
+    }
+  ]
+}

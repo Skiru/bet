@@ -1,0 +1,54 @@
+{
+  "phase_id": "FOOTBALL_DATA_FOUNDATION_A5C2_V2_REMOTE_COMMIT_OBJECT_CODE_QUALITY_AND_SEMANTIC_AUDIT_CORRECTION",
+  "status": "PASS",
+  "semantic_spot_check": {
+    "scanner_event_id_not_provider_event_id": {
+      "status": "PASS",
+      "proof": "test_resolver_creates_sport_competition_team_fixture_rows_and_mappings in test_canonical_fixture_mapping.py asserts that scanner_event_id '66456944' is separate and distinct from provider_event_id '760442'."
+    },
+    "espn_event_id_remains_760442": {
+      "status": "PASS",
+      "proof": "Acceptance test uses ESPN event id '760442' for USA/Australia World Cup fixture as of 2026-06-20."
+    },
+    "source_external_id_mismatch_fails_closed": {
+      "status": "PASS",
+      "proof": "test_source_external_id_conflict_handling in test_canonical_fixture_mapping.py verifies that mapping a source with conflicting external_id returns SOURCE_EXTERNAL_ID_CONFLICT status."
+    },
+    "generic_resolver_paths_no_hardcoded_football": {
+      "status": "PASS",
+      "proof": "test_future_non_world_cup_profile_integration verifies that the resolver is fully generic by successfully mapping an EPL fixture for soccerdata-epl."
+    },
+    "competition_country_no_group_label": {
+      "status": "PASS",
+      "proof": "test_competition_country_does_not_store_group_label verifies that if scanner group_label starts with 'Group ', country stores null/None instead of 'Group D'."
+    },
+    "explicit_fact_scopes": {
+      "status": "PASS",
+      "proof": "test_fact_scoping_and_duplication_flagging verifies that fact_scopes maps all facts to TEAM_HOME, TEAM_AWAY, FIXTURE_LEVEL, or UNKNOWN."
+    },
+    "duplicated_fixture_level_facts_flagged": {
+      "status": "PASS",
+      "proof": "test_fact_scoping_and_duplication_flagging verifies that duplicated_for_schema_team_id_constraint=true is appended when fixture-level facts are replicated."
+    },
+    "live_to_final_drift_requires_refresh": {
+      "status": "PASS",
+      "proof": "test_live_to_final_status_drift evaluates in-progress cached vs final live to STATUS_DRIFT_REFRESH_REQUIRED."
+    },
+    "stale_status_sensitive_evidence_not_reused_blindly": {
+      "status": "PASS",
+      "proof": "test_stale_status_sensitive_evidence_cannot_be_reused_blindly evaluates expired TTL status-sensitive evidence to STALE_REFRESH_REQUIRED with must_refresh=True."
+    },
+    "no_real_betting_db_write": {
+      "status": "PASS",
+      "proof": "test_temp_sqlite_harness_initializes_cleanly_without_touching_real_db asserts that betting/data/betting.db is untouched and remains unchanged."
+    },
+    "matrix_routing_untouched": {
+      "status": "PASS",
+      "proof": "Git status shows config/provider_capability_matrix.json and config/football_routing.yaml are untouched."
+    },
+    "no_betting_decision_modules_imported": {
+      "status": "PASS",
+      "proof": "test_no_betting_decision_tables_are_written verifies that zero betting decision records are created or mutated, and code contains zero imports from decision/coupon/valuation modules."
+    }
+  }
+}

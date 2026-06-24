@@ -1,0 +1,17 @@
+[
+  {
+    "type": "Shot",
+    "xg": 0.2
+  },
+  {
+    "type": "Pass"
+  },
+  {
+    "type": {
+      "name": "Shot"
+    },
+    "shot": {
+      "statsbomb_xg": 0.15
+    }
+  }
+]

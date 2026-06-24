@@ -1,0 +1,55 @@
+{
+  "accepted_a2_sha": "522c2f77a91bcbd68f38710039d4f18e7c80492e",
+  "calibration_profile": "pre-certification",
+  "recommended_certification_candidates": [
+    {
+      "candidate_type": "schedule_current",
+      "capability": "current_discovery",
+      "operation": "read_schedule",
+      "priority": "high",
+      "rationale": "Recommended for next step of certification as schedule_current capability.",
+      "source_id": "soccerdata/ESPN"
+    },
+    {
+      "candidate_type": "schedule_current",
+      "capability": "current_discovery",
+      "operation": "read_schedule",
+      "priority": "high",
+      "rationale": "Recommended for next step of certification as schedule_current capability.",
+      "source_id": "soccerdata/FBref"
+    },
+    {
+      "candidate_type": "team_stats_current",
+      "capability": "fixture_team_statistics",
+      "operation": "read_team_season_stats",
+      "priority": "high",
+      "rationale": "Recommended for next step of certification as team_stats_current capability.",
+      "source_id": "soccerdata/FBref"
+    },
+    {
+      "candidate_type": "schedule_current",
+      "capability": "current_discovery",
+      "operation": "read_schedule",
+      "priority": "medium",
+      "rationale": "Recommended for next step of certification as schedule_current capability.",
+      "source_id": "soccerdata/Sofascore"
+    },
+    {
+      "candidate_type": "schedule_current",
+      "capability": "current_discovery",
+      "operation": "read_schedule",
+      "priority": "high",
+      "rationale": "Recommended for next step of certification as schedule_current capability.",
+      "source_id": "soccerdata/Understat"
+    },
+    {
+      "candidate_type": "xg_current",
+      "capability": "fixture_team_statistics",
+      "operation": "read_team_match_stats",
+      "priority": "high",
+      "rationale": "Recommended for next step of certification as xg_current capability.",
+      "source_id": "soccerdata/Understat"
+    }
+  ],
+  "timestamp_utc": "2026-06-19T17:27:13.199708+00:00"
+}

@@ -1,0 +1,55 @@
+{
+  "synthetic_normalized_probe_fixture": true,
+  "proof_level": "SYNTHETIC_CONTRACT_PROOF",
+  "competition": {
+    "id": 2001,
+    "name": "FIFA World Cup",
+    "code": "WC"
+  },
+  "matches": [
+    {
+      "id": 490001,
+      "utcDate": "2026-06-20T20:00:00Z",
+      "status": "FINISHED",
+      "homeTeam": {
+        "id": 768,
+        "name": "USA"
+      },
+      "awayTeam": {
+        "id": 774,
+        "name": "Australia"
+      },
+      "score": {
+        "winner": "HOME_TEAM",
+        "fullTime": {
+          "home": 2,
+          "away": 1
+        }
+      }
+    }
+  ],
+  "standings": [
+    {
+      "stage": "GROUP_STAGE",
+      "type": "TOTAL",
+      "group": "GROUP_A",
+      "table": [
+        {
+          "position": 1,
+          "team": {
+            "id": 768,
+            "name": "USA"
+          },
+          "playedGames": 1,
+          "won": 1,
+          "draw": 0,
+          "lost": 0,
+          "points": 3,
+          "goalsFor": 2,
+          "goalsAgainst": 1,
+          "goalDifference": 1
+        }
+      ]
+    }
+  ]
+}
