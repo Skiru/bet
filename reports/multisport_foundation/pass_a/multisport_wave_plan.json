@@ -1,0 +1,689 @@
+{
+  "generated_reports": {},
+  "global_guardrails": [
+    "no production routing activation",
+    "no betting decisions / picks / stakes / edges",
+    "no production DB writes",
+    "no betting/data writes",
+    "no raw headers, cookies, tokens, API keys or secrets in reports",
+    "no fake success: missing data must be UNKNOWN or BLOCKED",
+    "no fallback provider IDs, scores, status, venue or roster values",
+    "public raw line table required after push",
+    "status may be fail-closed observation and still pass verifier"
+  ],
+  "passes": [
+    {
+      "agent_must_not": [
+        "call live providers",
+        "write production DB",
+        "invent sport-specific schemas"
+      ],
+      "allowed_paths": [
+        "src/bet/enrichment/multisport_foundation/**",
+        "tests/enrichment/multisport_foundation/test_ms_a_*.py",
+        "reports/multisport_foundation/pass_a/**",
+        "docs/multisport_enrichment/**"
+      ],
+      "forbidden_paths": [
+        ".env",
+        "betting/**",
+        "config/**",
+        "configs/**",
+        "src/bet/db/**",
+        "src/bet/pipeline/**",
+        "src/bet/api_clients/**"
+      ],
+      "objective": "Create shared multisport kernel, sport profiles, provider capability matrix and fail-closed contracts.",
+      "pass_kind": "MS-A_KERNEL_PROFILES",
+      "required_gates": [
+        "profile completeness for all seven sports",
+        "provider matrix coverage",
+        "no fallback-success statuses",
+        "compileall",
+        "pytest targeted",
+        "public raw reviewability"
+      ],
+      "success_statuses": [
+        "REAL_PROVIDER_ACCESS_OBSERVED_BUT_MAPPING_INSUFFICIENT"
+      ]
+    },
+    {
+      "agent_must_not": [
+        "promote docs-only provider to real proof",
+        "write raw headers",
+        "generate fallback IDs"
+      ],
+      "allowed_paths": [
+        "src/bet/enrichment/multisport_foundation/provider_capture/**",
+        "src/bet/enrichment/multisport_foundation/source_bound_shadow/**",
+        "tests/enrichment/multisport_foundation/test_ms_b_*.py",
+        "reports/multisport_foundation/pass_b/**"
+      ],
+      "forbidden_paths": [
+        ".env",
+        "betting/**",
+        "config/**",
+        "configs/**",
+        "src/bet/db/**",
+        "src/bet/pipeline/**",
+        "src/bet/api_clients/**"
+      ],
+      "objective": "Capture/replay provider responses and build source-bound shadow artifacts per sport profile.",
+      "pass_kind": "MS-B_PROVIDER_CORPUS_SHADOW",
+      "required_gates": [
+        "real HTTP/replay envelope proof",
+        "sanitized cache only",
+        "per-sport blocked statuses allowed",
+        "no fake mapped fixture",
+        "compileall",
+        "pytest targeted",
+        "public raw line table"
+      ],
+      "success_statuses": [
+        "SOURCE_BOUND_SHADOW_READY",
+        "REAL_PROVIDER_ACCESS_OBSERVED_BUT_MAPPING_INSUFFICIENT",
+        "BLOCKED_PROVIDER_ACCESS",
+        "BLOCKED_NO_CREDENTIALS"
+      ]
+    },
+    {
+      "agent_must_not": [
+        "force COMPLETE",
+        "activate production route",
+        "write prediction text"
+      ],
+      "allowed_paths": [
+        "src/bet/enrichment/multisport_foundation/activation/**",
+        "src/bet/enrichment/multisport_foundation/live_observation/**",
+        "tests/enrichment/multisport_foundation/test_ms_c_*.py",
+        "reports/multisport_foundation/pass_c/**"
+      ],
+      "forbidden_paths": [
+        ".env",
+        "betting/**",
+        "config/**",
+        "configs/**",
+        "src/bet/db/**",
+        "src/bet/pipeline/**",
+        "src/bet/api_clients/**"
+      ],
+      "objective": "Create shadow-only activation candidates and bounded live/fail-closed observation reports per sport.",
+      "pass_kind": "MS-C_ACTIVATION_LIVE_OBSERVATION",
+      "required_gates": [
+        "activation candidate remains shadow-only",
+        "live observation accepts fail-closed blocked outcome",
+        "no betting decisions",
+        "no production selectable flag",
+        "compileall",
+        "pytest targeted",
+        "public raw line table"
+      ],
+      "success_statuses": [
+        "ACTIVATION_CANDIDATE_SHADOW_ONLY",
+        "REAL_PROVIDER_ACCESS_OBSERVED_BUT_MAPPING_INSUFFICIENT"
+      ]
+    },
+    {
+      "agent_must_not": [
+        "repair code during merge",
+        "delete feature branch",
+        "push main before gates"
+      ],
+      "allowed_paths": [
+        "no code edits; merge only"
+      ],
+      "forbidden_paths": [
+        ".env",
+        "betting/**",
+        "config/**",
+        "configs/**",
+        "src/bet/db/**",
+        "src/bet/pipeline/**",
+        "src/bet/api_clients/**"
+      ],
+      "objective": "Merge multisport foundation to main only after source-bound evidence, tests and public raw gates pass.",
+      "pass_kind": "MS-D_FINAL_MERGE_GATE",
+      "required_gates": [
+        "feature head exact check",
+        "main worktree clean",
+        "merge --no-commit",
+        "post-merge compileall",
+        "post-merge pytest targeted",
+        "artifact evidence check",
+        "public main raw table"
+      ],
+      "success_statuses": [
+        "ACTIVATION_CANDIDATE_SHADOW_ONLY"
+      ]
+    }
+  ],
+  "profiles": {
+    "basketball": {
+      "blocked_is_valid_outcome": true,
+      "fixture_terms": [
+        "game",
+        "match",
+        "fixture"
+      ],
+      "identity_keys": [
+        "league",
+        "season",
+        "home_team",
+        "away_team",
+        "tipoff"
+      ],
+      "minimum_real_mapped_providers": 2,
+      "provider_candidates": [
+        "sportdb",
+        "highlightly",
+        "api-sports-family",
+        "thesportsdb"
+      ],
+      "required_facts": [
+        {
+          "description": "Provider-specific match or fixture identity mapped to canonical participants.",
+          "name": "fixture_identity",
+          "required_for_shadow_ready": true,
+          "unknown_allowed": false
+        },
+        {
+          "description": "Scheduled/live/final status or sport-specific clock/state.",
+          "name": "status_or_clock",
+          "required_for_shadow_ready": true,
+          "unknown_allowed": true
+        },
+        {
+          "description": "Score or final result when present; UNKNOWN is valid before availability.",
+          "name": "score_or_result",
+          "required_for_shadow_ready": false,
+          "unknown_allowed": true
+        },
+        {
+          "description": "Canonical team/player participants with provider aliases.",
+          "name": "participants",
+          "required_for_shadow_ready": true,
+          "unknown_allowed": false
+        }
+      ],
+      "sport": "basketball"
+    },
+    "cs2": {
+      "blocked_is_valid_outcome": true,
+      "fixture_terms": [
+        "match",
+        "series",
+        "map"
+      ],
+      "identity_keys": [
+        "tournament",
+        "series",
+        "team_one",
+        "team_two",
+        "start_time"
+      ],
+      "minimum_real_mapped_providers": 1,
+      "provider_candidates": [
+        "pandascore",
+        "liquipedia-reference",
+        "sportdb"
+      ],
+      "required_facts": [
+        {
+          "description": "Provider-specific match or fixture identity mapped to canonical participants.",
+          "name": "fixture_identity",
+          "required_for_shadow_ready": true,
+          "unknown_allowed": false
+        },
+        {
+          "description": "Scheduled/live/final status or sport-specific clock/state.",
+          "name": "status_or_clock",
+          "required_for_shadow_ready": true,
+          "unknown_allowed": true
+        },
+        {
+          "description": "Score or final result when present; UNKNOWN is valid before availability.",
+          "name": "score_or_result",
+          "required_for_shadow_ready": false,
+          "unknown_allowed": true
+        },
+        {
+          "description": "Canonical team/player participants with provider aliases.",
+          "name": "participants",
+          "required_for_shadow_ready": true,
+          "unknown_allowed": false
+        },
+        {
+          "description": "Team roster, players, substitutes, map pool or agent/meta context when available.",
+          "name": "roster_or_lineup_context",
+          "required_for_shadow_ready": false,
+          "unknown_allowed": true
+        },
+        {
+          "description": "Game patch/version context; UNKNOWN is valid unless provided by source.",
+          "name": "game_patch_or_version_context",
+          "required_for_shadow_ready": false,
+          "unknown_allowed": true
+        }
+      ],
+      "sport": "cs2"
+    },
+    "dota2": {
+      "blocked_is_valid_outcome": true,
+      "fixture_terms": [
+        "match",
+        "series",
+        "game"
+      ],
+      "identity_keys": [
+        "tournament",
+        "series",
+        "team_one",
+        "team_two",
+        "start_time"
+      ],
+      "minimum_real_mapped_providers": 1,
+      "provider_candidates": [
+        "pandascore",
+        "liquipedia-reference",
+        "sportdb"
+      ],
+      "required_facts": [
+        {
+          "description": "Provider-specific match or fixture identity mapped to canonical participants.",
+          "name": "fixture_identity",
+          "required_for_shadow_ready": true,
+          "unknown_allowed": false
+        },
+        {
+          "description": "Scheduled/live/final status or sport-specific clock/state.",
+          "name": "status_or_clock",
+          "required_for_shadow_ready": true,
+          "unknown_allowed": true
+        },
+        {
+          "description": "Score or final result when present; UNKNOWN is valid before availability.",
+          "name": "score_or_result",
+          "required_for_shadow_ready": false,
+          "unknown_allowed": true
+        },
+        {
+          "description": "Canonical team/player participants with provider aliases.",
+          "name": "participants",
+          "required_for_shadow_ready": true,
+          "unknown_allowed": false
+        },
+        {
+          "description": "Team roster, players, substitutes, map pool or agent/meta context when available.",
+          "name": "roster_or_lineup_context",
+          "required_for_shadow_ready": false,
+          "unknown_allowed": true
+        },
+        {
+          "description": "Game patch/version context; UNKNOWN is valid unless provided by source.",
+          "name": "game_patch_or_version_context",
+          "required_for_shadow_ready": false,
+          "unknown_allowed": true
+        }
+      ],
+      "sport": "dota2"
+    },
+    "hockey": {
+      "blocked_is_valid_outcome": true,
+      "fixture_terms": [
+        "game",
+        "match",
+        "fixture"
+      ],
+      "identity_keys": [
+        "league",
+        "season",
+        "home_team",
+        "away_team",
+        "puck_drop"
+      ],
+      "minimum_real_mapped_providers": 2,
+      "provider_candidates": [
+        "sportdb",
+        "highlightly",
+        "api-sports-family",
+        "thesportsdb"
+      ],
+      "required_facts": [
+        {
+          "description": "Provider-specific match or fixture identity mapped to canonical participants.",
+          "name": "fixture_identity",
+          "required_for_shadow_ready": true,
+          "unknown_allowed": false
+        },
+        {
+          "description": "Scheduled/live/final status or sport-specific clock/state.",
+          "name": "status_or_clock",
+          "required_for_shadow_ready": true,
+          "unknown_allowed": true
+        },
+        {
+          "description": "Score or final result when present; UNKNOWN is valid before availability.",
+          "name": "score_or_result",
+          "required_for_shadow_ready": false,
+          "unknown_allowed": true
+        },
+        {
+          "description": "Canonical team/player participants with provider aliases.",
+          "name": "participants",
+          "required_for_shadow_ready": true,
+          "unknown_allowed": false
+        }
+      ],
+      "sport": "hockey"
+    },
+    "tennis": {
+      "blocked_is_valid_outcome": true,
+      "fixture_terms": [
+        "match",
+        "fixture"
+      ],
+      "identity_keys": [
+        "tournament",
+        "season",
+        "player_one",
+        "player_two",
+        "start_time"
+      ],
+      "minimum_real_mapped_providers": 2,
+      "provider_candidates": [
+        "sportdb",
+        "highlightly",
+        "thesportsdb"
+      ],
+      "required_facts": [
+        {
+          "description": "Provider-specific match or fixture identity mapped to canonical participants.",
+          "name": "fixture_identity",
+          "required_for_shadow_ready": true,
+          "unknown_allowed": false
+        },
+        {
+          "description": "Scheduled/live/final status or sport-specific clock/state.",
+          "name": "status_or_clock",
+          "required_for_shadow_ready": true,
+          "unknown_allowed": true
+        },
+        {
+          "description": "Score or final result when present; UNKNOWN is valid before availability.",
+          "name": "score_or_result",
+          "required_for_shadow_ready": false,
+          "unknown_allowed": true
+        },
+        {
+          "description": "Canonical team/player participants with provider aliases.",
+          "name": "participants",
+          "required_for_shadow_ready": true,
+          "unknown_allowed": false
+        },
+        {
+          "description": "Surface, tournament context, round and best-of format when available.",
+          "name": "surface_or_court_context",
+          "required_for_shadow_ready": false,
+          "unknown_allowed": true
+        }
+      ],
+      "sport": "tennis"
+    },
+    "valorant": {
+      "blocked_is_valid_outcome": true,
+      "fixture_terms": [
+        "match",
+        "series",
+        "map"
+      ],
+      "identity_keys": [
+        "tournament",
+        "series",
+        "team_one",
+        "team_two",
+        "start_time"
+      ],
+      "minimum_real_mapped_providers": 1,
+      "provider_candidates": [
+        "pandascore",
+        "liquipedia-reference",
+        "sportdb"
+      ],
+      "required_facts": [
+        {
+          "description": "Provider-specific match or fixture identity mapped to canonical participants.",
+          "name": "fixture_identity",
+          "required_for_shadow_ready": true,
+          "unknown_allowed": false
+        },
+        {
+          "description": "Scheduled/live/final status or sport-specific clock/state.",
+          "name": "status_or_clock",
+          "required_for_shadow_ready": true,
+          "unknown_allowed": true
+        },
+        {
+          "description": "Score or final result when present; UNKNOWN is valid before availability.",
+          "name": "score_or_result",
+          "required_for_shadow_ready": false,
+          "unknown_allowed": true
+        },
+        {
+          "description": "Canonical team/player participants with provider aliases.",
+          "name": "participants",
+          "required_for_shadow_ready": true,
+          "unknown_allowed": false
+        },
+        {
+          "description": "Team roster, players, substitutes, map pool or agent/meta context when available.",
+          "name": "roster_or_lineup_context",
+          "required_for_shadow_ready": false,
+          "unknown_allowed": true
+        },
+        {
+          "description": "Game patch/version context; UNKNOWN is valid unless provided by source.",
+          "name": "game_patch_or_version_context",
+          "required_for_shadow_ready": false,
+          "unknown_allowed": true
+        }
+      ],
+      "sport": "valorant"
+    },
+    "volleyball": {
+      "blocked_is_valid_outcome": true,
+      "fixture_terms": [
+        "match",
+        "fixture"
+      ],
+      "identity_keys": [
+        "competition",
+        "season",
+        "home_team",
+        "away_team",
+        "start_time"
+      ],
+      "minimum_real_mapped_providers": 2,
+      "provider_candidates": [
+        "highlightly",
+        "api-sports-family",
+        "thesportsdb"
+      ],
+      "required_facts": [
+        {
+          "description": "Provider-specific match or fixture identity mapped to canonical participants.",
+          "name": "fixture_identity",
+          "required_for_shadow_ready": true,
+          "unknown_allowed": false
+        },
+        {
+          "description": "Scheduled/live/final status or sport-specific clock/state.",
+          "name": "status_or_clock",
+          "required_for_shadow_ready": true,
+          "unknown_allowed": true
+        },
+        {
+          "description": "Score or final result when present; UNKNOWN is valid before availability.",
+          "name": "score_or_result",
+          "required_for_shadow_ready": false,
+          "unknown_allowed": true
+        },
+        {
+          "description": "Canonical team/player participants with provider aliases.",
+          "name": "participants",
+          "required_for_shadow_ready": true,
+          "unknown_allowed": false
+        }
+      ],
+      "sport": "volleyball"
+    }
+  },
+  "providers": {
+    "api-sports-family": {
+      "allowed_proof_levels": [
+        "real_live_http_proof",
+        "real_replay_corpus_proof",
+        "blocked_access_proof",
+        "docs_capability_only"
+      ],
+      "credential_env_names": [
+        "API_BASKETBALL_KEY",
+        "API_VOLLEYBALL_KEY",
+        "API_HOCKEY_KEY",
+        "API_SPORTS_KEY"
+      ],
+      "docs_url": "https://api-sports.io/",
+      "key": "api-sports-family",
+      "max_rps": 2.0,
+      "notes": "Family of sport-specific APIs; use sport-specific env key first, then shared API_SPORTS_KEY.",
+      "roles": [
+        "current_live",
+        "current_reference"
+      ],
+      "sports_supported": [
+        "basketball",
+        "volleyball",
+        "hockey"
+      ]
+    },
+    "highlightly": {
+      "allowed_proof_levels": [
+        "real_live_http_proof",
+        "real_replay_corpus_proof",
+        "blocked_access_proof",
+        "docs_capability_only"
+      ],
+      "credential_env_names": [
+        "HIGHLIGHTLY_API_KEY"
+      ],
+      "docs_url": "https://highlightly.net/sport-api/documentation/",
+      "key": "highlightly",
+      "max_rps": 2.0,
+      "notes": "All Sports API / dedicated sport APIs; capture only sanitized envelopes.",
+      "roles": [
+        "current_live",
+        "current_reference"
+      ],
+      "sports_supported": [
+        "basketball",
+        "volleyball",
+        "hockey",
+        "tennis"
+      ]
+    },
+    "liquipedia-reference": {
+      "allowed_proof_levels": [
+        "docs_capability_only",
+        "blocked_access_proof"
+      ],
+      "credential_env_names": [],
+      "docs_url": "https://liquipedia.net/api",
+      "key": "liquipedia-reference",
+      "max_rps": null,
+      "notes": "Reference candidate only; no scraping or ToS-unsafe behavior in production prompts.",
+      "roles": [
+        "esports_reference",
+        "deferred_by_access"
+      ],
+      "sports_supported": [
+        "cs2",
+        "dota2",
+        "valorant"
+      ]
+    },
+    "pandascore": {
+      "allowed_proof_levels": [
+        "real_live_http_proof",
+        "real_replay_corpus_proof",
+        "blocked_access_proof",
+        "docs_capability_only"
+      ],
+      "credential_env_names": [
+        "PANDASCORE_API_KEY"
+      ],
+      "docs_url": "https://www.pandascore.co/",
+      "key": "pandascore",
+      "max_rps": 1.5,
+      "notes": "Primary esports candidate; schedule/results/static data may pass as observation without betting use.",
+      "roles": [
+        "esports_live",
+        "esports_reference"
+      ],
+      "sports_supported": [
+        "cs2",
+        "dota2",
+        "valorant"
+      ]
+    },
+    "sportdb": {
+      "allowed_proof_levels": [
+        "real_live_http_proof",
+        "real_replay_corpus_proof",
+        "blocked_access_proof",
+        "docs_capability_only"
+      ],
+      "credential_env_names": [
+        "SPORTDB_API_KEY"
+      ],
+      "docs_url": "https://sportdb.dev/",
+      "key": "sportdb",
+      "max_rps": 2.5,
+      "notes": "Multisport REST/MCP provider; never mark mapped unless target participants are present in response.",
+      "roles": [
+        "current_live",
+        "current_reference"
+      ],
+      "sports_supported": [
+        "basketball",
+        "volleyball",
+        "hockey",
+        "tennis"
+      ]
+    },
+    "thesportsdb": {
+      "allowed_proof_levels": [
+        "real_live_http_proof",
+        "real_replay_corpus_proof",
+        "blocked_access_proof",
+        "docs_capability_only"
+      ],
+      "credential_env_names": [
+        "THESPORTSDB_API_KEY",
+        "THESPORTSDB_KEY"
+      ],
+      "docs_url": "https://www.thesportsdb.com/free_sports_api",
+      "key": "thesportsdb",
+      "max_rps": 1.0,
+      "notes": "Reference/fallback source; do not use as sole current truth for activation-ready status.",
+      "roles": [
+        "current_reference",
+        "historical_reference"
+      ],
+      "sports_supported": [
+        "basketball",
+        "volleyball",
+        "hockey",
+        "tennis"
+      ]
+    }
+  }
+}
