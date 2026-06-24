@@ -3,23 +3,10 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from .contracts import OutcomeStatus, SportKey
-from .plan import build_multisport_wave_plan
-
-REQUIRED_SPORTS = {sport for sport in SportKey}
-REQUIRED_GUARDRAIL_FRAGMENTS = (
-    "no production routing activation",
-    "no betting decisions",
-    "no production db writes",
-    "no fake success",
-    "public raw line table",
-)
-FORBIDDEN_SUCCESS_TEXT = (
-    "fallback score accepted",
-    "fallback provider id accepted",
-    "production_ready",
-    "betting decision allowed",
-)
+from .fail_closed import PASS_B_STATUSES, assert_no_forbidden_success_text, is_valid_pass_b_status
+from .provider_corpus import ProviderCorpusRecord, contains_raw_secret
+from .source_bound_shadow import SourceBoundShadowArtifact
+from .source_inventory import FOOTBALL_ERA_SOURCE_KEYS, TARGET_SPORTS, build_source_inventory
 
 
 @dataclass
@@ -36,12 +23,52 @@ class VerificationResult:
         }
 
 
+@dataclass
+class PassBVerificationResult:
+    verdict: str
+    failed_requirements: list[str] = field(default_factory=list)
+    metrics: dict[str, Any] = field(default_factory=dict)
+
+    def to_json(self) -> dict[str, Any]:
+        return {
+            "verdict": self.verdict,
+            "failed_requirements": self.failed_requirements,
+            "metrics": self.metrics,
+        }
+
+
+REQUIRED_GUARDRAIL_FRAGMENTS = (
+    "no production routing activation",
+    "no betting decisions",
+    "no production db writes",
+    "no fake success",
+    "public raw line table",
+)
+
+FORBIDDEN_SUCCESS_TEXT = (
+    "fallback score accepted",
+    "fallback provider id accepted",
+    "production_ready",
+    "betting decision allowed",
+)
+
+
 def verify_plan() -> VerificationResult:
+    """Verify the accepted Pass A multisport wave plan.
+
+    This function is intentionally kept backward-compatible with Pass A tests.
+    Imports of Pass A modules are lazy so Pass B-only helpers can be imported
+    without forcing unrelated modules during collection.
+    """
+    from .contracts import OutcomeStatus, SportKey
+    from .plan import build_multisport_wave_plan
+
+    required_sports = {sport for sport in SportKey}
     plan = build_multisport_wave_plan()
     failed: list[str] = []
 
-    if set(plan.profiles) != REQUIRED_SPORTS:
-        missing = sorted(sport.value for sport in REQUIRED_SPORTS - set(plan.profiles))
+    if set(plan.profiles) != required_sports:
+        missing = sorted(sport.value for sport in required_sports - set(plan.profiles))
         failed.append(f"missing_sport_profiles:{missing}")
 
     if len(plan.passes) != 4:
@@ -90,3 +117,64 @@ def verify_plan() -> VerificationResult:
         failed_requirements=failed,
         metrics=metrics,
     )
+
+
+def verify_source_inventory() -> PassBVerificationResult:
+    failed: list[str] = []
+    inventory = build_source_inventory()
+    by_key = {entry.source_key: entry for entry in inventory}
+    for key in FOOTBALL_ERA_SOURCE_KEYS:
+        if key not in by_key:
+            failed.append(f"missing_football_source:{key}")
+    for entry in inventory:
+        if not entry.transfer_decision:
+            failed.append(f"missing_transfer_decision:{entry.source_key}")
+        if not entry.allowed_proof_levels:
+            failed.append(f"missing_proof_policy:{entry.source_key}")
+        if entry.transfer_decision == "transfer_direct" and not entry.target_sports:
+            failed.append(f"direct_source_without_target_sports:{entry.source_key}")
+        if entry.transfer_decision in {"deferred_probe_only", "blocked_terms_or_access"} and "production_dependency_without_terms_review" not in entry.forbidden_uses:
+            failed.append(f"probe_source_missing_production_forbidden_use:{entry.source_key}")
+        if entry.source_family == "esports_multisport_addition" and not entry.terms_or_access_review_required:
+            failed.append(f"esports_source_missing_terms_review:{entry.source_key}")
+    return PassBVerificationResult(
+        "PASS" if not failed else "FAIL",
+        failed,
+        {"source_count": len(inventory), "target_sports": list(TARGET_SPORTS)},
+    )
+
+
+def verify_provider_corpus(records: list[ProviderCorpusRecord]) -> PassBVerificationResult:
+    failed: list[str] = []
+    for record in records:
+        if not is_valid_pass_b_status(record.status):
+            failed.append(f"invalid_status:{record.corpus_id}:{record.status}")
+        if contains_raw_secret(record.to_json()):
+            failed.append(f"raw_secret_in_record:{record.corpus_id}")
+        if record.status == "SOURCE_BOUND_SHADOW_READY" and not record.participant_evidence:
+            failed.append(f"shadow_ready_without_participant_evidence:{record.corpus_id}")
+        try:
+            assert_no_forbidden_success_text(record.to_json())
+        except AssertionError as exc:
+            failed.append(f"forbidden_success_text:{record.corpus_id}:{exc}")
+    return PassBVerificationResult("PASS" if not failed else "FAIL", failed, {"record_count": len(records)})
+
+
+def verify_shadow_artifacts(artifacts: list[SourceBoundShadowArtifact]) -> PassBVerificationResult:
+    failed: list[str] = []
+    for artifact in artifacts:
+        if artifact.status not in PASS_B_STATUSES:
+            failed.append(f"invalid_shadow_status:{artifact.artifact_id}:{artifact.status}")
+        if artifact.production_selectable:
+            failed.append(f"production_selectable_forbidden:{artifact.artifact_id}")
+        if artifact.betting_decisions_enabled:
+            failed.append(f"betting_decisions_forbidden:{artifact.artifact_id}")
+        if not artifact.manual_authorization_required:
+            failed.append(f"manual_authorization_required_false:{artifact.artifact_id}")
+        if artifact.status == "SOURCE_BOUND_SHADOW_READY" and not artifact.source_keys:
+            failed.append(f"shadow_ready_without_sources:{artifact.artifact_id}")
+        try:
+            assert_no_forbidden_success_text(artifact.to_json())
+        except AssertionError as exc:
+            failed.append(f"forbidden_success_text:{artifact.artifact_id}:{exc}")
+    return PassBVerificationResult("PASS" if not failed else "FAIL", failed, {"artifact_count": len(artifacts)})

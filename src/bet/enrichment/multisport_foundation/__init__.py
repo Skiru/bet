@@ -15,7 +15,39 @@ from .contracts import (
 from .plan import build_multisport_wave_plan
 from .profiles import build_sport_profiles
 from .providers import build_provider_profiles, provider_matrix
-from .verifier import verify_plan
+from .verifier import (
+    VerificationResult,
+    PassBVerificationResult,
+    verify_plan,
+    verify_source_inventory,
+    verify_provider_corpus,
+    verify_shadow_artifacts,
+)
+from .source_inventory import (
+    SourceInventoryEntry,
+    build_source_inventory,
+    inventory_by_key,
+    source_inventory_report_payload,
+    write_source_inventory_report,
+)
+from .provider_corpus import (
+    ProviderCorpusRecord,
+    sanitize_headers,
+    stable_corpus_id,
+    build_blocked_corpus_record,
+    contains_raw_secret,
+)
+from .source_bound_shadow import (
+    SourceBoundShadowArtifact,
+    build_source_bound_shadow,
+)
+from .fail_closed import (
+    PASS_B_STATUSES,
+    BLOCKED_STATUSES,
+    VALID_FAIL_CLOSED_STATUSES,
+    is_valid_pass_b_status,
+    assert_no_forbidden_success_text,
+)
 
 __all__ = [
     "FactRequirement",
@@ -32,5 +64,27 @@ __all__ = [
     "build_sport_profiles",
     "build_provider_profiles",
     "provider_matrix",
+    "VerificationResult",
+    "PassBVerificationResult",
     "verify_plan",
+    "verify_source_inventory",
+    "verify_provider_corpus",
+    "verify_shadow_artifacts",
+    "SourceInventoryEntry",
+    "build_source_inventory",
+    "inventory_by_key",
+    "source_inventory_report_payload",
+    "write_source_inventory_report",
+    "ProviderCorpusRecord",
+    "sanitize_headers",
+    "stable_corpus_id",
+    "build_blocked_corpus_record",
+    "contains_raw_secret",
+    "SourceBoundShadowArtifact",
+    "build_source_bound_shadow",
+    "PASS_B_STATUSES",
+    "BLOCKED_STATUSES",
+    "VALID_FAIL_CLOSED_STATUSES",
+    "is_valid_pass_b_status",
+    "assert_no_forbidden_success_text",
 ]

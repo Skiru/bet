@@ -62,7 +62,7 @@ def test_docs_and_reports_are_pretty_multiline() -> None:
     markdown = render_plan_markdown()
     assert "\n" in markdown
     assert "# Multisport Enrichment Wave Plan" in markdown
-    assert "## Goals" or "## Goal" in markdown
+    assert "## Goals" in markdown or "## Goal" in markdown
 
 
 def test_verifier_passes_production_plan() -> None:
