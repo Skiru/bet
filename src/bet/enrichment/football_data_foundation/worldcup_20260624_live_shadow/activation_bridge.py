@@ -89,10 +89,10 @@ def run_activation_bridge(
     }
     write_json(verifier_result_path, verifier_result)
 
-    # 5. Write public_artifact_proof.json
+    # 5. Write public_artifact_proof.json (REQ-REPAIR-012: marked SHADOW_RUN_LOCAL_ARTIFACT_ONLY)
     proof_path = fixture_dir / "public_artifact_proof.json"
     proof = {
-        "acceptance_source": "external_verifier",
+        "acceptance_source": "SHADOW_RUN_LOCAL_ARTIFACT_ONLY",
         "artifact_commit_sha": commit_sha,
         "checked_commit_sha": commit_sha,
         "committed_sqlite_header_ok": True,
@@ -112,7 +112,7 @@ def run_activation_bridge(
         "failed_requirements": [],
         "final_public_proof_commit_sha": None,
         "proof_commit_sha": None,
-        "proof_model": "EXTERNAL_PUBLIC_RAW_VERIFIER",
+        "proof_model": "SHADOW_RUN_LOCAL_ARTIFACT_ONLY",
         "public_raw_report_fetch_status": {
             "public_artifact_proof.json": 200,
             "source_bound_shadow_snapshot.json": 200,
@@ -147,7 +147,7 @@ def run_activation_bridge(
             "verifier.py": True,
             "writer.py": True
         },
-        "verdict": "PASS",
+        "verdict": "SHADOW_RUN_LOCAL_ARTIFACT_ONLY",
         "verifier_command": f"python -m football_public_truth_verifier.verifier --repo Skiru/bet --commit {commit_sha} --output /tmp/football_public_truth_verifier_result.json"
     }
     write_json(proof_path, proof)

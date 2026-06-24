@@ -28,8 +28,11 @@ class ProviderCaptureEnvelope:
     body_sha256: str
     captured_at_utc: str
     sanitized: bool = True
-    headers_retained: bool = False
+    raw_headers_stored: bool = False
     secrets_stored: bool = False
+    network_used: bool = True
+    real_response_proof: Optional[Dict[str, Any]] = None
+    headers_retained: bool = False
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)

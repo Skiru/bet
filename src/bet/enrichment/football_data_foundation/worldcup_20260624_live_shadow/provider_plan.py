@@ -23,6 +23,75 @@ class ProviderPlan:
         }
 
 
+def get_sportdb_fixtures_url() -> str:
+    return "https://api.sportdb.dev/api/flashscore/football/world:8/world-championship:lvUBR5F8/2026/fixtures?page=1"
+
+
+def get_sportdb_results_url() -> str:
+    return "https://api.sportdb.dev/api/flashscore/football/world:8/world-championship:lvUBR5F8/2026/results?page=1"
+
+
+def get_sportdb_detail_url(event_id: str) -> str:
+    return f"https://api.sportdb.dev/api/flashscore/match/{event_id}/details?with_events=true"
+
+
+def get_sportdb_stats_url(event_id: str) -> str:
+    return f"https://api.sportdb.dev/api/flashscore/match/{event_id}/stats"
+
+
+def get_sportdb_lineups_url(event_id: str) -> str:
+    return f"https://api.sportdb.dev/api/flashscore/match/{event_id}/lineups"
+
+
+def get_sportdb_odds_url(event_id: str) -> str:
+    return f"https://api.sportdb.dev/api/flashscore/match/{event_id}/odds?geoIpCode=GB&geoIpSubdivisionCode=GPENG"
+
+
+def get_highlightly_matches_url(date: str) -> str:
+    return f"https://soccer.highlightly.net/matches?date={date}&timezone=Etc/UTC&limit=100"
+
+
+def get_highlightly_match_detail_url(match_id: str) -> str:
+    return f"https://soccer.highlightly.net/matches/{match_id}"
+
+
+def get_highlightly_statistics_url(match_id: str) -> str:
+    return f"https://soccer.highlightly.net/statistics/{match_id}"
+
+
+def get_highlightly_lineups_url(match_id: str) -> str:
+    return f"https://soccer.highlightly.net/lineups/{match_id}"
+
+
+def get_highlightly_events_url(match_id: str) -> str:
+    return f"https://soccer.highlightly.net/events/{match_id}"
+
+
+def get_api_football_fixtures_url(date: str) -> str:
+    return f"https://v3.football.api-sports.io/fixtures?date={date}"
+
+
+def get_api_football_detail_url(fixture_id: str) -> str:
+    return f"https://v3.football.api-sports.io/fixtures?id={fixture_id}"
+
+
+def get_football_data_org_matches_url(date: str) -> str:
+    return f"https://api.football-data.org/v4/matches?dateFrom={date}&dateTo={date}"
+
+
+def get_football_data_org_detail_url(match_id: str) -> str:
+    return f"https://api.football-data.org/v4/matches/{match_id}"
+
+
+def get_espn_scoreboard_url(date: str) -> str:
+    date_clean = date.replace("-", "")
+    return f"https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?dates={date_clean}"
+
+
+def get_espn_summary_url(event_id: str) -> str:
+    return f"http://site.api.espn.com/apis/site/v2/sports/soccer/all/summary?event={event_id}"
+
+
 def build_provider_plans() -> List[ProviderPlan]:
     return [
         ProviderPlan(
