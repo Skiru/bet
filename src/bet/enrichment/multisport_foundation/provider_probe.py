@@ -52,7 +52,7 @@ class ProviderProbeArtifact:
     source_mapping_status: str
     request_method: str
     request_url_template: str
-    sanitized_request_headers: dict[str, str] = field(default_factory=dict)
+    sanitized_request_headers: dict[str, Any] = field(default_factory=dict)
     sanitized_request_query: dict[str, str] = field(default_factory=dict)
     sanitized_response_envelope: dict[str, Any] = field(default_factory=dict)
     proof_fields_observed: tuple[str, ...] = field(default_factory=tuple)
@@ -112,6 +112,9 @@ def extract_keys_from_json(obj: Any) -> set[str]:
             keys.update(extract_keys_from_json(item))
     return keys
 
+def has_acceptable_credential(env: dict[str, str], required_env_keys: tuple[str, ...]) -> bool:
+    return any(bool(env.get(k)) for k in required_env_keys)
+
 def run_provider_probe(
     mapping: ProviderMappingArtifact,
     policy: ProviderProbePolicy,
@@ -123,11 +126,14 @@ def run_provider_probe(
     url_template = get_url_template(mapping.route_key)
     query_params = get_probe_query_params(mapping.route_key)
 
+    credentials_present = has_acceptable_credential(env, mapping.required_env_keys)
+
     # Sanitize request headers and query
-    if mapping.provider_key == "pandascore":
-        sanitized_headers = {"Authorization": "Bearer <redacted>"}
-    else:
-        sanitized_headers = {"x-apisports-key": "<redacted>"}
+    sanitized_headers = {
+        "credential_header_present": credentials_present,
+        "credential_header_family": "provider_auth",
+        "credential_value": "redacted_presence_only"
+    }
 
     # 1. Check if mapping itself is not ready
     if mapping.status != ProviderMappingStatus.MAPPING_READY_FOR_SANITIZED_PROBE:
@@ -165,10 +171,6 @@ def run_provider_probe(
 
     # 2. Mapping is ready. Evaluate real network conditions.
     allow_real_network_env = (env.get("MULTISPORT_PASS_F_ALLOW_REAL_NETWORK") == "1")
-    
-    # Are credentials present?
-    missing_keys = [k for k in mapping.required_env_keys if not env.get(k)]
-    credentials_present = len(missing_keys) == 0
 
     if not credentials_present:
         status = ProviderProbeStatus.SANITIZED_PROBE_BLOCKED_NO_CREDENTIALS
@@ -280,7 +282,7 @@ def run_provider_probe(
         with urllib.request.urlopen(req, timeout=policy.timeout_seconds) as response:
             body = response.read()
             payload = json.loads(body.decode("utf-8"))
-            
+
             # Observe proof fields
             found_keys = extract_keys_from_json(payload)
             proof_fields_observed = tuple(f for f in mapping.proof_fields_required if f in found_keys)
@@ -317,7 +319,7 @@ def run_provider_probe(
     except Exception as err:
         # Map connection/timeout/auth/http errors to SANITIZED_PROBE_BLOCKED_PROVIDER_ACCESS
         status = ProviderProbeStatus.SANITIZED_PROBE_BLOCKED_PROVIDER_ACCESS
-        blocked_reason = f"provider_access_failed: {str(err)}"
+        blocked_reason = "provider_access_failed_sanitized"
         return ProviderProbeArtifact(
             artifact_id=f"pass_f:{mapping.sport}:{mapping.provider_key}:{mapping.route_key}",
             sport=mapping.sport,

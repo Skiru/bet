@@ -29,13 +29,10 @@ def test_pass_f_reports_exist_and_are_valid() -> None:
         re_dumped = json.dumps(data, indent=2, sort_keys=True) + "\n"
         assert content == re_dumped
 
-        # 3. No secrets / raw credentials / cookies / bearer keys
+        # 3. No secrets / raw credentials / cookies / bearer keys / auth header names
         content_lower = content.lower()
-        for forbidden in ("bearer ", "authorization", "cookie", "x-api-key", "x-apisports-key", "x-rapidapi-key"):
-            if forbidden in content_lower:
-                # Make sure the actual value is redacted/present and not raw secrets
-                # (headers can have key names, but values must be REDACTED)
-                assert "redacted" in content_lower or "present" in content_lower
+        for forbidden in ("bearer", "authorization", "cookie", "x-api-key", "x-apisports-key", "x-rapidapi-key"):
+            assert forbidden not in content_lower, f"Forbidden substring '{forbidden}' found in {path}"
 
         # No production activation or betting decisions enabled
         assert "production_selectable\": true" not in content_lower

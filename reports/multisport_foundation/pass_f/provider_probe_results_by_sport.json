@@ -27,7 +27,9 @@
         "request_url_template": "https://v1.basketball.api-sports.io/games",
         "route_key": "api_basketball_games",
         "sanitized_request_headers": {
-          "x-apisports-key": "<redacted>"
+          "credential_header_family": "provider_auth",
+          "credential_header_present": false,
+          "credential_value": "redacted_presence_only"
         },
         "sanitized_request_query": {
           "league": "1",
@@ -64,7 +66,9 @@
         "request_url_template": "https://api.pandascore.co/csgo/matches",
         "route_key": "pandascore_cs2_matches",
         "sanitized_request_headers": {
-          "Authorization": "Bearer <redacted>"
+          "credential_header_family": "provider_auth",
+          "credential_header_present": false,
+          "credential_value": "redacted_presence_only"
         },
         "sanitized_request_query": {
           "per_page": "1"
@@ -100,7 +104,9 @@
         "request_url_template": "https://api.pandascore.co/dota2/matches",
         "route_key": "pandascore_dota2_matches",
         "sanitized_request_headers": {
-          "Authorization": "Bearer <redacted>"
+          "credential_header_family": "provider_auth",
+          "credential_header_present": false,
+          "credential_value": "redacted_presence_only"
         },
         "sanitized_request_query": {
           "per_page": "1"
@@ -137,7 +143,9 @@
         "request_url_template": "https://v1.hockey.api-sports.io/games",
         "route_key": "api_hockey_games",
         "sanitized_request_headers": {
-          "x-apisports-key": "<redacted>"
+          "credential_header_family": "provider_auth",
+          "credential_header_present": false,
+          "credential_value": "redacted_presence_only"
         },
         "sanitized_request_query": {
           "league": "1",
@@ -175,7 +183,9 @@
         "request_url_template": "https://v1.tennis.api-sports.io/fixtures",
         "route_key": "api_tennis_fixtures",
         "sanitized_request_headers": {
-          "x-apisports-key": "<redacted>"
+          "credential_header_family": "provider_auth",
+          "credential_header_present": false,
+          "credential_value": "redacted_presence_only"
         },
         "sanitized_request_query": {
           "league": "1",
@@ -212,7 +222,9 @@
         "request_url_template": "https://api.pandascore.co/valorant/matches",
         "route_key": "pandascore_valorant_matches",
         "sanitized_request_headers": {
-          "Authorization": "Bearer <redacted>"
+          "credential_header_family": "provider_auth",
+          "credential_header_present": false,
+          "credential_value": "redacted_presence_only"
         },
         "sanitized_request_query": {
           "per_page": "1"
@@ -249,7 +261,9 @@
         "request_url_template": "https://v1.volleyball.api-sports.io/games",
         "route_key": "api_volleyball_games",
         "sanitized_request_headers": {
-          "x-apisports-key": "<redacted>"
+          "credential_header_family": "provider_auth",
+          "credential_header_present": false,
+          "credential_value": "redacted_presence_only"
         },
         "sanitized_request_query": {
           "league": "1",
