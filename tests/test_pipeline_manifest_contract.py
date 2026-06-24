@@ -75,6 +75,33 @@ def test_s7b_between_s7_and_s8():
     assert idx_s7 < idx_s7b < idx_s8
 
 
+def test_exact_linear_transitions():
+    """Verify that every step has the exact linear transition defined by REQ-004."""
+    manifest = load_pipeline_manifest()
+    expected_transitions = {
+        "S0": ["S1"],
+        "S1": ["S1e"],
+        "S1e": ["S2"],
+        "S2": ["S2.3"],
+        "S2.3": ["S2.5"],
+        "S2.5": ["S2.7"],
+        "S2.7": ["S2.9"],
+        "S2.9": ["S3"],
+        "S3": ["S4"],
+        "S4": ["S5"],
+        "S5": ["S6"],
+        "S6": ["S7"],
+        "S7": ["S7b"],
+        "S7b": ["S8"],
+        "S8": ["S9"],
+        "S9": ["S10"],
+        "S10": [],
+    }
+    for step in manifest.steps:
+        assert step.id in expected_transitions, f"Unexpected step ID: {step.id}"
+        assert step.next == expected_transitions[step.id], f"Step {step.id} has incorrect next transition: {step.next}"
+
+
 def test_every_step_required_fields_and_allowed_values():
     """Verify step fields and allowed phase/execution_mode values."""
     manifest = load_pipeline_manifest()
@@ -110,10 +137,20 @@ def test_every_step_required_fields_and_allowed_values():
 
 
 def test_enrichment_steps_cannot_emit_forbidden():
-    """Verify enrichment steps (S2.3, S2.5, S2.7, S2.9) cannot emit pick, edge, stake, or coupon."""
+    """Verify enrichment steps (S2.3, S2.5, S2.7, S2.9) have all nine required rules."""
     manifest = load_pipeline_manifest()
     enrichment_steps = {"S2.3", "S2.5", "S2.7", "S2.9"}
-    required_rules = {"no_pick", "no_edge", "no_stake", "no_coupon"}
+    required_rules = {
+        "no_pick",
+        "no_edge",
+        "no_stake",
+        "no_coupon",
+        "source_bound_only",
+        "unknown_or_blocked_for_missing_data",
+        "no_production_db_write",
+        "no_betting_data_write",
+        "point_in_time_required"
+    }
 
     for step in manifest.steps:
         if step.id in enrichment_steps:
@@ -126,8 +163,19 @@ def test_enrichment_steps_cannot_emit_forbidden():
 def test_global_rules():
     """Verify global rules include required rules."""
     manifest = load_pipeline_manifest()
-    assert manifest.global_rules.get("no_pick_before_s7") is True
-    assert manifest.global_rules.get("s2_9_required_before_s3") is True
+    required_global_rules = [
+        "fail_closed",
+        "point_in_time_required",
+        "no_pick_before_s7",
+        "no_coupon_before_s8",
+        "all_picks_conditional_until_user_betclic_verification",
+        "enrichment_must_not_emit_pick_edge_stake_or_coupon",
+        "s2_9_required_before_s3",
+        "no_live_provider_calls_in_contract_pass",
+        "no_production_db_writes_in_contract_pass"
+    ]
+    for rule in required_global_rules:
+        assert manifest.global_rules.get(rule) is True
 
 
 def test_validate_pipeline_manifest_returns_no_errors():
@@ -138,15 +186,58 @@ def test_validate_pipeline_manifest_returns_no_errors():
 
 
 def test_forbidden_operational_ledger_paths():
-    """Verify that forbidden operational ledger paths are untouched."""
-    # Ensure standard forbidden files are not present in current working directory/git tracking
-    # as extra files (the pre-commit check will run git status, but we can double check here)
-    forbidden_prefixes = [
+    """Verify that forbidden operational ledger paths are not referenced in the manifest."""
+    manifest = load_pipeline_manifest()
+    forbidden_prefixes = (
         "betting/data/",
         "betting/coupons/",
         "betting/journal/",
         "reports/",
         "certification/",
-    ]
-    # No files in these paths should be dirty or untracked
-    pass
+    )
+
+    for step in manifest.steps:
+        sid = step.id or "<unknown>"
+
+        # 1. No manifest wrapper path starts with forbidden prefixes
+        if step.wrapper:
+            for prefix in forbidden_prefixes:
+                assert not step.wrapper.startswith(prefix), (
+                    f"Step {sid} wrapper '{step.wrapper}' starts with forbidden prefix '{prefix}'"
+                )
+
+        # 2. No manifest canonical_script path starts with forbidden prefixes
+        if step.canonical_script:
+            for prefix in forbidden_prefixes:
+                assert not step.canonical_script.startswith(prefix), (
+                    f"Step {sid} canonical_script '{step.canonical_script}' starts with forbidden prefix '{prefix}'"
+                )
+
+        # 3-7. No manifest output starts with forbidden prefixes
+        if step.output:
+            for prefix in forbidden_prefixes:
+                assert not step.output.startswith(prefix), (
+                    f"Step {sid} output '{step.output}' starts with forbidden prefix '{prefix}'"
+                )
+
+
+def test_corrected_semantic_names_and_phases():
+    """Verify semantic names, agents, and phase determinations (REQ-008)."""
+    manifest = load_pipeline_manifest()
+    steps_by_id = {step.id: step for step in manifest.steps}
+
+    assert steps_by_id["S2.3"].name == "enrichment_gap_detection"
+    assert steps_by_id["S2.5"].name == "provider_enrichment"
+    assert steps_by_id["S2.7"].name == "source_reconciliation"
+    assert steps_by_id["S2.9"].name == "data_readiness_gate"
+    assert steps_by_id["S5"].name == "context_motivation_risk"
+    assert steps_by_id["S5"].agent == "bet-challenger"
+
+    assert steps_by_id["S7"].name in ("Hard Approval Gate", "hard_approval_gate")
+    assert steps_by_id["S7b"].name in ("Market Availability Validation", "market_availability_validation")
+    assert steps_by_id["S8"].name in ("Coupon Construction", "coupon_construction")
+
+    assert steps_by_id["S10"].phase == "POST_EVENT"
+
+    assert state._determine_phase("S9") == "EXECUTION"
+    assert state._determine_phase("S10") == "POST_EVENT"

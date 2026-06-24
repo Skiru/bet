@@ -124,6 +124,20 @@ def get_phase_boundary_step() -> str:
     return "S3"
 
 
+def get_step_phase(step_id: str) -> str:
+    """Get the phase of a step from the canonical pipeline manifest."""
+    manifest = load_pipeline_manifest()
+    errors = validate_pipeline_manifest(manifest)
+    if errors:
+        raise PipelineManifestError(f"Pipeline manifest is invalid: {errors}")
+    for step in manifest.steps:
+        if step.id == step_id:
+            if step.phase is None:
+                raise PipelineManifestError(f"Step {step_id} has no phase specified")
+            return step.phase
+    raise PipelineManifestError(f"Unknown step: {step_id}")
+
+
 def validate_pipeline_manifest(manifest: PipelineManifest, repo_root: Path | None = None) -> list[str]:
     """Validate a loaded PipelineManifest against all contract constraints."""
     errors = []
@@ -134,10 +148,20 @@ def validate_pipeline_manifest(manifest: PipelineManifest, repo_root: Path | Non
 
     # 1. Global rules checks
     global_rules = manifest.global_rules
-    if "no_pick_before_s7" not in global_rules or global_rules["no_pick_before_s7"] is not True:
-        errors.append("Global rules missing or disabled: no_pick_before_s7")
-    if "s2_9_required_before_s3" not in global_rules or global_rules["s2_9_required_before_s3"] is not True:
-        errors.append("Global rules missing or disabled: s2_9_required_before_s3")
+    required_global_rules = [
+        "fail_closed",
+        "point_in_time_required",
+        "no_pick_before_s7",
+        "no_coupon_before_s8",
+        "all_picks_conditional_until_user_betclic_verification",
+        "enrichment_must_not_emit_pick_edge_stake_or_coupon",
+        "s2_9_required_before_s3",
+        "no_live_provider_calls_in_contract_pass",
+        "no_production_db_writes_in_contract_pass"
+    ]
+    for rule in required_global_rules:
+        if rule not in global_rules or global_rules[rule] is not True:
+            errors.append(f"Global rules missing or disabled: {rule}")
 
     # 2. Step ID checking & Step ordering
     expected_order = [
@@ -195,11 +219,29 @@ def validate_pipeline_manifest(manifest: PipelineManifest, repo_root: Path | Non
         if step.execution_mode is not None and step.execution_mode not in allowed_execution_modes:
             errors.append(f"Step {sid} has invalid execution_mode: {step.execution_mode}")
 
-        # Next references unknown step
-        if isinstance(step.next, list):
-            for n_id in step.next:
-                if n_id not in expected_order:
-                    errors.append(f"Step {sid} next references unknown step: {n_id}")
+        # Next transition validation
+        expected_transitions = {
+            "S0": ["S1"],
+            "S1": ["S1e"],
+            "S1e": ["S2"],
+            "S2": ["S2.3"],
+            "S2.3": ["S2.5"],
+            "S2.5": ["S2.7"],
+            "S2.7": ["S2.9"],
+            "S2.9": ["S3"],
+            "S3": ["S4"],
+            "S4": ["S5"],
+            "S5": ["S6"],
+            "S6": ["S7"],
+            "S7": ["S7b"],
+            "S7b": ["S8"],
+            "S8": ["S9"],
+            "S9": ["S10"],
+            "S10": [],
+        }
+        if step.id in expected_transitions:
+            if step.next != expected_transitions[step.id]:
+                errors.append(f"Step {sid} next transition must be exactly {expected_transitions[step.id]}, got {step.next}")
 
         # Script execution_mode validation
         if step.execution_mode == "script":
@@ -221,7 +263,17 @@ def validate_pipeline_manifest(manifest: PipelineManifest, repo_root: Path | Non
         # Enrichment step rules checking
         enrichment_steps = ["S2.3", "S2.5", "S2.7", "S2.9"]
         if step.id in enrichment_steps:
-            required_enrichment_rules = ["no_pick", "no_edge", "no_stake", "no_coupon"]
+            required_enrichment_rules = [
+                "no_pick",
+                "no_edge",
+                "no_stake",
+                "no_coupon",
+                "source_bound_only",
+                "unknown_or_blocked_for_missing_data",
+                "no_production_db_write",
+                "no_betting_data_write",
+                "point_in_time_required"
+            ]
             actual_rules = step.hard_rules if isinstance(step.hard_rules, list) else []
             for r in required_enrichment_rules:
                 if r not in actual_rules:

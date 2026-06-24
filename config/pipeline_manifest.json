@@ -63,11 +63,11 @@
     },
     {
       "id": "S2.3",
-      "name": "Enrichment Source 1",
+      "name": "enrichment_gap_detection",
       "phase": "DATA",
       "agent": "bet-enricher",
       "execution_mode": "agent_artifact",
-      "output": "enriched_features_s1",
+      "output": "s2_3_enrichment_gaps",
       "next": ["S2.5"],
       "hard_rules": [
         "no_pick",
@@ -83,11 +83,11 @@
     },
     {
       "id": "S2.5",
-      "name": "Enrichment Source 2",
+      "name": "provider_enrichment",
       "phase": "DATA",
       "agent": "bet-enricher",
       "execution_mode": "agent_artifact",
-      "output": "enriched_features_s2",
+      "output": "s2_5_provider_observations",
       "next": ["S2.7"],
       "hard_rules": [
         "no_pick",
@@ -103,11 +103,11 @@
     },
     {
       "id": "S2.7",
-      "name": "Enrichment Source 3",
+      "name": "source_reconciliation",
       "phase": "DATA",
       "agent": "bet-enricher",
       "execution_mode": "agent_artifact",
-      "output": "enriched_features_s3",
+      "output": "s2_7_reconciled_facts",
       "next": ["S2.9"],
       "hard_rules": [
         "no_pick",
@@ -123,11 +123,11 @@
     },
     {
       "id": "S2.9",
-      "name": "Enrichment Source 4",
+      "name": "data_readiness_gate",
       "phase": "DATA",
       "agent": "bet-enricher",
       "execution_mode": "agent_artifact",
-      "output": "enriched_features_s4",
+      "output": "s2_9_data_readiness",
       "next": ["S3"],
       "hard_rules": [
         "no_pick",
@@ -167,23 +167,29 @@
     },
     {
       "id": "S5",
-      "name": "Odds Valuation Calibration",
+      "name": "context_motivation_risk",
       "phase": "ANALYSIS_BUILD",
-      "agent": "bet-valuator",
+      "agent": "bet-challenger",
       "execution_mode": "agent_artifact",
-      "output": "calibrated_odds",
+      "output": "s5_context_motivation_risk",
       "next": ["S6"],
-      "hard_rules": ["odds_boundary_checks"]
+      "hard_rules": [
+        "injury_lineup_context_required",
+        "motivation_and_tournament_context_required",
+        "travel_schedule_fatigue_checked",
+        "morale_and_recent_result_context_checked",
+        "volatility_or_upset_risk_checked"
+      ]
     },
     {
       "id": "S6",
-      "name": "Repeats Discovery",
+      "name": "portfolio_repeat_guard",
       "phase": "ANALYSIS_BUILD",
       "agent": "bet-challenger",
       "execution_mode": "script",
       "wrapper": "scripts/pipeline_steps/s6_repeats.py",
       "canonical_script": "scripts/pipeline_steps/s6_repeats.py",
-      "output": "deduplicated_signals",
+      "output": "s6_portfolio_repeat_guard",
       "next": ["S7"],
       "hard_rules": ["repeat_signals_removal"]
     },
@@ -235,11 +241,11 @@
     },
     {
       "id": "S10",
-      "name": "Post-execution Reconciliation",
-      "phase": "EXECUTION",
-      "agent": "bet-test-engineer",
+      "name": "settlement_handoff",
+      "phase": "POST_EVENT",
+      "agent": "bet-settler",
       "execution_mode": "state_only",
-      "output": "state_closed",
+      "output": "s10_settlement_handoff",
       "next": [],
       "hard_rules": ["final_accounting_verification"]
     }

@@ -24,19 +24,19 @@ For the complete, canonical, machine-readable pipeline definitions, see the [Pip
 | S1 | `scripts/pipeline_steps/s1_discover.py` | bet-scanner | Event discovery & scan |
 | S1e | *state_only* | bet-scanner | Shortlist construction |
 | S2 | `scripts/pipeline_steps/s2_tipsters.py` | bet-scout | Tipster aggregation |
-| S2.3 | *agent_artifact* | bet-enricher | Enrichment Source 1 |
-| S2.5 | *agent_artifact* | bet-enricher | Enrichment Source 2 |
-| S2.7 | *agent_artifact* | bet-enricher | Enrichment Source 3 |
-| S2.9 | *agent_artifact* | bet-enricher | Enrichment Source 4 |
+| S2.3 | *agent_artifact* | bet-enricher | Enrichment Gap Detection |
+| S2.5 | *agent_artifact* | bet-enricher | Provider Enrichment |
+| S2.7 | *agent_artifact* | bet-enricher | Source Reconciliation |
+| S2.9 | *agent_artifact* | bet-enricher | Data Readiness Gate |
 | S3 | `scripts/pipeline_steps/s3_stats.py` | bet-statistician | Stats & Probability |
 | S4 | `scripts/pipeline_steps/s4_valuator.py` | bet-valuator | Valuator & CLV |
-| S5 | *agent_artifact* | bet-valuator | Odds Valuation Calibration |
-| S6 | `scripts/pipeline_steps/s6_repeats.py` | bet-challenger | Repeats Discovery |
+| S5 | *agent_artifact* | bet-challenger | Context/Motivation/Risk |
+| S6 | `scripts/pipeline_steps/s6_repeats.py` | bet-challenger | Portfolio/Repeat Guard |
 | S7 | `scripts/pipeline_steps/s5_gate.py` | bet-challenger | Hard Approval Gate |
 | S7b | `scripts/pipeline_steps/s7_validate.py` | bet-test-engineer | Market Availability Validation |
 | S8 | `scripts/pipeline_steps/s8_build_coupons.py` | bet-builder | Coupon construction |
 | S9 | *human_gate* | bet-challenger | Human Execution Gate |
-| S10 | *state_only* | bet-test-engineer | Post-execution Reconciliation |
+| S10 | *state_only* | bet-settler | Settlement Handoff |
 
 ## Running Scripts
 
