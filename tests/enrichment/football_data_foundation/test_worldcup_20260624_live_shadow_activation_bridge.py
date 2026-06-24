@@ -5,15 +5,15 @@ import sqlite3
 from bet.enrichment.football_data_foundation.worldcup_20260624_live_shadow.activation_bridge import run_activation_bridge
 from bet.enrichment.football_data_foundation.worldcup_20260624_live_shadow.normalizer import normalize_fixture_snapshot
 
-def write_valid_fetched_envelope(cache_dir: Path, provider: str, slug: str, body: dict) -> None:
+def write_valid_fetched_envelope(cache_dir: Path, provider: str, slug: str) -> None:
     envelope = {
         "fixture_slug": slug,
         "provider": provider,
         "request_purpose": f"{provider}_fixture_detail_capture",
-        "source_url": "https://v3.football.api-sports.io/fixtures?id=12345",
+        "source_url": f"https://api.{provider}.dev/v1/detail",
         "status": "FETCHED",
         "status_code": 200,
-        "body": body,
+        "body": {"eventId": "12345", "response": [{"goals": {"home": 2, "away": 1}}]},
         "body_sha256": "abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890",
         "captured_at_utc": "2026-06-24T12:00:00Z",
         "sanitized": True,
@@ -37,30 +37,12 @@ def test_activation_bridge_writes_compatible_artifacts() -> None:
         run_dir = Path(tmp_dir) / "run_test"
         shadow_artifacts_root = run_dir / "shadow_artifacts"
         
-        apif_body = {
-            "response": [
-                {
-                    "goals": {"home": 2, "away": 1},
-                    "fixture": {
-                        "date": "2026-06-24T21:00:00Z",
-                        "status": {"long": "Match Finished"},
-                        "venue": {"name": "MetLife Stadium"}
-                    },
-                    "teams": {
-                        "home": {"name": "Switzerland"},
-                        "away": {"name": "Canada"}
-                    }
-                }
-            ]
-        }
-        # Write FETCHED envelopes for ALL 5 providers
-        write_valid_fetched_envelope(run_dir, "api-football", fixture_slug, apif_body)
-        write_valid_fetched_envelope(run_dir, "sportdb", fixture_slug, {})
-        write_valid_fetched_envelope(run_dir, "highlightly", fixture_slug, {})
-        write_valid_fetched_envelope(run_dir, "football-data-org", fixture_slug, {"homeTeam": {"name": "Switzerland"}, "awayTeam": {"name": "Canada"}})
-        write_valid_fetched_envelope(run_dir, "espn-baseline", fixture_slug, {
-            "header": {"competitions": [{"competitors": [{"homeAway": "home", "team": {"name": "Switzerland"}}, {"homeAway": "away", "team": {"name": "Canada"}}]}]}
-        })
+        # Write 5 FETCHED envelopes to satisfy activation bridge requirements
+        write_valid_fetched_envelope(run_dir, "api-football", fixture_slug)
+        write_valid_fetched_envelope(run_dir, "sportdb", fixture_slug)
+        write_valid_fetched_envelope(run_dir, "highlightly", fixture_slug)
+        write_valid_fetched_envelope(run_dir, "football-data-org", fixture_slug)
+        write_valid_fetched_envelope(run_dir, "espn-baseline", fixture_slug)
         
         # Build normalized snapshot
         snapshot = normalize_fixture_snapshot(
