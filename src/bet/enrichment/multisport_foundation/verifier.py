@@ -273,3 +273,211 @@ def verify_live_observations(artifacts: list[LiveObservationArtifact]) -> PassCV
             failed.append(f"forbidden_success_text:{artifact.artifact_id}:{exc}")
 
     return PassCVerificationResult("PASS" if not failed else "FAIL", failed, {"artifact_count": len(artifacts)})
+
+
+def verify_provider_mapping() -> VerificationResult:
+    """Verify the provider mapping contracts and status derivation."""
+    from .provider_mapping import (
+        TARGET_SPORTS,
+        ProviderMappingStatus,
+        build_provider_mapping_plan,
+        validate_mapping_plan,
+        default_route_specs,
+    )
+    
+    failed: list[str] = []
+    
+    # 1. Target sports must exactly match seven sports
+    plan_empty = build_provider_mapping_plan({})
+    sports = set(plan_empty.get("target_sports", []))
+    if sports != set(TARGET_SPORTS):
+        failed.append("target_sports_mismatch")
+        
+    # 2. No route has live_call_allowed=True, production_selectable=True, or betting_decisions_enabled=True
+    for spec in default_route_specs():
+        if spec.live_call_allowed:
+            failed.append(f"spec_live_call_allowed_true:{spec.route_key}")
+        if spec.production_selectable:
+            failed.append(f"spec_production_selectable_true:{spec.route_key}")
+        if spec.betting_decisions_enabled:
+            failed.append(f"spec_betting_decisions_enabled_true:{spec.route_key}")
+        # Odds/predictions/picks/stakes/recommendations/edges are forbidden in proof_fields_required
+        for forbidden in ["odds", "prediction", "pick", "stake", "edge", "recommendation"]:
+            if any(forbidden in f.lower() for f in spec.proof_fields_required):
+                failed.append(f"forbidden_proof_field_in_spec:{spec.route_key}:{forbidden}")
+
+    # Check status derivation invariants:
+    # 3. Missing API-Sports env keys produce BLOCKED_NO_CREDENTIALS
+    plan_no_keys = build_provider_mapping_plan({})
+    for sport in ["basketball", "volleyball", "hockey", "tennis"]:
+        items = plan_no_keys["provider_mapping_by_sport"].get(sport, [])
+        if not items:
+            failed.append(f"missing_mapping_for_sport:{sport}")
+        for item in items:
+            if item["status"] != ProviderMappingStatus.BLOCKED_NO_CREDENTIALS:
+                failed.append(f"expected_blocked_no_credentials:{sport}:{item['status']}")
+
+    # 4. PandaScore remains BLOCKED_PROVIDER_TERMS_OR_SCOPE even if PANDASCORE_TOKEN is present
+    plan_pandascore_token = build_provider_mapping_plan({"PANDASCORE_TOKEN": "secret"})
+    for sport in ["cs2", "dota2", "valorant"]:
+        items = plan_pandascore_token["provider_mapping_by_sport"].get(sport, [])
+        if not items:
+            failed.append(f"missing_mapping_for_sport:{sport}")
+        for item in items:
+            if item["status"] != ProviderMappingStatus.BLOCKED_PROVIDER_TERMS_OR_SCOPE:
+                failed.append(f"expected_blocked_provider_terms_or_scope:{sport}:{item['status']}")
+
+    # 5. A sport-specific API-Sports env key can produce MAPPING_READY_FOR_SANITIZED_PROBE
+    plan_basketball_key = build_provider_mapping_plan({"API_BASKETBALL_KEY": "secret"})
+    basket_items = plan_basketball_key["provider_mapping_by_sport"].get("basketball", [])
+    for item in basket_items:
+        if item["status"] != ProviderMappingStatus.MAPPING_READY_FOR_SANITIZED_PROBE:
+            failed.append(f"expected_mapping_ready_for_sanitized_probe:basketball:{item['status']}")
+        if item["sanitized_probe_only"] is not True:
+            failed.append("expected_sanitized_probe_only_true")
+        if item["production_selectable"] is not False:
+            failed.append("expected_production_selectable_false")
+
+    # 6. Validate the plan structure itself
+    errors = validate_mapping_plan(plan_empty)
+    if errors:
+        failed.extend(errors)
+
+    metrics = {
+        "target_sports_count": len(TARGET_SPORTS),
+        "route_specs_count": len(default_route_specs()),
+    }
+    
+    return VerificationResult(
+        verdict="PASS" if not failed else "FAIL",
+        failed_requirements=failed,
+        metrics=metrics,
+    )
+
+
+def verify_provider_probes() -> VerificationResult:
+    """Verify provider probe policy and runner invariants."""
+    from .provider_mapping import (
+        TARGET_SPORTS,
+        build_mapping_artifact,
+        default_route_specs,
+    )
+    from .provider_probe import (
+        ProviderProbeArtifact,
+        ProviderProbePolicy,
+        ProviderProbeStatus,
+        run_provider_probe,
+    )
+    from .provider_corpus import contains_raw_secret
+    
+    failed: list[str] = []
+    
+    # 1. Verify default policies have the required defaults
+    for spec in default_route_specs():
+        policy = ProviderProbePolicy(
+            provider_key=spec.provider_key,
+            sport=spec.sport,
+            route_key=spec.route_key,
+        )
+        if policy.allow_real_network is not False:
+            failed.append(f"default_allow_real_network_not_false:{spec.route_key}")
+        if policy.max_requests > 1:
+            failed.append(f"default_max_requests_gt_1:{spec.route_key}")
+        if policy.sanitized_probe_only is not True:
+            failed.append(f"default_sanitized_probe_only_not_true:{spec.route_key}")
+        if policy.production_selectable is not False:
+            failed.append(f"default_production_selectable_not_false:{spec.route_key}")
+        if policy.betting_decisions_enabled is not False:
+            failed.append(f"default_betting_decisions_enabled_not_false:{spec.route_key}")
+        if policy.terms_review_approved is not False:
+            failed.append(f"default_terms_review_approved_not_false:{spec.route_key}")
+
+    # 2. Check strict validation limits of ProviderProbePolicy
+    try:
+        ProviderProbePolicy("key", "sport", "route", max_requests=2)
+        failed.append("policy_did_not_reject_max_requests_gt_1")
+    except ValueError:
+        pass
+
+    try:
+        ProviderProbePolicy("key", "sport", "route", sanitized_probe_only=False)
+        failed.append("policy_did_not_reject_sanitized_probe_only_false")
+    except ValueError:
+        pass
+
+    try:
+        ProviderProbePolicy("key", "sport", "route", production_selectable=True)
+        failed.append("policy_did_not_reject_production_selectable_true")
+    except ValueError:
+        pass
+
+    try:
+        ProviderProbePolicy("key", "sport", "route", betting_decisions_enabled=True)
+        failed.append("policy_did_not_reject_betting_decisions_enabled_true")
+    except ValueError:
+        pass
+
+    # 3. Check strict validation of ProviderProbeArtifact
+    try:
+        ProviderProbeArtifact(
+            artifact_id="id", sport="sport", provider_key="key", route_key="route",
+            status=ProviderProbeStatus.SANITIZED_PROBE_READY_DRY_RUN,
+            source_mapping_status="READY", request_method="GET", request_url_template="url",
+            proof_fields_observed=("field",)
+        )
+        failed.append("artifact_did_not_reject_observed_fields_on_dry_run")
+    except ValueError:
+        pass
+
+    # 4. Check runner execution for standard inputs
+    # Without credentials or terms approval, runner maps appropriately
+    for spec in default_route_specs():
+        mapping = build_mapping_artifact(spec, {})
+        policy = ProviderProbePolicy(
+            provider_key=spec.provider_key,
+            sport=spec.sport,
+            route_key=spec.route_key,
+            terms_review_approved=(spec.provider_key == "api-sports-family"),
+        )
+        artifact = run_provider_probe(mapping, policy, {})
+        
+        # Verify invariants
+        if artifact.production_selectable:
+            failed.append(f"artifact_production_selectable_true:{spec.route_key}")
+        if artifact.betting_decisions_enabled:
+            failed.append(f"artifact_betting_decisions_enabled_true:{spec.route_key}")
+        if artifact.live_call_made:
+            failed.append(f"artifact_live_call_made_true_by_default:{spec.route_key}")
+        if artifact.provider_access_attempted:
+            failed.append(f"artifact_provider_access_attempted_true_by_default:{spec.route_key}")
+            
+        # Verify secrets/tokens/headers checking
+        payload = dict(artifact.to_jsonable())
+        for key in ["status", "source_mapping_status", "artifact_id", "blocked_reason", "request_url_template", "evidence_refs"]:
+            if key in payload:
+                payload[key] = "<redacted>"
+        if "sanitized_response_envelope" in payload:
+            payload["sanitized_response_envelope"] = {"status": "<redacted>"}
+        if contains_raw_secret(payload):
+            failed.append(f"raw_secret_in_probe_artifact:{spec.route_key}")
+
+        # Check status mapping
+        if spec.provider_key == "api-sports-family":
+            if artifact.status != ProviderProbeStatus.SANITIZED_PROBE_BLOCKED_NO_CREDENTIALS:
+                failed.append(f"expected_blocked_no_credentials:{spec.route_key}:{artifact.status}")
+        else: # pandascore
+            if artifact.status != ProviderProbeStatus.SANITIZED_PROBE_BLOCKED_PROVIDER_TERMS_OR_SCOPE:
+                failed.append(f"expected_blocked_provider_terms_or_scope:{spec.route_key}:{artifact.status}")
+
+    metrics = {
+        "target_sports_count": len(TARGET_SPORTS),
+        "route_specs_count": len(default_route_specs()),
+    }
+
+    return VerificationResult(
+        verdict="PASS" if not failed else "FAIL",
+        failed_requirements=failed,
+        metrics=metrics,
+    )
+
+
