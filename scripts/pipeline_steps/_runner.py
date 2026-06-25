@@ -32,6 +32,13 @@ from bet.pipeline.runtime_modes import (
 )
 from bet.pipeline.runtime_paths import build_runtime_env
 
+RUNTIME_PATH_KEYS = (
+    "BET_PIPELINE_RUN_ROOT",
+    "BET_PIPELINE_DATA_DIR",
+    "BET_PIPELINE_COUPON_DIR",
+    "BET_PIPELINE_ARTIFACT_DIR",
+)
+
 
 def _venv_python() -> str:
     return sys.executable
@@ -47,6 +54,67 @@ def _init_temp_db(db_path: str) -> None:
             conn.executescript(schema_path.read_text(encoding="utf-8"))
         finally:
             conn.close()
+
+
+def _has_runtime_path_env(env: dict[str, str]) -> bool:
+    return all(env.get(key) for key in RUNTIME_PATH_KEYS)
+
+
+def _repo_reports_root() -> Path:
+    return ROOT / "reports"
+
+
+def resolve_child_runtime_env(
+    parent_env: dict[str, str],
+    *,
+    runtime_mode: RuntimeMode | str,
+    betting_day: str | None,
+    run_id: str | None,
+    run_root: Path | str | None,
+) -> tuple[dict[str, str], str]:
+    if isinstance(runtime_mode, str):
+        try:
+            runtime_mode = RuntimeMode(runtime_mode.upper())
+        except ValueError:
+            runtime_mode = RuntimeMode.DRY_RUN
+
+    env = parent_env.copy()
+    runtime_path_source = "unmanaged"
+
+    if runtime_mode != RuntimeMode.PRODUCTION:
+        if _has_runtime_path_env(parent_env):
+            runtime_path_source = "orchestrator_inherited_sandbox"
+            for key in RUNTIME_PATH_KEYS:
+                env[key] = parent_env[key]
+        else:
+            resolved_betting_day = betting_day or parent_env.get("BET_PIPELINE_BETTING_DAY") or "default_day"
+            resolved_run_id = run_id or parent_env.get("BET_PIPELINE_RUN_ID")
+            resolved_run_root = Path(run_root) if run_root else None
+            sandbox_env = build_runtime_env(runtime_mode, resolved_betting_day, resolved_run_id, resolved_run_root)
+            env.update(sandbox_env)
+            runtime_path_source = "runner_built_sandbox"
+
+        if betting_day:
+            env["BET_PIPELINE_BETTING_DAY"] = betting_day
+        if run_id:
+            env["BET_PIPELINE_RUN_ID"] = run_id
+        env["BET_PIPELINE_RUNTIME_MODE"] = runtime_mode.value
+        env["DRY_RUN"] = "1"
+
+        parent_run_root = parent_env.get("BET_PIPELINE_RUN_ROOT", "")
+        child_run_root = env.get("BET_PIPELINE_RUN_ROOT", "")
+        child_run_root_resolved = str(Path(child_run_root).expanduser().resolve()) if child_run_root else ""
+        repo_reports_root = str(_repo_reports_root().resolve())
+        if parent_run_root.startswith("/tmp") and child_run_root_resolved.startswith(repo_reports_root):
+            raise RuntimeError(
+                "Non-production child runtime sandbox fell back to repo-local reports despite inherited /tmp BET_PIPELINE_RUN_ROOT"
+            )
+
+        for key in RUNTIME_PATH_KEYS:
+            if env.get(key):
+                Path(env[key]).mkdir(parents=True, exist_ok=True)
+
+    return env, runtime_path_source
 
 
 def run_scripts(
@@ -141,16 +209,19 @@ def run_scripts(
             return 3
         dry_run = False
 
-    # Inject sandboxed paths for non-production modes
+    # Inject sandboxed paths for non-production modes, preserving inherited orchestrator sandboxes.
     if runtime_mode != RuntimeMode.PRODUCTION:
-        b_day = betting_day or date or "default_day"
-        r_root = Path(run_root) if run_root else None
-        sandbox_env = build_runtime_env(runtime_mode, b_day, run_id, r_root)
-        env.update(sandbox_env)
-        # Create directories
-        for key in ("BET_PIPELINE_RUN_ROOT", "BET_PIPELINE_DATA_DIR", "BET_PIPELINE_COUPON_DIR", "BET_PIPELINE_ARTIFACT_DIR"):
-            if key in env:
-                Path(env[key]).mkdir(parents=True, exist_ok=True)
+        try:
+            env, _ = resolve_child_runtime_env(
+                env,
+                runtime_mode=runtime_mode,
+                betting_day=betting_day or date,
+                run_id=run_id,
+                run_root=run_root,
+            )
+        except RuntimeError as exc:
+            print(f"BLOCKED_RUNTIME_PATH_INHERITANCE_LOST: {exc}")
+            return 6
 
     temp_db_path = None
     try:

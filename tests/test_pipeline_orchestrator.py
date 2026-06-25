@@ -129,7 +129,7 @@ def test_s3_can_proceed_if_s2_9_exists_and_valid(tmp_path, base_artifact_payload
     )
 
     # Mock the wrapper execution of S3 to write its script evidence and succeed
-    with patch("subprocess.run") as mock_run:
+    with patch("bet.pipeline.orchestrator.subprocess.run") as mock_run:
         def side_effect(*args, **kwargs):
             from bet.pipeline.integration_artifacts import write_script_evidence
             write_script_evidence(
@@ -367,6 +367,55 @@ def test_run_summary_written_on_missing_script_evidence(tmp_path):
     assert summary_data["status"] == "BLOCK"
     assert summary_data["blocked_at_step"] == "S0"
     assert any("Canonical script evidence missing" in b for b in summary_data["blockers"])
+
+
+def test_s1_controlled_block_populates_run_summary_evidence_path(tmp_path):
+    from bet.pipeline.integration_artifacts import script_evidence_path, write_script_evidence
+
+    orch = Orchestrator(
+        betting_day="2026-06-25",
+        run_id="run-s1-summary",
+        runtime_mode="DRY_RUN",
+        base_run_dir=tmp_path / "sandbox",
+    )
+    write_script_evidence(
+        "S1",
+        status="BLOCK",
+        payload={"test": True},
+        sources=(),
+        evidence_refs=(),
+        environ=orch.env,
+        no_pick_edge_stake_coupon_emitted=True,
+        production_selectable=False,
+        betting_decisions_enabled=False,
+        blocked_reasons=("BLOCKED_MISSING_MARKET_MATRIX",),
+    )
+
+    with patch("bet.pipeline.orchestrator.subprocess.run") as mock_run:
+        from unittest.mock import MagicMock
+
+        result = MagicMock()
+        result.returncode = 2
+        mock_run.return_value = result
+        summary = orch.run(start_step="S1", stop_after_step="S1")
+
+    assert summary["status"] == "BLOCK"
+    assert summary["blocked_at_step"] == "S1"
+    s1_step = next(step for step in summary["steps"] if step["step_id"] == "S1")
+    assert s1_step["status"] == "BLOCK"
+    assert not any("Canonical script evidence missing for step 'S1'" in blocker for blocker in summary["blockers"])
+    assert not any("BLOCKED_SCRIPT_EVIDENCE_MISSING" in str(blocker) and "S1" in str(blocker) for blocker in summary["blockers"])
+
+    canonical_evidence = script_evidence_path("S1", orch.env)
+    assert canonical_evidence is not None
+    assert canonical_evidence.exists()
+
+    summary_path = orch.run_root / "run_summary.json"
+    assert summary_path.exists()
+    summary_data = json.loads(summary_path.read_text(encoding="utf-8"))
+    s1_summary_step = next(step for step in summary_data["steps"] if step["step_id"] == "S1")
+    assert s1_summary_step["evidence_path"] == str(canonical_evidence)
+    assert any("BLOCKED_MISSING_MARKET_MATRIX" in blocker for blocker in summary_data["blockers"])
 
 
 def test_orchestrator_writes_work_order_when_s2_3_missing(tmp_path):
