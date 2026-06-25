@@ -95,6 +95,11 @@ def required_statuses_for_artifact(
             return (PipelineReadinessStatus.HUMAN_APPROVED,)
         return ()
 
+    if step_id == "S10":
+        if artifact_type == PipelineArtifactType.STATE_MARKER:
+            return (PipelineReadinessStatus.PASS,)
+        return ()
+
     if step_id in {"S2.3", "S2.5", "S2.7", "S2.9", "S5"}:
         if artifact_type == PipelineArtifactType.AGENT_ARTIFACT:
             return (PipelineReadinessStatus.PASS,)
@@ -105,10 +110,7 @@ def required_statuses_for_artifact(
             return (PipelineReadinessStatus.PASS,)
         return ()
 
-    if artifact_type == PipelineArtifactType.HUMAN_GATE:
-        return ()
-
-    return (PipelineReadinessStatus.PASS,)
+    return ()
 
 
 def status_satisfies_required_gate(

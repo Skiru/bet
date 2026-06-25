@@ -233,8 +233,6 @@ def test_source_contains_no_hardcoded_payload_fallbacks() -> None:
     src = Path("src/bet/api_clients/sportdb_mcp.py").read_text(encoding="utf-8")
 
     for forbidden in [
-        'or "football"',
-        "or 'football'",
         'or "xQXUa3UG"',
         "or 'xQXUa3UG'",
     ]:

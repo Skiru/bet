@@ -140,6 +140,39 @@ def test_required_statuses_for_s9_human_gate():
     )
 
 
+def test_required_statuses_for_s10_state_marker():
+    """Verify S10 state markers accept PASS only when explicitly required."""
+    assert required_statuses_for_artifact("S10", PipelineArtifactType.STATE_MARKER) == (
+        PipelineReadinessStatus.PASS,
+    )
+    assert status_satisfies_required_gate(
+        PipelineReadinessStatus.PASS,
+        "S10",
+        PipelineArtifactType.STATE_MARKER,
+    )
+    assert not status_satisfies_required_gate(
+        PipelineReadinessStatus.HUMAN_APPROVED,
+        "S10",
+        PipelineArtifactType.STATE_MARKER,
+    )
+
+
+def test_unknown_step_type_pairs_require_no_default_status():
+    """Verify unknown step/type pairs fail closed with no implicit PASS."""
+    assert required_statuses_for_artifact("S1e", PipelineArtifactType.RUN_SUMMARY) == ()
+    assert required_statuses_for_artifact("S8", PipelineArtifactType.AGENT_ARTIFACT) == ()
+    assert not status_satisfies_required_gate(
+        PipelineReadinessStatus.PASS,
+        "S1e",
+        PipelineArtifactType.RUN_SUMMARY,
+    )
+    assert not status_satisfies_required_gate(
+        PipelineReadinessStatus.PASS,
+        "S8",
+        PipelineArtifactType.AGENT_ARTIFACT,
+    )
+
+
 def test_normalize_status():
     """Verify normalize_status matches casing or defaults to UNKNOWN."""
     assert normalize_status("pass") == PipelineReadinessStatus.PASS

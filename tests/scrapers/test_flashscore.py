@@ -19,6 +19,7 @@ from bet.scrapers.flashscore import (
     _parse_flashscore_stats,
     _validate_stat_values,
 )
+from bet.integration.telemetry_wrapper import TransportResult
 
 
 # ---------------------------------------------------------------------------
@@ -67,6 +68,15 @@ MOCK_SCORE_HTML = (
     '<div class="final">1 - 1</div>'
     "</body></html>"
 )
+
+
+def _transport_result(status_code: int, body: str) -> TransportResult:
+    return TransportResult(
+        success=200 <= status_code < 300,
+        status_code=status_code,
+        headers={"Content-Type": "text/html"},
+        body=body.encode("utf-8"),
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -129,11 +139,13 @@ class TestParsing:
 
 class TestEntityResolution:
     @patch("bet.scrapers.flashscore.c_requests")
-    def test_entity_found(self, mock_crequests):
+    @patch("bet.integration.telemetry_wrapper.wrap_request")
+    def test_entity_found(self, mock_wrap_request, mock_crequests):
         mock_resp = MagicMock()
         mock_resp.status_code = 200
         mock_resp.text = MOCK_SEARCH_RESPONSE
         mock_crequests.get.return_value = mock_resp
+        mock_wrap_request.return_value = _transport_result(200, MOCK_SEARCH_RESPONSE)
 
         from bet.scrapers.flashscore import _get_flashscore_entity
         entity_type, slug, entity_id = _get_flashscore_entity("Real Madrid", "football")
@@ -142,11 +154,13 @@ class TestEntityResolution:
         assert entity_id == "mXs5ABCD"
 
     @patch("bet.scrapers.flashscore.c_requests")
-    def test_entity_not_found(self, mock_crequests):
+    @patch("bet.integration.telemetry_wrapper.wrap_request")
+    def test_entity_not_found(self, mock_wrap_request, mock_crequests):
         mock_resp = MagicMock()
         mock_resp.status_code = 200
         mock_resp.text = 'cjs.loaded({"results":[]});'
         mock_crequests.get.return_value = mock_resp
+        mock_wrap_request.return_value = _transport_result(200, 'cjs.loaded({"results":[]});')
 
         from bet.scrapers.flashscore import _get_flashscore_entity
         entity_type, slug, entity_id = _get_flashscore_entity("Nonexistent FC", "football")
@@ -154,8 +168,10 @@ class TestEntityResolution:
         assert slug is None
 
     @patch("bet.scrapers.flashscore.c_requests")
-    def test_entity_network_error(self, mock_crequests):
+    @patch("bet.integration.telemetry_wrapper.wrap_request")
+    def test_entity_network_error(self, mock_wrap_request, mock_crequests):
         mock_crequests.get.side_effect = Exception("Connection error")
+        mock_wrap_request.side_effect = Exception("Connection error")
 
         from bet.scrapers.flashscore import _get_flashscore_entity
         entity_type, slug, entity_id = _get_flashscore_entity("Real Madrid", "football")
@@ -169,7 +185,8 @@ class TestEntityResolution:
 class TestTryFlashscore:
     @patch("bet.scrapers.flashscore.c_requests")
     @patch("bet.scrapers.flashscore._fs_rate_limit")
-    def test_success(self, mock_rl, mock_crequests):
+    @patch("bet.integration.telemetry_wrapper.wrap_request")
+    def test_success(self, mock_wrap_request, mock_rl, mock_crequests):
         # Search response
         search_resp = MagicMock()
         search_resp.status_code = 200
@@ -181,6 +198,10 @@ class TestTryFlashscore:
         page_resp.text = MOCK_RESULTS_HTML
 
         mock_crequests.get.side_effect = [search_resp, page_resp]
+        mock_wrap_request.side_effect = [
+            _transport_result(200, MOCK_SEARCH_RESPONSE),
+            _transport_result(200, MOCK_RESULTS_HTML),
+        ]
 
         from bet.scrapers.flashscore import _try_flashscore
         stats, err = _try_flashscore("Real Madrid", "football")
@@ -190,7 +211,8 @@ class TestTryFlashscore:
 
     @patch("bet.scrapers.flashscore.c_requests")
     @patch("bet.scrapers.flashscore._fs_rate_limit")
-    def test_js_challenge_blocked(self, mock_rl, mock_crequests):
+    @patch("bet.integration.telemetry_wrapper.wrap_request")
+    def test_js_challenge_blocked(self, mock_wrap_request, mock_rl, mock_crequests):
         search_resp = MagicMock()
         search_resp.status_code = 200
         search_resp.text = MOCK_SEARCH_RESPONSE
@@ -200,6 +222,10 @@ class TestTryFlashscore:
         page_resp.text = "<html>Just a moment...</html>"
 
         mock_crequests.get.side_effect = [search_resp, page_resp]
+        mock_wrap_request.side_effect = [
+            _transport_result(200, MOCK_SEARCH_RESPONSE),
+            _transport_result(200, "<html>Just a moment...</html>"),
+        ]
 
         from bet.scrapers.flashscore import _try_flashscore
         stats, err = _try_flashscore("Real Madrid", "football")
@@ -208,7 +234,8 @@ class TestTryFlashscore:
 
     @patch("bet.scrapers.flashscore.c_requests")
     @patch("bet.scrapers.flashscore._fs_rate_limit")
-    def test_http_error(self, mock_rl, mock_crequests):
+    @patch("bet.integration.telemetry_wrapper.wrap_request")
+    def test_http_error(self, mock_wrap_request, mock_rl, mock_crequests):
         search_resp = MagicMock()
         search_resp.status_code = 200
         search_resp.text = MOCK_SEARCH_RESPONSE
@@ -217,6 +244,10 @@ class TestTryFlashscore:
         page_resp.status_code = 403
 
         mock_crequests.get.side_effect = [search_resp, page_resp]
+        mock_wrap_request.side_effect = [
+            _transport_result(200, MOCK_SEARCH_RESPONSE),
+            _transport_result(403, ""),
+        ]
 
         from bet.scrapers.flashscore import _try_flashscore
         stats, err = _try_flashscore("Real Madrid", "football")

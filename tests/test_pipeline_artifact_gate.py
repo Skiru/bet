@@ -134,6 +134,22 @@ def test_secret_scanner_allows_main_authorization_metadata():
     assert detect_secrets(raw) == []
 
 
+def test_authorized_sanitized_live_probe_metadata_does_not_block():
+    """Verify sanitized live-probe authorization metadata stays allowed."""
+    raw = base_artifact()
+    raw["payload"] = {
+        "authorization_status": "AUTHORIZED_FOR_SANITIZED_LIVE_PROBE",
+        "provider_authorization_status": "AUTHORIZED_FOR_SANITIZED_LIVE_PROBE",
+        "authorized_for_sanitized_live_probe": True,
+        "single_flight_probe": "sanitized evidence event",
+    }
+    assert detect_secrets(raw) == []
+    assert find_forbidden_decision_signals(raw) == []
+    artifact, issues = validate_pipeline_artifact(raw, "S2.9")
+    assert artifact is not None
+    assert not issues
+
+
 def test_secret_scanner_blocks_authorization_header():
     """Verify secret/header keys still block even when readiness metadata is allowed."""
     raw = base_artifact()
@@ -219,6 +235,26 @@ def test_evaluate_gate_s8_blocks_agent_artifact_s7b(tmp_path):
     decision = evaluate_gate_before_step("S8", tmp_path, "2026-06-25", "run-001")
     assert decision.verdict == PipelineReadinessStatus.BLOCK
     assert "S7b" in decision.blocked_artifacts
+
+
+def test_evaluate_gate_s8_blocks_agent_artifact_s7(tmp_path):
+    """Verify S7 AGENT_ARTIFACT blocks S8 even when S7b is valid script evidence."""
+    s7 = base_artifact(step_id="S7", artifact_type="AGENT_ARTIFACT", status="PASS")
+    s7b = base_artifact(step_id="S7b", artifact_type="SCRIPT_EVIDENCE", status="PASS")
+    s7b["no_pick_edge_stake_coupon_emitted"] = False
+    write_artifact(tmp_path, s7)
+    write_artifact(tmp_path, s7b)
+
+    decision = evaluate_gate_before_step("S8", tmp_path, "2026-06-25", "run-001")
+    assert decision.verdict == PipelineReadinessStatus.BLOCK
+    assert "S7" in decision.blocked_artifacts
+
+
+def test_unknown_step_type_pair_does_not_satisfy_required_gate():
+    """Verify unknown step/type pairs fail closed instead of accepting PASS."""
+    artifact, issues = validate_pipeline_artifact(base_artifact(), "S8")
+    assert artifact is None
+    assert any(issue.code == "INVALID_REQUIRED_ARTIFACT_STATUS" for issue in issues)
 
 
 def test_evaluate_gate_s10_requires_s9(tmp_path):
