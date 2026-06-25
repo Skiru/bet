@@ -208,6 +208,8 @@ class Orchestrator:
             if self.verbose:
                 print(f"--- Executing Step {sid}: {step.name} ({step.execution_mode}) ---")
 
+            work_order_path: Optional[str] = None
+
             # 1. Enforce gates and check prerequisite artifacts
             # We construct a base_dir for the gate evaluator to work properly
             gate_base_dir = self.run_artifact_dir.parent.parent.parent
@@ -356,6 +358,18 @@ class Orchestrator:
                 # Check for existing agent artifact
                 expected_path = artifact_path_for(gate_base_dir, self.betting_day, self.run_id, sid)
                 if not expected_path.exists():
+                    from bet.pipeline.agent_work_orders import build_agent_work_order, write_agent_work_order
+                    # Generate work order JSON under run artifact directory
+                    wo = build_agent_work_order(
+                        betting_day=self.betting_day,
+                        run_id=self.run_id,
+                        step_id=sid,
+                        runtime_mode=self.runtime_mode.value,
+                        base_dir=gate_base_dir,
+                    )
+                    written_wo_path = write_agent_work_order(wo, gate_base_dir)
+                    work_order_path = str(written_wo_path)
+
                     step_status = PipelineReadinessStatus.BLOCK
                     overall_status = PipelineReadinessStatus.BLOCK
                     blocked_at_step = sid
@@ -366,7 +380,27 @@ class Orchestrator:
                         with open(expected_path, "r", encoding="utf-8") as f:
                             raw = json.load(f)
                         artifact, issues = validate_pipeline_artifact(raw, sid)
-                        if artifact is None or any(i.severity == PipelineReadinessStatus.BLOCK for i in issues):
+
+                        from bet.pipeline.agent_work_orders import build_agent_work_order
+                        from bet.pipeline.agent_artifact_contracts import validate_agent_artifact_for_work_order
+
+                        wo = build_agent_work_order(
+                            betting_day=self.betting_day,
+                            run_id=self.run_id,
+                            step_id=sid,
+                            runtime_mode=self.runtime_mode.value,
+                            base_dir=gate_base_dir,
+                        )
+                        wo_errors = validate_agent_artifact_for_work_order(raw, wo.to_jsonable())
+
+                        if wo_errors:
+                            step_status = PipelineReadinessStatus.BLOCK
+                            overall_status = PipelineReadinessStatus.BLOCK
+                            blocked_at_step = sid
+                            blocked_reason = BlockedReason.BLOCKED_WAITING_FOR_AGENT_ARTIFACT
+                            for err in wo_errors:
+                                self.blockers.append(f"Step {sid} contract validation failure: {err}")
+                        elif artifact is None or any(i.severity == PipelineReadinessStatus.BLOCK for i in issues):
                             step_status = PipelineReadinessStatus.BLOCK
                             overall_status = PipelineReadinessStatus.BLOCK
                             blocked_at_step = sid
@@ -456,6 +490,7 @@ class Orchestrator:
                 "stderr_path": stderr_path,
                 "evidence_path": evidence_path,
                 "blocked_reason": blocked_reason,
+                "work_order_path": work_order_path,
             })
 
             # Halt loop if step did not pass
@@ -495,6 +530,11 @@ class Orchestrator:
             "warnings": self.warnings,
             "blockers": self.blockers,
         }
+
+        for s_ev in self.step_evidences:
+            if s_ev.get("work_order_path"):
+                summary["work_order_path"] = s_ev["work_order_path"]
+                break
 
         # Write run_summary.json atomically to reports path
         summary_path = self.run_root / "run_summary.json"

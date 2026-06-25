@@ -349,3 +349,113 @@ def test_run_summary_written_on_missing_script_evidence(tmp_path):
     assert summary_data["status"] == "BLOCK"
     assert summary_data["blocked_at_step"] == "S0"
     assert any("Canonical script evidence missing" in b for b in summary_data["blockers"])
+
+
+def test_orchestrator_writes_work_order_when_s2_3_missing(tmp_path):
+    """Verify orchestrator writes work order when S2.3 artifact is missing, blocks, and does not run S2.5."""
+    orch = Orchestrator(
+        betting_day="2026-06-25",
+        run_id="run-999",
+        runtime_mode="DRY_RUN",
+        base_run_dir=tmp_path / "reports",
+    )
+    summary = orch.run(start_step="S2.3", stop_after_step="S2.5")
+    
+    # Blocks at S2.3
+    assert summary["status"] == "BLOCK"
+    assert summary["blocked_at_step"] == "S2.3"
+    
+    # Work order is written
+    from bet.pipeline.agent_work_orders import work_order_path_for
+    wo_path = work_order_path_for(tmp_path / "reports", "2026-06-25", "run-999", "S2.3")
+    assert wo_path.exists()
+    
+    # Contains work order path in top level and in individual steps
+    assert summary["work_order_path"] == str(wo_path)
+    s23_step = next(s for s in summary["steps"] if s["step_id"] == "S2.3")
+    assert s23_step["work_order_path"] == str(wo_path)
+    
+    # S2.5 was not executed (skipped/not reached in loop execution list)
+    steps_executed = [s["step_id"] for s in summary["steps"]]
+    assert "S2.3" in steps_executed
+    assert "S2.5" not in steps_executed
+
+
+def test_orchestrator_writes_work_order_when_s5_missing(tmp_path):
+    """Verify orchestrator writes work order when S5 artifact is missing, blocks, and does not run S6."""
+    orch = Orchestrator(
+        betting_day="2026-06-25",
+        run_id="run-999",
+        runtime_mode="DRY_RUN",
+        base_run_dir=tmp_path / "reports",
+    )
+    summary = orch.run(start_step="S5", stop_after_step="S6")
+    
+    # Blocks at S5
+    assert summary["status"] == "BLOCK"
+    assert summary["blocked_at_step"] == "S5"
+    
+    # Work order is written
+    from bet.pipeline.agent_work_orders import work_order_path_for
+    wo_path = work_order_path_for(tmp_path / "reports", "2026-06-25", "run-999", "S5")
+    assert wo_path.exists()
+    
+    assert summary["work_order_path"] == str(wo_path)
+    
+    steps_executed = [s["step_id"] for s in summary["steps"]]
+    assert "S5" in steps_executed
+    assert "S6" not in steps_executed
+
+
+def test_orchestrator_proceeds_on_valid_agent_artifact(tmp_path):
+    """Verify orchestrator proceeds when a valid agent artifact exists."""
+    # Write a fully valid S2.3 artifact
+    write_test_artifact(
+        tmp_path / "reports",
+        "S2.3",
+        "PASS",
+        payload_override={
+            "unknowns": [],
+            "sources": ["tipster-s2"],
+            "payload": {"enrichment_gaps": []}
+        }
+    )
+    
+    orch = Orchestrator(
+        betting_day="2026-06-25",
+        run_id="run-999",
+        runtime_mode="DRY_RUN",
+        base_run_dir=tmp_path / "reports",
+    )
+    summary = orch.run(start_step="S2.3", stop_after_step="S2.3")
+    
+    assert summary["status"] == "PASS"
+    assert summary["last_completed_step"] == "S2.3"
+
+
+def test_orchestrator_blocks_on_invalid_agent_artifact(tmp_path):
+    """Verify orchestrator blocks when an agent artifact is invalid."""
+    # Write S2.3 artifact with missing key fields / forbidden fields
+    write_test_artifact(
+        tmp_path / "reports",
+        "S2.3",
+        "PASS",
+        payload_override={
+            "payload": {
+                "pick": "Arbitrary selection",
+                "enrichment_gaps": []
+            }
+        }
+    )
+    
+    orch = Orchestrator(
+        betting_day="2026-06-25",
+        run_id="run-999",
+        runtime_mode="DRY_RUN",
+        base_run_dir=tmp_path / "reports",
+    )
+    summary = orch.run(start_step="S2.3", stop_after_step="S2.3")
+    
+    assert summary["status"] == "BLOCK"
+    assert summary["blocked_at_step"] == "S2.3"
+    assert any("contract validation failure" in b for b in summary["blockers"])
