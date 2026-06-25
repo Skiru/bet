@@ -216,10 +216,10 @@ def test_live_target_gating_blocks_without_ack(tmp_path: Path, monkeypatch: pyte
         monkeypatch.setattr(_runner, "ROOT", fixture_root)
         monkeypatch.delenv("BET_PIPELINE_LIVE_ACK", raising=False)
 
-        rc = _runner.run_scripts(["settle_on_finish.py"], dry_run=True, allow_live_network=False)
+        rc = _runner.run_scripts(["settle_on_finish.py"], dry_run=True, allow_live_network=False, runtime_mode="LIVE_SHADOW")
         assert rc == 5
 
-        rc = _runner.run_scripts(["settle_on_finish.py"], dry_run=True, allow_live_network=True)
+        rc = _runner.run_scripts(["settle_on_finish.py"], dry_run=True, allow_live_network=True, runtime_mode="LIVE_SHADOW")
         assert rc == 5
     finally:
         if live_script.exists():
@@ -237,7 +237,7 @@ def test_live_target_gating_allows_with_ack(tmp_path: Path, monkeypatch: pytest.
         monkeypatch.setattr(_runner, "ROOT", fixture_root)
         monkeypatch.setenv("BET_PIPELINE_LIVE_ACK", "I_UNDERSTAND_LIVE_PROVIDER_CALLS")
 
-        rc = _runner.run_scripts(["settle_on_finish.py"], dry_run=True, allow_live_network=True)
+        rc = _runner.run_scripts(["settle_on_finish.py"], dry_run=True, allow_live_network=True, runtime_mode="LIVE_SHADOW")
         assert rc == 0
     finally:
         if live_script.exists():

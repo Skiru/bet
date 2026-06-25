@@ -302,11 +302,35 @@ class Orchestrator:
                     with open(stderr_file_path, "a", encoding="utf-8") as err_f:
                         err_f.write(f"\nSubprocess failed to launch: {e}\n")
 
+                canonical_evidence = script_evidence_path(sid, self.env)
+                evidence_exists = canonical_evidence and canonical_evidence.exists()
+                
+                evidence_status = None
+                evidence_blocked_reasons = []
+                if evidence_exists:
+                    try:
+                        with open(canonical_evidence, "r", encoding="utf-8") as f:
+                            raw_ev = json.load(f)
+                        evidence_status = raw_ev.get("status")
+                        evidence_blocked_reasons = raw_ev.get("blocked_reasons", [])
+                    except Exception:
+                        pass
+
                 if return_code == 0:
-                    canonical_evidence = script_evidence_path(sid, self.env)
-                    if canonical_evidence and canonical_evidence.exists():
-                        step_status = PipelineReadinessStatus.PASS
-                        evidence_path = str(canonical_evidence)
+                    if evidence_exists:
+                        if evidence_status in ("BLOCK", "FAILED"):
+                            step_status = PipelineReadinessStatus.BLOCK
+                            overall_status = PipelineReadinessStatus.BLOCK
+                            blocked_at_step = sid
+                            evidence_path = str(canonical_evidence)
+                            if evidence_blocked_reasons:
+                                for r in evidence_blocked_reasons:
+                                    self.blockers.append(f"Step {sid} blocked: {r}")
+                            else:
+                                self.blockers.append(f"Step {sid} completed with {evidence_status} status")
+                        else:
+                            step_status = PipelineReadinessStatus.PASS
+                            evidence_path = str(canonical_evidence)
                     else:
                         step_status = PipelineReadinessStatus.BLOCK
                         overall_status = PipelineReadinessStatus.BLOCK
@@ -317,7 +341,16 @@ class Orchestrator:
                     step_status = PipelineReadinessStatus.BLOCK
                     overall_status = PipelineReadinessStatus.BLOCK
                     blocked_at_step = sid
-                    self.blockers.append(f"Wrapper script for step '{sid}' failed with exit code {return_code}")
+                    
+                    if evidence_exists:
+                        evidence_path = str(canonical_evidence)
+                        if evidence_blocked_reasons:
+                            for r in evidence_blocked_reasons:
+                                self.blockers.append(f"Step {sid} blocked: {r}")
+                        else:
+                            self.blockers.append(f"Step {sid} failed with status {evidence_status}")
+                    else:
+                        self.blockers.append(f"Wrapper script for step '{sid}' failed with exit code {return_code}")
 
             elif step.execution_mode == "agent_artifact":
                 # Check for existing agent artifact

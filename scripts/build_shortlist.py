@@ -1519,6 +1519,16 @@ def main():
     matrix_path = DATA_DIR / f"market_matrix_{date}.json"
     if not args.allow_fixture_only_fallback:
         if not matrix_path.exists():
+            from bet.pipeline.integration_artifacts import write_script_evidence
+            write_script_evidence(
+                "S1",
+                status="BLOCK",
+                payload={"error": "missing_market_matrix"},
+                sources=(),
+                evidence_refs=(),
+                blocked_reasons=("BLOCKED_MISSING_MARKET_MATRIX",),
+                environ=os.environ,
+            )
             out.error(
                 "PRECONDITION_FAILED: market_matrix_{date}.json not found. "
                 "Run generate_market_matrix.py first. "

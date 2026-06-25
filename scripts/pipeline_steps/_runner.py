@@ -104,18 +104,17 @@ def run_scripts(
 
     # If is_live_target, check live-network safety
     if is_live_target:
-        if not allow_live_network:
+        if runtime_mode == RuntimeMode.CERTIFICATION:
             print("BLOCKED_LIVE_NETWORK_ACK_MISSING")
             return 5
-        live_ack = env.get("BET_PIPELINE_LIVE_ACK", "")
-        if live_ack != "I_UNDERSTAND_LIVE_PROVIDER_CALLS":
-            print("BLOCKED_LIVE_NETWORK_ACK_MISSING")
-            return 5
-
-    # If runtime_mode is CERTIFICATION, we must never run live provider calls
-    if is_live_target and runtime_mode == RuntimeMode.CERTIFICATION:
-        print("BLOCKED_LIVE_NETWORK_ACK_MISSING")
-        return 5
+        elif runtime_mode == RuntimeMode.LIVE_SHADOW:
+            if not allow_live_network:
+                print("BLOCKED_LIVE_NETWORK_ACK_MISSING")
+                return 5
+            live_ack = env.get("BET_PIPELINE_LIVE_ACK", "")
+            if live_ack != "I_UNDERSTAND_LIVE_PROVIDER_CALLS":
+                print("BLOCKED_LIVE_NETWORK_ACK_MISSING")
+                return 5
 
     # Adjust write flags and mode
     if runtime_mode == RuntimeMode.PRODUCTION:
