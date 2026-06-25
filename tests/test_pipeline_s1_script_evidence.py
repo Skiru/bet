@@ -46,22 +46,20 @@ def test_s1_wrapper_success_writes_pass_script_evidence(tmp_path: Path):
 
     with patch.dict(os.environ, environ, clear=False), \
          patch.object(sys, "argv", argv), \
-         patch("scripts.pipeline_steps.s1_discover.run_scripts", return_value=0) as mock_run_scripts:
+         patch("scripts.pipeline_steps.s1_discover._run_s1_scripts", return_value=0) as mock_run_scripts:
         with pytest.raises(SystemExit) as exc_info:
             s1_discover.main()
 
     assert exc_info.value.code == 0
-    mock_run_scripts.assert_called_once_with(
-        ["discover_events.py", "build_shortlist.py"],
-        date="2026-06-25",
-        dry_run=True,
-        allow_write=False,
-        continue_on_codes=[0, 1],
-        runtime_mode="LIVE_SHADOW",
-        betting_day="2026-06-25",
-        run_id="run-s1",
-        allow_live_network=True,
-    )
+    mock_run_scripts.assert_called_once()
+    kwargs = mock_run_scripts.call_args.kwargs
+    assert kwargs["date"] == "2026-06-25"
+    assert kwargs["dry_run"] is True
+    assert kwargs["allow_write"] is False
+    assert kwargs["runtime_mode"] == "LIVE_SHADOW"
+    assert kwargs["allow_live_network"] is True
+    assert kwargs["child_env"]["BET_PIPELINE_RUN_ROOT"] == environ["BET_PIPELINE_RUN_ROOT"]
+    assert kwargs["child_env"]["BET_PIPELINE_ARTIFACT_DIR"] == environ["BET_PIPELINE_ARTIFACT_DIR"]
     evidence = _load_evidence(tmp_path)
     assert evidence["artifact_type"] == "SCRIPT_EVIDENCE"
     assert evidence["step_id"] == "S1"
@@ -97,7 +95,7 @@ def test_s1_wrapper_block_missing_market_matrix_writes_block_evidence(tmp_path: 
 
     with patch.dict(os.environ, environ, clear=False), \
          patch.object(sys, "argv", argv), \
-         patch("scripts.pipeline_steps.s1_discover.run_scripts", side_effect=_controlled_rc):
+         patch("scripts.pipeline_steps.s1_discover._run_s1_scripts", side_effect=_controlled_rc):
         with pytest.raises(SystemExit) as exc_info:
             s1_discover.main()
 
@@ -121,7 +119,7 @@ def test_s1_wrapper_duplicate_fixture_sources_writes_normalized_block_evidence(t
 
     with patch.dict(os.environ, environ, clear=False), \
          patch.object(sys, "argv", argv), \
-         patch("scripts.pipeline_steps.s1_discover.run_scripts", side_effect=_duplicate_mapping):
+         patch("scripts.pipeline_steps.s1_discover._run_s1_scripts", side_effect=_duplicate_mapping):
         with pytest.raises(SystemExit) as exc_info:
             s1_discover.main()
 
@@ -140,7 +138,7 @@ def test_s1_wrapper_unexpected_return_code_writes_failed_evidence(tmp_path: Path
 
     with patch.dict(os.environ, environ, clear=False), \
          patch.object(sys, "argv", argv), \
-         patch("scripts.pipeline_steps.s1_discover.run_scripts", return_value=42):
+         patch("scripts.pipeline_steps.s1_discover._run_s1_scripts", return_value=42):
         with pytest.raises(SystemExit) as exc_info:
             s1_discover.main()
 
@@ -156,8 +154,8 @@ def test_s1_wrapper_fail_closed_when_canonical_evidence_cannot_be_written(tmp_pa
 
     with patch.dict(os.environ, environ, clear=False), \
          patch.object(sys, "argv", argv), \
-         patch("scripts.pipeline_steps.s1_discover.run_scripts", return_value=0), \
-         patch("scripts.pipeline_steps.s1_discover.write_script_evidence", return_value=None):
+          patch("scripts.pipeline_steps.s1_discover._run_s1_scripts", return_value=0), \
+          patch("scripts.pipeline_steps.s1_discover.write_script_evidence", return_value=None):
         with pytest.raises(SystemExit) as exc_info:
             s1_discover.main()
 

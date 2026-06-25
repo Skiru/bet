@@ -62,6 +62,7 @@ class EventDiscoveryCoordinator:
         self.sources = sources or self._default_sources()
         self.dedup = dedup_engine or DeduplicationEngine()
         self._team_cache: dict[str, int] = {}
+        self.last_persist_issues: list[str] = []
 
     @staticmethod
     def _default_sources() -> list[SourceAdapter]:
@@ -102,6 +103,8 @@ class EventDiscoveryCoordinator:
         merged = self.dedup.merge(events_by_source)
         logger.info("After dedup: %d merged fixtures", len(merged))
 
+        issues = list(self.dedup.last_issues)
+
         # 3. Persist to DB via SQLAlchemy ORM
         persisted = self._persist(date, merged)
         logger.info("Persisted %d fixtures to DB", persisted)
@@ -115,10 +118,10 @@ class EventDiscoveryCoordinator:
         for f in merged:
             by_sport[f.sport] = by_sport.get(f.sport, 0) + 1
 
-        issues: list[str] = []
         for src_name, stats in source_stats.items():
             if stats.errors:
                 issues.extend(stats.errors)
+        issues.extend(self.last_persist_issues)
 
         source_health_issue = bool(issues) or any(
             not s.available for s in source_stats.values()
@@ -255,6 +258,7 @@ class EventDiscoveryCoordinator:
         now = datetime.now(UTC).isoformat()
         fs_repo = FixtureSourceRepo(self.session)
         count = 0
+        self.last_persist_issues = []
 
         # scan_results is a date-scoped discovery snapshot. Clear the prior run first
         # so bet-scanner audits reflect the current scan instead of stale leftovers.
@@ -382,6 +386,9 @@ class EventDiscoveryCoordinator:
                 nested.commit()
                 count += 1
             except Exception as e:
+                self.last_persist_issues.append(
+                    f"DISCOVERY_PERSIST_FAILURE fixture={mf.home_team} vs {mf.away_team} reason={e}"
+                )
                 logger.warning(
                     "Failed to persist %s vs %s: %s",
                     mf.home_team,
