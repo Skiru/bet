@@ -11,6 +11,7 @@ from bet.pipeline.wrapper_contracts import (
     assert_manifest_wrappers_exist,
     compile_python_file,
 )
+from bet.pipeline.wrapper_runtime_certification import certify_manifest_wrappers
 from bet.pipeline.readiness_contracts import PipelineReadinessStatus
 
 
@@ -43,3 +44,13 @@ def test_wrapper_compilation_catches_syntax_error(tmp_path):
     success, msg = compile_python_file(bad_file)
     assert success is False
     assert "syntax" in msg.lower() or "unexpected EOF" in msg.lower() or "indentation" in msg.lower() or "token" in msg.lower() or "py_compile" in msg.lower()
+
+
+def test_certification_targets_compile_even_if_runtime_verdict_blocks():
+    """Verify runtime certification still proves wrapper/target compilation deterministically."""
+    root = discover_repo_root()
+    report = certify_manifest_wrappers(root)
+    for step_id, wrapper_result in report["wrappers"].items():
+        assert wrapper_result["wrapper_compiles"] is True, step_id
+        assert wrapper_result["targets_exist"] is True, step_id
+        assert wrapper_result["targets_compile"] is True, step_id
