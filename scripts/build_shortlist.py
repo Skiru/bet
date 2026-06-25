@@ -703,6 +703,10 @@ def build_shortlist(
     # JSON fallback — if missing, attempt to generate a minimal market matrix
     if not events:
         if not matrix_path.exists():
+            runtime_mode = os.environ.get("BET_PIPELINE_RUNTIME_MODE", "").upper()
+            if runtime_mode in {"DRY_RUN", "LIVE_SHADOW", "CERTIFICATION"}:
+                print(f"[shortlist] ERROR: Market matrix file {matrix_path} not found. Standalone fallback is forbidden in runtime_mode={runtime_mode}.")
+                sys.exit(1)
             print(f"[shortlist] WARNING: {matrix_path} not found and DB empty. Attempting minimal fallback generation.")
 
             # 1) Try to generate from DB fixtures
@@ -780,6 +784,11 @@ def build_shortlist(
                 sys.exit(1)
         else:
             matrix = json.loads(matrix_path.read_text(encoding="utf-8"))
+            runtime_mode = os.environ.get("BET_PIPELINE_RUNTIME_MODE", "").upper()
+            if runtime_mode in {"DRY_RUN", "LIVE_SHADOW", "CERTIFICATION"}:
+                if not matrix.get("pipeline_safe") or matrix.get("no_pick_edge_stake_coupon_emitted") is not True:
+                    print("[shortlist] ERROR: Unsafe or unvalidated decision-bearing market matrix rejected in sandbox.")
+                    sys.exit(1)
             events = matrix["events"]
             matrix_source = "json"
             print(f"[shortlist] Loaded {len(events)} events from market matrix JSON (fallback)")

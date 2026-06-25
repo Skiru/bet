@@ -153,6 +153,29 @@ def test_s1_wrapper_passes_temp_db_path_to_discover_events(tmp_path: Path, monke
 
     def _fake_run(cmd, env, capture_output, text):
         calls.append((cmd, env.copy()))
+        if "generate_market_matrix.py" in cmd[1]:
+            data_dir = env.get("BET_PIPELINE_DATA_DIR")
+            if data_dir:
+                matrix_path = Path(data_dir) / "market_matrix_2026-06-25.json"
+                matrix_path.parent.mkdir(parents=True, exist_ok=True)
+                matrix_path.write_text(json.dumps({
+                    "schema_version": 1,
+                    "artifact_type": "MARKET_MATRIX",
+                    "date": "2026-06-25",
+                    "pipeline_safe": True,
+                    "production_selectable": False,
+                    "betting_decisions_enabled": False,
+                    "no_pick_edge_stake_coupon_emitted": True,
+                    "events": [
+                        {
+                            "sport": "football",
+                            "home_team": "Team A",
+                            "away_team": "Team B",
+                            "kickoff": "2026-06-25T18:00:00Z",
+                            "data_tier": "FIXTURE_ONLY"
+                        }
+                    ]
+                }), encoding="utf-8")
         result = MagicMock()
         result.returncode = 0
         result.stdout = ""
@@ -162,6 +185,18 @@ def test_s1_wrapper_passes_temp_db_path_to_discover_events(tmp_path: Path, monke
     monkeypatch.setattr(s1_discover, "_init_temp_db", _fake_init_db)
     monkeypatch.setattr(s1_discover.subprocess, "run", _fake_run)
 
+    run_metrics = {
+        "discovery_rc": -1,
+        "market_matrix_rc": -1,
+        "shortlist_rc": -1,
+        "market_matrix_path": "",
+        "market_matrix_event_count": 0,
+        "market_matrix_schema_version": 1,
+        "market_matrix_pipeline_safe": False,
+        "market_matrix_validated": False,
+        "shortlist_started": False
+    }
+
     rc = s1_discover._run_s1_scripts(
         date="2026-06-25",
         dry_run=True,
@@ -169,10 +204,11 @@ def test_s1_wrapper_passes_temp_db_path_to_discover_events(tmp_path: Path, monke
         allow_live_network=True,
         runtime_mode="LIVE_SHADOW",
         child_env=environ,
+        run_metrics=run_metrics,
     )
 
     assert rc == 0
-    assert len(calls) == 2
+    assert len(calls) == 3
     discover_cmd, discover_env = calls[0]
     assert discover_cmd[1].endswith("scripts/discover_events.py")
     assert "--db-path" in discover_cmd
