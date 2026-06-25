@@ -21,7 +21,8 @@ from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 PROJECT_DIR = SCRIPT_DIR.parent
-DATA_DIR = PROJECT_DIR / "betting" / "data"
+import os
+DATA_DIR = Path(os.environ.get("BET_PIPELINE_DATA_DIR", str(PROJECT_DIR / "betting" / "data")))
 
 # Add scripts dir for sibling imports
 if str(SCRIPT_DIR) not in sys.path:

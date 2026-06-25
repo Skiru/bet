@@ -35,7 +35,8 @@ from bet.scrapers.betclic import BetclicMarketChecker, COMPETITION_REGISTRY
 
 logger = logging.getLogger(__name__)
 
-DATA_DIR = ROOT_DIR / "betting" / "data"
+import os
+DATA_DIR = Path(os.environ.get("BET_PIPELINE_DATA_DIR", str(ROOT_DIR / "betting" / "data")))
 
 
 # ─── Coupon parsing ──────────────────────────────────────────────────────────

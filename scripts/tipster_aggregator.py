@@ -31,7 +31,8 @@ from urllib.parse import urlparse
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
 SCRIPTS_DIR = Path(__file__).resolve().parent
-DATA_DIR = ROOT_DIR / "betting" / "data"
+import os
+DATA_DIR = Path(os.environ.get("BET_PIPELINE_DATA_DIR", str(ROOT_DIR / "betting" / "data")))
 
 sys.path.insert(0, str(SCRIPTS_DIR))
 sys.path.insert(0, str(ROOT_DIR / "src"))

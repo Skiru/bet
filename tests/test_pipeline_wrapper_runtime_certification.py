@@ -175,7 +175,7 @@ def test_no_wrapper_writes_to_betting_data_or_coupons_during_certification_tests
 
 def test_certification_output_is_json_serializable(repo_root: Path):
     report = certify_manifest_wrappers(repo_root)
-    assert json.loads(json.dumps(report))["verdict"] in {"PASS", "BLOCK"}
+    assert json.loads(json.dumps(report))["verdict"] in {"PASS", "PASS_WITH_LIVE_SHADOW_REQUIRED", "BLOCK"}
 
 
 def test_classify_wrapper_runtime_status_warns_on_missing_evidence():
@@ -202,3 +202,94 @@ def test_discovery_without_run_scripts_returns_empty_and_blocks(tmp_path: Path):
         encoding="utf-8",
     )
     assert discover_wrapper_targets(wrapper) == []
+
+
+def test_live_target_gating_blocks_without_ack(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    fixture_root = Path(__file__).parent / "fixtures" / "pipeline_wrappers"
+    # Copy/write a dummy live script to fixture_root/scripts
+    live_script = fixture_root / "scripts" / "settle_on_finish.py"
+    live_script.write_text(
+        "import sys\nsys.exit(0)\n",
+        encoding="utf-8",
+    )
+    try:
+        monkeypatch.setattr(_runner, "ROOT", fixture_root)
+        monkeypatch.delenv("BET_PIPELINE_LIVE_ACK", raising=False)
+
+        rc = _runner.run_scripts(["settle_on_finish.py"], dry_run=True, allow_live_network=False)
+        assert rc == 5
+
+        rc = _runner.run_scripts(["settle_on_finish.py"], dry_run=True, allow_live_network=True)
+        assert rc == 5
+    finally:
+        if live_script.exists():
+            live_script.unlink()
+
+
+def test_live_target_gating_allows_with_ack(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    fixture_root = Path(__file__).parent / "fixtures" / "pipeline_wrappers"
+    live_script = fixture_root / "scripts" / "settle_on_finish.py"
+    live_script.write_text(
+        "import sys\nsys.exit(0)\n",
+        encoding="utf-8",
+    )
+    try:
+        monkeypatch.setattr(_runner, "ROOT", fixture_root)
+        monkeypatch.setenv("BET_PIPELINE_LIVE_ACK", "I_UNDERSTAND_LIVE_PROVIDER_CALLS")
+
+        rc = _runner.run_scripts(["settle_on_finish.py"], dry_run=True, allow_live_network=True)
+        assert rc == 0
+    finally:
+        if live_script.exists():
+            live_script.unlink()
+
+
+def test_dry_run_injects_sandbox_output_dirs(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    fixture_root = Path(__file__).parent / "fixtures" / "pipeline_wrappers"
+    record_path = tmp_path / "capture.json"
+    
+    # We want to check what environment variables were set! Let's write a script that dumps them.
+    dump_script = fixture_root / "scripts" / "dump_env.py"
+    dump_script.write_text(
+        "import os, json, sys\n"
+        "record_path = os.environ.get('FIXTURE_RECORD_PATH')\n"
+        "if record_path:\n"
+        "    with open(record_path, 'w') as f:\n"
+        "        json.dump(dict(os.environ), f)\n"
+        "sys.exit(0)\n",
+        encoding="utf-8",
+    )
+    try:
+        monkeypatch.setattr(_runner, "ROOT", fixture_root)
+        monkeypatch.setenv("FIXTURE_RECORD_PATH", str(record_path))
+
+        rc = _runner.run_scripts(
+            ["dump_env.py"],
+            date="2026-06-25",
+            runtime_mode="DRY_RUN",
+            run_id="test-run",
+            run_root=tmp_path / "sandbox",
+        )
+        assert rc == 0
+        payload = json.loads(record_path.read_text(encoding="utf-8"))
+        assert payload["BET_PIPELINE_RUNTIME_MODE"] == "DRY_RUN"
+        assert payload["DRY_RUN"] == "1"
+        assert "BET_PIPELINE_DATA_DIR" in payload
+        assert "BET_PIPELINE_COUPON_DIR" in payload
+        assert "BET_PIPELINE_ARTIFACT_DIR" in payload
+        
+        # Verify directories were created on disk
+        assert Path(payload["BET_PIPELINE_DATA_DIR"]).exists()
+        assert Path(payload["BET_PIPELINE_COUPON_DIR"]).exists()
+        assert Path(payload["BET_PIPELINE_ARTIFACT_DIR"]).exists()
+    finally:
+        if dump_script.exists():
+            dump_script.unlink()
+
+
+def test_certification_verdict_is_pass_with_live_shadow_required(repo_root: Path):
+    report = certify_manifest_wrappers(repo_root)
+    assert report["verdict"] == "PASS_WITH_LIVE_SHADOW_REQUIRED"
+    # Ensure all S0 to S8 wrappers are included
+    for step_id in ["S0", "S1", "S2", "S3", "S4", "S6", "S7", "S7b", "S8"]:
+        assert step_id in report["wrappers"]

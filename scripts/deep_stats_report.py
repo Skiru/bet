@@ -45,8 +45,9 @@ except ImportError:
     except ImportError:
         ProgressTracker = None  # type: ignore
 
-DATA_DIR = Path(__file__).parent.parent / "betting" / "data"
-CACHE_DIR = Path(__file__).parent.parent / "betting" / "data" / "stats_cache"
+import os
+DATA_DIR = Path(os.environ.get("BET_PIPELINE_DATA_DIR", str(Path(__file__).parent.parent / "betting" / "data")))
+CACHE_DIR = DATA_DIR / "stats_cache"
 
 
 # ---------------------------------------------------------------------------

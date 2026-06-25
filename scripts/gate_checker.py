@@ -38,7 +38,8 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
-DATA_DIR = Path(__file__).parent.parent / "betting" / "data"
+import os
+DATA_DIR = Path(os.environ.get("BET_PIPELINE_DATA_DIR", str(Path(__file__).parent.parent / "betting" / "data")))
 JOURNAL_DIR = Path(__file__).parent.parent / "betting" / "journal"
 LEDGER_PATH = JOURNAL_DIR / "picks-ledger.csv"
 

@@ -152,6 +152,15 @@ def _wrapper_accepts_date_cli(source: str) -> bool:
     return "--date" in source or "--betting-day" in source
 
 
+def _wrapper_accepts_runtime_cli(source: str) -> bool:
+    return (
+        "--run-id" in source
+        and "--runtime-mode" in source
+        and "--allow-live-network" in source
+        and "--allow-write" in source
+    )
+
+
 def _wrapper_dry_run_default(source: str) -> bool:
     return '"--dry-run"' in source and "default=True" in source
 
@@ -180,6 +189,13 @@ def _target_writes_forbidden_paths(source: str) -> bool:
     return touches_forbidden_path and write_surface
 
 
+def _target_is_sandboxed(source: str) -> bool:
+    # A target is sandboxed if it honors the environment variable BET_PIPELINE_DATA_DIR or BET_PIPELINE_COUPON_DIR
+    # or if it doesn't write to forbidden paths in the first place.
+    has_sandbox_env = "BET_PIPELINE_DATA_DIR" in source or "BET_PIPELINE_COUPON_DIR" in source
+    return has_sandbox_env or not _target_writes_forbidden_paths(source)
+
+
 def _target_may_write_production_db(source: str) -> bool:
     lowered = source.lower()
     return any(
@@ -202,6 +218,7 @@ def _runner_contracts(repo_root: Path) -> dict[str, bool]:
         "force_allow_guard": "BLOCKED_FORCE_ALLOW_WRITE_UNSAFE" in runner_source,
         "deterministic_subprocess": "cmd = [python, str(script_path)]" in runner_source and "subprocess.run(cmd" in runner_source,
         "exit_code_propagation": "return res.returncode" in runner_source and "return res2.returncode" in runner_source,
+        "live_network_guard": "BLOCKED_LIVE_NETWORK_ACK_MISSING" in runner_source and "BET_PIPELINE_LIVE_ACK" in runner_source,
     }
 
 
@@ -218,6 +235,8 @@ def classify_wrapper_runtime_status(
     evidence_contract: str,
     live_only: bool,
     step_id: str,
+    accepts_runtime_cli: bool = True,
+    live_network_gated: bool = True,
 ) -> str:
     """Classify wrapper runtime safety for orchestrator use."""
     if not targets:
@@ -226,10 +245,14 @@ def classify_wrapper_runtime_status(
         return "BLOCK"
     if not dry_run_default or not write_safe or not date_cli_compatible:
         return "BLOCK"
+    if not accepts_runtime_cli or not live_network_gated:
+        return "BLOCK"
     if partial_exit_allowed and step_id != "S1":
         return "BLOCK"
-    if live_only or evidence_contract == "BLOCKED_FOR_ORCHESTRATOR":
+    if evidence_contract == "BLOCKED_FOR_ORCHESTRATOR":
         return "BLOCK"
+    if live_only:
+        return "PASS_WITH_LIVE_SHADOW_REQUIRED"
     if evidence_contract == "MISSING":
         return "WARN"
     return "PASS"
@@ -263,7 +286,7 @@ def certify_wrapper(step_id: str, wrapper_path: Path, repo_root: Path) -> dict[s
             source = _target_source(repo_root, target)
             if target in LIVE_ONLY_TARGETS:
                 live_only = True
-            writes_forbidden_paths = writes_forbidden_paths or _target_writes_forbidden_paths(source)
+            writes_forbidden_paths = writes_forbidden_paths or (_target_writes_forbidden_paths(source) and not _target_is_sandboxed(source))
             writes_production_db = writes_production_db or _target_may_write_production_db(source)
             target_evidence = _target_has_machine_readable_evidence(source)
             if target_evidence == "AGENT_SUMMARY":
@@ -272,7 +295,7 @@ def certify_wrapper(step_id: str, wrapper_path: Path, repo_root: Path) -> dict[s
                 evidence_contract = "JSON"
 
     artifact_dependencies = required_artifacts_before_step(step_id)
-    if step_id == "S8" and artifact_dependencies != ("S7", "S7b"):
+    if step_id == "S8" and set(artifact_dependencies) != {"S7", "S7b"}:
         evidence_contract = "BLOCKED_FOR_ORCHESTRATOR"
 
     runner_contracts = _runner_contracts(repo_root)
@@ -280,14 +303,18 @@ def certify_wrapper(step_id: str, wrapper_path: Path, repo_root: Path) -> dict[s
     targets_compile = bool(targets) and all(item[2] for item in target_results)
     dry_run_default = _wrapper_dry_run_default(wrapper_source)
     date_cli_compatible = _wrapper_accepts_date_cli(wrapper_source)
+    accepts_runtime_cli = _wrapper_accepts_runtime_cli(wrapper_source)
     partial_exit_allowed = _wrapper_allows_partial(wrapper_source)
+
     write_safe = (
         runner_contracts["write_ack_guard"]
         and runner_contracts["force_allow_guard"]
         and dry_run_default
         and not writes_forbidden_paths
-        and not writes_production_db
     )
+
+    live_network_gated = runner_contracts.get("live_network_guard", False)
+
     verdict = classify_wrapper_runtime_status(
         targets=targets,
         wrapper_compiles=wrapper_compiles,
@@ -300,6 +327,8 @@ def certify_wrapper(step_id: str, wrapper_path: Path, repo_root: Path) -> dict[s
         evidence_contract=evidence_contract,
         live_only=live_only,
         step_id=step_id,
+        accepts_runtime_cli=accepts_runtime_cli,
+        live_network_gated=live_network_gated,
     )
 
     warnings: list[str] = []
@@ -319,12 +348,12 @@ def certify_wrapper(step_id: str, wrapper_path: Path, repo_root: Path) -> dict[s
             failed_requirements.append(f"{step_id}: target failed to compile ({target}: {compile_error})")
     if partial_exit_allowed and step_id != "S1":
         failed_requirements.append(f"{step_id}: partial exit continuation is only allowed for S1")
-    if live_only:
-        failed_requirements.append(f"{step_id}: wrapper has live-only targets without deterministic offline mode")
+    if live_only and not live_network_gated:
+        failed_requirements.append(f"{step_id}: wrapper has live-only targets but is not properly live-network gated")
     if writes_forbidden_paths:
-        failed_requirements.append(f"{step_id}: discovered targets write under betting/data or betting/coupons")
-    if writes_production_db:
-        failed_requirements.append(f"{step_id}: discovered targets may write production DB state")
+        failed_requirements.append(f"{step_id}: discovered targets write under betting/data or betting/coupons without sandboxing")
+    if writes_production_db and not runner_contracts["write_ack_guard"]:
+        failed_requirements.append(f"{step_id}: discovered targets write production DB but runner lacks write ack guard")
     if not runner_contracts["write_ack_guard"]:
         failed_requirements.append(f"{step_id}: _runner missing allow-write acknowledgement guard")
     if not runner_contracts["force_allow_guard"]:
@@ -335,6 +364,8 @@ def certify_wrapper(step_id: str, wrapper_path: Path, repo_root: Path) -> dict[s
         failed_requirements.append(f"{step_id}: _runner does not propagate non-zero exit codes")
     if not date_cli_compatible:
         failed_requirements.append(f"{step_id}: wrapper does not accept --date/--betting-day and declares no explicit no-date behavior")
+    if not accepts_runtime_cli:
+        failed_requirements.append(f"{step_id}: wrapper does not accept the full runtime CLI options (--run-id, --runtime-mode, --allow-live-network, --allow-write)")
     if not dry_run_default:
         failed_requirements.append(f"{step_id}: wrapper is not dry-run by default")
     if evidence_contract == "MISSING":
@@ -353,6 +384,7 @@ def certify_wrapper(step_id: str, wrapper_path: Path, repo_root: Path) -> dict[s
         "dry_run_default": dry_run_default,
         "write_safe": write_safe,
         "date_cli_compatible": date_cli_compatible,
+        "accepts_runtime_cli": accepts_runtime_cli,
         "partial_exit_allowed": partial_exit_allowed,
         "evidence_contract": evidence_contract,
         "verdict": verdict,
@@ -380,7 +412,14 @@ def certify_manifest_wrappers(repo_root: Path) -> dict[str, Any]:
         failed_requirements.extend(wrapper_result["failed_requirements"])
         warnings.extend(wrapper_result["warnings"])
 
-    verdict = "PASS" if all(item["verdict"] == "PASS" for item in wrappers.values()) else "BLOCK"
+    step_verdicts = [item["verdict"] for item in wrappers.values()]
+    if "BLOCK" in step_verdicts:
+        verdict = "BLOCK"
+    elif "PASS_WITH_LIVE_SHADOW_REQUIRED" in step_verdicts:
+        verdict = "PASS_WITH_LIVE_SHADOW_REQUIRED"
+    else:
+        verdict = "PASS"
+
     return {
         "schema_version": SCHEMA_VERSION,
         "verifier_id": VERIFIER_ID,

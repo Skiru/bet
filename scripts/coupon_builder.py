@@ -21,8 +21,9 @@ from pathlib import Path
 import zoneinfo
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
-DATA_DIR = ROOT_DIR / "betting" / "data"
-COUPON_DIR = ROOT_DIR / "betting" / "coupons"
+import os
+DATA_DIR = Path(os.environ.get("BET_PIPELINE_DATA_DIR", str(ROOT_DIR / "betting" / "data")))
+COUPON_DIR = Path(os.environ.get("BET_PIPELINE_COUPON_DIR", str(ROOT_DIR / "betting" / "coupons")))
 CONFIG_PATH = ROOT_DIR / "config" / "betting_config.json"
 
 # Ensure src/ is importable
