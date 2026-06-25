@@ -110,9 +110,23 @@ def test_s3_can_proceed_if_s2_9_exists_and_valid(tmp_path, base_artifact_payload
         base_run_dir=tmp_path / "reports",
     )
 
-    # Mock the wrapper execution of S3 to skip actual subprocess run
+    # Mock the wrapper execution of S3 to write its script evidence and succeed
     with patch("subprocess.run") as mock_run:
-        mock_run.return_value.returncode = 0
+        def side_effect(*args, **kwargs):
+            from bet.pipeline.integration_artifacts import write_script_evidence
+            write_script_evidence(
+                "S3",
+                status="PASS",
+                payload={"test": True},
+                sources=(),
+                evidence_refs=(),
+                environ=orch.env,
+            )
+            from unittest.mock import MagicMock
+            m = MagicMock()
+            m.returncode = 0
+            return m
+        mock_run.side_effect = side_effect
         summary = orch.run(start_step="S3", stop_after_step="S3")
 
     assert summary["status"] == "PASS"
@@ -146,7 +160,21 @@ def test_s8_can_proceed_when_s7_s7b_exists(tmp_path):
     )
 
     with patch("subprocess.run") as mock_run:
-        mock_run.return_value.returncode = 0
+        def side_effect(*args, **kwargs):
+            from bet.pipeline.integration_artifacts import write_script_evidence
+            write_script_evidence(
+                "S8",
+                status="PASS",
+                payload={"test": True},
+                sources=(),
+                evidence_refs=(),
+                environ=orch.env,
+            )
+            from unittest.mock import MagicMock
+            m = MagicMock()
+            m.returncode = 0
+            return m
+        mock_run.side_effect = side_effect
         summary = orch.run(start_step="S8", stop_after_step="S8")
 
     assert summary["status"] == "PASS"
@@ -197,3 +225,127 @@ def test_state_only_steps_write_marker_evidence(tmp_path):
     data = json.loads(marker_path.read_text(encoding="utf-8"))
     assert data["artifact_type"] == "STATE_MARKER"
     assert data["status"] == "PASS"
+
+
+def test_s4_live_shadow_without_live_ack_blocks_and_no_subprocess(tmp_path):
+    """Verify S4 in LIVE_SHADOW mode blocks and does not invoke subprocess if ack is missing."""
+    orch = Orchestrator(
+        betting_day="2026-06-25",
+        run_id="run-999",
+        runtime_mode="LIVE_SHADOW",
+        base_run_dir=tmp_path / "reports",
+        allow_live_network=False,
+    )
+    with patch("subprocess.run") as mock_run:
+        summary = orch.run(start_step="S4", stop_after_step="S4")
+        assert summary["status"] == "BLOCK"
+        assert summary["blocked_at_step"] == "S4"
+        assert any("live network acknowledgment missing" in b for b in summary["blockers"])
+        mock_run.assert_not_called()
+
+
+def test_s4_live_shadow_with_live_ack_runs_subprocess(tmp_path):
+    """Verify S4 in LIVE_SHADOW mode runs subprocess if live ack is present."""
+    with patch.dict(os.environ, {"BET_PIPELINE_LIVE_ACK": "I_UNDERSTAND_LIVE_PROVIDER_CALLS"}):
+        orch = Orchestrator(
+            betting_day="2026-06-25",
+            run_id="run-999",
+            runtime_mode="LIVE_SHADOW",
+            base_run_dir=tmp_path / "reports",
+            allow_live_network=True,
+        )
+        with patch("subprocess.run") as mock_run:
+            def side_effect(*args, **kwargs):
+                from bet.pipeline.integration_artifacts import write_script_evidence
+                write_script_evidence(
+                    "S4",
+                    status="PASS",
+                    payload={"test": True},
+                    sources=(),
+                    evidence_refs=(),
+                    environ=orch.env,
+                )
+                from unittest.mock import MagicMock
+                m = MagicMock()
+                m.returncode = 0
+                return m
+            mock_run.side_effect = side_effect
+            summary = orch.run(start_step="S4", stop_after_step="S4")
+
+        assert summary["status"] == "PASS"
+        assert summary["last_completed_step"] == "S4"
+        mock_run.assert_called_once()
+
+
+def test_script_step_fails_closed_when_evidence_missing(tmp_path):
+    """Verify a script step blocks if its process exits 0 but does not write script evidence."""
+    orch = Orchestrator(
+        betting_day="2026-06-25",
+        run_id="run-999",
+        runtime_mode="DRY_RUN",
+        base_run_dir=tmp_path / "reports",
+    )
+    with patch("subprocess.run") as mock_run:
+        from unittest.mock import MagicMock
+        m = MagicMock()
+        m.returncode = 0
+        mock_run.return_value = m
+        summary = orch.run(start_step="S0", stop_after_step="S0")
+
+    assert summary["status"] == "BLOCK"
+    assert summary["blocked_at_step"] == "S0"
+    assert any("Canonical script evidence missing" in b for b in summary["blockers"])
+    assert any(step["blocked_reason"] == "BLOCKED_SCRIPT_EVIDENCE_MISSING" for step in summary["steps"] if step["step_id"] == "S0")
+
+
+def test_script_step_passes_when_evidence_present(tmp_path):
+    """Verify a script step passes if its process exits 0 and writes script evidence."""
+    orch = Orchestrator(
+        betting_day="2026-06-25",
+        run_id="run-999",
+        runtime_mode="DRY_RUN",
+        base_run_dir=tmp_path / "reports",
+    )
+    with patch("subprocess.run") as mock_run:
+        def side_effect(*args, **kwargs):
+            from bet.pipeline.integration_artifacts import write_script_evidence
+            write_script_evidence(
+                "S0",
+                status="PASS",
+                payload={"test": True},
+                sources=(),
+                evidence_refs=(),
+                environ=orch.env,
+            )
+            from unittest.mock import MagicMock
+            m = MagicMock()
+            m.returncode = 0
+            return m
+        mock_run.side_effect = side_effect
+        summary = orch.run(start_step="S0", stop_after_step="S0")
+
+    assert summary["status"] == "PASS"
+    assert summary["last_completed_step"] == "S0"
+
+
+def test_run_summary_written_on_missing_script_evidence(tmp_path):
+    """Verify run_summary.json is written with blocked condition when script evidence is missing."""
+    orch = Orchestrator(
+        betting_day="2026-06-25",
+        run_id="run-999",
+        runtime_mode="DRY_RUN",
+        base_run_dir=tmp_path / "reports",
+    )
+    with patch("subprocess.run") as mock_run:
+        from unittest.mock import MagicMock
+        m = MagicMock()
+        m.returncode = 0
+        mock_run.return_value = m
+        summary = orch.run(start_step="S0", stop_after_step="S0")
+
+    summary_path = orch.run_root / "run_summary.json"
+    assert summary_path.exists()
+    summary_data = json.loads(summary_path.read_text(encoding="utf-8"))
+    assert summary_data["status"] == "BLOCK"
+    assert summary_data["blocked_at_step"] == "S0"
+    assert any("Canonical script evidence missing" in b for b in summary_data["blockers"])

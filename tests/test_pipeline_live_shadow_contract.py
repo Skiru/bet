@@ -53,7 +53,21 @@ def test_live_shadow_with_ack_passes_guard(tmp_path):
             allow_live_network=True,
         )
         with patch("subprocess.run") as mock_run:
-            mock_run.return_value.returncode = 0
+            def side_effect(*args, **kwargs):
+                from bet.pipeline.integration_artifacts import write_script_evidence
+                write_script_evidence(
+                    "S0",
+                    status="PASS",
+                    payload={"test": True},
+                    sources=(),
+                    evidence_refs=(),
+                    environ=orch.env,
+                )
+                from unittest.mock import MagicMock
+                m = MagicMock()
+                m.returncode = 0
+                return m
+            mock_run.side_effect = side_effect
             summary = orch.run(start_step="S0", stop_after_step="S0")
 
     assert summary["status"] == "PASS"

@@ -62,6 +62,16 @@ class BlockedReason:
     BLOCKED_WAITING_FOR_AGENT_ARTIFACT = "BLOCKED_WAITING_FOR_AGENT_ARTIFACT"
     BLOCKED_WAITING_FOR_HUMAN_APPROVAL = "BLOCKED_WAITING_FOR_HUMAN_APPROVAL"
     BLOCKED_LIVE_NETWORK_ACK_MISSING = "BLOCKED_LIVE_NETWORK_ACK_MISSING"
+    BLOCKED_SCRIPT_EVIDENCE_MISSING = "BLOCKED_SCRIPT_EVIDENCE_MISSING"
+
+
+LIVE_SHADOW_WRAPPERS_REQUIRING_ACK = {
+    "scripts/pipeline_steps/s0_settler.py",
+    "scripts/pipeline_steps/s1_discover.py",
+    "scripts/pipeline_steps/s2_tipsters.py",
+    "scripts/pipeline_steps/s4_valuator.py",
+    "scripts/pipeline_steps/s7_validate.py",
+}
 
 
 class Orchestrator:
@@ -226,13 +236,7 @@ class Orchestrator:
             self.warnings.extend(decision.warnings)
 
             # 2. Live network security guard for LIVE_SHADOW mode
-            live_target_wrappers = [
-                "scripts/pipeline_steps/s0_settler.py",
-                "scripts/pipeline_steps/s1_discover.py",
-                "scripts/pipeline_steps/s2_tipsters.py",
-                "scripts/pipeline_steps/s7_validate.py",
-            ]
-            if self.runtime_mode == RuntimeMode.LIVE_SHADOW and step.wrapper in live_target_wrappers:
+            if self.runtime_mode == RuntimeMode.LIVE_SHADOW and step.wrapper in LIVE_SHADOW_WRAPPERS_REQUIRING_ACK:
                 live_ack = self.env.get(LIVE_ACK_KEY, "")
                 if not self.allow_live_network or live_ack != LIVE_ACK_VALUE:
                     blocked_at_step = sid
@@ -299,26 +303,19 @@ class Orchestrator:
                         err_f.write(f"\nSubprocess failed to launch: {e}\n")
 
                 if return_code == 0:
-                    step_status = PipelineReadinessStatus.PASS
-                    # Verify if a SCRIPT_EVIDENCE was written. If not, synthesize a simple one for tracking
                     canonical_evidence = script_evidence_path(sid, self.env)
                     if canonical_evidence and canonical_evidence.exists():
+                        step_status = PipelineReadinessStatus.PASS
                         evidence_path = str(canonical_evidence)
                     else:
-                        # Write fallback script evidence
-                        fallback_path = write_script_evidence(
-                            sid,
-                            status="PASS",
-                            payload={"orchestrator_executed": True},
-                            sources=(),
-                            evidence_refs=(),
-                            environ=self.env,
-                        )
-                        if fallback_path:
-                            evidence_path = str(fallback_path)
+                        step_status = PipelineReadinessStatus.BLOCK
+                        overall_status = PipelineReadinessStatus.BLOCK
+                        blocked_at_step = sid
+                        blocked_reason = BlockedReason.BLOCKED_SCRIPT_EVIDENCE_MISSING
+                        self.blockers.append(f"Canonical script evidence missing for step '{sid}'")
                 else:
-                    step_status = PipelineReadinessStatus.FAILED
-                    overall_status = PipelineReadinessStatus.FAILED
+                    step_status = PipelineReadinessStatus.BLOCK
+                    overall_status = PipelineReadinessStatus.BLOCK
                     blocked_at_step = sid
                     self.blockers.append(f"Wrapper script for step '{sid}' failed with exit code {return_code}")
 
