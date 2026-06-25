@@ -138,7 +138,7 @@ def test_bootstrap_and_incremental_flow(db_conn):
     assert res.actual_counters["complete_count"] == 1
 
     # Cursor should have advanced committed_through_date to 2023-01-02
-    assert res.cursor_after["committed_through_date"] in ((date.today() - timedelta(days=1)).isoformat(), (date.today() - timedelta(days=2)).isoformat())
+    assert res.cursor_after["committed_through_date"] == (date.today() - timedelta(days=1)).isoformat()
 
     # Incremental with 0 lookback days should execute zero physical calls and succeed immediately
     cmd_inc = IncrementalCommand(
