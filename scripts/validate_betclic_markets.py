@@ -31,6 +31,8 @@ from pathlib import Path
 ROOT_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT_DIR / "src"))
 
+from bet.pipeline.core_integration_contracts import get_contract, require_live_integrations
+from bet.pipeline.integration_artifacts import build_market_availability_artifact, write_script_evidence
 from bet.scrapers.betclic import BetclicMarketChecker, COMPETITION_REGISTRY
 
 logger = logging.getLogger(__name__)
@@ -155,6 +157,9 @@ def main():
         level=logging.DEBUG if args.verbose else logging.INFO,
         format="%(asctime)s [%(levelname)s] %(message)s",
     )
+    require_live_integrations("S7b")
+
+    betclic_contract = get_contract("S7b", "Betclic")
 
     # DB connection
     db_conn = None
@@ -230,13 +235,16 @@ def main():
                 print(f"     • {c}")
 
         # Output
-        output_data = {
-            "date": args.date,
-            "scanned_at": datetime.now(timezone.utc).isoformat(),
-            "summary": summary,
-            "validation": validation_results,
-            "events": [r.to_dict() for r in checker.results],
-        }
+        scanned_at = datetime.now(timezone.utc).isoformat()
+        output_data = build_market_availability_artifact(
+            date=args.date,
+            scanned_at=scanned_at,
+            summary=summary,
+            validation=validation_results,
+            events=[r.to_dict() for r in checker.results],
+            runtime_mode=os.environ.get("BET_PIPELINE_RUNTIME_MODE"),
+            timeout_seconds=betclic_contract.timeout_seconds,
+        )
 
         output_path = args.output or str(DATA_DIR / f"betclic_market_validation_{args.date}.json")
         Path(output_path).parent.mkdir(parents=True, exist_ok=True)
@@ -244,6 +252,23 @@ def main():
             json.dumps(output_data, indent=2, ensure_ascii=False), encoding="utf-8"
         )
         print(f"\n  Output: {output_path}")
+
+        evidence_path = write_script_evidence(
+            "S7b",
+            status="PASS" if summary["total_events"] > 0 else "BLOCK",
+            payload={
+                "artifact_kind": "market_availability",
+                "output": output_path,
+                "total_events": summary["total_events"],
+                "with_statistics_tab": summary["with_statistics_tab"],
+                "without_statistics_tab": summary["without_statistics_tab"],
+                "unavailable_picks": len(unavailable) if validation_results else 0,
+            },
+            sources=("Betclic",),
+            evidence_refs=(Path(output_path).name,),
+        )
+        if evidence_path:
+            print(f"  Script evidence: {evidence_path}")
 
     if db_conn:
         db_conn.commit()

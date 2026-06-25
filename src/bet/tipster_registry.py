@@ -7,26 +7,33 @@ reported instead of silently treated as generic misses.
 
 from __future__ import annotations
 
+from bet.pipeline.tipster_sources import TIPSTER_SOURCE_CONTRACTS
+
+
+def _active_sources_for_sport(sport: str) -> list[str]:
+    sport_key = str(sport or "").strip().lower()
+    return [contract.name for contract in TIPSTER_SOURCE_CONTRACTS if sport_key in contract.sports]
+
 TIPSTER_SOURCE_REGISTRY: dict[str, dict[str, object]] = {
     "football": {
         "status": "configured",
-        "active_sources": ["ZawodTyper", "Typersi", "Sportsgambler", "PicksWise", "BetIdeas", "Feedinco", "BettingClosed"],
+        "active_sources": _active_sources_for_sport("football"),
     },
     "tennis": {
         "status": "configured",
-        "active_sources": ["ZawodTyper", "Typersi", "Sportsgambler", "PicksWise", "BetIdeas", "Feedinco", "BettingClosed"],
+        "active_sources": _active_sources_for_sport("tennis"),
     },
     "basketball": {
         "status": "configured",
-        "active_sources": ["ZawodTyper", "Typersi", "Sportsgambler", "PicksWise", "BetIdeas", "Feedinco", "BettingClosed"],
+        "active_sources": _active_sources_for_sport("basketball"),
     },
     "hockey": {
         "status": "configured",
-        "active_sources": ["ZawodTyper", "Typersi", "Sportsgambler", "PicksWise", "BetIdeas", "Feedinco", "BettingClosed"],
+        "active_sources": _active_sources_for_sport("hockey"),
     },
     "volleyball": {
         "status": "configured",
-        "active_sources": ["ZawodTyper", "Typersi", "Sportsgambler", "PicksWise", "BetIdeas", "Feedinco", "BettingClosed"],
+        "active_sources": _active_sources_for_sport("volleyball"),
         "note": "Configured generic tipster sites, but live same-day pair coverage may still be zero.",
     },
     "cs2": {

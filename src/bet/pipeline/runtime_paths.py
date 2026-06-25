@@ -59,6 +59,8 @@ def build_runtime_env(
 
     env = {
         "BET_PIPELINE_RUN_ROOT": str(run_root),
+        "BET_PIPELINE_BETTING_DAY": betting_day,
+        "BET_PIPELINE_RUN_ID": run_root.name,
         "BET_PIPELINE_DATA_DIR": str(data_dir),
         "BET_PIPELINE_COUPON_DIR": str(coupon_dir),
         "BET_PIPELINE_ARTIFACT_DIR": str(artifact_dir),

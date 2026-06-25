@@ -47,6 +47,9 @@ except ImportError:
         ProgressTracker = None  # type: ignore
 
 import requests as _requests
+from bet.pipeline.core_integration_contracts import require_live_integrations
+from bet.pipeline.tipster_artifacts import build_tipster_consensus_artifact
+from bet.pipeline.tipster_sources import TIPSTER_SITES
 from bet.resilience import resilient_request
 from bet.tipster_registry import TIPSTER_SOURCE_REGISTRY, get_tipster_source_status
 
@@ -183,86 +186,6 @@ OUTCOME_MARKETS = {
     "double chance", "podwójna szansa",
     "draw no bet", "dnb",
 }
-
-
-# ---------------------------------------------------------------------------
-# Site configurations
-# ---------------------------------------------------------------------------
-
-TIPSTER_SITES = [
-    {
-        "name": "ZawodTyper",
-        "url_template": "https://www.zawodtyper.pl/typy-dnia-{day}-{month}-{weekday}/",
-        "url_builder": "zawodtyper",
-        "language": "pl",
-        "parser": "zawodtyper",
-        "sports": ["football", "tennis", "basketball", "volleyball", "hockey"],
-        "accuracy_tracked": True,
-        "wait_after_load": 3000,
-    },
-    {
-        "name": "Typersi",
-        "url": "https://typersi.pl/",
-        "language": "pl",
-        "parser": "typersi",
-        "sports": ["football", "tennis", "basketball", "volleyball", "hockey"],
-        "accuracy_tracked": False,
-        "wait_after_load": 3000,
-    },
-    {
-        "name": "Sportsgambler",
-        "url": "https://www.sportsgambler.com/predictions/today/",
-        "language": "en",
-        "parser": "sportsgambler",
-        "sports": ["football", "tennis", "basketball", "hockey", "volleyball"],
-        "accuracy_tracked": False,
-    },
-    {
-        "name": "PicksWise",
-        "urls": [
-            "https://www.pickswise.com/soccer/predictions/",
-            "https://www.pickswise.com/tennis/predictions/",
-            "https://www.pickswise.com/nba/predictions/",
-            "https://www.pickswise.com/nhl/predictions/",
-            "https://www.pickswise.com/volleyball/predictions/",
-        ],
-        "language": "en",
-        "parser": "pickswise",
-        "sports": ["football", "tennis", "basketball", "hockey", "volleyball"],
-        "accuracy_tracked": True,
-    },
-    {
-        "name": "BetIdeas",
-        "urls": [
-            "https://www.betideas.com/tips/football",
-            "https://www.betideas.com/tips/tennis",
-            "https://www.betideas.com/tips/basketball",
-            "https://www.betideas.com/tips/hockey",
-            "https://www.betideas.com/tips/volleyball",
-        ],
-        "language": "en",
-        "parser": "betideas",
-        "sports": ["football", "tennis", "basketball", "hockey", "volleyball"],
-        "accuracy_tracked": True,
-        "wait_after_load": 6000,  # AJAX cards need extra time to render
-    },
-    {
-        "name": "Feedinco",
-        "url": "https://www.feedinco.com/",
-        "language": "en",
-        "parser": "feedinco",
-        "sports": ["football", "tennis", "basketball", "volleyball", "hockey"],
-        "accuracy_tracked": False,
-    },
-    {
-        "name": "BettingClosed",
-        "url": "https://www.bettingclosed.com/",
-        "language": "en",
-        "parser": "bettingclosed",
-        "sports": ["football", "tennis", "basketball", "volleyball", "hockey"],
-        "accuracy_tracked": False,
-    },
-]
 
 
 # ---------------------------------------------------------------------------
@@ -2463,6 +2386,8 @@ def run_tipster_aggregation(
 
     Returns summary dict.
     """
+    require_live_integrations("S2")
+
     try:
         from bet.config import get_tz
     except ImportError:
@@ -2661,26 +2586,28 @@ def run_tipster_aggregation(
         for sport in TIPSTER_SOURCE_REGISTRY.keys()
     }
 
-    summary = {
-        "date": date,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-        "sites_total": len(TIPSTER_SITES),
-        "sites_success": sites_ok,
-        "sites_empty": sites_empty,
-        "sites_error": sites_error,
-        "total_picks": total_picks,
-        "statistical_picks": statistical_picks,
-        "outcome_picks": total_picks - statistical_picks,
-        "events_covered": len(consensus),
-        "events_with_consensus": sum(1 for c in consensus if c["agreement_pct"] >= 60),
-        "errors": errors,
-        "picks_by_sport": picks_by_sport,
-        "source_status_by_sport": source_status_by_sport,
-        "site_results": all_results,
-        "consensus": consensus,
-        "enhanced_entries": enhanced,
-        "all_picks": all_picks,
-    }
+    summary = build_tipster_consensus_artifact(
+        date=date,
+        timestamp=datetime.now(timezone.utc).isoformat(),
+        all_results=all_results,
+        all_picks=all_picks,
+        consensus=consensus,
+        enhanced_entries=enhanced,
+        errors=errors,
+        picks_by_sport=picks_by_sport,
+        source_status_by_sport=source_status_by_sport,
+    )
+    summary.update(
+        {
+            "sites_success": sites_ok,
+            "sites_empty": sites_empty,
+            "sites_error": sites_error,
+            "total_picks": total_picks,
+            "statistical_picks": statistical_picks,
+            "outcome_picks": total_picks - statistical_picks,
+            "events_with_consensus": sum(1 for c in consensus if c["agreement_pct"] >= 60),
+        }
+    )
 
     # Save outputs
     DATA_DIR.mkdir(parents=True, exist_ok=True)

@@ -1,0 +1,49 @@
+{
+  "success": true,
+  "data": [
+    {
+      "comment_id": "1",
+      "comment_type": "bet",
+      "match_name": "Liverpool - Arsenal",
+      "content": "<p>Liverpool average 6.8 corners at home and Arsenal force wide attacks. Over 9.5 corners has statistical support.</p>",
+      "rate": "1.88",
+      "discipline": "Piłka nożna",
+      "type": "Over 9.5 corners",
+      "author_name": "AnalystA",
+      "author_stats": {"bet_count": 12, "ratio": 0.67}
+    },
+    {
+      "comment_id": "2",
+      "comment_type": "bet",
+      "match_name": "Liverpool - Arsenal",
+      "content": "<p>Short duplicate.</p>",
+      "rate": "1.82",
+      "discipline": "Piłka nożna",
+      "type": "Over 9.5 corners",
+      "author_name": "AnalystB",
+      "author_stats": {"bet_count": 4, "ratio": 0.55}
+    },
+    {
+      "comment_id": "3",
+      "comment_type": "bet",
+      "match_name": "Djokovic - Sinner",
+      "content": "<p>Both players are holding serve above 80 percent this week. Over 22.5 games is supported by recent form.</p>",
+      "rate": "1.95",
+      "discipline": "Tenis",
+      "type": "Over 22.5 games",
+      "author_name": "AnalystC",
+      "author_stats": {"bet_count": 8, "ratio": 0.61}
+    },
+    {
+      "comment_id": "4",
+      "comment_type": "promo",
+      "match_name": "Bonus - Banner",
+      "content": "<p>Ignore this ad.</p>",
+      "rate": null,
+      "discipline": "Piłka nożna",
+      "type": "N/A",
+      "author_name": "Promo",
+      "author_stats": {"bet_count": 0, "ratio": 0}
+    }
+  ]
+}
