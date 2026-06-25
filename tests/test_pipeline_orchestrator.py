@@ -98,6 +98,24 @@ def test_s3_blocks_if_s2_9_is_missing(tmp_path):
     assert any("Missing required artifact for S2.9" in b for b in summary["blockers"])
 
 
+def test_agent_step_generates_work_order_and_blocks_when_artifact_missing(tmp_path):
+    """Verify agent steps generate a work order and fail closed when artifact is missing."""
+    orch = Orchestrator(
+        betting_day="2026-06-25",
+        run_id="run-999",
+        runtime_mode="DRY_RUN",
+        base_run_dir=tmp_path / "reports",
+    )
+
+    summary = orch.run(start_step="S2.3", stop_after_step="S2.3")
+
+    assert summary["status"] == "BLOCK"
+    assert summary["blocked_at_step"] == "S2.3"
+    assert summary["work_order_path"].endswith("S2.3_work_order.json")
+    assert Path(summary["work_order_path"]).exists()
+    assert any("Missing required agent artifact for step S2.3" in b for b in summary["blockers"])
+
+
 def test_s3_can_proceed_if_s2_9_exists_and_valid(tmp_path, base_artifact_payload):
     """Verify S3 is executed if S2.9 artifact exists and passes."""
     # Write S2.9 PASS artifact to reports dir
@@ -417,7 +435,10 @@ def test_orchestrator_proceeds_on_valid_agent_artifact(tmp_path):
         payload_override={
             "unknowns": [],
             "sources": ["tipster-s2"],
-            "payload": {"enrichment_gaps": []}
+            "payload": {
+                "enrichment_gaps": [],
+                "gaps_status": "bounded",
+            },
         }
     )
     

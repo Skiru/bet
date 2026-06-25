@@ -106,6 +106,14 @@ STEP_UPSTREAM_DEPENDENCIES: dict[str, list[str]] = {
 }
 
 
+OUTPUT_CONTRACT_NOTES = [
+    "Template scaffolds are not accepted final output.",
+    "Fill required evidence fields before returning an artifact.",
+    "BLOCK is acceptable and preferred over guessing or implied approval.",
+    "PASS requires full contract evidence for the specific step.",
+]
+
+
 POLICIES: dict[str, AgentWorkOrderPolicy] = {
     "S2.3": AgentWorkOrderPolicy(
         agent="bet-enricher",
@@ -141,7 +149,8 @@ POLICIES: dict[str, AgentWorkOrderPolicy] = {
                 "Must not emit pick, edge, stake, coupon.",
                 "Must not modify database or production data paths."
             ],
-            "unknown_policy": "Use UNKNOWN/BLOCK instead of guessing."
+            "unknown_policy": "Use UNKNOWN/BLOCK instead of guessing.",
+            "output_contract": OUTPUT_CONTRACT_NOTES,
         },
         schema_requirements={
             "point_in_time_as_of": True,
@@ -186,7 +195,8 @@ POLICIES: dict[str, AgentWorkOrderPolicy] = {
                 "Must not emit pick, edge, stake, coupon.",
                 "Must not modify database or production data paths."
             ],
-            "unknown_policy": "Use UNKNOWN/BLOCK instead of guessing."
+            "unknown_policy": "Use UNKNOWN/BLOCK instead of guessing.",
+            "output_contract": OUTPUT_CONTRACT_NOTES,
         },
         schema_requirements={
             "point_in_time_as_of": True,
@@ -231,7 +241,8 @@ POLICIES: dict[str, AgentWorkOrderPolicy] = {
                 "Must not emit pick, edge, stake, coupon.",
                 "Must not modify database or production data paths."
             ],
-            "unknown_policy": "Use UNKNOWN/BLOCK instead of guessing."
+            "unknown_policy": "Use UNKNOWN/BLOCK instead of guessing.",
+            "output_contract": OUTPUT_CONTRACT_NOTES,
         },
         schema_requirements={
             "point_in_time_as_of": True,
@@ -275,7 +286,8 @@ POLICIES: dict[str, AgentWorkOrderPolicy] = {
                 "Must not emit pick, edge, stake, coupon.",
                 "Must not modify database or production data paths."
             ],
-            "unknown_policy": "Use UNKNOWN/BLOCK instead of guessing."
+            "unknown_policy": "Use UNKNOWN/BLOCK instead of guessing.",
+            "output_contract": OUTPUT_CONTRACT_NOTES,
         },
         schema_requirements={
             "point_in_time_as_of": True,
@@ -318,7 +330,8 @@ POLICIES: dict[str, AgentWorkOrderPolicy] = {
                 "Must not emit coupon.",
                 "May identify risk flags and conditional objections, but not bypass S7/S7b/S8."
             ],
-            "unknown_policy": "Use UNKNOWN/BLOCK instead of guessing."
+            "unknown_policy": "Use UNKNOWN/BLOCK instead of guessing.",
+            "output_contract": OUTPUT_CONTRACT_NOTES,
         },
         schema_requirements={
             "point_in_time_as_of": True,

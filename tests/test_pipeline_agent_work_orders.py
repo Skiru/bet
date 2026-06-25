@@ -62,7 +62,13 @@ def test_work_order_generation_and_policies(tmp_path):
         # Verify work order forbids pick/edge/stake/coupon outputs
         for forbidden in ["pick", "edge", "stake", "coupon"]:
             assert any(forbidden in fo.lower() for fo in wo.forbidden_outputs)
-            
+
+        # Verify work order explicitly treats templates as non-final scaffolds
+        output_contract = wo.instructions["output_contract"]
+        assert any("Template scaffolds are not accepted final output" in item for item in output_contract)
+        assert any("BLOCK is acceptable and preferred over guessing" in item for item in output_contract)
+        assert any("PASS requires full contract evidence" in item for item in output_contract)
+             
         # Verify input refs matching step dependency graph
         refs = wo.input_refs
         assert isinstance(refs, list)
@@ -109,6 +115,20 @@ def test_s5_work_order_specific_checks(tmp_path):
     categories = ["injuries", "motivation", "travel", "morale", "upset/volatility"]
     for cat in categories:
         assert any(cat in md.lower() for md in must_dos)
+
+
+def test_s29_work_order_requires_evidence_and_non_template_output(tmp_path):
+    """Verify S2.9 work order states PASS evidence needs and rejects template-as-output."""
+    wo = build_agent_work_order(
+        betting_day="2026-06-25",
+        run_id="run-smoke-1",
+        step_id="S2.9",
+        runtime_mode="DRY_RUN",
+        base_dir=tmp_path,
+    )
+
+    assert any("PASS requires S2.3, S2.5, S2.7 artifacts valid." in item for item in wo.instructions["must_do"])
+    assert any("Fill required evidence fields" in item for item in wo.instructions["output_contract"])
 
 
 def test_write_agent_work_order(tmp_path):
