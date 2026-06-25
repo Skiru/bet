@@ -10,11 +10,24 @@ import sys
 from pathlib import Path
 
 try:
+    from scripts.pipeline_steps._script_evidence import run_wrapper_scripts_with_evidence
     from scripts.pipeline_steps._runner import run_scripts
 except Exception:
     ROOT = Path(__file__).resolve().parents[2]
     sys.path.insert(0, str(ROOT))
+    from scripts.pipeline_steps._script_evidence import run_wrapper_scripts_with_evidence
     from scripts.pipeline_steps._runner import run_scripts
+
+SCRIPTS = ["tipster_aggregator.py", "tipster_xref.py"]
+BLOCKED_REASON_PATTERNS: tuple[tuple[str, str], ...] = (
+    (r"no valid tips", "BLOCKED_NO_VALID_TIPS"),
+    (r"tipster[_\s-]*xref failed|cross[-\s]*reference failed", "BLOCKED_TIPSTER_XREF_FAILED"),
+    (r"upstream data", "BLOCKED_UPSTREAM_DATA_MISSING"),
+)
+
+
+def _certification_targets() -> None:
+    run_scripts(SCRIPTS)
 
 
 def main():
@@ -27,9 +40,9 @@ def main():
     p.add_argument("--dry-run", dest="dry_run", action="store_true", default=True)
     args = p.parse_args()
 
-    scripts = ["tipster_aggregator.py", "tipster_xref.py"]
-    rc = run_scripts(
-        scripts,
+    run_wrapper_scripts_with_evidence(
+        step_id="S2",
+        wrapper_scripts=SCRIPTS,
         date=args.date,
         dry_run=args.dry_run,
         allow_write=args.allow_write,
@@ -37,8 +50,9 @@ def main():
         betting_day=args.date,
         run_id=args.run_id,
         allow_live_network=args.allow_live_network,
+        blocked_reason_patterns=BLOCKED_REASON_PATTERNS,
+        fallback_blocked_reason="BLOCKED_TIPSTER_DATA_MISSING",
     )
-    raise SystemExit(rc)
 
 
 if __name__ == "__main__":

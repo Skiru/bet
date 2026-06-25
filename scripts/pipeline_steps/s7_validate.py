@@ -8,11 +8,23 @@ import sys
 from pathlib import Path
 
 try:
+    from scripts.pipeline_steps._script_evidence import run_wrapper_scripts_with_evidence
     from scripts.pipeline_steps._runner import run_scripts
 except Exception:
     ROOT = Path(__file__).resolve().parents[2]
     sys.path.insert(0, str(ROOT))
+    from scripts.pipeline_steps._script_evidence import run_wrapper_scripts_with_evidence
     from scripts.pipeline_steps._runner import run_scripts
+
+SCRIPTS = ["validate_betclic_markets.py"]
+BLOCKED_REASON_PATTERNS: tuple[tuple[str, str], ...] = (
+    (r"upstream data", "BLOCKED_UPSTREAM_DATA_MISSING"),
+    (r"manual verification required|betclic boundary", "BLOCKED_BETCLIC_MARKET_BOUNDARY"),
+)
+
+
+def _certification_targets() -> None:
+    run_scripts(SCRIPTS)
 
 
 def main() -> None:
@@ -25,8 +37,9 @@ def main() -> None:
     p.add_argument("--dry-run", dest="dry_run", action="store_true", default=True)
     args = p.parse_args()
 
-    rc = run_scripts(
-        ["validate_betclic_markets.py"],
+    run_wrapper_scripts_with_evidence(
+        step_id="S7b",
+        wrapper_scripts=SCRIPTS,
         date=args.date,
         dry_run=args.dry_run,
         allow_write=args.allow_write,
@@ -34,8 +47,9 @@ def main() -> None:
         betting_day=args.date,
         run_id=args.run_id,
         allow_live_network=args.allow_live_network,
+        blocked_reason_patterns=BLOCKED_REASON_PATTERNS,
+        fallback_blocked_reason="BLOCKED_MARKET_AVAILABILITY_MISSING",
     )
-    sys.exit(rc)
 
 
 if __name__ == "__main__":

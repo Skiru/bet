@@ -8,11 +8,24 @@ import sys
 from pathlib import Path
 
 try:
+    from scripts.pipeline_steps._script_evidence import run_wrapper_scripts_with_evidence
     from scripts.pipeline_steps._runner import run_scripts
 except Exception:
     ROOT = Path(__file__).resolve().parents[2]
     sys.path.insert(0, str(ROOT))
+    from scripts.pipeline_steps._script_evidence import run_wrapper_scripts_with_evidence
     from scripts.pipeline_steps._runner import run_scripts
+
+SCRIPTS = ["coupon_builder.py"]
+BLOCKED_REASON_PATTERNS: tuple[tuple[str, str], ...] = (
+    (r"upstream data", "BLOCKED_UPSTREAM_DATA_MISSING"),
+    (r"manual verification required|human gate required", "BLOCKED_HUMAN_GATE_REQUIRED"),
+    (r"coupon blocked|coupon construction guard", "BLOCKED_COUPON_CONSTRUCTION_GUARD"),
+)
+
+
+def _certification_targets() -> None:
+    run_scripts(SCRIPTS)
 
 
 def main():
@@ -25,8 +38,9 @@ def main():
     p.add_argument("--dry-run", dest="dry_run", action="store_true", default=True)
     args = p.parse_args()
 
-    rc = run_scripts(
-        ["coupon_builder.py"],
+    run_wrapper_scripts_with_evidence(
+        step_id="S8",
+        wrapper_scripts=SCRIPTS,
         date=args.date,
         dry_run=args.dry_run,
         allow_write=args.allow_write,
@@ -34,8 +48,11 @@ def main():
         betting_day=args.date,
         run_id=args.run_id,
         allow_live_network=args.allow_live_network,
+        blocked_reason_patterns=BLOCKED_REASON_PATTERNS,
+        fallback_blocked_reason="BLOCKED_COUPON_INPUT_MISSING",
+        no_pick_edge_stake_coupon_emitted=False,
+        extra_top_level_fields={"production_coupon_write": False},
     )
-    raise SystemExit(rc)
 
 
 if __name__ == "__main__":

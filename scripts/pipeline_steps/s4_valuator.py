@@ -4,16 +4,21 @@
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 
 try:
+    from scripts.pipeline_steps._script_evidence import build_wrapper_payload, write_terminal_script_evidence_or_fail
     from scripts.pipeline_steps._runner import run_scripts
 except Exception:
     sys.path.insert(0, str(ROOT))
+    from scripts.pipeline_steps._script_evidence import build_wrapper_payload, write_terminal_script_evidence_or_fail
     from scripts.pipeline_steps._runner import run_scripts
+
+SCRIPTS = ["fetch_odds_multi.py", "odds_evaluator.py"]
 
 
 def main() -> None:
@@ -26,11 +31,47 @@ def main() -> None:
     p.add_argument("--dry-run", dest="dry_run", action="store_true", default=True)
     args = p.parse_args()
 
-    from bet.pipeline.integration_artifacts import write_script_evidence
-    import os
+    from scripts.pipeline_steps._runner import resolve_child_runtime_env
 
-    data_dir = Path(os.environ.get("BET_PIPELINE_DATA_DIR", str(ROOT / "betting" / "data")))
+    child_env, runtime_path_source = resolve_child_runtime_env(
+        os.environ,
+        runtime_mode=args.runtime_mode,
+        betting_day=args.date,
+        run_id=args.run_id,
+        run_root=None,
+    )
+    data_dir = Path(child_env.get("BET_PIPELINE_DATA_DIR", str(ROOT / "betting" / "data")))
     snapshot_path = data_dir / "odds_api_snapshot.json"
+
+    def _payload(fetch_rc: int, eval_rc: int | None = None, error: str | None = None) -> dict[str, object]:
+        extra: dict[str, object] = {"fetch_odds_rc": fetch_rc}
+        if eval_rc is not None:
+            extra["odds_evaluator_rc"] = eval_rc
+        if error is not None:
+            extra["error"] = error
+        return build_wrapper_payload(
+            step_id="S4",
+            wrapper_scripts=SCRIPTS,
+            wrapper_rc=eval_rc if eval_rc is not None else fetch_rc,
+            runtime_mode=args.runtime_mode,
+            dry_run=args.dry_run,
+            allow_write=args.allow_write,
+            allow_live_network=args.allow_live_network,
+            child_env=child_env,
+            runtime_path_source=runtime_path_source,
+            extra=extra,
+        )
+
+    def _write(status: str, payload: dict[str, object], blocked_reasons: tuple[str, ...] = ()) -> None:
+        write_terminal_script_evidence_or_fail(
+            step_id="S4",
+            status=status,
+            payload=payload,
+            sources=tuple(f"scripts/{script_name}" for script_name in SCRIPTS),
+            child_env=child_env,
+            blocked_reasons=blocked_reasons,
+            no_pick_edge_stake_coupon_emitted=True,
+        )
 
     # Step 1: Run fetch_odds_multi.py
     rc_fetch = run_scripts(
@@ -46,25 +87,17 @@ def main() -> None:
 
     if rc_fetch != 0:
         if rc_fetch == 1:
-            write_script_evidence(
-                "S4",
+            _write(
                 status="BLOCK",
-                payload={"fetch_odds_rc": rc_fetch, "error": "fetch_returned_no_events"},
-                sources=(),
-                evidence_refs=(),
+                payload=_payload(rc_fetch, error="fetch_returned_no_events"),
                 blocked_reasons=("BLOCKED_LIVE_SOURCE_MISSING",),
-                environ=os.environ,
             )
             sys.exit(rc_fetch)
         else:
-            write_script_evidence(
-                "S4",
+            _write(
                 status="FAILED",
-                payload={"fetch_odds_rc": rc_fetch, "error": f"fetch_failed_unexpectedly_with_code_{rc_fetch}"},
-                sources=(),
-                evidence_refs=(),
+                payload=_payload(rc_fetch, error=f"fetch_failed_unexpectedly_with_code_{rc_fetch}"),
                 blocked_reasons=("FAILED_UNEXPECTED_SUBPROCESS_ERROR",),
-                environ=os.environ,
             )
             sys.exit(rc_fetch)
 
@@ -82,48 +115,32 @@ def main() -> None:
 
     if rc_eval != 0:
         if rc_eval == 1:
-            write_script_evidence(
-                "S4",
+            _write(
                 status="BLOCK",
-                payload={"fetch_odds_rc": 0, "odds_evaluator_rc": rc_eval, "error": "evaluator_failed_no_candidates"},
-                sources=(),
-                evidence_refs=(),
+                payload=_payload(0, rc_eval, "evaluator_failed_no_candidates"),
                 blocked_reasons=("BLOCKED_UPSTREAM_DATA_MISSING",),
-                environ=os.environ,
             )
             sys.exit(rc_eval)
         else:
-            write_script_evidence(
-                "S4",
+            _write(
                 status="FAILED",
-                payload={"fetch_odds_rc": 0, "odds_evaluator_rc": rc_eval, "error": f"evaluator_failed_unexpectedly_with_code_{rc_eval}"},
-                sources=(),
-                evidence_refs=(),
+                payload=_payload(0, rc_eval, f"evaluator_failed_unexpectedly_with_code_{rc_eval}"),
                 blocked_reasons=("FAILED_UNEXPECTED_SUBPROCESS_ERROR",),
-                environ=os.environ,
             )
             sys.exit(rc_eval)
 
     # Both succeeded! Now check if expected output/evidence exist.
     if snapshot_path.exists():
-        write_script_evidence(
-            "S4",
+        _write(
             status="PASS",
-            payload={"fetch_odds_rc": 0, "odds_evaluator_rc": 0},
-            sources=(),
-            evidence_refs=(),
-            environ=os.environ,
+            payload=_payload(0, 0),
         )
         sys.exit(0)
     else:
-        write_script_evidence(
-            "S4",
+        _write(
             status="BLOCK",
-            payload={"fetch_odds_rc": 0, "odds_evaluator_rc": 0, "error": "snapshot_missing"},
-            sources=(),
-            evidence_refs=(),
+            payload=_payload(0, 0, "snapshot_missing"),
             blocked_reasons=("BLOCKED_LIVE_SOURCE_MISSING",),
-            environ=os.environ,
         )
         sys.exit(1)
 
