@@ -5,6 +5,7 @@ and a ±2h kickoff window for temporal matching.
 """
 
 import logging
+from collections import defaultdict
 from datetime import datetime
 
 from rapidfuzz import fuzz
@@ -20,11 +21,20 @@ logger = logging.getLogger(__name__)
 class DeduplicationEngine:
     """Merge events from multiple sources into unified fixtures."""
 
+    SOURCE_PRIORITY = [
+        "odds-api-io",
+        "odds-api",
+        "api-football",
+        "api-basketball",
+        "api-volleyball",
+        "api-hockey",
+    ]
     FUZZY_THRESHOLD = 85
     KICKOFF_WINDOW_HOURS = 2
 
     def __init__(self, fuzzy_threshold: int = 85):
         self.fuzzy_threshold = fuzzy_threshold
+        self.last_issues: list[str] = []
 
     def merge(
         self, events_by_source: dict[str, list[DiscoveredEvent]]
@@ -36,20 +46,13 @@ class DeduplicationEngine:
         Primary source establishes canonical names.
         Sources not in the priority list are processed last.
         """
-        source_priority = [
-            "odds-api-io",
-            "odds-api",
-            "api-football",
-            "api-basketball",
-            "api-volleyball",
-            "api-hockey",
-        ]
+        self.last_issues = []
         merged: list[MergedFixture] = []
         key_index: dict[str, int] = {}  # match_key → index in merged
         id_to_index: dict[int, int] = {}  # id(fixture) → index in merged
 
         # Process in priority order, then any remaining sources
-        ordered_sources = list(source_priority)
+        ordered_sources = list(self.SOURCE_PRIORITY)
         for name in events_by_source:
             if name not in ordered_sources:
                 ordered_sources.append(name)
@@ -107,7 +110,7 @@ class DeduplicationEngine:
             sum(len(v) for v in events_by_source.values()),
             len(merged),
         )
-        return merged
+        return self._normalize_duplicate_source_refs(merged)
 
     ESPORTS_SPORTS = {"cs2", "dota2", "valorant"}
 
@@ -171,6 +174,196 @@ class DeduplicationEngine:
         """Check if two kickoff times are within ±KICKOFF_WINDOW_HOURS."""
         delta = abs((t1 - t2).total_seconds())
         return delta <= self.KICKOFF_WINDOW_HOURS * 3600
+
+    def _normalize_duplicate_source_refs(
+        self, fixtures: list[MergedFixture]
+    ) -> list[MergedFixture]:
+        active: list[MergedFixture | None] = list(fixtures)
+        max_iterations = max(1, len(fixtures) * max(1, sum(len(f.sources) for f in fixtures)))
+        iterations = 0
+
+        while True:
+            iterations += 1
+            if iterations > max_iterations:
+                self.last_issues.append(
+                    "DISCOVERY_DUPLICATE_SOURCE_REF action=normalization_guard_triggered "
+                    "source=UNKNOWN external_id=UNKNOWN fixtures=[]"
+                )
+                logger.warning(
+                    "Duplicate source ref normalization aborted after %d iterations",
+                    max_iterations,
+                )
+                break
+            owners: dict[tuple[str, str], list[int]] = defaultdict(list)
+            for idx, fixture in enumerate(active):
+                if fixture is None:
+                    continue
+                for src_ref in fixture.sources:
+                    owners[(src_ref.source, src_ref.external_id)].append(idx)
+
+            duplicate_groups = [
+                (key, indexes)
+                for key, indexes in owners.items()
+                if len(set(indexes)) > 1
+            ]
+            if not duplicate_groups:
+                break
+
+            for (source, external_id), indexes in duplicate_groups:
+                unique_indexes = sorted(
+                    set(indexes),
+                    key=lambda idx: self._fixture_rank(active[idx], idx),
+                )
+                canonical_idx = unique_indexes[0]
+                canonical = active[canonical_idx]
+                if canonical is None:
+                    continue
+
+                for duplicate_idx in unique_indexes[1:]:
+                    duplicate = active[duplicate_idx]
+                    if duplicate is None:
+                        continue
+
+                    if self._fixtures_semantically_compatible(canonical, duplicate):
+                        self._merge_fixture(canonical, duplicate)
+                        self.last_issues.append(
+                            self._duplicate_issue(
+                                action="merged",
+                                source=source,
+                                external_id=external_id,
+                                fixtures=(canonical, duplicate),
+                            )
+                        )
+                        active[duplicate_idx] = None
+                        self._recanonicalize_fixture(canonical)
+                        continue
+
+                    self._remove_source_ref(duplicate, source, external_id)
+                    self.last_issues.append(
+                        self._duplicate_issue(
+                            action="duplicate_source_ref_quarantined",
+                            source=source,
+                            external_id=external_id,
+                            fixtures=(canonical, duplicate),
+                        )
+                    )
+                    if duplicate.sources:
+                        self._recanonicalize_fixture(duplicate)
+                    else:
+                        active[duplicate_idx] = None
+
+        return [fixture for fixture in active if fixture is not None]
+
+    def _fixtures_semantically_compatible(
+        self, left: MergedFixture, right: MergedFixture
+    ) -> bool:
+        if left.sport != right.sport:
+            return False
+        if not self._kickoff_within_window(left.kickoff, right.kickoff):
+            return False
+
+        left_home = normalize_team_name(left.home_team)
+        left_away = normalize_team_name(left.away_team)
+        right_home = normalize_team_name(right.home_team)
+        right_away = normalize_team_name(right.away_team)
+        if left.sport in self.ESPORTS_SPORTS:
+            left_home = resolve_alias(left_home)
+            left_away = resolve_alias(left_away)
+            right_home = resolve_alias(right_home)
+            right_away = resolve_alias(right_away)
+
+        if left_home == right_home and left_away == right_away:
+            return True
+
+        home_score = fuzz.token_sort_ratio(left_home, right_home)
+        away_score = fuzz.token_sort_ratio(left_away, right_away)
+        return min(home_score, away_score) >= self.fuzzy_threshold
+
+    def _merge_fixture(
+        self, canonical: MergedFixture, duplicate: MergedFixture
+    ) -> None:
+        existing_by_source = {src.source: src for src in canonical.sources}
+        for src_ref in duplicate.sources:
+            existing = existing_by_source.get(src_ref.source)
+            if existing is None:
+                canonical.sources.append(src_ref)
+                existing_by_source[src_ref.source] = src_ref
+                continue
+
+            if existing.external_id == src_ref.external_id:
+                if src_ref.confidence > existing.confidence:
+                    existing.confidence = src_ref.confidence
+                if existing.raw_data is None and src_ref.raw_data is not None:
+                    existing.raw_data = src_ref.raw_data
+                continue
+
+            if src_ref.confidence > existing.confidence:
+                existing.external_id = src_ref.external_id
+                existing.confidence = src_ref.confidence
+                existing.raw_data = src_ref.raw_data
+
+        if duplicate.odds and not canonical.odds:
+            canonical.odds = duplicate.odds
+
+    @classmethod
+    def _remove_source_ref(
+        cls, fixture: MergedFixture, source: str, external_id: str
+    ) -> None:
+        fixture.sources = [
+            src
+            for src in fixture.sources
+            if not (src.source == source and src.external_id == external_id)
+        ]
+
+    def _recanonicalize_fixture(self, fixture: MergedFixture) -> None:
+        best_source = min(
+            fixture.sources,
+            key=lambda src: (self._source_priority_rank(src.source), src.source, src.external_id),
+        )
+        fixture.primary_source = best_source.source
+        fixture.primary_external_id = best_source.external_id
+
+    def _fixture_rank(self, fixture: MergedFixture | None, index: int) -> tuple:
+        if fixture is None:
+            return (float("inf"),)
+        return (
+            -len(fixture.sources),
+            self._source_priority_rank(fixture.primary_source),
+            0 if fixture.odds else 1,
+            fixture.kickoff.isoformat(),
+            fixture.home_team,
+            fixture.away_team,
+            index,
+        )
+
+    def _source_priority_rank(self, source: str) -> int:
+        try:
+            return self.SOURCE_PRIORITY.index(source)
+        except ValueError:
+            return len(self.SOURCE_PRIORITY)
+
+    @staticmethod
+    def _fixture_identity(fixture: MergedFixture) -> str:
+        return (
+            f"{fixture.sport}|{fixture.home_team}|{fixture.away_team}|"
+            f"{fixture.kickoff.isoformat()}"
+        )
+
+    def _duplicate_issue(
+        self,
+        *,
+        action: str,
+        source: str,
+        external_id: str,
+        fixtures: tuple[MergedFixture, MergedFixture],
+    ) -> str:
+        canonical, duplicate = fixtures
+        return (
+            "DISCOVERY_DUPLICATE_SOURCE_REF "
+            f"action={action} source={source} external_id={external_id} "
+            f"fixtures=[{self._fixture_identity(canonical)},"
+            f"{self._fixture_identity(duplicate)}]"
+        )
 
     @staticmethod
     def _can_attach_source(fixture: MergedFixture, event: DiscoveredEvent) -> bool:

@@ -17,6 +17,29 @@ from .models import FixtureSourceModel
 logger = logging.getLogger(__name__)
 
 
+class DuplicateFixtureSourceMappingError(ValueError):
+    """Raised when a provider identity already belongs to another fixture."""
+
+    def __init__(
+        self,
+        *,
+        source: str,
+        external_id: str,
+        existing_fixture_id: int,
+        attempted_fixture_id: int,
+    ):
+        self.source = source
+        self.external_id = external_id
+        self.existing_fixture_id = existing_fixture_id
+        self.attempted_fixture_id = attempted_fixture_id
+        super().__init__(
+            "Duplicate fixture_sources mapping for "
+            f"source={source}, external_id={external_id}, "
+            f"existing_fixture_id={existing_fixture_id}, "
+            f"attempted_fixture_id={attempted_fixture_id}"
+        )
+
+
 class FixtureSourceRepo:
     """Repository for fixture_sources table via SQLAlchemy ORM."""
 
@@ -46,6 +69,15 @@ class FixtureSourceRepo:
                 orig=ValueError(f"Missing parent fixture_id={fixture_id}"),
             )
 
+        existing_identity = self.get_by_source_id(source, external_id)
+        if existing_identity is not None and existing_identity.fixture_id != fixture_id:
+            raise DuplicateFixtureSourceMappingError(
+                source=source,
+                external_id=external_id,
+                existing_fixture_id=existing_identity.fixture_id,
+                attempted_fixture_id=fixture_id,
+            )
+
         existing = self.session.execute(
             select(FixtureSourceModel).where(
                 FixtureSourceModel.fixture_id == fixture_id,
@@ -54,6 +86,15 @@ class FixtureSourceRepo:
         ).scalar_one_or_none()
 
         if existing:
+            if existing.external_id != external_id:
+                conflicting = self.get_by_source_id(source, external_id)
+                if conflicting is not None and conflicting.fixture_id != fixture_id:
+                    raise DuplicateFixtureSourceMappingError(
+                        source=source,
+                        external_id=external_id,
+                        existing_fixture_id=conflicting.fixture_id,
+                        attempted_fixture_id=fixture_id,
+                    )
             existing.external_id = external_id
             existing.confidence = confidence
             existing.raw_data = raw_json
