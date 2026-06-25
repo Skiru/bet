@@ -35,6 +35,26 @@ def test_create_agent_work_order_compiles():
     assert "Create an agent work order" in res.stdout
 
 
+def test_render_agent_execution_prompt_compiles():
+    """Verify render_agent_execution_prompt.py compiles and runs help output without error."""
+    cli_path = Path(__file__).resolve().parents[1] / "scripts/pipeline_steps/render_agent_execution_prompt.py"
+    assert cli_path.exists()
+
+    res = subprocess.run([sys.executable, str(cli_path), "--help"], capture_output=True, text=True)
+    assert res.returncode == 0
+    assert "Render an agent execution prompt" in res.stdout
+
+
+def test_validate_agent_artifact_compiles():
+    """Verify validate_agent_artifact.py compiles and runs help output without error."""
+    cli_path = Path(__file__).resolve().parents[1] / "scripts/pipeline_steps/validate_agent_artifact.py"
+    assert cli_path.exists()
+
+    res = subprocess.run([sys.executable, str(cli_path), "--help"], capture_output=True, text=True)
+    assert res.returncode == 0
+    assert "Validate an agent artifact against a work order" in res.stdout
+
+
 def test_create_agent_work_order_writes_json(tmp_path):
     """Verify create_agent_work_order.py execution writes a valid JSON file to the standard path."""
     cli_path = Path(__file__).resolve().parents[1] / "scripts/pipeline_steps/create_agent_work_order.py"
@@ -89,4 +109,3 @@ def test_create_agent_work_order_print_json(tmp_path):
     assert data["step_id"] == "S5"
     assert data["runtime_mode"] == "LIVE_SHADOW"
     assert data["agent"] == "bet-challenger"
-
