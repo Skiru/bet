@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 from typing import Any
 
@@ -14,8 +15,84 @@ from bet.pipeline.readiness_contracts import (
     ForbiddenDecisionSignal,
     AllowedNegativeAssertionKeys,
     normalize_status,
+    required_statuses_for_artifact,
     status_blocks,
+    status_satisfies_required_gate,
 )
+
+
+FORBIDDEN_DECISION_KEYS = {
+    ForbiddenDecisionSignal.PICK.value,
+    ForbiddenDecisionSignal.PICKS.value,
+    ForbiddenDecisionSignal.SELECTION.value,
+    ForbiddenDecisionSignal.SELECTIONS.value,
+    ForbiddenDecisionSignal.BET.value,
+    ForbiddenDecisionSignal.BETTING_DECISION.value,
+    ForbiddenDecisionSignal.EDGE.value,
+    ForbiddenDecisionSignal.EXPECTED_VALUE.value,
+    ForbiddenDecisionSignal.STAKE.value,
+    ForbiddenDecisionSignal.COUPON.value,
+    ForbiddenDecisionSignal.ACCUMULATOR.value,
+    ForbiddenDecisionSignal.PARLAY.value,
+}
+
+ALLOWED_NEGATIVE_ASSERTION_KEYS = {item.value for item in AllowedNegativeAssertionKeys}
+
+FORBIDDEN_DECISION_PHRASES = tuple(
+    re.compile(pattern, re.IGNORECASE)
+    for pattern in (
+        r"\brecommended\s+pick\b",
+        r"\bpick\s*:",
+        r"\bstake\s*:",
+        r"\bedge\s*:",
+        r"\bexpected\s+value\s*:",
+        r"\bcoupon\s*:",
+        r"\bparlay\b",
+        r"\baccumulator\b",
+    )
+)
+
+ALLOWED_SECRET_METADATA_KEYS = {
+    "provider_authorization",
+    "provider_authorization_status",
+    "authorization_status",
+    "authorized_for_sanitized_live_probe",
+}
+
+FORBIDDEN_SECRET_KEYS = {
+    "api_key",
+    "apikey",
+    "secret",
+    "password",
+    "access_token",
+    "refresh_token",
+    "bearer_token",
+    "authorization_header",
+    "auth_header",
+    "http_authorization",
+}
+
+
+def _normalize_key(key: str) -> str:
+    return str(key).strip().lower().replace("-", "_").replace(".", "_")
+
+
+def _is_forbidden_decision_key(key: str) -> bool:
+    normalized = _normalize_key(key)
+    if normalized in ALLOWED_NEGATIVE_ASSERTION_KEYS:
+        return False
+    return normalized in FORBIDDEN_DECISION_KEYS
+
+
+def _string_has_forbidden_decision_phrase(value: str) -> bool:
+    return any(pattern.search(value) for pattern in FORBIDDEN_DECISION_PHRASES)
+
+
+def _is_secret_key(key: str) -> bool:
+    normalized = _normalize_key(key)
+    if normalized in ALLOWED_SECRET_METADATA_KEYS:
+        return False
+    return normalized in FORBIDDEN_SECRET_KEYS
 
 
 def load_artifact(path: Path) -> dict[str, Any]:
@@ -69,58 +146,42 @@ def artifact_path_for(
 
 
 def find_forbidden_decision_signals(payload: Any, path: str = "$") -> list[str]:
-    """Recursively search payload for forbidden betting decision terms."""
-    found = []
-    forbidden_signals = {s.value.lower() for s in ForbiddenDecisionSignal}
-    allowed_assertions = {s.value.lower() for s in AllowedNegativeAssertionKeys}
+    """Recursively search payload for forbidden betting decision keys and phrases."""
+    found: list[str] = []
 
-    def recurse(node: Any, current_path: str):
+    def recurse(node: Any, current_path: str) -> None:
         if isinstance(node, dict):
-            for k, v in node.items():
-                k_lower = str(k).lower()
-                if k_lower in allowed_assertions:
-                    continue
-                if k_lower == "betting_decisions_enabled" and v is False:
-                    continue
-                if k_lower == "production_selectable" and v is False:
-                    continue
+            for key, value in node.items():
+                child_path = f"{current_path}.{key}"
+                if _is_forbidden_decision_key(str(key)):
+                    found.append(f"{child_path}: forbidden decision key '{key}'")
+                recurse(value, child_path)
+            return
 
-                if k_lower in forbidden_signals:
-                    found.append(f"{current_path}.{k}")
-
-                if isinstance(v, str):
-                    v_lower = v.lower()
-                    for sig in forbidden_signals:
-                        if sig in v_lower:
-                            found.append(f"{current_path}.{k}='{v}' (contains {sig})")
-
-                recurse(v, f"{current_path}.{k}")
-
-        elif isinstance(node, list):
+        if isinstance(node, list):
             for idx, item in enumerate(node):
-                if isinstance(item, str):
-                    item_lower = item.lower()
-                    for sig in forbidden_signals:
-                        if sig in item_lower:
-                            found.append(f"{current_path}[{idx}]='{item}' (contains {sig})")
                 recurse(item, f"{current_path}[{idx}]")
+            return
+
+        if isinstance(node, str) and _string_has_forbidden_decision_phrase(node):
+            found.append(f"{current_path}: forbidden decision phrase")
 
     recurse(payload, path)
     return found
 
 
 def detect_secrets(node: Any, path: str = "$") -> list[str]:
-    """Recursively check for obvious raw secrets (API keys, tokens, etc.)."""
-    found = []
-    secret_patterns = {"api_key", "token", "secret", "authorization", "bearer", "password"}
+    """Recursively check for forbidden secret/header keys without substring false positives."""
+    found: list[str] = []
     if isinstance(node, dict):
-        for k, v in node.items():
-            k_lower = str(k).lower()
-            if any(p in k_lower for p in secret_patterns):
-                if v and not isinstance(v, bool):
-                    found.append(f"{path}.{k}")
-            found.extend(detect_secrets(v, f"{path}.{k}"))
-    elif isinstance(node, list):
+        for key, value in node.items():
+            child_path = f"{path}.{key}"
+            if _is_secret_key(str(key)) and value not in (None, "", False):
+                found.append(child_path)
+            found.extend(detect_secrets(value, child_path))
+        return found
+
+    if isinstance(node, list):
         for idx, item in enumerate(node):
             found.extend(detect_secrets(item, f"{path}[{idx}]"))
     return found
@@ -221,6 +282,18 @@ def validate_pipeline_artifact(
                     message=f"Artifact status is blocking: {status_val.value}",
                 )
             )
+    if art_type is not None and not status_satisfies_required_gate(status_val, expected_step_id, art_type):
+        allowed_statuses = [status.value for status in required_statuses_for_artifact(expected_step_id, art_type)]
+        issues.append(
+            ReadinessIssue(
+                code="INVALID_REQUIRED_ARTIFACT_STATUS",
+                severity=PipelineReadinessStatus.BLOCK,
+                message=(
+                    f"Artifact {expected_step_id}/{art_type.value} requires one of {allowed_statuses}, "
+                    f"got {status_val.value}"
+                ),
+            )
+        )
 
     # 5. point_in_time_as_of check
     if art_type == PipelineArtifactType.AGENT_ARTIFACT:
@@ -271,7 +344,7 @@ def validate_pipeline_artifact(
 
     # 7. Recursive forbidden signals & raw secrets
     payload = raw.get("payload", {})
-    signals = find_forbidden_decision_signals(payload)
+    signals = find_forbidden_decision_signals(raw)
     if signals:
         issues.append(
             ReadinessIssue(

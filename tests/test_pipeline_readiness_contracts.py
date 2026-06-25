@@ -1,18 +1,18 @@
 """Tests for pipeline readiness contracts (enums, dataclasses, status helpers)."""
 from __future__ import annotations
 
-import pytest
-
 from bet.pipeline.readiness_contracts import (
-    PipelineReadinessStatus,
-    PipelineArtifactType,
-    ForbiddenDecisionSignal,
     AllowedNegativeAssertionKeys,
-    status_is_pass,
-    status_blocks,
-    normalize_status,
-    ReadinessIssue,
+    ForbiddenDecisionSignal,
     PipelineArtifact,
+    PipelineArtifactType,
+    PipelineReadinessStatus,
+    ReadinessIssue,
+    normalize_status,
+    required_statuses_for_artifact,
+    status_blocks,
+    status_is_pass,
+    status_satisfies_required_gate,
 )
 
 
@@ -38,23 +38,106 @@ def test_enums_are_stable_strings():
 
     assert AllowedNegativeAssertionKeys.NO_PICK == "no_pick"
     assert AllowedNegativeAssertionKeys.NO_PICK_EDGE_STAKE_COUPON_EMITTED == "no_pick_edge_stake_coupon_emitted"
+    assert AllowedNegativeAssertionKeys.PROVIDER_AUTHORIZATION == "provider_authorization"
+    assert AllowedNegativeAssertionKeys.SINGLE_FLIGHT_PROBE == "single_flight_probe"
 
 
 def test_status_helpers():
-    """Verify status evaluation functions correctly categorize pipeline states."""
-    # PASS and HUMAN_APPROVED pass
+    """Verify generic status helpers remain stable."""
     assert status_is_pass(PipelineReadinessStatus.PASS) is True
     assert status_is_pass(PipelineReadinessStatus.HUMAN_APPROVED) is True
     assert status_is_pass(PipelineReadinessStatus.WARN) is False
     assert status_is_pass(PipelineReadinessStatus.BLOCK) is False
     assert status_is_pass(PipelineReadinessStatus.UNKNOWN) is False
 
-    # BLOCK, UNKNOWN, and HUMAN_REJECTED block
     assert status_blocks(PipelineReadinessStatus.BLOCK) is True
     assert status_blocks(PipelineReadinessStatus.UNKNOWN) is True
     assert status_blocks(PipelineReadinessStatus.HUMAN_REJECTED) is True
     assert status_blocks(PipelineReadinessStatus.PASS) is False
     assert status_blocks(PipelineReadinessStatus.WARN) is False
+
+
+def test_required_statuses_for_agent_gate_steps():
+    """Verify S2.x and S5 gates accept AGENT_ARTIFACT PASS only."""
+    for step_id in ("S2.3", "S2.5", "S2.7", "S2.9", "S5"):
+        assert required_statuses_for_artifact(step_id, PipelineArtifactType.AGENT_ARTIFACT) == (
+            PipelineReadinessStatus.PASS,
+        )
+        assert status_satisfies_required_gate(
+            PipelineReadinessStatus.PASS,
+            step_id,
+            PipelineArtifactType.AGENT_ARTIFACT,
+        )
+        assert not status_satisfies_required_gate(
+            PipelineReadinessStatus.WARN,
+            step_id,
+            PipelineArtifactType.AGENT_ARTIFACT,
+        )
+        assert not status_satisfies_required_gate(
+            PipelineReadinessStatus.SKIPPED,
+            step_id,
+            PipelineArtifactType.AGENT_ARTIFACT,
+        )
+        assert not status_satisfies_required_gate(
+            PipelineReadinessStatus.UNKNOWN,
+            step_id,
+            PipelineArtifactType.AGENT_ARTIFACT,
+        )
+        assert not status_satisfies_required_gate(
+            PipelineReadinessStatus.HUMAN_APPROVED,
+            step_id,
+            PipelineArtifactType.AGENT_ARTIFACT,
+        )
+
+
+def test_required_statuses_for_s7_and_s7b_script_evidence():
+    """Verify S7/S7b gates accept SCRIPT_EVIDENCE PASS only."""
+    for step_id in ("S7", "S7b"):
+        assert required_statuses_for_artifact(step_id, PipelineArtifactType.SCRIPT_EVIDENCE) == (
+            PipelineReadinessStatus.PASS,
+        )
+        assert status_satisfies_required_gate(
+            PipelineReadinessStatus.PASS,
+            step_id,
+            PipelineArtifactType.SCRIPT_EVIDENCE,
+        )
+        assert not status_satisfies_required_gate(
+            PipelineReadinessStatus.PASS,
+            step_id,
+            PipelineArtifactType.AGENT_ARTIFACT,
+        )
+        assert not status_satisfies_required_gate(
+            PipelineReadinessStatus.HUMAN_APPROVED,
+            step_id,
+            PipelineArtifactType.SCRIPT_EVIDENCE,
+        )
+
+
+def test_required_statuses_for_s9_human_gate():
+    """Verify S9 accepts HUMAN_APPROVED only for HUMAN_GATE artifacts."""
+    assert required_statuses_for_artifact("S9", PipelineArtifactType.HUMAN_GATE) == (
+        PipelineReadinessStatus.HUMAN_APPROVED,
+    )
+    assert status_satisfies_required_gate(
+        PipelineReadinessStatus.HUMAN_APPROVED,
+        "S9",
+        PipelineArtifactType.HUMAN_GATE,
+    )
+    assert not status_satisfies_required_gate(
+        PipelineReadinessStatus.PASS,
+        "S9",
+        PipelineArtifactType.HUMAN_GATE,
+    )
+    assert not status_satisfies_required_gate(
+        PipelineReadinessStatus.HUMAN_REJECTED,
+        "S9",
+        PipelineArtifactType.HUMAN_GATE,
+    )
+    assert not status_satisfies_required_gate(
+        PipelineReadinessStatus.UNKNOWN,
+        "S9",
+        PipelineArtifactType.HUMAN_GATE,
+    )
 
 
 def test_normalize_status():

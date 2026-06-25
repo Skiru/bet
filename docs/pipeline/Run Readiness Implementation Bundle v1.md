@@ -20,6 +20,7 @@ This bundle defines the contract layer required before implementing the manifest
 * `s2_9_required_before_s3=true`
 * no production DB writes in readiness pass
 * no live provider calls in readiness pass
+* current `main` enrichment readiness metadata is legal evidence, not betting output or secrets
 
 ## Bundle Components
 
@@ -64,6 +65,17 @@ The validation gate evaluates pre-requisite artifacts before any step may execut
 * S2.3, S2.5, S2.7, and S2.9 (enrichment steps) must never contain any pick, edge, stake, or coupon fields, either at the top-level or nested.
 * UNKNOWN status never passes.
 * WARN status never passes into betting execution without an explicit policy override.
+* WARN and SKIPPED do not satisfy required gates.
+* HUMAN_APPROVED is accepted only for the S9 human gate and must not satisfy non-S9 gates.
+
+## Main-Aware Scanner Rules
+
+The readiness scanner is intentionally current-main aware:
+
+* Legal enrichment/readiness metadata from current `main` must be allowed as evidence, including `provider_authorization`, `provider_authorization_status`, `authorization_status`, `authorized_for_sanitized_live_probe`, `blocked_no_credentials`, `single_flight_probe`, `production_selectable=false`, `betting_decisions_enabled=false`, `allow_real_network=false`, and `Betclic market validation evidence event`.
+* Forbidden signal scanning is key-strict and phrase-strict. Exact forbidden decision keys still block, while string values block only on explicit decision phrases such as `recommended pick`, `pick:`, `stake:`, `edge:`, `expected value:`, `coupon:`, `parlay`, and `accumulator`.
+* Secret scanning blocks real secret/header keys such as `api_key`, `apikey`, `secret`, `password`, `access_token`, `refresh_token`, `bearer_token`, `authorization_header`, `auth_header`, and `http_authorization`.
+* Secret scanning must not false-positive on provider authorization metadata or other legal readiness assertions from the enrichment foundation.
 
 ## Future Passes
 

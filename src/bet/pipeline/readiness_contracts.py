@@ -52,6 +52,13 @@ class AllowedNegativeAssertionKeys(str, Enum):
     FORBIDDEN_FIELDS_ABSENT = "forbidden_fields_absent"
     BETTING_DECISIONS_ENABLED = "betting_decisions_enabled"
     PRODUCTION_SELECTABLE = "production_selectable"
+    ALLOW_REAL_NETWORK = "allow_real_network"
+    PROVIDER_AUTHORIZATION = "provider_authorization"
+    PROVIDER_AUTHORIZATION_STATUS = "provider_authorization_status"
+    AUTHORIZATION_STATUS = "authorization_status"
+    AUTHORIZED_FOR_SANITIZED_LIVE_PROBE = "authorized_for_sanitized_live_probe"
+    BLOCKED_NO_CREDENTIALS = "blocked_no_credentials"
+    SINGLE_FLIGHT_PROBE = "single_flight_probe"
 
 
 def status_is_pass(status: PipelineReadinessStatus) -> bool:
@@ -74,6 +81,43 @@ def normalize_status(value: str) -> PipelineReadinessStatus:
         return PipelineReadinessStatus(value.upper())
     except (ValueError, AttributeError):
         return PipelineReadinessStatus.UNKNOWN
+
+
+def required_statuses_for_artifact(
+    expected_step_id: str,
+    artifact_type: PipelineArtifactType,
+) -> tuple[PipelineReadinessStatus, ...]:
+    """Return statuses that satisfy a required gate for a step/type pair."""
+    step_id = expected_step_id.strip()
+
+    if step_id == "S9":
+        if artifact_type == PipelineArtifactType.HUMAN_GATE:
+            return (PipelineReadinessStatus.HUMAN_APPROVED,)
+        return ()
+
+    if step_id in {"S2.3", "S2.5", "S2.7", "S2.9", "S5"}:
+        if artifact_type == PipelineArtifactType.AGENT_ARTIFACT:
+            return (PipelineReadinessStatus.PASS,)
+        return ()
+
+    if step_id in {"S7", "S7b"}:
+        if artifact_type == PipelineArtifactType.SCRIPT_EVIDENCE:
+            return (PipelineReadinessStatus.PASS,)
+        return ()
+
+    if artifact_type == PipelineArtifactType.HUMAN_GATE:
+        return ()
+
+    return (PipelineReadinessStatus.PASS,)
+
+
+def status_satisfies_required_gate(
+    status: PipelineReadinessStatus,
+    expected_step_id: str,
+    artifact_type: PipelineArtifactType,
+) -> bool:
+    """Return True when the artifact status is valid for the required gate."""
+    return status in required_statuses_for_artifact(expected_step_id, artifact_type)
 
 
 def _to_jsonable_value(value: Any) -> Any:
