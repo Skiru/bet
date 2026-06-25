@@ -6,6 +6,13 @@ import re
 import time
 from datetime import datetime, timezone
 
+from bet.pipeline.core_integration_contracts import require_live_integrations
+from bet.pipeline.tipster_parsers import (
+    extract_zawodtyper_bets_payload,
+    parse_zawodtyper_xhr_bets,
+    strip_html_text,
+)
+
 from .base_client import APIError
 from .playwright_base import PlaywrightBaseClient
 
@@ -581,6 +588,8 @@ class TipsterPlaywrightClient(PlaywrightBaseClient):
             home_team, away_team, competition, market, market_type, direction,
             odds, reasoning, accuracy_pct, confidence, stats_cited, fetch_time
         """
+        require_live_integrations("S2")
+
         site_name = site_config["name"]
         now_iso = datetime.now(timezone.utc).isoformat()
 
@@ -895,13 +904,7 @@ class TipsterPlaywrightClient(PlaywrightBaseClient):
             if response.request.method != "POST":
                 return
             try:
-                body = response.json()
-                if not isinstance(body, dict) or not body.get("success"):
-                    return
-                data = body.get("data")
-                if isinstance(data, list) and data and isinstance(data[0], dict):
-                    if "comment_id" in data[0] and "match_name" in data[0]:
-                        bets_data.extend(data)
+                bets_data.extend(extract_zawodtyper_bets_payload(response.json()))
             except Exception:
                 pass
 
@@ -926,114 +929,14 @@ class TipsterPlaywrightClient(PlaywrightBaseClient):
         if not bets_data:
             return []
 
-        # Convert structured bet data to standard pick format
-        picks = []
-        seen_events: set[str] = set()
-        _DISCIPLINE_MAP = {
-            "piłka nożna": "football", "tenis": "tennis",
-            "koszykówka": "basketball", "siatkówka": "volleyball",
-            "hokej": "hockey", "piłka ręczna": "handball",
-            "baseball": "baseball", "mma": "mma",
-            "esport": "esport", "boks": "boxing",
-        }
-
-        for bet in bets_data:
-            # Only process actual bets (not ads/bonuses)
-            if bet.get("comment_type") != "bet":
-                continue
-
-            match_name = (bet.get("match_name") or "").strip()
-            if not match_name:
-                continue
-
-            # Parse home - away
-            parts = re.split(r'\s*[-–—]\s*', match_name, maxsplit=1)
-            if len(parts) != 2:
-                parts = re.split(r'\s+vs\.?\s+', match_name, maxsplit=1, flags=re.IGNORECASE)
-            if len(parts) != 2:
-                continue
-
-            home = parts[0].strip()
-            away = parts[1].strip()
-            if len(home) < 2 or len(away) < 2:
-                continue
-
-            event_key = f"{home.lower()}|{away.lower()}"
-            if event_key in seen_events:
-                # Keep the one with longer analysis (better reasoning)
-                existing = next((p for p in picks if f"{p['home_team'].lower()}|{p['away_team'].lower()}" == event_key), None)
-                if existing:
-                    content = self._strip_html(bet.get("content") or "")
-                    if len(content) > len(existing.get("reasoning") or ""):
-                        existing["reasoning"] = content[:800]
-                        # Update tipster if this one has better stats
-                        author_stats = bet.get("author_stats") or {}
-                        ratio_raw = author_stats.get("ratio")
-                        if ratio_raw:
-                            _ratio = float(ratio_raw)
-                            if _ratio > 0:
-                                existing["tipster_name"] = bet.get("author_name", "ZawodTyper")
-                                existing["accuracy_pct"] = int(_ratio * 100)
-                continue
-            seen_events.add(event_key)
-
-            # Extract analysis text (strip HTML tags)
-            content = self._strip_html(bet.get("content") or "")
-
-            # Accuracy from author_stats
-            author_stats = bet.get("author_stats") or {}
-            bet_count = int(author_stats.get("bet_count", 0) or 0)
-            ratio_raw = author_stats.get("ratio")
-            ratio = float(ratio_raw) if ratio_raw else 0.0
-            accuracy = int(ratio * 100) if ratio > 0 and bet_count >= 3 else None
-
-            # Odds
-            rate = bet.get("rate")
-            odds = float(rate) if rate is not None else None
-
-            # Sport detection
-            discipline = (bet.get("discipline") or "").lower().strip()
-            sport = _DISCIPLINE_MAP.get(discipline, "football")
-
-            # Market and type
-            pick_type = (bet.get("type") or "").strip()
-            market_type = self._classify_market(pick_type, content)
-            direction = self._extract_direction(pick_type, content)
-
-            # Build rich reasoning: accuracy + pick + analysis
-            reasoning_parts = []
-            if accuracy and bet_count >= 3:
-                reasoning_parts.append(f"Tipster {bet.get('author_name', '')}: {accuracy}% ({bet_count} bets)")
-            if content and len(content) > 30:
-                reasoning_parts.append(content)
-            reasoning = " | ".join(reasoning_parts) if reasoning_parts else ""
-
-            # Confidence based on accuracy and bet count
-            if accuracy and accuracy >= 65 and bet_count >= 10:
-                confidence = "high"
-            elif accuracy and accuracy >= 55 and bet_count >= 5:
-                confidence = "medium"
-            else:
-                confidence = "low"
-
-            picks.append({
-                "source_site": "ZawodTyper",
-                "tipster_name": bet.get("author_name", "ZawodTyper"),
-                "sport": sport,
-                "event": f"{home} vs {away}",
-                "home_team": home,
-                "away_team": away,
-                "competition": "",
-                "market": pick_type or "N/A",
-                "market_type": market_type,
-                "direction": direction,
-                "odds": odds,
-                "reasoning": reasoning[:800],
-                "accuracy_pct": accuracy,
-                "confidence": confidence,
-                "stats_cited": self._extract_stats_cited(content),
-                "fetch_time": now_iso,
-            })
+        picks = parse_zawodtyper_xhr_bets(
+            bets_data,
+            now_iso=now_iso,
+            classify_market=self._classify_market,
+            extract_direction=self._extract_direction,
+            extract_stats_cited=self._extract_stats_cited,
+            text_cleaner=strip_html_text,
+        )
 
         logger.info(f"[Tipster] ZawodTyper XHR: {len(picks)} picks from {len(bets_data)} bets")
         return picks
@@ -1041,11 +944,7 @@ class TipsterPlaywrightClient(PlaywrightBaseClient):
     @staticmethod
     def _strip_html(text: str) -> str:
         """Strip HTML tags and decode entities from text."""
-        text = re.sub(r'<[^>]+>', ' ', text)
-        text = text.replace("&nbsp;", " ").replace("&amp;", "&")
-        text = text.replace("&lt;", "<").replace("&gt;", ">")
-        text = re.sub(r'\s+', ' ', text).strip()
-        return text
+        return strip_html_text(text)
 
     @staticmethod
     def _build_zawodtyper_url(date: datetime) -> str:
@@ -1056,4 +955,3 @@ class TipsterPlaywrightClient(PlaywrightBaseClient):
         WEEKDAYS = {0: "poniedzialek", 1: "wtorek", 2: "sroda", 3: "czwartek",
                     4: "piatek", 5: "sobota", 6: "niedziela"}
         return f"https://www.zawodtyper.pl/typy-dnia-{date.day}-{MONTHS[date.month]}-{WEEKDAYS[date.weekday()]}/"
-

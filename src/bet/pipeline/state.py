@@ -27,7 +27,8 @@ STEP_ORDER = get_step_order()
 # Phase transition boundary
 _PHASE_BOUNDARY = get_phase_boundary_step()  # S3 and above = ANALYSIS_BUILD
 
-DATA_DIR = Path("betting/data")
+import os
+DATA_DIR = Path(os.environ.get("BET_PIPELINE_DATA_DIR", "betting/data"))
 
 
 def _determine_phase(step: str) -> str:

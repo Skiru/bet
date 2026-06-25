@@ -22,6 +22,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from bet.resilience import atomic_json_write
+from bet.pipeline.integration_artifacts import write_script_evidence
 from check_48h_repeats import load_recent_losses, normalize_team, normalize_market, find_repeats
 from context_checks import validate_data_completeness
 from utils import normalize_kickoff
@@ -38,7 +39,8 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
-DATA_DIR = Path(__file__).parent.parent / "betting" / "data"
+import os
+DATA_DIR = Path(os.environ.get("BET_PIPELINE_DATA_DIR", str(Path(__file__).parent.parent / "betting" / "data")))
 JOURNAL_DIR = Path(__file__).parent.parent / "betting" / "journal"
 LEDGER_PATH = JOURNAL_DIR / "picks-ledger.csv"
 
@@ -2310,8 +2312,25 @@ def main():
 
     results = run_gate(candidates, args.date, strict=args.strict)
 
-    _write_json(results, args.date)
-    _write_markdown(results, args.date)
+    json_path = _write_json(results, args.date)
+    md_path = _write_markdown(results, args.date)
+
+    evidence_path = write_script_evidence(
+        "S7",
+        status="PASS" if results["summary"]["approved_count"] > 0 else "BLOCK",
+        payload={
+            "artifact_kind": "gate_results",
+            "json_output": str(json_path),
+            "markdown_output": str(md_path),
+            "approved_count": results["summary"]["approved_count"],
+            "extended_count": results["summary"]["extended_count"],
+            "rejected_count": results["summary"]["rejected_count"],
+        },
+        sources=("gate_checker",),
+        evidence_refs=(json_path.name, md_path.name),
+    )
+    if evidence_path:
+        print(f"[gate_checker] Script evidence: {evidence_path}")
 
     # Dual-write: save gate results to DB
     try:

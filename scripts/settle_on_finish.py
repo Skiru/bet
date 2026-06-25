@@ -45,7 +45,8 @@ COUPONS_LEDGER = BASE.parent / "betting" / "journal" / "coupons-ledger.csv"
 LOG_FILE = BASE.parent / "settle_log.txt"
 ODDS_API_SNAPSHOT = BASE.parent / "betting" / "data" / "odds_api_snapshot.json"
 ODDS_API_SCORES = BASE.parent / "betting" / "data" / "odds_api_scores.json"
-DATA_DIR = BASE.parent / "betting" / "data"
+import os
+DATA_DIR = Path(os.environ.get("BET_PIPELINE_DATA_DIR", str(BASE.parent / "betting" / "data")))
 POLL_INTERVAL = 120  # seconds
 MAX_POLLS = 60  # max number of poll attempts
 REQUEST_HEADERS = {"User-Agent": "settle-bot/2.0 (educational project)"}

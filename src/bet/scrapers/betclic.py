@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import re
 import sqlite3
 import time
@@ -32,6 +33,8 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
+
+from bet.pipeline.core_integration_contracts import require_live_integrations
 
 logger = logging.getLogger(__name__)
 
@@ -525,6 +528,7 @@ class BetclicMarketChecker:
     """
 
     def __init__(self, betting_date: str, db_conn: Optional[sqlite3.Connection] = None):
+        require_live_integrations("S7b")
         self._date = betting_date
         self._session = BetclicSession()
         self._results: list[BetclicMarketInfo] = []
@@ -1057,7 +1061,8 @@ Examples:
             "events": [r.to_dict() for r in checker.results],
         }
 
-        output_path = args.output or f"betting/data/betclic_markets_{args.date}.json"
+        data_dir = Path(os.environ.get("BET_PIPELINE_DATA_DIR", "betting/data"))
+        output_path = args.output or str(data_dir / f"betclic_markets_{args.date}.json")
         Path(output_path).parent.mkdir(parents=True, exist_ok=True)
         Path(output_path).write_text(
             json.dumps(output_data, indent=2, ensure_ascii=False), encoding="utf-8"

@@ -21,14 +21,20 @@ from pathlib import Path
 import zoneinfo
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
-DATA_DIR = ROOT_DIR / "betting" / "data"
-COUPON_DIR = ROOT_DIR / "betting" / "coupons"
+import os
+DATA_DIR = Path(os.environ.get("BET_PIPELINE_DATA_DIR", str(ROOT_DIR / "betting" / "data")))
+COUPON_DIR = Path(os.environ.get("BET_PIPELINE_COUPON_DIR", str(ROOT_DIR / "betting" / "coupons")))
 CONFIG_PATH = ROOT_DIR / "config" / "betting_config.json"
 
 # Ensure src/ is importable
 sys.path.insert(0, str(ROOT_DIR / "src"))
 
 from bet.resilience import atomic_json_write
+from bet.pipeline.integration_artifacts import (
+    require_pass_script_evidence,
+    runtime_context,
+    write_script_evidence,
+)
 
 from bet.utils import is_same_event, names_match, normalize_for_matching  # noqa: E402
 
@@ -289,28 +295,28 @@ def _load_betclic_validation_sidecar(date: str) -> tuple[dict, dict]:
     betclic_validation_path = DATA_DIR / f"betclic_market_validation_{date}.json"
     if not betclic_validation_path.exists():
         raise FileNotFoundError(
-            f"Missing mandatory S7.5 Betclic validation sidecar for {date}: {betclic_validation_path.name}"
+            f"Missing mandatory S7.5 Betclic validation sidecar / S7b market-availability artifact for {date}: {betclic_validation_path.name}"
         )
 
     try:
         payload = json.loads(betclic_validation_path.read_text(encoding="utf-8"))
     except json.JSONDecodeError as exc:
         raise ValueError(
-            f"Malformed S7.5 Betclic validation sidecar for {date}: {exc.msg}"
+            f"Malformed S7.5 Betclic validation sidecar / S7b market-availability artifact for {date}: {exc.msg}"
         ) from exc
 
     if not isinstance(payload, dict):
-        raise ValueError(f"Malformed S7.5 Betclic validation sidecar for {date}: expected JSON object")
+        raise ValueError(f"Malformed S7.5 Betclic validation sidecar / S7b market-availability artifact for {date}: expected JSON object")
 
     validation_results = payload.get("validation")
     events = payload.get("events")
     if validation_results is not None and not isinstance(validation_results, list):
-        raise ValueError(f"Malformed S7.5 Betclic validation sidecar for {date}: validation must be a list")
+        raise ValueError(f"Malformed S7.5 Betclic validation sidecar / S7b market-availability artifact for {date}: validation must be a list")
     if events is not None and not isinstance(events, list):
-        raise ValueError(f"Malformed S7.5 Betclic validation sidecar for {date}: events must be a list")
+        raise ValueError(f"Malformed S7.5 Betclic validation sidecar / S7b market-availability artifact for {date}: events must be a list")
     if validation_results is None and events is None:
         raise ValueError(
-            f"Malformed S7.5 Betclic validation sidecar for {date}: missing validation/events payload"
+            f"Malformed S7.5 Betclic validation sidecar / S7b market-availability artifact for {date}: missing validation/events payload"
         )
 
     return payload, {
@@ -376,7 +382,7 @@ def _infer_betclic_market_slugs(sport: str, market_names: list[str], flags: dict
 
 
 def _load_betclic_validation_from_db(date: str) -> tuple[dict, dict] | None:
-    """Fallback when S7.5 JSON sidecar is missing but DB observations exist."""
+    """Fallback when the S7b artifact JSON is missing but DB observations exist."""
     try:
         from bet.db.connection import get_db
 
@@ -781,6 +787,19 @@ def _load_gate_results_for_build(date: str, input_path: str | None = None) -> di
         return json_payload
 
     raise FileNotFoundError(f"Gate results not found for {date}. Run gate_checker.py first.")
+
+
+def _require_pre_coupon_script_evidence() -> dict[str, object]:
+    ctx = runtime_context()
+    if not ctx.get("runtime_mode"):
+        return {"managed": False, "enforced": False, "steps": []}
+
+    loaded = require_pass_script_evidence(("S7", "S7b"))
+    return {
+        "managed": True,
+        "enforced": True,
+        "steps": sorted(loaded.keys()),
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -3665,6 +3684,13 @@ def main():
         out.summary(verdict="FAILED", metrics={"error": str(exc)})
         sys.exit(2)
 
+    try:
+        script_evidence_control = _require_pre_coupon_script_evidence()
+    except (FileNotFoundError, ValueError) as exc:
+        out.error(f"PRECONDITION_FAILED: {exc}", recoverable=False)
+        out.summary(verdict="FAILED", metrics={"error": str(exc)})
+        sys.exit(2)
+
     gate_parity = gate_results.get("gate_parity", {})
     gate_counts = gate_parity.get("loaded_counts") or _gate_bucket_counts(gate_results)
     if args.verbose:
@@ -3703,10 +3729,12 @@ def main():
     coupons_data = build_coupons(gate_results, config)
 
     coupons_data["pre_coupon_controls"] = {
+        "script_evidence": script_evidence_control,
         "betclic_market_validation": betclic_validation_control,
         "repeat_loss_handoff": repeat_loss_control,
     }
     coupons_data.setdefault("summary", {})["pre_coupon_controls"] = {
+        "script_evidence": script_evidence_control,
         "betclic_market_validation": betclic_validation_control,
         "repeat_loss_handoff": repeat_loss_control,
     }
@@ -3732,6 +3760,24 @@ def main():
     write_coupon_markdown(coupons_data, args.date)
     write_coupon_json(coupons_data, args.date)
 
+    evidence_path = write_script_evidence(
+        "S8",
+        status="PASS" if not coupons_data.get("no_bet") else "BLOCK",
+        payload={
+            "artifact_kind": "coupon_artifact",
+            "no_bet": coupons_data.get("no_bet", False),
+            "singles": len(coupons_data.get("singles", [])),
+            "core_coupons": len(coupons_data.get("core_coupons", [])),
+            "combos": len(coupons_data.get("combos", [])),
+        },
+        sources=("coupon_builder",),
+        evidence_refs=(f"{args.date}.md", f"{args.date}.json"),
+        betting_decisions_enabled=not coupons_data.get("no_bet"),
+        production_selectable=not coupons_data.get("no_bet"),
+    )
+    if evidence_path:
+        print(f"[coupon_builder] Script evidence: {evidence_path}")
+
     # Persist to DB (dual-write)
     if not coupons_data.get("no_bet"):
         db_count = persist_coupons_to_db(coupons_data, args.date, config)
@@ -3750,6 +3796,8 @@ def main():
                 "gate_rejected": gate_counts.get("rejected", 0),
                 "gate_parity_checked": gate_parity.get("parity_checked", False),
                 "gate_parity_ok": gate_parity.get("parity_ok"),
+                "script_evidence_managed": script_evidence_control.get("managed", False),
+                "script_evidence_enforced": script_evidence_control.get("enforced", False),
                 "betclic_validation_present": betclic_validation_control.get("present", False),
                 "betclic_validation_consumed": betclic_validation_control.get("consumed", False),
                 "betclic_validation_mode": betclic_validation_control.get("mode", "unknown"),
@@ -3773,6 +3821,8 @@ def main():
                 "gate_rejected": gate_counts.get("rejected", 0),
                 "gate_parity_checked": gate_parity.get("parity_checked", False),
                 "gate_parity_ok": gate_parity.get("parity_ok"),
+                "script_evidence_managed": script_evidence_control.get("managed", False),
+                "script_evidence_enforced": script_evidence_control.get("enforced", False),
                 "betclic_validation_present": betclic_validation_control.get("present", False),
                 "betclic_validation_consumed": betclic_validation_control.get("consumed", False),
                 "betclic_validation_mode": betclic_validation_control.get("mode", "unknown"),

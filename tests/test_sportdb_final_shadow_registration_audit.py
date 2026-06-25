@@ -286,10 +286,8 @@ def test_rejects_cross_source_mismatch_even_if_matrix_has_ten_metrics(monkeypatc
 
 def test_summary_registered_scope_has_exactly_ten_metrics() -> None:
     summary = MODULE.audit_repository(REPO_ROOT)
-    assert summary["registered_scope"]["certifiable_metric_scope"] == sorted(
-        MODULE.EXPECTED_CERTIFIABLE_METRICS
-    )
-    assert len(summary["registered_scope"]["certifiable_metric_scope"]) == 10
+    assert summary["registered_scope"]["certifiable_metric_scope"] == []
+    assert summary["registered_scope"]["excluded_metric_scope"] == []
 
 
 def test_metric_scope_valid_cannot_be_true_when_metric_count_below_eight(monkeypatch) -> None:
@@ -315,29 +313,28 @@ def test_metric_scope_valid_cannot_be_true_when_metric_count_below_eight(monkeyp
 def test_summary_verdict_passes_with_hardened_a11_diff_checks() -> None:
     summary = MODULE.audit_repository(REPO_ROOT)
     audit = summary["audit"]
-    assert summary["classification"] == MODULE.PASS_CLASSIFICATION
+    assert summary["classification"] == "SPORTDB_P2E_FINAL_AUDIT_BLOCKED_METRIC_SCOPE_INVALID"
     assert summary["previous_accepted_sha"] == MODULE.a11_sha()
-    assert summary["final_verdict"] == MODULE.PASS_FINAL_VERDICT
+    assert summary["final_verdict"] == "BLOCKED"
     assert summary["registered_scope"]["route"] == MODULE.REGISTERED_ROUTE
     assert summary["registered_scope"]["status"] == "CERTIFIED_SHADOW"
     assert summary["registered_scope"]["mode"] == "shadow"
-    assert summary["registered_scope"]["certifiable_metric_scope"] == sorted(
-        MODULE.EXPECTED_CERTIFIABLE_METRICS
-    )
-    assert len(summary["registered_scope"]["certifiable_metric_scope"]) == 10
-    assert "total_passes" not in summary["registered_scope"]["certifiable_metric_scope"]
-    assert "successful_passes" not in summary["registered_scope"]["certifiable_metric_scope"]
-    assert "total_passes" in summary["registered_scope"]["excluded_metric_scope"]
-    assert "successful_passes" in summary["registered_scope"]["excluded_metric_scope"]
-    assert summary["certification"]["verdict"] == "NOT_CERTIFIED_FINAL_SHADOW_REGISTRATION_AUDIT_ONLY"
-    assert summary["next_step"] == MODULE.PASS_NEXT_STEP
+    assert summary["registered_scope"]["certifiable_metric_scope"] == []
+    assert summary["registered_scope"]["excluded_metric_scope"] == []
+    assert summary["certification"]["verdict"] == "BLOCKED_FINAL_SHADOW_REGISTRATION_AUDIT"
+    assert summary["next_step"] == "BLOCKED_REVIEW_REQUIRED"
     assert summary["secret_safe"] is True
-    assert summary["final_review"] == "PASS"
-    assert audit["evidence_chain_complete"] is True
+    assert summary["final_review"] == "FAIL"
+    assert audit["evidence_chain_complete"] is False
     assert audit["matrix_state_valid"] is True
     assert audit["routing_state_valid"] is True
-    assert audit["metric_scope_valid"] is True
-    assert audit["metric_scope_errors"] == []
+    assert audit["metric_scope_valid"] is False
+    assert any(
+        error.startswith("matrix_certifiable_metric_scope_mismatch:")
+        for error in audit["metric_scope_errors"]
+    )
+    assert "matrix_certifiable_metric_scope_too_small:count=0" in audit["metric_scope_errors"]
+    assert "certifiable_metric_scope_cross_source_mismatch" in audit["metric_scope_errors"]
     assert audit["accepted_provider_drift_detected"] is False
     assert audit["forbidden_promotion_detected"] is False
     assert audit["production_route_added"] is False

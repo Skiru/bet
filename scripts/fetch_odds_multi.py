@@ -22,7 +22,8 @@ from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
-DATA_DIR = ROOT_DIR / "betting" / "data"
+import os
+DATA_DIR = Path(os.environ.get("BET_PIPELINE_DATA_DIR", str(ROOT_DIR / "betting" / "data")))
 CONFIG_DIR = ROOT_DIR / "config"
 SCRIPTS_DIR = Path(__file__).resolve().parent
 
@@ -37,6 +38,7 @@ except ImportError:
     _HAS_DB = False
 
 from bet.resilience import atomic_json_write
+from bet.pipeline.core_integration_contracts import contracts_for_stage, require_live_integrations
 
 # Ensure scripts/ is importable
 if str(SCRIPTS_DIR) not in sys.path:
@@ -243,6 +245,8 @@ def run_multi_scan(
         print("\n[DRY RUN] No API calls made.")
         return
 
+    require_live_integrations("S4")
+
     # Scan all sources per sport
     all_events: list[dict] = []
     provenance: dict[str, dict[str, int]] = {}  # sport → {source → count}
@@ -317,6 +321,9 @@ def run_multi_scan(
 
     # 1) odds_api_snapshot.json — SAME format as fetch_odds_api.py
     snapshot = {
+        "schema_version": 1,
+        "artifact_kind": "odds_snapshot",
+        "stage": "S4",
         "timestamp": now.isoformat(),
         "credits_used_this_scan": 0,  # multi-source doesn't track per-credit
         "credits_remaining": "N/A",
@@ -375,8 +382,15 @@ def run_multi_scan(
 
     # 3) odds_multi_sources.json — provenance log
     provenance_data = {
+        "schema_version": 1,
+        "artifact_kind": "odds_source_provenance",
+        "stage": "S4",
         "timestamp": now.isoformat(),
         "sources_used": sorted(total_by_source.keys()),
+        "contract_sources": [contract.source for contract in contracts_for_stage("S4")],
+        "source_timeouts_seconds": {
+            contract.source: contract.timeout_seconds for contract in contracts_for_stage("S4") if contract.timeout_seconds > 0
+        },
         "per_sport": provenance,
         "total_events": len(all_events),
         "total_by_source": total_by_source,

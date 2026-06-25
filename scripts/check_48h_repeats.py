@@ -17,7 +17,8 @@ from pathlib import Path
 
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
-DATA_DIR = ROOT_DIR / "betting" / "data"
+import os
+DATA_DIR = Path(os.environ.get("BET_PIPELINE_DATA_DIR", str(ROOT_DIR / "betting" / "data")))
 DEFAULT_LEDGER_PATH = ROOT_DIR / "betting" / "journal" / "picks-ledger.csv"
 REPEAT_LOSS_STEP = "s7_6_repeat_loss_check"
 

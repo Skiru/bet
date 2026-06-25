@@ -15,7 +15,8 @@ from pathlib import Path
 # ---------------------------------------------------------------------------
 SCRIPTS_DIR = Path(__file__).parent
 ROOT_DIR = SCRIPTS_DIR.parent
-DATA_DIR = ROOT_DIR / "betting" / "data"
+import os
+DATA_DIR = Path(os.environ.get("BET_PIPELINE_DATA_DIR", str(ROOT_DIR / "betting" / "data")))
 
 # Add scripts/ and src/ to path for imports
 sys.path.insert(0, str(SCRIPTS_DIR))
