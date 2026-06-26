@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import os
+import subprocess
 import sys
 from pathlib import Path
 from unittest.mock import MagicMock
@@ -335,12 +336,36 @@ def test_s4_wrapper_contract_pass_block_failed_and_tmp_paths():
 
     data_dir = Path(environ["BET_PIPELINE_DATA_DIR"])
     data_dir.mkdir(parents=True, exist_ok=True)
-    snapshot_path = data_dir / "odds_api_snapshot.json"
-    snapshot_path.write_text("{}", encoding="utf-8")
+    input_path = data_dir / "2026-06-25_s3_deep_stats.json"
+    input_path.write_text(json.dumps({"analyses": [{"fixture_id": 10, "home_team": "Alpha", "away_team": "Beta", "best_market": {"name": "Over 2.5", "safety_score": 0.82}, "markets_evaluated": 4}]}), encoding="utf-8")
+
+    def _fake_run(cmd, env=None, capture_output=None, text=None):
+        if len(cmd) > 1 and "odds_evaluator.py" in cmd[1]:
+            output_path = Path(cmd[cmd.index("--output") + 1])
+            output_path.write_text(json.dumps({
+                "schema_version": 1,
+                "artifact_type": "S4_VALUATION_CANDIDATES",
+                "betting_day": "2026-06-25",
+                "run_id": environ["BET_PIPELINE_RUN_ID"],
+                "created_at_utc": "2026-06-25T00:00:00+00:00",
+                "runtime_mode": "DRY_RUN",
+                "source_input_path": str(input_path),
+                "odds_snapshot_paths": [],
+                "candidate_count": 1,
+                "contains_odds": True,
+                "contains_ev": True,
+                "contains_safety": True,
+                "contains_market_count": True,
+                "production_selectable": False,
+                "betting_decisions_enabled": False,
+                "no_pick_edge_stake_coupon_emitted": True,
+                "candidates": [{"fixture_id": 10, "home_team": "Alpha", "away_team": "Beta", "best_market": {"name": "Over 2.5", "safety_score": 0.82}, "market_count": 4, "markets_evaluated": 4, "odds": {"market_best": 1.91}, "ev": 0.11, "safety_score": 0.82, "safety_markets": [], "valuation_warnings": [], "valuation_status": "VALUED"}],
+            }), encoding="utf-8")
+        return subprocess.CompletedProcess(cmd, 0, stdout="", stderr="")
 
     with patch.dict(os.environ, environ, clear=False), \
          patch.object(sys, "argv", argv), \
-         patch("scripts.pipeline_steps.s4_valuator.run_scripts", side_effect=[0, 0]):
+         patch("subprocess.run", side_effect=_fake_run):
         with pytest.raises(SystemExit) as exc_info:
             s4_valuator.main()
 
@@ -356,17 +381,20 @@ def test_s4_wrapper_contract_pass_block_failed_and_tmp_paths():
     assert str(canonical_path).startswith("/tmp/")
     assert "/reports/" not in str(canonical_path)
 
-    snapshot_path.unlink()
+    output_path = data_dir / "2026-06-25_s4_valuation_candidates.json"
+    if output_path.exists():
+        output_path.unlink()
+
     with patch.dict(os.environ, environ, clear=False), \
          patch.object(sys, "argv", argv), \
-         patch("scripts.pipeline_steps.s4_valuator.run_scripts", side_effect=[0, 0]):
+         patch("subprocess.run", side_effect=lambda cmd, env=None, capture_output=None, text=None: subprocess.CompletedProcess(cmd, 0, stdout="", stderr="")):
         with pytest.raises(SystemExit) as exc_info:
             s4_valuator.main()
 
     assert exc_info.value.code == 1
     evidence = _load(canonical_path)
     assert evidence["status"] == "BLOCK"
-    assert evidence["blocked_reasons"] == ["BLOCKED_LIVE_SOURCE_MISSING"]
+    assert evidence["blocked_reasons"] == ["BLOCKED_S4_VALUATION_OUTPUT_MISSING"]
 
     with patch.dict(os.environ, environ, clear=False), \
          patch.object(sys, "argv", argv), \

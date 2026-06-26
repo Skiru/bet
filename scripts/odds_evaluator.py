@@ -6,7 +6,10 @@ Supports --verbose + AGENT_SUMMARY for agent-driven pipeline (R17/R19).
 """
 
 import argparse
+import copy
+from datetime import datetime, timezone
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -15,7 +18,6 @@ from pathlib import Path
 # ---------------------------------------------------------------------------
 SCRIPTS_DIR = Path(__file__).parent
 ROOT_DIR = SCRIPTS_DIR.parent
-import os
 DATA_DIR = Path(os.environ.get("BET_PIPELINE_DATA_DIR", str(ROOT_DIR / "betting" / "data")))
 
 # Add scripts/ and src/ to path for imports
@@ -24,6 +26,206 @@ sys.path.insert(0, str(ROOT_DIR / "src"))
 
 from utils import normalize_team_name as _norm_team
 from bet.utils import names_match
+
+
+def _runtime_mode_value(runtime_mode: str | None) -> str:
+    return str(runtime_mode or os.environ.get("BET_PIPELINE_RUNTIME_MODE") or "DRY_RUN").upper()
+
+
+def _is_production_mode(runtime_mode: str | None) -> bool:
+    return _runtime_mode_value(runtime_mode) == "PRODUCTION"
+
+
+def _is_protected_repo_path(path: Path | str | None) -> bool:
+    if not path:
+        return False
+    abs_path = Path(path).resolve()
+    for parent in (
+        (ROOT_DIR / "betting" / "data").resolve(),
+        (ROOT_DIR / "betting" / "coupons").resolve(),
+        (ROOT_DIR / "reports").resolve(),
+    ):
+        try:
+            abs_path.relative_to(parent)
+            return True
+        except ValueError:
+            pass
+    return False
+
+
+def _extract_candidate_entries(payload):
+    if isinstance(payload, list):
+        return [item for item in payload if isinstance(item, dict)]
+    if not isinstance(payload, dict):
+        return []
+    for key in ("analyses", "candidates", "results", "valuations", "events"):
+        value = payload.get(key)
+        if isinstance(value, list):
+            return [item for item in value if isinstance(item, dict)]
+    inner = payload.get("payload")
+    if isinstance(inner, dict):
+        return _extract_candidate_entries(inner)
+    return []
+
+
+def _load_candidates_from_json(path: Path) -> tuple[list[dict], dict]:
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    candidates = [copy.deepcopy(item) for item in _extract_candidate_entries(payload)]
+    return candidates, {
+        "source": "explicit_input",
+        "parity": {"status": "explicit_input"},
+        "counts": {
+            "json": len(candidates),
+            "db": 0,
+            "canonical": len(candidates),
+        },
+        "input_path": str(path),
+    }
+
+
+def _coerce_probability(value):
+    if value is None:
+        return None
+    try:
+        value_str = str(value).strip().rstrip("%")
+        if "/" in value_str:
+            num, den = value_str.split("/", 1)
+            parsed = float(num) / float(den)
+        else:
+            parsed = float(value_str)
+            if parsed > 1.0:
+                parsed = parsed / 100.0
+        return round(parsed, 4)
+    except (ValueError, ZeroDivisionError):
+        return None
+
+
+def _candidate_fixture_key(candidate: dict) -> str | None:
+    existing = candidate.get("fixture_key")
+    if existing:
+        return str(existing)
+    home = candidate.get("home_team") or ""
+    away = candidate.get("away_team") or ""
+    if home and away:
+        return f"{_norm_team(home)}|{_norm_team(away)}"
+    return None
+
+
+def _candidate_safety_score(candidate: dict):
+    best_market = candidate.get("best_market") or {}
+    if isinstance(best_market, dict) and best_market.get("safety_score") is not None:
+        return best_market.get("safety_score")
+    return candidate.get("safety_score")
+
+
+def _valuation_warnings(candidate: dict, has_odds: bool, has_ev: bool, has_safety: bool) -> list[str]:
+    warnings = []
+    for source_key in ("valuation_warnings", "warnings"):
+        source = candidate.get(source_key)
+        if isinstance(source, list):
+            warnings.extend(str(item) for item in source if item is not None)
+    if not has_odds:
+        warnings.append("NO_ODDS")
+    if not has_ev:
+        warnings.append("NO_EV")
+    if not has_safety:
+        warnings.append("NO_SAFETY")
+    deduped: list[str] = []
+    seen: set[str] = set()
+    for item in warnings:
+        if item not in seen:
+            seen.add(item)
+            deduped.append(item)
+    return deduped
+
+
+def _valuation_status(candidate: dict, *, has_odds: bool, has_ev: bool, has_safety: bool) -> str:
+    if has_odds and has_ev and has_safety:
+        return "VALUED"
+    if has_odds and has_ev:
+        return "PARTIAL"
+    if not has_odds:
+        return "NO_ODDS"
+    if not has_ev:
+        return "NO_EV"
+    if not has_safety and not candidate.get("best_market"):
+        return "INSUFFICIENT_DATA"
+    return "PARTIAL"
+
+
+def _odds_snapshot_paths() -> list[str]:
+    snapshots: list[str] = []
+    for name in ("odds_api_snapshot.json", "odds_api_io_snapshot.json", "odds_multi_sources.json"):
+        path = DATA_DIR / name
+        if path.exists():
+            snapshots.append(str(path.resolve()))
+    return snapshots
+
+
+def _build_valuation_candidate(candidate: dict) -> dict:
+    best_market = candidate.get("best_market") or {}
+    odds = candidate.get("odds") if isinstance(candidate.get("odds"), dict) else {}
+    market_count = candidate.get("market_count")
+    markets_evaluated = candidate.get("markets_evaluated")
+    probability = candidate.get("probability")
+    if probability is None and isinstance(best_market, dict):
+        probability = best_market.get("probability")
+    has_odds = bool(odds) or candidate.get("best_odds") is not None
+    has_ev = candidate.get("ev") is not None
+    has_safety = _candidate_safety_score(candidate) is not None or bool(candidate.get("safety_markets"))
+    return {
+        "fixture_key": _candidate_fixture_key(candidate),
+        "fixture_id": candidate.get("fixture_id"),
+        "home_team": candidate.get("home_team"),
+        "away_team": candidate.get("away_team"),
+        "competition": candidate.get("competition"),
+        "scheduled_time": candidate.get("scheduled_time") or candidate.get("kickoff"),
+        "source_steps": ["S3", "S4"],
+        "probability": _coerce_probability(probability),
+        "hit_rate_l10": candidate.get("hit_rate_l10") or best_market.get("hit_rate_l10"),
+        "hit_rate_l5": candidate.get("hit_rate_l5") or best_market.get("hit_rate_l5"),
+        "best_market": best_market if isinstance(best_market, dict) else {},
+        "market_count": market_count,
+        "markets_evaluated": markets_evaluated,
+        "odds": odds,
+        "odds_source": candidate.get("odds_source"),
+        "ev": candidate.get("ev"),
+        "ev_source": candidate.get("ev_source"),
+        "safety_score": _candidate_safety_score(candidate),
+        "safety_markets": candidate.get("safety_markets") if isinstance(candidate.get("safety_markets"), list) else [],
+        "valuation_warnings": _valuation_warnings(candidate, has_odds, has_ev, has_safety),
+        "valuation_status": _valuation_status(candidate, has_odds=has_odds, has_ev=has_ev, has_safety=has_safety),
+    }
+
+
+def _build_valuation_output(
+    candidates: list[dict],
+    *,
+    date: str,
+    run_id: str | None,
+    runtime_mode: str | None,
+    source_input_path: Path | None,
+) -> dict:
+    valuation_candidates = [_build_valuation_candidate(candidate) for candidate in candidates]
+    return {
+        "schema_version": 1,
+        "artifact_type": "S4_VALUATION_CANDIDATES",
+        "betting_day": date,
+        "run_id": run_id or os.environ.get("BET_PIPELINE_RUN_ID"),
+        "created_at_utc": datetime.now(timezone.utc).isoformat(),
+        "runtime_mode": _runtime_mode_value(runtime_mode),
+        "source_input_path": str(source_input_path) if source_input_path else None,
+        "odds_snapshot_paths": _odds_snapshot_paths(),
+        "candidate_count": len(valuation_candidates),
+        "contains_odds": any(bool(candidate.get("odds")) for candidate in valuation_candidates),
+        "contains_ev": any(candidate.get("ev") is not None for candidate in valuation_candidates),
+        "contains_safety": any(candidate.get("safety_score") is not None or candidate.get("safety_markets") for candidate in valuation_candidates),
+        "contains_market_count": any(candidate.get("market_count") is not None or candidate.get("markets_evaluated") is not None for candidate in valuation_candidates),
+        "production_selectable": False,
+        "betting_decisions_enabled": False,
+        "no_pick_edge_stake_coupon_emitted": True,
+        "candidates": valuation_candidates,
+    }
 
 # ---------------------------------------------------------------------------
 # GAP 1 FIX: Uncertainty-Adjusted Kelly Criterion
@@ -643,7 +845,14 @@ def _inject_ev_from_odds(candidates: list[dict], date: str):
         print(f"  → EV injected: {injected}/{len(candidates)} candidates")
 
 
-def run_odds_eval(date: str, state: dict) -> tuple[bool, str]:
+def run_odds_eval(
+    date: str,
+    state: dict,
+    *,
+    input_path: Path | None = None,
+    output_path: Path | None = None,
+    runtime_mode: str | None = None,
+) -> tuple[bool, str]:
     """S4: Cross-validate odds, compute EV, detect drift."""
     tracker = ProgressTracker("s4") if ProgressTracker else None
     if tracker:
@@ -652,11 +861,22 @@ def run_odds_eval(date: str, state: dict) -> tuple[bool, str]:
     candidates = []
     s3_path = DATA_DIR / f"{date}_s3_deep_stats.json"
     s3_data = None
+    resolved_input_path = Path(input_path).resolve() if input_path else None
+    resolved_output_path = Path(output_path).resolve() if output_path else None
+    run_id = os.environ.get("BET_PIPELINE_RUN_ID")
+
+    if not _is_production_mode(runtime_mode):
+        for protected_path in (resolved_input_path, resolved_output_path):
+            if protected_path is not None and _is_protected_repo_path(protected_path):
+                return False, f"Protected non-production valuation path rejected: {protected_path}"
 
     try:
-        from db_data_loader import load_s3_candidates_with_parity
+        if resolved_input_path is not None:
+            candidates, candidate_load = _load_candidates_from_json(resolved_input_path)
+        else:
+            from db_data_loader import load_s3_candidates_with_parity
 
-        candidates, candidate_load = load_s3_candidates_with_parity(date)
+            candidates, candidate_load = load_s3_candidates_with_parity(date)
     except Exception as e:
         return False, f"S4 candidate load error: {e}"
 
@@ -681,6 +901,18 @@ def run_odds_eval(date: str, state: dict) -> tuple[bool, str]:
 
     if not candidates:
         state["candidate_load"] = candidate_load
+        valuation_output = _build_valuation_output(
+            candidates,
+            date=date,
+            run_id=run_id,
+            runtime_mode=runtime_mode,
+            source_input_path=resolved_input_path or s3_path,
+        )
+        if resolved_output_path is not None:
+            resolved_output_path.parent.mkdir(parents=True, exist_ok=True)
+            resolved_output_path.write_text(json.dumps(valuation_output, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+            state["valuation_output_path"] = str(resolved_output_path)
+            state["valuation_output"] = valuation_output
         if tracker:
             tracker.done({"candidates": 0, "note": "no S3 data"})
         return True, "S4: No S3 data yet — skipping EV injection"
@@ -711,74 +943,87 @@ def run_odds_eval(date: str, state: dict) -> tuple[bool, str]:
                 print(f"    {marker} {home} vs {away}: EV={ev:+.1%} @{odds:.2f} ({source})")
         total = len(candidates)
 
-        # Save back enriched data to JSON (for downstream consumers)
-        if s3_path.exists():
+        valuation_output = _build_valuation_output(
+            candidates,
+            date=date,
+            run_id=run_id,
+            runtime_mode=runtime_mode,
+            source_input_path=resolved_input_path or s3_path,
+        )
+
+        if resolved_output_path is not None:
+            resolved_output_path.parent.mkdir(parents=True, exist_ok=True)
+            resolved_output_path.write_text(json.dumps(valuation_output, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+            state["valuation_output_path"] = str(resolved_output_path)
+            state["valuation_output"] = valuation_output
+        elif s3_path.exists() or resolved_input_path is None:
+            if s3_path.exists():
+                try:
+                    s3_data = json.loads(s3_path.read_text(encoding="utf-8"))
+                except (json.JSONDecodeError, OSError):
+                    s3_data = None
+            if s3_data is None:
+                s3_data = {"analyses": []}
+            s3_data["analyses"] = candidates
             try:
-                s3_data = json.loads(s3_path.read_text(encoding="utf-8"))
-            except (json.JSONDecodeError, OSError):
-                s3_data = None
-        if s3_data is None:
-            s3_data = {"analyses": []}
-        s3_data["analyses"] = candidates
-        try:
-            s3_path.write_text(
-                json.dumps(s3_data, indent=2, ensure_ascii=False), encoding="utf-8"
-            )
-        except OSError:
-            pass
+                s3_path.write_text(
+                    json.dumps(s3_data, indent=2, ensure_ascii=False), encoding="utf-8"
+                )
+            except OSError:
+                pass
 
-        # Save EV data back to analysis_results in DB
-        try:
-            from bet.db.connection import get_db
-            from bet.db.repositories import AnalysisResultRepo, FixtureRepo, SportRepo
-            with get_db() as conn:
-                repo = AnalysisResultRepo(conn)
-                existing = repo.get_by_date(date)
-                db_lookup = {ar.fixture_id: ar for ar in existing}
+        if _is_production_mode(runtime_mode):
+            try:
+                from bet.db.connection import get_db
+                from bet.db.repositories import AnalysisResultRepo, FixtureRepo, SportRepo
+                with get_db() as conn:
+                    repo = AnalysisResultRepo(conn)
+                    existing = repo.get_by_date(date)
+                    db_lookup = {ar.fixture_id: ar for ar in existing}
 
-                # Build name→fixture_id resolver for candidates without fixture_id
-                fixture_repo = FixtureRepo(conn)
-                sport_repo = SportRepo(conn)
+                    # Build name→fixture_id resolver for candidates without fixture_id
+                    fixture_repo = FixtureRepo(conn)
+                    sport_repo = SportRepo(conn)
 
-                def _resolve_fid(c: dict) -> int | None:
-                    fid = c.get("fixture_id")
-                    if fid:
-                        return fid
-                    sport_name = c.get("sport", "")
-                    s = sport_repo.get_by_name(sport_name) if sport_name else None
-                    if not s:
-                        return None
-                    ko = c.get("kickoff", date)
-                    f = fixture_repo.get_by_teams_and_date(
-                        c.get("home_team", ""), c.get("away_team", ""),
-                        ko[:10] if ko else date, s.id,
-                    )
-                    return f.id if f else None
+                    def _resolve_fid(c: dict) -> int | None:
+                        fid = c.get("fixture_id")
+                        if fid:
+                            return fid
+                        sport_name = c.get("sport", "")
+                        s = sport_repo.get_by_name(sport_name) if sport_name else None
+                        if not s:
+                            return None
+                        ko = c.get("kickoff", date)
+                        f = fixture_repo.get_by_teams_and_date(
+                            c.get("home_team", ""), c.get("away_team", ""),
+                            ko[:10] if ko else date, s.id,
+                        )
+                        return f.id if f else None
 
-                updated = 0
-                for c in candidates:
-                    ev = c.get("ev")
-                    if ev is None:
-                        continue
-                    fid = _resolve_fid(c)
-                    if fid and fid in db_lookup:
-                        ar = db_lookup[fid]
-                        summary = ar.stats_summary_json or {}
-                        summary["ev"] = ev
-                        summary["ev_source"] = c.get("ev_source", "calculated")
-                        odds_data = c.get("odds", {})
-                        if odds_data:
-                            summary["odds_market_best"] = odds_data.get("market_best")
-                            summary["odds_betclic"] = odds_data.get("betclic")
-                        repo.update_stats_summary(fid, date, summary)
-                        updated += 1
-                    elif fid is None:
-                        print(f"  ⚠ S4 DB: fixture_id not resolved for {c.get('home_team', '?')} vs {c.get('away_team', '?')}")
-                conn.commit()
-                if updated:
-                    print(f"  → DB: updated {updated} analysis_results with EV data")
-        except Exception as e:
-            print(f"  ⚠ DB EV update failed (non-fatal): {e}")
+                    updated = 0
+                    for c in candidates:
+                        ev = c.get("ev")
+                        if ev is None:
+                            continue
+                        fid = _resolve_fid(c)
+                        if fid and fid in db_lookup:
+                            ar = db_lookup[fid]
+                            summary = ar.stats_summary_json or {}
+                            summary["ev"] = ev
+                            summary["ev_source"] = c.get("ev_source", "calculated")
+                            odds_data = c.get("odds", {})
+                            if odds_data:
+                                summary["odds_market_best"] = odds_data.get("market_best")
+                                summary["odds_betclic"] = odds_data.get("betclic")
+                            repo.update_stats_summary(fid, date, summary)
+                            updated += 1
+                        elif fid is None:
+                            print(f"  ⚠ S4 DB: fixture_id not resolved for {c.get('home_team', '?')} vs {c.get('away_team', '?')}")
+                    conn.commit()
+                    if updated:
+                        print(f"  → DB: updated {updated} analysis_results with EV data")
+            except Exception as e:
+                print(f"  ⚠ DB EV update failed (non-fatal): {e}")
 
         if tracker:
             tracker.done({"candidates": total, "with_ev": with_ev, "positive_ev": positive_ev})
@@ -798,13 +1043,22 @@ def main():
         description="S4 Odds Evaluation — cross-validate odds, compute EV, detect drift"
     )
     parser.add_argument("--date", required=True, help="Betting date YYYY-MM-DD")
+    parser.add_argument("--input", type=Path, default=None, help="Explicit S4 candidate universe input JSON")
+    parser.add_argument("--output", type=Path, default=None, help="Explicit S4 valuation output JSON")
+    parser.add_argument("--runtime-mode", default=os.environ.get("BET_PIPELINE_RUNTIME_MODE", "DRY_RUN"), help="Runtime mode")
     add_agent_args(parser)
     args = parser.parse_args()
 
     out = AgentOutput("s4_odds_eval", verbose=args.verbose, stop_on_error=args.stop_on_error)
 
     state = {}
-    ok, msg = run_odds_eval(args.date, state)
+    ok, msg = run_odds_eval(
+        args.date,
+        state,
+        input_path=args.input,
+        output_path=args.output,
+        runtime_mode=args.runtime_mode,
+    )
 
     # Parse the message for metrics
     import re
@@ -832,6 +1086,8 @@ def main():
             "input_json_candidates": (state.get("candidate_load") or {}).get("counts", {}).get("json", 0),
             "input_db_candidates": (state.get("candidate_load") or {}).get("counts", {}).get("db", 0),
             "input_canonical_candidates": (state.get("candidate_load") or {}).get("counts", {}).get("canonical", 0),
+            "input_path": str(args.input) if args.input else (state.get("candidate_load") or {}).get("input_path"),
+            "output_path": str(args.output) if args.output else state.get("valuation_output_path"),
             "total_candidates": total,
             "with_ev": with_ev,
             "positive_ev": positive_ev,
