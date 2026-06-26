@@ -224,6 +224,25 @@ def test_target_wrappers_write_pass_script_evidence_in_tmp_sandbox(case):
         if case["step_id"] == "S6":
             for key, value in expected_payload.items():
                 assert payload[key] == value
+        elif case["step_id"] == "S7":
+            for key, value in expected_payload.items():
+                assert payload[key] == value
+            assert payload["s7_input_path"] is None
+            assert payload["s7_json_output"].startswith("/tmp/")
+            assert payload["s7_markdown_output"].startswith("/tmp/")
+            assert payload["total_candidates"] == 0
+            assert payload["approved_count"] == 0
+            assert payload["extended_count"] == 0
+            assert payload["rejected_count"] == 0
+        elif case["step_id"] == "S7b":
+            for key, value in expected_payload.items():
+                assert payload[key] == value
+            assert payload["s7b_input_path"] is None
+            assert payload["s7b_json_output"].startswith("/tmp/")
+            assert payload["checked_market_count"] == 0
+            assert payload["available_market_count"] == 0
+            assert payload["unavailable_market_count"] == 0
+            assert payload["validation_status"] == "BLOCK"
         else:
             assert payload == expected_payload
     if case["no_pick"]:

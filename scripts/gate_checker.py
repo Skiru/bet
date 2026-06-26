@@ -40,7 +40,8 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 import os
-DATA_DIR = Path(os.environ.get("BET_PIPELINE_DATA_DIR", str(Path(__file__).parent.parent / "betting" / "data")))
+ROOT_DIR = Path(__file__).resolve().parent.parent
+DATA_DIR = Path(os.environ.get("BET_PIPELINE_DATA_DIR", str(ROOT_DIR / "betting" / "data")))
 JOURNAL_DIR = Path(__file__).parent.parent / "betting" / "journal"
 LEDGER_PATH = JOURNAL_DIR / "picks-ledger.csv"
 
@@ -78,6 +79,63 @@ GATE_BUCKET_STATUS = {
     "extended_pool": "EXTENDED",
     "rejected": "REJECTED",
 }
+
+
+def _data_dir() -> Path:
+    env_value = os.environ.get("BET_PIPELINE_DATA_DIR")
+    if env_value:
+        return Path(env_value)
+    patched = globals().get("DATA_DIR")
+    if isinstance(patched, Path):
+        return patched
+    return Path(ROOT_DIR / "betting" / "data")
+
+
+def is_non_production_mode() -> bool:
+    return os.environ.get("BET_PIPELINE_RUNTIME_MODE", "DRY_RUN").upper() != "PRODUCTION"
+
+
+def is_protected_repo_path(path: Path | str | None) -> bool:
+    if not path:
+        return False
+    abs_path = Path(path).resolve()
+    for parent in ((ROOT_DIR / "betting" / "data").resolve(), (ROOT_DIR / "betting" / "coupons").resolve(), (ROOT_DIR / "reports").resolve()):
+        try:
+            abs_path.relative_to(parent)
+            return True
+        except ValueError:
+            pass
+    return False
+
+
+def _extract_candidate_entries(payload: dict | list) -> list[dict]:
+    if isinstance(payload, list):
+        return [item for item in payload if isinstance(item, dict)]
+    if not isinstance(payload, dict):
+        raise ValueError("unsupported payload type")
+
+    inner = payload.get("payload")
+    if isinstance(inner, dict):
+        extracted = _extract_candidate_entries(inner)
+        if extracted:
+            return extracted
+
+    for key in ("analyses", "candidates", "results", "valuations", "events"):
+        value = payload.get(key)
+        if isinstance(value, list):
+            return [item for item in value if isinstance(item, dict)]
+
+    gate_results = payload.get("gate_results")
+    if isinstance(gate_results, dict):
+        combined: list[dict] = []
+        for key in ("approved", "extended_pool", "rejected"):
+            value = gate_results.get(key)
+            if isinstance(value, list):
+                combined.extend(item for item in value if isinstance(item, dict))
+        if combined:
+            return combined
+
+    return []
 
 
 def _set_entry_bucket(entry: dict, bucket: str, reason: str | None = None) -> None:
@@ -152,7 +210,7 @@ def _build_fixture_lookup(date: str) -> set[tuple[str, str]]:
         pass
 
     # 2. JSON fixtures
-    fixtures_path = DATA_DIR / f"fixtures_{date}.json"
+    fixtures_path = _data_dir() / f"fixtures_{date}.json"
     if fixtures_path.exists():
         try:
             data = json.loads(fixtures_path.read_text(encoding="utf-8"))
@@ -1999,8 +2057,9 @@ def _enrich_best_market(entry: dict) -> None:
 
 def _write_json(results: dict, date: str) -> Path:
     """Write gate results to JSON."""
-    out_path = DATA_DIR / f"{date}_s7_gate_results.json"
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    data_dir = _data_dir()
+    out_path = data_dir / f"{date}_s7_gate_results.json"
+    data_dir.mkdir(parents=True, exist_ok=True)
 
     # Enrich best_market with ranking/three_way data before stripping bulk fields
     clean = json.loads(json.dumps(results, default=str))
@@ -2086,8 +2145,9 @@ def _gate_scorecard(entry: dict) -> str:
 
 def _write_markdown(results: dict, date: str) -> Path:
     """Write gate results to markdown."""
-    out_path = DATA_DIR / f"{date}_s7_gate_results.md"
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    data_dir = _data_dir()
+    out_path = data_dir / f"{date}_s7_gate_results.md"
+    data_dir.mkdir(parents=True, exist_ok=True)
 
     gate = results["gate_results"]
     summary = results["summary"]
@@ -2168,10 +2228,36 @@ def _load_s3_output(date: str, input_path: str | None = None) -> tuple[list[dict
     if input_path:
         path = Path(input_path)
         if not path.exists():
-            print(f"[gate_checker] ERROR: S3 output not found: {path}")
-            sys.exit(1)
-        data = json.loads(path.read_text(encoding="utf-8"))
-        analyses = data.get("analyses", data.get("candidates", []))
+            return [], {
+                "source": "explicit_input",
+                "counts": {"canonical": 0, "json": 0, "db": 0},
+                "parity": {"status": "missing"},
+                "blocking_error": {"code": 5, "message": f"BLOCKED_S7_GATE_INPUT_MISSING: explicit gate input not found: {path}"},
+            }
+        if is_non_production_mode() and is_protected_repo_path(path):
+            return [], {
+                "source": "explicit_input",
+                "counts": {"canonical": 0, "json": 0, "db": 0},
+                "parity": {"status": "protected_path"},
+                "blocking_error": {"code": 5, "message": f"BLOCKED_S7_GATE_INPUT_PROTECTED_PATH: explicit gate input must stay outside repo-local protected paths in non-production mode: {path}"},
+            }
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except Exception as exc:
+            return [], {
+                "source": "explicit_input",
+                "counts": {"canonical": 0, "json": 0, "db": 0},
+                "parity": {"status": "invalid_json"},
+                "blocking_error": {"code": 5, "message": f"BLOCKED_S7_GATE_INPUT_INVALID: explicit gate input JSON could not be parsed: {exc}"},
+            }
+        analyses = _extract_candidate_entries(data)
+        if not analyses:
+            return [], {
+                "source": "explicit_input",
+                "counts": {"canonical": 0, "json": 0, "db": 0},
+                "parity": {"status": "empty"},
+                "blocking_error": {"code": 5, "message": f"BLOCKED_S7_GATE_INPUT_EMPTY: explicit gate input contains zero candidates: {path}"},
+            }
         candidates = [_normalise_s3_to_gate_input(a) for a in analyses]
         print(f"[gate_checker] Loaded {len(candidates)} candidates from {path}")
         return candidates, {
@@ -2249,6 +2335,8 @@ def main():
 
     args = parser.parse_args()
     out = AgentOutput("s7_gate", verbose=args.verbose, stop_on_error=args.stop_on_error)
+    json_output_path = _data_dir() / f"{args.date}_s7_gate_results.json"
+    markdown_output_path = _data_dir() / f"{args.date}_s7_gate_results.md"
 
     # V5: Input contract pre-check (warning-only, never blocks)
     _contract = AgentOutput.validate_input_contract("s7_gate", args.date)
@@ -2257,6 +2345,37 @@ def main():
             out.warning(f"Input contract: {_w}")
         for _m in _contract.get("missing", []):
             out.warning(f"Missing input: {_m}")
+
+    if is_non_production_mode() and (
+        is_protected_repo_path(args.input)
+        or is_protected_repo_path(json_output_path)
+        or is_protected_repo_path(markdown_output_path)
+    ):
+        out.error("BLOCKED_S7_GATE_OUTPUT_PROTECTED_PATH: non-production S7 gate IO must stay outside repo-local protected paths.", recoverable=True)
+        write_script_evidence(
+            "S7",
+            status="BLOCK",
+            payload={
+                "s7_input_path": args.input,
+                "s7_json_output": str(json_output_path),
+                "s7_markdown_output": str(markdown_output_path),
+                "total_candidates": 0,
+                "approved_count": 0,
+                "extended_count": 0,
+                "rejected_count": 0,
+                "runtime_mode": os.environ.get("BET_PIPELINE_RUNTIME_MODE"),
+                "production_selectable": False,
+                "betting_decisions_enabled": False,
+                "no_pick_edge_stake_coupon_emitted": True,
+            },
+            sources=("gate_checker",),
+            evidence_refs=(),
+            no_pick_edge_stake_coupon_emitted=True,
+            production_selectable=False,
+            betting_decisions_enabled=False,
+            blocked_reasons=("BLOCKED_S7_GATE_OUTPUT_PROTECTED_PATH",),
+        )
+        sys.exit(5)
 
     candidates, candidate_load = _load_s3_output(args.date, args.input)
 
@@ -2273,6 +2392,7 @@ def main():
 
     if candidate_load.get("blocking_error"):
         error = candidate_load["blocking_error"]
+        out.error(error.get("message", "BLOCKED_S7_GATE_INPUT_INVALID"), recoverable=True)
         out.summary(
             verdict="FAILED",
             metrics={
@@ -2288,12 +2408,35 @@ def main():
             },
             issues=[{"level": "error", "message": error.get("message", "S7 candidate parity failure")}],
         )
-        sys.exit(1)
+        token = error.get("message", "BLOCKED_S7_GATE_INPUT_INVALID").split(":", 1)[0]
+        write_script_evidence(
+            "S7",
+            status="BLOCK",
+            payload={
+                "s7_input_path": args.input,
+                "s7_json_output": str(json_output_path),
+                "s7_markdown_output": str(markdown_output_path),
+                "total_candidates": 0,
+                "approved_count": 0,
+                "extended_count": 0,
+                "rejected_count": 0,
+                "runtime_mode": os.environ.get("BET_PIPELINE_RUNTIME_MODE"),
+                "production_selectable": False,
+                "betting_decisions_enabled": False,
+                "no_pick_edge_stake_coupon_emitted": True,
+            },
+            sources=("gate_checker",),
+            evidence_refs=(),
+            no_pick_edge_stake_coupon_emitted=True,
+            production_selectable=False,
+            betting_decisions_enabled=False,
+            blocked_reasons=(token,),
+        )
+        sys.exit(int(error.get("code", 5) or 5))
 
     if not candidates:
         source = candidate_load.get("source", "none")
-        out.error(f"PRECONDITION_FAILED: 0 candidates loaded from {source} for "
-                  f"{args.date}. Run deep_stats_report.py first (execution-spine STEP 13).")
+        out.error(f"BLOCKED_S7_GATE_INPUT_MISSING: 0 candidates loaded from {source} for {args.date}.", recoverable=True)
         out.summary(
             verdict="FAILED",
             metrics={
@@ -2308,7 +2451,30 @@ def main():
                 "input_canonical_candidates": candidate_load.get("counts", {}).get("canonical", 0),
             },
         )
-        sys.exit(2)
+        write_script_evidence(
+            "S7",
+            status="BLOCK",
+            payload={
+                "s7_input_path": args.input,
+                "s7_json_output": str(json_output_path),
+                "s7_markdown_output": str(markdown_output_path),
+                "total_candidates": 0,
+                "approved_count": 0,
+                "extended_count": 0,
+                "rejected_count": 0,
+                "runtime_mode": os.environ.get("BET_PIPELINE_RUNTIME_MODE"),
+                "production_selectable": False,
+                "betting_decisions_enabled": False,
+                "no_pick_edge_stake_coupon_emitted": True,
+            },
+            sources=("gate_checker",),
+            evidence_refs=(),
+            no_pick_edge_stake_coupon_emitted=True,
+            production_selectable=False,
+            betting_decisions_enabled=False,
+            blocked_reasons=("BLOCKED_S7_GATE_INPUT_MISSING",),
+        )
+        sys.exit(5)
 
     results = run_gate(candidates, args.date, strict=args.strict)
 
@@ -2320,31 +2486,45 @@ def main():
         status="PASS" if results["summary"]["approved_count"] > 0 else "BLOCK",
         payload={
             "artifact_kind": "gate_results",
+            "s7_input_path": args.input,
+            "s7_json_output": str(json_path),
+            "s7_markdown_output": str(md_path),
             "json_output": str(json_path),
             "markdown_output": str(md_path),
+            "total_candidates": results["summary"]["total_candidates"],
             "approved_count": results["summary"]["approved_count"],
             "extended_count": results["summary"]["extended_count"],
             "rejected_count": results["summary"]["rejected_count"],
+            "runtime_mode": os.environ.get("BET_PIPELINE_RUNTIME_MODE"),
+            "production_selectable": False,
+            "betting_decisions_enabled": False,
+            "no_pick_edge_stake_coupon_emitted": True,
         },
         sources=("gate_checker",),
         evidence_refs=(json_path.name, md_path.name),
+        no_pick_edge_stake_coupon_emitted=True,
+        production_selectable=False,
+        betting_decisions_enabled=False,
+        blocked_reasons=("BLOCKED_HARD_APPROVAL_GATE",) if results["summary"]["approved_count"] == 0 else (),
     )
     if evidence_path:
         print(f"[gate_checker] Script evidence: {evidence_path}")
 
-    # Dual-write: save gate results to DB
-    try:
-        from db_data_loader import save_gate_results_to_db
-        all_results = []
-        for bucket in ("approved", "extended_pool", "rejected"):
-            all_results.extend(results.get("gate_results", {}).get(bucket, []))
-        saved = save_gate_results_to_db(args.date, all_results)
-        total = len(all_results)
-        print(f"[gate_checker] DB: persisted {saved}/{total} gate results")
-        if saved < total:
-            print(f"[gate_checker] WARNING: {total - saved} gate results NOT persisted to DB")
-    except Exception as e:
-        out.error(f"DB write failed: {e}", recoverable=True)
+    if is_non_production_mode():
+        print("[gate_checker] DB persistence skipped in non-production runtime")
+    else:
+        try:
+            from db_data_loader import save_gate_results_to_db
+            all_results = []
+            for bucket in ("approved", "extended_pool", "rejected"):
+                all_results.extend(results.get("gate_results", {}).get(bucket, []))
+            saved = save_gate_results_to_db(args.date, all_results)
+            total = len(all_results)
+            print(f"[gate_checker] DB: persisted {saved}/{total} gate results")
+            if saved < total:
+                print(f"[gate_checker] WARNING: {total - saved} gate results NOT persisted to DB")
+        except Exception as e:
+            out.error(f"DB write failed: {e}", recoverable=True)
 
     s = results["summary"]
     diversity = results["gate_results"].get("sport_diversity", {})
@@ -2398,6 +2578,8 @@ def main():
     except Exception:
         pass  # State tracking is non-blocking
 
+    if s["approved_count"] == 0:
+        print("BLOCKED_HARD_APPROVAL_GATE: approved_count == 0")
     sys.exit(0 if s["approved_count"] > 0 else 1)
 
 
