@@ -63,6 +63,12 @@ def test_s7_wrapper_resolves_sandbox_input_and_passes_input_flag(tmp_path: Path)
 
     evidence = json.loads(_canonical_evidence_path(environ).read_text(encoding="utf-8"))
     assert Path(evidence["payload"]["s7_input_path"]).resolve() == input_path.resolve()
+    assert evidence["payload"]["s7_input_source_step"] == "S3"
+    assert evidence["payload"]["s7_input_source_kind"] == "legacy_s3_fallback"
+    assert evidence["payload"]["s7_input_contains_odds"] is False
+    assert evidence["payload"]["s7_input_contains_ev"] is False
+    assert evidence["payload"]["s7_input_contains_safety"] is False
+    assert evidence["payload"]["s7_input_contains_market_count"] is False
     assert evidence["payload"]["s7_json_output"].startswith("/tmp/")
     assert evidence["payload"]["s7_markdown_output"].startswith("/tmp/")
 
@@ -80,3 +86,8 @@ def test_s7_wrapper_missing_input_blocks_with_controlled_reason(tmp_path: Path):
     assert evidence["status"] == "BLOCK"
     assert evidence["blocked_reasons"] == ["BLOCKED_S7_GATE_INPUT_MISSING"]
     assert evidence["payload"]["s7_input_path"] is None
+    assert evidence["payload"]["s7_input_source_step"] == "UNKNOWN"
+    assert evidence["payload"]["s7_input_contains_odds"] is False
+    assert evidence["payload"]["s7_input_contains_ev"] is False
+    assert evidence["payload"]["s7_input_contains_safety"] is False
+    assert evidence["payload"]["s7_input_contains_market_count"] is False
