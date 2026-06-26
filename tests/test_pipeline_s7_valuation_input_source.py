@@ -37,7 +37,7 @@ def _canonical_evidence_path(environ: dict[str, str]) -> Path:
     )
 
 
-def _write_s4_pass_evidence(environ: dict[str, str]) -> None:
+def _write_s4_pass_evidence(environ: dict[str, str], valuation_path: Path | None = None) -> None:
     artifact_dir = Path(environ["BET_PIPELINE_ARTIFACT_DIR"])
     artifact_dir.mkdir(parents=True, exist_ok=True)
     payload = {
@@ -47,6 +47,7 @@ def _write_s4_pass_evidence(environ: dict[str, str]) -> None:
         "status": "PASS",
         "payload": {
             "step_id": "S4",
+            "s4_valuation_output_path": str(valuation_path) if valuation_path else None,
         },
     }
     for path in (
@@ -93,9 +94,8 @@ def test_s7_prefers_s4_valuation_input_over_s3_and_records_evidence(tmp_path: Pa
     environ = _runtime_environ(tmp_path)
     data_dir = Path(environ["BET_PIPELINE_DATA_DIR"])
     data_dir.mkdir(parents=True, exist_ok=True)
-    _write_s4_pass_evidence(environ)
-
     s4_path = _write_json(data_dir / "2026-06-25_s4_valuation_candidates.json", _s4_candidate_payload())
+    _write_s4_pass_evidence(environ, s4_path)
     _write_json(data_dir / "2026-06-25_s3_deep_stats.json", {"analyses": [{"home_team": "Gamma", "away_team": "Delta"}]})
 
     recorded: dict[str, object] = {}
@@ -117,7 +117,7 @@ def test_s7_prefers_s4_valuation_input_over_s3_and_records_evidence(tmp_path: Pa
     evidence = json.loads(_canonical_evidence_path(environ).read_text(encoding="utf-8"))
     assert Path(evidence["payload"]["s7_input_path"]).resolve() == s4_path.resolve()
     assert evidence["payload"]["s7_input_source_step"] == "S4"
-    assert evidence["payload"]["s7_input_source_kind"] == "s4_data_file"
+    assert evidence["payload"]["s7_input_source_kind"] == "s4_evidence_payload"
     assert evidence["payload"]["s7_input_contains_odds"] is True
     assert evidence["payload"]["s7_input_contains_ev"] is True
     assert evidence["payload"]["s7_input_contains_safety"] is True

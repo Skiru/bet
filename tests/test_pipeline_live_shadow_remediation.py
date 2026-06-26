@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import os
 import json
+import subprocess
 import pytest
 import sys
 from pathlib import Path
@@ -169,26 +170,49 @@ def test_missing_market_matrix_returns_controlled_block(tmp_path, clean_env, mon
 
 def test_s4_wrapper_with_mocked_successful_target_scripts_writes_s4_pass_evidence(tmp_path, clean_env, monkeypatch):
     """Verify that S4 wrapper writes S4 PASS evidence when both target scripts succeed and output exists."""
-    data_dir = tmp_path / "betting" / "data"
+    run_root = Path("/tmp") / f"bet-s4-pass-{tmp_path.name}"
+    data_dir = run_root / "data"
     data_dir.mkdir(parents=True, exist_ok=True)
-    # Write a dummy snapshot output so expected outputs check succeeds
-    snapshot_path = data_dir / "odds_api_snapshot.json"
-    snapshot_path.write_text("{}", encoding="utf-8")
+    (data_dir / "2026-06-25_s3_deep_stats.json").write_text(json.dumps({"analyses": [{"fixture_id": 10, "home_team": "Alpha", "away_team": "Beta", "best_market": {"name": "Over 2.5", "safety_score": 0.82}, "markets_evaluated": 4}]}), encoding="utf-8")
     
     environ = {
         "BET_PIPELINE_RUNTIME_MODE": "DRY_RUN",
         "BET_PIPELINE_BETTING_DAY": "2026-06-25",
         "BET_PIPELINE_RUN_ID": "run-999",
-        "BET_PIPELINE_RUN_ROOT": str(tmp_path),
+        "BET_PIPELINE_RUN_ROOT": str(run_root),
         "BET_PIPELINE_DATA_DIR": str(data_dir),
-        "BET_PIPELINE_COUPON_DIR": str(tmp_path / "betting" / "coupons"),
-        "BET_PIPELINE_ARTIFACT_DIR": str(tmp_path / "artifacts"),
+        "BET_PIPELINE_COUPON_DIR": str(run_root / "coupons"),
+        "BET_PIPELINE_ARTIFACT_DIR": str(run_root / "artifacts"),
     }
+
+    def fake_run(cmd, env=None, capture_output=None, text=None):
+        if len(cmd) > 1 and "odds_evaluator.py" in cmd[1]:
+            output_path = Path(cmd[cmd.index("--output") + 1])
+            output_path.write_text(json.dumps({
+                "schema_version": 1,
+                "artifact_type": "S4_VALUATION_CANDIDATES",
+                "betting_day": "2026-06-25",
+                "run_id": "run-999",
+                "created_at_utc": "2026-06-25T00:00:00+00:00",
+                "runtime_mode": "DRY_RUN",
+                "source_input_path": cmd[cmd.index("--input") + 1],
+                "odds_snapshot_paths": [],
+                "candidate_count": 1,
+                "contains_odds": True,
+                "contains_ev": True,
+                "contains_safety": True,
+                "contains_market_count": True,
+                "production_selectable": False,
+                "betting_decisions_enabled": False,
+                "no_pick_edge_stake_coupon_emitted": True,
+                "candidates": [{"fixture_id": 10, "home_team": "Alpha", "away_team": "Beta", "best_market": {"name": "Over 2.5", "safety_score": 0.82}, "market_count": 4, "markets_evaluated": 4, "odds": {"market_best": 1.91}, "ev": 0.11, "safety_score": 0.82, "safety_markets": [], "valuation_warnings": [], "valuation_status": "VALUED"}],
+            }), encoding="utf-8")
+        return subprocess.CompletedProcess(cmd, 0, stdout="", stderr="")
     
-    with patch("scripts.pipeline_steps.s4_valuator.run_scripts") as mock_run_scripts, \
-         patch("argparse.ArgumentParser.parse_args") as mock_args, \
-         pytest.raises(SystemExit) as exc_info, \
-         patch.dict(os.environ, environ):
+    with patch("argparse.ArgumentParser.parse_args") as mock_args, \
+          pytest.raises(SystemExit) as exc_info, \
+         patch.dict(os.environ, environ), \
+         patch("subprocess.run", side_effect=fake_run):
         
         mock_args.return_value = MagicMock(
             date="2026-06-25",
@@ -199,39 +223,40 @@ def test_s4_wrapper_with_mocked_successful_target_scripts_writes_s4_pass_evidenc
             dry_run=True,
         )
         
-        # Mock run_scripts for both fetch and evaluate to succeed
-        mock_run_scripts.return_value = 0
-        
         s4_valuator.main()
         
     assert exc_info.value.code == 0
         
-    ev_path = tmp_path / "pipeline_runs" / "2026-06-25" / "run-999" / "artifacts" / "S4.json"
+    ev_path = run_root / "pipeline_runs" / "2026-06-25" / "run-999" / "artifacts" / "S4.json"
     assert ev_path.exists()
     ev_data = json.loads(ev_path.read_text(encoding="utf-8"))
     assert ev_data["status"] == "PASS"
 
 
 def test_s4_wrapper_with_missing_odds_snapshot_writes_s4_block_evidence(tmp_path, clean_env, monkeypatch):
-    """Verify that S4 wrapper writes S4 BLOCK evidence when expected odds snapshot is missing."""
-    data_dir = tmp_path / "betting" / "data"
+    """Verify that S4 wrapper writes S4 BLOCK evidence when evaluator produces no valuation output."""
+    run_root = Path("/tmp") / f"bet-s4-missing-{tmp_path.name}"
+    data_dir = run_root / "data"
     data_dir.mkdir(parents=True, exist_ok=True)
-    # Explicitly do NOT write odds_api_snapshot.json
+    (data_dir / "2026-06-25_s3_deep_stats.json").write_text(json.dumps({"analyses": [{"fixture_id": 10, "home_team": "Alpha", "away_team": "Beta"}]}), encoding="utf-8")
     
     environ = {
         "BET_PIPELINE_RUNTIME_MODE": "DRY_RUN",
         "BET_PIPELINE_BETTING_DAY": "2026-06-25",
         "BET_PIPELINE_RUN_ID": "run-999",
-        "BET_PIPELINE_RUN_ROOT": str(tmp_path),
+        "BET_PIPELINE_RUN_ROOT": str(run_root),
         "BET_PIPELINE_DATA_DIR": str(data_dir),
-        "BET_PIPELINE_COUPON_DIR": str(tmp_path / "betting" / "coupons"),
-        "BET_PIPELINE_ARTIFACT_DIR": str(tmp_path / "artifacts"),
+        "BET_PIPELINE_COUPON_DIR": str(run_root / "coupons"),
+        "BET_PIPELINE_ARTIFACT_DIR": str(run_root / "artifacts"),
     }
+
+    def fake_run(cmd, env=None, capture_output=None, text=None):
+        return subprocess.CompletedProcess(cmd, 0, stdout="", stderr="")
     
-    with patch("scripts.pipeline_steps.s4_valuator.run_scripts") as mock_run_scripts, \
-         patch("argparse.ArgumentParser.parse_args") as mock_args, \
-         pytest.raises(SystemExit) as exc_info, \
-         patch.dict(os.environ, environ):
+    with patch("argparse.ArgumentParser.parse_args") as mock_args, \
+          pytest.raises(SystemExit) as exc_info, \
+         patch.dict(os.environ, environ), \
+         patch("subprocess.run", side_effect=fake_run):
         
         mock_args.return_value = MagicMock(
             date="2026-06-25",
@@ -242,33 +267,32 @@ def test_s4_wrapper_with_missing_odds_snapshot_writes_s4_block_evidence(tmp_path
             dry_run=True,
         )
         
-        # Subprocesses return 0, but since output is missing it blocks
-        mock_run_scripts.return_value = 0
-        
         s4_valuator.main()
         
     assert exc_info.value.code == 1
         
-    ev_path = tmp_path / "pipeline_runs" / "2026-06-25" / "run-999" / "artifacts" / "S4.json"
+    ev_path = run_root / "pipeline_runs" / "2026-06-25" / "run-999" / "artifacts" / "S4.json"
     assert ev_path.exists()
     ev_data = json.loads(ev_path.read_text(encoding="utf-8"))
     assert ev_data["status"] == "BLOCK"
-    assert "BLOCKED_LIVE_SOURCE_MISSING" in ev_data["blocked_reasons"]
+    assert "BLOCKED_S4_VALUATION_OUTPUT_MISSING" in ev_data["blocked_reasons"]
 
 
 def test_s4_wrapper_with_target_failure_writes_s4_failed_evidence(tmp_path, clean_env, monkeypatch):
     """Verify that S4 wrapper writes S4 FAILED evidence when a subprocess fails unexpectedly."""
-    data_dir = tmp_path / "betting" / "data"
+    run_root = Path("/tmp") / f"bet-s4-fail-{tmp_path.name}"
+    data_dir = run_root / "data"
     data_dir.mkdir(parents=True, exist_ok=True)
+    (data_dir / "2026-06-25_s3_deep_stats.json").write_text(json.dumps({"analyses": [{"fixture_id": 10, "home_team": "Alpha", "away_team": "Beta"}]}), encoding="utf-8")
     
     environ = {
         "BET_PIPELINE_RUNTIME_MODE": "DRY_RUN",
         "BET_PIPELINE_BETTING_DAY": "2026-06-25",
         "BET_PIPELINE_RUN_ID": "run-999",
-        "BET_PIPELINE_RUN_ROOT": str(tmp_path),
+        "BET_PIPELINE_RUN_ROOT": str(run_root),
         "BET_PIPELINE_DATA_DIR": str(data_dir),
-        "BET_PIPELINE_COUPON_DIR": str(tmp_path / "betting" / "coupons"),
-        "BET_PIPELINE_ARTIFACT_DIR": str(tmp_path / "artifacts"),
+        "BET_PIPELINE_COUPON_DIR": str(run_root / "coupons"),
+        "BET_PIPELINE_ARTIFACT_DIR": str(run_root / "artifacts"),
     }
     
     with patch("scripts.pipeline_steps.s4_valuator.run_scripts") as mock_run_scripts, \
@@ -292,7 +316,7 @@ def test_s4_wrapper_with_target_failure_writes_s4_failed_evidence(tmp_path, clea
         
     assert exc_info.value.code == 99
         
-    ev_path = tmp_path / "pipeline_runs" / "2026-06-25" / "run-999" / "artifacts" / "S4.json"
+    ev_path = run_root / "pipeline_runs" / "2026-06-25" / "run-999" / "artifacts" / "S4.json"
     assert ev_path.exists()
     ev_data = json.loads(ev_path.read_text(encoding="utf-8"))
     assert ev_data["status"] == "FAILED"
