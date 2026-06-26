@@ -51,6 +51,27 @@ def _canonical_evidence_path(environ: dict[str, str], step_id: str) -> Path:
     )
 
 
+def _seed_s3_shortlist(environ: dict[str, str]) -> None:
+    data_dir = Path(environ["BET_PIPELINE_DATA_DIR"])
+    data_dir.mkdir(parents=True, exist_ok=True)
+    (data_dir / f"{environ['BET_PIPELINE_BETTING_DAY']}_s2_shortlist.json").write_text(
+        json.dumps(
+            {
+                "candidates": [
+                    {
+                        "sport": "football",
+                        "home_team": "Alpha",
+                        "away_team": "Beta",
+                        "competition": "Test League",
+                        "kickoff": "2026-06-25T18:00:00+00:00",
+                    }
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+
+
 @pytest.mark.parametrize("step_id,module,argv0,expected_scripts,message,expected_reason", NORMALIZATION_CASES)
 def test_wrapper_contract_matrix_normalizes_controlled_block_outputs(
     step_id: str,
@@ -63,15 +84,24 @@ def test_wrapper_contract_matrix_normalizes_controlled_block_outputs(
     environ = _runtime_environ(step_id)
     argv = [argv0, "--date", "2026-06-25", "--run-id", environ["BET_PIPELINE_RUN_ID"], "--runtime-mode", "DRY_RUN", "--dry-run"]
 
+    if step_id == "S3":
+        _seed_s3_shortlist(environ)
+
     def _controlled(*args, **kwargs):
         print(message)
         return 5
 
-    with patch.dict(os.environ, environ, clear=False), \
-         patch.object(sys, "argv", argv), \
-         patch("scripts.pipeline_steps._script_evidence.run_scripts", side_effect=_controlled):
-        with pytest.raises(SystemExit) as exc_info:
-            module.main()
+    def _s3_controlled(*args, **kwargs):
+        return (5, f"{message}\n")
+
+    with patch.dict(os.environ, environ, clear=False), patch.object(sys, "argv", argv):
+        if step_id == "S3":
+            patch_target = patch("scripts.pipeline_steps.s3_stats._invoke_deep_stats_report", side_effect=_s3_controlled)
+        else:
+            patch_target = patch("scripts.pipeline_steps._script_evidence.run_scripts", side_effect=_controlled)
+        with patch_target:
+            with pytest.raises(SystemExit) as exc_info:
+                module.main()
 
     assert exc_info.value.code == 5
     evidence = json.loads(_canonical_evidence_path(environ, step_id).read_text(encoding="utf-8"))
@@ -101,15 +131,24 @@ def test_wrapper_contract_matrix_generic_controlled_phrases_map_to_expected_reas
     environ = _runtime_environ(step_id)
     argv = [argv0, "--date", "2026-06-25", "--run-id", environ["BET_PIPELINE_RUN_ID"], "--runtime-mode", "DRY_RUN", "--dry-run"]
 
+    if step_id == "S3":
+        _seed_s3_shortlist(environ)
+
     def _controlled(*args, **kwargs):
         print(message)
         return 6
 
-    with patch.dict(os.environ, environ, clear=False), \
-         patch.object(sys, "argv", argv), \
-         patch("scripts.pipeline_steps._script_evidence.run_scripts", side_effect=_controlled):
-        with pytest.raises(SystemExit) as exc_info:
-            module.main()
+    def _s3_controlled(*args, **kwargs):
+        return (6, f"{message}\n")
+
+    with patch.dict(os.environ, environ, clear=False), patch.object(sys, "argv", argv):
+        if step_id == "S3":
+            patch_target = patch("scripts.pipeline_steps.s3_stats._invoke_deep_stats_report", side_effect=_s3_controlled)
+        else:
+            patch_target = patch("scripts.pipeline_steps._script_evidence.run_scripts", side_effect=_controlled)
+        with patch_target:
+            with pytest.raises(SystemExit) as exc_info:
+                module.main()
 
     assert exc_info.value.code == 6
     evidence = json.loads(_canonical_evidence_path(environ, step_id).read_text(encoding="utf-8"))

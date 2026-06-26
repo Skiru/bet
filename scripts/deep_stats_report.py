@@ -48,6 +48,9 @@ except ImportError:
 import os
 DATA_DIR = Path(os.environ.get("BET_PIPELINE_DATA_DIR", str(Path(__file__).parent.parent / "betting" / "data")))
 CACHE_DIR = DATA_DIR / "stats_cache"
+ROOT = Path(__file__).resolve().parents[1]
+REPO_DATA_DIR = (ROOT / "betting" / "data").resolve()
+NON_PRODUCTION_RUNTIME_MODES = {"DRY_RUN", "LIVE_SHADOW", "CERTIFICATION"}
 
 
 # ---------------------------------------------------------------------------
@@ -111,6 +114,29 @@ def _check_pipeline_candidates_precondition(date: str, shortlist: str | None = N
                 f"pipeline_candidates has 0 rows for {date}. "
                 "Run build_shortlist.py first (execution-spine STEP 7)."
             )
+
+
+def _current_runtime_mode() -> str:
+    return str(os.environ.get("BET_PIPELINE_RUNTIME_MODE", "")).upper()
+
+
+def _path_is_repo_local_betting_data(path: Path) -> bool:
+    try:
+        path.expanduser().resolve().relative_to(REPO_DATA_DIR)
+        return True
+    except ValueError:
+        return False
+    except OSError:
+        return False
+
+
+def _validate_explicit_shortlist_path(path_value: str) -> Path:
+    shortlist_path = Path(path_value).expanduser().resolve()
+    if _current_runtime_mode() in NON_PRODUCTION_RUNTIME_MODES and _path_is_repo_local_betting_data(shortlist_path):
+        raise ValueError(
+            "BLOCKED_S3_SHORTLIST_INVALID: repo-local betting/data shortlist rejected in non-production runtime"
+        )
+    return shortlist_path
 
 
 def compute_data_quality(stats_a: dict, stats_b: dict, h2h: dict, sport: str) -> dict:
@@ -1816,34 +1842,6 @@ def generate_deep_stats(date: str, shortlist_path: str | None = None, top: int |
         # Explicit shortlist file overrides everything
         candidates = _load_candidates_from_shortlist(shortlist_path)
         source = f"shortlist:{shortlist_path}"
-
-        # ⛔ CRITICAL VALIDATION (post-mortem 2026-05-24): deep_stats was run with
-        # esports_shortlist.json (3 events) instead of s2_shortlist.json (552).
-        # This caused 549 events to NEVER be analyzed. NEVER REPEAT THIS.
-        MIN_CANDIDATES_SHORTLIST = 10
-        if len(candidates) < MIN_CANDIDATES_SHORTLIST:
-            expected_path = f"betting/data/{date}_s2_shortlist.json"
-            print(f"\n{'='*70}")
-            print(f"⛔ SHORTLIST SANITY CHECK FAILED!")
-            print(f"   Loaded only {len(candidates)} candidates from: {shortlist_path}")
-            print(f"   Expected minimum: {MIN_CANDIDATES_SHORTLIST}")
-            print(f"   Did you mean to use: {expected_path} ?")
-            print(f"{'='*70}\n")
-            # Check if the real shortlist exists and is bigger
-            real_shortlist = Path(expected_path)
-            if real_shortlist.exists():
-                try:
-                    real_data = json.loads(real_shortlist.read_text(encoding="utf-8"))
-                    real_count = len(real_data.get("candidates", real_data.get("events", [])))
-                    if real_count > len(candidates):
-                        print(f"   ⚠️  FOUND REAL SHORTLIST: {expected_path} has {real_count} candidates!")
-                        print(f"   ⚠️  SWITCHING to real shortlist automatically.")
-                        print(f"{'='*70}\n")
-                        candidates = _load_candidates_from_shortlist(expected_path)
-                        source = f"shortlist:{expected_path} (auto-corrected from {shortlist_path})"
-                except Exception as e:
-                    logger.debug("Non-critical failure in cache read / DB lookup: %s", e)
-                    pass
     elif from_db:
         # Explicit DB-first mode
         candidates = _load_candidates_from_db(date)
@@ -2257,6 +2255,13 @@ def main():
 
     args = parser.parse_args()
     out = AgentOutput("s3_deep", verbose=args.verbose, stop_on_error=args.stop_on_error)
+
+    if args.shortlist:
+        try:
+            args.shortlist = str(_validate_explicit_shortlist_path(args.shortlist))
+        except ValueError as e:
+            out.error(str(e))
+            sys.exit(2)
 
     # V5: Input contract pre-check (warning-only, never blocks)
     _contract = AgentOutput.validate_input_contract("s3_deep_stats", args.date)
