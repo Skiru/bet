@@ -162,6 +162,9 @@ def main() -> None:
                 "s4_contains_ev": bool(valuation_output.get("contains_ev", False)),
                 "s4_contains_safety": bool(valuation_output.get("contains_safety", False)),
                 "s4_contains_market_count": bool(valuation_output.get("contains_market_count", False)),
+                "s4_candidates_with_ev": valuation_output.get("candidates_with_ev"),
+                "s4_positive_ev_count": valuation_output.get("positive_ev_count"),
+                "s4_ev_missing_reason_counts": valuation_output.get("ev_missing_reason_counts"),
                 "odds_snapshot_paths": _odds_snapshot_paths(child_env),
             }
         )
