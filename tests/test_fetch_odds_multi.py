@@ -2,6 +2,7 @@
 
 import csv
 import json
+import importlib
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -12,6 +13,7 @@ from scripts.fetch_odds_multi import (
     _load_source,
     load_configured_sports,
 )
+from scripts.odds_sources import SPORT_SOURCE_PRIORITY
 
 
 # ===========================================================================
@@ -109,7 +111,7 @@ class TestLoadConfiguredSports:
         monkeypatch.setattr("scripts.fetch_odds_multi.CONFIG_DIR", tmp_path / "nonexistent")
         sports = load_configured_sports()
         # Should return defaults from SPORT_SOURCE_PRIORITY
-        assert len(sports) == 5
+        assert sports == list(SPORT_SOURCE_PRIORITY.keys())
 
 
 # ===========================================================================
@@ -157,7 +159,7 @@ class TestMultiScanMerge:
         assert len(events) == 1
         bm_keys = {bm["key"] for bm in events[0]["bookmakers"]}
         assert "pinnacle" in bm_keys
-        assert "betclic-pl" in bm_keys
+        assert "betclic_pl" in bm_keys
 
     def test_different_events_not_merged(self, mock_data_dir, mock_config):
         """Different matches from same source remain separate."""
@@ -268,6 +270,35 @@ class TestMultiScanDryRun:
 
         src.fetch_odds.assert_not_called()
         assert result is None  # dry_run returns early
+
+
+class TestMultiScanAccessGate:
+    def test_disabled_oddspapi_not_imported(self, mock_data_dir, mock_config, monkeypatch):
+        monkeypatch.delenv("ODDSPAPI_ENABLE_SHADOW", raising=False)
+        monkeypatch.delenv("ODDSPAPI_ENABLE_LIVE", raising=False)
+        monkeypatch.delenv("ODDSPAPI_LIVE_CERTIFIED", raising=False)
+
+        real_import = importlib.import_module
+
+        def guarded_import(name, package=None):
+            if name == "odds_sources.oddspapi":
+                raise AssertionError("disabled oddspapi should not be imported")
+            return real_import(name, package)
+
+        with patch("importlib.import_module", side_effect=guarded_import), \
+             patch("scripts.fetch_odds_multi.load_configured_sports", return_value=["football"]):
+            events = run_multi_scan(sport_filter=["football"], source_filter=["oddspapi"])
+
+        assert events == []
+        provenance = json.loads((mock_data_dir / "odds_multi_sources.json").read_text())
+        assert provenance["skipped_sources"] == [
+            {
+                "sport": "football",
+                "source": "oddspapi",
+                "reason": "disabled_by_access_gate_fail_access_fixtures",
+                "mode": "disabled",
+            }
+        ]
 
 
 # ===========================================================================
