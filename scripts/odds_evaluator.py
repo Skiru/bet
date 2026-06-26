@@ -167,9 +167,19 @@ def _build_valuation_candidate(candidate: dict) -> dict:
     odds = candidate.get("odds") if isinstance(candidate.get("odds"), dict) else {}
     market_count = candidate.get("market_count")
     markets_evaluated = candidate.get("markets_evaluated")
-    probability = candidate.get("probability")
-    if probability is None and isinstance(best_market, dict):
+    
+    # Precedence: best_market.probability > top-level.probability > hit_rate_l10
+    probability = None
+    if isinstance(best_market, dict) and best_market.get("probability") is not None:
         probability = best_market.get("probability")
+    else:
+        for k in ("probability", "model_probability", "prob"):
+            if candidate.get(k) is not None:
+                probability = candidate.get(k)
+                break
+    if probability is None:
+        probability = candidate.get("hit_rate_l10") or best_market.get("hit_rate_l10")
+
     has_odds = bool(odds) or candidate.get("best_odds") is not None
     has_ev = candidate.get("ev") is not None
     has_safety = _candidate_safety_score(candidate) is not None or bool(candidate.get("safety_markets"))
@@ -191,6 +201,8 @@ def _build_valuation_candidate(candidate: dict) -> dict:
         "odds_source": candidate.get("odds_source"),
         "ev": candidate.get("ev"),
         "ev_source": candidate.get("ev_source"),
+        "ev_components": candidate.get("ev_components"),
+        "ev_missing_reason": candidate.get("ev_missing_reason"),
         "safety_score": _candidate_safety_score(candidate),
         "safety_markets": candidate.get("safety_markets") if isinstance(candidate.get("safety_markets"), list) else [],
         "valuation_warnings": _valuation_warnings(candidate, has_odds, has_ev, has_safety),
@@ -207,6 +219,14 @@ def _build_valuation_output(
     source_input_path: Path | None,
 ) -> dict:
     valuation_candidates = [_build_valuation_candidate(candidate) for candidate in candidates]
+    
+    from collections import Counter
+    reasons = [c.get("ev_missing_reason") for c in valuation_candidates if c.get("ev_missing_reason") is not None]
+    ev_missing_reason_counts = dict(Counter(reasons))
+    
+    candidates_with_ev = sum(1 for c in valuation_candidates if c.get("ev") is not None)
+    positive_ev_count = sum(1 for c in valuation_candidates if c.get("ev") is not None and c.get("ev") > 0)
+
     return {
         "schema_version": 1,
         "artifact_type": "S4_VALUATION_CANDIDATES",
@@ -221,6 +241,9 @@ def _build_valuation_output(
         "contains_ev": any(candidate.get("ev") is not None for candidate in valuation_candidates),
         "contains_safety": any(candidate.get("safety_score") is not None or candidate.get("safety_markets") for candidate in valuation_candidates),
         "contains_market_count": any(candidate.get("market_count") is not None or candidate.get("markets_evaluated") is not None for candidate in valuation_candidates),
+        "candidates_with_ev": candidates_with_ev,
+        "positive_ev_count": positive_ev_count,
+        "ev_missing_reason_counts": ev_missing_reason_counts,
         "production_selectable": False,
         "betting_decisions_enabled": False,
         "no_pick_edge_stake_coupon_emitted": True,
@@ -707,18 +730,49 @@ def _inject_ev_from_odds(candidates: list[dict], date: str):
         except (json.JSONDecodeError, OSError):
             pass
 
-    if not odds_lookup:
-        return
-
     injected = 0
     odds_enriched = 0
     for c in candidates:
+        best_market = c.get("best_market") or {}
+        market_name = best_market.get("name")
+        has_market = bool(market_name)
+        
+        # Precedence: best_market.probability > top-level.probability > hit_rate_l10
+        prob_val = None
+        prob_src = None
+        
+        # 1. best_market probability
+        if isinstance(best_market, dict) and best_market.get("probability") is not None:
+            prob_val = best_market.get("probability")
+            prob_src = "best_market.probability"
+        # 2. top-level candidate probability
+        else:
+            for k in ("probability", "model_probability", "prob"):
+                if c.get(k) is not None:
+                    prob_val = c.get(k)
+                    prob_src = "candidate.probability"
+                    break
+        # 3. hit_rate_l10 fallback
+        if prob_val is None:
+            if c.get("hit_rate_l10") is not None:
+                prob_val = c.get("hit_rate_l10")
+                prob_src = "hit_rate_l10"
+            elif isinstance(best_market, dict) and best_market.get("hit_rate_l10") is not None:
+                prob_val = best_market.get("hit_rate_l10")
+                prob_src = "hit_rate_l10"
+
+        p_val = _coerce_probability(prob_val) if prob_val is not None else None
+        if p_val is None:
+            prob_src = None
+        has_prob = p_val is not None
+
         home = _norm_team(c.get("home_team") or "")
         away = _norm_team(c.get("away_team") or "")
         key = f"{home}|{away}"
-        entry = odds_lookup.get(key)
+        entry = odds_lookup.get(key) if odds_lookup else None
+        
         # Fuzzy fallback: use names_match() for robust team matching
-        if not entry:
+        if odds_lookup and not entry:
             best_score = 0
             for ok, ov in odds_lookup.items():
                 parts = ok.split("|", 1)
@@ -732,113 +786,132 @@ def _inject_ev_from_odds(candidates: list[dict], date: str):
                     if combined > best_score:
                         best_score = combined
                         entry = ov
-        if not entry:
-            continue
-
-        # Always inject odds data (even without probability — for coupon builder)
-        best_market = c.get("best_market") or {}
 
         # Determine which odds to use: Betclic first, then Bet365, then market_best
-        betclic_odds = entry.get("betclic")
-        bet365_odds = entry.get("bet365")
-        market_best = entry.get("market_best", 0)
-        # Pick best available odds for the candidate
-        use_odds = betclic_odds or bet365_odds or (market_best if market_best > 1.0 else None)
+        use_odds = None
+        if entry:
+            betclic_odds = entry.get("betclic")
+            bet365_odds = entry.get("bet365")
+            market_best = entry.get("market_best", 0)
+            use_odds = betclic_odds or bet365_odds or (market_best if market_best > 1.0 else None)
 
-        if use_odds:
-            c.setdefault("odds", {})["market_best"] = use_odds
-            if betclic_odds:
-                c["odds"]["betclic"] = betclic_odds
-                c["odds_source"] = "betclic"
-            elif bet365_odds:
-                c["odds"]["bet365"] = bet365_odds
-                c["odds_source"] = "api"
-            else:
-                c["odds_source"] = "api"
-            odds_enriched += 1
+            if use_odds:
+                c.setdefault("odds", {})["market_best"] = use_odds
+                if betclic_odds:
+                    c["odds"]["betclic"] = betclic_odds
+                    c["odds_source"] = "betclic"
+                elif bet365_odds:
+                    c["odds"]["bet365"] = bet365_odds
+                    c["odds_source"] = "api"
+                else:
+                    c["odds_source"] = "api"
+                odds_enriched += 1
 
-        # Inject totals data for statistical market matching
-        if entry.get("totals"):
-            c.setdefault("odds", {})["totals"] = entry["totals"]
+            if entry.get("totals"):
+                c.setdefault("odds", {})["totals"] = entry["totals"]
 
-        # EV calculation (skip if already has EV)
+        # If EV already exists (e.g. from value_bets), populate components and skip
         if c.get("ev") is not None:
+            c["ev_components"] = {
+                "probability": p_val,
+                "probability_source": prob_src,
+                "odds": (c.get("odds") or {}).get("market_best"),
+                "odds_source": c.get("ev_source"),
+                "odds_matched_market": "value_bet",
+                "market_name": market_name,
+                "market_line": best_market.get("line") if isinstance(best_market, dict) else None,
+                "market_direction": best_market.get("direction") if isinstance(best_market, dict) else None,
+            }
+            c["ev_missing_reason"] = None
             continue
-        
-        market_name = (best_market.get("name") or "").lower()
-        is_ml_market = any(kw in market_name for kw in ("winner", "ml", "match winner", "moneyline", "1x2"))
-        is_totals_market = any(kw in market_name for kw in ("o/u", "over", "under", "total", "corners", "fouls", "cards", "shots", "games", "sets", "frames", "points", "goals"))
 
-        prob = best_market.get("probability")
-        safety = best_market.get("safety_score")
-        hit_rate = best_market.get("hit_rate_l10")
-        
-        # For totals/statistical markets, try to find matching line in DB totals
+        is_ml_market = any(kw in market_name.lower() for kw in ("winner", "ml", "match winner", "moneyline", "1x2")) if has_market else False
+        is_totals_market = any(kw in market_name.lower() for kw in ("o/u", "over", "under", "total", "corners", "fouls", "cards", "shots", "games", "sets", "frames", "points", "goals")) if has_market else False
+
         matched_odds = None
-        if is_totals_market and entry.get("totals"):
-            line = best_market.get("line")
-            direction = (best_market.get("direction") or "").upper()
-            if line is not None:
-                # Determine which DB market_keys are relevant for this analysis market
-                relevant_keys = _relevant_market_keys(market_name)
-                # First pass: try to match line from relevant market_key
-                for tl in entry["totals"]:
-                    tl_key = tl.get("market_key", "totals")
-                    if relevant_keys and tl_key not in relevant_keys:
-                        continue
-                    if abs(tl.get("line", 0) - float(line)) < 0.01:
-                        if "OVER" in direction and tl.get("over"):
-                            if matched_odds is None or tl["over"] > matched_odds:
-                                matched_odds = tl["over"]
-                        elif "UNDER" in direction and tl.get("under"):
-                            if matched_odds is None or tl["under"] > matched_odds:
-                                matched_odds = tl["under"]
-                # Fallback: if no relevant-key match, try any totals line
-                if matched_odds is None:
+        odds_src = None
+        odds_matched_market = None
+
+        if entry:
+            if is_totals_market and entry.get("totals"):
+                line = best_market.get("line")
+                direction = (best_market.get("direction") or "").upper()
+                if line is not None:
+                    relevant_keys = _relevant_market_keys(market_name)
+                    # First pass: try to match line from relevant market_key
                     for tl in entry["totals"]:
+                        tl_key = tl.get("market_key", "totals")
+                        if relevant_keys and tl_key not in relevant_keys:
+                            continue
                         if abs(tl.get("line", 0) - float(line)) < 0.01:
                             if "OVER" in direction and tl.get("over"):
                                 if matched_odds is None or tl["over"] > matched_odds:
                                     matched_odds = tl["over"]
+                                    odds_src = "db+api-composite" if tl.get("bookmaker") else "api"
+                                    odds_matched_market = tl_key
                             elif "UNDER" in direction and tl.get("under"):
                                 if matched_odds is None or tl["under"] > matched_odds:
                                     matched_odds = tl["under"]
-        elif is_ml_market:
-            # ML market — use ML odds directly
-            matched_odds = use_odds
-        
-        # Only calculate EV when odds match the analyzed market
-        # Priority: probability model > hit_rate_l10 (safety_score is NOT a probability)
-        p = prob or hit_rate
-        odds_for_ev = matched_odds or (use_odds if is_ml_market else None)
+                                    odds_src = "db+api-composite" if tl.get("bookmaker") else "api"
+                                    odds_matched_market = tl_key
+                    # Fallback: if no relevant-key match, try any totals line
+                    if matched_odds is None:
+                        for tl in entry["totals"]:
+                            if abs(tl.get("line", 0) - float(line)) < 0.01:
+                                if "OVER" in direction and tl.get("over"):
+                                    if matched_odds is None or tl["over"] > matched_odds:
+                                        matched_odds = tl["over"]
+                                        odds_src = "db+api-composite" if tl.get("bookmaker") else "api"
+                                        odds_matched_market = "totals"
+                                elif "UNDER" in direction and tl.get("under"):
+                                    if matched_odds is None or tl["under"] > matched_odds:
+                                        matched_odds = tl["under"]
+                                        odds_src = "db+api-composite" if tl.get("bookmaker") else "api"
+                                        odds_matched_market = "totals"
+            elif is_ml_market:
+                matched_odds = use_odds
+                odds_src = c.get("odds_source") or "api"
+                odds_matched_market = "ml"
 
-        # Fallback: for totals markets without API odds, estimate using standard
-        # bookmaker pricing. Betclic/Bet365 typically offer 1.80-1.95 for O/U near
-        # the balanced line. Use 1.87 as midpoint estimate (5% vig on each side).
-        if not odds_for_ev and is_totals_market and p:
-            odds_for_ev = 1.87  # Standard balanced O/U pricing
+        # Fallback: standard bookmaker pricing estimate for totals
+        if not matched_odds and is_totals_market and has_prob:
+            matched_odds = 1.87  # Standard balanced O/U pricing
             c["ev_source_note"] = "estimated_odds_1.87 (no API match for this market)"
+            odds_src = "estimated"
+            odds_matched_market = "estimated"
 
-        if p and odds_for_ev:
-            # Parse probability value — handles multiple formats:
-            # - fraction string "5/10" → 0.5
-            # - percentage "75" or "75%" → 0.75
-            # - decimal 0.65 → 0.65
-            try:
-                p_str = str(p).strip().rstrip("%")
-                if "/" in p_str:
-                    num, den = p_str.split("/", 1)
-                    p_val = float(num) / float(den)
-                else:
-                    p_val = float(p_str)
-                    if p_val > 1.0:
-                        p_val = p_val / 100.0
-            except (ValueError, ZeroDivisionError):
-                continue
+        odds_for_ev = matched_odds
+
+        ev = None
+        if has_prob and odds_for_ev is not None:
             ev = round(p_val * float(odds_for_ev) - 1, 4)
-            c["ev"] = ev
-            c["ev_source"] = c.get("ev_source") or ("db+api-composite" if matched_odds else "estimated")
             injected += 1
+
+        c["ev"] = ev
+        c["ev_source"] = odds_src if ev is not None else None
+
+        ev_missing_reason = None
+        if ev is None:
+            if not has_prob:
+                ev_missing_reason = "MISSING_PROBABILITY"
+            elif not has_market:
+                ev_missing_reason = "MISSING_ANALYZED_MARKET"
+            elif odds_for_ev is None:
+                ev_missing_reason = "MISSING_MATCHED_ODDS"
+            else:
+                ev_missing_reason = "UNSUPPORTED_MARKET_SHAPE"
+
+        c["ev_missing_reason"] = ev_missing_reason
+        c["ev_components"] = {
+            "probability": p_val,
+            "probability_source": prob_src,
+            "odds": odds_for_ev,
+            "odds_source": odds_src,
+            "odds_matched_market": odds_matched_market,
+            "market_name": market_name if has_market else None,
+            "market_line": best_market.get("line") if isinstance(best_market, dict) else None,
+            "market_direction": best_market.get("direction") if isinstance(best_market, dict) else None,
+        }
 
     print(f"  → Odds enriched: {odds_enriched}/{len(candidates)} candidates")
     if injected:
