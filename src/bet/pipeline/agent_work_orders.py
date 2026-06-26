@@ -10,6 +10,7 @@ from typing import Any
 
 from bet.pipeline.run_evidence import utc_now_iso, write_json_atomic
 from bet.pipeline.artifact_gate import artifact_path_for
+from bet.pipeline.runtime_paths import resolve_run_root, runtime_artifact_dir
 
 
 @dataclass
@@ -386,6 +387,37 @@ def expected_agent_artifact_path_for(
     return artifact_path_for(base_dir, betting_day, run_id, step_id)
 
 
+def _script_evidence_candidates(
+    base_dir: Path,
+    betting_day: str,
+    run_id: str,
+    step_id: str,
+) -> tuple[Path, ...]:
+    run_root = resolve_run_root(betting_day, run_id, base_dir)
+    runtime_artifacts = runtime_artifact_dir(run_root)
+    return (
+        artifact_path_for(run_root, betting_day, run_id, step_id),
+        runtime_artifacts / f"{step_id}.json",
+        artifact_path_for(base_dir, betting_day, run_id, step_id),
+    )
+
+
+def _resolve_input_ref_path(
+    step_id: str,
+    artifact_kind: str,
+    base_dir: Path,
+    betting_day: str,
+    run_id: str,
+) -> Path:
+    if artifact_kind == "SCRIPT_EVIDENCE":
+        candidates = _script_evidence_candidates(base_dir, betting_day, run_id, step_id)
+        for candidate in candidates:
+            if candidate.is_file():
+                return candidate
+        return candidates[0]
+    return artifact_path_for(base_dir, betting_day, run_id, step_id)
+
+
 def discover_input_refs_for_step(
     step_id: str,
     base_dir: Path,
@@ -400,10 +432,10 @@ def discover_input_refs_for_step(
             kind = "SCRIPT_EVIDENCE"
         else:
             kind = "AGENT_ARTIFACT"
-        
-        path = artifact_path_for(base_dir, betting_day, run_id, dep_id)
+
+        path = _resolve_input_ref_path(dep_id, kind, Path(base_dir), betting_day, run_id)
         sha256 = calculate_sha256(path)
-        
+
         input_refs.append(
             AgentWorkOrderInputRef(
                 step_id=dep_id,
