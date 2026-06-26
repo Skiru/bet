@@ -9,6 +9,7 @@ import re
 import sys
 import unicodedata
 from pathlib import Path
+from typing import Any
 
 # Ensure scripts/ is on path for sibling imports
 _SCRIPTS_DIR = Path(__file__).resolve().parent
@@ -18,6 +19,11 @@ if str(_SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS_DIR))
 
 from utils import normalize_team_name
+
+try:
+    from bet.odds_merge import merge_event_odds as _market_safe_merge_event_odds
+except ImportError:
+    _market_safe_merge_event_odds = None
 
 
 class OddsSource(ABC):
@@ -92,13 +98,92 @@ def events_match(a: dict, b: dict, time_tolerance_hours: float = 2.0) -> bool:
 
 
 def merge_event_odds(existing: dict, new: dict) -> dict:
-    """Merge bookmakers from new event into existing event. Dedup by bookmaker key."""
+    """Merge odds with market-safe same-bookmaker behavior."""
+    if _market_safe_merge_event_odds is not None:
+        return _market_safe_merge_event_odds(existing, new)
+
     merged = dict(existing)
-    existing_keys = {bm["key"] for bm in merged.get("bookmakers", [])}
-    for bm in new.get("bookmakers", []):
-        if bm["key"] not in existing_keys:
-            merged.setdefault("bookmakers", []).append(bm)
-            existing_keys.add(bm["key"])
+    merged_bookmakers = [
+        _normalise_bookmaker(bookmaker) for bookmaker in list(existing.get("bookmakers", []) or [])
+    ]
+    bookmaker_index = {bookmaker["key"]: bookmaker for bookmaker in merged_bookmakers}
+
+    for bookmaker in list(new.get("bookmakers", []) or []):
+        normalised = _normalise_bookmaker(bookmaker)
+        key = normalised["key"]
+        if key not in bookmaker_index:
+            bookmaker_index[key] = normalised
+            merged_bookmakers.append(normalised)
+            continue
+        bookmaker_index[key]["markets"] = _fallback_merge_markets(
+            bookmaker_index[key].get("markets", []),
+            normalised.get("markets", []),
+        )
+
+    merged["bookmakers"] = merged_bookmakers
+    return merged
+
+
+def _normalise_bookmaker(bookmaker: dict[str, Any]) -> dict[str, Any]:
+    normalised = dict(bookmaker)
+    normalised["key"] = _slugify(str(bookmaker.get("key") or bookmaker.get("title") or ""))
+    normalised["markets"] = _fallback_merge_markets([], list(bookmaker.get("markets", []) or []))
+    return normalised
+
+
+def _canonical_market_key(value: Any) -> str:
+    raw = _slugify(str(value or ""))
+    aliases = {
+        "moneyline": "h2h",
+        "match_winner": "h2h",
+        "winner": "h2h",
+        "1x2": "h2h",
+        "h2h": "h2h",
+        "over_under": "totals",
+        "over_under_totals": "totals",
+        "totals": "totals",
+        "total": "totals",
+        "overunder": "totals",
+        "spreads": "spreads",
+        "spread": "spreads",
+        "handicap": "spreads",
+    }
+    return aliases.get(raw, raw)
+
+
+def _fallback_merge_markets(left: list[dict[str, Any]], right: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    merged: list[dict[str, Any]] = []
+    market_index: dict[str, dict[str, Any]] = {}
+    for market in list(left or []) + list(right or []):
+        market_dict = dict(market)
+        key = _canonical_market_key(market_dict.get("key") or market_dict.get("name"))
+        if not key:
+            continue
+        if key not in market_index:
+            market_index[key] = {**market_dict, "key": key, "outcomes": []}
+            merged.append(market_index[key])
+        market_index[key]["outcomes"] = _fallback_merge_outcomes(
+            market_index[key].get("outcomes", []),
+            list(market_dict.get("outcomes", []) or []),
+        )
+    return merged
+
+
+def _fallback_merge_outcomes(left: list[dict[str, Any]], right: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    merged: list[dict[str, Any]] = []
+    seen: dict[tuple[str, str], int] = {}
+    for outcome in list(left or []) + list(right or []):
+        outcome_dict = dict(outcome)
+        name = _slugify(str(outcome_dict.get("name") or outcome_dict.get("label") or ""))
+        point = str(outcome_dict.get("point", ""))
+        if not name:
+            continue
+        dedupe_key = (name, point)
+        if dedupe_key in seen:
+            merged[seen[dedupe_key]] = outcome_dict
+            continue
+        seen[dedupe_key] = len(merged)
+        merged.append(outcome_dict)
     return merged
 
 

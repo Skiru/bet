@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import scripts.odds_sources as odds_sources
 from scripts.odds_sources.oddspapi import OddsPapiSource
 from scripts.odds_sources.the_odds_api_betclic import TheOddsApiBetclicSource
 
@@ -42,3 +43,28 @@ def test_betclic_source_accepts_existing_date_from_date_to_signature():
     assert sport == "football"
     assert kwargs["commence_time_from"] == "2026-06-26T00:00:00Z"
     assert kwargs["commence_time_to"] == "2026-06-27T23:59:59Z"
+
+
+def test_odds_sources_merge_event_odds_preserves_same_bookmaker_h2h_and_totals():
+    existing = {
+        "bookmakers": [
+            {
+                "key": "superbet.pl",
+                "markets": [{"key": "h2h", "outcomes": [{"name": "Team A", "price": 1.91}]}],
+            }
+        ]
+    }
+    new = {
+        "bookmakers": [
+            {
+                "key": "superbet.pl",
+                "markets": [
+                    {"key": "totals", "outcomes": [{"name": "Over 2.5", "price": 2.05, "point": 2.5}]}
+                ],
+            }
+        ]
+    }
+
+    merged = odds_sources.merge_event_odds(existing, new)
+
+    assert [market["key"] for market in merged["bookmakers"][0]["markets"]] == ["h2h", "totals"]

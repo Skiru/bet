@@ -1,0 +1,31 @@
+{
+  "branch": "feat/odds-superbet-betclic-production-v1",
+  "commit_sha": "91fb722c7db390e2468dee115398bed608b8c0b6",
+  "live_certification_reason": "OddsPapi live probe status=FAIL_AUTH_OR_PLAN; branch is not live-certified.",
+  "live_certified": false,
+  "providers": {
+    "oddspapi": {
+      "configured": true,
+      "error_message_redacted": "OddsPapi request failed with HTTP 403",
+      "error_type": "RuntimeError",
+      "events": 0,
+      "key_source": "config/api_keys.json",
+      "sample_bookmakers": [],
+      "sample_has_bookmakers": null,
+      "status": "FAIL_AUTH_OR_PLAN"
+    },
+    "the-odds-api-betclic": {
+      "configured": false,
+      "error_message_redacted": null,
+      "error_type": null,
+      "events": null,
+      "key_source": "missing",
+      "sample_bookmakers": [],
+      "sample_has_bookmakers": null,
+      "status": "NOT_RUN_MISSING_KEYS"
+    }
+  },
+  "task_id": "ODDS_SUPERBET_BETCLIC_PUBLIC_BRANCH_REMEDIATION_A",
+  "timestamp_utc": "2026-06-26T06:59:00Z",
+  "worktree": "/Users/mkoziol/projects/bet/.kilo/worktrees/plume-homburg"
+}

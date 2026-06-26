@@ -102,7 +102,7 @@ def test_normalize_oddspapi_documented_bookmaker_odds_shape():
     ]
 
 
-def test_oddspapi_client_sends_superbet_pl_filters_sport_id_and_auth():
+def test_oddspapi_client_sends_api_key_query_parameter_superbet_pl_sport_id():
     payload = {"data": []}
     transport = FakeTransport(payload)
     client = OddsPapiClient(OddspapiConfig(api_key="secret-token"), transport=transport)
@@ -111,6 +111,7 @@ def test_oddspapi_client_sends_superbet_pl_filters_sport_id_and_auth():
 
     url, kwargs = transport.calls[0]
     assert url.endswith("/odds")
+    assert kwargs["params"]["apiKey"] == "secret-token"
     assert kwargs["params"]["bookmakers"] == "superbet.pl"
     assert kwargs["params"]["sportsbooks"] == "superbet.pl"
     assert kwargs["params"]["sportId"] == "10"

@@ -12,6 +12,7 @@ from scripts.fetch_odds_multi import (
     _load_source,
     load_configured_sports,
 )
+from scripts.odds_sources import SPORT_SOURCE_PRIORITY
 
 
 # ===========================================================================
@@ -109,7 +110,7 @@ class TestLoadConfiguredSports:
         monkeypatch.setattr("scripts.fetch_odds_multi.CONFIG_DIR", tmp_path / "nonexistent")
         sports = load_configured_sports()
         # Should return defaults from SPORT_SOURCE_PRIORITY
-        assert len(sports) == 5
+        assert sports == list(SPORT_SOURCE_PRIORITY.keys())
 
 
 # ===========================================================================
@@ -157,7 +158,7 @@ class TestMultiScanMerge:
         assert len(events) == 1
         bm_keys = {bm["key"] for bm in events[0]["bookmakers"]}
         assert "pinnacle" in bm_keys
-        assert "betclic-pl" in bm_keys
+        assert "betclic_pl" in bm_keys
 
     def test_different_events_not_merged(self, mock_data_dir, mock_config):
         """Different matches from same source remain separate."""

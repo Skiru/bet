@@ -74,6 +74,26 @@ PASS
 
 This bundle is unit/integration-boundary tested with fake transports. It is not live-certified against real OddsPapi/The Odds API keys in this environment. The agent must run live probes only in the local repo when keys are available and must redact all secrets from logs and artifacts.
 
+## Public Branch Remediation A Certification
+
+- Branch: `feat/odds-superbet-betclic-production-v1`
+- Previous public commit: `91fb722c7db390e2468dee115398bed608b8c0b6`
+- Worktree: `/Users/mkoziol/projects/bet/.kilo/worktrees/plume-homburg`
+- `config/api_keys.json` is local-only and must never be committed.
+- Pytest command: `.venv/bin/python -m pytest -q tests/test_oddspapi_client.py tests/test_the_odds_api_betclic_client.py tests/test_odds_merge.py tests/test_odds_source_adapters.py`
+- Pytest result: `10 passed in 0.54s`.
+- Broader odds pytest command: `.venv/bin/python -m pytest -q tests/test_fetch_odds_multi.py tests/test_odds_evaluator.py tests/test_odds_merge.py tests/test_odds_source_adapters.py tests/test_oddspapi_client.py tests/test_the_odds_api_betclic_client.py`
+- Broader odds pytest result: `37 passed in 0.56s`.
+- Compileall command: `.venv/bin/python -m compileall src/bet/api_clients src/bet/odds_merge.py scripts/odds_sources scripts/odds_live_probe_superbet_betclic.py tests`
+- Compileall result: `PASS`.
+- Live probe command: `.venv/bin/python scripts/odds_live_probe_superbet_betclic.py`
+- Live probe status: exit `0`; OddsPapi `FAIL_AUTH_OR_PLAN`, The Odds API Betclic `NOT_RUN_MISSING_KEYS`.
+- Evidence file: `reports/odds_provider_live_probe_superbet_betclic_v1.json`
+- OddsPapi key source: `config/api_keys.json`.
+- The Odds API key source/status: `missing` / `NOT_RUN_MISSING_KEYS`.
+- Live certified: `false`.
+- Live certification reason: `OddsPapi` returned `HTTP 403`, classified as `FAIL_AUTH_OR_PLAN`; this preserved live evidence but did not satisfy live certification.
+
 ## Required repository edits after copying files
 
 Patch `scripts/odds_sources/__init__.py`:

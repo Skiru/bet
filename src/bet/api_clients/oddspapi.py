@@ -14,6 +14,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 import os
+import re
 import random
 import time
 from typing import Any, Mapping, Protocol
@@ -31,6 +32,7 @@ DEFAULT_RETRY_STATUS_CODES = {429, 500, 502, 503, 504}
 DEFAULT_MARKETS = ("h2h", "totals", "spreads")
 # Public OddsPapi Superbet PL guide documents bookmaker slug `superbet.pl`.
 DEFAULT_BOOKMAKERS = ("superbet.pl",)
+REDACTED_TOKEN = "[REDACTED]"
 
 # Conservative sport IDs/slugs. The public docs show soccer as sportId=10.
 # Unknown sports still fall back to slug so the integration can be env-extended.
@@ -256,7 +258,7 @@ class OddsPapiClient:
         url = f"{self.config.base_url.rstrip('/')}/{self.config.endpoint.lstrip('/')}"
         clean_params = {key: value for key, value in params.items() if value not in (None, "")}
         headers = {"Accept": "application/json", "Authorization": f"Bearer {self.config.api_key}"}
-        # Also include apiKey because OddsPapi v4 docs use query auth; never log it.
+        # OddsPapi v4 documents query auth; keep any header-based compatibility internal.
         clean_params["apiKey"] = self.config.api_key
         last_error: Exception | None = None
         for attempt in range(self.config.max_retries + 1):
@@ -278,7 +280,16 @@ class OddsPapiClient:
                 if attempt >= self.config.max_retries:
                     break
                 _sleep_before_retry(attempt, None)
-        raise RuntimeError(f"OddsPapi request failed after retries: {last_error}")
+        if last_error is None:
+            raise RuntimeError("OddsPapi request failed after retries")
+        raise RuntimeError(_redact_provider_error_message(str(last_error), self.config.api_key)) from last_error
+
+
+def _redact_provider_error_message(message: str, api_key: str) -> str:
+    redacted = message.replace(api_key, REDACTED_TOKEN) if api_key else message
+    redacted = re.sub(r"([?&]apiKey=)[^&\s]+", rf"\1{REDACTED_TOKEN}", redacted, flags=re.IGNORECASE)
+    redacted = re.sub(r"(Bearer\s+)[^\s]+", rf"\1{REDACTED_TOKEN}", redacted, flags=re.IGNORECASE)
+    return redacted
 
 
 def _safe_retry_after(headers: Mapping[str, Any]) -> float | None:
