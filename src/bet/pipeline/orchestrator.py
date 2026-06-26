@@ -379,7 +379,12 @@ class Orchestrator:
                     try:
                         with open(expected_path, "r", encoding="utf-8") as f:
                             raw = json.load(f)
-                        artifact, issues = validate_pipeline_artifact(raw, sid)
+                        artifact, issues = validate_pipeline_artifact(
+                            raw,
+                            sid,
+                            enforce_required_gate=False,
+                            allow_block_status=True,
+                        )
 
                         from bet.pipeline.agent_work_orders import build_agent_work_order
                         from bet.pipeline.agent_artifact_contracts import validate_agent_artifact_for_work_order
@@ -406,6 +411,20 @@ class Orchestrator:
                             blocked_at_step = sid
                             blocked_reason = BlockedReason.BLOCKED_WAITING_FOR_AGENT_ARTIFACT
                             self.blockers.append(f"Invalid required agent artifact for step {sid}")
+                        elif artifact.status == PipelineReadinessStatus.BLOCK:
+                            step_status = PipelineReadinessStatus.BLOCK
+                            overall_status = PipelineReadinessStatus.BLOCK
+                            blocked_at_step = sid
+                            evidence_path = str(expected_path)
+                            blocked_reason = (
+                                artifact.blocked_reasons[0]
+                                if artifact.blocked_reasons
+                                else BlockedReason.BLOCKED_WAITING_FOR_AGENT_ARTIFACT
+                            )
+                            if artifact.blocked_reasons:
+                                self.blockers.extend(artifact.blocked_reasons)
+                            else:
+                                self.blockers.append(f"Step {sid} returned BLOCK without explicit reasons")
                         else:
                             step_status = artifact.status
                             evidence_path = str(expected_path)

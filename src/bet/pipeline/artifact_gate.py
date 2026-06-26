@@ -188,10 +188,15 @@ def detect_secrets(node: Any, path: str = "$") -> list[str]:
 
 
 def validate_pipeline_artifact(
-    raw: dict[str, Any], expected_step_id: str
+    raw: dict[str, Any],
+    expected_step_id: str,
+    *,
+    enforce_required_gate: bool = True,
+    allow_block_status: bool = False,
 ) -> tuple[PipelineArtifact | None, list[ReadinessIssue]]:
     """Validate a loaded raw artifact dict against schemas and safety constraints."""
     issues: list[ReadinessIssue] = []
+    is_current_step_block = False
 
     # 1. schema_version check
     if "schema_version" not in raw:
@@ -274,7 +279,8 @@ def validate_pipeline_artifact(
         )
     else:
         status_val = normalize_status(raw["status"])
-        if status_blocks(status_val):
+        is_current_step_block = allow_block_status and status_val == PipelineReadinessStatus.BLOCK
+        if status_blocks(status_val) and not (allow_block_status and status_val == PipelineReadinessStatus.BLOCK):
             issues.append(
                 ReadinessIssue(
                     code="BLOCKING_STATUS",
@@ -282,7 +288,7 @@ def validate_pipeline_artifact(
                     message=f"Artifact status is blocking: {status_val.value}",
                 )
             )
-    if art_type is not None and not status_satisfies_required_gate(status_val, expected_step_id, art_type):
+    if enforce_required_gate and art_type is not None and not status_satisfies_required_gate(status_val, expected_step_id, art_type):
         allowed_statuses = [status.value for status in required_statuses_for_artifact(expected_step_id, art_type)]
         issues.append(
             ReadinessIssue(
@@ -296,7 +302,7 @@ def validate_pipeline_artifact(
         )
 
     # 5. point_in_time_as_of check
-    if art_type == PipelineArtifactType.AGENT_ARTIFACT:
+    if art_type == PipelineArtifactType.AGENT_ARTIFACT and not is_current_step_block:
         if not raw.get("point_in_time_as_of"):
             issues.append(
                 ReadinessIssue(
@@ -308,7 +314,7 @@ def validate_pipeline_artifact(
 
     # 6. enrichment specific checks (S2.3, S2.5, S2.7, S2.9)
     is_enrichment = expected_step_id in ("S2.3", "S2.5", "S2.7", "S2.9")
-    if is_enrichment:
+    if is_enrichment and not is_current_step_block:
         if raw.get("source_bound") is not True:
             issues.append(
                 ReadinessIssue(
