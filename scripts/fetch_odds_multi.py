@@ -46,15 +46,16 @@ if str(SCRIPTS_DIR) not in sys.path:
 
 from odds_sources import (
     SPORT_SOURCE_PRIORITY,
-    events_match,
-    merge_event_odds,
 )
+from bet.odds_merge import events_match, merge_event_odds
 
 # ---------------------------------------------------------------------------
 # Source registry — lazy-loaded to avoid import errors when a source is broken
 # ---------------------------------------------------------------------------
 
 _SOURCE_MODULES = {
+    "oddspapi": ("odds_sources.oddspapi", "SOURCE"),
+    "the-odds-api-betclic": ("odds_sources.the_odds_api_betclic", "SOURCE"),
     "the-odds-api": ("odds_sources.the_odds_api", "SOURCE"),
     "odds-api-io": ("odds_sources.odds_api_io_source", "SOURCE"),
     "api-football-odds": ("odds_sources.api_football_odds", "SOURCE"),

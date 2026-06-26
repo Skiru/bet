@@ -117,13 +117,28 @@ def make_event_id(source_name: str, sport: str, home: str, away: str, time_str: 
 
 
 # Preferred bookmakers for downstream prioritization
-PREFERRED_BOOKMAKERS = ["betclic", "bet365", "pinnacle", "unibet", "betfair"]
+PREFERRED_BOOKMAKERS = [
+    "superbet.pl",
+    "superbet",
+    "superbet_pl",
+    "superbet-pl",
+    "betclic_fr",
+    "betclic",
+    "betclic_pl",
+    "bet365",
+    "pinnacle",
+    "unibet",
+    "betfair",
+]
 
 # Sport → ordered list of source names to try
 SPORT_SOURCE_PRIORITY = {
-    "football": ["the-odds-api", "odds-api-io", "api-football-odds"],
-    "tennis": ["the-odds-api", "odds-api-io"],
-    "basketball": ["the-odds-api", "odds-api-io"],
-    "hockey": ["the-odds-api", "odds-api-io"],
-    "volleyball": ["odds-api-io"],
+    "football": ["oddspapi", "the-odds-api-betclic", "odds-api-io", "the-odds-api", "api-football-odds"],
+    "tennis": ["oddspapi", "the-odds-api-betclic", "odds-api-io", "the-odds-api"],
+    "basketball": ["oddspapi", "the-odds-api-betclic", "odds-api-io", "the-odds-api"],
+    "hockey": ["oddspapi", "the-odds-api-betclic", "odds-api-io", "the-odds-api"],
+    "volleyball": ["oddspapi", "odds-api-io"],
+    "cs2": ["oddspapi", "odds-api-io"],
+    "dota2": ["oddspapi", "odds-api-io"],
+    "valorant": ["oddspapi", "odds-api-io"],
 }
