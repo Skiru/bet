@@ -1,31 +1,72 @@
 {
   "branch": "feat/odds-superbet-betclic-production-v1",
-  "commit_sha": "91fb722c7db390e2468dee115398bed608b8c0b6",
-  "live_certification_reason": "OddsPapi live probe status=FAIL_AUTH_OR_PLAN; branch is not live-certified.",
+  "commit_sha": "be1f223908c2b151de54567e40f0d4b276dc8974",
+  "live_certification_reason": "Credential path is proven: absolute credential file was found, the redacted OddsPapi /v4/account diagnostic returned HTTP 200, and the follow-up odds request was still rejected (OddsPapi request failed with HTTP 403); remaining blocker is provider access/plan scope rather than local credential discovery.",
   "live_certified": false,
   "providers": {
     "oddspapi": {
+      "account_probe": {
+        "attempted": true,
+        "current_subscription_active": true,
+        "error_message_redacted": null,
+        "error_type": null,
+        "has_sport_10": null,
+        "has_superbet_pl": null,
+        "http_status": 200,
+        "ok": true,
+        "request_count": 9,
+        "request_limit": 250,
+        "response_top_level_keys": [
+          "api_key",
+          "created_at",
+          "current_subscription_id",
+          "customer_segment",
+          "email",
+          "language_code",
+          "language_name",
+          "subscriptions"
+        ]
+      },
+      "billable_calls_attempted": 1,
       "configured": true,
       "error_message_redacted": "OddsPapi request failed with HTTP 403",
       "error_type": "RuntimeError",
       "events": 0,
-      "key_source": "config/api_keys.json",
+      "key_file_path_used": "/Users/mkoziol/projects/bet/.kilo/worktrees/plume-homburg/config/api_keys.json",
+      "key_present": true,
+      "key_source": "absolute_config_api_keys_json",
       "sample_bookmakers": [],
       "sample_has_bookmakers": null,
       "status": "FAIL_AUTH_OR_PLAN"
     },
     "the-odds-api-betclic": {
+      "account_probe": {
+        "attempted": false,
+        "current_subscription_active": null,
+        "error_message_redacted": null,
+        "error_type": null,
+        "has_sport_10": null,
+        "has_superbet_pl": null,
+        "http_status": null,
+        "ok": false,
+        "request_count": null,
+        "request_limit": null,
+        "response_top_level_keys": []
+      },
+      "billable_calls_attempted": 0,
       "configured": false,
       "error_message_redacted": null,
       "error_type": null,
       "events": null,
+      "key_file_path_used": null,
+      "key_present": false,
       "key_source": "missing",
       "sample_bookmakers": [],
       "sample_has_bookmakers": null,
       "status": "NOT_RUN_MISSING_KEYS"
     }
   },
-  "task_id": "ODDS_SUPERBET_BETCLIC_PUBLIC_BRANCH_REMEDIATION_A",
-  "timestamp_utc": "2026-06-26T06:59:00Z",
+  "task_id": "ODDS_SUPERBET_BETCLIC_PUBLIC_BRANCH_REMEDIATION_B2_CREDENTIAL_PATH",
+  "timestamp_utc": "2026-06-26T07:13:30Z",
   "worktree": "/Users/mkoziol/projects/bet/.kilo/worktrees/plume-homburg"
 }

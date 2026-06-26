@@ -176,3 +176,20 @@ After live certification, store provider evidence per run:
 - normalized event sample hashes;
 - provider quota headers if available;
 - explicit status: `LIVE_CERTIFIED`, `NO_EVENTS`, `AUTH_FAILED`, `SCHEMA_DRIFT`, or `RATE_LIMITED`.
+
+## Remediation B2 Absolute Credential Path Verification
+
+- Branch: `feat/odds-superbet-betclic-production-v1`
+- Base commit before remediation: `be1f223908c2b151de54567e40f0d4b276dc8974`
+- Absolute credential path used by the live probe: `/Users/mkoziol/projects/bet/.kilo/worktrees/plume-homburg/config/api_keys.json`
+- Secret handling: the key value was never printed, committed, or written to evidence; the probe records only `key_source`, `key_file_path_used`, and `key_present`.
+- OddsPapi key source result: `absolute_config_api_keys_json`
+- Env-before-import guard: `scripts/odds_live_probe_superbet_betclic.py` now sets `ODDSPAPI_API_KEY` before dynamically importing `scripts.odds_sources.oddspapi`, because the adapter `SOURCE` path can read env-backed config at import time.
+- Account endpoint diagnostic: `/v4/account` returned HTTP `200` with a successful redacted account probe.
+- Billable calls attempted after the account probe: `1`
+- Live probe outcome: the credential path is proven, but the follow-up OddsPapi odds request returned HTTP `403`, so the remaining blocker is provider access/plan scope rather than local credential discovery.
+- The Odds API Betclic status during this remediation: `NOT_RUN_MISSING_KEYS`
+- Evidence file: `reports/odds_provider_live_probe_superbet_betclic_v1.json`
+- Targeted pytest: `.venv/bin/python -m pytest -q tests/test_oddspapi_client.py tests/test_the_odds_api_betclic_client.py tests/test_odds_merge.py tests/test_odds_source_adapters.py tests/test_fetch_odds_multi.py tests/test_odds_live_probe_credentials.py` -> `30 passed`
+- Broader odds pytest: `.venv/bin/python -m pytest -q tests/test_odds_live_probe_credentials.py tests/test_fetch_odds_multi.py tests/test_odds_source_adapters.py tests/test_oddspapi_client.py tests/test_odds_merge.py tests/test_the_odds_api_betclic_client.py tests/test_odds_evaluator.py` -> `41 passed`
+- Compileall: `.venv/bin/python -m compileall src/bet/api_clients src/bet/odds_merge.py scripts/odds_sources scripts/odds_live_probe_superbet_betclic.py tests` -> `PASS`
