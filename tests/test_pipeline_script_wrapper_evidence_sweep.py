@@ -111,6 +111,46 @@ def _load(path: Path) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def _seed_s3_shortlist(environ: dict[str, str]) -> Path:
+    data_dir = Path(environ["BET_PIPELINE_DATA_DIR"])
+    data_dir.mkdir(parents=True, exist_ok=True)
+    shortlist_path = data_dir / f"{environ['BET_PIPELINE_BETTING_DAY']}_s2_shortlist.json"
+    shortlist_path.write_text(
+        json.dumps(
+            {
+                "candidates": [
+                    {
+                        "sport": "football",
+                        "home_team": "Alpha",
+                        "away_team": "Beta",
+                        "competition": "Test League",
+                        "kickoff": "2026-06-25T18:00:00+00:00",
+                    }
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+    return shortlist_path
+
+
+def _write_s3_reports(environ: dict[str, str], *, with_data: int = 1) -> None:
+    data_dir = Path(environ["BET_PIPELINE_DATA_DIR"])
+    betting_day = environ["BET_PIPELINE_BETTING_DAY"]
+    (data_dir / f"{betting_day}_s3_deep_stats.md").write_text("# S3\n", encoding="utf-8")
+    (data_dir / f"{betting_day}_s3_deep_stats.json").write_text(
+        json.dumps(
+            {
+                "date": betting_day,
+                "total_candidates": 1,
+                "candidates_with_data": with_data,
+                "analyses": [],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+
 @pytest.mark.parametrize("case", WRAPPER_CASES, ids=lambda case: case["step_id"])
 def test_target_wrappers_write_pass_script_evidence_in_tmp_sandbox(case):
     environ = _runtime_environ(case["step_id"])
@@ -122,11 +162,23 @@ def test_target_wrappers_write_pass_script_evidence_in_tmp_sandbox(case):
         "--dry-run",
     ]
 
-    with patch.dict(os.environ, environ, clear=False), \
-         patch.object(sys, "argv", argv), \
-         patch(case["run_patch"], return_value=0):
-        with pytest.raises(SystemExit) as exc_info:
-            case["module"].main()
+    s3_shortlist_path = None
+    if case["step_id"] == "S3":
+        s3_shortlist_path = _seed_s3_shortlist(environ)
+
+    def _s3_pass(*, betting_day, shortlist_path, child_env, runtime_mode):
+        assert shortlist_path == s3_shortlist_path
+        _write_s3_reports(environ, with_data=1)
+        return (0, "")
+
+    with patch.dict(os.environ, environ, clear=False), patch.object(sys, "argv", argv):
+        if case["step_id"] == "S3":
+            patch_target = patch("scripts.pipeline_steps.s3_stats._invoke_deep_stats_report", side_effect=_s3_pass)
+        else:
+            patch_target = patch(case["run_patch"], return_value=0)
+        with patch_target:
+            with pytest.raises(SystemExit) as exc_info:
+                case["module"].main()
 
     assert exc_info.value.code == 0
     canonical_path = _canonical_evidence_path(environ, case["step_id"])
@@ -145,10 +197,9 @@ def test_target_wrappers_write_pass_script_evidence_in_tmp_sandbox(case):
     assert evidence["status"] == "PASS"
     assert evidence["production_selectable"] is False
     assert evidence["betting_decisions_enabled"] is False
-    assert evidence["payload"] == {
+    expected_payload = {
         "step_id": case["step_id"],
         "wrapper_scripts": case["expected_scripts"],
-        "wrapper_rc": 0,
         "runtime_mode": "DRY_RUN",
         "dry_run": True,
         "allow_write": False,
@@ -158,6 +209,18 @@ def test_target_wrappers_write_pass_script_evidence_in_tmp_sandbox(case):
         "child_run_root": environ["BET_PIPELINE_RUN_ROOT"],
         "child_artifact_dir": environ["BET_PIPELINE_ARTIFACT_DIR"],
     }
+    if case["step_id"] == "S3":
+        payload = evidence["payload"]
+        for key, value in expected_payload.items():
+            assert payload[key] == value
+        assert payload["wrapper_rc"] == 0
+        assert payload["shortlist_resolved"] is True
+        assert payload["shortlist_event_count"] == 1
+        assert payload["shortlist_path"] == str(s3_shortlist_path)
+        assert all(path.startswith("/tmp/") for path in payload["s3_report_paths"])
+    else:
+        expected_payload["wrapper_rc"] = 0
+        assert evidence["payload"] == expected_payload
     if case["no_pick"]:
         assert evidence["no_pick_edge_stake_coupon_emitted"] is True
         assert "production_coupon_write" not in evidence
@@ -177,19 +240,29 @@ def test_target_wrappers_write_block_evidence_for_controlled_output(case, capsys
         "--dry-run",
     ]
 
+    if case["step_id"] == "S3":
+        _seed_s3_shortlist(environ)
+
     def _controlled(*args, **kwargs):
         print(case["block_token"])
         return 9
 
-    with patch.dict(os.environ, environ, clear=False), \
-         patch.object(sys, "argv", argv), \
-         patch(case["run_patch"], side_effect=_controlled):
-        with pytest.raises(SystemExit) as exc_info:
-            case["module"].main()
+    def _s3_controlled(*args, **kwargs):
+        return (9, f"{case['block_token']}\n")
+
+    with patch.dict(os.environ, environ, clear=False), patch.object(sys, "argv", argv):
+        if case["step_id"] == "S3":
+            patch_target = patch("scripts.pipeline_steps.s3_stats._invoke_deep_stats_report", side_effect=_s3_controlled)
+        else:
+            patch_target = patch(case["run_patch"], side_effect=_controlled)
+        with patch_target:
+            with pytest.raises(SystemExit) as exc_info:
+                case["module"].main()
 
     assert exc_info.value.code == 9
     captured = capsys.readouterr()
-    assert case["block_token"] in captured.out
+    if case["step_id"] != "S3":
+        assert case["block_token"] in captured.out
     evidence = _load(_canonical_evidence_path(environ, case["step_id"]))
     assert evidence["status"] == "BLOCK"
     assert evidence["blocked_reasons"] == [case["block_token"]]
@@ -206,11 +279,17 @@ def test_target_wrappers_write_failed_evidence_for_unexpected_non_zero(case):
         "--dry-run",
     ]
 
-    with patch.dict(os.environ, environ, clear=False), \
-         patch.object(sys, "argv", argv), \
-         patch(case["run_patch"], return_value=42):
-        with pytest.raises(SystemExit) as exc_info:
-            case["module"].main()
+    if case["step_id"] == "S3":
+        _seed_s3_shortlist(environ)
+
+    with patch.dict(os.environ, environ, clear=False), patch.object(sys, "argv", argv):
+        if case["step_id"] == "S3":
+            patch_target = patch("scripts.pipeline_steps.s3_stats._invoke_deep_stats_report", return_value=(42, "unexpected crash"))
+        else:
+            patch_target = patch(case["run_patch"], return_value=42)
+        with patch_target:
+            with pytest.raises(SystemExit) as exc_info:
+                case["module"].main()
 
     assert exc_info.value.code == 42
     evidence = _load(_canonical_evidence_path(environ, case["step_id"]))
