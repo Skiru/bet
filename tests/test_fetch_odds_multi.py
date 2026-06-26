@@ -2,6 +2,7 @@
 
 import csv
 import json
+import importlib
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -269,6 +270,35 @@ class TestMultiScanDryRun:
 
         src.fetch_odds.assert_not_called()
         assert result is None  # dry_run returns early
+
+
+class TestMultiScanAccessGate:
+    def test_disabled_oddspapi_not_imported(self, mock_data_dir, mock_config, monkeypatch):
+        monkeypatch.delenv("ODDSPAPI_ENABLE_SHADOW", raising=False)
+        monkeypatch.delenv("ODDSPAPI_ENABLE_LIVE", raising=False)
+        monkeypatch.delenv("ODDSPAPI_LIVE_CERTIFIED", raising=False)
+
+        real_import = importlib.import_module
+
+        def guarded_import(name, package=None):
+            if name == "odds_sources.oddspapi":
+                raise AssertionError("disabled oddspapi should not be imported")
+            return real_import(name, package)
+
+        with patch("importlib.import_module", side_effect=guarded_import), \
+             patch("scripts.fetch_odds_multi.load_configured_sports", return_value=["football"]):
+            events = run_multi_scan(sport_filter=["football"], source_filter=["oddspapi"])
+
+        assert events == []
+        provenance = json.loads((mock_data_dir / "odds_multi_sources.json").read_text())
+        assert provenance["skipped_sources"] == [
+            {
+                "sport": "football",
+                "source": "oddspapi",
+                "reason": "disabled_by_access_gate_fail_access_fixtures",
+                "mode": "disabled",
+            }
+        ]
 
 
 # ===========================================================================

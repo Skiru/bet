@@ -211,3 +211,19 @@ After live certification, store provider evidence per run:
 - Evidence file: `reports/odds_provider_live_probe_superbet_betclic_v1.json`.
 - Deployment posture: branch is safe only as `shadow/disabled` provider wiring until a plan/key with documented Superbet fixtures access is available.
 - Secret handling: `config/api_keys.json` remains local-only and untracked.
+
+## Remediation D Access Gate
+
+- Branch: `feat/odds-superbet-betclic-production-v1`
+- Base commit: `e4d7921fc7736970e1feb90f5d1561f27de299f1`
+- Reason: OddsPapi account diagnostic succeeded with `HTTP 200`, but the documented `fixtures` discovery step returned `HTTP 403`, so the provider remains blocked on access scope rather than local credentials.
+- Provider posture: `oddspapi` is now `shadow/disabled` by default through `src/bet/odds_provider_access.py` and pre-import gating in `scripts/fetch_odds_multi.py`.
+- Default production posture: no production scan should call OddsPapi by default.
+- Manual shadow flag: `ODDSPAPI_ENABLE_SHADOW=1` enables explicit shadow experiments only.
+- Live selectable flags: `ODDSPAPI_ENABLE_LIVE=1` plus `ODDSPAPI_LIVE_CERTIFIED=1` are both required before `oddspapi` becomes production selectable.
+- Secondary adapter defense: `scripts/odds_sources/oddspapi.py` now returns safe empty results while disabled and does not touch env-backed config or API keys in that state.
+- The Odds API Betclic status: still pending until a valid `THE_ODDS_API_KEY` exists.
+- Targeted pytest: `env PYTHONPATH=src:scripts:. .venv/bin/python -m pytest -q tests/test_odds_provider_access.py tests/test_fetch_odds_multi.py tests/test_odds_source_adapters.py tests/test_oddspapi_client.py tests/test_the_odds_api_betclic_client.py tests/test_odds_merge.py tests/test_odds_live_probe_credentials.py` -> `46 passed in 0.25s`.
+- Compileall: `env PYTHONPATH=src:scripts:. .venv/bin/python -m compileall src/bet/api_clients src/bet/odds_merge.py src/bet/odds_provider_access.py scripts/fetch_odds_multi.py scripts/odds_sources scripts/odds_live_probe_superbet_betclic.py tests` -> `PASS`.
+- Evidence file: `reports/odds_provider_access_gate_superbet_betclic_v1.json`.
+- Merge recommendation after this pass: `MERGE_READY_SHADOW_ONLY` once the branch diff stays secret-safe and the disabled-by-default gate remains intact.

@@ -48,6 +48,7 @@ from odds_sources import (
     SPORT_SOURCE_PRIORITY,
 )
 from bet.odds_merge import events_match, merge_event_odds
+from bet.odds_provider_access import is_odds_source_enabled, odds_source_access_status
 
 # ---------------------------------------------------------------------------
 # Source registry — lazy-loaded to avoid import errors when a source is broken
@@ -74,6 +75,29 @@ def _load_source(name: str):
     except Exception as exc:
         print(f"  [WARNING] Could not load source '{name}': {exc}")
         return None
+
+
+def _explicit_source_request(source_name: str, source_filter: list[str] | None) -> bool:
+    return bool(source_filter and source_name in source_filter)
+
+
+def _source_gate_decision(source_name: str, source_filter: list[str] | None) -> tuple[bool, dict[str, object]]:
+    status = odds_source_access_status(source_name)
+    if is_odds_source_enabled(source_name, mode="scan"):
+        return True, status
+    if source_name == "the-odds-api-betclic" and _explicit_source_request(source_name, source_filter):
+        explicit_status = dict(status)
+        explicit_status["reason"] = "explicit_source_filter_requested"
+        explicit_status["mode"] = "shadow"
+        return True, explicit_status
+    return False, status
+
+
+def _disabled_source_message(source_name: str, status: dict[str, object]) -> str:
+    reason = status.get("reason", "disabled")
+    if source_name == "oddspapi" and reason == "disabled_by_access_gate_fail_access_fixtures":
+        return f"{source_name}: disabled by access gate -- {reason} (set ODDSPAPI_ENABLE_SHADOW=1 or ODDSPAPI_ENABLE_LIVE=1; live also requires ODDSPAPI_LIVE_CERTIFIED=1)"
+    return f"{source_name}: disabled by access gate -- {reason}"
 
 
 def load_configured_sports() -> list[str]:
@@ -243,6 +267,13 @@ def run_multi_scan(
         print(f"  {sport}: {' → '.join(sources)}")
 
     if dry_run:
+        for sport, sources in scan_plan.items():
+            for source_name in sources:
+                enabled, status = _source_gate_decision(source_name, source_filter)
+                if not enabled:
+                    print(f"  {sport}: {_disabled_source_message(source_name, status)}")
+
+    if dry_run:
         print("\n[DRY RUN] No API calls made.")
         return
 
@@ -253,6 +284,7 @@ def run_multi_scan(
     provenance: dict[str, dict[str, int]] = {}  # sport → {source → count}
     total_by_source: dict[str, int] = {}
     errors: list[dict] = []
+    skipped_sources: list[dict[str, str]] = []
 
     for sport, sources in scan_plan.items():
         print(f"\n--- {sport.upper()} ---")
@@ -260,6 +292,18 @@ def run_multi_scan(
         provenance[sport] = {}
 
         for source_name in sources:
+            enabled, status = _source_gate_decision(source_name, source_filter)
+            if not enabled:
+                print(f"  {_disabled_source_message(source_name, status)}")
+                skipped_sources.append({
+                    "sport": sport,
+                    "source": source_name,
+                    "reason": str(status.get("reason", "disabled")),
+                    "mode": str(status.get("mode", "disabled")),
+                })
+                provenance[sport][source_name] = 0
+                continue
+
             source = _load_source(source_name)
             if source is None:
                 continue
@@ -398,6 +442,8 @@ def run_multi_scan(
     }
     if errors:
         provenance_data["errors"] = errors
+    if skipped_sources:
+        provenance_data["skipped_sources"] = skipped_sources
     provenance_file = DATA_DIR / "odds_multi_sources.json"
     atomic_json_write(provenance_file, provenance_data)
 
