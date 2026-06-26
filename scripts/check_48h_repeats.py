@@ -11,19 +11,41 @@ import csv
 import json
 import re
 import sys
+import os
 from datetime import datetime, timedelta
 from difflib import SequenceMatcher
 from pathlib import Path
 
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
-import os
 DATA_DIR = Path(os.environ.get("BET_PIPELINE_DATA_DIR", str(ROOT_DIR / "betting" / "data")))
 DEFAULT_LEDGER_PATH = ROOT_DIR / "betting" / "journal" / "picks-ledger.csv"
 REPEAT_LOSS_STEP = "s7_6_repeat_loss_check"
 
 # Ensure src/ is importable when the script is executed directly.
 sys.path.insert(0, str(ROOT_DIR / "src"))
+
+
+def is_non_production_mode() -> bool:
+    mode = os.environ.get("BET_PIPELINE_RUNTIME_MODE", "DRY_RUN").upper()
+    return mode != "PRODUCTION"
+
+
+def is_protected_repo_path(path: Path | str | None) -> bool:
+    if not path:
+        return False
+    abs_path = Path(path).resolve()
+    betting_data = (ROOT_DIR / "betting" / "data").resolve()
+    betting_coupons = (ROOT_DIR / "betting" / "coupons").resolve()
+    reports = (ROOT_DIR / "reports").resolve()
+    
+    for parent in [betting_data, betting_coupons, reports]:
+        try:
+            abs_path.relative_to(parent)
+            return True
+        except ValueError:
+            pass
+    return False
 
 
 def normalize_team(name: str) -> str:
@@ -185,22 +207,79 @@ def _candidate_market_name(candidate: dict) -> str:
 
 def _extract_gate_candidates(payload: dict | list) -> list[dict]:
     if isinstance(payload, list):
-        return [item for item in payload if isinstance(item, dict)]
+        candidates = [item for item in payload if isinstance(item, dict)]
+        if not candidates:
+            raise ValueError("zero candidates found in payload list")
+        return candidates
 
     if not isinstance(payload, dict):
         raise ValueError("Gate input payload must be a dict or list")
 
+    inner = payload.get("payload")
+    if isinstance(inner, dict):
+        try:
+            return _extract_gate_candidates(inner)
+        except ValueError:
+            pass
+
+    # 1. gate_results.approved + gate_results.extended_pool
     gate_results = payload.get("gate_results")
     if isinstance(gate_results, dict):
         approved = gate_results.get("approved", []) or []
         extended = gate_results.get("extended_pool", []) or []
-        return [item for item in approved + extended if isinstance(item, dict)]
+        candidates = [item for item in approved + extended if isinstance(item, dict)]
+        if not candidates:
+            raise ValueError("zero candidates found in gate_results buckets")
+        return candidates
 
-    legacy_results = payload.get("results")
-    if isinstance(legacy_results, list):
-        return [item for item in legacy_results if isinstance(item, dict)]
+    # 2. candidates
+    candidates = payload.get("candidates")
+    if isinstance(candidates, list):
+        res = [item for item in candidates if isinstance(item, dict)]
+        if not res:
+            raise ValueError("zero candidates found in candidates list")
+        return res
 
-    raise ValueError("Gate input payload missing gate_results buckets")
+    # 3. results
+    results = payload.get("results")
+    if isinstance(results, list):
+        res = [item for item in results if isinstance(item, dict)]
+        if not res:
+            raise ValueError("zero candidates found in results list")
+        return res
+
+    # 4. events
+    events = payload.get("events")
+    if isinstance(events, list):
+        res = [item for item in events if isinstance(item, dict)]
+        if not res:
+            raise ValueError("zero candidates found in events list")
+        return res
+
+    # 5. valuations
+    valuations = payload.get("valuations")
+    if isinstance(valuations, list):
+        res = [item for item in valuations if isinstance(item, dict)]
+        if not res:
+            raise ValueError("zero candidates found in valuations list")
+        return res
+
+    # 6. analyses (from s3_deep_stats.json)
+    analyses = payload.get("analyses")
+    if isinstance(analyses, list):
+        res = [item for item in analyses if isinstance(item, dict)]
+        if not res:
+            raise ValueError("zero candidates found in analyses list")
+        return res
+
+    # 7. General search in keys of payload
+    for k, v in payload.items():
+        if k in ("candidates", "results", "events", "valuations", "analyses", "approved", "extended_pool") and isinstance(v, list):
+            res = [item for item in v if isinstance(item, dict)]
+            if res:
+                return res
+
+    raise ValueError("Gate input payload missing candidate/valuation buckets")
 
 
 def load_gate_candidates(date: str, input_path: Path | None = None) -> tuple[list[dict], str]:
@@ -420,9 +499,22 @@ def main():
 
     out = AgentOutput("s7_6_repeats", verbose=args.verbose, stop_on_error=args.stop_on_error)
 
+    # Path safety validation for non-production modes
+    if is_non_production_mode():
+        if is_protected_repo_path(args.input) or is_protected_repo_path(args.output):
+            print("repeat guard input missing: Explicit input or output path under protected repo-local path is forbidden in non-production modes.")
+            sys.exit(5)
+
     pipeline_mode = bool(args.date or args.input)
     if args.input and not args.date:
         parser.error("--input requires --date so the durable handoff can be persisted")
+
+    artifact_path = None
+    if pipeline_mode:
+        artifact_path = args.output or (DATA_DIR / f"repeat_loss_handoff_{args.date}.json")
+        if is_non_production_mode() and is_protected_repo_path(artifact_path):
+            print("repeat guard input missing: Default or explicit output path is under protected repo-local path.")
+            sys.exit(5)
 
     if pipeline_mode and args.date:
         _record_pipeline_start(args.date)
@@ -431,7 +523,34 @@ def main():
         recent_losses = load_recent_losses(args.ledger, args.hours)
 
         if pipeline_mode:
-            candidates, candidate_source = load_gate_candidates(args.date, args.input)
+            try:
+                candidates, candidate_source = load_gate_candidates(args.date, args.input)
+            except FileNotFoundError as exc:
+                print(f"repeat guard input missing: {exc}")
+                out.summary(
+                    verdict="BLOCK",
+                    metrics={
+                        "date": args.date,
+                        "mode": "pipeline",
+                        "error": str(exc),
+                    }
+                )
+                sys.exit(5)
+            except ValueError as exc:
+                if "zero candidates" in str(exc) or "empty" in str(exc):
+                    print(f"repeat guard input empty: {exc}")
+                else:
+                    print(f"repeat guard input missing: input payload shape issue: {exc}")
+                out.summary(
+                    verdict="BLOCK",
+                    metrics={
+                        "date": args.date,
+                        "mode": "pipeline",
+                        "error": str(exc),
+                    }
+                )
+                sys.exit(5)
+
             findings = find_repeat_loss_candidates(candidates, recent_losses)
             artifact_path = args.output or (DATA_DIR / f"repeat_loss_handoff_{args.date}.json")
             artifact_path.parent.mkdir(parents=True, exist_ok=True)
@@ -461,6 +580,9 @@ def main():
                     repeat_loss_count=payload["repeat_loss_count"],
                     artifact=artifact_path.name,
                 )
+
+            if findings:
+                print("repeat signal conflict: same team+market lost within 48h — HARD REJECT")
 
             if args.format == "text":
                 print("═══ 48h Repeat Check (pipeline mode) ═══")
