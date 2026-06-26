@@ -99,6 +99,12 @@ def test_gate_checker_explicit_input_writes_sandbox_outputs_and_evidence(tmp_pat
     evidence = json.loads(_canonical_evidence_path(environ).read_text(encoding="utf-8"))
     assert evidence["status"] == "PASS"
     assert evidence["payload"]["s7_input_path"] == str(input_path)
+    assert evidence["payload"]["s7_input_source_step"] == "UNKNOWN"
+    assert evidence["payload"]["s7_input_source_kind"] == "explicit_input"
+    assert evidence["payload"]["s7_input_contains_odds"] is False
+    assert evidence["payload"]["s7_input_contains_ev"] is False
+    assert evidence["payload"]["s7_input_contains_safety"] is False
+    assert evidence["payload"]["s7_input_contains_market_count"] is False
     assert evidence["payload"]["s7_json_output"] == str(json_output)
     assert evidence["payload"]["s7_markdown_output"] == str(markdown_output)
     assert evidence["payload"]["approved_count"] == 1
@@ -122,6 +128,7 @@ def test_gate_checker_empty_input_blocks_with_controlled_reason(tmp_path: Path):
     evidence = json.loads(_canonical_evidence_path(environ).read_text(encoding="utf-8"))
     assert evidence["status"] == "BLOCK"
     assert evidence["blocked_reasons"] == ["BLOCKED_S7_GATE_INPUT_EMPTY"]
+    assert evidence["payload"]["s7_input_source_kind"] == "explicit_input"
 
 
 def test_gate_checker_rejects_protected_output_path_in_non_production(tmp_path: Path):
@@ -152,3 +159,4 @@ def test_gate_checker_blocks_when_approved_count_is_zero(tmp_path: Path):
     evidence = json.loads(_canonical_evidence_path(environ).read_text(encoding="utf-8"))
     assert evidence["status"] == "BLOCK"
     assert evidence["blocked_reasons"] == ["BLOCKED_HARD_APPROVAL_GATE"]
+    assert evidence["payload"]["s7_input_source_kind"] == "explicit_input"

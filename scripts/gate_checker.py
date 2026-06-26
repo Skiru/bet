@@ -138,6 +138,53 @@ def _extract_candidate_entries(payload: dict | list) -> list[dict]:
     return []
 
 
+def _is_s3_analysis_entry(entry: dict) -> bool:
+    return any(
+        key in entry
+        for key in ("stats_a_summary", "stats_b_summary", "h2h_summary", "markets_evaluated", "has_data")
+    )
+
+
+def _candidate_has_odds(candidate: dict) -> bool:
+    odds = candidate.get("odds")
+    if isinstance(odds, dict) and odds:
+        return True
+    return candidate.get("best_odds") is not None or candidate.get("odds_markets") not in (None, [])
+
+
+def _candidate_has_safety(candidate: dict) -> bool:
+    best = candidate.get("best_market") or {}
+    if isinstance(best, dict) and best.get("safety_score") is not None:
+        return True
+    return bool(candidate.get("safety_markets")) or candidate.get("safety_score") is not None
+
+
+def _candidate_has_market_count(candidate: dict) -> bool:
+    return any(key in candidate for key in ("market_count", "markets_evaluated", "total_markets_available", "n_odds_markets"))
+
+
+def _infer_input_source_step(path: str | None) -> str:
+    lowered = str(path or "").lower()
+    if any(token in lowered for token in ("s4", "valuation", "value", "candidate", "odds")):
+        return "S4"
+    if "s3" in lowered or "deep_stats" in lowered:
+        return "S3"
+    return "UNKNOWN"
+
+
+def _input_evidence_payload(path: str | None, candidates: list[dict] | None = None, source_kind: str = "unknown") -> dict:
+    candidates = candidates or []
+    return {
+        "s7_input_path": path,
+        "s7_input_source_step": _infer_input_source_step(path),
+        "s7_input_source_kind": source_kind,
+        "s7_input_contains_odds": any(_candidate_has_odds(candidate) for candidate in candidates),
+        "s7_input_contains_ev": any(candidate.get("ev") is not None for candidate in candidates),
+        "s7_input_contains_safety": any(_candidate_has_safety(candidate) for candidate in candidates),
+        "s7_input_contains_market_count": any(_candidate_has_market_count(candidate) for candidate in candidates),
+    }
+
+
 def _set_entry_bucket(entry: dict, bucket: str, reason: str | None = None) -> None:
     """Attach the canonical S7 bucket/status semantics to one entry."""
     entry["bucket"] = bucket
@@ -2232,6 +2279,7 @@ def _load_s3_output(date: str, input_path: str | None = None) -> tuple[list[dict
                 "source": "explicit_input",
                 "counts": {"canonical": 0, "json": 0, "db": 0},
                 "parity": {"status": "missing"},
+                "input_evidence": _input_evidence_payload(str(path), [], source_kind="explicit_input"),
                 "blocking_error": {"code": 5, "message": f"BLOCKED_S7_GATE_INPUT_MISSING: explicit gate input not found: {path}"},
             }
         if is_non_production_mode() and is_protected_repo_path(path):
@@ -2239,6 +2287,7 @@ def _load_s3_output(date: str, input_path: str | None = None) -> tuple[list[dict
                 "source": "explicit_input",
                 "counts": {"canonical": 0, "json": 0, "db": 0},
                 "parity": {"status": "protected_path"},
+                "input_evidence": _input_evidence_payload(str(path), [], source_kind="explicit_input"),
                 "blocking_error": {"code": 5, "message": f"BLOCKED_S7_GATE_INPUT_PROTECTED_PATH: explicit gate input must stay outside repo-local protected paths in non-production mode: {path}"},
             }
         try:
@@ -2248,6 +2297,7 @@ def _load_s3_output(date: str, input_path: str | None = None) -> tuple[list[dict
                 "source": "explicit_input",
                 "counts": {"canonical": 0, "json": 0, "db": 0},
                 "parity": {"status": "invalid_json"},
+                "input_evidence": _input_evidence_payload(str(path), [], source_kind="explicit_input"),
                 "blocking_error": {"code": 5, "message": f"BLOCKED_S7_GATE_INPUT_INVALID: explicit gate input JSON could not be parsed: {exc}"},
             }
         analyses = _extract_candidate_entries(data)
@@ -2256,14 +2306,19 @@ def _load_s3_output(date: str, input_path: str | None = None) -> tuple[list[dict
                 "source": "explicit_input",
                 "counts": {"canonical": 0, "json": 0, "db": 0},
                 "parity": {"status": "empty"},
+                "input_evidence": _input_evidence_payload(str(path), [], source_kind="explicit_input"),
                 "blocking_error": {"code": 5, "message": f"BLOCKED_S7_GATE_INPUT_EMPTY: explicit gate input contains zero candidates: {path}"},
             }
-        candidates = [_normalise_s3_to_gate_input(a) for a in analyses]
+        candidates = [
+            _normalise_s3_to_gate_input(a) if _is_s3_analysis_entry(a) else dict(a)
+            for a in analyses
+        ]
         print(f"[gate_checker] Loaded {len(candidates)} candidates from {path}")
         return candidates, {
             "source": "explicit_input",
             "counts": {"canonical": len(candidates), "json": len(candidates), "db": 0},
             "parity": {"status": "explicit_input"},
+            "input_evidence": _input_evidence_payload(str(path), candidates, source_kind="explicit_input"),
         }
 
     try:
@@ -2280,6 +2335,7 @@ def _load_s3_output(date: str, input_path: str | None = None) -> tuple[list[dict
                 "source": "db",
                 "counts": {"canonical": len(candidates), "db": len(db_entries), "json": 0},
                 "parity": {"status": "db_canonical"},
+                "input_evidence": _input_evidence_payload(None, candidates, source_kind="db"),
             }
             print(f"[gate_checker] Loaded {len(candidates)} candidates from DB (canonical)")
             return candidates, metadata
@@ -2292,6 +2348,7 @@ def _load_s3_output(date: str, input_path: str | None = None) -> tuple[list[dict
                 "source": "json_fallback",
                 "counts": {"canonical": len(candidates), "db": 0, "json": len(json_entries)},
                 "parity": {"status": "json_fallback_deprecated"},
+                "input_evidence": _input_evidence_payload(None, candidates, source_kind="json_fallback"),
             }
             print(f"[gate_checker] WARNING: Using deprecated JSON fallback "
                   f"({len(candidates)} candidates). Run deep_stats_report.py to populate DB.")
@@ -2303,7 +2360,8 @@ def _load_s3_output(date: str, input_path: str | None = None) -> tuple[list[dict
 
     print(f"[gate_checker] ERROR: No S3 analysis data found for {date}")
     return [], {"source": "none", "counts": {"canonical": 0, "db": 0, "json": 0},
-                "parity": {"status": "missing"}}
+                "parity": {"status": "missing"},
+                "input_evidence": _input_evidence_payload(input_path, [], source_kind="none")}
 
 
 # ---------------------------------------------------------------------------
@@ -2324,7 +2382,7 @@ def main():
     parser.add_argument(
         "--input",
         default=None,
-        help="Path to S3 deep stats JSON (overrides default path)",
+        help="Path to S7 candidate JSON (overrides default source resolution)",
     )
     parser.add_argument(
         "--strict",
@@ -2357,6 +2415,7 @@ def main():
             status="BLOCK",
             payload={
                 "s7_input_path": args.input,
+                **_input_evidence_payload(args.input, [], source_kind="protected_output"),
                 "s7_json_output": str(json_output_path),
                 "s7_markdown_output": str(markdown_output_path),
                 "total_candidates": 0,
@@ -2414,6 +2473,7 @@ def main():
             status="BLOCK",
             payload={
                 "s7_input_path": args.input,
+                **candidate_load.get("input_evidence", _input_evidence_payload(args.input, [], source_kind="unknown")),
                 "s7_json_output": str(json_output_path),
                 "s7_markdown_output": str(markdown_output_path),
                 "total_candidates": 0,
@@ -2456,6 +2516,7 @@ def main():
             status="BLOCK",
             payload={
                 "s7_input_path": args.input,
+                **candidate_load.get("input_evidence", _input_evidence_payload(args.input, [], source_kind="unknown")),
                 "s7_json_output": str(json_output_path),
                 "s7_markdown_output": str(markdown_output_path),
                 "total_candidates": 0,
@@ -2487,6 +2548,7 @@ def main():
         payload={
             "artifact_kind": "gate_results",
             "s7_input_path": args.input,
+            **candidate_load.get("input_evidence", _input_evidence_payload(args.input, candidates, source_kind=candidate_load.get("source", "unknown"))),
             "s7_json_output": str(json_path),
             "s7_markdown_output": str(md_path),
             "json_output": str(json_path),
