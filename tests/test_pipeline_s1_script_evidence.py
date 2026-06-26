@@ -70,11 +70,20 @@ def test_s1_wrapper_success_writes_pass_script_evidence(tmp_path: Path):
         "dry_run": True,
         "allow_write": False,
         "allow_live_network": True,
-        "scripts": ["discover_events.py", "build_shortlist.py"],
+        "scripts": ["discover_events.py", "generate_market_matrix.py", "build_shortlist.py"],
         "production_write": False,
         "settled_runtime_path_source": "orchestrator_inherited_sandbox",
         "child_run_root": environ["BET_PIPELINE_RUN_ROOT"],
         "child_artifact_dir": environ["BET_PIPELINE_ARTIFACT_DIR"],
+        "discovery_rc": -1,
+        "market_matrix_rc": -1,
+        "shortlist_rc": -1,
+        "market_matrix_path": "",
+        "market_matrix_event_count": 0,
+        "market_matrix_schema_version": 1,
+        "market_matrix_pipeline_safe": False,
+        "market_matrix_validated": False,
+        "shortlist_started": False
     }
     assert evidence["no_pick_edge_stake_coupon_emitted"] is True
     assert evidence["production_selectable"] is False

@@ -25,6 +25,7 @@ Usage:
 
 import argparse
 import json
+import os
 import re
 import sys
 from collections import defaultdict
@@ -33,7 +34,12 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
-DATA_DIR = ROOT_DIR / "betting" / "data"
+DATA_DIR = Path(
+    os.environ.get(
+        "BET_PIPELINE_DATA_DIR",
+        str(ROOT_DIR / "betting" / "data"),
+    )
+)
 CACHE_DIR = DATA_DIR / "stats_cache"
 
 sys.path.insert(0, str(Path(__file__).parent))
@@ -642,6 +648,7 @@ def generate_market_matrix(
     max_odds: float = 10.0,
     evening_only: bool = False,
     stats_first: bool = False,
+    pipeline_safe: bool = False,
 ) -> dict:
     """Generate comprehensive market matrix for all fixtures on date.
 
@@ -1008,9 +1015,9 @@ def generate_market_matrix(
                 })
 
         # 5. Check picks_suggested for pre-computed suggestions
-        suggested = _fuzzy_match_single(match_key, picks_suggested)
+        suggested = _fuzzy_match_single(match_key, picks_suggested) if not pipeline_safe else None
         suggested_info = None
-        if suggested:
+        if suggested and not pipeline_safe:
             suggested_info = {
                 "suggested_pick": suggested.get("pick", ""),
                 "suggested_odds": suggested.get("odds", 0),
@@ -1171,15 +1178,48 @@ def generate_market_matrix(
     tier_order = {"FULL": 0, "ODDS_RICH": 1, "ODDS_BASIC": 2, "STATS_ONLY": 3, "FIXTURE_ONLY": 4}
     events.sort(key=lambda e: (tier_order.get(e["data_tier"], 5), e.get("sport") or "", e.get("competition") or ""))
 
+    if pipeline_safe:
+        forbidden_keys = {"recommended_pick", "internal_pick", "edge", "stake", "coupon", "parlay", "accumulator"}
+        for e in events:
+            e["kickoff"] = e.get("kickoff") or "UNKNOWN"
+            if "data_tier" not in e:
+                e["data_tier"] = "FIXTURE_ONLY"
+            e["suggested"] = None
+            
+            # remove any forbidden keys at top level of event
+            for k in list(e.keys()):
+                if k in forbidden_keys:
+                    del e[k]
+            
+            # remove any forbidden keys in nested markets
+            for sub_list_name in ("odds_markets", "safety_markets"):
+                if sub_list_name in e and isinstance(e[sub_list_name], list):
+                    for item in e[sub_list_name]:
+                        if isinstance(item, dict):
+                            for k in list(item.keys()):
+                                if k in forbidden_keys:
+                                    del item[k]
+
     matrix = {
+        "schema_version": 1,
+        "artifact_type": "MARKET_MATRIX",
         "date": date,
         "generated_at": datetime.now(timezone.utc).isoformat(),
+        "pipeline_safe": pipeline_safe,
+        "production_selectable": False if pipeline_safe else True,
+        "betting_decisions_enabled": False if pipeline_safe else True,
+        "no_pick_edge_stake_coupon_emitted": True if pipeline_safe else False,
+        "source_summary": {
+            "fixtures": len(fixtures),
+            "odds_events": len(odds_lookup),
+            "scan_events": len(scan_lookup)
+        },
         "total_fixtures": len(fixtures),
         "total_events_in_matrix": len(events),
-        "events_with_odds": sum(1 for e in events if e["odds_markets"]),
+        "events_with_odds": sum(1 for e in events if e.get("odds_markets")),
         "events_with_safety_data": sum(
             1 for e in events
-            if e["safety_markets"] or e.get("scores24_h2h") or e.get("scores24_form")
+            if e.get("safety_markets") or e.get("scores24_h2h") or e.get("scores24_form")
         ),
         "sport_breakdown": dict(sport_counts),
         "market_type_counts": dict(market_type_counts),
@@ -1194,7 +1234,7 @@ def generate_market_matrix(
             "odds_only_events_added": odds_only_events,
         },
         "data_tier_breakdown": {
-            tier: sum(1 for e in events if e["data_tier"] == tier)
+            tier: sum(1 for e in events if e.get("data_tier") == tier)
             for tier in ["FULL", "ODDS_RICH", "ODDS_BASIC", "STATS_ONLY", "FIXTURE_ONLY"]
         },
         "events": events,
@@ -1855,6 +1895,9 @@ def main():
              "suggested statistical markets even without odds. User checks "
              "Betclic for odds manually.",
     )
+    parser.add_argument("--output-dir", help="Explicit output directory (optional)")
+    parser.add_argument("--pipeline-safe", action="store_true", help="Pipeline-safe sandbox mode")
+    parser.add_argument("--json-only", action="store_true", help="Only output JSON file")
     args = parser.parse_args()
 
     date = args.date or datetime.now(timezone.utc).strftime("%Y-%m-%d")
@@ -1867,49 +1910,111 @@ def main():
     if stats_first:
         print(f"[matrix] 🔬 STATS-FIRST MODE — including events without odds")
 
+    # Enforce data directory resolution rules
+    global DATA_DIR, CACHE_DIR
+    ROOT_DIR = Path(__file__).resolve().parent.parent
+    
+    output_dir_str = args.output_dir or os.environ.get("BET_PIPELINE_DATA_DIR")
+    runtime_mode = os.environ.get("BET_PIPELINE_RUNTIME_MODE", "").upper()
+
+    if not output_dir_str:
+        if runtime_mode in {"DRY_RUN", "LIVE_SHADOW", "CERTIFICATION"}:
+            print("FAILED_MARKET_MATRIX_GENERATION")
+            print(f"[matrix] ERROR: Repo-local fallback is forbidden in DRY_RUN/LIVE_SHADOW/CERTIFICATION mode when no output path or BET_PIPELINE_DATA_DIR is provided.")
+            sys.exit(6)
+        output_dir = ROOT_DIR / "betting" / "data"
+    else:
+        output_dir = Path(output_dir_str).resolve()
+
+    # Reject resolved pipeline output path inside repo-local
+    forbidden_dirs = [
+        (ROOT_DIR / "betting" / "data").resolve(),
+        (ROOT_DIR / "betting" / "coupons").resolve(),
+        (ROOT_DIR / "reports").resolve(),
+    ]
+
+    for forbidden in forbidden_dirs:
+        try:
+            if output_dir == forbidden or output_dir.is_relative_to(forbidden):
+                if runtime_mode in {"DRY_RUN", "LIVE_SHADOW", "CERTIFICATION"}:
+                    print(f"[matrix] ERROR: Resolved pipeline output path '{output_dir}' is inside forbidden repo-local '{forbidden}'")
+                    print("FAILED_MARKET_MATRIX_GENERATION")
+                    sys.exit(6)
+        except ValueError:
+            pass
+
+    # Update DATA_DIR and CACHE_DIR
+    DATA_DIR = output_dir
+    CACHE_DIR = DATA_DIR / "stats_cache"
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+
     print(f"[matrix] Generating market matrix for {date}...")
 
-    matrix = generate_market_matrix(
-        date=date,
-        min_odds=args.min_odds,
-        max_odds=args.max_odds,
-        evening_only=args.evening_only,
-        stats_first=stats_first,
-    )
+    try:
+        # Check if discovered fixtures exist first
+        fixtures = load_fixtures(date)
+        if not fixtures:
+            print("BLOCKED_NO_DISCOVERY_EVENTS")
+            sys.exit(3)
 
-    write_matrix_json(matrix, date)
-    persist_matrix_to_db(matrix, date)
-    write_matrix_markdown(matrix, date)
+        matrix = generate_market_matrix(
+            date=date,
+            min_odds=args.min_odds,
+            max_odds=args.max_odds,
+            evening_only=args.evening_only,
+            stats_first=stats_first,
+            pipeline_safe=args.pipeline_safe,
+        )
 
-    opportunities = generate_decision_matrix(
-        matrix, args.min_odds, args.max_odds, stats_first=stats_first,
-    )
-    write_decision_matrix_md(opportunities, date, stats_first=stats_first)
+        if not matrix or "events" not in matrix:
+            print("BLOCKED_MARKET_MATRIX_INVALID")
+            sys.exit(5)
 
-    # Print summary
-    with_odds = sum(1 for o in opportunities if o.get("odds"))
-    check_betclic = sum(1 for o in opportunities if not o.get("odds"))
+        events = matrix.get("events", [])
+        if not events:
+            print("BLOCKED_MARKET_MATRIX_EMPTY")
+            # Create explicit empty diagnostic artifact
+            write_matrix_json(matrix, date)
+            sys.exit(4)
 
-    print(f"\n{'='*60}")
-    print(f"MARKET MATRIX SUMMARY — {date}")
-    if stats_first:
-        print("🔬 STATS-FIRST MODE ACTIVE")
-    print(f"{'='*60}")
-    print(f"Total fixtures:          {matrix['total_fixtures']}")
-    print(f"Events in matrix:        {matrix['total_events_in_matrix']}")
-    print(f"Events with odds:        {matrix['events_with_odds']}")
-    print(f"Events with safety data: {matrix['events_with_safety_data']}")
-    print(f"Bettable opportunities:  {len(opportunities)}")
-    if stats_first:
-        print(f"  → With API odds:       {with_odds}")
-        print(f"  → CHECK_BETCLIC:       {check_betclic}")
-    print(f"\nSport breakdown:")
-    for sport, count in sorted(matrix["sport_breakdown"].items(), key=lambda x: -x[1]):
-        print(f"  {sport}: {count}")
-    print(f"\nData tier breakdown:")
-    for tier, count in matrix["data_tier_breakdown"].items():
-        if count > 0:
-            print(f"  {tier}: {count}")
+        # Validate pipeline-safe invariants if requested
+        if args.pipeline_safe:
+            # Check date matches requested date
+            if matrix.get("date") != date:
+                print("BLOCKED_MARKET_MATRIX_INVALID")
+                sys.exit(5)
+            # Check every event has sport, home_team, away_team, kickoff or explicit UNKNOWN, data_tier
+            # and no forbidden fields
+            forbidden_keys = {"recommended_pick", "internal_pick", "edge", "stake", "coupon", "parlay", "accumulator"}
+            for e in events:
+                if not e.get("sport") or not e.get("home_team") or not e.get("away_team") or "data_tier" not in e or not e.get("kickoff"):
+                    print("BLOCKED_MARKET_MATRIX_INVALID")
+                    sys.exit(5)
+                # Check for forbidden fields
+                for fk in forbidden_keys:
+                    if fk in e:
+                        print("BLOCKED_MARKET_MATRIX_INVALID")
+                        sys.exit(5)
+
+        write_matrix_json(matrix, date)
+        persist_matrix_to_db(matrix, date)
+
+        if not args.json_only:
+            write_matrix_markdown(matrix, date)
+            opportunities = generate_decision_matrix(
+                matrix, args.min_odds, args.max_odds, stats_first=stats_first,
+            )
+            write_decision_matrix_md(opportunities, date, stats_first=stats_first)
+
+        print("MARKET_MATRIX_GENERATED")
+        sys.exit(0)
+
+    except SystemExit as se:
+        sys.exit(se.code)
+    except Exception as e:
+        print(f"[matrix] FAILED: {e}")
+        print("FAILED_MARKET_MATRIX_GENERATION")
+        sys.exit(6)
 
 
 if __name__ == "__main__":

@@ -19,7 +19,7 @@ from scripts.pipeline_steps import _runner
 
 EXPECTED_TARGETS = {
     "S0": ["scripts/settle_on_finish.py"],
-    "S1": ["scripts/discover_events.py", "scripts/build_shortlist.py"],
+    "S1": ["scripts/discover_events.py", "scripts/generate_market_matrix.py", "scripts/build_shortlist.py"],
     "S2": ["scripts/tipster_aggregator.py", "scripts/tipster_xref.py"],
     "S3": ["scripts/deep_stats_report.py"],
     "S4": ["scripts/fetch_odds_multi.py", "scripts/odds_evaluator.py"],

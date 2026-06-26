@@ -1,5 +1,6 @@
 # ruff: noqa: E501
 import sqlite3
+from unittest.mock import MagicMock
 from datetime import date, timedelta
 
 import pytest
@@ -58,76 +59,116 @@ def test_lease_expired_recovery(db_conn):
     assert acq2 is True
 
 def test_bootstrap_and_incremental_flow(db_conn):
+
+    from bet.api_clients.base_client import SourceOperationResult, SourceResultStatus
+    from bet.enrichment.football.provider import LiveAPIFootballAcquirer
+    from bet.integration.evidence import EvidenceRef
+    from scripts.enrichment.football_history import FrozenClock
+
     sync = FootballSyncEngine(db_conn)
     repo = FootballHistoryRepository(db_conn)
 
-    # Mock client and acquirer
     mock_client = MagicMock()
-    from bet.enrichment.football.provider import LiveAPIFootballAcquirer
     acquirer = LiveAPIFootballAcquirer(mock_client)
 
-    service = FootballHistoryService(db_conn, acquirer, sync, repo)
-
-    # 1. Mock bootstrap responses (discovery returned 1 fixture)
-    from bet.api_clients.base_client import SourceOperationResult, SourceResultStatus
-    from bet.integration.evidence import EvidenceRef
+    # Freeze the service clock so cursor advancement is independent of the
+    # local timezone/date of the test runner.
+    fixture_day = date(2023, 1, 2)
+    fixture_ts = "2023-01-02T12:00:00Z"
+    clock = FrozenClock("2023-01-03T12:00:00Z")
+    service = FootballHistoryService(db_conn, acquirer, sync, repo, clock=clock)
 
     mock_client.get_history_discovery.return_value = SourceOperationResult(
         status=SourceResultStatus.SUCCESS,
-        value={"response": [
-            {
-                "fixture": {"id": 100, "status": {"short": "FT"}, "date": "2023-01-01T12:00:00Z"},
-                "league": {"id": 39, "name": "Premier League", "season": 2023},
-                "teams": {
-                    "home": {"id": 10, "name": "Home Team"},
-                    "away": {"id": 20, "name": "Away Team"}
-                },
-                "goals": {"home": 2, "away": 1},
-                "score": {"penalty": {"home": None, "away": None}}
-            }
-        ]},
-        evidence_refs=(EvidenceRef("history_discovery", "GET", "json", 100, "hash_disc", captured_at="2023-01-01T15:00:00Z"),)
+        value={
+            "response": [
+                {
+                    "fixture": {
+                        "id": 100,
+                        "status": {"short": "FT"},
+                        "date": fixture_ts,
+                    },
+                    "league": {"id": 39, "name": "Premier League", "season": 2023},
+                    "teams": {
+                        "home": {"id": 10, "name": "Home Team"},
+                        "away": {"id": 20, "name": "Away Team"},
+                    },
+                    "goals": {"home": 2, "away": 1},
+                    "score": {"penalty": {"home": None, "away": None}},
+                }
+            ]
+        },
+        evidence_refs=(
+            EvidenceRef(
+                "history_discovery",
+                "GET",
+                "json",
+                100,
+                "hash_disc",
+                captured_at="2023-01-02T15:00:00Z",
+            ),
+        ),
     )
     mock_client.get_history_details.return_value = SourceOperationResult(
         status=SourceResultStatus.SUCCESS,
-        value={"response": [
-            {
-                "fixture": {"id": 100, "status": {"short": "FT"}, "date": "2023-01-01T12:00:00Z"},
-                "statistics": [
-                    {"team": {"id": 10}, "statistics": [
-                        {"type": "Total Shots", "value": 10},
-                        {"type": "Shots on Goal", "value": 5},
-                        {"type": "Ball Possession", "value": "50%"},
-                        {"type": "Fouls", "value": 12},
-                        {"type": "Yellow Cards", "value": 1},
-                        {"type": "Red Cards", "value": 0},
-                        {"type": "Offsides", "value": 2},
-                        {"type": "Corner Kicks", "value": 4},
-                        {"type": "Goalkeeper Saves", "value": 3}
-                    ]},
-                    {"team": {"id": 20}, "statistics": [
-                        {"type": "Total Shots", "value": 8},
-                        {"type": "Shots on Goal", "value": 4},
-                        {"type": "Ball Possession", "value": "50%"},
-                        {"type": "Fouls", "value": 10},
-                        {"type": "Yellow Cards", "value": 2},
-                        {"type": "Red Cards", "value": 0},
-                        {"type": "Offsides", "value": 1},
-                        {"type": "Corner Kicks", "value": 3},
-                        {"type": "Goalkeeper Saves", "value": 5}
-                    ]}
-                ]
-            }
-        ]},
-        evidence_refs=(EvidenceRef("history_details", "GET", "json", 200, "hash_details", captured_at="2023-01-01T15:01:00Z"),)
+        value={
+            "response": [
+                {
+                    "fixture": {
+                        "id": 100,
+                        "status": {"short": "FT"},
+                        "date": fixture_ts,
+                    },
+                    "statistics": [
+                        {
+                            "team": {"id": 10},
+                            "statistics": [
+                                {"type": "Total Shots", "value": 10},
+                                {"type": "Shots on Goal", "value": 5},
+                                {"type": "Ball Possession", "value": "50%"},
+                                {"type": "Fouls", "value": 12},
+                                {"type": "Yellow Cards", "value": 1},
+                                {"type": "Red Cards", "value": 0},
+                                {"type": "Offsides", "value": 2},
+                                {"type": "Corner Kicks", "value": 4},
+                                {"type": "Goalkeeper Saves", "value": 3},
+                            ],
+                        },
+                        {
+                            "team": {"id": 20},
+                            "statistics": [
+                                {"type": "Total Shots", "value": 8},
+                                {"type": "Shots on Goal", "value": 4},
+                                {"type": "Ball Possession", "value": "50%"},
+                                {"type": "Fouls", "value": 10},
+                                {"type": "Yellow Cards", "value": 2},
+                                {"type": "Red Cards", "value": 0},
+                                {"type": "Offsides", "value": 1},
+                                {"type": "Corner Kicks", "value": 3},
+                                {"type": "Goalkeeper Saves", "value": 5},
+                            ],
+                        },
+                    ],
+                }
+            ]
+        },
+        evidence_refs=(
+            EvidenceRef(
+                "history_details",
+                "GET",
+                "json",
+                200,
+                "hash_details",
+                captured_at="2023-01-02T15:01:00Z",
+            ),
+        ),
     )
 
-    # Run Bootstrap
     cmd = BootstrapCommand(
         competition_provider_id="39",
         season=2023,
-        from_date=date.today(),
-        to_date=date.today(),
+        from_date=fixture_day,
+        to_date=fixture_day,
         max_fixtures=10,
         max_http_attempts=10,
         max_fallback_stats_calls=5,
@@ -137,10 +178,10 @@ def test_bootstrap_and_incremental_flow(db_conn):
     assert res.final_status == "COMPLETE"
     assert res.actual_counters["complete_count"] == 1
 
-    # Cursor should have advanced committed_through_date to 2023-01-02
-    assert res.cursor_after["committed_through_date"] == (date.today() - timedelta(days=1)).isoformat()
+    # Cursor advancement is now tied to the frozen service clock:
+    # min(cmd.to_date=2023-01-02, clock.today_utc()-1=2023-01-02)
+    assert res.cursor_after["committed_through_date"] == fixture_day.isoformat()
 
-    # Incremental with 0 lookback days should execute zero physical calls and succeed immediately
     cmd_inc = IncrementalCommand(
         competition_provider_id="39",
         season=2023,
@@ -155,9 +196,6 @@ def test_bootstrap_and_incremental_flow(db_conn):
     res_inc = service.incremental_sync(cmd_inc)
     assert res_inc.final_status == "COMPLETE"
     assert res_inc.actual_counters["physical_http_attempts"] == 1
-
-from unittest.mock import MagicMock
-
 
 def test_scope_isolation_under_different_scopes(db_conn):
     db_conn.execute("""INSERT INTO sports_sync_item
@@ -177,7 +215,6 @@ def test_scope_isolation_under_different_scopes(db_conn):
 
 
 def test_ids_unsupported_cache_persists(db_conn):
-    from unittest.mock import MagicMock
 
     from bet.enrichment.football.service import FootballHistoryService
     from scripts.enrichment.football_history import FrozenClock
@@ -223,7 +260,6 @@ def test_ids_unsupported_cache_persists(db_conn):
 
 
 def test_current_utc_date_ingested_but_not_committed_as_closed(db_conn):
-    from unittest.mock import MagicMock
 
     from bet.enrichment.football.service import FootballHistoryService
     from scripts.enrichment.football_history import FrozenClock
@@ -508,7 +544,6 @@ def test_c0_3_incomplete_discovery_paging():
 
 
 def test_c0_4_rate_limited_ids_call_retained_capability():
-    from unittest.mock import MagicMock
 
     from bet.api_clients.base_client import SourceOperationResult, SourceResultStatus
     from bet.enrichment.football.contracts import BatchIdsCapability
@@ -540,7 +575,6 @@ def test_c0_4_rate_limited_ids_call_retained_capability():
 
 
 def test_c0_5_timeout_ids_call_retained_capability():
-    from unittest.mock import MagicMock
 
     from bet.api_clients.base_client import SourceOperationResult, SourceResultStatus
     from bet.enrichment.football.contracts import BatchIdsCapability
@@ -572,7 +606,6 @@ def test_c0_5_timeout_ids_call_retained_capability():
 
 
 def test_c0_6_plan_restricted_ids_call_sets_unsupported():
-    from unittest.mock import MagicMock
 
     from bet.api_clients.base_client import SourceOperationResult, SourceResultStatus
     from bet.enrichment.football.contracts import BatchIdsCapability
@@ -604,7 +637,6 @@ def test_c0_6_plan_restricted_ids_call_sets_unsupported():
 
 
 def test_c0_7_optional_ids_transient_failure_continues_to_stats():
-    from unittest.mock import MagicMock
 
     from bet.api_clients.base_client import SourceOperationResult, SourceResultStatus
     from bet.enrichment.football.contracts import (
@@ -668,7 +700,6 @@ def test_c0_7_optional_ids_transient_failure_continues_to_stats():
 
 
 def test_c0_8_physical_attempt_exhaustion_creates_outcomes():
-    from unittest.mock import MagicMock
 
     from bet.enrichment.football.contracts import (
         BatchIdsCapability,
@@ -1038,7 +1069,6 @@ def test_c0_19_cursor_monotonicity_prevention(db_conn):
 
 
 def test_c0_20_rate_limit_circuit_breaker():
-    from unittest.mock import MagicMock
 
     from bet.api_clients.base_client import SourceOperationResult, SourceResultStatus
     from bet.enrichment.football.contracts import (
@@ -1098,7 +1128,6 @@ def test_c0_20_rate_limit_circuit_breaker():
 
 
 def test_c0_21_embedded_stats_corruption():
-    from unittest.mock import MagicMock
 
     from bet.api_clients.base_client import SourceOperationResult, SourceResultStatus
     from bet.enrichment.football.contracts import (
@@ -1191,7 +1220,6 @@ def test_u3_same_date_transition_still_updates_metadata(db_conn):
 
 def test_u3_invalid_discovery_produces_truthful_counters(db_conn):
     from datetime import date
-    from unittest.mock import MagicMock
 
     from bet.api_clients.base_client import SourceOperationResult, SourceResultStatus
     from bet.enrichment.football.contracts import BootstrapCommand
@@ -1239,7 +1267,6 @@ def test_u3_invalid_discovery_produces_truthful_counters(db_conn):
 
 def test_u3_transient_score_only_facts_exist_while_cursor_unchanged(db_conn):
     from datetime import date
-    from unittest.mock import MagicMock
 
     from bet.api_clients.base_client import SourceOperationResult, SourceResultStatus
     from bet.enrichment.football.contracts import BootstrapCommand
@@ -1300,7 +1327,6 @@ def test_u3_transient_score_only_facts_exist_while_cursor_unchanged(db_conn):
 
 def test_u3_later_successful_retry_appends_facts_and_allows_cursor_progression(db_conn):
     from datetime import date
-    from unittest.mock import MagicMock
 
     from bet.api_clients.base_client import SourceOperationResult, SourceResultStatus
     from bet.enrichment.football.contracts import BootstrapCommand
@@ -1372,7 +1398,6 @@ def test_u3_later_successful_retry_appends_facts_and_allows_cursor_progression(d
 
 def test_u3_second_terminal_rerun_creates_no_duplicate_observations(db_conn):
     from datetime import date
-    from unittest.mock import MagicMock
 
     from bet.api_clients.base_client import SourceOperationResult, SourceResultStatus
     from bet.enrichment.football.contracts import BootstrapCommand
