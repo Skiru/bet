@@ -68,3 +68,31 @@ def test_odds_sources_merge_event_odds_preserves_same_bookmaker_h2h_and_totals()
     merged = odds_sources.merge_event_odds(existing, new)
 
     assert [market["key"] for market in merged["bookmakers"][0]["markets"]] == ["h2h", "totals"]
+
+
+def test_odds_sources_merge_event_odds_dedupes_duplicate_outcome_by_name_and_point():
+    existing = {
+        "bookmakers": [
+            {
+                "key": "superbet.pl",
+                "markets": [
+                    {"key": "totals", "outcomes": [{"name": "Over 2.5", "price": 1.91, "point": 2.5}]}
+                ],
+            }
+        ]
+    }
+    new = {
+        "bookmakers": [
+            {
+                "key": "superbet.pl",
+                "markets": [
+                    {"key": "totals", "outcomes": [{"name": "Over 2.5", "price": 1.95, "point": 2.5}]}
+                ],
+            }
+        ]
+    }
+
+    merged = odds_sources.merge_event_odds(existing, new)
+
+    outcomes = merged["bookmakers"][0]["markets"][0]["outcomes"]
+    assert outcomes == [{"name": "Over 2.5", "price": 1.95, "point": 2.5}]

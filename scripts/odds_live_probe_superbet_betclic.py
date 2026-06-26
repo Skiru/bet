@@ -12,10 +12,11 @@ import subprocess
 import sys
 from typing import Any, Callable
 
-import requests
+from bet.api_clients.oddspapi import OddspapiConfig, OddsPapiClient, OddsPapiError
 
 
-TASK_ID = "ODDS_SUPERBET_BETCLIC_PUBLIC_BRANCH_REMEDIATION_B2_CREDENTIAL_PATH"
+TASK_ID = "ODDS_SUPERBET_BETCLIC_PUBLIC_BRANCH_REMEDIATION_C_PROVIDER_CONTRACT"
+BASE_COMMIT_SHA = "fc5e7188b9f016f891a24346f1dce9c6ab73b455"
 WORKTREE = Path(__file__).resolve().parents[1]
 CONFIG_PATH = WORKTREE / "config" / "api_keys.json"
 ABS_ODDSPAPI_KEYS_FILE = Path("/Users/mkoziol/projects/bet/.kilo/worktrees/plume-homburg/config/api_keys.json")
@@ -28,6 +29,8 @@ ODDSPAPI_STATUSES = {
     "FAIL_AUTH_OR_PLAN",
     "FAIL_PLAN_NO_SUPERBET_PL",
     "FAIL_PLAN_NO_SPORT_10",
+    "FAIL_ACCESS_FIXTURES",
+    "FAIL_ACCESS_ODDS",
     "FAIL_QUOTA_OR_RATE_LIMIT",
     "FAIL_SCHEMA",
     "FAIL_NETWORK",
@@ -103,7 +106,6 @@ def load_oddspapi_source(
     api_key: str,
     import_module: Callable[[str], Any] = importlib.import_module,
 ) -> Any:
-    # The adapter's SOURCE path can read env-backed config during import time.
     os.environ["ODDSPAPI_API_KEY"] = api_key
     module = import_module("scripts.odds_sources.oddspapi")
     return getattr(module, "SOURCE")
@@ -123,142 +125,20 @@ def _safe_exc_message(exc: BaseException, secrets: list[str]) -> str | None:
     return message[:240]
 
 
-def _normalize_key_name(value: Any) -> str:
-    return str(value or "").strip().lower().replace("-", "_").replace(" ", "_")
+def _git_output(*args: str) -> str:
+    return subprocess.check_output(["git", *args], cwd=WORKTREE, text=True).strip()
 
 
-def _find_first_value(payload: Any, target_keys: set[str]) -> Any:
-    if isinstance(payload, dict):
-        for key, value in payload.items():
-            if _normalize_key_name(key) in target_keys:
-                return value
-        for value in payload.values():
-            nested = _find_first_value(value, target_keys)
-            if nested is not None:
-                return nested
-    elif isinstance(payload, list):
-        for item in payload:
-            nested = _find_first_value(item, target_keys)
-            if nested is not None:
-                return nested
-    return None
+def _git_dirty() -> bool:
+    return bool(_git_output("status", "--short"))
 
 
-def _contains_token(payload: Any, token: str) -> bool | None:
-    lowered_token = token.lower()
-    if isinstance(payload, dict):
-        for key, value in payload.items():
-            key_name = str(key).lower()
-            if lowered_token in key_name:
-                return True
-            nested = _contains_token(value, token)
-            if nested:
-                return True
-    elif isinstance(payload, list):
-        for item in payload:
-            nested = _contains_token(item, token)
-            if nested:
-                return True
-    elif isinstance(payload, str):
-        if lowered_token in payload.lower():
-            return True
-    return None
-
-
-def _coerce_bool(value: Any) -> bool | None:
-    if isinstance(value, bool):
-        return value
-    if isinstance(value, str):
-        lowered = value.strip().lower()
-        if lowered in {"true", "yes", "active", "enabled"}:
-            return True
-        if lowered in {"false", "no", "inactive", "disabled"}:
-            return False
-    return None
-
-
-def probe_oddspapi_account_direct(api_key: str) -> dict[str, Any]:
-    result = {
-        "attempted": True,
-        "http_status": None,
-        "ok": False,
-        "response_top_level_keys": [],
-        "request_limit": None,
-        "request_count": None,
-        "current_subscription_active": None,
-        "has_superbet_pl": None,
-        "has_sport_10": None,
-        "error_type": None,
-        "error_message_redacted": None,
-    }
-
-    try:
-        response = requests.get(
-            "https://api.oddspapi.io/v4/account",
-            params={"apiKey": api_key},
-            headers={"Accept": "application/json"},
-            timeout=20.0,
-        )
-        result["http_status"] = int(response.status_code)
-        result["ok"] = bool(response.ok)
-        try:
-            payload = response.json()
-        except Exception as exc:  # noqa: BLE001
-            result["error_type"] = type(exc).__name__
-            result["error_message_redacted"] = _safe_exc_message(exc, [api_key])
-            return result
-
-        if isinstance(payload, dict):
-            result["response_top_level_keys"] = sorted(str(key) for key in payload.keys())
-            result["request_limit"] = _find_first_value(payload, {"request_limit", "requests_limit", "limit"})
-            result["request_count"] = _find_first_value(payload, {"request_count", "requests_count", "count", "used"})
-            result["current_subscription_active"] = _coerce_bool(
-                _find_first_value(payload, {"current_subscription_active", "subscription_active", "active", "is_active"})
-            )
-            result["has_superbet_pl"] = _contains_token(payload, "superbet.pl")
-            result["has_sport_10"] = _contains_token(payload, "sport_10") or _contains_token(payload, "sportId:10")
-            if result["has_sport_10"] is None:
-                sport_id_value = _find_first_value(payload, {"sportid", "sport_id"})
-                if sport_id_value is not None:
-                    result["has_sport_10"] = str(sport_id_value).strip() == "10"
-        elif not response.ok:
-            result["error_message_redacted"] = f"OddsPapi account probe returned HTTP {response.status_code}"
-
-        if not response.ok and result["error_message_redacted"] is None:
-            result["error_message_redacted"] = f"OddsPapi account probe returned HTTP {response.status_code}"
-        return result
-    except requests.exceptions.RequestException as exc:
-        result["error_type"] = type(exc).__name__
-        result["error_message_redacted"] = _safe_exc_message(exc, [api_key])
-        return result
-
-
-def _classify_provider_error(exc: BaseException) -> tuple[str, int]:
-    message = str(exc)
-    cause = exc.__cause__
-    parts = [message.lower()]
-    if cause is not None:
-        parts.append(str(cause).lower())
-    lowered = " ".join(parts)
-    if "http 401" in lowered or "http 403" in lowered or "forbidden" in lowered or "unauthorized" in lowered:
-        return "FAIL_AUTH_OR_PLAN", 0
-    if "http 429" in lowered or "quota" in lowered or "rate limit" in lowered:
-        return "FAIL_QUOTA_OR_RATE_LIMIT", 0
-    if isinstance(cause, (TimeoutError, socket.timeout)):
-        return "FAIL_NETWORK", 1
-    try:
-        import requests
-
-        request_exception = requests.exceptions.RequestException
-    except Exception:
-        request_exception = ()
-    if request_exception and isinstance(cause, request_exception):
-        return "FAIL_NETWORK", 1
-    if isinstance(exc, (ValueError, TypeError)) or "non-json" in lowered or "unexpected non-list payload" in lowered:
-        return "FAIL_SCHEMA", 1
-    if "request failed after retries" in lowered:
-        return "FAIL_NETWORK", 1
-    return "FAIL_UNEXPECTED", 1
+def _classify_http_status(http_status: int | None, *, phase: str) -> str:
+    if http_status in {401, 403}:
+        return "FAIL_AUTH_OR_PLAN" if phase == "account" else f"FAIL_ACCESS_{phase.upper()}"
+    if http_status == 429:
+        return "FAIL_QUOTA_OR_RATE_LIMIT"
+    return "FAIL_UNEXPECTED"
 
 
 def _provider_stub(configured: bool, key_source: str) -> dict[str, Any]:
@@ -267,41 +147,64 @@ def _provider_stub(configured: bool, key_source: str) -> dict[str, Any]:
         "key_source": key_source,
         "key_file_path_used": None,
         "key_present": configured,
+        "status": "NOT_RUN_MISSING_KEYS" if not configured else "FAIL_UNEXPECTED",
+        "reason": None,
+        "billable_calls_attempted": 0,
         "account_probe": {
             "attempted": False,
             "http_status": None,
             "ok": False,
-            "response_top_level_keys": [],
-            "request_limit": None,
-            "request_count": None,
             "current_subscription_active": None,
-            "has_superbet_pl": None,
-            "has_sport_10": None,
+            "request_count": None,
+            "request_limit": None,
+            "redacted_summary": None,
             "error_type": None,
             "error_message_redacted": None,
         },
-        "billable_calls_attempted": 0,
-        "status": "NOT_RUN_MISSING_KEYS" if not configured else "FAIL_UNEXPECTED",
-        "events": None,
-        "sample_has_bookmakers": None,
-        "sample_bookmakers": [],
+        "fixture_probe": {
+            "attempted": False,
+            "http_status": None,
+            "fixture_count": None,
+            "error_type": None,
+            "error_message_redacted": None,
+        },
+        "odds_probe": {
+            "attempted": False,
+            "http_status": None,
+            "events": None,
+            "sample_bookmakers": [],
+            "error_type": None,
+            "error_message_redacted": None,
+        },
+    }
+
+
+def _account_probe_from_payload(summary: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "attempted": True,
+        "http_status": 200,
+        "ok": True,
+        "current_subscription_active": summary.get("current_subscription_active"),
+        "request_count": summary.get("request_count"),
+        "request_limit": summary.get("request_limit"),
+        "redacted_summary": summary,
         "error_type": None,
         "error_message_redacted": None,
     }
 
 
-def _bookmaker_sample(events: list[dict[str, Any]]) -> tuple[bool, list[str]]:
+def _bookmaker_sample(events: list[dict[str, Any]]) -> list[str]:
     if not events:
-        return False, []
+        return []
     bookmakers = events[0].get("bookmakers") if isinstance(events[0], dict) else []
     if not isinstance(bookmakers, list):
-        return False, []
-    sample = []
+        return []
+    sample: list[str] = []
     for bookmaker in bookmakers[:5]:
         if not isinstance(bookmaker, dict):
             continue
         sample.append(str(bookmaker.get("key") or bookmaker.get("title") or ""))
-    return bool(bookmakers), sample
+    return sample
 
 
 def _run_oddspapi_probe(window_start: str, window_end: str) -> tuple[dict[str, Any], int]:
@@ -310,69 +213,159 @@ def _run_oddspapi_probe(window_start: str, window_end: str) -> tuple[dict[str, A
     result = _provider_stub(bool(credential["key_present"]), str(credential["key_source"]))
     result["key_file_path_used"] = credential["key_file_path_used"]
     result["key_present"] = bool(credential["key_present"])
-    result["events"] = 0 if api_key is not None else None
     if api_key is None:
+        result["reason"] = "OddsPapi key missing; live probe not run."
         return result, 0
 
-    account_probe = probe_oddspapi_account_direct(api_key)
-    result["account_probe"] = account_probe
-    http_status = account_probe.get("http_status")
-    if http_status in {401, 403}:
-        result.update(
-            {
-                "status": "FAIL_AUTH_OR_PLAN",
-                "error_type": "OddsPapiAccountProbeError",
-                "error_message_redacted": (
-                    "absolute credential file was read, but /v4/account returned "
-                    f"HTTP {http_status}; this indicates key/auth/plan rejection rather than missing local credential path"
-                ),
-            }
-        )
-        return result, 0
-    if http_status == 429:
-        result.update(
-            {
-                "status": "FAIL_QUOTA_OR_RATE_LIMIT",
-                "error_type": "OddsPapiAccountProbeError",
-                "error_message_redacted": "OddsPapi account probe returned HTTP 429",
-            }
-        )
-        return result, 0
-    if account_probe.get("attempted") and not bool(account_probe.get("ok")):
-        result.update(
-            {
-                "status": "FAIL_NETWORK" if http_status is None else "FAIL_UNEXPECTED",
-                "error_type": str(account_probe.get("error_type") or "OddsPapiAccountProbeError"),
-                "error_message_redacted": account_probe.get("error_message_redacted"),
-            }
-        )
-        return result, 1
-
-    oddspapi_source = load_oddspapi_source(api_key)
-    result["billable_calls_attempted"] = 1
+    client = OddsPapiClient(OddspapiConfig(api_key=api_key))
 
     try:
-        events = oddspapi_source.fetch_odds("football", window_start, window_end)
-        has_bookmakers, sample_bookmakers = _bookmaker_sample(events)
-        result.update(
-            {
-                "status": "PASS" if events else "PASS_EMPTY_ODDS",
-                "events": len(events),
-                "sample_has_bookmakers": has_bookmakers,
-                "sample_bookmakers": sample_bookmakers,
-            }
-        )
-        return result, 0
+        account_payload = client.get_account()
+        account_summary = client.summarize_account(account_payload)
+        result["account_probe"] = _account_probe_from_payload(account_summary)
+    except OddsPapiError as exc:
+        http_status = exc.http_status
+        result["account_probe"] = {
+            "attempted": True,
+            "http_status": http_status,
+            "ok": False,
+            "current_subscription_active": None,
+            "request_count": None,
+            "request_limit": None,
+            "redacted_summary": None,
+            "error_type": type(exc).__name__,
+            "error_message_redacted": _safe_exc_message(exc, [api_key]),
+        }
+        result["status"] = _classify_http_status(http_status, phase="account")
+        result["reason"] = "OddsPapi /v4/account rejected or blocked the credential/plan."
+        return result, 0 if http_status in {401, 403, 429} else 1
     except Exception as exc:  # noqa: BLE001
-        status, exit_code = _classify_provider_error(exc)
-        result.update(
-            {
-                "status": status,
-                "error_type": type(exc).__name__,
-                "error_message_redacted": _safe_exc_message(exc, [api_key]),
-            }
-        )
-        return result, exit_code
+        result["account_probe"] = {
+            "attempted": True,
+            "http_status": None,
+            "ok": False,
+            "current_subscription_active": None,
+            "request_count": None,
+            "request_limit": None,
+            "redacted_summary": None,
+            "error_type": type(exc).__name__,
+            "error_message_redacted": _safe_exc_message(exc, [api_key]),
+        }
+        result["status"] = "FAIL_NETWORK" if isinstance(exc, (TimeoutError, socket.timeout)) else "FAIL_UNEXPECTED"
+        result["reason"] = "OddsPapi /v4/account probe failed before any billable call."
+        return result, 1
+
+    account_summary = result["account_probe"]["redacted_summary"] or {}
+    if account_summary.get("has_superbet_pl") is False:
+        result["status"] = "FAIL_PLAN_NO_SUPERBET_PL"
+        result["reason"] = "OddsPapi account response does not show Superbet PL access."
+        return result, 0
+    if account_summary.get("has_sport_10") is False:
+        result["status"] = "FAIL_PLAN_NO_SPORT_10"
+        result["reason"] = "OddsPapi account response does not show football sportId 10 access."
+        return result, 0
+
+    try:
+        fixtures = client.fetch_fixtures("football", window_start, window_end, bookmaker="superbet.pl")
+        result["billable_calls_attempted"] = 1
+        result["fixture_probe"] = {
+            "attempted": True,
+            "http_status": 200,
+            "fixture_count": len(fixtures),
+            "error_type": None,
+            "error_message_redacted": None,
+        }
+    except OddsPapiError as exc:
+        http_status = exc.http_status
+        result["billable_calls_attempted"] = 1
+        result["fixture_probe"] = {
+            "attempted": True,
+            "http_status": http_status,
+            "fixture_count": None,
+            "error_type": type(exc).__name__,
+            "error_message_redacted": _safe_exc_message(exc, [api_key]),
+        }
+        result["status"] = _classify_http_status(http_status, phase="fixtures")
+        result["reason"] = "OddsPapi account probe succeeded, but /v4/fixtures was forbidden or failed."
+        return result, 0 if http_status in {403, 429} else 1
+    except Exception as exc:  # noqa: BLE001
+        result["billable_calls_attempted"] = 1
+        result["fixture_probe"] = {
+            "attempted": True,
+            "http_status": None,
+            "fixture_count": None,
+            "error_type": type(exc).__name__,
+            "error_message_redacted": _safe_exc_message(exc, [api_key]),
+        }
+        result["status"] = "FAIL_NETWORK" if isinstance(exc, (TimeoutError, socket.timeout)) else "FAIL_SCHEMA"
+        result["reason"] = "OddsPapi fixtures discovery failed after account success."
+        return result, 1
+
+    if not fixtures:
+        result["status"] = "PASS_EMPTY_DISCOVERY"
+        result["reason"] = "OddsPapi account and fixtures discovery succeeded, but no Superbet PL football fixture was returned in the narrow probe window."
+        return result, 0
+
+    fixture_id = fixtures[0].get("fixtureId") or fixtures[0].get("id") or fixtures[0].get("eventId")
+    if fixture_id in (None, ""):
+        result["status"] = "FAIL_SCHEMA"
+        result["reason"] = "OddsPapi fixtures discovery returned a fixture without fixtureId/id."
+        return result, 1
+
+    try:
+        normalized_events = [event.as_existing_pipeline_dict() for event in client.fetch_fixture_odds(fixture_id, bookmaker="superbet.pl")]
+        result["billable_calls_attempted"] = 2
+        sample_bookmakers = _bookmaker_sample(normalized_events)
+        result["odds_probe"] = {
+            "attempted": True,
+            "http_status": 200,
+            "events": len(normalized_events),
+            "sample_bookmakers": sample_bookmakers,
+            "error_type": None,
+            "error_message_redacted": None,
+        }
+    except OddsPapiError as exc:
+        http_status = exc.http_status
+        result["billable_calls_attempted"] = 2
+        result["odds_probe"] = {
+            "attempted": True,
+            "http_status": http_status,
+            "events": None,
+            "sample_bookmakers": [],
+            "error_type": type(exc).__name__,
+            "error_message_redacted": _safe_exc_message(exc, [api_key]),
+        }
+        result["status"] = _classify_http_status(http_status, phase="odds")
+        result["reason"] = "OddsPapi account and fixtures discovery succeeded, but /v4/odds by fixtureId was forbidden or failed."
+        return result, 0 if http_status in {403, 429} else 1
+    except Exception as exc:  # noqa: BLE001
+        result["billable_calls_attempted"] = 2
+        result["odds_probe"] = {
+            "attempted": True,
+            "http_status": None,
+            "events": None,
+            "sample_bookmakers": [],
+            "error_type": type(exc).__name__,
+            "error_message_redacted": _safe_exc_message(exc, [api_key]),
+        }
+        result["status"] = "FAIL_NETWORK" if isinstance(exc, (TimeoutError, socket.timeout)) else "FAIL_SCHEMA"
+        result["reason"] = "OddsPapi odds-by-fixture probe failed after fixture discovery."
+        return result, 1
+
+    if not normalized_events:
+        result["status"] = "PASS_EMPTY_ODDS"
+        result["reason"] = "OddsPapi odds-by-fixture endpoint succeeded, but no normalized Superbet PL event was produced."
+        return result, 0
+
+    has_superbet = any("superbet.pl" == sample for sample in result["odds_probe"]["sample_bookmakers"])
+    if has_superbet:
+        result["status"] = "PASS"
+        result["reason"] = "OddsPapi account, fixtures, and odds-by-fixture flow succeeded with a normalized Superbet PL bookmaker."
+        return result, 0
+
+    result["status"] = "FAIL_SCHEMA"
+    result["reason"] = "OddsPapi odds-by-fixture succeeded but the normalized event did not contain the expected Superbet PL bookmaker."
+    return result, 1
 
 
 def _run_the_odds_probe(window_start: str, window_end: str) -> tuple[dict[str, Any], int]:
@@ -380,6 +373,7 @@ def _run_the_odds_probe(window_start: str, window_end: str) -> tuple[dict[str, A
     api_key, key_source = _resolve_key("THE_ODDS_API_KEY", aliases)
     result = _provider_stub(api_key is not None, key_source)
     if api_key is None:
+        result["reason"] = "The Odds API key missing; optional fallback probe not run."
         return result, 0
 
     os.environ["THE_ODDS_API_KEY"] = api_key
@@ -387,25 +381,44 @@ def _run_the_odds_probe(window_start: str, window_end: str) -> tuple[dict[str, A
 
     try:
         events = betclic_source.fetch_odds("football", window_start, window_end)
-        has_bookmakers, sample_bookmakers = _bookmaker_sample(events)
-        result.update(
-            {
-                "status": "PASS" if events else "PASS_EMPTY",
-                "events": len(events),
-                "sample_has_bookmakers": has_bookmakers,
-                "sample_bookmakers": sample_bookmakers,
-            }
-        )
+        result["status"] = "PASS" if events else "PASS_EMPTY"
+        result["reason"] = "The Odds API Betclic probe completed."
+        result["odds_probe"] = {
+            "attempted": True,
+            "http_status": 200,
+            "events": len(events),
+            "sample_bookmakers": _bookmaker_sample(events),
+            "error_type": None,
+            "error_message_redacted": None,
+        }
         return result, 0
     except Exception as exc:  # noqa: BLE001
-        status, exit_code = _classify_provider_error(exc)
-        result.update(
-            {
-                "status": status,
-                "error_type": type(exc).__name__,
-                "error_message_redacted": _safe_exc_message(exc, [api_key]),
-            }
-        )
+        message = str(exc).lower()
+        if "http 401" in message or "http 403" in message or "forbidden" in message or "unauthorized" in message:
+            status = "FAIL_AUTH_OR_PLAN"
+            exit_code = 0
+        elif "http 429" in message or "quota" in message or "rate limit" in message:
+            status = "FAIL_QUOTA_OR_RATE_LIMIT"
+            exit_code = 0
+        elif isinstance(exc.__cause__, (TimeoutError, socket.timeout)):
+            status = "FAIL_NETWORK"
+            exit_code = 1
+        elif isinstance(exc, (ValueError, TypeError)) or "non-json" in message:
+            status = "FAIL_SCHEMA"
+            exit_code = 1
+        else:
+            status = "FAIL_UNEXPECTED"
+            exit_code = 1
+        result["status"] = status
+        result["reason"] = "The Odds API Betclic probe failed."
+        result["odds_probe"] = {
+            "attempted": True,
+            "http_status": None,
+            "events": None,
+            "sample_bookmakers": [],
+            "error_type": type(exc).__name__,
+            "error_message_redacted": _safe_exc_message(exc, [api_key]),
+        }
         return result, exit_code
 
 
@@ -413,32 +426,20 @@ def _live_certification_reason(oddspapi_result: dict[str, Any], the_odds_result:
     oddspapi_status = str(oddspapi_result["status"])
     the_odds_status = str(the_odds_result["status"])
     if oddspapi_status == "PASS":
-        if the_odds_status in {"PASS", "PASS_EMPTY", "NOT_RUN_MISSING_KEYS", "FAIL_AUTH_OR_PLAN", "FAIL_QUOTA_OR_RATE_LIMIT"}:
-            return True, "OddsPapi live probe passed with normalized events; optional Betclic fallback did not block certification."
+        return True, "OddsPapi completed the official account -> fixtures -> odds flow with a normalized Superbet PL bookmaker."
+    if oddspapi_status == "PASS_EMPTY_DISCOVERY":
+        return False, "OddsPapi contract flow is implemented, but the narrow live discovery window returned no Superbet PL football fixture."
     if oddspapi_status == "PASS_EMPTY_ODDS":
-        return False, "OddsPapi request completed without schema/auth failure but returned zero normalized events."
-    if oddspapi_status == "NOT_RUN_MISSING_KEYS":
-        return False, "OddsPapi key missing; live certification was not run."
+        return False, "OddsPapi account and fixture discovery succeeded, but the fixture odds response produced no normalized Superbet PL event."
+    if oddspapi_status == "FAIL_ACCESS_FIXTURES":
+        return False, "OddsPapi account succeeded, but fixtures discovery is forbidden for this plan/key; keep the branch shadow-only."
+    if oddspapi_status == "FAIL_ACCESS_ODDS":
+        return False, "OddsPapi account and fixtures discovery succeeded, but fixture odds access is forbidden for this plan/key; keep the branch shadow-only."
     if oddspapi_status == "FAIL_AUTH_OR_PLAN":
-        account_http_status = oddspapi_result.get("account_probe", {}).get("http_status")
-        provider_error = oddspapi_result.get("error_message_redacted")
-        if account_http_status in {401, 403}:
-            return (
-                False,
-                "Credential path is proven: absolute credential file was found and key loaded, but OddsPapi /v4/account rejected the credential with HTTP "
-                f"{account_http_status}; remaining blocker is provider auth/plan/key validity, not local credential discovery.",
-            )
-        if account_http_status == 200:
-            return (
-                False,
-                "Credential path is proven: absolute credential file was found, the redacted OddsPapi /v4/account diagnostic returned HTTP 200, and the follow-up odds request was still rejected"
-                f" ({provider_error}); remaining blocker is provider access/plan scope rather than local credential discovery.",
-            )
-        return (
-            False,
-            "Credential path is proven: absolute credential file was found and key loaded, but the provider still rejected the probe; remaining blocker is provider auth/plan/key validity, not local credential discovery.",
-        )
-    return False, f"OddsPapi live probe status={oddspapi_status}; branch is not live-certified."
+        return False, "OddsPapi /v4/account rejected the credential or plan before billable calls."
+    if oddspapi_status in ODDSPAPI_STATUSES:
+        return False, f"OddsPapi live probe status={oddspapi_status}; optional The Odds API status={the_odds_status}."
+    return False, "OddsPapi live probe returned an unknown status."
 
 
 def main() -> int:
@@ -447,6 +448,8 @@ def main() -> int:
     tomorrow_utc = today_utc + timedelta(days=1)
     window_start = datetime.combine(today_utc, datetime.min.time(), tzinfo=timezone.utc).isoformat().replace("+00:00", "Z")
     window_end = datetime.combine(tomorrow_utc, datetime.min.time(), tzinfo=timezone.utc).isoformat().replace("+00:00", "Z")
+    tested_commit_sha = _git_output("rev-parse", "HEAD")
+    worktree_dirty_before_probe = _git_dirty()
 
     oddspapi_result, oddspapi_exit = _run_oddspapi_probe(window_start, window_end)
     the_odds_result, the_odds_exit = _run_the_odds_probe(window_start, window_end)
@@ -454,10 +457,12 @@ def main() -> int:
 
     report = {
         "task_id": TASK_ID,
+        "base_commit_sha": BASE_COMMIT_SHA,
+        "tested_commit_sha": tested_commit_sha,
         "timestamp_utc": now.replace(microsecond=0).isoformat().replace("+00:00", "Z"),
         "worktree": str(WORKTREE),
-        "branch": subprocess.check_output(["git", "branch", "--show-current"], cwd=WORKTREE, text=True).strip(),
-        "commit_sha": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=WORKTREE, text=True).strip(),
+        "branch": _git_output("branch", "--show-current"),
+        "worktree_dirty_before_probe": worktree_dirty_before_probe,
         "providers": {
             "oddspapi": oddspapi_result,
             "the-odds-api-betclic": the_odds_result,
@@ -469,7 +474,7 @@ def main() -> int:
     REPORT_PATH.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
     exit_code = max(oddspapi_exit, the_odds_exit)
-    if oddspapi_result["status"] in {"FAIL_AUTH_OR_PLAN", "FAIL_QUOTA_OR_RATE_LIMIT"}:
+    if oddspapi_result["status"] in {"FAIL_AUTH_OR_PLAN", "FAIL_ACCESS_FIXTURES", "FAIL_ACCESS_ODDS", "FAIL_QUOTA_OR_RATE_LIMIT"}:
         exit_code = max(exit_code, 0)
     if the_odds_result["status"] in {"FAIL_AUTH_OR_PLAN", "FAIL_QUOTA_OR_RATE_LIMIT", "NOT_RUN_MISSING_KEYS"}:
         exit_code = max(exit_code, 0)

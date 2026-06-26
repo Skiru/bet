@@ -98,10 +98,16 @@ def events_match(a: dict, b: dict, time_tolerance_hours: float = 2.0) -> bool:
 
 
 def merge_event_odds(existing: dict, new: dict) -> dict:
-    """Merge odds with market-safe same-bookmaker behavior."""
-    if _market_safe_merge_event_odds is not None:
-        return _market_safe_merge_event_odds(existing, new)
+    """Merge bookmaker odds without dropping additional markets from the same bookmaker."""
+    try:
+        from bet.odds_merge import merge_event_odds as _market_safe_merge_event_odds_runtime
 
+        return _market_safe_merge_event_odds_runtime(existing, new)
+    except ImportError:
+        return _merge_event_odds_market_safe_fallback(existing, new)
+
+
+def _merge_event_odds_market_safe_fallback(existing: dict, new: dict) -> dict:
     merged = dict(existing)
     merged_bookmakers = [
         _normalise_bookmaker(bookmaker) for bookmaker in list(existing.get("bookmakers", []) or [])

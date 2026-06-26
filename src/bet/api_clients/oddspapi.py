@@ -26,7 +26,9 @@ except Exception:  # pragma: no cover - import failure is surfaced at runtime.
 
 
 DEFAULT_BASE_URL = "https://api.oddspapi.io/v4"
-DEFAULT_ENDPOINT = "/odds"
+DEFAULT_ACCOUNT_ENDPOINT = "/account"
+DEFAULT_FIXTURES_ENDPOINT = "/fixtures"
+DEFAULT_ODDS_ENDPOINT = "/odds"
 DEFAULT_TIMEOUT_SECONDS = 20.0
 DEFAULT_RETRY_STATUS_CODES = {429, 500, 502, 503, 504}
 DEFAULT_MARKETS = ("h2h", "totals", "spreads")
@@ -57,11 +59,19 @@ class HTTPTransport(Protocol):
     def get(self, url: str, **kwargs: Any) -> Any: ...
 
 
+class OddsPapiError(RuntimeError):
+    def __init__(self, message: str, *, http_status: int | None = None) -> None:
+        super().__init__(message)
+        self.http_status = http_status
+
+
 @dataclass(frozen=True)
 class OddspapiConfig:
     api_key: str
     base_url: str = DEFAULT_BASE_URL
-    endpoint: str = DEFAULT_ENDPOINT
+    account_endpoint: str = DEFAULT_ACCOUNT_ENDPOINT
+    fixtures_endpoint: str = DEFAULT_FIXTURES_ENDPOINT
+    odds_endpoint: str = DEFAULT_ODDS_ENDPOINT
     timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS
     max_retries: int = 2
     bookmaker_filter: tuple[str, ...] = DEFAULT_BOOKMAKERS
@@ -73,7 +83,9 @@ class OddspapiConfig:
         if not api_key:
             raise RuntimeError("ODDSPAPI_API_KEY is required for OddsPapi Superbet odds")
         base_url = os.getenv("ODDSPAPI_BASE_URL", DEFAULT_BASE_URL).strip().rstrip("/")
-        endpoint = os.getenv("ODDSPAPI_ODDS_ENDPOINT", DEFAULT_ENDPOINT).strip()
+        account_endpoint = os.getenv("ODDSPAPI_ACCOUNT_ENDPOINT", DEFAULT_ACCOUNT_ENDPOINT).strip()
+        fixtures_endpoint = os.getenv("ODDSPAPI_FIXTURES_ENDPOINT", DEFAULT_FIXTURES_ENDPOINT).strip()
+        odds_endpoint = os.getenv("ODDSPAPI_ODDS_ENDPOINT", DEFAULT_ODDS_ENDPOINT).strip()
         bookmakers = _split_env_csv("ODDSPAPI_BOOKMAKERS", DEFAULT_BOOKMAKERS)
         markets = _split_env_csv("ODDSPAPI_MARKETS", DEFAULT_MARKETS)
         max_retries = int(os.getenv("ODDSPAPI_MAX_RETRIES", "2"))
@@ -81,7 +93,9 @@ class OddspapiConfig:
         return cls(
             api_key=api_key,
             base_url=base_url,
-            endpoint=endpoint,
+            account_endpoint=account_endpoint,
+            fixtures_endpoint=fixtures_endpoint,
+            odds_endpoint=odds_endpoint,
             timeout_seconds=timeout_seconds,
             max_retries=max(0, min(max_retries, 5)),
             bookmaker_filter=bookmakers,
@@ -218,13 +232,62 @@ class NormalizedEvent:
 
 
 class OddsPapiClient:
-    """Small hardened client around OddsPapi's odds endpoint."""
+    """Small hardened client around the documented OddsPapi v4 flow."""
 
     def __init__(self, config: OddspapiConfig, transport: HTTPTransport | None = None) -> None:
         if requests is None and transport is None:
             raise RuntimeError("requests is required unless a transport is injected")
         self.config = config
         self.transport: HTTPTransport = transport or requests.Session()  # type: ignore[union-attr]
+
+    def get_account(self) -> Mapping[str, Any] | list[Any]:
+        payload = self._request_json(endpoint=self.config.account_endpoint, params={})
+        if isinstance(payload, (Mapping, list)):
+            return payload
+        raise OddsPapiError("OddsPapi account probe returned unexpected payload type")
+
+    def summarize_account(self, account_payload: Any) -> dict[str, Any]:
+        return summarize_account_payload(account_payload)
+
+    def fetch_fixtures(
+        self,
+        sport: str,
+        date_from: str,
+        date_to: str,
+        bookmaker: str = "superbet.pl",
+        *,
+        allow_wide_window: bool = False,
+    ) -> list[dict[str, Any]]:
+        if not allow_wide_window:
+            _validate_fixtures_window(date_from, date_to, max_hours=48)
+        provider_params: dict[str, Any] = {
+            "sportId": self._sport_id_for(sport),
+            "from": date_from,
+            "to": date_to,
+            "statusId": 0,
+            "hasOdds": "true",
+            "bookmakers": bookmaker,
+            "language": "en",
+        }
+        payload = self._request_json(endpoint=self.config.fixtures_endpoint, params=provider_params)
+        return _extract_fixture_list(payload)
+
+    def fetch_fixture_odds(
+        self,
+        fixture_id: Any,
+        bookmaker: str = "superbet.pl",
+        *,
+        sport: str = "football",
+    ) -> list[NormalizedEvent]:
+        provider_params: dict[str, Any] = {
+            "fixtureId": fixture_id,
+            "bookmakers": bookmaker,
+            "oddsFormat": "decimal",
+            "language": "en",
+            "verbosity": 3,
+        }
+        payload = self._request_json(endpoint=self.config.odds_endpoint, params=provider_params)
+        return normalize_oddspapi_payload(payload, sport_key=sport)
 
     def fetch_odds(
         self,
@@ -234,14 +297,54 @@ class OddsPapiClient:
         to_dt: str | None = None,
         league: str | None = None,
         live: bool | None = None,
+        bookmaker: str | None = None,
+        max_fixtures: int = 1,
+        allow_wide_window: bool = True,
+    ) -> list[NormalizedEvent]:
+        del league, live
+        bookmaker_slug = bookmaker or ",".join(self.config.bookmaker_filter)
+        if os.getenv("ODDSPAPI_ENABLE_LEGACY_SPORT_ODDS", "").strip() == "1":
+            return self._fetch_legacy_sport_odds(
+                sport=sport,
+                from_dt=from_dt,
+                to_dt=to_dt,
+                bookmaker_slug=bookmaker_slug,
+            )
+        fixtures = self.fetch_fixtures(
+            sport,
+            str(from_dt or ""),
+            str(to_dt or ""),
+            bookmaker=bookmaker_slug,
+            allow_wide_window=allow_wide_window,
+        )
+        if not fixtures:
+            return []
+        normalized: list[NormalizedEvent] = []
+        seen_event_ids: set[str] = set()
+        for fixture in fixtures[: max(1, max_fixtures)]:
+            fixture_id = fixture.get("fixtureId") or fixture.get("id") or fixture.get("eventId")
+            if fixture_id in (None, ""):
+                continue
+            for event in self.fetch_fixture_odds(fixture_id, bookmaker=bookmaker_slug, sport=sport):
+                if event.event_id in seen_event_ids:
+                    continue
+                seen_event_ids.add(event.event_id)
+                normalized.append(event)
+        return normalized
+
+    def _fetch_legacy_sport_odds(
+        self,
+        *,
+        sport: str,
+        from_dt: str | None,
+        to_dt: str | None,
+        bookmaker_slug: str,
     ) -> list[NormalizedEvent]:
         provider_params: dict[str, Any] = {
             "from": from_dt,
             "to": to_dt,
-            "league": league,
-            "live": str(live).lower() if live is not None else None,
-            "bookmakers": ",".join(self.config.bookmaker_filter),
-            "sportsbooks": ",".join(self.config.bookmaker_filter),
+            "bookmakers": bookmaker_slug,
+            "sportsbooks": bookmaker_slug,
             "markets": ",".join(self.config.markets),
             "oddsFormat": "decimal",
         }
@@ -250,15 +353,19 @@ class OddsPapiClient:
             provider_params["sportId"] = sport_id
         else:
             provider_params["sport"] = SPORT_SLUG_MAP.get(sport, sport)
-
-        payload = self._request_json(params=provider_params)
+        payload = self._request_json(endpoint=self.config.odds_endpoint, params=provider_params)
         return normalize_oddspapi_payload(payload, sport_key=sport)
 
-    def _request_json(self, *, params: Mapping[str, Any]) -> Any:
-        url = f"{self.config.base_url.rstrip('/')}/{self.config.endpoint.lstrip('/')}"
+    def _sport_id_for(self, sport: str) -> str:
+        sport_id = SPORT_ID_MAP.get(sport)
+        if sport_id:
+            return sport_id
+        raise ValueError(f"OddsPapi fixtures discovery requires a mapped sportId for sport={sport}")
+
+    def _request_json(self, *, endpoint: str, params: Mapping[str, Any]) -> Any:
+        url = f"{self.config.base_url.rstrip('/')}/{endpoint.lstrip('/')}"
         clean_params = {key: value for key, value in params.items() if value not in (None, "")}
-        headers = {"Accept": "application/json", "Authorization": f"Bearer {self.config.api_key}"}
-        # OddsPapi v4 documents query auth; keep any header-based compatibility internal.
+        headers = {"Accept": "application/json"}
         clean_params["apiKey"] = self.config.api_key
         last_error: Exception | None = None
         for attempt in range(self.config.max_retries + 1):
@@ -270,19 +377,189 @@ class OddsPapiClient:
                     _sleep_before_retry(attempt, retry_after)
                     continue
                 if status >= 400:
-                    raise RuntimeError(f"OddsPapi request failed with HTTP {status}")
+                    raise OddsPapiError(f"OddsPapi request failed with HTTP {status}", http_status=status)
                 try:
                     return response.json()
                 except Exception as exc:  # JSONDecodeError without importing requests internals.
-                    raise RuntimeError("OddsPapi returned non-JSON response") from exc
+                    raise OddsPapiError("OddsPapi returned non-JSON response") from exc
             except Exception as exc:  # noqa: BLE001 - boundary converts provider errors.
                 last_error = exc
+                if isinstance(exc, OddsPapiError) and exc.http_status not in DEFAULT_RETRY_STATUS_CODES:
+                    break
                 if attempt >= self.config.max_retries:
                     break
                 _sleep_before_retry(attempt, None)
         if last_error is None:
-            raise RuntimeError("OddsPapi request failed after retries")
-        raise RuntimeError(_redact_provider_error_message(str(last_error), self.config.api_key)) from last_error
+            raise OddsPapiError("OddsPapi request failed after retries")
+        if isinstance(last_error, OddsPapiError):
+            raise OddsPapiError(
+                _redact_provider_error_message(str(last_error), self.config.api_key),
+                http_status=last_error.http_status,
+            ) from last_error
+        raise OddsPapiError(_redact_provider_error_message(str(last_error), self.config.api_key)) from last_error
+
+
+def _validate_fixtures_window(date_from: str, date_to: str, *, max_hours: int) -> None:
+    start = _parse_iso_datetime(date_from)
+    end = _parse_iso_datetime(date_to)
+    delta_hours = (end - start).total_seconds() / 3600
+    if delta_hours < 0:
+        raise ValueError("OddsPapi fixtures discovery requires date_to >= date_from")
+    if delta_hours > max_hours:
+        raise ValueError(f"OddsPapi fixtures discovery window exceeds {max_hours}h safety limit")
+
+
+def _parse_iso_datetime(value: str) -> Any:
+    text = str(value or "").strip()
+    if not text:
+        raise ValueError("OddsPapi date window requires non-empty ISO timestamps")
+    if "T" not in text:
+        text = f"{text}T00:00:00+00:00"
+    text = text.replace("Z", "+00:00")
+    return __import__("datetime").datetime.fromisoformat(text)
+
+
+def _extract_fixture_list(payload: Any) -> list[dict[str, Any]]:
+    if isinstance(payload, list):
+        return [item for item in payload if isinstance(item, Mapping)]
+    if isinstance(payload, Mapping):
+        for key in ("data", "fixtures", "results"):
+            value = payload.get(key)
+            if isinstance(value, list):
+                return [item for item in value if isinstance(item, Mapping)]
+        if any(key in payload for key in ("fixtureId", "id", "eventId")):
+            return [dict(payload)]
+    raise OddsPapiError("OddsPapi fixtures discovery returned unexpected payload shape")
+
+
+def summarize_account_payload(account_payload: Any) -> dict[str, Any]:
+    request_limit = _find_first_value(account_payload, {"request_limit", "requestlimit", "requests_limit", "requestslimit", "limit"})
+    request_count = _find_first_value(account_payload, {"request_count", "requestcount", "requests_count", "requestscount", "count", "used"})
+    subscription_count = _count_nested_collection(account_payload, {"subscriptions", "plans"})
+    bookmaker_slugs_sample = _collect_sample_strings(
+        account_payload,
+        target_keys={"bookmakers", "bookmaker", "bookmaker_slug", "bookmakerslug", "bookmaker_name", "bookmakername", "sportsbooks"},
+    )
+    sport_ids_sample = _collect_sample_integers(
+        account_payload,
+        target_keys={"sportid", "sport_id", "sportids", "sport_ids", "sports"},
+    )
+    has_superbet_pl = "superbet.pl" in bookmaker_slugs_sample if bookmaker_slugs_sample else None
+    has_sport_10 = 10 in sport_ids_sample if sport_ids_sample else None
+    return {
+        "current_subscription_active": _coerce_bool(
+            _find_first_value(
+                account_payload,
+                {
+                    "current_subscription_active",
+                    "currentsubscriptionactive",
+                    "subscription_active",
+                    "subscriptionactive",
+                    "active",
+                    "is_active",
+                    "isactive",
+                },
+            )
+        ),
+        "request_limit": request_limit,
+        "request_count": request_count,
+        "subscription_count": subscription_count,
+        "has_superbet_pl": has_superbet_pl,
+        "has_sport_10": has_sport_10,
+        "bookmaker_slugs_sample": bookmaker_slugs_sample,
+        "sport_ids_sample": sport_ids_sample,
+    }
+
+
+def _find_first_value(payload: Any, target_keys: set[str]) -> Any:
+    if isinstance(payload, Mapping):
+        for key, value in payload.items():
+            if _normalise_key(key) in target_keys:
+                return value
+        for value in payload.values():
+            nested = _find_first_value(value, target_keys)
+            if nested is not None:
+                return nested
+    elif isinstance(payload, list):
+        for item in payload:
+            nested = _find_first_value(item, target_keys)
+            if nested is not None:
+                return nested
+    return None
+
+
+def _count_nested_collection(payload: Any, target_keys: set[str]) -> int | None:
+    collection = _find_first_value(payload, target_keys)
+    if isinstance(collection, (list, tuple, set)):
+        return len(collection)
+    if isinstance(collection, Mapping):
+        return len(collection)
+    return None
+
+
+def _collect_sample_strings(payload: Any, *, target_keys: set[str], limit: int = 5) -> list[str]:
+    values: list[str] = []
+
+    def visit(node: Any, parent_key: str | None = None) -> None:
+        if len(values) >= limit:
+            return
+        if isinstance(node, Mapping):
+            for key, value in node.items():
+                visit(value, _normalise_key(key))
+                if len(values) >= limit:
+                    return
+        elif isinstance(node, list):
+            for item in node:
+                visit(item, parent_key)
+                if len(values) >= limit:
+                    return
+        elif parent_key in target_keys:
+            text = str(node or "").strip().lower()
+            if text and text not in values and re.fullmatch(r"[a-z0-9._-]+", text):
+                values.append(text)
+
+    visit(payload)
+    return values
+
+
+def _collect_sample_integers(payload: Any, *, target_keys: set[str], limit: int = 5) -> list[int]:
+    values: list[int] = []
+
+    def visit(node: Any, parent_key: str | None = None) -> None:
+        if len(values) >= limit:
+            return
+        if isinstance(node, Mapping):
+            for key, value in node.items():
+                visit(value, _normalise_key(key))
+                if len(values) >= limit:
+                    return
+        elif isinstance(node, list):
+            for item in node:
+                visit(item, parent_key)
+                if len(values) >= limit:
+                    return
+        elif parent_key in target_keys:
+            try:
+                integer = int(node)
+            except (TypeError, ValueError):
+                return
+            if integer not in values:
+                values.append(integer)
+
+    visit(payload)
+    return values
+
+
+def _coerce_bool(value: Any) -> bool | None:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        lowered = value.strip().lower()
+        if lowered in {"true", "yes", "active", "enabled"}:
+            return True
+        if lowered in {"false", "no", "inactive", "disabled"}:
+            return False
+    return None
 
 
 def _redact_provider_error_message(message: str, api_key: str) -> str:

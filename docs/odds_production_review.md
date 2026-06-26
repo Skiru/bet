@@ -193,3 +193,21 @@ After live certification, store provider evidence per run:
 - Targeted pytest: `.venv/bin/python -m pytest -q tests/test_oddspapi_client.py tests/test_the_odds_api_betclic_client.py tests/test_odds_merge.py tests/test_odds_source_adapters.py tests/test_fetch_odds_multi.py tests/test_odds_live_probe_credentials.py` -> `30 passed`
 - Broader odds pytest: `.venv/bin/python -m pytest -q tests/test_odds_live_probe_credentials.py tests/test_fetch_odds_multi.py tests/test_odds_source_adapters.py tests/test_oddspapi_client.py tests/test_odds_merge.py tests/test_the_odds_api_betclic_client.py tests/test_odds_evaluator.py` -> `41 passed`
 - Compileall: `.venv/bin/python -m compileall src/bet/api_clients src/bet/odds_merge.py scripts/odds_sources scripts/odds_live_probe_superbet_betclic.py tests` -> `PASS`
+
+## Remediation C Provider Contract Diagnostics
+
+- Branch: `feat/odds-superbet-betclic-production-v1`
+- Base commit: `fc5e7188b9f016f891a24346f1dce9c6ab73b455`
+- Public merge export fixed: `scripts/odds_sources/__init__.py` now routes `merge_event_odds` through `bet.odds_merge.merge_event_odds` when available and keeps a market-safe fallback that merges by bookmaker -> market -> outcome + point.
+- Official OddsPapi flow implemented: `src/bet/api_clients/oddspapi.py` now follows `account -> fixtures -> odds?fixtureId=...`, keeps query-parameter auth, and gates the undocumented sport-level `/v4/odds` shortcut behind `ODDSPAPI_ENABLE_LEGACY_SPORT_ODDS=1`.
+- Targeted pytest: `env PYTHONPATH=src:scripts:. .venv/bin/python -m pytest -q tests/test_oddspapi_client.py tests/test_the_odds_api_betclic_client.py tests/test_odds_merge.py tests/test_odds_source_adapters.py tests/test_fetch_odds_multi.py tests/test_odds_live_probe_credentials.py` -> `40 passed in 0.17s`.
+- Broader odds pytest: `env PYTHONPATH=src:scripts:. .venv/bin/python -m pytest -q tests/test_odds_live_probe_credentials.py tests/test_odds_source_adapters.py tests/test_oddspapi_client.py tests/test_fetch_odds_multi.py tests/test_odds_merge.py tests/test_the_odds_api_betclic_client.py tests/test_odds_evaluator.py` -> `51 passed in 0.18s`.
+- Compileall: `env PYTHONPATH=src:scripts:. .venv/bin/python -m compileall src/bet/api_clients src/bet/odds_merge.py scripts/odds_sources scripts/odds_live_probe_superbet_betclic.py tests` -> `PASS`.
+- Account diagnostic result: `/v4/account` returned `HTTP 200`, `current_subscription_active=true`, `request_count=12`, `request_limit=250`, with a redacted summary only.
+- Billable calls attempted: `1`.
+- Final OddsPapi status: `FAIL_ACCESS_FIXTURES`.
+- The Odds API Betclic status: `NOT_RUN_MISSING_KEYS`.
+- Live certified: `false` because the documented `fixtures` discovery step is forbidden even after a successful account diagnostic, so the provider remains access-gated.
+- Evidence file: `reports/odds_provider_live_probe_superbet_betclic_v1.json`.
+- Deployment posture: branch is safe only as `shadow/disabled` provider wiring until a plan/key with documented Superbet fixtures access is available.
+- Secret handling: `config/api_keys.json` remains local-only and untracked.
