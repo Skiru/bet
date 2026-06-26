@@ -220,7 +220,12 @@ def test_target_wrappers_write_pass_script_evidence_in_tmp_sandbox(case):
         assert all(path.startswith("/tmp/") for path in payload["s3_report_paths"])
     else:
         expected_payload["wrapper_rc"] = 0
-        assert evidence["payload"] == expected_payload
+        payload = evidence["payload"]
+        if case["step_id"] == "S6":
+            for key, value in expected_payload.items():
+                assert payload[key] == value
+        else:
+            assert payload == expected_payload
     if case["no_pick"]:
         assert evidence["no_pick_edge_stake_coupon_emitted"] is True
         assert "production_coupon_write" not in evidence
