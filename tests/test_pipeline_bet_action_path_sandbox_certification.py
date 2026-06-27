@@ -156,6 +156,11 @@ def test_bet_action_path_sandbox_certification(tmp_path: Path, sandbox_env: dict
     s8_payload = json.loads(Path(s8_step["evidence_path"]).read_text(encoding="utf-8"))["payload"]
     draft_path = Path(s8_payload["s8_coupon_draft_path"])
     assert draft_path.exists()
+    assert str(draft_path.resolve()).startswith(str(base_run_dir.resolve()))
+    assert "/data/" in str(draft_path)
+    assert str(draft_path) != "/tmp/2026-06-26_s8_coupon_drafts.json"
+    assert s8_payload["executable_coupon"] is False
+    assert s8_payload["requires_human_gate"] is True
     
     draft_data = json.loads(draft_path.read_text(encoding="utf-8"))
     assert draft_data["artifact_type"] == "S8_COUPON_DRAFTS"

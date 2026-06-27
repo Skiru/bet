@@ -70,7 +70,7 @@ def test_s8_wrapper_resolves_s7b_before_s7_fallback(tmp_path: Path):
     argv = ["s8_build_coupons.py", "--date", "2026-06-25", "--run-id", environ["BET_PIPELINE_RUN_ID"], "--runtime-mode", "DRY_RUN", "--dry-run"]
     with patch.dict(os.environ, environ, clear=False), patch.object(sys, "argv", argv), patch("subprocess.run", side_effect=fake_run):
         # We must make sure the output draft path is mock-created so PASS can verify it
-        mock_output = Path("/tmp/2026-06-25_s8_coupon_drafts.json")
+        mock_output = data_dir / "2026-06-25_s8_coupon_drafts.json"
         mock_output.write_text(json.dumps({"coupon_draft_count": 1}), encoding="utf-8")
         try:
             s8_build_coupons.main()
@@ -83,6 +83,16 @@ def test_s8_wrapper_resolves_s7b_before_s7_fallback(tmp_path: Path):
     # Resolves to S7b's s7b_json_output or similar. In S7b payload, we have s7b_json_output which is the validation file. But s7b_input_path is the validated picks (S7 results)!
     # Let's assert it is indeed resolved
     assert resolved_input_path.exists()
+
+    evidence = json.loads(_canonical_evidence_path(environ).read_text(encoding="utf-8"))
+    payload = evidence.get("payload") or {}
+    draft_path_str = payload.get("s8_coupon_draft_path")
+    assert draft_path_str is not None
+    assert draft_path_str.startswith(environ["BET_PIPELINE_RUN_ROOT"])
+    assert "/data/" in draft_path_str
+    assert draft_path_str != "/tmp/2026-06-25_s8_coupon_drafts.json"
+    assert payload.get("executable_coupon") is False
+    assert payload.get("requires_human_gate") is True
 
 
 def test_s8_wrapper_rejects_protected_input_and_output(tmp_path: Path):

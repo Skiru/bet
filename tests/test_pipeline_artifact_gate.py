@@ -274,6 +274,13 @@ def test_evaluate_gate_s10_requires_s9(tmp_path):
         artifact["no_pick_edge_stake_coupon_emitted"] = False
         artifact["sources"] = []
         artifact["sport"] = None
+        if status == "HUMAN_APPROVED":
+            artifact["manual_review"] = {
+                "reviewed_by_user": "test-user",
+                "reviewed_at_utc": "2026-06-25T12:00:00Z",
+                "betclic_manual_verification": "VERIFIED",
+                "coupon_draft_path": str(tmp_path / "mock_drafts.json"),
+            }
         write_artifact(tmp_path / status, artifact)
         decision = evaluate_gate_before_step("S10", tmp_path / status, "2026-06-25", "run-001")
         assert decision.verdict == expected

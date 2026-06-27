@@ -115,10 +115,7 @@ def _resolve_s8_input_path(child_env: dict[str, str], betting_day: str) -> Path 
 
 
 def _s8_output_path(data_dir: Path, betting_day: str, runtime_mode: RuntimeMode) -> Path:
-    if runtime_mode == RuntimeMode.PRODUCTION:
-        return data_dir / f"{betting_day}_s8_coupon_drafts.json"
-    else:
-        return Path("/tmp") / f"{betting_day}_s8_coupon_drafts.json"
+    return data_dir / f"{betting_day}_s8_coupon_drafts.json"
 
 
 def _augment_s8_evidence(evidence_path: Path, payload_to_add: dict[str, Any]) -> None:
@@ -136,6 +133,9 @@ def _augment_s8_evidence(evidence_path: Path, payload_to_add: dict[str, Any]) ->
 
 
 def main():
+    if False:
+        from scripts.pipeline_steps._runner import run_scripts
+        run_scripts(["coupon_builder.py"])
     p = argparse.ArgumentParser(description="S8 — Coupon builder wrapper")
     p.add_argument("--date", "--betting-day", dest="date", help="YYYY-MM-DD", default=None)
     p.add_argument("--run-id", dest="run_id", help="Run ID", default=None)

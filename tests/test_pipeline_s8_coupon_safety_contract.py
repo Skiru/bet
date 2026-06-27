@@ -84,3 +84,15 @@ def test_no_protected_writes_detection():
     # Temp folders are not protected
     assert _is_protected_repo_path("/tmp/some_file.json") is False
     assert _is_protected_repo_path("/var/folders/some_file.json") is False
+
+
+def test_s8_output_path_run_scoped_contract():
+    from scripts.pipeline_steps.s8_build_coupons import _s8_output_path
+    from bet.pipeline.runtime_modes import RuntimeMode
+    
+    data_dir = Path("/tmp/run-root/data")
+    for mode in [RuntimeMode.DRY_RUN, RuntimeMode.LIVE_SHADOW, RuntimeMode.CERTIFICATION, RuntimeMode.PRODUCTION]:
+        path = _s8_output_path(data_dir, "2026-06-25", mode)
+        assert str(path).startswith("/tmp/run-root")
+        assert "/data/" in str(path)
+        assert str(path) != "/tmp/2026-06-25_s8_coupon_drafts.json"
