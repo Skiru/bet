@@ -157,6 +157,18 @@ def _settle_command(args: argparse.Namespace) -> int:
     report_path = Path(args.report_path).resolve(strict=False)
     existing = load_latest_manual_pilot_coupons(ledger_path)
     current = existing.get(args.manual_pilot_coupon_id)
+    inferred_max_daily_risk_units = max(
+        sum(
+            (coupon.stake_units for coupon in existing.values() if coupon.status in {"PREPARED", "MANUALLY_PLACED"}),
+            start=Decimal("0"),
+        ),
+        Decimal("1"),
+    )
+    inferred_daily_stop_loss_units = max(
+        sum((-coupon.pnl_units for coupon in existing.values() if coupon.pnl_units < 0), start=Decimal("0")),
+        (current.stake_units if current is not None else Decimal("1")),
+        Decimal("1"),
+    )
     config = ManualLowStakePilotConfig(
         base_dir=_infer_base_dir(pilot_dir, args.betting_day, args.run_id),
         betting_day=args.betting_day,
@@ -166,11 +178,8 @@ def _settle_command(args: argparse.Namespace) -> int:
         runtime_mode=args.runtime_mode,
         max_manual_coupons_per_day=max(len(existing), 1),
         max_stake_units_per_coupon=(current.stake_units if current is not None else Decimal("1")),
-        max_daily_risk_units=sum((coupon.stake_units for coupon in existing.values()), start=Decimal("1")),
-        daily_stop_loss_units=max(
-            sum((-coupon.pnl_units for coupon in existing.values() if coupon.pnl_units < 0), start=Decimal("0")),
-            Decimal("1"),
-        ),
+        max_daily_risk_units=inferred_max_daily_risk_units,
+        daily_stop_loss_units=inferred_daily_stop_loss_units,
         kill_switch=args.kill_switch,
         allow_automated_bookmaker_placement=args.allow_automated_bookmaker_placement,
         allow_betclic_api=args.allow_betclic_api,
