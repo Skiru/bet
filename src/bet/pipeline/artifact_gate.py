@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import re
 from pathlib import Path
 from typing import Any
@@ -59,6 +60,14 @@ ALLOWED_SECRET_METADATA_KEYS = {
     "authorized_for_sanitized_live_probe",
 }
 
+REPO_ROOT = Path(__file__).resolve().parents[3]
+PROTECTED_REPO_DRAFT_DIRS = (
+    REPO_ROOT / "betting" / "data",
+    REPO_ROOT / "betting" / "coupons",
+    REPO_ROOT / "betting" / "journal",
+    REPO_ROOT / "reports",
+)
+
 FORBIDDEN_SECRET_KEYS = {
     "api_key",
     "apikey",
@@ -115,6 +124,21 @@ def load_artifact(path: Path) -> dict[str, Any]:
     return data
 
 
+def expected_s8_coupon_draft_path(base_dir: Path, betting_day: str, run_id: str) -> Path:
+    return (
+        Path(base_dir)
+        / "pipeline_runs"
+        / betting_day
+        / run_id
+        / "data"
+        / f"{betting_day}_s8_coupon_drafts.json"
+    )
+
+
+def sha256_file(path: Path) -> str:
+    return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+
+
 def artifact_path_for(
     base_dir: Path,
     betting_day: str,
@@ -143,6 +167,151 @@ def artifact_path_for(
         / "artifacts"
         / f"{step_id}.json"
     )
+
+
+def _path_is_within(path: Path, candidate_root: Path) -> bool:
+    try:
+        path.relative_to(candidate_root)
+    except ValueError:
+        return False
+    return True
+
+
+def _block_issue(code: str, message: str) -> ReadinessIssue:
+    return ReadinessIssue(
+        code=code,
+        severity=PipelineReadinessStatus.BLOCK,
+        message=message,
+    )
+
+
+def validate_s9_human_gate_artifact_for_run(
+    raw: dict[str, Any],
+    *,
+    base_dir: Path,
+    betting_day: str,
+    run_id: str,
+) -> list[ReadinessIssue]:
+    issues: list[ReadinessIssue] = []
+
+    if raw.get("artifact_type") != PipelineArtifactType.HUMAN_GATE.value:
+        issues.append(_block_issue("INVALID_S9_ARTIFACT_TYPE", "S9 artifact_type must be HUMAN_GATE"))
+    if raw.get("step_id") != "S9":
+        issues.append(_block_issue("INVALID_S9_STEP_ID", "S9 step_id must be S9"))
+    if normalize_status(raw.get("status")) != PipelineReadinessStatus.HUMAN_APPROVED:
+        issues.append(_block_issue("INVALID_S9_STATUS", "S9 status must be HUMAN_APPROVED"))
+
+    manual_review = raw.get("manual_review")
+    if not isinstance(manual_review, dict):
+        issues.append(_block_issue("MISSING_MANUAL_REVIEW", "manual_review object is required for approved S9 gate"))
+        return issues
+
+    reviewed_by_user = manual_review.get("reviewed_by_user")
+    if not isinstance(reviewed_by_user, str) or not reviewed_by_user.strip():
+        issues.append(_block_issue("INVALID_REVIEWED_BY_USER", "manual_review.reviewed_by_user must be non-empty"))
+
+    reviewed_at_utc = manual_review.get("reviewed_at_utc")
+    if not isinstance(reviewed_at_utc, str) or not reviewed_at_utc.strip():
+        issues.append(_block_issue("INVALID_REVIEWED_AT_UTC", "manual_review.reviewed_at_utc must be non-empty"))
+
+    if manual_review.get("betclic_manual_verification") is not True:
+        issues.append(
+            _block_issue(
+                "INVALID_BETCLIC_MANUAL_VERIFICATION",
+                "manual_review.betclic_manual_verification must be true",
+            )
+        )
+
+    coupon_draft_path_value = manual_review.get("coupon_draft_path")
+    if not isinstance(coupon_draft_path_value, str) or not coupon_draft_path_value.strip():
+        issues.append(_block_issue("INVALID_COUPON_DRAFT_PATH", "manual_review.coupon_draft_path must be non-empty"))
+
+    coupon_draft_sha256 = manual_review.get("coupon_draft_sha256")
+    if not isinstance(coupon_draft_sha256, str) or not coupon_draft_sha256.strip():
+        issues.append(_block_issue("INVALID_COUPON_DRAFT_SHA256", "manual_review.coupon_draft_sha256 must be non-empty"))
+
+    if issues:
+        return issues
+
+    expected_path = expected_s8_coupon_draft_path(base_dir, betting_day, run_id)
+    expected_resolved = expected_path.resolve(strict=False)
+    supplied_path = Path(coupon_draft_path_value)
+    supplied_resolved = supplied_path.resolve(strict=False)
+
+    for protected_dir in PROTECTED_REPO_DRAFT_DIRS:
+        if _path_is_within(supplied_resolved, protected_dir.resolve(strict=False)):
+            issues.append(
+                _block_issue(
+                    "PROTECTED_COUPON_DRAFT_PATH",
+                    f"manual_review.coupon_draft_path cannot be under protected repo path: {supplied_resolved}",
+                )
+            )
+            break
+
+    if supplied_resolved != expected_resolved:
+        issues.append(
+            _block_issue(
+                "MISMATCH_COUPON_DRAFT_PATH",
+                (
+                    "manual_review.coupon_draft_path must resolve exactly to "
+                    f"{expected_resolved}, got {supplied_resolved}"
+                ),
+            )
+        )
+
+    if not expected_path.exists():
+        issues.append(_block_issue("MISSING_S8_COUPON_DRAFT", f"S8 coupon draft file not found: {expected_path}"))
+        return issues
+
+    try:
+        draft = load_artifact(expected_path)
+    except ValueError as exc:
+        issues.append(_block_issue("INVALID_S8_COUPON_DRAFT_JSON", f"S8 coupon draft JSON is invalid: {exc}"))
+        return issues
+
+    actual_sha256 = sha256_file(expected_path)
+    if actual_sha256 != coupon_draft_sha256:
+        issues.append(
+            _block_issue(
+                "MISMATCH_COUPON_DRAFT_SHA256",
+                (
+                    "manual_review.coupon_draft_sha256 must match the canonical S8 draft file "
+                    f"SHA256: expected {actual_sha256}, got {coupon_draft_sha256}"
+                ),
+            )
+        )
+
+    required_draft_fields: tuple[tuple[str, Any], ...] = (
+        ("artifact_type", "S8_COUPON_DRAFTS"),
+        ("betting_day", betting_day),
+        ("run_id", run_id),
+        ("requires_human_gate", True),
+        ("ready_for_human_gate", True),
+        ("ready_for_production_execution", False),
+        ("production_selectable", False),
+        ("production_coupon_write", False),
+        ("executable_coupon", False),
+        ("betclic_execution_enabled", False),
+    )
+    for field_name, expected_value in required_draft_fields:
+        if draft.get(field_name) != expected_value:
+            issues.append(
+                _block_issue(
+                    f"INVALID_S8_DRAFT_{field_name.upper()}",
+                    f"S8 coupon draft field {field_name} must equal {expected_value!r}",
+                )
+            )
+
+    coupon_draft_count = draft.get("coupon_draft_count")
+    if isinstance(coupon_draft_count, bool) or not isinstance(coupon_draft_count, int) or coupon_draft_count < 0:
+        issues.append(
+            _block_issue(
+                "INVALID_S8_DRAFT_COUPON_DRAFT_COUNT",
+                "S8 coupon draft field coupon_draft_count must be an integer >= 0",
+            )
+        )
+
+    return issues
 
 
 def find_forbidden_decision_signals(payload: Any, path: str = "$") -> list[str]:
@@ -324,7 +493,13 @@ def validate_pipeline_artifact(
                 )
             )
         else:
-            required_keys = ("reviewed_by_user", "reviewed_at_utc", "betclic_manual_verification", "coupon_draft_path")
+            required_keys = (
+                "reviewed_by_user",
+                "reviewed_at_utc",
+                "betclic_manual_verification",
+                "coupon_draft_path",
+                "coupon_draft_sha256",
+            )
             for k in required_keys:
                 if k not in manual_review or manual_review[k] in (None, "", False):
                     issues.append(
@@ -498,6 +673,15 @@ def evaluate_gate_before_step(
         try:
             raw = load_artifact(path)
             artifact, issues = validate_pipeline_artifact(raw, req_step)
+            if req_step == "S9":
+                issues.extend(
+                    validate_s9_human_gate_artifact_for_run(
+                        raw,
+                        base_dir=artifact_dir,
+                        betting_day=betting_day,
+                        run_id=run_id,
+                    )
+                )
         except Exception as e:
             blocked.append(req_step)
             failed_reqs.append(f"Malformed or unreadable artifact for {req_step}: {e}")
