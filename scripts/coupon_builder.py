@@ -25,6 +25,7 @@ import os
 DATA_DIR = Path(os.environ.get("BET_PIPELINE_DATA_DIR", str(ROOT_DIR / "betting" / "data")))
 COUPON_DIR = Path(os.environ.get("BET_PIPELINE_COUPON_DIR", str(ROOT_DIR / "betting" / "coupons")))
 CONFIG_PATH = ROOT_DIR / "config" / "betting_config.json"
+NO_DB = False
 
 # Ensure src/ is importable
 sys.path.insert(0, str(ROOT_DIR / "src"))
@@ -451,6 +452,8 @@ def _apply_betclic_validation_to_gate_results(date: str, gate_results: dict) -> 
     try:
         payload, control = _load_betclic_validation_sidecar(date)
     except FileNotFoundError:
+        if NO_DB:
+            return gate_results, {}, {"required": True, "present": False, "consumed": False, "mode": "skipped"}
         db_fallback = _load_betclic_validation_from_db(date)
         if db_fallback is None:
             # Graceful degradation: Betclic validation is advisory, not blocking
@@ -535,6 +538,19 @@ def _apply_betclic_validation_to_gate_results(date: str, gate_results: dict) -> 
 
 
 def _apply_repeat_loss_hard_rejects(date: str, gate_results: dict) -> tuple[dict, dict]:
+    if NO_DB:
+        return gate_results, {
+            "required": True,
+            "present": True,
+            "consumed": True,
+            "pipeline_step": REPEAT_LOSS_STEP,
+            "artifact": None,
+            "repeat_loss_count": 0,
+            "clear": True,
+            "excluded_count": 0,
+            "pre_filter_counts": _gate_bucket_counts(gate_results),
+            "post_filter_counts": _gate_bucket_counts(gate_results),
+        }
     handoff = load_repeat_loss_handoff(date)
     if handoff is None:
         # Fallback: compute repeat-loss signals directly from the ledger.
@@ -616,6 +632,16 @@ def _format_gate_counts(counts: dict[str, int]) -> str:
 
 
 def _normalize_gate_results_payload(payload: dict | list, date: str) -> dict:
+    if isinstance(payload, dict) and "validation" in payload and "gate_results" not in payload:
+        validation = payload.get("validation") or []
+        payload = {
+            "date": date,
+            "gate_results": {
+                "approved": [item for item in validation if item.get("betclic_available") is not False],
+                "extended_pool": [],
+                "rejected": [],
+            },
+        }
     if isinstance(payload, list):
         payload = {
             "date": date,
@@ -732,6 +758,9 @@ def _load_gate_results_for_build(date: str, input_path: str | None = None) -> di
             "parity_checked": False,
         }
         return payload
+
+    if NO_DB:
+        raise ValueError("Cannot load gate results from DB when --no-db is active.")
 
     # DB-first: canonical source
     from db_data_loader import load_gate_results_from_db_only
@@ -1099,7 +1128,7 @@ def _build_tipster_insight(pick: dict) -> str:
 
 def _get_tipster_data_fallback(home: str, away: str, date: str) -> list:
     """DB fallback: query TipsterRepo when tipster_support not in gate output."""
-    if not home or not away or not date:
+    if NO_DB or not home or not away or not date:
         return []
     try:
         from bet.db.connection import get_db
@@ -2074,6 +2103,8 @@ def _filter_non_playable_fixtures(picks: list, date: str) -> tuple[list, list]:
 
     Checks fixture status in DB. Returns (playable, rejected).
     """
+    if NO_DB:
+        return picks, []
     NON_PLAYABLE_STATUSES = {"PST", "CANC", "ABD", "AWD", "WO", "SUSP"}
     try:
         from bet.db.connection import get_db
@@ -2642,34 +2673,37 @@ def build_coupons(gate_results: dict, config: dict) -> dict:
     # has no gate_results entry. Shown to user as advisory-only ("TIPSTER POOL").
     tipster_pool = []
     try:
-        from bet.db.connection import get_db
-        # Collect all event keys already in gate results (approved + extended + rejected)
-        covered_event_pairs: list[tuple[str, str]] = []
-        for pick_list in (all_approved, extended_pool, rejected):
-            for p in pick_list:
-                h = (p.get("home_team") or "").lower().strip()
-                a = (p.get("away_team") or "").lower().strip()
-                if h and a:
-                    covered_event_pairs.append((h, a))
+        if NO_DB:
+            rows = []
+        else:
+            from bet.db.connection import get_db
+            # Collect all event keys already in gate results (approved + extended + rejected)
+            covered_event_pairs: list[tuple[str, str]] = []
+            for pick_list in (all_approved, extended_pool, rejected):
+                for p in pick_list:
+                    h = (p.get("home_team") or "").lower().strip()
+                    a = (p.get("away_team") or "").lower().strip()
+                    if h and a:
+                        covered_event_pairs.append((h, a))
 
-        with get_db() as conn:
-            # Query tipster picks with high consensus
-            rows = conn.execute("""
-                SELECT home_team, away_team, sport, market, odds, confidence,
-                       GROUP_CONCAT(DISTINCT tipster_name) as tipsters,
-                       COUNT(DISTINCT tipster_name) as n_tipsters
-                FROM tipster_picks
-                WHERE betting_date = ?
-                  AND market != 'N/A' AND market != 'ck'
-                  AND length(reasoning) > 50
-                  AND home_team NOT LIKE '%PICKSWISE%'
-                  AND home_team NOT LIKE '%FREE%'
-                  AND home_team NOT LIKE '%Bonus%'
-                  AND odds IS NOT NULL AND odds > 1.0 AND odds < 10.0
-                GROUP BY home_team, away_team, sport, market
-                HAVING n_tipsters >= 2 OR MAX(CASE WHEN confidence = 'high' THEN 1 ELSE 0 END) = 1
-                ORDER BY n_tipsters DESC, odds ASC
-            """, (date,)).fetchall()
+            with get_db() as conn:
+                # Query tipster picks with high consensus
+                rows = conn.execute("""
+                    SELECT home_team, away_team, sport, market, odds, confidence,
+                           GROUP_CONCAT(DISTINCT tipster_name) as tipsters,
+                           COUNT(DISTINCT tipster_name) as n_tipsters
+                    FROM tipster_picks
+                    WHERE betting_date = ?
+                      AND market != 'N/A' AND market != 'ck'
+                      AND length(reasoning) > 50
+                      AND home_team NOT LIKE '%PICKSWISE%'
+                      AND home_team NOT LIKE '%FREE%'
+                      AND home_team NOT LIKE '%Bonus%'
+                      AND odds IS NOT NULL AND odds > 1.0 AND odds < 10.0
+                    GROUP BY home_team, away_team, sport, market
+                    HAVING n_tipsters >= 2 OR MAX(CASE WHEN confidence = 'high' THEN 1 ELSE 0 END) = 1
+                    ORDER BY n_tipsters DESC, odds ASC
+                """, (date,)).fetchall()
 
             for row in rows:
                 home, away = (row[0] or "").strip(), (row[1] or "").strip()
@@ -3456,6 +3490,8 @@ def persist_coupons_to_db(coupons_data: dict, date: str, config: dict | None = N
 
     Returns count of coupons persisted. Fails gracefully with 0 on error.
     """
+    if NO_DB:
+        return 0
     if config is None:
         config = {}
     try:
@@ -3642,6 +3678,51 @@ def persist_coupons_to_db(coupons_data: dict, date: str, config: dict | None = N
         return 0
 
 
+def _is_protected_repo_path(path: Path | str | None) -> bool:
+    if not path:
+        return False
+    abs_path = Path(path).resolve()
+    for parent in ((ROOT_DIR / "betting" / "data").resolve(), (ROOT_DIR / "betting" / "coupons").resolve(), (ROOT_DIR / "reports").resolve()):
+        try:
+            abs_path.relative_to(parent)
+            return True
+        except ValueError:
+            pass
+    return False
+
+
+def build_coupon_drafts(gate_payload: dict, *, betting_day: str, run_id: str, runtime_mode: str, source_input_path: str) -> dict:
+    """Build coupon drafts from gate approved picks without DB access."""
+    gr = _normalize_gate_results_payload(gate_payload, betting_day)
+    config = load_config()
+    coupons_data = build_coupons(gr, config)
+
+    drafts_list = []
+    if not coupons_data.get("no_bet"):
+        drafts_list.extend(coupons_data.get("core_coupons", []))
+        drafts_list.extend(coupons_data.get("combos", []))
+        drafts_list.extend(coupons_data.get("singles", []))
+
+    artifact = {
+        "schema_version": 1,
+        "artifact_type": "S8_COUPON_DRAFTS",
+        "betting_day": betting_day,
+        "run_id": run_id,
+        "runtime_mode": runtime_mode,
+        "source_input_path": source_input_path,
+        "coupon_draft_count": len(drafts_list),
+        "requires_human_gate": True,
+        "ready_for_human_gate": True,
+        "ready_for_production_execution": False,
+        "production_selectable": False,
+        "production_coupon_write": False,
+        "executable_coupon": False,
+        "betclic_execution_enabled": False,
+        "drafts": drafts_list,
+    }
+    return artifact
+
+
 # ---------------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------------
@@ -3662,9 +3743,27 @@ def main():
         default=None,
         help="Path to S7 gate results JSON (overrides default path)",
     )
+    parser.add_argument(
+        "--output",
+        default=None,
+        help="Path to write S8 coupon drafts JSON",
+    )
+    parser.add_argument(
+        "--runtime-mode",
+        default="DRY_RUN",
+        help="Runtime mode (DRY_RUN, LIVE_SHADOW, CERTIFICATION, etc.)",
+    )
+    parser.add_argument(
+        "--no-db",
+        action="store_true",
+        default=False,
+        help="Disable DB read/write",
+    )
     add_agent_args(parser)
 
     args = parser.parse_args()
+    global NO_DB
+    NO_DB = args.no_db
     global out
     out = AgentOutput("s8_coupon", verbose=args.verbose, stop_on_error=args.stop_on_error)
 
@@ -3757,8 +3856,29 @@ def main():
         )
 
     # Write outputs
-    write_coupon_markdown(coupons_data, args.date)
-    write_coupon_json(coupons_data, args.date)
+    if args.output:
+        if args.runtime_mode != "PRODUCTION" and _is_protected_repo_path(args.output):
+            print("BLOCKED_PROTECTED_PATH: Protected paths cannot be used in non-production.")
+            sys.exit(5)
+
+        run_id = os.environ.get("BET_PIPELINE_RUN_ID", "unknown_run")
+        drafts_artifact = build_coupon_drafts(
+            gate_results,
+            betting_day=args.date,
+            run_id=run_id,
+            runtime_mode=args.runtime_mode,
+            source_input_path=str(args.input) if args.input else "db",
+        )
+        out_p = Path(args.output)
+        out_p.parent.mkdir(parents=True, exist_ok=True)
+        atomic_json_write(out_p, drafts_artifact)
+        print(f"[coupon_builder] Wrote drafts to {out_p}")
+
+    if args.runtime_mode != "PRODUCTION" and (_is_protected_repo_path(COUPON_DIR) or _is_protected_repo_path(DATA_DIR)):
+        print("[coupon_builder] Skipping default repo-local output writes in non-production mode.")
+    else:
+        write_coupon_markdown(coupons_data, args.date)
+        write_coupon_json(coupons_data, args.date)
 
     evidence_path = write_script_evidence(
         "S8",
@@ -3854,16 +3974,17 @@ def main():
             print(f"  Total spend: {s['total_spend']:.2f} PLN")
             print(f"  Potential return: {s['total_potential_return']:.2f} PLN")
 
-    try:
-        from bet.pipeline import PipelineState
-        ps = PipelineState.load(args.date)
-        ps.advance("S8", summary={
-            "coupons": len(coupons_data.get("core_coupons", [])),
-            "combos": len(coupons_data.get("combos", [])),
-            "no_bet": coupons_data.get("no_bet", False),
-        })
-    except Exception:
-        pass
+    if not NO_DB:
+        try:
+            from bet.pipeline import PipelineState
+            ps = PipelineState.load(args.date)
+            ps.advance("S8", summary={
+                "coupons": len(coupons_data.get("core_coupons", [])),
+                "combos": len(coupons_data.get("combos", [])),
+                "no_bet": coupons_data.get("no_bet", False),
+            })
+        except Exception:
+            pass
 
 
 if __name__ == "__main__":

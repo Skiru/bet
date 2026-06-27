@@ -312,6 +312,29 @@ def validate_pipeline_artifact(
                 )
             )
 
+    # S9 detailed validation check
+    if expected_step_id == "S9" and status_val == PipelineReadinessStatus.HUMAN_APPROVED:
+        manual_review = raw.get("manual_review")
+        if not isinstance(manual_review, dict):
+            issues.append(
+                ReadinessIssue(
+                    code="MISSING_MANUAL_REVIEW",
+                    severity=PipelineReadinessStatus.BLOCK,
+                    message="manual_review object is required for approved S9 gate",
+                )
+            )
+        else:
+            required_keys = ("reviewed_by_user", "reviewed_at_utc", "betclic_manual_verification", "coupon_draft_path")
+            for k in required_keys:
+                if k not in manual_review or manual_review[k] in (None, "", False):
+                    issues.append(
+                        ReadinessIssue(
+                            code="INCOMPLETE_MANUAL_REVIEW",
+                            severity=PipelineReadinessStatus.BLOCK,
+                            message=f"manual_review is missing or has empty required field: {k}",
+                        )
+                    )
+
     # 6. enrichment specific checks (S2.3, S2.5, S2.7, S2.9)
     is_enrichment = expected_step_id in ("S2.3", "S2.5", "S2.7", "S2.9")
     if is_enrichment and not is_current_step_block:

@@ -60,6 +60,12 @@ def write_test_artifact(base_dir: Path, step_id: str, status: str, payload_overr
         "blocked_reasons": [],
         "evidence_refs": [],
         "payload": {},
+        "manual_review": {
+            "reviewed_by_user": "mkoziol",
+            "reviewed_at_utc": "2026-06-27T12:00:00Z",
+            "betclic_manual_verification": True,
+            "coupon_draft_path": "/tmp/mock_drafts.json"
+        } if step_id == "S9" else None,
     }
     if payload_override:
         art.update(payload_override)
