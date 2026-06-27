@@ -39,7 +39,40 @@ def base_artifact_payload():
 
 
 def write_test_artifact(base_dir: Path, step_id: str, status: str, payload_override: dict | None = None) -> Path:
-    from bet.pipeline.artifact_gate import artifact_path_for
+    from bet.pipeline.artifact_gate import artifact_path_for, expected_s8_coupon_draft_path, sha256_file
+
+    s9_manual_review = None
+    if step_id == "S9" and status == "HUMAN_APPROVED":
+        draft_path = expected_s8_coupon_draft_path(base_dir, "2026-06-25", "run-999")
+        draft_path.parent.mkdir(parents=True, exist_ok=True)
+        draft_path.write_text(
+            json.dumps(
+                {
+                    "schema_version": 1,
+                    "artifact_type": "S8_COUPON_DRAFTS",
+                    "betting_day": "2026-06-25",
+                    "run_id": "run-999",
+                    "requires_human_gate": True,
+                    "ready_for_human_gate": True,
+                    "ready_for_production_execution": False,
+                    "production_selectable": False,
+                    "production_coupon_write": False,
+                    "executable_coupon": False,
+                    "betclic_execution_enabled": False,
+                    "coupon_draft_count": 0,
+                    "drafts": [],
+                }
+            ),
+            encoding="utf-8",
+        )
+        s9_manual_review = {
+            "reviewed_by_user": "mkoziol",
+            "reviewed_at_utc": "2026-06-27T12:00:00Z",
+            "betclic_manual_verification": True,
+            "coupon_draft_path": str(draft_path),
+            "coupon_draft_sha256": sha256_file(draft_path),
+        }
+
     art = {
         "schema_version": 1,
         "artifact_type": "AGENT_ARTIFACT" if step_id != "S9" else "HUMAN_GATE",
@@ -60,12 +93,7 @@ def write_test_artifact(base_dir: Path, step_id: str, status: str, payload_overr
         "blocked_reasons": [],
         "evidence_refs": [],
         "payload": {},
-        "manual_review": {
-            "reviewed_by_user": "mkoziol",
-            "reviewed_at_utc": "2026-06-27T12:00:00Z",
-            "betclic_manual_verification": True,
-            "coupon_draft_path": "/tmp/mock_drafts.json"
-        } if step_id == "S9" else None,
+        "manual_review": s9_manual_review,
     }
     if payload_override:
         art.update(payload_override)
@@ -231,6 +259,36 @@ def test_s10_can_proceed_if_s9_approved(tmp_path):
     summary = orch.run(start_step="S10", stop_after_step="S10")
     assert summary["status"] == "PASS"
     assert summary["last_completed_step"] == "S10"
+
+
+def test_s9_human_gate_step_blocks_on_unbound_coupon_draft(tmp_path):
+    """Verify direct S9 execution fails closed for stale or arbitrary draft paths."""
+    write_test_artifact(
+        tmp_path / "reports",
+        "S9",
+        "HUMAN_APPROVED",
+        payload_override={
+            "manual_review": {
+                "reviewed_by_user": "mkoziol",
+                "reviewed_at_utc": "2026-06-27T12:00:00Z",
+                "betclic_manual_verification": True,
+                "coupon_draft_path": "/tmp/2026-06-25_s8_coupon_drafts.json",
+                "coupon_draft_sha256": "0" * 64,
+            }
+        },
+    )
+
+    orch = Orchestrator(
+        betting_day="2026-06-25",
+        run_id="run-999",
+        runtime_mode="DRY_RUN",
+        base_run_dir=tmp_path / "reports",
+    )
+    summary = orch.run(start_step="S9", stop_after_step="S9")
+
+    assert summary["status"] == "BLOCK"
+    assert summary["blocked_at_step"] == "S9"
+    assert any("MISMATCH_COUPON_DRAFT_PATH" in blocker for blocker in summary["blockers"])
 
 
 def test_state_only_steps_write_marker_evidence(tmp_path):

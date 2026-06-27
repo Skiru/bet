@@ -10,8 +10,10 @@ from bet.pipeline.artifact_gate import (
     artifact_path_for,
     detect_secrets,
     evaluate_gate_before_step,
+    expected_s8_coupon_draft_path,
     find_forbidden_decision_signals,
     load_artifact,
+    sha256_file,
     validate_pipeline_artifact,
 )
 from bet.pipeline.readiness_contracts import PipelineReadinessStatus
@@ -56,6 +58,33 @@ def write_artifact(root: Path, artifact: dict[str, object]) -> Path:
     path = artifact_path_for(root, str(artifact["betting_day"]), str(artifact["run_id"]), str(artifact["step_id"]))
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(artifact), encoding="utf-8")
+    return path
+
+
+def write_s8_coupon_draft(root: Path, betting_day: str, run_id: str) -> Path:
+    """Write a canonical safe S8 draft artifact for S9/S10 gate tests."""
+    path = expected_s8_coupon_draft_path(root, betting_day, run_id)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "artifact_type": "S8_COUPON_DRAFTS",
+                "betting_day": betting_day,
+                "run_id": run_id,
+                "requires_human_gate": True,
+                "ready_for_human_gate": True,
+                "ready_for_production_execution": False,
+                "production_selectable": False,
+                "production_coupon_write": False,
+                "executable_coupon": False,
+                "betclic_execution_enabled": False,
+                "coupon_draft_count": 0,
+                "drafts": [],
+            }
+        ),
+        encoding="utf-8",
+    )
     return path
 
 
@@ -275,11 +304,13 @@ def test_evaluate_gate_s10_requires_s9(tmp_path):
         artifact["sources"] = []
         artifact["sport"] = None
         if status == "HUMAN_APPROVED":
+            draft_path = write_s8_coupon_draft(tmp_path / status, "2026-06-25", "run-001")
             artifact["manual_review"] = {
                 "reviewed_by_user": "test-user",
                 "reviewed_at_utc": "2026-06-25T12:00:00Z",
-                "betclic_manual_verification": "VERIFIED",
-                "coupon_draft_path": str(tmp_path / "mock_drafts.json"),
+                "betclic_manual_verification": True,
+                "coupon_draft_path": str(draft_path),
+                "coupon_draft_sha256": sha256_file(draft_path),
             }
         write_artifact(tmp_path / status, artifact)
         decision = evaluate_gate_before_step("S10", tmp_path / status, "2026-06-25", "run-001")

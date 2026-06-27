@@ -41,6 +41,7 @@ from bet.pipeline.readiness_contracts import (
 from bet.pipeline.artifact_gate import (
     evaluate_gate_before_step,
     validate_pipeline_artifact,
+    validate_s9_human_gate_artifact_for_run,
     artifact_path_for,
 )
 from bet.pipeline.run_evidence import (
@@ -556,12 +557,27 @@ class Orchestrator:
                         with open(expected_path, "r", encoding="utf-8") as f:
                             raw = json.load(f)
                         artifact, issues = validate_pipeline_artifact(raw, sid)
-                        if artifact is None or artifact.status != PipelineReadinessStatus.HUMAN_APPROVED:
+                        issues.extend(
+                            validate_s9_human_gate_artifact_for_run(
+                                raw,
+                                base_dir=gate_base_dir,
+                                betting_day=self.betting_day,
+                                run_id=self.run_id,
+                            )
+                        )
+                        block_issues = [issue for issue in issues if issue.severity == PipelineReadinessStatus.BLOCK]
+                        if artifact is None or artifact.status != PipelineReadinessStatus.HUMAN_APPROVED or block_issues:
                             step_status = PipelineReadinessStatus.BLOCK
                             overall_status = PipelineReadinessStatus.BLOCK
                             blocked_at_step = sid
                             blocked_reason = BlockedReason.BLOCKED_WAITING_FOR_HUMAN_APPROVAL
-                            self.blockers.append(f"Human gate artifact for step {sid} is not approved or has issues")
+                            if block_issues:
+                                for issue in block_issues:
+                                    self.blockers.append(
+                                        f"Human gate artifact for step {sid} failed validation: {issue.message} [{issue.code}]"
+                                    )
+                            else:
+                                self.blockers.append(f"Human gate artifact for step {sid} is not approved or has issues")
                         else:
                             step_status = PipelineReadinessStatus.PASS
                             evidence_path = str(expected_path)

@@ -9,6 +9,7 @@ from unittest.mock import patch
 
 import pytest
 
+from bet.pipeline.artifact_gate import expected_s8_coupon_draft_path
 from bet.pipeline.orchestrator import Orchestrator
 from bet.pipeline.readiness_contracts import PipelineReadinessStatus
 
@@ -155,7 +156,9 @@ def test_bet_action_path_sandbox_certification(tmp_path: Path, sandbox_env: dict
     # Assert S8 draft path exists and matches expected contents
     s8_payload = json.loads(Path(s8_step["evidence_path"]).read_text(encoding="utf-8"))["payload"]
     draft_path = Path(s8_payload["s8_coupon_draft_path"])
+    expected_draft_path = expected_s8_coupon_draft_path(base_run_dir, "2026-06-26", "s8-s9-sandbox-test")
     assert draft_path.exists()
+    assert draft_path.resolve() == expected_draft_path.resolve()
     assert str(draft_path.resolve()).startswith(str(base_run_dir.resolve()))
     assert "/data/" in str(draft_path)
     assert str(draft_path) != "/tmp/2026-06-26_s8_coupon_drafts.json"
