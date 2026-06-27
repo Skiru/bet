@@ -53,6 +53,11 @@ from bet.pipeline.integration_artifacts import (
     write_script_evidence,
     script_evidence_path,
 )
+from bet.pipeline.orchestrator_contracts import (
+    TerminalNextAction,
+    TerminalOutcome,
+    TerminalOutcomeReason,
+)
 
 # Ensure data directory references correct sandboxed path during execution
 from bet.pipeline.state import PipelineState
@@ -72,6 +77,108 @@ LIVE_SHADOW_WRAPPERS_REQUIRING_ACK = {
     "scripts/pipeline_steps/s4_valuator.py",
     "scripts/pipeline_steps/s7_validate.py",
 }
+
+S7_HARD_APPROVAL_BLOCK_REASON = "BLOCKED_HARD_APPROVAL_GATE"
+
+
+def _load_json_object(path: str | Path | None) -> dict[str, Any] | None:
+    if not path:
+        return None
+
+    try:
+        with open(Path(path), "r", encoding="utf-8") as handle:
+            payload = json.load(handle)
+    except (OSError, json.JSONDecodeError, TypeError, ValueError):
+        return None
+
+    return payload if isinstance(payload, dict) else None
+
+
+def _coerce_int(value: Any) -> int | None:
+    if isinstance(value, bool):
+        return None
+    try:
+        coerced = int(value)
+    except (TypeError, ValueError):
+        return None
+    return coerced
+
+
+def _classify_s7_no_action_terminal(
+    *,
+    blocked_at_step: str | None,
+    overall_status: PipelineReadinessStatus,
+    step_evidences: list[dict[str, Any]],
+) -> dict[str, Any] | None:
+    if blocked_at_step != "S7" or overall_status != PipelineReadinessStatus.BLOCK:
+        return None
+
+    s7_step = next((step for step in reversed(step_evidences) if step.get("step_id") == "S7"), None)
+    if not s7_step or s7_step.get("status") != PipelineReadinessStatus.BLOCK.value:
+        return None
+
+    raw_evidence = _load_json_object(s7_step.get("evidence_path"))
+    if raw_evidence is None:
+        return None
+
+    if raw_evidence.get("artifact_type") != PipelineArtifactType.SCRIPT_EVIDENCE.value:
+        return None
+    if raw_evidence.get("step_id") != "S7":
+        return None
+    if raw_evidence.get("status") != PipelineReadinessStatus.BLOCK.value:
+        return None
+
+    blocked_reasons = raw_evidence.get("blocked_reasons")
+    if not isinstance(blocked_reasons, list) or S7_HARD_APPROVAL_BLOCK_REASON not in blocked_reasons:
+        return None
+
+    if raw_evidence.get("production_selectable") is not False:
+        return None
+    if raw_evidence.get("betting_decisions_enabled") is not False:
+        return None
+    if raw_evidence.get("no_pick_edge_stake_coupon_emitted") is not True:
+        return None
+
+    payload = raw_evidence.get("payload")
+    if not isinstance(payload, dict):
+        return None
+
+    total_candidates = _coerce_int(payload.get("total_candidates"))
+    approved_count = _coerce_int(payload.get("approved_count"))
+    rejected_count = _coerce_int(payload.get("rejected_count"))
+    if total_candidates is None or approved_count is None or rejected_count is None:
+        return None
+    if total_candidates <= 0:
+        return None
+    if approved_count != 0 or rejected_count != total_candidates:
+        return None
+    if payload.get("s7_input_source_step") != "S4":
+        return None
+
+    payload_production_selectable = payload.get("production_selectable")
+    if payload_production_selectable is not None and payload_production_selectable is not False:
+        return None
+
+    payload_betting_decisions_enabled = payload.get("betting_decisions_enabled")
+    if payload_betting_decisions_enabled is not None and payload_betting_decisions_enabled is not False:
+        return None
+
+    payload_no_coupon = payload.get("no_pick_edge_stake_coupon_emitted")
+    if payload_no_coupon is not None and payload_no_coupon is not True:
+        return None
+
+    return {
+        "terminal_outcome": TerminalOutcome.NO_ACTION.value,
+        "terminal_outcome_reason": TerminalOutcomeReason.S7_HARD_GATE_NO_APPROVED_CANDIDATES.value,
+        "valid_no_action_terminal": True,
+        "no_bet_day": True,
+        "no_action_step": "S7",
+        "no_action_candidate_count": total_candidates,
+        "no_action_rejected_count": rejected_count,
+        "ready_for_human_gate_test": False,
+        "ready_for_production_execution": False,
+        "next_action": TerminalNextAction.NO_BET_REVIEW_OR_UPSTREAM_DATA_ENRICHMENT.value,
+    }
 
 
 class Orchestrator:
@@ -531,6 +638,12 @@ class Orchestrator:
         if last_completed_step == "S8":
             ready_for_human_gate = True
 
+        no_action_terminal = _classify_s7_no_action_terminal(
+            blocked_at_step=blocked_at_step,
+            overall_status=overall_status,
+            step_evidences=self.step_evidences,
+        )
+
         summary = {
             "schema_version": 1,
             "orchestrator_id": "pipeline_orchestrator_a",
@@ -545,10 +658,22 @@ class Orchestrator:
             "production_coupon_write": False,
             "live_provider_calls_allowed": live_provider_calls_allowed,
             "ready_for_human_gate": ready_for_human_gate,
+            "ready_for_human_gate_test": ready_for_human_gate,
             "ready_for_production_execution": False,
+            "terminal_outcome": None,
+            "terminal_outcome_reason": None,
+            "valid_no_action_terminal": False,
+            "no_bet_day": False,
+            "no_action_step": None,
+            "no_action_candidate_count": None,
+            "no_action_rejected_count": None,
+            "next_action": None,
             "warnings": self.warnings,
             "blockers": self.blockers,
         }
+
+        if no_action_terminal is not None:
+            summary.update(no_action_terminal)
 
         for s_ev in self.step_evidences:
             if s_ev.get("work_order_path"):
