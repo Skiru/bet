@@ -638,6 +638,10 @@ class Orchestrator:
         if last_completed_step == "S8":
             ready_for_human_gate = True
 
+        human_gate_status = None
+        if last_completed_step == "S8" or blocked_at_step == "S9":
+            human_gate_status = "WAITING_FOR_HUMAN_APPROVAL"
+
         no_action_terminal = _classify_s7_no_action_terminal(
             blocked_at_step=blocked_at_step,
             overall_status=overall_status,
@@ -660,6 +664,7 @@ class Orchestrator:
             "ready_for_human_gate": ready_for_human_gate,
             "ready_for_human_gate_test": ready_for_human_gate,
             "ready_for_production_execution": False,
+            "human_gate_status": human_gate_status,
             "terminal_outcome": None,
             "terminal_outcome_reason": None,
             "valid_no_action_terminal": False,
