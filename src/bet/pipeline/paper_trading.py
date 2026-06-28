@@ -26,6 +26,7 @@ from bet.pipeline.runtime_modes import RuntimeMode, parse_runtime_mode
 
 
 TASK_ID = "PIPELINE_PAPER_TRADING_READINESS_A"
+SINGLE_COUPON_SOURCE_TASK_ID = "PIPELINE_PAPER_OPERATIONAL_SINGLE_COUPON_SOURCE_A"
 REPO_ROOT = Path(__file__).resolve().parents[3]
 LEDGER_FILENAME = "paper_coupons.jsonl"
 OPEN_STATUS = "OPEN"
@@ -35,6 +36,9 @@ VOID_STATUS = "VOID"
 FINAL_STATUSES = {SETTLED_WIN_STATUS, SETTLED_LOSS_STATUS, VOID_STATUS}
 ALL_STATUSES = FINAL_STATUSES | {OPEN_STATUS}
 ZERO = Decimal("0")
+ONE = Decimal("1")
+SINGLE_COUPON_SELECTION_POLICY = "first_fixture_safe_lexicographic"
+SKIPPED_OPERATIONAL_OPEN_COUPON = "SKIPPED_OPERATIONAL_OPEN_COUPON"
 
 
 def _to_decimal(value: Decimal | int | float | str) -> Decimal:
@@ -365,6 +369,23 @@ def open_daily_risk_units(ledger_path: Path) -> Decimal:
     return sum((coupon.stake_units for coupon in coupons.values() if coupon.status == OPEN_STATUS), start=ZERO)
 
 
+def _coupon_creation_blocked_without_write(
+    config: PaperTradingConfig,
+    coupon: PaperCoupon,
+    *,
+    expected_error_fragment: str,
+    ledger_path: Path,
+    repo_root: Path = REPO_ROOT,
+) -> bool:
+    before = ledger_path.read_bytes() if ledger_path.exists() else b""
+    try:
+        create_paper_coupon(config, coupon, repo_root=repo_root)
+    except ValueError as exc:
+        after = ledger_path.read_bytes() if ledger_path.exists() else b""
+        return expected_error_fragment in str(exc) and before == after
+    return False
+
+
 def create_paper_coupon(
     config: PaperTradingConfig,
     coupon: PaperCoupon,
@@ -611,6 +632,16 @@ def write_fixture_paper_trading_artifacts(config: PaperTradingConfig) -> tuple[P
     return draft_path, s9_path
 
 
+def _build_fixture_bound_paper_coupons(config: PaperTradingConfig) -> tuple[Path, Path, list[PaperCoupon]]:
+    draft_path, s9_path = write_fixture_paper_trading_artifacts(config)
+    coupons = build_paper_coupons_from_bound_s8_s9(
+        config=config,
+        s8_coupon_draft_path=draft_path,
+        s9_human_gate_artifact_path=s9_path,
+    )
+    return draft_path, s9_path, coupons
+
+
 def run_paper_trading_readiness(
     config: PaperTradingConfig,
     *,
@@ -625,23 +656,18 @@ def run_paper_trading_readiness(
 
     before_snapshot = snapshot_protected_repo_paths(repo_root)
     ledger_path = expected_paper_ledger_path(normalized)
-    draft_path, s9_path = write_fixture_paper_trading_artifacts(normalized)
-    coupons = build_paper_coupons_from_bound_s8_s9(
-        config=normalized,
-        s8_coupon_draft_path=draft_path,
-        s9_human_gate_artifact_path=s9_path,
-    )
+    _, _, coupons = _build_fixture_bound_paper_coupons(normalized)
 
     for coupon in coupons:
         create_paper_coupon(normalized, coupon, repo_root=repo_root)
 
-    duplicate_before = ledger_path.read_bytes()
-    duplicate_blocked = False
-    try:
-        create_paper_coupon(normalized, coupons[0], repo_root=repo_root)
-    except ValueError as exc:
-        duplicate_after = ledger_path.read_bytes()
-        duplicate_blocked = "duplicate paper_coupon_id blocked" in str(exc) and duplicate_before == duplicate_after
+    duplicate_blocked = _coupon_creation_blocked_without_write(
+        normalized,
+        coupons[0],
+        expected_error_fragment="duplicate paper_coupon_id blocked",
+        ledger_path=ledger_path,
+        repo_root=repo_root,
+    )
 
     over_stake_coupon = replace(
         coupons[0],
@@ -650,11 +676,13 @@ def run_paper_trading_readiness(
         expected_payout_units=(normalized.max_stake_units_per_coupon + Decimal("0.01")) * coupons[0].odds_decimal,
         created_at_utc=utc_now_iso(),
     )
-    over_stake_blocked = False
-    try:
-        create_paper_coupon(normalized, over_stake_coupon, repo_root=repo_root)
-    except ValueError as exc:
-        over_stake_blocked = "max_stake_units_per_coupon" in str(exc)
+    over_stake_blocked = _coupon_creation_blocked_without_write(
+        normalized,
+        over_stake_coupon,
+        expected_error_fragment="max_stake_units_per_coupon",
+        ledger_path=ledger_path,
+        repo_root=repo_root,
+    )
 
     over_risk_coupon = replace(
         coupons[0],
@@ -663,17 +691,21 @@ def run_paper_trading_readiness(
         event_id=f"{coupons[0].event_id}-over-risk",
         created_at_utc=utc_now_iso(),
     )
-    over_risk_blocked = False
-    try:
-        create_paper_coupon(normalized, over_risk_coupon, repo_root=repo_root)
-    except ValueError as exc:
-        over_risk_blocked = "max_daily_risk_units" in str(exc)
+    over_risk_blocked = _coupon_creation_blocked_without_write(
+        normalized,
+        over_risk_coupon,
+        expected_error_fragment="max_daily_risk_units",
+        ledger_path=ledger_path,
+        repo_root=repo_root,
+    )
 
-    kill_switch_blocked = False
-    try:
-        create_paper_coupon(replace(normalized, kill_switch=True), over_risk_coupon, repo_root=repo_root)
-    except ValueError as exc:
-        kill_switch_blocked = "kill_switch is active" in str(exc)
+    kill_switch_blocked = _coupon_creation_blocked_without_write(
+        replace(normalized, kill_switch=True),
+        over_risk_coupon,
+        expected_error_fragment="kill_switch is active",
+        ledger_path=ledger_path,
+        repo_root=repo_root,
+    )
 
     settle_paper_coupon(normalized, coupons[0].paper_coupon_id, SETTLED_WIN_STATUS)
     settle_paper_coupon(normalized, coupons[1].paper_coupon_id, SETTLED_LOSS_STATUS)
@@ -725,6 +757,141 @@ def run_paper_trading_readiness(
         budget_guard_verdict=budget_guard_verdict,
         ledger_schema_verdict=ledger_schema_verdict,
         settlement_verdict=settlement_verdict,
+        no_real_bet_execution_verdict=no_real_bet_execution_verdict,
+        no_betclic_execution_verdict=no_betclic_execution_verdict,
+        protected_repo_write_verdict=protected_repo_write_verdict,
+        ready_for_manual_low_stake_pilot=ready_for_manual_low_stake_pilot,
+        ready_for_production_execution=False,
+        blockers=blockers,
+    )
+
+
+def run_paper_trading_single_coupon_source(
+    config: PaperTradingConfig,
+    *,
+    report_path: Path | None = None,
+    repo_root: Path = REPO_ROOT,
+    selection_policy: str = SINGLE_COUPON_SELECTION_POLICY,
+    task_id: str = SINGLE_COUPON_SOURCE_TASK_ID,
+) -> PaperTradingReadinessReport:
+    normalized = config.normalized()
+    blockers = validate_paper_trading_config(normalized, report_path=report_path, repo_root=repo_root)
+    if selection_policy != SINGLE_COUPON_SELECTION_POLICY:
+        blockers.append(f"unsupported selection_policy: {selection_policy}")
+    if normalized.max_daily_risk_units > ONE:
+        blockers.append("max_daily_risk_units must be <= 1 for single-coupon-source mode")
+    if blockers:
+        raise ValueError("; ".join(blockers))
+
+    before_snapshot = snapshot_protected_repo_paths(repo_root)
+    ledger_path = expected_paper_ledger_path(normalized)
+    _, _, coupons = _build_fixture_bound_paper_coupons(normalized)
+    ordered_coupons = sorted(coupons, key=lambda coupon: coupon.paper_coupon_id)
+    if not ordered_coupons:
+        raise ValueError("single-coupon-source mode requires at least one bound paper coupon")
+
+    selected_coupon = ordered_coupons[0]
+    create_paper_coupon(normalized, selected_coupon, repo_root=repo_root)
+
+    duplicate_blocked = _coupon_creation_blocked_without_write(
+        normalized,
+        selected_coupon,
+        expected_error_fragment="duplicate paper_coupon_id blocked",
+        ledger_path=ledger_path,
+        repo_root=repo_root,
+    )
+
+    over_stake_coupon = replace(
+        selected_coupon,
+        paper_coupon_id=f"{selected_coupon.paper_coupon_id}:over-stake",
+        stake_units=normalized.max_stake_units_per_coupon + Decimal("0.01"),
+        expected_payout_units=(normalized.max_stake_units_per_coupon + Decimal("0.01")) * selected_coupon.odds_decimal,
+        created_at_utc=utc_now_iso(),
+    )
+    over_stake_blocked = _coupon_creation_blocked_without_write(
+        normalized,
+        over_stake_coupon,
+        expected_error_fragment="max_stake_units_per_coupon",
+        ledger_path=ledger_path,
+        repo_root=repo_root,
+    )
+
+    secondary_coupon = next(
+        (coupon for coupon in ordered_coupons if coupon.paper_coupon_id != selected_coupon.paper_coupon_id),
+        None,
+    )
+    if secondary_coupon is None:
+        blockers.append("single-coupon-source mode requires a second distinct coupon for over-risk proof")
+    else:
+        secondary_coupon = replace(secondary_coupon, created_at_utc=utc_now_iso())
+
+    over_risk_blocked = False
+    kill_switch_blocked = False
+    if secondary_coupon is not None:
+        over_risk_blocked = _coupon_creation_blocked_without_write(
+            normalized,
+            secondary_coupon,
+            expected_error_fragment="max_daily_risk_units",
+            ledger_path=ledger_path,
+            repo_root=repo_root,
+        )
+        kill_switch_blocked = _coupon_creation_blocked_without_write(
+            replace(normalized, kill_switch=True),
+            secondary_coupon,
+            expected_error_fragment="kill_switch is active",
+            ledger_path=ledger_path,
+            repo_root=repo_root,
+        )
+
+    latest = load_latest_paper_coupons(ledger_path)
+    if len(latest) != 1:
+        blockers.append(f"single-coupon-source mode must leave exactly one latest coupon in ledger; got {len(latest)}")
+    if any(coupon.status != OPEN_STATUS for coupon in latest.values()):
+        blockers.append("single-coupon-source mode must leave every latest coupon OPEN")
+
+    total_stake_units = sum((coupon.stake_units for coupon in latest.values()), start=ZERO)
+    if total_stake_units != ONE:
+        blockers.append(f"single-coupon-source mode must leave total_stake_units=1; got {total_stake_units}")
+
+    ledger_schema_issues = validate_ledger_jsonl_schema(ledger_path)
+    ledger_schema_verdict = "PASS" if not ledger_schema_issues else "FAIL"
+    if ledger_schema_issues:
+        blockers.extend(ledger_schema_issues)
+
+    after_snapshot = snapshot_protected_repo_paths(repo_root)
+    protected_changes = compare_path_snapshots(before_snapshot, after_snapshot)
+    protected_repo_write_verdict = "PASS" if not protected_changes else "FAIL"
+    if protected_changes:
+        blockers.extend(protected_changes)
+
+    budget_guard_verdict = "PASS" if over_stake_blocked and over_risk_blocked else "FAIL"
+    if budget_guard_verdict == "FAIL":
+        blockers.append("single-coupon-source budget guard proof failed")
+    if not duplicate_blocked:
+        blockers.append("duplicate submission was not idempotently blocked")
+    if not kill_switch_blocked:
+        blockers.append("kill switch did not fail closed")
+
+    no_real_bet_execution_verdict = "PASS"
+    no_betclic_execution_verdict = "PASS"
+    ready_for_manual_low_stake_pilot = not blockers
+    status = "PASS" if ready_for_manual_low_stake_pilot else "BLOCKED_PAPER_TRADING_READINESS"
+
+    return PaperTradingReadinessReport(
+        task_id=task_id,
+        status=status,
+        betting_day=normalized.betting_day,
+        run_id=normalized.run_id,
+        ledger_path=str(ledger_path),
+        coupon_count=len(latest),
+        total_stake_units=total_stake_units,
+        max_stake_units_per_coupon=normalized.max_stake_units_per_coupon,
+        max_daily_risk_units=normalized.max_daily_risk_units,
+        kill_switch_active=normalized.kill_switch,
+        duplicate_blocked=duplicate_blocked,
+        budget_guard_verdict=budget_guard_verdict,
+        ledger_schema_verdict=ledger_schema_verdict,
+        settlement_verdict=SKIPPED_OPERATIONAL_OPEN_COUPON,
         no_real_bet_execution_verdict=no_real_bet_execution_verdict,
         no_betclic_execution_verdict=no_betclic_execution_verdict,
         protected_repo_write_verdict=protected_repo_write_verdict,

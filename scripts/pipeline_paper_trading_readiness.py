@@ -15,6 +15,7 @@ if str(SRC) not in sys.path:
 from bet.pipeline.paper_trading import (  # noqa: E402
     PaperTradingConfig,
     run_paper_trading_readiness,
+    run_paper_trading_single_coupon_source,
 )
 from bet.pipeline.run_evidence import write_json_atomic  # noqa: E402
 
@@ -28,6 +29,12 @@ def _decimal_arg(value: str) -> Decimal:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Run paper trading readiness.")
+    parser.add_argument(
+        "--mode",
+        choices=("readiness", "single-coupon-source"),
+        default="readiness",
+        help="Execution mode",
+    )
     parser.add_argument("--betting-day", required=True, help="YYYY-MM-DD")
     parser.add_argument("--run-id", required=True, help="Run identifier")
     parser.add_argument("--base-dir", required=True, help="Base directory for fixture artifacts")
@@ -52,7 +59,14 @@ def main() -> int:
     report_path = Path(args.report_path).resolve(strict=False)
 
     try:
-        report = run_paper_trading_readiness(config, report_path=report_path)
+        if args.mode == "single-coupon-source":
+            if args.max_stake_units_per_coupon != Decimal("1"):
+                raise ValueError("single-coupon-source mode requires --max-stake-units-per-coupon 1")
+            if args.max_daily_risk_units != Decimal("1"):
+                raise ValueError("single-coupon-source mode requires --max-daily-risk-units 1")
+            report = run_paper_trading_single_coupon_source(config, report_path=report_path)
+        else:
+            report = run_paper_trading_readiness(config, report_path=report_path)
     except ValueError as exc:
         print(f"BLOCKED: {exc}", file=sys.stderr)
         return 2
@@ -61,6 +75,8 @@ def main() -> int:
     print(f"STATUS={report.status}")
     print(f"LEDGER_PATH={report.ledger_path}")
     print(f"PAPER_COUPON_COUNT={report.coupon_count}")
+    print(f"TOTAL_STAKE_UNITS={report.total_stake_units}")
+    print(f"READY_FOR_MANUAL_LOW_STAKE_PILOT={report.ready_for_manual_low_stake_pilot}")
     print(f"REPORT_PATH={report_path}")
     return 0 if report.status == "PASS" else 1
 

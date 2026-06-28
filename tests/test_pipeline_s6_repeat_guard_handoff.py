@@ -11,6 +11,16 @@ from unittest.mock import patch
 import pytest
 
 from scripts import check_48h_repeats
+from datetime import datetime as real_datetime
+
+
+class FixedRepeatGuardDatetime(real_datetime):
+    @classmethod
+    def now(cls, tz=None):
+        base = cls(2026, 6, 26, 12, 0, 0)
+        if tz is not None:
+            return base.replace(tzinfo=tz)
+        return base
 
 
 @pytest.fixture
@@ -134,6 +144,7 @@ def test_check_repeats_repeat_loss_conflict_blocks(tmp_path: Path, ledger_with_r
     with patch.dict(os.environ, {"BET_PIPELINE_RUNTIME_MODE": "DRY_RUN"}, clear=False), \
          patch.object(check_48h_repeats, "_record_pipeline_start"), \
          patch.object(check_48h_repeats, "_persist_pipeline_handoff"), \
+         patch.object(check_48h_repeats, "datetime", FixedRepeatGuardDatetime), \
          patch.object(sys, "argv", [
              "check_48h_repeats.py",
              "--date", "2026-06-25",
@@ -176,3 +187,11 @@ def test_check_repeats_pass_with_zero_losses(tmp_path: Path, ledger_empty: Path)
         check_48h_repeats.main()
 
     assert exc_info.value.code == 0
+
+
+def test_load_recent_losses_uses_repeat_guard_clock_deterministically(tmp_path: Path, ledger_with_recent_loss: Path):
+    with patch.object(check_48h_repeats, "datetime", FixedRepeatGuardDatetime):
+        losses = check_48h_repeats.load_recent_losses(ledger_with_recent_loss, hours=48)
+        assert len(losses) == 1
+        assert losses[0]["pick_id"] == "P-101"
+
