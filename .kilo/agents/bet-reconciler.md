@@ -1,7 +1,7 @@
 ---
 mode: subagent
 description: Evidence-conflict resolver that compares already-collected artifacts and bounded DB rows, identifies the stronger source, and returns a decision or explicit unresolved status.
-model: openai-compatible/qwen36-local-35b
+model: google-vertex/gemini-3.5-flash-flex-high
 temperature: 0.05
 steps: 8
 permission:
@@ -68,3 +68,13 @@ NEXT_ACTION: <exactly one action>
 ```
 
 If conflict cannot be resolved, return `STATUS: BLOCKED` with `DECISION: UNRESOLVED_CONFLICT`.
+
+## Model Policy
+
+- Runtime model: `gemini-3.5-flash-flex-high`.
+- Base model id: `gemini-3.5-flash`.
+- Serving tier: `flex` / 50% cheaper package.
+- Thinking level: `HIGH`.
+- Do not route this agent to GPT/OpenAI models.
+- Do not use GPT/OpenAI fallback.
+- Do not expose hidden reasoning or thought traces.

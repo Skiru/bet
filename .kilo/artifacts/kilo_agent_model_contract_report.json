@@ -1,0 +1,23 @@
+{
+  "agents_scanned": [
+    "bet-orchestrator.md",
+    "bet-valuator.md",
+    "bet-engineer.md",
+    "code-simplifier.md",
+    "bet-reconciler.md",
+    "bet-statistician.md",
+    "bet-settler.md",
+    "bet-scout.md",
+    "bet-builder.md",
+    "bet-db-analyst.md",
+    "bet-enricher.md",
+    "bet-challenger.md",
+    "bet-test-engineer.md",
+    "bet-scanner.md"
+  ],
+  "missing_gemini_model_policy": [],
+  "active_gpt_openai_routing": [],
+  "gemini_alias_status": "VERIFIED_PRESENT",
+  "betting_boundaries_status": "VERIFIED_ENFORCED",
+  "failures": []
+}

@@ -1,7 +1,7 @@
 ---
 mode: primary
 description: Phase-bounded betting-pipeline controller. Plans, delegates one specialist at a time, enforces gates, and writes compact phase handoffs. Does not perform specialist analysis itself.
-model: openai-compatible/qwen36-local-35b
+model: google-vertex/gemini-3.5-flash-flex-high
 temperature: 0.15
 steps: 24
 permission:
@@ -104,3 +104,13 @@ Persist to `.kilo/state/phase-X-handoff.md`:
 - Next action
 
 Maximum 1,000 tokens.
+
+## Model Policy
+
+- Runtime model: `gemini-3.5-flash-flex-high`.
+- Base model id: `gemini-3.5-flash`.
+- Serving tier: `flex` / 50% cheaper package.
+- Thinking level: `HIGH`.
+- Do not route this agent to GPT/OpenAI models.
+- Do not use GPT/OpenAI fallback.
+- Do not expose hidden reasoning or thought traces.
