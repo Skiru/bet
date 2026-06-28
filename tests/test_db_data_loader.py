@@ -210,3 +210,17 @@ class TestLoadOddsFromDb:
             result = load_odds_from_db("2099-01-01")
             assert result["events"] == []
             assert result["total_events"] == 0
+
+
+def test_load_team_form_seeds_defaults_when_unseeded(db):
+    """load_team_form_from_db seeds defaults if sport is not found."""
+    from bet.db.repositories import SportRepo
+    sr = SportRepo(db)
+    assert sr.get_by_name("football") is None
+
+    with patch("bet.db.connection.get_db", return_value=_mock_get_db(db)):
+        from db_data_loader import load_team_form_from_db
+        res = load_team_form_from_db("Some Team", "football")
+        assert res is None
+
+    assert sr.get_by_name("football") is not None
