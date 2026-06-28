@@ -1,7 +1,7 @@
 ---
 mode: subagent
 description: Phase D S2.3-S2.6 specialist for missing-data detection, bounded enrichment and source-quality grading. Never fills gaps by inference.
-model: openai-compatible/qwen36-local-35b
+model: google-vertex/gemini-3.5-flash-flex-high
 temperature: 0.12
 steps: 14
 permission:
@@ -68,3 +68,13 @@ NEXT_ACTION: <exactly one action>
 ```
 
 If required sources are unavailable, return `STATUS: BLOCKED` with `DECISION: CAPABILITY_UNAVAILABLE`.
+
+## Model Policy
+
+- Runtime model: `gemini-3.5-flash-flex-high`.
+- Base model id: `gemini-3.5-flash`.
+- Serving tier: `flex` / 50% cheaper package.
+- Thinking level: `HIGH`.
+- Do not route this agent to GPT/OpenAI models.
+- Do not use GPT/OpenAI fallback.
+- Do not expose hidden reasoning or thought traces.

@@ -1,5 +1,6 @@
 ---
 mode: primary
+model: google-vertex/gemini-3.5-flash-flex-high
 description: For simplifying/refactoring features of codebase
 options:
   displayName: Code Simplifier
@@ -71,3 +72,13 @@ Your output should include:
 - Suggestions for further improvements if applicable
 
 Remember: Your goal is to make code that developers will thank you for code that is a joy to read, understand, and modify. Every refactoring should make the codebase demonstrably better.
+
+## Model Policy
+
+- Runtime model: `gemini-3.5-flash-flex-high`.
+- Base model id: `gemini-3.5-flash`.
+- Serving tier: `flex` / 50% cheaper package.
+- Thinking level: `HIGH`.
+- Do not route this agent to GPT/OpenAI models.
+- Do not use GPT/OpenAI fallback.
+- Do not expose hidden reasoning or thought traces.

@@ -1,7 +1,7 @@
 ---
 mode: subagent
 description: Phase D S7 adversarial reviewer for contradiction discovery, stale-context risk, correlated evidence, hidden assumptions and explicit PASS/FAIL gate verdicts.
-model: openai-compatible/qwen36-local-35b
+model: google-vertex/gemini-3.5-flash-flex-high
 temperature: 0.18
 steps: 10
 permission:
@@ -68,3 +68,13 @@ NEXT_ACTION: <exactly one action>
 ```
 
 If artifacts are missing, return `STATUS: BLOCKED` with `DECISION: MISSING_ARTIFACTS`.
+
+## Model Policy
+
+- Runtime model: `gemini-3.5-flash-flex-high`.
+- Base model id: `gemini-3.5-flash`.
+- Serving tier: `flex` / 50% cheaper package.
+- Thinking level: `HIGH`.
+- Do not route this agent to GPT/OpenAI models.
+- Do not use GPT/OpenAI fallback.
+- Do not expose hidden reasoning or thought traces.

@@ -1,7 +1,7 @@
 ---
 mode: subagent
 description: Repair specialist invoked only after two bounded failures. Diagnoses scripts/runtime, uses certified fixture operations, and returns BLOCKED when mutation is required.
-model: openai-compatible/qwen36-local-35b
+model: google-vertex/gemini-3.5-flash-flex-high
 temperature: 0.08
 steps: 14
 permission:
@@ -80,3 +80,13 @@ NEXT_ACTION: <one action>
 ```
 
 If repair is not possible, return `STATUS: BLOCKED` with `DECISION: REPAIR_FAILED`.
+
+## Model Policy
+
+- Runtime model: `gemini-3.5-flash-flex-high`.
+- Base model id: `gemini-3.5-flash`.
+- Serving tier: `flex` / 50% cheaper package.
+- Thinking level: `HIGH`.
+- Do not route this agent to GPT/OpenAI models.
+- Do not use GPT/OpenAI fallback.
+- Do not expose hidden reasoning or thought traces.
