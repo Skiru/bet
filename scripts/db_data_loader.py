@@ -472,6 +472,9 @@ def load_team_form_from_db(team_name: str, sport: str) -> dict | None:
             sr = SportRepo(conn)
             s = sr.get_by_name(sport)
             if not s:
+                sr.seed_defaults()
+                s = sr.get_by_name(sport)
+            if not s:
                 raise ValueError(f"Unknown sport: {sport}")
 
             tr = TeamRepo(conn)
