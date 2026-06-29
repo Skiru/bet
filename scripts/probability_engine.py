@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import math
+import re
 from typing import Any
 
 def poisson_pmf(k: int, lam: float) -> float:
@@ -24,28 +25,53 @@ def poisson_cdf(k: int, lam: float) -> float:
     return min(total, 1.0)
 
 
-def _parse_hit_rate(val: Any) -> float | None:
+def _parse_hit_rate_with_reason(val: Any) -> tuple[float | None, str]:
     if val in (None, "", "N/A"):
-        return None
+        return None, "HIT_RATE_INPUT_MISSING"
     if isinstance(val, (int, float)):
-        return float(val)
+        numeric = float(val)
+        if 0.0 <= numeric <= 1.0:
+            return numeric, "PASS"
+        return None, "HIT_RATE_OUT_OF_RANGE"
     val_str = str(val).strip()
-    if "/" in val_str:
+    if val_str.endswith("%"):
         try:
-            parts = val_str.split("/")
-            if len(parts) == 2:
-                num = float(parts[0])
-                den = float(parts[1])
-                if den > 0:
-                    return num / den
-        except (ValueError, ZeroDivisionError):
-            pass
-    else:
-        try:
-            return float(val_str)
+            numeric = float(val_str[:-1].strip()) / 100.0
+            if 0.0 <= numeric <= 1.0:
+                return numeric, "PASS"
+            return None, "HIT_RATE_OUT_OF_RANGE"
         except ValueError:
-            pass
-    return None
+            return None, "HIT_RATE_PARSE_ERROR"
+
+    fraction_match = re.fullmatch(r"\s*(\d+(?:\.\d+)?)\s*/\s*(\d+(?:\.\d+)?)\s*", val_str)
+    if not fraction_match:
+        fraction_match = re.fullmatch(r"\s*(\d+(?:\.\d+)?)\s+of\s+(\d+(?:\.\d+)?)\s*", val_str, re.IGNORECASE)
+    if fraction_match:
+        try:
+            num = float(fraction_match.group(1))
+            den = float(fraction_match.group(2))
+            if den <= 0:
+                return None, "HIT_RATE_ZERO_DENOMINATOR"
+            numeric = num / den
+            if 0.0 <= numeric <= 1.0:
+                return numeric, "PASS"
+            return None, "HIT_RATE_OUT_OF_RANGE"
+        except ValueError:
+            return None, "HIT_RATE_PARSE_ERROR"
+
+    try:
+        numeric = float(val_str)
+    except ValueError:
+        return None, "HIT_RATE_PARSE_ERROR"
+
+    if 0.0 <= numeric <= 1.0:
+        return numeric, "PASS"
+    return None, "HIT_RATE_OUT_OF_RANGE"
+
+
+def _parse_hit_rate(val: Any) -> float | None:
+    parsed, _ = _parse_hit_rate_with_reason(val)
+    return parsed
 
 
 def enrich_ranking_with_probabilities(ranking_result: dict[str, Any]) -> dict[str, Any]:
@@ -147,14 +173,20 @@ def enrich_ranking_with_probabilities(ranking_result: dict[str, Any]) -> dict[st
         # Fallback to hit rate if Poisson cannot be computed
         if prob is None:
             model_used = "S3_HIT_RATE_PROXY"
-            hit_l10 = _parse_hit_rate(r.get("hit_rate_l10"))
-            hit_h2h = _parse_hit_rate(r.get("hit_rate_h2h"))
+            hit_l10, hit_l10_reason = _parse_hit_rate_with_reason(r.get("hit_rate_l10"))
+            hit_h2h, hit_h2h_reason = _parse_hit_rate_with_reason(r.get("hit_rate_h2h"))
             if hit_l10 is not None and hit_h2h is not None:
                 prob = (hit_l10 + hit_h2h) / 2.0
             elif hit_l10 is not None:
                 prob = hit_l10
             else:
                 prob = None  # Insufficient sample / missing fields - do not fake
+                if hit_l10_reason != "HIT_RATE_INPUT_MISSING":
+                    r["probability_missing_reason"] = hit_l10_reason
+                elif hit_h2h_reason != "HIT_RATE_INPUT_MISSING":
+                    r["probability_missing_reason"] = hit_h2h_reason
+                else:
+                    r["probability_missing_reason"] = "HIT_RATE_INPUT_MISSING"
 
         if prob is not None:
             # Guarantee bounds [0.01, 0.99]
@@ -163,6 +195,7 @@ def enrich_ranking_with_probabilities(ranking_result: dict[str, Any]) -> dict[st
             r["fair_odds"] = round(1.0 / prob, 2)
             r["lambda"] = round(lam, 4)
             r["model_used"] = model_used
+            r["probability_missing_reason"] = ""
         else:
             r["probability"] = None
             r["fair_odds"] = None

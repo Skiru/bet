@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from types import SimpleNamespace
 
 import scripts.deep_stats_report as dsr
 
@@ -775,3 +776,327 @@ def test_no_fake_probability():
     enriched = enrich_ranking_with_probabilities(ranking_result)
     assert enriched["ranking"][0]["probability"] is None
 
+
+def test_team_identity_fallback_requires_context_or_high_confidence(monkeypatch):
+    import bet.db.connection as db_connection
+    import bet.db.repositories as repositories
+    from scripts.db_data_loader import load_team_form_from_db
+
+    class FakeConn:
+        def execute(self, query, params):
+            return SimpleNamespace(fetchall=lambda: [{"id": 2, "name": "Atletico Madrid"}])
+
+    class FakeDBContext:
+        def __enter__(self):
+            return FakeConn()
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    class FakeSportRepo:
+        def __init__(self, conn):
+            self.conn = conn
+
+        def get_by_name(self, sport):
+            return SimpleNamespace(id=1, name=sport)
+
+        def seed_defaults(self):
+            return None
+
+    class FakeTeamRepo:
+        def __init__(self, conn):
+            self.conn = conn
+
+        def resolve(self, team_name, sport_id):
+            return SimpleNamespace(id=1, name="Real Madrid")
+
+    class FakeStatsRepo:
+        def __init__(self, conn):
+            self.conn = conn
+
+        def get_all_form_for_team(self, team_id, sport_id):
+            if team_id == 1:
+                return [
+                    SimpleNamespace(
+                        stat_key="goals",
+                        l10_avg=1.4,
+                        l5_avg=1.2,
+                        l10_values="[1, 2, 1]",
+                    )
+                ]
+            if team_id == 2:
+                return [
+                    SimpleNamespace(
+                        stat_key="goals",
+                        l10_avg=3.8,
+                        l5_avg=3.5,
+                        l10_values="[4, 4, 3, 4, 4, 4]",
+                    )
+                ]
+            return []
+
+    monkeypatch.setattr(db_connection, "get_db", lambda: FakeDBContext())
+    monkeypatch.setattr(repositories, "SportRepo", FakeSportRepo)
+    monkeypatch.setattr(repositories, "TeamRepo", FakeTeamRepo)
+    monkeypatch.setattr(repositories, "StatsRepo", FakeStatsRepo)
+
+    result = load_team_form_from_db("Real Madrid", "football")
+
+    assert result is not None
+    assert result["form"]["l10_avg"]["goals"] == 1.4
+    assert result["team_identity_match"]["source"] == "TEAM_REPO_RESOLVE"
+    assert result["team_identity_match"]["fallback_used"] is False
+
+
+def test_team_identity_fallback_false_positive_does_not_generate_probability(monkeypatch):
+    monkeypatch.setattr(dsr, "extract_team_stats", lambda sport, team: {
+        "team": team,
+        "sport": sport,
+        "l10_avg": {"goals": 2.0},
+        "l5_avg": {"goals": 1.8},
+        "l10_matches": [{"goals": 2}] * 10,
+        "sources": ["db"],
+        "has_data": True,
+        "raw_cache": None,
+        "split_stat_aggregation_policy": {},
+        "stat_semantics_issues": [],
+        "team_identity_match": {
+            "source": "AMBIGUOUS_SURNAME_FALLBACK",
+            "confidence": "LOW",
+            "fallback_used": True,
+        },
+    })
+    monkeypatch.setattr(dsr, "extract_h2h_stats", lambda sport, home, away: {
+        "has_data": True,
+        "meetings": [{"goals": 3}] * 3,
+        "averages": {"goals": 3.0},
+    })
+    monkeypatch.setattr(dsr, "build_safety_input", lambda sport, home, away, competition: {
+        "markets": [{
+            "name": "Goals Total O/U",
+            "line": 2.5,
+            "direction": "OVER",
+            "team_a_l10": [2, 3, 2, 1, 2],
+            "team_b_l10": [1, 2, 1, 2, 1],
+        }]
+    })
+    monkeypatch.setattr(dsr, "rank_markets", lambda safety_input: {
+        "ranking": [{
+            "rank": 1,
+            "name": "Goals Total O/U",
+            "line": 2.5,
+            "direction": "OVER",
+            "safety_score": 0.8,
+            "combined_avg": 3.0,
+            "h2h_avg": 3.0,
+            "hit_rate_l10": "7/10",
+            "hit_rate_l5": "4/5",
+            "hit_rate_h2h": "3/5",
+            "source": "stats_db",
+            "one_sided": False,
+            "h2h_blind": False,
+        }],
+        "three_way_check": None,
+        "recommended_market": "Goals Total O/U",
+        "recommended_safety": 0.8,
+        "warnings": [],
+        "markdown_ranking_table": "",
+        "markdown_three_way_table": "",
+        "markets_evaluated": 1,
+        "min_required": 1,
+        "_markets_input": [{
+            "name": "Goals Total O/U",
+            "line": 2.5,
+            "direction": "OVER",
+            "team_a_l10": [2, 3, 2, 1, 2],
+            "team_b_l10": [1, 2, 1, 2, 1],
+        }],
+    })
+
+    result = dsr.analyze_candidate(
+        "football",
+        "Real Madrid",
+        "Barcelona",
+        "La Liga",
+        "2026-06-29T18:00:00+00:00",
+        shortlist_safety_markets=None,
+    )
+
+    assert result["model_probability"] is None
+    assert result["probability_missing_reason"] == "TEAM_IDENTITY_LOW_CONFIDENCE"
+    assert result["probability_confidence"] == "BLOCKED"
+
+
+def test_split_home_away_stats_not_summed_when_semantics_unknown():
+    from bet.pipeline.market_probability_inputs import aggregate_split_stat_value
+
+    aggregated, policy = aggregate_split_stat_value("mystery_metric", 6, 4)
+
+    assert aggregated is None
+    assert policy == "UNKNOWN_SPLIT_STAT_SEMANTICS"
+
+
+def test_split_counting_stats_use_declared_aggregation_policy():
+    from bet.pipeline.market_probability_inputs import aggregate_split_stat_value
+
+    aggregated, policy = aggregate_split_stat_value("goals", 2.0, 1.0)
+
+    assert aggregated == 1.5
+    assert policy == "MEAN_OF_HOME_AWAY_RATES"
+
+
+def test_percentage_stats_not_summed():
+    from bet.pipeline.market_probability_inputs import aggregate_split_stat_value
+
+    aggregated, policy = aggregate_split_stat_value("possession", 60.0, 40.0)
+
+    assert aggregated == 50.0
+    assert policy == "MEAN_OF_HOME_AWAY_PERCENTAGES"
+
+
+def test_probability_hit_rate_parser_accepts_fraction_decimal_percent():
+    from scripts.probability_engine import _parse_hit_rate_with_reason
+
+    assert _parse_hit_rate_with_reason("5/10") == (0.5, "PASS")
+    assert _parse_hit_rate_with_reason("0.5") == (0.5, "PASS")
+    assert _parse_hit_rate_with_reason("50%") == (0.5, "PASS")
+    assert _parse_hit_rate_with_reason("5 of 10") == (0.5, "PASS")
+
+
+def test_probability_hit_rate_parser_rejects_malformed_values_fail_closed():
+    from scripts.probability_engine import _parse_hit_rate_with_reason, enrich_ranking_with_probabilities
+
+    assert _parse_hit_rate_with_reason("5//10")[0] is None
+    assert _parse_hit_rate_with_reason("five of ten")[0] is None
+    assert _parse_hit_rate_with_reason("11/10") == (None, "HIT_RATE_OUT_OF_RANGE")
+
+    ranking_result = {
+        "ranking": [{
+            "name": "Goals Total O/U",
+            "line": 2.5,
+            "direction": "OVER",
+            "hit_rate_l10": "5//10",
+            "hit_rate_h2h": "N/A",
+        }],
+        "_markets_input": [],
+    }
+    enriched = enrich_ranking_with_probabilities(ranking_result)
+    assert enriched["ranking"][0]["probability"] is None
+    assert enriched["ranking"][0]["probability_missing_reason"] == "HIT_RATE_PARSE_ERROR"
+
+
+def test_probability_input_blocks_unknown_stat_semantics():
+    from bet.pipeline.market_probability_inputs import MarketProbabilityInput, validate_market_probability_input
+
+    inp = MarketProbabilityInput(
+        candidate_id="c-1",
+        sport="football",
+        market_family="GOALS_TOTALS",
+        market_type="Goals Total O/U",
+        selection="OVER",
+        direction="OVER",
+        line=2.5,
+        team_a_name="Alpha",
+        team_b_name="Beta",
+        semantics_issue="UNKNOWN_SPLIT_STAT_SEMANTICS",
+    )
+
+    valid, reason = validate_market_probability_input(inp)
+
+    assert valid is False
+    assert reason == "UNKNOWN_SPLIT_STAT_SEMANTICS"
+
+
+def test_bookmaker_implied_probability_cannot_be_model_probability():
+    valuation_payload = {
+        "candidates": [
+            {
+                "fixture_id": 130,
+                "sport": "football",
+                "home_team": "Alpha",
+                "away_team": "Beta",
+                "competition": "Test League",
+                "scheduled_time": "2026-06-29T18:00:00+00:00",
+                "best_market": {"name": "Goals Total O/U", "direction": "OVER", "line": 2.5},
+                "model_probability": 0.61,
+                "probability_method": "BOOKMAKER_IMPLIED_REFERENCE_ONLY",
+                "probability_confidence": "HIGH",
+                "odds": {"market_best": 1.95},
+            }
+        ]
+    }
+    s3_payload = {
+        "analyses": [
+            {
+                "fixture_id": 130,
+                "sport": "football",
+                "home_team": "Alpha",
+                "away_team": "Beta",
+                "competition": "Test League",
+                "kickoff": "2026-06-29T18:00:00+00:00",
+                "stats_a_summary": {"has_data": True, "l10_avg": {"goals": 2.1}, "sources": ["stats_db"]},
+                "stats_b_summary": {"has_data": True, "l10_avg": {"goals": 1.1}, "sources": ["stats_db"]},
+                "h2h_summary": {"has_data": True, "meetings_count": 3},
+            }
+        ]
+    }
+
+    handoff = build_analytical_candidate_handoff(
+        valuation_payload,
+        s3_payload=s3_payload,
+        shortlist_payload=None,
+        source_artifact_path="/tmp/2026-06-29_s4_valuation_candidates.json",
+    )
+
+    assert handoff["counts"]["blocked_probability_missing"] == 1
+    blocked = handoff["blocked_probability_missing"][0]
+    assert blocked["model_probability"] is None
+    assert blocked["probability_missing_reason"] == "BOOKMAKER_IMPLIED_REFERENCE_ONLY"
+
+
+def test_low_confidence_probability_label_blocks_analytical_ready():
+    valuation_payload = {
+        "candidates": [
+            {
+                "fixture_id": 140,
+                "sport": "football",
+                "home_team": "Alpha",
+                "away_team": "Beta",
+                "competition": "Test League",
+                "scheduled_time": "2026-06-29T18:00:00+00:00",
+                "best_market": {"name": "Goals Total O/U", "direction": "OVER", "line": 2.5},
+                "model_probability": 0.58,
+                "probability_method": "S3_PROBABILITY_ENGINE",
+                "probability_confidence": "LOW",
+                "odds": {"market_best": 1.91},
+            }
+        ]
+    }
+    s3_payload = {
+        "analyses": [
+            {
+                "fixture_id": 140,
+                "sport": "football",
+                "home_team": "Alpha",
+                "away_team": "Beta",
+                "competition": "Test League",
+                "kickoff": "2026-06-29T18:00:00+00:00",
+                "stats_a_summary": {"has_data": True, "l10_avg": {"goals": 2.1}, "sources": ["stats_db"]},
+                "stats_b_summary": {"has_data": True, "l10_avg": {"goals": 1.1}, "sources": ["stats_db"]},
+                "h2h_summary": {"has_data": True, "meetings_count": 3},
+            }
+        ]
+    }
+
+    handoff = build_analytical_candidate_handoff(
+        valuation_payload,
+        s3_payload=s3_payload,
+        shortlist_payload=None,
+        source_artifact_path="/tmp/2026-06-29_s4_valuation_candidates.json",
+    )
+
+    assert handoff["counts"]["analytical_ready"] == 0
+    assert handoff["counts"]["blocked_probability_missing"] == 1
+    blocked = handoff["blocked_probability_missing"][0]
+    assert blocked["probability_confidence"] == "LOW"
+    assert blocked["model_probability"] is None

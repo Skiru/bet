@@ -30,6 +30,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 from normalize_stats import build_safety_input, build_safety_input_from_cache
 from compute_safety_scores import rank_markets
 
+from bet.pipeline.market_probability_inputs import aggregate_split_stat_value
 from bet.stats.market_ranking import SPORT_STAT_KEYS
 
 from bet.utils import is_same_event
@@ -484,11 +485,6 @@ def _extract_esports_h2h(sport: str, team_a: str, team_b: str, result: dict) -> 
 def _populate_stats_from_form(result: dict, form: dict, sport: str) -> None:
     stat_keys = SPORT_STAT_KEYS.get(sport, [])
 
-    # Percentage stats should NOT sum home+away (would yield ~100%)
-    PERCENTAGE_STATS = {"possession", "fg_pct", "three_pct", "ft_pct",
-                        "first_serve_pct", "faceoff_pct", "hitting_pct",
-                        "checkout_pct"}
-
     # Extract L10 and L5 averages, merging _home/_away split keys
     for period_key, target in [("l10_avg", "l10_avg"), ("l5_avg", "l5_avg")]:
         avg_data = form.get(period_key, {})
@@ -505,12 +501,18 @@ def _populate_stats_from_form(result: dict, form: dict, sport: str) -> None:
                 if has_home or has_away:
                     home_val = avg_data.get(home_key, 0.0)
                     away_val = avg_data.get(away_key, 0.0)
-                    if key in PERCENTAGE_STATS:
-                        # Percentage stats: keep home-only (not summed)
-                        result[target][key] = home_val
+                    aggregated_value, policy = aggregate_split_stat_value(key, home_val, away_val)
+                    if aggregated_value is None:
+                        result.setdefault("stat_semantics_issues", []).append(
+                            {
+                                "stat_key": key,
+                                "period": period_key,
+                                "reason": policy,
+                            }
+                        )
                     else:
-                        # Counting stats: sum home + away
-                        result[target][key] = round(home_val + away_val, 2)
+                        result[target][key] = aggregated_value
+                        result.setdefault("split_stat_aggregation_policy", {})[key] = policy
                     # Also preserve the split values
                     if has_home:
                         result[target][home_key] = home_val
@@ -544,6 +546,9 @@ def extract_team_stats(sport: str, team_name: str) -> dict:
         "sources": [],
         "has_data": False,
         "raw_cache": None,
+        "split_stat_aggregation_policy": {},
+        "stat_semantics_issues": [],
+        "team_identity_match": None,
     }
 
     # --- ESPORTS: use dedicated clients (OpenDota, HLTV/bo3.gg, VLR) ---
@@ -558,6 +563,7 @@ def extract_team_stats(sport: str, team_name: str) -> dict:
             form = db_form["form"]
             _populate_stats_from_form(result, form, sport)
             result["sources"] = db_form.get("sources", ["db"])
+            result["team_identity_match"] = db_form.get("team_identity_match")
             if result["has_data"]:
                 return result
     except Exception as e:
@@ -1627,7 +1633,19 @@ def analyze_candidate(
     best_market_probability = best_market.get("probability") if best_market else None
     probability_method = ""
     probability_missing_reason = ""
-    if not stats_a.get("has_data") or not stats_b.get("has_data"):
+    semantics_issues = list(stats_a.get("stat_semantics_issues") or []) + list(stats_b.get("stat_semantics_issues") or [])
+    identity_matches = [stats_a.get("team_identity_match") or {}, stats_b.get("team_identity_match") or {}]
+    low_confidence_identity = any(
+        str(match.get("confidence") or "").upper() not in ("", "HIGH")
+        for match in identity_matches
+    )
+    if semantics_issues:
+        probability_missing_reason = "UNKNOWN_SPLIT_STAT_SEMANTICS"
+        best_market_probability = None
+    elif low_confidence_identity:
+        probability_missing_reason = "TEAM_IDENTITY_LOW_CONFIDENCE"
+        best_market_probability = None
+    elif not stats_a.get("has_data") or not stats_b.get("has_data"):
         probability_missing_reason = "NO_STATS_DATA_FOR_MODEL_PROBABILITY"
         best_market_probability = None
     elif best_market_probability is not None:
@@ -1709,6 +1727,9 @@ def analyze_candidate(
             "l10_matches_count": len(stats_a["l10_matches"]),
             "sources": stats_a["sources"],
             "espn_enrichment": stats_a.get("espn_enrichment"),
+            "split_stat_aggregation_policy": stats_a.get("split_stat_aggregation_policy", {}),
+            "stat_semantics_issues": stats_a.get("stat_semantics_issues", []),
+            "team_identity_match": stats_a.get("team_identity_match"),
         },
         "stats_b_summary": {
             "team": stats_b["team"],
@@ -1718,6 +1739,9 @@ def analyze_candidate(
             "l10_matches_count": len(stats_b["l10_matches"]),
             "sources": stats_b["sources"],
             "espn_enrichment": stats_b.get("espn_enrichment"),
+            "split_stat_aggregation_policy": stats_b.get("split_stat_aggregation_policy", {}),
+            "stat_semantics_issues": stats_b.get("stat_semantics_issues", []),
+            "team_identity_match": stats_b.get("team_identity_match"),
         },
         "h2h_summary": {
             "has_data": h2h["has_data"],
@@ -1747,7 +1771,7 @@ def analyze_candidate(
         "probability_method": probability_method,
         "probability_sources": probability_sources,
         "probability_as_of": _now_iso(),
-        "probability_confidence": dq.get("label", ""),
+        "probability_confidence": "BLOCKED" if probability_missing_reason in {"UNKNOWN_SPLIT_STAT_SEMANTICS", "TEAM_IDENTITY_LOW_CONFIDENCE"} else dq.get("label", ""),
         "probability_missing_reason": probability_missing_reason,
         "h2h_status": dq.get("breakdown", {}).get("h2h_status", "BLIND"),
         "markets_evaluated": len(ranking_result.get("ranking", [])),

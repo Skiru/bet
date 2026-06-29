@@ -496,23 +496,55 @@ def load_team_form_from_db(team_name: str, sport: str) -> dict | None:
 
             stats_repo = StatsRepo(conn)
             forms = stats_repo.get_all_form_for_team(team.id, s.id)
+            requested_signature = tuple(
+                sorted(
+                    token
+                    for token in re.sub(r"[^a-z0-9]+", " ", team_name.lower()).split()
+                    if len(token) >= 3 and token not in {"fc", "cf", "sc", "ac", "club", "team"}
+                )
+            )
+            identity_match = {
+                "requested_team_name": team_name,
+                "resolved_team_name": getattr(team, "name", team_name),
+                "resolved_team_id": team.id,
+                "source": "TEAM_REPO_RESOLVE",
+                "confidence": "HIGH",
+                "fallback_used": False,
+            }
 
-            # DEDUP FIX: If primary team_id has sparse form (<= 3 rows), look for alternative team_ids with similar name
+            # Sparse forms may indicate duplicate team rows; only use a fallback when the
+            # alternate row is a unique normalized full-name match. Single-token surname
+            # LIKE searches were producing false positives across unrelated clubs.
             if not forms or len(forms) <= 3:
-                parts = team_name.replace(",", " ").split()
-                surname = max(parts, key=len) if parts else team_name
-                if len(surname) >= 3:
+                if requested_signature:
                     alt_rows = conn.execute(
-                        "SELECT id FROM teams WHERE sport_id = ? AND id != ? AND name LIKE ?",
-                        (s.id, team.id, f"%{surname}%"),
+                        "SELECT id, name FROM teams WHERE sport_id = ? AND id != ?",
+                        (s.id, team.id),
                     ).fetchall()
                     best_forms = forms
                     best_count = len(forms) if forms else 0
                     for alt in alt_rows:
+                        alt_signature = tuple(
+                            sorted(
+                                token
+                                for token in re.sub(r"[^a-z0-9]+", " ", str(alt["name"]).lower()).split()
+                                if len(token) >= 3 and token not in {"fc", "cf", "sc", "ac", "club", "team"}
+                            )
+                        )
+                        if not alt_signature or alt_signature != requested_signature:
+                            continue
                         alt_form = stats_repo.get_all_form_for_team(alt["id"], s.id)
                         if alt_form and len(alt_form) > best_count:
                             best_forms = alt_form
                             best_count = len(alt_form)
+                            identity_match = {
+                                "requested_team_name": team_name,
+                                "resolved_team_name": alt["name"],
+                                "resolved_team_id": alt["id"],
+                                "source": "EXACT_NORMALIZED_TEAM_NAME_FALLBACK",
+                                "confidence": "HIGH",
+                                "fallback_used": True,
+                            }
                     forms = best_forms
 
             if forms:
@@ -528,6 +560,7 @@ def load_team_form_from_db(team_name: str, sport: str) -> dict | None:
                         "l10_matches": [],
                     },
                     "sources": ["db"],
+                    "team_identity_match": identity_match,
                 }
                 for f in forms:
                     if f.l10_avg is not None:

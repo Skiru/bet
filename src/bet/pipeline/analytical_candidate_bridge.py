@@ -246,6 +246,11 @@ def _probability_contract(
     }
 
 
+def _probability_confidence_is_blocked(probability_confidence: str) -> bool:
+    normalized = _normalized(probability_confidence).upper()
+    return normalized in {"BLOCKED", "LOW", "MINIMAL", "LOW_CONFIDENCE"}
+
+
 def _serialize(value: Any) -> Any:
     if isinstance(value, Decimal):
         return str(value)
@@ -416,6 +421,10 @@ def build_analytical_candidate_handoff(
 
         supporting_stats = _supporting_stats_from_s3(s3_entry)
         probability_contract = _probability_contract(valuation_entry, s3_entry)
+        if _probability_confidence_is_blocked(probability_contract["probability_confidence"]):
+            probability_contract["model_probability"] = None
+            if not probability_contract["probability_missing_reason"]:
+                probability_contract["probability_missing_reason"] = "LOW_CONFIDENCE_MODEL_PROBABILITY"
         odds_decimal = _to_decimal(
             valuation_entry.get("odds_decimal")
             or (valuation_entry.get("odds") or {}).get("market_best")
@@ -437,7 +446,7 @@ def build_analytical_candidate_handoff(
             analytical_status = "MISSING_LINE"
         elif probability_contract["model_probability"] is None:
             analytical_status = "INSUFFICIENT_MODEL_PROBABILITY"
-        elif probability_contract["probability_confidence"] == "BLOCKED":
+        elif _probability_confidence_is_blocked(probability_contract["probability_confidence"]):
             analytical_status = "INSUFFICIENT_MODEL_PROBABILITY"
         elif not supporting_stats:
             analytical_status = "INSUFFICIENT_SUPPORTING_STATS"

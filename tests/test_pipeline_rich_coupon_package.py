@@ -392,3 +392,19 @@ def test_analytical_only_package_not_coupon_package(tmp_path: Path):
     assert packages[0].ready_for_human_manual_placement is False
     assert packages[0].ready_for_manual_operator_quote_review is True
 
+
+def test_low_confidence_probability_label_is_visible_in_package(tmp_path: Path):
+    ledger_p = tmp_path / "session_ledger.jsonl"
+    _write_ledger_event(ledger_p, "candidate_reviewed", _valid_candidate("c-low", confidence_label="LOW"))
+
+    packages, report = build_rich_coupon_package(
+        betting_day="2026-06-28",
+        session_id="session-1",
+        session_ledger_path=ledger_p,
+        operator_name="Betclic",
+    )
+
+    markdown = generate_package_markdown(packages[0], report)
+
+    assert packages[0].legs[0].confidence_label == "LOW"
+    assert "**Confidence**: LOW" in markdown

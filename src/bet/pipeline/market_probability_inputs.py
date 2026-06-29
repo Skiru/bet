@@ -1,9 +1,84 @@
 """Market-specific probability inputs schema, derivation and validation."""
 from __future__ import annotations
-import json
-import statistics
 from dataclasses import dataclass, field
 from typing import Any, List, Optional
+
+from bet.stats.market_ranking import SPORT_STAT_KEYS
+
+
+PERCENTAGE_STAT_KEYS = frozenset(
+    {
+        "possession",
+        "fg_pct",
+        "three_pct",
+        "ft_pct",
+        "faceoff_pct",
+        "first_serve_pct",
+        "first_serve_win_pct",
+        "second_serve_win_pct",
+        "break_points_saved_pct",
+        "hold_pct",
+        "break_pct",
+        "hitting_pct",
+        "kd_ratio",
+        "map_win_rate",
+        "win_rate_l10",
+        "checkout_pct",
+    }
+)
+KNOWN_SPLIT_STAT_KEYS = frozenset(
+    stat_key for stat_keys in SPORT_STAT_KEYS.values() for stat_key in stat_keys
+)
+
+
+def split_stat_aggregation_policy(stat_key: str) -> str | None:
+    normalized = str(stat_key or "").strip().lower()
+    if normalized in PERCENTAGE_STAT_KEYS or normalized.endswith("_pct"):
+        return "MEAN_OF_HOME_AWAY_PERCENTAGES"
+    if normalized in KNOWN_SPLIT_STAT_KEYS:
+        return "MEAN_OF_HOME_AWAY_RATES"
+    return None
+
+
+def aggregate_split_stat_value(
+    stat_key: str,
+    home_value: Any,
+    away_value: Any,
+) -> tuple[float | None, str]:
+    policy = split_stat_aggregation_policy(stat_key)
+    if policy is None:
+        return None, "UNKNOWN_SPLIT_STAT_SEMANTICS"
+
+    numeric_values: list[float] = []
+    for raw_value in (home_value, away_value):
+        if raw_value in (None, ""):
+            continue
+        try:
+            numeric_values.append(float(raw_value))
+        except (TypeError, ValueError):
+            continue
+
+    if not numeric_values:
+        return None, policy
+
+    return round(sum(numeric_values) / len(numeric_values), 2), policy
+
+
+def _derive_summary_average(summary: dict[str, Any], stat_key: str) -> tuple[float | None, str]:
+    averages = summary.get("l10_avg", {}) or {}
+    direct_value = averages.get(stat_key)
+    if direct_value is not None:
+        try:
+            return float(direct_value), "DIRECT_STAT_VALUE"
+        except (TypeError, ValueError):
+            return None, "INVALID_DIRECT_STAT_VALUE"
+
+    aggregated_value, policy = aggregate_split_stat_value(
+        stat_key,
+        averages.get(f"{stat_key}_home"),
+        averages.get(f"{stat_key}_away"),
+    )
+    return aggregated_value, policy
 
 
 @dataclass
@@ -23,6 +98,8 @@ class MarketProbabilityInput:
     source_artifact_path: str = ""
     stats_as_of: str = "UNKNOWN"
     sample_size: int = 0
+    aggregation_policy: str = ""
+    semantics_issue: str = ""
     missing_fields: List[str] = field(default_factory=list)
 
 
@@ -31,7 +108,7 @@ def derive_l10_series_for_market_family(
     market_family: str,
     line: float | None,
     direction: str,
-) -> tuple[list[float], list[float], list[float] | None]:
+) -> tuple[list[float], list[float], list[float] | None, str, str]:
     raw_data = stats_seed.get("raw_data") or {}
     safety_input = raw_data.get("safety_input") or {}
     markets = safety_input.get("markets") or []
@@ -62,7 +139,7 @@ def derive_l10_series_for_market_family(
             team_a_l10 = matching_market.get("team_a_l10") or []
             team_b_l10 = matching_market.get("team_b_l10") or []
             h2h_l5 = matching_market.get("h2h_values") or []
-            return team_a_l10, team_b_l10, h2h_l5
+            return team_a_l10, team_b_l10, h2h_l5, "SAFETY_INPUT_MARKET_SERIES", ""
 
     # Path 2: Reconstruct from l10_matches or summaries
     stats_a = stats_seed.get("stats_a_summary") or {}
@@ -79,7 +156,7 @@ def derive_l10_series_for_market_family(
     
     stat_key = stat_key_map.get(market_family)
     if not stat_key:
-        return [], [], None
+        return [], [], None, "", "UNSUPPORTED_MARKET_FAMILY"
 
     team_a_l10 = []
     team_b_l10 = []
@@ -94,23 +171,37 @@ def derive_l10_series_for_market_family(
             val = stats.get(stat_key)
             if val is not None:
                 if isinstance(val, dict):
-                    target_list.append(float(val.get("home", 0) + val.get("away", 0)))
+                    aggregated_value, policy = aggregate_split_stat_value(
+                        stat_key,
+                        val.get("home"),
+                        val.get("away"),
+                    )
+                    if aggregated_value is None:
+                        return [], [], None, policy, "UNKNOWN_SPLIT_STAT_SEMANTICS"
+                    target_list.append(aggregated_value)
                 else:
                     target_list.append(float(val))
-                    
+
+    aggregation_policy = "DIRECT_MATCH_SERIES"
     if not team_a_l10 and stats_a.get("has_data"):
-        l10_avg = stats_a.get("l10_avg", {}).get(stat_key)
+        l10_avg, aggregation_policy = _derive_summary_average(stats_a, stat_key)
         l5_avg = stats_a.get("l5_avg", {}).get(stat_key)
         if l10_avg is not None:
             from normalize_stats import _synthesize_l10
             team_a_l10 = _synthesize_l10(l10_avg, l5_avg, seed_key=stats_a.get("team", "A"))
-            
+        elif aggregation_policy == "UNKNOWN_SPLIT_STAT_SEMANTICS":
+            return [], [], None, aggregation_policy, aggregation_policy
+
     if not team_b_l10 and stats_b.get("has_data"):
-        l10_avg = stats_b.get("l10_avg", {}).get(stat_key)
+        l10_avg, aggregation_policy_b = _derive_summary_average(stats_b, stat_key)
         l5_avg = stats_b.get("l5_avg", {}).get(stat_key)
         if l10_avg is not None:
             from normalize_stats import _synthesize_l10
             team_b_l10 = _synthesize_l10(l10_avg, l5_avg, seed_key=stats_b.get("team", "B"))
+            if aggregation_policy == "DIRECT_MATCH_SERIES":
+                aggregation_policy = aggregation_policy_b
+        elif aggregation_policy_b == "UNKNOWN_SPLIT_STAT_SEMANTICS":
+            return [], [], None, aggregation_policy_b, aggregation_policy_b
 
     h2h_summary = stats_seed.get("h2h_summary") or {}
     h2h_l5 = []
@@ -119,7 +210,7 @@ def derive_l10_series_for_market_family(
         if avg_val is not None:
             h2h_l5 = [float(avg_val)] * min(5, h2h_summary.get("meetings_count", 0))
 
-    return team_a_l10, team_b_l10, h2h_l5 if h2h_l5 else None
+    return team_a_l10, team_b_l10, h2h_l5 if h2h_l5 else None, aggregation_policy, ""
 
 
 def build_market_probability_input(candidate: dict[str, Any], stats_seed: dict[str, Any] | None) -> MarketProbabilityInput:
@@ -168,7 +259,12 @@ def build_market_probability_input(candidate: dict[str, Any], stats_seed: dict[s
             except (ValueError, TypeError):
                 line = None
 
-    team_a_l10, team_b_l10, h2h_l5 = derive_l10_series_for_market_family(stats_seed, market_family, line, direction)
+    team_a_l10, team_b_l10, h2h_l5, aggregation_policy, semantics_issue = derive_l10_series_for_market_family(
+        stats_seed,
+        market_family,
+        line,
+        direction,
+    )
 
     sample_size = max(len(team_a_l10), len(team_b_l10))
     stats_as_of = stats_seed.get("probability_as_of") or stats_seed.get("generated_at") or "UNKNOWN"
@@ -180,6 +276,8 @@ def build_market_probability_input(candidate: dict[str, Any], stats_seed: dict[s
         missing_fields.append("direction")
     if line is None and market_family in ("GOALS_TOTALS", "CORNERS", "CARDS", "SHOTS", "SHOTS_ON_TARGET"):
         missing_fields.append("line")
+    if semantics_issue:
+        missing_fields.append("unknown_split_stat_semantics")
 
     return MarketProbabilityInput(
         candidate_id=candidate_id,
@@ -197,6 +295,8 @@ def build_market_probability_input(candidate: dict[str, Any], stats_seed: dict[s
         source_artifact_path=stats_seed.get("source_artifact_path") or "",
         stats_as_of=stats_as_of,
         sample_size=sample_size,
+        aggregation_policy=aggregation_policy,
+        semantics_issue=semantics_issue,
         missing_fields=missing_fields,
     )
 
@@ -204,6 +304,9 @@ def build_market_probability_input(candidate: dict[str, Any], stats_seed: dict[s
 def validate_market_probability_input(input_data: MarketProbabilityInput) -> tuple[bool, str]:
     if not input_data.market_family:
         return False, "MARKET_SPECIFIC_INPUT_NOT_BUILT"
+
+    if input_data.semantics_issue == "UNKNOWN_SPLIT_STAT_SEMANTICS" or "unknown_split_stat_semantics" in input_data.missing_fields:
+        return False, "UNKNOWN_SPLIT_STAT_SEMANTICS"
         
     if "UNSUPPORTED" in input_data.market_family or "PROP" in input_data.market_family or "tackles" in input_data.market_type:
         return False, "MARKET_FAMILY_NOT_SUPPORTED_BY_ENGINE"
