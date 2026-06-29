@@ -1622,6 +1622,28 @@ def analyze_candidate(
     if not has_data and ranking_result.get("ranking"):
         has_data = True
 
+    probability_sources = []
+    for section in (stats_a.get("sources") or [], stats_b.get("sources") or []):
+        for source in section:
+            if source not in probability_sources:
+                probability_sources.append(source)
+    best_market_probability = best_market.get("probability") if best_market else None
+    probability_method = ""
+    probability_missing_reason = ""
+    if best_market_probability is not None:
+        probability_method = str(best_market.get("model_used") or "S3_PROBABILITY_ENGINE")
+    elif best_market:
+        probability_missing_reason = "NO_MODEL_PROBABILITY_FROM_S3"
+    else:
+        probability_missing_reason = "NO_RANKED_MARKET"
+
+    stats_gap_reason = ""
+    if not has_data:
+        if shortlist_safety_markets:
+            stats_gap_reason = "NO_STATS_DATA_FROM_CACHE_OR_DB"
+        else:
+            stats_gap_reason = "NO_STATS_DATA_FROM_CACHE_OR_DB_AND_NO_SHORTLIST_SAFETY_MARKETS"
+
     # Build raw data for decision learning
     raw_data = {
         "fixture_surface": fixture_surface if sport == "tennis" else None,
@@ -1666,11 +1688,14 @@ def analyze_candidate(
 
     return {
         "sport": sport,
+        "candidate_id": "|".join(part for part in (sport, home, away, kickoff[:10]) if part),
         "home_team": home,
         "away_team": away,
+        "participants": [home, away],
         "competition": competition,
         "kickoff": kickoff,
         "has_data": has_data,
+        "stats_gap_reason": stats_gap_reason,
         "data_quality": dq,
         "hallucination_risk": hallucination_risk,
         "real_data_keys": real_data_keys,
@@ -1718,6 +1743,12 @@ def analyze_candidate(
             if best_market
             else None
         ),
+        "model_probability": best_market_probability,
+        "probability_method": probability_method,
+        "probability_sources": probability_sources,
+        "probability_as_of": _now_iso(),
+        "probability_confidence": dq.get("label", ""),
+        "probability_missing_reason": probability_missing_reason,
         "h2h_status": dq.get("breakdown", {}).get("h2h_status", "BLIND"),
         "markets_evaluated": len(ranking_result.get("ranking", [])),
         "sections": sections,
@@ -1777,6 +1808,8 @@ def _load_candidates_from_shortlist(path: str) -> list[dict]:
     candidates = []
     for e in entries:
         candidates.append({
+            "candidate_id": e.get("candidate_id") or e.get("fixture_key"),
+            "fixture_id": e.get("fixture_id"),
             "sport": e.get("sport", "football"),
             "home_team": e.get("home_team", e.get("home", "")),
             "away_team": e.get("away_team", e.get("away", "")),
@@ -2011,6 +2044,9 @@ def generate_deep_stats(date: str, shortlist_path: str | None = None, top: int |
         result = analyze_candidate(sport, home, away, comp, kickoff, shortlist_safety_markets=sm or None)
         # Pass through shortlist metadata that downstream scripts need
         if result is not None:
+            result["candidate_id"] = c.get("candidate_id") or result.get("candidate_id")
+            if c.get("fixture_id"):
+                result["fixture_id"] = c.get("fixture_id")
             result["data_tier"] = c.get("data_tier", "")
             result["comp_score"] = c.get("comp_score", 3)
             result["tipster_count"] = int(c.get("tipster_count") or 0)
@@ -2176,13 +2212,22 @@ def _write_json(output: dict, date: str) -> Path:
     for a in output["analyses"]:
         json_entry = {
             "sport": a["sport"],
+            "candidate_id": a.get("candidate_id"),
             "home_team": a["home_team"],
             "away_team": a["away_team"],
+            "participants": a.get("participants", [a["home_team"], a["away_team"]]),
             "competition": a["competition"],
             "kickoff": a["kickoff"],
             "has_data": a["has_data"],
+            "stats_gap_reason": a.get("stats_gap_reason", ""),
             "data_quality": a.get("data_quality"),
             "best_market": a["best_market"],
+            "model_probability": a.get("model_probability"),
+            "probability_method": a.get("probability_method"),
+            "probability_sources": a.get("probability_sources", []),
+            "probability_as_of": a.get("probability_as_of"),
+            "probability_confidence": a.get("probability_confidence"),
+            "probability_missing_reason": a.get("probability_missing_reason"),
             "markets_evaluated": a["markets_evaluated"],
             "stats_a_summary": a["stats_a_summary"],
             "stats_b_summary": a["stats_b_summary"],

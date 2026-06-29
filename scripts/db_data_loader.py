@@ -251,6 +251,18 @@ def _build_stats_summary_payload(analysis: dict) -> dict:
         stats_summary["h2h"] = deepcopy(analysis["h2h_summary"])
     if analysis.get("data_quality"):
         stats_summary["data_quality"] = deepcopy(analysis["data_quality"])
+    if analysis.get("stats_gap_reason"):
+        stats_summary["stats_gap_reason"] = analysis["stats_gap_reason"]
+    for key in (
+        "model_probability",
+        "probability_method",
+        "probability_sources",
+        "probability_as_of",
+        "probability_confidence",
+        "probability_missing_reason",
+    ):
+        if analysis.get(key) not in (None, "", []):
+            stats_summary[key] = deepcopy(analysis[key])
     tipster_count = analysis.get("tipster_count") or 0
     if tipster_count > 0 and analysis.get("tipster_support"):
         stats_summary["tipster_support"] = deepcopy(analysis["tipster_support"])
@@ -802,12 +814,15 @@ def _load_analysis_results_raw_from_db(betting_date: str) -> list[dict]:
                     stats_summary = ar.stats_summary_json or {}
                     entry = {
                         "fixture_id": ar.fixture_id,
+                        "candidate_id": f"fixture:{ar.fixture_id}",
                         "sport": row["sport"],
                         "home_team": row["home_team"],
                         "away_team": row["away_team"],
+                        "participants": [row["home_team"], row["away_team"]],
                         "competition": row["competition"],
                         "kickoff": row["kickoff"],
                         "has_data": ar.has_data,
+                        "stats_gap_reason": stats_summary.get("stats_gap_reason", ""),
                         "best_market": {
                             "name": ar.best_market_name,
                             "line": ar.best_market_line,
@@ -839,6 +854,12 @@ def _load_analysis_results_raw_from_db(betting_date: str) -> list[dict]:
                             or (stats_summary.get("tipster_support") or {}).get("count")
                             or 0
                         ),
+                        "model_probability": stats_summary.get("model_probability"),
+                        "probability_method": stats_summary.get("probability_method"),
+                        "probability_sources": stats_summary.get("probability_sources", []),
+                        "probability_as_of": stats_summary.get("probability_as_of"),
+                        "probability_confidence": stats_summary.get("probability_confidence"),
+                        "probability_missing_reason": stats_summary.get("probability_missing_reason"),
                         # S4/S5/S6 enrichment fields from stats_summary_json
                         "ev": stats_summary.get("ev"),
                         "ev_source": stats_summary.get("ev_source"),

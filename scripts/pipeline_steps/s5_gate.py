@@ -120,6 +120,50 @@ def _extract_candidate_entries(payload: Any) -> list[dict[str, Any]]:
     return []
 
 
+def _resolve_upstream_payloads_for_s4(input_path: Path | None) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
+    if input_path is None:
+        return None, None
+    valuation_payload = _load_json(input_path)
+    if not isinstance(valuation_payload, dict):
+        return None, None
+    s3_payload = None
+    shortlist_payload = None
+    source_input_path = valuation_payload.get("source_input_path")
+    if source_input_path:
+        s3_path = _safe_file(Path(source_input_path))
+        if s3_path is not None:
+            maybe_s3 = _load_json(s3_path)
+            if isinstance(maybe_s3, dict):
+                s3_payload = maybe_s3
+                source_label = str(maybe_s3.get("source") or "")
+                if source_label.startswith("shortlist:"):
+                    shortlist_path = _safe_file(Path(source_label.split(":", 1)[1]))
+                    if shortlist_path is not None:
+                        maybe_shortlist = _load_json(shortlist_path)
+                        if isinstance(maybe_shortlist, dict):
+                            shortlist_payload = maybe_shortlist
+    return s3_payload, shortlist_payload
+
+
+def _analytical_extended_pool(handoff_payload: dict[str, Any]) -> list[dict[str, Any]]:
+    pool = []
+    for candidate in handoff_payload.get("analytical_ready", []) or []:
+        if not isinstance(candidate, dict):
+            continue
+        entry = dict(candidate)
+        entry.setdefault("status", "PRICE_PENDING_OPERATOR_CHECK")
+        entry.setdefault("review_status", "PRICE_PENDING_OPERATOR_CHECK")
+        entry.setdefault("event", " vs ".join(candidate.get("participants") or []))
+        entry.setdefault("competition", candidate.get("competition"))
+        entry.setdefault("market", candidate.get("market_type"))
+        entry.setdefault("pick", candidate.get("pick") or candidate.get("selection"))
+        entry.setdefault("odds_decimal", 0)
+        entry.setdefault("odds_captured_at_utc", candidate.get("odds_as_of") or "")
+        entry.setdefault("operator_name", candidate.get("odds_source") or "provider")
+        pool.append(entry)
+    return pool
+
+
 def _entry_has_odds(entry: dict[str, Any]) -> bool:
     odds = entry.get("odds")
     if isinstance(odds, dict) and odds:
@@ -233,7 +277,7 @@ def _candidate_paths_from_payload(payload: Any, child_env: dict[str, str], token
                 visit(item)
             return
         if isinstance(node, str) and node.endswith(".json"):
-            lowered = node.lower()
+            lowered = Path(node).name.lower()
             if any(token in lowered for token in tokens):
                 candidate = _safe_run_scoped_file(Path(node), child_env)
                 if candidate is not None:
@@ -563,6 +607,10 @@ def main() -> None:
     traceability_fields: dict[str, Any] | None = None
     if input_path is not None and not is_mocked and not is_testing:
         try:
+            from bet.pipeline.analytical_candidate_bridge import (
+                build_analytical_candidate_handoff,
+                write_analytical_candidate_handoff,
+            )
             from bet.pipeline.live_session_universe import (
                 LiveSessionUniverseConfig,
                 build_pre_s7_universe,
@@ -571,6 +619,19 @@ def main() -> None:
             )
             raw_payload = _load_json(input_path)
             raw_candidates = _extract_candidate_entries(raw_payload) if raw_payload else []
+            s3_payload, shortlist_payload = _resolve_upstream_payloads_for_s4(input_path)
+            analytical_handoff_path = (
+                data_dir / "analytical_candidate_handoff.json"
+                if data_dir is not None
+                else Path(child_env["BET_PIPELINE_RUN_ROOT"]) / "data" / "analytical_candidate_handoff.json"
+            )
+            analytical_handoff = build_analytical_candidate_handoff(
+                raw_payload if isinstance(raw_payload, dict) else {"candidates": raw_candidates},
+                s3_payload=s3_payload,
+                shortlist_payload=shortlist_payload,
+                source_artifact_path=str(input_path),
+            )
+            write_analytical_candidate_handoff(analytical_handoff_path, analytical_handoff)
 
             prov_exhausted = (
                 child_env.get("BET_PROVIDER_UNIVERSE_EXHAUSTED", "").lower() in ("true", "1")
@@ -581,7 +642,7 @@ def main() -> None:
                 min_candidates=8,
                 provider_universe_exhausted=prov_exhausted,
             )
-            report = build_pre_s7_universe(raw_candidates, config)
+            report = build_pre_s7_universe(raw_candidates, config, source_artifact_path=str(input_path))
             pre_s7_report_path = (
                 data_dir / f"{args.date}_pre_s7_universe_report.json"
                 if data_dir and args.date
@@ -594,6 +655,70 @@ def main() -> None:
                 input_path=input_path,
                 selection_policy="none",
             )
+            traceability_fields["analytical_handoff_path"] = str(analytical_handoff_path)
+            traceability_fields["analytical_handoff_counts"] = analytical_handoff.get("counts", {})
+
+            analytical_extended_pool = _analytical_extended_pool(analytical_handoff)
+
+            if analytical_extended_pool:
+                payload = {
+                    "step_id": "S7",
+                    "wrapper_scripts": [],
+                    "wrapper_rc": 0,
+                    "runtime_mode": mode.value,
+                    "dry_run": True,
+                    "allow_write": False,
+                    "allow_live_network": bool(args.allow_live_network),
+                    "production_write": False,
+                    "runtime_path_source": runtime_path_source,
+                    "child_run_root": child_env.get("BET_PIPELINE_RUN_ROOT"),
+                    "child_artifact_dir": child_env.get("BET_PIPELINE_ARTIFACT_DIR"),
+                    "s7_json_output": str(expected_json_output) if expected_json_output else None,
+                    "s7_markdown_output": str(expected_markdown_output) if expected_markdown_output else None,
+                    "total_candidates": len(raw_candidates),
+                    "approved_count": 0,
+                    "extended_count": len(analytical_extended_pool),
+                    "rejected_count": len(report.rejected_candidates),
+                    "production_selectable": False,
+                    "betting_decisions_enabled": False,
+                    "no_pick_edge_stake_coupon_emitted": True,
+                    "ready_for_manual_operator_quote_review": True,
+                    "ready_for_manual_placement": False,
+                    "status": "READY_FOR_ANALYTICAL_OPERATOR_QUOTE_REVIEW",
+                    "universe_report": report.to_dict(),
+                    **traceability_fields,
+                }
+                print("ANALYTICAL_ONLY_LANE: Proceeding to analytical quote review from analytical handoff.")
+                write_terminal_script_evidence_or_fail(
+                    step_id="S7",
+                    status="PASS",
+                    payload=payload,
+                    sources=(),
+                    child_env=child_env,
+                    no_pick_edge_stake_coupon_emitted=True,
+                )
+                if expected_json_output:
+                    expected_json_output.parent.mkdir(parents=True, exist_ok=True)
+                    analytical_results = {
+                        "date": args.date,
+                        "gate_results": {
+                            "approved": [],
+                            "extended_pool": analytical_extended_pool,
+                            "rejected": report.rejected_candidates,
+                        },
+                        "summary": {
+                            "total_candidates": len(raw_candidates),
+                            "approved_count": 0,
+                            "extended_count": len(analytical_extended_pool),
+                            "rejected_count": len(report.rejected_candidates),
+                        },
+                        "analytical_handoff_path": str(analytical_handoff_path),
+                    }
+                    expected_json_output.write_text(json.dumps(analytical_results, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+                if expected_markdown_output:
+                    expected_markdown_output.parent.mkdir(parents=True, exist_ok=True)
+                    expected_markdown_output.write_text("# ANALYTICAL ONLY RUN\nReady for Operator Quote Review\n", encoding="utf-8")
+                raise SystemExit(0)
 
             if report.status == "READY_FOR_ANALYTICAL_OPERATOR_QUOTE_REVIEW":
                 payload = {

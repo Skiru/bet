@@ -12,7 +12,7 @@ from unittest.mock import patch
 import pytest
 
 from scripts import odds_evaluator
-from scripts.pipeline_steps import s4_valuator, s5_gate
+from scripts.pipeline_steps import s4_valuator, s5_gate, s8_build_coupons
 
 
 def _runtime_environ() -> dict[str, str]:
@@ -298,3 +298,68 @@ def test_s7_prefers_s4_valuation_output_and_no_missing_block():
     assert evidence["payload"]["s7_input_contains_ev"] is True
     assert evidence["payload"]["s7_input_contains_safety"] is True
     assert "BLOCKED_S7_S4_VALUATION_INPUT_MISSING" not in evidence.get("blocked_reasons", [])
+
+
+def test_s8_reads_analytical_handoff_without_s7_approved_picks():
+    environ = _runtime_environ()
+    data_dir = Path(environ["BET_PIPELINE_DATA_DIR"])
+    handoff_path = _write_json(
+        data_dir / "analytical_candidate_handoff.json",
+        {
+            "artifact_type": "ANALYTICAL_CANDIDATE_HANDOFF",
+            "analytical_ready": [],
+            "blocked_probability_missing": [{"candidate_id": "fixture:10", "analytical_status": "INSUFFICIENT_MODEL_PROBABILITY"}],
+            "blocked_stats_missing": [],
+            "blocked_identity_missing": [],
+            "priced_candidates": [],
+            "counts": {"analytical_ready": 0, "blocked_probability_missing": 1, "blocked_stats_missing": 0, "blocked_identity_missing": 0, "priced_candidates": 0},
+        },
+    )
+
+    argv = ["s8_build_coupons.py", "--date", "2026-06-25", "--run-id", environ["BET_PIPELINE_RUN_ID"], "--runtime-mode", "DRY_RUN", "--dry-run"]
+    with patch.dict(os.environ, environ, clear=False), patch.object(sys, "argv", argv):
+        with pytest.raises(SystemExit) as exc_info:
+            s8_build_coupons.main()
+
+    assert exc_info.value.code == 0
+    output_path = data_dir / "2026-06-25_s8_coupon_drafts.json"
+    payload = json.loads(output_path.read_text(encoding="utf-8"))
+    assert payload["package_type"] == "RESEARCH_GAP_PACKAGE"
+    assert Path(payload["analytical_candidate_handoff_path"]).resolve() == handoff_path.resolve()
+    evidence = json.loads(_canonical_evidence_path(environ, "S8").read_text(encoding="utf-8"))
+    assert evidence["status"] == "PASS"
+    assert evidence["payload"]["package_type"] == "RESEARCH_GAP_PACKAGE"
+
+
+def test_s7_resolution_prefers_s4_output_not_s3_when_run_root_contains_candidate_token():
+    environ = _runtime_environ()
+    environ["BET_PIPELINE_RUN_ROOT"] = str(Path("/tmp") / "analytical_candidate_bridge_resolution_case")
+    environ["BET_PIPELINE_DATA_DIR"] = str(Path(environ["BET_PIPELINE_RUN_ROOT"]) / "data")
+    environ["BET_PIPELINE_ARTIFACT_DIR"] = str(Path(environ["BET_PIPELINE_RUN_ROOT"]) / "artifacts")
+    data_dir = Path(environ["BET_PIPELINE_DATA_DIR"])
+    s3_path = _write_json(data_dir / "2026-06-25_s3_deep_stats.json", _input_payload())
+    s4_path = _write_json(
+        data_dir / "2026-06-25_s4_valuation_candidates.json",
+        {
+            "artifact_type": "S4_VALUATION_CANDIDATES",
+            "source_input_path": str(s3_path),
+            "candidates": [
+                {
+                    "fixture_id": 10,
+                    "sport": "football",
+                    "home_team": "Alpha",
+                    "away_team": "Beta",
+                    "competition": "Test League",
+                    "best_market": {"name": "Over 2.5", "safety_score": 0.82},
+                    "markets_evaluated": 4,
+                    "odds": {"market_best": 1.91},
+                }
+            ],
+        },
+    )
+    _write_s4_pass_evidence(environ, s4_path)
+
+    resolution = s5_gate.resolve_s7_input(environ, "2026-06-25", environ["BET_PIPELINE_RUN_ID"])
+
+    assert Path(resolution["path"]).resolve() == s4_path.resolve()
+    assert resolution["source_step"] == "S4"

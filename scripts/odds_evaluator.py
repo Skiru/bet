@@ -167,6 +167,8 @@ def _build_valuation_candidate(candidate: dict) -> dict:
     odds = candidate.get("odds") if isinstance(candidate.get("odds"), dict) else {}
     market_count = candidate.get("market_count")
     markets_evaluated = candidate.get("markets_evaluated")
+    participants = candidate.get("participants") or [candidate.get("home_team"), candidate.get("away_team")]
+    participants = [participant for participant in participants if participant]
     
     # Precedence: best_market.probability > top-level.probability > hit_rate_l10
     probability = None
@@ -184,19 +186,36 @@ def _build_valuation_candidate(candidate: dict) -> dict:
     has_ev = candidate.get("ev") is not None
     has_safety = _candidate_safety_score(candidate) is not None or bool(candidate.get("safety_markets"))
     return {
+        "candidate_id": candidate.get("candidate_id") or _candidate_fixture_key(candidate) or candidate.get("fixture_id"),
+        "event_id": candidate.get("event_id") or candidate.get("fixture_id"),
         "fixture_key": _candidate_fixture_key(candidate),
         "fixture_id": candidate.get("fixture_id"),
+        "sport": candidate.get("sport"),
         "home_team": candidate.get("home_team"),
         "away_team": candidate.get("away_team"),
+        "participants": participants,
         "competition": candidate.get("competition"),
         "scheduled_time": candidate.get("scheduled_time") or candidate.get("kickoff"),
         "source_steps": ["S3", "S4"],
+        "market_family": candidate.get("market_family"),
+        "market_type": candidate.get("market_type") or best_market.get("name"),
+        "pick": candidate.get("pick") or best_market.get("direction"),
+        "line": candidate.get("line") if candidate.get("line") is not None else best_market.get("line"),
+        "model_probability": _coerce_probability(candidate.get("model_probability")),
+        "probability_method": candidate.get("probability_method"),
+        "probability_sources": candidate.get("probability_sources") or [],
+        "probability_as_of": candidate.get("probability_as_of"),
+        "probability_confidence": candidate.get("probability_confidence"),
+        "probability_missing_reason": candidate.get("probability_missing_reason"),
+        "stats_gap_reason": candidate.get("stats_gap_reason"),
         "probability": _coerce_probability(probability),
         "hit_rate_l10": candidate.get("hit_rate_l10") or best_market.get("hit_rate_l10"),
         "hit_rate_l5": candidate.get("hit_rate_l5") or best_market.get("hit_rate_l5"),
         "best_market": best_market if isinstance(best_market, dict) else {},
         "market_count": market_count,
         "markets_evaluated": markets_evaluated,
+        "odds_decimal": (odds or {}).get("market_best") or candidate.get("best_odds"),
+        "odds_as_of": candidate.get("odds_as_of") or candidate.get("odds_captured_at_utc"),
         "odds": odds,
         "odds_source": candidate.get("odds_source"),
         "ev": candidate.get("ev"),
@@ -762,9 +781,42 @@ def _inject_ev_from_odds(candidates: list[dict], date: str):
                 prob_src = "hit_rate_l10"
 
         p_val = _coerce_probability(prob_val) if prob_val is not None else None
+        explicit_method = str(c.get("probability_method") or "").strip()
+        if explicit_method == "BOOKMAKER_IMPLIED_REFERENCE_ONLY":
+            p_val = None
+            prob_src = None
         if p_val is None:
             prob_src = None
         has_prob = p_val is not None
+
+        if explicit_method:
+            probability_method = explicit_method
+        elif prob_src == "best_market.probability":
+            probability_method = "S3_PROBABILITY_ENGINE"
+        elif prob_src == "candidate.probability":
+            probability_method = "S3_EXPLICIT_PROBABILITY"
+        elif prob_src == "hit_rate_l10":
+            probability_method = "S3_HIT_RATE_PROXY"
+        else:
+            probability_method = ""
+
+        if has_prob:
+            c["model_probability"] = p_val
+            c["probability_method"] = probability_method
+            c["probability_sources"] = c.get("probability_sources") or ([prob_src] if prob_src else [])
+            c["probability_as_of"] = c.get("probability_as_of") or datetime.now(timezone.utc).isoformat()
+            c["probability_confidence"] = c.get("probability_confidence") or "UNSPECIFIED"
+            c["probability_missing_reason"] = None
+        else:
+            c["model_probability"] = None
+            c["probability_method"] = explicit_method or probability_method
+            if not c.get("probability_missing_reason"):
+                if explicit_method == "BOOKMAKER_IMPLIED_REFERENCE_ONLY":
+                    c["probability_missing_reason"] = "BOOKMAKER_IMPLIED_REFERENCE_ONLY"
+                elif c.get("stats_gap_reason"):
+                    c["probability_missing_reason"] = c.get("stats_gap_reason")
+                else:
+                    c["probability_missing_reason"] = "NO_MODEL_PROBABILITY_AVAILABLE"
 
         home = _norm_team(c.get("home_team") or "")
         away = _norm_team(c.get("away_team") or "")

@@ -103,6 +103,9 @@ def _resolve_s8_input_path(child_env: dict[str, str], betting_day: str) -> Path 
             try:
                 evidence = json.loads(s7_evidence_path.read_text(encoding="utf-8"))
                 payload = evidence.get("payload") or {}
+                handoff_path = _safe_file(Path(payload["analytical_handoff_path"])) if payload.get("analytical_handoff_path") else None
+                if handoff_path is not None:
+                    return handoff_path
                 if (
                     payload.get("sandbox_certification_fixture") is True
                     and payload.get("not_real_betting_recommendation") is True
@@ -114,6 +117,11 @@ def _resolve_s8_input_path(child_env: dict[str, str], betting_day: str) -> Path 
                             return nested
             except Exception:
                 pass
+
+    if data_dir:
+        handoff_path = _safe_file(data_dir / "analytical_candidate_handoff.json")
+        if handoff_path is not None:
+            return handoff_path
 
     return None
 
@@ -134,6 +142,10 @@ def _augment_s8_evidence(evidence_path: Path, payload_to_add: dict[str, Any]) ->
         evidence_path.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     except Exception:
         pass
+
+
+def _is_analytical_handoff_payload(content: dict[str, Any]) -> bool:
+    return content.get("artifact_type") == "ANALYTICAL_CANDIDATE_HANDOFF"
 
 
 def main():
@@ -213,14 +225,48 @@ def main():
     else:
         try:
             content = json.loads(input_path.read_text(encoding="utf-8"))
-            if "validation" in content and "gate_results" not in content:
+            gr = {}
+            if _is_analytical_handoff_payload(content):
+                analytical_ready = content.get("analytical_ready") or []
+                blocked_probability_missing = content.get("blocked_probability_missing") or []
+                blocked_stats_missing = content.get("blocked_stats_missing") or []
+                blocked_identity_missing = content.get("blocked_identity_missing") or []
+                approved = []
+                package_type = "ANALYTICAL_ONLY" if analytical_ready else "RESEARCH_GAP_PACKAGE"
+                drafts = [{"draft_id": "draft-0", "selections": analytical_ready}] if analytical_ready else []
+                drafts_data = {
+                    "artifact_type": "S8_COUPON_DRAFTS",
+                    "betting_day": args.date,
+                    "run_id": args.run_id,
+                    "package_type": package_type,
+                    "requires_human_gate": True,
+                    "ready_for_human_gate": True,
+                    "ready_for_production_execution": False,
+                    "production_selectable": False,
+                    "production_coupon_write": False,
+                    "executable_coupon": False,
+                    "betclic_execution_enabled": False,
+                    "coupon_draft_count": len(drafts),
+                    "drafts": drafts,
+                    "analytical_candidate_handoff_path": str(input_path),
+                    "analytical_ready": analytical_ready,
+                    "blocked_probability_missing": blocked_probability_missing,
+                    "blocked_stats_missing": blocked_stats_missing,
+                    "blocked_identity_missing": blocked_identity_missing,
+                }
+                output_path.parent.mkdir(parents=True, exist_ok=True)
+                output_path.write_text(json.dumps(drafts_data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+                print(f"ANALYTICAL_HANDOFF_LANE: Wrote {package_type} package from analytical handoff.")
+                status = "PASS"
+                is_analytical_only = True
+            elif "validation" in content and "gate_results" not in content:
                 validation = content.get("validation") or []
                 approved = [item for item in validation if item.get("betclic_available") is not False]
             else:
                 gr = content.get("gate_results", {})
                 approved = gr.get("approved", []) or gr.get("results", []) or []
 
-            if len(approved) == 0:
+            if not _is_analytical_handoff_payload(content) and len(approved) == 0:
                 extended_pool = gr.get("extended_pool", [])
                 unpriced_analytical = [c for c in extended_pool if c.get("status") == "PRICE_PENDING_OPERATOR_CHECK" or c.get("review_status") == "PRICE_PENDING_OPERATOR_CHECK"]
                 if len(unpriced_analytical) > 0:
@@ -258,10 +304,19 @@ def main():
             print(f"BLOCKED_COUPON_INPUT_MISSING: Failed to read/validate resolved input: {e}")
 
     if status == "PASS" and is_analytical_only:
+        payload_input_path = str(input_path)
+        handoff_package_type = None
+        if input_path is not None:
+            try:
+                maybe_content = json.loads(input_path.read_text(encoding="utf-8"))
+                if _is_analytical_handoff_payload(maybe_content):
+                    handoff_package_type = "ANALYTICAL_ONLY" if maybe_content.get("analytical_ready") else "RESEARCH_GAP_PACKAGE"
+            except Exception:
+                pass
         payload = {
-            "s8_input_path": str(input_path),
+            "s8_input_path": payload_input_path,
             "s8_coupon_draft_path": str(output_path),
-            "coupon_draft_count": 1,
+            "coupon_draft_count": json.loads(output_path.read_text(encoding="utf-8")).get("coupon_draft_count", 0),
             "requires_human_gate": True,
             "ready_for_human_gate": True,
             "ready_for_production_execution": False,
@@ -271,6 +326,9 @@ def main():
             "child_run_root": child_env.get("BET_PIPELINE_RUN_ROOT"),
             "child_artifact_dir": child_env.get("BET_PIPELINE_ARTIFACT_DIR"),
         }
+        if handoff_package_type is not None:
+            payload["package_type"] = handoff_package_type
+            payload["analytical_candidate_handoff_path"] = str(input_path)
         write_terminal_script_evidence_or_fail(
             step_id="S8",
             status="PASS",

@@ -84,6 +84,20 @@ def test_empty_sport_competition_rejected():
     assert res_no_comp.is_valid is False
     assert res_no_comp.verdict == "REJECTED_MISSING_COMPETITION"
 
+
+def test_missing_sport_reports_source_field_path():
+    config = LiveSessionUniverseConfig(min_candidates=1)
+    report = build_pre_s7_universe(
+        [_candidate({"candidate_id": "cand-missing-sport", "sport": ""})],
+        config,
+        source_artifact_path="/tmp/2026-06-29_s4_valuation_candidates.json",
+    )
+
+    assert report.rejected_reasons["REJECTED_MISSING_SPORT"] == 1
+    rejected = report.rejected_candidates[0]
+    assert rejected["rejection_source_artifact_path"] == "/tmp/2026-06-29_s4_valuation_candidates.json"
+    assert rejected["rejection_field_path"] == "candidates[0].sport"
+
 def test_missing_line_for_ou_rejected():
     config = LiveSessionUniverseConfig()
     cand = CandidateInput.from_dict(_candidate({"market": "Over 2.5", "line": "MISSING"}))

@@ -372,14 +372,32 @@ def validate_candidate_sufficiency(valid_count: int, config: LiveSessionUniverse
         return "BLOCKED_PROVIDER_UNIVERSE_EXHAUSTED"
     return "BLOCKED_INSUFFICIENT_CANDIDATE_UNIVERSE"
 
-def build_pre_s7_universe(raw_candidates: list[dict[str, Any]], config: LiveSessionUniverseConfig) -> UniverseQualityReport:
+
+def _rejection_field_path(verdict: str, index: int) -> str | None:
+    field_map = {
+        CandidateQualityVerdict.REJECTED_MISSING_SPORT: f"candidates[{index}].sport",
+        CandidateQualityVerdict.REJECTED_MISSING_COMPETITION: f"candidates[{index}].competition",
+        CandidateQualityVerdict.REJECTED_MISSING_MARKET: f"candidates[{index}].market",
+        CandidateQualityVerdict.REJECTED_MISSING_LINE: f"candidates[{index}].line",
+        CandidateQualityVerdict.REJECTED_MISSING_ODDS: f"candidates[{index}].odds_decimal",
+        CandidateQualityVerdict.REJECTED_MISSING_TIMESTAMP: f"candidates[{index}].odds_captured_at_utc",
+    }
+    return field_map.get(verdict)
+
+
+def build_pre_s7_universe(
+    raw_candidates: list[dict[str, Any]],
+    config: LiveSessionUniverseConfig,
+    *,
+    source_artifact_path: str | None = None,
+) -> UniverseQualityReport:
     priced_valid_candidates = []
     unpriced_analytical_candidates = []
     rejected_candidates = []
     source_gaps = []
     rejected_reasons = {}
 
-    for raw in raw_candidates:
+    for index, raw in enumerate(raw_candidates):
         cand = CandidateInput.from_dict(raw)
         res = classify_candidate_quality(cand, config)
         if res.is_valid:
@@ -389,10 +407,20 @@ def build_pre_s7_universe(raw_candidates: list[dict[str, Any]], config: LiveSess
             if cand.odds_decimal <= Decimal("1.0") and classify_unpriced_analytical_candidate(cand, raw):
                 raw_copy = dict(raw)
                 raw_copy["status"] = "PRICE_PENDING_OPERATOR_CHECK"
+                if source_artifact_path:
+                    raw_copy.setdefault("source_artifact_path", source_artifact_path)
                 unpriced_analytical_candidates.append(raw_copy)
                 source_gaps.extend(res.source_gaps)
             else:
-                rejected_candidates.append(raw)
+                raw_copy = dict(raw)
+                raw_copy["rejection_reasons"] = list(res.reasons)
+                raw_copy["rejection_verdict"] = res.verdict
+                if source_artifact_path:
+                    raw_copy["rejection_source_artifact_path"] = source_artifact_path
+                field_path = _rejection_field_path(res.verdict, index)
+                if field_path:
+                    raw_copy["rejection_field_path"] = field_path
+                rejected_candidates.append(raw_copy)
                 rejected_reasons[res.verdict] = rejected_reasons.get(res.verdict, 0) + 1
 
     if len(priced_valid_candidates) >= config.min_candidates:
