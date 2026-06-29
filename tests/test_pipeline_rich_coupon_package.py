@@ -374,3 +374,21 @@ def test_package_has_separate_analytical_and_bettable_sections(tmp_path: Path):
     assert pkg.line_mismatch_requires_remodel[0]["candidate_id"] == "c-5"
     
     assert len(pkg.analytical_suggestions) == 4
+
+
+def test_analytical_only_package_not_coupon_package(tmp_path: Path):
+    ledger_p = tmp_path / "session_ledger.jsonl"
+    _write_ledger_event(ledger_p, "candidate_reviewed", _valid_candidate("c-1", review_status="PRICE_PENDING_OPERATOR_CHECK", odds_decimal="0.0", odds_captured_at_utc="", model_probability=0.65))
+
+    packages, report = build_rich_coupon_package(
+        betting_day="2026-06-28",
+        session_id="session-1",
+        session_ledger_path=ledger_p,
+        operator_name="Superbet",
+    )
+
+    assert len(packages) == 1
+    assert packages[0].package_type == "ANALYTICAL_ONLY"
+    assert packages[0].ready_for_human_manual_placement is False
+    assert packages[0].ready_for_manual_operator_quote_review is True
+

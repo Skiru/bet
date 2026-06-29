@@ -106,7 +106,7 @@ class RealPickReview:
     odds_captured_at_utc: str
     operator_name: str
     stake_units: Decimal
-    review_status: str  # BETTABLE_MANUAL_ONLY|NO_BET|BLOCKED
+    review_status: str  # BETTABLE_MANUAL_ONLY|NO_BET|BLOCKED|etc.
     decision_reason: str
     blockers: list[str]
     as_of_utc: str
@@ -119,6 +119,15 @@ class RealPickReview:
     scenario_coherence_score: Decimal | None = None
     conflicting_legs: list[str] = field(default_factory=list)
     combined_bookmaker_odds_computed: bool = False
+    scenario_summary: str = ""
+    bet_builder_legs: list[dict] = field(default_factory=list)
+    evidence_pack: list[dict] = field(default_factory=list)
+    counter_evidence: list[dict] = field(default_factory=list)
+    source_gaps: list[dict] = field(default_factory=list)
+    evidence_gate_status: str = "EVIDENCE_GATE_FAIL"
+    correlation_gate_status: str = "CORRELATION_GATE_FAIL"
+    manual_superbet_quote_checklist: list[str] = field(default_factory=list)
+    rejection_remodel_reasons: list[str] = field(default_factory=list)
 
     def to_jsonable(self) -> dict[str, Any]:
         return _serialize_jsonable({f.name: getattr(self, f.name) for f in fields(self)})
@@ -194,13 +203,112 @@ def operator_quote_gate(*, actual_odds: Decimal, min_acceptable: Decimal) -> str
     return "REJECTED_BY_PRICE"
 
 
+def evaluate_evidence_gate(
+    *,
+    supporting_stats: list[dict[str, Any]],
+    counter_stats: list[dict[str, Any]],
+    market: str,
+    sport: str,
+) -> tuple[str, str, list[dict]]:
+    """Rigorous evaluation of evidence completeness by sport/family."""
+    if not supporting_stats:
+        return "EVIDENCE_GATE_FAIL", "Evidence pack is empty", [{"gap_type": "EMPTY_EVIDENCE", "description": "No supporting stats"}]
+
+    valid_supporting = [s for s in supporting_stats if s.get("source") != "UNKNOWN" and s.get("value") != "UNKNOWN"]
+    if not valid_supporting:
+        return "EVIDENCE_GATE_FAIL", "No valid evidence sources found in supporting stats", [{"gap_type": "UNKNOWN_SOURCES", "description": "All sources are UNKNOWN"}]
+
+    unique_sources = {s.get("source") for s in valid_supporting if s.get("source")}
+    gaps = []
+    market_lower = market.lower()
+    sport_lower = sport.lower()
+
+    if len(unique_sources) < 2:
+        gaps.append({"gap_type": "SECOND_SOURCE", "description": f"Fewer than 2 independent sources (found: {list(unique_sources)})"})
+
+    if sport_lower == "football":
+        if "corner" in market_lower:
+            has_for = any("corners_for" in str(s.get("metric")).lower() or "corners for" in str(s.get("metric")).lower() for s in valid_supporting)
+            has_against = any("corners_against" in str(s.get("metric")).lower() or "corners against" in str(s.get("metric")).lower() for s in valid_supporting)
+            has_pressure = any("pressure" in str(s.get("metric")).lower() or "tactical" in str(s.get("metric")).lower() for s in valid_supporting)
+            has_script = any("script" in str(s.get("metric")).lower() or "assumption" in str(s.get("metric")).lower() for s in valid_supporting)
+
+            if not has_for:
+                gaps.append({"gap_type": "corners_for", "description": "Missing corners for recent sample"})
+            if not has_against:
+                gaps.append({"gap_type": "corners_against", "description": "Missing corners against recent sample"})
+            if not has_pressure:
+                gaps.append({"gap_type": "tactical_pressure_proxy", "description": "Missing tactical pressure proxy"})
+            if not has_script:
+                gaps.append({"gap_type": "match_script_assumption", "description": "Missing match script assumption"})
+
+        elif "card" in market_lower or "kart" in market_lower:
+            has_cards = any("card" in str(s.get("metric")).lower() or "kart" in str(s.get("metric")).lower() for s in valid_supporting)
+            has_ref = any("referee" in str(s.get("metric")).lower() or "sędzia" in str(s.get("metric")).lower() for s in valid_supporting)
+            if not has_cards:
+                gaps.append({"gap_type": "cards", "description": "Missing cards average stats"})
+            if not has_ref:
+                gaps.append({"gap_type": "referee", "description": "Missing referee cards average stats"})
+
+    forces_review = False
+    for c in (counter_stats or []):
+        val_str = str(c.get("value") or "").upper()
+        met_str = str(c.get("metric") or "").lower()
+        if "low tempo" in met_str or "early lead" in met_str or "rotation" in met_str:
+            if val_str != "UNKNOWN" and val_str != "0" and val_str != "FALSE":
+                forces_review = True
+                break
+
+    has_freshness = all(bool(s.get("as_of")) for s in valid_supporting)
+    if not has_freshness:
+        gaps.append({"gap_type": "freshness", "description": "Missing point-in-time timestamp 'as_of'"})
+
+    fatal_gap_types = {"corners_for", "corners_against", "tactical_pressure_proxy", "match_script_assumption", "referee"}
+    has_fatal_gap = any(g["gap_type"] in fatal_gap_types for g in gaps)
+
+    if has_fatal_gap:
+        return "EVIDENCE_GATE_FAIL", f"Fatal evidence gaps: {', '.join(g['description'] for g in gaps if g['gap_type'] in fatal_gap_types)}", gaps
+    elif gaps:
+        return "EVIDENCE_GATE_REVIEW", f"Non-fatal evidence gaps or single-source: {', '.join(g['description'] for g in gaps)}", gaps
+    elif forces_review:
+        return "EVIDENCE_GATE_REVIEW", "Counter-evidence (e.g. low tempo/early lead/rotation) forces evidence review", gaps
+    else:
+        return "EVIDENCE_GATE_PASS", "All required evidence fields, allowed sources, and freshness requirements passed", gaps
+
+
+def evaluate_correlation_gate(
+    *,
+    correlation_risk: str,
+    scenario_coherence_score: Decimal | None,
+    conflicting_legs: list[str],
+) -> tuple[str, str]:
+    """Rigorous evaluation of same-match correlation and scenario coherence."""
+    if conflicting_legs:
+        return "CORRELATION_GATE_FAIL", f"Logical contradiction found on: {', '.join(conflicting_legs)}"
+
+    if correlation_risk == "BLOCKED":
+        return "CORRELATION_GATE_FAIL", "Correlation risk is BLOCKED"
+
+    if correlation_risk == "HIGH":
+        coherence = scenario_coherence_score or Decimal("0")
+        if coherence < Decimal("0.80"):
+            return "CORRELATION_GATE_REVIEW", f"HIGH correlation risk with weak scenario coherence ({coherence} < 0.80)"
+        else:
+            return "CORRELATION_GATE_PASS", f"Passed HIGH correlation check with strong scenario coherence ({coherence} >= 0.80)"
+
+    if correlation_risk == "MEDIUM":
+        return "CORRELATION_GATE_PASS", "Passed MEDIUM correlation check"
+
+    return "CORRELATION_GATE_PASS", "Passed LOW correlation check"
+
+
 def evidence_correlation_gate(
     *,
     supporting_stats: list[dict[str, Any]],
     counter_stats: list[dict[str, Any]],
     correlation_risk: str,
 ) -> tuple[bool, str]:
-    """Evaluates evidence completeness and correlation risk."""
+    """Compatibility wrapper for legacy S8 gate checks."""
     if correlation_risk == "HIGH":
         return False, "Correlation risk is HIGH"
     if not supporting_stats:
@@ -242,7 +350,6 @@ def review_s8_candidate_for_manual_session(
         if not isinstance(selections, list):
             continue
 
-        # Correlation Guard (Phase 6)
         corr_info = {
             "same_match": False,
             "correlation_risk": "LOW",
@@ -256,7 +363,7 @@ def review_s8_candidate_for_manual_session(
             corr_info["same_match"] = len(events_set) == 1
             corr_markets = [str(s.get("market") or s.get("market_name") or "").lower() for s in selections]
             corr_picks = [str(s.get("pick") or s.get("direction") or "").lower() for s in selections]
-            
+
             conflicting_legs = []
             for i, m1 in enumerate(corr_markets):
                 for j, m2 in enumerate(corr_markets):
@@ -270,7 +377,7 @@ def review_s8_candidate_for_manual_session(
                         corr_info["scenario_coherence_score"] = Decimal("0.0")
                         conflicting_legs.append(m1)
             corr_info["conflicting_legs"] = conflicting_legs
-            
+
             if corr_info["correlation_risk"] == "LOW" and corr_info["same_match"]:
                 if any("player" in m for m in corr_markets) and any("total" in m or "o/u" in m for m in corr_markets):
                     corr_info["correlation_risk"] = "HIGH"
@@ -288,6 +395,7 @@ def review_s8_candidate_for_manual_session(
             event = str(selection.get("event") or selection.get("fixture") or "")
             market = str(selection.get("market") or selection.get("market_name") or "")
             pick = str(selection.get("pick") or selection.get("direction") or "")
+            sport = str(selection.get("sport") or draft_entry.get("sport") or "football")
 
             raw_odds = selection.get("odds_decimal") or selection.get("odds") or selection.get("price")
             odds_decimal = ZERO
@@ -310,7 +418,6 @@ def review_s8_candidate_for_manual_session(
 
             is_unpriced = (odds_decimal == ZERO)
 
-            # Fair Odds / Min Acceptable Odds (Phase 4)
             model_probability = None
             prob_raw = selection.get("model_probability") or selection.get("probability") or selection.get("prob")
             if prob_raw is not None:
@@ -338,7 +445,6 @@ def review_s8_candidate_for_manual_session(
             elif is_unpriced:
                 prob_err = "INSUFFICIENT_MODEL_PROBABILITY"
 
-            # Parse players
             player_a = str(selection.get("player_a") or "")
             player_b = str(selection.get("player_b") or "")
             if not player_a or not player_b:
@@ -357,75 +463,81 @@ def review_s8_candidate_for_manual_session(
                         if not player_b:
                             player_b = parts[1].strip()
 
-            # Line extraction
             line_dec = extract_line(selection)
             line = str(line_dec) if line_dec is not None else "MISSING"
 
             blockers: list[str] = []
 
-            # 1. Missing fields
             if not event:
                 blockers.append("missing event name")
             if not market:
                 blockers.append("missing market")
             if not pick:
                 blockers.append("missing pick")
-            
+
             if not is_unpriced:
                 if odds_decimal == ZERO:
                     blockers.append("missing odds decimal")
                 if not odds_captured_at_utc:
                     blockers.append("missing odds captured at utc")
-            
+
             if not operator_name:
                 blockers.append("missing operator name")
 
-            # O/U market check
             is_ou_market = "O/U" in market or "Over/Under" in market or "Total" in market or pick in ("UNDER", "OVER") or pick.upper().startswith("UNDER ") or pick.upper().startswith("OVER ")
             if is_ou_market and line == "MISSING":
                 blockers.append("missing exact O/U line")
 
-            # Player specific market checks
             is_player_specific = "Player A" in market or "Player B" in market or "Player" in market or (player_b and player_b in market) or (player_a and player_a in market)
             if is_player_specific and (not player_b or player_b.strip() in ("", "?", "UNKNOWN")):
                 blockers.append("missing player_b for player-specific market")
 
-            # S8/S9 path checks
             if not s8_coupon_draft_path or not s8_coupon_draft_sha256:
                 blockers.append("missing source S8 path/SHA")
             if s9_artifact_path is None or s9_artifact_sha256 is None:
                 blockers.append("missing source S9 path/SHA")
 
-            # 2. Hard rejects as NO_BET
-            # selection_id labels
             if any(label in str(selection_id).lower() for label in ("selection-win", "selection-loss", "selection-void", "fixture", "test")):
                 blockers.append("contains fixture/test labels")
 
-            # odds <= 1
             if not is_unpriced and odds_decimal > ZERO and odds_decimal <= Decimal("1"):
                 blockers.append("odds decimal must be > 1")
 
-            # stake > max_stake_units_per_coupon
             if stake_units > normalized.max_stake_units_per_coupon:
                 blockers.append(f"stake units {stake_units} exceeds max stake units per coupon {normalized.max_stake_units_per_coupon}")
 
-            # production artifacts
             if draft.get("ready_for_production_execution") is True:
                 blockers.append("artifact has ready_for_production_execution=true")
             if draft.get("betclic_execution_enabled") is True:
                 blockers.append("artifact has betclic_execution_enabled=true")
 
-            # Protected paths
             if is_protected_repo_path(s8_coupon_draft_path, REPO_ROOT) or (s9_artifact_path and is_protected_repo_path(s9_artifact_path, REPO_ROOT)):
                 blockers.append("repo-protected path is used")
 
-            # Compatibility warnings
             decision_reason = "Passed all daily manual session safety checks"
             if normalized.session_dir:
                 if not _path_is_within(s8_coupon_draft_path, normalized.session_dir):
                     decision_reason = f"Compatibility warning: S8 path {s8_coupon_draft_path} is outside session root {normalized.session_dir}"
 
-            # Operator quote / Quote decision logic (Phase 3)
+            supporting_stats = selection.get("supporting_stats") or []
+            counter_stats = selection.get("counter_stats") or []
+            correlation_risk = corr_info["correlation_risk"]
+            coherence_score = corr_info["scenario_coherence_score"]
+            conflicting_legs = corr_info["conflicting_legs"]
+
+            ev_status, ev_reason, ev_gaps_list = evaluate_evidence_gate(
+                supporting_stats=supporting_stats,
+                counter_stats=counter_stats,
+                market=market,
+                sport=sport,
+            )
+
+            corr_status, corr_reason = evaluate_correlation_gate(
+                correlation_risk=correlation_risk,
+                scenario_coherence_score=coherence_score,
+                conflicting_legs=conflicting_legs,
+            )
+
             operator_quote = selection.get("operator_quote") or selection.get("manual_quote")
             quote_decision_status = None
             quote_decision_reason = ""
@@ -452,7 +564,6 @@ def review_s8_candidate_for_manual_session(
                     entered_by_human = operator_quote.get("entered_by_human", True)
                     computed_by_pipeline = operator_quote.get("computed_by_pipeline", False)
 
-                    # check synthesized by multiplication
                     synthesized = False
                     if len(selections) > 1:
                         prod = Decimal("1")
@@ -495,28 +606,30 @@ def review_s8_candidate_for_manual_session(
                             quote_decision_status = "REJECTED_BY_PRICE"
                             quote_decision_reason = f"Operator odds {actual_odds} below minimum acceptable odds {min_acceptable_operator_odds}"
                         else:
-                            # Quote gate passed (PRICE_ACCEPTABLE_MANUAL_QUOTE).
-                            # Check timestamp and evidence/correlation gate
                             has_timestamp = bool(operator_quote.get("as_of_utc"))
-                            supporting_stats = selection.get("supporting_stats") or []
-                            counter_stats = selection.get("counter_stats") or []
-                            correlation_risk = corr_info["correlation_risk"]
-
-                            ev_corr_passed, ev_corr_reason = evidence_correlation_gate(
-                                supporting_stats=supporting_stats,
-                                counter_stats=counter_stats,
-                                correlation_risk=correlation_risk,
-                            )
 
                             if not has_timestamp:
                                 quote_decision_status = "PRICE_PENDING_OPERATOR_CHECK"
                                 quote_decision_reason = "Operator quote as_of timestamp is missing"
-                            elif not ev_corr_passed:
+                            elif ev_status == "EVIDENCE_GATE_FAIL":
                                 quote_decision_status = "PRICE_ACCEPTABLE_PENDING_EVIDENCE_REVIEW"
-                                quote_decision_reason = f"Passed operator quote gate: {actual_odds} >= {min_acceptable_operator_odds} (PRICE_ACCEPTABLE_MANUAL_QUOTE), but pending evidence/correlation check: {ev_corr_reason}"
+                                quote_decision_reason = f"Passed operator quote gate: {actual_odds} >= {min_acceptable_operator_odds} (PRICE_ACCEPTABLE_MANUAL_QUOTE), but pending evidence check: {ev_reason}"
+                            elif corr_status == "CORRELATION_GATE_FAIL":
+                                quote_decision_status = "PRICE_ACCEPTABLE_PENDING_CORRELATION_REVIEW"
+                                quote_decision_reason = f"Passed operator quote gate: {actual_odds} >= {min_acceptable_operator_odds} (PRICE_ACCEPTABLE_MANUAL_QUOTE), but pending correlation check: {corr_reason}"
+                            elif ev_status == "EVIDENCE_GATE_REVIEW":
+                                quote_decision_status = "PRICE_ACCEPTABLE_PENDING_EVIDENCE_REVIEW"
+                                quote_decision_reason = f"Passed operator quote gate: {actual_odds} >= {min_acceptable_operator_odds} (PRICE_ACCEPTABLE_MANUAL_QUOTE), but pending evidence review: {ev_reason}"
+                            elif corr_status == "CORRELATION_GATE_REVIEW":
+                                quote_decision_status = "PRICE_ACCEPTABLE_PENDING_CORRELATION_REVIEW"
+                                quote_decision_reason = f"Passed operator quote gate: {actual_odds} >= {min_acceptable_operator_odds} (PRICE_ACCEPTABLE_MANUAL_QUOTE), but pending correlation review: {corr_reason}"
                             else:
                                 quote_decision_status = "BETTABLE_MANUAL_ONLY"
                                 quote_decision_reason = f"Passed operator quote, line, timestamp, evidence, and correlation gates: {actual_odds} >= {min_acceptable_operator_odds}"
+
+            # Priced candidates already passed rigorous S7 priced gate checks
+            if not is_unpriced and not blockers:
+                pass
 
             if blockers:
                 review_status = "NO_BET"
@@ -526,6 +639,30 @@ def review_s8_candidate_for_manual_session(
                 decision_reason = quote_decision_reason
             else:
                 review_status = "BETTABLE_MANUAL_ONLY"
+
+            scenario_summary = f"Match: {event}, Market: {market}, Pick: {pick}"
+            bet_builder_legs = [
+                {
+                    "event": s.get("event") or s.get("fixture") or "",
+                    "market": s.get("market") or s.get("market_name") or "",
+                    "pick": s.get("pick") or s.get("direction") or "",
+                    "line": str(extract_line(s)) if extract_line(s) is not None else "MISSING"
+                }
+                for s in selections
+            ]
+            
+            manual_superbet_quote_checklist = [
+                "DO NOT use automated placement or scraping tools.",
+                f"Verify Match '{event}' on Superbet interface.",
+                f"Check Market '{market}' is available."
+            ]
+            if "corner" in market.lower():
+                manual_superbet_quote_checklist.append("Check corners line match.")
+            manual_superbet_quote_checklist.append(f"Ensure combined odds are at least {min_acceptable_operator_odds if min_acceptable_operator_odds else 'TBD'}.")
+
+            rejection_remodel_reasons = list(blockers)
+            if quote_decision_status in ("LINE_MISMATCH_REQUIRES_REMODEL", "NO_FAKE_OPERATOR_QUOTE"):
+                rejection_remodel_reasons.append(quote_decision_reason)
 
             reviews.append(
                 RealPickReview(
@@ -559,7 +696,16 @@ def review_s8_candidate_for_manual_session(
                     correlation_notes=corr_info["correlation_notes"],
                     scenario_coherence_score=corr_info["scenario_coherence_score"],
                     conflicting_legs=corr_info["conflicting_legs"],
-                    combined_bookmaker_odds_computed=False
+                    combined_bookmaker_odds_computed=False,
+                    scenario_summary=scenario_summary,
+                    bet_builder_legs=bet_builder_legs,
+                    evidence_pack=supporting_stats,
+                    counter_evidence=counter_stats,
+                    source_gaps=ev_gaps_list,
+                    evidence_gate_status=ev_status,
+                    correlation_gate_status=corr_status,
+                    manual_superbet_quote_checklist=manual_superbet_quote_checklist,
+                    rejection_remodel_reasons=rejection_remodel_reasons,
                 )
             )
 
@@ -635,11 +781,9 @@ def generate_daily_session_report(
     placed_count = len(state["placed"])
     settled_count = len(state["settled"])
 
-    # Calculate risk and losses
     open_risk_units = ZERO
     realized_loss_units = ZERO
 
-    # Trace active state of prepared coupons
     for coupon_id, prep in state["prepared"].items():
         is_settled = coupon_id in state["settled"]
         stake = Decimal(str(prep.get("stake_units") or "0"))
@@ -651,7 +795,6 @@ def generate_daily_session_report(
         if pnl < ZERO:
             realized_loss_units += abs(pnl)
 
-    # Validate global configuration constraints
     blockers: list[str] = []
 
     kill_switch_verdict = "PASS"
@@ -671,7 +814,6 @@ def generate_daily_session_report(
     if not normalized.responsible_gambling_limits_attested:
         blockers.append("responsible_gambling_limits_attested is false")
 
-    # completeness and fixture checks
     market_completeness_verdict = "PASS"
     no_fixture_selection_verdict = "PASS"
     for c_id, cand in state["reviewed"].items():
@@ -710,7 +852,6 @@ def generate_daily_session_report(
     if normalized.allow_repo_protected_writes:
         blockers.append("repo protected writes must remain disabled")
 
-    # session dir check outside repo root
     if _path_is_within(normalized.session_dir, Path(REPO_ROOT).resolve(strict=False)):
         blockers.append(f"session_dir must be outside repo root: {normalized.session_dir}")
 

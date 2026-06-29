@@ -129,18 +129,14 @@ def classify_correlation_risk(legs: list[CouponLeg]) -> str:
     """Classify correlation risk for multi-leg packages."""
     if len(legs) <= 1:
         return "LOW"
-    
-    # Check if there are multiple legs from the same match
+
     events = {leg.event for leg in legs}
     if len(events) == 1:
-        # Same match: check market types
         markets = [leg.market.lower() for leg in legs]
-        # If there are any player-specific markets combined with total markets, there's high correlation potential
         if any("player" in m for m in markets) and any("total" in m or "o/u" in m for m in markets):
             return "HIGH"
         return "MEDIUM"
-    
-    # Across different matches
+
     return "LOW"
 
 
@@ -151,7 +147,7 @@ def generate_human_checklist(package_type: str, legs: list[CouponLeg], stake: De
         "Ensure you are fully logged into your verified, legal personal operator account.",
         f"Confirm that your total active risk fits within your personal responsible gambling limits."
     ]
-    
+
     for idx, leg in enumerate(legs, 1):
         checklist.append(
             f"Step {idx}: Locate Match: '{leg.event}' on the operator interface."
@@ -166,11 +162,11 @@ def generate_human_checklist(package_type: str, legs: list[CouponLeg], stake: De
         checklist.append(
             f"Step {idx}c: Verify local odds are at least {leg.odds_decimal:.2f} (captured: {leg.odds_captured_at_utc})."
         )
-        
+
     if package_type in ("BET_BUILDER", "MULTI_BET_BUILDER"):
         checklist.append("Step COMBINED: Verify the operator accepts these selections combined as a Bet Builder / Multi.")
         checklist.append("Step ODDS: Record the combined odds from the operator screen.")
-        
+
     checklist.append(f"Step PLACE: Manually input {stake:.2f} stake units and click 'Place Bet'.")
     checklist.append("Step RECORD: Save the coupon receipt / transaction ID to your manual journal.")
     return checklist
@@ -189,7 +185,7 @@ def build_rich_coupon_package(
 ) -> tuple[list[BetBuilderPackage], RichCouponPackageReport]:
     """Build rich manual coupon packages from reviewed ledger candidates."""
     session_ledger_path = Path(session_ledger_path)
-    
+
     state = {"reviewed": {}}
     if session_ledger_path.exists():
         with open(session_ledger_path, "r", encoding="utf-8") as f:
@@ -212,7 +208,7 @@ def build_rich_coupon_package(
     bettable_candidates = []
     rejected_candidates = []
     analytical_candidates = []
-    
+
     for c_id, cand in state["reviewed"].items():
         status = cand.get("review_status")
         if status == "BETTABLE_MANUAL_ONLY":
@@ -221,44 +217,41 @@ def build_rich_coupon_package(
             analytical_candidates.append(cand)
         else:
             rejected_candidates.append(cand)
-            
+
     no_bet_count = len(rejected_candidates)
     bettable_count = len(bettable_candidates)
     analytical_count = len(analytical_candidates)
-    
+
     packages: list[BetBuilderPackage] = []
     report_blockers: list[str] = []
-    
+
     bet_builder_compatibility_verdict = "PASS"
     market_completeness_verdict = "PASS"
     multi_stat_package_verdict = "PASS"
     correlation_review_verdict = "PASS"
-    
-    # 1. Reject any candidate with fixture/test labels in its ids/strings
+
     clean_bettables = []
     for cand in bettable_candidates:
         c_id = str(cand.get("candidate_id") or "").lower()
         event_str = str(cand.get("event") or "").lower()
         market_str = str(cand.get("market") or "").lower()
         pick_str = str(cand.get("pick") or "").lower()
-        
+
         has_fixture_label = False
         for label in ("selection-win", "selection-loss", "selection-void", "fixture", "test"):
             if label in c_id or label in event_str or label in market_str or label in pick_str:
                 has_fixture_label = True
                 break
-                
+
         if has_fixture_label:
             report_blockers.append(f"Forbidden fixture/test label found in candidate {cand.get('candidate_id')}")
             market_completeness_verdict = "FAIL"
             continue
-            
+
         clean_bettables.append(cand)
-        
-    # Convert candidates to CouponLegs
+
     legs: list[CouponLeg] = []
     for cand in clean_bettables:
-        # Leg validation
         leg_blockers = []
         market = cand.get("market")
         pick = cand.get("pick")
@@ -267,7 +260,7 @@ def build_rich_coupon_package(
         cand_operator = cand.get("operator_name")
         s8_path = cand.get("source_s8_coupon_draft_path")
         s8_sha = cand.get("source_s8_coupon_draft_sha256")
-        
+
         if not market:
             leg_blockers.append("missing market")
         if not pick:
@@ -280,24 +273,21 @@ def build_rich_coupon_package(
             leg_blockers.append("missing operator")
         if not s8_path or not s8_sha:
             leg_blockers.append("missing source artifact/SHA")
-            
-        # O/U market check
+
         is_ou = "O/U" in str(market) or "Over/Under" in str(market) or "Total" in str(market) or str(pick).upper() in ("UNDER", "OVER") or str(pick).upper().startswith("UNDER ") or str(pick).upper().startswith("OVER ")
         line_val = cand.get("line")
         if is_ou and (line_val in (None, "", "MISSING")):
             leg_blockers.append("missing numeric line for O/U market")
-            
-        # Ensure stats are formatted with source and as_of or marked UNKNOWN
+
         supporting = cand.get("supporting_stats")
         if not supporting:
             supporting = [{"metric": "Recent form", "value": "UNKNOWN", "source": "UNKNOWN", "as_of": "UNKNOWN"}]
         else:
-            # Enforce validation on supporting stats
             for item in supporting:
                 if "source" not in item or "as_of" not in item:
                     item["source"] = item.get("source", "UNKNOWN")
                     item["as_of"] = item.get("as_of", "UNKNOWN")
-                    
+
         counter = cand.get("counter_stats")
         if not counter:
             counter = [{"metric": "Head-to-head", "value": "UNKNOWN", "source": "UNKNOWN", "as_of": "UNKNOWN"}]
@@ -306,7 +296,7 @@ def build_rich_coupon_package(
                 if "source" not in item or "as_of" not in item:
                     item["source"] = item.get("source", "UNKNOWN")
                     item["as_of"] = item.get("as_of", "UNKNOWN")
-                    
+
         leg = CouponLeg(
             leg_id=str(cand.get("candidate_id") or ""),
             event_id=str(cand.get("event_id") or ""),
@@ -333,8 +323,7 @@ def build_rich_coupon_package(
         if leg_blockers:
             report_blockers.extend(leg_blockers)
             market_completeness_verdict = "FAIL"
-            
-    # Phase 5 Package Separation
+
     def make_cand_dict(cand):
         return {
             "candidate_id": cand.get("candidate_id"),
@@ -349,15 +338,24 @@ def build_rich_coupon_package(
             "fair_odds": str(cand.get("fair_odds")) if cand.get("fair_odds") is not None else None,
             "min_acceptable_operator_odds": str(cand.get("min_acceptable_operator_odds")) if cand.get("min_acceptable_operator_odds") is not None else None,
             "confidence_label": cand.get("confidence_label") or cand.get("confidence"),
-            "evidence_pack": cand.get("supporting_stats") or [],
-            "counter_evidence": cand.get("counter_stats") or [],
+            "evidence_pack": cand.get("supporting_stats") or cand.get("evidence_pack") or [],
+            "counter_evidence": cand.get("counter_stats") or cand.get("counter_evidence") or [],
             "source_gaps": cand.get("source_gaps") or [],
             "correlation_risk": cand.get("correlation_risk") or "LOW",
             "correlation_notes": cand.get("correlation_notes") or "",
             "scenario_coherence_score": str(cand.get("scenario_coherence_score")) if cand.get("scenario_coherence_score") is not None else None,
             "conflicting_legs": cand.get("conflicting_legs") or [],
             "combined_bookmaker_odds_computed": False,
-            "status": cand.get("review_status")
+            "status": cand.get("review_status"),
+            "scenario_summary": cand.get("scenario_summary") or "",
+            "bet_builder_legs": cand.get("bet_builder_legs") or [],
+            "evidence_gate_status": cand.get("evidence_gate_status") or "EVIDENCE_GATE_FAIL",
+            "correlation_gate_status": cand.get("correlation_gate_status") or "CORRELATION_GATE_FAIL",
+            "manual_superbet_quote_checklist": cand.get("manual_superbet_quote_checklist") or [],
+            "rejection_remodel_reasons": cand.get("rejection_remodel_reasons") or [],
+            "operator_quote_required": True,
+            "not_ready_for_manual_placement": True,
+            "ready_for_manual_operator_quote_review": True,
         }
 
     analytical_suggestions_list = []
@@ -384,12 +382,11 @@ def build_rich_coupon_package(
         elif status == "LINE_MISMATCH_REQUIRES_REMODEL":
             line_mismatch_requires_remodel_list.append(cand_dict)
             analytical_suggestions_list.append(cand_dict)
-        elif status in ("NO_OPERATOR_MARKET_FOUND", "INSUFFICIENT_MODEL_PROBABILITY", "NO_FAKE_OPERATOR_QUOTE"):
+        elif status in ("NO_OPERATOR_MARKET_FOUND", "INSUFFICIENT_MODEL_PROBABILITY", "NO_FAKE_OPERATOR_QUOTE", "PRICE_ACCEPTABLE_PENDING_CORRELATION_REVIEW"):
             analytical_suggestions_list.append(cand_dict)
 
     is_analytical_only = (len(bettable_candidates) == 0 and len(analytical_candidates) > 0)
 
-    # If any blocker exists on legs, create a NO_BET_PACKAGE and fail
     if report_blockers or (not legs and not is_analytical_only):
         pkg_type = "NO_BET_PACKAGE"
         pkg_id = f"{session_id}:pkg:no-bet"
@@ -456,11 +453,7 @@ def build_rich_coupon_package(
         )
         packages.append(pkg)
     else:
-        # Group legs to form package
-        # Limit to max_legs
         active_legs = legs[:max_legs]
-        
-        # Determine package type and structure
         unique_events = {leg.event for leg in active_legs}
         if len(active_legs) == 1:
             pkg_type = "SINGLE"
@@ -471,23 +464,21 @@ def build_rich_coupon_package(
         else:
             pkg_type = "MULTI_BET_BUILDER"
             event_name = "Multiple Matches"
-            
+
         pkg_id = f"{session_id}:pkg:{pkg_type.lower()}"
         corr_risk = classify_correlation_risk(active_legs)
         checklist = generate_human_checklist(pkg_type, active_legs, stake_units)
-        
-        # Value summary
+
         value_summary = (
             f"Package features {len(active_legs)} manual legs with un-invented odds. "
             "Individual legs sourced from point-in-time gate-approved consensus models."
         )
-        
-        # Risk summary
+
         risk_summary = (
             f"Correlation: {corr_risk}. Maximum stake limit: {stake_units} units. "
             "Operator screen validation required to verify live matching lines and actual combo odds."
         )
-        
+
         pkg = BetBuilderPackage(
             package_id=pkg_id,
             betting_day=betting_day,
@@ -495,7 +486,7 @@ def build_rich_coupon_package(
             package_type=pkg_type,
             event=event_name,
             legs=active_legs,
-            combined_odds_decimal=None,  # Never invent combined odds!
+            combined_odds_decimal=None,
             stake_units=stake_units,
             max_daily_risk_units=max_daily_risk_units,
             value_summary=value_summary,
@@ -520,19 +511,17 @@ def build_rich_coupon_package(
 
     recommended_pkg = packages[0] if packages else None
     recommended_pkg_id = recommended_pkg.package_id if recommended_pkg else None
-    
-    # Check if we have multi-stats (both supporting and counter stats) for all legs
+
     has_multi_stats = True
     for leg in legs:
         has_sup = any(item.get("value") != "UNKNOWN" for item in leg.supporting_stats)
         has_cnt = any(item.get("value") != "UNKNOWN" for item in leg.counter_stats)
         if not (has_sup and has_cnt):
             has_multi_stats = False
-            
+
     multi_stat_package_verdict = "PASS" if has_multi_stats else "FAIL"
-    
     status = "PASS" if not report_blockers and pkg_type != "NO_BET_PACKAGE" else "FAIL"
-    
+
     report = RichCouponPackageReport(
         task_id="PIPELINE_RICH_BET_BUILDER_PACKAGE_A",
         status=status,
@@ -559,7 +548,7 @@ def build_rich_coupon_package(
         analytical_suggestion_count=analytical_count,
         ready_for_manual_operator_quote_review=(analytical_count > 0 or bettable_count > 0)
     )
-    
+
     return packages, report
 
 
@@ -595,7 +584,7 @@ def generate_package_markdown(pkg: BetBuilderPackage, report: RichCouponPackageR
         "---",
         "## COUPON LEGS LIST",
     ]
-    
+
     for idx, leg in enumerate(pkg.legs, 1):
         lines.extend([
             f"### Leg {idx}: {leg.event} ({leg.sport.upper()})",
@@ -609,25 +598,25 @@ def generate_package_markdown(pkg: BetBuilderPackage, report: RichCouponPackageR
         ])
         for s in leg.supporting_stats:
             lines.append(f"  * **{s.get('metric')}**: {s.get('value')} (Source: {s.get('source')}, As of: {s.get('as_of')})")
-            
+
         lines.append("#### Counter-Stats (Adversarial Balance):")
         for c in leg.counter_stats:
             lines.append(f"  * **{c.get('metric')}**: {c.get('value')} (Source: {c.get('source')}, As of: {c.get('as_of')})")
-            
+
         lines.append("")
-        
+
     lines.extend([
         "---",
         "## SEQUENTIAL OPERATOR SCREEN MANUAL PLACEMENT CHECKLIST",
     ])
     for step in pkg.operator_screen_checklist:
         lines.append(f"- [ ] {step}")
-        
+
     lines.extend([
         "",
         "---",
         "### GUARANTEE DISCLAIMER & REGULATORY NOTICE",
         "**WARNING**: Betting involves high risk. This manual-review package does NOT claim, hint at, or guarantee any profit, risk-free returns, or winning outcomes. All predictions are mathematical estimates with inherent margins. Please gamble responsibly.",
     ])
-    
+
     return "\n".join(lines)

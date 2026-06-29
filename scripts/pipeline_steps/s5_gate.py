@@ -571,12 +571,12 @@ def main() -> None:
             )
             raw_payload = _load_json(input_path)
             raw_candidates = _extract_candidate_entries(raw_payload) if raw_payload else []
-            
+
             prov_exhausted = (
                 child_env.get("BET_PROVIDER_UNIVERSE_EXHAUSTED", "").lower() in ("true", "1")
                 or os.environ.get("BET_PROVIDER_UNIVERSE_EXHAUSTED", "").lower() in ("true", "1")
             )
-            
+
             config = LiveSessionUniverseConfig(
                 min_candidates=8,
                 provider_universe_exhausted=prov_exhausted,
@@ -594,8 +594,67 @@ def main() -> None:
                 input_path=input_path,
                 selection_policy="none",
             )
-            
-            if report.status not in ("READY_FOR_S7", "READY_FOR_ANALYTICAL_OPERATOR_QUOTE_REVIEW"):
+
+            if report.status == "READY_FOR_ANALYTICAL_OPERATOR_QUOTE_REVIEW":
+                payload = {
+                    "step_id": "S7",
+                    "wrapper_scripts": [],
+                    "wrapper_rc": 0,
+                    "runtime_mode": mode.value,
+                    "dry_run": True,
+                    "allow_write": False,
+                    "allow_live_network": bool(args.allow_live_network),
+                    "production_write": False,
+                    "runtime_path_source": runtime_path_source,
+                    "child_run_root": child_env.get("BET_PIPELINE_RUN_ROOT"),
+                    "child_artifact_dir": child_env.get("BET_PIPELINE_ARTIFACT_DIR"),
+                    "s7_json_output": str(expected_json_output) if expected_json_output else None,
+                    "s7_markdown_output": str(expected_markdown_output) if expected_markdown_output else None,
+                    "total_candidates": len(raw_candidates),
+                    "approved_count": 0,
+                    "extended_count": len(report.unpriced_analytical_candidates),
+                    "rejected_count": len(report.rejected_candidates),
+                    "production_selectable": False,
+                    "betting_decisions_enabled": False,
+                    "no_pick_edge_stake_coupon_emitted": True,
+                    "ready_for_manual_operator_quote_review": True,
+                    "ready_for_manual_placement": False,
+                    "status": "READY_FOR_ANALYTICAL_OPERATOR_QUOTE_REVIEW",
+                    "universe_report": report.to_dict(),
+                    **traceability_fields,
+                }
+                print("ANALYTICAL_ONLY_LANE: Proceeding to analytical quote review. Bypassing priced S7 gate.")
+                write_terminal_script_evidence_or_fail(
+                    step_id="S7",
+                    status="PASS",
+                    payload=payload,
+                    sources=(),
+                    child_env=child_env,
+                    no_pick_edge_stake_coupon_emitted=True,
+                )
+                if expected_json_output:
+                    expected_json_output.parent.mkdir(parents=True, exist_ok=True)
+                    analytical_results = {
+                        "date": args.date,
+                        "gate_results": {
+                            "approved": [],
+                            "extended_pool": report.unpriced_analytical_candidates,
+                            "rejected": report.rejected_candidates,
+                        },
+                        "summary": {
+                            "total_candidates": len(raw_candidates),
+                            "approved_count": 0,
+                            "extended_count": len(report.unpriced_analytical_candidates),
+                            "rejected_count": len(report.rejected_candidates),
+                        }
+                    }
+                    expected_json_output.write_text(json.dumps(analytical_results, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+                if expected_markdown_output:
+                    expected_markdown_output.parent.mkdir(parents=True, exist_ok=True)
+                    expected_markdown_output.write_text("# ANALYTICAL ONLY RUN\nReady for Operator Quote Review\n", encoding="utf-8")
+                raise SystemExit(0)
+
+            if report.status != "READY_FOR_S7":
                 payload = {
                     "step_id": "S7",
                     "wrapper_scripts": SCRIPTS,
