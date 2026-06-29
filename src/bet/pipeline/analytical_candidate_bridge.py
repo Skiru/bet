@@ -9,6 +9,10 @@ from pathlib import Path
 from typing import Any
 
 from bet.pipeline.market_probability_inputs import extract_market_semantics
+from bet.pipeline.analyzability_prefilter import (
+    evaluate_candidate_analyzability,
+    rank_analyzable_candidates,
+)
 
 
 def _now_iso() -> str:
@@ -373,6 +377,7 @@ def build_analytical_candidate_handoff(
     blocked_stats_missing: list[dict[str, Any]] = []
     blocked_identity_missing: list[dict[str, Any]] = []
     priced_candidates: list[dict[str, Any]] = []
+    reports: list[dict[str, Any]] = []
 
     for position, valuation_entry in enumerate(valuation_candidates):
         if not isinstance(valuation_entry, dict):
@@ -485,27 +490,72 @@ def build_analytical_candidate_handoff(
             if probability_contract["model_probability"] is not None
             else "INSUFFICIENT_MODEL_PROBABILITY"
         )
-        analytical_status = "ANALYTICAL_READY"
-        if not sport:
-            analytical_status = "MISSING_SPORT"
-        elif not competition:
-            analytical_status = "MISSING_COMPETITION"
-        elif market_seed.get("mapping_status") == "UNSUPPORTED_PROP_MATCH":
-            analytical_status = "UNSUPPORTED_PROP_MATCH"
-        elif market_seed.get("mapping_status") == "AMBIGUOUS_MARKET_LABEL":
-            analytical_status = "AMBIGUOUS_MARKET_LABEL"
-        elif not market_seed["market_family"]:
-            analytical_status = "MISSING_MARKET_FAMILY"
-        elif market_seed.get("mapping_status") == "LINE_MISSING" or (market_seed["market_family"] in {"TOTALS", "GOALS_TOTALS", "HANDICAP", "CORNERS", "CARDS", "SHOTS", "SHOTS_ON_TARGET"} and market_seed["line"] in (None, "", "MISSING")):
-            analytical_status = "MISSING_LINE"
-        elif market_seed.get("mapping_status") == "DIRECTION_MISSING":
-            analytical_status = "DIRECTION_MISSING"
-        elif probability_contract["model_probability"] is None:
-            analytical_status = "INSUFFICIENT_MODEL_PROBABILITY"
-        elif _probability_confidence_is_blocked(probability_contract["probability_confidence"]):
-            analytical_status = "INSUFFICIENT_MODEL_PROBABILITY"
-        elif not supporting_stats:
+        report = evaluate_candidate_analyzability(valuation_entry, s3_entry, market_seed)
+        reports.append(report)
+        
+        if report["analyzability_status"] == "ANALYZABLE":
+            analytical_status = "ANALYTICAL_READY"
+        elif report["analyzability_status"] == "RESEARCH_GAP_STATS_MISSING":
             analytical_status = "INSUFFICIENT_SUPPORTING_STATS"
+        elif report["analyzability_status"] == "RESEARCH_GAP_L10_MISSING":
+            if "SAMPLE_SIZE_INSUFFICIENT" in report["blocker_reasons"]:
+                analytical_status = "INSUFFICIENT_SUPPORTING_STATS"
+            else:
+                analytical_status = "INSUFFICIENT_MODEL_PROBABILITY"
+        elif report["analyzability_status"] == "RESEARCH_GAP_UNKNOWN_STAT_SEMANTICS":
+            analytical_status = "INSUFFICIENT_SUPPORTING_STATS"
+        elif report["analyzability_status"] == "RESEARCH_GAP_MARKET_INPUT_NOT_BUILT":
+            analytical_status = "INSUFFICIENT_MODEL_PROBABILITY"
+        elif report["analyzability_status"] == "LINE_OR_DIRECTION_GAP":
+            if "LINE_MISSING" in report["blocker_reasons"]:
+                analytical_status = "MISSING_LINE"
+            else:
+                analytical_status = "DIRECTION_MISSING"
+            if not source_gaps:
+                source_gaps.append({
+                    "code": "LINE_MISSING" if "LINE_MISSING" in report["blocker_reasons"] else "DIRECTION_MISSING",
+                    "field": "line" if "LINE_MISSING" in report["blocker_reasons"] else "direction",
+                    "artifact": source_artifact_path,
+                    "field_path": f"candidates[{position}]",
+                })
+        elif report["analyzability_status"] == "IDENTITY_GAP":
+            analytical_status = "MISSING_SPORT"
+        elif report["analyzability_status"] == "UNSUPPORTED_MARKET_FAMILY":
+            if "UNSUPPORTED_PROP_MATCH" in report["blocker_reasons"]:
+                analytical_status = "UNSUPPORTED_PROP_MATCH"
+            elif "AMBIGUOUS_MARKET_LABEL" in report["blocker_reasons"]:
+                analytical_status = "AMBIGUOUS_MARKET_LABEL"
+            else:
+                analytical_status = "MISSING_MARKET_FAMILY"
+                if not source_gaps:
+                    source_gaps.append({
+                        "code": "MISSING_MARKET_FAMILY",
+                        "field": "market_family",
+                        "artifact": source_artifact_path,
+                        "field_path": "candidate",
+                    })
+        else:
+            analytical_status = "ANALYTICAL_READY"
+            if not sport:
+                analytical_status = "MISSING_SPORT"
+            elif not competition:
+                analytical_status = "MISSING_COMPETITION"
+            elif market_seed.get("mapping_status") == "UNSUPPORTED_PROP_MATCH":
+                analytical_status = "UNSUPPORTED_PROP_MATCH"
+            elif market_seed.get("mapping_status") == "AMBIGUOUS_MARKET_LABEL":
+                analytical_status = "AMBIGUOUS_MARKET_LABEL"
+            elif not market_seed["market_family"]:
+                analytical_status = "MISSING_MARKET_FAMILY"
+            elif market_seed.get("mapping_status") == "LINE_MISSING" or (market_seed["market_family"] in {"TOTALS", "GOALS_TOTALS", "HANDICAP", "CORNERS", "CARDS", "SHOTS", "SHOTS_ON_TARGET"} and market_seed["line"] in (None, "", "MISSING")):
+                analytical_status = "MISSING_LINE"
+            elif market_seed.get("mapping_status") == "DIRECTION_MISSING":
+                analytical_status = "DIRECTION_MISSING"
+            elif probability_contract["model_probability"] is None:
+                analytical_status = "INSUFFICIENT_MODEL_PROBABILITY"
+            elif _probability_confidence_is_blocked(probability_contract["probability_confidence"]):
+                analytical_status = "INSUFFICIENT_MODEL_PROBABILITY"
+            elif not supporting_stats:
+                analytical_status = "INSUFFICIENT_SUPPORTING_STATS"
 
         draft = CandidateDraft(
             candidate_id=candidate_id,
@@ -562,11 +612,32 @@ def build_analytical_candidate_handoff(
         if odds_decimal is not None and odds_decimal > Decimal("1"):
             priced_candidates.append(draft_dict)
 
+    # Rank ready candidates preferentially
+    analytical_ready = rank_analyzable_candidates(analytical_ready)
+
+    # Compute gap reasons
+    gap_reasons: dict[str, int] = {}
+    for r in reports:
+        if r["analyzability_status"] != "ANALYZABLE":
+            for blocker in r["blocker_reasons"]:
+                gap_reasons[blocker] = gap_reasons.get(blocker, 0) + 1
+
+    # Write analyzability prefilter report to approved path
+    try:
+        from bet.pipeline.analyzability_prefilter import write_analyzability_report
+        workspace_report_path = Path("/Users/mkoziol/projects/bet/.kilo/artifacts/analyzability_prefilter_report.json")
+        write_analyzability_report(workspace_report_path, reports)
+    except Exception as e:
+        print(f"WARNING: failed to write analyzability prefilter report: {e}")
+
     return {
         "artifact_type": "ANALYTICAL_CANDIDATE_HANDOFF",
         "created_at_utc": _now_iso(),
         "source_artifact_path": source_artifact_path,
         "source_input_path": valuation_payload.get("source_input_path"),
+        "package_type": "ANALYTICAL_ONLY" if analytical_ready else "RESEARCH_GAP_PACKAGE",
+        "gap_reasons": gap_reasons,
+        "analyzability_reports": reports,
         "analytical_ready": analytical_ready,
         "blocked_probability_missing": blocked_probability_missing,
         "blocked_stats_missing": blocked_stats_missing,
