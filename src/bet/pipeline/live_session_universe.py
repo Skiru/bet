@@ -35,7 +35,9 @@ class CandidateInput:
     competition: str
     kickoff: str
     market: str
+    market_family: str
     pick: str
+    direction: str
     line: Any
     odds_decimal: Decimal
     odds_captured_at_utc: str
@@ -50,15 +52,42 @@ class CandidateInput:
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> CandidateInput:
         # Extract best market odds if nested
-        market = data.get("market") or data.get("best_market", {}).get("name") or ""
-        pick = data.get("pick") or data.get("best_market", {}).get("direction") or ""
-        line = data.get("line") or data.get("best_market", {}).get("line") or ""
+        semantics = data.get("market_semantics") if isinstance(data.get("market_semantics"), dict) else {}
+        best_market = data.get("best_market") or {}
+        market = (
+            data.get("market")
+            or data.get("market_label")
+            or data.get("market_type")
+            or semantics.get("market_label")
+            or semantics.get("market_type")
+            or best_market.get("name")
+            or ""
+        )
+        pick = (
+            data.get("pick")
+            or data.get("selection")
+            or data.get("direction")
+            or semantics.get("selection")
+            or semantics.get("direction")
+            or best_market.get("direction")
+            or ""
+        )
+        direction = data.get("direction") or semantics.get("direction") or best_market.get("direction") or ""
+        line = data.get("line")
+        if line in (None, ""):
+            line = data.get("point")
+        if line in (None, ""):
+            line = semantics.get("line")
+        if line in (None, ""):
+            line = semantics.get("point")
+        if line in (None, ""):
+            line = best_market.get("line") or ""
         
         # Fallback for nested S4/S7 structure
-        best_market = data.get("best_market") or {}
         if not market and best_market:
             market = best_market.get("name") or ""
             pick = best_market.get("direction") or ""
+            direction = best_market.get("direction") or direction
             line = best_market.get("line") or ""
             
         ev_components = data.get("ev_components") or {}
@@ -108,7 +137,9 @@ class CandidateInput:
             competition=str(comp).strip(),
             kickoff=str(scheduled_time).strip(),
             market=str(market).strip(),
+            market_family=str(data.get("market_family") or semantics.get("market_family") or "").strip(),
             pick=str(pick).strip(),
+            direction=str(direction).strip(),
             line=line,
             odds_decimal=odds_dec,
             odds_captured_at_utc=str(data.get("odds_captured_at_utc") or ev_components.get("odds_captured_at_utc") or data.get("odds_as_of") or ""),
@@ -242,7 +273,16 @@ def classify_candidate_quality(candidate: CandidateInput, config: LiveSessionUni
         verdict = CandidateQualityVerdict.REJECTED_MISSING_MARKET
 
     # 4. Missing O/U Market line
-    elif ("O/U" in candidate.market or "Over/Under" in candidate.market or "Total" in candidate.market or candidate.pick.upper() in ("UNDER", "OVER") or candidate.pick.upper().startswith("UNDER ") or candidate.pick.upper().startswith("OVER ")) and (candidate.line in (None, "", "MISSING")):
+    elif (
+        candidate.market_family in {"GOALS_TOTALS", "CORNERS", "CARDS", "SHOTS", "SHOTS_ON_TARGET"}
+        or "O/U" in candidate.market
+        or "Over/Under" in candidate.market
+        or "Total" in candidate.market
+        or candidate.pick.upper() in ("UNDER", "OVER")
+        or candidate.pick.upper().startswith("UNDER ")
+        or candidate.pick.upper().startswith("OVER ")
+        or candidate.direction.upper() in ("UNDER", "OVER")
+    ) and (candidate.line in (None, "", "MISSING")):
         is_valid = False
         reasons.append("Missing numeric line for O/U market")
         verdict = CandidateQualityVerdict.REJECTED_MISSING_LINE
@@ -355,7 +395,16 @@ def classify_unpriced_analytical_candidate(candidate: CandidateInput, raw_dict: 
         return False
     if not candidate.market or not candidate.pick:
         return False
-    is_ou_market = "O/U" in candidate.market or "Over/Under" in candidate.market or "Total" in candidate.market or candidate.pick.upper() in ("UNDER", "OVER") or candidate.pick.upper().startswith("UNDER ") or candidate.pick.upper().startswith("OVER ")
+    is_ou_market = (
+        candidate.market_family in {"GOALS_TOTALS", "CORNERS", "CARDS", "SHOTS", "SHOTS_ON_TARGET"}
+        or "O/U" in candidate.market
+        or "Over/Under" in candidate.market
+        or "Total" in candidate.market
+        or candidate.pick.upper() in ("UNDER", "OVER")
+        or candidate.pick.upper().startswith("UNDER ")
+        or candidate.pick.upper().startswith("OVER ")
+        or candidate.direction.upper() in ("UNDER", "OVER")
+    )
     if is_ou_market and candidate.line in (None, "", "MISSING"):
         return False
     prob = candidate.model_probability

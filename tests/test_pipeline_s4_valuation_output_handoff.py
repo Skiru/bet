@@ -123,6 +123,138 @@ def test_odds_evaluator_explicit_input_output_writes_s4_contract(tmp_path, monke
     assert payload["no_pick_edge_stake_coupon_emitted"] is True
 
 
+def test_market_semantics_preserved_market_matrix_to_shortlist_to_s4(monkeypatch):
+    candidates = [
+        {
+            "candidate_id": "football|Alpha|Beta|2026-06-25",
+            "fixture_id": 10,
+            "sport": "football",
+            "home_team": "Alpha",
+            "away_team": "Beta",
+            "competition": "Test League",
+            "kickoff": "2026-06-25T18:00:00+00:00",
+            "best_market": {},
+            "probability_confidence": "HIGH",
+        }
+    ]
+    shortlist_payload = {
+        "candidates": [
+            {
+                "sport": "football",
+                "home_team": "Alpha",
+                "away_team": "Beta",
+                "kickoff": "2026-06-25T18:00:00+00:00",
+                "source_artifact_path": "/tmp/2026-06-25_s2_shortlist.json",
+                "odds_markets": [
+                    {
+                        "market": "ml:away",
+                        "market_type": "ml",
+                        "outcome": "away",
+                        "point": None,
+                        "best_odds": 2.1,
+                        "best_bookmaker": "bet365",
+                        "source": "odds-api",
+                    }
+                ],
+            }
+        ]
+    }
+
+    candidates[0]["odds"] = {"market_best": 2.1}
+    odds_evaluator._enrich_candidate_market_semantics(
+        candidates,
+        shortlist_payload,
+        "/tmp/2026-06-25_s3_deep_stats.json",
+    )
+    valuation_candidate = odds_evaluator._build_valuation_candidate(candidates[0])
+
+    assert valuation_candidate["market_family"] == "RESULT"
+    assert valuation_candidate["market_type"] == "ml"
+    assert valuation_candidate["market"] == "ml:away"
+    assert valuation_candidate["selection"] == "Beta"
+
+
+def test_raw_probability_not_counted_as_model_probability_ready(tmp_path, monkeypatch):
+    candidates = [
+        {
+            "candidate_id": "football|Alpha|Beta|2026-06-25",
+            "fixture_id": 10,
+            "sport": "football",
+            "home_team": "Alpha",
+            "away_team": "Beta",
+            "competition": "Test League",
+            "scheduled_time": "2026-06-25T18:00:00+00:00",
+            "best_market": {"name": "Goals Total O/U", "direction": "OVER", "line": 2.5, "probability": 0.58},
+            "probability_confidence": "MINIMAL",
+            "odds": {"market_best": 1.91},
+        }
+    ]
+
+    monkeypatch.setattr(odds_evaluator, "DATA_DIR", tmp_path)
+
+    odds_evaluator._inject_ev_from_odds(candidates, "2026-06-25")
+
+    assert candidates[0]["model_probability"] is None
+    assert candidates[0]["reference_model_probability"] == 0.58
+    assert candidates[0]["probability_missing_reason"] == "LOW_CONFIDENCE_MODEL_PROBABILITY"
+
+
+def test_model_probability_ready_cannot_exceed_market_probability_input_ready():
+    from bet.pipeline.market_probability_inputs import build_market_probability_input, validate_market_probability_input
+
+    stats_seed = {
+        "best_market": None,
+        "stats_a_summary": {"has_data": True, "l10_avg": {"goals": 2.0}, "sources": ["db"]},
+        "stats_b_summary": {"has_data": True, "l10_avg": {"goals": 1.0}, "sources": ["db"]},
+        "h2h_summary": {"has_data": False, "meetings_count": 0, "averages": {}},
+        "raw_data": {},
+    }
+    candidates = [
+        {
+            "candidate_id": "supported",
+            "sport": "football",
+            "market_family": "RESULT",
+            "market_type": "ml",
+            "market": "ml:away",
+            "selection": "Beta",
+            "pick": "Beta",
+            "home_team": "Alpha",
+            "away_team": "Beta",
+            "probability_confidence": "MINIMAL",
+            "reference_model_probability": 0.58,
+            "model_probability": None,
+        },
+        {
+            "candidate_id": "unsupported",
+            "sport": "football",
+            "market_family": "UNSUPPORTED_PROP_MATCH",
+            "market_type": "player_tackles",
+            "selection": "OVER",
+            "direction": "OVER",
+            "line": 2.5,
+            "home_team": "Alpha",
+            "away_team": "Beta",
+            "probability_confidence": "MINIMAL",
+            "reference_model_probability": 0.52,
+            "model_probability": None,
+        },
+    ]
+
+    ready_inputs = 0
+    ready_probabilities = 0
+    for candidate in candidates:
+        inp = build_market_probability_input(candidate, stats_seed)
+        valid, _ = validate_market_probability_input(inp)
+        if valid:
+            ready_inputs += 1
+        if candidate.get("model_probability") is not None:
+            ready_probabilities += 1
+
+    assert ready_inputs == 1
+    assert ready_probabilities == 0
+    assert ready_probabilities <= ready_inputs
+
+
 def test_odds_evaluator_rejects_protected_repo_output_in_non_production(tmp_path):
     input_path = _write_json(tmp_path / "input.json", _input_payload())
     output_path = Path(__file__).resolve().parents[1] / "betting" / "data" / "forbidden_s4.json"

@@ -1,6 +1,7 @@
 """Market-specific probability inputs schema, derivation and validation."""
 from __future__ import annotations
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
+import re
 from typing import Any, List, Optional
 
 from bet.stats.market_ranking import SPORT_STAT_KEYS
@@ -29,6 +30,213 @@ PERCENTAGE_STAT_KEYS = frozenset(
 KNOWN_SPLIT_STAT_KEYS = frozenset(
     stat_key for stat_keys in SPORT_STAT_KEYS.values() for stat_key in stat_keys
 )
+SUPPORTED_MARKET_FAMILIES = frozenset({
+    "RESULT",
+    "GOALS_TOTALS",
+    "CORNERS",
+    "CARDS",
+    "SHOTS",
+    "SHOTS_ON_TARGET",
+})
+LINE_REQUIRED_MARKET_FAMILIES = frozenset({
+    "GOALS_TOTALS",
+    "CORNERS",
+    "CARDS",
+    "SHOTS",
+    "SHOTS_ON_TARGET",
+})
+_LINE_RE = re.compile(r"-?\d+(?:\.\d+)?")
+
+
+def _normalized_text(value: Any) -> str:
+    return str(value or "").strip()
+
+
+def _coerce_float(value: Any) -> float | None:
+    if value in (None, ""):
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _extract_line(*values: Any) -> float | None:
+    for value in values:
+        coerced = _coerce_float(value)
+        if coerced is not None:
+            return coerced
+        text = _normalized_text(value)
+        if not text:
+            continue
+        match = _LINE_RE.search(text)
+        if match:
+            try:
+                return float(match.group(0))
+            except (TypeError, ValueError):
+                continue
+    return None
+
+
+def _normalized_tokens(*values: Any) -> str:
+    return " ".join(_normalized_text(value).lower() for value in values if _normalized_text(value))
+
+
+def _result_selection(value: Any, participants: list[str]) -> str:
+    token = _normalized_text(value)
+    lowered = token.lower()
+    if lowered == "home" and participants:
+        return participants[0]
+    if lowered == "away" and len(participants) > 1:
+        return participants[1]
+    if lowered == "draw":
+        return "DRAW"
+    return token
+
+
+def _direction_from_values(*values: Any) -> str:
+    for value in values:
+        text = _normalized_text(value).upper()
+        if text in {"OVER", "UNDER"}:
+            return text
+    return ""
+
+
+@dataclass(frozen=True)
+class MarketSemantics:
+    market_family: str = ""
+    market_type: str = ""
+    market_label: str = ""
+    outcome_name: str = ""
+    selection: str = ""
+    direction: str = ""
+    line: float | None = None
+    point: float | None = None
+    provider_market_key: str = ""
+    bookmaker: str = ""
+    source_artifact_path: str = ""
+    confidence: str = ""
+    mapping_source: str = ""
+    mapping_status: str = ""
+    field_path: str = ""
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+def extract_market_semantics(
+    seed: dict[str, Any] | None,
+    *,
+    participants: list[str] | None = None,
+    source_artifact_path: str = "",
+    field_path: str = "",
+) -> MarketSemantics:
+    participants = list(participants or [])
+    if not isinstance(seed, dict):
+        return MarketSemantics(source_artifact_path=source_artifact_path, field_path=field_path)
+
+    explicit_family = _normalized_text(seed.get("market_family")).upper()
+    provider_market_key = _normalized_text(
+        seed.get("provider_market_key")
+        or seed.get("market_type")
+        or seed.get("market_key")
+    )
+    market_label = _normalized_text(
+        seed.get("market_label")
+        or seed.get("market")
+        or seed.get("name")
+        or provider_market_key
+    )
+    outcome_name = _normalized_text(seed.get("outcome_name") or seed.get("outcome"))
+    bookmaker = _normalized_text(seed.get("bookmaker") or seed.get("best_bookmaker"))
+    selection = _normalized_text(seed.get("selection") or seed.get("pick") or outcome_name)
+    direction = _direction_from_values(seed.get("direction"), selection, outcome_name, market_label)
+    point = _extract_line(seed.get("point"))
+    line = _extract_line(seed.get("line"), seed.get("point"), selection, outcome_name, market_label)
+    has_market_hint = bool(
+        explicit_family
+        or provider_market_key
+        or _normalized_text(seed.get("market_label"))
+        or _normalized_text(seed.get("market"))
+        or _normalized_text(seed.get("name"))
+        or _normalized_text(seed.get("market_type"))
+    )
+
+    combined = _normalized_tokens(explicit_family, provider_market_key, market_label, outcome_name, selection)
+    market_family = explicit_family
+    confidence = ""
+    mapping_source = ""
+    mapping_status = ""
+
+    if market_family:
+        confidence = "HIGH"
+        mapping_source = "explicit_market_family"
+    elif any(token in combined for token in ("player_", "player ", "goalscorer", "to score", "to assist", "to be fouled", "to be booked")):
+        market_family = "UNSUPPORTED_PROP_MATCH"
+        confidence = "HIGH"
+        mapping_source = "market_label"
+        mapping_status = "UNSUPPORTED_PROP_MATCH"
+    elif any(token in combined for token in ("player_tackles", "player_passes", "player shots", "player_shots", "player cards", "player_cards", "player games", "player_games")):
+        market_family = "UNSUPPORTED_PROP_MATCH"
+        confidence = "HIGH"
+        mapping_source = "market_label"
+        mapping_status = "UNSUPPORTED_PROP_MATCH"
+    elif any(token in combined for token in ("shots on target", "shots_on_target", "sot")):
+        market_family = "SHOTS_ON_TARGET"
+        confidence = "HIGH" if provider_market_key else "MEDIUM"
+        mapping_source = "provider_market_key" if provider_market_key else "market_label"
+    elif any(token in combined for token in ("total shots", "match_shots", "team_shots", "shots")):
+        market_family = "SHOTS"
+        confidence = "HIGH" if provider_market_key else "MEDIUM"
+        mapping_source = "provider_market_key" if provider_market_key else "market_label"
+    elif any(token in combined for token in ("yellow cards", "cards", "bookings", "bookings_totals", "number_of_cards_in_match", "card_handicap")):
+        market_family = "CARDS"
+        confidence = "HIGH" if provider_market_key else "MEDIUM"
+        mapping_source = "provider_market_key" if provider_market_key else "market_label"
+    elif any(token in combined for token in ("total corners", "corners", "corner_handicap", "corners_totals", "corners_2-way")):
+        market_family = "CORNERS"
+        confidence = "HIGH" if provider_market_key else "MEDIUM"
+        mapping_source = "provider_market_key" if provider_market_key else "market_label"
+    elif any(token in combined for token in ("goals total", "total goals", "goals_over/under", "over_under", "totals", "goals total o/u", "alternative_goal_line", "alternative_total_goals", "number_of_goals_in_match")):
+        market_family = "GOALS_TOTALS"
+        confidence = "HIGH" if provider_market_key else "MEDIUM"
+        mapping_source = "provider_market_key" if provider_market_key else "market_label"
+    elif provider_market_key.lower() in {"h2h", "match winner", "moneyline", "ml"} or any(token in combined for token in (" match winner", "moneyline", " h2h", "ml:", "ml ")):
+        market_family = "RESULT"
+        confidence = "HIGH" if provider_market_key else "MEDIUM"
+        mapping_source = "provider_market_key" if provider_market_key else "market_label"
+
+    if market_family == "RESULT":
+        selection = _result_selection(selection or outcome_name or seed.get("direction"), participants)
+        if not direction:
+            direction = selection
+    else:
+        selection = _normalized_text(selection or outcome_name or direction)
+
+    if not market_family and has_market_hint:
+        mapping_status = "AMBIGUOUS_MARKET_LABEL"
+    elif market_family in LINE_REQUIRED_MARKET_FAMILIES and not direction:
+        mapping_status = "DIRECTION_MISSING"
+    elif market_family in LINE_REQUIRED_MARKET_FAMILIES and line is None:
+        mapping_status = "LINE_MISSING"
+
+    return MarketSemantics(
+        market_family=market_family,
+        market_type=provider_market_key or market_label,
+        market_label=market_label,
+        outcome_name=outcome_name,
+        selection=selection,
+        direction=direction,
+        line=line,
+        point=point if point is not None else line,
+        provider_market_key=provider_market_key,
+        bookmaker=bookmaker,
+        source_artifact_path=_normalized_text(seed.get("source_artifact_path") or source_artifact_path),
+        confidence=confidence,
+        mapping_source=mapping_source,
+        mapping_status=mapping_status,
+        field_path=field_path,
+    )
 
 
 def split_stat_aggregation_policy(stat_key: str) -> str | None:
@@ -92,14 +300,23 @@ class MarketProbabilityInput:
     line: Optional[float]
     team_a_name: str
     team_b_name: str
+    market_label: str = ""
+    outcome_name: str = ""
+    point: Optional[float] = None
+    provider_market_key: str = ""
+    bookmaker: str = ""
     team_a_l10: List[float] = field(default_factory=list)
     team_b_l10: List[float] = field(default_factory=list)
     h2h_l5: Optional[List[float]] = None
     source_artifact_path: str = ""
+    semantics_field_path: str = ""
     stats_as_of: str = "UNKNOWN"
     sample_size: int = 0
     aggregation_policy: str = ""
     semantics_issue: str = ""
+    mapping_source: str = ""
+    mapping_status: str = ""
+    confidence: str = ""
     missing_fields: List[str] = field(default_factory=list)
 
 
@@ -216,19 +433,29 @@ def derive_l10_series_for_market_family(
 def build_market_probability_input(candidate: dict[str, Any], stats_seed: dict[str, Any] | None) -> MarketProbabilityInput:
     candidate_id = candidate.get("candidate_id") or candidate.get("fixture_key") or ""
     sport = candidate.get("sport") or ""
-    market_family = candidate.get("market_family") or ""
-    market_type = candidate.get("market_type") or ""
-    selection = candidate.get("selection") or candidate.get("pick") or ""
-    direction = candidate.get("direction") or ""
-    line = candidate.get("line")
-    if line is not None:
-        try:
-            line = float(line)
-        except (ValueError, TypeError):
-            line = None
-
     team_a_name = candidate.get("home_team") or ""
     team_b_name = candidate.get("away_team") or ""
+    participants = [name for name in (team_a_name, team_b_name) if name]
+    candidate_semantics = extract_market_semantics(
+        candidate,
+        participants=participants,
+        source_artifact_path=_normalized_text(candidate.get("source_artifact_path")),
+        field_path="candidate",
+    )
+    market_family = candidate_semantics.market_family
+    market_type = candidate_semantics.market_type
+    market_label = candidate_semantics.market_label
+    outcome_name = candidate_semantics.outcome_name
+    selection = candidate_semantics.selection
+    direction = candidate_semantics.direction
+    line = candidate_semantics.line
+    point = candidate_semantics.point
+    provider_market_key = candidate_semantics.provider_market_key
+    bookmaker = candidate_semantics.bookmaker
+    semantics_field_path = candidate_semantics.field_path
+    mapping_source = candidate_semantics.mapping_source
+    mapping_status = candidate_semantics.mapping_status
+    confidence = candidate_semantics.confidence
 
     if not stats_seed:
         return MarketProbabilityInput(
@@ -236,28 +463,56 @@ def build_market_probability_input(candidate: dict[str, Any], stats_seed: dict[s
             sport=sport,
             market_family=market_family,
             market_type=market_type,
+            market_label=market_label,
+            outcome_name=outcome_name,
             selection=selection,
             direction=direction,
             line=line,
+            point=point,
+            provider_market_key=provider_market_key,
+            bookmaker=bookmaker,
             team_a_name=team_a_name,
             team_b_name=team_b_name,
+            source_artifact_path=candidate_semantics.source_artifact_path,
+            semantics_field_path=semantics_field_path,
+            mapping_source=mapping_source,
+            mapping_status=mapping_status,
+            confidence=confidence,
             missing_fields=["stats_seed"],
         )
 
     best_market = stats_seed.get("best_market") or {}
-    if not market_family and best_market:
-        market_family = best_market.get("market_family") or ""
-    if not market_type and best_market:
-        market_type = best_market.get("name") or ""
-    if not direction and best_market:
-        direction = best_market.get("direction") or ""
-    if line is None and best_market:
-        line_val = best_market.get("line")
-        if line_val is not None:
-            try:
-                line = float(line_val)
-            except (ValueError, TypeError):
-                line = None
+    if best_market:
+        fallback_semantics = extract_market_semantics(
+            best_market,
+            participants=participants,
+            source_artifact_path=_normalized_text(stats_seed.get("source_artifact_path") or candidate_semantics.source_artifact_path),
+            field_path="best_market",
+        )
+        if not market_family:
+            market_family = fallback_semantics.market_family
+            mapping_source = mapping_source or fallback_semantics.mapping_source
+            mapping_status = mapping_status or fallback_semantics.mapping_status
+            confidence = confidence or fallback_semantics.confidence
+            semantics_field_path = semantics_field_path or fallback_semantics.field_path
+        if not market_type:
+            market_type = fallback_semantics.market_type
+        if not market_label:
+            market_label = fallback_semantics.market_label
+        if not outcome_name:
+            outcome_name = fallback_semantics.outcome_name
+        if not selection:
+            selection = fallback_semantics.selection
+        if not direction:
+            direction = fallback_semantics.direction
+        if line is None:
+            line = fallback_semantics.line
+        if point is None:
+            point = fallback_semantics.point
+        if not provider_market_key:
+            provider_market_key = fallback_semantics.provider_market_key
+        if not bookmaker:
+            bookmaker = fallback_semantics.bookmaker
 
     team_a_l10, team_b_l10, h2h_l5, aggregation_policy, semantics_issue = derive_l10_series_for_market_family(
         stats_seed,
@@ -270,11 +525,13 @@ def build_market_probability_input(candidate: dict[str, Any], stats_seed: dict[s
     stats_as_of = stats_seed.get("probability_as_of") or stats_seed.get("generated_at") or "UNKNOWN"
 
     missing_fields = []
+    if mapping_status == "AMBIGUOUS_MARKET_LABEL":
+        missing_fields.append("market_label")
     if not market_family:
         missing_fields.append("market_family")
-    if not direction:
+    if market_family in LINE_REQUIRED_MARKET_FAMILIES and not direction:
         missing_fields.append("direction")
-    if line is None and market_family in ("GOALS_TOTALS", "CORNERS", "CARDS", "SHOTS", "SHOTS_ON_TARGET"):
+    if line is None and market_family in LINE_REQUIRED_MARKET_FAMILIES:
         missing_fields.append("line")
     if semantics_issue:
         missing_fields.append("unknown_split_stat_semantics")
@@ -284,24 +541,39 @@ def build_market_probability_input(candidate: dict[str, Any], stats_seed: dict[s
         sport=sport,
         market_family=market_family,
         market_type=market_type,
+        market_label=market_label,
+        outcome_name=outcome_name,
         selection=selection,
         direction=direction,
         line=line,
+        point=point,
+        provider_market_key=provider_market_key,
+        bookmaker=bookmaker,
         team_a_name=team_a_name,
         team_b_name=team_b_name,
         team_a_l10=team_a_l10,
         team_b_l10=team_b_l10,
         h2h_l5=h2h_l5,
-        source_artifact_path=stats_seed.get("source_artifact_path") or "",
+        source_artifact_path=candidate_semantics.source_artifact_path or stats_seed.get("source_artifact_path") or "",
+        semantics_field_path=semantics_field_path,
         stats_as_of=stats_as_of,
         sample_size=sample_size,
         aggregation_policy=aggregation_policy,
         semantics_issue=semantics_issue,
+        mapping_source=mapping_source,
+        mapping_status=mapping_status,
+        confidence=confidence,
         missing_fields=missing_fields,
     )
 
 
 def validate_market_probability_input(input_data: MarketProbabilityInput) -> tuple[bool, str]:
+    if input_data.mapping_status == "AMBIGUOUS_MARKET_LABEL":
+        return False, "AMBIGUOUS_MARKET_LABEL"
+
+    if input_data.mapping_status == "UNSUPPORTED_PROP_MATCH":
+        return False, "UNSUPPORTED_PROP_MATCH"
+
     if not input_data.market_family:
         return False, "MARKET_SPECIFIC_INPUT_NOT_BUILT"
 
@@ -309,16 +581,19 @@ def validate_market_probability_input(input_data: MarketProbabilityInput) -> tup
         return False, "UNKNOWN_SPLIT_STAT_SEMANTICS"
         
     if "UNSUPPORTED" in input_data.market_family or "PROP" in input_data.market_family or "tackles" in input_data.market_type:
-        return False, "MARKET_FAMILY_NOT_SUPPORTED_BY_ENGINE"
+        return False, "UNSUPPORTED_PROP_MATCH"
         
-    if input_data.market_family not in ("GOALS_TOTALS", "RESULT", "CORNERS", "CARDS", "SHOTS", "SHOTS_ON_TARGET"):
+    if input_data.market_family not in SUPPORTED_MARKET_FAMILIES:
         return False, "MARKET_FAMILY_NOT_SUPPORTED_BY_ENGINE"
 
-    if input_data.market_family in ("GOALS_TOTALS", "CORNERS", "CARDS", "SHOTS", "SHOTS_ON_TARGET"):
+    if input_data.market_family in LINE_REQUIRED_MARKET_FAMILIES:
         if input_data.line is None:
             return False, "LINE_MISSING"
 
-    if input_data.market_family in ("GOALS_TOTALS", "CORNERS", "CARDS", "SHOTS", "SHOTS_ON_TARGET"):
+    if input_data.market_family in LINE_REQUIRED_MARKET_FAMILIES and not input_data.direction:
+        return False, "DIRECTION_MISSING"
+
+    if input_data.market_family in LINE_REQUIRED_MARKET_FAMILIES:
         if not input_data.team_a_l10 or not input_data.team_b_l10:
             return False, "L10_SERIES_MISSING"
         if len(input_data.team_a_l10) < 5 or len(input_data.team_b_l10) < 5:
@@ -329,9 +604,6 @@ def validate_market_probability_input(input_data: MarketProbabilityInput) -> tup
             return False, "L10_SERIES_MISSING"
         if len(input_data.team_a_l10) < 5 or len(input_data.team_b_l10) < 5:
             return False, "INSUFFICIENT_SAMPLE_SIZE"
-
-    if input_data.market_family != "RESULT" and not input_data.direction:
-        return False, "DIRECTION_MISSING"
 
     return True, "PASS"
 

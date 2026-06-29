@@ -8,6 +8,8 @@ from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any
 
+from bet.pipeline.market_probability_inputs import extract_market_semantics
+
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
@@ -57,26 +59,7 @@ def _to_float(value: Any) -> float | None:
 
 
 def _market_family_from_seed(seed: dict[str, Any]) -> str:
-    market_type = _normalized(seed.get("market_type") or seed.get("market_family") or seed.get("name")).lower()
-    if not market_type:
-        return ""
-    if "player" in market_type or "tackles" in market_type or "player_tackles" in market_type:
-        return "UNSUPPORTED_PROP_MATCH"
-    if "shots_on_target" in market_type or "shots on target" in market_type:
-        return "SHOTS_ON_TARGET"
-    if "shots" in market_type:
-        return "SHOTS"
-    if any(token in market_type for token in ("goal", "total", "over", "under")):
-        return "GOALS_TOTALS"
-    if "corner" in market_type:
-        return "CORNERS"
-    if any(token in market_type for token in ("card", "booking")):
-        return "CARDS"
-    if any(token in market_type for token in ("moneyline", "match winner", "winner", "ml", "draw_no_bet", "double_chance")):
-        return "RESULT"
-    if "spread" in market_type or "handicap" in market_type:
-        return "HANDICAP"
-    return market_type.upper().replace(" ", "_")
+    return extract_market_semantics(seed).market_family
 
 
 def _supported_analytical_family(family: str) -> bool:
@@ -138,37 +121,86 @@ def _market_seed(
     s3_entry: dict[str, Any] | None,
     shortlist_entry: dict[str, Any] | None,
     participants: list[str],
+    *,
+    source_artifact_path: str,
 ) -> dict[str, Any]:
-    best_market = (s3_entry or {}).get("best_market") or (valuation_entry.get("best_market") or {})
-    if isinstance(best_market, dict) and best_market.get("name"):
-        family = _market_family_from_seed(best_market)
+    valuation_semantics = extract_market_semantics(
+        valuation_entry,
+        participants=participants,
+        source_artifact_path=source_artifact_path,
+        field_path="candidate",
+    )
+    if valuation_semantics.market_family or valuation_semantics.mapping_status:
         return {
-            "market_family": family if _supported_analytical_family(family) else "",
-            "market_type": _normalized(best_market.get("name")),
-            "pick": _pick_from_seed(best_market, participants),
-            "selection": _pick_from_seed(best_market, participants),
-            "line": best_market.get("line"),
-            "source": "s3_best_market",
+            "market_family": valuation_semantics.market_family,
+            "market_type": valuation_semantics.market_type,
+            "market_label": valuation_semantics.market_label,
+            "pick": valuation_semantics.selection,
+            "selection": valuation_semantics.selection,
+            "direction": valuation_semantics.direction,
+            "line": valuation_semantics.line,
+            "mapping_status": valuation_semantics.mapping_status,
+            "source_artifact_path": valuation_semantics.source_artifact_path,
+            "field_path": valuation_semantics.field_path,
+            "source": "valuation_candidate",
         }
+
+    best_market = (valuation_entry.get("best_market") or {}) or ((s3_entry or {}).get("best_market") or {})
+    if isinstance(best_market, dict) and best_market:
+        best_market_semantics = extract_market_semantics(
+            best_market,
+            participants=participants,
+            source_artifact_path=source_artifact_path,
+            field_path="best_market",
+        )
+        if best_market_semantics.market_family or best_market_semantics.mapping_status:
+            return {
+                "market_family": best_market_semantics.market_family,
+                "market_type": best_market_semantics.market_type,
+                "market_label": best_market_semantics.market_label,
+                "pick": best_market_semantics.selection,
+                "selection": best_market_semantics.selection,
+                "direction": best_market_semantics.direction,
+                "line": best_market_semantics.line,
+                "mapping_status": best_market_semantics.mapping_status,
+                "source_artifact_path": best_market_semantics.source_artifact_path,
+                "field_path": best_market_semantics.field_path,
+                "source": "s3_best_market",
+            }
 
     shortlist_market = _match_shortlist_market(shortlist_entry, valuation_entry)
     if shortlist_market:
-        family = _market_family_from_seed(shortlist_market)
+        shortlist_semantics = extract_market_semantics(
+            shortlist_market,
+            participants=participants,
+            source_artifact_path=_normalized((shortlist_entry or {}).get("source_artifact_path") or source_artifact_path),
+            field_path="odds_markets[]",
+        )
         return {
-            "market_family": family if _supported_analytical_family(family) else "",
-            "market_type": _normalized(shortlist_market.get("market_type") or shortlist_market.get("market")),
-            "pick": _pick_from_seed(shortlist_market, participants),
-            "selection": _pick_from_seed(shortlist_market, participants),
-            "line": shortlist_market.get("point"),
+            "market_family": shortlist_semantics.market_family,
+            "market_type": shortlist_semantics.market_type,
+            "market_label": shortlist_semantics.market_label,
+            "pick": shortlist_semantics.selection,
+            "selection": shortlist_semantics.selection,
+            "direction": shortlist_semantics.direction,
+            "line": shortlist_semantics.line,
+            "mapping_status": shortlist_semantics.mapping_status,
+            "source_artifact_path": shortlist_semantics.source_artifact_path,
+            "field_path": shortlist_semantics.field_path,
             "source": "shortlist_odds_market",
         }
 
     return {
         "market_family": "",
         "market_type": "",
+        "market_label": "",
         "pick": "",
         "selection": "",
+        "direction": "",
         "line": None,
+        "mapping_status": "",
+        "source_artifact_path": source_artifact_path,
+        "field_path": "candidate",
         "source": "missing",
     }
 
@@ -272,8 +304,11 @@ class CandidateDraft:
     start_time: str
     market_family: str
     market_type: str
+    market_label: str
+    outcome_name: str
     selection: str
     pick: str
+    direction: str
     line: Any
     odds_decimal: Decimal | None
     odds_source: str
@@ -408,14 +443,29 @@ def build_analytical_candidate_handoff(
                 }
             )
 
-        market_seed = _market_seed(valuation_entry, s3_entry, shortlist_entry, participants)
-        if not market_seed["market_family"]:
+        market_seed = _market_seed(
+            valuation_entry,
+            s3_entry,
+            shortlist_entry,
+            participants,
+            source_artifact_path=source_artifact_path,
+        )
+        if market_seed.get("mapping_status") in {"AMBIGUOUS_MARKET_LABEL", "UNSUPPORTED_PROP_MATCH", "LINE_MISSING", "DIRECTION_MISSING"}:
+            source_gaps.append(
+                {
+                    "code": market_seed["mapping_status"],
+                    "field": "market_semantics",
+                    "artifact": market_seed.get("source_artifact_path") or source_artifact_path,
+                    "field_path": market_seed.get("field_path") or f"candidates[{position}]",
+                }
+            )
+        elif not market_seed["market_family"]:
             source_gaps.append(
                 {
                     "code": "MARKET_FAMILY_MAPPING_MISSING",
                     "field": "market_family",
-                    "artifact": source_artifact_path,
-                    "field_path": f"candidates[{position}].best_market",
+                    "artifact": market_seed.get("source_artifact_path") or source_artifact_path,
+                    "field_path": market_seed.get("field_path") or f"candidates[{position}]",
                 }
             )
 
@@ -440,10 +490,16 @@ def build_analytical_candidate_handoff(
             analytical_status = "MISSING_SPORT"
         elif not competition:
             analytical_status = "MISSING_COMPETITION"
+        elif market_seed.get("mapping_status") == "UNSUPPORTED_PROP_MATCH":
+            analytical_status = "UNSUPPORTED_PROP_MATCH"
+        elif market_seed.get("mapping_status") == "AMBIGUOUS_MARKET_LABEL":
+            analytical_status = "AMBIGUOUS_MARKET_LABEL"
         elif not market_seed["market_family"]:
             analytical_status = "MISSING_MARKET_FAMILY"
-        elif market_seed["market_family"] in {"TOTALS", "GOALS_TOTALS", "HANDICAP", "CORNERS", "CARDS", "SHOTS", "SHOTS_ON_TARGET"} and market_seed["line"] in (None, "", "MISSING"):
+        elif market_seed.get("mapping_status") == "LINE_MISSING" or (market_seed["market_family"] in {"TOTALS", "GOALS_TOTALS", "HANDICAP", "CORNERS", "CARDS", "SHOTS", "SHOTS_ON_TARGET"} and market_seed["line"] in (None, "", "MISSING")):
             analytical_status = "MISSING_LINE"
+        elif market_seed.get("mapping_status") == "DIRECTION_MISSING":
+            analytical_status = "DIRECTION_MISSING"
         elif probability_contract["model_probability"] is None:
             analytical_status = "INSUFFICIENT_MODEL_PROBABILITY"
         elif _probability_confidence_is_blocked(probability_contract["probability_confidence"]):
@@ -461,8 +517,11 @@ def build_analytical_candidate_handoff(
             start_time=start_time,
             market_family=market_seed["market_family"],
             market_type=market_seed["market_type"],
+            market_label=market_seed.get("market_label", market_seed["market_type"]),
+            outcome_name=market_seed.get("selection", ""),
             selection=market_seed["selection"],
             pick=market_seed["pick"],
+            direction=market_seed.get("direction", ""),
             line=market_seed["line"],
             odds_decimal=odds_decimal,
             odds_source=_normalized(valuation_entry.get("odds_source")),
@@ -487,7 +546,7 @@ def build_analytical_candidate_handoff(
             blocked_probability_missing.append(
                 ResearchCandidateBlocked(**asdict(draft), blocking_reason=analytical_status).to_dict()
             )
-        elif analytical_status in {"MISSING_SPORT", "MISSING_COMPETITION", "MISSING_MARKET_FAMILY", "MISSING_LINE"}:
+        elif analytical_status in {"MISSING_SPORT", "MISSING_COMPETITION", "MISSING_MARKET_FAMILY", "MISSING_LINE", "DIRECTION_MISSING", "UNSUPPORTED_PROP_MATCH", "AMBIGUOUS_MARKET_LABEL"}:
             blocked_identity_missing.append(
                 ResearchCandidateBlocked(**asdict(draft), blocking_reason=analytical_status).to_dict()
             )

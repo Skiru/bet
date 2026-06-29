@@ -47,11 +47,13 @@ sys.path.insert(0, str(ROOT_DIR))
 
 try:
     from normalize_stats import build_safety_input, build_safety_input_from_cache
+    from bet.pipeline.market_probability_inputs import extract_market_semantics
     from bet.stats.market_ranking import SPORT_MARKETS
     from compute_safety_scores import rank_markets
 except ImportError:
     build_safety_input = None
     build_safety_input_from_cache = None
+    extract_market_semantics = None
     rank_markets = None
 
 from utils import normalize_team_name as _normalize
@@ -366,6 +368,39 @@ def load_analysis_pool(date: str) -> dict:
 # Market extraction from odds data
 # ---------------------------------------------------------------------------
 
+def _attach_market_semantics(markets: list[dict], participants: list[str], source_artifact_path: str) -> list[dict]:
+    if extract_market_semantics is None:
+        return markets
+    enriched = []
+    for market in markets:
+        if not isinstance(market, dict):
+            continue
+        semantics = extract_market_semantics(
+            market,
+            participants=participants,
+            source_artifact_path=source_artifact_path,
+            field_path="odds_markets[]",
+        )
+        enriched.append(
+            {
+                **market,
+                "market_family": semantics.market_family,
+                "market_label": semantics.market_label,
+                "outcome_name": semantics.outcome_name,
+                "selection": semantics.selection,
+                "direction": market.get("direction") or semantics.direction,
+                "line": semantics.line,
+                "point": semantics.point,
+                "provider_market_key": semantics.provider_market_key,
+                "bookmaker": semantics.bookmaker,
+                "source_artifact_path": semantics.source_artifact_path,
+                "confidence": semantics.confidence,
+                "mapping_source": semantics.mapping_source,
+                "mapping_status": semantics.mapping_status,
+            }
+        )
+    return enriched
+
 def extract_markets_from_odds_api(odds_event: dict) -> list[dict]:
     """Extract all markets from an Odds API event with best prices."""
     markets = []
@@ -378,6 +413,8 @@ def extract_markets_from_odds_api(odds_event: dict) -> list[dict]:
             for outcome in market.get("outcomes", []):
                 oname = outcome.get("name", "")
                 point = outcome.get("point")
+                if point is None:
+                    point = market.get("point")
                 price = outcome.get("price", 0)
                 if not price or float(price) <= 1.01:
                     continue
@@ -412,7 +449,11 @@ def extract_markets_from_odds_api(odds_event: dict) -> list[dict]:
             "source": "odds-api",
         })
 
-    return markets
+    return _attach_market_semantics(
+        markets,
+        [str(odds_event.get("home_team") or "").strip(), str(odds_event.get("away_team") or "").strip()],
+        "odds-api",
+    )
 
 
 def extract_markets_from_scan(scan_items: list[dict]) -> list[dict]:

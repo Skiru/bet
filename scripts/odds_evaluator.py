@@ -26,6 +26,7 @@ sys.path.insert(0, str(ROOT_DIR / "src"))
 
 from utils import normalize_team_name as _norm_team
 from bet.utils import names_match
+from bet.pipeline.market_probability_inputs import extract_market_semantics
 
 
 def _runtime_mode_value(runtime_mode: str | None) -> str:
@@ -118,6 +119,174 @@ def _candidate_safety_score(candidate: dict):
     return candidate.get("safety_score")
 
 
+def _probability_confidence_blocks_promotion(confidence: str | None) -> bool:
+    return str(confidence or "").strip().upper() in {"BLOCKED", "LOW", "MINIMAL", "LOW_CONFIDENCE"}
+
+
+def _load_json_payload(path: Path | None) -> dict | None:
+    if path is None or not path.exists():
+        return None
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return None
+    return payload if isinstance(payload, dict) else None
+
+
+def _resolve_shortlist_payload(input_path: Path | None) -> dict | None:
+    if input_path is None:
+        return None
+    payload = _load_json_payload(input_path)
+    if not isinstance(payload, dict):
+        return None
+    source_label = str(payload.get("source") or "")
+    if source_label.startswith("shortlist:"):
+        shortlist_path = Path(source_label.split(":", 1)[1])
+        return _load_json_payload(shortlist_path)
+    sibling = input_path.with_name(input_path.name.replace("_s3_deep_stats.json", "_s2_shortlist.json"))
+    return _load_json_payload(sibling)
+
+
+def _shortlist_identity_key(entry: dict) -> str:
+    return "|".join(
+        [
+            str(entry.get("sport") or "").strip(),
+            str(entry.get("home_team") or "").strip(),
+            str(entry.get("away_team") or "").strip(),
+            str(entry.get("kickoff") or entry.get("scheduled_time") or "")[:10],
+        ]
+    )
+
+
+def _build_shortlist_index(shortlist_payload: dict | None) -> dict[str, dict]:
+    if not isinstance(shortlist_payload, dict):
+        return {}
+    return {
+        _shortlist_identity_key(entry): entry
+        for entry in shortlist_payload.get("candidates", [])
+        if isinstance(entry, dict)
+    }
+
+
+def _candidate_identity_key(entry: dict) -> str:
+    return "|".join(
+        [
+            str(entry.get("sport") or "").strip(),
+            str(entry.get("home_team") or "").strip(),
+            str(entry.get("away_team") or "").strip(),
+            str(entry.get("kickoff") or entry.get("scheduled_time") or "")[:10],
+        ]
+    )
+
+
+def _to_float(value):
+    if value in (None, ""):
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _match_shortlist_market(shortlist_entry: dict | None, candidate: dict) -> dict | None:
+    if not shortlist_entry:
+        return None
+    odds_markets = shortlist_entry.get("odds_markets") or []
+    if not isinstance(odds_markets, list):
+        return None
+    target_odds = _to_float((candidate.get("odds") or {}).get("market_best") or candidate.get("odds_decimal"))
+    if target_odds is None:
+        return None
+    exact_matches = []
+    for market in odds_markets:
+        market_odds = _to_float(market.get("best_odds"))
+        if market_odds is None:
+            continue
+        if abs(market_odds - target_odds) < 0.0001:
+            exact_matches.append(market)
+    if not exact_matches:
+        return None
+
+    def _priority(entry: dict) -> tuple[int, int, str]:
+        market_type = str(entry.get("market_type") or entry.get("market") or "").strip().lower()
+        outcome = str(entry.get("outcome") or "").strip().lower()
+        if market_type in {"ml", "moneyline", "h2h"}:
+            bucket = 0
+        elif market_type in {"draw_no_bet", "double_chance"}:
+            bucket = 1
+        elif any(token in market_type for token in ("goal", "total", "over", "under")):
+            bucket = 2
+        else:
+            bucket = 3
+        outcome_penalty = 1 if outcome == "hdp" else 0
+        return (bucket, outcome_penalty, market_type)
+
+    return sorted(exact_matches, key=_priority)[0]
+
+
+def _apply_market_semantics(candidate: dict, semantics_source: dict, *, participants: list[str], source_artifact_path: str, field_path: str) -> bool:
+    semantics = extract_market_semantics(
+        semantics_source,
+        participants=participants,
+        source_artifact_path=source_artifact_path,
+        field_path=field_path,
+    )
+    if not semantics.market_family and not semantics.mapping_status:
+        return False
+    candidate["market_family"] = semantics.market_family or candidate.get("market_family")
+    candidate["market_type"] = semantics.market_type or candidate.get("market_type")
+    candidate["market"] = semantics.market_label or candidate.get("market") or semantics.market_type
+    candidate["market_label"] = semantics.market_label or candidate.get("market_label")
+    candidate["outcome_name"] = semantics.outcome_name or candidate.get("outcome_name")
+    candidate["selection"] = semantics.selection or candidate.get("selection")
+    candidate["pick"] = candidate.get("pick") or semantics.selection or semantics.direction
+    candidate["direction"] = semantics.direction or candidate.get("direction")
+    if candidate.get("line") is None:
+        candidate["line"] = semantics.line
+    if candidate.get("point") is None:
+        candidate["point"] = semantics.point
+    candidate["provider_market_key"] = semantics.provider_market_key or candidate.get("provider_market_key")
+    candidate["bookmaker"] = semantics.bookmaker or candidate.get("bookmaker")
+    candidate["source_artifact_path"] = candidate.get("source_artifact_path") or semantics.source_artifact_path
+    candidate["market_semantics"] = semantics.to_dict()
+    return True
+
+
+def _enrich_candidate_market_semantics(candidates: list[dict], shortlist_payload: dict | None, source_artifact_path: str) -> None:
+    shortlist_index = _build_shortlist_index(shortlist_payload)
+    shortlist_artifact_path = str(shortlist_payload.get("source_artifact_path") or "") if isinstance(shortlist_payload, dict) else ""
+    for candidate in candidates:
+        participants = [part for part in (candidate.get("home_team"), candidate.get("away_team")) if part]
+        if _apply_market_semantics(
+            candidate,
+            candidate,
+            participants=participants,
+            source_artifact_path=source_artifact_path,
+            field_path="candidate",
+        ):
+            continue
+        best_market = candidate.get("best_market") or {}
+        if isinstance(best_market, dict) and best_market:
+            if _apply_market_semantics(
+                candidate,
+                best_market,
+                participants=participants,
+                source_artifact_path=source_artifact_path,
+                field_path="best_market",
+            ):
+                continue
+        shortlist_entry = shortlist_index.get(_candidate_identity_key(candidate))
+        shortlist_market = _match_shortlist_market(shortlist_entry, candidate)
+        if shortlist_market:
+            _apply_market_semantics(
+                candidate,
+                shortlist_market,
+                participants=participants,
+                source_artifact_path=shortlist_artifact_path or source_artifact_path,
+                field_path="odds_markets[]",
+            )
+
+
 def _valuation_warnings(candidate: dict, has_odds: bool, has_ev: bool, has_safety: bool) -> list[str]:
     warnings = []
     for source_key in ("valuation_warnings", "warnings"):
@@ -198,10 +367,21 @@ def _build_valuation_candidate(candidate: dict) -> dict:
         "scheduled_time": candidate.get("scheduled_time") or candidate.get("kickoff"),
         "source_steps": ["S3", "S4"],
         "market_family": candidate.get("market_family"),
+        "market": candidate.get("market") or candidate.get("market_label") or candidate.get("market_type") or best_market.get("name"),
         "market_type": candidate.get("market_type") or best_market.get("name"),
+        "market_label": candidate.get("market_label") or candidate.get("market") or candidate.get("market_type") or best_market.get("name"),
+        "outcome_name": candidate.get("outcome_name"),
+        "selection": candidate.get("selection") or candidate.get("pick"),
         "pick": candidate.get("pick") or best_market.get("direction"),
+        "direction": candidate.get("direction") or best_market.get("direction"),
         "line": candidate.get("line") if candidate.get("line") is not None else best_market.get("line"),
+        "point": candidate.get("point"),
+        "provider_market_key": candidate.get("provider_market_key") or candidate.get("market_type"),
+        "bookmaker": candidate.get("bookmaker") or candidate.get("best_bookmaker"),
+        "source_artifact_path": candidate.get("source_artifact_path"),
+        "market_semantics": candidate.get("market_semantics") or {},
         "model_probability": _coerce_probability(candidate.get("model_probability")),
+        "reference_model_probability": _coerce_probability(candidate.get("reference_model_probability")),
         "probability_method": candidate.get("probability_method"),
         "probability_sources": candidate.get("probability_sources") or [],
         "probability_as_of": candidate.get("probability_as_of"),
@@ -238,6 +418,19 @@ def _build_valuation_output(
     source_input_path: Path | None,
 ) -> dict:
     valuation_candidates = [_build_valuation_candidate(candidate) for candidate in candidates]
+    market_semantics_ready_count = 0
+    promotion_safe_model_probability_count = 0
+    reference_model_probability_count = 0
+    for candidate in valuation_candidates:
+        family = candidate.get("market_family") or ""
+        direction = candidate.get("direction") or ""
+        line = candidate.get("line")
+        if family and (family == "RESULT" or direction) and (family not in {"GOALS_TOTALS", "CORNERS", "CARDS", "SHOTS", "SHOTS_ON_TARGET"} or line is not None):
+            market_semantics_ready_count += 1
+        if candidate.get("model_probability") is not None:
+            promotion_safe_model_probability_count += 1
+        if candidate.get("reference_model_probability") is not None:
+            reference_model_probability_count += 1
     
     from collections import Counter
     reasons = [c.get("ev_missing_reason") for c in valuation_candidates if c.get("ev_missing_reason") is not None]
@@ -260,6 +453,9 @@ def _build_valuation_output(
         "contains_ev": any(candidate.get("ev") is not None for candidate in valuation_candidates),
         "contains_safety": any(candidate.get("safety_score") is not None or candidate.get("safety_markets") for candidate in valuation_candidates),
         "contains_market_count": any(candidate.get("market_count") is not None or candidate.get("markets_evaluated") is not None for candidate in valuation_candidates),
+        "market_semantics_ready_count": market_semantics_ready_count,
+        "promotion_safe_model_probability_count": promotion_safe_model_probability_count,
+        "reference_model_probability_count": reference_model_probability_count,
         "candidates_with_ev": candidates_with_ev,
         "positive_ev_count": positive_ev_count,
         "ev_missing_reason_counts": ev_missing_reason_counts,
@@ -782,7 +978,14 @@ def _inject_ev_from_odds(candidates: list[dict], date: str):
 
         p_val = _coerce_probability(prob_val) if prob_val is not None else None
         explicit_method = str(c.get("probability_method") or "").strip()
+        raw_reference_probability = p_val
         if explicit_method == "BOOKMAKER_IMPLIED_REFERENCE_ONLY":
+            p_val = None
+            prob_src = None
+            if raw_reference_probability is not None:
+                c["reference_model_probability"] = raw_reference_probability
+        elif p_val is not None and _probability_confidence_blocks_promotion(c.get("probability_confidence")):
+            c["reference_model_probability"] = raw_reference_probability
             p_val = None
             prob_src = None
         if p_val is None:
@@ -813,6 +1016,8 @@ def _inject_ev_from_odds(candidates: list[dict], date: str):
             if not c.get("probability_missing_reason"):
                 if explicit_method == "BOOKMAKER_IMPLIED_REFERENCE_ONLY":
                     c["probability_missing_reason"] = "BOOKMAKER_IMPLIED_REFERENCE_ONLY"
+                elif raw_reference_probability is not None and _probability_confidence_blocks_promotion(c.get("probability_confidence")):
+                    c["probability_missing_reason"] = "LOW_CONFIDENCE_MODEL_PROBABILITY"
                 elif c.get("stats_gap_reason"):
                     c["probability_missing_reason"] = c.get("stats_gap_reason")
                 else:
@@ -1045,8 +1250,20 @@ def run_odds_eval(
     if tracker:
         tracker.update(1, f"Loaded {len(candidates)} candidates")
 
+    shortlist_payload = _resolve_shortlist_payload(resolved_input_path or s3_path)
+    _enrich_candidate_market_semantics(
+        candidates,
+        shortlist_payload,
+        str(resolved_input_path or s3_path),
+    )
+
     try:
         _inject_ev_from_odds(candidates, date)
+        _enrich_candidate_market_semantics(
+            candidates,
+            shortlist_payload,
+            str(resolved_input_path or s3_path),
+        )
 
         if tracker:
             tracker.update(2, f"EV injected for {len(candidates)} candidates")

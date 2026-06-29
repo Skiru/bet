@@ -374,6 +374,91 @@ def test_unsupported_player_tackles_not_promoted():
     assert _supported_analytical_family(family) is False
 
 
+def test_missing_market_family_reports_source_artifact_and_field_path():
+    handoff = build_analytical_candidate_handoff(
+        {
+            "candidates": [
+                {
+                    "fixture_id": 210,
+                    "sport": "football",
+                    "home_team": "Alpha",
+                    "away_team": "Beta",
+                    "competition": "Test League",
+                    "scheduled_time": "2026-06-29T18:00:00+00:00",
+                    "odds": {"market_best": 1.91},
+                }
+            ]
+        },
+        s3_payload={"analyses": []},
+        shortlist_payload={"candidates": []},
+        source_artifact_path="/tmp/2026-06-29_s4_valuation_candidates.json",
+    )
+
+    blocked = handoff["blocked_identity_missing"][0]
+    assert blocked["blocking_reason"] == "MISSING_MARKET_FAMILY"
+    assert blocked["source_gaps"][0]["artifact"] == "/tmp/2026-06-29_s4_valuation_candidates.json"
+    assert blocked["source_gaps"][0]["field_path"] == "candidate"
+
+
+def test_ambiguous_market_label_not_promoted():
+    from bet.pipeline.market_probability_inputs import build_market_probability_input, validate_market_probability_input
+
+    candidate = {
+        "candidate_id": "ambiguous-1",
+        "sport": "football",
+        "market": "Special",
+        "market_type": "specials",
+        "home_team": "Team A",
+        "away_team": "Team B",
+    }
+    stats_seed = {
+        "stats_a_summary": {"has_data": True, "l10_avg": {"goals": 2.0}, "sources": ["db"]},
+        "stats_b_summary": {"has_data": True, "l10_avg": {"goals": 1.0}, "sources": ["db"]},
+        "h2h_summary": {"has_data": False, "meetings_count": 0, "averages": {}},
+        "raw_data": {},
+    }
+
+    inp = build_market_probability_input(candidate, stats_seed)
+    valid, reason = validate_market_probability_input(inp)
+    assert valid is False
+    assert reason == "AMBIGUOUS_MARKET_LABEL"
+
+
+def test_missing_line_blocks_ou_probability_input():
+    from bet.pipeline.market_probability_inputs import build_market_probability_input, validate_market_probability_input
+
+    candidate = {
+        "candidate_id": "ou-missing-line",
+        "sport": "football",
+        "market_family": "GOALS_TOTALS",
+        "market_type": "totals",
+        "market": "Goals Total O/U",
+        "direction": "OVER",
+        "selection": "OVER",
+        "home_team": "Team A",
+        "away_team": "Team B",
+    }
+    stats_seed = {
+        "raw_data": {
+            "safety_input": {
+                "markets": [
+                    {
+                        "name": "Goals Total O/U",
+                        "line": 2.5,
+                        "team_a_l10": [2, 1, 3, 1, 2, 1, 2, 0, 1, 2],
+                        "team_b_l10": [1, 2, 0, 1, 3, 2, 1, 1, 2, 0],
+                    }
+                ]
+            }
+        }
+    }
+
+    inp = build_market_probability_input(candidate, stats_seed)
+    valid, reason = validate_market_probability_input(inp)
+    assert valid is False
+    assert reason == "LINE_MISSING"
+
+
 def test_model_probability_requires_real_stats():
     from scripts.probability_engine import enrich_ranking_with_probabilities
     
@@ -758,7 +843,7 @@ def test_player_tackles_remains_unsupported():
     )
     valid, reason = validate_market_probability_input(inp)
     assert valid is False
-    assert reason == "MARKET_FAMILY_NOT_SUPPORTED_BY_ENGINE"
+    assert reason == "UNSUPPORTED_PROP_MATCH"
 
 
 def test_no_fake_probability():

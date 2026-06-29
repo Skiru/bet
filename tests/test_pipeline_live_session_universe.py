@@ -105,6 +105,30 @@ def test_missing_line_for_ou_rejected():
     assert res.is_valid is False
     assert res.verdict == "REJECTED_MISSING_LINE"
 
+
+def test_top_level_market_type_is_accepted_for_pre_s7_market_handoff():
+    config = LiveSessionUniverseConfig(min_candidates=1)
+    report = build_pre_s7_universe(
+        [
+            _candidate(
+                {
+                    "candidate_id": "cand-market-type",
+                    "market": "",
+                    "market_type": "ml",
+                    "market_label": "ml:away",
+                    "market_family": "RESULT",
+                    "selection": "Team B",
+                    "pick": "Team B",
+                }
+            )
+        ],
+        config,
+        source_artifact_path="/tmp/2026-06-29_s4_valuation_candidates.json",
+    )
+
+    assert report.valid_count == 1
+    assert report.rejected_count == 0
+
 def test_missing_odds_timestamp_rejected():
     config = LiveSessionUniverseConfig()
     cand = CandidateInput.from_dict(_candidate({"odds_captured_at_utc": ""}))
