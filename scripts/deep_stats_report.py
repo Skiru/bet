@@ -1630,7 +1630,10 @@ def analyze_candidate(
     best_market_probability = best_market.get("probability") if best_market else None
     probability_method = ""
     probability_missing_reason = ""
-    if best_market_probability is not None:
+    if not stats_a.get("has_data") or not stats_b.get("has_data"):
+        probability_missing_reason = "NO_STATS_DATA_FOR_MODEL_PROBABILITY"
+        best_market_probability = None
+    elif best_market_probability is not None:
         probability_method = str(best_market.get("model_used") or "S3_PROBABILITY_ENGINE")
     elif best_market:
         probability_missing_reason = "NO_MODEL_PROBABILITY_FROM_S3"

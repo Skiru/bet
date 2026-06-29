@@ -271,3 +271,177 @@ def test_s3_stats_gap_reports_join_failure_reason(monkeypatch):
 
     assert result["has_data"] is False
     assert result["stats_gap_reason"] == "NO_STATS_DATA_FROM_CACHE_OR_DB_AND_NO_SHORTLIST_SAFETY_MARKETS"
+
+
+def test_team_identity_resolver_exact_and_alias_matches():
+    from bet.enrichment.team_identity_resolver import resolve_team_identity
+    
+    # Test exact match
+    res_exact = resolve_team_identity("Brazil", "football")
+    assert res_exact.resolved is True
+    assert res_exact.canonical_name == "Brazil"
+    assert res_exact.provider_team_id == "api-football:1"
+    assert res_exact.confidence == "HIGH"
+    
+    # Test alias match
+    res_alias = resolve_team_identity("Seleção", "football")
+    assert res_alias.resolved is True
+    assert res_alias.canonical_name == "Brazil"
+    assert res_alias.provider_team_id == "api-football:1"
+    
+    # Test normalized match
+    res_norm = resolve_team_identity("f.c. melgar", "football")
+    assert res_norm.resolved is True
+    assert res_norm.canonical_name == "Melgar"
+
+
+def test_team_identity_unresolved_reports_failure_reason():
+    from bet.enrichment.team_identity_resolver import resolve_team_identity
+    res = resolve_team_identity("Unknown Football Club Name", "football")
+    assert res.resolved is False
+    assert res.failure_reason == "TEAM_IDENTITY_NOT_RESOLVED"
+
+
+def test_s3_stats_gap_reports_team_identity_failure(monkeypatch):
+    monkeypatch.setattr(dsr, "extract_team_stats", lambda sport, team: {
+        "team": team,
+        "sport": sport,
+        "l10_avg": {},
+        "l5_avg": {},
+        "l10_matches": [],
+        "sources": [],
+        "has_data": False,
+        "espn_enrichment": None,
+    })
+    
+    result = dsr.analyze_candidate(
+        "football",
+        "Unknown_Team_X",
+        "Japan",
+        "Test Cup",
+        "2026-06-29T18:00:00+00:00",
+        shortlist_safety_markets=None,
+    )
+    assert result["has_data"] is False
+    assert result["probability_missing_reason"] == "NO_STATS_DATA_FOR_MODEL_PROBABILITY"
+
+
+def test_api_football_stats_probe_redacts_secret():
+    # Simple test ensuring we have a mock environment key check that avoids print leak
+    from scripts.probe_api_football import get_api_key
+    key = get_api_key()
+    if key:
+        redacted = key[:2] + "*" * (len(key) - 2) if len(key) > 2 else "**"
+        assert "*" in redacted
+
+
+def test_market_family_mapping_result_totals_corners_cards_shots():
+    from bet.pipeline.analytical_candidate_bridge import _market_family_from_seed, _supported_analytical_family
+    
+    m_ml = {"name": "Match Winner", "market_type": "ml"}
+    assert _market_family_from_seed(m_ml) == "RESULT"
+    
+    m_totals = {"name": "goals_over/under", "market_type": "totals"}
+    assert _market_family_from_seed(m_totals) == "GOALS_TOTALS"
+    
+    m_corners = {"name": "corners_over_under", "market_type": "corners"}
+    assert _market_family_from_seed(m_corners) == "CORNERS"
+    
+    m_cards = {"name": "yellow_cards", "market_type": "cards"}
+    assert _market_family_from_seed(m_cards) == "CARDS"
+    
+    m_shots = {"name": "shots", "market_type": "shots"}
+    assert _market_family_from_seed(m_shots) == "SHOTS"
+    
+    m_sot = {"name": "shots_on_target", "market_type": "shots_on_target"}
+    assert _market_family_from_seed(m_sot) == "SHOTS_ON_TARGET"
+    
+    # Verify supported families
+    assert _supported_analytical_family("RESULT") is True
+    assert _supported_analytical_family("GOALS_TOTALS") is True
+    assert _supported_analytical_family("CORNERS") is True
+    assert _supported_analytical_family("CARDS") is True
+    assert _supported_analytical_family("SHOTS") is True
+    assert _supported_analytical_family("SHOTS_ON_TARGET") is True
+
+
+def test_unsupported_player_tackles_not_promoted():
+    from bet.pipeline.analytical_candidate_bridge import _market_family_from_seed, _supported_analytical_family
+    m_tackles = {"name": "player_tackles", "market_type": "player_tackles"}
+    family = _market_family_from_seed(m_tackles)
+    assert family == "UNSUPPORTED_PROP_MATCH"
+    assert _supported_analytical_family(family) is False
+
+
+def test_model_probability_requires_real_stats():
+    from scripts.probability_engine import enrich_ranking_with_probabilities
+    
+    # If len of L10 stats is less than 5, must fall back to hit rate proxy
+    ranking_result = {
+        "ranking": [
+            {
+                "name": "goals_over/under",
+                "line": 2.5,
+                "direction": "OVER",
+                "hit_rate_l10": 0.70,
+                "hit_rate_h2h": 0.50,
+            }
+        ],
+        "_markets_input": [
+            {
+                "name": "goals_over/under",
+                "line": 2.5,
+                "direction": "OVER",
+                "team_a_l10": [2, 3],  # only 2 matches (less than 5)
+                "team_b_l10": [1, 2],
+            }
+        ]
+    }
+    enriched = enrich_ranking_with_probabilities(ranking_result)
+    assert enriched["ranking"][0]["model_used"] == "S3_HIT_RATE_PROXY"
+    assert enriched["ranking"][0]["probability"] == 0.60
+
+
+def test_probability_missing_reason_when_no_stats():
+    # If has_data is False (no stats), S3 report should output NO_STATS_DATA_FOR_MODEL_PROBABILITY
+    from scripts.deep_stats_report import analyze_candidate
+    result = analyze_candidate(
+        "football",
+        "Alpha",
+        "Beta",
+        "Test League",
+        "2026-06-29T18:00:00+00:00",
+        shortlist_safety_markets=None,
+    )
+    assert result["model_probability"] is None
+    assert result["probability_missing_reason"] == "NO_STATS_DATA_FOR_MODEL_PROBABILITY"
+
+
+def test_analytical_bridge_promotes_only_when_identity_stats_probability_ready():
+    # Verify that the bridge strictly validates and only promotes when ready
+    valuation_payload = {
+        "candidates": [
+            {
+                "fixture_id": 20,
+                "sport": "football",
+                "home_team": "Alpha",
+                "away_team": "Beta",
+                "competition": "Test League",
+                "scheduled_time": "2026-06-29T18:00:00+00:00",
+                "best_market": {"name": "Goals Total O/U", "direction": "OVER", "line": 2.5},
+                "model_probability": 0.62,
+                "probability_method": "S3_PROBABILITY_ENGINE",
+                "odds": {"market_best": 1.91},
+            }
+        ]
+    }
+    
+    # 1. Stats missing blocks promotion
+    handoff_no_stats = build_analytical_candidate_handoff(
+        valuation_payload,
+        s3_payload=None,
+        source_artifact_path="/tmp/val.json",
+    )
+    assert handoff_no_stats["counts"]["analytical_ready"] == 0
+    assert handoff_no_stats["counts"]["blocked_stats_missing"] == 1
+

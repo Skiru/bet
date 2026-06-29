@@ -60,8 +60,14 @@ def _market_family_from_seed(seed: dict[str, Any]) -> str:
     market_type = _normalized(seed.get("market_type") or seed.get("market_family") or seed.get("name")).lower()
     if not market_type:
         return ""
+    if "player" in market_type or "tackles" in market_type or "player_tackles" in market_type:
+        return "UNSUPPORTED_PROP_MATCH"
+    if "shots_on_target" in market_type or "shots on target" in market_type:
+        return "SHOTS_ON_TARGET"
+    if "shots" in market_type:
+        return "SHOTS"
     if any(token in market_type for token in ("goal", "total", "over", "under")):
-        return "TOTALS"
+        return "GOALS_TOTALS"
     if "corner" in market_type:
         return "CORNERS"
     if any(token in market_type for token in ("card", "booking")):
@@ -74,7 +80,7 @@ def _market_family_from_seed(seed: dict[str, Any]) -> str:
 
 
 def _supported_analytical_family(family: str) -> bool:
-    return family in {"RESULT", "TOTALS", "CORNERS", "CARDS", "HANDICAP"}
+    return family in {"RESULT", "TOTALS", "GOALS_TOTALS", "CORNERS", "CARDS", "HANDICAP", "SHOTS", "SHOTS_ON_TARGET"}
 
 
 def _pick_from_seed(seed: dict[str, Any], participants: list[str]) -> str:
@@ -427,7 +433,7 @@ def build_analytical_candidate_handoff(
             analytical_status = "MISSING_COMPETITION"
         elif not market_seed["market_family"]:
             analytical_status = "MISSING_MARKET_FAMILY"
-        elif market_seed["market_family"] in {"TOTALS", "HANDICAP", "CORNERS", "CARDS"} and market_seed["line"] in (None, "", "MISSING"):
+        elif market_seed["market_family"] in {"TOTALS", "GOALS_TOTALS", "HANDICAP", "CORNERS", "CARDS", "SHOTS", "SHOTS_ON_TARGET"} and market_seed["line"] in (None, "", "MISSING"):
             analytical_status = "MISSING_LINE"
         elif probability_contract["model_probability"] is None:
             analytical_status = "INSUFFICIENT_MODEL_PROBABILITY"
