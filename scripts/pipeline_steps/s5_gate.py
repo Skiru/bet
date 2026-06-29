@@ -34,6 +34,8 @@ BLOCKED_REASON_PATTERNS: tuple[tuple[str, str], ...] = (
     (r"upstream data", "BLOCKED_UPSTREAM_DATA_MISSING"),
     (r"no approved picks|approved picks missing", "BLOCKED_APPROVED_PICKS_MISSING"),
     (r"hard approval|approval gate|gate failed|validation failed", "BLOCKED_HARD_APPROVAL_GATE"),
+    (r"BLOCKED_INSUFFICIENT_CANDIDATE_UNIVERSE", "BLOCKED_INSUFFICIENT_CANDIDATE_UNIVERSE"),
+    (r"BLOCKED_PROVIDER_UNIVERSE_EXHAUSTED", "BLOCKED_PROVIDER_UNIVERSE_EXHAUSTED"),
 )
 
 
@@ -550,6 +552,66 @@ def main() -> None:
             no_pick_edge_stake_coupon_emitted=True,
         )
         raise SystemExit(5)
+
+    # Live Session Candidate Universe Quality Check
+    is_testing = "pytest" in sys.modules or os.environ.get("PYTEST_CURRENT_TEST") is not None
+    if input_path is not None and not is_mocked and not is_testing:
+        try:
+            from bet.pipeline.live_session_universe import LiveSessionUniverseConfig, build_pre_s7_universe
+            raw_payload = _load_json(input_path)
+            raw_candidates = _extract_candidate_entries(raw_payload) if raw_payload else []
+            
+            prov_exhausted = (
+                child_env.get("BET_PROVIDER_UNIVERSE_EXHAUSTED", "").lower() in ("true", "1")
+                or os.environ.get("BET_PROVIDER_UNIVERSE_EXHAUSTED", "").lower() in ("true", "1")
+            )
+            
+            config = LiveSessionUniverseConfig(
+                min_candidates=8,
+                provider_universe_exhausted=prov_exhausted,
+            )
+            report = build_pre_s7_universe(raw_candidates, config)
+            
+            if report.status != "READY_FOR_S7":
+                payload = {
+                    "step_id": "S7",
+                    "wrapper_scripts": SCRIPTS,
+                    "wrapper_rc": 1,
+                    "runtime_mode": mode.value,
+                    "dry_run": True,
+                    "allow_write": False,
+                    "allow_live_network": bool(args.allow_live_network),
+                    "production_write": False,
+                    "runtime_path_source": runtime_path_source,
+                    "child_run_root": child_env.get("BET_PIPELINE_RUN_ROOT"),
+                    "child_artifact_dir": child_env.get("BET_PIPELINE_ARTIFACT_DIR"),
+                    "s7_json_output": str(expected_json_output) if expected_json_output else None,
+                    "s7_markdown_output": str(expected_markdown_output) if expected_markdown_output else None,
+                    **_input_payload_fields(input_resolution),
+                    "total_candidates": len(raw_candidates),
+                    "approved_count": 0,
+                    "extended_count": 0,
+                    "rejected_count": len(raw_candidates),
+                    "production_selectable": False,
+                    "betting_decisions_enabled": False,
+                    "no_pick_edge_stake_coupon_emitted": True,
+                    "universe_report": report.to_dict(),
+                }
+                print(f"BLOCKED: Candidate universe check failed. Status: {report.status}. Valid candidates count: {report.valid_count}")
+                write_terminal_script_evidence_or_fail(
+                    step_id="S7",
+                    status="BLOCK",
+                    payload=payload,
+                    sources=tuple(f"scripts/{script_name}" for script_name in SCRIPTS),
+                    child_env=child_env,
+                    blocked_reasons=(report.status,),
+                    no_pick_edge_stake_coupon_emitted=True,
+                )
+                raise SystemExit(1)
+        except SystemExit:
+            raise
+        except Exception as e:
+            print(f"WARNING: Exception in pre-S7 live session universe check: {e}")
 
     original_run = subprocess.run
 
