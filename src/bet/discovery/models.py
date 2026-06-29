@@ -28,6 +28,8 @@ class SourceRunStats(BaseModel):
     source: str
     events_fetched: int = 0
     sports_covered: list[str] = Field(default_factory=list)
+    per_sport_counts: dict[str, int] = Field(default_factory=dict)
+    per_sport_errors: dict[str, list[str]] = Field(default_factory=dict)
     errors: list[str] = Field(default_factory=list)
     duration_seconds: float = 0.0
     available: bool = True
@@ -73,6 +75,8 @@ class DiscoveryResult(BaseModel):
     fixtures: list[MergedFixture]
     total_discovered: int
     total_after_dedup: int
+    requested_sports: list[str] = Field(default_factory=list)
+    raw_by_sport: dict[str, int] = Field(default_factory=dict)
     by_sport: dict[str, int]
     source_stats: dict[str, SourceRunStats]
     issues: list[str] = Field(default_factory=list)

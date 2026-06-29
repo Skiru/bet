@@ -71,7 +71,11 @@ def main():
             "verdict": verdict,
             "total_discovered": 0,
             "total_after_dedup": 0,
+            "requested_sports": sports or [],
+            "raw_by_sport": {},
             "by_sport": {},
+            "provider_counts_by_sport": {},
+            "provider_errors_by_sport": {},
             "sources": {},
             "issues_count": 1,
             "db_schema_verdict": "FAIL",
@@ -96,7 +100,25 @@ def main():
             "verdict": verdict,
             "total_discovered": 0,
             "total_after_dedup": 0,
+            "requested_sports": result.requested_sports,
+            "raw_by_sport": result.raw_by_sport,
             "by_sport": {},
+            "provider_counts_by_sport": {
+                sport: {
+                    name: stats.per_sport_counts.get(sport, 0)
+                    for name, stats in result.source_stats.items()
+                    if sport in stats.per_sport_counts or sport in stats.per_sport_errors
+                }
+                for sport in result.requested_sports
+            },
+            "provider_errors_by_sport": {
+                sport: [
+                    error
+                    for stats in result.source_stats.values()
+                    for error in stats.per_sport_errors.get(sport, [])
+                ]
+                for sport in result.requested_sports
+            },
             "sources": {
                 name: {
                     "events": s.events_fetched,
@@ -141,7 +163,25 @@ def main():
         "verdict": result.verdict,
         "total_discovered": result.total_discovered,
         "total_after_dedup": result.total_after_dedup,
+        "requested_sports": result.requested_sports,
+        "raw_by_sport": result.raw_by_sport,
         "by_sport": result.by_sport,
+        "provider_counts_by_sport": {
+            sport: {
+                name: stats.per_sport_counts.get(sport, 0)
+                for name, stats in result.source_stats.items()
+                if sport in stats.per_sport_counts or sport in stats.per_sport_errors
+            }
+            for sport in result.requested_sports
+        },
+        "provider_errors_by_sport": {
+            sport: [
+                error
+                for stats in result.source_stats.values()
+                for error in stats.per_sport_errors.get(sport, [])
+            ]
+            for sport in result.requested_sports
+        },
         "sources": {
             name: {
                 "events": s.events_fetched,

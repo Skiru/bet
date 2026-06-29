@@ -99,6 +99,7 @@ class OddsAPIioAdapter(AbstractSourceAdapter):
                 self.logger.debug("Skipping odds-api-io event: %s", e)
                 continue
 
+        self._attach_odds_to_events(events)
         return events
 
     def _fetch_esports_filtered(self, date: str, target_sport: str) -> list[DiscoveredEvent]:
@@ -149,6 +150,7 @@ class OddsAPIioAdapter(AbstractSourceAdapter):
                 self.logger.debug("Skipping esports event: %s", e)
                 continue
         
+        self._attach_odds_to_events(events)
         return events
 
     def _get_esports_raw(self, date: str) -> list[dict]:
@@ -175,3 +177,57 @@ class OddsAPIioAdapter(AbstractSourceAdapter):
                 remainder = league_name[len(prefix):].lstrip(" -–—")
                 return remainder if remainder else league_name
         return league_name
+
+    def _attach_odds_to_events(self, events: list[DiscoveredEvent]) -> None:
+        """Fetch and attach odds to events in batches of 10."""
+        events_by_id = {str(ev.external_id): ev for ev in events}
+        event_ids = list(events_by_id.keys())
+        if not event_ids:
+            return
+        try:
+            for i in range(0, len(event_ids), 10):
+                batch = event_ids[i:i + 10]
+                odds_batch = self._client.get_odds_multi(batch)
+                if odds_batch:
+                    for odds_item in odds_batch:
+                        if not isinstance(odds_item, dict):
+                            continue
+                        event_id = str(odds_item.get("eventId", odds_item.get("id", "")))
+                        if event_id in events_by_id:
+                            extracted_odds = self._extract_odds(odds_item)
+                            if extracted_odds:
+                                events_by_id[event_id].odds = extracted_odds
+        except Exception as e:
+            self.logger.warning("Error fetching odds in OddsAPIioAdapter: %s", e)
+
+    def _extract_odds(self, odds_item: dict) -> dict | None:
+        """Extract flat odds from OddsAPIio odds item."""
+        bookmakers_data = odds_item.get("bookmakers", {})
+        odds = {}
+        if isinstance(bookmakers_data, dict):
+            for bookie_name, markets in bookmakers_data.items():
+                bm_key = bookie_name.lower().replace(" ", "_")
+                if isinstance(markets, list):
+                    for market in markets:
+                        mkey = market.get("name", "").lower().replace(" ", "_")
+                        for entry in market.get("odds", []):
+                            if isinstance(entry, dict):
+                                for side, price in entry.items():
+                                    try:
+                                        label = f"{bm_key}|{mkey}|{side}"
+                                        odds[label] = float(price)
+                                    except (ValueError, TypeError):
+                                        pass
+        elif isinstance(bookmakers_data, list):
+            for bm_item in bookmakers_data:
+                bm_name = bm_item.get("name", bm_item.get("key", "unknown"))
+                bm_key = bm_name.lower().replace(" ", "_")
+                for market in bm_item.get("markets", []):
+                    m_key = market.get("key", market.get("name", "")).lower()
+                    for outcome in market.get("outcomes", []):
+                        try:
+                            label = f"{bm_key}|{m_key}|{outcome.get('name', '')}"
+                            odds[label] = float(outcome.get("price", 0))
+                        except (ValueError, TypeError):
+                            pass
+        return odds if odds else None

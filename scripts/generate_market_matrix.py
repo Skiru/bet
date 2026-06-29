@@ -379,6 +379,8 @@ def extract_markets_from_odds_api(odds_event: dict) -> list[dict]:
                 oname = outcome.get("name", "")
                 point = outcome.get("point")
                 price = outcome.get("price", 0)
+                if not price or float(price) <= 1.01:
+                    continue
 
                 if point is not None:
                     outcome_key = f"{mkey}|{oname}|{point}"
