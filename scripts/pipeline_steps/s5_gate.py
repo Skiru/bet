@@ -595,7 +595,7 @@ def main() -> None:
                 selection_policy="none",
             )
             
-            if report.status != "READY_FOR_S7":
+            if report.status not in ("READY_FOR_S7", "READY_FOR_ANALYTICAL_OPERATOR_QUOTE_REVIEW"):
                 payload = {
                     "step_id": "S7",
                     "wrapper_scripts": SCRIPTS,

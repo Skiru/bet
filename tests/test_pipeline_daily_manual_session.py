@@ -761,6 +761,7 @@ def test_operator_quote_above_threshold_upgrades_to_bettable_manual_only(tmp_pat
             "model_probability": 0.50,
             "confidence_label": "MEDIUM",
             "line": "9.5",
+            "supporting_stats": [{"metric": "corners", "value": "12", "source": "ESPN", "as_of": "2026-06-28"}],
             "operator_quote": {
                 "operator": "Superbet",
                 "market_label": "Corners",
@@ -917,3 +918,461 @@ def test_bet_builder_combined_odds_never_computed_by_pipeline(tmp_path: Path):
     )
     assert reviews[0].review_status == "BET_BUILDER_QUOTE_REQUIRED"
     assert reviews[0].combined_bookmaker_odds_computed is False
+
+
+def test_price_acceptable_pending_evidence_review_status(tmp_path: Path):
+    config = _config(tmp_path)
+    draft_path = config.session_dir / "data" / "s8_coupon_drafts.json"
+    s9_path = config.session_dir / "data" / "s9_human_gate.json"
+
+    draft_data = [{
+        "draft_id": "draft-1",
+        "selections": [{
+            "selection_id": "sel-1",
+            "event": "Chelsea vs Arsenal",
+            "market": "Match Corners",
+            "pick": "OVER",
+            "odds_decimal": 0.0,
+            "odds_captured_at_utc": "",
+            "model_probability": 0.50,
+            "line": "9.5",
+            "supporting_stats": [{"metric": "Corners", "value": "UNKNOWN", "source": "UNKNOWN"}],
+            "operator_quote": {
+                "operator": "Superbet",
+                "market_label": "Corners",
+                "line": "9.5",
+                "odds_decimal": 2.50,
+                "combined_odds_decimal": 2.50,
+                "as_of_utc": "2026-06-28T12:00:00Z",
+                "entered_by_human": True,
+                "computed_by_pipeline": False
+            }
+        }]
+    }]
+    _write_draft(draft_path, draft_data)
+    _write_s9(s9_path)
+
+    reviews = review_s8_candidate_for_manual_session(
+        config=config,
+        s8_coupon_draft_path=draft_path,
+        s8_coupon_draft_sha256="dummy_sha_s8",
+        s9_artifact_path=s9_path,
+        s9_artifact_sha256="dummy_sha_s9",
+        operator_name="Superbet",
+    )
+    assert reviews[0].review_status == "PRICE_ACCEPTABLE_PENDING_EVIDENCE_REVIEW"
+
+
+def test_manual_quote_above_threshold_not_bettable_without_evidence_gate(tmp_path: Path):
+    config = _config(tmp_path)
+    draft_path = config.session_dir / "data" / "s8_coupon_drafts.json"
+    s9_path = config.session_dir / "data" / "s9_human_gate.json"
+
+    draft_data = [{
+        "draft_id": "draft-1",
+        "selections": [{
+            "selection_id": "sel-1",
+            "event": "Chelsea vs Arsenal",
+            "market": "Match Corners",
+            "pick": "OVER",
+            "odds_decimal": 0.0,
+            "odds_captured_at_utc": "",
+            "model_probability": 0.50,
+            "line": "9.5",
+            "supporting_stats": [],
+            "operator_quote": {
+                "operator": "Superbet",
+                "market_label": "Corners",
+                "line": "9.5",
+                "odds_decimal": 2.50,
+                "combined_odds_decimal": 2.50,
+                "as_of_utc": "2026-06-28T12:00:00Z",
+                "entered_by_human": True,
+                "computed_by_pipeline": False
+            }
+        }]
+    }]
+    _write_draft(draft_path, draft_data)
+    _write_s9(s9_path)
+
+    reviews = review_s8_candidate_for_manual_session(
+        config=config,
+        s8_coupon_draft_path=draft_path,
+        s8_coupon_draft_sha256="dummy_sha_s8",
+        s9_artifact_path=s9_path,
+        s9_artifact_sha256="dummy_sha_s9",
+        operator_name="Superbet",
+    )
+    assert reviews[0].review_status == "PRICE_ACCEPTABLE_PENDING_EVIDENCE_REVIEW"
+
+
+def test_manual_quote_must_be_entered_by_human(tmp_path: Path):
+    config = _config(tmp_path)
+    draft_path = config.session_dir / "data" / "s8_coupon_drafts.json"
+    s9_path = config.session_dir / "data" / "s9_human_gate.json"
+
+    draft_data = [{
+        "draft_id": "draft-1",
+        "selections": [{
+            "selection_id": "sel-1",
+            "event": "Chelsea vs Arsenal",
+            "market": "Match Corners",
+            "pick": "OVER",
+            "odds_decimal": 0.0,
+            "odds_captured_at_utc": "",
+            "model_probability": 0.50,
+            "line": "9.5",
+            "operator_quote": {
+                "operator": "Superbet",
+                "market_label": "Corners",
+                "line": "9.5",
+                "odds_decimal": 2.50,
+                "combined_odds_decimal": 2.50,
+                "as_of_utc": "2026-06-28T12:00:00Z",
+                "entered_by_human": False,
+                "computed_by_pipeline": False
+            }
+        }]
+    }]
+    _write_draft(draft_path, draft_data)
+    _write_s9(s9_path)
+
+    reviews = review_s8_candidate_for_manual_session(
+        config=config,
+        s8_coupon_draft_path=draft_path,
+        s8_coupon_draft_sha256="dummy_sha_s8",
+        s9_artifact_path=s9_path,
+        s9_artifact_sha256="dummy_sha_s9",
+        operator_name="Superbet",
+    )
+    assert reviews[0].review_status == "NO_FAKE_OPERATOR_QUOTE"
+
+
+def test_manual_quote_must_not_be_computed_by_pipeline(tmp_path: Path):
+    config = _config(tmp_path)
+    draft_path = config.session_dir / "data" / "s8_coupon_drafts.json"
+    s9_path = config.session_dir / "data" / "s9_human_gate.json"
+
+    draft_data = [{
+        "draft_id": "draft-1",
+        "selections": [{
+            "selection_id": "sel-1",
+            "event": "Chelsea vs Arsenal",
+            "market": "Match Corners",
+            "pick": "OVER",
+            "odds_decimal": 0.0,
+            "odds_captured_at_utc": "",
+            "model_probability": 0.50,
+            "line": "9.5",
+            "operator_quote": {
+                "operator": "Superbet",
+                "market_label": "Corners",
+                "line": "9.5",
+                "odds_decimal": 2.50,
+                "combined_odds_decimal": 2.50,
+                "as_of_utc": "2026-06-28T12:00:00Z",
+                "entered_by_human": True,
+                "computed_by_pipeline": True
+            }
+        }]
+    }]
+    _write_draft(draft_path, draft_data)
+    _write_s9(s9_path)
+
+    reviews = review_s8_candidate_for_manual_session(
+        config=config,
+        s8_coupon_draft_path=draft_path,
+        s8_coupon_draft_sha256="dummy_sha_s8",
+        s9_artifact_path=s9_path,
+        s9_artifact_sha256="dummy_sha_s9",
+        operator_name="Superbet",
+    )
+    assert reviews[0].review_status == "NO_FAKE_OPERATOR_QUOTE"
+
+
+def test_bet_builder_combined_odds_not_multiplied_from_legs(tmp_path: Path):
+    config = _config(tmp_path)
+    draft_path = config.session_dir / "data" / "s8_coupon_drafts.json"
+    s9_path = config.session_dir / "data" / "s9_human_gate.json"
+
+    draft_data = [{
+        "draft_id": "draft-1",
+        "selections": [
+            {
+                "selection_id": "sel-1",
+                "event": "Chelsea vs Arsenal",
+                "market": "Corners",
+                "pick": "OVER",
+                "odds_decimal": 0.0,
+                "odds_captured_at_utc": "",
+                "model_probability": 0.50,
+                "line": "9.5",
+                "operator_quote": {
+                    "operator": "Superbet",
+                    "market_label": "Corners",
+                    "line": "9.5",
+                    "odds_decimal": 1.50,
+                    "combined_odds_decimal": 3.0,
+                    "as_of_utc": "2026-06-28T12:00:00Z",
+                }
+            },
+            {
+                "selection_id": "sel-2",
+                "event": "Chelsea vs Arsenal",
+                "market": "Goals",
+                "pick": "OVER",
+                "odds_decimal": 0.0,
+                "odds_captured_at_utc": "",
+                "model_probability": 0.60,
+                "line": "2.5",
+                "operator_quote": {
+                    "operator": "Superbet",
+                    "market_label": "Goals",
+                    "line": "2.5",
+                    "odds_decimal": 2.00,
+                    "combined_odds_decimal": 3.0,
+                    "as_of_utc": "2026-06-28T12:00:00Z",
+                }
+            }
+        ]
+    }]
+    _write_draft(draft_path, draft_data)
+    _write_s9(s9_path)
+
+    reviews = review_s8_candidate_for_manual_session(
+        config=config,
+        s8_coupon_draft_path=draft_path,
+        s8_coupon_draft_sha256="dummy_sha_s8",
+        s9_artifact_path=s9_path,
+        s9_artifact_sha256="dummy_sha_s9",
+        operator_name="Superbet",
+    )
+    assert reviews[0].review_status == "NO_FAKE_OPERATOR_QUOTE"
+
+
+def test_analytical_only_report_not_ready_for_manual_placement(tmp_path: Path):
+    config = _config(tmp_path)
+    ledger_p = config.session_ledger_path
+    event = {
+        "schema_version": 1,
+        "event_type": "candidate_reviewed",
+        "recorded_at_utc": "2026-06-28T12:00:00Z",
+        "betting_day": config.betting_day,
+        "session_id": config.session_id,
+        "payload": {
+            "candidate_id": "cand-1",
+            "review_status": "PRICE_PENDING_OPERATOR_CHECK"
+        }
+    }
+    ledger_p.parent.mkdir(parents=True, exist_ok=True)
+    with open(ledger_p, "w") as f:
+        f.write(json.dumps(event) + "\n")
+
+    report = generate_daily_session_report(config)
+    assert report.ready_for_manual_session is False
+    assert report.ready_for_manual_placement is False
+    assert report.ready_for_manual_operator_quote_review is True
+
+
+def test_ready_for_manual_operator_quote_review_true_for_analytical_only(tmp_path: Path):
+    config = _config(tmp_path)
+    ledger_p = config.session_ledger_path
+    event = {
+        "schema_version": 1,
+        "event_type": "candidate_reviewed",
+        "recorded_at_utc": "2026-06-28T12:00:00Z",
+        "betting_day": config.betting_day,
+        "session_id": config.session_id,
+        "payload": {
+            "candidate_id": "cand-1",
+            "review_status": "PRICE_PENDING_OPERATOR_CHECK"
+        }
+    }
+    ledger_p.parent.mkdir(parents=True, exist_ok=True)
+    with open(ledger_p, "w") as f:
+        f.write(json.dumps(event) + "\n")
+
+    report = generate_daily_session_report(config)
+    assert report.ready_for_manual_operator_quote_review is True
+
+
+def test_synthetic_e2e_smoke_scenario(tmp_path: Path):
+    config = _config(tmp_path)
+    draft_path = config.session_dir / "data" / "s8_coupon_drafts.json"
+    s9_path = config.session_dir / "data" / "s9_human_gate.json"
+
+    draft_data = [{
+        "draft_id": "draft-smoke",
+        "selections": [
+            # 1. Priced candidate
+            {
+                "selection_id": "priced-1",
+                "event": "Chelsea vs Arsenal",
+                "market": "Match Goals",
+                "pick": "OVER",
+                "line": "2.5",
+                "odds_decimal": 1.95,
+                "odds_captured_at_utc": "2026-06-28T12:00:00Z"
+            },
+            # 2. Unpriced analytical candidate with model probability and evidence
+            {
+                "selection_id": "unpriced-analytical-1",
+                "event": "Chelsea vs Arsenal",
+                "market": "Match Corners",
+                "pick": "OVER",
+                "line": "9.5",
+                "odds_decimal": 0.0,
+                "odds_captured_at_utc": "",
+                "model_probability": 0.50,
+                "confidence_label": "MEDIUM",
+                "supporting_stats": [{"metric": "corners", "value": "12", "source": "ESPN", "as_of": "2026-06-28"}]
+            },
+            # 3. Unpriced candidate with manual quote above threshold but no evidence gate
+            {
+                "selection_id": "unpriced-no-evidence-1",
+                "event": "Chelsea vs Arsenal",
+                "market": "Match Corners",
+                "pick": "OVER",
+                "line": "9.5",
+                "odds_decimal": 0.0,
+                "odds_captured_at_utc": "",
+                "model_probability": 0.50,
+                "confidence_label": "MEDIUM",
+                "supporting_stats": [],
+                "operator_quote": {
+                    "operator": "Superbet",
+                    "market_label": "Corners",
+                    "line": "9.5",
+                    "odds_decimal": 2.50,
+                    "combined_odds_decimal": 2.50,
+                    "as_of_utc": "2026-06-28T12:00:00Z",
+                    "entered_by_human": True,
+                    "computed_by_pipeline": False
+                }
+            },
+            # 4. Quote below threshold
+            {
+                "selection_id": "unpriced-below-threshold-1",
+                "event": "Chelsea vs Arsenal",
+                "market": "Match Corners",
+                "pick": "OVER",
+                "line": "9.5",
+                "odds_decimal": 0.0,
+                "odds_captured_at_utc": "",
+                "model_probability": 0.50,
+                "confidence_label": "MEDIUM",
+                "supporting_stats": [{"metric": "corners", "value": "12", "source": "ESPN", "as_of": "2026-06-28"}],
+                "operator_quote": {
+                    "operator": "Superbet",
+                    "market_label": "Corners",
+                    "line": "9.5",
+                    "odds_decimal": 1.90,
+                    "combined_odds_decimal": 1.90,
+                    "as_of_utc": "2026-06-28T12:00:00Z",
+                    "entered_by_human": True,
+                    "computed_by_pipeline": False
+                }
+            },
+            # 5. Line mismatch
+            {
+                "selection_id": "unpriced-line-mismatch-1",
+                "event": "Chelsea vs Arsenal",
+                "market": "Match Corners",
+                "pick": "OVER",
+                "line": "9.5",
+                "odds_decimal": 0.0,
+                "odds_captured_at_utc": "",
+                "model_probability": 0.50,
+                "confidence_label": "MEDIUM",
+                "supporting_stats": [{"metric": "corners", "value": "12", "source": "ESPN", "as_of": "2026-06-28"}],
+                "operator_quote": {
+                    "operator": "Superbet",
+                    "market_label": "Corners",
+                    "line": "10.5",
+                    "odds_decimal": 2.50,
+                    "combined_odds_decimal": 2.50,
+                    "as_of_utc": "2026-06-28T12:00:00Z",
+                    "entered_by_human": True,
+                    "computed_by_pipeline": False
+                }
+            },
+            # 6. Fake computed quote attempt
+            {
+                "selection_id": "unpriced-fake-computed-1",
+                "event": "Chelsea vs Arsenal",
+                "market": "Match Corners",
+                "pick": "OVER",
+                "line": "9.5",
+                "odds_decimal": 0.0,
+                "odds_captured_at_utc": "",
+                "model_probability": 0.50,
+                "confidence_label": "MEDIUM",
+                "supporting_stats": [{"metric": "corners", "value": "12", "source": "ESPN", "as_of": "2026-06-28"}],
+                "operator_quote": {
+                    "operator": "Superbet",
+                    "market_label": "Corners",
+                    "line": "9.5",
+                    "odds_decimal": 2.50,
+                    "combined_odds_decimal": 2.50,
+                    "as_of_utc": "2026-06-28T12:00:00Z",
+                    "entered_by_human": True,
+                    "computed_by_pipeline": True
+                }
+            }
+        ]
+    }]
+    _write_draft(draft_path, draft_data)
+    _write_s9(s9_path)
+
+    reviews = review_s8_candidate_for_manual_session(
+        config=config,
+        s8_coupon_draft_path=draft_path,
+        s8_coupon_draft_sha256="dummy_sha_s8",
+        s9_artifact_path=s9_path,
+        s9_artifact_sha256="dummy_sha_s9",
+        operator_name="Superbet",
+    )
+
+    assert reviews[0].review_status == "BETTABLE_MANUAL_ONLY"
+    assert reviews[1].review_status == "PRICE_PENDING_OPERATOR_CHECK"
+    assert reviews[2].review_status == "PRICE_ACCEPTABLE_PENDING_EVIDENCE_REVIEW"
+    assert reviews[3].review_status == "REJECTED_BY_PRICE"
+    assert reviews[4].review_status == "LINE_MISMATCH_REQUIRES_REMODEL"
+    assert reviews[5].review_status == "NO_FAKE_OPERATOR_QUOTE"
+
+    for r in reviews:
+        append_ledger_event(
+            ledger_path=config.session_ledger_path,
+            event_type="candidate_reviewed",
+            betting_day=config.betting_day,
+            session_id=config.session_id,
+            payload=r.to_jsonable(),
+        )
+
+    from bet.pipeline.rich_coupon_package import build_rich_coupon_package
+    packages, report = build_rich_coupon_package(
+        betting_day=config.betting_day,
+        session_id=config.session_id,
+        session_ledger_path=config.session_ledger_path,
+        operator_name="Superbet",
+    )
+
+    assert len(packages) == 1
+    pkg = packages[0]
+
+    assert len(pkg.bettable_manual_legs) == 1
+    assert pkg.bettable_manual_legs[0]["candidate_id"] == f"{config.session_id}:draft-smoke:priced-1"
+
+    assert len(pkg.manual_quote_required_candidates) == 1
+    assert pkg.manual_quote_required_candidates[0]["candidate_id"] == f"{config.session_id}:draft-smoke:unpriced-analytical-1"
+
+    assert len(pkg.price_acceptable_pending_evidence_review) == 1
+    assert pkg.price_acceptable_pending_evidence_review[0]["candidate_id"] == f"{config.session_id}:draft-smoke:unpriced-no-evidence-1"
+
+    assert len(pkg.rejected_by_price) == 1
+    assert pkg.rejected_by_price[0]["candidate_id"] == f"{config.session_id}:draft-smoke:unpriced-below-threshold-1"
+
+    assert len(pkg.line_mismatch_requires_remodel) == 1
+    assert pkg.line_mismatch_requires_remodel[0]["candidate_id"] == f"{config.session_id}:draft-smoke:unpriced-line-mismatch-1"
+
+    assert len(pkg.analytical_suggestions) == 5

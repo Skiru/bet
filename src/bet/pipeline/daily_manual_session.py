@@ -158,6 +158,9 @@ class DailyManualSessionReport:
     protected_repo_write_verdict: str
     ready_for_manual_session: bool
     ready_for_production_execution: bool
+    ready_for_manual_operator_quote_review: bool
+    ready_for_manual_placement: bool
+    ready_for_automated_bet_placement: bool
     blockers: list[str]
 
     def to_jsonable(self) -> dict[str, Any]:
@@ -182,6 +185,36 @@ def extract_line(selection: dict[str, Any]) -> Decimal | None:
                 except (ValueError, TypeError, InvalidOperation):
                     pass
     return None
+
+
+def operator_quote_gate(*, actual_odds: Decimal, min_acceptable: Decimal) -> str:
+    """Evaluates entered manual operator quote against min acceptable threshold."""
+    if actual_odds >= min_acceptable:
+        return "PRICE_ACCEPTABLE_MANUAL_QUOTE"
+    return "REJECTED_BY_PRICE"
+
+
+def evidence_correlation_gate(
+    *,
+    supporting_stats: list[dict[str, Any]],
+    counter_stats: list[dict[str, Any]],
+    correlation_risk: str,
+) -> tuple[bool, str]:
+    """Evaluates evidence completeness and correlation risk."""
+    if correlation_risk == "HIGH":
+        return False, "Correlation risk is HIGH"
+    if not supporting_stats:
+        return False, "Evidence pack (supporting stats) is empty"
+    has_valid_source = False
+    for stat in supporting_stats:
+        src = stat.get("source")
+        val = stat.get("value")
+        if src and src != "UNKNOWN" and val != "UNKNOWN":
+            has_valid_source = True
+            break
+    if not has_valid_source:
+        return False, "No valid evidence sources found in supporting stats"
+    return True, "Passed evidence and correlation checks"
 
 
 def review_s8_candidate_for_manual_session(
@@ -416,7 +449,31 @@ def review_s8_candidate_for_manual_session(
                     actual_line = operator_quote.get("line")
                     is_bet_builder = len(selections) > 1
 
-                    if quote_status == "QUOTE_MISSING":
+                    entered_by_human = operator_quote.get("entered_by_human", True)
+                    computed_by_pipeline = operator_quote.get("computed_by_pipeline", False)
+
+                    # check synthesized by multiplication
+                    synthesized = False
+                    if len(selections) > 1:
+                        prod = Decimal("1")
+                        for s in selections:
+                            oq = s.get("operator_quote") or s.get("manual_quote") or {}
+                            o_dec = ZERO
+                            raw_o = oq.get("odds_decimal") or s.get("odds_decimal") or s.get("odds") or s.get("price")
+                            if raw_o not in (None, ""):
+                                try:
+                                    o_dec = _to_decimal(raw_o)
+                                except ValueError:
+                                    pass
+                            if o_dec > ZERO:
+                                prod *= o_dec
+                        if prod > Decimal("1") and abs(actual_odds - prod) < Decimal("0.0001"):
+                            synthesized = True
+
+                    if entered_by_human is False or computed_by_pipeline is True or synthesized:
+                        quote_decision_status = "NO_FAKE_OPERATOR_QUOTE"
+                        quote_decision_reason = "Fake computed quote blocked: must be entered by human and not computed by pipeline or synthesized by leg multiplication"
+                    elif quote_status == "QUOTE_MISSING":
                         quote_decision_status = "BET_BUILDER_QUOTE_REQUIRED" if is_bet_builder else "PRICE_PENDING_OPERATOR_CHECK"
                         quote_decision_reason = "Operator quote is missing"
                     elif is_bet_builder and operator_quote.get("combined_odds_decimal") in (None, "", ZERO, 0):
@@ -429,12 +486,37 @@ def review_s8_candidate_for_manual_session(
                         quote_decision_status = "PRICE_PENDING_OPERATOR_CHECK"
                         quote_decision_reason = "Manual operator quote odds missing"
                     else:
-                        if min_acceptable_operator_odds is not None and actual_odds < min_acceptable_operator_odds:
+                        if min_acceptable_operator_odds is not None:
+                            q_gate_res = operator_quote_gate(actual_odds=actual_odds, min_acceptable=min_acceptable_operator_odds)
+                        else:
+                            q_gate_res = "PRICE_ACCEPTABLE_MANUAL_QUOTE"
+
+                        if q_gate_res == "REJECTED_BY_PRICE":
                             quote_decision_status = "REJECTED_BY_PRICE"
                             quote_decision_reason = f"Operator odds {actual_odds} below minimum acceptable odds {min_acceptable_operator_odds}"
                         else:
-                            quote_decision_status = "BETTABLE_MANUAL_ONLY"
-                            quote_decision_reason = f"Passed operator quote gate: {actual_odds} >= {min_acceptable_operator_odds}"
+                            # Quote gate passed (PRICE_ACCEPTABLE_MANUAL_QUOTE).
+                            # Check timestamp and evidence/correlation gate
+                            has_timestamp = bool(operator_quote.get("as_of_utc"))
+                            supporting_stats = selection.get("supporting_stats") or []
+                            counter_stats = selection.get("counter_stats") or []
+                            correlation_risk = corr_info["correlation_risk"]
+
+                            ev_corr_passed, ev_corr_reason = evidence_correlation_gate(
+                                supporting_stats=supporting_stats,
+                                counter_stats=counter_stats,
+                                correlation_risk=correlation_risk,
+                            )
+
+                            if not has_timestamp:
+                                quote_decision_status = "PRICE_PENDING_OPERATOR_CHECK"
+                                quote_decision_reason = "Operator quote as_of timestamp is missing"
+                            elif not ev_corr_passed:
+                                quote_decision_status = "PRICE_ACCEPTABLE_PENDING_EVIDENCE_REVIEW"
+                                quote_decision_reason = f"Passed operator quote gate: {actual_odds} >= {min_acceptable_operator_odds} (PRICE_ACCEPTABLE_MANUAL_QUOTE), but pending evidence/correlation check: {ev_corr_reason}"
+                            else:
+                                quote_decision_status = "BETTABLE_MANUAL_ONLY"
+                                quote_decision_reason = f"Passed operator quote, line, timestamp, evidence, and correlation gates: {actual_odds} >= {min_acceptable_operator_odds}"
 
             if blockers:
                 review_status = "NO_BET"
@@ -547,7 +629,7 @@ def generate_daily_session_report(
     candidate_count = len(state["reviewed"])
     no_bet_count = sum(1 for c in state["reviewed"].values() if c.get("review_status") == "NO_BET")
     bettable_count = sum(1 for c in state["reviewed"].values() if c.get("review_status") == "BETTABLE_MANUAL_ONLY")
-    analytical_count = sum(1 for c in state["reviewed"].values() if c.get("review_status") in ("PRICE_PENDING_OPERATOR_CHECK", "BET_BUILDER_QUOTE_REQUIRED", "LINE_MISMATCH_REQUIRES_REMODEL", "NO_OPERATOR_MARKET_FOUND", "INSUFFICIENT_MODEL_PROBABILITY", "NO_FAKE_OPERATOR_QUOTE"))
+    analytical_count = sum(1 for c in state["reviewed"].values() if c.get("review_status") in ("PRICE_PENDING_OPERATOR_CHECK", "BET_BUILDER_QUOTE_REQUIRED", "LINE_MISMATCH_REQUIRES_REMODEL", "NO_OPERATOR_MARKET_FOUND", "INSUFFICIENT_MODEL_PROBABILITY", "NO_FAKE_OPERATOR_QUOTE", "PRICE_ACCEPTABLE_PENDING_EVIDENCE_REVIEW"))
 
     prepared_count = len(state["prepared"])
     placed_count = len(state["placed"])
@@ -632,7 +714,10 @@ def generate_daily_session_report(
     if _path_is_within(normalized.session_dir, Path(REPO_ROOT).resolve(strict=False)):
         blockers.append(f"session_dir must be outside repo root: {normalized.session_dir}")
 
-    ready_for_manual_session = len(blockers) == 0 and (bettable_count > 0 or analytical_count > 0)
+    ready_for_manual_operator_quote_review = len(blockers) == 0 and (bettable_count > 0 or analytical_count > 0)
+    ready_for_manual_placement = len(blockers) == 0 and bettable_count > 0
+    ready_for_manual_session = ready_for_manual_placement
+    ready_for_automated_bet_placement = False
 
     return DailyManualSessionReport(
         task_id=TASK_ID,
@@ -667,5 +752,8 @@ def generate_daily_session_report(
         protected_repo_write_verdict=protected_repo_write_verdict,
         ready_for_manual_session=ready_for_manual_session,
         ready_for_production_execution=False,
+        ready_for_manual_operator_quote_review=ready_for_manual_operator_quote_review,
+        ready_for_manual_placement=ready_for_manual_placement,
+        ready_for_automated_bet_placement=ready_for_automated_bet_placement,
         blockers=blockers,
     )

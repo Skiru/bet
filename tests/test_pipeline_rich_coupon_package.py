@@ -337,3 +337,40 @@ def test_no_automated_placement_readiness(tmp_path: Path):
 
     assert packages[0].ready_for_automated_bet_placement is False
     assert report.ready_for_automated_bet_placement is False
+
+
+def test_package_has_separate_analytical_and_bettable_sections(tmp_path: Path):
+    ledger_p = tmp_path / "session_ledger.jsonl"
+    
+    _write_ledger_event(ledger_p, "candidate_reviewed", _valid_candidate("c-1", review_status="BETTABLE_MANUAL_ONLY"))
+    _write_ledger_event(ledger_p, "candidate_reviewed", _valid_candidate("c-2", review_status="PRICE_PENDING_OPERATOR_CHECK", odds_decimal="0.0", odds_captured_at_utc="", model_probability=0.65))
+    _write_ledger_event(ledger_p, "candidate_reviewed", _valid_candidate("c-3", review_status="PRICE_ACCEPTABLE_PENDING_EVIDENCE_REVIEW", odds_decimal="0.0", odds_captured_at_utc="", model_probability=0.65))
+    _write_ledger_event(ledger_p, "candidate_reviewed", _valid_candidate("c-4", review_status="REJECTED_BY_PRICE", odds_decimal="0.0", odds_captured_at_utc="", model_probability=0.65))
+    _write_ledger_event(ledger_p, "candidate_reviewed", _valid_candidate("c-5", review_status="LINE_MISMATCH_REQUIRES_REMODEL", odds_decimal="0.0", odds_captured_at_utc="", model_probability=0.65))
+
+    packages, report = build_rich_coupon_package(
+        betting_day="2026-06-28",
+        session_id="session-1",
+        session_ledger_path=ledger_p,
+        operator_name="Betclic",
+    )
+
+    assert len(packages) == 1
+    pkg = packages[0]
+    
+    assert len(pkg.bettable_manual_legs) == 1
+    assert pkg.bettable_manual_legs[0]["candidate_id"] == "c-1"
+    
+    assert len(pkg.manual_quote_required_candidates) == 1
+    assert pkg.manual_quote_required_candidates[0]["candidate_id"] == "c-2"
+    
+    assert len(pkg.price_acceptable_pending_evidence_review) == 1
+    assert pkg.price_acceptable_pending_evidence_review[0]["candidate_id"] == "c-3"
+    
+    assert len(pkg.rejected_by_price) == 1
+    assert pkg.rejected_by_price[0]["candidate_id"] == "c-4"
+    
+    assert len(pkg.line_mismatch_requires_remodel) == 1
+    assert pkg.line_mismatch_requires_remodel[0]["candidate_id"] == "c-5"
+    
+    assert len(pkg.analytical_suggestions) == 4

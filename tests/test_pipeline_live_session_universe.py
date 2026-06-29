@@ -431,3 +431,39 @@ def test_expanded_discovery_does_not_report_no_bet_when_raw_discovery_zero():
             os.unlink(db_path)
         except OSError:
             pass
+
+
+def test_live_session_universe_splits_priced_and_unpriced_candidates():
+    config = LiveSessionUniverseConfig(min_candidates=1)
+    priced = _candidate({"candidate_id": "priced-1", "odds_decimal": 1.95})
+    unpriced = _candidate({"candidate_id": "unpriced-1", "odds_decimal": 0.0, "model_probability": 0.65})
+    report = build_pre_s7_universe([priced, unpriced], config)
+    assert len(report.priced_valid_candidates) == 1
+    assert report.priced_valid_candidates[0]["candidate_id"] == "priced-1"
+    assert len(report.unpriced_analytical_candidates) == 1
+    assert report.unpriced_analytical_candidates[0]["candidate_id"] == "unpriced-1"
+    assert report.unpriced_analytical_candidates[0]["status"] == "PRICE_PENDING_OPERATOR_CHECK"
+
+
+def test_missing_odds_blocks_priced_valid_but_allows_analytical_queue():
+    config = LiveSessionUniverseConfig(min_candidates=1)
+    unpriced = _candidate({"candidate_id": "unpriced-1", "odds_decimal": 0.0, "model_probability": 0.65})
+    report = build_pre_s7_universe([unpriced], config)
+    assert len(report.priced_valid_candidates) == 0
+    assert len(report.unpriced_analytical_candidates) == 1
+
+
+def test_unpriced_candidates_do_not_increment_ready_for_s7_count():
+    config = LiveSessionUniverseConfig(min_candidates=2)
+    priced = _candidate({"candidate_id": "priced-1", "odds_decimal": 1.95})
+    unpriced = _candidate({"candidate_id": "unpriced-1", "odds_decimal": 0.0, "model_probability": 0.65})
+    report = build_pre_s7_universe([priced, unpriced], config)
+    assert report.valid_count == 1
+    assert report.status == "READY_FOR_ANALYTICAL_OPERATOR_QUOTE_REVIEW"
+
+
+def test_only_unpriced_candidates_returns_ready_for_analytical_operator_quote_review():
+    config = LiveSessionUniverseConfig(min_candidates=2)
+    unpriced = _candidate({"candidate_id": "unpriced-1", "odds_decimal": 0.0, "model_probability": 0.65})
+    report = build_pre_s7_universe([unpriced], config)
+    assert report.status == "READY_FOR_ANALYTICAL_OPERATOR_QUOTE_REVIEW"

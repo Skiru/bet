@@ -83,7 +83,11 @@ class BetBuilderPackage:
     blockers: list[str]
     operator_screen_combined_odds_required: bool = True
     analytical_suggestions: list[dict] = field(default_factory=list)
+    manual_quote_required_candidates: list[dict] = field(default_factory=list)
+    price_acceptable_pending_evidence_review: list[dict] = field(default_factory=list)
     bettable_manual_legs: list[dict] = field(default_factory=list)
+    rejected_by_price: list[dict] = field(default_factory=list)
+    line_mismatch_requires_remodel: list[dict] = field(default_factory=list)
     ready_for_manual_operator_quote_review: bool = False
 
     def to_jsonable(self) -> dict[str, Any]:
@@ -213,7 +217,7 @@ def build_rich_coupon_package(
         status = cand.get("review_status")
         if status == "BETTABLE_MANUAL_ONLY":
             bettable_candidates.append(cand)
-        elif status in ("PRICE_PENDING_OPERATOR_CHECK", "BET_BUILDER_QUOTE_REQUIRED", "LINE_MISMATCH_REQUIRES_REMODEL", "NO_OPERATOR_MARKET_FOUND", "INSUFFICIENT_MODEL_PROBABILITY", "NO_FAKE_OPERATOR_QUOTE"):
+        elif status in ("PRICE_PENDING_OPERATOR_CHECK", "BET_BUILDER_QUOTE_REQUIRED", "LINE_MISMATCH_REQUIRES_REMODEL", "NO_OPERATOR_MARKET_FOUND", "INSUFFICIENT_MODEL_PROBABILITY", "NO_FAKE_OPERATOR_QUOTE", "PRICE_ACCEPTABLE_PENDING_EVIDENCE_REVIEW", "REJECTED_BY_PRICE"):
             analytical_candidates.append(cand)
         else:
             rejected_candidates.append(cand)
@@ -331,9 +335,8 @@ def build_rich_coupon_package(
             market_completeness_verdict = "FAIL"
             
     # Phase 5 Package Separation
-    analytical_suggestions_list = []
-    for cand in analytical_candidates:
-        analytical_suggestions_list.append({
+    def make_cand_dict(cand):
+        return {
             "candidate_id": cand.get("candidate_id"),
             "event_id": cand.get("event_id"),
             "event": cand.get("event"),
@@ -355,24 +358,34 @@ def build_rich_coupon_package(
             "conflicting_legs": cand.get("conflicting_legs") or [],
             "combined_bookmaker_odds_computed": False,
             "status": cand.get("review_status")
-        })
-        
+        }
+
+    analytical_suggestions_list = []
+    manual_quote_required_candidates_list = []
+    price_acceptable_pending_evidence_review_list = []
     bettable_manual_legs_list = []
-    for cand in bettable_candidates:
-        bettable_manual_legs_list.append({
-            "candidate_id": cand.get("candidate_id"),
-            "event_id": cand.get("event_id"),
-            "event": cand.get("event"),
-            "sport": cand.get("sport"),
-            "competition": cand.get("competition") or cand.get("league"),
-            "market": cand.get("market"),
-            "pick": cand.get("pick"),
-            "line": cand.get("line"),
-            "odds_decimal": str(cand.get("odds_decimal")),
-            "odds_captured_at_utc": cand.get("odds_captured_at_utc"),
-            "operator_name": cand.get("operator_name"),
-            "status": "BETTABLE_MANUAL_ONLY"
-        })
+    rejected_by_price_list = []
+    line_mismatch_requires_remodel_list = []
+
+    for c_id, cand in state["reviewed"].items():
+        status = cand.get("review_status")
+        cand_dict = make_cand_dict(cand)
+        if status == "BETTABLE_MANUAL_ONLY":
+            bettable_manual_legs_list.append(cand_dict)
+        elif status in ("PRICE_PENDING_OPERATOR_CHECK", "BET_BUILDER_QUOTE_REQUIRED"):
+            manual_quote_required_candidates_list.append(cand_dict)
+            analytical_suggestions_list.append(cand_dict)
+        elif status == "PRICE_ACCEPTABLE_PENDING_EVIDENCE_REVIEW":
+            price_acceptable_pending_evidence_review_list.append(cand_dict)
+            analytical_suggestions_list.append(cand_dict)
+        elif status == "REJECTED_BY_PRICE":
+            rejected_by_price_list.append(cand_dict)
+            analytical_suggestions_list.append(cand_dict)
+        elif status == "LINE_MISMATCH_REQUIRES_REMODEL":
+            line_mismatch_requires_remodel_list.append(cand_dict)
+            analytical_suggestions_list.append(cand_dict)
+        elif status in ("NO_OPERATOR_MARKET_FOUND", "INSUFFICIENT_MODEL_PROBABILITY", "NO_FAKE_OPERATOR_QUOTE"):
+            analytical_suggestions_list.append(cand_dict)
 
     is_analytical_only = (len(bettable_candidates) == 0 and len(analytical_candidates) > 0)
 
@@ -401,7 +414,11 @@ def build_rich_coupon_package(
             blockers=report_blockers,
             operator_screen_combined_odds_required=True,
             analytical_suggestions=analytical_suggestions_list,
+            manual_quote_required_candidates=manual_quote_required_candidates_list,
+            price_acceptable_pending_evidence_review=price_acceptable_pending_evidence_review_list,
             bettable_manual_legs=bettable_manual_legs_list,
+            rejected_by_price=rejected_by_price_list,
+            line_mismatch_requires_remodel=line_mismatch_requires_remodel_list,
             ready_for_manual_operator_quote_review=(len(analytical_suggestions_list) > 0)
         )
         packages.append(pkg)
@@ -430,7 +447,11 @@ def build_rich_coupon_package(
             blockers=[],
             operator_screen_combined_odds_required=True,
             analytical_suggestions=analytical_suggestions_list,
+            manual_quote_required_candidates=manual_quote_required_candidates_list,
+            price_acceptable_pending_evidence_review=price_acceptable_pending_evidence_review_list,
             bettable_manual_legs=bettable_manual_legs_list,
+            rejected_by_price=rejected_by_price_list,
+            line_mismatch_requires_remodel=line_mismatch_requires_remodel_list,
             ready_for_manual_operator_quote_review=True
         )
         packages.append(pkg)
@@ -488,7 +509,11 @@ def build_rich_coupon_package(
             blockers=[],
             operator_screen_combined_odds_required=True,
             analytical_suggestions=analytical_suggestions_list,
+            manual_quote_required_candidates=manual_quote_required_candidates_list,
+            price_acceptable_pending_evidence_review=price_acceptable_pending_evidence_review_list,
             bettable_manual_legs=bettable_manual_legs_list,
+            rejected_by_price=rejected_by_price_list,
+            line_mismatch_requires_remodel=line_mismatch_requires_remodel_list,
             ready_for_manual_operator_quote_review=True
         )
         packages.append(pkg)
@@ -526,7 +551,7 @@ def build_rich_coupon_package(
         correlation_review_verdict=correlation_review_verdict,
         operator_screen_required_verdict="PASS",
         no_automated_placement_verdict="PASS",
-        ready_for_production_coupon_building=True,
+        ready_for_production_coupon_building=(bettable_count > 0),
         human_manual_placement_required=(bettable_count > 0),
         ready_for_automated_bet_placement=False,
         ready_for_production_execution=False,

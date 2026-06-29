@@ -45,6 +45,7 @@ class CandidateInput:
     is_live: bool = False
     player_b: str = ""
     participant: str = ""
+    model_probability: Decimal | None = None
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> CandidateInput:
@@ -91,6 +92,14 @@ class CandidateInput:
         supporting = data.get("supporting_stats") or []
         counter = data.get("counter_stats") or []
         
+        model_prob = None
+        prob_raw = data.get("model_probability") or data.get("probability") or data.get("prob")
+        if prob_raw is not None:
+            try:
+                model_prob = Decimal(str(prob_raw))
+            except Exception:
+                pass
+
         return cls(
             candidate_id=str(data.get("candidate_id") or data.get("fixture_key") or data.get("fixture_id") or ""),
             event_id=str(data.get("event_id") or data.get("fixture_id") or ""),
@@ -109,6 +118,7 @@ class CandidateInput:
             is_live=bool(data.get("is_live") or data.get("live") or False),
             player_b=str(data.get("player_b") or ""),
             participant=str(data.get("participant") or ""),
+            model_probability=model_prob,
         )
 
 # Contract naming compatibility aliases
@@ -168,6 +178,9 @@ class UniverseQualityReport:
     source_gaps: list[SourceGap]
     valid_candidates: list[dict[str, Any]]
     as_of_utc: str
+    priced_valid_candidates: list[dict[str, Any]] = field(default_factory=list)
+    unpriced_analytical_candidates: list[dict[str, Any]] = field(default_factory=list)
+    rejected_candidates: list[dict[str, Any]] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -179,6 +192,9 @@ class UniverseQualityReport:
             "rejected_reasons": self.rejected_reasons,
             "source_gaps": [gap.to_dict() for gap in self.source_gaps],
             "valid_candidates": self.valid_candidates,
+            "priced_valid_candidates": self.priced_valid_candidates,
+            "unpriced_analytical_candidates": self.unpriced_analytical_candidates,
+            "rejected_candidates": self.rejected_candidates,
             "as_of_utc": self.as_of_utc,
         }
 
@@ -233,8 +249,9 @@ def classify_candidate_quality(candidate: CandidateInput, config: LiveSessionUni
 
     # 5. Missing Odds
     elif candidate.odds_decimal <= Decimal("1.0"):
-        # Lack of provider odds must not block analytical candidate
-        source_gaps.append(SourceGap(candidate.candidate_id, "ODDS_GAP", "Missing provider odds decimal"))
+        is_valid = False
+        reasons.append("Missing provider odds decimal")
+        verdict = CandidateQualityVerdict.REJECTED_MISSING_ODDS
 
     # 6. Missing Odds Timestamp
     elif not candidate.odds_captured_at_utc:
@@ -332,6 +349,22 @@ def classify_candidate_quality(candidate: CandidateInput, config: LiveSessionUni
 
     return CandidateQualityResult(candidate.candidate_id, is_valid, verdict, reasons, source_gaps)
 
+def classify_unpriced_analytical_candidate(candidate: CandidateInput, raw_dict: dict[str, Any]) -> bool:
+    """Check if candidate matches unpriced analytical candidate rules."""
+    if not candidate.event or not candidate.sport or not candidate.competition:
+        return False
+    if not candidate.market or not candidate.pick:
+        return False
+    is_ou_market = "O/U" in candidate.market or "Over/Under" in candidate.market or "Total" in candidate.market or candidate.pick.upper() in ("UNDER", "OVER") or candidate.pick.upper().startswith("UNDER ") or candidate.pick.upper().startswith("OVER ")
+    if is_ou_market and candidate.line in (None, "", "MISSING"):
+        return False
+    prob = candidate.model_probability
+    if prob is None or prob <= Decimal("0") or prob >= Decimal("1"):
+        return False
+    if not candidate.supporting_stats:
+        return False
+    return True
+
 def validate_candidate_sufficiency(valid_count: int, config: LiveSessionUniverseConfig) -> str:
     if valid_count >= config.min_candidates:
         return "READY_FOR_S7"
@@ -340,8 +373,9 @@ def validate_candidate_sufficiency(valid_count: int, config: LiveSessionUniverse
     return "BLOCKED_INSUFFICIENT_CANDIDATE_UNIVERSE"
 
 def build_pre_s7_universe(raw_candidates: list[dict[str, Any]], config: LiveSessionUniverseConfig) -> UniverseQualityReport:
-    valid_candidates = []
-    rejected_count = 0
+    priced_valid_candidates = []
+    unpriced_analytical_candidates = []
+    rejected_candidates = []
     source_gaps = []
     rejected_reasons = {}
 
@@ -349,23 +383,39 @@ def build_pre_s7_universe(raw_candidates: list[dict[str, Any]], config: LiveSess
         cand = CandidateInput.from_dict(raw)
         res = classify_candidate_quality(cand, config)
         if res.is_valid:
-            valid_candidates.append(raw)
+            priced_valid_candidates.append(raw)
             source_gaps.extend(res.source_gaps)
         else:
-            rejected_count += 1
-            rejected_reasons[res.verdict] = rejected_reasons.get(res.verdict, 0) + 1
+            if cand.odds_decimal <= Decimal("1.0") and classify_unpriced_analytical_candidate(cand, raw):
+                raw_copy = dict(raw)
+                raw_copy["status"] = "PRICE_PENDING_OPERATOR_CHECK"
+                unpriced_analytical_candidates.append(raw_copy)
+                source_gaps.extend(res.source_gaps)
+            else:
+                rejected_candidates.append(raw)
+                rejected_reasons[res.verdict] = rejected_reasons.get(res.verdict, 0) + 1
 
-    status = validate_candidate_sufficiency(len(valid_candidates), config)
+    if len(priced_valid_candidates) >= config.min_candidates:
+        status = "READY_FOR_S7"
+    elif len(unpriced_analytical_candidates) > 0:
+        status = "READY_FOR_ANALYTICAL_OPERATOR_QUOTE_REVIEW"
+    elif config.provider_universe_exhausted:
+        status = "BLOCKED_PROVIDER_UNIVERSE_EXHAUSTED"
+    else:
+        status = "BLOCKED_INSUFFICIENT_CANDIDATE_UNIVERSE"
 
     return UniverseQualityReport(
         status=status,
         total_input_count=len(raw_candidates),
-        valid_count=len(valid_candidates),
-        rejected_count=rejected_count,
+        valid_count=len(priced_valid_candidates),
+        rejected_count=len(rejected_candidates),
         source_gap_count=len(source_gaps),
         rejected_reasons=rejected_reasons,
         source_gaps=source_gaps,
-        valid_candidates=valid_candidates,
+        valid_candidates=priced_valid_candidates,
+        priced_valid_candidates=priced_valid_candidates,
+        unpriced_analytical_candidates=unpriced_analytical_candidates,
+        rejected_candidates=rejected_candidates,
         as_of_utc=datetime.now(timezone.utc).isoformat()
     )
 
