@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass, fields
+from dataclasses import dataclass, field, fields
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any
@@ -110,9 +110,18 @@ class RealPickReview:
     decision_reason: str
     blockers: list[str]
     as_of_utc: str
+    model_probability: Decimal | None = None
+    fair_odds: Decimal | None = None
+    min_acceptable_operator_odds: Decimal | None = None
+    operator_quote: dict | None = None
+    correlation_risk: str = "LOW"
+    correlation_notes: str = ""
+    scenario_coherence_score: Decimal | None = None
+    conflicting_legs: list[str] = field(default_factory=list)
+    combined_bookmaker_odds_computed: bool = False
 
     def to_jsonable(self) -> dict[str, Any]:
-        return _serialize_jsonable({field.name: getattr(self, field.name) for field in fields(self)})
+        return _serialize_jsonable({f.name: getattr(self, f.name) for f in fields(self)})
 
 
 @dataclass(frozen=True)
@@ -200,6 +209,45 @@ def review_s8_candidate_for_manual_session(
         if not isinstance(selections, list):
             continue
 
+        # Correlation Guard (Phase 6)
+        corr_info = {
+            "same_match": False,
+            "correlation_risk": "LOW",
+            "correlation_notes": "Single leg candidate",
+            "scenario_coherence_score": Decimal("1.0"),
+            "conflicting_legs": [],
+            "combined_bookmaker_odds_computed": False
+        }
+        if len(selections) > 1:
+            events_set = {str(s.get("event") or s.get("fixture") or "") for s in selections}
+            corr_info["same_match"] = len(events_set) == 1
+            corr_markets = [str(s.get("market") or s.get("market_name") or "").lower() for s in selections]
+            corr_picks = [str(s.get("pick") or s.get("direction") or "").lower() for s in selections]
+            
+            conflicting_legs = []
+            for i, m1 in enumerate(corr_markets):
+                for j, m2 in enumerate(corr_markets):
+                    if i >= j:
+                        continue
+                    p1 = corr_picks[i]
+                    p2 = corr_picks[j]
+                    if m1 == m2 and p1 != p2:
+                        corr_info["correlation_risk"] = "HIGH"
+                        corr_info["correlation_notes"] = f"Direct logical contradiction on {m1}: {p1} vs {p2}"
+                        corr_info["scenario_coherence_score"] = Decimal("0.0")
+                        conflicting_legs.append(m1)
+            corr_info["conflicting_legs"] = conflicting_legs
+            
+            if corr_info["correlation_risk"] == "LOW" and corr_info["same_match"]:
+                if any("player" in m for m in corr_markets) and any("total" in m or "o/u" in m for m in corr_markets):
+                    corr_info["correlation_risk"] = "HIGH"
+                    corr_info["correlation_notes"] = "High correlation: combines player-specific and total/O/U markets."
+                    corr_info["scenario_coherence_score"] = Decimal("0.7")
+                else:
+                    corr_info["correlation_risk"] = "MEDIUM"
+                    corr_info["correlation_notes"] = "Medium correlation: standard same-match Bet Builder."
+                    corr_info["scenario_coherence_score"] = Decimal("0.8")
+
         for sel_idx, selection in enumerate(selections):
             selection_id = str(selection.get("selection_id") or selection.get("id") or f"sel-{sel_idx}")
             candidate_id = f"{normalized.session_id}:{draft_id}:{selection_id}"
@@ -226,6 +274,36 @@ def review_s8_candidate_for_manual_session(
                     pass
             else:
                 stake_units = Decimal("1")
+
+            is_unpriced = (odds_decimal == ZERO)
+
+            # Fair Odds / Min Acceptable Odds (Phase 4)
+            model_probability = None
+            prob_raw = selection.get("model_probability") or selection.get("probability") or selection.get("prob")
+            if prob_raw is not None:
+                try:
+                    model_probability = _to_decimal(prob_raw)
+                except ValueError:
+                    pass
+
+            confidence_label = str(selection.get("confidence_label") or selection.get("confidence") or "MEDIUM").upper()
+            fair_odds = None
+            min_acceptable_operator_odds = None
+            prob_err = None
+
+            if model_probability is not None:
+                if model_probability <= ZERO or model_probability >= Decimal("1"):
+                    raise ValueError("model_probability must be > 0 and < 1")
+                fair_odds = (Decimal("1") / model_probability).quantize(Decimal("0.0001"))
+                margin_multipliers = {
+                    "HIGH": Decimal("1.05"),
+                    "MEDIUM": Decimal("1.08"),
+                    "LOW": Decimal("1.12")
+                }
+                mult = margin_multipliers.get(confidence_label, Decimal("1.08"))
+                min_acceptable_operator_odds = (fair_odds * mult).quantize(Decimal("0.0001"))
+            elif is_unpriced:
+                prob_err = "INSUFFICIENT_MODEL_PROBABILITY"
 
             # Parse players
             player_a = str(selection.get("player_a") or "")
@@ -259,10 +337,13 @@ def review_s8_candidate_for_manual_session(
                 blockers.append("missing market")
             if not pick:
                 blockers.append("missing pick")
-            if odds_decimal == ZERO:
-                blockers.append("missing odds decimal")
-            if not odds_captured_at_utc:
-                blockers.append("missing odds captured at utc")
+            
+            if not is_unpriced:
+                if odds_decimal == ZERO:
+                    blockers.append("missing odds decimal")
+                if not odds_captured_at_utc:
+                    blockers.append("missing odds captured at utc")
+            
             if not operator_name:
                 blockers.append("missing operator name")
 
@@ -288,7 +369,7 @@ def review_s8_candidate_for_manual_session(
                 blockers.append("contains fixture/test labels")
 
             # odds <= 1
-            if odds_decimal > ZERO and odds_decimal <= Decimal("1"):
+            if not is_unpriced and odds_decimal > ZERO and odds_decimal <= Decimal("1"):
                 blockers.append("odds decimal must be > 1")
 
             # stake > max_stake_units_per_coupon
@@ -311,9 +392,56 @@ def review_s8_candidate_for_manual_session(
                 if not _path_is_within(s8_coupon_draft_path, normalized.session_dir):
                     decision_reason = f"Compatibility warning: S8 path {s8_coupon_draft_path} is outside session root {normalized.session_dir}"
 
+            # Operator quote / Quote decision logic (Phase 3)
+            operator_quote = selection.get("operator_quote") or selection.get("manual_quote")
+            quote_decision_status = None
+            quote_decision_reason = ""
+
+            if is_unpriced:
+                if prob_err:
+                    quote_decision_status = "INSUFFICIENT_MODEL_PROBABILITY"
+                    quote_decision_reason = "Missing model probability for unpriced candidate"
+                elif operator_quote is None:
+                    quote_decision_status = "PRICE_PENDING_OPERATOR_CHECK"
+                    quote_decision_reason = "No manual Superbet quote provided"
+                else:
+                    quote_status = operator_quote.get("quote_status") or "QUOTE_ENTERED"
+                    actual_odds_raw = operator_quote.get("combined_odds_decimal") or operator_quote.get("odds_decimal")
+                    actual_odds = ZERO
+                    if actual_odds_raw not in (None, ""):
+                        try:
+                            actual_odds = _to_decimal(actual_odds_raw)
+                        except ValueError:
+                            pass
+                    actual_line = operator_quote.get("line")
+                    is_bet_builder = len(selections) > 1
+
+                    if quote_status == "QUOTE_MISSING":
+                        quote_decision_status = "BET_BUILDER_QUOTE_REQUIRED" if is_bet_builder else "PRICE_PENDING_OPERATOR_CHECK"
+                        quote_decision_reason = "Operator quote is missing"
+                    elif is_bet_builder and operator_quote.get("combined_odds_decimal") in (None, "", ZERO, 0):
+                        quote_decision_status = "BET_BUILDER_QUOTE_REQUIRED"
+                        quote_decision_reason = "Bet Builder combined odds missing"
+                    elif line != "MISSING" and actual_line is not None and str(line) != str(actual_line):
+                        quote_decision_status = "LINE_MISMATCH_REQUIRES_REMODEL"
+                        quote_decision_reason = f"Line mismatch: candidate line {line} vs operator line {actual_line}"
+                    elif actual_odds == ZERO:
+                        quote_decision_status = "PRICE_PENDING_OPERATOR_CHECK"
+                        quote_decision_reason = "Manual operator quote odds missing"
+                    else:
+                        if min_acceptable_operator_odds is not None and actual_odds < min_acceptable_operator_odds:
+                            quote_decision_status = "REJECTED_BY_PRICE"
+                            quote_decision_reason = f"Operator odds {actual_odds} below minimum acceptable odds {min_acceptable_operator_odds}"
+                        else:
+                            quote_decision_status = "BETTABLE_MANUAL_ONLY"
+                            quote_decision_reason = f"Passed operator quote gate: {actual_odds} >= {min_acceptable_operator_odds}"
+
             if blockers:
                 review_status = "NO_BET"
                 decision_reason = "; ".join(blockers)
+            elif is_unpriced:
+                review_status = quote_decision_status
+                decision_reason = quote_decision_reason
             else:
                 review_status = "BETTABLE_MANUAL_ONLY"
 
@@ -341,6 +469,15 @@ def review_s8_candidate_for_manual_session(
                     decision_reason=decision_reason,
                     blockers=blockers,
                     as_of_utc=utc_now_iso(),
+                    model_probability=model_probability,
+                    fair_odds=fair_odds,
+                    min_acceptable_operator_odds=min_acceptable_operator_odds,
+                    operator_quote=operator_quote,
+                    correlation_risk=corr_info["correlation_risk"],
+                    correlation_notes=corr_info["correlation_notes"],
+                    scenario_coherence_score=corr_info["scenario_coherence_score"],
+                    conflicting_legs=corr_info["conflicting_legs"],
+                    combined_bookmaker_odds_computed=False
                 )
             )
 
@@ -410,6 +547,7 @@ def generate_daily_session_report(
     candidate_count = len(state["reviewed"])
     no_bet_count = sum(1 for c in state["reviewed"].values() if c.get("review_status") == "NO_BET")
     bettable_count = sum(1 for c in state["reviewed"].values() if c.get("review_status") == "BETTABLE_MANUAL_ONLY")
+    analytical_count = sum(1 for c in state["reviewed"].values() if c.get("review_status") in ("PRICE_PENDING_OPERATOR_CHECK", "BET_BUILDER_QUOTE_REQUIRED", "LINE_MISMATCH_REQUIRES_REMODEL", "NO_OPERATOR_MARKET_FOUND", "INSUFFICIENT_MODEL_PROBABILITY", "NO_FAKE_OPERATOR_QUOTE"))
 
     prepared_count = len(state["prepared"])
     placed_count = len(state["placed"])
@@ -494,7 +632,7 @@ def generate_daily_session_report(
     if _path_is_within(normalized.session_dir, Path(REPO_ROOT).resolve(strict=False)):
         blockers.append(f"session_dir must be outside repo root: {normalized.session_dir}")
 
-    ready_for_manual_session = len(blockers) == 0 and bettable_count > 0
+    ready_for_manual_session = len(blockers) == 0 and (bettable_count > 0 or analytical_count > 0)
 
     return DailyManualSessionReport(
         task_id=TASK_ID,

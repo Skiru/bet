@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass, fields
+from dataclasses import dataclass, field, fields
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any
@@ -66,7 +66,7 @@ class BetBuilderPackage:
     package_id: str
     betting_day: str
     session_id: str
-    package_type: str  # SINGLE|BET_BUILDER|MULTI_BET_BUILDER|NO_BET_PACKAGE
+    package_type: str  # SINGLE|BET_BUILDER|MULTI_BET_BUILDER|NO_BET_PACKAGE|ANALYTICAL_ONLY
     event: str
     legs: list[CouponLeg]
     combined_odds_decimal: Decimal | None
@@ -82,6 +82,9 @@ class BetBuilderPackage:
     ready_for_production_execution: bool
     blockers: list[str]
     operator_screen_combined_odds_required: bool = True
+    analytical_suggestions: list[dict] = field(default_factory=list)
+    bettable_manual_legs: list[dict] = field(default_factory=list)
+    ready_for_manual_operator_quote_review: bool = False
 
     def to_jsonable(self) -> dict[str, Any]:
         return _serialize_jsonable({field.name: getattr(self, field.name) for field in fields(self)})
@@ -111,6 +114,8 @@ class RichCouponPackageReport:
     ready_for_automated_bet_placement: bool
     ready_for_production_execution: bool
     blockers: list[str]
+    analytical_suggestion_count: int = 0
+    ready_for_manual_operator_quote_review: bool = False
 
     def to_jsonable(self) -> dict[str, Any]:
         return _serialize_jsonable({field.name: getattr(self, field.name) for field in fields(self)})
@@ -202,16 +207,20 @@ def build_rich_coupon_package(
     candidate_count = len(state["reviewed"])
     bettable_candidates = []
     rejected_candidates = []
+    analytical_candidates = []
     
     for c_id, cand in state["reviewed"].items():
         status = cand.get("review_status")
         if status == "BETTABLE_MANUAL_ONLY":
             bettable_candidates.append(cand)
-        elif status == "NO_BET":
+        elif status in ("PRICE_PENDING_OPERATOR_CHECK", "BET_BUILDER_QUOTE_REQUIRED", "LINE_MISMATCH_REQUIRES_REMODEL", "NO_OPERATOR_MARKET_FOUND", "INSUFFICIENT_MODEL_PROBABILITY", "NO_FAKE_OPERATOR_QUOTE"):
+            analytical_candidates.append(cand)
+        else:
             rejected_candidates.append(cand)
             
     no_bet_count = len(rejected_candidates)
     bettable_count = len(bettable_candidates)
+    analytical_count = len(analytical_candidates)
     
     packages: list[BetBuilderPackage] = []
     report_blockers: list[str] = []
@@ -321,8 +330,54 @@ def build_rich_coupon_package(
             report_blockers.extend(leg_blockers)
             market_completeness_verdict = "FAIL"
             
+    # Phase 5 Package Separation
+    analytical_suggestions_list = []
+    for cand in analytical_candidates:
+        analytical_suggestions_list.append({
+            "candidate_id": cand.get("candidate_id"),
+            "event_id": cand.get("event_id"),
+            "event": cand.get("event"),
+            "sport": cand.get("sport"),
+            "competition": cand.get("competition") or cand.get("league"),
+            "market": cand.get("market"),
+            "pick": cand.get("pick"),
+            "line": cand.get("line"),
+            "model_probability": str(cand.get("model_probability")) if cand.get("model_probability") is not None else None,
+            "fair_odds": str(cand.get("fair_odds")) if cand.get("fair_odds") is not None else None,
+            "min_acceptable_operator_odds": str(cand.get("min_acceptable_operator_odds")) if cand.get("min_acceptable_operator_odds") is not None else None,
+            "confidence_label": cand.get("confidence_label") or cand.get("confidence"),
+            "evidence_pack": cand.get("supporting_stats") or [],
+            "counter_evidence": cand.get("counter_stats") or [],
+            "source_gaps": cand.get("source_gaps") or [],
+            "correlation_risk": cand.get("correlation_risk") or "LOW",
+            "correlation_notes": cand.get("correlation_notes") or "",
+            "scenario_coherence_score": str(cand.get("scenario_coherence_score")) if cand.get("scenario_coherence_score") is not None else None,
+            "conflicting_legs": cand.get("conflicting_legs") or [],
+            "combined_bookmaker_odds_computed": False,
+            "status": cand.get("review_status")
+        })
+        
+    bettable_manual_legs_list = []
+    for cand in bettable_candidates:
+        bettable_manual_legs_list.append({
+            "candidate_id": cand.get("candidate_id"),
+            "event_id": cand.get("event_id"),
+            "event": cand.get("event"),
+            "sport": cand.get("sport"),
+            "competition": cand.get("competition") or cand.get("league"),
+            "market": cand.get("market"),
+            "pick": cand.get("pick"),
+            "line": cand.get("line"),
+            "odds_decimal": str(cand.get("odds_decimal")),
+            "odds_captured_at_utc": cand.get("odds_captured_at_utc"),
+            "operator_name": cand.get("operator_name"),
+            "status": "BETTABLE_MANUAL_ONLY"
+        })
+
+    is_analytical_only = (len(bettable_candidates) == 0 and len(analytical_candidates) > 0)
+
     # If any blocker exists on legs, create a NO_BET_PACKAGE and fail
-    if report_blockers or not legs:
+    if report_blockers or (not legs and not is_analytical_only):
         pkg_type = "NO_BET_PACKAGE"
         pkg_id = f"{session_id}:pkg:no-bet"
         pkg = BetBuilderPackage(
@@ -345,6 +400,38 @@ def build_rich_coupon_package(
             ready_for_production_execution=False,
             blockers=report_blockers,
             operator_screen_combined_odds_required=True,
+            analytical_suggestions=analytical_suggestions_list,
+            bettable_manual_legs=bettable_manual_legs_list,
+            ready_for_manual_operator_quote_review=(len(analytical_suggestions_list) > 0)
+        )
+        packages.append(pkg)
+    elif is_analytical_only:
+        pkg_type = "ANALYTICAL_ONLY"
+        pkg_id = f"{session_id}:pkg:analytical-only"
+        event_name = analytical_candidates[0].get("event") if analytical_candidates else "N/A"
+        pkg = BetBuilderPackage(
+            package_id=pkg_id,
+            betting_day=betting_day,
+            session_id=session_id,
+            package_type=pkg_type,
+            event=event_name,
+            legs=[],
+            combined_odds_decimal=None,
+            stake_units=ZERO,
+            max_daily_risk_units=max_daily_risk_units,
+            value_summary=f"Analytical suggestions only. Minimum acceptable operator odds are calculated for {len(analytical_candidates)} options.",
+            risk_summary="Requires manual Superbet operator screens/web app checks to review actual combined lines/odds.",
+            correlation_risk="LOW",
+            operator_screen_checklist=["Locate unpriced match options on Superbet.", "Verify minimum acceptable operator odds on screen."],
+            human_action_required=True,
+            ready_for_human_manual_placement=False,
+            ready_for_automated_bet_placement=False,
+            ready_for_production_execution=False,
+            blockers=[],
+            operator_screen_combined_odds_required=True,
+            analytical_suggestions=analytical_suggestions_list,
+            bettable_manual_legs=bettable_manual_legs_list,
+            ready_for_manual_operator_quote_review=True
         )
         packages.append(pkg)
     else:
@@ -400,6 +487,9 @@ def build_rich_coupon_package(
             ready_for_production_execution=False,
             blockers=[],
             operator_screen_combined_odds_required=True,
+            analytical_suggestions=analytical_suggestions_list,
+            bettable_manual_legs=bettable_manual_legs_list,
+            ready_for_manual_operator_quote_review=True
         )
         packages.append(pkg)
 
@@ -437,10 +527,12 @@ def build_rich_coupon_package(
         operator_screen_required_verdict="PASS",
         no_automated_placement_verdict="PASS",
         ready_for_production_coupon_building=True,
-        human_manual_placement_required=True,
+        human_manual_placement_required=(bettable_count > 0),
         ready_for_automated_bet_placement=False,
         ready_for_production_execution=False,
         blockers=report_blockers,
+        analytical_suggestion_count=analytical_count,
+        ready_for_manual_operator_quote_review=(analytical_count > 0 or bettable_count > 0)
     )
     
     return packages, report

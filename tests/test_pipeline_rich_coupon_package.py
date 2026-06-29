@@ -287,3 +287,53 @@ def test_regression_paper_trading_readiness():
     from bet.pipeline.paper_trading import load_latest_paper_coupons
     # Verification of import
     assert load_latest_paper_coupons is not None
+
+
+def test_rich_package_separates_analytical_suggestions_from_bettable_legs(tmp_path: Path):
+    ledger_p = tmp_path / "session_ledger.jsonl"
+    _write_ledger_event(ledger_p, "candidate_reviewed", _valid_candidate("c-1"))
+    _write_ledger_event(ledger_p, "candidate_reviewed", _valid_candidate("c-2", review_status="PRICE_PENDING_OPERATOR_CHECK", odds_decimal="0.0", odds_captured_at_utc="", model_probability=0.65))
+
+    packages, report = build_rich_coupon_package(
+        betting_day="2026-06-28",
+        session_id="session-1",
+        session_ledger_path=ledger_p,
+        operator_name="Betclic",
+    )
+
+    assert len(packages) == 1
+    assert len(packages[0].bettable_manual_legs) == 1
+    assert len(packages[0].analytical_suggestions) == 1
+    assert packages[0].analytical_suggestions[0]["status"] == "PRICE_PENDING_OPERATOR_CHECK"
+
+
+def test_analytical_only_package_not_ready_for_manual_placement(tmp_path: Path):
+    ledger_p = tmp_path / "session_ledger.jsonl"
+    _write_ledger_event(ledger_p, "candidate_reviewed", _valid_candidate("c-1", review_status="PRICE_PENDING_OPERATOR_CHECK", odds_decimal="0.0", odds_captured_at_utc="", model_probability=0.65))
+
+    packages, report = build_rich_coupon_package(
+        betting_day="2026-06-28",
+        session_id="session-1",
+        session_ledger_path=ledger_p,
+        operator_name="Betclic",
+    )
+
+    assert len(packages) == 1
+    assert packages[0].package_type == "ANALYTICAL_ONLY"
+    assert packages[0].ready_for_human_manual_placement is False
+    assert packages[0].ready_for_manual_operator_quote_review is True
+
+
+def test_no_automated_placement_readiness(tmp_path: Path):
+    ledger_p = tmp_path / "session_ledger.jsonl"
+    _write_ledger_event(ledger_p, "candidate_reviewed", _valid_candidate("c-1"))
+
+    packages, report = build_rich_coupon_package(
+        betting_day="2026-06-28",
+        session_id="session-1",
+        session_ledger_path=ledger_p,
+        operator_name="Betclic",
+    )
+
+    assert packages[0].ready_for_automated_bet_placement is False
+    assert report.ready_for_automated_bet_placement is False

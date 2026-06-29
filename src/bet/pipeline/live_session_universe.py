@@ -233,9 +233,8 @@ def classify_candidate_quality(candidate: CandidateInput, config: LiveSessionUni
 
     # 5. Missing Odds
     elif candidate.odds_decimal <= Decimal("1.0"):
-        is_valid = False
-        reasons.append("Missing or invalid odds decimal")
-        verdict = CandidateQualityVerdict.REJECTED_MISSING_ODDS
+        # Lack of provider odds must not block analytical candidate
+        source_gaps.append(SourceGap(candidate.candidate_id, "ODDS_GAP", "Missing provider odds decimal"))
 
     # 6. Missing Odds Timestamp
     elif not candidate.odds_captured_at_utc:

@@ -99,6 +99,8 @@ def main() -> int:
             "ready_for_automated_bet_placement": report.ready_for_automated_bet_placement,
             "ready_for_production_execution": report.ready_for_production_execution,
             "blockers": report.blockers,
+            "analytical_suggestion_count": report.analytical_suggestion_count,
+            "ready_for_manual_operator_quote_review": report.ready_for_manual_operator_quote_review,
         }
 
         # Save Report
