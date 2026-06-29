@@ -375,3 +375,63 @@ def write_universe_report(report: UniverseQualityReport, output_path: Path) -> N
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with open(output_path, "w", encoding="utf-8") as f:
         json.dump(report.to_dict(), f, indent=2, ensure_ascii=False)
+
+
+def build_s7_traceability_fields(
+    report: UniverseQualityReport,
+    *,
+    report_path: Path,
+    input_path: Path | None,
+    selection_policy: str = "none",
+    selection_reason: str = "N/A",
+    selection_source_path: Path | None = None,
+    selected_count: int | None = None,
+    metric_context: str = "E2E_S7",
+) -> dict[str, Any]:
+    resolved_report_path = str(Path(report_path))
+    resolved_selection_source = selection_source_path or input_path
+
+    if selection_policy == "top_n":
+        if selected_count is None:
+            raise ValueError("top_n selection requires selected_count")
+        if not selection_reason or selection_reason == "N/A":
+            raise ValueError("top_n selection requires explicit selection_reason")
+        if resolved_selection_source is None:
+            raise ValueError("top_n selection requires explicit selection_source_path")
+    else:
+        selected_count = report.valid_count
+        selection_reason = "N/A"
+
+    return {
+        "pre_s7_universe_report_path": resolved_report_path,
+        "pre_s7_total_input_count": report.total_input_count,
+        "pre_s7_valid_count": report.valid_count,
+        "pre_s7_metric_context": metric_context,
+        "s7_input_count": selected_count,
+        "s7_selection_policy": selection_policy,
+        "s7_selection_reason": selection_reason,
+        "s7_selected_count": selected_count,
+        "s7_selection_source_path": str(resolved_selection_source) if resolved_selection_source else None,
+        "s7_metric_context": metric_context,
+    }
+
+
+def classify_wiring_fault(
+    *,
+    pre_s7_metric_context: str,
+    s7_metric_context: str,
+    pre_s7_valid_count: int | None,
+    s7_input_count: int | None,
+    s7_selection_policy: str | None,
+    s7_selection_reason: str | None,
+    s7_selection_source_path: str | None,
+) -> str:
+    if pre_s7_metric_context != s7_metric_context:
+        return "METRIC_CONTEXT_MIXED"
+    if s7_selection_policy == "top_n":
+        if not s7_selection_reason or s7_selection_reason == "N/A" or not s7_selection_source_path:
+            return "EXPLICIT_TOP_N_SELECTION_MISSING"
+        return "NONE"
+    if pre_s7_valid_count is not None and s7_input_count is not None and pre_s7_valid_count != s7_input_count:
+        return "S7_WIRING_BUG"
+    return "NONE"

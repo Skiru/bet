@@ -366,6 +366,7 @@ def _update_wrapper_evidence(child_env: dict[str, str], date: str | None, run_id
         "approved_count": 0,
         "extended_count": 0,
         "rejected_count": 0,
+        "s7_input_count": 0,
     }
     if json_output.exists():
         try:
@@ -376,6 +377,7 @@ def _update_wrapper_evidence(child_env: dict[str, str], date: str | None, run_id
                 "approved_count": int(summary.get("approved_count", 0) or 0),
                 "extended_count": int(summary.get("extended_count", 0) or 0),
                 "rejected_count": int(summary.get("rejected_count", 0) or 0),
+                "s7_input_count": int(summary.get("total_candidates", 0) or 0),
             }
         except Exception:
             pass
@@ -386,11 +388,14 @@ def _update_wrapper_evidence(child_env: dict[str, str], date: str | None, run_id
         try:
             evidence = json.loads(evidence_path.read_text(encoding="utf-8"))
             payload = evidence.get("payload") or {}
+            selection_policy = str(payload.get("s7_selection_policy") or "none")
+            selected_count = counts["s7_input_count"] if selection_policy == "none" else payload.get("s7_selected_count")
             payload.update(
                 {
                     "s7_json_output": str(json_output),
                     "s7_markdown_output": str(markdown_output),
                     **counts,
+                    "s7_selected_count": selected_count,
                     **_input_payload_fields(input_resolution),
                     "production_selectable": False,
                     "betting_decisions_enabled": False,
@@ -555,9 +560,15 @@ def main() -> None:
 
     # Live Session Candidate Universe Quality Check
     is_testing = "pytest" in sys.modules or os.environ.get("PYTEST_CURRENT_TEST") is not None
+    traceability_fields: dict[str, Any] | None = None
     if input_path is not None and not is_mocked and not is_testing:
         try:
-            from bet.pipeline.live_session_universe import LiveSessionUniverseConfig, build_pre_s7_universe
+            from bet.pipeline.live_session_universe import (
+                LiveSessionUniverseConfig,
+                build_pre_s7_universe,
+                build_s7_traceability_fields,
+                write_universe_report,
+            )
             raw_payload = _load_json(input_path)
             raw_candidates = _extract_candidate_entries(raw_payload) if raw_payload else []
             
@@ -571,6 +582,18 @@ def main() -> None:
                 provider_universe_exhausted=prov_exhausted,
             )
             report = build_pre_s7_universe(raw_candidates, config)
+            pre_s7_report_path = (
+                data_dir / f"{args.date}_pre_s7_universe_report.json"
+                if data_dir and args.date
+                else Path(child_env["BET_PIPELINE_RUN_ROOT"]) / "data" / "pre_s7_universe_report.json"
+            )
+            write_universe_report(report, pre_s7_report_path)
+            traceability_fields = build_s7_traceability_fields(
+                report,
+                report_path=pre_s7_report_path,
+                input_path=input_path,
+                selection_policy="none",
+            )
             
             if report.status != "READY_FOR_S7":
                 payload = {
@@ -595,6 +618,7 @@ def main() -> None:
                     "production_selectable": False,
                     "betting_decisions_enabled": False,
                     "no_pick_edge_stake_coupon_emitted": True,
+                    **traceability_fields,
                     "universe_report": report.to_dict(),
                 }
                 print(f"BLOCKED: Candidate universe check failed. Status: {report.status}. Valid candidates count: {report.valid_count}")
@@ -636,6 +660,7 @@ def main() -> None:
             allow_live_network=args.allow_live_network,
             blocked_reason_patterns=BLOCKED_REASON_PATTERNS,
             fallback_blocked_reason="BLOCKED_APPROVED_PICKS_MISSING",
+            extra_payload=traceability_fields if input_path is not None and not is_mocked and not is_testing else None,
         )
     except SystemExit:
         _update_wrapper_evidence(child_env, args.date, args.run_id, input_resolution)

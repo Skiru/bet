@@ -6,11 +6,14 @@ from decimal import Decimal
 from pathlib import Path
 from datetime import datetime, timezone, timedelta
 import pytest
+from scripts.pipeline_steps import s5_gate
 
 from bet.pipeline.live_session_universe import (
     LiveSessionUniverseConfig,
     CandidateInput,
+    build_s7_traceability_fields,
     classify_candidate_quality,
+    classify_wiring_fault,
     build_pre_s7_universe,
 )
 
@@ -132,6 +135,128 @@ def test_provider_exhausted_path():
     report = build_pre_s7_universe(raw_list, config)
     assert report.status == "BLOCKED_PROVIDER_UNIVERSE_EXHAUSTED"
     assert report.valid_count == 5
+
+
+def test_s7_traceability_reports_same_count_without_selection_limit(tmp_path: Path):
+    config = LiveSessionUniverseConfig(min_candidates=2)
+    raw_list = [_candidate({"candidate_id": f"cand-{i}"}) for i in range(2)]
+    report = build_pre_s7_universe(raw_list, config)
+    report_path = tmp_path / "2026-06-28_pre_s7_universe_report.json"
+
+    fields = build_s7_traceability_fields(
+        report,
+        report_path=report_path,
+        input_path=tmp_path / "2026-06-28_s4_valuation_candidates.json",
+        selection_policy="none",
+    )
+
+    assert fields["pre_s7_valid_count"] == 2
+    assert fields["s7_input_count"] == 2
+    assert fields["s7_selection_policy"] == "none"
+    assert fields["s7_selection_reason"] == "N/A"
+
+
+def test_top_n_selection_requires_explicit_reason_and_source_path(tmp_path: Path):
+    config = LiveSessionUniverseConfig(min_candidates=2)
+    raw_list = [_candidate({"candidate_id": f"cand-{i}"}) for i in range(2)]
+    report = build_pre_s7_universe(raw_list, config)
+    report_path = tmp_path / "2026-06-28_pre_s7_universe_report.json"
+
+    with pytest.raises(ValueError, match="selection_reason"):
+        build_s7_traceability_fields(
+            report,
+            report_path=report_path,
+            input_path=None,
+            selection_policy="top_n",
+            selected_count=1,
+        )
+
+    with pytest.raises(ValueError, match="selection_source_path"):
+        build_s7_traceability_fields(
+            report,
+            report_path=report_path,
+            input_path=None,
+            selection_policy="top_n",
+            selection_reason="ranked by score",
+            selected_count=1,
+        )
+
+
+def test_metric_context_mixing_is_classified_explicitly():
+    assert classify_wiring_fault(
+        pre_s7_metric_context="EXPANDED_RETRY",
+        s7_metric_context="BAD_SESSION_REPLAY",
+        pre_s7_valid_count=427,
+        s7_input_count=2,
+        s7_selection_policy="none",
+        s7_selection_reason="N/A",
+        s7_selection_source_path="/tmp/bad-session/data/2026-06-28_s4_valuation_candidates.json",
+    ) == "METRIC_CONTEXT_MIXED"
+
+
+def test_s7_never_reads_repeat_fallback_after_s4_pass(tmp_path: Path):
+    run_root = Path("/tmp") / f"bet-s7-traceability-{tmp_path.name}"
+    environ = {
+        "BET_PIPELINE_RUNTIME_MODE": "DRY_RUN",
+        "BET_PIPELINE_BETTING_DAY": "2026-06-28",
+        "BET_PIPELINE_RUN_ID": "trace-run",
+        "BET_PIPELINE_RUN_ROOT": str(run_root),
+        "BET_PIPELINE_DATA_DIR": str(run_root / "data"),
+        "BET_PIPELINE_COUPON_DIR": str(run_root / "coupons"),
+        "BET_PIPELINE_ARTIFACT_DIR": str(run_root / "artifacts"),
+    }
+    data_dir = Path(environ["BET_PIPELINE_DATA_DIR"])
+    artifact_dir = Path(environ["BET_PIPELINE_ARTIFACT_DIR"])
+    data_dir.mkdir(parents=True, exist_ok=True)
+    artifact_dir.mkdir(parents=True, exist_ok=True)
+
+    s4_path = data_dir / "2026-06-28_s4_valuation_candidates.json"
+    s4_path.write_text(
+        json.dumps(
+            {
+                "candidates": [
+                    _candidate(
+                        {
+                            "candidate_id": "cand-s4",
+                            "fixture_id": 10,
+                            "home_team": "Alpha",
+                            "away_team": "Beta",
+                            "best_market": {
+                                "name": "Over 2.5",
+                                "direction": "OVER",
+                                "safety_score": 0.82,
+                            },
+                            "market_count": 4,
+                            "ev": 0.11,
+                            "odds": {"market_best": 1.91},
+                        }
+                    )
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+    repeat_path = data_dir / "repeat_loss_handoff_2026-06-28.json"
+    repeat_path.write_text(json.dumps({"candidates": [{"fixture_id": "stale-repeat"}]}), encoding="utf-8")
+
+    s4_evidence = {
+        "schema_version": 1,
+        "artifact_type": "SCRIPT_EVIDENCE",
+        "step_id": "S4",
+        "status": "PASS",
+        "payload": {"s4_valuation_output_path": str(s4_path)},
+    }
+    for path in (
+        artifact_dir / "S4.json",
+        run_root / "pipeline_runs" / "2026-06-28" / "trace-run" / "artifacts" / "S4.json",
+    ):
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(s4_evidence), encoding="utf-8")
+
+    resolution = s5_gate.resolve_s7_input(environ, "2026-06-28", "trace-run")
+
+    assert Path(resolution["path"]).resolve() == s4_path.resolve()
+    assert resolution["source_kind"] == "s4_evidence_payload"
 
 def test_discover_events_migrates_logical_identity_when_missing():
     import sqlite3
