@@ -496,6 +496,25 @@ def load_team_form_from_db(team_name: str, sport: str) -> dict | None:
 
             stats_repo = StatsRepo(conn)
             forms = stats_repo.get_all_form_for_team(team.id, s.id)
+
+            # DEDUP FIX: If primary team_id has sparse form (<= 3 rows), look for alternative team_ids with similar name
+            if not forms or len(forms) <= 3:
+                parts = team_name.replace(",", " ").split()
+                surname = max(parts, key=len) if parts else team_name
+                if len(surname) >= 3:
+                    alt_rows = conn.execute(
+                        "SELECT id FROM teams WHERE sport_id = ? AND id != ? AND name LIKE ?",
+                        (s.id, team.id, f"%{surname}%"),
+                    ).fetchall()
+                    best_forms = forms
+                    best_count = len(forms) if forms else 0
+                    for alt in alt_rows:
+                        alt_form = stats_repo.get_all_form_for_team(alt["id"], s.id)
+                        if alt_form and len(alt_form) > best_count:
+                            best_forms = alt_form
+                            best_count = len(alt_form)
+                    forms = best_forms
+
             if forms:
                 # Convert DB format to cache-compatible format
                 # DB: list of TeamForm rows, each with stat_key, l10_avg (float), l5_avg (float)

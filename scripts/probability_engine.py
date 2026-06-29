@@ -24,6 +24,30 @@ def poisson_cdf(k: int, lam: float) -> float:
     return min(total, 1.0)
 
 
+def _parse_hit_rate(val: Any) -> float | None:
+    if val in (None, "", "N/A"):
+        return None
+    if isinstance(val, (int, float)):
+        return float(val)
+    val_str = str(val).strip()
+    if "/" in val_str:
+        try:
+            parts = val_str.split("/")
+            if len(parts) == 2:
+                num = float(parts[0])
+                den = float(parts[1])
+                if den > 0:
+                    return num / den
+        except (ValueError, ZeroDivisionError):
+            pass
+    else:
+        try:
+            return float(val_str)
+        except ValueError:
+            pass
+    return None
+
+
 def enrich_ranking_with_probabilities(ranking_result: dict[str, Any]) -> dict[str, Any]:
     """Enrich the ranked markets in ranking_result with real statistical probability data."""
     ranking = ranking_result.get("ranking") or []
@@ -55,11 +79,18 @@ def enrich_ranking_with_probabilities(ranking_result: dict[str, Any]) -> dict[st
         if m_input:
             team_a_l10 = m_input.get("team_a_l10") or []
             team_b_l10 = m_input.get("team_b_l10") or []
+            is_combined = m_input.get("is_combined", True)
 
             # Determine average stats for Poisson modeling if enough sample points exist
-            if len(team_a_l10) >= 5 and len(team_b_l10) >= 5:
+            has_enough_data = False
+            if is_combined:
+                has_enough_data = len(team_a_l10) >= 5 and len(team_b_l10) >= 5
+            else:
+                has_enough_data = len(team_a_l10) >= 5
+
+            if has_enough_data:
                 avg_a = sum(team_a_l10) / len(team_a_l10)
-                avg_b = sum(team_b_l10) / len(team_b_l10)
+                avg_b = sum(team_b_l10) / len(team_b_l10) if team_b_l10 else 0.0
 
                 name_lower = name.lower()
                 is_goal = any(kw in name_lower for kw in ("goal", "total", "over", "under"))
@@ -116,21 +147,26 @@ def enrich_ranking_with_probabilities(ranking_result: dict[str, Any]) -> dict[st
         # Fallback to hit rate if Poisson cannot be computed
         if prob is None:
             model_used = "S3_HIT_RATE_PROXY"
-            hit_l10 = r.get("hit_rate_l10")
-            hit_h2h = r.get("hit_rate_h2h")
+            hit_l10 = _parse_hit_rate(r.get("hit_rate_l10"))
+            hit_h2h = _parse_hit_rate(r.get("hit_rate_h2h"))
             if hit_l10 is not None and hit_h2h is not None:
-                prob = (float(hit_l10) + float(hit_h2h)) / 2.0
+                prob = (hit_l10 + hit_h2h) / 2.0
             elif hit_l10 is not None:
-                prob = float(hit_l10)
+                prob = hit_l10
             else:
-                prob = 0.50  # Baseline default
+                prob = None  # Insufficient sample / missing fields - do not fake
 
-        # Guarantee bounds [0.01, 0.99]
-        prob = max(0.01, min(0.99, prob))
-
-        r["probability"] = round(prob, 4)
-        r["fair_odds"] = round(1.0 / prob, 2)
-        r["lambda"] = round(lam, 4)
-        r["model_used"] = model_used
+        if prob is not None:
+            # Guarantee bounds [0.01, 0.99]
+            prob = max(0.01, min(0.99, prob))
+            r["probability"] = round(prob, 4)
+            r["fair_odds"] = round(1.0 / prob, 2)
+            r["lambda"] = round(lam, 4)
+            r["model_used"] = model_used
+        else:
+            r["probability"] = None
+            r["fair_odds"] = None
+            r["lambda"] = round(lam, 4)
+            r["model_used"] = None
 
     return ranking_result

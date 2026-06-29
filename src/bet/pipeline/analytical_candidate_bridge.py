@@ -437,6 +437,8 @@ def build_analytical_candidate_handoff(
             analytical_status = "MISSING_LINE"
         elif probability_contract["model_probability"] is None:
             analytical_status = "INSUFFICIENT_MODEL_PROBABILITY"
+        elif probability_contract["probability_confidence"] == "BLOCKED":
+            analytical_status = "INSUFFICIENT_MODEL_PROBABILITY"
         elif not supporting_stats:
             analytical_status = "INSUFFICIENT_SUPPORTING_STATS"
 

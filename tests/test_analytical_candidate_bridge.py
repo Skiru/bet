@@ -445,3 +445,333 @@ def test_analytical_bridge_promotes_only_when_identity_stats_probability_ready()
     assert handoff_no_stats["counts"]["analytical_ready"] == 0
     assert handoff_no_stats["counts"]["blocked_stats_missing"] == 1
 
+
+def test_market_probability_input_built_for_goals_totals():
+    from bet.pipeline.market_probability_inputs import build_market_probability_input
+    candidate = {
+        "candidate_id": "c1",
+        "sport": "football",
+        "market_family": "GOALS_TOTALS",
+        "market_type": "Goals Total O/U",
+        "pick": "OVER",
+        "line": 2.5,
+        "home_team": "Team A",
+        "away_team": "Team B",
+    }
+    stats_seed = {
+        "raw_data": {
+            "safety_input": {
+                "markets": [
+                    {
+                        "name": "Goals Total O/U",
+                        "line": 2.5,
+                        "team_a_l10": [2.0, 1.0, 3.0, 1.0, 2.0, 1.0, 2.0, 0.0, 1.0, 2.0],
+                        "team_b_l10": [1.0, 2.0, 0.0, 1.0, 3.0, 2.0, 1.0, 1.0, 2.0, 0.0],
+                    }
+                ]
+            }
+        }
+    }
+    inp = build_market_probability_input(candidate, stats_seed)
+    assert inp.market_family == "GOALS_TOTALS"
+    assert inp.team_a_l10 == [2.0, 1.0, 3.0, 1.0, 2.0, 1.0, 2.0, 0.0, 1.0, 2.0]
+    assert inp.team_b_l10 == [1.0, 2.0, 0.0, 1.0, 3.0, 2.0, 1.0, 1.0, 2.0, 0.0]
+
+
+def test_market_probability_input_built_for_result():
+    from bet.pipeline.market_probability_inputs import build_market_probability_input, validate_market_probability_input
+    candidate = {
+        "candidate_id": "c1",
+        "sport": "football",
+        "market_family": "RESULT",
+        "market_type": "ml",
+        "pick": "home",
+        "line": None,
+        "home_team": "Team A",
+        "away_team": "Team B",
+    }
+    stats_seed = {
+        "raw_data": {
+            "safety_input": {
+                "markets": [
+                    {
+                        "name": "Goals Total O/U",
+                        "line": 2.5,
+                        "team_a_l10": [2.0, 1.0, 3.0, 1.0, 2.0, 1.0, 2.0, 0.0, 1.0, 2.0],
+                        "team_b_l10": [1.0, 2.0, 0.0, 1.0, 3.0, 2.0, 1.0, 1.0, 2.0, 0.0],
+                    }
+                ]
+            }
+        }
+    }
+    inp = build_market_probability_input(candidate, stats_seed)
+    assert inp.market_family == "RESULT"
+    valid, reason = validate_market_probability_input(inp)
+    assert valid is True
+
+
+def test_market_probability_input_built_for_corners_when_l10_exists():
+    from bet.pipeline.market_probability_inputs import build_market_probability_input
+    candidate = {
+        "candidate_id": "c1",
+        "sport": "football",
+        "market_family": "CORNERS",
+        "market_type": "Corners Total O/U",
+        "pick": "OVER",
+        "line": 9.5,
+        "home_team": "Team A",
+        "away_team": "Team B",
+    }
+    stats_seed = {
+        "raw_data": {
+            "safety_input": {
+                "markets": [
+                    {
+                        "name": "Corners Total O/U",
+                        "line": 9.5,
+                        "team_a_l10": [5, 6, 7, 4, 5, 6, 4, 5, 6, 5],
+                        "team_b_l10": [4, 5, 4, 3, 5, 4, 3, 4, 5, 4],
+                    }
+                ]
+            }
+        }
+    }
+    inp = build_market_probability_input(candidate, stats_seed)
+    assert inp.market_family == "CORNERS"
+    assert len(inp.team_a_l10) == 10
+
+
+def test_probability_input_requires_line_for_totals_corners_cards_shots():
+    from bet.pipeline.market_probability_inputs import build_market_probability_input, validate_market_probability_input
+    candidate = {
+        "candidate_id": "c1",
+        "sport": "football",
+        "market_family": "CORNERS",
+        "market_type": "Corners Total O/U",
+        "pick": "OVER",
+        "line": None,
+        "home_team": "Team A",
+        "away_team": "Team B",
+    }
+    stats_seed = {
+        "raw_data": {
+            "safety_input": {
+                "markets": [
+                    {
+                        "name": "Corners Total O/U",
+                        "line": 9.5,
+                        "team_a_l10": [5, 6, 7, 4, 5, 6, 4, 5, 6, 5],
+                        "team_b_l10": [4, 5, 4, 3, 5, 4, 3, 4, 5, 4],
+                    }
+                ]
+            }
+        }
+    }
+    inp = build_market_probability_input(candidate, stats_seed)
+    valid, reason = validate_market_probability_input(inp)
+    assert valid is False
+    assert reason == "LINE_MISSING"
+
+
+def test_probability_input_requires_min_sample_size():
+    from bet.pipeline.market_probability_inputs import build_market_probability_input, validate_market_probability_input
+    candidate = {
+        "candidate_id": "c1",
+        "sport": "football",
+        "market_family": "GOALS_TOTALS",
+        "market_type": "Goals Total O/U",
+        "pick": "OVER",
+        "line": 2.5,
+        "home_team": "Team A",
+        "away_team": "Team B",
+    }
+    stats_seed = {
+        "raw_data": {
+            "safety_input": {
+                "markets": [
+                    {
+                        "name": "Goals Total O/U",
+                        "line": 2.5,
+                        "team_a_l10": [2, 1, 3],
+                        "team_b_l10": [1, 2, 0, 1],
+                    }
+                ]
+            }
+        }
+    }
+    inp = build_market_probability_input(candidate, stats_seed)
+    valid, reason = validate_market_probability_input(inp)
+    assert valid is False
+    assert reason == "INSUFFICIENT_SAMPLE_SIZE"
+
+
+def test_bookmaker_implied_probability_not_model_input():
+    valuation_payload = {
+        "candidates": [
+            {
+                "fixture_id": 30,
+                "sport": "football",
+                "home_team": "Alpha",
+                "away_team": "Beta",
+                "competition": "Test League",
+                "best_market": {"name": "Goals Total O/U", "direction": "OVER", "line": 2.5},
+                "model_probability": 0.55,
+                "probability_method": "BOOKMAKER_IMPLIED_REFERENCE_ONLY",
+                "odds": {"market_best": 1.95},
+            }
+        ]
+    }
+    handoff = build_analytical_candidate_handoff(
+        valuation_payload,
+        s3_payload=None,
+        source_artifact_path="/tmp/val.json",
+    )
+    assert handoff["counts"]["analytical_ready"] == 0
+    assert handoff["counts"]["blocked_probability_missing"] == 1
+    assert handoff["blocked_probability_missing"][0]["model_probability"] is None
+
+
+def test_probability_engine_called_for_supported_market_family():
+    from scripts.probability_engine import enrich_ranking_with_probabilities
+    ranking_result = {
+        "ranking": [
+            {
+                "name": "Goals Total O/U",
+                "line": 2.5,
+                "direction": "OVER",
+                "hit_rate_l10": "7/10",
+                "hit_rate_h2h": "3/5",
+            }
+        ],
+        "_markets_input": [
+            {
+                "name": "Goals Total O/U",
+                "line": 2.5,
+                "direction": "OVER",
+                "team_a_l10": [2, 1, 3, 4, 2, 1, 0, 1, 2, 3],
+                "team_b_l10": [1, 2, 1, 0, 1, 2, 1, 0, 1, 2],
+            }
+        ]
+    }
+    enriched = enrich_ranking_with_probabilities(ranking_result)
+    assert enriched["ranking"][0]["model_used"] == "S3_TEAM_FORM_CONTEXTUAL_PROXY"
+    assert enriched["ranking"][0]["probability"] is not None
+
+
+def test_probability_output_propagates_to_analytical_handoff():
+    valuation_payload = {
+        "candidates": [
+            {
+                "fixture_id": 40,
+                "sport": "football",
+                "home_team": "Alpha",
+                "away_team": "Beta",
+                "competition": "Test League",
+                "best_market": {"name": "Goals Total O/U", "direction": "OVER", "line": 2.5},
+                "model_probability": 0.62,
+                "probability_method": "S3_TEAM_FORM_CONTEXTUAL_PROXY",
+                "probability_sources": ["db"],
+                "probability_as_of": "2026-06-29T12:00:00Z",
+                "probability_confidence": "HIGH",
+                "odds": {"market_best": 1.91},
+            }
+        ]
+    }
+    s3_payload = {
+        "analyses": [
+            {
+                "fixture_id": 40,
+                "sport": "football",
+                "home_team": "Alpha",
+                "away_team": "Beta",
+                "competition": "Test League",
+                "best_market": {"name": "Goals Total O/U", "direction": "OVER", "line": 2.5, "probability": 0.62},
+                "stats_a_summary": {"has_data": True, "l10_avg": {"goals": 2.1}, "sources": ["db"]},
+                "stats_b_summary": {"has_data": True, "l10_avg": {"goals": 1.4}, "sources": ["db"]},
+                "h2h_summary": {"has_data": True, "meetings_count": 4},
+            }
+        ]
+    }
+    handoff = build_analytical_candidate_handoff(
+        valuation_payload,
+        s3_payload=s3_payload,
+        source_artifact_path="/tmp/val.json",
+    )
+    assert handoff["counts"]["analytical_ready"] == 1
+    cand = handoff["analytical_ready"][0]
+    assert cand["model_probability"] == "0.62"
+    assert cand["probability_method"] == "S3_TEAM_FORM_CONTEXTUAL_PROXY"
+    assert cand["probability_confidence"] == "HIGH"
+
+
+def test_probability_missing_reason_exact_when_series_missing():
+    valuation_payload = {
+        "candidates": [
+            {
+                "fixture_id": 50,
+                "sport": "football",
+                "home_team": "Alpha",
+                "away_team": "Beta",
+                "competition": "Test League",
+                "best_market": {"name": "Goals Total O/U", "direction": "OVER", "line": 2.5},
+                "odds": {"market_best": 1.91},
+            }
+        ]
+    }
+    s3_payload = {
+        "analyses": [
+            {
+                "fixture_id": 50,
+                "sport": "football",
+                "home_team": "Alpha",
+                "away_team": "Beta",
+                "competition": "Test League",
+                "best_market": {"name": "Goals Total O/U", "direction": "OVER", "line": 2.5, "probability": None},
+                "stats_a_summary": {"has_data": True, "l10_avg": {}, "sources": ["db"]},
+                "stats_b_summary": {"has_data": True, "l10_avg": {}, "sources": ["db"]},
+                "probability_missing_reason": "NO_MODEL_PROBABILITY_FROM_S3",
+            }
+        ]
+    }
+    handoff = build_analytical_candidate_handoff(
+        valuation_payload,
+        s3_payload=s3_payload,
+        source_artifact_path="/tmp/val.json",
+    )
+    assert handoff["counts"]["blocked_probability_missing"] == 1
+    assert handoff["blocked_probability_missing"][0]["probability_missing_reason"] == "NO_MODEL_PROBABILITY_FROM_S3"
+
+
+def test_player_tackles_remains_unsupported():
+    from bet.pipeline.market_probability_inputs import MarketProbabilityInput, validate_market_probability_input
+    inp = MarketProbabilityInput(
+        candidate_id="c1",
+        sport="football",
+        market_family="UNSUPPORTED_PROP_MATCH",
+        market_type="player_tackles",
+        selection="over",
+        direction="OVER",
+        line=2.5,
+        team_a_name="Alpha",
+        team_b_name="Beta",
+    )
+    valid, reason = validate_market_probability_input(inp)
+    assert valid is False
+    assert reason == "MARKET_FAMILY_NOT_SUPPORTED_BY_ENGINE"
+
+
+def test_no_fake_probability():
+    from scripts.probability_engine import enrich_ranking_with_probabilities
+    ranking_result = {
+        "ranking": [
+            {
+                "name": "Goals Total O/U",
+                "line": 2.5,
+                "direction": "OVER",
+            }
+        ],
+        "_markets_input": []
+    }
+    enriched = enrich_ranking_with_probabilities(ranking_result)
+    assert enriched["ranking"][0]["probability"] is None
+

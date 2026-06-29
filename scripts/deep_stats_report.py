@@ -481,6 +481,51 @@ def _extract_esports_h2h(sport: str, team_a: str, team_b: str, result: dict) -> 
     return result
 
 
+def _populate_stats_from_form(result: dict, form: dict, sport: str) -> None:
+    stat_keys = SPORT_STAT_KEYS.get(sport, [])
+
+    # Percentage stats should NOT sum home+away (would yield ~100%)
+    PERCENTAGE_STATS = {"possession", "fg_pct", "three_pct", "ft_pct",
+                        "first_serve_pct", "faceoff_pct", "hitting_pct",
+                        "checkout_pct"}
+
+    # Extract L10 and L5 averages, merging _home/_away split keys
+    for period_key, target in [("l10_avg", "l10_avg"), ("l5_avg", "l5_avg")]:
+        avg_data = form.get(period_key, {})
+        for key in stat_keys:
+            if key in avg_data:
+                # Bare key exists — use directly
+                result[target][key] = avg_data[key]
+            else:
+                # Check for _home/_away split keys (from ESPN/API enrichment)
+                home_key = f"{key}_home"
+                away_key = f"{key}_away"
+                has_home = home_key in avg_data
+                has_away = away_key in avg_data
+                if has_home or has_away:
+                    home_val = avg_data.get(home_key, 0.0)
+                    away_val = avg_data.get(away_key, 0.0)
+                    if key in PERCENTAGE_STATS:
+                        # Percentage stats: keep home-only (not summed)
+                        result[target][key] = home_val
+                    else:
+                        # Counting stats: sum home + away
+                        result[target][key] = round(home_val + away_val, 2)
+                    # Also preserve the split values
+                    if has_home:
+                        result[target][home_key] = home_val
+                    if has_away:
+                        result[target][away_key] = away_val
+
+    # Extract L10 match-by-match data
+    l10 = form.get("l10_matches", form.get("recent_matches", []))
+    result["l10_matches"] = l10[:10] if l10 else []
+
+    # Only mark has_data if we actually extracted meaningful stats
+    if result["l10_avg"] or result["l5_avg"] or result["l10_matches"]:
+        result["has_data"] = True
+
+
 def extract_team_stats(sport: str, team_name: str) -> dict:
     """Read stats cache for a single team. DB-first with JSON cache fallback.
 
@@ -511,16 +556,9 @@ def extract_team_stats(sport: str, team_name: str) -> dict:
         db_form = load_team_form_from_db(team_name, sport)
         if db_form and db_form.get("form"):
             form = db_form["form"]
-            stat_keys = SPORT_STAT_KEYS.get(sport, [])
-            for key in stat_keys:
-                if key in form.get("l10_avg", {}):
-                    result["l10_avg"][key] = form["l10_avg"][key]
-                if key in form.get("l5_avg", {}):
-                    result["l5_avg"][key] = form["l5_avg"][key]
-            result["l10_matches"] = form.get("l10_matches", [])[:10]
+            _populate_stats_from_form(result, form, sport)
             result["sources"] = db_form.get("sources", ["db"])
-            if result["l10_avg"]:
-                result["has_data"] = True
+            if result["has_data"]:
                 return result
     except Exception as e:
         logger.debug("Non-critical failure in cache read / DB lookup: %s", e)
@@ -554,48 +592,7 @@ def extract_team_stats(sport: str, team_name: str) -> dict:
     result["sources"] = cache.get("sources", [])
 
     form = cache.get("form", {})
-    stat_keys = SPORT_STAT_KEYS.get(sport, [])
-
-    # Percentage stats should NOT sum home+away (would yield ~100%)
-    PERCENTAGE_STATS = {"possession", "fg_pct", "three_pct", "ft_pct",
-                        "first_serve_pct", "faceoff_pct", "hitting_pct",
-                        "checkout_pct"}
-
-    # Extract L10 and L5 averages, merging _home/_away split keys
-    for period_key, target in [("l10_avg", "l10_avg"), ("l5_avg", "l5_avg")]:
-        avg_data = form.get(period_key, {})
-        for key in stat_keys:
-            if key in avg_data:
-                # Bare key exists — use directly
-                result[target][key] = avg_data[key]
-            else:
-                # Check for _home/_away split keys (from ESPN/API enrichment)
-                home_key = f"{key}_home"
-                away_key = f"{key}_away"
-                has_home = home_key in avg_data
-                has_away = away_key in avg_data
-                if has_home or has_away:
-                    home_val = avg_data.get(home_key, 0)
-                    away_val = avg_data.get(away_key, 0)
-                    if key in PERCENTAGE_STATS:
-                        # Percentage stats: keep home-only (not summed)
-                        result[target][key] = home_val
-                    else:
-                        # Counting stats: sum home + away
-                        result[target][key] = round(home_val + away_val, 2)
-                    # Also preserve the split values
-                    if has_home:
-                        result[target][home_key] = home_val
-                    if has_away:
-                        result[target][away_key] = away_val
-
-    # Extract L10 match-by-match data
-    l10 = form.get("l10_matches", form.get("recent_matches", []))
-    result["l10_matches"] = l10[:10] if l10 else []
-
-    # Only mark has_data if we actually extracted meaningful stats
-    if result["l10_avg"] or result["l5_avg"] or result["l10_matches"]:
-        result["has_data"] = True
+    _populate_stats_from_form(result, form, sport)
 
     # ESPN enrichment for basketball/hockey — ALWAYS load as supplement
     if sport in ("basketball", "hockey"):
