@@ -56,7 +56,6 @@ def main() -> int:
 
     run_id = args.run_id or now_run_id()
     out_dir = REPO_ROOT / args.output_root / run_id
-    out_dir.mkdir(parents=True, exist_ok=True)
 
     input_paths: list[Path] = [Path(p) for p in args.input]
     if args.from_run_id:
@@ -82,6 +81,7 @@ def main() -> int:
     for path in input_paths:
         candidates.extend(load_candidates_from_path(path))
 
+    out_dir.mkdir(parents=True, exist_ok=True)
     _write_preflight(out_dir, input_paths, len(candidates))
 
     package = build_package_from_candidates(candidates, run_id=run_id)
