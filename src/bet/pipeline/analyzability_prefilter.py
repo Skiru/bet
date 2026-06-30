@@ -155,18 +155,23 @@ def evaluate_candidate_analyzability(
         if val_prob is None or val_conf in {"BLOCKED", "LOW", "MINIMAL", "LOW_CONFIDENCE"} or val_method == "BOOKMAKER_IMPLIED_REFERENCE_ONLY":
             probability_missing = True
 
-        if probability_missing and not has_existing_model_prob:
-            blocker_reasons.append("L10_SERIES_MISSING")
-            analyzability_status = "RESEARCH_GAP_L10_MISSING"
-
-        # Check stats seed presence
-        elif not stats_seed or not (
+        has_stats_seed_data = stats_seed and (
             stats_seed.get("has_data") is True
             or (stats_seed.get("stats_a_summary") or {}).get("has_data") is True
             or (stats_seed.get("stats_b_summary") or {}).get("has_data") is True
-        ):
-            blocker_reasons.append("STATS_SEED_MISSING")
-            analyzability_status = "RESEARCH_GAP_STATS_MISSING"
+        )
+
+        can_unblock_with_stats = False
+        if val_prob is not None and val_method != "BOOKMAKER_IMPLIED_REFERENCE_ONLY" and val_conf not in {"BLOCKED", "LOW", "LOW_CONFIDENCE"}:
+            can_unblock_with_stats = True
+
+        if not has_stats_seed_data:
+            if probability_missing and not has_existing_model_prob:
+                blocker_reasons.append("L10_SERIES_MISSING")
+                analyzability_status = "RESEARCH_GAP_L10_MISSING"
+            else:
+                blocker_reasons.append("STATS_SEED_MISSING")
+                analyzability_status = "RESEARCH_GAP_STATS_MISSING"
 
         else:
             stats_seed_status = True
@@ -175,48 +180,53 @@ def evaluate_candidate_analyzability(
             inp = build_market_probability_input(candidate, stats_seed)
             valid, reason = validate_market_probability_input(inp)
             
-            if valid or has_existing_model_prob:
+            if valid and (has_existing_model_prob or can_unblock_with_stats):
                 stats_seed_status = True
                 l10_series_status = True
                 stat_semantics_status = True
                 market_probability_input_status = True
                 analyzability_status = "ANALYZABLE"
             else:
-                if reason == "AMBIGUOUS_MARKET_LABEL":
-                    blocker_reasons.append("UNSUPPORTED_MARKET_FAMILY")
-                    analyzability_status = "UNSUPPORTED_MARKET_FAMILY"
-                elif reason == "UNSUPPORTED_PROP_MATCH":
-                    blocker_reasons.append("UNSUPPORTED_MARKET_FAMILY")
-                    analyzability_status = "UNSUPPORTED_MARKET_FAMILY"
-                elif reason == "MARKET_SPECIFIC_INPUT_NOT_BUILT":
-                    blocker_reasons.append("MARKET_SPECIFIC_INPUT_NOT_BUILT")
-                    analyzability_status = "RESEARCH_GAP_MARKET_INPUT_NOT_BUILT"
-                elif reason == "UNKNOWN_SPLIT_STAT_SEMANTICS":
-                    blocker_reasons.append("UNKNOWN_SPLIT_STAT_SEMANTICS")
-                    analyzability_status = "RESEARCH_GAP_UNKNOWN_STAT_SEMANTICS"
-                elif reason == "MARKET_FAMILY_NOT_SUPPORTED_BY_ENGINE":
-                    blocker_reasons.append("UNSUPPORTED_MARKET_FAMILY")
-                    analyzability_status = "UNSUPPORTED_MARKET_FAMILY"
-                elif reason == "LINE_MISSING":
-                    blocker_reasons.append("LINE_MISSING")
-                    analyzability_status = "LINE_OR_DIRECTION_GAP"
-                    stat_semantics_status = True
-                elif reason == "DIRECTION_MISSING":
-                    blocker_reasons.append("DIRECTION_MISSING")
-                    analyzability_status = "LINE_OR_DIRECTION_GAP"
-                    stat_semantics_status = True
-                elif reason == "L10_SERIES_MISSING":
+                if not valid:
+                    if reason == "AMBIGUOUS_MARKET_LABEL":
+                        blocker_reasons.append("UNSUPPORTED_MARKET_FAMILY")
+                        analyzability_status = "UNSUPPORTED_MARKET_FAMILY"
+                    elif reason == "UNSUPPORTED_PROP_MATCH":
+                        blocker_reasons.append("UNSUPPORTED_MARKET_FAMILY")
+                        analyzability_status = "UNSUPPORTED_MARKET_FAMILY"
+                    elif reason == "MARKET_SPECIFIC_INPUT_NOT_BUILT":
+                        blocker_reasons.append("MARKET_SPECIFIC_INPUT_NOT_BUILT")
+                        analyzability_status = "RESEARCH_GAP_MARKET_INPUT_NOT_BUILT"
+                    elif reason == "UNKNOWN_SPLIT_STAT_SEMANTICS":
+                        blocker_reasons.append("UNKNOWN_SPLIT_STAT_SEMANTICS")
+                        analyzability_status = "RESEARCH_GAP_UNKNOWN_STAT_SEMANTICS"
+                    elif reason == "MARKET_FAMILY_NOT_SUPPORTED_BY_ENGINE":
+                        blocker_reasons.append("UNSUPPORTED_MARKET_FAMILY")
+                        analyzability_status = "UNSUPPORTED_MARKET_FAMILY"
+                    elif reason == "LINE_MISSING":
+                        blocker_reasons.append("LINE_MISSING")
+                        analyzability_status = "LINE_OR_DIRECTION_GAP"
+                        stat_semantics_status = True
+                    elif reason == "DIRECTION_MISSING":
+                        blocker_reasons.append("DIRECTION_MISSING")
+                        analyzability_status = "LINE_OR_DIRECTION_GAP"
+                        stat_semantics_status = True
+                    elif reason == "L10_SERIES_MISSING":
+                        blocker_reasons.append("L10_SERIES_MISSING")
+                        analyzability_status = "RESEARCH_GAP_L10_MISSING"
+                        stat_semantics_status = True
+                    elif reason == "INSUFFICIENT_SAMPLE_SIZE":
+                        blocker_reasons.append("SAMPLE_SIZE_INSUFFICIENT")
+                        analyzability_status = "RESEARCH_GAP_L10_MISSING"
+                        stat_semantics_status = True
+                        l10_series_status = True
+                    else:
+                        blocker_reasons.append(reason)
+                        analyzability_status = "RESEARCH_GAP_MARKET_INPUT_NOT_BUILT"
+                else:
                     blocker_reasons.append("L10_SERIES_MISSING")
                     analyzability_status = "RESEARCH_GAP_L10_MISSING"
                     stat_semantics_status = True
-                elif reason == "INSUFFICIENT_SAMPLE_SIZE":
-                    blocker_reasons.append("SAMPLE_SIZE_INSUFFICIENT")
-                    analyzability_status = "RESEARCH_GAP_L10_MISSING"
-                    stat_semantics_status = True
-                    l10_series_status = True
-                else:
-                    blocker_reasons.append(reason)
-                    analyzability_status = "RESEARCH_GAP_MARKET_INPUT_NOT_BUILT"
 
     # Score calculation
     # Score 1.0 if fully ready, or intermediate parts if not

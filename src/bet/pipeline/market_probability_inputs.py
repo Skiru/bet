@@ -481,7 +481,7 @@ def build_market_probability_input(candidate: dict[str, Any], stats_seed: dict[s
             missing_fields=["stats_seed"],
         )
 
-    best_market = stats_seed.get("best_market") or {}
+    best_market = candidate.get("best_market") or stats_seed.get("best_market") or {}
     if best_market:
         fallback_semantics = extract_market_semantics(
             best_market,
