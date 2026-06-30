@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 from bet.pipeline.analytical_candidate_bridge import build_analytical_candidate_handoff, write_analytical_candidate_handoff
 
@@ -25,6 +26,17 @@ def _all_handoff_candidates(handoff: dict[str, object]) -> list[dict[str, object
             if isinstance(candidate, dict):
                 combined.append(candidate)
     return combined
+
+
+def _resolve_output_path(source_artifact_path: Path) -> Path:
+    run_root = os.environ.get("BET_PIPELINE_RUN_ROOT", "").strip()
+    if run_root:
+        output_root = Path(run_root) / "data"
+    else:
+        betting_day = source_artifact_path.name[:10] if len(source_artifact_path.name) >= 10 else "unknown-day"
+        output_root = Path("/Users/mkoziol/projects/bet/reports/pipeline_runs") / betting_day / "no-placement-smoke"
+    output_root.mkdir(parents=True, exist_ok=True)
+    return output_root / f"{source_artifact_path.stem}_analytical_candidate_handoff_smoke_replay.json"
 
 def main() -> None:
     # Resolve sandbox paths
@@ -51,11 +63,7 @@ def main() -> None:
         source_artifact_path=str(val_path)
     )
     
-    # Ensure correct output directory
-    output_dir = Path("/Users/mkoziol/projects/bet/reports/pipeline_runs")
-    output_dir.mkdir(parents=True, exist_ok=True)
-    
-    output_path = output_dir / "analytical_candidate_handoff_smoke_replay.json"
+    output_path = _resolve_output_path(val_path)
     write_analytical_candidate_handoff(output_path, handoff)
     analytical_ready = handoff.get("analytical_ready") or []
     all_candidates = _all_handoff_candidates(handoff)
