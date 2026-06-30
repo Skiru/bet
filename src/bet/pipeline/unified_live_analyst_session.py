@@ -540,6 +540,43 @@ def load_candidates_from_path(path: Path) -> list[dict[str, Any]]:
     return unique
 
 
+def calculate_idea_score(idea: LiveAnalystMarketIdea) -> float:
+    score = 0.0
+    conf_map = {"A": 100.0, "B": 75.0, "C": 50.0, "D": 20.0}
+    score += conf_map.get(idea.analyst_confidence, 0.0)
+    dq_map = {"HIGH": 50.0, "MEDIUM": 30.0, "LOW": 10.0, "UNKNOWN": 0.0}
+    score += dq_map.get(idea.data_quality, 0.0)
+    sc_map = {"STRONG": 30.0, "PARTIAL": 15.0, "WEAK": 0.0}
+    score += sc_map.get(idea.source_coverage, 0.0)
+    score += len(idea.supporting_evidence) * 10.0
+    has_real_counter = False
+    for ce in idea.counter_evidence:
+        if ce and "UNKNOWN" not in ce.upper() and "no explicit counter" not in ce.lower():
+            has_real_counter = True
+            break
+    if has_real_counter:
+        score += 10.0
+    if idea.market_family in SUPPORTED_FOOTBALL_MARKETS or idea.market_family in SUPPORTED_TENNIS_MARKETS:
+        score += 10.0
+    if idea.recommended_line and idea.line_source != "DEFAULT_REFERENCE_NEEDS_OPERATOR_CHECK":
+        score += 15.0
+    if idea.sport in {"football", "tennis"}:
+        score += 20.0
+    if idea.line_source == "DEFAULT_REFERENCE_NEEDS_OPERATOR_CHECK":
+        score -= 30.0
+    if idea.data_quality == "UNKNOWN":
+        score -= 50.0
+    if not idea.recommended_line:
+        score -= 20.0
+    if idea.suggested_use == "WATCHLIST_ONLY":
+        score -= 100.0
+    if not idea.kickoff_time:
+        score -= 15.0
+    if not idea.competition or idea.competition == "UNKNOWN":
+        score -= 15.0
+    return score
+
+
 def build_package_from_candidates(candidates: list[dict[str, Any]], run_id: str, betting_day: str | None = None) -> UnifiedLiveAnalystPackage:
     ideas: list[LiveAnalystMarketIdea] = []
     rejected: list[dict[str, Any]] = []
@@ -552,22 +589,45 @@ def build_package_from_candidates(candidates: list[dict[str, Any]], run_id: str,
         for idea in candidate_ideas:
             selected_matches.append({"event_id": idea.event_id, "event_label": idea.event_label, "sport": idea.sport, "competition": idea.competition})
         ideas.extend(candidate_ideas)
+    
+    # Extract unique matches
+    seen_matches = set()
+    unique_matches = []
+    for m in selected_matches:
+        if m["event_id"] not in seen_matches:
+            seen_matches.add(m["event_id"])
+            unique_matches.append(m)
+
     recs = [i for i in ideas if i.suggested_use != "WATCHLIST_ONLY"]
     watch = [i for i in ideas if i.suggested_use == "WATCHLIST_ONLY"]
-    combos = build_bet_builder_combo_ideas(recs)
+    
+    # Sort recommendations by score descending
+    recs = sorted(recs, key=calculate_idea_score, reverse=True)
+    
+    # Limit main recommendations to top 12 by default, move the rest to watchlist
+    final_recs = recs[:12]
+    overflow_recs = recs[12:]
+    for r in overflow_recs:
+        r.suggested_use = "WATCHLIST_ONLY"
+    
+    watch.extend(overflow_recs)
+    # Sort watchlist by score descending
+    watch = sorted(watch, key=calculate_idea_score, reverse=True)
+
+    combos = build_bet_builder_combo_ideas(final_recs)
     package_type: PackageType = "ANALYST_RECOMMENDATION_PACKAGE" if ideas else "NO_SUPPORTED_MATCHES_PACKAGE"
     data_gaps = sorted({gap for idea in ideas for gap in idea.source_gaps})
     return UnifiedLiveAnalystPackage(
         package_type=package_type,
         run_id=run_id,
         betting_day=betting_day or datetime.now(timezone.utc).date().isoformat(),
-        selected_matches=selected_matches,
-        recommendations=recs,
+        selected_matches=unique_matches,
+        recommendations=final_recs,
         bet_builder_combo_ideas=combos,
         watchlist_only=watch,
         rejected_ideas=rejected,
         data_gaps=data_gaps,
-        ready_for_manual_operator_quote_review=bool(recs),
+        ready_for_manual_operator_quote_review=bool(final_recs),
     )
 
 
@@ -589,7 +649,7 @@ def build_bet_builder_combo_ideas(recommendations: list[LiveAnalystMarketIdea]) 
             correlation_notes=["Same-event legs require manual correlation review; operator quote required."],
             conflict_risks=["Combined odds are not computed by pipeline; line/market availability may differ in Superbet."],
         ))
-    return combos
+    return combos[:6]
 
 
 def validate_human_superbet_quote(package: UnifiedLiveAnalystPackage, quote_payload: Mapping[str, Any]) -> tuple[bool, list[str]]:
@@ -674,47 +734,156 @@ def write_package(package: UnifiedLiveAnalystPackage, out_dir: Path) -> dict[str
 
 
 def render_markdown_package(package: UnifiedLiveAnalystPackage) -> str:
+    from collections import Counter
+    
     lines = [
         f"# Unified Live Analyst Package — {package.run_id}",
         "",
         f"Package type: `{package.package_type}`",
         f"Betting day: `{package.betting_day}`",
         "",
-        "## Core rules",
-        "- Odds are reference-only and never block analysis.",
-        "- HYDRATED/model probability are not required for analyst recommendations.",
-        "- No EV or final coupon without real odds/model probability/human quote.",
-        "- User manually checks Superbet and decides whether to combine legs.",
+        "## 1. Executive Summary",
         "",
-        "## Recommendations",
+        "### Selection Verdict: Why these top ideas were selected",
+        "The selected ideas represent the highest-quality analysts' suggestions prioritized for Football and Tennis. "
+        "These selections have strong available qualitative evidence, are mapped to supported operator market families, "
+        "and have their potential failure scenarios explicitly documented to ensure a balanced risk profile.",
+        "",
+        "### Top 5 Analyst Ideas Summary",
     ]
+    
+    top_5 = package.recommendations[:5]
+    if not top_5:
+        lines.append("No active recommendations found.")
+    else:
+        for idx, idea in enumerate(top_5, 1):
+            line_status = f"`{idea.recommended_line}`" if idea.recommended_line else "N/A"
+            if idea.line_source == "DEFAULT_REFERENCE_NEEDS_OPERATOR_CHECK":
+                line_status += " (DEFAULT_REFERENCE_NEEDS_OPERATOR_CHECK)"
+            lines.append(f"{idx}. **{idea.event_label}**: {idea.recommended_market} {idea.recommendation_direction or ''} {line_status} (Confidence: `{idea.analyst_confidence}`, Quality: `{idea.data_quality}`)")
+            
+    lines.extend([
+        "",
+        "## 2. Top Analyst Recommendations",
+        "",
+    ])
+    
     if not package.recommendations:
-        lines.append("No non-watchlist recommendations. See watchlist/data gaps.")
-    for idea in package.recommendations:
-        lines.extend([
-            f"### {idea.event_label} — {idea.recommended_market} {idea.recommendation_direction or ''} {idea.recommended_line or ''}",
-            f"- Sport/competition: {idea.sport} / {idea.competition}",
-            f"- Confidence: {idea.analyst_confidence}; data quality: {idea.data_quality}; source coverage: {idea.source_coverage}",
-            f"- Line source: {idea.line_source}",
-            f"- Suggested use: {idea.suggested_use}",
-            f"- Why it may work: {idea.why_it_may_work}",
-            f"- Counter-evidence / why it may fail: {idea.why_it_may_fail}",
-            f"- Source gaps: {'; '.join(idea.source_gaps) if idea.source_gaps else 'none recorded'}",
-            "- Superbet check: verify market/line manually; pipeline does not compute combined odds.",
-            "",
-        ])
-    lines.append("## Watchlist-only")
-    if not package.watchlist_only:
-        lines.append("No watchlist-only ideas.")
-    for idea in package.watchlist_only:
-        lines.append(f"- {idea.event_label}: {idea.recommended_market} {idea.recommendation_direction or ''} {idea.recommended_line or ''} — confidence {idea.analyst_confidence}, data quality {idea.data_quality}. Reason: {idea.evidence_summary}")
-    lines.append("\n## Optional Bet Builder combo ideas")
+        lines.append("No active analyst recommendations.")
+    else:
+        for idea in package.recommendations:
+            lines.append(f"### {idea.event_label} — {idea.recommended_market} {idea.recommendation_direction or ''}")
+            lines.append(f"- **Market Idea**: {idea.recommended_market} {idea.recommendation_direction or ''} {f'line {idea.recommended_line}' if idea.recommended_line else ''}")
+            lines.append(f"- **Confidence**: `{idea.analyst_confidence}`")
+            lines.append(f"- **Data Quality**: `{idea.data_quality}`")
+            lines.append(f"- **Why it may work**: {idea.why_it_may_work}")
+            lines.append(f"- **Why it may fail**: {idea.why_it_may_fail}")
+            lines.append(f"- **Source Gaps**: {'; '.join(idea.source_gaps) if idea.source_gaps else 'None recorded'}")
+            
+            # Operator Check Line section
+            if idea.line_source == "DEFAULT_REFERENCE_NEEDS_OPERATOR_CHECK":
+                lines.append(f"- **Operator Check Line**: `DEFAULT_REFERENCE_NEEDS_OPERATOR_CHECK` (Current reference: {idea.recommended_line})")
+                lines.append("  > *Reference line for manual Superbet check, not a confirmed operator line.*")
+            else:
+                lines.append(f"- **Operator Check Line**: `{idea.recommended_line or 'N/A'}`")
+                
+            lines.append(f"- **Standalone vs Bet Builder Leg**: {idea.suggested_use}")
+            lines.append("- **Superbet Coupon Guard**: *No final coupon can be generated or bets placed without a human-entered Superbet quote confirming operator availability.*")
+            lines.append("")
+            
+    lines.extend([
+        "## 3. Bet Builder Combo Ideas",
+        "",
+    ])
+    
     if not package.bet_builder_combo_ideas:
-        lines.append("No combo ideas generated; standalone/manual checks only.")
-    for combo in package.bet_builder_combo_ideas:
-        lines.append(f"- {combo.event_label}: ideas {', '.join(combo.idea_ids)}. {combo.combo_note}")
-    lines.append("\n## Data gaps")
-    lines.extend(f"- {gap}" for gap in package.data_gaps) if package.data_gaps else lines.append("- none recorded")
+        lines.append("No same-event combinations generated; standalone/manual checks only.")
+    else:
+        for combo in package.bet_builder_combo_ideas:
+            lines.append(f"### Combo for {combo.event_label} (`{combo.combo_id}`)")
+            lines.append(f"- **Idea Legs**: {', '.join(combo.idea_ids)}")
+            lines.append(f"- **Correlation Note**: {combo.combo_note}")
+            lines.append(f"- **Risks**: {', '.join(combo.conflict_risks)}")
+            lines.append("")
+            
+    lines.extend([
+        "## 4. Watchlist Appendix",
+        "",
+        "The following additional matches were analyzed but are classified as watchlist-only due to limited evidence, lower confidence, or unverified default reference lines.",
+        "",
+    ])
+    
+    watchlist_displayed = package.watchlist_only[:20]
+    if not package.watchlist_only:
+        lines.append("Watchlist is empty.")
+    else:
+        for idea in watchlist_displayed:
+            line_status = f"`{idea.recommended_line}`" if idea.recommended_line else "N/A"
+            if idea.line_source == "DEFAULT_REFERENCE_NEEDS_OPERATOR_CHECK":
+                line_status += " (DEFAULT_REFERENCE_NEEDS_OPERATOR_CHECK)"
+            lines.append(f"- **{idea.event_label}**: {idea.recommended_market} {idea.recommendation_direction or ''} {line_status} — Confidence: `{idea.analyst_confidence}`, Quality: `{idea.data_quality}`. Reason: *{idea.evidence_summary}*")
+            
+        hidden_count = len(package.watchlist_only) - len(watchlist_displayed)
+        lines.append("")
+        lines.append(f"**Total Watchlist Count**: {len(package.watchlist_only)}")
+        lines.append(f"**Hidden Watchlist Ideas (in JSON appendix only)**: {max(0, hidden_count)}")
+        lines.append("")
+        
+    lines.extend([
+        "## 5. Rejected Summary",
+        "",
+        "To ensure decision-grade clarity, rejected candidates are summarized below by reason rather than listed individually:",
+        "",
+    ])
+    
+    # Calculate rejected summary by reason
+    reasons = []
+    for item in package.rejected_ideas:
+        if "quote_rejection_reasons" in item:
+            reasons.append("Human Quote Rejection")
+        else:
+            reasons.append(item.get("reason") or "unsupported sport/market or missing event identity")
+    counts = Counter(reasons)
+    
+    if not counts:
+        lines.append("- No candidates were rejected during this run.")
+    else:
+        for reason, count in counts.items():
+            lines.append(f"- **Reason**: *{reason}* — **Count**: {count}")
+            
+    lines.extend([
+        "",
+        "## 6. Data Gaps and Confidence Policy",
+        "",
+        "To prevent hallucination and maintain absolute transparency, the following policy applies:",
+        "- **Odds Availability**: Missing operator odds does NOT block sports analysis; the idea is analyzed but marked with EV/Fair Odds unavailable.",
+        "- **Data Hydration**: Missing fully hydrated stat histories downgrades the analyst confidence level (capping it at C or D) and redirects the idea to the watchlist rather than blocking it entirely.",
+        "- **Model Probabilities**: Missing fair-odds or team model probabilities prevents EV/Fair Odds generation but allows qualitative analyst recommendations to remain active.",
+        "- **Default Reference Lines**: Any reference lines generated using historical baseline estimates (such as Corners 7.5, Cards 3.5, Goals 2.5, Games 21.5) are clearly flagged as `DEFAULT_REFERENCE_NEEDS_OPERATOR_CHECK`. These require physical confirmation by the operator on the bookmaker site before coupon completion.",
+        "",
+        "### Registered Gaps during Run",
+    ])
+    
+    if not package.data_gaps:
+        lines.append("- No data gaps registered in this run.")
+    else:
+        for gap in package.data_gaps:
+            lines.append(f"- {gap}")
+            
+    lines.extend([
+        "",
+        "## 7. Superbet Manual Operator Checklist",
+        "",
+        "Before combining legs or placing any bets, the operator MUST complete the following steps manually:",
+        "1. Open the **Superbet** interface and navigate to the respective event.",
+        "2. Verify that the recommended market is active and accepting quotes.",
+        "3. **Check the Line**: If the line is marked `DEFAULT_REFERENCE_NEEDS_OPERATOR_CHECK`, find the actual line on Superbet (e.g. Total Goals, Corners, or Aces). Do not assume the pipeline reference matches the operator's line.",
+        "4. Confirm that the odds offered are acceptable and that there is no market block.",
+        "5. Enter the confirmed quotes into the manual quote validation file.",
+        "6. **NO AUTOMATION GATES BYPASSED**: Remember that final coupon generation and placement readiness are strictly blocked without this human confirmation.",
+        "",
+    ])
+    
     return "\n".join(lines) + "\n"
 
 

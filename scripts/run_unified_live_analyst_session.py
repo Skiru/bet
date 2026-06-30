@@ -51,6 +51,7 @@ def main() -> int:
     parser.add_argument("--quote-file", default=None, help="Optional human-entered Superbet quote JSON")
     parser.add_argument("--output-root", default="reports/pipeline_runs", help="Output root")
     parser.add_argument("--run-id", default=None, help="Explicit run id for deterministic tests")
+    parser.add_argument("--latest-run", action="store_true", help="Explicitly allow selecting the latest run by modified time")
     args = parser.parse_args()
 
     run_id = args.run_id or now_run_id()
@@ -61,9 +62,21 @@ def main() -> int:
     if args.from_run_id:
         input_paths.append(REPO_ROOT / "reports" / "pipeline_runs" / args.from_run_id)
     if not input_paths:
-        default_runs = REPO_ROOT / "reports" / "pipeline_runs"
-        if default_runs.exists():
-            input_paths.extend(sorted((p for p in default_runs.iterdir() if p.is_dir()), reverse=True)[:1])
+        if args.latest_run:
+            default_runs = REPO_ROOT / "reports" / "pipeline_runs"
+            if default_runs.exists():
+                dirs = [p for p in default_runs.iterdir() if p.is_dir() and not p.name.startswith(".")]
+                if dirs:
+                    dirs.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+                    latest_dir = dirs[0]
+                    print(f"INFO: --latest-run explicit flag set. Selecting latest run directory by modified time: {latest_dir.name}")
+                    input_paths.append(latest_dir)
+                else:
+                    raise SystemExit("INPUT_REQUIRED_OR_DISCOVERY_UNAVAILABLE: No run directories found to select latest from.")
+            else:
+                raise SystemExit("INPUT_REQUIRED_OR_DISCOVERY_UNAVAILABLE: reports/pipeline_runs directory does not exist.")
+        else:
+            raise SystemExit("INPUT_REQUIRED_OR_DISCOVERY_UNAVAILABLE: No input paths specified. Use --input, --from-run-id, or explicitly --latest-run.")
 
     candidates = []
     for path in input_paths:

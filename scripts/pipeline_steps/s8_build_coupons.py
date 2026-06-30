@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -278,14 +279,17 @@ def main():
                 output_path.write_text(json.dumps(drafts_data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
                 print(f"ANALYTICAL_HANDOFF_LANE: Wrote {package_type} package from analytical handoff.")
                 
+                status = "BLOCK"
+                is_analytical_only = False
                 try:
-                    import subprocess
-                    import shutil
+                    from datetime import datetime, timezone
+                    active_run_id = args.run_id or child_env.get("BET_PIPELINE_RUN_ID") or f"TODAY_LIVE_UNIFIED_ANALYST_SESSION_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}"
+                    
                     cmd = [
                         sys.executable,
                         "scripts/run_unified_live_analyst_session.py",
                         "--input", str(input_path.parent),
-                        "--run-id", args.run_id or "TODAY_LIVE_BET_BUILDER_FINAL_MANUAL_COUPON_A_20260630_115254"
+                        "--run-id", active_run_id
                     ]
                     print(f"S8: Launching default live/manual analyst output subprocess: {' '.join(cmd)}")
                     res = subprocess.run(cmd, capture_output=True, text=True)
@@ -294,19 +298,26 @@ def main():
                     if res.stderr:
                         sys.stderr.write(res.stderr)
                     
-                    # Copy generated files to artifact_dir for integration parity if set
-                    if artifact_dir and artifact_dir.exists():
-                        out_dir = Path("reports/pipeline_runs") / (args.run_id or "TODAY_LIVE_BET_BUILDER_FINAL_MANUAL_COUPON_A_20260630_115254")
-                        if out_dir.exists() and out_dir.resolve() != artifact_dir.resolve():
-                            for name in ("unified_live_analyst_package.json", "unified_live_analyst_package.md", "package_quality_review.md", "deep_statistical_analysis.json", "deep_statistical_analysis.md", "status_safety_review.md", "preflight.md"):
-                                fpath = out_dir / name
-                                if fpath.exists():
-                                    shutil.copy(fpath, artifact_dir / name)
+                    if res.returncode != 0:
+                        print(f"ERROR: S8: run_unified_live_analyst_session.py failed with exit code {res.returncode}")
+                        status = "BLOCK"
+                        blocked_reasons.append("BLOCKED_UNIFIED_ANALYST_RUNNER_FAILED")
+                    else:
+                        status = "PASS"
+                        is_analytical_only = True
+                        
+                        # Copy generated files to artifact_dir for integration parity if set
+                        if artifact_dir and artifact_dir.exists():
+                            out_dir = Path("reports/pipeline_runs") / active_run_id
+                            if out_dir.exists() and out_dir.resolve() != artifact_dir.resolve():
+                                for name in ("unified_live_analyst_package.json", "unified_live_analyst_package.md", "package_quality_review.md", "deep_statistical_analysis.json", "deep_statistical_analysis.md", "status_safety_review.md", "preflight.md"):
+                                    fpath = out_dir / name
+                                    if fpath.exists():
+                                        shutil.copy(fpath, artifact_dir / name)
                 except Exception as exc:
-                    print(f"WARNING: S8: failed to launch run_unified_live_analyst_session.py: {exc}")
-
-                status = "PASS"
-                is_analytical_only = True
+                    print(f"ERROR: S8: failed to launch run_unified_live_analyst_session.py: {exc}")
+                    status = "BLOCK"
+                    blocked_reasons.append("BLOCKED_UNIFIED_ANALYST_RUNNER_FAILED")
             elif "validation" in content and "gate_results" not in content:
                 validation = content.get("validation") or []
                 approved = [item for item in validation if item.get("betclic_available") is not False]
