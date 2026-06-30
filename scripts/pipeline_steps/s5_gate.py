@@ -45,6 +45,11 @@ def is_protected_repo_path(path: Path | str | None) -> bool:
     abs_path = Path(path).resolve()
     for parent in ((ROOT / "betting" / "data").resolve(), (ROOT / "betting" / "coupons").resolve(), (ROOT / "reports").resolve()):
         try:
+            pipeline_runs = (ROOT / "reports" / "pipeline_runs").resolve()
+            if abs_path == pipeline_runs or abs_path.is_relative_to(pipeline_runs):
+                run_id = os.environ.get("BET_PIPELINE_RUN_ID")
+                if run_id and run_id in str(abs_path):
+                    continue
             abs_path.relative_to(parent)
             return True
         except ValueError:
@@ -69,7 +74,12 @@ def _safe_run_scoped_file(path: Path | None, child_env: dict[str, str]) -> Path 
     if resolved is None:
         return None
     resolved_str = str(resolved)
-    if not (resolved_str.startswith("/tmp/") or resolved_str.startswith("/private/tmp/")):
+    pipeline_runs = (ROOT / "reports" / "pipeline_runs").resolve()
+    run_id = os.environ.get("BET_PIPELINE_RUN_ID")
+    is_in_pipeline_runs = False
+    if run_id and run_id in resolved_str:
+        is_in_pipeline_runs = resolved.is_relative_to(pipeline_runs)
+    if not (resolved_str.startswith("/tmp/") or resolved_str.startswith("/private/tmp/") or is_in_pipeline_runs):
         return None
     run_root_raw = child_env.get("BET_PIPELINE_RUN_ROOT")
     if not run_root_raw:

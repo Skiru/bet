@@ -54,6 +54,11 @@ def is_protected_repo_path(path: Path | str | None) -> bool:
     
     for parent in [betting_data, betting_coupons, reports]:
         try:
+            pipeline_runs = (ROOT / "reports" / "pipeline_runs").resolve()
+            if abs_path == pipeline_runs or abs_path.is_relative_to(pipeline_runs):
+                run_id = os.environ.get("BET_PIPELINE_RUN_ID")
+                if run_id and run_id in str(abs_path):
+                    continue
             abs_path.relative_to(parent)
             return True
         except ValueError:
@@ -76,6 +81,13 @@ def find_sandbox_input_candidate_json(child_env: dict[str, str], date: str | Non
     def is_safe(p: Path) -> bool:
         p_res = p.resolve()
         p_str = str(p_res)
+        pipeline_runs = (ROOT / "reports" / "pipeline_runs").resolve()
+        run_id = os.environ.get("BET_PIPELINE_RUN_ID")
+        is_in_pipeline_runs = False
+        if run_id and run_id in p_str:
+            is_in_pipeline_runs = p_res == pipeline_runs or p_res.is_relative_to(pipeline_runs)
+        if is_in_pipeline_runs:
+            return p_res.exists() and p_res.is_file()
         for forbidden in ["/betting/data/", "/betting/coupons/", "/reports/"]:
             if forbidden in p_str or p_str.endswith(forbidden[:-1]):
                 return False

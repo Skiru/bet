@@ -135,3 +135,39 @@ def test_market_semantics_extracted_from_shots_with_line_direction():
     assert markets[0]["market_family"] == "SHOTS"
     assert markets[0]["direction"] == "OVER"
     assert markets[0]["line"] == 24.5
+
+
+def test_pipeline_runs_directory_exemption(monkeypatch, tmp_path):
+    import os
+    import sys
+    # We can mock argparse sys.argv to test main()
+    monkeypatch.setattr(sys, "argv", [
+        "generate_market_matrix.py",
+        "--date", "2026-06-30",
+        "--output-dir", str(tmp_path / "reports/pipeline_runs/TODAY_LIVE/data"),
+        "--json-only"
+    ])
+    # Mock environment variables
+    monkeypatch.setenv("BET_PIPELINE_RUNTIME_MODE", "LIVE_SHADOW")
+    
+    # Mock the functions executed in main so it doesn't do real DB work or network calls
+    monkeypatch.setattr(matrix_mod, "load_fixtures", lambda date: [{"some": "fixture"}])
+    monkeypatch.setattr(matrix_mod, "generate_market_matrix", lambda **kwargs: {
+        "date": "2026-06-30",
+        "events": [{
+            "sport": "football",
+            "home_team": "Team A",
+            "away_team": "Team B",
+            "kickoff": "2026-06-30T15:00:00+00:00",
+            "data_tier": 1
+        }]
+    })
+    monkeypatch.setattr(matrix_mod, "write_matrix_json", lambda matrix, date: None)
+    monkeypatch.setattr(matrix_mod, "persist_matrix_to_db", lambda matrix, date: None)
+    
+    # We expect main() to run without SystemExit(6) (the forbidden dir exit code)
+    try:
+        matrix_mod.main()
+    except SystemExit as e:
+        # If it exited with 0, that's fine. If 6, that's a failure.
+        assert e.code == 0

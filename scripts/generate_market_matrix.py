@@ -1979,6 +1979,12 @@ def main():
     for forbidden in forbidden_dirs:
         try:
             if output_dir == forbidden or output_dir.is_relative_to(forbidden):
+                # Exempt pipeline runs path which is intended for run-scoped output
+                pipeline_runs_dir = (ROOT_DIR / "reports" / "pipeline_runs").resolve()
+                if output_dir == pipeline_runs_dir or output_dir.is_relative_to(pipeline_runs_dir):
+                    run_id = os.environ.get("BET_PIPELINE_RUN_ID")
+                    if run_id and run_id in str(output_dir):
+                        continue
                 if runtime_mode in {"DRY_RUN", "LIVE_SHADOW", "CERTIFICATION"}:
                     print(f"[matrix] ERROR: Resolved pipeline output path '{output_dir}' is inside forbidden repo-local '{forbidden}'")
                     print("FAILED_MARKET_MATRIX_GENERATION")

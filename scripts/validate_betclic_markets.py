@@ -33,6 +33,9 @@ def is_protected_repo_path(path: Path | str | None) -> bool:
     abs_path = Path(path).resolve()
     for parent in ((ROOT_DIR / "betting" / "data").resolve(), (ROOT_DIR / "betting" / "coupons").resolve(), (ROOT_DIR / "reports").resolve()):
         try:
+            pipeline_runs = (ROOT_DIR / "reports" / "pipeline_runs").resolve()
+            if abs_path == pipeline_runs or abs_path.is_relative_to(pipeline_runs):
+                continue
             abs_path.relative_to(parent)
             return True
         except ValueError:

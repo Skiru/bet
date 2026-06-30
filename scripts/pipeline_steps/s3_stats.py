@@ -60,8 +60,15 @@ def _certification_targets() -> None:
 
 def _is_safe_tmp_path(path: Path) -> bool:
     try:
-        normalized = str(path.expanduser())
-        return normalized.startswith("/tmp/") or normalized.startswith("/private/tmp/")
+        normalized = str(path.expanduser().resolve())
+        # Also accept paths inside reports/pipeline_runs/
+        repo_root = Path(__file__).resolve().parents[2]
+        reports_runs = (repo_root / "reports" / "pipeline_runs").resolve()
+        run_id = os.environ.get("BET_PIPELINE_RUN_ID")
+        is_in_reports_runs = False
+        if run_id and run_id in normalized:
+            is_in_reports_runs = normalized.startswith(str(reports_runs)) or Path(normalized).is_relative_to(reports_runs)
+        return normalized.startswith("/tmp/") or normalized.startswith("/private/tmp/") or is_in_reports_runs
     except OSError:
         return False
 
