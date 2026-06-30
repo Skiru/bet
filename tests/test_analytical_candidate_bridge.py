@@ -12,6 +12,9 @@ from bet.pipeline.analytical_candidate_bridge import (
 )
 
 
+TRACKED_PREFILTER_FIXTURE = Path(__file__).resolve().parents[1] / ".kilo" / "artifacts" / "analyzability_prefilter_report.json"
+
+
 def test_analytical_candidate_bridge_creates_ready_candidate_when_identity_probability_and_stats_exist():
     valuation_payload = {
         "source_input_path": "/tmp/2026-06-29_s3_deep_stats.json",
@@ -1209,3 +1212,100 @@ def test_low_confidence_probability_label_blocks_analytical_ready():
     blocked = handoff["blocked_probability_missing"][0]
     assert blocked["probability_confidence"] == "LOW"
     assert blocked["model_probability"] is None
+
+
+def test_runtime_reports_do_not_overwrite_tracked_baseline_artifacts(monkeypatch, tmp_path):
+    baseline_before = TRACKED_PREFILTER_FIXTURE.read_text(encoding="utf-8")
+    run_root = tmp_path / "2026-06-30" / "run-123"
+    artifact_dir = run_root / "artifacts"
+    monkeypatch.setenv("BET_PIPELINE_ARTIFACT_DIR", str(artifact_dir))
+
+    valuation_payload = {
+        "candidates": [
+            {
+                "fixture_id": 200,
+                "sport": "football",
+                "home_team": "Alpha",
+                "away_team": "Beta",
+                "competition": "Test League",
+                "scheduled_time": "2026-06-30T18:00:00+00:00",
+                "best_market": {"name": "Goals Total O/U", "direction": "OVER", "line": 2.5},
+                "model_probability": 0.62,
+                "probability_method": "S3_PROBABILITY_ENGINE",
+                "probability_confidence": "FULL",
+            }
+        ]
+    }
+    s3_payload = {
+        "analyses": [
+            {
+                "fixture_id": 200,
+                "sport": "football",
+                "home_team": "Alpha",
+                "away_team": "Beta",
+                "competition": "Test League",
+                "kickoff": "2026-06-30T18:00:00+00:00",
+                "stats_a_summary": {"has_data": True, "l10_avg": {"goals": 2.1}, "sources": ["stats_db"]},
+                "stats_b_summary": {"has_data": True, "l10_avg": {"goals": 1.1}, "sources": ["stats_db"]},
+                "h2h_summary": {"has_data": True, "meetings_count": 3},
+            }
+        ]
+    }
+
+    build_analytical_candidate_handoff(
+        valuation_payload,
+        s3_payload=s3_payload,
+        shortlist_payload=None,
+        source_artifact_path=str(run_root / "data" / "2026-06-30_s4_valuation_candidates.json"),
+    )
+
+    runtime_report = artifact_dir / "analyzability_prefilter_report.json"
+    assert runtime_report.exists()
+    assert TRACKED_PREFILTER_FIXTURE.read_text(encoding="utf-8") == baseline_before
+
+
+def test_final_gate_writes_unique_session_artifacts(tmp_path):
+    run_root = tmp_path / "reports" / "pipeline_runs" / "2026-06-30" / "run-unique"
+    data_dir = run_root / "data"
+    source_artifact_path = data_dir / "2026-06-30_s4_valuation_candidates.json"
+
+    valuation_payload = {
+        "candidates": [
+            {
+                "fixture_id": 201,
+                "sport": "football",
+                "home_team": "Gamma",
+                "away_team": "Delta",
+                "competition": "Test League",
+                "scheduled_time": "2026-06-30T20:00:00+00:00",
+                "best_market": {"name": "Goals Total O/U", "direction": "OVER", "line": 2.5},
+                "model_probability": 0.59,
+                "probability_method": "S3_PROBABILITY_ENGINE",
+                "probability_confidence": "FULL",
+            }
+        ]
+    }
+    s3_payload = {
+        "analyses": [
+            {
+                "fixture_id": 201,
+                "sport": "football",
+                "home_team": "Gamma",
+                "away_team": "Delta",
+                "competition": "Test League",
+                "kickoff": "2026-06-30T20:00:00+00:00",
+                "stats_a_summary": {"has_data": True, "l10_avg": {"goals": 2.0}, "sources": ["stats_db"]},
+                "stats_b_summary": {"has_data": True, "l10_avg": {"goals": 1.2}, "sources": ["stats_db"]},
+                "h2h_summary": {"has_data": True, "meetings_count": 2},
+            }
+        ]
+    }
+
+    build_analytical_candidate_handoff(
+        valuation_payload,
+        s3_payload=s3_payload,
+        shortlist_payload=None,
+        source_artifact_path=str(source_artifact_path),
+    )
+
+    assert (run_root / "artifacts" / "analyzability_prefilter_report.json").exists()

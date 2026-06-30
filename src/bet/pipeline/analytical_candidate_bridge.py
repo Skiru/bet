@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import os
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
@@ -18,6 +19,18 @@ from bet.pipeline.analyzability_prefilter import (
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def _resolve_analyzability_report_path(source_artifact_path: str) -> Path:
+    runtime_artifact_dir = _normalized(os.environ.get("BET_PIPELINE_ARTIFACT_DIR"))
+    if runtime_artifact_dir:
+        return Path(runtime_artifact_dir) / "analyzability_prefilter_report.json"
+
+    source_path = Path(source_artifact_path)
+    source_parent = source_path.parent
+    if source_parent.name == "data":
+        return source_parent.parent / "artifacts" / "analyzability_prefilter_report.json"
+    return source_parent / "analyzability_prefilter_report.json"
 
 
 def _normalized(value: Any) -> str:
@@ -714,7 +727,7 @@ def build_analytical_candidate_handoff(
     # Write analyzability prefilter report to approved path
     try:
         from bet.pipeline.analyzability_prefilter import write_analyzability_report
-        workspace_report_path = Path("/Users/mkoziol/projects/bet/.kilo/artifacts/analyzability_prefilter_report.json")
+        workspace_report_path = _resolve_analyzability_report_path(source_artifact_path)
         write_analyzability_report(workspace_report_path, reports)
     except Exception as e:
         print(f"WARNING: failed to write analyzability prefilter report: {e}")
