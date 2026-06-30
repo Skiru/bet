@@ -231,8 +231,15 @@ def main():
                 blocked_probability_missing = content.get("blocked_probability_missing") or []
                 blocked_stats_missing = content.get("blocked_stats_missing") or []
                 blocked_identity_missing = content.get("blocked_identity_missing") or []
+                review_only_partial_data = content.get("review_only_partial_data") or []
+                research_gap_minimal_hydration = content.get("research_gap_minimal_hydration") or []
                 approved = []
-                package_type = "ANALYTICAL_ONLY" if analytical_ready else "RESEARCH_GAP_PACKAGE"
+                if analytical_ready:
+                    package_type = "ANALYTICAL_ONLY"
+                elif review_only_partial_data:
+                    package_type = "REVIEW_ONLY_PARTIAL_DATA_PACKAGE"
+                else:
+                    package_type = "RESEARCH_GAP_PACKAGE"
                 drafts = [{"draft_id": "draft-0", "selections": analytical_ready}] if analytical_ready else []
                 drafts_data = {
                     "artifact_type": "S8_COUPON_DRAFTS",
@@ -253,6 +260,8 @@ def main():
                     "blocked_probability_missing": blocked_probability_missing,
                     "blocked_stats_missing": blocked_stats_missing,
                     "blocked_identity_missing": blocked_identity_missing,
+                    "review_only_partial_data": review_only_partial_data,
+                    "research_gap_minimal_hydration": research_gap_minimal_hydration,
                 }
                 output_path.parent.mkdir(parents=True, exist_ok=True)
                 output_path.write_text(json.dumps(drafts_data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
@@ -310,7 +319,12 @@ def main():
             try:
                 maybe_content = json.loads(input_path.read_text(encoding="utf-8"))
                 if _is_analytical_handoff_payload(maybe_content):
-                    handoff_package_type = "ANALYTICAL_ONLY" if maybe_content.get("analytical_ready") else "RESEARCH_GAP_PACKAGE"
+                    if maybe_content.get("analytical_ready"):
+                        handoff_package_type = "ANALYTICAL_ONLY"
+                    elif maybe_content.get("review_only_partial_data"):
+                        handoff_package_type = "REVIEW_ONLY_PARTIAL_DATA_PACKAGE"
+                    else:
+                        handoff_package_type = "RESEARCH_GAP_PACKAGE"
             except Exception:
                 pass
         payload = {

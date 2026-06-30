@@ -26,6 +26,7 @@ def _valid_candidate() -> dict:
         "probability_method": "S3_PROBABILITY_ENGINE",
         "probability_sources": ["stats_db"],
         "probability_confidence": "FULL",
+        "source_provider": "api-football",
         "source_artifact_path": "/tmp/s4.json",
         "field_path": "candidates[0]",
     }
@@ -33,6 +34,9 @@ def _valid_candidate() -> dict:
 
 def _valid_stats_seed() -> dict:
     return {
+        "probability_as_of": "2026-06-30T12:00:00Z",
+        "source_provider": "api-football",
+        "source_artifact_path": "/tmp/s4.json",
         "stats_a_summary": {"has_data": True, "l10_avg": {"goals": 2.1}, "sources": ["stats_db"]},
         "stats_b_summary": {"has_data": True, "l10_avg": {"goals": 1.4}, "sources": ["stats_db"]},
         "h2h_summary": {"has_data": True, "meetings_count": 4},

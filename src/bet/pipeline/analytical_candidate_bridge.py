@@ -376,6 +376,8 @@ def build_analytical_candidate_handoff(
     blocked_probability_missing: list[dict[str, Any]] = []
     blocked_stats_missing: list[dict[str, Any]] = []
     blocked_identity_missing: list[dict[str, Any]] = []
+    review_only_partial_data: list[dict[str, Any]] = []
+    research_gap_minimal_hydration: list[dict[str, Any]] = []
     priced_candidates: list[dict[str, Any]] = []
     reports: list[dict[str, Any]] = []
 
@@ -493,7 +495,22 @@ def build_analytical_candidate_handoff(
         report = evaluate_candidate_analyzability(valuation_entry, s3_entry, market_seed)
         reports.append(report)
         
-        if report["analyzability_status"] == "ANALYZABLE":
+        if report["analyzability_status"] == "REVIEW_ONLY_PARTIAL_DATA":
+            analytical_status = "REVIEW_ONLY_PARTIAL_DATA"
+            probability_contract["model_probability"] = None
+        elif report["analyzability_status"] == "RESEARCH_GAP_MINIMAL_HYDRATION":
+            if _normalized(probability_contract["probability_confidence"]).upper() in {"LOW", "LOW_CONFIDENCE", "BLOCKED"}:
+                analytical_status = "INSUFFICIENT_MODEL_PROBABILITY"
+            else:
+                analytical_status = "RESEARCH_GAP_MINIMAL_HYDRATION"
+            probability_contract["model_probability"] = None
+        elif report["analyzability_status"] == "BLOCKED_HYDRATION_FAILED":
+            if _normalized(probability_contract["probability_confidence"]).upper() in {"LOW", "LOW_CONFIDENCE", "BLOCKED"}:
+                analytical_status = "INSUFFICIENT_MODEL_PROBABILITY"
+            else:
+                analytical_status = "BLOCKED_HYDRATION_FAILED"
+            probability_contract["model_probability"] = None
+        elif report["analyzability_status"] == "ANALYZABLE":
             analytical_status = "ANALYTICAL_READY"
         elif report["analyzability_status"] == "RESEARCH_GAP_STATS_MISSING":
             analytical_status = "INSUFFICIENT_SUPPORTING_STATS"
@@ -592,6 +609,10 @@ def build_analytical_candidate_handoff(
         draft_dict = draft.to_dict()
         if analytical_status == "ANALYTICAL_READY":
             analytical_ready.append(draft_dict)
+        elif analytical_status == "REVIEW_ONLY_PARTIAL_DATA":
+            review_only_partial_data.append(draft_dict)
+        elif analytical_status in {"RESEARCH_GAP_MINIMAL_HYDRATION", "BLOCKED_HYDRATION_FAILED"}:
+            research_gap_minimal_hydration.append(draft_dict)
         elif analytical_status == "INSUFFICIENT_MODEL_PROBABILITY":
             blocked_probability_missing.append(
                 ResearchCandidateBlocked(**asdict(draft), blocking_reason=analytical_status).to_dict()
@@ -609,7 +630,7 @@ def build_analytical_candidate_handoff(
                 ResearchCandidateBlocked(**asdict(draft), blocking_reason="NOT_ANALYTICAL_ELIGIBLE").to_dict()
             )
 
-        if odds_decimal is not None and odds_decimal > Decimal("1"):
+        if odds_decimal is not None and odds_decimal > Decimal("1") and analytical_status == "ANALYTICAL_READY":
             priced_candidates.append(draft_dict)
 
     # Rank ready candidates preferentially
@@ -630,24 +651,36 @@ def build_analytical_candidate_handoff(
     except Exception as e:
         print(f"WARNING: failed to write analyzability prefilter report: {e}")
 
+    # Set package type
+    if analytical_ready:
+        package_type = "ANALYTICAL_ONLY"
+    elif review_only_partial_data:
+        package_type = "REVIEW_ONLY_PARTIAL_DATA_PACKAGE"
+    else:
+        package_type = "RESEARCH_GAP_PACKAGE"
+
     return {
         "artifact_type": "ANALYTICAL_CANDIDATE_HANDOFF",
         "created_at_utc": _now_iso(),
         "source_artifact_path": source_artifact_path,
         "source_input_path": valuation_payload.get("source_input_path"),
-        "package_type": "ANALYTICAL_ONLY" if analytical_ready else "RESEARCH_GAP_PACKAGE",
+        "package_type": package_type,
         "gap_reasons": gap_reasons,
         "analyzability_reports": reports,
         "analytical_ready": analytical_ready,
         "blocked_probability_missing": blocked_probability_missing,
         "blocked_stats_missing": blocked_stats_missing,
         "blocked_identity_missing": blocked_identity_missing,
+        "review_only_partial_data": review_only_partial_data,
+        "research_gap_minimal_hydration": research_gap_minimal_hydration,
         "priced_candidates": priced_candidates,
         "counts": {
             "analytical_ready": len(analytical_ready),
             "blocked_probability_missing": len(blocked_probability_missing),
             "blocked_stats_missing": len(blocked_stats_missing),
             "blocked_identity_missing": len(blocked_identity_missing),
+            "review_only_partial_data": len(review_only_partial_data),
+            "research_gap_minimal_hydration": len(research_gap_minimal_hydration),
             "priced_candidates": len(priced_candidates),
         },
     }

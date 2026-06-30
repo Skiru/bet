@@ -220,7 +220,7 @@ def test_model_probability_ready_cannot_exceed_market_probability_input_ready():
             "pick": "Beta",
             "home_team": "Alpha",
             "away_team": "Beta",
-            "probability_confidence": "MINIMAL",
+            "probability_confidence": "HIGH",
             "reference_model_probability": 0.58,
             "model_probability": None,
         },

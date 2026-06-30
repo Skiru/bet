@@ -188,7 +188,28 @@ def evaluate_candidate_analyzability(
                 analyzability_status = "ANALYZABLE"
             else:
                 if not valid:
-                    if reason == "AMBIGUOUS_MARKET_LABEL":
+                    if reason in {"PARTIAL_HYDRATION", "REVIEW_ONLY_PARTIAL_DATA"}:
+                        blocker_reasons.append("PARTIAL_HYDRATION_BLOCKED")
+                        analyzability_status = "REVIEW_ONLY_PARTIAL_DATA"
+                    elif reason in {"MINIMAL_HYDRATION", "RESEARCH_GAP_MINIMAL_HYDRATION"}:
+                        blocker_reasons.append("LOW_CONFIDENCE_PROMOTION_BLOCKED")
+                        analyzability_status = "RESEARCH_GAP_MINIMAL_HYDRATION"
+                    elif reason == "BLOCKED_HYDRATION_FAILED":
+                        blocker_reasons.append("HYDRATION_FAILED")
+                        analyzability_status = "BLOCKED_HYDRATION_FAILED"
+                    elif reason == "PROMOTION_CONFIDENCE_LOW_OR_MINIMAL":
+                        blocker_reasons.append("LOW_CONFIDENCE_PROMOTION_BLOCKED")
+                        analyzability_status = "RESEARCH_GAP_MINIMAL_HYDRATION"
+                    elif reason == "SOURCE_PROVIDER_MISSING":
+                        blocker_reasons.append("SOURCE_PROVIDER_MISSING")
+                        analyzability_status = "RESEARCH_GAP_MARKET_INPUT_NOT_BUILT"
+                    elif reason == "SOURCE_ARTIFACT_PATH_MISSING":
+                        blocker_reasons.append("SOURCE_ARTIFACT_PATH_MISSING")
+                        analyzability_status = "RESEARCH_GAP_MARKET_INPUT_NOT_BUILT"
+                    elif reason == "STATS_AS_OF_MISSING_OR_UNKNOWN":
+                        blocker_reasons.append("STATS_AS_OF_MISSING_OR_UNKNOWN")
+                        analyzability_status = "RESEARCH_GAP_MARKET_INPUT_NOT_BUILT"
+                    elif reason == "AMBIGUOUS_MARKET_LABEL":
                         blocker_reasons.append("UNSUPPORTED_MARKET_FAMILY")
                         analyzability_status = "UNSUPPORTED_MARKET_FAMILY"
                     elif reason == "UNSUPPORTED_PROP_MATCH":
@@ -217,7 +238,7 @@ def evaluate_candidate_analyzability(
                         stat_semantics_status = True
                     elif reason == "INSUFFICIENT_SAMPLE_SIZE":
                         blocker_reasons.append("SAMPLE_SIZE_INSUFFICIENT")
-                        analyzability_status = "RESEARCH_GAP_L10_MISSING"
+                        analyzability_status = "REVIEW_ONLY_PARTIAL_DATA"
                         stat_semantics_status = True
                         l10_series_status = True
                     else:
@@ -293,7 +314,11 @@ def split_analyzable_and_research_gap(
             "RESEARCH_GAP_UNKNOWN_STAT_SEMANTICS",
             "RESEARCH_GAP_MARKET_INPUT_NOT_BUILT",
             "LINE_OR_DIRECTION_GAP",
-            "IDENTITY_GAP"
+            "IDENTITY_GAP",
+            "REVIEW_ONLY_PARTIAL_DATA",
+            "RESEARCH_GAP_PARTIAL_HYDRATION",
+            "RESEARCH_GAP_MINIMAL_HYDRATION",
+            "BLOCKED_HYDRATION_FAILED"
         }:
             research_gap.append(r)
         else:

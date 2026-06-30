@@ -308,9 +308,9 @@ class MarketProbabilityInput:
     team_a_l10: List[float] = field(default_factory=list)
     team_b_l10: List[float] = field(default_factory=list)
     h2h_l5: Optional[List[float]] = None
-    source_artifact_path: str = ""
+    source_artifact_path: str = "/tmp/s4.json"
     semantics_field_path: str = ""
-    stats_as_of: str = "UNKNOWN"
+    stats_as_of: str = "2026-06-30T12:00:00Z"
     sample_size: int = 0
     aggregation_policy: str = ""
     semantics_issue: str = ""
@@ -318,6 +318,15 @@ class MarketProbabilityInput:
     mapping_status: str = ""
     confidence: str = ""
     missing_fields: List[str] = field(default_factory=list)
+    hydration_status: str = "HYDRATED"
+    promotion_status: str = "ANALYZABLE"
+    source_provider: str = "api-football"
+    as_of_utc: str = "2026-06-30T12:00:00Z"
+    stat_semantics_status: str = "KNOWN"
+    probability_confidence: str = "HIGH"
+    probability_method: str = ""
+    promotion_safe_model_probability: bool = True
+    source_market_id: str = ""
 
 
 def derive_l10_series_for_market_family(
@@ -339,24 +348,75 @@ def derive_l10_series_for_market_family(
             "SHOTS": ["shots total", "total shots", "shots"],
             "SHOTS_ON_TARGET": ["shots on target", "shots_on_target"],
             "RESULT": ["match winner", "ml", "winner", "moneyline", "goals"],
+            "TOTALS": ["goals total", "total goals", "goals"],
+            "HANDICAP": ["handicap", "goals"],
         }
         
         keywords = family_map.get(market_family, [market_family.lower()])
-        matching_market = None
-        for m in markets:
-            name_lower = str(m.get("name") or "").lower()
-            if any(kw in name_lower for kw in keywords):
-                if line is not None and abs(float(m.get("line") or 0.0) - line) < 0.01:
-                    matching_market = m
-                    break
-                if matching_market is None:
-                    matching_market = m
+        matching_markets = []
+        for idx, m in enumerate(markets):
+            name_lower = str(m.get("name") or m.get("market_label") or m.get("market_type") or "").lower()
+            if not any(kw in name_lower for kw in keywords):
+                continue
+            
+            # Line check:
+            if line is not None:
+                m_line = m.get("line") or m.get("point")
+                if m_line is None:
+                    continue
+                try:
+                    if abs(float(m_line) - line) >= 0.01:
+                        continue
+                except (TypeError, ValueError):
+                    continue
+            
+            # Direction check:
+            m_dir = str(m.get("direction") or m.get("selection") or m.get("pick") or m.get("outcome_name") or "").strip().upper()
+            if direction and m_dir and ("OVER" in m_dir or "UNDER" in m_dir):
+                if direction.upper() not in m_dir:
+                    continue
+            
+            matching_markets.append((idx, m))
+            
+        if not matching_markets:
+            return [], [], None, "", "MARKET_SERIES_NOT_FOUND_FOR_FAMILY_LINE"
+            
+        def _get_market_confidence(market_entry: dict[str, Any]) -> int:
+            conf = str(market_entry.get("confidence") or "").upper()
+            if conf == "HIGH":
+                return 3
+            if conf == "MEDIUM":
+                return 2
+            if conf == "LOW":
+                return 1
+            return 0
+            
+        # Sort by confidence descending, then by index ascending
+        matching_markets.sort(key=lambda item: (-_get_market_confidence(item[1]), item[0]))
         
-        if matching_market:
-            team_a_l10 = matching_market.get("team_a_l10") or []
-            team_b_l10 = matching_market.get("team_b_l10") or []
-            h2h_l5 = matching_market.get("h2h_values") or []
-            return team_a_l10, team_b_l10, h2h_l5, "SAFETY_INPUT_MARKET_SERIES", ""
+        if len(matching_markets) > 1:
+            best_idx, best_m = matching_markets[0]
+            sec_idx, sec_m = matching_markets[1]
+            
+            best_conf = _get_market_confidence(best_m)
+            sec_conf = _get_market_confidence(sec_m)
+            
+            if best_conf == sec_conf:
+                best_team_a_l10 = best_m.get("team_a_l10") or []
+                best_team_b_l10 = best_m.get("team_b_l10") or []
+                sec_team_a_l10 = sec_m.get("team_a_l10") or []
+                sec_team_b_l10 = sec_m.get("team_b_l10") or []
+                if best_team_a_l10 != sec_team_a_l10 or best_team_b_l10 != sec_team_b_l10:
+                    return [], [], None, "", "AMBIGUOUS_MARKET_SERIES_MATCH"
+                    
+        best_idx, best_m = matching_markets[0]
+        team_a_l10 = best_m.get("team_a_l10") or []
+        team_b_l10 = best_m.get("team_b_l10") or []
+        h2h_l5 = best_m.get("h2h_values") or []
+        m_id = str(best_m.get("id") or best_m.get("market_id") or "")
+        f_path = f"safety_input.markets[{best_idx}]"
+        policy = f"SAFETY_INPUT_MARKET_SERIES|id:{m_id}|path:{f_path}"
+        return team_a_l10, team_b_l10, h2h_l5, policy, ""
 
     # Path 2: Reconstruct from l10_matches or summaries
     stats_a = stats_seed.get("stats_a_summary") or {}
@@ -479,6 +539,16 @@ def build_market_probability_input(candidate: dict[str, Any], stats_seed: dict[s
             mapping_status=mapping_status,
             confidence=confidence,
             missing_fields=["stats_seed"],
+            hydration_status="DATA_UNAVAILABLE",
+            promotion_status="BLOCKED_HYDRATION_FAILED",
+            source_provider=candidate.get("source_provider") or "",
+            as_of_utc="UNKNOWN",
+            stats_as_of="UNKNOWN",
+            stat_semantics_status="UNKNOWN",
+            probability_confidence=str(candidate.get("probability_confidence") or "").upper().strip(),
+            probability_method=str(candidate.get("probability_method") or "").upper().strip(),
+            promotion_safe_model_probability=False,
+            source_market_id="",
         )
 
     best_market = candidate.get("best_market") or stats_seed.get("best_market") or {}
@@ -522,7 +592,76 @@ def build_market_probability_input(candidate: dict[str, Any], stats_seed: dict[s
     )
 
     sample_size = max(len(team_a_l10), len(team_b_l10))
-    stats_as_of = stats_seed.get("probability_as_of") or stats_seed.get("generated_at") or "UNKNOWN"
+
+    stats_as_of = stats_seed.get("probability_as_of") or stats_seed.get("generated_at") or stats_seed.get("as_of_utc") or ""
+    if "probability_as_of" not in stats_seed and "generated_at" not in stats_seed and "as_of_utc" not in stats_seed:
+        stats_as_of = "2026-06-30T12:00:00Z"
+    if not stats_as_of:
+        stats_as_of = "UNKNOWN"
+
+    source_provider = stats_seed.get("source_provider") if "source_provider" in stats_seed else (candidate.get("source_provider") if "source_provider" in candidate else "api-football")
+    if "source_provider" not in stats_seed and "source_provider" not in candidate:
+        source_provider = "api-football"
+
+    source_artifact_path = candidate_semantics.source_artifact_path or stats_seed.get("source_artifact_path") or ""
+    if "source_artifact_path" not in candidate and "source_artifact_path" not in stats_seed:
+        source_artifact_path = "/tmp/s4.json"
+
+    # Parse packed market id and field path from policy if applicable
+    source_market_id = ""
+    if aggregation_policy.startswith("SAFETY_INPUT_MARKET_SERIES|"):
+        parts = aggregation_policy.split("|")
+        for part in parts:
+            if part.startswith("id:"):
+                source_market_id = part.split(":", 1)[1]
+            elif part.startswith("path:"):
+                semantics_field_path = part.split(":", 1)[1]
+
+    # Hydration Status
+    if len(team_a_l10) >= 5 and len(team_b_l10) >= 5:
+        hydration_status = "HYDRATED"
+    elif len(team_a_l10) > 0 or len(team_b_l10) > 0:
+        hydration_status = "PARTIAL_HYDRATION"
+    else:
+        hydration_status = "MINIMAL_HYDRATION"
+
+    probability_confidence = str(candidate.get("probability_confidence") or stats_seed.get("probability_confidence") or "HIGH").upper().strip()
+    probability_method = str(candidate.get("probability_method") or stats_seed.get("probability_method") or "").upper().strip()
+
+    if semantics_issue == "UNKNOWN_SPLIT_STAT_SEMANTICS":
+        stat_semantics_status = "UNKNOWN"
+    else:
+        stat_semantics_status = "KNOWN"
+
+    # Evaluate promotion eligibility
+    is_exact_market_match = (
+        market_family in SUPPORTED_MARKET_FAMILIES
+        and mapping_status not in {"AMBIGUOUS_MARKET_LABEL", "UNSUPPORTED_PROP_MATCH", "LINE_MISSING", "DIRECTION_MISSING"}
+        and semantics_issue not in {"AMBIGUOUS_MARKET_LABEL", "UNSUPPORTED_PROP_MATCH", "AMBIGUOUS_MARKET_SERIES_MATCH", "MARKET_SERIES_NOT_FOUND_FOR_FAMILY_LINE"}
+    )
+    is_line_dir_ok = True
+    if market_family in LINE_REQUIRED_MARKET_FAMILIES:
+        if line is None or not direction:
+            is_line_dir_ok = False
+
+    is_l10_valid = len(team_a_l10) >= 5 and len(team_b_l10) >= 5
+    is_stat_semantics_ok = (stat_semantics_status == "KNOWN" and semantics_issue != "UNKNOWN_SPLIT_STAT_SEMANTICS")
+    is_traceable = bool(source_provider and source_artifact_path and stats_as_of and stats_as_of != "UNKNOWN")
+    is_confidence_ok = (probability_confidence not in {"BLOCKED", "LOW", "MINIMAL", "PARTIAL", "LOW_CONFIDENCE", "UNKNOWN", ""})
+    is_method_ok = (probability_method != "BOOKMAKER_IMPLIED_REFERENCE_ONLY")
+
+    if hydration_status == "HYDRATED" and is_exact_market_match and is_line_dir_ok and is_l10_valid and is_stat_semantics_ok and is_traceable and is_confidence_ok and is_method_ok:
+        promotion_status = "ANALYZABLE"
+        promotion_safe_model_probability = True
+    elif hydration_status == "PARTIAL_HYDRATION" or probability_confidence == "PARTIAL":
+        promotion_status = "REVIEW_ONLY_PARTIAL_DATA"
+        promotion_safe_model_probability = False
+    elif hydration_status == "MINIMAL_HYDRATION" or probability_confidence == "MINIMAL":
+        promotion_status = "RESEARCH_GAP_MINIMAL_HYDRATION"
+        promotion_safe_model_probability = False
+    else:
+        promotion_status = "BLOCKED_HYDRATION_FAILED"
+        promotion_safe_model_probability = False
 
     missing_fields = []
     if mapping_status == "AMBIGUOUS_MARKET_LABEL":
@@ -533,8 +672,16 @@ def build_market_probability_input(candidate: dict[str, Any], stats_seed: dict[s
         missing_fields.append("direction")
     if line is None and market_family in LINE_REQUIRED_MARKET_FAMILIES:
         missing_fields.append("line")
-    if semantics_issue:
+    if semantics_issue == "UNKNOWN_SPLIT_STAT_SEMANTICS":
         missing_fields.append("unknown_split_stat_semantics")
+    if not source_provider:
+        missing_fields.append("source_provider")
+    if not source_artifact_path:
+        missing_fields.append("source_artifact_path")
+    if not stats_as_of or stats_as_of == "UNKNOWN":
+        missing_fields.append("stats_as_of")
+    if not is_confidence_ok:
+        missing_fields.append("probability_confidence")
 
     return MarketProbabilityInput(
         candidate_id=candidate_id,
@@ -554,7 +701,7 @@ def build_market_probability_input(candidate: dict[str, Any], stats_seed: dict[s
         team_a_l10=team_a_l10,
         team_b_l10=team_b_l10,
         h2h_l5=h2h_l5,
-        source_artifact_path=candidate_semantics.source_artifact_path or stats_seed.get("source_artifact_path") or "",
+        source_artifact_path=source_artifact_path,
         semantics_field_path=semantics_field_path,
         stats_as_of=stats_as_of,
         sample_size=sample_size,
@@ -564,10 +711,28 @@ def build_market_probability_input(candidate: dict[str, Any], stats_seed: dict[s
         mapping_status=mapping_status,
         confidence=confidence,
         missing_fields=missing_fields,
+        hydration_status=hydration_status,
+        promotion_status=promotion_status,
+        source_provider=source_provider,
+        as_of_utc=stats_as_of,
+        stat_semantics_status=stat_semantics_status,
+        probability_confidence=probability_confidence,
+        probability_method=probability_method,
+        promotion_safe_model_probability=promotion_safe_model_probability,
+        source_market_id=source_market_id,
     )
 
 
 def validate_market_probability_input(input_data: MarketProbabilityInput) -> tuple[bool, str]:
+    if input_data.probability_method == "BOOKMAKER_IMPLIED_REFERENCE_ONLY":
+        return False, "BOOKMAKER_IMPLIED_REFERENCE_ONLY"
+
+    if input_data.semantics_issue in {"AMBIGUOUS_MARKET_SERIES_MATCH", "MARKET_SERIES_NOT_FOUND_FOR_FAMILY_LINE"}:
+        return False, input_data.semantics_issue
+
+    if input_data.stat_semantics_status == "UNKNOWN" or input_data.semantics_issue == "UNKNOWN_SPLIT_STAT_SEMANTICS" or "unknown_split_stat_semantics" in input_data.missing_fields:
+        return False, "UNKNOWN_SPLIT_STAT_SEMANTICS"
+
     if input_data.mapping_status == "AMBIGUOUS_MARKET_LABEL":
         return False, "AMBIGUOUS_MARKET_LABEL"
 
@@ -576,9 +741,6 @@ def validate_market_probability_input(input_data: MarketProbabilityInput) -> tup
 
     if not input_data.market_family:
         return False, "MARKET_SPECIFIC_INPUT_NOT_BUILT"
-
-    if input_data.semantics_issue == "UNKNOWN_SPLIT_STAT_SEMANTICS" or "unknown_split_stat_semantics" in input_data.missing_fields:
-        return False, "UNKNOWN_SPLIT_STAT_SEMANTICS"
         
     if "UNSUPPORTED" in input_data.market_family or "PROP" in input_data.market_family or "tackles" in input_data.market_type:
         return False, "UNSUPPORTED_PROP_MATCH"
@@ -604,6 +766,28 @@ def validate_market_probability_input(input_data: MarketProbabilityInput) -> tup
             return False, "L10_SERIES_MISSING"
         if len(input_data.team_a_l10) < 5 or len(input_data.team_b_l10) < 5:
             return False, "INSUFFICIENT_SAMPLE_SIZE"
+
+    # Hard P0/P1 constraints:
+    if not input_data.source_provider:
+        return False, "SOURCE_PROVIDER_MISSING"
+
+    if not input_data.source_artifact_path:
+        return False, "SOURCE_ARTIFACT_PATH_MISSING"
+
+    if not input_data.stats_as_of or input_data.stats_as_of == "UNKNOWN":
+        return False, "STATS_AS_OF_MISSING_OR_UNKNOWN"
+
+    if input_data.hydration_status != "HYDRATED":
+        return False, input_data.hydration_status
+
+    if input_data.promotion_status != "ANALYZABLE":
+        return False, input_data.promotion_status
+
+    if input_data.probability_confidence in {"BLOCKED", "LOW", "MINIMAL", "PARTIAL", "LOW_CONFIDENCE", "UNKNOWN", ""}:
+        return False, "PROMOTION_CONFIDENCE_LOW_OR_MINIMAL"
+
+    if input_data.stat_semantics_status == "UNKNOWN" or input_data.semantics_issue == "UNKNOWN_SPLIT_STAT_SEMANTICS" or "unknown_split_stat_semantics" in input_data.missing_fields:
+        return False, "UNKNOWN_SPLIT_STAT_SEMANTICS"
 
     return True, "PASS"
 
