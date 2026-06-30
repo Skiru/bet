@@ -277,6 +277,34 @@ def main():
                 output_path.parent.mkdir(parents=True, exist_ok=True)
                 output_path.write_text(json.dumps(drafts_data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
                 print(f"ANALYTICAL_HANDOFF_LANE: Wrote {package_type} package from analytical handoff.")
+                
+                try:
+                    import subprocess
+                    import shutil
+                    cmd = [
+                        sys.executable,
+                        "scripts/run_unified_live_analyst_session.py",
+                        "--input", str(input_path.parent),
+                        "--run-id", args.run_id or "TODAY_LIVE_BET_BUILDER_FINAL_MANUAL_COUPON_A_20260630_115254"
+                    ]
+                    print(f"S8: Launching default live/manual analyst output subprocess: {' '.join(cmd)}")
+                    res = subprocess.run(cmd, capture_output=True, text=True)
+                    if res.stdout:
+                        sys.stdout.write(res.stdout)
+                    if res.stderr:
+                        sys.stderr.write(res.stderr)
+                    
+                    # Copy generated files to artifact_dir for integration parity if set
+                    if artifact_dir and artifact_dir.exists():
+                        out_dir = Path("reports/pipeline_runs") / (args.run_id or "TODAY_LIVE_BET_BUILDER_FINAL_MANUAL_COUPON_A_20260630_115254")
+                        if out_dir.exists() and out_dir.resolve() != artifact_dir.resolve():
+                            for name in ("unified_live_analyst_package.json", "unified_live_analyst_package.md", "package_quality_review.md", "deep_statistical_analysis.json", "deep_statistical_analysis.md", "status_safety_review.md", "preflight.md"):
+                                fpath = out_dir / name
+                                if fpath.exists():
+                                    shutil.copy(fpath, artifact_dir / name)
+                except Exception as exc:
+                    print(f"WARNING: S8: failed to launch run_unified_live_analyst_session.py: {exc}")
+
                 status = "PASS"
                 is_analytical_only = True
             elif "validation" in content and "gate_results" not in content:
