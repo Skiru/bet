@@ -30,6 +30,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 from normalize_stats import build_safety_input, build_safety_input_from_cache
 from compute_safety_scores import rank_markets
 
+from bet.pipeline.market_probability_inputs import aggregate_split_stat_value
 from bet.stats.market_ranking import SPORT_STAT_KEYS
 
 from bet.utils import is_same_event
@@ -481,6 +482,52 @@ def _extract_esports_h2h(sport: str, team_a: str, team_b: str, result: dict) -> 
     return result
 
 
+def _populate_stats_from_form(result: dict, form: dict, sport: str) -> None:
+    stat_keys = SPORT_STAT_KEYS.get(sport, [])
+
+    # Extract L10 and L5 averages, merging _home/_away split keys
+    for period_key, target in [("l10_avg", "l10_avg"), ("l5_avg", "l5_avg")]:
+        avg_data = form.get(period_key, {})
+        for key in stat_keys:
+            if key in avg_data:
+                # Bare key exists — use directly
+                result[target][key] = avg_data[key]
+            else:
+                # Check for _home/_away split keys (from ESPN/API enrichment)
+                home_key = f"{key}_home"
+                away_key = f"{key}_away"
+                has_home = home_key in avg_data
+                has_away = away_key in avg_data
+                if has_home or has_away:
+                    home_val = avg_data.get(home_key, 0.0)
+                    away_val = avg_data.get(away_key, 0.0)
+                    aggregated_value, policy = aggregate_split_stat_value(key, home_val, away_val)
+                    if aggregated_value is None:
+                        result.setdefault("stat_semantics_issues", []).append(
+                            {
+                                "stat_key": key,
+                                "period": period_key,
+                                "reason": policy,
+                            }
+                        )
+                    else:
+                        result[target][key] = aggregated_value
+                        result.setdefault("split_stat_aggregation_policy", {})[key] = policy
+                    # Also preserve the split values
+                    if has_home:
+                        result[target][home_key] = home_val
+                    if has_away:
+                        result[target][away_key] = away_val
+
+    # Extract L10 match-by-match data
+    l10 = form.get("l10_matches", form.get("recent_matches", []))
+    result["l10_matches"] = l10[:10] if l10 else []
+
+    # Only mark has_data if we actually extracted meaningful stats
+    if result["l10_avg"] or result["l5_avg"] or result["l10_matches"]:
+        result["has_data"] = True
+
+
 def extract_team_stats(sport: str, team_name: str) -> dict:
     """Read stats cache for a single team. DB-first with JSON cache fallback.
 
@@ -499,6 +546,9 @@ def extract_team_stats(sport: str, team_name: str) -> dict:
         "sources": [],
         "has_data": False,
         "raw_cache": None,
+        "split_stat_aggregation_policy": {},
+        "stat_semantics_issues": [],
+        "team_identity_match": None,
     }
 
     # --- ESPORTS: use dedicated clients (OpenDota, HLTV/bo3.gg, VLR) ---
@@ -511,16 +561,10 @@ def extract_team_stats(sport: str, team_name: str) -> dict:
         db_form = load_team_form_from_db(team_name, sport)
         if db_form and db_form.get("form"):
             form = db_form["form"]
-            stat_keys = SPORT_STAT_KEYS.get(sport, [])
-            for key in stat_keys:
-                if key in form.get("l10_avg", {}):
-                    result["l10_avg"][key] = form["l10_avg"][key]
-                if key in form.get("l5_avg", {}):
-                    result["l5_avg"][key] = form["l5_avg"][key]
-            result["l10_matches"] = form.get("l10_matches", [])[:10]
+            _populate_stats_from_form(result, form, sport)
             result["sources"] = db_form.get("sources", ["db"])
-            if result["l10_avg"]:
-                result["has_data"] = True
+            result["team_identity_match"] = db_form.get("team_identity_match")
+            if result["has_data"]:
                 return result
     except Exception as e:
         logger.debug("Non-critical failure in cache read / DB lookup: %s", e)
@@ -554,48 +598,7 @@ def extract_team_stats(sport: str, team_name: str) -> dict:
     result["sources"] = cache.get("sources", [])
 
     form = cache.get("form", {})
-    stat_keys = SPORT_STAT_KEYS.get(sport, [])
-
-    # Percentage stats should NOT sum home+away (would yield ~100%)
-    PERCENTAGE_STATS = {"possession", "fg_pct", "three_pct", "ft_pct",
-                        "first_serve_pct", "faceoff_pct", "hitting_pct",
-                        "checkout_pct"}
-
-    # Extract L10 and L5 averages, merging _home/_away split keys
-    for period_key, target in [("l10_avg", "l10_avg"), ("l5_avg", "l5_avg")]:
-        avg_data = form.get(period_key, {})
-        for key in stat_keys:
-            if key in avg_data:
-                # Bare key exists — use directly
-                result[target][key] = avg_data[key]
-            else:
-                # Check for _home/_away split keys (from ESPN/API enrichment)
-                home_key = f"{key}_home"
-                away_key = f"{key}_away"
-                has_home = home_key in avg_data
-                has_away = away_key in avg_data
-                if has_home or has_away:
-                    home_val = avg_data.get(home_key, 0)
-                    away_val = avg_data.get(away_key, 0)
-                    if key in PERCENTAGE_STATS:
-                        # Percentage stats: keep home-only (not summed)
-                        result[target][key] = home_val
-                    else:
-                        # Counting stats: sum home + away
-                        result[target][key] = round(home_val + away_val, 2)
-                    # Also preserve the split values
-                    if has_home:
-                        result[target][home_key] = home_val
-                    if has_away:
-                        result[target][away_key] = away_val
-
-    # Extract L10 match-by-match data
-    l10 = form.get("l10_matches", form.get("recent_matches", []))
-    result["l10_matches"] = l10[:10] if l10 else []
-
-    # Only mark has_data if we actually extracted meaningful stats
-    if result["l10_avg"] or result["l5_avg"] or result["l10_matches"]:
-        result["has_data"] = True
+    _populate_stats_from_form(result, form, sport)
 
     # ESPN enrichment for basketball/hockey — ALWAYS load as supplement
     if sport in ("basketball", "hockey"):
@@ -1622,6 +1625,43 @@ def analyze_candidate(
     if not has_data and ranking_result.get("ranking"):
         has_data = True
 
+    probability_sources = []
+    for section in (stats_a.get("sources") or [], stats_b.get("sources") or []):
+        for source in section:
+            if source not in probability_sources:
+                probability_sources.append(source)
+    best_market_probability = best_market.get("probability") if best_market else None
+    probability_method = ""
+    probability_missing_reason = ""
+    semantics_issues = list(stats_a.get("stat_semantics_issues") or []) + list(stats_b.get("stat_semantics_issues") or [])
+    identity_matches = [stats_a.get("team_identity_match") or {}, stats_b.get("team_identity_match") or {}]
+    low_confidence_identity = any(
+        str(match.get("confidence") or "").upper() not in ("", "HIGH")
+        for match in identity_matches
+    )
+    if semantics_issues:
+        probability_missing_reason = "UNKNOWN_SPLIT_STAT_SEMANTICS"
+        best_market_probability = None
+    elif low_confidence_identity:
+        probability_missing_reason = "TEAM_IDENTITY_LOW_CONFIDENCE"
+        best_market_probability = None
+    elif not stats_a.get("has_data") or not stats_b.get("has_data"):
+        probability_missing_reason = "NO_STATS_DATA_FOR_MODEL_PROBABILITY"
+        best_market_probability = None
+    elif best_market_probability is not None:
+        probability_method = str(best_market.get("model_used") or "S3_PROBABILITY_ENGINE")
+    elif best_market:
+        probability_missing_reason = "NO_MODEL_PROBABILITY_FROM_S3"
+    else:
+        probability_missing_reason = "NO_RANKED_MARKET"
+
+    stats_gap_reason = ""
+    if not has_data:
+        if shortlist_safety_markets:
+            stats_gap_reason = "NO_STATS_DATA_FROM_CACHE_OR_DB"
+        else:
+            stats_gap_reason = "NO_STATS_DATA_FROM_CACHE_OR_DB_AND_NO_SHORTLIST_SAFETY_MARKETS"
+
     # Build raw data for decision learning
     raw_data = {
         "fixture_surface": fixture_surface if sport == "tennis" else None,
@@ -1666,11 +1706,14 @@ def analyze_candidate(
 
     return {
         "sport": sport,
+        "candidate_id": "|".join(part for part in (sport, home, away, kickoff[:10]) if part),
         "home_team": home,
         "away_team": away,
+        "participants": [home, away],
         "competition": competition,
         "kickoff": kickoff,
         "has_data": has_data,
+        "stats_gap_reason": stats_gap_reason,
         "data_quality": dq,
         "hallucination_risk": hallucination_risk,
         "real_data_keys": real_data_keys,
@@ -1684,6 +1727,9 @@ def analyze_candidate(
             "l10_matches_count": len(stats_a["l10_matches"]),
             "sources": stats_a["sources"],
             "espn_enrichment": stats_a.get("espn_enrichment"),
+            "split_stat_aggregation_policy": stats_a.get("split_stat_aggregation_policy", {}),
+            "stat_semantics_issues": stats_a.get("stat_semantics_issues", []),
+            "team_identity_match": stats_a.get("team_identity_match"),
         },
         "stats_b_summary": {
             "team": stats_b["team"],
@@ -1693,6 +1739,9 @@ def analyze_candidate(
             "l10_matches_count": len(stats_b["l10_matches"]),
             "sources": stats_b["sources"],
             "espn_enrichment": stats_b.get("espn_enrichment"),
+            "split_stat_aggregation_policy": stats_b.get("split_stat_aggregation_policy", {}),
+            "stat_semantics_issues": stats_b.get("stat_semantics_issues", []),
+            "team_identity_match": stats_b.get("team_identity_match"),
         },
         "h2h_summary": {
             "has_data": h2h["has_data"],
@@ -1718,6 +1767,12 @@ def analyze_candidate(
             if best_market
             else None
         ),
+        "model_probability": best_market_probability,
+        "probability_method": probability_method,
+        "probability_sources": probability_sources,
+        "probability_as_of": _now_iso(),
+        "probability_confidence": "BLOCKED" if probability_missing_reason in {"UNKNOWN_SPLIT_STAT_SEMANTICS", "TEAM_IDENTITY_LOW_CONFIDENCE"} else dq.get("label", ""),
+        "probability_missing_reason": probability_missing_reason,
         "h2h_status": dq.get("breakdown", {}).get("h2h_status", "BLIND"),
         "markets_evaluated": len(ranking_result.get("ranking", [])),
         "sections": sections,
@@ -1777,6 +1832,8 @@ def _load_candidates_from_shortlist(path: str) -> list[dict]:
     candidates = []
     for e in entries:
         candidates.append({
+            "candidate_id": e.get("candidate_id") or e.get("fixture_key"),
+            "fixture_id": e.get("fixture_id"),
             "sport": e.get("sport", "football"),
             "home_team": e.get("home_team", e.get("home", "")),
             "away_team": e.get("away_team", e.get("away", "")),
@@ -2011,6 +2068,9 @@ def generate_deep_stats(date: str, shortlist_path: str | None = None, top: int |
         result = analyze_candidate(sport, home, away, comp, kickoff, shortlist_safety_markets=sm or None)
         # Pass through shortlist metadata that downstream scripts need
         if result is not None:
+            result["candidate_id"] = c.get("candidate_id") or result.get("candidate_id")
+            if c.get("fixture_id"):
+                result["fixture_id"] = c.get("fixture_id")
             result["data_tier"] = c.get("data_tier", "")
             result["comp_score"] = c.get("comp_score", 3)
             result["tipster_count"] = int(c.get("tipster_count") or 0)
@@ -2176,13 +2236,22 @@ def _write_json(output: dict, date: str) -> Path:
     for a in output["analyses"]:
         json_entry = {
             "sport": a["sport"],
+            "candidate_id": a.get("candidate_id"),
             "home_team": a["home_team"],
             "away_team": a["away_team"],
+            "participants": a.get("participants", [a["home_team"], a["away_team"]]),
             "competition": a["competition"],
             "kickoff": a["kickoff"],
             "has_data": a["has_data"],
+            "stats_gap_reason": a.get("stats_gap_reason", ""),
             "data_quality": a.get("data_quality"),
             "best_market": a["best_market"],
+            "model_probability": a.get("model_probability"),
+            "probability_method": a.get("probability_method"),
+            "probability_sources": a.get("probability_sources", []),
+            "probability_as_of": a.get("probability_as_of"),
+            "probability_confidence": a.get("probability_confidence"),
+            "probability_missing_reason": a.get("probability_missing_reason"),
             "markets_evaluated": a["markets_evaluated"],
             "stats_a_summary": a["stats_a_summary"],
             "stats_b_summary": a["stats_b_summary"],

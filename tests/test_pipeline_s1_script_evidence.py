@@ -83,7 +83,13 @@ def test_s1_wrapper_success_writes_pass_script_evidence(tmp_path: Path):
         "market_matrix_schema_version": 1,
         "market_matrix_pipeline_safe": False,
         "market_matrix_validated": False,
-        "shortlist_started": False
+        "shortlist_started": False,
+        "raw_discovery_count": 0,
+        "after_dedup_count": 0,
+        "provider_counts": {},
+        "fallback_used": False,
+        "fallback_reason": "N/A",
+        "db_schema_verdict": "PASS"
     }
     assert evidence["no_pick_edge_stake_coupon_emitted"] is True
     assert evidence["production_selectable"] is False

@@ -1360,6 +1360,7 @@ def write_shortlist_json(selected: list[tuple[float, dict]], date: str) -> Path:
         "selection_telemetry": dict(_LAST_SHORTLIST_TELEMETRY),
         "candidates": [],
     }
+    matrix_artifact_path = str(DATA_DIR / f"market_matrix_{date}.json")
     for i, (score, event) in enumerate(selected, 1):
         home = event.get("home_team", "")
         away = event.get("away_team", "")
@@ -1385,6 +1386,7 @@ def write_shortlist_json(selected: list[tuple[float, dict]], date: str) -> Path:
             "safety_markets": event.get("safety_markets", []),
             "fixture_verified": is_verified,
             "verification_sources": ver_sources,
+            "source_artifact_path": matrix_artifact_path,
         })
 
     output["fixture_verification"] = {

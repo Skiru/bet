@@ -238,6 +238,46 @@ def test_s7_evidence_ev_check():
     assert ev_false_payload["s7_input_contains_ev"] is False
 
 
+def test_s4_candidate_preserves_sport_competition_participants_into_s5():
+    candidate = _build_valuation_candidate(
+        {
+            "fixture_id": 20,
+            "candidate_id": "fixture:20",
+            "sport": "football",
+            "home_team": "Alpha",
+            "away_team": "Beta",
+            "participants": ["Alpha", "Beta"],
+            "competition": "Test League",
+            "kickoff": "2026-06-29T18:00:00+00:00",
+            "best_market": {"name": "Goals Total O/U", "direction": "OVER", "line": 2.5, "probability": 0.62},
+            "probability_method": "S3_PROBABILITY_ENGINE",
+            "odds": {"market_best": 1.91},
+            "odds_source": "api",
+            "ev": 0.18,
+            "ev_source": "api",
+        }
+    )
+
+    assert candidate["sport"] == "football"
+    assert candidate["competition"] == "Test League"
+    assert candidate["participants"] == ["Alpha", "Beta"]
+    assert candidate["candidate_id"] == "fixture:20"
+
+
+def test_no_fake_probability():
+    candidate = {"home_team": "Team A", "away_team": "Team B", "best_market": {"name": "Match Winner"}, "probability_method": "BOOKMAKER_IMPLIED_REFERENCE_ONLY"}
+    monkey_data_dir = Path("/tmp")
+    original_data_dir = odds_evaluator.DATA_DIR
+    try:
+        odds_evaluator.DATA_DIR = monkey_data_dir
+        _inject_ev_from_odds([candidate], "2026-06-26")
+    finally:
+        odds_evaluator.DATA_DIR = original_data_dir
+
+    assert candidate["model_probability"] is None
+    assert candidate["probability_missing_reason"] == "BOOKMAKER_IMPLIED_REFERENCE_ONLY"
+
+
 def test_protected_paths_protection():
     """11. No writes to protected repo paths."""
     assert is_protected_repo_path("betting/data/some_file.json") is True

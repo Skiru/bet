@@ -99,6 +99,11 @@ class EventDiscoveryCoordinator:
         total_raw = sum(len(v) for v in events_by_source.values())
         logger.info("Total raw events across sources: %d", total_raw)
 
+        raw_by_sport: dict[str, int] = {sport: 0 for sport in target_sports}
+        for stats in source_stats.values():
+            for sport, count in stats.per_sport_counts.items():
+                raw_by_sport[sport] = raw_by_sport.get(sport, 0) + count
+
         # 2. Deduplicate + merge
         merged = self.dedup.merge(events_by_source)
         logger.info("After dedup: %d merged fixtures", len(merged))
@@ -110,7 +115,13 @@ class EventDiscoveryCoordinator:
         logger.info("Persisted %d fixtures to DB", persisted)
 
         # 4. Write backward-compatible JSON
-        json_path = self._write_json(date, merged)
+        json_path = self._write_json(
+            date,
+            merged,
+            requested_sports=target_sports,
+            raw_by_sport=raw_by_sport,
+            source_stats=source_stats,
+        )
         logger.info("JSON written to %s", json_path)
 
         # 5. Build result
@@ -147,6 +158,8 @@ class EventDiscoveryCoordinator:
             fixtures=merged,
             total_discovered=total_raw,
             total_after_dedup=len(merged),
+            requested_sports=list(target_sports),
+            raw_by_sport=raw_by_sport,
             by_sport=by_sport,
             source_stats=source_stats,
             issues=issues,
@@ -176,12 +189,18 @@ class EventDiscoveryCoordinator:
                 try:
                     events = source.fetch_events(date, sport)
                     all_events.extend(events)
+                    stats.per_sport_counts[sport] = len(events)
                     for err in getattr(source, "last_errors", []):
-                        stats.errors.append(f"{source.name}/{sport}: {err}")
+                        scoped_error = f"{source.name}/{sport}: {err}"
+                        stats.errors.append(scoped_error)
+                        stats.per_sport_errors.setdefault(sport, []).append(scoped_error)
                     if events:
                         stats.sports_covered.append(sport)
                 except Exception as e:
-                    stats.errors.append(f"{source.name}/{sport}: {e}")
+                    scoped_error = f"{source.name}/{sport}: {e}"
+                    stats.per_sport_counts.setdefault(sport, 0)
+                    stats.errors.append(scoped_error)
+                    stats.per_sport_errors.setdefault(sport, []).append(scoped_error)
 
             stats.events_fetched = len(all_events)
             stats.duration_seconds = round(time.monotonic() - start, 1)
@@ -202,6 +221,8 @@ class EventDiscoveryCoordinator:
                     source_stats[src_name] = SourceRunStats(
                         source=src_name,
                         available=False,
+                        per_sport_counts={},
+                        per_sport_errors={},
                         errors=[str(e)],
                     )
 
@@ -351,6 +372,45 @@ class EventDiscoveryCoordinator:
                         if isinstance(src_ref.raw_data, dict)
                         else None,
                     )
+
+                # Persist odds to odds_history table
+                if mf.odds:
+                    for label, price in mf.odds.items():
+                        parts = label.split("|")
+                        if len(parts) >= 3:
+                            bm_name = parts[0]
+                            mkey = parts[1]
+                            selection = parts[2]
+                            line = None
+                            
+                            # Parse line from selection if possible (for totals/spreads)
+                            match = re.search(r"([-+]?\d*\.\d+|\b[-+]?\d+\b)", selection)
+                            if match:
+                                line = float(match.group(1))
+                                selection = re.sub(r"[-+]?\d*\.\d+|\b[-+]?\d+\b", "", selection).strip().rstrip("_").strip()
+                                
+                            if len(parts) >= 4 and parts[3]:
+                                try:
+                                    line = float(parts[3])
+                                except ValueError:
+                                    pass
+                                    
+                            self.session.execute(
+                                text(
+                                    "INSERT OR IGNORE INTO odds_history "
+                                    "(fixture_id, bookmaker, market, selection, odds, line, fetched_at, is_closing) "
+                                    "VALUES (:fid, :bm, :mkt, :sel, :odds, :line, :fa, 0)"
+                                ),
+                                {
+                                    "fid": fixture_id,
+                                    "bm": bm_name,
+                                    "mkt": mkey,
+                                    "sel": selection,
+                                    "odds": float(price),
+                                    "line": line,
+                                    "fa": now,
+                                },
+                            )
 
                 # Write scan_result
                 scan_payload = {
@@ -563,7 +623,15 @@ class EventDiscoveryCoordinator:
         ).fetchone()
         return row[0] if row else None
 
-    def _write_json(self, date: str, fixtures: list[MergedFixture]) -> Path:
+    def _write_json(
+        self,
+        date: str,
+        fixtures: list[MergedFixture],
+        *,
+        requested_sports: list[str],
+        raw_by_sport: dict[str, int],
+        source_stats: dict[str, SourceRunStats],
+    ) -> Path:
         """Write backward-compatible JSON output."""
         DATA_DIR.mkdir(parents=True, exist_ok=True)
         out_path = DATA_DIR / f"{date}_s1_events.json"
@@ -592,14 +660,45 @@ class EventDiscoveryCoordinator:
                         }
                         for s in mf.sources
                     ],
+                    "odds": mf.odds,
                 }
             )
 
         data = {
             "date": date,
+            "requested_sports": list(requested_sports),
             "sports_scanned": sorted(by_sport.keys()),
             "total_events": len(events),
+            "raw_by_sport": raw_by_sport,
             "by_sport": by_sport,
+            "provider_counts_by_sport": {
+                sport: {
+                    source_name: stats.per_sport_counts.get(sport, 0)
+                    for source_name, stats in source_stats.items()
+                    if sport in stats.per_sport_counts or sport in stats.per_sport_errors
+                }
+                for sport in requested_sports
+            },
+            "provider_errors_by_sport": {
+                sport: [
+                    error
+                    for stats in source_stats.values()
+                    for error in stats.per_sport_errors.get(sport, [])
+                ]
+                for sport in requested_sports
+            },
+            "source_stats": {
+                source_name: {
+                    "available": stats.available,
+                    "events_fetched": stats.events_fetched,
+                    "sports_covered": stats.sports_covered,
+                    "per_sport_counts": stats.per_sport_counts,
+                    "per_sport_errors": stats.per_sport_errors,
+                    "errors": stats.errors,
+                    "duration_seconds": stats.duration_seconds,
+                }
+                for source_name, stats in source_stats.items()
+            },
             "events": events,
         }
 

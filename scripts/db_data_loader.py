@@ -251,6 +251,18 @@ def _build_stats_summary_payload(analysis: dict) -> dict:
         stats_summary["h2h"] = deepcopy(analysis["h2h_summary"])
     if analysis.get("data_quality"):
         stats_summary["data_quality"] = deepcopy(analysis["data_quality"])
+    if analysis.get("stats_gap_reason"):
+        stats_summary["stats_gap_reason"] = analysis["stats_gap_reason"]
+    for key in (
+        "model_probability",
+        "probability_method",
+        "probability_sources",
+        "probability_as_of",
+        "probability_confidence",
+        "probability_missing_reason",
+    ):
+        if analysis.get(key) not in (None, "", []):
+            stats_summary[key] = deepcopy(analysis[key])
     tipster_count = analysis.get("tipster_count") or 0
     if tipster_count > 0 and analysis.get("tipster_support"):
         stats_summary["tipster_support"] = deepcopy(analysis["tipster_support"])
@@ -484,6 +496,57 @@ def load_team_form_from_db(team_name: str, sport: str) -> dict | None:
 
             stats_repo = StatsRepo(conn)
             forms = stats_repo.get_all_form_for_team(team.id, s.id)
+            requested_signature = tuple(
+                sorted(
+                    token
+                    for token in re.sub(r"[^a-z0-9]+", " ", team_name.lower()).split()
+                    if len(token) >= 3 and token not in {"fc", "cf", "sc", "ac", "club", "team"}
+                )
+            )
+            identity_match = {
+                "requested_team_name": team_name,
+                "resolved_team_name": getattr(team, "name", team_name),
+                "resolved_team_id": team.id,
+                "source": "TEAM_REPO_RESOLVE",
+                "confidence": "HIGH",
+                "fallback_used": False,
+            }
+
+            # Sparse forms may indicate duplicate team rows; only use a fallback when the
+            # alternate row is a unique normalized full-name match. Single-token surname
+            # LIKE searches were producing false positives across unrelated clubs.
+            if not forms or len(forms) <= 3:
+                if requested_signature:
+                    alt_rows = conn.execute(
+                        "SELECT id, name FROM teams WHERE sport_id = ? AND id != ?",
+                        (s.id, team.id),
+                    ).fetchall()
+                    best_forms = forms
+                    best_count = len(forms) if forms else 0
+                    for alt in alt_rows:
+                        alt_signature = tuple(
+                            sorted(
+                                token
+                                for token in re.sub(r"[^a-z0-9]+", " ", str(alt["name"]).lower()).split()
+                                if len(token) >= 3 and token not in {"fc", "cf", "sc", "ac", "club", "team"}
+                            )
+                        )
+                        if not alt_signature or alt_signature != requested_signature:
+                            continue
+                        alt_form = stats_repo.get_all_form_for_team(alt["id"], s.id)
+                        if alt_form and len(alt_form) > best_count:
+                            best_forms = alt_form
+                            best_count = len(alt_form)
+                            identity_match = {
+                                "requested_team_name": team_name,
+                                "resolved_team_name": alt["name"],
+                                "resolved_team_id": alt["id"],
+                                "source": "EXACT_NORMALIZED_TEAM_NAME_FALLBACK",
+                                "confidence": "HIGH",
+                                "fallback_used": True,
+                            }
+                    forms = best_forms
+
             if forms:
                 # Convert DB format to cache-compatible format
                 # DB: list of TeamForm rows, each with stat_key, l10_avg (float), l5_avg (float)
@@ -497,6 +560,7 @@ def load_team_form_from_db(team_name: str, sport: str) -> dict | None:
                         "l10_matches": [],
                     },
                     "sources": ["db"],
+                    "team_identity_match": identity_match,
                 }
                 for f in forms:
                     if f.l10_avg is not None:
@@ -802,12 +866,15 @@ def _load_analysis_results_raw_from_db(betting_date: str) -> list[dict]:
                     stats_summary = ar.stats_summary_json or {}
                     entry = {
                         "fixture_id": ar.fixture_id,
+                        "candidate_id": f"fixture:{ar.fixture_id}",
                         "sport": row["sport"],
                         "home_team": row["home_team"],
                         "away_team": row["away_team"],
+                        "participants": [row["home_team"], row["away_team"]],
                         "competition": row["competition"],
                         "kickoff": row["kickoff"],
                         "has_data": ar.has_data,
+                        "stats_gap_reason": stats_summary.get("stats_gap_reason", ""),
                         "best_market": {
                             "name": ar.best_market_name,
                             "line": ar.best_market_line,
@@ -839,6 +906,12 @@ def _load_analysis_results_raw_from_db(betting_date: str) -> list[dict]:
                             or (stats_summary.get("tipster_support") or {}).get("count")
                             or 0
                         ),
+                        "model_probability": stats_summary.get("model_probability"),
+                        "probability_method": stats_summary.get("probability_method"),
+                        "probability_sources": stats_summary.get("probability_sources", []),
+                        "probability_as_of": stats_summary.get("probability_as_of"),
+                        "probability_confidence": stats_summary.get("probability_confidence"),
+                        "probability_missing_reason": stats_summary.get("probability_missing_reason"),
                         # S4/S5/S6 enrichment fields from stats_summary_json
                         "ev": stats_summary.get("ev"),
                         "ev_source": stats_summary.get("ev_source"),

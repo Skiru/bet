@@ -1,0 +1,769 @@
+# Valuation Market Family/Line Handoff Review
+
+- source task: `PRE_MERGE_MODEL_PROBABILITY_CODE_REVIEW_AND_SMOKE_A`
+- sandbox: `/private/tmp/premerge_probability_release_smoke_a`
+- scope: `29` shortlist/S4 candidates traced through market matrix, shortlist, S3, S4, analytical bridge, pre-S7, and S8 handoff
+
+## Classification Counts
+
+- `MARKET_FAMILY_LOST_IN_S4`: `11`
+- `MARKET_FAMILY_LOST_IN_SHORTLIST`: `3`
+- `MARKET_FAMILY_NOT_EXTRACTED_FROM_MATRIX`: `14`
+- `PROBABILITY_RAW_NOT_PROMOTION_SAFE`: `1`
+
+## Candidate Trace
+
+### tennis|Jesper De Jong|Rinky Hijikata|2026-06-29
+- candidate_id: `tennis|Jesper De Jong|Rinky Hijikata|2026-06-29`
+- event_id / fixture_id: `1` / `1`
+- sport: `tennis`
+- competition: `ATP Wimbledon`
+- participants: `Jesper De Jong, Rinky Hijikata`
+- market name in market matrix: `Player B Games O/U`
+- market key/type in market matrix: `None`
+- outcome / pick / selection: `` / `UNDER` / `UNDER`
+- direction: `UNDER`
+- line / point: `15.0`
+- bookmaker/provider odds if present: `None`
+- market_family before S4: `UNSUPPORTED_PROP_MATCH`
+- market_family after S4: `UNSUPPORTED_PROP_MATCH`
+- market_type before S4: `Player B Games O/U`
+- market_type after S4: `Player B Games O/U`
+- source artifact path: `/private/tmp/premerge_probability_release_smoke_a/data/2026-06-29_s4_valuation_candidates.json`
+- exact field lost, if any: `candidates[0].model_probability`
+- exact stage where lost: `S4 valuation`
+- whether market family can be mapped safely: `false`
+- whether line is required and present: `true`
+- whether candidate can build MarketProbabilityInput after fix: `false` (UNKNOWN_SPLIT_STAT_SEMANTICS)
+- classification: `PROBABILITY_RAW_NOT_PROMOTION_SAFE`
+- analytical bridge status: `MISSING_MARKET_FAMILY`
+- pre-S7 rejection: `REJECTED_MISSING_TIMESTAMP`
+
+### football|Germany|Paraguay|2026-06-29
+- candidate_id: `football|Germany|Paraguay|2026-06-29`
+- event_id / fixture_id: `2` / `2`
+- sport: `football`
+- competition: `International - FIFA World Cup`
+- participants: `Germany, Paraguay`
+- market name in market matrix: `None`
+- market key/type in market matrix: `None`
+- outcome / pick / selection: `None` / `None` / `None`
+- direction: `None`
+- line / point: `None`
+- bookmaker/provider odds if present: `8.75`
+- market_family before S4: ``
+- market_family after S4: ``
+- market_type before S4: ``
+- market_type after S4: ``
+- source artifact path: `/private/tmp/premerge_probability_release_smoke_a/data/2026-06-29_s2_shortlist.json`
+- exact field lost, if any: `candidates[].odds_markets[]`
+- exact stage where lost: `shortlist`
+- whether market family can be mapped safely: `false`
+- whether line is required and present: `true`
+- whether candidate can build MarketProbabilityInput after fix: `false` (MARKET_SPECIFIC_INPUT_NOT_BUILT)
+- classification: `MARKET_FAMILY_LOST_IN_SHORTLIST`
+- analytical bridge status: `MISSING_MARKET_FAMILY`
+- pre-S7 rejection: `REJECTED_MISSING_MARKET`
+
+### tennis|Brandon Nakashima|Jack Pinnington Jones|2026-06-29
+- candidate_id: `tennis|Brandon Nakashima|Jack Pinnington Jones|2026-06-29`
+- event_id / fixture_id: `3` / `3`
+- sport: `tennis`
+- competition: `ATP Wimbledon`
+- participants: `Brandon Nakashima, Jack Pinnington Jones`
+- market name in market matrix: `None`
+- market key/type in market matrix: `None`
+- outcome / pick / selection: `None` / `None` / `None`
+- direction: `None`
+- line / point: `None`
+- bookmaker/provider odds if present: `None`
+- market_family before S4: ``
+- market_family after S4: ``
+- market_type before S4: ``
+- market_type after S4: ``
+- source artifact path: `/private/tmp/premerge_probability_release_smoke_a/data/2026-06-29_s2_shortlist.json`
+- exact field lost, if any: `candidates[].odds_markets[]`
+- exact stage where lost: `shortlist`
+- whether market family can be mapped safely: `false`
+- whether line is required and present: `true`
+- whether candidate can build MarketProbabilityInput after fix: `false` (MARKET_SPECIFIC_INPUT_NOT_BUILT)
+- classification: `MARKET_FAMILY_LOST_IN_SHORTLIST`
+- analytical bridge status: `MISSING_MARKET_FAMILY`
+- pre-S7 rejection: `REJECTED_MISSING_MARKET`
+
+### tennis|Wu Yibing|Novak Djokovic|2026-06-29
+- candidate_id: `tennis|Wu Yibing|Novak Djokovic|2026-06-29`
+- event_id / fixture_id: `4` / `4`
+- sport: `tennis`
+- competition: `ATP Wimbledon`
+- participants: `Wu Yibing, Novak Djokovic`
+- market name in market matrix: `None`
+- market key/type in market matrix: `None`
+- outcome / pick / selection: `None` / `None` / `None`
+- direction: `None`
+- line / point: `None`
+- bookmaker/provider odds if present: `None`
+- market_family before S4: ``
+- market_family after S4: ``
+- market_type before S4: ``
+- market_type after S4: ``
+- source artifact path: `/private/tmp/premerge_probability_release_smoke_a/data/2026-06-29_s2_shortlist.json`
+- exact field lost, if any: `candidates[].odds_markets[]`
+- exact stage where lost: `shortlist`
+- whether market family can be mapped safely: `false`
+- whether line is required and present: `true`
+- whether candidate can build MarketProbabilityInput after fix: `false` (MARKET_SPECIFIC_INPUT_NOT_BUILT)
+- classification: `MARKET_FAMILY_LOST_IN_SHORTLIST`
+- analytical bridge status: `MISSING_MARKET_FAMILY`
+- pre-S7 rejection: `REJECTED_MISSING_MARKET`
+
+### football|Democrata|Ivinhema|2026-06-29
+- candidate_id: `football|Democrata|Ivinhema|2026-06-29`
+- event_id / fixture_id: `5` / `5`
+- sport: `football`
+- competition: `Brazil - Brasileiro Serie D, Knockout Stage`
+- participants: `Democrata, Ivinhema`
+- market name in market matrix: `ml:away`
+- market key/type in market matrix: `ml`
+- outcome / pick / selection: `away` / `Ivinhema` / `Ivinhema`
+- direction: `Ivinhema`
+- line / point: `None`
+- bookmaker/provider odds if present: `6.25`
+- market_family before S4: `RESULT`
+- market_family after S4: ``
+- market_type before S4: `ml`
+- market_type after S4: ``
+- source artifact path: `/private/tmp/premerge_probability_release_smoke_a/data/2026-06-29_s2_shortlist.json`
+- exact field lost, if any: `candidates[4].market_family`
+- exact stage where lost: `S4 valuation`
+- whether market family can be mapped safely: `true`
+- whether line is required and present: `true`
+- whether candidate can build MarketProbabilityInput after fix: `false` (L10_SERIES_MISSING)
+- classification: `MARKET_FAMILY_LOST_IN_S4`
+- analytical bridge status: `INSUFFICIENT_MODEL_PROBABILITY`
+- pre-S7 rejection: `REJECTED_MISSING_MARKET`
+
+### tennis|Broady, Liam|Matsuoka, Hayato|2026-06-29
+- candidate_id: `tennis|Broady, Liam|Matsuoka, Hayato|2026-06-29`
+- event_id / fixture_id: `6` / `6`
+- sport: `tennis`
+- competition: `Challenger - Cary, USA`
+- participants: `Broady, Liam, Matsuoka, Hayato`
+- market name in market matrix: `ml:away`
+- market key/type in market matrix: `ml`
+- outcome / pick / selection: `away` / `Matsuoka, Hayato` / `Matsuoka, Hayato`
+- direction: `Matsuoka, Hayato`
+- line / point: `None`
+- bookmaker/provider odds if present: `3.5`
+- market_family before S4: `RESULT`
+- market_family after S4: ``
+- market_type before S4: `ml`
+- market_type after S4: ``
+- source artifact path: `/private/tmp/premerge_probability_release_smoke_a/data/2026-06-29_s2_shortlist.json`
+- exact field lost, if any: `candidates[5].market_family`
+- exact stage where lost: `S4 valuation`
+- whether market family can be mapped safely: `true`
+- whether line is required and present: `true`
+- whether candidate can build MarketProbabilityInput after fix: `false` (L10_SERIES_MISSING)
+- classification: `MARKET_FAMILY_LOST_IN_S4`
+- analytical bridge status: `INSUFFICIENT_MODEL_PROBABILITY`
+- pre-S7 rejection: `REJECTED_MISSING_MARKET`
+
+### tennis|Glinka, Daniil|Mayo, Aidan|2026-06-29
+- candidate_id: `tennis|Glinka, Daniil|Mayo, Aidan|2026-06-29`
+- event_id / fixture_id: `7` / `7`
+- sport: `tennis`
+- competition: `Challenger - Cary, USA`
+- participants: `Glinka, Daniil, Mayo, Aidan`
+- market name in market matrix: `ml:away`
+- market key/type in market matrix: `ml`
+- outcome / pick / selection: `away` / `Mayo, Aidan` / `Mayo, Aidan`
+- direction: `Mayo, Aidan`
+- line / point: `None`
+- bookmaker/provider odds if present: `2.25`
+- market_family before S4: `RESULT`
+- market_family after S4: ``
+- market_type before S4: `ml`
+- market_type after S4: ``
+- source artifact path: `/private/tmp/premerge_probability_release_smoke_a/data/2026-06-29_s2_shortlist.json`
+- exact field lost, if any: `candidates[6].market_family`
+- exact stage where lost: `S4 valuation`
+- whether market family can be mapped safely: `true`
+- whether line is required and present: `true`
+- whether candidate can build MarketProbabilityInput after fix: `false` (L10_SERIES_MISSING)
+- classification: `MARKET_FAMILY_LOST_IN_S4`
+- analytical bridge status: `INSUFFICIENT_MODEL_PROBABILITY`
+- pre-S7 rejection: `REJECTED_MISSING_MARKET`
+
+### tennis|Hussey, Giles|Manning, William|2026-06-29
+- candidate_id: `tennis|Hussey, Giles|Manning, William|2026-06-29`
+- event_id / fixture_id: `8` / `8`
+- sport: `tennis`
+- competition: `Challenger - Cary, USA`
+- participants: `Hussey, Giles, Manning, William`
+- market name in market matrix: `ml:away`
+- market key/type in market matrix: `ml`
+- outcome / pick / selection: `away` / `Manning, William` / `Manning, William`
+- direction: `Manning, William`
+- line / point: `None`
+- bookmaker/provider odds if present: `3.75`
+- market_family before S4: `RESULT`
+- market_family after S4: ``
+- market_type before S4: `ml`
+- market_type after S4: ``
+- source artifact path: `/private/tmp/premerge_probability_release_smoke_a/data/2026-06-29_s2_shortlist.json`
+- exact field lost, if any: `candidates[7].market_family`
+- exact stage where lost: `S4 valuation`
+- whether market family can be mapped safely: `true`
+- whether line is required and present: `true`
+- whether candidate can build MarketProbabilityInput after fix: `false` (L10_SERIES_MISSING)
+- classification: `MARKET_FAMILY_LOST_IN_S4`
+- analytical bridge status: `INSUFFICIENT_MODEL_PROBABILITY`
+- pre-S7 rejection: `REJECTED_MISSING_MARKET`
+
+### tennis|Kennedy, Jack|Uchida, Kaichi|2026-06-29
+- candidate_id: `tennis|Kennedy, Jack|Uchida, Kaichi|2026-06-29`
+- event_id / fixture_id: `9` / `9`
+- sport: `tennis`
+- competition: `Challenger - Cary, USA`
+- participants: `Kennedy, Jack, Uchida, Kaichi`
+- market name in market matrix: `ml:away`
+- market key/type in market matrix: `ml`
+- outcome / pick / selection: `away` / `Uchida, Kaichi` / `Uchida, Kaichi`
+- direction: `Uchida, Kaichi`
+- line / point: `None`
+- bookmaker/provider odds if present: `2.37`
+- market_family before S4: `RESULT`
+- market_family after S4: ``
+- market_type before S4: `ml`
+- market_type after S4: ``
+- source artifact path: `/private/tmp/premerge_probability_release_smoke_a/data/2026-06-29_s2_shortlist.json`
+- exact field lost, if any: `candidates[8].market_family`
+- exact stage where lost: `S4 valuation`
+- whether market family can be mapped safely: `true`
+- whether line is required and present: `true`
+- whether candidate can build MarketProbabilityInput after fix: `false` (L10_SERIES_MISSING)
+- classification: `MARKET_FAMILY_LOST_IN_S4`
+- analytical bridge status: `INSUFFICIENT_MODEL_PROBABILITY`
+- pre-S7 rejection: `REJECTED_MISSING_MARKET`
+
+### tennis|Watanuki, Yosuke|Ilagan, Andre|2026-06-29
+- candidate_id: `tennis|Watanuki, Yosuke|Ilagan, Andre|2026-06-29`
+- event_id / fixture_id: `10` / `10`
+- sport: `tennis`
+- competition: `Challenger - Cary, USA`
+- participants: `Watanuki, Yosuke, Ilagan, Andre`
+- market name in market matrix: `ml:away`
+- market key/type in market matrix: `ml`
+- outcome / pick / selection: `away` / `Ilagan, Andre` / `Ilagan, Andre`
+- direction: `Ilagan, Andre`
+- line / point: `None`
+- bookmaker/provider odds if present: `1.9`
+- market_family before S4: `RESULT`
+- market_family after S4: ``
+- market_type before S4: `ml`
+- market_type after S4: ``
+- source artifact path: `/private/tmp/premerge_probability_release_smoke_a/data/2026-06-29_s2_shortlist.json`
+- exact field lost, if any: `candidates[9].market_family`
+- exact stage where lost: `S4 valuation`
+- whether market family can be mapped safely: `true`
+- whether line is required and present: `true`
+- whether candidate can build MarketProbabilityInput after fix: `false` (L10_SERIES_MISSING)
+- classification: `MARKET_FAMILY_LOST_IN_S4`
+- analytical bridge status: `INSUFFICIENT_MODEL_PROBABILITY`
+- pre-S7 rejection: `REJECTED_MISSING_MARKET`
+
+### football|Brazil|Japan|2026-06-29
+- candidate_id: `football|Brazil|Japan|2026-06-29`
+- event_id / fixture_id: `11` / `11`
+- sport: `football`
+- competition: `World Cup`
+- participants: `Brazil, Japan`
+- market name in market matrix: `None`
+- market key/type in market matrix: `None`
+- outcome / pick / selection: `None` / `None` / `None`
+- direction: `None`
+- line / point: `None`
+- bookmaker/provider odds if present: `None`
+- market_family before S4: ``
+- market_family after S4: ``
+- market_type before S4: ``
+- market_type after S4: ``
+- source artifact path: `/private/tmp/premerge_probability_release_smoke_a/data/2026-06-29_s2_shortlist.json`
+- exact field lost, if any: `events[].odds_markets`
+- exact stage where lost: `market matrix`
+- whether market family can be mapped safely: `false`
+- whether line is required and present: `true`
+- whether candidate can build MarketProbabilityInput after fix: `false` (MARKET_SPECIFIC_INPUT_NOT_BUILT)
+- classification: `MARKET_FAMILY_NOT_EXTRACTED_FROM_MATRIX`
+- analytical bridge status: `MISSING_MARKET_FAMILY`
+- pre-S7 rejection: `REJECTED_MISSING_MARKET`
+
+### football|Deportivo Garcilaso|Deportivo Binacional|2026-06-29
+- candidate_id: `football|Deportivo Garcilaso|Deportivo Binacional|2026-06-29`
+- event_id / fixture_id: `12` / `12`
+- sport: `football`
+- competition: `Copa De La Liga`
+- participants: `Deportivo Garcilaso, Deportivo Binacional`
+- market name in market matrix: `None`
+- market key/type in market matrix: `None`
+- outcome / pick / selection: `None` / `None` / `None`
+- direction: `None`
+- line / point: `None`
+- bookmaker/provider odds if present: `None`
+- market_family before S4: ``
+- market_family after S4: ``
+- market_type before S4: ``
+- market_type after S4: ``
+- source artifact path: `/private/tmp/premerge_probability_release_smoke_a/data/2026-06-29_s2_shortlist.json`
+- exact field lost, if any: `events[].odds_markets`
+- exact stage where lost: `market matrix`
+- whether market family can be mapped safely: `false`
+- whether line is required and present: `true`
+- whether candidate can build MarketProbabilityInput after fix: `false` (MARKET_SPECIFIC_INPUT_NOT_BUILT)
+- classification: `MARKET_FAMILY_NOT_EXTRACTED_FROM_MATRIX`
+- analytical bridge status: `MISSING_MARKET_FAMILY`
+- pre-S7 rejection: `REJECTED_MISSING_MARKET`
+
+### football|FBC Melgar|UCV Moquegua|2026-06-29
+- candidate_id: `football|FBC Melgar|UCV Moquegua|2026-06-29`
+- event_id / fixture_id: `13` / `13`
+- sport: `football`
+- competition: `Copa De La Liga`
+- participants: `FBC Melgar, UCV Moquegua`
+- market name in market matrix: `None`
+- market key/type in market matrix: `None`
+- outcome / pick / selection: `None` / `None` / `None`
+- direction: `None`
+- line / point: `None`
+- bookmaker/provider odds if present: `None`
+- market_family before S4: ``
+- market_family after S4: ``
+- market_type before S4: ``
+- market_type after S4: ``
+- source artifact path: `/private/tmp/premerge_probability_release_smoke_a/data/2026-06-29_s2_shortlist.json`
+- exact field lost, if any: `events[].odds_markets`
+- exact stage where lost: `market matrix`
+- whether market family can be mapped safely: `false`
+- whether line is required and present: `true`
+- whether candidate can build MarketProbabilityInput after fix: `false` (MARKET_SPECIFIC_INPUT_NOT_BUILT)
+- classification: `MARKET_FAMILY_NOT_EXTRACTED_FROM_MATRIX`
+- analytical bridge status: `MISSING_MARKET_FAMILY`
+- pre-S7 rejection: `REJECTED_MISSING_MARKET`
+
+### basketball|Aleman|CD Huachipato|2026-06-29
+- candidate_id: `basketball|Aleman|CD Huachipato|2026-06-29`
+- event_id / fixture_id: `14` / `14`
+- sport: `basketball`
+- competition: `LNB 2`
+- participants: `Aleman, CD Huachipato`
+- market name in market matrix: `None`
+- market key/type in market matrix: `None`
+- outcome / pick / selection: `None` / `None` / `None`
+- direction: `None`
+- line / point: `None`
+- bookmaker/provider odds if present: `None`
+- market_family before S4: ``
+- market_family after S4: ``
+- market_type before S4: ``
+- market_type after S4: ``
+- source artifact path: `/private/tmp/premerge_probability_release_smoke_a/data/2026-06-29_s2_shortlist.json`
+- exact field lost, if any: `events[].odds_markets`
+- exact stage where lost: `market matrix`
+- whether market family can be mapped safely: `false`
+- whether line is required and present: `true`
+- whether candidate can build MarketProbabilityInput after fix: `false` (MARKET_SPECIFIC_INPUT_NOT_BUILT)
+- classification: `MARKET_FAMILY_NOT_EXTRACTED_FROM_MATRIX`
+- analytical bridge status: `MISSING_MARKET_FAMILY`
+- pre-S7 rejection: `REJECTED_MISSING_MARKET`
+
+### basketball|The Sharks|Arturo Prat San Felipe|2026-06-29
+- candidate_id: `basketball|The Sharks|Arturo Prat San Felipe|2026-06-29`
+- event_id / fixture_id: `15` / `15`
+- sport: `basketball`
+- competition: `LNB 2`
+- participants: `The Sharks, Arturo Prat San Felipe`
+- market name in market matrix: `None`
+- market key/type in market matrix: `None`
+- outcome / pick / selection: `None` / `None` / `None`
+- direction: `None`
+- line / point: `None`
+- bookmaker/provider odds if present: `None`
+- market_family before S4: ``
+- market_family after S4: ``
+- market_type before S4: ``
+- market_type after S4: ``
+- source artifact path: `/private/tmp/premerge_probability_release_smoke_a/data/2026-06-29_s2_shortlist.json`
+- exact field lost, if any: `events[].odds_markets`
+- exact stage where lost: `market matrix`
+- whether market family can be mapped safely: `false`
+- whether line is required and present: `true`
+- whether candidate can build MarketProbabilityInput after fix: `false` (MARKET_SPECIFIC_INPUT_NOT_BUILT)
+- classification: `MARKET_FAMILY_NOT_EXTRACTED_FROM_MATRIX`
+- analytical bridge status: `MISSING_MARKET_FAMILY`
+- pre-S7 rejection: `REJECTED_MISSING_MARKET`
+
+### cs2|MIBR Academy|Procyon Gaming|2026-06-29
+- candidate_id: `cs2|MIBR Academy|Procyon Gaming|2026-06-29`
+- event_id / fixture_id: `None` / `None`
+- sport: `cs2`
+- competition: `Series 3`
+- participants: `MIBR Academy, Procyon Gaming`
+- market name in market matrix: `ml:away`
+- market key/type in market matrix: `ml`
+- outcome / pick / selection: `away` / `Procyon Gaming` / `Procyon Gaming`
+- direction: `Procyon Gaming`
+- line / point: `None`
+- bookmaker/provider odds if present: `2.0`
+- market_family before S4: `RESULT`
+- market_family after S4: ``
+- market_type before S4: `ml`
+- market_type after S4: ``
+- source artifact path: `/private/tmp/premerge_probability_release_smoke_a/data/2026-06-29_s2_shortlist.json`
+- exact field lost, if any: `candidates[15].market_family`
+- exact stage where lost: `S4 valuation`
+- whether market family can be mapped safely: `true`
+- whether line is required and present: `true`
+- whether candidate can build MarketProbabilityInput after fix: `false` (L10_SERIES_MISSING)
+- classification: `MARKET_FAMILY_LOST_IN_S4`
+- analytical bridge status: `INSUFFICIENT_MODEL_PROBABILITY`
+- pre-S7 rejection: `REJECTED_MISSING_MARKET`
+
+### football|Union Espanola|Colo-Colo|2026-06-29
+- candidate_id: `football|Union Espanola|Colo-Colo|2026-06-29`
+- event_id / fixture_id: `16` / `16`
+- sport: `football`
+- competition: `Chile - Copa Chile, Group E`
+- participants: `Union Espanola, Colo-Colo`
+- market name in market matrix: `ml:home`
+- market key/type in market matrix: `ml`
+- outcome / pick / selection: `home` / `Union Espanola` / `Union Espanola`
+- direction: `Union Espanola`
+- line / point: `None`
+- bookmaker/provider odds if present: `5.75`
+- market_family before S4: `RESULT`
+- market_family after S4: ``
+- market_type before S4: `ml`
+- market_type after S4: ``
+- source artifact path: `/private/tmp/premerge_probability_release_smoke_a/data/2026-06-29_s2_shortlist.json`
+- exact field lost, if any: `candidates[16].market_family`
+- exact stage where lost: `S4 valuation`
+- whether market family can be mapped safely: `true`
+- whether line is required and present: `true`
+- whether candidate can build MarketProbabilityInput after fix: `false` (L10_SERIES_MISSING)
+- classification: `MARKET_FAMILY_LOST_IN_S4`
+- analytical bridge status: `INSUFFICIENT_MODEL_PROBABILITY`
+- pre-S7 rejection: `REJECTED_MISSING_MARKET`
+
+### basketball|Iran|Syria|2026-06-29
+- candidate_id: `basketball|Iran|Syria|2026-06-29`
+- event_id / fixture_id: `17` / `17`
+- sport: `basketball`
+- competition: `World Cup`
+- participants: `Iran, Syria`
+- market name in market matrix: `None`
+- market key/type in market matrix: `None`
+- outcome / pick / selection: `None` / `None` / `None`
+- direction: `None`
+- line / point: `None`
+- bookmaker/provider odds if present: `None`
+- market_family before S4: ``
+- market_family after S4: ``
+- market_type before S4: ``
+- market_type after S4: ``
+- source artifact path: `/private/tmp/premerge_probability_release_smoke_a/data/2026-06-29_s2_shortlist.json`
+- exact field lost, if any: `events[].odds_markets`
+- exact stage where lost: `market matrix`
+- whether market family can be mapped safely: `false`
+- whether line is required and present: `true`
+- whether candidate can build MarketProbabilityInput after fix: `false` (MARKET_SPECIFIC_INPUT_NOT_BUILT)
+- classification: `MARKET_FAMILY_NOT_EXTRACTED_FROM_MATRIX`
+- analytical bridge status: `MISSING_MARKET_FAMILY`
+- pre-S7 rejection: `REJECTED_MISSING_MARKET`
+
+### basketball|Iraq|Jordan|2026-06-29
+- candidate_id: `basketball|Iraq|Jordan|2026-06-29`
+- event_id / fixture_id: `18` / `18`
+- sport: `basketball`
+- competition: `World Cup`
+- participants: `Iraq, Jordan`
+- market name in market matrix: `None`
+- market key/type in market matrix: `None`
+- outcome / pick / selection: `None` / `None` / `None`
+- direction: `None`
+- line / point: `None`
+- bookmaker/provider odds if present: `None`
+- market_family before S4: ``
+- market_family after S4: ``
+- market_type before S4: ``
+- market_type after S4: ``
+- source artifact path: `/private/tmp/premerge_probability_release_smoke_a/data/2026-06-29_s2_shortlist.json`
+- exact field lost, if any: `events[].odds_markets`
+- exact stage where lost: `market matrix`
+- whether market family can be mapped safely: `false`
+- whether line is required and present: `true`
+- whether candidate can build MarketProbabilityInput after fix: `false` (MARKET_SPECIFIC_INPUT_NOT_BUILT)
+- classification: `MARKET_FAMILY_NOT_EXTRACTED_FROM_MATRIX`
+- analytical bridge status: `MISSING_MARKET_FAMILY`
+- pre-S7 rejection: `REJECTED_MISSING_MARKET`
+
+### basketball|Lebanon|India|2026-06-29
+- candidate_id: `basketball|Lebanon|India|2026-06-29`
+- event_id / fixture_id: `19` / `19`
+- sport: `basketball`
+- competition: `World Cup`
+- participants: `Lebanon, India`
+- market name in market matrix: `None`
+- market key/type in market matrix: `None`
+- outcome / pick / selection: `None` / `None` / `None`
+- direction: `None`
+- line / point: `None`
+- bookmaker/provider odds if present: `None`
+- market_family before S4: ``
+- market_family after S4: ``
+- market_type before S4: ``
+- market_type after S4: ``
+- source artifact path: `/private/tmp/premerge_probability_release_smoke_a/data/2026-06-29_s2_shortlist.json`
+- exact field lost, if any: `events[].odds_markets`
+- exact stage where lost: `market matrix`
+- whether market family can be mapped safely: `false`
+- whether line is required and present: `true`
+- whether candidate can build MarketProbabilityInput after fix: `false` (MARKET_SPECIFIC_INPUT_NOT_BUILT)
+- classification: `MARKET_FAMILY_NOT_EXTRACTED_FROM_MATRIX`
+- analytical bridge status: `MISSING_MARKET_FAMILY`
+- pre-S7 rejection: `REJECTED_MISSING_MARKET`
+
+### volleyball|Blat|Anwar|2026-06-29
+- candidate_id: `volleyball|Blat|Anwar|2026-06-29`
+- event_id / fixture_id: `20` / `20`
+- sport: `volleyball`
+- competition: `1st Division`
+- participants: `Blat, Anwar`
+- market name in market matrix: `None`
+- market key/type in market matrix: `None`
+- outcome / pick / selection: `None` / `None` / `None`
+- direction: `None`
+- line / point: `None`
+- bookmaker/provider odds if present: `None`
+- market_family before S4: ``
+- market_family after S4: ``
+- market_type before S4: ``
+- market_type after S4: ``
+- source artifact path: `/private/tmp/premerge_probability_release_smoke_a/data/2026-06-29_s2_shortlist.json`
+- exact field lost, if any: `events[].odds_markets`
+- exact stage where lost: `market matrix`
+- whether market family can be mapped safely: `false`
+- whether line is required and present: `true`
+- whether candidate can build MarketProbabilityInput after fix: `false` (MARKET_SPECIFIC_INPUT_NOT_BUILT)
+- classification: `MARKET_FAMILY_NOT_EXTRACTED_FROM_MATRIX`
+- analytical bridge status: `MISSING_MARKET_FAMILY`
+- pre-S7 rejection: `REJECTED_MISSING_MARKET`
+
+### basketball|Qatar|Saudi Arabia|2026-06-29
+- candidate_id: `basketball|Qatar|Saudi Arabia|2026-06-29`
+- event_id / fixture_id: `21` / `21`
+- sport: `basketball`
+- competition: `World Cup`
+- participants: `Qatar, Saudi Arabia`
+- market name in market matrix: `None`
+- market key/type in market matrix: `None`
+- outcome / pick / selection: `None` / `None` / `None`
+- direction: `None`
+- line / point: `None`
+- bookmaker/provider odds if present: `None`
+- market_family before S4: ``
+- market_family after S4: ``
+- market_type before S4: ``
+- market_type after S4: ``
+- source artifact path: `/private/tmp/premerge_probability_release_smoke_a/data/2026-06-29_s2_shortlist.json`
+- exact field lost, if any: `events[].odds_markets`
+- exact stage where lost: `market matrix`
+- whether market family can be mapped safely: `false`
+- whether line is required and present: `true`
+- whether candidate can build MarketProbabilityInput after fix: `false` (MARKET_SPECIFIC_INPUT_NOT_BUILT)
+- classification: `MARKET_FAMILY_NOT_EXTRACTED_FROM_MATRIX`
+- analytical bridge status: `MISSING_MARKET_FAMILY`
+- pre-S7 rejection: `REJECTED_MISSING_MARKET`
+
+### football|Gol Gohar|Chadormalu SC|2026-06-29
+- candidate_id: `football|Gol Gohar|Chadormalu SC|2026-06-29`
+- event_id / fixture_id: `22` / `22`
+- sport: `football`
+- competition: `Persian Gulf Pro League`
+- participants: `Gol Gohar, Chadormalu SC`
+- market name in market matrix: `None`
+- market key/type in market matrix: `None`
+- outcome / pick / selection: `None` / `None` / `None`
+- direction: `None`
+- line / point: `None`
+- bookmaker/provider odds if present: `None`
+- market_family before S4: ``
+- market_family after S4: ``
+- market_type before S4: ``
+- market_type after S4: ``
+- source artifact path: `/private/tmp/premerge_probability_release_smoke_a/data/2026-06-29_s2_shortlist.json`
+- exact field lost, if any: `events[].odds_markets`
+- exact stage where lost: `market matrix`
+- whether market family can be mapped safely: `false`
+- whether line is required and present: `true`
+- whether candidate can build MarketProbabilityInput after fix: `false` (MARKET_SPECIFIC_INPUT_NOT_BUILT)
+- classification: `MARKET_FAMILY_NOT_EXTRACTED_FROM_MATRIX`
+- analytical bridge status: `MISSING_MARKET_FAMILY`
+- pre-S7 rejection: `REJECTED_MISSING_MARKET`
+
+### football|Asheville City SC|Charlotte Independence 2|2026-06-29
+- candidate_id: `football|Asheville City SC|Charlotte Independence 2|2026-06-29`
+- event_id / fixture_id: `23` / `23`
+- sport: `football`
+- competition: `USA - USL, League Two`
+- participants: `Asheville City SC, Charlotte Independence 2`
+- market name in market matrix: `None`
+- market key/type in market matrix: `None`
+- outcome / pick / selection: `None` / `None` / `None`
+- direction: `None`
+- line / point: `None`
+- bookmaker/provider odds if present: `None`
+- market_family before S4: ``
+- market_family after S4: ``
+- market_type before S4: ``
+- market_type after S4: ``
+- source artifact path: `/private/tmp/premerge_probability_release_smoke_a/data/2026-06-29_s2_shortlist.json`
+- exact field lost, if any: `events[].odds_markets`
+- exact stage where lost: `market matrix`
+- whether market family can be mapped safely: `false`
+- whether line is required and present: `true`
+- whether candidate can build MarketProbabilityInput after fix: `false` (MARKET_SPECIFIC_INPUT_NOT_BUILT)
+- classification: `MARKET_FAMILY_NOT_EXTRACTED_FROM_MATRIX`
+- analytical bridge status: `MISSING_MARKET_FAMILY`
+- pre-S7 rejection: `REJECTED_MISSING_MARKET`
+
+### football|Academica|Marin|2026-06-29
+- candidate_id: `football|Academica|Marin|2026-06-29`
+- event_id / fixture_id: `24` / `24`
+- sport: `football`
+- competition: `USL League Two`
+- participants: `Academica, Marin`
+- market name in market matrix: `None`
+- market key/type in market matrix: `None`
+- outcome / pick / selection: `None` / `None` / `None`
+- direction: `None`
+- line / point: `None`
+- bookmaker/provider odds if present: `None`
+- market_family before S4: ``
+- market_family after S4: ``
+- market_type before S4: ``
+- market_type after S4: ``
+- source artifact path: `/private/tmp/premerge_probability_release_smoke_a/data/2026-06-29_s2_shortlist.json`
+- exact field lost, if any: `events[].odds_markets`
+- exact stage where lost: `market matrix`
+- whether market family can be mapped safely: `false`
+- whether line is required and present: `true`
+- whether candidate can build MarketProbabilityInput after fix: `false` (MARKET_SPECIFIC_INPUT_NOT_BUILT)
+- classification: `MARKET_FAMILY_NOT_EXTRACTED_FROM_MATRIX`
+- analytical bridge status: `MISSING_MARKET_FAMILY`
+- pre-S7 rejection: `REJECTED_MISSING_MARKET`
+
+### football|Miami AC|Brevard|2026-06-29
+- candidate_id: `football|Miami AC|Brevard|2026-06-29`
+- event_id / fixture_id: `25` / `25`
+- sport: `football`
+- competition: `USL League Two`
+- participants: `Miami AC, Brevard`
+- market name in market matrix: `None`
+- market key/type in market matrix: `None`
+- outcome / pick / selection: `None` / `None` / `None`
+- direction: `None`
+- line / point: `None`
+- bookmaker/provider odds if present: `None`
+- market_family before S4: ``
+- market_family after S4: ``
+- market_type before S4: ``
+- market_type after S4: ``
+- source artifact path: `/private/tmp/premerge_probability_release_smoke_a/data/2026-06-29_s2_shortlist.json`
+- exact field lost, if any: `events[].odds_markets`
+- exact stage where lost: `market matrix`
+- whether market family can be mapped safely: `false`
+- whether line is required and present: `true`
+- whether candidate can build MarketProbabilityInput after fix: `false` (MARKET_SPECIFIC_INPUT_NOT_BUILT)
+- classification: `MARKET_FAMILY_NOT_EXTRACTED_FROM_MATRIX`
+- analytical bridge status: `MISSING_MARKET_FAMILY`
+- pre-S7 rejection: `REJECTED_MISSING_MARKET`
+
+### basketball|Club Atletico Olimpia|CD Albatros|2026-06-29
+- candidate_id: `basketball|Club Atletico Olimpia|CD Albatros|2026-06-29`
+- event_id / fixture_id: `26` / `26`
+- sport: `basketball`
+- competition: `Uruguay - Liga de Ascenso`
+- participants: `Club Atletico Olimpia, CD Albatros`
+- market name in market matrix: `ml:away`
+- market key/type in market matrix: `ml`
+- outcome / pick / selection: `away` / `CD Albatros` / `CD Albatros`
+- direction: `CD Albatros`
+- line / point: `None`
+- bookmaker/provider odds if present: `3.75`
+- market_family before S4: `RESULT`
+- market_family after S4: ``
+- market_type before S4: `ml`
+- market_type after S4: ``
+- source artifact path: `/private/tmp/premerge_probability_release_smoke_a/data/2026-06-29_s2_shortlist.json`
+- exact field lost, if any: `candidates[26].market_family`
+- exact stage where lost: `S4 valuation`
+- whether market family can be mapped safely: `true`
+- whether line is required and present: `true`
+- whether candidate can build MarketProbabilityInput after fix: `false` (L10_SERIES_MISSING)
+- classification: `MARKET_FAMILY_LOST_IN_S4`
+- analytical bridge status: `INSUFFICIENT_MODEL_PROBABILITY`
+- pre-S7 rejection: `REJECTED_MISSING_MARKET`
+
+### basketball|Tabare|Colon|2026-06-29
+- candidate_id: `basketball|Tabare|Colon|2026-06-29`
+- event_id / fixture_id: `27` / `27`
+- sport: `basketball`
+- competition: `Uruguay - Liga de Ascenso`
+- participants: `Tabare, Colon`
+- market name in market matrix: `ml:away`
+- market key/type in market matrix: `ml`
+- outcome / pick / selection: `away` / `Colon` / `Colon`
+- direction: `Colon`
+- line / point: `None`
+- bookmaker/provider odds if present: `8.25`
+- market_family before S4: `RESULT`
+- market_family after S4: ``
+- market_type before S4: `ml`
+- market_type after S4: ``
+- source artifact path: `/private/tmp/premerge_probability_release_smoke_a/data/2026-06-29_s2_shortlist.json`
+- exact field lost, if any: `candidates[27].market_family`
+- exact stage where lost: `S4 valuation`
+- whether market family can be mapped safely: `true`
+- whether line is required and present: `true`
+- whether candidate can build MarketProbabilityInput after fix: `false` (L10_SERIES_MISSING)
+- classification: `MARKET_FAMILY_LOST_IN_S4`
+- analytical bridge status: `INSUFFICIENT_MODEL_PROBABILITY`
+- pre-S7 rejection: `REJECTED_MISSING_MARKET`
+
+### basketball|Trouville|Lagomar|2026-06-29
+- candidate_id: `basketball|Trouville|Lagomar|2026-06-29`
+- event_id / fixture_id: `28` / `28`
+- sport: `basketball`
+- competition: `Uruguay - Liga de Ascenso`
+- participants: `Trouville, Lagomar`
+- market name in market matrix: `ml:away`
+- market key/type in market matrix: `ml`
+- outcome / pick / selection: `away` / `Lagomar` / `Lagomar`
+- direction: `Lagomar`
+- line / point: `None`
+- bookmaker/provider odds if present: `2.85`
+- market_family before S4: `RESULT`
+- market_family after S4: ``
+- market_type before S4: `ml`
+- market_type after S4: ``
+- source artifact path: `/private/tmp/premerge_probability_release_smoke_a/data/2026-06-29_s2_shortlist.json`
+- exact field lost, if any: `candidates[28].market_family`
+- exact stage where lost: `S4 valuation`
+- whether market family can be mapped safely: `true`
+- whether line is required and present: `true`
+- whether candidate can build MarketProbabilityInput after fix: `false` (L10_SERIES_MISSING)
+- classification: `MARKET_FAMILY_LOST_IN_S4`
+- analytical bridge status: `INSUFFICIENT_MODEL_PROBABILITY`
+- pre-S7 rejection: `REJECTED_MISSING_MARKET`
+

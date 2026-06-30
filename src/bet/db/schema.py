@@ -577,13 +577,15 @@ def _migrate_v20_football_history_engine(conn: sqlite3.Connection) -> None:
                 src, ext_id = fixture_conflicts[0][0], fixture_conflicts[0][1]
                 raise ValueError(f"Migration preflight failed: Duplicate fixture_sources mapping for source={src}, external_id={ext_id} - Duplicate api-football fixture source mapping")
 
+        # Ensure logical_identity column exists before running 019_football_history_engine.sql
+        # since it creates unique and query indexes referencing logical_identity.
+        columns = _table_columns(conn, "fixture_capability_observation")
+        if columns and "logical_identity" not in columns:
+            conn.execute("ALTER TABLE fixture_capability_observation ADD COLUMN logical_identity TEXT")
+
         migration_path = Path(__file__).parent / "migrations" / "019_football_history_engine.sql"
         if migration_path.exists():
             conn.executescript(migration_path.read_text(encoding="utf-8"))
-
-        columns = _table_columns(conn, "fixture_capability_observation")
-        if "logical_identity" not in columns:
-            conn.execute("ALTER TABLE fixture_capability_observation ADD COLUMN logical_identity TEXT")
 
         try:
             conn.execute("RELEASE SAVEPOINT migrate_v20")

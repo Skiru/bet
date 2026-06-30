@@ -43,3 +43,95 @@ def test_generate_market_matrix_keeps_noncanonical_esports_fixture(monkeypatch):
     assert matrix["total_events_in_matrix"] == 1
     assert matrix["events"][0]["sport"] == "cs2"
     assert matrix["sport_breakdown"] == {"cs2": 1}
+
+
+def test_market_semantics_extracted_from_h2h_result():
+    markets = matrix_mod.extract_markets_from_odds_api(
+        {
+            "home_team": "Alpha",
+            "away_team": "Beta",
+            "bookmakers": [
+                {
+                    "title": "bet365",
+                    "markets": [
+                        {
+                            "key": "h2h",
+                            "outcomes": [
+                                {"name": "Alpha", "price": 1.8},
+                                {"name": "Beta", "price": 2.1},
+                            ],
+                        }
+                    ],
+                }
+            ],
+        }
+    )
+
+    assert markets[0]["market_family"] == "RESULT"
+    assert markets[0]["provider_market_key"] == "h2h"
+    assert markets[0]["mapping_status"] == ""
+
+
+def test_market_semantics_extracted_from_totals_with_line_direction():
+    markets = matrix_mod.extract_markets_from_odds_api(
+        {
+            "home_team": "Alpha",
+            "away_team": "Beta",
+            "bookmakers": [
+                {
+                    "title": "bet365",
+                    "markets": [
+                        {
+                            "key": "totals",
+                            "point": 2.5,
+                            "outcomes": [
+                                {"name": "Over", "price": 1.91},
+                                {"name": "Under", "price": 1.95},
+                            ],
+                        }
+                    ],
+                }
+            ],
+        }
+    )
+
+    over_market = next(item for item in markets if item["outcome"] == "Over")
+    assert over_market["market_family"] == "GOALS_TOTALS"
+    assert over_market["direction"] == "OVER"
+    assert over_market["line"] == 2.5
+
+
+def test_market_semantics_extracted_from_corners_with_line_direction():
+    markets = matrix_mod._attach_market_semantics(
+        [{"market": "Over 9.5", "market_type": "corners", "outcome": "Over", "point": 9.5, "best_odds": 1.9, "best_bookmaker": "bet365", "source": "odds-api"}],
+        ["Alpha", "Beta"],
+        "odds-api",
+    )
+
+    assert markets[0]["market_family"] == "CORNERS"
+    assert markets[0]["direction"] == "OVER"
+    assert markets[0]["line"] == 9.5
+
+
+def test_market_semantics_extracted_from_cards_with_line_direction():
+    markets = matrix_mod._attach_market_semantics(
+        [{"market": "Over 4.5", "market_type": "bookings_totals", "outcome": "Over", "point": 4.5, "best_odds": 1.9, "best_bookmaker": "bet365", "source": "odds-api"}],
+        ["Alpha", "Beta"],
+        "odds-api",
+    )
+
+    assert markets[0]["market_family"] == "CARDS"
+    assert markets[0]["direction"] == "OVER"
+    assert markets[0]["line"] == 4.5
+
+
+def test_market_semantics_extracted_from_shots_with_line_direction():
+    markets = matrix_mod._attach_market_semantics(
+        [{"market": "Over 24.5", "market_type": "match_shots", "outcome": "Over", "point": 24.5, "best_odds": 1.9, "best_bookmaker": "bet365", "source": "odds-api"}],
+        ["Alpha", "Beta"],
+        "odds-api",
+    )
+
+    assert markets[0]["market_family"] == "SHOTS"
+    assert markets[0]["direction"] == "OVER"
+    assert markets[0]["line"] == 24.5

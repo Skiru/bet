@@ -277,7 +277,7 @@ class TestDeepStatsReport(unittest.TestCase):
         self.assertEqual(slugify("Atlético Madrid"), "atltico-madrid")
 
     def test_extract_team_stats_split_keys(self):
-        """Verify corners_home + corners_away are summed correctly into total."""
+        """Verify split home/away averages are merged with the declared mean policy."""
         import scripts.deep_stats_report as dsr
         split_cache = {
             "team": "TestTeam", "sport": "football", "slug": "testteam",
@@ -295,14 +295,14 @@ class TestDeepStatsReport(unittest.TestCase):
         with patch.object(dsr, "CACHE_DIR", self.cache_dir):
             result = dsr.extract_team_stats("football", "TestTeam")
         self.assertTrue(result["has_data"])
-        self.assertEqual(result["l10_avg"]["corners"], 10.0)
+        self.assertEqual(result["l10_avg"]["corners"], 5.0)
         self.assertEqual(result["l10_avg"]["corners_home"], 6.8)
         self.assertEqual(result["l10_avg"]["corners_away"], 3.2)
-        self.assertEqual(result["l10_avg"]["fouls"], 21.0)
-        self.assertEqual(result["l5_avg"]["corners"], 10.5)
+        self.assertEqual(result["l10_avg"]["fouls"], 10.5)
+        self.assertEqual(result["l5_avg"]["corners"], 5.25)
 
     def test_extract_team_stats_percentage_keeps_home_only(self):
-        """Possession should NOT sum home+away (would yield 100%)."""
+        """Percentage stats use the same mean policy instead of summing or home-only fallback."""
         import scripts.deep_stats_report as dsr
         pct_cache = {
             "team": "PctTeam", "sport": "football", "slug": "pctteam",
@@ -320,11 +320,9 @@ class TestDeepStatsReport(unittest.TestCase):
         with patch.object(dsr, "CACHE_DIR", self.cache_dir):
             result = dsr.extract_team_stats("football", "PctTeam")
         self.assertTrue(result["has_data"])
-        # Possession keeps home-only (not 100.0)
-        self.assertEqual(result["l10_avg"]["possession"], 58.0)
-        self.assertEqual(result["l5_avg"]["possession"], 60.0)
-        # But corners are summed
-        self.assertEqual(result["l10_avg"]["corners"], 9.0)
+        self.assertEqual(result["l10_avg"]["possession"], 50.0)
+        self.assertEqual(result["l5_avg"]["possession"], 50.0)
+        self.assertEqual(result["l10_avg"]["corners"], 4.5)
 
     def test_analyze_candidate_has_data_from_safety_input(self):
         """has_data=True when safety_input provides markets despite empty slug cache."""

@@ -255,6 +255,31 @@ def _run_s1_scripts(
             # Record individual return codes
             if script_name == "discover_events.py":
                 run_metrics["discovery_rc"] = res.returncode
+                
+                # Check for database migration errors or other crashes
+                combined_output = (res.stdout or "") + "\n" + (res.stderr or "")
+                if "no such column: logical_identity" in combined_output or "Migration preflight failed" in combined_output or "sqlite3" in combined_output:
+                    run_metrics["db_schema_verdict"] = "FAIL"
+                
+                # Parse AGENT_SUMMARY
+                summary_match = re.search(r"AGENT_SUMMARY:(.*)", res.stdout or "")
+                if summary_match:
+                    try:
+                        summary_data = json.loads(summary_match.group(1).strip())
+                        run_metrics["raw_discovery_count"] = summary_data.get("total_discovered", 0)
+                        run_metrics["after_dedup_count"] = summary_data.get("total_after_dedup", 0)
+                        
+                        provider_counts = {}
+                        for src_name, src_stats in summary_data.get("sources", {}).items():
+                            provider_counts[src_name] = src_stats.get("events", 0)
+                        run_metrics["provider_counts"] = provider_counts
+                        
+                        run_metrics["fallback_used"] = summary_data.get("fallback_used", False)
+                        run_metrics["fallback_reason"] = summary_data.get("fallback_reason", "N/A")
+                        if "db_schema_verdict" in summary_data:
+                            run_metrics["db_schema_verdict"] = summary_data["db_schema_verdict"]
+                    except Exception as e:
+                        print(f"WARNING: failed to parse AGENT_SUMMARY from discover_events: {e}")
             elif script_name == "generate_market_matrix.py":
                 run_metrics["market_matrix_rc"] = res.returncode
                 if res.returncode == 0:
@@ -323,7 +348,13 @@ def main() -> None:
         "market_matrix_schema_version": 1,
         "market_matrix_pipeline_safe": False,
         "market_matrix_validated": False,
-        "shortlist_started": False
+        "shortlist_started": False,
+        "raw_discovery_count": 0,
+        "after_dedup_count": 0,
+        "provider_counts": {},
+        "fallback_used": False,
+        "fallback_reason": "N/A",
+        "db_schema_verdict": "PASS"
     }
 
     captured_stdout = io.StringIO()

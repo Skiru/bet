@@ -41,12 +41,100 @@ def main():
         if args.stats_first:
             print(f"[discover_events] Stats-first mode: events without odds will be included")
 
-    result = discover_events(
-        date=args.date,
-        sports=sports,
-        verbose=args.verbose,
-        db_path=args.db_path,
-    )
+    try:
+        result = discover_events(
+            date=args.date,
+            sports=sports,
+            verbose=args.verbose,
+            db_path=args.db_path,
+        )
+    except Exception as e:
+        import traceback
+        import sqlite3
+        print("\nFATAL ERROR DURING EVENT DISCOVERY", file=sys.stderr)
+        traceback.print_exc(file=sys.stderr)
+        
+        # Check if this looks like a schema/migration mismatch or SQLite operational error
+        err_msg = str(e).lower()
+        is_schema = (
+            isinstance(e, sqlite3.Error) or
+            any(x in err_msg for x in ("schema", "column", "migration", "table", "preflight", "duplicate", "savepoint", "sqlite3", "unable to open", "database"))
+        )
+        
+        verdict = "BLOCKED_DISCOVERY_DB_SCHEMA_MISMATCH" if is_schema else "FAILED"
+        if is_schema:
+            print("BLOCKED_DISCOVERY_DB_SCHEMA_MISMATCH")
+        else:
+            print("BLOCKED_DISCOVERY_FAILED")
+            
+        summary = {
+            "verdict": verdict,
+            "total_discovered": 0,
+            "total_after_dedup": 0,
+            "requested_sports": sports or [],
+            "raw_by_sport": {},
+            "by_sport": {},
+            "provider_counts_by_sport": {},
+            "provider_errors_by_sport": {},
+            "sources": {},
+            "issues_count": 1,
+            "db_schema_verdict": "FAIL",
+            "fallback_used": False,
+            "fallback_reason": str(e),
+        }
+        print(f"\nAGENT_SUMMARY:{json.dumps(summary)}")
+        sys.exit(2)
+
+    # 0 raw events checks
+    if result.total_discovered == 0:
+        # Determine if any providers failed / are unavailable
+        any_failed = any(not s.available or s.errors for s in result.source_stats.values())
+        if any_failed:
+            verdict = "BLOCKED_DISCOVERY_PROVIDER_UNAVAILABLE"
+            print("BLOCKED_DISCOVERY_PROVIDER_UNAVAILABLE")
+        else:
+            verdict = "BLOCKED_DISCOVERY_EMPTY_UNIVERSE"
+            print("BLOCKED_DISCOVERY_EMPTY_UNIVERSE")
+            
+        summary = {
+            "verdict": verdict,
+            "total_discovered": 0,
+            "total_after_dedup": 0,
+            "requested_sports": result.requested_sports,
+            "raw_by_sport": result.raw_by_sport,
+            "by_sport": {},
+            "provider_counts_by_sport": {
+                sport: {
+                    name: stats.per_sport_counts.get(sport, 0)
+                    for name, stats in result.source_stats.items()
+                    if sport in stats.per_sport_counts or sport in stats.per_sport_errors
+                }
+                for sport in result.requested_sports
+            },
+            "provider_errors_by_sport": {
+                sport: [
+                    error
+                    for stats in result.source_stats.values()
+                    for error in stats.per_sport_errors.get(sport, [])
+                ]
+                for sport in result.requested_sports
+            },
+            "sources": {
+                name: {
+                    "events": s.events_fetched,
+                    "available": s.available,
+                    "errors": len(s.errors),
+                    "duration_s": s.duration_seconds,
+                }
+                for name, s in result.source_stats.items()
+            },
+            "issues_count": len(result.issues),
+            "db_schema_verdict": "PASS",
+            "fallback_used": False,
+            "fallback_reason": "No events returned from providers",
+        }
+        print(f"\nAGENT_SUMMARY:{json.dumps(summary)}")
+        sys.exit(2)
 
     # Print summary
     print(f"\n{'='*60}")
@@ -75,7 +163,25 @@ def main():
         "verdict": result.verdict,
         "total_discovered": result.total_discovered,
         "total_after_dedup": result.total_after_dedup,
+        "requested_sports": result.requested_sports,
+        "raw_by_sport": result.raw_by_sport,
         "by_sport": result.by_sport,
+        "provider_counts_by_sport": {
+            sport: {
+                name: stats.per_sport_counts.get(sport, 0)
+                for name, stats in result.source_stats.items()
+                if sport in stats.per_sport_counts or sport in stats.per_sport_errors
+            }
+            for sport in result.requested_sports
+        },
+        "provider_errors_by_sport": {
+            sport: [
+                error
+                for stats in result.source_stats.values()
+                for error in stats.per_sport_errors.get(sport, [])
+            ]
+            for sport in result.requested_sports
+        },
         "sources": {
             name: {
                 "events": s.events_fetched,
@@ -86,6 +192,9 @@ def main():
             for name, s in result.source_stats.items()
         },
         "issues_count": len(result.issues),
+        "db_schema_verdict": "PASS",
+        "fallback_used": False,
+        "fallback_reason": "N/A",
     }
     print(f"\nAGENT_SUMMARY:{json.dumps(summary)}")
 

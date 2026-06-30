@@ -57,25 +57,20 @@ def main() -> int:
 
         recommended_pkg = packages[0] if packages else None
 
-        # Write package artifacts if we have any package
         package_json_p = None
         package_md_p = None
-        
+
         if recommended_pkg:
-            # File paths
             package_json_p = output_dir / f"{args.betting_day}_rich_coupon_package.json"
             package_md_p = output_dir / f"{args.betting_day}_rich_coupon_package.md"
 
-            # Write JSON package
             with open(package_json_p, "w", encoding="utf-8") as f:
                 json.dump(recommended_pkg.to_jsonable(), f, indent=2, ensure_ascii=False)
 
-            # Write Markdown package
             markdown_content = generate_package_markdown(recommended_pkg, report)
             with open(package_md_p, "w", encoding="utf-8") as f:
                 f.write(markdown_content)
 
-        # Update report with paths
         final_report_data = {
             "task_id": report.task_id,
             "status": report.status,
@@ -99,14 +94,17 @@ def main() -> int:
             "ready_for_automated_bet_placement": report.ready_for_automated_bet_placement,
             "ready_for_production_execution": report.ready_for_production_execution,
             "blockers": report.blockers,
+            "analytical_suggestion_count": report.analytical_suggestion_count,
+            "ready_for_manual_operator_quote_review": report.ready_for_manual_operator_quote_review,
         }
 
-        # Save Report
         with open(report_path, "w", encoding="utf-8") as f:
             json.dump(_serialize_jsonable(final_report_data), f, indent=2, ensure_ascii=False)
 
-        # Output overall status to stdout
-        if recommended_pkg and recommended_pkg.package_type != "NO_BET_PACKAGE" and not report.blockers:
+        if recommended_pkg and recommended_pkg.package_type == "ANALYTICAL_ONLY" and not report.blockers:
+            print("STATUS=READY_FOR_ANALYTICAL_OPERATOR_QUOTE_REVIEW")
+            return 0
+        elif recommended_pkg and recommended_pkg.package_type != "NO_BET_PACKAGE" and not report.blockers:
             print("STATUS=READY_FOR_HUMAN_REVIEW")
             return 0
         else:
