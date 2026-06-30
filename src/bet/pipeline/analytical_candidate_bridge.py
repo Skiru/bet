@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from bet.pipeline.market_probability_inputs import extract_market_semantics
+from bet.pipeline.market_probability_inputs import build_market_probability_input, validate_market_probability_input
 from bet.pipeline.analyzability_prefilter import (
     evaluate_candidate_analyzability,
     rank_analyzable_candidates,
@@ -324,6 +325,14 @@ class CandidateDraft:
     probability_as_of: str
     probability_confidence: str
     probability_missing_reason: str
+    hydration_status: str = "UNKNOWN"
+    promotion_status: str = "BLOCKED_HYDRATION_FAILED"
+    source_provider: str = ""
+    stats_as_of: str = "UNKNOWN"
+    stat_semantics_status: str = "UNKNOWN"
+    promotion_safe_model_probability: bool = False
+    market_probability_validation_reason: str = "UNKNOWN"
+    ready_for_manual_operator_quote_review: bool = False
     supporting_stats: list[dict[str, Any]] = field(default_factory=list)
     source_gaps: list[dict[str, Any]] = field(default_factory=list)
     analytical_status: str = "NOT_ANALYTICAL_ELIGIBLE"
@@ -482,15 +491,49 @@ def build_analytical_candidate_handoff(
             probability_contract["model_probability"] = None
             if not probability_contract["probability_missing_reason"]:
                 probability_contract["probability_missing_reason"] = "LOW_CONFIDENCE_MODEL_PROBABILITY"
+
+        runtime_candidate = dict(valuation_entry)
+        runtime_candidate.update(
+            {
+                "market_family": market_seed.get("market_family"),
+                "market_type": market_seed.get("market_type"),
+                "market_label": market_seed.get("market_label"),
+                "selection": market_seed.get("selection"),
+                "pick": market_seed.get("pick"),
+                "direction": market_seed.get("direction"),
+                "line": market_seed.get("line"),
+                "source_artifact_path": market_seed.get("source_artifact_path") or source_artifact_path,
+                "field_path": market_seed.get("field_path") or "candidate",
+            }
+        )
+        probability_input = build_market_probability_input(runtime_candidate, s3_entry)
+        probability_input_valid, probability_input_reason = validate_market_probability_input(probability_input)
+
+        if probability_input_reason == "SOURCE_PROVIDER_MISSING":
+            source_gaps.append({
+                "code": "SOURCE_PROVIDER_MISSING",
+                "field": "source_provider",
+                "artifact": probability_input.source_artifact_path or source_artifact_path,
+                "field_path": market_seed.get("field_path") or "candidate",
+            })
+        elif probability_input_reason == "SOURCE_ARTIFACT_PATH_MISSING":
+            source_gaps.append({
+                "code": "SOURCE_ARTIFACT_PATH_MISSING",
+                "field": "source_artifact_path",
+                "artifact": source_artifact_path,
+                "field_path": market_seed.get("field_path") or "candidate",
+            })
+        elif probability_input_reason == "STATS_AS_OF_MISSING_OR_UNKNOWN":
+            source_gaps.append({
+                "code": "STATS_AS_OF_MISSING_OR_UNKNOWN",
+                "field": "stats_as_of",
+                "artifact": probability_input.source_artifact_path or source_artifact_path,
+                "field_path": market_seed.get("field_path") or "candidate",
+            })
+
         odds_decimal = _to_decimal(
             valuation_entry.get("odds_decimal")
             or (valuation_entry.get("odds") or {}).get("market_best")
-        )
-
-        probability_status = (
-            "MODEL_PROBABILITY_READY"
-            if probability_contract["model_probability"] is not None
-            else "INSUFFICIENT_MODEL_PROBABILITY"
         )
         report = evaluate_candidate_analyzability(valuation_entry, s3_entry, market_seed)
         reports.append(report)
@@ -510,7 +553,7 @@ def build_analytical_candidate_handoff(
             else:
                 analytical_status = "BLOCKED_HYDRATION_FAILED"
             probability_contract["model_probability"] = None
-        elif report["analyzability_status"] == "ANALYZABLE":
+        elif report["analyzability_status"] == "ANALYZABLE" and probability_input_valid and probability_input.promotion_safe_model_probability:
             analytical_status = "ANALYTICAL_READY"
         elif report["analyzability_status"] == "RESEARCH_GAP_STATS_MISSING":
             analytical_status = "INSUFFICIENT_SUPPORTING_STATS"
@@ -574,6 +617,17 @@ def build_analytical_candidate_handoff(
             elif not supporting_stats:
                 analytical_status = "INSUFFICIENT_SUPPORTING_STATS"
 
+        if analytical_status != "ANALYTICAL_READY":
+            probability_contract["model_probability"] = None
+            if not probability_contract["probability_missing_reason"] and probability_input_reason != "PASS":
+                probability_contract["probability_missing_reason"] = probability_input_reason
+
+        probability_status = (
+            "MODEL_PROBABILITY_READY"
+            if probability_contract["model_probability"] is not None and analytical_status == "ANALYTICAL_READY"
+            else "INSUFFICIENT_MODEL_PROBABILITY"
+        )
+
         draft = CandidateDraft(
             candidate_id=candidate_id,
             event_id=event_id,
@@ -600,6 +654,20 @@ def build_analytical_candidate_handoff(
             probability_as_of=probability_contract["probability_as_of"],
             probability_confidence=probability_contract["probability_confidence"],
             probability_missing_reason=probability_contract["probability_missing_reason"],
+            hydration_status=probability_input.hydration_status,
+            promotion_status=probability_input.promotion_status,
+            source_provider=probability_input.source_provider,
+            stats_as_of=probability_input.stats_as_of,
+            stat_semantics_status=probability_input.stat_semantics_status,
+            promotion_safe_model_probability=probability_input.promotion_safe_model_probability,
+            market_probability_validation_reason=probability_input_reason,
+            ready_for_manual_operator_quote_review=(
+                analytical_status == "ANALYTICAL_READY"
+                and probability_input_valid
+                and probability_input.hydration_status == "HYDRATED"
+                and probability_input.promotion_status == "ANALYZABLE"
+                and probability_input.promotion_safe_model_probability is True
+            ),
             supporting_stats=supporting_stats,
             source_gaps=source_gaps,
             analytical_status=analytical_status,

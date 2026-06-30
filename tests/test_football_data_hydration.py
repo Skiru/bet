@@ -12,6 +12,10 @@ from bet.pipeline.market_probability_inputs import (
     aggregate_split_stat_value,
     split_stat_aggregation_policy,
 )
+from tests._secret_artifact_scan import (
+    assert_no_raw_secret_values_in_real_artifacts,
+    load_local_secret_values,
+)
 
 
 def _valid_candidate() -> dict:
@@ -86,7 +90,7 @@ def test_partial_hydration_remains_research_gap():
     
     report = evaluate_candidate_analyzability(cand, stats)
     assert report["analyzability_status"] == "REVIEW_ONLY_PARTIAL_DATA"
-    assert "SAMPLE_SIZE_INSUFFICIENT" in report["blocker_reasons"]
+    assert "PARTIAL_HYDRATION_BLOCKED" in report["blocker_reasons"]
 
 
 def test_api_football_probe_redacts_secret():
@@ -294,54 +298,163 @@ def test_partial_minimal_do_not_generate_fair_odds():
         assert c.get("min_acceptable_operator_odds") is None
 
 
+def test_partial_minimal_do_not_set_manual_operator_quote_review():
+    from bet.pipeline.analytical_candidate_bridge import build_analytical_candidate_handoff
+
+    cand1 = _valid_candidate()
+    cand1["probability_confidence"] = "PARTIAL"
+    cand1["fixture_id"] = 1
+    cand1["candidate_id"] = "cand-partial"
+    cand2 = _valid_candidate()
+    cand2["probability_confidence"] = "MINIMAL"
+    cand2["fixture_id"] = 2
+    cand2["candidate_id"] = "cand-minimal"
+    stats = _valid_stats_seed()
+
+    handoff = build_analytical_candidate_handoff(
+        {"candidates": [cand1, cand2]},
+        s3_payload={"analyses": [
+            {**stats, "candidate_id": "cand-partial", "fixture_id": 1},
+            {**stats, "candidate_id": "cand-minimal", "fixture_id": 2},
+        ]},
+        source_artifact_path="/tmp/s4.json",
+    )
+
+    blocked = handoff["review_only_partial_data"] + handoff["research_gap_minimal_hydration"]
+    assert blocked
+    assert all(candidate["ready_for_manual_operator_quote_review"] is False for candidate in blocked)
+
+
 def test_ready_for_manual_operator_quote_review_requires_hydrated_analyzable():
-    pass
+    from bet.pipeline.analytical_candidate_bridge import build_analytical_candidate_handoff
+
+    safe_candidate = _valid_candidate()
+    safe_candidate["fixture_id"] = 1
+    safe_candidate["candidate_id"] = "cand-safe"
+    partial_candidate = _valid_candidate()
+    partial_candidate["fixture_id"] = 2
+    partial_candidate["candidate_id"] = "cand-partial"
+    partial_candidate["probability_confidence"] = "PARTIAL"
+    stats = _valid_stats_seed()
+
+    handoff = build_analytical_candidate_handoff(
+        {"candidates": [safe_candidate, partial_candidate]},
+        s3_payload={"analyses": [
+            {**stats, "candidate_id": "cand-safe", "fixture_id": 1},
+            {**stats, "candidate_id": "cand-partial", "fixture_id": 2},
+        ]},
+        source_artifact_path="/tmp/s4.json",
+    )
+
+    assert handoff["counts"]["analytical_ready"] == 1
+    assert handoff["analytical_ready"][0]["ready_for_manual_operator_quote_review"] is True
+    assert handoff["analytical_ready"][0]["hydration_status"] == "HYDRATED"
+    assert handoff["analytical_ready"][0]["promotion_status"] == "ANALYZABLE"
+    assert handoff["review_only_partial_data"][0]["ready_for_manual_operator_quote_review"] is False
 
 
-def test_market_probability_input_requires_hydrated_status():
+def test_runtime_requires_hydrated_status_for_analyzable():
     cand = _valid_candidate()
     stats = _valid_stats_seed()
-    # Shorter series
     stats["raw_data"]["safety_input"]["markets"][0]["team_a_l10"] = [2.0, 1.0]
-    
+
     inp = build_market_probability_input(cand, stats)
     assert inp.hydration_status == "PARTIAL_HYDRATION"
     valid, reason = validate_market_probability_input(inp)
     assert not valid
-    assert reason == "INSUFFICIENT_SAMPLE_SIZE"
+    assert reason == "PARTIAL_HYDRATION"
 
 
-def test_market_probability_input_requires_source_provider_and_as_of():
+def test_runtime_blocks_partial_hydration_from_analyzable():
+    cand = _valid_candidate()
+    stats = _valid_stats_seed()
+    stats["raw_data"]["safety_input"]["markets"][0]["team_a_l10"] = [2.0, 1.0]
+
+    report = evaluate_candidate_analyzability(cand, stats)
+    assert report["analyzability_status"] == "REVIEW_ONLY_PARTIAL_DATA"
+    assert "PARTIAL_HYDRATION_BLOCKED" in report["blocker_reasons"]
+
+
+def test_runtime_blocks_minimal_hydration_from_analyzable():
+    cand = _valid_candidate()
+    stats = _valid_stats_seed()
+    stats["raw_data"]["safety_input"]["markets"] = []
+    stats["stats_a_summary"] = {"has_data": False, "l10_avg": {}, "sources": []}
+    stats["stats_b_summary"] = {"has_data": False, "l10_avg": {}, "sources": []}
+    cand["model_probability"] = None
+
+    inp = build_market_probability_input(cand, stats)
+    assert inp.hydration_status == "MINIMAL_HYDRATION"
+    valid, reason = validate_market_probability_input(inp)
+    assert not valid
+    assert reason == "MINIMAL_HYDRATION"
+
+
+def test_market_probability_input_requires_source_provider_source_artifact_and_as_of():
     cand = _valid_candidate()
     stats = _valid_stats_seed()
     stats["source_provider"] = ""
     cand["source_provider"] = ""
-    
+
     inp = build_market_probability_input(cand, stats)
     valid, reason = validate_market_probability_input(inp)
     assert not valid
     assert reason == "SOURCE_PROVIDER_MISSING"
 
+    cand = _valid_candidate()
+    stats = _valid_stats_seed()
+    stats["source_artifact_path"] = ""
+    cand["source_artifact_path"] = ""
+    inp = build_market_probability_input(cand, stats)
+    valid, reason = validate_market_probability_input(inp)
+    assert not valid
+    assert reason == "SOURCE_ARTIFACT_PATH_MISSING"
 
-def test_market_series_no_match_does_not_use_last_market_fallback():
+    cand = _valid_candidate()
+    stats = _valid_stats_seed()
+    stats["probability_as_of"] = ""
+    inp = build_market_probability_input(cand, stats)
+    valid, reason = validate_market_probability_input(inp)
+    assert not valid
+    assert reason == "STATS_AS_OF_MISSING_OR_UNKNOWN"
+
+
+def test_market_probability_input_rejects_unknown_as_of():
+    cand = _valid_candidate()
+    stats = _valid_stats_seed()
+    stats["probability_as_of"] = "UNKNOWN"
+
+    inp = build_market_probability_input(cand, stats)
+    valid, reason = validate_market_probability_input(inp)
+    assert not valid
+    assert reason == "STATS_AS_OF_MISSING_OR_UNKNOWN"
+
+
+def test_market_series_no_exact_match_returns_gap_not_fallback():
     cand = _valid_candidate()
     stats = _valid_stats_seed()
     cand["best_market"]["line"] = 5.5
-    
+
     inp = build_market_probability_input(cand, stats)
     assert inp.semantics_issue == "MARKET_SERIES_NOT_FOUND_FOR_FAMILY_LINE"
+    valid, reason = validate_market_probability_input(inp)
+    assert not valid
+    assert reason == "MARKET_SERIES_NOT_FOUND_FOR_FAMILY_LINE"
 
 
-def test_market_series_ambiguous_match_blocks_probability_input():
+def test_market_series_ambiguous_match_blocks():
     cand = _valid_candidate()
     stats = _valid_stats_seed()
     stats["raw_data"]["safety_input"]["markets"].append({
         "name": "Goals Total O/U Alternative",
         "line": 2.5,
+        "direction": "OVER",
         "team_a_l10": [9.0, 9.0],
         "team_b_l10": [9.0, 9.0],
+        "confidence": "HIGH",
+        "source_artifact_path": "/tmp/s4.json",
     })
-    
+
     inp = build_market_probability_input(cand, stats)
     assert inp.semantics_issue == "AMBIGUOUS_MARKET_SERIES_MATCH"
     valid, reason = validate_market_probability_input(inp)
@@ -360,15 +473,24 @@ def test_exact_market_family_line_direction_match_required():
     assert reason == "PASS"
 
 
-def test_bookmaker_implied_probability_still_reference_only():
+def test_market_probability_input_rejects_bookmaker_implied_method():
     cand = _valid_candidate()
     cand["probability_method"] = "BOOKMAKER_IMPLIED_REFERENCE_ONLY"
     stats = _valid_stats_seed()
-    
+
     inp = build_market_probability_input(cand, stats)
     valid, reason = validate_market_probability_input(inp)
     assert not valid
     assert reason == "BOOKMAKER_IMPLIED_REFERENCE_ONLY"
+
+
+def test_source_code_no_unsafe_matching_market_fallback_pattern():
+    source_path = Path("/Users/mkoziol/projects/bet/src/bet/pipeline/market_probability_inputs.py")
+    source = source_path.read_text(encoding="utf-8")
+
+    assert "matching_market = m" not in source
+    assert "return markets[-1]" not in source
+    assert "return markets[0]" not in source
 
 
 def test_bet_builder_quote_guards_still_block_pipeline_computed_quote():
@@ -387,50 +509,14 @@ def test_bet_builder_quote_guards_still_block_pipeline_computed_quote():
         )
 
 
-def test_secret_values_not_present_in_real_hydration_artifacts():
+def test_secret_values_not_present_in_real_artifacts():
+    repo_root = Path("/Users/mkoziol/projects/bet")
     keys_path = Path("/Users/mkoziol/projects/bet/config/api_keys.json")
     if not keys_path.exists():
         pytest.skip("api_keys.json does not exist")
-        
-    try:
-        keys_data = json.loads(keys_path.read_text(encoding="utf-8"))
-    except Exception:
-        pytest.skip("Could not parse api_keys.json")
-        
-    secrets_to_check = []
-    def _collect_secrets(data):
-        if isinstance(data, dict):
-            for k, v in data.items():
-                _collect_secrets(v)
-        elif isinstance(data, list):
-            for v in data:
-                _collect_secrets(v)
-        elif isinstance(data, str):
-            val = data.strip()
-            if len(val) >= 8 and not any(p in val.lower() for p in ("your_key", "placeholder", "dummy", "test_key", "testkey")):
-                secrets_to_check.append(val)
-                
-    _collect_secrets(keys_data)
-    if not secrets_to_check:
-        secrets_to_check.append("super-secret-key-that-must-never-appear")
-        
-    artifact_dirs = [
-        Path("/Users/mkoziol/projects/bet/.kilo/artifacts"),
-        Path("/tmp")
-    ]
-    
-    files_to_scan = []
-    patterns = ["*hydration*", "*api_football*", "*provider*", "s4.txt", "s5.txt", "s8.txt", "*.log"]
-    for d in artifact_dirs:
-        if d.exists():
-            for pat in patterns:
-                files_to_scan.extend(d.glob(pat))
-                
-    for f in files_to_scan:
-        if f.is_file():
-            try:
-                content = f.read_text(encoding="utf-8", errors="ignore")
-                for secret in secrets_to_check:
-                    assert secret not in content, f"Secret was leaked in artifact file: {f.name}"
-            except Exception:
-                pass
+
+    secret_values = load_local_secret_values(keys_path)
+    if not secret_values:
+        pytest.skip("No concrete local secret values found in api_keys.json")
+
+    assert_no_raw_secret_values_in_real_artifacts(repo_root, secret_values)

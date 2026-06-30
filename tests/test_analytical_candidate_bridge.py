@@ -30,6 +30,8 @@ def test_analytical_candidate_bridge_creates_ready_candidate_when_identity_proba
                 "probability_sources": ["stats_db"],
                 "probability_as_of": "2026-06-29T12:00:00+00:00",
                 "probability_confidence": "FULL",
+                "source_provider": "api-football",
+                "source_artifact_path": "/tmp/2026-06-29_s4_valuation_candidates.json",
                 "odds": {"market_best": 1.91},
                 "odds_source": "api",
             }
@@ -51,6 +53,8 @@ def test_analytical_candidate_bridge_creates_ready_candidate_when_identity_proba
                 "probability_sources": ["stats_db"],
                 "probability_as_of": "2026-06-29T12:00:00+00:00",
                 "probability_confidence": "FULL",
+                "source_provider": "api-football",
+                "source_artifact_path": "/tmp/2026-06-29_s4_valuation_candidates.json",
                 "stats_a_summary": {"has_data": True, "l10_avg": {"goals": 2.1}, "sources": ["stats_db"]},
                 "stats_b_summary": {"has_data": True, "l10_avg": {"goals": 1.4}, "sources": ["stats_db"]},
                 "h2h_summary": {"has_data": True, "meetings_count": 4},
@@ -439,6 +443,11 @@ def test_missing_line_blocks_ou_probability_input():
         "away_team": "Team B",
     }
     stats_seed = {
+        "source_provider": "api-football",
+        "source_artifact_path": "/tmp/result.json",
+        "probability_as_of": "2026-06-29T12:00:00Z",
+        "stats_a_summary": {"has_data": True, "l10_avg": {"goals": 2.0}, "sources": ["db"]},
+        "stats_b_summary": {"has_data": True, "l10_avg": {"goals": 1.0}, "sources": ["db"]},
         "raw_data": {
             "safety_input": {
                 "markets": [
@@ -545,18 +554,23 @@ def test_market_probability_input_built_for_goals_totals():
         "away_team": "Team B",
     }
     stats_seed = {
+        "source_provider": "api-football",
+        "source_artifact_path": "/tmp/result.json",
+        "probability_as_of": "2026-06-29T12:00:00Z",
         "raw_data": {
             "safety_input": {
                 "markets": [
                     {
                         "name": "Goals Total O/U",
                         "line": 2.5,
+                        "direction": "OVER",
+                        "source_artifact_path": "/tmp/result.json",
                         "team_a_l10": [2.0, 1.0, 3.0, 1.0, 2.0, 1.0, 2.0, 0.0, 1.0, 2.0],
                         "team_b_l10": [1.0, 2.0, 0.0, 1.0, 3.0, 2.0, 1.0, 1.0, 2.0, 0.0],
                     }
                 ]
             }
-        }
+        },
     }
     inp = build_market_probability_input(candidate, stats_seed)
     assert inp.market_family == "GOALS_TOTALS"
@@ -575,20 +589,15 @@ def test_market_probability_input_built_for_result():
         "line": None,
         "home_team": "Team A",
         "away_team": "Team B",
+        "probability_confidence": "HIGH",
     }
     stats_seed = {
-        "raw_data": {
-            "safety_input": {
-                "markets": [
-                    {
-                        "name": "Goals Total O/U",
-                        "line": 2.5,
-                        "team_a_l10": [2.0, 1.0, 3.0, 1.0, 2.0, 1.0, 2.0, 0.0, 1.0, 2.0],
-                        "team_b_l10": [1.0, 2.0, 0.0, 1.0, 3.0, 2.0, 1.0, 1.0, 2.0, 0.0],
-                    }
-                ]
-            }
-        }
+        "source_provider": "api-football",
+        "source_artifact_path": "/tmp/result.json",
+        "probability_as_of": "2026-06-29T12:00:00Z",
+        "stats_a_summary": {"has_data": True, "l10_avg": {"goals": 2.0}, "sources": ["db"]},
+        "stats_b_summary": {"has_data": True, "l10_avg": {"goals": 1.0}, "sources": ["db"]},
+        "raw_data": {}
     }
     inp = build_market_probability_input(candidate, stats_seed)
     assert inp.market_family == "RESULT"
@@ -609,6 +618,9 @@ def test_market_probability_input_built_for_corners_when_l10_exists():
         "away_team": "Team B",
     }
     stats_seed = {
+        "source_provider": "api-football",
+        "source_artifact_path": "/tmp/sample-size.json",
+        "probability_as_of": "2026-06-29T12:00:00Z",
         "raw_data": {
             "safety_input": {
                 "markets": [
@@ -640,6 +652,9 @@ def test_probability_input_requires_line_for_totals_corners_cards_shots():
         "away_team": "Team B",
     }
     stats_seed = {
+        "source_provider": "api-football",
+        "source_artifact_path": "/tmp/sample-size.json",
+        "probability_as_of": "2026-06-29T12:00:00Z",
         "raw_data": {
             "safety_input": {
                 "markets": [
@@ -672,6 +687,9 @@ def test_probability_input_requires_min_sample_size():
         "away_team": "Team B",
     }
     stats_seed = {
+        "source_provider": "api-football",
+        "source_artifact_path": "/tmp/sample-size.json",
+        "probability_as_of": "2026-06-29T12:00:00Z",
         "raw_data": {
             "safety_input": {
                 "markets": [
@@ -688,7 +706,7 @@ def test_probability_input_requires_min_sample_size():
     inp = build_market_probability_input(candidate, stats_seed)
     valid, reason = validate_market_probability_input(inp)
     assert valid is False
-    assert reason == "INSUFFICIENT_SAMPLE_SIZE"
+    assert reason == "PARTIAL_HYDRATION"
 
 
 def test_bookmaker_implied_probability_not_model_input():
@@ -759,6 +777,8 @@ def test_probability_output_propagates_to_analytical_handoff():
                 "probability_sources": ["db"],
                 "probability_as_of": "2026-06-29T12:00:00Z",
                 "probability_confidence": "HIGH",
+                "source_provider": "api-football",
+                "source_artifact_path": "/tmp/val.json",
                 "odds": {"market_best": 1.91},
             }
         ]
@@ -772,6 +792,9 @@ def test_probability_output_propagates_to_analytical_handoff():
                 "away_team": "Beta",
                 "competition": "Test League",
                 "best_market": {"name": "Goals Total O/U", "direction": "OVER", "line": 2.5, "probability": 0.62},
+                "source_provider": "api-football",
+                "source_artifact_path": "/tmp/val.json",
+                "probability_as_of": "2026-06-29T12:00:00Z",
                 "stats_a_summary": {"has_data": True, "l10_avg": {"goals": 2.1}, "sources": ["db"]},
                 "stats_b_summary": {"has_data": True, "l10_avg": {"goals": 1.4}, "sources": ["db"]},
                 "h2h_summary": {"has_data": True, "meetings_count": 4},
@@ -840,6 +863,7 @@ def test_player_tackles_remains_unsupported():
         line=2.5,
         team_a_name="Alpha",
         team_b_name="Beta",
+        stat_semantics_status="KNOWN",
     )
     valid, reason = validate_market_probability_input(inp)
     assert valid is False

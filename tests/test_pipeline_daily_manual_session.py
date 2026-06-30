@@ -40,6 +40,22 @@ def _config(tmp_path: Path, **overrides: object) -> DailyManualSessionConfig:
 
 
 def _write_draft(path: Path, drafts: list[dict[str, Any]], **overrides) -> None:
+    normalized_drafts = []
+    for draft in drafts:
+        normalized_draft = dict(draft)
+        normalized_selections = []
+        for selection in draft.get("selections", []):
+            normalized_selection = dict(selection)
+            odds_decimal = normalized_selection.get("odds_decimal")
+            if str(odds_decimal) in {"0", "0.0"}:
+                normalized_selection.setdefault("hydration_status", "HYDRATED")
+                normalized_selection.setdefault("promotion_status", "ANALYZABLE")
+                normalized_selection.setdefault("promotion_safe_model_probability", True)
+                normalized_selection.setdefault("ready_for_manual_operator_quote_review", True)
+            normalized_selections.append(normalized_selection)
+        normalized_draft["selections"] = normalized_selections
+        normalized_drafts.append(normalized_draft)
+
     path.parent.mkdir(parents=True, exist_ok=True)
     payload = {
         "artifact_type": "S8_COUPON_DRAFTS",
@@ -52,7 +68,7 @@ def _write_draft(path: Path, drafts: list[dict[str, Any]], **overrides) -> None:
         "production_coupon_write": False,
         "executable_coupon": False,
         "betclic_execution_enabled": False,
-        "drafts": drafts,
+        "drafts": normalized_drafts,
     }
     payload.update(overrides)
     with open(path, "w", encoding="utf-8") as f:
@@ -1166,7 +1182,11 @@ def test_analytical_only_report_not_ready_for_manual_placement(tmp_path: Path):
         "session_id": config.session_id,
         "payload": {
             "candidate_id": "cand-1",
-            "review_status": "PRICE_PENDING_OPERATOR_CHECK"
+            "review_status": "PRICE_PENDING_OPERATOR_CHECK",
+            "hydration_status": "HYDRATED",
+            "promotion_status": "ANALYZABLE",
+            "promotion_safe_model_probability": True,
+            "ready_for_manual_operator_quote_review": True,
         }
     }
     ledger_p.parent.mkdir(parents=True, exist_ok=True)
@@ -1190,7 +1210,11 @@ def test_ready_for_manual_operator_quote_review_true_for_analytical_only(tmp_pat
         "session_id": config.session_id,
         "payload": {
             "candidate_id": "cand-1",
-            "review_status": "PRICE_PENDING_OPERATOR_CHECK"
+            "review_status": "PRICE_PENDING_OPERATOR_CHECK",
+            "hydration_status": "HYDRATED",
+            "promotion_status": "ANALYZABLE",
+            "promotion_safe_model_probability": True,
+            "ready_for_manual_operator_quote_review": True,
         }
     }
     ledger_p.parent.mkdir(parents=True, exist_ok=True)
@@ -1442,7 +1466,11 @@ def test_analytical_only_package_not_coupon_package(tmp_path: Path):
             "event": "Chelsea vs Arsenal",
             "sport": "football",
             "market": "Match Corners",
-            "pick": "OVER"
+            "pick": "OVER",
+            "hydration_status": "HYDRATED",
+            "promotion_status": "ANALYZABLE",
+            "promotion_safe_model_probability": True,
+            "ready_for_manual_operator_quote_review": True,
         }
     }
     with open(ledger_p, "w") as f:

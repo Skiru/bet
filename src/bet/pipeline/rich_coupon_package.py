@@ -204,6 +204,14 @@ def build_rich_coupon_package(
                 except json.JSONDecodeError:
                     continue
 
+    def _quote_review_ready(entry: dict[str, Any]) -> bool:
+        return (
+            entry.get("ready_for_manual_operator_quote_review") is True
+            and entry.get("hydration_status") == "HYDRATED"
+            and entry.get("promotion_status") == "ANALYZABLE"
+            and entry.get("promotion_safe_model_probability") is True
+        )
+
     candidate_count = len(state["reviewed"])
     bettable_candidates = []
     rejected_candidates = []
@@ -213,7 +221,7 @@ def build_rich_coupon_package(
         status = cand.get("review_status")
         if status == "BETTABLE_MANUAL_ONLY":
             bettable_candidates.append(cand)
-        elif status in ("PRICE_PENDING_OPERATOR_CHECK", "BET_BUILDER_QUOTE_REQUIRED", "LINE_MISMATCH_REQUIRES_REMODEL", "NO_OPERATOR_MARKET_FOUND", "INSUFFICIENT_MODEL_PROBABILITY", "NO_FAKE_OPERATOR_QUOTE", "PRICE_ACCEPTABLE_PENDING_EVIDENCE_REVIEW", "REJECTED_BY_PRICE"):
+        elif status in ("PRICE_PENDING_OPERATOR_CHECK", "BET_BUILDER_QUOTE_REQUIRED", "LINE_MISMATCH_REQUIRES_REMODEL", "NO_OPERATOR_MARKET_FOUND", "INSUFFICIENT_MODEL_PROBABILITY", "NO_FAKE_OPERATOR_QUOTE", "PRICE_ACCEPTABLE_PENDING_EVIDENCE_REVIEW", "REJECTED_BY_PRICE") and _quote_review_ready(cand):
             analytical_candidates.append(cand)
         else:
             rejected_candidates.append(cand)
@@ -355,7 +363,7 @@ def build_rich_coupon_package(
             "rejection_remodel_reasons": cand.get("rejection_remodel_reasons") or [],
             "operator_quote_required": True,
             "not_ready_for_manual_placement": True,
-            "ready_for_manual_operator_quote_review": True,
+            "ready_for_manual_operator_quote_review": _quote_review_ready(cand),
         }
 
     analytical_suggestions_list = []

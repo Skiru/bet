@@ -47,7 +47,11 @@ def _valid_candidate(candidate_id: str, **overrides) -> dict[str, Any]:
         "source_s8_coupon_draft_path": "/tmp/s8_draft.json",
         "source_s8_coupon_draft_sha256": "abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890",
         "source_s9_artifact_path": "/tmp/s9_gate.json",
-        "source_s9_artifact_sha256": "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
+        "source_s9_artifact_sha256": "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+        "hydration_status": "HYDRATED",
+        "promotion_status": "ANALYZABLE",
+        "promotion_safe_model_probability": True,
+        "ready_for_manual_operator_quote_review": True,
     }
     cand.update(overrides)
     return cand

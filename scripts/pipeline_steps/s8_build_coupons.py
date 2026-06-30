@@ -233,14 +233,24 @@ def main():
                 blocked_identity_missing = content.get("blocked_identity_missing") or []
                 review_only_partial_data = content.get("review_only_partial_data") or []
                 research_gap_minimal_hydration = content.get("research_gap_minimal_hydration") or []
+                analytical_quote_ready = [
+                    candidate
+                    for candidate in analytical_ready
+                    if isinstance(candidate, dict)
+                    and candidate.get("hydration_status") == "HYDRATED"
+                    and candidate.get("promotion_status") == "ANALYZABLE"
+                    and candidate.get("promotion_safe_model_probability") is True
+                    and candidate.get("ready_for_manual_operator_quote_review") is True
+                ]
                 approved = []
-                if analytical_ready:
+                if analytical_quote_ready:
                     package_type = "ANALYTICAL_ONLY"
                 elif review_only_partial_data:
                     package_type = "REVIEW_ONLY_PARTIAL_DATA_PACKAGE"
                 else:
                     package_type = "RESEARCH_GAP_PACKAGE"
-                drafts = [{"draft_id": "draft-0", "selections": analytical_ready}] if analytical_ready else []
+                ready_for_manual_operator_quote_review = bool(analytical_quote_ready)
+                drafts = [{"draft_id": "draft-0", "selections": analytical_quote_ready}] if analytical_quote_ready else []
                 drafts_data = {
                     "artifact_type": "S8_COUPON_DRAFTS",
                     "betting_day": args.date,
@@ -253,10 +263,11 @@ def main():
                     "production_coupon_write": False,
                     "executable_coupon": False,
                     "betclic_execution_enabled": False,
+                    "ready_for_manual_operator_quote_review": ready_for_manual_operator_quote_review,
                     "coupon_draft_count": len(drafts),
                     "drafts": drafts,
                     "analytical_candidate_handoff_path": str(input_path),
-                    "analytical_ready": analytical_ready,
+                    "analytical_ready": analytical_quote_ready,
                     "blocked_probability_missing": blocked_probability_missing,
                     "blocked_stats_missing": blocked_stats_missing,
                     "blocked_identity_missing": blocked_identity_missing,
@@ -285,6 +296,7 @@ def main():
                         "run_id": args.run_id,
                         "requires_human_gate": True,
                         "ready_for_human_gate": True,
+                        "ready_for_manual_operator_quote_review": True,
                         "ready_for_production_execution": False,
                         "production_selectable": False,
                         "production_coupon_write": False,
@@ -315,24 +327,17 @@ def main():
     if status == "PASS" and is_analytical_only:
         payload_input_path = str(input_path)
         handoff_package_type = None
-        if input_path is not None:
-            try:
-                maybe_content = json.loads(input_path.read_text(encoding="utf-8"))
-                if _is_analytical_handoff_payload(maybe_content):
-                    if maybe_content.get("analytical_ready"):
-                        handoff_package_type = "ANALYTICAL_ONLY"
-                    elif maybe_content.get("review_only_partial_data"):
-                        handoff_package_type = "REVIEW_ONLY_PARTIAL_DATA_PACKAGE"
-                    else:
-                        handoff_package_type = "RESEARCH_GAP_PACKAGE"
-            except Exception:
-                pass
+        try:
+            handoff_package_type = json.loads(output_path.read_text(encoding="utf-8")).get("package_type")
+        except Exception:
+            pass
         payload = {
             "s8_input_path": payload_input_path,
             "s8_coupon_draft_path": str(output_path),
             "coupon_draft_count": json.loads(output_path.read_text(encoding="utf-8")).get("coupon_draft_count", 0),
             "requires_human_gate": True,
             "ready_for_human_gate": True,
+            "ready_for_manual_operator_quote_review": json.loads(output_path.read_text(encoding="utf-8")).get("ready_for_manual_operator_quote_review", False),
             "ready_for_production_execution": False,
             "production_coupon_write": False,
             "executable_coupon": False,
@@ -385,6 +390,7 @@ def main():
             "coupon_draft_count": 0,
             "requires_human_gate": True,
             "ready_for_human_gate": True,
+            "ready_for_manual_operator_quote_review": False,
             "ready_for_production_execution": False,
             "production_coupon_write": False,
             "executable_coupon": False,

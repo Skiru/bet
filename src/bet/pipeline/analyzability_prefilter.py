@@ -194,7 +194,7 @@ def evaluate_candidate_analyzability(
                     elif reason in {"MINIMAL_HYDRATION", "RESEARCH_GAP_MINIMAL_HYDRATION"}:
                         blocker_reasons.append("LOW_CONFIDENCE_PROMOTION_BLOCKED")
                         analyzability_status = "RESEARCH_GAP_MINIMAL_HYDRATION"
-                    elif reason == "BLOCKED_HYDRATION_FAILED":
+                    elif reason in {"BLOCKED_HYDRATION_FAILED", "DATA_UNAVAILABLE", "BLOCKED_UNKNOWN_HYDRATION_STATUS"}:
                         blocker_reasons.append("HYDRATION_FAILED")
                         analyzability_status = "BLOCKED_HYDRATION_FAILED"
                     elif reason == "PROMOTION_CONFIDENCE_LOW_OR_MINIMAL":
@@ -208,6 +208,9 @@ def evaluate_candidate_analyzability(
                         analyzability_status = "RESEARCH_GAP_MARKET_INPUT_NOT_BUILT"
                     elif reason == "STATS_AS_OF_MISSING_OR_UNKNOWN":
                         blocker_reasons.append("STATS_AS_OF_MISSING_OR_UNKNOWN")
+                        analyzability_status = "RESEARCH_GAP_MARKET_INPUT_NOT_BUILT"
+                    elif reason == "RESEARCH_GAP_MARKET_INPUT_NOT_BUILT":
+                        blocker_reasons.append("MARKET_SPECIFIC_INPUT_NOT_BUILT")
                         analyzability_status = "RESEARCH_GAP_MARKET_INPUT_NOT_BUILT"
                     elif reason == "AMBIGUOUS_MARKET_LABEL":
                         blocker_reasons.append("UNSUPPORTED_MARKET_FAMILY")

@@ -204,6 +204,9 @@ def test_model_probability_ready_cannot_exceed_market_probability_input_ready():
 
     stats_seed = {
         "best_market": None,
+        "source_provider": "api-football",
+        "source_artifact_path": "/tmp/s4.json",
+        "probability_as_of": "2026-06-25T12:00:00Z",
         "stats_a_summary": {"has_data": True, "l10_avg": {"goals": 2.0}, "sources": ["db"]},
         "stats_b_summary": {"has_data": True, "l10_avg": {"goals": 1.0}, "sources": ["db"]},
         "h2h_summary": {"has_data": False, "meetings_count": 0, "averages": {}},
@@ -218,12 +221,14 @@ def test_model_probability_ready_cannot_exceed_market_probability_input_ready():
             "market": "ml:away",
             "selection": "Beta",
             "pick": "Beta",
-            "home_team": "Alpha",
-            "away_team": "Beta",
-            "probability_confidence": "HIGH",
-            "reference_model_probability": 0.58,
-            "model_probability": None,
-        },
+                "home_team": "Alpha",
+                "away_team": "Beta",
+                "probability_confidence": "HIGH",
+                "source_provider": "api-football",
+                "source_artifact_path": "/tmp/s4.json",
+                "reference_model_probability": 0.58,
+                "model_probability": None,
+            },
         {
             "candidate_id": "unsupported",
             "sport": "football",
@@ -457,10 +462,59 @@ def test_s8_reads_analytical_handoff_without_s7_approved_picks():
     output_path = data_dir / "2026-06-25_s8_coupon_drafts.json"
     payload = json.loads(output_path.read_text(encoding="utf-8"))
     assert payload["package_type"] == "RESEARCH_GAP_PACKAGE"
+    assert payload["ready_for_manual_operator_quote_review"] is False
     assert Path(payload["analytical_candidate_handoff_path"]).resolve() == handoff_path.resolve()
     evidence = json.loads(_canonical_evidence_path(environ, "S8").read_text(encoding="utf-8"))
     assert evidence["status"] == "PASS"
     assert evidence["payload"]["package_type"] == "RESEARCH_GAP_PACKAGE"
+    assert evidence["payload"]["ready_for_manual_operator_quote_review"] is False
+
+
+def test_s8_review_only_package_not_quote_ready():
+    environ = _runtime_environ()
+    data_dir = Path(environ["BET_PIPELINE_DATA_DIR"])
+    _write_json(
+        data_dir / "analytical_candidate_handoff.json",
+        {
+            "artifact_type": "ANALYTICAL_CANDIDATE_HANDOFF",
+            "analytical_ready": [],
+            "blocked_probability_missing": [],
+            "blocked_stats_missing": [],
+            "blocked_identity_missing": [],
+            "review_only_partial_data": [
+                {
+                    "candidate_id": "fixture:11",
+                    "hydration_status": "PARTIAL_HYDRATION",
+                    "promotion_status": "REVIEW_ONLY_PARTIAL_DATA",
+                    "promotion_safe_model_probability": False,
+                    "ready_for_manual_operator_quote_review": False,
+                }
+            ],
+            "research_gap_minimal_hydration": [],
+            "priced_candidates": [],
+            "counts": {
+                "analytical_ready": 0,
+                "blocked_probability_missing": 0,
+                "blocked_stats_missing": 0,
+                "blocked_identity_missing": 0,
+                "review_only_partial_data": 1,
+                "research_gap_minimal_hydration": 0,
+                "priced_candidates": 0,
+            },
+        },
+    )
+
+    argv = ["s8_build_coupons.py", "--date", "2026-06-25", "--run-id", environ["BET_PIPELINE_RUN_ID"], "--runtime-mode", "DRY_RUN", "--dry-run"]
+    with patch.dict(os.environ, environ, clear=False), patch.object(sys, "argv", argv):
+        with pytest.raises(SystemExit) as exc_info:
+            s8_build_coupons.main()
+
+    assert exc_info.value.code == 0
+    output_path = data_dir / "2026-06-25_s8_coupon_drafts.json"
+    payload = json.loads(output_path.read_text(encoding="utf-8"))
+    assert payload["package_type"] == "REVIEW_ONLY_PARTIAL_DATA_PACKAGE"
+    assert payload["ready_for_manual_operator_quote_review"] is False
+    assert payload["coupon_draft_count"] == 0
 
 
 def test_s7_resolution_prefers_s4_output_not_s3_when_run_root_contains_candidate_token():

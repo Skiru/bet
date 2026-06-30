@@ -110,6 +110,10 @@ class RealPickReview:
     decision_reason: str
     blockers: list[str]
     as_of_utc: str
+    hydration_status: str = ""
+    promotion_status: str = ""
+    promotion_safe_model_probability: bool = False
+    ready_for_manual_operator_quote_review: bool = False
     model_probability: Decimal | None = None
     fair_odds: Decimal | None = None
     min_acceptable_operator_odds: Decimal | None = None
@@ -417,6 +421,15 @@ def review_s8_candidate_for_manual_session(
                 stake_units = Decimal("1")
 
             is_unpriced = (odds_decimal == ZERO)
+            hydration_status = str(selection.get("hydration_status") or "")
+            promotion_status = str(selection.get("promotion_status") or "")
+            promotion_safe_model_probability = selection.get("promotion_safe_model_probability") is True
+            selection_quote_ready = (
+                hydration_status == "HYDRATED"
+                and promotion_status == "ANALYZABLE"
+                and promotion_safe_model_probability is True
+                and selection.get("ready_for_manual_operator_quote_review") is True
+            )
 
             model_probability = None
             prob_raw = selection.get("model_probability") or selection.get("probability") or selection.get("prob")
@@ -483,6 +496,12 @@ def review_s8_candidate_for_manual_session(
 
             if not operator_name:
                 blockers.append("missing operator name")
+
+            if is_unpriced and not selection_quote_ready:
+                blockers.append("candidate failed hydration/promotion quote readiness contract")
+                model_probability = None
+                fair_odds = None
+                min_acceptable_operator_odds = None
 
             is_ou_market = "O/U" in market or "Over/Under" in market or "Total" in market or pick in ("UNDER", "OVER") or pick.upper().startswith("UNDER ") or pick.upper().startswith("OVER ")
             if is_ou_market and line == "MISSING":
@@ -688,6 +707,10 @@ def review_s8_candidate_for_manual_session(
                     decision_reason=decision_reason,
                     blockers=blockers,
                     as_of_utc=utc_now_iso(),
+                    hydration_status=hydration_status,
+                    promotion_status=promotion_status,
+                    promotion_safe_model_probability=promotion_safe_model_probability,
+                    ready_for_manual_operator_quote_review=selection_quote_ready and not blockers,
                     model_probability=model_probability,
                     fair_odds=fair_odds,
                     min_acceptable_operator_odds=min_acceptable_operator_odds,
@@ -772,10 +795,31 @@ def generate_daily_session_report(
     normalized = config.normalized()
     state = load_session_state(normalized.session_ledger_path)
 
+    def _quote_review_ready(entry: dict[str, Any]) -> bool:
+        return (
+            entry.get("ready_for_manual_operator_quote_review") is True
+            and entry.get("hydration_status") == "HYDRATED"
+            and entry.get("promotion_status") == "ANALYZABLE"
+            and entry.get("promotion_safe_model_probability") is True
+        )
+
     candidate_count = len(state["reviewed"])
     no_bet_count = sum(1 for c in state["reviewed"].values() if c.get("review_status") == "NO_BET")
     bettable_count = sum(1 for c in state["reviewed"].values() if c.get("review_status") == "BETTABLE_MANUAL_ONLY")
-    analytical_count = sum(1 for c in state["reviewed"].values() if c.get("review_status") in ("PRICE_PENDING_OPERATOR_CHECK", "BET_BUILDER_QUOTE_REQUIRED", "LINE_MISMATCH_REQUIRES_REMODEL", "NO_OPERATOR_MARKET_FOUND", "INSUFFICIENT_MODEL_PROBABILITY", "NO_FAKE_OPERATOR_QUOTE", "PRICE_ACCEPTABLE_PENDING_EVIDENCE_REVIEW"))
+    analytical_count = sum(
+        1
+        for c in state["reviewed"].values()
+        if c.get("review_status") in (
+            "PRICE_PENDING_OPERATOR_CHECK",
+            "BET_BUILDER_QUOTE_REQUIRED",
+            "LINE_MISMATCH_REQUIRES_REMODEL",
+            "NO_OPERATOR_MARKET_FOUND",
+            "INSUFFICIENT_MODEL_PROBABILITY",
+            "NO_FAKE_OPERATOR_QUOTE",
+            "PRICE_ACCEPTABLE_PENDING_EVIDENCE_REVIEW",
+        )
+        and _quote_review_ready(c)
+    )
 
     prepared_count = len(state["prepared"])
     placed_count = len(state["placed"])

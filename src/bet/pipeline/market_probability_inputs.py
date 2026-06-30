@@ -45,6 +45,15 @@ LINE_REQUIRED_MARKET_FAMILIES = frozenset({
     "SHOTS",
     "SHOTS_ON_TARGET",
 })
+BLOCKED_PROBABILITY_CONFIDENCES = frozenset({
+    "BLOCKED",
+    "LOW",
+    "LOW_CONFIDENCE",
+    "MINIMAL",
+    "PARTIAL",
+    "UNKNOWN",
+    "",
+})
 _LINE_RE = re.compile(r"-?\d+(?:\.\d+)?")
 
 
@@ -80,6 +89,51 @@ def _extract_line(*values: Any) -> float | None:
 
 def _normalized_tokens(*values: Any) -> str:
     return " ".join(_normalized_text(value).lower() for value in values if _normalized_text(value))
+
+
+def _confidence_rank(value: Any) -> int:
+    normalized = _normalized_text(value).upper()
+    if normalized == "HIGH":
+        return 3
+    if normalized == "MEDIUM":
+        return 2
+    if normalized == "LOW":
+        return 1
+    return 0
+
+
+def _artifact_path_matches(expected: str, actual: str) -> bool:
+    expected_normalized = _normalized_text(expected)
+    actual_normalized = _normalized_text(actual)
+    if not expected_normalized:
+        return True
+    return bool(actual_normalized) and actual_normalized == expected_normalized
+
+
+def _direction_matches(expected: str, actual: str) -> bool:
+    expected_normalized = _normalized_text(expected).upper()
+    actual_normalized = _normalized_text(actual).upper()
+    if not expected_normalized:
+        return True
+    if not actual_normalized:
+        return True
+    return expected_normalized == actual_normalized
+
+
+def _line_matches(expected: float | None, actual: float | None) -> bool:
+    if expected is None:
+        return True
+    if actual is None:
+        return False
+    return abs(actual - expected) < 0.01
+
+
+def _has_known_as_of(*values: Any) -> bool:
+    for value in values:
+        normalized = _normalized_text(value).upper()
+        if normalized and normalized != "UNKNOWN":
+            return True
+    return False
 
 
 def _result_selection(value: Any, participants: list[str]) -> str:
@@ -308,9 +362,9 @@ class MarketProbabilityInput:
     team_a_l10: List[float] = field(default_factory=list)
     team_b_l10: List[float] = field(default_factory=list)
     h2h_l5: Optional[List[float]] = None
-    source_artifact_path: str = "/tmp/s4.json"
+    source_artifact_path: str = ""
     semantics_field_path: str = ""
-    stats_as_of: str = "2026-06-30T12:00:00Z"
+    stats_as_of: str = "UNKNOWN"
     sample_size: int = 0
     aggregation_policy: str = ""
     semantics_issue: str = ""
@@ -320,12 +374,12 @@ class MarketProbabilityInput:
     missing_fields: List[str] = field(default_factory=list)
     hydration_status: str = "HYDRATED"
     promotion_status: str = "ANALYZABLE"
-    source_provider: str = "api-football"
-    as_of_utc: str = "2026-06-30T12:00:00Z"
-    stat_semantics_status: str = "KNOWN"
-    probability_confidence: str = "HIGH"
+    source_provider: str = ""
+    as_of_utc: str = "UNKNOWN"
+    stat_semantics_status: str = "UNKNOWN"
+    probability_confidence: str = ""
     probability_method: str = ""
-    promotion_safe_model_probability: bool = True
+    promotion_safe_model_probability: bool = False
     source_market_id: str = ""
 
 
@@ -334,6 +388,7 @@ def derive_l10_series_for_market_family(
     market_family: str,
     line: float | None,
     direction: str,
+    source_artifact_path: str = "",
 ) -> tuple[list[float], list[float], list[float] | None, str, str]:
     raw_data = stats_seed.get("raw_data") or {}
     safety_input = raw_data.get("safety_input") or {}
@@ -341,81 +396,53 @@ def derive_l10_series_for_market_family(
 
     # Path 1: safety_input markets
     if markets:
-        family_map = {
-            "GOALS_TOTALS": ["goals total", "total goals", "goals"],
-            "CORNERS": ["corners total", "total corners", "corners"],
-            "CARDS": ["cards total", "total cards", "yellow_cards", "cards"],
-            "SHOTS": ["shots total", "total shots", "shots"],
-            "SHOTS_ON_TARGET": ["shots on target", "shots_on_target"],
-            "RESULT": ["match winner", "ml", "winner", "moneyline", "goals"],
-            "TOTALS": ["goals total", "total goals", "goals"],
-            "HANDICAP": ["handicap", "goals"],
-        }
-        
-        keywords = family_map.get(market_family, [market_family.lower()])
-        matching_markets = []
-        for idx, m in enumerate(markets):
-            name_lower = str(m.get("name") or m.get("market_label") or m.get("market_type") or "").lower()
-            if not any(kw in name_lower for kw in keywords):
+        stats_seed_artifact_path = _normalized_text(stats_seed.get("source_artifact_path"))
+        expected_artifact_path = _normalized_text(source_artifact_path or stats_seed_artifact_path)
+        matching_markets: list[tuple[int, dict[str, Any], MarketSemantics, str]] = []
+        for idx, market_entry in enumerate(markets):
+            market_artifact_path = _normalized_text(
+                market_entry.get("source_artifact_path")
+                or stats_seed.get("source_artifact_path")
+            )
+            market_semantics = extract_market_semantics(
+                market_entry,
+                source_artifact_path=market_artifact_path,
+                field_path=f"safety_input.markets[{idx}]",
+            )
+            if market_semantics.market_family != market_family:
                 continue
-            
-            # Line check:
-            if line is not None:
-                m_line = m.get("line") or m.get("point")
-                if m_line is None:
+            if not _artifact_path_matches(expected_artifact_path, market_artifact_path):
+                continue
+            if market_family in LINE_REQUIRED_MARKET_FAMILIES:
+                if not _line_matches(line, market_semantics.line):
                     continue
-                try:
-                    if abs(float(m_line) - line) >= 0.01:
-                        continue
-                except (TypeError, ValueError):
+                if not _direction_matches(direction, market_semantics.direction):
                     continue
-            
-            # Direction check:
-            m_dir = str(m.get("direction") or m.get("selection") or m.get("pick") or m.get("outcome_name") or "").strip().upper()
-            if direction and m_dir and ("OVER" in m_dir or "UNDER" in m_dir):
-                if direction.upper() not in m_dir:
-                    continue
-            
-            matching_markets.append((idx, m))
-            
+            matching_markets.append((idx, market_entry, market_semantics, market_artifact_path))
+
         if not matching_markets:
             return [], [], None, "", "MARKET_SERIES_NOT_FOUND_FOR_FAMILY_LINE"
-            
-        def _get_market_confidence(market_entry: dict[str, Any]) -> int:
-            conf = str(market_entry.get("confidence") or "").upper()
-            if conf == "HIGH":
-                return 3
-            if conf == "MEDIUM":
-                return 2
-            if conf == "LOW":
-                return 1
-            return 0
-            
-        # Sort by confidence descending, then by index ascending
-        matching_markets.sort(key=lambda item: (-_get_market_confidence(item[1]), item[0]))
-        
+
+        matching_markets.sort(
+            key=lambda item: (-_confidence_rank(item[2].confidence or item[1].get("confidence")), item[0])
+        )
+
         if len(matching_markets) > 1:
-            best_idx, best_m = matching_markets[0]
-            sec_idx, sec_m = matching_markets[1]
-            
-            best_conf = _get_market_confidence(best_m)
-            sec_conf = _get_market_confidence(sec_m)
-            
-            if best_conf == sec_conf:
-                best_team_a_l10 = best_m.get("team_a_l10") or []
-                best_team_b_l10 = best_m.get("team_b_l10") or []
-                sec_team_a_l10 = sec_m.get("team_a_l10") or []
-                sec_team_b_l10 = sec_m.get("team_b_l10") or []
-                if best_team_a_l10 != sec_team_a_l10 or best_team_b_l10 != sec_team_b_l10:
-                    return [], [], None, "", "AMBIGUOUS_MARKET_SERIES_MATCH"
-                    
-        best_idx, best_m = matching_markets[0]
+            best_idx, best_m, best_semantics, best_artifact_path = matching_markets[0]
+            _, second_m, second_semantics, second_artifact_path = matching_markets[1]
+            best_conf = _confidence_rank(best_semantics.confidence or best_m.get("confidence"))
+            second_conf = _confidence_rank(second_semantics.confidence or second_m.get("confidence"))
+            if best_conf < 3 or best_conf == second_conf:
+                return [], [], None, "", "AMBIGUOUS_MARKET_SERIES_MATCH"
+        else:
+            best_idx, best_m, best_semantics, best_artifact_path = matching_markets[0]
+
         team_a_l10 = best_m.get("team_a_l10") or []
         team_b_l10 = best_m.get("team_b_l10") or []
         h2h_l5 = best_m.get("h2h_values") or []
         m_id = str(best_m.get("id") or best_m.get("market_id") or "")
         f_path = f"safety_input.markets[{best_idx}]"
-        policy = f"SAFETY_INPUT_MARKET_SERIES|id:{m_id}|path:{f_path}"
+        policy = f"SAFETY_INPUT_MARKET_SERIES|id:{m_id}|path:{f_path}|artifact:{best_artifact_path}"
         return team_a_l10, team_b_l10, h2h_l5, policy, ""
 
     # Path 2: Reconstruct from l10_matches or summaries
@@ -589,23 +616,32 @@ def build_market_probability_input(candidate: dict[str, Any], stats_seed: dict[s
         market_family,
         line,
         direction,
+        candidate_semantics.source_artifact_path or _normalized_text(stats_seed.get("source_artifact_path")),
     )
 
     sample_size = max(len(team_a_l10), len(team_b_l10))
 
-    stats_as_of = stats_seed.get("probability_as_of") or stats_seed.get("generated_at") or stats_seed.get("as_of_utc") or ""
-    if "probability_as_of" not in stats_seed and "generated_at" not in stats_seed and "as_of_utc" not in stats_seed:
-        stats_as_of = "2026-06-30T12:00:00Z"
+    stats_as_of = (
+        stats_seed.get("probability_as_of")
+        or stats_seed.get("generated_at")
+        or stats_seed.get("as_of_utc")
+        or candidate.get("stats_as_of")
+        or candidate.get("as_of_utc")
+        or ""
+    )
     if not stats_as_of:
         stats_as_of = "UNKNOWN"
 
-    source_provider = stats_seed.get("source_provider") if "source_provider" in stats_seed else (candidate.get("source_provider") if "source_provider" in candidate else "api-football")
-    if "source_provider" not in stats_seed and "source_provider" not in candidate:
-        source_provider = "api-football"
+    source_provider = _normalized_text(
+        stats_seed.get("source_provider")
+        or candidate.get("source_provider")
+    )
 
-    source_artifact_path = candidate_semantics.source_artifact_path or stats_seed.get("source_artifact_path") or ""
-    if "source_artifact_path" not in candidate and "source_artifact_path" not in stats_seed:
-        source_artifact_path = "/tmp/s4.json"
+    source_artifact_path = _normalized_text(
+        candidate_semantics.source_artifact_path
+        or stats_seed.get("source_artifact_path")
+        or candidate.get("source_artifact_path")
+    )
 
     # Parse packed market id and field path from policy if applicable
     source_market_id = ""
@@ -625,7 +661,7 @@ def build_market_probability_input(candidate: dict[str, Any], stats_seed: dict[s
     else:
         hydration_status = "MINIMAL_HYDRATION"
 
-    probability_confidence = str(candidate.get("probability_confidence") or stats_seed.get("probability_confidence") or "HIGH").upper().strip()
+    probability_confidence = str(candidate.get("probability_confidence") or stats_seed.get("probability_confidence") or "").upper().strip()
     probability_method = str(candidate.get("probability_method") or stats_seed.get("probability_method") or "").upper().strip()
 
     if semantics_issue == "UNKNOWN_SPLIT_STAT_SEMANTICS":
@@ -646,22 +682,24 @@ def build_market_probability_input(candidate: dict[str, Any], stats_seed: dict[s
 
     is_l10_valid = len(team_a_l10) >= 5 and len(team_b_l10) >= 5
     is_stat_semantics_ok = (stat_semantics_status == "KNOWN" and semantics_issue != "UNKNOWN_SPLIT_STAT_SEMANTICS")
-    is_traceable = bool(source_provider and source_artifact_path and stats_as_of and stats_as_of != "UNKNOWN")
-    is_confidence_ok = (probability_confidence not in {"BLOCKED", "LOW", "MINIMAL", "PARTIAL", "LOW_CONFIDENCE", "UNKNOWN", ""})
+    is_traceable = bool(source_provider and source_artifact_path and _has_known_as_of(stats_as_of))
+    is_confidence_ok = probability_confidence not in BLOCKED_PROBABILITY_CONFIDENCES
     is_method_ok = (probability_method != "BOOKMAKER_IMPLIED_REFERENCE_ONLY")
 
-    if hydration_status == "HYDRATED" and is_exact_market_match and is_line_dir_ok and is_l10_valid and is_stat_semantics_ok and is_traceable and is_confidence_ok and is_method_ok:
-        promotion_status = "ANALYZABLE"
-        promotion_safe_model_probability = True
-    elif hydration_status == "PARTIAL_HYDRATION" or probability_confidence == "PARTIAL":
+    if hydration_status == "PARTIAL_HYDRATION" or probability_confidence == "PARTIAL":
         promotion_status = "REVIEW_ONLY_PARTIAL_DATA"
-        promotion_safe_model_probability = False
-    elif hydration_status == "MINIMAL_HYDRATION" or probability_confidence == "MINIMAL":
+    elif hydration_status == "MINIMAL_HYDRATION" or probability_confidence in {"BLOCKED", "LOW", "LOW_CONFIDENCE", "MINIMAL", "UNKNOWN", ""}:
         promotion_status = "RESEARCH_GAP_MINIMAL_HYDRATION"
-        promotion_safe_model_probability = False
-    else:
+    elif hydration_status == "DATA_UNAVAILABLE":
         promotion_status = "BLOCKED_HYDRATION_FAILED"
-        promotion_safe_model_probability = False
+    elif hydration_status != "HYDRATED":
+        promotion_status = "BLOCKED_UNKNOWN_HYDRATION_STATUS"
+    elif is_exact_market_match and is_line_dir_ok and is_l10_valid and is_stat_semantics_ok and is_traceable and is_confidence_ok and is_method_ok:
+        promotion_status = "ANALYZABLE"
+    else:
+        promotion_status = "RESEARCH_GAP_MARKET_INPUT_NOT_BUILT"
+
+    promotion_safe_model_probability = promotion_status == "ANALYZABLE"
 
     missing_fields = []
     if mapping_status == "AMBIGUOUS_MARKET_LABEL":
@@ -678,10 +716,12 @@ def build_market_probability_input(candidate: dict[str, Any], stats_seed: dict[s
         missing_fields.append("source_provider")
     if not source_artifact_path:
         missing_fields.append("source_artifact_path")
-    if not stats_as_of or stats_as_of == "UNKNOWN":
+    if not _has_known_as_of(stats_as_of):
         missing_fields.append("stats_as_of")
     if not is_confidence_ok:
         missing_fields.append("probability_confidence")
+    if not is_method_ok:
+        missing_fields.append("probability_method")
 
     return MarketProbabilityInput(
         candidate_id=candidate_id,
@@ -755,26 +795,13 @@ def validate_market_probability_input(input_data: MarketProbabilityInput) -> tup
     if input_data.market_family in LINE_REQUIRED_MARKET_FAMILIES and not input_data.direction:
         return False, "DIRECTION_MISSING"
 
-    if input_data.market_family in LINE_REQUIRED_MARKET_FAMILIES:
-        if not input_data.team_a_l10 or not input_data.team_b_l10:
-            return False, "L10_SERIES_MISSING"
-        if len(input_data.team_a_l10) < 5 or len(input_data.team_b_l10) < 5:
-            return False, "INSUFFICIENT_SAMPLE_SIZE"
-            
-    elif input_data.market_family == "RESULT":
-        if not input_data.team_a_l10 or not input_data.team_b_l10:
-            return False, "L10_SERIES_MISSING"
-        if len(input_data.team_a_l10) < 5 or len(input_data.team_b_l10) < 5:
-            return False, "INSUFFICIENT_SAMPLE_SIZE"
-
-    # Hard P0/P1 constraints:
     if not input_data.source_provider:
         return False, "SOURCE_PROVIDER_MISSING"
 
     if not input_data.source_artifact_path:
         return False, "SOURCE_ARTIFACT_PATH_MISSING"
 
-    if not input_data.stats_as_of or input_data.stats_as_of == "UNKNOWN":
+    if not _has_known_as_of(input_data.stats_as_of, input_data.as_of_utc):
         return False, "STATS_AS_OF_MISSING_OR_UNKNOWN"
 
     if input_data.hydration_status != "HYDRATED":
@@ -783,7 +810,19 @@ def validate_market_probability_input(input_data: MarketProbabilityInput) -> tup
     if input_data.promotion_status != "ANALYZABLE":
         return False, input_data.promotion_status
 
-    if input_data.probability_confidence in {"BLOCKED", "LOW", "MINIMAL", "PARTIAL", "LOW_CONFIDENCE", "UNKNOWN", ""}:
+    if input_data.market_family in LINE_REQUIRED_MARKET_FAMILIES:
+        if not input_data.team_a_l10 or not input_data.team_b_l10:
+            return False, "L10_SERIES_MISSING"
+        if len(input_data.team_a_l10) < 5 or len(input_data.team_b_l10) < 5:
+            return False, "INSUFFICIENT_SAMPLE_SIZE"
+
+    elif input_data.market_family == "RESULT":
+        if not input_data.team_a_l10 or not input_data.team_b_l10:
+            return False, "L10_SERIES_MISSING"
+        if len(input_data.team_a_l10) < 5 or len(input_data.team_b_l10) < 5:
+            return False, "INSUFFICIENT_SAMPLE_SIZE"
+
+    if input_data.probability_confidence in BLOCKED_PROBABILITY_CONFIDENCES:
         return False, "PROMOTION_CONFIDENCE_LOW_OR_MINIMAL"
 
     if input_data.stat_semantics_status == "UNKNOWN" or input_data.semantics_issue == "UNKNOWN_SPLIT_STAT_SEMANTICS" or "unknown_split_stat_semantics" in input_data.missing_fields:
