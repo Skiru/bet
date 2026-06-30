@@ -573,3 +573,110 @@ def test_hydrated_missing_still_does_not_block_good_recommendation():
     package = build_package_from_candidates([cand], run_id="r_hydrated_missing")
     assert len(package.recommendations) == 1
     assert package.recommendations[0].hydrated_available is False
+
+
+def test_extract_event_context_from_home_away_fields():
+    from bet.pipeline.unified_live_analyst_session import extract_event_context
+    cand = {"home_team": "Team France", "away_team": "Team Germany", "sport": "football"}
+    ctx = extract_event_context(cand, [])
+    assert ctx.home_team == "Team France"
+    assert ctx.away_team == "Team Germany"
+    assert ctx.event_label == "Team France vs Team Germany"
+
+
+def test_extract_event_context_from_participants_list():
+    from bet.pipeline.unified_live_analyst_session import extract_event_context
+    cand = {"participants": ["Player A", "Player B"], "sport": "tennis"}
+    ctx = extract_event_context(cand, [])
+    assert "Player A" in ctx.participants
+    assert "Player B" in ctx.participants
+    assert ctx.event_label == "Player A vs Player B"
+
+
+def test_numeric_id_becomes_event_id_not_event_label():
+    from bet.pipeline.unified_live_analyst_session import extract_event_context
+    cand = {"event_id": 4122, "sport": "football"}
+    ctx = extract_event_context(cand, [])
+    assert ctx.event_id == "4122"
+    assert ctx.event_label is None
+
+
+def test_competition_unknown_allows_watchlist_but_not_high_confidence():
+    cand = _football_candidate(competition="UNKNOWN", analyst_confidence="B")
+    package = build_package_from_candidates([cand], run_id="r_unknown_comp")
+    assert len(package.recommendations) == 1
+    assert package.recommendations[0].analyst_confidence in {"C", "D"}
+
+
+def test_football_event_with_context_and_market_creates_recommendation():
+    cand = _football_candidate(competition="World Cup 2026", sport="football")
+    package = build_package_from_candidates([cand], run_id="r_football_rec")
+    assert len(package.recommendations) == 1
+
+
+def test_tennis_wimbledon_event_with_players_creates_recommendation():
+    cand = _tennis_candidate(competition="Wimbledon 2026", sport="tennis")
+    package = build_package_from_candidates([cand], run_id="r_tennis_rec")
+    assert len(package.recommendations) == 1
+
+
+def test_missing_hydrated_still_allows_contextual_recommendation():
+    cand = _football_candidate(hydration_status="MINIMAL")
+    package = build_package_from_candidates([cand], run_id="r_missing_hydrated")
+    assert len(package.recommendations) == 1
+
+
+def test_missing_odds_still_allows_contextual_recommendation():
+    cand = _football_candidate(odds=None, odds_decimal=0.0)
+    package = build_package_from_candidates([cand], run_id="r_missing_odds")
+    assert len(package.recommendations) == 1
+    assert package.recommendations[0].odds_available is False
+
+
+def test_counter_evidence_generated_from_source_gaps():
+    from bet.pipeline.unified_live_analyst_session import extract_actionable_evidence, extract_event_context
+    cand = _football_candidate(counter_evidence=[])
+    ctx = extract_event_context(cand, [])
+    bundle = extract_actionable_evidence(cand, ctx, "CORNERS", [])
+    assert len(bundle.counter_evidence) >= 1
+    assert "lineup confirmation" in " ".join(bundle.counter_evidence).lower()
+
+
+def test_unknown_only_counter_evidence_still_blocks_top_recommendation():
+    cand = _football_candidate(counter_evidence=[])
+    package = build_package_from_candidates([cand], run_id="r_unknown_counter")
+    assert len(package.recommendations) == 0
+
+
+def test_generic_evidence_still_blocks_top_recommendation():
+    cand = _football_candidate(supporting_evidence=[])
+    package = build_package_from_candidates([cand], run_id="r_generic_ev")
+    assert len(package.recommendations) == 0
+
+
+def test_package_contains_match_context_for_every_top_recommendation():
+    cand = _football_candidate()
+    package = build_package_from_candidates([cand], run_id="r_context_check")
+    assert len(package.recommendations) == 1
+    rec = package.recommendations[0]
+    assert rec.home_team == "Alpha"
+    assert rec.away_team == "Beta"
+    assert rec.competition == "World Cup"
+
+
+def test_quality_c_bad_screenshot_case_still_blocked():
+    cand = {
+        "event_id": "78",
+        "event_label": "78",
+        "sport": "football",
+        "competition": "Friendly Match",
+        "market_family": "SHOTS",
+        "line": 16.8,
+        "direction": "UNDER",
+        "supporting_evidence": [],
+        "counter_evidence": [],
+    }
+    package = build_package_from_candidates([cand], run_id="r_screenshot_blocked")
+    assert len(package.recommendations) == 0
+    assert len(package.watchlist_only) == 1
+

@@ -84,7 +84,9 @@ def main() -> int:
     out_dir.mkdir(parents=True, exist_ok=True)
     _write_preflight(out_dir, input_paths, len(candidates))
 
-    package = build_package_from_candidates(candidates, run_id=run_id)
+    from bet.pipeline.unified_live_analyst_session import load_source_artifacts
+    source_artifacts = load_source_artifacts()
+    package = build_package_from_candidates(candidates, run_id=run_id, source_artifacts=source_artifacts)
     if args.quote_file:
         quote_path = Path(args.quote_file)
         try:
