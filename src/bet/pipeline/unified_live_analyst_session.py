@@ -137,6 +137,12 @@ class LiveAnalystMarketIdea:
     superbet_quote_required: bool = True
     final_coupon_ready: bool = False
     manual_placement_ready: bool = False
+    home_team: str | None = None
+    away_team: str | None = None
+    player_one: str | None = None
+    player_two: str | None = None
+    participants: list[str] = field(default_factory=list)
+    reason: str = ""
 
     def validate(self) -> None:
         if self.sport not in {"football", "tennis"}:
@@ -424,6 +430,60 @@ def default_market_label(family: str) -> str:
     }.get(family, family)
 
 
+def is_event_identity_complete(idea: LiveAnalystMarketIdea) -> bool:
+    if not idea.event_label:
+        return False
+    val = str(idea.event_label).strip()
+    if not val:
+        return False
+    if val.isdigit():
+        return False
+    lower_val = val.lower()
+    if lower_val.startswith("candidate_") or lower_val.startswith("event_") or lower_val == "unknown_event":
+        return False
+    
+    has_home_away = bool(idea.home_team and idea.away_team)
+    has_players = bool(idea.player_one and idea.player_two)
+    has_participants = bool(idea.participants and len(idea.participants) >= 1)
+    has_vs_pattern = " vs " in lower_val or " - " in lower_val or " / " in lower_val
+    
+    if not (has_home_away or has_players or has_participants or has_vs_pattern):
+        return False
+    if not idea.competition or str(idea.competition).strip().upper() == "UNKNOWN":
+        return False
+    if not idea.sport or not str(idea.sport).strip():
+        return False
+    return True
+
+
+def recommendation_has_actionable_evidence(idea: LiveAnalystMarketIdea) -> bool:
+    if not idea.evidence_summary:
+        return False
+    if str(idea.evidence_summary).strip() == "No exact quantitative summary available in artifacts; idea is based on event/market context only.":
+        return False
+    if not idea.why_it_may_work:
+        return False
+    if "No exact quantitative summary available" in idea.why_it_may_work:
+        return False
+    if not idea.supporting_evidence or len(idea.supporting_evidence) < 1:
+        return False
+    if not idea.counter_evidence:
+        return False
+    has_real_counter = False
+    for ce in idea.counter_evidence:
+        if ce:
+            lower_ce = ce.lower()
+            if "no explicit counter" in lower_ce:
+                continue
+            if lower_ce.strip() in ("unknown", "unavailable", "n/a", "none"):
+                continue
+            has_real_counter = True
+            break
+    if not has_real_counter:
+        return False
+    return True
+
+
 def build_ideas_from_candidate(obj: Mapping[str, Any], index: int) -> list[LiveAnalystMarketIdea]:
     sport = _sport(obj)
     if sport not in {"football", "tennis"}:
@@ -470,7 +530,18 @@ def build_ideas_from_candidate(obj: Mapping[str, Any], index: int) -> list[LiveA
         why_fail = obj.get("why_it_may_fail") or counter_list[0]
         base_id = obj.get("idea_id") or obj.get("candidate_id") or obj.get("event_id") or obj.get("fixture_id") or f"candidate_{index}"
         idea_id = f"{base_id}_{family}_{line or 'no_line'}"
-        outcomes.append(LiveAnalystMarketIdea(
+        
+        home_team = obj.get("home_team") or obj.get("team_a") or obj.get("player_one") or obj.get("home")
+        away_team = obj.get("away_team") or obj.get("team_b") or obj.get("player_two") or obj.get("away")
+        player_one = obj.get("player_one")
+        player_two = obj.get("player_two")
+        participants = obj.get("participants") or []
+        if isinstance(participants, str):
+            participants = [participants]
+        else:
+            participants = list(participants)
+            
+        idea = LiveAnalystMarketIdea(
             idea_id=str(idea_id),
             event_id=str(obj.get("event_id") or obj.get("fixture_id") or obj.get("candidate_id") or f"event_{index}"),
             event_label=event_label,
@@ -498,7 +569,36 @@ def build_ideas_from_candidate(obj: Mapping[str, Any], index: int) -> list[LiveA
             scenario_summary=str(scenario_summary),
             why_it_may_work=str(why_work),
             why_it_may_fail=str(why_fail),
-        ))
+            home_team=home_team,
+            away_team=away_team,
+            player_one=player_one,
+            player_two=player_two,
+            participants=participants,
+        )
+        
+        is_complete = is_event_identity_complete(idea)
+        has_evidence = recommendation_has_actionable_evidence(idea)
+        
+        if not is_complete:
+            idea.suggested_use = "WATCHLIST_ONLY"
+            idea.analyst_confidence = "D"
+            idea.reason = "INSUFFICIENT_EVENT_IDENTITY"
+            if "INSUFFICIENT_EVENT_IDENTITY" not in idea.source_gaps:
+                idea.source_gaps.append("INSUFFICIENT_EVENT_IDENTITY")
+        elif not has_evidence:
+            idea.suggested_use = "WATCHLIST_ONLY"
+            idea.analyst_confidence = "D"
+            idea.reason = "INSUFFICIENT_ACTIONABLE_EVIDENCE"
+            if "INSUFFICIENT_ACTIONABLE_EVIDENCE" not in idea.source_gaps:
+                idea.source_gaps.append("INSUFFICIENT_ACTIONABLE_EVIDENCE")
+                
+        if idea.suggested_use == "WATCHLIST_ONLY":
+            if "No exact quantitative summary" in idea.evidence_summary or not idea.evidence_summary:
+                idea.evidence_summary = "Insufficient evidence for top recommendation; manual watchlist only."
+            if "No exact quantitative summary" in idea.why_it_may_work or not idea.why_it_may_work:
+                idea.why_it_may_work = "Insufficient evidence for top recommendation; manual watchlist only."
+                
+        outcomes.append(idea)
     return outcomes
 
 
@@ -773,6 +873,25 @@ def render_markdown_package(package: UnifiedLiveAnalystPackage) -> str:
     else:
         for idea in package.recommendations:
             lines.append(f"### {idea.event_label} — {idea.recommended_market} {idea.recommendation_direction or ''}")
+            
+            # Match Context Block
+            participants_str = ", ".join(idea.participants) if getattr(idea, "participants", None) else idea.event_label
+            lines.extend([
+                "- **Match Context**:",
+                f"  - **Event**: {idea.event_label}",
+                f"  - **Sport**: {idea.sport}",
+                f"  - **Competition/Tournament**: {idea.competition}",
+                f"  - **Kickoff**: {idea.kickoff_time or 'N/A'}",
+                f"  - **Participants**: {participants_str}",
+                f"  - **Market**: {idea.recommended_market}",
+                f"  - **Direction**: {idea.recommendation_direction or 'N/A'}",
+                f"  - **Operator-check line**: {idea.recommended_line or 'N/A'}",
+                f"  - **Line source**: {idea.line_source}",
+                f"  - **Evidence grade**: {idea.source_coverage}",
+                f"  - **Confidence**: {idea.analyst_confidence}",
+                f"  - **Data quality**: {idea.data_quality}",
+            ])
+            
             lines.append(f"- **Market Idea**: {idea.recommended_market} {idea.recommendation_direction or ''} {f'line {idea.recommended_line}' if idea.recommended_line else ''}")
             lines.append(f"- **Confidence**: `{idea.analyst_confidence}`")
             lines.append(f"- **Data Quality**: `{idea.data_quality}`")

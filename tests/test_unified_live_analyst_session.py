@@ -457,3 +457,119 @@ def test_markdown_has_executive_summary_and_superbet_checklist():
     assert "## 5. Rejected Summary" in md
     assert "## 6. Data Gaps and Confidence Policy" in md
     assert "## 7. Superbet Manual Operator Checklist" in md
+
+
+def test_numeric_event_label_cannot_be_top_recommendation():
+    cand = _football_candidate(event_label="78", event_id="78")
+    package = build_package_from_candidates([cand], run_id="r_numeric_test")
+    assert len(package.recommendations) == 0
+    assert len(package.watchlist_only) == 1
+    assert package.watchlist_only[0].analyst_confidence == "D"
+
+
+def test_placeholder_candidate_id_cannot_be_top_recommendation():
+    cand = _football_candidate(event_label="candidate_123", event_id="e1")
+    package = build_package_from_candidates([cand], run_id="r_placeholder_test")
+    assert len(package.recommendations) == 0
+    assert len(package.watchlist_only) == 1
+    assert package.watchlist_only[0].analyst_confidence == "D"
+
+
+def test_missing_participants_downgrades_to_watchlist():
+    cand = _football_candidate(event_label="FriendlyMatch", home_team=None, away_team=None, player_one=None, player_two=None, participants=[])
+    package = build_package_from_candidates([cand], run_id="r_participants_test")
+    assert len(package.recommendations) == 0
+    assert len(package.watchlist_only) == 1
+    assert package.watchlist_only[0].analyst_confidence == "D"
+
+
+def test_generic_no_quantitative_summary_cannot_be_top_recommendation():
+    cand = _football_candidate(supporting_evidence=[])
+    package = build_package_from_candidates([cand], run_id="r_no_quant_test")
+    assert len(package.recommendations) == 0
+    assert len(package.watchlist_only) == 1
+    assert package.watchlist_only[0].analyst_confidence == "D"
+
+
+def test_unknown_only_counter_evidence_cannot_be_confidence_b():
+    cand = _football_candidate(counter_evidence=[])
+    package = build_package_from_candidates([cand], run_id="r_unknown_counter_test")
+    assert len(package.recommendations) == 0
+    assert len(package.watchlist_only) == 1
+    assert package.watchlist_only[0].analyst_confidence == "D"
+
+
+def test_confidence_b_requires_actionable_evidence():
+    # Good complete case
+    cand = _football_candidate(analyst_confidence="B")
+    package = build_package_from_candidates([cand], run_id="r_good_b")
+    assert len(package.recommendations) == 1
+    assert package.recommendations[0].analyst_confidence == "B"
+
+
+def test_confidence_c_requires_event_identity():
+    cand = _football_candidate(event_label="78", analyst_confidence="C")
+    package = build_package_from_candidates([cand], run_id="r_c_identity")
+    assert len(package.recommendations) == 0
+    assert package.watchlist_only[0].analyst_confidence == "D"
+
+
+def test_watchlist_allowed_with_incomplete_identity():
+    cand = _football_candidate(event_label="78", event_id="78")
+    package = build_package_from_candidates([cand], run_id="r_watchlist_allow")
+    assert len(package.watchlist_only) == 1
+    assert package.watchlist_only[0].event_label == "78"
+
+
+def test_markdown_top_recommendation_contains_match_context():
+    cand = _football_candidate()
+    package = build_package_from_candidates([cand], run_id="r_md_match_context")
+    md = render_markdown_package(package)
+    assert "- **Match Context**:" in md
+    assert "- **Event**:" in md
+    assert "- **Sport**:" in md
+    assert "- **Competition/Tournament**:" in md
+    assert "- **Kickoff**:" in md
+    assert "- **Participants**:" in md
+    assert "- **Market**:" in md
+    assert "- **Direction**:" in md
+    assert "- **Operator-check line**:" in md
+    assert "- **Line source**:" in md
+    assert "- **Evidence grade**:" in md
+    assert "- **Confidence**:" in md
+    assert "- **Data quality**:" in md
+
+
+def test_bad_screenshot_case_becomes_watchlist_only():
+    cand = {
+        "event_id": "78",
+        "event_label": "78",
+        "sport": "football",
+        "competition": "Friendly Match",
+        "market_family": "SHOTS",
+        "line": 16.8,
+        "direction": "UNDER",
+        "supporting_evidence": [],
+        "counter_evidence": [],
+    }
+    package = build_package_from_candidates([cand], run_id="r_screenshot_case")
+    assert len(package.recommendations) == 0
+    assert len(package.watchlist_only) == 1
+    idea = package.watchlist_only[0]
+    assert idea.analyst_confidence == "D"
+    assert idea.why_it_may_work == "Insufficient evidence for top recommendation; manual watchlist only."
+    assert "UNKNOWN" in idea.why_it_may_fail
+
+
+def test_odds_missing_still_does_not_block_good_recommendation():
+    cand = _football_candidate(odds=None, odds_decimal=0.0)
+    package = build_package_from_candidates([cand], run_id="r_odds_missing")
+    assert len(package.recommendations) == 1
+    assert package.recommendations[0].odds_available is False
+
+
+def test_hydrated_missing_still_does_not_block_good_recommendation():
+    cand = _football_candidate(hydration_status="MINIMAL_HYDRATION")
+    package = build_package_from_candidates([cand], run_id="r_hydrated_missing")
+    assert len(package.recommendations) == 1
+    assert package.recommendations[0].hydrated_available is False
