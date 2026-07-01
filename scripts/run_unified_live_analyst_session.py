@@ -9,12 +9,15 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT / "src"))
+
+RUN_ID_PATTERN = re.compile(r"[A-Za-z0-9._-]+_\d{8}_\d{6}$")
 
 from bet.pipeline.unified_live_analyst_session import (  # noqa: E402
     apply_human_quote_if_valid,
@@ -67,8 +70,13 @@ def _run_id_from_path(path: Path) -> str | None:
     try:
         rel = resolved.relative_to(runs_dir)
     except ValueError:
-        return None
-    return rel.parts[0] if rel.parts else None
+        rel = None
+    if rel and rel.parts:
+        return rel.parts[0]
+    for candidate in (resolved, *resolved.parents):
+        if RUN_ID_PATTERN.fullmatch(candidate.name):
+            return candidate.name
+    return None
 
 
 def _infer_source_run_id(input_paths: list[Path]) -> str | None:

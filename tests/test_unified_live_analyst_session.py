@@ -456,6 +456,15 @@ def test_from_run_id_only_loads_that_run(tmp_path: Path, monkeypatch):
     assert guard == "PASS"
 
 
+def test_explicit_input_path_infers_source_run_id_outside_reports_root(tmp_path: Path):
+    from scripts.run_unified_live_analyst_session import _infer_source_run_id
+
+    sandbox_input = tmp_path / "2026-07-01" / "TODAY_WIDE_DISCOVERY_E_20260701_041600" / "data"
+    sandbox_input.mkdir(parents=True)
+
+    assert _infer_source_run_id([sandbox_input]) == "TODAY_WIDE_DISCOVERY_E_20260701_041600"
+
+
 def test_historical_context_requires_explicit_flag():
     import sys
     from scripts.run_unified_live_analyst_session import main as run_main
@@ -763,6 +772,34 @@ def test_counter_evidence_generated_from_source_gaps():
     bundle = extract_actionable_evidence(cand, ctx, "CORNERS", [])
     assert len(bundle.counter_evidence) >= 1
     assert "lineup confirmation" in " ".join(bundle.counter_evidence).lower()
+
+
+def test_default_reference_line_gap_is_enforced_in_rich_mode():
+    candidate = {
+        "candidate_id": "wc-rich-1",
+        "event_id": "wc-rich-1",
+        "sport": "football",
+        "competition": "World Cup",
+        "home_team": "Alpha",
+        "away_team": "Beta",
+        "notes": "wide attacks, territory and pressure; corner pattern should be checked",
+    }
+    source_artifacts = [{
+        "event_id": "wc-rich-1",
+        "sport": "football",
+        "competition": "World Cup",
+        "home_team": "Alpha",
+        "away_team": "Beta",
+        "kickoff": "2026-07-01T18:00:00+00:00",
+        "source_artifact_path": "reports/pipeline_runs/DISCOVERY_RUN/data/2026-07-01_s2_shortlist.json",
+        "source_run_id": "DISCOVERY_RUN",
+    }]
+
+    package = build_package_from_candidates([candidate], run_id="r_rich_default_line", source_artifacts=source_artifacts)
+    ideas = package.recommendations + package.watchlist_only
+    assert ideas
+    assert ideas[0].line_source == "DEFAULT_REFERENCE_NEEDS_OPERATOR_CHECK"
+    assert any("operator line" in gap.lower() for gap in ideas[0].source_gaps)
 
 
 def test_unknown_only_counter_evidence_still_blocks_top_recommendation():

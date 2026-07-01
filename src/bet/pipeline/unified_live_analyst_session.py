@@ -499,8 +499,13 @@ def _run_id_from_path(path: Path) -> str | None:
     try:
         rel = resolved.relative_to(runs_dir)
     except ValueError:
-        return None
-    return rel.parts[0] if rel.parts else None
+        rel = None
+    if rel and rel.parts:
+        return rel.parts[0]
+    for candidate in (resolved, *resolved.parents):
+        if re.fullmatch(r"[A-Za-z0-9._-]+_\d{8}_\d{6}$", candidate.name):
+            return candidate.name
+    return None
 
 
 def _iter_source_json_paths(paths: Iterable[Path], excluded_roots: Iterable[Path] | None = None) -> Iterable[Path]:
@@ -931,6 +936,12 @@ def recommendation_has_actionable_evidence(idea: LiveAnalystMarketIdea) -> bool:
     return True
 
 
+def ensure_default_line_gap(idea: LiveAnalystMarketIdea) -> None:
+    if idea.recommended_line and idea.line_source == "DEFAULT_REFERENCE_NEEDS_OPERATOR_CHECK":
+        if not any("operator line" in gap.lower() for gap in idea.source_gaps):
+            idea.source_gaps.append("Reference line is an analyst default; operator line must be checked manually in Superbet.")
+
+
 def build_ideas_from_candidate(obj: Mapping[str, Any], index: int, source_artifacts: list[dict[str, Any]] | None = None) -> list[LiveAnalystMarketIdea]:
     sport = _sport(obj)
     if sport not in {"football", "tennis"}:
@@ -1034,6 +1045,7 @@ def build_ideas_from_candidate(obj: Mapping[str, Any], index: int, source_artifa
                 source_run_id=None,
                 source_artifact_path=None,
             )
+            ensure_default_line_gap(idea)
             
             is_complete = is_event_identity_complete(idea)
             has_evidence = recommendation_has_actionable_evidence(idea)
@@ -1146,6 +1158,7 @@ def build_ideas_from_candidate(obj: Mapping[str, Any], index: int, source_artifa
             source_run_id=event_context.source_run_id,
             source_artifact_path=event_context.source_artifact_path,
         )
+        ensure_default_line_gap(idea)
         
         cand_work = obj.get("why_it_may_work")
         if cand_work and "No exact quantitative summary" not in cand_work and "Insufficient evidence" not in cand_work:
