@@ -27,6 +27,11 @@ Runtime and continuation rules:
 - Fail on `ProviderModelNotFoundError`, silent fallback, conflicting explicit override, missing continuation proof, or missing omission proof.
 - In delegated runtime smoke, `UNKNOWN_NOT_INTROSPECTABLE` in the child does not fail by itself when the parent runtime model is known, no explicit override exists, and inheritance passes by contract.
 
+J2 CHUNK MODE verification rules:
+- Verify that Phase J2 is executed in chunks of max 20 events.
+- If any existing blocked final output exists, verify it was archived under stale_blocked_outputs/ before writing new final outputs.
+- Verify that final J2 PASS is based on fully merged/consolidated final artifacts, not individual chunks alone.
+
 RUNTIME SMOKE MODE:
 - When `task_id` or the prompt contains `RUNTIME_SMOKE`, do not run sports analysis and do not inspect large files.
 - Write exactly one tiny artifact to the requested path with `bet_artifact_write`.

@@ -1,0 +1,15 @@
+{
+  "run_id": "J2_CHUNKED_SPECIALIST_EXECUTION_REPAIR_F_20260701_192415",
+  "failed_run_id": "TODAY_ORCHESTRATED_SESSION_J1_SCANNER_SCOUT_20260701_105101",
+  "root_causes": {
+    "FULL_60_EVENT_SUBAGENT_RUN_TOO_LARGE": true,
+    "STALE_BLOCKED_OUTPUT_READ_AS_CURRENT": true,
+    "DIRECT_SPECIALIST_RUN_NOT_DELEGATED": false,
+    "STEP_BUDGET_TOO_LOW_FOR_FULL_PHASE": true,
+    "PROVIDER_MODEL_ERROR_STALE_EVIDENCE": true,
+    "REAL_PROVIDER_MODEL_ERROR": false,
+    "UNKNOWN": false
+  },
+  "provider_model_error_classification": "STALE_EVIDENCE",
+  "description": "J2A failed because bet-enricher reached its maximum step budget of 14 steps while trying to process 60 events in a single execution. Furthermore, stale outputs from prior runs containing ProviderModelNotFoundError were erroneously read as active runtime failures."
+}
