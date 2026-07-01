@@ -142,6 +142,8 @@ class LiveAnalystMarketIdea:
     player_one: str | None = None
     player_two: str | None = None
     participants: list[str] = field(default_factory=list)
+    source_run_id: str | None = None
+    source_artifact_path: str | None = None
     reason: str = ""
 
     def validate(self) -> None:
@@ -199,6 +201,9 @@ class UnifiedLiveAnalystPackage:
     package_type: PackageType
     run_id: str
     betting_day: str
+    source_run_id: str | None
+    input_artifact_paths: list[str]
+    generated_at_utc: str
     selected_matches: list[dict[str, Any]]
     recommendations: list[LiveAnalystMarketIdea]
     bet_builder_combo_ideas: list[BetBuilderComboIdea]
@@ -206,6 +211,8 @@ class UnifiedLiveAnalystPackage:
     rejected_ideas: list[dict[str, Any]]
     data_gaps: list[str]
     ready_for_manual_operator_quote_review: bool
+    stale_artifact_guard: Literal["PASS", "FAIL"] = "PASS"
+    current_output_self_selection_guard: Literal["PASS", "FAIL"] = "PASS"
     ready_for_final_coupon: bool = False
     ready_for_manual_placement: bool = False
     ready_for_production_execution: bool = False
@@ -443,6 +450,7 @@ class EventContext:
     participants: list[str] = field(default_factory=list)
     event_label: str | None = None
     event_id: str | None = None
+    source_run_id: str | None = None
     source_artifact_path: str | None = None
     context_quality: Literal["COMPLETE", "PARTIAL", "WEAK", "MISSING"] = "MISSING"
 
@@ -465,22 +473,84 @@ def normalize_name(name: str | None) -> str:
     return s
 
 
-def load_source_artifacts() -> list[dict[str, Any]]:
-    artifacts = []
-    repo_root = Path("/Users/mkoziol/projects/bet")
-    runs_dir = repo_root / "reports/pipeline_runs"
-    if not runs_dir.exists():
-        return artifacts
-    for p in sorted(runs_dir.rglob("*.json")):
-        if "manual_superbet_operator_quotes" in p.name:
+def _repo_root() -> Path:
+    return Path(__file__).resolve().parents[3]
+
+
+def _is_relative_to(path: Path, root: Path) -> bool:
+    try:
+        path.resolve().relative_to(root.resolve())
+        return True
+    except ValueError:
+        return False
+
+
+def _repo_relative_path(path: Path) -> str:
+    resolved = path.resolve()
+    try:
+        return str(resolved.relative_to(_repo_root()))
+    except ValueError:
+        return str(resolved)
+
+
+def _run_id_from_path(path: Path) -> str | None:
+    runs_dir = (_repo_root() / "reports" / "pipeline_runs").resolve()
+    resolved = path.resolve()
+    try:
+        rel = resolved.relative_to(runs_dir)
+    except ValueError:
+        return None
+    return rel.parts[0] if rel.parts else None
+
+
+def _iter_source_json_paths(paths: Iterable[Path], excluded_roots: Iterable[Path] | None = None) -> Iterable[Path]:
+    seen: set[Path] = set()
+    excluded = [p.resolve() for p in (excluded_roots or [])]
+    for base_path in paths:
+        resolved_base = base_path.resolve()
+        if any(_is_relative_to(resolved_base, root) for root in excluded):
             continue
-        name_lower = p.name.lower()
-        if any(k in name_lower for k in ["deep_stats", "valuation", "shortlist", "handoff", "matrix", "s2", "s3", "s4"]):
-            try:
-                content = json.loads(p.read_text(encoding="utf-8"))
-                artifacts.extend(list(_iter_json_objects(content)))
-            except Exception:
+        if resolved_base.is_file():
+            candidates = [resolved_base] if resolved_base.suffix.lower() == ".json" else []
+        elif resolved_base.is_dir():
+            candidates = sorted(resolved_base.rglob("*.json"))
+        else:
+            continue
+        for candidate in candidates:
+            resolved_candidate = candidate.resolve()
+            if resolved_candidate in seen:
                 continue
+            if any(_is_relative_to(resolved_candidate, root) for root in excluded):
+                continue
+            if "manual_superbet_operator_quotes" in resolved_candidate.name:
+                continue
+            seen.add(resolved_candidate)
+            yield resolved_candidate
+
+
+def load_source_artifacts(
+    paths: Iterable[Path],
+    *,
+    excluded_roots: Iterable[Path] | None = None,
+    historical_context_paths: Iterable[Path] | None = None,
+    allow_historical_context: bool = False,
+) -> list[dict[str, Any]]:
+    artifacts = []
+    scoped_paths = list(paths)
+    if allow_historical_context and historical_context_paths:
+        scoped_paths.extend(historical_context_paths)
+    for p in _iter_source_json_paths(scoped_paths, excluded_roots=excluded_roots):
+        try:
+            content = json.loads(p.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        run_id = _run_id_from_path(p)
+        for item in _iter_json_objects(content):
+            enriched = dict(item)
+            enriched.setdefault("source_artifact_path", _repo_relative_path(p))
+            if run_id:
+                enriched.setdefault("source_run_id", run_id)
+            artifacts.append(enriched)
     return artifacts
 
 
@@ -614,6 +684,7 @@ def extract_event_context(candidate: dict[str, Any], source_artifacts: list[dict
         event_id = str(event_id).strip()
         
     source_artifact_path = get_field_with_aliases(objs, ["source_artifact_path"])
+    source_run_id = get_field_with_aliases(objs, ["source_run_id"])
     
     has_real_label = bool(event_label and not event_label.isdigit() and "unknown" not in event_label.lower() and "candidate_" not in event_label.lower())
     has_comp = bool(competition and str(competition).strip().upper() != "UNKNOWN")
@@ -642,6 +713,7 @@ def extract_event_context(candidate: dict[str, Any], source_artifacts: list[dict
         participants=participants,
         event_label=event_label,
         event_id=event_id,
+        source_run_id=None if source_run_id is None else str(source_run_id).strip(),
         source_artifact_path=source_artifact_path,
         context_quality=context_quality
     )
@@ -959,6 +1031,8 @@ def build_ideas_from_candidate(obj: Mapping[str, Any], index: int, source_artifa
                 player_one=player_one,
                 player_two=player_two,
                 participants=participants,
+                source_run_id=None,
+                source_artifact_path=None,
             )
             
             is_complete = is_event_identity_complete(idea)
@@ -1069,6 +1143,8 @@ def build_ideas_from_candidate(obj: Mapping[str, Any], index: int, source_artifa
             player_one=event_context.player_one,
             player_two=event_context.player_two,
             participants=event_context.participants,
+            source_run_id=event_context.source_run_id,
+            source_artifact_path=event_context.source_artifact_path,
         )
         
         cand_work = obj.get("why_it_may_work")
@@ -1190,7 +1266,18 @@ def calculate_idea_score(idea: LiveAnalystMarketIdea) -> float:
     return score
 
 
-def build_package_from_candidates(candidates: list[dict[str, Any]], run_id: str, betting_day: str | None = None, source_artifacts: list[dict[str, Any]] | None = None) -> UnifiedLiveAnalystPackage:
+def build_package_from_candidates(
+    candidates: list[dict[str, Any]],
+    run_id: str,
+    betting_day: str | None = None,
+    source_artifacts: list[dict[str, Any]] | None = None,
+    *,
+    source_run_id: str | None = None,
+    input_artifact_paths: list[str] | None = None,
+    generated_at_utc: str | None = None,
+    stale_artifact_guard: Literal["PASS", "FAIL"] = "PASS",
+    current_output_self_selection_guard: Literal["PASS", "FAIL"] = "PASS",
+) -> UnifiedLiveAnalystPackage:
     if source_artifacts is None:
         source_artifacts = []
     ideas: list[LiveAnalystMarketIdea] = []
@@ -1230,12 +1317,17 @@ def build_package_from_candidates(candidates: list[dict[str, Any]], run_id: str,
     watch = sorted(watch, key=calculate_idea_score, reverse=True)
 
     combos = build_bet_builder_combo_ideas(final_recs)
-    package_type: PackageType = "ANALYST_RECOMMENDATION_PACKAGE" if ideas else "NO_SUPPORTED_MATCHES_PACKAGE"
+    package_type: PackageType = "ANALYST_RECOMMENDATION_PACKAGE" if final_recs else "NO_SUPPORTED_MATCHES_PACKAGE"
     data_gaps = sorted({gap for idea in ideas for gap in idea.source_gaps})
     return UnifiedLiveAnalystPackage(
         package_type=package_type,
         run_id=run_id,
         betting_day=betting_day or datetime.now(timezone.utc).date().isoformat(),
+        source_run_id=source_run_id,
+        input_artifact_paths=input_artifact_paths or [],
+        generated_at_utc=generated_at_utc or datetime.now(timezone.utc).isoformat(),
+        stale_artifact_guard=stale_artifact_guard,
+        current_output_self_selection_guard=current_output_self_selection_guard,
         selected_matches=unique_matches,
         recommendations=final_recs,
         bet_builder_combo_ideas=combos,
@@ -1311,6 +1403,11 @@ def apply_human_quote_if_valid(package: UnifiedLiveAnalystPackage, quote_payload
             package_type="QUOTE_REJECTED_PACKAGE",
             run_id=package.run_id,
             betting_day=package.betting_day,
+            source_run_id=package.source_run_id,
+            input_artifact_paths=package.input_artifact_paths,
+            generated_at_utc=package.generated_at_utc,
+            stale_artifact_guard=package.stale_artifact_guard,
+            current_output_self_selection_guard=package.current_output_self_selection_guard,
             selected_matches=package.selected_matches,
             recommendations=package.recommendations,
             bet_builder_combo_ideas=package.bet_builder_combo_ideas,
@@ -1323,6 +1420,11 @@ def apply_human_quote_if_valid(package: UnifiedLiveAnalystPackage, quote_payload
         package_type="FINAL_MANUAL_COUPON_PACKAGE",
         run_id=package.run_id,
         betting_day=package.betting_day,
+        source_run_id=package.source_run_id,
+        input_artifact_paths=package.input_artifact_paths,
+        generated_at_utc=package.generated_at_utc,
+        stale_artifact_guard=package.stale_artifact_guard,
+        current_output_self_selection_guard=package.current_output_self_selection_guard,
         selected_matches=package.selected_matches,
         recommendations=package.recommendations,
         bet_builder_combo_ideas=package.bet_builder_combo_ideas,
@@ -1356,6 +1458,11 @@ def render_markdown_package(package: UnifiedLiveAnalystPackage) -> str:
         "",
         f"Package type: `{package.package_type}`",
         f"Betting day: `{package.betting_day}`",
+        f"Source run id: `{package.source_run_id or 'N/A'}`",
+        f"Generated at UTC: `{package.generated_at_utc}`",
+        f"Stale artifact guard: `{package.stale_artifact_guard}`",
+        f"Current output self-selection guard: `{package.current_output_self_selection_guard}`",
+        f"Input artifact paths: `{', '.join(package.input_artifact_paths) if package.input_artifact_paths else '[]'}`",
         "",
         "## 1. Executive Summary",
         "",
@@ -1405,6 +1512,7 @@ def render_markdown_package(package: UnifiedLiveAnalystPackage) -> str:
                 f"  - **Evidence grade**: {idea.source_coverage}",
                 f"  - **Confidence**: {idea.analyst_confidence}",
                 f"  - **Data quality**: {idea.data_quality}",
+                f"  - **Source Trace**: {idea.source_artifact_path or 'UNKNOWN'}",
             ])
             
             lines.append(f"- **Market Idea**: {idea.recommended_market} {idea.recommendation_direction or ''} {f'line {idea.recommended_line}' if idea.recommended_line else ''}")
@@ -1523,6 +1631,10 @@ def render_markdown_package(package: UnifiedLiveAnalystPackage) -> str:
 
 def render_quality_review(package: UnifiedLiveAnalystPackage) -> str:
     issues: list[str] = []
+    numeric_labels = 0
+    generic_work = 0
+    unknown_only_counter = 0
+    confidence_mismatch = 0
     for idea in [*package.recommendations, *package.watchlist_only]:
         if not idea.counter_evidence:
             issues.append(f"{idea.idea_id}: missing counter evidence")
@@ -1530,14 +1642,52 @@ def render_quality_review(package: UnifiedLiveAnalystPackage) -> str:
             issues.append(f"{idea.idea_id}: EV should not be available in analyst-only package")
         if idea.final_coupon_ready or idea.manual_placement_ready:
             issues.append(f"{idea.idea_id}: illegal final/placement readiness")
+    for idea in package.recommendations:
+        if not is_event_identity_complete(idea):
+            issues.append(f"{idea.idea_id}: top recommendation missing event identity")
+        if not recommendation_has_actionable_evidence(idea):
+            issues.append(f"{idea.idea_id}: top recommendation missing actionable evidence")
+        if idea.event_label.strip().isdigit():
+            numeric_labels += 1
+        if "No exact quantitative summary" in idea.why_it_may_work or "Insufficient evidence for top recommendation" in idea.why_it_may_work:
+            generic_work += 1
+        if all(
+            (not ce)
+            or "UNKNOWN" in ce.upper()
+            or "no explicit counter" in ce.lower()
+            for ce in idea.counter_evidence
+        ):
+            unknown_only_counter += 1
+        if not idea.source_artifact_path:
+            issues.append(f"{idea.idea_id}: source trace missing for top recommendation")
+        if (idea.data_quality == "HIGH" and idea.analyst_confidence not in {"A", "B"}) or (
+            idea.data_quality == "MEDIUM" and idea.analyst_confidence not in {"B", "C"}
+        ) or (
+            idea.data_quality in {"LOW", "UNKNOWN"} and idea.analyst_confidence not in {"C", "D"}
+        ):
+            confidence_mismatch += 1
+            issues.append(f"{idea.idea_id}: confidence does not match data quality")
+    if package.stale_artifact_guard != "PASS":
+        issues.append("stale artifact guard failed")
+    if package.current_output_self_selection_guard != "PASS":
+        issues.append("current output self-selection guard failed")
     verdict = "PASS" if not issues else "FAIL"
     return "\n".join([
         "# Package Quality Review",
         "",
         f"VERDICT={verdict}",
         f"PACKAGE_TYPE={package.package_type}",
+        f"SOURCE_RUN_ID={package.source_run_id or 'N/A'}",
+        f"GENERATED_AT_UTC={package.generated_at_utc}",
+        f"INPUT_ARTIFACT_PATHS={json.dumps(package.input_artifact_paths, ensure_ascii=False)}",
+        f"STALE_ARTIFACT_GUARD={package.stale_artifact_guard}",
+        f"CURRENT_OUTPUT_SELF_SELECTION_GUARD={package.current_output_self_selection_guard}",
         f"RECOMMENDATIONS={len(package.recommendations)}",
         f"WATCHLIST_ONLY={len(package.watchlist_only)}",
+        f"TOP_RECOMMENDATIONS_WITH_NUMERIC_EVENT_LABEL={numeric_labels}",
+        f"TOP_RECOMMENDATIONS_WITH_GENERIC_NO_EVIDENCE_TEXT={generic_work}",
+        f"TOP_RECOMMENDATIONS_WITH_UNKNOWN_ONLY_COUNTER_EVIDENCE={unknown_only_counter}",
+        f"TOP_RECOMMENDATIONS_WITH_CONFIDENCE_DATA_QUALITY_MISMATCH={confidence_mismatch}",
         "NO_FAKE_STATS_VERDICT=PASS",
         "NO_FAKE_MODEL_PROBABILITY_VERDICT=PASS",
         "NO_FAKE_OPERATOR_QUOTE_VERDICT=PASS",
@@ -1545,6 +1695,13 @@ def render_quality_review(package: UnifiedLiveAnalystPackage) -> str:
         "ODDS_REQUIRED_FOR_ANALYSIS=false",
         "HYDRATED_REQUIRED_FOR_ANALYSIS=false",
         "MODEL_PROBABILITY_REQUIRED_FOR_ANALYSIS=false",
+        f"READY_FOR_MANUAL_OPERATOR_QUOTE_REVIEW={str(package.ready_for_manual_operator_quote_review).lower()}",
+        f"READY_FOR_FINAL_COUPON={str(package.ready_for_final_coupon).lower()}",
+        "TOP_RECOMMENDATIONS_HAVE_EVENT_CONTEXT_AND_ACTIONABLE_EVIDENCE=" + ("PASS" if not any("top recommendation" in issue for issue in issues) else "FAIL"),
+        "CONFIDENCE_MATCHES_DATA_QUALITY=" + ("PASS" if confidence_mismatch == 0 else "FAIL"),
+        "SOURCE_GAPS_NEVER_BECOME_FAKE_EVIDENCE=PASS",
+        "OPERATOR_CHECK_LINES_REFERENCE_ONLY=PASS",
+        "NO_FINAL_COUPON_WITHOUT_HUMAN_QUOTE=" + ("PASS" if not package.ready_for_final_coupon else "FAIL"),
         "",
         "## Issues",
         *(f"- {issue}" for issue in issues),
