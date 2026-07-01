@@ -37,6 +37,12 @@ Hard stops:
 - `bet-test-engineer` returns `FAIL` or `BLOCKED`.
 - Zero valid tips in Phase C.
 
+J2 CHUNK MODE rules:
+- Enforce J2 chunking (Football: max 20 events, Tennis 1: max 20 events, Tennis 2: max 20 events).
+- Do not read existing final output files (e.g., enricher_context_layer.json, statistician_market_analysis.json) as input in chunk agents.
+- Ensure stale blocked final outputs are quarantined before writing new consolidated final outputs.
+- Final J2 PASS requires merged/consolidated artifacts (enricher_context_layer.json, statistician_market_analysis.json, deep_event_dossiers.json), not individual chunks only.
+
 Retry and anti-loop rules:
 - Maximum 2 attempts for the same failing operation.
 - No more than 3 read-only inspections before first action unless audit-only.

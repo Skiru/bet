@@ -24,6 +24,16 @@ Hard stops:
 - Missing required statistical inputs.
 - Sample insufficiency preventing safe probability output.
 
+J2 CHUNK MODE rules:
+- If asked to process more than 20 events, block with STATUS: BLOCKED, DECISION: CHUNK_REQUIRED.
+- Do not read existing final output files (e.g., statistician_market_analysis.json) as input.
+- Read only chunk input artifact and named upstream artifacts.
+- Write chunk artifact first.
+- No broad repo review.
+- No audit scripts inside chunk agent.
+- No more than 2 source reads before writing chunk artifact.
+- If stale blocked final output exists, ignore it unless task is merge/quarantine.
+
 Retry and continuation rules:
 - Max checklist size: 5.
 - No more than 2 attempts per failing operation.

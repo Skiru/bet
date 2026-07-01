@@ -1,0 +1,628 @@
+{
+  "run_id": "TODAY_ORCHESTRATED_SESSION_J1_SCANNER_SCOUT_20260701_105101",
+  "chunk_id": "tennis_2",
+  "sport": "tennis",
+  "event_count": 20,
+  "events": [
+    {
+      "event_id": "event_721",
+      "event_label": "Etcheverry T M / Kestelboim M vs Harrison C / Skupski N",
+      "sport": "tennis",
+      "competition": "ATP - Wimbledon, London, Great Britain, Doubles",
+      "kickoff_time": "2026-07-01T12:20:00+00:00",
+      "participants": [
+        "Etcheverry T M / Kestelboim M",
+        "Harrison C / Skupski N"
+      ],
+      "source_artifact_path": "reports/pipeline_runs/TODAY_WIDE_LIVE_ANALYST_SESSION_E_20260701_042130/unified_live_analyst_package.json",
+      "upstream_source_artifact_path": "/private/tmp/today_wide_pipeline_runs_e/2026-07-01/TODAY_WIDE_DISCOVERY_E_20260701_041600/data/market_matrix_2026-07-01.json",
+      "source_run_id": "TODAY_WIDE_LIVE_ANALYST_SESSION_E_20260701_042130",
+      "candidate_rank_score": 190,
+      "has_recommendation_seed": false,
+      "world_cup_flag": false,
+      "wimbledon_flag": true,
+      "market_families_seen": [
+        "TOTAL_GAMES"
+      ],
+      "idea_count": 1,
+      "source_gaps": [
+        "HYDRATED source-bound stats unavailable \u2014 confidence capped/downgraded, not blocked.",
+        "INSUFFICIENT_ACTIONABLE_EVIDENCE",
+        "Model probability unavailable \u2014 no fair odds or EV claim.",
+        "Odds unavailable or ignored \u2014 analysis remains allowed; EV unavailable.",
+        "Reference line is an analyst default; operator line must be checked manually in Superbet."
+      ],
+      "supporting_evidence_examples": []
+    },
+    {
+      "event_id": "event_713",
+      "event_label": "Evans D / Searle H vs Nys H / Roger-Vasselin E",
+      "sport": "tennis",
+      "competition": "ATP - Wimbledon, London, Great Britain, Doubles",
+      "kickoff_time": "2026-07-01T10:00:00+00:00",
+      "participants": [
+        "Evans D / Searle H",
+        "Nys H / Roger-Vasselin E"
+      ],
+      "source_artifact_path": "reports/pipeline_runs/TODAY_WIDE_LIVE_ANALYST_SESSION_E_20260701_042130/unified_live_analyst_package.json",
+      "upstream_source_artifact_path": "/private/tmp/today_wide_pipeline_runs_e/2026-07-01/TODAY_WIDE_DISCOVERY_E_20260701_041600/data/market_matrix_2026-07-01.json",
+      "source_run_id": "TODAY_WIDE_LIVE_ANALYST_SESSION_E_20260701_042130",
+      "candidate_rank_score": 190,
+      "has_recommendation_seed": false,
+      "world_cup_flag": false,
+      "wimbledon_flag": true,
+      "market_families_seen": [
+        "TOTAL_GAMES"
+      ],
+      "idea_count": 1,
+      "source_gaps": [
+        "HYDRATED source-bound stats unavailable \u2014 confidence capped/downgraded, not blocked.",
+        "INSUFFICIENT_ACTIONABLE_EVIDENCE",
+        "Model probability unavailable \u2014 no fair odds or EV claim.",
+        "Odds unavailable or ignored \u2014 analysis remains allowed; EV unavailable.",
+        "Reference line is an analyst default; operator line must be checked manually in Superbet."
+      ],
+      "supporting_evidence_examples": []
+    },
+    {
+      "event_id": "event_867",
+      "event_label": "Gonzalez M / Gonzalez S vs Kokkinakis T / Kovacevic A",
+      "sport": "tennis",
+      "competition": "ATP - Wimbledon, London, Great Britain, Doubles",
+      "kickoff_time": "2026-07-01T13:10:00+00:00",
+      "participants": [
+        "Gonzalez M / Gonzalez S",
+        "Kokkinakis T / Kovacevic A"
+      ],
+      "source_artifact_path": "reports/pipeline_runs/TODAY_WIDE_LIVE_ANALYST_SESSION_E_20260701_042130/unified_live_analyst_package.json",
+      "upstream_source_artifact_path": "/private/tmp/today_wide_pipeline_runs_e/2026-07-01/TODAY_WIDE_DISCOVERY_E_20260701_041600/data/market_matrix_2026-07-01.json",
+      "source_run_id": "TODAY_WIDE_LIVE_ANALYST_SESSION_E_20260701_042130",
+      "candidate_rank_score": 190,
+      "has_recommendation_seed": false,
+      "world_cup_flag": false,
+      "wimbledon_flag": true,
+      "market_families_seen": [
+        "ACES"
+      ],
+      "idea_count": 1,
+      "source_gaps": [
+        "HYDRATED source-bound stats unavailable \u2014 confidence capped/downgraded, not blocked.",
+        "INSUFFICIENT_ACTIONABLE_EVIDENCE",
+        "Model probability unavailable \u2014 no fair odds or EV claim.",
+        "Odds unavailable or ignored \u2014 analysis remains allowed; EV unavailable.",
+        "Reference line is an analyst default; operator line must be checked manually in Superbet."
+      ],
+      "supporting_evidence_examples": []
+    },
+    {
+      "event_id": "event_717",
+      "event_label": "Halys Q / Herbert P-H vs Kiger M / Trhac P",
+      "sport": "tennis",
+      "competition": "ATP - Wimbledon, London, Great Britain, Doubles",
+      "kickoff_time": "2026-07-01T11:10:00+00:00",
+      "participants": [
+        "Halys Q / Herbert P-H",
+        "Kiger M / Trhac P"
+      ],
+      "source_artifact_path": "reports/pipeline_runs/TODAY_WIDE_LIVE_ANALYST_SESSION_E_20260701_042130/unified_live_analyst_package.json",
+      "upstream_source_artifact_path": "/private/tmp/today_wide_pipeline_runs_e/2026-07-01/TODAY_WIDE_DISCOVERY_E_20260701_041600/data/market_matrix_2026-07-01.json",
+      "source_run_id": "TODAY_WIDE_LIVE_ANALYST_SESSION_E_20260701_042130",
+      "candidate_rank_score": 190,
+      "has_recommendation_seed": false,
+      "world_cup_flag": false,
+      "wimbledon_flag": true,
+      "market_families_seen": [
+        "TOTAL_GAMES"
+      ],
+      "idea_count": 1,
+      "source_gaps": [
+        "HYDRATED source-bound stats unavailable \u2014 confidence capped/downgraded, not blocked.",
+        "INSUFFICIENT_ACTIONABLE_EVIDENCE",
+        "Model probability unavailable \u2014 no fair odds or EV claim.",
+        "Odds unavailable or ignored \u2014 analysis remains allowed; EV unavailable.",
+        "Reference line is an analyst default; operator line must be checked manually in Superbet."
+      ],
+      "supporting_evidence_examples": []
+    },
+    {
+      "event_id": "event_866",
+      "event_label": "Heliovaara H / Patten H vs Atmane T / Sanchez L",
+      "sport": "tennis",
+      "competition": "ATP - Wimbledon, London, Great Britain, Doubles",
+      "kickoff_time": "2026-07-01T12:50:00+00:00",
+      "participants": [
+        "Heliovaara H / Patten H",
+        "Atmane T / Sanchez L"
+      ],
+      "source_artifact_path": "reports/pipeline_runs/TODAY_WIDE_LIVE_ANALYST_SESSION_E_20260701_042130/unified_live_analyst_package.json",
+      "upstream_source_artifact_path": "/private/tmp/today_wide_pipeline_runs_e/2026-07-01/TODAY_WIDE_DISCOVERY_E_20260701_041600/data/market_matrix_2026-07-01.json",
+      "source_run_id": "TODAY_WIDE_LIVE_ANALYST_SESSION_E_20260701_042130",
+      "candidate_rank_score": 190,
+      "has_recommendation_seed": false,
+      "world_cup_flag": false,
+      "wimbledon_flag": true,
+      "market_families_seen": [
+        "TOTAL_GAMES"
+      ],
+      "idea_count": 1,
+      "source_gaps": [
+        "HYDRATED source-bound stats unavailable \u2014 confidence capped/downgraded, not blocked.",
+        "INSUFFICIENT_ACTIONABLE_EVIDENCE",
+        "Model probability unavailable \u2014 no fair odds or EV claim.",
+        "Odds unavailable or ignored \u2014 analysis remains allowed; EV unavailable.",
+        "Reference line is an analyst default; operator line must be checked manually in Superbet."
+      ],
+      "supporting_evidence_examples": []
+    },
+    {
+      "event_id": "event_716",
+      "event_label": "Hidalgo D / Vocel M vs Cabral F / Miedler L",
+      "sport": "tennis",
+      "competition": "ATP - Wimbledon, London, Great Britain, Doubles",
+      "kickoff_time": "2026-07-01T11:10:00+00:00",
+      "participants": [
+        "Hidalgo D / Vocel M",
+        "Cabral F / Miedler L"
+      ],
+      "source_artifact_path": "reports/pipeline_runs/TODAY_WIDE_LIVE_ANALYST_SESSION_E_20260701_042130/unified_live_analyst_package.json",
+      "upstream_source_artifact_path": "/private/tmp/today_wide_pipeline_runs_e/2026-07-01/TODAY_WIDE_DISCOVERY_E_20260701_041600/data/market_matrix_2026-07-01.json",
+      "source_run_id": "TODAY_WIDE_LIVE_ANALYST_SESSION_E_20260701_042130",
+      "candidate_rank_score": 190,
+      "has_recommendation_seed": false,
+      "world_cup_flag": false,
+      "wimbledon_flag": true,
+      "market_families_seen": [
+        "TOTAL_GAMES"
+      ],
+      "idea_count": 1,
+      "source_gaps": [
+        "HYDRATED source-bound stats unavailable \u2014 confidence capped/downgraded, not blocked.",
+        "INSUFFICIENT_ACTIONABLE_EVIDENCE",
+        "Model probability unavailable \u2014 no fair odds or EV claim.",
+        "Odds unavailable or ignored \u2014 analysis remains allowed; EV unavailable.",
+        "Reference line is an analyst default; operator line must be checked manually in Superbet."
+      ],
+      "supporting_evidence_examples": []
+    },
+    {
+      "event_id": "event_718",
+      "event_label": "Hijikata R / Polmans M vs Schnaitter J / Wallner M",
+      "sport": "tennis",
+      "competition": "ATP - Wimbledon, London, Great Britain, Doubles",
+      "kickoff_time": "2026-07-01T12:00:00+00:00",
+      "participants": [
+        "Hijikata R / Polmans M",
+        "Schnaitter J / Wallner M"
+      ],
+      "source_artifact_path": "reports/pipeline_runs/TODAY_WIDE_LIVE_ANALYST_SESSION_E_20260701_042130/unified_live_analyst_package.json",
+      "upstream_source_artifact_path": "/private/tmp/today_wide_pipeline_runs_e/2026-07-01/TODAY_WIDE_DISCOVERY_E_20260701_041600/data/market_matrix_2026-07-01.json",
+      "source_run_id": "TODAY_WIDE_LIVE_ANALYST_SESSION_E_20260701_042130",
+      "candidate_rank_score": 190,
+      "has_recommendation_seed": false,
+      "world_cup_flag": false,
+      "wimbledon_flag": true,
+      "market_families_seen": [
+        "TOTAL_GAMES"
+      ],
+      "idea_count": 1,
+      "source_gaps": [
+        "HYDRATED source-bound stats unavailable \u2014 confidence capped/downgraded, not blocked.",
+        "INSUFFICIENT_ACTIONABLE_EVIDENCE",
+        "Model probability unavailable \u2014 no fair odds or EV claim.",
+        "Odds unavailable or ignored \u2014 analysis remains allowed; EV unavailable.",
+        "Reference line is an analyst default; operator line must be checked manually in Superbet."
+      ],
+      "supporting_evidence_examples": []
+    },
+    {
+      "event_id": "event_719",
+      "event_label": "Krawietz K / Puetz T vs Escobar G / Stalder R",
+      "sport": "tennis",
+      "competition": "ATP - Wimbledon, London, Great Britain, Doubles",
+      "kickoff_time": "2026-07-01T12:20:00+00:00",
+      "participants": [
+        "Krawietz K / Puetz T",
+        "Escobar G / Stalder R"
+      ],
+      "source_artifact_path": "reports/pipeline_runs/TODAY_WIDE_LIVE_ANALYST_SESSION_E_20260701_042130/unified_live_analyst_package.json",
+      "upstream_source_artifact_path": "/private/tmp/today_wide_pipeline_runs_e/2026-07-01/TODAY_WIDE_DISCOVERY_E_20260701_041600/data/market_matrix_2026-07-01.json",
+      "source_run_id": "TODAY_WIDE_LIVE_ANALYST_SESSION_E_20260701_042130",
+      "candidate_rank_score": 190,
+      "has_recommendation_seed": false,
+      "world_cup_flag": false,
+      "wimbledon_flag": true,
+      "market_families_seen": [
+        "TOTAL_GAMES"
+      ],
+      "idea_count": 1,
+      "source_gaps": [
+        "HYDRATED source-bound stats unavailable \u2014 confidence capped/downgraded, not blocked.",
+        "INSUFFICIENT_ACTIONABLE_EVIDENCE",
+        "Model probability unavailable \u2014 no fair odds or EV claim.",
+        "Odds unavailable or ignored \u2014 analysis remains allowed; EV unavailable.",
+        "Reference line is an analyst default; operator line must be checked manually in Superbet."
+      ],
+      "supporting_evidence_examples": []
+    },
+    {
+      "event_id": "event_715",
+      "event_label": "Melo M / Molteni A vs Krajicek A / Mektic N",
+      "sport": "tennis",
+      "competition": "ATP - Wimbledon, London, Great Britain, Doubles",
+      "kickoff_time": "2026-07-01T10:00:00+00:00",
+      "participants": [
+        "Melo M / Molteni A",
+        "Krajicek A / Mektic N"
+      ],
+      "source_artifact_path": "reports/pipeline_runs/TODAY_WIDE_LIVE_ANALYST_SESSION_E_20260701_042130/unified_live_analyst_package.json",
+      "upstream_source_artifact_path": "/private/tmp/today_wide_pipeline_runs_e/2026-07-01/TODAY_WIDE_DISCOVERY_E_20260701_041600/data/market_matrix_2026-07-01.json",
+      "source_run_id": "TODAY_WIDE_LIVE_ANALYST_SESSION_E_20260701_042130",
+      "candidate_rank_score": 190,
+      "has_recommendation_seed": false,
+      "world_cup_flag": false,
+      "wimbledon_flag": true,
+      "market_families_seen": [
+        "TOTAL_GAMES"
+      ],
+      "idea_count": 1,
+      "source_gaps": [
+        "HYDRATED source-bound stats unavailable \u2014 confidence capped/downgraded, not blocked.",
+        "INSUFFICIENT_ACTIONABLE_EVIDENCE",
+        "Model probability unavailable \u2014 no fair odds or EV claim.",
+        "Odds unavailable or ignored \u2014 analysis remains allowed; EV unavailable.",
+        "Reference line is an analyst default; operator line must be checked manually in Superbet."
+      ],
+      "supporting_evidence_examples": []
+    },
+    {
+      "event_id": "event_720",
+      "event_label": "Moutet C / Reymond A vs Monday J / Wendelken H",
+      "sport": "tennis",
+      "competition": "ATP - Wimbledon, London, Great Britain, Doubles",
+      "kickoff_time": "2026-07-01T12:20:00+00:00",
+      "participants": [
+        "Moutet C / Reymond A",
+        "Monday J / Wendelken H"
+      ],
+      "source_artifact_path": "reports/pipeline_runs/TODAY_WIDE_LIVE_ANALYST_SESSION_E_20260701_042130/unified_live_analyst_package.json",
+      "upstream_source_artifact_path": "/private/tmp/today_wide_pipeline_runs_e/2026-07-01/TODAY_WIDE_DISCOVERY_E_20260701_041600/data/market_matrix_2026-07-01.json",
+      "source_run_id": "TODAY_WIDE_LIVE_ANALYST_SESSION_E_20260701_042130",
+      "candidate_rank_score": 190,
+      "has_recommendation_seed": false,
+      "world_cup_flag": false,
+      "wimbledon_flag": true,
+      "market_families_seen": [
+        "TOTAL_GAMES"
+      ],
+      "idea_count": 1,
+      "source_gaps": [
+        "HYDRATED source-bound stats unavailable \u2014 confidence capped/downgraded, not blocked.",
+        "INSUFFICIENT_ACTIONABLE_EVIDENCE",
+        "Model probability unavailable \u2014 no fair odds or EV claim.",
+        "Odds unavailable or ignored \u2014 analysis remains allowed; EV unavailable.",
+        "Reference line is an analyst default; operator line must be checked manually in Superbet."
+      ],
+      "supporting_evidence_examples": []
+    },
+    {
+      "event_id": "event_723",
+      "event_label": "Navone M / Vallejo A D vs Cash J / Glasspool L",
+      "sport": "tennis",
+      "competition": "ATP - Wimbledon, London, Great Britain, Doubles",
+      "kickoff_time": "2026-07-01T14:00:00+00:00",
+      "participants": [
+        "Navone M / Vallejo A D",
+        "Cash J / Glasspool L"
+      ],
+      "source_artifact_path": "reports/pipeline_runs/TODAY_WIDE_LIVE_ANALYST_SESSION_E_20260701_042130/unified_live_analyst_package.json",
+      "upstream_source_artifact_path": "/private/tmp/today_wide_pipeline_runs_e/2026-07-01/TODAY_WIDE_DISCOVERY_E_20260701_041600/data/market_matrix_2026-07-01.json",
+      "source_run_id": "TODAY_WIDE_LIVE_ANALYST_SESSION_E_20260701_042130",
+      "candidate_rank_score": 190,
+      "has_recommendation_seed": false,
+      "world_cup_flag": false,
+      "wimbledon_flag": true,
+      "market_families_seen": [
+        "TOTAL_GAMES"
+      ],
+      "idea_count": 1,
+      "source_gaps": [
+        "HYDRATED source-bound stats unavailable \u2014 confidence capped/downgraded, not blocked.",
+        "INSUFFICIENT_ACTIONABLE_EVIDENCE",
+        "Model probability unavailable \u2014 no fair odds or EV claim.",
+        "Odds unavailable or ignored \u2014 analysis remains allowed; EV unavailable.",
+        "Reference line is an analyst default; operator line must be checked manually in Superbet."
+      ],
+      "supporting_evidence_examples": []
+    },
+    {
+      "event_id": "event_714",
+      "event_label": "Paul J / Seggerman R vs Johnson L / Zielinski J",
+      "sport": "tennis",
+      "competition": "ATP - Wimbledon, London, Great Britain, Doubles",
+      "kickoff_time": "2026-07-01T10:00:00+00:00",
+      "participants": [
+        "Paul J / Seggerman R",
+        "Johnson L / Zielinski J"
+      ],
+      "source_artifact_path": "reports/pipeline_runs/TODAY_WIDE_LIVE_ANALYST_SESSION_E_20260701_042130/unified_live_analyst_package.json",
+      "upstream_source_artifact_path": "/private/tmp/today_wide_pipeline_runs_e/2026-07-01/TODAY_WIDE_DISCOVERY_E_20260701_041600/data/market_matrix_2026-07-01.json",
+      "source_run_id": "TODAY_WIDE_LIVE_ANALYST_SESSION_E_20260701_042130",
+      "candidate_rank_score": 190,
+      "has_recommendation_seed": false,
+      "world_cup_flag": false,
+      "wimbledon_flag": true,
+      "market_families_seen": [
+        "TOTAL_GAMES"
+      ],
+      "idea_count": 1,
+      "source_gaps": [
+        "HYDRATED source-bound stats unavailable \u2014 confidence capped/downgraded, not blocked.",
+        "INSUFFICIENT_ACTIONABLE_EVIDENCE",
+        "Model probability unavailable \u2014 no fair odds or EV claim.",
+        "Odds unavailable or ignored \u2014 analysis remains allowed; EV unavailable.",
+        "Reference line is an analyst default; operator line must be checked manually in Superbet."
+      ],
+      "supporting_evidence_examples": []
+    },
+    {
+      "event_id": "event_722",
+      "event_label": "Stevenson D / Willis M vs Behar A / Salisbury J",
+      "sport": "tennis",
+      "competition": "ATP - Wimbledon, London, Great Britain, Doubles",
+      "kickoff_time": "2026-07-01T13:10:00+00:00",
+      "participants": [
+        "Stevenson D / Willis M",
+        "Behar A / Salisbury J"
+      ],
+      "source_artifact_path": "reports/pipeline_runs/TODAY_WIDE_LIVE_ANALYST_SESSION_E_20260701_042130/unified_live_analyst_package.json",
+      "upstream_source_artifact_path": "/private/tmp/today_wide_pipeline_runs_e/2026-07-01/TODAY_WIDE_DISCOVERY_E_20260701_041600/data/market_matrix_2026-07-01.json",
+      "source_run_id": "TODAY_WIDE_LIVE_ANALYST_SESSION_E_20260701_042130",
+      "candidate_rank_score": 190,
+      "has_recommendation_seed": false,
+      "world_cup_flag": false,
+      "wimbledon_flag": true,
+      "market_families_seen": [
+        "TOTAL_GAMES"
+      ],
+      "idea_count": 1,
+      "source_gaps": [
+        "HYDRATED source-bound stats unavailable \u2014 confidence capped/downgraded, not blocked.",
+        "INSUFFICIENT_ACTIONABLE_EVIDENCE",
+        "Model probability unavailable \u2014 no fair odds or EV claim.",
+        "Odds unavailable or ignored \u2014 analysis remains allowed; EV unavailable.",
+        "Reference line is an analyst default; operator line must be checked manually in Superbet."
+      ],
+      "supporting_evidence_examples": []
+    },
+    {
+      "event_id": "21",
+      "event_label": "Alexandrova, Ekaterina vs Tararudee, Lanlana",
+      "sport": "tennis",
+      "competition": "WTA - Wimbledon, London, Great Britain, Qualifying",
+      "kickoff_time": "2026-07-01T14:30:00+00:00",
+      "participants": [
+        "Alexandrova, Ekaterina",
+        "Tararudee, Lanlana"
+      ],
+      "source_artifact_path": "reports/pipeline_runs/TODAY_WIDE_LIVE_ANALYST_SESSION_E_20260701_042130/unified_live_analyst_package.json",
+      "upstream_source_artifact_path": "/tmp/today_wide_pipeline_runs_e/2026-07-01/TODAY_WIDE_DISCOVERY_E_20260701_041600/data/market_matrix_2026-07-01.json",
+      "source_run_id": "TODAY_WIDE_LIVE_ANALYST_SESSION_E_20260701_042130",
+      "candidate_rank_score": 190,
+      "has_recommendation_seed": false,
+      "world_cup_flag": false,
+      "wimbledon_flag": true,
+      "market_families_seen": [
+        "ACES",
+        "TOTAL_GAMES"
+      ],
+      "idea_count": 3,
+      "source_gaps": [
+        "HYDRATED source-bound stats unavailable \u2014 confidence capped/downgraded, not blocked.",
+        "Model probability unavailable \u2014 no fair odds or EV claim.",
+        "Odds unavailable or ignored \u2014 analysis remains allowed; EV unavailable.",
+        "Reference line is an analyst default; operator line must be checked manually in Superbet."
+      ],
+      "supporting_evidence_examples": [
+        "Home/Player A stats: team Alexandrova, Ekaterina has_data False l10_avg  l5_avg  l10_matches_count 0 sources  espn_enrichment  split_stat_aggregation_policy  stat_semantics_issues  team_identity_match",
+        "Away/Player B stats: team Tararudee, Lanlana has_data False l10_avg  l5_avg  l10_matches_count 0 sources  espn_enrichment  split_stat_aggregation_policy  stat_semantics_issues  team_identity_match"
+      ]
+    },
+    {
+      "event_id": "22",
+      "event_label": "Bencic, Belinda vs Wang, Xinyu",
+      "sport": "tennis",
+      "competition": "WTA - Wimbledon, London, Great Britain, Qualifying",
+      "kickoff_time": "2026-07-01T15:30:00+00:00",
+      "participants": [
+        "Bencic, Belinda",
+        "Wang, Xinyu"
+      ],
+      "source_artifact_path": "reports/pipeline_runs/TODAY_WIDE_LIVE_ANALYST_SESSION_E_20260701_042130/unified_live_analyst_package.json",
+      "upstream_source_artifact_path": "/tmp/today_wide_pipeline_runs_e/2026-07-01/TODAY_WIDE_DISCOVERY_E_20260701_041600/data/market_matrix_2026-07-01.json",
+      "source_run_id": "TODAY_WIDE_LIVE_ANALYST_SESSION_E_20260701_042130",
+      "candidate_rank_score": 190,
+      "has_recommendation_seed": false,
+      "world_cup_flag": false,
+      "wimbledon_flag": true,
+      "market_families_seen": [
+        "ACES",
+        "TOTAL_GAMES"
+      ],
+      "idea_count": 3,
+      "source_gaps": [
+        "HYDRATED source-bound stats unavailable \u2014 confidence capped/downgraded, not blocked.",
+        "Model probability unavailable \u2014 no fair odds or EV claim.",
+        "Odds unavailable or ignored \u2014 analysis remains allowed; EV unavailable.",
+        "Reference line is an analyst default; operator line must be checked manually in Superbet."
+      ],
+      "supporting_evidence_examples": [
+        "Home/Player A stats: team Bencic, Belinda has_data False l10_avg  l5_avg  l10_matches_count 0 sources  espn_enrichment  split_stat_aggregation_policy  stat_semantics_issues  team_identity_match",
+        "Away/Player B stats: team Wang, Xinyu has_data False l10_avg  l5_avg  l10_matches_count 0 sources  espn_enrichment  split_stat_aggregation_policy  stat_semantics_issues  team_identity_match"
+      ]
+    },
+    {
+      "event_id": "23",
+      "event_label": "Gasanova, Anastasia vs Osaka, Naomi",
+      "sport": "tennis",
+      "competition": "WTA - Wimbledon, London, Great Britain, Qualifying",
+      "kickoff_time": "2026-07-01T10:00:00+00:00",
+      "participants": [
+        "Gasanova, Anastasia",
+        "Osaka, Naomi"
+      ],
+      "source_artifact_path": "reports/pipeline_runs/TODAY_WIDE_LIVE_ANALYST_SESSION_E_20260701_042130/unified_live_analyst_package.json",
+      "upstream_source_artifact_path": "/tmp/today_wide_pipeline_runs_e/2026-07-01/TODAY_WIDE_DISCOVERY_E_20260701_041600/data/market_matrix_2026-07-01.json",
+      "source_run_id": "TODAY_WIDE_LIVE_ANALYST_SESSION_E_20260701_042130",
+      "candidate_rank_score": 190,
+      "has_recommendation_seed": false,
+      "world_cup_flag": false,
+      "wimbledon_flag": true,
+      "market_families_seen": [
+        "ACES",
+        "TOTAL_GAMES"
+      ],
+      "idea_count": 3,
+      "source_gaps": [
+        "HYDRATED source-bound stats unavailable \u2014 confidence capped/downgraded, not blocked.",
+        "Model probability unavailable \u2014 no fair odds or EV claim.",
+        "Odds unavailable or ignored \u2014 analysis remains allowed; EV unavailable.",
+        "Reference line is an analyst default; operator line must be checked manually in Superbet."
+      ],
+      "supporting_evidence_examples": [
+        "Home/Player A stats: team Gasanova, Anastasia has_data False l10_avg  l5_avg  l10_matches_count 0 sources  espn_enrichment  split_stat_aggregation_policy  stat_semantics_issues  team_identity_match",
+        "Away/Player B stats: team Osaka, Naomi has_data False l10_avg  l5_avg  l10_matches_count 0 sources  espn_enrichment  split_stat_aggregation_policy  stat_semantics_issues  team_identity_match"
+      ]
+    },
+    {
+      "event_id": "24",
+      "event_label": "Muchova, Karolina vs Zhang, Shuai",
+      "sport": "tennis",
+      "competition": "WTA - Wimbledon, London, Great Britain, Qualifying",
+      "kickoff_time": "2026-07-01T11:40:00+00:00",
+      "participants": [
+        "Muchova, Karolina",
+        "Zhang, Shuai"
+      ],
+      "source_artifact_path": "reports/pipeline_runs/TODAY_WIDE_LIVE_ANALYST_SESSION_E_20260701_042130/unified_live_analyst_package.json",
+      "upstream_source_artifact_path": "/tmp/today_wide_pipeline_runs_e/2026-07-01/TODAY_WIDE_DISCOVERY_E_20260701_041600/data/market_matrix_2026-07-01.json",
+      "source_run_id": "TODAY_WIDE_LIVE_ANALYST_SESSION_E_20260701_042130",
+      "candidate_rank_score": 190,
+      "has_recommendation_seed": false,
+      "world_cup_flag": false,
+      "wimbledon_flag": true,
+      "market_families_seen": [
+        "TOTAL_GAMES"
+      ],
+      "idea_count": 3,
+      "source_gaps": [
+        "HYDRATED source-bound stats unavailable \u2014 confidence capped/downgraded, not blocked.",
+        "Model probability unavailable \u2014 no fair odds or EV claim.",
+        "Odds unavailable or ignored \u2014 analysis remains allowed; EV unavailable.",
+        "Reference line is an analyst default; operator line must be checked manually in Superbet."
+      ],
+      "supporting_evidence_examples": [
+        "Home/Player A stats: team Muchova, Karolina has_data False l10_avg  l5_avg  l10_matches_count 0 sources  espn_enrichment  split_stat_aggregation_policy  stat_semantics_issues  team_identity_match",
+        "Away/Player B stats: team Zhang, Shuai has_data False l10_avg  l5_avg  l10_matches_count 0 sources  espn_enrichment  split_stat_aggregation_policy  stat_semantics_issues  team_identity_match"
+      ]
+    },
+    {
+      "event_id": "25",
+      "event_label": "Ostapenko, Jelena vs Ruzic, Antonia",
+      "sport": "tennis",
+      "competition": "WTA - Wimbledon, London, Great Britain, Qualifying",
+      "kickoff_time": "2026-07-01T10:00:00+00:00",
+      "participants": [
+        "Ostapenko, Jelena",
+        "Ruzic, Antonia"
+      ],
+      "source_artifact_path": "reports/pipeline_runs/TODAY_WIDE_LIVE_ANALYST_SESSION_E_20260701_042130/unified_live_analyst_package.json",
+      "upstream_source_artifact_path": "/tmp/today_wide_pipeline_runs_e/2026-07-01/TODAY_WIDE_DISCOVERY_E_20260701_041600/data/market_matrix_2026-07-01.json",
+      "source_run_id": "TODAY_WIDE_LIVE_ANALYST_SESSION_E_20260701_042130",
+      "candidate_rank_score": 190,
+      "has_recommendation_seed": false,
+      "world_cup_flag": false,
+      "wimbledon_flag": true,
+      "market_families_seen": [
+        "ACES",
+        "TOTAL_GAMES"
+      ],
+      "idea_count": 3,
+      "source_gaps": [
+        "HYDRATED source-bound stats unavailable \u2014 confidence capped/downgraded, not blocked.",
+        "Model probability unavailable \u2014 no fair odds or EV claim.",
+        "Odds unavailable or ignored \u2014 analysis remains allowed; EV unavailable.",
+        "Reference line is an analyst default; operator line must be checked manually in Superbet."
+      ],
+      "supporting_evidence_examples": [
+        "Home/Player A stats: team Ostapenko, Jelena has_data False l10_avg  l5_avg  l10_matches_count 0 sources  espn_enrichment  split_stat_aggregation_policy  stat_semantics_issues  team_identity_match",
+        "Away/Player B stats: team Ruzic, Antonia has_data False l10_avg  l5_avg  l10_matches_count 0 sources  espn_enrichment  split_stat_aggregation_policy  stat_semantics_issues  team_identity_match"
+      ]
+    },
+    {
+      "event_id": "26",
+      "event_label": "Parks, Alycia vs Sawangkaew, Mananchaya",
+      "sport": "tennis",
+      "competition": "WTA - Wimbledon, London, Great Britain, Qualifying",
+      "kickoff_time": "2026-07-01T10:00:00+00:00",
+      "participants": [
+        "Parks, Alycia",
+        "Sawangkaew, Mananchaya"
+      ],
+      "source_artifact_path": "reports/pipeline_runs/TODAY_WIDE_LIVE_ANALYST_SESSION_E_20260701_042130/unified_live_analyst_package.json",
+      "upstream_source_artifact_path": "/tmp/today_wide_pipeline_runs_e/2026-07-01/TODAY_WIDE_DISCOVERY_E_20260701_041600/data/market_matrix_2026-07-01.json",
+      "source_run_id": "TODAY_WIDE_LIVE_ANALYST_SESSION_E_20260701_042130",
+      "candidate_rank_score": 190,
+      "has_recommendation_seed": false,
+      "world_cup_flag": false,
+      "wimbledon_flag": true,
+      "market_families_seen": [
+        "ACES",
+        "TOTAL_GAMES"
+      ],
+      "idea_count": 3,
+      "source_gaps": [
+        "HYDRATED source-bound stats unavailable \u2014 confidence capped/downgraded, not blocked.",
+        "Model probability unavailable \u2014 no fair odds or EV claim.",
+        "Odds unavailable or ignored \u2014 analysis remains allowed; EV unavailable.",
+        "Reference line is an analyst default; operator line must be checked manually in Superbet."
+      ],
+      "supporting_evidence_examples": [
+        "Home/Player A stats: team Parks, Alycia has_data False l10_avg  l5_avg  l10_matches_count 0 sources  espn_enrichment  split_stat_aggregation_policy  stat_semantics_issues  team_identity_match",
+        "Away/Player B stats: team Sawangkaew, Mananchaya has_data False l10_avg  l5_avg  l10_matches_count 0 sources  espn_enrichment  split_stat_aggregation_policy  stat_semantics_issues  team_identity_match"
+      ]
+    },
+    {
+      "event_id": "27",
+      "event_label": "Parry, Diane vs Kalinskaya, Anna",
+      "sport": "tennis",
+      "competition": "WTA - Wimbledon, London, Great Britain, Qualifying",
+      "kickoff_time": "2026-07-01T13:20:00+00:00",
+      "participants": [
+        "Parry, Diane",
+        "Kalinskaya, Anna"
+      ],
+      "source_artifact_path": "reports/pipeline_runs/TODAY_WIDE_LIVE_ANALYST_SESSION_E_20260701_042130/unified_live_analyst_package.json",
+      "upstream_source_artifact_path": "/tmp/today_wide_pipeline_runs_e/2026-07-01/TODAY_WIDE_DISCOVERY_E_20260701_041600/data/market_matrix_2026-07-01.json",
+      "source_run_id": "TODAY_WIDE_LIVE_ANALYST_SESSION_E_20260701_042130",
+      "candidate_rank_score": 190,
+      "has_recommendation_seed": false,
+      "world_cup_flag": false,
+      "wimbledon_flag": true,
+      "market_families_seen": [
+        "ACES",
+        "TOTAL_GAMES"
+      ],
+      "idea_count": 3,
+      "source_gaps": [
+        "HYDRATED source-bound stats unavailable \u2014 confidence capped/downgraded, not blocked.",
+        "Model probability unavailable \u2014 no fair odds or EV claim.",
+        "Odds unavailable or ignored \u2014 analysis remains allowed; EV unavailable.",
+        "Reference line is an analyst default; operator line must be checked manually in Superbet."
+      ],
+      "supporting_evidence_examples": [
+        "Home/Player A stats: team Parry, Diane has_data False l10_avg  l5_avg  l10_matches_count 0 sources  espn_enrichment  split_stat_aggregation_policy  stat_semantics_issues  team_identity_match",
+        "Away/Player B stats: team Kalinskaya, Anna has_data False l10_avg  l5_avg  l10_matches_count 0 sources  espn_enrichment  split_stat_aggregation_policy  stat_semantics_issues  team_identity_match"
+      ]
+    }
+  ]
+}
