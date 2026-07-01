@@ -1,7 +1,6 @@
 ---
 mode: subagent
 description: Phase A specialist for S0 settlement reconciliation, result accounting and evidence-backed historical learning from bounded read-only data.
-model: google-vertex/gemini-3.5-flash-flex-high
 temperature: 0.1
 steps: 12
 permission:

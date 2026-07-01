@@ -1,7 +1,6 @@
 ---
 mode: subagent
 description: Phase C specialist for S2 tipster-source discovery, deduplication, consensus and argument-quality scoring. Zero valid tips is an explicit hard-stop verdict.
-model: google-vertex/gemini-3.5-flash-flex-high
 temperature: 0.15
 steps: 16
 permission:

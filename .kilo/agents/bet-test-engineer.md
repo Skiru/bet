@@ -1,7 +1,6 @@
 ---
 mode: subagent
 description: Final phase validator that independently checks artifacts, invariants and focused regression tests, returning PASS/FAIL with exact commands and evidence paths. Never repairs failures.
-model: google-vertex/gemini-3.5-flash-flex-high
 temperature: 0.02
 steps: 10
 permission:

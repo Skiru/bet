@@ -1,7 +1,6 @@
 ---
 mode: subagent
 description: Phase E S8-S10 constructor that builds coupons only from gate-approved evidence, checks correlation and mechanics, and writes final artifacts without introducing new facts.
-model: google-vertex/gemini-3.5-flash-flex-high
 temperature: 0.1
 steps: 11
 permission:

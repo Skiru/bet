@@ -1,0 +1,65 @@
+{
+  "status": "BLOCKED_PROVIDER_MODEL_RESOLUTION_NOT_FIXED",
+  "results": [
+    {
+      "subagent_name": "bet-enricher",
+      "launched": false,
+      "provider_model_error": true,
+      "artifact_written": false,
+      "artifact_path": null,
+      "observed_model_source": "inherited_parent",
+      "verdict": "FAIL",
+      "error": "ProviderModelNotFoundError"
+    },
+    {
+      "subagent_name": "bet-statistician",
+      "launched": false,
+      "provider_model_error": true,
+      "artifact_written": false,
+      "artifact_path": null,
+      "observed_model_source": "inherited_parent",
+      "verdict": "FAIL",
+      "error": "ProviderModelNotFoundError"
+    },
+    {
+      "subagent_name": "bet-valuator",
+      "launched": false,
+      "provider_model_error": true,
+      "artifact_written": false,
+      "artifact_path": null,
+      "observed_model_source": "inherited_parent",
+      "verdict": "FAIL",
+      "error": "ProviderModelNotFoundError"
+    },
+    {
+      "subagent_name": "bet-challenger",
+      "launched": false,
+      "provider_model_error": false,
+      "artifact_written": false,
+      "artifact_path": null,
+      "observed_model_source": "unknown",
+      "verdict": "SKIPPED",
+      "error": "skipped after shared resolver failure"
+    },
+    {
+      "subagent_name": "bet-builder",
+      "launched": false,
+      "provider_model_error": false,
+      "artifact_written": false,
+      "artifact_path": null,
+      "observed_model_source": "unknown",
+      "verdict": "SKIPPED",
+      "error": "skipped after shared resolver failure"
+    },
+    {
+      "subagent_name": "bet-test-engineer",
+      "launched": false,
+      "provider_model_error": false,
+      "artifact_written": false,
+      "artifact_path": null,
+      "observed_model_source": "unknown",
+      "verdict": "SKIPPED",
+      "error": "skipped after shared resolver failure"
+    }
+  ]
+}

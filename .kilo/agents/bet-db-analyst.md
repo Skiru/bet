@@ -1,7 +1,6 @@
 ---
 mode: subagent
 description: Phase A read-only database readiness, integrity, freshness and coverage auditor. Reports exact query evidence and never mutates data.
-model: google-vertex/gemini-3.5-flash-flex-high
 temperature: 0.05
 steps: 10
 permission:

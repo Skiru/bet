@@ -1,7 +1,6 @@
 ---
 mode: subagent
 description: Phase D S3-S5 specialist for reproducible statistical evidence, calibrated probability estimates and market ranking from approved artifacts and read-only data.
-model: google-vertex/gemini-3.5-flash-flex-high
 temperature: 0.12
 steps: 12
 permission:

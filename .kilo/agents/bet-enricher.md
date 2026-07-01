@@ -1,7 +1,6 @@
 ---
 mode: subagent
 description: Phase D S2.3-S2.6 specialist for missing-data detection, bounded enrichment and source-quality grading. Never fills gaps by inference.
-model: google-vertex/gemini-3.5-flash-flex-high
 temperature: 0.12
 steps: 14
 permission:

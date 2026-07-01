@@ -1,7 +1,6 @@
 ---
 mode: subagent
 description: Phase D S7 adversarial reviewer for contradiction discovery, stale-context risk, correlated evidence, hidden assumptions and explicit PASS/FAIL gate verdicts.
-model: google-vertex/gemini-3.5-flash-flex-high
 temperature: 0.18
 steps: 10
 permission:

@@ -1,7 +1,6 @@
 ---
 mode: subagent
 description: Phase B specialist for S1e event discovery, fixture identity verification, competition/time-window coverage and shortlist completeness using current sources.
-model: google-vertex/gemini-3.5-flash-flex-high
 temperature: 0.15
 steps: 14
 permission:

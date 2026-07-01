@@ -1,7 +1,6 @@
 ---
 mode: subagent
 description: Repair specialist invoked only after two bounded failures. Diagnoses scripts/runtime, uses certified fixture operations, and returns BLOCKED when mutation is required.
-model: google-vertex/gemini-3.5-flash-flex-high
 temperature: 0.08
 steps: 14
 permission:

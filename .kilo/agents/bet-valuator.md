@@ -1,7 +1,6 @@
 ---
 mode: subagent
 description: Phase D S3-S5 specialist for timestamped odds validation, implied probability, margin removal, EV, drift, CLV and bounded Kelly sizing.
-model: google-vertex/gemini-3.5-flash-flex-high
 temperature: 0.1
 steps: 12
 permission:
