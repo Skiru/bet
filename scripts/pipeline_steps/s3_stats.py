@@ -43,7 +43,6 @@ SHORTLIST_GLOB_PATTERNS = (
     "*_s2_shortlist.json",
     "*s2*shortlist*.json",
     "*shortlist*.json",
-    "*candidate*.json",
 )
 BLOCKED_REASON_PATTERNS: tuple[tuple[str, str], ...] = (
     (r"BLOCKED_S3_SHORTLIST_MISSING", "BLOCKED_S3_SHORTLIST_MISSING"),

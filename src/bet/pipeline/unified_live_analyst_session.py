@@ -1203,21 +1203,47 @@ def _iter_json_objects(value: Any) -> Iterable[dict[str, Any]]:
             yield from _iter_json_objects(item)
 
 
+def _extract_handoff_candidates(content: Any) -> list[dict[str, Any]]:
+    if not isinstance(content, dict) or content.get("artifact_type") != "ANALYTICAL_CANDIDATE_HANDOFF":
+        return []
+    candidates: list[dict[str, Any]] = []
+    for key in (
+        "analytical_ready",
+        "review_only_partial_data",
+        "research_gap_minimal_hydration",
+        "blocked_probability_missing",
+        "blocked_stats_missing",
+        "blocked_identity_missing",
+        "priced_candidates",
+    ):
+        value = content.get(key)
+        if not isinstance(value, list):
+            continue
+        for item in value:
+            if isinstance(item, dict):
+                candidates.append(item)
+    return candidates
+
+
 def load_candidates_from_path(path: Path) -> list[dict[str, Any]]:
     candidates: list[dict[str, Any]] = []
     if path.is_file() and path.suffix.lower() == ".json":
         try:
-            candidates.extend(_iter_json_objects(json.loads(path.read_text(encoding="utf-8"))))
+            content = json.loads(path.read_text(encoding="utf-8"))
         except Exception:
             return candidates
+        candidates.extend(_extract_handoff_candidates(content))
+        candidates.extend(_iter_json_objects(content))
     elif path.is_dir():
         for p in sorted(path.rglob("*.json")):
             if "manual_superbet_operator_quotes" in p.name:
                 continue
             try:
-                candidates.extend(_iter_json_objects(json.loads(p.read_text(encoding="utf-8"))))
+                content = json.loads(p.read_text(encoding="utf-8"))
             except Exception:
                 continue
+            candidates.extend(_extract_handoff_candidates(content))
+            candidates.extend(_iter_json_objects(content))
     seen: set[str] = set()
     unique: list[dict[str, Any]] = []
     for c in candidates:

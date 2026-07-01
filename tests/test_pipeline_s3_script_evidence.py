@@ -8,6 +8,7 @@ import sys
 from contextlib import redirect_stdout
 from pathlib import Path
 from unittest.mock import patch
+from uuid import uuid4
 
 import pytest
 
@@ -16,7 +17,7 @@ from scripts.pipeline_steps import s3_stats
 
 
 def _runtime_environ(tmp_path: Path) -> dict[str, str]:
-    run_root = Path("/tmp") / f"bet-s3-evidence-{tmp_path.name}"
+    run_root = Path("/tmp") / f"bet-s3-evidence-{tmp_path.name}-{uuid4().hex[:8]}"
     return {
         "BET_PIPELINE_RUNTIME_MODE": "DRY_RUN",
         "BET_PIPELINE_BETTING_DAY": "2026-06-25",
