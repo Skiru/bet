@@ -17,6 +17,9 @@ import { dirname, extname, join, normalize, relative, resolve } from "node:path"
 
 const AUDIT_DIR = "reports/agent-config/artifact-writer-audit"
 const MAX_CONTENT_BYTES = 256 * 1024
+const SCHEMA_VERSION = 2
+const TOOL_NAME = "bet_artifact_write"
+const PLUGIN_VERSION = "pipeline-runs-allowlist-a1a00ff"
 const PHASE_HANDOFFS = new Set([
   ".kilo/state/phase-A-handoff.md",
   ".kilo/state/phase-B-handoff.md",
@@ -25,6 +28,13 @@ const PHASE_HANDOFFS = new Set([
   ".kilo/state/phase-E-handoff.md",
 ])
 const REPORT_ROOTS = ["reports/betting-demo", "reports/betting", "reports/pipeline_runs"]
+const SECURITY_CAPABILITIES = {
+  path_traversal_blocked: true,
+  secret_detection_enabled: true,
+  json_validation_enabled: true,
+  extension_validation_enabled: true,
+  cas_overwrite_protection_enabled: true,
+}
 const CONTENT_TYPE_EXTENSION: Record<"markdown" | "json", ".md" | ".json"> = {
   markdown: ".md",
   json: ".json",
@@ -59,6 +69,11 @@ type ErrorCode =
 
 interface WriteResult {
   schema_version: number
+  tool: string
+  plugin_version: string
+  allowed_report_roots: string[]
+  supports_reports_pipeline_runs: boolean
+  security: typeof SECURITY_CAPABILITIES
   status: ResultStatus
   error_code: ErrorCode
   request_id: string
@@ -90,7 +105,7 @@ interface AuditEntry {
 }
 
 function makeResult(input: Omit<WriteResult, "schema_version">): WriteResult {
-  return { schema_version: 1, ...input }
+  return { schema_version: SCHEMA_VERSION, ...input }
 }
 
 function computeSha256(content: string): string {
@@ -264,6 +279,11 @@ export default tool({
       await throwIfAborted(context.abort)
     } catch {
       return finalize(makeResult({
+        tool: TOOL_NAME,
+        plugin_version: PLUGIN_VERSION,
+        allowed_report_roots: [...REPORT_ROOTS],
+        supports_reports_pipeline_runs: REPORT_ROOTS.includes("reports/pipeline_runs"),
+        security: SECURITY_CAPABILITIES,
         status: "cancelled",
         error_code: "CAPABILITY_CANCELLED",
         request_id: requestId,
@@ -279,6 +299,11 @@ export default tool({
     const bytes = Buffer.byteLength(args.content, "utf8")
     if (bytes > MAX_CONTENT_BYTES) {
       return finalize(makeResult({
+        tool: TOOL_NAME,
+        plugin_version: PLUGIN_VERSION,
+        allowed_report_roots: [...REPORT_ROOTS],
+        supports_reports_pipeline_runs: REPORT_ROOTS.includes("reports/pipeline_runs"),
+        security: SECURITY_CAPABILITIES,
         status: "invalid_request",
         error_code: "CONTENT_TOO_LARGE",
         request_id: requestId,
@@ -293,6 +318,11 @@ export default tool({
 
     if (isBinaryLike(args.content)) {
       return finalize(makeResult({
+        tool: TOOL_NAME,
+        plugin_version: PLUGIN_VERSION,
+        allowed_report_roots: [...REPORT_ROOTS],
+        supports_reports_pipeline_runs: REPORT_ROOTS.includes("reports/pipeline_runs"),
+        security: SECURITY_CAPABILITIES,
         status: "invalid_request",
         error_code: "CONTENT_BINARY",
         request_id: requestId,
@@ -307,6 +337,11 @@ export default tool({
 
     if (containsSecrets(args.content)) {
       return finalize(makeResult({
+        tool: TOOL_NAME,
+        plugin_version: PLUGIN_VERSION,
+        allowed_report_roots: [...REPORT_ROOTS],
+        supports_reports_pipeline_runs: REPORT_ROOTS.includes("reports/pipeline_runs"),
+        security: SECURITY_CAPABILITIES,
         status: "blocked",
         error_code: "CONTENT_SECRET_DETECTED",
         request_id: requestId,
@@ -324,6 +359,11 @@ export default tool({
         JSON.parse(args.content)
       } catch {
         return finalize(makeResult({
+          tool: TOOL_NAME,
+          plugin_version: PLUGIN_VERSION,
+          allowed_report_roots: [...REPORT_ROOTS],
+          supports_reports_pipeline_runs: REPORT_ROOTS.includes("reports/pipeline_runs"),
+          security: SECURITY_CAPABILITIES,
           status: "invalid_request",
           error_code: "CONTENT_INVALID_JSON",
           request_id: requestId,
@@ -340,6 +380,11 @@ export default tool({
     const validated = validatePath(args.path, repoRoot, contentType)
     if (!validated.ok) {
       return finalize(makeResult({
+        tool: TOOL_NAME,
+        plugin_version: PLUGIN_VERSION,
+        allowed_report_roots: [...REPORT_ROOTS],
+        supports_reports_pipeline_runs: REPORT_ROOTS.includes("reports/pipeline_runs"),
+        security: SECURITY_CAPABILITIES,
         status: "blocked",
         error_code: validated.code,
         request_id: requestId,
@@ -360,6 +405,11 @@ export default tool({
     const parentReal = realpathSync(parentDir)
     if (!parentReal.startsWith(repoReal)) {
       return finalize(makeResult({
+        tool: TOOL_NAME,
+        plugin_version: PLUGIN_VERSION,
+        allowed_report_roots: [...REPORT_ROOTS],
+        supports_reports_pipeline_runs: REPORT_ROOTS.includes("reports/pipeline_runs"),
+        security: SECURITY_CAPABILITIES,
         status: "blocked",
         error_code: "PATH_SYMLINK_ESCAPE",
         request_id: requestId,
@@ -384,6 +434,11 @@ export default tool({
       const status: ResultStatus = code === "CAPABILITY_CANCELLED" ? "cancelled" : "failed"
       const message = code === "CAPABILITY_CANCELLED" ? "Request cancelled before lock acquisition" : "Another write is already in progress for this path"
       return finalize(makeResult({
+        tool: TOOL_NAME,
+        plugin_version: PLUGIN_VERSION,
+        allowed_report_roots: [...REPORT_ROOTS],
+        supports_reports_pipeline_runs: REPORT_ROOTS.includes("reports/pipeline_runs"),
+        security: SECURITY_CAPABILITIES,
         status,
         error_code: code,
         request_id: requestId,
@@ -406,6 +461,11 @@ export default tool({
       if (targetStat) {
         if (targetStat.isSymbolicLink()) {
           return finalize(makeResult({
+            tool: TOOL_NAME,
+            plugin_version: PLUGIN_VERSION,
+            allowed_report_roots: [...REPORT_ROOTS],
+            supports_reports_pipeline_runs: REPORT_ROOTS.includes("reports/pipeline_runs"),
+            security: SECURITY_CAPABILITIES,
             status: "blocked",
             error_code: "PATH_SYMLINK_ESCAPE",
             request_id: requestId,
@@ -422,6 +482,11 @@ export default tool({
 
       if (args.create_only && existed) {
         return finalize(makeResult({
+          tool: TOOL_NAME,
+          plugin_version: PLUGIN_VERSION,
+          allowed_report_roots: [...REPORT_ROOTS],
+          supports_reports_pipeline_runs: REPORT_ROOTS.includes("reports/pipeline_runs"),
+          security: SECURITY_CAPABILITIES,
           status: "failed",
           error_code: "EXISTS_CREATE_ONLY",
           request_id: requestId,
@@ -436,6 +501,11 @@ export default tool({
 
       if (!args.create_only && existed && !args.expected_sha256) {
         return finalize(makeResult({
+          tool: TOOL_NAME,
+          plugin_version: PLUGIN_VERSION,
+          allowed_report_roots: [...REPORT_ROOTS],
+          supports_reports_pipeline_runs: REPORT_ROOTS.includes("reports/pipeline_runs"),
+          security: SECURITY_CAPABILITIES,
           status: "failed",
           error_code: "EXPECTED_HASH_REQUIRED",
           request_id: requestId,
@@ -450,6 +520,11 @@ export default tool({
 
       if (existed && args.expected_sha256 && args.expected_sha256 !== previousSha256) {
         return finalize(makeResult({
+          tool: TOOL_NAME,
+          plugin_version: PLUGIN_VERSION,
+          allowed_report_roots: [...REPORT_ROOTS],
+          supports_reports_pipeline_runs: REPORT_ROOTS.includes("reports/pipeline_runs"),
+          security: SECURITY_CAPABILITIES,
           status: "failed",
           error_code: "EXPECTED_HASH_MISMATCH",
           request_id: requestId,
@@ -468,6 +543,11 @@ export default tool({
       renameSync(tempPath, validated.absolute)
 
       const result = makeResult({
+        tool: TOOL_NAME,
+        plugin_version: PLUGIN_VERSION,
+        allowed_report_roots: [...REPORT_ROOTS],
+        supports_reports_pipeline_runs: REPORT_ROOTS.includes("reports/pipeline_runs"),
+        security: SECURITY_CAPABILITIES,
         status: "success",
         error_code: "NONE",
         request_id: requestId,
@@ -483,6 +563,11 @@ export default tool({
       if (existsSync(tempPath)) rmSync(tempPath, { force: true })
       const cancelled = error instanceof Error && error.message === "CAPABILITY_CANCELLED"
       return finalize(makeResult({
+        tool: TOOL_NAME,
+        plugin_version: PLUGIN_VERSION,
+        allowed_report_roots: [...REPORT_ROOTS],
+        supports_reports_pipeline_runs: REPORT_ROOTS.includes("reports/pipeline_runs"),
+        security: SECURITY_CAPABILITIES,
         status: cancelled ? "cancelled" : "failed",
         error_code: cancelled ? "CAPABILITY_CANCELLED" : "WRITE_FAILED",
         request_id: requestId,

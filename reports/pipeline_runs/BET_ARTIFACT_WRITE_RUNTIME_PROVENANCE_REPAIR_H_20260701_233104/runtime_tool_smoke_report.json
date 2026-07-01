@@ -1,0 +1,24 @@
+{
+  "task_id": "BET_ARTIFACT_WRITE_RUNTIME_PROVENANCE_REPAIR_H",
+  "run_id": "BET_ARTIFACT_WRITE_RUNTIME_PROVENANCE_REPAIR_H_20260701_233104",
+  "live_tool_smoke": "FAIL",
+  "tool": "bet_artifact_write",
+  "path": "reports/pipeline_runs/TODAY_ORCHESTRATED_SESSION_J1_SCANNER_SCOUT_20260701_105101/artifact_writer_runtime_canary.json",
+  "content_type": "json",
+  "response": {
+    "schema_version": 1,
+    "status": "blocked",
+    "error_code": "PATH_NOT_ALLOWED",
+    "request_id": "art-7da81f8c-688c-4e35-bff2-a0a59349ddc2",
+    "path": null,
+    "bytes_written": 0,
+    "sha256": null,
+    "created": false,
+    "overwritten": false,
+    "error": "Path is outside approved artifact roots"
+  },
+  "supports_reports_pipeline_runs": false,
+  "has_plugin_version_field": false,
+  "has_allowed_report_roots_field": false,
+  "interpretation": "Current live runtime is still serving the legacy artifact writer response shape and legacy allowlist behavior."
+}

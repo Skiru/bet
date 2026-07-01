@@ -1,0 +1,111 @@
+{
+  "task_id": "BET_ARTIFACT_WRITE_RUNTIME_PROVENANCE_REPAIR_H",
+  "run_id": "BET_ARTIFACT_WRITE_RUNTIME_PROVENANCE_REPAIR_H_20260701_233104",
+  "base_sha": "a1a00ff04352addaec063ae1c5821cb47cb218fc",
+  "cwd": "/Users/mkoziol/projects/bet",
+  "git_worktree_root": "/Users/mkoziol/projects/bet",
+  "kilo_pure_present": false,
+  "duplicate_artifact_writer_detected": true,
+  "global_stale_artifact_writer_detected": false,
+  "actual_path_malformed": false,
+  "inventory": [
+    {
+      "path": ".kilo/plugin/bet_artifact_write.ts",
+      "exists": true,
+      "contains_reports_pipeline_runs": true,
+      "report_roots_detected": [
+        "reports/betting-demo",
+        "reports/betting",
+        "reports/pipeline_runs"
+      ],
+      "plugin_id_or_tool_name_if_detectable": "bet_artifact_write",
+      "likely_load_order": "project_plugin_dir",
+      "risk": "DUPLICATE_TOOL"
+    },
+    {
+      "path": ".kilo/tool/bet_artifact_write.ts",
+      "exists": true,
+      "contains_reports_pipeline_runs": false,
+      "report_roots_detected": [
+        "reports/betting-demo",
+        "reports/betting"
+      ],
+      "plugin_id_or_tool_name_if_detectable": "bet_artifact_write",
+      "likely_load_order": "unknown",
+      "risk": "ACTIVE_STALE_PLUGIN"
+    },
+    {
+      "path": ".kilocode/plugin/bet_artifact_write.ts",
+      "exists": false,
+      "contains_reports_pipeline_runs": false,
+      "report_roots_detected": [],
+      "plugin_id_or_tool_name_if_detectable": "unknown",
+      "likely_load_order": "unknown",
+      "risk": "OK"
+    },
+    {
+      "path": "~/.config/kilo/plugin/",
+      "exists": false,
+      "contains_reports_pipeline_runs": false,
+      "report_roots_detected": [],
+      "plugin_id_or_tool_name_if_detectable": "unknown",
+      "likely_load_order": "global_plugin_dir",
+      "risk": "OK"
+    },
+    {
+      "path": "~/.config/kilo/plugins/",
+      "exists": false,
+      "contains_reports_pipeline_runs": false,
+      "report_roots_detected": [],
+      "plugin_id_or_tool_name_if_detectable": "unknown",
+      "likely_load_order": "global_plugin_dir",
+      "risk": "OK"
+    },
+    {
+      "path": "~/.config/kilo/kilo.json",
+      "exists": true,
+      "contains_reports_pipeline_runs": false,
+      "report_roots_detected": [],
+      "plugin_id_or_tool_name_if_detectable": "no direct bet_artifact_write registration found",
+      "likely_load_order": "global_config",
+      "risk": "OK"
+    },
+    {
+      "path": "~/.config/kilo/kilo.jsonc",
+      "exists": true,
+      "contains_reports_pipeline_runs": false,
+      "report_roots_detected": [],
+      "plugin_id_or_tool_name_if_detectable": "no direct bet_artifact_write registration found",
+      "likely_load_order": "global_config",
+      "risk": "OK"
+    },
+    {
+      "path": "configs/kilo/kilo.jsonc",
+      "exists": true,
+      "contains_reports_pipeline_runs": false,
+      "report_roots_detected": [],
+      "plugin_id_or_tool_name_if_detectable": "no direct bet_artifact_write registration found",
+      "likely_load_order": "project_config",
+      "risk": "OK"
+    },
+    {
+      "path": ".implementation/kilo_rapidmlx_production_v2/kilo.jsonc",
+      "exists": true,
+      "contains_reports_pipeline_runs": false,
+      "report_roots_detected": [],
+      "plugin_id_or_tool_name_if_detectable": "no direct bet_artifact_write registration found",
+      "likely_load_order": "project_config",
+      "risk": "OK"
+    }
+  ],
+  "live_tool_smoke_observation": {
+    "path": "reports/pipeline_runs/TODAY_ORCHESTRATED_SESSION_J1_SCANNER_SCOUT_20260701_105101/artifact_writer_runtime_canary.json",
+    "status": "blocked",
+    "error_code": "PATH_NOT_ALLOWED",
+    "schema_version": 1,
+    "has_plugin_version_field": false,
+    "supports_reports_pipeline_runs": false
+  },
+  "most_likely_active_source": ".kilo/tool/bet_artifact_write.ts",
+  "conclusion": "Project plugin source is updated, but a duplicate same-name project tool still exposes the old allowlist and the current live session is serving the legacy schema/behavior."
+}
