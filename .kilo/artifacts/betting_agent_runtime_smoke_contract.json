@@ -1,0 +1,26 @@
+{
+  "contract_name": "betting_agent_runtime_smoke_contract",
+  "smoke_types": {
+    "PRIMARY_AGENT_CONFIG_SMOKE": {
+      "applies_to": ["bet-orchestrator"],
+      "subagent_launch_required": false,
+      "config_only_pass_allowed": true
+    },
+    "DELEGATED_SUBAGENT_LAUNCH_SMOKE": {
+      "requires_delegated_launch": true,
+      "requires_role_local_artifact": true,
+      "accepted_inheritance_proof_modes": ["PROVEN_BY_RUNTIME", "PASS_BY_CONTRACT"]
+    },
+    "DIRECT_ROLE_SMOKE": {
+      "can_prove_launch": true,
+      "can_prove_artifact": true,
+      "can_prove_inheritance_alone": false
+    }
+  },
+  "hard_failures": [
+    "ProviderModelNotFoundError",
+    "silent_fallback_detected",
+    "explicit_conflicting_override",
+    "missing_role_local_artifact_for_delegated_smoke"
+  ]
+}

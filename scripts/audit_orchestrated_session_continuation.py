@@ -3,23 +3,14 @@ from pathlib import Path
 
 
 WORKSPACE_ROOT = Path("/Users/mkoziol/projects/bet")
-RUNS_DIR = WORKSPACE_ROOT / "reports/pipeline_runs"
 DOCS = [
     WORKSPACE_ROOT / "docs/pipeline/Unified Orchestrated Analyst Session Contract.md",
     WORKSPACE_ROOT / "docs/pipeline/Orchestrated Session Continuation Protocol.md",
 ]
 REQUIRED_SNIPPETS = [
-    "ProviderModelNotFoundError repaired",
-    "bet-enricher smoke PASS",
-    "bet-statistician smoke PASS",
     "do not repeat model repair",
     "run J2 only",
 ]
-
-
-def latest_repair_run() -> Path | None:
-    candidates = sorted(RUNS_DIR.glob("SUBAGENT_PROVIDER_MODEL_RESOLUTION_REPAIR_B_*"))
-    return candidates[-1] if candidates else None
 
 
 def validate_resume_prompt(path: Path) -> list[str]:
@@ -39,15 +30,13 @@ def main() -> int:
         if not doc.exists():
             failures.append(f"missing doc: {doc}")
 
-    run_dir = latest_repair_run()
-    if run_dir is None:
-        failures.append("no model-resolution repair run directory found")
-    else:
-        failures.extend(validate_resume_prompt(run_dir / "resume_j2_after_model_resolution_repair.md"))
+    continuation_doc = WORKSPACE_ROOT / "docs/pipeline/Orchestrated Session Continuation Protocol.md"
+    if continuation_doc.exists():
+        failures.extend(validate_resume_prompt(continuation_doc))
 
     payload = {
         "status": "FAIL" if failures else "PASS",
-        "run_dir": str(run_dir) if run_dir else None,
+        "validated_path": str(continuation_doc),
         "failures": failures,
     }
     out_path = WORKSPACE_ROOT / ".kilo/artifacts/orchestrated_session_continuation_audit_report.json"

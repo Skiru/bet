@@ -1,0 +1,12 @@
+{
+  "run_id": "AGENT_SYSTEM_BATTLE_TESTED_PRODUCTION_AUDIT_E_20260701_140823",
+  "pre_repair": true,
+  "issues": [
+    "required_betting_prompts_under_specified",
+    "missing_exact_schema_sections",
+    "missing_no_silent_omission_gate",
+    "missing_anti_loop_step_budget_language",
+    "missing_builder_human_superbet_quote_guard",
+    "missing_explicit_valuator_ev_prerequisite_guard"
+  ]
+}
