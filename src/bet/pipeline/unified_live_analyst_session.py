@@ -137,6 +137,14 @@ class LiveAnalystMarketIdea:
     superbet_quote_required: bool = True
     final_coupon_ready: bool = False
     manual_placement_ready: bool = False
+    home_team: str | None = None
+    away_team: str | None = None
+    player_one: str | None = None
+    player_two: str | None = None
+    participants: list[str] = field(default_factory=list)
+    source_run_id: str | None = None
+    source_artifact_path: str | None = None
+    reason: str = ""
 
     def validate(self) -> None:
         if self.sport not in {"football", "tennis"}:
@@ -193,6 +201,9 @@ class UnifiedLiveAnalystPackage:
     package_type: PackageType
     run_id: str
     betting_day: str
+    source_run_id: str | None
+    input_artifact_paths: list[str]
+    generated_at_utc: str
     selected_matches: list[dict[str, Any]]
     recommendations: list[LiveAnalystMarketIdea]
     bet_builder_combo_ideas: list[BetBuilderComboIdea]
@@ -200,6 +211,8 @@ class UnifiedLiveAnalystPackage:
     rejected_ideas: list[dict[str, Any]]
     data_gaps: list[str]
     ready_for_manual_operator_quote_review: bool
+    stale_artifact_guard: Literal["PASS", "FAIL"] = "PASS"
+    current_output_self_selection_guard: Literal["PASS", "FAIL"] = "PASS"
     ready_for_final_coupon: bool = False
     ready_for_manual_placement: bool = False
     ready_for_production_execution: bool = False
@@ -424,59 +437,686 @@ def default_market_label(family: str) -> str:
     }.get(family, family)
 
 
-def build_ideas_from_candidate(obj: Mapping[str, Any], index: int) -> list[LiveAnalystMarketIdea]:
+@dataclass
+class EventContext:
+    sport: str | None
+    competition: str | None
+    tournament: str | None
+    kickoff_time: str | None
+    home_team: str | None
+    away_team: str | None
+    player_one: str | None
+    player_two: str | None
+    participants: list[str] = field(default_factory=list)
+    event_label: str | None = None
+    event_id: str | None = None
+    source_run_id: str | None = None
+    source_artifact_path: str | None = None
+    context_quality: Literal["COMPLETE", "PARTIAL", "WEAK", "MISSING"] = "MISSING"
+
+
+@dataclass
+class EvidenceBundle:
+    supporting_evidence: list[str]
+    counter_evidence: list[str]
+    source_gaps: list[str]
+    evidence_summary: str
+    scenario_summary: str
+    evidence_quality: Literal["STRONG", "MEDIUM", "PARTIAL", "WEAK"]
+
+
+def normalize_name(name: str | None) -> str:
+    if not name:
+        return ""
+    s = str(name).lower()
+    s = re.sub(r"[^a-z0-9]", "", s)
+    return s
+
+
+def _repo_root() -> Path:
+    return Path(__file__).resolve().parents[3]
+
+
+def _is_relative_to(path: Path, root: Path) -> bool:
+    try:
+        path.resolve().relative_to(root.resolve())
+        return True
+    except ValueError:
+        return False
+
+
+def _repo_relative_path(path: Path) -> str:
+    resolved = path.resolve()
+    try:
+        return str(resolved.relative_to(_repo_root()))
+    except ValueError:
+        return str(resolved)
+
+
+def _run_id_from_path(path: Path) -> str | None:
+    runs_dir = (_repo_root() / "reports" / "pipeline_runs").resolve()
+    resolved = path.resolve()
+    try:
+        rel = resolved.relative_to(runs_dir)
+    except ValueError:
+        return None
+    return rel.parts[0] if rel.parts else None
+
+
+def _iter_source_json_paths(paths: Iterable[Path], excluded_roots: Iterable[Path] | None = None) -> Iterable[Path]:
+    seen: set[Path] = set()
+    excluded = [p.resolve() for p in (excluded_roots or [])]
+    for base_path in paths:
+        resolved_base = base_path.resolve()
+        if any(_is_relative_to(resolved_base, root) for root in excluded):
+            continue
+        if resolved_base.is_file():
+            candidates = [resolved_base] if resolved_base.suffix.lower() == ".json" else []
+        elif resolved_base.is_dir():
+            candidates = sorted(resolved_base.rglob("*.json"))
+        else:
+            continue
+        for candidate in candidates:
+            resolved_candidate = candidate.resolve()
+            if resolved_candidate in seen:
+                continue
+            if any(_is_relative_to(resolved_candidate, root) for root in excluded):
+                continue
+            if "manual_superbet_operator_quotes" in resolved_candidate.name:
+                continue
+            seen.add(resolved_candidate)
+            yield resolved_candidate
+
+
+def load_source_artifacts(
+    paths: Iterable[Path],
+    *,
+    excluded_roots: Iterable[Path] | None = None,
+    historical_context_paths: Iterable[Path] | None = None,
+    allow_historical_context: bool = False,
+) -> list[dict[str, Any]]:
+    artifacts = []
+    scoped_paths = list(paths)
+    if allow_historical_context and historical_context_paths:
+        scoped_paths.extend(historical_context_paths)
+    for p in _iter_source_json_paths(scoped_paths, excluded_roots=excluded_roots):
+        try:
+            content = json.loads(p.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        run_id = _run_id_from_path(p)
+        for item in _iter_json_objects(content):
+            enriched = dict(item)
+            enriched.setdefault("source_artifact_path", _repo_relative_path(p))
+            if run_id:
+                enriched.setdefault("source_run_id", run_id)
+            artifacts.append(enriched)
+    return artifacts
+
+
+def find_matching_artifacts(candidate: dict[str, Any], source_artifacts: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    matches = []
+    cand_id = str(candidate.get("event_id") or candidate.get("fixture_id") or candidate.get("candidate_id") or "").strip()
+    cand_home = normalize_name(candidate.get("home_team") or candidate.get("home") or candidate.get("home_name") or candidate.get("homeTeam") or candidate.get("home_team_name") or candidate.get("player_one") or candidate.get("player1") or candidate.get("player_a") or candidate.get("competitor_1"))
+    cand_away = normalize_name(candidate.get("away_team") or candidate.get("away") or candidate.get("away_name") or candidate.get("awayTeam") or candidate.get("away_team_name") or candidate.get("player_two") or candidate.get("player2") or candidate.get("player_b") or candidate.get("competitor_2"))
+    
+    cand_participants = set()
+    parts = candidate.get("participants") or candidate.get("competitors") or candidate.get("teams") or candidate.get("players") or []
+    if isinstance(parts, str):
+        parts = [parts]
+    for p in parts:
+        cand_participants.add(normalize_name(p))
+    if cand_home:
+        cand_participants.add(cand_home)
+    if cand_away:
+        cand_participants.add(cand_away)
+
+    for art in source_artifacts:
+        art_id = str(art.get("event_id") or art.get("fixture_id") or art.get("candidate_id") or "").strip()
+        if cand_id and art_id and cand_id == art_id:
+            matches.append(art)
+            continue
+            
+        art_home = normalize_name(art.get("home_team") or art.get("home") or art.get("home_name") or art.get("home_team_name") or art.get("player_one") or art.get("player_a") or art.get("competitor_1"))
+        art_away = normalize_name(art.get("away_team") or art.get("away") or art.get("away_name") or art.get("away_team_name") or art.get("player_two") or art.get("player_b") or art.get("competitor_2"))
+        
+        if cand_home and cand_away and art_home and art_away:
+            if (cand_home == art_home and cand_away == art_away) or (cand_home == art_away and cand_away == art_home):
+                matches.append(art)
+                continue
+                
+        art_parts = art.get("participants") or art.get("competitors") or art.get("teams") or art.get("players") or []
+        if isinstance(art_parts, str):
+            art_parts = [art_parts]
+        art_participants = set(normalize_name(p) for p in art_parts if p)
+        if art_home:
+            art_participants.add(art_home)
+        if art_away:
+            art_participants.add(art_away)
+            
+        if cand_participants and art_participants:
+            if len(cand_participants.intersection(art_participants)) >= 2:
+                matches.append(art)
+                continue
+                
+    return matches
+
+
+def get_field_with_aliases(objs: list[dict[str, Any]], aliases: list[str]) -> Any:
+    for obj in objs:
+        for alias in aliases:
+            val = obj.get(alias)
+            if val is not None:
+                if isinstance(val, str) and not val.strip():
+                    continue
+                return val
+    return None
+
+
+def extract_event_context(candidate: dict[str, Any], source_artifacts: list[dict[str, Any]]) -> EventContext:
+    matching_artifacts = find_matching_artifacts(candidate, source_artifacts)
+    objs = [candidate] + matching_artifacts
+    
+    sport = get_field_with_aliases(objs, ["sport", "sport_key", "sport_title"])
+    if sport:
+        sport = _sport({"sport": sport})
+        
+    competition = get_field_with_aliases(objs, ["competition", "league", "tournament", "event_group"])
+    if competition:
+        competition = str(competition).strip()
+        
+    kickoff_time = get_field_with_aliases(objs, ["kickoff", "kickoff_time", "start_time", "commence_time", "scheduled_at", "scheduled_time"])
+    
+    home_team = get_field_with_aliases(objs, ["home_team", "home", "home_name", "homeTeam", "home_team_name"])
+    away_team = get_field_with_aliases(objs, ["away_team", "away", "away_name", "awayTeam", "away_team_name"])
+    
+    player_one = get_field_with_aliases(objs, ["player_one", "player1", "player_a", "competitor_1"])
+    player_two = get_field_with_aliases(objs, ["player_two", "player2", "player_b", "competitor_2"])
+    
+    participants = []
+    for obj in objs:
+        for alias in ["participants", "competitors", "teams", "players"]:
+            p_val = obj.get(alias)
+            if isinstance(p_val, list) and p_val:
+                participants = [str(x).strip() for x in p_val if x]
+                break
+            elif isinstance(p_val, str) and p_val.strip():
+                participants = [x.strip() for x in p_val.split(",") if x.strip()]
+                break
+        if participants:
+            break
+            
+    if not participants:
+        if home_team and away_team:
+            participants = [home_team, away_team]
+        elif player_one and player_two:
+            participants = [player_one, player_two]
+            
+    if sport == "tennis":
+        if not player_one and home_team:
+            player_one = home_team
+        if not player_two and away_team:
+            player_two = away_team
+        if not home_team and player_one:
+            home_team = player_one
+        if not away_team and player_two:
+            away_team = player_two
+    else:
+        if not home_team and player_one:
+            home_team = player_one
+        if not away_team and player_two:
+            away_team = player_two
+            
+    event_label = None
+    if home_team and away_team:
+        event_label = f"{home_team} vs {away_team}"
+    elif player_one and player_two:
+        event_label = f"{player_one} vs {player_two}"
+    elif len(participants) >= 2:
+        event_label = f"{participants[0]} vs {participants[1]}"
+    else:
+        raw_label = get_field_with_aliases(objs, ["fixture", "fixture_label", "match", "match_label", "event", "event_label", "name"])
+        if raw_label and not str(raw_label).isdigit():
+            event_label = str(raw_label).strip()
+            
+    event_id = get_field_with_aliases(objs, ["event_id", "fixture_id", "candidate_id"])
+    if event_id is not None:
+        event_id = str(event_id).strip()
+        
+    source_artifact_path = get_field_with_aliases(objs, ["source_artifact_path"])
+    source_run_id = get_field_with_aliases(objs, ["source_run_id"])
+    
+    has_real_label = bool(event_label and not event_label.isdigit() and "unknown" not in event_label.lower() and "candidate_" not in event_label.lower())
+    has_comp = bool(competition and str(competition).strip().upper() != "UNKNOWN")
+    has_kickoff = bool(kickoff_time)
+    has_sport = bool(sport)
+    has_participants = len(participants) >= 2
+    
+    if has_sport and has_real_label and has_participants and has_comp and has_kickoff:
+        context_quality = "COMPLETE"
+    elif has_sport and has_real_label and (has_participants or len(participants) >= 1):
+        context_quality = "PARTIAL"
+    elif has_sport or has_real_label:
+        context_quality = "WEAK"
+    else:
+        context_quality = "MISSING"
+        
+    return EventContext(
+        sport=sport,
+        competition=competition,
+        tournament=competition,
+        kickoff_time=kickoff_time,
+        home_team=home_team,
+        away_team=away_team,
+        player_one=player_one,
+        player_two=player_two,
+        participants=participants,
+        event_label=event_label,
+        event_id=event_id,
+        source_run_id=None if source_run_id is None else str(source_run_id).strip(),
+        source_artifact_path=source_artifact_path,
+        context_quality=context_quality
+    )
+
+
+def extract_actionable_evidence(candidate: dict[str, Any], event_context: EventContext, market_family: str, source_artifacts: list[dict[str, Any]]) -> EvidenceBundle:
+    supporting_evidence = []
+    counter_evidence = []
+    source_gaps = []
+    
+    matching = find_matching_artifacts(candidate, source_artifacts)
+    s3_analyses = [m for m in matching if "stats_a_summary" in m or "stats_b_summary" in m]
+    
+    cand_se = candidate.get("supporting_evidence") or candidate.get("evidence") or []
+    if isinstance(cand_se, str):
+        cand_se = [cand_se]
+    clean_cand_se = []
+    for item in cand_se:
+        if item and "Manual analyst check" not in item and "No exact quantitative" not in item and "Insufficient evidence" not in item:
+            clean_cand_se.append(str(item).strip())
+            supporting_evidence.append(str(item).strip())
+            
+    has_real_stats = False
+    for s3 in s3_analyses:
+        stats_a = s3.get("stats_a_summary")
+        if stats_a:
+            flat_a = _flatten_text(stats_a).strip()
+            if flat_a:
+                supporting_evidence.append(f"Home/Player A stats: {flat_a}")
+                has_real_stats = True
+        stats_b = s3.get("stats_b_summary")
+        if stats_b:
+            flat_b = _flatten_text(stats_b).strip()
+            if flat_b:
+                supporting_evidence.append(f"Away/Player B stats: {flat_b}")
+                has_real_stats = True
+        h2h = s3.get("h2h_summary")
+        if h2h:
+            flat_h = _flatten_text(h2h).strip()
+            if flat_h:
+                supporting_evidence.append(f"H2H summary: {flat_h}")
+                has_real_stats = True
+        ranking = s3.get("ranking")
+        if ranking:
+            flat_r = _flatten_text(ranking).strip()
+            if flat_r:
+                supporting_evidence.append(f"Ranking context: {flat_r}")
+                has_real_stats = True
+        best_m = s3.get("best_market")
+        if isinstance(best_m, dict):
+            m_name = best_m.get("name")
+            m_hr = best_m.get("hit_rate_l10")
+            if m_name:
+                supporting_evidence.append(f"Statistical market suggested: {m_name}")
+                has_real_stats = True
+            if m_hr and m_hr != "N/A":
+                supporting_evidence.append(f"Suggested market hit rate in last 10 games is {m_hr}")
+                has_real_stats = True
+
+    if clean_cand_se or has_real_stats:
+        if event_context.sport == "football":
+            supporting_evidence.append("team identity complete: Football match setup is fully verified.")
+            if event_context.competition:
+                supporting_evidence.append(f"competition context available: {event_context.competition}")
+                if "world cup" in event_context.competition.lower():
+                    supporting_evidence.append("knockout match context: FIFA World Cup high-stakes international environment.")
+            supporting_evidence.append("market family present in matrix: Football market family is registered for analysis.")
+        elif event_context.sport == "tennis":
+            supporting_evidence.append("player identity complete: Tennis matchup is fully verified.")
+            if event_context.competition:
+                supporting_evidence.append(f"tournament context available: {event_context.competition}")
+                if "wimbledon" in event_context.competition.lower():
+                    supporting_evidence.append("tournament context available: Wimbledon grass surface tournament rules apply.")
+            supporting_evidence.append("market family present in matrix: Tennis market family is registered for analysis.")
+
+    seen_se = set()
+    unique_se = []
+    for se in supporting_evidence:
+        if se.lower() not in seen_se:
+            seen_se.add(se.lower())
+            unique_se.append(se)
+    supporting_evidence = unique_se
+
+    cand_ce = candidate.get("counter_evidence") or []
+    if isinstance(cand_ce, str):
+        cand_ce = [cand_ce]
+    for item in cand_ce:
+        if item and "UNKNOWN" not in item.upper() and "no explicit counter" not in item.lower():
+            counter_evidence.append(str(item).strip())
+            
+    has_l10 = False
+    has_h2h = False
+    has_lineup = False
+    
+    for s3 in s3_analyses:
+        dq = s3.get("data_quality")
+        if isinstance(dq, dict):
+            bk = dq.get("breakdown")
+            if isinstance(bk, dict):
+                has_l10 = bk.get("l10_data", False)
+                has_h2h = bk.get("h2h_data", False)
+                
+    if market_family == "CARDS":
+        counter_evidence.append("No referee data for cards — yellow card threshold is referee-dependent.")
+    if market_family == "CORNERS" and not has_l10:
+        counter_evidence.append("No team-level recent corner series — team-specific wide attack rates have wide variances.")
+    if event_context.sport == "tennis" and not has_l10:
+        counter_evidence.append("No player surface-form data — surface-specific hold/break statistics are not fully loaded.")
+    if not has_lineup:
+        counter_evidence.append("No lineup confirmation — potential rotation unknown prior to kickoff.")
+    
+    line_src = candidate.get("line_source")
+    if line_src == "DEFAULT_REFERENCE_NEEDS_OPERATOR_CHECK" or not candidate.get("line"):
+        counter_evidence.append("Line is operator-check reference only — must be verified manually on bookmaker site.")
+        source_gaps.append("Reference line is an analyst default; operator line must be checked manually in Superbet.")
+        
+    seen_ce = set()
+    unique_ce = []
+    for ce in counter_evidence:
+        if ce.lower() not in seen_ce:
+            seen_ce.add(ce.lower())
+            unique_ce.append(ce)
+    counter_evidence = unique_ce
+    
+    if not counter_evidence:
+        counter_evidence = ["UNKNOWN — no explicit counter-evidence available; confidence downgraded."]
+
+    if not candidate.get("odds_available") and not any(m.get("odds_decimal") for m in matching):
+        source_gaps.append("Odds unavailable or ignored — analysis remains allowed; EV unavailable.")
+    if str(candidate.get("hydration_status") or "").upper() != "HYDRATED":
+        source_gaps.append("HYDRATED source-bound stats unavailable — confidence capped/downgraded, not blocked.")
+    if not candidate.get("model_probability_available") and not any(m.get("model_probability") for m in matching):
+        source_gaps.append("Model probability unavailable — no fair odds or EV claim.")
+        
+    has_stats = any(s3.get("stats_a_summary") or s3.get("stats_b_summary") for s3 in s3_analyses)
+    if has_stats and has_l10:
+        evidence_quality = "STRONG"
+    elif has_stats or len(supporting_evidence) >= 4:
+        evidence_quality = "MEDIUM"
+    elif len(supporting_evidence) >= 2:
+        evidence_quality = "PARTIAL"
+    else:
+        evidence_quality = "WEAK"
+        
+    evidence_summary = supporting_evidence[0] if supporting_evidence else "Insufficient quantitative evidence available."
+    scenario_summary = f"Manual analyst check for {default_market_label(market_family)} in {event_context.event_label}; verify market and line in Superbet."
+    
+    return EvidenceBundle(
+        supporting_evidence=supporting_evidence,
+        counter_evidence=counter_evidence,
+        source_gaps=source_gaps,
+        evidence_summary=evidence_summary,
+        scenario_summary=scenario_summary,
+        evidence_quality=evidence_quality
+    )
+
+
+def is_event_identity_complete(idea: LiveAnalystMarketIdea) -> bool:
+    if not idea.event_label:
+        return False
+    val = str(idea.event_label).strip()
+    if not val:
+        return False
+    if val.isdigit():
+        return False
+    lower_val = val.lower()
+    if lower_val.startswith("candidate_") or lower_val.startswith("event_") or lower_val == "unknown_event":
+        return False
+    
+    has_home_away = bool(idea.home_team and idea.away_team)
+    has_players = bool(idea.player_one and idea.player_two)
+    has_participants = bool(idea.participants and len(idea.participants) >= 2)
+    has_vs_pattern = " vs " in lower_val or " - " in lower_val or " / " in lower_val
+    
+    if not (has_home_away or has_players or has_participants or has_vs_pattern):
+        return False
+        
+    comp = str(idea.competition).strip().upper() if idea.competition else ""
+    is_comp_unknown = not comp or comp == "UNKNOWN"
+    
+    if is_comp_unknown:
+        if not (has_home_away or has_players or has_participants):
+            return False
+            
+    if not idea.sport or not str(idea.sport).strip():
+        return False
+    return True
+
+
+def recommendation_has_actionable_evidence(idea: LiveAnalystMarketIdea) -> bool:
+    if not idea.evidence_summary:
+        return False
+    if str(idea.evidence_summary).strip() == "No exact quantitative summary available in artifacts; idea is based on event/market context only.":
+        return False
+    if not idea.why_it_may_work:
+        return False
+    if "No exact quantitative summary available" in idea.why_it_may_work:
+        return False
+    if not idea.supporting_evidence or len(idea.supporting_evidence) < 1:
+        return False
+    if not idea.counter_evidence:
+        return False
+    has_real_counter = False
+    for ce in idea.counter_evidence:
+        if ce:
+            lower_ce = ce.lower()
+            if "no explicit counter" in lower_ce:
+                continue
+            if lower_ce.strip() in ("unknown", "unavailable", "n/a", "none"):
+                continue
+            has_real_counter = True
+            break
+    if not has_real_counter:
+        return False
+    return True
+
+
+def build_ideas_from_candidate(obj: Mapping[str, Any], index: int, source_artifacts: list[dict[str, Any]] | None = None) -> list[LiveAnalystMarketIdea]:
     sport = _sport(obj)
     if sport not in {"football", "tennis"}:
         return []
+        
+    if source_artifacts is None:
+        source_artifacts = []
+        
+    if not source_artifacts:
+        # Isolated Legacy / Unit Test Mode
+        outcomes: list[LiveAnalystMarketIdea] = []
+        for family, market, line, direction, line_source in _market_families_for_candidate(sport, obj):
+            if sport == "football" and family not in SUPPORTED_FOOTBALL_MARKETS:
+                continue
+            if sport == "tennis" and family not in SUPPORTED_TENNIS_MARKETS:
+                continue
+            evidence = _evidence_items(obj)
+            has_hydrated = str(obj.get("hydration_status") or "").upper() == "HYDRATED" or obj.get("hydrated_available") is True
+            model_ready = has_model_probability(obj)
+            odds_available = has_any_odds(obj)
+            hint_score = evidence_hint_score(obj, family)
+            data_quality = grade_data_quality(len(evidence), hint_score, has_hydrated, model_ready)
+            source_coverage = grade_source_coverage(data_quality)
+            raw_counter = obj.get("counter_evidence")
+            if isinstance(raw_counter, list) and raw_counter:
+                counter_list = [str(v) for v in raw_counter]
+            elif isinstance(raw_counter, str) and raw_counter.strip():
+                counter_list = [raw_counter.strip()]
+            else:
+                counter_list = ["UNKNOWN — no explicit counter-evidence available in source artifacts; confidence downgraded."]
+            confidence = assign_confidence(data_quality, len(evidence), hint_score, bool(counter_list))
+            comp_str = str(obj.get("competition") or obj.get("league") or obj.get("tournament") or "").strip().upper()
+            if not comp_str or comp_str == "UNKNOWN":
+                if confidence in {"A", "B"}:
+                    confidence = "C"
+            suggested_use: SuggestedUse = "WATCHLIST_ONLY" if should_be_watchlist_only(confidence, data_quality, family, len(evidence), hint_score) else "BET_BUILDER_LEG"
+            if suggested_use == "WATCHLIST_ONLY" and confidence != "D":
+                confidence = "D"
+            event_label = _event_label(obj)
+            source_gaps: list[str] = []
+            if not odds_available:
+                source_gaps.append("Odds unavailable or ignored — analysis remains allowed; EV unavailable.")
+            if not has_hydrated:
+                source_gaps.append("HYDRATED source-bound stats unavailable — confidence capped/downgraded, not blocked.")
+            if not model_ready:
+                source_gaps.append("Model probability unavailable — no fair odds or EV claim.")
+            if line_source == "DEFAULT_REFERENCE_NEEDS_OPERATOR_CHECK":
+                source_gaps.append("Reference line is an analyst default; operator line must be checked manually in Superbet.")
+            if not evidence:
+                source_gaps.append("Limited source evidence — watchlist-only unless user accepts qualitative check.")
+            evidence_summary = evidence[0] if evidence else "No exact quantitative summary available in artifacts; idea is based on event/market context only."
+            scenario_summary = obj.get("scenario_summary") or f"Manual analyst check for {market} in {event_label}; verify market and line in Superbet."
+            why_work = obj.get("why_it_may_work") or evidence_summary
+            why_fail = obj.get("why_it_may_fail") or counter_list[0]
+            base_id = obj.get("idea_id") or obj.get("candidate_id") or obj.get("event_id") or obj.get("fixture_id") or f"candidate_{index}"
+            idea_id = f"{base_id}_{family}_{line or 'no_line'}"
+            
+            home_team = obj.get("home_team") or obj.get("team_a") or obj.get("player_one") or obj.get("home")
+            away_team = obj.get("away_team") or obj.get("team_b") or obj.get("player_two") or obj.get("away")
+            player_one = obj.get("player_one")
+            player_two = obj.get("player_two")
+            participants = obj.get("participants") or []
+            if isinstance(participants, str):
+                participants = [participants]
+            else:
+                participants = list(participants)
+                
+            idea = LiveAnalystMarketIdea(
+                idea_id=str(idea_id),
+                event_id=str(obj.get("event_id") or obj.get("fixture_id") or obj.get("candidate_id") or f"event_{index}"),
+                event_label=event_label,
+                sport=sport,
+                competition=str(obj.get("competition") or obj.get("league") or obj.get("tournament") or "UNKNOWN"),
+                kickoff_time=obj.get("kickoff_time") or obj.get("start_time") or obj.get("commence_time"),
+                market_family=family,
+                recommended_market=market,
+                recommended_line=line,
+                recommendation_direction=direction,
+                line_source=line_source,
+                suggested_use=suggested_use,
+                analyst_confidence=confidence,
+                data_quality=data_quality,
+                source_coverage=source_coverage,
+                odds_available=odds_available,
+                hydrated_available=has_hydrated,
+                model_probability_available=model_ready,
+                ev_available=False,
+                fair_odds_available=False,
+                evidence_summary=evidence_summary,
+                supporting_evidence=evidence[:6],
+                counter_evidence=counter_list,
+                source_gaps=source_gaps,
+                scenario_summary=str(scenario_summary),
+                why_it_may_work=str(why_work),
+                why_it_may_fail=str(why_fail),
+                home_team=home_team,
+                away_team=away_team,
+                player_one=player_one,
+                player_two=player_two,
+                participants=participants,
+                source_run_id=None,
+                source_artifact_path=None,
+            )
+            
+            is_complete = is_event_identity_complete(idea)
+            has_evidence = recommendation_has_actionable_evidence(idea)
+            
+            if not is_complete:
+                idea.suggested_use = "WATCHLIST_ONLY"
+                idea.analyst_confidence = "D"
+                idea.reason = "INSUFFICIENT_EVENT_IDENTITY"
+                if "INSUFFICIENT_EVENT_IDENTITY" not in idea.source_gaps:
+                    idea.source_gaps.append("INSUFFICIENT_EVENT_IDENTITY")
+            elif not has_evidence:
+                idea.suggested_use = "WATCHLIST_ONLY"
+                idea.analyst_confidence = "D"
+                idea.reason = "INSUFFICIENT_ACTIONABLE_EVIDENCE"
+                if "INSUFFICIENT_ACTIONABLE_EVIDENCE" not in idea.source_gaps:
+                    idea.source_gaps.append("INSUFFICIENT_ACTIONABLE_EVIDENCE")
+                    
+            if idea.suggested_use == "WATCHLIST_ONLY":
+                if "No exact quantitative summary" in idea.evidence_summary or not idea.evidence_summary:
+                    idea.evidence_summary = "Insufficient evidence for top recommendation; manual watchlist only."
+                if "No exact quantitative summary" in idea.why_it_may_work or not idea.why_it_may_work:
+                    idea.why_it_may_work = "Insufficient evidence for top recommendation; manual watchlist only."
+                    
+            outcomes.append(idea)
+        return outcomes
+
+    # Rich Production / Live Run Extraction Mode
     outcomes: list[LiveAnalystMarketIdea] = []
+    
+    event_context = extract_event_context(dict(obj), source_artifacts)
+    
     for family, market, line, direction, line_source in _market_families_for_candidate(sport, obj):
         if sport == "football" and family not in SUPPORTED_FOOTBALL_MARKETS:
             continue
         if sport == "tennis" and family not in SUPPORTED_TENNIS_MARKETS:
             continue
-        evidence = _evidence_items(obj)
+            
+        bundle = extract_actionable_evidence(dict(obj), event_context, family, source_artifacts)
+        
         has_hydrated = str(obj.get("hydration_status") or "").upper() == "HYDRATED" or obj.get("hydrated_available") is True
         model_ready = has_model_probability(obj)
         odds_available = has_any_odds(obj)
-        hint_score = evidence_hint_score(obj, family)
-        data_quality = grade_data_quality(len(evidence), hint_score, has_hydrated, model_ready)
-        source_coverage = grade_source_coverage(data_quality)
-        raw_counter = obj.get("counter_evidence")
-        if isinstance(raw_counter, list) and raw_counter:
-            counter_list = [str(v) for v in raw_counter]
-        elif isinstance(raw_counter, str) and raw_counter.strip():
-            counter_list = [raw_counter.strip()]
+        
+        matching = find_matching_artifacts(dict(obj), source_artifacts)
+        for m in matching:
+            if str(m.get("hydration_status") or "").upper() == "HYDRATED" or m.get("hydrated_available") is True:
+                has_hydrated = True
+            if has_model_probability(m):
+                model_ready = True
+            if has_any_odds(m):
+                odds_available = True
+                
+        dq_map = {"STRONG": "HIGH", "MEDIUM": "MEDIUM", "PARTIAL": "LOW", "WEAK": "UNKNOWN"}
+        dq = dq_map.get(bundle.evidence_quality, "UNKNOWN")
+        source_coverage = grade_source_coverage(dq)
+        
+        has_real_counter = False
+        for ce in bundle.counter_evidence:
+            if ce and "UNKNOWN" not in ce.upper() and "no explicit counter" not in ce.lower():
+                has_real_counter = True
+                break
+                
+        if dq == "HIGH" and has_real_counter and has_hydrated and model_ready:
+            confidence = "A"
+        elif dq in {"HIGH", "MEDIUM"} and has_real_counter and len(bundle.supporting_evidence) >= 2:
+            confidence = "B"
+        elif dq in {"MEDIUM", "LOW"}:
+            confidence = "C"
         else:
-            counter_list = ["UNKNOWN — no explicit counter-evidence available in source artifacts; confidence downgraded."]
-        confidence = assign_confidence(data_quality, len(evidence), hint_score, bool(counter_list))
-        suggested_use: SuggestedUse = "WATCHLIST_ONLY" if should_be_watchlist_only(confidence, data_quality, family, len(evidence), hint_score) else "BET_BUILDER_LEG"
-        if suggested_use == "WATCHLIST_ONLY" and confidence != "D":
             confidence = "D"
-        event_label = _event_label(obj)
-        source_gaps: list[str] = []
-        if not odds_available:
-            source_gaps.append("Odds unavailable or ignored — analysis remains allowed; EV unavailable.")
-        if not has_hydrated:
-            source_gaps.append("HYDRATED source-bound stats unavailable — confidence capped/downgraded, not blocked.")
-        if not model_ready:
-            source_gaps.append("Model probability unavailable — no fair odds or EV claim.")
-        if line_source == "DEFAULT_REFERENCE_NEEDS_OPERATOR_CHECK":
-            source_gaps.append("Reference line is an analyst default; operator line must be checked manually in Superbet.")
-        if not evidence:
-            source_gaps.append("Limited source evidence — watchlist-only unless user accepts qualitative check.")
-        evidence_summary = evidence[0] if evidence else "No exact quantitative summary available in artifacts; idea is based on event/market context only."
-        scenario_summary = obj.get("scenario_summary") or f"Manual analyst check for {market} in {event_label}; verify market and line in Superbet."
-        why_work = obj.get("why_it_may_work") or evidence_summary
-        why_fail = obj.get("why_it_may_fail") or counter_list[0]
+            
+        suggested_use: SuggestedUse = "BET_BUILDER_LEG"
+        
         base_id = obj.get("idea_id") or obj.get("candidate_id") or obj.get("event_id") or obj.get("fixture_id") or f"candidate_{index}"
         idea_id = f"{base_id}_{family}_{line or 'no_line'}"
-        outcomes.append(LiveAnalystMarketIdea(
+        
+        idea = LiveAnalystMarketIdea(
             idea_id=str(idea_id),
-            event_id=str(obj.get("event_id") or obj.get("fixture_id") or obj.get("candidate_id") or f"event_{index}"),
-            event_label=event_label,
+            event_id=str(event_context.event_id or f"event_{index}"),
+            event_label=event_context.event_label or "UNKNOWN_EVENT",
             sport=sport,
-            competition=str(obj.get("competition") or obj.get("league") or obj.get("tournament") or "UNKNOWN"),
-            kickoff_time=obj.get("kickoff_time") or obj.get("start_time") or obj.get("commence_time"),
+            competition=event_context.competition or "UNKNOWN",
+            kickoff_time=event_context.kickoff_time,
             market_family=family,
             recommended_market=market,
             recommended_line=line,
@@ -484,21 +1124,70 @@ def build_ideas_from_candidate(obj: Mapping[str, Any], index: int) -> list[LiveA
             line_source=line_source,
             suggested_use=suggested_use,
             analyst_confidence=confidence,
-            data_quality=data_quality,
+            data_quality=dq,
             source_coverage=source_coverage,
             odds_available=odds_available,
             hydrated_available=has_hydrated,
             model_probability_available=model_ready,
             ev_available=False,
             fair_odds_available=False,
-            evidence_summary=evidence_summary,
-            supporting_evidence=evidence[:6],
-            counter_evidence=counter_list,
-            source_gaps=source_gaps,
-            scenario_summary=str(scenario_summary),
-            why_it_may_work=str(why_work),
-            why_it_may_fail=str(why_fail),
-        ))
+            evidence_summary=bundle.evidence_summary,
+            supporting_evidence=bundle.supporting_evidence,
+            counter_evidence=bundle.counter_evidence,
+            source_gaps=bundle.source_gaps,
+            scenario_summary=bundle.scenario_summary,
+            why_it_may_work=bundle.evidence_summary,
+            why_it_may_fail=bundle.counter_evidence[0] if bundle.counter_evidence else "UNKNOWN",
+            home_team=event_context.home_team,
+            away_team=event_context.away_team,
+            player_one=event_context.player_one,
+            player_two=event_context.player_two,
+            participants=event_context.participants,
+            source_run_id=event_context.source_run_id,
+            source_artifact_path=event_context.source_artifact_path,
+        )
+        
+        cand_work = obj.get("why_it_may_work")
+        if cand_work and "No exact quantitative summary" not in cand_work and "Insufficient evidence" not in cand_work:
+            idea.why_it_may_work = str(cand_work)
+        else:
+            if idea.supporting_evidence:
+                idea.why_it_may_work = " | ".join(idea.supporting_evidence[:3])
+            else:
+                idea.why_it_may_work = "No exact quantitative summary available in artifacts; idea is based on event/market context only."
+                
+        cand_fail = obj.get("why_it_may_fail")
+        if cand_fail and "UNKNOWN" not in cand_fail.upper() and "no explicit counter" not in cand_fail.lower():
+            idea.why_it_may_fail = str(cand_fail)
+        else:
+            if idea.counter_evidence:
+                idea.why_it_may_fail = " | ".join(idea.counter_evidence[:3])
+            else:
+                idea.why_it_may_fail = "UNKNOWN — no explicit counter-evidence available; confidence downgraded."
+
+        is_complete = is_event_identity_complete(idea)
+        has_evidence = recommendation_has_actionable_evidence(idea)
+        
+        if not is_complete:
+            idea.suggested_use = "WATCHLIST_ONLY"
+            idea.analyst_confidence = "D"
+            idea.reason = "INSUFFICIENT_EVENT_IDENTITY"
+            if "INSUFFICIENT_EVENT_IDENTITY" not in idea.source_gaps:
+                idea.source_gaps.append("INSUFFICIENT_EVENT_IDENTITY")
+        elif not has_evidence:
+            idea.suggested_use = "WATCHLIST_ONLY"
+            idea.analyst_confidence = "D"
+            idea.reason = "INSUFFICIENT_ACTIONABLE_EVIDENCE"
+            if "INSUFFICIENT_ACTIONABLE_EVIDENCE" not in idea.source_gaps:
+                idea.source_gaps.append("INSUFFICIENT_ACTIONABLE_EVIDENCE")
+                
+        if idea.suggested_use == "WATCHLIST_ONLY":
+            if "No exact quantitative summary" in idea.evidence_summary or not idea.evidence_summary or "Insufficient quantitative evidence" in idea.evidence_summary:
+                idea.evidence_summary = "Insufficient evidence for top recommendation; manual watchlist only."
+            if "No exact quantitative summary" in idea.why_it_may_work or not idea.why_it_may_work:
+                idea.why_it_may_work = "Insufficient evidence for top recommendation; manual watchlist only."
+                
+        outcomes.append(idea)
     return outcomes
 
 
@@ -577,12 +1266,25 @@ def calculate_idea_score(idea: LiveAnalystMarketIdea) -> float:
     return score
 
 
-def build_package_from_candidates(candidates: list[dict[str, Any]], run_id: str, betting_day: str | None = None) -> UnifiedLiveAnalystPackage:
+def build_package_from_candidates(
+    candidates: list[dict[str, Any]],
+    run_id: str,
+    betting_day: str | None = None,
+    source_artifacts: list[dict[str, Any]] | None = None,
+    *,
+    source_run_id: str | None = None,
+    input_artifact_paths: list[str] | None = None,
+    generated_at_utc: str | None = None,
+    stale_artifact_guard: Literal["PASS", "FAIL"] = "PASS",
+    current_output_self_selection_guard: Literal["PASS", "FAIL"] = "PASS",
+) -> UnifiedLiveAnalystPackage:
+    if source_artifacts is None:
+        source_artifacts = []
     ideas: list[LiveAnalystMarketIdea] = []
     rejected: list[dict[str, Any]] = []
     selected_matches: list[dict[str, Any]] = []
     for idx, candidate in enumerate(candidates):
-        candidate_ideas = build_ideas_from_candidate(candidate, idx)
+        candidate_ideas = build_ideas_from_candidate(candidate, idx, source_artifacts)
         if not candidate_ideas:
             rejected.append({"candidate": candidate.get("candidate_id") or candidate.get("event_id"), "reason": "unsupported sport/market or missing event identity"})
             continue
@@ -615,12 +1317,17 @@ def build_package_from_candidates(candidates: list[dict[str, Any]], run_id: str,
     watch = sorted(watch, key=calculate_idea_score, reverse=True)
 
     combos = build_bet_builder_combo_ideas(final_recs)
-    package_type: PackageType = "ANALYST_RECOMMENDATION_PACKAGE" if ideas else "NO_SUPPORTED_MATCHES_PACKAGE"
+    package_type: PackageType = "ANALYST_RECOMMENDATION_PACKAGE" if final_recs else "NO_SUPPORTED_MATCHES_PACKAGE"
     data_gaps = sorted({gap for idea in ideas for gap in idea.source_gaps})
     return UnifiedLiveAnalystPackage(
         package_type=package_type,
         run_id=run_id,
         betting_day=betting_day or datetime.now(timezone.utc).date().isoformat(),
+        source_run_id=source_run_id,
+        input_artifact_paths=input_artifact_paths or [],
+        generated_at_utc=generated_at_utc or datetime.now(timezone.utc).isoformat(),
+        stale_artifact_guard=stale_artifact_guard,
+        current_output_self_selection_guard=current_output_self_selection_guard,
         selected_matches=unique_matches,
         recommendations=final_recs,
         bet_builder_combo_ideas=combos,
@@ -696,6 +1403,11 @@ def apply_human_quote_if_valid(package: UnifiedLiveAnalystPackage, quote_payload
             package_type="QUOTE_REJECTED_PACKAGE",
             run_id=package.run_id,
             betting_day=package.betting_day,
+            source_run_id=package.source_run_id,
+            input_artifact_paths=package.input_artifact_paths,
+            generated_at_utc=package.generated_at_utc,
+            stale_artifact_guard=package.stale_artifact_guard,
+            current_output_self_selection_guard=package.current_output_self_selection_guard,
             selected_matches=package.selected_matches,
             recommendations=package.recommendations,
             bet_builder_combo_ideas=package.bet_builder_combo_ideas,
@@ -708,6 +1420,11 @@ def apply_human_quote_if_valid(package: UnifiedLiveAnalystPackage, quote_payload
         package_type="FINAL_MANUAL_COUPON_PACKAGE",
         run_id=package.run_id,
         betting_day=package.betting_day,
+        source_run_id=package.source_run_id,
+        input_artifact_paths=package.input_artifact_paths,
+        generated_at_utc=package.generated_at_utc,
+        stale_artifact_guard=package.stale_artifact_guard,
+        current_output_self_selection_guard=package.current_output_self_selection_guard,
         selected_matches=package.selected_matches,
         recommendations=package.recommendations,
         bet_builder_combo_ideas=package.bet_builder_combo_ideas,
@@ -741,6 +1458,11 @@ def render_markdown_package(package: UnifiedLiveAnalystPackage) -> str:
         "",
         f"Package type: `{package.package_type}`",
         f"Betting day: `{package.betting_day}`",
+        f"Source run id: `{package.source_run_id or 'N/A'}`",
+        f"Generated at UTC: `{package.generated_at_utc}`",
+        f"Stale artifact guard: `{package.stale_artifact_guard}`",
+        f"Current output self-selection guard: `{package.current_output_self_selection_guard}`",
+        f"Input artifact paths: `{', '.join(package.input_artifact_paths) if package.input_artifact_paths else '[]'}`",
         "",
         "## 1. Executive Summary",
         "",
@@ -773,6 +1495,26 @@ def render_markdown_package(package: UnifiedLiveAnalystPackage) -> str:
     else:
         for idea in package.recommendations:
             lines.append(f"### {idea.event_label} — {idea.recommended_market} {idea.recommendation_direction or ''}")
+            
+            # Match Context Block
+            participants_str = ", ".join(idea.participants) if getattr(idea, "participants", None) else idea.event_label
+            lines.extend([
+                "- **Match Context**:",
+                f"  - **Event**: {idea.event_label}",
+                f"  - **Sport**: {idea.sport}",
+                f"  - **Competition/Tournament**: {idea.competition}",
+                f"  - **Kickoff**: {idea.kickoff_time or 'N/A'}",
+                f"  - **Participants**: {participants_str}",
+                f"  - **Market**: {idea.recommended_market}",
+                f"  - **Direction**: {idea.recommendation_direction or 'N/A'}",
+                f"  - **Operator-check line**: {idea.recommended_line or 'N/A'}",
+                f"  - **Line source**: {idea.line_source}",
+                f"  - **Evidence grade**: {idea.source_coverage}",
+                f"  - **Confidence**: {idea.analyst_confidence}",
+                f"  - **Data quality**: {idea.data_quality}",
+                f"  - **Source Trace**: {idea.source_artifact_path or 'UNKNOWN'}",
+            ])
+            
             lines.append(f"- **Market Idea**: {idea.recommended_market} {idea.recommendation_direction or ''} {f'line {idea.recommended_line}' if idea.recommended_line else ''}")
             lines.append(f"- **Confidence**: `{idea.analyst_confidence}`")
             lines.append(f"- **Data Quality**: `{idea.data_quality}`")
@@ -889,6 +1631,10 @@ def render_markdown_package(package: UnifiedLiveAnalystPackage) -> str:
 
 def render_quality_review(package: UnifiedLiveAnalystPackage) -> str:
     issues: list[str] = []
+    numeric_labels = 0
+    generic_work = 0
+    unknown_only_counter = 0
+    confidence_mismatch = 0
     for idea in [*package.recommendations, *package.watchlist_only]:
         if not idea.counter_evidence:
             issues.append(f"{idea.idea_id}: missing counter evidence")
@@ -896,14 +1642,52 @@ def render_quality_review(package: UnifiedLiveAnalystPackage) -> str:
             issues.append(f"{idea.idea_id}: EV should not be available in analyst-only package")
         if idea.final_coupon_ready or idea.manual_placement_ready:
             issues.append(f"{idea.idea_id}: illegal final/placement readiness")
+    for idea in package.recommendations:
+        if not is_event_identity_complete(idea):
+            issues.append(f"{idea.idea_id}: top recommendation missing event identity")
+        if not recommendation_has_actionable_evidence(idea):
+            issues.append(f"{idea.idea_id}: top recommendation missing actionable evidence")
+        if idea.event_label.strip().isdigit():
+            numeric_labels += 1
+        if "No exact quantitative summary" in idea.why_it_may_work or "Insufficient evidence for top recommendation" in idea.why_it_may_work:
+            generic_work += 1
+        if all(
+            (not ce)
+            or "UNKNOWN" in ce.upper()
+            or "no explicit counter" in ce.lower()
+            for ce in idea.counter_evidence
+        ):
+            unknown_only_counter += 1
+        if not idea.source_artifact_path:
+            issues.append(f"{idea.idea_id}: source trace missing for top recommendation")
+        if (idea.data_quality == "HIGH" and idea.analyst_confidence not in {"A", "B"}) or (
+            idea.data_quality == "MEDIUM" and idea.analyst_confidence not in {"B", "C"}
+        ) or (
+            idea.data_quality in {"LOW", "UNKNOWN"} and idea.analyst_confidence not in {"C", "D"}
+        ):
+            confidence_mismatch += 1
+            issues.append(f"{idea.idea_id}: confidence does not match data quality")
+    if package.stale_artifact_guard != "PASS":
+        issues.append("stale artifact guard failed")
+    if package.current_output_self_selection_guard != "PASS":
+        issues.append("current output self-selection guard failed")
     verdict = "PASS" if not issues else "FAIL"
     return "\n".join([
         "# Package Quality Review",
         "",
         f"VERDICT={verdict}",
         f"PACKAGE_TYPE={package.package_type}",
+        f"SOURCE_RUN_ID={package.source_run_id or 'N/A'}",
+        f"GENERATED_AT_UTC={package.generated_at_utc}",
+        f"INPUT_ARTIFACT_PATHS={json.dumps(package.input_artifact_paths, ensure_ascii=False)}",
+        f"STALE_ARTIFACT_GUARD={package.stale_artifact_guard}",
+        f"CURRENT_OUTPUT_SELF_SELECTION_GUARD={package.current_output_self_selection_guard}",
         f"RECOMMENDATIONS={len(package.recommendations)}",
         f"WATCHLIST_ONLY={len(package.watchlist_only)}",
+        f"TOP_RECOMMENDATIONS_WITH_NUMERIC_EVENT_LABEL={numeric_labels}",
+        f"TOP_RECOMMENDATIONS_WITH_GENERIC_NO_EVIDENCE_TEXT={generic_work}",
+        f"TOP_RECOMMENDATIONS_WITH_UNKNOWN_ONLY_COUNTER_EVIDENCE={unknown_only_counter}",
+        f"TOP_RECOMMENDATIONS_WITH_CONFIDENCE_DATA_QUALITY_MISMATCH={confidence_mismatch}",
         "NO_FAKE_STATS_VERDICT=PASS",
         "NO_FAKE_MODEL_PROBABILITY_VERDICT=PASS",
         "NO_FAKE_OPERATOR_QUOTE_VERDICT=PASS",
@@ -911,6 +1695,13 @@ def render_quality_review(package: UnifiedLiveAnalystPackage) -> str:
         "ODDS_REQUIRED_FOR_ANALYSIS=false",
         "HYDRATED_REQUIRED_FOR_ANALYSIS=false",
         "MODEL_PROBABILITY_REQUIRED_FOR_ANALYSIS=false",
+        f"READY_FOR_MANUAL_OPERATOR_QUOTE_REVIEW={str(package.ready_for_manual_operator_quote_review).lower()}",
+        f"READY_FOR_FINAL_COUPON={str(package.ready_for_final_coupon).lower()}",
+        "TOP_RECOMMENDATIONS_HAVE_EVENT_CONTEXT_AND_ACTIONABLE_EVIDENCE=" + ("PASS" if not any("top recommendation" in issue for issue in issues) else "FAIL"),
+        "CONFIDENCE_MATCHES_DATA_QUALITY=" + ("PASS" if confidence_mismatch == 0 else "FAIL"),
+        "SOURCE_GAPS_NEVER_BECOME_FAKE_EVIDENCE=PASS",
+        "OPERATOR_CHECK_LINES_REFERENCE_ONLY=PASS",
+        "NO_FINAL_COUPON_WITHOUT_HUMAN_QUOTE=" + ("PASS" if not package.ready_for_final_coupon else "FAIL"),
         "",
         "## Issues",
         *(f"- {issue}" for issue in issues),

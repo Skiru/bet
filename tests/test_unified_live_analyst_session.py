@@ -10,9 +10,11 @@ from bet.pipeline.unified_live_analyst_session import (
     apply_human_quote_if_valid,
     build_package_from_candidates,
     load_candidates_from_path,
+    load_source_artifacts,
     validate_human_superbet_quote,
     render_markdown_package,
     calculate_idea_score,
+    write_package,
 )
 
 
@@ -351,6 +353,127 @@ def test_latest_run_uses_modified_time_when_explicit(tmp_path: Path):
         sys.argv = sys_argv_backup
 
 
+def test_source_loader_does_not_scan_all_historical_runs_by_default(tmp_path: Path, monkeypatch):
+    import bet.pipeline.unified_live_analyst_session as session_module
+
+    run_a = tmp_path / "reports" / "pipeline_runs" / "RUN_A"
+    run_b = tmp_path / "reports" / "pipeline_runs" / "RUN_B"
+    run_a.mkdir(parents=True)
+    run_b.mkdir(parents=True)
+    (run_a / "2026-07-01_s3_deep_stats.json").write_text(json.dumps({
+        "items": [{"event_id": "1", "sport": "football", "home_team": "Alpha", "away_team": "Beta", "competition": "World Cup"}]
+    }), encoding="utf-8")
+    (run_b / "2026-06-30_s3_deep_stats.json").write_text(json.dumps({
+        "items": [{"event_id": "1", "sport": "football", "home_team": "Wrong", "away_team": "Teams", "competition": "Old Cup"}]
+    }), encoding="utf-8")
+
+    monkeypatch.setattr(session_module, "_repo_root", lambda: tmp_path)
+    artifacts = load_source_artifacts([run_a])
+
+    assert artifacts
+    assert {artifact.get("source_run_id") for artifact in artifacts} == {"RUN_A"}
+    assert all("RUN_B" not in str(artifact.get("source_artifact_path")) for artifact in artifacts)
+
+
+def test_latest_run_selects_by_modified_time(tmp_path: Path):
+    import time
+    from scripts.run_unified_live_analyst_session import _select_latest_run_dir
+
+    runs_dir = tmp_path / "reports" / "pipeline_runs"
+    runs_dir.mkdir(parents=True)
+    older_name = "TODAY_WIDE_LIVE_ANALYST_SESSION_E_20260701_230000"
+    newer_name = "TODAY_WIDE_LIVE_ANALYST_SESSION_E_20260701_010000"
+    older_dir = runs_dir / older_name
+    newer_dir = runs_dir / newer_name
+    older_dir.mkdir()
+    newer_dir.mkdir()
+    time.sleep(0.1)
+    (newer_dir / "touch.json").write_text("{}", encoding="utf-8")
+
+    selected = _select_latest_run_dir(runs_dir, runs_dir / "CURRENT_OUTPUT")
+    assert selected == newer_dir
+
+
+def test_current_output_dir_not_selected_as_input(tmp_path: Path, monkeypatch):
+    from argparse import Namespace
+    import scripts.run_unified_live_analyst_session as runner
+
+    runs_dir = tmp_path / "reports" / "pipeline_runs"
+    runs_dir.mkdir(parents=True)
+    source_dir = runs_dir / "DISCOVERY_RUN"
+    current_out = runs_dir / "TODAY_WIDE_LIVE_ANALYST_SESSION_E_20260701_055500"
+    source_dir.mkdir()
+    current_out.mkdir()
+    (source_dir / "artifact.json").write_text(json.dumps({"candidates": [_football_candidate()]}), encoding="utf-8")
+    (current_out / "artifact.json").write_text(json.dumps({"candidates": [_football_candidate(event_id="wrong")]}), encoding="utf-8")
+
+    monkeypatch.setattr(runner, "REPO_ROOT", tmp_path)
+    args = Namespace(input=[], from_run_id=None, latest_run=True)
+    input_paths, source_run_id, guard = runner._resolve_input_paths(args, current_out)
+
+    assert input_paths == [source_dir]
+    assert source_run_id == "DISCOVERY_RUN"
+    assert guard == "PASS"
+
+
+def test_package_records_source_run_id_input_paths_and_stale_guard(tmp_path: Path):
+    package = build_package_from_candidates(
+        [_football_candidate()],
+        run_id="r_meta",
+        source_run_id="DISCOVERY_RUN",
+        input_artifact_paths=["reports/pipeline_runs/DISCOVERY_RUN"],
+        generated_at_utc="2026-07-01T03:51:14+00:00",
+        stale_artifact_guard="PASS",
+        current_output_self_selection_guard="PASS",
+    )
+    paths = write_package(package, tmp_path)
+    payload = json.loads(paths["json"].read_text(encoding="utf-8"))
+    quality = paths["quality"].read_text(encoding="utf-8")
+
+    assert payload["source_run_id"] == "DISCOVERY_RUN"
+    assert payload["input_artifact_paths"] == ["reports/pipeline_runs/DISCOVERY_RUN"]
+    assert payload["generated_at_utc"] == "2026-07-01T03:51:14+00:00"
+    assert payload["stale_artifact_guard"] == "PASS"
+    assert "SOURCE_RUN_ID=DISCOVERY_RUN" in quality
+    assert "STALE_ARTIFACT_GUARD=PASS" in quality
+
+
+def test_from_run_id_only_loads_that_run(tmp_path: Path, monkeypatch):
+    from argparse import Namespace
+    import scripts.run_unified_live_analyst_session as runner
+
+    run_a = tmp_path / "reports" / "pipeline_runs" / "RUN_A"
+    run_b = tmp_path / "reports" / "pipeline_runs" / "RUN_B"
+    run_a.mkdir(parents=True)
+    run_b.mkdir(parents=True)
+
+    monkeypatch.setattr(runner, "REPO_ROOT", tmp_path)
+    args = Namespace(input=[], from_run_id="RUN_A", latest_run=False)
+    input_paths, source_run_id, guard = runner._resolve_input_paths(args, tmp_path / "reports" / "pipeline_runs" / "OUT")
+
+    assert input_paths == [run_a]
+    assert source_run_id == "RUN_A"
+    assert guard == "PASS"
+
+
+def test_historical_context_requires_explicit_flag():
+    import sys
+    from scripts.run_unified_live_analyst_session import main as run_main
+
+    sys_argv_backup = sys.argv
+    try:
+        sys.argv = [
+            "run_unified_live_analyst_session.py",
+            "--historical-context-input",
+            "reports/pipeline_runs/OLD_RUN",
+        ]
+        with pytest.raises(SystemExit) as exc_info:
+            run_main()
+        assert "HISTORICAL_CONTEXT_FLAG_REQUIRED" in str(exc_info.value)
+    finally:
+        sys.argv = sys_argv_backup
+
+
 def test_s8_subprocess_failure_fails_closed(tmp_path: Path, monkeypatch):
     import sys
     from scripts.pipeline_steps.s8_build_coupons import main as s8_main
@@ -457,3 +580,225 @@ def test_markdown_has_executive_summary_and_superbet_checklist():
     assert "## 5. Rejected Summary" in md
     assert "## 6. Data Gaps and Confidence Policy" in md
     assert "## 7. Superbet Manual Operator Checklist" in md
+
+
+def test_numeric_event_label_cannot_be_top_recommendation():
+    cand = _football_candidate(event_label="78", event_id="78")
+    package = build_package_from_candidates([cand], run_id="r_numeric_test")
+    assert len(package.recommendations) == 0
+    assert len(package.watchlist_only) == 1
+    assert package.watchlist_only[0].analyst_confidence == "D"
+
+
+def test_placeholder_candidate_id_cannot_be_top_recommendation():
+    cand = _football_candidate(event_label="candidate_123", event_id="e1")
+    package = build_package_from_candidates([cand], run_id="r_placeholder_test")
+    assert len(package.recommendations) == 0
+    assert len(package.watchlist_only) == 1
+    assert package.watchlist_only[0].analyst_confidence == "D"
+
+
+def test_missing_participants_downgrades_to_watchlist():
+    cand = _football_candidate(event_label="FriendlyMatch", home_team=None, away_team=None, player_one=None, player_two=None, participants=[])
+    package = build_package_from_candidates([cand], run_id="r_participants_test")
+    assert len(package.recommendations) == 0
+    assert len(package.watchlist_only) == 1
+    assert package.watchlist_only[0].analyst_confidence == "D"
+
+
+def test_generic_no_quantitative_summary_cannot_be_top_recommendation():
+    cand = _football_candidate(supporting_evidence=[])
+    package = build_package_from_candidates([cand], run_id="r_no_quant_test")
+    assert len(package.recommendations) == 0
+    assert len(package.watchlist_only) == 1
+    assert package.watchlist_only[0].analyst_confidence == "D"
+
+
+def test_unknown_only_counter_evidence_cannot_be_confidence_b():
+    cand = _football_candidate(counter_evidence=[])
+    package = build_package_from_candidates([cand], run_id="r_unknown_counter_test")
+    assert len(package.recommendations) == 0
+    assert len(package.watchlist_only) == 1
+    assert package.watchlist_only[0].analyst_confidence == "D"
+
+
+def test_confidence_b_requires_actionable_evidence():
+    # Good complete case
+    cand = _football_candidate(analyst_confidence="B")
+    package = build_package_from_candidates([cand], run_id="r_good_b")
+    assert len(package.recommendations) == 1
+    assert package.recommendations[0].analyst_confidence == "B"
+
+
+def test_confidence_c_requires_event_identity():
+    cand = _football_candidate(event_label="78", analyst_confidence="C")
+    package = build_package_from_candidates([cand], run_id="r_c_identity")
+    assert len(package.recommendations) == 0
+    assert package.watchlist_only[0].analyst_confidence == "D"
+
+
+def test_watchlist_allowed_with_incomplete_identity():
+    cand = _football_candidate(event_label="78", event_id="78")
+    package = build_package_from_candidates([cand], run_id="r_watchlist_allow")
+    assert len(package.watchlist_only) == 1
+    assert package.watchlist_only[0].event_label == "78"
+
+
+def test_markdown_top_recommendation_contains_match_context():
+    cand = _football_candidate()
+    package = build_package_from_candidates([cand], run_id="r_md_match_context")
+    md = render_markdown_package(package)
+    assert "- **Match Context**:" in md
+    assert "- **Event**:" in md
+    assert "- **Sport**:" in md
+    assert "- **Competition/Tournament**:" in md
+    assert "- **Kickoff**:" in md
+    assert "- **Participants**:" in md
+    assert "- **Market**:" in md
+    assert "- **Direction**:" in md
+    assert "- **Operator-check line**:" in md
+    assert "- **Line source**:" in md
+    assert "- **Evidence grade**:" in md
+    assert "- **Confidence**:" in md
+    assert "- **Data quality**:" in md
+
+
+def test_bad_screenshot_case_becomes_watchlist_only():
+    cand = {
+        "event_id": "78",
+        "event_label": "78",
+        "sport": "football",
+        "competition": "Friendly Match",
+        "market_family": "SHOTS",
+        "line": 16.8,
+        "direction": "UNDER",
+        "supporting_evidence": [],
+        "counter_evidence": [],
+    }
+    package = build_package_from_candidates([cand], run_id="r_screenshot_case")
+    assert len(package.recommendations) == 0
+    assert len(package.watchlist_only) == 1
+    idea = package.watchlist_only[0]
+    assert idea.analyst_confidence == "D"
+    assert idea.why_it_may_work == "Insufficient evidence for top recommendation; manual watchlist only."
+    assert "UNKNOWN" in idea.why_it_may_fail
+
+
+def test_odds_missing_still_does_not_block_good_recommendation():
+    cand = _football_candidate(odds=None, odds_decimal=0.0)
+    package = build_package_from_candidates([cand], run_id="r_odds_missing")
+    assert len(package.recommendations) == 1
+    assert package.recommendations[0].odds_available is False
+
+
+def test_hydrated_missing_still_does_not_block_good_recommendation():
+    cand = _football_candidate(hydration_status="MINIMAL_HYDRATION")
+    package = build_package_from_candidates([cand], run_id="r_hydrated_missing")
+    assert len(package.recommendations) == 1
+    assert package.recommendations[0].hydrated_available is False
+
+
+def test_extract_event_context_from_home_away_fields():
+    from bet.pipeline.unified_live_analyst_session import extract_event_context
+    cand = {"home_team": "Team France", "away_team": "Team Germany", "sport": "football"}
+    ctx = extract_event_context(cand, [])
+    assert ctx.home_team == "Team France"
+    assert ctx.away_team == "Team Germany"
+    assert ctx.event_label == "Team France vs Team Germany"
+
+
+def test_extract_event_context_from_participants_list():
+    from bet.pipeline.unified_live_analyst_session import extract_event_context
+    cand = {"participants": ["Player A", "Player B"], "sport": "tennis"}
+    ctx = extract_event_context(cand, [])
+    assert "Player A" in ctx.participants
+    assert "Player B" in ctx.participants
+    assert ctx.event_label == "Player A vs Player B"
+
+
+def test_numeric_id_becomes_event_id_not_event_label():
+    from bet.pipeline.unified_live_analyst_session import extract_event_context
+    cand = {"event_id": 4122, "sport": "football"}
+    ctx = extract_event_context(cand, [])
+    assert ctx.event_id == "4122"
+    assert ctx.event_label is None
+
+
+def test_competition_unknown_allows_watchlist_but_not_high_confidence():
+    cand = _football_candidate(competition="UNKNOWN", analyst_confidence="B")
+    package = build_package_from_candidates([cand], run_id="r_unknown_comp")
+    assert len(package.recommendations) == 1
+    assert package.recommendations[0].analyst_confidence in {"C", "D"}
+
+
+def test_football_event_with_context_and_market_creates_recommendation():
+    cand = _football_candidate(competition="World Cup 2026", sport="football")
+    package = build_package_from_candidates([cand], run_id="r_football_rec")
+    assert len(package.recommendations) == 1
+
+
+def test_tennis_wimbledon_event_with_players_creates_recommendation():
+    cand = _tennis_candidate(competition="Wimbledon 2026", sport="tennis")
+    package = build_package_from_candidates([cand], run_id="r_tennis_rec")
+    assert len(package.recommendations) == 1
+
+
+def test_missing_hydrated_still_allows_contextual_recommendation():
+    cand = _football_candidate(hydration_status="MINIMAL")
+    package = build_package_from_candidates([cand], run_id="r_missing_hydrated")
+    assert len(package.recommendations) == 1
+
+
+def test_missing_odds_still_allows_contextual_recommendation():
+    cand = _football_candidate(odds=None, odds_decimal=0.0)
+    package = build_package_from_candidates([cand], run_id="r_missing_odds")
+    assert len(package.recommendations) == 1
+    assert package.recommendations[0].odds_available is False
+
+
+def test_counter_evidence_generated_from_source_gaps():
+    from bet.pipeline.unified_live_analyst_session import extract_actionable_evidence, extract_event_context
+    cand = _football_candidate(counter_evidence=[])
+    ctx = extract_event_context(cand, [])
+    bundle = extract_actionable_evidence(cand, ctx, "CORNERS", [])
+    assert len(bundle.counter_evidence) >= 1
+    assert "lineup confirmation" in " ".join(bundle.counter_evidence).lower()
+
+
+def test_unknown_only_counter_evidence_still_blocks_top_recommendation():
+    cand = _football_candidate(counter_evidence=[])
+    package = build_package_from_candidates([cand], run_id="r_unknown_counter")
+    assert len(package.recommendations) == 0
+
+
+def test_generic_evidence_still_blocks_top_recommendation():
+    cand = _football_candidate(supporting_evidence=[])
+    package = build_package_from_candidates([cand], run_id="r_generic_ev")
+    assert len(package.recommendations) == 0
+
+
+def test_package_contains_match_context_for_every_top_recommendation():
+    cand = _football_candidate()
+    package = build_package_from_candidates([cand], run_id="r_context_check")
+    assert len(package.recommendations) == 1
+    rec = package.recommendations[0]
+    assert rec.home_team == "Alpha"
+    assert rec.away_team == "Beta"
+    assert rec.competition == "World Cup"
+
+
+def test_quality_c_bad_screenshot_case_still_blocked():
+    cand = {
+        "event_id": "78",
+        "event_label": "78",
+        "sport": "football",
+        "competition": "Friendly Match",
+        "market_family": "SHOTS",
+        "line": 16.8,
+        "direction": "UNDER",
+        "supporting_evidence": [],
+        "counter_evidence": [],
+    }
+    package = build_package_from_candidates([cand], run_id="r_screenshot_blocked")
+    assert len(package.recommendations) == 0
+    assert len(package.watchlist_only) == 1
