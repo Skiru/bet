@@ -9,8 +9,8 @@ WORKSPACE_ROOT = Path("/Users/mkoziol/projects/bet")
 def test_contract_doc_exists_and_mentions_inheritance_policy():
     path = WORKSPACE_ROOT / "docs/pipeline/Unified Orchestrated Analyst Session Contract.md"
     content = path.read_text(encoding="utf-8")
-    assert "inherit a verified Gemini 3.5 Flash Flex model from bet-orchestrator" in content
-    assert "explicit model override that passes a live subagent launch smoke test" in content
+    assert "The active Kilo UI runtime model is the source of truth" in content
+    assert "must inherit the active parent/orchestrator model" in content
 
 
 def test_continuation_doc_exists_and_mentions_j2_only_resume():

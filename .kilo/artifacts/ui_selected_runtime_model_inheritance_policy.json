@@ -1,0 +1,28 @@
+{
+  "policy": "USER_SELECTED_KILO_UI_RUNTIME_INHERITANCE",
+  "source_of_truth": "ACTIVE_KILO_UI_MODEL",
+  "orchestrator_runtime": "inherit_active_kilo_session_model",
+  "required_subagent_runtime": "inherit_parent_orchestrator_model",
+  "approved_runtime_outcomes": [
+    "openai_when_ui_selected_and_smoke_passes",
+    "gemini_when_ui_selected_and_smoke_passes",
+    "local_when_ui_selected_and_smoke_passes",
+    "any_user_accessible_provider_model_when_ui_selected_and_smoke_passes"
+  ],
+  "smoke_pass_requires": {
+    "launched": true,
+    "active_runtime_model_recorded": true,
+    "provider_model_not_found_error": false,
+    "silent_fallback": false,
+    "inherited_parent_model": true,
+    "or_explicit_user_approved_override": true
+  },
+  "forbidden": [
+    "hardcoded_gemini_only_policy",
+    "hardcoded_openai_only_policy",
+    "stale_explicit_provider_model_override",
+    "silent_fallback",
+    "false_pass_without_runtime_proof",
+    "unknown_active_runtime_model"
+  ]
+}

@@ -3,7 +3,9 @@
 ## J2 Resume Gate
 
 - Resume J2 only after `ProviderModelNotFoundError` is repaired.
-- Require `bet-enricher` smoke PASS and `bet-statistician` smoke PASS.
+- Require runtime proof that the active Kilo UI model is known and recorded.
+- Require `bet-enricher` smoke PASS, `bet-statistician` smoke PASS, and `bet-valuator` smoke PASS.
+- Require required betting subagents to inherit the active parent runtime model with no silent fallback and no conflicting explicit override.
 - Require `main` to be clean and synced before the follow-up orchestrated J2 session starts.
 - The continuation prompt must explicitly say: do not repeat model repair.
 - The continuation prompt must explicitly say: run J2 only.

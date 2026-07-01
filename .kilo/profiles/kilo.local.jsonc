@@ -38,7 +38,6 @@
       ]
     }
   },
-  "model": "google-vertex/gemini-3.5-flash-flex-high",
   "instructions": [
     ".kilo/CONTEXT_POLICY.md"
   ],
@@ -170,7 +169,6 @@
     "bet-orchestrator": {
       "description": "Phase-bounded betting-pipeline controller. It plans, delegates one specialist at a time, enforces gates, and writes compact phase handoffs; it does not perform specialist analysis itself.",
       "mode": "primary",
-      "model": "google-vertex/gemini-3.5-flash-flex-high",
       "steps": 28,
       "temperature": 0.15,
       "prompt": "{file:.kilo/prompts/bet-orchestrator-v2.md}",
