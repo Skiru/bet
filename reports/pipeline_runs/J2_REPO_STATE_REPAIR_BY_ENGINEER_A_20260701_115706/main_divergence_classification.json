@@ -1,0 +1,8 @@
+{
+  "head_sha": "52f21ececd704f1022ede552dedeb737f0744ea8",
+  "origin_main_sha": "7d62e97be01582291064d54dd4c024da91519a3f",
+  "head_is_ancestor_of_origin_main": false,
+  "origin_main_is_ancestor_of_head": true,
+  "classification": "LOCAL_AHEAD",
+  "staged_changes_present": false
+}

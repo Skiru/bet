@@ -1,0 +1,26 @@
+{
+  "dirty_tracked_files_count": 1,
+  "files": [
+    {
+      "path": ".kilo/profiles/kilo.local.jsonc",
+      "status_code": " M",
+      "classification": "CONFIG_FILE",
+      "diff_stat": " .kilo/profiles/kilo.local.jsonc | 61 +++++++++++++++++++++++++++++++++++++++++",
+      "contains_secret_risk": false,
+      "recommended_action": "PRESERVE_ON_RESCUE_BRANCH"
+    }
+  ]
+}
+{
+  "dirty_tracked_files_count": 1,
+  "files": [
+    {
+      "path": ".kilo/profiles/kilo.local.jsonc",
+      "status_code": " M",
+      "classification": "CONFIG_FILE",
+      "diff_stat": " 1 file changed, 61 insertions(+)",
+      "contains_secret_risk": false,
+      "recommended_action": "PRESERVE_ON_RESCUE_BRANCH"
+    }
+  ]
+}

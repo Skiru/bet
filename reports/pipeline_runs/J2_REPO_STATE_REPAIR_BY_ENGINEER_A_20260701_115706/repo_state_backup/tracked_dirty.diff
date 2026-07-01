@@ -1,0 +1,72 @@
+diff --git a/.kilo/profiles/kilo.local.jsonc b/.kilo/profiles/kilo.local.jsonc
+index 3a245bf..3ec5459 100644
+--- a/.kilo/profiles/kilo.local.jsonc
++++ b/.kilo/profiles/kilo.local.jsonc
+@@ -36,6 +36,67 @@
+       "whitelist": [
+         "qwen36-local-35b"
+       ]
++    },
++    "google-vertex": {
++      "npm": "@ai-sdk/google-vertex",
++      "name": "Google Vertex AI — Gemini production profiles",
++      "options": {
++        "project": "project-a4742856-b82c-4e6c-a19",
++        "location": "global",
++        "timeout": 1800000,
++        "headerTimeout": 300000,
++        "chunkTimeout": 300000
++      },
++      "models": {
++        "gemini-3.5-flash-flex-high": {
++          "id": "gemini-3.5-flash",
++          "name": "Gemini 3.5 Flash — HIGH / FLEX 50%",
++          "tool_call": true,
++          "reasoning": true,
++          "temperature": true,
++          "attachment": true,
++          "modalities": {
++            "input": [
++              "text",
++              "image",
++              "audio",
++              "video",
++              "pdf"
++            ],
++            "output": [
++              "text"
++            ]
++          },
++          "limit": {
++            "context": 1048576,
++            "output": 65535
++          },
++          "cost": {
++            "input": 0.75,
++            "output": 4.5,
++            "cache_read": 0.08
++          },
++          "options": {
++            "thinkingConfig": {
++              "thinkingLevel": "high"
++            },
++            "structuredOutputs": true,
++            "labels": {
++              "app": "kilo",
++              "profile": "g35-high-flex",
++              "tier": "flex"
++            },
++            "serviceTier": "flex"
++          },
++          "headers": {
++            "X-Vertex-AI-LLM-Request-Type": "shared",
++            "X-Vertex-AI-LLM-Shared-Request-Type": "flex"
++          }
++        }
++      },
++      "whitelist": [
++        "gemini-3.5-flash-flex-high"
++      ]
+     }
+   },
+   "model": "google-vertex/gemini-3.5-flash-flex-high",
