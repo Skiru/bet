@@ -1,0 +1,52 @@
+{
+  "run_id": "AGENT_SYSTEM_BATTLE_TESTED_PRODUCTION_AUDIT_E_20260701_140823",
+  "pre_repair": true,
+  "paths": {
+    "AGENTS.md": true,
+    ".kilo/agents": true,
+    ".kilo/prompts": true,
+    ".kilo/skills": true,
+    ".kilo/profiles": true,
+    ".kilo/rules": true,
+    ".kilo/artifacts": true,
+    ".kilo/state": true,
+    ".kilocode": false,
+    "docs/pipeline": true,
+    "config/bet-script-operations.json": true,
+    "scripts/audit_bet_agent_roster.py": true,
+    "scripts/audit_orchestrated_session_continuation.py": true,
+    "tests/test_bet_agent_roster_contract.py": true,
+    "tests/test_orchestrated_session_continuation_protocol.py": true,
+    "tests/test_kilo_agent_model_contract.py": true,
+    "~/.config/kilo/kilo.json": true,
+    "~/.config/kilo/kilo.jsonc": true
+  },
+  "global_config_summary": {
+    "provider_names": [
+      "local",
+      "google-vertex"
+    ],
+    "sampled_model_keys": [
+      "mlx-community/Qwen3.6-35B-A3B-4bit",
+      "gemini-3.5-flash*"
+    ],
+    "permission_categories": [
+      "read",
+      "glob",
+      "grep",
+      "skill",
+      "todowrite",
+      "question",
+      "edit",
+      "write",
+      "apply_patch",
+      "bash",
+      "task",
+      "webfetch",
+      "websearch",
+      "browser/MCP patterns"
+    ],
+    "kilo_config_content_present": "unverified",
+    "inheritance_conflict_risk_pre_repair": true
+  }
+}

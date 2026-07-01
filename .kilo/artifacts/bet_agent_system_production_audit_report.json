@@ -1,0 +1,20 @@
+{
+  "status": "PASS",
+  "summary": {
+    "required_agent_files_exist": true,
+    "required_prompt_files_exist": true,
+    "required_docs_exist": true,
+    "required_betting_agents_do_not_pin_model_overrides": true,
+    "ui_runtime_inheritance_policy_exists": true,
+    "anti_loop_contract_exists": true,
+    "orchestrator_cannot_mutate_repo": true,
+    "engineer_can_mutate_repo": true,
+    "no_stale_policy_strings": true,
+    "no_stale_betclic_operator_flow": true,
+    "output_schemas_present": true,
+    "continuation_protocol_present": true,
+    "no_recursive_delegation": true,
+    "verdict": "PASS"
+  },
+  "failures": []
+}

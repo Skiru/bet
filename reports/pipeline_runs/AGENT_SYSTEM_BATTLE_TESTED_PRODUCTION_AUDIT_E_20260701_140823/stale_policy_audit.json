@@ -1,0 +1,34 @@
+{
+  "run_id": "AGENT_SYSTEM_BATTLE_TESTED_PRODUCTION_AUDIT_E_20260701_140823",
+  "pre_repair": true,
+  "findings": [
+    {
+      "path": "AGENTS.md",
+      "issue": "stale_betclic_operator_flow_reference"
+    },
+    {
+      "path": ".kilo/agents/bet-reconciler.md",
+      "issue": "stale_gemini_only_runtime_policy"
+    },
+    {
+      "path": ".kilo/agents/bet-db-analyst.md",
+      "issue": "stale_gemini_only_runtime_policy"
+    },
+    {
+      "path": ".kilo/agents/bet-settler.md",
+      "issue": "stale_gemini_only_runtime_policy"
+    },
+    {
+      "path": ".kilo/prompts/*.md",
+      "issue": "required_prompts_under_specified_for_production_gating"
+    },
+    {
+      "path": "docs/pipeline",
+      "issue": "missing_dedicated_anti_loop_step_budget_contract"
+    },
+    {
+      "path": "scripts",
+      "issue": "missing_master_bet_agent_system_production_audit_script"
+    }
+  ]
+}

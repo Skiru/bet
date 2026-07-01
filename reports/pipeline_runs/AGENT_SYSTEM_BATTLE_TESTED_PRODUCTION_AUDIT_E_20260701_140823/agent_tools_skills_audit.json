@@ -1,0 +1,9 @@
+{
+  "run_id": "AGENT_SYSTEM_BATTLE_TESTED_PRODUCTION_AUDIT_E_20260701_140823",
+  "pre_repair": true,
+  "issues": [
+    "profile_layer_permissions_need_hardening_for_some_betting_agents",
+    "prompt_level_allowed_forbidden_tool_contracts_are_incomplete",
+    "master_system_tool_role_audit_missing"
+  ]
+}
