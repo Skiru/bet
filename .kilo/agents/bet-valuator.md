@@ -1,7 +1,6 @@
 ---
 mode: subagent
 description: Phase D S3-S5 specialist for timestamped odds validation, implied probability, margin removal, EV, drift, CLV and bounded Kelly sizing.
-model: google-vertex/gemini-3.5-flash-flex-high
 temperature: 0.1
 steps: 12
 permission:
@@ -72,10 +71,9 @@ If odds sources are unavailable, return `STATUS: BLOCKED` with `DECISION: CAPABI
 
 ## Model Policy
 
-- Runtime model: `gemini-3.5-flash-flex-high`.
-- Base model id: `gemini-3.5-flash`.
-- Serving tier: `flex` / 50% cheaper package.
-- Thinking level: `HIGH`.
-- Do not route this agent to GPT/OpenAI models.
-- Do not use GPT/OpenAI fallback.
+- Runtime model: inherit the active parent/orchestrator model selected in Kilo UI.
+- Record the active runtime model and whether parent-model inheritance held when smoke evidence is requested.
+- Silent fallback is forbidden.
+- `ProviderModelNotFoundError` is a hard failure.
+- Do not use a conflicting explicit provider/model override unless the user explicitly approved it.
 - Do not expose hidden reasoning or thought traces.

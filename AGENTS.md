@@ -2,16 +2,19 @@
 
 ## Model routing
 
-- `code-gpt54`: **Google Vertex AI**, model `gemini-3.5-flash` in the flex package with HIGH reasoning (`google-vertex/gemini-3.5-flash-flex-high`). Note that `code-gpt54` is a historical compatibility label only and maps directly to Gemini 3.5 Flash. Use for difficult architecture, large refactors, complex debugging, migrations, security-sensitive implementation, and final review.
-- `code-local`: Rapid-MLX local Qwen (`openai-compatible/qwen36-local-35b`). Use for routine/private coding, repository exploration, bounded fixes, summaries, and low-cost iterations.
-- `bet-orchestrator` and all `bet-*` specialists use the `google-vertex/gemini-3.5-flash-flex-high` profile.
+- The active model selected in Kilo UI is the source of truth for the current session.
+- `code-gpt54` is a historical compatibility label. Do not treat it as a permanent Gemini-only policy anchor in repository contracts.
+- `code-local` remains the local Rapid-MLX Qwen route (`openai-compatible/qwen36-local-35b`) when the user explicitly selects it.
+- `bet-orchestrator` must inherit the active Kilo session model selected in the UI.
+- Every required `bet-*` subagent must inherit the active parent/orchestrator model unless the user explicitly approves a dedicated override for that task.
+- Passing smoke proof requires a launched subagent, a recorded active runtime model, `ProviderModelNotFoundError=false`, no silent fallback, and either `inherited_parent_model=true` or an explicitly user-approved override.
 - Do not define provider API keys in project files. Authentication is OAuth-managed by Kilo.
 
 ## Execution rules
 
 1. Never run more than one request against the local Rapid-MLX server at once.
 2. Local Qwen agents (when used) issue exactly one tool call per assistant turn and wait for the result.
-3. `code-gpt54` (Gemini-backed) may group independent read-only operations, but mutations and delegated tasks remain sequential.
+3. The active primary coding model may group independent read-only operations, but mutations and delegated tasks remain sequential.
 4. A primary agent delegates matching specialist work instead of imitating a specialist. Subagents never delegate recursively.
 5. Maximum two attempts for the same failing operation; then change strategy or delegate.
 6. Never claim success without a concrete diff, artifact, query result, test result, or current cited source.
@@ -24,13 +27,13 @@ For non-trivial coding, use this sequence:
 1. inspect the exact task and repository state;
 2. delegate bounded discovery to `repo-explorer-local` when useful;
 3. write an acceptance checklist and smallest reversible implementation plan;
-4. implement through `code-gpt54` (Gemini-backed) for heavy work or `code-local` for bounded work;
+4. implement through the active coding agent selected in Kilo UI, typically `code-gpt54` for heavier work or `code-local` for bounded/private work;
 5. run focused tests through `test-runner-local`;
 6. request adversarial review from `code-reviewer-local`;
 7. repair only verified findings and rerun focused tests;
 8. summarize changed files, commands, evidence, remaining risks, and rollback.
 
-Do not use Playwright from local Qwen agents. Browser automation is available only in the Gemini profile and requires approval. Context7 is for library/framework documentation. Brave is for current public information.
+Do not use Playwright from local Qwen agents. Browser automation requires approval. Context7 is for library/framework documentation. Brave is for current public information.
 
 ## Session and context discipline
 

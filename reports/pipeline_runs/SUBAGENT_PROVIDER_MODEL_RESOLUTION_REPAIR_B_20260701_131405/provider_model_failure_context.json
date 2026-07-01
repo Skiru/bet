@@ -1,0 +1,20 @@
+{
+  "task_id": "SUBAGENT_PROVIDER_MODEL_RESOLUTION_REPAIR_B",
+  "blocked_phase": "TODAY_ORCHESTRATED_SESSION_J2_ENRICHER_STATISTICIAN",
+  "j1_run_id": "TODAY_ORCHESTRATED_SESSION_J1_SCANNER_SCOUT_20260701_105101",
+  "error_name": "ProviderModelNotFoundError",
+  "failed_subagents": [
+    "bet-enricher",
+    "bet-statistician",
+    "bet-valuator"
+  ],
+  "base_head": "7d62e97be01582291064d54dd4c024da91519a3f",
+  "origin_main": "7d62e97be01582291064d54dd4c024da91519a3f",
+  "active_branch": "feat/subagent-provider-model-resolution-repair-b",
+  "handoff_path": ".kilo/state/phase-D-handoff.md",
+  "handoff_stale": true,
+  "bet_engineer_launch_failed_same_model_resolver": true,
+  "tracked_worktree_clean_pre_branch": true,
+  "untracked_files_present": true,
+  "j1_artifacts_exist": true
+}

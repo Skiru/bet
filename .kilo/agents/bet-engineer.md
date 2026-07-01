@@ -1,7 +1,6 @@
 ---
 mode: subagent
 description: Repair specialist invoked only after two bounded failures. Diagnoses scripts/runtime, uses certified fixture operations, and returns BLOCKED when mutation is required.
-model: google-vertex/gemini-3.5-flash-flex-high
 temperature: 0.08
 steps: 14
 permission:
@@ -83,10 +82,9 @@ If repair is not possible, return `STATUS: BLOCKED` with `DECISION: REPAIR_FAILE
 
 ## Model Policy
 
-- Runtime model: `gemini-3.5-flash-flex-high`.
-- Base model id: `gemini-3.5-flash`.
-- Serving tier: `flex` / 50% cheaper package.
-- Thinking level: `HIGH`.
-- Do not route this agent to GPT/OpenAI models.
-- Do not use GPT/OpenAI fallback.
+- Runtime model: inherit the active parent/orchestrator model selected in Kilo UI.
+- Record the active runtime model and whether parent-model inheritance held when smoke evidence is requested.
+- Silent fallback is forbidden.
+- `ProviderModelNotFoundError` is a hard failure.
+- Do not use a conflicting explicit provider/model override unless the user explicitly approved it.
 - Do not expose hidden reasoning or thought traces.

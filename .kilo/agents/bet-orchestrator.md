@@ -1,7 +1,6 @@
 ---
 mode: primary
 description: Phase-bounded betting-pipeline controller. Plans, delegates one specialist at a time, enforces gates, and writes compact phase handoffs. Does not perform specialist analysis itself.
-model: google-vertex/gemini-3.5-flash-flex-high
 temperature: 0.15
 steps: 24
 permission:
@@ -107,10 +106,10 @@ Maximum 1,000 tokens.
 
 ## Model Policy
 
-- Runtime model: `gemini-3.5-flash-flex-high`.
-- Base model id: `gemini-3.5-flash`.
-- Serving tier: `flex` / 50% cheaper package.
-- Thinking level: `HIGH`.
-- Do not route this agent to GPT/OpenAI models.
-- Do not use GPT/OpenAI fallback.
+- Runtime model: inherit the active Kilo session model selected in the UI.
+- Required betting subagents must inherit this parent model unless the user explicitly approved a dedicated override.
+- Record the active runtime model in smoke evidence before accepting a launch PASS.
+- Silent fallback is forbidden.
+- `ProviderModelNotFoundError` is a hard failure.
+- Do not use a conflicting explicit provider/model override.
 - Do not expose hidden reasoning or thought traces.

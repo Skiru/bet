@@ -1,7 +1,6 @@
 ---
 mode: subagent
 description: Evidence-conflict resolver that compares already-collected artifacts and bounded DB rows, identifies the stronger source, and returns a decision or explicit unresolved status.
-model: google-vertex/gemini-3.5-flash-flex-high
 temperature: 0.05
 steps: 8
 permission:
