@@ -1,0 +1,16 @@
+{
+  "task_id": "BET_ARTIFACT_WRITE_PIPELINE_RUNS_ALLOWLIST_REPAIR_G",
+  "run_id": "BET_ARTIFACT_WRITE_PIPELINE_RUNS_ALLOWLIST_REPAIR_G_20260701_222516",
+  "blocked_task": "TODAY_ORCHESTRATED_SESSION_J2A2_ENRICHER_TENNIS_1",
+  "blocked_path": "reports/pipeline_runs/TODAY_ORCHESTRATED_SESSION_J1_SCANNER_SCOUT_20260701_105101/enricher_context_layer_tennis_1.json",
+  "classification": "TOOL_ALLOWLIST_CONTRACT_MISMATCH",
+  "plugin_allowlist_before": [
+    "reports/betting-demo",
+    "reports/betting"
+  ],
+  "required_contract_path": "reports/pipeline_runs/<RUN_ID>/",
+  "exact_reason": "isAllowedPath returned false because reports/pipeline_runs/ was not in the REPORT_ROOTS array in .kilo/plugin/bet_artifact_write.ts",
+  "enricher_has_permission": true,
+  "is_model_provider_issue": false,
+  "verdict": "TOOL_ALLOWLIST_CONTRACT_MISMATCH"
+}

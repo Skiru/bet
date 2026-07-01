@@ -24,7 +24,7 @@ const PHASE_HANDOFFS = new Set([
   ".kilo/state/phase-D-handoff.md",
   ".kilo/state/phase-E-handoff.md",
 ])
-const REPORT_ROOTS = ["reports/betting-demo", "reports/betting"]
+const REPORT_ROOTS = ["reports/betting-demo", "reports/betting", "reports/pipeline_runs"]
 const CONTENT_TYPE_EXTENSION: Record<"markdown" | "json", ".md" | ".json"> = {
   markdown: ".md",
   json: ".json",
