@@ -5,8 +5,13 @@ from pathlib import Path
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
+TOOL_PATH = PROJECT_ROOT / ".kilo" / "tool" / "bet_artifact_write.ts"
 PLUGIN_PATH = PROJECT_ROOT / ".kilo" / "plugin" / "bet_artifact_write.ts"
 PLUGIN_TOOL_DIST = PROJECT_ROOT / ".kilo" / "node_modules" / "@kilocode" / "plugin" / "dist" / "tool.js"
+
+
+def read_tool_content() -> str:
+    return TOOL_PATH.read_text(encoding="utf-8")
 
 
 def read_plugin_content() -> str:
@@ -54,11 +59,11 @@ main().catch((error) => {
 """.strip()
 
 
-def invoke_plugin_in_repo(repo_root: Path, args: dict) -> dict:
+def invoke_active_tool_in_repo(repo_root: Path, args: dict) -> dict:
     _prepare_repo_root(repo_root)
 
     harness_path = repo_root / "bet_artifact_write.harness.ts"
-    source = read_plugin_content().replace(
+    source = read_tool_content().replace(
         'from "@kilocode/plugin/tool"',
         f'from {json.dumps(PLUGIN_TOOL_DIST.as_uri())}',
     )
@@ -86,24 +91,25 @@ def invoke_plugin_in_repo(repo_root: Path, args: dict) -> dict:
     return json.loads(result.stdout)
 
 
-def invoke_plugin(args: dict) -> dict:
+def invoke_active_tool(args: dict) -> dict:
     with tempfile.TemporaryDirectory(prefix="bet-artifact-write-provenance-") as tmpdir:
-        return invoke_plugin_in_repo(Path(tmpdir), args)
+        return invoke_active_tool_in_repo(Path(tmpdir), args)
 
 
-def test_plugin_source_has_version_marker_and_report_root() -> None:
-    content = read_plugin_content()
+def test_active_tool_source_has_version_marker_and_report_root() -> None:
+    content = read_tool_content()
 
-    assert 'const PLUGIN_VERSION = "pipeline-runs-allowlist-a1a00ff"' in content
+    assert 'const TOOL_VERSION = "standalone-pipeline-runs-v2"' in content
     assert 'const SCHEMA_VERSION = 2' in content
     assert '"reports/pipeline_runs"' in content
     assert "allowed_report_roots" in content
     assert "supports_reports_pipeline_runs" in content
     assert "security" in content
+    assert "plugin_version" not in content
 
 
 def test_success_response_exposes_runtime_provenance() -> None:
-    response = invoke_plugin(
+    response = invoke_active_tool(
         {
             "path": "reports/pipeline_runs/test-run/runtime-provenance.json",
             "content": json.dumps({"status": "ok"}),
@@ -115,7 +121,7 @@ def test_success_response_exposes_runtime_provenance() -> None:
     assert response["status"] == "success"
     assert response["schema_version"] == 2
     assert response["tool"] == "bet_artifact_write"
-    assert response["plugin_version"] == "pipeline-runs-allowlist-a1a00ff"
+    assert response["tool_version"] == "standalone-pipeline-runs-v2"
     assert response["supports_reports_pipeline_runs"] is True
     assert "reports/pipeline_runs" in response["allowed_report_roots"]
     assert response["security"] == {
@@ -128,7 +134,7 @@ def test_success_response_exposes_runtime_provenance() -> None:
 
 
 def test_path_not_allowed_response_includes_allowed_roots() -> None:
-    response = invoke_plugin(
+    response = invoke_active_tool(
         {
             "path": "reports/other/test-run/outside.json",
             "content": json.dumps({"status": "blocked"}),
@@ -139,7 +145,7 @@ def test_path_not_allowed_response_includes_allowed_roots() -> None:
 
     assert response["status"] == "blocked"
     assert response["error_code"] == "PATH_NOT_ALLOWED"
-    assert response["plugin_version"] == "pipeline-runs-allowlist-a1a00ff"
+    assert response["tool_version"] == "standalone-pipeline-runs-v2"
     assert response["allowed_report_roots"] == [
         "reports/betting-demo",
         "reports/betting",
@@ -148,7 +154,7 @@ def test_path_not_allowed_response_includes_allowed_roots() -> None:
 
 
 def test_security_guards_remain_intact() -> None:
-    traversal = invoke_plugin(
+    traversal = invoke_active_tool(
         {
             "path": "reports/pipeline_runs/test-run/../../escape.json",
             "content": json.dumps({"status": "blocked"}),
@@ -158,7 +164,7 @@ def test_security_guards_remain_intact() -> None:
     )
     assert traversal["error_code"] == "PATH_TRAVERSAL"
 
-    secret = invoke_plugin(
+    secret = invoke_active_tool(
         {
             "path": "reports/pipeline_runs/test-run/secret.md",
             "content": "token: secret_value",
@@ -168,7 +174,7 @@ def test_security_guards_remain_intact() -> None:
     )
     assert secret["error_code"] == "CONTENT_SECRET_DETECTED"
 
-    invalid_json = invoke_plugin(
+    invalid_json = invoke_active_tool(
         {
             "path": "reports/pipeline_runs/test-run/invalid.json",
             "content": "{invalid}",
@@ -178,7 +184,7 @@ def test_security_guards_remain_intact() -> None:
     )
     assert invalid_json["error_code"] == "CONTENT_INVALID_JSON"
 
-    wrong_extension = invoke_plugin(
+    wrong_extension = invoke_active_tool(
         {
             "path": "reports/pipeline_runs/test-run/wrong.txt",
             "content": json.dumps({"status": "blocked"}),
@@ -193,7 +199,7 @@ def test_cas_overwrite_protection_remains_intact() -> None:
     with tempfile.TemporaryDirectory(prefix="bet-artifact-write-cas-") as tmpdir:
         repo_root = Path(tmpdir)
 
-        first = invoke_plugin_in_repo(
+        first = invoke_active_tool_in_repo(
             repo_root,
             {
                 "path": "reports/pipeline_runs/test-run/cas.json",
@@ -204,7 +210,7 @@ def test_cas_overwrite_protection_remains_intact() -> None:
         )
         assert first["status"] == "success"
 
-        second = invoke_plugin_in_repo(
+        second = invoke_active_tool_in_repo(
             repo_root,
             {
                 "path": "reports/pipeline_runs/test-run/cas.json",
@@ -215,3 +221,11 @@ def test_cas_overwrite_protection_remains_intact() -> None:
         )
         assert second["error_code"] == "EXPECTED_HASH_REQUIRED"
         assert second["security"]["cas_overwrite_protection_enabled"] is True
+
+
+def test_disabled_plugin_preserves_provenance_without_registration() -> None:
+    content = read_plugin_content()
+
+    assert "export default tool(" not in content
+    assert 'registers_tool_name: false' in content
+    assert 'single_source_strategy: "STANDALONE_TOOL_SINGLE_SOURCE"' in content

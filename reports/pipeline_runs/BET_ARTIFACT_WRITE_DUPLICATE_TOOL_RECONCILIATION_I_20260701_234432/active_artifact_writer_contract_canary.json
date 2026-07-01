@@ -1,0 +1,8 @@
+{
+  "task_id": "BET_ARTIFACT_WRITE_DUPLICATE_TOOL_RECONCILIATION_I",
+  "single_source_strategy": "STANDALONE_TOOL_SINGLE_SOURCE",
+  "active_source": ".kilo/tool/bet_artifact_write.ts",
+  "tool_version": "standalone-pipeline-runs-v2",
+  "supports_reports_pipeline_runs": true,
+  "duplicate_same_name_tool_sources_remaining": false
+}

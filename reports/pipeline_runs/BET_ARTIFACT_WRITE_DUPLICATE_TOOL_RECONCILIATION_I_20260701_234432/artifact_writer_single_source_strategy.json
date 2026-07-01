@@ -1,0 +1,23 @@
+{
+  "task_id": "BET_ARTIFACT_WRITE_DUPLICATE_TOOL_RECONCILIATION_I",
+  "run_id": "BET_ARTIFACT_WRITE_DUPLICATE_TOOL_RECONCILIATION_I_20260701_234432",
+  "selected_strategy": "STANDALONE_TOOL_SINGLE_SOURCE",
+  "active_source": ".kilo/tool/bet_artifact_write.ts",
+  "disabled_duplicate_source": ".kilo/plugin/bet_artifact_write.ts",
+  "tool_version": "standalone-pipeline-runs-v2",
+  "schema_version": 2,
+  "supports_reports_pipeline_runs": true,
+  "preserved_security": {
+    "path_traversal_blocked": true,
+    "secret_detection_enabled": true,
+    "json_validation_enabled": true,
+    "extension_validation_enabled": true,
+    "cas_overwrite_protection_enabled": true,
+    "absolute_path_blocked": true,
+    "symlink_escape_blocked": true
+  },
+  "alternatives_rejected": [
+    "PLUGIN_TOOL_SINGLE_SOURCE",
+    "EQUIVALENT_DUPLICATE_TEMPORARY"
+  ]
+}
