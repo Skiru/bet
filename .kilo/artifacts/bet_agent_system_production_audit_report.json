@@ -14,6 +14,73 @@
     "output_schemas_present": true,
     "continuation_protocol_present": true,
     "no_recursive_delegation": true,
+    "runtime_smoke_run_dir": "/Users/mkoziol/projects/bet/reports/pipeline_runs/AGENT_SYSTEM_RUNTIME_SMOKE_CONTRACT_REPAIR_E1_20260701_144050",
+    "primary_agent_config_smoke": {
+      "smoke_type": "PRIMARY_AGENT_CONFIG_SMOKE",
+      "verdict": "PASS",
+      "invalid_smoke_test_detected": false,
+      "finding_category": "PASS"
+    },
+    "delegated_subagent_launch_smoke": {
+      "bet-enricher": {
+        "smoke_type": "DELEGATED_SUBAGENT_LAUNCH_SMOKE",
+        "verdict": "PASS",
+        "child_runtime_model": "google-vertex/gemini-3.5-flash",
+        "inheritance_proof_mode": "PASS_BY_CONTRACT",
+        "artifact_path": "reports/pipeline_runs/AGENT_SYSTEM_RUNTIME_SMOKE_CONTRACT_REPAIR_E1_20260701_144050/bet-enricher_runtime_smoke.md",
+        "finding_category": "PASS"
+      },
+      "bet-statistician": {
+        "smoke_type": "DELEGATED_SUBAGENT_LAUNCH_SMOKE",
+        "verdict": "PASS",
+        "child_runtime_model": "google-vertex/gemini-3.5-flash",
+        "inheritance_proof_mode": "PASS_BY_CONTRACT",
+        "artifact_path": "reports/pipeline_runs/AGENT_SYSTEM_RUNTIME_SMOKE_CONTRACT_REPAIR_E1_20260701_144050/bet-statistician_runtime_smoke.md",
+        "finding_category": "PASS"
+      },
+      "bet-valuator": {
+        "smoke_type": "DELEGATED_SUBAGENT_LAUNCH_SMOKE",
+        "verdict": "PASS",
+        "child_runtime_model": "google-vertex/gemini-3.5-flash",
+        "inheritance_proof_mode": "PASS_BY_CONTRACT",
+        "artifact_path": "reports/pipeline_runs/AGENT_SYSTEM_RUNTIME_SMOKE_CONTRACT_REPAIR_E1_20260701_144050/bet-valuator_runtime_smoke.md",
+        "finding_category": "PASS"
+      },
+      "bet-challenger": {
+        "smoke_type": "DELEGATED_SUBAGENT_LAUNCH_SMOKE",
+        "verdict": "PASS",
+        "child_runtime_model": "google-vertex/gemini-3.5-flash",
+        "inheritance_proof_mode": "PASS_BY_CONTRACT",
+        "artifact_path": "reports/pipeline_runs/AGENT_SYSTEM_RUNTIME_SMOKE_CONTRACT_REPAIR_E1_20260701_144050/bet-challenger_runtime_smoke.md",
+        "finding_category": "PASS"
+      },
+      "bet-builder": {
+        "smoke_type": "DELEGATED_SUBAGENT_LAUNCH_SMOKE",
+        "verdict": "PASS",
+        "child_runtime_model": "google-vertex/gemini-3.5-flash",
+        "inheritance_proof_mode": "PASS_BY_CONTRACT",
+        "artifact_path": "reports/pipeline_runs/AGENT_SYSTEM_RUNTIME_SMOKE_CONTRACT_REPAIR_E1_20260701_144050/bet-builder_runtime_smoke.md",
+        "finding_category": "PASS"
+      },
+      "bet-test-engineer": {
+        "smoke_type": "DELEGATED_SUBAGENT_LAUNCH_SMOKE",
+        "verdict": "PASS",
+        "child_runtime_model": "google-vertex/gemini-3.5-flash",
+        "inheritance_proof_mode": "PASS_BY_CONTRACT",
+        "artifact_path": "reports/pipeline_runs/AGENT_SYSTEM_RUNTIME_SMOKE_CONTRACT_REPAIR_E1_20260701_144050/bet-test-engineer_runtime_smoke.md",
+        "finding_category": "PASS"
+      }
+    },
+    "direct_role_smoke": {},
+    "inheritance_proof_mode": "PASS_BY_CONTRACT",
+    "invalid_smoke_test_detected": false,
+    "subagents_inherit_active_runtime_model": true,
+    "unknown_child_runtime_model_accepted_by_contract": true,
+    "all_subagents_wrote_role_local_artifacts": true,
+    "explicit_model_override_detected": false,
+    "conflicting_override_source": "NONE",
+    "provider_model_not_found_error": false,
+    "silent_fallback_detected": false,
     "verdict": "PASS"
   },
   "failures": []

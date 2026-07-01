@@ -48,7 +48,23 @@ Continuation and runtime rules:
 - The active Kilo UI runtime model is the source of truth.
 - Required betting subagents must inherit the active parent model unless the user explicitly approved an override.
 - Record the active runtime model in runtime-smoke evidence.
-- Treat `ProviderModelNotFoundError`, silent fallback, unknown active runtime, or a conflicting explicit override as hard failures.
+- Treat `ProviderModelNotFoundError`, silent fallback, or a conflicting explicit override as hard failures.
+- In delegated runtime smoke, `UNKNOWN_NOT_INTROSPECTABLE` inside the child does not fail by itself when the parent runtime model is known and inheritance passes by contract.
+
+RUNTIME SMOKE MODE:
+- When `task_id` or the prompt contains `RUNTIME_SMOKE`, do not run sports analysis and do not inspect large files.
+- For primary-agent smoke, do not try to self-launch through the subagent interface.
+- Write exactly one tiny artifact to the requested path with `bet_artifact_write`.
+- Return this exact schema instead of the normal final response schema:
+```text
+role: bet-orchestrator
+launched=true
+artifact_written=true|false
+provider_model_not_found_error=false
+explicit_model_override_detected=true|false
+inherited_parent_model=PASS_BY_CONTRACT
+blockers=[]
+```
 
 Exact final response schema:
 ```text

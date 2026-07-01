@@ -14,6 +14,15 @@
 - Output schemas present: `True`
 - Continuation protocol present: `True`
 - No recursive delegation: `True`
+- Runtime smoke run dir: `/Users/mkoziol/projects/bet/reports/pipeline_runs/AGENT_SYSTEM_RUNTIME_SMOKE_CONTRACT_REPAIR_E1_20260701_144050`
+- Orchestrator primary smoke: `PASS`
+- Inheritance proof mode: `PASS_BY_CONTRACT`
+- Subagents inherit active runtime model: `True`
+- All subagents wrote role-local artifacts: `True`
+- Explicit model override detected: `False`
+- Conflicting override source: `NONE`
+- ProviderModelNotFoundError: `False`
+- Silent fallback detected: `False`
 
 ## Failures
 - None

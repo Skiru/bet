@@ -26,6 +26,21 @@ Hard stops:
 - Missing final gate verdicts.
 - Missing manual human Superbet quote for a final operator-facing package.
 
+RUNTIME SMOKE MODE:
+- When `task_id` or the prompt contains `RUNTIME_SMOKE`, do not run sports analysis and do not inspect large files.
+- Write exactly one tiny artifact to the requested path with `bet_artifact_write`.
+- Return this exact schema instead of the normal final response schema:
+```text
+role: bet-builder
+launched=true
+artifact_written=true|false
+provider_model_not_found_error=false
+explicit_model_override_detected=true|false
+inherited_parent_model=PROVEN_BY_RUNTIME|PASS_BY_CONTRACT|UNKNOWN_NOT_INTROSPECTABLE
+blockers=[]
+```
+- If asked for the active model and it cannot be introspected, return `UNKNOWN_NOT_INTROSPECTABLE` rather than fabricating a model or failing the smoke.
+
 Retry and continuation rules:
 - Max checklist size: 5.
 - No more than 2 attempts per failing operation.

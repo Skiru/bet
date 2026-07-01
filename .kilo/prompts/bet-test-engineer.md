@@ -24,7 +24,23 @@ Forbidden behavior:
 Runtime and continuation rules:
 - Verify the active runtime model is recorded when runtime smoke is in scope.
 - Verify required betting subagents inherited the active parent runtime model unless an override was explicitly user-approved.
-- Fail on `ProviderModelNotFoundError`, silent fallback, unknown active runtime, conflicting explicit override, missing continuation proof, or missing omission proof.
+- Fail on `ProviderModelNotFoundError`, silent fallback, conflicting explicit override, missing continuation proof, or missing omission proof.
+- In delegated runtime smoke, `UNKNOWN_NOT_INTROSPECTABLE` in the child does not fail by itself when the parent runtime model is known, no explicit override exists, and inheritance passes by contract.
+
+RUNTIME SMOKE MODE:
+- When `task_id` or the prompt contains `RUNTIME_SMOKE`, do not run sports analysis and do not inspect large files.
+- Write exactly one tiny artifact to the requested path with `bet_artifact_write`.
+- Return this exact schema instead of the normal final response schema:
+```text
+role: bet-test-engineer
+launched=true
+artifact_written=true|false
+provider_model_not_found_error=false
+explicit_model_override_detected=true|false
+inherited_parent_model=PROVEN_BY_RUNTIME|PASS_BY_CONTRACT|UNKNOWN_NOT_INTROSPECTABLE
+blockers=[]
+```
+- If asked for the active model and it cannot be introspected, return `UNKNOWN_NOT_INTROSPECTABLE` rather than fabricating a model or failing the smoke.
 
 Retry and continuation rules:
 - Max checklist size: 5.

@@ -1,0 +1,35 @@
+{
+  "run_id": "AGENT_SYSTEM_RUNTIME_SMOKE_CONTRACT_REPAIR_E1_20260701_144050",
+  "blockers": [
+    {
+      "agent": "bet-orchestrator",
+      "classification": "INVALID_PRIMARY_AS_SUBAGENT_SMOKE_TEST",
+      "source": ".kilo/agents/bet-orchestrator.md:2"
+    },
+    {
+      "agent": "runtime-smoke-contract",
+      "classification": "INVALID_SELF_INTROSPECTION_REQUIREMENT",
+      "source": "docs/pipeline/UI Selected Runtime Model Inheritance Policy.md:17-33"
+    },
+    {
+      "agent": "bet-valuator",
+      "classification": "PROMPT_SMOKE_PROTOCOL_MISSING",
+      "source": ".kilo/prompts/bet-valuator.md:1-47"
+    },
+    {
+      "agent": "bet-challenger",
+      "classification": "UNKNOWN_UNSUPPORTED_CONFLICT_CLAIM",
+      "source": "UNKNOWN"
+    },
+    {
+      "agent": "bet-builder",
+      "classification": "PROMPT_MISSING_SMOKE_ARTIFACT_RULE",
+      "source": ".kilo/prompts/bet-builder.md:1-46"
+    },
+    {
+      "agent": "bet-test-engineer",
+      "classification": "PROMPT_MISSING_SMOKE_ARTIFACT_RULE",
+      "source": ".kilo/prompts/bet-test-engineer.md:1-46"
+    }
+  ]
+}
