@@ -1,0 +1,14 @@
+{
+  "run_id": "ORCHESTRATED_SESSION_CONTINUATION_PROTOCOL_J0_20260701_104204",
+  "status": "PASS_CONTINUATION_REQUIRED",
+  "current_phase": "J0",
+  "artifacts": {
+    "root_cause_review": ".kilo/artifacts/orchestrated_session_max_steps_root_cause_review.md",
+    "continuation_protocol_doc": "docs/pipeline/Orchestrated Session Continuation Protocol.md",
+    "continuation_protocol_artifact_md": ".kilo/artifacts/orchestrated_session_continuation_protocol.md",
+    "continuation_protocol_artifact_json": ".kilo/artifacts/orchestrated_session_continuation_protocol.json",
+    "session_state": "reports/pipeline_runs/ORCHESTRATED_SESSION_CONTINUATION_PROTOCOL_J0_20260701_104204/session_state.json",
+    "phase_checkpoint": "reports/pipeline_runs/ORCHESTRATED_SESSION_CONTINUATION_PROTOCOL_J0_20260701_104204/phase_checkpoint.md",
+    "resume_prompt_next": "reports/pipeline_runs/ORCHESTRATED_SESSION_CONTINUATION_PROTOCOL_J0_20260701_104204/resume_prompt_next.md"
+  }
+}

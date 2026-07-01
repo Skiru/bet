@@ -66,5 +66,69 @@ No routing to local Qwen, GPT, or Anthropic models is permitted for the active b
 1. **Zero Valid Tips Gate:** If Phase C (`bet-scout`) identifies 0 valid tips, a hard stop is triggered (`NO_DATA`).
 2. **Adversarial Gate:** `bet-challenger` must issue a `KEEP_TOP` verdict for any top recommendation to remain in the final list.
 3. **Validation Gate:** `bet-test-engineer` must run independent tests and format checks and issue a `PASS`.
-4. **Human Superbet Quote Safety:** No final coupon or combined Bet Builder odds may be computed or combined automatically. Final manual coupons strictly require a real, human-entered Superbet operator quote.
+4. **Human Superbet Quote Safety:** No final coupon or combined Bet Builder odds may be computed or combined automatically. Final manual coupons strictly require a real, manually-entered Superbet operator quote.
 5. **No Automated Placement:** Auto-betting, scraping of Betclic/Superbet APIs, and browser automation are strictly forbidden.
+
+---
+
+## 7. Phased Execution & Checkpoint-Continuation Protocol
+
+To prevent step-exhaustion failures in monolithic multi-agent sessions, the orchestrator must adhere to the **Orchestrated Session Continuation Protocol** (`docs/pipeline/Orchestrated Session Continuation Protocol.md`).
+
+### 7.1. Phased Division & Artifact Budgets
+Execution is divided into the following sequential phases, each having a specific required subagent and artifact budget:
+- **Phase J1: Discovery & Opinion Compilation**
+  - Subagents: `bet-scanner`, `bet-scout`
+  - Required Artifacts: `scanner_event_universe.json`, `scout_tipster_opinion_layer.json`
+- **Phase J2: Context & Statistical Analysis**
+  - Subagents: `bet-enricher`, `bet-statistician`
+  - Required Artifacts: `enricher_context_layer.json`, `statistician_market_analysis.json`
+- **Phase J3: Valuation, Challenge, & Build**
+  - Subagents: `bet-valuator`, `bet-challenger`, `bet-builder`
+  - Required Artifacts: `valuator_reference_odds_layer.json`, `challenger_adversarial_review.json`, `builder_package.json`
+- **Phase J4: QA, Verification, & Final Report**
+  - Subagents: `bet-test-engineer`
+  - Required Artifacts: `package_quality_review.md`, `status_safety_review.md`, `omission_ledger.json`
+
+### 7.2. Max Steps Protection & Checkpoint Rules
+- The orchestrator has a hard limit of 24 steps. If step budget risk appears (approaching 16-18 steps), or if completing the current phase, the orchestrator must serialize its state and halt early.
+- In such cases, the orchestrator must return a status of `PASS_CONTINUATION_REQUIRED` with a structured `next_resume_prompt` pointing to the next execution phase.
+
+### 7.3. Cumulative Manifest Rule
+- The subagent manifest (`orchestrator_subagent_manifest.json`) must be updated cumulatively. Each phase must append its newly executed subagents and output artifacts, ensuring that the manifest is a cumulative and accurate ledger of the entire multi-phase run.
+
+### 7.4. No False PASS Prevention
+- To prevent a false `PASS` (where only precheck or planning steps are executed, but no subagents are run), the orchestrator is strictly forbidden from returning `PASS_FINAL` without confirming that ALL 8 subagents have completed and ALL required artifacts from J1 through J4 successfully exist on disk.
+- Any completion statement issued without these verifications must be rejected by quality-gate audits.
+
+### 7.5. Resume-Token Schema
+Every non-final phase must persist a resume token inside `session_state.json` containing:
+- `task_id`
+- `run_id`
+- `status`
+- `current_phase`
+- `completed_phases`
+- `pending_phases`
+- `required_subagents`
+- `completed_subagents`
+- `artifact_manifest`
+- `omission_ledger_path`
+- `model_routing_status`
+- `next_resume_prompt`
+- `next_phase`
+- `final_verdict_allowed`
+
+### 7.6. Phase Checkpoint Schema
+Each phase checkpoint must record:
+- `TASK_ID=<task_id>`
+- `RUN_ID=<run_id>`
+- `STATUS=<status>`
+- `CURRENT_PHASE=<phase>`
+- `COMPLETED_PHASES=<json array>`
+- `PENDING_PHASES=<json array>`
+- `COMPLETED_SUBAGENTS=<json array>`
+- `REQUIRED_ARTIFACTS=<json array>`
+- `MISSING_ARTIFACTS=<json array>`
+- `NEXT_PHASE=<phase or FINAL>`
+- `NEXT_RESUME_PROMPT_PATH=<path or NONE>`
+- `FINAL_VERDICT_ALLOWED=true|false`

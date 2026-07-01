@@ -1,0 +1,40 @@
+{
+  "task_id": "ORCHESTRATED_SESSION_CONTINUATION_PROTOCOL_J0",
+  "run_id": "ORCHESTRATED_SESSION_CONTINUATION_PROTOCOL_J0_20260701_104204",
+  "status": "PASS_CONTINUATION_REQUIRED",
+  "current_phase": "J0",
+  "completed_phases": [
+    "J0"
+  ],
+  "pending_phases": [
+    "J1",
+    "J2",
+    "J3",
+    "J4"
+  ],
+  "required_subagents": [
+    "bet-scanner",
+    "bet-scout",
+    "bet-enricher",
+    "bet-statistician",
+    "bet-valuator",
+    "bet-challenger",
+    "bet-builder",
+    "bet-test-engineer"
+  ],
+  "completed_subagents": [],
+  "artifact_manifest": {
+    "root_cause_review": ".kilo/artifacts/orchestrated_session_max_steps_root_cause_review.md",
+    "continuation_protocol_doc": "docs/pipeline/Orchestrated Session Continuation Protocol.md",
+    "continuation_protocol_artifact_md": ".kilo/artifacts/orchestrated_session_continuation_protocol.md",
+    "continuation_protocol_artifact_json": ".kilo/artifacts/orchestrated_session_continuation_protocol.json",
+    "phase_checkpoint": "reports/pipeline_runs/ORCHESTRATED_SESSION_CONTINUATION_PROTOCOL_J0_20260701_104204/phase_checkpoint.md",
+    "resume_prompt_next": "reports/pipeline_runs/ORCHESTRATED_SESSION_CONTINUATION_PROTOCOL_J0_20260701_104204/resume_prompt_next.md",
+    "artifact_manifest": "reports/pipeline_runs/ORCHESTRATED_SESSION_CONTINUATION_PROTOCOL_J0_20260701_104204/artifact_manifest.json"
+  },
+  "omission_ledger_path": "reports/pipeline_runs/ORCHESTRATED_SESSION_CONTINUATION_PROTOCOL_J0_20260701_104204/omission_ledger.json",
+  "model_routing_status": "PASS",
+  "next_resume_prompt": "Resume phase J1 only. Read reports/pipeline_runs/ORCHESTRATED_SESSION_CONTINUATION_PROTOCOL_J0_20260701_104204/session_state.json, phase_checkpoint.md, artifact_manifest.json, and the continuation protocol documents first. Run bet-scanner and bet-scout only. Do not run bet-enricher, bet-statistician, bet-valuator, bet-challenger, bet-builder, or bet-test-engineer in J1. Produce scanner_event_universe.json and scout_tipster_opinion_layer.json, update the cumulative subagent manifest, write a new checkpoint, and stop with PASS_CONTINUATION_REQUIRED.",
+  "next_phase": "J1",
+  "final_verdict_allowed": false
+}

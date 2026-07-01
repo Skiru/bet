@@ -1,0 +1,118 @@
+{
+  "protocol": "Orchestrated Session Continuation Protocol",
+  "version": "1.0.0",
+  "required_statuses": [
+    "PASS_PHASE_COMPLETE",
+    "PASS_CONTINUATION_REQUIRED",
+    "PASS_FINAL",
+    "BLOCKED_MODEL_ROUTING",
+    "BLOCKED_SUBAGENT_NOT_RUN",
+    "BLOCKED_MISSING_ARTIFACT",
+    "BLOCKED_MAX_STEPS_RISK",
+    "BLOCKED_CODE_BUG"
+  ],
+  "required_subagents": [
+    "bet-scanner",
+    "bet-scout",
+    "bet-enricher",
+    "bet-statistician",
+    "bet-valuator",
+    "bet-challenger",
+    "bet-builder",
+    "bet-test-engineer"
+  ],
+  "session_state_schema": {
+    "type": "object",
+    "required": [
+      "task_id",
+      "run_id",
+      "status",
+      "current_phase",
+      "completed_phases",
+      "pending_phases",
+      "required_subagents",
+      "completed_subagents",
+      "artifact_manifest",
+      "omission_ledger_path",
+      "model_routing_status",
+      "next_resume_prompt",
+      "next_phase",
+      "final_verdict_allowed"
+    ],
+    "properties": {
+      "task_id": { "type": "string" },
+      "run_id": { "type": "string" },
+      "status": {
+        "type": "string",
+        "enum": [
+          "PASS_PHASE_COMPLETE",
+          "PASS_CONTINUATION_REQUIRED",
+          "PASS_FINAL",
+          "BLOCKED_MODEL_ROUTING",
+          "BLOCKED_SUBAGENT_NOT_RUN",
+          "BLOCKED_MISSING_ARTIFACT",
+          "BLOCKED_MAX_STEPS_RISK",
+          "BLOCKED_CODE_BUG"
+        ]
+      },
+      "current_phase": { "type": "string", "enum": ["J0", "J1", "J2", "J3", "J4"] },
+      "completed_phases": { "type": "array", "items": { "type": "string" } },
+      "pending_phases": { "type": "array", "items": { "type": "string" } },
+      "required_subagents": { "type": "array", "items": { "type": "string" } },
+      "completed_subagents": { "type": "array", "items": { "type": "string" } },
+      "artifact_manifest": { "type": "object" },
+      "omission_ledger_path": { "type": "string" },
+      "model_routing_status": { "type": "string", "enum": ["PASS", "FAIL", "UNVERIFIED"] },
+      "next_resume_prompt": { "type": "string" },
+      "next_phase": { "type": "string", "enum": ["J1", "J2", "J3", "J4", "FINAL"] },
+      "final_verdict_allowed": { "type": "boolean" }
+    }
+  },
+  "phase_budgets": {
+    "J0": {
+      "required_subagents": [],
+      "required_artifacts": [
+        ".kilo/artifacts/orchestrated_session_max_steps_root_cause_review.md",
+        ".kilo/artifacts/orchestrated_session_continuation_protocol.md",
+        ".kilo/artifacts/orchestrated_session_continuation_protocol.json"
+      ]
+    },
+    "J1": {
+      "required_subagents": ["bet-scanner", "bet-scout"],
+      "required_artifacts": [
+        "scanner_event_universe.json",
+        "scout_tipster_opinion_layer.json"
+      ]
+    },
+    "J2": {
+      "required_subagents": ["bet-enricher", "bet-statistician"],
+      "required_artifacts": [
+        "enricher_context_layer.json",
+        "statistician_market_analysis.json"
+      ]
+    },
+    "J3": {
+      "required_subagents": ["bet-valuator", "bet-challenger", "bet-builder"],
+      "required_artifacts": [
+        "valuator_reference_odds_layer.json",
+        "challenger_adversarial_review.json",
+        "builder_package.json"
+      ]
+    },
+    "J4": {
+      "required_subagents": ["bet-test-engineer"],
+      "required_artifacts": [
+        "package_quality_review.md",
+        "status_safety_review.md",
+        "omission_ledger.json"
+      ]
+    }
+  },
+  "final_pass_requirements": {
+    "all_required_subagents_ran": true,
+    "all_required_artifacts_exist": true,
+    "omission_ledger_exists": true,
+    "quality_gate_passes": true,
+    "test_engineer_verification_exists": true
+  }
+}

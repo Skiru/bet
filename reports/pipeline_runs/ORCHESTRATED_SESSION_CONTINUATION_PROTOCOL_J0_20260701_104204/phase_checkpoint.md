@@ -1,0 +1,12 @@
+TASK_ID=ORCHESTRATED_SESSION_CONTINUATION_PROTOCOL_J0
+RUN_ID=ORCHESTRATED_SESSION_CONTINUATION_PROTOCOL_J0_20260701_104204
+STATUS=PASS_CONTINUATION_REQUIRED
+CURRENT_PHASE=J0
+COMPLETED_PHASES=["J0"]
+PENDING_PHASES=["J1","J2","J3","J4"]
+COMPLETED_SUBAGENTS=[]
+REQUIRED_ARTIFACTS=[".kilo/artifacts/orchestrated_session_max_steps_root_cause_review.md","docs/pipeline/Orchestrated Session Continuation Protocol.md",".kilo/artifacts/orchestrated_session_continuation_protocol.md",".kilo/artifacts/orchestrated_session_continuation_protocol.json","reports/pipeline_runs/ORCHESTRATED_SESSION_CONTINUATION_PROTOCOL_J0_20260701_104204/session_state.json","reports/pipeline_runs/ORCHESTRATED_SESSION_CONTINUATION_PROTOCOL_J0_20260701_104204/phase_checkpoint.md","reports/pipeline_runs/ORCHESTRATED_SESSION_CONTINUATION_PROTOCOL_J0_20260701_104204/resume_prompt_next.md","reports/pipeline_runs/ORCHESTRATED_SESSION_CONTINUATION_PROTOCOL_J0_20260701_104204/artifact_manifest.json"]
+MISSING_ARTIFACTS=[]
+NEXT_PHASE=J1
+NEXT_RESUME_PROMPT_PATH=reports/pipeline_runs/ORCHESTRATED_SESSION_CONTINUATION_PROTOCOL_J0_20260701_104204/resume_prompt_next.md
+FINAL_VERDICT_ALLOWED=false
