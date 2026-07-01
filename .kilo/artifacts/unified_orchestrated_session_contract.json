@@ -1,0 +1,81 @@
+{
+  "contract_name": "Unified Orchestrated Analyst Session Contract",
+  "version": "2.0.0",
+  "routing": {
+    "provider": "google-vertex",
+    "model": "gemini-3.5-flash",
+    "alias": "gemini-3.5-flash-flex-high",
+    "serving_tier": "flex",
+    "thinking": "HIGH"
+  },
+  "required_subagents": [
+    "bet-orchestrator",
+    "bet-scanner",
+    "bet-scout",
+    "bet-enricher",
+    "bet-statistician",
+    "bet-valuator",
+    "bet-challenger",
+    "bet-builder",
+    "bet-test-engineer"
+  ],
+  "required_artifacts": {
+    "bet-orchestrator": [
+      "orchestrator_session_plan.md",
+      "orchestrator_subagent_manifest.json",
+      "model_routing_matrix.json",
+      "active_model_runtime_proof.md"
+    ],
+    "bet-scanner": [
+      "scanner_event_universe.md",
+      "scanner_event_universe.json"
+    ],
+    "bet-scout": [
+      "scout_tipster_opinion_layer.md",
+      "scout_tipster_opinion_layer.json"
+    ],
+    "bet-enricher": [
+      "enricher_context_layer.md",
+      "enricher_context_layer.json"
+    ],
+    "bet-statistician": [
+      "statistician_market_analysis.md",
+      "statistician_market_analysis.json"
+    ],
+    "bet-valuator": [
+      "valuator_reference_odds_layer.md",
+      "valuator_reference_odds_layer.json"
+    ],
+    "bet-challenger": [
+      "challenger_adversarial_review.md",
+      "challenger_adversarial_review.json"
+    ],
+    "bet-builder": [
+      "builder_package.md",
+      "builder_package.json",
+      "omission_ledger.md",
+      "omission_ledger.json"
+    ],
+    "bet-test-engineer": [
+      "package_quality_review.md",
+      "status_safety_review.md"
+    ]
+  },
+  "quality_gates": {
+    "zero_valid_tips": {
+      "phase": "C",
+      "rule": "If tip count == 0, trigger NO_DATA hard stop",
+      "action": "HALT"
+    },
+    "no_silent_omission": {
+      "phase": "B-E",
+      "rule": "Every discovered event must be recommended, watchlisted, or logged in omission ledger with reason",
+      "action": "BLOCK_PASS"
+    },
+    "human_quote_safety": {
+      "phase": "E",
+      "rule": "Final coupon require human-entered Superbet quote; automated placement or odds calculations are forbidden",
+      "action": "BLOCK_PASS"
+    }
+  }
+}

@@ -1,0 +1,111 @@
+{
+  "session_id": "AGENT_ROSTER_ORCHESTRATION_PROOF_H_20260701_093000",
+  "timestamp": "2026-07-01T09:30:00Z",
+  "discovered_sports": [
+    {
+      "sport": "football",
+      "status": "ANALYZED",
+      "reason": "Primary sports coverage verified and compiled."
+    },
+    {
+      "sport": "tennis",
+      "status": "ANALYZED",
+      "reason": "Wimbledon active matches verified and compiled."
+    },
+    {
+      "sport": "basketball",
+      "status": "WATCHLIST",
+      "reason": "Lower confidence due to end of season summer break context gaps."
+    },
+    {
+      "sport": "volleyball",
+      "status": "OMITTED",
+      "reason": "No matches scheduled in the next 24 hours."
+    },
+    {
+      "sport": "CS2",
+      "status": "REJECTED",
+      "reason": "Insufficient context on team roster changes."
+    }
+  ],
+  "discovered_competitions": [
+    {
+      "competition": "UEFA Champions League Qualifiers",
+      "status": "COVERED",
+      "reason": "Complete statistics and tips available."
+    },
+    {
+      "competition": "MLS",
+      "status": "OMITTED",
+      "reason": "Matches outside target kickoff coverage window."
+    }
+  ],
+  "subagent_executions": [
+    {
+      "subagent_name": "bet-scanner",
+      "executed": true,
+      "verdict": "PASS"
+    },
+    {
+      "subagent_name": "bet-scout",
+      "executed": true,
+      "verdict": "PASS"
+    },
+    {
+      "subagent_name": "bet-enricher",
+      "executed": true,
+      "verdict": "PASS"
+    },
+    {
+      "subagent_name": "bet-statistician",
+      "executed": true,
+      "verdict": "PASS"
+    },
+    {
+      "subagent_name": "bet-valuator",
+      "executed": true,
+      "verdict": "PASS"
+    },
+    {
+      "subagent_name": "bet-challenger",
+      "executed": true,
+      "verdict": "PASS"
+    },
+    {
+      "subagent_name": "bet-builder",
+      "executed": true,
+      "verdict": "PASS"
+    },
+    {
+      "subagent_name": "bet-test-engineer",
+      "executed": true,
+      "verdict": "PASS"
+    }
+  ],
+  "source_gaps": {
+    "missing_tipsters": [
+      {
+        "source_id": "tipster_pro_04",
+        "logged": true
+      }
+    ],
+    "missing_enrichment": [
+      {
+        "event_id": "match_mls_09",
+        "missing_factors": ["weather", "referee"]
+      }
+    ]
+  },
+  "unsupported_elements": [
+    {
+      "element_type": "SPORT",
+      "name": "handball",
+      "reason": "No statistical models registered."
+    },
+    {
+      "element_type": "MARKET",
+      "name": "player_shots_on_target",
+      "reason": "Provider lacks feed coverage."
+    }
+  ]
+}

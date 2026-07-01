@@ -1,0 +1,129 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "OmissionLedger",
+  "type": "object",
+  "required": [
+    "session_id",
+    "timestamp",
+    "discovered_sports",
+    "discovered_competitions",
+    "subagent_executions",
+    "source_gaps",
+    "unsupported_elements"
+  ],
+  "properties": {
+    "session_id": {
+      "type": "string"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "discovered_sports": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["sport", "status", "reason"],
+        "properties": {
+          "sport": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["ANALYZED", "WATCHLIST", "REJECTED", "OMITTED"]
+          },
+          "reason": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "discovered_competitions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["competition", "status", "reason"],
+        "properties": {
+          "competition": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["COVERED", "OMITTED"]
+          },
+          "reason": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "subagent_executions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["subagent_name", "executed", "verdict"],
+        "properties": {
+          "subagent_name": {
+            "type": "string"
+          },
+          "executed": {
+            "type": "boolean"
+          },
+          "verdict": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "source_gaps": {
+      "type": "object",
+      "required": ["missing_tipsters", "missing_enrichment"],
+      "properties": {
+        "missing_tipsters": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["source_id", "logged"],
+            "properties": {
+              "source_id": { "type": "string" },
+              "logged": { "type": "boolean" }
+            }
+          }
+        },
+        "missing_enrichment": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["event_id", "missing_factors"],
+            "properties": {
+              "event_id": { "type": "string" },
+              "missing_factors": {
+                "type": "array",
+                "items": { "type": "string" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "unsupported_elements": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["element_type", "name", "reason"],
+        "properties": {
+          "element_type": {
+            "type": "string",
+            "enum": ["SPORT", "MARKET"]
+          },
+          "name": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

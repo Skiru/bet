@@ -19,13 +19,15 @@ permission:
   apply_patch: deny
   bash: deny
   task: deny
-  webfetch: deny
+  webfetch: allow
   websearch: deny
   question: deny
-  bet_sqlite_query: deny
+  bet_sqlite_query: allow
   bet_artifact_write: deny
   bet_script_run: deny
   brave-search_*: deny
+  brave-search_brave_web_search: allow
+  brave-search_brave_news_search: allow
   context7_*: deny
   playwright_*: deny
   kilo-playwright_*: deny

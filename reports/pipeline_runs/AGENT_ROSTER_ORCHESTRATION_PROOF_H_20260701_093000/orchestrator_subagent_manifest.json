@@ -1,0 +1,76 @@
+{
+  "session_id": "AGENT_ROSTER_ORCHESTRATION_PROOF_H_20260701_093000",
+  "status": "PASS",
+  "timestamp": "2026-07-01T09:30:00Z",
+  "orchestrator_model": "google-vertex/gemini-3.5-flash-flex-high",
+  "manifest": [
+    {
+      "sequence": 1,
+      "subagent_name": "bet-scanner",
+      "required": true,
+      "executed": true,
+      "verdict": "PASS",
+      "artifact_path": "scanner_event_universe.json"
+    },
+    {
+      "sequence": 2,
+      "subagent_name": "bet-scout",
+      "required": true,
+      "executed": true,
+      "verdict": "PASS",
+      "artifact_path": "scout_tipster_opinion_layer.json"
+    },
+    {
+      "sequence": 3,
+      "subagent_name": "bet-enricher",
+      "required": true,
+      "executed": true,
+      "verdict": "PASS",
+      "artifact_path": "enricher_context_layer.json"
+    },
+    {
+      "sequence": 4,
+      "subagent_name": "bet-statistician",
+      "required": true,
+      "executed": true,
+      "verdict": "PASS",
+      "artifact_path": "statistician_market_analysis.json"
+    },
+    {
+      "sequence": 5,
+      "subagent_name": "bet-valuator",
+      "required": true,
+      "executed": true,
+      "verdict": "PASS",
+      "artifact_path": "valuator_reference_odds_layer.json"
+    },
+    {
+      "sequence": 6,
+      "subagent_name": "bet-challenger",
+      "required": true,
+      "executed": true,
+      "verdict": "PASS",
+      "artifact_path": "challenger_adversarial_review.json"
+    },
+    {
+      "sequence": 7,
+      "subagent_name": "bet-builder",
+      "required": true,
+      "executed": true,
+      "verdict": "PASS",
+      "artifact_path": "builder_package.json"
+    },
+    {
+      "sequence": 8,
+      "subagent_name": "bet-test-engineer",
+      "required": true,
+      "executed": true,
+      "verdict": "PASS",
+      "artifact_path": "package_quality_review.md"
+    }
+  ],
+  "validation": {
+    "missing_required_agents": [],
+    "block_status": false
+  }
+}

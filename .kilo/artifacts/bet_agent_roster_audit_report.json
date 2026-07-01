@@ -1,0 +1,97 @@
+{
+  "all_required_agents_present": true,
+  "all_required_prompts_present": true,
+  "all_required_agents_gemini_3_5_flash_flex": true,
+  "forbidden_model_routing_detected": false,
+  "agents_md_routing_conflict_resolved": true,
+  "prompts_updated_for_unified_analyst_flow": true,
+  "tipster_layer_prompt_verdict": "PASS",
+  "no_silent_omission_prompt_verdict": "PASS",
+  "human_quote_safety_prompt_verdict": "PASS",
+  "subagent_manifest_contract_verdict": "PASS",
+  "omission_ledger_contract_verdict": "PASS",
+  "audit_script_verdict": "PASS",
+  "agent_details": {
+    "bet-orchestrator": {
+      "agent_file": "/Users/mkoziol/projects/bet/.kilo/agents/bet-orchestrator.md",
+      "prompt_file": "/Users/mkoziol/projects/bet/.kilo/prompts/bet-orchestrator-v2.md",
+      "model": "google-vertex/gemini-3.5-flash-flex-high",
+      "is_gemini_3_5_flash_flex": true,
+      "forbidden_model_detected": false,
+      "missing_unified_flow_phrases": [],
+      "verdict": "PASS"
+    },
+    "bet-scanner": {
+      "agent_file": "/Users/mkoziol/projects/bet/.kilo/agents/bet-scanner.md",
+      "prompt_file": "/Users/mkoziol/projects/bet/.kilo/prompts/bet-scanner.md",
+      "model": "google-vertex/gemini-3.5-flash-flex-high",
+      "is_gemini_3_5_flash_flex": true,
+      "forbidden_model_detected": false,
+      "missing_unified_flow_phrases": [],
+      "verdict": "PASS"
+    },
+    "bet-scout": {
+      "agent_file": "/Users/mkoziol/projects/bet/.kilo/agents/bet-scout.md",
+      "prompt_file": "/Users/mkoziol/projects/bet/.kilo/prompts/bet-scout.md",
+      "model": "google-vertex/gemini-3.5-flash-flex-high",
+      "is_gemini_3_5_flash_flex": true,
+      "forbidden_model_detected": false,
+      "missing_unified_flow_phrases": [],
+      "verdict": "PASS"
+    },
+    "bet-enricher": {
+      "agent_file": "/Users/mkoziol/projects/bet/.kilo/agents/bet-enricher.md",
+      "prompt_file": "/Users/mkoziol/projects/bet/.kilo/prompts/bet-enricher.md",
+      "model": "google-vertex/gemini-3.5-flash-flex-high",
+      "is_gemini_3_5_flash_flex": true,
+      "forbidden_model_detected": false,
+      "missing_unified_flow_phrases": [],
+      "verdict": "PASS"
+    },
+    "bet-statistician": {
+      "agent_file": "/Users/mkoziol/projects/bet/.kilo/agents/bet-statistician.md",
+      "prompt_file": "/Users/mkoziol/projects/bet/.kilo/prompts/bet-statistician.md",
+      "model": "google-vertex/gemini-3.5-flash-flex-high",
+      "is_gemini_3_5_flash_flex": true,
+      "forbidden_model_detected": false,
+      "missing_unified_flow_phrases": [],
+      "verdict": "PASS"
+    },
+    "bet-valuator": {
+      "agent_file": "/Users/mkoziol/projects/bet/.kilo/agents/bet-valuator.md",
+      "prompt_file": "/Users/mkoziol/projects/bet/.kilo/prompts/bet-valuator.md",
+      "model": "google-vertex/gemini-3.5-flash-flex-high",
+      "is_gemini_3_5_flash_flex": true,
+      "forbidden_model_detected": false,
+      "missing_unified_flow_phrases": [],
+      "verdict": "PASS"
+    },
+    "bet-challenger": {
+      "agent_file": "/Users/mkoziol/projects/bet/.kilo/agents/bet-challenger.md",
+      "prompt_file": "/Users/mkoziol/projects/bet/.kilo/prompts/bet-challenger.md",
+      "model": "google-vertex/gemini-3.5-flash-flex-high",
+      "is_gemini_3_5_flash_flex": true,
+      "forbidden_model_detected": false,
+      "missing_unified_flow_phrases": [],
+      "verdict": "PASS"
+    },
+    "bet-builder": {
+      "agent_file": "/Users/mkoziol/projects/bet/.kilo/agents/bet-builder.md",
+      "prompt_file": "/Users/mkoziol/projects/bet/.kilo/prompts/bet-builder.md",
+      "model": "google-vertex/gemini-3.5-flash-flex-high",
+      "is_gemini_3_5_flash_flex": true,
+      "forbidden_model_detected": false,
+      "missing_unified_flow_phrases": [],
+      "verdict": "PASS"
+    },
+    "bet-test-engineer": {
+      "agent_file": "/Users/mkoziol/projects/bet/.kilo/agents/bet-test-engineer.md",
+      "prompt_file": "/Users/mkoziol/projects/bet/.kilo/prompts/bet-test-engineer.md",
+      "model": "google-vertex/gemini-3.5-flash-flex-high",
+      "is_gemini_3_5_flash_flex": true,
+      "forbidden_model_detected": false,
+      "missing_unified_flow_phrases": [],
+      "verdict": "PASS"
+    }
+  }
+}

@@ -22,7 +22,7 @@ permission:
   webfetch: deny
   websearch: deny
   question: deny
-  bet_sqlite_query: deny
+  bet_sqlite_query: allow
   bet_artifact_write: deny
   bet_script_run: deny
   brave-search_*: deny

@@ -4,7 +4,7 @@
 
 - `code-gpt54`: **Google Vertex AI**, model `gemini-3.5-flash` in the flex package with HIGH reasoning (`google-vertex/gemini-3.5-flash-flex-high`). Note that `code-gpt54` is a historical compatibility label only and maps directly to Gemini 3.5 Flash. Use for difficult architecture, large refactors, complex debugging, migrations, security-sensitive implementation, and final review.
 - `code-local`: Rapid-MLX local Qwen (`openai-compatible/qwen36-local-35b`). Use for routine/private coding, repository exploration, bounded fixes, summaries, and low-cost iterations.
-- `bet-orchestrator` and all `bet-*` specialists use the `google-vertex/gemini-3.5-flash-flex-high` profile.
+- `bet-orchestrator` and all `bet-*` specialists use the `google-vertex/gemini-3.5-flash-flex-high` profile (Gemini 3.5 Flash Flex). Note: This model routing is user-approved for today's multi-agent session.
 - Do not define provider API keys in project files. Authentication is OAuth-managed by Kilo.
 
 ## Execution rules
