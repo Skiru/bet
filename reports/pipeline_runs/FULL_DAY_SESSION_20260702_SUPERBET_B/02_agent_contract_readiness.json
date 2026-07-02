@@ -1,0 +1,8 @@
+{
+  "agent_contract_readiness_status": "PASS",
+  "num_agents_reviewed": 13,
+  "superbet_overlay_v3_active": true,
+  "model_overrides_remaining": false,
+  "prohibited_odds_calculation_enforced": true,
+  "bettable_restriction_enforced": true
+}

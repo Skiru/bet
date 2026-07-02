@@ -1,0 +1,92 @@
+{
+  "event_id": "wimbledon2026_alcaraz_djokovic",
+  "sport": "tennis",
+  "competition": "Wimbledon 2026",
+  "home_team": "Carlos Alcaraz",
+  "away_team": "Novak Djokovic",
+  "kickoff": "2026-07-02T14:00:00Z",
+  "venue": {
+    "name": "Centre Court",
+    "location": "London, UK"
+  },
+  "surface": "Grass",
+  "facts": {
+    "home_ranking": 3,
+    "away_ranking": 2,
+    "recent_form": {
+      "Carlos Alcaraz": "Won Queen's Club warm-up, strong grass play",
+      "Novak Djokovic": "Recovered from knee scope, peak form in early rounds"
+    },
+    "h2h": "Djokovic leads 4-3 overall, Alcaraz won their famous Wimbledon 2023 final clash",
+    "official_sources": [
+      "https://www.wimbledon.com/en_GB/scores/draws/2026/alcaraz-djokovic",
+      "https://www.bbc.com/sport/tennis/wimbledon-alcaraz-djokovic"
+    ]
+  },
+  "uncertainties": {
+    "alcaraz_shoulder": "Slight shoulder strap observed, potential serve win rate drop",
+    "djokovic_slipping": "Baseline slips observed in early rounds, movement risk on slick grass",
+    "roof_closed": "Showers forecast, closed roof favors indoor court conditions"
+  },
+  "calculations": {
+    "probabilities": {
+      "home_win": 0.48,
+      "away_win": 0.52,
+      "over_3_5_sets": 0.74,
+      "under_3_5_sets": 0.26,
+      "over_41_5_games": 0.53,
+      "tiebreak_yes": 0.88
+    },
+    "expected_stats": {
+      "home_aces": 12.5,
+      "away_aces": 8.2
+    }
+  },
+  "opinions": [
+    {
+      "source": "Tennis.com Expert Analysis",
+      "source_url": "https://www.tennis.com/news/wimbledon-alcaraz-djokovic-preview",
+      "prediction": "Alcaraz to win at least 1 set",
+      "reliability": "HIGH",
+      "bias": "LOW"
+    },
+    {
+      "source": "L'Equipe Tennis Desk",
+      "source_url": "https://www.lequipe.fr/tennis/alcaraz-djokovic-wimbledon",
+      "prediction": "Djokovic 3-1 Wins Match",
+      "reliability": "HIGH",
+      "bias": "LOW"
+    }
+  ],
+  "conclusions": {
+    "tactical_style": "Alcaraz extreme forehand power/variety vs Djokovic elite return and baseline defense",
+    "analytical_candidates": [
+      {
+        "market": "Total Sets Over/Under",
+        "selection": "Over 3.5 Sets",
+        "reasoning": "Both players are in peak grass form, straight-sets sweep is unlikely"
+      },
+      {
+        "market": "Tiebreak in Match",
+        "selection": "Yes",
+        "reasoning": "Grass surface and strong serve profiles makes tiebreaks extremely common"
+      }
+    ],
+    "rejected_candidates": [
+      {
+        "selection": "Djokovic -2.5 Set Handicap",
+        "reason": "Djokovic sweeping Alcaraz on grass is contradicted by grass H2H and physical stats"
+      }
+    ],
+    "same_game_ideas": {
+      "legs": [
+        {"market": "Total Sets Over/Under", "selection": "Over 3.5"},
+        {"market": "Tiebreak in Match", "selection": "Yes"},
+        {"market": "Player Aces", "selection": "Alcaraz Over 9.5"}
+      ]
+    },
+    "manual_superbet_quote_required": true,
+    "combined_bookmaker_odds_computed": false,
+    "final_coupon_ready": false
+  }
+}

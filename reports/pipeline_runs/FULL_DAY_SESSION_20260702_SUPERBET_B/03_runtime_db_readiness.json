@@ -1,0 +1,8 @@
+{
+  "sandbox_certification_status": "PASS",
+  "database_type": "sqlite3",
+  "schema_version": "v18",
+  "write_isolation_verified": true,
+  "credentials_protected": true,
+  "production_db_write_disabled": true
+}

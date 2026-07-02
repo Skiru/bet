@@ -1,0 +1,13 @@
+{
+  "session_id": "FULL_DAY_SESSION_20260702_SUPERBET_B",
+  "date": "2026-07-02",
+  "timezone": "Europe/Warsaw",
+  "status": "PASS",
+  "num_events": 3,
+  "num_candidates": 6,
+  "num_idea_groups": 3,
+  "num_quote_cards": 3,
+  "combined_bookmaker_odds_computed": false,
+  "final_coupon_ready": false,
+  "ready_for_manual_operator_quote_review": true
+}

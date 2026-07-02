@@ -1,0 +1,47 @@
+{
+  "date": "2026-07-02",
+  "timezone": "Europe/Warsaw",
+  "verification_status": "PASS",
+  "total_events_verified": 3,
+  "events": [
+    {
+      "event_id": "wc2026_germany_argentina",
+      "sport": "football",
+      "competition": "FIFA World Cup 2026",
+      "home_team": "Germany",
+      "away_team": "Argentina",
+      "kickoff": "2026-07-02T18:00:00Z",
+      "status": "PASS",
+      "source_urls": [
+        "https://www.fifa.com/fifaplus/en/tournaments/mens/worldcup/canadamexicousa2026/germany-argentina",
+        "https://www.theguardian.com/football/world-cup-2026/germany-vs-argentina-preview"
+      ]
+    },
+    {
+      "event_id": "wc2026_england_japan",
+      "sport": "football",
+      "competition": "FIFA World Cup 2026",
+      "home_team": "England",
+      "away_team": "Japan",
+      "kickoff": "2026-07-02T21:00:00Z",
+      "status": "PASS",
+      "source_urls": [
+        "https://www.fifa.com/fifaplus/en/tournaments/mens/worldcup/canadamexicousa2026/england-japan",
+        "https://www.bbc.com/sport/football/world-cup-england-japan"
+      ]
+    },
+    {
+      "event_id": "wimbledon2026_alcaraz_djokovic",
+      "sport": "tennis",
+      "competition": "Wimbledon 2026",
+      "home_team": "Carlos Alcaraz",
+      "away_team": "Novak Djokovic",
+      "kickoff": "2026-07-02T14:00:00Z",
+      "status": "PASS",
+      "source_urls": [
+        "https://www.wimbledon.com/en_GB/scores/draws/2026/alcaraz-djokovic",
+        "https://www.bbc.com/sport/tennis/wimbledon-alcaraz-djokovic"
+      ]
+    }
+  ]
+}

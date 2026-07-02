@@ -1,0 +1,51 @@
+{
+  "date": "2026-07-02",
+  "operator": "Superbet",
+  "quote_cards": [
+    {
+      "card_id": "qc_germany_argentina",
+      "event_id": "wc2026_germany_argentina",
+      "operator": "Superbet",
+      "manual_quote_required": true,
+      "legs": [
+        {"market": "1X2", "selection": "Draw"},
+        {"market": "Yellow Cards Over/Under", "selection": "Argentina Over 1.5"},
+        {"market": "Corners Over/Under", "selection": "Germany Over 3.5"}
+      ],
+      "combined_bookmaker_odds_computed": false,
+      "final_coupon_ready": false,
+      "human_entered_quote": null,
+      "human_entered_timestamp_utc": null
+    },
+    {
+      "card_id": "qc_england_japan",
+      "event_id": "wc2026_england_japan",
+      "operator": "Superbet",
+      "manual_quote_required": true,
+      "legs": [
+        {"market": "Both Teams to Score", "selection": "Yes"},
+        {"market": "Player Tackles", "selection": "Trippier Over 1.5"},
+        {"market": "Player Shots on Target", "selection": "Kane Over 1.5"}
+      ],
+      "combined_bookmaker_odds_computed": false,
+      "final_coupon_ready": false,
+      "human_entered_quote": null,
+      "human_entered_timestamp_utc": null
+    },
+    {
+      "card_id": "qc_alcaraz_djokovic",
+      "event_id": "wimbledon2026_alcaraz_djokovic",
+      "operator": "Superbet",
+      "manual_quote_required": true,
+      "legs": [
+        {"market": "Total Sets Over/Under", "selection": "Over 3.5"},
+        {"market": "Tiebreak in Match", "selection": "Yes"},
+        {"market": "Player Aces", "selection": "Alcaraz Over 9.5"}
+      ],
+      "combined_bookmaker_odds_computed": false,
+      "final_coupon_ready": false,
+      "human_entered_quote": null,
+      "human_entered_timestamp_utc": null
+    }
+  ]
+}

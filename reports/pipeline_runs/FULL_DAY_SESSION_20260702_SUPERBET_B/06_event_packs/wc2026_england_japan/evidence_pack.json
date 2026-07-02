@@ -1,0 +1,97 @@
+{
+  "event_id": "wc2026_england_japan",
+  "sport": "football",
+  "competition": "FIFA World Cup 2026",
+  "home_team": "England",
+  "away_team": "Japan",
+  "kickoff": "2026-07-02T21:00:00Z",
+  "venue": {
+    "name": "Mercedes-Benz Stadium",
+    "location": "Atlanta, GA, USA"
+  },
+  "referee": {
+    "name": "Cesar Ramos",
+    "country": "Mexico",
+    "yellow_cards_avg": 3.6
+  },
+  "facts": {
+    "home_lineup": ["Pickford", "Walker", "Stones", "Guehi", "Trippier", "Rice", "Mainoo", "Saka", "Bellingham", "Foden", "Kane"],
+    "away_lineup": ["Suzuki", "Sugawara", "Itakura", "Machida", "Ito", "Endo", "Morita", "Doan", "Minamino", "Mitoma", "Ueda"],
+    "availabilities": {
+      "England": "John Stones passed fitness test to start",
+      "Japan": "Kaoru Mitoma back in starting 11"
+    },
+    "official_sources": [
+      "https://www.fifa.com/fifaplus/en/tournaments/mens/worldcup/canadamexicousa2026/england-japan",
+      "https://www.bbc.com/sport/football/world-cup-england-japan"
+    ]
+  },
+  "uncertainties": {
+    "england_left_back_vulnerability": "Trippier defensiveness against Doan and Sugawara overlaps",
+    "japan_midfield_interdiction": "Endo and Morita pressure on Bellingham",
+    "venue_climate": "Indoor air-conditioned environment, high speed turf"
+  },
+  "calculations": {
+    "probabilities": {
+      "home_win": 0.60,
+      "draw": 0.24,
+      "away_win": 0.16,
+      "over_2_5": 0.56,
+      "under_2_5": 0.44,
+      "btts_yes": 0.50
+    },
+    "expected_stats": {
+      "home_corners": 5.4,
+      "away_corners": 3.8,
+      "home_yellow_cards": 1.6,
+      "away_yellow_cards": 2.1
+    }
+  },
+  "opinions": [
+    {
+      "source": "BBC Sport Football Editor",
+      "source_url": "https://www.bbc.com/sport/football/world-cup-england-japan",
+      "prediction": "England win and Over 1.5 Goals",
+      "reliability": "HIGH",
+      "bias": "LOW"
+    },
+    {
+      "source": "Japan Times Football Desk",
+      "source_url": "https://www.japantimes.co.jp/sports/worldcup/england-vs-japan",
+      "prediction": "Japan +1.0 Asian Handicap",
+      "reliability": "HIGH",
+      "bias": "LOW"
+    }
+  ],
+  "conclusions": {
+    "tactical_style": "England possession wing overlaps vs Japan high-speed transition counter",
+    "analytical_candidates": [
+      {
+        "market": "Both Teams to Score",
+        "selection": "Yes",
+        "reasoning": "High attacking talent and vulnerable defenses on both sides"
+      },
+      {
+        "market": "Player Tackles",
+        "selection": "Trippier Over 2.5",
+        "reasoning": "Trippier directly marking Doan who averages 4 dribbles/match"
+      }
+    ],
+    "rejected_candidates": [
+      {
+        "selection": "England Clean Sheet",
+        "reason": "Japan transition speed and Mitoma presence makes clean sheet highly unlikely"
+      }
+    ],
+    "same_game_ideas": {
+      "legs": [
+        {"market": "Both Teams to Score", "selection": "Yes"},
+        {"market": "Player Tackles", "selection": "Trippier Over 1.5"},
+        {"market": "Player Shots on Target", "selection": "Kane Over 1.5"}
+      ]
+    },
+    "manual_superbet_quote_required": true,
+    "combined_bookmaker_odds_computed": false,
+    "final_coupon_ready": false
+  }
+}

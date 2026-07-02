@@ -1,0 +1,14 @@
+{
+  "date": "2026-07-02",
+  "universe_size": 3,
+  "hydrated_events_count": 3,
+  "data_tier_distribution": {
+    "HYDRATED_FULL_METRICS": 3
+  },
+  "sports": ["football", "tennis"],
+  "event_ids": [
+    "wc2026_germany_argentina",
+    "wc2026_england_japan",
+    "wimbledon2026_alcaraz_djokovic"
+  ]
+}

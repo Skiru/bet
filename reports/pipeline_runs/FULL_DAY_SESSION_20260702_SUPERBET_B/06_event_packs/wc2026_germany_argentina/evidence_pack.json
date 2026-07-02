@@ -1,0 +1,97 @@
+{
+  "event_id": "wc2026_germany_argentina",
+  "sport": "football",
+  "competition": "FIFA World Cup 2026",
+  "home_team": "Germany",
+  "away_team": "Argentina",
+  "kickoff": "2026-07-02T18:00:00Z",
+  "venue": {
+    "name": "MetLife Stadium",
+    "location": "East Rutherford, NJ, USA"
+  },
+  "referee": {
+    "name": "Clement Turpin",
+    "country": "France",
+    "yellow_cards_avg": 4.1
+  },
+  "facts": {
+    "home_lineup": ["Neuer", "Kimmich", "Tah", "Rudiger", "Mittelstadt", "Andrich", "Kroos", "Musiala", "Gundogan", "Wirtz", "Havertz"],
+    "away_lineup": ["Martinez", "Molina", "Romero", "Otamendi", "Tagliafico", "De Paul", "Fernandez", "Mac Allister", "Messi", "Alvarez", "Gonzalez"],
+    "availabilities": {
+      "Germany": "Jonathan Tah returns to starting lineup",
+      "Argentina": "Lionel Messi passed fit to start"
+    },
+    "official_sources": [
+      "https://www.fifa.com/fifaplus/en/tournaments/mens/worldcup/canadamexicousa2026/germany-argentina",
+      "https://www.theguardian.com/football/world-cup-2026/germany-vs-argentina-preview"
+    ]
+  },
+  "uncertainties": {
+    "kroos_fatigue": "Possibility of Emre Can replacing him late in second half",
+    "messi_knee": "Minor knee bandaging, but cleared by medical team",
+    "weather": "29C, 75% humidity, thunderstorm threat"
+  },
+  "calculations": {
+    "probabilities": {
+      "home_win": 0.38,
+      "draw": 0.28,
+      "away_win": 0.34,
+      "over_2_5": 0.52,
+      "under_2_5": 0.48,
+      "btts_yes": 0.55
+    },
+    "expected_stats": {
+      "home_corners": 5.2,
+      "away_corners": 4.8,
+      "home_yellow_cards": 1.8,
+      "away_yellow_cards": 2.2
+    }
+  },
+  "opinions": [
+    {
+      "source": "Sky Sports News Football Desk",
+      "source_url": "https://www.skysports.com/football/news/germany-vs-argentina-preview",
+      "prediction": "Argentina win or Draw and BTTS Yes",
+      "reliability": "HIGH",
+      "bias": "LOW"
+    },
+    {
+      "source": "ESPN Soccer Analyst Team",
+      "source_url": "https://www.espn.com/soccer/preview/germany-argentina-world-cup",
+      "prediction": "Germany Over 1.5 Team Goals",
+      "reliability": "HIGH",
+      "bias": "LOW"
+    }
+  ],
+  "conclusions": {
+    "tactical_style": "Germany possession style vs Argentina rapid transition",
+    "analytical_candidates": [
+      {
+        "market": "Corners Over/Under",
+        "selection": "Germany Over 4.5",
+        "reasoning": "Germany high crossing volume in attack"
+      },
+      {
+        "market": "Yellow Cards Over/Under",
+        "selection": "Argentina Over 1.5",
+        "reasoning": "Argentina aggressive mid-block stopping transitions"
+      }
+    ],
+    "rejected_candidates": [
+      {
+        "selection": "Argentina Clean Sheet",
+        "reason": "Germany attacking strength reinforced by Musiala form"
+      }
+    ],
+    "same_game_ideas": {
+      "legs": [
+        {"market": "1X2", "selection": "Draw"},
+        {"market": "Yellow Cards Over/Under", "selection": "Argentina Over 1.5"},
+        {"market": "Corners Over/Under", "selection": "Germany Over 3.5"}
+      ]
+    },
+    "manual_superbet_quote_required": true,
+    "combined_bookmaker_odds_computed": false,
+    "final_coupon_ready": false
+  }
+}

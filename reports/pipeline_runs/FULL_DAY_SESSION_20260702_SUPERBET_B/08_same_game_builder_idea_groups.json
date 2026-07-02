@@ -1,0 +1,43 @@
+{
+  "date": "2026-07-02",
+  "status": "PASS",
+  "combined_bookmaker_odds_computed": false,
+  "idea_groups": [
+    {
+      "group_id": "sg_germany_argentina",
+      "event_id": "wc2026_germany_argentina",
+      "legs": [
+        {"market": "1X2", "selection": "Draw"},
+        {"market": "Yellow Cards Over/Under", "selection": "Argentina Over 1.5"},
+        {"market": "Corners Over/Under", "selection": "Germany Over 3.5"}
+      ],
+      "combined_odds": null,
+      "combined_bookmaker_odds_computed": false,
+      "final_coupon_ready": false
+    },
+    {
+      "group_id": "sg_england_japan",
+      "event_id": "wc2026_england_japan",
+      "legs": [
+        {"market": "Both Teams to Score", "selection": "Yes"},
+        {"market": "Player Tackles", "selection": "Trippier Over 1.5"},
+        {"market": "Player Shots on Target", "selection": "Kane Over 1.5"}
+      ],
+      "combined_odds": null,
+      "combined_bookmaker_odds_computed": false,
+      "final_coupon_ready": false
+    },
+    {
+      "group_id": "sg_alcaraz_djokovic",
+      "event_id": "wimbledon2026_alcaraz_djokovic",
+      "legs": [
+        {"market": "Total Sets Over/Under", "selection": "Over 3.5"},
+        {"market": "Tiebreak in Match", "selection": "Yes"},
+        {"market": "Player Aces", "selection": "Alcaraz Over 9.5"}
+      ],
+      "combined_odds": null,
+      "combined_bookmaker_odds_computed": false,
+      "final_coupon_ready": false
+    }
+  ]
+}
