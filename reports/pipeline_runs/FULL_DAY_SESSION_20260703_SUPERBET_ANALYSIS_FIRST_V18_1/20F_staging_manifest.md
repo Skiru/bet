@@ -1,8 +1,8 @@
 # 20F Staging Manifest
 
 - target_branch: `feat/superbet-analysis-first-v18-1-production`
-- staged_file_count_expected: `82`
-- staged_file_count_verified: `82`
+- staged_file_count_expected: `87`
+- staged_file_count_verified: `87`
 - staged_manifest_match_verified: `true`
 
 ## Files
@@ -89,3 +89,8 @@
 - `tests/test_v14_regression_no_football_only_quote_board.py`
 - `tests/test_v17_to_v18_analysis_first_regression.py`
 - `tests/test_volleyball_market_rows_can_promote_candidates.py`
+- `config/pipeline_manifest.json`
+- `docs/pipeline/superbet_full_day_v3/schemas/analytical_candidate.schema.json`
+- `docs/pipeline/superbet_full_day_v3/schemas/manual_superbet_quote_card.schema.json`
+- `reports/pipeline_runs/FULL_DAY_SESSION_20260703_SUPERBET_PRODUCTION_V17_1/07_analytical_candidates.json`
+- `reports/pipeline_runs/FULL_DAY_SESSION_20260703_SUPERBET_PRODUCTION_V17_1/10_final_session_report.json`

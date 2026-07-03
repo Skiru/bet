@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ManualSuperbetQuoteCard",
+  "type": "object",
+  "required": [
+    "candidate_id",
+    "event_id",
+    "operator",
+    "market_to_find_manually",
+    "line_policy",
+    "min_acceptable_operator_odds",
+    "manual_quote_required",
+    "combined_bookmaker_odds_computed",
+    "final_coupon_ready",
+    "automated_placement_ready"
+  ],
+  "properties": {
+    "candidate_id": {"type": "string"},
+    "event_id": {"type": "string"},
+    "operator": {"const": "Superbet"},
+    "market_to_find_manually": {"type": "string"},
+    "line_policy": {"enum": ["EXACT_LINE_REQUIRED", "LINE_REQUIRES_OPERATOR_CHECK", "ALTERNATIVE_LINES_ALLOWED"]},
+    "acceptable_line_alternatives": {"type": "array", "items": {"type": "string"}},
+    "forbidden_alternatives": {"type": "array", "items": {"type": "string"}},
+    "fair_odds": {"type": ["number", "string", "null"]},
+    "min_acceptable_operator_odds": {"type": ["number", "string", "null"]},
+    "manual_quote_required": {"const": true},
+    "human_entered_quote": {
+      "type": ["object", "null"],
+      "properties": {
+        "operator": {"const": "Superbet"},
+        "market_name": {"type": "string"},
+        "line": {"type": "string"},
+        "decimal_odds": {"type": ["number", "string"]},
+        "quote_timestamp": {"type": "string"},
+        "bet_builder_visible_combined_odds": {"type": ["number", "string", "null"]}
+      }
+    },
+    "combined_bookmaker_odds_computed": {"const": false},
+    "final_coupon_ready": {"const": false},
+    "automated_placement_ready": {"const": false}
+  }
+}

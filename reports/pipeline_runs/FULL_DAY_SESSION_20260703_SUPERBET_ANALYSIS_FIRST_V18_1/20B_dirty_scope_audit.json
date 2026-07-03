@@ -11,13 +11,17 @@
     "EXCLUDE_ABSOLUTE_PATH_DUPLICATE": 56,
     "EXCLUDE_GENERATED_NOISE": 13,
     "EXCLUDE_LOCAL_CACHE": 13,
-    "INCLUDE_CODE": 11,
-    "INCLUDE_RUN_ARTIFACT": 30,
+    "INCLUDE_CODE": 12,
+    "INCLUDE_DOC": 2,
+    "INCLUDE_RUN_ARTIFACT": 32,
     "INCLUDE_TEST": 33,
-    "PRE_EXISTING_UNRELATED": 2650
+    "PRE_EXISTING_UNRELATED": 2645
   },
-  "include_path_count": 74,
+  "include_path_count": 79,
   "include_paths": [
+    "config/pipeline_manifest.json",
+    "docs/pipeline/superbet_full_day_v3/schemas/analytical_candidate.schema.json",
+    "docs/pipeline/superbet_full_day_v3/schemas/manual_superbet_quote_card.schema.json",
     "reports/pipeline_runs/FULL_DAY_SESSION_20260703_SUPERBET_ANALYSIS_FIRST_V18_1/05D_market_availability_matrix.json",
     "reports/pipeline_runs/FULL_DAY_SESSION_20260703_SUPERBET_ANALYSIS_FIRST_V18_1/07_analytical_candidates.json",
     "reports/pipeline_runs/FULL_DAY_SESSION_20260703_SUPERBET_ANALYSIS_FIRST_V18_1/08_same_game_builder_idea_groups.json",
@@ -48,6 +52,8 @@
     "reports/pipeline_runs/FULL_DAY_SESSION_20260703_SUPERBET_ANALYSIS_FIRST_V18_1/20A_merge_preflight.md",
     "reports/pipeline_runs/FULL_DAY_SESSION_20260703_SUPERBET_ANALYSIS_FIRST_V18_1/20B_dirty_scope_audit.json",
     "reports/pipeline_runs/FULL_DAY_SESSION_20260703_SUPERBET_ANALYSIS_FIRST_V18_1/20B_dirty_scope_audit.md",
+    "reports/pipeline_runs/FULL_DAY_SESSION_20260703_SUPERBET_PRODUCTION_V17_1/07_analytical_candidates.json",
+    "reports/pipeline_runs/FULL_DAY_SESSION_20260703_SUPERBET_PRODUCTION_V17_1/10_final_session_report.json",
     "scripts/final_artifact_consistency_audit.py",
     "scripts/run_analysis_first_superbet_v18_1.py",
     "src/bet/pipeline/bet_builder_concept_quality.py",
@@ -386,8 +392,8 @@
     {
       "path": "config/pipeline_manifest.json",
       "git_status": " M",
-      "class": "PRE_EXISTING_UNRELATED",
-      "reason": "Config change is unrelated to the accepted V18.1 merge scope."
+      "class": "INCLUDE_CODE",
+      "reason": "Pipeline contract manifest required by Superbet production contract tests."
     },
     {
       "path": "docs/FINAL_CODE_REVIEW_AND_GAP_PLAN.md",
@@ -446,8 +452,8 @@
     {
       "path": "docs/pipeline/superbet_full_day_v3/schemas/analytical_candidate.schema.json",
       "git_status": "??",
-      "class": "PRE_EXISTING_UNRELATED",
-      "reason": "Documentation or prompt content not required by the accepted V18.1 merge scope."
+      "class": "INCLUDE_DOC",
+      "reason": "Schema fixture required by Superbet schema contract tests."
     },
     {
       "path": "docs/pipeline/superbet_full_day_v3/schemas/event_evidence_pack.schema.json",
@@ -458,8 +464,8 @@
     {
       "path": "docs/pipeline/superbet_full_day_v3/schemas/manual_superbet_quote_card.schema.json",
       "git_status": "??",
-      "class": "PRE_EXISTING_UNRELATED",
-      "reason": "Documentation or prompt content not required by the accepted V18.1 merge scope."
+      "class": "INCLUDE_DOC",
+      "reason": "Schema fixture required by Superbet schema contract tests."
     },
     {
       "path": "prompts/",
@@ -14084,8 +14090,8 @@
     {
       "path": "reports/pipeline_runs/FULL_DAY_SESSION_20260703_SUPERBET_PRODUCTION_V17_1/07_analytical_candidates.json",
       "git_status": "??",
-      "class": "PRE_EXISTING_UNRELATED",
-      "reason": "Different run artifact outside the accepted V18.1 artifact set."
+      "class": "INCLUDE_RUN_ARTIFACT",
+      "reason": "Minimal V17 lineage artifact required by the V17-to-V18 regression test."
     },
     {
       "path": "reports/pipeline_runs/FULL_DAY_SESSION_20260703_SUPERBET_PRODUCTION_V17_1/07_analytical_candidates.md",
@@ -14138,8 +14144,8 @@
     {
       "path": "reports/pipeline_runs/FULL_DAY_SESSION_20260703_SUPERBET_PRODUCTION_V17_1/10_final_session_report.json",
       "git_status": "??",
-      "class": "PRE_EXISTING_UNRELATED",
-      "reason": "Different run artifact outside the accepted V18.1 artifact set."
+      "class": "INCLUDE_RUN_ARTIFACT",
+      "reason": "Minimal V17 lineage artifact required by the V17-to-V18 regression test."
     },
     {
       "path": "reports/pipeline_runs/FULL_DAY_SESSION_20260703_SUPERBET_PRODUCTION_V17_1/10_final_session_report.md",
