@@ -1,0 +1,81 @@
+{
+  "where_current_pipeline_incorrectly_requires_odds_before_useful_analytical_output": [
+    {
+      "file": "reports/pipeline_runs/FULL_DAY_SESSION_20260703_SUPERBET_PRODUCTION_V17_1/07_analytical_candidates.json",
+      "finding": "Promoted candidates were still framed as manual-quote search paths with `final_status=READY_FOR_MANUAL_OPERATOR_QUOTE_REVIEW`, so useful event analysis was not presented as the primary product."
+    },
+    {
+      "file": "src/bet/pipeline/manual_quote_price_gate.py",
+      "finding": "Missing manual operator odds returns `PRICE_GATE_FAIL`, which is correct for bettable promotion but too strong if reused as an analysis gate."
+    }
+  ],
+  "where_manual_quote_entry_blocks_analysis": [
+    {
+      "file": "reports/pipeline_runs/FULL_DAY_SESSION_20260703_SUPERBET_PRODUCTION_V17_1/17B_manual_quote_review_board.md",
+      "finding": "The main operator-facing board requires human quote fields for every row, making manual entry look like the next mandatory step instead of an optional downstream step."
+    },
+    {
+      "file": "reports/pipeline_runs/FULL_DAY_SESSION_20260703_SUPERBET_PRODUCTION_V17_1/17C_coupon_draft_operator_sheet.md",
+      "finding": "Coupon draft semantics assume the operator will populate odds before the portfolio is meaningfully usable."
+    }
+  ],
+  "where_unpriced_candidates_are_downgraded_too_aggressively": [
+    {
+      "file": "reports/pipeline_runs/FULL_DAY_SESSION_20260703_SUPERBET_PRODUCTION_V17_1/11A_quote_card_blocker_analysis.json",
+      "finding": "Eighteen `UNKNOWN_LINE` candidates were downgraded out of the main product even though the blocker was line/price mechanics rather than event-level analytical quality."
+    },
+    {
+      "file": "src/bet/pipeline/rich_coupon_quality.py",
+      "finding": "Quote-card validation rejects low/unknown evidence cards and assumes quote-card-quality is the promotion target, conflating analytical usefulness with quote readiness."
+    }
+  ],
+  "where_bet_builder_concepts_are_treated_like_priced_coupons": [
+    {
+      "file": "reports/pipeline_runs/FULL_DAY_SESSION_20260703_SUPERBET_PRODUCTION_V17_1/08_same_game_builder_idea_groups.json",
+      "finding": "Builder groups were emitted as `QUOTE_REVIEW_ONLY` even though they never compute combined odds and are analytically useful before any operator screen is opened."
+    },
+    {
+      "file": "src/bet/pipeline/coupon_draft_quality.py",
+      "finding": "Draft construction starts from quote cards only, so same-event concepts are implicitly treated as coupon inputs first and analytical concepts second."
+    }
+  ],
+  "where_quote_cards_are_used_as_main_product_instead_of_analytical_candidates": [
+    {
+      "file": "reports/pipeline_runs/FULL_DAY_SESSION_20260703_SUPERBET_PRODUCTION_V17_1/10_final_session_report.json",
+      "finding": "The final report headline metrics center quote cards and manual review rather than priced/partial/unpriced analytical candidates."
+    },
+    {
+      "file": "src/bet/pipeline/final_artifact_consistency.py",
+      "finding": "Cross-artifact validation is currently quote-card-first, using quote-card counts as the main consistency target."
+    }
+  ],
+  "which_tests_still_encode_operator_entry_first_assumptions": [
+    "tests/test_actionable_quote_cards_v11.py",
+    "tests/test_quote_card_actionability_quality.py",
+    "tests/test_coupon_draft_quality.py",
+    "tests/test_coupon_draft_non_bettable_portfolio.py",
+    "tests/test_session_semantic_slate_actuality.py"
+  ],
+  "which_artifacts_must_be_renamed_or_reinterpreted_as_analysis_first_outputs": [
+    {
+      "old": "12_coupon_drafts.json",
+      "new": "12_analysis_portfolio_drafts.json",
+      "reason": "Portfolio semantics must no longer imply coupon assembly before price verification."
+    },
+    {
+      "old": "08_same_game_builder_idea_groups.json",
+      "new": "18C_superbet_bet_builder_concepts.json",
+      "reason": "Same-event groups are analytical concepts, not proto-coupons."
+    },
+    {
+      "old": "17B_manual_quote_review_board.*",
+      "new": "18D_optional_superbet_quote_check_shortlist.*",
+      "reason": "Quote entry is optional and scoped to the top price-sensitive items only."
+    },
+    {
+      "old": "09_manual_superbet_quote_cards.json",
+      "new": "18B_analysis_first_candidate_board.json",
+      "reason": "The primary board must rank analytical candidates by pricing tier, not by manual quote capture."
+    }
+  ]
+}

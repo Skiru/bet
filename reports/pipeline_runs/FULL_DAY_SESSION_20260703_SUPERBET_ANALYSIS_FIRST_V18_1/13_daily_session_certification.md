@@ -1,0 +1,46 @@
+# 13 Daily Session Certification
+
+```json
+{
+  "RUN_ID": "FULL_DAY_SESSION_20260703_SUPERBET_ANALYSIS_FIRST_V18_1",
+  "CURRENT_RUN_ID": "FULL_DAY_SESSION_20260703_SUPERBET_ANALYSIS_FIRST_V18_1",
+  "SOURCE_RUN_ID": "FULL_DAY_SESSION_20260703_SUPERBET_PRODUCTION_V17_1",
+  "INPUT_RUN_ID": "FULL_DAY_SESSION_20260703_SUPERBET_PRODUCTION_V17_1",
+  "STATUS": "PASS",
+  "FINAL_VERDICT": "ANALYSIS_FIRST_BOARD_READY",
+  "CANDIDATES_BY_SPORT": {
+    "basketball": 27,
+    "cs2": 12,
+    "football": 41,
+    "hockey": 1,
+    "tennis": 30,
+    "valorant": 12
+  },
+  "QUOTE_CARDS_BY_SPORT": {
+    "basketball": 19,
+    "cs2": 8,
+    "football": 38,
+    "hockey": 1,
+    "tennis": 30,
+    "valorant": 9
+  },
+  "BUILDER_GROUPS_BY_SPORT": {
+    "basketball": 8,
+    "cs2": 4,
+    "football": 19,
+    "tennis": 15,
+    "valorant": 3
+  },
+  "WIMBLEDON_QUOTE_CARDS": 30,
+  "WIMBLEDON_SINGLES_QUOTE_CARDS": 30,
+  "MANUAL_QUOTE_ENTRY_REQUIRED_FOR_ANALYSIS": false,
+  "MANUAL_QUOTE_ENTRY_REQUIRED_FOR_BETTABLE": true,
+  "BETTABLE_COUNT": 0,
+  "FINAL_COUPON_ALLOWED": false,
+  "COMBINED_BOOKMAKER_ODDS_COMPUTED": false,
+  "TIPSTER_CONTEXT_STATUS": "ATTEMPTED_NO_MATCHES",
+  "TESTS_PASSED": true,
+  "COMPILEALL_PASSED": true,
+  "ARTIFACT_ROOT": "/Users/mkoziol/projects/bet/reports/pipeline_runs/FULL_DAY_SESSION_20260703_SUPERBET_ANALYSIS_FIRST_V18_1"
+}
+```

@@ -1,0 +1,21 @@
+# 20C Final Architecture Sanity Review
+
+- status: `PASS`
+- final_verdict: `ANALYSIS_FIRST_BOARD_READY`
+- source_run_id: `FULL_DAY_SESSION_20260703_SUPERBET_PRODUCTION_V17_1`
+- manual_quote_entry_required_for_analysis: `false`
+- manual_quote_entry_required_for_bettable: `true`
+- priced_candidates_count: `0`
+- partially_priced_candidates_count: `105`
+- unpriced_deep_candidates_count: `18`
+- bet_builder_concepts_count: `49`
+- optional_operator_quote_shortlist_count: `24`
+- bettable_count: `0`
+- final_coupon_allowed: `false`
+- combined_bookmaker_odds_computed: `false`
+- production_db_write: `false`
+- automated_placement_enabled: `false`
+- global_blockers_empty: `true`
+- wimbledon_quote_cards: `30`
+- wimbledon_singles_quote_cards: `30`
+- 18F_consistency_ok: `true`
