@@ -12,7 +12,24 @@
     "enrichment_must_not_emit_pick_edge_stake_or_coupon": true,
     "s2_9_required_before_s3": true,
     "no_live_provider_calls_in_contract_pass": true,
-    "no_production_db_writes_in_contract_pass": true
+    "no_production_db_writes_in_contract_pass": true,
+    "operator_workflow": "SUPERBET_MANUAL_BET_BUILDER",
+    "odds_optional_for_analysis": true,
+    "odds_required_for_ev_bettable_and_final_coupon": true,
+    "analysis_candidate_generation_not_blocked_by_missing_odds": true,
+    "manual_operator_quote_required_before_bettable": true,
+    "superbet_bet_builder_combined_odds_operator_screen_only": true,
+    "no_combined_bookmaker_odds_computation": true,
+    "no_automated_bookmaker_placement": true,
+    "many_event_full_day_generation_required": true,
+    "tipster_layer_non_primary_evidence": true,
+    "weather_injury_tournament_context_required": true,
+    "use_kilo_code_active_default_model": true,
+    "no_local_model_pin_in_agents": true,
+    "no_per_agent_model_override_in_betting_agents": true,
+    "same_game_builder_groupings_are_ideas_until_human_quote": true,
+    "point_in_time_source_timestamp_required": true,
+    "unknown_instead_of_guessing_required": true
   },
   "steps": [
     {
@@ -24,8 +41,14 @@
       "wrapper": "scripts/pipeline_steps/s0_settler.py",
       "canonical_script": "scripts/pipeline_steps/s0_settler.py",
       "output": "historical_pnl",
-      "next": ["S1"],
-      "hard_rules": ["verify_settlement_pnl_against_db"]
+      "next": [
+        "S1"
+      ],
+      "hard_rules": [
+        "verify_settlement_pnl_against_db",
+        "settlement_and_learning_only",
+        "no_new_pick_generation"
+      ]
     },
     {
       "id": "S1",
@@ -36,8 +59,15 @@
       "wrapper": "scripts/pipeline_steps/s1_discover.py",
       "canonical_script": "scripts/pipeline_steps/s1_discover.py",
       "output": "fixtures_shortlist",
-      "next": ["S1e"],
-      "hard_rules": ["verify_fixture_identity"]
+      "next": [
+        "S1e"
+      ],
+      "hard_rules": [
+        "verify_fixture_identity",
+        "full_day_event_universe_required",
+        "fixture_identity_point_in_time_required",
+        "multi_sport_event_discovery_allowed"
+      ]
     },
     {
       "id": "S1e",
@@ -46,8 +76,12 @@
       "agent": "bet-scanner",
       "execution_mode": "state_only",
       "output": "discovered_events",
-      "next": ["S2"],
-      "hard_rules": ["event_identity_validation"]
+      "next": [
+        "S2"
+      ],
+      "hard_rules": [
+        "event_identity_validation"
+      ]
     },
     {
       "id": "S2",
@@ -58,8 +92,15 @@
       "wrapper": "scripts/pipeline_steps/s2_tipsters.py",
       "canonical_script": "scripts/pipeline_steps/s2_tipsters.py",
       "output": "tipster_consensus",
-      "next": ["S2.3"],
-      "hard_rules": ["minimum_one_valid_tip"]
+      "next": [
+        "S2.3"
+      ],
+      "hard_rules": [
+        "minimum_one_valid_tip",
+        "tipster_layer_separate_from_verified_facts",
+        "tipster_bias_grading_required",
+        "tipster_absence_does_not_block_core_analysis"
+      ]
     },
     {
       "id": "S2.3",
@@ -68,7 +109,9 @@
       "agent": "bet-enricher",
       "execution_mode": "agent_artifact",
       "output": "s2_3_enrichment_gaps",
-      "next": ["S2.5"],
+      "next": [
+        "S2.5"
+      ],
       "hard_rules": [
         "no_pick",
         "no_edge",
@@ -78,7 +121,9 @@
         "unknown_or_blocked_for_missing_data",
         "no_production_db_write",
         "no_betting_data_write",
-        "point_in_time_required"
+        "point_in_time_required",
+        "weather_injury_tournament_context_gap_detection_required",
+        "source_gap_inventory_required"
       ]
     },
     {
@@ -88,7 +133,9 @@
       "agent": "bet-enricher",
       "execution_mode": "agent_artifact",
       "output": "s2_5_provider_observations",
-      "next": ["S2.7"],
+      "next": [
+        "S2.7"
+      ],
       "hard_rules": [
         "no_pick",
         "no_edge",
@@ -98,7 +145,10 @@
         "unknown_or_blocked_for_missing_data",
         "no_production_db_write",
         "no_betting_data_write",
-        "point_in_time_required"
+        "point_in_time_required",
+        "source_bound_provider_enrichment_only",
+        "operator_odds_optional_for_analysis",
+        "no_unverified_provider_claims"
       ]
     },
     {
@@ -108,7 +158,9 @@
       "agent": "bet-enricher",
       "execution_mode": "agent_artifact",
       "output": "s2_7_reconciled_facts",
-      "next": ["S2.9"],
+      "next": [
+        "S2.9"
+      ],
       "hard_rules": [
         "no_pick",
         "no_edge",
@@ -118,7 +170,9 @@
         "unknown_or_blocked_for_missing_data",
         "no_production_db_write",
         "no_betting_data_write",
-        "point_in_time_required"
+        "point_in_time_required",
+        "source_conflict_reconciliation_required",
+        "unknown_for_unresolved_data"
       ]
     },
     {
@@ -128,7 +182,9 @@
       "agent": "bet-enricher",
       "execution_mode": "agent_artifact",
       "output": "s2_9_data_readiness",
-      "next": ["S3"],
+      "next": [
+        "S3"
+      ],
       "hard_rules": [
         "no_pick",
         "no_edge",
@@ -138,7 +194,10 @@
         "unknown_or_blocked_for_missing_data",
         "no_production_db_write",
         "no_betting_data_write",
-        "point_in_time_required"
+        "point_in_time_required",
+        "data_quality_label_required",
+        "analysis_allowed_without_odds",
+        "readiness_not_equal_bettable"
       ]
     },
     {
@@ -150,8 +209,15 @@
       "wrapper": "scripts/pipeline_steps/s3_stats.py",
       "canonical_script": "scripts/pipeline_steps/s3_stats.py",
       "output": "calibrated_probabilities",
-      "next": ["S4"],
-      "hard_rules": ["reproducible_statistical_evidence"]
+      "next": [
+        "S4"
+      ],
+      "hard_rules": [
+        "reproducible_statistical_evidence",
+        "market_family_probability_inputs_required",
+        "no_fake_probabilities",
+        "unsupported_market_family_must_be_rejected_or_watch"
+      ]
     },
     {
       "id": "S4",
@@ -162,8 +228,15 @@
       "wrapper": "scripts/pipeline_steps/s4_valuator.py",
       "canonical_script": "scripts/pipeline_steps/s4_valuator.py",
       "output": "expected_value_estimates",
-      "next": ["S5"],
-      "hard_rules": ["clv_validation"]
+      "next": [
+        "S5"
+      ],
+      "hard_rules": [
+        "clv_validation",
+        "odds_missing_becomes_price_pending_not_analysis_block",
+        "ev_requires_model_probability_and_operator_odds",
+        "fair_odds_requires_real_probability_input"
+      ]
     },
     {
       "id": "S5",
@@ -172,13 +245,19 @@
       "agent": "bet-challenger",
       "execution_mode": "agent_artifact",
       "output": "s5_context_motivation_risk",
-      "next": ["S6"],
+      "next": [
+        "S6"
+      ],
       "hard_rules": [
         "injury_lineup_context_required",
         "motivation_and_tournament_context_required",
         "travel_schedule_fatigue_checked",
         "morale_and_recent_result_context_checked",
-        "volatility_or_upset_risk_checked"
+        "volatility_or_upset_risk_checked",
+        "weather_context_required",
+        "tipster_sentiment_layer_checked",
+        "bet_builder_correlation_precheck",
+        "tournament_and_motivation_review_required"
       ]
     },
     {
@@ -190,8 +269,15 @@
       "wrapper": "scripts/pipeline_steps/s6_repeats.py",
       "canonical_script": "scripts/pipeline_steps/s6_repeats.py",
       "output": "s6_portfolio_repeat_guard",
-      "next": ["S7"],
-      "hard_rules": ["repeat_signals_removal"]
+      "next": [
+        "S7"
+      ],
+      "hard_rules": [
+        "repeat_signals_removal",
+        "cross_event_and_same_game_correlation_guard",
+        "no_chase_after_loss_guard",
+        "same_event_leg_conflict_guard"
+      ]
     },
     {
       "id": "S7",
@@ -202,8 +288,15 @@
       "wrapper": "scripts/pipeline_steps/s5_gate.py",
       "canonical_script": "scripts/pipeline_steps/s5_gate.py",
       "output": "approved_picks",
-      "next": ["S7b"],
-      "hard_rules": ["hard_approval_verdict_gate"]
+      "next": [
+        "S7b"
+      ],
+      "hard_rules": [
+        "hard_approval_verdict_gate",
+        "analytical_status_allowed_without_odds",
+        "bettable_blocked_without_manual_quote",
+        "counter_evidence_required"
+      ]
     },
     {
       "id": "S7b",
@@ -214,8 +307,16 @@
       "wrapper": "scripts/pipeline_steps/s7_validate.py",
       "canonical_script": "scripts/pipeline_steps/s7_validate.py",
       "output": "verified_market_availability",
-      "next": ["S8"],
-      "hard_rules": ["betclic_market_boundary_validation"]
+      "next": [
+        "S8"
+      ],
+      "hard_rules": [
+        "betclic_market_boundary_validation",
+        "manual_operator_market_boundary_validation",
+        "superbet_quote_gate_preparation",
+        "no_operator_browser_automation",
+        "market_name_line_mapping_required"
+      ]
     },
     {
       "id": "S8",
@@ -226,8 +327,16 @@
       "wrapper": "scripts/pipeline_steps/s8_build_coupons.py",
       "canonical_script": "scripts/pipeline_steps/s8_build_coupons.py",
       "output": "final_coupons",
-      "next": ["S9"],
-      "hard_rules": ["correlation_and_stake_mechanics_check"]
+      "next": [
+        "S9"
+      ],
+      "hard_rules": [
+        "correlation_and_stake_mechanics_check",
+        "same_game_builder_correlation_check",
+        "no_combined_bookmaker_odds_computation",
+        "manual_quote_cards_required",
+        "idea_grouping_not_final_coupon"
+      ]
     },
     {
       "id": "S9",
@@ -236,8 +345,15 @@
       "agent": "bet-challenger",
       "execution_mode": "human_gate",
       "output": "executed_bets_journal",
-      "next": ["S10"],
-      "hard_rules": ["manual_user_verification_in_betclic"]
+      "next": [
+        "S10"
+      ],
+      "hard_rules": [
+        "manual_user_verification_in_betclic",
+        "manual_user_verification_in_superbet",
+        "human_entered_quote_required",
+        "final_coupon_blocked_without_visible_operator_quote"
+      ]
     },
     {
       "id": "S10",
@@ -247,7 +363,12 @@
       "execution_mode": "state_only",
       "output": "s10_settlement_handoff",
       "next": [],
-      "hard_rules": ["final_accounting_verification"]
+      "hard_rules": [
+        "final_accounting_verification",
+        "settlement_and_learning_only",
+        "no_retroactive_pick_mutation",
+        "post_session_learning_separate_from_pre_match_analysis"
+      ]
     }
   ]
 }

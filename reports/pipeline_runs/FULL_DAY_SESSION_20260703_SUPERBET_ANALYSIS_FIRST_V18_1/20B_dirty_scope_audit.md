@@ -1,19 +1,23 @@
 # 20B Dirty Scope Audit
 
 - dirty_path_count: `2806`
-- include_path_count: `74`
+- include_path_count: `79`
 - manual_review_count: `0`
 - class_counts:
   - `EXCLUDE_ABSOLUTE_PATH_DUPLICATE`: 56
   - `EXCLUDE_GENERATED_NOISE`: 13
   - `EXCLUDE_LOCAL_CACHE`: 13
-  - `INCLUDE_CODE`: 11
-  - `INCLUDE_RUN_ARTIFACT`: 30
+  - `INCLUDE_CODE`: 12
+  - `INCLUDE_DOC`: 2
+  - `INCLUDE_RUN_ARTIFACT`: 32
   - `INCLUDE_TEST`: 33
-  - `PRE_EXISTING_UNRELATED`: 2650
+  - `PRE_EXISTING_UNRELATED`: 2645
 
 ## Included Paths
 
+- `config/pipeline_manifest.json`
+- `docs/pipeline/superbet_full_day_v3/schemas/analytical_candidate.schema.json`
+- `docs/pipeline/superbet_full_day_v3/schemas/manual_superbet_quote_card.schema.json`
 - `reports/pipeline_runs/FULL_DAY_SESSION_20260703_SUPERBET_ANALYSIS_FIRST_V18_1/05D_market_availability_matrix.json`
 - `reports/pipeline_runs/FULL_DAY_SESSION_20260703_SUPERBET_ANALYSIS_FIRST_V18_1/07_analytical_candidates.json`
 - `reports/pipeline_runs/FULL_DAY_SESSION_20260703_SUPERBET_ANALYSIS_FIRST_V18_1/08_same_game_builder_idea_groups.json`
@@ -44,6 +48,8 @@
 - `reports/pipeline_runs/FULL_DAY_SESSION_20260703_SUPERBET_ANALYSIS_FIRST_V18_1/20A_merge_preflight.md`
 - `reports/pipeline_runs/FULL_DAY_SESSION_20260703_SUPERBET_ANALYSIS_FIRST_V18_1/20B_dirty_scope_audit.json`
 - `reports/pipeline_runs/FULL_DAY_SESSION_20260703_SUPERBET_ANALYSIS_FIRST_V18_1/20B_dirty_scope_audit.md`
+- `reports/pipeline_runs/FULL_DAY_SESSION_20260703_SUPERBET_PRODUCTION_V17_1/07_analytical_candidates.json`
+- `reports/pipeline_runs/FULL_DAY_SESSION_20260703_SUPERBET_PRODUCTION_V17_1/10_final_session_report.json`
 - `scripts/final_artifact_consistency_audit.py`
 - `scripts/run_analysis_first_superbet_v18_1.py`
 - `src/bet/pipeline/bet_builder_concept_quality.py`
