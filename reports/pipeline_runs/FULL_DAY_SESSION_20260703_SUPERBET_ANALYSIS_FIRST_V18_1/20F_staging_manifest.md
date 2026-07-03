@@ -1,8 +1,8 @@
 # 20F Staging Manifest
 
 - target_branch: `feat/superbet-analysis-first-v18-1-production`
-- staged_file_count_expected: `81`
-- staged_file_count_verified: `81`
+- staged_file_count_expected: `82`
+- staged_file_count_verified: `82`
 - staged_manifest_match_verified: `true`
 
 ## Files
@@ -52,6 +52,7 @@
 - `src/bet/pipeline/final_artifact_consistency.py`
 - `src/bet/pipeline/market_evidence_sufficiency.py`
 - `src/bet/pipeline/multisport_market_promotion.py`
+- `src/bet/pipeline/market_family_quality.py`
 - `src/bet/pipeline/odds_optional_analysis_contracts.py`
 - `src/bet/pipeline/sport_promotion_obligations.py`
 - `src/bet/pipeline/tipster_opinion_quality.py`

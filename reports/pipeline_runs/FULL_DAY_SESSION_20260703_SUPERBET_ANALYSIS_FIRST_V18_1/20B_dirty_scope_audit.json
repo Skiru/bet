@@ -11,12 +11,12 @@
     "EXCLUDE_ABSOLUTE_PATH_DUPLICATE": 56,
     "EXCLUDE_GENERATED_NOISE": 13,
     "EXCLUDE_LOCAL_CACHE": 13,
-    "INCLUDE_CODE": 10,
+    "INCLUDE_CODE": 11,
     "INCLUDE_RUN_ARTIFACT": 30,
     "INCLUDE_TEST": 33,
-    "PRE_EXISTING_UNRELATED": 2651
+    "PRE_EXISTING_UNRELATED": 2650
   },
-  "include_path_count": 73,
+  "include_path_count": 74,
   "include_paths": [
     "reports/pipeline_runs/FULL_DAY_SESSION_20260703_SUPERBET_ANALYSIS_FIRST_V18_1/05D_market_availability_matrix.json",
     "reports/pipeline_runs/FULL_DAY_SESSION_20260703_SUPERBET_ANALYSIS_FIRST_V18_1/07_analytical_candidates.json",
@@ -54,6 +54,7 @@
     "src/bet/pipeline/coupon_draft_diversification.py",
     "src/bet/pipeline/final_artifact_consistency.py",
     "src/bet/pipeline/market_evidence_sufficiency.py",
+    "src/bet/pipeline/market_family_quality.py",
     "src/bet/pipeline/multisport_market_promotion.py",
     "src/bet/pipeline/odds_optional_analysis_contracts.py",
     "src/bet/pipeline/sport_promotion_obligations.py",
@@ -16441,8 +16442,8 @@
     {
       "path": "src/bet/pipeline/market_family_quality.py",
       "git_status": "??",
-      "class": "PRE_EXISTING_UNRELATED",
-      "reason": "Code/test path exists but is not part of the approved V18.1 merge set."
+      "class": "INCLUDE_CODE",
+      "reason": "Direct helper module required by targeted multisport market-promotion tests in the clean-main merge gate."
     },
     {
       "path": "src/bet/pipeline/market_probability_inputs.py",

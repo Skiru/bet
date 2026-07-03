@@ -2,8 +2,8 @@
   "task_id": "V18_1_CLEANUP_SCOPE_REVIEW_AND_MERGE_TO_MAIN",
   "run_id": "FULL_DAY_SESSION_20260703_SUPERBET_ANALYSIS_FIRST_V18_1",
   "target_branch": "feat/superbet-analysis-first-v18-1-production",
-  "staged_file_count_expected": 81,
-  "staged_file_count_verified": 81,
+  "staged_file_count_expected": 82,
+  "staged_file_count_verified": 82,
   "staged_manifest_match_verified": true,
   "files": [
     "reports/pipeline_runs/FULL_DAY_SESSION_20260703_SUPERBET_ANALYSIS_FIRST_V18_1/05D_market_availability_matrix.json",
@@ -51,6 +51,7 @@
     "src/bet/pipeline/final_artifact_consistency.py",
     "src/bet/pipeline/market_evidence_sufficiency.py",
     "src/bet/pipeline/multisport_market_promotion.py",
+    "src/bet/pipeline/market_family_quality.py",
     "src/bet/pipeline/odds_optional_analysis_contracts.py",
     "src/bet/pipeline/sport_promotion_obligations.py",
     "src/bet/pipeline/tipster_opinion_quality.py",
