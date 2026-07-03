@@ -1,0 +1,3389 @@
+{
+  "run_id": "FULL_DAY_SESSION_20260703_SUPERBET_ANALYSIS_FIRST_V18_1",
+  "current_run_id": "FULL_DAY_SESSION_20260703_SUPERBET_ANALYSIS_FIRST_V18_1",
+  "source_run_id": "FULL_DAY_SESSION_20260703_SUPERBET_PRODUCTION_V17_1",
+  "input_run_id": "FULL_DAY_SESSION_20260703_SUPERBET_PRODUCTION_V17_1",
+  "concepts": [
+    {
+      "concept_id": "concept_football_australia_vs_egypt_2026_07_03t180000_0000",
+      "event_id": "football_australia_vs_egypt_2026_07_03t180000_0000",
+      "sport": "football",
+      "competition": "International - FIFA World Cup",
+      "visible_event_name": "Australia vs Egypt",
+      "concept_type": "CORNERS_CARDS_GOALS",
+      "legs": [
+        {
+          "candidate_id": "cand_001_football_australia_vs_egypt_2026_07_03t180000_0000_result",
+          "market_family": "result",
+          "selection": "Australia",
+          "line": "NO_NUMERIC_LINE_REQUIRED",
+          "allowed_line_alternatives": [],
+          "line_free_market_type": "DRAW_NO_BET",
+          "odds_status": "PARTIALLY_PRICED",
+          "pricing_tier": "PARTIALLY_PRICED_ANALYTICAL",
+          "evidence_summary": "Verified fixture identity and kickoff for Australia vs Egypt.",
+          "counter_evidence_summary": "Independent lineup, injury, and referee feeds were not preserved in the upstream artifact set.; The Odds API provenance is auditable but still not event-specific raw bookmaker capture strength."
+        },
+        {
+          "candidate_id": "cand_002_football_australia_vs_egypt_2026_07_03t180000_0000_corners",
+          "market_family": "corners",
+          "selection": "hdp",
+          "line": 2,
+          "allowed_line_alternatives": [
+            "Total corners - hdp on the main operator line",
+            "Total corners - hdp on an alternative operator line"
+          ],
+          "line_free_market_type": null,
+          "odds_status": "PARTIALLY_PRICED",
+          "pricing_tier": "PARTIALLY_PRICED_ANALYTICAL",
+          "evidence_summary": "Verified fixture identity and kickoff for Australia vs Egypt.",
+          "counter_evidence_summary": "Independent lineup, injury, and referee feeds were not preserved in the upstream artifact set.; The Odds API provenance is auditable but still not event-specific raw bookmaker capture strength."
+        }
+      ],
+      "correlation_logic": "Manual builder review should confirm whether the favorite/dominance scenario still supports the derivative leg after line selection.",
+      "positive_correlation_notes": [
+        "Game-state dominance can support both a result-family leg and a pressure-volume derivative leg."
+      ],
+      "negative_correlation_notes": [
+        "A low-event-pace match can break the derivative leg even when the result leg survives."
+      ],
+      "forbidden_combinations": [
+        "Do not duplicate the same exposure with two equivalent result-family legs."
+      ],
+      "line_sensitivity": "HIGH",
+      "scenario_fit": "Same-event review group combines a line-free anchor with one operator-line-required derivative leg.",
+      "what_to_check_in_Superbet_if_user_chooses": [
+        "Confirm every leg exists under the same visible event.",
+        "Confirm the exact operator line for any derivative leg.",
+        "Read the visible Bet Builder combined odds from the Superbet screen only."
+      ],
+      "combined_odds_status": "OPERATOR_SCREEN_ONLY",
+      "combined_bookmaker_odds_computed": false,
+      "bettable": false,
+      "correlation_tags": [
+        "corners",
+        "football_australia_vs_egypt_2026_07_03t180000_0000",
+        "result"
+      ],
+      "evidence_quality": "MEDIUM",
+      "confidence": "MEDIUM",
+      "optional_operator_quote_check_priority": "HIGH",
+      "tipster_context_status": "ATTEMPTED_NO_MATCHES",
+      "tipster_signal": null,
+      "public_side_or_hype_risk": "PUBLIC_SIDE_RISK_UNKNOWN_WITHOUT_FIXTURE_LEVEL_TIPSTER_MATCH",
+      "no_usable_tipster_signal_reason": "NO_MATCHED_FIXTURE_LEVEL_TIPSTER_OPINION_AFTER_BOUNDED_SOURCE_ATTEMPTS"
+    },
+    {
+      "concept_id": "concept_football_argentina_vs_cape_verde_2026_07_03t220000_0000",
+      "event_id": "football_argentina_vs_cape_verde_2026_07_03t220000_0000",
+      "sport": "football",
+      "competition": "International - FIFA World Cup",
+      "visible_event_name": "Argentina vs Cape Verde",
+      "concept_type": "CORNERS_CARDS_GOALS",
+      "legs": [
+        {
+          "candidate_id": "cand_003_football_argentina_vs_cape_verde_2026_07_03t220000_0000_result",
+          "market_family": "result",
+          "selection": "Argentina",
+          "line": "NO_NUMERIC_LINE_REQUIRED",
+          "allowed_line_alternatives": [],
+          "line_free_market_type": "DRAW_NO_BET",
+          "odds_status": "PARTIALLY_PRICED",
+          "pricing_tier": "PARTIALLY_PRICED_ANALYTICAL",
+          "evidence_summary": "Verified fixture identity and kickoff for Argentina vs Cape Verde.",
+          "counter_evidence_summary": "Independent lineup, injury, and referee feeds were not preserved in the upstream artifact set.; The Odds API provenance is auditable but still not event-specific raw bookmaker capture strength."
+        },
+        {
+          "candidate_id": "cand_004_football_argentina_vs_cape_verde_2026_07_03t220000_0000_corners",
+          "market_family": "corners",
+          "selection": "hdp",
+          "line": 2,
+          "allowed_line_alternatives": [
+            "Total corners - hdp on the main operator line",
+            "Total corners - hdp on an alternative operator line"
+          ],
+          "line_free_market_type": null,
+          "odds_status": "PARTIALLY_PRICED",
+          "pricing_tier": "PARTIALLY_PRICED_ANALYTICAL",
+          "evidence_summary": "Verified fixture identity and kickoff for Argentina vs Cape Verde.",
+          "counter_evidence_summary": "Independent lineup, injury, and referee feeds were not preserved in the upstream artifact set.; The Odds API provenance is auditable but still not event-specific raw bookmaker capture strength."
+        }
+      ],
+      "correlation_logic": "Manual builder review should confirm whether the favorite/dominance scenario still supports the derivative leg after line selection.",
+      "positive_correlation_notes": [
+        "Game-state dominance can support both a result-family leg and a pressure-volume derivative leg."
+      ],
+      "negative_correlation_notes": [
+        "A low-event-pace match can break the derivative leg even when the result leg survives."
+      ],
+      "forbidden_combinations": [
+        "Do not duplicate the same exposure with two equivalent result-family legs."
+      ],
+      "line_sensitivity": "HIGH",
+      "scenario_fit": "Same-event review group combines a line-free anchor with one operator-line-required derivative leg.",
+      "what_to_check_in_Superbet_if_user_chooses": [
+        "Confirm every leg exists under the same visible event.",
+        "Confirm the exact operator line for any derivative leg.",
+        "Read the visible Bet Builder combined odds from the Superbet screen only."
+      ],
+      "combined_odds_status": "OPERATOR_SCREEN_ONLY",
+      "combined_bookmaker_odds_computed": false,
+      "bettable": false,
+      "correlation_tags": [
+        "corners",
+        "football_argentina_vs_cape_verde_2026_07_03t220000_0000",
+        "result"
+      ],
+      "evidence_quality": "MEDIUM",
+      "confidence": "MEDIUM",
+      "optional_operator_quote_check_priority": "HIGH",
+      "tipster_context_status": "ATTEMPTED_NO_MATCHES",
+      "tipster_signal": null,
+      "public_side_or_hype_risk": "PUBLIC_SIDE_RISK_UNKNOWN_WITHOUT_FIXTURE_LEVEL_TIPSTER_MATCH",
+      "no_usable_tipster_signal_reason": "NO_MATCHED_FIXTURE_LEVEL_TIPSTER_OPINION_AFTER_BOUNDED_SOURCE_ATTEMPTS"
+    },
+    {
+      "concept_id": "concept_football_sligo_rovers_vs_shamrock_2026_07_03t184500_0000",
+      "event_id": "football_sligo_rovers_vs_shamrock_2026_07_03t184500_0000",
+      "sport": "football",
+      "competition": "Ireland - Premier Division",
+      "visible_event_name": "Sligo Rovers vs Shamrock",
+      "concept_type": "CORNERS_CARDS_GOALS",
+      "legs": [
+        {
+          "candidate_id": "cand_005_football_sligo_rovers_vs_shamrock_2026_07_03t184500_0000_result",
+          "market_family": "result",
+          "selection": "Sligo Rovers",
+          "line": "NO_NUMERIC_LINE_REQUIRED",
+          "allowed_line_alternatives": [],
+          "line_free_market_type": "DRAW_NO_BET",
+          "odds_status": "PARTIALLY_PRICED",
+          "pricing_tier": "PARTIALLY_PRICED_ANALYTICAL",
+          "evidence_summary": "Verified fixture identity and kickoff for Sligo Rovers vs Shamrock.",
+          "counter_evidence_summary": "Independent lineup, injury, and referee feeds were not preserved in the upstream artifact set.; The Odds API provenance is auditable but still not event-specific raw bookmaker capture strength."
+        },
+        {
+          "candidate_id": "cand_006_football_sligo_rovers_vs_shamrock_2026_07_03t184500_0000_corners",
+          "market_family": "corners",
+          "selection": "hdp",
+          "line": 2,
+          "allowed_line_alternatives": [
+            "Total corners - hdp on the main operator line",
+            "Total corners - hdp on an alternative operator line"
+          ],
+          "line_free_market_type": null,
+          "odds_status": "PARTIALLY_PRICED",
+          "pricing_tier": "PARTIALLY_PRICED_ANALYTICAL",
+          "evidence_summary": "Verified fixture identity and kickoff for Sligo Rovers vs Shamrock.",
+          "counter_evidence_summary": "Independent lineup, injury, and referee feeds were not preserved in the upstream artifact set.; The Odds API provenance is auditable but still not event-specific raw bookmaker capture strength."
+        }
+      ],
+      "correlation_logic": "Manual builder review should confirm whether the favorite/dominance scenario still supports the derivative leg after line selection.",
+      "positive_correlation_notes": [
+        "Game-state dominance can support both a result-family leg and a pressure-volume derivative leg."
+      ],
+      "negative_correlation_notes": [
+        "A low-event-pace match can break the derivative leg even when the result leg survives."
+      ],
+      "forbidden_combinations": [
+        "Do not duplicate the same exposure with two equivalent result-family legs."
+      ],
+      "line_sensitivity": "HIGH",
+      "scenario_fit": "Same-event review group combines a line-free anchor with one operator-line-required derivative leg.",
+      "what_to_check_in_Superbet_if_user_chooses": [
+        "Confirm every leg exists under the same visible event.",
+        "Confirm the exact operator line for any derivative leg.",
+        "Read the visible Bet Builder combined odds from the Superbet screen only."
+      ],
+      "combined_odds_status": "OPERATOR_SCREEN_ONLY",
+      "combined_bookmaker_odds_computed": false,
+      "bettable": false,
+      "correlation_tags": [
+        "corners",
+        "football_sligo_rovers_vs_shamrock_2026_07_03t184500_0000",
+        "result"
+      ],
+      "evidence_quality": "MEDIUM",
+      "confidence": "MEDIUM",
+      "optional_operator_quote_check_priority": "HIGH",
+      "tipster_context_status": "ATTEMPTED_NO_MATCHES",
+      "tipster_signal": null,
+      "public_side_or_hype_risk": "PUBLIC_SIDE_RISK_UNKNOWN_WITHOUT_FIXTURE_LEVEL_TIPSTER_MATCH",
+      "no_usable_tipster_signal_reason": "NO_MATCHED_FIXTURE_LEVEL_TIPSTER_OPINION_AFTER_BOUNDED_SOURCE_ATTEMPTS"
+    },
+    {
+      "concept_id": "concept_football_yunnan_yukun_vs_henan_2026_07_03t120000_0000",
+      "event_id": "football_yunnan_yukun_vs_henan_2026_07_03t120000_0000",
+      "sport": "football",
+      "competition": "China - Chinese Super League",
+      "visible_event_name": "Yunnan Yukun vs Henan",
+      "concept_type": "CORNERS_CARDS_GOALS",
+      "legs": [
+        {
+          "candidate_id": "cand_007_football_yunnan_yukun_vs_henan_2026_07_03t120000_0000_result",
+          "market_family": "result",
+          "selection": "Yunnan Yukun",
+          "line": "NO_NUMERIC_LINE_REQUIRED",
+          "allowed_line_alternatives": [],
+          "line_free_market_type": "DRAW_NO_BET",
+          "odds_status": "PARTIALLY_PRICED",
+          "pricing_tier": "PARTIALLY_PRICED_ANALYTICAL",
+          "evidence_summary": "Verified fixture identity and kickoff for Yunnan Yukun vs Henan.",
+          "counter_evidence_summary": "Independent lineup, injury, and referee feeds were not preserved in the upstream artifact set.; The Odds API provenance is auditable but still not event-specific raw bookmaker capture strength."
+        },
+        {
+          "candidate_id": "cand_008_football_yunnan_yukun_vs_henan_2026_07_03t120000_0000_corners",
+          "market_family": "corners",
+          "selection": "hdp",
+          "line": 2,
+          "allowed_line_alternatives": [
+            "Total corners - hdp on the main operator line",
+            "Total corners - hdp on an alternative operator line"
+          ],
+          "line_free_market_type": null,
+          "odds_status": "PARTIALLY_PRICED",
+          "pricing_tier": "PARTIALLY_PRICED_ANALYTICAL",
+          "evidence_summary": "Verified fixture identity and kickoff for Yunnan Yukun vs Henan.",
+          "counter_evidence_summary": "Independent lineup, injury, and referee feeds were not preserved in the upstream artifact set.; The Odds API provenance is auditable but still not event-specific raw bookmaker capture strength."
+        }
+      ],
+      "correlation_logic": "Manual builder review should confirm whether the favorite/dominance scenario still supports the derivative leg after line selection.",
+      "positive_correlation_notes": [
+        "Game-state dominance can support both a result-family leg and a pressure-volume derivative leg."
+      ],
+      "negative_correlation_notes": [
+        "A low-event-pace match can break the derivative leg even when the result leg survives."
+      ],
+      "forbidden_combinations": [
+        "Do not duplicate the same exposure with two equivalent result-family legs."
+      ],
+      "line_sensitivity": "HIGH",
+      "scenario_fit": "Same-event review group combines a line-free anchor with one operator-line-required derivative leg.",
+      "what_to_check_in_Superbet_if_user_chooses": [
+        "Confirm every leg exists under the same visible event.",
+        "Confirm the exact operator line for any derivative leg.",
+        "Read the visible Bet Builder combined odds from the Superbet screen only."
+      ],
+      "combined_odds_status": "OPERATOR_SCREEN_ONLY",
+      "combined_bookmaker_odds_computed": false,
+      "bettable": false,
+      "correlation_tags": [
+        "corners",
+        "football_yunnan_yukun_vs_henan_2026_07_03t120000_0000",
+        "result"
+      ],
+      "evidence_quality": "MEDIUM",
+      "confidence": "MEDIUM",
+      "optional_operator_quote_check_priority": "HIGH",
+      "tipster_context_status": "ATTEMPTED_NO_MATCHES",
+      "tipster_signal": null,
+      "public_side_or_hype_risk": "PUBLIC_SIDE_RISK_UNKNOWN_WITHOUT_FIXTURE_LEVEL_TIPSTER_MATCH",
+      "no_usable_tipster_signal_reason": "NO_MATCHED_FIXTURE_LEVEL_TIPSTER_OPINION_AFTER_BOUNDED_SOURCE_ATTEMPTS"
+    },
+    {
+      "concept_id": "concept_football_drogheda_united_vs_bohemians_d_2026_07_03t184500_0000",
+      "event_id": "football_drogheda_united_vs_bohemians_d_2026_07_03t184500_0000",
+      "sport": "football",
+      "competition": "Ireland - Premier Division",
+      "visible_event_name": "Drogheda United vs Bohemians D.",
+      "concept_type": "CORNERS_CARDS_GOALS",
+      "legs": [
+        {
+          "candidate_id": "cand_009_football_drogheda_united_vs_bohemians_d_2026_07_03t184500_0000_result",
+          "market_family": "result",
+          "selection": "Drogheda United",
+          "line": "NO_NUMERIC_LINE_REQUIRED",
+          "allowed_line_alternatives": [],
+          "line_free_market_type": "DRAW_NO_BET",
+          "odds_status": "PARTIALLY_PRICED",
+          "pricing_tier": "PARTIALLY_PRICED_ANALYTICAL",
+          "evidence_summary": "Verified fixture identity and kickoff for Drogheda United vs Bohemians D..",
+          "counter_evidence_summary": "Independent lineup, injury, and referee feeds were not preserved in the upstream artifact set.; The Odds API provenance is auditable but still not event-specific raw bookmaker capture strength."
+        },
+        {
+          "candidate_id": "cand_010_football_drogheda_united_vs_bohemians_d_2026_07_03t184500_0000_corners",
+          "market_family": "corners",
+          "selection": "hdp",
+          "line": 2,
+          "allowed_line_alternatives": [
+            "Total corners - hdp on the main operator line",
+            "Total corners - hdp on an alternative operator line"
+          ],
+          "line_free_market_type": null,
+          "odds_status": "PARTIALLY_PRICED",
+          "pricing_tier": "PARTIALLY_PRICED_ANALYTICAL",
+          "evidence_summary": "Verified fixture identity and kickoff for Drogheda United vs Bohemians D..",
+          "counter_evidence_summary": "Independent lineup, injury, and referee feeds were not preserved in the upstream artifact set.; The Odds API provenance is auditable but still not event-specific raw bookmaker capture strength."
+        }
+      ],
+      "correlation_logic": "Manual builder review should confirm whether the favorite/dominance scenario still supports the derivative leg after line selection.",
+      "positive_correlation_notes": [
+        "Game-state dominance can support both a result-family leg and a pressure-volume derivative leg."
+      ],
+      "negative_correlation_notes": [
+        "A low-event-pace match can break the derivative leg even when the result leg survives."
+      ],
+      "forbidden_combinations": [
+        "Do not duplicate the same exposure with two equivalent result-family legs."
+      ],
+      "line_sensitivity": "HIGH",
+      "scenario_fit": "Same-event review group combines a line-free anchor with one operator-line-required derivative leg.",
+      "what_to_check_in_Superbet_if_user_chooses": [
+        "Confirm every leg exists under the same visible event.",
+        "Confirm the exact operator line for any derivative leg.",
+        "Read the visible Bet Builder combined odds from the Superbet screen only."
+      ],
+      "combined_odds_status": "OPERATOR_SCREEN_ONLY",
+      "combined_bookmaker_odds_computed": false,
+      "bettable": false,
+      "correlation_tags": [
+        "corners",
+        "football_drogheda_united_vs_bohemians_d_2026_07_03t184500_0000",
+        "result"
+      ],
+      "evidence_quality": "MEDIUM",
+      "confidence": "MEDIUM",
+      "optional_operator_quote_check_priority": "HIGH",
+      "tipster_context_status": "ATTEMPTED_NO_MATCHES",
+      "tipster_signal": null,
+      "public_side_or_hype_risk": "PUBLIC_SIDE_RISK_UNKNOWN_WITHOUT_FIXTURE_LEVEL_TIPSTER_MATCH",
+      "no_usable_tipster_signal_reason": "NO_MATCHED_FIXTURE_LEVEL_TIPSTER_OPINION_AFTER_BOUNDED_SOURCE_ATTEMPTS"
+    },
+    {
+      "concept_id": "concept_football_sirius_vs_mjallby_2026_07_03t170000_0000",
+      "event_id": "football_sirius_vs_mjallby_2026_07_03t170000_0000",
+      "sport": "football",
+      "competition": "Sweden - Allsvenskan",
+      "visible_event_name": "Sirius vs Mjallby",
+      "concept_type": "CORNERS_CARDS_GOALS",
+      "legs": [
+        {
+          "candidate_id": "cand_011_football_sirius_vs_mjallby_2026_07_03t170000_0000_result",
+          "market_family": "result",
+          "selection": "Sirius",
+          "line": "NO_NUMERIC_LINE_REQUIRED",
+          "allowed_line_alternatives": [],
+          "line_free_market_type": "DRAW_NO_BET",
+          "odds_status": "PARTIALLY_PRICED",
+          "pricing_tier": "PARTIALLY_PRICED_ANALYTICAL",
+          "evidence_summary": "Verified fixture identity and kickoff for Sirius vs Mjallby.",
+          "counter_evidence_summary": "Independent lineup, injury, and referee feeds were not preserved in the upstream artifact set.; The Odds API provenance is auditable but still not event-specific raw bookmaker capture strength."
+        },
+        {
+          "candidate_id": "cand_012_football_sirius_vs_mjallby_2026_07_03t170000_0000_corners",
+          "market_family": "corners",
+          "selection": "hdp",
+          "line": 2,
+          "allowed_line_alternatives": [
+            "Total corners - hdp on the main operator line",
+            "Total corners - hdp on an alternative operator line"
+          ],
+          "line_free_market_type": null,
+          "odds_status": "PARTIALLY_PRICED",
+          "pricing_tier": "PARTIALLY_PRICED_ANALYTICAL",
+          "evidence_summary": "Verified fixture identity and kickoff for Sirius vs Mjallby.",
+          "counter_evidence_summary": "Independent lineup, injury, and referee feeds were not preserved in the upstream artifact set.; The Odds API provenance is auditable but still not event-specific raw bookmaker capture strength."
+        }
+      ],
+      "correlation_logic": "Manual builder review should confirm whether the favorite/dominance scenario still supports the derivative leg after line selection.",
+      "positive_correlation_notes": [
+        "Game-state dominance can support both a result-family leg and a pressure-volume derivative leg."
+      ],
+      "negative_correlation_notes": [
+        "A low-event-pace match can break the derivative leg even when the result leg survives."
+      ],
+      "forbidden_combinations": [
+        "Do not duplicate the same exposure with two equivalent result-family legs."
+      ],
+      "line_sensitivity": "HIGH",
+      "scenario_fit": "Same-event review group combines a line-free anchor with one operator-line-required derivative leg.",
+      "what_to_check_in_Superbet_if_user_chooses": [
+        "Confirm every leg exists under the same visible event.",
+        "Confirm the exact operator line for any derivative leg.",
+        "Read the visible Bet Builder combined odds from the Superbet screen only."
+      ],
+      "combined_odds_status": "OPERATOR_SCREEN_ONLY",
+      "combined_bookmaker_odds_computed": false,
+      "bettable": false,
+      "correlation_tags": [
+        "corners",
+        "football_sirius_vs_mjallby_2026_07_03t170000_0000",
+        "result"
+      ],
+      "evidence_quality": "MEDIUM",
+      "confidence": "MEDIUM",
+      "optional_operator_quote_check_priority": "HIGH",
+      "tipster_context_status": "ATTEMPTED_NO_MATCHES",
+      "tipster_signal": null,
+      "public_side_or_hype_risk": "PUBLIC_SIDE_RISK_UNKNOWN_WITHOUT_FIXTURE_LEVEL_TIPSTER_MATCH",
+      "no_usable_tipster_signal_reason": "NO_MATCHED_FIXTURE_LEVEL_TIPSTER_OPINION_AFTER_BOUNDED_SOURCE_ATTEMPTS"
+    },
+    {
+      "concept_id": "concept_football_st_patrick_s_vs_galway_utd_2026_07_03t184500_0000",
+      "event_id": "football_st_patrick_s_vs_galway_utd_2026_07_03t184500_0000",
+      "sport": "football",
+      "competition": "Ireland - Premier Division",
+      "visible_event_name": "St. Patrick´s vs Galway Utd",
+      "concept_type": "CORNERS_CARDS_GOALS",
+      "legs": [
+        {
+          "candidate_id": "cand_013_football_st_patrick_s_vs_galway_utd_2026_07_03t184500_0000_result",
+          "market_family": "result",
+          "selection": "St. Patrick´s",
+          "line": "NO_NUMERIC_LINE_REQUIRED",
+          "allowed_line_alternatives": [],
+          "line_free_market_type": "DRAW_NO_BET",
+          "odds_status": "PARTIALLY_PRICED",
+          "pricing_tier": "PARTIALLY_PRICED_ANALYTICAL",
+          "evidence_summary": "Verified fixture identity and kickoff for St. Patrick´s vs Galway Utd.",
+          "counter_evidence_summary": "Independent lineup, injury, and referee feeds were not preserved in the upstream artifact set.; The Odds API provenance is auditable but still not event-specific raw bookmaker capture strength."
+        },
+        {
+          "candidate_id": "cand_014_football_st_patrick_s_vs_galway_utd_2026_07_03t184500_0000_corners",
+          "market_family": "corners",
+          "selection": "hdp",
+          "line": 2,
+          "allowed_line_alternatives": [
+            "Total corners - hdp on the main operator line",
+            "Total corners - hdp on an alternative operator line"
+          ],
+          "line_free_market_type": null,
+          "odds_status": "PARTIALLY_PRICED",
+          "pricing_tier": "PARTIALLY_PRICED_ANALYTICAL",
+          "evidence_summary": "Verified fixture identity and kickoff for St. Patrick´s vs Galway Utd.",
+          "counter_evidence_summary": "Independent lineup, injury, and referee feeds were not preserved in the upstream artifact set.; The Odds API provenance is auditable but still not event-specific raw bookmaker capture strength."
+        }
+      ],
+      "correlation_logic": "Manual builder review should confirm whether the favorite/dominance scenario still supports the derivative leg after line selection.",
+      "positive_correlation_notes": [
+        "Game-state dominance can support both a result-family leg and a pressure-volume derivative leg."
+      ],
+      "negative_correlation_notes": [
+        "A low-event-pace match can break the derivative leg even when the result leg survives."
+      ],
+      "forbidden_combinations": [
+        "Do not duplicate the same exposure with two equivalent result-family legs."
+      ],
+      "line_sensitivity": "HIGH",
+      "scenario_fit": "Same-event review group combines a line-free anchor with one operator-line-required derivative leg.",
+      "what_to_check_in_Superbet_if_user_chooses": [
+        "Confirm every leg exists under the same visible event.",
+        "Confirm the exact operator line for any derivative leg.",
+        "Read the visible Bet Builder combined odds from the Superbet screen only."
+      ],
+      "combined_odds_status": "OPERATOR_SCREEN_ONLY",
+      "combined_bookmaker_odds_computed": false,
+      "bettable": false,
+      "correlation_tags": [
+        "corners",
+        "football_st_patrick_s_vs_galway_utd_2026_07_03t184500_0000",
+        "result"
+      ],
+      "evidence_quality": "MEDIUM",
+      "confidence": "MEDIUM",
+      "optional_operator_quote_check_priority": "HIGH",
+      "tipster_context_status": "ATTEMPTED_NO_MATCHES",
+      "tipster_signal": null,
+      "public_side_or_hype_risk": "PUBLIC_SIDE_RISK_UNKNOWN_WITHOUT_FIXTURE_LEVEL_TIPSTER_MATCH",
+      "no_usable_tipster_signal_reason": "NO_MATCHED_FIXTURE_LEVEL_TIPSTER_OPINION_AFTER_BOUNDED_SOURCE_ATTEMPTS"
+    },
+    {
+      "concept_id": "concept_football_shelbourne_vs_dundalk_2026_07_03t190000_0000",
+      "event_id": "football_shelbourne_vs_dundalk_2026_07_03t190000_0000",
+      "sport": "football",
+      "competition": "Ireland - Premier Division",
+      "visible_event_name": "Shelbourne vs Dundalk",
+      "concept_type": "CORNERS_CARDS_GOALS",
+      "legs": [
+        {
+          "candidate_id": "cand_015_football_shelbourne_vs_dundalk_2026_07_03t190000_0000_result",
+          "market_family": "result",
+          "selection": "Shelbourne",
+          "line": "NO_NUMERIC_LINE_REQUIRED",
+          "allowed_line_alternatives": [],
+          "line_free_market_type": "DRAW_NO_BET",
+          "odds_status": "PARTIALLY_PRICED",
+          "pricing_tier": "PARTIALLY_PRICED_ANALYTICAL",
+          "evidence_summary": "Verified fixture identity and kickoff for Shelbourne vs Dundalk.",
+          "counter_evidence_summary": "Independent lineup, injury, and referee feeds were not preserved in the upstream artifact set.; The Odds API provenance is auditable but still not event-specific raw bookmaker capture strength."
+        },
+        {
+          "candidate_id": "cand_016_football_shelbourne_vs_dundalk_2026_07_03t190000_0000_corners",
+          "market_family": "corners",
+          "selection": "hdp",
+          "line": 2,
+          "allowed_line_alternatives": [
+            "Total corners - hdp on the main operator line",
+            "Total corners - hdp on an alternative operator line"
+          ],
+          "line_free_market_type": null,
+          "odds_status": "PARTIALLY_PRICED",
+          "pricing_tier": "PARTIALLY_PRICED_ANALYTICAL",
+          "evidence_summary": "Verified fixture identity and kickoff for Shelbourne vs Dundalk.",
+          "counter_evidence_summary": "Independent lineup, injury, and referee feeds were not preserved in the upstream artifact set.; The Odds API provenance is auditable but still not event-specific raw bookmaker capture strength."
+        }
+      ],
+      "correlation_logic": "Manual builder review should confirm whether the favorite/dominance scenario still supports the derivative leg after line selection.",
+      "positive_correlation_notes": [
+        "Game-state dominance can support both a result-family leg and a pressure-volume derivative leg."
+      ],
+      "negative_correlation_notes": [
+        "A low-event-pace match can break the derivative leg even when the result leg survives."
+      ],
+      "forbidden_combinations": [
+        "Do not duplicate the same exposure with two equivalent result-family legs."
+      ],
+      "line_sensitivity": "HIGH",
+      "scenario_fit": "Same-event review group combines a line-free anchor with one operator-line-required derivative leg.",
+      "what_to_check_in_Superbet_if_user_chooses": [
+        "Confirm every leg exists under the same visible event.",
+        "Confirm the exact operator line for any derivative leg.",
+        "Read the visible Bet Builder combined odds from the Superbet screen only."
+      ],
+      "combined_odds_status": "OPERATOR_SCREEN_ONLY",
+      "combined_bookmaker_odds_computed": false,
+      "bettable": false,
+      "correlation_tags": [
+        "corners",
+        "football_shelbourne_vs_dundalk_2026_07_03t190000_0000",
+        "result"
+      ],
+      "evidence_quality": "MEDIUM",
+      "confidence": "MEDIUM",
+      "optional_operator_quote_check_priority": "HIGH",
+      "tipster_context_status": "ATTEMPTED_NO_MATCHES",
+      "tipster_signal": null,
+      "public_side_or_hype_risk": "PUBLIC_SIDE_RISK_UNKNOWN_WITHOUT_FIXTURE_LEVEL_TIPSTER_MATCH",
+      "no_usable_tipster_signal_reason": "NO_MATCHED_FIXTURE_LEVEL_TIPSTER_OPINION_AFTER_BOUNDED_SOURCE_ATTEMPTS"
+    },
+    {
+      "concept_id": "concept_football_derry_city_vs_waterford_2026_07_03t184500_0000",
+      "event_id": "football_derry_city_vs_waterford_2026_07_03t184500_0000",
+      "sport": "football",
+      "competition": "Ireland - Premier Division",
+      "visible_event_name": "Derry City vs Waterford",
+      "concept_type": "CORNERS_CARDS_GOALS",
+      "legs": [
+        {
+          "candidate_id": "cand_017_football_derry_city_vs_waterford_2026_07_03t184500_0000_result",
+          "market_family": "result",
+          "selection": "Derry City",
+          "line": "NO_NUMERIC_LINE_REQUIRED",
+          "allowed_line_alternatives": [],
+          "line_free_market_type": "DRAW_NO_BET",
+          "odds_status": "PARTIALLY_PRICED",
+          "pricing_tier": "PARTIALLY_PRICED_ANALYTICAL",
+          "evidence_summary": "Verified fixture identity and kickoff for Derry City vs Waterford.",
+          "counter_evidence_summary": "Independent lineup, injury, and referee feeds were not preserved in the upstream artifact set.; The Odds API provenance is auditable but still not event-specific raw bookmaker capture strength."
+        },
+        {
+          "candidate_id": "cand_018_football_derry_city_vs_waterford_2026_07_03t184500_0000_corners",
+          "market_family": "corners",
+          "selection": "hdp",
+          "line": 2,
+          "allowed_line_alternatives": [
+            "Total corners - hdp on the main operator line",
+            "Total corners - hdp on an alternative operator line"
+          ],
+          "line_free_market_type": null,
+          "odds_status": "PARTIALLY_PRICED",
+          "pricing_tier": "PARTIALLY_PRICED_ANALYTICAL",
+          "evidence_summary": "Verified fixture identity and kickoff for Derry City vs Waterford.",
+          "counter_evidence_summary": "Independent lineup, injury, and referee feeds were not preserved in the upstream artifact set.; The Odds API provenance is auditable but still not event-specific raw bookmaker capture strength."
+        }
+      ],
+      "correlation_logic": "Manual builder review should confirm whether the favorite/dominance scenario still supports the derivative leg after line selection.",
+      "positive_correlation_notes": [
+        "Game-state dominance can support both a result-family leg and a pressure-volume derivative leg."
+      ],
+      "negative_correlation_notes": [
+        "A low-event-pace match can break the derivative leg even when the result leg survives."
+      ],
+      "forbidden_combinations": [
+        "Do not duplicate the same exposure with two equivalent result-family legs."
+      ],
+      "line_sensitivity": "HIGH",
+      "scenario_fit": "Same-event review group combines a line-free anchor with one operator-line-required derivative leg.",
+      "what_to_check_in_Superbet_if_user_chooses": [
+        "Confirm every leg exists under the same visible event.",
+        "Confirm the exact operator line for any derivative leg.",
+        "Read the visible Bet Builder combined odds from the Superbet screen only."
+      ],
+      "combined_odds_status": "OPERATOR_SCREEN_ONLY",
+      "combined_bookmaker_odds_computed": false,
+      "bettable": false,
+      "correlation_tags": [
+        "corners",
+        "football_derry_city_vs_waterford_2026_07_03t184500_0000",
+        "result"
+      ],
+      "evidence_quality": "MEDIUM",
+      "confidence": "MEDIUM",
+      "optional_operator_quote_check_priority": "HIGH",
+      "tipster_context_status": "ATTEMPTED_NO_MATCHES",
+      "tipster_signal": null,
+      "public_side_or_hype_risk": "PUBLIC_SIDE_RISK_UNKNOWN_WITHOUT_FIXTURE_LEVEL_TIPSTER_MATCH",
+      "no_usable_tipster_signal_reason": "NO_MATCHED_FIXTURE_LEVEL_TIPSTER_OPINION_AFTER_BOUNDED_SOURCE_ATTEMPTS"
+    },
+    {
+      "concept_id": "concept_football_hafnarfjordur_vs_stjarnan_2026_07_03t191500_0000",
+      "event_id": "football_hafnarfjordur_vs_stjarnan_2026_07_03t191500_0000",
+      "sport": "football",
+      "competition": "Iceland - Efsta deild",
+      "visible_event_name": "Hafnarfjordur vs Stjarnan",
+      "concept_type": "CORNERS_CARDS_GOALS",
+      "legs": [
+        {
+          "candidate_id": "cand_019_football_hafnarfjordur_vs_stjarnan_2026_07_03t191500_0000_result",
+          "market_family": "result",
+          "selection": "Hafnarfjordur",
+          "line": "NO_NUMERIC_LINE_REQUIRED",
+          "allowed_line_alternatives": [],
+          "line_free_market_type": "DRAW_NO_BET",
+          "odds_status": "PARTIALLY_PRICED",
+          "pricing_tier": "PARTIALLY_PRICED_ANALYTICAL",
+          "evidence_summary": "Verified fixture identity and kickoff for Hafnarfjordur vs Stjarnan.",
+          "counter_evidence_summary": "Independent lineup, injury, and referee feeds were not preserved in the upstream artifact set.; The Odds API provenance is auditable but still not event-specific raw bookmaker capture strength."
+        },
+        {
+          "candidate_id": "cand_020_football_hafnarfjordur_vs_stjarnan_2026_07_03t191500_0000_goals_totals",
+          "market_family": "goals_totals",
+          "selection": "hdp",
+          "line": 1,
+          "allowed_line_alternatives": [
+            "Total goals - hdp on the main operator line",
+            "Total goals - hdp on an alternative operator line"
+          ],
+          "line_free_market_type": null,
+          "odds_status": "PARTIALLY_PRICED",
+          "pricing_tier": "PARTIALLY_PRICED_ANALYTICAL",
+          "evidence_summary": "Verified fixture identity and kickoff for Hafnarfjordur vs Stjarnan.",
+          "counter_evidence_summary": "Independent lineup, injury, and referee feeds were not preserved in the upstream artifact set.; The Odds API provenance is auditable but still not event-specific raw bookmaker capture strength."
+        }
+      ],
+      "correlation_logic": "Manual builder review should confirm whether the favorite/dominance scenario still supports the derivative leg after line selection.",
+      "positive_correlation_notes": [
+        "Game-state dominance can support both a result-family leg and a pressure-volume derivative leg."
+      ],
+      "negative_correlation_notes": [
+        "A low-event-pace match can break the derivative leg even when the result leg survives."
+      ],
+      "forbidden_combinations": [
+        "Do not duplicate the same exposure with two equivalent result-family legs."
+      ],
+      "line_sensitivity": "HIGH",
+      "scenario_fit": "Same-event review group combines a line-free anchor with one operator-line-required derivative leg.",
+      "what_to_check_in_Superbet_if_user_chooses": [
+        "Confirm every leg exists under the same visible event.",
+        "Confirm the exact operator line for any derivative leg.",
+        "Read the visible Bet Builder combined odds from the Superbet screen only."
+      ],
+      "combined_odds_status": "OPERATOR_SCREEN_ONLY",
+      "combined_bookmaker_odds_computed": false,
+      "bettable": false,
+      "correlation_tags": [
+        "football_hafnarfjordur_vs_stjarnan_2026_07_03t191500_0000",
+        "goals_totals",
+        "result"
+      ],
+      "evidence_quality": "MEDIUM",
+      "confidence": "MEDIUM",
+      "optional_operator_quote_check_priority": "HIGH",
+      "tipster_context_status": "ATTEMPTED_NO_MATCHES",
+      "tipster_signal": null,
+      "public_side_or_hype_risk": "PUBLIC_SIDE_RISK_UNKNOWN_WITHOUT_FIXTURE_LEVEL_TIPSTER_MATCH",
+      "no_usable_tipster_signal_reason": "NO_MATCHED_FIXTURE_LEVEL_TIPSTER_OPINION_AFTER_BOUNDED_SOURCE_ATTEMPTS"
+    },
+    {
+      "concept_id": "concept_football_wolves_vs_rochedale_2026_07_03t093000_0000",
+      "event_id": "football_wolves_vs_rochedale_2026_07_03t093000_0000",
+      "sport": "football",
+      "competition": "Australia - Queensland NPL",
+      "visible_event_name": "Wolves vs Rochedale",
+      "concept_type": "CORNERS_CARDS_GOALS",
+      "legs": [
+        {
+          "candidate_id": "cand_021_football_wolves_vs_rochedale_2026_07_03t093000_0000_result",
+          "market_family": "result",
+          "selection": "Wolves",
+          "line": "NO_NUMERIC_LINE_REQUIRED",
+          "allowed_line_alternatives": [],
+          "line_free_market_type": "DRAW_NO_BET",
+          "odds_status": "PARTIALLY_PRICED",
+          "pricing_tier": "PARTIALLY_PRICED_ANALYTICAL",
+          "evidence_summary": "Verified fixture identity and kickoff for Wolves vs Rochedale.",
+          "counter_evidence_summary": "Independent lineup, injury, and referee feeds were not preserved in the upstream artifact set.; The Odds API provenance is auditable but still not event-specific raw bookmaker capture strength."
+        },
+        {
+          "candidate_id": "cand_022_football_wolves_vs_rochedale_2026_07_03t093000_0000_goals_totals",
+          "market_family": "goals_totals",
+          "selection": "hdp",
+          "line": 1,
+          "allowed_line_alternatives": [
+            "Total goals - hdp on the main operator line",
+            "Total goals - hdp on an alternative operator line"
+          ],
+          "line_free_market_type": null,
+          "odds_status": "PARTIALLY_PRICED",
+          "pricing_tier": "PARTIALLY_PRICED_ANALYTICAL",
+          "evidence_summary": "Verified fixture identity and kickoff for Wolves vs Rochedale.",
+          "counter_evidence_summary": "Independent lineup, injury, and referee feeds were not preserved in the upstream artifact set.; The Odds API provenance is auditable but still not event-specific raw bookmaker capture strength."
+        }
+      ],
+      "correlation_logic": "Manual builder review should confirm whether the favorite/dominance scenario still supports the derivative leg after line selection.",
+      "positive_correlation_notes": [
+        "Game-state dominance can support both a result-family leg and a pressure-volume derivative leg."
+      ],
+      "negative_correlation_notes": [
+        "A low-event-pace match can break the derivative leg even when the result leg survives."
+      ],
+      "forbidden_combinations": [
+        "Do not duplicate the same exposure with two equivalent result-family legs."
+      ],
+      "line_sensitivity": "HIGH",
+      "scenario_fit": "Same-event review group combines a line-free anchor with one operator-line-required derivative leg.",
+      "what_to_check_in_Superbet_if_user_chooses": [
+        "Confirm every leg exists under the same visible event.",
+        "Confirm the exact operator line for any derivative leg.",
+        "Read the visible Bet Builder combined odds from the Superbet screen only."
+      ],
+      "combined_odds_status": "OPERATOR_SCREEN_ONLY",
+      "combined_bookmaker_odds_computed": false,
+      "bettable": false,
+      "correlation_tags": [
+        "football_wolves_vs_rochedale_2026_07_03t093000_0000",
+        "goals_totals",
+        "result"
+      ],
+      "evidence_quality": "MEDIUM",
+      "confidence": "MEDIUM",
+      "optional_operator_quote_check_priority": "HIGH",
+      "tipster_context_status": "ATTEMPTED_NO_MATCHES",
+      "tipster_signal": null,
+      "public_side_or_hype_risk": "PUBLIC_SIDE_RISK_UNKNOWN_WITHOUT_FIXTURE_LEVEL_TIPSTER_MATCH",
+      "no_usable_tipster_signal_reason": "NO_MATCHED_FIXTURE_LEVEL_TIPSTER_OPINION_AFTER_BOUNDED_SOURCE_ATTEMPTS"
+    },
+    {
+      "concept_id": "concept_football_comets_vs_croydon_2026_07_03t110000_0000",
+      "event_id": "football_comets_vs_croydon_2026_07_03t110000_0000",
+      "sport": "football",
+      "competition": "Australia - South Australia NPL",
+      "visible_event_name": "Comets vs Croydon",
+      "concept_type": "CORNERS_CARDS_GOALS",
+      "legs": [
+        {
+          "candidate_id": "cand_023_football_comets_vs_croydon_2026_07_03t110000_0000_result",
+          "market_family": "result",
+          "selection": "Comets",
+          "line": "NO_NUMERIC_LINE_REQUIRED",
+          "allowed_line_alternatives": [],
+          "line_free_market_type": "DRAW_NO_BET",
+          "odds_status": "PARTIALLY_PRICED",
+          "pricing_tier": "PARTIALLY_PRICED_ANALYTICAL",
+          "evidence_summary": "Verified fixture identity and kickoff for Comets vs Croydon.",
+          "counter_evidence_summary": "Independent lineup, injury, and referee feeds were not preserved in the upstream artifact set.; The Odds API provenance is auditable but still not event-specific raw bookmaker capture strength."
+        },
+        {
+          "candidate_id": "cand_024_football_comets_vs_croydon_2026_07_03t110000_0000_corners",
+          "market_family": "corners",
+          "selection": "hdp",
+          "line": 2,
+          "allowed_line_alternatives": [
+            "Total corners - hdp on the main operator line",
+            "Total corners - hdp on an alternative operator line"
+          ],
+          "line_free_market_type": null,
+          "odds_status": "PARTIALLY_PRICED",
+          "pricing_tier": "PARTIALLY_PRICED_ANALYTICAL",
+          "evidence_summary": "Verified fixture identity and kickoff for Comets vs Croydon.",
+          "counter_evidence_summary": "Independent lineup, injury, and referee feeds were not preserved in the upstream artifact set.; The Odds API provenance is auditable but still not event-specific raw bookmaker capture strength."
+        }
+      ],
+      "correlation_logic": "Manual builder review should confirm whether the favorite/dominance scenario still supports the derivative leg after line selection.",
+      "positive_correlation_notes": [
+        "Game-state dominance can support both a result-family leg and a pressure-volume derivative leg."
+      ],
+      "negative_correlation_notes": [
+        "A low-event-pace match can break the derivative leg even when the result leg survives."
+      ],
+      "forbidden_combinations": [
+        "Do not duplicate the same exposure with two equivalent result-family legs."
+      ],
+      "line_sensitivity": "HIGH",
+      "scenario_fit": "Same-event review group combines a line-free anchor with one operator-line-required derivative leg.",
+      "what_to_check_in_Superbet_if_user_chooses": [
+        "Confirm every leg exists under the same visible event.",
+        "Confirm the exact operator line for any derivative leg.",
+        "Read the visible Bet Builder combined odds from the Superbet screen only."
+      ],
+      "combined_odds_status": "OPERATOR_SCREEN_ONLY",
+      "combined_bookmaker_odds_computed": false,
+      "bettable": false,
+      "correlation_tags": [
+        "corners",
+        "football_comets_vs_croydon_2026_07_03t110000_0000",
+        "result"
+      ],
+      "evidence_quality": "MEDIUM",
+      "confidence": "MEDIUM",
+      "optional_operator_quote_check_priority": "HIGH",
+      "tipster_context_status": "ATTEMPTED_NO_MATCHES",
+      "tipster_signal": null,
+      "public_side_or_hype_risk": "PUBLIC_SIDE_RISK_UNKNOWN_WITHOUT_FIXTURE_LEVEL_TIPSTER_MATCH",
+      "no_usable_tipster_signal_reason": "NO_MATCHED_FIXTURE_LEVEL_TIPSTER_OPINION_AFTER_BOUNDED_SOURCE_ATTEMPTS"
+    },
+    {
+      "concept_id": "concept_football_green_gully_vs_bentleigh_2026_07_03t093000_0000",
+      "event_id": "football_green_gully_vs_bentleigh_2026_07_03t093000_0000",
+      "sport": "football",
+      "competition": "Australia - Victoria NPL",
+      "visible_event_name": "Green Gully vs Bentleigh",
+      "concept_type": "CORNERS_CARDS_GOALS",
+      "legs": [
+        {
+          "candidate_id": "cand_025_football_green_gully_vs_bentleigh_2026_07_03t093000_0000_result",
+          "market_family": "result",
+          "selection": "Green Gully",
+          "line": "NO_NUMERIC_LINE_REQUIRED",
+          "allowed_line_alternatives": [],
+          "line_free_market_type": "DRAW_NO_BET",
+          "odds_status": "PARTIALLY_PRICED",
+          "pricing_tier": "PARTIALLY_PRICED_ANALYTICAL",
+          "evidence_summary": "Verified fixture identity and kickoff for Green Gully vs Bentleigh.",
+          "counter_evidence_summary": "Independent lineup, injury, and referee feeds were not preserved in the upstream artifact set.; The Odds API provenance is auditable but still not event-specific raw bookmaker capture strength."
+        },
+        {
+          "candidate_id": "cand_026_football_green_gully_vs_bentleigh_2026_07_03t093000_0000_corners",
+          "market_family": "corners",
+          "selection": "hdp",
+          "line": 2,
+          "allowed_line_alternatives": [
+            "Total corners - hdp on the main operator line",
+            "Total corners - hdp on an alternative operator line"
+          ],
+          "line_free_market_type": null,
+          "odds_status": "PARTIALLY_PRICED",
+          "pricing_tier": "PARTIALLY_PRICED_ANALYTICAL",
+          "evidence_summary": "Verified fixture identity and kickoff for Green Gully vs Bentleigh.",
+          "counter_evidence_summary": "Independent lineup, injury, and referee feeds were not preserved in the upstream artifact set.; The Odds API provenance is auditable but still not event-specific raw bookmaker capture strength."
+        }
+      ],
+      "correlation_logic": "Manual builder review should confirm whether the favorite/dominance scenario still supports the derivative leg after line selection.",
+      "positive_correlation_notes": [
+        "Game-state dominance can support both a result-family leg and a pressure-volume derivative leg."
+      ],
+      "negative_correlation_notes": [
+        "A low-event-pace match can break the derivative leg even when the result leg survives."
+      ],
+      "forbidden_combinations": [
+        "Do not duplicate the same exposure with two equivalent result-family legs."
+      ],
+      "line_sensitivity": "HIGH",
+      "scenario_fit": "Same-event review group combines a line-free anchor with one operator-line-required derivative leg.",
+      "what_to_check_in_Superbet_if_user_chooses": [
+        "Confirm every leg exists under the same visible event.",
+        "Confirm the exact operator line for any derivative leg.",
+        "Read the visible Bet Builder combined odds from the Superbet screen only."
+      ],
+      "combined_odds_status": "OPERATOR_SCREEN_ONLY",
+      "combined_bookmaker_odds_computed": false,
+      "bettable": false,
+      "correlation_tags": [
+        "corners",
+        "football_green_gully_vs_bentleigh_2026_07_03t093000_0000",
+        "result"
+      ],
+      "evidence_quality": "MEDIUM",
+      "confidence": "MEDIUM",
+      "optional_operator_quote_check_priority": "HIGH",
+      "tipster_context_status": "ATTEMPTED_NO_MATCHES",
+      "tipster_signal": null,
+      "public_side_or_hype_risk": "PUBLIC_SIDE_RISK_UNKNOWN_WITHOUT_FIXTURE_LEVEL_TIPSTER_MATCH",
+      "no_usable_tipster_signal_reason": "NO_MATCHED_FIXTURE_LEVEL_TIPSTER_OPINION_AFTER_BOUNDED_SOURCE_ATTEMPTS"
+    },
+    {
+      "concept_id": "concept_football_nomme_united_vs_nomme_united_2026_07_03t160000_0000",
+      "event_id": "football_nomme_united_vs_nomme_united_2026_07_03t160000_0000",
+      "sport": "football",
+      "competition": "Estonia - Premium Liiga",
+      "visible_event_name": "Nomme United vs Nomme United",
+      "concept_type": "CORNERS_CARDS_GOALS",
+      "legs": [
+        {
+          "candidate_id": "cand_027_football_nomme_united_vs_nomme_united_2026_07_03t160000_0000_result",
+          "market_family": "result",
+          "selection": "Nomme United",
+          "line": "NO_NUMERIC_LINE_REQUIRED",
+          "allowed_line_alternatives": [],
+          "line_free_market_type": "DRAW_NO_BET",
+          "odds_status": "PARTIALLY_PRICED",
+          "pricing_tier": "PARTIALLY_PRICED_ANALYTICAL",
+          "evidence_summary": "Verified fixture identity and kickoff for Nomme United vs Nomme United.",
+          "counter_evidence_summary": "Independent lineup, injury, and referee feeds were not preserved in the upstream artifact set.; The Odds API provenance is auditable but still not event-specific raw bookmaker capture strength."
+        },
+        {
+          "candidate_id": "cand_028_football_nomme_united_vs_nomme_united_2026_07_03t160000_0000_corners",
+          "market_family": "corners",
+          "selection": "hdp",
+          "line": 2,
+          "allowed_line_alternatives": [
+            "Total corners - hdp on the main operator line",
+            "Total corners - hdp on an alternative operator line"
+          ],
+          "line_free_market_type": null,
+          "odds_status": "PARTIALLY_PRICED",
+          "pricing_tier": "PARTIALLY_PRICED_ANALYTICAL",
+          "evidence_summary": "Verified fixture identity and kickoff for Nomme United vs Nomme United.",
+          "counter_evidence_summary": "Independent lineup, injury, and referee feeds were not preserved in the upstream artifact set.; The Odds API provenance is auditable but still not event-specific raw bookmaker capture strength."
+        }
+      ],
+      "correlation_logic": "Manual builder review should confirm whether the favorite/dominance scenario still supports the derivative leg after line selection.",
+      "positive_correlation_notes": [
+        "Game-state dominance can support both a result-family leg and a pressure-volume derivative leg."
+      ],
+      "negative_correlation_notes": [
+        "A low-event-pace match can break the derivative leg even when the result leg survives."
+      ],
+      "forbidden_combinations": [
+        "Do not duplicate the same exposure with two equivalent result-family legs."
+      ],
+      "line_sensitivity": "HIGH",
+      "scenario_fit": "Same-event review group combines a line-free anchor with one operator-line-required derivative leg.",
+      "what_to_check_in_Superbet_if_user_chooses": [
+        "Confirm every leg exists under the same visible event.",
+        "Confirm the exact operator line for any derivative leg.",
+        "Read the visible Bet Builder combined odds from the Superbet screen only."
+      ],
+      "combined_odds_status": "OPERATOR_SCREEN_ONLY",
+      "combined_bookmaker_odds_computed": false,
+      "bettable": false,
+      "correlation_tags": [
+        "corners",
+        "football_nomme_united_vs_nomme_united_2026_07_03t160000_0000",
+        "result"
+      ],
+      "evidence_quality": "MEDIUM",
+      "confidence": "MEDIUM",
+      "optional_operator_quote_check_priority": "HIGH",
+      "tipster_context_status": "ATTEMPTED_NO_MATCHES",
+      "tipster_signal": null,
+      "public_side_or_hype_risk": "PUBLIC_SIDE_RISK_UNKNOWN_WITHOUT_FIXTURE_LEVEL_TIPSTER_MATCH",
+      "no_usable_tipster_signal_reason": "NO_MATCHED_FIXTURE_LEVEL_TIPSTER_OPINION_AFTER_BOUNDED_SOURCE_ATTEMPTS"
+    },
+    {
+      "concept_id": "concept_football_heidelberg_united_vs_st_albans_saints_dinamo_2026_07_03t093000_0000",
+      "event_id": "football_heidelberg_united_vs_st_albans_saints_dinamo_2026_07_03t093000_0000",
+      "sport": "football",
+      "competition": "Australia - Victoria NPL",
+      "visible_event_name": "Heidelberg United vs ST Albans Saints Dinamo",
+      "concept_type": "CORNERS_CARDS_GOALS",
+      "legs": [
+        {
+          "candidate_id": "cand_029_football_heidelberg_united_vs_st_albans_saints_dinamo_2026_07_03t093000_0000_result",
+          "market_family": "result",
+          "selection": "Heidelberg United",
+          "line": "NO_NUMERIC_LINE_REQUIRED",
+          "allowed_line_alternatives": [],
+          "line_free_market_type": "DRAW_NO_BET",
+          "odds_status": "PARTIALLY_PRICED",
+          "pricing_tier": "PARTIALLY_PRICED_ANALYTICAL",
+          "evidence_summary": "Verified fixture identity and kickoff for Heidelberg United vs ST Albans Saints Dinamo.",
+          "counter_evidence_summary": "Independent lineup, injury, and referee feeds were not preserved in the upstream artifact set.; The Odds API provenance is auditable but still not event-specific raw bookmaker capture strength."
+        },
+        {
+          "candidate_id": "cand_030_football_heidelberg_united_vs_st_albans_saints_dinamo_2026_07_03t093000_0000_corners",
+          "market_family": "corners",
+          "selection": "hdp",
+          "line": 2,
+          "allowed_line_alternatives": [
+            "Total corners - hdp on the main operator line",
+            "Total corners - hdp on an alternative operator line"
+          ],
+          "line_free_market_type": null,
+          "odds_status": "PARTIALLY_PRICED",
+          "pricing_tier": "PARTIALLY_PRICED_ANALYTICAL",
+          "evidence_summary": "Verified fixture identity and kickoff for Heidelberg United vs ST Albans Saints Dinamo.",
+          "counter_evidence_summary": "Independent lineup, injury, and referee feeds were not preserved in the upstream artifact set.; The Odds API provenance is auditable but still not event-specific raw bookmaker capture strength."
+        }
+      ],
+      "correlation_logic": "Manual builder review should confirm whether the favorite/dominance scenario still supports the derivative leg after line selection.",
+      "positive_correlation_notes": [
+        "Game-state dominance can support both a result-family leg and a pressure-volume derivative leg."
+      ],
+      "negative_correlation_notes": [
+        "A low-event-pace match can break the derivative leg even when the result leg survives."
+      ],
+      "forbidden_combinations": [
+        "Do not duplicate the same exposure with two equivalent result-family legs."
+      ],
+      "line_sensitivity": "HIGH",
+      "scenario_fit": "Same-event review group combines a line-free anchor with one operator-line-required derivative leg.",
+      "what_to_check_in_Superbet_if_user_chooses": [
+        "Confirm every leg exists under the same visible event.",
+        "Confirm the exact operator line for any derivative leg.",
+        "Read the visible Bet Builder combined odds from the Superbet screen only."
+      ],
+      "combined_odds_status": "OPERATOR_SCREEN_ONLY",
+      "combined_bookmaker_odds_computed": false,
+      "bettable": false,
+      "correlation_tags": [
+        "corners",
+        "football_heidelberg_united_vs_st_albans_saints_dinamo_2026_07_03t093000_0000",
+        "result"
+      ],
+      "evidence_quality": "MEDIUM",
+      "confidence": "MEDIUM",
+      "optional_operator_quote_check_priority": "HIGH",
+      "tipster_context_status": "ATTEMPTED_NO_MATCHES",
+      "tipster_signal": null,
+      "public_side_or_hype_risk": "PUBLIC_SIDE_RISK_UNKNOWN_WITHOUT_FIXTURE_LEVEL_TIPSTER_MATCH",
+      "no_usable_tipster_signal_reason": "NO_MATCHED_FIXTURE_LEVEL_TIPSTER_OPINION_AFTER_BOUNDED_SOURCE_ATTEMPTS"
+    },
+    {
+      "concept_id": "concept_football_ir_reykjavik_vs_afturelding_2026_07_03t191500_0000",
+      "event_id": "football_ir_reykjavik_vs_afturelding_2026_07_03t191500_0000",
+      "sport": "football",
+      "competition": "Iceland - 1 deild",
+      "visible_event_name": "IR Reykjavik vs Afturelding",
+      "concept_type": "CORNERS_CARDS_GOALS",
+      "legs": [
+        {
+          "candidate_id": "cand_031_football_ir_reykjavik_vs_afturelding_2026_07_03t191500_0000_result",
+          "market_family": "result",
+          "selection": "IR Reykjavik",
+          "line": "NO_NUMERIC_LINE_REQUIRED",
+          "allowed_line_alternatives": [],
+          "line_free_market_type": "DRAW_NO_BET",
+          "odds_status": "PARTIALLY_PRICED",
+          "pricing_tier": "PARTIALLY_PRICED_ANALYTICAL",
+          "evidence_summary": "Verified fixture identity and kickoff for IR Reykjavik vs Afturelding.",
+          "counter_evidence_summary": "Independent lineup, injury, and referee feeds were not preserved in the upstream artifact set.; The Odds API provenance is auditable but still not event-specific raw bookmaker capture strength."
+        },
+        {
+          "candidate_id": "cand_032_football_ir_reykjavik_vs_afturelding_2026_07_03t191500_0000_goals_totals",
+          "market_family": "goals_totals",
+          "selection": "hdp",
+          "line": 1,
+          "allowed_line_alternatives": [
+            "Total goals - hdp on the main operator line",
+            "Total goals - hdp on an alternative operator line"
+          ],
+          "line_free_market_type": null,
+          "odds_status": "PARTIALLY_PRICED",
+          "pricing_tier": "PARTIALLY_PRICED_ANALYTICAL",
+          "evidence_summary": "Verified fixture identity and kickoff for IR Reykjavik vs Afturelding.",
+          "counter_evidence_summary": "Independent lineup, injury, and referee feeds were not preserved in the upstream artifact set.; The Odds API provenance is auditable but still not event-specific raw bookmaker capture strength."
+        }
+      ],
+      "correlation_logic": "Manual builder review should confirm whether the favorite/dominance scenario still supports the derivative leg after line selection.",
+      "positive_correlation_notes": [
+        "Game-state dominance can support both a result-family leg and a pressure-volume derivative leg."
+      ],
+      "negative_correlation_notes": [
+        "A low-event-pace match can break the derivative leg even when the result leg survives."
+      ],
+      "forbidden_combinations": [
+        "Do not duplicate the same exposure with two equivalent result-family legs."
+      ],
+      "line_sensitivity": "HIGH",
+      "scenario_fit": "Same-event review group combines a line-free anchor with one operator-line-required derivative leg.",
+      "what_to_check_in_Superbet_if_user_chooses": [
+        "Confirm every leg exists under the same visible event.",
+        "Confirm the exact operator line for any derivative leg.",
+        "Read the visible Bet Builder combined odds from the Superbet screen only."
+      ],
+      "combined_odds_status": "OPERATOR_SCREEN_ONLY",
+      "combined_bookmaker_odds_computed": false,
+      "bettable": false,
+      "correlation_tags": [
+        "football_ir_reykjavik_vs_afturelding_2026_07_03t191500_0000",
+        "goals_totals",
+        "result"
+      ],
+      "evidence_quality": "MEDIUM",
+      "confidence": "MEDIUM",
+      "optional_operator_quote_check_priority": "HIGH",
+      "tipster_context_status": "ATTEMPTED_NO_MATCHES",
+      "tipster_signal": null,
+      "public_side_or_hype_risk": "PUBLIC_SIDE_RISK_UNKNOWN_WITHOUT_FIXTURE_LEVEL_TIPSTER_MATCH",
+      "no_usable_tipster_signal_reason": "NO_MATCHED_FIXTURE_LEVEL_TIPSTER_OPINION_AFTER_BOUNDED_SOURCE_ATTEMPTS"
+    },
+    {
+      "concept_id": "concept_football_bray_wanderers_vs_athlone_town_2026_07_03t184500_0000",
+      "event_id": "football_bray_wanderers_vs_athlone_town_2026_07_03t184500_0000",
+      "sport": "football",
+      "competition": "Ireland - First Division",
+      "visible_event_name": "Bray Wanderers vs Athlone Town",
+      "concept_type": "CORNERS_CARDS_GOALS",
+      "legs": [
+        {
+          "candidate_id": "cand_033_football_bray_wanderers_vs_athlone_town_2026_07_03t184500_0000_result",
+          "market_family": "result",
+          "selection": "Bray Wanderers",
+          "line": "NO_NUMERIC_LINE_REQUIRED",
+          "allowed_line_alternatives": [],
+          "line_free_market_type": "DRAW_NO_BET",
+          "odds_status": "PARTIALLY_PRICED",
+          "pricing_tier": "PARTIALLY_PRICED_ANALYTICAL",
+          "evidence_summary": "Verified fixture identity and kickoff for Bray Wanderers vs Athlone Town.",
+          "counter_evidence_summary": "Independent lineup, injury, and referee feeds were not preserved in the upstream artifact set.; The Odds API provenance is auditable but still not event-specific raw bookmaker capture strength."
+        },
+        {
+          "candidate_id": "cand_034_football_bray_wanderers_vs_athlone_town_2026_07_03t184500_0000_corners",
+          "market_family": "corners",
+          "selection": "hdp",
+          "line": 2,
+          "allowed_line_alternatives": [
+            "Total corners - hdp on the main operator line",
+            "Total corners - hdp on an alternative operator line"
+          ],
+          "line_free_market_type": null,
+          "odds_status": "PARTIALLY_PRICED",
+          "pricing_tier": "PARTIALLY_PRICED_ANALYTICAL",
+          "evidence_summary": "Verified fixture identity and kickoff for Bray Wanderers vs Athlone Town.",
+          "counter_evidence_summary": "Independent lineup, injury, and referee feeds were not preserved in the upstream artifact set.; The Odds API provenance is auditable but still not event-specific raw bookmaker capture strength."
+        }
+      ],
+      "correlation_logic": "Manual builder review should confirm whether the favorite/dominance scenario still supports the derivative leg after line selection.",
+      "positive_correlation_notes": [
+        "Game-state dominance can support both a result-family leg and a pressure-volume derivative leg."
+      ],
+      "negative_correlation_notes": [
+        "A low-event-pace match can break the derivative leg even when the result leg survives."
+      ],
+      "forbidden_combinations": [
+        "Do not duplicate the same exposure with two equivalent result-family legs."
+      ],
+      "line_sensitivity": "HIGH",
+      "scenario_fit": "Same-event review group combines a line-free anchor with one operator-line-required derivative leg.",
+      "what_to_check_in_Superbet_if_user_chooses": [
+        "Confirm every leg exists under the same visible event.",
+        "Confirm the exact operator line for any derivative leg.",
+        "Read the visible Bet Builder combined odds from the Superbet screen only."
+      ],
+      "combined_odds_status": "OPERATOR_SCREEN_ONLY",
+      "combined_bookmaker_odds_computed": false,
+      "bettable": false,
+      "correlation_tags": [
+        "corners",
+        "football_bray_wanderers_vs_athlone_town_2026_07_03t184500_0000",
+        "result"
+      ],
+      "evidence_quality": "MEDIUM",
+      "confidence": "MEDIUM",
+      "optional_operator_quote_check_priority": "HIGH",
+      "tipster_context_status": "ATTEMPTED_NO_MATCHES",
+      "tipster_signal": null,
+      "public_side_or_hype_risk": "PUBLIC_SIDE_RISK_UNKNOWN_WITHOUT_FIXTURE_LEVEL_TIPSTER_MATCH",
+      "no_usable_tipster_signal_reason": "NO_MATCHED_FIXTURE_LEVEL_TIPSTER_OPINION_AFTER_BOUNDED_SOURCE_ATTEMPTS"
+    },
+    {
+      "concept_id": "concept_football_loudoun_united_fc_vs_sporting_jax_2026_07_03t233000_0000",
+      "event_id": "football_loudoun_united_fc_vs_sporting_jax_2026_07_03t233000_0000",
+      "sport": "football",
+      "competition": "USA - USL, Championship",
+      "visible_event_name": "Loudoun United FC vs Sporting Jax",
+      "concept_type": "CORNERS_CARDS_GOALS",
+      "legs": [
+        {
+          "candidate_id": "cand_035_football_loudoun_united_fc_vs_sporting_jax_2026_07_03t233000_0000_result",
+          "market_family": "result",
+          "selection": "Loudoun United FC",
+          "line": "NO_NUMERIC_LINE_REQUIRED",
+          "allowed_line_alternatives": [],
+          "line_free_market_type": "DRAW_NO_BET",
+          "odds_status": "PARTIALLY_PRICED",
+          "pricing_tier": "PARTIALLY_PRICED_ANALYTICAL",
+          "evidence_summary": "Verified fixture identity and kickoff for Loudoun United FC vs Sporting Jax.",
+          "counter_evidence_summary": "Independent lineup, injury, and referee feeds were not preserved in the upstream artifact set.; The Odds API provenance is auditable but still not event-specific raw bookmaker capture strength."
+        },
+        {
+          "candidate_id": "cand_036_football_loudoun_united_fc_vs_sporting_jax_2026_07_03t233000_0000_corners",
+          "market_family": "corners",
+          "selection": "hdp",
+          "line": 2,
+          "allowed_line_alternatives": [
+            "Total corners - hdp on the main operator line",
+            "Total corners - hdp on an alternative operator line"
+          ],
+          "line_free_market_type": null,
+          "odds_status": "PARTIALLY_PRICED",
+          "pricing_tier": "PARTIALLY_PRICED_ANALYTICAL",
+          "evidence_summary": "Verified fixture identity and kickoff for Loudoun United FC vs Sporting Jax.",
+          "counter_evidence_summary": "Independent lineup, injury, and referee feeds were not preserved in the upstream artifact set.; The Odds API provenance is auditable but still not event-specific raw bookmaker capture strength."
+        }
+      ],
+      "correlation_logic": "Manual builder review should confirm whether the favorite/dominance scenario still supports the derivative leg after line selection.",
+      "positive_correlation_notes": [
+        "Game-state dominance can support both a result-family leg and a pressure-volume derivative leg."
+      ],
+      "negative_correlation_notes": [
+        "A low-event-pace match can break the derivative leg even when the result leg survives."
+      ],
+      "forbidden_combinations": [
+        "Do not duplicate the same exposure with two equivalent result-family legs."
+      ],
+      "line_sensitivity": "HIGH",
+      "scenario_fit": "Same-event review group combines a line-free anchor with one operator-line-required derivative leg.",
+      "what_to_check_in_Superbet_if_user_chooses": [
+        "Confirm every leg exists under the same visible event.",
+        "Confirm the exact operator line for any derivative leg.",
+        "Read the visible Bet Builder combined odds from the Superbet screen only."
+      ],
+      "combined_odds_status": "OPERATOR_SCREEN_ONLY",
+      "combined_bookmaker_odds_computed": false,
+      "bettable": false,
+      "correlation_tags": [
+        "corners",
+        "football_loudoun_united_fc_vs_sporting_jax_2026_07_03t233000_0000",
+        "result"
+      ],
+      "evidence_quality": "MEDIUM",
+      "confidence": "MEDIUM",
+      "optional_operator_quote_check_priority": "HIGH",
+      "tipster_context_status": "ATTEMPTED_NO_MATCHES",
+      "tipster_signal": null,
+      "public_side_or_hype_risk": "PUBLIC_SIDE_RISK_UNKNOWN_WITHOUT_FIXTURE_LEVEL_TIPSTER_MATCH",
+      "no_usable_tipster_signal_reason": "NO_MATCHED_FIXTURE_LEVEL_TIPSTER_OPINION_AFTER_BOUNDED_SOURCE_ATTEMPTS"
+    },
+    {
+      "concept_id": "concept_football_japs_vs_akatemia_2026_07_03t153000_0000",
+      "event_id": "football_japs_vs_akatemia_2026_07_03t153000_0000",
+      "sport": "football",
+      "competition": "Finland - Ykkosliiga",
+      "visible_event_name": "JaPS vs Akatemia",
+      "concept_type": "CORNERS_CARDS_GOALS",
+      "legs": [
+        {
+          "candidate_id": "cand_037_football_japs_vs_akatemia_2026_07_03t153000_0000_result",
+          "market_family": "result",
+          "selection": "JaPS",
+          "line": "NO_NUMERIC_LINE_REQUIRED",
+          "allowed_line_alternatives": [],
+          "line_free_market_type": "DRAW_NO_BET",
+          "odds_status": "PARTIALLY_PRICED",
+          "pricing_tier": "PARTIALLY_PRICED_ANALYTICAL",
+          "evidence_summary": "Verified fixture identity and kickoff for JaPS vs Akatemia.",
+          "counter_evidence_summary": "Independent lineup, injury, and referee feeds were not preserved in the upstream artifact set.; The Odds API provenance is auditable but still not event-specific raw bookmaker capture strength."
+        },
+        {
+          "candidate_id": "cand_038_football_japs_vs_akatemia_2026_07_03t153000_0000_corners",
+          "market_family": "corners",
+          "selection": "hdp",
+          "line": 2,
+          "allowed_line_alternatives": [
+            "Total corners - hdp on the main operator line",
+            "Total corners - hdp on an alternative operator line"
+          ],
+          "line_free_market_type": null,
+          "odds_status": "PARTIALLY_PRICED",
+          "pricing_tier": "PARTIALLY_PRICED_ANALYTICAL",
+          "evidence_summary": "Verified fixture identity and kickoff for JaPS vs Akatemia.",
+          "counter_evidence_summary": "Independent lineup, injury, and referee feeds were not preserved in the upstream artifact set.; The Odds API provenance is auditable but still not event-specific raw bookmaker capture strength."
+        }
+      ],
+      "correlation_logic": "Manual builder review should confirm whether the favorite/dominance scenario still supports the derivative leg after line selection.",
+      "positive_correlation_notes": [
+        "Game-state dominance can support both a result-family leg and a pressure-volume derivative leg."
+      ],
+      "negative_correlation_notes": [
+        "A low-event-pace match can break the derivative leg even when the result leg survives."
+      ],
+      "forbidden_combinations": [
+        "Do not duplicate the same exposure with two equivalent result-family legs."
+      ],
+      "line_sensitivity": "HIGH",
+      "scenario_fit": "Same-event review group combines a line-free anchor with one operator-line-required derivative leg.",
+      "what_to_check_in_Superbet_if_user_chooses": [
+        "Confirm every leg exists under the same visible event.",
+        "Confirm the exact operator line for any derivative leg.",
+        "Read the visible Bet Builder combined odds from the Superbet screen only."
+      ],
+      "combined_odds_status": "OPERATOR_SCREEN_ONLY",
+      "combined_bookmaker_odds_computed": false,
+      "bettable": false,
+      "correlation_tags": [
+        "corners",
+        "football_japs_vs_akatemia_2026_07_03t153000_0000",
+        "result"
+      ],
+      "evidence_quality": "MEDIUM",
+      "confidence": "MEDIUM",
+      "optional_operator_quote_check_priority": "HIGH",
+      "tipster_context_status": "ATTEMPTED_NO_MATCHES",
+      "tipster_signal": null,
+      "public_side_or_hype_risk": "PUBLIC_SIDE_RISK_UNKNOWN_WITHOUT_FIXTURE_LEVEL_TIPSTER_MATCH",
+      "no_usable_tipster_signal_reason": "NO_MATCHED_FIXTURE_LEVEL_TIPSTER_OPINION_AFTER_BOUNDED_SOURCE_ATTEMPTS"
+    },
+    {
+      "concept_id": "concept_tennis_safiullin_roman_vs_fonseca_joao_2026_07_03t100000_0000",
+      "event_id": "tennis_safiullin_roman_vs_fonseca_joao_2026_07_03t100000_0000",
+      "sport": "tennis",
+      "competition": "ATP - Wimbledon, London, GB, Qualifying, 1st - 2nd Round",
+      "visible_event_name": "Safiullin, Roman vs Fonseca, Joao",
+      "concept_type": "TENNIS_GAMES_SETS",
+      "legs": [
+        {
+          "candidate_id": "cand_039_tennis_safiullin_roman_vs_fonseca_joao_2026_07_03t100000_0000_result",
+          "market_family": "result",
+          "selection": "Safiullin, Roman",
+          "line": "NO_NUMERIC_LINE_REQUIRED",
+          "allowed_line_alternatives": [],
+          "line_free_market_type": "MATCH_WINNER",
+          "odds_status": "PARTIALLY_PRICED",
+          "pricing_tier": "PARTIALLY_PRICED_ANALYTICAL",
+          "evidence_summary": "Verified fixture identity and kickoff for Safiullin, Roman vs Fonseca, Joao.",
+          "counter_evidence_summary": "Independent lineup, injury, and referee feeds were not preserved in the upstream artifact set.; The Odds API provenance is auditable but still not event-specific raw bookmaker capture strength."
+        },
+        {
+          "candidate_id": "cand_040_tennis_safiullin_roman_vs_fonseca_joao_2026_07_03t100000_0000_total_games",
+          "market_family": "total_games",
+          "selection": "hdp",
+          "line": 1,
+          "allowed_line_alternatives": [
+            "Total games - hdp on the main operator line",
+            "Total games - hdp on an alternative operator line"
+          ],
+          "line_free_market_type": null,
+          "odds_status": "PARTIALLY_PRICED",
+          "pricing_tier": "PARTIALLY_PRICED_ANALYTICAL",
+          "evidence_summary": "Verified fixture identity and kickoff for Safiullin, Roman vs Fonseca, Joao.",
+          "counter_evidence_summary": "Independent lineup, injury, and referee feeds were not preserved in the upstream artifact set.; The Odds API provenance is auditable but still not event-specific raw bookmaker capture strength."
+        }
+      ],
+      "correlation_logic": "Manual builder review should confirm whether the favorite/dominance scenario still supports the derivative leg after line selection.",
+      "positive_correlation_notes": [
+        "Game-state dominance can support both a result-family leg and a pressure-volume derivative leg."
+      ],
+      "negative_correlation_notes": [
+        "A low-event-pace match can break the derivative leg even when the result leg survives."
+      ],
+      "forbidden_combinations": [
+        "Do not duplicate the same exposure with two equivalent result-family legs."
+      ],
+      "line_sensitivity": "HIGH",
+      "scenario_fit": "Same-event review group combines a line-free anchor with one operator-line-required derivative leg.",
+      "what_to_check_in_Superbet_if_user_chooses": [
+        "Confirm every leg exists under the same visible event.",
+        "Confirm the exact operator line for any derivative leg.",
+        "Read the visible Bet Builder combined odds from the Superbet screen only."
+      ],
+      "combined_odds_status": "OPERATOR_SCREEN_ONLY",
+      "combined_bookmaker_odds_computed": false,
+      "bettable": false,
+      "correlation_tags": [
+        "result",
+        "tennis_safiullin_roman_vs_fonseca_joao_2026_07_03t100000_0000",
+        "total_games"
+      ],
+      "evidence_quality": "MEDIUM",
+      "confidence": "MEDIUM",
+      "optional_operator_quote_check_priority": "HIGH",
+      "tipster_context_status": "ATTEMPTED_NO_MATCHES",
+      "tipster_signal": null,
+      "public_side_or_hype_risk": "PUBLIC_SIDE_RISK_UNKNOWN_WITHOUT_FIXTURE_LEVEL_TIPSTER_MATCH",
+      "no_usable_tipster_signal_reason": "NO_MATCHED_FIXTURE_LEVEL_TIPSTER_OPINION_AFTER_BOUNDED_SOURCE_ATTEMPTS"
+    },
+    {
+      "concept_id": "concept_tennis_alexandrova_ekaterina_vs_jovic_iva_2026_07_03t113000_0000",
+      "event_id": "tennis_alexandrova_ekaterina_vs_jovic_iva_2026_07_03t113000_0000",
+      "sport": "tennis",
+      "competition": "WTA - Wimbledon, London, Great Britain, Qualifying",
+      "visible_event_name": "Alexandrova, Ekaterina vs Jovic, Iva",
+      "concept_type": "TENNIS_GAMES_SETS",
+      "legs": [
+        {
+          "candidate_id": "cand_041_tennis_alexandrova_ekaterina_vs_jovic_iva_2026_07_03t113000_0000_result",
+          "market_family": "result",
+          "selection": "Alexandrova, Ekaterina",
+          "line": "NO_NUMERIC_LINE_REQUIRED",
+          "allowed_line_alternatives": [],
+          "line_free_market_type": "MATCH_WINNER",
+          "odds_status": "PARTIALLY_PRICED",
+          "pricing_tier": "PARTIALLY_PRICED_ANALYTICAL",
+          "evidence_summary": "Verified fixture identity and kickoff for Alexandrova, Ekaterina vs Jovic, Iva.",
+          "counter_evidence_summary": "Independent lineup, injury, and referee feeds were not preserved in the upstream artifact set.; The Odds API provenance is auditable but still not event-specific raw bookmaker capture strength."
+        },
+        {
+          "candidate_id": "cand_042_tennis_alexandrova_ekaterina_vs_jovic_iva_2026_07_03t113000_0000_total_games",
+          "market_family": "total_games",
+          "selection": "hdp",
+          "line": 1,
+          "allowed_line_alternatives": [
+            "Total games - hdp on the main operator line",
+            "Total games - hdp on an alternative operator line"
+          ],
+          "line_free_market_type": null,
+          "odds_status": "PARTIALLY_PRICED",
+          "pricing_tier": "PARTIALLY_PRICED_ANALYTICAL",
+          "evidence_summary": "Verified fixture identity and kickoff for Alexandrova, Ekaterina vs Jovic, Iva.",
+          "counter_evidence_summary": "Independent lineup, injury, and referee feeds were not preserved in the upstream artifact set.; The Odds API provenance is auditable but still not event-specific raw bookmaker capture strength."
+        }
+      ],
+      "correlation_logic": "Manual builder review should confirm whether the favorite/dominance scenario still supports the derivative leg after line selection.",
+      "positive_correlation_notes": [
+        "Game-state dominance can support both a result-family leg and a pressure-volume derivative leg."
+      ],
+      "negative_correlation_notes": [
+        "A low-event-pace match can break the derivative leg even when the result leg survives."
+      ],
+      "forbidden_combinations": [
+        "Do not duplicate the same exposure with two equivalent result-family legs."
+      ],
+      "line_sensitivity": "HIGH",
+      "scenario_fit": "Same-event review group combines a line-free anchor with one operator-line-required derivative leg.",
+      "what_to_check_in_Superbet_if_user_chooses": [
+        "Confirm every leg exists under the same visible event.",
+        "Confirm the exact operator line for any derivative leg.",
+        "Read the visible Bet Builder combined odds from the Superbet screen only."
+      ],
+      "combined_odds_status": "OPERATOR_SCREEN_ONLY",
+      "combined_bookmaker_odds_computed": false,
+      "bettable": false,
+      "correlation_tags": [
+        "result",
+        "tennis_alexandrova_ekaterina_vs_jovic_iva_2026_07_03t113000_0000",
+        "total_games"
+      ],
+      "evidence_quality": "MEDIUM",
+      "confidence": "MEDIUM",
+      "optional_operator_quote_check_priority": "HIGH",
+      "tipster_context_status": "ATTEMPTED_NO_MATCHES",
+      "tipster_signal": null,
+      "public_side_or_hype_risk": "PUBLIC_SIDE_RISK_UNKNOWN_WITHOUT_FIXTURE_LEVEL_TIPSTER_MATCH",
+      "no_usable_tipster_signal_reason": "NO_MATCHED_FIXTURE_LEVEL_TIPSTER_OPINION_AFTER_BOUNDED_SOURCE_ATTEMPTS"
+    },
+    {
+      "concept_id": "concept_tennis_kasatkina_daria_vs_osaka_naomi_2026_07_03t120000_0000",
+      "event_id": "tennis_kasatkina_daria_vs_osaka_naomi_2026_07_03t120000_0000",
+      "sport": "tennis",
+      "competition": "WTA - Wimbledon, London, Great Britain, Qualifying",
+      "visible_event_name": "Kasatkina, Daria vs Osaka, Naomi",
+      "concept_type": "TENNIS_GAMES_SETS",
+      "legs": [
+        {
+          "candidate_id": "cand_043_tennis_kasatkina_daria_vs_osaka_naomi_2026_07_03t120000_0000_result",
+          "market_family": "result",
+          "selection": "Kasatkina, Daria",
+          "line": "NO_NUMERIC_LINE_REQUIRED",
+          "allowed_line_alternatives": [],
+          "line_free_market_type": "MATCH_WINNER",
+          "odds_status": "PARTIALLY_PRICED",
+          "pricing_tier": "PARTIALLY_PRICED_ANALYTICAL",
+          "evidence_summary": "Verified fixture identity and kickoff for Kasatkina, Daria vs Osaka, Naomi.",
+          "counter_evidence_summary": "Independent lineup, injury, and referee feeds were not preserved in the upstream artifact set.; The Odds API provenance is auditable but still not event-specific raw bookmaker capture strength."
+        },
+        {
+          "candidate_id": "cand_044_tennis_kasatkina_daria_vs_osaka_naomi_2026_07_03t120000_0000_total_games",
+          "market_family": "total_games",
+          "selection": "hdp",
+          "line": 1,
+          "allowed_line_alternatives": [
+            "Total games - hdp on the main operator line",
+            "Total games - hdp on an alternative operator line"
+          ],
+          "line_free_market_type": null,
+          "odds_status": "PARTIALLY_PRICED",
+          "pricing_tier": "PARTIALLY_PRICED_ANALYTICAL",
+          "evidence_summary": "Verified fixture identity and kickoff for Kasatkina, Daria vs Osaka, Naomi.",
+          "counter_evidence_summary": "Independent lineup, injury, and referee feeds were not preserved in the upstream artifact set.; The Odds API provenance is auditable but still not event-specific raw bookmaker capture strength."
+        }
+      ],
+      "correlation_logic": "Manual builder review should confirm whether the favorite/dominance scenario still supports the derivative leg after line selection.",
+      "positive_correlation_notes": [
+        "Game-state dominance can support both a result-family leg and a pressure-volume derivative leg."
+      ],
+      "negative_correlation_notes": [
+        "A low-event-pace match can break the derivative leg even when the result leg survives."
+      ],
+      "forbidden_combinations": [
+        "Do not duplicate the same exposure with two equivalent result-family legs."
+      ],
+      "line_sensitivity": "HIGH",
+      "scenario_fit": "Same-event review group combines a line-free anchor with one operator-line-required derivative leg.",
+      "what_to_check_in_Superbet_if_user_chooses": [
+        "Confirm every leg exists under the same visible event.",
+        "Confirm the exact operator line for any derivative leg.",
+        "Read the visible Bet Builder combined odds from the Superbet screen only."
+      ],
+      "combined_odds_status": "OPERATOR_SCREEN_ONLY",
+      "combined_bookmaker_odds_computed": false,
+      "bettable": false,
+      "correlation_tags": [
+        "result",
+        "tennis_kasatkina_daria_vs_osaka_naomi_2026_07_03t120000_0000",
+        "total_games"
+      ],
+      "evidence_quality": "MEDIUM",
+      "confidence": "MEDIUM",
+      "optional_operator_quote_check_priority": "HIGH",
+      "tipster_context_status": "ATTEMPTED_NO_MATCHES",
+      "tipster_signal": null,
+      "public_side_or_hype_risk": "PUBLIC_SIDE_RISK_UNKNOWN_WITHOUT_FIXTURE_LEVEL_TIPSTER_MATCH",
+      "no_usable_tipster_signal_reason": "NO_MATCHED_FIXTURE_LEVEL_TIPSTER_OPINION_AFTER_BOUNDED_SOURCE_ATTEMPTS"
+    },
+    {
+      "concept_id": "concept_tennis_bartunkova_nikola_vs_krejcikova_barbora_2026_07_03t131000_0000",
+      "event_id": "tennis_bartunkova_nikola_vs_krejcikova_barbora_2026_07_03t131000_0000",
+      "sport": "tennis",
+      "competition": "WTA - Wimbledon, London, Great Britain, Qualifying",
+      "visible_event_name": "Bartunkova, Nikola vs Krejcikova, Barbora",
+      "concept_type": "TENNIS_GAMES_SETS",
+      "legs": [
+        {
+          "candidate_id": "cand_045_tennis_bartunkova_nikola_vs_krejcikova_barbora_2026_07_03t131000_0000_result",
+          "market_family": "result",
+          "selection": "Bartunkova, Nikola",
+          "line": "NO_NUMERIC_LINE_REQUIRED",
+          "allowed_line_alternatives": [],
+          "line_free_market_type": "MATCH_WINNER",
+          "odds_status": "PARTIALLY_PRICED",
+          "pricing_tier": "PARTIALLY_PRICED_ANALYTICAL",
+          "evidence_summary": "Verified fixture identity and kickoff for Bartunkova, Nikola vs Krejcikova, Barbora.",
+          "counter_evidence_summary": "Independent lineup, injury, and referee feeds were not preserved in the upstream artifact set.; The Odds API provenance is auditable but still not event-specific raw bookmaker capture strength."
+        },
+        {
+          "candidate_id": "cand_046_tennis_bartunkova_nikola_vs_krejcikova_barbora_2026_07_03t131000_0000_total_games",
+          "market_family": "total_games",
+          "selection": "hdp",
+          "line": 1,
+          "allowed_line_alternatives": [
+            "Total games - hdp on the main operator line",
+            "Total games - hdp on an alternative operator line"
+          ],
+          "line_free_market_type": null,
+          "odds_status": "PARTIALLY_PRICED",
+          "pricing_tier": "PARTIALLY_PRICED_ANALYTICAL",
+          "evidence_summary": "Verified fixture identity and kickoff for Bartunkova, Nikola vs Krejcikova, Barbora.",
+          "counter_evidence_summary": "Independent lineup, injury, and referee feeds were not preserved in the upstream artifact set.; The Odds API provenance is auditable but still not event-specific raw bookmaker capture strength."
+        }
+      ],
+      "correlation_logic": "Manual builder review should confirm whether the favorite/dominance scenario still supports the derivative leg after line selection.",
+      "positive_correlation_notes": [
+        "Game-state dominance can support both a result-family leg and a pressure-volume derivative leg."
+      ],
+      "negative_correlation_notes": [
+        "A low-event-pace match can break the derivative leg even when the result leg survives."
+      ],
+      "forbidden_combinations": [
+        "Do not duplicate the same exposure with two equivalent result-family legs."
+      ],
+      "line_sensitivity": "HIGH",
+      "scenario_fit": "Same-event review group combines a line-free anchor with one operator-line-required derivative leg.",
+      "what_to_check_in_Superbet_if_user_chooses": [
+        "Confirm every leg exists under the same visible event.",
+        "Confirm the exact operator line for any derivative leg.",
+        "Read the visible Bet Builder combined odds from the Superbet screen only."
+      ],
+      "combined_odds_status": "OPERATOR_SCREEN_ONLY",
+      "combined_bookmaker_odds_computed": false,
+      "bettable": false,
+      "correlation_tags": [
+        "result",
+        "tennis_bartunkova_nikola_vs_krejcikova_barbora_2026_07_03t131000_0000",
+        "total_games"
+      ],
+      "evidence_quality": "MEDIUM",
+      "confidence": "MEDIUM",
+      "optional_operator_quote_check_priority": "HIGH",
+      "tipster_context_status": "ATTEMPTED_NO_MATCHES",
+      "tipster_signal": null,
+      "public_side_or_hype_risk": "PUBLIC_SIDE_RISK_UNKNOWN_WITHOUT_FIXTURE_LEVEL_TIPSTER_MATCH",
+      "no_usable_tipster_signal_reason": "NO_MATCHED_FIXTURE_LEVEL_TIPSTER_OPINION_AFTER_BOUNDED_SOURCE_ATTEMPTS"
+    },
+    {
+      "concept_id": "concept_tennis_liu_claire_vs_gauff_coco_2026_07_03t145000_0000",
+      "event_id": "tennis_liu_claire_vs_gauff_coco_2026_07_03t145000_0000",
+      "sport": "tennis",
+      "competition": "WTA - Wimbledon, London, Great Britain, Qualifying",
+      "visible_event_name": "Liu, Claire vs Gauff, Coco",
+      "concept_type": "TENNIS_GAMES_SETS",
+      "legs": [
+        {
+          "candidate_id": "cand_047_tennis_liu_claire_vs_gauff_coco_2026_07_03t145000_0000_result",
+          "market_family": "result",
+          "selection": "Liu, Claire",
+          "line": "NO_NUMERIC_LINE_REQUIRED",
+          "allowed_line_alternatives": [],
+          "line_free_market_type": "MATCH_WINNER",
+          "odds_status": "PARTIALLY_PRICED",
+          "pricing_tier": "PARTIALLY_PRICED_ANALYTICAL",
+          "evidence_summary": "Verified fixture identity and kickoff for Liu, Claire vs Gauff, Coco.",
+          "counter_evidence_summary": "Independent lineup, injury, and referee feeds were not preserved in the upstream artifact set.; The Odds API provenance is auditable but still not event-specific raw bookmaker capture strength."
+        },
+        {
+          "candidate_id": "cand_048_tennis_liu_claire_vs_gauff_coco_2026_07_03t145000_0000_total_games",
+          "market_family": "total_games",
+          "selection": "hdp",
+          "line": 1,
+          "allowed_line_alternatives": [
+            "Total games - hdp on the main operator line",
+            "Total games - hdp on an alternative operator line"
+          ],
+          "line_free_market_type": null,
+          "odds_status": "PARTIALLY_PRICED",
+          "pricing_tier": "PARTIALLY_PRICED_ANALYTICAL",
+          "evidence_summary": "Verified fixture identity and kickoff for Liu, Claire vs Gauff, Coco.",
+          "counter_evidence_summary": "Independent lineup, injury, and referee feeds were not preserved in the upstream artifact set.; The Odds API provenance is auditable but still not event-specific raw bookmaker capture strength."
+        }
+      ],
+      "correlation_logic": "Manual builder review should confirm whether the favorite/dominance scenario still supports the derivative leg after line selection.",
+      "positive_correlation_notes": [
+        "Game-state dominance can support both a result-family leg and a pressure-volume derivative leg."
+      ],
+      "negative_correlation_notes": [
+        "A low-event-pace match can break the derivative leg even when the result leg survives."
+      ],
+      "forbidden_combinations": [
+        "Do not duplicate the same exposure with two equivalent result-family legs."
+      ],
+      "line_sensitivity": "HIGH",
+      "scenario_fit": "Same-event review group combines a line-free anchor with one operator-line-required derivative leg.",
+      "what_to_check_in_Superbet_if_user_chooses": [
+        "Confirm every leg exists under the same visible event.",
+        "Confirm the exact operator line for any derivative leg.",
+        "Read the visible Bet Builder combined odds from the Superbet screen only."
+      ],
+      "combined_odds_status": "OPERATOR_SCREEN_ONLY",
+      "combined_bookmaker_odds_computed": false,
+      "bettable": false,
+      "correlation_tags": [
+        "result",
+        "tennis_liu_claire_vs_gauff_coco_2026_07_03t145000_0000",
+        "total_games"
+      ],
+      "evidence_quality": "MEDIUM",
+      "confidence": "MEDIUM",
+      "optional_operator_quote_check_priority": "HIGH",
+      "tipster_context_status": "ATTEMPTED_NO_MATCHES",
+      "tipster_signal": null,
+      "public_side_or_hype_risk": "PUBLIC_SIDE_RISK_UNKNOWN_WITHOUT_FIXTURE_LEVEL_TIPSTER_MATCH",
+      "no_usable_tipster_signal_reason": "NO_MATCHED_FIXTURE_LEVEL_TIPSTER_OPINION_AFTER_BOUNDED_SOURCE_ATTEMPTS"
+    },
+    {
+      "concept_id": "concept_tennis_jodar_rafael_vs_mochizuki_shintaro_2026_07_03t113000_0000",
+      "event_id": "tennis_jodar_rafael_vs_mochizuki_shintaro_2026_07_03t113000_0000",
+      "sport": "tennis",
+      "competition": "ATP - Wimbledon, London, GB, Qualifying, 1st - 2nd Round",
+      "visible_event_name": "Jodar, Rafael vs Mochizuki, Shintaro",
+      "concept_type": "TENNIS_GAMES_SETS",
+      "legs": [
+        {
+          "candidate_id": "cand_049_tennis_jodar_rafael_vs_mochizuki_shintaro_2026_07_03t113000_0000_result",
+          "market_family": "result",
+          "selection": "Jodar, Rafael",
+          "line": "NO_NUMERIC_LINE_REQUIRED",
+          "allowed_line_alternatives": [],
+          "line_free_market_type": "MATCH_WINNER",
+          "odds_status": "PARTIALLY_PRICED",
+          "pricing_tier": "PARTIALLY_PRICED_ANALYTICAL",
+          "evidence_summary": "Verified fixture identity and kickoff for Jodar, Rafael vs Mochizuki, Shintaro.",
+          "counter_evidence_summary": "Independent lineup, injury, and referee feeds were not preserved in the upstream artifact set.; The Odds API provenance is auditable but still not event-specific raw bookmaker capture strength."
+        },
+        {
+          "candidate_id": "cand_050_tennis_jodar_rafael_vs_mochizuki_shintaro_2026_07_03t113000_0000_total_games",
+          "market_family": "total_games",
+          "selection": "hdp",
+          "line": 1,
+          "allowed_line_alternatives": [
+            "Total games - hdp on the main operator line",
+            "Total games - hdp on an alternative operator line"
+          ],
+          "line_free_market_type": null,
+          "odds_status": "PARTIALLY_PRICED",
+          "pricing_tier": "PARTIALLY_PRICED_ANALYTICAL",
+          "evidence_summary": "Verified fixture identity and kickoff for Jodar, Rafael vs Mochizuki, Shintaro.",
+          "counter_evidence_summary": "Independent lineup, injury, and referee feeds were not preserved in the upstream artifact set.; The Odds API provenance is auditable but still not event-specific raw bookmaker capture strength."
+        }
+      ],
+      "correlation_logic": "Manual builder review should confirm whether the favorite/dominance scenario still supports the derivative leg after line selection.",
+      "positive_correlation_notes": [
+        "Game-state dominance can support both a result-family leg and a pressure-volume derivative leg."
+      ],
+      "negative_correlation_notes": [
+        "A low-event-pace match can break the derivative leg even when the result leg survives."
+      ],
+      "forbidden_combinations": [
+        "Do not duplicate the same exposure with two equivalent result-family legs."
+      ],
+      "line_sensitivity": "HIGH",
+      "scenario_fit": "Same-event review group combines a line-free anchor with one operator-line-required derivative leg.",
+      "what_to_check_in_Superbet_if_user_chooses": [
+        "Confirm every leg exists under the same visible event.",
+        "Confirm the exact operator line for any derivative leg.",
+        "Read the visible Bet Builder combined odds from the Superbet screen only."
+      ],
+      "combined_odds_status": "OPERATOR_SCREEN_ONLY",
+      "combined_bookmaker_odds_computed": false,
+      "bettable": false,
+      "correlation_tags": [
+        "result",
+        "tennis_jodar_rafael_vs_mochizuki_shintaro_2026_07_03t113000_0000",
+        "total_games"
+      ],
+      "evidence_quality": "MEDIUM",
+      "confidence": "MEDIUM",
+      "optional_operator_quote_check_priority": "HIGH",
+      "tipster_context_status": "ATTEMPTED_NO_MATCHES",
+      "tipster_signal": null,
+      "public_side_or_hype_risk": "PUBLIC_SIDE_RISK_UNKNOWN_WITHOUT_FIXTURE_LEVEL_TIPSTER_MATCH",
+      "no_usable_tipster_signal_reason": "NO_MATCHED_FIXTURE_LEVEL_TIPSTER_OPINION_AFTER_BOUNDED_SOURCE_ATTEMPTS"
+    },
+    {
+      "concept_id": "concept_tennis_davidovich_fokina_alejandro_vs_fucsovics_marton_2026_07_03t124000_0000",
+      "event_id": "tennis_davidovich_fokina_alejandro_vs_fucsovics_marton_2026_07_03t124000_0000",
+      "sport": "tennis",
+      "competition": "ATP - Wimbledon, London, GB, Qualifying, 1st - 2nd Round",
+      "visible_event_name": "Davidovich Fokina, Alejandro vs Fucsovics, Marton",
+      "concept_type": "TENNIS_GAMES_SETS",
+      "legs": [
+        {
+          "candidate_id": "cand_051_tennis_davidovich_fokina_alejandro_vs_fucsovics_marton_2026_07_03t124000_0000_result",
+          "market_family": "result",
+          "selection": "Davidovich Fokina, Alejandro",
+          "line": "NO_NUMERIC_LINE_REQUIRED",
+          "allowed_line_alternatives": [],
+          "line_free_market_type": "MATCH_WINNER",
+          "odds_status": "PARTIALLY_PRICED",
+          "pricing_tier": "PARTIALLY_PRICED_ANALYTICAL",
+          "evidence_summary": "Verified fixture identity and kickoff for Davidovich Fokina, Alejandro vs Fucsovics, Marton.",
+          "counter_evidence_summary": "Independent lineup, injury, and referee feeds were not preserved in the upstream artifact set.; The Odds API provenance is auditable but still not event-specific raw bookmaker capture strength."
+        },
+        {
+          "candidate_id": "cand_052_tennis_davidovich_fokina_alejandro_vs_fucsovics_marton_2026_07_03t124000_0000_total_games",
+          "market_family": "total_games",
+          "selection": "hdp",
+          "line": 1,
+          "allowed_line_alternatives": [
+            "Total games - hdp on the main operator line",
+            "Total games - hdp on an alternative operator line"
+          ],
+          "line_free_market_type": null,
+          "odds_status": "PARTIALLY_PRICED",
+          "pricing_tier": "PARTIALLY_PRICED_ANALYTICAL",
+          "evidence_summary": "Verified fixture identity and kickoff for Davidovich Fokina, Alejandro vs Fucsovics, Marton.",
+          "counter_evidence_summary": "Independent lineup, injury, and referee feeds were not preserved in the upstream artifact set.; The Odds API provenance is auditable but still not event-specific raw bookmaker capture strength."
+        }
+      ],
+      "correlation_logic": "Manual builder review should confirm whether the favorite/dominance scenario still supports the derivative leg after line selection.",
+      "positive_correlation_notes": [
+        "Game-state dominance can support both a result-family leg and a pressure-volume derivative leg."
+      ],
+      "negative_correlation_notes": [
+        "A low-event-pace match can break the derivative leg even when the result leg survives."
+      ],
+      "forbidden_combinations": [
+        "Do not duplicate the same exposure with two equivalent result-family legs."
+      ],
+      "line_sensitivity": "HIGH",
+      "scenario_fit": "Same-event review group combines a line-free anchor with one operator-line-required derivative leg.",
+      "what_to_check_in_Superbet_if_user_chooses": [
+        "Confirm every leg exists under the same visible event.",
+        "Confirm the exact operator line for any derivative leg.",
+        "Read the visible Bet Builder combined odds from the Superbet screen only."
+      ],
+      "combined_odds_status": "OPERATOR_SCREEN_ONLY",
+      "combined_bookmaker_odds_computed": false,
+      "bettable": false,
+      "correlation_tags": [
+        "result",
+        "tennis_davidovich_fokina_alejandro_vs_fucsovics_marton_2026_07_03t124000_0000",
+        "total_games"
+      ],
+      "evidence_quality": "MEDIUM",
+      "confidence": "MEDIUM",
+      "optional_operator_quote_check_priority": "HIGH",
+      "tipster_context_status": "ATTEMPTED_NO_MATCHES",
+      "tipster_signal": null,
+      "public_side_or_hype_risk": "PUBLIC_SIDE_RISK_UNKNOWN_WITHOUT_FIXTURE_LEVEL_TIPSTER_MATCH",
+      "no_usable_tipster_signal_reason": "NO_MATCHED_FIXTURE_LEVEL_TIPSTER_OPINION_AFTER_BOUNDED_SOURCE_ATTEMPTS"
+    },
+    {
+      "concept_id": "concept_tennis_sinner_jannik_vs_brooksby_jenson_2026_07_03t131000_0000",
+      "event_id": "tennis_sinner_jannik_vs_brooksby_jenson_2026_07_03t131000_0000",
+      "sport": "tennis",
+      "competition": "ATP - Wimbledon, London, GB, Qualifying, 1st - 2nd Round",
+      "visible_event_name": "Sinner, Jannik vs Brooksby, Jenson",
+      "concept_type": "TENNIS_GAMES_SETS",
+      "legs": [
+        {
+          "candidate_id": "cand_053_tennis_sinner_jannik_vs_brooksby_jenson_2026_07_03t131000_0000_result",
+          "market_family": "result",
+          "selection": "Sinner, Jannik",
+          "line": "NO_NUMERIC_LINE_REQUIRED",
+          "allowed_line_alternatives": [],
+          "line_free_market_type": "MATCH_WINNER",
+          "odds_status": "PARTIALLY_PRICED",
+          "pricing_tier": "PARTIALLY_PRICED_ANALYTICAL",
+          "evidence_summary": "Verified fixture identity and kickoff for Sinner, Jannik vs Brooksby, Jenson.",
+          "counter_evidence_summary": "Independent lineup, injury, and referee feeds were not preserved in the upstream artifact set.; The Odds API provenance is auditable but still not event-specific raw bookmaker capture strength."
+        },
+        {
+          "candidate_id": "cand_054_tennis_sinner_jannik_vs_brooksby_jenson_2026_07_03t131000_0000_total_games",
+          "market_family": "total_games",
+          "selection": "hdp",
+          "line": 1,
+          "allowed_line_alternatives": [
+            "Total games - hdp on the main operator line",
+            "Total games - hdp on an alternative operator line"
+          ],
+          "line_free_market_type": null,
+          "odds_status": "PARTIALLY_PRICED",
+          "pricing_tier": "PARTIALLY_PRICED_ANALYTICAL",
+          "evidence_summary": "Verified fixture identity and kickoff for Sinner, Jannik vs Brooksby, Jenson.",
+          "counter_evidence_summary": "Independent lineup, injury, and referee feeds were not preserved in the upstream artifact set.; The Odds API provenance is auditable but still not event-specific raw bookmaker capture strength."
+        }
+      ],
+      "correlation_logic": "Manual builder review should confirm whether the favorite/dominance scenario still supports the derivative leg after line selection.",
+      "positive_correlation_notes": [
+        "Game-state dominance can support both a result-family leg and a pressure-volume derivative leg."
+      ],
+      "negative_correlation_notes": [
+        "A low-event-pace match can break the derivative leg even when the result leg survives."
+      ],
+      "forbidden_combinations": [
+        "Do not duplicate the same exposure with two equivalent result-family legs."
+      ],
+      "line_sensitivity": "HIGH",
+      "scenario_fit": "Same-event review group combines a line-free anchor with one operator-line-required derivative leg.",
+      "what_to_check_in_Superbet_if_user_chooses": [
+        "Confirm every leg exists under the same visible event.",
+        "Confirm the exact operator line for any derivative leg.",
+        "Read the visible Bet Builder combined odds from the Superbet screen only."
+      ],
+      "combined_odds_status": "OPERATOR_SCREEN_ONLY",
+      "combined_bookmaker_odds_computed": false,
+      "bettable": false,
+      "correlation_tags": [
+        "result",
+        "tennis_sinner_jannik_vs_brooksby_jenson_2026_07_03t131000_0000",
+        "total_games"
+      ],
+      "evidence_quality": "MEDIUM",
+      "confidence": "MEDIUM",
+      "optional_operator_quote_check_priority": "HIGH",
+      "tipster_context_status": "ATTEMPTED_NO_MATCHES",
+      "tipster_signal": null,
+      "public_side_or_hype_risk": "PUBLIC_SIDE_RISK_UNKNOWN_WITHOUT_FIXTURE_LEVEL_TIPSTER_MATCH",
+      "no_usable_tipster_signal_reason": "NO_MATCHED_FIXTURE_LEVEL_TIPSTER_OPINION_AFTER_BOUNDED_SOURCE_ATTEMPTS"
+    },
+    {
+      "concept_id": "concept_tennis_pegula_jessica_vs_bouzas_maneiro_jessica_2026_07_03t114000_0000",
+      "event_id": "tennis_pegula_jessica_vs_bouzas_maneiro_jessica_2026_07_03t114000_0000",
+      "sport": "tennis",
+      "competition": "WTA - Wimbledon, London, Great Britain, Qualifying",
+      "visible_event_name": "Pegula, Jessica vs Bouzas Maneiro, Jessica",
+      "concept_type": "TENNIS_GAMES_SETS",
+      "legs": [
+        {
+          "candidate_id": "cand_055_tennis_pegula_jessica_vs_bouzas_maneiro_jessica_2026_07_03t114000_0000_result",
+          "market_family": "result",
+          "selection": "Pegula, Jessica",
+          "line": "NO_NUMERIC_LINE_REQUIRED",
+          "allowed_line_alternatives": [],
+          "line_free_market_type": "MATCH_WINNER",
+          "odds_status": "PARTIALLY_PRICED",
+          "pricing_tier": "PARTIALLY_PRICED_ANALYTICAL",
+          "evidence_summary": "Verified fixture identity and kickoff for Pegula, Jessica vs Bouzas Maneiro, Jessica.",
+          "counter_evidence_summary": "Independent lineup, injury, and referee feeds were not preserved in the upstream artifact set.; The Odds API provenance is auditable but still not event-specific raw bookmaker capture strength."
+        },
+        {
+          "candidate_id": "cand_056_tennis_pegula_jessica_vs_bouzas_maneiro_jessica_2026_07_03t114000_0000_total_games",
+          "market_family": "total_games",
+          "selection": "hdp",
+          "line": 1,
+          "allowed_line_alternatives": [
+            "Total games - hdp on the main operator line",
+            "Total games - hdp on an alternative operator line"
+          ],
+          "line_free_market_type": null,
+          "odds_status": "PARTIALLY_PRICED",
+          "pricing_tier": "PARTIALLY_PRICED_ANALYTICAL",
+          "evidence_summary": "Verified fixture identity and kickoff for Pegula, Jessica vs Bouzas Maneiro, Jessica.",
+          "counter_evidence_summary": "Independent lineup, injury, and referee feeds were not preserved in the upstream artifact set.; The Odds API provenance is auditable but still not event-specific raw bookmaker capture strength."
+        }
+      ],
+      "correlation_logic": "Manual builder review should confirm whether the favorite/dominance scenario still supports the derivative leg after line selection.",
+      "positive_correlation_notes": [
+        "Game-state dominance can support both a result-family leg and a pressure-volume derivative leg."
+      ],
+      "negative_correlation_notes": [
+        "A low-event-pace match can break the derivative leg even when the result leg survives."
+      ],
+      "forbidden_combinations": [
+        "Do not duplicate the same exposure with two equivalent result-family legs."
+      ],
+      "line_sensitivity": "HIGH",
+      "scenario_fit": "Same-event review group combines a line-free anchor with one operator-line-required derivative leg.",
+      "what_to_check_in_Superbet_if_user_chooses": [
+        "Confirm every leg exists under the same visible event.",
+        "Confirm the exact operator line for any derivative leg.",
+        "Read the visible Bet Builder combined odds from the Superbet screen only."
+      ],
+      "combined_odds_status": "OPERATOR_SCREEN_ONLY",
+      "combined_bookmaker_odds_computed": false,
+      "bettable": false,
+      "correlation_tags": [
+        "result",
+        "tennis_pegula_jessica_vs_bouzas_maneiro_jessica_2026_07_03t114000_0000",
+        "total_games"
+      ],
+      "evidence_quality": "MEDIUM",
+      "confidence": "MEDIUM",
+      "optional_operator_quote_check_priority": "HIGH",
+      "tipster_context_status": "ATTEMPTED_NO_MATCHES",
+      "tipster_signal": null,
+      "public_side_or_hype_risk": "PUBLIC_SIDE_RISK_UNKNOWN_WITHOUT_FIXTURE_LEVEL_TIPSTER_MATCH",
+      "no_usable_tipster_signal_reason": "NO_MATCHED_FIXTURE_LEVEL_TIPSTER_OPINION_AFTER_BOUNDED_SOURCE_ATTEMPTS"
+    },
+    {
+      "concept_id": "concept_tennis_muchova_karolina_vs_sawangkaew_mananchaya_2026_07_03t131000_0000",
+      "event_id": "tennis_muchova_karolina_vs_sawangkaew_mananchaya_2026_07_03t131000_0000",
+      "sport": "tennis",
+      "competition": "WTA - Wimbledon, London, Great Britain, Qualifying",
+      "visible_event_name": "Muchova, Karolina vs Sawangkaew, Mananchaya",
+      "concept_type": "TENNIS_GAMES_SETS",
+      "legs": [
+        {
+          "candidate_id": "cand_057_tennis_muchova_karolina_vs_sawangkaew_mananchaya_2026_07_03t131000_0000_result",
+          "market_family": "result",
+          "selection": "Muchova, Karolina",
+          "line": "NO_NUMERIC_LINE_REQUIRED",
+          "allowed_line_alternatives": [],
+          "line_free_market_type": "MATCH_WINNER",
+          "odds_status": "PARTIALLY_PRICED",
+          "pricing_tier": "PARTIALLY_PRICED_ANALYTICAL",
+          "evidence_summary": "Verified fixture identity and kickoff for Muchova, Karolina vs Sawangkaew, Mananchaya.",
+          "counter_evidence_summary": "Independent lineup, injury, and referee feeds were not preserved in the upstream artifact set.; The Odds API provenance is auditable but still not event-specific raw bookmaker capture strength."
+        },
+        {
+          "candidate_id": "cand_058_tennis_muchova_karolina_vs_sawangkaew_mananchaya_2026_07_03t131000_0000_total_games",
+          "market_family": "total_games",
+          "selection": "hdp",
+          "line": 1,
+          "allowed_line_alternatives": [
+            "Total games - hdp on the main operator line",
+            "Total games - hdp on an alternative operator line"
+          ],
+          "line_free_market_type": null,
+          "odds_status": "PARTIALLY_PRICED",
+          "pricing_tier": "PARTIALLY_PRICED_ANALYTICAL",
+          "evidence_summary": "Verified fixture identity and kickoff for Muchova, Karolina vs Sawangkaew, Mananchaya.",
+          "counter_evidence_summary": "Independent lineup, injury, and referee feeds were not preserved in the upstream artifact set.; The Odds API provenance is auditable but still not event-specific raw bookmaker capture strength."
+        }
+      ],
+      "correlation_logic": "Manual builder review should confirm whether the favorite/dominance scenario still supports the derivative leg after line selection.",
+      "positive_correlation_notes": [
+        "Game-state dominance can support both a result-family leg and a pressure-volume derivative leg."
+      ],
+      "negative_correlation_notes": [
+        "A low-event-pace match can break the derivative leg even when the result leg survives."
+      ],
+      "forbidden_combinations": [
+        "Do not duplicate the same exposure with two equivalent result-family legs."
+      ],
+      "line_sensitivity": "HIGH",
+      "scenario_fit": "Same-event review group combines a line-free anchor with one operator-line-required derivative leg.",
+      "what_to_check_in_Superbet_if_user_chooses": [
+        "Confirm every leg exists under the same visible event.",
+        "Confirm the exact operator line for any derivative leg.",
+        "Read the visible Bet Builder combined odds from the Superbet screen only."
+      ],
+      "combined_odds_status": "OPERATOR_SCREEN_ONLY",
+      "combined_bookmaker_odds_computed": false,
+      "bettable": false,
+      "correlation_tags": [
+        "result",
+        "tennis_muchova_karolina_vs_sawangkaew_mananchaya_2026_07_03t131000_0000",
+        "total_games"
+      ],
+      "evidence_quality": "MEDIUM",
+      "confidence": "MEDIUM",
+      "optional_operator_quote_check_priority": "HIGH",
+      "tipster_context_status": "ATTEMPTED_NO_MATCHES",
+      "tipster_signal": null,
+      "public_side_or_hype_risk": "PUBLIC_SIDE_RISK_UNKNOWN_WITHOUT_FIXTURE_LEVEL_TIPSTER_MATCH",
+      "no_usable_tipster_signal_reason": "NO_MATCHED_FIXTURE_LEVEL_TIPSTER_OPINION_AFTER_BOUNDED_SOURCE_ATTEMPTS"
+    },
+    {
+      "concept_id": "concept_tennis_sabalenka_aryna_vs_ostapenko_jelena_2026_07_03t141000_0000",
+      "event_id": "tennis_sabalenka_aryna_vs_ostapenko_jelena_2026_07_03t141000_0000",
+      "sport": "tennis",
+      "competition": "WTA - Wimbledon, London, Great Britain, Qualifying",
+      "visible_event_name": "Sabalenka, Aryna vs Ostapenko, Jelena",
+      "concept_type": "TENNIS_GAMES_SETS",
+      "legs": [
+        {
+          "candidate_id": "cand_059_tennis_sabalenka_aryna_vs_ostapenko_jelena_2026_07_03t141000_0000_result",
+          "market_family": "result",
+          "selection": "Sabalenka, Aryna",
+          "line": "NO_NUMERIC_LINE_REQUIRED",
+          "allowed_line_alternatives": [],
+          "line_free_market_type": "MATCH_WINNER",
+          "odds_status": "PARTIALLY_PRICED",
+          "pricing_tier": "PARTIALLY_PRICED_ANALYTICAL",
+          "evidence_summary": "Verified fixture identity and kickoff for Sabalenka, Aryna vs Ostapenko, Jelena.",
+          "counter_evidence_summary": "Independent lineup, injury, and referee feeds were not preserved in the upstream artifact set.; The Odds API provenance is auditable but still not event-specific raw bookmaker capture strength."
+        },
+        {
+          "candidate_id": "cand_060_tennis_sabalenka_aryna_vs_ostapenko_jelena_2026_07_03t141000_0000_total_games",
+          "market_family": "total_games",
+          "selection": "hdp",
+          "line": 1,
+          "allowed_line_alternatives": [
+            "Total games - hdp on the main operator line",
+            "Total games - hdp on an alternative operator line"
+          ],
+          "line_free_market_type": null,
+          "odds_status": "PARTIALLY_PRICED",
+          "pricing_tier": "PARTIALLY_PRICED_ANALYTICAL",
+          "evidence_summary": "Verified fixture identity and kickoff for Sabalenka, Aryna vs Ostapenko, Jelena.",
+          "counter_evidence_summary": "Independent lineup, injury, and referee feeds were not preserved in the upstream artifact set.; The Odds API provenance is auditable but still not event-specific raw bookmaker capture strength."
+        }
+      ],
+      "correlation_logic": "Manual builder review should confirm whether the favorite/dominance scenario still supports the derivative leg after line selection.",
+      "positive_correlation_notes": [
+        "Game-state dominance can support both a result-family leg and a pressure-volume derivative leg."
+      ],
+      "negative_correlation_notes": [
+        "A low-event-pace match can break the derivative leg even when the result leg survives."
+      ],
+      "forbidden_combinations": [
+        "Do not duplicate the same exposure with two equivalent result-family legs."
+      ],
+      "line_sensitivity": "HIGH",
+      "scenario_fit": "Same-event review group combines a line-free anchor with one operator-line-required derivative leg.",
+      "what_to_check_in_Superbet_if_user_chooses": [
+        "Confirm every leg exists under the same visible event.",
+        "Confirm the exact operator line for any derivative leg.",
+        "Read the visible Bet Builder combined odds from the Superbet screen only."
+      ],
+      "combined_odds_status": "OPERATOR_SCREEN_ONLY",
+      "combined_bookmaker_odds_computed": false,
+      "bettable": false,
+      "correlation_tags": [
+        "result",
+        "tennis_sabalenka_aryna_vs_ostapenko_jelena_2026_07_03t141000_0000",
+        "total_games"
+      ],
+      "evidence_quality": "MEDIUM",
+      "confidence": "MEDIUM",
+      "optional_operator_quote_check_priority": "HIGH",
+      "tipster_context_status": "ATTEMPTED_NO_MATCHES",
+      "tipster_signal": null,
+      "public_side_or_hype_risk": "PUBLIC_SIDE_RISK_UNKNOWN_WITHOUT_FIXTURE_LEVEL_TIPSTER_MATCH",
+      "no_usable_tipster_signal_reason": "NO_MATCHED_FIXTURE_LEVEL_TIPSTER_OPINION_AFTER_BOUNDED_SOURCE_ATTEMPTS"
+    },
+    {
+      "concept_id": "concept_tennis_struff_jan_lennard_vs_medvedev_daniil_2026_07_03t113000_0000",
+      "event_id": "tennis_struff_jan_lennard_vs_medvedev_daniil_2026_07_03t113000_0000",
+      "sport": "tennis",
+      "competition": "ATP - Wimbledon, London, GB, Qualifying, 1st - 2nd Round",
+      "visible_event_name": "Struff, Jan-Lennard vs Medvedev, Daniil",
+      "concept_type": "TENNIS_GAMES_SETS",
+      "legs": [
+        {
+          "candidate_id": "cand_061_tennis_struff_jan_lennard_vs_medvedev_daniil_2026_07_03t113000_0000_result",
+          "market_family": "result",
+          "selection": "Struff, Jan-Lennard",
+          "line": "NO_NUMERIC_LINE_REQUIRED",
+          "allowed_line_alternatives": [],
+          "line_free_market_type": "MATCH_WINNER",
+          "odds_status": "PARTIALLY_PRICED",
+          "pricing_tier": "PARTIALLY_PRICED_ANALYTICAL",
+          "evidence_summary": "Verified fixture identity and kickoff for Struff, Jan-Lennard vs Medvedev, Daniil.",
+          "counter_evidence_summary": "Independent lineup, injury, and referee feeds were not preserved in the upstream artifact set.; The Odds API provenance is auditable but still not event-specific raw bookmaker capture strength."
+        },
+        {
+          "candidate_id": "cand_062_tennis_struff_jan_lennard_vs_medvedev_daniil_2026_07_03t113000_0000_total_games",
+          "market_family": "total_games",
+          "selection": "hdp",
+          "line": 1,
+          "allowed_line_alternatives": [
+            "Total games - hdp on the main operator line",
+            "Total games - hdp on an alternative operator line"
+          ],
+          "line_free_market_type": null,
+          "odds_status": "PARTIALLY_PRICED",
+          "pricing_tier": "PARTIALLY_PRICED_ANALYTICAL",
+          "evidence_summary": "Verified fixture identity and kickoff for Struff, Jan-Lennard vs Medvedev, Daniil.",
+          "counter_evidence_summary": "Independent lineup, injury, and referee feeds were not preserved in the upstream artifact set.; The Odds API provenance is auditable but still not event-specific raw bookmaker capture strength."
+        }
+      ],
+      "correlation_logic": "Manual builder review should confirm whether the favorite/dominance scenario still supports the derivative leg after line selection.",
+      "positive_correlation_notes": [
+        "Game-state dominance can support both a result-family leg and a pressure-volume derivative leg."
+      ],
+      "negative_correlation_notes": [
+        "A low-event-pace match can break the derivative leg even when the result leg survives."
+      ],
+      "forbidden_combinations": [
+        "Do not duplicate the same exposure with two equivalent result-family legs."
+      ],
+      "line_sensitivity": "HIGH",
+      "scenario_fit": "Same-event review group combines a line-free anchor with one operator-line-required derivative leg.",
+      "what_to_check_in_Superbet_if_user_chooses": [
+        "Confirm every leg exists under the same visible event.",
+        "Confirm the exact operator line for any derivative leg.",
+        "Read the visible Bet Builder combined odds from the Superbet screen only."
+      ],
+      "combined_odds_status": "OPERATOR_SCREEN_ONLY",
+      "combined_bookmaker_odds_computed": false,
+      "bettable": false,
+      "correlation_tags": [
+        "result",
+        "tennis_struff_jan_lennard_vs_medvedev_daniil_2026_07_03t113000_0000",
+        "total_games"
+      ],
+      "evidence_quality": "MEDIUM",
+      "confidence": "MEDIUM",
+      "optional_operator_quote_check_priority": "HIGH",
+      "tipster_context_status": "ATTEMPTED_NO_MATCHES",
+      "tipster_signal": null,
+      "public_side_or_hype_risk": "PUBLIC_SIDE_RISK_UNKNOWN_WITHOUT_FIXTURE_LEVEL_TIPSTER_MATCH",
+      "no_usable_tipster_signal_reason": "NO_MATCHED_FIXTURE_LEVEL_TIPSTER_OPINION_AFTER_BOUNDED_SOURCE_ATTEMPTS"
+    },
+    {
+      "concept_id": "concept_tennis_rinderknech_arthur_vs_djokovic_novak_2026_07_03t123000_0000",
+      "event_id": "tennis_rinderknech_arthur_vs_djokovic_novak_2026_07_03t123000_0000",
+      "sport": "tennis",
+      "competition": "ATP - Wimbledon, London, GB, Qualifying, 1st - 2nd Round",
+      "visible_event_name": "Rinderknech, Arthur vs Djokovic, Novak",
+      "concept_type": "TENNIS_GAMES_SETS",
+      "legs": [
+        {
+          "candidate_id": "cand_063_tennis_rinderknech_arthur_vs_djokovic_novak_2026_07_03t123000_0000_result",
+          "market_family": "result",
+          "selection": "Rinderknech, Arthur",
+          "line": "NO_NUMERIC_LINE_REQUIRED",
+          "allowed_line_alternatives": [],
+          "line_free_market_type": "MATCH_WINNER",
+          "odds_status": "PARTIALLY_PRICED",
+          "pricing_tier": "PARTIALLY_PRICED_ANALYTICAL",
+          "evidence_summary": "Verified fixture identity and kickoff for Rinderknech, Arthur vs Djokovic, Novak.",
+          "counter_evidence_summary": "Independent lineup, injury, and referee feeds were not preserved in the upstream artifact set.; The Odds API provenance is auditable but still not event-specific raw bookmaker capture strength."
+        },
+        {
+          "candidate_id": "cand_064_tennis_rinderknech_arthur_vs_djokovic_novak_2026_07_03t123000_0000_total_games",
+          "market_family": "total_games",
+          "selection": "hdp",
+          "line": 1,
+          "allowed_line_alternatives": [
+            "Total games - hdp on the main operator line",
+            "Total games - hdp on an alternative operator line"
+          ],
+          "line_free_market_type": null,
+          "odds_status": "PARTIALLY_PRICED",
+          "pricing_tier": "PARTIALLY_PRICED_ANALYTICAL",
+          "evidence_summary": "Verified fixture identity and kickoff for Rinderknech, Arthur vs Djokovic, Novak.",
+          "counter_evidence_summary": "Independent lineup, injury, and referee feeds were not preserved in the upstream artifact set.; The Odds API provenance is auditable but still not event-specific raw bookmaker capture strength."
+        }
+      ],
+      "correlation_logic": "Manual builder review should confirm whether the favorite/dominance scenario still supports the derivative leg after line selection.",
+      "positive_correlation_notes": [
+        "Game-state dominance can support both a result-family leg and a pressure-volume derivative leg."
+      ],
+      "negative_correlation_notes": [
+        "A low-event-pace match can break the derivative leg even when the result leg survives."
+      ],
+      "forbidden_combinations": [
+        "Do not duplicate the same exposure with two equivalent result-family legs."
+      ],
+      "line_sensitivity": "HIGH",
+      "scenario_fit": "Same-event review group combines a line-free anchor with one operator-line-required derivative leg.",
+      "what_to_check_in_Superbet_if_user_chooses": [
+        "Confirm every leg exists under the same visible event.",
+        "Confirm the exact operator line for any derivative leg.",
+        "Read the visible Bet Builder combined odds from the Superbet screen only."
+      ],
+      "combined_odds_status": "OPERATOR_SCREEN_ONLY",
+      "combined_bookmaker_odds_computed": false,
+      "bettable": false,
+      "correlation_tags": [
+        "result",
+        "tennis_rinderknech_arthur_vs_djokovic_novak_2026_07_03t123000_0000",
+        "total_games"
+      ],
+      "evidence_quality": "MEDIUM",
+      "confidence": "MEDIUM",
+      "optional_operator_quote_check_priority": "HIGH",
+      "tipster_context_status": "ATTEMPTED_NO_MATCHES",
+      "tipster_signal": null,
+      "public_side_or_hype_risk": "PUBLIC_SIDE_RISK_UNKNOWN_WITHOUT_FIXTURE_LEVEL_TIPSTER_MATCH",
+      "no_usable_tipster_signal_reason": "NO_MATCHED_FIXTURE_LEVEL_TIPSTER_OPINION_AFTER_BOUNDED_SOURCE_ATTEMPTS"
+    },
+    {
+      "concept_id": "concept_tennis_bencic_belinda_vs_kalinskaya_anna_2026_07_03t100000_0000",
+      "event_id": "tennis_bencic_belinda_vs_kalinskaya_anna_2026_07_03t100000_0000",
+      "sport": "tennis",
+      "competition": "WTA - Wimbledon, London, Great Britain, Qualifying",
+      "visible_event_name": "Bencic, Belinda vs Kalinskaya, Anna",
+      "concept_type": "TENNIS_GAMES_SETS",
+      "legs": [
+        {
+          "candidate_id": "cand_065_tennis_bencic_belinda_vs_kalinskaya_anna_2026_07_03t100000_0000_result",
+          "market_family": "result",
+          "selection": "Bencic, Belinda",
+          "line": "NO_NUMERIC_LINE_REQUIRED",
+          "allowed_line_alternatives": [],
+          "line_free_market_type": "MATCH_WINNER",
+          "odds_status": "PARTIALLY_PRICED",
+          "pricing_tier": "PARTIALLY_PRICED_ANALYTICAL",
+          "evidence_summary": "Verified fixture identity and kickoff for Bencic, Belinda vs Kalinskaya, Anna.",
+          "counter_evidence_summary": "Independent lineup, injury, and referee feeds were not preserved in the upstream artifact set.; The Odds API provenance is auditable but still not event-specific raw bookmaker capture strength."
+        },
+        {
+          "candidate_id": "cand_066_tennis_bencic_belinda_vs_kalinskaya_anna_2026_07_03t100000_0000_total_games",
+          "market_family": "total_games",
+          "selection": "hdp",
+          "line": 1,
+          "allowed_line_alternatives": [
+            "Total games - hdp on the main operator line",
+            "Total games - hdp on an alternative operator line"
+          ],
+          "line_free_market_type": null,
+          "odds_status": "PARTIALLY_PRICED",
+          "pricing_tier": "PARTIALLY_PRICED_ANALYTICAL",
+          "evidence_summary": "Verified fixture identity and kickoff for Bencic, Belinda vs Kalinskaya, Anna.",
+          "counter_evidence_summary": "Independent lineup, injury, and referee feeds were not preserved in the upstream artifact set.; The Odds API provenance is auditable but still not event-specific raw bookmaker capture strength."
+        }
+      ],
+      "correlation_logic": "Manual builder review should confirm whether the favorite/dominance scenario still supports the derivative leg after line selection.",
+      "positive_correlation_notes": [
+        "Game-state dominance can support both a result-family leg and a pressure-volume derivative leg."
+      ],
+      "negative_correlation_notes": [
+        "A low-event-pace match can break the derivative leg even when the result leg survives."
+      ],
+      "forbidden_combinations": [
+        "Do not duplicate the same exposure with two equivalent result-family legs."
+      ],
+      "line_sensitivity": "HIGH",
+      "scenario_fit": "Same-event review group combines a line-free anchor with one operator-line-required derivative leg.",
+      "what_to_check_in_Superbet_if_user_chooses": [
+        "Confirm every leg exists under the same visible event.",
+        "Confirm the exact operator line for any derivative leg.",
+        "Read the visible Bet Builder combined odds from the Superbet screen only."
+      ],
+      "combined_odds_status": "OPERATOR_SCREEN_ONLY",
+      "combined_bookmaker_odds_computed": false,
+      "bettable": false,
+      "correlation_tags": [
+        "result",
+        "tennis_bencic_belinda_vs_kalinskaya_anna_2026_07_03t100000_0000",
+        "total_games"
+      ],
+      "evidence_quality": "MEDIUM",
+      "confidence": "MEDIUM",
+      "optional_operator_quote_check_priority": "HIGH",
+      "tipster_context_status": "ATTEMPTED_NO_MATCHES",
+      "tipster_signal": null,
+      "public_side_or_hype_risk": "PUBLIC_SIDE_RISK_UNKNOWN_WITHOUT_FIXTURE_LEVEL_TIPSTER_MATCH",
+      "no_usable_tipster_signal_reason": "NO_MATCHED_FIXTURE_LEVEL_TIPSTER_OPINION_AFTER_BOUNDED_SOURCE_ATTEMPTS"
+    },
+    {
+      "concept_id": "concept_tennis_hurkacz_hubert_vs_paul_tommy_2026_07_03t125000_0000",
+      "event_id": "tennis_hurkacz_hubert_vs_paul_tommy_2026_07_03t125000_0000",
+      "sport": "tennis",
+      "competition": "ATP - Wimbledon, London, GB, Qualifying, 1st - 2nd Round",
+      "visible_event_name": "Hurkacz, Hubert vs Paul, Tommy",
+      "concept_type": "TENNIS_GAMES_SETS",
+      "legs": [
+        {
+          "candidate_id": "cand_067_tennis_hurkacz_hubert_vs_paul_tommy_2026_07_03t125000_0000_result",
+          "market_family": "result",
+          "selection": "Hurkacz, Hubert",
+          "line": "NO_NUMERIC_LINE_REQUIRED",
+          "allowed_line_alternatives": [],
+          "line_free_market_type": "MATCH_WINNER",
+          "odds_status": "PARTIALLY_PRICED",
+          "pricing_tier": "PARTIALLY_PRICED_ANALYTICAL",
+          "evidence_summary": "Verified fixture identity and kickoff for Hurkacz, Hubert vs Paul, Tommy.",
+          "counter_evidence_summary": "Independent lineup, injury, and referee feeds were not preserved in the upstream artifact set.; The Odds API provenance is auditable but still not event-specific raw bookmaker capture strength."
+        },
+        {
+          "candidate_id": "cand_068_tennis_hurkacz_hubert_vs_paul_tommy_2026_07_03t125000_0000_total_games",
+          "market_family": "total_games",
+          "selection": "hdp",
+          "line": 1,
+          "allowed_line_alternatives": [
+            "Total games - hdp on the main operator line",
+            "Total games - hdp on an alternative operator line"
+          ],
+          "line_free_market_type": null,
+          "odds_status": "PARTIALLY_PRICED",
+          "pricing_tier": "PARTIALLY_PRICED_ANALYTICAL",
+          "evidence_summary": "Verified fixture identity and kickoff for Hurkacz, Hubert vs Paul, Tommy.",
+          "counter_evidence_summary": "Independent lineup, injury, and referee feeds were not preserved in the upstream artifact set.; The Odds API provenance is auditable but still not event-specific raw bookmaker capture strength."
+        }
+      ],
+      "correlation_logic": "Manual builder review should confirm whether the favorite/dominance scenario still supports the derivative leg after line selection.",
+      "positive_correlation_notes": [
+        "Game-state dominance can support both a result-family leg and a pressure-volume derivative leg."
+      ],
+      "negative_correlation_notes": [
+        "A low-event-pace match can break the derivative leg even when the result leg survives."
+      ],
+      "forbidden_combinations": [
+        "Do not duplicate the same exposure with two equivalent result-family legs."
+      ],
+      "line_sensitivity": "HIGH",
+      "scenario_fit": "Same-event review group combines a line-free anchor with one operator-line-required derivative leg.",
+      "what_to_check_in_Superbet_if_user_chooses": [
+        "Confirm every leg exists under the same visible event.",
+        "Confirm the exact operator line for any derivative leg.",
+        "Read the visible Bet Builder combined odds from the Superbet screen only."
+      ],
+      "combined_odds_status": "OPERATOR_SCREEN_ONLY",
+      "combined_bookmaker_odds_computed": false,
+      "bettable": false,
+      "correlation_tags": [
+        "result",
+        "tennis_hurkacz_hubert_vs_paul_tommy_2026_07_03t125000_0000",
+        "total_games"
+      ],
+      "evidence_quality": "MEDIUM",
+      "confidence": "MEDIUM",
+      "optional_operator_quote_check_priority": "HIGH",
+      "tipster_context_status": "ATTEMPTED_NO_MATCHES",
+      "tipster_signal": null,
+      "public_side_or_hype_risk": "PUBLIC_SIDE_RISK_UNKNOWN_WITHOUT_FIXTURE_LEVEL_TIPSTER_MATCH",
+      "no_usable_tipster_signal_reason": "NO_MATCHED_FIXTURE_LEVEL_TIPSTER_OPINION_AFTER_BOUNDED_SOURCE_ATTEMPTS"
+    },
+    {
+      "concept_id": "concept_basketball_israel_vs_germany_2026_07_03t170000_0000",
+      "event_id": "basketball_israel_vs_germany_2026_07_03t170000_0000",
+      "sport": "basketball",
+      "competition": "International - FIBA World Cup, European Qualifiers, Group E",
+      "visible_event_name": "Israel vs Germany",
+      "concept_type": "BASKETBALL_SPREAD_TOTAL",
+      "legs": [
+        {
+          "candidate_id": "cand_070_basketball_israel_vs_germany_2026_07_03t170000_0000_result",
+          "market_family": "result",
+          "selection": "Israel",
+          "line": "NO_NUMERIC_LINE_REQUIRED",
+          "allowed_line_alternatives": [],
+          "line_free_market_type": "MONEYLINE",
+          "odds_status": "PARTIALLY_PRICED",
+          "pricing_tier": "PARTIALLY_PRICED_ANALYTICAL",
+          "evidence_summary": "Verified fixture identity and kickoff for Israel vs Germany.",
+          "counter_evidence_summary": "Independent lineup, injury, and referee feeds were not preserved in the upstream artifact set.; The Odds API provenance is auditable but still not event-specific raw bookmaker capture strength."
+        },
+        {
+          "candidate_id": "cand_071_basketball_israel_vs_germany_2026_07_03t170000_0000_spread",
+          "market_family": "spread",
+          "selection": "hdp",
+          "line": 1,
+          "allowed_line_alternatives": [
+            "Spread - hdp on the main operator line",
+            "Spread - hdp on an alternative operator line"
+          ],
+          "line_free_market_type": null,
+          "odds_status": "PARTIALLY_PRICED",
+          "pricing_tier": "PARTIALLY_PRICED_ANALYTICAL",
+          "evidence_summary": "Verified fixture identity and kickoff for Israel vs Germany.",
+          "counter_evidence_summary": "Independent lineup, injury, and referee feeds were not preserved in the upstream artifact set.; The Odds API provenance is auditable but still not event-specific raw bookmaker capture strength."
+        }
+      ],
+      "correlation_logic": "Manual builder review should confirm whether the favorite/dominance scenario still supports the derivative leg after line selection.",
+      "positive_correlation_notes": [
+        "Game-state dominance can support both a result-family leg and a pressure-volume derivative leg."
+      ],
+      "negative_correlation_notes": [
+        "A low-event-pace match can break the derivative leg even when the result leg survives."
+      ],
+      "forbidden_combinations": [
+        "Do not duplicate the same exposure with two equivalent result-family legs."
+      ],
+      "line_sensitivity": "HIGH",
+      "scenario_fit": "Same-event review group combines a line-free anchor with one operator-line-required derivative leg.",
+      "what_to_check_in_Superbet_if_user_chooses": [
+        "Confirm every leg exists under the same visible event.",
+        "Confirm the exact operator line for any derivative leg.",
+        "Read the visible Bet Builder combined odds from the Superbet screen only."
+      ],
+      "combined_odds_status": "OPERATOR_SCREEN_ONLY",
+      "combined_bookmaker_odds_computed": false,
+      "bettable": false,
+      "correlation_tags": [
+        "basketball_israel_vs_germany_2026_07_03t170000_0000",
+        "result",
+        "spread"
+      ],
+      "evidence_quality": "MEDIUM",
+      "confidence": "MEDIUM",
+      "optional_operator_quote_check_priority": "HIGH",
+      "tipster_context_status": "ATTEMPTED_NO_MATCHES",
+      "tipster_signal": null,
+      "public_side_or_hype_risk": "PUBLIC_SIDE_RISK_UNKNOWN_WITHOUT_FIXTURE_LEVEL_TIPSTER_MATCH",
+      "no_usable_tipster_signal_reason": "NO_MATCHED_FIXTURE_LEVEL_TIPSTER_OPINION_AFTER_BOUNDED_SOURCE_ATTEMPTS"
+    },
+    {
+      "concept_id": "concept_basketball_austria_vs_poland_2026_07_03t160000_0000",
+      "event_id": "basketball_austria_vs_poland_2026_07_03t160000_0000",
+      "sport": "basketball",
+      "competition": "International - FIBA World Cup, European Qualifiers, Group F",
+      "visible_event_name": "Austria vs Poland",
+      "concept_type": "BASKETBALL_SPREAD_TOTAL",
+      "legs": [
+        {
+          "candidate_id": "cand_072_basketball_austria_vs_poland_2026_07_03t160000_0000_result",
+          "market_family": "result",
+          "selection": "Austria",
+          "line": "NO_NUMERIC_LINE_REQUIRED",
+          "allowed_line_alternatives": [],
+          "line_free_market_type": "MONEYLINE",
+          "odds_status": "PARTIALLY_PRICED",
+          "pricing_tier": "PARTIALLY_PRICED_ANALYTICAL",
+          "evidence_summary": "Verified fixture identity and kickoff for Austria vs Poland.",
+          "counter_evidence_summary": "Independent lineup, injury, and referee feeds were not preserved in the upstream artifact set.; The Odds API provenance is auditable but still not event-specific raw bookmaker capture strength."
+        },
+        {
+          "candidate_id": "cand_073_basketball_austria_vs_poland_2026_07_03t160000_0000_spread",
+          "market_family": "spread",
+          "selection": "hdp",
+          "line": 1,
+          "allowed_line_alternatives": [
+            "Spread - hdp on the main operator line",
+            "Spread - hdp on an alternative operator line"
+          ],
+          "line_free_market_type": null,
+          "odds_status": "PARTIALLY_PRICED",
+          "pricing_tier": "PARTIALLY_PRICED_ANALYTICAL",
+          "evidence_summary": "Verified fixture identity and kickoff for Austria vs Poland.",
+          "counter_evidence_summary": "Independent lineup, injury, and referee feeds were not preserved in the upstream artifact set.; The Odds API provenance is auditable but still not event-specific raw bookmaker capture strength."
+        }
+      ],
+      "correlation_logic": "Manual builder review should confirm whether the favorite/dominance scenario still supports the derivative leg after line selection.",
+      "positive_correlation_notes": [
+        "Game-state dominance can support both a result-family leg and a pressure-volume derivative leg."
+      ],
+      "negative_correlation_notes": [
+        "A low-event-pace match can break the derivative leg even when the result leg survives."
+      ],
+      "forbidden_combinations": [
+        "Do not duplicate the same exposure with two equivalent result-family legs."
+      ],
+      "line_sensitivity": "HIGH",
+      "scenario_fit": "Same-event review group combines a line-free anchor with one operator-line-required derivative leg.",
+      "what_to_check_in_Superbet_if_user_chooses": [
+        "Confirm every leg exists under the same visible event.",
+        "Confirm the exact operator line for any derivative leg.",
+        "Read the visible Bet Builder combined odds from the Superbet screen only."
+      ],
+      "combined_odds_status": "OPERATOR_SCREEN_ONLY",
+      "combined_bookmaker_odds_computed": false,
+      "bettable": false,
+      "correlation_tags": [
+        "basketball_austria_vs_poland_2026_07_03t160000_0000",
+        "result",
+        "spread"
+      ],
+      "evidence_quality": "MEDIUM",
+      "confidence": "MEDIUM",
+      "optional_operator_quote_check_priority": "HIGH",
+      "tipster_context_status": "ATTEMPTED_NO_MATCHES",
+      "tipster_signal": null,
+      "public_side_or_hype_risk": "PUBLIC_SIDE_RISK_UNKNOWN_WITHOUT_FIXTURE_LEVEL_TIPSTER_MATCH",
+      "no_usable_tipster_signal_reason": "NO_MATCHED_FIXTURE_LEVEL_TIPSTER_OPINION_AFTER_BOUNDED_SOURCE_ATTEMPTS"
+    },
+    {
+      "concept_id": "concept_basketball_netherlands_vs_latvia_2026_07_03t173000_0000",
+      "event_id": "basketball_netherlands_vs_latvia_2026_07_03t173000_0000",
+      "sport": "basketball",
+      "competition": "International - FIBA World Cup, European Qualifiers, Group F",
+      "visible_event_name": "Netherlands vs Latvia",
+      "concept_type": "BASKETBALL_SPREAD_TOTAL",
+      "legs": [
+        {
+          "candidate_id": "cand_074_basketball_netherlands_vs_latvia_2026_07_03t173000_0000_result",
+          "market_family": "result",
+          "selection": "Netherlands",
+          "line": "NO_NUMERIC_LINE_REQUIRED",
+          "allowed_line_alternatives": [],
+          "line_free_market_type": "MONEYLINE",
+          "odds_status": "PARTIALLY_PRICED",
+          "pricing_tier": "PARTIALLY_PRICED_ANALYTICAL",
+          "evidence_summary": "Verified fixture identity and kickoff for Netherlands vs Latvia.",
+          "counter_evidence_summary": "Independent lineup, injury, and referee feeds were not preserved in the upstream artifact set.; The Odds API provenance is auditable but still not event-specific raw bookmaker capture strength."
+        },
+        {
+          "candidate_id": "cand_075_basketball_netherlands_vs_latvia_2026_07_03t173000_0000_spread",
+          "market_family": "spread",
+          "selection": "hdp",
+          "line": 1,
+          "allowed_line_alternatives": [
+            "Spread - hdp on the main operator line",
+            "Spread - hdp on an alternative operator line"
+          ],
+          "line_free_market_type": null,
+          "odds_status": "PARTIALLY_PRICED",
+          "pricing_tier": "PARTIALLY_PRICED_ANALYTICAL",
+          "evidence_summary": "Verified fixture identity and kickoff for Netherlands vs Latvia.",
+          "counter_evidence_summary": "Independent lineup, injury, and referee feeds were not preserved in the upstream artifact set.; The Odds API provenance is auditable but still not event-specific raw bookmaker capture strength."
+        }
+      ],
+      "correlation_logic": "Manual builder review should confirm whether the favorite/dominance scenario still supports the derivative leg after line selection.",
+      "positive_correlation_notes": [
+        "Game-state dominance can support both a result-family leg and a pressure-volume derivative leg."
+      ],
+      "negative_correlation_notes": [
+        "A low-event-pace match can break the derivative leg even when the result leg survives."
+      ],
+      "forbidden_combinations": [
+        "Do not duplicate the same exposure with two equivalent result-family legs."
+      ],
+      "line_sensitivity": "HIGH",
+      "scenario_fit": "Same-event review group combines a line-free anchor with one operator-line-required derivative leg.",
+      "what_to_check_in_Superbet_if_user_chooses": [
+        "Confirm every leg exists under the same visible event.",
+        "Confirm the exact operator line for any derivative leg.",
+        "Read the visible Bet Builder combined odds from the Superbet screen only."
+      ],
+      "combined_odds_status": "OPERATOR_SCREEN_ONLY",
+      "combined_bookmaker_odds_computed": false,
+      "bettable": false,
+      "correlation_tags": [
+        "basketball_netherlands_vs_latvia_2026_07_03t173000_0000",
+        "result",
+        "spread"
+      ],
+      "evidence_quality": "MEDIUM",
+      "confidence": "MEDIUM",
+      "optional_operator_quote_check_priority": "HIGH",
+      "tipster_context_status": "ATTEMPTED_NO_MATCHES",
+      "tipster_signal": null,
+      "public_side_or_hype_risk": "PUBLIC_SIDE_RISK_UNKNOWN_WITHOUT_FIXTURE_LEVEL_TIPSTER_MATCH",
+      "no_usable_tipster_signal_reason": "NO_MATCHED_FIXTURE_LEVEL_TIPSTER_OPINION_AFTER_BOUNDED_SOURCE_ATTEMPTS"
+    },
+    {
+      "concept_id": "concept_basketball_belgium_vs_france_2026_07_03t183000_0000",
+      "event_id": "basketball_belgium_vs_france_2026_07_03t183000_0000",
+      "sport": "basketball",
+      "competition": "International - FIBA World Cup, European Qualifiers, Group G",
+      "visible_event_name": "Belgium vs France",
+      "concept_type": "BASKETBALL_SPREAD_TOTAL",
+      "legs": [
+        {
+          "candidate_id": "cand_076_basketball_belgium_vs_france_2026_07_03t183000_0000_result",
+          "market_family": "result",
+          "selection": "Belgium",
+          "line": "NO_NUMERIC_LINE_REQUIRED",
+          "allowed_line_alternatives": [],
+          "line_free_market_type": "MONEYLINE",
+          "odds_status": "PARTIALLY_PRICED",
+          "pricing_tier": "PARTIALLY_PRICED_ANALYTICAL",
+          "evidence_summary": "Verified fixture identity and kickoff for Belgium vs France.",
+          "counter_evidence_summary": "Independent lineup, injury, and referee feeds were not preserved in the upstream artifact set.; The Odds API provenance is auditable but still not event-specific raw bookmaker capture strength."
+        },
+        {
+          "candidate_id": "cand_077_basketball_belgium_vs_france_2026_07_03t183000_0000_spread",
+          "market_family": "spread",
+          "selection": "hdp",
+          "line": 1,
+          "allowed_line_alternatives": [
+            "Spread - hdp on the main operator line",
+            "Spread - hdp on an alternative operator line"
+          ],
+          "line_free_market_type": null,
+          "odds_status": "PARTIALLY_PRICED",
+          "pricing_tier": "PARTIALLY_PRICED_ANALYTICAL",
+          "evidence_summary": "Verified fixture identity and kickoff for Belgium vs France.",
+          "counter_evidence_summary": "Independent lineup, injury, and referee feeds were not preserved in the upstream artifact set.; The Odds API provenance is auditable but still not event-specific raw bookmaker capture strength."
+        }
+      ],
+      "correlation_logic": "Manual builder review should confirm whether the favorite/dominance scenario still supports the derivative leg after line selection.",
+      "positive_correlation_notes": [
+        "Game-state dominance can support both a result-family leg and a pressure-volume derivative leg."
+      ],
+      "negative_correlation_notes": [
+        "A low-event-pace match can break the derivative leg even when the result leg survives."
+      ],
+      "forbidden_combinations": [
+        "Do not duplicate the same exposure with two equivalent result-family legs."
+      ],
+      "line_sensitivity": "HIGH",
+      "scenario_fit": "Same-event review group combines a line-free anchor with one operator-line-required derivative leg.",
+      "what_to_check_in_Superbet_if_user_chooses": [
+        "Confirm every leg exists under the same visible event.",
+        "Confirm the exact operator line for any derivative leg.",
+        "Read the visible Bet Builder combined odds from the Superbet screen only."
+      ],
+      "combined_odds_status": "OPERATOR_SCREEN_ONLY",
+      "combined_bookmaker_odds_computed": false,
+      "bettable": false,
+      "correlation_tags": [
+        "basketball_belgium_vs_france_2026_07_03t183000_0000",
+        "result",
+        "spread"
+      ],
+      "evidence_quality": "MEDIUM",
+      "confidence": "MEDIUM",
+      "optional_operator_quote_check_priority": "HIGH",
+      "tipster_context_status": "ATTEMPTED_NO_MATCHES",
+      "tipster_signal": null,
+      "public_side_or_hype_risk": "PUBLIC_SIDE_RISK_UNKNOWN_WITHOUT_FIXTURE_LEVEL_TIPSTER_MATCH",
+      "no_usable_tipster_signal_reason": "NO_MATCHED_FIXTURE_LEVEL_TIPSTER_OPINION_AFTER_BOUNDED_SOURCE_ATTEMPTS"
+    },
+    {
+      "concept_id": "concept_basketball_canterbury_rams_vs_manawatu_jets_2026_07_03t073000_0000",
+      "event_id": "basketball_canterbury_rams_vs_manawatu_jets_2026_07_03t073000_0000",
+      "sport": "basketball",
+      "competition": "New Zealand - NBL",
+      "visible_event_name": "Canterbury Rams vs Manawatu Jets",
+      "concept_type": "BASKETBALL_SPREAD_TOTAL",
+      "legs": [
+        {
+          "candidate_id": "cand_080_basketball_canterbury_rams_vs_manawatu_jets_2026_07_03t073000_0000_result",
+          "market_family": "result",
+          "selection": "Canterbury Rams",
+          "line": "NO_NUMERIC_LINE_REQUIRED",
+          "allowed_line_alternatives": [],
+          "line_free_market_type": "MONEYLINE",
+          "odds_status": "PARTIALLY_PRICED",
+          "pricing_tier": "PARTIALLY_PRICED_ANALYTICAL",
+          "evidence_summary": "Verified fixture identity and kickoff for Canterbury Rams vs Manawatu Jets.",
+          "counter_evidence_summary": "Independent lineup, injury, and referee feeds were not preserved in the upstream artifact set.; The Odds API provenance is auditable but still not event-specific raw bookmaker capture strength."
+        },
+        {
+          "candidate_id": "cand_081_basketball_canterbury_rams_vs_manawatu_jets_2026_07_03t073000_0000_spread",
+          "market_family": "spread",
+          "selection": "Canterbury Rams",
+          "line": 1,
+          "allowed_line_alternatives": [
+            "Spread - Canterbury Rams on the main operator line",
+            "Spread - Canterbury Rams on an alternative operator line"
+          ],
+          "line_free_market_type": null,
+          "odds_status": "PARTIALLY_PRICED",
+          "pricing_tier": "PARTIALLY_PRICED_ANALYTICAL",
+          "evidence_summary": "Verified fixture identity and kickoff for Canterbury Rams vs Manawatu Jets.",
+          "counter_evidence_summary": "Independent lineup, injury, and referee feeds were not preserved in the upstream artifact set.; The Odds API provenance is auditable but still not event-specific raw bookmaker capture strength."
+        }
+      ],
+      "correlation_logic": "Manual builder review should confirm whether the favorite/dominance scenario still supports the derivative leg after line selection.",
+      "positive_correlation_notes": [
+        "Game-state dominance can support both a result-family leg and a pressure-volume derivative leg."
+      ],
+      "negative_correlation_notes": [
+        "A low-event-pace match can break the derivative leg even when the result leg survives."
+      ],
+      "forbidden_combinations": [
+        "Do not duplicate the same exposure with two equivalent result-family legs."
+      ],
+      "line_sensitivity": "HIGH",
+      "scenario_fit": "Same-event review group combines a line-free anchor with one operator-line-required derivative leg.",
+      "what_to_check_in_Superbet_if_user_chooses": [
+        "Confirm every leg exists under the same visible event.",
+        "Confirm the exact operator line for any derivative leg.",
+        "Read the visible Bet Builder combined odds from the Superbet screen only."
+      ],
+      "combined_odds_status": "OPERATOR_SCREEN_ONLY",
+      "combined_bookmaker_odds_computed": false,
+      "bettable": false,
+      "correlation_tags": [
+        "basketball_canterbury_rams_vs_manawatu_jets_2026_07_03t073000_0000",
+        "result",
+        "spread"
+      ],
+      "evidence_quality": "MEDIUM",
+      "confidence": "MEDIUM",
+      "optional_operator_quote_check_priority": "HIGH",
+      "tipster_context_status": "ATTEMPTED_NO_MATCHES",
+      "tipster_signal": null,
+      "public_side_or_hype_risk": "PUBLIC_SIDE_RISK_UNKNOWN_WITHOUT_FIXTURE_LEVEL_TIPSTER_MATCH",
+      "no_usable_tipster_signal_reason": "NO_MATCHED_FIXTURE_LEVEL_TIPSTER_OPINION_AFTER_BOUNDED_SOURCE_ATTEMPTS"
+    },
+    {
+      "concept_id": "concept_basketball_korea_republic_vs_chinese_taipei_2026_07_03t103000_0000",
+      "event_id": "basketball_korea_republic_vs_chinese_taipei_2026_07_03t103000_0000",
+      "sport": "basketball",
+      "competition": "International - FIBA World Cup, Asian & Oceanian Qualifiers, Gr. B",
+      "visible_event_name": "Korea Republic vs Chinese Taipei",
+      "concept_type": "BASKETBALL_SPREAD_TOTAL",
+      "legs": [
+        {
+          "candidate_id": "cand_082_basketball_korea_republic_vs_chinese_taipei_2026_07_03t103000_0000_result",
+          "market_family": "result",
+          "selection": "Korea Republic",
+          "line": "NO_NUMERIC_LINE_REQUIRED",
+          "allowed_line_alternatives": [],
+          "line_free_market_type": "MONEYLINE",
+          "odds_status": "PARTIALLY_PRICED",
+          "pricing_tier": "PARTIALLY_PRICED_ANALYTICAL",
+          "evidence_summary": "Verified fixture identity and kickoff for Korea Republic vs Chinese Taipei.",
+          "counter_evidence_summary": "Independent lineup, injury, and referee feeds were not preserved in the upstream artifact set.; The Odds API provenance is auditable but still not event-specific raw bookmaker capture strength."
+        },
+        {
+          "candidate_id": "cand_083_basketball_korea_republic_vs_chinese_taipei_2026_07_03t103000_0000_spread",
+          "market_family": "spread",
+          "selection": "Korea Republic",
+          "line": 1,
+          "allowed_line_alternatives": [
+            "Spread - Korea Republic on the main operator line",
+            "Spread - Korea Republic on an alternative operator line"
+          ],
+          "line_free_market_type": null,
+          "odds_status": "PARTIALLY_PRICED",
+          "pricing_tier": "PARTIALLY_PRICED_ANALYTICAL",
+          "evidence_summary": "Verified fixture identity and kickoff for Korea Republic vs Chinese Taipei.",
+          "counter_evidence_summary": "Independent lineup, injury, and referee feeds were not preserved in the upstream artifact set.; The Odds API provenance is auditable but still not event-specific raw bookmaker capture strength."
+        }
+      ],
+      "correlation_logic": "Manual builder review should confirm whether the favorite/dominance scenario still supports the derivative leg after line selection.",
+      "positive_correlation_notes": [
+        "Game-state dominance can support both a result-family leg and a pressure-volume derivative leg."
+      ],
+      "negative_correlation_notes": [
+        "A low-event-pace match can break the derivative leg even when the result leg survives."
+      ],
+      "forbidden_combinations": [
+        "Do not duplicate the same exposure with two equivalent result-family legs."
+      ],
+      "line_sensitivity": "HIGH",
+      "scenario_fit": "Same-event review group combines a line-free anchor with one operator-line-required derivative leg.",
+      "what_to_check_in_Superbet_if_user_chooses": [
+        "Confirm every leg exists under the same visible event.",
+        "Confirm the exact operator line for any derivative leg.",
+        "Read the visible Bet Builder combined odds from the Superbet screen only."
+      ],
+      "combined_odds_status": "OPERATOR_SCREEN_ONLY",
+      "combined_bookmaker_odds_computed": false,
+      "bettable": false,
+      "correlation_tags": [
+        "basketball_korea_republic_vs_chinese_taipei_2026_07_03t103000_0000",
+        "result",
+        "spread"
+      ],
+      "evidence_quality": "MEDIUM",
+      "confidence": "MEDIUM",
+      "optional_operator_quote_check_priority": "HIGH",
+      "tipster_context_status": "ATTEMPTED_NO_MATCHES",
+      "tipster_signal": null,
+      "public_side_or_hype_risk": "PUBLIC_SIDE_RISK_UNKNOWN_WITHOUT_FIXTURE_LEVEL_TIPSTER_MATCH",
+      "no_usable_tipster_signal_reason": "NO_MATCHED_FIXTURE_LEVEL_TIPSTER_OPINION_AFTER_BOUNDED_SOURCE_ATTEMPTS"
+    },
+    {
+      "concept_id": "concept_basketball_china_vs_japan_2026_07_03t113000_0000",
+      "event_id": "basketball_china_vs_japan_2026_07_03t113000_0000",
+      "sport": "basketball",
+      "competition": "International - FIBA World Cup, Asian & Oceanian Qualifiers, Gr. B",
+      "visible_event_name": "China vs Japan",
+      "concept_type": "BASKETBALL_SPREAD_TOTAL",
+      "legs": [
+        {
+          "candidate_id": "cand_084_basketball_china_vs_japan_2026_07_03t113000_0000_result",
+          "market_family": "result",
+          "selection": "China",
+          "line": "NO_NUMERIC_LINE_REQUIRED",
+          "allowed_line_alternatives": [],
+          "line_free_market_type": "MONEYLINE",
+          "odds_status": "PARTIALLY_PRICED",
+          "pricing_tier": "PARTIALLY_PRICED_ANALYTICAL",
+          "evidence_summary": "Verified fixture identity and kickoff for China vs Japan.",
+          "counter_evidence_summary": "Independent lineup, injury, and referee feeds were not preserved in the upstream artifact set.; The Odds API provenance is auditable but still not event-specific raw bookmaker capture strength."
+        },
+        {
+          "candidate_id": "cand_085_basketball_china_vs_japan_2026_07_03t113000_0000_spread",
+          "market_family": "spread",
+          "selection": "China",
+          "line": 1,
+          "allowed_line_alternatives": [
+            "Spread - China on the main operator line",
+            "Spread - China on an alternative operator line"
+          ],
+          "line_free_market_type": null,
+          "odds_status": "PARTIALLY_PRICED",
+          "pricing_tier": "PARTIALLY_PRICED_ANALYTICAL",
+          "evidence_summary": "Verified fixture identity and kickoff for China vs Japan.",
+          "counter_evidence_summary": "Independent lineup, injury, and referee feeds were not preserved in the upstream artifact set.; The Odds API provenance is auditable but still not event-specific raw bookmaker capture strength."
+        }
+      ],
+      "correlation_logic": "Manual builder review should confirm whether the favorite/dominance scenario still supports the derivative leg after line selection.",
+      "positive_correlation_notes": [
+        "Game-state dominance can support both a result-family leg and a pressure-volume derivative leg."
+      ],
+      "negative_correlation_notes": [
+        "A low-event-pace match can break the derivative leg even when the result leg survives."
+      ],
+      "forbidden_combinations": [
+        "Do not duplicate the same exposure with two equivalent result-family legs."
+      ],
+      "line_sensitivity": "HIGH",
+      "scenario_fit": "Same-event review group combines a line-free anchor with one operator-line-required derivative leg.",
+      "what_to_check_in_Superbet_if_user_chooses": [
+        "Confirm every leg exists under the same visible event.",
+        "Confirm the exact operator line for any derivative leg.",
+        "Read the visible Bet Builder combined odds from the Superbet screen only."
+      ],
+      "combined_odds_status": "OPERATOR_SCREEN_ONLY",
+      "combined_bookmaker_odds_computed": false,
+      "bettable": false,
+      "correlation_tags": [
+        "basketball_china_vs_japan_2026_07_03t113000_0000",
+        "result",
+        "spread"
+      ],
+      "evidence_quality": "MEDIUM",
+      "confidence": "MEDIUM",
+      "optional_operator_quote_check_priority": "HIGH",
+      "tipster_context_status": "ATTEMPTED_NO_MATCHES",
+      "tipster_signal": null,
+      "public_side_or_hype_risk": "PUBLIC_SIDE_RISK_UNKNOWN_WITHOUT_FIXTURE_LEVEL_TIPSTER_MATCH",
+      "no_usable_tipster_signal_reason": "NO_MATCHED_FIXTURE_LEVEL_TIPSTER_OPINION_AFTER_BOUNDED_SOURCE_ATTEMPTS"
+    },
+    {
+      "concept_id": "concept_basketball_finland_vs_hungary_2026_07_03t153000_0000",
+      "event_id": "basketball_finland_vs_hungary_2026_07_03t153000_0000",
+      "sport": "basketball",
+      "competition": "International - FIBA World Cup, European Qualifiers, Group G",
+      "visible_event_name": "Finland vs Hungary",
+      "concept_type": "BASKETBALL_SPREAD_TOTAL",
+      "legs": [
+        {
+          "candidate_id": "cand_086_basketball_finland_vs_hungary_2026_07_03t153000_0000_result",
+          "market_family": "result",
+          "selection": "Finland",
+          "line": "NO_NUMERIC_LINE_REQUIRED",
+          "allowed_line_alternatives": [],
+          "line_free_market_type": "MONEYLINE",
+          "odds_status": "PARTIALLY_PRICED",
+          "pricing_tier": "PARTIALLY_PRICED_ANALYTICAL",
+          "evidence_summary": "Verified fixture identity and kickoff for Finland vs Hungary.",
+          "counter_evidence_summary": "Independent lineup, injury, and referee feeds were not preserved in the upstream artifact set.; The Odds API provenance is auditable but still not event-specific raw bookmaker capture strength."
+        },
+        {
+          "candidate_id": "cand_087_basketball_finland_vs_hungary_2026_07_03t153000_0000_spread",
+          "market_family": "spread",
+          "selection": "Finland",
+          "line": 1,
+          "allowed_line_alternatives": [
+            "Spread - Finland on the main operator line",
+            "Spread - Finland on an alternative operator line"
+          ],
+          "line_free_market_type": null,
+          "odds_status": "PARTIALLY_PRICED",
+          "pricing_tier": "PARTIALLY_PRICED_ANALYTICAL",
+          "evidence_summary": "Verified fixture identity and kickoff for Finland vs Hungary.",
+          "counter_evidence_summary": "Independent lineup, injury, and referee feeds were not preserved in the upstream artifact set.; The Odds API provenance is auditable but still not event-specific raw bookmaker capture strength."
+        }
+      ],
+      "correlation_logic": "Manual builder review should confirm whether the favorite/dominance scenario still supports the derivative leg after line selection.",
+      "positive_correlation_notes": [
+        "Game-state dominance can support both a result-family leg and a pressure-volume derivative leg."
+      ],
+      "negative_correlation_notes": [
+        "A low-event-pace match can break the derivative leg even when the result leg survives."
+      ],
+      "forbidden_combinations": [
+        "Do not duplicate the same exposure with two equivalent result-family legs."
+      ],
+      "line_sensitivity": "HIGH",
+      "scenario_fit": "Same-event review group combines a line-free anchor with one operator-line-required derivative leg.",
+      "what_to_check_in_Superbet_if_user_chooses": [
+        "Confirm every leg exists under the same visible event.",
+        "Confirm the exact operator line for any derivative leg.",
+        "Read the visible Bet Builder combined odds from the Superbet screen only."
+      ],
+      "combined_odds_status": "OPERATOR_SCREEN_ONLY",
+      "combined_bookmaker_odds_computed": false,
+      "bettable": false,
+      "correlation_tags": [
+        "basketball_finland_vs_hungary_2026_07_03t153000_0000",
+        "result",
+        "spread"
+      ],
+      "evidence_quality": "MEDIUM",
+      "confidence": "MEDIUM",
+      "optional_operator_quote_check_priority": "HIGH",
+      "tipster_context_status": "ATTEMPTED_NO_MATCHES",
+      "tipster_signal": null,
+      "public_side_or_hype_risk": "PUBLIC_SIDE_RISK_UNKNOWN_WITHOUT_FIXTURE_LEVEL_TIPSTER_MATCH",
+      "no_usable_tipster_signal_reason": "NO_MATCHED_FIXTURE_LEVEL_TIPSTER_OPINION_AFTER_BOUNDED_SOURCE_ATTEMPTS"
+    },
+    {
+      "concept_id": "concept_cs2_betboom_team_vs_team_nemesis_2026_07_03t130000_0000",
+      "event_id": "cs2_betboom_team_vs_team_nemesis_2026_07_03t130000_0000",
+      "sport": "cs2",
+      "competition": "XSE Pro League",
+      "visible_event_name": "BetBoom Team vs Team Nemesis",
+      "concept_type": "ESPORTS_MAPS",
+      "legs": [
+        {
+          "candidate_id": "cand_088_cs2_betboom_team_vs_team_nemesis_2026_07_03t130000_0000_result",
+          "market_family": "result",
+          "selection": "BetBoom Team",
+          "line": "NO_NUMERIC_LINE_REQUIRED",
+          "allowed_line_alternatives": [],
+          "line_free_market_type": "MATCH_WINNER",
+          "odds_status": "PARTIALLY_PRICED",
+          "pricing_tier": "PARTIALLY_PRICED_ANALYTICAL",
+          "evidence_summary": "Verified fixture identity and kickoff for BetBoom Team vs Team Nemesis.",
+          "counter_evidence_summary": "Independent lineup, injury, and referee feeds were not preserved in the upstream artifact set.; The Odds API provenance is auditable but still not event-specific raw bookmaker capture strength."
+        },
+        {
+          "candidate_id": "cand_089_cs2_betboom_team_vs_team_nemesis_2026_07_03t130000_0000_map_handicap",
+          "market_family": "map_handicap",
+          "selection": "hdp",
+          "line": 2,
+          "allowed_line_alternatives": [
+            "Map handicap - hdp on the main operator line",
+            "Map handicap - hdp on an alternative operator line"
+          ],
+          "line_free_market_type": null,
+          "odds_status": "PARTIALLY_PRICED",
+          "pricing_tier": "PARTIALLY_PRICED_ANALYTICAL",
+          "evidence_summary": "Verified fixture identity and kickoff for BetBoom Team vs Team Nemesis.",
+          "counter_evidence_summary": "Independent lineup, injury, and referee feeds were not preserved in the upstream artifact set.; The Odds API provenance is auditable but still not event-specific raw bookmaker capture strength."
+        }
+      ],
+      "correlation_logic": "Manual builder review should confirm whether the favorite/dominance scenario still supports the derivative leg after line selection.",
+      "positive_correlation_notes": [
+        "Game-state dominance can support both a result-family leg and a pressure-volume derivative leg."
+      ],
+      "negative_correlation_notes": [
+        "A low-event-pace match can break the derivative leg even when the result leg survives."
+      ],
+      "forbidden_combinations": [
+        "Do not duplicate the same exposure with two equivalent result-family legs."
+      ],
+      "line_sensitivity": "HIGH",
+      "scenario_fit": "Same-event review group combines a line-free anchor with one operator-line-required derivative leg.",
+      "what_to_check_in_Superbet_if_user_chooses": [
+        "Confirm every leg exists under the same visible event.",
+        "Confirm the exact operator line for any derivative leg.",
+        "Read the visible Bet Builder combined odds from the Superbet screen only."
+      ],
+      "combined_odds_status": "OPERATOR_SCREEN_ONLY",
+      "combined_bookmaker_odds_computed": false,
+      "bettable": false,
+      "correlation_tags": [
+        "cs2_betboom_team_vs_team_nemesis_2026_07_03t130000_0000",
+        "map_handicap",
+        "result"
+      ],
+      "evidence_quality": "MEDIUM",
+      "confidence": "MEDIUM",
+      "optional_operator_quote_check_priority": "HIGH",
+      "tipster_context_status": "ATTEMPTED_NO_MATCHES",
+      "tipster_signal": null,
+      "public_side_or_hype_risk": "PUBLIC_SIDE_RISK_UNKNOWN_WITHOUT_FIXTURE_LEVEL_TIPSTER_MATCH",
+      "no_usable_tipster_signal_reason": "NO_MATCHED_FIXTURE_LEVEL_TIPSTER_OPINION_AFTER_BOUNDED_SOURCE_ATTEMPTS"
+    },
+    {
+      "concept_id": "concept_cs2_faze_vs_sinners_2026_07_03t130000_0000",
+      "event_id": "cs2_faze_vs_sinners_2026_07_03t130000_0000",
+      "sport": "cs2",
+      "competition": "XSE Pro League",
+      "visible_event_name": "FaZe vs Sinners",
+      "concept_type": "ESPORTS_MAPS",
+      "legs": [
+        {
+          "candidate_id": "cand_090_cs2_faze_vs_sinners_2026_07_03t130000_0000_result",
+          "market_family": "result",
+          "selection": "FaZe",
+          "line": "NO_NUMERIC_LINE_REQUIRED",
+          "allowed_line_alternatives": [],
+          "line_free_market_type": "MATCH_WINNER",
+          "odds_status": "PARTIALLY_PRICED",
+          "pricing_tier": "PARTIALLY_PRICED_ANALYTICAL",
+          "evidence_summary": "Verified fixture identity and kickoff for FaZe vs Sinners.",
+          "counter_evidence_summary": "Independent lineup, injury, and referee feeds were not preserved in the upstream artifact set.; The Odds API provenance is auditable but still not event-specific raw bookmaker capture strength."
+        },
+        {
+          "candidate_id": "cand_091_cs2_faze_vs_sinners_2026_07_03t130000_0000_map_handicap",
+          "market_family": "map_handicap",
+          "selection": "FaZe",
+          "line": 1,
+          "allowed_line_alternatives": [
+            "Map handicap - FaZe on the main operator line",
+            "Map handicap - FaZe on an alternative operator line"
+          ],
+          "line_free_market_type": null,
+          "odds_status": "PARTIALLY_PRICED",
+          "pricing_tier": "PARTIALLY_PRICED_ANALYTICAL",
+          "evidence_summary": "Verified fixture identity and kickoff for FaZe vs Sinners.",
+          "counter_evidence_summary": "Independent lineup, injury, and referee feeds were not preserved in the upstream artifact set.; The Odds API provenance is auditable but still not event-specific raw bookmaker capture strength."
+        }
+      ],
+      "correlation_logic": "Manual builder review should confirm whether the favorite/dominance scenario still supports the derivative leg after line selection.",
+      "positive_correlation_notes": [
+        "Game-state dominance can support both a result-family leg and a pressure-volume derivative leg."
+      ],
+      "negative_correlation_notes": [
+        "A low-event-pace match can break the derivative leg even when the result leg survives."
+      ],
+      "forbidden_combinations": [
+        "Do not duplicate the same exposure with two equivalent result-family legs."
+      ],
+      "line_sensitivity": "HIGH",
+      "scenario_fit": "Same-event review group combines a line-free anchor with one operator-line-required derivative leg.",
+      "what_to_check_in_Superbet_if_user_chooses": [
+        "Confirm every leg exists under the same visible event.",
+        "Confirm the exact operator line for any derivative leg.",
+        "Read the visible Bet Builder combined odds from the Superbet screen only."
+      ],
+      "combined_odds_status": "OPERATOR_SCREEN_ONLY",
+      "combined_bookmaker_odds_computed": false,
+      "bettable": false,
+      "correlation_tags": [
+        "cs2_faze_vs_sinners_2026_07_03t130000_0000",
+        "map_handicap",
+        "result"
+      ],
+      "evidence_quality": "MEDIUM",
+      "confidence": "MEDIUM",
+      "optional_operator_quote_check_priority": "HIGH",
+      "tipster_context_status": "ATTEMPTED_NO_MATCHES",
+      "tipster_signal": null,
+      "public_side_or_hype_risk": "PUBLIC_SIDE_RISK_UNKNOWN_WITHOUT_FIXTURE_LEVEL_TIPSTER_MATCH",
+      "no_usable_tipster_signal_reason": "NO_MATCHED_FIXTURE_LEVEL_TIPSTER_OPINION_AFTER_BOUNDED_SOURCE_ATTEMPTS"
+    },
+    {
+      "concept_id": "concept_valorant_g2_esports_vs_nongshim_redforce_2026_07_03t134500_0000",
+      "event_id": "valorant_g2_esports_vs_nongshim_redforce_2026_07_03t134500_0000",
+      "sport": "valorant",
+      "competition": "Esports World Cup",
+      "visible_event_name": "G2 Esports vs Nongshim RedForce",
+      "concept_type": "ESPORTS_MAPS",
+      "legs": [
+        {
+          "candidate_id": "cand_092_valorant_g2_esports_vs_nongshim_redforce_2026_07_03t134500_0000_result",
+          "market_family": "result",
+          "selection": "G2 Esports",
+          "line": "NO_NUMERIC_LINE_REQUIRED",
+          "allowed_line_alternatives": [],
+          "line_free_market_type": "MATCH_WINNER",
+          "odds_status": "PARTIALLY_PRICED",
+          "pricing_tier": "PARTIALLY_PRICED_ANALYTICAL",
+          "evidence_summary": "Verified fixture identity and kickoff for G2 Esports vs Nongshim RedForce.",
+          "counter_evidence_summary": "Independent lineup, injury, and referee feeds were not preserved in the upstream artifact set.; The Odds API provenance is auditable but still not event-specific raw bookmaker capture strength."
+        },
+        {
+          "candidate_id": "cand_093_valorant_g2_esports_vs_nongshim_redforce_2026_07_03t134500_0000_map_handicap",
+          "market_family": "map_handicap",
+          "selection": "hdp",
+          "line": 2,
+          "allowed_line_alternatives": [
+            "Map handicap - hdp on the main operator line",
+            "Map handicap - hdp on an alternative operator line"
+          ],
+          "line_free_market_type": null,
+          "odds_status": "PARTIALLY_PRICED",
+          "pricing_tier": "PARTIALLY_PRICED_ANALYTICAL",
+          "evidence_summary": "Verified fixture identity and kickoff for G2 Esports vs Nongshim RedForce.",
+          "counter_evidence_summary": "Independent lineup, injury, and referee feeds were not preserved in the upstream artifact set.; The Odds API provenance is auditable but still not event-specific raw bookmaker capture strength."
+        }
+      ],
+      "correlation_logic": "Manual builder review should confirm whether the favorite/dominance scenario still supports the derivative leg after line selection.",
+      "positive_correlation_notes": [
+        "Game-state dominance can support both a result-family leg and a pressure-volume derivative leg."
+      ],
+      "negative_correlation_notes": [
+        "A low-event-pace match can break the derivative leg even when the result leg survives."
+      ],
+      "forbidden_combinations": [
+        "Do not duplicate the same exposure with two equivalent result-family legs."
+      ],
+      "line_sensitivity": "HIGH",
+      "scenario_fit": "Same-event review group combines a line-free anchor with one operator-line-required derivative leg.",
+      "what_to_check_in_Superbet_if_user_chooses": [
+        "Confirm every leg exists under the same visible event.",
+        "Confirm the exact operator line for any derivative leg.",
+        "Read the visible Bet Builder combined odds from the Superbet screen only."
+      ],
+      "combined_odds_status": "OPERATOR_SCREEN_ONLY",
+      "combined_bookmaker_odds_computed": false,
+      "bettable": false,
+      "correlation_tags": [
+        "map_handicap",
+        "result",
+        "valorant_g2_esports_vs_nongshim_redforce_2026_07_03t134500_0000"
+      ],
+      "evidence_quality": "MEDIUM",
+      "confidence": "MEDIUM",
+      "optional_operator_quote_check_priority": "HIGH",
+      "tipster_context_status": "ATTEMPTED_NO_MATCHES",
+      "tipster_signal": null,
+      "public_side_or_hype_risk": "PUBLIC_SIDE_RISK_UNKNOWN_WITHOUT_FIXTURE_LEVEL_TIPSTER_MATCH",
+      "no_usable_tipster_signal_reason": "NO_MATCHED_FIXTURE_LEVEL_TIPSTER_OPINION_AFTER_BOUNDED_SOURCE_ATTEMPTS"
+    },
+    {
+      "concept_id": "concept_valorant_mibr_los_vs_global_esports_2026_07_03t110000_0000",
+      "event_id": "valorant_mibr_los_vs_global_esports_2026_07_03t110000_0000",
+      "sport": "valorant",
+      "competition": "Esports World Cup",
+      "visible_event_name": "MIBR LOS vs Global Esports",
+      "concept_type": "ESPORTS_MAPS",
+      "legs": [
+        {
+          "candidate_id": "cand_094_valorant_mibr_los_vs_global_esports_2026_07_03t110000_0000_result",
+          "market_family": "result",
+          "selection": "MIBR LOS",
+          "line": "NO_NUMERIC_LINE_REQUIRED",
+          "allowed_line_alternatives": [],
+          "line_free_market_type": "MATCH_WINNER",
+          "odds_status": "PARTIALLY_PRICED",
+          "pricing_tier": "PARTIALLY_PRICED_ANALYTICAL",
+          "evidence_summary": "Verified fixture identity and kickoff for MIBR LOS vs Global Esports.",
+          "counter_evidence_summary": "Independent lineup, injury, and referee feeds were not preserved in the upstream artifact set.; The Odds API provenance is auditable but still not event-specific raw bookmaker capture strength."
+        },
+        {
+          "candidate_id": "cand_095_valorant_mibr_los_vs_global_esports_2026_07_03t110000_0000_map_handicap",
+          "market_family": "map_handicap",
+          "selection": "MIBR LOS",
+          "line": 1,
+          "allowed_line_alternatives": [
+            "Map handicap - MIBR LOS on the main operator line",
+            "Map handicap - MIBR LOS on an alternative operator line"
+          ],
+          "line_free_market_type": null,
+          "odds_status": "PARTIALLY_PRICED",
+          "pricing_tier": "PARTIALLY_PRICED_ANALYTICAL",
+          "evidence_summary": "Verified fixture identity and kickoff for MIBR LOS vs Global Esports.",
+          "counter_evidence_summary": "Independent lineup, injury, and referee feeds were not preserved in the upstream artifact set.; The Odds API provenance is auditable but still not event-specific raw bookmaker capture strength."
+        }
+      ],
+      "correlation_logic": "Manual builder review should confirm whether the favorite/dominance scenario still supports the derivative leg after line selection.",
+      "positive_correlation_notes": [
+        "Game-state dominance can support both a result-family leg and a pressure-volume derivative leg."
+      ],
+      "negative_correlation_notes": [
+        "A low-event-pace match can break the derivative leg even when the result leg survives."
+      ],
+      "forbidden_combinations": [
+        "Do not duplicate the same exposure with two equivalent result-family legs."
+      ],
+      "line_sensitivity": "HIGH",
+      "scenario_fit": "Same-event review group combines a line-free anchor with one operator-line-required derivative leg.",
+      "what_to_check_in_Superbet_if_user_chooses": [
+        "Confirm every leg exists under the same visible event.",
+        "Confirm the exact operator line for any derivative leg.",
+        "Read the visible Bet Builder combined odds from the Superbet screen only."
+      ],
+      "combined_odds_status": "OPERATOR_SCREEN_ONLY",
+      "combined_bookmaker_odds_computed": false,
+      "bettable": false,
+      "correlation_tags": [
+        "map_handicap",
+        "result",
+        "valorant_mibr_los_vs_global_esports_2026_07_03t110000_0000"
+      ],
+      "evidence_quality": "MEDIUM",
+      "confidence": "MEDIUM",
+      "optional_operator_quote_check_priority": "HIGH",
+      "tipster_context_status": "ATTEMPTED_NO_MATCHES",
+      "tipster_signal": null,
+      "public_side_or_hype_risk": "PUBLIC_SIDE_RISK_UNKNOWN_WITHOUT_FIXTURE_LEVEL_TIPSTER_MATCH",
+      "no_usable_tipster_signal_reason": "NO_MATCHED_FIXTURE_LEVEL_TIPSTER_OPINION_AFTER_BOUNDED_SOURCE_ATTEMPTS"
+    },
+    {
+      "concept_id": "concept_valorant_team_heretics_vs_ag_al_international_2026_07_03t110000_0000",
+      "event_id": "valorant_team_heretics_vs_ag_al_international_2026_07_03t110000_0000",
+      "sport": "valorant",
+      "competition": "Esports World Cup",
+      "visible_event_name": "Team Heretics vs AG.AL International",
+      "concept_type": "ESPORTS_MAPS",
+      "legs": [
+        {
+          "candidate_id": "cand_096_valorant_team_heretics_vs_ag_al_international_2026_07_03t110000_0000_result",
+          "market_family": "result",
+          "selection": "Team Heretics",
+          "line": "NO_NUMERIC_LINE_REQUIRED",
+          "allowed_line_alternatives": [],
+          "line_free_market_type": "MATCH_WINNER",
+          "odds_status": "PARTIALLY_PRICED",
+          "pricing_tier": "PARTIALLY_PRICED_ANALYTICAL",
+          "evidence_summary": "Verified fixture identity and kickoff for Team Heretics vs AG.AL International.",
+          "counter_evidence_summary": "Independent lineup, injury, and referee feeds were not preserved in the upstream artifact set.; The Odds API provenance is auditable but still not event-specific raw bookmaker capture strength."
+        },
+        {
+          "candidate_id": "cand_097_valorant_team_heretics_vs_ag_al_international_2026_07_03t110000_0000_map_handicap",
+          "market_family": "map_handicap",
+          "selection": "Team Heretics",
+          "line": 2,
+          "allowed_line_alternatives": [
+            "Map handicap - Team Heretics on the main operator line",
+            "Map handicap - Team Heretics on an alternative operator line"
+          ],
+          "line_free_market_type": null,
+          "odds_status": "PARTIALLY_PRICED",
+          "pricing_tier": "PARTIALLY_PRICED_ANALYTICAL",
+          "evidence_summary": "Verified fixture identity and kickoff for Team Heretics vs AG.AL International.",
+          "counter_evidence_summary": "Independent lineup, injury, and referee feeds were not preserved in the upstream artifact set.; The Odds API provenance is auditable but still not event-specific raw bookmaker capture strength."
+        }
+      ],
+      "correlation_logic": "Manual builder review should confirm whether the favorite/dominance scenario still supports the derivative leg after line selection.",
+      "positive_correlation_notes": [
+        "Game-state dominance can support both a result-family leg and a pressure-volume derivative leg."
+      ],
+      "negative_correlation_notes": [
+        "A low-event-pace match can break the derivative leg even when the result leg survives."
+      ],
+      "forbidden_combinations": [
+        "Do not duplicate the same exposure with two equivalent result-family legs."
+      ],
+      "line_sensitivity": "HIGH",
+      "scenario_fit": "Same-event review group combines a line-free anchor with one operator-line-required derivative leg.",
+      "what_to_check_in_Superbet_if_user_chooses": [
+        "Confirm every leg exists under the same visible event.",
+        "Confirm the exact operator line for any derivative leg.",
+        "Read the visible Bet Builder combined odds from the Superbet screen only."
+      ],
+      "combined_odds_status": "OPERATOR_SCREEN_ONLY",
+      "combined_bookmaker_odds_computed": false,
+      "bettable": false,
+      "correlation_tags": [
+        "map_handicap",
+        "result",
+        "valorant_team_heretics_vs_ag_al_international_2026_07_03t110000_0000"
+      ],
+      "evidence_quality": "MEDIUM",
+      "confidence": "MEDIUM",
+      "optional_operator_quote_check_priority": "HIGH",
+      "tipster_context_status": "ATTEMPTED_NO_MATCHES",
+      "tipster_signal": null,
+      "public_side_or_hype_risk": "PUBLIC_SIDE_RISK_UNKNOWN_WITHOUT_FIXTURE_LEVEL_TIPSTER_MATCH",
+      "no_usable_tipster_signal_reason": "NO_MATCHED_FIXTURE_LEVEL_TIPSTER_OPINION_AFTER_BOUNDED_SOURCE_ATTEMPTS"
+    },
+    {
+      "concept_id": "concept_cs2_parivision_vs_lynn_vision_2026_07_03t080000_0000",
+      "event_id": "cs2_parivision_vs_lynn_vision_2026_07_03t080000_0000",
+      "sport": "cs2",
+      "competition": "XSE Pro League",
+      "visible_event_name": "PARIVISION vs Lynn Vision",
+      "concept_type": "ESPORTS_MAPS",
+      "legs": [
+        {
+          "candidate_id": "cand_101_cs2_parivision_vs_lynn_vision_2026_07_03t080000_0000_result",
+          "market_family": "result",
+          "selection": "PARIVISION",
+          "line": "NO_NUMERIC_LINE_REQUIRED",
+          "allowed_line_alternatives": [],
+          "line_free_market_type": "MATCH_WINNER",
+          "odds_status": "PARTIALLY_PRICED",
+          "pricing_tier": "PARTIALLY_PRICED_ANALYTICAL",
+          "evidence_summary": "Verified fixture identity and kickoff for PARIVISION vs Lynn Vision.",
+          "counter_evidence_summary": "Independent lineup, injury, and referee feeds were not preserved in the upstream artifact set.; The Odds API provenance is auditable but still not event-specific raw bookmaker capture strength."
+        },
+        {
+          "candidate_id": "cand_102_cs2_parivision_vs_lynn_vision_2026_07_03t080000_0000_map_handicap",
+          "market_family": "map_handicap",
+          "selection": "PARIVISION",
+          "line": 1,
+          "allowed_line_alternatives": [
+            "Map handicap - PARIVISION on the main operator line",
+            "Map handicap - PARIVISION on an alternative operator line"
+          ],
+          "line_free_market_type": null,
+          "odds_status": "PARTIALLY_PRICED",
+          "pricing_tier": "PARTIALLY_PRICED_ANALYTICAL",
+          "evidence_summary": "Verified fixture identity and kickoff for PARIVISION vs Lynn Vision.",
+          "counter_evidence_summary": "Independent lineup, injury, and referee feeds were not preserved in the upstream artifact set.; The Odds API provenance is auditable but still not event-specific raw bookmaker capture strength."
+        }
+      ],
+      "correlation_logic": "Manual builder review should confirm whether the favorite/dominance scenario still supports the derivative leg after line selection.",
+      "positive_correlation_notes": [
+        "Game-state dominance can support both a result-family leg and a pressure-volume derivative leg."
+      ],
+      "negative_correlation_notes": [
+        "A low-event-pace match can break the derivative leg even when the result leg survives."
+      ],
+      "forbidden_combinations": [
+        "Do not duplicate the same exposure with two equivalent result-family legs."
+      ],
+      "line_sensitivity": "HIGH",
+      "scenario_fit": "Same-event review group combines a line-free anchor with one operator-line-required derivative leg.",
+      "what_to_check_in_Superbet_if_user_chooses": [
+        "Confirm every leg exists under the same visible event.",
+        "Confirm the exact operator line for any derivative leg.",
+        "Read the visible Bet Builder combined odds from the Superbet screen only."
+      ],
+      "combined_odds_status": "OPERATOR_SCREEN_ONLY",
+      "combined_bookmaker_odds_computed": false,
+      "bettable": false,
+      "correlation_tags": [
+        "cs2_parivision_vs_lynn_vision_2026_07_03t080000_0000",
+        "map_handicap",
+        "result"
+      ],
+      "evidence_quality": "MEDIUM",
+      "confidence": "MEDIUM",
+      "optional_operator_quote_check_priority": "HIGH",
+      "tipster_context_status": "ATTEMPTED_NO_MATCHES",
+      "tipster_signal": null,
+      "public_side_or_hype_risk": "PUBLIC_SIDE_RISK_UNKNOWN_WITHOUT_FIXTURE_LEVEL_TIPSTER_MATCH",
+      "no_usable_tipster_signal_reason": "NO_MATCHED_FIXTURE_LEVEL_TIPSTER_OPINION_AFTER_BOUNDED_SOURCE_ATTEMPTS"
+    },
+    {
+      "concept_id": "concept_cs2_big_vs_mibr_2026_07_03t080000_0000",
+      "event_id": "cs2_big_vs_mibr_2026_07_03t080000_0000",
+      "sport": "cs2",
+      "competition": "XSE Pro League",
+      "visible_event_name": "BIG vs MIBR",
+      "concept_type": "ESPORTS_MAPS",
+      "legs": [
+        {
+          "candidate_id": "cand_103_cs2_big_vs_mibr_2026_07_03t080000_0000_result",
+          "market_family": "result",
+          "selection": "BIG",
+          "line": "NO_NUMERIC_LINE_REQUIRED",
+          "allowed_line_alternatives": [],
+          "line_free_market_type": "MATCH_WINNER",
+          "odds_status": "PARTIALLY_PRICED",
+          "pricing_tier": "PARTIALLY_PRICED_ANALYTICAL",
+          "evidence_summary": "Verified fixture identity and kickoff for BIG vs MIBR.",
+          "counter_evidence_summary": "Independent lineup, injury, and referee feeds were not preserved in the upstream artifact set.; The Odds API provenance is auditable but still not event-specific raw bookmaker capture strength."
+        },
+        {
+          "candidate_id": "cand_104_cs2_big_vs_mibr_2026_07_03t080000_0000_map_handicap",
+          "market_family": "map_handicap",
+          "selection": "hdp",
+          "line": 1,
+          "allowed_line_alternatives": [
+            "Map handicap - hdp on the main operator line",
+            "Map handicap - hdp on an alternative operator line"
+          ],
+          "line_free_market_type": null,
+          "odds_status": "PARTIALLY_PRICED",
+          "pricing_tier": "PARTIALLY_PRICED_ANALYTICAL",
+          "evidence_summary": "Verified fixture identity and kickoff for BIG vs MIBR.",
+          "counter_evidence_summary": "Independent lineup, injury, and referee feeds were not preserved in the upstream artifact set.; The Odds API provenance is auditable but still not event-specific raw bookmaker capture strength."
+        }
+      ],
+      "correlation_logic": "Manual builder review should confirm whether the favorite/dominance scenario still supports the derivative leg after line selection.",
+      "positive_correlation_notes": [
+        "Game-state dominance can support both a result-family leg and a pressure-volume derivative leg."
+      ],
+      "negative_correlation_notes": [
+        "A low-event-pace match can break the derivative leg even when the result leg survives."
+      ],
+      "forbidden_combinations": [
+        "Do not duplicate the same exposure with two equivalent result-family legs."
+      ],
+      "line_sensitivity": "HIGH",
+      "scenario_fit": "Same-event review group combines a line-free anchor with one operator-line-required derivative leg.",
+      "what_to_check_in_Superbet_if_user_chooses": [
+        "Confirm every leg exists under the same visible event.",
+        "Confirm the exact operator line for any derivative leg.",
+        "Read the visible Bet Builder combined odds from the Superbet screen only."
+      ],
+      "combined_odds_status": "OPERATOR_SCREEN_ONLY",
+      "combined_bookmaker_odds_computed": false,
+      "bettable": false,
+      "correlation_tags": [
+        "cs2_big_vs_mibr_2026_07_03t080000_0000",
+        "map_handicap",
+        "result"
+      ],
+      "evidence_quality": "MEDIUM",
+      "confidence": "MEDIUM",
+      "optional_operator_quote_check_priority": "HIGH",
+      "tipster_context_status": "ATTEMPTED_NO_MATCHES",
+      "tipster_signal": null,
+      "public_side_or_hype_risk": "PUBLIC_SIDE_RISK_UNKNOWN_WITHOUT_FIXTURE_LEVEL_TIPSTER_MATCH",
+      "no_usable_tipster_signal_reason": "NO_MATCHED_FIXTURE_LEVEL_TIPSTER_OPINION_AFTER_BOUNDED_SOURCE_ATTEMPTS"
+    }
+  ]
+}

@@ -1,0 +1,62 @@
+# 16F Final Evidence Export Manifest
+
+```json
+{
+  "run_id": "FULL_DAY_SESSION_20260703_SUPERBET_ANALYSIS_FIRST_V18_1",
+  "current_run_id": "FULL_DAY_SESSION_20260703_SUPERBET_ANALYSIS_FIRST_V18_1",
+  "source_run_id": "FULL_DAY_SESSION_20260703_SUPERBET_PRODUCTION_V17_1",
+  "input_run_id": "FULL_DAY_SESSION_20260703_SUPERBET_PRODUCTION_V17_1",
+  "generated_at": "2026-07-03T21:26:48.849397+00:00",
+  "TEST_FILES_RUN": [
+    "tests/test_odds_optional_analysis_contract.py",
+    "tests/test_unpriced_candidates_not_rejected.py",
+    "tests/test_pricing_tier_classification.py",
+    "tests/test_bet_builder_concepts_operator_screen_only.py",
+    "tests/test_analysis_first_board_sections.py",
+    "tests/test_optional_quote_shortlist_not_required.py",
+    "tests/test_analysis_portfolio_not_bettable.py",
+    "tests/test_manual_quote_required_only_for_bettable.py",
+    "tests/test_tipster_context_analysis_only.py",
+    "tests/test_v17_to_v18_analysis_first_regression.py",
+    "tests/test_final_artifact_cross_consistency.py",
+    "tests/test_builder_group_schema_quality.py",
+    "tests/test_final_report_blocker_scoping.py",
+    "tests/test_coupon_draft_multisport_diversification.py",
+    "tests/test_artifact_hygiene_no_nested_absolute_paths.py",
+    "tests/test_market_matrix_run_lineage.py",
+    "tests/test_test_manifest_integrity.py"
+  ],
+  "COMPILEALL_PASSED": true,
+  "TESTS_PASSED": true,
+  "artifacts": [
+    "00_preflight.json",
+    "00_preflight.md",
+    "00_dirty_scope_audit.json",
+    "00_dirty_scope_audit.md",
+    "05D_market_availability_matrix.json",
+    "07_analytical_candidates.json",
+    "07_analytical_candidates.md",
+    "08_same_game_builder_idea_groups.json",
+    "09_manual_superbet_quote_cards.json",
+    "10_final_session_report.json",
+    "10_final_session_report.md",
+    "12_analysis_portfolio_drafts.json",
+    "12_analysis_portfolio_drafts.md",
+    "13_daily_session_certification.json",
+    "13_daily_session_certification.md",
+    "16E_wimbledon_singles_classification_audit.json",
+    "18A_analysis_first_architecture_audit.json",
+    "18A_analysis_first_architecture_audit.md",
+    "18B_analysis_first_candidate_board.json",
+    "18B_analysis_first_candidate_board.md",
+    "18B_analysis_first_candidate_board.csv",
+    "18C_superbet_bet_builder_concepts.json",
+    "18C_superbet_bet_builder_concepts.md",
+    "18D_optional_superbet_quote_check_shortlist.json",
+    "18D_optional_superbet_quote_check_shortlist.md",
+    "18D_optional_superbet_quote_check_shortlist.csv",
+    "18E_tipster_analysis_context.json",
+    "18E_tipster_analysis_context.md"
+  ]
+}
+```
