@@ -1,16 +1,16 @@
 # 20B Dirty Scope Audit
 
 - dirty_path_count: `2806`
-- include_path_count: `73`
+- include_path_count: `74`
 - manual_review_count: `0`
 - class_counts:
   - `EXCLUDE_ABSOLUTE_PATH_DUPLICATE`: 56
   - `EXCLUDE_GENERATED_NOISE`: 13
   - `EXCLUDE_LOCAL_CACHE`: 13
-  - `INCLUDE_CODE`: 10
+  - `INCLUDE_CODE`: 11
   - `INCLUDE_RUN_ARTIFACT`: 30
   - `INCLUDE_TEST`: 33
-  - `PRE_EXISTING_UNRELATED`: 2651
+  - `PRE_EXISTING_UNRELATED`: 2650
 
 ## Included Paths
 
@@ -50,6 +50,7 @@
 - `src/bet/pipeline/coupon_draft_diversification.py`
 - `src/bet/pipeline/final_artifact_consistency.py`
 - `src/bet/pipeline/market_evidence_sufficiency.py`
+- `src/bet/pipeline/market_family_quality.py`
 - `src/bet/pipeline/multisport_market_promotion.py`
 - `src/bet/pipeline/odds_optional_analysis_contracts.py`
 - `src/bet/pipeline/sport_promotion_obligations.py`
