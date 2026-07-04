@@ -226,7 +226,7 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--date", required=True, help="Run date in YYYY-MM-DD; used for artifact naming only")
     parser.add_argument("--terms-reviewed-json", required=True, type=Path, help="Local JSON file documenting robots/terms/public-only review per source")
-    parser.add_argument("--source", action="append", choices=CORE_SOURCE_IDS, help="Core source id to live dry-run. Repeatable. Defaults to forebet+predictz only.")
+    parser.add_argument("--source", action="append", choices=list(SOURCES.keys()), help="Source id to live dry-run. Repeatable. Defaults to forebet+predictz only.")
     parser.add_argument("--max-pages-per-source", type=int, default=1, help="Hard cap including entrypoint and discovered detail pages")
     parser.add_argument("--timeout-seconds", type=float, default=12.0)
     parser.add_argument("--max-bytes", type=int, default=2_000_000)

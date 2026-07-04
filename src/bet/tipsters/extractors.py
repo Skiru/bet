@@ -16,6 +16,7 @@ from .html_tools import extract_json_ld_event_names, html_to_text, joined_contex
 from .market_parser import direction, extract_market_text, extract_odds, market_family, parse_line, stats_cited
 from .normalization import clean_team_name, collapse_ws, is_garbage_team
 from .source_registry import SOURCES
+from .zawodtyper import extract_zawodtyper
 
 PARSER_VERSION = "tipster_parser_v2.3_final_source_specific"
 
@@ -457,6 +458,8 @@ def discover_public_detail_links(doc: RawDocument, source_id: str) -> list[str]:
 
 
 def dispatch_extract(doc: RawDocument, source_id: str) -> ExtractionResult:
+    if source_id == "zawodtyper":
+        return extract_zawodtyper(doc)
     if source_id == "sportsgambler":
         return extract_sportsgambler(doc)
     if source_id == "forebet":
