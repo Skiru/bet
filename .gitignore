@@ -33,6 +33,9 @@ settle_log.txt
 .kilo/logs/
 var/local-llm/
 
+# Local operator-only tipster review attestation
+docs/pipeline/tipster_terms_review.local.json
+
 # Local LLM PID files (legacy location)
 /tmp/rapid-mlx.pid
 /tmp/rapid-mlx.log
