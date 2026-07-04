@@ -1,0 +1,66 @@
+{
+  "schema_version": "tipster_source_terms_review_v1",
+  "purpose": "Local operator attestation required before any live dry-run. Placeholder reviewed_by/reviewed_at_utc values are invalid and must fail closed. This is not legal advice; keep source-specific notes in repo artifacts.",
+  "source_reviews": {
+    "forebet": {
+      "status": "allow_live_dry_run",
+      "terms_reviewed": true,
+      "robots_reviewed": true,
+      "public_html_only": true,
+      "no_auth_no_premium_no_bypass": true,
+      "reviewed_by": "REPLACE_WITH_OPERATOR",
+      "reviewed_at_utc": "REPLACE_WITH_UTC_TIMESTAMP",
+      "notes": "Review public entrypoint only before enabling. Do not follow login/commercial/API/private endpoints. Respect robots and rate limits."
+    },
+    "predictz": {
+      "status": "allow_live_dry_run",
+      "terms_reviewed": true,
+      "robots_reviewed": true,
+      "public_html_only": true,
+      "no_auth_no_premium_no_bypass": true,
+      "reviewed_by": "REPLACE_WITH_OPERATOR",
+      "reviewed_at_utc": "REPLACE_WITH_UTC_TIMESTAMP",
+      "notes": "Review public predictions entrypoint only before enabling. Odds are reference-only."
+    },
+    "sportsgambler": {
+      "status": "manual_review_required",
+      "terms_reviewed": false,
+      "robots_reviewed": false,
+      "public_html_only": true,
+      "no_auth_no_premium_no_bypass": true,
+      "reviewed_by": "",
+      "reviewed_at_utc": "",
+      "notes": "Enable only after source-specific review and fixture snapshots."
+    },
+    "windrawwin": {
+      "status": "manual_review_required",
+      "terms_reviewed": false,
+      "robots_reviewed": false,
+      "public_html_only": true,
+      "no_auth_no_premium_no_bypass": true,
+      "reviewed_by": "",
+      "reviewed_at_utc": "",
+      "notes": "Enable only after source-specific review and fixture snapshots."
+    },
+    "feedinco": {
+      "status": "manual_review_required",
+      "terms_reviewed": false,
+      "robots_reviewed": false,
+      "public_html_only": true,
+      "no_auth_no_premium_no_bypass": true,
+      "reviewed_by": "",
+      "reviewed_at_utc": "",
+      "notes": "High affiliate/noise source; shadow only."
+    },
+    "bettingclosed": {
+      "status": "manual_review_required",
+      "terms_reviewed": false,
+      "robots_reviewed": false,
+      "public_html_only": true,
+      "no_auth_no_premium_no_bypass": true,
+      "reviewed_by": "",
+      "reviewed_at_utc": "",
+      "notes": "Keep blocked until detail fixture snapshots prove stable extraction."
+    }
+  }
+}
