@@ -1,0 +1,12 @@
+{
+  "timestamp_utc": "2026-07-04T14:30:05Z",
+  "sources": [
+    "zawodtyper"
+  ],
+  "status": "SKIPPED",
+  "reason": "missing_required_review_flags:terms_reviewed,robots_reviewed,public_html_only,no_auth_no_premium_no_bypass",
+  "total_picks": 0,
+  "fail_closed": true,
+  "sqlite_persisted_picks": 0,
+  "exit_code": 0
+}

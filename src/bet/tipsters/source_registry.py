@@ -106,6 +106,39 @@ SOURCES: dict[str, SourcePolicy] = {
         production_status="shadow_candidate_requires_js_loading_review",
         notes="Useful country/competition prediction index, but public page shows loading markers and VIP/login links. Keep shadow until fixture snapshots prove stable non-JS extraction.",
     ),
+    "zawodtyper": SourcePolicy(
+        source_id="zawodtyper",
+        display_name="ZawodTyper",
+        base_url="https://www.zawodtyper.pl",
+        tier=SourceTier.HTML_DYNAMIC,
+        sports=("football", "tennis", "basketball", "volleyball", "hockey"),
+        entrypoints=("https://www.zawodtyper.pl/",),
+        allow_playwright=False,
+        allow_xhr_capture=False,
+        max_pages_per_run=0,
+        min_delay_seconds=5.0,
+        parser_strategy="legacy_bridge_only",
+        data_role="legacy_tipster_claims_with_accuracy_context",
+        affiliate_bias_risk="medium_high",
+        production_status="legacy_working_candidate_requires_compliance_certification",
+        notes="Legacy S2 source with dedicated XHR-first parser and tracked accuracy. Retained for evidence-only bridge work; do not promote to automatic v2 live fetch until robots/terms review, non-stealth transport decision and fixture snapshots are complete.",
+    ),
+    "typersi": SourcePolicy(
+        source_id="typersi",
+        display_name="Typersi",
+        base_url="https://typersi.pl",
+        tier=SourceTier.HTML_DYNAMIC,
+        sports=("football", "tennis", "basketball", "volleyball", "hockey"),
+        entrypoints=("https://typersi.pl/",),
+        allow_playwright=False,
+        max_pages_per_run=0,
+        min_delay_seconds=5.0,
+        parser_strategy="legacy_bridge_only",
+        data_role="legacy_public_tipster_claims",
+        affiliate_bias_risk="medium_high",
+        production_status="legacy_candidate_requires_compliance_certification",
+        notes="Legacy canonical S2 source currently parsed only through generic DOM/HTML heuristics. Keep as registry-visible legacy candidate, not an automatic v2 fetch target.",
+    ),
     # SHADOW / RESEARCH SOURCES
     "betmines": SourcePolicy(
         source_id="betmines",
@@ -152,8 +185,23 @@ SOURCES: dict[str, SourcePolicy] = {
         parser_strategy="manual_review_only",
         data_role="expert_picks_major_us_sports",
         affiliate_bias_risk="high",
-        production_status="manual_review_only",
-        notes="Valuable expert-pick brand, especially US sports, but not selected for core because of dynamic/content-policy uncertainty and heavier affiliate surface.",
+        production_status="legacy_manual_review_dynamic_affiliate_sensitive",
+        notes="Legacy S2 source retained for audit completeness. Valuable expert-pick brand, but dynamic/content-policy uncertainty and affiliate surface keep it out of automatic v2 live fetch.",
+    ),
+    "betideas": SourcePolicy(
+        source_id="betideas",
+        display_name="BetIdeas",
+        base_url="https://www.betideas.com",
+        tier=SourceTier.MANUAL_REVIEW,
+        sports=("football", "tennis", "basketball", "hockey", "volleyball"),
+        entrypoints=("https://www.betideas.com/",),
+        allow_playwright=False,
+        max_pages_per_run=0,
+        parser_strategy="manual_review_only",
+        data_role="legacy_match_preview_claims",
+        affiliate_bias_risk="high",
+        production_status="legacy_manual_review_dynamic_affiliate_sensitive",
+        notes="Legacy S2 source retained for audit completeness. Dynamic listing/detail behavior and affiliate sensitivity require manual review before any compliant fetch design.",
     ),
     "olbg": SourcePolicy(
         source_id="olbg",
@@ -189,4 +237,5 @@ SOURCES: dict[str, SourcePolicy] = {
 
 CORE_SOURCE_IDS = ("sportsgambler", "forebet", "predictz", "windrawwin", "feedinco", "bettingclosed")
 RESEARCH_SOURCE_IDS = ("betmines", "sportytrader")
-MANUAL_REVIEW_SOURCE_IDS = ("pickswise", "olbg", "bettingexpert")
+LEGACY_SOURCE_IDS = ("zawodtyper", "typersi", "pickswise", "betideas")
+MANUAL_REVIEW_SOURCE_IDS = ("pickswise", "betideas", "olbg", "bettingexpert")

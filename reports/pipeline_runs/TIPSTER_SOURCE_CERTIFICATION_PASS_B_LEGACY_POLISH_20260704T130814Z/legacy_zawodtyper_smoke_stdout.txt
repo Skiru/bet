@@ -1,0 +1,8 @@
+Smoke command not executed.
+
+Blocking reasons established during Pass B:
+- `scripts/tipster_aggregator.py` under `.venv-tipster-v2` fails even at `--help` with `ModuleNotFoundError: No module named 'requests'`.
+- The legacy Playwright path for ZawodTyper inherits `PlaywrightBaseClient`, which explicitly uses stealth (`playwright_stealth`) and Cloudflare handling, violating Pass B live-run policy.
+- `scripts/pipeline_steps/s2_tipsters.py --help` exposes no source selector, so broad wrapper execution would overfetch if used for live smoke.
+
+Public reachability evidence still exists separately in `robots_probe_legacy_sources.json`: ZawodTyper public daily page returned HTTP 200 and robots allowed `*`, but that is not sufficient to authorize a live legacy scraper run.

@@ -1,0 +1,9 @@
+{
+  "source_id": "zawodtyper",
+  "previous_decision": "LEGACY_CONFIGURED_NEEDS_FIXTURE_SNAPSHOTS",
+  "transport_status": "BLOCKED_BY_MISSING_REVIEW",
+  "live_fetch_attempted": false,
+  "total_picks": 0,
+  "promotion": false,
+  "next_required_action": "Operator must review terms of service and robots.txt of ZawodTyper and add an explicit allow_live_dry_run entry in docs/pipeline/tipster_terms_review.local.json to unlock public HTML live fetching."
+}
