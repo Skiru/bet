@@ -83,7 +83,7 @@ def is_garbage_team(name: str) -> bool:
     words = key.split()
     if len(words) > 7:
         return True
-    spam = {"bookmaker", "bookmakers", "bonus", "telegram", "privacy", "cookie", "casino", "signup", "login", "vip", "loading"}
+    spam = {"bookmaker", "bookmakers", "bonus", "telegram", "privacy", "cookie", "casino", "signup", "login", "vip", "loading", "zawod", "typer", "spolecznosc", "najwieksza", "bukmacherska"}
     return any(w in spam for w in words)
 
 
