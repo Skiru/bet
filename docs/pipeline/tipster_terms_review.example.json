@@ -61,6 +61,17 @@
       "reviewed_by": "",
       "reviewed_at_utc": "",
       "notes": "Keep blocked until detail fixture snapshots prove stable extraction."
+    },
+    "zawodtyper": {
+      "status": "manual_review_required",
+      "terms_reviewed": false,
+      "robots_reviewed": false,
+      "public_html_only": true,
+      "no_auth_no_premium_no_bypass": true,
+      "allow_public_xhr_capture": false,
+      "reviewed_by": "",
+      "reviewed_at_utc": "",
+      "notes": "Daily public HTML only by default. XHR is disabled unless operator separately reviews NP_ajax.php/public XHR behavior and explicitly enables allow_public_xhr_capture=true. No Playwright, no stealth, no auth, no cookies, no bookmaker redirects."
     }
   }
 }

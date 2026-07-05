@@ -457,9 +457,9 @@ def discover_public_detail_links(doc: RawDocument, source_id: str) -> list[str]:
     return urls[: policy.max_pages_per_run]
 
 
-def dispatch_extract(doc: RawDocument, source_id: str) -> ExtractionResult:
+def dispatch_extract(doc: RawDocument, source_id: str, review_data: dict[str, Any] | None = None) -> ExtractionResult:
     if source_id == "zawodtyper":
-        return extract_zawodtyper(doc)
+        return extract_zawodtyper(doc, review_data)
     if source_id == "sportsgambler":
         return extract_sportsgambler(doc)
     if source_id == "forebet":

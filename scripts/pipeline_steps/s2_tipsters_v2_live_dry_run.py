@@ -28,6 +28,7 @@ from bet.tipsters.extractors import dispatch_extract, discover_public_detail_lin
 from bet.tipsters.fetcher import FetchConfig, fetch_public_html  # noqa: E402
 from bet.tipsters.source_registry import CORE_SOURCE_IDS, SOURCES  # noqa: E402
 from bet.tipsters.storage import persist_sqlite, write_json_artifact  # noqa: E402
+from bet.tipsters.zawodtyper import build_zawodtyper_daily_url  # noqa: E402
 
 
 REVIEWED_AT_UTC_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
@@ -87,6 +88,19 @@ def _review_gate_details(review_data: dict[str, Any], source_id: str) -> dict[st
             "required_flags_missing": [],
             "invalid_attestation": [],
         }
+
+    if source_id == "zawodtyper":
+        allow_xhr = review.get("allow_public_xhr_capture", False) is True
+        if allow_xhr:
+            notes = str(review.get("notes", "")).lower()
+            if "np_ajax.php" not in notes and "public xhr review" not in notes:
+                return {
+                    "allowed": False,
+                    "reason": "zawodtyper_xhr_review_notes_must_mention_np_ajax_or_public_xhr_review",
+                    "required_flags_missing": [],
+                    "invalid_attestation": ["notes"],
+                }
+
     return {
         "allowed": True,
         "reason": "review_allows_live_dry_run",
@@ -126,6 +140,7 @@ def _empty_result(
     skip_reason: str | None = None,
     required_flags_missing: list[str] | None = None,
     invalid_attestation: list[str] | None = None,
+    coverage_status: str | None = None,
 ) -> ExtractionResult:
     return ExtractionResult(
         source_id=source_id,
@@ -141,10 +156,30 @@ def _empty_result(
         skip_reason=skip_reason,
         required_flags_missing=required_flags_missing or [],
         invalid_attestation=invalid_attestation or [],
+        expected_visible_count=None,
+        extracted_count=0,
+        coverage_ratio=None,
+        coverage_status=coverage_status or ("NEEDS_PUBLIC_XHR_REVIEW" if "allow_public_xhr_capture" in warning or "XHR" in warning or source_id == "zawodtyper" else None),
     )
 
 
-def fetch_extract_source(source_id: str, *, review_data: dict[str, Any], max_pages: int, timeout: float, max_bytes: int) -> list[ExtractionResult]:
+def resolve_target_entrypoints(source_id: str, date_str: str | None) -> tuple[list[str], str | None]:
+    """Resolve primary target entrypoints and fallback for a given source and date."""
+    policy = SOURCES[source_id]
+    entrypoints = list(policy.entrypoints)
+    fallback = None
+    if source_id == "zawodtyper" and date_str:
+        try:
+            dt = datetime.strptime(date_str, "%Y-%m-%d")
+            daily_url = build_zawodtyper_daily_url(dt)
+            entrypoints = [daily_url]
+            fallback = policy.entrypoints[0] if policy.entrypoints else "https://www.zawodtyper.pl/"
+        except Exception as e:
+            print(f"[live-dry-run][zawodtyper] failed to parse date {date_str}: {e}")
+    return entrypoints, fallback
+
+
+def fetch_extract_source(source_id: str, *, review_data: dict[str, Any], max_pages: int, timeout: float, max_bytes: int, date_str: str | None = None) -> list[ExtractionResult]:
     policy = SOURCES[source_id]
     gate = _review_gate_details(review_data, source_id)
     if not gate["allowed"]:
@@ -163,32 +198,56 @@ def fetch_extract_source(source_id: str, *, review_data: dict[str, Any], max_pag
             )
         ]
 
+    entrypoints, fallback_homepage = resolve_target_entrypoints(source_id, date_str)
+
     robots = RobotsCache(user_agent="skiru-bet-research-bot")
     limiter = DomainRateLimiter(min_delay_seconds=max(policy.min_delay_seconds, 2.0))
     config = FetchConfig(timeout_seconds=timeout, max_bytes=max_bytes)
     results: list[ExtractionResult] = []
     urls_seen: list[str] = []
 
-    for entrypoint in policy.entrypoints:
+    for entrypoint in entrypoints:
         if len(urls_seen) >= max_pages:
             break
-        outcome = fetch_public_html(policy, entrypoint, robots=robots, limiter=limiter, terms_reviewed=True, config=config)
-        if not outcome.allowed or outcome.document is None:
-            print(f"[live-dry-run][{source_id}] FETCH_BLOCK {entrypoint} reason={outcome.reason} status={outcome.status_code}")
-            block_reason = _blocked_reason(outcome.reason)
-            results.append(_empty_result(
-                source_id,
-                entrypoint,
-                f"fetch_block:{outcome.reason}",
-                block_reason=block_reason,
-                robots_blocked_live="BLOCK_ROBOTS" in block_reason,
-                live_fetch_allowed=False,
-                fallback="fixture_snapshot_only",
-            ))
-            continue
+        outcome = fetch_public_html(policy, entrypoint, robots=robots, limiter=limiter, terms_reviewed=True, config=config, review_data=review_data)
+        
+        # If fetch fails or status is not 200, try the optional homepage fallback for zawodtyper
+        if not outcome.allowed or outcome.document is None or outcome.status_code != 200:
+            status_code = outcome.status_code if outcome.document else 0
+            print(f"[live-dry-run][{source_id}] FETCH_BLOCK/FAIL {entrypoint} reason={outcome.reason} status={status_code}")
+            
+            if source_id == "zawodtyper" and fallback_homepage and entrypoint != fallback_homepage:
+                print(f"[live-dry-run][{source_id}] DAILY URL FAILED. Falling back to homepage: {fallback_homepage}")
+                outcome = fetch_public_html(policy, fallback_homepage, robots=robots, limiter=limiter, terms_reviewed=True, config=config, review_data=review_data)
+                if not outcome.allowed or outcome.document is None:
+                    block_reason = _blocked_reason(outcome.reason)
+                    results.append(_empty_result(
+                        source_id,
+                        fallback_homepage,
+                        f"fetch_block:{outcome.reason}",
+                        block_reason=block_reason,
+                        robots_blocked_live="BLOCK_ROBOTS" in block_reason,
+                        live_fetch_allowed=False,
+                        fallback="fixture_snapshot_only",
+                    ))
+                    continue
+                entrypoint = fallback_homepage
+            else:
+                block_reason = _blocked_reason(outcome.reason)
+                results.append(_empty_result(
+                    source_id,
+                    entrypoint,
+                    f"fetch_block:{outcome.reason}",
+                    block_reason=block_reason,
+                    robots_blocked_live="BLOCK_ROBOTS" in block_reason,
+                    live_fetch_allowed=False,
+                    fallback="fixture_snapshot_only",
+                ))
+                continue
+
         print(f"[live-dry-run][{source_id}] FETCH_OK {entrypoint} status={outcome.status_code} bytes={len(outcome.document.html)}")
         urls_seen.append(entrypoint)
-        parsed = dispatch_extract(outcome.document, source_id)
+        parsed = dispatch_extract(outcome.document, source_id, review_data=review_data)
         print(f"[live-dry-run][{source_id}] PARSE {entrypoint} verdict={parsed.verdict.value} picks={parsed.pick_count} warnings={','.join(parsed.warnings) or '-'}")
         results.append(parsed)
 
@@ -197,7 +256,7 @@ def fetch_extract_source(source_id: str, *, review_data: dict[str, Any], max_pag
                 break
             if detail_url in urls_seen:
                 continue
-            detail = fetch_public_html(policy, detail_url, robots=robots, limiter=limiter, terms_reviewed=True, config=config)
+            detail = fetch_public_html(policy, detail_url, robots=robots, limiter=limiter, terms_reviewed=True, config=config, review_data=review_data)
             if not detail.allowed or detail.document is None:
                 print(f"[live-dry-run][{source_id}] DETAIL_BLOCK {detail_url} reason={detail.reason} status={detail.status_code}")
                 block_reason = _blocked_reason(detail.reason)
@@ -213,7 +272,7 @@ def fetch_extract_source(source_id: str, *, review_data: dict[str, Any], max_pag
                 continue
             print(f"[live-dry-run][{source_id}] DETAIL_OK {detail_url} status={detail.status_code} bytes={len(detail.document.html)}")
             urls_seen.append(detail_url)
-            parsed_detail = dispatch_extract(detail.document, source_id)
+            parsed_detail = dispatch_extract(detail.document, source_id, review_data=review_data)
             print(f"[live-dry-run][{source_id}] DETAIL_PARSE {detail_url} verdict={parsed_detail.verdict.value} picks={parsed_detail.pick_count} warnings={','.join(parsed_detail.warnings) or '-'}")
             results.append(parsed_detail)
 
@@ -248,6 +307,7 @@ def main() -> int:
             max_pages=max(1, args.max_pages_per_source),
             timeout=args.timeout_seconds,
             max_bytes=args.max_bytes,
+            date_str=args.date,
         ))
 
     out = args.out or Path("betting/data") / f"{args.date}_tipster_consensus_v2_live_dry_run.json"

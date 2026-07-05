@@ -156,6 +156,10 @@ class ExtractionResult:
     skip_reason: str | None = None
     required_flags_missing: list[str] = field(default_factory=list)
     invalid_attestation: list[str] = field(default_factory=list)
+    expected_visible_count: int | None = None
+    extracted_count: int | None = None
+    coverage_ratio: float | None = None
+    coverage_status: str | None = None
 
     @property
     def pick_count(self) -> int:

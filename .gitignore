@@ -41,3 +41,9 @@ docs/pipeline/tipster_terms_review.local.json
 /tmp/rapid-mlx.log
 .DS_Store
 .kilo/artifacts/**/backup.patch
+
+# Avoid tracking sqlite files under pipeline runs
+reports/pipeline_runs/**/*.sqlite
+reports/pipeline_runs/**/*.sqlite-shm
+reports/pipeline_runs/**/*.sqlite-wal
+docs/pipeline/*local*.json

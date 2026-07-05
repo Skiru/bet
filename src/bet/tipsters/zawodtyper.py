@@ -32,7 +32,7 @@ def build_zawodtyper_daily_url(date: datetime) -> str:
     return f"https://www.zawodtyper.pl/typy-dnia-{day}-{month}-{weekday}/"
 
 
-def extract_zawodtyper(doc: RawDocument, review_data: dict[str, Any] | None = None) -> ExtractionResult:
+def _extract_zawodtyper_internal(doc: RawDocument, review_data: dict[str, Any] | None = None) -> ExtractionResult:
     """Deterministic extractor for ZawodTyper.
 
     If the document HTML is a JSON payload from public XHR (e.g. NP_ajax.php),
@@ -48,6 +48,24 @@ def extract_zawodtyper(doc: RawDocument, review_data: dict[str, Any] | None = No
     picks: list[TipsterPick] = []
 
     if is_json:
+        allow_xhr = False
+        if review_data:
+            reviews = review_data.get("source_reviews", {})
+            source_review = reviews.get("zawodtyper", {})
+            if isinstance(source_review, dict):
+                allow_xhr = source_review.get("allow_public_xhr_capture", False) is True
+
+        if not allow_xhr:
+            return ExtractionResult(
+                source_id="zawodtyper",
+                url=doc.url,
+                verdict=ExtractorVerdict.EMPTY,
+                picks=[],
+                warnings=["allow_public_xhr_capture_required_for_xhr_parsing", "NEEDS_PUBLIC_XHR_REVIEW"],
+                parser_version="tipster_parser_v2.3_final_source_specific",
+                fallback="needs_public_xhr_review",
+            )
+
         try:
             payload = json.loads(html_stripped)
             bets = extract_zawodtyper_bets_payload(payload)
@@ -298,3 +316,36 @@ def extract_zawodtyper(doc: RawDocument, review_data: dict[str, Any] | None = No
             warnings=warnings,
             parser_version="tipster_parser_v2.3_final_source_specific",
         )
+
+
+def extract_zawodtyper(doc: RawDocument, review_data: dict[str, Any] | None = None) -> ExtractionResult:
+    """Deterministic extractor wrapper for ZawodTyper with coverage tracking."""
+    res = _extract_zawodtyper_internal(doc, review_data)
+    
+    visible_match = re.search(r'(?:Typów|Typow|Typy|Picks)\s*(?:dnia)?\s*[:\s]*(\d+)', doc.html, re.IGNORECASE)
+    expected_visible_count = int(visible_match.group(1)) if visible_match else None
+    extracted_count = len(res.picks)
+    
+    coverage_ratio = None
+    if expected_visible_count is not None and expected_visible_count > 0:
+        coverage_ratio = round(extracted_count / expected_visible_count, 4)
+        
+    coverage_status = "FULL_OR_ACCEPTABLE"
+    if expected_visible_count is not None:
+        if extracted_count < expected_visible_count:
+            is_very_low = (extracted_count <= 5) or (coverage_ratio is not None and coverage_ratio < 0.3)
+            if is_very_low:
+                warn_str = f"coverage_under_extraction:expected={expected_visible_count} extracted={extracted_count}"
+                if warn_str not in res.warnings:
+                    res.warnings.append(warn_str)
+                coverage_status = "COVERAGE_UNDER_EXTRACTION"
+            else:
+                coverage_status = "PARTIAL_PUBLIC_HTML"
+    elif "NEEDS_PUBLIC_XHR_REVIEW" in res.warnings:
+        coverage_status = "NEEDS_PUBLIC_XHR_REVIEW"
+                
+    res.expected_visible_count = expected_visible_count
+    res.extracted_count = extracted_count
+    res.coverage_ratio = coverage_ratio
+    res.coverage_status = coverage_status
+    return res

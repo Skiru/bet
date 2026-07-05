@@ -1,0 +1,40 @@
+{
+  "schema_version": "tipster_consensus_v2.3",
+  "contract": "evidence_only_not_betting_decision",
+  "sources": [
+    {
+      "source_id": "zawodtyper",
+      "url": "https://www.zawodtyper.pl/typy-dnia-5-lipca-niedziela/",
+      "verdict": "empty",
+      "picks": [],
+      "warnings": [
+        "NEEDS_PUBLIC_XHR_REVIEW"
+      ],
+      "parser_version": "tipster_parser_v2.3_final_source_specific",
+      "extracted_at_utc": "2026-07-05T15:05:28.675560+00:00",
+      "block_reason": null,
+      "robots_blocked_live": false,
+      "live_fetch_allowed": true,
+      "fallback": "needs_public_xhr_review",
+      "skip_reason": null,
+      "required_flags_missing": [],
+      "invalid_attestation": [],
+      "expected_visible_count": null,
+      "extracted_count": 0,
+      "coverage_ratio": null,
+      "coverage_status": "NEEDS_PUBLIC_XHR_REVIEW"
+    }
+  ],
+  "total_picks": 0,
+  "sources_with_picks": 0,
+  "all_picks": [],
+  "consensus": [],
+  "blocked_sources": [],
+  "skipped_sources": [],
+  "pipeline_consumers": [
+    "S3 contextual cross-check",
+    "S4 market sanity",
+    "manual Superbet quote review"
+  ],
+  "fail_closed": true
+}
