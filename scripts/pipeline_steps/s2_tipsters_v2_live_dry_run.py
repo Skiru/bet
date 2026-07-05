@@ -28,7 +28,11 @@ from bet.tipsters.extractors import dispatch_extract, discover_public_detail_lin
 from bet.tipsters.fetcher import FetchConfig, fetch_public_html  # noqa: E402
 from bet.tipsters.source_registry import CORE_SOURCE_IDS, SOURCES  # noqa: E402
 from bet.tipsters.storage import persist_sqlite, write_json_artifact  # noqa: E402
-from bet.tipsters.zawodtyper import build_zawodtyper_daily_url  # noqa: E402
+from bet.tipsters.zawodtyper import (  # noqa: E402
+    build_zawodtyper_daily_url,
+    build_zawodtyper_transport_warnings,
+    fetch_zawodtyper_public_xhr_document,
+)
 
 
 REVIEWED_AT_UTC_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
@@ -99,6 +103,26 @@ def _review_gate_details(review_data: dict[str, Any], source_id: str) -> dict[st
                     "reason": "zawodtyper_xhr_review_notes_must_mention_np_ajax_or_public_xhr_review",
                     "required_flags_missing": [],
                     "invalid_attestation": ["notes"],
+                }
+            cookie_policy = str(review.get("cookie_policy") or "no_cookie")
+            if cookie_policy not in {
+                "no_cookie",
+                "technical_first_party_only",
+                "ephemeral_first_party_public_analytics_allowed",
+            }:
+                return {
+                    "allowed": False,
+                    "reason": f"invalid_cookie_policy:{cookie_policy}",
+                    "required_flags_missing": [],
+                    "invalid_attestation": ["cookie_policy"],
+                }
+            allowed_cookie_names = review.get("allowed_cookie_names", [])
+            if not isinstance(allowed_cookie_names, list):
+                return {
+                    "allowed": False,
+                    "reason": "invalid_allowed_cookie_names",
+                    "required_flags_missing": [],
+                    "invalid_attestation": ["allowed_cookie_names"],
                 }
 
     return {
@@ -199,6 +223,41 @@ def fetch_extract_source(source_id: str, *, review_data: dict[str, Any], max_pag
         ]
 
     entrypoints, fallback_homepage = resolve_target_entrypoints(source_id, date_str)
+
+    if source_id == "zawodtyper":
+        page_url = entrypoints[0]
+        transport_doc, transport_meta = fetch_zawodtyper_public_xhr_document(
+            page_url,
+            review_data=review_data,
+            timeout_seconds=timeout,
+            user_agent=FetchConfig().user_agent,
+            max_pages_per_source=max(1, max_pages),
+        )
+        if transport_doc is None:
+            reason = str(transport_meta.get("reason", "public_xhr_failed_closed"))
+            print(f"[live-dry-run][{source_id}] XHR_FAIL {page_url} reason={reason}")
+            return [
+                _empty_result(
+                    source_id,
+                    page_url,
+                    f"public_xhr_failed:{reason}",
+                    block_reason=f"FETCH_BLOCK:{reason}",
+                    live_fetch_allowed=False,
+                    fallback="public_xhr_failed_closed",
+                    coverage_status="NEEDS_PUBLIC_XHR_REVIEW",
+                )
+            ]
+        print(
+            f"[live-dry-run][{source_id}] XHR_OK {page_url} "
+            f"cookie_policy={transport_meta.get('cookie_policy')} "
+            f"items={transport_meta.get('item_count', 0)} xhr_calls={transport_meta.get('xhr_call_count', 0)}"
+        )
+        parsed = dispatch_extract(transport_doc, source_id, review_data=review_data)
+        for warning in build_zawodtyper_transport_warnings(transport_meta):
+            if warning not in parsed.warnings:
+                parsed.warnings.append(warning)
+        print(f"[live-dry-run][{source_id}] PARSE {page_url} verdict={parsed.verdict.value} picks={parsed.pick_count} warnings={','.join(parsed.warnings) or '-'}")
+        return [parsed]
 
     robots = RobotsCache(user_agent="skiru-bet-research-bot")
     limiter = DomainRateLimiter(min_delay_seconds=max(policy.min_delay_seconds, 2.0))

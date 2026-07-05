@@ -1,5 +1,7 @@
 import importlib.util
 import json
+import sqlite3
+import subprocess
 import sys
 from pathlib import Path
 
@@ -152,3 +154,70 @@ def test_fixture_snapshot_parser_still_works_when_live_fetch_is_blocked():
     assert payload["total_picks"] == 0
     assert payload["all_picks"] == []
     assert payload["blocked_sources"][0]["source_id"] == "forebet"
+
+
+def test_review_gate_accepts_explicit_cookie_policy_fields():
+    mod = _load_live_module()
+    data = {
+        "source_reviews": {
+            "zawodtyper": {
+                "status": "allow_live_dry_run",
+                "terms_reviewed": True,
+                "robots_reviewed": True,
+                "public_html_only": True,
+                "no_auth_no_premium_no_bypass": True,
+                "allow_public_xhr_capture": True,
+                "cookie_policy": "no_cookie",
+                "allowed_cookie_names": ["SRV"],
+                "reviewed_by": "Mateusz Kozioł",
+                "reviewed_at_utc": "2026-07-05T22:00:00Z",
+                "notes": "Public XHR review for NP_ajax.php completed.",
+            }
+        }
+    }
+    allowed, reason = mod.review_allows_source(data, "zawodtyper")
+    assert allowed is True
+    assert reason == "review_allows_live_dry_run"
+
+
+def test_tipster_live_summary_supports_db_alias(tmp_path):
+    payload = {
+        "schema_version": "tipster_consensus_v2.3",
+        "total_picks": 1,
+        "sources_with_picks": 1,
+        "blocked_sources": [],
+        "skipped_sources": [],
+        "sources": [{
+            "source_id": "zawodtyper",
+            "expected_visible_count": None,
+            "extracted_count": 1,
+            "coverage_ratio": None,
+            "coverage_status": "FULL_OR_ACCEPTABLE",
+            "warnings": ["public_xhr_transport:selected_cookie_policy=no_cookie"],
+        }],
+        "all_picks": [{
+            "sport": "football",
+            "event": "Polska vs Niemcy",
+            "market": "Powyżej 2.5",
+            "odds": 1.8,
+            "extraction_quality": 0.8,
+            "pipeline_use": ["s2_tipster_evidence"],
+        }],
+    }
+    json_path = tmp_path / "artifact.json"
+    json_path.write_text(json.dumps(payload), encoding="utf-8")
+    db_path = tmp_path / "artifact.sqlite"
+    with sqlite3.connect(db_path) as conn:
+        conn.execute("create table tipster_picks_v2 (id integer primary key)")
+        conn.execute("create table tipster_consensus_v2 (id integer primary key)")
+        conn.commit()
+    script = Path(__file__).resolve().parents[2] / "scripts/pipeline_steps/tipster_live_summary.fish"
+    result = subprocess.run(
+        ["fish", str(script), f"--json={json_path}", f"--db={db_path}"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0
+    assert "total_picks=1" in result.stdout
+    assert "source::zawodtyper::warning::public_xhr_transport:selected_cookie_policy=no_cookie" in result.stdout

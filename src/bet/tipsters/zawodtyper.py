@@ -4,7 +4,10 @@ from __future__ import annotations
 import json
 import re
 from datetime import datetime, timezone
+from http.cookiejar import CookieJar
 from typing import Any
+from urllib.error import HTTPError, URLError
+from urllib.request import HTTPCookieProcessor, Request, build_opener, urlopen
 
 from .contracts import ExtractionResult, ExtractorVerdict, RawDocument, TipsterPick
 from .legacy_bridge import convert_legacy_pick_to_v2
@@ -22,6 +25,263 @@ POLISH_WEEKDAYS = {
     0: "poniedzialek", 1: "wtorek", 2: "sroda", 3: "czwartek",
     4: "piatek", 5: "sobota", 6: "niedziela",
 }
+
+ZAWODTYPER_PUBLIC_XHR_ENDPOINT_PATH = "/wp-content/NP_ajax.php"
+ZAWODTYPER_PUBLIC_XHR_ENDPOINT_URL = f"https://zawodtyper.pl{ZAWODTYPER_PUBLIC_XHR_ENDPOINT_PATH}"
+ZAWODTYPER_COOKIE_POLICY_NO_COOKIE = "no_cookie"
+ZAWODTYPER_COOKIE_POLICY_TECHNICAL = "technical_first_party_only"
+ZAWODTYPER_COOKIE_POLICY_ANALYTICS = "ephemeral_first_party_public_analytics_allowed"
+ZAWODTYPER_ALLOWED_COOKIE_POLICIES = (
+    ZAWODTYPER_COOKIE_POLICY_NO_COOKIE,
+    ZAWODTYPER_COOKIE_POLICY_TECHNICAL,
+    ZAWODTYPER_COOKIE_POLICY_ANALYTICS,
+)
+ZAWODTYPER_ALLOWED_TECHNICAL_COOKIES = {"SRV"}
+
+
+def classify_zawodtyper_cookie_name(name: str) -> str:
+    low = name.strip().lower()
+    if not low:
+        return "UNKNOWN"
+    if name == "SRV" or low.startswith(("litespeed", "guest", "vary")) or "cache" in low or "consent" in low:
+        return "ALLOWED_TECHNICAL"
+    if name == "_ga" or name.startswith("_ga_"):
+        return "ALLOWED_ANALYTICS_EPHEMERAL"
+    blocked_tokens = (
+        "wordpress_logged_in",
+        "wp-settings",
+        "wp_sec",
+        "phpsessid",
+        "session",
+        "sess",
+        "auth",
+        "login",
+        "user",
+        "token",
+        "jwt",
+        "bearer",
+        "nonce",
+        "csrf",
+    )
+    if any(token in low for token in blocked_tokens):
+        return "BLOCKED"
+    return "UNKNOWN"
+
+
+def extract_zawodtyper_post_id(html: str) -> int | None:
+    for pattern in (r"\bpostid-(\d+)\b", r'"id":(\d+),"categories"'):
+        match = re.search(pattern, html)
+        if match:
+            return int(match.group(1))
+    return None
+
+
+def build_zawodtyper_xhr_payloads(post_id: int, max_pages_per_source: int) -> list[dict[str, int | str]]:
+    xhr_budget = max(0, max_pages_per_source - 1)
+    payloads: list[dict[str, int | str]] = []
+    if xhr_budget >= 1:
+        payloads.append({"endpoint": "api_get_bets_by_post_id", "post_id": post_id, "offset": 0, "count": 5})
+    if xhr_budget >= 2:
+        payloads.append({"endpoint": "api_get_bets_by_post_id", "post_id": post_id, "offset": 5, "count": 505})
+    return payloads
+
+
+def select_zawodtyper_cookie_policy(variants: list[dict[str, Any]]) -> str | None:
+    order = (
+        "no_cookie",
+        "technical_only",
+        "technical_plus_analytics_ephemeral",
+    )
+    for name in order:
+        for variant in variants:
+            if variant.get("variant") != name:
+                continue
+            if variant.get("status") == 200 and variant.get("is_json") and variant.get("item_count", 0) > 0 and variant.get("parse_success"):
+                return name
+    return None
+
+
+def build_zawodtyper_transport_warnings(meta: dict[str, Any]) -> list[str]:
+    warnings = [f"public_xhr_transport:selected_cookie_policy={meta.get('cookie_policy', 'unknown')}"]
+    cookie_names_sent = ",".join(sorted(str(name) for name in meta.get("cookie_names_sent", []))) or "none"
+    warnings.append(f"public_xhr_transport:cookie_names_sent={cookie_names_sent}")
+    observed_cookie_names = ",".join(sorted(str(name) for name in meta.get("observed_cookie_names", []))) or "none"
+    warnings.append(f"public_xhr_transport:observed_cookie_names={observed_cookie_names}")
+    warnings.append(f"public_xhr_transport:xhr_calls={meta.get('xhr_call_count', 0)}")
+    warnings.append(f"public_xhr_transport:observed_items={meta.get('item_count', 0)}")
+    return warnings
+
+
+def _review_allowed_cookie_names(review_data: dict[str, Any] | None) -> list[str]:
+    if not review_data:
+        return []
+    review = review_data.get("source_reviews", {}).get("zawodtyper", {})
+    names = review.get("allowed_cookie_names", []) if isinstance(review, dict) else []
+    if not isinstance(names, list):
+        return []
+    return sorted({str(name).strip() for name in names if str(name).strip()})
+
+
+def _review_cookie_policy(review_data: dict[str, Any] | None) -> str:
+    if not review_data:
+        return ZAWODTYPER_COOKIE_POLICY_NO_COOKIE
+    review = review_data.get("source_reviews", {}).get("zawodtyper", {})
+    if not isinstance(review, dict):
+        return ZAWODTYPER_COOKIE_POLICY_NO_COOKIE
+    policy = str(review.get("cookie_policy") or ZAWODTYPER_COOKIE_POLICY_NO_COOKIE).strip()
+    if policy not in ZAWODTYPER_ALLOWED_COOKIE_POLICIES:
+        return ZAWODTYPER_COOKIE_POLICY_NO_COOKIE
+    return policy
+
+
+def _cookie_header_for_policy(cookies: list[Any], policy: str, allowed_cookie_names: set[str]) -> tuple[str | None, list[str]]:
+    selected: list[tuple[str, str]] = []
+    for cookie in cookies:
+        name = str(cookie.name)
+        if name not in allowed_cookie_names:
+            continue
+        classification = classify_zawodtyper_cookie_name(name)
+        if policy == ZAWODTYPER_COOKIE_POLICY_TECHNICAL and classification != "ALLOWED_TECHNICAL":
+            continue
+        if policy == ZAWODTYPER_COOKIE_POLICY_ANALYTICS and classification not in {"ALLOWED_TECHNICAL", "ALLOWED_ANALYTICS_EPHEMERAL"}:
+            continue
+        if all(existing_name != name for existing_name, _ in selected):
+            selected.append((name, str(cookie.value)))
+    if policy == ZAWODTYPER_COOKIE_POLICY_NO_COOKIE:
+        return None, []
+    if not selected:
+        return None, []
+    return "; ".join(f"{name}={value}" for name, value in selected), [name for name, _ in selected]
+
+
+def fetch_zawodtyper_public_xhr_document(
+    page_url: str,
+    *,
+    review_data: dict[str, Any] | None,
+    timeout_seconds: float,
+    user_agent: str,
+    max_pages_per_source: int,
+) -> tuple[RawDocument | None, dict[str, Any]]:
+    jar = CookieJar()
+    opener = build_opener(HTTPCookieProcessor(jar))
+    page_request = Request(
+        page_url,
+        headers={
+            "User-Agent": user_agent,
+            "Accept": "text/html,application/xhtml+xml",
+        },
+    )
+    try:
+        with opener.open(page_request, timeout=timeout_seconds) as response:
+            html = response.read().decode(response.headers.get_content_charset() or "utf-8", errors="replace")
+            final_url = response.geturl()
+    except HTTPError as exc:
+        return None, {"reason": f"public_page_http_error:{exc.code}"}
+    except URLError as exc:
+        return None, {"reason": f"public_page_url_error:{exc.reason}"}
+    except TimeoutError:
+        return None, {"reason": "public_page_timeout"}
+
+    observed_cookie_names = sorted({str(cookie.name) for cookie in jar if "zawodtyper.pl" in str(cookie.domain or "")})
+    blocked_cookie_names = [name for name in observed_cookie_names if classify_zawodtyper_cookie_name(name) == "BLOCKED"]
+    unknown_cookie_names = [name for name in observed_cookie_names if classify_zawodtyper_cookie_name(name) == "UNKNOWN"]
+    allowed_cookie_names = _review_allowed_cookie_names(review_data) or [
+        name for name in observed_cookie_names if classify_zawodtyper_cookie_name(name) in {"ALLOWED_TECHNICAL", "ALLOWED_ANALYTICS_EPHEMERAL"}
+    ]
+    if blocked_cookie_names:
+        return None, {"reason": "blocked_cookie_names:" + ",".join(blocked_cookie_names)}
+    if unknown_cookie_names:
+        return None, {"reason": "unknown_cookie_names:" + ",".join(unknown_cookie_names)}
+    disallowed_cookie_names = [name for name in observed_cookie_names if name not in set(allowed_cookie_names)]
+    if disallowed_cookie_names:
+        return None, {"reason": "unreviewed_cookie_names:" + ",".join(disallowed_cookie_names)}
+
+    post_id = extract_zawodtyper_post_id(html)
+    if post_id is None:
+        return None, {"reason": "post_id_not_found_in_public_page"}
+
+    payloads = build_zawodtyper_xhr_payloads(post_id, max_pages_per_source)
+    if not payloads:
+        return None, {"reason": "max_pages_per_source_too_low_for_public_xhr"}
+
+    cookie_policy = _review_cookie_policy(review_data)
+    cookie_header, cookie_names_sent = _cookie_header_for_policy(list(jar), cookie_policy, set(allowed_cookie_names))
+    if cookie_policy != ZAWODTYPER_COOKIE_POLICY_NO_COOKIE and not cookie_names_sent:
+        return None, {"reason": f"cookie_policy_unavailable_in_http_context:{cookie_policy}"}
+
+    combined_items: list[dict[str, Any]] = []
+    item_keys: set[str] = set()
+    seen_comment_ids: set[str] = set()
+    for payload in payloads:
+        headers = {
+            "User-Agent": user_agent,
+            "Accept": "application/json, text/plain, */*",
+            "Content-Type": "application/json",
+            "Origin": "https://zawodtyper.pl",
+            "Referer": page_url,
+        }
+        if cookie_header:
+            headers["Cookie"] = cookie_header
+        request = Request(
+            ZAWODTYPER_PUBLIC_XHR_ENDPOINT_URL,
+            data=json.dumps(payload, separators=(",", ":")).encode("utf-8"),
+            headers=headers,
+            method="POST",
+        )
+        try:
+            with urlopen(request, timeout=timeout_seconds) as response:  # nosec B310: gated public same-origin transport
+                final_xhr_url = response.geturl()
+                if ZAWODTYPER_PUBLIC_XHR_ENDPOINT_PATH not in final_xhr_url or "zawodtyper.pl" not in final_xhr_url:
+                    return None, {"reason": f"same_origin_xhr_required:{final_xhr_url}"}
+                ctype = response.headers.get("Content-Type", "").split(";")[0].strip().lower()
+                if ctype != "application/json":
+                    return None, {"reason": f"xhr_non_json_content_type:{ctype or 'empty'}"}
+                payload_json = json.loads(response.read().decode("utf-8", errors="replace"))
+        except HTTPError as exc:
+            return None, {"reason": f"xhr_http_error:{exc.code}"}
+        except URLError as exc:
+            return None, {"reason": f"xhr_url_error:{exc.reason}"}
+        except TimeoutError:
+            return None, {"reason": "xhr_timeout"}
+        except json.JSONDecodeError:
+            return None, {"reason": "xhr_invalid_json"}
+
+        bets = extract_zawodtyper_bets_payload(payload_json)
+        if not bets:
+            continue
+        for item in bets:
+            item_keys.update(item.keys())
+            comment_id = str(item.get("comment_id") or "")
+            dedupe_key = comment_id or json.dumps(item, sort_keys=True, ensure_ascii=False)
+            if dedupe_key in seen_comment_ids:
+                continue
+            seen_comment_ids.add(dedupe_key)
+            combined_items.append(dict(item))
+
+    if not combined_items:
+        return None, {"reason": "xhr_empty_or_schema_mismatch"}
+
+    document = RawDocument(
+        source_id="zawodtyper",
+        url=page_url,
+        final_url=final_url,
+        fetched_at_utc=datetime.now(timezone.utc).isoformat(),
+        html=json.dumps({"success": True, "data": combined_items}, ensure_ascii=False),
+        status_code=200,
+        content_type="application/json",
+    )
+    return document, {
+        "cookie_policy": cookie_policy,
+        "allowed_cookie_names": allowed_cookie_names,
+        "blocked_cookie_names": blocked_cookie_names,
+        "observed_cookie_names": observed_cookie_names,
+        "cookie_names_sent": cookie_names_sent,
+        "item_count": len(combined_items),
+        "item_keys": sorted(item_keys),
+        "xhr_call_count": len(payloads),
+        "payload_keys": sorted({key for payload in payloads for key in payload.keys()}),
+        "post_id": post_id,
+    }
 
 
 def build_zawodtyper_daily_url(date: datetime) -> str:
@@ -79,8 +339,8 @@ def _extract_zawodtyper_internal(doc: RawDocument, review_data: dict[str, Any] |
                     parser_version="tipster_parser_v2.3_final_source_specific",
                 )
 
-            classify_market_v2 = lambda m, c: market_family(m + " " + c)
-            extract_direction_v2 = lambda m, c: direction(m + " " + c)
+            classify_market_v2 = lambda m, c: market_family(m) if market_family(m) != "unknown" else market_family(m + " " + c)
+            extract_direction_v2 = lambda m, c: direction(m) if direction(m) != "OTHER" else direction(m + " " + c)
 
             raw_picks = parse_zawodtyper_xhr_bets(
                 bets,

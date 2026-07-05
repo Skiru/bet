@@ -1,12 +1,25 @@
 """Tests for safe ZawodTyper transport and parser."""
 from __future__ import annotations
 
+import json
 import sys
 from datetime import datetime
 from pathlib import Path
+from unittest.mock import patch
 
 from bet.tipsters.contracts import ExtractorVerdict, RawDocument
-from bet.tipsters.zawodtyper import build_zawodtyper_daily_url, extract_zawodtyper
+from bet.tipsters.zawodtyper import (
+    ZAWODTYPER_COOKIE_POLICY_NO_COOKIE,
+    ZAWODTYPER_COOKIE_POLICY_TECHNICAL,
+    build_zawodtyper_daily_url,
+    build_zawodtyper_transport_warnings,
+    build_zawodtyper_xhr_payloads,
+    classify_zawodtyper_cookie_name,
+    extract_zawodtyper,
+    extract_zawodtyper_post_id,
+    fetch_zawodtyper_public_xhr_document,
+    select_zawodtyper_cookie_policy,
+)
 
 
 def test_build_zawodtyper_daily_url_for_polish_weekday_month():
@@ -585,3 +598,267 @@ def test_no_forbidden_outputs():
     assert not hasattr(pick, "final_bet")
 
 
+class _FakeCookie:
+    def __init__(self, name: str, value: str, domain: str = ".zawodtyper.pl", path: str = "/") -> None:
+        self.name = name
+        self.value = value
+        self.domain = domain
+        self.path = path
+
+
+class _FakeHeaders:
+    def __init__(self, content_type: str) -> None:
+        self._content_type = content_type
+
+    def get(self, key: str, default: str = "") -> str:
+        if key.lower() == "content-type":
+            return self._content_type
+        return default
+
+    def get_content_charset(self) -> str:
+        return "utf-8"
+
+
+class _FakeResponse:
+    def __init__(self, body: str, *, url: str, status: int = 200, content_type: str = "application/json") -> None:
+        self._body = body.encode("utf-8")
+        self._url = url
+        self.status = status
+        self.headers = _FakeHeaders(content_type)
+
+    def read(self) -> bytes:
+        return self._body
+
+    def geturl(self) -> str:
+        return self._url
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, tb) -> None:
+        return None
+
+
+class _FakeOpener:
+    def __init__(self, jar, html: str, cookies: list[_FakeCookie]) -> None:
+        self.jar = jar
+        self.html = html
+        self.cookies = cookies
+
+    def open(self, request, timeout: float = 0):
+        for cookie in self.cookies:
+            self.jar.set_cookie(cookie)
+        return _FakeResponse(self.html, url=request.full_url, status=200, content_type="text/html")
+
+
+def test_cookie_classifier_allows_ga_but_blocks_session_auth_nonce():
+    assert classify_zawodtyper_cookie_name("_ga") == "ALLOWED_ANALYTICS_EPHEMERAL"
+    assert classify_zawodtyper_cookie_name("_ga_WQ0W4KSFWX") == "ALLOWED_ANALYTICS_EPHEMERAL"
+    assert classify_zawodtyper_cookie_name("SRV") == "ALLOWED_TECHNICAL"
+    assert classify_zawodtyper_cookie_name("PHPSESSID") == "BLOCKED"
+    assert classify_zawodtyper_cookie_name("auth_token") == "BLOCKED"
+    assert classify_zawodtyper_cookie_name("csrf_nonce") == "BLOCKED"
+    assert classify_zawodtyper_cookie_name("mystery_guard") == "UNKNOWN"
+
+
+def test_select_cookie_policy_prefers_no_cookie_then_technical_then_analytics():
+    variants = [
+        {"variant": "no_cookie", "status": 200, "is_json": True, "item_count": 8, "parse_success": True},
+        {"variant": "technical_only", "status": 200, "is_json": True, "item_count": 8, "parse_success": True},
+        {"variant": "technical_plus_analytics_ephemeral", "status": 200, "is_json": True, "item_count": 8, "parse_success": True},
+    ]
+    assert select_zawodtyper_cookie_policy(variants) == "no_cookie"
+
+
+def test_select_cookie_policy_prefers_technical_over_analytics_when_no_cookie_fails():
+    variants = [
+        {"variant": "no_cookie", "status": 400, "is_json": False, "item_count": 0, "parse_success": False},
+        {"variant": "technical_only", "status": 200, "is_json": True, "item_count": 8, "parse_success": True},
+        {"variant": "technical_plus_analytics_ephemeral", "status": 200, "is_json": True, "item_count": 8, "parse_success": True},
+    ]
+    assert select_zawodtyper_cookie_policy(variants) == "technical_only"
+
+
+def test_extract_post_id_from_public_html():
+    html = '<body class="postid-295093 single-post"></body>'
+    assert extract_zawodtyper_post_id(html) == 295093
+
+
+def test_build_xhr_payloads_respects_max_pages_per_source():
+    assert build_zawodtyper_xhr_payloads(295093, 1) == []
+    assert build_zawodtyper_xhr_payloads(295093, 2) == [{"endpoint": "api_get_bets_by_post_id", "post_id": 295093, "offset": 0, "count": 5}]
+    assert build_zawodtyper_xhr_payloads(295093, 3) == [
+        {"endpoint": "api_get_bets_by_post_id", "post_id": 295093, "offset": 0, "count": 5},
+        {"endpoint": "api_get_bets_by_post_id", "post_id": 295093, "offset": 5, "count": 505},
+    ]
+
+
+def test_transport_warning_builder_logs_cookie_names_only():
+    warnings = build_zawodtyper_transport_warnings({
+        "cookie_policy": "no_cookie",
+        "cookie_names_sent": [],
+        "observed_cookie_names": ["SRV", "_ga"],
+        "xhr_call_count": 2,
+        "item_count": 68,
+    })
+    joined = " ".join(warnings)
+    assert "SRV" in joined
+    assert "_ga" in joined
+    assert "secret_cookie_value" not in joined
+
+
+def test_fetch_public_xhr_document_uses_no_cookie_policy_and_parses_items():
+    page_html = '<html><body class="postid-295093 single-post"></body></html>'
+    xhr_one = json.dumps({
+        "success": True,
+        "data": [{
+            "comment_id": "1",
+            "comment_type": "bet",
+            "match_name": "Polska - Niemcy",
+            "content": "Analiza meczu.",
+            "discipline": "Piłka Nożna",
+            "type": "Powyżej 2.5",
+            "rate": "1.80",
+            "author_name": "Typer A",
+            "author_stats": {"bet_count": 12, "ratio": 0.7},
+        }],
+    })
+    xhr_two = json.dumps({
+        "success": True,
+        "data": [{
+            "comment_id": "2",
+            "comment_type": "bet",
+            "match_name": "Francja - Włochy",
+            "content": "Druga analiza meczu.",
+            "discipline": "Piłka Nożna",
+            "type": "BTTS",
+            "rate": "1.95",
+            "author_name": "Typer B",
+            "author_stats": {"bet_count": 8, "ratio": 0.6},
+        }],
+    })
+    xhr_calls = []
+
+    def fake_urlopen(request, timeout: float = 0):
+        xhr_calls.append({
+            "url": request.full_url,
+            "cookie": request.headers.get("Cookie"),
+            "content_type": request.headers.get("Content-type"),
+            "payload": json.loads(request.data.decode("utf-8")),
+        })
+        body = xhr_one if len(xhr_calls) == 1 else xhr_two
+        return _FakeResponse(body, url=request.full_url, status=200, content_type="application/json")
+
+    review_data = {
+        "source_reviews": {
+            "zawodtyper": {
+                "cookie_policy": ZAWODTYPER_COOKIE_POLICY_NO_COOKIE,
+                "allowed_cookie_names": ["SRV"],
+            }
+        }
+    }
+    with patch("bet.tipsters.zawodtyper.build_opener", lambda processor: _FakeOpener(processor.cookiejar, page_html, [_FakeCookie("SRV", "hidden")])):
+        with patch("bet.tipsters.zawodtyper.urlopen", fake_urlopen):
+            doc, meta = fetch_zawodtyper_public_xhr_document(
+                "https://www.zawodtyper.pl/typy-dnia-6-lipca-poniedzialek/",
+                review_data=review_data,
+                timeout_seconds=12.0,
+                user_agent="agent-test",
+                max_pages_per_source=3,
+            )
+
+    assert doc is not None
+    assert meta["cookie_policy"] == "no_cookie"
+    assert meta["cookie_names_sent"] == []
+    assert meta["observed_cookie_names"] == ["SRV"]
+    assert meta["item_count"] == 2
+    assert len(xhr_calls) == 2
+    assert all(call["cookie"] is None for call in xhr_calls)
+    assert all(call["content_type"] == "application/json" for call in xhr_calls)
+    assert all(sorted(call["payload"].keys()) == ["count", "endpoint", "offset", "post_id"] for call in xhr_calls)
+    payload = json.loads(doc.html)
+    assert payload["success"] is True
+    assert len(payload["data"]) == 2
+
+
+def test_fetch_public_xhr_document_rejects_blocked_cookie_name():
+    page_html = '<html><body class="postid-295093 single-post"></body></html>'
+    review_data = {"source_reviews": {"zawodtyper": {"allowed_cookie_names": ["SRV"]}}}
+    with patch("bet.tipsters.zawodtyper.build_opener", lambda processor: _FakeOpener(processor.cookiejar, page_html, [_FakeCookie("PHPSESSID", "hidden")])):
+        doc, meta = fetch_zawodtyper_public_xhr_document(
+            "https://www.zawodtyper.pl/typy-dnia-6-lipca-poniedzialek/",
+            review_data=review_data,
+            timeout_seconds=12.0,
+            user_agent="agent-test",
+            max_pages_per_source=3,
+        )
+    assert doc is None
+    assert meta["reason"] == "blocked_cookie_names:PHPSESSID"
+
+
+def test_fetch_public_xhr_document_rejects_unknown_security_like_cookie():
+    page_html = '<html><body class="postid-295093 single-post"></body></html>'
+    review_data = {"source_reviews": {"zawodtyper": {"allowed_cookie_names": ["SRV"]}}}
+    with patch("bet.tipsters.zawodtyper.build_opener", lambda processor: _FakeOpener(processor.cookiejar, page_html, [_FakeCookie("mystery_guard", "hidden")])):
+        doc, meta = fetch_zawodtyper_public_xhr_document(
+            "https://www.zawodtyper.pl/typy-dnia-6-lipca-poniedzialek/",
+            review_data=review_data,
+            timeout_seconds=12.0,
+            user_agent="agent-test",
+            max_pages_per_source=3,
+        )
+    assert doc is None
+    assert meta["reason"] == "unknown_cookie_names:mystery_guard"
+
+
+def test_fetch_public_xhr_document_fail_closes_on_non_json():
+    page_html = '<html><body class="postid-295093 single-post"></body></html>'
+
+    def fake_urlopen(request, timeout: float = 0):
+        return _FakeResponse("<html>bad</html>", url=request.full_url, status=200, content_type="text/html")
+
+    review_data = {"source_reviews": {"zawodtyper": {"allowed_cookie_names": ["SRV"]}}}
+    with patch("bet.tipsters.zawodtyper.build_opener", lambda processor: _FakeOpener(processor.cookiejar, page_html, [_FakeCookie("SRV", "hidden")])):
+        with patch("bet.tipsters.zawodtyper.urlopen", fake_urlopen):
+            doc, meta = fetch_zawodtyper_public_xhr_document(
+                "https://www.zawodtyper.pl/typy-dnia-6-lipca-poniedzialek/",
+                review_data=review_data,
+                timeout_seconds=12.0,
+                user_agent="agent-test",
+                max_pages_per_source=3,
+            )
+    assert doc is None
+    assert meta["reason"] == "xhr_non_json_content_type:text/html"
+
+
+def test_xhr_market_text_takes_precedence_over_reasoning_for_double_chance():
+    xhr_content = """
+    {
+      "success": true,
+      "data": [
+        {
+          "comment_id": "1001",
+          "comment_type": "bet",
+          "match_name": "Meksyk - Anglia",
+          "content": "Anglia gra zdecydowanie poniżej oczekiwań, ale rynek dalej jest 1X.",
+          "discipline": "Piłka Nożna",
+          "type": "1X - Meksyk wygra lub zremisuje mecz",
+          "rate": "1.55",
+          "author_name": "TyperKamil",
+          "author_stats": {"bet_count": 12, "ratio": 0.75}
+        }
+      ]
+    }
+    """
+    doc = RawDocument(
+        source_id="zawodtyper",
+        url="https://www.zawodtyper.pl/NP_ajax.php",
+        fetched_at_utc="2026-07-05T22:46:15Z",
+        html=xhr_content,
+        status_code=200,
+        content_type="application/json",
+    )
+    review_data = {"source_reviews": {"zawodtyper": {"allow_public_xhr_capture": True}}}
+    result = extract_zawodtyper(doc, review_data=review_data)
+    assert result.verdict == ExtractorVerdict.OK
+    assert result.picks[0].direction == "DC"
