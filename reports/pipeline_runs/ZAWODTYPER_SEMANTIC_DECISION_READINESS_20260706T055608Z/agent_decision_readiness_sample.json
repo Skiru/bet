@@ -1,0 +1,558 @@
+[
+  {
+    "source_id": "zawodtyper",
+    "event": "Portugalia vs Hiszpania",
+    "market": "Hiszpania +0.5 gola + Portugalia -2.5 gola + Awans Hiszpania",
+    "agent_use_decision": "USE_AS_CONTEXT",
+    "decision_reason": "Compliant evidence, but team order is reversed compared to canonical alphabetical key.",
+    "confidence_in_extraction": "HIGH",
+    "can_influence_pipeline": true,
+    "allowed_pipeline_stages": [
+      "S3 contextual cross-check",
+      "S4 market sanity",
+      "manual Superbet quote review"
+    ],
+    "forbidden_actions": [
+      "EV",
+      "stake",
+      "coupon",
+      "final bet",
+      "Superbet combined odds"
+    ],
+    "normalized_event_key": "hiszpania|portugalia",
+    "participants": [
+      "Portugalia",
+      "Hiszpania"
+    ],
+    "requires_match_resolution": false,
+    "ambiguity_flags": [
+      "order_reversed"
+    ]
+  },
+  {
+    "source_id": "zawodtyper",
+    "event": "Hacken vs Djurgarden .",
+    "market": "BTTS + poniżej 6,5 gola w meczu .",
+    "agent_use_decision": "USE_AS_CONTEXT",
+    "decision_reason": "Compliant evidence, but team order is reversed compared to canonical alphabetical key.",
+    "confidence_in_extraction": "HIGH",
+    "can_influence_pipeline": true,
+    "allowed_pipeline_stages": [
+      "S3 contextual cross-check",
+      "S4 market sanity",
+      "manual Superbet quote review"
+    ],
+    "forbidden_actions": [
+      "EV",
+      "stake",
+      "coupon",
+      "final bet",
+      "Superbet combined odds"
+    ],
+    "normalized_event_key": "djurgarden|hacken",
+    "participants": [
+      "Hacken",
+      "Djurgarden ."
+    ],
+    "requires_match_resolution": false,
+    "ambiguity_flags": [
+      "order_reversed"
+    ]
+  },
+  {
+    "source_id": "zawodtyper",
+    "event": "Grigor Dimitrov vs Arthur Fery",
+    "market": "Zwycięzca: Grigor Dimitrov + Najwięcej asów serwisowych: Grigor Dimitrov",
+    "agent_use_decision": "USE_AS_CONTEXT",
+    "decision_reason": "Compliant evidence, but team order is reversed compared to canonical alphabetical key.",
+    "confidence_in_extraction": "HIGH",
+    "can_influence_pipeline": true,
+    "allowed_pipeline_stages": [
+      "S3 contextual cross-check",
+      "S4 market sanity",
+      "manual Superbet quote review"
+    ],
+    "forbidden_actions": [
+      "EV",
+      "stake",
+      "coupon",
+      "final bet",
+      "Superbet combined odds"
+    ],
+    "normalized_event_key": "arthur fery|grigor dimitrov",
+    "participants": [
+      "Grigor Dimitrov",
+      "Arthur Fery"
+    ],
+    "requires_match_resolution": false,
+    "ambiguity_flags": [
+      "order_reversed"
+    ]
+  },
+  {
+    "source_id": "zawodtyper",
+    "event": "Lehecka vs Zverev",
+    "market": "Zverev - 1.5 Handicap setów",
+    "agent_use_decision": "USE_AS_CONTEXT",
+    "decision_reason": "Fully compliant public tipster evidence with reference odds.",
+    "confidence_in_extraction": "HIGH",
+    "can_influence_pipeline": true,
+    "allowed_pipeline_stages": [
+      "S3 contextual cross-check",
+      "S4 market sanity",
+      "manual Superbet quote review"
+    ],
+    "forbidden_actions": [
+      "EV",
+      "stake",
+      "coupon",
+      "final bet",
+      "Superbet combined odds"
+    ],
+    "normalized_event_key": "lehecka|zverev",
+    "participants": [
+      "Lehecka",
+      "Zverev"
+    ],
+    "requires_match_resolution": false,
+    "ambiguity_flags": []
+  },
+  {
+    "source_id": "zawodtyper",
+    "event": "paolini vs eala",
+    "market": "over 20.5 gema",
+    "agent_use_decision": "USE_AS_CONTEXT",
+    "decision_reason": "Compliant evidence, but team order is reversed compared to canonical alphabetical key.",
+    "confidence_in_extraction": "HIGH",
+    "can_influence_pipeline": true,
+    "allowed_pipeline_stages": [
+      "S3 contextual cross-check",
+      "S4 market sanity",
+      "manual Superbet quote review"
+    ],
+    "forbidden_actions": [
+      "EV",
+      "stake",
+      "coupon",
+      "final bet",
+      "Superbet combined odds"
+    ],
+    "normalized_event_key": "eala|paolini",
+    "participants": [
+      "paolini",
+      "eala"
+    ],
+    "requires_match_resolution": false,
+    "ambiguity_flags": [
+      "order_reversed"
+    ]
+  },
+  {
+    "source_id": "zawodtyper",
+    "event": "Meksyk vs Anglia",
+    "market": "1X - Meksyk wygra lub zremisuje mecz",
+    "agent_use_decision": "USE_AS_CONTEXT",
+    "decision_reason": "Compliant evidence, but team order is reversed compared to canonical alphabetical key.",
+    "confidence_in_extraction": "HIGH",
+    "can_influence_pipeline": true,
+    "allowed_pipeline_stages": [
+      "S3 contextual cross-check",
+      "S4 market sanity",
+      "manual Superbet quote review"
+    ],
+    "forbidden_actions": [
+      "EV",
+      "stake",
+      "coupon",
+      "final bet",
+      "Superbet combined odds"
+    ],
+    "normalized_event_key": "anglia|meksyk",
+    "participants": [
+      "Meksyk",
+      "Anglia"
+    ],
+    "requires_match_resolution": false,
+    "ambiguity_flags": [
+      "order_reversed"
+    ]
+  },
+  {
+    "source_id": "zawodtyper",
+    "event": "Nautico vs Juventude",
+    "market": "over 1,5 kartek 1 połowa",
+    "agent_use_decision": "USE_AS_CONTEXT",
+    "decision_reason": "Compliant evidence, but team order is reversed compared to canonical alphabetical key.",
+    "confidence_in_extraction": "HIGH",
+    "can_influence_pipeline": true,
+    "allowed_pipeline_stages": [
+      "S3 contextual cross-check",
+      "S4 market sanity",
+      "manual Superbet quote review"
+    ],
+    "forbidden_actions": [
+      "EV",
+      "stake",
+      "coupon",
+      "final bet",
+      "Superbet combined odds"
+    ],
+    "normalized_event_key": "juventude|nautico",
+    "participants": [
+      "Nautico",
+      "Juventude"
+    ],
+    "requires_match_resolution": false,
+    "ambiguity_flags": [
+      "order_reversed"
+    ]
+  },
+  {
+    "source_id": "zawodtyper",
+    "event": "bouzkova vs mertens",
+    "market": "1 set over 7.5 + over 20.5 gema w meczu",
+    "agent_use_decision": "USE_AS_CONTEXT",
+    "decision_reason": "Fully compliant public tipster evidence with reference odds.",
+    "confidence_in_extraction": "HIGH",
+    "can_influence_pipeline": true,
+    "allowed_pipeline_stages": [
+      "S3 contextual cross-check",
+      "S4 market sanity",
+      "manual Superbet quote review"
+    ],
+    "forbidden_actions": [
+      "EV",
+      "stake",
+      "coupon",
+      "final bet",
+      "Superbet combined odds"
+    ],
+    "normalized_event_key": "bouzkova|mertens",
+    "participants": [
+      "bouzkova",
+      "mertens"
+    ],
+    "requires_match_resolution": false,
+    "ambiguity_flags": []
+  },
+  {
+    "source_id": "zawodtyper",
+    "event": "Austin FC II vs Colorado Rapids II",
+    "market": "1 + Colorado Rapids II poniżej 1,5 goli",
+    "agent_use_decision": "USE_AS_CONTEXT",
+    "decision_reason": "Fully compliant public tipster evidence with reference odds.",
+    "confidence_in_extraction": "HIGH",
+    "can_influence_pipeline": true,
+    "allowed_pipeline_stages": [
+      "S3 contextual cross-check",
+      "S4 market sanity",
+      "manual Superbet quote review"
+    ],
+    "forbidden_actions": [
+      "EV",
+      "stake",
+      "coupon",
+      "final bet",
+      "Superbet combined odds"
+    ],
+    "normalized_event_key": "austin fc ii|colorado rapids ii",
+    "participants": [
+      "Austin FC II",
+      "Colorado Rapids II"
+    ],
+    "requires_match_resolution": false,
+    "ambiguity_flags": []
+  },
+  {
+    "source_id": "zawodtyper",
+    "event": "Pacific FC vs HFX Wanderers",
+    "market": "powyżej 0,5 goli + X2",
+    "agent_use_decision": "USE_AS_CONTEXT",
+    "decision_reason": "Compliant evidence, but team order is reversed compared to canonical alphabetical key.",
+    "confidence_in_extraction": "HIGH",
+    "can_influence_pipeline": true,
+    "allowed_pipeline_stages": [
+      "S3 contextual cross-check",
+      "S4 market sanity",
+      "manual Superbet quote review"
+    ],
+    "forbidden_actions": [
+      "EV",
+      "stake",
+      "coupon",
+      "final bet",
+      "Superbet combined odds"
+    ],
+    "normalized_event_key": "hfx wanderers|pacific fc",
+    "participants": [
+      "Pacific FC",
+      "HFX Wanderers"
+    ],
+    "requires_match_resolution": false,
+    "ambiguity_flags": [
+      "order_reversed"
+    ]
+  },
+  {
+    "source_id": "zawodtyper",
+    "event": "Dimitrov vs Fery",
+    "market": "Dimitrov wygra 3:0",
+    "agent_use_decision": "USE_AS_CONTEXT",
+    "decision_reason": "Fully compliant public tipster evidence with reference odds.",
+    "confidence_in_extraction": "HIGH",
+    "can_influence_pipeline": true,
+    "allowed_pipeline_stages": [
+      "S3 contextual cross-check",
+      "S4 market sanity",
+      "manual Superbet quote review"
+    ],
+    "forbidden_actions": [
+      "EV",
+      "stake",
+      "coupon",
+      "final bet",
+      "Superbet combined odds"
+    ],
+    "normalized_event_key": "dimitrov|fery",
+    "participants": [
+      "Dimitrov",
+      "Fery"
+    ],
+    "requires_match_resolution": false,
+    "ambiguity_flags": []
+  },
+  {
+    "source_id": "zawodtyper",
+    "event": "Anglia vs Meksyk",
+    "market": "Anglia awans",
+    "agent_use_decision": "USE_AS_CONTEXT",
+    "decision_reason": "Fully compliant public tipster evidence with reference odds.",
+    "confidence_in_extraction": "HIGH",
+    "can_influence_pipeline": true,
+    "allowed_pipeline_stages": [
+      "S3 contextual cross-check",
+      "S4 market sanity",
+      "manual Superbet quote review"
+    ],
+    "forbidden_actions": [
+      "EV",
+      "stake",
+      "coupon",
+      "final bet",
+      "Superbet combined odds"
+    ],
+    "normalized_event_key": "anglia|meksyk",
+    "participants": [
+      "Anglia",
+      "Meksyk"
+    ],
+    "requires_match_resolution": false,
+    "ambiguity_flags": []
+  },
+  {
+    "source_id": "zawodtyper",
+    "event": "🇲🇽 Meksyk vs Anglia 🏴󠁧󠁢󠁥󠁮󠁧󠁿",
+    "market": "Rzuty różne handicap: Anglia -1.5",
+    "agent_use_decision": "USE_AS_CONTEXT",
+    "decision_reason": "Compliant evidence, but team order is reversed compared to canonical alphabetical key.",
+    "confidence_in_extraction": "HIGH",
+    "can_influence_pipeline": true,
+    "allowed_pipeline_stages": [
+      "S3 contextual cross-check",
+      "S4 market sanity",
+      "manual Superbet quote review"
+    ],
+    "forbidden_actions": [
+      "EV",
+      "stake",
+      "coupon",
+      "final bet",
+      "Superbet combined odds"
+    ],
+    "normalized_event_key": "anglia|meksyk",
+    "participants": [
+      "🇲🇽 Meksyk",
+      "Anglia 🏴󠁧󠁢󠁥󠁮󠁧󠁿"
+    ],
+    "requires_match_resolution": false,
+    "ambiguity_flags": [
+      "order_reversed"
+    ]
+  },
+  {
+    "source_id": "zawodtyper",
+    "event": "Pennsylvania Classics vs Reading United AC",
+    "market": "liczba goli: +3 (3 =zwrot)",
+    "agent_use_decision": "USE_AS_CONTEXT",
+    "decision_reason": "Fully compliant public tipster evidence with reference odds.",
+    "confidence_in_extraction": "HIGH",
+    "can_influence_pipeline": true,
+    "allowed_pipeline_stages": [
+      "S3 contextual cross-check",
+      "S4 market sanity",
+      "manual Superbet quote review"
+    ],
+    "forbidden_actions": [
+      "EV",
+      "stake",
+      "coupon",
+      "final bet",
+      "Superbet combined odds"
+    ],
+    "normalized_event_key": "pennsylvania classics|reading united ac",
+    "participants": [
+      "Pennsylvania Classics",
+      "Reading United AC"
+    ],
+    "requires_match_resolution": false,
+    "ambiguity_flags": []
+  },
+  {
+    "source_id": "zawodtyper",
+    "event": "🇵🇹 Portugalia vs Hiszpania 🇪🇸",
+    "market": "Obie drużynyn +1,5 obronionych strzałów przez bramkarzów",
+    "agent_use_decision": "USE_AS_CONTEXT",
+    "decision_reason": "Compliant evidence, but team order is reversed compared to canonical alphabetical key.",
+    "confidence_in_extraction": "HIGH",
+    "can_influence_pipeline": true,
+    "allowed_pipeline_stages": [
+      "S3 contextual cross-check",
+      "S4 market sanity",
+      "manual Superbet quote review"
+    ],
+    "forbidden_actions": [
+      "EV",
+      "stake",
+      "coupon",
+      "final bet",
+      "Superbet combined odds"
+    ],
+    "normalized_event_key": "hiszpania|portugalia",
+    "participants": [
+      "🇵🇹 Portugalia",
+      "Hiszpania 🇪🇸"
+    ],
+    "requires_match_resolution": false,
+    "ambiguity_flags": [
+      "order_reversed"
+    ]
+  },
+  {
+    "source_id": "zawodtyper",
+    "event": "Meksyk 🇲🇽 vs Anglia 🏴󠁧󠁢󠁥󠁮󠁧󠁿",
+    "market": "Harry Kane liczba celnych strzałów powyżej 0.5 + Anglia liczba rzutów różnych powyżej 1.5",
+    "agent_use_decision": "USE_AS_CONTEXT",
+    "decision_reason": "Compliant evidence, but team order is reversed compared to canonical alphabetical key.",
+    "confidence_in_extraction": "HIGH",
+    "can_influence_pipeline": true,
+    "allowed_pipeline_stages": [
+      "S3 contextual cross-check",
+      "S4 market sanity",
+      "manual Superbet quote review"
+    ],
+    "forbidden_actions": [
+      "EV",
+      "stake",
+      "coupon",
+      "final bet",
+      "Superbet combined odds"
+    ],
+    "normalized_event_key": "anglia|meksyk",
+    "participants": [
+      "Meksyk 🇲🇽",
+      "Anglia 🏴󠁧󠁢󠁥󠁮󠁧󠁿"
+    ],
+    "requires_match_resolution": false,
+    "ambiguity_flags": [
+      "order_reversed"
+    ]
+  },
+  {
+    "source_id": "zawodtyper",
+    "event": "MŚ 2026 | Meksyk vs Anglia",
+    "market": "Anglia awansuje",
+    "agent_use_decision": "USE_AS_CONTEXT",
+    "decision_reason": "Compliant evidence, but team order is reversed compared to canonical alphabetical key.",
+    "confidence_in_extraction": "HIGH",
+    "can_influence_pipeline": true,
+    "allowed_pipeline_stages": [
+      "S3 contextual cross-check",
+      "S4 market sanity",
+      "manual Superbet quote review"
+    ],
+    "forbidden_actions": [
+      "EV",
+      "stake",
+      "coupon",
+      "final bet",
+      "Superbet combined odds"
+    ],
+    "normalized_event_key": "anglia|ms 2026 meksyk",
+    "participants": [
+      "MŚ 2026 | Meksyk",
+      "Anglia"
+    ],
+    "requires_match_resolution": false,
+    "ambiguity_flags": [
+      "order_reversed"
+    ]
+  },
+  {
+    "source_id": "zawodtyper",
+    "event": "Alex De Minaur vs Flavio Cobolli",
+    "market": "Ilość podwójnych błędów - poniżej 10,5",
+    "agent_use_decision": "USE_AS_CONTEXT",
+    "decision_reason": "Fully compliant public tipster evidence with reference odds.",
+    "confidence_in_extraction": "HIGH",
+    "can_influence_pipeline": true,
+    "allowed_pipeline_stages": [
+      "S3 contextual cross-check",
+      "S4 market sanity",
+      "manual Superbet quote review"
+    ],
+    "forbidden_actions": [
+      "EV",
+      "stake",
+      "coupon",
+      "final bet",
+      "Superbet combined odds"
+    ],
+    "normalized_event_key": "alex de minaur|flavio cobolli",
+    "participants": [
+      "Alex De Minaur",
+      "Flavio Cobolli"
+    ],
+    "requires_match_resolution": false,
+    "ambiguity_flags": []
+  },
+  {
+    "source_id": "zawodtyper",
+    "event": "De Minaur vs Cobolli",
+    "market": "Poniżej 10.5 DF",
+    "agent_use_decision": "USE_AS_CONTEXT",
+    "decision_reason": "Compliant evidence, but team order is reversed compared to canonical alphabetical key.",
+    "confidence_in_extraction": "HIGH",
+    "can_influence_pipeline": true,
+    "allowed_pipeline_stages": [
+      "S3 contextual cross-check",
+      "S4 market sanity",
+      "manual Superbet quote review"
+    ],
+    "forbidden_actions": [
+      "EV",
+      "stake",
+      "coupon",
+      "final bet",
+      "Superbet combined odds"
+    ],
+    "normalized_event_key": "cobolli|de minaur",
+    "participants": [
+      "De Minaur",
+      "Cobolli"
+    ],
+    "requires_match_resolution": false,
+    "ambiguity_flags": [
+      "order_reversed"
+    ]
+  }
+]
