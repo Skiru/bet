@@ -1,0 +1,38 @@
+{
+  "passed": true,
+  "issues": [],
+  "total_sources_verified": 14,
+  "matched_registry_count": 14,
+  "registry_sources": [
+    "betideas",
+    "betmines",
+    "bettingclosed",
+    "bettingexpert",
+    "feedinco",
+    "forebet",
+    "olbg",
+    "pickswise",
+    "predictz",
+    "sportsgambler",
+    "sportytrader",
+    "typersi",
+    "windrawwin",
+    "zawodtyper"
+  ],
+  "matrix_sources": [
+    "betideas",
+    "betmines",
+    "bettingclosed",
+    "bettingexpert",
+    "feedinco",
+    "forebet",
+    "olbg",
+    "pickswise",
+    "predictz",
+    "sportsgambler",
+    "sportytrader",
+    "typersi",
+    "windrawwin",
+    "zawodtyper"
+  ]
+}

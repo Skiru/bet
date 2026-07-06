@@ -14,8 +14,12 @@ The handoff object and any of its child events MUST NOT contain or influence any
 Odds presented in this handoff are **reference-only** historical attributes.
 
 ## 3. Downstream Agent Interpretation Policy
-Any downstream agent consuming this handoff must adhere to the following directive:
-> “Context/sanity/sentiment only; independently verify with stats and odds. Never use tipster claims as direct betting triggers.”
+Any downstream agent consuming this handoff must adhere to the following directives:
+- **Contextual Evidence Only:** Handoff is contextual evidence, not shortlist input, and not valuation input.
+- **No Blocking:** Missing handoff must not block S3/S4 unless explicitly configured as required.
+- **Sanity/Context Use:** If present, S3/S4 may use it for market sanity checks and qualitative context.
+- **No Betting Decisions:** No final betting decisions may be derived from this handoff.
+- **Standard Directive:** “Context/sanity/sentiment only; independently verify with stats and odds. Never use tipster claims as direct betting triggers.”
 
 ## 4. Handoff Schema Specification
 ```json

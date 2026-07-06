@@ -1,0 +1,23 @@
+usage: s2_tipsters_v2.py [-h] --date DATE --fixture-html-dir FIXTURE_HTML_DIR
+                         [--out OUT] [--sqlite-db SQLITE_DB]
+                         [--include-research]
+                         [--include-certified-shadow-fixtures]
+                         [--handoff-out HANDOFF_OUT]
+
+options:
+  -h, --help            show this help message and exit
+  --date DATE
+  --fixture-html-dir FIXTURE_HTML_DIR
+                        Directory with <source_id>.html files for
+                        deterministic parse run
+  --out OUT
+  --sqlite-db SQLITE_DB
+                        Optional SQLite sink for
+                        tipster_picks_v2/tipster_consensus_v2
+  --include-research    Also parse research fixtures if present; never use for
+                        production promotion
+  --include-certified-shadow-fixtures
+                        Include certified shadow sources (like zawodtyper)
+                        from fixtures
+  --handoff-out HANDOFF_OUT
+                        Optional output path for tipster evidence handoff JSON
