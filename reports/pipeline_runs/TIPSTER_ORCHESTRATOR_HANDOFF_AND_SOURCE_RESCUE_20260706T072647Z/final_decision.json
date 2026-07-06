@@ -1,0 +1,15 @@
+{
+  "verdict": "PASS_TIPSTER_ORCHESTRATOR_HANDOFF_AND_SOURCE_RESCUE_READY",
+  "as_of": "2026-07-06T09:23:16Z",
+  "checks": {
+    "agent_readiness_in_main_artifact": true,
+    "handoff_artifact_exists": true,
+    "zawodtyper_orchestrator_inclusion_safe": true,
+    "tests_passed": 91,
+    "compilation_passed": true,
+    "live_handoff_smoke_passed": true,
+    "source_rescue_matrix_complete": true,
+    "no_forbidden_files_committed": true,
+    "no_forbidden_actions_influence": true
+  }
+}

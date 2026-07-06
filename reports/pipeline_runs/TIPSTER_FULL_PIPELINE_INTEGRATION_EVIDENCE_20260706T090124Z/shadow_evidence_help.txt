@@ -1,0 +1,29 @@
+usage: s2_tipsters_shadow_evidence.py [-h] --date DATE [--run-id RUN_ID]
+                                      [--runtime-mode RUNTIME_MODE]
+                                      [--terms-reviewed-json TERMS_REVIEWED_JSON]
+                                      [--source SOURCE]
+                                      [--include-certified-shadow]
+                                      [--max-pages-per-source MAX_PAGES_PER_SOURCE]
+                                      [--allow-live-network] [--out OUT]
+                                      [--handoff-out HANDOFF_OUT]
+                                      [--sqlite-db SQLITE_DB]
+
+S2 Shadow Evidence Wrapper
+
+options:
+  -h, --help            show this help message and exit
+  --date, --betting-day DATE
+                        YYYY-MM-DD
+  --run-id RUN_ID       Run ID
+  --runtime-mode RUNTIME_MODE
+                        Runtime mode
+  --terms-reviewed-json TERMS_REVIEWED_JSON
+                        Path to local review JSON
+  --source SOURCE       Specific sources to scrape
+  --include-certified-shadow
+                        Include certified shadow sources (like zawodtyper)
+  --max-pages-per-source MAX_PAGES_PER_SOURCE
+  --allow-live-network
+  --out OUT
+  --handoff-out HANDOFF_OUT
+  --sqlite-db SQLITE_DB

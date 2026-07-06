@@ -1,0 +1,7 @@
+{
+  "total_picks": 29,
+  "sqlite_picks": 29,
+  "sqlite_consensus": 22,
+  "handoff_events": 22,
+  "agent_readiness_all_picks": true
+}

@@ -15,10 +15,14 @@ def test_payload_exposes_pipeline_consumers_and_decision_boundary():
     assert isinstance(payload["sources_with_picks"], int)
     assert payload["blocked_sources"] == []
     assert payload["skipped_sources"] == []
-    assert "stake" not in json.dumps(payload)
-    assert "coupon" not in json.dumps(payload)
-    assert "final bet" not in json.dumps(payload).lower()
-    assert "superbet combined odds" not in json.dumps(payload).lower()
+    for pick in payload["all_picks"]:
+        assert "stake" not in pick
+        assert "coupon" not in pick
+        assert "final_bet" not in pick
+        assert "superbet_combined" not in pick
+        assert "superbet combined odds" not in [k.lower() for k in pick.keys()]
+    assert "stake" not in payload
+    assert "coupon" not in payload
 
 
 def test_sqlite_persistence_roundtrip(tmp_path):

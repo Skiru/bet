@@ -1,0 +1,10 @@
+{
+  "total_picks": 25,
+  "sqlite_picks_count": 25,
+  "all_picks_have_readiness": true,
+  "all_readiness_valid": true,
+  "handoff_exists": true,
+  "handoff_schema_valid": true,
+  "allowed_consumers_valid": true,
+  "no_forbidden_fields": true
+}

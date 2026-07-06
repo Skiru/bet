@@ -1,0 +1,11 @@
+{
+  "decision": "PASS_SHADOW_SIDECAR_INTEGRATION_READY",
+  "branch": "feat/tipster-orchestrator-handoff-and-source-rescue",
+  "base_commit": "1428c5a3b90df66bc8d89e47bf9b8f2c6df298c5",
+  "integration_model": "MODEL_B_LEGACY_S2_CANONICAL_WITH_SHADOW_SIDECAR",
+  "total_picks_extracted_smoke": 26,
+  "verification_timestamp": "2026-07-06T09:22:15Z",
+  "fail_closed_active": true,
+  "compliance_verdict": "VERIFIED_COMPLIANT",
+  "can_merge_to_main": "YES"
+}

@@ -26,8 +26,9 @@ from bet.tipsters.compliance import DomainRateLimiter, RobotsCache  # noqa: E402
 from bet.tipsters.contracts import ExtractionResult, ExtractorVerdict  # noqa: E402
 from bet.tipsters.extractors import dispatch_extract, discover_public_detail_links  # noqa: E402
 from bet.tipsters.fetcher import FetchConfig, fetch_public_html  # noqa: E402
-from bet.tipsters.source_registry import CORE_SOURCE_IDS, SOURCES  # noqa: E402
-from bet.tipsters.storage import persist_sqlite, write_json_artifact  # noqa: E402
+from bet.tipsters.source_registry import CORE_SOURCE_IDS, SOURCES, CERTIFIED_SHADOW_SOURCE_IDS  # noqa: E402
+from bet.tipsters.storage import persist_sqlite, write_json_artifact, build_payload  # noqa: E402
+from bet.tipsters.handoff import write_handoff_artifact  # noqa: E402
 from bet.tipsters.zawodtyper import (  # noqa: E402
     build_zawodtyper_daily_url,
     build_zawodtyper_transport_warnings,
@@ -350,11 +351,18 @@ def main() -> int:
     parser.add_argument("--max-bytes", type=int, default=2_000_000)
     parser.add_argument("--out", type=Path, default=None)
     parser.add_argument("--sqlite-db", type=Path, default=None)
+    parser.add_argument("--handoff-out", type=Path, default=None, help="Output path for tipster evidence handoff JSON")
+    parser.add_argument("--include-certified-shadow", action="store_true", help="Include certified shadow sources (like zawodtyper)")
     parser.add_argument("--require-at-least-one-pick", action="store_true", help="Exit non-zero when total_picks is zero")
     args = parser.parse_args()
 
     review_data = load_review_file(args.terms_reviewed_json)
-    source_ids = tuple(args.source) if args.source else ("forebet", "predictz")
+    source_ids_list = list(args.source) if args.source else ["forebet", "predictz"]
+    if args.include_certified_shadow:
+        for cid in CERTIFIED_SHADOW_SOURCE_IDS:
+            if cid not in source_ids_list:
+                source_ids_list.append(cid)
+    source_ids = tuple(source_ids_list)
     all_results: list[ExtractionResult] = []
     started = datetime.now(timezone.utc).isoformat()
     print(f"[live-dry-run] started_at_utc={started} sources={','.join(source_ids)} max_pages_per_source={args.max_pages_per_source}")
@@ -371,6 +379,12 @@ def main() -> int:
 
     out = args.out or Path("betting/data") / f"{args.date}_tipster_consensus_v2_live_dry_run.json"
     write_json_artifact(all_results, out)
+    
+    if args.handoff_out:
+        payload = build_payload(all_results)
+        write_handoff_artifact(payload, args.handoff_out)
+        print(f"[live-dry-run] wrote handoff to={args.handoff_out}")
+
     sqlite_counts = None
     if args.sqlite_db:
         sqlite_counts = persist_sqlite(all_results, args.sqlite_db)
