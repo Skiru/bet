@@ -236,6 +236,7 @@ SOURCES: dict[str, SourcePolicy] = {
 }
 
 CORE_SOURCE_IDS = ("sportsgambler", "forebet", "predictz", "windrawwin", "feedinco", "bettingclosed")
+CERTIFIED_SHADOW_SOURCE_IDS = ("zawodtyper",)
 RESEARCH_SOURCE_IDS = ("betmines", "sportytrader")
 LEGACY_SOURCE_IDS = ("zawodtyper", "typersi", "pickswise", "betideas")
 MANUAL_REVIEW_SOURCE_IDS = ("pickswise", "betideas", "olbg", "bettingexpert")

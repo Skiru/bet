@@ -1,0 +1,1723 @@
+{
+  "schema_version": "tipster_evidence_handoff_v1",
+  "contract": "evidence_only_not_betting_decision",
+  "source_stage": "S2 tipster evidence",
+  "allowed_consumers": [
+    "S3 contextual cross-check",
+    "S4 market sanity",
+    "manual Superbet quote review"
+  ],
+  "forbidden_actions": [
+    "EV",
+    "stake",
+    "coupon",
+    "final bet",
+    "Superbet combined odds"
+  ],
+  "sources": [
+    {
+      "source_id": "zawodtyper",
+      "url": "https://www.zawodtyper.pl/typy-dnia-6-lipca-poniedzialek/",
+      "verdict": "ok",
+      "picks": [
+        {
+          "source_id": "zawodtyper",
+          "source_name": "ZawodTyper",
+          "sport": "tennis",
+          "event": "Taylor Fritz vs Alexander Bublik",
+          "home_team": "Taylor Fritz",
+          "away_team": "Alexander Bublik",
+          "market": "Liczba setów : powyżej 3,5",
+          "market_family": "goals",
+          "direction": "OVER",
+          "line": 3.5,
+          "odds_decimal": 1.5,
+          "confidence_label": "source_claim",
+          "reasoning": "Tipster Bartosz Babiński: 73% (15 bets) | Starcie Taylora Fritza z Alexandrem Bublikiem zapowiada się jako jedno z najciekawszych spotkań tej fazy Wimbledonu. Obaj zawodnicy bardzo dobrze czują się na kortach trawiastych, a ich największym atutem jest mocny serwis oraz agresywny styl gry. W takich warunkach przełamania często należą do rzadkości, a o losach setów decydują pojedyncze punkty lub tie-breaki, co znacząco zwiększa szanse na rozegranie co najmniej czterech partii. Taylor Fritz przystępuje do meczu jako faworyt, jednak Alexander Bublik już wielokrotnie udowadniał, że na trawie potrafi rywalizować z najlepszymi tenisistami świata. Kazach dysponuje jednym z najbardziej nieprzewidywalnych stylów w tourze – świetnie serwuje, często skraca wymiany, stosuje drop shoty i zmienia tempo g",
+          "stats_cited": [
+            "3,5 set"
+          ],
+          "tipster_name": "Bartosz Babiński",
+          "competition": null,
+          "published_at": null,
+          "source_url": null,
+          "extracted_at_utc": "2026-07-06T08:08:36.832846+00:00",
+          "extraction_quality": 0.82,
+          "warnings": [
+            "legacy_bridge_evidence_only",
+            "odds_reference_only",
+            "accuracy_pct_reference_only"
+          ],
+          "valuable_signals": {
+            "decision_boundary": [
+              "evidence_only_not_a_bet"
+            ],
+            "source_quality": [
+              "accuracy_pct=73"
+            ],
+            "stats_cited": [
+              "3,5 set"
+            ]
+          },
+          "source_record_type": "legacy_source_claim_bridge",
+          "pipeline_use": [
+            "s2_tipster_evidence",
+            "s3_context_cross_check",
+            "legacy_bridge_reference_only"
+          ]
+        },
+        {
+          "source_id": "zawodtyper",
+          "source_name": "ZawodTyper",
+          "sport": "tennis",
+          "event": "Jiri Lehecka vs Alexander Zverev",
+          "home_team": "Jiri Lehecka",
+          "away_team": "Alexander Zverev",
+          "market": "Liczba setów : powyżej 3,5",
+          "market_family": "goals",
+          "direction": "OVER",
+          "line": 3.5,
+          "odds_decimal": 1.65,
+          "confidence_label": "source_claim",
+          "reasoning": "Tipster Bet MasterPL: 73% (15 bets) | Spotkanie Lehecki z Alexandrem Zverevem zapowiada się jako jedno z najbardziej wyrównanych starć tej fazy turnieju. Obaj zawodnicy bardzo dobrze odnajdują się na trawie, dysponują mocnym serwisem i potrafią skutecznie wygrywać własne gemy serwisowe, co zwiększa prawdopodobieństwo długiego oraz zaciętego meczu. Przy takiej charakterystyce gry nie powinno dziwić, jeśli o losach poszczególnych setów będą decydować pojedyncze przełamania lub tie-breaki. Alexander Zverev pozostaje faworytem ze względu na większe doświadczenie oraz wyższą pozycję w rankingu ATP, jednak Jiri Lehecka wielokrotnie udowadniał, że potrafi rywalizować z najlepszymi zawodnikami świata. Czech gra bardzo ofensywnie, świetnie serwuje i chętnie przejmuje inicjatywę już od pierwszych ud",
+          "stats_cited": [
+            "3,5 set"
+          ],
+          "tipster_name": "Bet MasterPL",
+          "competition": null,
+          "published_at": null,
+          "source_url": null,
+          "extracted_at_utc": "2026-07-06T08:08:36.832846+00:00",
+          "extraction_quality": 0.82,
+          "warnings": [
+            "legacy_bridge_evidence_only",
+            "odds_reference_only",
+            "accuracy_pct_reference_only"
+          ],
+          "valuable_signals": {
+            "decision_boundary": [
+              "evidence_only_not_a_bet"
+            ],
+            "source_quality": [
+              "accuracy_pct=73"
+            ],
+            "stats_cited": [
+              "3,5 set"
+            ]
+          },
+          "source_record_type": "legacy_source_claim_bridge",
+          "pipeline_use": [
+            "s2_tipster_evidence",
+            "s3_context_cross_check",
+            "legacy_bridge_reference_only"
+          ]
+        },
+        {
+          "source_id": "zawodtyper",
+          "source_name": "ZawodTyper",
+          "sport": "football",
+          "event": "Portugalia vs Hiszpania",
+          "home_team": "Portugalia",
+          "away_team": "Hiszpania",
+          "market": "Hiszpania +0.5 gola + Portugalia -2.5 gola + Awans Hiszpania",
+          "market_family": "unknown",
+          "direction": "OVER",
+          "line": null,
+          "odds_decimal": 1.5,
+          "confidence_label": "source_claim",
+          "reasoning": "Tipster Paweł Kowalski: 67% (37 bets) | Hiszpania imponuje formą na mundialu, a w 1/8 finału pewnie pokonała Austrię 3:0, potwierdzając zarówno skuteczność w ataku, jak i bardzo dobrą organizację gry. Portugalia również jest groźna ofensywnie, jednak rzadko zdobywa więcej niż dwa gole w meczach z wymagającymi rywalami, dlatego linia poniżej 3 bramek wygląda bardzo solidnie. Hiszpanie regularnie stwarzają wiele sytuacji i mają jakość, by zdobyć przynajmniej jednego gola, a ich obecna dyspozycja daje mocne argumenty, że wywalczą awans do ćwierćfinału. Typ na gola Hiszpanii, poniżej 3 goli Portugalii oraz awans Hiszpanii wygląda bardzo wartościowo.",
+          "stats_cited": [
+            "1/8"
+          ],
+          "tipster_name": "Paweł Kowalski",
+          "competition": null,
+          "published_at": null,
+          "source_url": null,
+          "extracted_at_utc": "2026-07-06T08:08:36.832846+00:00",
+          "extraction_quality": 0.74,
+          "warnings": [
+            "legacy_bridge_evidence_only",
+            "odds_reference_only",
+            "accuracy_pct_reference_only"
+          ],
+          "valuable_signals": {
+            "decision_boundary": [
+              "evidence_only_not_a_bet"
+            ],
+            "source_quality": [
+              "accuracy_pct=67"
+            ],
+            "stats_cited": [
+              "1/8"
+            ]
+          },
+          "source_record_type": "legacy_source_claim_bridge",
+          "pipeline_use": [
+            "s2_tipster_evidence",
+            "s3_context_cross_check",
+            "legacy_bridge_reference_only"
+          ]
+        },
+        {
+          "source_id": "zawodtyper",
+          "source_name": "ZawodTyper",
+          "sport": "football",
+          "event": "HISZPANIA vs PORTUGALIA",
+          "home_team": "HISZPANIA",
+          "away_team": "PORTUGALIA",
+          "market": "CUCURELLA POWYŻEJ 0.5 FAULU",
+          "market_family": "goals",
+          "direction": "OVER",
+          "line": 0.5,
+          "odds_decimal": 1.5,
+          "confidence_label": "source_claim",
+          "reasoning": "Tipster Daniel Janus: 70% (17 bets) | Pewniaczek na podtrzymanie dobrej passy z ostatnich kilku dni. Myślę, że długowłosy Hiszpan zrobi dzisiaj na spokojnie 2+ faule. Każdy kto zna chociaż troszkę jego styl i szybkie doskakiwanie do rywali, podłączanie się i czasami konieczność przerwania akcji po stracie przyzna, że Cucurella dzisiaj sfauluje. Celuję w minimum 1 faul Hiszpana, razem ze zmiennikiem i ewentualną dogrywką na STSIE 🤚. Stawka meczu ogromna, więc może być nerwowo po obu stronach. Cucurella fajnie pokrywał faule w o wiele mniej \"stykowych\" spotkaniach. Do tej pory na MŚ: 2 VS. AUSTRIA ✅️ 0 VS. URUGWAJ ❌️ 2 VS. ARABIA ✅️ 1 VS. RZP ✅️ Mecze z Urugwajem kompletnie mnie nie zniechęca, ponieważ takie spotkania raz na jakiś czas sie zdarzają, ale rzadko. Kompletnie nic się tam nie dzi",
+          "stats_cited": [],
+          "tipster_name": "Daniel Janus",
+          "competition": null,
+          "published_at": null,
+          "source_url": null,
+          "extracted_at_utc": "2026-07-06T08:08:36.832846+00:00",
+          "extraction_quality": 0.76,
+          "warnings": [
+            "legacy_bridge_evidence_only",
+            "odds_reference_only",
+            "accuracy_pct_reference_only"
+          ],
+          "valuable_signals": {
+            "decision_boundary": [
+              "evidence_only_not_a_bet"
+            ],
+            "source_quality": [
+              "accuracy_pct=70"
+            ]
+          },
+          "source_record_type": "legacy_source_claim_bridge",
+          "pipeline_use": [
+            "s2_tipster_evidence",
+            "s3_context_cross_check",
+            "legacy_bridge_reference_only"
+          ]
+        },
+        {
+          "source_id": "zawodtyper",
+          "source_name": "ZawodTyper",
+          "sport": "tennis",
+          "event": "Madison Keys vs Linda Noskova",
+          "home_team": "Madison Keys",
+          "away_team": "Linda Noskova",
+          "market": "1",
+          "market_family": "unknown",
+          "direction": "HOME",
+          "line": null,
+          "odds_decimal": 1.69,
+          "confidence_label": "source_claim",
+          "reasoning": "Tipster Bet MasterPL: 73% (15 bets) | Madison Keys przystępuje do tego spotkania jako jedna z najbardziej niebezpiecznych zawodniczek na nawierzchni trawiastej. Amerykanka dysponuje jednym z najmocniejszych serwisów w kobiecym tourze oraz bardzo agresywnym stylem gry, który na szybkich kortach Wimbledonu przynosi szczególnie dobre rezultaty. Gdy Keys utrzymuje wysoki procent pierwszego podania, potrafi przejmować inicjatywę już od pierwszych uderzeń i skracać wymiany, nie pozwalając rywalkom na narzucenie własnego rytmu. Linda Nosková to niezwykle utalentowana tenisistka, która również preferuje ofensywny tenis, jednak w starciach z zawodniczkami o tak dużej sile rażenia często decydują doświadczenie oraz umiejętność gry pod presją. Czeszka potrafi prezentować bardzo wysoki poziom, ale zda",
+          "stats_cited": [],
+          "tipster_name": "Bet MasterPL",
+          "competition": null,
+          "published_at": null,
+          "source_url": null,
+          "extracted_at_utc": "2026-07-06T08:08:36.832846+00:00",
+          "extraction_quality": 0.68,
+          "warnings": [
+            "legacy_bridge_evidence_only",
+            "odds_reference_only",
+            "accuracy_pct_reference_only"
+          ],
+          "valuable_signals": {
+            "decision_boundary": [
+              "evidence_only_not_a_bet"
+            ],
+            "source_quality": [
+              "accuracy_pct=73"
+            ]
+          },
+          "source_record_type": "legacy_source_claim_bridge",
+          "pipeline_use": [
+            "s2_tipster_evidence",
+            "s3_context_cross_check",
+            "legacy_bridge_reference_only"
+          ]
+        },
+        {
+          "source_id": "zawodtyper",
+          "source_name": "ZawodTyper",
+          "sport": "basketball",
+          "event": "Australia vs Filipiny razem z dogrywką",
+          "home_team": "Australia",
+          "away_team": "Filipiny razem z dogrywką",
+          "market": "over 168,5 pkt",
+          "market_family": "goals",
+          "direction": "OVER",
+          "line": 168.5,
+          "odds_decimal": 1.62,
+          "confidence_label": "source_claim",
+          "reasoning": "Tipster Andrzej Bolek: 45% (11 bets) | W tym spotkaniu praktycznie ostateczny wynik jest znany już przed rozpoczęciem pojedynku i tylko pytania są takie iloma punktami drużyna Australii wygra ten mecz i jak wysoki padnie w nim wynik punktowy.Obecnie zajmują oni 1 miejsce w tabeli z dorobkiem 10 punktów zdobytych.W dotychczas rozegranych spotkaniach wygrali wszyst6kie 5 rozegranych meczy.Koszykarze obu drużyn bardzo dobrze rzucają z dalszej odległości za 3 punkty i dzisiaj na pewno zobaczymy wiele takich prób bz bardzo dobrym skutkiem i typuje że padnie tutaj bardzo wysoki wynik punktowy i Australia pewnie wygra to spotkanie.",
+          "stats_cited": [],
+          "tipster_name": "Andrzej Bolek",
+          "competition": null,
+          "published_at": null,
+          "source_url": null,
+          "extracted_at_utc": "2026-07-06T08:08:36.832846+00:00",
+          "extraction_quality": 0.76,
+          "warnings": [
+            "legacy_bridge_evidence_only",
+            "odds_reference_only",
+            "accuracy_pct_reference_only"
+          ],
+          "valuable_signals": {
+            "decision_boundary": [
+              "evidence_only_not_a_bet"
+            ],
+            "source_quality": [
+              "accuracy_pct=45"
+            ]
+          },
+          "source_record_type": "legacy_source_claim_bridge",
+          "pipeline_use": [
+            "s2_tipster_evidence",
+            "s3_context_cross_check",
+            "legacy_bridge_reference_only"
+          ]
+        },
+        {
+          "source_id": "zawodtyper",
+          "source_name": "ZawodTyper",
+          "sport": "tennis",
+          "event": "Ashlyn Krueger vs Marta Kostyuk",
+          "home_team": "Ashlyn Krueger",
+          "away_team": "Marta Kostyuk",
+          "market": "A. Krueger +4.5 gema",
+          "market_family": "unknown",
+          "direction": "OTHER",
+          "line": null,
+          "odds_decimal": 1.65,
+          "confidence_label": "source_claim",
+          "reasoning": "Tipster Maciej Mikulewicz: 75% (4 bets) | Kolejny dzień Wimbledonu. Tym razem pod lupę wziąłem mecz mającej świetne warunki fizyczne (185 cm) Ashlyn Krueger z Martą Kostyuk. Amerykanka rozgrywa bardzo dobry turniej, przebrnęła przez kwalifikacje i z meczu na mecz nabrała coraz większej pewności siebie. Krueger bardzo dobrze serwuje, ma wysoki procent trafionego pierwszego podania, co na trawie bardzo pomaga w utrzymaniu własnego podania. Co do Kostyuk - na pewno jest faworytką, przemawia za nią nieco większe doświadczenie, styl gry pasujący pod szybkie korty. Natomiast oglądałem jej mecz z Blinkową i nie zrobiła na mnie wrażenia. Być może nieco zlekceważyła Rosjankę. Mecz meczowi nierówny i dzisiejsza dyspozycja może być dużo lepsza. Zapowiada się ciekawy mecz, obie dobrze serwują i mocno",
+          "stats_cited": [],
+          "tipster_name": "Maciej Mikulewicz",
+          "competition": null,
+          "published_at": null,
+          "source_url": null,
+          "extracted_at_utc": "2026-07-06T08:08:36.832846+00:00",
+          "extraction_quality": 0.68,
+          "warnings": [
+            "legacy_bridge_evidence_only",
+            "odds_reference_only",
+            "accuracy_pct_reference_only"
+          ],
+          "valuable_signals": {
+            "decision_boundary": [
+              "evidence_only_not_a_bet"
+            ],
+            "source_quality": [
+              "accuracy_pct=75"
+            ]
+          },
+          "source_record_type": "legacy_source_claim_bridge",
+          "pipeline_use": [
+            "s2_tipster_evidence",
+            "s3_context_cross_check",
+            "legacy_bridge_reference_only"
+          ]
+        },
+        {
+          "source_id": "zawodtyper",
+          "source_name": "ZawodTyper",
+          "sport": "tennis",
+          "event": "Dimitrov vs Fery",
+          "home_team": "Dimitrov",
+          "away_team": "Fery",
+          "market": "Dimitrov wygra 3:0",
+          "market_family": "winner",
+          "direction": "WIN",
+          "line": null,
+          "odds_decimal": 3.15,
+          "confidence_label": "source_claim",
+          "reasoning": "Dimitrov podejmie Fery’ego w ramach 1/8 wimbledonu i moim zdaniem jest już jedną nogą w ćwierćfinale bo nie jest to przeciwnik z którym doświadczmy Bułgar powinien mieć jakiekolwiek problemy. Jeśli Dimitrov jest zdrowy i nie dokuczają mu żadne problemy z jakąś częścią ciała to potrafi grać po prostu fenomenalnie co już niejednokrotnie był w stanie nam pokazać chociażby ten pechowy mecz z sinnerem gdzie grał po prostu wyśmienicie ale przez kontuzje musiał poddać mecz przy stanie 2:0 do przodu w setach. Fery tak trochę niespodziewanie znalazł się na tym etapie nie jest to jakiś wybitny gracz, można powiedzieć że bardziej Bergs przegrał niż Fery wygrał dlatego Bułgarowi przyjdzie się mierzyć w mojej opinii z rywalem z którym bez problemu sobie poradzi. Fery na swojej drodze nie miał też zbytn",
+          "stats_cited": [
+            "1/8"
+          ],
+          "tipster_name": "Paweł Będzik",
+          "competition": null,
+          "published_at": null,
+          "source_url": null,
+          "extracted_at_utc": "2026-07-06T08:08:36.832846+00:00",
+          "extraction_quality": 0.74,
+          "warnings": [
+            "legacy_bridge_evidence_only",
+            "odds_reference_only"
+          ],
+          "valuable_signals": {
+            "decision_boundary": [
+              "evidence_only_not_a_bet"
+            ],
+            "stats_cited": [
+              "1/8"
+            ]
+          },
+          "source_record_type": "legacy_source_claim_bridge",
+          "pipeline_use": [
+            "s2_tipster_evidence",
+            "s3_context_cross_check",
+            "legacy_bridge_reference_only"
+          ]
+        },
+        {
+          "source_id": "zawodtyper",
+          "source_name": "ZawodTyper",
+          "sport": "football",
+          "event": "Hacken vs Djurgarden .",
+          "home_team": "Hacken",
+          "away_team": "Djurgarden .",
+          "market": "BTTS + poniżej 6,5 gola w meczu .",
+          "market_family": "btts",
+          "direction": "UNDER",
+          "line": 6.5,
+          "odds_decimal": 1.5,
+          "confidence_label": "source_claim",
+          "reasoning": "Tipster Mirosław Siemienicki: 100% (6 bets) | Szwecja . 3:2 , 3:2 , 2:2 - to ostatnie domowe wyniki Hacken . Dalej jest podobnie . Natomiast Djurgarden ( w tłumaczeniu na polski ogród zoologiczny - ZOO) to drużyna , która okupuje końcówkę tabeli i nie jest to ich właściwe miejsce . Dwie ostatnie domowe porażki musiały zaboleć i liczę że bez gola się nie obejdzie - w ramach rehabilitacji ( nie muszą od razu wygrywać) . Tym bardziej , że równo rok temu sprawili chłopakom łomot aż 6:1 i to na wyjeździe - tak jak dziś !",
+          "stats_cited": [],
+          "tipster_name": "Mirosław Siemienicki",
+          "competition": null,
+          "published_at": null,
+          "source_url": null,
+          "extracted_at_utc": "2026-07-06T08:08:36.832846+00:00",
+          "extraction_quality": 0.76,
+          "warnings": [
+            "legacy_bridge_evidence_only",
+            "odds_reference_only",
+            "accuracy_pct_reference_only"
+          ],
+          "valuable_signals": {
+            "decision_boundary": [
+              "evidence_only_not_a_bet"
+            ],
+            "source_quality": [
+              "accuracy_pct=100"
+            ]
+          },
+          "source_record_type": "legacy_source_claim_bridge",
+          "pipeline_use": [
+            "s2_tipster_evidence",
+            "s3_context_cross_check",
+            "legacy_bridge_reference_only"
+          ]
+        },
+        {
+          "source_id": "zawodtyper",
+          "source_name": "ZawodTyper",
+          "sport": "tennis",
+          "event": "Grigor Dimitrov vs Arthur Fery",
+          "home_team": "Grigor Dimitrov",
+          "away_team": "Arthur Fery",
+          "market": "Zwycięzca: Grigor Dimitrov + Najwięcej asów serwisowych: Grigor Dimitrov",
+          "market_family": "unknown",
+          "direction": "WIN",
+          "line": null,
+          "odds_decimal": 1.55,
+          "confidence_label": "source_claim",
+          "reasoning": "Tipster Maciej Stan: 70% (10 bets) | Średnia asów serwisowych Dimitrova na Wimbledonie to 15,7, a Fery ma średnią ustaloną na poziomie 5,7 asów na mecz - także tę kwestię mamy rozstrzygniętą. Zakład główny polega na zwycięstwie Dimitrova. Według mnie wrócił stary, dobry Dima i jest to zawodnik o kilka klas (a przynajmniej o klasę) wyżej niż jego dzisiejszy przeciwnik z dziką kartą. Według mnie Fery pokonał Bergsa przez błędy Belga, który nie potrafił domknąć meczu, a podwójne błędy mu w tym na pewno nie pomogły. Niesiony atmosferą i dopingiem gospodarzy Arthur wygrał tamto spotkanie. Dziś też na pewno będą mu kibicować, lecz według mnie wygra sympatyczny Bułgar, który pokonał już dwa mocne nazwiska na tym turnieju – Berrettiniego i Mensika.",
+          "stats_cited": [],
+          "tipster_name": "Maciej Stan",
+          "competition": null,
+          "published_at": null,
+          "source_url": null,
+          "extracted_at_utc": "2026-07-06T08:08:36.832846+00:00",
+          "extraction_quality": 0.68,
+          "warnings": [
+            "legacy_bridge_evidence_only",
+            "odds_reference_only",
+            "accuracy_pct_reference_only"
+          ],
+          "valuable_signals": {
+            "decision_boundary": [
+              "evidence_only_not_a_bet"
+            ],
+            "source_quality": [
+              "accuracy_pct=70"
+            ]
+          },
+          "source_record_type": "legacy_source_claim_bridge",
+          "pipeline_use": [
+            "s2_tipster_evidence",
+            "s3_context_cross_check",
+            "legacy_bridge_reference_only"
+          ]
+        },
+        {
+          "source_id": "zawodtyper",
+          "source_name": "ZawodTyper",
+          "sport": "tennis",
+          "event": "Lehecka vs Zverev",
+          "home_team": "Lehecka",
+          "away_team": "Zverev",
+          "market": "Zverev - 1.5 Handicap setów",
+          "market_family": "handicap",
+          "direction": "OVER",
+          "line": null,
+          "odds_decimal": 1.65,
+          "confidence_label": "source_claim",
+          "reasoning": "Tipster Kacper Pocztowski: 54% (11 bets) | Alexander Zverev od początku Wimbledonu prezentuje bardzo wysoki poziom i wygląda na zawodnika, który przyjechał do Londynu z jasnym celem aby walczyć o końcowy triumf. Po zdobyciu swojego pierwszego tytułu wielkoszlemowego gra z ogromną pewnością siebie, co widać w każdym kolejnym meczu. Lehecka to bardzo solidny tenisista, szczególnie na trawie, gdzie jego mocny serwis i agresywny forehand są dużymi atutami. Mimo wszystko uważam, że pod względem regularności i jakości gry z głębi kortu Zverev ma wyraźną przewagę. Niemiec świetnie serwuje, bardzo dobrze returnuje i potrafi utrzymywać wysoką intensywność przez całe spotkanie. To właśnie te elementy mogą zrobić różnicę w tym pojedynku. Dodatkowo Zverev bardzo pewnie przeszedł przez pierwsze rundy t",
+          "stats_cited": [
+            "1,5 set"
+          ],
+          "tipster_name": "Kacper Pocztowski",
+          "competition": null,
+          "published_at": null,
+          "source_url": null,
+          "extracted_at_utc": "2026-07-06T08:08:36.832846+00:00",
+          "extraction_quality": 0.74,
+          "warnings": [
+            "legacy_bridge_evidence_only",
+            "odds_reference_only",
+            "accuracy_pct_reference_only"
+          ],
+          "valuable_signals": {
+            "decision_boundary": [
+              "evidence_only_not_a_bet"
+            ],
+            "source_quality": [
+              "accuracy_pct=54"
+            ],
+            "stats_cited": [
+              "1,5 set"
+            ]
+          },
+          "source_record_type": "legacy_source_claim_bridge",
+          "pipeline_use": [
+            "s2_tipster_evidence",
+            "s3_context_cross_check",
+            "legacy_bridge_reference_only"
+          ]
+        },
+        {
+          "source_id": "zawodtyper",
+          "source_name": "ZawodTyper",
+          "sport": "tennis",
+          "event": "paolini vs eala",
+          "home_team": "paolini",
+          "away_team": "eala",
+          "market": "over 20.5 gema",
+          "market_family": "goals",
+          "direction": "OVER",
+          "line": 20.5,
+          "odds_decimal": 1.7,
+          "confidence_label": "source_claim",
+          "reasoning": "Tipster Jakub: 75% (4 bets) | Drugi typ i znowu kobiecy Wimbledon, dokładniej 1/8 finału. Mecz pomiędzy wracającą do bardzo dobrej dyspozycji Włoszką i Filipinką, grającą po raz kolejny bardzo dobry sezon na trawie. Paolini tę edycję Wimbledonu rozpoczęła od wymagającego pojedynku z Montgomery, zakończonego 2:1, potem 2:0 z Golubic 7:6, 6:4 i bardzo łatwo pokonała grającą w kratkę Marię Sakkari. Paolini dysponuje dosyć niezłym serwisem, jak na swoje warunki fizyczne. Bardzo dobrze wyczuwa tempo, aby skrócić akcję pod siatkę, z której kończy udanymi zagraniami. Do tego dosyć mało błędów niewymuszonych na tym turnieju, no i forehand, jak i backhand, niezły, grany po crossie. Filipinka to niewygodna rywalka, o czym przekonała się Iga, która przegrała 2:0, ale było widać, że po comebacku w 1 s",
+          "stats_cited": [
+            "1/8"
+          ],
+          "tipster_name": "Jakub",
+          "competition": null,
+          "published_at": null,
+          "source_url": null,
+          "extracted_at_utc": "2026-07-06T08:08:36.832846+00:00",
+          "extraction_quality": 0.82,
+          "warnings": [
+            "legacy_bridge_evidence_only",
+            "odds_reference_only",
+            "accuracy_pct_reference_only"
+          ],
+          "valuable_signals": {
+            "decision_boundary": [
+              "evidence_only_not_a_bet"
+            ],
+            "source_quality": [
+              "accuracy_pct=75"
+            ],
+            "stats_cited": [
+              "1/8"
+            ]
+          },
+          "source_record_type": "legacy_source_claim_bridge",
+          "pipeline_use": [
+            "s2_tipster_evidence",
+            "s3_context_cross_check",
+            "legacy_bridge_reference_only"
+          ]
+        },
+        {
+          "source_id": "zawodtyper",
+          "source_name": "ZawodTyper",
+          "sport": "football",
+          "event": "Meksyk vs Anglia",
+          "home_team": "Meksyk",
+          "away_team": "Anglia",
+          "market": "1X - Meksyk wygra lub zremisuje mecz",
+          "market_family": "winner",
+          "direction": "DC",
+          "line": null,
+          "odds_decimal": 1.55,
+          "confidence_label": "source_claim",
+          "reasoning": "Tipster Aleksander Mazur: 100% (4 bets) | Noc z niedzieli na poniedziałek przychodzi do nas z naprawdę ciekawym spotkaniem 1/8 finału Mistrzostw Świata 2026, gdzie Meksyk zmierzy się z reprezentacją Anglii. Jest to mecz dwóch niepokonanych drużyn. Jeżeli chodzi o reprezentacje Anglii to swoją grą na tym turnieju po prostu nie zachwycają. Ich najlepszy mecz dotychczas to spotkanie z Chorwacją w I kolejce fazy grupowej turnieju, gdzie wygrali aż 4:2. Potem remis z Ghaną 0:0 po słabej grze, spokojna wygrana z Panamą 2:0 oraz po dużych męczarniach wygrana z DK Konga 2:1. Grają zdecydowanie poniżej oczekiwań. Drużyna z Meksyku to rewelacja tego turnieju. Wygrali wszystkie swoje spotkania oraz nie stracili żadnej bramki. Grają świetnie w obronie oraz są skuteczni w ataku. Warto zwrócić uwagę na",
+          "stats_cited": [
+            "1/8"
+          ],
+          "tipster_name": "Aleksander Mazur",
+          "competition": null,
+          "published_at": null,
+          "source_url": null,
+          "extracted_at_utc": "2026-07-06T08:08:36.832846+00:00",
+          "extraction_quality": 0.74,
+          "warnings": [
+            "legacy_bridge_evidence_only",
+            "odds_reference_only",
+            "accuracy_pct_reference_only"
+          ],
+          "valuable_signals": {
+            "decision_boundary": [
+              "evidence_only_not_a_bet"
+            ],
+            "source_quality": [
+              "accuracy_pct=100"
+            ],
+            "stats_cited": [
+              "1/8"
+            ]
+          },
+          "source_record_type": "legacy_source_claim_bridge",
+          "pipeline_use": [
+            "s2_tipster_evidence",
+            "s3_context_cross_check",
+            "legacy_bridge_reference_only"
+          ]
+        },
+        {
+          "source_id": "zawodtyper",
+          "source_name": "ZawodTyper",
+          "sport": "football",
+          "event": "Nautico vs Juventude",
+          "home_team": "Nautico",
+          "away_team": "Juventude",
+          "market": "over 1,5 kartek 1 połowa",
+          "market_family": "cards",
+          "direction": "OVER",
+          "line": 1.5,
+          "odds_decimal": 1.56,
+          "confidence_label": "source_claim",
+          "reasoning": "Tipster Piotr Gębczyński: 54% (59 bets) | Brazylia Serie B ⚽️ Taki typ last minute na powyżej 1.5 kartek w 1 połowie 🟨🟥 W tej lidze sędziowie bardzo często karają zawodników kartkami już w 1 połowie. Średnia wyciągania kartek to 2,20-2,50. Zespół Nautico w tym sezonie średnio otrzymuje kartek w 1 połowie 1,50 a zespół Juventude średnio 1,20. Sądzę że typ jest ciekawy do zagrania i można spróbować wrzucić sobie to do kuponów. Zielonego typu życzę 🟢👍",
+          "stats_cited": [
+            "średnio 1,20"
+          ],
+          "tipster_name": "Piotr Gębczyński",
+          "competition": null,
+          "published_at": null,
+          "source_url": null,
+          "extracted_at_utc": "2026-07-06T08:08:36.832846+00:00",
+          "extraction_quality": 0.82,
+          "warnings": [
+            "legacy_bridge_evidence_only",
+            "odds_reference_only",
+            "accuracy_pct_reference_only"
+          ],
+          "valuable_signals": {
+            "decision_boundary": [
+              "evidence_only_not_a_bet"
+            ],
+            "source_quality": [
+              "accuracy_pct=54"
+            ],
+            "stats_cited": [
+              "średnio 1,20"
+            ]
+          },
+          "source_record_type": "legacy_source_claim_bridge",
+          "pipeline_use": [
+            "s2_tipster_evidence",
+            "s3_context_cross_check",
+            "legacy_bridge_reference_only"
+          ]
+        },
+        {
+          "source_id": "zawodtyper",
+          "source_name": "ZawodTyper",
+          "sport": "tennis",
+          "event": "bouzkova vs mertens",
+          "home_team": "bouzkova",
+          "away_team": "mertens",
+          "market": "1 set over 7.5 + over 20.5 gema w meczu",
+          "market_family": "tennis_games",
+          "direction": "OVER",
+          "line": 7.5,
+          "odds_decimal": 1.65,
+          "confidence_label": "source_claim",
+          "reasoning": "Tipster Jakub: 75% (4 bets) | Wimbledon – 1/8 finału Bouzkova rozgrywa świetny sezon na trawie, ale nawet gdy wygrywa 2:0, są to wyniki dające over gemowy. W tym roku przegrała mecz na trawie tylko z Vekić, która miała fantastyczny start na tej nawierzchni. Czeszka w ostatnim spotkaniu z Samsonovą, mimo problemów, wygrała, broniąc czterech break pointów w kluczowym momencie drugiego seta, a następnie zwyciężyła tie-break 7:3. Marie ma świetny forehand, którym uderza bardzo blisko linii i tak naprawdę, poza Vekić, każda zawodniczka miała z tym bardzo duży problem. Do tego Bouzkova popełnia naprawdę mało niewymuszonych błędów. Po drugiej stronie jest Mertens, która dość sensacyjnie ograła Elenę Rybakinę w dwusetowym pojedynku. Belgijce bardzo pomaga świetne podanie, które ułatwia zdobywanie",
+          "stats_cited": [
+            "1/8"
+          ],
+          "tipster_name": "Jakub",
+          "competition": null,
+          "published_at": null,
+          "source_url": null,
+          "extracted_at_utc": "2026-07-06T08:08:36.832846+00:00",
+          "extraction_quality": 0.82,
+          "warnings": [
+            "legacy_bridge_evidence_only",
+            "odds_reference_only",
+            "accuracy_pct_reference_only"
+          ],
+          "valuable_signals": {
+            "decision_boundary": [
+              "evidence_only_not_a_bet"
+            ],
+            "source_quality": [
+              "accuracy_pct=75"
+            ],
+            "stats_cited": [
+              "1/8"
+            ]
+          },
+          "source_record_type": "legacy_source_claim_bridge",
+          "pipeline_use": [
+            "s2_tipster_evidence",
+            "s3_context_cross_check",
+            "legacy_bridge_reference_only"
+          ]
+        },
+        {
+          "source_id": "zawodtyper",
+          "source_name": "ZawodTyper",
+          "sport": "football",
+          "event": "Austin FC II vs Colorado Rapids II",
+          "home_team": "Austin FC II",
+          "away_team": "Colorado Rapids II",
+          "market": "1 + Colorado Rapids II poniżej 1,5 goli",
+          "market_family": "goals",
+          "direction": "UNDER",
+          "line": 1.5,
+          "odds_decimal": 1.55,
+          "confidence_label": "source_claim",
+          "reasoning": "Tipster Piotr Nejman: 52% (21 bets) | MLS Next Pro Austin FC II : pierwsze miejsce w tabeli , po 15 spotkaniach 37 punktów , bb 31:11. Ostatnie 9 spotkań to same zwycięstwa (bb 23:3) Colorado Rapids II : ostatnie miejsce w tabeli , 9 punktów po 16 meczach , bb 13:32. Ostatnie 5 meczów to 2 porażki , 2 remisy , 1 zwycięstwo. Ostatnie 5 meczów bezpośrednich : 3 zwycięstwa Austin , 2 zwycięstwa Colorado Rapids Powodzenia i zieloności !",
+          "stats_cited": [
+            "Ostatnie 5 mecz"
+          ],
+          "tipster_name": "Piotr Nejman",
+          "competition": null,
+          "published_at": null,
+          "source_url": null,
+          "extracted_at_utc": "2026-07-06T08:08:36.832846+00:00",
+          "extraction_quality": 0.82,
+          "warnings": [
+            "legacy_bridge_evidence_only",
+            "odds_reference_only",
+            "accuracy_pct_reference_only"
+          ],
+          "valuable_signals": {
+            "decision_boundary": [
+              "evidence_only_not_a_bet"
+            ],
+            "source_quality": [
+              "accuracy_pct=52"
+            ],
+            "stats_cited": [
+              "Ostatnie 5 mecz"
+            ]
+          },
+          "source_record_type": "legacy_source_claim_bridge",
+          "pipeline_use": [
+            "s2_tipster_evidence",
+            "s3_context_cross_check",
+            "legacy_bridge_reference_only"
+          ]
+        },
+        {
+          "source_id": "zawodtyper",
+          "source_name": "ZawodTyper",
+          "sport": "football",
+          "event": "Pacific FC vs HFX Wanderers",
+          "home_team": "Pacific FC",
+          "away_team": "HFX Wanderers",
+          "market": "powyżej 0,5 goli + X2",
+          "market_family": "goals",
+          "direction": "OVER",
+          "line": 0.5,
+          "odds_decimal": 1.55,
+          "confidence_label": "source_claim",
+          "reasoning": "Tipster Piotr Nejman: 52% (21 bets) | Canadian Premier League Gospodarze czyli Pacific FC po 11 spotkaniach mają zaledwie 3 punkty które wywalczyli 3 remisami. Bilans bramkowy wynosi 12:25 a ostatni mecz wygrali 23 spotkania temu czyli 11 sierpnia 2025 roku. Od tamtego spotkania nie zdarzyło im się zremisować 0:0 HFX Wanderers to 5 drużyna w tabeli z 12 punktami i bb 15:19. Grają słabszy sezon niż rok temu ale szanse na awans do play-offów nadal jest i to spora bo czwarta drużyna ma zaledwie 2 punkty więcej a nie jest to nawet połowa sezonu. Ostatnie 5 meczów bezpośrednich to 2 zwycięstwa HFX Wanderers , 2 remisy oraz 1 zwycięstwo Pacific FC. Powodzenia i zieloności !",
+          "stats_cited": [
+            "Ostatnie 5 mecz"
+          ],
+          "tipster_name": "Piotr Nejman",
+          "competition": null,
+          "published_at": null,
+          "source_url": null,
+          "extracted_at_utc": "2026-07-06T08:08:36.832846+00:00",
+          "extraction_quality": 0.82,
+          "warnings": [
+            "legacy_bridge_evidence_only",
+            "odds_reference_only",
+            "accuracy_pct_reference_only"
+          ],
+          "valuable_signals": {
+            "decision_boundary": [
+              "evidence_only_not_a_bet"
+            ],
+            "source_quality": [
+              "accuracy_pct=52"
+            ],
+            "stats_cited": [
+              "Ostatnie 5 mecz"
+            ]
+          },
+          "source_record_type": "legacy_source_claim_bridge",
+          "pipeline_use": [
+            "s2_tipster_evidence",
+            "s3_context_cross_check",
+            "legacy_bridge_reference_only"
+          ]
+        },
+        {
+          "source_id": "zawodtyper",
+          "source_name": "ZawodTyper",
+          "sport": "football",
+          "event": "Anglia vs Meksyk",
+          "home_team": "Anglia",
+          "away_team": "Meksyk",
+          "market": "Anglia awans",
+          "market_family": "unknown",
+          "direction": "OTHER",
+          "line": null,
+          "odds_decimal": 1.71,
+          "confidence_label": "source_claim",
+          "reasoning": "Tipster Kuba Milewski: 61% (13 bets) | Na pewno będzie to bardzo ciężki mecz dla Anglików jako że rozgrywany jest w samym sercu stolicy Meksyku na legendarnym Estadio Azteca gdzie po raz 3 w historii będziemy mieć finał Mistrzostw Świata, a także na tym stadionie padł słynny gol ręką Maradony który został nazwany \"ręką boga\". Kolejnymi czynnikami które działają na nie korzyść Anglików jest fakt że grają z gospodarzami imprezy i na pewno atmosfera na trybunach będzie bardzo gęsta, a drugim faktem jest to że stadion położony jest na aż 2200 metrach nad poziomem morza gdzie znacznie ciężej się oddycha. Jednak to na tyle jeśli chodzi o atuty Meksyku w tym meczu. Przechodząc do aspektów piłkarskich mamy tutaj bardzo dużą dysproporcję i totalną dominację Anglików. Skład Anglii wygląda znakomicie",
+          "stats_cited": [
+            "średnio 8"
+          ],
+          "tipster_name": "Kuba Milewski",
+          "competition": null,
+          "published_at": null,
+          "source_url": null,
+          "extracted_at_utc": "2026-07-06T08:08:36.832846+00:00",
+          "extraction_quality": 0.74,
+          "warnings": [
+            "legacy_bridge_evidence_only",
+            "odds_reference_only",
+            "accuracy_pct_reference_only"
+          ],
+          "valuable_signals": {
+            "decision_boundary": [
+              "evidence_only_not_a_bet"
+            ],
+            "source_quality": [
+              "accuracy_pct=61"
+            ],
+            "stats_cited": [
+              "średnio 8"
+            ]
+          },
+          "source_record_type": "legacy_source_claim_bridge",
+          "pipeline_use": [
+            "s2_tipster_evidence",
+            "s3_context_cross_check",
+            "legacy_bridge_reference_only"
+          ]
+        },
+        {
+          "source_id": "zawodtyper",
+          "source_name": "ZawodTyper",
+          "sport": "football",
+          "event": "🇲🇽 Meksyk vs Anglia 🏴󠁧󠁢󠁥󠁮󠁧󠁿",
+          "home_team": "🇲🇽 Meksyk",
+          "away_team": "Anglia 🏴󠁧󠁢󠁥󠁮󠁧󠁿",
+          "market": "Rzuty różne handicap: Anglia -1.5",
+          "market_family": "handicap",
+          "direction": "OVER",
+          "line": null,
+          "odds_decimal": 2.0,
+          "confidence_label": "source_claim",
+          "reasoning": "Tipster Albert Einstein: 80% (21 bets) | Witam Jak przystało na mecz Anglików, pójdę w stronę rzutów rożnych. Tutaj liczby mówią same za siebie a biorąc pod uwagę styl grania obu drużyn typ ma duże prawdopodobieństwo. Meksyk z reguły jest skuteczny, strzela bramkę a potem nie daje sobie strzelić oddając inicjatywę rywalowi. W każdym meczu oprócz z RPA mieli mniejszy procent posiadania piłki. Anglicy natomiast jak wiemy lubią kontrolować spotkanie i utrzymywać się przy piłce. W każdym meczu mieli większy procent posiadania piłki. Dodajmy do tego liczby które mówią same za siebie. Liczba rzutów rożnych w meczach Anglii: Vs DR Kongo 5:3 ✅ Vs Panama 7:3 ✅ Vs Ghana 9:2 ✅ Vs Chorwacja 8:2 ✅ Jak widać typ pokryty 4/4✅ Do tego sam Meksyk wykonuje mało rożnych: Vs Ekwador 3:8 ✅ Vs Czechy 1:5 ✅ Vs K",
+          "stats_cited": [
+            "4/4",
+            "3/4"
+          ],
+          "tipster_name": "Albert Einstein",
+          "competition": null,
+          "published_at": null,
+          "source_url": null,
+          "extracted_at_utc": "2026-07-06T08:08:36.832846+00:00",
+          "extraction_quality": 0.74,
+          "warnings": [
+            "legacy_bridge_evidence_only",
+            "odds_reference_only",
+            "accuracy_pct_reference_only"
+          ],
+          "valuable_signals": {
+            "decision_boundary": [
+              "evidence_only_not_a_bet"
+            ],
+            "source_quality": [
+              "accuracy_pct=80"
+            ],
+            "stats_cited": [
+              "4/4",
+              "3/4"
+            ]
+          },
+          "source_record_type": "legacy_source_claim_bridge",
+          "pipeline_use": [
+            "s2_tipster_evidence",
+            "s3_context_cross_check",
+            "legacy_bridge_reference_only"
+          ]
+        },
+        {
+          "source_id": "zawodtyper",
+          "source_name": "ZawodTyper",
+          "sport": "football",
+          "event": "Pennsylvania Classics vs Reading United AC",
+          "home_team": "Pennsylvania Classics",
+          "away_team": "Reading United AC",
+          "market": "liczba goli: +3 (3 =zwrot)",
+          "market_family": "unknown",
+          "direction": "OVER",
+          "line": null,
+          "odds_decimal": 1.62,
+          "confidence_label": "source_claim",
+          "reasoning": "Tipster Przemek Śmiałkowski: 71% (35 bets) | W tym spotkaniu na przeciwko siebie staną ekipy Pennsylvania Classics oraz Reading United AC. Faworytem do zwycięstwa jest zespół gości. który zaledwie tydzień temu wygrał aż 8 do 2 z gospodarzami dzisiejszego spotkania. Obie ekipy skupiają się bardziej na ataku odpuszczając defensywę. Ich gra jest pozbawiona dyscypliny taktycznej/ Gospodarze stracili już 33 bramki w 12 spotkaniach. Zdobyli także 20 bramek. Goście w 11 spotkaniach strzelili 22 bramki tracąc 19. Reading United AC ma serię 3 spotkań bez porażek. Reading United AC ma serię 8 spotkań bez czystego konta. Over 2,5 w meczach Pennsylvania Classics padł w 6 na 7 ostatnich ligowych spotkań natomiast w meczach Reading United AC over 2,5 padł w 5 na 6 ostatnich ligowych spotkań. Wydaje się,",
+          "stats_cited": [],
+          "tipster_name": "Przemek Śmiałkowski",
+          "competition": null,
+          "published_at": null,
+          "source_url": null,
+          "extracted_at_utc": "2026-07-06T08:08:36.832846+00:00",
+          "extraction_quality": 0.68,
+          "warnings": [
+            "legacy_bridge_evidence_only",
+            "odds_reference_only",
+            "accuracy_pct_reference_only"
+          ],
+          "valuable_signals": {
+            "decision_boundary": [
+              "evidence_only_not_a_bet"
+            ],
+            "source_quality": [
+              "accuracy_pct=71"
+            ]
+          },
+          "source_record_type": "legacy_source_claim_bridge",
+          "pipeline_use": [
+            "s2_tipster_evidence",
+            "s3_context_cross_check",
+            "legacy_bridge_reference_only"
+          ]
+        },
+        {
+          "source_id": "zawodtyper",
+          "source_name": "ZawodTyper",
+          "sport": "football",
+          "event": "🇵🇹 Portugalia vs Hiszpania 🇪🇸",
+          "home_team": "🇵🇹 Portugalia",
+          "away_team": "Hiszpania 🇪🇸",
+          "market": "Obie drużynyn +1,5 obronionych strzałów przez bramkarzów",
+          "market_family": "unknown",
+          "direction": "OTHER",
+          "line": null,
+          "odds_decimal": 1.7,
+          "confidence_label": "source_claim",
+          "reasoning": "Tipster betstrefa: 25% (4 bets) | Obie reprezentacje grają niezwykle ofensywny futbol i regularnie zatrudniają bramkarzy rywali. Hiszpania na tym turnieju oddaje mnóstwo strzałów, a ich najskuteczniejszy gracz, Mikel Oyarzabal, sam zapisał już na swoim koncie 8 celnych uderzeń w światło bramki. Z drugiej strony Portugalia mocno opiera swoją grę na uderzeniach z dystansu i rzutach wolnych – Cristiano Ronaldo oddał do tej pory 7 celnych strzałów, a Bruno Fernandes dorzucił kolejne 3. W defensywie Hiszpanie grają bardzo pewnie i nie stracili jeszcze ani jednego gola na turnieju (cztery czyste konta: 0:0 z Republiką Zielonego Przylądka, 4:0 z Arabią Saudyjską, 1:0 z Urugwajem, 3:0 z Austrią), co oznacza, że ich bramkarz regularnie interweniuje przy próbach przeciwników. Portugalia w poprzednie",
+          "stats_cited": [],
+          "tipster_name": "betstrefa",
+          "competition": null,
+          "published_at": null,
+          "source_url": null,
+          "extracted_at_utc": "2026-07-06T08:08:36.832846+00:00",
+          "extraction_quality": 0.68,
+          "warnings": [
+            "legacy_bridge_evidence_only",
+            "odds_reference_only",
+            "accuracy_pct_reference_only"
+          ],
+          "valuable_signals": {
+            "decision_boundary": [
+              "evidence_only_not_a_bet"
+            ],
+            "source_quality": [
+              "accuracy_pct=25"
+            ]
+          },
+          "source_record_type": "legacy_source_claim_bridge",
+          "pipeline_use": [
+            "s2_tipster_evidence",
+            "s3_context_cross_check",
+            "legacy_bridge_reference_only"
+          ]
+        },
+        {
+          "source_id": "zawodtyper",
+          "source_name": "ZawodTyper",
+          "sport": "football",
+          "event": "Meksyk 🇲🇽 vs Anglia 🏴󠁧󠁢󠁥󠁮󠁧󠁿",
+          "home_team": "Meksyk 🇲🇽",
+          "away_team": "Anglia 🏴󠁧󠁢󠁥󠁮󠁧󠁿",
+          "market": "Harry Kane liczba celnych strzałów powyżej 0.5 + Anglia liczba rzutów różnych powyżej 1.5",
+          "market_family": "goals",
+          "direction": "OVER",
+          "line": 0.5,
+          "odds_decimal": 1.5,
+          "confidence_label": "source_claim",
+          "reasoning": "Moim zdaniem ten typ ma spore szanse wejść. Kane praktycznie w każdym meczu dochodzi do okazji i jeden celny strzał jest jak najbardziej w jego zasięgu. Anglia powinna prowadzić grę, więc o rzuty rożne też się nie martwię. Dwa rożne to naprawdę niewiele, a przy ich stylu gry taka linia wygląda bardzo dobrze. Dlatego gram: Kane celny strzał + Anglia powyżej 1,5 rzutu rożnego.",
+          "stats_cited": [],
+          "tipster_name": "Konrad Kłos",
+          "competition": null,
+          "published_at": null,
+          "source_url": null,
+          "extracted_at_utc": "2026-07-06T08:08:36.832846+00:00",
+          "extraction_quality": 0.76,
+          "warnings": [
+            "legacy_bridge_evidence_only",
+            "odds_reference_only"
+          ],
+          "valuable_signals": {
+            "decision_boundary": [
+              "evidence_only_not_a_bet"
+            ]
+          },
+          "source_record_type": "legacy_source_claim_bridge",
+          "pipeline_use": [
+            "s2_tipster_evidence",
+            "s3_context_cross_check",
+            "legacy_bridge_reference_only"
+          ]
+        },
+        {
+          "source_id": "zawodtyper",
+          "source_name": "ZawodTyper",
+          "sport": "football",
+          "event": "MŚ 2026 | Meksyk vs Anglia",
+          "home_team": "MŚ 2026 | Meksyk",
+          "away_team": "Anglia",
+          "market": "Anglia awansuje",
+          "market_family": "unknown",
+          "direction": "OVER",
+          "line": null,
+          "odds_decimal": 1.75,
+          "confidence_label": "source_claim",
+          "reasoning": "Tipster Kacper: 50% (16 bets) | Dla mnie w tym meczu najciekawszą opcją jest awans Anglii. Meksyk rozgrywa bardzo dobry turniej, nie stracił jeszcze gola i dodatkowo zagra przy fantastycznym dopingu na Aztece. To na pewno nie będzie łatwa przeprawa dla Anglików. Mimo wszystko uważam, że na tym etapie turnieju większe znaczenie będzie miała jakość piłkarska i doświadczenie. Anglia ma zdecydowanie więcej zawodników potrafiących zrobić różnicę jednym zagraniem. Kane jest w dobrej formie, Bellingham, Saka czy Foden również potrafią przesądzić o losach spotkania nawet wtedy, gdy drużyna nie gra wielkiego meczu. Spodziewam się zamkniętego i wyrównanego widowiska. Meksyk będzie walczył, ale moim zdaniem z każdą kolejną minutą przewaga kadrowa Anglików będzie coraz bardziej widoczna. Nie zdziwi mn",
+          "stats_cited": [],
+          "tipster_name": "Kacper",
+          "competition": null,
+          "published_at": null,
+          "source_url": null,
+          "extracted_at_utc": "2026-07-06T08:08:36.832846+00:00",
+          "extraction_quality": 0.68,
+          "warnings": [
+            "legacy_bridge_evidence_only",
+            "odds_reference_only",
+            "accuracy_pct_reference_only"
+          ],
+          "valuable_signals": {
+            "decision_boundary": [
+              "evidence_only_not_a_bet"
+            ],
+            "source_quality": [
+              "accuracy_pct=50"
+            ]
+          },
+          "source_record_type": "legacy_source_claim_bridge",
+          "pipeline_use": [
+            "s2_tipster_evidence",
+            "s3_context_cross_check",
+            "legacy_bridge_reference_only"
+          ]
+        },
+        {
+          "source_id": "zawodtyper",
+          "source_name": "ZawodTyper",
+          "sport": "tennis",
+          "event": "Alex De Minaur vs Flavio Cobolli",
+          "home_team": "Alex De Minaur",
+          "away_team": "Flavio Cobolli",
+          "market": "Ilość podwójnych błędów - poniżej 10,5",
+          "market_family": "goals",
+          "direction": "UNDER",
+          "line": 10.5,
+          "odds_decimal": 1.65,
+          "confidence_label": "source_claim",
+          "reasoning": "Tipster Radosław Tomczak: 83% (18 bets) | Ilość podwójnych błędów w meczach Alexa De Minaura vs Burruchaga - 8 vs Mannarino - 11 vs Svajda - 5 Ilość podwójnych błędów w meczach Cobolliego vs Navone - 2 vs Duckworth - 9 vs Chaczanov - 8 Jak widać linia ta została przekroczona tylko w meczu De Minaura z Mannarino",
+          "stats_cited": [],
+          "tipster_name": "Radosław Tomczak",
+          "competition": null,
+          "published_at": null,
+          "source_url": null,
+          "extracted_at_utc": "2026-07-06T08:08:36.832846+00:00",
+          "extraction_quality": 0.76,
+          "warnings": [
+            "legacy_bridge_evidence_only",
+            "odds_reference_only",
+            "accuracy_pct_reference_only"
+          ],
+          "valuable_signals": {
+            "decision_boundary": [
+              "evidence_only_not_a_bet"
+            ],
+            "source_quality": [
+              "accuracy_pct=83"
+            ]
+          },
+          "source_record_type": "legacy_source_claim_bridge",
+          "pipeline_use": [
+            "s2_tipster_evidence",
+            "s3_context_cross_check",
+            "legacy_bridge_reference_only"
+          ]
+        },
+        {
+          "source_id": "zawodtyper",
+          "source_name": "ZawodTyper",
+          "sport": "tennis",
+          "event": "De Minaur vs Cobolli",
+          "home_team": "De Minaur",
+          "away_team": "Cobolli",
+          "market": "Poniżej 10.5 DF",
+          "market_family": "goals",
+          "direction": "UNDER",
+          "line": 10.5,
+          "odds_decimal": 1.6,
+          "confidence_label": "source_claim",
+          "reasoning": "Tipster Jan Pietruszka: 80% (10 bets) | Dzisiaj bez większej analizy z racji na brak czasu nie mniej jednak udało się wychwycić bardzo ładny błąd. Sb -8.5 1.35 Panowie bardzo rzadko dfuja dlatego linia wygląda bardzo kusząco nawet jeśli mecz nie zakończy się w trzech setach. Łapcie póki dostępne zieloności",
+          "stats_cited": [],
+          "tipster_name": "Jan Pietruszka",
+          "competition": null,
+          "published_at": null,
+          "source_url": null,
+          "extracted_at_utc": "2026-07-06T08:08:36.832846+00:00",
+          "extraction_quality": 0.76,
+          "warnings": [
+            "legacy_bridge_evidence_only",
+            "odds_reference_only",
+            "accuracy_pct_reference_only"
+          ],
+          "valuable_signals": {
+            "decision_boundary": [
+              "evidence_only_not_a_bet"
+            ],
+            "source_quality": [
+              "accuracy_pct=80"
+            ]
+          },
+          "source_record_type": "legacy_source_claim_bridge",
+          "pipeline_use": [
+            "s2_tipster_evidence",
+            "s3_context_cross_check",
+            "legacy_bridge_reference_only"
+          ]
+        }
+      ],
+      "warnings": [
+        "public_xhr_transport:selected_cookie_policy=no_cookie",
+        "public_xhr_transport:cookie_names_sent=none",
+        "public_xhr_transport:observed_cookie_names=SRV",
+        "public_xhr_transport:xhr_calls=2",
+        "public_xhr_transport:observed_items=99"
+      ],
+      "parser_version": "tipster_parser_v2.3_final_source_specific",
+      "extracted_at_utc": "2026-07-06T08:08:36.859657+00:00",
+      "block_reason": null,
+      "robots_blocked_live": false,
+      "live_fetch_allowed": true,
+      "fallback": null,
+      "skip_reason": null,
+      "required_flags_missing": [],
+      "invalid_attestation": [],
+      "expected_visible_count": null,
+      "extracted_count": 25,
+      "coverage_ratio": null,
+      "coverage_status": "FULL_OR_ACCEPTABLE"
+    }
+  ],
+  "events": [
+    {
+      "normalized_event_key": "anglia|meksyk",
+      "event": "Meksyk vs Anglia",
+      "sport": "football",
+      "markets": [
+        "1X - Meksyk wygra lub zremisuje mecz",
+        "Anglia awans",
+        "Harry Kane liczba celnych strzałów powyżej 0.5 + Anglia liczba rzutów różnych powyżej 1.5",
+        "Rzuty różne handicap: Anglia -1.5"
+      ],
+      "tipster_sentiment": "OVER",
+      "qualitative_reasoning_summaries": [
+        "Moim zdaniem ten typ ma spore szanse wejść. Kane praktycznie w każdym meczu dochodzi do okazji i jeden celny strzał jest jak najbardziej w jego zasięgu. Anglia powinna prowadzić grę, więc o rzuty rożne też się nie martwię. Dwa rożne to naprawdę niewiele, a przy ich stylu gry taka linia wygląda bardzo dobrze. Dlatego gram: Kane celny strzał + Anglia powyżej 1,5 rzutu rożnego.",
+        "Tipster Albert Einstein: 80% (21 bets) | Witam Jak przystało na mecz Anglików, pójdę w stronę rzutów rożnych. Tutaj liczby mówią same za siebie a biorąc pod uwagę styl grania obu drużyn typ ma duże prawdopodobieństwo. Meksyk z reguły jest skuteczny, strzela bramkę a potem nie daje sobie strzelić oddając inicjatywę rywalowi. W każdym meczu oprócz z RPA mieli mniejszy procent posiadania piłki. Anglicy natomiast jak wiemy lubią kontrolować spotkanie i utrzymywać się przy piłce. W każdym meczu mieli większy procent posiadania piłki. Dodajmy do tego liczby które mówią same za siebie. Liczba rzutów rożnych w meczach Anglii: Vs DR Kongo 5:3 ✅ Vs Panama 7:3 ✅ Vs Ghana 9:2 ✅ Vs Chorwacja 8:2 ✅ Jak widać typ pokryty 4/4✅ Do tego sam Meksyk wykonuje mało rożnych: Vs Ekwador 3:8 ✅ Vs Czechy 1:5 ✅ Vs K",
+        "Tipster Aleksander Mazur: 100% (4 bets) | Noc z niedzieli na poniedziałek przychodzi do nas z naprawdę ciekawym spotkaniem 1/8 finału Mistrzostw Świata 2026, gdzie Meksyk zmierzy się z reprezentacją Anglii. Jest to mecz dwóch niepokonanych drużyn. Jeżeli chodzi o reprezentacje Anglii to swoją grą na tym turnieju po prostu nie zachwycają. Ich najlepszy mecz dotychczas to spotkanie z Chorwacją w I kolejce fazy grupowej turnieju, gdzie wygrali aż 4:2. Potem remis z Ghaną 0:0 po słabej grze, spokojna wygrana z Panamą 2:0 oraz po dużych męczarniach wygrana z DK Konga 2:1. Grają zdecydowanie poniżej oczekiwań. Drużyna z Meksyku to rewelacja tego turnieju. Wygrali wszystkie swoje spotkania oraz nie stracili żadnej bramki. Grają świetnie w obronie oraz są skuteczni w ataku. Warto zwrócić uwagę na",
+        "Tipster Kuba Milewski: 61% (13 bets) | Na pewno będzie to bardzo ciężki mecz dla Anglików jako że rozgrywany jest w samym sercu stolicy Meksyku na legendarnym Estadio Azteca gdzie po raz 3 w historii będziemy mieć finał Mistrzostw Świata, a także na tym stadionie padł słynny gol ręką Maradony który został nazwany \"ręką boga\". Kolejnymi czynnikami które działają na nie korzyść Anglików jest fakt że grają z gospodarzami imprezy i na pewno atmosfera na trybunach będzie bardzo gęsta, a drugim faktem jest to że stadion położony jest na aż 2200 metrach nad poziomem morza gdzie znacznie ciężej się oddycha. Jednak to na tyle jeśli chodzi o atuty Meksyku w tym meczu. Przechodząc do aspektów piłkarskich mamy tutaj bardzo dużą dysproporcję i totalną dominację Anglików. Skład Anglii wygląda znakomicie"
+      ],
+      "source_count": 4,
+      "evidence_quality": "MEDIUM",
+      "needs_match_resolution": false,
+      "needs_manual_review": false,
+      "agent_use_decisions": [
+        "USE_AS_CONTEXT"
+      ],
+      "source_ids": [
+        "zawodtyper"
+      ],
+      "forbidden_actions": [
+        "EV",
+        "stake",
+        "coupon",
+        "final bet",
+        "Superbet combined odds"
+      ]
+    },
+    {
+      "normalized_event_key": "hiszpania|portugalia",
+      "event": "Portugalia vs Hiszpania",
+      "sport": "football",
+      "markets": [
+        "CUCURELLA POWYŻEJ 0.5 FAULU",
+        "Hiszpania +0.5 gola + Portugalia -2.5 gola + Awans Hiszpania",
+        "Obie drużynyn +1,5 obronionych strzałów przez bramkarzów"
+      ],
+      "tipster_sentiment": "OVER",
+      "qualitative_reasoning_summaries": [
+        "Tipster Daniel Janus: 70% (17 bets) | Pewniaczek na podtrzymanie dobrej passy z ostatnich kilku dni. Myślę, że długowłosy Hiszpan zrobi dzisiaj na spokojnie 2+ faule. Każdy kto zna chociaż troszkę jego styl i szybkie doskakiwanie do rywali, podłączanie się i czasami konieczność przerwania akcji po stracie przyzna, że Cucurella dzisiaj sfauluje. Celuję w minimum 1 faul Hiszpana, razem ze zmiennikiem i ewentualną dogrywką na STSIE 🤚. Stawka meczu ogromna, więc może być nerwowo po obu stronach. Cucurella fajnie pokrywał faule w o wiele mniej \"stykowych\" spotkaniach. Do tej pory na MŚ: 2 VS. AUSTRIA ✅️ 0 VS. URUGWAJ ❌️ 2 VS. ARABIA ✅️ 1 VS. RZP ✅️ Mecze z Urugwajem kompletnie mnie nie zniechęca, ponieważ takie spotkania raz na jakiś czas sie zdarzają, ale rzadko. Kompletnie nic się tam nie dzi",
+        "Tipster Paweł Kowalski: 67% (37 bets) | Hiszpania imponuje formą na mundialu, a w 1/8 finału pewnie pokonała Austrię 3:0, potwierdzając zarówno skuteczność w ataku, jak i bardzo dobrą organizację gry. Portugalia również jest groźna ofensywnie, jednak rzadko zdobywa więcej niż dwa gole w meczach z wymagającymi rywalami, dlatego linia poniżej 3 bramek wygląda bardzo solidnie. Hiszpanie regularnie stwarzają wiele sytuacji i mają jakość, by zdobyć przynajmniej jednego gola, a ich obecna dyspozycja daje mocne argumenty, że wywalczą awans do ćwierćfinału. Typ na gola Hiszpanii, poniżej 3 goli Portugalii oraz awans Hiszpanii wygląda bardzo wartościowo.",
+        "Tipster betstrefa: 25% (4 bets) | Obie reprezentacje grają niezwykle ofensywny futbol i regularnie zatrudniają bramkarzy rywali. Hiszpania na tym turnieju oddaje mnóstwo strzałów, a ich najskuteczniejszy gracz, Mikel Oyarzabal, sam zapisał już na swoim koncie 8 celnych uderzeń w światło bramki. Z drugiej strony Portugalia mocno opiera swoją grę na uderzeniach z dystansu i rzutach wolnych – Cristiano Ronaldo oddał do tej pory 7 celnych strzałów, a Bruno Fernandes dorzucił kolejne 3. W defensywie Hiszpanie grają bardzo pewnie i nie stracili jeszcze ani jednego gola na turnieju (cztery czyste konta: 0:0 z Republiką Zielonego Przylądka, 4:0 z Arabią Saudyjską, 1:0 z Urugwajem, 3:0 z Austrią), co oznacza, że ich bramkarz regularnie interweniuje przy próbach przeciwników. Portugalia w poprzednie"
+      ],
+      "source_count": 3,
+      "evidence_quality": "MEDIUM",
+      "needs_match_resolution": false,
+      "needs_manual_review": false,
+      "agent_use_decisions": [
+        "USE_AS_CONTEXT"
+      ],
+      "source_ids": [
+        "zawodtyper"
+      ],
+      "forbidden_actions": [
+        "EV",
+        "stake",
+        "coupon",
+        "final bet",
+        "Superbet combined odds"
+      ]
+    },
+    {
+      "normalized_event_key": "alexander bublik|taylor fritz",
+      "event": "Taylor Fritz vs Alexander Bublik",
+      "sport": "tennis",
+      "markets": [
+        "Liczba setów : powyżej 3,5"
+      ],
+      "tipster_sentiment": "OVER",
+      "qualitative_reasoning_summaries": [
+        "Tipster Bartosz Babiński: 73% (15 bets) | Starcie Taylora Fritza z Alexandrem Bublikiem zapowiada się jako jedno z najciekawszych spotkań tej fazy Wimbledonu. Obaj zawodnicy bardzo dobrze czują się na kortach trawiastych, a ich największym atutem jest mocny serwis oraz agresywny styl gry. W takich warunkach przełamania często należą do rzadkości, a o losach setów decydują pojedyncze punkty lub tie-breaki, co znacząco zwiększa szanse na rozegranie co najmniej czterech partii. Taylor Fritz przystępuje do meczu jako faworyt, jednak Alexander Bublik już wielokrotnie udowadniał, że na trawie potrafi rywalizować z najlepszymi tenisistami świata. Kazach dysponuje jednym z najbardziej nieprzewidywalnych stylów w tourze – świetnie serwuje, często skraca wymiany, stosuje drop shoty i zmienia tempo g"
+      ],
+      "source_count": 1,
+      "evidence_quality": "HIGH",
+      "needs_match_resolution": false,
+      "needs_manual_review": false,
+      "agent_use_decisions": [
+        "USE_AS_CONTEXT"
+      ],
+      "source_ids": [
+        "zawodtyper"
+      ],
+      "forbidden_actions": [
+        "EV",
+        "stake",
+        "coupon",
+        "final bet",
+        "Superbet combined odds"
+      ]
+    },
+    {
+      "normalized_event_key": "alexander zverev|jiri lehecka",
+      "event": "Jiri Lehecka vs Alexander Zverev",
+      "sport": "tennis",
+      "markets": [
+        "Liczba setów : powyżej 3,5"
+      ],
+      "tipster_sentiment": "OVER",
+      "qualitative_reasoning_summaries": [
+        "Tipster Bet MasterPL: 73% (15 bets) | Spotkanie Lehecki z Alexandrem Zverevem zapowiada się jako jedno z najbardziej wyrównanych starć tej fazy turnieju. Obaj zawodnicy bardzo dobrze odnajdują się na trawie, dysponują mocnym serwisem i potrafią skutecznie wygrywać własne gemy serwisowe, co zwiększa prawdopodobieństwo długiego oraz zaciętego meczu. Przy takiej charakterystyce gry nie powinno dziwić, jeśli o losach poszczególnych setów będą decydować pojedyncze przełamania lub tie-breaki. Alexander Zverev pozostaje faworytem ze względu na większe doświadczenie oraz wyższą pozycję w rankingu ATP, jednak Jiri Lehecka wielokrotnie udowadniał, że potrafi rywalizować z najlepszymi zawodnikami świata. Czech gra bardzo ofensywnie, świetnie serwuje i chętnie przejmuje inicjatywę już od pierwszych ud"
+      ],
+      "source_count": 1,
+      "evidence_quality": "HIGH",
+      "needs_match_resolution": false,
+      "needs_manual_review": false,
+      "agent_use_decisions": [
+        "USE_AS_CONTEXT"
+      ],
+      "source_ids": [
+        "zawodtyper"
+      ],
+      "forbidden_actions": [
+        "EV",
+        "stake",
+        "coupon",
+        "final bet",
+        "Superbet combined odds"
+      ]
+    },
+    {
+      "normalized_event_key": "eala|paolini",
+      "event": "paolini vs eala",
+      "sport": "tennis",
+      "markets": [
+        "over 20.5 gema"
+      ],
+      "tipster_sentiment": "OVER",
+      "qualitative_reasoning_summaries": [
+        "Tipster Jakub: 75% (4 bets) | Drugi typ i znowu kobiecy Wimbledon, dokładniej 1/8 finału. Mecz pomiędzy wracającą do bardzo dobrej dyspozycji Włoszką i Filipinką, grającą po raz kolejny bardzo dobry sezon na trawie. Paolini tę edycję Wimbledonu rozpoczęła od wymagającego pojedynku z Montgomery, zakończonego 2:1, potem 2:0 z Golubic 7:6, 6:4 i bardzo łatwo pokonała grającą w kratkę Marię Sakkari. Paolini dysponuje dosyć niezłym serwisem, jak na swoje warunki fizyczne. Bardzo dobrze wyczuwa tempo, aby skrócić akcję pod siatkę, z której kończy udanymi zagraniami. Do tego dosyć mało błędów niewymuszonych na tym turnieju, no i forehand, jak i backhand, niezły, grany po crossie. Filipinka to niewygodna rywalka, o czym przekonała się Iga, która przegrała 2:0, ale było widać, że po comebacku w 1 s"
+      ],
+      "source_count": 1,
+      "evidence_quality": "HIGH",
+      "needs_match_resolution": false,
+      "needs_manual_review": false,
+      "agent_use_decisions": [
+        "USE_AS_CONTEXT"
+      ],
+      "source_ids": [
+        "zawodtyper"
+      ],
+      "forbidden_actions": [
+        "EV",
+        "stake",
+        "coupon",
+        "final bet",
+        "Superbet combined odds"
+      ]
+    },
+    {
+      "normalized_event_key": "juventude|nautico",
+      "event": "Nautico vs Juventude",
+      "sport": "football",
+      "markets": [
+        "over 1,5 kartek 1 połowa"
+      ],
+      "tipster_sentiment": "OVER",
+      "qualitative_reasoning_summaries": [
+        "Tipster Piotr Gębczyński: 54% (59 bets) | Brazylia Serie B ⚽️ Taki typ last minute na powyżej 1.5 kartek w 1 połowie 🟨🟥 W tej lidze sędziowie bardzo często karają zawodników kartkami już w 1 połowie. Średnia wyciągania kartek to 2,20-2,50. Zespół Nautico w tym sezonie średnio otrzymuje kartek w 1 połowie 1,50 a zespół Juventude średnio 1,20. Sądzę że typ jest ciekawy do zagrania i można spróbować wrzucić sobie to do kuponów. Zielonego typu życzę 🟢👍"
+      ],
+      "source_count": 1,
+      "evidence_quality": "HIGH",
+      "needs_match_resolution": false,
+      "needs_manual_review": false,
+      "agent_use_decisions": [
+        "USE_AS_CONTEXT"
+      ],
+      "source_ids": [
+        "zawodtyper"
+      ],
+      "forbidden_actions": [
+        "EV",
+        "stake",
+        "coupon",
+        "final bet",
+        "Superbet combined odds"
+      ]
+    },
+    {
+      "normalized_event_key": "bouzkova|mertens",
+      "event": "bouzkova vs mertens",
+      "sport": "tennis",
+      "markets": [
+        "1 set over 7.5 + over 20.5 gema w meczu"
+      ],
+      "tipster_sentiment": "OVER",
+      "qualitative_reasoning_summaries": [
+        "Tipster Jakub: 75% (4 bets) | Wimbledon – 1/8 finału Bouzkova rozgrywa świetny sezon na trawie, ale nawet gdy wygrywa 2:0, są to wyniki dające over gemowy. W tym roku przegrała mecz na trawie tylko z Vekić, która miała fantastyczny start na tej nawierzchni. Czeszka w ostatnim spotkaniu z Samsonovą, mimo problemów, wygrała, broniąc czterech break pointów w kluczowym momencie drugiego seta, a następnie zwyciężyła tie-break 7:3. Marie ma świetny forehand, którym uderza bardzo blisko linii i tak naprawdę, poza Vekić, każda zawodniczka miała z tym bardzo duży problem. Do tego Bouzkova popełnia naprawdę mało niewymuszonych błędów. Po drugiej stronie jest Mertens, która dość sensacyjnie ograła Elenę Rybakinę w dwusetowym pojedynku. Belgijce bardzo pomaga świetne podanie, które ułatwia zdobywanie"
+      ],
+      "source_count": 1,
+      "evidence_quality": "HIGH",
+      "needs_match_resolution": false,
+      "needs_manual_review": false,
+      "agent_use_decisions": [
+        "USE_AS_CONTEXT"
+      ],
+      "source_ids": [
+        "zawodtyper"
+      ],
+      "forbidden_actions": [
+        "EV",
+        "stake",
+        "coupon",
+        "final bet",
+        "Superbet combined odds"
+      ]
+    },
+    {
+      "normalized_event_key": "austin fc ii|colorado rapids ii",
+      "event": "Austin FC II vs Colorado Rapids II",
+      "sport": "football",
+      "markets": [
+        "1 + Colorado Rapids II poniżej 1,5 goli"
+      ],
+      "tipster_sentiment": "UNDER",
+      "qualitative_reasoning_summaries": [
+        "Tipster Piotr Nejman: 52% (21 bets) | MLS Next Pro Austin FC II : pierwsze miejsce w tabeli , po 15 spotkaniach 37 punktów , bb 31:11. Ostatnie 9 spotkań to same zwycięstwa (bb 23:3) Colorado Rapids II : ostatnie miejsce w tabeli , 9 punktów po 16 meczach , bb 13:32. Ostatnie 5 meczów to 2 porażki , 2 remisy , 1 zwycięstwo. Ostatnie 5 meczów bezpośrednich : 3 zwycięstwa Austin , 2 zwycięstwa Colorado Rapids Powodzenia i zieloności !"
+      ],
+      "source_count": 1,
+      "evidence_quality": "HIGH",
+      "needs_match_resolution": false,
+      "needs_manual_review": false,
+      "agent_use_decisions": [
+        "USE_AS_CONTEXT"
+      ],
+      "source_ids": [
+        "zawodtyper"
+      ],
+      "forbidden_actions": [
+        "EV",
+        "stake",
+        "coupon",
+        "final bet",
+        "Superbet combined odds"
+      ]
+    },
+    {
+      "normalized_event_key": "hfx wanderers|pacific fc",
+      "event": "Pacific FC vs HFX Wanderers",
+      "sport": "football",
+      "markets": [
+        "powyżej 0,5 goli + X2"
+      ],
+      "tipster_sentiment": "OVER",
+      "qualitative_reasoning_summaries": [
+        "Tipster Piotr Nejman: 52% (21 bets) | Canadian Premier League Gospodarze czyli Pacific FC po 11 spotkaniach mają zaledwie 3 punkty które wywalczyli 3 remisami. Bilans bramkowy wynosi 12:25 a ostatni mecz wygrali 23 spotkania temu czyli 11 sierpnia 2025 roku. Od tamtego spotkania nie zdarzyło im się zremisować 0:0 HFX Wanderers to 5 drużyna w tabeli z 12 punktami i bb 15:19. Grają słabszy sezon niż rok temu ale szanse na awans do play-offów nadal jest i to spora bo czwarta drużyna ma zaledwie 2 punkty więcej a nie jest to nawet połowa sezonu. Ostatnie 5 meczów bezpośrednich to 2 zwycięstwa HFX Wanderers , 2 remisy oraz 1 zwycięstwo Pacific FC. Powodzenia i zieloności !"
+      ],
+      "source_count": 1,
+      "evidence_quality": "HIGH",
+      "needs_match_resolution": false,
+      "needs_manual_review": false,
+      "agent_use_decisions": [
+        "USE_AS_CONTEXT"
+      ],
+      "source_ids": [
+        "zawodtyper"
+      ],
+      "forbidden_actions": [
+        "EV",
+        "stake",
+        "coupon",
+        "final bet",
+        "Superbet combined odds"
+      ]
+    },
+    {
+      "normalized_event_key": "australia|filipiny razem z dogrywka",
+      "event": "Australia vs Filipiny razem z dogrywką",
+      "sport": "basketball",
+      "markets": [
+        "over 168,5 pkt"
+      ],
+      "tipster_sentiment": "OVER",
+      "qualitative_reasoning_summaries": [
+        "Tipster Andrzej Bolek: 45% (11 bets) | W tym spotkaniu praktycznie ostateczny wynik jest znany już przed rozpoczęciem pojedynku i tylko pytania są takie iloma punktami drużyna Australii wygra ten mecz i jak wysoki padnie w nim wynik punktowy.Obecnie zajmują oni 1 miejsce w tabeli z dorobkiem 10 punktów zdobytych.W dotychczas rozegranych spotkaniach wygrali wszyst6kie 5 rozegranych meczy.Koszykarze obu drużyn bardzo dobrze rzucają z dalszej odległości za 3 punkty i dzisiaj na pewno zobaczymy wiele takich prób bz bardzo dobrym skutkiem i typuje że padnie tutaj bardzo wysoki wynik punktowy i Australia pewnie wygra to spotkanie."
+      ],
+      "source_count": 1,
+      "evidence_quality": "HIGH",
+      "needs_match_resolution": false,
+      "needs_manual_review": false,
+      "agent_use_decisions": [
+        "USE_AS_CONTEXT"
+      ],
+      "source_ids": [
+        "zawodtyper"
+      ],
+      "forbidden_actions": [
+        "EV",
+        "stake",
+        "coupon",
+        "final bet",
+        "Superbet combined odds"
+      ]
+    },
+    {
+      "normalized_event_key": "djurgarden|hacken",
+      "event": "Hacken vs Djurgarden .",
+      "sport": "football",
+      "markets": [
+        "BTTS + poniżej 6,5 gola w meczu ."
+      ],
+      "tipster_sentiment": "UNDER",
+      "qualitative_reasoning_summaries": [
+        "Tipster Mirosław Siemienicki: 100% (6 bets) | Szwecja . 3:2 , 3:2 , 2:2 - to ostatnie domowe wyniki Hacken . Dalej jest podobnie . Natomiast Djurgarden ( w tłumaczeniu na polski ogród zoologiczny - ZOO) to drużyna , która okupuje końcówkę tabeli i nie jest to ich właściwe miejsce . Dwie ostatnie domowe porażki musiały zaboleć i liczę że bez gola się nie obejdzie - w ramach rehabilitacji ( nie muszą od razu wygrywać) . Tym bardziej , że równo rok temu sprawili chłopakom łomot aż 6:1 i to na wyjeździe - tak jak dziś !"
+      ],
+      "source_count": 1,
+      "evidence_quality": "HIGH",
+      "needs_match_resolution": false,
+      "needs_manual_review": false,
+      "agent_use_decisions": [
+        "USE_AS_CONTEXT"
+      ],
+      "source_ids": [
+        "zawodtyper"
+      ],
+      "forbidden_actions": [
+        "EV",
+        "stake",
+        "coupon",
+        "final bet",
+        "Superbet combined odds"
+      ]
+    },
+    {
+      "normalized_event_key": "alex de minaur|flavio cobolli",
+      "event": "Alex De Minaur vs Flavio Cobolli",
+      "sport": "tennis",
+      "markets": [
+        "Ilość podwójnych błędów - poniżej 10,5"
+      ],
+      "tipster_sentiment": "UNDER",
+      "qualitative_reasoning_summaries": [
+        "Tipster Radosław Tomczak: 83% (18 bets) | Ilość podwójnych błędów w meczach Alexa De Minaura vs Burruchaga - 8 vs Mannarino - 11 vs Svajda - 5 Ilość podwójnych błędów w meczach Cobolliego vs Navone - 2 vs Duckworth - 9 vs Chaczanov - 8 Jak widać linia ta została przekroczona tylko w meczu De Minaura z Mannarino"
+      ],
+      "source_count": 1,
+      "evidence_quality": "HIGH",
+      "needs_match_resolution": false,
+      "needs_manual_review": false,
+      "agent_use_decisions": [
+        "USE_AS_CONTEXT"
+      ],
+      "source_ids": [
+        "zawodtyper"
+      ],
+      "forbidden_actions": [
+        "EV",
+        "stake",
+        "coupon",
+        "final bet",
+        "Superbet combined odds"
+      ]
+    },
+    {
+      "normalized_event_key": "cobolli|de minaur",
+      "event": "De Minaur vs Cobolli",
+      "sport": "tennis",
+      "markets": [
+        "Poniżej 10.5 DF"
+      ],
+      "tipster_sentiment": "UNDER",
+      "qualitative_reasoning_summaries": [
+        "Tipster Jan Pietruszka: 80% (10 bets) | Dzisiaj bez większej analizy z racji na brak czasu nie mniej jednak udało się wychwycić bardzo ładny błąd. Sb -8.5 1.35 Panowie bardzo rzadko dfuja dlatego linia wygląda bardzo kusząco nawet jeśli mecz nie zakończy się w trzech setach. Łapcie póki dostępne zieloności"
+      ],
+      "source_count": 1,
+      "evidence_quality": "HIGH",
+      "needs_match_resolution": false,
+      "needs_manual_review": false,
+      "agent_use_decisions": [
+        "USE_AS_CONTEXT"
+      ],
+      "source_ids": [
+        "zawodtyper"
+      ],
+      "forbidden_actions": [
+        "EV",
+        "stake",
+        "coupon",
+        "final bet",
+        "Superbet combined odds"
+      ]
+    },
+    {
+      "normalized_event_key": "dimitrov|fery",
+      "event": "Dimitrov vs Fery",
+      "sport": "tennis",
+      "markets": [
+        "Dimitrov wygra 3:0"
+      ],
+      "tipster_sentiment": "WIN",
+      "qualitative_reasoning_summaries": [
+        "Dimitrov podejmie Fery’ego w ramach 1/8 wimbledonu i moim zdaniem jest już jedną nogą w ćwierćfinale bo nie jest to przeciwnik z którym doświadczmy Bułgar powinien mieć jakiekolwiek problemy. Jeśli Dimitrov jest zdrowy i nie dokuczają mu żadne problemy z jakąś częścią ciała to potrafi grać po prostu fenomenalnie co już niejednokrotnie był w stanie nam pokazać chociażby ten pechowy mecz z sinnerem gdzie grał po prostu wyśmienicie ale przez kontuzje musiał poddać mecz przy stanie 2:0 do przodu w setach. Fery tak trochę niespodziewanie znalazł się na tym etapie nie jest to jakiś wybitny gracz, można powiedzieć że bardziej Bergs przegrał niż Fery wygrał dlatego Bułgarowi przyjdzie się mierzyć w mojej opinii z rywalem z którym bez problemu sobie poradzi. Fery na swojej drodze nie miał też zbytn"
+      ],
+      "source_count": 1,
+      "evidence_quality": "MEDIUM",
+      "needs_match_resolution": false,
+      "needs_manual_review": false,
+      "agent_use_decisions": [
+        "USE_AS_CONTEXT"
+      ],
+      "source_ids": [
+        "zawodtyper"
+      ],
+      "forbidden_actions": [
+        "EV",
+        "stake",
+        "coupon",
+        "final bet",
+        "Superbet combined odds"
+      ]
+    },
+    {
+      "normalized_event_key": "lehecka|zverev",
+      "event": "Lehecka vs Zverev",
+      "sport": "tennis",
+      "markets": [
+        "Zverev - 1.5 Handicap setów"
+      ],
+      "tipster_sentiment": "OVER",
+      "qualitative_reasoning_summaries": [
+        "Tipster Kacper Pocztowski: 54% (11 bets) | Alexander Zverev od początku Wimbledonu prezentuje bardzo wysoki poziom i wygląda na zawodnika, który przyjechał do Londynu z jasnym celem aby walczyć o końcowy triumf. Po zdobyciu swojego pierwszego tytułu wielkoszlemowego gra z ogromną pewnością siebie, co widać w każdym kolejnym meczu. Lehecka to bardzo solidny tenisista, szczególnie na trawie, gdzie jego mocny serwis i agresywny forehand są dużymi atutami. Mimo wszystko uważam, że pod względem regularności i jakości gry z głębi kortu Zverev ma wyraźną przewagę. Niemiec świetnie serwuje, bardzo dobrze returnuje i potrafi utrzymywać wysoką intensywność przez całe spotkanie. To właśnie te elementy mogą zrobić różnicę w tym pojedynku. Dodatkowo Zverev bardzo pewnie przeszedł przez pierwsze rundy t"
+      ],
+      "source_count": 1,
+      "evidence_quality": "MEDIUM",
+      "needs_match_resolution": false,
+      "needs_manual_review": false,
+      "agent_use_decisions": [
+        "USE_AS_CONTEXT"
+      ],
+      "source_ids": [
+        "zawodtyper"
+      ],
+      "forbidden_actions": [
+        "EV",
+        "stake",
+        "coupon",
+        "final bet",
+        "Superbet combined odds"
+      ]
+    },
+    {
+      "normalized_event_key": "linda noskova|madison keys",
+      "event": "Madison Keys vs Linda Noskova",
+      "sport": "tennis",
+      "markets": [
+        "1"
+      ],
+      "tipster_sentiment": "HOME",
+      "qualitative_reasoning_summaries": [
+        "Tipster Bet MasterPL: 73% (15 bets) | Madison Keys przystępuje do tego spotkania jako jedna z najbardziej niebezpiecznych zawodniczek na nawierzchni trawiastej. Amerykanka dysponuje jednym z najmocniejszych serwisów w kobiecym tourze oraz bardzo agresywnym stylem gry, który na szybkich kortach Wimbledonu przynosi szczególnie dobre rezultaty. Gdy Keys utrzymuje wysoki procent pierwszego podania, potrafi przejmować inicjatywę już od pierwszych uderzeń i skracać wymiany, nie pozwalając rywalkom na narzucenie własnego rytmu. Linda Nosková to niezwykle utalentowana tenisistka, która również preferuje ofensywny tenis, jednak w starciach z zawodniczkami o tak dużej sile rażenia często decydują doświadczenie oraz umiejętność gry pod presją. Czeszka potrafi prezentować bardzo wysoki poziom, ale zda"
+      ],
+      "source_count": 1,
+      "evidence_quality": "MEDIUM",
+      "needs_match_resolution": false,
+      "needs_manual_review": false,
+      "agent_use_decisions": [
+        "USE_AS_CONTEXT"
+      ],
+      "source_ids": [
+        "zawodtyper"
+      ],
+      "forbidden_actions": [
+        "EV",
+        "stake",
+        "coupon",
+        "final bet",
+        "Superbet combined odds"
+      ]
+    },
+    {
+      "normalized_event_key": "ashlyn krueger|marta kostyuk",
+      "event": "Ashlyn Krueger vs Marta Kostyuk",
+      "sport": "tennis",
+      "markets": [
+        "A. Krueger +4.5 gema"
+      ],
+      "tipster_sentiment": "OTHER",
+      "qualitative_reasoning_summaries": [
+        "Tipster Maciej Mikulewicz: 75% (4 bets) | Kolejny dzień Wimbledonu. Tym razem pod lupę wziąłem mecz mającej świetne warunki fizyczne (185 cm) Ashlyn Krueger z Martą Kostyuk. Amerykanka rozgrywa bardzo dobry turniej, przebrnęła przez kwalifikacje i z meczu na mecz nabrała coraz większej pewności siebie. Krueger bardzo dobrze serwuje, ma wysoki procent trafionego pierwszego podania, co na trawie bardzo pomaga w utrzymaniu własnego podania. Co do Kostyuk - na pewno jest faworytką, przemawia za nią nieco większe doświadczenie, styl gry pasujący pod szybkie korty. Natomiast oglądałem jej mecz z Blinkową i nie zrobiła na mnie wrażenia. Być może nieco zlekceważyła Rosjankę. Mecz meczowi nierówny i dzisiejsza dyspozycja może być dużo lepsza. Zapowiada się ciekawy mecz, obie dobrze serwują i mocno"
+      ],
+      "source_count": 1,
+      "evidence_quality": "MEDIUM",
+      "needs_match_resolution": false,
+      "needs_manual_review": false,
+      "agent_use_decisions": [
+        "USE_AS_CONTEXT"
+      ],
+      "source_ids": [
+        "zawodtyper"
+      ],
+      "forbidden_actions": [
+        "EV",
+        "stake",
+        "coupon",
+        "final bet",
+        "Superbet combined odds"
+      ]
+    },
+    {
+      "normalized_event_key": "arthur fery|grigor dimitrov",
+      "event": "Grigor Dimitrov vs Arthur Fery",
+      "sport": "tennis",
+      "markets": [
+        "Zwycięzca: Grigor Dimitrov + Najwięcej asów serwisowych: Grigor Dimitrov"
+      ],
+      "tipster_sentiment": "WIN",
+      "qualitative_reasoning_summaries": [
+        "Tipster Maciej Stan: 70% (10 bets) | Średnia asów serwisowych Dimitrova na Wimbledonie to 15,7, a Fery ma średnią ustaloną na poziomie 5,7 asów na mecz - także tę kwestię mamy rozstrzygniętą. Zakład główny polega na zwycięstwie Dimitrova. Według mnie wrócił stary, dobry Dima i jest to zawodnik o kilka klas (a przynajmniej o klasę) wyżej niż jego dzisiejszy przeciwnik z dziką kartą. Według mnie Fery pokonał Bergsa przez błędy Belga, który nie potrafił domknąć meczu, a podwójne błędy mu w tym na pewno nie pomogły. Niesiony atmosferą i dopingiem gospodarzy Arthur wygrał tamto spotkanie. Dziś też na pewno będą mu kibicować, lecz według mnie wygra sympatyczny Bułgar, który pokonał już dwa mocne nazwiska na tym turnieju – Berrettiniego i Mensika."
+      ],
+      "source_count": 1,
+      "evidence_quality": "MEDIUM",
+      "needs_match_resolution": false,
+      "needs_manual_review": false,
+      "agent_use_decisions": [
+        "USE_AS_CONTEXT"
+      ],
+      "source_ids": [
+        "zawodtyper"
+      ],
+      "forbidden_actions": [
+        "EV",
+        "stake",
+        "coupon",
+        "final bet",
+        "Superbet combined odds"
+      ]
+    },
+    {
+      "normalized_event_key": "pennsylvania classics|reading united ac",
+      "event": "Pennsylvania Classics vs Reading United AC",
+      "sport": "football",
+      "markets": [
+        "liczba goli: +3 (3 =zwrot)"
+      ],
+      "tipster_sentiment": "OVER",
+      "qualitative_reasoning_summaries": [
+        "Tipster Przemek Śmiałkowski: 71% (35 bets) | W tym spotkaniu na przeciwko siebie staną ekipy Pennsylvania Classics oraz Reading United AC. Faworytem do zwycięstwa jest zespół gości. który zaledwie tydzień temu wygrał aż 8 do 2 z gospodarzami dzisiejszego spotkania. Obie ekipy skupiają się bardziej na ataku odpuszczając defensywę. Ich gra jest pozbawiona dyscypliny taktycznej/ Gospodarze stracili już 33 bramki w 12 spotkaniach. Zdobyli także 20 bramek. Goście w 11 spotkaniach strzelili 22 bramki tracąc 19. Reading United AC ma serię 3 spotkań bez porażek. Reading United AC ma serię 8 spotkań bez czystego konta. Over 2,5 w meczach Pennsylvania Classics padł w 6 na 7 ostatnich ligowych spotkań natomiast w meczach Reading United AC over 2,5 padł w 5 na 6 ostatnich ligowych spotkań. Wydaje się,"
+      ],
+      "source_count": 1,
+      "evidence_quality": "MEDIUM",
+      "needs_match_resolution": false,
+      "needs_manual_review": false,
+      "agent_use_decisions": [
+        "USE_AS_CONTEXT"
+      ],
+      "source_ids": [
+        "zawodtyper"
+      ],
+      "forbidden_actions": [
+        "EV",
+        "stake",
+        "coupon",
+        "final bet",
+        "Superbet combined odds"
+      ]
+    },
+    {
+      "normalized_event_key": "anglia|ms 2026 meksyk",
+      "event": "MŚ 2026 | Meksyk vs Anglia",
+      "sport": "football",
+      "markets": [
+        "Anglia awansuje"
+      ],
+      "tipster_sentiment": "OVER",
+      "qualitative_reasoning_summaries": [
+        "Tipster Kacper: 50% (16 bets) | Dla mnie w tym meczu najciekawszą opcją jest awans Anglii. Meksyk rozgrywa bardzo dobry turniej, nie stracił jeszcze gola i dodatkowo zagra przy fantastycznym dopingu na Aztece. To na pewno nie będzie łatwa przeprawa dla Anglików. Mimo wszystko uważam, że na tym etapie turnieju większe znaczenie będzie miała jakość piłkarska i doświadczenie. Anglia ma zdecydowanie więcej zawodników potrafiących zrobić różnicę jednym zagraniem. Kane jest w dobrej formie, Bellingham, Saka czy Foden również potrafią przesądzić o losach spotkania nawet wtedy, gdy drużyna nie gra wielkiego meczu. Spodziewam się zamkniętego i wyrównanego widowiska. Meksyk będzie walczył, ale moim zdaniem z każdą kolejną minutą przewaga kadrowa Anglików będzie coraz bardziej widoczna. Nie zdziwi mn"
+      ],
+      "source_count": 1,
+      "evidence_quality": "MEDIUM",
+      "needs_match_resolution": false,
+      "needs_manual_review": false,
+      "agent_use_decisions": [
+        "USE_AS_CONTEXT"
+      ],
+      "source_ids": [
+        "zawodtyper"
+      ],
+      "forbidden_actions": [
+        "EV",
+        "stake",
+        "coupon",
+        "final bet",
+        "Superbet combined odds"
+      ]
+    }
+  ],
+  "fail_closed": false
+}

@@ -8,6 +8,7 @@ from typing import Iterable
 
 from .contracts import ExtractionResult, TipsterPick
 from .normalization import names_score, normalize_key
+from .agent_readiness import analyze_pick_readiness, ALLOWED_PIPELINE_STAGES, FORBIDDEN_ACTIONS
 
 
 def to_legacy_pick(p: TipsterPick) -> dict:
@@ -38,6 +39,7 @@ def to_legacy_pick(p: TipsterPick) -> dict:
         "source_record_type": p.source_record_type,
         "pipeline_use": p.pipeline_use,
         "decision_boundary": "evidence_only_not_a_bet",
+        "agent_readiness": analyze_pick_readiness(p),
     }
 
 
@@ -73,6 +75,34 @@ def consensus_from_picks(picks: Iterable[TipsterPick]) -> list[dict]:
         best_market = max(markets, key=markets.get)
         total = len(event_picks)
         evidence_fields = sorted({key for p in event_picks for key in p.valuable_signals.keys()})
+        
+        # Calculate agent readiness summary for consensus
+        readiness_list = [analyze_pick_readiness(p) for p in event_picks]
+        needs_match_resolution_count = sum(1 for r in readiness_list if r["agent_use_decision"] == "NEEDS_MATCH_ID_RESOLUTION")
+        needs_manual_review_count = sum(1 for r in readiness_list if r["agent_use_decision"] == "NEEDS_MANUAL_REVIEW")
+        reject_low_quality_count = sum(1 for r in readiness_list if r["agent_use_decision"] == "REJECT_LOW_QUALITY")
+        reject_garbage_count = sum(1 for r in readiness_list if r["agent_use_decision"] == "REJECT_GARBAGE")
+        usable_context_count = sum(
+            1 for r in readiness_list
+            if r["agent_use_decision"] in {
+                "USE_AS_CONTEXT",
+                "USE_AS_MARKET_SANITY_CHECK",
+                "USE_AS_QUALITATIVE_REASONING",
+                "USE_AS_TIPSTER_SENTIMENT",
+            }
+        )
+        agent_readiness_summary = {
+            "all_evidence_only": True,
+            "allowed_pipeline_stages": list(ALLOWED_PIPELINE_STAGES),
+            "forbidden_actions": list(FORBIDDEN_ACTIONS),
+            "needs_match_resolution_count": needs_match_resolution_count,
+            "needs_manual_review_count": needs_manual_review_count,
+            "reject_low_quality_count": reject_low_quality_count,
+            "reject_garbage_count": reject_garbage_count,
+            "usable_context_count": usable_context_count,
+            "decisions": [r["agent_use_decision"] for r in readiness_list],
+        }
+
         out.append({
             "event": first.event,
             "sport": first.sport,
@@ -87,6 +117,7 @@ def consensus_from_picks(picks: Iterable[TipsterPick]) -> list[dict]:
             "evidence_fields": evidence_fields,
             "avg_extraction_quality": round(sum(p.extraction_quality for p in event_picks) / total, 2),
             "pipeline_usage": ["s3_factor_discovery", "s4_market_sanity_check", "manual_superbet_quote_context"],
+            "agent_readiness_summary": agent_readiness_summary,
             "picks": [to_legacy_pick(p) for p in event_picks],
         })
     return sorted(out, key=lambda x: (x["total_tipsters"], x["agreement_pct"], x["avg_extraction_quality"]), reverse=True)
