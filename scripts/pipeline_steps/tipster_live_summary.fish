@@ -9,9 +9,13 @@ for arg in $argv
             set json_path (string replace -- '--json=' '' $arg)
         case '--sqlite-db=*'
             set sqlite_db (string replace -- '--sqlite-db=' '' $arg)
+        case '--db=*'
+            set sqlite_db (string replace -- '--db=' '' $arg)
         case '--json'
             continue
         case '--sqlite-db'
+            continue
+        case '--db'
             continue
     end
 end
@@ -23,6 +27,10 @@ for i in (seq (count $argv))
                 set json_path $argv[(math $i + 1)]
             end
         case '--sqlite-db'
+            if test (math $i + 1) -le (count $argv)
+                set sqlite_db $argv[(math $i + 1)]
+            end
+        case '--db'
             if test (math $i + 1) -le (count $argv)
                 set sqlite_db $argv[(math $i + 1)]
             end
@@ -45,19 +53,27 @@ import sys
 from pathlib import Path
 
 payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+schema_version = payload.get("schema_version", "")
+total_picks = payload.get("total_picks", 0)
+sources_with_picks = payload.get("sources_with_picks", 0)
+blocked_sources = payload.get("blocked_sources", [])
+skipped_sources = payload.get("skipped_sources", [])
 print(f"json={sys.argv[1]}")
-print(f"schema_version={payload.get("schema_version", "")}")
-print(f"total_picks={payload.get("total_picks", 0)}")
-print(f"sources_with_picks={payload.get("sources_with_picks", 0)}")
-print(f"blocked_sources={len(payload.get("blocked_sources", []))}")
-print(f"skipped_sources={len(payload.get("skipped_sources", []))}")
+print(f"schema_version={schema_version}")
+print(f"total_picks={total_picks}")
+print(f"sources_with_picks={sources_with_picks}")
+print(f"blocked_sources={len(blocked_sources)}")
+print(f"skipped_sources={len(skipped_sources)}")
 
-for entry in payload.get("blocked_sources", []):
-    print(f"blocked::{entry.get("source_id", "unknown")}::{entry.get("reason", "")}")
-
-for entry in payload.get("skipped_sources", []):
+for entry in blocked_sources:
+    source_id = entry.get("source_id", "unknown")
     reason = entry.get("reason", "")
-    print(f"skipped::{entry.get("source_id", "unknown")}::{reason}")
+    print(f"blocked::{source_id}::{reason}")
+
+for entry in skipped_sources:
+    source_id = entry.get("source_id", "unknown")
+    reason = entry.get("reason", "")
+    print(f"skipped::{source_id}::{reason}")
 
 print("\n--- Sources Coverage ---")
 for src in payload.get("sources", []):

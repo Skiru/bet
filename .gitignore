@@ -47,3 +47,4 @@ reports/pipeline_runs/**/*.sqlite
 reports/pipeline_runs/**/*.sqlite-shm
 reports/pipeline_runs/**/*.sqlite-wal
 docs/pipeline/*local*.json
+.playwright-mcp/

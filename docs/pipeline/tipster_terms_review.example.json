@@ -69,9 +69,13 @@
       "public_html_only": true,
       "no_auth_no_premium_no_bypass": true,
       "allow_public_xhr_capture": false,
+      "cookie_policy": "no_cookie",
+      "allowed_cookie_names": ["SRV"],
+      "allow_ephemeral_first_party_public_cookies": true,
+      "allow_ephemeral_analytics_cookies": false,
       "reviewed_by": "",
       "reviewed_at_utc": "",
-      "notes": "Daily public HTML only by default. XHR is disabled unless operator separately reviews NP_ajax.php/public XHR behavior and explicitly enables allow_public_xhr_capture=true. No Playwright, no stealth, no auth, no cookies, no bookmaker redirects."
+      "notes": "Daily public HTML only by default. XHR is disabled unless operator separately reviews NP_ajax.php/public XHR behavior, records a minimal cookie policy, and explicitly enables allow_public_xhr_capture=true. No Playwright, no stealth, no auth, no bookmaker redirects."
     }
   }
 }
