@@ -1,0 +1,352 @@
+{
+  "schema_version": "tipster_consensus_v2.3",
+  "contract": "evidence_only_not_betting_decision",
+  "sources": [
+    {
+      "source_id": "windrawwin",
+      "url": "https://www.windrawwin.com/predictions/",
+      "verdict": "empty",
+      "picks": [],
+      "warnings": [],
+      "parser_version": "tipster_parser_v2.3_final_source_specific",
+      "extracted_at_utc": "2026-07-07T06:43:25.190523+00:00",
+      "block_reason": null,
+      "robots_blocked_live": false,
+      "live_fetch_allowed": true,
+      "fallback": null,
+      "skip_reason": null,
+      "required_flags_missing": [],
+      "invalid_attestation": [],
+      "expected_visible_count": null,
+      "extracted_count": null,
+      "coverage_ratio": null,
+      "coverage_status": null
+    },
+    {
+      "source_id": "windrawwin",
+      "url": "https://www.windrawwin.com/tips/ecuador-serie-a/aucas-v-guayaquil-city/862615/",
+      "verdict": "ok",
+      "picks": [
+        {
+          "source_id": "windrawwin",
+          "source_name": "WinDrawWin",
+          "sport": "football",
+          "event": "Emelec vs Barcelona Guayaquil",
+          "home_team": "Emelec",
+          "away_team": "Barcelona Guayaquil",
+          "market": "Home Win; correct score 1-0",
+          "market_family": "winner",
+          "direction": "HOME",
+          "line": null,
+          "odds_decimal": null,
+          "confidence_label": "source_claim",
+          "reasoning": "WinDrawWin score-based row. Correct score=1-0; inferred market=Home Win.",
+          "stats_cited": [
+            "correct_score=1-0",
+            "inferred_market=Home Win"
+          ],
+          "tipster_name": null,
+          "competition": null,
+          "published_at": null,
+          "source_url": "https://www.windrawwin.com/tips/ecuador-serie-a/aucas-v-guayaquil-city/862615/",
+          "extracted_at_utc": "2026-07-07T06:43:28.051481+00:00",
+          "extraction_quality": 0.74,
+          "warnings": [],
+          "valuable_signals": {
+            "score_model": [
+              "correct_score=1-0"
+            ],
+            "market_inference": [
+              "Home Win"
+            ]
+          },
+          "source_record_type": "score_inferred_prediction",
+          "pipeline_use": [
+            "s2_tipster_evidence",
+            "s3_consensus_cross_check",
+            "s4_correct_score_inference_sanity"
+          ]
+        }
+      ],
+      "warnings": [],
+      "parser_version": "tipster_parser_v2.3_final_source_specific",
+      "extracted_at_utc": "2026-07-07T06:43:28.057584+00:00",
+      "block_reason": null,
+      "robots_blocked_live": false,
+      "live_fetch_allowed": true,
+      "fallback": null,
+      "skip_reason": null,
+      "required_flags_missing": [],
+      "invalid_attestation": [],
+      "expected_visible_count": null,
+      "extracted_count": null,
+      "coverage_ratio": null,
+      "coverage_status": null
+    },
+    {
+      "source_id": "feedinco",
+      "url": "https://www.feedinco.com/tips/",
+      "verdict": "empty",
+      "picks": [],
+      "warnings": [
+        "feedinco_affiliate_or_auth_noise_blocked"
+      ],
+      "parser_version": "tipster_parser_v2.3_final_source_specific",
+      "extracted_at_utc": "2026-07-07T06:43:28.771480+00:00",
+      "block_reason": null,
+      "robots_blocked_live": false,
+      "live_fetch_allowed": true,
+      "fallback": null,
+      "skip_reason": null,
+      "required_flags_missing": [],
+      "invalid_attestation": [],
+      "expected_visible_count": null,
+      "extracted_count": null,
+      "coverage_ratio": null,
+      "coverage_status": null
+    },
+    {
+      "source_id": "feedinco",
+      "url": "https://www.feedinco.com/tips",
+      "verdict": "empty",
+      "picks": [],
+      "warnings": [
+        "feedinco_affiliate_or_auth_noise_blocked"
+      ],
+      "parser_version": "tipster_parser_v2.3_final_source_specific",
+      "extracted_at_utc": "2026-07-07T06:43:31.168165+00:00",
+      "block_reason": null,
+      "robots_blocked_live": false,
+      "live_fetch_allowed": true,
+      "fallback": null,
+      "skip_reason": null,
+      "required_flags_missing": [],
+      "invalid_attestation": [],
+      "expected_visible_count": null,
+      "extracted_count": null,
+      "coverage_ratio": null,
+      "coverage_status": null
+    }
+  ],
+  "total_picks": 1,
+  "sources_with_picks": 1,
+  "all_picks": [
+    {
+      "source_site": "WinDrawWin",
+      "source_id": "windrawwin",
+      "tipster_name": "WinDrawWin",
+      "sport": "football",
+      "event": "Emelec vs Barcelona Guayaquil",
+      "home_team": "Emelec",
+      "away_team": "Barcelona Guayaquil",
+      "competition": "",
+      "market": "Home Win; correct score 1-0",
+      "market_type": "outcome",
+      "market_family": "winner",
+      "direction": "HOME",
+      "line": null,
+      "odds": null,
+      "reasoning": "WinDrawWin score-based row. Correct score=1-0; inferred market=Home Win.",
+      "accuracy_pct": null,
+      "confidence": "source_claim",
+      "stats_cited": [
+        "correct_score=1-0",
+        "inferred_market=Home Win"
+      ],
+      "fetch_time": "2026-07-07T06:43:28.051481+00:00",
+      "source_url": "https://www.windrawwin.com/tips/ecuador-serie-a/aucas-v-guayaquil-city/862615/",
+      "extraction_quality": 0.74,
+      "warnings": [
+        "not_certified_shadow",
+        "operator_risk_public_read",
+        "manual_review_required_before_use"
+      ],
+      "valuable_signals": {
+        "score_model": [
+          "correct_score=1-0"
+        ],
+        "market_inference": [
+          "Home Win"
+        ]
+      },
+      "source_record_type": "score_inferred_prediction",
+      "pipeline_use": [
+        "s2_tipster_evidence",
+        "s3_consensus_cross_check",
+        "s4_correct_score_inference_sanity"
+      ],
+      "decision_boundary": "evidence_only_not_a_bet",
+      "compliance_tier": "operator_risk_public_read",
+      "evidence_use": "manual_review_only_or_low_trust_context",
+      "promotion_allowed": false,
+      "agent_readiness": {
+        "source_id": "windrawwin",
+        "event": "Emelec vs Barcelona Guayaquil",
+        "market": "Home Win; correct score 1-0",
+        "agent_use_decision": "USE_AS_CONTEXT",
+        "decision_reason": "Compliant evidence, but team order is reversed compared to canonical alphabetical key.",
+        "confidence_in_extraction": "HIGH",
+        "can_influence_pipeline": true,
+        "allowed_pipeline_stages": [
+          "S3 contextual cross-check",
+          "S4 market sanity",
+          "manual Superbet quote review"
+        ],
+        "forbidden_actions": [
+          "EV",
+          "stake",
+          "coupon",
+          "final bet",
+          "Superbet combined odds"
+        ],
+        "normalized_event_key": "barcelona guayaquil|emelec",
+        "participants": [
+          "Emelec",
+          "Barcelona Guayaquil"
+        ],
+        "requires_match_resolution": false,
+        "ambiguity_flags": [
+          "order_reversed"
+        ]
+      }
+    }
+  ],
+  "consensus": [
+    {
+      "event": "Emelec vs Barcelona Guayaquil",
+      "sport": "football",
+      "home_team": "Emelec",
+      "away_team": "Barcelona Guayaquil",
+      "total_tipsters": 1,
+      "tipster_sources": [
+        "WinDrawWin"
+      ],
+      "consensus_market": "Home Win; correct score 1-0",
+      "consensus_direction": "HOME",
+      "agreement_pct": 100.0,
+      "has_reasoning": true,
+      "evidence_fields": [
+        "market_inference",
+        "score_model"
+      ],
+      "avg_extraction_quality": 0.74,
+      "pipeline_usage": [
+        "s3_factor_discovery",
+        "s4_market_sanity_check",
+        "manual_superbet_quote_context"
+      ],
+      "agent_readiness_summary": {
+        "all_evidence_only": true,
+        "allowed_pipeline_stages": [
+          "S3 contextual cross-check",
+          "S4 market sanity",
+          "manual Superbet quote review"
+        ],
+        "forbidden_actions": [
+          "EV",
+          "stake",
+          "coupon",
+          "final bet",
+          "Superbet combined odds"
+        ],
+        "needs_match_resolution_count": 0,
+        "needs_manual_review_count": 0,
+        "reject_low_quality_count": 0,
+        "reject_garbage_count": 0,
+        "usable_context_count": 1,
+        "decisions": [
+          "USE_AS_CONTEXT"
+        ]
+      },
+      "picks": [
+        {
+          "source_site": "WinDrawWin",
+          "source_id": "windrawwin",
+          "tipster_name": "WinDrawWin",
+          "sport": "football",
+          "event": "Emelec vs Barcelona Guayaquil",
+          "home_team": "Emelec",
+          "away_team": "Barcelona Guayaquil",
+          "competition": "",
+          "market": "Home Win; correct score 1-0",
+          "market_type": "outcome",
+          "market_family": "winner",
+          "direction": "HOME",
+          "line": null,
+          "odds": null,
+          "reasoning": "WinDrawWin score-based row. Correct score=1-0; inferred market=Home Win.",
+          "accuracy_pct": null,
+          "confidence": "source_claim",
+          "stats_cited": [
+            "correct_score=1-0",
+            "inferred_market=Home Win"
+          ],
+          "fetch_time": "2026-07-07T06:43:28.051481+00:00",
+          "source_url": "https://www.windrawwin.com/tips/ecuador-serie-a/aucas-v-guayaquil-city/862615/",
+          "extraction_quality": 0.74,
+          "warnings": [
+            "not_certified_shadow",
+            "operator_risk_public_read",
+            "manual_review_required_before_use"
+          ],
+          "valuable_signals": {
+            "score_model": [
+              "correct_score=1-0"
+            ],
+            "market_inference": [
+              "Home Win"
+            ]
+          },
+          "source_record_type": "score_inferred_prediction",
+          "pipeline_use": [
+            "s2_tipster_evidence",
+            "s3_consensus_cross_check",
+            "s4_correct_score_inference_sanity"
+          ],
+          "decision_boundary": "evidence_only_not_a_bet",
+          "compliance_tier": "operator_risk_public_read",
+          "evidence_use": "manual_review_only_or_low_trust_context",
+          "promotion_allowed": false,
+          "agent_readiness": {
+            "source_id": "windrawwin",
+            "event": "Emelec vs Barcelona Guayaquil",
+            "market": "Home Win; correct score 1-0",
+            "agent_use_decision": "USE_AS_CONTEXT",
+            "decision_reason": "Compliant evidence, but team order is reversed compared to canonical alphabetical key.",
+            "confidence_in_extraction": "HIGH",
+            "can_influence_pipeline": true,
+            "allowed_pipeline_stages": [
+              "S3 contextual cross-check",
+              "S4 market sanity",
+              "manual Superbet quote review"
+            ],
+            "forbidden_actions": [
+              "EV",
+              "stake",
+              "coupon",
+              "final bet",
+              "Superbet combined odds"
+            ],
+            "normalized_event_key": "barcelona guayaquil|emelec",
+            "participants": [
+              "Emelec",
+              "Barcelona Guayaquil"
+            ],
+            "requires_match_resolution": false,
+            "ambiguity_flags": [
+              "order_reversed"
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "blocked_sources": [],
+  "skipped_sources": [],
+  "pipeline_consumers": [
+    "S3 contextual cross-check",
+    "S4 market sanity",
+    "manual Superbet quote review"
+  ],
+  "fail_closed": false
+}

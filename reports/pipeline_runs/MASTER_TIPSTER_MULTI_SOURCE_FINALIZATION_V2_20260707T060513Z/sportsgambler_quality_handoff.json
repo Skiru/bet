@@ -1,0 +1,1347 @@
+{
+  "schema_version": "tipster_evidence_handoff_v1",
+  "contract": "evidence_only_not_betting_decision",
+  "source_stage": "S2 tipster evidence",
+  "allowed_consumers": [
+    "S3 contextual cross-check",
+    "S4 market sanity",
+    "manual Superbet quote review"
+  ],
+  "forbidden_actions": [
+    "EV",
+    "stake",
+    "coupon",
+    "final bet",
+    "Superbet combined odds"
+  ],
+  "sources": [
+    {
+      "source_id": "sportsgambler",
+      "url": "https://www.sportsgambler.com/betting-tips/football/",
+      "verdict": "empty",
+      "picks": [],
+      "warnings": [],
+      "parser_version": "tipster_parser_v2.3_final_source_specific",
+      "extracted_at_utc": "2026-07-07T06:39:24.159843+00:00",
+      "block_reason": null,
+      "robots_blocked_live": false,
+      "live_fetch_allowed": true,
+      "fallback": null,
+      "skip_reason": null,
+      "required_flags_missing": [],
+      "invalid_attestation": [],
+      "expected_visible_count": null,
+      "extracted_count": null,
+      "coverage_ratio": null,
+      "coverage_status": null
+    },
+    {
+      "source_id": "sportsgambler",
+      "url": "https://www.sportsgambler.com/betting-tips/",
+      "verdict": "empty",
+      "picks": [],
+      "warnings": [],
+      "parser_version": "tipster_parser_v2.3_final_source_specific",
+      "extracted_at_utc": "2026-07-07T06:39:27.126878+00:00",
+      "block_reason": null,
+      "robots_blocked_live": false,
+      "live_fetch_allowed": true,
+      "fallback": null,
+      "skip_reason": null,
+      "required_flags_missing": [],
+      "invalid_attestation": [],
+      "expected_visible_count": null,
+      "extracted_count": null,
+      "coverage_ratio": null,
+      "coverage_status": null
+    },
+    {
+      "source_id": "sportsgambler",
+      "url": "https://www.sportsgambler.com/betting-tips/football/premier-league-predictions/",
+      "verdict": "ok",
+      "picks": [
+        {
+          "source_id": "sportsgambler",
+          "source_name": "Sportsgambler",
+          "sport": "football",
+          "event": "00 Sun 24/05 vs Premier League Brighton Manchester United Expired Bright",
+          "home_team": "00 Sun 24/05",
+          "away_team": "Premier League Brighton Manchester United Expired Bright",
+          "market": "Asian Handicap",
+          "market_family": "handicap",
+          "direction": "OTHER",
+          "line": null,
+          "odds_decimal": 1.91,
+          "confidence_label": "source_claim",
+          "reasoning": "p South Korea K League 1 Spain La Liga Spain Copa del Rey Spain La Liga 2 Sweden Allsvenskan Switzerland Super League Turkey Super Lig UEFA Europa League UEFA Champions League UEFA Europa Conference League UEFA European Championship UEFA Nations League USA MLS Previous Premier League Predictions 17:00 Sun 24/05 - Premier League Brighton Manchester United Expired Brighton are priced at 1.91 to secure a Full-Time Result victory and we think these odds are too big. The Seagulls boast strong home form, an impressive head-to-head record against Manchester United and have plenty to play for in the race for Europe, while United will finish third regardless of the result. Read more 17:00 Sun 24/05 - Premier League Crystal Palace Arsenal Expired Everything points towards an Arsenal victory here, from recent form and xG data to the head-to-head record, potential squad rotation and the fact Crystal Palace have a Europa Conference League final just three days later. Read more 17:00 Sun 24/05 - Premier League Fulham Newcastle Expired There’s a good chance that we’ll see Fulham record a victory an",
+          "stats_cited": [
+            "24/05"
+          ],
+          "tipster_name": "League Predictions Rugby Union Predictions Snooker Predictions Table Tennis Predictions Tennis Predictions UFC Predictions Accumulator Tips Team News",
+          "competition": null,
+          "published_at": null,
+          "source_url": "https://www.sportsgambler.com/betting-tips/football/premier-league-predictions/",
+          "extracted_at_utc": "2026-07-07T06:39:30.325714+00:00",
+          "extraction_quality": 0.52,
+          "warnings": [],
+          "valuable_signals": {
+            "advanced_metrics": [
+              "Expired Everything points towards an Arsenal victory here, from recent form and xG data to the head-to-head record, potential squad rotation and the fact Crystal Palace have a Europa"
+            ],
+            "form_trends": [
+              "Palace Arsenal Expired Everything points towards an Arsenal victory here, from recent form and xG data to the head-to-head record, potential squad rotation and the fact Crystal Palace have a"
+            ],
+            "odds_context": [
+              "7:00 Sun 24/05 - Premier League Brighton Manchester United Expired Brighton are priced at 1",
+              "re’s a good chance that we’ll see Fulham record a victory and the Cottagers are priced at 2"
+            ]
+          },
+          "source_record_type": "source_claim_evidence",
+          "pipeline_use": [
+            "s2_tipster_evidence",
+            "s3_context_cross_check"
+          ]
+        },
+        {
+          "source_id": "sportsgambler",
+          "source_name": "Sportsgambler",
+          "sport": "football",
+          "event": "00 Sun 24/05 vs Premier League Crystal Palace Arsenal Expired Everything",
+          "home_team": "00 Sun 24/05",
+          "away_team": "Premier League Crystal Palace Arsenal Expired Everything",
+          "market": "Asian Handicap",
+          "market_family": "handicap",
+          "direction": "OTHER",
+          "line": null,
+          "odds_decimal": 1.91,
+          "confidence_label": "source_claim",
+          "reasoning": "t 1.91 to secure a Full-Time Result victory and we think these odds are too big. The Seagulls boast strong home form, an impressive head-to-head record against Manchester United and have plenty to play for in the race for Europe, while United will finish third regardless of the result. Read more 17:00 Sun 24/05 - Premier League Crystal Palace Arsenal Expired Everything points towards an Arsenal victory here, from recent form and xG data to the head-to-head record, potential squad rotation and the fact Crystal Palace have a Europa Conference League final just three days later. Read more 17:00 Sun 24/05 - Premier League Fulham Newcastle Expired There’s a good chance that we’ll see Fulham record a victory and the Cottagers are priced at 2.95 to beat Newcastle. We think that the Full-Time Result market offers bettors plenty of value. Read more 17:00 Sun 24/05 - Premier League Liverpool Brentford Expired We’ll go for the underdogs Brentford at +0.75 for their clash against Liverpool. Taking the Asian Handicap odds of 1.82 means that the stake is divided between +0.5 and +1 which looks lik",
+          "stats_cited": [
+            "24/05"
+          ],
+          "tipster_name": "League Predictions Rugby Union Predictions Snooker Predictions Table Tennis Predictions Tennis Predictions UFC Predictions Accumulator Tips Team News",
+          "competition": null,
+          "published_at": null,
+          "source_url": "https://www.sportsgambler.com/betting-tips/football/premier-league-predictions/",
+          "extracted_at_utc": "2026-07-07T06:39:30.336715+00:00",
+          "extraction_quality": 0.52,
+          "warnings": [],
+          "valuable_signals": {
+            "advanced_metrics": [
+              "Expired Everything points towards an Arsenal victory here, from recent form and xG data to the head-to-head record, potential squad rotation and the fact Crystal Palace have a Europa"
+            ],
+            "form_trends": [
+              "Palace Arsenal Expired Everything points towards an Arsenal victory here, from recent form and xG data to the head-to-head record, potential squad rotation and the fact Crystal Palace have a"
+            ],
+            "odds_context": [
+              "re’s a good chance that we’ll see Fulham record a victory and the Cottagers are priced at 2"
+            ]
+          },
+          "source_record_type": "source_claim_evidence",
+          "pipeline_use": [
+            "s2_tipster_evidence",
+            "s3_context_cross_check"
+          ]
+        },
+        {
+          "source_id": "sportsgambler",
+          "source_name": "Sportsgambler",
+          "sport": "football",
+          "event": "00 Sun 24/05 vs Premier League Fulham Newcastle Expired There",
+          "home_team": "00 Sun 24/05",
+          "away_team": "Premier League Fulham Newcastle Expired There",
+          "market": "Asian Handicap",
+          "market_family": "handicap",
+          "direction": "OTHER",
+          "line": null,
+          "odds_decimal": 2.95,
+          "confidence_label": "source_claim",
+          "reasoning": "17:00 Sun 24/05 - Premier League Crystal Palace Arsenal Expired Everything points towards an Arsenal victory here, from recent form and xG data to the head-to-head record, potential squad rotation and the fact Crystal Palace have a Europa Conference League final just three days later. Read more 17:00 Sun 24/05 - Premier League Fulham Newcastle Expired There’s a good chance that we’ll see Fulham record a victory and the Cottagers are priced at 2.95 to beat Newcastle. We think that the Full-Time Result market offers bettors plenty of value. Read more 17:00 Sun 24/05 - Premier League Liverpool Brentford Expired We’ll go for the underdogs Brentford at +0.75 for their clash against Liverpool. Taking the Asian Handicap odds of 1.82 means that the stake is divided between +0.5 and +1 which looks like the best play. Read more 17:00 Sun 24/05 - Premier League Manchester City Aston Villa Expired We think this game carry greater importance for Manchester City, who will want to give Pep Guardiola a fitting farewell at the Etihad, than for Aston Villa, who may still be recovering from celebrating",
+          "stats_cited": [
+            "24/05"
+          ],
+          "tipster_name": "League Predictions Rugby Union Predictions Snooker Predictions Table Tennis Predictions Tennis Predictions UFC Predictions Accumulator Tips Team News",
+          "competition": null,
+          "published_at": null,
+          "source_url": "https://www.sportsgambler.com/betting-tips/football/premier-league-predictions/",
+          "extracted_at_utc": "2026-07-07T06:39:30.347232+00:00",
+          "extraction_quality": 0.52,
+          "warnings": [],
+          "valuable_signals": {
+            "advanced_metrics": [
+              "Expired Everything points towards an Arsenal victory here, from recent form and xG data to the head-to-head record, potential squad rotation and the fact Crystal Palace have a Europa"
+            ],
+            "form_trends": [
+              "Palace Arsenal Expired Everything points towards an Arsenal victory here, from recent form and xG data to the head-to-head record, potential squad rotation and the fact Crystal Palace have a",
+              "The Cherries, unbeaten in their last 17 Premier League matches, have enjoyed a fantastic season and are"
+            ],
+            "odds_context": [
+              "re’s a good chance that we’ll see Fulham record a victory and the Cottagers are priced at 2"
+            ]
+          },
+          "source_record_type": "source_claim_evidence",
+          "pipeline_use": [
+            "s2_tipster_evidence",
+            "s3_context_cross_check"
+          ]
+        },
+        {
+          "source_id": "sportsgambler",
+          "source_name": "Sportsgambler",
+          "sport": "football",
+          "event": "00 Sun 24/05 vs Premier League Liverpool Brentford Expired We",
+          "home_team": "00 Sun 24/05",
+          "away_team": "Premier League Liverpool Brentford Expired We",
+          "market": "Asian Handicap",
+          "market_family": "handicap",
+          "direction": "OTHER",
+          "line": null,
+          "odds_decimal": 2.95,
+          "confidence_label": "source_claim",
+          "reasoning": "inal just three days later. Read more 17:00 Sun 24/05 - Premier League Fulham Newcastle Expired There’s a good chance that we’ll see Fulham record a victory and the Cottagers are priced at 2.95 to beat Newcastle. We think that the Full-Time Result market offers bettors plenty of value. Read more 17:00 Sun 24/05 - Premier League Liverpool Brentford Expired We’ll go for the underdogs Brentford at +0.75 for their clash against Liverpool. Taking the Asian Handicap odds of 1.82 means that the stake is divided between +0.5 and +1 which looks like the best play. Read more 17:00 Sun 24/05 - Premier League Manchester City Aston Villa Expired We think this game carry greater importance for Manchester City, who will want to give Pep Guardiola a fitting farewell at the Etihad, than for Aston Villa, who may still be recovering from celebrating Europa League glory in Istanbul on Wednesday night. Read more 17:00 Sun 24/05 - Premier League Nottingham Forest Bournemouth Expired We expect Bournemouth to have the upper hand against Nottingham Forest. The Cherries, unbeaten in their last 17 Premier Leag",
+          "stats_cited": [
+            "24/05"
+          ],
+          "tipster_name": "League Predictions Rugby Union Predictions Snooker Predictions Table Tennis Predictions Tennis Predictions UFC Predictions Accumulator Tips Team News",
+          "competition": null,
+          "published_at": null,
+          "source_url": "https://www.sportsgambler.com/betting-tips/football/premier-league-predictions/",
+          "extracted_at_utc": "2026-07-07T06:39:30.358076+00:00",
+          "extraction_quality": 0.52,
+          "warnings": [],
+          "valuable_signals": {
+            "form_trends": [
+              "The Cherries, unbeaten in their last 17 Premier League matches, have enjoyed a fantastic season and are fighting to retain sixth place"
+            ],
+            "odds_context": [
+              "re’s a good chance that we’ll see Fulham record a victory and the Cottagers are priced at 2"
+            ]
+          },
+          "source_record_type": "source_claim_evidence",
+          "pipeline_use": [
+            "s2_tipster_evidence",
+            "s3_context_cross_check"
+          ]
+        },
+        {
+          "source_id": "sportsgambler",
+          "source_name": "Sportsgambler",
+          "sport": "football",
+          "event": "00 Sun 24/05 vs Premier League Nottingham Forest Bournemouth Expired We",
+          "home_team": "00 Sun 24/05",
+          "away_team": "Premier League Nottingham Forest Bournemouth Expired We",
+          "market": "Asian Handicap",
+          "market_family": "handicap",
+          "direction": "OTHER",
+          "line": null,
+          "odds_decimal": 2.02,
+          "confidence_label": "source_claim",
+          "reasoning": "chester City Aston Villa Expired We think this game carry greater importance for Manchester City, who will want to give Pep Guardiola a fitting farewell at the Etihad, than for Aston Villa, who may still be recovering from celebrating Europa League glory in Istanbul on Wednesday night. Read more 17:00 Sun 24/05 - Premier League Nottingham Forest Bournemouth Expired We expect Bournemouth to have the upper hand against Nottingham Forest. The Cherries, unbeaten in their last 17 Premier League matches, have enjoyed a fantastic season and are fighting to retain sixth place. Read more 17:00 Sun 24/05 - Premier League Sunderland Chelsea Expired Chelsea are capable of securing the spoils when it comes to Full-Time Result wagering and we’ll back them with optimism against Sunderland. The odds of 2.02 are really appealing when it comes to this pick. Read more 17:00 Sun 24/05 - Premier League Tottenham Everton Expired The Everton +0.5 Asian Handicap at 1.93 appeals against a Tottenham side that owns the Premier League’s second-worst home record. Read more 17:00 Sun 24/05 - Premier League West H",
+          "stats_cited": [
+            "24/05"
+          ],
+          "tipster_name": "League Predictions Rugby Union Predictions Snooker Predictions Table Tennis Predictions Tennis Predictions UFC Predictions Accumulator Tips Team News",
+          "competition": null,
+          "published_at": null,
+          "source_url": "https://www.sportsgambler.com/betting-tips/football/premier-league-predictions/",
+          "extracted_at_utc": "2026-07-07T06:39:30.369349+00:00",
+          "extraction_quality": 0.52,
+          "warnings": [],
+          "valuable_signals": {
+            "form_trends": [
+              "The Cherries, unbeaten in their last 17 Premier League matches, have enjoyed a fantastic season and are fighting to retain sixth place"
+            ]
+          },
+          "source_record_type": "source_claim_evidence",
+          "pipeline_use": [
+            "s2_tipster_evidence",
+            "s3_context_cross_check"
+          ]
+        },
+        {
+          "source_id": "sportsgambler",
+          "source_name": "Sportsgambler",
+          "sport": "football",
+          "event": "00 Sun 24/05 vs Premier League Tottenham Everton Expired The Everton",
+          "home_team": "00 Sun 24/05",
+          "away_team": "Premier League Tottenham Everton Expired The Everton",
+          "market": "Asian Handicap",
+          "market_family": "handicap",
+          "direction": "OTHER",
+          "line": null,
+          "odds_decimal": 2.02,
+          "confidence_label": "source_claim",
+          "reasoning": "xth place. Read more 17:00 Sun 24/05 - Premier League Sunderland Chelsea Expired Chelsea are capable of securing the spoils when it comes to Full-Time Result wagering and we’ll back them with optimism against Sunderland. The odds of 2.02 are really appealing when it comes to this pick. Read more 17:00 Sun 24/05 - Premier League Tottenham Everton Expired The Everton +0.5 Asian Handicap at 1.93 appeals against a Tottenham side that owns the Premier League’s second-worst home record. Read more 17:00 Sun 24/05 - Premier League West Ham Leeds Expired West Ham need victory to keep their survival hopes alive and motivation could prove decisive against a Leeds side without the same sense of urgency on the final day. We’re backing the Hammers at 1.82 in the Full-Time Result market, with the odds offering solid value. Read more 17:00 Sun 24/05 - Premier League Burnley Wolverhampton Expired The Asian Handicap selection of Burnley 0.0 means that there is money back if the game ends level. We can get odds of 1.67 that they manage to beat Wolverhampton and we’re confident with this bet. Read more ",
+          "stats_cited": [
+            "24/05"
+          ],
+          "tipster_name": "League Predictions Rugby Union Predictions Snooker Predictions Table Tennis Predictions Tennis Predictions UFC Predictions Accumulator Tips Team News",
+          "competition": null,
+          "published_at": null,
+          "source_url": "https://www.sportsgambler.com/betting-tips/football/premier-league-predictions/",
+          "extracted_at_utc": "2026-07-07T06:39:30.379374+00:00",
+          "extraction_quality": 0.52,
+          "warnings": [],
+          "valuable_signals": {
+            "team_news_injuries": [
+              "ions All Predictions Football Predictions Premier League Lineups Premier League Injuries Premier League Fixtures Premier League Standings Premier League Transfer News Best Betting Offers B"
+            ],
+            "lineups": [
+              "All the Latest Predictions All Predictions Football Predictions Premier League Lineups Premier League Injuries Premier League Fixtures Premier League Standings Premier League Transfer Ne"
+            ]
+          },
+          "source_record_type": "source_claim_evidence",
+          "pipeline_use": [
+            "s2_tipster_evidence",
+            "s3_context_cross_check"
+          ]
+        }
+      ],
+      "warnings": [],
+      "parser_version": "tipster_parser_v2.3_final_source_specific",
+      "extracted_at_utc": "2026-07-07T06:39:30.379846+00:00",
+      "block_reason": null,
+      "robots_blocked_live": false,
+      "live_fetch_allowed": true,
+      "fallback": null,
+      "skip_reason": null,
+      "required_flags_missing": [],
+      "invalid_attestation": [],
+      "expected_visible_count": null,
+      "extracted_count": null,
+      "coverage_ratio": null,
+      "coverage_status": null
+    },
+    {
+      "source_id": "sportsgambler",
+      "url": "https://www.sportsgambler.com/betting-tips/football/championship-predictions/",
+      "verdict": "ok",
+      "picks": [
+        {
+          "source_id": "sportsgambler",
+          "source_name": "Sportsgambler",
+          "sport": "football",
+          "event": "30 Sat 23/05 vs Championship Hull Middlesbrough Expired We",
+          "home_team": "30 Sat 23/05",
+          "away_team": "Championship Hull Middlesbrough Expired We",
+          "market": "Asian Handicap",
+          "market_family": "handicap",
+          "direction": "DC",
+          "line": null,
+          "odds_decimal": 1.83,
+          "confidence_label": "source_claim",
+          "reasoning": "hip South Korea K League 1 Spain La Liga Spain Copa del Rey Spain La Liga 2 Sweden Allsvenskan Switzerland Super League Turkey Super Lig UEFA Europa League UEFA Champions League UEFA Europa Conference League UEFA European Championship UEFA Nations League USA MLS Previous Championship Predictions 16:30 Sat 23/05 - Championship Hull Middlesbrough Expired We’ll take Middlesbrough at attractive betting odds of 1.83 considering that they could be dominant against Hull. Kim Hellberg’s side spent long periods of the regular season in second place, while Hull only secured their play-off spot on the final day. Read more 21:00 Tue 12/05 - Championship Southampton Middlesbrough Expired Amid the off-field controversy, Middlesbrough look a strong option on the Asian Handicap. Boro dominated the first leg and have been in good form away from home lately, remaining unbeaten in their last six matches on the road. Read more 21:00 Mon 11/05 - Championship Millwall Hull Expired Millwall look a great bet to beat Hull on the Full-Time Result market. You can get odds of 1.72 with Stake that the home team ",
+          "stats_cited": [
+            "23/05",
+            "12/05",
+            "11/05",
+            "09/05"
+          ],
+          "tipster_name": "League Predictions Rugby Union Predictions Snooker Predictions Table Tennis Predictions Tennis Predictions UFC Predictions Accumulator Tips Team News",
+          "competition": null,
+          "published_at": null,
+          "source_url": "https://www.sportsgambler.com/betting-tips/football/championship-predictions/",
+          "extracted_at_utc": "2026-07-07T06:39:33.321349+00:00",
+          "extraction_quality": 0.52,
+          "warnings": [],
+          "valuable_signals": {
+            "advanced_metrics": [
+              "tory and this looks like a value wager based on the latest home and away stats, xG data and team news"
+            ],
+            "form_trends": [
+              "nated the first leg and have been in good form away from home lately, remaining unbeaten in their last six matches on the road",
+              "ed Southampton have come into form at the right stage of the season and are now unbeaten in their last 19 Championship ma"
+            ]
+          },
+          "source_record_type": "source_claim_evidence",
+          "pipeline_use": [
+            "s2_tipster_evidence",
+            "s3_context_cross_check"
+          ]
+        },
+        {
+          "source_id": "sportsgambler",
+          "source_name": "Sportsgambler",
+          "sport": "football",
+          "event": "00 Tue 12/05 vs Championship Southampton Middlesbrough Expired Amid the",
+          "home_team": "00 Tue 12/05",
+          "away_team": "Championship Southampton Middlesbrough Expired Amid the",
+          "market": "Asian Handicap",
+          "market_family": "handicap",
+          "direction": "DC",
+          "line": null,
+          "odds_decimal": 1.83,
+          "confidence_label": "source_claim",
+          "reasoning": "nship Hull Middlesbrough Expired We’ll take Middlesbrough at attractive betting odds of 1.83 considering that they could be dominant against Hull. Kim Hellberg’s side spent long periods of the regular season in second place, while Hull only secured their play-off spot on the final day. Read more 21:00 Tue 12/05 - Championship Southampton Middlesbrough Expired Amid the off-field controversy, Middlesbrough look a strong option on the Asian Handicap. Boro dominated the first leg and have been in good form away from home lately, remaining unbeaten in their last six matches on the road. Read more 21:00 Mon 11/05 - Championship Millwall Hull Expired Millwall look a great bet to beat Hull on the Full-Time Result market. You can get odds of 1.72 with Stake that the home team claim a victory and this looks like a value wager based on the latest home and away stats, xG data and team news. Read more 13:30 Sat 09/05 - Championship Middlesbrough Southampton Expired Southampton have come into form at the right stage of the season and are now unbeaten in their last 19 Championship matches, with eig",
+          "stats_cited": [
+            "12/05",
+            "11/05",
+            "09/05",
+            "08/05"
+          ],
+          "tipster_name": "League Predictions Rugby Union Predictions Snooker Predictions Table Tennis Predictions Tennis Predictions UFC Predictions Accumulator Tips Team News",
+          "competition": null,
+          "published_at": null,
+          "source_url": "https://www.sportsgambler.com/betting-tips/football/championship-predictions/",
+          "extracted_at_utc": "2026-07-07T06:39:33.332641+00:00",
+          "extraction_quality": 0.52,
+          "warnings": [],
+          "valuable_signals": {
+            "advanced_metrics": [
+              "tory and this looks like a value wager based on the latest home and away stats, xG data and team news"
+            ],
+            "form_trends": [
+              "nated the first leg and have been in good form away from home lately, remaining unbeaten in their last six matches on the road",
+              "ed Southampton have come into form at the right stage of the season and are now unbeaten in their last 19 Championship matches, with eight wins in their last ten",
+              "The Lions are unbeaten in their last nine away games in"
+            ]
+          },
+          "source_record_type": "source_claim_evidence",
+          "pipeline_use": [
+            "s2_tipster_evidence",
+            "s3_context_cross_check"
+          ]
+        },
+        {
+          "source_id": "sportsgambler",
+          "source_name": "Sportsgambler",
+          "sport": "football",
+          "event": "30 Sat 09/05 vs Championship Middlesbrough Southampton Expired Southampt",
+          "home_team": "30 Sat 09/05",
+          "away_team": "Championship Middlesbrough Southampton Expired Southampt",
+          "market": "to win",
+          "market_family": "winner",
+          "direction": "WIN",
+          "line": null,
+          "odds_decimal": 1.72,
+          "confidence_label": "source_claim",
+          "reasoning": "Mon 11/05 - Championship Millwall Hull Expired Millwall look a great bet to beat Hull on the Full-Time Result market. You can get odds of 1.72 with Stake that the home team claim a victory and this looks like a value wager based on the latest home and away stats, xG data and team news. Read more 13:30 Sat 09/05 - Championship Middlesbrough Southampton Expired Southampton have come into form at the right stage of the season and are now unbeaten in their last 19 Championship matches, with eight wins in their last ten. Meanwhile, Middlesbrough have failed to win six of their last eight home games. Read more 21:00 Fri 08/05 - Championship Hull Millwall Expired There’s a realistic prospect that we’ll see Millwall land a win and they are available at 2.25. The Lions are unbeaten in their last nine away games in the Championship, including a 3-1 victory against Hull, making the Full-Time Result market an appealing option. Read more 13:30 Sat 02/05 - Championship Bristol City Stoke Expired It wouldn’t be surprising to see Bristol City come out on top against Stoke. We will therefore back the",
+          "stats_cited": [
+            "11/05",
+            "09/05",
+            "08/05",
+            "02/05"
+          ],
+          "tipster_name": "League Predictions Rugby Union Predictions Snooker Predictions Table Tennis Predictions Tennis Predictions UFC Predictions Accumulator Tips Team News",
+          "competition": null,
+          "published_at": null,
+          "source_url": "https://www.sportsgambler.com/betting-tips/football/championship-predictions/",
+          "extracted_at_utc": "2026-07-07T06:39:33.343882+00:00",
+          "extraction_quality": 0.52,
+          "warnings": [],
+          "valuable_signals": {
+            "advanced_metrics": [
+              "tory and this looks like a value wager based on the latest home and away stats, xG data and team news"
+            ],
+            "form_trends": [
+              "ed Southampton have come into form at the right stage of the season and are now unbeaten in their last 19 Championship matches, with eight wins in their last ten",
+              "The Lions are unbeaten in their last nine away games in the Championship, including a 3-1 victory against Hull, making the"
+            ]
+          },
+          "source_record_type": "source_claim_evidence",
+          "pipeline_use": [
+            "s2_tipster_evidence",
+            "s3_context_cross_check"
+          ]
+        },
+        {
+          "source_id": "sportsgambler",
+          "source_name": "Sportsgambler",
+          "sport": "football",
+          "event": "00 Fri 08/05 vs Championship Hull Millwall Expired There",
+          "home_team": "00 Fri 08/05",
+          "away_team": "Championship Hull Millwall Expired There",
+          "market": "to win",
+          "market_family": "winner",
+          "direction": "WIN",
+          "line": null,
+          "odds_decimal": 2.25,
+          "confidence_label": "source_claim",
+          "reasoning": "Championship Middlesbrough Southampton Expired Southampton have come into form at the right stage of the season and are now unbeaten in their last 19 Championship matches, with eight wins in their last ten. Meanwhile, Middlesbrough have failed to win six of their last eight home games. Read more 21:00 Fri 08/05 - Championship Hull Millwall Expired There’s a realistic prospect that we’ll see Millwall land a win and they are available at 2.25. The Lions are unbeaten in their last nine away games in the Championship, including a 3-1 victory against Hull, making the Full-Time Result market an appealing option. Read more 13:30 Sat 02/05 - Championship Bristol City Stoke Expired It wouldn’t be surprising to see Bristol City come out on top against Stoke. We will therefore back them at 1.91 on the Full-Time Result market and get a nice return if the hosts manage to land a victory. Read more 13:30 Sat 02/05 - Championship Derby Sheffield United Expired We’ll back Derby with a fair degree of confidence when they clash with Sheffield United. At betting odds of 1.74 on the Full-Time Result mark",
+          "stats_cited": [
+            "08/05",
+            "02/05"
+          ],
+          "tipster_name": "League Predictions Rugby Union Predictions Snooker Predictions Table Tennis Predictions Tennis Predictions UFC Predictions Accumulator Tips Team News",
+          "competition": null,
+          "published_at": null,
+          "source_url": "https://www.sportsgambler.com/betting-tips/football/championship-predictions/",
+          "extracted_at_utc": "2026-07-07T06:39:33.355050+00:00",
+          "extraction_quality": 0.52,
+          "warnings": [],
+          "valuable_signals": {
+            "form_trends": [
+              "ed Southampton have come into form at the right stage of the season and are now unbeaten in their last 19 Championship matches, with eight wins in their last ten",
+              "The Lions are unbeaten in their last nine away games in the Championship, including a 3-1 victory against Hull, making the"
+            ]
+          },
+          "source_record_type": "source_claim_evidence",
+          "pipeline_use": [
+            "s2_tipster_evidence",
+            "s3_context_cross_check"
+          ]
+        },
+        {
+          "source_id": "sportsgambler",
+          "source_name": "Sportsgambler",
+          "sport": "football",
+          "event": "30 Sat 02/05 vs Championship Bristol City Stoke Expired It wouldn",
+          "home_team": "30 Sat 02/05",
+          "away_team": "Championship Bristol City Stoke Expired It wouldn",
+          "market": "Asian Handicap",
+          "market_family": "handicap",
+          "direction": "WIN",
+          "line": null,
+          "odds_decimal": 2.25,
+          "confidence_label": "source_claim",
+          "reasoning": "Hull Millwall Expired There’s a realistic prospect that we’ll see Millwall land a win and they are available at 2.25. The Lions are unbeaten in their last nine away games in the Championship, including a 3-1 victory against Hull, making the Full-Time Result market an appealing option. Read more 13:30 Sat 02/05 - Championship Bristol City Stoke Expired It wouldn’t be surprising to see Bristol City come out on top against Stoke. We will therefore back them at 1.91 on the Full-Time Result market and get a nice return if the hosts manage to land a victory. Read more 13:30 Sat 02/05 - Championship Derby Sheffield United Expired We’ll back Derby with a fair degree of confidence when they clash with Sheffield United. At betting odds of 1.74 on the Full-Time Result market, this looks a value pick and we expect a return. Read more 13:30 Sat 02/05 - Championship Hull Norwich Expired A highly motivated Hull side can deliver the goods when it comes to Full-Time Result betting and we’ll back the Tigers with confidence against Norwich. The odds of 1.74 look attractive when it comes to the home tea",
+          "stats_cited": [
+            "02/05"
+          ],
+          "tipster_name": "League Predictions Rugby Union Predictions Snooker Predictions Table Tennis Predictions Tennis Predictions UFC Predictions Accumulator Tips Team News",
+          "competition": null,
+          "published_at": null,
+          "source_url": "https://www.sportsgambler.com/betting-tips/football/championship-predictions/",
+          "extracted_at_utc": "2026-07-07T06:39:33.365532+00:00",
+          "extraction_quality": 0.52,
+          "warnings": [],
+          "valuable_signals": {
+            "form_trends": [
+              "The Lions are unbeaten in their last nine away games in the Championship, including a 3-1 victory against Hull, making the"
+            ]
+          },
+          "source_record_type": "source_claim_evidence",
+          "pipeline_use": [
+            "s2_tipster_evidence",
+            "s3_context_cross_check"
+          ]
+        },
+        {
+          "source_id": "sportsgambler",
+          "source_name": "Sportsgambler",
+          "sport": "football",
+          "event": "30 Sat 02/05 vs Championship Derby Sheffield United Expired We",
+          "home_team": "30 Sat 02/05",
+          "away_team": "Championship Derby Sheffield United Expired We",
+          "market": "Asian Handicap",
+          "market_family": "handicap",
+          "direction": "WIN",
+          "line": null,
+          "odds_decimal": 1.91,
+          "confidence_label": "source_claim",
+          "reasoning": "aling option. Read more 13:30 Sat 02/05 - Championship Bristol City Stoke Expired It wouldn’t be surprising to see Bristol City come out on top against Stoke. We will therefore back them at 1.91 on the Full-Time Result market and get a nice return if the hosts manage to land a victory. Read more 13:30 Sat 02/05 - Championship Derby Sheffield United Expired We’ll back Derby with a fair degree of confidence when they clash with Sheffield United. At betting odds of 1.74 on the Full-Time Result market, this looks a value pick and we expect a return. Read more 13:30 Sat 02/05 - Championship Hull Norwich Expired A highly motivated Hull side can deliver the goods when it comes to Full-Time Result betting and we’ll back the Tigers with confidence against Norwich. The odds of 1.74 look attractive when it comes to the home team. Read more 13:30 Sat 02/05 - Championship Ipswich QPR Expired Ipswich, with everything to play for, should finish well clear of QPR and we’re playing the -1.75 on the Asian Handicap. It means our stake is split between -1.5 and -2.0 at tempting betting odds of 1.98. Rea",
+          "stats_cited": [
+            "02/05"
+          ],
+          "tipster_name": "League Predictions Rugby Union Predictions Snooker Predictions Table Tennis Predictions Tennis Predictions UFC Predictions Accumulator Tips Team News",
+          "competition": null,
+          "published_at": null,
+          "source_url": "https://www.sportsgambler.com/betting-tips/football/championship-predictions/",
+          "extracted_at_utc": "2026-07-07T06:39:33.375598+00:00",
+          "extraction_quality": 0.52,
+          "warnings": [],
+          "valuable_signals": {},
+          "source_record_type": "source_claim_evidence",
+          "pipeline_use": [
+            "s2_tipster_evidence",
+            "s3_context_cross_check"
+          ]
+        },
+        {
+          "source_id": "sportsgambler",
+          "source_name": "Sportsgambler",
+          "sport": "football",
+          "event": "30 Sat 02/05 vs Championship Ipswich QPR Expired Ipswich",
+          "home_team": "30 Sat 02/05",
+          "away_team": "Championship Ipswich QPR Expired Ipswich",
+          "market": "Asian Handicap",
+          "market_family": "handicap",
+          "direction": "WIN",
+          "line": null,
+          "odds_decimal": 1.74,
+          "confidence_label": "source_claim",
+          "reasoning": "return. Read more 13:30 Sat 02/05 - Championship Hull Norwich Expired A highly motivated Hull side can deliver the goods when it comes to Full-Time Result betting and we’ll back the Tigers with confidence against Norwich. The odds of 1.74 look attractive when it comes to the home team. Read more 13:30 Sat 02/05 - Championship Ipswich QPR Expired Ipswich, with everything to play for, should finish well clear of QPR and we’re playing the -1.75 on the Asian Handicap. It means our stake is split between -1.5 and -2.0 at tempting betting odds of 1.98. Read more 13:30 Sat 02/05 - Championship Millwall Oxford Expired Backing Millwall -1.25 at odds of 1.80 means we’ll benefit if the favourites win by two or more goals against Oxford. If the Lions only triumph by one goal, then half our stake will be returned on the Asian Handicap. Read more Get All the Latest Predictions All Predictions Football Predictions Championship Lineups Championship Injuries Championship Fixtures Championship Standings Championship Transfer News Championship Live Streaming Best Betting Offers Betting Sites Betting Of",
+          "stats_cited": [
+            "02/05"
+          ],
+          "tipster_name": "League Predictions Rugby Union Predictions Snooker Predictions Table Tennis Predictions Tennis Predictions UFC Predictions Accumulator Tips Team News",
+          "competition": null,
+          "published_at": null,
+          "source_url": "https://www.sportsgambler.com/betting-tips/football/championship-predictions/",
+          "extracted_at_utc": "2026-07-07T06:39:33.385466+00:00",
+          "extraction_quality": 0.52,
+          "warnings": [],
+          "valuable_signals": {
+            "team_news_injuries": [
+              "dictions All Predictions Football Predictions Championship Lineups Championship Injuries Championship Fixtures Championship Standings Championship Transfer News Championship Live Streaming"
+            ],
+            "lineups": [
+              "et All the Latest Predictions All Predictions Football Predictions Championship Lineups Championship Injuries Championship Fixtures Championship Standings Championship Transfer News Champ"
+            ]
+          },
+          "source_record_type": "source_claim_evidence",
+          "pipeline_use": [
+            "s2_tipster_evidence",
+            "s3_context_cross_check"
+          ]
+        },
+        {
+          "source_id": "sportsgambler",
+          "source_name": "Sportsgambler",
+          "sport": "football",
+          "event": "30 Sat 02/05 vs Championship Millwall Oxford Expired Backing Millwall -1",
+          "home_team": "30 Sat 02/05",
+          "away_team": "Championship Millwall Oxford Expired Backing Millwall -1",
+          "market": "Asian Handicap",
+          "market_family": "handicap",
+          "direction": "WIN",
+          "line": null,
+          "odds_decimal": 1.75,
+          "confidence_label": "source_claim",
+          "reasoning": "es to the home team. Read more 13:30 Sat 02/05 - Championship Ipswich QPR Expired Ipswich, with everything to play for, should finish well clear of QPR and we’re playing the -1.75 on the Asian Handicap. It means our stake is split between -1.5 and -2.0 at tempting betting odds of 1.98. Read more 13:30 Sat 02/05 - Championship Millwall Oxford Expired Backing Millwall -1.25 at odds of 1.80 means we’ll benefit if the favourites win by two or more goals against Oxford. If the Lions only triumph by one goal, then half our stake will be returned on the Asian Handicap. Read more Get All the Latest Predictions All Predictions Football Predictions Championship Lineups Championship Injuries Championship Fixtures Championship Standings Championship Transfer News Championship Live Streaming Best Betting Offers Betting Sites Betting Offers Betting School Prediction Markets Online Casinos Sweepstakes Casinos Free Championship Predictions This is one of the leading football divisions in Europe and we have all angles covered when it comes to the second professional tier in England. Our experts take ",
+          "stats_cited": [
+            "02/05",
+            "2025/26"
+          ],
+          "tipster_name": "League Predictions Rugby Union Predictions Snooker Predictions Table Tennis Predictions Tennis Predictions UFC Predictions Accumulator Tips Team News",
+          "competition": null,
+          "published_at": null,
+          "source_url": "https://www.sportsgambler.com/betting-tips/football/championship-predictions/",
+          "extracted_at_utc": "2026-07-07T06:39:33.395495+00:00",
+          "extraction_quality": 0.52,
+          "warnings": [],
+          "valuable_signals": {
+            "team_news_injuries": [
+              "dictions All Predictions Football Predictions Championship Lineups Championship Injuries Championship Fixtures Championship Standings Championship Transfer News Championship Live Streaming"
+            ],
+            "lineups": [
+              "et All the Latest Predictions All Predictions Football Predictions Championship Lineups Championship Injuries Championship Fixtures Championship Standings Championship Transfer News Champ"
+            ]
+          },
+          "source_record_type": "source_claim_evidence",
+          "pipeline_use": [
+            "s2_tipster_evidence",
+            "s3_context_cross_check"
+          ]
+        }
+      ],
+      "warnings": [],
+      "parser_version": "tipster_parser_v2.3_final_source_specific",
+      "extracted_at_utc": "2026-07-07T06:39:33.395890+00:00",
+      "block_reason": null,
+      "robots_blocked_live": false,
+      "live_fetch_allowed": true,
+      "fallback": null,
+      "skip_reason": null,
+      "required_flags_missing": [],
+      "invalid_attestation": [],
+      "expected_visible_count": null,
+      "extracted_count": null,
+      "coverage_ratio": null,
+      "coverage_status": null
+    },
+    {
+      "source_id": "sportsgambler",
+      "url": "https://www.sportsgambler.com/betting-tips/football/la-liga-predictions/",
+      "verdict": "ok",
+      "picks": [
+        {
+          "source_id": "sportsgambler",
+          "source_name": "Sportsgambler",
+          "sport": "football",
+          "event": "00 Sat 23/05 vs La Liga Getafe Osasuna Expired It",
+          "home_team": "00 Sat 23/05",
+          "away_team": "La Liga Getafe Osasuna Expired It",
+          "market": "Asian Handicap",
+          "market_family": "handicap",
+          "direction": "OVER",
+          "line": null,
+          "odds_decimal": 1.78,
+          "confidence_label": "source_claim",
+          "reasoning": "d more 21:00 Sat 23/05 - La Liga Espanyol Real Sociedad Expired Real Sociedad +0.25 at 1.78 on the Asian Handicap could be the bet to have. We’re expecting them to avoid defeat against Espanyol, with our stake divided equally between 0 and +0.5 in the hope the away team can land a win. Read more 21:00 Sat 23/05 - La Liga Getafe Osasuna Expired It’s great to get attractive odds of 2.43 for a home win when Getafe go up against Osasuna. We think that the hosts will have the upper hand and the Full-Time Result market is a way of getting the best value. Read more 21:00 Sat 23/05 - La Liga Mallorca Real Oviedo Expired We’re siding with Oviedo +1 on the Asian Handicap at 2.05, with the visitors capable of avoiding defeat against Mallorca. There’s also the safety net of a one-goal loss resulting in a stake refund. With Mallorca relying heavily on results elsewhere, their survival hopes could realistically be over early in the game, potentially impacting the mood and pressure around the hosts. Read more 21:00 Sat 23/05 - La Liga Real Madrid Athletic Club Expired There’s the chance to back Rea",
+          "stats_cited": [
+            "23/05"
+          ],
+          "tipster_name": "League Predictions Rugby Union Predictions Snooker Predictions Table Tennis Predictions Tennis Predictions UFC Predictions Accumulator Tips Team News",
+          "competition": null,
+          "published_at": null,
+          "source_url": "https://www.sportsgambler.com/betting-tips/football/la-liga-predictions/",
+          "extracted_at_utc": "2026-07-07T06:39:36.264832+00:00",
+          "extraction_quality": 0.52,
+          "warnings": [],
+          "valuable_signals": {},
+          "source_record_type": "source_claim_evidence",
+          "pipeline_use": [
+            "s2_tipster_evidence",
+            "s3_context_cross_check"
+          ]
+        },
+        {
+          "source_id": "sportsgambler",
+          "source_name": "Sportsgambler",
+          "sport": "football",
+          "event": "00 Sat 23/05 vs La Liga Mallorca Real Oviedo Expired We",
+          "home_team": "00 Sat 23/05",
+          "away_team": "La Liga Mallorca Real Oviedo Expired We",
+          "market": "Asian Handicap",
+          "market_family": "handicap",
+          "direction": "OVER",
+          "line": null,
+          "odds_decimal": 2.43,
+          "confidence_label": "source_claim",
+          "reasoning": "am can land a win. Read more 21:00 Sat 23/05 - La Liga Getafe Osasuna Expired It’s great to get attractive odds of 2.43 for a home win when Getafe go up against Osasuna. We think that the hosts will have the upper hand and the Full-Time Result market is a way of getting the best value. Read more 21:00 Sat 23/05 - La Liga Mallorca Real Oviedo Expired We’re siding with Oviedo +1 on the Asian Handicap at 2.05, with the visitors capable of avoiding defeat against Mallorca. There’s also the safety net of a one-goal loss resulting in a stake refund. With Mallorca relying heavily on results elsewhere, their survival hopes could realistically be over early in the game, potentially impacting the mood and pressure around the hosts. Read more 21:00 Sat 23/05 - La Liga Real Madrid Athletic Club Expired There’s the chance to back Real Madrid -1.25 against Athletic Club and Asian Handicap odds of 1.95 make lots of appeal. We need a two goal winning margin to win the bet and a one goal triumph means half stake is returned. Read more 21:00 Sat 23/05 - La Liga Valencia Barcelona Expired Barcelona loo",
+          "stats_cited": [
+            "23/05"
+          ],
+          "tipster_name": "League Predictions Rugby Union Predictions Snooker Predictions Table Tennis Predictions Tennis Predictions UFC Predictions Accumulator Tips Team News",
+          "competition": null,
+          "published_at": null,
+          "source_url": "https://www.sportsgambler.com/betting-tips/football/la-liga-predictions/",
+          "extracted_at_utc": "2026-07-07T06:39:36.274809+00:00",
+          "extraction_quality": 0.52,
+          "warnings": [],
+          "valuable_signals": {},
+          "source_record_type": "source_claim_evidence",
+          "pipeline_use": [
+            "s2_tipster_evidence",
+            "s3_context_cross_check"
+          ]
+        },
+        {
+          "source_id": "sportsgambler",
+          "source_name": "Sportsgambler",
+          "sport": "football",
+          "event": "00 Sat 23/05 vs La Liga Girona Elche Expired We",
+          "home_team": "00 Sat 23/05",
+          "away_team": "La Liga Girona Elche Expired We",
+          "market": "Asian Handicap",
+          "market_family": "handicap",
+          "direction": "WIN",
+          "line": null,
+          "odds_decimal": 1.84,
+          "confidence_label": "source_claim",
+          "reasoning": "ga Valencia Barcelona Expired Barcelona look like an appealing wager at 1.84 and we expect them to get the better of Valencia despite the hosts pushing for European qualification. We’ll place this Full-Time Result bet feeling confident and there’s plenty of value in the available odds. Read more 21:00 Sat 23/05 - La Liga Girona Elche Expired We’ll take Girona at attractive betting odds of 1.75 considering that they could be dominant against Elche. The Full-Time Result market provides plenty of value and a nice potential return. Read more 21:00 Sat 23/05 - La Liga Alavés Rayo Vallecano Expired Rayo Vallecano +0.25 at 1.79 on the Asian Handicap could be the bet to have. We’re expecting them to avoid defeat against Alavés, with our stake divided equally between 0 and +0.5 in the hope the away team can land a win. Read more Get All the Latest Predictions All Predictions Football Predictions La Liga Lineups La Liga Injuries La Liga Fixtures La Liga Standings La Liga Transfer News La Liga Live Streaming Best Betting Offers Betting Sites Betting Offers Betting School Prediction Markets Onli",
+          "stats_cited": [
+            "23/05",
+            "2025/26"
+          ],
+          "tipster_name": "League Predictions Rugby Union Predictions Snooker Predictions Table Tennis Predictions Tennis Predictions UFC Predictions Accumulator Tips Team News",
+          "competition": null,
+          "published_at": null,
+          "source_url": "https://www.sportsgambler.com/betting-tips/football/la-liga-predictions/",
+          "extracted_at_utc": "2026-07-07T06:39:36.284198+00:00",
+          "extraction_quality": 0.52,
+          "warnings": [],
+          "valuable_signals": {
+            "team_news_injuries": [
+              "Latest Predictions All Predictions Football Predictions La Liga Lineups La Liga Injuries La Liga Fixtures La Liga Standings La Liga Transfer News La Liga Live Streaming Best Betting Offers"
+            ],
+            "lineups": [
+              "ore Get All the Latest Predictions All Predictions Football Predictions La Liga Lineups La Liga Injuries La Liga Fixtures La Liga Standings La Liga Transfer News La Liga Live Streaming Be"
+            ]
+          },
+          "source_record_type": "source_claim_evidence",
+          "pipeline_use": [
+            "s2_tipster_evidence",
+            "s3_context_cross_check"
+          ]
+        }
+      ],
+      "warnings": [],
+      "parser_version": "tipster_parser_v2.3_final_source_specific",
+      "extracted_at_utc": "2026-07-07T06:39:36.284605+00:00",
+      "block_reason": null,
+      "robots_blocked_live": false,
+      "live_fetch_allowed": true,
+      "fallback": null,
+      "skip_reason": null,
+      "required_flags_missing": [],
+      "invalid_attestation": [],
+      "expected_visible_count": null,
+      "extracted_count": null,
+      "coverage_ratio": null,
+      "coverage_status": null
+    }
+  ],
+  "events": [
+    {
+      "normalized_event_key": "00 sun 24 05|premier league brighton manchester united expired bright",
+      "event": "00 Sun 24/05 vs Premier League Brighton Manchester United Expired Bright",
+      "sport": "football",
+      "markets": [
+        "Asian Handicap"
+      ],
+      "tipster_sentiment": "OTHER",
+      "qualitative_reasoning_summaries": [
+        "p South Korea K League 1 Spain La Liga Spain Copa del Rey Spain La Liga 2 Sweden Allsvenskan Switzerland Super League Turkey Super Lig UEFA Europa League UEFA Champions League UEFA Europa Conference League UEFA European Championship UEFA Nations League USA MLS Previous Premier League Predictions 17:00 Sun 24/05 - Premier League Brighton Manchester United Expired Brighton are priced at 1.91 to secure a Full-Time Result victory and we think these odds are too big. The Seagulls boast strong home form, an impressive head-to-head record against Manchester United and have plenty to play for in the race for Europe, while United will finish third regardless of the result. Read more 17:00 Sun 24/05 - Premier League Crystal Palace Arsenal Expired Everything points towards an Arsenal victory here, from recent form and xG data to the head-to-head record, potential squad rotation and the fact Crystal Palace have a Europa Conference League final just three days later. Read more 17:00 Sun 24/05 - Premier League Fulham Newcastle Expired There’s a good chance that we’ll see Fulham record a victory an"
+      ],
+      "source_count": 1,
+      "evidence_quality": "MEDIUM",
+      "certified_sources": [],
+      "operator_risk_sources": [
+        "sportsgambler"
+      ],
+      "source_risk_mix": "operator_risk_only",
+      "needs_match_resolution": false,
+      "needs_manual_review": false,
+      "agent_use_decisions": [
+        "USE_AS_CONTEXT"
+      ],
+      "source_ids": [
+        "sportsgambler"
+      ],
+      "forbidden_actions": [
+        "EV",
+        "stake",
+        "coupon",
+        "final bet",
+        "Superbet combined odds"
+      ]
+    },
+    {
+      "normalized_event_key": "00 sun 24 05|premier league crystal palace arsenal expired everything",
+      "event": "00 Sun 24/05 vs Premier League Crystal Palace Arsenal Expired Everything",
+      "sport": "football",
+      "markets": [
+        "Asian Handicap"
+      ],
+      "tipster_sentiment": "OTHER",
+      "qualitative_reasoning_summaries": [
+        "t 1.91 to secure a Full-Time Result victory and we think these odds are too big. The Seagulls boast strong home form, an impressive head-to-head record against Manchester United and have plenty to play for in the race for Europe, while United will finish third regardless of the result. Read more 17:00 Sun 24/05 - Premier League Crystal Palace Arsenal Expired Everything points towards an Arsenal victory here, from recent form and xG data to the head-to-head record, potential squad rotation and the fact Crystal Palace have a Europa Conference League final just three days later. Read more 17:00 Sun 24/05 - Premier League Fulham Newcastle Expired There’s a good chance that we’ll see Fulham record a victory and the Cottagers are priced at 2.95 to beat Newcastle. We think that the Full-Time Result market offers bettors plenty of value. Read more 17:00 Sun 24/05 - Premier League Liverpool Brentford Expired We’ll go for the underdogs Brentford at +0.75 for their clash against Liverpool. Taking the Asian Handicap odds of 1.82 means that the stake is divided between +0.5 and +1 which looks lik"
+      ],
+      "source_count": 1,
+      "evidence_quality": "MEDIUM",
+      "certified_sources": [],
+      "operator_risk_sources": [
+        "sportsgambler"
+      ],
+      "source_risk_mix": "operator_risk_only",
+      "needs_match_resolution": false,
+      "needs_manual_review": false,
+      "agent_use_decisions": [
+        "USE_AS_CONTEXT"
+      ],
+      "source_ids": [
+        "sportsgambler"
+      ],
+      "forbidden_actions": [
+        "EV",
+        "stake",
+        "coupon",
+        "final bet",
+        "Superbet combined odds"
+      ]
+    },
+    {
+      "normalized_event_key": "00 sun 24 05|premier league fulham newcastle expired there",
+      "event": "00 Sun 24/05 vs Premier League Fulham Newcastle Expired There",
+      "sport": "football",
+      "markets": [
+        "Asian Handicap"
+      ],
+      "tipster_sentiment": "OTHER",
+      "qualitative_reasoning_summaries": [
+        "17:00 Sun 24/05 - Premier League Crystal Palace Arsenal Expired Everything points towards an Arsenal victory here, from recent form and xG data to the head-to-head record, potential squad rotation and the fact Crystal Palace have a Europa Conference League final just three days later. Read more 17:00 Sun 24/05 - Premier League Fulham Newcastle Expired There’s a good chance that we’ll see Fulham record a victory and the Cottagers are priced at 2.95 to beat Newcastle. We think that the Full-Time Result market offers bettors plenty of value. Read more 17:00 Sun 24/05 - Premier League Liverpool Brentford Expired We’ll go for the underdogs Brentford at +0.75 for their clash against Liverpool. Taking the Asian Handicap odds of 1.82 means that the stake is divided between +0.5 and +1 which looks like the best play. Read more 17:00 Sun 24/05 - Premier League Manchester City Aston Villa Expired We think this game carry greater importance for Manchester City, who will want to give Pep Guardiola a fitting farewell at the Etihad, than for Aston Villa, who may still be recovering from celebrating"
+      ],
+      "source_count": 1,
+      "evidence_quality": "MEDIUM",
+      "certified_sources": [],
+      "operator_risk_sources": [
+        "sportsgambler"
+      ],
+      "source_risk_mix": "operator_risk_only",
+      "needs_match_resolution": false,
+      "needs_manual_review": false,
+      "agent_use_decisions": [
+        "USE_AS_CONTEXT"
+      ],
+      "source_ids": [
+        "sportsgambler"
+      ],
+      "forbidden_actions": [
+        "EV",
+        "stake",
+        "coupon",
+        "final bet",
+        "Superbet combined odds"
+      ]
+    },
+    {
+      "normalized_event_key": "00 sun 24 05|premier league liverpool brentford expired we",
+      "event": "00 Sun 24/05 vs Premier League Liverpool Brentford Expired We",
+      "sport": "football",
+      "markets": [
+        "Asian Handicap"
+      ],
+      "tipster_sentiment": "OTHER",
+      "qualitative_reasoning_summaries": [
+        "inal just three days later. Read more 17:00 Sun 24/05 - Premier League Fulham Newcastle Expired There’s a good chance that we’ll see Fulham record a victory and the Cottagers are priced at 2.95 to beat Newcastle. We think that the Full-Time Result market offers bettors plenty of value. Read more 17:00 Sun 24/05 - Premier League Liverpool Brentford Expired We’ll go for the underdogs Brentford at +0.75 for their clash against Liverpool. Taking the Asian Handicap odds of 1.82 means that the stake is divided between +0.5 and +1 which looks like the best play. Read more 17:00 Sun 24/05 - Premier League Manchester City Aston Villa Expired We think this game carry greater importance for Manchester City, who will want to give Pep Guardiola a fitting farewell at the Etihad, than for Aston Villa, who may still be recovering from celebrating Europa League glory in Istanbul on Wednesday night. Read more 17:00 Sun 24/05 - Premier League Nottingham Forest Bournemouth Expired We expect Bournemouth to have the upper hand against Nottingham Forest. The Cherries, unbeaten in their last 17 Premier Leag"
+      ],
+      "source_count": 1,
+      "evidence_quality": "MEDIUM",
+      "certified_sources": [],
+      "operator_risk_sources": [
+        "sportsgambler"
+      ],
+      "source_risk_mix": "operator_risk_only",
+      "needs_match_resolution": false,
+      "needs_manual_review": false,
+      "agent_use_decisions": [
+        "USE_AS_CONTEXT"
+      ],
+      "source_ids": [
+        "sportsgambler"
+      ],
+      "forbidden_actions": [
+        "EV",
+        "stake",
+        "coupon",
+        "final bet",
+        "Superbet combined odds"
+      ]
+    },
+    {
+      "normalized_event_key": "00 sun 24 05|premier league nottingham forest bournemouth expired we",
+      "event": "00 Sun 24/05 vs Premier League Nottingham Forest Bournemouth Expired We",
+      "sport": "football",
+      "markets": [
+        "Asian Handicap"
+      ],
+      "tipster_sentiment": "OTHER",
+      "qualitative_reasoning_summaries": [
+        "chester City Aston Villa Expired We think this game carry greater importance for Manchester City, who will want to give Pep Guardiola a fitting farewell at the Etihad, than for Aston Villa, who may still be recovering from celebrating Europa League glory in Istanbul on Wednesday night. Read more 17:00 Sun 24/05 - Premier League Nottingham Forest Bournemouth Expired We expect Bournemouth to have the upper hand against Nottingham Forest. The Cherries, unbeaten in their last 17 Premier League matches, have enjoyed a fantastic season and are fighting to retain sixth place. Read more 17:00 Sun 24/05 - Premier League Sunderland Chelsea Expired Chelsea are capable of securing the spoils when it comes to Full-Time Result wagering and we’ll back them with optimism against Sunderland. The odds of 2.02 are really appealing when it comes to this pick. Read more 17:00 Sun 24/05 - Premier League Tottenham Everton Expired The Everton +0.5 Asian Handicap at 1.93 appeals against a Tottenham side that owns the Premier League’s second-worst home record. Read more 17:00 Sun 24/05 - Premier League West H"
+      ],
+      "source_count": 1,
+      "evidence_quality": "MEDIUM",
+      "certified_sources": [],
+      "operator_risk_sources": [
+        "sportsgambler"
+      ],
+      "source_risk_mix": "operator_risk_only",
+      "needs_match_resolution": false,
+      "needs_manual_review": false,
+      "agent_use_decisions": [
+        "USE_AS_CONTEXT"
+      ],
+      "source_ids": [
+        "sportsgambler"
+      ],
+      "forbidden_actions": [
+        "EV",
+        "stake",
+        "coupon",
+        "final bet",
+        "Superbet combined odds"
+      ]
+    },
+    {
+      "normalized_event_key": "00 sun 24 05|premier league tottenham everton expired the everton",
+      "event": "00 Sun 24/05 vs Premier League Tottenham Everton Expired The Everton",
+      "sport": "football",
+      "markets": [
+        "Asian Handicap"
+      ],
+      "tipster_sentiment": "OTHER",
+      "qualitative_reasoning_summaries": [
+        "xth place. Read more 17:00 Sun 24/05 - Premier League Sunderland Chelsea Expired Chelsea are capable of securing the spoils when it comes to Full-Time Result wagering and we’ll back them with optimism against Sunderland. The odds of 2.02 are really appealing when it comes to this pick. Read more 17:00 Sun 24/05 - Premier League Tottenham Everton Expired The Everton +0.5 Asian Handicap at 1.93 appeals against a Tottenham side that owns the Premier League’s second-worst home record. Read more 17:00 Sun 24/05 - Premier League West Ham Leeds Expired West Ham need victory to keep their survival hopes alive and motivation could prove decisive against a Leeds side without the same sense of urgency on the final day. We’re backing the Hammers at 1.82 in the Full-Time Result market, with the odds offering solid value. Read more 17:00 Sun 24/05 - Premier League Burnley Wolverhampton Expired The Asian Handicap selection of Burnley 0.0 means that there is money back if the game ends level. We can get odds of 1.67 that they manage to beat Wolverhampton and we’re confident with this bet. Read more "
+      ],
+      "source_count": 1,
+      "evidence_quality": "MEDIUM",
+      "certified_sources": [],
+      "operator_risk_sources": [
+        "sportsgambler"
+      ],
+      "source_risk_mix": "operator_risk_only",
+      "needs_match_resolution": false,
+      "needs_manual_review": false,
+      "agent_use_decisions": [
+        "USE_AS_CONTEXT"
+      ],
+      "source_ids": [
+        "sportsgambler"
+      ],
+      "forbidden_actions": [
+        "EV",
+        "stake",
+        "coupon",
+        "final bet",
+        "Superbet combined odds"
+      ]
+    },
+    {
+      "normalized_event_key": "30 sat 23 05|championship hull middlesbrough expired we",
+      "event": "30 Sat 23/05 vs Championship Hull Middlesbrough Expired We",
+      "sport": "football",
+      "markets": [
+        "Asian Handicap"
+      ],
+      "tipster_sentiment": "DC",
+      "qualitative_reasoning_summaries": [
+        "hip South Korea K League 1 Spain La Liga Spain Copa del Rey Spain La Liga 2 Sweden Allsvenskan Switzerland Super League Turkey Super Lig UEFA Europa League UEFA Champions League UEFA Europa Conference League UEFA European Championship UEFA Nations League USA MLS Previous Championship Predictions 16:30 Sat 23/05 - Championship Hull Middlesbrough Expired We’ll take Middlesbrough at attractive betting odds of 1.83 considering that they could be dominant against Hull. Kim Hellberg’s side spent long periods of the regular season in second place, while Hull only secured their play-off spot on the final day. Read more 21:00 Tue 12/05 - Championship Southampton Middlesbrough Expired Amid the off-field controversy, Middlesbrough look a strong option on the Asian Handicap. Boro dominated the first leg and have been in good form away from home lately, remaining unbeaten in their last six matches on the road. Read more 21:00 Mon 11/05 - Championship Millwall Hull Expired Millwall look a great bet to beat Hull on the Full-Time Result market. You can get odds of 1.72 with Stake that the home team "
+      ],
+      "source_count": 1,
+      "evidence_quality": "MEDIUM",
+      "certified_sources": [],
+      "operator_risk_sources": [
+        "sportsgambler"
+      ],
+      "source_risk_mix": "operator_risk_only",
+      "needs_match_resolution": false,
+      "needs_manual_review": false,
+      "agent_use_decisions": [
+        "USE_AS_CONTEXT"
+      ],
+      "source_ids": [
+        "sportsgambler"
+      ],
+      "forbidden_actions": [
+        "EV",
+        "stake",
+        "coupon",
+        "final bet",
+        "Superbet combined odds"
+      ]
+    },
+    {
+      "normalized_event_key": "00 tue 12 05|championship southampton middlesbrough expired amid the",
+      "event": "00 Tue 12/05 vs Championship Southampton Middlesbrough Expired Amid the",
+      "sport": "football",
+      "markets": [
+        "Asian Handicap"
+      ],
+      "tipster_sentiment": "DC",
+      "qualitative_reasoning_summaries": [
+        "nship Hull Middlesbrough Expired We’ll take Middlesbrough at attractive betting odds of 1.83 considering that they could be dominant against Hull. Kim Hellberg’s side spent long periods of the regular season in second place, while Hull only secured their play-off spot on the final day. Read more 21:00 Tue 12/05 - Championship Southampton Middlesbrough Expired Amid the off-field controversy, Middlesbrough look a strong option on the Asian Handicap. Boro dominated the first leg and have been in good form away from home lately, remaining unbeaten in their last six matches on the road. Read more 21:00 Mon 11/05 - Championship Millwall Hull Expired Millwall look a great bet to beat Hull on the Full-Time Result market. You can get odds of 1.72 with Stake that the home team claim a victory and this looks like a value wager based on the latest home and away stats, xG data and team news. Read more 13:30 Sat 09/05 - Championship Middlesbrough Southampton Expired Southampton have come into form at the right stage of the season and are now unbeaten in their last 19 Championship matches, with eig"
+      ],
+      "source_count": 1,
+      "evidence_quality": "MEDIUM",
+      "certified_sources": [],
+      "operator_risk_sources": [
+        "sportsgambler"
+      ],
+      "source_risk_mix": "operator_risk_only",
+      "needs_match_resolution": false,
+      "needs_manual_review": false,
+      "agent_use_decisions": [
+        "USE_AS_CONTEXT"
+      ],
+      "source_ids": [
+        "sportsgambler"
+      ],
+      "forbidden_actions": [
+        "EV",
+        "stake",
+        "coupon",
+        "final bet",
+        "Superbet combined odds"
+      ]
+    },
+    {
+      "normalized_event_key": "30 sat 09 05|championship middlesbrough southampton expired southampt",
+      "event": "30 Sat 09/05 vs Championship Middlesbrough Southampton Expired Southampt",
+      "sport": "football",
+      "markets": [
+        "to win"
+      ],
+      "tipster_sentiment": "WIN",
+      "qualitative_reasoning_summaries": [
+        "Mon 11/05 - Championship Millwall Hull Expired Millwall look a great bet to beat Hull on the Full-Time Result market. You can get odds of 1.72 with Stake that the home team claim a victory and this looks like a value wager based on the latest home and away stats, xG data and team news. Read more 13:30 Sat 09/05 - Championship Middlesbrough Southampton Expired Southampton have come into form at the right stage of the season and are now unbeaten in their last 19 Championship matches, with eight wins in their last ten. Meanwhile, Middlesbrough have failed to win six of their last eight home games. Read more 21:00 Fri 08/05 - Championship Hull Millwall Expired There’s a realistic prospect that we’ll see Millwall land a win and they are available at 2.25. The Lions are unbeaten in their last nine away games in the Championship, including a 3-1 victory against Hull, making the Full-Time Result market an appealing option. Read more 13:30 Sat 02/05 - Championship Bristol City Stoke Expired It wouldn’t be surprising to see Bristol City come out on top against Stoke. We will therefore back the"
+      ],
+      "source_count": 1,
+      "evidence_quality": "MEDIUM",
+      "certified_sources": [],
+      "operator_risk_sources": [
+        "sportsgambler"
+      ],
+      "source_risk_mix": "operator_risk_only",
+      "needs_match_resolution": false,
+      "needs_manual_review": false,
+      "agent_use_decisions": [
+        "USE_AS_CONTEXT"
+      ],
+      "source_ids": [
+        "sportsgambler"
+      ],
+      "forbidden_actions": [
+        "EV",
+        "stake",
+        "coupon",
+        "final bet",
+        "Superbet combined odds"
+      ]
+    },
+    {
+      "normalized_event_key": "00 fri 08 05|championship hull millwall expired there",
+      "event": "00 Fri 08/05 vs Championship Hull Millwall Expired There",
+      "sport": "football",
+      "markets": [
+        "to win"
+      ],
+      "tipster_sentiment": "WIN",
+      "qualitative_reasoning_summaries": [
+        "Championship Middlesbrough Southampton Expired Southampton have come into form at the right stage of the season and are now unbeaten in their last 19 Championship matches, with eight wins in their last ten. Meanwhile, Middlesbrough have failed to win six of their last eight home games. Read more 21:00 Fri 08/05 - Championship Hull Millwall Expired There’s a realistic prospect that we’ll see Millwall land a win and they are available at 2.25. The Lions are unbeaten in their last nine away games in the Championship, including a 3-1 victory against Hull, making the Full-Time Result market an appealing option. Read more 13:30 Sat 02/05 - Championship Bristol City Stoke Expired It wouldn’t be surprising to see Bristol City come out on top against Stoke. We will therefore back them at 1.91 on the Full-Time Result market and get a nice return if the hosts manage to land a victory. Read more 13:30 Sat 02/05 - Championship Derby Sheffield United Expired We’ll back Derby with a fair degree of confidence when they clash with Sheffield United. At betting odds of 1.74 on the Full-Time Result mark"
+      ],
+      "source_count": 1,
+      "evidence_quality": "MEDIUM",
+      "certified_sources": [],
+      "operator_risk_sources": [
+        "sportsgambler"
+      ],
+      "source_risk_mix": "operator_risk_only",
+      "needs_match_resolution": false,
+      "needs_manual_review": false,
+      "agent_use_decisions": [
+        "USE_AS_CONTEXT"
+      ],
+      "source_ids": [
+        "sportsgambler"
+      ],
+      "forbidden_actions": [
+        "EV",
+        "stake",
+        "coupon",
+        "final bet",
+        "Superbet combined odds"
+      ]
+    },
+    {
+      "normalized_event_key": "30 sat 02 05|championship bristol city stoke expired it wouldn",
+      "event": "30 Sat 02/05 vs Championship Bristol City Stoke Expired It wouldn",
+      "sport": "football",
+      "markets": [
+        "Asian Handicap"
+      ],
+      "tipster_sentiment": "WIN",
+      "qualitative_reasoning_summaries": [
+        "Hull Millwall Expired There’s a realistic prospect that we’ll see Millwall land a win and they are available at 2.25. The Lions are unbeaten in their last nine away games in the Championship, including a 3-1 victory against Hull, making the Full-Time Result market an appealing option. Read more 13:30 Sat 02/05 - Championship Bristol City Stoke Expired It wouldn’t be surprising to see Bristol City come out on top against Stoke. We will therefore back them at 1.91 on the Full-Time Result market and get a nice return if the hosts manage to land a victory. Read more 13:30 Sat 02/05 - Championship Derby Sheffield United Expired We’ll back Derby with a fair degree of confidence when they clash with Sheffield United. At betting odds of 1.74 on the Full-Time Result market, this looks a value pick and we expect a return. Read more 13:30 Sat 02/05 - Championship Hull Norwich Expired A highly motivated Hull side can deliver the goods when it comes to Full-Time Result betting and we’ll back the Tigers with confidence against Norwich. The odds of 1.74 look attractive when it comes to the home tea"
+      ],
+      "source_count": 1,
+      "evidence_quality": "MEDIUM",
+      "certified_sources": [],
+      "operator_risk_sources": [
+        "sportsgambler"
+      ],
+      "source_risk_mix": "operator_risk_only",
+      "needs_match_resolution": false,
+      "needs_manual_review": false,
+      "agent_use_decisions": [
+        "USE_AS_CONTEXT"
+      ],
+      "source_ids": [
+        "sportsgambler"
+      ],
+      "forbidden_actions": [
+        "EV",
+        "stake",
+        "coupon",
+        "final bet",
+        "Superbet combined odds"
+      ]
+    },
+    {
+      "normalized_event_key": "30 sat 02 05|championship derby sheffield united expired we",
+      "event": "30 Sat 02/05 vs Championship Derby Sheffield United Expired We",
+      "sport": "football",
+      "markets": [
+        "Asian Handicap"
+      ],
+      "tipster_sentiment": "WIN",
+      "qualitative_reasoning_summaries": [
+        "aling option. Read more 13:30 Sat 02/05 - Championship Bristol City Stoke Expired It wouldn’t be surprising to see Bristol City come out on top against Stoke. We will therefore back them at 1.91 on the Full-Time Result market and get a nice return if the hosts manage to land a victory. Read more 13:30 Sat 02/05 - Championship Derby Sheffield United Expired We’ll back Derby with a fair degree of confidence when they clash with Sheffield United. At betting odds of 1.74 on the Full-Time Result market, this looks a value pick and we expect a return. Read more 13:30 Sat 02/05 - Championship Hull Norwich Expired A highly motivated Hull side can deliver the goods when it comes to Full-Time Result betting and we’ll back the Tigers with confidence against Norwich. The odds of 1.74 look attractive when it comes to the home team. Read more 13:30 Sat 02/05 - Championship Ipswich QPR Expired Ipswich, with everything to play for, should finish well clear of QPR and we’re playing the -1.75 on the Asian Handicap. It means our stake is split between -1.5 and -2.0 at tempting betting odds of 1.98. Rea"
+      ],
+      "source_count": 1,
+      "evidence_quality": "MEDIUM",
+      "certified_sources": [],
+      "operator_risk_sources": [
+        "sportsgambler"
+      ],
+      "source_risk_mix": "operator_risk_only",
+      "needs_match_resolution": false,
+      "needs_manual_review": false,
+      "agent_use_decisions": [
+        "USE_AS_CONTEXT"
+      ],
+      "source_ids": [
+        "sportsgambler"
+      ],
+      "forbidden_actions": [
+        "EV",
+        "stake",
+        "coupon",
+        "final bet",
+        "Superbet combined odds"
+      ]
+    },
+    {
+      "normalized_event_key": "30 sat 02 05|championship ipswich qpr expired ipswich",
+      "event": "30 Sat 02/05 vs Championship Ipswich QPR Expired Ipswich",
+      "sport": "football",
+      "markets": [
+        "Asian Handicap"
+      ],
+      "tipster_sentiment": "WIN",
+      "qualitative_reasoning_summaries": [
+        "return. Read more 13:30 Sat 02/05 - Championship Hull Norwich Expired A highly motivated Hull side can deliver the goods when it comes to Full-Time Result betting and we’ll back the Tigers with confidence against Norwich. The odds of 1.74 look attractive when it comes to the home team. Read more 13:30 Sat 02/05 - Championship Ipswich QPR Expired Ipswich, with everything to play for, should finish well clear of QPR and we’re playing the -1.75 on the Asian Handicap. It means our stake is split between -1.5 and -2.0 at tempting betting odds of 1.98. Read more 13:30 Sat 02/05 - Championship Millwall Oxford Expired Backing Millwall -1.25 at odds of 1.80 means we’ll benefit if the favourites win by two or more goals against Oxford. If the Lions only triumph by one goal, then half our stake will be returned on the Asian Handicap. Read more Get All the Latest Predictions All Predictions Football Predictions Championship Lineups Championship Injuries Championship Fixtures Championship Standings Championship Transfer News Championship Live Streaming Best Betting Offers Betting Sites Betting Of"
+      ],
+      "source_count": 1,
+      "evidence_quality": "MEDIUM",
+      "certified_sources": [],
+      "operator_risk_sources": [
+        "sportsgambler"
+      ],
+      "source_risk_mix": "operator_risk_only",
+      "needs_match_resolution": false,
+      "needs_manual_review": false,
+      "agent_use_decisions": [
+        "USE_AS_CONTEXT"
+      ],
+      "source_ids": [
+        "sportsgambler"
+      ],
+      "forbidden_actions": [
+        "EV",
+        "stake",
+        "coupon",
+        "final bet",
+        "Superbet combined odds"
+      ]
+    },
+    {
+      "normalized_event_key": "30 sat 02 05|championship millwall oxford expired backing millwall 1",
+      "event": "30 Sat 02/05 vs Championship Millwall Oxford Expired Backing Millwall -1",
+      "sport": "football",
+      "markets": [
+        "Asian Handicap"
+      ],
+      "tipster_sentiment": "WIN",
+      "qualitative_reasoning_summaries": [
+        "es to the home team. Read more 13:30 Sat 02/05 - Championship Ipswich QPR Expired Ipswich, with everything to play for, should finish well clear of QPR and we’re playing the -1.75 on the Asian Handicap. It means our stake is split between -1.5 and -2.0 at tempting betting odds of 1.98. Read more 13:30 Sat 02/05 - Championship Millwall Oxford Expired Backing Millwall -1.25 at odds of 1.80 means we’ll benefit if the favourites win by two or more goals against Oxford. If the Lions only triumph by one goal, then half our stake will be returned on the Asian Handicap. Read more Get All the Latest Predictions All Predictions Football Predictions Championship Lineups Championship Injuries Championship Fixtures Championship Standings Championship Transfer News Championship Live Streaming Best Betting Offers Betting Sites Betting Offers Betting School Prediction Markets Online Casinos Sweepstakes Casinos Free Championship Predictions This is one of the leading football divisions in Europe and we have all angles covered when it comes to the second professional tier in England. Our experts take "
+      ],
+      "source_count": 1,
+      "evidence_quality": "MEDIUM",
+      "certified_sources": [],
+      "operator_risk_sources": [
+        "sportsgambler"
+      ],
+      "source_risk_mix": "operator_risk_only",
+      "needs_match_resolution": false,
+      "needs_manual_review": false,
+      "agent_use_decisions": [
+        "USE_AS_CONTEXT"
+      ],
+      "source_ids": [
+        "sportsgambler"
+      ],
+      "forbidden_actions": [
+        "EV",
+        "stake",
+        "coupon",
+        "final bet",
+        "Superbet combined odds"
+      ]
+    },
+    {
+      "normalized_event_key": "00 sat 23 05|la liga getafe osasuna expired it",
+      "event": "00 Sat 23/05 vs La Liga Getafe Osasuna Expired It",
+      "sport": "football",
+      "markets": [
+        "Asian Handicap"
+      ],
+      "tipster_sentiment": "OVER",
+      "qualitative_reasoning_summaries": [
+        "d more 21:00 Sat 23/05 - La Liga Espanyol Real Sociedad Expired Real Sociedad +0.25 at 1.78 on the Asian Handicap could be the bet to have. We’re expecting them to avoid defeat against Espanyol, with our stake divided equally between 0 and +0.5 in the hope the away team can land a win. Read more 21:00 Sat 23/05 - La Liga Getafe Osasuna Expired It’s great to get attractive odds of 2.43 for a home win when Getafe go up against Osasuna. We think that the hosts will have the upper hand and the Full-Time Result market is a way of getting the best value. Read more 21:00 Sat 23/05 - La Liga Mallorca Real Oviedo Expired We’re siding with Oviedo +1 on the Asian Handicap at 2.05, with the visitors capable of avoiding defeat against Mallorca. There’s also the safety net of a one-goal loss resulting in a stake refund. With Mallorca relying heavily on results elsewhere, their survival hopes could realistically be over early in the game, potentially impacting the mood and pressure around the hosts. Read more 21:00 Sat 23/05 - La Liga Real Madrid Athletic Club Expired There’s the chance to back Rea"
+      ],
+      "source_count": 1,
+      "evidence_quality": "MEDIUM",
+      "certified_sources": [],
+      "operator_risk_sources": [
+        "sportsgambler"
+      ],
+      "source_risk_mix": "operator_risk_only",
+      "needs_match_resolution": false,
+      "needs_manual_review": false,
+      "agent_use_decisions": [
+        "USE_AS_CONTEXT"
+      ],
+      "source_ids": [
+        "sportsgambler"
+      ],
+      "forbidden_actions": [
+        "EV",
+        "stake",
+        "coupon",
+        "final bet",
+        "Superbet combined odds"
+      ]
+    },
+    {
+      "normalized_event_key": "00 sat 23 05|la liga mallorca real oviedo expired we",
+      "event": "00 Sat 23/05 vs La Liga Mallorca Real Oviedo Expired We",
+      "sport": "football",
+      "markets": [
+        "Asian Handicap"
+      ],
+      "tipster_sentiment": "OVER",
+      "qualitative_reasoning_summaries": [
+        "am can land a win. Read more 21:00 Sat 23/05 - La Liga Getafe Osasuna Expired It’s great to get attractive odds of 2.43 for a home win when Getafe go up against Osasuna. We think that the hosts will have the upper hand and the Full-Time Result market is a way of getting the best value. Read more 21:00 Sat 23/05 - La Liga Mallorca Real Oviedo Expired We’re siding with Oviedo +1 on the Asian Handicap at 2.05, with the visitors capable of avoiding defeat against Mallorca. There’s also the safety net of a one-goal loss resulting in a stake refund. With Mallorca relying heavily on results elsewhere, their survival hopes could realistically be over early in the game, potentially impacting the mood and pressure around the hosts. Read more 21:00 Sat 23/05 - La Liga Real Madrid Athletic Club Expired There’s the chance to back Real Madrid -1.25 against Athletic Club and Asian Handicap odds of 1.95 make lots of appeal. We need a two goal winning margin to win the bet and a one goal triumph means half stake is returned. Read more 21:00 Sat 23/05 - La Liga Valencia Barcelona Expired Barcelona loo"
+      ],
+      "source_count": 1,
+      "evidence_quality": "MEDIUM",
+      "certified_sources": [],
+      "operator_risk_sources": [
+        "sportsgambler"
+      ],
+      "source_risk_mix": "operator_risk_only",
+      "needs_match_resolution": false,
+      "needs_manual_review": false,
+      "agent_use_decisions": [
+        "USE_AS_CONTEXT"
+      ],
+      "source_ids": [
+        "sportsgambler"
+      ],
+      "forbidden_actions": [
+        "EV",
+        "stake",
+        "coupon",
+        "final bet",
+        "Superbet combined odds"
+      ]
+    },
+    {
+      "normalized_event_key": "00 sat 23 05|la liga girona elche expired we",
+      "event": "00 Sat 23/05 vs La Liga Girona Elche Expired We",
+      "sport": "football",
+      "markets": [
+        "Asian Handicap"
+      ],
+      "tipster_sentiment": "WIN",
+      "qualitative_reasoning_summaries": [
+        "ga Valencia Barcelona Expired Barcelona look like an appealing wager at 1.84 and we expect them to get the better of Valencia despite the hosts pushing for European qualification. We’ll place this Full-Time Result bet feeling confident and there’s plenty of value in the available odds. Read more 21:00 Sat 23/05 - La Liga Girona Elche Expired We’ll take Girona at attractive betting odds of 1.75 considering that they could be dominant against Elche. The Full-Time Result market provides plenty of value and a nice potential return. Read more 21:00 Sat 23/05 - La Liga Alavés Rayo Vallecano Expired Rayo Vallecano +0.25 at 1.79 on the Asian Handicap could be the bet to have. We’re expecting them to avoid defeat against Alavés, with our stake divided equally between 0 and +0.5 in the hope the away team can land a win. Read more Get All the Latest Predictions All Predictions Football Predictions La Liga Lineups La Liga Injuries La Liga Fixtures La Liga Standings La Liga Transfer News La Liga Live Streaming Best Betting Offers Betting Sites Betting Offers Betting School Prediction Markets Onli"
+      ],
+      "source_count": 1,
+      "evidence_quality": "MEDIUM",
+      "certified_sources": [],
+      "operator_risk_sources": [
+        "sportsgambler"
+      ],
+      "source_risk_mix": "operator_risk_only",
+      "needs_match_resolution": false,
+      "needs_manual_review": false,
+      "agent_use_decisions": [
+        "USE_AS_CONTEXT"
+      ],
+      "source_ids": [
+        "sportsgambler"
+      ],
+      "forbidden_actions": [
+        "EV",
+        "stake",
+        "coupon",
+        "final bet",
+        "Superbet combined odds"
+      ]
+    }
+  ],
+  "fail_closed": false
+}

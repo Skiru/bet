@@ -1,0 +1,30 @@
+{
+  "zawodtyper": {
+    "event_ok": 1.0,
+    "market_ok": 1.0,
+    "reasoning_ok": 1.0,
+    "garbage_false_positives": 0,
+    "verdict": "PASS"
+  },
+  "typersi": {
+    "event_ok": 1.0,
+    "market_ok": 1.0,
+    "reasoning_ok": 0.0,
+    "garbage_false_positives": 0,
+    "verdict": "PASS (certified shadow baseline context-only)"
+  },
+  "sportsgambler": {
+    "event_ok": 1.0,
+    "market_ok": 0.94,
+    "reasoning_ok": 0.72,
+    "garbage_false_positives": 0,
+    "verdict": "RETAINED_CANDIDATE (under narrative density threshold)"
+  },
+  "protipster": {
+    "event_ok": 1.0,
+    "market_ok": 1.0,
+    "reasoning_ok": 0.0,
+    "garbage_false_positives": 0,
+    "verdict": "OPERATOR_RISK_PUBLIC_READ_ONLY"
+  }
+}

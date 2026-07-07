@@ -1,0 +1,46 @@
+{
+  "zawodtyper": {
+    "pages_fetched": 1,
+    "items_observed": 97,
+    "picks_extracted": 25,
+    "rejections": 72,
+    "rejection_reasons": {
+      "duplicate": 4,
+      "unusable_metadata": 68
+    },
+    "drift": "none"
+  },
+  "typersi": {
+    "pages_fetched": 1,
+    "rows_observed": 45,
+    "picks_extracted": 15,
+    "rejections": 30,
+    "rejection_reasons": {
+      "promotions_rejected": 5,
+      "duplicate_or_invalid": 25
+    },
+    "drift": "none"
+  },
+  "sportsgambler": {
+    "pages_fetched": 5,
+    "links_discovered": 5,
+    "picks_extracted": 17,
+    "rejections": 12,
+    "rejection_reasons": {
+      "index_header_only": 5,
+      "navigation_promo": 7
+    },
+    "drift": "none"
+  },
+  "protipster": {
+    "pages_fetched": 6,
+    "cards_observed": 38,
+    "picks_extracted": 25,
+    "rejections": 13,
+    "rejection_reasons": {
+      "ako_coupons": 4,
+      "marketing_bonuses": 9
+    },
+    "drift": "none"
+  }
+}

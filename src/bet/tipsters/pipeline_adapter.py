@@ -12,6 +12,17 @@ from .agent_readiness import analyze_pick_readiness, ALLOWED_PIPELINE_STAGES, FO
 
 
 def to_legacy_pick(p: TipsterPick) -> dict:
+    from .risk_policy import get_risk_policy
+    from .source_registry import CERTIFIED_SHADOW_SOURCE_IDS
+    is_certified = p.source_id in CERTIFIED_SHADOW_SOURCE_IDS
+    policy = get_risk_policy(p.source_id, is_certified=is_certified)
+    
+    warnings_list = list(p.warnings or [])
+    if not is_certified:
+        for rw in policy.risk_warnings:
+            if rw not in warnings_list:
+                warnings_list.append(rw)
+
     return {
         "source_site": p.source_name,
         "source_id": p.source_id,
@@ -34,11 +45,14 @@ def to_legacy_pick(p: TipsterPick) -> dict:
         "fetch_time": p.extracted_at_utc,
         "source_url": p.source_url,
         "extraction_quality": p.extraction_quality,
-        "warnings": p.warnings,
+        "warnings": warnings_list,
         "valuable_signals": p.valuable_signals,
         "source_record_type": p.source_record_type,
         "pipeline_use": p.pipeline_use,
         "decision_boundary": "evidence_only_not_a_bet",
+        "compliance_tier": policy.compliance_tier.value,
+        "evidence_use": "certified_context" if is_certified else "manual_review_only_or_low_trust_context",
+        "promotion_allowed": policy.promotion_allowed,
         "agent_readiness": analyze_pick_readiness(p),
     }
 

@@ -442,6 +442,10 @@ def discover_public_detail_links(doc: RawDocument, source_id: str) -> list[str]:
     This returns URLs only; the fetcher must still pass robots/ToS/rate gates.
     Commercial redirect/login/premium paths are excluded.
     """
+    if source_id == "sportsgambler":
+        from .sportsgambler import discover_sportsgambler_detail_links
+        return discover_sportsgambler_detail_links(doc.html, base_url="https://www.sportsgambler.com", max_links=SOURCES[source_id].max_pages_per_run)
+
     policy = SOURCES[source_id]
     urls: list[str] = []
     for link in link_candidates(doc.html, policy.base_url):
@@ -461,7 +465,14 @@ def dispatch_extract(doc: RawDocument, source_id: str, review_data: dict[str, An
     if source_id == "zawodtyper":
         return extract_zawodtyper(doc, review_data)
     if source_id == "sportsgambler":
-        return extract_sportsgambler(doc)
+        from .sportsgambler import extract_sportsgambler_documents
+        return extract_sportsgambler_documents([doc])
+    if source_id == "typersi":
+        from .typersi import extract_typersi_document
+        return extract_typersi_document(doc)
+    if source_id == "protipster":
+        from .protipster import extract_protipster_document
+        return extract_protipster_document(doc)
     if source_id == "forebet":
         return extract_forebet_table(doc)
     if source_id == "predictz":

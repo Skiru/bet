@@ -1,7 +1,7 @@
-# Tipster Evidence Handoff Contract v1
+# Tipster Evidence Handoff Contract v2
 
 ## 1. Overview
-The Tipster Evidence Handoff Contract defines how extracted tipster sentiment and reasoning is packaged at the end of Phase S2 and handed off to S3 (contextual cross-check), S4 (market sanity), and manual Superbet quote review. This contract strictly enforces an **evidence-only** boundary.
+The Tipster Evidence Handoff Contract defines how extracted tipster sentiment and reasoning is packaged at the end of Phase S2 and handed off to S3 (contextual cross-check), S4 (market sanity), and manual Superbet quote review. This contract strictly enforces an **evidence-only** boundary and a strict **certified vs operator-risk** separation boundary.
 
 ## 2. Structural Forbidden Actions
 The handoff object and any of its child events MUST NOT contain or influence any of the following fields/actions:
@@ -21,7 +21,18 @@ Any downstream agent consuming this handoff must adhere to the following directi
 - **No Betting Decisions:** No final betting decisions may be derived from this handoff.
 - **Standard Directive:** “Context/sanity/sentiment only; independently verify with stats and odds. Never use tipster claims as direct betting triggers.”
 
-## 4. Handoff Schema Specification
+---
+
+## 4. Certified vs Operator-Risk Boundary
+Each event block inside `events` contains the following compliance metrics:
+- **`certified_sources`**: Array of certified shadow source IDs contributing to this event.
+- **`operator_risk_sources`**: Array of non-certified/operator-risk source IDs contributing to this event.
+- **`source_risk_mix`**: Set to `"certified_only"`, `"operator_risk_only"`, or `"mixed"`.
+- **`evidence_quality`**: If `source_risk_mix` is `"mixed"`, `evidence_quality` CANNOT be `"HIGH"` solely due to operator-risk sources. If the certified-only average quality is less than 0.75, it must be capped at `"MEDIUM"`.
+
+---
+
+## 5. Handoff Schema Specification
 ```json
 {
   "schema_version": "tipster_evidence_handoff_v1",
@@ -50,10 +61,13 @@ Any downstream agent consuming this handoff must adhere to the following directi
       "qualitative_reasoning_summaries": ["Narrative justification string"],
       "source_count": 1,
       "evidence_quality": "HIGH|MEDIUM|LOW",
+      "certified_sources": ["zawodtyper", "typersi"],
+      "operator_risk_sources": ["protipster"],
+      "source_risk_mix": "mixed",
       "needs_match_resolution": false,
       "needs_manual_review": false,
       "agent_use_decisions": ["USE_AS_CONTEXT"],
-      "source_ids": ["zawodtyper"],
+      "source_ids": ["zawodtyper", "typersi", "protipster"],
       "forbidden_actions": ["EV", "stake", "coupon", "final bet", "Superbet combined odds"]
     }
   ],
@@ -61,7 +75,7 @@ Any downstream agent consuming this handoff must adhere to the following directi
 }
 ```
 
-## 5. Match & Quality Flags
+## 6. Match & Quality Flags
 - **`needs_match_resolution`**: Set to `true` if team names could not be cleanly separated or mapped.
 - **`needs_manual_review`**: Set to `true` if the reasoning text is missing, extremely short (< 30 characters), or low quality.
 - **`fail_closed`**: Activated if all picks are rejected or no sources succeeded.

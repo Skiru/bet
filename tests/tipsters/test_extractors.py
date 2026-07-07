@@ -45,7 +45,7 @@ def test_forebet_table_extractor():
 
 def test_parse_line_does_not_capture_date_or_year_noise():
     html = """<article><h2>Poland vs Germany</h2><p>Prediction for 03/07/2026: under 2.5 goals. Last 10 matches were low tempo.</p></article>"""
-    result = dispatch_extract(make_raw("sportsgambler", "https://www.sportsgambler.com/betting-tips/football/", html), "sportsgambler")
+    result = dispatch_extract(make_raw("sportsgambler", "https://www.sportsgambler.com/predictions/poland-vs-germany/", html), "sportsgambler")
     assert result.pick_count == 1
     assert result.picks[0].line == 2.5
     assert result.picks[0].direction == "UNDER"
@@ -80,7 +80,7 @@ def test_sportsgambler_extracts_valuable_evidence_buckets():
       <p>Team news: Vasteras have one suspended defender and the predicted lineup is unchanged.</p>
     </article>
     """
-    result = dispatch_extract(make_raw("sportsgambler", "https://www.sportsgambler.com/betting-tips/football/", html), "sportsgambler")
+    result = dispatch_extract(make_raw("sportsgambler", "https://www.sportsgambler.com/predictions/halmstad-vs-vasteras/", html), "sportsgambler")
     assert result.pick_count == 1
     pick = result.picks[0]
     assert pick.market_family == "btts"

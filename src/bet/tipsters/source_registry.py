@@ -127,17 +127,37 @@ SOURCES: dict[str, SourcePolicy] = {
         source_id="typersi",
         display_name="Typersi",
         base_url="https://typersi.pl",
-        tier=SourceTier.HTML_DYNAMIC,
+        tier=SourceTier.HTML_STATIC,
         sports=("football", "tennis", "basketball", "volleyball", "hockey"),
         entrypoints=("https://typersi.pl/",),
         allow_playwright=False,
-        max_pages_per_run=0,
+        max_pages_per_run=2,
         min_delay_seconds=5.0,
-        parser_strategy="legacy_bridge_only",
+        parser_strategy="typersi_static_tables",
         data_role="legacy_public_tipster_claims",
         affiliate_bias_risk="medium_high",
-        production_status="legacy_candidate_requires_compliance_certification",
-        notes="Legacy canonical S2 source currently parsed only through generic DOM/HTML heuristics. Keep as registry-visible legacy candidate, not an automatic v2 fetch target.",
+        production_status="production_candidate_after_robots_terms_fixture_review",
+        notes="Polish daily tipping tables. Process using BS4 static table parser. Keep shadow-only.",
+    ),
+    "protipster": SourcePolicy(
+        source_id="protipster",
+        display_name="ProTipster PL",
+        base_url="https://www.protipster.pl",
+        tier=SourceTier.HTML_STATIC,
+        sports=("football", "tennis", "basketball", "hockey", "baseball", "rugby", "american_football"),
+        entrypoints=(
+            "https://www.protipster.pl/typy-bukmacherskie",
+            "https://www.protipster.pl/typy-bukmacherskie/na-dzisiaj",
+            "https://www.protipster.pl/typy-bukmacherskie/pilka-nozna",
+        ),
+        allow_playwright=False,
+        max_pages_per_run=6,
+        min_delay_seconds=5.0,
+        parser_strategy="protipster_static_tip_cards",
+        data_role="community_tipster_cards_with_pt_score_and_market_filters",
+        affiliate_bias_risk="high",
+        production_status="candidate_public_static_html_requires_source_specific_certification",
+        notes="Public tips visible without login; parse static tip cards only. Reject bonus/casino/bookmaker/AKO action surfaces. Evidence-only.",
     ),
     # SHADOW / RESEARCH SOURCES
     "betmines": SourcePolicy(
@@ -236,7 +256,7 @@ SOURCES: dict[str, SourcePolicy] = {
 }
 
 CORE_SOURCE_IDS = ("sportsgambler", "forebet", "predictz", "windrawwin", "feedinco", "bettingclosed")
-CERTIFIED_SHADOW_SOURCE_IDS = ("zawodtyper",)
+CERTIFIED_SHADOW_SOURCE_IDS = ("zawodtyper", "typersi")
 RESEARCH_SOURCE_IDS = ("betmines", "sportytrader")
 LEGACY_SOURCE_IDS = ("zawodtyper", "typersi", "pickswise", "betideas")
 MANUAL_REVIEW_SOURCE_IDS = ("pickswise", "betideas", "olbg", "bettingexpert")
