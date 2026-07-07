@@ -1,0 +1,16 @@
+{
+  "today_session_ready": true,
+  "certified_shadow_source_ids": [
+    "zawodtyper",
+    "typersi"
+  ],
+  "runtime_sources": [
+    "typersi",
+    "zawodtyper"
+  ],
+  "total_picks": 47,
+  "handoff_events": 34,
+  "agent_readiness_all_picks": true,
+  "tipster_evidence_must_be_used_by_daily_session": true,
+  "operator_risk_default_enabled": false
+}
