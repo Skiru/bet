@@ -1,0 +1,10 @@
+{
+  "runtime_sources": [
+    "typersi",
+    "zawodtyper"
+  ],
+  "total_picks": 45,
+  "handoff_events": 32,
+  "agent_readiness_all_picks": true,
+  "today_session_tipster_evidence_ready": true
+}
