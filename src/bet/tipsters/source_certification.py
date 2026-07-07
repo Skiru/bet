@@ -64,7 +64,7 @@ STATIC_RESCUE_MATRIX: dict[str, dict[str, Any]] = {
     "sportsgambler": {
         "source_id": "sportsgambler",
         "current_registry_status": "production_candidate_after_robots_terms_fixture_review",
-        "candidate_path": "src/bet/tipsters/extractors.py",
+        "candidate_path": "src/bet/tipsters/sportsgambler.py",
         "why_not_rejected": "Excellent narrative coverage of team lineups and injury sentiment. HTML structure is clean and static.",
         "blockers": ["Requires robots.txt and terms of service review"],
         "classification": Classification.LIVE_CANDIDATE_NEEDS_ROBOTS_TERMS,
@@ -141,16 +141,29 @@ STATIC_RESCUE_MATRIX: dict[str, dict[str, Any]] = {
     },
     "typersi": {
         "source_id": "typersi",
-        "current_registry_status": "legacy_candidate_requires_compliance_certification",
-        "candidate_path": "src/bet/tipsters/legacy_bridge.py",
-        "why_not_rejected": "One of the most popular Polish community tipster sites. Like ZawodTyper, it contains high-value Polish football opinions, requiring public read-only XHR/HTML compliance audit.",
-        "blockers": ["Dynamic DOM structure", "Legacy extraction heuristics"],
-        "classification": Classification.PUBLIC_XHR_CANDIDATE_NEEDS_NETWORK_AUDIT,
-        "next_certification_steps": ["Audit network traffic for public API", "Verify robots.txt compliance"],
-        "allowed_probe_type": "clean_network_observation",
+        "current_registry_status": "production_candidate_after_robots_terms_fixture_review",
+        "candidate_path": "src/bet/tipsters/typersi.py",
+        "why_not_rejected": "One of the most popular Polish community tipster sites. Processed using secure BS4 static table parser.",
+        "blockers": [],
+        "classification": Classification.STATIC_HTML_CANDIDATE_NEEDS_FIXTURE_SNAPSHOTS,
+        "next_certification_steps": ["Verify robots.txt compliance", "Verify static HTML table extraction"],
+        "allowed_probe_type": "static_http_head_get",
         "disallowed_methods": ["stealth", "login", "cookies from user profile", "bookmaker redirects"],
         "priority": "P1",
-        "recommended_next_pass": "TYPERSI_PUBLIC_READ_AUDIT"
+        "recommended_next_pass": "TYPERSI_STATIC_TABLE_CERTIFICATION"
+    },
+    "protipster": {
+        "source_id": "protipster",
+        "current_registry_status": "candidate_public_static_html_requires_source_specific_certification",
+        "candidate_path": "src/bet/tipsters/protipster.py",
+        "why_not_rejected": "Exposes darmowe typy, sport/rynek/event/typ/kurs publicly without login. Highly valuable sentiment metrics if affiliate promos and AKO coupons are rejected.",
+        "blockers": ["Requires robots.txt and operator review gate approval"],
+        "classification": Classification.STATIC_HTML_CANDIDATE_NEEDS_FIXTURE_SNAPSHOTS,
+        "next_certification_steps": ["Evaluate robots.txt allowance", "Verify static card extraction with mock HTML"],
+        "allowed_probe_type": "static_http_head_get",
+        "disallowed_methods": ["stealth", "login", "cookies from user profile", "bookmaker redirects"],
+        "priority": "P2",
+        "recommended_next_pass": "PROTIPSTER_STATIC_TIP_CARD_CERTIFICATION"
     },
     "betmines": {
         "source_id": "betmines",

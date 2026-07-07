@@ -1,0 +1,9 @@
+{
+  "runtime_sources": [
+    "typersi",
+    "zawodtyper"
+  ],
+  "total_picks": 44,
+  "handoff_events": 31,
+  "agent_readiness_all_picks": true
+}

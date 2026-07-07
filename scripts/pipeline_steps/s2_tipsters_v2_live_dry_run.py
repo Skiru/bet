@@ -204,10 +204,40 @@ def resolve_target_entrypoints(source_id: str, date_str: str | None) -> tuple[li
     return entrypoints, fallback
 
 
-def fetch_extract_source(source_id: str, *, review_data: dict[str, Any], max_pages: int, timeout: float, max_bytes: int, date_str: str | None = None) -> list[ExtractionResult]:
+def fetch_extract_source(source_id: str, *, review_data: dict[str, Any], max_pages: int, timeout: float, max_bytes: int, date_str: str | None = None, operator_risk_data: dict[str, Any] | None = None) -> list[ExtractionResult]:
     policy = SOURCES[source_id]
+    
+    if source_id not in CERTIFIED_SHADOW_SOURCE_IDS:
+        # Operator-risk / Candidate source
+        authorized = False
+        if operator_risk_data and operator_risk_data.get("operator_ack") is True:
+            allowed_sources = operator_risk_data.get("allowed_sources", {})
+            source_risk_conf = allowed_sources.get(source_id)
+            if isinstance(source_risk_conf, dict) and source_risk_conf.get("allow_operator_risk_public_read") is True:
+                authorized = True
+        if operator_risk_data and not authorized:
+            reason = f"operator_risk_not_authorized_in_json_for_source_{source_id}"
+            print(f"[live-dry-run][{source_id}] SKIP {reason}")
+            return [
+                _empty_result(
+                    source_id,
+                    policy.entrypoints[0],
+                    reason,
+                    live_fetch_allowed=False,
+                    fallback="manual_review",
+                    skip_reason=reason,
+                )
+            ]
+
+    bypass_compliance = False
+    if operator_risk_data and operator_risk_data.get("operator_ack") is True:
+        allowed_sources = operator_risk_data.get("allowed_sources", {})
+        source_risk_conf = allowed_sources.get(source_id)
+        if isinstance(source_risk_conf, dict) and source_risk_conf.get("allow_operator_risk_public_read") is True:
+            bypass_compliance = True
+
     gate = _review_gate_details(review_data, source_id)
-    if not gate["allowed"]:
+    if not gate["allowed"] and not bypass_compliance:
         reason = str(gate["reason"])
         print(f"[live-dry-run][{source_id}] SKIP {reason}")
         return [
@@ -269,7 +299,7 @@ def fetch_extract_source(source_id: str, *, review_data: dict[str, Any], max_pag
     for entrypoint in entrypoints:
         if len(urls_seen) >= max_pages:
             break
-        outcome = fetch_public_html(policy, entrypoint, robots=robots, limiter=limiter, terms_reviewed=True, config=config, review_data=review_data)
+        outcome = fetch_public_html(policy, entrypoint, robots=robots, limiter=limiter, terms_reviewed=True, config=config, review_data=review_data, operator_risk_data=operator_risk_data)
         
         # If fetch fails or status is not 200, try the optional homepage fallback for zawodtyper
         if not outcome.allowed or outcome.document is None or outcome.status_code != 200:
@@ -278,7 +308,7 @@ def fetch_extract_source(source_id: str, *, review_data: dict[str, Any], max_pag
             
             if source_id == "zawodtyper" and fallback_homepage and entrypoint != fallback_homepage:
                 print(f"[live-dry-run][{source_id}] DAILY URL FAILED. Falling back to homepage: {fallback_homepage}")
-                outcome = fetch_public_html(policy, fallback_homepage, robots=robots, limiter=limiter, terms_reviewed=True, config=config, review_data=review_data)
+                outcome = fetch_public_html(policy, fallback_homepage, robots=robots, limiter=limiter, terms_reviewed=True, config=config, review_data=review_data, operator_risk_data=operator_risk_data)
                 if not outcome.allowed or outcome.document is None:
                     block_reason = _blocked_reason(outcome.reason)
                     results.append(_empty_result(
@@ -316,7 +346,7 @@ def fetch_extract_source(source_id: str, *, review_data: dict[str, Any], max_pag
                 break
             if detail_url in urls_seen:
                 continue
-            detail = fetch_public_html(policy, detail_url, robots=robots, limiter=limiter, terms_reviewed=True, config=config, review_data=review_data)
+            detail = fetch_public_html(policy, detail_url, robots=robots, limiter=limiter, terms_reviewed=True, config=config, review_data=review_data, operator_risk_data=operator_risk_data)
             if not detail.allowed or detail.document is None:
                 print(f"[live-dry-run][{source_id}] DETAIL_BLOCK {detail_url} reason={detail.reason} status={detail.status_code}")
                 block_reason = _blocked_reason(detail.reason)
@@ -354,7 +384,30 @@ def main() -> int:
     parser.add_argument("--handoff-out", type=Path, default=None, help="Output path for tipster evidence handoff JSON")
     parser.add_argument("--include-certified-shadow", action="store_true", help="Include certified shadow sources (like zawodtyper)")
     parser.add_argument("--require-at-least-one-pick", action="store_true", help="Exit non-zero when total_picks is zero")
+    parser.add_argument("--operator-risk-json", type=Path, help="Local operator-risk JSON ack file")
+    parser.add_argument("--allow-operator-risk-public-read", action="store_true", help="Allow operator risk public read discovery")
+    parser.add_argument("--combine-certified-and-risk", action="store_true", help="Allow combining certified and risk sources in single run")
     args = parser.parse_args()
+
+    if args.allow_operator_risk_public_read and not args.operator_risk_json:
+        print("[live-dry-run] ERROR: --allow-operator-risk-public-read requires --operator-risk-json PATH")
+        return 2
+
+    operator_risk_data = None
+    if args.operator_risk_json:
+        if args.operator_risk_json.exists():
+            try:
+                operator_risk_data = json.loads(args.operator_risk_json.read_text(encoding="utf-8"))
+            except Exception as e:
+                print(f"[live-dry-run] ERROR: Failed to parse operator-risk JSON: {e}")
+                return 2
+        else:
+            print(f"[live-dry-run] ERROR: operator-risk file does not exist: {args.operator_risk_json}")
+            return 2
+
+    if operator_risk_data and not args.allow_operator_risk_public_read:
+        print("[live-dry-run] info: --operator-risk-json provided without --allow-operator-risk-public-read; operator-risk sources will NOT be fetched.")
+        operator_risk_data = None
 
     review_data = load_review_file(args.terms_reviewed_json)
     source_ids_list = list(args.source) if args.source else ["forebet", "predictz"]
@@ -362,6 +415,27 @@ def main() -> int:
         for cid in CERTIFIED_SHADOW_SOURCE_IDS:
             if cid not in source_ids_list:
                 source_ids_list.append(cid)
+
+    # Separate compliant and operator-risk sources
+    compliant_sources_requested = []
+    risk_sources_requested = []
+    for sid in source_ids_list:
+        gate = _review_gate_details(review_data, sid)
+        if gate["allowed"]:
+            compliant_sources_requested.append(sid)
+        else:
+            risk_sources_requested.append(sid)
+
+    if risk_sources_requested and not args.allow_operator_risk_public_read:
+        print(f"[live-dry-run] Skipping operator-risk sources because operator-risk mode is disabled: {risk_sources_requested}")
+        source_ids_list = [sid for sid in source_ids_list if sid in compliant_sources_requested]
+
+    active_compliant = [sid for sid in source_ids_list if sid in compliant_sources_requested]
+    active_risk = [sid for sid in source_ids_list if sid in risk_sources_requested]
+    if active_compliant and active_risk and not args.combine_certified_and_risk:
+        print("[live-dry-run] ERROR: Combined run of compliant and operator-risk sources requires --combine-certified-and-risk")
+        return 2
+
     source_ids = tuple(source_ids_list)
     all_results: list[ExtractionResult] = []
     started = datetime.now(timezone.utc).isoformat()
@@ -375,6 +449,7 @@ def main() -> int:
             timeout=args.timeout_seconds,
             max_bytes=args.max_bytes,
             date_str=args.date,
+            operator_risk_data=operator_risk_data,
         ))
 
     out = args.out or Path("betting/data") / f"{args.date}_tipster_consensus_v2_live_dry_run.json"

@@ -1,0 +1,1445 @@
+{
+  "schema_version": "tipster_evidence_handoff_v1",
+  "contract": "evidence_only_not_betting_decision",
+  "source_stage": "S2 tipster evidence",
+  "allowed_consumers": [
+    "S3 contextual cross-check",
+    "S4 market sanity",
+    "manual Superbet quote review"
+  ],
+  "forbidden_actions": [
+    "EV",
+    "stake",
+    "coupon",
+    "final bet",
+    "Superbet combined odds"
+  ],
+  "sources": [
+    {
+      "source_id": "protipster",
+      "url": "https://www.protipster.pl/typy-bukmacherskie",
+      "verdict": "ok",
+      "picks": [
+        {
+          "source_id": "protipster",
+          "source_name": "ProTipster PL",
+          "sport": "football",
+          "event": "San Diego Padres vs Arizona Diamondbacks",
+          "home_team": "San Diego Padres",
+          "away_team": "Arizona Diamondbacks",
+          "market": "N/A",
+          "market_family": "unknown",
+          "direction": "OTHER",
+          "line": null,
+          "odds_decimal": null,
+          "confidence_label": "source_claim",
+          "reasoning": "",
+          "stats_cited": [],
+          "tipster_name": "ProTipster User",
+          "competition": null,
+          "published_at": null,
+          "source_url": "https://www.protipster.pl/typy-bukmacherskie",
+          "extracted_at_utc": "2026-07-07T06:40:10.670976+00:00",
+          "extraction_quality": 0.42,
+          "warnings": [
+            "weak_or_empty_reasoning"
+          ],
+          "valuable_signals": {},
+          "source_record_type": "source_claim_evidence",
+          "pipeline_use": [
+            "s2_tipster_evidence",
+            "s3_context_cross_check"
+          ]
+        },
+        {
+          "source_id": "protipster",
+          "source_name": "ProTipster PL",
+          "sport": "football",
+          "event": "Naomi vs Muchova",
+          "home_team": "Naomi",
+          "away_team": "Muchova",
+          "market": "N/A",
+          "market_family": "unknown",
+          "direction": "OTHER",
+          "line": null,
+          "odds_decimal": null,
+          "confidence_label": "source_claim",
+          "reasoning": "",
+          "stats_cited": [],
+          "tipster_name": "ProTipster User",
+          "competition": null,
+          "published_at": null,
+          "source_url": "https://www.protipster.pl/typy-bukmacherskie",
+          "extracted_at_utc": "2026-07-07T06:40:10.671066+00:00",
+          "extraction_quality": 0.42,
+          "warnings": [
+            "weak_or_empty_reasoning"
+          ],
+          "valuable_signals": {},
+          "source_record_type": "source_claim_evidence",
+          "pipeline_use": [
+            "s2_tipster_evidence",
+            "s3_context_cross_check"
+          ]
+        },
+        {
+          "source_id": "protipster",
+          "source_name": "ProTipster PL",
+          "sport": "football",
+          "event": "Argentyna vs Egipt",
+          "home_team": "Argentyna",
+          "away_team": "Egipt",
+          "market": "N/A",
+          "market_family": "unknown",
+          "direction": "OTHER",
+          "line": null,
+          "odds_decimal": null,
+          "confidence_label": "source_claim",
+          "reasoning": "",
+          "stats_cited": [],
+          "tipster_name": "ProTipster User",
+          "competition": null,
+          "published_at": null,
+          "source_url": "https://www.protipster.pl/typy-bukmacherskie",
+          "extracted_at_utc": "2026-07-07T06:40:10.671131+00:00",
+          "extraction_quality": 0.42,
+          "warnings": [
+            "weak_or_empty_reasoning"
+          ],
+          "valuable_signals": {},
+          "source_record_type": "source_claim_evidence",
+          "pipeline_use": [
+            "s2_tipster_evidence",
+            "s3_context_cross_check"
+          ]
+        },
+        {
+          "source_id": "protipster",
+          "source_name": "ProTipster PL",
+          "sport": "tennis",
+          "event": "Jessica vs Gauff",
+          "home_team": "Jessica",
+          "away_team": "Gauff",
+          "market": "N/A",
+          "market_family": "unknown",
+          "direction": "OTHER",
+          "line": null,
+          "odds_decimal": 1.67,
+          "confidence_label": "source_claim",
+          "reasoning": "",
+          "stats_cited": [],
+          "tipster_name": "ProTipster User",
+          "competition": null,
+          "published_at": null,
+          "source_url": "https://www.protipster.pl/typy-bukmacherskie",
+          "extracted_at_utc": "2026-07-07T06:40:10.671324+00:00",
+          "extraction_quality": 0.42,
+          "warnings": [
+            "weak_or_empty_reasoning"
+          ],
+          "valuable_signals": {},
+          "source_record_type": "source_claim_evidence",
+          "pipeline_use": [
+            "s2_tipster_evidence",
+            "s3_context_cross_check"
+          ]
+        },
+        {
+          "source_id": "protipster",
+          "source_name": "ProTipster PL",
+          "sport": "football",
+          "event": "Detroit Tigers vs Athletics",
+          "home_team": "Detroit Tigers",
+          "away_team": "Athletics",
+          "market": "N/A",
+          "market_family": "unknown",
+          "direction": "OTHER",
+          "line": null,
+          "odds_decimal": null,
+          "confidence_label": "source_claim",
+          "reasoning": "",
+          "stats_cited": [],
+          "tipster_name": "ProTipster User",
+          "competition": null,
+          "published_at": null,
+          "source_url": "https://www.protipster.pl/typy-bukmacherskie",
+          "extracted_at_utc": "2026-07-07T06:40:10.671374+00:00",
+          "extraction_quality": 0.42,
+          "warnings": [
+            "weak_or_empty_reasoning"
+          ],
+          "valuable_signals": {},
+          "source_record_type": "source_claim_evidence",
+          "pipeline_use": [
+            "s2_tipster_evidence",
+            "s3_context_cross_check"
+          ]
+        },
+        {
+          "source_id": "protipster",
+          "source_name": "ProTipster PL",
+          "sport": "football",
+          "event": "Chicago White Sox vs Boston Red Sox Rodzaj zakładu",
+          "home_team": "Chicago White Sox",
+          "away_team": "Boston Red Sox Rodzaj zakładu",
+          "market": "N/A",
+          "market_family": "unknown",
+          "direction": "OTHER",
+          "line": null,
+          "odds_decimal": 1.85,
+          "confidence_label": "source_claim",
+          "reasoning": "",
+          "stats_cited": [],
+          "tipster_name": "ProTipster User",
+          "competition": null,
+          "published_at": null,
+          "source_url": "https://www.protipster.pl/typy-bukmacherskie",
+          "extracted_at_utc": "2026-07-07T06:40:10.671548+00:00",
+          "extraction_quality": 0.42,
+          "warnings": [
+            "weak_or_empty_reasoning"
+          ],
+          "valuable_signals": {},
+          "source_record_type": "source_claim_evidence",
+          "pipeline_use": [
+            "s2_tipster_evidence",
+            "s3_context_cross_check"
+          ]
+        },
+        {
+          "source_id": "protipster",
+          "source_name": "ProTipster PL",
+          "sport": "football",
+          "event": "Jul 01 vs Aug 01",
+          "home_team": "Jul 01",
+          "away_team": "Aug 01",
+          "market": "N/A",
+          "market_family": "unknown",
+          "direction": "OTHER",
+          "line": null,
+          "odds_decimal": null,
+          "confidence_label": "source_claim",
+          "reasoning": "",
+          "stats_cited": [],
+          "tipster_name": "ProTipster User",
+          "competition": null,
+          "published_at": null,
+          "source_url": "https://www.protipster.pl/typy-bukmacherskie",
+          "extracted_at_utc": "2026-07-07T06:40:10.671630+00:00",
+          "extraction_quality": 0.42,
+          "warnings": [
+            "weak_or_empty_reasoning"
+          ],
+          "valuable_signals": {},
+          "source_record_type": "source_claim_evidence",
+          "pipeline_use": [
+            "s2_tipster_evidence",
+            "s3_context_cross_check"
+          ]
+        }
+      ],
+      "warnings": [
+        "protipster_candidate_blocked_by_robots_txt_offline_only"
+      ],
+      "parser_version": "tipster_parser_v2.3_final_source_specific",
+      "extracted_at_utc": "2026-07-07T06:40:10.671931+00:00",
+      "block_reason": null,
+      "robots_blocked_live": false,
+      "live_fetch_allowed": true,
+      "fallback": null,
+      "skip_reason": null,
+      "required_flags_missing": [],
+      "invalid_attestation": [],
+      "expected_visible_count": null,
+      "extracted_count": null,
+      "coverage_ratio": null,
+      "coverage_status": null
+    },
+    {
+      "source_id": "protipster",
+      "url": "https://www.protipster.pl/",
+      "verdict": "ok",
+      "picks": [
+        {
+          "source_id": "protipster",
+          "source_name": "ProTipster PL",
+          "sport": "football",
+          "event": "Brasileiro Serie B vs Typy na 17 kolejkę",
+          "home_team": "Brasileiro Serie B",
+          "away_team": "Typy na 17 kolejkę",
+          "market": "N/A",
+          "market_family": "unknown",
+          "direction": "OTHER",
+          "line": null,
+          "odds_decimal": null,
+          "confidence_label": "source_claim",
+          "reasoning": "",
+          "stats_cited": [],
+          "tipster_name": "ProTipster User",
+          "competition": null,
+          "published_at": null,
+          "source_url": "https://www.protipster.pl/",
+          "extracted_at_utc": "2026-07-07T06:40:15.547968+00:00",
+          "extraction_quality": 0.42,
+          "warnings": [
+            "weak_or_empty_reasoning"
+          ],
+          "valuable_signals": {},
+          "source_record_type": "source_claim_evidence",
+          "pipeline_use": [
+            "s2_tipster_evidence",
+            "s3_context_cross_check"
+          ]
+        },
+        {
+          "source_id": "protipster",
+          "source_name": "ProTipster PL",
+          "sport": "football",
+          "event": "Mistrzostwa Świata vs Typy na kolejkę",
+          "home_team": "Mistrzostwa Świata",
+          "away_team": "Typy na kolejkę",
+          "market": "N/A",
+          "market_family": "unknown",
+          "direction": "OTHER",
+          "line": null,
+          "odds_decimal": null,
+          "confidence_label": "source_claim",
+          "reasoning": "",
+          "stats_cited": [],
+          "tipster_name": "ProTipster User",
+          "competition": null,
+          "published_at": null,
+          "source_url": "https://www.protipster.pl/",
+          "extracted_at_utc": "2026-07-07T06:40:15.548091+00:00",
+          "extraction_quality": 0.42,
+          "warnings": [
+            "weak_or_empty_reasoning"
+          ],
+          "valuable_signals": {},
+          "source_record_type": "source_claim_evidence",
+          "pipeline_use": [
+            "s2_tipster_evidence",
+            "s3_context_cross_check"
+          ]
+        },
+        {
+          "source_id": "protipster",
+          "source_name": "ProTipster PL",
+          "sport": "football",
+          "event": "K-League vs Typy na 16 kolejkę",
+          "home_team": "K-League",
+          "away_team": "Typy na 16 kolejkę",
+          "market": "N/A",
+          "market_family": "unknown",
+          "direction": "OTHER",
+          "line": null,
+          "odds_decimal": null,
+          "confidence_label": "source_claim",
+          "reasoning": "",
+          "stats_cited": [],
+          "tipster_name": "ProTipster User",
+          "competition": null,
+          "published_at": null,
+          "source_url": "https://www.protipster.pl/",
+          "extracted_at_utc": "2026-07-07T06:40:15.548185+00:00",
+          "extraction_quality": 0.42,
+          "warnings": [
+            "weak_or_empty_reasoning"
+          ],
+          "valuable_signals": {},
+          "source_record_type": "source_claim_evidence",
+          "pipeline_use": [
+            "s2_tipster_evidence",
+            "s3_context_cross_check"
+          ]
+        },
+        {
+          "source_id": "protipster",
+          "source_name": "ProTipster PL",
+          "sport": "football",
+          "event": "LigaPro Primera A vs Typy na 17 kolejkę",
+          "home_team": "LigaPro Primera A",
+          "away_team": "Typy na 17 kolejkę",
+          "market": "N/A",
+          "market_family": "unknown",
+          "direction": "OTHER",
+          "line": null,
+          "odds_decimal": null,
+          "confidence_label": "source_claim",
+          "reasoning": "",
+          "stats_cited": [],
+          "tipster_name": "ProTipster User",
+          "competition": null,
+          "published_at": null,
+          "source_url": "https://www.protipster.pl/",
+          "extracted_at_utc": "2026-07-07T06:40:15.548322+00:00",
+          "extraction_quality": 0.42,
+          "warnings": [
+            "weak_or_empty_reasoning"
+          ],
+          "valuable_signals": {},
+          "source_record_type": "source_claim_evidence",
+          "pipeline_use": [
+            "s2_tipster_evidence",
+            "s3_context_cross_check"
+          ]
+        },
+        {
+          "source_id": "protipster",
+          "source_name": "ProTipster PL",
+          "sport": "football",
+          "event": "Allsvenskan vs Typy na 11 kolejkę",
+          "home_team": "Allsvenskan",
+          "away_team": "Typy na 11 kolejkę",
+          "market": "N/A",
+          "market_family": "unknown",
+          "direction": "OTHER",
+          "line": null,
+          "odds_decimal": null,
+          "confidence_label": "source_claim",
+          "reasoning": "",
+          "stats_cited": [],
+          "tipster_name": "ProTipster User",
+          "competition": null,
+          "published_at": null,
+          "source_url": "https://www.protipster.pl/",
+          "extracted_at_utc": "2026-07-07T06:40:15.548416+00:00",
+          "extraction_quality": 0.42,
+          "warnings": [
+            "weak_or_empty_reasoning"
+          ],
+          "valuable_signals": {},
+          "source_record_type": "source_claim_evidence",
+          "pipeline_use": [
+            "s2_tipster_evidence",
+            "s3_context_cross_check"
+          ]
+        },
+        {
+          "source_id": "protipster",
+          "source_name": "ProTipster PL",
+          "sport": "football",
+          "event": "Brasileiro Serie B vs Typy na 16 kolejkę",
+          "home_team": "Brasileiro Serie B",
+          "away_team": "Typy na 16 kolejkę",
+          "market": "N/A",
+          "market_family": "unknown",
+          "direction": "OTHER",
+          "line": null,
+          "odds_decimal": null,
+          "confidence_label": "source_claim",
+          "reasoning": "",
+          "stats_cited": [],
+          "tipster_name": "ProTipster User",
+          "competition": null,
+          "published_at": null,
+          "source_url": "https://www.protipster.pl/",
+          "extracted_at_utc": "2026-07-07T06:40:15.548510+00:00",
+          "extraction_quality": 0.42,
+          "warnings": [
+            "weak_or_empty_reasoning"
+          ],
+          "valuable_signals": {},
+          "source_record_type": "source_claim_evidence",
+          "pipeline_use": [
+            "s2_tipster_evidence",
+            "s3_context_cross_check"
+          ]
+        },
+        {
+          "source_id": "protipster",
+          "source_name": "ProTipster PL",
+          "sport": "football",
+          "event": "Dywizja vs Typy na 14 kolejkę",
+          "home_team": "Dywizja",
+          "away_team": "Typy na 14 kolejkę",
+          "market": "N/A",
+          "market_family": "unknown",
+          "direction": "OTHER",
+          "line": null,
+          "odds_decimal": null,
+          "confidence_label": "source_claim",
+          "reasoning": "",
+          "stats_cited": [],
+          "tipster_name": "ProTipster User",
+          "competition": null,
+          "published_at": null,
+          "source_url": "https://www.protipster.pl/",
+          "extracted_at_utc": "2026-07-07T06:40:15.548591+00:00",
+          "extraction_quality": 0.42,
+          "warnings": [
+            "weak_or_empty_reasoning"
+          ],
+          "valuable_signals": {},
+          "source_record_type": "source_claim_evidence",
+          "pipeline_use": [
+            "s2_tipster_evidence",
+            "s3_context_cross_check"
+          ]
+        },
+        {
+          "source_id": "protipster",
+          "source_name": "ProTipster PL",
+          "sport": "football",
+          "event": "San Diego Padres vs Arizona Diamondbacks Rodzaj zak",
+          "home_team": "San Diego Padres",
+          "away_team": "Arizona Diamondbacks Rodzaj zak",
+          "market": "BTTS",
+          "market_family": "btts",
+          "direction": "BTTS_YES",
+          "line": null,
+          "odds_decimal": 1.8,
+          "confidence_label": "source_claim",
+          "reasoning": "",
+          "stats_cited": [],
+          "tipster_name": "ProTipster User",
+          "competition": null,
+          "published_at": null,
+          "source_url": "https://www.protipster.pl/",
+          "extracted_at_utc": "2026-07-07T06:40:15.549136+00:00",
+          "extraction_quality": 0.42,
+          "warnings": [
+            "weak_or_empty_reasoning"
+          ],
+          "valuable_signals": {},
+          "source_record_type": "source_claim_evidence",
+          "pipeline_use": [
+            "s2_tipster_evidence",
+            "s3_context_cross_check"
+          ]
+        },
+        {
+          "source_id": "protipster",
+          "source_name": "ProTipster PL",
+          "sport": "football",
+          "event": "Trend dnia Sabah Masazir vs The New Saints FC",
+          "home_team": "Trend dnia Sabah Masazir",
+          "away_team": "The New Saints FC",
+          "market": "N/A",
+          "market_family": "unknown",
+          "direction": "OTHER",
+          "line": null,
+          "odds_decimal": null,
+          "confidence_label": "source_claim",
+          "reasoning": "",
+          "stats_cited": [],
+          "tipster_name": "ProTipster User",
+          "competition": null,
+          "published_at": null,
+          "source_url": "https://www.protipster.pl/",
+          "extracted_at_utc": "2026-07-07T06:40:15.549530+00:00",
+          "extraction_quality": 0.42,
+          "warnings": [
+            "weak_or_empty_reasoning"
+          ],
+          "valuable_signals": {},
+          "source_record_type": "source_claim_evidence",
+          "pipeline_use": [
+            "s2_tipster_evidence",
+            "s3_context_cross_check"
+          ]
+        }
+      ],
+      "warnings": [
+        "protipster_candidate_blocked_by_robots_txt_offline_only"
+      ],
+      "parser_version": "tipster_parser_v2.3_final_source_specific",
+      "extracted_at_utc": "2026-07-07T06:40:15.549862+00:00",
+      "block_reason": null,
+      "robots_blocked_live": false,
+      "live_fetch_allowed": true,
+      "fallback": null,
+      "skip_reason": null,
+      "required_flags_missing": [],
+      "invalid_attestation": [],
+      "expected_visible_count": null,
+      "extracted_count": null,
+      "coverage_ratio": null,
+      "coverage_status": null
+    },
+    {
+      "source_id": "protipster",
+      "url": "https://www.protipster.pl/typy-bukmacherskie/matches",
+      "verdict": "ok",
+      "picks": [
+        {
+          "source_id": "protipster",
+          "source_name": "ProTipster PL",
+          "sport": "football",
+          "event": "San Diego Padres vs Arizona Diamondbacks",
+          "home_team": "San Diego Padres",
+          "away_team": "Arizona Diamondbacks",
+          "market": "N/A",
+          "market_family": "unknown",
+          "direction": "OTHER",
+          "line": null,
+          "odds_decimal": null,
+          "confidence_label": "source_claim",
+          "reasoning": "",
+          "stats_cited": [],
+          "tipster_name": "ProTipster User",
+          "competition": null,
+          "published_at": null,
+          "source_url": "https://www.protipster.pl/typy-bukmacherskie/matches",
+          "extracted_at_utc": "2026-07-07T06:40:20.521570+00:00",
+          "extraction_quality": 0.42,
+          "warnings": [
+            "weak_or_empty_reasoning"
+          ],
+          "valuable_signals": {},
+          "source_record_type": "source_claim_evidence",
+          "pipeline_use": [
+            "s2_tipster_evidence",
+            "s3_context_cross_check"
+          ]
+        },
+        {
+          "source_id": "protipster",
+          "source_name": "ProTipster PL",
+          "sport": "football",
+          "event": "Naomi vs Muchova",
+          "home_team": "Naomi",
+          "away_team": "Muchova",
+          "market": "N/A",
+          "market_family": "unknown",
+          "direction": "OTHER",
+          "line": null,
+          "odds_decimal": 2.13,
+          "confidence_label": "source_claim",
+          "reasoning": "",
+          "stats_cited": [],
+          "tipster_name": "ProTipster User",
+          "competition": null,
+          "published_at": null,
+          "source_url": "https://www.protipster.pl/typy-bukmacherskie/matches",
+          "extracted_at_utc": "2026-07-07T06:40:20.522467+00:00",
+          "extraction_quality": 0.42,
+          "warnings": [
+            "weak_or_empty_reasoning"
+          ],
+          "valuable_signals": {},
+          "source_record_type": "source_claim_evidence",
+          "pipeline_use": [
+            "s2_tipster_evidence",
+            "s3_context_cross_check"
+          ]
+        }
+      ],
+      "warnings": [
+        "protipster_candidate_blocked_by_robots_txt_offline_only"
+      ],
+      "parser_version": "tipster_parser_v2.3_final_source_specific",
+      "extracted_at_utc": "2026-07-07T06:40:20.522496+00:00",
+      "block_reason": null,
+      "robots_blocked_live": false,
+      "live_fetch_allowed": true,
+      "fallback": null,
+      "skip_reason": null,
+      "required_flags_missing": [],
+      "invalid_attestation": [],
+      "expected_visible_count": null,
+      "extracted_count": null,
+      "coverage_ratio": null,
+      "coverage_status": null
+    },
+    {
+      "source_id": "protipster",
+      "url": "https://www.protipster.pl/app/download?utm_source=protipster_web&utm_medium=referral&utm_campaign=desktop_menu&utm_content=pl",
+      "verdict": "empty",
+      "picks": [],
+      "warnings": [
+        "protipster_candidate_blocked_by_robots_txt_offline_only"
+      ],
+      "parser_version": "tipster_parser_v2.3_final_source_specific",
+      "extracted_at_utc": "2026-07-07T06:40:25.157750+00:00",
+      "block_reason": null,
+      "robots_blocked_live": false,
+      "live_fetch_allowed": true,
+      "fallback": null,
+      "skip_reason": null,
+      "required_flags_missing": [],
+      "invalid_attestation": [],
+      "expected_visible_count": null,
+      "extracted_count": null,
+      "coverage_ratio": null,
+      "coverage_status": null
+    },
+    {
+      "source_id": "protipster",
+      "url": "https://www.protipster.pl/typy-bukmacherskie/",
+      "verdict": "ok",
+      "picks": [
+        {
+          "source_id": "protipster",
+          "source_name": "ProTipster PL",
+          "sport": "football",
+          "event": "San Diego Padres vs Arizona Diamondbacks",
+          "home_team": "San Diego Padres",
+          "away_team": "Arizona Diamondbacks",
+          "market": "N/A",
+          "market_family": "unknown",
+          "direction": "OTHER",
+          "line": null,
+          "odds_decimal": null,
+          "confidence_label": "source_claim",
+          "reasoning": "",
+          "stats_cited": [],
+          "tipster_name": "ProTipster User",
+          "competition": null,
+          "published_at": null,
+          "source_url": "https://www.protipster.pl/typy-bukmacherskie/",
+          "extracted_at_utc": "2026-07-07T06:40:30.470136+00:00",
+          "extraction_quality": 0.42,
+          "warnings": [
+            "weak_or_empty_reasoning"
+          ],
+          "valuable_signals": {},
+          "source_record_type": "source_claim_evidence",
+          "pipeline_use": [
+            "s2_tipster_evidence",
+            "s3_context_cross_check"
+          ]
+        },
+        {
+          "source_id": "protipster",
+          "source_name": "ProTipster PL",
+          "sport": "football",
+          "event": "Naomi vs Muchova",
+          "home_team": "Naomi",
+          "away_team": "Muchova",
+          "market": "N/A",
+          "market_family": "unknown",
+          "direction": "OTHER",
+          "line": null,
+          "odds_decimal": null,
+          "confidence_label": "source_claim",
+          "reasoning": "",
+          "stats_cited": [],
+          "tipster_name": "ProTipster User",
+          "competition": null,
+          "published_at": null,
+          "source_url": "https://www.protipster.pl/typy-bukmacherskie/",
+          "extracted_at_utc": "2026-07-07T06:40:30.470232+00:00",
+          "extraction_quality": 0.42,
+          "warnings": [
+            "weak_or_empty_reasoning"
+          ],
+          "valuable_signals": {},
+          "source_record_type": "source_claim_evidence",
+          "pipeline_use": [
+            "s2_tipster_evidence",
+            "s3_context_cross_check"
+          ]
+        },
+        {
+          "source_id": "protipster",
+          "source_name": "ProTipster PL",
+          "sport": "football",
+          "event": "Baltimore Orioles vs Chicago Cubs Rodzaj zakładu",
+          "home_team": "Baltimore Orioles",
+          "away_team": "Chicago Cubs Rodzaj zakładu",
+          "market": "N/A",
+          "market_family": "unknown",
+          "direction": "OTHER",
+          "line": null,
+          "odds_decimal": 1.99,
+          "confidence_label": "source_claim",
+          "reasoning": "",
+          "stats_cited": [],
+          "tipster_name": "ProTipster User",
+          "competition": null,
+          "published_at": null,
+          "source_url": "https://www.protipster.pl/typy-bukmacherskie/",
+          "extracted_at_utc": "2026-07-07T06:40:30.470445+00:00",
+          "extraction_quality": 0.42,
+          "warnings": [
+            "weak_or_empty_reasoning"
+          ],
+          "valuable_signals": {},
+          "source_record_type": "source_claim_evidence",
+          "pipeline_use": [
+            "s2_tipster_evidence",
+            "s3_context_cross_check"
+          ]
+        },
+        {
+          "source_id": "protipster",
+          "source_name": "ProTipster PL",
+          "sport": "football",
+          "event": "Argentyna vs Egipt",
+          "home_team": "Argentyna",
+          "away_team": "Egipt",
+          "market": "N/A",
+          "market_family": "unknown",
+          "direction": "OTHER",
+          "line": null,
+          "odds_decimal": null,
+          "confidence_label": "source_claim",
+          "reasoning": "",
+          "stats_cited": [],
+          "tipster_name": "ProTipster User",
+          "competition": null,
+          "published_at": null,
+          "source_url": "https://www.protipster.pl/typy-bukmacherskie/",
+          "extracted_at_utc": "2026-07-07T06:40:30.470503+00:00",
+          "extraction_quality": 0.42,
+          "warnings": [
+            "weak_or_empty_reasoning"
+          ],
+          "valuable_signals": {},
+          "source_record_type": "source_claim_evidence",
+          "pipeline_use": [
+            "s2_tipster_evidence",
+            "s3_context_cross_check"
+          ]
+        },
+        {
+          "source_id": "protipster",
+          "source_name": "ProTipster PL",
+          "sport": "football",
+          "event": "Detroit Tigers vs Athletics",
+          "home_team": "Detroit Tigers",
+          "away_team": "Athletics",
+          "market": "N/A",
+          "market_family": "unknown",
+          "direction": "OTHER",
+          "line": null,
+          "odds_decimal": null,
+          "confidence_label": "source_claim",
+          "reasoning": "",
+          "stats_cited": [],
+          "tipster_name": "ProTipster User",
+          "competition": null,
+          "published_at": null,
+          "source_url": "https://www.protipster.pl/typy-bukmacherskie/",
+          "extracted_at_utc": "2026-07-07T06:40:30.470588+00:00",
+          "extraction_quality": 0.42,
+          "warnings": [
+            "weak_or_empty_reasoning"
+          ],
+          "valuable_signals": {},
+          "source_record_type": "source_claim_evidence",
+          "pipeline_use": [
+            "s2_tipster_evidence",
+            "s3_context_cross_check"
+          ]
+        },
+        {
+          "source_id": "protipster",
+          "source_name": "ProTipster PL",
+          "sport": "football",
+          "event": "Chicago White Sox vs Boston Red Sox Rodzaj zakładu",
+          "home_team": "Chicago White Sox",
+          "away_team": "Boston Red Sox Rodzaj zakładu",
+          "market": "N/A",
+          "market_family": "unknown",
+          "direction": "OTHER",
+          "line": null,
+          "odds_decimal": 1.85,
+          "confidence_label": "source_claim",
+          "reasoning": "",
+          "stats_cited": [],
+          "tipster_name": "ProTipster User",
+          "competition": null,
+          "published_at": null,
+          "source_url": "https://www.protipster.pl/typy-bukmacherskie/",
+          "extracted_at_utc": "2026-07-07T06:40:30.470806+00:00",
+          "extraction_quality": 0.42,
+          "warnings": [
+            "weak_or_empty_reasoning"
+          ],
+          "valuable_signals": {},
+          "source_record_type": "source_claim_evidence",
+          "pipeline_use": [
+            "s2_tipster_evidence",
+            "s3_context_cross_check"
+          ]
+        },
+        {
+          "source_id": "protipster",
+          "source_name": "ProTipster PL",
+          "sport": "football",
+          "event": "Jul 01 vs Aug 01",
+          "home_team": "Jul 01",
+          "away_team": "Aug 01",
+          "market": "N/A",
+          "market_family": "unknown",
+          "direction": "OTHER",
+          "line": null,
+          "odds_decimal": null,
+          "confidence_label": "source_claim",
+          "reasoning": "",
+          "stats_cited": [],
+          "tipster_name": "ProTipster User",
+          "competition": null,
+          "published_at": null,
+          "source_url": "https://www.protipster.pl/typy-bukmacherskie/",
+          "extracted_at_utc": "2026-07-07T06:40:30.470900+00:00",
+          "extraction_quality": 0.42,
+          "warnings": [
+            "weak_or_empty_reasoning"
+          ],
+          "valuable_signals": {},
+          "source_record_type": "source_claim_evidence",
+          "pipeline_use": [
+            "s2_tipster_evidence",
+            "s3_context_cross_check"
+          ]
+        }
+      ],
+      "warnings": [
+        "protipster_candidate_blocked_by_robots_txt_offline_only"
+      ],
+      "parser_version": "tipster_parser_v2.3_final_source_specific",
+      "extracted_at_utc": "2026-07-07T06:40:30.471255+00:00",
+      "block_reason": null,
+      "robots_blocked_live": false,
+      "live_fetch_allowed": true,
+      "fallback": null,
+      "skip_reason": null,
+      "required_flags_missing": [],
+      "invalid_attestation": [],
+      "expected_visible_count": null,
+      "extracted_count": null,
+      "coverage_ratio": null,
+      "coverage_status": null
+    },
+    {
+      "source_id": "protipster",
+      "url": "https://www.protipster.pl/typy-bukmacherskie/na-zywo",
+      "verdict": "empty",
+      "picks": [],
+      "warnings": [
+        "protipster_candidate_blocked_by_robots_txt_offline_only"
+      ],
+      "parser_version": "tipster_parser_v2.3_final_source_specific",
+      "extracted_at_utc": "2026-07-07T06:40:35.324191+00:00",
+      "block_reason": null,
+      "robots_blocked_live": false,
+      "live_fetch_allowed": true,
+      "fallback": null,
+      "skip_reason": null,
+      "required_flags_missing": [],
+      "invalid_attestation": [],
+      "expected_visible_count": null,
+      "extracted_count": null,
+      "coverage_ratio": null,
+      "coverage_status": null
+    }
+  ],
+  "events": [
+    {
+      "normalized_event_key": "arizona diamondbacks|san diego padres",
+      "event": "San Diego Padres vs Arizona Diamondbacks",
+      "sport": "football",
+      "markets": [
+        "N/A"
+      ],
+      "tipster_sentiment": "OTHER",
+      "qualitative_reasoning_summaries": [],
+      "source_count": 3,
+      "evidence_quality": "LOW",
+      "certified_sources": [],
+      "operator_risk_sources": [
+        "protipster"
+      ],
+      "source_risk_mix": "operator_risk_only",
+      "needs_match_resolution": false,
+      "needs_manual_review": true,
+      "agent_use_decisions": [
+        "REJECT_LOW_QUALITY"
+      ],
+      "source_ids": [
+        "protipster"
+      ],
+      "forbidden_actions": [
+        "EV",
+        "stake",
+        "coupon",
+        "final bet",
+        "Superbet combined odds"
+      ]
+    },
+    {
+      "normalized_event_key": "muchova|naomi",
+      "event": "Naomi vs Muchova",
+      "sport": "football",
+      "markets": [
+        "N/A"
+      ],
+      "tipster_sentiment": "OTHER",
+      "qualitative_reasoning_summaries": [],
+      "source_count": 3,
+      "evidence_quality": "LOW",
+      "certified_sources": [],
+      "operator_risk_sources": [
+        "protipster"
+      ],
+      "source_risk_mix": "operator_risk_only",
+      "needs_match_resolution": false,
+      "needs_manual_review": true,
+      "agent_use_decisions": [
+        "REJECT_LOW_QUALITY"
+      ],
+      "source_ids": [
+        "protipster"
+      ],
+      "forbidden_actions": [
+        "EV",
+        "stake",
+        "coupon",
+        "final bet",
+        "Superbet combined odds"
+      ]
+    },
+    {
+      "normalized_event_key": "argentyna|egipt",
+      "event": "Argentyna vs Egipt",
+      "sport": "football",
+      "markets": [
+        "N/A"
+      ],
+      "tipster_sentiment": "OTHER",
+      "qualitative_reasoning_summaries": [],
+      "source_count": 2,
+      "evidence_quality": "LOW",
+      "certified_sources": [],
+      "operator_risk_sources": [
+        "protipster"
+      ],
+      "source_risk_mix": "operator_risk_only",
+      "needs_match_resolution": false,
+      "needs_manual_review": true,
+      "agent_use_decisions": [
+        "REJECT_LOW_QUALITY"
+      ],
+      "source_ids": [
+        "protipster"
+      ],
+      "forbidden_actions": [
+        "EV",
+        "stake",
+        "coupon",
+        "final bet",
+        "Superbet combined odds"
+      ]
+    },
+    {
+      "normalized_event_key": "athletics|detroit tigers",
+      "event": "Detroit Tigers vs Athletics",
+      "sport": "football",
+      "markets": [
+        "N/A"
+      ],
+      "tipster_sentiment": "OTHER",
+      "qualitative_reasoning_summaries": [],
+      "source_count": 2,
+      "evidence_quality": "LOW",
+      "certified_sources": [],
+      "operator_risk_sources": [
+        "protipster"
+      ],
+      "source_risk_mix": "operator_risk_only",
+      "needs_match_resolution": false,
+      "needs_manual_review": true,
+      "agent_use_decisions": [
+        "REJECT_LOW_QUALITY"
+      ],
+      "source_ids": [
+        "protipster"
+      ],
+      "forbidden_actions": [
+        "EV",
+        "stake",
+        "coupon",
+        "final bet",
+        "Superbet combined odds"
+      ]
+    },
+    {
+      "normalized_event_key": "boston red sox rodzaj zak adu|chicago white sox",
+      "event": "Chicago White Sox vs Boston Red Sox Rodzaj zakładu",
+      "sport": "football",
+      "markets": [
+        "N/A"
+      ],
+      "tipster_sentiment": "OTHER",
+      "qualitative_reasoning_summaries": [],
+      "source_count": 2,
+      "evidence_quality": "LOW",
+      "certified_sources": [],
+      "operator_risk_sources": [
+        "protipster"
+      ],
+      "source_risk_mix": "operator_risk_only",
+      "needs_match_resolution": false,
+      "needs_manual_review": true,
+      "agent_use_decisions": [
+        "REJECT_LOW_QUALITY"
+      ],
+      "source_ids": [
+        "protipster"
+      ],
+      "forbidden_actions": [
+        "EV",
+        "stake",
+        "coupon",
+        "final bet",
+        "Superbet combined odds"
+      ]
+    },
+    {
+      "normalized_event_key": "aug 01|jul 01",
+      "event": "Jul 01 vs Aug 01",
+      "sport": "football",
+      "markets": [
+        "N/A"
+      ],
+      "tipster_sentiment": "OTHER",
+      "qualitative_reasoning_summaries": [],
+      "source_count": 2,
+      "evidence_quality": "LOW",
+      "certified_sources": [],
+      "operator_risk_sources": [
+        "protipster"
+      ],
+      "source_risk_mix": "operator_risk_only",
+      "needs_match_resolution": false,
+      "needs_manual_review": true,
+      "agent_use_decisions": [
+        "REJECT_LOW_QUALITY"
+      ],
+      "source_ids": [
+        "protipster"
+      ],
+      "forbidden_actions": [
+        "EV",
+        "stake",
+        "coupon",
+        "final bet",
+        "Superbet combined odds"
+      ]
+    },
+    {
+      "normalized_event_key": "brasileiro serie b|typy na 17 kolejke",
+      "event": "Brasileiro Serie B vs Typy na 17 kolejkę",
+      "sport": "football",
+      "markets": [
+        "N/A"
+      ],
+      "tipster_sentiment": "OTHER",
+      "qualitative_reasoning_summaries": [],
+      "source_count": 2,
+      "evidence_quality": "LOW",
+      "certified_sources": [],
+      "operator_risk_sources": [
+        "protipster"
+      ],
+      "source_risk_mix": "operator_risk_only",
+      "needs_match_resolution": false,
+      "needs_manual_review": true,
+      "agent_use_decisions": [
+        "REJECT_LOW_QUALITY"
+      ],
+      "source_ids": [
+        "protipster"
+      ],
+      "forbidden_actions": [
+        "EV",
+        "stake",
+        "coupon",
+        "final bet",
+        "Superbet combined odds"
+      ]
+    },
+    {
+      "normalized_event_key": "gauff|jessica",
+      "event": "Jessica vs Gauff",
+      "sport": "tennis",
+      "markets": [
+        "N/A"
+      ],
+      "tipster_sentiment": "OTHER",
+      "qualitative_reasoning_summaries": [],
+      "source_count": 1,
+      "evidence_quality": "LOW",
+      "certified_sources": [],
+      "operator_risk_sources": [
+        "protipster"
+      ],
+      "source_risk_mix": "operator_risk_only",
+      "needs_match_resolution": false,
+      "needs_manual_review": true,
+      "agent_use_decisions": [
+        "REJECT_LOW_QUALITY"
+      ],
+      "source_ids": [
+        "protipster"
+      ],
+      "forbidden_actions": [
+        "EV",
+        "stake",
+        "coupon",
+        "final bet",
+        "Superbet combined odds"
+      ]
+    },
+    {
+      "normalized_event_key": "mistrzostwa swiata|typy na kolejke",
+      "event": "Mistrzostwa Świata vs Typy na kolejkę",
+      "sport": "football",
+      "markets": [
+        "N/A"
+      ],
+      "tipster_sentiment": "OTHER",
+      "qualitative_reasoning_summaries": [],
+      "source_count": 1,
+      "evidence_quality": "LOW",
+      "certified_sources": [],
+      "operator_risk_sources": [
+        "protipster"
+      ],
+      "source_risk_mix": "operator_risk_only",
+      "needs_match_resolution": false,
+      "needs_manual_review": true,
+      "agent_use_decisions": [
+        "REJECT_LOW_QUALITY"
+      ],
+      "source_ids": [
+        "protipster"
+      ],
+      "forbidden_actions": [
+        "EV",
+        "stake",
+        "coupon",
+        "final bet",
+        "Superbet combined odds"
+      ]
+    },
+    {
+      "normalized_event_key": "k league|typy na 16 kolejke",
+      "event": "K-League vs Typy na 16 kolejkę",
+      "sport": "football",
+      "markets": [
+        "N/A"
+      ],
+      "tipster_sentiment": "OTHER",
+      "qualitative_reasoning_summaries": [],
+      "source_count": 1,
+      "evidence_quality": "LOW",
+      "certified_sources": [],
+      "operator_risk_sources": [
+        "protipster"
+      ],
+      "source_risk_mix": "operator_risk_only",
+      "needs_match_resolution": false,
+      "needs_manual_review": true,
+      "agent_use_decisions": [
+        "REJECT_LOW_QUALITY"
+      ],
+      "source_ids": [
+        "protipster"
+      ],
+      "forbidden_actions": [
+        "EV",
+        "stake",
+        "coupon",
+        "final bet",
+        "Superbet combined odds"
+      ]
+    },
+    {
+      "normalized_event_key": "ligapro primera a|typy na 17 kolejke",
+      "event": "LigaPro Primera A vs Typy na 17 kolejkę",
+      "sport": "football",
+      "markets": [
+        "N/A"
+      ],
+      "tipster_sentiment": "OTHER",
+      "qualitative_reasoning_summaries": [],
+      "source_count": 1,
+      "evidence_quality": "LOW",
+      "certified_sources": [],
+      "operator_risk_sources": [
+        "protipster"
+      ],
+      "source_risk_mix": "operator_risk_only",
+      "needs_match_resolution": false,
+      "needs_manual_review": true,
+      "agent_use_decisions": [
+        "REJECT_LOW_QUALITY"
+      ],
+      "source_ids": [
+        "protipster"
+      ],
+      "forbidden_actions": [
+        "EV",
+        "stake",
+        "coupon",
+        "final bet",
+        "Superbet combined odds"
+      ]
+    },
+    {
+      "normalized_event_key": "allsvenskan|typy na 11 kolejke",
+      "event": "Allsvenskan vs Typy na 11 kolejkę",
+      "sport": "football",
+      "markets": [
+        "N/A"
+      ],
+      "tipster_sentiment": "OTHER",
+      "qualitative_reasoning_summaries": [],
+      "source_count": 1,
+      "evidence_quality": "LOW",
+      "certified_sources": [],
+      "operator_risk_sources": [
+        "protipster"
+      ],
+      "source_risk_mix": "operator_risk_only",
+      "needs_match_resolution": false,
+      "needs_manual_review": true,
+      "agent_use_decisions": [
+        "REJECT_LOW_QUALITY"
+      ],
+      "source_ids": [
+        "protipster"
+      ],
+      "forbidden_actions": [
+        "EV",
+        "stake",
+        "coupon",
+        "final bet",
+        "Superbet combined odds"
+      ]
+    },
+    {
+      "normalized_event_key": "dywizja|typy na 14 kolejke",
+      "event": "Dywizja vs Typy na 14 kolejkę",
+      "sport": "football",
+      "markets": [
+        "N/A"
+      ],
+      "tipster_sentiment": "OTHER",
+      "qualitative_reasoning_summaries": [],
+      "source_count": 1,
+      "evidence_quality": "LOW",
+      "certified_sources": [],
+      "operator_risk_sources": [
+        "protipster"
+      ],
+      "source_risk_mix": "operator_risk_only",
+      "needs_match_resolution": false,
+      "needs_manual_review": true,
+      "agent_use_decisions": [
+        "REJECT_LOW_QUALITY"
+      ],
+      "source_ids": [
+        "protipster"
+      ],
+      "forbidden_actions": [
+        "EV",
+        "stake",
+        "coupon",
+        "final bet",
+        "Superbet combined odds"
+      ]
+    },
+    {
+      "normalized_event_key": "arizona diamondbacks rodzaj zak|san diego padres",
+      "event": "San Diego Padres vs Arizona Diamondbacks Rodzaj zak",
+      "sport": "football",
+      "markets": [
+        "BTTS"
+      ],
+      "tipster_sentiment": "BTTS_YES",
+      "qualitative_reasoning_summaries": [],
+      "source_count": 1,
+      "evidence_quality": "LOW",
+      "certified_sources": [],
+      "operator_risk_sources": [
+        "protipster"
+      ],
+      "source_risk_mix": "operator_risk_only",
+      "needs_match_resolution": false,
+      "needs_manual_review": true,
+      "agent_use_decisions": [
+        "REJECT_LOW_QUALITY"
+      ],
+      "source_ids": [
+        "protipster"
+      ],
+      "forbidden_actions": [
+        "EV",
+        "stake",
+        "coupon",
+        "final bet",
+        "Superbet combined odds"
+      ]
+    },
+    {
+      "normalized_event_key": "the new saints fc|trend dnia sabah masazir",
+      "event": "Trend dnia Sabah Masazir vs The New Saints FC",
+      "sport": "football",
+      "markets": [
+        "N/A"
+      ],
+      "tipster_sentiment": "OTHER",
+      "qualitative_reasoning_summaries": [],
+      "source_count": 1,
+      "evidence_quality": "LOW",
+      "certified_sources": [],
+      "operator_risk_sources": [
+        "protipster"
+      ],
+      "source_risk_mix": "operator_risk_only",
+      "needs_match_resolution": false,
+      "needs_manual_review": true,
+      "agent_use_decisions": [
+        "REJECT_LOW_QUALITY"
+      ],
+      "source_ids": [
+        "protipster"
+      ],
+      "forbidden_actions": [
+        "EV",
+        "stake",
+        "coupon",
+        "final bet",
+        "Superbet combined odds"
+      ]
+    },
+    {
+      "normalized_event_key": "baltimore orioles|chicago cubs rodzaj zak adu",
+      "event": "Baltimore Orioles vs Chicago Cubs Rodzaj zakładu",
+      "sport": "football",
+      "markets": [
+        "N/A"
+      ],
+      "tipster_sentiment": "OTHER",
+      "qualitative_reasoning_summaries": [],
+      "source_count": 1,
+      "evidence_quality": "LOW",
+      "certified_sources": [],
+      "operator_risk_sources": [
+        "protipster"
+      ],
+      "source_risk_mix": "operator_risk_only",
+      "needs_match_resolution": false,
+      "needs_manual_review": true,
+      "agent_use_decisions": [
+        "REJECT_LOW_QUALITY"
+      ],
+      "source_ids": [
+        "protipster"
+      ],
+      "forbidden_actions": [
+        "EV",
+        "stake",
+        "coupon",
+        "final bet",
+        "Superbet combined odds"
+      ]
+    }
+  ],
+  "fail_closed": true
+}

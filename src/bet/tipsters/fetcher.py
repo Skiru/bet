@@ -42,6 +42,7 @@ def fetch_public_html(
     terms_reviewed: bool,
     config: FetchConfig = FetchConfig(),
     review_data: dict[str, Any] | None = None,
+    operator_risk_data: dict[str, Any] | None = None,
 ) -> FetchOutcome:
     parsed = urlparse(url)
     if not parsed.scheme.startswith("http") or not parsed.netloc:
@@ -96,9 +97,22 @@ def fetch_public_html(
         
         if not is_allowed:
             return FetchOutcome(False, reason=f"compliance_block:BLOCK_XHR:{reason}")
-    check = compliance_check(policy, url, robots=robots, terms_reviewed=terms_reviewed)
-    if check.verdict != ComplianceVerdict.ALLOW:
-        return FetchOutcome(False, reason=f"compliance_block:{check.verdict}:{check.reason}")
+
+    bypass_compliance = False
+    if operator_risk_data and operator_risk_data.get("operator_ack") is True:
+        allowed_sources = operator_risk_data.get("allowed_sources", {})
+        source_risk_conf = allowed_sources.get(policy.source_id)
+        if isinstance(source_risk_conf, dict) and source_risk_conf.get("allow_operator_risk_public_read") is True:
+            bypass_compliance = True
+
+    if bypass_compliance:
+        # Enforce that we never bypass basic auth paths
+        if not policy.allow_authenticated and any(token in url.lower() for token in ("login", "account", "member", "premium")):
+            return FetchOutcome(False, reason="compliance_block:BLOCK_AUTH_REQUIRED:auth/premium path detected")
+    else:
+        check = compliance_check(policy, url, robots=robots, terms_reviewed=terms_reviewed)
+        if check.verdict != ComplianceVerdict.ALLOW:
+            return FetchOutcome(False, reason=f"compliance_block:{check.verdict}:{check.reason}")
     limiter.wait(url)
     request = Request(url, headers={"User-Agent": config.user_agent, "Accept": "text/html,application/xhtml+xml"})
     try:

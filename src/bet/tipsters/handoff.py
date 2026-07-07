@@ -40,6 +40,24 @@ def build_tipster_evidence_handoff(payload: dict[str, Any]) -> dict[str, Any]:
         else:
             evidence_quality = "LOW"
 
+        from .source_registry import CERTIFIED_SHADOW_SOURCE_IDS
+        certified_srcs = sorted(list({p.get("source_id") for p in picks_in_group if p.get("source_id") and p.get("source_id") in CERTIFIED_SHADOW_SOURCE_IDS}))
+        operator_srcs = sorted(list({p.get("source_id") for p in picks_in_group if p.get("source_id") and p.get("source_id") not in CERTIFIED_SHADOW_SOURCE_IDS}))
+        
+        if certified_srcs and operator_srcs:
+            source_risk_mix = "mixed"
+        elif certified_srcs:
+            source_risk_mix = "certified_only"
+        else:
+            source_risk_mix = "operator_risk_only"
+
+        if source_risk_mix == "mixed" and evidence_quality == "HIGH":
+            # if event group is mixed, evidence_quality cannot be HIGH solely due operator-risk sources
+            certified_picks = [p for p in picks_in_group if p.get("source_id") in CERTIFIED_SHADOW_SOURCE_IDS]
+            avg_cert_quality = sum(p.get("extraction_quality", 0.0) for p in certified_picks) / len(certified_picks) if certified_picks else 0.0
+            if avg_cert_quality < 0.75:
+                evidence_quality = "MEDIUM"
+
         # Structural enforcement: ensure no forbidden fields exist in the picks
         for p in picks_in_group:
             for forbidden in FORBIDDEN_ACTIONS:
@@ -59,6 +77,9 @@ def build_tipster_evidence_handoff(payload: dict[str, Any]) -> dict[str, Any]:
             "qualitative_reasoning_summaries": sorted(list({p.get("reasoning") for p in picks_in_group if p.get("reasoning")})),
             "source_count": c.get("total_tipsters"),
             "evidence_quality": evidence_quality,
+            "certified_sources": certified_srcs,
+            "operator_risk_sources": operator_srcs,
+            "source_risk_mix": source_risk_mix,
             "needs_match_resolution": needs_match_resolution,
             "needs_manual_review": needs_manual_review,
             "agent_use_decisions": sorted(list({r.get("agent_use_decision") for r in readiness_list if r.get("agent_use_decision")})),

@@ -1,0 +1,20 @@
+{
+  "pass_id": "FINAL_REVIEW_MASTER_TIPSTER_MULTI_SOURCE_V2",
+  "test_date": "2026-07-07",
+  "decision": "PASS_READY_TO_MERGE_MASTER_TIPSTER_MULTI_SOURCE_V2",
+  "certified_shadow_source_ids": [
+    "zawodtyper",
+    "typersi"
+  ],
+  "runtime_sources_tested": [
+    "typersi",
+    "zawodtyper"
+  ],
+  "total_picks_certified_run": 44,
+  "handoff_events_certified_run": 31,
+  "tests_passed": true,
+  "compileall_passed": true,
+  "security_and_boundary_review": "100% PASS",
+  "typersi_sentiment_only_verified": true,
+  "operator_risk_separated_verified": true
+}

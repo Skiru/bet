@@ -1,0 +1,21 @@
+{
+  "test_date": "2026-07-07",
+  "status": "PASS",
+  "sources": {
+    "zawodtyper": {
+      "status": "PASS",
+      "total_picks": 25,
+      "uniques": 21,
+      "compliance": "fully_certified_shadow"
+    },
+    "typersi": {
+      "status": "PASS",
+      "total_picks": 15,
+      "uniques": 9,
+      "compliance": "fully_certified_shadow"
+    }
+  },
+  "total_picks_combined": 40,
+  "agent_readiness": "100%",
+  "rejection_of_unauthorized": "PROVEN"
+}

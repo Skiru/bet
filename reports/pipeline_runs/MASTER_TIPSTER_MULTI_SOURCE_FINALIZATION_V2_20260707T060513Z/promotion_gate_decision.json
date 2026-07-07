@@ -1,0 +1,21 @@
+{
+  "gate_status": "PASS_PARTIAL_PROMOTION",
+  "certified_shadow_source_ids_after_pass": [
+    "zawodtyper",
+    "typersi"
+  ],
+  "sources": {
+    "zawodtyper": {
+      "status": "MAINTAIN_CERTIFIED"
+    },
+    "typersi": {
+      "status": "PROMOTE_TO_CERTIFIED_SHADOW"
+    },
+    "sportsgambler": {
+      "status": "RETAINED_AS_CANDIDATE"
+    },
+    "protipster": {
+      "status": "OPERATOR_RISK_CANDIDATE_ONLY"
+    }
+  }
+}

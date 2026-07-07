@@ -8,24 +8,21 @@ This document tracks the certification status and next development passes for al
 ## Source Status & Future Passes
 
 ### 1. CERTIFIED_SHADOW_LIVE
-- **Source:** `zawodtyper`
-- **Recommended Next Pass:** `ZAWODTYPER_ORCHESTRATOR_PRODUCTION_HANDOFF`
-- **Actions:** Maintain public-XHR schema coverage, verify ephemeral cookie boundaries.
+- **Sources:** `zawodtyper`, `typersi`
+- **Recommended Next Pass:** `ZAWODTYPER_TYPERSI_ORCHESTRATOR_PRODUCTION_HANDOFF`
+- **Actions:** Maintain public-XHR schema coverage, verify ephemeral cookie boundaries, and audit static BS4 table parsing.
 
 ### 2. LIVE_CANDIDATE_NEEDS_ROBOTS_TERMS
 - **Sources:** `sportsgambler`, `windrawwin`
 - **Recommended Next Passes:**
   - `SPORTSGAMBLER_STATIC_PREVIEW_CERTIFICATION`
   - `WINDRAWWIN_STATIC_TABLE_CERTIFICATION`
-- **Actions:** Formal robots.txt check, Terms of Service legality verify, test live GET probes.
+- **Notes:** Sportsgambler is retained as a candidate because its deep-detail reasoning quality (72%) is below our strict 80% threshold for shadow certified promotion. Its index page picks are 100% rejected.
 
-### 3. PUBLIC_XHR_CANDIDATE_NEEDS_NETWORK_AUDIT
-- **Sources:** `typersi`, `bettingclosed`
-- **Recommended Next Passes:**
-  - `TYPERSI_PUBLIC_READ_AUDIT`
-  - `FEEDINCO_SHADOW_NOISE_FILTER_AUDIT`
-  - `BETTINGCLOSED_JS_PUBLIC_AUDIT`
-- **Actions:** Perform clean, no-stealth network XHR trace to identify public read APIs similar to ZawodTyper.
+### 3. OPERATOR_RISK_PUBLIC_READ
+- **Sources:** `protipster`
+- **Recommended Next Pass:** `PROTIPSTER_OPERATOR_RISK_PUBLIC_READ_DISCOVERY`
+- **Notes:** ProTipster is classified strictly as an operator-risk public-read candidate. Its public cards are extracted successfully, and all AKO combo/bonus leakages are fully rejected. No automatic shadow certification is allowed.
 
 ### 4. FIXTURE_ONLY_ROBOTS_OR_TERMS_BLOCKED
 - **Sources:** `forebet`, `predictz`
