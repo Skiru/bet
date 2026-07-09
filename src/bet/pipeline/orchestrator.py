@@ -255,6 +255,10 @@ class Orchestrator:
         self.warnings: List[str] = []
         self.blockers: List[str] = []
         self.step_evidences: List[Dict[str, Any]] = []
+        self.command_request_count = 0
+        self.executed_count = 0
+        self.failed_count = 0
+        self.unresolved_count = 0
 
     def run(
         self,
@@ -514,38 +518,166 @@ class Orchestrator:
                             for err in wo_errors:
                                 self.blockers.append(f"Step {sid} contract validation failure: {err}")
                         elif raw.get("status") == "COMMAND_REQUEST":
-                            # Intercept COMMAND_REQUEST and execute the command!
-                            command = raw.get("command_request") or raw.get("payload", {}).get("command_request")
-                            if command:
+                            self.command_request_count += 1
+                            cmd_req = raw.get("command_request") or raw.get("payload", {}).get("command_request")
+                            if cmd_req:
                                 if self.verbose:
-                                    print(f"Intercepted COMMAND_REQUEST from subagent: {command}")
-                                try:
-                                    res = subprocess.run(
-                                        command,
-                                        shell=True,
-                                        capture_output=True,
-                                        text=True,
-                                        cwd=str(self.repo_root),
-                                        env=self.env,
-                                    )
-                                    # Update the artifact status to PASS and save output
-                                    raw["status"] = "PASS"
-                                    raw["payload"]["command_output"] = {
-                                        "exit_code": res.returncode,
-                                        "stdout": res.stdout,
-                                        "stderr": res.stderr,
-                                    }
-                                    # Write updated artifact back to disk
-                                    write_json_atomic(expected_path, raw)
-                                    step_status = PipelineReadinessStatus.PASS
-                                    evidence_path = str(expected_path)
-                                except Exception as e:
+                                    print(f"Intercepted COMMAND_REQUEST from subagent: {cmd_req}")
+                                import shlex
+                                import hashlib
+                                argv = []
+                                timeout_seconds = 300
+                                expected_exit_code = 0
+                                postconditions = ["rerun_validate_agent_artifact"]
+                                cwd_dir = str(self.repo_root)
+                                is_valid = True
+                                if isinstance(cmd_req, dict):
+                                    argv = cmd_req.get("argv")
+                                    if not isinstance(argv, list) or not argv:
+                                        self.blockers.append("COMMAND_REQUEST structured object missing non-empty 'argv'")
+                                        is_valid = False
+                                    timeout_seconds = cmd_req.get("timeout_seconds", 300)
+                                    expected_exit_code = cmd_req.get("expected_exit_code", 0)
+                                    postconditions = cmd_req.get("postconditions", ["rerun_validate_agent_artifact"])
+                                    if cmd_req.get("cwd") == "REPO_ROOT":
+                                        cwd_dir = str(self.repo_root)
+                                elif isinstance(cmd_req, str):
+                                    meta = [";", "&", "|", "<", ">", "$", "(", ")", "*", "?", "[", "]", "\\", "!", "{", "}"]
+                                    if any(m in cmd_req for m in meta):
+                                        self.blockers.append(f"COMMAND_REQUEST string contains disallowed shell metacharacters: {cmd_req}")
+                                        is_valid = False
+                                    else:
+                                        try:
+                                            argv = shlex.split(cmd_req)
+                                        except Exception as e:
+                                            self.blockers.append(f"Failed to split command string: {e}")
+                                            is_valid = False
+                                else:
+                                    self.blockers.append("COMMAND_REQUEST must be a string or structured dict")
+                                    is_valid = False
+                                if is_valid and argv:
+                                    executable = argv[0]
+                                    allowed_execs = {"python", "python3", "pytest", ".venv/bin/python3", ".venv/bin/python", ".venv/bin/pytest", "sleep", "/bin/sleep"}
+                                    is_safe_exec = False
+                                    base_exec = os.path.basename(executable)
+                                    if base_exec in allowed_execs or executable in allowed_execs:
+                                        is_safe_exec = True
+                                    elif executable.endswith(".py") and ("scripts/" in executable or "tools/" in executable):
+                                        is_safe_exec = True
+                                    if not is_safe_exec:
+                                        self.blockers.append(f"COMMAND_REQUEST executable '{executable}' is not in the allowlist of safe executables")
+                                        is_valid = False
+                                if not is_valid or not argv:
+                                    self.failed_count += 1
+                                    self.unresolved_count += 1
                                     step_status = PipelineReadinessStatus.BLOCK
                                     overall_status = PipelineReadinessStatus.BLOCK
                                     blocked_at_step = sid
-                                    blocked_reason = "COMMAND_REQUEST_EXECUTION_FAILED"
-                                    self.blockers.append(f"COMMAND_REQUEST execution failed: {e}")
+                                    blocked_reason = "COMMAND_REQUEST_VALIDATION_FAILED"
+                                else:
+                                    stdout_log_path = self.run_root / f"logs/{sid}_cmd_stdout.log"
+                                    stderr_log_path = self.run_root / f"logs/{sid}_cmd_stderr.log"
+                                    orig_artifact_path = expected_path.with_name(f"{sid}_command_request.json")
+                                    write_json_atomic(orig_artifact_path, raw)
+                                    start_time = time.time()
+                                    try:
+                                        res = subprocess.run(
+                                            argv,
+                                            shell=False,
+                                            capture_output=True,
+                                            text=True,
+                                            cwd=cwd_dir,
+                                            env=self.env,
+                                            timeout=timeout_seconds,
+                                        )
+                                        duration = time.time() - start_time
+                                        exit_code = res.returncode
+                                        stdout_text = res.stdout or ""
+                                        stderr_text = res.stderr or ""
+                                    except subprocess.TimeoutExpired as te:
+                                        duration = time.time() - start_time
+                                        exit_code = -1
+                                        stdout_text = te.stdout or ""
+                                        stderr_text = te.stderr or ""
+                                        self.blockers.append(f"COMMAND_REQUEST execution timed out after {timeout_seconds}s")
+                                    except Exception as e:
+                                        duration = time.time() - start_time
+                                        exit_code = -1
+                                        stdout_text = ""
+                                        stderr_text = str(e)
+                                        self.blockers.append(f"COMMAND_REQUEST execution failed: {e}")
+                                    for key in ("key", "secret", "token", "password", "credential", "auth"):
+                                        if key in self.env:
+                                            val = self.env[key]
+                                            if val and len(val) > 4:
+                                                stdout_text = stdout_text.replace(val, "[REDACTED]")
+                                                stderr_text = stderr_text.replace(val, "[REDACTED]")
+                                    stdout_log_path.write_text(stdout_text, encoding="utf-8")
+                                    stderr_log_path.write_text(stderr_text, encoding="utf-8")
+                                    sha256_hash = hashlib.sha256(stdout_text.encode("utf-8")).hexdigest()
+                                    evidence_artifact_path = expected_path.with_name(f"{sid}_command_evidence.json")
+                                    evidence_artifact = {
+                                        "schema_version": 1,
+                                        "artifact_type": "SCRIPT_EVIDENCE",
+                                        "step_id": f"{sid}_EXECUTION_EVIDENCE",
+                                        "status": "PASS" if exit_code == expected_exit_code else "BLOCK",
+                                        "betting_day": self.betting_day,
+                                        "run_id": self.run_id,
+                                        "exit_code": exit_code,
+                                        "expected_exit_code": expected_exit_code,
+                                        "duration_seconds": duration,
+                                        "stdout_path": str(stdout_log_path.relative_to(self.repo_root) if stdout_log_path.is_relative_to(self.repo_root) else stdout_log_path),
+                                        "stderr_path": str(stderr_log_path.relative_to(self.repo_root) if stderr_log_path.is_relative_to(self.repo_root) else stderr_log_path),
+                                        "sha256": sha256_hash,
+                                        "argv": argv,
+                                        "postconditions": postconditions
+                                    }
+                                    write_json_atomic(evidence_artifact_path, evidence_artifact)
+                                    postconditions_passed = True
+                                    if exit_code != expected_exit_code:
+                                        postconditions_passed = False
+                                        self.blockers.append(f"COMMAND_REQUEST exited with code {exit_code}, expected {expected_exit_code}")
+                                    if postconditions_passed:
+                                        for post in postconditions:
+                                            if post.startswith("artifact_exists:"):
+                                                path_str = post.split(":", 1)[1]
+                                                full_path = self.repo_root / path_str
+                                                if not full_path.exists():
+                                                    postconditions_passed = False
+                                                    self.blockers.append(f"Postcondition failed: expected artifact {path_str} does not exist")
+                                    if postconditions_passed:
+                                        resolved_artifact = raw.copy()
+                                        resolved_artifact["status"] = "PASS"
+                                        rel_evidence_path = str(evidence_artifact_path.relative_to(self.repo_root) if evidence_artifact_path.is_relative_to(self.repo_root) else evidence_artifact_path)
+                                        refs = list(resolved_artifact.get("evidence_refs", []))
+                                        if rel_evidence_path not in refs:
+                                            refs.append(rel_evidence_path)
+                                        resolved_artifact["evidence_refs"] = refs
+                                        if "command_request" in resolved_artifact:
+                                            resolved_artifact.pop("command_request")
+                                        if "command_request" in resolved_artifact.get("payload", {}):
+                                            resolved_artifact["payload"].pop("command_request")
+                                        from bet.pipeline.agent_artifact_contracts import validate_agent_artifact_for_work_order
+                                        wo_errors = validate_agent_artifact_for_work_order(resolved_artifact, wo.to_jsonable())
+                                        if wo_errors:
+                                            postconditions_passed = False
+                                            for err in wo_errors:
+                                                self.blockers.append(f"Autopromotion validation failure: {err}")
+                                        else:
+                                            write_json_atomic(expected_path, resolved_artifact)
+                                            self.executed_count += 1
+                                            step_status = PipelineReadinessStatus.PASS
+                                            evidence_path = str(expected_path)
+                                    if not postconditions_passed:
+                                        self.failed_count += 1
+                                        self.unresolved_count += 1
+                                        step_status = PipelineReadinessStatus.BLOCK
+                                        overall_status = PipelineReadinessStatus.BLOCK
+                                        blocked_at_step = sid
+                                        blocked_reason = "COMMAND_REQUEST_POSTCONDITIONS_FAILED"
                             else:
+                                self.failed_count += 1
+                                self.unresolved_count += 1
                                 step_status = PipelineReadinessStatus.BLOCK
                                 overall_status = PipelineReadinessStatus.BLOCK
                                 blocked_at_step = sid
@@ -696,6 +828,9 @@ class Orchestrator:
         if last_completed_step == "S8" or blocked_at_step == "S9":
             human_gate_status = "WAITING_FOR_HUMAN_APPROVAL"
 
+        if self.unresolved_count > 0:
+            overall_status = PipelineReadinessStatus.BLOCK
+
         no_action_terminal = _classify_s7_no_action_terminal(
             blocked_at_step=blocked_at_step,
             overall_status=overall_status,
@@ -729,6 +864,10 @@ class Orchestrator:
             "next_action": None,
             "warnings": self.warnings,
             "blockers": self.blockers,
+            "command_request_count": self.command_request_count,
+            "executed_count": self.executed_count,
+            "failed_count": self.failed_count,
+            "unresolved_count": self.unresolved_count,
         }
 
         if no_action_terminal is not None:

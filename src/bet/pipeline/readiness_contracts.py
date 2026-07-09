@@ -73,6 +73,7 @@ def status_blocks(status: PipelineReadinessStatus) -> bool:
         PipelineReadinessStatus.BLOCK,
         PipelineReadinessStatus.UNKNOWN,
         PipelineReadinessStatus.HUMAN_REJECTED,
+        PipelineReadinessStatus.COMMAND_REQUEST,
     )
 
 
@@ -103,7 +104,7 @@ def required_statuses_for_artifact(
 
     if step_id in {"S2.3", "S2.5", "S2.7", "S2.9", "S5"}:
         if artifact_type == PipelineArtifactType.AGENT_ARTIFACT:
-            return (PipelineReadinessStatus.PASS, PipelineReadinessStatus.COMMAND_REQUEST)
+            return (PipelineReadinessStatus.PASS,)
         return ()
 
     if step_id in {"S7", "S7b"}:

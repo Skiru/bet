@@ -143,10 +143,51 @@ def validate_agent_artifact_for_work_order(
 
     if status == "COMMAND_REQUEST":
         cmd_req = artifact_data.get("command_request")
-        if not _non_empty_string(cmd_req):
+        if cmd_req is None:
             cmd_req = payload.get("command_request")
-        if not _non_empty_string(cmd_req):
+        if not cmd_req:
             errors.append("COMMAND_REQUEST artifacts must contain a non-empty command_request")
+        else:
+            import shlex
+            import os
+            argv = []
+            if isinstance(cmd_req, dict):
+                argv = cmd_req.get("argv")
+                if not isinstance(argv, list) or not argv:
+                    errors.append("Structured command_request must contain a non-empty 'argv' list")
+                    argv = []
+            elif isinstance(cmd_req, str):
+                meta = [";", "&", "|", "<", ">", "$", "(", ")", "*", "?", "[", "]", "\\", "!", "{", "}"]
+                if any(m in cmd_req for m in meta):
+                    errors.append("COMMAND_REQUEST command_request string contains disallowed shell metacharacters")
+                try:
+                    argv = shlex.split(cmd_req)
+                except Exception as e:
+                    errors.append(f"Failed to parse command_request string: {e}")
+                    argv = []
+            else:
+                errors.append("command_request must be a string or a structured object")
+                
+            if argv:
+                meta = [";", "&", "|", "<", ">", "$", "(", ")", "*", "?", "[", "]", "\\", "!", "{", "}"]
+                for arg in argv:
+                    if any(m in str(arg) for m in meta):
+                        errors.append(f"COMMAND_REQUEST argument '{arg}' contains disallowed shell metacharacters")
+                executable = argv[0]
+                allowed_execs = {"python", "python3", "pytest", ".venv/bin/python3", ".venv/bin/python", ".venv/bin/pytest", "sleep", "/bin/sleep"}
+                is_safe_exec = False
+                base_exec = os.path.basename(executable)
+                if base_exec in allowed_execs or executable in allowed_execs:
+                    is_safe_exec = True
+                elif executable.endswith(".py") and ("scripts/" in executable or "tools/" in executable):
+                    is_safe_exec = True
+                if not is_safe_exec:
+                    errors.append(f"COMMAND_REQUEST executable '{executable}' is not in the allowlist of safe executables")
+
+        forbidden_signals = ["pick", "picks", "selection", "selections", "bet", "betting_decision", "edge", "ev", "expected_value", "stake", "staking", "coupon", "accumulator", "parlay"]
+        for key in payload.keys():
+            if any(sig in str(key).lower() for sig in forbidden_signals):
+                errors.append(f"COMMAND_REQUEST payload contains forbidden key: {key}")
 
     # 5. PASS-only schema requirements check
     schema_reqs = req_output.get("schema_requirements", {})

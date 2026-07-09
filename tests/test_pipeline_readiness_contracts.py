@@ -54,6 +54,7 @@ def test_status_helpers():
     assert status_blocks(PipelineReadinessStatus.BLOCK) is True
     assert status_blocks(PipelineReadinessStatus.UNKNOWN) is True
     assert status_blocks(PipelineReadinessStatus.HUMAN_REJECTED) is True
+    assert status_blocks(PipelineReadinessStatus.COMMAND_REQUEST) is True
     assert status_blocks(PipelineReadinessStatus.PASS) is False
     assert status_blocks(PipelineReadinessStatus.WARN) is False
 
@@ -63,7 +64,6 @@ def test_required_statuses_for_agent_gate_steps():
     for step_id in ("S2.3", "S2.5", "S2.7", "S2.9", "S5"):
         assert required_statuses_for_artifact(step_id, PipelineArtifactType.AGENT_ARTIFACT) == (
             PipelineReadinessStatus.PASS,
-            PipelineReadinessStatus.COMMAND_REQUEST,
         )
         assert status_satisfies_required_gate(
             PipelineReadinessStatus.PASS,

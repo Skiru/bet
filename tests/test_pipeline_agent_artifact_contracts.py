@@ -298,13 +298,47 @@ def test_command_request_artifact_validation(tmp_path):
         base_dir=tmp_path,
     )
     
-    # Valid COMMAND_REQUEST
+    # Valid string COMMAND_REQUEST
     artifact = _build_base_artifact("S2.3", status="COMMAND_REQUEST")
     artifact["command_request"] = "pytest tests/test_live_fixture_audit.py"
     errors = validate_agent_artifact_for_work_order(artifact, wo.to_jsonable())
     assert errors == []
     
+    # Valid structured COMMAND_REQUEST
+    artifact_structured = _build_base_artifact("S2.3", status="COMMAND_REQUEST")
+    artifact_structured["command_request"] = {
+        "reason": "Run tests",
+        "argv": [".venv/bin/python3", "-m", "pytest", "tests/test_live_fixture_audit.py", "-q"],
+        "cwd": "REPO_ROOT",
+        "timeout_seconds": 30,
+        "expected_exit_code": 0,
+        "stdout_artifact": "logs/stdout.log",
+        "stderr_artifact": "logs/stderr.log",
+        "postconditions": ["rerun_validate_agent_artifact"]
+    }
+    errors_structured = validate_agent_artifact_for_work_order(artifact_structured, wo.to_jsonable())
+    assert errors_structured == []
+
     # Invalid COMMAND_REQUEST (missing command_request)
     artifact_invalid = _build_base_artifact("S2.3", status="COMMAND_REQUEST")
     errors_invalid = validate_agent_artifact_for_work_order(artifact_invalid, wo.to_jsonable())
     assert any("COMMAND_REQUEST artifacts must contain a non-empty command_request" in e for e in errors_invalid)
+
+    # Invalid COMMAND_REQUEST (shell metacharacters in string)
+    artifact_meta = _build_base_artifact("S2.3", status="COMMAND_REQUEST")
+    artifact_meta["command_request"] = "pytest tests/test_live_fixture_audit.py; rm -rf /"
+    errors_meta = validate_agent_artifact_for_work_order(artifact_meta, wo.to_jsonable())
+    assert any("contains disallowed shell metacharacters" in e for e in errors_meta)
+
+    # Invalid COMMAND_REQUEST (disallowed executable)
+    artifact_bad_exec = _build_base_artifact("S2.3", status="COMMAND_REQUEST")
+    artifact_bad_exec["command_request"] = "curl https://evil.com"
+    errors_bad_exec = validate_agent_artifact_for_work_order(artifact_bad_exec, wo.to_jsonable())
+    assert any("not in the allowlist of safe executables" in e for e in errors_bad_exec)
+
+    # Invalid COMMAND_REQUEST (contains pick/coupon/stake/edge in payload keys)
+    artifact_forbidden = _build_base_artifact("S2.3", status="COMMAND_REQUEST")
+    artifact_forbidden["command_request"] = "pytest tests/test_live_fixture_audit.py"
+    artifact_forbidden["payload"] = {"pick_selection": "something"}
+    errors_forbidden = validate_agent_artifact_for_work_order(artifact_forbidden, wo.to_jsonable())
+    assert any("contains forbidden key" in e for e in errors_forbidden)
