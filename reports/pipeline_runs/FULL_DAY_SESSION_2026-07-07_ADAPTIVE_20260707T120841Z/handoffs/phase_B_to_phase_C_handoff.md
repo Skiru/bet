@@ -1,0 +1,26 @@
+# Phase B to Phase C Handoff
+
+- **Phase Identifier**: B
+- **Status**: PASS
+- **Decision**: PHASE_B_PASS_READY_FOR_PHASE_C
+- **Run ID**: FULL_DAY_SESSION_2026-07-07_ADAPTIVE_20260707T120841Z
+- **Betting Day**: 2026-07-07
+- **Evidence Paths**:
+  - `reports/pipeline_runs/FULL_DAY_SESSION_2026-07-07_ADAPTIVE_20260707T120841Z/pipeline_runs/2026-07-07/FULL_DAY_SESSION_2026-07-07_ADAPTIVE_20260707T120841Z/artifacts/S1.json`
+  - `reports/pipeline_runs/FULL_DAY_SESSION_2026-07-07_ADAPTIVE_20260707T120841Z/data/2026-07-07_s2_shortlist.json`
+  - `reports/pipeline_runs/FULL_DAY_SESSION_2026-07-07_ADAPTIVE_20260707T120841Z/data/market_matrix_2026-07-07.json`
+- **Key Metrics**:
+  - Total Discovered: 405
+  - Total After Dedup: 374
+  - Shortlist Candidates: 142
+  - Sports Count: 6
+  - Sport Distribution:
+    - Football: 58
+    - Tennis: 58
+    - Basketball: 10
+    - Valorant: 8
+    - Dota2: 7
+    - CS2: 1
+- **Risks**:
+  - Odds API connection issue (401) — expired or credits exhausted
+- **Next Action**: Invoke bet-scout for Phase C tipster aggregation

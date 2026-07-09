@@ -1,0 +1,29 @@
+json=reports/pipeline_runs/FULL_DAY_SESSION_2026-07-07_ADAPTIVE_20260707T120841Z/tipsters/certified_shadow.json
+schema_version=tipster_consensus_v2.3
+total_picks=85
+sources_with_picks=2
+blocked_sources=0
+skipped_sources=0
+
+--- Sources Coverage ---
+source::zawodtyper::expected=None extracted=55 ratio=None status=FULL_OR_ACCEPTABLE
+source::zawodtyper::warning::public_xhr_transport:selected_cookie_policy=no_cookie
+source::zawodtyper::warning::public_xhr_transport:cookie_names_sent=none
+source::zawodtyper::warning::public_xhr_transport:observed_cookie_names=SRV
+source::zawodtyper::warning::public_xhr_transport:xhr_calls=2
+source::zawodtyper::warning::public_xhr_transport:observed_items=239
+source::typersi::expected=None extracted=None ratio=None status=None
+
+--- Top Picks (up to 10) ---
+1. [football] Sabah Baku vs TNS | Market: SuperBets: Sabah wygra i strzeli powyżej 1,5 gola | Odds: 1.5 | Quality: 0.82 | Uses: s2_tipster_evidence,s3_context_cross_check,legacy_bridge_reference_only
+2. [football] 🇨🇭 Szwajcaria vs Kolumbia 🇨🇴 | Market: Liczba strzałów Kolumbia: powyżej 12.5 | Odds: 1.58 | Quality: 0.82 | Uses: s2_tipster_evidence,s3_context_cross_check,legacy_bridge_reference_only
+3. [tennis] Auger vs Aliassime F. - Djokovic N. | Market: Powyżej 0,5 tiebreaków + Handicap setowy Auger-Aliassime 2,5 | Odds: 1.55 | Quality: 0.82 | Uses: s2_tipster_evidence,s3_context_cross_check,legacy_bridge_reference_only
+4. [tennis] Felix Auger Aliassime 🇨🇦 vs 🇷🇸 Djokovic | Market: Powyżej 3,5 Seta + 7,5 Gema w 1 secie | Odds: 1.5 | Quality: 0.82 | Uses: s2_tipster_evidence,s3_context_cross_check,legacy_bridge_reference_only
+5. [tennis] Osaka vs Muchova | Market: Poniżej 6.5 DF w meczu | Odds: 1.64 | Quality: 0.82 | Uses: s2_tipster_evidence,s3_context_cross_check,legacy_bridge_reference_only
+6. [football] 🟪 Sabah Baku vs The New Saints 🐉 | Market: Wygrana The New Saints (handicap +2,5) + powyżej 0,5 bramki | Odds: 1.5 | Quality: 0.82 | Uses: s2_tipster_evidence,s3_context_cross_check,legacy_bridge_reference_only
+7. [tennis] Jannik Sinner vs Jan Lennard Struff | Market: Powyżej 28,5 gemów | Odds: 1.5 | Quality: 0.82 | Uses: s2_tipster_evidence,s3_context_cross_check,legacy_bridge_reference_only
+8. [tennis] Jessica Pegula vs Coco Gauff | Market: Liczba setów powyżej 2,5 | Odds: 2.28 | Quality: 0.82 | Uses: s2_tipster_evidence,s3_context_cross_check,legacy_bridge_reference_only
+9. [tennis] Felix Auger vs Aliassime – Novak Djokovic | Market: powyżej 3.5 seta | Odds: 1.5 | Quality: 0.82 | Uses: s2_tipster_evidence,s3_context_cross_check,legacy_bridge_reference_only
+10. [football] 🇺🇲 USA vs Belgia 🇧🇪 | Market: Liczba goli - USA over 0,5 + Każda z drużyn over 1,5 RR + Każda z drużyn over 1,5 celnych strzałów | Odds: 1.5 | Quality: 0.82 | Uses: s2_tipster_evidence,s3_context_cross_check,legacy_bridge_reference_only
+tipster_picks_v2|85
+tipster_consensus_v2|58

@@ -1,0 +1,79 @@
+{
+  "decisions": {
+    ".kilo/state/CURRENT_HANDOFF.md": {
+      "classification": "PIPELINE_ARTIFACT",
+      "decision": "still needed",
+      "rationale": "Contains the current handoff state of the pipeline."
+    },
+    "config/bet-script-operations.json": {
+      "classification": "PIPELINE_ARTIFACT",
+      "decision": "still needed",
+      "rationale": "Contains the configuration of certified script operations."
+    },
+    "scripts/deep_stats_report.py": {
+      "classification": "USER_CODE_CHANGE",
+      "decision": "still needed",
+      "rationale": "Contains user code changes for deep stats reporting."
+    },
+    "scripts/gate_checker.py": {
+      "classification": "USER_CODE_CHANGE",
+      "decision": "still needed",
+      "rationale": "Contains user code changes for gate checking."
+    },
+    "scripts/pipeline_steps/_runner.py": {
+      "classification": "USER_CODE_CHANGE",
+      "decision": "still needed",
+      "rationale": "Contains user code changes for pipeline step runner."
+    },
+    "scripts/pipeline_steps/s5_gate.py": {
+      "classification": "USER_CODE_CHANGE",
+      "decision": "still needed",
+      "rationale": "Contains user code changes for S5 gate."
+    },
+    "scripts/pipeline_steps/s8_build_coupons.py": {
+      "classification": "USER_CODE_CHANGE",
+      "decision": "still needed",
+      "rationale": "Contains user code changes for S8 coupon builder."
+    },
+    "src/bet/pipeline/analytical_candidate_bridge.py": {
+      "classification": "USER_CODE_CHANGE",
+      "decision": "still needed",
+      "rationale": "Contains user code changes for analytical candidate bridge."
+    },
+    "src/bet/pipeline/analyzability_prefilter.py": {
+      "classification": "USER_CODE_CHANGE",
+      "decision": "still needed",
+      "rationale": "Contains user code changes for analyzability prefilter."
+    },
+    "src/bet/pipeline/market_probability_inputs.py": {
+      "classification": "USER_CODE_CHANGE",
+      "decision": "still needed",
+      "rationale": "Contains user code changes for market probability inputs."
+    },
+    "src/bet/pipeline/runtime_paths.py": {
+      "classification": "USER_CODE_CHANGE",
+      "decision": "still needed",
+      "rationale": "Contains user code changes for runtime paths."
+    },
+    ".kilo/state/phase-A-handoff.md": {
+      "classification": "PIPELINE_ARTIFACT",
+      "decision": "still needed",
+      "rationale": "Phase A handoff file."
+    },
+    ".kilo/state/phase-B-handoff.md": {
+      "classification": "PIPELINE_ARTIFACT",
+      "decision": "still needed",
+      "rationale": "Phase B handoff file."
+    },
+    ".kilo/state/phase-C-handoff.md": {
+      "classification": "PIPELINE_ARTIFACT",
+      "decision": "still needed",
+      "rationale": "Phase C handoff file."
+    },
+    ".kilo/state/phase-D-handoff.md": {
+      "classification": "PIPELINE_ARTIFACT",
+      "decision": "still needed",
+      "rationale": "Phase D handoff file."
+    }
+  }
+}

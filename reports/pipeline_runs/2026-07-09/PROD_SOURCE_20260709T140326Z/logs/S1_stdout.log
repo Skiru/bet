@@ -1,0 +1,71 @@
+Running: /Users/mkoziol/projects/bet/.venv/bin/python3 /Users/mkoziol/projects/bet/scripts/discover_events.py --date 2026-07-09
+[odds-api-io] /events → 200 (remaining: 98)
+[odds-api-io] /odds/multi → 200 (remaining: 97)
+[odds-api-io] /odds/multi → 200 (remaining: 96)
+[odds-api-io] /odds/multi → 200 (remaining: 95)
+[odds-api-io] /odds/multi → 200 (remaining: 94)
+[odds-api-io] /odds/multi → 200 (remaining: 93)
+[odds-api-io] /odds/multi → 200 (remaining: 92)
+[odds-api-io] /odds/multi → 200 (remaining: 91)
+[odds-api-io] /odds/multi → 200 (remaining: 90)
+[odds-api-io] /events → 200 (remaining: 89)
+[odds-api-io] /odds/multi → 200 (remaining: 88)
+[odds-api-io] /events → 200 (remaining: 87)
+[odds-api-io] /odds/multi → 200 (remaining: 86)
+[odds-api-io] /odds/multi → 200 (remaining: 85)
+[odds-api-io] /events → 200 (remaining: 84)
+[odds-api-io] /odds/multi → 200 (remaining: 83)
+[odds-api-io] /odds/multi → 200 (remaining: 82)
+[odds-api-io] /odds/multi → 200 (remaining: 81)
+[odds-api-io] /odds/multi → 200 (remaining: 80)
+[odds-api-io] /odds/multi → 200 (remaining: 79)
+[odds-api-io] /odds/multi → 200 (remaining: 78)
+[odds-api-io] /odds/multi → 200 (remaining: 77)
+[odds-api-io] /odds/multi → 200 (remaining: 76)
+[odds-api-io] /odds/multi → 200 (remaining: 75)
+[odds-api-io] /odds/multi → 200 (remaining: 74)
+[odds-api-io] /odds/multi → 200 (remaining: 73)
+[odds-api-io] /odds/multi → 200 (remaining: 72)
+[odds-api-io] /odds/multi → 200 (remaining: 71)
+[odds-api-io] /odds/multi → 200 (remaining: 70)
+[odds-api-io] /odds/multi → 200 (remaining: 69)
+[odds-api-io] /odds/multi → 200 (remaining: 68)
+[odds-api-io] /odds/multi → 200 (remaining: 67)
+[odds-api-io] /events → 200 (remaining: 66)
+[odds-api-io] /events → 200 (remaining: 65)
+[odds-api-io] /odds/multi → 200 (remaining: 64)
+[odds-api-io] /odds/multi → 200 (remaining: 63)
+[odds-api-io] /odds/multi → 200 (remaining: 62)
+[odds-api-io] /odds/multi → 200 (remaining: 61)
+[odds-api-io] /odds/multi → 200 (remaining: 60)
+
+============================================================
+DISCOVERY RESULTS for 2026-07-09
+============================================================
+Verdict:           PARTIAL
+Total discovered:  427
+After dedup:       390
+By sport:          {"football": 139, "volleyball": 7, "basketball": 37, "tennis": 169, "cs2": 21, "dota2": 10, "valorant": 7}
+
+  [✓] api-basketball: 27 events, 0.2s, sports=['basketball']
+  [✓] api-volleyball: 6 events, 0.4s, sports=['volleyball']
+  [✓] api-hockey: 0 events, 0.2s, sports=[]
+  [✓] api-football: 87 events, 0.2s, sports=['football']
+  [✓] football-data: 0 events, 0.6s, sports=[]
+  [✓] espn: 0 events, 0.1s, sports=[]
+  [✓] odds-api-io: 299 events, 4.8s, sports=['football', 'volleyball', 'basketball', 'tennis', 'cs2', 'dota2', 'valorant']
+  [✓] odds-api: 8 events, 20.2s, sports=['football', 'basketball', 'tennis']
+
+Issues: 3
+  - DISCOVERY_PERSIST_FAILURE fixture=Real Potosí vs ABB reason=Duplicate fixture_sources mapping for source=api-football, external_id=1538379, existing_fixture_id=199231, attempted_fixture_id=235123
+  - DISCOVERY_PERSIST_FAILURE fixture=Hardrock vs Dynamos reason=Duplicate fixture_sources mapping for source=api-football, external_id=1495267, existing_fixture_id=217386, attempted_fixture_id=235138
+  - No fixtures discovered for requested sport: hockey
+
+AGENT_SUMMARY:{"verdict": "PARTIAL", "total_discovered": 427, "total_after_dedup": 390, "requested_sports": ["football", "volleyball", "basketball", "tennis", "hockey", "cs2", "dota2", "valorant"], "raw_by_sport": {"football": 159, "volleyball": 9, "basketball": 50, "tennis": 171, "hockey": 0, "cs2": 21, "dota2": 10, "valorant": 7}, "by_sport": {"football": 139, "volleyball": 7, "basketball": 37, "tennis": 169, "cs2": 21, "dota2": 10, "valorant": 7}, "provider_counts_by_sport": {"football": {"api-football": 87, "football-data": 0, "espn": 0, "odds-api-io": 71, "odds-api": 1}, "volleyball": {"api-volleyball": 6, "odds-api-io": 3}, "basketball": {"api-basketball": 27, "odds-api-io": 18, "odds-api": 5}, "tennis": {"odds-api-io": 169, "odds-api": 2}, "hockey": {"api-hockey": 0, "odds-api-io": 0, "odds-api": 0}, "cs2": {"odds-api-io": 21}, "dota2": {"odds-api-io": 10}, "valorant": {"odds-api-io": 7}}, "provider_errors_by_sport": {"football": [], "volleyball": [], "basketball": [], "tennis": [], "hockey": [], "cs2": [], "dota2": [], "valorant": []}, "sources": {"api-basketball": {"events": 27, "available": true, "errors": 0, "duration_s": 0.2}, "api-volleyball": {"events": 6, "available": true, "errors": 0, "duration_s": 0.4}, "api-hockey": {"events": 0, "available": true, "errors": 0, "duration_s": 0.2}, "api-football": {"events": 87, "available": true, "errors": 0, "duration_s": 0.2}, "football-data": {"events": 0, "available": true, "errors": 0, "duration_s": 0.6}, "espn": {"events": 0, "available": true, "errors": 0, "duration_s": 0.1}, "odds-api-io": {"events": 299, "available": true, "errors": 0, "duration_s": 4.8}, "odds-api": {"events": 8, "available": true, "errors": 0, "duration_s": 20.2}}, "issues_count": 3, "db_schema_verdict": "PASS", "fallback_used": false, "fallback_reason": "N/A"}
+Failed to persist Real Potosí vs ABB: Duplicate fixture_sources mapping for source=api-football, external_id=1538379, existing_fixture_id=199231, attempted_fixture_id=235123
+Failed to persist Hardrock vs Dynamos: Duplicate fixture_sources mapping for source=api-football, external_id=1495267, existing_fixture_id=217386, attempted_fixture_id=235138
+Running: /Users/mkoziol/projects/bet/.venv/bin/python3 /Users/mkoziol/projects/bet/scripts/generate_market_matrix.py --date 2026-07-09 --output-dir reports/pipeline_runs/2026-07-09/PROD_SOURCE_20260709T140326Z/data --pipeline-safe --json-only
+[matrix] ERROR: Resolved pipeline output path '/Users/mkoziol/projects/bet/reports/pipeline_runs/2026-07-09/PROD_SOURCE_20260709T140326Z/data' is inside forbidden repo-local '/Users/mkoziol/projects/bet/reports'
+FAILED_MARKET_MATRIX_GENERATION
+Script generate_market_matrix.py failed with code 6
+FAILED_MARKET_MATRIX_GENERATION

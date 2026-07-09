@@ -1,0 +1,30 @@
+{
+  "phase": "B",
+  "status": "PASS",
+  "decision": "PHASE_B_PASS_READY_FOR_PHASE_C",
+  "run_id": "FULL_DAY_SESSION_2026-07-07_ADAPTIVE_20260707T120841Z",
+  "betting_day": "2026-07-07",
+  "evidence_paths": [
+    "reports/pipeline_runs/FULL_DAY_SESSION_2026-07-07_ADAPTIVE_20260707T120841Z/pipeline_runs/2026-07-07/FULL_DAY_SESSION_2026-07-07_ADAPTIVE_20260707T120841Z/artifacts/S1.json",
+    "reports/pipeline_runs/FULL_DAY_SESSION_2026-07-07_ADAPTIVE_20260707T120841Z/data/2026-07-07_s2_shortlist.json",
+    "reports/pipeline_runs/FULL_DAY_SESSION_2026-07-07_ADAPTIVE_20260707T120841Z/data/market_matrix_2026-07-07.json"
+  ],
+  "key_metrics": {
+    "total_discovered": 405,
+    "total_after_dedup": 374,
+    "shortlist_candidates": 142,
+    "sports_count": 6,
+    "sport_distribution": {
+      "football": 58,
+      "tennis": 58,
+      "basketball": 10,
+      "valorant": 8,
+      "dota2": 7,
+      "cs2": 1
+    }
+  },
+  "risks": [
+    "odds-api connection issue (401) — expired or credits exhausted"
+  ],
+  "next_action": "Invoke bet-scout for Phase C tipster aggregation"
+}

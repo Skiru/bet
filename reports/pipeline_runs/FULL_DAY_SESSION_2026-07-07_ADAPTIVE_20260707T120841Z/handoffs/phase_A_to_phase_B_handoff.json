@@ -1,0 +1,16 @@
+{
+  "phase": "A",
+  "status": "PASS",
+  "decision": "PHASE_A_PASS_READY_FOR_PHASE_B",
+  "run_id": "FULL_DAY_SESSION_2026-07-07_ADAPTIVE_20260707T120841Z",
+  "betting_day": "2026-07-07",
+  "evidence_paths": [
+    "reports/pipeline_runs/FULL_DAY_SESSION_2026-07-07_ADAPTIVE_20260707T120841Z/pipeline_runs/2026-07-07/FULL_DAY_SESSION_2026-07-07_ADAPTIVE_20260707T120841Z/artifacts/S0.json"
+  ],
+  "key_metrics": {
+    "settled_picks": 0,
+    "pending_picks": 0
+  },
+  "risks": [],
+  "next_action": "Invoke bet-scanner for Phase B event universe discovery"
+}

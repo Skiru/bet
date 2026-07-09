@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "artifact_type": "SCRIPT_EVIDENCE",
+  "step_id": "S2_SHADOW",
+  "status": "BLOCK",
+  "betting_day": "2026-07-06",
+  "run_id": "default",
+  "sport": null,
+  "fixture_id": null,
+  "fixture_key": null,
+  "point_in_time_as_of": "2026-07-09T11:50:01.858046+00:00",
+  "source_bound": true,
+  "no_pick_edge_stake_coupon_emitted": true,
+  "production_selectable": false,
+  "betting_decisions_enabled": false,
+  "sources": [
+    "scripts/pipeline_steps/s2_tipsters_v2_live_dry_run.py"
+  ],
+  "unknowns": [],
+  "blocked_reasons": [
+    "BLOCKED_TERMS_REVIEW_FILE_NOT_FOUND"
+  ],
+  "evidence_refs": [],
+  "payload": {
+    "step_id": "S2_SHADOW",
+    "wrapper_scripts": [
+      "s2_tipsters_v2_live_dry_run.py"
+    ],
+    "wrapper_rc": 11,
+    "runtime_mode": "LIVE_SHADOW",
+    "dry_run": true,
+    "allow_write": false,
+    "allow_live_network": false,
+    "production_write": false,
+    "runtime_path_source": "runner_built_sandbox",
+    "child_run_root": "/Users/mkoziol/projects/bet/reports/pipeline_runs/2026-07-06/default",
+    "child_artifact_dir": "/Users/mkoziol/projects/bet/reports/pipeline_runs/2026-07-06/default/artifacts",
+    "error": "terms_reviewed_json_not_found"
+  }
+}

@@ -1,0 +1,8 @@
+Running: /Users/mkoziol/projects/bet/.venv-tipster-v2/bin/python /Users/mkoziol/projects/bet/scripts/settle_on_finish.py --betting-day 2026-07-07
+2026-07-07T14:26:11.128788 No pending picks to settle. Running settlement sync/evaluation only.
+2026-07-07T14:26:11.129117 All pending picks settled!
+2026-07-07T14:26:11.131300 Updated picks ledger: /Users/mkoziol/projects/bet/betting/journal/picks-ledger.csv
+2026-07-07T14:26:11.132617 Updated coupons ledger: /Users/mkoziol/projects/bet/betting/journal/coupons-ledger.csv
+2026-07-07T14:26:11.153175 [evaluate] Decision evaluation failed (non-blocking): No module named 'evaluate_decisions'
+2026-07-07T14:26:11.153244 Settlement complete: 0 settled, 0 still pending
+

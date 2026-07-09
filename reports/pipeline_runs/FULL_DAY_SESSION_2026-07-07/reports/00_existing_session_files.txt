@@ -1,0 +1,14 @@
+reports/pipeline_runs/FULL_DAY_SESSION_2026-07-07/reports/00_existing_session_files.txt
+reports/pipeline_runs/FULL_DAY_SESSION_2026-07-07/reports/00_git_status_at_takeover.txt
+reports/pipeline_runs/FULL_DAY_SESSION_2026-07-07/reports/00_preflight.md
+reports/pipeline_runs/FULL_DAY_SESSION_2026-07-07/reports/01_compileall.txt
+reports/pipeline_runs/FULL_DAY_SESSION_2026-07-07/reports/01_pytest_tipsters.txt
+reports/pipeline_runs/FULL_DAY_SESSION_2026-07-07/reports/02_tipster_evidence_validation.json
+reports/pipeline_runs/FULL_DAY_SESSION_2026-07-07/reports/02_tipster_shadow_run.txt
+reports/pipeline_runs/FULL_DAY_SESSION_2026-07-07/reports/02_tipster_summary.txt
+reports/pipeline_runs/FULL_DAY_SESSION_2026-07-07/reports/03_tipster_sentiment_by_event.json
+reports/pipeline_runs/FULL_DAY_SESSION_2026-07-07/reports/03_tipster_sentiment_by_event.md
+reports/pipeline_runs/FULL_DAY_SESSION_2026-07-07/reports/04_match_universe.json
+reports/pipeline_runs/FULL_DAY_SESSION_2026-07-07/reports/04_match_universe.md
+reports/pipeline_runs/FULL_DAY_SESSION_2026-07-07/tipsters/certified_shadow.json
+reports/pipeline_runs/FULL_DAY_SESSION_2026-07-07/tipsters/certified_shadow_handoff.json

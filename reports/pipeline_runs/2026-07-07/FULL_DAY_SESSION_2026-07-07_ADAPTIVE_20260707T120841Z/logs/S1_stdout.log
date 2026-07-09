@@ -1,0 +1,42 @@
+Running: /Users/mkoziol/projects/bet/.venv/bin/python3 /Users/mkoziol/projects/bet/scripts/discover_events.py --date 2026-07-07 --db-path /var/folders/y6/c0sq10zj4vqdcpz_y3b802c80000gn/T/bet_dryrun_16nyh9lx.db
+[odds-api-io] /events → 200 (remaining: ?)
+[odds-api-io] /events → 200 (remaining: 98)
+[odds-api-io] /events → 200 (remaining: 97)
+[odds-api-io] /events → 200 (remaining: 96)
+[odds-api-io] /events → 200 (remaining: 95)
+[odds-api-io] /events → 200 (remaining: 94)
+
+============================================================
+DISCOVERY RESULTS for 2026-07-07
+============================================================
+Verdict:           PARTIAL
+Total discovered:  125
+After dedup:       125
+By sport:          {"football": 112, "basketball": 13}
+
+  [✓] api-basketball: 13 events, 0.5s, sports=['basketball']
+  [✓] api-volleyball: 0 events, 0.5s, sports=[]
+  [✓] odds-api-io: 0 events, 0.7s, sports=[]
+  [✓] api-hockey: 0 events, 0.3s, sports=[]
+  [✓] api-football: 112 events, 0.1s, sports=['football']
+  [✓] espn: 0 events, 0.2s, sports=[]
+  [✓] football-data: 0 events, 0.5s, sports=[]
+  [✗] odds-api: 0 events, 1.1s, sports=[]
+      ERROR: odds-api/football: auth failed (401) — key expired or credits exhausted
+
+Issues: 7
+  - odds-api/football: auth failed (401) — key expired or credits exhausted
+  - No fixtures discovered for requested sport: volleyball
+  - No fixtures discovered for requested sport: tennis
+  - No fixtures discovered for requested sport: hockey
+  - No fixtures discovered for requested sport: cs2
+  - No fixtures discovered for requested sport: dota2
+  - No fixtures discovered for requested sport: valorant
+
+AGENT_SUMMARY:{"verdict": "PARTIAL", "total_discovered": 125, "total_after_dedup": 125, "requested_sports": ["football", "volleyball", "basketball", "tennis", "hockey", "cs2", "dota2", "valorant"], "raw_by_sport": {"football": 112, "volleyball": 0, "basketball": 13, "tennis": 0, "hockey": 0, "cs2": 0, "dota2": 0, "valorant": 0}, "by_sport": {"football": 112, "basketball": 13}, "provider_counts_by_sport": {"football": {"odds-api-io": 0, "api-football": 112, "espn": 0, "football-data": 0, "odds-api": 0}, "volleyball": {"api-volleyball": 0, "odds-api-io": 0}, "basketball": {"api-basketball": 13, "odds-api-io": 0, "odds-api": 0}, "tennis": {"odds-api-io": 0, "odds-api": 0}, "hockey": {"odds-api-io": 0, "api-hockey": 0, "odds-api": 0}, "cs2": {"odds-api-io": 0}, "dota2": {"odds-api-io": 0}, "valorant": {"odds-api-io": 0}}, "provider_errors_by_sport": {"football": ["odds-api/football: auth failed (401) \u2014 key expired or credits exhausted"], "volleyball": [], "basketball": [], "tennis": [], "hockey": [], "cs2": [], "dota2": [], "valorant": []}, "sources": {"api-basketball": {"events": 13, "available": true, "errors": 0, "duration_s": 0.5}, "api-volleyball": {"events": 0, "available": true, "errors": 0, "duration_s": 0.5}, "odds-api-io": {"events": 0, "available": true, "errors": 0, "duration_s": 0.7}, "api-hockey": {"events": 0, "available": true, "errors": 0, "duration_s": 0.3}, "api-football": {"events": 112, "available": true, "errors": 0, "duration_s": 0.1}, "espn": {"events": 0, "available": true, "errors": 0, "duration_s": 0.2}, "football-data": {"events": 0, "available": true, "errors": 0, "duration_s": 0.5}, "odds-api": {"events": 0, "available": true, "errors": 1, "duration_s": 1.1}}, "issues_count": 7, "db_schema_verdict": "PASS", "fallback_used": false, "fallback_reason": "N/A"}
+Odds API auth failed (401) — key expired or credits exhausted. Skipping remaining.
+Running: /Users/mkoziol/projects/bet/.venv/bin/python3 /Users/mkoziol/projects/bet/scripts/generate_market_matrix.py --date 2026-07-07 --output-dir reports/pipeline_runs/2026-07-07/FULL_DAY_SESSION_2026-07-07_ADAPTIVE_20260707T120841Z/data --pipeline-safe --json-only
+[matrix] ERROR: Resolved pipeline output path '/Users/mkoziol/projects/bet/reports/pipeline_runs/2026-07-07/FULL_DAY_SESSION_2026-07-07_ADAPTIVE_20260707T120841Z/data' is inside forbidden repo-local '/Users/mkoziol/projects/bet/reports'
+FAILED_MARKET_MATRIX_GENERATION
+Script generate_market_matrix.py failed with code 6
+FAILED_MARKET_MATRIX_GENERATION

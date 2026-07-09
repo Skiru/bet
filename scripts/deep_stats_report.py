@@ -384,6 +384,9 @@ def _extract_esports_stats(sport: str, team_name: str, result: dict) -> dict:
     # --- LIVE FALLBACK: only for Valorant (VLR HTTP works) and Dota2 (OpenDota) ---
     # CS2: HLTV search blocked by Cloudflare, bo3.gg search returns 404
     # Data should come from DB (enriched by enrich_esports_stats.py)
+    if os.environ.get("NO_ENRICH"):
+        return result
+
     sem = _esports_semaphores.get(sport)
     if not sem:
         return result

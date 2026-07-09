@@ -1,0 +1,12 @@
+{
+  "expected_value_present": false,
+  "stake_size_present": false,
+  "coupon_id_present": false,
+  "final_bet_present": false,
+  "superbet_combined_odds_present": false,
+  "bettable_status_present": false,
+  "typersi_used_as_reasoning": false,
+  "operator_risk_enabled": false,
+  "manual_quote_only": true,
+  "validation_status": "PASS"
+}

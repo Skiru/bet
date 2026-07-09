@@ -1,0 +1,20 @@
+{
+  "validation_status": "PASS",
+  "certified_shadow_exists": true,
+  "certified_shadow_handoff_exists": true,
+  "runtime_sources": ["zawodtyper", "typersi"],
+  "expected_sources": ["zawodtyper", "typersi"],
+  "total_picks": 85,
+  "handoff_events": 85,
+  "agent_readiness": 1.0,
+  "typersi_reasoning_used": false,
+  "zawodtyper_reasoning_used_only_where_present": true,
+  "operator_risk_sources_present": false,
+  "forbidden_fields_checked": {
+    "expected_value": false,
+    "stake_size": false,
+    "coupon_id": false,
+    "final_bet": false,
+    "superbet_combined_odds": false
+  }
+}

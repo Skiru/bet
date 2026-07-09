@@ -1,0 +1,9 @@
+Running: /Users/mkoziol/projects/bet/.venv/bin/python3 /Users/mkoziol/projects/bet/scripts/settle_on_finish.py --betting-day 2026-07-09
+2026-07-09T14:05:03.538967 No pending picks to settle. Running settlement sync/evaluation only.
+2026-07-09T14:05:03.539482 All pending picks settled!
+2026-07-09T14:05:03.541806 Updated picks ledger: /Users/mkoziol/projects/bet/betting/journal/picks-ledger.csv
+2026-07-09T14:05:03.543138 Updated coupons ledger: /Users/mkoziol/projects/bet/betting/journal/coupons-ledger.csv
+2026-07-09T14:05:03.584681 DB settlement sync: 9 bets, 0 coupons updated
+2026-07-09T14:05:03.585425 [evaluate] Decision evaluation failed (non-blocking): No module named 'evaluate_decisions'
+2026-07-09T14:05:03.585511 Settlement complete: 0 settled, 0 still pending
+

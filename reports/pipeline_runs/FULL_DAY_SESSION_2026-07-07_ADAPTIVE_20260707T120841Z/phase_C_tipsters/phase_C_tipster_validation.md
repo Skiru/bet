@@ -1,0 +1,23 @@
+# Phase C Tipster Validation
+
+- **Validation Status**: PASS
+- **Artifacts Existence**:
+  - `certified_shadow.json`: EXISTS
+  - `certified_shadow_handoff.json`: EXISTS
+- **Sources Verification**:
+  - Runtime Sources: `zawodtyper`, `typersi`
+  - Expected Sources: `zawodtyper`, `typersi`
+  - Operator-Risk Sources: NONE (disabled by default, verified absent)
+- **Metrics**:
+  - Total Picks: 85
+  - Handoff Events: 85
+  - Agent Readiness: 100%
+- **Compliance Rules**:
+  - Typersi Reasoning: NOT used (treated strictly as static table tip/sentiment source)
+  - ZawodTyper Reasoning: Used ONLY where reasoning is present in the extracted tips
+  - Forbidden Fields Check:
+    - `expected_value`: ABSENT
+    - `stake_size`: ABSENT
+    - `coupon_id`: ABSENT
+    - `final_bet`: ABSENT
+    - `superbet_combined_odds`: ABSENT

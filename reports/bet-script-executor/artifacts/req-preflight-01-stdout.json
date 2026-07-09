@@ -1,0 +1,449 @@
+=== [REDACTED]
+
+=== git rev-parse --show-toplevel ===
+/Users/mkoziol/projects/bet
+
+=== git branch --show-current ===
+main
+
+=== git rev-parse HEAD ===
+[REDACTED]
+
+=== git status --short --branch --untracked-files=all ===
+## main...origin/main
+ M .kilo/state/CURRENT_HANDOFF.md
+ M config/[REDACTED].json
+ M scripts/deep_stats_report.py
+ M scripts/gate_checker.py
+ M scripts/pipeline_steps/_runner.py
+ M scripts/pipeline_steps/s5_gate.py
+ M scripts/pipeline_steps/s8_build_coupons.py
+ M src/bet/pipeline/[REDACTED].py
+ M src/bet/pipeline/[REDACTED].py
+ M src/bet/pipeline/[REDACTED].py
+ M src/bet/pipeline/runtime_paths.py
+?? .kilo/state/phase-A-handoff.md
+?? .kilo/state/phase-B-handoff.md
+?? .kilo/state/phase-C-handoff.md
+?? .kilo/state/phase-D-handoff.md
+?? reports/agent-config/[REDACTED]/audit-2026-07-07.jsonl
+?? reports/agent-config/[REDACTED]/audit-2026-07-08.jsonl
+?? reports/bet-script-executor/runs/executor-2026-07-08.jsonl
+?? reports/pipeline_runs/2026-07-06/default/artifacts/S2_SHADOW.json
+?? reports/pipeline_runs/2026-07-06/default/pipeline_runs/2026-07-06/default/artifacts/S2_SHADOW.json
+?? reports/pipeline_runs/2026-07-07/[REDACTED]/data/2026-07-07_state.json
+?? reports/pipeline_runs/2026-07-07/[REDACTED]/logs/S0_stderr.log
+?? reports/pipeline_runs/2026-07-07/[REDACTED]/logs/S0_stdout.log
+?? reports/pipeline_runs/2026-07-07/[REDACTED]/logs/S1_stderr.log
+?? reports/pipeline_runs/2026-07-07/[REDACTED]/logs/S1_stdout.log
+?? reports/pipeline_runs/2026-07-07/[REDACTED]/pipeline_runs/2026-07-07/[REDACTED]/artifacts/S0.json
+?? reports/pipeline_runs/2026-07-07/[REDACTED]/pipeline_runs/2026-07-07/[REDACTED]/artifacts/S1.json
+?? reports/pipeline_runs/2026-07-07/[REDACTED]/run_summary.json
+?? reports/pipeline_runs/2026-07-07/default/artifacts/S2_SHADOW.json
+?? reports/pipeline_runs/2026-07-07/default/pipeline_runs/2026-07-07/default/artifacts/S2_SHADOW.json
+?? reports/pipeline_runs/2026-07-08/[REDACTED]/artifacts/S3.json
+?? reports/pipeline_runs/2026-07-08/[REDACTED]/pipeline_runs/2026-07-08/[REDACTED]/artifacts/S3.json
+?? reports/pipeline_runs/[REDACTED]/reports/[REDACTED].txt
+?? reports/pipeline_runs/[REDACTED]/reports/[REDACTED].txt
+?? reports/pipeline_runs/[REDACTED]/reports/[REDACTED].md
+?? reports/pipeline_runs/[REDACTED]/reports/00_preflight.md
+?? reports/pipeline_runs/[REDACTED]/reports/01_compileall.txt
+?? reports/pipeline_runs/[REDACTED]/reports/[REDACTED].txt
+?? reports/pipeline_runs/[REDACTED]/reports/[REDACTED].txt
+?? reports/pipeline_runs/[REDACTED]/reports/[REDACTED].md
+?? reports/pipeline_runs/[REDACTED]/reports/01_pytest_tipsters.txt
+?? reports/pipeline_runs/[REDACTED]/reports/[REDACTED].txt
+?? reports/pipeline_runs/[REDACTED]/reports/[REDACTED].json
+?? reports/pipeline_runs/[REDACTED]/reports/[REDACTED].json
+?? reports/pipeline_runs/[REDACTED]/reports/[REDACTED].txt
+?? reports/pipeline_runs/[REDACTED]/reports/[REDACTED].txt
+?? reports/pipeline_runs/[REDACTED]/reports/02_tipster_summary.txt
+?? reports/pipeline_runs/[REDACTED]/reports/[REDACTED].txt
+?? reports/pipeline_runs/[REDACTED]/reports/[REDACTED].json
+?? reports/pipeline_runs/[REDACTED]/reports/[REDACTED].md
+?? reports/pipeline_runs/[REDACTED]/reports/04_match_universe.json
+?? reports/pipeline_runs/[REDACTED]/reports/04_match_universe.md
+?? reports/pipeline_runs/[REDACTED]/reports/[REDACTED].md
+?? reports/pipeline_runs/[REDACTED]/reports/05_s3_stats_context.json
+?? reports/pipeline_runs/[REDACTED]/reports/05_s3_stats_context.md
+?? reports/pipeline_runs/[REDACTED]/reports/[REDACTED].json
+?? reports/pipeline_runs/[REDACTED]/reports/[REDACTED].md
+?? reports/pipeline_runs/[REDACTED]/reports/[REDACTED].json
+?? reports/pipeline_runs/[REDACTED]/reports/[REDACTED].md
+?? reports/pipeline_runs/[REDACTED]/reports/[REDACTED].json
+?? reports/pipeline_runs/[REDACTED]/reports/[REDACTED].md
+?? reports/pipeline_runs/[REDACTED]/reports/[REDACTED].md
+?? reports/pipeline_runs/[REDACTED]/reports/[REDACTED].md
+?? reports/pipeline_runs/[REDACTED]/reports/[REDACTED].md
+?? reports/pipeline_runs/[REDACTED]/reports/[REDACTED].json
+?? reports/pipeline_runs/[REDACTED]/reports/[REDACTED].md
+?? reports/pipeline_runs/[REDACTED]/reports/13_user_summary.md
+?? reports/pipeline_runs/[REDACTED]/tipsters/certified_shadow.json
+?? reports/pipeline_runs/[REDACTED]/tipsters/[REDACTED].json
+?? reports/pipeline_runs/[REDACTED]/data/[REDACTED].json
+?? reports/pipeline_runs/[REDACTED]/data/[REDACTED].md
+?? reports/pipeline_runs/[REDACTED]/data/2026-07-07_state.json
+?? reports/pipeline_runs/[REDACTED]/data/[REDACTED].json
+?? reports/pipeline_runs/[REDACTED]/evidence/[REDACTED].json
+?? reports/pipeline_runs/[REDACTED]/evidence/[REDACTED].md
+?? reports/pipeline_runs/[REDACTED]/final/[REDACTED].md
+?? reports/pipeline_runs/[REDACTED]/final/[REDACTED].md
+?? reports/pipeline_runs/[REDACTED]/final/[REDACTED].md
+?? reports/pipeline_runs/[REDACTED]/final/final_validation.json
+?? reports/pipeline_runs/[REDACTED]/final/final_validation.md
+?? reports/pipeline_runs/[REDACTED]/handoffs/CURRENT_HANDOFF.md
+?? reports/pipeline_runs/[REDACTED]/handoffs/[REDACTED].json
+?? reports/pipeline_runs/[REDACTED]/handoffs/[REDACTED].json
+?? reports/pipeline_runs/[REDACTED]/handoffs/[REDACTED].md
+?? reports/pipeline_runs/[REDACTED]/handoffs/[REDACTED].json
+?? reports/pipeline_runs/[REDACTED]/handoffs/[REDACTED].md
+?? reports/pipeline_runs/[REDACTED]/handoffs/[REDACTED].json
+?? reports/pipeline_runs/[REDACTED]/handoffs/[REDACTED].md
+?? reports/pipeline_runs/[REDACTED]/phase_C_tipsters/phase_C_decision.json
+?? reports/pipeline_runs/[REDACTED]/phase_C_tipsters/phase_C_decision.md
+?? reports/pipeline_runs/[REDACTED]/phase_C_tipsters/[REDACTED].json
+?? reports/pipeline_runs/[REDACTED]/phase_C_tipsters/[REDACTED].md
+?? reports/pipeline_runs/[REDACTED]/phase_C_tipsters/[REDACTED].json
+?? reports/pipeline_runs/[REDACTED]/phase_C_tipsters/[REDACTED].md
+?? reports/pipeline_runs/[REDACTED]/phase_C_tipsters/[REDACTED].json
+?? reports/pipeline_runs/[REDACTED]/phase_C_tipsters/[REDACTED].md
+?? reports/pipeline_runs/[REDACTED]/phase_C_tipsters/[REDACTED].json
+?? reports/pipeline_runs/[REDACTED]/phase_C_tipsters/[REDACTED].md
+?? reports/pipeline_runs/[REDACTED]/phase_C_tipsters/s2_tipster_summary.txt
+?? reports/pipeline_runs/[REDACTED]/phase_C_tipsters/[REDACTED].txt
+?? reports/pipeline_runs/[REDACTED]/pipeline_runs/2026-07-07/[REDACTED]/artifacts/S0.json
+?? reports/pipeline_runs/[REDACTED]/pipeline_runs/2026-07-07/[REDACTED]/artifacts/S1.json
+?? reports/pipeline_runs/[REDACTED]/reports/[REDACTED].json
+?? reports/pipeline_runs/[REDACTED]/reports/[REDACTED].md
+?? reports/pipeline_runs/[REDACTED]/reports/phase_A_decision.json
+?? reports/pipeline_runs/[REDACTED]/reports/phase_A_report.md
+?? reports/pipeline_runs/[REDACTED]/reports/[REDACTED].txt
+?? reports/pipeline_runs/[REDACTED]/tipsters/certified_shadow.json
+?? reports/pipeline_runs/[REDACTED]/diagnostics/[REDACTED].json
+?? reports/pipeline_runs/run-s4-valuation/[REDACTED].json
+?? reports/pipeline_runs/run-s4-valuation/[REDACTED].md
+?? reports/pipeline_runs/run-s4-valuation/[REDACTED].md
+?? reports/pipeline_runs/run-s4-valuation/preflight.md
+?? reports/pipeline_runs/run-s4-valuation/[REDACTED].md
+?? reports/pipeline_runs/run-s4-valuation/[REDACTED].json
+?? reports/pipeline_runs/run-s4-valuation/[REDACTED].md
+?? scripts/fixtures/[REDACTED].py
+?? src/bet/pipeline/live_fixture_audit.py
+?? tests/[REDACTED].py
+
+=== git diff --stat ===
+ .kilo/state/CURRENT_HANDOFF.md                  | 36 +++++++++---
+ config/[REDACTED].json               | 13 +++++
+ scripts/deep_stats_report.py                    |  3 +
+ scripts/gate_checker.py                         |  2 +
+ scripts/pipeline_steps/_runner.py               | 13 +++++
+ scripts/pipeline_steps/s5_gate.py               | 78 +++++++++++++++++++++++++
+ scripts/pipeline_steps/s8_build_coupons.py      |  3 -
+ src/bet/pipeline/[REDACTED].py | 11 ++--
+ src/bet/pipeline/[REDACTED].py     |  2 +-
+ src/bet/pipeline/[REDACTED].py   | 43 +++++++++++---
+ src/bet/pipeline/runtime_paths.py               |  2 +
+ 11 files changed, 179 insertions(+), 27 deletions(-)
+
+=== git diff --name-only ===
+.kilo/state/CURRENT_HANDOFF.md
+config/[REDACTED].json
+scripts/deep_stats_report.py
+scripts/gate_checker.py
+scripts/pipeline_steps/_runner.py
+scripts/pipeline_steps/s5_gate.py
+scripts/pipeline_steps/s8_build_coupons.py
+src/bet/pipeline/[REDACTED].py
+src/bet/pipeline/[REDACTED].py
+src/bet/pipeline/[REDACTED].py
+src/bet/pipeline/runtime_paths.py
+
+=== git diff --cached --name-only ===
+
+=== git ls-files --others --exclude-standard ===
+.kilo/state/phase-A-handoff.md
+.kilo/state/phase-B-handoff.md
+.kilo/state/phase-C-handoff.md
+.kilo/state/phase-D-handoff.md
+reports/agent-config/[REDACTED]/audit-2026-07-07.jsonl
+reports/agent-config/[REDACTED]/audit-2026-07-08.jsonl
+reports/bet-script-executor/runs/executor-2026-07-08.jsonl
+reports/pipeline_runs/2026-07-06/default/artifacts/S2_SHADOW.json
+reports/pipeline_runs/2026-07-06/default/pipeline_runs/2026-07-06/default/artifacts/S2_SHADOW.json
+reports/pipeline_runs/2026-07-07/[REDACTED]/data/2026-07-07_state.json
+reports/pipeline_runs/2026-07-07/[REDACTED]/logs/S0_stderr.log
+reports/pipeline_runs/2026-07-07/[REDACTED]/logs/S0_stdout.log
+reports/pipeline_runs/2026-07-07/[REDACTED]/logs/S1_stderr.log
+reports/pipeline_runs/2026-07-07/[REDACTED]/logs/S1_stdout.log
+reports/pipeline_runs/2026-07-07/[REDACTED]/pipeline_runs/2026-07-07/[REDACTED]/artifacts/S0.json
+reports/pipeline_runs/2026-07-07/[REDACTED]/pipeline_runs/2026-07-07/[REDACTED]/artifacts/S1.json
+reports/pipeline_runs/2026-07-07/[REDACTED]/run_summary.json
+reports/pipeline_runs/2026-07-07/default/artifacts/S2_SHADOW.json
+reports/pipeline_runs/2026-07-07/default/pipeline_runs/2026-07-07/default/artifacts/S2_SHADOW.json
+reports/pipeline_runs/2026-07-08/[REDACTED]/artifacts/S3.json
+reports/pipeline_runs/2026-07-08/[REDACTED]/pipeline_runs/2026-07-08/[REDACTED]/artifacts/S3.json
+reports/pipeline_runs/[REDACTED]/reports/[REDACTED].txt
+reports/pipeline_runs/[REDACTED]/reports/[REDACTED].txt
+reports/pipeline_runs/[REDACTED]/reports/[REDACTED].md
+reports/pipeline_runs/[REDACTED]/reports/00_preflight.md
+reports/pipeline_runs/[REDACTED]/reports/01_compileall.txt
+reports/pipeline_runs/[REDACTED]/reports/[REDACTED].txt
+reports/pipeline_runs/[REDACTED]/reports/[REDACTED].txt
+reports/pipeline_runs/[REDACTED]/reports/[REDACTED].md
+reports/pipeline_runs/[REDACTED]/reports/01_pytest_tipsters.txt
+reports/pipeline_runs/[REDACTED]/reports/[REDACTED].txt
+reports/pipeline_runs/[REDACTED]/reports/[REDACTED].json
+reports/pipeline_runs/[REDACTED]/reports/[REDACTED].json
+reports/pipeline_runs/[REDACTED]/reports/[REDACTED].txt
+reports/pipeline_runs/[REDACTED]/reports/[REDACTED].txt
+reports/pipeline_runs/[REDACTED]/reports/02_tipster_summary.txt
+reports/pipeline_runs/[REDACTED]/reports/[REDACTED].txt
+reports/pipeline_runs/[REDACTED]/reports/[REDACTED].json
+reports/pipeline_runs/[REDACTED]/reports/[REDACTED].md
+reports/pipeline_runs/[REDACTED]/reports/04_match_universe.json
+reports/pipeline_runs/[REDACTED]/reports/04_match_universe.md
+reports/pipeline_runs/[REDACTED]/reports/[REDACTED].md
+reports/pipeline_runs/[REDACTED]/reports/05_s3_stats_context.json
+reports/pipeline_runs/[REDACTED]/reports/05_s3_stats_context.md
+reports/pipeline_runs/[REDACTED]/reports/[REDACTED].json
+reports/pipeline_runs/[REDACTED]/reports/[REDACTED].md
+reports/pipeline_runs/[REDACTED]/reports/[REDACTED].json
+reports/pipeline_runs/[REDACTED]/reports/[REDACTED].md
+reports/pipeline_runs/[REDACTED]/reports/[REDACTED].json
+reports/pipeline_runs/[REDACTED]/reports/[REDACTED].md
+reports/pipeline_runs/[REDACTED]/reports/[REDACTED].md
+reports/pipeline_runs/[REDACTED]/reports/[REDACTED].md
+reports/pipeline_runs/[REDACTED]/reports/[REDACTED].md
+reports/pipeline_runs/[REDACTED]/reports/[REDACTED].json
+reports/pipeline_runs/[REDACTED]/reports/[REDACTED].md
+reports/pipeline_runs/[REDACTED]/reports/13_user_summary.md
+reports/pipeline_runs/[REDACTED]/tipsters/certified_shadow.json
+reports/pipeline_runs/[REDACTED]/tipsters/[REDACTED].json
+reports/pipeline_runs/[REDACTED]/data/[REDACTED].json
+reports/pipeline_runs/[REDACTED]/data/[REDACTED].md
+reports/pipeline_runs/[REDACTED]/data/2026-07-07_state.json
+reports/pipeline_runs/[REDACTED]/data/[REDACTED].json
+reports/pipeline_runs/[REDACTED]/evidence/[REDACTED].json
+reports/pipeline_runs/[REDACTED]/evidence/[REDACTED].md
+reports/pipeline_runs/[REDACTED]/final/[REDACTED].md
+reports/pipeline_runs/[REDACTED]/final/[REDACTED].md
+reports/pipeline_runs/[REDACTED]/final/[REDACTED].md
+reports/pipeline_runs/[REDACTED]/final/final_validation.json
+reports/pipeline_runs/[REDACTED]/final/final_validation.md
+reports/pipeline_runs/[REDACTED]/handoffs/CURRENT_HANDOFF.md
+reports/pipeline_runs/[REDACTED]/handoffs/[REDACTED].json
+reports/pipeline_runs/[REDACTED]/handoffs/[REDACTED].json
+reports/pipeline_runs/[REDACTED]/handoffs/[REDACTED].md
+reports/pipeline_runs/[REDACTED]/handoffs/[REDACTED].json
+reports/pipeline_runs/[REDACTED]/handoffs/[REDACTED].md
+reports/pipeline_runs/[REDACTED]/handoffs/[REDACTED].json
+reports/pipeline_runs/[REDACTED]/handoffs/[REDACTED].md
+reports/pipeline_runs/[REDACTED]/phase_C_tipsters/phase_C_decision.json
+reports/pipeline_runs/[REDACTED]/phase_C_tipsters/phase_C_decision.md
+reports/pipeline_runs/[REDACTED]/phase_C_tipsters/[REDACTED].json
+reports/pipeline_runs/[REDACTED]/phase_C_tipsters/[REDACTED].md
+reports/pipeline_runs/[REDACTED]/phase_C_tipsters/[REDACTED].json
+reports/pipeline_runs/[REDACTED]/phase_C_tipsters/[REDACTED].md
+reports/pipeline_runs/[REDACTED]/phase_C_tipsters/[REDACTED].json
+reports/pipeline_runs/[REDACTED]/phase_C_tipsters/[REDACTED].md
+reports/pipeline_runs/[REDACTED]/phase_C_tipsters/[REDACTED].json
+reports/pipeline_runs/[REDACTED]/phase_C_tipsters/[REDACTED].md
+reports/pipeline_runs/[REDACTED]/phase_C_tipsters/s2_tipster_summary.txt
+reports/pipeline_runs/[REDACTED]/phase_C_tipsters/[REDACTED].txt
+reports/pipeline_runs/[REDACTED]/pipeline_runs/2026-07-07/[REDACTED]/artifacts/S0.json
+reports/pipeline_runs/[REDACTED]/pipeline_runs/2026-07-07/[REDACTED]/artifacts/S1.json
+reports/pipeline_runs/[REDACTED]/reports/[REDACTED].json
+reports/pipeline_runs/[REDACTED]/reports/[REDACTED].md
+reports/pipeline_runs/[REDACTED]/reports/phase_A_decision.json
+reports/pipeline_runs/[REDACTED]/reports/phase_A_report.md
+reports/pipeline_runs/[REDACTED]/reports/[REDACTED].txt
+reports/pipeline_runs/[REDACTED]/tipsters/certified_shadow.json
+reports/pipeline_runs/[REDACTED]/diagnostics/[REDACTED].json
+reports/pipeline_runs/run-s4-valuation/[REDACTED].json
+reports/pipeline_runs/run-s4-valuation/[REDACTED].md
+reports/pipeline_runs/run-s4-valuation/[REDACTED].md
+reports/pipeline_runs/run-s4-valuation/preflight.md
+reports/pipeline_runs/run-s4-valuation/[REDACTED].md
+reports/pipeline_runs/run-s4-valuation/[REDACTED].json
+reports/pipeline_runs/run-s4-valuation/[REDACTED].md
+scripts/fixtures/[REDACTED].py
+src/bet/pipeline/live_fixture_audit.py
+tests/[REDACTED].py
+
+=== git ls-files --others -i --exclude-standard ===
+.DS_Store
+.env
+.kilo/.gitignore
+.kilo/agent-manager.json
+.kilo/node_modules/.bin/[REDACTED]
+.kilo/node_modules/.bin/[REDACTED]
+.kilo/node_modules/.bin/[REDACTED]
+.kilo/node_modules/.bin/[REDACTED]
+.kilo/node_modules/.bin/node-which
+.kilo/node_modules/.bin/uuid
+.kilo/node_modules/.bin/yaml
+.kilo/node_modules/.package-lock.json
+.kilo/node_modules/@kilocode/plugin/dist/example-workspace.d.ts
+.kilo/node_modules/@kilocode/plugin/dist/example-workspace.js
+.kilo/node_modules/@kilocode/plugin/dist/example.d.ts
+.kilo/node_modules/@kilocode/plugin/dist/example.js
+.kilo/node_modules/@kilocode/plugin/dist/index.d.ts
+.kilo/node_modules/@kilocode/plugin/dist/index.js
+.kilo/node_modules/@kilocode/plugin/dist/shell.d.ts
+.kilo/node_modules/@kilocode/plugin/dist/shell.js
+.kilo/node_modules/@kilocode/plugin/dist/tool.d.ts
+.kilo/node_modules/@kilocode/plugin/dist/tool.js
+.kilo/node_modules/@kilocode/plugin/dist/tui.d.ts
+.kilo/node_modules/@kilocode/plugin/dist/tui.js
+.kilo/node_modules/@kilocode/plugin/package.json
+.kilo/node_modules/@kilocode/sdk/dist/client.d.ts
+.kilo/node_modules/@kilocode/sdk/dist/client.js
+.kilo/node_modules/@kilocode/sdk/dist/gen/client.gen.d.ts
+.kilo/node_modules/@kilocode/sdk/dist/gen/client.gen.js
+.kilo/node_modules/@kilocode/sdk/dist/gen/client/client.gen.d.ts
+.kilo/node_modules/@kilocode/sdk/dist/gen/client/client.gen.js
+.kilo/node_modules/@kilocode/sdk/dist/gen/client/index.d.ts
+.kilo/node_modules/@kilocode/sdk/dist/gen/client/index.js
+.kilo/node_modules/@kilocode/sdk/dist/gen/client/types.gen.d.ts
+.kilo/node_modules/@kilocode/sdk/dist/gen/client/types.gen.js
+.kilo/node_modules/@kilocode/sdk/dist/gen/client/utils.gen.d.ts
+.kilo/node_modules/@kilocode/sdk/dist/gen/client/utils.gen.js
+.kilo/node_modules/@kilocode/sdk/dist/gen/core/auth.gen.d.ts
+.kilo/node_modules/@kilocode/sdk/dist/gen/core/auth.gen.js
+.kilo/node_modules/@kilocode/sdk/dist/gen/core/bodySerializer.gen.d.ts
+.kilo/node_modules/@kilocode/sdk/dist/gen/core/bodySerializer.gen.js
+.kilo/node_modules/@kilocode/sdk/dist/gen/core/params.gen.d.ts
+.kilo/node_modules/@kilocode/sdk/dist/gen/core/params.gen.js
+.kilo/node_modules/@kilocode/sdk/dist/gen/core/pathSerializer.gen.d.ts
+.kilo/node_modules/@kilocode/sdk/dist/gen/core/pathSerializer.gen.js
+.kilo/node_modules/@kilocode/sdk/dist/gen/core/queryKeySerializer.gen.d.ts
+.kilo/node_modules/@kilocode/sdk/dist/gen/core/queryKeySerializer.gen.js
+.kilo/node_modules/@kilocode/sdk/dist/gen/core/serverSentEvents.gen.d.ts
+.kilo/node_modules/@kilocode/sdk/dist/gen/core/serverSentEvents.gen.js
+.kilo/node_modules/@kilocode/sdk/dist/gen/core/types.gen.d.ts
+.kilo/node_modules/@kilocode/sdk/dist/gen/core/types.gen.js
+.kilo/node_modules/@kilocode/sdk/dist/gen/core/utils.gen.d.ts
+.kilo/node_modules/@kilocode/sdk/dist/gen/core/utils.gen.js
+.kilo/node_modules/@kilocode/sdk/dist/gen/sdk.gen.d.ts
+.kilo/node_modules/@kilocode/sdk/dist/gen/sdk.gen.js
+.kilo/node_modules/@kilocode/sdk/dist/gen/types.gen.d.ts
+.kilo/node_modules/@kilocode/sdk/dist/gen/types.gen.js
+.kilo/node_modules/@kilocode/sdk/dist/index.d.ts
+.kilo/node_modules/@kilocode/sdk/dist/index.js
+.kilo/node_modules/@kilocode/sdk/dist/process.d.ts
+.kilo/node_modules/@kilocode/sdk/dist/process.js
+.kilo/node_modules/@kilocode/sdk/dist/server.d.ts
+.kilo/node_modules/@kilocode/sdk/dist/server.js
+.kilo/node_modules/@kilocode/sdk/dist/v2/client.d.ts
+.kilo/node_modules/@kilocode/sdk/dist/v2/client.js
+.kilo/node_modules/@kilocode/sdk/dist/v2/data.d.ts
+.kilo/node_modules/@kilocode/sdk/dist/v2/data.js
+.kilo/node_modules/@kilocode/sdk/dist/v2/gen/client.gen.d.ts
+.kilo/node_modules/@kilocode/sdk/dist/v2/gen/client.gen.js
+.kilo/node_modules/@kilocode/sdk/dist/v2/gen/client/client.gen.d.ts
+.kilo/node_modules/@kilocode/sdk/dist/v2/gen/client/client.gen.js
+.kilo/node_modules/@kilocode/sdk/dist/v2/gen/client/index.d.ts
+.kilo/node_modules/@kilocode/sdk/dist/v2/gen/client/index.js
+.kilo/node_modules/@kilocode/sdk/dist/v2/gen/client/types.gen.d.ts
+.kilo/node_modules/@kilocode/sdk/dist/v2/gen/client/types.gen.js
+.kilo/node_modules/@kilocode/sdk/dist/v2/gen/client/utils.gen.d.ts
+.kilo/node_modules/@kilocode/sdk/dist/v2/gen/client/utils.gen.js
+.kilo/node_modules/@kilocode/sdk/dist/v2/gen/core/auth.gen.d.ts
+.kilo/node_modules/@kilocode/sdk/dist/v2/gen/core/auth.gen.js
+.kilo/node_modules/@kilocode/sdk/dist/v2/gen/core/bodySerializer.gen.d.ts
+.kilo/node_modules/@kilocode/sdk/dist/v2/gen/core/bodySerializer.gen.js
+.kilo/node_modules/@kilocode/sdk/dist/v2/gen/core/params.gen.d.ts
+.kilo/node_modules/@kilocode/sdk/dist/v2/gen/core/params.gen.js
+.kilo/node_modules/@kilocode/sdk/dist/v2/gen/core/pathSerializer.gen.d.ts
+.kilo/node_modules/@kilocode/sdk/dist/v2/gen/core/pathSerializer.gen.js
+.kilo/node_modules/@kilocode/sdk/dist/v2/gen/core/queryKeySerializer.gen.d.ts
+.kilo/node_modules/@kilocode/sdk/dist/v2/gen/core/queryKeySerializer.gen.js
+.kilo/node_modules/@kilocode/sdk/dist/v2/gen/core/serverSentEvents.gen.d.ts
+.kilo/node_modules/@kilocode/sdk/dist/v2/gen/core/serverSentEvents.gen.js
+.kilo/node_modules/@kilocode/sdk/dist/v2/gen/core/types.gen.d.ts
+.kilo/node_modules/@kilocode/sdk/dist/v2/gen/core/types.gen.js
+.kilo/node_modules/@kilocode/sdk/dist/v2/gen/core/utils.gen.d.ts
+.kilo/node_modules/@kilocode/sdk/dist/v2/gen/core/utils.gen.js
+.kilo/node_modules/@kilocode/sdk/dist/v2/gen/sdk.gen.d.ts
+.kilo/node_modules/@kilocode/sdk/dist/v2/gen/sdk.gen.js
+.kilo/node_modules/@kilocode/sdk/dist/v2/gen/types.gen.d.ts
+.kilo/node_modules/@kilocode/sdk/dist/v2/gen/types.gen.js
+.kilo/node_modules/@kilocode/sdk/dist/v2/index.d.ts
+.kilo/node_modules/@kilocode/sdk/dist/v2/index.js
+.kilo/node_modules/@kilocode/sdk/dist/v2/server.d.ts
+.kilo/node_modules/@kilocode/sdk/dist/v2/server.js
+.kilo/node_modules/@kilocode/sdk/package.json
+.kilo/node_modules/@msgpackr-extract/[REDACTED]/README.md
+.kilo/node_modules/@msgpackr-extract/[REDACTED]/index.js
+.kilo/node_modules/@msgpackr-extract/[REDACTED]/node.napi.glibc.node
+.kilo/node_modules/@msgpackr-extract/[REDACTED]/package.json
+.kilo/node_modules/@standard-schema/spec/LICENSE
+.kilo/node_modules/@standard-schema/spec/README.md
+.kilo/node_modules/@standard-schema/spec/dist/index.cjs
+.kilo/node_modules/@standard-schema/spec/dist/index.d.cts
+.kilo/node_modules/@standard-schema/spec/dist/index.d.ts
+.kilo/node_modules/@standard-schema/spec/dist/index.js
+.kilo/node_modules/@standard-schema/spec/package.json
+.kilo/node_modules/cross-spawn/LICENSE
+.kilo/node_modules/cross-spawn/README.md
+.kilo/node_modules/cross-spawn/index.js
+.kilo/node_modules/cross-spawn/lib/enoent.js
+.kilo/node_modules/cross-spawn/lib/parse.js
+.kilo/node_modules/cross-spawn/lib/util/escape.js
+.kilo/node_modules/cross-spawn/lib/util/readShebang.js
+.kilo/node_modules/cross-spawn/lib/util/resolveCommand.js
+.kilo/node_modules/cross-spawn/package.json
+.kilo/node_modules/detect-libc/LICENSE
+.kilo/node_modules/detect-libc/README.md
+.kilo/node_modules/detect-libc/index.d.ts
+.kilo/node_modules/detect-libc/lib/detect-libc.js
+.kilo/node_modules/detect-libc/lib/elf.js
+.kilo/node_modules/detect-libc/lib/filesystem.js
+.kilo/node_modules/detect-libc/lib/process.js
+.kilo/node_modules/detect-libc/package.json
+.kilo/node_modules/effect/LICENSE
+.kilo/node_modules/effect/README.md
+.kilo/node_modules/effect/dist/Array.d.ts
+.kilo/node_modules/effect/dist/Array.d.ts.map
+.kilo/node_modules/effect/dist/Array.js
+.kilo/node_modules/effect/dist/Array.js.map
+.kilo/node_modules/effect/dist/BigDecimal.d.ts
+.kilo/node_modules/effect/dist/BigDecimal.d.ts.map
+.kilo/node_modules/effect/dist/BigDecimal.js
+.kilo/node_modules/effect/dist/BigDecimal.js.map
+.kilo/node_modules/effect/dist/BigInt.d.ts
+.kilo/node_modules/effect/dist/BigInt.d.ts.map
+.kilo/node_modules/effect/dist/BigInt.js
+.kilo/node_modules/effect/dist/BigInt.js.map
+.kilo/node_modules/effect/dist/Boolean.d.ts
+.kilo/node_modules/effect/dist/Boolean.d.ts.map
+.kilo/node_modules/effect/dist/Boolean.js
+.kilo/node_modules/effect/dist/Boolean.js.map
+.kilo/node_modules/effect/dist/Brand.d.ts
+.kilo/node_modules/effect/dist/Brand.d.ts.map
+.kilo/node_modules/effect/dist/Brand.js
+.kilo/node_modules/effect/dist/Brand.js.map
+.kilo/node_modules/effect/dist/Cache.d.ts
+.kilo/node_modules/effect/dist/Cache.d.ts.map
+.kilo/node_modules/effect/dist/Cache.js
+.kilo/node_modules/effect/dist/Cache.js.map
+.kilo/node_modules/effect/dist/Cause.d.ts
+.kilo/node_modules/effect/dist/Cause.d.ts.map
+.kilo/node_modules/effect/dist/Cause.js
+.kilo/node_modules/effect/dist/Cause.js.map
+.kilo/node_modules/effect/dist/Channel.d.ts
+.kilo/node_modules/effect/dist/Channel.d.ts.map
+.kilo/node_modules/effect/dist/Channel.js
+.kilo/node_modules/effect/dist/Channel.js.map
+.kilo/node_modules/effect/dist/ChannelSchema.d.ts
+.kilo/node_modules/effect/dist/ChannelSchema.d.ts.map
+.kilo/node_modules/effect/dist/ChannelSchema.js
+.kilo/node_modules/effect/dist/ChannelSchema.js.map
+.kilo/node_modules/effect/dist/Chunk.d.ts
+.kilo/node_modules/effect/dist/Chunk.d.ts.map
+.kilo/node_modules/effect/dist/Chunk.js
+.kilo/node_modules/effect/dist/Chunk.js.map
+.kilo/node_modules/effect/dist/Clock.d.ts
+.kilo/node_modules/effect/dist/Clock.d.ts.map
+.kilo/node_modules/effect/dist/Clock.js
+.kilo/node_modu

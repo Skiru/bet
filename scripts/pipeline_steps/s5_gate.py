@@ -452,6 +452,65 @@ def _update_wrapper_evidence(child_env: dict[str, str], date: str | None, run_id
             pass
 
 
+def _get_pipeline_counts(child_env: dict[str, str], date: str | None) -> dict[str, int]:
+    counts = {
+        "raw_discovery_count": 0,
+        "after_dedup_count": 0,
+        "market_matrix_event_count": 0,
+        "shortlist_count": 0,
+        "s2_9_readiness_count": 0,
+        "s3_input_count": 0,
+        "s3_valid_probability_count": 0,
+    }
+    artifact_dir = Path(child_env["BET_PIPELINE_ARTIFACT_DIR"]) if child_env.get("BET_PIPELINE_ARTIFACT_DIR") else None
+    if not artifact_dir:
+        return counts
+        
+    # Load S1.json
+    s1_path = artifact_dir / "S1.json"
+    if s1_path.exists():
+        try:
+            s1_data = json.loads(s1_path.read_text(encoding="utf-8"))
+            payload = s1_data.get("payload") or {}
+            counts["raw_discovery_count"] = payload.get("raw_discovery_count", 0)
+            counts["after_dedup_count"] = payload.get("after_dedup_count", 0)
+            counts["market_matrix_event_count"] = payload.get("market_matrix_event_count", 0)
+        except Exception:
+            pass
+            
+    # Load S2.json
+    s2_path = artifact_dir / "S2.json"
+    if s2_path.exists():
+        try:
+            s2_data = json.loads(s2_path.read_text(encoding="utf-8"))
+            payload = s2_data.get("payload") or {}
+            counts["shortlist_count"] = payload.get("shortlist_count", 0)
+        except Exception:
+            pass
+            
+    # Load S2.9.json
+    s29_path = artifact_dir / "S2.9.json"
+    if s29_path.exists():
+        try:
+            s29_data = json.loads(s29_path.read_text(encoding="utf-8"))
+            counts["s2_9_readiness_count"] = 1 if s29_data.get("status") == "PASS" else 0
+        except Exception:
+            pass
+            
+    # Load S3.json
+    s3_path = artifact_dir / "S3.json"
+    if s3_path.exists():
+        try:
+            s3_data = json.loads(s3_path.read_text(encoding="utf-8"))
+            payload = s3_data.get("payload") or {}
+            counts["s3_input_count"] = payload.get("s3_input_count", 0)
+            counts["s3_valid_probability_count"] = payload.get("s3_valid_probability_count", 0)
+        except Exception:
+            pass
+            
+    return counts
+
+
 def _certification_targets() -> None:
     run_scripts(SCRIPTS)
 
@@ -659,6 +718,25 @@ def main() -> None:
             traceability_fields["analytical_handoff_counts"] = analytical_handoff.get("counts", {})
 
             analytical_extended_pool = _analytical_extended_pool(analytical_handoff)
+            from bet.pipeline.live_fixture_audit import LiveFixtureAudit
+            auditor = LiveFixtureAudit(args.date)
+            
+            audited_pool = []
+            for candidate in analytical_extended_pool:
+                status, reason = auditor.audit_candidate(candidate)
+                if status == "LIVE_FIXTURE_VERIFIED_NOT_STARTED":
+                    candidate["fixture_verification_status"] = status
+                    audited_pool.append(candidate)
+                else:
+                    print(f"[gate_audit] Candidate {candidate.get('candidate_id')} REJECTED: {status} ({reason})")
+                    
+            # Assign tiers and score candidates
+            analytical_extended_pool = auditor.assign_tiers(audited_pool)
+
+            if traceability_fields is None:
+                traceability_fields = {}
+            pipeline_counts = _get_pipeline_counts(child_env, args.date)
+            traceability_fields.update(pipeline_counts)
 
             if analytical_extended_pool:
                 payload = {

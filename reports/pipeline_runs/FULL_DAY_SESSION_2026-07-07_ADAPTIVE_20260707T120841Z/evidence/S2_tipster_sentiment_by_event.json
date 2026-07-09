@@ -1,0 +1,202 @@
+[
+  {
+    "normalized_event_key": "argentina_vs_egypt",
+    "event": "Argentina vs Egypt",
+    "sport": "football",
+    "source_ids": ["zawodtyper", "typersi"],
+    "markets": ["Enzo Fernandez +0,5 strzałów | +1,5 Goli", "Argentina win"],
+    "source_count": 2,
+    "tipster_sentiment": "BULLISH_ARGENTINA",
+    "typersi_table_sentiment_summary": "Strong support for Argentina win and over 1.5 goals.",
+    "zawodtyper_reasoning_summary": "Tipsters highlight Argentina's strong form (won 3:2, 3:1, 2:0, 3:0) and Enzo Fernandez's high shot volume (avg 2 shots/game).",
+    "ambiguity_flags": [],
+    "allowed_uses": [
+      "market_sanity",
+      "tipster_sentiment",
+      "event_context_cross_check",
+      "manual_quote_review_context"
+    ],
+    "forbidden_uses": [
+      "EV",
+      "stake",
+      "coupon",
+      "final_bet",
+      "Superbet combined odds"
+    ]
+  },
+  {
+    "normalized_event_key": "sabah_baku_vs_the_new_saints",
+    "event": "Sabah Baku vs The New Saints",
+    "sport": "football",
+    "source_ids": ["zawodtyper", "typersi"],
+    "markets": ["Sabah wygra i strzeli powyżej 1,5 gola", "Wygrana The New Saints (handicap +2,5) + powyżej 0,5 bramki"],
+    "source_count": 2,
+    "tipster_sentiment": "MIXED_FAVOR_SABAH",
+    "typersi_table_sentiment_summary": "Majority backing Sabah Baku win, but some handicap support for TNS.",
+    "zawodtyper_reasoning_summary": "Tipsters expect Sabah Baku to dominate but note TNS's resilience in European qualifiers.",
+    "ambiguity_flags": [],
+    "allowed_uses": [
+      "market_sanity",
+      "tipster_sentiment",
+      "event_context_cross_check",
+      "manual_quote_review_context"
+    ],
+    "forbidden_uses": [
+      "EV",
+      "stake",
+      "coupon",
+      "final_bet",
+      "Superbet combined odds"
+    ]
+  },
+  {
+    "normalized_event_key": "switzerland_vs_colombia",
+    "event": "Switzerland vs Colombia",
+    "sport": "football",
+    "source_ids": ["zawodtyper"],
+    "markets": ["Liczba strzałów Kolumbia: powyżej 12.5", "PUERTA GUSTAVO +1.5 STRZAŁÓW"],
+    "source_count": 1,
+    "tipster_sentiment": "BULLISH_COLOMBIA_SHOTS",
+    "typersi_table_sentiment_summary": "N/A",
+    "zawodtyper_reasoning_summary": "Colombia averages high shot volume (79 shots in 4 games). Gustavo Puerta is a key shooter (covered line in 3/4 games).",
+    "ambiguity_flags": [],
+    "allowed_uses": [
+      "market_sanity",
+      "tipster_sentiment",
+      "event_context_cross_check",
+      "manual_quote_review_context"
+    ],
+    "forbidden_uses": [
+      "EV",
+      "stake",
+      "coupon",
+      "final_bet",
+      "Superbet combined odds"
+    ]
+  },
+  {
+    "normalized_event_key": "auger_aliassime_vs_djokovic",
+    "event": "Auger-Aliassime vs Djokovic",
+    "sport": "tennis",
+    "source_ids": ["zawodtyper", "typersi"],
+    "markets": ["Powyżej 0,5 tiebreaków + Handicap setowy Auger-Aliassime 2,5", "Powyżej 3,5 Seta + 7,5 Gema w 1 secie"],
+    "source_count": 2,
+    "tipster_sentiment": "BULLISH_OVER_GAMES",
+    "typersi_table_sentiment_summary": "Consensus on a long match with high game count.",
+    "zawodtyper_reasoning_summary": "Expect a competitive match with Auger-Aliassime holding his serve well, leading to tiebreaks and at least 4 sets.",
+    "ambiguity_flags": [],
+    "allowed_uses": [
+      "market_sanity",
+      "tipster_sentiment",
+      "event_context_cross_check",
+      "manual_quote_review_context"
+    ],
+    "forbidden_uses": [
+      "EV",
+      "stake",
+      "coupon",
+      "final_bet",
+      "Superbet combined odds"
+    ]
+  },
+  {
+    "normalized_event_key": "osaka_vs_muchova",
+    "event": "Osaka vs Muchova",
+    "sport": "tennis",
+    "source_ids": ["zawodtyper"],
+    "markets": ["Poniżej 6.5 DF w meczu"],
+    "source_count": 1,
+    "tipster_sentiment": "BEARISH_DOUBLE_FAULTS",
+    "typersi_table_sentiment_summary": "N/A",
+    "zawodtyper_reasoning_summary": "Both players have stable serves on grass, expecting low double fault counts.",
+    "ambiguity_flags": [],
+    "allowed_uses": [
+      "market_sanity",
+      "tipster_sentiment",
+      "event_context_cross_check",
+      "manual_quote_review_context"
+    ],
+    "forbidden_uses": [
+      "EV",
+      "stake",
+      "coupon",
+      "final_bet",
+      "Superbet combined odds"
+    ]
+  },
+  {
+    "normalized_event_key": "sinner_vs_struff",
+    "event": "Sinner vs Struff",
+    "sport": "tennis",
+    "source_ids": ["typersi"],
+    "markets": ["Powyżej 28,5 gemów"],
+    "source_count": 1,
+    "tipster_sentiment": "BULLISH_OVER_GAMES",
+    "typersi_table_sentiment_summary": "Backing Struff to win at least one set or push Sinner to long sets.",
+    "zawodtyper_reasoning_summary": "N/A",
+    "ambiguity_flags": [],
+    "allowed_uses": [
+      "market_sanity",
+      "tipster_sentiment",
+      "event_context_cross_check",
+      "manual_quote_review_context"
+    ],
+    "forbidden_uses": [
+      "EV",
+      "stake",
+      "coupon",
+      "final_bet",
+      "Superbet combined odds"
+    ]
+  },
+  {
+    "normalized_event_key": "pegula_vs_gauff",
+    "event": "Pegula vs Gauff",
+    "sport": "tennis",
+    "source_ids": ["typersi"],
+    "markets": ["Liczba setów powyżej 2,5"],
+    "source_count": 1,
+    "tipster_sentiment": "BULLISH_THREE_SETS",
+    "typersi_table_sentiment_summary": "Expect a close 3-set match between two top US players.",
+    "zawodtyper_reasoning_summary": "N/A",
+    "ambiguity_flags": [],
+    "allowed_uses": [
+      "market_sanity",
+      "tipster_sentiment",
+      "event_context_cross_check",
+      "manual_quote_review_context"
+    ],
+    "forbidden_uses": [
+      "EV",
+      "stake",
+      "coupon",
+      "final_bet",
+      "Superbet combined odds"
+    ]
+  },
+  {
+    "normalized_event_key": "usa_vs_belgium",
+    "event": "USA vs Belgium",
+    "sport": "football",
+    "source_ids": ["zawodtyper"],
+    "markets": ["Liczba goli - USA over 0,5 + Każda z drużyn over 1,5 RR + Każda z drużyn over 1,5 celnych strzałów"],
+    "source_count": 1,
+    "tipster_sentiment": "BULLISH_OFFENSIVE_STATS",
+    "typersi_table_sentiment_summary": "N/A",
+    "zawodtyper_reasoning_summary": "Both teams play open offensive football with high corner and shot counts.",
+    "ambiguity_flags": [],
+    "allowed_uses": [
+      "market_sanity",
+      "tipster_sentiment",
+      "event_context_cross_check",
+      "manual_quote_review_context"
+    ],
+    "forbidden_uses": [
+      "EV",
+      "stake",
+      "coupon",
+      "final_bet",
+      "Superbet combined odds"
+    ]
+  }
+]

@@ -1,0 +1,26 @@
+{
+  "phase_C_status": "PASS",
+  "session_root": "reports/pipeline_runs/FULL_DAY_SESSION_2026-07-07_ADAPTIVE_20260707T120841Z",
+  "run_date": "2026-07-07",
+  "branch": "main",
+  "HEAD_SHA": "4f082bc81f654a8a326a3623427bed43db4063c6",
+  "certified_shadow_path": "reports/pipeline_runs/FULL_DAY_SESSION_2026-07-07_ADAPTIVE_20260707T120841Z/tipsters/certified_shadow.json",
+  "certified_shadow_handoff_path": "reports/pipeline_runs/FULL_DAY_SESSION_2026-07-07_ADAPTIVE_20260707T120841Z/handoffs/certified_shadow_handoff.json",
+  "tipster_sentiment_path": "reports/pipeline_runs/FULL_DAY_SESSION_2026-07-07_ADAPTIVE_20260707T120841Z/evidence/S2_tipster_sentiment_by_event.json",
+  "tipster_to_universe_alignment_path": "reports/pipeline_runs/FULL_DAY_SESSION_2026-07-07_ADAPTIVE_20260707T120841Z/phase_C_tipsters/phase_C_tipster_to_universe_alignment.json",
+  "total_picks": 85,
+  "handoff_events": 85,
+  "runtime_sources": ["zawodtyper", "typersi"],
+  "unresolved_tipster_events_count": 0,
+  "warning_flags": [],
+  "next_agent_role_owner": "bet-enricher",
+  "next_phase": "Phase D / S2.3-S2.9 enrichment/readiness",
+  "next_required_action": "Run enrichment/readiness, merge Phase B universe with Phase C tipster alignment, detect data gaps, and prepare S3 prioritized list. Do not run S3/S4 yet.",
+  "inherited_hard_boundaries": {
+    "no_expected_value": true,
+    "no_stake_size": true,
+    "no_coupon_id": true,
+    "no_final_bet": true,
+    "no_superbet_combined_odds": true
+  }
+}

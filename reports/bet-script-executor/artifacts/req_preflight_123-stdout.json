@@ -1,0 +1,35 @@
+........................................................................ [ 27%]
+........................................................................ [ 55%]
+.........................................F.............................. [ 83%]
+..........................................                               [100%]
+=================================== FAILURES ===================================
+___________________ [REDACTED] ___________________
+
+tmp_path = PosixPath('/private/tmp/pytest-of-mkoziol/pytest-0/[REDACTED])
+
+    def [REDACTED](tmp_path):
+        """Verify COMMAND_REQUEST artifacts validate when they contain a command_request."""
+        wo = [REDACTED](
+            betting_day="2026-06-25",
+            run_id="run-smoke",
+            step_id="S2.3",
+            runtime_mode="DRY_RUN",
+            base_dir=tmp_path,
+        )
+    
+        # Valid COMMAND_REQUEST
+        artifact = [REDACTED]("S2.3", status="COMMAND_REQUEST")
+        artifact["command_request"] = "pytest tests/[REDACTED].py"
+        errors = [REDACTED](artifact, wo.to_jsonable())
+>       assert errors == []
+E       assert ["status 'COM...S', 'BLOCK']"] == []
+E         
+E         Left contains one more item: "status 'COMMAND_REQUEST' not in allowed statuses ['PASS', 'BLOCK']"
+E         Use -v to get more diff
+
+tests/[REDACTED].py:305: AssertionError
+=========================== short test summary info ============================
+FAILED tests/[REDACTED].py::[REDACTED]
+1 failed, 257 passed, 2396 deselected in 6.24s
+
+

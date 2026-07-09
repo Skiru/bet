@@ -1792,6 +1792,8 @@ def run_gate(candidates: list[dict], date: str, strict: bool = False) -> dict:
         best = c.get("best_market") or {}
         ev = c.get("ev") if c.get("ev") is not None else best.get("ev")
         safety = best.get("safety_score") or 0
+        has_real_odds = (c.get("odds_decimal") is not None and c.get("odds_decimal") > 1.0)
+        ev_ready = (ev is not None and ev > 0 and has_real_odds and safety >= 0.30)
 
         # Hard reject: ONLY for structural issues (phantoms, 48h repeats, ZT red flags)
         hard_reject = False

@@ -1,0 +1,29 @@
+json=reports/pipeline_runs/FULL_DAY_SESSION_2026-07-07/tipsters/certified_shadow.json
+schema_version=tipster_consensus_v2.3
+total_picks=58
+sources_with_picks=2
+blocked_sources=0
+skipped_sources=0
+
+--- Sources Coverage ---
+source::zawodtyper::expected=None extracted=35 ratio=None status=FULL_OR_ACCEPTABLE
+source::zawodtyper::warning::public_xhr_transport:selected_cookie_policy=no_cookie
+source::zawodtyper::warning::public_xhr_transport:cookie_names_sent=none
+source::zawodtyper::warning::public_xhr_transport:observed_cookie_names=SRV
+source::zawodtyper::warning::public_xhr_transport:xhr_calls=2
+source::zawodtyper::warning::public_xhr_transport:observed_items=132
+source::typersi::expected=None extracted=None ratio=None status=None
+
+--- Top Picks (up to 10) ---
+1. [tennis] Jannik Sinner vs Jan Lennard Struff | Market: Powyżej 28,5 gemów | Odds: 1.5 | Quality: 0.82 | Uses: s2_tipster_evidence,s3_context_cross_check,legacy_bridge_reference_only
+2. [tennis] Jessica Pegula vs Coco Gauff | Market: Liczba setów powyżej 2,5 | Odds: 2.28 | Quality: 0.82 | Uses: s2_tipster_evidence,s3_context_cross_check,legacy_bridge_reference_only
+3. [tennis] Felix Auger vs Aliassime – Novak Djokovic | Market: powyżej 3.5 seta | Odds: 1.5 | Quality: 0.82 | Uses: s2_tipster_evidence,s3_context_cross_check,legacy_bridge_reference_only
+4. [football] 🇺🇲 USA vs Belgia 🇧🇪 | Market: Liczba goli - USA over 0,5 + Każda z drużyn over 1,5 RR + Każda z drużyn over 1,5 celnych strzałów | Odds: 1.5 | Quality: 0.82 | Uses: s2_tipster_evidence,s3_context_cross_check,legacy_bridge_reference_only
+5. [tennis] 🇨🇦 Auger vs Aliassime vs Djokovic 🇷🇸 | Market: Handicap setowy: Djokovic (+2,5) + Liczba podwójnych błędów - Djokovic powyżej 1,5 | Odds: 1.5 | Quality: 0.82 | Uses: s2_tipster_evidence,s3_context_cross_check,legacy_bridge_reference_only
+6. [football] Sabah Baku vs TNS | Market: SuperBets: Sabah wygra i strzeli powyżej 1,5 gola | Odds: 1.5 | Quality: 0.82 | Uses: s2_tipster_evidence,s3_context_cross_check,legacy_bridge_reference_only
+7. [tennis] Osaka vs Muchova | Market: Poniżej 6.5 DF w meczu | Odds: 1.64 | Quality: 0.82 | Uses: s2_tipster_evidence,s3_context_cross_check,legacy_bridge_reference_only
+8. [football] Argentyna vs Egipt | Market: Messi, Lionel powyżej 0.5 celnych strzałów + Salah, Mohamed powyżej 0.5 celnych strzałów | Odds: 2.1 | Quality: 0.76 | Uses: s2_tipster_evidence,s3_context_cross_check,legacy_bridge_reference_only
+9. [football] Gold Coast Knights vs Queensland Lions | Market: Powyżej 3.5 gola | Odds: 1.67 | Quality: 0.76 | Uses: s2_tipster_evidence,s3_context_cross_check,legacy_bridge_reference_only
+10. [tennis] Sinner vs Struff | Market: Struff - poniżej 7.5 DF | Odds: 1.5 | Quality: 0.76 | Uses: s2_tipster_evidence,s3_context_cross_check,legacy_bridge_reference_only
+tipster_picks_v2|58
+tipster_consensus_v2|43

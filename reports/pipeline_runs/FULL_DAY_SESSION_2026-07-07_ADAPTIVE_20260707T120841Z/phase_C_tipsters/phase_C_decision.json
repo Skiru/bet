@@ -1,0 +1,18 @@
+{
+  "phase": "C",
+  "status": "PASS",
+  "decision": "PHASE_C_PASS_READY_FOR_PHASE_D",
+  "run_id": "FULL_DAY_SESSION_2026-07-07_ADAPTIVE_20260707T120841Z",
+  "betting_day": "2026-07-07",
+  "total_picks": 85,
+  "handoff_events": 85,
+  "runtime_sources": ["zawodtyper", "typersi"],
+  "agent_readiness": 1.0,
+  "reasons": [
+    "Certified shadow tipster evidence successfully collected and validated.",
+    "Total picks (85) and handoff events (85) are greater than zero.",
+    "Runtime sources exactly match the certified sources (zawodtyper, typersi).",
+    "No operator-risk sources were used.",
+    "No forbidden fields or actions were generated."
+  ]
+}

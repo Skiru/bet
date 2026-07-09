@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "artifact_type": "SCRIPT_EVIDENCE",
+  "step_id": "S1",
+  "status": "BLOCK",
+  "betting_day": "2026-07-09",
+  "run_id": "PROD_SOURCE_20260709T140326Z",
+  "sport": null,
+  "fixture_id": null,
+  "fixture_key": null,
+  "point_in_time_as_of": "2026-07-09T12:05:34.515238+00:00",
+  "source_bound": true,
+  "no_pick_edge_stake_coupon_emitted": true,
+  "production_selectable": false,
+  "betting_decisions_enabled": false,
+  "sources": [
+    "scripts/discover_events.py",
+    "scripts/generate_market_matrix.py",
+    "scripts/build_shortlist.py"
+  ],
+  "unknowns": [],
+  "blocked_reasons": [
+    "BLOCKED_FIXTURE_SOURCE_DUPLICATE_MAPPING"
+  ],
+  "evidence_refs": [],
+  "payload": {
+    "discover_and_shortlist_rc": 6,
+    "runtime_mode": "DRY_RUN",
+    "dry_run": true,
+    "allow_write": true,
+    "allow_live_network": false,
+    "scripts": [
+      "discover_events.py",
+      "generate_market_matrix.py",
+      "build_shortlist.py"
+    ],
+    "production_write": false,
+    "settled_runtime_path_source": "orchestrator_inherited_sandbox",
+    "child_run_root": "reports/pipeline_runs/2026-07-09/PROD_SOURCE_20260709T140326Z",
+    "child_artifact_dir": "reports/pipeline_runs/2026-07-09/PROD_SOURCE_20260709T140326Z/artifacts",
+    "discovery_rc": 1,
+    "market_matrix_rc": 6,
+    "shortlist_rc": -1,
+    "market_matrix_path": "",
+    "market_matrix_event_count": 0,
+    "market_matrix_schema_version": 1,
+    "market_matrix_pipeline_safe": false,
+    "market_matrix_validated": false,
+    "shortlist_started": false,
+    "raw_discovery_count": 427,
+    "after_dedup_count": 390,
+    "provider_counts": {
+      "api-basketball": 27,
+      "api-volleyball": 6,
+      "api-hockey": 0,
+      "api-football": 87,
+      "football-data": 0,
+      "espn": 0,
+      "odds-api-io": 299,
+      "odds-api": 8
+    },
+    "fallback_used": false,
+    "fallback_reason": "N/A",
+    "db_schema_verdict": "PASS"
+  }
+}

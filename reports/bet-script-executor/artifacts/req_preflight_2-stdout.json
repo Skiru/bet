@@ -1,0 +1,139 @@
+......s.s............................................................... [  5%]
+........................................................................ [ 11%]
+........................................................................ [ 17%]
+.....[REDACTED] [ 23%]
+sssssssssssssss.............................................s........... [ 28%]
+........................................................................ [ 34%]
+........................................................................ [ 40%]
+........................................................................ [ 46%]
+........................................................................ [ 52%]
+........................................................................ [ 57%]
+........................................................................ [ 63%]
+........................................................................ [ 69%]
+..........................................s............................. [ 75%]
+....................FF...F...F.......F.................................. [ 81%]
+........................................................................ [ 86%]
+........................................................................ [ 92%]
+........................................................................ [ 98%]
+..................                                                       [100%]
+=================================== FAILURES ===================================
+_________________ [REDACTED] __________________
+
+    def [REDACTED]():
+        cand = _valid_candidate()
+        stats = _valid_stats_seed()
+        cand[[REDACTED]] = "PARTIAL"
+    
+        report = [REDACTED](cand, stats)
+>       assert report[[REDACTED]] == [REDACTED]
+E       AssertionError: assert 'RESEARCH_GAP...MAL_HYDRATION' == [REDACTED]
+E         
+E         - [REDACTED]
+E         + [REDACTED]
+
+tests/[REDACTED].py:235: AssertionError
+______________ [REDACTED] ______________
+
+    def [REDACTED]():
+        from bet.pipeline.[REDACTED] import [REDACTED]
+        cand = _valid_candidate()
+        stats = _valid_stats_seed()
+        cand[[REDACTED]] = "PARTIAL"
+        cand["fixture_id"] = 1
+        stats["fixture_id"] = 1
+    
+        handoff = [REDACTED](
+            {"candidates": [cand]},
+            s3_payload={"analyses": [{**stats, "candidate_id": cand["candidate_id"], "fixture_id": 1}]},
+            [REDACTED]="/tmp/s4.json"
+        )
+        assert handoff["counts"]["analytical_ready"] == 0
+>       assert len(handoff[[REDACTED]]) == 1
+E       assert 0 == 1
+E        +  where 0 = len([])
+
+tests/[REDACTED].py:253: AssertionError
+___ [REDACTED] ___
+
+    def [REDACTED]():
+        from bet.pipeline.[REDACTED] import [REDACTED]
+    
+        safe_candidate = _valid_candidate()
+        safe_candidate["fixture_id"] = 1
+        safe_candidate["candidate_id"] = "cand-safe"
+        partial_candidate = _valid_candidate()
+        partial_candidate["fixture_id"] = 2
+        partial_candidate["candidate_id"] = "cand-partial"
+        partial_candidate[[REDACTED]] = "PARTIAL"
+        stats = _valid_stats_seed()
+    
+        handoff = [REDACTED](
+            {"candidates": [safe_candidate, partial_candidate]},
+            s3_payload={"analyses": [
+                {**stats, "candidate_id": "cand-safe", "fixture_id": 1},
+                {**stats, "candidate_id": "cand-partial", "fixture_id": 2},
+            ]},
+            [REDACTED]="/tmp/s4.json",
+        )
+    
+        assert handoff["counts"]["analytical_ready"] == 1
+        assert handoff["analytical_ready"][0][[REDACTED]] is True
+        assert handoff["analytical_ready"][0]["hydration_status"] == "HYDRATED"
+        assert handoff["analytical_ready"][0]["promotion_status"] == "ANALYZABLE"
+>       assert handoff[[REDACTED]][0][[REDACTED]] is False
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       IndexError: list index out of range
+
+tests/[REDACTED].py:353: IndexError
+_ [REDACTED] _
+
+    def [REDACTED]():
+        cand = _valid_candidate()
+        stats = _valid_stats_seed()
+        stats["source_provider"] = ""
+        cand["source_provider"] = ""
+    
+        inp = [REDACTED](cand, stats)
+        valid, reason = [REDACTED](inp)
+>       assert not valid
+E       assert not True
+
+tests/[REDACTED].py:401: AssertionError
+_______________ [REDACTED] _______________
+
+    def [REDACTED]():
+        repo_root = Path("/Users/mkoziol/projects/bet")
+        keys_path = Path("/Users/mkoziol/projects/bet/config/api_keys.json")
+        if not keys_path.exists():
+            pytest.skip("api_keys.json does not exist")
+    
+        secret_values = [REDACTED](keys_path)
+        if not secret_values:
+            pytest.skip("No concrete local [REDACTED] found in api_keys.json")
+    
+>       [REDACTED](repo_root, secret_values)
+
+tests/[REDACTED].py:522: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+repo_root = PosixPath('/Users/mkoziol/projects/bet')
+secret_values = [[REDACTED], [REDACTED], '1peWrjcnoPfN...fb772feed', [REDACTED], [REDACTED], ...]
+
+    def [REDACTED](repo_root: Path, secret_values: list[str]) -> None:
+        for artifact_path in [REDACTED](repo_root):
+            content = artifact_path.read_text(encoding="utf-8", errors="ignore")
+            for secret_value in secret_values:
+                if secret_value in content:
+>                   raise AssertionError(f"Raw [REDACTED] in artifact/log file: {artifact_path}")
+E                   AssertionError: Raw [REDACTED] in artifact/log file: /tmp/pytest-of-mkoziol/pytest-6/[REDACTED]/config/api_keys.json
+
+tests/[REDACTED].py:73: AssertionError
+=========================== short test summary info ============================
+FAILED tests/[REDACTED].py::[REDACTED]
+FAILED tests/[REDACTED].py::[REDACTED]
+FAILED tests/[REDACTED].py::[REDACTED]
+FAILED tests/[REDACTED].py::[REDACTED]
+FAILED tests/[REDACTED].py::[REDACTED]
+5 failed, 1151 passed, 86 skipped, 1412 deselected in 45.09s
+
+

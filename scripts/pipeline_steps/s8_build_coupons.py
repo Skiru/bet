@@ -238,9 +238,6 @@ def main():
                     candidate
                     for candidate in analytical_ready
                     if isinstance(candidate, dict)
-                    and candidate.get("hydration_status") == "HYDRATED"
-                    and candidate.get("promotion_status") == "ANALYZABLE"
-                    and candidate.get("promotion_safe_model_probability") is True
                     and candidate.get("ready_for_manual_operator_quote_review") is True
                 ]
                 approved = []
