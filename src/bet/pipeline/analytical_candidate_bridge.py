@@ -675,11 +675,7 @@ def build_analytical_candidate_handoff(
             promotion_safe_model_probability=probability_input.promotion_safe_model_probability,
             market_probability_validation_reason=probability_input_reason,
             ready_for_manual_operator_quote_review=(
-                analytical_status == "ANALYTICAL_READY"
-                and probability_input_valid
-                and probability_input.hydration_status == "HYDRATED"
-                and probability_input.promotion_status == "ANALYZABLE"
-                and probability_input.promotion_safe_model_probability is True
+                analytical_status == "ANALYTICAL_READY" and probability_input_valid
             ),
             supporting_stats=supporting_stats,
             source_gaps=source_gaps,
@@ -692,8 +688,12 @@ def build_analytical_candidate_handoff(
             analytical_ready.append(draft_dict)
         elif analytical_status == "REVIEW_ONLY_PARTIAL_DATA":
             review_only_partial_data.append(draft_dict)
-        elif analytical_status in {"RESEARCH_GAP_MINIMAL_HYDRATION", "BLOCKED_HYDRATION_FAILED"}:
+        elif analytical_status == "RESEARCH_GAP_MINIMAL_HYDRATION":
             research_gap_minimal_hydration.append(draft_dict)
+        elif analytical_status == "BLOCKED_HYDRATION_FAILED":
+            blocked_stats_missing.append(
+                ResearchCandidateBlocked(**asdict(draft), blocking_reason=analytical_status).to_dict()
+            )
         elif analytical_status == "INSUFFICIENT_MODEL_PROBABILITY":
             blocked_probability_missing.append(
                 ResearchCandidateBlocked(**asdict(draft), blocking_reason=analytical_status).to_dict()

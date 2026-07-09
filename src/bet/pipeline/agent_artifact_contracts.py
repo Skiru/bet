@@ -41,7 +41,7 @@ def required_agent_output_contract(step_id: str) -> dict[str, Any]:
     return {
         "artifact_type": "AGENT_ARTIFACT",
         "step_id": step_id,
-        "required_statuses": ["PASS", "BLOCK"],
+        "required_statuses": ["PASS", "BLOCK", "COMMAND_REQUEST"],
         "schema_requirements": policy.schema_requirements,
         "forbidden_outputs": policy.forbidden_outputs,
         "hard_rules": policy.hard_rules,
@@ -112,7 +112,7 @@ def validate_agent_artifact_for_work_order(
         
     # 3. status check
     req_output = work_order_data.get("required_output", {})
-    allowed_statuses = req_output.get("required_statuses", ["PASS", "BLOCK"])
+    allowed_statuses = req_output.get("required_statuses", ["PASS", "BLOCK", "COMMAND_REQUEST"])
     status = artifact_data.get("status")
     if status not in allowed_statuses:
         errors.append(f"status '{status}' not in allowed statuses {allowed_statuses}")
@@ -140,6 +140,13 @@ def validate_agent_artifact_for_work_order(
 
     if is_block and not _non_empty_list(blocked_reasons):
         errors.append("BLOCK artifacts must contain non-empty blocked_reasons")
+
+    if status == "COMMAND_REQUEST":
+        cmd_req = artifact_data.get("command_request")
+        if not _non_empty_string(cmd_req):
+            cmd_req = payload.get("command_request")
+        if not _non_empty_string(cmd_req):
+            errors.append("COMMAND_REQUEST artifacts must contain a non-empty command_request")
 
     # 5. PASS-only schema requirements check
     schema_reqs = req_output.get("schema_requirements", {})

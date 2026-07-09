@@ -23,6 +23,8 @@ def resolve_run_root(
         base_dir = Path(base_dir)
 
     rid = run_id if run_id else "default"
+    if base_dir.name == rid and base_dir.parent.name == betting_day:
+        return base_dir
     return base_dir / betting_day / rid
 
 

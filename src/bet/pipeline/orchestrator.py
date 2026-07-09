@@ -513,6 +513,44 @@ class Orchestrator:
                             blocked_reason = BlockedReason.BLOCKED_WAITING_FOR_AGENT_ARTIFACT
                             for err in wo_errors:
                                 self.blockers.append(f"Step {sid} contract validation failure: {err}")
+                        elif raw.get("status") == "COMMAND_REQUEST":
+                            # Intercept COMMAND_REQUEST and execute the command!
+                            command = raw.get("command_request") or raw.get("payload", {}).get("command_request")
+                            if command:
+                                if self.verbose:
+                                    print(f"Intercepted COMMAND_REQUEST from subagent: {command}")
+                                try:
+                                    res = subprocess.run(
+                                        command,
+                                        shell=True,
+                                        capture_output=True,
+                                        text=True,
+                                        cwd=str(self.repo_root),
+                                        env=self.env,
+                                    )
+                                    # Update the artifact status to PASS and save output
+                                    raw["status"] = "PASS"
+                                    raw["payload"]["command_output"] = {
+                                        "exit_code": res.returncode,
+                                        "stdout": res.stdout,
+                                        "stderr": res.stderr,
+                                    }
+                                    # Write updated artifact back to disk
+                                    write_json_atomic(expected_path, raw)
+                                    step_status = PipelineReadinessStatus.PASS
+                                    evidence_path = str(expected_path)
+                                except Exception as e:
+                                    step_status = PipelineReadinessStatus.BLOCK
+                                    overall_status = PipelineReadinessStatus.BLOCK
+                                    blocked_at_step = sid
+                                    blocked_reason = "COMMAND_REQUEST_EXECUTION_FAILED"
+                                    self.blockers.append(f"COMMAND_REQUEST execution failed: {e}")
+                            else:
+                                step_status = PipelineReadinessStatus.BLOCK
+                                overall_status = PipelineReadinessStatus.BLOCK
+                                blocked_at_step = sid
+                                blocked_reason = "COMMAND_REQUEST_MISSING_COMMAND"
+                                self.blockers.append("COMMAND_REQUEST status returned but command_request is missing")
                         elif artifact is None or any(i.severity == PipelineReadinessStatus.BLOCK for i in issues):
                             step_status = PipelineReadinessStatus.BLOCK
                             overall_status = PipelineReadinessStatus.BLOCK

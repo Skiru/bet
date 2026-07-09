@@ -25,6 +25,7 @@ def test_enums_are_stable_strings():
     assert PipelineReadinessStatus.SKIPPED == "SKIPPED"
     assert PipelineReadinessStatus.HUMAN_APPROVED == "HUMAN_APPROVED"
     assert PipelineReadinessStatus.HUMAN_REJECTED == "HUMAN_REJECTED"
+    assert PipelineReadinessStatus.COMMAND_REQUEST == "COMMAND_REQUEST"
 
     assert PipelineArtifactType.AGENT_ARTIFACT == "AGENT_ARTIFACT"
     assert PipelineArtifactType.HUMAN_GATE == "HUMAN_GATE"
@@ -62,6 +63,7 @@ def test_required_statuses_for_agent_gate_steps():
     for step_id in ("S2.3", "S2.5", "S2.7", "S2.9", "S5"):
         assert required_statuses_for_artifact(step_id, PipelineArtifactType.AGENT_ARTIFACT) == (
             PipelineReadinessStatus.PASS,
+            PipelineReadinessStatus.COMMAND_REQUEST,
         )
         assert status_satisfies_required_gate(
             PipelineReadinessStatus.PASS,

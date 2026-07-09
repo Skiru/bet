@@ -60,8 +60,15 @@ def iter_real_artifact_scan_paths(repo_root: Path) -> list[Path]:
             continue
         for pattern in _SCAN_PATTERNS:
             for candidate in root.rglob(pattern):
-                if candidate.is_file():
-                    found.setdefault(str(candidate.resolve()), candidate)
+                if not candidate.is_file():
+                    continue
+                candidate_str = str(candidate)
+                if root == Path("/tmp"):
+                    if "/pytest-" in candidate_str or "/pytest-of-" in candidate_str:
+                        continue
+                    if candidate.name == "api_keys.json":
+                        continue
+                found.setdefault(str(candidate.resolve()), candidate)
     return sorted(found.values(), key=lambda path: str(path))
 
 

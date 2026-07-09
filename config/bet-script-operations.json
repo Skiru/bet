@@ -108,6 +108,26 @@
       "environment_allowlist": [],
       "read_only": true,
       "idempotent": true
+    },
+    "git_preflight": {
+      "description": "Run git preflight commands",
+      "executable": "/opt/homebrew/bin/python3",
+      "script": "scripts/fixtures/bet-script-preflight.py",
+      "working_directory": ".",
+      "timeout_seconds": 120,
+      "max_stdout_bytes": 131072,
+      "max_stderr_bytes": 65536,
+      "allowed_arguments": {
+        "nonce": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9._:-]{1,64}$",
+          "required": false,
+          "description": "Bypass executor deduplication for explicit verification runs"
+        }
+      },
+      "environment_allowlist": [],
+      "read_only": true,
+      "idempotent": true
     }
   }
 }

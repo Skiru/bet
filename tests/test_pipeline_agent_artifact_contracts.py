@@ -26,7 +26,7 @@ def test_required_agent_output_contract():
         contract = required_agent_output_contract(step_id)
         assert contract["step_id"] == step_id
         assert contract["artifact_type"] == "AGENT_ARTIFACT"
-        assert contract["required_statuses"] == ["PASS", "BLOCK"]
+        assert contract["required_statuses"] == ["PASS", "BLOCK", "COMMAND_REQUEST"]
         assert isinstance(contract["schema_requirements"], dict)
 
     with pytest.raises(ValueError):
@@ -286,3 +286,25 @@ def test_s25_pass_rejects_provider_promotion_changes(tmp_path):
 
     errors = validate_agent_artifact_for_work_order(artifact, wo.to_jsonable())
     assert any("provider promotion or selection changes" in e for e in errors)
+
+
+def test_command_request_artifact_validation(tmp_path):
+    """Verify COMMAND_REQUEST artifacts validate when they contain a command_request."""
+    wo = build_agent_work_order(
+        betting_day="2026-06-25",
+        run_id="run-smoke",
+        step_id="S2.3",
+        runtime_mode="DRY_RUN",
+        base_dir=tmp_path,
+    )
+    
+    # Valid COMMAND_REQUEST
+    artifact = _build_base_artifact("S2.3", status="COMMAND_REQUEST")
+    artifact["command_request"] = "pytest tests/test_live_fixture_audit.py"
+    errors = validate_agent_artifact_for_work_order(artifact, wo.to_jsonable())
+    assert errors == []
+    
+    # Invalid COMMAND_REQUEST (missing command_request)
+    artifact_invalid = _build_base_artifact("S2.3", status="COMMAND_REQUEST")
+    errors_invalid = validate_agent_artifact_for_work_order(artifact_invalid, wo.to_jsonable())
+    assert any("COMMAND_REQUEST artifacts must contain a non-empty command_request" in e for e in errors_invalid)

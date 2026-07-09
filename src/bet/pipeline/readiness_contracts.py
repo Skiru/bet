@@ -16,6 +16,7 @@ class PipelineReadinessStatus(str, Enum):
     SKIPPED = "SKIPPED"
     HUMAN_APPROVED = "HUMAN_APPROVED"
     HUMAN_REJECTED = "HUMAN_REJECTED"
+    COMMAND_REQUEST = "COMMAND_REQUEST"
 
 
 class PipelineArtifactType(str, Enum):
@@ -102,7 +103,7 @@ def required_statuses_for_artifact(
 
     if step_id in {"S2.3", "S2.5", "S2.7", "S2.9", "S5"}:
         if artifact_type == PipelineArtifactType.AGENT_ARTIFACT:
-            return (PipelineReadinessStatus.PASS,)
+            return (PipelineReadinessStatus.PASS, PipelineReadinessStatus.COMMAND_REQUEST)
         return ()
 
     if step_id in {"S7", "S7b"}:

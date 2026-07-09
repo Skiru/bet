@@ -45,15 +45,18 @@ LINE_REQUIRED_MARKET_FAMILIES = frozenset({
     "SHOTS",
     "SHOTS_ON_TARGET",
 })
-BLOCKED_PROBABILITY_CONFIDENCES = frozenset({
+PARTIAL_PROBABILITY_CONFIDENCES = frozenset({"PARTIAL"})
+MINIMAL_HYDRATION_PROBABILITY_CONFIDENCES = frozenset({
     "BLOCKED",
     "LOW",
     "LOW_CONFIDENCE",
     "MINIMAL",
-    "PARTIAL",
     "UNKNOWN",
     "",
 })
+BLOCKED_PROBABILITY_CONFIDENCES = (
+    PARTIAL_PROBABILITY_CONFIDENCES | MINIMAL_HYDRATION_PROBABILITY_CONFIDENCES
+)
 _LINE_RE = re.compile(r"-?\d+(?:\.\d+)?")
 
 
@@ -134,6 +137,15 @@ def _has_known_as_of(*values: Any) -> bool:
         if normalized and normalized != "UNKNOWN":
             return True
     return False
+
+
+def _hydrated_confidence_gap_status(value: Any) -> str:
+    normalized = _normalized_text(value).upper()
+    if normalized in PARTIAL_PROBABILITY_CONFIDENCES:
+        return "REVIEW_ONLY_PARTIAL_DATA"
+    if normalized in MINIMAL_HYDRATION_PROBABILITY_CONFIDENCES:
+        return "RESEARCH_GAP_MINIMAL_HYDRATION"
+    return ""
 
 
 def _result_selection(value: Any, participants: list[str]) -> str:
@@ -251,7 +263,7 @@ def extract_market_semantics(
         market_family = "CORNERS"
         confidence = "HIGH" if provider_market_key else "MEDIUM"
         mapping_source = "provider_market_key" if provider_market_key else "market_label"
-    elif any(token in combined for token in ("goals total", "total goals", "goals_over/under", "over_under", "totals", "goals total o/u", "alternative_goal_line", "alternative_total_goals", "number_of_goals_in_match")):
+    elif any(token in combined for token in ("goals total", "total goals", "goals_over/under", "over_under", "totals", "goals total o/u", "alternative_goal_line", "alternative_total_goals", "number_of_goals_in_match", "games o/u", "games over/under", "total games", "total sets", "sets won", "sets o/u", "rebounds o/u", "points o/u", "assists o/u")):
         market_family = "GOALS_TOTALS"
         confidence = "HIGH" if provider_market_key else "MEDIUM"
         mapping_source = "provider_market_key" if provider_market_key else "market_label"
@@ -459,6 +471,21 @@ def derive_l10_series_for_market_family(
     }
     
     stat_key = stat_key_map.get(market_family)
+    sport = _normalized_text(stats_seed.get("sport")).lower()
+    
+    if sport == "tennis":
+        stat_key = "games_won"
+        combined_text = str(market_family).lower() + " " + str(stats_seed.get("best_market", {}).get("name", "")).lower() + " " + str(stats_seed.get("market_label", "")).lower() + " " + str(stats_seed.get("market", "")).lower()
+        if "set" in combined_text:
+            stat_key = "sets_won"
+    elif sport == "basketball":
+        stat_key = "points"
+        combined_text = str(market_family).lower() + " " + str(stats_seed.get("best_market", {}).get("name", "")).lower() + " " + str(stats_seed.get("market_label", "")).lower() + " " + str(stats_seed.get("market", "")).lower()
+        if "rebound" in combined_text:
+            stat_key = "rebounds"
+        elif "assist" in combined_text:
+            stat_key = "assists"
+
     if not stat_key:
         return [], [], None, "", "UNSUPPORTED_MARKET_FAMILY"
 
@@ -491,7 +518,10 @@ def derive_l10_series_for_market_family(
         l10_avg, aggregation_policy = _derive_summary_average(stats_a, stat_key)
         l5_avg = stats_a.get("l5_avg", {}).get(stat_key)
         if l10_avg is not None:
-            from normalize_stats import _synthesize_l10
+            try:
+                from normalize_stats import _synthesize_l10
+            except ImportError:
+                from scripts.normalize_stats import _synthesize_l10
             team_a_l10 = _synthesize_l10(l10_avg, l5_avg, seed_key=stats_a.get("team", "A"))
         elif aggregation_policy == "UNKNOWN_SPLIT_STAT_SEMANTICS":
             return [], [], None, aggregation_policy, aggregation_policy
@@ -500,7 +530,10 @@ def derive_l10_series_for_market_family(
         l10_avg, aggregation_policy_b = _derive_summary_average(stats_b, stat_key)
         l5_avg = stats_b.get("l5_avg", {}).get(stat_key)
         if l10_avg is not None:
-            from normalize_stats import _synthesize_l10
+            try:
+                from normalize_stats import _synthesize_l10
+            except ImportError:
+                from scripts.normalize_stats import _synthesize_l10
             team_b_l10 = _synthesize_l10(l10_avg, l5_avg, seed_key=stats_b.get("team", "B"))
             if aggregation_policy == "DIRECT_MATCH_SERIES":
                 aggregation_policy = aggregation_policy_b
@@ -635,6 +668,8 @@ def build_market_probability_input(candidate: dict[str, Any], stats_seed: dict[s
     source_provider = _normalized_text(
         stats_seed.get("source_provider")
         or candidate.get("source_provider")
+        or (stats_seed.get("best_market") or {}).get("source")
+        or stats_seed.get("source")
     )
 
     source_artifact_path = _normalized_text(
@@ -686,16 +721,16 @@ def build_market_probability_input(candidate: dict[str, Any], stats_seed: dict[s
     is_confidence_ok = probability_confidence not in BLOCKED_PROBABILITY_CONFIDENCES
     is_method_ok = (probability_method != "BOOKMAKER_IMPLIED_REFERENCE_ONLY")
 
-    if hydration_status == "PARTIAL_HYDRATION" or probability_confidence == "PARTIAL":
-        promotion_status = "REVIEW_ONLY_PARTIAL_DATA"
-    elif hydration_status == "MINIMAL_HYDRATION" or probability_confidence in {"BLOCKED", "LOW", "LOW_CONFIDENCE", "MINIMAL", "UNKNOWN", ""}:
-        promotion_status = "RESEARCH_GAP_MINIMAL_HYDRATION"
-    elif hydration_status == "DATA_UNAVAILABLE":
+    confidence_gap_status = _hydrated_confidence_gap_status(probability_confidence)
+
+    if hydration_status == "DATA_UNAVAILABLE":
         promotion_status = "BLOCKED_HYDRATION_FAILED"
-    elif hydration_status != "HYDRATED":
+    elif hydration_status != "HYDRATED" and hydration_status != "PARTIAL_HYDRATION" and hydration_status != "MINIMAL_HYDRATION":
         promotion_status = "BLOCKED_UNKNOWN_HYDRATION_STATUS"
-    elif is_exact_market_match and is_line_dir_ok and is_l10_valid and is_stat_semantics_ok and is_traceable and is_confidence_ok and is_method_ok:
+    elif hydration_status == "HYDRATED" and is_exact_market_match and is_line_dir_ok and is_l10_valid and is_stat_semantics_ok and is_traceable and is_confidence_ok and is_method_ok:
         promotion_status = "ANALYZABLE"
+    elif hydration_status == "HYDRATED" and is_exact_market_match and is_line_dir_ok and is_l10_valid and is_stat_semantics_ok and is_traceable and is_method_ok and confidence_gap_status:
+        promotion_status = confidence_gap_status
     else:
         promotion_status = "RESEARCH_GAP_MARKET_INPUT_NOT_BUILT"
 
@@ -807,6 +842,10 @@ def validate_market_probability_input(input_data: MarketProbabilityInput) -> tup
     if input_data.hydration_status != "HYDRATED":
         return False, input_data.hydration_status
 
+    confidence_gap_status = _hydrated_confidence_gap_status(input_data.probability_confidence)
+    if confidence_gap_status and input_data.promotion_status != "ANALYZABLE":
+        return False, confidence_gap_status
+
     if input_data.promotion_status != "ANALYZABLE":
         return False, input_data.promotion_status
 
@@ -823,7 +862,7 @@ def validate_market_probability_input(input_data: MarketProbabilityInput) -> tup
             return False, "INSUFFICIENT_SAMPLE_SIZE"
 
     if input_data.probability_confidence in BLOCKED_PROBABILITY_CONFIDENCES:
-        return False, "PROMOTION_CONFIDENCE_LOW_OR_MINIMAL"
+        return False, _hydrated_confidence_gap_status(input_data.probability_confidence) or "PROMOTION_CONFIDENCE_LOW_OR_MINIMAL"
 
     if input_data.stat_semantics_status == "UNKNOWN" or input_data.semantics_issue == "UNKNOWN_SPLIT_STAT_SEMANTICS" or "unknown_split_stat_semantics" in input_data.missing_fields:
         return False, "UNKNOWN_SPLIT_STAT_SEMANTICS"

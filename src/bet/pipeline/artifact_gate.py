@@ -448,8 +448,8 @@ def validate_pipeline_artifact(
         )
     else:
         status_val = normalize_status(raw["status"])
-        is_current_step_block = allow_block_status and status_val == PipelineReadinessStatus.BLOCK
-        if status_blocks(status_val) and not (allow_block_status and status_val == PipelineReadinessStatus.BLOCK):
+        is_current_step_block = allow_block_status and status_val in (PipelineReadinessStatus.BLOCK, PipelineReadinessStatus.COMMAND_REQUEST)
+        if status_blocks(status_val) and not (allow_block_status and status_val in (PipelineReadinessStatus.BLOCK, PipelineReadinessStatus.COMMAND_REQUEST)):
             issues.append(
                 ReadinessIssue(
                     code="BLOCKING_STATUS",

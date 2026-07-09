@@ -109,7 +109,7 @@ def evaluate_candidate_analyzability(
         analyzability_status = "UNSUPPORTED_MARKET_FAMILY"
 
     # Sport validation
-    elif sport != "football":
+    elif sport not in {"football", "volleyball", "basketball", "tennis", "hockey", "cs2", "dota2", "valorant"}:
         blocker_reasons.append("UNSUPPORTED_SPORT")
         analyzability_status = "UNSUPPORTED_MARKET_FAMILY"
 

@@ -470,7 +470,7 @@ def build_agent_work_order(
         artifact_type="AGENT_ARTIFACT",
         step_id=step_id,
         expected_path=str(expected_path),
-        required_statuses=["PASS", "BLOCK"],
+        required_statuses=["PASS", "BLOCK", "COMMAND_REQUEST"],
         schema_requirements=policy.schema_requirements,
     )
     
