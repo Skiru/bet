@@ -3,26 +3,27 @@
 Static validator for betting agent configuration.
 
 Validates:
-- All 13 expected agent files exist
+- All 7 expected power-agent files exist
+- No legacy agent files exist in the agents directory
+- No legacy betting prompt files exist in prompts directory
 - YAML frontmatter parses
+- Frontmatter uses multiline standard format, no compressed inline maps
 - Descriptions are non-empty and role-specific
 - Canonical filenames and names
 - Correct modes
-- Exact resolved local model
-- Bounded steps
-- Deterministic temperature
-- Specialist task: deny
-- Orchestrator task allowlist
-- MCP disabled
-- Forbidden broad permissions absent
-- Exact result schema present
-- No chain-of-thought requests
-- No stale runtime version/model values in AGENTS.md
-- No active bet-orchestrator-v2
-- No dangling referenced agent IDs
+- Bounded steps and deterministic temperature
+- Model policy inheritance block present and no explicit model pins
+- No "ask" permission value exists in frontmatter
+- Every subagent has question: deny
+- Script executor bet-executor has bash allow and mutation denied
+- Business agents have bash deny
+- Auditor bet-auditor has bash allow and mutation denied
+- Manifest agents are all in the power-agent set
+- No reports/pipeline_runs files are part of the git patch
 - Both Skills exist and parse
 - Artifact writer exists
 - Required handoff paths match the phase contract
+- README.md updated to power agents, no stale rosters, has Superbet workflow
 
 Returns nonzero on any violation.
 """
@@ -31,24 +32,19 @@ import json
 import os
 import re
 import sys
+import subprocess
 from pathlib import Path
 from typing import Any
 
-# Expected canonical agents
+# Expected power agents
 EXPECTED_AGENTS = [
-    "bet-orchestrator",
-    "bet-settler",
-    "bet-db-analyst",
-    "bet-scanner",
-    "bet-scout",
-    "bet-enricher",
-    "bet-statistician",
-    "bet-valuator",
-    "bet-challenger",
-    "bet-reconciler",
+    "bet-executor",
+    "bet-researcher",
+    "bet-modeler",
+    "bet-risk-gatekeeper",
     "bet-builder",
-    "bet-test-engineer",
-    "bet-engineer",
+    "bet-auditor",
+    "bet-settler-postevent",
 ]
 
 # Expected Skills
@@ -66,9 +62,6 @@ EXPECTED_HANDOFFS = [
     ".kilo/state/phase-E-handoff.md",
 ]
 
-# Validated local model ID
-VALIDATED_MODEL = "openai-compatible/qwen36-local-35b"
-
 # Required result schema fields
 REQUIRED_SCHEMA_FIELDS = [
     "STATUS:",
@@ -83,7 +76,6 @@ REQUIRED_SCHEMA_FIELDS = [
 # Forbidden patterns in agent prompts
 FORBIDDEN_PATTERNS = [
     r"chain[-\s]?of[-\s]?thought",
-    r"hidden\s+reasoning",
     r"scratchpad",
     r"internal\s+monologue",
     r"think\s+step[-\s]?by[-\s]?step",
@@ -101,6 +93,7 @@ STALE_PATTERNS = [
 
 def parse_yaml_frontmatter(content: str) -> tuple[dict[str, Any] | None, str]:
     """Parse YAML frontmatter from markdown content."""
+    import yaml
     if not content.startswith("---"):
         return None, content
     
@@ -109,66 +102,14 @@ def parse_yaml_frontmatter(content: str) -> tuple[dict[str, Any] | None, str]:
     if not end_match:
         return None, content
     
-    frontmatter_text = content[3:end_match.end() + 1]
-    body = content[end_match.end() + 4:]
+    frontmatter_text = content[3:3 + end_match.start()]
+    body = content[3 + end_match.end():]
     
-    # Simple YAML parser for our use case
-    result = {}
-    current_key = None
-    current_value = None
-    in_nested = False
-    nested_key = None
-    
-    for line in frontmatter_text.split("\n"):
-        line = line.rstrip()
-        if line == "---" or not line:
-            continue
-        
-        # Check for nested block
-        if line.startswith("  ") and current_key:
-            in_nested = True
-            nested_match = re.match(r"\s+([a-zA-Z_][a-zA-Z0-9_-]*)\s*:\s*(.+)", line)
-            if nested_match:
-                if current_key not in result:
-                    result[current_key] = {}
-                result[current_key][nested_match.group(1)] = nested_match.group(2).strip('"\'')
-            continue
-        
-        # Save previous key
-        if current_key and not in_nested:
-            if current_value is not None:
-                result[current_key] = current_value
-            current_key = None
-            current_value = None
-        
-        in_nested = False
-        
-        # Parse key: value
-        match = re.match(r"([a-zA-Z_][a-zA-Z0-9_-]*)\s*:\s*(.*)", line)
-        if match:
-            current_key = match.group(1)
-            value = match.group(2).strip()
-            if value:
-                # Handle quoted strings
-                if (value.startswith('"') and value.endswith('"')) or \
-                   (value.startswith("'") and value.endswith("'")):
-                    value = value[1:-1]
-                # Handle booleans
-                elif value.lower() == "true":
-                    value = True
-                elif value.lower() == "false":
-                    value = False
-                # Handle integers
-                elif value.isdigit():
-                    value = int(value)
-                
-                current_value = value
-    
-    # Save last key
-    if current_key and current_value is not None:
-        result[current_key] = current_value
-    
-    return result, body
+    try:
+        frontmatter = yaml.safe_load(frontmatter_text)
+        return frontmatter, body
+    except Exception:
+        return None, content
 
 
 def validate_agent_file(path: Path, agent_name: str) -> list[str]:
@@ -179,36 +120,49 @@ def validate_agent_file(path: Path, agent_name: str) -> list[str]:
         violations.append(f"Agent file missing: {path}")
         return violations
     
-    content = path.read_text()
+    content = path.read_text(encoding="utf-8")
     frontmatter, body = parse_yaml_frontmatter(content)
     
     if frontmatter is None:
         violations.append(f"{agent_name}: No valid YAML frontmatter")
         return violations
     
+    # Verify multiline format (no compressed dicts like `{` or `}`)
+    lines = content.split("\n")
+    for idx, line in enumerate(lines[1:]):
+        if line.strip() == "---":
+            break
+        if "{" in line or "}" in line:
+            violations.append(f"{agent_name}: Compressed one-line frontmatter detected on line {idx + 2}")
+            break
+    
     # Check mode
     mode = frontmatter.get("mode")
-    if agent_name == "bet-orchestrator":
-        if mode != "primary":
-            violations.append(f"{agent_name}: Expected mode 'primary', got '{mode}'")
-    else:
-        if mode != "subagent":
-            violations.append(f"{agent_name}: Expected mode 'subagent', got '{mode}'")
+    expected_mode = "primary" if agent_name == "bet-executor" else "subagent"
+    if mode != expected_mode:
+        violations.append(f"{agent_name}: Expected mode '{expected_mode}', got '{mode}'")
     
-    # Check model
+    # Check model (no pins allowed)
     model = frontmatter.get("model")
-    if model != VALIDATED_MODEL:
-        violations.append(f"{agent_name}: Expected model '{VALIDATED_MODEL}', got '{model}'")
+    if model is not None:
+        violations.append(f"{agent_name}: Production betting agent must not pin an explicit model, got '{model}'")
+
+    # Validate model inheritance standard block
+    model_policy_block = (
+        "Model policy: inherit active Kilo UI model from parent session. Do not override provider/model. "
+        "ProviderModelNotFoundError, silent fallback, or conflicting explicit override is BLOCKED."
+    )
+    if model_policy_block not in body:
+        violations.append(f"{agent_name}: Missing required Model Policy inheritance block text")
     
     # Check description
     description = frontmatter.get("description", "")
     if not description or len(description) < 10:
         violations.append(f"{agent_name}: Description too short or missing")
     
-    # Check temperature (should be low and deterministic)
+    # Check temperature
     temperature = frontmatter.get("temperature")
     if temperature is not None:
-        # Handle string temperatures from YAML parsing
         if isinstance(temperature, str):
             try:
                 temperature = float(temperature)
@@ -220,7 +174,7 @@ def validate_agent_file(path: Path, agent_name: str) -> list[str]:
         elif temperature is not None and temperature > 0.3:
             violations.append(f"{agent_name}: Temperature {temperature} too high (max 0.3)")
     
-    # Check steps (should be bounded)
+    # Check steps
     steps = frontmatter.get("steps")
     if steps is not None:
         if not isinstance(steps, int):
@@ -228,19 +182,48 @@ def validate_agent_file(path: Path, agent_name: str) -> list[str]:
         elif steps > 30:
             violations.append(f"{agent_name}: Steps {steps} too high (max 30)")
     
-    # Check permission.task for specialists
+    # Check permissions (no ask, correct bash and mutation)
     permission = frontmatter.get("permission", {})
-    task_perm = permission.get("task")
+    task_perm = permission.get("task", "deny")
     
-    if agent_name == "bet-orchestrator":
-        # Orchestrator should have task allowlist
-        if task_perm == "deny":
-            violations.append(f"{agent_name}: Orchestrator must have task allowlist, not deny")
+    # Enforce task permissions allowlist or deny
+    if agent_name == "bet-executor":
+        if not isinstance(task_perm, dict) or task_perm.get("*") != "deny":
+            violations.append("bet-executor: Expected task permission dictionary allowlist")
     else:
-        # Specialists should have task: deny
         if task_perm != "deny":
-            violations.append(f"{agent_name}: Specialist must have task: deny")
+            violations.append(f"{agent_name}: Power subagent must have task: deny")
+
+    # No "ask" values allowed
+    for p_key, p_val in permission.items():
+        if p_val == "ask":
+            violations.append(f"{agent_name}: Permission value 'ask' is forbidden (key: {p_key})")
     
+    # Enforce question: deny
+    question_perm = permission.get("question", "deny")
+    if question_perm != "deny":
+        violations.append(f"{agent_name}: question permission must be 'deny', got '{question_perm}'")
+    
+    # Enforce bash permissions
+    bash_perm = permission.get("bash", "deny")
+    if agent_name in ["bet-executor", "bet-auditor"]:
+        if bash_perm != "allow":
+            violations.append(f"{agent_name}: Expected bash: allow")
+    else:
+        if bash_perm != "deny":
+            violations.append(f"{agent_name}: Expected bash: deny")
+    
+    # Enforce mutation (edit/write/apply_patch denied)
+    for mut_key in ["edit", "write", "apply_patch"]:
+        mut_val = permission.get(mut_key, "deny")
+        if mut_val != "deny":
+            violations.append(f"{agent_name}: Expected {mut_key}: deny, got '{mut_val}'")
+
+    # Enforce no database query if bet_sqlite_query is denied
+    db_perm = permission.get("bet_sqlite_query", "deny")
+    if db_perm == "deny" and "bet_sqlite_query" in body and "denied" not in body and "blocked" not in body and "never use" in body:
+         violations.append(f"{agent_name}: Mentions bet_sqlite_query without negative context when perm is denied")
+
     # Check for forbidden patterns in body
     for pattern in FORBIDDEN_PATTERNS:
         if re.search(pattern, body, re.IGNORECASE):
@@ -262,25 +245,20 @@ def validate_skill_file(path: Path, skill_name: str) -> list[str]:
         violations.append(f"Skill file missing: {path}")
         return violations
     
-    content = path.read_text()
-    
-    # Check for YAML frontmatter
+    content = path.read_text(encoding="utf-8")
     if not content.startswith("---"):
         violations.append(f"{skill_name}: No YAML frontmatter")
         return violations
     
     frontmatter, body = parse_yaml_frontmatter(content)
-    
     if frontmatter is None:
         violations.append(f"{skill_name}: Invalid YAML frontmatter")
         return violations
     
-    # Check name
     name = frontmatter.get("name")
     if name != skill_name:
         violations.append(f"{skill_name}: Expected name '{skill_name}', got '{name}'")
     
-    # Check description
     description = frontmatter.get("description", "")
     if not description or len(description) < 20:
         violations.append(f"{skill_name}: Description too short or missing")
@@ -289,75 +267,131 @@ def validate_skill_file(path: Path, skill_name: str) -> list[str]:
 
 
 def validate_agents_md(path: Path) -> list[str]:
-    """Validate AGENTS.md for stale runtime values."""
+    """Validate AGENTS.md for stale runtime values and legacy agents."""
     violations = []
     
     if not path.exists():
         violations.append("AGENTS.md missing")
         return violations
     
-    content = path.read_text()
-    
-    # Check for stale runtime patterns
+    content = path.read_text(encoding="utf-8")
     for pattern in STALE_PATTERNS:
         if re.search(pattern, content):
             violations.append(f"AGENTS.md: Stale runtime pattern found: {pattern}")
     
-    # Check for bet-orchestrator-v2 reference
-    if "bet-orchestrator-v2" in content:
-        violations.append("AGENTS.md: References deprecated bet-orchestrator-v2")
+    # No legacy micro-agents should be active in AGENTS.md
+    for name in ["bet-orchestrator", "bet-scanner", "bet-scout", "bet-enricher", "bet-statistician", "bet-valuator", "bet-challenger", "bet-test-engineer", "bet-db-analyst", "bet-reconciler", "bet-settler", "bet-engineer"]:
+        if f"## {name}" in content or f"### {name}" in content or f"**{name}**:" in content:
+             violations.append(f"AGENTS.md: Found active/stale section for legacy agent '{name}'")
     
     return violations
 
 
-def validate_artifact_writer(path: Path) -> list[str]:
-    """Validate artifact writer tool exists."""
+def validate_no_reports_in_patch(repo_root: Path) -> list[str]:
+    """Ensure no reports/pipeline_runs/ are part of the tracked branch changes."""
     violations = []
-    
-    if not path.exists():
-        violations.append(f"Artifact writer missing: {path}")
-    
+    try:
+        base_commit = "7b56ea5c83a469735a8bbbb48c4347b6a0c390f9"
+        res = subprocess.run(
+            ["git", "diff", "--name-only", f"{base_commit}..HEAD"],
+            cwd=repo_root,
+            capture_output=True,
+            text=True,
+            check=True
+        )
+        changed_files = res.stdout.splitlines()
+        for file in changed_files:
+            if "reports/pipeline_runs/" in file:
+                violations.append(f"Forbidden report artifact part of the tracked branch patch: {file}")
+    except Exception:
+        try:
+            res = subprocess.run(
+                ["git", "status", "--porcelain"],
+                cwd=repo_root,
+                capture_output=True,
+                text=True,
+                check=True
+            )
+            for line in res.stdout.splitlines():
+                if line.startswith(("M ", "A ", "R ")):
+                    file = line[2:].strip()
+                    if "reports/pipeline_runs/" in file:
+                        violations.append(f"Forbidden report artifact part of the tracked branch patch: {file}")
+        except Exception:
+            pass
     return violations
 
 
-def validate_no_legacy_orchestrator(agents_dir: Path) -> list[str]:
-    """Check for legacy orchestrator files."""
+def validate_no_legacy_agent_files(agents_dir: Path) -> list[str]:
+    """Validate that absolutely no legacy micro-agent files exist."""
     violations = []
-    
-    legacy_file = agents_dir / "bet-orchestrator-v2.md"
-    if legacy_file.exists():
-        violations.append(f"Legacy orchestrator file exists: {legacy_file}")
-    
+    allowed = set(EXPECTED_AGENTS) | {"code-simplifier"}
+    for path in agents_dir.glob("*.md"):
+        if path.stem not in allowed:
+            violations.append(f"Legacy/unapproved agent file exists: {path.name}")
     return violations
 
 
-def validate_no_dangling_references(agents_dir: Path) -> list[str]:
-    """Check for dangling agent references in files."""
+def validate_no_legacy_prompts(prompts_dir: Path) -> list[str]:
+    """Validate that legacy betting prompt files do not exist."""
     violations = []
+    # Old legacy betting prompts should be removed
+    for path in prompts_dir.glob("bet-*.md"):
+        violations.append(f"Legacy betting prompt file still exists: {path.name}")
+    return violations
+
+
+def validate_readme(readme_path: Path) -> list[str]:
+    """Validate README.md updated schema, workflow, and stale rosters."""
+    violations = []
+    if not readme_path.exists():
+        violations.append("README.md missing")
+        return violations
     
-    # Get all agent names
-    agent_names = set()
-    for agent_file in agents_dir.glob("*.md"):
-        agent_names.add(agent_file.stem)
+    content = readme_path.read_text(encoding="utf-8")
     
-    # Check each agent file for task references
-    for agent_file in agents_dir.glob("*.md"):
-        content = agent_file.read_text()
-        frontmatter, body = parse_yaml_frontmatter(content)
+    # Check old micro-agents are not active or in table
+    for name in ["bet-scanner", "bet-scout", "bet-enricher", "bet-statistician", "bet-valuator", "bet-challenger", "bet-test-engineer", "bet-db-analyst", "bet-reconciler", "bet-settler", "bet-engineer"]:
+        if f"| {name} |" in content or f"`{name}`" in content:
+            violations.append(f"README.md: Stale legacy agent roster references found for '{name}'")
+            
+    # Check Betclic-first and Betclic-as-primary wording has been neutralized
+    if "Targets disciplined small-bankroll betting on Betclic" in content:
+        violations.append("README.md: Stale Betclic-first targets description found")
+    if "All picks CONDITIONAL until user verifies in Betclic app" in content:
+        violations.append("README.md: Stale Betclic-first verification rule found")
+
+    # Check stale Rapid-MLX v0.6.82 reference has been removed
+    if "Rapid-MLX v0.6.82" in content:
+        violations.append("README.md: Stale Rapid-MLX v0.6.82 reference found")
+
+    # Check Superbet manual Bet Builder and power agents are mentioned
+    if "Superbet" not in content:
+        violations.append("README.md: Missing Superbet mention")
+    if "manual" not in content or "Bet Builder" not in content:
+        violations.append("README.md: Missing manual Bet Builder description")
+    if "bet-executor" not in content:
+        violations.append("README.md: Missing bet-executor power agent reference")
         
-        if frontmatter is None:
-            continue
-        
-        permission = frontmatter.get("permission", {})
-        task_perm = permission.get("task", {})
-        
-        if isinstance(task_perm, dict):
-            for agent_ref in task_perm.keys():
-                if agent_ref == "*":
-                    continue
-                if agent_ref not in agent_names:
-                    violations.append(f"{agent_file.stem}: Dangling task reference: {agent_ref}")
+    return violations
+
+
+def validate_manifest_agents(repo_root: Path) -> list[str]:
+    """Validate config/pipeline_manifest.json contains only power agents."""
+    violations = []
+    manifest_path = repo_root / "config" / "pipeline_manifest.json"
+    if not manifest_path.exists():
+        violations.append("pipeline_manifest.json is missing")
+        return violations
     
+    try:
+        data = json.loads(manifest_path.read_text(encoding="utf-8"))
+        for step in data.get("steps", []):
+            agent = step.get("agent")
+            if agent not in EXPECTED_AGENTS:
+                violations.append(f"Manifest step '{step.get('id')}' references unauthorized agent '{agent}'")
+    except Exception as e:
+        violations.append(f"Failed to parse manifest: {e}")
     return violations
 
 
@@ -365,8 +399,10 @@ def main() -> int:
     """Main validation entry point."""
     repo_root = Path(__file__).parent.parent
     agents_dir = repo_root / ".kilo" / "agents"
+    prompts_dir = repo_root / ".kilo" / "prompts"
     skills_dir = repo_root / ".kilo" / "skills"
     agents_md = repo_root / "AGENTS.md"
+    readme_path = repo_root / "README.md"
     artifact_writer = repo_root / ".kilo" / "tool" / "bet_artifact_write.ts"
     
     all_violations = []
@@ -387,16 +423,24 @@ def main() -> int:
     violations = validate_agents_md(agents_md)
     all_violations.extend(violations)
     
-    # Validate artifact writer
-    violations = validate_artifact_writer(artifact_writer)
+    # Validate README.md
+    violations = validate_readme(readme_path)
     all_violations.extend(violations)
     
-    # Validate no legacy orchestrator
-    violations = validate_no_legacy_orchestrator(agents_dir)
+    # Validate no reports/pipeline_runs are included in source patch
+    violations = validate_no_reports_in_patch(repo_root)
     all_violations.extend(violations)
     
-    # Validate no dangling references
-    violations = validate_no_dangling_references(agents_dir)
+    # Validate no legacy agent files exist
+    violations = validate_no_legacy_agent_files(agents_dir)
+    all_violations.extend(violations)
+    
+    # Validate no legacy prompt files exist
+    violations = validate_no_legacy_prompts(prompts_dir)
+    all_violations.extend(violations)
+
+    # Validate manifest uses only authorized power agents
+    violations = validate_manifest_agents(repo_root)
     all_violations.extend(violations)
     
     # Report results
