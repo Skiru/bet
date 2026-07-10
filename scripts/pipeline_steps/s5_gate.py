@@ -897,7 +897,9 @@ def main() -> None:
         except SystemExit:
             raise
         except Exception as e:
+            import traceback
             print(f"WARNING: Exception in pre-S7 live session universe check: {e}")
+            traceback.print_exc()
 
     original_run = subprocess.run
 

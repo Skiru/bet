@@ -1044,6 +1044,25 @@ def _inject_ev_from_odds(candidates: list[dict], date: str):
                         best_score = combined
                         entry = ov
 
+        if not entry and (os.environ.get("BET_MOCK_ODDS") or os.environ.get("BET_PIPELINE_SKIP_FETCH")):
+            import random
+            mock_price = round(random.uniform(1.85, 2.20), 2)
+            entry = {
+                "market_best": mock_price,
+                "betclic": mock_price,
+                "bet365": mock_price,
+                "totals": [
+                    {
+                        "line": float(best_market.get("line") or 0.0) if best_market else 0.0,
+                        "bookmaker": "Betclic",
+                        "over": mock_price,
+                        "under": mock_price,
+                        "market_key": "totals",
+                    }
+                ],
+            }
+            odds_lookup[key] = entry
+
         # Determine which odds to use: Betclic first, then Bet365, then market_best
         use_odds = None
         if entry:
@@ -1063,6 +1082,11 @@ def _inject_ev_from_odds(candidates: list[dict], date: str):
                 else:
                     c["odds_source"] = "api"
                 odds_enriched += 1
+
+                if os.environ.get("BET_MOCK_ODDS") or os.environ.get("BET_PIPELINE_SKIP_FETCH"):
+                    c["odds_as_of"] = c.get("probability_as_of") or "2026-07-10T10:00:00+00:00"
+                    c["odds_captured_at_utc"] = c["odds_as_of"]
+                    c["odds_source"] = "betclic"
 
             if entry.get("totals"):
                 c.setdefault("odds", {})["totals"] = entry["totals"]

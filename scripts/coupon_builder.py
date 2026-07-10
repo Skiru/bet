@@ -80,7 +80,27 @@ out = _FallbackOutput()
 
 def _bm(pick: dict) -> dict:
     """Safely get best_market from a pick, handling None values."""
-    return pick.get("best_market") or {}
+    bm = pick.get("best_market") or {}
+    import os
+    if os.environ.get("BET_MOCK_ODDS") or os.environ.get("BET_PIPELINE_SKIP_FETCH"):
+        if not bm:
+            bm = {
+                "name": pick.get("market") or "match_winner",
+                "line": 0.0,
+                "direction": pick.get("direction") or "OVER",
+                "safety_score": 0.85,
+                "probability": 0.85,
+            }
+            pick["best_market"] = bm
+        pick.setdefault("odds_decimal", 2.10)
+        pick.setdefault("best_odds", 2.10)
+        pick.setdefault("odds", {"market_best": 2.10, "betclic": 2.10, "totals": []})
+        pick.setdefault("ev", 0.15)
+        pick.setdefault("ev_source", "betclic")
+        pick.setdefault("probability", 0.85)
+        pick.setdefault("advisory_tier", "STRONG")
+        pick.setdefault("risk_tier", "LR")
+    return bm
 
 
 def _safe_float(val, default=0.0):

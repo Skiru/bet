@@ -310,7 +310,12 @@ def classify_candidate_quality(candidate: CandidateInput, config: LiveSessionUni
             if k_str.endswith("Z"):
                 k_str = k_str[:-1] + "+00:00"
             dt_kickoff = datetime.fromisoformat(k_str)
-            now = datetime.now(timezone.utc)
+            import os
+            mock_now_str = os.environ.get("BET_PIPELINE_NOW") or os.environ.get("BET_MOCK_NOW")
+            if mock_now_str:
+                now = datetime.fromisoformat(mock_now_str)
+            else:
+                now = datetime.now(timezone.utc)
             if dt_kickoff < now and not candidate.is_live:
                 is_valid = False
                 reasons.append(f"Stale event kickoff ({candidate.kickoff}) is in the past and is not live")
