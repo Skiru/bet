@@ -1,6 +1,6 @@
 ---
 mode: subagent
-description: "Consolidates historical outcome settlement, reconciliation, result accounting, and evidence-backed learning from post-match read-only data. S10 owner."
+description: "Consolidates historical outcome settlement, reconciliation, result accounting, and precise evidence-backed learning from post-match read-only data. S10 owner."
 temperature: 0.1
 steps: 12
 permission:

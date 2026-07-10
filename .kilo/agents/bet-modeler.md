@@ -1,6 +1,6 @@
 ---
 mode: subagent
-description: "Consolidates statistical analysis, probability modeling, fair odds pricing, expected value (EV) estimation, and Kelly criterion stake sizing. S3/S4 business owner."
+description: "Consolidates statistical analysis, probability modeling, fair odds pricing, expected value (EV) estimation, and rigorous Kelly criterion stake sizing. S3/S4 business owner."
 temperature: 0.1
 steps: 15
 permission:

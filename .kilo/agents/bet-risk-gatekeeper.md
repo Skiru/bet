@@ -1,6 +1,6 @@
 ---
 mode: subagent
-description: "Consolidates context checking, portfolio repeats validation, hard gate approval checking, and human execution gates. S5/S6/S7 owner."
+description: "Consolidates context checking, portfolio repeats validation, hard gate approval checking, and secure human execution gates. S5/S6/S7 owner."
 temperature: 0.1
 steps: 12
 permission:

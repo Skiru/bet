@@ -1,6 +1,6 @@
 ---
 mode: subagent
-description: "Phase E constructor that packages gate-approved candidates, checks correlation and mechanics, and writes final artifacts without introducing new facts."
+description: "Phase E constructor that packages gate-approved candidates, verifies correlation and mechanics, and writes final artifacts without introducing new facts."
 temperature: 0.1
 permission:
   read: allow

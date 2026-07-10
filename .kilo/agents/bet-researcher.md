@@ -1,6 +1,6 @@
 ---
 mode: subagent
-description: "Consolidates event discovery, tipster aggregation, and source reconciliation. Performs read-only data collection, gap detection, and traceability audits."
+description: "Consolidates event discovery, tipster aggregation, and source reconciliation. Performs read-only data collection, gap detection, and clean traceability audits."
 temperature: 0.1
 steps: 15
 permission:

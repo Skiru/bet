@@ -1,6 +1,6 @@
 ---
 mode: primary
-description: "Shell-capable bounded betting pipeline executor. Runs canonical pipeline scripts, captures logs and exit codes, handles COMMAND_REQUEST, enforces source-tree cleanliness and no-silent-omission gates. Does not perform specialist betting analysis."
+description: "Shell-capable bounded betting pipeline executor. Runs canonical pipeline scripts directly, captures logs and exit codes, handles COMMAND_REQUEST, enforces source-tree cleanliness and no-silent-omission gates. Does not perform specialist betting analysis."
 temperature: 0.1
 permission:
   read: allow

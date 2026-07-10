@@ -1,6 +1,6 @@
 ---
 mode: subagent
-description: "Consolidated validation auditor. Performs independent checks on artifacts, database integrity, business rules, continuation gates, and focused regression tests. S7b owner."
+description: "Consolidated validation auditor. Performs independent checks on artifacts, database integrity, business rules, continuation gates, and clean focused regression tests. S7b owner."
 temperature: 0.05
 steps: 12
 permission:
