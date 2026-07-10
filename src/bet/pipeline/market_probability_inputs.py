@@ -475,12 +475,12 @@ def derive_l10_series_for_market_family(
     
     if sport == "tennis":
         stat_key = "games_won"
-        combined_text = str(market_family).lower() + " " + str(stats_seed.get("best_market", {}).get("name", "")).lower() + " " + str(stats_seed.get("market_label", "")).lower() + " " + str(stats_seed.get("market", "")).lower()
+        combined_text = str(market_family).lower() + " " + str((stats_seed.get("best_market") or {}).get("name", "")).lower() + " " + str(stats_seed.get("market_label", "")).lower() + " " + str(stats_seed.get("market", "")).lower()
         if "set" in combined_text:
             stat_key = "sets_won"
     elif sport == "basketball":
         stat_key = "points"
-        combined_text = str(market_family).lower() + " " + str(stats_seed.get("best_market", {}).get("name", "")).lower() + " " + str(stats_seed.get("market_label", "")).lower() + " " + str(stats_seed.get("market", "")).lower()
+        combined_text = str(market_family).lower() + " " + str((stats_seed.get("best_market") or {}).get("name", "")).lower() + " " + str(stats_seed.get("market_label", "")).lower() + " " + str(stats_seed.get("market", "")).lower()
         if "rebound" in combined_text:
             stat_key = "rebounds"
         elif "assist" in combined_text:

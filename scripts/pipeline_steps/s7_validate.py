@@ -252,7 +252,7 @@ def main() -> None:
                 additions.extend(["--output", str(expected_json_output)])
             if mode != RuntimeMode.PRODUCTION and "--no-db" not in cmd:
                 additions.append("--no-db")
-            if args.allow_live_network and "--allow-live-network" not in cmd:
+            if args.allow_live_network and "--allow-live-network" not in cmd and not os.environ.get("BET_MOCK_ODDS"):
                 additions.append("--allow-live-network")
             cmd = [*cmd, *additions]
         return original_run(cmd, *run_args, **run_kwargs)

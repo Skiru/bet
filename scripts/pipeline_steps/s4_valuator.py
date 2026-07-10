@@ -204,16 +204,20 @@ def main() -> None:
         sys.exit(1)
 
     # Step 1: Run fetch_odds_multi.py
-    rc_fetch = run_scripts(
-        ["fetch_odds_multi.py"],
-        date=None,
-        dry_run=args.dry_run,
-        allow_write=args.allow_write,
-        runtime_mode=args.runtime_mode,
-        betting_day=args.date,
-        run_id=args.run_id,
-        allow_live_network=args.allow_live_network,
-    )
+    if os.environ.get("BET_MOCK_ODDS") or os.environ.get("BET_PIPELINE_SKIP_FETCH"):
+        rc_fetch = 0
+        print("Bypassing fetch_odds_multi.py because BET_MOCK_ODDS is enabled.")
+    else:
+        rc_fetch = run_scripts(
+            ["fetch_odds_multi.py"],
+            date=None,
+            dry_run=args.dry_run,
+            allow_write=args.allow_write,
+            runtime_mode=args.runtime_mode,
+            betting_day=args.date,
+            run_id=args.run_id,
+            allow_live_network=args.allow_live_network,
+        )
 
     if rc_fetch not in (0, 1):
         _write(
