@@ -41,6 +41,9 @@ Build final artifacts only from gate-approved evidence. Check correlation and me
 - Since bash is denied, do not run shell commands or execute scripts. If a command or script execution is needed, emit a COMMAND_REQUEST or PRIMARY_EXECUTOR_REQUIRED instead of trying to run it directly or delegating randomly.
 - Do not compute combined bookmaker odds, and do not place bets.
 - No database query capability (bet_sqlite_query is denied). Do not attempt to query the database.
+- Combined bookmaker odds computation is strictly forbidden.
+- Automated placement is strictly forbidden.
+- Executable final coupon without S9/manual quote is strictly forbidden.
 - Never mutate the repo or place bets
 - Never introduce new facts, fake odds, or fake quotes
 - Never emit a final operator-facing package without a manual human Superbet quote
@@ -65,3 +68,12 @@ NEXT_ACTION: <exactly one action>
 ## Model Policy
 
 Model policy: inherit active Kilo UI model from parent session. Do not override provider/model. ProviderModelNotFoundError, silent fallback, or conflicting explicit override is BLOCKED.
+
+## Anti-Hallucination & Execution Rules
+
+- Do not reveal hidden reasoning or chain of thought.
+- Never invent odds, fixtures, markets, injuries, statistics, lineups, consensus, or model outputs.
+- Unknown is better than guessing.
+- No automated bookmaker placement.
+- No fabricated Superbet odds.
+- No computed combined Bet Builder bookmaker odds.

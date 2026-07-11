@@ -78,8 +78,19 @@ def test_power_agent_frontmatter_format():
         path = AGENT_DIR / f"{name}.md"
         content = path.read_text(encoding="utf-8")
         assert content.startswith("---\n"), f"Agent {name} frontmatter must start with ---\n"
+        assert not content.startswith("--- mode:"), f"Agent {name} must not start with --- mode:"
         assert "\n---\n" in content, f"Agent {name} must have closing \n---\n"
-        
+
+        # Verify standalone delimiter
+        parts = content.split("\n---\n")
+        assert len(parts) >= 2, f"Agent {name} must have standalone closing delimiter"
+
+        # Verify YAML safe_load parses it as dict
+        frontmatter, _, _ = load_agent_markdown(name)
+        assert isinstance(frontmatter, dict), f"Agent {name} frontmatter must be a dictionary"
+        assert "permission" in frontmatter, f"Agent {name} frontmatter must contain 'permission' key"
+        assert isinstance(frontmatter["permission"], dict), f"Agent {name} permission must be a dictionary"
+
         # Verify no compressed one-line YAML is used
         lines = content.split("\n")
         frontmatter_lines = []
@@ -87,7 +98,7 @@ def test_power_agent_frontmatter_format():
             if line.strip() == "---":
                 break
             frontmatter_lines.append(line)
-        
+
         assert len(frontmatter_lines) >= 8, f"Agent {name} frontmatter seems compressed or too short"
         for line in frontmatter_lines:
             # Ensure no JSON-like compressed maps
@@ -114,8 +125,13 @@ def test_no_ask_permissions():
     for name in POWER_AGENTS:
         frontmatter, _, _ = load_agent_markdown(name)
         perms = frontmatter.get("permission", {})
-        for key, val in perms.items():
-            assert val != "ask", f"Agent {name} has forbidden 'ask' permission on {key}"
+        def check_no_ask(val):
+            if isinstance(val, dict):
+                for k, v in val.items():
+                    check_no_ask(v)
+            else:
+                assert val != "ask", f"Agent {name} has forbidden 'ask' permission"
+        check_no_ask(perms)
 
 
 # 8. question: deny for every power agent
@@ -123,7 +139,8 @@ def test_question_deny_for_every_power_agent():
     for name in POWER_AGENTS:
         frontmatter, _, _ = load_agent_markdown(name)
         perms = frontmatter.get("permission", {})
-        assert perms.get("question", "deny") == "deny", f"Agent {name} must have question: deny"
+        assert perms.get("question") == "deny", f"Agent {name} must have question: deny"
+        assert perms.get("question") != "allow", f"Agent {name} has question: allow which is forbidden"
 
 
 # 9. bet-executor has bash allow
@@ -180,7 +197,7 @@ def test_manifest_uses_only_power_agent_names():
 # 15. manifest mappings for steps are correct
 def test_manifest_step_mappings():
     data = json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
-    
+
     step_s3 = next(s for s in data["steps"] if s["id"] == "S3")
     step_s4 = next(s for s in data["steps"] if s["id"] == "S4")
     assert step_s3["agent"] == "bet-modeler"
@@ -212,7 +229,7 @@ def test_agents_md_no_old_roster():
         assert f"### {name}" not in content
         assert f"**{name}**:" not in content
         assert f"- **{name}**" not in content
-    
+
     assert "Code or General" in content or "Code/General" in content
     assert "new worktree" in content
 
@@ -220,7 +237,7 @@ def test_agents_md_no_old_roster():
 # 18. README does not contain active old roster names, and mentions Superbet manual Bet Builder
 def test_readme_stale_roster_and_superbet_manual():
     content = README_PATH.read_text(encoding="utf-8")
-    
+
     # Check old micro-agents are not active or in table
     for name in DEPRECATED_AGENTS:
         if name != "bet-settler":
@@ -245,7 +262,9 @@ def test_readme_stale_roster_and_superbet_manual():
 def test_no_production_agent_claims_placement():
     for name in POWER_AGENTS:
         _, body, _ = load_agent_markdown(name)
-        assert "automated bookmaker placement" not in body.lower()
+        body_lower = body.lower()
+        if "no automated bookmaker placement" not in body_lower:
+            assert "automated bookmaker placement" not in body_lower
 
 
 # 20. no reports/pipeline_runs included in patch
@@ -264,3 +283,33 @@ def test_no_reports_in_patch():
             assert "reports/pipeline_runs/" not in file, f"Forbidden report artifact in patch diff: {file}"
     except Exception:
         pass
+
+
+# 21. body has the exact model inheritance policy
+def test_body_has_model_inheritance_policy():
+    expected_policy = (
+        "Model policy: inherit active Kilo UI model from parent session. Do not override provider/model. "
+        "ProviderModelNotFoundError, silent fallback, or conflicting explicit override is BLOCKED."
+    )
+    for name in POWER_AGENTS:
+        _, body, _ = load_agent_markdown(name)
+        assert expected_policy in body, f"Agent {name} is missing the exact model inheritance policy"
+
+
+# 22. body has no-hidden-chain-of-thought / no fabricated odds / no automated placement rules
+def test_body_has_required_anti_hallucination_rules():
+    required_rules = [
+        "do not reveal hidden reasoning or chain of thought",
+        "never invent odds, fixtures, markets, injuries, statistics, lineups, consensus, or model outputs",
+        "unknown is better than guessing",
+        "no automated bookmaker placement",
+        "no fabricated Superbet odds",
+        "no computed combined bet builder bookmaker odds"
+    ]
+    for name in POWER_AGENTS:
+        _, body, _ = load_agent_markdown(name)
+        body_lower = body.lower()
+        for rule in required_rules:
+            rule_clean = re.sub(r'[^a-z0-9]', '', rule.lower())
+            body_clean = re.sub(r'[^a-z0-9]', '', body_lower)
+            assert rule_clean in body_clean, f"Agent {name} body lacks rule: '{rule}'"

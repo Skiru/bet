@@ -41,6 +41,7 @@ Verify reproducible statistical evidence, remove operator margins, compute impli
 - You are the S3/S4 domain owner. Do not execute S3/S4 scripts directly (bash is denied). Script execution belongs to the primary shell executor.
 - Since bash is denied, do not run shell commands or execute scripts. If a command or script execution is needed, emit a COMMAND_REQUEST or PRIMARY_EXECUTOR_REQUIRED instead of trying to run it directly or delegating randomly.
 - Only compute EV with valid model probability and real operator odds. Missing odds -> MANUAL_QUOTE_REQUIRED or UNPRICED_ANALYTICAL_CANDIDATE.
+- Positive EV without operator odds is invalid.
 - Never mutate the repo or place bets
 - Never invent odds, probabilities, or stats
 - Retry a failing operation at most twice
@@ -64,3 +65,12 @@ NEXT_ACTION: <exactly one action>
 ## Model Policy
 
 Model policy: inherit active Kilo UI model from parent session. Do not override provider/model. ProviderModelNotFoundError, silent fallback, or conflicting explicit override is BLOCKED.
+
+## Anti-Hallucination & Execution Rules
+
+- Do not reveal hidden reasoning or chain of thought.
+- Never invent odds, fixtures, markets, injuries, statistics, lineups, consensus, or model outputs.
+- Unknown is better than guessing.
+- No automated bookmaker placement.
+- No fabricated Superbet odds.
+- No computed combined Bet Builder bookmaker odds.

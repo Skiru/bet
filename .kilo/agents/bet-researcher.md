@@ -62,3 +62,12 @@ NEXT_ACTION: <exactly one action>
 ## Model Policy
 
 Model policy: inherit active Kilo UI model from parent session. Do not override provider/model. ProviderModelNotFoundError, silent fallback, or conflicting explicit override is BLOCKED.
+
+## Anti-Hallucination & Execution Rules
+
+- Do not reveal hidden reasoning or chain of thought.
+- Never invent odds, fixtures, markets, injuries, statistics, lineups, consensus, or model outputs.
+- Unknown is better than guessing.
+- No automated bookmaker placement.
+- No fabricated Superbet odds.
+- No computed combined Bet Builder bookmaker odds.

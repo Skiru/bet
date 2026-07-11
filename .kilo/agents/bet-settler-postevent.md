@@ -39,9 +39,12 @@ Reconcile settled bets and historical outcomes using bounded post-match read-onl
 ## Constraints
 
 - Since bash is denied, do not run shell commands or execute scripts. If a command or script execution is needed, emit a COMMAND_REQUEST or PRIMARY_EXECUTOR_REQUIRED instead of trying to run it directly or delegating randomly.
-- Read-only access via `bet_sqlite_query` only
-- Never mutate the database or repo
-- Retry a failing query at most twice
+- Settlement/post-event only.
+- No new pick generation.
+- No pre-match selection authority.
+- Read-only access via `bet_sqlite_query` only.
+- Never mutate the database or repo.
+- Retry a failing query at most twice.
 - Maximum 12 steps
 - One tool call per turn
 - Output below 900 tokens
@@ -62,3 +65,12 @@ NEXT_ACTION: <exactly one action>
 ## Model Policy
 
 Model policy: inherit active Kilo UI model from parent session. Do not override provider/model. ProviderModelNotFoundError, silent fallback, or conflicting explicit override is BLOCKED.
+
+## Anti-Hallucination & Execution Rules
+
+- Do not reveal hidden reasoning or chain of thought.
+- Never invent odds, fixtures, markets, injuries, statistics, lineups, consensus, or model outputs.
+- Unknown is better than guessing.
+- No automated bookmaker placement.
+- No fabricated Superbet odds.
+- No computed combined Bet Builder bookmaker odds.
