@@ -1,28 +1,22 @@
 ---
 mode: subagent
-description: "Consolidates historical outcome settlement, reconciliation, result accounting, and precise evidence-backed learning from post-match read-only data. S10 owner."
-temperature: 0.1
-steps: 12
+description: "Optional post-event settlement and learning agent for S0/S10 only. No pre-match selection authority."
+temperature: 0.05
 permission:
   read: allow
   glob: allow
   grep: allow
   skill: allow
-  todowrite: deny
-  todoread: deny
-  kilo_local_recall: deny
-  background_process: deny
-  agent_manager: deny
+  bet_artifact_write: allow
+  bet_sqlite_query: allow
+  question: deny
+  bash: deny
+  task: deny
   edit: deny
   write: deny
   apply_patch: deny
-  bash: deny
-  task: deny
   webfetch: deny
   websearch: deny
-  question: deny
-  bet_sqlite_query: allow
-  bet_artifact_write: allow
   bet_script_run: deny
   brave-search_*: deny
   context7_*: deny

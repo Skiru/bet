@@ -1,30 +1,24 @@
 ---
 mode: subagent
-description: "Consolidates statistical analysis, probability modeling, fair odds pricing, expected value (EV) estimation, and rigorous Kelly criterion stake sizing. S3/S4 business owner."
-temperature: 0.1
-steps: 15
+description: "Probability and valuation specialist for S3/S4. Owns source-bound probabilities, fair odds, minimum acceptable odds, and EV terminology. Does not run shell."
+temperature: 0.05
 permission:
   read: allow
   glob: allow
   grep: allow
   skill: allow
-  todowrite: deny
-  todoread: deny
-  kilo_local_recall: deny
-  background_process: deny
-  agent_manager: deny
+  bet_artifact_write: allow
+  bet_sqlite_query: allow
+  question: deny
+  bash: deny
+  task: deny
   edit: deny
   write: deny
   apply_patch: deny
-  bash: deny
-  task: deny
-  webfetch: allow
+  webfetch: deny
   websearch: deny
-  question: deny
-  bet_sqlite_query: allow
-  bet_artifact_write: allow
   bet_script_run: deny
-  brave-search_*: allow
+  brave-search_*: deny
   context7_*: deny
   playwright_*: deny
   kilo-playwright_*: deny

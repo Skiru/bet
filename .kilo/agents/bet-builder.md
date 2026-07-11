@@ -1,27 +1,22 @@
 ---
 mode: subagent
-description: "Phase E constructor that packages gate-approved candidates, verifies correlation and mechanics, and writes final artifacts without introducing new facts."
+description: "Superbet manual quote-pack and Bet Builder idea-group specialist for S8. Creates quote cards only; never computes combined bookmaker odds or places bets."
 temperature: 0.1
 permission:
   read: allow
   glob: allow
   grep: allow
   skill: allow
-  todowrite: deny
-  todoread: deny
-  kilo_local_recall: deny
-  background_process: deny
-  agent_manager: deny
+  bet_artifact_write: allow
+  bet_sqlite_query: deny
+  question: deny
+  bash: deny
+  task: deny
   edit: deny
   write: deny
   apply_patch: deny
-  bash: deny
-  task: deny
-  question: deny
   webfetch: deny
   websearch: deny
-  bet_sqlite_query: deny
-  bet_artifact_write: allow
   bet_script_run: deny
   brave-search_*: deny
   context7_*: deny

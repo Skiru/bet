@@ -1,30 +1,24 @@
 ---
 mode: subagent
-description: "Consolidates event discovery, tipster aggregation, and source reconciliation. Performs read-only data collection, gap detection, and clean traceability audits."
+description: "Business research, fixture identity, tipsters, source quality, enrichment, injuries, lineups, weather, motivation, tournament context, and fact reconciliation. Does not run shell and does not make picks."
 temperature: 0.1
-steps: 15
 permission:
   read: allow
   glob: allow
   grep: allow
   skill: allow
-  todowrite: deny
-  todoread: deny
-  kilo_local_recall: deny
-  background_process: deny
-  agent_manager: deny
+  bet_artifact_write: allow
+  bet_sqlite_query: allow
+  webfetch: allow
+  websearch: allow
+  brave-search_*: allow
+  question: deny
+  bash: deny
+  task: deny
   edit: deny
   write: deny
   apply_patch: deny
-  bash: deny
-  task: deny
-  webfetch: allow
-  websearch: deny
-  question: deny
-  bet_sqlite_query: allow
-  bet_artifact_write: allow
   bet_script_run: deny
-  brave-search_*: allow
   context7_*: deny
   playwright_*: deny
   kilo-playwright_*: deny

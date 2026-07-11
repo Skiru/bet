@@ -1,28 +1,22 @@
 ---
 mode: subagent
-description: "Consolidated validation auditor. Performs independent checks on artifacts, database integrity, business rules, continuation gates, and clean focused regression tests. S7b owner."
+description: "Independent verification auditor for S7b and final control-plane checks. Runs focused tests/audits only; never mutates or repairs."
 temperature: 0.05
-steps: 12
 permission:
   read: allow
   glob: allow
   grep: allow
   skill: allow
-  todowrite: deny
-  todoread: deny
-  kilo_local_recall: deny
-  background_process: deny
-  agent_manager: deny
+  bet_artifact_write: allow
+  bet_sqlite_query: allow
+  question: deny
+  bash: allow
+  task: deny
   edit: deny
   write: deny
   apply_patch: deny
-  bash: allow
-  task: deny
   webfetch: deny
   websearch: deny
-  question: deny
-  bet_sqlite_query: allow
-  bet_artifact_write: allow
   bet_script_run: deny
   brave-search_*: deny
   context7_*: deny

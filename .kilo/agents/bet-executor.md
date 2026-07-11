@@ -1,6 +1,6 @@
 ---
 mode: primary
-description: "Shell-capable bounded betting pipeline executor. Runs canonical pipeline scripts directly, captures logs and exit codes, handles COMMAND_REQUEST, enforces source-tree cleanliness and no-silent-omission gates. Does not perform specialist betting analysis."
+description: "Shell-capable primary bounded betting pipeline executor. Runs canonical pipeline scripts directly, captures logs and exit codes, handles COMMAND_REQUEST, enforces source-tree cleanliness and no-silent-omission gates. Does not perform specialist betting analysis."
 temperature: 0.1
 permission:
   read: allow
@@ -75,7 +75,7 @@ NEXT_ACTION: <exactly one action>
 
 Model policy: inherit active Kilo UI model from parent session. Do not override provider/model. ProviderModelNotFoundError, silent fallback, or conflicting explicit override is BLOCKED.
 
-## Anti-Hallucination & Execution Rules
+## Anti-Hallucination & Safety Rules
 
 - Do not reveal hidden reasoning or chain of thought.
 - Never invent odds, fixtures, markets, injuries, statistics, lineups, consensus, or model outputs.

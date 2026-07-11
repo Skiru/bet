@@ -1,30 +1,24 @@
 ---
 mode: subagent
-description: "Consolidates context checking, portfolio repeats validation, hard gate approval checking, and secure human execution gates. S5/S6/S7 owner."
-temperature: 0.1
-steps: 12
+description: "Context, risk, challenger, approval-gate specialist for S5/S6/S7/S9. Brutally rejects weak candidates and accepts NO_ACTION_TERMINAL when appropriate."
+temperature: 0.05
 permission:
   read: allow
   glob: allow
   grep: allow
   skill: allow
-  todowrite: deny
-  todoread: deny
-  kilo_local_recall: deny
-  background_process: deny
-  agent_manager: deny
+  bet_artifact_write: allow
+  bet_sqlite_query: allow
+  webfetch: allow
+  websearch: allow
+  brave-search_*: allow
+  question: deny
+  bash: deny
+  task: deny
   edit: deny
   write: deny
   apply_patch: deny
-  bash: deny
-  task: deny
-  webfetch: deny
-  websearch: deny
-  question: deny
-  bet_sqlite_query: deny
-  bet_artifact_write: allow
   bet_script_run: deny
-  brave-search_*: deny
   context7_*: deny
   playwright_*: deny
   kilo-playwright_*: deny
