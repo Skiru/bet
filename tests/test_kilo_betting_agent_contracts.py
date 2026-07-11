@@ -76,13 +76,15 @@ def test_no_legacy_betting_prompts_exist():
 def test_power_agent_frontmatter_format():
     for name in POWER_AGENTS:
         path = AGENT_DIR / f"{name}.md"
-        content = path.read_text(encoding="utf-8")
-        assert content.startswith("---\n"), f"Agent {name} frontmatter must start with ---\n"
-        assert not content.startswith("--- mode:"), f"Agent {name} must not start with --- mode:"
-        assert "\n---\n" in content, f"Agent {name} must have closing \n---\n"
+        content_bytes = path.read_bytes()
+
+        # Byte-level format assertions
+        assert content_bytes.startswith(b"---\n"), f"Agent {name} frontmatter must start with b'---\\n'"
+        assert not content_bytes.startswith(b"--- mode:"), f"Agent {name} must not start with b'--- mode:'"
+        assert b"\n---\n" in content_bytes, f"Agent {name} must have closing b'\\n---\\n'"
 
         # Verify standalone delimiter
-        parts = content.split("\n---\n")
+        parts = content_bytes.split(b"\n---\n")
         assert len(parts) >= 2, f"Agent {name} must have standalone closing delimiter"
 
         # Verify YAML safe_load parses it as dict
@@ -92,6 +94,7 @@ def test_power_agent_frontmatter_format():
         assert isinstance(frontmatter["permission"], dict), f"Agent {name} permission must be a dictionary"
 
         # Verify no compressed one-line YAML is used
+        content = content_bytes.decode("utf-8")
         lines = content.split("\n")
         frontmatter_lines = []
         for line in lines[1:]:

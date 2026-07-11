@@ -120,14 +120,15 @@ def validate_agent_file(path: Path, agent_name: str) -> list[str]:
         violations.append(f"Agent file missing: {path}")
         return violations
 
-    content = path.read_text(encoding="utf-8")
+    content_bytes = path.read_bytes()
+    content = content_bytes.decode("utf-8", errors="replace")
 
-    # Strict format checks
-    if not content.startswith("---\n"):
-        violations.append(f"{agent_name}: Must start with exact '---\\n'")
-    if content.startswith("--- mode:"):
-        violations.append(f"{agent_name}: Frontmatter first line must not start with '--- mode:'")
-    if "\n---\n" not in content:
+    # Strict byte-level checks
+    if not content_bytes.startswith(b"---\n"):
+        violations.append(f"{agent_name}: Must start with exact b'---\\n'")
+    if content_bytes.startswith(b"--- mode:"):
+        violations.append(f"{agent_name}: Frontmatter first line must not start with b'--- mode:'")
+    if b"\n---\n" not in content_bytes:
         violations.append(f"{agent_name}: Frontmatter closing delimiter is not standalone")
 
     frontmatter, body = parse_yaml_frontmatter(content)
