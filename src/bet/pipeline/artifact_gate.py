@@ -1,6 +1,7 @@
 """Pipeline artifact gate - validates and checks upstream artifact readiness."""
 from __future__ import annotations
 
+import os
 import json
 import hashlib
 import re
@@ -185,6 +186,25 @@ def _block_issue(code: str, message: str) -> ReadinessIssue:
     )
 
 
+def is_mock_value_injected(obj: Any) -> bool:
+    """Recursively checks if any mock value is present in an object."""
+    if isinstance(obj, dict):
+        for k, v in obj.items():
+            if k in ("probability", "safety_score") and (v == 0.85 or str(v) == "0.85"):
+                return True
+            if k in ("odds_decimal", "best_odds") and (v == 2.10 or str(v) == "2.10" or v == 2.1 or str(v) == "2.1"):
+                return True
+            if k == "ev" and (v == 0.15 or str(v) == "0.15"):
+                return True
+            if is_mock_value_injected(v):
+                return True
+    elif isinstance(obj, list):
+        for item in obj:
+            if is_mock_value_injected(item):
+                return True
+    return False
+
+
 def validate_s9_human_gate_artifact_for_run(
     raw: dict[str, Any],
     *,
@@ -193,6 +213,45 @@ def validate_s9_human_gate_artifact_for_run(
     run_id: str,
 ) -> list[ReadinessIssue]:
     issues: list[ReadinessIssue] = []
+
+    # Detect if S9 is generated or mock odds are active
+    is_mock_env = os.environ.get("BET_MOCK_ODDS") or os.environ.get("BET_PIPELINE_SKIP_FETCH")
+    manual_review = raw.get("manual_review") or {}
+    reviewed_by = str(manual_review.get("reviewed_by_user") or "").strip().lower()
+
+    # Pre-read referenced S8 coupon draft (if path is provided) to check for mock injection
+    has_mock_draft = False
+    coupon_draft_path_value = manual_review.get("coupon_draft_path")
+    if coupon_draft_path_value:
+        try:
+            supplied_path = Path(coupon_draft_path_value)
+            # Find the expected S8 path and resolve it
+            expected_path = expected_s8_coupon_draft_path(base_dir, betting_day, run_id)
+            if expected_path.exists():
+                draft_content = json.loads(expected_path.read_text(encoding="utf-8"))
+                if is_mock_value_injected(draft_content):
+                    has_mock_draft = True
+        except Exception:
+            pass
+
+    is_generated = (
+        is_mock_env
+        or has_mock_draft
+        or reviewed_by in ("shadow-acceptance", "mock", "test", "generated", "synthetic")
+        or raw.get("status") == "TEST_ONLY_GENERATED_HUMAN_GATE"
+        or is_mock_value_injected(raw)
+    )
+
+    if is_generated:
+        raw["status"] = "TEST_ONLY_GENERATED_HUMAN_GATE"
+        raw["can_place_bet_now"] = False
+        raw["safe_user_action"] = "DO_NOT_PLACE_BET"
+        issues.append(
+            _block_issue(
+                "TEST_ONLY_GENERATED_HUMAN_GATE",
+                "S9 is a generated/test-only human gate and is not valid for live betting",
+            )
+        )
 
     if raw.get("artifact_type") != PipelineArtifactType.HUMAN_GATE.value:
         issues.append(_block_issue("INVALID_S9_ARTIFACT_TYPE", "S9 artifact_type must be HUMAN_GATE"))

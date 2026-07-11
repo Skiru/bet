@@ -96,12 +96,22 @@ def main() -> int:
             "blockers": report.blockers,
             "analytical_suggestion_count": report.analytical_suggestion_count,
             "ready_for_manual_operator_quote_review": report.ready_for_manual_operator_quote_review,
+            "classification": report.classification,
+            "can_place_bet_now": report.can_place_bet_now,
+            "safe_user_action": report.safe_user_action,
+            "positive_ev_with_operator_odds_count": report.positive_ev_with_operator_odds_count,
         }
 
         with open(report_path, "w", encoding="utf-8") as f:
             json.dump(_serialize_jsonable(final_report_data), f, indent=2, ensure_ascii=False)
 
-        if recommended_pkg and recommended_pkg.package_type == "ANALYTICAL_ONLY" and not report.blockers:
+        import os
+        is_mock = os.environ.get("BET_MOCK_ODDS") or os.environ.get("BET_PIPELINE_SKIP_FETCH") or (report.classification == "TEST_ONLY_MOCK_ODDS")
+
+        if is_mock:
+            print("STATUS=TEST_ONLY_MOCK_ODDS")
+            return 0
+        elif recommended_pkg and recommended_pkg.package_type == "ANALYTICAL_ONLY" and not report.blockers:
             print("STATUS=READY_FOR_ANALYTICAL_OPERATOR_QUOTE_REVIEW")
             return 0
         elif recommended_pkg and recommended_pkg.package_type != "NO_BET_PACKAGE" and not report.blockers:

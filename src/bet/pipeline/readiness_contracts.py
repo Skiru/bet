@@ -17,6 +17,7 @@ class PipelineReadinessStatus(str, Enum):
     HUMAN_APPROVED = "HUMAN_APPROVED"
     HUMAN_REJECTED = "HUMAN_REJECTED"
     COMMAND_REQUEST = "COMMAND_REQUEST"
+    TEST_ONLY_GENERATED_HUMAN_GATE = "TEST_ONLY_GENERATED_HUMAN_GATE"
 
 
 class PipelineArtifactType(str, Enum):
@@ -74,6 +75,7 @@ def status_blocks(status: PipelineReadinessStatus) -> bool:
         PipelineReadinessStatus.UNKNOWN,
         PipelineReadinessStatus.HUMAN_REJECTED,
         PipelineReadinessStatus.COMMAND_REQUEST,
+        PipelineReadinessStatus.TEST_ONLY_GENERATED_HUMAN_GATE,
     )
 
 
