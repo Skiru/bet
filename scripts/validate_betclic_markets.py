@@ -314,7 +314,10 @@ def main():
         checked_market_count = len(validation_results or [])
         available_market_count = len(available)
         unavailable_market_count = len(unavailable) + len(unknown)
-        validation_status = "PASS" if checked_market_count > 0 and unavailable_market_count == 0 and can_use_live_scan else "BLOCK"
+        
+        # Force BLOCK because Betclic is legacy/test-only and cannot satisfy the active Superbet manual quote contract
+        validation_status = "BLOCK"
+        blocked_reasons = ("BLOCKED_BETCLIC_MARKET_BOUNDARY",)
 
         evidence_path = write_script_evidence(
             "S7b",
@@ -331,13 +334,14 @@ def main():
                 "production_selectable": False,
                 "betting_decisions_enabled": False,
                 "no_pick_edge_stake_coupon_emitted": True,
+                "test_only_legacy": True,
             },
             sources=("Betclic",),
             evidence_refs=(output_path.name,),
             no_pick_edge_stake_coupon_emitted=True,
             production_selectable=False,
             betting_decisions_enabled=False,
-            blocked_reasons=("BLOCKED_MARKET_AVAILABILITY_UNAVAILABLE",) if validation_status != "PASS" else (),
+            blocked_reasons=blocked_reasons,
         )
         if evidence_path:
             print(f"  Script evidence: {evidence_path}")
@@ -350,7 +354,9 @@ def main():
     available_market_count = len(available)
     unavailable_market_count = len(unavailable) + len(unknown)
     is_mock = os.environ.get("BET_MOCK_ODDS") or os.environ.get("BET_PIPELINE_SKIP_FETCH")
-    verdict = "OK" if checked_market_count > 0 and unavailable_market_count == 0 and (can_use_live_scan or is_mock) else "FAILED"
+    
+    # Always set verdict to FAILED because Betclic validation is legacy and cannot satisfy Superbet requirements
+    verdict = "FAILED"
     print(
         f'\nAGENT_SUMMARY:{{"verdict":"{verdict}",' 
         f'"total_events":{summary["total_events"]},' 
@@ -360,8 +366,8 @@ def main():
         f'"output":"{output_path}"}}'
     )
     if verdict != "OK":
-        print("BLOCKED_MARKET_AVAILABILITY_UNAVAILABLE: market availability is missing, unavailable, or still requires manual verification.")
-    sys.exit(0 if verdict == "OK" else 2)
+        print("BLOCKED_MARKET_AVAILABILITY_UNAVAILABLE: market availability is legacy/test-only or still requires manual Superbet verification.")
+    sys.exit(2)
 
 
 if __name__ == "__main__":
