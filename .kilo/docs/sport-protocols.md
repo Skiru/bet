@@ -3,7 +3,7 @@
 ## Football §3.1
 **Market hierarchy:** Fouls → Cards → Corners → Shots → Team totals → BTTS → U2.5 → O2.5 → DC/DNB → 1X2
 **Required stats:** Goals (scored/conceded, O2.5%, BTTS%), xG, Corners (team/match avg, hit rates), Cards (team/opp), Fouls (committed/drawn), Shots (total/SOT/conversion), Possession.
-**Corner stack:** TotalCorner + SoccerStats + Betclic Statystyki (if available).
+**Corner stack:** TotalCorner + SoccerStats + a second current independent statistics source when available.
 **§3.1M table:** Calculate Fouls, Cards, Corners, Shots, Team CK, Goals — pick highest safety.
 **Close Game Rule (ZT#24):** P(draw) ≥ 25% + fouls/cards UNDER + avg within ±1.5 of line → DO NOT BET. Pick corners/shots.
 **Context:** Coach change, injuries, congestion (<72h), motivation, weather, referee.

@@ -10,6 +10,8 @@ permission:
   bet_artifact_write: allow
   bet_sqlite_query: allow
   question: deny
+  doom_loop: deny
+  external_directory: deny
   bash: deny
   task: deny
   edit: deny

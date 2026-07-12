@@ -8,7 +8,6 @@
     "point_in_time_required": true,
     "no_pick_before_s7": true,
     "no_coupon_before_s8": true,
-    "all_picks_conditional_until_user_betclic_verification": true,
     "enrichment_must_not_emit_pick_edge_stake_or_coupon": true,
     "s2_9_required_before_s3": true,
     "no_live_provider_calls_in_contract_pass": true,
@@ -18,11 +17,17 @@
     "odds_required_for_ev_bettable_and_final_coupon": true,
     "analysis_candidate_generation_not_blocked_by_missing_odds": true,
     "manual_operator_quote_required_before_bettable": true,
+    "human_entered_quote_required": true,
+    "final_coupon_blocked_without_visible_operator_quote": true,
     "superbet_bet_builder_combined_odds_operator_screen_only": true,
     "no_combined_bookmaker_odds_computation": true,
     "no_automated_bookmaker_placement": true,
     "many_event_full_day_generation_required": true,
     "tipster_layer_non_primary_evidence": true,
+    "tipster_absence_must_be_explicitly_labeled": true,
+    "tipster_absence_does_not_block_core_analysis": true,
+    "no_event_drop_due_only_to_tipster_absence": true,
+    "every_discovered_event_requires_terminal_status_or_reason": true,
     "weather_injury_tournament_context_required": true,
     "use_kilo_code_active_default_model": true,
     "no_local_model_pin_in_agents": true,
@@ -96,10 +101,11 @@
         "S2.3"
       ],
       "hard_rules": [
-        "minimum_one_valid_tip",
         "tipster_layer_separate_from_verified_facts",
         "tipster_bias_grading_required",
-        "tipster_absence_does_not_block_core_analysis"
+        "tipster_absence_must_be_explicitly_labeled",
+        "tipster_absence_does_not_block_core_analysis",
+        "no_event_drop_due_only_to_tipster_absence"
       ]
     },
     {
@@ -235,7 +241,8 @@
         "clv_validation",
         "odds_missing_becomes_price_pending_not_analysis_block",
         "ev_requires_model_probability_and_operator_odds",
-        "fair_odds_requires_real_probability_input"
+        "fair_odds_requires_real_probability_input",
+        "no_kelly_or_stake_before_real_operator_odds"
       ]
     },
     {
@@ -311,9 +318,8 @@
         "S8"
       ],
       "hard_rules": [
-        "betclic_market_boundary_validation",
-        "manual_operator_market_boundary_validation",
-        "superbet_quote_gate_preparation",
+        "superbet_manual_market_name_line_mapping_only",
+        "manual_quote_required_when_operator_quote_missing",
         "no_operator_browser_automation",
         "market_name_line_mapping_required"
       ]
@@ -331,11 +337,12 @@
         "S9"
       ],
       "hard_rules": [
-        "correlation_and_stake_mechanics_check",
+        "correlation_mechanics_check",
         "same_game_builder_correlation_check",
         "no_combined_bookmaker_odds_computation",
         "manual_quote_cards_required",
-        "idea_grouping_not_final_coupon"
+        "idea_grouping_not_final_coupon",
+        "no_staking_without_real_operator_quote"
       ]
     },
     {
@@ -349,10 +356,12 @@
         "S10"
       ],
       "hard_rules": [
-        "manual_user_verification_in_betclic",
         "manual_user_verification_in_superbet",
         "human_entered_quote_required",
-        "final_coupon_blocked_without_visible_operator_quote"
+        "final_coupon_blocked_without_visible_operator_quote",
+        "human_only_gate_no_agent_substitute",
+        "synthetic_or_generated_s9_approval_invalid",
+        "agent_generated_human_approved_forbidden"
       ]
     },
     {

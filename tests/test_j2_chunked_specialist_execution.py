@@ -23,34 +23,34 @@ def test_chunk_contract_exists() -> None:
     assert data.get("max_chunk_size") == 20
 
 
-def test_enricher_prompt_blocks_full_60_event_run() -> None:
-    """Verify that the bet-enricher prompt blocks runs with more than 20 events."""
-    prompt_path = ROOT / ".kilo" / "prompts" / "bet-enricher.md"
+def test_researcher_prompt_blocks_full_60_event_run() -> None:
+    """Verify that the researcher blocks batches with more than 20 events."""
+    prompt_path = ROOT / ".kilo" / "agents" / "bet-researcher.md"
     assert prompt_path.is_file(), f"Missing {prompt_path}"
 
     content = prompt_path.read_text(encoding="utf-8")
-    assert "If asked to process more than 20 events, block with STATUS: BLOCKED, DECISION: CHUNK_REQUIRED." in content
+    assert "Process at most 20 events per delegated batch; larger scopes return `STATUS: BLOCKED, DECISION: CHUNK_REQUIRED`." in content
 
 
-def test_statistician_prompt_blocks_full_60_event_run() -> None:
-    """Verify that the bet-statistician prompt blocks runs with more than 20 events."""
-    prompt_path = ROOT / ".kilo" / "prompts" / "bet-statistician.md"
+def test_modeler_prompt_blocks_full_60_event_run() -> None:
+    """Verify that the modeler blocks batches with more than 20 events."""
+    prompt_path = ROOT / ".kilo" / "agents" / "bet-modeler.md"
     assert prompt_path.is_file(), f"Missing {prompt_path}"
 
     content = prompt_path.read_text(encoding="utf-8")
-    assert "If asked to process more than 20 events, block with STATUS: BLOCKED, DECISION: CHUNK_REQUIRED." in content
+    assert "Process at most 20 events per delegated batch; larger scopes return `STATUS: BLOCKED, DECISION: CHUNK_REQUIRED`." in content
 
 
 def test_final_outputs_not_used_as_chunk_inputs() -> None:
     """Verify prompt rules forbid reading stale final output files as chunk inputs."""
-    enricher_prompt = ROOT / ".kilo" / "prompts" / "bet-enricher.md"
-    stat_prompt = ROOT / ".kilo" / "prompts" / "bet-statistician.md"
+    researcher_prompt = ROOT / ".kilo" / "agents" / "bet-researcher.md"
+    modeler_prompt = ROOT / ".kilo" / "agents" / "bet-modeler.md"
 
-    e_content = enricher_prompt.read_text(encoding="utf-8")
-    s_content = stat_prompt.read_text(encoding="utf-8")
+    researcher_content = researcher_prompt.read_text(encoding="utf-8")
+    modeler_content = modeler_prompt.read_text(encoding="utf-8")
 
-    assert "Do not read existing final output files (e.g., enricher_context_layer.json) as input." in e_content
-    assert "Do not read existing final output files (e.g., statistician_market_analysis.json) as input." in s_content
+    assert "Do not read existing final output files as chunk inputs." in researcher_content
+    assert "Do not read existing final output files as chunk inputs." in modeler_content
 
 
 def test_stale_blocked_outputs_are_quarantined() -> None:

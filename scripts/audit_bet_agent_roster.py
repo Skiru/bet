@@ -12,47 +12,38 @@ GLOBAL_CONFIG_PATHS = [
 PROJECT_PROFILE_PATH = WORKSPACE_ROOT / ".kilo/profiles/kilo.local.jsonc"
 AGENTS_MD_PATH = WORKSPACE_ROOT / "AGENTS.md"
 AGENT_DIR = WORKSPACE_ROOT / ".kilo/agents"
-PROMPT_DIR = WORKSPACE_ROOT / ".kilo/prompts"
+PROMPT_DIR = AGENT_DIR
 ARTIFACT_DIR = WORKSPACE_ROOT / ".kilo/artifacts"
 RUNS_DIR = WORKSPACE_ROOT / "reports/pipeline_runs"
-ORCHESTRATOR = "bet-orchestrator"
+ORCHESTRATOR = "bet-executor"
 REPAIR_RUN_PREFIX = "UI_SELECTED_RUNTIME_MODEL_INHERITANCE_REPAIR_D_"
 REQUIRED_AGENTS = [
-    "bet-orchestrator",
-    "bet-scanner",
-    "bet-scout",
-    "bet-enricher",
-    "bet-statistician",
-    "bet-valuator",
-    "bet-challenger",
+    "bet-executor",
+    "bet-researcher",
+    "bet-modeler",
+    "bet-risk-gatekeeper",
     "bet-builder",
-    "bet-test-engineer",
-    "bet-engineer",
+    "bet-auditor",
+    "bet-settler-postevent",
 ]
 REQUIRED_INHERITED_SUBAGENTS = [
-    "bet-scanner",
-    "bet-scout",
-    "bet-enricher",
-    "bet-statistician",
-    "bet-valuator",
-    "bet-challenger",
+    "bet-researcher",
+    "bet-modeler",
+    "bet-risk-gatekeeper",
     "bet-builder",
-    "bet-test-engineer",
-    "bet-engineer",
+    "bet-auditor",
+    "bet-settler-postevent",
 ]
 REQUIRED_PROMPTS = {
-    "bet-orchestrator": "bet-orchestrator-v2.md",
-    "bet-scanner": "bet-scanner.md",
-    "bet-scout": "bet-scout.md",
-    "bet-enricher": "bet-enricher.md",
-    "bet-statistician": "bet-statistician.md",
-    "bet-valuator": "bet-valuator.md",
-    "bet-challenger": "bet-challenger.md",
+    "bet-executor": "bet-executor.md",
+    "bet-researcher": "bet-researcher.md",
+    "bet-modeler": "bet-modeler.md",
+    "bet-risk-gatekeeper": "bet-risk-gatekeeper.md",
     "bet-builder": "bet-builder.md",
-    "bet-test-engineer": "bet-test-engineer.md",
-    "bet-engineer": "bet-engineer.md",
+    "bet-auditor": "bet-auditor.md",
+    "bet-settler-postevent": "bet-settler-postevent.md",
 }
-SMOKE_REQUIRED = ["bet-enricher", "bet-statistician", "bet-valuator"]
+SMOKE_REQUIRED = list(REQUIRED_INHERITED_SUBAGENTS)
 UNKNOWN_RUNTIME_VALUES = {None, "", "unknown", "UNKNOWN", "UNVERIFIED", "UNVERIFIED_BLOCKED_BY_PARENT_RUNTIME"}
 HARD_CODED_GEMINI_GATE_PATTERNS = (
     "ACTIVE_PROVIDER=google-vertex",
@@ -70,8 +61,8 @@ POLICY_SCAN_PATHS = [
     AGENTS_MD_PATH,
     WORKSPACE_ROOT / "docs/pipeline/Unified Orchestrated Analyst Session Contract.md",
     WORKSPACE_ROOT / "docs/pipeline/Orchestrated Session Continuation Protocol.md",
-    WORKSPACE_ROOT / ".kilo/prompts/bet-orchestrator-v2.md",
-    WORKSPACE_ROOT / ".kilo/prompts/bet-test-engineer.md",
+    WORKSPACE_ROOT / ".kilo/agents/bet-executor.md",
+    WORKSPACE_ROOT / ".kilo/agents/bet-auditor.md",
 ]
 
 

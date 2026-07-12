@@ -55,6 +55,7 @@ def load_agent_markdown(name: str):
 
 # 1. exactly seven power agent files exist
 def test_exactly_seven_power_agent_files_exist():
+    assert {path.stem for path in AGENT_DIR.glob("bet-*.md")} == set(POWER_AGENTS)
     for name in POWER_AGENTS:
         load_agent_markdown(name)
 
@@ -123,6 +124,18 @@ def test_no_explicit_model_pins():
         assert "model" not in frontmatter, f"Agent {name} pins model explicitly which is forbidden"
 
 
+def test_no_explicit_steps_or_textual_step_caps():
+    forbidden = re.compile(
+        r"Maximum\s+\d+.*steps|one tool call per turn|one phase per session|"
+        r"start (?:a )?fresh session after phase|do not cross a phase boundary",
+        re.IGNORECASE,
+    )
+    for name in POWER_AGENTS:
+        frontmatter, body, _ = load_agent_markdown(name)
+        assert "steps" not in frontmatter, f"Agent {name} must not define steps"
+        assert forbidden.search(body) is None, f"Agent {name} contains a textual step/session cap"
+
+
 # 7. no ask permissions
 def test_no_ask_permissions():
     for name in POWER_AGENTS:
@@ -168,7 +181,9 @@ def test_bet_executor_task_allowlist():
     task_policy = perms.get("task")
     assert isinstance(task_policy, dict), "bet-executor task permission must be a dictionary allowlist"
     assert task_policy.get("*") == "deny"
-    for agent in ["bet-researcher", "bet-modeler", "bet-risk-gatekeeper", "bet-builder", "bet-auditor", "bet-settler-postevent"]:
+    partners = {"bet-researcher", "bet-modeler", "bet-risk-gatekeeper", "bet-builder", "bet-auditor", "bet-settler-postevent"}
+    assert {name for name, value in task_policy.items() if name != "*" and value == "allow"} == partners
+    for agent in partners:
         assert task_policy.get(agent) == "allow"
 
 
@@ -212,6 +227,26 @@ def test_manifest_step_mappings():
 
     step_s7b = next(s for s in data["steps"] if s["id"] == "S7b")
     assert step_s7b["agent"] == "bet-auditor"
+
+
+def test_manifest_manual_operator_and_coverage_contracts():
+    data = json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
+    serialized = json.dumps(data)
+    for forbidden in [
+        "all_picks_conditional_until_user_betclic_verification",
+        "betclic_market_boundary_validation",
+        "manual_user_verification_in_betclic",
+        "minimum_one_valid_tip",
+    ]:
+        assert forbidden not in serialized
+    rules = data["global_rules"]
+    assert rules["operator_workflow"] == "SUPERBET_MANUAL_BET_BUILDER"
+    assert rules["tipster_absence_does_not_block_core_analysis"] is True
+    assert rules["no_event_drop_due_only_to_tipster_absence"] is True
+    assert rules["every_discovered_event_requires_terminal_status_or_reason"] is True
+    s9 = next(step for step in data["steps"] if step["id"] == "S9")
+    assert "human_only_gate_no_agent_substitute" in s9["hard_rules"]
+    assert "synthetic_or_generated_s9_approval_invalid" in s9["hard_rules"]
 
 
 # 16. matrix uses only power agents
