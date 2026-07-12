@@ -5,10 +5,12 @@ import os
 import json
 import hashlib
 import re
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 from bet.pipeline.readiness_contracts import (
+    CentralSafetyClassification,
     PipelineArtifact,
     PipelineArtifactType,
     PipelineReadinessStatus,
@@ -20,6 +22,7 @@ from bet.pipeline.readiness_contracts import (
     required_statuses_for_artifact,
     status_blocks,
     status_satisfies_required_gate,
+    get_central_safety_classification,
 )
 
 
@@ -187,7 +190,9 @@ def _block_issue(code: str, message: str) -> ReadinessIssue:
 
 
 def is_mock_value_injected(obj: Any) -> bool:
-    """Recursively checks if any mock value is present in an object."""
+    """Run the opt-in diagnostic scan for historically injected numeric values."""
+    if os.environ.get("BET_FORCE_MAGIC_VALUE_SCAN") != "True":
+        return False
     if isinstance(obj, dict):
         for k, v in obj.items():
             if k in ("probability", "safety_score") and (v == 0.85 or str(v) == "0.85"):
@@ -203,6 +208,109 @@ def is_mock_value_injected(obj: Any) -> bool:
             if is_mock_value_injected(item):
                 return True
     return False
+
+
+def _has_synthetic_provenance(obj: Any) -> bool:
+    if isinstance(obj, dict):
+        for key, value in obj.items():
+            normalized = _normalize_key(str(key))
+            if normalized in {"mock", "synthetic", "test_only", "agent_generated", "generated"} and value is True:
+                return True
+            if normalized in {"provenance", "origin", "source_type"} and any(
+                marker in str(value).strip().lower()
+                for marker in ("mock", "test", "synthetic", "generated", "replay", "shadow")
+            ):
+                return True
+            if _has_synthetic_provenance(value):
+                return True
+    elif isinstance(obj, list):
+        return any(_has_synthetic_provenance(item) for item in obj)
+    return False
+
+
+def _has_legacy_betclic_evidence(obj: Any) -> bool:
+    if isinstance(obj, dict):
+        for key, value in obj.items():
+            normalized = _normalize_key(str(key))
+            if normalized.startswith("betclic"):
+                return True
+            if normalized in {"operator_workflow", "source", "operator"} and "betclic" in str(value).lower():
+                return True
+            if _has_legacy_betclic_evidence(value):
+                return True
+    elif isinstance(obj, list):
+        return any(_has_legacy_betclic_evidence(item) for item in obj)
+    return False
+
+
+def _is_valid_timestamp(value: Any) -> bool:
+    if not isinstance(value, str) or not value.strip():
+        return False
+    try:
+        datetime.fromisoformat(value.strip().replace("Z", "+00:00"))
+    except ValueError:
+        return False
+    return True
+
+
+def validate_production_s9_schema(raw: dict[str, Any]) -> list[ReadinessIssue]:
+    """Validate the canonical production Superbet S9 structure."""
+    issues: list[ReadinessIssue] = []
+    manual_review = raw.get("manual_review")
+    if not isinstance(manual_review, dict):
+        return [_block_issue("MISSING_MANUAL_REVIEW", "manual_review object is required for approved S9 gate")]
+
+    workflow = manual_review.get("operator_workflow")
+    if _has_legacy_betclic_evidence(raw):
+        issues.append(_block_issue("LEGACY_BETCLIC_S9_FORBIDDEN", "Betclic fields and workflows are forbidden in production S9"))
+    reviewed_by = str(manual_review.get("reviewed_by_user") or "").strip().lower()
+    if (
+        _has_synthetic_provenance(raw)
+        or reviewed_by in {"shadow-acceptance", "mock", "test", "generated", "synthetic"}
+        or normalize_status(raw.get("status")) == PipelineReadinessStatus.TEST_ONLY_GENERATED_HUMAN_GATE
+    ):
+        issues.append(_block_issue("TEST_ONLY_GENERATED_HUMAN_GATE", "Generated/test S9 cannot satisfy a production gate"))
+    if not workflow:
+        issues.append(_block_issue("MISSING_S9_OPERATOR_WORKFLOW", "S9 operator_workflow is required"))
+    elif workflow != "SUPERBET_MANUAL_BET_BUILDER":
+        issues.append(_block_issue("INVALID_S9_WORKFLOW", "S9 operator_workflow must be SUPERBET_MANUAL_BET_BUILDER"))
+    if manual_review.get("approval_origin") != "HUMAN_OPERATOR":
+        issues.append(_block_issue("INVALID_S9_ORIGIN", "S9 approval_origin must be HUMAN_OPERATOR"))
+    if not str(manual_review.get("visible_operator_market_name") or "").strip():
+        issues.append(_block_issue("MISSING_VISIBLE_MARKET", "S9 manual_review.visible_operator_market_name is required"))
+    if manual_review.get("visible_operator_line") is None:
+        issues.append(_block_issue("MISSING_VISIBLE_LINE", "S9 manual_review.visible_operator_line is required"))
+
+    quote = manual_review.get("human_entered_decimal_quote")
+    if quote is None:
+        issues.append(_block_issue("MISSING_HUMAN_QUOTE", "S9 manual_review.human_entered_decimal_quote is required"))
+    else:
+        try:
+            numeric_quote = float(quote)
+            if numeric_quote <= 1.0:
+                raise ValueError
+        except (TypeError, ValueError):
+            issues.append(_block_issue("INVALID_HUMAN_QUOTE", "S9 human_entered_decimal_quote must be numeric and greater than 1.0"))
+
+    if not _is_valid_timestamp(manual_review.get("quote_as_of")):
+        issues.append(_block_issue("MISSING_QUOTE_AS_OF", "S9 manual_review.quote_as_of must be a valid timestamp"))
+    if not (manual_review.get("source_candidate_id") or manual_review.get("source_quote_card_id")):
+        issues.append(_block_issue("MISSING_SOURCE_ID", "S9 manual_review.source_candidate_id or source_quote_card_id is required"))
+    if not manual_review.get("explicit_operator_decision"):
+        issues.append(_block_issue("MISSING_DECISION", "S9 manual_review.explicit_operator_decision is required"))
+
+    checksum = raw.get("checksum") or manual_review.get("checksum")
+    if not isinstance(checksum, str) or re.fullmatch(r"[0-9a-fA-F]{64}", checksum) is None:
+        issues.append(_block_issue("MISSING_CHECKSUM", "S9 checksum must be a 64-character SHA256 value"))
+    for field, code in (
+        ("reviewed_by_user", "INVALID_REVIEWED_BY_USER"),
+        ("reviewed_at_utc", "INVALID_REVIEWED_AT_UTC"),
+        ("coupon_draft_path", "INVALID_COUPON_DRAFT_PATH"),
+        ("coupon_draft_sha256", "INVALID_COUPON_DRAFT_SHA256"),
+    ):
+        if not isinstance(manual_review.get(field), str) or not manual_review[field].strip():
+            issues.append(_block_issue(code, f"manual_review.{field} must be non-empty"))
+    return issues
 
 
 def validate_s9_human_gate_artifact_for_run(
@@ -239,6 +347,7 @@ def validate_s9_human_gate_artifact_for_run(
         or has_mock_draft
         or reviewed_by in ("shadow-acceptance", "mock", "test", "generated", "synthetic")
         or raw.get("status") == "TEST_ONLY_GENERATED_HUMAN_GATE"
+        or _has_synthetic_provenance(raw)
         or is_mock_value_injected(raw)
     )
 
@@ -270,61 +379,12 @@ def validate_s9_human_gate_artifact_for_run(
         issues.append(_block_issue("MISSING_MANUAL_REVIEW", "manual_review object is required for approved S9 gate"))
         return issues
 
-    reviewed_by_user = manual_review.get("reviewed_by_user")
-    if not isinstance(reviewed_by_user, str) or not reviewed_by_user.strip():
-        issues.append(_block_issue("INVALID_REVIEWED_BY_USER", "manual_review.reviewed_by_user must be non-empty"))
-
-    reviewed_at_utc = manual_review.get("reviewed_at_utc")
-    if not isinstance(reviewed_at_utc, str) or not reviewed_at_utc.strip():
-        issues.append(_block_issue("INVALID_REVIEWED_AT_UTC", "manual_review.reviewed_at_utc must be non-empty"))
-
-    is_legacy_workflow = not is_generated and not manual_review.get("operator_workflow")
-
-    if not is_generated and not is_legacy_workflow:
-        if manual_review.get("operator_workflow") != "SUPERBET_MANUAL_BET_BUILDER":
-            issues.append(_block_issue("INVALID_S9_WORKFLOW", "S9 operator_workflow must be SUPERBET_MANUAL_BET_BUILDER"))
-        if manual_review.get("approval_origin") != "HUMAN_OPERATOR":
-            issues.append(_block_issue("INVALID_S9_ORIGIN", "S9 approval_origin must be HUMAN_OPERATOR"))
-        
-        # Verify required production Superbet manual quote fields
-        if not manual_review.get("visible_operator_market_name"):
-            issues.append(_block_issue("MISSING_VISIBLE_MARKET", "S9 manual_review.visible_operator_market_name is required"))
-        if manual_review.get("visible_operator_line") is None:
-            issues.append(_block_issue("MISSING_VISIBLE_LINE", "S9 manual_review.visible_operator_line is required"))
-        if manual_review.get("human_entered_decimal_quote") is None:
-            issues.append(_block_issue("MISSING_HUMAN_QUOTE", "S9 manual_review.human_entered_decimal_quote is required"))
-        if not manual_review.get("quote_as_of"):
-            issues.append(_block_issue("MISSING_QUOTE_AS_OF", "S9 manual_review.quote_as_of timestamp is required"))
-        if not (manual_review.get("source_candidate_id") or manual_review.get("source_quote_card_id")):
-            issues.append(_block_issue("MISSING_SOURCE_ID", "S9 manual_review.source_candidate_id or source_quote_card_id is required"))
-        if not manual_review.get("explicit_operator_decision"):
-            issues.append(_block_issue("MISSING_DECISION", "S9 manual_review.explicit_operator_decision is required"))
-        if not (raw.get("checksum") or manual_review.get("checksum")):
-            issues.append(_block_issue("MISSING_CHECKSUM", "S9 checksum is required"))
-    elif is_legacy_workflow:
-        if manual_review.get("betclic_manual_verification") is not True:
-            issues.append(
-                _block_issue(
-                    "INVALID_BETCLIC_MANUAL_VERIFICATION",
-                    "manual_review.betclic_manual_verification must be true",
-                )
-            )
-    else:
-        # Legacy/test-only runs check
-        if manual_review.get("betclic_manual_verification") is not True and not manual_review.get("operator_workflow"):
-            # If neither superbet fields nor betclic manual verification exists
-            pass
-
+    issues.extend(validate_production_s9_schema(raw))
     coupon_draft_path_value = manual_review.get("coupon_draft_path")
-    if not isinstance(coupon_draft_path_value, str) or not coupon_draft_path_value.strip():
-        issues.append(_block_issue("INVALID_COUPON_DRAFT_PATH", "manual_review.coupon_draft_path must be non-empty"))
-
     coupon_draft_sha256 = manual_review.get("coupon_draft_sha256")
-    if not isinstance(coupon_draft_sha256, str) or not coupon_draft_sha256.strip():
-        issues.append(_block_issue("INVALID_COUPON_DRAFT_SHA256", "manual_review.coupon_draft_sha256 must be non-empty"))
 
-    # Return early on critical structural errors, but do not return early if we only have the non-structural TEST_ONLY_GENERATED_HUMAN_GATE issue
-    if issues and not (len(issues) == 1 and issues[0].code == "TEST_ONLY_GENERATED_HUMAN_GATE"):
+    # Generated gates remain eligible for paper-only binding checks, never production progression.
+    if any(issue.code != "TEST_ONLY_GENERATED_HUMAN_GATE" for issue in issues):
         return issues
 
     expected_path = expected_s8_coupon_draft_path(base_dir, betting_day, run_id)
@@ -375,6 +435,10 @@ def validate_s9_human_gate_artifact_for_run(
             )
         )
 
+    checksum = raw.get("checksum") or manual_review.get("checksum")
+    if checksum != actual_sha256:
+        issues.append(_block_issue("INVALID_S9_CHECKSUM", "S9 checksum must match the canonical S8 coupon draft SHA256"))
+
     required_draft_fields: tuple[tuple[str, Any], ...] = (
         ("artifact_type", "S8_COUPON_DRAFTS"),
         ("betting_day", betting_day),
@@ -405,7 +469,82 @@ def validate_s9_human_gate_artifact_for_run(
             )
         )
 
+    source_id = manual_review.get("source_candidate_id") or manual_review.get("source_quote_card_id")
+    if source_id and str(source_id) not in _collect_binding_ids(draft):
+        issues.append(_block_issue("INVALID_S9_SOURCE_BINDING", "S9 source candidate/card ID is not present in the canonical S8 draft"))
+
     return issues
+
+
+def _collect_binding_ids(node: Any) -> set[str]:
+    found: set[str] = set()
+    if isinstance(node, dict):
+        for key, value in node.items():
+            normalized = _normalize_key(str(key))
+            if normalized == "id" or normalized.endswith("_id"):
+                if value is not None:
+                    found.add(str(value))
+            found.update(_collect_binding_ids(value))
+    elif isinstance(node, list):
+        for value in node:
+            found.update(_collect_binding_ids(value))
+    return found
+
+
+def get_final_betting_readiness(
+    *,
+    base_dir: Path,
+    betting_day: str,
+    run_id: str,
+) -> CentralSafetyClassification:
+    """Return placement readiness only after every production gate is verified."""
+    loaded: dict[str, dict[str, Any]] = {}
+    for step_id in ("S7", "S7b", "S9"):
+        path = artifact_path_for(base_dir, betting_day, run_id, step_id)
+        if not path.exists():
+            return get_central_safety_classification()
+        try:
+            loaded[step_id] = load_artifact(path)
+        except ValueError:
+            return get_central_safety_classification()
+
+    draft_path = expected_s8_coupon_draft_path(base_dir, betting_day, run_id)
+    if not draft_path.exists():
+        return get_central_safety_classification()
+    try:
+        draft = load_artifact(draft_path)
+    except ValueError:
+        return get_central_safety_classification()
+
+    safety = get_central_safety_classification({"artifacts": loaded, "s8_draft": draft})
+    if not safety.production_eligibility:
+        return safety
+
+    for step_id in ("S7", "S7b"):
+        artifact, issues = validate_pipeline_artifact(loaded[step_id], step_id)
+        if artifact is None or any(issue.severity == PipelineReadinessStatus.BLOCK for issue in issues):
+            return safety
+
+    s9_artifact, generic_issues = validate_pipeline_artifact(loaded["S9"], "S9")
+    detailed_issues = validate_s9_human_gate_artifact_for_run(
+        loaded["S9"], base_dir=base_dir, betting_day=betting_day, run_id=run_id
+    )
+    if (
+        s9_artifact is None
+        or generic_issues
+        or detailed_issues
+        or draft.get("coupon_draft_count", 0) <= 0
+    ):
+        return safety
+
+    return CentralSafetyClassification(
+        production_eligibility=True,
+        runtime_classification="PRODUCTION_STABLE",
+        contamination_reasons=[],
+        betting_valid=True,
+        can_place_bet_now=True,
+        safe_user_action="MANUAL_PLACEMENT_ALLOWED",
+    )
 
 
 def find_forbidden_decision_signals(payload: Any, path: str = "$") -> list[str]:
@@ -575,34 +714,9 @@ def validate_pipeline_artifact(
                 )
             )
 
-    # S9 detailed validation check
+    # S9 uses the same canonical structural validator as run-bound validation.
     if expected_step_id == "S9" and status_val == PipelineReadinessStatus.HUMAN_APPROVED:
-        manual_review = raw.get("manual_review")
-        if not isinstance(manual_review, dict):
-            issues.append(
-                ReadinessIssue(
-                    code="MISSING_MANUAL_REVIEW",
-                    severity=PipelineReadinessStatus.BLOCK,
-                    message="manual_review object is required for approved S9 gate",
-                )
-            )
-        else:
-            required_keys = (
-                "reviewed_by_user",
-                "reviewed_at_utc",
-                "betclic_manual_verification",
-                "coupon_draft_path",
-                "coupon_draft_sha256",
-            )
-            for k in required_keys:
-                if k not in manual_review or manual_review[k] in (None, "", False):
-                    issues.append(
-                        ReadinessIssue(
-                            code="INCOMPLETE_MANUAL_REVIEW",
-                            severity=PipelineReadinessStatus.BLOCK,
-                            message=f"manual_review is missing or has empty required field: {k}",
-                        )
-                    )
+        issues.extend(validate_production_s9_schema(raw))
 
     # 6. enrichment specific checks (S2.3, S2.5, S2.7, S2.9)
     is_enrichment = expected_step_id in ("S2.3", "S2.5", "S2.7", "S2.9")

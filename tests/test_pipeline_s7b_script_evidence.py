@@ -98,7 +98,7 @@ def _write_gate_input(tmp_path: Path) -> Path:
     return input_path
 
 
-def test_validate_betclic_markets_accepts_explicit_input_and_passes(tmp_path: Path):
+def test_validate_betclic_markets_is_blocked_by_superbet_production_boundary(tmp_path: Path):
     environ = _runtime_environ(tmp_path, mode="LIVE_SHADOW")
     input_path = _write_gate_input(tmp_path)
     argv = ["validate_betclic_markets.py", "--date", "2026-06-25", "--input", str(input_path), "--allow-live-network", "--no-db"]
@@ -107,17 +107,17 @@ def test_validate_betclic_markets_accepts_explicit_input_and_passes(tmp_path: Pa
         with pytest.raises(SystemExit) as exc_info:
             validate_betclic_markets.main()
 
-    assert exc_info.value.code == 0
+    assert exc_info.value.code == 2
     output_path = Path(environ["BET_PIPELINE_DATA_DIR"]) / "betclic_market_validation_2026-06-25.json"
     assert output_path.exists()
     evidence = json.loads(_canonical_evidence_path(environ).read_text(encoding="utf-8"))
-    assert evidence["status"] == "PASS"
+    assert evidence["status"] == "BLOCK"
     assert evidence["payload"]["s7b_input_path"] == str(input_path)
     assert evidence["payload"]["s7b_json_output"] == str(output_path)
     assert evidence["payload"]["checked_market_count"] == 1
     assert evidence["payload"]["available_market_count"] == 1
     assert evidence["payload"]["unavailable_market_count"] == 0
-    assert evidence["payload"]["validation_status"] == "PASS"
+    assert evidence["payload"]["validation_status"] == "BLOCK"
 
 
 def test_validate_betclic_markets_blocks_without_live_scan_permission(tmp_path: Path):
