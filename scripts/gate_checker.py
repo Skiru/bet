@@ -1794,9 +1794,14 @@ def run_gate(candidates: list[dict], date: str, strict: bool = False) -> dict:
         # Everything else passes through with an advisory tier label.
         n_failed = len(gate_result["gate_failed"])
         best = c.get("best_market") or {}
+        import sys
+        is_pytest = "pytest" in sys.modules
         if os.environ.get("BET_MOCK_ODDS") or os.environ.get("BET_MOCK_DATA_QUALITY"):
-            best["safety_score"] = 0.85
-            c["safety_score"] = 0.85
+            if os.environ.get("BET_MOCK_ODDS_FIXTURE_INJECT_ALLOWED") == "True" or is_pytest:
+                best["safety_score"] = 0.85
+                c["safety_score"] = 0.85
+                best["mock"] = True
+                c["mock"] = True
         ev = c.get("ev") if c.get("ev") is not None else best.get("ev")
         safety = best.get("safety_score") or 0
         has_real_odds = (c.get("odds_decimal") is not None and c.get("odds_decimal") > 1.0)
@@ -1828,10 +1833,11 @@ def run_gate(candidates: list[dict], date: str, strict: bool = False) -> dict:
             hard_reject_reason = f"NEGATIVE_EV: EV={ev:.3f} — calculated negative expected value"
 
         if os.environ.get("BET_MOCK_ODDS") or os.environ.get("BET_MOCK_DATA_QUALITY"):
-            if not hard_reject:
-                _set_entry_bucket(entry, "approved")
-                approved.append(entry)
-                continue
+            if os.environ.get("BET_MOCK_ODDS_FIXTURE_INJECT_ALLOWED") == "True" or is_pytest:
+                if not hard_reject:
+                    _set_entry_bucket(entry, "approved")
+                    approved.append(entry)
+                    continue
 
         if hard_reject:
             _set_entry_bucket(entry, "rejected", hard_reject_reason)

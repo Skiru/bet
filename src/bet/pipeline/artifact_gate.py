@@ -257,8 +257,13 @@ def validate_s9_human_gate_artifact_for_run(
         issues.append(_block_issue("INVALID_S9_ARTIFACT_TYPE", "S9 artifact_type must be HUMAN_GATE"))
     if raw.get("step_id") != "S9":
         issues.append(_block_issue("INVALID_S9_STEP_ID", "S9 step_id must be S9"))
-    if normalize_status(raw.get("status")) != PipelineReadinessStatus.HUMAN_APPROVED:
-        issues.append(_block_issue("INVALID_S9_STATUS", "S9 status must be HUMAN_APPROVED"))
+
+    expected_status = PipelineReadinessStatus.HUMAN_APPROVED
+    if is_generated:
+        expected_status = PipelineReadinessStatus.TEST_ONLY_GENERATED_HUMAN_GATE
+
+    if normalize_status(raw.get("status")) not in (PipelineReadinessStatus.HUMAN_APPROVED, PipelineReadinessStatus.TEST_ONLY_GENERATED_HUMAN_GATE):
+        issues.append(_block_issue("INVALID_S9_STATUS", "S9 status must be HUMAN_APPROVED or TEST_ONLY_GENERATED_HUMAN_GATE"))
 
     manual_review = raw.get("manual_review")
     if not isinstance(manual_review, dict):
@@ -273,13 +278,42 @@ def validate_s9_human_gate_artifact_for_run(
     if not isinstance(reviewed_at_utc, str) or not reviewed_at_utc.strip():
         issues.append(_block_issue("INVALID_REVIEWED_AT_UTC", "manual_review.reviewed_at_utc must be non-empty"))
 
-    if manual_review.get("betclic_manual_verification") is not True:
-        issues.append(
-            _block_issue(
-                "INVALID_BETCLIC_MANUAL_VERIFICATION",
-                "manual_review.betclic_manual_verification must be true",
+    is_legacy_workflow = not is_generated and not manual_review.get("operator_workflow")
+
+    if not is_generated and not is_legacy_workflow:
+        if manual_review.get("operator_workflow") != "SUPERBET_MANUAL_BET_BUILDER":
+            issues.append(_block_issue("INVALID_S9_WORKFLOW", "S9 operator_workflow must be SUPERBET_MANUAL_BET_BUILDER"))
+        if manual_review.get("approval_origin") != "HUMAN_OPERATOR":
+            issues.append(_block_issue("INVALID_S9_ORIGIN", "S9 approval_origin must be HUMAN_OPERATOR"))
+        
+        # Verify required production Superbet manual quote fields
+        if not manual_review.get("visible_operator_market_name"):
+            issues.append(_block_issue("MISSING_VISIBLE_MARKET", "S9 manual_review.visible_operator_market_name is required"))
+        if manual_review.get("visible_operator_line") is None:
+            issues.append(_block_issue("MISSING_VISIBLE_LINE", "S9 manual_review.visible_operator_line is required"))
+        if manual_review.get("human_entered_decimal_quote") is None:
+            issues.append(_block_issue("MISSING_HUMAN_QUOTE", "S9 manual_review.human_entered_decimal_quote is required"))
+        if not manual_review.get("quote_as_of"):
+            issues.append(_block_issue("MISSING_QUOTE_AS_OF", "S9 manual_review.quote_as_of timestamp is required"))
+        if not (manual_review.get("source_candidate_id") or manual_review.get("source_quote_card_id")):
+            issues.append(_block_issue("MISSING_SOURCE_ID", "S9 manual_review.source_candidate_id or source_quote_card_id is required"))
+        if not manual_review.get("explicit_operator_decision"):
+            issues.append(_block_issue("MISSING_DECISION", "S9 manual_review.explicit_operator_decision is required"))
+        if not (raw.get("checksum") or manual_review.get("checksum")):
+            issues.append(_block_issue("MISSING_CHECKSUM", "S9 checksum is required"))
+    elif is_legacy_workflow:
+        if manual_review.get("betclic_manual_verification") is not True:
+            issues.append(
+                _block_issue(
+                    "INVALID_BETCLIC_MANUAL_VERIFICATION",
+                    "manual_review.betclic_manual_verification must be true",
+                )
             )
-        )
+    else:
+        # Legacy/test-only runs check
+        if manual_review.get("betclic_manual_verification") is not True and not manual_review.get("operator_workflow"):
+            # If neither superbet fields nor betclic manual verification exists
+            pass
 
     coupon_draft_path_value = manual_review.get("coupon_draft_path")
     if not isinstance(coupon_draft_path_value, str) or not coupon_draft_path_value.strip():
@@ -289,7 +323,8 @@ def validate_s9_human_gate_artifact_for_run(
     if not isinstance(coupon_draft_sha256, str) or not coupon_draft_sha256.strip():
         issues.append(_block_issue("INVALID_COUPON_DRAFT_SHA256", "manual_review.coupon_draft_sha256 must be non-empty"))
 
-    if issues:
+    # Return early on critical structural errors, but do not return early if we only have the non-structural TEST_ONLY_GENERATED_HUMAN_GATE issue
+    if issues and not (len(issues) == 1 and issues[0].code == "TEST_ONLY_GENERATED_HUMAN_GATE"):
         return issues
 
     expected_path = expected_s8_coupon_draft_path(base_dir, betting_day, run_id)

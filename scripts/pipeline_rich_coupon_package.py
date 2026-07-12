@@ -106,10 +106,10 @@ def main() -> int:
             json.dump(_serialize_jsonable(final_report_data), f, indent=2, ensure_ascii=False)
 
         import os
-        is_mock = os.environ.get("BET_MOCK_ODDS") or os.environ.get("BET_PIPELINE_SKIP_FETCH") or (report.classification == "TEST_ONLY_MOCK_ODDS")
+        is_contaminated = report.classification.startswith("TEST_ONLY")
 
-        if is_mock:
-            print("STATUS=TEST_ONLY_MOCK_ODDS")
+        if is_contaminated:
+            print(f"STATUS={report.classification}")
             return 0
         elif recommended_pkg and recommended_pkg.package_type == "ANALYTICAL_ONLY" and not report.blockers:
             print("STATUS=READY_FOR_ANALYTICAL_OPERATOR_QUOTE_REVIEW")
