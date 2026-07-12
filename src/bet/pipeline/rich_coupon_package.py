@@ -535,19 +535,11 @@ def build_rich_coupon_package(
     status = "PASS" if not report_blockers and pkg_type != "NO_BET_PACKAGE" else "FAIL"
 
     import os
-    is_mock = os.environ.get("BET_MOCK_ODDS") or os.environ.get("BET_PIPELINE_SKIP_FETCH")
-    has_mock_candidate = False
-    for cand in state.get("reviewed", {}).values():
-        for k, v in cand.items():
-            if k in ("probability", "safety_score") and (v == 0.85 or str(v) == "0.85"):
-                has_mock_candidate = True
-            if k in ("odds_decimal", "best_odds") and (v == 2.10 or str(v) == "2.10" or v == 2.1 or str(v) == "2.1"):
-                has_mock_candidate = True
-            if k == "ev" and (v == 0.15 or str(v) == "0.15"):
-                has_mock_candidate = True
+    from bet.pipeline.readiness_contracts import get_central_safety_classification
+    central_safety = get_central_safety_classification(state)
 
-    if is_mock or has_mock_candidate:
-        classification = "TEST_ONLY_MOCK_ODDS"
+    if not central_safety.production_eligibility:
+        classification = central_safety.runtime_classification
         can_place_bet_now = False
         safe_user_action = "DO_NOT_PLACE_BET"
         bettable_count = 0
