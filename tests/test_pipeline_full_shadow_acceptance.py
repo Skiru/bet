@@ -69,7 +69,7 @@ def test_full_shadow_acceptance_accepts_only_run_scoped_s8_draft(tmp_path: Path)
     assert is_run_scoped_s8_draft_path(Path("/tmp") / f"{config.betting_day}_s8_coupon_drafts.json", config) is False
 
 
-def test_full_shadow_acceptance_s9_bound_approval_unblocks_only_s10_gate(tmp_path: Path):
+def test_full_shadow_acceptance_generated_s9_remains_blocked_at_s10(tmp_path: Path):
     config = _config(tmp_path)
     draft_path = write_fixture_s8_coupon_draft(config)
 
@@ -81,7 +81,7 @@ def test_full_shadow_acceptance_s9_bound_approval_unblocks_only_s10_gate(tmp_pat
         coupon_draft_sha256=sha256_file(draft_path),
     )
     write_s9_human_gate_artifact(config, valid_artifact)
-    assert evaluate_s10_gate(config).verdict.value == "PASS"
+    assert evaluate_s10_gate(config).verdict.value == "BLOCK"
 
     wrong_sha_artifact = build_s9_human_gate_artifact(
         config,
@@ -120,7 +120,7 @@ def test_full_shadow_acceptance_fixture_positive_path_reaches_s9_block(tmp_path:
     assert report.s8_executable_coupon is False
     assert report.s8_betclic_execution_enabled is False
     assert report.s9_missing_blocks is True
-    assert report.s9_bound_approval_unblocks_s10_gate is True
+    assert report.s9_bound_approval_unblocks_s10_gate is False
     assert report.s9_bare_tmp_approval_blocks is True
     assert report.s9_wrong_sha_blocks is True
     assert report.protected_repo_write_verdict == "PASS"

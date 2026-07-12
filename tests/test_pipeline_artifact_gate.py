@@ -79,8 +79,8 @@ def write_s8_coupon_draft(root: Path, betting_day: str, run_id: str) -> Path:
                 "production_coupon_write": False,
                 "executable_coupon": False,
                 "betclic_execution_enabled": False,
-                "coupon_draft_count": 0,
-                "drafts": [],
+                "coupon_draft_count": 1,
+                "drafts": [{"id": "quote-card-1"}],
             }
         ),
         encoding="utf-8",
@@ -308,10 +308,18 @@ def test_evaluate_gate_s10_requires_s9(tmp_path):
             artifact["manual_review"] = {
                 "reviewed_by_user": "test-user",
                 "reviewed_at_utc": "2026-06-25T12:00:00Z",
-                "betclic_manual_verification": True,
+                "operator_workflow": "SUPERBET_MANUAL_BET_BUILDER",
+                "approval_origin": "HUMAN_OPERATOR",
+                "visible_operator_market_name": "Match winner",
+                "visible_operator_line": "Home",
+                "human_entered_decimal_quote": 2.1,
+                "quote_as_of": "2026-06-25T11:59:00Z",
+                "source_quote_card_id": "quote-card-1",
+                "explicit_operator_decision": "APPROVE",
                 "coupon_draft_path": str(draft_path),
                 "coupon_draft_sha256": sha256_file(draft_path),
             }
+            artifact["checksum"] = sha256_file(draft_path)
         write_artifact(tmp_path / status, artifact)
         decision = evaluate_gate_before_step("S10", tmp_path / status, "2026-06-25", "run-001")
         assert decision.verdict == expected

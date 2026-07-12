@@ -50,10 +50,18 @@ def _build_s9_artifact(draft_path: Path | str, draft_sha256: str) -> dict[str, o
         "status": "HUMAN_APPROVED",
         "betting_day": BETTING_DAY,
         "run_id": RUN_ID,
+        "checksum": draft_sha256,
         "manual_review": {
             "reviewed_by_user": "mkoziol",
             "reviewed_at_utc": "2026-06-27T12:00:00Z",
-            "betclic_manual_verification": True,
+            "operator_workflow": "SUPERBET_MANUAL_BET_BUILDER",
+            "approval_origin": "HUMAN_OPERATOR",
+            "visible_operator_market_name": "Match winner",
+            "visible_operator_line": "Home",
+            "human_entered_decimal_quote": 2.1,
+            "quote_as_of": "2026-06-27T11:59:00Z",
+            "source_quote_card_id": "draft-1",
+            "explicit_operator_decision": "APPROVE",
             "coupon_draft_path": str(draft_path),
             "coupon_draft_sha256": draft_sha256,
         },
@@ -108,11 +116,11 @@ def test_human_approved_missing_proof_blocks():
         "manual_review": {
             "reviewed_by_user": "mkoziol",
             "reviewed_at_utc": "2026-06-27T12:00:00Z",
-            # missing betclic_manual_verification, coupon_draft_path, and coupon_draft_sha256
+            # missing strict Superbet quote proof and coupon binding
         }
     }
     artifact, issues = validate_pipeline_artifact(raw_incomplete, "S9")
-    assert any(i.code == "INCOMPLETE_MANUAL_REVIEW" for i in issues)
+    assert any(i.code == "MISSING_S9_OPERATOR_WORKFLOW" for i in issues)
 
 
 def test_s9_human_approved_with_bare_tmp_coupon_draft_path_blocks(tmp_path: Path):

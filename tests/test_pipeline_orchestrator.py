@@ -59,8 +59,8 @@ def write_test_artifact(base_dir: Path, step_id: str, status: str, payload_overr
                     "production_coupon_write": False,
                     "executable_coupon": False,
                     "betclic_execution_enabled": False,
-                    "coupon_draft_count": 0,
-                    "drafts": [],
+                    "coupon_draft_count": 1,
+                    "drafts": [{"id": "quote-card-1"}],
                 }
             ),
             encoding="utf-8",
@@ -68,7 +68,14 @@ def write_test_artifact(base_dir: Path, step_id: str, status: str, payload_overr
         s9_manual_review = {
             "reviewed_by_user": "mkoziol",
             "reviewed_at_utc": "2026-06-27T12:00:00Z",
-            "betclic_manual_verification": True,
+            "operator_workflow": "SUPERBET_MANUAL_BET_BUILDER",
+            "approval_origin": "HUMAN_OPERATOR",
+            "visible_operator_market_name": "Match winner",
+            "visible_operator_line": "Home",
+            "human_entered_decimal_quote": 2.1,
+            "quote_as_of": "2026-06-27T11:59:00Z",
+            "source_quote_card_id": "quote-card-1",
+            "explicit_operator_decision": "APPROVE",
             "coupon_draft_path": str(draft_path),
             "coupon_draft_sha256": sha256_file(draft_path),
         }
@@ -95,6 +102,8 @@ def write_test_artifact(base_dir: Path, step_id: str, status: str, payload_overr
         "payload": {},
         "manual_review": s9_manual_review,
     }
+    if s9_manual_review is not None:
+        art["checksum"] = s9_manual_review["coupon_draft_sha256"]
     if payload_override:
         art.update(payload_override)
     path = artifact_path_for(base_dir, "2026-06-25", "run-999", step_id)
@@ -268,10 +277,18 @@ def test_s9_human_gate_step_blocks_on_unbound_coupon_draft(tmp_path):
         "S9",
         "HUMAN_APPROVED",
         payload_override={
+            "checksum": "0" * 64,
             "manual_review": {
                 "reviewed_by_user": "mkoziol",
                 "reviewed_at_utc": "2026-06-27T12:00:00Z",
-                "betclic_manual_verification": True,
+                "operator_workflow": "SUPERBET_MANUAL_BET_BUILDER",
+                "approval_origin": "HUMAN_OPERATOR",
+                "visible_operator_market_name": "Match winner",
+                "visible_operator_line": "Home",
+                "human_entered_decimal_quote": 2.1,
+                "quote_as_of": "2026-06-27T11:59:00Z",
+                "source_quote_card_id": "quote-card-1",
+                "explicit_operator_decision": "APPROVE",
                 "coupon_draft_path": "/tmp/2026-06-25_s8_coupon_drafts.json",
                 "coupon_draft_sha256": "0" * 64,
             }

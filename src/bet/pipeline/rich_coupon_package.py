@@ -121,8 +121,8 @@ class RichCouponPackageReport:
     analytical_suggestion_count: int = 0
     ready_for_manual_operator_quote_review: bool = False
     classification: str = "PRODUCTION_STABLE"
-    can_place_bet_now: bool = True
-    safe_user_action: str = "MANUAL_PLACEMENT_ALLOWED"
+    can_place_bet_now: bool = False
+    safe_user_action: str = "CONTINUE_ANALYSIS_OR_REQUEST_MANUAL_QUOTE"
     positive_ev_with_operator_odds_count: int = 0
 
     def to_jsonable(self) -> dict[str, Any]:
@@ -550,8 +550,9 @@ def build_rich_coupon_package(
         status = "FAIL"
     else:
         classification = "PRODUCTION_STABLE"
-        can_place_bet_now = (bettable_count > 0)
-        safe_user_action = "MANUAL_PLACEMENT_ALLOWED" if (bettable_count > 0) else "DO_NOT_PLACE_BET"
+        # S8 construction cannot grant S9 human placement permission.
+        can_place_bet_now = False
+        safe_user_action = "CONTINUE_ANALYSIS_OR_REQUEST_MANUAL_QUOTE"
         positive_ev_with_operator_odds_count = sum(1 for cand in state.get("reviewed", {}).values() if cand.get("ev", 0) > 0 and cand.get("review_status") == "BETTABLE_MANUAL_ONLY")
         ready_for_production_coupon_building = (bettable_count > 0)
         human_manual_placement_required = (bettable_count > 0)

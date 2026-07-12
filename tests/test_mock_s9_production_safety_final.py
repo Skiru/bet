@@ -12,7 +12,14 @@ from bet.pipeline.readiness_contracts import (
     CentralSafetyClassification,
     PipelineReadinessStatus,
 )
-from bet.pipeline.artifact_gate import validate_s9_human_gate_artifact_for_run
+from bet.pipeline.artifact_gate import (
+    artifact_path_for,
+    expected_s8_coupon_draft_path,
+    get_final_betting_readiness,
+    sha256_file,
+    validate_pipeline_artifact,
+    validate_s9_human_gate_artifact_for_run,
+)
 from bet.pipeline.rich_coupon_package import build_rich_coupon_package
 from scripts.coupon_builder import _bm
 
@@ -186,7 +193,7 @@ def test_15_betclic_evidence_cannot_satisfy_superbet():
         }
     }
     issues = validate_s9_human_gate_artifact_for_run(raw, base_dir=base_dir, betting_day="2026-07-11", run_id="run-test")
-    assert any(issue.code == "INVALID_S9_WORKFLOW" for issue in issues)
+    assert any(issue.code == "LEGACY_BETCLIC_S9_FORBIDDEN" for issue in issues)
 
 
 def test_16_17_s8_and_coupon_test_only_under_mock_odds():
@@ -264,7 +271,9 @@ def test_24_clean_unquoted_analytical_run():
     classification = get_central_safety_classification(state)
     assert classification.production_eligibility is True
     assert classification.runtime_classification == "PRODUCTION_STABLE"
-    assert classification.betting_valid is True
+    assert classification.betting_valid is False
+    assert classification.can_place_bet_now is False
+    assert classification.safe_user_action == "CONTINUE_ANALYSIS_OR_REQUEST_MANUAL_QUOTE"
 
 
 def test_26_production_code_contains_no_mock_injection():
@@ -294,3 +303,149 @@ def test_27_previous_run_classification():
     assert audit_data["runtime_classification"] == "TEST_ONLY_SYNTHETIC_RUN"
     assert audit_data["betting_valid"] is False
     assert audit_data["can_place_bet_now"] is False
+
+
+def _write_json(path: Path, value: dict) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(value), encoding="utf-8")
+
+
+def _valid_s9_run(tmp_path: Path) -> tuple[dict, Path]:
+    day = "2026-07-11"
+    run_id = "run-final"
+    draft_path = expected_s8_coupon_draft_path(tmp_path, day, run_id)
+    _write_json(draft_path, {
+        "schema_version": 1,
+        "artifact_type": "S8_COUPON_DRAFTS",
+        "betting_day": day,
+        "run_id": run_id,
+        "requires_human_gate": True,
+        "ready_for_human_gate": True,
+        "ready_for_production_execution": False,
+        "production_selectable": False,
+        "production_coupon_write": False,
+        "executable_coupon": False,
+        "betclic_execution_enabled": False,
+        "coupon_draft_count": 1,
+        "drafts": [{"id": "quote-card-1"}],
+    })
+    digest = sha256_file(draft_path)
+    raw = {
+        "schema_version": 1,
+        "artifact_type": "HUMAN_GATE",
+        "step_id": "S9",
+        "status": "HUMAN_APPROVED",
+        "betting_day": day,
+        "run_id": run_id,
+        "checksum": digest,
+        "manual_review": {
+            "reviewed_by_user": "operator-user",
+            "reviewed_at_utc": "2026-07-11T12:00:00Z",
+            "operator_workflow": "SUPERBET_MANUAL_BET_BUILDER",
+            "approval_origin": "HUMAN_OPERATOR",
+            "visible_operator_market_name": "Match winner",
+            "visible_operator_line": "Home",
+            "human_entered_decimal_quote": 2.1,
+            "quote_as_of": "2026-07-11T11:59:00Z",
+            "source_quote_card_id": "quote-card-1",
+            "explicit_operator_decision": "APPROVE",
+            "coupon_draft_path": str(draft_path),
+            "coupon_draft_sha256": digest,
+        },
+    }
+    return raw, draft_path
+
+
+def test_strict_superbet_s9_schema_and_generic_validator_agree(tmp_path: Path):
+    raw, _ = _valid_s9_run(tmp_path)
+    detailed = validate_s9_human_gate_artifact_for_run(
+        raw, base_dir=tmp_path, betting_day="2026-07-11", run_id="run-final"
+    )
+    artifact, generic = validate_pipeline_artifact(raw, "S9")
+    assert detailed == []
+    assert generic == []
+    assert artifact is not None
+    assert "betclic_manual_verification" not in raw["manual_review"]
+
+    invalid = json.loads(json.dumps(raw))
+    del invalid["manual_review"]["operator_workflow"]
+    assert "MISSING_S9_OPERATOR_WORKFLOW" in {issue.code for issue in validate_pipeline_artifact(invalid, "S9")[1]}
+    assert "MISSING_S9_OPERATOR_WORKFLOW" in {
+        issue.code for issue in validate_s9_human_gate_artifact_for_run(
+            invalid, base_dir=tmp_path, betting_day="2026-07-11", run_id="run-final"
+        )
+    }
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "expected_code"),
+    [
+        ("approval_origin", None, "INVALID_S9_ORIGIN"),
+        ("visible_operator_market_name", "", "MISSING_VISIBLE_MARKET"),
+        ("visible_operator_line", None, "MISSING_VISIBLE_LINE"),
+        ("human_entered_decimal_quote", None, "MISSING_HUMAN_QUOTE"),
+        ("human_entered_decimal_quote", 1.0, "INVALID_HUMAN_QUOTE"),
+        ("quote_as_of", "", "MISSING_QUOTE_AS_OF"),
+        ("source_quote_card_id", "", "MISSING_SOURCE_ID"),
+    ],
+)
+def test_strict_superbet_required_quote_fields(tmp_path: Path, field: str, value: object, expected_code: str):
+    raw, _ = _valid_s9_run(tmp_path)
+    raw["manual_review"][field] = value
+    issues = validate_s9_human_gate_artifact_for_run(
+        raw, base_dir=tmp_path, betting_day="2026-07-11", run_id="run-final"
+    )
+    assert expected_code in {issue.code for issue in issues}
+
+
+def test_betclic_field_and_missing_checksum_cannot_satisfy_superbet(tmp_path: Path):
+    raw, _ = _valid_s9_run(tmp_path)
+    raw["manual_review"]["betclic_manual_verification"] = True
+    assert "LEGACY_BETCLIC_S9_FORBIDDEN" in {issue.code for issue in validate_pipeline_artifact(raw, "S9")[1]}
+
+    del raw["manual_review"]["betclic_manual_verification"]
+    del raw["checksum"]
+    assert "MISSING_CHECKSUM" in {issue.code for issue in validate_pipeline_artifact(raw, "S9")[1]}
+
+
+def test_generated_s9_blocks_s10_and_final_readiness(tmp_path: Path):
+    raw, _ = _valid_s9_run(tmp_path)
+    raw["generated"] = True
+    raw["manual_review"]["reviewed_by_user"] = "shadow-acceptance"
+    _write_json(artifact_path_for(tmp_path, "2026-07-11", "run-final", "S9"), raw)
+    readiness = get_final_betting_readiness(base_dir=tmp_path, betting_day="2026-07-11", run_id="run-final")
+    assert readiness.betting_valid is False
+    assert readiness.can_place_bet_now is False
+
+
+def test_magic_values_require_provenance_or_forced_diagnostic(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.delenv("BET_FORCE_MAGIC_VALUE_SCAN", raising=False)
+    values = {"probability": 0.85, "odds_decimal": 2.10, "ev": 0.15}
+    clean = get_central_safety_classification(values)
+    contaminated = get_central_safety_classification({**values, "mock": True})
+    assert clean.production_eligibility is True
+    assert clean.betting_valid is False
+    assert contaminated.production_eligibility is False
+
+
+def test_only_valid_superbet_s9_enables_manual_placement(tmp_path: Path):
+    clean = get_central_safety_classification({"odds_decimal": 2.1})
+    assert clean.production_eligibility is True
+    assert clean.can_place_bet_now is False
+
+    raw, _ = _valid_s9_run(tmp_path)
+    for step_id in ("S7", "S7b"):
+        _write_json(artifact_path_for(tmp_path, "2026-07-11", "run-final", step_id), {
+            "schema_version": 1,
+            "artifact_type": "SCRIPT_EVIDENCE",
+            "step_id": step_id,
+            "status": "PASS",
+            "betting_day": "2026-07-11",
+            "run_id": "run-final",
+        })
+    _write_json(artifact_path_for(tmp_path, "2026-07-11", "run-final", "S9"), raw)
+    readiness = get_final_betting_readiness(base_dir=tmp_path, betting_day="2026-07-11", run_id="run-final")
+    assert readiness.production_eligibility is True
+    assert readiness.betting_valid is True
+    assert readiness.can_place_bet_now is True
+    assert readiness.safe_user_action == "MANUAL_PLACEMENT_ALLOWED"

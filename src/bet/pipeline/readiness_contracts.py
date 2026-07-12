@@ -355,18 +355,19 @@ def get_central_safety_classification(
             if status_val in ("TEST_ONLY_GENERATED_S9", "TEST_ONLY_GENERATED_HUMAN_GATE"):
                 reasons.append(f"S9 status is generated/mock: {status_val}")
 
-            # Check for legacy Betclic shortcut used to satisfy Superbet
-            import sys
-            is_pytest = "pytest" in sys.modules
+            # Legacy operator evidence is contamination regardless of runtime.
             force_scan = os.environ.get("BET_FORCE_MAGIC_VALUE_SCAN") == "True"
 
-            if not is_pytest or force_scan:
-                if "betclic" in str(node.get("operator_workflow") or "").lower() or "betclic" in str(node.get("source") or "").lower() or node.get("betclic_manual_verification") is True:
-                    reasons.append("Legacy Betclic operator validation or shortcut detected")
+            if (
+                "betclic_manual_verification" in node
+                or "betclic" in str(node.get("operator_workflow") or "").lower()
+                or "betclic" in str(node.get("source") or "").lower()
+            ):
+                reasons.append("Legacy Betclic operator validation or shortcut detected")
 
-            # Check magic numbers as defense-in-depth
+            # Magic values are diagnostic-only unless explicitly enabled.
             for k, v in node.items():
-                if not is_pytest or force_scan:
+                if force_scan:
                     if k in ("probability", "safety_score") and (v == 0.85 or str(v) == "0.85"):
                         reasons.append("Magic mock value 0.85 detected in probability or safety_score")
                     if k in ("odds_decimal", "best_odds") and (v == 2.10 or str(v) == "2.10" or v == 2.1 or str(v) == "2.1"):
@@ -421,8 +422,7 @@ def get_central_safety_classification(
             production_eligibility=True,
             runtime_classification="PRODUCTION_STABLE",
             contamination_reasons=[],
-            betting_valid=True,
-            can_place_bet_now=True,
-            safe_user_action="MANUAL_PLACEMENT_ALLOWED"
+            betting_valid=False,
+            can_place_bet_now=False,
+            safe_user_action="CONTINUE_ANALYSIS_OR_REQUEST_MANUAL_QUOTE"
         )
-
