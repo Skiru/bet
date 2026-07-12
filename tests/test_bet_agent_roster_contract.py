@@ -45,7 +45,7 @@ def test_required_agents_do_not_pin_model_overrides():
     profile = load_jsonc(PROJECT_PROFILE_PATH)
     for agent_name in REQUIRED_AGENTS:
         assert read_frontmatter_model(AGENT_DIR / f"{agent_name}.md") is None
-        assert "model" not in profile["agent"][agent_name]
+        assert "model" not in profile.get("agent", {}).get(agent_name, {})
 
 
 def test_required_subagent_agent_files_inherit_parent_model():
@@ -91,7 +91,7 @@ def test_conflicting_subagent_override_blocks():
     payload = build_smoke_payload(
         "openai/gpt-5.4",
         per_agent={
-            "bet-valuator": {
+            "bet-modeler": {
                 "explicit_override_used": True,
                 "conflicting_explicit_override": True,
                 "inherited_parent_model": False,
@@ -100,7 +100,7 @@ def test_conflicting_subagent_override_blocks():
     )
     matrix, summary, failures = build_matrix(smoke_payload=payload)
     assert summary["verdict"] == "FAIL"
-    assert matrix["bet-valuator"]["conflicting_explicit_override"] is True
+    assert matrix["bet-modeler"]["conflicting_explicit_override"] is True
     assert any("conflicting explicit override detected" in failure for failure in failures)
 
 
@@ -115,13 +115,13 @@ def test_subagents_must_inherit_active_runtime_model():
     payload = build_smoke_payload(
         "openai/gpt-5.4",
         per_agent={
-            "bet-enricher": {
+            "bet-researcher": {
                 "inherited_parent_model": False,
             }
         },
     )
     normalized = normalize_smoke_results(payload)
-    assert normalized["smoke_map"]["bet-enricher"]["inherited_parent_model"] is False
+    assert normalized["smoke_map"]["bet-researcher"]["inherited_parent_model"] is False
     _, summary, failures = build_matrix(smoke_payload=payload)
     assert summary["subagents_inherit_active_runtime_model"] is False
     assert summary["verdict"] == "FAIL"

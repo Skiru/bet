@@ -11,7 +11,7 @@ Validates:
 - Descriptions are non-empty and role-specific
 - Canonical filenames and names
 - Correct modes
-- Bounded steps and deterministic temperature
+- No repository-level step override and deterministic temperature
 - Model policy inheritance block present and no explicit model pins
 - No "ask" permission value exists in frontmatter
 - Every subagent has question: deny
@@ -20,7 +20,7 @@ Validates:
 - Auditor bet-auditor has bash allow and mutation denied
 - Manifest agents are all in the power-agent set
 - No reports/pipeline_runs files are part of the git patch
-- Both Skills exist and parse
+- All four Skills exist and parse
 - Artifact writer exists
 - Required handoff paths match the phase contract
 - README.md updated to power agents, no stale rosters, has Superbet workflow
@@ -51,7 +51,11 @@ EXPECTED_AGENTS = [
 EXPECTED_SKILLS = [
     "betting-pipeline-contract",
     "betting-evidence-contract",
+    "betting-pipeline-runtime",
+    "context-safe-agentics",
 ]
+
+PARTNER_AGENTS = set(EXPECTED_AGENTS) - {"bet-executor"}
 
 # Expected handoff paths
 EXPECTED_HANDOFFS = [
@@ -192,13 +196,8 @@ def validate_agent_file(path: Path, agent_name: str) -> list[str]:
         elif temperature is not None and temperature > 0.3:
             violations.append(f"{agent_name}: Temperature {temperature} too high (max 0.3)")
 
-    # Check steps
-    steps = frontmatter.get("steps")
-    if steps is not None:
-        if not isinstance(steps, int):
-            violations.append(f"{agent_name}: Steps must be integer")
-        elif steps > 30:
-            violations.append(f"{agent_name}: Steps {steps} too high (max 30)")
+    if "steps" in frontmatter:
+        violations.append(f"{agent_name}: Production betting agents must not define steps")
 
     # Check permissions (no ask, correct bash and mutation)
     permission = frontmatter.get("permission", {})
@@ -210,6 +209,8 @@ def validate_agent_file(path: Path, agent_name: str) -> list[str]:
     if agent_name == "bet-executor":
         if not isinstance(task_perm, dict) or task_perm.get("*") != "deny":
             violations.append("bet-executor: Expected task permission dictionary allowlist")
+        elif {key for key, value in task_perm.items() if key != "*" and value == "allow"} != PARTNER_AGENTS:
+            violations.append("bet-executor: Task allowlist must contain exactly the six partner agents")
     else:
         if task_perm != "deny":
             violations.append(f"{agent_name}: Power subagent must have task: deny")
@@ -291,10 +292,13 @@ def validate_skill_file(path: Path, skill_name: str) -> list[str]:
         violations.append(f"Skill file missing: {path}")
         return violations
 
-    content = path.read_text(encoding="utf-8")
-    if not content.startswith("---"):
+    content_bytes = path.read_bytes()
+    content = content_bytes.decode("utf-8")
+    if not content_bytes.startswith(b"---\n"):
         violations.append(f"{skill_name}: No YAML frontmatter")
         return violations
+    if b"\n---\n" not in content_bytes:
+        violations.append(f"{skill_name}: Frontmatter closing delimiter is not standalone")
 
     frontmatter, body = parse_yaml_frontmatter(content)
     if frontmatter is None:
@@ -308,6 +312,10 @@ def validate_skill_file(path: Path, skill_name: str) -> list[str]:
     description = frontmatter.get("description", "")
     if not description or len(description) < 20:
         violations.append(f"{skill_name}: Description too short or missing")
+
+    for forbidden_key in ("model", "permission"):
+        if forbidden_key in frontmatter:
+            violations.append(f"{skill_name}: Skills must not define {forbidden_key}")
 
     return violations
 
@@ -337,7 +345,10 @@ def validate_no_reports_in_patch(repo_root: Path) -> list[str]:
     """Ensure no reports/pipeline_runs/ are part of the tracked branch changes."""
     violations = []
     try:
-        base_commit = "7b56ea5c83a469735a8bbbb48c4347b6a0c390f9"
+        base_commit = subprocess.run(
+            ["git", "merge-base", "main", "HEAD"], cwd=repo_root,
+            capture_output=True, text=True, check=True
+        ).stdout.strip()
         res = subprocess.run(
             ["git", "diff", "--name-only", f"{base_commit}..HEAD"],
             cwd=repo_root,
@@ -432,10 +443,32 @@ def validate_manifest_agents(repo_root: Path) -> list[str]:
 
     try:
         data = json.loads(manifest_path.read_text(encoding="utf-8"))
+        forbidden_rules = {
+            "all_picks_conditional_until_user_betclic_verification",
+            "betclic_market_boundary_validation",
+            "manual_user_verification_in_betclic",
+            "minimum_one_valid_tip",
+        }
+        serialized = json.dumps(data)
+        for rule in forbidden_rules:
+            if rule in serialized:
+                violations.append(f"Manifest contains forbidden legacy rule '{rule}'")
         for step in data.get("steps", []):
             agent = step.get("agent")
             if agent not in EXPECTED_AGENTS:
                 violations.append(f"Manifest step '{step.get('id')}' references unauthorized agent '{agent}'")
+        required_global = {
+            "operator_workflow": "SUPERBET_MANUAL_BET_BUILDER",
+            "tipster_absence_does_not_block_core_analysis": True,
+            "no_event_drop_due_only_to_tipster_absence": True,
+            "every_discovered_event_requires_terminal_status_or_reason": True,
+            "manual_operator_quote_required_before_bettable": True,
+            "human_entered_quote_required": True,
+            "final_coupon_blocked_without_visible_operator_quote": True,
+        }
+        for key, expected in required_global.items():
+            if data.get("global_rules", {}).get(key) != expected:
+                violations.append(f"Manifest global rule '{key}' must equal {expected!r}")
     except Exception as e:
         violations.append(f"Failed to parse manifest: {e}")
     return violations

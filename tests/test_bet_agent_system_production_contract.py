@@ -6,11 +6,11 @@ def build_runtime_smoke_payload(child_runtime_model: str = "openai/gpt-5.4", **o
     parent_model = overrides.pop("active_parent_runtime_model", "openai/gpt-5.4")
     results = [
         {
-            "agent_name": "bet-orchestrator",
+            "agent_name": "bet-executor",
             "smoke_type": "PRIMARY_AGENT_CONFIG_SMOKE",
             "launched": False,
             "artifact_written": True,
-            "artifact_path": "reports/pipeline_runs/test/bet-orchestrator_runtime_smoke.md",
+            "artifact_path": "reports/pipeline_runs/test/bet-executor_runtime_smoke.md",
             "provider_model_not_found_error": False,
             "explicit_model_override_detected": False,
             "active_parent_runtime_model": parent_model,
@@ -23,12 +23,12 @@ def build_runtime_smoke_payload(child_runtime_model: str = "openai/gpt-5.4", **o
         }
     ]
     for agent_name in [
-        "bet-enricher",
-        "bet-statistician",
-        "bet-valuator",
-        "bet-challenger",
+        "bet-researcher",
+        "bet-modeler",
+        "bet-risk-gatekeeper",
         "bet-builder",
-        "bet-test-engineer",
+        "bet-auditor",
+        "bet-settler-postevent",
     ]:
         payload = {
             "agent_name": agent_name,
@@ -72,9 +72,9 @@ def test_production_contract_enforces_core_summary_flags():
     assert summary["required_docs_exist"] is True
     assert summary["required_betting_agents_do_not_pin_model_overrides"] is True
     assert summary["ui_runtime_inheritance_policy_exists"] is True
-    assert summary["anti_loop_contract_exists"] is True
-    assert summary["orchestrator_cannot_mutate_repo"] is True
-    assert summary["engineer_can_mutate_repo"] is True
+    assert summary["safe_checkpoint_contract_exists"] is True
+    assert summary["bet_executor_cannot_mutate_repo"] is True
+    assert summary["code_general_repair_path_exists"] is True
     assert summary["no_stale_policy_strings"] is True
     assert summary["no_stale_betclic_operator_flow"] is True
     assert summary["output_schemas_present"] is True
@@ -88,7 +88,7 @@ def test_primary_agent_not_required_to_launch_as_subagent():
     assert payload["summary"]["primary_agent_config_smoke"]["verdict"] == "PASS"
 
 
-def test_orchestrator_primary_config_smoke_can_pass():
+def test_executor_primary_config_smoke_can_pass():
     payload = audit(runtime_smoke_payload=build_runtime_smoke_payload())
     assert payload["summary"]["primary_agent_config_smoke"]["verdict"] == "PASS"
     assert payload["summary"]["invalid_smoke_test_detected"] is False
@@ -103,13 +103,13 @@ def test_inheritance_can_pass_by_contract_without_child_model_introspection():
 def test_unknown_child_runtime_model_does_not_fail_when_parent_known_and_no_override():
     payload = audit(runtime_smoke_payload=build_runtime_smoke_payload(child_runtime_model="UNKNOWN_NOT_INTROSPECTABLE"))
     assert payload["summary"]["unknown_child_runtime_model_accepted_by_contract"] is True
-    assert payload["summary"]["delegated_subagent_launch_smoke"]["bet-valuator"]["verdict"] == "PASS"
+    assert payload["summary"]["delegated_subagent_launch_smoke"]["bet-modeler"]["verdict"] == "PASS"
 
 
 def test_provider_model_not_found_still_fails():
     payload = audit(
         runtime_smoke_payload=build_runtime_smoke_payload(
-            per_agent={"bet-valuator": {"provider_model_not_found_error": True}}
+            per_agent={"bet-modeler": {"provider_model_not_found_error": True}}
         )
     )
     assert payload["status"] == "FAIL"
@@ -119,12 +119,12 @@ def test_provider_model_not_found_still_fails():
 def test_explicit_conflicting_override_still_fails():
     payload = audit(
         runtime_smoke_payload=build_runtime_smoke_payload(
-            per_agent={"bet-challenger": {"explicit_model_override_detected": True}},
-            conflicting_override_source=".kilo/agents/bet-challenger.md:1",
+            per_agent={"bet-risk-gatekeeper": {"explicit_model_override_detected": True}},
+            conflicting_override_source=".kilo/agents/bet-risk-gatekeeper.md:1",
         )
     )
     assert payload["status"] == "FAIL"
-    assert payload["summary"]["conflicting_override_source"] == ".kilo/agents/bet-challenger.md:1"
+    assert payload["summary"]["conflicting_override_source"] == ".kilo/agents/bet-risk-gatekeeper.md:1"
 
 
 def test_subagent_missing_role_local_artifact_fails():
@@ -140,7 +140,7 @@ def test_subagent_missing_role_local_artifact_fails():
 def test_direct_role_smoke_cannot_prove_inheritance():
     payload = audit(
         runtime_smoke_payload=build_runtime_smoke_payload(
-            per_agent={"bet-test-engineer": {"smoke_type": "DIRECT_ROLE_SMOKE"}}
+            per_agent={"bet-auditor": {"smoke_type": "DIRECT_ROLE_SMOKE"}}
         )
     )
     assert payload["status"] == "FAIL"
@@ -152,10 +152,10 @@ def test_runtime_smoke_contract_doc_exists():
     assert payload["summary"]["required_docs_exist"] is True
 
 
-def test_challenger_conflicting_override_requires_exact_source():
+def test_gatekeeper_conflicting_override_requires_exact_source():
     payload = audit(
         runtime_smoke_payload=build_runtime_smoke_payload(
-            per_agent={"bet-challenger": {"explicit_model_override_detected": True}},
+            per_agent={"bet-risk-gatekeeper": {"explicit_model_override_detected": True}},
             conflicting_override_source="UNKNOWN",
         )
     )

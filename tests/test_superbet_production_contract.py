@@ -63,7 +63,7 @@ def test_manifest_superbet_rules_are_attached_to_every_key_phase() -> None:
         "S5": ["weather_context_required", "tipster_sentiment_layer_checked", "bet_builder_correlation_precheck"],
         "S6": ["cross_event_and_same_game_correlation_guard", "no_chase_after_loss_guard"],
         "S7": ["analytical_status_allowed_without_odds", "bettable_blocked_without_manual_quote"],
-        "S7b": ["manual_operator_market_boundary_validation", "superbet_quote_gate_preparation", "no_operator_browser_automation"],
+        "S7b": ["superbet_manual_market_name_line_mapping_only", "manual_quote_required_when_operator_quote_missing", "no_operator_browser_automation"],
         "S8": ["same_game_builder_correlation_check", "no_combined_bookmaker_odds_computation", "manual_quote_cards_required", "idea_grouping_not_final_coupon"],
         "S9": ["manual_user_verification_in_superbet", "human_entered_quote_required"],
         "S10": ["settlement_and_learning_only", "no_retroactive_pick_mutation"],

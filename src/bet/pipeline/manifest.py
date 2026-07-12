@@ -153,11 +153,16 @@ def validate_pipeline_manifest(manifest: PipelineManifest, repo_root: Path | Non
         "point_in_time_required",
         "no_pick_before_s7",
         "no_coupon_before_s8",
-        "all_picks_conditional_until_user_betclic_verification",
         "enrichment_must_not_emit_pick_edge_stake_or_coupon",
         "s2_9_required_before_s3",
         "no_live_provider_calls_in_contract_pass",
-        "no_production_db_writes_in_contract_pass"
+        "no_production_db_writes_in_contract_pass",
+        "manual_operator_quote_required_before_bettable",
+        "no_combined_bookmaker_odds_computation",
+        "no_automated_bookmaker_placement",
+        "tipster_absence_does_not_block_core_analysis",
+        "no_event_drop_due_only_to_tipster_absence",
+        "every_discovered_event_requires_terminal_status_or_reason"
     ]
     for rule in required_global_rules:
         if rule not in global_rules or global_rules[rule] is not True:

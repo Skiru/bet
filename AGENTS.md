@@ -13,13 +13,13 @@ Only seven high-performing production power agents exist in the active betting a
 
 1. **`bet-executor` (Primary Mode):** Bounded betting pipeline executor. Runs canonical pipeline scripts (e.g., `scripts/pipeline_steps/run_daily_pipeline.py`), captures logs and fish `$pipestatus` codes, checks git tree cleanliness, and enforces gates. Business agents cannot run shell.
 2. **`bet-researcher` (Subagent Mode):** Shell-less domain specialist for discovery, tipsters aggregation, gap detection, enrichment, and fact reconciliation. Handles facts and factual conflicts.
-3. **`bet-modeler` (Subagent Mode):** Shell-less domain specialist for S3 (stats/probabilities) and S4 (valuations/fair pricing/EV/Kelly sizing).
-4. **`bet-risk-gatekeeper` (Subagent Mode):** Shell-less domain specialist for S5 (motivation context), S6 (portfolio repeats guard), S7 (hard approval gates), and S9 (human execution gate). Handles risk conflicts.
-5. **`bet-builder` (Subagent Mode):** Shell-less domain specialist for S8 (coupon construction, same game build correlations, and quote cards).
+3. **`bet-modeler` (Subagent Mode):** Shell-less domain specialist for S3 probabilities and S4 fair pricing, minimum acceptable quotes, and EV only after real operator odds exist.
+4. **`bet-risk-gatekeeper` (Subagent Mode):** Shell-less domain specialist for S5 context, S6 portfolio risk, and S7 hard approval gates. Handles risk conflicts but never impersonates the human S9 operator.
+5. **`bet-builder` (Subagent Mode):** Shell-less domain specialist for S8 quote packs, Bet Builder idea groups, and correlation warnings. It does not create an executable coupon.
 6. **`bet-auditor` (Subagent Mode):** Verification-only specialist for independent checks, database integrity audits, and S7b validation. May use bash for running target verification tests only. Never mutates or repairs. Performs final verification.
 7. **`bet-settler-postevent` (Subagent Mode):** Consolidated historical settlement and learning specialist for S10 (post-event accounting).
 
-All old legacy micro-agents and orchestrators have been completely removed and are no longer part of the repository. All high-level business or execution delegation is handled via built-in Code or General primary modes. Technical engineering repairs are handled strictly via built-in Code or General primary modes in a fresh worktree, and are not handled by any betting agent.
+All old legacy micro-agents and orchestrators have been removed. `bet-executor` is the normal full-day betting primary. Technical engineering repairs and emergency fallback use built-in Code or General in a fresh worktree and are not handled by any betting agent.
 
 ## Execution rules
 
@@ -47,11 +47,12 @@ Do not use Playwright from local agents. Browser automation requires approval. C
 
 ## Session and context discipline
 
-- Start a new session after switching profile, provider, model, primary agent, or betting phase.
+- Start a new session after switching profile, provider, model, or primary agent. A betting run may continue across bounded phases in the same session, worktree, and `RUN_ID`.
 - Read only the files required by the current task; do not recursively ingest the whole repository.
 - Keep every displayed tool result below **8 KiB** and save verbose output under `.kilo/artifacts/`.
 - Local subagent output must stay below **900 tokens**. Betting handoffs must stay below **1,000 tokens**.
 - Local automatic compaction is disabled. Save a checkpoint before manual `/compact`; after one compaction failure, continue in a fresh session.
+- Before an unavoidable UI/context limit, finish the current atomic operation and persist a safe checkpoint with branch, HEAD, changed files, completed phases, passed and pending tests, risks, handoff path, `RUN_ID`, and exact continuation prompt. A checkpoint never claims PASS or uses generic step-limit prose.
 
 ## Evidence and data
 
@@ -62,6 +63,9 @@ Do not use Playwright from local agents. Browser automation requires approval. C
 - Material external facts should use two independent current sources when available; factual conflicts are handled by `bet-researcher` while risk conflicts are handled by `bet-risk-gatekeeper`.
 - `bet-auditor` performs final verification and must return `PASS` before S8 completes.
 - All picks remain conditional until the user verifies the exact market and a manual human Superbet quote.
+- Tipster absence must be labeled and cannot silently remove an event or block core analysis. Every discovered event requires an explicit terminal status or reason.
+- Missing odds do not block analytical coverage, but they block EV, bettable status, Kelly/stake recommendations, and an executable final coupon.
+- S9 is human-only. Synthetic or agent-generated approval cannot satisfy it, and zero S7 approvals is valid `NO_ACTION_TERMINAL`.
 
 ## Repository and command safety
 
@@ -72,7 +76,7 @@ Do not use Playwright from local agents. Browser automation requires approval. C
 
 ## Betting Run Primary Executor & Control-Plane Hardening
 
-- For live/full-day betting sessions, select `bet-executor` or the built-in `Code` or `General` agent with Bash.
+- For live/full-day betting sessions, select `bet-executor` as the canonical primary executor. Built-in Code or General with Bash is an emergency fallback and engineering repair path, not the normal betting orchestrator.
 - Never select legacy orchestrators as the primary shell executor.
 - If the selected primary agent has no Bash, stop immediately with `WRONG_KILO_AGENT_MODE_NO_BASH`.
 - Use the same session and same worktree for bounded continuation of a betting run.

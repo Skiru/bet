@@ -1,6 +1,6 @@
 ---
 name: betting-evidence-contract
-description: Evidence and data contract for betting specialists. Defines approved sources, as_of rules, fact vs inference, UNKNOWN handling, and artifact traceability.
+description: Source, timestamp, uncertainty, conflict-resolution, operator-odds, and artifact-traceability contract for betting evidence.
 ---
 
 # Betting Evidence Contract
@@ -68,7 +68,7 @@ attempted: webfetch https://team.com/injuries
 
 For material external facts:
 - Prefer two independent sources
-- If sources conflict, invoke `bet-reconciler`
+- Route factual conflicts to `bet-researcher`, risk conflicts to `bet-risk-gatekeeper`, and unresolved final consistency to `bet-auditor`
 - Document source disagreement
 
 ## Contradiction Handling
@@ -77,8 +77,9 @@ When sources contradict:
 1. Record both values with sources
 2. Assess source authority (official > aggregator > social)
 3. Assess recency (newer > older)
-4. If unresolved, invoke `bet-reconciler`
+4. Route factual conflicts to `bet-researcher` and risk conflicts to `bet-risk-gatekeeper`
 5. Never silently choose one source
+6. Route unresolved final consistency to `bet-auditor`, which must not return partial PASS
 
 ## No Invented Data
 
@@ -92,6 +93,12 @@ Never invent:
 - Model outputs
 
 If data is missing and cannot be fetched, use `UNKNOWN`.
+
+## Operator Odds Boundary
+
+- `bet-modeler` may calculate fair price and minimum acceptable quote without operator odds.
+- EV, bettable status, Kelly sizing, and stake recommendations require real human-entered operator odds with `as_of`.
+- Missing odds remain `MANUAL_QUOTE_REQUIRED`; never substitute generated, synthetic, or cross-bookmaker odds.
 
 ## Bounded Result Requirements
 
@@ -127,7 +134,7 @@ Example artifact header:
 # Phase D Handoff
 
 Created: 2026-06-12T09:30:00Z
-Agent: bet-valuator
+Agent: bet-modeler
 Phase: D
 Sources: .kilo/artifacts/odds-2026-06-12.md
 ```

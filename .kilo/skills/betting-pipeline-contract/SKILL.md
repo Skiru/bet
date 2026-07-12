@@ -1,104 +1,33 @@
 ---
 name: betting-pipeline-contract
-description: Betting pipeline phase contract for orchestrator and specialists. Defines phases A-E, mandatory specialists, entry/exit requirements, hard stops, and handoff artifacts.
+description: Canonical S0-S10 ownership, execution, verification, continuation, and human-gate contract for the seven betting power agents.
 ---
 
 # Betting Pipeline Contract
 
-## Phase Overview
+## Ownership
 
-| Phase | Scope | Mandatory specialists | Exit artifact |
-|---|---|---|---|
-| A | S0 settlement and historical learning | `bet-settler`, `bet-db-analyst`, `bet-test-engineer` | `.kilo/state/phase-A-handoff.md` |
-| B | S1–S1e discovery and shortlist | `bet-scanner`, `bet-test-engineer` | `.kilo/state/phase-B-handoff.md` |
-| C | S2 tipster aggregation | `bet-scout`, `bet-test-engineer` | `.kilo/state/phase-C-handoff.md` |
-| D | S2.3–S7 enrichment, modelling and gates | `bet-enricher`, `bet-statistician`, `bet-valuator`, `bet-challenger`, `bet-test-engineer` | `.kilo/state/phase-D-handoff.md` |
-| E | S8–S10 construction and final validation | `bet-builder`, `bet-test-engineer` | `.kilo/state/phase-E-handoff.md` |
+| Steps | Domain owner | Contract |
+|---|---|---|
+| S0, S10 | `bet-settler-postevent` | Settlement, accounting, and post-event learning only |
+| S1, S1e, S2, S2.3, S2.5, S2.7, S2.9 | `bet-researcher` | Event identity, tipsters, enrichment, and factual reconciliation |
+| S3, S4 | `bet-modeler` | Probabilities, fair price, minimum acceptable quote, and EV only with real odds |
+| S5, S6, S7 | `bet-risk-gatekeeper` | Current context, portfolio risk, and hard approval gates |
+| S7b | `bet-auditor` | Independent market-mapping and artifact verification |
+| S8 | `bet-builder` | Manual quote cards and Bet Builder idea groups |
+| S9 | Human operator | Manual Superbet quote and placement decision; no agent substitute |
 
-## Phase Entry Requirements
+`bet-executor` is the canonical script executor for all script-mode steps. Domain ownership never grants shell access. `bet-auditor` independently verifies and never repairs. Code/General in a fresh worktree is the engineering repair path and emergency fallback, not the normal betting orchestrator.
 
-### Phase A
-- Previous session closed with explicit handoff or fresh start
-- Database accessible and verified by `bet-db-analyst`
-- No pending script failures
+## Gates
 
-### Phase B
-- Phase A handoff exists and passes `bet-test-engineer` validation
-- Database contains current fixture data
-- No unresolved settlement issues
+- Missing odds do not block analytical coverage, but they block EV, bettable status, stakes, and an executable final coupon.
+- Tipster absence must be explicitly labeled and cannot silently drop an event or block core analysis.
+- Every discovered event must receive an explicit terminal status or reason.
+- Zero S7 approvals is valid `NO_ACTION_TERMINAL`.
+- S9 requires a real human-entered Superbet quote. Synthetic or generated S9 evidence is invalid.
+- Missing or partial evidence cannot produce PASS.
 
-### Phase C
-- Phase B handoff exists and passes validation
-- Shortlist contains at least one fixture
-- Zero valid tips is a **hard stop** — do not proceed to Phase D
+## Continuation
 
-### Phase D
-- Phase C handoff exists with at least one valid tip
-- All mandatory specialists have returned PASS
-- `bet-challenger` must approve before Phase E
-
-### Phase E
-- Phase D handoff exists with approved candidates
-- All gates passed
-- `bet-test-engineer` must validate final artifacts
-
-## Phase Exit Requirements
-
-Each phase must:
-1. Complete all mandatory specialist invocations
-2. Receive PASS from `bet-test-engineer`
-3. Persist handoff artifact under `.kilo/state/`
-4. Return exactly one next action
-
-## Hard Stops
-
-- **Zero valid tips in Phase C**: Stop pipeline, return `NO_DATA`
-- **Two bounded technical failures**: Escalate to `bet-engineer`
-- **Missing mandatory evidence**: Block phase, request enrichment
-- **`bet-test-engineer` FAIL**: Do not proceed, repair and re-validate
-
-## Reconciler Conditions
-
-Invoke `bet-reconciler` when:
-- Two sources provide conflicting material facts
-- Database and external source disagree on fixture/odds
-- Timestamp ordering is ambiguous
-
-Return: `RESOLVED` with chosen source, or `UNRESOLVED` with explicit conflict record.
-
-## Engineer Escalation
-
-Invoke `bet-engineer` only after:
-1. Two bounded attempts to fix a script/runtime issue
-2. Clear diagnosis of the failure
-3. Focused regression test requirement
-
-`bet-engineer` must:
-- Make the smallest reversible repair
-- Run focused tests
-- Return PASS/FAIL with evidence
-
-## Test-Engineer Gate
-
-`bet-test-engineer` must:
-- Independently validate artifacts and invariants
-- Return PASS/FAIL with exact commands and evidence paths
-- Never repair failures
-
-## Handoff Requirements
-
-Each handoff must contain:
-- Phase identifier
-- Status: PASS/FAIL/BLOCKED/NO_DATA
-- Evidence paths (artifact files)
-- Key metrics (counts, coverage, confidence)
-- Risks and uncertainties
-- Next action
-
-Maximum handoff size: 1,000 tokens.
-
-## Session Boundary
-
-- Run exactly one phase per session
-- Start fresh session after phase completion
-- Do not carry context across phases
+Use the same worktree and `RUN_ID` across bounded phases. Continue in the same session while context is safe. If the UI/context limit approaches, finish the current atomic operation, persist a safe checkpoint, and continue in a fresh session in the same worktree without repeating completed phases. Use a new worktree only for engineering repair.
