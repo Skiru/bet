@@ -8,7 +8,7 @@ def test_guardrail_forbids_live_network_usage(tmp_path):
     from bet.enrichment.football_data_foundation.source_bound_shadow.runner import socket_block_context
     with socket_block_context() as attempts:
         result = run_source_bound_shadow_enrichment(
-            project_root=Path("."),
+            project_root=Path("tests/fixtures"),
             output_root=tmp_path / "reports/football_data_foundation/source_bound_shadow/worldcup2026_norway_senegal_test",
             fixture_slug="worldcup2026-norway-senegal",
         )

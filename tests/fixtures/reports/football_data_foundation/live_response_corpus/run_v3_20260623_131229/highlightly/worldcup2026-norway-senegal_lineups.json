@@ -1,0 +1,369 @@
+{
+  "access_mode": "DIRECT",
+  "body": {
+    "awayTeam": {
+      "formation": "4-2-3-1",
+      "id": 11847,
+      "initialLineup": [
+        [
+          {
+            "id": 480900,
+            "name": "Edouard Mendy",
+            "number": 16,
+            "position": "Goalkeeper"
+          }
+        ],
+        [
+          {
+            "id": 65897937,
+            "name": "El Hadji Malick Diouf",
+            "number": 25,
+            "position": "Defender"
+          },
+          {
+            "id": 4172630,
+            "name": "Moussa Niakhat\u00e9",
+            "number": 19,
+            "position": "Defender"
+          },
+          {
+            "id": 51352,
+            "name": "Kalidou Koulibaly",
+            "number": 3,
+            "position": "Defender"
+          },
+          {
+            "id": 13195,
+            "name": "Kr\u00e9pin Diatta",
+            "number": 15,
+            "position": "Defender"
+          }
+        ],
+        [
+          {
+            "id": 3332210,
+            "name": "Pape Gueye",
+            "number": 26,
+            "position": "Midfielder"
+          },
+          {
+            "id": 481544,
+            "name": "Idrissa Gana Gueye",
+            "number": 5,
+            "position": "Midfielder"
+          }
+        ],
+        [
+          {
+            "id": 49098,
+            "name": "Sadio Man\u00e9",
+            "number": 10,
+            "position": "Midfielder"
+          },
+          {
+            "id": 60223492,
+            "name": "Lamine Camara",
+            "number": 8,
+            "position": "Midfielder"
+          },
+          {
+            "id": 357252,
+            "name": "Isma\u00efla Sarr",
+            "number": 18,
+            "position": "Midfielder"
+          }
+        ],
+        [
+          {
+            "id": 45572492,
+            "name": "Nicolas Jackson",
+            "number": 11,
+            "position": "Forward"
+          }
+        ]
+      ],
+      "logo": "https://highlightly.net/soccer/images/teams/11847.png",
+      "name": "Senegal",
+      "substitutes": [
+        {
+          "id": 19296487,
+          "name": "Mory Diaw",
+          "number": 23,
+          "position": "Goalkeeper"
+        },
+        {
+          "id": 3311280,
+          "name": "Yehvann Diouf",
+          "number": 1,
+          "position": "Goalkeeper"
+        },
+        {
+          "id": 44465778,
+          "name": "Mamadou Sarr",
+          "number": 2,
+          "position": "Defender"
+        },
+        {
+          "id": 25457635,
+          "name": "Ismail Jakobs",
+          "number": 14,
+          "position": "Defender"
+        },
+        {
+          "id": 1360604,
+          "name": "Abdoulaye Seck",
+          "number": 4,
+          "position": "Defender"
+        },
+        {
+          "id": 50544011,
+          "name": "Antoine Mendy",
+          "number": 24,
+          "position": "Defender"
+        },
+        {
+          "id": 6690026,
+          "name": "Path\u00e9 Isma\u00ebl Ciss",
+          "number": 6,
+          "position": "Midfielder"
+        },
+        {
+          "id": 101574249,
+          "name": "Bara Sapoko Ndiaye",
+          "number": 22,
+          "position": "Midfielder"
+        },
+        {
+          "id": 2993466,
+          "name": "Iliman Ndiaye",
+          "number": 13,
+          "position": "Forward"
+        },
+        {
+          "id": 38177923,
+          "name": "Pape Matar Sarr",
+          "number": 17,
+          "position": "Midfielder"
+        },
+        {
+          "id": 52748745,
+          "name": "Habib Diarra",
+          "number": 21,
+          "position": "Midfielder"
+        },
+        {
+          "id": 71846243,
+          "name": "Ibrahim Mbaye",
+          "number": 20,
+          "position": "Forward"
+        },
+        {
+          "id": 64552782,
+          "name": "Assane Diao",
+          "number": 7,
+          "position": "Forward"
+        },
+        {
+          "id": 45735746,
+          "name": "Ahmadou Bamba Dieng",
+          "number": 9,
+          "position": "Forward"
+        },
+        {
+          "id": 2315173,
+          "name": "Cherif Ndiaye",
+          "number": 12,
+          "position": "Forward"
+        }
+      ]
+    },
+    "homeTeam": {
+      "formation": "4-3-3",
+      "id": 928374,
+      "initialLineup": [
+        [
+          {
+            "id": 3086846,
+            "name": "\u00d8rjan Nyland",
+            "number": 1,
+            "position": "Goalkeeper"
+          }
+        ],
+        [
+          {
+            "id": 42791056,
+            "name": "David M\u00f8ller Wolfe",
+            "number": 5,
+            "position": "Defender"
+          },
+          {
+            "id": 6320048,
+            "name": "Torbj\u00f8rn Heggem",
+            "number": 17,
+            "position": "Defender"
+          },
+          {
+            "id": 180313,
+            "name": "Kristoffer Ajer",
+            "number": 3,
+            "position": "Defender"
+          },
+          {
+            "id": 4000199,
+            "name": "Julian Ryerson",
+            "number": 26,
+            "position": "Defender"
+          }
+        ],
+        [
+          {
+            "id": 6286077,
+            "name": "Fredrik Aursnes",
+            "number": 14,
+            "position": "Midfielder"
+          },
+          {
+            "id": 311528,
+            "name": "Sander Berge",
+            "number": 8,
+            "position": "Midfielder"
+          },
+          {
+            "id": 5977601,
+            "name": "Martin \u00d8degaard",
+            "number": 10,
+            "position": "Midfielder"
+          }
+        ],
+        [
+          {
+            "id": 50636425,
+            "name": "Antonio Nusa",
+            "number": 20,
+            "position": "Forward"
+          },
+          {
+            "id": 177254,
+            "name": "Erling Haaland",
+            "number": 9,
+            "position": "Forward"
+          },
+          {
+            "id": 1367366,
+            "name": "Alexander S\u00f8rloth",
+            "number": 7,
+            "position": "Forward"
+          }
+        ]
+      ],
+      "logo": "https://highlightly.net/soccer/images/teams/928374.png",
+      "name": "Norway",
+      "substitutes": [
+        {
+          "id": 42565012,
+          "name": "Sander Tangvik",
+          "number": 12,
+          "position": "Goalkeeper"
+        },
+        {
+          "id": 6292356,
+          "name": "Egil Selvik",
+          "number": 13,
+          "position": "Goalkeeper"
+        },
+        {
+          "id": 3053841,
+          "name": "Leo \u00d8stig\u00e5rd",
+          "number": 4,
+          "position": "Defender"
+        },
+        {
+          "id": 6288492,
+          "name": "Fredrik Andr\u00e9 Bj\u00f8rkan",
+          "number": 15,
+          "position": "Defender"
+        },
+        {
+          "id": 42736638,
+          "name": "Sondre Lang\u00e5s",
+          "number": 24,
+          "position": "Defender"
+        },
+        {
+          "id": 29131011,
+          "name": "Henrik S\u00e6lebakke Falchener",
+          "number": 25,
+          "position": "Defender"
+        },
+        {
+          "id": 44746884,
+          "name": "Thelo Aasgaard",
+          "number": 19,
+          "position": "Midfielder"
+        },
+        {
+          "id": 44779567,
+          "name": "Oscar Bobb",
+          "number": 22,
+          "position": "Midfielder"
+        },
+        {
+          "id": 48546162,
+          "name": "Andreas Schjelderup",
+          "number": 21,
+          "position": "Forward"
+        },
+        {
+          "id": 6302177,
+          "name": "Kristian Thorstvedt",
+          "number": 18,
+          "position": "Midfielder"
+        },
+        {
+          "id": 5953934,
+          "name": "Morten Thorsby",
+          "number": 2,
+          "position": "Midfielder"
+        },
+        {
+          "id": 6289458,
+          "name": "Patrick Berg",
+          "number": 6,
+          "position": "Midfielder"
+        },
+        {
+          "id": 6337436,
+          "name": "Marcus Pedersen",
+          "number": 16,
+          "position": "Defender"
+        },
+        {
+          "id": 327306,
+          "name": "J\u00f8rgen Strand Larsen",
+          "number": 11,
+          "position": "Forward"
+        },
+        {
+          "id": 6290907,
+          "name": "Jens Petter Hauge",
+          "number": 23,
+          "position": "Midfielder"
+        }
+      ]
+    }
+  },
+  "body_sha256": "7311c236449a3262e5fddd4770e80496045619301ace42a6c8ccf8efe6b6975d",
+  "contributes_to_enrichment": true,
+  "error": null,
+  "network_used": true,
+  "provider": "highlightly",
+  "raw_headers_stored": false,
+  "request_attempted": true,
+  "request_purpose": "highlightly_lineups",
+  "secrets_stored": false,
+  "selectable_for_production": false,
+  "source_url": "https://soccer.highlightly.net/lineups/1267481035",
+  "status": "SUCCESS",
+  "status_code": 200,
+  "transport": "urllib"
+}

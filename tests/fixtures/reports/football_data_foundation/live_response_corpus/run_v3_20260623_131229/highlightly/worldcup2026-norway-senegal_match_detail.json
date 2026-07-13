@@ -1,0 +1,1294 @@
+{
+  "access_mode": "DIRECT",
+  "body": [
+    {
+      "awayTeam": {
+        "id": 11847,
+        "logo": "https://highlightly.net/soccer/images/teams/11847.png",
+        "name": "Senegal",
+        "shots": [
+          {
+            "goalTarget": "Low Centre",
+            "outcome": "Blocked",
+            "playerName": "Idrissa Gueye",
+            "time": "8'"
+          },
+          {
+            "goalTarget": "Low Centre",
+            "outcome": "Blocked",
+            "playerName": "Nicolas Jackson",
+            "time": "17'"
+          },
+          {
+            "goalTarget": "High Right",
+            "outcome": "Missed",
+            "playerName": "Nicolas Jackson",
+            "time": "28'"
+          },
+          {
+            "goalTarget": null,
+            "outcome": "Missed",
+            "playerName": "Idrissa Gueye",
+            "time": "39'"
+          },
+          {
+            "goalTarget": null,
+            "outcome": "Missed",
+            "playerName": "Lamine Camara",
+            "time": "41'"
+          },
+          {
+            "goalTarget": "Low Right",
+            "outcome": "Saved",
+            "playerName": "Ismaila Sarr",
+            "time": "45 + 1'"
+          },
+          {
+            "goalTarget": "Low Centre",
+            "outcome": "Saved",
+            "playerName": "Nicolas Jackson",
+            "time": "52'"
+          },
+          {
+            "goalTarget": "High Right",
+            "outcome": "Goal",
+            "playerName": "Ismaila Sarr",
+            "time": "53'"
+          },
+          {
+            "goalTarget": null,
+            "outcome": "Missed",
+            "playerName": "Lamine Camara",
+            "time": "56'"
+          },
+          {
+            "goalTarget": "Low Centre",
+            "outcome": "Blocked",
+            "playerName": "Ismaila Sarr",
+            "time": "74'"
+          },
+          {
+            "goalTarget": null,
+            "outcome": "Missed",
+            "playerName": "Pape Sarr",
+            "time": "81'"
+          },
+          {
+            "goalTarget": "Low Centre",
+            "outcome": "Blocked",
+            "playerName": "Ismaila Sarr",
+            "time": "83'"
+          },
+          {
+            "goalTarget": "Close Right",
+            "outcome": "Missed",
+            "playerName": "Pape Sarr",
+            "time": "90 + 2'"
+          },
+          {
+            "goalTarget": "High Right",
+            "outcome": "Goal",
+            "playerName": "Ismaila Sarr",
+            "time": "90 + 3'"
+          },
+          {
+            "goalTarget": "Low Left",
+            "outcome": "Blocked",
+            "playerName": "Ibrahim Mbaye",
+            "time": "90 + 9'"
+          },
+          {
+            "goalTarget": null,
+            "outcome": "Missed",
+            "playerName": "Ismaila Sarr",
+            "time": "90 + 9'"
+          }
+        ],
+        "topPlayers": [
+          {
+            "name": "Nicolas Jackson",
+            "position": "Attacker",
+            "statistics": [
+              {
+                "name": "Total Shots",
+                "value": 3
+              },
+              {
+                "name": "Shots On Target",
+                "value": 1
+              },
+              {
+                "name": "Shots Off Target",
+                "value": 1
+              }
+            ]
+          },
+          {
+            "name": "Ismaila Sarr",
+            "position": "Midfielder",
+            "statistics": [
+              {
+                "name": "Total Shots",
+                "value": 6
+              },
+              {
+                "name": "Shots On Target",
+                "value": 3
+              },
+              {
+                "name": "Shots Off Target",
+                "value": 1
+              }
+            ]
+          },
+          {
+            "name": "Moussa Niakhate",
+            "position": "Defender",
+            "statistics": [
+              {
+                "name": "Total Shots",
+                "value": 0
+              },
+              {
+                "name": "Offsides",
+                "value": 0
+              },
+              {
+                "name": "Passes Completed",
+                "value": "60/68"
+              }
+            ]
+          }
+        ]
+      },
+      "country": {
+        "code": "World",
+        "logo": "https://highlightly.net/soccer/images/countries/World.png",
+        "name": "World"
+      },
+      "date": "2026-06-23T00:00:00.000Z",
+      "events": [
+        {
+          "assist": null,
+          "assistingPlayerId": 6337436,
+          "player": "J. Ryerson",
+          "playerId": 4000199,
+          "substituted": "M. Pedersen",
+          "team": {
+            "id": 928374,
+            "logo": "https://highlightly.net/soccer/images/teams/928374.png",
+            "name": "Norway"
+          },
+          "time": "13",
+          "type": "Substitution"
+        },
+        {
+          "assist": null,
+          "assistingPlayerId": null,
+          "player": "M. Pedersen",
+          "playerId": 6337436,
+          "substituted": null,
+          "team": {
+            "id": 928374,
+            "logo": "https://highlightly.net/soccer/images/teams/928374.png",
+            "name": "Norway"
+          },
+          "time": "43",
+          "type": "Goal"
+        },
+        {
+          "assist": null,
+          "assistingPlayerId": 6289458,
+          "player": "F. Aursnes",
+          "playerId": 6286077,
+          "substituted": "P. Berg",
+          "team": {
+            "id": 928374,
+            "logo": "https://highlightly.net/soccer/images/teams/928374.png",
+            "name": "Norway"
+          },
+          "time": "46",
+          "type": "Substitution"
+        },
+        {
+          "assist": "M. Odegaard",
+          "assistingPlayerId": 5977601,
+          "player": "E. Haaland",
+          "playerId": 177254,
+          "substituted": null,
+          "team": {
+            "id": 928374,
+            "logo": "https://highlightly.net/soccer/images/teams/928374.png",
+            "name": "Norway"
+          },
+          "time": "48",
+          "type": "Goal"
+        },
+        {
+          "assist": "S. Mane",
+          "assistingPlayerId": 49098,
+          "player": "I. Sarr",
+          "playerId": 357252,
+          "substituted": null,
+          "team": {
+            "id": 11847,
+            "logo": "https://highlightly.net/soccer/images/teams/11847.png",
+            "name": "Senegal"
+          },
+          "time": "53",
+          "type": "Goal"
+        },
+        {
+          "assist": null,
+          "assistingPlayerId": 25457635,
+          "player": "M. Diouf",
+          "playerId": 65897937,
+          "substituted": "I. Jakobs",
+          "team": {
+            "id": 11847,
+            "logo": "https://highlightly.net/soccer/images/teams/11847.png",
+            "name": "Senegal"
+          },
+          "time": "54",
+          "type": "Substitution"
+        },
+        {
+          "assist": null,
+          "assistingPlayerId": 71846243,
+          "player": "P. Gueye",
+          "playerId": 3332210,
+          "substituted": "I. Mbaye",
+          "team": {
+            "id": 11847,
+            "logo": "https://highlightly.net/soccer/images/teams/11847.png",
+            "name": "Senegal"
+          },
+          "time": "54",
+          "type": "Substitution"
+        },
+        {
+          "assist": "P. Berg",
+          "assistingPlayerId": 6289458,
+          "player": "E. Haaland",
+          "playerId": 177254,
+          "substituted": null,
+          "team": {
+            "id": 928374,
+            "logo": "https://highlightly.net/soccer/images/teams/928374.png",
+            "name": "Norway"
+          },
+          "time": "58",
+          "type": "Goal"
+        },
+        {
+          "assist": null,
+          "assistingPlayerId": 19296487,
+          "player": "E. Mendy",
+          "playerId": 480900,
+          "substituted": "M. Diaw",
+          "team": {
+            "id": 11847,
+            "logo": "https://highlightly.net/soccer/images/teams/11847.png",
+            "name": "Senegal"
+          },
+          "time": "63",
+          "type": "Substitution"
+        },
+        {
+          "assist": null,
+          "assistingPlayerId": 6690026,
+          "player": "L. Camara",
+          "playerId": 60223492,
+          "substituted": "P. Ciss",
+          "team": {
+            "id": 11847,
+            "logo": "https://highlightly.net/soccer/images/teams/11847.png",
+            "name": "Senegal"
+          },
+          "time": "63",
+          "type": "Substitution"
+        },
+        {
+          "assist": null,
+          "assistingPlayerId": 48546162,
+          "player": "A. Nusa",
+          "playerId": 50636425,
+          "substituted": "A. Schjelderup",
+          "team": {
+            "id": 928374,
+            "logo": "https://highlightly.net/soccer/images/teams/928374.png",
+            "name": "Norway"
+          },
+          "time": "71",
+          "type": "Substitution"
+        },
+        {
+          "assist": null,
+          "assistingPlayerId": 38177923,
+          "player": "K. Koulibaly",
+          "playerId": 51352,
+          "substituted": "P. M. Sarr",
+          "team": {
+            "id": 11847,
+            "logo": "https://highlightly.net/soccer/images/teams/11847.png",
+            "name": "Senegal"
+          },
+          "time": "72",
+          "type": "Substitution"
+        },
+        {
+          "assist": null,
+          "assistingPlayerId": 3053841,
+          "player": "T. Heggem",
+          "playerId": 6320048,
+          "substituted": "L. Ostigard",
+          "team": {
+            "id": 928374,
+            "logo": "https://highlightly.net/soccer/images/teams/928374.png",
+            "name": "Norway"
+          },
+          "time": "84",
+          "type": "Substitution"
+        },
+        {
+          "assist": null,
+          "assistingPlayerId": 44779567,
+          "player": "A. Sorloth",
+          "playerId": 1367366,
+          "substituted": "O. Bobb",
+          "team": {
+            "id": 928374,
+            "logo": "https://highlightly.net/soccer/images/teams/928374.png",
+            "name": "Norway"
+          },
+          "time": "84",
+          "type": "Substitution"
+        },
+        {
+          "assist": "N. Jackson",
+          "assistingPlayerId": 45572492,
+          "player": "I. Sarr",
+          "playerId": 357252,
+          "substituted": null,
+          "team": {
+            "id": 11847,
+            "logo": "https://highlightly.net/soccer/images/teams/11847.png",
+            "name": "Senegal"
+          },
+          "time": "90+3",
+          "type": "Goal"
+        }
+      ],
+      "forecast": {
+        "status": "rain",
+        "temperature": "22.19\u00b0C"
+      },
+      "homeTeam": {
+        "id": 928374,
+        "logo": "https://highlightly.net/soccer/images/teams/928374.png",
+        "name": "Norway",
+        "shots": [
+          {
+            "goalTarget": null,
+            "outcome": "Missed",
+            "playerName": "Antonio Nusa",
+            "time": "2'"
+          },
+          {
+            "goalTarget": "Low Centre",
+            "outcome": "Saved",
+            "playerName": "Kristoffer Ajer",
+            "time": "3'"
+          },
+          {
+            "goalTarget": null,
+            "outcome": "Missed",
+            "playerName": "Martin Odegaard",
+            "time": "14'"
+          },
+          {
+            "goalTarget": "Low Centre",
+            "outcome": "Saved",
+            "playerName": "Martin Odegaard",
+            "time": "37'"
+          },
+          {
+            "goalTarget": "Low Centre",
+            "outcome": "Blocked",
+            "playerName": "Martin Odegaard",
+            "time": "42'"
+          },
+          {
+            "goalTarget": "High Right",
+            "outcome": "Goal",
+            "playerName": "Marcus Pedersen",
+            "time": "43'"
+          },
+          {
+            "goalTarget": null,
+            "outcome": "Post",
+            "playerName": "Erling Haaland",
+            "time": "45 + 4'"
+          },
+          {
+            "goalTarget": "Low Right",
+            "outcome": "Saved",
+            "playerName": "Erling Haaland",
+            "time": "45 + 4'"
+          },
+          {
+            "goalTarget": "High Right",
+            "outcome": "Goal",
+            "playerName": "Erling Haaland",
+            "time": "48'"
+          },
+          {
+            "goalTarget": "Low Centre",
+            "outcome": "Blocked",
+            "playerName": "Antonio Nusa",
+            "time": "58'"
+          },
+          {
+            "goalTarget": "High Centre",
+            "outcome": "Goal",
+            "playerName": "Erling Haaland",
+            "time": "58'"
+          },
+          {
+            "goalTarget": "Low Centre",
+            "outcome": "Blocked",
+            "playerName": "Erling Haaland",
+            "time": "88'"
+          },
+          {
+            "goalTarget": "Low Left",
+            "outcome": "Blocked",
+            "playerName": "Oscar Bobb",
+            "time": "90'"
+          }
+        ],
+        "topPlayers": [
+          {
+            "name": "Erling Haaland",
+            "position": "Attacker",
+            "statistics": [
+              {
+                "name": "Total Shots",
+                "value": 5
+              },
+              {
+                "name": "Shots On Target",
+                "value": 3
+              },
+              {
+                "name": "Shots Off Target",
+                "value": 1
+              }
+            ]
+          },
+          {
+            "name": "Martin Odegaard",
+            "position": "Midfielder",
+            "statistics": [
+              {
+                "name": "Total Shots",
+                "value": 3
+              },
+              {
+                "name": "Shots On Target",
+                "value": 1
+              },
+              {
+                "name": "Shots Off Target",
+                "value": 1
+              }
+            ]
+          },
+          {
+            "name": "Marcus Pedersen",
+            "position": "Defender",
+            "statistics": [
+              {
+                "name": "Total Shots",
+                "value": 1
+              },
+              {
+                "name": "Offsides",
+                "value": 0
+              },
+              {
+                "name": "Passes Completed",
+                "value": "23/26"
+              }
+            ]
+          }
+        ]
+      },
+      "id": 1267481035,
+      "league": {
+        "id": 1635,
+        "logo": null,
+        "name": "World Cup",
+        "season": 2026
+      },
+      "news": [
+        {
+          "datePublished": "2026-06-23T10:54:00Z",
+          "image": "https://www.footyheadlines.com/static/img/post/2026/06/23/Sh9EtvuEEQlLQGz/erling-haaland-matches-hair-tie-color-to-norway-kits.jpg",
+          "title": "Erling Haaland Matches Hair Tie Color to Norway Kits",
+          "url": "https://www.footyheadlines.com/1564072521/erling-haaland-matches-hair-tie-color-to-norway-kits.html"
+        },
+        {
+          "datePublished": "2026-06-23T09:25:00Z",
+          "image": "https://icdn.football-italia.net/wp-content/uploads/2026/01/sl-benfica-v-fc-bayern-munchen-group-c-fifa-club-world-cup-2025.jpg",
+          "title": "Milan & Como join Liverpool & Spurs in race for Norwegian talent Schjelderup",
+          "url": "https://football-italia.net/milan-como-join-liverpool-spurs-schjelderup/"
+        },
+        {
+          "datePublished": "2026-06-23T08:21:59Z",
+          "image": "https://ichef.bbci.co.uk/ace/branded_sport/1200/cpsprodpb/d23b/live/b2944750-6dbb-11f1-af30-fd5554657267.jpg",
+          "title": "Unpaid bonuses and food issues - what's going on inside Senegal camp?",
+          "url": "https://www.bbc.com/sport/football/articles/cz6v0jn8368o"
+        },
+        {
+          "datePublished": "2026-06-23T08:00:00Z",
+          "image": "https://cdn.mos.cms.futurecdn.net/VMA8DtkafMNRieUfPuV5GW-2560-80.jpg",
+          "title": "What is the Norway viking celebration?",
+          "url": "https://www.fourfourtwo.com/team/what-is-the-norway-viking-celebration"
+        },
+        {
+          "datePublished": "2026-06-23T04:08:00Z",
+          "image": "https://www.footyheadlines.com/static/img/post/2026/06/23/Ofy12LAAbuYqUzZ/norway-2026-away-kit-debuted-at-2026-world-cup.jpg",
+          "title": "Norway 2026 Away Kit Debuted at 2026 World Cup",
+          "url": "https://www.footyheadlines.com/4115727444/norway-2026-away-kit-debuted-at-2026-world-cup.html"
+        },
+        {
+          "datePublished": "2026-06-23T03:00:00Z",
+          "image": "https://e2.365dm.com/26/06/1920x1080/skysports-haaland-norway_7280556.jpg?20260623022719",
+          "title": "'On fire' Haaland sees Norway edge Senegal as Odegaard leads 'Viking row'",
+          "url": "https://www.skysports.com/football/norway-vs-senegal/report/549807"
+        },
+        {
+          "datePublished": "2026-06-23T02:41:44Z",
+          "image": "https://ichef.bbci.co.uk/ace/standard/1024/cpsprodpb/ea32/live/4c124f00-6eaa-11f1-b1db-af71d47507d6.jpg",
+          "title": "Norway win five-goal thriller against Senegal to make last 32",
+          "url": "https://www.bbc.com/sport/football/videos/cze9g17p6rlo"
+        },
+        {
+          "datePublished": "2026-06-23T02:30:30Z",
+          "image": "https://ichef.bbci.co.uk/ace/standard/1024/cpsprodpb/c8ae/live/df941bb0-6ea9-11f1-8e1d-bbbb1017d210.jpg",
+          "title": "'Scoring machine' Haaland hits second double of World Cup",
+          "url": "https://www.bbc.com/sport/football/videos/cx2wpz0q0edo"
+        },
+        {
+          "datePublished": "2026-06-22T23:00:00Z",
+          "image": "https://cdn.mos.cms.futurecdn.net/7wbx3cNmNwVkUaosHjFUHd-2560-80.jpg",
+          "title": "Who are the ITV presenters, commentators and pundits for Norway vs Senegal?",
+          "url": "https://www.fourfourtwo.com/competition/who-are-the-itv-presenters-commentators-and-pundits-for-norway-vs-senegal"
+        },
+        {
+          "datePublished": "2026-06-22T22:00:00Z",
+          "image": "https://cdn.mos.cms.futurecdn.net/kdffhktvhWJ2SdYGgLrdVP-1024-80.jpg",
+          "title": "Who is the referee for Norway vs Senegal?",
+          "url": "https://www.fourfourtwo.com/competition/who-is-the-referee-for-norway-vs-senegal"
+        },
+        {
+          "datePublished": "2026-06-22T22:00:00Z",
+          "image": "https://cdn.mos.cms.futurecdn.net/3rHo2rJhjH2anpBosoe4QJ-2560-80.jpg",
+          "title": "How to watch Norway vs Senegal for FREE: Live stream details for a crucial World Cup 2026 Group I",
+          "url": "https://www.fourfourtwo.com/competition/watch-norway-vs-senegal-free-world-cup-2026"
+        },
+        {
+          "datePublished": "2026-06-22T21:00:00Z",
+          "image": "https://cdn.mos.cms.futurecdn.net/VGcYec8AfpeYTp8tp6c92P-2560-80.jpg",
+          "title": "Norway vs Senegal prediction: Can Norway continue their fast World Cup start?",
+          "url": "https://www.fourfourtwo.com/competition/norway-vs-senegal-prediction-can-norway-continue-their-fast-world-cup-start"
+        },
+        {
+          "datePublished": "2026-06-22T14:30:43Z",
+          "image": "https://s.yimg.com/ny/api/res/1.2/lKj4YBK5YqHpUqFPXzaytg--/YXBwaWQ9aGlnaGxhbmRlcjt3PTEyMDA7aD04MDA7Y2Y9d2VicA--/https://media.zenfs.com/en/ap.org/b07aa500365a3098052c7fc57c19ef31",
+          "title": "Norway-Senegal match at MetLife Stadium played as scheduled between rainstorms in New Jersey",
+          "url": "https://sports.yahoo.com/articles/heavy-rain-possible-flooding-forecast-143043934.html"
+        },
+        {
+          "datePublished": "2026-06-22T13:44:38Z",
+          "image": "https://sportshub.cbsistatic.com/i/2026/06/22/7b169683-bfe3-47a3-85b7-d6f58fcad4c7/haaland.png",
+          "title": "2026 World Cup parlay, best bets: Top picks for Monday's matches include Argentina-Austria, Norway-Senegal",
+          "url": "https://www.cbssports.com/soccer/news/2026-world-cup-parlay-best-bets-top-picks-for-mondays-matches-include-argentina-austria-norway-senegal/"
+        },
+        {
+          "datePublished": "2026-06-22T13:35:17Z",
+          "image": "https://sportshub.cbsistatic.com/i/2026/06/22/89a58035-5de9-4443-aac1-2b21f82e9825/erling-haaland-norway-imagn-images.jpg",
+          "title": "Norway vs. Senegal odds, prediction, time: 2026 World Cup picks, best bets by expert on 18-8 roll",
+          "url": "https://www.cbssports.com/soccer/news/norway-senegal-odds-prediction-time-2026-world-cup-picks-best-bets/"
+        },
+        {
+          "datePublished": "2026-06-22T12:52:14Z",
+          "image": "https://sportshub.cbsistatic.com/i/2026/06/19/794c4145-a517-467d-8053-79f57ef86207/haaland-imagn.jpg",
+          "title": "Norway vs. Senegal odds, picks, prediction, betting preview, start time for 2026 World Cup match on Monday",
+          "url": "https://www.cbssports.com/soccer/news/norway-vs-senegal-odds-picks-prediction-betting-preview-start-time-for-2026-world-cup-match-on-monday/"
+        },
+        {
+          "datePublished": "2026-06-21T15:52:26Z",
+          "image": "https://icdn.football-italia.net/wp-content/uploads/2026/06/iraq-v-norway-group-i-fifa-world-cup-2026-1.jpg",
+          "title": "Inter want Genoa & Norway defender Ostigard to replace De Vrij",
+          "url": "https://football-italia.net/inter-want-genoa-norway-defender-ostigard/"
+        }
+      ],
+      "predictions": {
+        "live": [
+          {
+            "description": "Norway is most likely to win the game against Senegal.",
+            "generatedAt": "2026-06-23T00:10:49.512Z",
+            "modelType": "three-way",
+            "probabilities": {
+              "away": "32.83%",
+              "draw": "29.04%",
+              "home": "38.13%"
+            },
+            "type": "live"
+          },
+          {
+            "description": "Senegal is most likely to win the game against Norway.",
+            "generatedAt": "2026-06-23T00:30:49.199Z",
+            "modelType": "three-way",
+            "probabilities": {
+              "away": "35.22%",
+              "draw": "32.40%",
+              "home": "32.38%"
+            },
+            "type": "live"
+          },
+          {
+            "description": "Norway is most likely to win the game against Senegal.",
+            "generatedAt": "2026-06-23T00:50:54.269Z",
+            "modelType": "three-way",
+            "probabilities": {
+              "away": "12.25%",
+              "draw": "25.03%",
+              "home": "62.72%"
+            },
+            "type": "live"
+          },
+          {
+            "description": "Norway is most likely to win the game against Senegal.",
+            "generatedAt": "2026-06-23T01:10:45.409Z",
+            "modelType": "three-way",
+            "probabilities": {
+              "away": "3.95%",
+              "draw": "11.31%",
+              "home": "84.74%"
+            },
+            "type": "live"
+          },
+          {
+            "description": "Norway is most likely to win the game against Senegal.",
+            "generatedAt": "2026-06-23T01:30:42.707Z",
+            "modelType": "three-way",
+            "probabilities": {
+              "away": "2.04%",
+              "draw": "7.76%",
+              "home": "90.20%"
+            },
+            "type": "live"
+          },
+          {
+            "description": "Norway is most likely to win the game against Senegal.",
+            "generatedAt": "2026-06-23T01:50:38.101Z",
+            "modelType": "three-way",
+            "probabilities": {
+              "away": "0.66%",
+              "draw": "4.37%",
+              "home": "94.97%"
+            },
+            "type": "live"
+          }
+        ],
+        "prematch": [
+          {
+            "description": "Norway is most likely to win the game against Senegal.",
+            "generatedAt": "2026-06-16T08:47:01.440Z",
+            "modelType": "three-way",
+            "probabilities": {
+              "away": "28.15%",
+              "draw": "27.38%",
+              "home": "44.47%"
+            },
+            "type": "prematch"
+          },
+          {
+            "description": "Norway is most likely to win the game against Senegal.",
+            "generatedAt": "2026-06-16T11:32:18.817Z",
+            "modelType": "three-way",
+            "probabilities": {
+              "away": "28.16%",
+              "draw": "27.39%",
+              "home": "44.46%"
+            },
+            "type": "prematch"
+          },
+          {
+            "description": "Norway is most likely to win the game against Senegal.",
+            "generatedAt": "2026-06-16T14:16:54.984Z",
+            "modelType": "three-way",
+            "probabilities": {
+              "away": "28.16%",
+              "draw": "27.35%",
+              "home": "44.48%"
+            },
+            "type": "prematch"
+          },
+          {
+            "description": "Norway is most likely to win the game against Senegal.",
+            "generatedAt": "2026-06-16T17:03:48.668Z",
+            "modelType": "three-way",
+            "probabilities": {
+              "away": "28.18%",
+              "draw": "27.36%",
+              "home": "44.46%"
+            },
+            "type": "prematch"
+          },
+          {
+            "description": "Norway is most likely to win the game against Senegal.",
+            "generatedAt": "2026-06-16T19:45:54.784Z",
+            "modelType": "three-way",
+            "probabilities": {
+              "away": "29.70%",
+              "draw": "27.49%",
+              "home": "42.81%"
+            },
+            "type": "prematch"
+          },
+          {
+            "description": "Norway is most likely to win the game against Senegal.",
+            "generatedAt": "2026-06-17T08:39:18.217Z",
+            "modelType": "three-way",
+            "probabilities": {
+              "away": "31.38%",
+              "draw": "27.52%",
+              "home": "41.10%"
+            },
+            "type": "prematch"
+          },
+          {
+            "description": "Norway is most likely to win the game against Senegal.",
+            "generatedAt": "2026-06-17T11:31:08.096Z",
+            "modelType": "three-way",
+            "probabilities": {
+              "away": "31.95%",
+              "draw": "27.61%",
+              "home": "40.43%"
+            },
+            "type": "prematch"
+          },
+          {
+            "description": "Norway is most likely to win the game against Senegal.",
+            "generatedAt": "2026-06-17T16:28:07.477Z",
+            "modelType": "three-way",
+            "probabilities": {
+              "away": "31.69%",
+              "draw": "27.66%",
+              "home": "40.65%"
+            },
+            "type": "prematch"
+          },
+          {
+            "description": "Norway is most likely to win the game against Senegal.",
+            "generatedAt": "2026-06-17T19:09:57.909Z",
+            "modelType": "three-way",
+            "probabilities": {
+              "away": "31.69%",
+              "draw": "27.66%",
+              "home": "40.66%"
+            },
+            "type": "prematch"
+          },
+          {
+            "description": "Norway is most likely to win the game against Senegal.",
+            "generatedAt": "2026-06-17T21:55:12.712Z",
+            "modelType": "three-way",
+            "probabilities": {
+              "away": "31.68%",
+              "draw": "27.65%",
+              "home": "40.67%"
+            },
+            "type": "prematch"
+          },
+          {
+            "description": "Norway is most likely to win the game against Senegal.",
+            "generatedAt": "2026-06-18T08:39:11.714Z",
+            "modelType": "three-way",
+            "probabilities": {
+              "away": "31.51%",
+              "draw": "27.59%",
+              "home": "40.89%"
+            },
+            "type": "prematch"
+          },
+          {
+            "description": "Norway is most likely to win the game against Senegal.",
+            "generatedAt": "2026-06-18T11:32:30.269Z",
+            "modelType": "three-way",
+            "probabilities": {
+              "away": "31.48%",
+              "draw": "27.61%",
+              "home": "40.91%"
+            },
+            "type": "prematch"
+          },
+          {
+            "description": "Norway is most likely to win the game against Senegal.",
+            "generatedAt": "2026-06-18T14:20:36.299Z",
+            "modelType": "three-way",
+            "probabilities": {
+              "away": "31.51%",
+              "draw": "27.60%",
+              "home": "40.90%"
+            },
+            "type": "prematch"
+          },
+          {
+            "description": "Norway is most likely to win the game against Senegal.",
+            "generatedAt": "2026-06-18T18:57:16.463Z",
+            "modelType": "three-way",
+            "probabilities": {
+              "away": "31.53%",
+              "draw": "27.58%",
+              "home": "40.89%"
+            },
+            "type": "prematch"
+          },
+          {
+            "description": "Norway is most likely to win the game against Senegal.",
+            "generatedAt": "2026-06-19T18:46:18.295Z",
+            "modelType": "three-way",
+            "probabilities": {
+              "away": "31.57%",
+              "draw": "27.57%",
+              "home": "40.86%"
+            },
+            "type": "prematch"
+          },
+          {
+            "description": "Norway is most likely to win the game against Senegal.",
+            "generatedAt": "2026-06-20T12:02:51.777Z",
+            "modelType": "three-way",
+            "probabilities": {
+              "away": "31.17%",
+              "draw": "27.63%",
+              "home": "41.20%"
+            },
+            "type": "prematch"
+          },
+          {
+            "description": "Norway is most likely to win the game against Senegal.",
+            "generatedAt": "2026-06-21T10:58:03.651Z",
+            "modelType": "three-way",
+            "probabilities": {
+              "away": "30.46%",
+              "draw": "27.23%",
+              "home": "42.31%"
+            },
+            "type": "prematch"
+          },
+          {
+            "description": "Norway is most likely to win the game against Senegal.",
+            "generatedAt": "2026-06-22T12:41:25.511Z",
+            "modelType": "three-way",
+            "probabilities": {
+              "away": "28.48%",
+              "draw": "27.66%",
+              "home": "43.86%"
+            },
+            "type": "prematch"
+          },
+          {
+            "description": "Norway is most likely to win the game against Senegal.",
+            "generatedAt": "2026-06-22T12:58:27.056Z",
+            "modelType": "three-way",
+            "probabilities": {
+              "away": "28.48%",
+              "draw": "27.63%",
+              "home": "43.89%"
+            },
+            "type": "prematch"
+          }
+        ]
+      },
+      "referee": {
+        "name": "Pereira Sampaio, Wilton",
+        "nationality": "Brazil"
+      },
+      "round": "Group Stage - 2",
+      "state": {
+        "clock": 90,
+        "description": "Finished",
+        "score": {
+          "current": "3 - 2",
+          "penalties": null
+        }
+      },
+      "statistics": [
+        {
+          "statistics": [
+            {
+              "displayName": "Expected Goals",
+              "value": 2.2
+            },
+            {
+              "displayName": "Big Chances Created",
+              "value": 5
+            },
+            {
+              "displayName": "Attacks",
+              "value": 87
+            },
+            {
+              "displayName": "Free Kicks",
+              "value": 4
+            },
+            {
+              "displayName": "Expected Assists",
+              "value": 1.57
+            },
+            {
+              "displayName": "Successful Crosses",
+              "value": 3
+            },
+            {
+              "displayName": "Crosses",
+              "value": 10
+            },
+            {
+              "displayName": "Passes Own Half",
+              "value": 163
+            },
+            {
+              "displayName": "Passes Opposition Half",
+              "value": 200
+            },
+            {
+              "displayName": "Successful Long Passes",
+              "value": 25
+            },
+            {
+              "displayName": "Long Passes",
+              "value": 51
+            },
+            {
+              "displayName": "Throw-Ins",
+              "value": 16
+            },
+            {
+              "displayName": "Key Passes",
+              "value": 9
+            },
+            {
+              "displayName": "Passes Into Final Third",
+              "value": 60
+            },
+            {
+              "displayName": "Backward Passes",
+              "value": 60
+            },
+            {
+              "displayName": "Goal Kicks",
+              "value": 10
+            },
+            {
+              "displayName": "Interceptions",
+              "value": 8
+            },
+            {
+              "displayName": "Successful Tackles",
+              "value": 9
+            },
+            {
+              "displayName": "Tackles",
+              "value": 10
+            },
+            {
+              "displayName": "Clearances",
+              "value": 26
+            },
+            {
+              "displayName": "Successful Aerial Duels",
+              "value": 20
+            },
+            {
+              "displayName": "Aerial Duels",
+              "value": 37
+            },
+            {
+              "displayName": "Successful Dribbles",
+              "value": 5
+            },
+            {
+              "displayName": "Dribbles",
+              "value": 9
+            },
+            {
+              "displayName": "Shots accuracy",
+              "value": 0.54
+            },
+            {
+              "displayName": "Failed passes",
+              "value": 71
+            },
+            {
+              "displayName": "Possession",
+              "value": 0.42
+            },
+            {
+              "displayName": "Shots on target",
+              "value": 7
+            },
+            {
+              "displayName": "Corners",
+              "value": 5
+            },
+            {
+              "displayName": "Offsides",
+              "value": 0
+            },
+            {
+              "displayName": "Successful passes",
+              "value": 282
+            },
+            {
+              "displayName": "Red cards",
+              "value": 0
+            },
+            {
+              "displayName": "Shots off target",
+              "value": 3
+            },
+            {
+              "displayName": "Blocked shots",
+              "value": 3
+            },
+            {
+              "displayName": "Shots within penalty area",
+              "value": 11
+            },
+            {
+              "displayName": "Total passes",
+              "value": 353
+            },
+            {
+              "displayName": "Goalkeeper saves",
+              "value": 2
+            },
+            {
+              "displayName": "Fouls",
+              "value": 13
+            },
+            {
+              "displayName": "Yellow cards",
+              "value": 0
+            },
+            {
+              "displayName": "Shots outside penalty area",
+              "value": 2
+            }
+          ],
+          "team": {
+            "id": 928374,
+            "logo": "https://highlightly.net/soccer/images/teams/928374.png",
+            "name": "Norway"
+          }
+        },
+        {
+          "statistics": [
+            {
+              "displayName": "Expected Goals",
+              "value": 1.72
+            },
+            {
+              "displayName": "Big Chances Created",
+              "value": 3
+            },
+            {
+              "displayName": "Attacks",
+              "value": 98
+            },
+            {
+              "displayName": "Free Kicks",
+              "value": 13
+            },
+            {
+              "displayName": "Expected Assists",
+              "value": 1.75
+            },
+            {
+              "displayName": "Successful Crosses",
+              "value": 8
+            },
+            {
+              "displayName": "Crosses",
+              "value": 23
+            },
+            {
+              "displayName": "Passes Own Half",
+              "value": 196
+            },
+            {
+              "displayName": "Passes Opposition Half",
+              "value": 316
+            },
+            {
+              "displayName": "Successful Long Passes",
+              "value": 37
+            },
+            {
+              "displayName": "Long Passes",
+              "value": 58
+            },
+            {
+              "displayName": "Throw-Ins",
+              "value": 20
+            },
+            {
+              "displayName": "Key Passes",
+              "value": 13
+            },
+            {
+              "displayName": "Passes Into Final Third",
+              "value": 134
+            },
+            {
+              "displayName": "Backward Passes",
+              "value": 88
+            },
+            {
+              "displayName": "Goal Kicks",
+              "value": 4
+            },
+            {
+              "displayName": "Interceptions",
+              "value": 10
+            },
+            {
+              "displayName": "Successful Tackles",
+              "value": 7
+            },
+            {
+              "displayName": "Tackles",
+              "value": 16
+            },
+            {
+              "displayName": "Clearances",
+              "value": 18
+            },
+            {
+              "displayName": "Successful Aerial Duels",
+              "value": 17
+            },
+            {
+              "displayName": "Aerial Duels",
+              "value": 37
+            },
+            {
+              "displayName": "Successful Dribbles",
+              "value": 11
+            },
+            {
+              "displayName": "Dribbles",
+              "value": 17
+            },
+            {
+              "displayName": "Shots accuracy",
+              "value": 0.25
+            },
+            {
+              "displayName": "Failed passes",
+              "value": 59
+            },
+            {
+              "displayName": "Possession",
+              "value": 0.58
+            },
+            {
+              "displayName": "Shots on target",
+              "value": 4
+            },
+            {
+              "displayName": "Corners",
+              "value": 4
+            },
+            {
+              "displayName": "Offsides",
+              "value": 4
+            },
+            {
+              "displayName": "Successful passes",
+              "value": 430
+            },
+            {
+              "displayName": "Red cards",
+              "value": 0
+            },
+            {
+              "displayName": "Shots off target",
+              "value": 7
+            },
+            {
+              "displayName": "Blocked shots",
+              "value": 5
+            },
+            {
+              "displayName": "Shots within penalty area",
+              "value": 10
+            },
+            {
+              "displayName": "Total passes",
+              "value": 489
+            },
+            {
+              "displayName": "Goalkeeper saves",
+              "value": 3
+            },
+            {
+              "displayName": "Fouls",
+              "value": 5
+            },
+            {
+              "displayName": "Yellow cards",
+              "value": 0
+            },
+            {
+              "displayName": "Shots outside penalty area",
+              "value": 6
+            }
+          ],
+          "team": {
+            "id": 11847,
+            "logo": "https://highlightly.net/soccer/images/teams/11847.png",
+            "name": "Senegal"
+          }
+        }
+      ],
+      "venue": {
+        "capacity": "80663",
+        "city": "East Rutherford, NJ",
+        "country": "USA",
+        "name": "New York New Jersey Stadium"
+      }
+    }
+  ],
+  "body_sha256": "d3dc3a63c1202cefa392b94f918a2c9d61dc465104bba9448bfcedab7ab36ce9",
+  "contributes_to_enrichment": true,
+  "error": null,
+  "network_used": true,
+  "provider": "highlightly",
+  "raw_headers_stored": false,
+  "request_attempted": true,
+  "request_purpose": "highlightly_match_detail",
+  "secrets_stored": false,
+  "selectable_for_production": false,
+  "source_url": "https://soccer.highlightly.net/matches/1267481035",
+  "status": "SUCCESS",
+  "status_code": 200,
+  "transport": "urllib"
+}

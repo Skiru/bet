@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-BENCHMARK_DIR = Path("reports/football_data_foundation/source_admission_benchmark")
+BENCHMARK_DIR = Path("tests/fixtures/football_data_foundation/source_admission_benchmark")
 
 
 def test_inventory_completeness() -> None:
@@ -177,7 +177,7 @@ def test_manifest_hash_integrity() -> None:
     assert computed_sha == recorded_sha
 
 
-L2B_DIR = Path("reports/football_data_foundation/source_admission_benchmark_l2b")
+L2B_DIR = Path("tests/fixtures/football_data_foundation/source_admission_benchmark_l2b")
 
 
 def test_l2b_public_raw_reviewability_audit_exists() -> None:

@@ -37,13 +37,13 @@ from bet.enrichment.football_data_foundation.temp_sqlite_harness import (
 REPO_ROOT = Path(__file__).resolve().parents[3]
 SCANNER_EVENT_PATH = (
     REPO_ROOT
-    / "reports/football_data_foundation"
+    / "tests/fixtures/football_data_foundation"
     / "active_enrichment_profiles/world-cup-2026/scanner_event_input.json"
 )
 BRIDGE_RESULT_PATH = (
     REPO_ROOT
-    / "reports/football_data_foundation/production_bridge"
-    / "world-cup-2026/scanner_enrich_reuse_store.json"
+    / "tests/fixtures/football_data_foundation"
+    / "production_bridge/world-cup-2026/scanner_enrich_reuse_store.json"
 )
 REAL_DB_PATH = REPO_ROOT / "betting/data/betting.db"
 

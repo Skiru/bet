@@ -1,0 +1,264 @@
+{
+  "betting_decisions": false,
+  "live_calls_allowed": false,
+  "phase_id": "MULTISPORT_PASS_E_PROVIDER_MAPPING_CONTRACTS",
+  "production_activation": false,
+  "provider_mapping_by_sport": {
+    "basketball": [
+      {
+        "artifact_id": "pass_e:basketball:api-sports-family:api_basketball_games",
+        "betting_decisions_enabled": false,
+        "blocked_reason": "no_acceptable_provider_credential_present",
+        "endpoint_family": "games",
+        "evidence_refs": [
+          "route:api_basketball_games"
+        ],
+        "forbidden_fields": [
+          "odds",
+          "prediction",
+          "betting"
+        ],
+        "live_call_allowed": false,
+        "missing_env_keys": [
+          "API_BASKETBALL_KEY",
+          "API_SPORTS_KEY"
+        ],
+        "production_selectable": false,
+        "proof_fields_required": [
+          "fixture_id",
+          "home_team",
+          "away_team",
+          "start_time"
+        ],
+        "provider_key": "api-sports-family",
+        "required_env_keys": [
+          "API_BASKETBALL_KEY",
+          "API_SPORTS_KEY"
+        ],
+        "route_key": "api_basketball_games",
+        "sanitized_probe_only": true,
+        "sport": "basketball",
+        "status": "BLOCKED_NO_CREDENTIALS"
+      }
+    ],
+    "cs2": [
+      {
+        "artifact_id": "pass_e:cs2:pandascore:pandascore_cs2_matches",
+        "betting_decisions_enabled": false,
+        "blocked_reason": "terms_or_access_review_required_before_probe",
+        "endpoint_family": "matches",
+        "evidence_refs": [
+          "route:pandascore_cs2_matches"
+        ],
+        "forbidden_fields": [
+          "odds",
+          "betting"
+        ],
+        "live_call_allowed": false,
+        "missing_env_keys": [
+          "PANDASCORE_TOKEN"
+        ],
+        "production_selectable": false,
+        "proof_fields_required": [
+          "match_id",
+          "opponents",
+          "begin_at"
+        ],
+        "provider_key": "pandascore",
+        "required_env_keys": [
+          "PANDASCORE_TOKEN"
+        ],
+        "route_key": "pandascore_cs2_matches",
+        "sanitized_probe_only": true,
+        "sport": "cs2",
+        "status": "BLOCKED_PROVIDER_TERMS_OR_SCOPE"
+      }
+    ],
+    "dota2": [
+      {
+        "artifact_id": "pass_e:dota2:pandascore:pandascore_dota2_matches",
+        "betting_decisions_enabled": false,
+        "blocked_reason": "terms_or_access_review_required_before_probe",
+        "endpoint_family": "matches",
+        "evidence_refs": [
+          "route:pandascore_dota2_matches"
+        ],
+        "forbidden_fields": [
+          "odds",
+          "betting"
+        ],
+        "live_call_allowed": false,
+        "missing_env_keys": [
+          "PANDASCORE_TOKEN"
+        ],
+        "production_selectable": false,
+        "proof_fields_required": [
+          "match_id",
+          "opponents",
+          "begin_at"
+        ],
+        "provider_key": "pandascore",
+        "required_env_keys": [
+          "PANDASCORE_TOKEN"
+        ],
+        "route_key": "pandascore_dota2_matches",
+        "sanitized_probe_only": true,
+        "sport": "dota2",
+        "status": "BLOCKED_PROVIDER_TERMS_OR_SCOPE"
+      }
+    ],
+    "hockey": [
+      {
+        "artifact_id": "pass_e:hockey:api-sports-family:api_hockey_games",
+        "betting_decisions_enabled": false,
+        "blocked_reason": "no_acceptable_provider_credential_present",
+        "endpoint_family": "games",
+        "evidence_refs": [
+          "route:api_hockey_games"
+        ],
+        "forbidden_fields": [
+          "odds",
+          "prediction",
+          "betting"
+        ],
+        "live_call_allowed": false,
+        "missing_env_keys": [
+          "API_HOCKEY_KEY",
+          "API_SPORTS_KEY"
+        ],
+        "production_selectable": false,
+        "proof_fields_required": [
+          "fixture_id",
+          "home_team",
+          "away_team",
+          "start_time"
+        ],
+        "provider_key": "api-sports-family",
+        "required_env_keys": [
+          "API_HOCKEY_KEY",
+          "API_SPORTS_KEY"
+        ],
+        "route_key": "api_hockey_games",
+        "sanitized_probe_only": true,
+        "sport": "hockey",
+        "status": "BLOCKED_NO_CREDENTIALS"
+      }
+    ],
+    "tennis": [
+      {
+        "artifact_id": "pass_e:tennis:api-sports-family:api_tennis_fixtures",
+        "betting_decisions_enabled": false,
+        "blocked_reason": "no_acceptable_provider_credential_present",
+        "endpoint_family": "fixtures",
+        "evidence_refs": [
+          "route:api_tennis_fixtures"
+        ],
+        "forbidden_fields": [
+          "odds",
+          "prediction",
+          "betting"
+        ],
+        "live_call_allowed": false,
+        "missing_env_keys": [
+          "API_TENNIS_KEY",
+          "API_SPORTS_KEY"
+        ],
+        "production_selectable": false,
+        "proof_fields_required": [
+          "fixture_id",
+          "player_or_team_a",
+          "player_or_team_b",
+          "start_time"
+        ],
+        "provider_key": "api-sports-family",
+        "required_env_keys": [
+          "API_TENNIS_KEY",
+          "API_SPORTS_KEY"
+        ],
+        "route_key": "api_tennis_fixtures",
+        "sanitized_probe_only": true,
+        "sport": "tennis",
+        "status": "BLOCKED_NO_CREDENTIALS"
+      }
+    ],
+    "valorant": [
+      {
+        "artifact_id": "pass_e:valorant:pandascore:pandascore_valorant_matches",
+        "betting_decisions_enabled": false,
+        "blocked_reason": "terms_or_access_review_required_before_probe",
+        "endpoint_family": "matches",
+        "evidence_refs": [
+          "route:pandascore_valorant_matches"
+        ],
+        "forbidden_fields": [
+          "odds",
+          "betting"
+        ],
+        "live_call_allowed": false,
+        "missing_env_keys": [
+          "PANDASCORE_TOKEN"
+        ],
+        "production_selectable": false,
+        "proof_fields_required": [
+          "match_id",
+          "opponents",
+          "begin_at"
+        ],
+        "provider_key": "pandascore",
+        "required_env_keys": [
+          "PANDASCORE_TOKEN"
+        ],
+        "route_key": "pandascore_valorant_matches",
+        "sanitized_probe_only": true,
+        "sport": "valorant",
+        "status": "BLOCKED_PROVIDER_TERMS_OR_SCOPE"
+      }
+    ],
+    "volleyball": [
+      {
+        "artifact_id": "pass_e:volleyball:api-sports-family:api_volleyball_games",
+        "betting_decisions_enabled": false,
+        "blocked_reason": "no_acceptable_provider_credential_present",
+        "endpoint_family": "games",
+        "evidence_refs": [
+          "route:api_volleyball_games"
+        ],
+        "forbidden_fields": [
+          "odds",
+          "prediction",
+          "betting"
+        ],
+        "live_call_allowed": false,
+        "missing_env_keys": [
+          "API_VOLLEYBALL_KEY",
+          "API_SPORTS_KEY"
+        ],
+        "production_selectable": false,
+        "proof_fields_required": [
+          "fixture_id",
+          "home_team",
+          "away_team",
+          "start_time"
+        ],
+        "provider_key": "api-sports-family",
+        "required_env_keys": [
+          "API_VOLLEYBALL_KEY",
+          "API_SPORTS_KEY"
+        ],
+        "route_key": "api_volleyball_games",
+        "sanitized_probe_only": true,
+        "sport": "volleyball",
+        "status": "BLOCKED_NO_CREDENTIALS"
+      }
+    ]
+  },
+  "target_sports": [
+    "basketball",
+    "volleyball",
+    "hockey",
+    "tennis",
+    "cs2",
+    "dota2",
+    "valorant"
+  ]
+}

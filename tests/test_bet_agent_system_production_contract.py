@@ -76,7 +76,7 @@ def test_production_contract_enforces_core_summary_flags():
     assert summary["bet_executor_cannot_mutate_repo"] is True
     assert summary["code_general_repair_path_exists"] is True
     assert summary["no_stale_policy_strings"] is True
-    assert summary["no_stale_betclic_operator_flow"] is True
+    assert summary["no_stale_retired_operator_flow"] is True
     assert summary["output_schemas_present"] is True
     assert summary["continuation_protocol_present"] is True
     assert summary["no_recursive_delegation"] is True

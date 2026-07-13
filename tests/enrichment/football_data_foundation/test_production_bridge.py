@@ -29,7 +29,7 @@ from bet.integration.source_result import SourceResultStatus
 REPO_ROOT = Path(__file__).resolve().parents[3]
 PROFILE_ROOT = (
     REPO_ROOT
-    / "reports/football_data_foundation/active_enrichment_profiles/world-cup-2026"
+    / "tests/fixtures/football_data_foundation/active_enrichment_profiles/world-cup-2026"
 )
 SCANNER_EVENT_PATH = PROFILE_ROOT / "scanner_event_input.json"
 REAL_DB_PATH = REPO_ROOT / "betting/data/betting.db"
@@ -204,6 +204,7 @@ def test_seeded_store_returns_real_facts_with_separate_scanner_and_provider_ids(
         store,
         profile_id=scanner_event.profile_id,
         scanner_event_id=scanner_event.scanner_event_id,
+        state_root=PROFILE_ROOT / "state_store",
     )
     result = run_scanner_event_enrichment(
         scanner_event,
@@ -238,6 +239,7 @@ def test_scanner_event_is_not_treated_as_provider_evidence() -> None:
         store,
         profile_id=scanner_event.profile_id,
         scanner_event_id=scanner_event.scanner_event_id,
+        state_root=PROFILE_ROOT / "state_store",
     )
     run_scanner_event_enrichment(
         scanner_event,
@@ -256,6 +258,7 @@ def test_force_refresh_bypasses_cached_completeness_and_requires_fresh_evidence(
         store,
         profile_id=scanner_event.profile_id,
         scanner_event_id=scanner_event.scanner_event_id,
+        state_root=PROFILE_ROOT / "state_store",
     )
     result = run_scanner_event_enrichment(
         scanner_event,
@@ -285,6 +288,7 @@ def test_persisted_facts_include_evidence_identity_and_schema_fingerprint() -> N
         store,
         profile_id=scanner_event.profile_id,
         scanner_event_id=scanner_event.scanner_event_id,
+        state_root=PROFILE_ROOT / "state_store",
     )
     result = run_scanner_event_enrichment(
         scanner_event,
@@ -305,6 +309,7 @@ def test_scanner_batch_enrichment_accepts_batch() -> None:
         store,
         profile_id=scanner_event.profile_id,
         scanner_event_id=scanner_event.scanner_event_id,
+        state_root=PROFILE_ROOT / "state_store",
     )
     batch = scanner_batch_from_events(scanner_event.profile_id, [scanner_event])
     results = run_scanner_batch_enrichment(
@@ -332,6 +337,7 @@ def test_scanner_bridge_does_not_create_or_write_real_betting_db() -> None:
         store,
         profile_id=scanner_event.profile_id,
         scanner_event_id=scanner_event.scanner_event_id,
+        state_root=PROFILE_ROOT / "state_store",
     )
     run_scanner_event_enrichment(
         scanner_event,

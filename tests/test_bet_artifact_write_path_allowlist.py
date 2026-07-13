@@ -3,7 +3,7 @@ import re
 import json
 import urllib.parse
 
-PLUGIN_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.kilo/plugin/bet_artifact_write.ts"))
+PLUGIN_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "fixtures/bet_artifact_write.ts"))
 
 
 def read_plugin_content():

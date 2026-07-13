@@ -1,0 +1,121 @@
+{
+  "basketball": {
+    "betting_decisions_enabled": false,
+    "blocked_reason": "No usable provider corpus record exists for this sport.",
+    "corpus_ids": [],
+    "manual_authorization_required": true,
+    "production_selectable": false,
+    "source_keys": [],
+    "sport": "basketball",
+    "status": "BLOCKED_PROVIDER_MAPPING_NOT_FOUND",
+    "unknown_fields": [
+      "fixture_identity",
+      "status_or_clock",
+      "score_or_result",
+      "participants"
+    ]
+  },
+  "cs2": {
+    "betting_decisions_enabled": false,
+    "blocked_reason": "No usable provider corpus record exists for this sport.",
+    "corpus_ids": [],
+    "manual_authorization_required": true,
+    "production_selectable": false,
+    "source_keys": [],
+    "sport": "cs2",
+    "status": "BLOCKED_PROVIDER_MAPPING_NOT_FOUND",
+    "unknown_fields": [
+      "fixture_identity",
+      "status_or_clock",
+      "score_or_result",
+      "participants",
+      "roster_or_lineup_context",
+      "game_patch_or_version_context"
+    ]
+  },
+  "dota2": {
+    "betting_decisions_enabled": false,
+    "blocked_reason": "No usable provider corpus record exists for this sport.",
+    "corpus_ids": [],
+    "manual_authorization_required": true,
+    "production_selectable": false,
+    "source_keys": [],
+    "sport": "dota2",
+    "status": "BLOCKED_PROVIDER_MAPPING_NOT_FOUND",
+    "unknown_fields": [
+      "fixture_identity",
+      "status_or_clock",
+      "score_or_result",
+      "participants",
+      "roster_or_lineup_context",
+      "game_patch_or_version_context"
+    ]
+  },
+  "hockey": {
+    "betting_decisions_enabled": false,
+    "blocked_reason": "No usable provider corpus record exists for this sport.",
+    "corpus_ids": [],
+    "manual_authorization_required": true,
+    "production_selectable": false,
+    "source_keys": [],
+    "sport": "hockey",
+    "status": "BLOCKED_PROVIDER_MAPPING_NOT_FOUND",
+    "unknown_fields": [
+      "fixture_identity",
+      "status_or_clock",
+      "score_or_result",
+      "participants"
+    ]
+  },
+  "tennis": {
+    "betting_decisions_enabled": false,
+    "blocked_reason": "No usable provider corpus record exists for this sport.",
+    "corpus_ids": [],
+    "manual_authorization_required": true,
+    "production_selectable": false,
+    "source_keys": [],
+    "sport": "tennis",
+    "status": "BLOCKED_PROVIDER_MAPPING_NOT_FOUND",
+    "unknown_fields": [
+      "fixture_identity",
+      "status_or_clock",
+      "score_or_result",
+      "participants",
+      "surface_or_court_context"
+    ]
+  },
+  "valorant": {
+    "betting_decisions_enabled": false,
+    "blocked_reason": "No usable provider corpus record exists for this sport.",
+    "corpus_ids": [],
+    "manual_authorization_required": true,
+    "production_selectable": false,
+    "source_keys": [],
+    "sport": "valorant",
+    "status": "BLOCKED_PROVIDER_MAPPING_NOT_FOUND",
+    "unknown_fields": [
+      "fixture_identity",
+      "status_or_clock",
+      "score_or_result",
+      "participants",
+      "roster_or_lineup_context",
+      "game_patch_or_version_context"
+    ]
+  },
+  "volleyball": {
+    "betting_decisions_enabled": false,
+    "blocked_reason": "No usable provider corpus record exists for this sport.",
+    "corpus_ids": [],
+    "manual_authorization_required": true,
+    "production_selectable": false,
+    "source_keys": [],
+    "sport": "volleyball",
+    "status": "BLOCKED_PROVIDER_MAPPING_NOT_FOUND",
+    "unknown_fields": [
+      "fixture_identity",
+      "status_or_clock",
+      "score_or_result",
+      "participants"
+    ]
+  }
+}

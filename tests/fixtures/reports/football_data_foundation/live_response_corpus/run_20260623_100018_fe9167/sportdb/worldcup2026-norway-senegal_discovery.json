@@ -1,0 +1,19 @@
+{
+  "body": null,
+  "body_sha256": null,
+  "captured_at_utc": "2026-06-23T10:00:18.884358Z",
+  "error": "SportDB MCP JSON-RPC tool name for discovery is unknown",
+  "fixture_slug": "worldcup2026-norway-senegal",
+  "network_used": false,
+  "provider": "sportdb",
+  "provider_fixture_id": null,
+  "provider_mapping_status": "UNKNOWN",
+  "raw_headers_stored": false,
+  "request_attempted": false,
+  "request_purpose": "mcp_live_or_match_search_discovery",
+  "secrets_stored": false,
+  "selectable_for_production": false,
+  "source_url": "https://api.sportdb.dev/mcp/",
+  "status": "BLOCKED_DISCOVERY_ENDPOINT_UNKNOWN",
+  "status_code": null
+}

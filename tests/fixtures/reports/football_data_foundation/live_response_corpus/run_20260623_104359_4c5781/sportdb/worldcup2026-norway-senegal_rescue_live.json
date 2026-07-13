@@ -1,0 +1,23 @@
+{
+  "body": null,
+  "body_sha256": null,
+  "captured_at_utc": "2026-06-23T10:43:59.271024Z",
+  "error": "HTTPError 403: Forbidden",
+  "fixture_slug": "worldcup2026-norway-senegal",
+  "network_used": true,
+  "provider": "sportdb",
+  "provider_fixture_id": null,
+  "provider_mapping_status": "UNKNOWN",
+  "raw_headers_stored": false,
+  "request_attempted": true,
+  "request_purpose": "sportdb_rest_football_live_probe",
+  "rescue_attempt": true,
+  "rescue_endpoint_family": "football_live",
+  "rescue_provider": "sportdb",
+  "secrets_stored": false,
+  "selectable_for_production": false,
+  "source_url": "https://api.sportdb.dev/api/football/live",
+  "status": "RESCUE_FAILED_HTTP",
+  "status_code": 403,
+  "unofficial_shadow_baseline": false
+}

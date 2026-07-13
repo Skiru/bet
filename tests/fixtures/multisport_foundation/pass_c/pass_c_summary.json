@@ -1,0 +1,41 @@
+{
+  "activation_candidate_statuses": {
+    "basketball": "BLOCKED_NO_REAL_PROVIDER_ACCESS",
+    "cs2": "BLOCKED_NO_REAL_PROVIDER_ACCESS",
+    "dota2": "BLOCKED_NO_REAL_PROVIDER_ACCESS",
+    "hockey": "BLOCKED_NO_REAL_PROVIDER_ACCESS",
+    "tennis": "BLOCKED_NO_REAL_PROVIDER_ACCESS",
+    "valorant": "BLOCKED_NO_REAL_PROVIDER_ACCESS",
+    "volleyball": "BLOCKED_NO_REAL_PROVIDER_ACCESS"
+  },
+  "live_observation_statuses": {
+    "basketball": "BLOCKED_NO_REAL_PROVIDER_ACCESS",
+    "cs2": "BLOCKED_NO_REAL_PROVIDER_ACCESS",
+    "dota2": "BLOCKED_NO_REAL_PROVIDER_ACCESS",
+    "hockey": "BLOCKED_NO_REAL_PROVIDER_ACCESS",
+    "tennis": "BLOCKED_NO_REAL_PROVIDER_ACCESS",
+    "valorant": "BLOCKED_NO_REAL_PROVIDER_ACCESS",
+    "volleyball": "BLOCKED_NO_REAL_PROVIDER_ACCESS"
+  },
+  "metrics": {
+    "activation_candidate_shadow_only_count": 0,
+    "betting_decisions": false,
+    "blocked_no_real_provider_access_count": 7,
+    "blocked_provider_terms_or_scope_count": 0,
+    "live_calls_made": false,
+    "production_activation": false,
+    "provider_access_attempted": false,
+    "real_provider_access_observed_but_live_shadow_blocked_insufficient_mapping_count": 0,
+    "total_target_sports": 7
+  },
+  "summary_version": "ms-c-summary-v1",
+  "target_sports": [
+    "basketball",
+    "volleyball",
+    "hockey",
+    "tennis",
+    "cs2",
+    "dota2",
+    "valorant"
+  ]
+}

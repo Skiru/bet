@@ -1,0 +1,10 @@
+{
+  "failed_requirements": [],
+  "metrics": {
+    "guardrail_count": 9,
+    "pass_count": 4,
+    "provider_count": 6,
+    "sport_count": 7
+  },
+  "verdict": "PASS"
+}

@@ -1,0 +1,57 @@
+{
+  "event": {
+    "away_team_code": "AUS",
+    "away_team_name": "Australia",
+    "event_date_local": "2026-06-19T21:00:00+02:00",
+    "event_date_utc": "2026-06-19T19:00Z",
+    "home_team_code": "USA",
+    "home_team_name": "United States",
+    "provider_event_id": "760442",
+    "retrieval_timestamp_utc": "2026-06-19T20:18:51+00:00",
+    "statistics": [
+      {
+        "display_value": "71.5",
+        "home_away": "home",
+        "name": "possessionPct",
+        "value": 71.5
+      },
+      {
+        "display_value": "2",
+        "home_away": "home",
+        "name": "shotsOnTarget",
+        "value": 2
+      },
+      {
+        "display_value": "11",
+        "home_away": "home",
+        "name": "totalShots",
+        "value": 11
+      },
+      {
+        "display_value": "28.5",
+        "home_away": "away",
+        "name": "possessionPct",
+        "value": 28.5
+      },
+      {
+        "display_value": "1",
+        "home_away": "away",
+        "name": "shotsOnTarget",
+        "value": 1
+      },
+      {
+        "display_value": "2",
+        "home_away": "away",
+        "name": "totalShots",
+        "value": 2
+      }
+    ],
+    "status_name": "STATUS_SECOND_HALF",
+    "status_state": "in"
+  },
+  "evidence_identity": "b8fa6502f7bd73a0d9614dc0e04e4e8de97505c7de2b4b476dbb5ebf69485f71",
+  "provider_event_id": "760442",
+  "provider_id": "espn-fifa-worldcup",
+  "retrieved_at": "2026-06-19T20:18:51+00:00",
+  "schema_fingerprint": "1adbcb1991fbe027d188ffc1f3241a1a555f26d209df871e6c58c36d47828839"
+}

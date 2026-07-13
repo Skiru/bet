@@ -5,7 +5,7 @@ from pathlib import Path
 from bet.enrichment.multisport_foundation.source_inventory import TARGET_SPORTS
 
 def test_pass_f_reports_exist_and_are_valid() -> None:
-    base_dir = Path("reports/multisport_foundation/pass_f")
+    base_dir = Path("tests/fixtures/multisport_foundation/pass_f")
     assert base_dir.exists()
 
     plan_path = base_dir / "provider_probe_plan.json"
@@ -45,7 +45,7 @@ def test_pass_f_reports_exist_and_are_valid() -> None:
             assert forbidden_concept not in content_lower
 
 def test_reports_cover_exactly_seven_sports() -> None:
-    base_dir = Path("reports/multisport_foundation/pass_f")
+    base_dir = Path("tests/fixtures/multisport_foundation/pass_f")
     
     plan = json.loads((base_dir / "provider_probe_plan.json").read_text(encoding="utf-8"))
     assert set(plan.get("target_sports", [])) == set(TARGET_SPORTS)

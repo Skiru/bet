@@ -12,7 +12,6 @@ from pathlib import Path
 
 import yaml
 
-
 ROOT = Path(__file__).resolve().parents[1]
 AGENT_NAMES = (
     "bet-executor",
@@ -63,18 +62,33 @@ def frontmatter(path: Path) -> tuple[dict, str]:
 
 def git_changed_files() -> list[str]:
     base = subprocess.run(
-        ["git", "merge-base", "main", "HEAD"], cwd=ROOT,
-        check=True, capture_output=True, text=True,
+        ["git", "merge-base", "main", "HEAD"],
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
     ).stdout.strip()
     committed = subprocess.run(
-        ["git", "diff", "--name-only", f"{base}..HEAD"], cwd=ROOT,
-        check=True, capture_output=True, text=True,
+        [
+            "git",
+            "diff",
+            "--name-only",
+            "--diff-filter=ACMRTUXB",
+            f"{base}..HEAD",
+        ],
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
     ).stdout.splitlines()
     working: list[str] = []
     if not os.environ.get("POWER_AGENT_VALIDATION_SKIP_WORKTREE_REPORTS"):
         working = subprocess.run(
-            ["git", "diff", "--name-only"], cwd=ROOT,
-            check=True, capture_output=True, text=True,
+            ["git", "diff", "--name-only", "--diff-filter=ACMRTUXB"],
+            cwd=ROOT,
+            check=True,
+            capture_output=True,
+            text=True,
         ).stdout.splitlines()
     return sorted(set(committed + working))
 
@@ -119,7 +133,9 @@ def validate() -> list[str]:
     executor_task = permissions.get("bet-executor", {}).get("task", {})
     if not isinstance(executor_task, dict) or executor_task.get("*") != "deny":
         errors.append("bet-executor: wildcard task deny missing")
-    elif {k for k, v in executor_task.items() if k != "*" and v == "allow"} != partner_names:
+    elif {
+        k for k, v in executor_task.items() if k != "*" and v == "allow"
+    } != partner_names:
         errors.append("bet-executor: task allowlist is not exactly six partners")
 
     for name, perms in permissions.items():
@@ -147,17 +163,19 @@ def validate() -> list[str]:
         if LEGACY_PATTERN.search(text):
             errors.append(f"{path.relative_to(ROOT)}: legacy agent reference")
         if re.search("bet" + "clic", text, re.IGNORECASE):
-            errors.append(f"{path.relative_to(ROOT)}: active retired-operator reference")
+            errors.append(
+                f"{path.relative_to(ROOT)}: active retired-operator reference"
+            )
         if TEXTUAL_CAP_PATTERN.search(text):
             errors.append(f"{path.relative_to(ROOT)}: textual step/session cap")
 
-    manifest = json.loads((ROOT / "config/pipeline_manifest.json").read_text(encoding="utf-8"))
+    manifest = json.loads(
+        (ROOT / "config/pipeline_manifest.json").read_text(encoding="utf-8")
+    )
     if {step["agent"] for step in manifest["steps"]} - set(AGENT_NAMES):
         errors.append("manifest uses a non-power agent")
     serialized_manifest = json.dumps(manifest)
-    for forbidden in (
-        "minimum_one_valid_tip",
-    ):
+    for forbidden in ("minimum_one_valid_tip",):
         if forbidden in serialized_manifest:
             errors.append(f"manifest contains {forbidden}")
 
@@ -175,7 +193,9 @@ def validate() -> list[str]:
     if global_rules.get("operator_workflow") != "SUPERBET_MANUAL_BET_BUILDER":
         errors.append("manifest operator workflow is not Superbet manual Bet Builder")
 
-    all_active_text = "\n".join(path.read_text(encoding="utf-8") for path in ACTIVE_TEXT_FILES)
+    all_active_text = "\n".join(
+        path.read_text(encoding="utf-8") for path in ACTIVE_TEXT_FILES
+    )
     for required_text in (
         "S9 is human-only",
         "NO_ACTION_TERMINAL",
@@ -184,17 +204,25 @@ def validate() -> list[str]:
         "real operator odds",
     ):
         if required_text.lower() not in all_active_text.lower():
-            errors.append(f"active control plane missing semantic contract: {required_text}")
+            errors.append(
+                f"active control plane missing semantic contract: {required_text}"
+            )
 
-    matrix = (ROOT / ".kilo/docs/betting_agent_tool_matrix.md").read_text(encoding="utf-8")
+    matrix = (ROOT / ".kilo/docs/betting_agent_tool_matrix.md").read_text(
+        encoding="utf-8"
+    )
     matrix_rows = {
-        "bet-executor": "| `bet-executor` | allow | deny | deny | allow | exactly six partner agents; wildcard deny |",
+        "bet-executor": "| `bet-executor` | allow | deny | deny | allow | "
+        "exactly six partner agents; wildcard deny |",
         "bet-researcher": "| `bet-researcher` | deny | allow | allow | allow | deny |",
         "bet-modeler": "| `bet-modeler` | deny | allow | deny | allow | deny |",
-        "bet-risk-gatekeeper": "| `bet-risk-gatekeeper` | deny | allow | allow | allow | deny |",
+        "bet-risk-gatekeeper": "| `bet-risk-gatekeeper` | deny | allow | allow | "
+        "allow | deny |",
         "bet-builder": "| `bet-builder` | deny | deny | deny | allow | deny |",
-        "bet-auditor": "| `bet-auditor` | allow (verification only) | allow | deny | allow | deny |",
-        "bet-settler-postevent": "| `bet-settler-postevent` | deny | allow | deny | allow | deny |",
+        "bet-auditor": "| `bet-auditor` | allow (verification only) | allow | deny | "
+        "allow | deny |",
+        "bet-settler-postevent": "| `bet-settler-postevent` | deny | allow | deny | "
+        "allow | deny |",
     }
     for name, row in matrix_rows.items():
         if row not in matrix:
@@ -208,7 +236,9 @@ def validate() -> list[str]:
 
 def main() -> int:
     errors = validate()
-    print(json.dumps({"status": "FAIL" if errors else "PASS", "errors": errors}, indent=2))
+    print(
+        json.dumps({"status": "FAIL" if errors else "PASS", "errors": errors}, indent=2)
+    )
     return 1 if errors else 0
 
 

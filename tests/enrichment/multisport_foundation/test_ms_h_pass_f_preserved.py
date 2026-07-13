@@ -3,8 +3,8 @@ from pathlib import Path
 from bet.enrichment.multisport_foundation import verify_provider_mapping, verify_provider_probes
 
 def test_pass_e_and_f_summaries_exist_and_preserved():
-    pass_e = Path("reports/multisport_foundation/pass_e/pass_e_summary.json")
-    pass_f = Path("reports/multisport_foundation/pass_f/pass_f_summary.json")
+    pass_e = Path("tests/fixtures/multisport_foundation/pass_e/pass_e_summary.json")
+    pass_f = Path("tests/fixtures/multisport_foundation/pass_f/pass_f_summary.json")
     
     assert pass_e.exists(), "Pass E summary report is missing."
     assert pass_f.exists(), "Pass F summary report is missing."

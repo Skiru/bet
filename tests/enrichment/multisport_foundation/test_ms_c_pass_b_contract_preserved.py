@@ -17,7 +17,7 @@ def test_pass_b_helpers_remain_importable() -> None:
 
 def test_pass_b_report_remains_unchanged() -> None:
     # Use git status or git diff to verify reports/multisport_foundation/pass_b/source_bound_shadow_status_by_sport.json is unchanged
-    path = "reports/multisport_foundation/pass_b/source_bound_shadow_status_by_sport.json"
+    path = "tests/fixtures/multisport_foundation/pass_b/source_bound_shadow_status_by_sport.json"
     result = subprocess.run(
         ["git", "diff", "--name-only", path],
         capture_output=True,

@@ -1,0 +1,23 @@
+{
+  "contract_name": "J2 Chunked Specialist Execution Contract",
+  "version": "1.0.0",
+  "max_chunk_size": 20,
+  "chunk_names": {
+    "enricher": [
+      "enricher_context_layer_football",
+      "enricher_context_layer_tennis_1",
+      "enricher_context_layer_tennis_2"
+    ],
+    "statistician": [
+      "statistician_market_analysis_football",
+      "statistician_market_analysis_tennis_1",
+      "statistician_market_analysis_tennis_2"
+    ]
+  },
+  "consolidations": [
+    "enricher_context_layer",
+    "statistician_market_analysis",
+    "deep_event_dossiers"
+  ],
+  "quarantine_folder_pattern": "reports/pipeline_runs/{session_run_id}/stale_blocked_outputs/"
+}

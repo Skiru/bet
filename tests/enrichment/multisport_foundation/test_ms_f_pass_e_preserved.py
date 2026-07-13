@@ -14,8 +14,8 @@ from bet.enrichment.multisport_foundation import (
 )
 
 def test_pass_e_reports_remain_unchanged() -> None:
-    plan_path = Path("reports/multisport_foundation/pass_e/provider_mapping_plan.json")
-    summary_path = Path("reports/multisport_foundation/pass_e/pass_e_summary.json")
+    plan_path = Path("tests/fixtures/multisport_foundation/pass_e/provider_mapping_plan.json")
+    summary_path = Path("tests/fixtures/multisport_foundation/pass_e/pass_e_summary.json")
 
     assert plan_path.exists()
     assert summary_path.exists()

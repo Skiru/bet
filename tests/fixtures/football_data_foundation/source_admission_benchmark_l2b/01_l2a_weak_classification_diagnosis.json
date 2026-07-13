@@ -1,0 +1,137 @@
+{
+  "schema_version": "2.0",
+  "diagnoses": [
+    {
+      "source_family": "sportdb",
+      "l2a_decision": "DEFER_CREDENTIAL_REQUIRED",
+      "l2a_problem": "Classified as METADATA_ONLY with zero facts because L2A lacked both offline test fixtures and live credentials, failing multiple gates.",
+      "classification_reason": "SOURCE_UNMEASURED_NO_FIXTURE",
+      "secondary_reasons": [
+        "SOURCE_UNMEASURED_NO_CREDENTIAL"
+      ],
+      "corrected_probe_action": "Create a minimal normalized contract fixture to prove structural parsing compatibility offline."
+    },
+    {
+      "file_path": "football-data.org",
+      "source_family": "football-data.org",
+      "l2a_decision": "DEFER_CREDENTIAL_REQUIRED",
+      "l2a_problem": "Deferred with zero facts because L2A did not evaluate an offline fixture and had missing live credentials.",
+      "classification_reason": "SOURCE_UNMEASURED_NO_FIXTURE",
+      "secondary_reasons": [
+        "SOURCE_UNMEASURED_NO_CREDENTIAL"
+      ],
+      "corrected_probe_action": "Create a minimal normalized contract fixture to prove structural parsing compatibility offline."
+    },
+    {
+      "source_family": "soccerdata_clubelo",
+      "l2a_decision": "ADMIT_OFFLINE_EVIDENCE_ONLY",
+      "l2a_problem": "Classified as offline evidence only but assessed with zero facts because no replay/offline fixture was evaluated and online instantiation is unsafe in test environment.",
+      "classification_reason": "SOURCE_UNMEASURED_NO_FIXTURE",
+      "secondary_reasons": [
+        "SOURCE_UNMEASURED_UNSAFE_PROBE"
+      ],
+      "corrected_probe_action": "Generate minimal soccerdata_replay contract fixtures to verify offline parsing contract without calling live website."
+    },
+    {
+      "source_family": "soccerdata_espn",
+      "l2a_decision": "ADMIT_OFFLINE_EVIDENCE_ONLY",
+      "l2a_problem": "Assessed with zero facts because no replay/offline fixture was evaluated and online instantiation is unsafe in test environment.",
+      "classification_reason": "SOURCE_UNMEASURED_NO_FIXTURE",
+      "secondary_reasons": [
+        "SOURCE_UNMEASURED_UNSAFE_PROBE"
+      ],
+      "corrected_probe_action": "Generate minimal soccerdata_replay contract fixtures to verify offline parsing contract without calling live website."
+    },
+    {
+      "source_family": "soccerdata_fbref",
+      "l2a_decision": "ADMIT_OFFLINE_EVIDENCE_ONLY",
+      "l2a_problem": "Assessed with zero facts because no replay/offline fixture was evaluated and online instantiation is unsafe in test environment.",
+      "classification_reason": "SOURCE_UNMEASURED_NO_FIXTURE",
+      "secondary_reasons": [
+        "SOURCE_UNMEASURED_UNSAFE_PROBE"
+      ],
+      "corrected_probe_action": "Generate minimal soccerdata_replay contract fixtures to verify offline parsing contract without calling live website."
+    },
+    {
+      "source_family": "soccerdata_understat",
+      "l2a_decision": "ADMIT_OFFLINE_EVIDENCE_ONLY",
+      "l2a_problem": "Assessed with zero facts because no replay/offline fixture was evaluated and online instantiation is unsafe in test environment.",
+      "classification_reason": "SOURCE_UNMEASURED_NO_FIXTURE",
+      "secondary_reasons": [
+        "SOURCE_UNMEASURED_UNSAFE_PROBE"
+      ],
+      "corrected_probe_action": "Generate minimal soccerdata_replay contract fixtures to verify offline parsing contract without calling live website."
+    },
+    {
+      "source_family": "soccerdata_whoscored",
+      "l2a_decision": "ADMIT_OFFLINE_EVIDENCE_ONLY",
+      "l2a_problem": "Assessed with zero facts because no replay/offline fixture was evaluated and online instantiation is unsafe in test environment.",
+      "classification_reason": "SOURCE_UNMEASURED_NO_FIXTURE",
+      "secondary_reasons": [
+        "SOURCE_UNMEASURED_UNSAFE_PROBE"
+      ],
+      "corrected_probe_action": "Acknowledge missing offline fixture and scraping-only primary block."
+    },
+    {
+      "source_family": "soccerdata_sofascore",
+      "l2a_decision": "ADMIT_OFFLINE_EVIDENCE_ONLY",
+      "l2a_problem": "Assessed with zero facts because no replay/offline fixture was evaluated and online instantiation is unsafe in test environment.",
+      "classification_reason": "SOURCE_UNMEASURED_NO_FIXTURE",
+      "secondary_reasons": [
+        "SOURCE_UNMEASURED_UNSAFE_PROBE"
+      ],
+      "corrected_probe_action": "Acknowledge missing offline fixture and scraping-only primary block."
+    },
+    {
+      "source_family": "soccerdata_sofifa",
+      "l2a_decision": "ADMIT_OFFLINE_EVIDENCE_ONLY",
+      "l2a_problem": "Assessed with zero facts because no replay/offline fixture was evaluated and online instantiation is unsafe in test environment.",
+      "classification_reason": "SOURCE_UNMEASURED_NO_FIXTURE",
+      "secondary_reasons": [
+        "SOURCE_UNMEASURED_UNSAFE_PROBE"
+      ],
+      "corrected_probe_action": "Acknowledge missing offline fixture and scraping-only primary block."
+    },
+    {
+      "source_family": "soccerdata_matchhistory",
+      "l2a_decision": "ADMIT_OFFLINE_EVIDENCE_ONLY",
+      "l2a_problem": "Assessed with zero facts because no replay/offline fixture was evaluated and online instantiation is unsafe in test environment.",
+      "classification_reason": "SOURCE_UNMEASURED_NO_FIXTURE",
+      "secondary_reasons": [
+        "SOURCE_UNMEASURED_UNSAFE_PROBE"
+      ],
+      "corrected_probe_action": "Acknowledge missing offline fixture and scraping-only primary block."
+    },
+    {
+      "source_family": "soccerdata_fivethirtyeight",
+      "l2a_decision": "ADMIT_OFFLINE_EVIDENCE_ONLY",
+      "l2a_problem": "Assessed with zero facts because no offline fixture was evaluated. Additionally, FiveThirtyEight soccer prediction endpoints are archived/retired.",
+      "classification_reason": "SOURCE_LOW_VALUE",
+      "secondary_reasons": [
+        "SOURCE_UNMEASURED_NO_FIXTURE",
+        "GOVERNANCE_GAP"
+      ],
+      "corrected_probe_action": "Reject as low value due to provider retirement/archived status."
+    },
+    {
+      "source_family": "fotmob_probe",
+      "l2a_decision": "ADMIT_OFFLINE_EVIDENCE_ONLY",
+      "l2a_problem": "Assessed with zero facts even though an offline test fixture was available in the repo.",
+      "classification_reason": "PARSER_GAP",
+      "secondary_reasons": [
+        "DOCS_CAPABILITY_ONLY"
+      ],
+      "corrected_probe_action": "Review fixture structure. Document the specific missing keys and parser capabilities, classifying as PARSER_GAP."
+    },
+    {
+      "source_family": "sofascore_rich_probe",
+      "l2a_decision": "ADMIT_OFFLINE_EVIDENCE_ONLY",
+      "l2a_problem": "Assessed with zero facts even though an offline test fixture was available in the repo.",
+      "classification_reason": "PARSER_GAP",
+      "secondary_reasons": [
+        "DOCS_CAPABILITY_ONLY"
+      ],
+      "corrected_probe_action": "Review fixture structure. Document the specific missing keys and parser capabilities, classifying as PARSER_GAP."
+    }
+  ]
+}
