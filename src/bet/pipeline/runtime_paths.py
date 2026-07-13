@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+
 from bet.pipeline.runtime_modes import RuntimeMode
 
 
@@ -52,8 +53,8 @@ def build_runtime_env(
     base_dir: Path | None = None,
 ) -> dict[str, str]:
     """Build environment dictionary with sandboxed path configurations."""
-    import os
     from pathlib import Path
+
     from bet.pipeline.runtime_modes import parse_runtime_mode
 
     mode_enum = parse_runtime_mode(runtime_mode)
@@ -63,12 +64,44 @@ def build_runtime_env(
     coupon_dir = runtime_coupon_dir(run_root)
     artifact_dir = runtime_artifact_dir(run_root)
 
+    # 1. Minimal platform allowlist
+    allowed_platform_keys = {
+        "PATH", "HOME", "TMPDIR", "TMP", "TEMP", "TZ",
+        "SSL_CERT_FILE", "SSL_CERT_DIR", "REQUESTS_CA_BUNDLE", "CURL_CA_BUNDLE",
+        "VIRTUAL_ENV", "NO_PROXY", "HTTP_PROXY", "HTTPS_PROXY",
+        "TERM", "SSH_AUTH_SOCK", "USER", "LOGNAME", "SHELL",
+    }
+
     env = {}
     for k, v in os.environ.items():
-        if k in ("PYTHONHOME", "PYTEST_ADDOPTS") or any(x in k for x in ("_MOCK", "_FIXTURE", "_OVERRIDE", "_TEST")):
-            continue
-        env[k] = v
+        if k in allowed_platform_keys or k.startswith("LC_") or k == "LANG":
+            env[k] = v
 
+    # 2. Live and write acknowledgements
+    from bet.pipeline.runtime_modes import LIVE_ACK_KEY, WRITE_ACK_KEY
+    if mode_enum == RuntimeMode.LIVE_SHADOW or mode_enum == RuntimeMode.PRODUCTION:
+        if LIVE_ACK_KEY in os.environ:
+            env[LIVE_ACK_KEY] = os.environ[LIVE_ACK_KEY]
+    if mode_enum == RuntimeMode.PRODUCTION:
+        if WRITE_ACK_KEY in os.environ:
+            env[WRITE_ACK_KEY] = os.environ[WRITE_ACK_KEY]
+
+    # 3. Provider credentials dynamically sourced from the registry
+    try:
+        from bet.provider_registry import load_provider_registry
+        reg = load_provider_registry()
+        allowed_credentials = []
+        for provider in reg.values():
+            cred_names = provider.policy.get("required_credential_names", [])
+            allowed_credentials.extend(cred_names)
+    except Exception:
+        allowed_credentials = ["ODDSPAPI_API_KEY", "THE_ODDS_API_KEY", "ODDS_API_IO_KEY", "API_FOOTBALL_KEY"]
+
+    for cred_name in allowed_credentials:
+        if cred_name in os.environ:
+            env[cred_name] = os.environ[cred_name]
+
+    # 4. Sandbox controlled variables
     env.update({
         "BET_PIPELINE_RUN_ROOT": str(run_root),
         "BET_PIPELINE_BETTING_DAY": betting_day,
