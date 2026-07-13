@@ -1,66 +1,65 @@
 """Orchestrator for the S0-S10 manifest-driven betting pipeline."""
 from __future__ import annotations
 
-import argparse
 import hashlib
 import json
 import os
-import subprocess
 import sys
 import time
-from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
+from bet.pipeline.artifact_gate import (
+    artifact_path_for,
+    evaluate_gate_before_step,
+    validate_pipeline_artifact,
+    validate_s9_human_gate_artifact_for_run,
+)
+from bet.pipeline.event_accounting import (
+    BOUNDARY_DEFAULT_STATUS,
+    EventAccountingError,
+    EventAccountingLedger,
+)
+from bet.pipeline.integration_artifacts import (
+    script_evidence_path,
+)
 from bet.pipeline.manifest import (
     discover_repo_root,
     load_pipeline_manifest,
     validate_pipeline_manifest,
-    get_step_order,
-)
-from bet.pipeline.runtime_modes import (
-    RuntimeMode,
-    parse_runtime_mode,
-    validate_runtime_mode_acks,
-    LIVE_ACK_KEY,
-    LIVE_ACK_VALUE,
-)
-from bet.pipeline.runtime_paths import (
-    resolve_run_root,
-    runtime_artifact_dir,
-    runtime_data_dir,
-    runtime_coupon_dir,
-    build_runtime_env,
-)
-from bet.pipeline.readiness_contracts import (
-    PipelineReadinessStatus,
-    PipelineArtifactType,
-    StepEvidence,
-    GateDecision,
-    PipelineArtifact,
-)
-from bet.pipeline.artifact_gate import (
-    evaluate_gate_before_step,
-    validate_pipeline_artifact,
-    validate_s9_human_gate_artifact_for_run,
-    artifact_path_for,
-)
-from bet.pipeline.run_evidence import (
-    utc_now_iso,
-    manifest_hash,
-    repo_head_sha,
-    write_json_atomic,
-)
-from bet.pipeline.run_coordination import LeaseRunLock, ResumeLedger, run_bounded_process
-from bet.pipeline.event_accounting import BOUNDARY_DEFAULT_STATUS, EventAccountingError, EventAccountingLedger
-from bet.pipeline.integration_artifacts import (
-    write_script_evidence,
-    script_evidence_path,
 )
 from bet.pipeline.orchestrator_contracts import (
     TerminalNextAction,
     TerminalOutcome,
     TerminalOutcomeReason,
+)
+from bet.pipeline.readiness_contracts import (
+    PipelineArtifactType,
+    PipelineReadinessStatus,
+)
+from bet.pipeline.run_coordination import (
+    LeaseRunLock,
+    ResumeLedger,
+    run_bounded_process,
+)
+from bet.pipeline.run_evidence import (
+    manifest_hash,
+    repo_head_sha,
+    utc_now_iso,
+    write_json_atomic,
+)
+from bet.pipeline.runtime_modes import (
+    LIVE_ACK_KEY,
+    LIVE_ACK_VALUE,
+    RuntimeMode,
+    parse_runtime_mode,
+)
+from bet.pipeline.runtime_paths import (
+    build_runtime_env,
+    resolve_run_root,
+    runtime_artifact_dir,
+    runtime_coupon_dir,
+    runtime_data_dir,
 )
 
 # Ensure data directory references correct sandboxed path during execution
@@ -90,7 +89,7 @@ def _load_json_object(path: str | Path | None) -> dict[str, Any] | None:
         return None
 
     try:
-        with open(Path(path), "r", encoding="utf-8") as handle:
+        with open(Path(path), encoding="utf-8") as handle:
             payload = json.load(handle)
     except (OSError, json.JSONDecodeError, TypeError, ValueError):
         return None
@@ -193,17 +192,25 @@ class Orchestrator:
         betting_day: str,
         run_id: str,
         runtime_mode: RuntimeMode | str = RuntimeMode.DRY_RUN,
-        manifest_path: Optional[Path] = None,
-        base_run_dir: Optional[Path] = None,
+        manifest_path: Path | None = None,
+        base_run_dir: Path | None = None,
         allow_live_network: bool = False,
         allow_write: bool = False,
-        artifact_dir: Optional[Path] = None,
+        artifact_dir: Path | None = None,
         verbose: bool = False,
     ) -> None:
         self.betting_day = betting_day
         self.run_id = run_id
         self.runtime_mode = parse_runtime_mode(runtime_mode)
         self.repo_root = discover_repo_root()
+
+        # Import-origin guard before orchestration
+        import bet
+        expected_bet_file = self.repo_root / "src" / "bet" / "__init__.py"
+        if Path(bet.__file__).resolve() != expected_bet_file.resolve():
+            raise RuntimeError(
+                f"Import-origin violation: bet package imported from unexpected location: {bet.__file__} (expected {expected_bet_file})"
+            )
         self.allow_live_network = allow_live_network
         self.allow_write = allow_write
         self.verbose = verbose
@@ -253,9 +260,9 @@ class Orchestrator:
         self.run_artifact_dir.mkdir(parents=True, exist_ok=True)
         (self.run_root / "logs").mkdir(parents=True, exist_ok=True)
 
-        self.warnings: List[str] = []
-        self.blockers: List[str] = []
-        self.step_evidences: List[Dict[str, Any]] = []
+        self.warnings: list[str] = []
+        self.blockers: list[str] = []
+        self.step_evidences: list[dict[str, Any]] = []
         self.command_request_count = 0
         self.executed_count = 0
         self.failed_count = 0
@@ -281,20 +288,148 @@ class Orchestrator:
             requested = default
         return min(max(requested, 1), maximum)
 
+    def derive_human_gate_readiness(
+        self,
+        gate_base_dir: Path,
+        last_completed_step: str | None,
+        overall_status: Any,
+    ) -> tuple[bool, str | None]:
+        import hashlib
+
+        # 1. No unresolved command request or blocker exists
+        if self.unresolved_count > 0 or len(self.blockers) > 0:
+            return False, None
+
+        # 2. No S9 artifact exists
+        s9_path = artifact_path_for(gate_base_dir, self.betting_day, self.run_id, "S9")
+        if s9_path.exists():
+            self.blockers.append("Contamination: S9 human gate artifact is unexpectedly present during S0-S8")
+            return False, None
+
+        # 3. S8 completed successfully
+        if last_completed_step != "S8" or overall_status not in (PipelineReadinessStatus.PASS, PipelineReadinessStatus.WARN):
+            return False, None
+
+        # 4. S8 SCRIPT_EVIDENCE schema validation
+        s8_path = artifact_path_for(gate_base_dir, self.betting_day, self.run_id, "S8")
+        if not s8_path.exists():
+            self.blockers.append("Missing required S8 script evidence")
+            return False, None
+
+        try:
+            with open(s8_path, encoding="utf-8") as f:
+                s8_ev = json.load(f)
+        except Exception as e:
+            self.blockers.append(f"Malformed S8 script evidence: {e}")
+            return False, None
+
+        if s8_ev.get("schema_version") != 1 or s8_ev.get("artifact_type") != "SCRIPT_EVIDENCE" or s8_ev.get("step_id") != "S8":
+            self.blockers.append("Invalid S8 script evidence schema")
+            return False, None
+
+        if s8_ev.get("betting_day") != self.betting_day or s8_ev.get("run_id") != self.run_id:
+            self.blockers.append("S8 evidence betting day or run ID mismatch")
+            return False, None
+
+        if s8_ev.get("status") != "PASS":
+            return False, None
+
+        payload = s8_ev.get("payload") or {}
+        s8_quote_pack_path = payload.get("s8_quote_pack_path")
+        s8_quote_pack_sha256 = payload.get("s8_quote_pack_sha256")
+
+        if not s8_quote_pack_path or not s8_quote_pack_sha256:
+            self.blockers.append("S8 evidence is missing output path or hash")
+            return False, None
+
+        # 5. Output path is current-run scoped
+        try:
+            Path(s8_quote_pack_path).resolve().relative_to(self.run_root.resolve())
+        except ValueError:
+            self.blockers.append("S8 output path is not current-run scoped")
+            return False, None
+
+        # 6. Output SHA-256 matches
+        out_path = Path(s8_quote_pack_path)
+        if not out_path.exists():
+            self.blockers.append("S8 output file does not exist")
+            return False, None
+
+        try:
+            h = hashlib.sha256()
+            with open(out_path, "rb") as f:
+                h.update(f.read())
+            actual_sha = h.hexdigest()
+        except Exception as e:
+            self.blockers.append(f"Failed to compute S8 output hash: {e}")
+            return False, None
+
+        if actual_sha != s8_quote_pack_sha256:
+            self.blockers.append("S8 output SHA-256 hash mismatch")
+            return False, None
+
+        # 7. S8 output artifact fields validation
+        try:
+            with open(out_path, encoding="utf-8") as f:
+                out_art = json.load(f)
+        except Exception as e:
+            self.blockers.append(f"Malformed S8 output artifact: {e}")
+            return False, None
+
+        if out_art.get("schema_version") != 1 or out_art.get("artifact_type") != "S8_SUPERBET_MANUAL_QUOTE_PACK":
+            self.blockers.append("Invalid S8 output artifact schema or type")
+            return False, None
+
+        if out_art.get("status") != "READY_FOR_MANUAL_SUPERBET_QUOTE_REVIEW" or out_art.get("final_status") != "READY_FOR_MANUAL_SUPERBET_QUOTE_REVIEW":
+            return False, None
+
+        quote_card_count = out_art.get("quote_card_count")
+        if not isinstance(quote_card_count, int) or quote_card_count <= 0:
+            return False, None
+
+        quote_cards = out_art.get("quote_cards") or []
+        if quote_card_count != len(quote_cards):
+            self.blockers.append("S8 output quote_card_count mismatch with list length")
+            return False, None
+
+        # 8. Every quote card satisfies manual operator boundary
+        for idx, card in enumerate(quote_cards):
+            if card.get("manual_operator") != "SUPERBET":
+                self.blockers.append(f"Quote card {idx} manual_operator is not SUPERBET")
+                return False, None
+            if card.get("executable_coupon") is not False or card.get("betting_valid") is not False or card.get("can_place_bet_now") is not False:
+                self.blockers.append(f"Quote card {idx} violates safety bounds")
+                return False, None
+
+        # 9. Extra safety fields in evidence payload & output artifact
+        if out_art.get("ready_for_human_gate") is not True or payload.get("ready_for_human_gate") is not True:
+            return False, None
+
+        if out_art.get("executable_coupon") is not False or payload.get("executable_coupon") is not False:
+            return False, None
+
+        if out_art.get("betting_valid") is not False or payload.get("betting_valid") is not False:
+            return False, None
+
+        if out_art.get("can_place_bet_now") is not False or payload.get("can_place_bet_now") is not False:
+            return False, None
+
+        return True, "WAITING_FOR_HUMAN_APPROVAL"
+
     def run(
         self,
-        start_step: Optional[str] = None,
-        stop_after_step: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        start_step: str | None = None,
+        stop_after_step: str | None = None,
+    ) -> dict[str, Any]:
         self._resume_ledger.assert_resumable()
         with self._run_lock:
             return self._run_unlocked(start_step=start_step, stop_after_step=stop_after_step)
 
     def _run_unlocked(
         self,
-        start_step: Optional[str] = None,
-        stop_after_step: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        start_step: str | None = None,
+        stop_after_step: str | None = None,
+    ) -> dict[str, Any]:
         """Execute the pipeline sequence under manifest-driven rules."""
         steps = self.manifest.steps
         step_ids = [s.id for s in steps if s.id]
@@ -315,9 +450,10 @@ class Orchestrator:
         if start_idx > stop_idx:
             raise ValueError(f"Start step '{start_step}' is after stop step '{stop_after_step}'")
 
-        last_completed_step: Optional[str] = None
-        blocked_at_step: Optional[str] = None
+        last_completed_step: str | None = None
+        blocked_at_step: str | None = None
         overall_status = PipelineReadinessStatus.PASS
+        gate_base_dir = self.run_artifact_dir.parent.parent.parent.parent
 
         # Initialize/load PipelineState in the sandboxed database
         state = PipelineState.load(self.betting_day)
@@ -350,11 +486,11 @@ class Orchestrator:
             if self.verbose:
                 print(f"--- Executing Step {sid}: {step.name} ({step.execution_mode}) ---")
 
-            work_order_path: Optional[str] = None
+            work_order_path: str | None = None
 
             # 1. Enforce gates and check prerequisite artifacts
             # We construct a base_dir for the gate evaluator to work properly
-            gate_base_dir = self.run_artifact_dir.parent.parent.parent
+            gate_base_dir = self.run_artifact_dir.parent.parent.parent.parent
             decision = evaluate_gate_before_step(sid, gate_base_dir, self.betting_day, self.run_id)
 
             if decision.verdict == PipelineReadinessStatus.BLOCK:
@@ -405,11 +541,11 @@ class Orchestrator:
             # 3. Execution based on step mode
             started_at = utc_now_iso()
             step_status = PipelineReadinessStatus.PASS
-            return_code: Optional[int] = None
-            stdout_path: Optional[str] = None
-            stderr_path: Optional[str] = None
-            evidence_path: Optional[str] = None
-            blocked_reason: Optional[str] = None
+            return_code: int | None = None
+            stdout_path: str | None = None
+            stderr_path: str | None = None
+            evidence_path: str | None = None
+            blocked_reason: str | None = None
 
             if step.execution_mode == "script":
                 # Execute wrapper script as a subprocess
@@ -449,12 +585,12 @@ class Orchestrator:
 
                 canonical_evidence = script_evidence_path(sid, self.env)
                 evidence_exists = canonical_evidence and canonical_evidence.exists()
-                
+
                 evidence_status = None
                 evidence_blocked_reasons = []
                 if evidence_exists:
                     try:
-                        with open(canonical_evidence, "r", encoding="utf-8") as f:
+                        with open(canonical_evidence, encoding="utf-8") as f:
                             raw_ev = json.load(f)
                         evidence_status = raw_ev.get("status")
                         evidence_blocked_reasons = raw_ev.get("blocked_reasons", [])
@@ -486,7 +622,7 @@ class Orchestrator:
                     step_status = PipelineReadinessStatus.BLOCK
                     overall_status = PipelineReadinessStatus.BLOCK
                     blocked_at_step = sid
-                    
+
                     if evidence_exists:
                         evidence_path = str(canonical_evidence)
                         if evidence_blocked_reasons:
@@ -501,7 +637,10 @@ class Orchestrator:
                 # Check for existing agent artifact
                 expected_path = artifact_path_for(gate_base_dir, self.betting_day, self.run_id, sid)
                 if not expected_path.exists():
-                    from bet.pipeline.agent_work_orders import build_agent_work_order, write_agent_work_order
+                    from bet.pipeline.agent_work_orders import (
+                        build_agent_work_order,
+                        write_agent_work_order,
+                    )
                     # Generate work order JSON under run artifact directory
                     wo = build_agent_work_order(
                         betting_day=self.betting_day,
@@ -520,7 +659,7 @@ class Orchestrator:
                     self.blockers.append(f"Missing required agent artifact for step {sid}")
                 else:
                     try:
-                        with open(expected_path, "r", encoding="utf-8") as f:
+                        with open(expected_path, encoding="utf-8") as f:
                             raw = json.load(f)
                         artifact, issues = validate_pipeline_artifact(
                             raw,
@@ -529,8 +668,12 @@ class Orchestrator:
                             allow_block_status=True,
                         )
 
-                        from bet.pipeline.agent_work_orders import build_agent_work_order
-                        from bet.pipeline.agent_artifact_contracts import validate_agent_artifact_for_work_order
+                        from bet.pipeline.agent_artifact_contracts import (
+                            validate_agent_artifact_for_work_order,
+                        )
+                        from bet.pipeline.agent_work_orders import (
+                            build_agent_work_order,
+                        )
 
                         wo = build_agent_work_order(
                             betting_day=self.betting_day,
@@ -629,9 +772,8 @@ class Orchestrator:
                                         stdout_text = ""
                                         stderr_text = str(e)
                                         self.blockers.append(f"COMMAND_REQUEST execution failed: {e}")
-                                    for key in ("key", "secret", "token", "password", "credential", "auth"):
-                                        if key in self.env:
-                                            val = self.env[key]
+                                    for env_key, val in self.env.items():
+                                        if any(x in env_key.lower() for x in ("key", "secret", "token", "password", "credential", "auth")):
                                             if val and len(val) > 4:
                                                 stdout_text = stdout_text.replace(val, "[REDACTED]")
                                                 stderr_text = stderr_text.replace(val, "[REDACTED]")
@@ -680,7 +822,9 @@ class Orchestrator:
                                             resolved_artifact.pop("command_request")
                                         if "command_request" in resolved_artifact.get("payload", {}):
                                             resolved_artifact["payload"].pop("command_request")
-                                        from bet.pipeline.agent_artifact_contracts import validate_agent_artifact_for_work_order
+                                        from bet.pipeline.agent_artifact_contracts import (
+                                            validate_agent_artifact_for_work_order,
+                                        )
                                         wo_errors = validate_agent_artifact_for_work_order(resolved_artifact, wo.to_jsonable())
                                         if wo_errors:
                                             postconditions_passed = False
@@ -747,7 +891,7 @@ class Orchestrator:
                     self.blockers.append(f"Missing required human gate artifact for step {sid}")
                 else:
                     try:
-                        with open(expected_path, "r", encoding="utf-8") as f:
+                        with open(expected_path, encoding="utf-8") as f:
                             raw = json.load(f)
                         artifact, issues = validate_pipeline_artifact(raw, sid)
                         issues.extend(
@@ -882,13 +1026,11 @@ class Orchestrator:
             and self.runtime_mode == RuntimeMode.LIVE_SHADOW
         )
 
-        ready_for_human_gate = False
-        if last_completed_step == "S8":
-            ready_for_human_gate = True
-
-        human_gate_status = None
-        if last_completed_step == "S8" or blocked_at_step == "S9":
-            human_gate_status = "WAITING_FOR_HUMAN_APPROVAL"
+        ready_for_human_gate, human_gate_status = self.derive_human_gate_readiness(
+            gate_base_dir,
+            last_completed_step,
+            overall_status,
+        )
 
         if self.unresolved_count > 0:
             overall_status = PipelineReadinessStatus.BLOCK

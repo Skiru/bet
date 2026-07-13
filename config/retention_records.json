@@ -1646,14 +1646,6 @@
     "expiry_or_review_policy": "REVIEW_ON_ARCHITECTURE_CHANGE"
   },
   {
-    "path": "src/bet/__init__.py",
-    "category": "RETAINED_ENGINEERING",
-    "owner": "Kilo",
-    "reason": "Retained inactive provider, scraper, model or domain helper",
-    "references": [],
-    "expiry_or_review_policy": "REVIEW_ON_SCHEMA_UPGRADE"
-  },
-  {
     "path": "src/bet/api_clients/__init__.py",
     "category": "RETAINED_ENGINEERING",
     "owner": "Kilo",
@@ -3775,14 +3767,6 @@
   },
   {
     "path": "src/bet/provider_identity.py",
-    "category": "RETAINED_ENGINEERING",
-    "owner": "Kilo",
-    "reason": "Retained inactive provider, scraper, model or domain helper",
-    "references": [],
-    "expiry_or_review_policy": "REVIEW_ON_SCHEMA_UPGRADE"
-  },
-  {
-    "path": "src/bet/provider_registry.py",
     "category": "RETAINED_ENGINEERING",
     "owner": "Kilo",
     "reason": "Retained inactive provider, scraper, model or domain helper",

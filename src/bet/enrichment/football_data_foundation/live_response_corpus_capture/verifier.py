@@ -242,7 +242,7 @@ def verify_run_directory(run_dir: Path) -> Dict[str, Any]:
             elif set(statuses) == {"BLOCKED_PROVIDER_MAPPING_MISSING"}:
                 failed.append(f"REQ-VERIFIER-001: Credential present for {provider} but only BLOCKED_PROVIDER_MAPPING_MISSING was written")
 
-    project_root = Path("/Users/mkoziol/projects/bet-multisport-enrichment-v1")
+    project_root = Path(__file__).resolve().parents[5]
     src_dir = project_root / "src/bet/enrichment/football_data_foundation/live_response_corpus_capture"
     test_dir = project_root / "tests/enrichment/football_data_foundation"
     

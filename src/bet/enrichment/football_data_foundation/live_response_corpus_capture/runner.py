@@ -45,7 +45,7 @@ def run_live_response_corpus_capture(corpus_root: Path, max_fixtures: int = 3) -
     run_dir.mkdir(parents=True, exist_ok=True)
 
     # 2. Load environment variables
-    project_root = Path("/Users/mkoziol/projects/bet-multisport-enrichment-v1")
+    project_root = Path(__file__).resolve().parents[5]
     load_project_dotenv(project_root)
     cred_map = credential_presence_map()
 
@@ -199,7 +199,7 @@ def run_freemium_rescue_capture(corpus_root: Path) -> LiveCorpusManifest:
     run_dir = corpus_root / run_id
     run_dir.mkdir(parents=True, exist_ok=True)
 
-    project_root = Path("/Users/mkoziol/projects/bet-multisport-enrichment-v1")
+    project_root = Path(__file__).resolve().parents[5]
     load_project_dotenv(project_root)
     cred_map = credential_presence_map()
 

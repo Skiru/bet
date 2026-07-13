@@ -929,7 +929,8 @@ def verify_shadow_bundle(
         fixture_slug_source_check = "FAIL"
         failed.append(f"FIXTURE_SLUG_MISMATCH:{snapshot_slug} vs {expected_fixture_slug}")
 
-    test_artifact_dir = Path("/Users/mkoziol/projects/bet-multisport-enrichment-v1/reports/football_data_foundation/source_bound_shadow/worldcup2026_norway_senegal_test")
+    project_root = Path(__file__).resolve().parents[5]
+    test_artifact_dir = project_root / "reports" / "football_data_foundation" / "source_bound_shadow" / "worldcup2026_norway_senegal_test"
     if test_artifact_dir.exists():
         committed_test_artifact_check = "FAIL"
         failed.append("COMMITTED_TEST_ARTIFACT_PRESENT")

@@ -23,7 +23,7 @@ def test_resolve_run_root_default():
 
 def test_resolve_run_root_custom_base(tmp_path):
     run_root = resolve_run_root("2026-06-25", "run-123", base_dir=tmp_path)
-    assert run_root == tmp_path / "2026-06-25" / "run-123"
+    assert run_root == tmp_path / "pipeline_runs" / "2026-06-25" / "run-123"
 
 
 def test_resolve_run_root_none_run_id():
@@ -40,12 +40,12 @@ def test_runtime_subdirs():
 
 def test_build_runtime_env(tmp_path):
     env = build_runtime_env(RuntimeMode.DRY_RUN, "2026-06-25", "run-123", base_dir=tmp_path)
-    assert env["BET_PIPELINE_RUN_ROOT"] == str(tmp_path / "2026-06-25" / "run-123")
+    assert env["BET_PIPELINE_RUN_ROOT"] == str(tmp_path / "pipeline_runs" / "2026-06-25" / "run-123")
     assert env["BET_PIPELINE_BETTING_DAY"] == "2026-06-25"
     assert env["BET_PIPELINE_RUN_ID"] == "run-123"
-    assert env["BET_PIPELINE_DATA_DIR"] == str(tmp_path / "2026-06-25" / "run-123" / "data")
-    assert env["BET_PIPELINE_COUPON_DIR"] == str(tmp_path / "2026-06-25" / "run-123" / "coupons")
-    assert env["BET_PIPELINE_ARTIFACT_DIR"] == str(tmp_path / "2026-06-25" / "run-123" / "artifacts")
+    assert env["BET_PIPELINE_DATA_DIR"] == str(tmp_path / "pipeline_runs" / "2026-06-25" / "run-123" / "data")
+    assert env["BET_PIPELINE_COUPON_DIR"] == str(tmp_path / "pipeline_runs" / "2026-06-25" / "run-123" / "coupons")
+    assert env["BET_PIPELINE_ARTIFACT_DIR"] == str(tmp_path / "pipeline_runs" / "2026-06-25" / "run-123" / "artifacts")
     assert env["BET_PIPELINE_RUNTIME_MODE"] == "DRY_RUN"
     assert env["DRY_RUN"] == "1"
     assert "betting/data" not in env["BET_PIPELINE_DATA_DIR"]

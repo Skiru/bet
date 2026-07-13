@@ -57,7 +57,8 @@ class SportDBEvidenceBundleWriter:
 
     def __init__(self, evidence_root: Path | str | None = None) -> None:
         if evidence_root is None:
-            self.evidence_root = Path("/Users/mkoziol/projects/bet-multisport-enrichment-v1/betting/data/evidence")
+            project_root = Path(__file__).resolve().parents[3]
+            self.evidence_root = project_root / "betting" / "data" / "evidence"
         else:
             self.evidence_root = Path(evidence_root)
 
@@ -164,7 +165,7 @@ class SportDBEvidenceBundleWriter:
                 manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
                 preview_path.write_text(json.dumps(response_preview, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
-            project_root = Path("/Users/mkoziol/projects/bet-multisport-enrichment-v1")
+            project_root = Path(__file__).resolve().parents[3]
             
             def safe_rel(p: Path) -> str:
                 try:
