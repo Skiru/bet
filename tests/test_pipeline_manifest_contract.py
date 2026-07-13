@@ -239,8 +239,10 @@ def test_corrected_semantic_names_and_phases():
     assert steps_by_id["S5"].agent == "bet-risk-gatekeeper"
 
     assert steps_by_id["S7"].name in ("Hard Approval Gate", "hard_approval_gate")
-    assert steps_by_id["S7b"].name in ("Market Availability Validation", "market_availability_validation")
-    assert steps_by_id["S8"].name in ("Coupon Construction", "coupon_construction")
+    assert steps_by_id["S7b"].name == "Superbet Manual Market Mapping"
+    assert steps_by_id["S7b"].output == "s7b_superbet_manual_mapping"
+    assert steps_by_id["S8"].name == "Superbet Manual Quote Pack"
+    assert steps_by_id["S8"].output == "s8_superbet_manual_quote_pack"
 
     assert steps_by_id["S10"].phase == "POST_EVENT"
 

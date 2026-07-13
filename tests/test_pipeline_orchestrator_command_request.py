@@ -14,6 +14,7 @@ from bet.pipeline.manifest import load_pipeline_manifest
 from bet.pipeline.orchestrator import Orchestrator
 from bet.pipeline.readiness_contracts import PipelineReadinessStatus, PipelineArtifactType
 from bet.pipeline.artifact_gate import artifact_path_for, expected_s8_coupon_draft_path
+from bet.pipeline.run_coordination import BoundedProcessResult
 
 
 @pytest.fixture
@@ -126,19 +127,16 @@ def test_command_request_autopromotion_success(tmp_path, base_artifact_payload):
     mock_res.returncode = 0
     mock_res.stdout = "pytest passed successfully"
     mock_res.stderr = ""
+    mock_res.timed_out = False
     
-    with patch("subprocess.run", return_value=mock_res) as mock_run:
+    with patch("bet.pipeline.orchestrator.run_bounded_process", return_value=mock_res) as mock_run:
         summary = orc.run(start_step="S2.3", stop_after_step="S2.3")
         
-        # Verify shell=False was used
         mock_run.assert_called_once_with(
             cmd_req["argv"],
-            shell=False,
-            capture_output=True,
-            text=True,
             cwd=str(orc.repo_root),
             env=orc.env,
-            timeout=30,
+            timeout_seconds=30.0,
         )
         
         assert summary["status"] == "PASS"
@@ -184,7 +182,7 @@ def test_command_request_string_and_metacharacter_rejection(tmp_path):
         base_run_dir=reports_dir,
     )
     
-    with patch("subprocess.run") as mock_run:
+    with patch("bet.pipeline.orchestrator.run_bounded_process") as mock_run:
         summary = orc.run(start_step="S2.3", stop_after_step="S2.3")
         mock_run.assert_not_called()
         
@@ -216,7 +214,7 @@ def test_command_request_disallowed_executable_rejection(tmp_path):
         base_run_dir=reports_dir,
     )
     
-    with patch("subprocess.run") as mock_run:
+    with patch("bet.pipeline.orchestrator.run_bounded_process") as mock_run:
         summary = orc.run(start_step="S2.3", stop_after_step="S2.3")
         mock_run.assert_not_called()
         
@@ -251,8 +249,9 @@ def test_command_request_nonzero_exit_code_blocks(tmp_path):
     mock_res.returncode = 1
     mock_res.stdout = "1 test failed"
     mock_res.stderr = ""
+    mock_res.timed_out = False
     
-    with patch("subprocess.run", return_value=mock_res):
+    with patch("bet.pipeline.orchestrator.run_bounded_process", return_value=mock_res):
         summary = orc.run(start_step="S2.3", stop_after_step="S2.3")
         
         assert summary["status"] == "BLOCK"
@@ -286,7 +285,8 @@ def test_command_request_timeout_blocks(tmp_path):
         base_run_dir=reports_dir,
     )
     
-    with patch("subprocess.run", side_effect=subprocess.TimeoutExpired(cmd=["python"], timeout=1)):
+    timed_out = BoundedProcessResult(returncode=-124, timed_out=True, stdout="", stderr="")
+    with patch("bet.pipeline.orchestrator.run_bounded_process", return_value=timed_out):
         summary = orc.run(start_step="S2.3", stop_after_step="S2.3")
         
         assert summary["status"] == "BLOCK"

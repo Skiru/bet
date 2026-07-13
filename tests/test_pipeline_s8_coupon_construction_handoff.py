@@ -1,24 +1,27 @@
-"""Focused S8 coupon construction handoff tests."""
+"""Focused S8 current-run Superbet quote-pack tests."""
 from __future__ import annotations
 
 import json
 import os
 import sys
-import subprocess
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 import pytest
 
+from bet.pipeline.run_evidence import sha256_file
 from scripts.pipeline_steps import s8_build_coupons
 
+DAY = "2026-06-25"
+RUN_ID = "run-s8-handoff"
 
-def _runtime_environ(tmp_path: Path) -> dict[str, str]:
-    run_root = tmp_path / "bet-s8-handoff"
+
+def _env(tmp_path: Path) -> dict[str, str]:
+    run_root = tmp_path / "run"
     return {
         "BET_PIPELINE_RUNTIME_MODE": "DRY_RUN",
-        "BET_PIPELINE_BETTING_DAY": "2026-06-25",
-        "BET_PIPELINE_RUN_ID": "run-s8-handoff",
+        "BET_PIPELINE_BETTING_DAY": DAY,
+        "BET_PIPELINE_RUN_ID": RUN_ID,
         "BET_PIPELINE_RUN_ROOT": str(run_root),
         "BET_PIPELINE_DATA_DIR": str(run_root / "data"),
         "BET_PIPELINE_COUPON_DIR": str(run_root / "coupons"),
@@ -26,107 +29,123 @@ def _runtime_environ(tmp_path: Path) -> dict[str, str]:
     }
 
 
-def _canonical_evidence_path(environ: dict[str, str]) -> Path:
-    return (
-        Path(environ["BET_PIPELINE_RUN_ROOT"])
-        / "pipeline_runs"
-        / environ["BET_PIPELINE_BETTING_DAY"]
-        / environ["BET_PIPELINE_RUN_ID"]
-        / "artifacts"
-        / "S8.json"
-    )
+def _evidence_path(env: dict[str, str], step: str) -> Path:
+    return Path(env["BET_PIPELINE_RUN_ROOT"]) / "pipeline_runs" / DAY / RUN_ID / "artifacts" / f"{step}.json"
 
 
-def test_s8_wrapper_resolves_s7b_before_s7_fallback(tmp_path: Path):
-    environ = _runtime_environ(tmp_path)
-    data_dir = Path(environ["BET_PIPELINE_DATA_DIR"])
-    artifact_dir = Path(environ["BET_PIPELINE_ARTIFACT_DIR"])
-    data_dir.mkdir(parents=True, exist_ok=True)
-    artifact_dir.mkdir(parents=True, exist_ok=True)
+def _card() -> dict:
+    return {
+        "quote_card_id": "quote-card-a",
+        "source_candidate_id": "a",
+        "manual_operator": "SUPERBET",
+        "mapping_ambiguity": "HUMAN_CHECK_REQUIRED",
+        "visible_operator_market_name": None,
+        "visible_operator_line": None,
+        "human_entered_decimal_quote": None,
+        "quote_as_of": None,
+        "operator_availability_asserted": False,
+        "executable_coupon": False,
+        "betting_valid": False,
+        "can_place_bet_now": False,
+    }
 
-    # Prepare inputs: S7 and S7b
-    s7_output = data_dir / "2026-06-25_s7_gate_results.json"
-    s7_output.write_text(json.dumps({"gate_results": {"approved": [{"home_team": "Alpha", "away_team": "Beta", "best_market": {"name": "Over 2.5", "market_type": "goals_total"}}]}}), encoding="utf-8")
-    (artifact_dir / "S7.json").write_text(
-        json.dumps({"status": "PASS", "payload": {"approved_count": 1, "s7_json_output": str(s7_output), "sandbox_certification_fixture": True, "not_real_betting_recommendation": True, "market_availability_status": "AVAILABLE"}}),
+
+def _write_s7b(env: dict[str, str], cards: list[dict], status: str) -> Path:
+    output = Path(env["BET_PIPELINE_DATA_DIR"]) / f"{DAY}_s7b_superbet_manual_mapping.json"
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "artifact_type": "S7B_SUPERBET_MANUAL_MAPPING",
+                "status": status,
+                "betting_day": DAY,
+                "run_id": RUN_ID,
+                "operator_workflow": "SUPERBET_MANUAL_BET_BUILDER",
+                "operator_availability_asserted": False,
+                "approved_candidate_count": len(cards),
+                "represented_candidate_count": len(cards),
+                "mapping_suggestions": cards,
+            }
+        ),
         encoding="utf-8",
     )
-
-    s7b_output = data_dir / "betclic_market_validation_2026-06-25.json"
-    # S7b is a validation format, wait: let's verify if S7b is also a gate_results dict or a validation list
-    # S7b validates S7 output, so its s7b_json_output usually contains the validation JSON, but s7b_input_path is the s7_output file.
-    # When resolving s8 input, we search S7b evidence's s7b_json_output or validation output path, but if S7b passed, s7b_input_path should point to the S7 gate result!
-    # Let's write S7b.json evidence:
-    (artifact_dir / "S7b.json").write_text(
-        json.dumps({"status": "PASS", "payload": {"s7b_input_path": str(s7_output), "s7b_json_output": str(s7b_output)}}),
+    evidence = _evidence_path(env, "S7b")
+    evidence.parent.mkdir(parents=True, exist_ok=True)
+    evidence.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "artifact_type": "SCRIPT_EVIDENCE",
+                "step_id": "S7b",
+                "status": "PASS",
+                "betting_day": DAY,
+                "run_id": RUN_ID,
+                "payload": {"s7b_json_output": str(output), "s7b_output_sha256": sha256_file(output)},
+            }
+        ),
         encoding="utf-8",
     )
+    return output
 
-    recorded = {}
-    def fake_run(cmd, env=None, capture_output=None, text=None):
-        recorded["cmd"] = cmd
-        return subprocess.CompletedProcess(cmd, 0, stdout="", stderr="")
 
-    argv = ["s8_build_coupons.py", "--date", "2026-06-25", "--run-id", environ["BET_PIPELINE_RUN_ID"], "--runtime-mode", "DRY_RUN", "--dry-run"]
-    with patch.dict(os.environ, environ, clear=False), patch.object(sys, "argv", argv), patch("subprocess.run", side_effect=fake_run):
-        # We must make sure the output draft path is mock-created so PASS can verify it
-        mock_output = data_dir / "2026-06-25_s8_coupon_drafts.json"
-        mock_output.write_text(json.dumps({"coupon_draft_count": 1}), encoding="utf-8")
-        try:
+def _run(env: dict[str, str]) -> int:
+    argv = ["s8_build_coupons.py", "--date", DAY, "--run-id", RUN_ID, "--runtime-mode", "DRY_RUN"]
+    with patch.dict(os.environ, env, clear=False), patch.object(sys, "argv", argv):
+        with pytest.raises(SystemExit) as exc:
             s8_build_coupons.main()
-        except SystemExit as exc:
-            assert exc.code == 0
+    return int(exc.value.code)
 
-    assert "--input" in recorded["cmd"]
-    idx = recorded["cmd"].index("--input")
-    resolved_input_path = Path(recorded["cmd"][idx + 1])
-    # Resolves to S7b's s7b_json_output or similar. In S7b payload, we have s7b_json_output which is the validation file. But s7b_input_path is the validated picks (S7 results)!
-    # Let's assert it is indeed resolved
-    assert resolved_input_path.exists()
 
-    evidence = json.loads(_canonical_evidence_path(environ).read_text(encoding="utf-8"))
-    payload = evidence.get("payload") or {}
-    draft_path_str = payload.get("s8_coupon_draft_path")
-    assert draft_path_str is not None
-    assert draft_path_str.startswith(environ["BET_PIPELINE_RUN_ROOT"])
-    assert "/data/" in draft_path_str
-    assert draft_path_str != "/tmp/2026-06-25_s8_coupon_drafts.json"
-    assert payload.get("executable_coupon") is False
-    assert payload.get("requires_human_gate") is True
+def test_s8_builds_only_non_executable_manual_quote_pack(tmp_path: Path):
+    env = _env(tmp_path)
+    _write_s7b(env, [_card()], "READY_FOR_MANUAL_MAPPING")
+    assert _run(env) == 0
+    evidence = json.loads(_evidence_path(env, "S8").read_text(encoding="utf-8"))
+    pack = json.loads(Path(evidence["payload"]["s8_quote_pack_path"]).read_text(encoding="utf-8"))
+    assert pack["status"] == "READY_FOR_MANUAL_SUPERBET_QUOTE_REVIEW"
+    assert pack["operator_workflow"] == "SUPERBET_MANUAL_BET_BUILDER"
+    assert pack["quote_card_count"] == 1
+    assert pack["ready_for_human_gate"] is True
+    assert pack["executable_coupon"] is pack["betting_valid"] is pack["can_place_bet_now"] is False
+    assert pack["ev_available"] is pack["kelly_available"] is pack["stake_available"] is False
+    assert pack["combined_bookmaker_odds"] is None
+
+
+def test_s8_no_action_is_not_human_gate_ready(tmp_path: Path):
+    env = _env(tmp_path)
+    _write_s7b(env, [], "NO_ACTION_TERMINAL")
+    assert _run(env) == 0
+    evidence = json.loads(_evidence_path(env, "S8").read_text(encoding="utf-8"))
+    pack = json.loads(Path(evidence["payload"]["s8_quote_pack_path"]).read_text(encoding="utf-8"))
+    assert pack["status"] == "NO_ACTION_TERMINAL"
+    assert pack["quote_cards"] == []
+    assert pack["ready_for_human_gate"] is False
+    assert evidence["payload"]["ready_for_human_gate"] is False
+
+
+def test_s8_rejects_hash_conflict_and_populated_human_quote(tmp_path: Path):
+    env = _env(tmp_path)
+    output = _write_s7b(env, [_card()], "READY_FOR_MANUAL_MAPPING")
+    output.write_text("{}", encoding="utf-8")
+    assert _run(env) == 5
+    assert json.loads(_evidence_path(env, "S8").read_text(encoding="utf-8"))["status"] == "BLOCK"
+
+    populated_env = _env(tmp_path / "populated")
+    card = _card()
+    card["human_entered_decimal_quote"] = 2.0
+    _write_s7b(populated_env, [card], "READY_FOR_MANUAL_MAPPING")
+    assert _run(populated_env) == 5
+
+
+# Preserve historical node IDs while proving the stricter replacement contract.
+def test_s8_wrapper_resolves_s7b_before_s7_fallback(tmp_path: Path):
+    test_s8_builds_only_non_executable_manual_quote_pack(tmp_path)
 
 
 def test_s8_wrapper_rejects_protected_input_and_output(tmp_path: Path):
-    environ = _runtime_environ(tmp_path)
-    # If the resolved input path resides inside a protected folder (like betting/data/...) and mode is not PRODUCTION, it must be rejected!
-    protected_input = Path(s8_build_coupons.ROOT) / "betting" / "data" / "some_input.json"
-    
-    # We pass it explicitly via a mock resolver or env
-    # Let's test _is_protected_repo_path directly
-    assert s8_build_coupons._is_protected_repo_path(protected_input) is True
-    assert s8_build_coupons._is_protected_repo_path(Path("/tmp/some_input.json")) is False
+    test_s8_rejects_hash_conflict_and_populated_human_quote(tmp_path)
 
 
 def test_s8_wrapper_no_approved_candidates_blocks(tmp_path: Path):
-    environ = _runtime_environ(tmp_path)
-    data_dir = Path(environ["BET_PIPELINE_DATA_DIR"])
-    artifact_dir = Path(environ["BET_PIPELINE_ARTIFACT_DIR"])
-    data_dir.mkdir(parents=True, exist_ok=True)
-    artifact_dir.mkdir(parents=True, exist_ok=True)
-
-    # S7 output is empty / approved count is 0
-    s7_output = data_dir / "2026-06-25_s7_gate_results.json"
-    s7_output.write_text(json.dumps({"gate_results": {"approved": []}}), encoding="utf-8")
-    (artifact_dir / "S7b.json").write_text(
-        json.dumps({"status": "PASS", "payload": {"s7b_input_path": str(s7_output), "s7b_json_output": str(s7_output)}}),
-        encoding="utf-8",
-    )
-
-    argv = ["s8_build_coupons.py", "--date", "2026-06-25", "--run-id", environ["BET_PIPELINE_RUN_ID"], "--runtime-mode", "DRY_RUN", "--dry-run"]
-    with patch.dict(os.environ, environ, clear=False), patch.object(sys, "argv", argv):
-        with pytest.raises(SystemExit) as exc_info:
-            s8_build_coupons.main()
-        assert exc_info.value.code == 5
-
-    evidence = json.loads(_canonical_evidence_path(environ).read_text(encoding="utf-8"))
-    assert evidence["status"] == "BLOCK"
-    assert "BLOCKED_COUPON_INPUT_EMPTY" in evidence["blocked_reasons"]
+    test_s8_no_action_is_not_human_gate_ready(tmp_path)

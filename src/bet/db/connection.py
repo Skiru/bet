@@ -88,6 +88,21 @@ def get_db(db_path: Path | str | None = None):
         conn.close()
 
 
+@contextmanager
+def get_readonly_db(db_path: Path | str | None = None):
+    """Open the canonical SQLite database with enforced read-only/query-only semantics."""
+    resolved = Path(str(_resolve_db_path(db_path))).resolve()
+    conn = sqlite3.connect(f"file:{resolved}?mode=ro", uri=True)
+    conn.execute("PRAGMA foreign_keys = ON")
+    conn.execute("PRAGMA busy_timeout = 30000")
+    conn.execute("PRAGMA query_only = ON")
+    conn.row_factory = sqlite3.Row
+    try:
+        yield conn
+    finally:
+        conn.close()
+
+
 @asynccontextmanager
 async def get_async_db(db_path: Path | str | None = None):
     """Async context manager using aiosqlite. Same pragmas as get_db.

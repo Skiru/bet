@@ -4,15 +4,16 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from bet.pipeline.analysis_status import has_explicit_test_provenance
+
 class LiveFixtureAudit:
     def __init__(self, target_date: str):
         self.target_date = target_date
 
     def audit_candidate(self, candidate: dict[str, Any]) -> tuple[str, str]:
         """Audit a single candidate. Returns (status, reason)."""
-        candidate_id = str(candidate.get("candidate_id") or "").lower()
-        if "test" in candidate_id or "fake" in candidate_id or "example" in candidate_id or "ghost" in candidate_id:
-            return "REJECTED_TEST_OR_SYNTHETIC_FIXTURE", "Candidate ID contains test/fake/example/ghost keywords"
+        if has_explicit_test_provenance(candidate):
+            return "REJECTED_TEST_OR_SYNTHETIC_FIXTURE", "Candidate has explicit test provenance"
 
         betting_day = candidate.get("betting_day")
         if betting_day and betting_day != self.target_date:

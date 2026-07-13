@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from bet.pipeline.artifact_gate import artifact_path_for, load_artifact, validate_pipeline_artifact
+from bet.pipeline.artifact_io import publish_run_artifact
 
 
 def runtime_context(environ: dict[str, str] | None = None) -> dict[str, str | None]:
@@ -56,8 +57,9 @@ def build_script_evidence(
     production_selectable: bool = False,
     betting_decisions_enabled: bool = False,
     blocked_reasons: tuple[str, ...] = (),
+    extra_top_level_fields: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    return {
+    artifact = {
         "schema_version": 1,
         "artifact_type": "SCRIPT_EVIDENCE",
         "step_id": step_id,
@@ -78,6 +80,8 @@ def build_script_evidence(
         "evidence_refs": list(evidence_refs),
         "payload": payload,
     }
+    artifact.update(extra_top_level_fields or {})
+    return artifact
 
 
 def write_script_evidence(
@@ -92,6 +96,7 @@ def write_script_evidence(
     production_selectable: bool = False,
     betting_decisions_enabled: bool = False,
     blocked_reasons: tuple[str, ...] = (),
+    extra_top_level_fields: dict[str, Any] | None = None,
 ) -> Path | None:
     ctx = runtime_context(environ)
     evidence_path = script_evidence_path(step_id, environ)
@@ -110,9 +115,19 @@ def write_script_evidence(
         production_selectable=production_selectable,
         betting_decisions_enabled=betting_decisions_enabled,
         blocked_reasons=blocked_reasons,
+        extra_top_level_fields=extra_top_level_fields,
     )
-    evidence_path.parent.mkdir(parents=True, exist_ok=True)
-    evidence_path.write_text(json.dumps(artifact, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    run_root = Path(str(ctx.get("run_root") or evidence_path.parent.parent))
+    run_root.mkdir(parents=True, exist_ok=True)
+    publish_run_artifact(
+        run_root=run_root,
+        target=evidence_path,
+        payload=artifact,
+        betting_day=str(ctx["betting_day"]),
+        run_id=str(ctx["run_id"]),
+        artifact_type="SCRIPT_EVIDENCE",
+        immutable=False,
+    )
     return evidence_path
 
 
@@ -144,7 +159,7 @@ def build_market_availability_artifact(
         "schema_version": 1,
         "artifact_kind": "market_availability",
         "stage": "S7b",
-        "source_contract": "Betclic",
+        "source_contract": "LEGACY_OPERATOR",
         "date": date,
         "scanned_at": scanned_at,
         "runtime_mode": runtime_mode or "UNMANAGED",

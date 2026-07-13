@@ -33,6 +33,7 @@ class PipelineManifest:
     betting_day: str
     global_rules: dict[str, bool]
     steps: list[PipelineStep]
+    runtime_contract: dict[str, object] = field(default_factory=dict)
 
 
 def discover_repo_root() -> Path:
@@ -104,7 +105,8 @@ def load_pipeline_manifest(path: Path | None = None) -> PipelineManifest:
         timezone=str(data["timezone"]),
         betting_day=str(data["betting_day"]),
         global_rules=dict(data["global_rules"]) if isinstance(data["global_rules"], dict) else {},
-        steps=steps_list
+        steps=steps_list,
+        runtime_contract=dict(data.get("runtime_contract", {})) if isinstance(data.get("runtime_contract"), dict) else {},
     )
 
 
@@ -145,6 +147,18 @@ def validate_pipeline_manifest(manifest: PipelineManifest, repo_root: Path | Non
         repo_root = discover_repo_root()
     else:
         repo_root = Path(repo_root)
+
+    runtime_contract = manifest.runtime_contract
+    if runtime_contract.get("idempotency") != "HASH_CHAINED_RUN_LEDGER":
+        errors.append("Runtime contract missing hash-chained idempotency")
+    if runtime_contract.get("lock") != "LEASE_WITH_PROCESS_START_IDENTITY":
+        errors.append("Runtime contract missing lease lock identity")
+    if runtime_contract.get("unresolved_command_request_blocks_resume") is not True:
+        errors.append("Runtime contract must block unresolved command requests")
+    for timeout_key in ("default_timeout_seconds", "maximum_timeout_seconds"):
+        value = runtime_contract.get(timeout_key)
+        if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
+            errors.append(f"Runtime contract invalid {timeout_key}")
 
     # 1. Global rules checks
     global_rules = manifest.global_rules

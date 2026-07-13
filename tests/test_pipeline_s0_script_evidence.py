@@ -142,7 +142,7 @@ def test_orchestrator_s0_no_longer_blocks_on_missing_script_evidence_when_wrappe
         allow_live_network=False,
     )
 
-    with patch("subprocess.run") as mock_run:
+    with patch("bet.pipeline.orchestrator.run_bounded_process") as mock_run:
         def side_effect(*args, **kwargs):
             write_script_evidence(
                 "S0",
@@ -179,7 +179,7 @@ def test_dry_run_s0_does_not_require_live_ack(tmp_path: Path):
         allow_live_network=False,
     )
 
-    with patch("subprocess.run") as mock_run:
+    with patch("bet.pipeline.orchestrator.run_bounded_process") as mock_run:
         def side_effect(*args, **kwargs):
             write_script_evidence(
                 "S0",
@@ -212,7 +212,7 @@ def test_live_shadow_s0_without_ack_blocks_before_wrapper_execution(tmp_path: Pa
             base_run_dir=tmp_path / "sandbox",
             allow_live_network=False,
         )
-        with patch("subprocess.run") as mock_run:
+        with patch("bet.pipeline.orchestrator.run_bounded_process") as mock_run:
             summary = orch.run(start_step="S0", stop_after_step="S0")
 
     assert summary["status"] == "BLOCK"
@@ -230,7 +230,7 @@ def test_live_shadow_s0_with_ack_reaches_wrapper_and_consumes_evidence(tmp_path:
             base_run_dir=tmp_path / "sandbox",
             allow_live_network=True,
         )
-        with patch("subprocess.run") as mock_run:
+        with patch("bet.pipeline.orchestrator.run_bounded_process") as mock_run:
             def side_effect(*args, **kwargs):
                 write_script_evidence(
                     "S0",

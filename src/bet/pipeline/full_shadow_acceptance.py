@@ -408,24 +408,33 @@ def _positive_s7_gate_payload(config: FullShadowAcceptanceConfig) -> dict[str, A
 
 def _positive_s7b_validation_payload(config: FullShadowAcceptanceConfig) -> dict[str, Any]:
     return {
-        "date": config.betting_day,
-        "validation_status": "PASS",
-        "validation": [
+        "schema_version": 1,
+        "artifact_type": "S7B_SUPERBET_MANUAL_MAPPING",
+        "status": "READY_FOR_MANUAL_MAPPING",
+        "betting_day": config.betting_day,
+        "run_id": config.run_id,
+        "operator_workflow": "SUPERBET_MANUAL_BET_BUILDER",
+        "operator_availability_asserted": False,
+        "approved_candidate_count": 1,
+        "represented_candidate_count": 1,
+        "mapping_suggestions": [
             {
+                "quote_card_id": "quote-card-shadow-candidate",
+                "source_candidate_id": "shadow-candidate",
+                "canonical_event_id": "shadow-event",
                 "event": "Alpha vs Beta",
-                "market": "Goals Over 2.5",
-                "betclic_available": True,
-                "home_team": "Alpha",
-                "away_team": "Beta",
-                "sport": "football",
-                "odds": {"market_best": 1.95},
-                "best_market": {
-                    "name": "Goals Over 2.5",
-                    "direction": "OVER",
-                    "line": 2.5,
-                    "safety_score": 0.85,
-                    "probability": 0.85,
-                },
+                "requested_market": "Goals Over 2.5",
+                "requested_line": 2.5,
+                "manual_operator": "SUPERBET",
+                "mapping_ambiguity": "HUMAN_CHECK_REQUIRED",
+                "visible_operator_market_name": None,
+                "visible_operator_line": None,
+                "human_entered_decimal_quote": None,
+                "quote_as_of": None,
+                "operator_availability_asserted": False,
+                "executable_coupon": False,
+                "betting_valid": False,
+                "can_place_bet_now": False,
             }
         ],
     }
@@ -470,7 +479,8 @@ def _run_positive_full_pipeline_shadow(config: FullShadowAcceptanceConfig) -> di
         wrapper_name = Path(cmd[1]).name
         child_env = env or orchestrator.env
         if wrapper_name == "s8_build_coupons.py":
-            return original_run(cmd, env=child_env, **kwargs)
+            timeout = kwargs.pop("timeout_seconds", None)
+            return original_run(cmd, env=child_env, timeout=timeout, **kwargs)
 
         payload = {
             "shadow_acceptance_fixture": True,
@@ -479,14 +489,14 @@ def _run_positive_full_pipeline_shadow(config: FullShadowAcceptanceConfig) -> di
 
         if wrapper_name == "s7_validate.py":
             s7_path = data_dir / f"{normalized.betting_day}_s7_gate_results.json"
-            validation_path = data_dir / f"betclic_market_validation_{normalized.betting_day}.json"
+            validation_path = data_dir / f"{normalized.betting_day}_s7b_superbet_manual_mapping.json"
             if not s7_path.exists():
                 write_json_atomic(s7_path, _positive_s7_gate_payload(normalized))
             write_json_atomic(validation_path, _positive_s7b_validation_payload(normalized))
             payload = {
                 "s7b_input_path": str(s7_path),
                 "s7b_json_output": str(validation_path),
-                "validated_market_availability_path": str(validation_path),
+                "s7b_output_sha256": sha256_file(validation_path),
             }
             _write_shadow_script_evidence("S7b", environ=child_env, payload=payload)
             return subprocess.CompletedProcess(cmd, 0)
@@ -512,6 +522,7 @@ def _run_positive_full_pipeline_shadow(config: FullShadowAcceptanceConfig) -> di
         wrapper_to_step = {
             "s0_settler.py": "S0",
             "s1_discover.py": "S1",
+            "s1e_event_ledger.py": "S1e",
             "s2_tipsters.py": "S2",
             "s3_stats.py": "S3",
             "s4_valuator.py": "S4",
@@ -526,7 +537,7 @@ def _run_positive_full_pipeline_shadow(config: FullShadowAcceptanceConfig) -> di
     with (
         patch("bet.pipeline.orchestrator.artifact_path_for", side_effect=artifact_path_override),
         patch("bet.pipeline.orchestrator.evaluate_gate_before_step", side_effect=gate_override),
-        patch("bet.pipeline.orchestrator.subprocess.run", side_effect=subprocess_side_effect),
+        patch("bet.pipeline.orchestrator.run_bounded_process", side_effect=subprocess_side_effect),
     ):
         if mode == RuntimeMode.LIVE_SHADOW:
             with patch.dict(os.environ, {LIVE_ACK_KEY: LIVE_ACK_VALUE}, clear=False):

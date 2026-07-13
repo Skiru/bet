@@ -516,8 +516,9 @@ def review_s8_candidate_for_manual_session(
             if s9_artifact_path is None or s9_artifact_sha256 is None:
                 blockers.append("missing source S9 path/SHA")
 
-            if any(label in str(selection_id).lower() for label in ("selection-win", "selection-loss", "selection-void", "fixture", "test")):
-                blockers.append("contains fixture/test labels")
+            provenance = selection.get("provenance") or draft.get("provenance") or {}
+            if isinstance(provenance, dict) and provenance.get("kind") in {"TEST_FIXTURE", "CERTIFICATION_FIXTURE"}:
+                blockers.append("contains explicit test provenance")
 
             if not is_unpriced and odds_decimal > ZERO and odds_decimal <= Decimal("1"):
                 blockers.append("odds decimal must be > 1")

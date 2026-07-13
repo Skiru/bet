@@ -935,7 +935,7 @@ def generate_market_matrix(
     # Only filter events whose kickoff date doesn't match the target date
     # AND the kickoff is >2h in the past (defense against phantom fixtures)
     now_utc = datetime.now(timezone.utc)
-    betting_start_utc, betting_end_utc = betting_day_range(datetime.strptime(date, "%Y-%m-%d"))
+    betting_start_utc, betting_end_utc = betting_day_range(datetime.strptime(date, "%Y-%m-%d").date())
     already_played_count = 0
     already_played_by_sport = defaultdict(int)
     date_mismatch_by_sport = defaultdict(int)

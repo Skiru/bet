@@ -356,7 +356,7 @@ def test_orchestrator_s4_with_ack_no_longer_blocks_when_wrapper_writes_evidence(
         )
         
         # Mock execution of the wrapper to write successful S4 evidence
-        with patch("subprocess.run") as mock_run:
+        with patch("bet.pipeline.orchestrator.run_bounded_process") as mock_run:
             def side_effect(*args, **kwargs):
                 write_script_evidence(
                     "S4",

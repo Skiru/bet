@@ -172,7 +172,7 @@ def test_s3_can_proceed_if_s2_9_exists_and_valid(tmp_path, base_artifact_payload
     )
 
     # Mock the wrapper execution of S3 to write its script evidence and succeed
-    with patch("bet.pipeline.orchestrator.subprocess.run") as mock_run:
+    with patch("bet.pipeline.orchestrator.run_bounded_process") as mock_run:
         def side_effect(*args, **kwargs):
             from bet.pipeline.integration_artifacts import write_script_evidence
             write_script_evidence(
@@ -220,7 +220,7 @@ def test_s8_can_proceed_when_s7_s7b_exists(tmp_path):
         base_run_dir=tmp_path / "reports",
     )
 
-    with patch("subprocess.run") as mock_run:
+    with patch("bet.pipeline.orchestrator.run_bounded_process") as mock_run:
         def side_effect(*args, **kwargs):
             from bet.pipeline.integration_artifacts import write_script_evidence
             write_script_evidence(
@@ -309,21 +309,47 @@ def test_s9_human_gate_step_blocks_on_unbound_coupon_draft(tmp_path):
 
 
 def test_state_only_steps_write_marker_evidence(tmp_path):
-    """Verify that state_only steps write STATE_MARKER evidence file."""
+    """Preserved node ID: S1e now writes a bound event-universe artifact."""
     orch = Orchestrator(
         betting_day="2026-06-25",
         run_id="run-999",
         runtime_mode="DRY_RUN",
         base_run_dir=tmp_path / "reports",
     )
+    matrix = orch.run_data_dir / "market_matrix.json"
+    matrix.write_text(json.dumps({"events": []}), encoding="utf-8")
+    from bet.pipeline.integration_artifacts import script_evidence_path, write_script_evidence
+    write_script_evidence(
+        "S1",
+        status="PASS",
+        payload={"market_matrix_path": str(matrix)},
+        sources=(),
+        evidence_refs=(),
+        environ=orch.env,
+    )
+    from bet.pipeline.artifact_gate import artifact_path_for
+    gate_s1 = artifact_path_for(
+        orch.run_artifact_dir.parent.parent.parent,
+        orch.betting_day,
+        orch.run_id,
+        "S1",
+    )
+    gate_s1.parent.mkdir(parents=True, exist_ok=True)
+    canonical_s1 = script_evidence_path("S1", orch.env)
+    assert canonical_s1 is not None
+    gate_s1.write_bytes(canonical_s1.read_bytes())
     summary = orch.run(start_step="S1e", stop_after_step="S1e")
     assert summary["status"] == "PASS"
 
-    marker_path = tmp_path / "reports/pipeline_runs/2026-06-25/run-999/artifacts/S1e.json"
+    marker_path = script_evidence_path("S1e", orch.env)
+    assert marker_path is not None
     assert marker_path.exists()
     data = json.loads(marker_path.read_text(encoding="utf-8"))
-    assert data["artifact_type"] == "STATE_MARKER"
+    assert data["artifact_type"] == "SCRIPT_EVIDENCE"
     assert data["status"] == "PASS"
+    universe = json.loads(Path(data["payload"]["s1e_json_output"]).read_text(encoding="utf-8"))
+    assert universe["artifact_type"] == "S1E_EVENT_UNIVERSE_LEDGER"
+    assert universe["after_dedup_count"] == 0
 
 
 def test_s4_live_shadow_without_live_ack_blocks_and_no_subprocess(tmp_path):
@@ -335,7 +361,7 @@ def test_s4_live_shadow_without_live_ack_blocks_and_no_subprocess(tmp_path):
         base_run_dir=tmp_path / "reports",
         allow_live_network=False,
     )
-    with patch("subprocess.run") as mock_run:
+    with patch("bet.pipeline.orchestrator.run_bounded_process") as mock_run:
         summary = orch.run(start_step="S4", stop_after_step="S4")
         assert summary["status"] == "BLOCK"
         assert summary["blocked_at_step"] == "S4"
@@ -353,7 +379,7 @@ def test_s4_live_shadow_with_live_ack_runs_subprocess(tmp_path):
             base_run_dir=tmp_path / "reports",
             allow_live_network=True,
         )
-        with patch("subprocess.run") as mock_run:
+        with patch("bet.pipeline.orchestrator.run_bounded_process") as mock_run:
             def side_effect(*args, **kwargs):
                 from bet.pipeline.integration_artifacts import write_script_evidence
                 write_script_evidence(
@@ -384,7 +410,7 @@ def test_script_step_fails_closed_when_evidence_missing(tmp_path):
         runtime_mode="DRY_RUN",
         base_run_dir=tmp_path / "reports",
     )
-    with patch("subprocess.run") as mock_run:
+    with patch("bet.pipeline.orchestrator.run_bounded_process") as mock_run:
         from unittest.mock import MagicMock
         m = MagicMock()
         m.returncode = 0
@@ -405,7 +431,7 @@ def test_script_step_passes_when_evidence_present(tmp_path):
         runtime_mode="DRY_RUN",
         base_run_dir=tmp_path / "reports",
     )
-    with patch("subprocess.run") as mock_run:
+    with patch("bet.pipeline.orchestrator.run_bounded_process") as mock_run:
         def side_effect(*args, **kwargs):
             from bet.pipeline.integration_artifacts import write_script_evidence
             write_script_evidence(
@@ -435,7 +461,7 @@ def test_run_summary_written_on_missing_script_evidence(tmp_path):
         runtime_mode="DRY_RUN",
         base_run_dir=tmp_path / "reports",
     )
-    with patch("subprocess.run") as mock_run:
+    with patch("bet.pipeline.orchestrator.run_bounded_process") as mock_run:
         from unittest.mock import MagicMock
         m = MagicMock()
         m.returncode = 0
@@ -472,7 +498,7 @@ def test_s1_controlled_block_populates_run_summary_evidence_path(tmp_path):
         blocked_reasons=("BLOCKED_MISSING_MARKET_MATRIX",),
     )
 
-    with patch("bet.pipeline.orchestrator.subprocess.run") as mock_run:
+    with patch("bet.pipeline.orchestrator.run_bounded_process") as mock_run:
         from unittest.mock import MagicMock
 
         result = MagicMock()

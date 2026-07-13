@@ -17,6 +17,7 @@ except Exception:
     sys.path.insert(0, str(ROOT))
     from scripts.pipeline_steps._runner import resolve_child_runtime_env, run_scripts
 
+from bet.pipeline.artifact_io import publish_run_artifact
 from bet.pipeline.integration_artifacts import write_script_evidence
 from bet.pipeline.runtime_modes import RuntimeMode, parse_runtime_mode
 
@@ -167,14 +168,22 @@ def _mirror_child_artifact_evidence(
     child_artifact_dir: str | None,
     artifact_data: dict[str, Any],
     evidence_path: Path,
+    run_root: str,
 ) -> None:
     if not child_artifact_dir:
         return
     mirror_path = Path(child_artifact_dir) / f"{step_id}.json"
     if mirror_path == evidence_path:
         return
-    mirror_path.parent.mkdir(parents=True, exist_ok=True)
-    mirror_path.write_text(json.dumps(artifact_data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    publish_run_artifact(
+        run_root=Path(run_root),
+        target=mirror_path,
+        payload=artifact_data,
+        betting_day=str(artifact_data["betting_day"]),
+        run_id=str(artifact_data["run_id"]),
+        artifact_type="SCRIPT_EVIDENCE",
+        immutable=False,
+    )
 
 
 def write_terminal_script_evidence_or_fail(
@@ -199,6 +208,7 @@ def write_terminal_script_evidence_or_fail(
         production_selectable=False,
         betting_decisions_enabled=False,
         blocked_reasons=blocked_reasons,
+        extra_top_level_fields=extra_top_level_fields,
     )
     if evidence_path is None:
         print(
@@ -207,15 +217,13 @@ def write_terminal_script_evidence_or_fail(
         )
         raise SystemExit(70)
 
-    artifact_data = _augment_written_evidence(
-        evidence_path,
-        extra_top_level_fields=extra_top_level_fields or {},
-    )
+    artifact_data = json.loads(evidence_path.read_text(encoding="utf-8"))
     _mirror_child_artifact_evidence(
         step_id=step_id,
         child_artifact_dir=payload.get("child_artifact_dir"),
         artifact_data=artifact_data,
         evidence_path=evidence_path,
+        run_root=child_env["BET_PIPELINE_RUN_ROOT"],
     )
     return evidence_path
 

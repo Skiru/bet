@@ -1,155 +1,119 @@
 #!/usr/bin/env python3
-"""S7b — Market Availability Validation wrapper. Runs validate_betclic_markets.py."""
+"""S7b current-run Superbet manual market and line mapping."""
 from __future__ import annotations
 
 import argparse
 import json
 import os
-import subprocess
 import sys
 from pathlib import Path
+from typing import Any
 
 ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-try:
-    from bet.pipeline.runtime_modes import RuntimeMode, parse_runtime_mode
-    from scripts.pipeline_steps._runner import resolve_child_runtime_env, run_scripts
-    from scripts.pipeline_steps._script_evidence import run_wrapper_scripts_with_evidence, write_terminal_script_evidence_or_fail
-except Exception:
-    from bet.pipeline.runtime_modes import RuntimeMode, parse_runtime_mode
-    from scripts.pipeline_steps._runner import resolve_child_runtime_env, run_scripts
-    from scripts.pipeline_steps._script_evidence import run_wrapper_scripts_with_evidence, write_terminal_script_evidence_or_fail
+from bet.pipeline.integration_artifacts import script_evidence_path
+from bet.pipeline.artifact_io import publish_run_artifact
+from bet.pipeline.run_evidence import sha256_file
+from bet.pipeline.runtime_modes import parse_runtime_mode
+from scripts.pipeline_steps._runner import resolve_child_runtime_env
+from scripts.pipeline_steps._script_evidence import write_terminal_script_evidence_or_fail
 
-SCRIPTS = ["validate_betclic_markets.py"]
-BLOCKED_REASON_PATTERNS: tuple[tuple[str, str], ...] = (
-    (r"BLOCKED_S7B_INPUT_MISSING", "BLOCKED_S7B_INPUT_MISSING"),
-    (r"BLOCKED_MARKET_AVAILABILITY_MISSING", "BLOCKED_MARKET_AVAILABILITY_MISSING"),
-    (r"BLOCKED_S7B_INPUT_PROTECTED_PATH", "BLOCKED_S7B_INPUT_PROTECTED_PATH"),
-    (r"BLOCKED_MARKET_AVAILABILITY_UNAVAILABLE", "BLOCKED_MARKET_AVAILABILITY_UNAVAILABLE"),
-    (r"upstream data", "BLOCKED_UPSTREAM_DATA_MISSING"),
-    (r"manual verification required|betclic boundary", "BLOCKED_BETCLIC_MARKET_BOUNDARY"),
+SCRIPTS: list[str] = []
+BLANK_OPERATOR_FIELDS = (
+    "visible_operator_market_name",
+    "visible_operator_line",
+    "human_entered_decimal_quote",
+    "quote_as_of",
 )
 
 
-def is_protected_repo_path(path: Path | str | None) -> bool:
-    if not path:
-        return False
-    abs_path = Path(path).resolve()
-    for parent in ((ROOT / "betting" / "data").resolve(), (ROOT / "betting" / "coupons").resolve(), (ROOT / "reports").resolve()):
-        try:
-            abs_path.relative_to(parent)
-            return True
-        except ValueError:
-            pass
-    return False
-
-
-def _safe_file(path: Path | None) -> Path | None:
-    if path is None:
-        return None
-    try:
-        resolved = path.resolve()
-    except FileNotFoundError:
-        return None
-    if not resolved.exists() or not resolved.is_file() or is_protected_repo_path(resolved):
-        return None
+def _run_scoped_file(path: Path, run_root: Path) -> Path:
+    resolved = path.resolve(strict=True)
+    resolved.relative_to(run_root.resolve(strict=True))
+    if not resolved.is_file() or path.is_symlink():
+        raise ValueError("artifact is not a regular current-run file")
     return resolved
 
 
-def resolve_s7b_input(child_env: dict[str, str]) -> Path | None:
-    data_dir = Path(child_env["BET_PIPELINE_DATA_DIR"]) if child_env.get("BET_PIPELINE_DATA_DIR") else None
-    artifact_dir = Path(child_env["BET_PIPELINE_ARTIFACT_DIR"]) if child_env.get("BET_PIPELINE_ARTIFACT_DIR") else None
-
-    if artifact_dir:
-        s7_evidence = _safe_file(artifact_dir / "S7.json")
-        if s7_evidence is not None:
-            try:
-                evidence = json.loads(s7_evidence.read_text(encoding="utf-8"))
-                if evidence.get("status") == "PASS":
-                    payload = evidence.get("payload") or {}
-                    if int(payload.get("approved_count", 0) or 0) > 0:
-                        for key in ("s7_json_output", "json_output"):
-                            nested = _safe_file(Path(payload[key])) if payload.get(key) else None
-                            if nested is not None:
-                                return nested
-            except Exception:
-                pass
-
-    if data_dir:
-        for pattern in ("*s7*gate*.json", "*approved*.json", "*gate_results*.json"):
-            for path in sorted(data_dir.glob(pattern)):
-                candidate = _safe_file(path)
-                if candidate is not None:
-                    return candidate
-    return None
+def _candidate_id(candidate: dict[str, Any], index: int) -> str:
+    value = candidate.get("candidate_id") or candidate.get("fixture_id")
+    return str(value) if value not in (None, "") else f"s7-candidate-{index}"
 
 
-def _update_wrapper_evidence(child_env: dict[str, str], date: str | None, run_id: str | None, input_path: Path | None) -> None:
-    if not date or not run_id:
-        return
-    run_root = Path(child_env.get("BET_PIPELINE_RUN_ROOT", ""))
-    artifact_dir = Path(child_env.get("BET_PIPELINE_ARTIFACT_DIR", ""))
-    data_dir = Path(child_env.get("BET_PIPELINE_DATA_DIR", ""))
-    json_output = data_dir / f"betclic_market_validation_{date}.json"
-    payload_counts = {
-        "checked_market_count": 0,
-        "available_market_count": 0,
-        "unavailable_market_count": 0,
-        "validation_status": "BLOCK",
-    }
-    if json_output.exists():
-        try:
-            output = json.loads(json_output.read_text(encoding="utf-8"))
-            validation = output.get("validation") or []
-            available = sum(1 for item in validation if item.get("betclic_available") is True)
-            unavailable = sum(1 for item in validation if item.get("betclic_available") is False or item.get("betclic_available") is None)
-            payload_counts = {
-                "checked_market_count": len(validation),
-                "available_market_count": available,
-                "unavailable_market_count": unavailable,
-                "validation_status": "PASS" if validation and unavailable == 0 else "BLOCK",
+def _load_s7(child_env: dict[str, str], day: str, run_id: str) -> tuple[Path, Path, list[dict[str, Any]]]:
+    evidence_path = script_evidence_path("S7", child_env)
+    if evidence_path is None:
+        raise ValueError("canonical S7 evidence path is unavailable")
+    run_root = Path(child_env["BET_PIPELINE_RUN_ROOT"])
+    evidence_path = _run_scoped_file(evidence_path, run_root)
+    evidence = json.loads(evidence_path.read_text(encoding="utf-8"))
+    if (
+        evidence.get("schema_version") != 1
+        or evidence.get("artifact_type") != "SCRIPT_EVIDENCE"
+        or evidence.get("step_id") != "S7"
+        or evidence.get("status") != "PASS"
+        or evidence.get("betting_day") != day
+        or evidence.get("run_id") != run_id
+    ):
+        raise ValueError("canonical S7 evidence binding is invalid")
+    output_value = (evidence.get("payload") or {}).get("s7_json_output")
+    if not isinstance(output_value, str) or not output_value:
+        raise ValueError("canonical S7 output binding is missing")
+    output_path = _run_scoped_file(Path(output_value), run_root)
+    gate = json.loads(output_path.read_text(encoding="utf-8"))
+    approved = (gate.get("gate_results") or {}).get("approved")
+    if not isinstance(approved, list) or any(not isinstance(item, dict) for item in approved):
+        raise ValueError("canonical S7 approved candidate list is invalid")
+    expected_count = (evidence.get("payload") or {}).get("approved_count")
+    if expected_count is not None and expected_count != len(approved):
+        raise ValueError("canonical S7 approved count conflicts with its output")
+    return evidence_path, output_path, approved
+
+
+def _build_cards(candidates: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    cards: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for index, candidate in enumerate(candidates):
+        candidate_id = _candidate_id(candidate, index)
+        if candidate_id in seen:
+            raise ValueError("S7 approved candidate identity is duplicated")
+        seen.add(candidate_id)
+        market = candidate.get("market") or candidate.get("best_market") or {}
+        if isinstance(market, str):
+            market = {"name": market}
+        cards.append(
+            {
+                "quote_card_id": f"quote-card-{candidate_id}",
+                "source_candidate_id": candidate_id,
+                "canonical_event_id": candidate.get("canonical_event_id") or candidate.get("fixture_id"),
+                "event": candidate.get("event"),
+                "competition": candidate.get("competition"),
+                "requested_market": market.get("name"),
+                "requested_line": candidate.get("line") or market.get("line"),
+                "manual_operator": "SUPERBET",
+                "mapping_confidence": "UNVERIFIED",
+                "mapping_ambiguity": "HUMAN_CHECK_REQUIRED",
+                **{field: None for field in BLANK_OPERATOR_FIELDS},
+                "operator_availability_asserted": False,
+                "executable_coupon": False,
+                "betting_valid": False,
+                "can_place_bet_now": False,
             }
-        except Exception:
-            pass
-
-    for evidence_path in (run_root / "pipeline_runs" / date / run_id / "artifacts" / "S7b.json", artifact_dir / "S7b.json"):
-        if not evidence_path.exists():
-            continue
-        try:
-            evidence = json.loads(evidence_path.read_text(encoding="utf-8"))
-            payload = evidence.get("payload") or {}
-            payload.update(
-                {
-                    "s7b_input_path": str(input_path) if input_path else None,
-                    "s7b_json_output": str(json_output),
-                    **payload_counts,
-                    "production_selectable": False,
-                    "betting_decisions_enabled": False,
-                    "no_pick_edge_stake_coupon_emitted": True,
-                }
-            )
-            evidence["payload"] = payload
-            evidence_path.write_text(json.dumps(evidence, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-        except Exception:
-            pass
-
-
-def _certification_targets() -> None:
-    run_scripts(SCRIPTS)
+        )
+    return cards
 
 
 def main() -> None:
-    p = argparse.ArgumentParser(description="S7b — Market Availability Validation wrapper")
-    p.add_argument("--date", "--betting-day", dest="date", help="YYYY-MM-DD", default=None)
-    p.add_argument("--run-id", dest="run_id", help="Run ID", default=None)
-    p.add_argument("--runtime-mode", dest="runtime_mode", help="Runtime mode", default="DRY_RUN")
-    p.add_argument("--allow-live-network", dest="allow_live_network", action="store_true", default=False)
-    p.add_argument("--allow-write", dest="allow_write", action="store_true", default=False)
-    p.add_argument("--dry-run", dest="dry_run", action="store_true", default=True)
-    p.add_argument("--input", type=Path, default=None, help="Explicit S7 gate result input")
-    args = p.parse_args()
+    parser = argparse.ArgumentParser(description="S7b manual Superbet market mapper")
+    parser.add_argument("--date", "--betting-day", dest="date", required=True)
+    parser.add_argument("--run-id", required=True)
+    parser.add_argument("--runtime-mode", default="DRY_RUN")
+    parser.add_argument("--allow-live-network", action="store_true", default=False)
+    parser.add_argument("--allow-write", action="store_true", default=False)
+    parser.add_argument("--dry-run", action="store_true", default=True)
+    args = parser.parse_args()
 
     mode = parse_runtime_mode(args.runtime_mode)
     child_env, runtime_path_source = resolve_child_runtime_env(
@@ -159,127 +123,81 @@ def main() -> None:
         run_id=args.run_id,
         run_root=None,
     )
-    for key in ("BET_PIPELINE_RUN_ROOT", "BET_PIPELINE_DATA_DIR", "BET_PIPELINE_COUPON_DIR", "BET_PIPELINE_ARTIFACT_DIR", "BET_PIPELINE_BETTING_DAY", "BET_PIPELINE_RUN_ID", "BET_PIPELINE_RUNTIME_MODE"):
-        if child_env.get(key):
-            os.environ[key] = child_env[key]
-
-    data_dir = Path(child_env["BET_PIPELINE_DATA_DIR"]) if child_env.get("BET_PIPELINE_DATA_DIR") else None
-    input_path = args.input or resolve_s7b_input(child_env)
-    expected_json_output = data_dir / f"betclic_market_validation_{args.date}.json" if data_dir and args.date else None
-
-    from unittest.mock import Mock
-    import scripts.pipeline_steps._script_evidence as evidence_module
-
-    is_mocked = isinstance(run_scripts, Mock) or isinstance(evidence_module.run_scripts, Mock)
-    if mode != RuntimeMode.PRODUCTION and (is_protected_repo_path(input_path) or is_protected_repo_path(expected_json_output)):
-        payload = {
-            "step_id": "S7b",
-            "wrapper_scripts": SCRIPTS,
-            "wrapper_rc": 5,
-            "runtime_mode": mode.value,
-            "dry_run": True,
-            "allow_write": False,
-            "allow_live_network": bool(args.allow_live_network),
-            "production_write": False,
-            "runtime_path_source": runtime_path_source,
-            "child_run_root": child_env.get("BET_PIPELINE_RUN_ROOT"),
-            "child_artifact_dir": child_env.get("BET_PIPELINE_ARTIFACT_DIR"),
-            "s7b_input_path": str(input_path) if input_path else None,
-            "s7b_json_output": str(expected_json_output) if expected_json_output else None,
-            "checked_market_count": 0,
-            "available_market_count": 0,
-            "unavailable_market_count": 0,
-            "validation_status": "BLOCK",
-            "production_selectable": False,
-            "betting_decisions_enabled": False,
-            "no_pick_edge_stake_coupon_emitted": True,
-        }
-        print("BLOCKED_S7B_INPUT_PROTECTED_PATH: repo-local market validation input/output paths are forbidden in non-production runtime.")
-        write_terminal_script_evidence_or_fail(
-            step_id="S7b",
-            status="BLOCK",
-            payload=payload,
-            sources=tuple(f"scripts/{script_name}" for script_name in SCRIPTS),
-            child_env=child_env,
-            blocked_reasons=("BLOCKED_S7B_INPUT_PROTECTED_PATH",),
-            no_pick_edge_stake_coupon_emitted=True,
-        )
-        raise SystemExit(5)
-
-    if input_path is None and not is_mocked:
-        payload = {
-            "step_id": "S7b",
-            "wrapper_scripts": SCRIPTS,
-            "wrapper_rc": 5,
-            "runtime_mode": mode.value,
-            "dry_run": True,
-            "allow_write": False,
-            "allow_live_network": bool(args.allow_live_network),
-            "production_write": False,
-            "runtime_path_source": runtime_path_source,
-            "child_run_root": child_env.get("BET_PIPELINE_RUN_ROOT"),
-            "child_artifact_dir": child_env.get("BET_PIPELINE_ARTIFACT_DIR"),
-            "s7b_input_path": None,
-            "s7b_json_output": str(expected_json_output) if expected_json_output else None,
-            "checked_market_count": 0,
-            "available_market_count": 0,
-            "unavailable_market_count": 0,
-            "validation_status": "BLOCK",
-            "production_selectable": False,
-            "betting_decisions_enabled": False,
-            "no_pick_edge_stake_coupon_emitted": True,
-        }
-        print("BLOCKED_S7B_INPUT_MISSING: no approved S7 sandbox output was resolved for market validation.")
-        write_terminal_script_evidence_or_fail(
-            step_id="S7b",
-            status="BLOCK",
-            payload=payload,
-            sources=tuple(f"scripts/{script_name}" for script_name in SCRIPTS),
-            child_env=child_env,
-            blocked_reasons=("BLOCKED_S7B_INPUT_MISSING",),
-            no_pick_edge_stake_coupon_emitted=True,
-        )
-        raise SystemExit(5)
-
-    original_run = subprocess.run
-
-    def custom_run(cmd, *run_args, **run_kwargs):
-        if len(cmd) > 1 and "validate_betclic_markets.py" in cmd[1]:
-            additions: list[str] = []
-            if input_path is not None and "--input" not in cmd:
-                additions.extend(["--input", str(input_path)])
-            if expected_json_output is not None and "--output" not in cmd:
-                additions.extend(["--output", str(expected_json_output)])
-            if mode != RuntimeMode.PRODUCTION and "--no-db" not in cmd:
-                additions.append("--no-db")
-            if args.allow_live_network and "--allow-live-network" not in cmd and not os.environ.get("BET_MOCK_ODDS"):
-                additions.append("--allow-live-network")
-            cmd = [*cmd, *additions]
-        return original_run(cmd, *run_args, **run_kwargs)
-
-    subprocess.run = custom_run
-    import scripts.pipeline_steps._runner as runner_module
-    runner_module.subprocess.run = custom_run
+    blocked: list[str] = []
+    cards: list[dict[str, Any]] = []
+    s7_evidence: Path | None = None
+    s7_output: Path | None = None
     try:
-        run_wrapper_scripts_with_evidence(
-            step_id="S7b",
-            wrapper_scripts=SCRIPTS,
-            date=args.date,
-            dry_run=args.dry_run,
-            allow_write=args.allow_write,
-            runtime_mode=args.runtime_mode,
+        s7_evidence, s7_output, candidates = _load_s7(child_env, args.date, args.run_id)
+        cards = _build_cards(candidates)
+    except FileNotFoundError as exc:
+        blocked.append("BLOCKED_S7B_CANONICAL_S7_MISSING")
+        print(f"BLOCKED_S7B_CANONICAL_S7_MISSING: {exc}")
+    except (OSError, ValueError, TypeError, json.JSONDecodeError) as exc:
+        blocked.append("BLOCKED_S7B_CANONICAL_S7_INVALID")
+        print(f"BLOCKED_S7B_CANONICAL_S7_INVALID: {exc}")
+
+    outcome = "BLOCKED" if blocked else ("NO_ACTION_TERMINAL" if not cards else "READY_FOR_MANUAL_MAPPING")
+    output_path = Path(child_env["BET_PIPELINE_DATA_DIR"]) / f"{args.date}_s7b_superbet_manual_mapping.json"
+    output_sha256: str | None = None
+    if not blocked:
+        output_artifact = {
+                "schema_version": 1,
+                "artifact_type": "S7B_SUPERBET_MANUAL_MAPPING",
+                "status": outcome,
+                "betting_day": args.date,
+                "run_id": args.run_id,
+                "operator_workflow": "SUPERBET_MANUAL_BET_BUILDER",
+                "source_s7_evidence_path": str(s7_evidence),
+                "source_s7_evidence_sha256": sha256_file(s7_evidence),
+                "source_s7_output_path": str(s7_output),
+                "source_s7_output_sha256": sha256_file(s7_output),
+                "approved_candidate_count": len(cards),
+                "represented_candidate_count": len(cards),
+                "mapping_suggestions": cards,
+                "manual_verification_required": bool(cards),
+                "operator_availability_asserted": False,
+                "executable_coupon": False,
+                "betting_valid": False,
+                "can_place_bet_now": False,
+        }
+        receipt = publish_run_artifact(
+            run_root=Path(child_env["BET_PIPELINE_RUN_ROOT"]),
+            target=output_path,
+            payload=output_artifact,
             betting_day=args.date,
             run_id=args.run_id,
-            allow_live_network=args.allow_live_network,
-            blocked_reason_patterns=BLOCKED_REASON_PATTERNS,
-            fallback_blocked_reason="BLOCKED_MARKET_AVAILABILITY_MISSING",
+            artifact_type="S7B_SUPERBET_MANUAL_MAPPING",
         )
-    except SystemExit:
-        _update_wrapper_evidence(child_env, args.date, args.run_id, input_path)
-        raise
-    finally:
-        subprocess.run = original_run
-        runner_module.subprocess.run = original_run
+        output_sha256 = receipt.sha256
+
+    payload = {
+        "s7b_input_path": str(s7_evidence) if s7_evidence else None,
+        "s7b_json_output": str(output_path) if not blocked else None,
+        "s7b_output_sha256": output_sha256,
+        "approved_candidate_count": len(cards),
+        "represented_candidate_count": len(cards),
+        "outcome": outcome,
+        "ready_for_human_gate": False,
+        "operator_workflow": "SUPERBET_MANUAL_BET_BUILDER",
+        "operator_availability_asserted": False,
+        "executable_coupon": False,
+        "betting_valid": False,
+        "can_place_bet_now": False,
+        "runtime_path_source": runtime_path_source,
+        "child_run_root": child_env["BET_PIPELINE_RUN_ROOT"],
+        "child_artifact_dir": child_env["BET_PIPELINE_ARTIFACT_DIR"],
+    }
+    write_terminal_script_evidence_or_fail(
+        step_id="S7b",
+        status="BLOCK" if blocked else "PASS",
+        payload=payload,
+        sources=("manual:SUPERBET",),
+        child_env=child_env,
+        blocked_reasons=tuple(blocked),
+        no_pick_edge_stake_coupon_emitted=True,
+    )
+    raise SystemExit(5 if blocked else 0)
 
 
 if __name__ == "__main__":

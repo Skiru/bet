@@ -5,20 +5,22 @@ import pytest
 from bet.pipeline.live_fixture_audit import LiveFixtureAudit
 
 def test_audit_candidate_rejected_test_or_synthetic() -> None:
-    audit = LiveFixtureAudit(target_date="2026-07-08")
-    
-    # Test keywords in candidate_id
+    future = datetime.now(timezone.utc) + timedelta(days=1)
+    audit = LiveFixtureAudit(target_date=future.strftime("%Y-%m-%d"))
+
+    # Candidate names are irrelevant; explicit provenance controls classification.
     for keyword in ["test", "fake", "example", "ghost", "TEST_123", "FAKE_MATCH"]:
         candidate = {
             "candidate_id": f"match_{keyword}",
-            "betting_day": "2026-07-08",
-            "kickoff": "2026-07-08T20:00:00Z",
+            "betting_day": future.strftime("%Y-%m-%d"),
+            "kickoff": future.isoformat(),
             "home_team": "Team A",
-            "away_team": "Team B"
+            "away_team": "Team B",
+            "provenance": {"kind": "TEST_FIXTURE"},
         }
         status, reason = audit.audit_candidate(candidate)
         assert status == "REJECTED_TEST_OR_SYNTHETIC_FIXTURE"
-        assert "test/fake/example/ghost" in reason
+        assert "explicit test provenance" in reason
 
 def test_audit_candidate_rejected_wrong_betting_day() -> None:
     audit = LiveFixtureAudit(target_date="2026-07-08")
@@ -125,12 +127,11 @@ def test_audit_candidate_missing_participants() -> None:
 
 def test_audit_candidate_stale_fixture() -> None:
     tomorrow = (datetime.now(timezone.utc) + timedelta(days=1))
-    target_date = tomorrow.strftime("%Y-%m-%d")
-    audit = LiveFixtureAudit(target_date=target_date)
-    
     # Stale probability_as_of (> 24 hours)
     stale_time = (datetime.now(timezone.utc) - timedelta(hours=25)).isoformat()
     kickoff_time = (tomorrow + timedelta(hours=2)).isoformat()
+    target_date = datetime.fromisoformat(kickoff_time).strftime("%Y-%m-%d")
+    audit = LiveFixtureAudit(target_date=target_date)
     candidate = {
         "candidate_id": "match_123",
         "kickoff": kickoff_time,
