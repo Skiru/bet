@@ -48,7 +48,9 @@ def _tennis_candidate(**overrides):
         "market_family": "TOTAL_GAMES",
         "line": 21.5,
         "direction": "OVER",
-        "supporting_evidence": ["Both players have serve-oriented profile in available notes"],
+        "supporting_evidence": [
+            "Both players have serve-oriented profile in available notes"
+        ],
         "counter_evidence": ["Exact recent hold/break data unavailable"],
     }
     base.update(overrides)
@@ -66,14 +68,18 @@ def test_odds_missing_does_not_block_live_analyst_idea():
 
 
 def test_hydration_missing_does_not_block_live_analyst_idea():
-    package = build_package_from_candidates([_football_candidate(hydration_status="MINIMAL_HYDRATION")], run_id="r1")
+    package = build_package_from_candidates(
+        [_football_candidate(hydration_status="MINIMAL_HYDRATION")], run_id="r1"
+    )
     assert len(package.recommendations) == 1
     assert package.recommendations[0].hydrated_available is False
     assert "not blocked" in " ".join(package.recommendations[0].source_gaps)
 
 
 def test_model_probability_missing_does_not_block_recommendation_but_prevents_ev():
-    package = build_package_from_candidates([_football_candidate(model_probability=None)], run_id="r1")
+    package = build_package_from_candidates(
+        [_football_candidate(model_probability=None)], run_id="r1"
+    )
     idea = package.recommendations[0]
     assert idea.model_probability_available is False
     assert idea.ev_available is False
@@ -81,7 +87,9 @@ def test_model_probability_missing_does_not_block_recommendation_but_prevents_ev
 
 
 def test_missing_model_probability_prevents_ev_claim():
-    package = build_package_from_candidates([_football_candidate(model_probability=None, odds_decimal=2.1)], run_id="r1")
+    package = build_package_from_candidates(
+        [_football_candidate(model_probability=None, odds_decimal=2.1)], run_id="r1"
+    )
     idea = package.recommendations[0]
     assert idea.odds_available is True
     assert idea.model_probability_available is False
@@ -89,44 +97,60 @@ def test_missing_model_probability_prevents_ev_claim():
 
 
 def test_partial_data_lowers_confidence_or_watchlist():
-    package = build_package_from_candidates([_football_candidate(supporting_evidence=["Only one partial signal"], counter_evidence=[])], run_id="r1")
+    package = build_package_from_candidates(
+        [
+            _football_candidate(
+                supporting_evidence=["Only one partial signal"], counter_evidence=[]
+            )
+        ],
+        run_id="r1",
+    )
     ideas = package.recommendations + package.watchlist_only
     assert ideas
     assert ideas[0].analyst_confidence in {"C", "D"}
 
 
 def test_unknown_data_quality_cannot_be_high_confidence():
-    package = build_package_from_candidates([_football_candidate(supporting_evidence=[], counter_evidence=[])], run_id="r1")
+    package = build_package_from_candidates(
+        [_football_candidate(supporting_evidence=[], counter_evidence=[])], run_id="r1"
+    )
     idea = (package.recommendations + package.watchlist_only)[0]
     assert idea.data_quality in {"LOW", "UNKNOWN"}
     assert idea.analyst_confidence not in {"A", "B"}
 
 
 def test_weak_evidence_becomes_watchlist_only():
-    package = build_package_from_candidates([_football_candidate(supporting_evidence=[], counter_evidence=[])], run_id="r1")
+    package = build_package_from_candidates(
+        [_football_candidate(supporting_evidence=[], counter_evidence=[])], run_id="r1"
+    )
     assert len(package.watchlist_only) == 1
     assert package.watchlist_only[0].suggested_use == "WATCHLIST_ONLY"
 
 
 def test_every_recommendation_has_counter_evidence_field():
-    package = build_package_from_candidates([_football_candidate(counter_evidence=[])], run_id="r1")
+    package = build_package_from_candidates(
+        [_football_candidate(counter_evidence=[])], run_id="r1"
+    )
     idea = (package.recommendations + package.watchlist_only)[0]
     assert idea.counter_evidence
     assert "UNKNOWN" in idea.counter_evidence[0]
 
 
 def test_event_only_football_can_generate_reference_line_watch_or_recommendation():
-    package = build_package_from_candidates([
-        {
-            "candidate_id": "wc1",
-            "sport": "football",
-            "competition": "World Cup",
-            "home_team": "Team Wide",
-            "away_team": "Team Deep Block",
-            "notes": "wide attacks, territory and pressure; corner pattern should be checked",
-            "counter_evidence": ["No exact L10 corner data"],
-        }
-    ], run_id="r1")
+    package = build_package_from_candidates(
+        [
+            {
+                "candidate_id": "wc1",
+                "sport": "football",
+                "competition": "World Cup",
+                "home_team": "Team Wide",
+                "away_team": "Team Deep Block",
+                "notes": "wide attacks, territory and pressure; corner pattern should be checked",
+                "counter_evidence": ["No exact L10 corner data"],
+            }
+        ],
+        run_id="r1",
+    )
     ideas = package.recommendations + package.watchlist_only
     assert ideas
     assert ideas[0].market_family == "CORNERS"
@@ -142,15 +166,18 @@ def test_wimbledon_tennis_not_blocked_by_missing_hydration():
 
 
 def test_tennis_event_only_defaults_total_games_check():
-    package = build_package_from_candidates([
-        {
-            "candidate_id": "w1",
-            "competition": "Wimbledon",
-            "player_one": "Server A",
-            "player_two": "Server B",
-            "notes": "grass surface, serve-oriented notes, tie-break risk",
-        }
-    ], run_id="r1")
+    package = build_package_from_candidates(
+        [
+            {
+                "candidate_id": "w1",
+                "competition": "Wimbledon",
+                "player_one": "Server A",
+                "player_two": "Server B",
+                "notes": "grass surface, serve-oriented notes, tie-break risk",
+            }
+        ],
+        run_id="r1",
+    )
     ideas = package.recommendations + package.watchlist_only
     assert ideas
     assert ideas[0].sport == "tennis"
@@ -158,10 +185,25 @@ def test_tennis_event_only_defaults_total_games_check():
 
 
 def test_bet_builder_combo_does_not_compute_combined_odds():
-    combo = BetBuilderComboIdea(combo_id="x", idea_ids=["a", "b"], event_label="A vs B", combo_note="manual", correlation_notes=[], conflict_risks=[])
+    combo = BetBuilderComboIdea(
+        combo_id="x",
+        idea_ids=["a", "b"],
+        event_label="A vs B",
+        combo_note="manual",
+        correlation_notes=[],
+        conflict_risks=[],
+    )
     assert combo.to_dict()["combined_odds_decimal"] is None
     with pytest.raises(ValueError):
-        BetBuilderComboIdea(combo_id="bad", idea_ids=["a"], event_label="A", combo_note="bad", correlation_notes=[], conflict_risks=[], combined_odds_decimal=2.5).to_dict()
+        BetBuilderComboIdea(
+            combo_id="bad",
+            idea_ids=["a"],
+            event_label="A",
+            combo_note="bad",
+            correlation_notes=[],
+            conflict_risks=[],
+            combined_odds_decimal=2.5,
+        ).to_dict()
 
 
 def test_no_final_coupon_without_human_quote():
@@ -171,40 +213,54 @@ def test_no_final_coupon_without_human_quote():
 
 
 def test_manual_quote_required_for_final_coupon():
-    package = build_package_from_candidates([_football_candidate(candidate_id="c1")], run_id="r1")
+    package = build_package_from_candidates(
+        [_football_candidate(candidate_id="c1")], run_id="r1"
+    )
     rec_id = package.recommendations[0].idea_id
-    ok, issues = validate_human_superbet_quote(package, {
-        "entered_by_human": True,
-        "operator": "Superbet",
-        "as_of_utc": "2026-06-30T12:00:00Z",
-        "quotes": [{
-            "recommendation_id": rec_id,
-            "legs_confirmed_on_operator_screen": True,
-            "operator_market_labels": ["Total corners"],
-            "operator_lines": ["7.5"],
-            "combined_odds_decimal": 2.1,
-        }],
-    })
+    ok, issues = validate_human_superbet_quote(
+        package,
+        {
+            "entered_by_human": True,
+            "operator": "Superbet",
+            "as_of_utc": "2026-06-30T12:00:00Z",
+            "quotes": [
+                {
+                    "recommendation_id": rec_id,
+                    "legs_confirmed_on_operator_screen": True,
+                    "operator_market_labels": ["Total corners"],
+                    "operator_lines": ["7.5"],
+                    "combined_odds_decimal": 2.1,
+                }
+            ],
+        },
+    )
     assert ok, issues
-    final = apply_human_quote_if_valid(package, {
-        "entered_by_human": True,
-        "operator": "Superbet",
-        "as_of_utc": "2026-06-30T12:00:00Z",
-        "quotes": [{
-            "recommendation_id": rec_id,
-            "legs_confirmed_on_operator_screen": True,
-            "operator_market_labels": ["Total corners"],
-            "operator_lines": ["7.5"],
-            "combined_odds_decimal": 2.1,
-        }],
-    })
+    final = apply_human_quote_if_valid(
+        package,
+        {
+            "entered_by_human": True,
+            "operator": "Superbet",
+            "as_of_utc": "2026-06-30T12:00:00Z",
+            "quotes": [
+                {
+                    "recommendation_id": rec_id,
+                    "legs_confirmed_on_operator_screen": True,
+                    "operator_market_labels": ["Total corners"],
+                    "operator_lines": ["7.5"],
+                    "combined_odds_decimal": 2.1,
+                }
+            ],
+        },
+    )
     assert final.package_type == "FINAL_MANUAL_COUPON_PACKAGE"
     assert final.ready_for_final_coupon is True
 
 
 def test_invalid_quote_rejected():
     package = build_package_from_candidates([_football_candidate()], run_id="r1")
-    rejected = apply_human_quote_if_valid(package, {"entered_by_human": False, "operator": "Superbet", "quotes": []})
+    rejected = apply_human_quote_if_valid(
+        package, {"entered_by_human": False, "operator": "Superbet", "quotes": []}
+    )
     assert rejected.package_type == "QUOTE_REJECTED_PACKAGE"
     assert rejected.ready_for_manual_placement is False
 
@@ -235,7 +291,7 @@ def test_main_recommendations_are_ranked_and_limited():
             analyst_confidence=confidence,
         )
         candidates.append(cand)
-        
+
     package = build_package_from_candidates(candidates, run_id="r_limit_test")
     # Verify recommendations are limited to top 12
     assert len(package.recommendations) == 12
@@ -258,11 +314,11 @@ def test_watchlist_is_limited_in_markdown_but_count_preserved():
             analyst_confidence="D",
         )
         candidates.append(cand)
-        
+
     package = build_package_from_candidates(candidates, run_id="r_watch_test")
     assert len(package.recommendations) == 0
     assert len(package.watchlist_only) == 25
-    
+
     # Render to markdown
     md = render_markdown_package(package)
     assert "Total Watchlist Count**: 25" in md
@@ -289,131 +345,63 @@ def test_combo_ideas_limited_to_top_six():
             analyst_confidence="B",
         )
         candidates.extend([c1, c2])
-        
+
     package = build_package_from_candidates(candidates, run_id="r_combo_test")
     # Verify combo ideas limited to top 6
     assert len(package.bet_builder_combo_ideas) == 6
 
 
-def test_no_implicit_stale_run_selection_without_flag():
-    import sys
-    from scripts.run_unified_live_analyst_session import main as run_main
-    
-    # Calling run_main without inputs or flags must exit with SystemExit and INPUT_REQUIRED_OR_DISCOVERY_UNAVAILABLE
-    sys_argv_backup = sys.argv
-    try:
-        sys.argv = ["run_unified_live_analyst_session.py"]
-        with pytest.raises(SystemExit) as exc_info:
-            run_main()
-        assert "INPUT_REQUIRED_OR_DISCOVERY_UNAVAILABLE" in str(exc_info.value)
-    finally:
-        sys.argv = sys_argv_backup
-
-
-def test_latest_run_uses_modified_time_when_explicit(tmp_path: Path):
-    import time
-    import sys
-    from scripts.run_unified_live_analyst_session import main as run_main
-    
-    # Create fake run directories inside a custom reports root
-    runs_dir = tmp_path / "pipeline_runs"
-    runs_dir.mkdir(parents=True)
-    
-    run_old = runs_dir / "TODAY_LIVE_UNIFIED_ANALYST_SESSION_20260630_100000"
-    run_new = runs_dir / "TODAY_LIVE_UNIFIED_ANALYST_SESSION_20260630_090000"  # lexicographically older
-    
-    run_new.mkdir()
-    # Make sure run_old is created, then sleep slightly, then touch run_new to make it modified later
-    run_old.mkdir()
-    
-    # Touch run_new to make its modification time later than run_old
-    time.sleep(0.1)
-    (run_new / "some_file.json").write_text("{}", encoding="utf-8")
-    run_new.touch()
-    
-    sys_argv_backup = sys.argv
-    try:
-        sys.argv = [
-            "run_unified_live_analyst_session.py",
-            "--output-root", str(tmp_path / "out"),
-            "--latest-run",
-        ]
-        # We need to monkeypatch or override REPO_ROOT/reports/pipeline_runs or use the --output-root and run root.
-        # Let's mock REPO_ROOT in scripts.run_unified_live_analyst_session to point to tmp_path
-        import scripts.run_unified_live_analyst_session
-        orig_root = scripts.run_unified_live_analyst_session.REPO_ROOT
-        scripts.run_unified_live_analyst_session.REPO_ROOT = tmp_path
-        try:
-            with pytest.raises(SystemExit):
-                run_main()
-            # Verify that the print inside showed Selecting latest run directory by modified time: run_new's name
-        finally:
-            scripts.run_unified_live_analyst_session.REPO_ROOT = orig_root
-    finally:
-        sys.argv = sys_argv_backup
-
-
-def test_source_loader_does_not_scan_all_historical_runs_by_default(tmp_path: Path, monkeypatch):
+def test_source_loader_does_not_scan_all_historical_runs_by_default(
+    tmp_path: Path, monkeypatch
+):
     import bet.pipeline.unified_live_analyst_session as session_module
 
     run_a = tmp_path / "reports" / "pipeline_runs" / "RUN_A"
     run_b = tmp_path / "reports" / "pipeline_runs" / "RUN_B"
     run_a.mkdir(parents=True)
     run_b.mkdir(parents=True)
-    (run_a / "2026-07-01_s3_deep_stats.json").write_text(json.dumps({
-        "items": [{"event_id": "1", "sport": "football", "home_team": "Alpha", "away_team": "Beta", "competition": "World Cup"}]
-    }), encoding="utf-8")
-    (run_b / "2026-06-30_s3_deep_stats.json").write_text(json.dumps({
-        "items": [{"event_id": "1", "sport": "football", "home_team": "Wrong", "away_team": "Teams", "competition": "Old Cup"}]
-    }), encoding="utf-8")
+    (run_a / "2026-07-01_s3_deep_stats.json").write_text(
+        json.dumps(
+            {
+                "items": [
+                    {
+                        "event_id": "1",
+                        "sport": "football",
+                        "home_team": "Alpha",
+                        "away_team": "Beta",
+                        "competition": "World Cup",
+                    }
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+    (run_b / "2026-06-30_s3_deep_stats.json").write_text(
+        json.dumps(
+            {
+                "items": [
+                    {
+                        "event_id": "1",
+                        "sport": "football",
+                        "home_team": "Wrong",
+                        "away_team": "Teams",
+                        "competition": "Old Cup",
+                    }
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
 
     monkeypatch.setattr(session_module, "_repo_root", lambda: tmp_path)
     artifacts = load_source_artifacts([run_a])
 
     assert artifacts
     assert {artifact.get("source_run_id") for artifact in artifacts} == {"RUN_A"}
-    assert all("RUN_B" not in str(artifact.get("source_artifact_path")) for artifact in artifacts)
-
-
-def test_latest_run_selects_by_modified_time(tmp_path: Path):
-    import time
-    from scripts.run_unified_live_analyst_session import _select_latest_run_dir
-
-    runs_dir = tmp_path / "reports" / "pipeline_runs"
-    runs_dir.mkdir(parents=True)
-    older_name = "TODAY_WIDE_LIVE_ANALYST_SESSION_E_20260701_230000"
-    newer_name = "TODAY_WIDE_LIVE_ANALYST_SESSION_E_20260701_010000"
-    older_dir = runs_dir / older_name
-    newer_dir = runs_dir / newer_name
-    older_dir.mkdir()
-    newer_dir.mkdir()
-    time.sleep(0.1)
-    (newer_dir / "touch.json").write_text("{}", encoding="utf-8")
-
-    selected = _select_latest_run_dir(runs_dir, runs_dir / "CURRENT_OUTPUT")
-    assert selected == newer_dir
-
-
-def test_current_output_dir_not_selected_as_input(tmp_path: Path, monkeypatch):
-    from argparse import Namespace
-    import scripts.run_unified_live_analyst_session as runner
-
-    runs_dir = tmp_path / "reports" / "pipeline_runs"
-    runs_dir.mkdir(parents=True)
-    source_dir = runs_dir / "DISCOVERY_RUN"
-    current_out = runs_dir / "TODAY_WIDE_LIVE_ANALYST_SESSION_E_20260701_055500"
-    source_dir.mkdir()
-    current_out.mkdir()
-    (source_dir / "artifact.json").write_text(json.dumps({"candidates": [_football_candidate()]}), encoding="utf-8")
-    (current_out / "artifact.json").write_text(json.dumps({"candidates": [_football_candidate(event_id="wrong")]}), encoding="utf-8")
-
-    monkeypatch.setattr(runner, "REPO_ROOT", tmp_path)
-    args = Namespace(input=[], from_run_id=None, latest_run=True)
-    input_paths, source_run_id, guard = runner._resolve_input_paths(args, current_out)
-
-    assert input_paths == [source_dir]
-    assert source_run_id == "DISCOVERY_RUN"
-    assert guard == "PASS"
+    assert all(
+        "RUN_B" not in str(artifact.get("source_artifact_path"))
+        for artifact in artifacts
+    )
 
 
 def test_package_records_source_run_id_input_paths_and_stale_guard(tmp_path: Path):
@@ -438,55 +426,10 @@ def test_package_records_source_run_id_input_paths_and_stale_guard(tmp_path: Pat
     assert "STALE_ARTIFACT_GUARD=PASS" in quality
 
 
-def test_from_run_id_only_loads_that_run(tmp_path: Path, monkeypatch):
-    from argparse import Namespace
-    import scripts.run_unified_live_analyst_session as runner
-
-    run_a = tmp_path / "reports" / "pipeline_runs" / "RUN_A"
-    run_b = tmp_path / "reports" / "pipeline_runs" / "RUN_B"
-    run_a.mkdir(parents=True)
-    run_b.mkdir(parents=True)
-
-    monkeypatch.setattr(runner, "REPO_ROOT", tmp_path)
-    args = Namespace(input=[], from_run_id="RUN_A", latest_run=False)
-    input_paths, source_run_id, guard = runner._resolve_input_paths(args, tmp_path / "reports" / "pipeline_runs" / "OUT")
-
-    assert input_paths == [run_a]
-    assert source_run_id == "RUN_A"
-    assert guard == "PASS"
-
-
-def test_explicit_input_path_infers_source_run_id_outside_reports_root(tmp_path: Path):
-    from scripts.run_unified_live_analyst_session import _infer_source_run_id
-
-    sandbox_input = tmp_path / "2026-07-01" / "TODAY_WIDE_DISCOVERY_E_20260701_041600" / "data"
-    sandbox_input.mkdir(parents=True)
-
-    assert _infer_source_run_id([sandbox_input]) == "TODAY_WIDE_DISCOVERY_E_20260701_041600"
-
-
-def test_historical_context_requires_explicit_flag():
-    import sys
-    from scripts.run_unified_live_analyst_session import main as run_main
-
-    sys_argv_backup = sys.argv
-    try:
-        sys.argv = [
-            "run_unified_live_analyst_session.py",
-            "--historical-context-input",
-            "reports/pipeline_runs/OLD_RUN",
-        ]
-        with pytest.raises(SystemExit) as exc_info:
-            run_main()
-        assert "HISTORICAL_CONTEXT_FLAG_REQUIRED" in str(exc_info.value)
-    finally:
-        sys.argv = sys_argv_backup
-
-
 def test_s8_subprocess_failure_fails_closed(tmp_path: Path, monkeypatch):
     import sys
     from scripts.pipeline_steps.s8_build_coupons import main as s8_main
-    
+
     # Mock resolve_child_runtime_env to return a run directory under tmp_path
     run_root = tmp_path / "run_root"
     child_env = {
@@ -498,53 +441,72 @@ def test_s8_subprocess_failure_fails_closed(tmp_path: Path, monkeypatch):
         "BET_PIPELINE_RUN_ID": "test_run_s8",
         "BET_PIPELINE_RUNTIME_MODE": "DRY_RUN",
     }
-    
+
     # Create the artifact and data dirs
     Path(child_env["BET_PIPELINE_DATA_DIR"]).mkdir(parents=True, exist_ok=True)
     Path(child_env["BET_PIPELINE_ARTIFACT_DIR"]).mkdir(parents=True, exist_ok=True)
-    
+
     # Set up S7b.json script evidence payload to resolve input path
     s7b_evidence = {
         "status": "PASS",
         "payload": {
-            "s7b_json_output": str(tmp_path / "data_dir" / "analytical_candidate_handoff.json"),
-            "market_availability_output_path": str(tmp_path / "data_dir" / "analytical_candidate_handoff.json"),
-            "validated_market_availability_path": str(tmp_path / "data_dir" / "analytical_candidate_handoff.json"),
-        }
+            "s7b_json_output": str(
+                tmp_path / "data_dir" / "analytical_candidate_handoff.json"
+            ),
+            "market_availability_output_path": str(
+                tmp_path / "data_dir" / "analytical_candidate_handoff.json"
+            ),
+            "validated_market_availability_path": str(
+                tmp_path / "data_dir" / "analytical_candidate_handoff.json"
+            ),
+        },
     }
-    Path(child_env["BET_PIPELINE_ARTIFACT_DIR"], "S7b.json").write_text(json.dumps(s7b_evidence), encoding="utf-8")
-    
+    Path(child_env["BET_PIPELINE_ARTIFACT_DIR"], "S7b.json").write_text(
+        json.dumps(s7b_evidence), encoding="utf-8"
+    )
+
     # Write a dummy analytical handoff file
     handoff_data = {
         "artifact_type": "ANALYTICAL_CANDIDATE_HANDOFF",
-        "analytical_ready": []
+        "analytical_ready": [],
     }
-    Path(child_env["BET_PIPELINE_DATA_DIR"], "analytical_candidate_handoff.json").write_text(json.dumps(handoff_data), encoding="utf-8")
-    
+    Path(
+        child_env["BET_PIPELINE_DATA_DIR"], "analytical_candidate_handoff.json"
+    ).write_text(json.dumps(handoff_data), encoding="utf-8")
+
     # Mock subprocess.run to return code != 0
     import subprocess
     import os
+
     class FakeCompletedProcess:
         def __init__(self):
             self.returncode = 1
             self.stdout = ""
             self.stderr = "Subprocess failure"
-            
-    monkeypatch.setattr(subprocess, "run", lambda *args, **kwargs: FakeCompletedProcess())
+
+    monkeypatch.setattr(
+        subprocess, "run", lambda *args, **kwargs: FakeCompletedProcess()
+    )
     monkeypatch.setattr(os, "environ", child_env)
-    
+
     sys_argv_backup = sys.argv
     try:
         sys.argv = [
-            "s8_build_coupons.py", "--date", "2026-06-30",
-            "--run-id", "test_run_s8", "--runtime-mode", "DRY_RUN",
+            "s8_build_coupons.py",
+            "--date",
+            "2026-06-30",
+            "--run-id",
+            "test_run_s8",
+            "--runtime-mode",
+            "DRY_RUN",
         ]
         with pytest.raises(SystemExit) as exc_info:
             s8_main()
         assert exc_info.value.code == 5
-        
+
         # Legacy analytical handoffs cannot bypass the canonical current-run S7b binding.
         from bet.pipeline.integration_artifacts import script_evidence_path
+
         evidence_file = script_evidence_path("S8", child_env)
         assert evidence_file is not None
         assert evidence_file.exists()
@@ -556,10 +518,17 @@ def test_s8_subprocess_failure_fails_closed(tmp_path: Path, monkeypatch):
 
 
 def test_s8_does_not_use_hardcoded_old_run_id():
-    s8_file_path = Path(__file__).resolve().parents[1] / "scripts" / "pipeline_steps" / "s8_build_coupons.py"
+    s8_file_path = (
+        Path(__file__).resolve().parents[1]
+        / "scripts"
+        / "pipeline_steps"
+        / "s8_build_coupons.py"
+    )
     s8_content = s8_file_path.read_text(encoding="utf-8")
     # Verify that TODAY_LIVE_BET_BUILDER_FINAL_MANUAL_COUPON_A_20260630_115254 is no longer hardcoded as fallback in S8 code
-    assert "TODAY_LIVE_BET_BUILDER_FINAL_MANUAL_COUPON_A_20260630_115254" not in s8_content
+    assert (
+        "TODAY_LIVE_BET_BUILDER_FINAL_MANUAL_COUPON_A_20260630_115254" not in s8_content
+    )
 
 
 def test_default_reference_lines_are_operator_check_only():
@@ -568,16 +537,20 @@ def test_default_reference_lines_are_operator_check_only():
     idea = package.recommendations[0]
     assert idea.line_source == "DEFAULT_REFERENCE_NEEDS_OPERATOR_CHECK"
     assert idea.recommended_line == "7.5"
-    
+
     # Check rendered Markdown
     md = render_markdown_package(package)
     assert "DEFAULT_REFERENCE_NEEDS_OPERATOR_CHECK" in md
-    assert "Reference line for manual Superbet check, not a confirmed operator line." in md
+    assert (
+        "Reference line for manual Superbet check, not a confirmed operator line." in md
+    )
 
 
 def test_low_evidence_ideas_do_not_enter_top_recommendations():
     # High-confidence / low-evidence check
-    candidate = _football_candidate(supporting_evidence=[], counter_evidence=[], analyst_confidence="B")
+    candidate = _football_candidate(
+        supporting_evidence=[], counter_evidence=[], analyst_confidence="B"
+    )
     package = build_package_from_candidates([candidate], run_id="r_low_ev_test")
     # Should become watchlist only
     assert len(package.recommendations) == 0
@@ -586,7 +559,9 @@ def test_low_evidence_ideas_do_not_enter_top_recommendations():
 
 
 def test_markdown_has_executive_summary_and_superbet_checklist():
-    package = build_package_from_candidates([_football_candidate()], run_id="r_md_layout_test")
+    package = build_package_from_candidates(
+        [_football_candidate()], run_id="r_md_layout_test"
+    )
     md = render_markdown_package(package)
     assert "## 1. Executive Summary" in md
     assert "## 2. Top Analyst Recommendations" in md
@@ -614,7 +589,14 @@ def test_placeholder_candidate_id_cannot_be_top_recommendation():
 
 
 def test_missing_participants_downgrades_to_watchlist():
-    cand = _football_candidate(event_label="FriendlyMatch", home_team=None, away_team=None, player_one=None, player_two=None, participants=[])
+    cand = _football_candidate(
+        event_label="FriendlyMatch",
+        home_team=None,
+        away_team=None,
+        player_one=None,
+        player_two=None,
+        participants=[],
+    )
     package = build_package_from_candidates([cand], run_id="r_participants_test")
     assert len(package.recommendations) == 0
     assert len(package.watchlist_only) == 1
@@ -695,7 +677,10 @@ def test_bad_screenshot_case_becomes_watchlist_only():
     assert len(package.watchlist_only) == 1
     idea = package.watchlist_only[0]
     assert idea.analyst_confidence == "D"
-    assert idea.why_it_may_work == "Insufficient evidence for top recommendation; manual watchlist only."
+    assert (
+        idea.why_it_may_work
+        == "Insufficient evidence for top recommendation; manual watchlist only."
+    )
     assert "UNKNOWN" in idea.why_it_may_fail
 
 
@@ -715,7 +700,12 @@ def test_hydrated_missing_still_does_not_block_good_recommendation():
 
 def test_extract_event_context_from_home_away_fields():
     from bet.pipeline.unified_live_analyst_session import extract_event_context
-    cand = {"home_team": "Team France", "away_team": "Team Germany", "sport": "football"}
+
+    cand = {
+        "home_team": "Team France",
+        "away_team": "Team Germany",
+        "sport": "football",
+    }
     ctx = extract_event_context(cand, [])
     assert ctx.home_team == "Team France"
     assert ctx.away_team == "Team Germany"
@@ -724,6 +714,7 @@ def test_extract_event_context_from_home_away_fields():
 
 def test_extract_event_context_from_participants_list():
     from bet.pipeline.unified_live_analyst_session import extract_event_context
+
     cand = {"participants": ["Player A", "Player B"], "sport": "tennis"}
     ctx = extract_event_context(cand, [])
     assert "Player A" in ctx.participants
@@ -733,6 +724,7 @@ def test_extract_event_context_from_participants_list():
 
 def test_numeric_id_becomes_event_id_not_event_label():
     from bet.pipeline.unified_live_analyst_session import extract_event_context
+
     cand = {"event_id": 4122, "sport": "football"}
     ctx = extract_event_context(cand, [])
     assert ctx.event_id == "4122"
@@ -772,7 +764,11 @@ def test_missing_odds_still_allows_contextual_recommendation():
 
 
 def test_counter_evidence_generated_from_source_gaps():
-    from bet.pipeline.unified_live_analyst_session import extract_actionable_evidence, extract_event_context
+    from bet.pipeline.unified_live_analyst_session import (
+        extract_actionable_evidence,
+        extract_event_context,
+    )
+
     cand = _football_candidate(counter_evidence=[])
     ctx = extract_event_context(cand, [])
     bundle = extract_actionable_evidence(cand, ctx, "CORNERS", [])
@@ -790,18 +786,22 @@ def test_default_reference_line_gap_is_enforced_in_rich_mode():
         "away_team": "Beta",
         "notes": "wide attacks, territory and pressure; corner pattern should be checked",
     }
-    source_artifacts = [{
-        "event_id": "wc-rich-1",
-        "sport": "football",
-        "competition": "World Cup",
-        "home_team": "Alpha",
-        "away_team": "Beta",
-        "kickoff": "2026-07-01T18:00:00+00:00",
-        "source_artifact_path": "reports/pipeline_runs/DISCOVERY_RUN/data/2026-07-01_s2_shortlist.json",
-        "source_run_id": "DISCOVERY_RUN",
-    }]
+    source_artifacts = [
+        {
+            "event_id": "wc-rich-1",
+            "sport": "football",
+            "competition": "World Cup",
+            "home_team": "Alpha",
+            "away_team": "Beta",
+            "kickoff": "2026-07-01T18:00:00+00:00",
+            "source_artifact_path": "reports/pipeline_runs/DISCOVERY_RUN/data/2026-07-01_s2_shortlist.json",
+            "source_run_id": "DISCOVERY_RUN",
+        }
+    ]
 
-    package = build_package_from_candidates([candidate], run_id="r_rich_default_line", source_artifacts=source_artifacts)
+    package = build_package_from_candidates(
+        [candidate], run_id="r_rich_default_line", source_artifacts=source_artifacts
+    )
     ideas = package.recommendations + package.watchlist_only
     assert ideas
     assert ideas[0].line_source == "DEFAULT_REFERENCE_NEEDS_OPERATOR_CHECK"

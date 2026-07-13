@@ -1,9 +1,0 @@
-{
-  "as_of_utc": "2026-07-06T06:33:00Z",
-  "source_id": "zawodtyper",
-  "decision": "PASS_ZAWODTYPER_SEMANTIC_DECISION_READY",
-  "certification_reason": "Verified and certified that event, market, reasoning, tipster, and reference odds are semantically correct and 100% compliant. Under no circumstances can these picks influence staking, EV, or ticketing actions. Safe for contextual downstream use.",
-  "total_picks_extracted": 19,
-  "total_consensus_merged": 15,
-  "tests_passed": 81
-}

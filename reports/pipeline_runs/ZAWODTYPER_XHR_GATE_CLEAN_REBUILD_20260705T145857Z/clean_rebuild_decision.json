@@ -1,8 +1,0 @@
-{
-  "decision": "NOT_PRODUCTION_GRADE_NEEDS_MANUAL_XHR_EVIDENCE",
-  "production_grade_live_scraper": false,
-  "merge_ready_scope": "XHR gate / fail-closed hardening only",
-  "xhr_live_enabled": false,
-  "sqlite_committed": false,
-  "raw_payload_committed": false
-}

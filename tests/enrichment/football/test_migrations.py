@@ -2,7 +2,7 @@ import sqlite3
 
 import pytest
 
-from bet.db.schema import get_schema_version, init_db, migrate
+from bet.db.schema import SCHEMA_VERSION, get_schema_version, init_db, migrate
 
 
 @pytest.fixture
@@ -12,9 +12,9 @@ def memory_db():
     yield conn
     conn.close()
 
-def test_fresh_v20_initialization(memory_db):
+def test_fresh_current_initialization(memory_db):
     init_db(memory_db)
-    assert get_schema_version(memory_db) == 20
+    assert get_schema_version(memory_db) == SCHEMA_VERSION
 
     cursor = memory_db.execute("SELECT name FROM sqlite_master WHERE type='table'")
     tables = {row[0] for row in cursor.fetchall()}
@@ -25,7 +25,7 @@ def test_fresh_v20_initialization(memory_db):
     assert memory_db.execute("PRAGMA foreign_key_check").fetchall() == []
     assert memory_db.execute("PRAGMA quick_check").fetchone()[0] == "ok"
 
-def test_v19_to_v20_migration_and_idempotency(tmp_path):
+def test_v19_to_current_migration_and_idempotency(tmp_path):
     db_path = tmp_path / "test.db"
     conn = sqlite3.connect(db_path)
 
@@ -35,11 +35,11 @@ def test_v19_to_v20_migration_and_idempotency(tmp_path):
     _set_schema_version(conn, 19)
     conn.commit()
 
-    migrate(conn, 19, 20)
-    assert get_schema_version(conn) == 20
+    migrate(conn, 19, SCHEMA_VERSION)
+    assert get_schema_version(conn) == SCHEMA_VERSION
 
-    migrate(conn, 19, 20)
-    assert get_schema_version(conn) == 20
+    migrate(conn, 19, SCHEMA_VERSION)
+    assert get_schema_version(conn) == SCHEMA_VERSION
 
     assert conn.execute("PRAGMA foreign_key_check").fetchall() == []
     assert conn.execute("PRAGMA quick_check").fetchone()[0] == "ok"
@@ -75,4 +75,3 @@ def test_logical_identity_uniqueness(memory_db):
 
     with pytest.raises(sqlite3.IntegrityError):
         memory_db.execute("INSERT INTO fixture_capability_observation (canonical_fixture_id, team_id, capability, source, request_identity, status, observed_at, valid_at, logical_identity) VALUES (1, 1, 'cap2', 'src', 'req2', 'SUCCESS', '2023', '2023', 'log_id1')")
-

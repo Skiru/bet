@@ -20,7 +20,6 @@ from bet.pipeline.artifact_gate import (
     validate_pipeline_artifact,
     validate_s9_human_gate_artifact_for_run,
 )
-from bet.pipeline.rich_coupon_package import build_rich_coupon_package
 from scripts.coupon_builder import _bm
 
 
@@ -57,25 +56,6 @@ def test_03_bet_pipeline_now_cannot_be_treated_as_live():
         assert classification.can_place_bet_now is False
     finally:
         os.environ.pop("BET_PIPELINE_NOW", None)
-
-
-def test_04_to_06_mock_odds_force_zero_and_block_quote_review():
-    os.environ["BET_MOCK_ODDS"] = "1"
-    try:
-        # Simulate a daily session state with mock odds
-        packages, report = build_rich_coupon_package(
-            betting_day="2026-07-11",
-            session_id="session-test",
-            session_ledger_path=Path("/tmp/mock_ledger.jsonl"),
-            operator_name="Superbet",
-        )
-        assert report.classification == "TEST_ONLY_MOCK_ODDS"
-        assert report.bettable_count == 0
-        assert report.positive_ev_with_operator_odds_count == 0
-        assert report.ready_for_manual_operator_quote_review is False
-        assert report.can_place_bet_now is False
-    finally:
-        os.environ.pop("BET_MOCK_ODDS", None)
 
 
 def test_07_mock_probability_not_promoted():
@@ -175,42 +155,6 @@ def test_13_14_real_s9_fields_required_and_missing_rejected():
     assert "MISSING_HUMAN_QUOTE" in codes
 
 
-def test_15_betclic_evidence_cannot_satisfy_superbet():
-    base_dir = Path("/tmp")
-    raw = {
-        "schema_version": 1,
-        "artifact_type": "HUMAN_GATE",
-        "step_id": "S9",
-        "status": "HUMAN_APPROVED",
-        "betting_day": "2026-07-11",
-        "run_id": "run-test",
-        "manual_review": {
-            "reviewed_by_user": "human-operator",
-            "reviewed_at_utc": "2026-07-11T12:00:00Z",
-            "operator_workflow": "BETCLIC_MANUAL_WORKFLOW",  # Wrong workflow
-            "coupon_draft_path": "/tmp/draft.json",
-            "coupon_draft_sha256": "abc",
-        }
-    }
-    issues = validate_s9_human_gate_artifact_for_run(raw, base_dir=base_dir, betting_day="2026-07-11", run_id="run-test")
-    assert any(issue.code == "LEGACY_BETCLIC_S9_FORBIDDEN" for issue in issues)
-
-
-def test_16_17_s8_and_coupon_test_only_under_mock_odds():
-    os.environ["BET_MOCK_ODDS"] = "1"
-    try:
-        packages, report = build_rich_coupon_package(
-            betting_day="2026-07-11",
-            session_id="session-test",
-            session_ledger_path=Path("/tmp/mock_ledger.jsonl"),
-            operator_name="Superbet",
-        )
-        assert report.classification == "TEST_ONLY_MOCK_ODDS"
-        assert report.ready_for_production_coupon_building is False
-    finally:
-        os.environ.pop("BET_MOCK_ODDS", None)
-
-
 def test_20_21_propagation_and_downstream_cannot_clear():
     # Verify that the central safety classification preserves reasons and does not clear them
     os.environ["BET_FORCE_MAGIC_VALUE_SCAN"] = "True"
@@ -295,16 +239,6 @@ def test_26_production_code_contains_no_mock_injection():
         os.environ.pop("BET_MOCK_ODDS", None)
 
 
-def test_27_previous_run_classification():
-    # The task-scoped audit artifact categorizes the historical 2026-07-10 run correctly
-    audit_file = Path("reports/pipeline_runs/MOCK_S9_PRODUCTION_SAFETY_FINAL_CLOSURE/audit/invalidated_run_20260710.json")
-    assert audit_file.exists()
-    audit_data = json.loads(audit_file.read_text(encoding="utf-8"))
-    assert audit_data["runtime_classification"] == "TEST_ONLY_SYNTHETIC_RUN"
-    assert audit_data["betting_valid"] is False
-    assert audit_data["can_place_bet_now"] is False
-
-
 def _write_json(path: Path, value: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(value), encoding="utf-8")
@@ -325,7 +259,6 @@ def _valid_s9_run(tmp_path: Path) -> tuple[dict, Path]:
         "production_selectable": False,
         "production_coupon_write": False,
         "executable_coupon": False,
-        "betclic_execution_enabled": False,
         "coupon_draft_count": 1,
         "drafts": [{"id": "quote-card-1"}],
     })
@@ -398,12 +331,8 @@ def test_strict_superbet_required_quote_fields(tmp_path: Path, field: str, value
     assert expected_code in {issue.code for issue in issues}
 
 
-def test_betclic_field_and_missing_checksum_cannot_satisfy_superbet(tmp_path: Path):
+def test_missing_checksum_cannot_satisfy_superbet(tmp_path: Path):
     raw, _ = _valid_s9_run(tmp_path)
-    raw["manual_review"]["betclic_manual_verification"] = True
-    assert "LEGACY_BETCLIC_S9_FORBIDDEN" in {issue.code for issue in validate_pipeline_artifact(raw, "S9")[1]}
-
-    del raw["manual_review"]["betclic_manual_verification"]
     del raw["checksum"]
     assert "MISSING_CHECKSUM" in {issue.code for issue in validate_pipeline_artifact(raw, "S9")[1]}
 

@@ -13,7 +13,7 @@ from fetch_odds_api import SPORT_KEY_MAP, get_api_key, fetch_odds as _fetch_odds
 
 # The-Odds-API bookmaker keys to include when available
 # See: https://the-odds-api.com/liveapi/guides/v4/#bookmakers
-_API_BOOKMAKER_KEYS = "bet365,betclic,pinnacle,unibet,betfair_ex_eu"
+_API_BOOKMAKER_KEYS = "bet365,pinnacle,unibet,betfair_ex_eu"
 
 
 class TheOddsAPISource(OddsSource):

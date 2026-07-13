@@ -917,7 +917,7 @@ def _load_analysis_results_raw_from_db(betting_date: str) -> list[dict]:
                         "ev_source": stats_summary.get("ev_source"),
                         "odds": {
                             "market_best": stats_summary.get("odds_market_best"),
-                            "betclic": stats_summary.get("odds_betclic"),
+                            "market_best": stats_summary.get("odds_market_best"),
                         } if stats_summary.get("odds_market_best") else {},
                         "context_flags": stats_summary.get("context_flags", []),
                         "upset_risk": stats_summary.get("upset_risk"),
@@ -1380,80 +1380,6 @@ def save_gate_results_to_db(betting_date: str, results: list[dict]) -> int:
     except Exception as e:
         print(f"[db_loader] DB write failed for gate results: {e}")
         return 0
-
-
-def load_betclic_history_from_db() -> list[dict]:
-    """Load bet history from bets+coupons tables, fallback to betclic_bets_history.json.
-
-    Returns list of dicts in the same format as betclic_bets_history.json:
-    [{coupon_id, placed_at, total_odds, stake, status, pnl, picks: [...]}]
-    """
-    try:
-        from bet.db.connection import get_db
-
-        with get_db() as conn:
-            # Query only settled coupons (skip pending pipeline-generated ones)
-            coupon_rows = conn.execute(
-                "SELECT * FROM coupons WHERE status IN ('won', 'lost') ORDER BY placed_at DESC"
-            ).fetchall()
-            if coupon_rows:
-                history = []
-                for c in coupon_rows:
-                    bet_rows = conn.execute(
-                        "SELECT b.sport, b.event_name, b.market, b.selection, "
-                        "b.odds, b.status "
-                        "FROM bets b WHERE b.coupon_id = ?",
-                        (c["id"],),
-                    ).fetchall()
-                    picks = [
-                        {
-                            "sport": b["sport"] or "",
-                            "event": b["event_name"] or "",
-                            "market": b["market"] or "",
-                            "selection": b["selection"] or "",
-                            "odds": b["odds"],
-                            "status": b["status"] or "",
-                            "leg_status": b["status"] or "",  # compat alias
-                        }
-                        for b in bet_rows
-                    ]
-                    status_val = c["status"] or ""
-                    stake_val = c["stake_pln"] or 0
-                    pnl_val = c["pnl_pln"] or 0
-                    winnings = (stake_val + pnl_val) if status_val == "won" else 0
-                    history.append({
-                        "coupon_id": c["coupon_id"],
-                        "placed_at": c["placed_at"] or "",
-                        "placed_date": c["placed_at"] or "",  # compat alias
-                        "total_odds": c["total_odds"],
-                        "stake": stake_val,
-                        "stake_pln": stake_val,  # compat alias
-                        "status": status_val,
-                        "coupon_status": status_val,  # compat alias
-                        "pnl": pnl_val,
-                        "pnl_pln": pnl_val,  # compat alias
-                        "winnings_pln": winnings,  # compat
-                        "tax_free_payout_pln": winnings,  # compat
-                        "is_ended": True,  # all DB records are ended
-                        "expected_legs": len(picks),  # compat
-                        "picks": picks,
-                        "legs": picks,  # compat alias
-                    })
-                print(f"[db_loader] Loaded {len(history)} coupons from DB")
-                return history
-    except Exception as e:
-        print(f"[db_loader] DB read failed for betclic history: {e}")
-
-    # JSON fallback
-    json_path = DATA_DIR / "betclic_bets_history.json"
-    if json_path.exists():
-        data = json.loads(json_path.read_text(encoding="utf-8"))
-        history = data if isinstance(data, list) else data.get("bets", [])
-        print(f"[db_loader] Loaded {len(history)} history entries from JSON fallback")
-        return history
-
-    print("[db_loader] No betclic history found (DB empty, no JSON)")
-    return []
 
 
 def load_analysis_raw_data(fixture_id: int, betting_date: str) -> dict | None:

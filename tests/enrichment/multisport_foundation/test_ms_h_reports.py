@@ -49,7 +49,7 @@ def test_reports_do_not_contain_raw_secret_values_or_auth_header_names(tmp_path)
         assert forbidden not in combined, f"Forbidden term '{forbidden}' was found in the generated JSON reports."
 
 def test_workspace_reports_exist_and_pass_validation():
-    reports_dir = Path("reports/multisport_foundation/pass_h")
+    reports_dir = Path("tests/fixtures/multisport_foundation/pass_h")
     summary = reports_dir / 'pass_h_summary.json'
     by_sport = reports_dir / 'provider_access_by_sport.json'
     

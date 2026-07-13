@@ -11,7 +11,10 @@ from bet.enrichment.multisport_foundation.fail_closed import assert_no_forbidden
 
 def test_reports_generation_content_and_invariants() -> None:
     # First, run the report generation to be 100% sure we have fresh generated reports.
-    paths = write_pass_c_reports()
+    paths = write_pass_c_reports(
+        pass_b_path="tests/fixtures/multisport_foundation/pass_b/source_bound_shadow_status_by_sport.json",
+        out_dir="/tmp/pass_c",
+    )
     
     act_path = Path(paths["activation"])
     obs_path = Path(paths["observation"])

@@ -432,7 +432,7 @@ def _check_ev(c: dict) -> tuple[bool, str]:
         return True, f"EV={ev:.3f}"
     if ev is not None:
         return False, f"EV={ev:.3f} (≤0)"
-    # Stats-first mode: EV not calculable without odds — user verifies on Betclic
+    # Stats-first mode: EV is unavailable until a human enters a Superbet quote.
     return True, "STATS-FIRST: EV not calculable, user verifies manually"
 
 
@@ -587,7 +587,7 @@ def _check_odds_safety_gap(c: dict) -> tuple[bool, str]:
     odds_val = None
     odds_data = c.get("odds", {})
     if isinstance(odds_data, dict):
-        odds_val = odds_data.get("current") or odds_data.get("market_best") or odds_data.get("betclic")
+        odds_val = odds_data.get("current") or odds_data.get("market_best")
     if odds_val is None:
         odds_val = c.get("best_odds")
     if odds_val is None:
@@ -609,7 +609,7 @@ def _check_odds_safety_gap(c: dict) -> tuple[bool, str]:
         return False, (
             f"ODDS-SAFETY GAP {gap:.1%}: safety={safety:.2f} ({safety:.0%}) vs "
             f"odds={odds_val:.2f} (implied {implied_prob:.0%}) — model is {direction}. "
-            f"Verify line/odds alignment on Betclic before placing."
+            "Verify the visible line and quote manually in Superbet before approval."
         )
     return True, f"gap={gap:.1%} (within 15% threshold)"
 
@@ -785,7 +785,7 @@ def check_red_flags(candidate: dict) -> list[str]:
         else:
             flags.append(
                 f"INFO ZT#20: SYNTHETIC source but STRONG pattern (hit={hit_str}) — "
-                f"verify availability on Betclic"
+                "verify availability manually in Superbet"
             )
 
     # ZT#23: Opponent quality adjustment (post-mortem 2026-05-13)
@@ -1230,7 +1230,7 @@ def compute_risk_tier(candidate: dict, gate_result: dict) -> str:
     is_tipster_blind = "6" in gate_failed
     is_h2h_stat_blind = "16" in gate_failed
     ev = candidate.get("ev")
-    # Stats-first mode: ev=None means odds not yet available (user checks Betclic)
+    # Stats-first mode: ev=None means the human Superbet quote is still missing.
     # Allow LR classification when ev is None (undetermined) or positive
     has_positive_ev = ev is None or ev > 0
 
@@ -1979,7 +1979,7 @@ def run_gate(candidates: list[dict], date: str, strict: bool = False) -> dict:
                 elif source == "db-synthetic" and _synthetic_strong:
                     # Strong synthetic = APPROVE but flag for user awareness
                     entry.setdefault("advisory_notes", []).append(
-                        f"⚠️ SYNTHETIC but STRONG: {hit_rate_str} L10 + {hit_rate_l5_str} L5 — verify on Betclic"
+                        f"SYNTHETIC but STRONG: {hit_rate_str} L10 + {hit_rate_l5_str} L5 — manual Superbet quote required"
                     )
                 # Use sport-specific minimum (tennis=2, volleyball=2, others=3)
                 _sport = (c.get("sport") or "").lower()

@@ -1,24 +1,36 @@
-"""Database connection management for sync and async access.
-
-Environment-aware DB resolver:
-- `BET_DB_PATH` env var: direct path override
-- `DATABASE_URL` env var: sqlite:///path or sqlite:///:memory:
-- Fallback: betting/data/betting.db
-"""
+"""Canonical SQLite connection and transaction policy."""
 
 import os
 import sqlite3
 from contextlib import asynccontextmanager, contextmanager
+from collections.abc import AsyncIterator, Callable, Iterator
+from dataclasses import dataclass
+from enum import Enum
 from pathlib import Path
+from typing import Any, TypeVar
 
 try:
     import aiosqlite
 except ImportError:
     aiosqlite = None  # type: ignore[assignment]
 
-DEFAULT_DB_PATH = (
-    Path(__file__).parent.parent.parent.parent / "betting" / "data" / "betting.db"
-)
+BUSY_TIMEOUT_MS = 30_000
+T = TypeVar("T")
+
+
+class DatabaseMode(str, Enum):
+    READ_ONLY = "READ_ONLY"
+    READ_WRITE = "READ_WRITE"
+
+
+@dataclass(frozen=True)
+class DatabaseInfrastructureError(RuntimeError):
+    code: str
+    operation: str
+    retryable: bool = False
+
+    def __str__(self) -> str:
+        return f"{self.code}: database {self.operation} failed"
 
 
 def _resolve_db_path(db_path: Path | str | None = None) -> Path | str:
@@ -28,7 +40,7 @@ def _resolve_db_path(db_path: Path | str | None = None) -> Path | str:
     1. Explicit `db_path` argument (used by tests/custom callers)
     2. `BET_DB_PATH` environment variable (direct path)
     3. `DATABASE_URL` environment variable (sqlite:/// or sqlite:///:memory:)
-    4. `DEFAULT_DB_PATH` fallback
+    A path is mandatory. There is no implicit operational database fallback.
     """
     if db_path is not None:
         return db_path
@@ -53,28 +65,23 @@ def _resolve_db_path(db_path: Path | str | None = None) -> Path | str:
             "Only sqlite:// is supported."
         )
 
-    return DEFAULT_DB_PATH
+    raise DatabaseInfrastructureError(
+        code="DB_PATH_REQUIRED",
+        operation="resolve_path",
+    )
 
 
 def _configure_connection(conn: sqlite3.Connection) -> None:
     """Apply standard pragmas and settings."""
     conn.execute("PRAGMA journal_mode = WAL")
     conn.execute("PRAGMA foreign_keys = ON")
-    conn.execute("PRAGMA busy_timeout = 30000")
+    conn.execute(f"PRAGMA busy_timeout = {BUSY_TIMEOUT_MS}")
     conn.row_factory = sqlite3.Row
 
 
 @contextmanager
-def get_db(db_path: Path | str | None = None):
-    """Context manager for SQLite connections.
-
-    Resolves the DB path via `_resolve_db_path()`:
-    - `BET_DB_PATH` env var
-    - `DATABASE_URL` env var (sqlite:///path or sqlite:///:memory:)
-    - Falls back to `betting/data/betting.db`
-
-    Enables WAL mode and foreign keys. Commits on clean exit, rolls back on exception.
-    """
+def get_db(db_path: Path | str | None = None) -> Iterator[sqlite3.Connection]:
+    """Own one explicit read-write transaction and commit only on clean exit."""
     resolved = _resolve_db_path(db_path)
     conn = sqlite3.connect(str(resolved))
     _configure_connection(conn)
@@ -89,12 +96,12 @@ def get_db(db_path: Path | str | None = None):
 
 
 @contextmanager
-def get_readonly_db(db_path: Path | str | None = None):
+def get_readonly_db(db_path: Path | str | None = None) -> Iterator[sqlite3.Connection]:
     """Open the canonical SQLite database with enforced read-only/query-only semantics."""
     resolved = Path(str(_resolve_db_path(db_path))).resolve()
     conn = sqlite3.connect(f"file:{resolved}?mode=ro", uri=True)
     conn.execute("PRAGMA foreign_keys = ON")
-    conn.execute("PRAGMA busy_timeout = 30000")
+    conn.execute(f"PRAGMA busy_timeout = {BUSY_TIMEOUT_MS}")
     conn.execute("PRAGMA query_only = ON")
     conn.row_factory = sqlite3.Row
     try:
@@ -104,7 +111,7 @@ def get_readonly_db(db_path: Path | str | None = None):
 
 
 @asynccontextmanager
-async def get_async_db(db_path: Path | str | None = None):
+async def get_async_db(db_path: Path | str | None = None) -> AsyncIterator[Any]:
     """Async context manager using aiosqlite. Same pragmas as get_db.
 
     Resolves the DB path via `_resolve_db_path()`.
@@ -115,7 +122,7 @@ async def get_async_db(db_path: Path | str | None = None):
     conn = await aiosqlite.connect(str(resolved))
     await conn.execute("PRAGMA journal_mode = WAL")
     await conn.execute("PRAGMA foreign_keys = ON")
-    await conn.execute("PRAGMA busy_timeout = 30000")
+    await conn.execute(f"PRAGMA busy_timeout = {BUSY_TIMEOUT_MS}")
     conn.row_factory = sqlite3.Row
     try:
         yield conn
@@ -127,7 +134,13 @@ async def get_async_db(db_path: Path | str | None = None):
         await conn.close()
 
 
-def retry_on_lock(fn, *args, max_retries: int = 3, base_delay: float = 0.5, **kwargs):
+def retry_on_lock(
+    fn: Callable[..., T],
+    *args: Any,
+    max_retries: int = 3,
+    base_delay: float = 0.5,
+    **kwargs: Any,
+) -> T:
     """Call fn(*args, **kwargs) with retry on sqlite3.OperationalError (database locked).
     
     Exponential backoff: 0.5s → 1s → 2s (default 3 retries).

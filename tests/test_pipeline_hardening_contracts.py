@@ -20,7 +20,7 @@ def test_provider_success_empty_and_failure_states_are_distinct():
     policy = ProviderPolicy(total_timeout_seconds=0.2, retries=0)
     assert execute_provider_call(lambda: [{"event": 1}], policy).state == ProviderState.SUCCESS
     assert execute_provider_call(lambda: [], policy).state == ProviderState.NO_EVENTS
-    for state in (ProviderState.RATE_LIMITED, ProviderState.AUTH_ERROR, ProviderState.STALE_CACHE):
+    for state in (ProviderState.RATE_LIMITED, ProviderState.AUTH_BLOCKED, ProviderState.STALE_CACHE):
         result = execute_provider_call(lambda state=state: (_ for _ in ()).throw(ProviderFailure(state)), policy)
         assert result.state == state
         assert result.state != ProviderState.NO_EVENTS
@@ -33,7 +33,7 @@ def test_provider_total_deadline_retry_and_sanitized_error():
         ProviderPolicy(total_timeout_seconds=0.03, retries=0),
     )
     assert time.monotonic() - started < 0.15
-    assert result.state == ProviderState.TIMEOUT
+    assert result.state == ProviderState.NETWORK_TIMEOUT
     assert result.error_class == "TotalDeadlineExceeded"
 
     attempts = 0
@@ -49,6 +49,24 @@ def test_provider_total_deadline_retry_and_sanitized_error():
     failed = execute_provider_call(lambda: (_ for _ in ()).throw(OSError("private token")), ProviderPolicy(retries=0))
     assert failed.error_class == "OSError"
     assert "private token" not in repr(failed)
+
+
+def test_non_idempotent_provider_call_is_never_retried():
+    attempts = 0
+
+    def failing() -> list[int]:
+        nonlocal attempts
+        attempts += 1
+        raise ProviderFailure(ProviderState.RATE_LIMITED, retry_after_seconds=0)
+
+    result = execute_provider_call(
+        failing,
+        ProviderPolicy(total_timeout_seconds=1, retries=3, backoff_seconds=0),
+        idempotent=False,
+    )
+
+    assert result.state == ProviderState.RATE_LIMITED
+    assert attempts == 1
 
 
 def test_canonical_database_pragmas_rollback_readonly_and_competing_writers(tmp_path: Path):

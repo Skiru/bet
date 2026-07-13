@@ -12,7 +12,7 @@ from bet.pipeline.analytical_candidate_bridge import (
 )
 
 
-TRACKED_PREFILTER_FIXTURE = Path(__file__).resolve().parents[1] / ".kilo" / "artifacts" / "analyzability_prefilter_report.json"
+TRACKED_PREFILTER_FIXTURE = Path(__file__).resolve().parents[1] / "tests" / "fixtures" / "analyzability_prefilter_report.json"
 
 
 def test_analytical_candidate_bridge_creates_ready_candidate_when_identity_probability_and_stats_exist():

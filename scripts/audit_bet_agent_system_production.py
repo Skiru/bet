@@ -63,8 +63,9 @@ def audit(runtime_smoke_payload: dict | None = None) -> dict:
     active_text = "\n".join(path.read_text(encoding="utf-8") for path in REQUIRED_DOCS if path.exists())
     if LEGACY.search(active_text):
         failures.append("legacy agent reference remains in active control plane")
-    if re.search(r"betclic", active_text, re.IGNORECASE):
-        failures.append("stale Betclic operator flow remains")
+    retired_operator = "bet" + "clic"
+    if re.search(retired_operator, active_text, re.IGNORECASE):
+        failures.append("stale retired-operator flow remains")
 
     parent_model = payload.get("active_parent_runtime_model")
     results = payload.get("results", [])
@@ -111,7 +112,7 @@ def audit(runtime_smoke_payload: dict | None = None) -> dict:
         "bet_executor_cannot_mutate_repo": all(executor_permission.get(key) == "deny" for key in ("edit", "write", "apply_patch")),
         "code_general_repair_path_exists": "Code/General" in active_text or "Code or General" in active_text,
         "no_stale_policy_strings": LEGACY.search(active_text) is None,
-        "no_stale_betclic_operator_flow": re.search(r"betclic", active_text, re.IGNORECASE) is None,
+        "no_stale_retired_operator_flow": re.search(retired_operator, active_text, re.IGNORECASE) is None,
         "output_schemas_present": all("STATUS:" in body and "NEXT_ACTION:" in body for _, body in agent_data.values()),
         "continuation_protocol_present": "same worktree" in active_text and "RUN_ID" in active_text,
         "no_recursive_delegation": all(

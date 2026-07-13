@@ -355,7 +355,7 @@ def sample_candidates():
             safety_score=0.80, hit_rate_l10=0.80, hit_rate_h2h=0.75,
             hit_rate_l5=0.80, three_way_aligned=True,
             min_odds=1.25, best_odds=1.72, ev=0.15,
-            betclic_hit_rate=0.70,
+            historical_hit_rate=0.70,
         ),
         MarketCandidate(
             fixture=fixtures[1], home_team=teams["barca"], away_team=teams["real"],
@@ -364,7 +364,7 @@ def sample_candidates():
             safety_score=0.75, hit_rate_l10=0.75, hit_rate_h2h=0.80,
             hit_rate_l5=0.80, three_way_aligned=True,
             min_odds=1.33, best_odds=1.65, ev=0.12,
-            betclic_hit_rate=0.65,
+            historical_hit_rate=0.65,
         ),
         MarketCandidate(
             fixture=fixtures[2], home_team=teams["lakers"], away_team=teams["celtics"],
@@ -373,7 +373,7 @@ def sample_candidates():
             safety_score=0.70, hit_rate_l10=0.70, hit_rate_h2h=None,
             hit_rate_l5=0.60, three_way_aligned=False,
             min_odds=1.43, best_odds=1.85, ev=0.10,
-            betclic_hit_rate=None,
+            historical_hit_rate=None,
         ),
         MarketCandidate(
             fixture=fixtures[3], home_team=teams["djokovic"], away_team=teams["sinner"],
@@ -382,7 +382,7 @@ def sample_candidates():
             safety_score=0.65, hit_rate_l10=0.65, hit_rate_h2h=0.60,
             hit_rate_l5=0.60, three_way_aligned=True,
             min_odds=1.54, best_odds=1.90, ev=0.08,
-            betclic_hit_rate=0.55,
+            historical_hit_rate=0.55,
         ),
         MarketCandidate(
             fixture=fixtures[4], home_team=teams["inter"], away_team=teams["milan"],
@@ -391,7 +391,7 @@ def sample_candidates():
             safety_score=0.72, hit_rate_l10=0.72, hit_rate_h2h=0.70,
             hit_rate_l5=0.75, three_way_aligned=True,
             min_odds=1.39, best_odds=1.70, ev=0.11,
-            betclic_hit_rate=0.60,
+            historical_hit_rate=0.60,
         ),
         MarketCandidate(
             fixture=fixtures[5], home_team=teams["warriors"], away_team=teams["heat"],
@@ -400,7 +400,7 @@ def sample_candidates():
             safety_score=0.68, hit_rate_l10=0.68, hit_rate_h2h=None,
             hit_rate_l5=0.65, three_way_aligned=True,
             min_odds=1.47, best_odds=1.80, ev=0.09,
-            betclic_hit_rate=None,
+            historical_hit_rate=None,
         ),
     ]
     return candidates

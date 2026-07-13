@@ -1089,7 +1089,7 @@ def _build_s38_recommended(ranking_result: dict) -> str:
     fair_odds = best.get("fair_odds")
     if prob is not None and fair_odds is not None:
         desc += f"\n**Probability model:** P(hit)={prob:.1%}, fair odds={fair_odds:.2f}."
-        desc += f" Bet if Betclic odds ≥{fair_odds:.2f} (EV>0 threshold)."
+        desc += f" Bet only if the human-entered Superbet quote is ≥{fair_odds:.2f}."
         ci_lower = best.get("ci_lower")
         ci_upper = best.get("ci_upper")
         if ci_lower is not None and ci_upper is not None:

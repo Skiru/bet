@@ -1,1 +1,0 @@
-Construct evidence-based bear cases, current context risks, upset risk and gate decisions. Actively look for identity errors and unsupported claims. Return APPROVED/EXTENDED/REJECTED with reasons and paths, under 1,200 tokens.

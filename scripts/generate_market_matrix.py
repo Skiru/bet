@@ -1537,7 +1537,7 @@ def persist_matrix_to_db(matrix: dict, date: str) -> int:
 
 from bet.stats.market_ranking import STANDARD_MARKET_LINES
 
-# Major competitions where Betclic is likely to offer statistical markets
+# Major competitions with broad statistical-source coverage.
 MAJOR_COMPETITIONS = {
     "football": [
         "uefa", "champions", "europa", "conference", "premier", "la liga", "laliga",
@@ -1610,7 +1610,7 @@ MAJOR_COMPETITIONS = {
 
 
 def _is_major_competition(sport: str, competition: str) -> bool:
-    """Check if a competition is considered major for Betclic availability."""
+    """Check whether a competition has broad statistical-source coverage."""
     if not competition:
         return False
     # Normalize: remove ' - ' separators to handle URL-derived names
@@ -1629,7 +1629,7 @@ def generate_decision_matrix(
     sorted by data quality and odds attractiveness.
 
     When stats_first=True, includes ALL events from major competitions with
-    suggested statistical markets, even without odds. User checks Betclic manually.
+    suggested statistical markets even when an operator quote is not yet available.
     """
     opportunities = []
 
@@ -1676,7 +1676,7 @@ def generate_decision_matrix(
             }
             opportunities.append(opp)
 
-        # Safety-only markets (no odds yet — user checks Betclic)
+        # Safety-only markets remain analytical until a human enters a quote.
         for sm in event.get("safety_markets", []):
             if (sm.get("safety_score") or 0) >= 0.50:
                 opp = {
@@ -1689,7 +1689,7 @@ def generate_decision_matrix(
                     "market": sm["market"],
                     "market_type": "safety_ranked",
                     "odds": None,
-                    "bookmaker": "CHECK_BETCLIC",
+                    "bookmaker": "PRICE_PENDING_OPERATOR_CHECK",
                     "data_tier": tier,
                     "safety_score": sm.get("safety_score"),
                     "l10_avg": sm.get("l10_avg"),
@@ -1700,7 +1700,7 @@ def generate_decision_matrix(
                 opportunities.append(opp)
 
         # STATS_FIRST MODE: add suggested markets for events without odds
-        # in major competitions — user will check Betclic manually.
+        # in major competitions for later manual operator quote review.
         # Also add for events that HAVE h2h/ML odds but are MISSING
         # statistical market odds (e.g., football with 1X2 but no corners).
         if stats_first and _is_major_competition(sport, comp):
@@ -1752,7 +1752,7 @@ def generate_decision_matrix(
                         "market": f"{std_mkt['market']} O/U {calibrated_line}",
                         "market_type": "stats_first_suggestion",
                         "odds": None,
-                        "bookmaker": "CHECK_BETCLIC",
+                        "bookmaker": "PRICE_PENDING_OPERATOR_CHECK",
                         "data_tier": tier,
                         "safety_score": None,
                         "l10_avg": team_avg,
@@ -1784,17 +1784,17 @@ def write_decision_matrix_md(opportunities: list[dict], date: str, stats_first: 
     lines.append(f"Total bettable opportunities: **{len(opportunities)}**")
     lines.append("")
 
-    # Split into odds-available and check-betclic
+    # Split into provider-priced and operator-quote-pending observations.
     with_odds = [o for o in opportunities if o.get("odds")]
-    check_betclic = [o for o in opportunities if not o.get("odds")]
+    quote_pending = [o for o in opportunities if not o.get("odds")]
 
     lines.append(f"- With API odds: **{len(with_odds)}**")
-    lines.append(f"- CHECK_BETCLIC (manual odds check): **{len(check_betclic)}**")
+    lines.append(f"- PRICE_PENDING_OPERATOR_CHECK: **{len(quote_pending)}**")
     lines.append("")
 
     if stats_first:
         lines.append("> 🔬 **STATS-FIRST MODE**: Events without API odds are included with suggested")
-        lines.append("> statistical markets. Check Betclic app for odds, then calculate:")
+        lines.append("> statistical markets. A human must enter the visible Superbet quote before EV:")
         lines.append("> `EV = (hit_rate × odds) - 1`. If EV > 0 → bet.")
         lines.append("")
 
@@ -1833,20 +1833,20 @@ def write_decision_matrix_md(opportunities: list[dict], date: str, stats_first: 
                 )
             lines.append("")
 
-    # --- Section 2: CHECK_BETCLIC events (probability portfolio) ---
-    if check_betclic:
+    # --- Section 2: events awaiting a human-entered operator quote ---
+    if quote_pending:
         lines.append("---")
-        lines.append("## 🎲 SECTION B: PROBABILITY PORTFOLIO — Check Betclic for Odds")
+        lines.append("## SECTION B: ANALYTICAL IDEAS — Operator Quote Pending")
         lines.append("")
         lines.append("> These events have statistical potential but no API odds.")
-        lines.append("> **Workflow:** Find the event on Betclic → check if the suggested market exists")
-        lines.append("> → note the odds → calculate `EV = (hit_rate × odds) - 1` → if EV > 0, bet.")
+        lines.append("> **Workflow:** verify the exact market and line manually in Superbet,")
+        lines.append("> enter the visible quote, then calculate EV. No quote means no bettable status.")
         lines.append("")
 
         # Separate: safety-scored vs suggestions-only
         # Note: safety_score=0.0 is falsy in Python, use explicit None check
-        scored = [o for o in check_betclic if o.get("safety_score") is not None and o["safety_score"] > 0]
-        suggested = [o for o in check_betclic if o.get("market_type") == "stats_first_suggestion" and o.get("safety_score") is None]
+        scored = [o for o in quote_pending if o.get("safety_score") is not None and o["safety_score"] > 0]
+        suggested = [o for o in quote_pending if o.get("market_type") == "stats_first_suggestion" and o.get("safety_score") is None]
 
         if scored:
             lines.append("### B1: SAFETY-SCORED (statistical data available)")
@@ -1877,7 +1877,7 @@ def write_decision_matrix_md(opportunities: list[dict], date: str, stats_first: 
 
             lines.append("### B2: MAJOR COMPETITION MARKETS — Needs S3 Deep Analysis")
             lines.append("")
-            lines.append("> These events are in major competitions likely available on Betclic.")
+            lines.append("> These events are analytical only until a human verifies the operator market.")
             lines.append("> Run S3 deep stats analysis to get safety scores, then check odds.")
             lines.append("")
 
@@ -1936,7 +1936,7 @@ def main():
         "--stats-first", action="store_true",
         help="STATS-FIRST mode: include all major competition events with "
              "suggested statistical markets even without odds. User checks "
-             "Betclic for odds manually.",
+             "Superbet for an exact visible quote manually.",
     )
     parser.add_argument("--output-dir", help="Explicit output directory (optional)")
     parser.add_argument("--pipeline-safe", action="store_true", help="Pipeline-safe sandbox mode")

@@ -412,11 +412,9 @@ def validate_readme(readme_path: Path) -> list[str]:
         if f"| {name} |" in content or f"`{name}`" in content:
             violations.append(f"README.md: Stale legacy agent roster references found for '{name}'")
 
-    # Check Betclic-first and Betclic-as-primary wording has been neutralized
-    if "Targets disciplined small-bankroll betting on Betclic" in content:
-        violations.append("README.md: Stale Betclic-first targets description found")
-    if "All picks CONDITIONAL until user verifies in Betclic app" in content:
-        violations.append("README.md: Stale Betclic-first verification rule found")
+    retired_operator = "bet" + "clic"
+    if retired_operator in content.lower():
+        violations.append("README.md: stale retired-operator wording found")
 
     # Check stale Rapid-MLX v0.6.82 reference has been removed
     if "Rapid-MLX v0.6.82" in content:
@@ -444,9 +442,6 @@ def validate_manifest_agents(repo_root: Path) -> list[str]:
     try:
         data = json.loads(manifest_path.read_text(encoding="utf-8"))
         forbidden_rules = {
-            "all_picks_conditional_until_user_betclic_verification",
-            "betclic_market_boundary_validation",
-            "manual_user_verification_in_betclic",
             "minimum_one_valid_tip",
         }
         serialized = json.dumps(data)

@@ -1,87 +1,407 @@
 #!/usr/bin/env python3
-"""Validate the manifest-driven production surface and execution graph."""
+"""Fail-closed validation of the repository's real production surface."""
+
 from __future__ import annotations
 
+import ast
 import json
 import re
+import tomllib
+from collections import Counter
 from pathlib import Path
+from typing import Any
 
-ROOT = Path(__file__).resolve().parents[1]
+from scripts.validate_reachability_graph import (
+    PRODUCTION_AGENTS,
+    PRODUCTION_SKILLS,
+    ROOT,
+    tracked_files,
+)
+from scripts.validate_reachability_graph import (
+    build as build_reachability,
+)
+
 CONFIG = ROOT / "config/production_surface.json"
+EXPECTED_KEYS = {
+    "$schema",
+    "schema_version",
+    "manifest",
+    "canonical_entrypoints",
+    "runtime_infrastructure",
+    "domain_and_analytics",
+    "providers",
+    "database_runtime",
+    "historical_migrations",
+    "configuration",
+    "betting_agents",
+    "betting_skills",
+    "engineering_tools",
+    "validators",
+    "tests",
+    "fixtures",
+    "documentation",
+    "generated_ignored_roots",
+    "forbidden_active_patterns",
+    "forbidden_tracked_patterns",
+}
+
+
+def _expand(paths: list[str], tracked: set[str]) -> set[str]:
+    expanded: set[str] = set()
+    for path in paths:
+        target = ROOT / path
+        if target.is_file():
+            expanded.add(path)
+        elif target.is_dir():
+            prefix = path.rstrip("/") + "/"
+            expanded.update(item for item in tracked if item.startswith(prefix))
+    return expanded
+
+
+def _frontmatter(path: Path) -> dict[str, Any]:
+    text = path.read_text(encoding="utf-8")
+    if not text.startswith("---\n") or "\n---\n" not in text:
+        return {}
+    header = text.split("\n---\n", 1)[0][4:]
+    result: dict[str, Any] = {}
+    current: dict[str, str] | None = None
+    for raw in header.splitlines():
+        if not raw.strip() or raw.lstrip().startswith("#"):
+            continue
+        indent = len(raw) - len(raw.lstrip())
+        key, separator, value = raw.strip().partition(":")
+        if not separator:
+            continue
+        if indent == 0:
+            if value.strip():
+                result[key] = value.strip().strip("\"'")
+                current = None
+            else:
+                current = {}
+                result[key] = current
+        elif current is not None:
+            current[key.strip("\"'")] = value.strip().strip("\"'")
+    return result
+
+
+def _direct_sqlite_access(active_python: set[str]) -> list[str]:
+    allowed = {"src/bet/db/connection.py"}
+    findings: list[str] = []
+    for path in sorted(active_python - allowed):
+        if path.startswith("tests/"):
+            continue
+        text = (ROOT / path).read_text(encoding="utf-8", errors="ignore")
+        if re.search(r"\bsqlite3\.connect\s*\(", text):
+            findings.append(path)
+    return findings
+
+
+def _database_factories(active_python: set[str]) -> list[str]:
+    factories: list[str] = []
+    for path in sorted(active_python):
+        if path.startswith("tests/"):
+            continue
+        try:
+            tree = ast.parse((ROOT / path).read_text(encoding="utf-8"))
+        except (OSError, SyntaxError, UnicodeError):
+            continue
+        for node in ast.walk(tree):
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and re.search(
+                r"(?:connect|connection|get_.*db|open_.*db)", node.name
+            ):
+                source = (
+                    ast.get_source_segment(
+                        (ROOT / path).read_text(encoding="utf-8"), node
+                    )
+                    or ""
+                )
+                if "sqlite" in source.lower():
+                    factories.append(f"{path}:{node.name}")
+    return factories
+
+
+def _artifact_producer_conflicts(active_python: set[str]) -> list[str]:
+    literal_targets: dict[str, set[str]] = {}
+    for path in sorted(active_python):
+        try:
+            tree = ast.parse((ROOT / path).read_text(encoding="utf-8"))
+        except (OSError, SyntaxError, UnicodeError):
+            continue
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+            function_name = ""
+            if isinstance(node.func, ast.Name):
+                function_name = node.func.id
+            elif isinstance(node.func, ast.Attribute):
+                function_name = node.func.attr
+            if function_name != "publish_run_artifact":
+                continue
+            target = next(
+                (keyword.value for keyword in node.keywords if keyword.arg == "target"),
+                None,
+            )
+            if isinstance(target, ast.Constant) and isinstance(target.value, str):
+                literal_targets.setdefault(target.value, set()).add(path)
+    return sorted(
+        f"{target}:{','.join(sorted(paths))}"
+        for target, paths in literal_targets.items()
+        if len(paths) > 1
+    )
+
+
+def _agent_findings() -> dict[str, list[str]]:
+    paths = sorted((ROOT / ".kilo/agents").glob("*.md"))
+    extras = sorted(path.stem for path in paths if path.stem not in PRODUCTION_AGENTS)
+    model_pins: list[str] = []
+    recursive: list[str] = []
+    excessive: list[str] = []
+    for path in paths:
+        if path.stem not in PRODUCTION_AGENTS:
+            continue
+        data = _frontmatter(path)
+        if "model" in data or "provider" in data:
+            model_pins.append(path.stem)
+        permissions = data.get("permission", {})
+        if not isinstance(permissions, dict):
+            excessive.append(f"{path.stem}:permission")
+            continue
+        if path.stem != "bet-executor" and permissions.get("task") not in {
+            None,
+            "deny",
+        }:
+            recursive.append(path.stem)
+        for mutation in ("edit", "write", "apply_patch"):
+            if permissions.get(mutation) != "deny":
+                excessive.append(f"{path.stem}:{mutation}")
+        expected_bash = (
+            "allow" if path.stem in {"bet-executor", "bet-auditor"} else "deny"
+        )
+        if permissions.get("bash") != expected_bash:
+            excessive.append(f"{path.stem}:bash")
+    return {
+        "extra_agents": extras,
+        "model_pins": sorted(model_pins),
+        "recursive_delegation": sorted(recursive),
+        "excessive_permissions": sorted(excessive),
+    }
 
 
 def validate() -> dict[str, object]:
     config = json.loads(CONFIG.read_text(encoding="utf-8"))
+    tracked = set(tracked_files())
+    graph, classification = build_reachability()
     manifest = json.loads((ROOT / config["manifest"]).read_text(encoding="utf-8"))
+    schema_errors: list[str] = []
+    if set(config) != EXPECTED_KEYS:
+        schema_errors.append("PRODUCTION_SURFACE_SCHEMA_KEYS_INVALID")
+    if config.get("schema_version") != 2:
+        schema_errors.append("PRODUCTION_SURFACE_SCHEMA_VERSION_INVALID")
+    if any(
+        not isinstance(config.get(key), list)
+        for key in EXPECTED_KEYS - {"$schema", "schema_version", "manifest"}
+    ):
+        schema_errors.append("PRODUCTION_SURFACE_SCHEMA_VALUE_INVALID")
+
+    category_keys = EXPECTED_KEYS - {
+        "$schema",
+        "schema_version",
+        "manifest",
+        "generated_ignored_roots",
+        "forbidden_active_patterns",
+        "forbidden_tracked_patterns",
+    }
+    declared = set().union(*(_expand(config[key], tracked) for key in category_keys))
+    configured_paths = {path for key in category_keys for path in config[key]}
+    missing_classified = sorted(
+        path for path in configured_paths if not (ROOT / path).exists()
+    )
     wrappers = {
         step["wrapper"]
         for step in manifest["steps"]
         if step.get("execution_mode") == "script" and step.get("wrapper")
     }
-    classified_active = set(config["production_runtime"]) | set(config["providers"]) | set(config["database"]) | set(config["configuration"])
-    classified_active |= set(config["agents"]) | set(config["skills"]) | set(config["validators"])
-    active_files = classified_active | wrappers
-    missing_files = sorted(path for path in active_files if not (ROOT / path).is_file())
-    unknown_reachable = [] if config.get("manifest_wrappers_are_production_runtime") is True else sorted(wrappers)
+    missing_wrappers = sorted(path for path in wrappers if path not in tracked)
+    unclassified_wrappers = sorted(wrappers - declared)
 
-    active_betclic: list[str] = []
-    legacy_references: list[str] = []
-    legacy = set(config["legacy_retained_unreachable"])
-    runtime_scan = wrappers | set(config["production_runtime"]) | set(config["providers"]) | set(config["database"]) | {config["manifest"]}
-    for path in sorted(runtime_scan):
-        target = ROOT / path
-        if not target.is_file() or target.suffix not in {".py", ".json", ".md", ".sql"}:
-            continue
-        text = target.read_text(encoding="utf-8", errors="ignore")
-        if re.search(r"betclic", text, re.IGNORECASE):
-            active_betclic.append(path)
-        for legacy_path in legacy:
-            if legacy_path in text:
-                legacy_references.append(f"{path}->{legacy_path}")
-
-    steps = manifest["steps"]
-    step_ids = [step["id"] for step in steps]
-    transitions = {step["id"]: step.get("next", []) for step in steps}
-    expected = ["S0", "S1", "S1e", "S2", "S2.3", "S2.5", "S2.7", "S2.9", "S3", "S4", "S5", "S6", "S7", "S7b", "S8", "S9", "S10"]
-    graph_complete = step_ids == expected and all(
-        transitions[step_id] == ([expected[index + 1]] if index + 1 < len(expected) else [])
-        for index, step_id in enumerate(expected)
-    )
-    s9 = next(step for step in steps if step["id"] == "S9")
-    operator_valid = (
-        manifest["global_rules"].get("operator_workflow") == config["sole_operator_workflow"]
-        and s9.get("execution_mode") == "human_gate"
-    )
-    alternate_entrypoints_active = sorted(
-        path for path in legacy if path.startswith("scripts/pipeline_") and path in active_files
-    )
-    errors = []
-    if missing_files:
-        errors.append("MISSING_ACTIVE_FILES")
-    if unknown_reachable:
-        errors.append("UNKNOWN_REACHABLE_FILES")
-    if active_betclic:
-        errors.append("ACTIVE_BETCLIC_REFERENCES")
-    if legacy_references:
-        errors.append("LEGACY_ACTIVE_REFERENCES")
-    if alternate_entrypoints_active:
-        errors.append("ALTERNATE_PRODUCTION_ENTRYPOINTS")
-    if not graph_complete:
-        errors.append("ACTIVE_GRAPH_INCOMPLETE")
-    if not operator_valid:
-        errors.append("OPERATOR_OR_S9_CONTRACT_INVALID")
-    return {
-        "status": "PASS" if not errors else "BLOCK",
-        "canonical_entrypoint": config["canonical_entrypoint"],
-        "active_graph_complete": graph_complete,
-        "unknown_reachable_files": unknown_reachable,
-        "legacy_active_references": sorted(set(legacy_references)),
-        "active_betclic_references": active_betclic,
-        "alternate_production_entrypoints": alternate_entrypoints_active,
-        "missing_active_files": missing_files,
-        "unsafe_deletions": [],
-        "errors": errors,
+    runtime_reachable = set(graph["runtime_reachable_files"])
+    active_python = {
+        path for path in declared & runtime_reachable if path.endswith(".py")
     }
+    historical = _expand(config["historical_migrations"], tracked)
+    historical_runtime = {"src/bet/db/schema.py"}
+    validation_only = _expand(config["validators"], tracked)
+    active_scan = {
+        path
+        for path in declared & runtime_reachable
+        if Path(path).suffix in {".json", ".py", ".sql", ".toml", ".yaml", ".yml"}
+        and not path.startswith("tests/")
+        and path not in historical
+        and path not in historical_runtime
+        and path not in validation_only
+        and path != "config/production_surface.json"
+    }
+    active_betclic = sorted(
+        path
+        for path in active_scan
+        if re.search(
+            r"betclic",
+            (ROOT / path).read_text(encoding="utf-8", errors="ignore"),
+            re.IGNORECASE,
+        )
+    )
+    active_schema_betclic = sorted(
+        path
+        for path in _expand(config["database_runtime"], tracked) - historical
+        if Path(path).suffix == ".sql"
+        and re.search(
+            r"betclic",
+            (ROOT / path).read_text(encoding="utf-8", errors="ignore"),
+            re.IGNORECASE,
+        )
+    )
+    generated_tracked = sorted(
+        path
+        for path, category in classification["files"].items()
+        if category == "GENERATED_TRACKED_ERROR"
+    )
+    legacy_tracked = sorted(
+        path
+        for path, category in classification["files"].items()
+        if category == "LEGACY_UNREACHABLE"
+    )
+    forbidden_tracked = sorted(
+        path
+        for path in tracked
+        if any(
+            re.search(pattern, path) for pattern in config["forbidden_tracked_patterns"]
+        )
+    )
+    root_clutter = sorted(
+        path
+        for path in tracked
+        if "/" not in path
+        and (Path(path).suffix.lower() in {".zip", ".log"} or "backup" in path.lower())
+    )
+    config_duplicates = sorted(path for path in tracked if path.startswith("configs/"))
+
+    project = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+    project_scripts = project.get("project", {}).get("scripts", {})
+    missing_project_scripts = sorted(
+        name
+        for name, target in project_scripts.items()
+        if not any(
+            candidate in tracked
+            for candidate in (
+                "src/" + str(target).split(":", 1)[0].replace(".", "/") + ".py",
+                "src/"
+                + str(target).split(":", 1)[0].replace(".", "/")
+                + "/__init__.py",
+            )
+        )
+    )
+    alternate_entrypoints = sorted(
+        path
+        for path in tracked
+        if (
+            re.fullmatch(r"scripts/pipeline_(?!steps/).+\.py", path)
+            or re.fullmatch(r"scripts/run_.+session\.py", path)
+        )
+        and path not in config["canonical_entrypoints"]
+    )
+    database_factories = _database_factories(active_python)
+    duplicate_database_factories = sorted(
+        factory
+        for factory in database_factories
+        if not factory.startswith("src/bet/db/connection.py:")
+    )
+
+    agent_findings = _agent_findings()
+    actual_skills = {
+        path.parent.name for path in (ROOT / ".kilo/skills").glob("*/SKILL.md")
+    }
+    extra_skills = sorted(actual_skills - PRODUCTION_SKILLS)
+    missing_skills = sorted(PRODUCTION_SKILLS - actual_skills)
+    stale_docs = sorted(
+        path
+        for path in _expand(config["documentation"], tracked)
+        if re.search(
+            r"(?i)betting pipeline with langgraph orchestration|"
+            r"active betclic (?:runtime|operator|integration)",
+            (ROOT / path).read_text(encoding="utf-8", errors="ignore"),
+        )
+    )
+
+    result: dict[str, object] = {
+        "canonical_entrypoint": config["canonical_entrypoints"][0],
+        "active_graph_complete": not missing_wrappers and not unclassified_wrappers,
+        "unknown_reachable_files": classification["unknown_files"],
+        "imports_escaping_surface": graph["runtime_classification_escapes"],
+        "root_classification_violations": graph["root_classification_violations"],
+        "missing_manifest_wrappers": missing_wrappers,
+        "unclassified_manifest_wrappers": unclassified_wrappers,
+        "missing_classified_files": missing_classified,
+        "missing_project_scripts": missing_project_scripts,
+        "duplicate_entrypoints": alternate_entrypoints,
+        "alternate_production_entrypoints": alternate_entrypoints,
+        "duplicate_artifact_producers": _artifact_producer_conflicts(active_python),
+        "database_connection_factories": database_factories,
+        "duplicate_database_connection_factories": duplicate_database_factories,
+        "direct_unclassified_sqlite_access": _direct_sqlite_access(active_python),
+        "active_betclic_references": active_betclic,
+        "active_schema_betclic_references": active_schema_betclic,
+        "historical_migration_references": sorted(historical | historical_runtime),
+        "legacy_active_references": graph["runtime_classification_escapes"],
+        "extra_production_agents": agent_findings["extra_agents"],
+        "agent_model_pins": agent_findings["model_pins"],
+        "recursive_delegation": agent_findings["recursive_delegation"],
+        "excessive_agent_permissions": agent_findings["excessive_permissions"],
+        "extra_production_skills": extra_skills,
+        "missing_production_skills": missing_skills,
+        "generated_tracked_files": sorted(set(generated_tracked + forbidden_tracked)),
+        "legacy_tracked_files": legacy_tracked,
+        "duplicate_configuration_authorities": config_duplicates,
+        "root_clutter": root_clutter,
+        "stale_documentation": stale_docs,
+        "unsafe_deletions": [],
+        "schema_errors": schema_errors,
+    }
+    blocking_keys = {
+        "unknown_reachable_files",
+        "imports_escaping_surface",
+        "root_classification_violations",
+        "missing_manifest_wrappers",
+        "unclassified_manifest_wrappers",
+        "missing_classified_files",
+        "missing_project_scripts",
+        "duplicate_entrypoints",
+        "duplicate_artifact_producers",
+        "duplicate_database_connection_factories",
+        "direct_unclassified_sqlite_access",
+        "active_betclic_references",
+        "active_schema_betclic_references",
+        "extra_production_agents",
+        "agent_model_pins",
+        "recursive_delegation",
+        "excessive_agent_permissions",
+        "extra_production_skills",
+        "missing_production_skills",
+        "generated_tracked_files",
+        "legacy_tracked_files",
+        "duplicate_configuration_authorities",
+        "root_clutter",
+        "stale_documentation",
+        "schema_errors",
+    }
+    failures = sorted(key for key in blocking_keys if result[key])
+    result["errors"] = failures
+    result["status"] = "PASS" if not failures else "BLOCK"
+    result["metrics"] = {
+        "tracked_files": len(tracked),
+        "declared_files": len(declared),
+        "classification_counts": dict(Counter(classification["files"].values())),
+    }
+    return result
 
 
 def main() -> int:

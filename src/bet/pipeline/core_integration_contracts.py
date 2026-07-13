@@ -38,7 +38,6 @@ CORE_INTEGRATION_CONTRACTS: tuple[CoreIntegrationContract, ...] = (
     CoreIntegrationContract("S4", "odds-api-io", "http_json", "odds_snapshot", 30),
     CoreIntegrationContract("S4", "api-football-odds", "http_json", "odds_snapshot", 30),
     CoreIntegrationContract("S4", "evaluator", "local_compute", "odds_evaluation", 0, live_network=False, requires_live_ack=False),
-    CoreIntegrationContract("S7b", "Betclic", "http_html", "market_availability", 20),
     CoreIntegrationContract("S8", "coupon-builder", "local_compute", "coupon_artifact", 0, live_network=False, requires_live_ack=False),
 )
 

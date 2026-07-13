@@ -27,7 +27,6 @@ API_DAILY_LIMITS = {
     "odds-api": 16,
     "oddsportal-scraper": 50,
     "betexplorer-scraper": 50,
-    "betclic-scraper": 50,
     "flashscore-scraper": 200,
     "soccerway-scraper": 100,
     "serpapi": 8,  # ~250/month ≈ 8/day

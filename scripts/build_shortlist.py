@@ -322,7 +322,7 @@ def _score_competition(sport: str, competition: str) -> int:
     # Normalize: remove ' - ' separators to handle URL-derived names
     comp_lower = competition.lower().replace(" - ", " ").replace("  ", " ")
 
-    # Penalize clearly obscure/minor leagues — these are NEVER on Betclic
+    # Penalize clearly obscure or minor leagues with poor evidence coverage.
     obscure_markers = [
         "amateur", "reserve", "u19", "u20", "u21", "youth",
         "regional", "county", "division 4", "division 5",
@@ -330,7 +330,7 @@ def _score_competition(sport: str, competition: str) -> int:
         "women u17", "women u19", "women u20", "women reserve",
         "women amateur", "femeni u", "femenin u",  # Only YOUTH/amateur women's
     ]
-    # Countries/regions whose leagues are NEVER available on Betclic
+    # Countries or regions whose lower leagues have insufficient source coverage.
     unbettable_markers = [
         "iraq", "iraqi", "yemen", "myanmar", "cambodia", "laos",
         "ethiopia", "eritrea", "somalia", "sudan", "south sudan",
@@ -379,7 +379,7 @@ def _score_event(event: dict, tipster_events: set[str], tipster_db: dict[str, di
     """Score an event for shortlist ranking. Higher = better candidate.
     
     Scoring philosophy: BETTABILITY > data quantity.
-    Events in recognized leagues on Betclic score 2-3x higher than obscure leagues.
+    Events in recognized leagues score higher than poorly sourced competitions.
     """
     sport = canonicalize_sport_name(event["sport"])
     comp = event.get("competition", "")
@@ -462,7 +462,7 @@ def _score_event(event: dict, tipster_events: set[str], tipster_db: dict[str, di
         elif 1.20 <= best_odds <= 4.00:
             score += 4
 
-    # 8. BETTABILITY CHECK — is this league likely on Betclic?
+    # 8. Evidence-coverage check.
     is_major = _is_major_competition(sport, comp)
     if is_major:
         score += 15  # confirmed bettable league
@@ -482,7 +482,7 @@ def _score_event(event: dict, tipster_events: set[str], tipster_db: dict[str, di
         score *= 0.7
     elif comp_score <= 5:
         # Low-tier recognized league (friendlies, regionalliga, etc.)
-        score *= 0.85  # very mild penalty — these are often on Betclic
+        score *= 0.85  # very mild penalty for lower-tier recognized leagues
 
     # 9. Major tournament protection (§SCAN.7) — tournaments always get priority
     if comp_score >= 9:
@@ -851,13 +851,13 @@ def build_shortlist(
         r"^league\s+table$|^results$|^fixtures$|^standings$|"
         # Bookmaker names scraped as team names (tennis adapter)
         r"^1xbet$|^bet365$|^unibet$|^pinnacle$|^betway$|^william\s+hill$|"
-        r"^betfair$|^bwin$|^marathon\s*bet$|^betclic$|^betsson$|"
+        r"^betfair$|^bwin$|^marathon\s*bet$|^betsson$|"
         r"^888sport$|^paddy\s+power$|^coral$|^ladbrokes$|^stake$",
         re.I,
     )
     # Bookmaker-vs-bookmaker pattern: "1xBet vs bet365"
     _bookmaker_vs_re = re.compile(
-        r"\b(1xbet|bet365|unibet|pinnacle|betway|bwin|betfair|betclic|betsson|"
+        r"\b(1xbet|bet365|unibet|pinnacle|betway|bwin|betfair|betsson|"
         r"marathon\s*bet|william\s+hill|888sport|paddy\s+power|coral|ladbrokes|stake)\b",
         re.I,
     )
@@ -946,7 +946,7 @@ def build_shortlist(
 
     # FIXTURE_ONLY FILTER: Remove events with NO odds AND NO stats UNLESS they're
     # from a major league (comp_score >= 7). Minor league FIXTURE_ONLY events have
-    # zero analytical value — no L10, no H2H, no safety, no odds, Betclic won't
+    # zero analytical value: no L10, H2H, safety data, or provider quote
     # have them either. Major league FIXTURE_ONLY = enrichment bug signal (keep them).
     fo_filtered = []
     fo_dropped = 0
@@ -1159,7 +1159,7 @@ def build_shortlist(
 
     # QUALITY FLOOR: Applied ONLY to Phase 2 pool (Phase 1 guarantees are protected)
     # Major league events (comp_score >= 7) BYPASS the quality floor — they're always
-    # bettable on Betclic and easiest to enrich, so never drop them.
+    # broadly covered by data providers and easiest to enrich, so never drop them.
     MIN_SCORE_THRESHOLD = 5.0
     phase2_pool = []
     floor_dropped = 0
@@ -1260,7 +1260,7 @@ def write_shortlist_md(
     lines.append(f"**Candidates:** {n_events} | **Sports:** {n_sports} | "
                  f"**Gate:** {'PASS' if n_sports >= 8 else 'FAIL'} (need ≥8 sports)")
     if stats_first:
-        lines.append(f"**Mode:** STATS-FIRST (CHECK_BETCLIC events included)")
+        lines.append("**Mode:** STATS-FIRST (operator-quote-pending events included)")
     lines.append("")
     lines.append("---")
     lines.append("")
@@ -1316,7 +1316,7 @@ def write_shortlist_md(
                     odds_str = f" (odds: {min(odds_range):.2f}—{max(odds_range):.2f})"
                 lines.append(f"- **Available markets:** {', '.join(mkt_names[:8])}{odds_str}")
             else:
-                lines.append(f"- **Available markets:** CHECK_BETCLIC (no API odds)")
+                lines.append("- **Available markets:** PRICE_PENDING_OPERATOR_CHECK")
 
             lines.append(f"- **Data tier:** {tier} | **Score:** {score:.1f}")
             if not is_verified:
@@ -1406,104 +1406,6 @@ def write_shortlist_json(selected: list[tuple[float, dict]], date: str) -> Path:
     return output_path
 
 
-def _apply_betclic_filter(selected: list[tuple[float, dict]], date: str, out) -> Path | None:
-    """Filter shortlist to only events confirmed on Betclic.
-
-    Reads betclic_market_validation_{date}.json and produces
-    {date}_s2_shortlist_bettable.json with only matched events.
-    """
-    validation_path = DATA_DIR / f"betclic_market_validation_{date}.json"
-    if not validation_path.exists():
-        out.warning(f"Betclic validation not found: {validation_path} — skipping filter")
-        return None
-
-    try:
-        validation = json.loads(validation_path.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, OSError) as e:
-        out.warning(f"Failed to read Betclic validation: {e}")
-        return None
-
-    # Build set of Betclic-confirmed events (normalized)
-    betclic_events: dict[str, dict] = {}
-    events_list = validation.get("events", validation) if isinstance(validation, dict) else validation
-    for ev in events_list:
-        name = ev.get("event_name", "")
-        # Clean up "Obstawianie X | Bukmacher Y | Betclic Polska Bonus" format
-        if "Obstawianie " in name and " | " in name:
-            name = name.replace("Obstawianie ", "").split(" | ")[0]
-        confirmed = ev.get("confirmed_market_types", [])
-        if confirmed:
-            norm = _normalize_team(name)
-            betclic_events[norm] = {
-                "confirmed_market_types": confirmed,
-                "open_market_count": ev.get("open_market_count", 0),
-            }
-
-    # Match shortlist candidates against Betclic events
-    filtered = []
-    rejected_count = 0
-    for score, event in selected:
-        home = event.get("home_team", "")
-        away = event.get("away_team", "")
-        event_key = f"{_normalize_team(home)} v {_normalize_team(away)}"
-        event_key_alt = f"{_normalize_team(away)} v {_normalize_team(home)}"
-
-        match = betclic_events.get(event_key) or betclic_events.get(event_key_alt)
-
-        # Fuzzy match: check if both team name parts appear in any Betclic event
-        if not match:
-            h_norm = _normalize_team(home)
-            a_norm = _normalize_team(away)
-            for bname, binfo in betclic_events.items():
-                if h_norm and a_norm and h_norm in bname and a_norm in bname:
-                    match = binfo
-                    break
-                if h_norm and a_norm and a_norm in bname and h_norm in bname:
-                    match = binfo
-                    break
-
-        if match:
-            event["betclic_confirmed"] = True
-            event["betclic_market_types"] = match["confirmed_market_types"]
-            event["betclic_market_count"] = match["open_market_count"]
-            filtered.append((score, event))
-        else:
-            rejected_count += 1
-
-    # Write bettable shortlist
-    output = {
-        "date": date,
-        "total_candidates": len(filtered),
-        "filter": "betclic_confirmed_only",
-        "sports": sorted(set(e["sport"] for _, e in filtered)),
-        "rejected_not_on_betclic": rejected_count,
-        "candidates": [
-            {
-                "rank": i,
-                "score": round(score, 1),
-                "sport": event["sport"],
-                "home_team": event.get("home_team", ""),
-                "away_team": event.get("away_team", ""),
-                "competition": event.get("competition", ""),
-                "kickoff": normalize_kickoff(event.get("kickoff", ""), date),
-                "data_tier": event.get("data_tier", ""),
-                "betclic_market_types": event.get("betclic_market_types", []),
-                "betclic_market_count": event.get("betclic_market_count", 0),
-                "n_odds_markets": len(event.get("odds_markets", [])),
-                "n_safety_markets": len(event.get("safety_markets", [])),
-            }
-            for i, (score, event) in enumerate(filtered, 1)
-        ],
-    }
-
-    output_path = DATA_DIR / f"{date}_s2_shortlist_bettable.json"
-    atomic_json_write(output_path, output)
-
-    print(f"\n[shortlist] BETCLIC FILTER: {len(filtered)} bettable / {rejected_count} rejected")
-    print(f"[shortlist] Bettable shortlist: {output_path}")
-    return output_path
-
-
 def main():
     parser = argparse.ArgumentParser(description="Build ranked S2 shortlist from market matrix")
     parser.add_argument("--date", help="Date YYYY-MM-DD (default: today)")
@@ -1511,8 +1413,6 @@ def main():
     parser.add_argument("--stats-first", action="store_true",
                         help="Include FIXTURE_ONLY events from major competitions")
     parser.add_argument("--min-sports", type=int, default=5, help="Minimum sport diversity (default: 5)")
-    parser.add_argument("--betclic-filter", action="store_true",
-                        help="Filter shortlist to only Betclic-confirmed events (reads validation JSON)")
     parser.add_argument("--allow-fixture-only-fallback", action="store_true",
                         help="Allow fixture-only fallback when market matrix is missing (degraded mode)")
     add_agent_args(parser)
@@ -1568,11 +1468,6 @@ def main():
     write_shortlist_md(selected, date, stats_first=args.stats_first)
     write_shortlist_json(selected, date)
 
-    # Betclic filter: produce a bettable-only shortlist
-    if args.betclic_filter:
-        bettable_path = _apply_betclic_filter(selected, date, out)
-        if bettable_path:
-            out.event("betclic_filter_applied", output=str(bettable_path))
 
     # Save shortlist summary to DB
     try:

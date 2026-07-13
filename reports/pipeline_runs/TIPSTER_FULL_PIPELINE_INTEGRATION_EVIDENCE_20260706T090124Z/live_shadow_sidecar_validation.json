@@ -1,8 +1,0 @@
-{
-  "passed": true,
-  "issues": [],
-  "total_picks_extracted": 26,
-  "consensus_file_exists": true,
-  "handoff_file_exists": true,
-  "sqlite_db_exists": true
-}

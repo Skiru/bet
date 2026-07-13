@@ -1,3 +1,0 @@
-status=LEGACY_SMOKE_BLOCKED_BY_STEALTH_POLICY
-exit_code=NOT_RUN
-secondary_reason=no_safe_cli_source_filter_and_missing_requests_in_.venv-tipster-v2

@@ -56,7 +56,7 @@ def test_various_blocked_corpus_records_statuses() -> None:
 
 def test_source_bound_shadow_report_generation() -> None:
     from bet.enrichment.multisport_foundation.source_bound_shadow import write_source_bound_shadow_status_by_sport_report
-    path = "reports/multisport_foundation/pass_b/source_bound_shadow_status_by_sport.json"
+    path = "/tmp/source_bound_shadow_status_by_sport.json"
     written_path = write_source_bound_shadow_status_by_sport_report(path)
     assert Path(written_path).exists()
 

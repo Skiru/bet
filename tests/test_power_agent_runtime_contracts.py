@@ -1,17 +1,20 @@
 import json
 import os
 import subprocess
+import sys
 from pathlib import Path
-
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
 def test_complete_control_plane_validator_passes():
-    env = dict(os.environ)
-    env["POWER_AGENT_VALIDATION_SKIP_WORKTREE_REPORTS"] = "1"
+    env = {
+        "PATH": os.environ.get("PATH", ""),
+        "PYTHONPATH": os.environ.get("PYTHONPATH", ""),
+        "POWER_AGENT_VALIDATION_SKIP_WORKTREE_REPORTS": "1",
+    }
     result = subprocess.run(
-        [str(ROOT / ".venv/bin/python3"), str(ROOT / "scripts/validate_power_agent_control_plane.py")],
+        [sys.executable, str(ROOT / "scripts/validate_power_agent_control_plane.py")],
         cwd=ROOT,
         capture_output=True,
         text=True,
@@ -22,7 +25,9 @@ def test_complete_control_plane_validator_passes():
 
 
 def test_agent_config_validator_covers_all_four_skills():
-    validator = (ROOT / "scripts/validate-bet-agent-config.py").read_text(encoding="utf-8")
+    validator = (ROOT / "scripts/validate-bet-agent-config.py").read_text(
+        encoding="utf-8"
+    )
     for name in (
         "betting-pipeline-contract",
         "betting-evidence-contract",
@@ -33,9 +38,12 @@ def test_agent_config_validator_covers_all_four_skills():
 
 
 def test_tool_matrix_matches_agent_capability_contract():
-    matrix = (ROOT / ".kilo/docs/betting_agent_tool_matrix.md").read_text(encoding="utf-8")
+    matrix = (ROOT / ".kilo/docs/betting_agent_tool_matrix.md").read_text(
+        encoding="utf-8"
+    )
     expected_rows = (
-        "| `bet-executor` | allow | deny | deny | allow | exactly six partner agents; wildcard deny |",
+        "| `bet-executor` | allow | deny | deny | allow | "
+        "exactly six partner agents; wildcard deny |",
         "| `bet-researcher` | deny | allow | allow | allow | deny |",
         "| `bet-modeler` | deny | allow | deny | allow | deny |",
         "| `bet-risk-gatekeeper` | deny | allow | allow | allow | deny |",

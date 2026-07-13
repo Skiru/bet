@@ -2,7 +2,7 @@ import json
 from pathlib import Path
 
 def test_pass_c_summary_preserved_and_fail_closed():
-    path = Path("reports/multisport_foundation/pass_c/pass_c_summary.json")
+    path = Path("tests/fixtures/multisport_foundation/pass_c/pass_c_summary.json")
     assert path.is_file()
     
     data = json.loads(path.read_text(encoding="utf-8"))

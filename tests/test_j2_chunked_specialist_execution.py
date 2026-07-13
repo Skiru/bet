@@ -11,8 +11,8 @@ ROOT = Path(__file__).resolve().parents[1]
 def test_chunk_contract_exists() -> None:
     """Verify chunk contract files exist and are populated."""
     doc_path = ROOT / "docs" / "pipeline" / "J2 Chunked Specialist Execution Contract.md"
-    art_path = ROOT / ".kilo" / "artifacts" / "j2_chunked_specialist_execution_contract.md"
-    json_path = ROOT / ".kilo" / "artifacts" / "j2_chunked_specialist_execution_contract.json"
+    art_path = ROOT / "tests" / "fixtures" / "j2_chunked_specialist_execution_contract.md"
+    json_path = ROOT / "tests" / "fixtures" / "j2_chunked_specialist_execution_contract.json"
 
     assert doc_path.is_file(), f"Missing {doc_path}"
     assert art_path.is_file(), f"Missing {art_path}"
@@ -55,7 +55,7 @@ def test_final_outputs_not_used_as_chunk_inputs() -> None:
 
 def test_stale_blocked_outputs_are_quarantined() -> None:
     """Verify quarantine folders are defined in the J2 chunk contract metadata."""
-    json_path = ROOT / ".kilo" / "artifacts" / "j2_chunked_specialist_execution_contract.json"
+    json_path = ROOT / "tests" / "fixtures" / "j2_chunked_specialist_execution_contract.json"
     with open(json_path, "r", encoding="utf-8") as f:
         data = json.load(f)
     assert "quarantine_folder_pattern" in data
@@ -64,7 +64,7 @@ def test_stale_blocked_outputs_are_quarantined() -> None:
 def test_chunks_have_max_20_events() -> None:
     """Verify that produced chunk files never exceed 20 events."""
     run_id = "TODAY_ORCHESTRATED_SESSION_J1_SCANNER_SCOUT_20260701_105101"
-    run_dir = ROOT / "reports" / "pipeline_runs" / run_id
+    run_dir = ROOT / "tests" / "fixtures" / "pipeline_runs" / run_id
 
     # Check if files are prepared (if prepared)
     chunk_files = ["j2_chunk_football.json", "j2_chunk_tennis_1.json", "j2_chunk_tennis_2.json"]
@@ -79,7 +79,7 @@ def test_chunks_have_max_20_events() -> None:
 def test_football_chunk_present() -> None:
     """Verify football chunk exists and is structurally correct."""
     run_id = "TODAY_ORCHESTRATED_SESSION_J1_SCANNER_SCOUT_20260701_105101"
-    run_dir = ROOT / "reports" / "pipeline_runs" / run_id
+    run_dir = ROOT / "tests" / "fixtures" / "pipeline_runs" / run_id
     football_chunk = run_dir / "j2_chunk_football.json"
 
     if football_chunk.is_file():
@@ -92,7 +92,7 @@ def test_football_chunk_present() -> None:
 def test_tennis_chunks_present() -> None:
     """Verify tennis chunks exist and are structurally correct."""
     run_id = "TODAY_ORCHESTRATED_SESSION_J1_SCANNER_SCOUT_20260701_105101"
-    run_dir = ROOT / "reports" / "pipeline_runs" / run_id
+    run_dir = ROOT / "tests" / "fixtures" / "pipeline_runs" / run_id
     tennis_1 = run_dir / "j2_chunk_tennis_1.json"
     tennis_2 = run_dir / "j2_chunk_tennis_2.json"
 

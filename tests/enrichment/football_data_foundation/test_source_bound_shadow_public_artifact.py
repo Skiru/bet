@@ -247,7 +247,7 @@ def test_req_test_014_verifier_result_includes_final_public_truth_fields(tmp_pat
 def test_req_test_015_network_blocked_runner(tmp_path: Path) -> None:
     # REQ-TEST-015 network-blocked runner test still passes.
     result = run_source_bound_shadow_enrichment(
-        project_root=Path("."),
+        project_root=Path("tests/fixtures"),
         output_root=tmp_path / "reports/football_data_foundation/source_bound_shadow/worldcup2026_norway_senegal",
         fixture_slug="worldcup2026-norway-senegal",
     )

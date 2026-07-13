@@ -22,7 +22,6 @@ NORMALIZATION_CASES = (
     ("S3", s3_stats, "s3_stats.py", ["deep_stats_report.py"], "insufficient data for stats generation", "BLOCKED_STATS_GENERATION_INSUFFICIENT_DATA"),
     ("S6", s6_repeats, "s6_repeats.py", ["check_48h_repeats.py"], "repeat signal conflict detected", "BLOCKED_REPEAT_SIGNAL_CONFLICT"),
     ("S7", s5_gate, "s5_gate.py", ["gate_checker.py"], "gate failed after hard approval review", "BLOCKED_HARD_APPROVAL_GATE"),
-    ("S7b", s7_validate, "s7_validate.py", ["validate_betclic_markets.py"], "manual verification required before Betclic validation", "BLOCKED_BETCLIC_MARKET_BOUNDARY"),
     ("S8", s8_build_coupons, "s8_build_coupons.py", ["coupon_builder.py"], "coupon blocked by construction guard", "BLOCKED_COUPON_CONSTRUCTION_GUARD"),
 )
 

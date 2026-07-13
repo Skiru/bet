@@ -1,1 +1,0 @@
-Evaluate data completeness and source health by sport/candidate. Select the next bounded fallback layer only. Stop after two identical failures. Return coverage metrics, missing fields, evidence paths and next action.

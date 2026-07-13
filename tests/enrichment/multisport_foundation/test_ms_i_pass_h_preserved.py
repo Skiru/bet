@@ -8,8 +8,8 @@ from bet.enrichment.multisport_foundation import (
 )
 
 def test_pass_h_reports_exist_and_unchanged():
-    pass_h_summary_path = Path("reports/multisport_foundation/pass_h/pass_h_summary.json")
-    provider_access_path = Path("reports/multisport_foundation/pass_h/provider_access_by_sport.json")
+    pass_h_summary_path = Path("tests/fixtures/multisport_foundation/pass_h/pass_h_summary.json")
+    provider_access_path = Path("tests/fixtures/multisport_foundation/pass_h/provider_access_by_sport.json")
     
     assert pass_h_summary_path.exists()
     assert provider_access_path.exists()

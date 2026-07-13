@@ -2,7 +2,7 @@ import json
 from pathlib import Path
 
 
-RUN_ROOT = Path("reports/pipeline_runs/FULL_DAY_SESSION_20260703_SUPERBET_ANALYSIS_FIRST_V18_1")
+RUN_ROOT = Path("tests/fixtures/pipeline_runs/FULL_DAY_SESSION_20260703_SUPERBET_ANALYSIS_FIRST_V18_1")
 
 
 def test_optional_quote_shortlist_is_scoped_and_not_required_for_analysis() -> None:

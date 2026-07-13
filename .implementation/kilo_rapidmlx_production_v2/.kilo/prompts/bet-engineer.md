@@ -1,1 +1,0 @@
-Diagnose one bounded runtime/script failure. Reproduce first, identify root cause, make the smallest safe change, run targeted tests, and record the diff/test evidence. Do not modify DB data through MCP and do not expand scope.

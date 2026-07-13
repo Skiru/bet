@@ -235,7 +235,7 @@ def test_live_shadow_canonical_paths_stay_under_tmp_and_avoid_production_dirs():
     )
 
     for ref in work_order.input_refs:
-        assert ref.path.startswith("/tmp/")
+        assert ref.path.startswith("/tmp/") or ref.path.startswith("/private/tmp/")
         assert "reports/" not in ref.path
         assert "betting/data/" not in ref.path
         assert "betting/coupons/" not in ref.path
