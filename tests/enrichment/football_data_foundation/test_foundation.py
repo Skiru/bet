@@ -61,13 +61,9 @@ from bet.integration.source_result import SourceOperationResult, SourceResultSta
 REPO_ROOT = Path(__file__).resolve().parents[3]
 ROUTING_PATH = REPO_ROOT / "config/football_routing.yaml"
 CAPABILITY_MATRIX_PATH = REPO_ROOT / "config/provider_capability_matrix.json"
-REPORT_PATH = REPO_ROOT / "reports/football_data_foundation/source_matrix.json"
-SUMMARY_PATH = REPO_ROOT / "reports/football_data_foundation/capability_summary.json"
-ACTIVE_PROFILE_ROOT = (
-    REPO_ROOT
-    / "reports/football_data_foundation/active_enrichment_profiles/world-cup-2026"
-)
 FIXTURE_ROOT = REPO_ROOT / "tests/fixtures/football_data_foundation"
+REPORT_PATH = FIXTURE_ROOT / "foundation_source_matrix.json"
+SUMMARY_PATH = FIXTURE_ROOT / "foundation_capability_summary.json"
 
 SOURCE_MATRIX = json.loads(REPORT_PATH.read_text(encoding="utf-8"))
 SOURCE_INDEX = {entry["source_id"]: entry for entry in SOURCE_MATRIX["sources"]}
@@ -264,7 +260,7 @@ def test_active_certified_tuples_require_real_provider_identity_and_capabilities
     None
 ):
     payload = json.loads(
-        (ACTIVE_PROFILE_ROOT / "active_certified_tuples.json").read_text(
+        (FIXTURE_ROOT / "foundation_active_certified_tuples.json").read_text(
             encoding="utf-8"
         )
     )
@@ -286,7 +282,7 @@ def test_active_certified_tuples_require_real_provider_identity_and_capabilities
 
 def test_schema_activation_reports_fail_closed_for_matrix_and_routing() -> None:
     payload = json.loads(
-        (ACTIVE_PROFILE_ROOT / "schema_activation_decision.json").read_text(
+        (FIXTURE_ROOT / "foundation_schema_activation_decision.json").read_text(
             encoding="utf-8"
         )
     )

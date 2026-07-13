@@ -1,9 +1,0 @@
-{
-  "preferred_strategy_applied": "INHERIT_PARENT_MODEL_STRATEGY",
-  "final_strategy_status": "BLOCK",
-  "custom_model_registration_needed": false,
-  "orchestrator_model": "google-vertex/gemini-3.5-flash-flex-high",
-  "specialist_overrides_removed": true,
-  "blocking_reason": "live_subagent_smokes_still_fail_with_provider_model_not_found_after_merged_config_reflects_inheritance",
-  "suspected_runtime_root_cause": "STALE_UI_MODEL_SELECTION"
-}

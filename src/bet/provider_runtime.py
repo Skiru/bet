@@ -11,18 +11,24 @@ from typing import Any, Callable
 class ProviderState(str, Enum):
     SUCCESS = "SUCCESS"
     NO_EVENTS = "NO_EVENTS"
-    TIMEOUT = "TIMEOUT"
+    NO_DATA = "NO_DATA"
+    PARTIAL = "PARTIAL"
     RATE_LIMITED = "RATE_LIMITED"
-    AUTH_ERROR = "AUTH_ERROR"
-    PARSE_ERROR = "PARSE_ERROR"
+    AUTH_BLOCKED = "AUTH_BLOCKED"
+    NETWORK_TIMEOUT = "NETWORK_TIMEOUT"
+    PARSER_ERROR = "PARSER_ERROR"
+    SCHEMA_ERROR = "SCHEMA_ERROR"
     STALE_CACHE = "STALE_CACHE"
-    TRANSPORT_ERROR = "TRANSPORT_ERROR"
+    TERMS_BLOCKED = "TERMS_BLOCKED"
+    UNSUPPORTED = "UNSUPPORTED"
+    DEPENDENCY_MISSING = "DEPENDENCY_MISSING"
 
 
 class ProviderFailure(RuntimeError):
-    def __init__(self, state: ProviderState):
+    def __init__(self, state: ProviderState, *, retry_after_seconds: float | None = None):
         super().__init__(state.value)
         self.state = state
+        self.retry_after_seconds = retry_after_seconds
 
 
 @dataclass(frozen=True)
@@ -56,41 +62,58 @@ class ProviderResult:
         return self.state in {ProviderState.SUCCESS, ProviderState.NO_EVENTS}
 
 
-RETRYABLE = {ProviderState.TIMEOUT, ProviderState.RATE_LIMITED, ProviderState.TRANSPORT_ERROR}
+RETRYABLE = {ProviderState.NETWORK_TIMEOUT, ProviderState.RATE_LIMITED}
 
 
-def execute_provider_call(call: Callable[[], Any], policy: ProviderPolicy) -> ProviderResult:
+def execute_provider_call(
+    call: Callable[[], Any],
+    policy: ProviderPolicy,
+    *,
+    idempotent: bool = True,
+) -> ProviderResult:
     """Execute a provider call under a total deadline; never converts failure to NO_EVENTS."""
     deadline = time.monotonic() + policy.total_timeout_seconds
     for attempt in range(1, policy.retries + 2):
         remaining = deadline - time.monotonic()
         if remaining <= 0:
-            return ProviderResult(ProviderState.TIMEOUT, attempts=attempt, error_class="TotalDeadlineExceeded")
+            return ProviderResult(
+                ProviderState.NETWORK_TIMEOUT,
+                attempts=attempt,
+                error_class="TotalDeadlineExceeded",
+            )
         pool = ThreadPoolExecutor(max_workers=1)
         try:
             value = pool.submit(call).result(timeout=remaining)
             if value is None:
-                raise ProviderFailure(ProviderState.PARSE_ERROR)
+                raise ProviderFailure(ProviderState.PARSER_ERROR)
             if isinstance(value, (list, tuple, dict)) and len(value) == 0:
                 return ProviderResult(ProviderState.NO_EVENTS, data=value, attempts=attempt)
             return ProviderResult(ProviderState.SUCCESS, data=value, attempts=attempt)
         except FutureTimeout:
-            state = ProviderState.TIMEOUT
+            state = ProviderState.NETWORK_TIMEOUT
             error_class = "TotalDeadlineExceeded"
+            retry_after = None
         except ProviderFailure as exc:
             state = exc.state
             error_class = exc.__class__.__name__
+            retry_after = exc.retry_after_seconds
         except (ValueError, TypeError, KeyError, UnicodeError) as exc:
-            state = ProviderState.PARSE_ERROR
+            state = ProviderState.PARSER_ERROR
             error_class = exc.__class__.__name__
+            retry_after = None
         except Exception as exc:  # Provider adapters normalize library-specific transport exceptions here.
-            state = ProviderState.TRANSPORT_ERROR
+            state = ProviderState.NETWORK_TIMEOUT
             error_class = exc.__class__.__name__
+            retry_after = None
         finally:
             pool.shutdown(wait=False, cancel_futures=True)
-        if state not in RETRYABLE or attempt > policy.retries:
+        if state not in RETRYABLE or attempt > policy.retries or not idempotent:
             return ProviderResult(state, attempts=attempt, error_class=error_class)
-        delay = min(policy.backoff_seconds * (2 ** (attempt - 1)), max(0.0, deadline - time.monotonic()))
+        backoff = policy.backoff_seconds * (2 ** (attempt - 1))
+        delay = min(
+            max(backoff, retry_after or 0.0),
+            max(0.0, deadline - time.monotonic()),
+        )
         if delay:
             time.sleep(delay)
     raise AssertionError("bounded provider loop exhausted unexpectedly")

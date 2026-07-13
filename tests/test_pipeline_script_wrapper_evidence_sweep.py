@@ -20,7 +20,6 @@ from scripts.pipeline_steps import s3_stats
 from scripts.pipeline_steps import s4_valuator
 from scripts.pipeline_steps import s5_gate
 from scripts.pipeline_steps import s6_repeats
-from scripts.pipeline_steps import s7_validate
 from scripts.pipeline_steps import s8_build_coupons
 
 
@@ -59,15 +58,6 @@ WRAPPER_CASES = (
         "run_patch": "scripts.pipeline_steps._script_evidence.run_scripts",
         "expected_scripts": ["gate_checker.py"],
         "block_token": "BLOCKED_HARD_APPROVAL_GATE",
-        "no_pick": True,
-    },
-    {
-        "step_id": "S7b",
-        "module": s7_validate,
-        "argv0": "s7_validate.py",
-        "run_patch": "scripts.pipeline_steps._script_evidence.run_scripts",
-        "expected_scripts": ["validate_betclic_markets.py"],
-        "block_token": "BLOCKED_MARKET_AVAILABILITY_MISSING",
         "no_pick": True,
     },
     {

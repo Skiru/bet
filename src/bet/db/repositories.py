@@ -1473,7 +1473,7 @@ class CouponRepo:
         cur = self.conn.execute(
             "INSERT INTO coupons "
             "(coupon_id, coupon_type, total_odds, stake_pln, status, pnl_pln, "
-            "placed_at, settled_at, betclic_ref, version, created_at) "
+            "placed_at, settled_at, operator_ref, version, created_at) "
             "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 coupon.coupon_id,
@@ -1484,7 +1484,7 @@ class CouponRepo:
                 coupon.pnl_pln,
                 coupon.placed_at or None,
                 coupon.settled_at or None,
-                coupon.betclic_ref or None,
+                coupon.operator_ref or None,
                 coupon.version,
                 coupon.created_at or _now(),
             ),
@@ -1562,7 +1562,7 @@ class CouponRepo:
             pnl_pln=row["pnl_pln"],
             placed_at=row["placed_at"] or "",
             settled_at=row["settled_at"] or "",
-            betclic_ref=row["betclic_ref"] or "",
+            operator_ref=row["operator_ref"] or "",
             version=row["version"],
             created_at=row["created_at"],
         )

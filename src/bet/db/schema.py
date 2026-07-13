@@ -6,7 +6,7 @@ import sqlite3
 from pathlib import Path
 
 SCHEMA_SQL = Path(__file__).parent / "schema.sql"
-SCHEMA_VERSION = 20
+SCHEMA_VERSION = 21
 
 
 def init_db(conn: sqlite3.Connection) -> None:
@@ -239,9 +239,28 @@ def migrate(conn: sqlite3.Connection, from_version: int, to_version: int) -> Non
     if from_version < 20 and to_version >= 20:
         _migrate_v20_football_history_engine(conn)
 
+    if from_version < 21 and to_version >= 21:
+        _migrate_v21_retired_operator_schema(conn)
+
 
     _set_schema_version(conn, to_version)
     conn.commit()
+
+
+def _migrate_v21_retired_operator_schema(conn: sqlite3.Connection) -> None:
+    """Remove retired operator objects while preserving generic coupon references."""
+    conn.execute("SAVEPOINT migrate_v21")
+    try:
+        conn.execute("DROP TABLE IF EXISTS betclic_markets")
+        conn.execute("DROP TABLE IF EXISTS betclic_competition_profiles")
+        coupon_columns = _table_columns(conn, "coupons")
+        if "betclic_ref" in coupon_columns and "operator_ref" not in coupon_columns:
+            conn.execute("ALTER TABLE coupons RENAME COLUMN betclic_ref TO operator_ref")
+        conn.execute("RELEASE SAVEPOINT migrate_v21")
+    except Exception:
+        conn.execute("ROLLBACK TO SAVEPOINT migrate_v21")
+        conn.execute("RELEASE SAVEPOINT migrate_v21")
+        raise
 
 
 def _set_schema_version(conn: sqlite3.Connection, version: int) -> None:

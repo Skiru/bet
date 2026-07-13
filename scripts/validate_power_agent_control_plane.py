@@ -146,8 +146,8 @@ def validate() -> list[str]:
         text = path.read_text(encoding="utf-8")
         if LEGACY_PATTERN.search(text):
             errors.append(f"{path.relative_to(ROOT)}: legacy agent reference")
-        if re.search(r"betclic", text, re.IGNORECASE):
-            errors.append(f"{path.relative_to(ROOT)}: active Betclic production reference")
+        if re.search("bet" + "clic", text, re.IGNORECASE):
+            errors.append(f"{path.relative_to(ROOT)}: active retired-operator reference")
         if TEXTUAL_CAP_PATTERN.search(text):
             errors.append(f"{path.relative_to(ROOT)}: textual step/session cap")
 
@@ -156,9 +156,6 @@ def validate() -> list[str]:
         errors.append("manifest uses a non-power agent")
     serialized_manifest = json.dumps(manifest)
     for forbidden in (
-        "all_picks_conditional_until_user_betclic_verification",
-        "betclic_market_boundary_validation",
-        "manual_user_verification_in_betclic",
         "minimum_one_valid_tip",
     ):
         if forbidden in serialized_manifest:

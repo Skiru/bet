@@ -1,9 +1,0 @@
-{
-  "summary_class": "ProviderCertificationSummary",
-  "function": "summarize_shadow_certification",
-  "rules": {
-    "selectable_for_production": false,
-    "manual_authorization_required": true,
-    "experimental_deferred_sources_eligible": false
-  }
-}

@@ -4,7 +4,13 @@ import sqlite3
 import pytest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
-from bet.db.connection import retry_on_lock
+from bet.db.connection import (
+    BUSY_TIMEOUT_MS,
+    DatabaseInfrastructureError,
+    get_db,
+    get_readonly_db,
+    retry_on_lock,
+)
 
 
 class TestRetryOnLock:
@@ -64,7 +70,27 @@ class TestRetryOnLock:
 
 
 class TestBusyTimeout:
-    def test_busy_timeout_is_30s(self):
-        """Verify busy_timeout is set to 30000ms (30 seconds)."""
-        source = (Path(__file__).parent.parent / "src" / "bet" / "db" / "connection.py").read_text()
-        assert "busy_timeout = 30000" in source
+    def test_busy_timeout_is_30s(self, tmp_path: Path):
+        with get_db(tmp_path / "timeout.sqlite") as conn:
+            assert conn.execute("PRAGMA busy_timeout").fetchone()[0] == BUSY_TIMEOUT_MS
+
+
+def test_database_path_is_required_without_explicit_configuration(monkeypatch):
+    monkeypatch.delenv("BET_DB_PATH", raising=False)
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+
+    with pytest.raises(DatabaseInfrastructureError) as exc_info:
+        with get_db():
+            pass
+
+    assert exc_info.value.code == "DB_PATH_REQUIRED"
+
+
+def test_read_only_connection_rejects_mutation(tmp_path: Path):
+    path = tmp_path / "readonly.sqlite"
+    with get_db(path) as conn:
+        conn.execute("CREATE TABLE sample (id INTEGER PRIMARY KEY)")
+
+    with get_readonly_db(path) as conn:
+        with pytest.raises(sqlite3.OperationalError):
+            conn.execute("INSERT INTO sample DEFAULT VALUES")

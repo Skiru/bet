@@ -213,9 +213,6 @@ PREFERRED_BOOKMAKERS = [
     "superbet",
     "superbet_pl",
     "superbet-pl",
-    "betclic_fr",
-    "betclic",
-    "betclic_pl",
     "bet365",
     "pinnacle",
     "unibet",
@@ -224,10 +221,10 @@ PREFERRED_BOOKMAKERS = [
 
 # Sport → ordered list of source names to try
 SPORT_SOURCE_PRIORITY = {
-    "football": ["oddspapi", "the-odds-api-betclic", "odds-api-io", "the-odds-api", "api-football-odds"],
-    "tennis": ["oddspapi", "the-odds-api-betclic", "odds-api-io", "the-odds-api"],
-    "basketball": ["oddspapi", "the-odds-api-betclic", "odds-api-io", "the-odds-api"],
-    "hockey": ["oddspapi", "the-odds-api-betclic", "odds-api-io", "the-odds-api"],
+    "football": ["oddspapi", "odds-api-io", "the-odds-api", "api-football-odds"],
+    "tennis": ["oddspapi", "odds-api-io", "the-odds-api"],
+    "basketball": ["oddspapi", "odds-api-io", "the-odds-api"],
+    "hockey": ["oddspapi", "odds-api-io", "the-odds-api"],
     "volleyball": ["oddspapi", "odds-api-io"],
     "cs2": ["oddspapi", "odds-api-io"],
     "dota2": ["oddspapi", "odds-api-io"],

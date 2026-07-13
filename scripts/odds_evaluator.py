@@ -681,14 +681,13 @@ def _relevant_market_keys(market_name: str) -> set[str]:
 def _inject_ev_from_odds(candidates: list[dict], date: str):
     """Compute and inject EV into candidates using odds API snapshots.
 
-    Sources: SQLite DB (odds_history — Betclic PL, Bet365, multi-bookmaker)
+    Sources: SQLite odds history and configured provider snapshots.
     + the-odds-api (odds_api_snapshot.json) + odds-api.io (odds_api_io_snapshot.json).
     EV = (probability × odds) - 1. If no odds snapshot exists, candidates
     keep ev=None and the gate handles it gracefully (stats-first mode).
 
     The odds_lookup stores:  key = "home|away" -> {
         "market_best": float,   # best ML/totals odds from any bookmaker
-        "betclic": float|None,  # Betclic PL odds specifically
         "bet365": float|None,   # Bet365 odds
         "totals": [{line, over, under, bookmaker}],  # totals lines
     }
@@ -697,7 +696,7 @@ def _inject_ev_from_odds(candidates: list[dict], date: str):
 
     def _ensure_entry(key: str) -> dict:
         if key not in odds_lookup:
-            odds_lookup[key] = {"market_best": 0, "betclic": None, "bet365": None, "totals": []}
+            odds_lookup[key] = {"market_best": 0, "bet365": None, "totals": []}
         return odds_lookup[key]
 
     # Market keys that represent totals/over-under data (loaded into entry["totals"])
@@ -713,7 +712,7 @@ def _inject_ev_from_odds(candidates: list[dict], date: str):
         "threes_made_o/u", "total_points",
     })
 
-    # Source 0: SQLite DB (richest source — Betclic PL + Bet365 + 10+ bookmakers)
+    # Source 0: SQLite DB with normalized multi-bookmaker observations.
     db_path = DATA_DIR / "betting.db"
     if db_path.exists():
         try:
@@ -744,7 +743,6 @@ def _inject_ev_from_odds(candidates: list[dict], date: str):
                 entry = _ensure_entry(key)
 
                 bk_lower = (bookmaker or "").lower()
-                is_betclic = "betclic" in bk_lower
                 is_bet365 = "bet365" in bk_lower
 
                 if market in ("h2h", "ml"):
@@ -754,10 +752,6 @@ def _inject_ev_from_odds(candidates: list[dict], date: str):
                     sel_lower = (selection or "").lower()
                     if sel_lower in ("draw", "x"):
                         pass  # Skip draw for per-bookmaker tracking
-                    elif is_betclic:
-                        prev_betclic = entry.get("betclic") or 0
-                        if odds_val and odds_val > prev_betclic:
-                            entry["betclic"] = float(odds_val)
                     elif is_bet365:
                         prev_bet365 = entry.get("bet365") or 0
                         if odds_val and odds_val > prev_bet365:
@@ -784,7 +778,7 @@ def _inject_ev_from_odds(candidates: list[dict], date: str):
                             new_tl[sel_lower] = float(odds_val)
                             entry["totals"].append(new_tl)
 
-                    # Format 2: Betclic/Bet365 interleaved hdp/over/under (no line column)
+                    # Format 2: interleaved hdp/over/under rows without a line column.
                     else:
                         buf_key = f"{key}|{bookmaker}|{market}"
                         if buf_key not in totals_buffer:
@@ -859,7 +853,6 @@ def _inject_ev_from_odds(candidates: list[dict], date: str):
                 # Parse bookmakers array (raw the-odds-api format)
                 for bm in event.get("bookmakers") or []:
                     bk_title = (bm.get("title") or bm.get("key") or "").lower()
-                    is_betclic = "betclic" in bk_title
                     is_bet365 = "bet365" in bk_title
                     for mkt in bm.get("markets") or []:
                         mkt_key = (mkt.get("key") or "").lower()
@@ -873,11 +866,7 @@ def _inject_ev_from_odds(candidates: list[dict], date: str):
                                 side = (outcome.get("name") or "").lower()
                                 if side in ("draw", "x"):
                                     continue
-                                if is_betclic:
-                                    prev = entry.get("betclic") or 0
-                                    if price > prev:
-                                        entry["betclic"] = float(price)
-                                elif is_bet365:
+                                if is_bet365:
                                     prev = entry.get("bet365") or 0
                                     if price > prev:
                                         entry["bet365"] = float(price)
@@ -1049,12 +1038,11 @@ def _inject_ev_from_odds(candidates: list[dict], date: str):
             mock_price = round(random.uniform(1.85, 2.20), 2)
             entry = {
                 "market_best": mock_price,
-                "betclic": mock_price,
                 "bet365": mock_price,
                 "totals": [
                     {
                         "line": float(best_market.get("line") or 0.0) if best_market else 0.0,
-                        "bookmaker": "Betclic",
+                        "bookmaker": "TEST_ONLY",
                         "over": mock_price,
                         "under": mock_price,
                         "market_key": "totals",
@@ -1063,20 +1051,16 @@ def _inject_ev_from_odds(candidates: list[dict], date: str):
             }
             odds_lookup[key] = entry
 
-        # Determine which odds to use: Betclic first, then Bet365, then market_best
+        # Use the best normalized quote; provider-specific values are advisory only.
         use_odds = None
         if entry:
-            betclic_odds = entry.get("betclic")
             bet365_odds = entry.get("bet365")
             market_best = entry.get("market_best", 0)
-            use_odds = betclic_odds or bet365_odds or (market_best if market_best > 1.0 else None)
+            use_odds = market_best if market_best > 1.0 else bet365_odds
 
             if use_odds:
                 c.setdefault("odds", {})["market_best"] = use_odds
-                if betclic_odds:
-                    c["odds"]["betclic"] = betclic_odds
-                    c["odds_source"] = "betclic"
-                elif bet365_odds:
+                if bet365_odds:
                     c["odds"]["bet365"] = bet365_odds
                     c["odds_source"] = "api"
                 else:
@@ -1086,7 +1070,7 @@ def _inject_ev_from_odds(candidates: list[dict], date: str):
                 if os.environ.get("BET_MOCK_ODDS") or os.environ.get("BET_PIPELINE_SKIP_FETCH"):
                     c["odds_as_of"] = c.get("probability_as_of") or "2026-07-10T10:00:00+00:00"
                     c["odds_captured_at_utc"] = c["odds_as_of"]
-                    c["odds_source"] = "betclic"
+                    c["odds_source"] = "TEST_ONLY_MOCK_ODDS"
 
             if entry.get("totals"):
                 c.setdefault("odds", {})["totals"] = entry["totals"]
@@ -1380,7 +1364,7 @@ def run_odds_eval(
                             odds_data = c.get("odds", {})
                             if odds_data:
                                 summary["odds_market_best"] = odds_data.get("market_best")
-                                summary["odds_betclic"] = odds_data.get("betclic")
+                                summary["odds_market_best"] = odds_data.get("market_best")
                             repo.update_stats_summary(fid, date, summary)
                             updated += 1
                         elif fid is None:

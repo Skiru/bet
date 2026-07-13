@@ -295,7 +295,7 @@ DIRECTION_PL: dict[str, str] = {
 
 def rank_candidates(
     candidates: list,
-    betclic_history: dict[str, float] | None = None,
+    historical_results: dict[str, float] | None = None,
     config=None,
 ) -> list:
     """Rank all market candidates across all fixtures.
@@ -306,10 +306,10 @@ def rank_candidates(
     3. UNDER direction preference (UNDER before OVER at same safety)
     4. EV if odds available (descending)
 
-    Betclic history hit rates are attached as advisory data (NEVER used for rejection).
+    Historical hit rates are advisory data and are never used for rejection.
     """
-    if betclic_history:
-        attach_betclic_history(candidates, betclic_history)
+    if historical_results:
+        attach_historical_results(candidates, historical_results)
 
     candidates.sort(
         key=lambda c: (
@@ -374,20 +374,19 @@ def quality_checks(candidate, db_conn) -> list[str]:
     return failed
 
 
-def attach_betclic_history(candidates: list, betclic_data) -> None:
-    """Attach betclic_hit_rate to each candidate (ADVISORY ONLY, never rejects).
+def attach_historical_results(candidates: list, historical_data) -> None:
+    """Attach historical hit rates to candidates as non-rejection metadata.
 
-    betclic_data: dict mapping "sport×market" → hit_rate float,
-                  or a DB connection to query from bets table.
+    ``historical_data`` is either a ``sport×market`` mapping or a DB connection.
     """
-    if isinstance(betclic_data, dict):
+    if isinstance(historical_data, dict):
         for c in candidates:
             key = f"{c.sport_name}×{c.market_name}"
-            c.betclic_hit_rate = betclic_data.get(key)
-    elif betclic_data is not None:
+            c.historical_hit_rate = historical_data.get(key)
+    elif historical_data is not None:
         # Assume it's a DB connection — query historical hit rates
         try:
-            rows = betclic_data.execute(
+            rows = historical_data.execute(
                 "SELECT sport, market, "
                 "CAST(SUM(CASE WHEN status = 'won' THEN 1 ELSE 0 END) AS REAL) / "
                 "COUNT(*) AS hit_rate "
@@ -397,7 +396,7 @@ def attach_betclic_history(candidates: list, betclic_data) -> None:
             history = {f"{r['sport']}×{r['market']}": r["hit_rate"] for r in rows}
             for c in candidates:
                 key = f"{c.sport_name}×{c.market_name}"
-                c.betclic_hit_rate = history.get(key)
+                c.historical_hit_rate = history.get(key)
         except Exception:
             pass
 

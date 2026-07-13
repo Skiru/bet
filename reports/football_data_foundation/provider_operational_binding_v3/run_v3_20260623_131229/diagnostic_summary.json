@@ -1,9 +1,0 @@
-{
-  "failed_requirements": [],
-  "highlightly_match_id_found": "yes",
-  "highlightly_verdict": "HIGHLIGHTLY_MATCH_FOUND",
-  "run_id": "run_v3_20260623_131229",
-  "sportdb_event_id_found": "yes",
-  "sportdb_verdict": "SPORTDB_DETAIL_FETCHED",
-  "verifier_verdict": "PASS"
-}

@@ -93,7 +93,7 @@ Every betting specialist returns only: `STATUS`, `DECISION`, `EVIDENCE`, `CALCUL
 - Never invent odds, fixtures, teams, markets, injuries, statistics, lineups, consensus, or model outputs.
 - Material external facts should use two independent current sources when available; unresolved conflicts invoke `bet-reconciler`.
 - `bet-test-engineer` must return `PASS` before a phase completes.
-- All picks remain conditional until the user verifies the exact market and odds in Betclic.
+- All picks remain conditional until the user enters the exact visible Superbet quote.
 
 # Repository and command safety
 

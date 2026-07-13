@@ -110,14 +110,13 @@ def test_s7b_rejects_cross_run_output_and_duplicate_candidates(tmp_path: Path):
     assert _run(duplicate_env) == 5
 
 
-# Preserve historical node IDs while proving the stricter replacement contract.
-def test_validate_betclic_markets_is_blocked_by_superbet_production_boundary(tmp_path: Path):
+def test_s7b_superbet_mapping_preserves_blank_operator_fields(tmp_path: Path):
     test_s7b_maps_every_approved_candidate_once_with_blank_operator_fields(tmp_path)
 
 
-def test_validate_betclic_markets_blocks_without_live_scan_permission(tmp_path: Path):
+def test_s7b_superbet_mapping_zero_approval_is_no_action(tmp_path: Path):
     test_s7b_zero_approval_is_valid_no_action(tmp_path)
 
 
-def test_validate_betclic_markets_rejects_protected_output_path(tmp_path: Path):
+def test_s7b_superbet_mapping_rejects_cross_run_output(tmp_path: Path):
     test_s7b_rejects_cross_run_output_and_duplicate_candidates(tmp_path)

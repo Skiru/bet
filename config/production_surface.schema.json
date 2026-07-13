@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "production_surface.schema.json",
+  "title": "Bet production surface",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "$schema",
+    "schema_version",
+    "manifest",
+    "canonical_entrypoints",
+    "runtime_infrastructure",
+    "domain_and_analytics",
+    "providers",
+    "database_runtime",
+    "historical_migrations",
+    "configuration",
+    "betting_agents",
+    "betting_skills",
+    "engineering_tools",
+    "validators",
+    "tests",
+    "fixtures",
+    "documentation",
+    "generated_ignored_roots",
+    "forbidden_active_patterns",
+    "forbidden_tracked_patterns"
+  ],
+  "properties": {
+    "$schema": {"const": "production_surface.schema.json"},
+    "schema_version": {"const": 2},
+    "manifest": {"type": "string", "minLength": 1},
+    "canonical_entrypoints": {"$ref": "#/$defs/paths"},
+    "runtime_infrastructure": {"$ref": "#/$defs/paths"},
+    "domain_and_analytics": {"$ref": "#/$defs/paths"},
+    "providers": {"$ref": "#/$defs/paths"},
+    "database_runtime": {"$ref": "#/$defs/paths"},
+    "historical_migrations": {"$ref": "#/$defs/paths"},
+    "configuration": {"$ref": "#/$defs/paths"},
+    "betting_agents": {"$ref": "#/$defs/paths"},
+    "betting_skills": {"$ref": "#/$defs/paths"},
+    "engineering_tools": {"$ref": "#/$defs/paths"},
+    "validators": {"$ref": "#/$defs/paths"},
+    "tests": {"$ref": "#/$defs/paths"},
+    "fixtures": {"$ref": "#/$defs/paths"},
+    "documentation": {"$ref": "#/$defs/paths"},
+    "generated_ignored_roots": {"$ref": "#/$defs/paths"},
+    "forbidden_active_patterns": {"$ref": "#/$defs/patterns"},
+    "forbidden_tracked_patterns": {"$ref": "#/$defs/patterns"}
+  },
+  "$defs": {
+    "paths": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1}
+    },
+    "patterns": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1}
+    }
+  }
+}

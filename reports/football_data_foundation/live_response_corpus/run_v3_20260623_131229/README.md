@@ -1,4 +1,0 @@
-# Operational Capture Run: run_v3_20260623_131229
-- Date: 2026-06-23T13:12:39.082635Z
-- SportDB Verdict: SPORTDB_DETAIL_FETCHED
-- Highlightly Verdict: HIGHLIGHTLY_MATCH_FOUND

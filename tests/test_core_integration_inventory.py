@@ -25,13 +25,11 @@ EXPECTED_PATHS = {
     "scripts/settle_on_finish.py",
     "scripts/tipster_aggregator.py",
     "scripts/tipster_xref.py",
-    "scripts/validate_betclic_markets.py",
     "src/bet/pipeline/runtime_modes.py",
     "src/bet/pipeline/runtime_paths.py",
     "src/bet/pipeline/state.py",
     "src/bet/pipeline/wrapper_runtime_certification.py",
     "src/bet/api_clients/tipster_playwright.py",
-    "src/bet/scrapers/betclic.py",
     "config/pipeline_manifest.json",
 }
 
@@ -57,11 +55,11 @@ def test_stage_contracts_are_explicit():
         "api-football-odds",
         "evaluator",
     )
-    assert contract_sources_for_stage("S7b") == ("Betclic",)
+    assert contract_sources_for_stage("S7b") == ()
 
 
 def test_integrations_reviewed_matches_contracts():
     assert INTEGRATIONS_REVIEWED["S1"] == contract_sources_for_stage("S1")
     assert INTEGRATIONS_REVIEWED["S2"] == contract_sources_for_stage("S2")
     assert INTEGRATIONS_REVIEWED["S4"] == contract_sources_for_stage("S4")
-    assert INTEGRATIONS_REVIEWED["S7b"] == contract_sources_for_stage("S7b")
+    assert "S7b" not in INTEGRATIONS_REVIEWED

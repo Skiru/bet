@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from pathlib import Path
-
 import pytest
 
 from bet.pipeline.core_integration_contracts import live_integrations_allowed
@@ -11,7 +9,6 @@ from bet.pipeline.runtime_modes import LIVE_ACK_KEY, LIVE_ACK_VALUE, RuntimeMode
 from bet.pipeline.runtime_paths import build_runtime_env
 from bet.pipeline.tipster_artifacts import build_tipster_consensus_artifact
 from scripts import coupon_builder
-from bet.scrapers.betclic import parse_event_page
 
 
 def _collect_forbidden_keys(payload):
@@ -72,7 +69,7 @@ def test_s8_requires_s7_and_s7b_pass_evidence_when_runtime_managed(tmp_path, mon
         "S7b",
         status="PASS",
         payload={"total_events": 4},
-        sources=("Betclic",),
+        sources=("manual:SUPERBET",),
         evidence_refs=("s7b.json",),
     )
     control = coupon_builder._require_pre_coupon_script_evidence()
@@ -81,7 +78,7 @@ def test_s8_requires_s7_and_s7b_pass_evidence_when_runtime_managed(tmp_path, mon
 
 
 def test_non_s8_contracts_do_not_emit_coupon_artifacts():
-    assert INTEGRATIONS_REVIEWED["S7b"] == ("Betclic",)
+    assert "S7b" not in INTEGRATIONS_REVIEWED
     assert INTEGRATIONS_REVIEWED["S8"] == ("coupon-builder",)
 
 
@@ -113,14 +110,3 @@ def test_pre_gate_artifacts_do_not_emit_internal_edge_stake_coupon_fields():
         source_status_by_sport={"football": {"status": "configured"}},
     )
     assert _collect_forbidden_keys(tipster_artifact) == []
-
-
-def test_betclic_parser_is_fixture_backed():
-    fixture = Path(__file__).parent / "fixtures" / "integrations" / "betclic_event_page_template.html"
-    html = fixture.read_text(encoding="utf-8").replace("__FILLER__", '"marketName":"Pad"' * 3000)
-    info = parse_event_page(html)
-    assert info is not None
-    assert info.event_name == "Liverpool - Arsenal"
-    assert info.has_statistics_tab is True
-    assert "corners_total" in info.confirmed_market_types
-    assert "cards_total" in info.confirmed_market_types

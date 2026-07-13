@@ -29,18 +29,16 @@ CORE_INTEGRATION_INVENTORY: tuple[InventoryEntry, ...] = (
     InventoryEntry("scripts/pipeline_steps/s4_valuator.py", "S4", "valuator_wrapper"),
     InventoryEntry("scripts/pipeline_steps/s5_gate.py", "S7", "gate_wrapper"),
     InventoryEntry("scripts/pipeline_steps/s6_repeats.py", "S6", "repeat_wrapper"),
-    InventoryEntry("scripts/pipeline_steps/s7_validate.py", "S7b", "betclic_wrapper"),
+    InventoryEntry("scripts/pipeline_steps/s7_validate.py", "S7b", "superbet_manual_mapping"),
     InventoryEntry("scripts/pipeline_steps/s8_build_coupons.py", "S8", "coupon_wrapper"),
     InventoryEntry("scripts/settle_on_finish.py", "S0", "settlement_script"),
     InventoryEntry("scripts/tipster_aggregator.py", "S2", "tipster_aggregator"),
     InventoryEntry("scripts/tipster_xref.py", "S2", "tipster_cross_reference"),
-    InventoryEntry("scripts/validate_betclic_markets.py", "S7b", "market_availability_validator"),
     InventoryEntry("src/bet/pipeline/runtime_modes.py", "RUNTIME", "runtime_mode_guard"),
     InventoryEntry("src/bet/pipeline/runtime_paths.py", "RUNTIME", "sandbox_paths"),
     InventoryEntry("src/bet/pipeline/state.py", "RUNTIME", "pipeline_state"),
     InventoryEntry("src/bet/pipeline/wrapper_runtime_certification.py", "RUNTIME", "wrapper_certification"),
     InventoryEntry("src/bet/api_clients/tipster_playwright.py", "S2", "playwright_tipster_client"),
-    InventoryEntry("src/bet/scrapers/betclic.py", "S7b", "betclic_scraper"),
     InventoryEntry("config/pipeline_manifest.json", "MANIFEST", "pipeline_manifest"),
 )
 
@@ -49,7 +47,6 @@ INTEGRATIONS_REVIEWED: dict[str, tuple[str, ...]] = {
     "S1": contract_sources_for_stage("S1"),
     "S2": contract_sources_for_stage("S2"),
     "S4": contract_sources_for_stage("S4"),
-    "S7b": contract_sources_for_stage("S7b"),
     "S8": contract_sources_for_stage("S8"),
 }
 

@@ -46,27 +46,11 @@ def _venv_python() -> str:
 
 def _init_temp_db(db_path: str) -> None:
     """Initialize schema in a temp DB for dry-run subprocesses."""
-    import shutil
-    import sys
-    # Avoid copying production DB during tests to keep tests fast and isolated
-    in_pytest = "PYTEST_CURRENT_TEST" in os.environ
-    prod_db_path = ROOT / "betting" / "data" / "betting.db"
-    
-    if not in_pytest and prod_db_path.exists():
-        try:
-            shutil.copy(str(prod_db_path), db_path)
-            return
-        except Exception as e:
-            print(f"WARNING: Failed to copy production DB to {db_path}: {e}", file=sys.stderr)
+    from bet.db.connection import get_db
+    from bet.db.schema import init_db
 
-    import sqlite3
-    schema_path = ROOT / "src" / "bet" / "db" / "schema.sql"
-    if schema_path.exists():
-        conn = sqlite3.connect(db_path)
-        try:
-            conn.executescript(schema_path.read_text(encoding="utf-8"))
-        finally:
-            conn.close()
+    with get_db(db_path) as conn:
+        init_db(conn)
 
 
 def _has_runtime_path_env(env: dict[str, str]) -> bool:

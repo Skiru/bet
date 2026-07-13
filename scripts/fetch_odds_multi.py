@@ -56,7 +56,6 @@ from bet.odds_provider_access import is_odds_source_enabled, odds_source_access_
 
 _SOURCE_MODULES = {
     "oddspapi": ("odds_sources.oddspapi", "SOURCE"),
-    "the-odds-api-betclic": ("odds_sources.the_odds_api_betclic", "SOURCE"),
     "the-odds-api": ("odds_sources.the_odds_api", "SOURCE"),
     "odds-api-io": ("odds_sources.odds_api_io_source", "SOURCE"),
     "api-football-odds": ("odds_sources.api_football_odds", "SOURCE"),
@@ -85,11 +84,6 @@ def _source_gate_decision(source_name: str, source_filter: list[str] | None) -> 
     status = odds_source_access_status(source_name)
     if is_odds_source_enabled(source_name, mode="scan"):
         return True, status
-    if source_name == "the-odds-api-betclic" and _explicit_source_request(source_name, source_filter):
-        explicit_status = dict(status)
-        explicit_status["reason"] = "explicit_source_filter_requested"
-        explicit_status["mode"] = "shadow"
-        return True, explicit_status
     return False, status
 
 

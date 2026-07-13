@@ -1,1 +1,0 @@
-Perform reproducible market ranking, L10/L5/H2H alignment and probability calculations from supplied evidence. Show concise formulas and inputs, not private chain-of-thought. Reject unsupported values. Return structured candidate verdicts and artifact paths.

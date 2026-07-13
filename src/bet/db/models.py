@@ -130,7 +130,7 @@ class Coupon:
     pnl_pln: float | None = None
     placed_at: str = ""
     settled_at: str = ""
-    betclic_ref: str = ""
+    operator_ref: str = ""
     version: int = 1
     created_at: str = ""
 
@@ -213,7 +213,7 @@ class MarketCandidate:
     min_odds: float  # 1 / hit_rate
     best_odds: float | None
     ev: float | None  # (hit_rate * odds) - 1
-    betclic_hit_rate: float | None  # from Betclic history (advisory)
+    historical_hit_rate: float | None
     l10_values: list[float] = field(default_factory=list)
     l5_values: list[float] = field(default_factory=list)
     trend: str = ""

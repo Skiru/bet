@@ -12,8 +12,8 @@ from datetime import datetime, timezone
 from difflib import SequenceMatcher
 from typing import Any, Mapping
 
-SOURCE_PRIORITY = ("oddspapi", "the-odds-api-betclic", "odds-api-io", "the-odds-api", "api-football-odds")
-BOOKMAKER_PRIORITY = ("superbet", "superbet_pl", "superbet-pl", "betclic", "betclic_pl", "betclic_fr", "bet365", "pinnacle")
+SOURCE_PRIORITY = ("oddspapi", "odds-api-io", "the-odds-api", "api-football-odds")
+BOOKMAKER_PRIORITY = ("superbet", "superbet_pl", "superbet-pl", "bet365", "pinnacle")
 
 
 def normalise_token(value: Any) -> str:
