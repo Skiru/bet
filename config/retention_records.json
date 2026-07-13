@@ -518,6 +518,14 @@
     "expiry_or_review_policy": "REVIEW_ON_SCHEMA_UPGRADE"
   },
   {
+    "path": "config/retention_records.json",
+    "category": "RETAINED_ENGINEERING",
+    "owner": "Kilo",
+    "reason": "Configuration example or secondary config file",
+    "references": [],
+    "expiry_or_review_policy": "REVIEW_ON_SCHEMA_UPGRADE"
+  },
+  {
     "path": "config/scan_urls.json",
     "category": "RETAINED_ENGINEERING",
     "owner": "Kilo",
@@ -4206,6 +4214,14 @@
     "expiry_or_review_policy": "NO_EXPIRY_RETAIN_PERMANENTLY"
   },
   {
+    "path": "tests/baseline_failure_signature_ledger.json",
+    "category": "RETAINED_TEST",
+    "owner": "Kilo",
+    "reason": "Unit and integration testing of pipeline components",
+    "references": [],
+    "expiry_or_review_policy": "NO_EXPIRY_RETAIN_PERMANENTLY"
+  },
+  {
     "path": "tests/conftest.py",
     "category": "RETAINED_TEST",
     "owner": "Kilo",
@@ -7295,6 +7311,14 @@
   },
   {
     "path": "tests/test_discovery_fixture_source_duplicates.py",
+    "category": "RETAINED_TEST",
+    "owner": "Kilo",
+    "reason": "Unit and integration testing of pipeline components",
+    "references": [],
+    "expiry_or_review_policy": "NO_EXPIRY_RETAIN_PERMANENTLY"
+  },
+  {
+    "path": "tests/test_documentation_truth.py",
     "category": "RETAINED_TEST",
     "owner": "Kilo",
     "reason": "Unit and integration testing of pipeline components",
