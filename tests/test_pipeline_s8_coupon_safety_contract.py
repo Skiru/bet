@@ -95,4 +95,4 @@ def test_s8_output_path_run_scoped_contract():
         path = _s8_output_path(data_dir, "2026-06-25", mode)
         assert str(path).startswith("/tmp/run-root")
         assert "/data/" in str(path)
-        assert str(path) != "/tmp/2026-06-25_s8_coupon_drafts.json"
+        assert path.name == "2026-06-25_s8_superbet_manual_quote_pack.json"

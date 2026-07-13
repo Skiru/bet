@@ -178,7 +178,6 @@ def run_scripts(
             "fetch_odds_multi.py",
             "settle_on_finish.py",
             "tipster_aggregator.py",
-            "validate_betclic_markets.py",
         ]:
             is_live_target = True
             break

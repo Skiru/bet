@@ -458,16 +458,12 @@ def test_s8_reads_analytical_handoff_without_s7_approved_picks():
         with pytest.raises(SystemExit) as exc_info:
             s8_build_coupons.main()
 
-    assert exc_info.value.code == 0
-    output_path = data_dir / "2026-06-25_s8_coupon_drafts.json"
-    payload = json.loads(output_path.read_text(encoding="utf-8"))
-    assert payload["package_type"] == "RESEARCH_GAP_PACKAGE"
-    assert payload["ready_for_manual_operator_quote_review"] is False
-    assert Path(payload["analytical_candidate_handoff_path"]).resolve() == handoff_path.resolve()
+    assert exc_info.value.code == 5
     evidence = json.loads(_canonical_evidence_path(environ, "S8").read_text(encoding="utf-8"))
-    assert evidence["status"] == "PASS"
-    assert evidence["payload"]["package_type"] == "RESEARCH_GAP_PACKAGE"
-    assert evidence["payload"]["ready_for_manual_operator_quote_review"] is False
+    assert evidence["status"] == "BLOCK"
+    assert evidence["blocked_reasons"] == ["BLOCKED_S8_CANONICAL_S7B_INVALID"]
+    assert evidence["payload"]["ready_for_human_gate"] is False
+    assert not (data_dir / "2026-06-25_s8_coupon_drafts.json").exists()
 
 
 def test_s8_review_only_package_not_quote_ready():
@@ -509,12 +505,10 @@ def test_s8_review_only_package_not_quote_ready():
         with pytest.raises(SystemExit) as exc_info:
             s8_build_coupons.main()
 
-    assert exc_info.value.code == 0
-    output_path = data_dir / "2026-06-25_s8_coupon_drafts.json"
-    payload = json.loads(output_path.read_text(encoding="utf-8"))
-    assert payload["package_type"] == "REVIEW_ONLY_PARTIAL_DATA_PACKAGE"
-    assert payload["ready_for_manual_operator_quote_review"] is False
-    assert payload["coupon_draft_count"] == 0
+    assert exc_info.value.code == 5
+    evidence = json.loads(_canonical_evidence_path(environ, "S8").read_text(encoding="utf-8"))
+    assert evidence["status"] == "BLOCK"
+    assert evidence["payload"]["ready_for_human_gate"] is False
 
 
 def test_s7_resolution_prefers_s4_output_not_s3_when_run_root_contains_candidate_token():

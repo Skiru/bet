@@ -12,6 +12,7 @@ import pytest
 from bet.pipeline.artifact_gate import expected_s8_coupon_draft_path
 from bet.pipeline.orchestrator import Orchestrator
 from bet.pipeline.readiness_contracts import PipelineReadinessStatus
+from bet.pipeline.run_evidence import sha256_file
 
 
 @pytest.fixture
@@ -70,27 +71,36 @@ def test_bet_action_path_sandbox_certification(tmp_path: Path, sandbox_env: dict
     s7_data_path = data_dir / s7_output_filename
     s7_data_path.write_text(json.dumps(s7_payload), encoding="utf-8")
 
-    # Write validation sidecar so S8 validates market availability successfully
-    validation_filename = "betclic_market_validation_2026-06-26.json"
+    # Write the strict S7b current-run Superbet mapping consumed by S8.
+    validation_filename = "2026-06-26_s7b_superbet_manual_mapping.json"
     validation_payload = {
-        "date": "2026-06-26",
-        "validation_status": "PASS",
-        "validation": [
+        "schema_version": 1,
+        "artifact_type": "S7B_SUPERBET_MANUAL_MAPPING",
+        "status": "READY_FOR_MANUAL_MAPPING",
+        "betting_day": "2026-06-26",
+        "run_id": "s8-s9-sandbox-test",
+        "operator_workflow": "SUPERBET_MANUAL_BET_BUILDER",
+        "operator_availability_asserted": False,
+        "approved_candidate_count": 1,
+        "represented_candidate_count": 1,
+        "mapping_suggestions": [
             {
+                "quote_card_id": "quote-card-candidate-a",
+                "source_candidate_id": "candidate-a",
+                "canonical_event_id": "event-a",
                 "event": "Alpha vs Beta",
-                "market": "Goals Over 2.5",
-                "betclic_available": True,
-                "home_team": "Alpha",
-                "away_team": "Beta",
-                "sport": "football",
-                "odds": {"market_best": 1.95},
-                "best_market": {
-                    "name": "Goals Over 2.5",
-                    "direction": "OVER",
-                    "line": 2.5,
-                    "safety_score": 0.85,
-                    "probability": 0.85,
-                }
+                "requested_market": "Goals Over 2.5",
+                "requested_line": 2.5,
+                "manual_operator": "SUPERBET",
+                "mapping_ambiguity": "HUMAN_CHECK_REQUIRED",
+                "visible_operator_market_name": None,
+                "visible_operator_line": None,
+                "human_entered_decimal_quote": None,
+                "quote_as_of": None,
+                "operator_availability_asserted": False,
+                "executable_coupon": False,
+                "betting_valid": False,
+                "can_place_bet_now": False,
             }
         ]
     }
@@ -122,9 +132,10 @@ def test_bet_action_path_sandbox_certification(tmp_path: Path, sandbox_env: dict
         "betting_day": "2026-06-26",
         "run_id": "s8-s9-sandbox-test",
         "payload": {
-            "s7b_input_path": str(s7_data_path),
-            "s7b_json_output": str(val_path)
-        }
+                "s7b_input_path": str(s7_data_path),
+                "s7b_json_output": str(val_path),
+                "s7b_output_sha256": sha256_file(val_path),
+            }
     }
 
     # Write S7.json and S7b.json to both places
@@ -153,12 +164,10 @@ def test_bet_action_path_sandbox_certification(tmp_path: Path, sandbox_env: dict
     # Assert S8 PASS
     assert s8_step["status"] == "PASS"
 
-    # Assert S8 draft path exists and matches expected contents
+    # Assert the S8 quote pack is current-run scoped and non-executable.
     s8_payload = json.loads(Path(s8_step["evidence_path"]).read_text(encoding="utf-8"))["payload"]
-    draft_path = Path(s8_payload["s8_coupon_draft_path"])
-    expected_draft_path = expected_s8_coupon_draft_path(base_run_dir, "2026-06-26", "s8-s9-sandbox-test")
+    draft_path = Path(s8_payload["s8_quote_pack_path"])
     assert draft_path.exists()
-    assert draft_path.resolve() == expected_draft_path.resolve()
     assert str(draft_path.resolve()).startswith(str(base_run_dir.resolve()))
     assert "/data/" in str(draft_path)
     assert str(draft_path) != "/tmp/2026-06-26_s8_coupon_drafts.json"
@@ -166,11 +175,11 @@ def test_bet_action_path_sandbox_certification(tmp_path: Path, sandbox_env: dict
     assert s8_payload["requires_human_gate"] is True
     
     draft_data = json.loads(draft_path.read_text(encoding="utf-8"))
-    assert draft_data["artifact_type"] == "S8_COUPON_DRAFTS"
-    assert draft_data["coupon_draft_count"] > 0
+    assert draft_data["artifact_type"] == "S8_SUPERBET_MANUAL_QUOTE_PACK"
+    assert draft_data["quote_card_count"] > 0
     assert draft_data["executable_coupon"] is False
     assert draft_data["production_coupon_write"] is False
-    assert draft_data["betclic_execution_enabled"] is False
+    assert draft_data["operator_automation_enabled"] is False
 
     # Assert S9 BLOCKS waiting for human approval
     s9_step = next(s for s in summary["steps"] if s["step_id"] == "S9")

@@ -36,6 +36,15 @@
     "point_in_time_source_timestamp_required": true,
     "unknown_instead_of_guessing_required": true
   },
+  "runtime_contract": {
+    "default_timeout_seconds": 900,
+    "maximum_timeout_seconds": 3600,
+    "retry_attempts": 1,
+    "retry_backoff_seconds": 1,
+    "idempotency": "HASH_CHAINED_RUN_LEDGER",
+    "lock": "LEASE_WITH_PROCESS_START_IDENTITY",
+    "unresolved_command_request_blocks_resume": true
+  },
   "steps": [
     {
       "id": "S0",
@@ -76,16 +85,20 @@
     },
     {
       "id": "S1e",
-      "name": "Events Discovery",
+      "name": "Canonical Event Universe Ledger",
       "phase": "DATA",
       "agent": "bet-researcher",
-      "execution_mode": "state_only",
-      "output": "discovered_events",
+      "execution_mode": "script",
+      "wrapper": "scripts/pipeline_steps/s1e_event_ledger.py",
+      "canonical_script": "scripts/pipeline_steps/s1e_event_ledger.py",
+      "output": "s1e_event_universe_ledger",
       "next": [
         "S2"
       ],
       "hard_rules": [
-        "event_identity_validation"
+        "event_identity_validation",
+        "exact_s1_hash_binding",
+        "complete_identity_deduplicated_event_universe"
       ]
     },
     {
@@ -307,18 +320,19 @@
     },
     {
       "id": "S7b",
-      "name": "Market Availability Validation",
+      "name": "Superbet Manual Market Mapping",
       "phase": "ANALYSIS_BUILD",
       "agent": "bet-auditor",
       "execution_mode": "script",
       "wrapper": "scripts/pipeline_steps/s7_validate.py",
       "canonical_script": "scripts/pipeline_steps/s7_validate.py",
-      "output": "verified_market_availability",
+      "output": "s7b_superbet_manual_mapping",
       "next": [
         "S8"
       ],
       "hard_rules": [
         "superbet_manual_market_name_line_mapping_only",
+        "manual_operator_quote_fields_must_remain_empty",
         "manual_quote_required_when_operator_quote_missing",
         "no_operator_browser_automation",
         "market_name_line_mapping_required"
@@ -326,18 +340,18 @@
     },
     {
       "id": "S8",
-      "name": "Coupon Construction",
+      "name": "Superbet Manual Quote Pack",
       "phase": "ANALYSIS_BUILD",
       "agent": "bet-builder",
       "execution_mode": "script",
       "wrapper": "scripts/pipeline_steps/s8_build_coupons.py",
       "canonical_script": "scripts/pipeline_steps/s8_build_coupons.py",
-      "output": "final_coupons",
+      "output": "s8_superbet_manual_quote_pack",
       "next": [
         "S9"
       ],
       "hard_rules": [
-        "correlation_mechanics_check",
+        "quote_card_correlation_warning_required",
         "same_game_builder_correlation_check",
         "no_combined_bookmaker_odds_computation",
         "manual_quote_cards_required",
@@ -347,7 +361,7 @@
     },
     {
       "id": "S9",
-      "name": "Human Execution Gate",
+      "name": "External Human-Only Validation Gate",
       "phase": "EXECUTION",
       "agent": "bet-risk-gatekeeper",
       "execution_mode": "human_gate",

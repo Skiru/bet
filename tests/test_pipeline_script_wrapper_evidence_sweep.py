@@ -5,6 +5,7 @@ import json
 import os
 import subprocess
 import sys
+from contextlib import nullcontext
 from pathlib import Path
 from unittest.mock import MagicMock
 from unittest.mock import patch
@@ -12,6 +13,7 @@ from unittest.mock import patch
 import pytest
 
 from bet.pipeline.integration_artifacts import write_script_evidence
+from bet.pipeline.run_evidence import sha256_file
 from bet.pipeline.orchestrator import Orchestrator
 from scripts.pipeline_steps import s2_tipsters
 from scripts.pipeline_steps import s3_stats
@@ -80,12 +82,12 @@ WRAPPER_CASES = (
 )
 
 
-def _runtime_environ(step_id: str) -> dict[str, str]:
-    run_root = Path("/tmp") / f"bet-wrapper-sweep-{step_id.lower()}"
+def _runtime_environ(step_id: str, suffix: str = "") -> dict[str, str]:
+    run_root = Path("/tmp") / f"bet-wrapper-sweep-{step_id.lower()}{suffix}"
     return {
         "BET_PIPELINE_RUNTIME_MODE": "DRY_RUN",
         "BET_PIPELINE_BETTING_DAY": "2026-06-25",
-        "BET_PIPELINE_RUN_ID": f"run-{step_id.lower()}",
+        "BET_PIPELINE_RUN_ID": f"run-{step_id.lower()}{suffix}",
         "BET_PIPELINE_RUN_ROOT": str(run_root),
         "BET_PIPELINE_DATA_DIR": str(run_root / "data"),
         "BET_PIPELINE_COUPON_DIR": str(run_root / "coupons"),
@@ -152,6 +154,66 @@ def _write_s3_reports(environ: dict[str, str], *, with_data: int = 1) -> None:
     )
 
 
+def _seed_direct_wrapper_input(environ: dict[str, str], step_id: str) -> None:
+    data_dir = Path(environ["BET_PIPELINE_DATA_DIR"])
+    data_dir.mkdir(parents=True, exist_ok=True)
+    if step_id == "S7b":
+        output = data_dir / "2026-06-25_s7_gate_results.json"
+        output.write_text(
+            json.dumps({"gate_results": {"approved": [{"candidate_id": "candidate-a", "market": "Home win"}]}}),
+            encoding="utf-8",
+        )
+        evidence = _canonical_evidence_path(environ, "S7")
+        artifact_type = "SCRIPT_EVIDENCE"
+        payload = {"s7_json_output": str(output), "approved_count": 1}
+    else:
+        output = data_dir / "2026-06-25_s7b_superbet_manual_mapping.json"
+        output.write_text(
+            json.dumps({
+                "schema_version": 1,
+                "artifact_type": "S7B_SUPERBET_MANUAL_MAPPING",
+                "status": "READY_FOR_MANUAL_MAPPING",
+                "betting_day": "2026-06-25",
+                "run_id": environ["BET_PIPELINE_RUN_ID"],
+                "operator_workflow": "SUPERBET_MANUAL_BET_BUILDER",
+                "operator_availability_asserted": False,
+                "approved_candidate_count": 1,
+                "represented_candidate_count": 1,
+                "mapping_suggestions": [{
+                    "quote_card_id": "quote-card-a",
+                    "source_candidate_id": "candidate-a",
+                    "manual_operator": "SUPERBET",
+                    "mapping_ambiguity": "HUMAN_CHECK_REQUIRED",
+                    "visible_operator_market_name": None,
+                    "visible_operator_line": None,
+                    "human_entered_decimal_quote": None,
+                    "quote_as_of": None,
+                    "operator_availability_asserted": False,
+                    "executable_coupon": False,
+                    "betting_valid": False,
+                    "can_place_bet_now": False,
+                }],
+            }),
+            encoding="utf-8",
+        )
+        evidence = _canonical_evidence_path(environ, "S7b")
+        artifact_type = "SCRIPT_EVIDENCE"
+        payload = {"s7b_json_output": str(output), "s7b_output_sha256": sha256_file(output)}
+    evidence.parent.mkdir(parents=True, exist_ok=True)
+    evidence.write_text(
+        json.dumps({
+            "schema_version": 1,
+            "artifact_type": artifact_type,
+            "step_id": "S7" if step_id == "S7b" else "S7b",
+            "status": "PASS",
+            "betting_day": "2026-06-25",
+            "run_id": environ["BET_PIPELINE_RUN_ID"],
+            "payload": payload,
+        }),
+        encoding="utf-8",
+    )
+
+
 @pytest.mark.parametrize("case", WRAPPER_CASES, ids=lambda case: case["step_id"])
 def test_target_wrappers_write_pass_script_evidence_in_tmp_sandbox(case):
     environ = _runtime_environ(case["step_id"])
@@ -166,6 +228,8 @@ def test_target_wrappers_write_pass_script_evidence_in_tmp_sandbox(case):
     s3_shortlist_path = None
     if case["step_id"] == "S3":
         s3_shortlist_path = _seed_s3_shortlist(environ)
+    elif case["step_id"] in {"S7b", "S8"}:
+        _seed_direct_wrapper_input(environ, case["step_id"])
 
     def _s3_pass(*, betting_day, shortlist_path, child_env, runtime_mode):
         assert shortlist_path == s3_shortlist_path
@@ -173,7 +237,9 @@ def test_target_wrappers_write_pass_script_evidence_in_tmp_sandbox(case):
         return (0, "")
 
     with patch.dict(os.environ, environ, clear=False), patch.object(sys, "argv", argv):
-        if case["step_id"] == "S3":
+        if case["step_id"] in {"S7b", "S8"}:
+            patch_target = nullcontext()
+        elif case["step_id"] == "S3":
             patch_target = patch("scripts.pipeline_steps.s3_stats._invoke_deep_stats_report", side_effect=_s3_pass)
         else:
             patch_target = patch(case["run_patch"], return_value=0)
@@ -236,27 +302,29 @@ def test_target_wrappers_write_pass_script_evidence_in_tmp_sandbox(case):
             assert payload["extended_count"] == 0
             assert payload["rejected_count"] == 0
         elif case["step_id"] == "S7b":
-            for key, value in expected_payload.items():
-                assert payload[key] == value
-            assert payload["s7b_input_path"] is None
-            assert payload["s7b_json_output"].startswith("/tmp/")
-            assert payload["checked_market_count"] == 0
-            assert payload["available_market_count"] == 0
-            assert payload["unavailable_market_count"] == 0
-            assert payload["validation_status"] == "BLOCK"
+            assert payload["outcome"] == "READY_FOR_MANUAL_MAPPING"
+            assert payload["approved_candidate_count"] == 1
+            assert payload["represented_candidate_count"] == 1
+            assert payload["executable_coupon"] is False
+        elif case["step_id"] == "S8":
+            assert payload["outcome"] == "READY_FOR_MANUAL_SUPERBET_QUOTE_REVIEW"
+            assert payload["quote_card_count"] == 1
+            assert payload["executable_coupon"] is False
         else:
             assert payload == expected_payload
     if case["no_pick"]:
         assert evidence["no_pick_edge_stake_coupon_emitted"] is True
         assert "production_coupon_write" not in evidence
-    else:
+    elif case["step_id"] not in {"S7b", "S8"}:
         assert evidence["no_pick_edge_stake_coupon_emitted"] is False
         assert evidence["production_coupon_write"] is False
+    else:
+        assert evidence["no_pick_edge_stake_coupon_emitted"] is True
 
 
 @pytest.mark.parametrize("case", WRAPPER_CASES, ids=lambda case: case["step_id"])
 def test_target_wrappers_write_block_evidence_for_controlled_output(case, capsys: pytest.CaptureFixture[str]):
-    environ = _runtime_environ(case["step_id"])
+    environ = _runtime_environ(case["step_id"], "-block")
     argv = [
         case["argv0"],
         "--date", "2026-06-25",
@@ -276,7 +344,9 @@ def test_target_wrappers_write_block_evidence_for_controlled_output(case, capsys
         return (9, f"{case['block_token']}\n")
 
     with patch.dict(os.environ, environ, clear=False), patch.object(sys, "argv", argv):
-        if case["step_id"] == "S3":
+        if case["step_id"] in {"S7b", "S8"}:
+            patch_target = nullcontext()
+        elif case["step_id"] == "S3":
             patch_target = patch("scripts.pipeline_steps.s3_stats._invoke_deep_stats_report", side_effect=_s3_controlled)
         else:
             patch_target = patch(case["run_patch"], side_effect=_controlled)
@@ -284,18 +354,23 @@ def test_target_wrappers_write_block_evidence_for_controlled_output(case, capsys
             with pytest.raises(SystemExit) as exc_info:
                 case["module"].main()
 
-    assert exc_info.value.code == 9
+    assert exc_info.value.code == (5 if case["step_id"] in {"S7b", "S8"} else 9)
     captured = capsys.readouterr()
-    if case["step_id"] != "S3":
+    if case["step_id"] not in {"S3", "S7b", "S8"}:
         assert case["block_token"] in captured.out
     evidence = _load(_canonical_evidence_path(environ, case["step_id"]))
     assert evidence["status"] == "BLOCK"
-    assert evidence["blocked_reasons"] == [case["block_token"]]
+    if case["step_id"] == "S7b":
+        assert evidence["blocked_reasons"] == ["BLOCKED_S7B_CANONICAL_S7_MISSING"]
+    elif case["step_id"] == "S8":
+        assert evidence["blocked_reasons"] == ["BLOCKED_S8_CANONICAL_S7B_INVALID"]
+    else:
+        assert evidence["blocked_reasons"] == [case["block_token"]]
 
 
 @pytest.mark.parametrize("case", WRAPPER_CASES, ids=lambda case: case["step_id"])
 def test_target_wrappers_write_failed_evidence_for_unexpected_non_zero(case):
-    environ = _runtime_environ(case["step_id"])
+    environ = _runtime_environ(case["step_id"], "-failed")
     argv = [
         case["argv0"],
         "--date", "2026-06-25",
@@ -308,7 +383,9 @@ def test_target_wrappers_write_failed_evidence_for_unexpected_non_zero(case):
         _seed_s3_shortlist(environ)
 
     with patch.dict(os.environ, environ, clear=False), patch.object(sys, "argv", argv):
-        if case["step_id"] == "S3":
+        if case["step_id"] in {"S7b", "S8"}:
+            patch_target = nullcontext()
+        elif case["step_id"] == "S3":
             patch_target = patch("scripts.pipeline_steps.s3_stats._invoke_deep_stats_report", return_value=(42, "unexpected crash"))
         else:
             patch_target = patch(case["run_patch"], return_value=42)
@@ -316,10 +393,17 @@ def test_target_wrappers_write_failed_evidence_for_unexpected_non_zero(case):
             with pytest.raises(SystemExit) as exc_info:
                 case["module"].main()
 
-    assert exc_info.value.code == 42
+    assert exc_info.value.code == (5 if case["step_id"] in {"S7b", "S8"} else 42)
     evidence = _load(_canonical_evidence_path(environ, case["step_id"]))
-    assert evidence["status"] == "FAILED"
-    assert evidence["blocked_reasons"] == ["FAILED_UNEXPECTED_SUBPROCESS_ERROR"]
+    if case["step_id"] == "S7b":
+        assert evidence["status"] == "BLOCK"
+        assert evidence["blocked_reasons"] == ["BLOCKED_S7B_CANONICAL_S7_MISSING"]
+    elif case["step_id"] == "S8":
+        assert evidence["status"] == "BLOCK"
+        assert evidence["blocked_reasons"] == ["BLOCKED_S8_CANONICAL_S7B_INVALID"]
+    else:
+        assert evidence["status"] == "FAILED"
+        assert evidence["blocked_reasons"] == ["FAILED_UNEXPECTED_SUBPROCESS_ERROR"]
 
 
 def test_s4_wrapper_contract_pass_block_failed_and_tmp_paths():
@@ -440,7 +524,7 @@ def test_orchestrator_links_wrapper_block_evidence_without_missing_marker(tmp_pa
         betting_decisions_enabled=False,
     )
 
-    with patch("bet.pipeline.orchestrator.subprocess.run") as mock_run:
+    with patch("bet.pipeline.orchestrator.run_bounded_process") as mock_run:
         def side_effect(*args, **kwargs):
             write_script_evidence(
                 "S4",

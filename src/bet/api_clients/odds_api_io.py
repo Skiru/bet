@@ -65,7 +65,7 @@ def _classify_esports_subsport(league_name: str, event_title: str, candidates: l
 
 
 # Default bookmakers (free plan: max 2 selected via /bookmakers/selected/select)
-DEFAULT_BOOKMAKERS = "Betclic PL,Bet365"
+DEFAULT_BOOKMAKERS = "Bet365,Pinnacle"
 
 
 class OddsAPIioClient(BaseAPIClient):

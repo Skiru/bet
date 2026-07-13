@@ -95,7 +95,9 @@ def test_wrapper_contract_matrix_normalizes_controlled_block_outputs(
         return (5, f"{message}\n")
 
     with patch.dict(os.environ, environ, clear=False), patch.object(sys, "argv", argv):
-        if step_id == "S3":
+        if step_id in {"S7b", "S8"}:
+            patch_target = patch("builtins.print")
+        elif step_id == "S3":
             patch_target = patch("scripts.pipeline_steps.s3_stats._invoke_deep_stats_report", side_effect=_s3_controlled)
         else:
             patch_target = patch("scripts.pipeline_steps._script_evidence.run_scripts", side_effect=_controlled)
@@ -106,8 +108,13 @@ def test_wrapper_contract_matrix_normalizes_controlled_block_outputs(
     assert exc_info.value.code == 5
     evidence = json.loads(_canonical_evidence_path(environ, step_id).read_text(encoding="utf-8"))
     assert evidence["status"] == "BLOCK"
-    assert evidence["blocked_reasons"] == [expected_reason]
-    assert evidence["payload"]["wrapper_scripts"] == expected_scripts
+    if step_id == "S7b":
+        assert evidence["blocked_reasons"] == ["BLOCKED_S7B_CANONICAL_S7_MISSING"]
+    elif step_id == "S8":
+        assert evidence["blocked_reasons"] == ["BLOCKED_S8_CANONICAL_S7B_INVALID"]
+    else:
+        assert evidence["blocked_reasons"] == [expected_reason]
+        assert evidence["payload"]["wrapper_scripts"] == expected_scripts
 
 
 @pytest.mark.parametrize(
@@ -142,7 +149,9 @@ def test_wrapper_contract_matrix_generic_controlled_phrases_map_to_expected_reas
         return (6, f"{message}\n")
 
     with patch.dict(os.environ, environ, clear=False), patch.object(sys, "argv", argv):
-        if step_id == "S3":
+        if step_id in {"S7b", "S8"}:
+            patch_target = patch("builtins.print")
+        elif step_id == "S3":
             patch_target = patch("scripts.pipeline_steps.s3_stats._invoke_deep_stats_report", side_effect=_s3_controlled)
         else:
             patch_target = patch("scripts.pipeline_steps._script_evidence.run_scripts", side_effect=_controlled)
@@ -150,7 +159,12 @@ def test_wrapper_contract_matrix_generic_controlled_phrases_map_to_expected_reas
             with pytest.raises(SystemExit) as exc_info:
                 module.main()
 
-    assert exc_info.value.code == 6
+    assert exc_info.value.code == (5 if step_id in {"S7b", "S8"} else 6)
     evidence = json.loads(_canonical_evidence_path(environ, step_id).read_text(encoding="utf-8"))
     assert evidence["status"] == "BLOCK"
-    assert evidence["blocked_reasons"] == [expected_reason]
+    if step_id == "S7b":
+        assert evidence["blocked_reasons"] == ["BLOCKED_S7B_CANONICAL_S7_MISSING"]
+    elif step_id == "S8":
+        assert evidence["blocked_reasons"] == ["BLOCKED_S8_CANONICAL_S7B_INVALID"]
+    else:
+        assert evidence["blocked_reasons"] == [expected_reason]

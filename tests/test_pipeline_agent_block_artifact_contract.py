@@ -159,7 +159,7 @@ def test_orchestrator_advances_past_s5_on_valid_pass(tmp_path):
         base_run_dir=tmp_path,
     )
 
-    with patch("bet.pipeline.orchestrator.subprocess.run") as mock_run:
+    with patch("bet.pipeline.orchestrator.run_bounded_process") as mock_run:
         def side_effect(*args, **kwargs):
             write_script_evidence(
                 "S6",

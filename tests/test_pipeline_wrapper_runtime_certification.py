@@ -20,13 +20,14 @@ from scripts.pipeline_steps import _runner
 EXPECTED_TARGETS = {
     "S0": ["scripts/settle_on_finish.py"],
     "S1": ["scripts/discover_events.py", "scripts/generate_market_matrix.py", "scripts/build_shortlist.py"],
+    "S1e": [],
     "S2": ["scripts/tipster_aggregator.py", "scripts/tipster_xref.py"],
     "S3": ["scripts/deep_stats_report.py"],
     "S4": ["scripts/fetch_odds_multi.py", "scripts/odds_evaluator.py"],
     "S6": ["scripts/check_48h_repeats.py"],
     "S7": ["scripts/gate_checker.py"],
-    "S7b": ["scripts/validate_betclic_markets.py"],
-    "S8": ["scripts/coupon_builder.py"],
+    "S7b": [],
+    "S8": [],
 }
 
 
@@ -47,6 +48,7 @@ def test_all_wrapper_target_scripts_are_discovered_from_run_scripts(repo_root: P
         wrapper = repo_root / {
             "S0": "scripts/pipeline_steps/s0_settler.py",
             "S1": "scripts/pipeline_steps/s1_discover.py",
+            "S1e": "scripts/pipeline_steps/s1e_event_ledger.py",
             "S2": "scripts/pipeline_steps/s2_tipsters.py",
             "S3": "scripts/pipeline_steps/s3_stats.py",
             "S4": "scripts/pipeline_steps/s4_valuator.py",
@@ -69,6 +71,21 @@ def test_all_wrapper_target_scripts_compile(repo_root: Path):
     report = certify_manifest_wrappers(repo_root)
     for step_id in EXPECTED_TARGETS:
         assert report["wrappers"][step_id]["targets_compile"] is True
+
+
+def test_s7b_and_s8_are_certified_as_direct_artifact_wrappers(repo_root: Path):
+    report = certify_manifest_wrappers(repo_root)
+    for step_id in ("S7b", "S8"):
+        assert report["wrappers"][step_id]["targets"] == []
+        assert report["wrappers"][step_id]["evidence_contract"] == "JSON"
+        assert report["wrappers"][step_id]["verdict"] == "PASS"
+
+
+def test_s1e_is_certified_as_direct_event_ledger_wrapper(repo_root: Path):
+    result = certify_manifest_wrappers(repo_root)["wrappers"]["S1e"]
+    assert result["targets"] == []
+    assert result["evidence_contract"] == "JSON"
+    assert result["verdict"] == "PASS"
 
 
 def test_s4_target_order_is_fetch_before_evaluator(repo_root: Path):

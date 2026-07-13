@@ -1635,8 +1635,8 @@ def write_reports(
             # 5. non-fixture live candidate, not fixture-only
             if (
                 record.execution_mode != "live"
-                or "fixture" in str(record.competition_scope).lower()
-                or "fixture" in str(record.season_scope).lower()
+                or record.diagnostics.get("fixture_only") is True
+                or record.diagnostics.get("provenance_kind") in {"TEST_FIXTURE", "CERTIFICATION_FIXTURE"}
             ):
                 continue
             # 6. not ratings_context, metadata_discovery, event_context, needs_repair, not_candidate

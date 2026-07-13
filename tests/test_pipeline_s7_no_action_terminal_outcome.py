@@ -60,7 +60,7 @@ def _run_s7_with_script_evidence(
         base_run_dir=tmp_path / "sandbox",
     )
 
-    with patch("bet.pipeline.orchestrator.subprocess.run") as mock_run:
+    with patch("bet.pipeline.orchestrator.run_bounded_process") as mock_run:
         def side_effect(*args, **kwargs):
             if write_evidence:
                 write_script_evidence(

@@ -1,0 +1,150 @@
+"""Canonical S1e event universe and lossless boundary accounting."""
+from __future__ import annotations
+
+import hashlib
+import json
+from pathlib import Path
+from typing import Any
+
+from bet.pipeline.artifact_io import publish_run_artifact
+from bet.pipeline.run_evidence import sha256_file
+
+
+class EventAccountingError(ValueError):
+    pass
+
+
+def canonical_event_id(event: dict[str, Any]) -> str:
+    explicit = event.get("canonical_event_id") or event.get("fixture_id") or event.get("event_id")
+    if explicit not in (None, ""):
+        return str(explicit)
+    identity = {
+        "sport": str(event.get("sport") or "").strip().lower(),
+        "home": str(event.get("home_team") or event.get("home") or "").strip().lower(),
+        "away": str(event.get("away_team") or event.get("away") or "").strip().lower(),
+        "kickoff": str(event.get("kickoff") or event.get("start_time") or "").strip(),
+    }
+    if not all(identity.values()):
+        raise EventAccountingError("EVENT_IDENTITY_INCOMPLETE")
+    encoded = json.dumps(identity, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return f"event-{hashlib.sha256(encoded).hexdigest()[:24]}"
+
+
+def deduplicate_events(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    unique: dict[str, dict[str, Any]] = {}
+    for event in events:
+        if not isinstance(event, dict):
+            raise EventAccountingError("EVENT_RECORD_INVALID")
+        event_id = canonical_event_id(event)
+        normalized = dict(event)
+        normalized["canonical_event_id"] = event_id
+        if event_id in unique and unique[event_id] != normalized:
+            raise EventAccountingError("EVENT_IDENTITY_CONFLICT")
+        unique[event_id] = normalized
+    return [unique[event_id] for event_id in sorted(unique)]
+
+
+class EventAccountingLedger:
+    def __init__(self, run_root: Path, *, betting_day: str, run_id: str):
+        self.run_root = Path(run_root)
+        self.betting_day = betting_day
+        self.run_id = run_id
+        self.path = self.run_root / "event_accounting_ledger.json"
+
+    @classmethod
+    def initialize(cls, run_root: Path, universe_path: Path, *, betting_day: str, run_id: str) -> "EventAccountingLedger":
+        ledger = cls(run_root, betting_day=betting_day, run_id=run_id)
+        universe = json.loads(universe_path.read_text(encoding="utf-8"))
+        if (
+            universe.get("artifact_type") != "S1E_EVENT_UNIVERSE_LEDGER"
+            or universe.get("betting_day") != betting_day
+            or universe.get("run_id") != run_id
+        ):
+            raise EventAccountingError("EVENT_UNIVERSE_BINDING_INVALID")
+        events = universe.get("events")
+        if not isinstance(events, list):
+            raise EventAccountingError("EVENT_UNIVERSE_EVENTS_INVALID")
+        payload = {
+            "schema_version": 1,
+            "artifact_type": "EVENT_ACCOUNTING_LEDGER",
+            "betting_day": betting_day,
+            "run_id": run_id,
+            "source_s1e_path": str(universe_path),
+            "source_s1e_sha256": sha256_file(universe_path),
+            "canonical_event_ids": [event["canonical_event_id"] for event in events],
+            "after_dedup_count": len(events),
+            "boundaries": {},
+            "events_with_terminal_status": 0,
+            "unaccounted_event_ids": [event["canonical_event_id"] for event in events],
+        }
+        ledger._publish(payload)
+        return ledger
+
+    def _load(self) -> dict[str, Any]:
+        payload = json.loads(self.path.read_text(encoding="utf-8"))
+        if payload.get("betting_day") != self.betting_day or payload.get("run_id") != self.run_id:
+            raise EventAccountingError("EVENT_ACCOUNTING_BINDING_INVALID")
+        return payload
+
+    def _publish(self, payload: dict[str, Any]) -> None:
+        publish_run_artifact(
+            run_root=self.run_root,
+            target=self.path,
+            payload=payload,
+            betting_day=self.betting_day,
+            run_id=self.run_id,
+            artifact_type="EVENT_ACCOUNTING_LEDGER",
+            immutable=False,
+        )
+
+    def record_boundary(
+        self,
+        step_id: str,
+        *,
+        records: list[dict[str, Any]] | None = None,
+        default_status: str,
+    ) -> dict[str, Any]:
+        payload = self._load()
+        universe = set(payload["canonical_event_ids"])
+        statuses: dict[str, list[str]] = {}
+        if records is None:
+            statuses = {event_id: [default_status] for event_id in universe}
+        else:
+            for record in records:
+                if not isinstance(record, dict):
+                    raise EventAccountingError("EVENT_BOUNDARY_RECORD_INVALID")
+                event_id = str(record.get("canonical_event_id") or "")
+                status = str(record.get("terminal_status") or "")
+                if event_id not in universe:
+                    raise EventAccountingError("EVENT_BOUNDARY_UNKNOWN_EVENT")
+                if not status:
+                    raise EventAccountingError("EVENT_BOUNDARY_STATUS_MISSING")
+                statuses.setdefault(event_id, []).append(status)
+        missing = sorted(universe - set(statuses))
+        if missing:
+            raise EventAccountingError(f"EVENT_BOUNDARY_LOSS:{','.join(missing)}")
+        payload["boundaries"][step_id] = {
+            event_id: {"terminal_statuses": values} for event_id, values in sorted(statuses.items())
+        }
+        payload["events_with_terminal_status"] = len(statuses)
+        payload["unaccounted_event_ids"] = missing
+        if payload["after_dedup_count"] != len(universe) or payload["events_with_terminal_status"] != len(universe):
+            raise EventAccountingError("EVENT_ACCOUNTING_INVARIANT_FAILED")
+        self._publish(payload)
+        return payload
+
+
+BOUNDARY_DEFAULT_STATUS = {
+    "S2": "TIPSTER_EVIDENCE_RECORDED_OR_MISSING_EXPLICIT",
+    "S2.3": "ENRICHMENT_GAPS_RECORDED",
+    "S2.5": "PROVIDER_OBSERVATIONS_RECORDED_OR_UNAVAILABLE",
+    "S2.7": "FACTS_RECONCILED_OR_UNKNOWN",
+    "S2.9": "READINESS_RECORDED",
+    "S3": "ANALYSIS_RECORDED",
+    "S4": "PRICED_OR_PRICE_PENDING",
+    "S5": "CONTEXT_RISK_RECORDED",
+    "S6": "PORTFOLIO_STATUS_RECORDED",
+    "S7": "APPROVED_REJECTED_OR_NO_ACTION",
+    "S7b": "MAPPED_OR_NO_ACTION",
+    "S8": "QUOTE_PACK_OR_NO_ACTION",
+}

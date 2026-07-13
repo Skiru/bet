@@ -488,11 +488,12 @@ def test_s8_subprocess_failure_fails_closed(tmp_path: Path, monkeypatch):
     from scripts.pipeline_steps.s8_build_coupons import main as s8_main
     
     # Mock resolve_child_runtime_env to return a run directory under tmp_path
+    run_root = tmp_path / "run_root"
     child_env = {
-        "BET_PIPELINE_RUN_ROOT": str(tmp_path / "run_root"),
-        "BET_PIPELINE_DATA_DIR": str(tmp_path / "data_dir"),
-        "BET_PIPELINE_COUPON_DIR": str(tmp_path / "coupon_dir"),
-        "BET_PIPELINE_ARTIFACT_DIR": str(tmp_path / "artifact_dir"),
+        "BET_PIPELINE_RUN_ROOT": str(run_root),
+        "BET_PIPELINE_DATA_DIR": str(run_root / "data"),
+        "BET_PIPELINE_COUPON_DIR": str(run_root / "coupons"),
+        "BET_PIPELINE_ARTIFACT_DIR": str(run_root / "artifacts"),
         "BET_PIPELINE_BETTING_DAY": "2026-06-30",
         "BET_PIPELINE_RUN_ID": "test_run_s8",
         "BET_PIPELINE_RUNTIME_MODE": "DRY_RUN",
@@ -534,17 +535,22 @@ def test_s8_subprocess_failure_fails_closed(tmp_path: Path, monkeypatch):
     
     sys_argv_backup = sys.argv
     try:
-        sys.argv = ["s8_build_coupons.py", "--date", "2026-06-30", "--runtime-mode", "DRY_RUN"]
+        sys.argv = [
+            "s8_build_coupons.py", "--date", "2026-06-30",
+            "--run-id", "test_run_s8", "--runtime-mode", "DRY_RUN",
+        ]
         with pytest.raises(SystemExit) as exc_info:
             s8_main()
         assert exc_info.value.code == 5
         
-        # Verify that the generated S8 terminal evidence shows BLOCK and BLOCKED_UNIFIED_ANALYST_RUNNER_FAILED
-        evidence_file = Path(child_env["BET_PIPELINE_ARTIFACT_DIR"]) / "S8.json"
+        # Legacy analytical handoffs cannot bypass the canonical current-run S7b binding.
+        from bet.pipeline.integration_artifacts import script_evidence_path
+        evidence_file = script_evidence_path("S8", child_env)
+        assert evidence_file is not None
         assert evidence_file.exists()
         evidence_data = json.loads(evidence_file.read_text(encoding="utf-8"))
         assert evidence_data["status"] == "BLOCK"
-        assert "BLOCKED_UNIFIED_ANALYST_RUNNER_FAILED" in evidence_data["blocked_reasons"]
+        assert "BLOCKED_S8_CANONICAL_S7B_INVALID" in evidence_data["blocked_reasons"]
     finally:
         sys.argv = sys_argv_backup
 

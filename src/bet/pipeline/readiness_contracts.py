@@ -359,11 +359,10 @@ def get_central_safety_classification(
             force_scan = os.environ.get("BET_FORCE_MAGIC_VALUE_SCAN") == "True"
 
             if (
-                "betclic_manual_verification" in node
-                or "betclic" in str(node.get("operator_workflow") or "").lower()
-                or "betclic" in str(node.get("source") or "").lower()
+                "legacy_operator_manual_verification" in node
+                or str(node.get("operator_workflow") or "") not in {"", "SUPERBET_MANUAL_BET_BUILDER"}
             ):
-                reasons.append("Legacy Betclic operator validation or shortcut detected")
+                reasons.append("Legacy operator validation or shortcut detected")
 
             # Magic values are diagnostic-only unless explicitly enabled.
             for k, v in node.items():

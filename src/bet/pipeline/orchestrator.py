@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import subprocess
@@ -50,6 +51,8 @@ from bet.pipeline.run_evidence import (
     repo_head_sha,
     write_json_atomic,
 )
+from bet.pipeline.run_coordination import LeaseRunLock, ResumeLedger, run_bounded_process
+from bet.pipeline.event_accounting import BOUNDARY_DEFAULT_STATUS, EventAccountingError, EventAccountingLedger
 from bet.pipeline.integration_artifacts import (
     write_script_evidence,
     script_evidence_path,
@@ -236,6 +239,11 @@ class Orchestrator:
 
         # Setup sandbox environment
         self.env = os.environ.copy()
+        python_paths = [str(self.repo_root / "src"), str(self.repo_root / "scripts"), str(self.repo_root)]
+        inherited_pythonpath = self.env.get("PYTHONPATH")
+        if inherited_pythonpath:
+            python_paths.append(inherited_pythonpath)
+        self.env["PYTHONPATH"] = os.pathsep.join(python_paths)
         sandbox_env = build_runtime_env(self.runtime_mode, self.betting_day, self.run_id, base_run_dir)
         self.env.update(sandbox_env)
         if artifact_dir is not None:
@@ -259,8 +267,37 @@ class Orchestrator:
         self.executed_count = 0
         self.failed_count = 0
         self.unresolved_count = 0
+        self._manifest_sha = manifest_hash(self.repo_root)
+        self._main_sha = str(repo_head_sha(self.repo_root))
+        lease_seconds = float(self.manifest.runtime_contract.get("lock_lease_seconds", 60))
+        self._run_lock = LeaseRunLock(self.run_root, self.run_id, lease_seconds=lease_seconds)
+        self._resume_ledger = ResumeLedger(
+            self.run_root,
+            run_id=self.run_id,
+            betting_day=self.betting_day,
+            main_sha=self._main_sha,
+            manifest_sha=self._manifest_sha,
+        )
+
+    def _step_timeout_seconds(self) -> int:
+        default = int(self.manifest.runtime_contract.get("default_timeout_seconds", 900))
+        maximum = int(self.manifest.runtime_contract.get("maximum_timeout_seconds", 3600))
+        try:
+            requested = int(self.env.get("BET_PIPELINE_STEP_TIMEOUT_SECONDS", default))
+        except (TypeError, ValueError):
+            requested = default
+        return min(max(requested, 1), maximum)
 
     def run(
+        self,
+        start_step: Optional[str] = None,
+        stop_after_step: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        self._resume_ledger.assert_resumable()
+        with self._run_lock:
+            return self._run_unlocked(start_step=start_step, stop_after_step=stop_after_step)
+
+    def _run_unlocked(
         self,
         start_step: Optional[str] = None,
         stop_after_step: Optional[str] = None,
@@ -403,12 +440,13 @@ class Orchestrator:
 
                 try:
                     with open(stdout_file_path, "w", encoding="utf-8") as out_f, open(stderr_file_path, "w", encoding="utf-8") as err_f:
-                        res = subprocess.run(
+                        res = run_bounded_process(
                             cmd,
                             env=self.env,
                             stdout=out_f,
                             stderr=err_f,
                             cwd=str(self.repo_root),
+                            timeout_seconds=self._step_timeout_seconds(),
                         )
                         return_code = res.returncode
                 except Exception as e:
@@ -524,7 +562,6 @@ class Orchestrator:
                                 if self.verbose:
                                     print(f"Intercepted COMMAND_REQUEST from subagent: {cmd_req}")
                                 import shlex
-                                import hashlib
                                 argv = []
                                 timeout_seconds = 300
                                 expected_exit_code = 0
@@ -581,25 +618,18 @@ class Orchestrator:
                                     write_json_atomic(orig_artifact_path, raw)
                                     start_time = time.time()
                                     try:
-                                        res = subprocess.run(
+                                        res = run_bounded_process(
                                             argv,
-                                            shell=False,
-                                            capture_output=True,
-                                            text=True,
                                             cwd=cwd_dir,
                                             env=self.env,
-                                            timeout=timeout_seconds,
+                                            timeout_seconds=float(timeout_seconds),
                                         )
                                         duration = time.time() - start_time
                                         exit_code = res.returncode
-                                        stdout_text = res.stdout or ""
-                                        stderr_text = res.stderr or ""
-                                    except subprocess.TimeoutExpired as te:
-                                        duration = time.time() - start_time
-                                        exit_code = -1
-                                        stdout_text = te.stdout or ""
-                                        stderr_text = te.stderr or ""
-                                        self.blockers.append(f"COMMAND_REQUEST execution timed out after {timeout_seconds}s")
+                                        stdout_text = res.stdout
+                                        stderr_text = res.stderr
+                                        if res.timed_out:
+                                            self.blockers.append(f"COMMAND_REQUEST execution timed out after {timeout_seconds}s")
                                     except Exception as e:
                                         duration = time.time() - start_time
                                         exit_code = -1
@@ -787,6 +817,29 @@ class Orchestrator:
                 evidence_path = str(expected_path)
                 step_status = PipelineReadinessStatus.PASS
 
+            accounting = EventAccountingLedger(
+                self.run_root, betting_day=self.betting_day, run_id=self.run_id
+            )
+            if sid in BOUNDARY_DEFAULT_STATUS and accounting.path.exists():
+                records = None
+                if evidence_path:
+                    evidence_payload = _load_json_object(evidence_path) or {}
+                    candidate_records = (evidence_payload.get("payload") or {}).get("event_records")
+                    if candidate_records is not None:
+                        records = candidate_records
+                try:
+                    accounting.record_boundary(
+                        sid,
+                        records=records,
+                        default_status=BOUNDARY_DEFAULT_STATUS[sid],
+                    )
+                except EventAccountingError as exc:
+                    step_status = PipelineReadinessStatus.BLOCK
+                    overall_status = PipelineReadinessStatus.BLOCK
+                    blocked_at_step = sid
+                    blocked_reason = str(exc)
+                    self.blockers.append(f"Event accounting failed at {sid}: {exc}")
+
             finished_at = utc_now_iso()
 
             # Record step metrics
@@ -804,6 +857,22 @@ class Orchestrator:
                 "blocked_reason": blocked_reason,
                 "work_order_path": work_order_path,
             })
+            output_hashes: dict[str, str] = {}
+            if evidence_path and Path(evidence_path).is_file():
+                output_hashes["evidence"] = hashlib.sha256(Path(evidence_path).read_bytes()).hexdigest()
+            ledger_status = (
+                "COMMAND_REQUEST_UNRESOLVED"
+                if blocked_reason and blocked_reason.startswith("COMMAND_REQUEST")
+                else (step_status.value if hasattr(step_status, "value") else str(step_status))
+            )
+            self._resume_ledger.append(
+                step_id=sid,
+                status=ledger_status,
+                command_request={"wrapper": step.wrapper, "execution_mode": step.execution_mode},
+                input_hashes={"manifest": self._manifest_sha},
+                output_hashes=output_hashes,
+            )
+            self._run_lock.heartbeat()
 
             # Halt loop if step did not pass
             if step_status not in (PipelineReadinessStatus.PASS, PipelineReadinessStatus.HUMAN_APPROVED):

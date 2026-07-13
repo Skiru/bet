@@ -19,9 +19,15 @@ def test_dry_run_default_does_not_require_live_ack(tmp_path):
         base_run_dir=tmp_path / "reports",
         allow_live_network=False,
     )
-    # Check that execution does not crash or block because of live network ack
-    # (Since S1e is state_only, it doesn't run live networks either way)
-    summary = orch.run(start_step="S1e", stop_after_step="S1e")
+    def side_effect(*args, **kwargs):
+        write_script_evidence(
+            "S0", status="PASS", payload={}, sources=(), evidence_refs=(), environ=orch.env
+        )
+        result = MagicMock()
+        result.returncode = 0
+        return result
+    with patch("bet.pipeline.orchestrator.run_bounded_process", side_effect=side_effect):
+        summary = orch.run(start_step="S0", stop_after_step="S0")
     assert summary["status"] == "PASS"
 
 
@@ -54,7 +60,7 @@ def test_live_shadow_with_ack_passes_guard(tmp_path):
             base_run_dir=tmp_path / "reports",
             allow_live_network=True,
         )
-        with patch("subprocess.run") as mock_run:
+        with patch("bet.pipeline.orchestrator.run_bounded_process") as mock_run:
             def side_effect(*args, **kwargs):
                 from bet.pipeline.integration_artifacts import write_script_evidence
                 write_script_evidence(
@@ -85,7 +91,7 @@ def test_live_shadow_s1_without_ack_blocks_before_wrapper_execution(tmp_path):
             base_run_dir=tmp_path / "sandbox",
             allow_live_network=False,
         )
-        with patch("subprocess.run") as mock_run:
+        with patch("bet.pipeline.orchestrator.run_bounded_process") as mock_run:
             summary = orch.run(start_step="S1", stop_after_step="S1")
 
     assert summary["status"] == "BLOCK"
@@ -103,7 +109,7 @@ def test_live_shadow_s1_with_ack_can_execute_wrapper(tmp_path):
             base_run_dir=tmp_path / "sandbox",
             allow_live_network=True,
         )
-        with patch("subprocess.run") as mock_run:
+        with patch("bet.pipeline.orchestrator.run_bounded_process") as mock_run:
             def side_effect(*args, **kwargs):
                 write_script_evidence(
                     "S1",

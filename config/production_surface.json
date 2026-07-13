@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "canonical_entrypoint": "scripts/pipeline_steps/run_daily_pipeline.py",
+  "manifest_wrappers_are_production_runtime": true,
+  "manifest": "config/pipeline_manifest.json",
+  "production_runtime": [
+    "scripts/pipeline_steps/run_daily_pipeline.py",
+    "scripts/pipeline_steps/_runner.py",
+    "scripts/pipeline_steps/_script_evidence.py",
+    "src/bet/pipeline/orchestrator.py",
+    "src/bet/pipeline/manifest.py",
+    "src/bet/pipeline/runtime_modes.py",
+    "src/bet/pipeline/runtime_paths.py",
+    "src/bet/pipeline/artifact_gate.py",
+    "src/bet/pipeline/artifact_io.py",
+    "src/bet/pipeline/integration_artifacts.py",
+    "src/bet/pipeline/run_coordination.py",
+    "src/bet/pipeline/event_accounting.py",
+    "src/bet/pipeline/analysis_status.py",
+    "src/bet/pipeline/readiness_contracts.py"
+  ],
+  "providers": [
+    "src/bet/provider_runtime.py",
+    "src/bet/odds_provider_access.py",
+    "src/bet/api_clients/odds_api_io.py"
+  ],
+  "database": [
+    "src/bet/db/connection.py"
+  ],
+  "legacy_database_compatibility": [
+    "src/bet/db/repositories.py",
+    "src/bet/db/schema.py",
+    "src/bet/db/schema.sql",
+    "src/bet/db/migrations/010_betclic_markets.sql"
+  ],
+  "configuration": [
+    "config/pipeline_manifest.json",
+    "config/production_surface.json"
+  ],
+  "agents": [
+    ".kilo/agents/bet-executor.md",
+    ".kilo/agents/bet-researcher.md",
+    ".kilo/agents/bet-modeler.md",
+    ".kilo/agents/bet-risk-gatekeeper.md",
+    ".kilo/agents/bet-builder.md",
+    ".kilo/agents/bet-auditor.md",
+    ".kilo/agents/bet-settler-postevent.md"
+  ],
+  "skills": [
+    ".kilo/skills/betting-pipeline-contract/SKILL.md",
+    ".kilo/skills/betting-evidence-contract/SKILL.md",
+    ".kilo/skills/betting-pipeline-runtime/SKILL.md",
+    ".kilo/skills/context-safe-agentics/SKILL.md"
+  ],
+  "validators": [
+    "scripts/validate_production_surface.py",
+    "scripts/validate_manifest_power_agents.py",
+    "scripts/validate_power_agent_control_plane.py"
+  ],
+  "legacy_retained_unreachable": [
+    "scripts/validate_betclic_markets.py",
+    "src/bet/scrapers/betclic.py",
+    "scripts/pipeline_daily_manual_session.py",
+    "scripts/pipeline_full_shadow_acceptance.py",
+    "scripts/pipeline_manual_low_stake_pilot.py",
+    "scripts/pipeline_paper_trading_readiness.py",
+    "scripts/pipeline_rich_coupon_package.py",
+    "scripts/run_unified_live_analyst_session.py"
+  ],
+  "tests_and_fixtures": ["tests", "tests/fixtures"],
+  "documentation": ["docs", "ARCHITECTURE.md", "README.md"],
+  "generated_ignored_roots": ["reports/pipeline_runs", ".kilo/artifacts"],
+  "sole_operator_workflow": "SUPERBET_MANUAL_BET_BUILDER"
+}

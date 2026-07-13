@@ -7,9 +7,9 @@ import json
 
 
 def test_betclic_cannot_satisfy_superbet_manual_quote():
-    # Verify that the S7b Betclic market availability check is legacy/test-only and returns BLOCK
-    from scripts.pipeline_steps.s7_validate import BLOCKED_REASON_PATTERNS
-    assert any("BLOCKED_BETCLIC_MARKET_BOUNDARY" in pattern for pattern in BLOCKED_REASON_PATTERNS or []) or True
+    from scripts.pipeline_steps import s7_validate
+    assert s7_validate.SCRIPTS == []
+    assert "betclic" not in Path(s7_validate.__file__).read_text(encoding="utf-8").lower()
 
 
 def test_s8_quote_pack_from_mock_odds_is_test_only():

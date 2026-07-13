@@ -170,6 +170,7 @@ def test_daily_session_rejects_fixture_selection_ids(tmp_path: Path):
         "draft_id": "draft-1",
         "selections": [{
             "selection_id": "selection-win",
+            "provenance": {"kind": "TEST_FIXTURE"},
             "event": "Donald, M. W. vs Potenza, Luca",
             "market": "Luca Potenza Player Aces O/U",
             "pick": "UNDER 2.5",
@@ -190,7 +191,7 @@ def test_daily_session_rejects_fixture_selection_ids(tmp_path: Path):
         operator_name="Betclic",
     )
     assert reviews[0].review_status == "NO_BET"
-    assert "contains fixture/test labels" in reviews[0].decision_reason
+    assert "contains explicit test provenance" in reviews[0].decision_reason
 
 
 def test_daily_session_accepts_complete_player_b_aces_under_line(tmp_path: Path):

@@ -63,16 +63,6 @@ def odds_source_access_status(source_name: str) -> dict[str, object]:
             "reason": ODDSPAPI_REASON,
         }
 
-    if source == "the-odds-api-betclic":
-        enabled = _env_present("THE_ODDS_API_KEY")
-        return {
-            "source": source,
-            "enabled": enabled,
-            "production_selectable": enabled,
-            "mode": "live" if enabled else "disabled",
-            "reason": "api_key_present" if enabled else "missing_the_odds_api_key",
-        }
-
     if source in {"the-odds-api", "odds-api-io", "api-football-odds"}:
         return {
             "source": source,

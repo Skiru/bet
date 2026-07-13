@@ -228,18 +228,18 @@ def _has_synthetic_provenance(obj: Any) -> bool:
     return False
 
 
-def _has_legacy_betclic_evidence(obj: Any) -> bool:
+def _has_legacy_operator_evidence(obj: Any) -> bool:
     if isinstance(obj, dict):
         for key, value in obj.items():
             normalized = _normalize_key(str(key))
-            if normalized.startswith("betclic"):
+            if normalized.startswith("legacy_operator"):
                 return True
-            if normalized in {"operator_workflow", "source", "operator"} and "betclic" in str(value).lower():
+            if normalized == "operator_workflow" and value not in {None, "", "SUPERBET_MANUAL_BET_BUILDER"}:
                 return True
-            if _has_legacy_betclic_evidence(value):
+            if _has_legacy_operator_evidence(value):
                 return True
     elif isinstance(obj, list):
-        return any(_has_legacy_betclic_evidence(item) for item in obj)
+        return any(_has_legacy_operator_evidence(item) for item in obj)
     return False
 
 
@@ -261,8 +261,8 @@ def validate_production_s9_schema(raw: dict[str, Any]) -> list[ReadinessIssue]:
         return [_block_issue("MISSING_MANUAL_REVIEW", "manual_review object is required for approved S9 gate")]
 
     workflow = manual_review.get("operator_workflow")
-    if _has_legacy_betclic_evidence(raw):
-        issues.append(_block_issue("LEGACY_BETCLIC_S9_FORBIDDEN", "Betclic fields and workflows are forbidden in production S9"))
+    if _has_legacy_operator_evidence(raw):
+        issues.append(_block_issue("LEGACY_OPERATOR_S9_FORBIDDEN", "Legacy operator fields and workflows are forbidden in production S9"))
     reviewed_by = str(manual_review.get("reviewed_by_user") or "").strip().lower()
     if (
         _has_synthetic_provenance(raw)
@@ -440,7 +440,6 @@ def validate_s9_human_gate_artifact_for_run(
         issues.append(_block_issue("INVALID_S9_CHECKSUM", "S9 checksum must match the canonical S8 coupon draft SHA256"))
 
     required_draft_fields: tuple[tuple[str, Any], ...] = (
-        ("artifact_type", "S8_COUPON_DRAFTS"),
         ("betting_day", betting_day),
         ("run_id", run_id),
         ("requires_human_gate", True),
@@ -449,8 +448,9 @@ def validate_s9_human_gate_artifact_for_run(
         ("production_selectable", False),
         ("production_coupon_write", False),
         ("executable_coupon", False),
-        ("betclic_execution_enabled", False),
     )
+    if draft.get("artifact_type") not in {"S8_COUPON_DRAFTS", "S8_SUPERBET_MANUAL_QUOTE_PACK"}:
+        issues.append(_block_issue("INVALID_S8_DRAFT_ARTIFACT_TYPE", "S9 must bind to a canonical S8 quote artifact"))
     for field_name, expected_value in required_draft_fields:
         if draft.get(field_name) != expected_value:
             issues.append(
@@ -460,12 +460,19 @@ def validate_s9_human_gate_artifact_for_run(
                 )
             )
 
-    coupon_draft_count = draft.get("coupon_draft_count")
+    if draft.get("artifact_type") == "S8_SUPERBET_MANUAL_QUOTE_PACK":
+        if draft.get("operator_workflow") != "SUPERBET_MANUAL_BET_BUILDER":
+            issues.append(_block_issue("INVALID_S8_OPERATOR_WORKFLOW", "S8 quote pack must use manual Superbet Bet Builder"))
+        if draft.get("operator_automation_enabled") is not False:
+            issues.append(_block_issue("INVALID_S8_OPERATOR_AUTOMATION", "S8 quote pack must disable operator automation"))
+
+    count_field = "quote_card_count" if draft.get("artifact_type") == "S8_SUPERBET_MANUAL_QUOTE_PACK" else "coupon_draft_count"
+    coupon_draft_count = draft.get(count_field)
     if isinstance(coupon_draft_count, bool) or not isinstance(coupon_draft_count, int) or coupon_draft_count < 0:
         issues.append(
             _block_issue(
                 "INVALID_S8_DRAFT_COUPON_DRAFT_COUNT",
-                "S8 coupon draft field coupon_draft_count must be an integer >= 0",
+                f"S8 quote artifact field {count_field} must be an integer >= 0",
             )
         )
 

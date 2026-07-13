@@ -22,8 +22,8 @@ LIVE_ONLY_TARGETS = {
     "scripts/fetch_odds_multi.py",
     "scripts/settle_on_finish.py",
     "scripts/tipster_aggregator.py",
-    "scripts/validate_betclic_markets.py",
 }
+DIRECT_ARTIFACT_STEPS = {"S1e", "S7b", "S8"}
 WRITE_SURFACE_PATTERNS = (
     "atomic_json_write(",
     ".write_text(",
@@ -239,7 +239,7 @@ def classify_wrapper_runtime_status(
     live_network_gated: bool = True,
 ) -> str:
     """Classify wrapper runtime safety for orchestrator use."""
-    if not targets:
+    if not targets and step_id not in DIRECT_ARTIFACT_STEPS:
         return "BLOCK"
     if not wrapper_compiles or not targets_exist or not targets_compile:
         return "BLOCK"
@@ -271,12 +271,15 @@ def certify_wrapper(step_id: str, wrapper_path: Path, repo_root: Path) -> dict[s
     wrapper_compiles, wrapper_compile_error = _compile_python_file(wrapper_path)
     wrapper_source = wrapper_path.read_text(encoding="utf-8") if wrapper_exists else ""
     targets = discover_wrapper_targets(wrapper_path) if wrapper_exists else []
+    direct_artifact_wrapper = step_id in DIRECT_ARTIFACT_STEPS and not targets
 
     target_results: list[tuple[str, bool, bool, str]] = []
     evidence_contract = "MISSING"
     live_only = False
     writes_forbidden_paths = False
     writes_production_db = False
+    if direct_artifact_wrapper and "write_terminal_script_evidence_or_fail" in wrapper_source:
+        evidence_contract = "JSON"
     for target in targets:
         target_path = repo_root / target
         exists = target_path.exists()
@@ -299,8 +302,8 @@ def certify_wrapper(step_id: str, wrapper_path: Path, repo_root: Path) -> dict[s
         evidence_contract = "BLOCKED_FOR_ORCHESTRATOR"
 
     runner_contracts = _runner_contracts(repo_root)
-    targets_exist = bool(targets) and all(item[1] for item in target_results)
-    targets_compile = bool(targets) and all(item[2] for item in target_results)
+    targets_exist = direct_artifact_wrapper or (bool(targets) and all(item[1] for item in target_results))
+    targets_compile = direct_artifact_wrapper or (bool(targets) and all(item[2] for item in target_results))
     dry_run_default = _wrapper_dry_run_default(wrapper_source)
     date_cli_compatible = _wrapper_accepts_date_cli(wrapper_source)
     accepts_runtime_cli = _wrapper_accepts_runtime_cli(wrapper_source)
@@ -339,7 +342,7 @@ def certify_wrapper(step_id: str, wrapper_path: Path, repo_root: Path) -> dict[s
         failed_requirements.append(f"{step_id}: manifest wrapper mismatch ({manifest_wrapper!r})")
     if not wrapper_compiles:
         failed_requirements.append(f"{step_id}: wrapper failed to compile ({wrapper_compile_error})")
-    if not targets:
+    if not targets and not direct_artifact_wrapper:
         failed_requirements.append(f"{step_id}: no run_scripts targets discovered from wrapper source")
     for target, exists, compiles, compile_error in target_results:
         if not exists:
