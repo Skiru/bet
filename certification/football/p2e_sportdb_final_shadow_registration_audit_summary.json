@@ -40,7 +40,7 @@
   "phase_id": "P2E_A12_FINAL_SPORTDB_SHADOW_REGISTRATION_AUDIT",
   "previous_accepted_sha": "e873dfde0211cf051f6c5f0e8cc1d554dd4e1f7b",
   "prompt_version": "v1_copy_safe_final_shadow_audit_hardened",
-  "protected_worktree": "/Users/mkoziol/projects/bet-multisport-enrichment-v1",
+  "protected_worktree": ".-multisport-enrichment-v1",
   "provider": "sportdb",
   "registered_scope": {
     "certifiable_metric_scope": [

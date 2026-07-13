@@ -99,7 +99,7 @@
   "phase_id": "P2E_A13_SPORTDB_ONE_SHOT_PRODUCTION_QUALIFICATION_SPRINT",
   "previous_accepted_sha": "c3fb483a544cac2ac728fae06a2a1d5c7a7a3571",
   "prompt_version": "v2_one_phase_world_cup_multisource_production_gate_hardened",
-  "protected_worktree": "/Users/mkoziol/projects/bet-multisport-enrichment-v1",
+  "protected_worktree": ".-multisport-enrichment-v1",
   "provider": "sportdb",
   "recommended_usage": "shadow_monitoring",
   "route_family_readiness": {

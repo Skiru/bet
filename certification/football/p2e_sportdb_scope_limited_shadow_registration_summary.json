@@ -52,7 +52,7 @@
   "phase_id": "P2E_A11_SPORTDB_SCOPE_LIMITED_SHADOW_REGISTRATION",
   "previous_accepted_sha": "a54bbf1fee0942821dc4ebe03f3ac3a65fd79543",
   "prompt_version": "v1_masterpiece_minimal_shadow_registration_copy_safe",
-  "protected_worktree": "/Users/mkoziol/projects/bet-multisport-enrichment-v1",
+  "protected_worktree": ".-multisport-enrichment-v1",
   "provider": "sportdb",
   "registration": {
     "applied": true,

@@ -129,7 +129,7 @@
   "phase_id": "P2E_A7_SPORTDB_IDENTITY_BRIDGE_AND_VALUE_REPLAY",
   "previous_accepted_sha": "a9a31d1121030ade20b9dbddafd7cf861bdb887a",
   "prompt_version": "v3_masterpiece_protected_worktree_identity_bridge_replay",
-  "protected_worktree": "/Users/mkoziol/projects/bet-multisport-enrichment-v1",
+  "protected_worktree": ".-multisport-enrichment-v1",
   "provider": "sportdb",
   "secret_safe": true,
   "source_inputs": {

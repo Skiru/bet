@@ -1,5 +1,5 @@
 {
-  "ARTIFACT_ROOT": "/Users/mkoziol/projects/bet/reports/pipeline_runs/FULL_DAY_SESSION_20260703_SUPERBET_PRODUCTION_V17_1",
+  "ARTIFACT_ROOT": "./reports/pipeline_runs/FULL_DAY_SESSION_20260703_SUPERBET_PRODUCTION_V17_1",
   "AUTOMATED_PLACEMENT_ENABLED": false,
   "BETTABLE_COUNT": 0,
   "BLOCKERS": {
@@ -107,7 +107,7 @@
   "WIMBLEDON_SINGLES_QUOTE_CARDS": 30,
   "active_sources_attempted": 12,
   "analyzed_events_count": 74,
-  "artifact_root": "/Users/mkoziol/projects/bet/reports/pipeline_runs/FULL_DAY_SESSION_20260703_SUPERBET_PRODUCTION_V17_1",
+  "artifact_root": "./reports/pipeline_runs/FULL_DAY_SESSION_20260703_SUPERBET_PRODUCTION_V17_1",
   "automated_placement_enabled": false,
   "bettable_count": 0,
   "builder_group_count": 49,

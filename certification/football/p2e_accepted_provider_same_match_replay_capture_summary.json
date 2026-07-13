@@ -522,7 +522,7 @@
   "phase_id": "P2E_A8_ACCEPTED_PROVIDER_SAME_MATCH_REPLAY_CAPTURE",
   "previous_accepted_sha": "0838adfb058f6d820432ef9c677ebd33f165bfbd",
   "prompt_version": "v1_masterpiece_highlightly_same_match_capture",
-  "protected_worktree": "/Users/mkoziol/projects/bet-multisport-enrichment-v1",
+  "protected_worktree": ".-multisport-enrichment-v1",
   "same_match_selection": {
     "ambiguous_exact_matches": false,
     "blocking_gaps": [],
