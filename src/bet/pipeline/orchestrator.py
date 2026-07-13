@@ -238,14 +238,7 @@ class Orchestrator:
             self.run_artifact_dir = runtime_artifact_dir(self.run_root)
 
         # Setup sandbox environment
-        self.env = os.environ.copy()
-        python_paths = [str(self.repo_root / "src"), str(self.repo_root / "scripts"), str(self.repo_root)]
-        inherited_pythonpath = self.env.get("PYTHONPATH")
-        if inherited_pythonpath:
-            python_paths.append(inherited_pythonpath)
-        self.env["PYTHONPATH"] = os.pathsep.join(python_paths)
-        sandbox_env = build_runtime_env(self.runtime_mode, self.betting_day, self.run_id, base_run_dir)
-        self.env.update(sandbox_env)
+        self.env = build_runtime_env(self.runtime_mode, self.betting_day, self.run_id, base_run_dir)
         if artifact_dir is not None:
             self.env["BET_PIPELINE_ARTIFACT_DIR"] = str(self.run_artifact_dir)
 

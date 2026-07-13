@@ -26,7 +26,15 @@ def script_evidence_base_dir(environ: dict[str, str] | None = None) -> Path | No
     ctx = runtime_context(environ)
     run_root = ctx.get("run_root")
     if run_root:
-        return Path(run_root)
+        r = Path(run_root)
+        if "pipeline_runs" in r.parts:
+            idx = r.parts.index("pipeline_runs")
+            prefix = r.parts[:idx]
+            if prefix:
+                if r.is_absolute():
+                    return Path("/", *prefix)
+                return Path(*prefix)
+        return r
     artifact_dir = ctx.get("artifact_dir")
     if artifact_dir:
         return Path(artifact_dir).parent

@@ -40,8 +40,11 @@ from bet.utils import names_match
 from bet.resilience import resilient_request
 
 BASE = Path(__file__).resolve().parent
-LEDGER = BASE.parent / "betting" / "journal" / "picks-ledger.csv"
-COUPONS_LEDGER = BASE.parent / "betting" / "journal" / "coupons-ledger.csv"
+import os
+LEDGER_ENV = os.environ.get("BET_PIPELINE_PICKS_LEDGER")
+LEDGER = Path(LEDGER_ENV) if LEDGER_ENV else BASE.parent / "betting" / "journal" / "picks-ledger.csv"
+COUPONS_ENV = os.environ.get("BET_PIPELINE_COUPONS_LEDGER")
+COUPONS_LEDGER = Path(COUPONS_ENV) if COUPONS_ENV else BASE.parent / "betting" / "journal" / "coupons-ledger.csv"
 LOG_FILE = BASE.parent / "settle_log.txt"
 ODDS_API_SNAPSHOT = BASE.parent / "betting" / "data" / "odds_api_snapshot.json"
 ODDS_API_SCORES = BASE.parent / "betting" / "data" / "odds_api_scores.json"
@@ -850,7 +853,7 @@ def main():
             events[event] = (home, away, sport)
 
     polls = 0
-    max_polls = 1 if args.no_poll else MAX_POLLS
+    max_polls = 1 if (args.no_poll or os.environ.get("BET_PIPELINE_SETTLEMENT_NO_POLL") == "1") else MAX_POLLS
 
     while polls < max_polls:
         polls += 1

@@ -21,6 +21,8 @@ def resolve_run_root(
         base_dir = repo_root / "reports" / "pipeline_runs"
     else:
         base_dir = Path(base_dir).resolve()
+        if base_dir.name != "pipeline_runs" and "pipeline_runs" not in base_dir.parts:
+            base_dir = base_dir / "pipeline_runs"
 
     rid = run_id if run_id else "default"
     if base_dir.name == rid and base_dir.parent.name == betting_day:
@@ -50,6 +52,8 @@ def build_runtime_env(
     base_dir: Path | None = None,
 ) -> dict[str, str]:
     """Build environment dictionary with sandboxed path configurations."""
+    import os
+    from pathlib import Path
     from bet.pipeline.runtime_modes import parse_runtime_mode
 
     mode_enum = parse_runtime_mode(runtime_mode)
@@ -59,7 +63,13 @@ def build_runtime_env(
     coupon_dir = runtime_coupon_dir(run_root)
     artifact_dir = runtime_artifact_dir(run_root)
 
-    env = {
+    env = {}
+    for k, v in os.environ.items():
+        if k in ("PYTHONHOME", "PYTEST_ADDOPTS") or any(x in k for x in ("_MOCK", "_FIXTURE", "_OVERRIDE", "_TEST")):
+            continue
+        env[k] = v
+
+    env.update({
         "BET_PIPELINE_RUN_ROOT": str(run_root),
         "BET_PIPELINE_BETTING_DAY": betting_day,
         "BET_PIPELINE_RUN_ID": run_root.name,
@@ -67,7 +77,12 @@ def build_runtime_env(
         "BET_PIPELINE_COUPON_DIR": str(coupon_dir),
         "BET_PIPELINE_ARTIFACT_DIR": str(artifact_dir),
         "BET_PIPELINE_RUNTIME_MODE": mode_enum.value,
-    }
+    })
+
+    repo_root = Path(__file__).resolve().parents[3]
+    env["PYTHONPATH"] = f"{repo_root}/src:{repo_root}"
+    env["BET_REPO_ROOT"] = str(repo_root)
+
     if mode_enum != RuntimeMode.PRODUCTION:
         env["DRY_RUN"] = "1"
 
