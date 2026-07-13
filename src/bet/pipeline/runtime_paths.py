@@ -20,7 +20,7 @@ def resolve_run_root(
         repo_root = Path(__file__).resolve().parents[3]
         base_dir = repo_root / "reports" / "pipeline_runs"
     else:
-        base_dir = Path(base_dir)
+        base_dir = Path(base_dir).resolve()
 
     rid = run_id if run_id else "default"
     if base_dir.name == rid and base_dir.parent.name == betting_day:
