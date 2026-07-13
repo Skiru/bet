@@ -153,7 +153,7 @@
   "phase_id": "P2E_A9_SPORTDB_VALUE_REPLAY_AGAINST_ACCEPTED_PROVIDER",
   "previous_accepted_sha": "304087c6991c51c5125cfbe4ab0f6bda99046ba7",
   "prompt_version": "v1_masterpiece_value_replay_locked",
-  "protected_worktree": "/Users/mkoziol/projects/bet-multisport-enrichment-v1",
+  "protected_worktree": ".-multisport-enrichment-v1",
   "providers": {
     "accepted_provider": "highlightly",
     "candidate": "sportdb"

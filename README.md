@@ -22,7 +22,7 @@ The complete, canonical, machine-readable pipeline definitions and agent-to-step
 |------|------------------|-------|---------|
 | S0 | `scripts/pipeline_steps/s0_settler.py` | bet-settler-postevent | Post-match settlement & historical learning |
 | S1 | `scripts/pipeline_steps/s1_discover.py` | bet-researcher | Event discovery & scan |
-| S1e | *state_only* | bet-researcher | Shortlist construction |
+| S1e | `scripts/pipeline_steps/s1e_event_ledger.py` | bet-researcher | Canonical materialized event-universe ledger |
 | S2 | `scripts/pipeline_steps/s2_tipsters.py` | bet-researcher | Tipster aggregation |
 | S2.3 | *agent_artifact* | bet-researcher | Enrichment Gap Detection |
 | S2.5 | *agent_artifact* | bet-researcher | Provider Enrichment |
@@ -33,14 +33,16 @@ The complete, canonical, machine-readable pipeline definitions and agent-to-step
 | S5 | *agent_artifact* | bet-risk-gatekeeper | Context/Motivation/Risk |
 | S6 | `scripts/pipeline_steps/s6_repeats.py` | bet-risk-gatekeeper | Portfolio/Repeat Guard |
 | S7 | `scripts/pipeline_steps/s5_gate.py` | bet-risk-gatekeeper | Hard Approval Gate |
-| S7b | `scripts/pipeline_steps/s7_validate.py` | bet-auditor | Market Availability Validation |
-| S8 | `scripts/pipeline_steps/s8_build_coupons.py` | bet-builder | Manual quote packs and idea groups |
+| S7b | `scripts/pipeline_steps/s7_validate.py` | bet-auditor | Manual Superbet market/line mapping |
+| S8 | `scripts/pipeline_steps/s8_build_coupons.py` | bet-builder | Manual Superbet quote pack |
 | S9 | *human_gate* | bet-risk-gatekeeper | Human-only Superbet quote and execution gate |
 | S10 | *state_only* | bet-settler-postevent | Settlement Handoff |
 
 *Note: All script steps are executed by the canonical shell-capable `bet-executor`. Code/General with Bash is reserved for engineering repair or emergency fallback. Business domain specialists do not run shell.*
 
-## Running Scripts
+## Running Pipeline via Canonical Runner
+
+The only canonical runner is `scripts/pipeline_steps/run_daily_pipeline.py`. To run the pipeline in a dry-run/sandboxed state:
 
 ```fish
 # Start local model (if running locally)
@@ -52,10 +54,20 @@ scripts/stop-local-model.fish
 # Health check
 scripts/healthcheck-local-model.fish
 
-# Run pipeline step
-.venv/bin/python3 scripts/pipeline_steps/sN.py > /tmp/sN.txt 2>&1
-tail -20 /tmp/sN.txt
+# Run pipeline via canonical daily runner
+env PYTHONPATH=src:scripts .venv/bin/python3 scripts/pipeline_steps/run_daily_pipeline.py --date 2026-07-13 --run-id RUN_TEST_01 --runtime-mode DRY_RUN > /tmp/run.txt 2>&1
+tail -20 /tmp/run.txt
 ```
+
+## Infrastructure Certification & Lifecycle
+
+Infrastructure certification is purely static and deterministic, clearly separated from runtime preflight and full pipeline execution.
+The lifecycle stages must proceed sequentially:
+1. Static Infrastructure Closure (This task)
+2. Bounded Runtime Preflight
+3. Full Pipeline Execution
+
+Do not run the full S0-S8 pipeline or any live event discovery directly without completing the separate static and preflight steps.
 
 ## Active Consolidated Power Agent Roster
 

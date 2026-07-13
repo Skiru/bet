@@ -109,7 +109,7 @@
   "phase_id": "P2E_A10_SEMANTIC_GAP_REVIEW_AND_SCOPE_LIMITED_CERTIFICATION_PLAN",
   "previous_accepted_sha": "5851038402d4c23401390da610a330629fd04a9b",
   "prompt_version": "v1_compact_masterpiece_certification_readiness_gate",
-  "protected_worktree": "/Users/mkoziol/projects/bet-multisport-enrichment-v1",
+  "protected_worktree": ".-multisport-enrichment-v1",
   "provider": "sportdb",
   "secret_safe": true,
   "semantic_gap_review": {
