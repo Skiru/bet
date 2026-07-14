@@ -27,12 +27,122 @@ from bet.pipeline.run_evidence import (
 )
 from bet.pipeline.runtime_modes import RuntimeMode, parse_runtime_mode
 from bet.pipeline.runtime_paths import is_safe_run_path
-from scripts.check_48h_repeats import (
-    HistoryMalformedError,
-    HistoryUnavailableError,
-    load_recent_losses_snapshot,
-    publish_immutable_or_reuse,
+import csv
+from datetime import timedelta
+
+class HistoryUnavailableError(Exception):
+    pass
+
+
+class HistoryMalformedError(Exception):
+    pass
+
+
+from bet.pipeline.portfolio_repeat_guard import (
+    _extract_teams_from_event,
+    _normalize_market,
+    _normalize_team,
 )
+from scripts.check_48h_repeats import publish_immutable_or_reuse
+
+def load_recent_losses_snapshot(
+    ledger_path: Path,
+    hours: int = 48,
+    as_of: datetime | None = None,
+) -> dict[str, Any]:
+    """Load lookback loss records exactly once from CSV and freeze as snapshot."""
+    if as_of is None:
+        as_of = datetime.now(UTC)
+    elif as_of.tzinfo is None:
+        as_of = as_of.replace(tzinfo=UTC)
+
+    if not ledger_path.exists():
+        raise HistoryUnavailableError("BLOCKED_HISTORY_UNAVAILABLE: History source file is missing")
+
+    lookback_start = as_of - timedelta(hours=hours)
+    records = []
+
+    try:
+        with open(ledger_path, encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            if reader.fieldnames is None:
+                raise HistoryMalformedError("HISTORY_TIMESTAMP_INVALID: History file has no headers")
+
+            for idx, row in enumerate(reader):
+                if not row.get("betting_day") or not row.get("status") or not row.get("event"):
+                    raise HistoryMalformedError(f"HISTORY_TIMESTAMP_INVALID: Malformed row at index {idx}: missing required fields")
+
+                status = row.get("status", "").strip().lower()
+                if status != "loss":
+                    continue
+
+                betting_day = row.get("betting_day", "").strip()
+                event = row.get("event", "").strip()
+                pick_id = row.get("pick_id", "").strip()
+                sport = row.get("sport", "").strip()
+                market = row.get("market", "").strip()
+                selection = row.get("selection", "").strip()
+
+                settled_at_str = row.get("settled_at_utc") or row.get("result_recorded_at_utc")
+                if not settled_at_str:
+                    raise HistoryMalformedError(f"HISTORY_TIMESTAMP_MISSING: Missing exact loss timestamp in row {idx}")
+
+                try:
+                    settled_at = datetime.fromisoformat(settled_at_str)
+                    if settled_at.tzinfo is None:
+                        settled_at = settled_at.replace(tzinfo=UTC)
+                except ValueError:
+                    raise HistoryMalformedError(f"HISTORY_TIMESTAMP_INVALID: Invalid timestamp format '{settled_at_str}' in row {idx}")
+
+                # Guarantee correct subtraction in UTC for Warsaw DST boundaries
+                as_of_utc = as_of.astimezone(UTC)
+                settled_at_utc = settled_at.astimezone(UTC)
+                age_seconds = (as_of_utc - settled_at_utc).total_seconds()
+                lookback_seconds = hours * 3600
+
+                if age_seconds < 0:
+                    raise HistoryMalformedError(f"HISTORY_TIMESTAMP_INVALID: Future timestamp '{settled_at.isoformat()}' in row {idx}")
+
+                # Half-open lookback filter [lookback_start, as_of)
+                if age_seconds >= lookback_seconds:
+                    continue
+
+                teams = _extract_teams_from_event(event)
+                records.append({
+                    "betting_day": betting_day,
+                    "pick_id": pick_id,
+                    "event": event,
+                    "sport": sport,
+                    "market": market,
+                    "selection": selection,
+                    "settled_at_utc": settled_at_utc.isoformat(),
+                    "teams": teams,
+                    "teams_normalized": [_normalize_team(t) for t in teams],
+                    "market_normalized": _normalize_market(market),
+                })
+    except (HistoryUnavailableError, HistoryMalformedError):
+        raise
+    except Exception as exc:
+        raise HistoryMalformedError(f"HISTORY_TIMESTAMP_INVALID: History file read error: {exc}")
+
+    records.sort(key=lambda r: (r["settled_at_utc"], r["pick_id"]))
+    records_json = json.dumps(records, sort_keys=True)
+    snapshot_sha = hashlib.sha256(records_json.encode("utf-8")).hexdigest()
+
+    return {
+        "schema_version": 1,
+        "artifact_type": "S6_HISTORY_SNAPSHOT_V1",
+        "as_of_utc": as_of.isoformat(),
+        "lookback_start_utc": lookback_start.isoformat(),
+        "boundary_policy": "half_open_inclusive_start",
+        "source_identity": ledger_path.name,
+        "opened_read_only": True,
+        "query_version": "1.0",
+        "policy_version": "1.0",
+        "row_count": len(records),
+        "records": records,
+        "snapshot_sha256": snapshot_sha,
+    }
 from scripts.pipeline_steps._runner import ScriptInvocation, resolve_child_runtime_env
 from scripts.pipeline_steps._script_evidence import classify_wrapper_result
 
@@ -43,6 +153,75 @@ BLOCKED_REASON_PATTERNS: tuple[tuple[str, str], ...] = (
     (r"repeat guard input empty|empty candidate list|zero candidates|no candidates|empty candidate input", "BLOCKED_REPEAT_GUARD_INPUT_EMPTY"),
     (r"repeat signal|signal conflict|repeat guard conflict|repeat guard triggered|repeat conflict|repeat-loss exclusions found", "BLOCKED_REPEAT_SIGNAL_CONFLICT"),
 )
+
+
+import hashlib
+import time
+
+def publish_terminal_evidence_immutable(
+    target_path: Path,
+    proposed_payload: dict[str, Any],
+    run_root_path: Path,
+    betting_day: str,
+    run_id: str,
+) -> str:
+    """Publish S6 terminal evidence atomically and immutably, with conflict audit logging as of REQ-V6-EVID-001."""
+    proposed_str = json.dumps(proposed_payload, sort_keys=True, ensure_ascii=False)
+    proposed_hash = hashlib.sha256(proposed_str.encode("utf-8")).hexdigest()
+
+    if target_path.exists():
+        try:
+            existing_data = json.loads(target_path.read_text(encoding="utf-8"))
+            existing_str = json.dumps(existing_data, sort_keys=True, ensure_ascii=False)
+            existing_hash = hashlib.sha256(existing_str.encode("utf-8")).hexdigest()
+        except Exception:
+            existing_hash = ""
+
+        if existing_hash == proposed_hash:
+            return "idempotent_reuse"
+        else:
+            # Write a separate immutable conflict-attempt record under <run_root>/validation/attempts/S6/<attempt_id>.json as of REQ-V6-EVID-003
+            attempts_dir = run_root_path / "validation" / "attempts" / "S6"
+            attempts_dir.mkdir(parents=True, exist_ok=True)
+            
+            # Deterministically unique attempt_id for this attempt
+            attempt_id = f"conflict_{proposed_hash[:16]}_{int(time.time())}"
+            attempt_path = attempts_dir / f"{attempt_id}.json"
+            
+            # Ensure we do not overwrite another attempt record
+            counter = 1
+            while attempt_path.exists():
+                attempt_path = attempts_dir / f"{attempt_id}_{counter}.json"
+                counter += 1
+
+            conflict_payload = {
+                "schema_version": 1,
+                "artifact_type": "S6_EVIDENCE_CONFLICT_AUDIT",
+                "betting_day": betting_day,
+                "run_id": run_id,
+                "attempt_id": attempt_id,
+                "existing_sha256": existing_hash,
+                "proposed_sha256": proposed_hash,
+                "reason": "BLOCKED_IMMUTABLE_S6_EVIDENCE_CONFLICT",
+                "proposed_payload_snippet": {
+                    "status": proposed_payload.get("status"),
+                    "blocked_reasons": proposed_payload.get("blocked_reasons"),
+                }
+            }
+            write_json_atomic(attempt_path, conflict_payload)
+            return "BLOCKED_IMMUTABLE_S6_EVIDENCE_CONFLICT"
+
+    # Path absent: atomically publish with immutable=true
+    write_json_atomic(target_path, proposed_payload)
+    
+    # Read back and verify bytes and SHA
+    readback_data = json.loads(target_path.read_text(encoding="utf-8"))
+    readback_str = json.dumps(readback_data, sort_keys=True, ensure_ascii=False)
+    readback_hash = hashlib.sha256(readback_str.encode("utf-8")).hexdigest()
+    if readback_hash != proposed_hash:
+        raise ValueError("BLOCKED_PUBLICATION_FAILURE: Evidence read-back hash mismatch")
+        
+    return "atomic_create"
 
 
 def main() -> None:
@@ -96,8 +275,17 @@ def main() -> None:
 
     ledger_path = args.ledger or Path(os.environ.get("BET_PIPELINE_LEDGER_PATH", ROOT / "betting" / "journal" / "picks-ledger.csv"))
 
-    # Injected timezone-aware as_of
-    as_of = datetime.now(UTC)
+    # Injected timezone-aware as_of derived from run-clock binding
+    run_as_of_str = os.environ.get("BET_PIPELINE_RUN_AS_OF_UTC")
+    if run_as_of_str:
+        try:
+            as_of = datetime.fromisoformat(run_as_of_str.replace("Z", "+00:00"))
+            if as_of.tzinfo is None:
+                as_of = as_of.replace(tzinfo=UTC)
+        except Exception:
+            as_of = datetime.now(UTC)
+    else:
+        as_of = datetime.now(UTC)
 
     # Resolve manifest and hashes
     git_sha = repo_head_sha(ROOT)
@@ -130,7 +318,7 @@ def main() -> None:
                     "s6_output_path": str(output_path),
                 }
             }
-            write_json_atomic(s6_evidence_path, evidence_block)
+            publish_terminal_evidence_immutable(s6_evidence_path, evidence_block, run_root_path, args.date, args.run_id)
             sys.exit(5)
         else:
             # CERTIFICATION mode input override validations
@@ -192,7 +380,7 @@ def main() -> None:
                     "s6_output_path": str(output_path),
                 }
             }
-            write_json_atomic(s6_evidence_path, evidence_block)
+            publish_terminal_evidence_immutable(s6_evidence_path, evidence_block, run_root_path, args.date, args.run_id)
             sys.exit(5)
 
     # 4. Freeze Policy & History Snapshots into Run-Root Data folder
@@ -255,6 +443,88 @@ def main() -> None:
         sys.exit(5)
 
     existing_s6 = [e for e in ledger_data.get("entries", []) if e.get("step_id") == "S6"]
+
+    # S6 Crash Recovery Logic as of Phase 7 / Requirement Order
+    # A. Output present, evidence absent
+    if output_path.exists() and not s6_evidence_path.exists():
+        try:
+            output_data = json.loads(output_path.read_text(encoding="utf-8"))
+            if (output_data.get("artifact_type") == "S6_PORTFOLIO_REPEAT_GUARD_V2" and
+                output_data.get("betting_day") == args.date and
+                output_data.get("run_id") == args.run_id):
+                s6_output_sha256 = sha256_file(output_path)
+                evidence = {
+                    "schema_version": 1,
+                    "artifact_type": "SCRIPT_EVIDENCE",
+                    "step_id": "S6",
+                    "status": output_data.get("status", "PASS"),
+                    "betting_day": args.date,
+                    "run_id": args.run_id,
+                    "payload": {
+                        "s5_path": str(s5_path),
+                        "s5_sha": s5_sha,
+                        "policy_path": str(run_policy_path),
+                        "policy_version": policy_data.get("policy_version", "1.0"),
+                        "policy_sha": policy_sha,
+                        "history_snapshot_path": str(run_history_path),
+                        "history_snapshot_sha": history_sha,
+                        "history_as_of": as_of.isoformat() + "Z",
+                        "output_path": str(output_path),
+                        "output_sha256": s6_output_sha256,
+                        "git_sha": git_sha,
+                        "manifest_sha": man_hash,
+                        "as_of_timestamp": as_of.isoformat() + "Z",
+                        "input_candidate_count": output_data.get("input_candidate_count", 0),
+                        "accepted_count": len(output_data.get("accepted", [])),
+                        "repeat_rejected_count": len(output_data.get("repeat_rejected", [])),
+                        "duplicate_rejected_count": len(output_data.get("duplicate_rejected", [])),
+                        "conflict_rejected_count": len(output_data.get("conflict_rejected", [])),
+                        "correlation_rejected_count": len(output_data.get("correlation_rejected", [])),
+                        "concentration_rejected_count": len(output_data.get("concentration_rejected", [])),
+                        "invalid_input_count": len(output_data.get("invalid_input", [])),
+                        "accounting_summary": output_data.get("accounting", {}),
+                        "child_argv_fingerprint": [],
+                        "child_executable_identity": sys.executable,
+                        "concrete_status": output_data.get("concrete_status", "READY_FOR_S7"),
+                        "wrapper_child_identity": "s6_repeats.py/check_48h_repeats.py",
+                        "output_artifact_type": "S6_PORTFOLIO_REPEAT_GUARD_V2"
+                    }
+                }
+                publish_terminal_evidence_immutable(s6_evidence_path, evidence, run_root_path, args.date, args.run_id)
+                print("Crash recovery: recovered S6 evidence from S6 output")
+        except Exception as e:
+            print(f"BLOCK: Failed to recover from existing S6 output: {e}")
+            sys.exit(5)
+
+    # B. Output and evidence present, ledger missing
+    if output_path.exists() and s6_evidence_path.exists() and not existing_s6:
+        try:
+            output_data = json.loads(output_path.read_text(encoding="utf-8"))
+            ev_data = json.loads(s6_evidence_path.read_text(encoding="utf-8"))
+            s6_output_sha256 = sha256_file(output_path)
+            if ev_data.get("payload", {}).get("output_sha256") == s6_output_sha256:
+                input_hashes = {
+                    "s5_hash": s5_sha,
+                    "history_hash": history_sha,
+                    "policy_hash": policy_sha,
+                }
+                output_hashes = {
+                    "s6_output_hash": s6_output_sha256
+                }
+                resume_ledger.append(
+                    step_id="S6",
+                    status=ev_data.get("status", "PASS"),
+                    command_request={"argv": []},
+                    input_hashes=input_hashes,
+                    output_hashes=output_hashes,
+                )
+                print("Crash recovery: appended missing transition to ledger")
+                ledger_data = resume_ledger._load()
+                existing_s6 = [e for e in ledger_data.get("entries", []) if e.get("step_id") == "S6"]
+        except Exception as e:
+            print(f"BLOCK: Failed to recover ledger transition: {e}")
+            sys.exit(5)
+
     if existing_s6:
         last_entry = existing_s6[-1]
         last_inputs = last_entry.get("input_hashes", {})
@@ -297,19 +567,20 @@ def main() -> None:
                 print("BLOCK: Existing S6 evidence is malformed")
                 sys.exit(5)
 
-    # 6. Execute child process using the frozen configurations
+    # 6. Execute child process using the frozen configurations under strict contract as of REQ-V6-WORKER-001
     child_argv = [
         "--date", args.date,
+        "--run-id", args.run_id,
+        "--run-as-of-utc", as_of.isoformat().replace("+00:00", "Z"),
+        "--validated-s5", str(s5_path),
+        "--validated-s5-sha256", s5_sha,
         "--history-snapshot", str(run_history_path),
         "--history-snapshot-sha256", history_sha,
-        "--as-of-utc", as_of.isoformat(),
-        "--policy", str(run_policy_path),
-        "--policy-sha256", policy_sha,
+        "--policy-snapshot", str(run_policy_path),
+        "--policy-snapshot-sha256", policy_sha,
+        "--output", str(output_path),
+        "--worker-contract-version", "1.0",
     ]
-    if s5_path:
-        child_argv += ["--input", str(s5_path)]
-    if output_path:
-        child_argv += ["--output", str(output_path)]
 
     print(f"Executing S6 child process: check_48h_repeats.py {' '.join(child_argv)}")
 
@@ -350,7 +621,7 @@ def main() -> None:
                 "wrapper_scripts": SCRIPTS,
             }
         }
-        write_json_atomic(s6_evidence_path, evidence_block)
+        publish_terminal_evidence_immutable(s6_evidence_path, evidence_block, run_root_path, args.date, args.run_id)
         sys.exit(rc)
 
     if not output_path.exists():
@@ -417,11 +688,10 @@ def main() -> None:
         }
     }
 
-    # Write single canonical evidence immutably and verify bytes
-    try:
-        publish_immutable_or_reuse(s6_evidence_path, evidence)
-    except Exception as exc:
-        print(f"BLOCK: Conflicting immutable S6 evidence exists: {exc}")
+    # Write single canonical evidence immutably and verify bytes as of REQ-V6-EVID-001
+    publish_res = publish_terminal_evidence_immutable(s6_evidence_path, evidence, run_root_path, args.date, args.run_id)
+    if publish_res == "BLOCKED_IMMUTABLE_S6_EVIDENCE_CONFLICT":
+        print("BLOCK: Conflicting immutable S6 evidence exists")
         sys.exit(5)
 
     # 9. Append entry to ResumeLedger

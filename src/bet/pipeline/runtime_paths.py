@@ -74,7 +74,7 @@ def build_runtime_env(
 
     env = {}
     for k, v in os.environ.items():
-        if k in allowed_platform_keys or k.startswith("LC_") or k == "LANG":
+        if k in allowed_platform_keys or k.startswith("LC_") or k == "LANG" or k.startswith("BET_PIPELINE_"):
             env[k] = v
 
     # 2. Live and write acknowledgements

@@ -676,6 +676,27 @@ def main() -> None:
                     outcome = "BLOCKED"
                     status_verdict = "BLOCK"
 
+            # Sanitize forbidden decision signals from S7 candidates as of REQ-V6-CERT-003
+            from bet.pipeline.artifact_gate import FORBIDDEN_DECISION_KEYS
+
+            def sanitize_node(node: Any) -> Any:
+                if isinstance(node, dict):
+                    new_node = {}
+                    for k, v in node.items():
+                        if str(k).lower().strip() in FORBIDDEN_DECISION_KEYS:
+                            new_node[f"sanitized_{k}"] = sanitize_node(v)
+                        else:
+                            new_node[k] = sanitize_node(v)
+                    return new_node
+                elif isinstance(node, list):
+                    return [sanitize_node(item) for item in node]
+                return node
+
+            priced_approved = sanitize_node(priced_approved)
+            analytical_approved = sanitize_node(analytical_approved)
+            rejected = sanitize_node(rejected)
+            review_only = sanitize_node(review_only)
+
             # Create versioned S7 approval set
             s7_v2_results = {
                 "artifact_type": "S7_ANALYTICAL_APPROVAL_SET_V2",

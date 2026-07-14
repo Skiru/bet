@@ -6,6 +6,19 @@ from typing import Any
 
 from bet.pipeline.analysis_status import has_explicit_test_provenance
 
+def _get_run_clock() -> datetime:
+    val = os.environ.get("BET_PIPELINE_RUN_AS_OF_UTC")
+    if val:
+        try:
+            dt = datetime.fromisoformat(val.replace("Z", "+00:00"))
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            return dt
+        except Exception:
+            pass
+    return datetime.now(timezone.utc)
+
+
 class LiveFixtureAudit:
     def __init__(self, target_date: str):
         self.target_date = target_date
@@ -25,7 +38,7 @@ class LiveFixtureAudit:
 
         try:
             kickoff_dt = datetime.fromisoformat(kickoff_str.replace("Z", "+00:00"))
-            now_dt = datetime.now(timezone.utc)
+            now_dt = _get_run_clock()
             if kickoff_dt <= now_dt:
                 return "REJECTED_ALREADY_STARTED", f"Kickoff {kickoff_str} is in the past relative to current time {now_dt.isoformat()}"
 
@@ -44,7 +57,7 @@ class LiveFixtureAudit:
         if as_of:
             try:
                 as_of_dt = datetime.fromisoformat(as_of.replace("Z", "+00:00"))
-                now_dt = datetime.now(timezone.utc)
+                now_dt = _get_run_clock()
                 age_hours = (now_dt - as_of_dt).total_seconds() / 3600.0
                 if age_hours > 24.0:
                     return "REJECTED_STALE_FIXTURE", f"Source artifact is stale (age: {age_hours:.1f} hours > 24h TTL)"

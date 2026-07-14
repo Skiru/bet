@@ -198,28 +198,69 @@ class ResumeLedgerError(RuntimeError):
 
 
 class ResumeLedger:
-    def __init__(self, run_root: Path, *, run_id: str, betting_day: str, main_sha: str, manifest_sha: str):
+    def __init__(self, run_root: Path, *, run_id: str, betting_day: str, main_sha: str, manifest_sha: str, run_as_of_utc: str | None = None):
         self.run_root = Path(run_root)
         self.path = self.run_root / "resume_ledger.json"
+
+        # Determine the canonical run_as_of_utc as of REQ-V6-CLOCK-001
+        env_val = os.environ.get("BET_PIPELINE_RUN_AS_OF_UTC")
+        file_val = None
+        if self.path.exists():
+            try:
+                ledger_data = json.loads(self.path.read_text(encoding="utf-8"))
+                file_val = ledger_data.get("run_as_of_utc")
+            except Exception:
+                pass
+
+        resolved_as_of = run_as_of_utc or env_val or file_val
+
+        if not resolved_as_of:
+            if not self.path.exists():
+                from datetime import datetime, timezone
+                resolved_as_of = datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+            else:
+                raise ResumeLedgerError("BLOCKED_RUN_AS_OF_BINDING_MISMATCH")
+
+        if file_val and file_val != resolved_as_of:
+            raise ResumeLedgerError("BLOCKED_RUN_AS_OF_BINDING_MISMATCH")
+
+        if env_val and env_val != resolved_as_of:
+            raise ResumeLedgerError("BLOCKED_RUN_AS_OF_BINDING_MISMATCH")
+
+        # Propagate as of REQ-V6-CLOCK-001
+        os.environ["BET_PIPELINE_RUN_AS_OF_UTC"] = resolved_as_of
+
         self.binding = {
             "run_id": run_id,
             "betting_day": betting_day,
             "main_sha": main_sha,
             "manifest_sha": manifest_sha,
+            "run_as_of_utc": resolved_as_of,
         }
 
     def _load(self) -> dict[str, Any]:
         if not self.path.exists():
-            return {
+            ledger = {
                 "schema_version": 1,
                 "artifact_type": "RUN_RESUME_LEDGER",
                 **self.binding,
                 "entries": [],
                 "ledger_hash_chain_valid": True,
             }
+            self.run_root.mkdir(parents=True, exist_ok=True)
+            publish_run_artifact(
+                run_root=self.run_root,
+                target=self.path,
+                payload=ledger,
+                betting_day=self.binding["betting_day"],
+                run_id=self.binding["run_id"],
+                artifact_type="RUN_RESUME_LEDGER",
+                immutable=False,
+            )
+            return ledger
         ledger = json.loads(self.path.read_text(encoding="utf-8"))
         if any(ledger.get(key) != value for key, value in self.binding.items()):
-            raise ResumeLedgerError("RESUME_LEDGER_BINDING_CONFLICT")
+            raise ResumeLedgerError("BLOCKED_RUN_AS_OF_BINDING_MISMATCH")
         self.verify(ledger)
         return ledger
 

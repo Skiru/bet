@@ -234,7 +234,11 @@ class Orchestrator:
             raise ValueError("Pipeline manifest global rule 'fail_closed' must be enabled")
 
         # Resolve paths
-        self.run_root = resolve_run_root(self.betting_day, self.run_id, base_run_dir)
+        env_run_root = os.environ.get("BET_PIPELINE_RUN_ROOT")
+        if env_run_root:
+            self.run_root = Path(env_run_root).resolve()
+        else:
+            self.run_root = resolve_run_root(self.betting_day, self.run_id, base_run_dir)
         self.run_data_dir = runtime_data_dir(self.run_root)
         self.run_coupon_dir = runtime_coupon_dir(self.run_root)
 
@@ -246,6 +250,10 @@ class Orchestrator:
 
         # Setup sandbox environment
         self.env = build_runtime_env(self.runtime_mode, self.betting_day, self.run_id, base_run_dir)
+        self.env["BET_PIPELINE_RUN_ROOT"] = str(self.run_root)
+        self.env["BET_PIPELINE_DATA_DIR"] = str(self.run_data_dir)
+        self.env["BET_PIPELINE_COUPON_DIR"] = str(self.run_coupon_dir)
+        self.env["BET_PIPELINE_ARTIFACT_DIR"] = str(self.run_artifact_dir)
         if artifact_dir is not None:
             self.env["BET_PIPELINE_ARTIFACT_DIR"] = str(self.run_artifact_dir)
 
@@ -278,6 +286,7 @@ class Orchestrator:
             main_sha=self._main_sha,
             manifest_sha=self._manifest_sha,
         )
+        self.env["BET_PIPELINE_RUN_AS_OF_UTC"] = self._resume_ledger.binding["run_as_of_utc"]
 
     def _step_timeout_seconds(self) -> int:
         default = int(self.manifest.runtime_contract.get("default_timeout_seconds", 900))
