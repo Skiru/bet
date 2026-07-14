@@ -1,14 +1,74 @@
 """Pure portfolio and repeat guard domain service."""
 from __future__ import annotations
 
-import re
-import json
 import hashlib
-from pathlib import Path
+import json
+import re
 from dataclasses import dataclass, field
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 from difflib import SequenceMatcher
 from typing import Any
+
+
+@dataclass(frozen=True)
+class PortfolioPolicy:
+    schema_version: int
+    policy_version: str
+    repeat_loss_lookback_hours: int
+    duplicate_signal_enabled: bool
+    same_event_conflict_enabled: bool
+    correlation_group_limit_enabled: bool
+    correlation_group_max_accepted: int
+    concentration_enabled: bool
+    per_event_limit: int
+    per_team_limit: int
+    per_competition_limit: int
+    per_sport_limit: int
+    policy_sha256: str
+
+
+@dataclass(frozen=True)
+class HistorySnapshot:
+    schema_version: int
+    artifact_type: str  # S6_HISTORY_SNAPSHOT_V1
+    as_of_utc: str
+    lookback_start_utc: str
+    boundary_policy: str
+    source_identity: str
+    opened_read_only: bool
+    query_version: str
+    policy_version: str
+    records: list[dict[str, Any]]
+    row_count: int
+    snapshot_sha256: str
+
+
+@dataclass
+class PortfolioRepeatGuardInput:
+    candidates: list[dict[str, Any]]
+    history_snapshot: HistorySnapshot | dict[str, Any] | list[dict[str, Any]]
+    policy: PortfolioPolicy | dict[str, Any] = field(default_factory=dict)
+    betting_day: str = ""
+    run_id: str = ""
+    source_s5_hash: str = ""
+
+
+@dataclass
+class PortfolioRepeatGuardResult:
+    accepted: list[dict[str, Any]]
+    repeat_rejected: list[dict[str, Any]]
+    duplicate_rejected: list[dict[str, Any]]
+    conflict_rejected: list[dict[str, Any]]
+    correlation_rejected: list[dict[str, Any]]
+    concentration_rejected: list[dict[str, Any]]
+    invalid_input: list[dict[str, Any]]
+    accounting: dict[str, Any]
+    history_snapshot_metadata: dict[str, Any]
+    rule_evaluation_summary: dict[str, str]
+
+    @property
+    def portfolio_rejected(self) -> list[dict[str, Any]]:
+        return self.concentration_rejected
 
 
 def _normalize_team(name: str) -> str:
@@ -46,59 +106,162 @@ def _extract_teams_from_event(event: str) -> list[str]:
     return [event]
 
 
-def _are_selections_contradictory(m1: str, s1: str, m2: str, s2: str) -> bool:
-    m1_norm = _normalize_market(m1)
-    m2_norm = _normalize_market(m2)
-    s1_norm = str(s1).lower().strip()
-    s2_norm = str(s2).lower().strip()
-    
-    if m1_norm == m2_norm:
-        if s1_norm != s2_norm:
-            opposites = [
-                ({"over", "o"}, {"under", "u"}),
-                ({"1", "home"}, {"2", "away"}),
-                ({"yes"}, {"no"}),
-            ]
-            for op1, op2 in opposites:
-                if (any(x in s1_norm for x in op1) and any(x in s2_norm for x in op2)) or \
-                   (any(x in s2_norm for x in op1) and any(x in s1_norm for x in op2)):
+def validate_portfolio_policy_schema(policy_data: dict[str, Any], file_sha256: str = "") -> PortfolioPolicy:
+    if not isinstance(policy_data, dict):
+        raise ValueError("BLOCKED_POLICY_INVALID: Policy is not a JSON object")
+
+    schema_ver = policy_data.get("schema_version", 1)
+    policy_ver = policy_data.get("policy_version")
+    if not isinstance(policy_ver, str) or not policy_ver:
+        raise ValueError("BLOCKED_POLICY_INVALID: Missing or invalid policy_version")
+
+    # Verify enabled/disabled flags are booleans
+    for flag in ("duplicate_signal_enabled", "same_event_conflict_enabled",
+                 "correlation_group_limit_enabled", "concentration_enabled"):
+        if flag not in policy_data:
+            raise ValueError(f"BLOCKED_POLICY_INVALID: Missing boolean flag: {flag}")
+        if not isinstance(policy_data[flag], bool):
+            raise ValueError(f"BLOCKED_POLICY_INVALID: Flag '{flag}' must be a boolean")
+
+    # Verify limits are non-negative integers
+    for limit in ("repeat_loss_lookback_hours", "correlation_group_max_accepted",
+                  "per_event_limit", "per_team_limit", "per_competition_limit", "per_sport_limit"):
+        if limit not in policy_data:
+            raise ValueError(f"BLOCKED_POLICY_INVALID: Missing numeric limit: {limit}")
+        val = policy_data[limit]
+        if not isinstance(val, int) or isinstance(val, bool) or val < 0:
+            raise ValueError(f"BLOCKED_POLICY_INVALID: Limit '{limit}' must be a non-negative integer")
+
+    return PortfolioPolicy(
+        schema_version=schema_ver,
+        policy_version=policy_ver,
+        repeat_loss_lookback_hours=policy_data["repeat_loss_lookback_hours"],
+        duplicate_signal_enabled=policy_data["duplicate_signal_enabled"],
+        same_event_conflict_enabled=policy_data["same_event_conflict_enabled"],
+        correlation_group_limit_enabled=policy_data["correlation_group_limit_enabled"],
+        correlation_group_max_accepted=policy_data["correlation_group_max_accepted"],
+        concentration_enabled=policy_data["concentration_enabled"],
+        per_event_limit=policy_data["per_event_limit"],
+        per_team_limit=policy_data["per_team_limit"],
+        per_competition_limit=policy_data["per_competition_limit"],
+        per_sport_limit=policy_data["per_sport_limit"],
+        policy_sha256=file_sha256
+    )
+
+
+def validate_history_snapshot_schema(history_data: dict[str, Any]) -> HistorySnapshot:
+    if not isinstance(history_data, dict):
+        raise ValueError("BLOCKED_HISTORY_UNAVAILABLE: History snapshot is not a JSON object")
+
+    schema_ver = history_data.get("schema_version")
+    if schema_ver is None:
+        raise ValueError("BLOCKED_HISTORY_UNAVAILABLE: Missing schema_version in history snapshot")
+
+    art_type = history_data.get("artifact_type")
+    if art_type != "S6_HISTORY_SNAPSHOT_V1":
+        raise ValueError(f"BLOCKED_HISTORY_UNAVAILABLE: Invalid artifact_type in history snapshot: {art_type}")
+
+    as_of = history_data.get("as_of_utc")
+    if not as_of:
+        raise ValueError("BLOCKED_HISTORY_UNAVAILABLE: Missing as_of_utc in history snapshot")
+
+    # Timezone awareness check
+    try:
+        dt = datetime.fromisoformat(as_of)
+        if dt.tzinfo is None:
+            raise ValueError("BLOCKED_HISTORY_UNAVAILABLE: as_of_utc must be timezone aware")
+    except Exception as exc:
+        raise ValueError(f"BLOCKED_HISTORY_UNAVAILABLE: Invalid or naive as_of_utc: {exc}")
+
+    records = history_data.get("records")
+    if not isinstance(records, list):
+        raise ValueError("BLOCKED_HISTORY_UNAVAILABLE: records field must be a list in history snapshot")
+
+    for idx, r in enumerate(records):
+        ts = r.get("settled_at_utc") or r.get("result_recorded_at_utc")
+        if not ts:
+            raise ValueError(f"BLOCKED_HISTORY_UNAVAILABLE: Record at index {idx} is missing settled/recorded UTC timestamp")
+        try:
+            rdt = datetime.fromisoformat(ts)
+            if rdt.tzinfo is None:
+                raise ValueError(f"BLOCKED_HISTORY_UNAVAILABLE: Record timestamp at index {idx} is timezone naive")
+        except Exception:
+            raise ValueError(f"BLOCKED_HISTORY_UNAVAILABLE: Record timestamp at index {idx} is invalid")
+
+    return HistorySnapshot(
+        schema_version=schema_ver,
+        artifact_type=art_type,
+        as_of_utc=as_of,
+        lookback_start_utc=history_data.get("lookback_start_utc", ""),
+        boundary_policy=history_data.get("boundary_policy", "half_open"),
+        source_identity=history_data.get("source_identity", ""),
+        opened_read_only=bool(history_data.get("opened_read_only", True)),
+        query_version=history_data.get("query_version", "1.0"),
+        policy_version=history_data.get("policy_version", "1.0"),
+        records=records,
+        row_count=history_data.get("row_count", len(records)),
+        snapshot_sha256=history_data.get("snapshot_sha256", "")
+    )
+
+
+def get_canonical_identity_tuple(c: dict[str, Any]) -> tuple:
+    event_id = c.get("event_id") or c.get("canonical_event_id") or f"{_normalize_team(c.get('home_team', ''))}|{_normalize_team(c.get('away_team', ''))}"
+    market_family = c.get("market_family") or ""
+    market_type = _normalize_market(c.get("market_type") or c.get("best_market", {}).get("name") or c.get("market") or "")
+    subject_id = c.get("subject_id") or c.get("player_id") or ""
+    selection = str(c.get("selection") or c.get("best_market", {}).get("selection") or "").lower().strip()
+    direction = str(c.get("direction") or "").lower().strip()
+    line = str(c.get("line") or "").lower().strip()
+    period = str(c.get("period") or "full_time").lower().strip()
+
+    return (event_id, market_family, market_type, subject_id, selection, direction, line, period)
+
+
+def are_selections_contradictory_v2(c1: dict[str, Any], c2: dict[str, Any]) -> bool:
+    id1 = get_canonical_identity_tuple(c1)
+    id2 = get_canonical_identity_tuple(c2)
+
+    # Must be same event and period
+    if id1[0] != id2[0] or id1[7] != id2[7]:
+        return False
+
+    market_type1 = id1[2]
+    market_type2 = id2[2]
+
+    if market_type1 == market_type2:
+        sel1 = id1[4]
+        sel2 = id2[4]
+        if sel1 != sel2:
+            # 1 vs X vs 2
+            three_way = {"1", "x", "2", "home", "draw", "away"}
+            if sel1 in three_way and sel2 in three_way:
+                return True
+            # Over vs Under (ensure line matches)
+            ou1 = {"over", "o", "under", "u"}
+            if any(x in sel1 for x in {"over", "o"}) and any(x in sel2 for x in {"under", "u"}):
+                if id1[6] == id2[6]:
                     return True
-            return True
+            # Yes vs No
+            yn = {"yes", "no"}
+            if sel1 in yn and sel2 in yn:
+                return True
     return False
 
 
-@dataclass
-class PortfolioRepeatGuardInput:
-    candidates: list[dict[str, Any]]
-    history_snapshot: dict[str, Any] | list[dict[str, Any]]
-    policy: dict[str, Any] = field(default_factory=dict)
-    betting_day: str = ""
-    run_id: str = ""
-    source_s5_hash: str = ""
-
-
-@dataclass
-class PortfolioRepeatGuardResult:
-    accepted: list[dict[str, Any]]
-    repeat_rejected: list[dict[str, Any]]
-    duplicate_rejected: list[dict[str, Any]]
-    conflict_rejected: list[dict[str, Any]]
-    correlation_rejected: list[dict[str, Any]]
-    concentration_rejected: list[dict[str, Any]]
-    invalid_input: list[dict[str, Any]]
-    accounting: dict[str, Any]
-    history_snapshot_metadata: dict[str, Any]
-    rule_evaluation_summary: dict[str, str]
-
-    @property
-    def portfolio_rejected(self) -> list[dict[str, Any]]:
-        return self.concentration_rejected
+def get_correlation_group_id(c: dict[str, Any]) -> str:
+    """Deterministic typed function to derive a unique correlation group ID."""
+    # We group by event
+    event_id = c.get("event_id") or c.get("canonical_event_id") or f"{_normalize_team(c.get('home_team', ''))}|{_normalize_team(c.get('away_team', ''))}"
+    return f"event_group_{event_id}"
 
 
 def evaluate_portfolio_repeat_guard(
     guard_input: PortfolioRepeatGuardInput
 ) -> PortfolioRepeatGuardResult:
-    """Side-effect-free deterministic evaluation of portfolio and repeat guard rules."""
+    """Side-effect-free deterministic evaluation of portfolio and repeat guard rules.
+
+    Operates strictly on validated PortfolioPolicy, HistorySnapshot, and PortfolioRepeatGuardInput.
+    """
     accepted = []
     repeat_rejected = []
     duplicate_rejected = []
@@ -107,64 +270,41 @@ def evaluate_portfolio_repeat_guard(
     concentration_rejected = []
     invalid_input = []
 
-    # 1. Resolve and default policy configuration
-    policy = guard_input.policy or {}
-    if not policy:
-        # Load from config
-        policy_path = Path(__file__).resolve().parents[3] / "config" / "portfolio_policy.json"
-        if policy_path.exists():
-            try:
-                policy = json.loads(policy_path.read_text(encoding="utf-8"))
-            except Exception:
-                pass
-    if not policy:
-        # Hard coded defaults fallback for robustness
-        policy = {
-            "policy_version": "1.0",
-            "repeat_loss_lookback_hours": 48,
-            "duplicate_signal_enabled": True,
-            "same_event_conflict_enabled": True,
-            "correlation_group_limit_enabled": True,
-            "correlation_group_max_accepted": 3,
-            "concentration_enabled": true,
-            "per_event_limit": 2,
-            "per_team_limit": 2,
-            "per_competition_limit": 4,
-            "per_sport_limit": 8
-        }
+    # 1. Resolve and validate Policy Object
+    policy_obj = guard_input.policy
+    if isinstance(policy_obj, dict):
+        policy_obj = validate_portfolio_policy_schema(policy_obj)
+    elif not isinstance(policy_obj, PortfolioPolicy):
+        raise ValueError("BLOCKED_POLICY_INVALID: Policy is missing or malformed")
 
-    policy_version = policy.get("policy_version", "1.0")
-    repeat_loss_hours = policy.get("repeat_loss_lookback_hours", 48)
-    dup_signal_enabled = bool(policy.get("duplicate_signal_enabled", True))
-    same_conflict_enabled = bool(policy.get("same_event_conflict_enabled", True))
-    corr_group_enabled = bool(policy.get("correlation_group_limit_enabled", True))
-    corr_group_max = int(policy.get("correlation_group_max_accepted", 3))
-    concentration_enabled = bool(policy.get("concentration_enabled", True))
-
-    # Parse and structure lookback history
-    history_records = []
-    history_meta = {}
-    
-    if isinstance(guard_input.history_snapshot, dict):
-        history_records = guard_input.history_snapshot.get("records", [])
-        history_meta = {
-            "as_of_utc": guard_input.history_snapshot.get("as_of_utc", ""),
-            "snapshot_size": len(history_records),
-            "snapshot_sha256": guard_input.history_snapshot.get("snapshot_sha256", ""),
-        }
-    elif isinstance(guard_input.history_snapshot, list):
-        history_records = guard_input.history_snapshot
-        # Calculate SHA of sorted records
-        records_str = json.dumps(history_records, sort_keys=True)
-        h_sha = hashlib.sha256(records_str.encode("utf-8")).hexdigest()
-        history_meta = {
+    # 2. Resolve and validate History Snapshot
+    history_obj = guard_input.history_snapshot
+    if isinstance(history_obj, dict):
+        history_obj = validate_history_snapshot_schema(history_obj)
+    elif isinstance(history_obj, list):
+        records = history_obj
+        records_json = json.dumps(records, sort_keys=True)
+        h_sha = hashlib.sha256(records_json.encode("utf-8")).hexdigest()
+        snap_dict = {
+            "schema_version": 1,
+            "artifact_type": "S6_HISTORY_SNAPSHOT_V1",
             "as_of_utc": datetime.now(UTC).isoformat() + "Z",
-            "snapshot_size": len(history_records),
-            "snapshot_sha256": h_sha,
+            "records": records,
+            "snapshot_sha256": h_sha
         }
+        history_obj = validate_history_snapshot_schema(snap_dict)
+    elif not isinstance(history_obj, HistorySnapshot):
+        raise ValueError("BLOCKED_HISTORY_UNAVAILABLE: History snapshot is missing or malformed")
 
+    dup_signal_enabled = policy_obj.duplicate_signal_enabled
+    same_conflict_enabled = policy_obj.same_event_conflict_enabled
+    corr_group_enabled = policy_obj.correlation_group_limit_enabled
+    corr_group_max = policy_obj.correlation_group_max_accepted
+    concentration_enabled = policy_obj.concentration_enabled
+
+    # Parse losses into structured normalized format
     normalized_losses = []
-    for loss in history_records:
+    for loss in history_obj.records:
         event = loss.get("event") or ""
         teams = _extract_teams_from_event(event)
         normalized_losses.append({
@@ -177,7 +317,7 @@ def evaluate_portfolio_repeat_guard(
     # Rule evaluation overall summary
     rule_summary = {
         "duplicate_signal_rule": "ENFORCED" if dup_signal_enabled else "DISABLED_BY_POLICY",
-        "recent_loss_rule": "ENFORCED",
+        "recent_loss_rule": "ENFORCED" if len(history_obj.records) > 0 else "NOT_APPLICABLE",
         "same_event_conflict_rule": "ENFORCED" if same_conflict_enabled else "DISABLED_BY_POLICY",
         "correlation_rule": "ENFORCED" if corr_group_enabled else "DISABLED_BY_POLICY",
         "concentration_rule": "ENFORCED" if concentration_enabled else "DISABLED_BY_POLICY",
@@ -185,12 +325,13 @@ def evaluate_portfolio_repeat_guard(
 
     # Tracking sets/counts to enforce disjoint partitions and limits
     seen_ids = set()
-    accepted_team_markets = set()
-    accepted_selections = {} # (home, away, market) -> list of selections
-    accepted_competition_counts = {}
-    accepted_sport_counts = {}
+    accepted_canonical_identities = set()
+    accepted_candidates_list = []  # Preserve insertion order
     accepted_event_counts = {}
     accepted_team_counts = {}
+    accepted_competition_counts = {}
+    accepted_sport_counts = {}
+    accepted_correlation_counts = {}
 
     for c in guard_input.candidates:
         c_id = c.get("candidate_id") or c.get("id")
@@ -211,21 +352,12 @@ def evaluate_portfolio_repeat_guard(
 
         # Check duplicate candidate ID
         if c_id in seen_ids:
-            decision = {
-                "candidate_id": c_id,
-                "decision": "REJECTED",
-                "reason_codes": ["DUPLICATE_CANDIDATE_ID"],
-                "explanation": f"Duplicate candidate ID '{c_id}' detected in the current run set",
-                "original_candidate": c
-            }
-            invalid_input.append(decision)
-            continue
+            raise ValueError(f"S6_CANDIDATE_ACCOUNTING_MISMATCH: Duplicate candidate ID '{c_id}' detected in the current run set")
         seen_ids.add(c_id)
 
         home_team = c.get("home_team") or ""
         away_team = c.get("away_team") or ""
         market_name = c.get("best_market", {}).get("name") or c.get("market_type") or c.get("market") or ""
-        selection = c.get("best_market", {}).get("selection") or c.get("selection") or ""
         sport = c.get("sport") or ""
         competition = c.get("competition") or ""
 
@@ -237,13 +369,13 @@ def evaluate_portfolio_repeat_guard(
 
         # 2. Duplicate Signal Check
         if dup_signal_enabled:
-            team_market_key = (home_norm, away_norm, market_norm, selection.lower().strip())
-            if team_market_key in accepted_team_markets:
+            c_identity = get_canonical_identity_tuple(c)
+            if c_identity in accepted_canonical_identities:
                 decision = {
                     "candidate_id": c_id,
                     "decision": "REJECTED",
                     "reason_codes": ["DUPLICATE_SIGNAL"],
-                    "explanation": f"Duplicate team+market signal detected: {home_team} vs {away_team} for {market_name} ({selection})",
+                    "explanation": f"Duplicate team+market signal detected for canonical identity: {c_identity}",
                     "original_candidate": c
                 }
                 duplicate_rejected.append(decision)
@@ -253,13 +385,11 @@ def evaluate_portfolio_repeat_guard(
         if same_conflict_enabled:
             conflict_found = False
             conflict_msg = ""
-            event_market_key = (home_norm, away_norm, market_norm)
-            if event_market_key in accepted_selections:
-                for accepted_sel in accepted_selections[event_market_key]:
-                    if _are_selections_contradictory(market_name, selection, market_name, accepted_sel):
-                        conflict_found = True
-                        conflict_msg = f"Contradictory selections for the same event/market: '{selection}' vs already accepted '{accepted_sel}'"
-                        break
+            for accepted_c in accepted_candidates_list:
+                if are_selections_contradictory_v2(c, accepted_c):
+                    conflict_found = True
+                    conflict_msg = "Contradictory selections for the same event/market."
+                    break
             if conflict_found:
                 decision = {
                     "candidate_id": c_id,
@@ -271,7 +401,7 @@ def evaluate_portfolio_repeat_guard(
                 conflict_rejected.append(decision)
                 continue
 
-        # 4. Recent Loss Repeat Check
+        # 4. Recent Loss Repeat Check (Lookback is half-open based on snapshots)
         match_losses = []
         check_teams_norm = [home_norm, away_norm]
         check_market_norm = market_norm
@@ -289,7 +419,7 @@ def evaluate_portfolio_repeat_guard(
                 "candidate_id": c_id,
                 "decision": "REJECTED",
                 "reason_codes": ["RECENT_LOSS_REPEAT"],
-                "explanation": f"Same team+market lost within 48h: lost on {loss_info.get('betting_day')} ({loss_info.get('pick_id')})",
+                "explanation": "Same team+market lost within lookback window",
                 "original_candidate": c,
                 "matched_loss": loss_info
             }
@@ -298,14 +428,13 @@ def evaluate_portfolio_repeat_guard(
 
         # 5. Correlation Group Limit Check
         if corr_group_enabled:
-            # We group by competition or sport
-            comp_count = accepted_competition_counts.get(competition, 0)
-            if comp_count >= corr_group_max:
+            corr_id = get_correlation_group_id(c)
+            if accepted_correlation_counts.get(corr_id, 0) >= corr_group_max:
                 decision = {
                     "candidate_id": c_id,
                     "decision": "REJECTED",
                     "reason_codes": ["CROSS_EVENT_CORRELATION"],
-                    "explanation": f"Correlation group limit exceeded for competition '{competition}': max {corr_group_max} accepted",
+                    "explanation": f"Correlation group limit exceeded for group '{corr_id}': max {corr_group_max} accepted",
                     "original_candidate": c
                 }
                 correlation_rejected.append(decision)
@@ -314,65 +443,64 @@ def evaluate_portfolio_repeat_guard(
         # 6. Portfolio Concentration Limit Check
         if concentration_enabled:
             # Event limit
-            ev_limit = policy.get("per_event_limit", 2)
+            ev_limit = policy_obj.per_event_limit
             event_count = accepted_event_counts.get(event_key, 0)
             if event_count >= ev_limit:
                 decision = {
                     "candidate_id": c_id,
                     "decision": "REJECTED",
                     "reason_codes": ["PORTFOLIO_CONCENTRATION"],
-                    "explanation": f"Event concentration limit exceeded for {home_team} vs {away_team}: max {ev_limit} accepted",
+                    "explanation": f"Event concentration limit exceeded: max {ev_limit} accepted",
                     "original_candidate": c
                 }
                 concentration_rejected.append(decision)
                 continue
 
             # Team limit
-            t_limit = policy.get("per_team_limit", 2)
+            t_limit = policy_obj.per_team_limit
             t_exceeded = False
             for t in (home_norm, away_norm):
                 if accepted_team_counts.get(t, 0) >= t_limit:
                     t_exceeded = True
-                    t_name = home_team if t == home_norm else away_team
                     break
             if t_exceeded:
                 decision = {
                     "candidate_id": c_id,
                     "decision": "REJECTED",
                     "reason_codes": ["PORTFOLIO_CONCENTRATION"],
-                    "explanation": f"Team concentration limit exceeded for '{t_name}': max {t_limit} accepted",
+                    "explanation": f"Team concentration limit exceeded: max {t_limit} accepted",
                     "original_candidate": c
                 }
                 concentration_rejected.append(decision)
                 continue
 
-            # Competition limit
-            comp_limit = policy.get("per_competition_limit", 4)
+            # Competition Concentration limit (formerly named Competition Limit)
+            comp_limit = policy_obj.per_competition_limit
             if accepted_competition_counts.get(competition, 0) >= comp_limit:
                 decision = {
                     "candidate_id": c_id,
                     "decision": "REJECTED",
-                    "reason_codes": ["PORTFOLIO_CONCENTRATION"],
-                    "explanation": f"Competition concentration limit exceeded for '{competition}': max {comp_limit} accepted",
+                    "reason_codes": ["COMPETITION_CONCENTRATION"],
+                    "explanation": f"Competition concentration limit exceeded: max {comp_limit} accepted",
                     "original_candidate": c
                 }
                 concentration_rejected.append(decision)
                 continue
 
             # Sport limit
-            sport_limit = policy.get("per_sport_limit", 8)
+            sport_limit = policy_obj.per_sport_limit
             if accepted_sport_counts.get(sport, 0) >= sport_limit:
                 decision = {
                     "candidate_id": c_id,
                     "decision": "REJECTED",
                     "reason_codes": ["PORTFOLIO_CONCENTRATION"],
-                    "explanation": f"Sport concentration limit exceeded for '{sport}': max {sport_limit} accepted",
+                    "explanation": f"Sport concentration limit exceeded: max {sport_limit} accepted",
                     "original_candidate": c
                 }
                 concentration_rejected.append(decision)
                 continue
 
-        # If it reaches here, the candidate passes all rules and is ACCEPTED!
+        # Pass all rules: ACCEPTED
         decision = {
             "candidate_id": c_id,
             "decision": "ACCEPTED",
@@ -383,19 +511,18 @@ def evaluate_portfolio_repeat_guard(
         accepted.append(decision)
 
         # Update tracking structures for subsequently evaluated candidates
-        team_market_key = (home_norm, away_norm, market_norm, selection.lower().strip())
-        accepted_team_markets.add(team_market_key)
-        
-        event_market_key = (home_norm, away_norm, market_norm)
-        if event_market_key not in accepted_selections:
-            accepted_selections[event_market_key] = []
-        accepted_selections[event_market_key].append(selection)
+        if dup_signal_enabled:
+            accepted_canonical_identities.add(get_canonical_identity_tuple(c))
+        accepted_candidates_list.append(c)
 
-        accepted_competition_counts[competition] = accepted_competition_counts.get(competition, 0) + 1
-        accepted_sport_counts[sport] = accepted_sport_counts.get(sport, 0) + 1
         accepted_event_counts[event_key] = accepted_event_counts.get(event_key, 0) + 1
         accepted_team_counts[home_norm] = accepted_team_counts.get(home_norm, 0) + 1
         accepted_team_counts[away_norm] = accepted_team_counts.get(away_norm, 0) + 1
+        accepted_competition_counts[competition] = accepted_competition_counts.get(competition, 0) + 1
+        accepted_sport_counts[sport] = accepted_sport_counts.get(sport, 0) + 1
+
+        corr_id = get_correlation_group_id(c)
+        accepted_correlation_counts[corr_id] = accepted_correlation_counts.get(corr_id, 0) + 1
 
     # Disjoint partitions accounting validation
     total_input_count = len(guard_input.candidates)
@@ -413,28 +540,38 @@ def evaluate_portfolio_repeat_guard(
         concentration_rejected_ids + invalid_input_ids
     )
 
-    duplicate_ids = []
-    seen_partitioned = set()
-    for cid in all_partitioned_ids:
-        if cid in seen_partitioned:
-            duplicate_ids.append(cid)
-        seen_partitioned.add(cid)
-
-    unaccounted = []
+    # Ensure complete, disjoint partition of input IDs
+    input_ids = []
     for c in guard_input.candidates:
-        cid = c.get("candidate_id") or ""
-        if cid and cid not in all_partitioned_ids:
-            unaccounted.append(cid)
+        cid = c.get("candidate_id") or c.get("id")
+        if not cid and c.get("home_team") and c.get("away_team"):
+            cid = f"{c.get('sport', 'unknown')}|{c.get('home_team')}|{c.get('away_team')}"
+        input_ids.append(cid)
 
-    # Check for any overlapping entries
-    overlapping_terminal = []
-    # Every terminal list must be pairwise disjoint
-    # Since we use `continue` once we assign a candidate to a list, they are disjoint by definition!
-    
+    if len(all_partitioned_ids) != total_input_count or set(all_partitioned_ids) != set(input_ids):
+        unaccounted = list(set(input_ids) - set(all_partitioned_ids))
+        raise ValueError(f"S6_CANDIDATE_ACCOUNTING_MISMATCH: Partition of S5 candidates is incomplete. Unaccounted IDs: {unaccounted}")
+
+    # All sets pairwise disjoint by definition of conditional loop structure
     accounting = {
-        "unaccounted_candidate_ids": unaccounted,
-        "duplicate_candidate_ids": duplicate_ids,
-        "overlapping_terminal_categories": overlapping_terminal,
+        "unaccounted_candidate_ids": [],
+        "duplicate_candidate_ids": [],
+        "overlapping_terminal_categories": [],
+        "accepted_ids": accepted_ids,
+        "repeat_rejected_ids": repeat_rejected_ids,
+        "duplicate_rejected_ids": duplicate_rejected_ids,
+        "conflict_rejected_ids": conflict_rejected_ids,
+        "correlation_rejected_ids": correlation_rejected_ids,
+        "concentration_rejected_ids": concentration_rejected_ids,
+        "invalid_input_ids": invalid_input_ids
+    }
+
+    history_meta = {
+        "schema_version": history_obj.schema_version,
+        "artifact_type": history_obj.artifact_type,
+        "as_of_utc": history_obj.as_of_utc,
+        "snapshot_sha256": history_obj.snapshot_sha256,
+        "row_count": history_obj.row_count,
     }
 
     return PortfolioRepeatGuardResult(

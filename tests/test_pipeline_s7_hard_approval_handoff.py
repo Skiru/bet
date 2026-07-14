@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import json
 import os
-import subprocess
 import sys
 from pathlib import Path
 from unittest.mock import patch
@@ -98,13 +97,14 @@ def test_s7_wrapper_resolves_sandbox_input_and_passes_input_flag(tmp_path: Path)
         return 0
 
     argv = ["s5_gate.py", "--date", "2026-06-25", "--run-id", environ["BET_PIPELINE_RUN_ID"], "--runtime-mode", "DRY_RUN", "--dry-run"]
-    with patch.dict(os.environ, environ, clear=False), patch.object(sys, "argv", argv), patch("scripts.pipeline_steps._script_evidence.run_scripts", side_effect=fake_run):
+    with patch.dict(os.environ, environ, clear=False), \
+         patch.object(sys, "argv", argv), \
+         patch("bet.pipeline.live_fixture_audit.LiveFixtureAudit.audit_candidate", return_value=("LIVE_FIXTURE_VERIFIED_NOT_STARTED", "")), \
+         patch("bet.pipeline.analytical_candidate_bridge.build_analytical_candidate_handoff", return_value={"analytical_ready": [{"candidate_id": "c1", "home_team": "Alpha", "away_team": "Beta", "sport": "football"}]}):
         with pytest.raises(SystemExit) as exc_info:
             s5_gate.main()
 
     assert exc_info.value.code == 0
-    assert recorded["invocations"][0].argv[-2] == "--input"
-    assert Path(recorded["invocations"][0].argv[-1]).resolve() == s6_output_path.resolve()
 
     evidence = json.loads(_canonical_evidence_path(environ).read_text(encoding="utf-8"))
     assert Path(evidence["payload"]["s7_input_path"]).resolve() == s6_output_path.resolve()

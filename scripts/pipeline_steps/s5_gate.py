@@ -14,15 +14,15 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from bet.pipeline.integration_artifacts import resolve_manifest_step_output
+from bet.pipeline.manifest import load_pipeline_manifest
+from bet.pipeline.run_evidence import sha256_file, write_json_atomic
 from bet.pipeline.runtime_modes import RuntimeMode, parse_runtime_mode
 from scripts.pipeline_steps._runner import resolve_child_runtime_env, run_scripts
 from scripts.pipeline_steps._script_evidence import (
     run_wrapper_scripts_with_evidence,
     write_terminal_script_evidence_or_fail,
 )
-from bet.pipeline.run_evidence import sha256_file, write_json_atomic
-from bet.pipeline.integration_artifacts import resolve_manifest_step_output
-from bet.pipeline.manifest import load_pipeline_manifest
 
 SCRIPTS = ["gate_checker.py"]
 BLOCKED_REASON_PATTERNS: tuple[tuple[str, str], ...] = (
@@ -465,10 +465,6 @@ def main() -> None:
         )
         raise SystemExit(5)
 
-    from unittest.mock import Mock
-    import scripts.pipeline_steps._script_evidence as evidence_module
-
-    is_mocked = isinstance(run_scripts, Mock) or isinstance(evidence_module.run_scripts, Mock)
     if input_resolution.get("blocked_reason"):
         blocked_reason = str(input_resolution["blocked_reason"])
         payload = {
@@ -506,7 +502,7 @@ def main() -> None:
         )
         raise SystemExit(5)
 
-    if input_path is None and not is_mocked:
+    if input_path is None:
         payload = {
             "step_id": "S7",
             "wrapper_scripts": SCRIPTS,
@@ -543,7 +539,7 @@ def main() -> None:
         raise SystemExit(5)
 
     traceability_fields = {}
-    if input_path is not None and not is_mocked:
+    if input_path is not None:
         try:
             # Parse S6 output data and assert strict S7-S6 candidate binding
             s6_data = input_resolution.get("data")
@@ -612,7 +608,7 @@ def main() -> None:
                 shortlist_payload = s2_data
             except Exception as e:
                 print(f"Failed to load S2 shortlist: {e}", file=sys.stderr)
-            
+
             analytical_handoff_path = (
                 data_dir / "analytical_candidate_handoff.json"
                 if data_dir is not None
@@ -638,6 +634,7 @@ def main() -> None:
                 from bet.pipeline.live_fixture_audit import LiveFixtureAudit
                 auditor = LiveFixtureAudit(args.date)
                 status, reason = auditor.audit_candidate(c)
+                print(f"DEBUG FIXTURE AUDIT: candidate={c['candidate_id']} status={status}, reason={reason}")
                 fixture_audit_result[c["candidate_id"]] = {"status": status, "reason": reason}
                 if status == "LIVE_FIXTURE_VERIFIED_NOT_STARTED":
                     c["fixture_verification_status"] = status
@@ -830,7 +827,6 @@ def main() -> None:
             fallback_blocked_reason="BLOCKED_APPROVED_PICKS_MISSING",
         )
     except SystemExit:
-        _update_wrapper_evidence(child_env, args.date, args.run_id, input_resolution)
         raise
 
 

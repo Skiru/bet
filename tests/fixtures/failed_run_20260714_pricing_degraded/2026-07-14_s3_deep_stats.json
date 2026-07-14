@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "artifact_type": "S3_DEEP_STATS",
+  "betting_day": "2026-07-14",
+  "run_id": "REPLAY_RUN_20260714_PRICING_DEGRADED",
+  "candidates": [
+    {
+      "candidate_id": "football|France|Spain|2026-07-14",
+      "home_team": "France",
+      "away_team": "Spain",
+      "sport": "football",
+      "competition": "International - FIFA World Cup",
+      "model_probability": 0.65,
+      "hydration_status": "STANDARD_HYDRATION",
+      "data_quality": {"label": "HIGH"}
+    },
+    {
+      "candidate_id": "football|FC Drita|FK Kauno Zalgiris|2026-07-14",
+      "home_team": "FC Drita",
+      "away_team": "FK Kauno Zalgiris",
+      "sport": "football",
+      "competition": "International Clubs - UEFA Champions League, Qualification",
+      "model_probability": 0.55,
+      "hydration_status": "STANDARD_HYDRATION",
+      "data_quality": {"label": "HIGH"}
+    }
+  ]
+}

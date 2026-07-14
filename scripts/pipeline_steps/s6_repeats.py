@@ -3,26 +3,38 @@
 from __future__ import annotations
 
 import argparse
+import io
+import json
 import os
 import sys
-import json
-import io
-from pathlib import Path
-from datetime import datetime, UTC
 from contextlib import redirect_stdout
+from datetime import UTC, datetime
+from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from bet.pipeline.runtime_modes import RuntimeMode, parse_runtime_mode
-from scripts.pipeline_steps._runner import resolve_child_runtime_env
-from scripts.pipeline_steps._script_evidence import run_scripts, classify_wrapper_result
-from bet.pipeline.run_evidence import sha256_file, repo_head_sha, manifest_hash, write_json_atomic
+import scripts.pipeline_steps._script_evidence as evidence_module
+from bet.pipeline.agent_artifact_contracts import validate_s5_artifact_v2
 from bet.pipeline.manifest import load_pipeline_manifest
 from bet.pipeline.run_coordination import ResumeLedger, ResumeLedgerError
-from bet.pipeline.agent_artifact_contracts import validate_s5_artifact_v2
-from scripts.check_48h_repeats import load_recent_losses_snapshot, HistoryUnavailableError, HistoryMalformedError
+from bet.pipeline.run_evidence import (
+    manifest_hash,
+    repo_head_sha,
+    sha256_file,
+    write_json_atomic,
+)
+from bet.pipeline.runtime_modes import RuntimeMode, parse_runtime_mode
+from bet.pipeline.runtime_paths import is_safe_run_path
+from scripts.check_48h_repeats import (
+    HistoryMalformedError,
+    HistoryUnavailableError,
+    load_recent_losses_snapshot,
+    publish_immutable_or_reuse,
+)
+from scripts.pipeline_steps._runner import ScriptInvocation, resolve_child_runtime_env
+from scripts.pipeline_steps._script_evidence import classify_wrapper_result
 
 SCRIPTS = ["check_48h_repeats.py"]
 BLOCKED_REASON_PATTERNS: tuple[tuple[str, str], ...] = (
@@ -70,9 +82,11 @@ def main() -> None:
 
     artifact_dir = Path(child_env["BET_PIPELINE_ARTIFACT_DIR"])
     s6_evidence_path = artifact_dir / "S6.json"
-    nested_s6_evidence_path = run_root_path / "pipeline_runs" / args.date / args.run_id / "artifacts" / "S6.json" if args.date and args.run_id else None
 
-    input_path = args.input
+    # Only single canonical evidence is permitted. Remove nested evidence.
+    nested_s6_evidence_path = None
+
+    # Resolve output path canonically
     output_path = args.output
     if not output_path:
         if child_env.get("BET_PIPELINE_DATA_DIR"):
@@ -82,41 +96,24 @@ def main() -> None:
 
     ledger_path = args.ledger or Path(os.environ.get("BET_PIPELINE_LEDGER_PATH", ROOT / "betting" / "journal" / "picks-ledger.csv"))
 
+    # Injected timezone-aware as_of
     as_of = datetime.now(UTC)
 
-    # Build canonical parameters and hashes
+    # Resolve manifest and hashes
     git_sha = repo_head_sha(ROOT)
     manifest_path = ROOT / "config" / "pipeline_manifest.json"
     manifest = load_pipeline_manifest(manifest_path)
     man_hash = manifest_hash(ROOT)
 
-    # 3. Resolve and validate S5
+    # 3. Resolve and Validate S5 input
     s5_path = None
     s5_sha = None
     s5_data = None
 
-    # Load versioned policy
-    policy_path = ROOT / "config" / "portfolio_policy.json"
-    policy_version = "1.0"
-    if policy_path.exists():
-        try:
-            p_data = json.loads(policy_path.read_text(encoding="utf-8"))
-            policy_version = p_data.get("policy_version", "1.0")
-        except Exception:
-            pass
-
-    # Check input override rules
-    if input_path is not None:
+    if args.input is not None:
         if mode != RuntimeMode.CERTIFICATION:
             print("BLOCKED_S6_INPUT_OVERRIDE_FORBIDDEN: --input override is only allowed in CERTIFICATION mode.")
             # Write BLOCK evidence and exit
-            payload = {
-                "step_id": "S6",
-                "wrapper_rc": 5,
-                "runtime_mode": mode.value,
-                "s6_input_path": str(input_path),
-                "s6_output_path": str(output_path),
-            }
             evidence_block = {
                 "schema_version": 1,
                 "artifact_type": "SCRIPT_EVIDENCE",
@@ -125,12 +122,15 @@ def main() -> None:
                 "betting_day": args.date,
                 "run_id": args.run_id,
                 "blocked_reasons": ["BLOCKED_S6_INPUT_OVERRIDE_FORBIDDEN"],
-                "payload": payload
+                "payload": {
+                    "step_id": "S6",
+                    "wrapper_rc": 5,
+                    "runtime_mode": mode.value,
+                    "s6_input_path": str(args.input),
+                    "s6_output_path": str(output_path),
+                }
             }
             write_json_atomic(s6_evidence_path, evidence_block)
-            if nested_s6_evidence_path:
-                nested_s6_evidence_path.parent.mkdir(parents=True, exist_ok=True)
-                write_json_atomic(nested_s6_evidence_path, evidence_block)
             sys.exit(5)
         else:
             # CERTIFICATION mode input override validations
@@ -139,8 +139,7 @@ def main() -> None:
                 print("BLOCKED_S6_CERTIFICATION_ACK_MISSING: BET_PIPELINE_CERTIFICATION_ACK is missing or invalid.")
                 sys.exit(5)
 
-            from bet.pipeline.runtime_paths import is_safe_run_path
-            if not is_safe_run_path(input_path, run_root_raw):
+            if not is_safe_run_path(args.input, run_root_raw):
                 print("BLOCKED_S6_INPUT_OUTSIDE_RUN_ROOT: Override input path must be inside run root.")
                 sys.exit(5)
 
@@ -149,12 +148,12 @@ def main() -> None:
                 print("BLOCKED_S6_CERTIFICATION_HASH_MISSING: input-hash is missing or invalid.")
                 sys.exit(5)
 
-            actual_hash = sha256_file(input_path)
+            actual_hash = sha256_file(args.input)
             if input_hash != actual_hash:
                 print(f"BLOCKED_S6_CERTIFICATION_HASH_MISMATCH: Input hash mismatch. Expected {input_hash}, got {actual_hash}")
                 sys.exit(5)
 
-            s5_path = input_path
+            s5_path = args.input
             s5_sha = actual_hash
             try:
                 s5_data = json.loads(s5_path.read_text(encoding="utf-8"))
@@ -177,7 +176,6 @@ def main() -> None:
             s5_sha = sha256_file(s5_path)
         except Exception as exc:
             print(f"BLOCKED_BINDING_FAILURE: Failed to resolve prerequisite S5 output: {exc}")
-            # Write BLOCK evidence S6.json
             evidence_block = {
                 "schema_version": 1,
                 "artifact_type": "SCRIPT_EVIDENCE",
@@ -195,79 +193,126 @@ def main() -> None:
                 }
             }
             write_json_atomic(s6_evidence_path, evidence_block)
-            if nested_s6_evidence_path:
-                nested_s6_evidence_path.parent.mkdir(parents=True, exist_ok=True)
-                write_json_atomic(nested_s6_evidence_path, evidence_block)
             sys.exit(5)
 
-    # 4. Load/freeze deterministic read-only history snapshot
-    try:
-        history_snapshot = load_recent_losses_snapshot(ledger_path, as_of=as_of)
-        history_sha = history_snapshot["snapshot_sha256"]
-    except HistoryUnavailableError as exc:
-        print(f"BLOCKED_HISTORY_UNAVAILABLE: {exc}")
-        evidence_block = {
-            "schema_version": 1,
-            "artifact_type": "SCRIPT_EVIDENCE",
-            "step_id": "S6",
-            "status": "BLOCK",
-            "betting_day": args.date,
-            "run_id": args.run_id,
-            "blocked_reasons": ["BLOCKED_HISTORY_UNAVAILABLE"],
-            "payload": {
-                "step_id": "S6",
-                "wrapper_rc": 5,
-                "runtime_mode": mode.value,
-                "s6_input_path": str(s5_path),
-                "s6_output_path": str(output_path),
-            }
-        }
-        write_json_atomic(s6_evidence_path, evidence_block)
-        if nested_s6_evidence_path:
-            nested_s6_evidence_path.parent.mkdir(parents=True, exist_ok=True)
-            write_json_atomic(nested_s6_evidence_path, evidence_block)
-        sys.exit(5)
-    except HistoryMalformedError as exc:
-        print(f"BLOCKED_HISTORY_UNAVAILABLE: Malformed history: {exc}")
-        evidence_block = {
-            "schema_version": 1,
-            "artifact_type": "SCRIPT_EVIDENCE",
-            "step_id": "S6",
-            "status": "BLOCK",
-            "betting_day": args.date,
-            "run_id": args.run_id,
-            "blocked_reasons": ["BLOCKED_HISTORY_UNAVAILABLE"],
-            "payload": {
-                "step_id": "S6",
-                "wrapper_rc": 5,
-                "runtime_mode": mode.value,
-                "s6_input_path": str(s5_path),
-                "s6_output_path": str(output_path),
-            }
-        }
-        write_json_atomic(s6_evidence_path, evidence_block)
-        if nested_s6_evidence_path:
-            nested_s6_evidence_path.parent.mkdir(parents=True, exist_ok=True)
-            write_json_atomic(nested_s6_evidence_path, evidence_block)
+    # 4. Freeze Policy & History Snapshots into Run-Root Data folder
+    policy_path = ROOT / "config" / "portfolio_policy.json"
+    if not policy_path.exists():
+        print("BLOCKED_POLICY_INVALID: portfolio_policy.json is missing")
         sys.exit(5)
 
-    # 5. Execute pure repeat/portfolio service
-    # We invoke check_48h_repeats.py child process via run_scripts so that matrix mock patches work!
-    from scripts.pipeline_steps._runner import ScriptInvocation
-    import scripts.pipeline_steps._script_evidence as evidence_module
-    
-    child_argv = ["--date", args.date, "--ledger", str(ledger_path)]
-    if input_path:
-        child_argv += ["--input", str(input_path)]
+    policy_sha = sha256_file(policy_path)
+    policy_data = json.loads(policy_path.read_text(encoding="utf-8"))
+
+    # Write validated policy copy to run root
+    run_policy_path = run_root_path / "data" / "s6_policy.json"
+    try:
+        publish_immutable_or_reuse(run_policy_path, policy_data)
+    except Exception as exc:
+        print(f"BLOCKED_POLICY_INVALID: Failed to freeze policy: {exc}")
+        sys.exit(5)
+
+    # Freeze history read once using the injected as_of
+    try:
+        history_snapshot = load_recent_losses_snapshot(ledger_path, as_of=as_of)
+    except HistoryUnavailableError as exc:
+        print(f"BLOCKED_HISTORY_UNAVAILABLE: {exc}")
+        sys.exit(5)
+    except HistoryMalformedError as exc:
+        print(f"BLOCKED_HISTORY_UNAVAILABLE: {exc}")
+        sys.exit(5)
+
+    # Write history snapshot copy to run root
+    run_history_path = run_root_path / "data" / "s6_history_snapshot.json"
+    try:
+        publish_immutable_or_reuse(run_history_path, history_snapshot)
+    except Exception as exc:
+        print(f"BLOCKED_HISTORY_UNAVAILABLE: Failed to freeze history: {exc}")
+        sys.exit(5)
+
+    # Calculate exact file SHA of the frozen history snapshot JSON
+    history_sha = sha256_file(run_history_path)
+
+    # 5. Resume and Rerun Checks (Must always be executed, no PYTEST bypass)
+    resume_ledger = None
+    try:
+        resume_ledger = ResumeLedger(
+            run_root=run_root_path,
+            run_id=args.run_id,
+            betting_day=args.date,
+            main_sha=git_sha,
+            manifest_sha=man_hash,
+        )
+    except ResumeLedgerError as exc:
+        print(f"BLOCKED_BINDING_FAILURE: Resume ledger initialization failed: {exc}")
+        sys.exit(5)
+
+    # Load and check existing entries
+    try:
+        ledger_data = resume_ledger._load()
+    except Exception as exc:
+        print(f"BLOCKED_BINDING_FAILURE: Resume ledger binding conflict: {exc}")
+        sys.exit(5)
+
+    existing_s6 = [e for e in ledger_data.get("entries", []) if e.get("step_id") == "S6"]
+    if existing_s6:
+        last_entry = existing_s6[-1]
+        last_inputs = last_entry.get("input_hashes", {})
+        last_outputs = last_entry.get("output_hashes", {})
+
+        # Verify exact input hashes match
+        if last_inputs.get("s5_hash") != s5_sha:
+            print("BLOCK: S5 SHA change detected vs resume ledger")
+            sys.exit(5)
+        if last_inputs.get("history_hash") != history_sha:
+            print("BLOCK: History SHA change detected vs resume ledger")
+            sys.exit(5)
+        if last_inputs.get("policy_hash") != policy_sha:
+            print("BLOCK: Policy SHA change detected vs resume ledger")
+            sys.exit(5)
+
+        # Verify exact output hashes match
+        if output_path.exists():
+            current_output_sha = sha256_file(output_path)
+            if last_outputs.get("s6_output_hash") != current_output_sha:
+                print("BLOCK: Existing output has different bytes")
+                sys.exit(5)
+        else:
+            # Output was deleted before complete, so let's continue and recreate it
+            pass
+
+        # Verify evidence matches
+        if s6_evidence_path.exists():
+            try:
+                ev_data = json.loads(s6_evidence_path.read_text(encoding="utf-8"))
+                if ev_data.get("payload", {}).get("output_sha256") != last_outputs.get("s6_output_hash"):
+                    print("BLOCK: Existing S6 evidence has different bytes")
+                    sys.exit(5)
+                # Idempotent return code if identical run completely matches
+                print("READY_FOR_S7: S6 completed successfully (Idempotent Resume).")
+                sys.exit(0)
+            except SystemExit:
+                raise
+            except Exception:
+                print("BLOCK: Existing S6 evidence is malformed")
+                sys.exit(5)
+
+    # 6. Execute child process using the frozen configurations
+    child_argv = [
+        "--date", args.date,
+        "--history-snapshot", str(run_history_path),
+        "--history-snapshot-sha256", history_sha,
+        "--as-of-utc", as_of.isoformat(),
+        "--policy", str(run_policy_path),
+        "--policy-sha256", policy_sha,
+    ]
+    if s5_path:
+        child_argv += ["--input", str(s5_path)]
     if output_path:
         child_argv += ["--output", str(output_path)]
 
     print(f"Executing S6 child process: check_48h_repeats.py {' '.join(child_argv)}")
-    
-    if False:
-        run_scripts(["check_48h_repeats.py"])
 
-    # Capture child output to derive blocked reasons correctly
     f_out = io.StringIO()
     with redirect_stdout(f_out):
         rc = evidence_module.run_scripts(
@@ -282,7 +327,6 @@ def main() -> None:
     print(child_output)
 
     if rc != 0:
-        # Check if it was a blocked reason
         status_verdict, blocked_reasons = classify_wrapper_result(
             rc=rc,
             output=child_output,
@@ -307,28 +351,25 @@ def main() -> None:
             }
         }
         write_json_atomic(s6_evidence_path, evidence_block)
-        if nested_s6_evidence_path:
-            nested_s6_evidence_path.parent.mkdir(parents=True, exist_ok=True)
-            write_json_atomic(nested_s6_evidence_path, evidence_block)
         sys.exit(rc)
 
     if not output_path.exists():
         print("BLOCKED_PUBLICATION_FAILURE: S6 child process failed to publish output file.")
         sys.exit(5)
 
-    # Read output and build evidence
+    # 7. Read back output & parse
     try:
         output_data = json.loads(output_path.read_text(encoding="utf-8"))
         status_verdict = output_data.get("status") or "PASS"
         concrete_status = output_data.get("concrete_status") or "READY_FOR_S7"
-        
+
         input_candidate_count = output_data.get("input_candidate_count", 0)
         accepted_count = len(output_data.get("accepted", []))
         repeat_count = len(output_data.get("repeat_rejected", []))
         duplicate_count = len(output_data.get("duplicate_rejected", []))
         conflict_count = len(output_data.get("conflict_rejected", []))
         correlation_count = len(output_data.get("correlation_rejected", []))
-        concentration_count = len(output_data.get("portfolio_rejected", []))
+        concentration_count = len(output_data.get("concentration_rejected", []))
         invalid_count = len(output_data.get("invalid_input", []))
         accounting = output_data.get("accounting", {})
     except Exception as exc:
@@ -337,7 +378,7 @@ def main() -> None:
 
     s6_output_sha256 = sha256_file(output_path)
 
-    # 10. Publish SCRIPT_EVIDENCE once
+    # 8. Build complete, immutable evidence once
     evidence = {
         "schema_version": 1,
         "artifact_type": "SCRIPT_EVIDENCE",
@@ -346,14 +387,18 @@ def main() -> None:
         "betting_day": args.date,
         "run_id": args.run_id,
         "payload": {
-            "s6_input_path": str(s5_path),
-            "s6_output_path": str(output_path),
-            "s5_hash": s5_sha,
+            "s5_path": str(s5_path),
+            "s5_sha": s5_sha,
+            "policy_path": str(run_policy_path),
+            "policy_version": policy_data.get("policy_version", "1.0"),
+            "policy_sha": policy_sha,
+            "history_snapshot_path": str(run_history_path),
+            "history_snapshot_sha": history_sha,
+            "history_as_of": as_of.isoformat() + "Z",
+            "output_path": str(output_path),
             "output_sha256": s6_output_sha256,
-            "history_snapshot_sha256": history_sha,
             "git_sha": git_sha,
             "manifest_sha": man_hash,
-            "policy_version": policy_version,
             "as_of_timestamp": as_of.isoformat() + "Z",
             "input_candidate_count": input_candidate_count,
             "accepted_count": accepted_count,
@@ -364,44 +409,43 @@ def main() -> None:
             "concentration_rejected_count": concentration_count,
             "invalid_input_count": invalid_count,
             "accounting_summary": accounting,
+            "child_argv_fingerprint": child_argv,
+            "child_executable_identity": sys.executable,
+            "concrete_status": concrete_status,
             "wrapper_child_identity": "s6_repeats.py/check_48h_repeats.py",
             "output_artifact_type": "S6_PORTFOLIO_REPEAT_GUARD_V2"
         }
     }
-    write_json_atomic(s6_evidence_path, evidence)
-    if nested_s6_evidence_path:
-        nested_s6_evidence_path.parent.mkdir(parents=True, exist_ok=True)
-        write_json_atomic(nested_s6_evidence_path, evidence)
 
-    # 11. Append resume entry (only when not running under pytest to prevent rerun collision in matrix tests)
-    if "PYTEST_CURRENT_TEST" not in os.environ:
-        input_hashes = {
-            "s5_hash": s5_sha,
-            "history_hash": history_sha,
-        }
-        output_hashes = {
-            "s6_output_hash": s6_output_sha256
-        }
-        try:
-            resume_ledger = ResumeLedger(
-                run_root=run_root_path,
-                run_id=args.run_id,
-                betting_day=args.date,
-                main_sha=git_sha,
-                manifest_sha=man_hash,
-            )
-            resume_ledger.append(
-                step_id="S6",
-                status=status_verdict,
-                command_request={"argv": child_argv},
-                input_hashes=input_hashes,
-                output_hashes=output_hashes,
-            )
-        except ResumeLedgerError as exc:
-            print(f"BLOCKED_BINDING_FAILURE: Resume ledger append failure: {exc}")
-            sys.exit(5)
+    # Write single canonical evidence immutably and verify bytes
+    try:
+        publish_immutable_or_reuse(s6_evidence_path, evidence)
+    except Exception as exc:
+        print(f"BLOCK: Conflicting immutable S6 evidence exists: {exc}")
+        sys.exit(5)
 
-    # 12. Exit with typed status
+    # 9. Append entry to ResumeLedger
+    input_hashes = {
+        "s5_hash": s5_sha,
+        "history_hash": history_sha,
+        "policy_hash": policy_sha,
+    }
+    output_hashes = {
+        "s6_output_hash": s6_output_sha256
+    }
+    try:
+        resume_ledger.append(
+            step_id="S6",
+            status=status_verdict,
+            command_request={"argv": child_argv},
+            input_hashes=input_hashes,
+            output_hashes=output_hashes,
+        )
+    except ResumeLedgerError as exc:
+        print(f"BLOCKED_BINDING_FAILURE: Resume ledger append failure: {exc}")
+        sys.exit(5)
+
+    # 10. Exit with typed status
     if concrete_status == "NO_ACTION_TERMINAL":
         print("NO_ACTION_TERMINAL: All candidates legitimately filtered.")
         sys.exit(0)

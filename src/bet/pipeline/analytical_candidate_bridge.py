@@ -687,6 +687,8 @@ def build_analytical_candidate_handoff(
         )
 
         draft_dict = draft.to_dict()
+        draft_dict["home_team"] = valuation_entry.get("home_team")
+        draft_dict["away_team"] = valuation_entry.get("away_team")
         if analytical_status == "ANALYTICAL_READY":
             analytical_ready.append(draft_dict)
         elif analytical_status == "REVIEW_ONLY_PARTIAL_DATA":

@@ -1,4 +1,5 @@
 {
+  "schema_version": 1,
   "policy_version": "1.0",
   "repeat_loss_lookback_hours": 48,
   "duplicate_signal_enabled": true,

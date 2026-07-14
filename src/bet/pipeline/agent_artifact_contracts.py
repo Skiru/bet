@@ -3,8 +3,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from bet.pipeline.manifest import PipelineManifest
 from bet.pipeline.artifact_gate import find_forbidden_decision_signals
+from bet.pipeline.manifest import PipelineManifest
 
 
 def agent_steps_from_manifest(manifest: PipelineManifest | dict[str, Any]) -> list[str]:
@@ -26,7 +26,7 @@ def agent_steps_from_manifest(manifest: PipelineManifest | dict[str, Any]) -> li
         elif isinstance(step, dict):
             step_id = step.get("id")
             exec_mode = step.get("execution_mode")
-        
+
         if step_id and exec_mode == "agent_artifact":
             steps_list.append(step_id)
     return steps_list
@@ -92,24 +92,24 @@ def validate_agent_artifact_for_work_order(
         return False
 
     errors = []
-    
+
     # 1. basic matching
     step_id = work_order_data.get("step_id")
     if artifact_data.get("step_id") != step_id:
         errors.append(f"step_id mismatch: expected {step_id}, got {artifact_data.get('step_id')}")
-        
+
     run_id = work_order_data.get("run_id")
     if artifact_data.get("run_id") != run_id:
         errors.append(f"run_id mismatch: expected {run_id}, got {artifact_data.get('run_id')}")
-        
+
     betting_day = work_order_data.get("betting_day")
     if artifact_data.get("betting_day") != betting_day:
         errors.append(f"betting_day mismatch: expected {betting_day}, got {artifact_data.get('betting_day')}")
-        
+
     # 2. artifact_type check
     if artifact_data.get("artifact_type") != "AGENT_ARTIFACT":
         errors.append(f"artifact_type must be AGENT_ARTIFACT, got {artifact_data.get('artifact_type')}")
-        
+
     # 3. status check
     req_output = work_order_data.get("required_output", {})
     allowed_statuses = req_output.get("required_statuses", ["PASS", "BLOCK", "COMMAND_REQUEST"])
@@ -148,8 +148,8 @@ def validate_agent_artifact_for_work_order(
         if not cmd_req:
             errors.append("COMMAND_REQUEST artifacts must contain a non-empty command_request")
         else:
-            import shlex
             import os
+            import shlex
             argv = []
             if isinstance(cmd_req, dict):
                 argv = cmd_req.get("argv")
@@ -167,7 +167,7 @@ def validate_agent_artifact_for_work_order(
                     argv = []
             else:
                 errors.append("command_request must be a string or a structured object")
-                
+
             if argv:
                 meta = [";", "&", "|", "<", ">", "$", "(", ")", "*", "?", "[", "]", "\\", "!", "{", "}"]
                 for arg in argv:
@@ -195,19 +195,19 @@ def validate_agent_artifact_for_work_order(
         p_time = artifact_data.get("point_in_time_as_of")
         if not _non_empty_string(p_time):
             errors.append("point_in_time_as_of must be a non-empty string")
-            
+
     if is_pass and schema_reqs.get("source_bound"):
         if not artifact_data.get("source_bound", False):
             errors.append("source_bound must be true")
-            
+
     if is_pass and "production_selectable" in schema_reqs:
         if artifact_data.get("production_selectable") != schema_reqs["production_selectable"]:
             errors.append(f"production_selectable must be {schema_reqs['production_selectable']}")
-            
+
     if is_pass and "betting_decisions_enabled" in schema_reqs:
         if artifact_data.get("betting_decisions_enabled") != schema_reqs["betting_decisions_enabled"]:
             errors.append(f"betting_decisions_enabled must be {schema_reqs['betting_decisions_enabled']}")
-            
+
     if is_pass and schema_reqs.get("sources_required"):
         if not _non_empty_list(sources):
             errors.append("sources must be a non-empty list")
@@ -218,7 +218,7 @@ def validate_agent_artifact_for_work_order(
         signals = find_forbidden_decision_signals(payload)
         for sig in signals:
             errors.append(f"Forbidden decision signal found in payload: {sig}")
-            
+
     # 7. Step-specific contract checks
     if step_id == "S2.3":
         if "unknowns" not in artifact_data:
@@ -231,14 +231,14 @@ def validate_agent_artifact_for_work_order(
                 ("gaps_bounded", "bounded_gaps", "gaps_blocking", "blocking_gaps", "gaps_status"),
             ):
                 errors.append("S2.3 PASS must explicitly state whether gaps are bounded or blocking")
-             
+
     elif step_id == "S2.5":
         if is_pass:
             if not _payload_contains_any(payload, ("providers", "observations", "provider_observations")):
                 errors.append("S2.5 PASS payload must contain provider/source observations")
             if _contains_provider_promotion(payload):
                 errors.append("S2.5 PASS must not contain provider promotion or selection changes")
-             
+
     elif step_id == "S2.7":
         if is_pass:
             if not _payload_contains_any(payload, ("disputed_facts", "reconciliation")):
@@ -253,7 +253,7 @@ def validate_agent_artifact_for_work_order(
             )
             if not _non_empty_list(disputed_facts) and not has_explicit_unknowns and not reconciliation_marks_unknowns:
                 errors.append("S2.7 PASS must explicitly mark disputed or unknown facts")
-             
+
     elif step_id == "S2.9":
         if is_pass:
             if not payload:
@@ -272,7 +272,7 @@ def validate_agent_artifact_for_work_order(
                     errors.append("S2.9 PASS may set s3_may_proceed=true only when readiness is explicitly PASS")
                 if not _refs_cover_required_steps(evidence_refs, ("S2.3", "S2.5", "S2.7")):
                     errors.append("S2.9 PASS may set s3_may_proceed=true only with S2.3/S2.5/S2.7 evidence refs")
-             
+
     elif step_id == "S5":
         if is_pass:
             if not _non_empty_list(evidence_refs):
@@ -294,14 +294,14 @@ def validate_agent_artifact_for_work_order(
                 for field in ("source_s4_path", "source_s4_sha256", "source_git_sha", "manifest_sha", "work_order_id", "agent_id", "policy_version", "input_candidate_count", "rejected_candidates", "accounting"):
                     if field not in payload:
                         errors.append(f"S5 PASS payload must contain '{field}'")
-                
+
                 candidates = payload.get("candidates", [])
                 rejected = payload.get("rejected_candidates", [])
                 input_count = payload.get("input_candidate_count", 0)
                 if isinstance(candidates, list) and isinstance(rejected, list):
                     if len(candidates) + len(rejected) != input_count:
                         errors.append(f"S5 candidate accounting mismatch: len(candidates)={len(candidates)} + len(rejected)={len(rejected)} != input_candidate_count={input_count}")
-                
+
                 accounting = payload.get("accounting") or {}
                 if not isinstance(accounting, dict):
                     errors.append("S5 PASS payload 'accounting' must be a dict")
@@ -320,7 +320,7 @@ def agent_artifact_template_for_step(step_id: str, betting_day: str, run_id: str
     from bet.pipeline.agent_work_orders import POLICIES
     if step_id not in POLICIES:
         raise ValueError(f"No policy defined for step_id: {step_id}")
-    
+
     template = {
         "schema_version": 1,
         "artifact_type": "AGENT_ARTIFACT",
@@ -345,7 +345,7 @@ def agent_artifact_template_for_step(step_id: str, betting_day: str, run_id: str
             "approval_state": "NOT_FINAL_TEMPLATE",
         },
     }
-    
+
     if step_id == "S2.3":
         template["payload"] = {
             "template_status": "TODO_FILL_BY_AGENT",
@@ -391,7 +391,7 @@ def agent_artifact_template_for_step(step_id: str, betting_day: str, run_id: str
             "morale_recent_form": "TODO_FILL_BY_AGENT",
             "upset_volatility_risk": "TODO_FILL_BY_AGENT",
         }
-        
+
     return template
 
 
@@ -418,12 +418,13 @@ def validate_s5_artifact_v2(
     Verifies that the S5 artifact is sound, complete, and exactly binds to S4 and other run state.
     """
     from pathlib import Path
-    from bet.pipeline.run_evidence import sha256_file, repo_head_sha, manifest_hash
+
     from bet.pipeline.integration_artifacts import resolve_manifest_step_output
+    from bet.pipeline.run_evidence import manifest_hash, repo_head_sha, sha256_file
 
     if not isinstance(s5_data, dict):
         raise ValueError("S5_CANDIDATE_ACCOUNTING_MISMATCH: s5_data is not a dictionary")
-    
+
     payload = s5_data.get("payload", {})
     if not isinstance(payload, dict):
         raise ValueError("S5_CANDIDATE_ACCOUNTING_MISMATCH: s5_data payload is not a dictionary")
@@ -438,18 +439,18 @@ def validate_s5_artifact_v2(
     expected_work_order = f"WO-{run_id}-S5"
     if payload.get("work_order_id") != expected_work_order:
         raise ValueError(f"S5_WORK_ORDER_MISMATCH: work_order_id mismatch: expected {expected_work_order}, got {payload.get('work_order_id')}")
-        
+
     # Check agent_id
     if payload.get("agent_id") != "bet-risk-gatekeeper":
         raise ValueError(f"S5_AGENT_MISMATCH: agent_id mismatch: expected 'bet-risk-gatekeeper', got {payload.get('agent_id')}")
 
     repo_root = find_repo_root(run_root)
-    
+
     # Git SHA check
     expected_git_sha = repo_head_sha(repo_root)
     if (payload.get("source_git_sha") or payload.get("git_sha")) != expected_git_sha:
         raise ValueError(f"S5_GIT_SHA_MISMATCH: Git SHA mismatch: expected {expected_git_sha}, got {payload.get('source_git_sha')}")
-        
+
     # Manifest SHA check
     expected_manifest_sha = manifest_hash(repo_root)
     if (payload.get("manifest_sha") or payload.get("manifest_hash")) != expected_manifest_sha:
@@ -474,7 +475,7 @@ def validate_s5_artifact_v2(
         raise ValueError("S5_SOURCE_PATH_MISMATCH: source_s4_path is missing")
     if Path(source_s4_path).resolve() != s4_path.resolve():
         raise ValueError(f"S5_SOURCE_PATH_MISMATCH: S4 path mismatch: expected {s4_path}, got {source_s4_path}")
-        
+
     # S4 SHA check
     source_s4_sha256 = payload.get("source_s4_sha256")
     actual_s4_sha = sha256_file(s4_path)
@@ -492,14 +493,65 @@ def validate_s5_artifact_v2(
         if not cid:
             raise ValueError(f"S5_CANDIDATE_ACCOUNTING_MISMATCH: Retained candidate at index {idx} has no candidate_id")
         retained_ids.append(cid)
-        
+
         # Verify mandatory analytical/pricing/context/risk/provenance fields
         if "home_team" not in c or "away_team" not in c:
             raise ValueError(f"S5_CANDIDATE_ACCOUNTING_MISMATCH: Retained candidate {cid} is missing analytical fields (home_team/away_team)")
         if not ("market" in c or "best_market" in c or "market_type" in c or "market_name" in c):
             raise ValueError(f"S5_CANDIDATE_ACCOUNTING_MISMATCH: Retained candidate {cid} is missing analytical market field")
-        if not ("odds" in c or "best_odds" in c or "odds_decimal" in c or "odds_markets" in c):
-            raise ValueError(f"S5_CANDIDATE_ACCOUNTING_MISMATCH: Retained candidate {cid} is missing pricing fields")
+
+        # Pricing and analytical status resolution
+        analytical_status = c.get("analytical_status")
+        if not analytical_status:
+            analytical_status = "ANALYTICAL_READY"
+        if analytical_status == "ANALYTICAL_BLOCKED":
+            raise ValueError(f"S5_CANDIDATE_ACCOUNTING_MISMATCH: Retained candidate {cid} has analytical_status 'ANALYTICAL_BLOCKED' but is retained for S6")
+        if analytical_status not in ("ANALYTICAL_READY", "REVIEW_ONLY_PARTIAL_DATA"):
+            raise ValueError(f"S5_CANDIDATE_ACCOUNTING_MISMATCH: Retained candidate {cid} has invalid analytical_status: '{analytical_status}'")
+
+        pricing_status = c.get("pricing_status")
+        if not pricing_status:
+            if c.get("odds_decimal") or c.get("best_odds") or c.get("odds"):
+                pricing_status = "PRICED"
+            else:
+                pricing_status = "PRICE_PENDING"
+
+        if pricing_status not in ("PRICED", "PRICE_PENDING", "PRICING_DEGRADED", "PRICING_BLOCKED_INVALID_INPUT"):
+            raise ValueError(f"S5_CANDIDATE_ACCOUNTING_MISMATCH: Retained candidate {cid} has invalid pricing_status: '{pricing_status}'")
+
+        if pricing_status == "PRICED":
+            odds_val = c.get("odds_decimal") or c.get("best_odds")
+            if not odds_val:
+                raise ValueError(f"S5_CANDIDATE_ACCOUNTING_MISMATCH: Retained candidate {cid} with pricing_status 'PRICED' is missing valid odds")
+            try:
+                if float(odds_val) <= 0:
+                    raise ValueError()
+            except (ValueError, TypeError):
+                raise ValueError(f"S5_CANDIDATE_ACCOUNTING_MISMATCH: Retained candidate {cid} with pricing_status 'PRICED' has invalid or non-positive odds: {odds_val}")
+
+            odds_source = c.get("odds_source") or c.get("best_market", {}).get("bookmaker") or c.get("bookmaker")
+            odds_as_of = c.get("odds_as_of") or c.get("best_market", {}).get("as_of") or c.get("probability_as_of")
+            if not odds_source:
+                raise ValueError(f"S5_CANDIDATE_ACCOUNTING_MISMATCH: Retained candidate {cid} with pricing_status 'PRICED' is missing pricing source")
+            if not odds_as_of:
+                raise ValueError(f"S5_CANDIDATE_ACCOUNTING_MISMATCH: Retained candidate {cid} with pricing_status 'PRICED' is missing as-of timestamp")
+        else:
+            ev = c.get("ev")
+            if ev is not None and ev != "unavailable":
+                raise ValueError(f"S5_CANDIDATE_ACCOUNTING_MISMATCH: Retained candidate {cid} with pricing_status '{pricing_status}' must have null/unavailable EV, got: {ev}")
+
+            kelly = c.get("kelly") or c.get("kelly_criterion")
+            if kelly is not None and kelly != "unavailable":
+                raise ValueError(f"S5_CANDIDATE_ACCOUNTING_MISMATCH: Retained candidate {cid} with pricing_status '{pricing_status}' must have null/unavailable Kelly, got: {kelly}")
+
+            stake = c.get("stake") or c.get("stake_decimal")
+            if stake is not None and stake != "unavailable":
+                raise ValueError(f"S5_CANDIDATE_ACCOUNTING_MISMATCH: Retained candidate {cid} with pricing_status '{pricing_status}' must have null/unavailable stake, got: {stake}")
+
+            bettable = c.get("bettable")
+            if bettable is not None and bettable is not False:
+                raise ValueError(f"S5_CANDIDATE_ACCOUNTING_MISMATCH: Retained candidate {cid} with pricing_status '{pricing_status}' must have bettable=False, got: {bettable}")
+
         if "sport" not in c or "competition" not in c:
             raise ValueError(f"S5_CANDIDATE_ACCOUNTING_MISMATCH: Retained candidate {cid} is missing context fields (sport/competition)")
         if not ("safety_score" in c or "risk" in c or "safety_markets" in c or "risk_flags" in c):
@@ -511,7 +563,7 @@ def validate_s5_artifact_v2(
         if not cid:
             raise ValueError(f"S5_CANDIDATE_ACCOUNTING_MISMATCH: Rejected candidate at index {idx} has no candidate_id")
         rejected_ids.append(cid)
-        
+
         # stable rejection reasons
         reasons = c.get("rejection_reasons") or c.get("reason_codes") or c.get("reasons") or c.get("reason")
         if not reasons:
@@ -526,7 +578,7 @@ def validate_s5_artifact_v2(
         raise ValueError("S5_CANDIDATE_DUPLICATE: Duplicate candidate IDs found in retained candidates")
     if len(rejected_ids) != len(set(rejected_ids)):
         raise ValueError("S5_CANDIDATE_DUPLICATE: Duplicate candidate IDs found in rejected candidates")
-        
+
     # overlap checks
     overlap = set(retained_ids) & set(rejected_ids)
     if overlap:
@@ -535,10 +587,10 @@ def validate_s5_artifact_v2(
     # S4 candidates partition check
     s4_candidates = s4_data.get("candidates") or s4_data.get("payload", {}).get("candidates") or []
     s4_ids = [c.get("candidate_id") for c in s4_candidates if c.get("candidate_id")]
-    
+
     if set(retained_ids) | set(rejected_ids) != set(s4_ids):
         raise ValueError(f"S5_CANDIDATE_ACCOUNTING_MISMATCH: Partition of S4 candidates does not match: S5 union has {len(set(retained_ids) | set(rejected_ids))} candidates, but S4 has {len(set(s4_ids))}")
-        
+
     if input_candidate_count != len(s4_ids):
         raise ValueError(f"S5_CANDIDATE_ACCOUNTING_MISMATCH: S5 input_candidate_count {input_candidate_count} does not match S4 candidates count {len(s4_ids)}")
 

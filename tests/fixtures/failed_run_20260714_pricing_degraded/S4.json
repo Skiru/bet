@@ -1,0 +1,11 @@
+{
+  "artifact_type": "SCRIPT_EVIDENCE",
+  "step_id": "S4",
+  "status": "PASS",
+  "betting_day": "2026-07-14",
+  "run_id": "REPLAY_RUN_20260714_PRICING_DEGRADED",
+  "payload": {
+    "s4_valuation_output_path": "data/2026-07-14_s4_valuation_candidates.json",
+    "s4_valuation_output_sha256": "s4_hash_placeholder"
+  }
+}
