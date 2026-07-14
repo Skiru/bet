@@ -15,6 +15,9 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+import csv
+from datetime import timedelta
+
 import scripts.pipeline_steps._script_evidence as evidence_module
 from bet.pipeline.agent_artifact_contracts import validate_s5_artifact_v2
 from bet.pipeline.manifest import load_pipeline_manifest
@@ -27,8 +30,7 @@ from bet.pipeline.run_evidence import (
 )
 from bet.pipeline.runtime_modes import RuntimeMode, parse_runtime_mode
 from bet.pipeline.runtime_paths import is_safe_run_path
-import csv
-from datetime import timedelta
+
 
 class HistoryUnavailableError(Exception):
     pass
@@ -45,6 +47,7 @@ from bet.pipeline.portfolio_repeat_guard import (
 )
 from scripts.check_48h_repeats import publish_immutable_or_reuse
 
+
 def load_recent_losses_snapshot(
     ledger_path: Path,
     hours: int = 48,
@@ -52,7 +55,7 @@ def load_recent_losses_snapshot(
 ) -> dict[str, Any]:
     """Load lookback loss records exactly once from CSV and freeze as snapshot."""
     if as_of is None:
-        as_of = datetime.now(UTC)
+        raise ValueError("BLOCKED_RUN_AS_OF_BINDING_MISMATCH")
     elif as_of.tzinfo is None:
         as_of = as_of.replace(tzinfo=UTC)
 
@@ -158,6 +161,7 @@ BLOCKED_REASON_PATTERNS: tuple[tuple[str, str], ...] = (
 import hashlib
 import time
 
+
 def publish_terminal_evidence_immutable(
     target_path: Path,
     proposed_payload: dict[str, Any],
@@ -183,11 +187,11 @@ def publish_terminal_evidence_immutable(
             # Write a separate immutable conflict-attempt record under <run_root>/validation/attempts/S6/<attempt_id>.json as of REQ-V6-EVID-003
             attempts_dir = run_root_path / "validation" / "attempts" / "S6"
             attempts_dir.mkdir(parents=True, exist_ok=True)
-            
+
             # Deterministically unique attempt_id for this attempt
             attempt_id = f"conflict_{proposed_hash[:16]}_{int(time.time())}"
             attempt_path = attempts_dir / f"{attempt_id}.json"
-            
+
             # Ensure we do not overwrite another attempt record
             counter = 1
             while attempt_path.exists():
@@ -213,14 +217,14 @@ def publish_terminal_evidence_immutable(
 
     # Path absent: atomically publish with immutable=true
     write_json_atomic(target_path, proposed_payload)
-    
+
     # Read back and verify bytes and SHA
     readback_data = json.loads(target_path.read_text(encoding="utf-8"))
     readback_str = json.dumps(readback_data, sort_keys=True, ensure_ascii=False)
     readback_hash = hashlib.sha256(readback_str.encode("utf-8")).hexdigest()
     if readback_hash != proposed_hash:
         raise ValueError("BLOCKED_PUBLICATION_FAILURE: Evidence read-back hash mismatch")
-        
+
     return "atomic_create"
 
 
@@ -275,23 +279,45 @@ def main() -> None:
 
     ledger_path = args.ledger or Path(os.environ.get("BET_PIPELINE_LEDGER_PATH", ROOT / "betting" / "journal" / "picks-ledger.csv"))
 
-    # Injected timezone-aware as_of derived from run-clock binding
-    run_as_of_str = os.environ.get("BET_PIPELINE_RUN_AS_OF_UTC")
-    if run_as_of_str:
-        try:
-            as_of = datetime.fromisoformat(run_as_of_str.replace("Z", "+00:00"))
-            if as_of.tzinfo is None:
-                as_of = as_of.replace(tzinfo=UTC)
-        except Exception:
-            as_of = datetime.now(UTC)
-    else:
-        as_of = datetime.now(UTC)
-
-    # Resolve manifest and hashes
+    # Resolve manifest and hashes early as of REQ-V7-CLOCK-001
     git_sha = repo_head_sha(ROOT)
     manifest_path = ROOT / "config" / "pipeline_manifest.json"
     manifest = load_pipeline_manifest(manifest_path)
     man_hash = manifest_hash(ROOT)
+
+    # Initialize/load ResumeLedger and check clock binding
+    try:
+        resume_ledger = ResumeLedger(
+            run_root=run_root_path,
+            run_id=args.run_id,
+            betting_day=args.date,
+            main_sha=git_sha,
+            manifest_sha=man_hash,
+        )
+        ledger_data = resume_ledger._load()
+    except ResumeLedgerError as exc:
+        print(f"BLOCKED_RUN_AS_OF_BINDING_MISMATCH: {exc}")
+        sys.exit(5)
+    except Exception as exc:
+        print(f"BLOCKED_RUN_AS_OF_BINDING_MISMATCH: Failed to load/verify resume ledger: {exc}")
+        sys.exit(5)
+
+    run_as_of_str = resume_ledger.binding.get("run_as_of_utc")
+    if not run_as_of_str or not isinstance(run_as_of_str, str) or not run_as_of_str.endswith("Z"):
+        print("BLOCKED_RUN_AS_OF_BINDING_MISMATCH: Missing or invalid UTC suffix")
+        sys.exit(5)
+
+    try:
+        as_of = datetime.fromisoformat(run_as_of_str.replace("Z", "+00:00"))
+        if as_of.tzinfo is None:
+            as_of = as_of.replace(tzinfo=UTC)
+    except Exception:
+        print("BLOCKED_RUN_AS_OF_BINDING_MISMATCH: Failed to parse RFC3339 run clock")
+        sys.exit(5)
+
+    # Propagate exact value
+    os.environ["BET_PIPELINE_RUN_AS_OF_UTC"] = run_as_of_str
+    child_env["BET_PIPELINE_RUN_AS_OF_UTC"] = run_as_of_str
 
     # 3. Resolve and Validate S5 input
     s5_path = None
@@ -334,6 +360,10 @@ def main() -> None:
             input_hash = args.input_hash or os.environ.get("BET_PIPELINE_CERTIFICATION_INPUT_HASH")
             if not input_hash or input_hash in ("dummy", "dummy_s5_hash", "placeholder", ""):
                 print("BLOCKED_S6_CERTIFICATION_HASH_MISSING: input-hash is missing or invalid.")
+                sys.exit(5)
+
+            if not args.input.exists():
+                print("BLOCKED_S6_INPUT_INVALID: Override input path does not exist.")
                 sys.exit(5)
 
             actual_hash = sha256_file(args.input)
@@ -422,25 +452,7 @@ def main() -> None:
     history_sha = sha256_file(run_history_path)
 
     # 5. Resume and Rerun Checks (Must always be executed, no PYTEST bypass)
-    resume_ledger = None
-    try:
-        resume_ledger = ResumeLedger(
-            run_root=run_root_path,
-            run_id=args.run_id,
-            betting_day=args.date,
-            main_sha=git_sha,
-            manifest_sha=man_hash,
-        )
-    except ResumeLedgerError as exc:
-        print(f"BLOCKED_BINDING_FAILURE: Resume ledger initialization failed: {exc}")
-        sys.exit(5)
-
-    # Load and check existing entries
-    try:
-        ledger_data = resume_ledger._load()
-    except Exception as exc:
-        print(f"BLOCKED_BINDING_FAILURE: Resume ledger binding conflict: {exc}")
-        sys.exit(5)
+    # resume_ledger and ledger_data are already loaded and validated early in the run as of REQ-V7-CLOCK-001
 
     existing_s6 = [e for e in ledger_data.get("entries", []) if e.get("step_id") == "S6"]
 

@@ -1,22 +1,40 @@
 #!/usr/bin/env python3
-"""Evidence-derived final closure certifier for V6."""
+"""Evidence-derived final closure certifier for V7."""
 from __future__ import annotations
 
 import argparse
 import hashlib
 import json
 import sys
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+EXPECTED_REQ_V6_IDS = {
+    "REQ-V6-CERT-001",
+    "REQ-V6-CERT-002",
+    "REQ-V6-CERT-003",
+    "REQ-V6-EVID-001",
+    "REQ-V6-EVID-002",
+    "REQ-V6-EVID-003",
+    "REQ-V6-WORKER-001",
+    "REQ-V6-WORKER-002",
+    "REQ-V6-CLOCK-001",
+    "REQ-V6-CLOCK-002",
+    "REQ-V6-CLOCK-003",
+    "REQ-V6-REPLAY-001",
+    "REQ-V6-REPLAY-002",
+    "REQ-V6-REPLAY-003",
+    "REQ-V6-FAULT-001",
+    "REQ-V6-FAULT-002",
+    "REQ-V6-REG-001",
+    "REQ-V6-RELEASE-001",
+}
 
-def calculate_file_sha256(path: Path) -> str:
-    """Calculate SHA-256 hash of a file."""
-    h = hashlib.sha256()
-    with open(path, "rb") as f:
-        while chunk := f.read(8192):
-            h.update(chunk)
-    return h.hexdigest()
+
+def canonical_serialize(data: Any) -> str:
+    """Canonicalize dictionary serialize."""
+    return json.dumps(data, sort_keys=True, separators=(",", ":"))
 
 
 def main() -> None:
@@ -58,15 +76,76 @@ def main() -> None:
     }
 
     loaded_reports: dict[str, dict[str, Any]] = {}
-    expected_task_id = "BET_PIPELINE_FINAL_EVIDENCE_AND_RUN_BINDING_CLOSURE_V6"
+    expected_task_id = "BET_PIPELINE_FINAL_TRUSTWORTHY_CERTIFICATION_V7"
     expected_branch = "fix/s5-s6-s7-canonical-continuity-final-v1"
+    expected_head = "f925aef8ec215da5b513081b1a0357a5e628fab9"
+    expected_staged_tree_sha = "28422d9c6c3085818a7c4b69f27da61416fc8516"
+    cert_start = datetime.fromisoformat("2026-07-14T23:00:00Z".replace("Z", "+00:00"))
 
-    # 1. Validate every report schema & presence
+    REQUIRED_KEYS = (
+        "schema_version",
+        "task_id",
+        "source_branch",
+        "source_git_sha",
+        "staged_tree_sha",
+        "generation_timestamp",
+        "producer",
+        "command",
+        "status",
+        "report_payload",
+        "report_payload_sha256",
+    )
+
+    REQUIRED_PAYLOAD_KEYS = {
+        "requirements_traceability": {"traceability"},
+        "focused_test_report": {"failures", "executed_tests"},
+        "canonical_replay_report": {
+            "replay_runner_executed",
+            "replay_steps",
+            "s6_worker_executed",
+            "hash_mismatches",
+            "unaccounted_ids",
+            "replay_synthetic_odds",
+            "worker_input_json_paths",
+        },
+        "evidence_chain_report": {
+            "steps",
+            "missing_steps",
+            "hash_mismatches",
+            "resume_mismatches",
+            "binding_mismatches",
+            "duplicate_evidence",
+            "cross_run_paths",
+            "unresolved_conflicts",
+            "unresolved_conflicts_count",
+        },
+        "resume_chain_report": {"resume_mismatches"},
+        "fault_injection_report": {
+            "false_passes",
+            "canonical_evidence_overwrites",
+            "unhandled_faults",
+            "worker_dummy_hash_paths",
+            "worker_ad_hoc_paths",
+            "fault_cases_tested",
+            "cases_detailed",
+        },
+        "regression_comparison": {"new_regression_ids"},
+        "test_collection_comparison": {"unexplained_removed_node_ids"},
+        "production_surface_report": {"surface_checked", "violations_found"},
+        "reachability_report": {"reachability_checked", "unreachable_modules"},
+        "package_report": {"wheel_clean", "build_status"},
+        "security_report": {"vulnerabilities"},
+        "reviewer_report": {"reviewed_head", "p0_findings", "p1_findings", "reviewed_paths", "evidence_paths"},
+        "staged_tree_manifest": {"staged_tree_sha", "files"},
+        "git_state_report": {"remote_branch_sha"},
+    }
+
+    # 1. Validate every report schema, presence & cryptographic signature
     for name, path in reports.items():
         if not path.exists():
             print(f"BLOCK: Missing required evidence report: {name} at {path}")
             sys.exit(1)
-        
+
         try:
             data = json.loads(path.read_text(encoding="utf-8"))
             loaded_reports[name] = data
@@ -74,12 +153,27 @@ def main() -> None:
             print(f"BLOCK: Malformed JSON in evidence report {name} at {path}: {exc}")
             sys.exit(1)
 
-        # Schema and field validation
-        for field in ("schema_version", "task_id", "source_branch", "source_git_sha", "generation_timestamp", "command", "status"):
+        # 1.1 Key presence check
+        for field in REQUIRED_KEYS:
             if field not in data:
                 print(f"BLOCK: Missing required field '{field}' in report '{name}'")
                 sys.exit(1)
 
+        # 1.2 Cryptographic Hash Verification
+        payload_serialized = canonical_serialize(data["report_payload"])
+        computed_sha = hashlib.sha256(payload_serialized.encode("utf-8")).hexdigest()
+        if computed_sha != data["report_payload_sha256"]:
+            print(f"BLOCK: Report payload SHA256 mismatch in report '{name}'. Computed '{computed_sha}', got '{data['report_payload_sha256']}'")
+            sys.exit(1)
+
+        # 1.3 Exact report schema check per type
+        p_keys = set(data["report_payload"].keys())
+        expected_p_keys = REQUIRED_PAYLOAD_KEYS[name]
+        if p_keys != expected_p_keys:
+            print(f"BLOCK: Invalid report schema for '{name}'. Expected payload keys {expected_p_keys}, got {p_keys}")
+            sys.exit(1)
+
+        # 1.4 Strict static metadata checks
         if data["task_id"] != expected_task_id:
             print(f"BLOCK: Task ID mismatch in report '{name}'. Expected '{expected_task_id}', got '{data['task_id']}'")
             sys.exit(1)
@@ -88,51 +182,99 @@ def main() -> None:
             print(f"BLOCK: Branch mismatch in report '{name}'. Expected '{expected_branch}', got '{data['source_branch']}'")
             sys.exit(1)
 
-    # 2. Verify all reports reference the same branch HEAD and staged tree SHA
-    git_state = loaded_reports["git_state_report"]
-    final_branch_head = git_state["source_git_sha"]
-    staged_tree_sha = loaded_reports["staged_tree_manifest"]["staged_tree_sha"]
-
-    for name, data in loaded_reports.items():
-        if data["source_git_sha"] != final_branch_head:
-            print(f"BLOCK: Source Git SHA mismatch in report '{name}'. Report has {data['source_git_sha']}, expected {final_branch_head}")
+        if data["source_git_sha"] != expected_head:
+            print(f"BLOCK: Source Git SHA mismatch in report '{name}'. Expected '{expected_head}', got '{data['source_git_sha']}'")
             sys.exit(1)
 
-    # 3. Reject evidence generated before the staged-tree SHA (for reports that bind to staged tree)
-    # 4. Refuse direct PASS assertions from CLI args; calculate everything!
-    req_trace = loaded_reports["requirements_traceability"]
-    focused_test = loaded_reports["focused_test_report"]
-    replay = loaded_reports["canonical_replay_report"]
-    ev_chain = loaded_reports["evidence_chain_report"]
-    resume_chain = loaded_reports["resume_chain_report"]
-    fault_inj = loaded_reports["fault_injection_report"]
-    regression = loaded_reports["regression_comparison"]
-    test_collection = loaded_reports["test_collection_comparison"]
-    prod_surf = loaded_reports["production_surface_report"]
-    reachability = loaded_reports["reachability_report"]
-    package_rep = loaded_reports["package_report"]
-    security_rep = loaded_reports["security_report"]
-    reviewer_rep = loaded_reports["reviewer_report"]
-    staged_manifest = loaded_reports["staged_tree_manifest"]
+        if data["staged_tree_sha"] != expected_staged_tree_sha:
+            print(f"BLOCK: Staged-tree SHA mismatch in report '{name}'. Expected '{expected_staged_tree_sha}', got '{data['staged_tree_sha']}'")
+            sys.exit(1)
 
-    # Calculate status of each gate
-    requirements_implemented = [req for req, item in req_trace.get("traceability", {}).items() if item.get("status") == "PASS"]
-    all_reqs_passed = len(requirements_implemented) >= 18 # We have 18 total REQ-V6-*
+        # 1.5 Freshness / generation start check
+        try:
+            rep_time = datetime.fromisoformat(data["generation_timestamp"].replace("Z", "+00:00"))
+            if rep_time < cert_start:
+                print(f"BLOCK: Report is stale: '{name}' was generated at {data['generation_timestamp']}, which is before certification start")
+                sys.exit(1)
+        except Exception as exc:
+            print(f"BLOCK: Invalid timestamp format in report '{name}': {exc}")
+            sys.exit(1)
 
-    focused_test_pass = focused_test.get("status") == "PASS" and not focused_test.get("failures")
-    replay_pass = replay.get("status") == "PASS" and not replay.get("hash_mismatches") and not replay.get("unaccounted_ids")
-    ev_chain_pass = ev_chain.get("status") == "PASS" and not ev_chain.get("hash_mismatches")
-    resume_chain_pass = resume_chain.get("status") == "PASS" and not resume_chain.get("resume_mismatches")
-    fault_inj_pass = fault_inj.get("status") == "PASS" and not fault_inj.get("false_passes") and not fault_inj.get("unhandled_faults")
-    regression_pass = regression.get("status") == "PASS" and not regression.get("new_regression_ids")
-    test_coll_pass = test_collection.get("status") == "PASS" and not test_collection.get("unexplained_removed_node_ids")
-    prod_surf_pass = prod_surf.get("status") == "PASS"
-    reachability_pass = reachability.get("status") == "PASS"
-    package_pass = package_rep.get("status") == "PASS"
-    security_pass = security_rep.get("status") == "PASS" and not security_rep.get("vulnerabilities")
-    reviewer_pass = reviewer_rep.get("status") == "PASS" and not reviewer_rep.get("p0_findings") and not reviewer_rep.get("p1_findings")
+        # 1.6 Evidence-based PASS enforcement
+        if data["status"] == "PASS":
+            p = data["report_payload"]
+            if name == "focused_test_report" and p["failures"] > 0:
+                print("BLOCK: focused_test_report has failures but status=PASS")
+                sys.exit(1)
+            elif name == "canonical_replay_report" and (p["hash_mismatches"] or p["unaccounted_ids"]):
+                print("BLOCK: canonical_replay_report has mismatches but status=PASS")
+                sys.exit(1)
+            elif name == "evidence_chain_report" and (p["missing_steps"] or p["hash_mismatches"] or p["resume_mismatches"] or p["binding_mismatches"] or p["unresolved_conflicts"]):
+                print("BLOCK: evidence_chain_report has issues but status=PASS")
+                sys.exit(1)
+            elif name == "resume_chain_report" and p["resume_mismatches"]:
+                print("BLOCK: resume_chain_report has mismatches but status=PASS")
+                sys.exit(1)
+            elif name == "fault_injection_report" and (p["false_passes"] or p["unhandled_faults"] or len(p["fault_cases_tested"]) < 25):
+                print(f"BLOCK: fault_injection_report is incomplete or has false passes (tested: {len(p['fault_cases_tested'])}/25)")
+                sys.exit(1)
+            elif name == "regression_comparison" and p["new_regression_ids"]:
+                print("BLOCK: regression_comparison has regressions but status=PASS")
+                sys.exit(1)
+            elif name == "test_collection_comparison" and p["unexplained_removed_node_ids"]:
+                print("BLOCK: test_collection_comparison has unexplained removed tests but status=PASS")
+                sys.exit(1)
+            elif name == "production_surface_report" and p["violations_found"] > 0:
+                print("BLOCK: production_surface_report has violations but status=PASS")
+                sys.exit(1)
+            elif name == "reachability_report" and p["unreachable_modules"] > 0:
+                print("BLOCK: reachability_report has unreachable modules but status=PASS")
+                sys.exit(1)
+            elif name == "package_report" and (p["build_status"] != "SUCCESS" or not p["wheel_clean"]):
+                print("BLOCK: package_report has build/wheel issues but status=PASS")
+                sys.exit(1)
+            elif name == "security_report" and p["vulnerabilities"] > 0:
+                print("BLOCK: security_report has vulnerabilities but status=PASS")
+                sys.exit(1)
+            elif name == "reviewer_report" and (p["p0_findings"] or p["p1_findings"]):
+                print("BLOCK: reviewer_report has open findings but status=PASS")
+                sys.exit(1)
 
-    # Final decision check
+    # 2. Derive final certificate fields mechanically from named report fields
+    req_trace_p = loaded_reports["requirements_traceability"]["report_payload"]
+    focused_test_p = loaded_reports["focused_test_report"]["report_payload"]
+    replay_p = loaded_reports["canonical_replay_report"]["report_payload"]
+    ev_chain_p = loaded_reports["evidence_chain_report"]["report_payload"]
+    resume_chain_p = loaded_reports["resume_chain_report"]["report_payload"]
+    fault_inj_p = loaded_reports["fault_injection_report"]["report_payload"]
+    regression_p = loaded_reports["regression_comparison"]["report_payload"]
+    test_collection_p = loaded_reports["test_collection_comparison"]["report_payload"]
+    prod_surf_p = loaded_reports["production_surface_report"]["report_payload"]
+    reachability_p = loaded_reports["reachability_report"]["report_payload"]
+    package_rep_p = loaded_reports["package_report"]["report_payload"]
+    security_rep_p = loaded_reports["security_report"]["report_payload"]
+    reviewer_rep_p = loaded_reports["reviewer_report"]["report_payload"]
+
+    # Gate logic
+    requirements_implemented = [
+        req for req, item in req_trace_p.get("traceability", {}).items()
+        if item.get("status") == "PASS"
+    ]
+    all_reqs_passed = set(requirements_implemented) == EXPECTED_REQ_V6_IDS
+
+    focused_test_pass = loaded_reports["focused_test_report"]["status"] == "PASS" and not focused_test_p["failures"]
+    replay_pass = loaded_reports["canonical_replay_report"]["status"] == "PASS" and not replay_p["hash_mismatches"] and not replay_p["unaccounted_ids"]
+    ev_chain_pass = loaded_reports["evidence_chain_report"]["status"] == "PASS" and not ev_chain_p["hash_mismatches"]
+    resume_chain_pass = loaded_reports["resume_chain_report"]["status"] == "PASS" and not resume_chain_p["resume_mismatches"]
+    fault_inj_pass = loaded_reports["fault_injection_report"]["status"] == "PASS" and not fault_inj_p["false_passes"] and not fault_inj_p["unhandled_faults"] and len(fault_inj_p["fault_cases_tested"]) >= 25
+    regression_pass = loaded_reports["regression_comparison"]["status"] == "PASS" and not regression_p["new_regression_ids"]
+    test_coll_pass = loaded_reports["test_collection_comparison"]["status"] == "PASS" and not test_collection_p["unexplained_removed_node_ids"]
+    prod_surf_pass = loaded_reports["production_surface_report"]["status"] == "PASS" and prod_surf_p["violations_found"] == 0
+    reachability_pass = loaded_reports["reachability_report"]["status"] == "PASS" and reachability_p["unreachable_modules"] == 0
+    package_pass = loaded_reports["package_report"]["status"] == "PASS" and package_rep_p["build_status"] == "SUCCESS" and package_rep_p["wheel_clean"]
+    security_pass = loaded_reports["security_report"]["status"] == "PASS" and not security_rep_p["vulnerabilities"]
+    reviewer_pass = loaded_reports["reviewer_report"]["status"] == "PASS" and not reviewer_rep_p["p0_findings"] and not reviewer_rep_p["p1_findings"]
+
     overall_status = "BLOCK"
     decision = "DO_NOT_PROCEED"
 
@@ -141,9 +283,30 @@ def main() -> None:
             reachability_pass and package_pass and security_pass and reviewer_pass and
             all_reqs_passed):
         overall_status = "PASS"
-        decision = "PIPELINE_FINAL_CLOSURE_READY_FOR_ARCHITECT_MERGE_REVIEW"
+        decision = "PIPELINE_TRUSTWORTHY_CERTIFICATION_READY_FOR_MERGE_REVIEW"
 
-    # Assemble the certificate
+    # Derive Blockers and Risks dynamically
+    derived_blockers = []
+    if not all_reqs_passed:
+        derived_blockers.append("FAILED_REQUIREMENTS_TRACEABILITY")
+    if not focused_test_pass:
+        derived_blockers.append("FAILED_FOCUSED_TEST_SUITE")
+    if not replay_pass:
+        derived_blockers.append("FAILED_REPLAY_GATE")
+    if not ev_chain_pass:
+        derived_blockers.append("FAILED_EVIDENCE_CHAIN")
+    if not resume_chain_pass:
+        derived_blockers.append("FAILED_RESUME_CHAIN")
+    if not fault_inj_pass:
+        derived_blockers.append("FAILED_FAULT_INJECTION_SUITE")
+    if not reviewer_pass:
+        derived_blockers.append("FAILED_ADVERSARIAL_REVIEW")
+
+    derived_risks = []
+    if reviewer_rep_p["p1_findings"]:
+        derived_risks.extend(reviewer_rep_p["p1_findings"])
+
+    # Assemble the derived certificate
     certificate = {
         "schema_version": 1,
         "task_id": expected_task_id,
@@ -151,34 +314,34 @@ def main() -> None:
         "decision": decision,
         "base_sha": "3f6aa6462e46f034fdd293f87515a2a6cd4c6c08",
         "previous_head": "f7ea53ccc99e15a59a26eb621f40e45a3e3af501",
-        "final_branch_head": final_branch_head,
-        "remote_branch_sha": git_state.get("remote_branch_sha", "UNKNOWN"),
-        "staged_tree_sha": staged_tree_sha,
-        "self_certifying_tests": [],
+        "final_branch_head": expected_head,
+        "remote_branch_sha": loaded_reports["git_state_report"]["report_payload"].get("remote_branch_sha", "UNKNOWN"),
+        "staged_tree_sha": expected_staged_tree_sha,
+        "self_certifying_tests": focused_test_p.get("executed_tests", []),
         "certificate_evidence_validation": "PASS" if overall_status == "PASS" else "BLOCK",
-        "terminal_s6_evidence_immutable": True,
-        "canonical_s6_evidence_overwrites": [],
-        "conflicting_attempts_audited": True,
-        "strict_s6_worker_contract": "PASS" if loaded_reports["requirements_traceability"]["traceability"]["REQ-V6-WORKER-001"]["status"] == "PASS" else "BLOCK",
-        "worker_input_json_paths": [],
-        "worker_dummy_hash_paths": [],
-        "worker_ad_hoc_paths": [],
-        "run_as_of_binding": "PASS" if loaded_reports["requirements_traceability"]["traceability"]["REQ-V6-CLOCK-001"]["status"] == "PASS" else "BLOCK",
+        "terminal_s6_evidence_immutable": ev_chain_p.get("unresolved_conflicts_count", 0) == 0,
+        "canonical_s6_evidence_overwrites": fault_inj_p.get("canonical_evidence_overwrites", []),
+        "conflicting_attempts_audited": ev_chain_p.get("unresolved_conflicts_count", 0) == 0,
+        "strict_s6_worker_contract": "PASS" if all_reqs_passed else "BLOCK",
+        "worker_input_json_paths": replay_p.get("worker_input_json_paths", []),
+        "worker_dummy_hash_paths": fault_inj_p.get("worker_dummy_hash_paths", []),
+        "worker_ad_hoc_paths": fault_inj_p.get("worker_ad_hoc_paths", []),
+        "run_as_of_binding": "PASS" if all_reqs_passed else "BLOCK",
         "run_as_of_resume_mismatches_accepted": [],
         "bounded_replay": "PASS" if replay_pass else "BLOCK",
-        "replay_runner_executed": True,
-        "replay_steps": ["S6", "S7", "S7b", "S8"],
-        "s6_worker_executed": True,
+        "replay_runner_executed": replay_p.get("replay_runner_executed", True),
+        "replay_steps": replay_p.get("replay_steps", []),
+        "s6_worker_executed": replay_p.get("s6_worker_executed", True),
         "evidence_chain": "PASS" if ev_chain_pass else "BLOCK",
         "resume_chain": "PASS" if resume_chain_pass else "BLOCK",
-        "replay_unaccounted_candidate_ids": [],
-        "replay_synthetic_odds": [],
+        "replay_unaccounted_candidate_ids": replay_p.get("unaccounted_ids", []),
+        "replay_synthetic_odds": replay_p.get("replay_synthetic_odds", []),
         "fault_injection": "PASS" if fault_inj_pass else "BLOCK",
-        "false_passes": [],
-        "new_regressions": [],
-        "unexplained_removed_tests": [],
-        "open_p0": [],
-        "open_p1": [],
+        "false_passes": fault_inj_p.get("false_passes", []),
+        "new_regressions": regression_p.get("new_regression_ids", []),
+        "unexplained_removed_tests": test_collection_p.get("unexplained_removed_node_ids", []),
+        "open_p0": reviewer_rep_p.get("p0_findings", []),
+        "open_p1": reviewer_rep_p.get("p1_findings", []),
         "adversarial_review": "PASS" if reviewer_pass else "BLOCK",
         "security_scan": "PASS" if security_pass else "BLOCK",
         "main_merged": False,
@@ -186,8 +349,8 @@ def main() -> None:
         "bookmaker_interaction": False,
         "canonical_database_mutated": False,
         "canonical_journals_mutated": False,
-        "blockers": [],
-        "risks": []
+        "blockers": derived_blockers,
+        "risks": derived_risks,
     }
 
     # Write final certificate
