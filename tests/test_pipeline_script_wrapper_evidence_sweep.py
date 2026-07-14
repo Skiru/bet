@@ -307,6 +307,115 @@ def _seed_prior_steps(environ: dict[str, str], step_id: str):
         ]
     }))
     
+    # S5
+    s5_ev = {
+        "schema_version": 1,
+        "artifact_type": "AGENT_ARTIFACT",
+        "step_id": "S5",
+        "betting_day": "2026-06-25",
+        "run_id": environ["BET_PIPELINE_RUN_ID"],
+        "status": "PASS",
+        "point_in_time_as_of": "2026-06-25T12:00:00Z",
+        "source_bound": True,
+        "no_pick_edge_stake_coupon_emitted": True,
+        "production_selectable": False,
+        "betting_decisions_enabled": False,
+        "sources": ["source-test"],
+        "unknowns": [],
+        "blocked_reasons": [],
+        "evidence_refs": ["artifacts/S4.json"],
+        "payload": {
+            "source_s4_path": str(run_root / "data" / "2026-06-25_s4_valuation_candidates.json"),
+            "source_s4_sha256": "dummy",
+            "source_git_sha": "dummy",
+            "manifest_sha": "dummy",
+            "work_order_id": "WO-1",
+            "agent_id": "bet-risk-gatekeeper",
+            "policy_version": "1.0",
+            "input_candidate_count": 1,
+            "candidates": [
+                {
+                    "candidate_id": "c1",
+                    "sport": "football",
+                    "home_team": "Alpha",
+                    "away_team": "Beta",
+                    "competition": "Test League",
+                    "scheduled_time": "2026-06-25T18:00:00Z",
+                    "market_family": "RESULT",
+                    "market": "Match Winner",
+                    "selection": "Alpha",
+                    "pick": "Alpha",
+                    "model_probability": 0.55,
+                    "probability_confidence": "HIGH",
+                    "odds": {"market_best": 2.10},
+                    "pricing_status": "PRICED"
+                }
+            ],
+            "rejected_candidates": [],
+            "accounting": {
+                "unaccounted_candidate_ids": [],
+                "duplicate_candidate_ids": [],
+                "overlapping_terminal_categories": []
+            }
+        }
+    }
+    (run_root / "artifacts" / "S5.json").write_text(json.dumps(s5_ev))
+
+    # S6
+    s6_ev = {
+        "schema_version": 1,
+        "artifact_type": "SCRIPT_EVIDENCE",
+        "step_id": "S6",
+        "betting_day": "2026-06-25",
+        "run_id": environ["BET_PIPELINE_RUN_ID"],
+        "status": "PASS",
+        "payload": {
+            "s6_output_path": str(run_root / "data" / "repeat_loss_handoff_2026-06-25.json")
+        }
+    }
+    (run_root / "artifacts" / "S6.json").write_text(json.dumps(s6_ev))
+    (run_root / "data" / "repeat_loss_handoff_2026-06-25.json").write_text(json.dumps({
+        "schema_version": 1,
+        "artifact_type": "S6_PORTFOLIO_REPEAT_GUARD_V2",
+        "status": "PASS",
+        "betting_day": "2026-06-25",
+        "run_id": environ["BET_PIPELINE_RUN_ID"],
+        "accepted": [
+            {
+                "candidate_id": "c1",
+                "decision": "ACCEPTED",
+                "reason_codes": [],
+                "explanation": "Passed all checks",
+                "original_candidate": {
+                    "candidate_id": "c1",
+                    "sport": "football",
+                    "home_team": "Alpha",
+                    "away_team": "Beta",
+                    "competition": "Test League",
+                    "scheduled_time": "2026-06-25T18:00:00Z",
+                    "market_family": "RESULT",
+                    "market": "Match Winner",
+                    "selection": "Alpha",
+                    "pick": "Alpha",
+                    "model_probability": 0.55,
+                    "probability_confidence": "HIGH",
+                    "odds": {"market_best": 2.10},
+                    "pricing_status": "PRICED"
+                }
+            }
+        ],
+        "repeat_rejected": [],
+        "correlation_rejected": [],
+        "conflict_rejected": [],
+        "portfolio_rejected": [],
+        "invalid_input": [],
+        "accounting": {
+            "unaccounted_candidate_ids": [],
+            "duplicate_candidate_ids": [],
+            "overlapping_terminal_categories": []
+        }
+    }))
+    
     # S7
     s7_ev = {
         "schema_version": 1,
@@ -506,8 +615,8 @@ def test_target_wrappers_write_block_evidence_for_controlled_output(case, capsys
 
     if case["step_id"] == "S3":
         _seed_s3_shortlist(environ)
-    elif case["step_id"] == "S7":
-        _seed_prior_steps(environ, "S7")
+    elif case["step_id"] in {"S6", "S7"}:
+        _seed_prior_steps(environ, case["step_id"])
 
     def _controlled(*args, **kwargs):
         print(case["block_token"])
@@ -554,8 +663,8 @@ def test_target_wrappers_write_failed_evidence_for_unexpected_non_zero(case):
 
     if case["step_id"] == "S3":
         _seed_s3_shortlist(environ)
-    elif case["step_id"] == "S7":
-        _seed_prior_steps(environ, "S7")
+    elif case["step_id"] in {"S6", "S7"}:
+        _seed_prior_steps(environ, case["step_id"])
 
     with patch.dict(os.environ, environ, clear=False), patch.object(sys, "argv", argv):
         if case["step_id"] in {"S7b", "S8"}:

@@ -289,6 +289,29 @@ def validate_agent_artifact_for_work_order(
                 if not any(any(alias in key for alias in aliases) for key in payload_keys):
                     errors.append(f"S5 PASS payload must contain context check for category '{label}'")
 
+            # Validate S5_CONTEXT_RISK_CANDIDATE_SET_V2 fields if present
+            if "candidates" in payload:
+                for field in ("source_s4_path", "source_s4_sha256", "source_git_sha", "manifest_sha", "work_order_id", "agent_id", "policy_version", "input_candidate_count", "rejected_candidates", "accounting"):
+                    if field not in payload:
+                        errors.append(f"S5 PASS payload must contain '{field}'")
+                
+                candidates = payload.get("candidates", [])
+                rejected = payload.get("rejected_candidates", [])
+                input_count = payload.get("input_candidate_count", 0)
+                if isinstance(candidates, list) and isinstance(rejected, list):
+                    if len(candidates) + len(rejected) != input_count:
+                        errors.append(f"S5 candidate accounting mismatch: len(candidates)={len(candidates)} + len(rejected)={len(rejected)} != input_candidate_count={input_count}")
+                
+                accounting = payload.get("accounting") or {}
+                if not isinstance(accounting, dict):
+                    errors.append("S5 PASS payload 'accounting' must be a dict")
+                else:
+                    for k in ("unaccounted_candidate_ids", "duplicate_candidate_ids", "overlapping_terminal_categories"):
+                        if k not in accounting:
+                            errors.append(f"S5 PASS payload accounting must contain '{k}'")
+                        elif accounting[k] != []:
+                            errors.append(f"S5 PASS payload accounting.{k} must be empty")
+
     return errors
 
 

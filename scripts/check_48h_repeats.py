@@ -2,142 +2,41 @@
 """48-hour repeat pick detector — finds same team+market losses in recent history.
 
 Reads picks-ledger.csv and identifies picks in the last 48 hours with the same
-team+market combination that resulted in a loss. These are flagged for the S7 gate
-(§7.5 point #14: "48h repeat check — same team+market lost → HARD REJECT").
+team+market combination that resulted in a loss. These are flagged for the S7 gate.
 """
+from __future__ import annotations
 
 import argparse
 import csv
 import json
+import os
 import re
 import sys
-import os
 from datetime import datetime, timedelta
-from difflib import SequenceMatcher
 from pathlib import Path
 
-
 ROOT_DIR = Path(__file__).resolve().parent.parent
-DATA_DIR = Path(os.environ.get("BET_PIPELINE_DATA_DIR", str(ROOT_DIR / "betting" / "data")))
-DEFAULT_LEDGER_PATH = ROOT_DIR / "betting" / "journal" / "picks-ledger.csv"
-REPEAT_LOSS_STEP = "s7_6_repeat_loss_check"
-
-# Ensure src/ is importable when the script is executed directly.
 sys.path.insert(0, str(ROOT_DIR / "src"))
 
+from bet.pipeline.manifest import load_pipeline_manifest
+from bet.pipeline.integration_artifacts import resolve_manifest_step_output
+from bet.pipeline.run_evidence import sha256_file, repo_head_sha, manifest_hash, write_json_atomic
+from bet.pipeline.portfolio_repeat_guard import (
+    PortfolioRepeatGuardInput,
+    evaluate_portfolio_repeat_guard,
+    _normalize_team,
+    _normalize_market,
+    _extract_teams_from_event,
+    _fuzzy_match,
+)
 
-def is_non_production_mode() -> bool:
-    mode = os.environ.get("BET_PIPELINE_RUNTIME_MODE", "DRY_RUN").upper()
-    return mode != "PRODUCTION"
+DEFAULT_LEDGER_PATH = ROOT_DIR / "betting" / "journal" / "picks-ledger.csv"
 
+REPEAT_LOSS_STEP = "s7_6_repeat_loss_check"
 
-def is_protected_repo_path(path: Path | str | None) -> bool:
-    if not path:
-        return False
-    abs_path = Path(path).resolve()
-    betting_data = (ROOT_DIR / "betting" / "data").resolve()
-    betting_coupons = (ROOT_DIR / "betting" / "coupons").resolve()
-    reports = (ROOT_DIR / "reports").resolve()
-    
-    for parent in [betting_data, betting_coupons, reports]:
-        try:
-            abs_path.relative_to(parent)
-            return True
-        except ValueError:
-            pass
-    return False
-
-
-def normalize_team(name: str) -> str:
-    """Normalize team name for fuzzy matching."""
-    name = name.lower().strip()
-    name = re.sub(r"\s+", " ", name)
-    # Remove common suffixes/prefixes
-    for token in ["fc ", "sc ", "ac ", "ss ", "bv ", "ud ", "sv ", "tsv ", "vfb "]:
-        if name.startswith(token):
-            name = name[len(token):]
-    for token in [" fc", " sc", " ac", " cf"]:
-        if name.endswith(token):
-            name = name[: -len(token)]
-    return name.strip()
-
-
-def normalize_market(market: str) -> str:
-    """Normalize market type for matching."""
-    market = market.lower().strip()
-    market = re.sub(r"\s+", " ", market)
-    # Normalize common variants
-    market = market.replace("over ", "o").replace("under ", "u")
-    market = market.replace("o/u ", "").replace("over/under ", "")
-    return market
-
-
-def fuzzy_match(a: str, b: str, threshold: float = 0.75) -> bool:
-    """Check if two strings match above a similarity threshold."""
-    return SequenceMatcher(None, a, b).ratio() >= threshold
-
-
-def load_recent_losses(
-    ledger_path: Path, hours: int = 48
-) -> list[dict]:
-    """Read picks-ledger.csv and filter to status=loss within last N hours."""
-    if not ledger_path.exists():
-        return []
-
-    cutoff = datetime.now() - timedelta(hours=hours)
-    losses = []
-
-    with open(ledger_path, "r", encoding="utf-8") as f:
-        reader = csv.DictReader(f)
-        for row in reader:
-            if row.get("status", "").strip().lower() != "loss":
-                continue
-
-            # Parse betting_day
-            betting_day = row.get("betting_day", "").strip()
-            if not betting_day:
-                continue
-            try:
-                # Treat betting_day as end-of-day to ensure full 48h calendar coverage
-                day_dt = datetime.strptime(betting_day, "%Y-%m-%d") + timedelta(hours=23, minutes=59)
-            except ValueError:
-                continue
-
-            if day_dt < cutoff:
-                continue
-
-            # Extract team names from event field
-            event = row.get("event", "").strip()
-            teams = extract_teams(event)
-
-            losses.append({
-                "betting_day": betting_day,
-                "pick_id": row.get("pick_id", "").strip(),
-                "event": event,
-                "sport": row.get("sport", "").strip(),
-                "market": row.get("market", "").strip(),
-                "selection": row.get("selection", "").strip(),
-                "teams": teams,
-                "teams_normalized": [normalize_team(t) for t in teams],
-                "market_normalized": normalize_market(row.get("market", "")),
-                "days_ago": (datetime.now() - day_dt).days,
-            })
-
-    return losses
-
-
-def extract_teams(event: str) -> list[str]:
-    """Extract team/player names from event string."""
-    # Try "Team A vs Team B" pattern
-    match = re.match(r"(.+?)\s+(?:vs\.?|@)\s+(.+?)(?:\s*\(|$)", event, re.IGNORECASE)
-    if match:
-        return [match.group(1).strip(), match.group(2).strip()]
-    # Fallback: split by common separators
-    for sep in [" vs ", " vs. ", " @ ", " - "]:
-        if sep in event.lower():
-            idx = event.lower().index(sep)
-            return [event[:idx].strip(), event[idx + len(sep):].strip()]
-    return [event]
+normalize_team = _normalize_team
+normalize_market = _normalize_market
+fuzzy_match = _fuzzy_match
 
 
 def find_repeats(
@@ -154,7 +53,6 @@ def find_repeats(
         for check_team in check_teams_norm:
             for loss_team in loss["teams_normalized"]:
                 if fuzzy_match(check_team, loss_team):
-                    # Team matches — check market if provided
                     if check_market_norm:
                         if not fuzzy_match(check_market_norm, loss["market_normalized"], 0.6):
                             continue
@@ -175,150 +73,17 @@ def find_repeats(
     return warnings
 
 
-def parse_shortlist_teams(shortlist_path: Path) -> list[str]:
-    """Extract team names from shortlist markdown file."""
-    if not shortlist_path.exists():
-        return []
-
-    text = shortlist_path.read_text(encoding="utf-8")
-    teams = set()
-
-    # Look for "X vs Y" patterns
-    for match in re.finditer(
-        r"([A-ZÀ-Ža-zà-ž0-9\s.'&\-]+?)\s+vs\.?\s+([A-ZÀ-Ža-zà-ž0-9\s.'&\-]+?)(?:\s*[\|(]|$)",
-        text,
-        re.MULTILINE,
-    ):
-        teams.add(match.group(1).strip())
-        teams.add(match.group(2).strip())
-
-    return list(teams)
-
-
-def _candidate_market_name(candidate: dict) -> str:
-    best_market = candidate.get("best_market") or {}
-    return (
-        best_market.get("name")
-        or candidate.get("market_type")
-        or candidate.get("market")
-        or ""
-    )
-
-
-def _extract_gate_candidates(payload: dict | list) -> list[dict]:
-    if isinstance(payload, list):
-        candidates = [item for item in payload if isinstance(item, dict)]
-        if not candidates:
-            raise ValueError("zero candidates found in payload list")
-        return candidates
-
-    if not isinstance(payload, dict):
-        raise ValueError("Gate input payload must be a dict or list")
-
-    inner = payload.get("payload")
-    if isinstance(inner, dict):
-        try:
-            return _extract_gate_candidates(inner)
-        except ValueError:
-            pass
-
-    # 1. gate_results.approved + gate_results.extended_pool
-    gate_results = payload.get("gate_results")
-    if isinstance(gate_results, dict):
-        approved = gate_results.get("approved", []) or []
-        extended = gate_results.get("extended_pool", []) or []
-        candidates = [item for item in approved + extended if isinstance(item, dict)]
-        if not candidates:
-            raise ValueError("zero candidates found in gate_results buckets")
-        return candidates
-
-    # 2. candidates
-    candidates = payload.get("candidates")
-    if isinstance(candidates, list):
-        res = [item for item in candidates if isinstance(item, dict)]
-        if not res:
-            raise ValueError("zero candidates found in candidates list")
-        return res
-
-    # 3. results
-    results = payload.get("results")
-    if isinstance(results, list):
-        res = [item for item in results if isinstance(item, dict)]
-        if not res:
-            raise ValueError("zero candidates found in results list")
-        return res
-
-    # 4. events
-    events = payload.get("events")
-    if isinstance(events, list):
-        res = [item for item in events if isinstance(item, dict)]
-        if not res:
-            raise ValueError("zero candidates found in events list")
-        return res
-
-    # 5. valuations
-    valuations = payload.get("valuations")
-    if isinstance(valuations, list):
-        res = [item for item in valuations if isinstance(item, dict)]
-        if not res:
-            raise ValueError("zero candidates found in valuations list")
-        return res
-
-    # 6. analyses (from s3_deep_stats.json)
-    analyses = payload.get("analyses")
-    if isinstance(analyses, list):
-        res = [item for item in analyses if isinstance(item, dict)]
-        if not res:
-            raise ValueError("zero candidates found in analyses list")
-        return res
-
-    # 7. General search in keys of payload
-    for k, v in payload.items():
-        if k in ("candidates", "results", "events", "valuations", "analyses", "approved", "extended_pool") and isinstance(v, list):
-            res = [item for item in v if isinstance(item, dict)]
-            if res:
-                return res
-
-    raise ValueError("Gate input payload missing candidate/valuation buckets")
-
-
-def load_gate_candidates(date: str, input_path: Path | None = None) -> tuple[list[dict], str]:
-    """Load the S7 build universe for repeat-loss checks.
-
-    Returns a tuple of (candidates, source), where source is one of
-    ``input_json``, ``db``, or ``json``.
-    """
-    if input_path is not None:
-        if not input_path.exists():
-            raise FileNotFoundError(f"Gate input not found: {input_path}")
-        with open(input_path, encoding="utf-8") as handle:
-            payload = json.load(handle)
-        return _extract_gate_candidates(payload), "input_json"
-
-    from db_data_loader import load_gate_results_from_db_only
-
-    approved_db = load_gate_results_from_db_only(date, status="approved")
-    extended_db = load_gate_results_from_db_only(date, status="extended")
-    if approved_db or extended_db:
-        return approved_db + extended_db, "db"
-
-    for json_path in (DATA_DIR / f"{date}_s7_gate_results.json", DATA_DIR / f"s7_gate_results_{date}.json"):
-        if not json_path.exists():
-            continue
-        with open(json_path, encoding="utf-8") as handle:
-            payload = json.load(handle)
-        return _extract_gate_candidates(payload), "json"
-
-    raise FileNotFoundError(f"No S7 gate results found for {date}. Run gate_checker.py first.")
-
-
 def find_repeat_loss_candidates(candidates: list[dict], recent_losses: list[dict]) -> list[dict]:
-    """Return same team+market repeat-loss findings for the given candidates."""
     findings: list[dict] = []
-    seen: set[tuple[str, str, str]] = set()
+    seen = set()
 
     for candidate in candidates:
-        market_name = _candidate_market_name(candidate)
+        market_name = (
+            candidate.get("best_market", {}).get("name")
+            or candidate.get("market_type")
+            or candidate.get("market")
+            or ""
+        )
         home_team = candidate.get("home_team", "")
         away_team = candidate.get("away_team", "")
         teams = [team for team in (home_team, away_team) if team]
@@ -351,67 +116,183 @@ def find_repeat_loss_candidates(candidates: list[dict], recent_losses: list[dict
     return findings
 
 
-def build_repeat_loss_payload(
-    *,
-    date: str,
-    hours: int,
-    recent_losses: list[dict],
-    candidates: list[dict],
-    findings: list[dict],
-    candidate_source: str,
-    artifact_path: Path,
-) -> dict:
-    return {
-        "date": date,
-        "step": REPEAT_LOSS_STEP,
-        "window_hours": hours,
-        "candidate_source": candidate_source,
-        "artifact_path": str(artifact_path),
-        "checked_candidates_count": len(candidates),
-        "recent_losses_count": len(recent_losses),
-        "repeat_loss_count": len(findings),
-        "clear": len(findings) == 0,
-        "findings": findings,
-        "checked_at": datetime.now().isoformat(timespec="seconds"),
+def load_recent_losses(ledger_path: Path, hours: int = 48) -> list[dict]:
+    if not ledger_path.exists():
+        return []
+
+    cutoff = datetime.now() - timedelta(hours=hours)
+    losses = []
+
+    with open(ledger_path, "r", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            if row.get("status", "").strip().lower() != "loss":
+                continue
+
+            betting_day = row.get("betting_day", "").strip()
+            if not betting_day:
+                continue
+            try:
+                day_dt = datetime.strptime(betting_day, "%Y-%m-%d") + timedelta(hours=23, minutes=59)
+            except ValueError:
+                continue
+
+            if day_dt < cutoff:
+                continue
+
+            event = row.get("event", "").strip()
+            teams = _extract_teams_from_event(event)
+
+            losses.append({
+                "betting_day": betting_day,
+                "pick_id": row.get("pick_id", "").strip(),
+                "event": event,
+                "sport": row.get("sport", "").strip(),
+                "market": row.get("market", "").strip(),
+                "selection": row.get("selection", "").strip(),
+                "teams": teams,
+                "teams_normalized": [_normalize_team(t) for t in teams],
+                "market_normalized": _normalize_market(row.get("market", "")),
+                "days_ago": (datetime.now() - day_dt).days,
+            })
+
+    return losses
+
+
+def load_gate_candidates(date: str, input_path: Path | None = None) -> tuple[list[dict], str]:
+    run_root = os.environ.get("BET_PIPELINE_RUN_ROOT")
+    run_id = os.environ.get("BET_PIPELINE_RUN_ID")
+
+    if not run_root or not run_id:
+        if input_path and input_path.exists():
+            payload = json.loads(input_path.read_text(encoding="utf-8"))
+            if isinstance(payload, dict):
+                inner_cand = payload.get("candidates") or payload.get("payload", {}).get("candidates")
+                if inner_cand:
+                    return inner_cand, "input_json"
+            return [], "input_json"
+        raise ValueError("Missing pipeline environment variables")
+
+    manifest_path = ROOT_DIR / "config" / "pipeline_manifest.json"
+    manifest = load_pipeline_manifest(manifest_path)
+
+    try:
+        s5_path, s5_data = resolve_manifest_step_output(
+            manifest=manifest,
+            run_root=run_root,
+            step_id="S5",
+            betting_day=date,
+            run_id=run_id,
+            expected_artifact_type="S5_CONTEXT_RISK_CANDIDATE_SET_V2",
+        )
+    except Exception as exc:
+        print(f"repeat guard input missing: failed to resolve S5 input: {exc}")
+        sys.exit(5)
+
+    candidates = s5_data.get("payload", {}).get("candidates") or s5_data.get("candidates") or []
+    return candidates, str(s5_path)
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Detect 48-hour repeat team+market losses.")
+    parser.add_argument("--date", default=None, help="Betting day YYYY-MM-DD")
+    parser.add_argument("--input", type=Path, default=None, help="Input path override")
+    parser.add_argument("--ledger", type=Path, default=DEFAULT_LEDGER_PATH, help="Path to picks-ledger.csv")
+    parser.add_argument("--hours", type=int, default=48, help="Lookback window in hours")
+    parser.add_argument("--teams", type=str, default=None, help="Comma-separated team names to check")
+    parser.add_argument("--shortlist", type=Path, default=None, help="Path to shortlist markdown")
+    parser.add_argument("--format", choices=["json", "text"], default="json")
+    parser.add_argument("--output", type=Path, default=None, help="Output path override")
+    args = parser.parse_args()
+
+    # Load recent losses Lookback history
+    recent_losses = load_recent_losses(args.ledger, args.hours)
+
+    if not args.date:
+        # Ad-hoc non-pipeline mode
+        sys.exit(0)
+
+    # 1. Resolve candidates from S5 predecessor
+    candidates, source_path = load_gate_candidates(args.date, args.input)
+
+    if not candidates:
+        print("repeat guard input empty: candidate list is empty")
+        sys.exit(5)
+
+    # 2. Evaluate Repeat / Portfolio guard logic
+    guard_input = PortfolioRepeatGuardInput(
+        candidates=candidates,
+        history_snapshot=recent_losses,
+        betting_day=args.date,
+        run_id=os.environ.get("BET_PIPELINE_RUN_ID", "ad-hoc"),
+        source_s5_hash=sha256_file(Path(source_path)) if Path(source_path).exists() else "dummy",
+    )
+    guard_result = evaluate_portfolio_repeat_guard(guard_input)
+
+    # Determine status
+    if guard_result.invalid_input:
+        status_verdict = "BLOCK"
+    elif len(guard_result.accepted) > 0:
+        status_verdict = "PASS"
+    else:
+        status_verdict = "BLOCK"
+
+    # Build typed output S6_PORTFOLIO_REPEAT_GUARD_V2
+    s6_output_data = {
+        "schema_version": 1,
+        "artifact_type": "S6_PORTFOLIO_REPEAT_GUARD_V2",
+        "status": status_verdict,
+        "betting_day": args.date,
+        "run_id": os.environ.get("BET_PIPELINE_RUN_ID", "ad-hoc"),
+        "created_at_utc": datetime.utcnow().isoformat() + "Z",
+        "source_step": "S5",
+        "source_s5_path": source_path,
+        "source_s5_hash": sha256_file(Path(source_path)) if Path(source_path).exists() else "dummy",
+        "source_git_sha": repo_head_sha(ROOT_DIR),
+        "manifest_sha": manifest_hash(ROOT_DIR),
+        "policy_version": "1.0",
+        "history_snapshot_metadata": guard_result.history_snapshot_metadata,
+        "input_candidate_count": len(candidates),
+        "accepted": guard_result.accepted,
+        "repeat_rejected": guard_result.repeat_rejected,
+        "correlation_rejected": guard_result.correlation_rejected,
+        "conflict_rejected": guard_result.conflict_rejected,
+        "portfolio_rejected": guard_result.portfolio_rejected,
+        "invalid_input": guard_result.invalid_input,
+        "accounting": guard_result.accounting,
     }
 
+    # Resolve output path
+    output_path = args.output
+    if not output_path:
+        run_data_dir = os.environ.get("BET_PIPELINE_DATA_DIR")
+        if run_data_dir:
+            output_path = Path(run_data_dir) / f"repeat_loss_handoff_{args.date}.json"
+        else:
+            output_path = ROOT_DIR / "betting" / "data" / f"repeat_loss_handoff_{args.date}.json"
 
-def _persist_pipeline_handoff(date: str, payload: dict) -> None:
-    from bet.db.connection import get_db
-    from bet.db.repositories import PipelineRepo
+    # Immutable conflict detection
+    if output_path.exists():
+        try:
+            existing_data = json.loads(output_path.read_text(encoding="utf-8"))
+            if existing_data.get("betting_day") != args.date or existing_data.get("run_id") != os.environ.get("BET_PIPELINE_RUN_ID"):
+                print("BLOCK: Conflicting immutable output exists")
+                sys.exit(5)
+        except Exception:
+            print("BLOCK: Conflicting immutable output exists")
+            sys.exit(5)
 
-    with get_db() as conn:
-        repo = PipelineRepo(conn)
-        repo.complete_step(date, REPEAT_LOSS_STEP, stats=payload)
-        conn.commit()
+    # Write output JSON atomically
+    write_json_atomic(output_path, s6_output_data)
 
+    if guard_result.repeat_rejected:
+        print("repeat signal conflict: same team+market lost within 48h — HARD REJECT")
 
-def _record_pipeline_start(date: str) -> None:
-    from bet.db.connection import get_db
-    from bet.db.repositories import PipelineRepo
-
-    with get_db() as conn:
-        repo = PipelineRepo(conn)
-        repo.start_step(date, REPEAT_LOSS_STEP)
-        conn.commit()
-
-
-def _record_pipeline_failure(date: str, error: str) -> None:
-    from bet.db.connection import get_db
-    from bet.db.repositories import PipelineRepo
-
-    with get_db() as conn:
-        repo = PipelineRepo(conn)
-        repo.fail_step(date, REPEAT_LOSS_STEP, error)
-        conn.commit()
+    sys.exit(0 if status_verdict == "PASS" else 1)
 
 
 def load_repeat_loss_handoff(date: str) -> dict | None:
-    """Load the canonical S7.6 handoff from pipeline_runs.
-
-    Returns ``None`` when the step has not completed for the date.
-    Raises ``ValueError`` when a completed record exists but is malformed.
-    """
+    """Load the canonical S7.6 handoff from pipeline_runs."""
     from bet.db.connection import get_db
     from bet.db.repositories import PipelineRepo
 
@@ -439,299 +320,6 @@ def load_repeat_loss_handoff(date: str) -> dict | None:
     if payload.get("repeat_loss_count") != len(findings):
         raise ValueError(f"Malformed S7.6 handoff for {date}: repeat_loss_count does not match findings")
     return payload
-
-
-def main():
-    from agent_output import AgentOutput, add_agent_args
-
-    parser = argparse.ArgumentParser(
-        description="Detect 48-hour repeat team+market losses in picks-ledger."
-    )
-    parser.add_argument(
-        "--date",
-        default=None,
-        help="Betting day YYYY-MM-DD. In pipeline mode, loads today's S7 gate universe and persists a durable handoff.",
-    )
-    parser.add_argument(
-        "--input",
-        type=Path,
-        default=None,
-        help="Optional S7 gate results JSON override for pipeline mode.",
-    )
-    parser.add_argument(
-        "--ledger",
-        type=Path,
-        default=DEFAULT_LEDGER_PATH,
-        help="Path to picks-ledger.csv",
-    )
-    parser.add_argument(
-        "--hours",
-        type=int,
-        default=48,
-        help="Lookback window in hours (default: 48)",
-    )
-    parser.add_argument(
-        "--teams",
-        type=str,
-        default=None,
-        help="Comma-separated team names to check (e.g., 'Liverpool,Arsenal')",
-    )
-    parser.add_argument(
-        "--shortlist",
-        type=Path,
-        default=None,
-        help="Path to shortlist markdown file to extract team names",
-    )
-    parser.add_argument(
-        "--format",
-        choices=["json", "text"],
-        default="json",
-        help="Output format (default: json)",
-    )
-    parser.add_argument(
-        "--output",
-        type=Path,
-        default=None,
-        help="Optional artifact path for pipeline mode. Default: betting/data/repeat_loss_handoff_{date}.json",
-    )
-    add_agent_args(parser)
-    args = parser.parse_args()
-
-    out = AgentOutput("s7_6_repeats", verbose=args.verbose, stop_on_error=args.stop_on_error)
-
-    # Path safety validation for non-production modes
-    if is_non_production_mode():
-        if is_protected_repo_path(args.input) or is_protected_repo_path(args.output):
-            print("repeat guard input missing: Explicit input or output path under protected repo-local path is forbidden in non-production modes.")
-            sys.exit(5)
-
-    pipeline_mode = bool(args.date or args.input)
-    if args.input and not args.date:
-        parser.error("--input requires --date so the durable handoff can be persisted")
-
-    artifact_path = None
-    if pipeline_mode:
-        artifact_path = args.output or (DATA_DIR / f"repeat_loss_handoff_{args.date}.json")
-        if is_non_production_mode() and is_protected_repo_path(artifact_path):
-            print("repeat guard input missing: Default or explicit output path is under protected repo-local path.")
-            sys.exit(5)
-
-    if pipeline_mode and args.date:
-        _record_pipeline_start(args.date)
-
-    try:
-        recent_losses = load_recent_losses(args.ledger, args.hours)
-
-        if pipeline_mode:
-            try:
-                candidates, candidate_source = load_gate_candidates(args.date, args.input)
-            except FileNotFoundError as exc:
-                print(f"repeat guard input missing: {exc}")
-                out.summary(
-                    verdict="BLOCK",
-                    metrics={
-                        "date": args.date,
-                        "mode": "pipeline",
-                        "error": str(exc),
-                    }
-                )
-                sys.exit(5)
-            except ValueError as exc:
-                if "zero candidates" in str(exc) or "empty" in str(exc):
-                    print(f"repeat guard input empty: {exc}")
-                else:
-                    print(f"repeat guard input missing: input payload shape issue: {exc}")
-                out.summary(
-                    verdict="BLOCK",
-                    metrics={
-                        "date": args.date,
-                        "mode": "pipeline",
-                        "error": str(exc),
-                    }
-                )
-                sys.exit(5)
-
-            findings = find_repeat_loss_candidates(candidates, recent_losses)
-            artifact_path = args.output or (DATA_DIR / f"repeat_loss_handoff_{args.date}.json")
-            artifact_path.parent.mkdir(parents=True, exist_ok=True)
-
-            payload = build_repeat_loss_payload(
-                date=args.date,
-                hours=args.hours,
-                recent_losses=recent_losses,
-                candidates=candidates,
-                findings=findings,
-                candidate_source=candidate_source,
-                artifact_path=artifact_path,
-            )
-            artifact_path.write_text(
-                json.dumps(payload, indent=2, ensure_ascii=False),
-                encoding="utf-8",
-            )
-            _persist_pipeline_handoff(args.date, payload)
-
-            if args.verbose:
-                out.event(
-                    "repeat_loss_handoff",
-                    date=args.date,
-                    candidate_source=candidate_source,
-                    checked_candidates=payload["checked_candidates_count"],
-                    recent_losses=payload["recent_losses_count"],
-                    repeat_loss_count=payload["repeat_loss_count"],
-                    artifact=artifact_path.name,
-                )
-
-            if findings:
-                print("repeat signal conflict: same team+market lost within 48h — HARD REJECT")
-
-            if args.format == "text":
-                print("═══ 48h Repeat Check (pipeline mode) ═══")
-                print(
-                    f"Candidates checked: {payload['checked_candidates_count']} | "
-                    f"Recent losses: {payload['recent_losses_count']}"
-                )
-                if findings:
-                    print(f"\n⚠️  REPEAT LOSSES FOUND: {len(findings)}")
-                    for finding in findings:
-                        match = finding["matched_loss"]
-                        print(
-                            f"  ✗ {finding['home_team']} vs {finding['away_team']} × "
-                            f"{finding['market_name']} — lost {match['lost_on']} ({match['pick_id']})"
-                        )
-                else:
-                    print("\n✓ No repeat-loss exclusions found. Clear to proceed.")
-            else:
-                print(json.dumps(payload, indent=2, ensure_ascii=False))
-
-            out.summary(
-                verdict="PARTIAL" if findings else "OK",
-                metrics={
-                    "date": args.date,
-                    "candidate_source": candidate_source,
-                    "checked_candidates": payload["checked_candidates_count"],
-                    "recent_losses": payload["recent_losses_count"],
-                    "repeat_loss_count": payload["repeat_loss_count"],
-                    "artifact": artifact_path.name,
-                },
-            )
-            sys.exit(1 if findings else 0)
-
-        result = {
-            "window_hours": args.hours,
-            "recent_losses_count": len(recent_losses),
-            "repeats_found": 0,
-            "warnings": [],
-        }
-
-        if not recent_losses:
-            if args.format == "text":
-                print(f"No losses found in last {args.hours}h. Clear to proceed.")
-            else:
-                print(json.dumps(result, indent=2, ensure_ascii=False))
-            out.summary(
-                verdict="OK",
-                metrics={
-                    "recent_losses": 0,
-                    "repeats_found": 0,
-                    "mode": "ad_hoc",
-                },
-            )
-            sys.exit(0)
-
-        if not args.teams and not args.shortlist:
-            if args.format == "text":
-                print(f"═══ Recent Losses (last {args.hours}h) ═══")
-                for loss in recent_losses:
-                    print(
-                        f"  {loss['betting_day']} | {loss['pick_id']} | "
-                        f"{loss['event']} | {loss['market']} | {loss['selection']}"
-                    )
-                print(f"\nTotal: {len(recent_losses)} losses")
-                print("Use --teams or --shortlist to check for repeats.")
-            else:
-                result["recent_losses"] = recent_losses
-                print(json.dumps(result, indent=2, ensure_ascii=False))
-            out.summary(
-                verdict="OK",
-                metrics={
-                    "recent_losses": len(recent_losses),
-                    "repeats_found": 0,
-                    "mode": "ad_hoc",
-                },
-            )
-            sys.exit(0)
-
-        check_teams = []
-        if args.teams:
-            check_teams = [t.strip() for t in args.teams.split(",")]
-        elif args.shortlist:
-            check_teams = parse_shortlist_teams(args.shortlist)
-
-        if not check_teams:
-            if args.format == "text":
-                print("No teams to check.")
-            else:
-                print(json.dumps(result, indent=2, ensure_ascii=False))
-            out.summary(
-                verdict="OK",
-                metrics={
-                    "recent_losses": len(recent_losses),
-                    "repeats_found": 0,
-                    "mode": "ad_hoc",
-                },
-            )
-            sys.exit(0)
-
-        warnings = find_repeats(check_teams, recent_losses)
-
-        seen = set()
-        unique_warnings = []
-        for w in warnings:
-            key = (w["team"], w["market"], w["pick_id"])
-            if key not in seen:
-                seen.add(key)
-                unique_warnings.append(w)
-
-        result["repeats_found"] = len(unique_warnings)
-        result["warnings"] = unique_warnings
-
-        if args.format == "text":
-            print(f"═══ 48h Repeat Check ═══")
-            print(f"Teams checked: {len(check_teams)} | Recent losses: {len(recent_losses)}")
-            if unique_warnings:
-                print(f"\n⚠️  REPEATS FOUND: {len(unique_warnings)}")
-                for w in unique_warnings:
-                    print(
-                        f"  ✗ {w['team']} × {w['market']} — lost {w['lost_on']} "
-                        f"({w['pick_id']}) → {w['action']}"
-                    )
-            else:
-                print("\n✓ No repeats found. Clear to proceed.")
-        else:
-            print(json.dumps(result, indent=2, ensure_ascii=False))
-
-        out.summary(
-            verdict="PARTIAL" if unique_warnings else "OK",
-            metrics={
-                "recent_losses": len(recent_losses),
-                "repeats_found": len(unique_warnings),
-                "mode": "ad_hoc",
-            },
-        )
-        sys.exit(1 if unique_warnings else 0)
-    except Exception as exc:
-        if pipeline_mode and args.date:
-            _record_pipeline_failure(args.date, str(exc))
-        out.error(str(exc), recoverable=False)
-        out.summary(
-            verdict="FAILED",
-            metrics={
-                "date": args.date,
-                "mode": "pipeline" if pipeline_mode else "ad_hoc",
-                "error": str(exc),
-            },
-        )
-        sys.exit(2)
 
 
 if __name__ == "__main__":
