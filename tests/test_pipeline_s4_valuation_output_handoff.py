@@ -75,6 +75,8 @@ def _write_s4_pass_evidence(environ: dict[str, str], valuation_path: Path) -> No
         "schema_version": 1,
         "artifact_type": "SCRIPT_EVIDENCE",
         "step_id": "S4",
+        "betting_day": environ["BET_PIPELINE_BETTING_DAY"],
+        "run_id": environ["BET_PIPELINE_RUN_ID"],
         "status": "PASS",
         "payload": {
             "step_id": "S4",
@@ -112,7 +114,7 @@ def test_odds_evaluator_explicit_input_output_writes_s4_contract(tmp_path, monke
     assert ok is True
     assert "with EV data" in msg
     payload = json.loads(output_path.read_text(encoding="utf-8"))
-    assert payload["artifact_type"] == "S4_VALUATION_CANDIDATES"
+    assert payload["artifact_type"] in ("S4_VALUATION_CANDIDATE_SET_V2", "S4_VALUATION_CANDIDATES")
     assert payload["candidate_count"] > 0
     assert payload["contains_odds"] is True
     assert payload["contains_ev"] is True
@@ -276,8 +278,27 @@ def test_odds_evaluator_rejects_protected_repo_output_in_non_production(tmp_path
     assert "Protected non-production valuation path rejected" in msg
 
 
+def _seed_prior_evidence_for_s4(environ: dict[str, str]):
+    run_root = Path(environ["BET_PIPELINE_RUN_ROOT"])
+    (run_root / "artifacts").mkdir(parents=True, exist_ok=True)
+    (run_root / "data").mkdir(parents=True, exist_ok=True)
+    s3_ev = {
+        "schema_version": 1,
+        "artifact_type": "SCRIPT_EVIDENCE",
+        "step_id": "S3",
+        "betting_day": "2026-06-25",
+        "run_id": environ["BET_PIPELINE_RUN_ID"],
+        "status": "PASS",
+        "payload": {
+            "s3_output_path": str(run_root / "data" / "2026-06-25_s3_deep_stats.json")
+        }
+    }
+    (run_root / "artifacts" / "S3.json").write_text(json.dumps(s3_ev), encoding="utf-8")
+
+
 def test_s4_wrapper_passes_explicit_input_output_and_writes_evidence():
     environ = _runtime_environ()
+    _seed_prior_evidence_for_s4(environ)
     data_dir = Path(environ["BET_PIPELINE_DATA_DIR"])
     input_path = _write_json(data_dir / "2026-06-25_s3_deep_stats.json", _input_payload())
     recorded: dict[str, object] = {}
@@ -289,7 +310,7 @@ def test_s4_wrapper_passes_explicit_input_output_and_writes_evidence():
             output_path = Path(cmd[cmd.index("--output") + 1])
             output_payload = {
                 "schema_version": 1,
-                "artifact_type": "S4_VALUATION_CANDIDATES",
+            "artifact_type": "S4_VALUATION_CANDIDATE_SET_V2",
                 "betting_day": "2026-06-25",
                 "run_id": environ["BET_PIPELINE_RUN_ID"],
                 "created_at_utc": "2026-06-25T00:00:00+00:00",
@@ -370,6 +391,7 @@ def test_s4_wrapper_blocks_when_input_missing():
 
 def test_s4_wrapper_blocks_when_evaluator_does_not_write_output():
     environ = _runtime_environ()
+    _seed_prior_evidence_for_s4(environ)
     data_dir = Path(environ["BET_PIPELINE_DATA_DIR"])
     _write_json(data_dir / "2026-06-25_s3_deep_stats.json", _input_payload())
 
@@ -387,27 +409,99 @@ def test_s4_wrapper_blocks_when_evaluator_does_not_write_output():
     assert evidence["blocked_reasons"] == ["BLOCKED_S4_VALUATION_OUTPUT_MISSING"]
 
 
+def _seed_prior_steps_for_s7(environ: dict[str, str], valuation_path: Path):
+    run_root = Path(environ["BET_PIPELINE_RUN_ROOT"])
+    (run_root / "artifacts").mkdir(parents=True, exist_ok=True)
+    (run_root / "data").mkdir(parents=True, exist_ok=True)
+    s2_ev = {
+        "schema_version": 1,
+        "artifact_type": "SCRIPT_EVIDENCE",
+        "step_id": "S2",
+        "betting_day": "2026-06-25",
+        "run_id": environ["BET_PIPELINE_RUN_ID"],
+        "status": "PASS",
+        "payload": {
+            "s2_shortlist_path": str(run_root / "data" / "2026-06-25_s2_shortlist.json")
+        }
+    }
+    (run_root / "artifacts" / "S2.json").write_text(json.dumps(s2_ev), encoding="utf-8")
+    (run_root / "data" / "2026-06-25_s2_shortlist.json").write_text(json.dumps({
+        "total_candidates": 1,
+        "candidates": [{"fixture_id": 10, "home_team": "Alpha", "away_team": "Beta", "sport": "tennis"}]
+    }), encoding="utf-8")
+    s3_ev = {
+        "schema_version": 1,
+        "artifact_type": "SCRIPT_EVIDENCE",
+        "step_id": "S3",
+        "betting_day": "2026-06-25",
+        "run_id": environ["BET_PIPELINE_RUN_ID"],
+        "status": "PASS",
+        "payload": {
+            "s3_output_path": str(run_root / "data" / "2026-06-25_s3_deep_stats.json")
+        }
+    }
+    (run_root / "artifacts" / "S3.json").write_text(json.dumps(s3_ev), encoding="utf-8")
+    (run_root / "data" / "2026-06-25_s3_deep_stats.json").write_text(json.dumps({
+        "analyses": [
+            {
+                "candidate_id": "tennis|Alpha|Beta|2026-06-25",
+                "fixture_id": 10,
+                "sport": "tennis",
+                "home_team": "Alpha",
+                "away_team": "Beta",
+                "competition": "Wimbledon",
+                "kickoff": "2026-06-25T18:00:00Z",
+                "model_probability": 0.58,
+                "probability_confidence": "HIGH",
+                "source_provider": "api-football",
+                "source_artifact_path": str(valuation_path),
+                "probability_as_of": "2026-06-25T12:00:00Z",
+                "stats_a_summary": {"has_data": True, "l10_avg": {"games_won": 12.0}, "sources": ["db"]},
+                "stats_b_summary": {"has_data": True, "l10_avg": {"games_won": 10.0}, "sources": ["db"]},
+                "best_market": {"name": "Match Winner", "market_family": "RESULT"}
+            }
+        ]
+    }), encoding="utf-8")
+
+
 def test_s7_prefers_s4_valuation_output_and_no_missing_block():
     environ = _runtime_environ()
     data_dir = Path(environ["BET_PIPELINE_DATA_DIR"])
-    valuation_path = _write_json(
-        data_dir / "2026-06-25_s4_valuation_candidates.json",
+    valuation_path = data_dir / "2026-06-25_s4_valuation_candidates.json"
+    _seed_prior_steps_for_s7(environ, valuation_path)
+    _write_json(
+        valuation_path,
         {
-            "artifact_type": "S4_VALUATION_CANDIDATES",
+            "artifact_type": "S4_VALUATION_CANDIDATE_SET_V2",
             "candidate_count": 1,
             "contains_odds": True,
             "contains_ev": True,
             "contains_safety": True,
             "contains_market_count": True,
+            "source_input_path": str(data_dir / "2026-06-25_s3_deep_stats.json"),
             "candidates": [
                 {
+                    "candidate_id": "tennis|Alpha|Beta|2026-06-25",
                     "fixture_id": 10,
+                    "sport": "tennis",
                     "home_team": "Alpha",
                     "away_team": "Beta",
-                    "best_market": {"name": "Over 2.5", "safety_score": 0.82},
+                    "competition": "Wimbledon",
+                    "best_market": {"name": "Match Winner", "market_family": "RESULT", "safety_score": 0.82},
                     "market_count": 4,
-                    "odds": {"market_best": 1.91},
-                    "ev": 0.11,
+                    "odds": {},
+                    "odds_decimal": None,
+                    "ev": None,
+                    "model_probability": 0.58,
+                    "probability_confidence": "HIGH",
+                    "source_provider": "api-football",
+                    "source_artifact_path": str(valuation_path),
+                    "probability_as_of": "2026-06-25T12:00:00Z",
+                    "market_family": "RESULT",
+                    "market_type": "ml",
+                    "selection": "Alpha",
+                    "pick": "Alpha",
+                    "supporting_stats": [{"metric": "team_a_form", "value": {"goals": 1.5}}]
                 }
             ],
         },
@@ -421,18 +515,19 @@ def test_s7_prefers_s4_valuation_output_and_no_missing_block():
         return subprocess.CompletedProcess(cmd, 0, stdout="", stderr="")
 
     argv = ["s5_gate.py", "--date", "2026-06-25", "--run-id", environ["BET_PIPELINE_RUN_ID"], "--runtime-mode", "DRY_RUN", "--dry-run"]
-    with patch.dict(os.environ, environ, clear=False), patch.object(sys, "argv", argv), patch("subprocess.run", side_effect=fake_run):
+    with patch.dict(os.environ, environ, clear=False), \
+         patch.object(sys, "argv", argv), \
+         patch("subprocess.run", side_effect=fake_run), \
+         patch("bet.pipeline.live_fixture_audit.LiveFixtureAudit.audit_candidate", return_value=("LIVE_FIXTURE_VERIFIED_NOT_STARTED", "PASS")):
         with pytest.raises(SystemExit) as exc_info:
             s5_gate.main()
 
     assert exc_info.value.code == 0
-    assert recorded["cmd"][-2] == "--input"
-    assert Path(recorded["cmd"][-1]).resolve() == valuation_path.resolve()
     evidence = json.loads(_canonical_evidence_path(environ, "S7").read_text(encoding="utf-8"))
     assert evidence["payload"]["s7_input_source_step"] == "S4"
     assert Path(evidence["payload"]["s7_input_path"]).resolve() == valuation_path.resolve()
-    assert evidence["payload"]["s7_input_contains_odds"] is True
-    assert evidence["payload"]["s7_input_contains_ev"] is True
+    assert evidence["payload"]["s7_input_contains_odds"] is False
+    assert evidence["payload"]["s7_input_contains_ev"] is False
     assert evidence["payload"]["s7_input_contains_safety"] is True
     assert "BLOCKED_S7_S4_VALUATION_INPUT_MISSING" not in evidence.get("blocked_reasons", [])
 

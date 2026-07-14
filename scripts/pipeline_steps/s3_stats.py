@@ -84,6 +84,10 @@ def _is_safe_shortlist_path(path: Path, runtime_mode: RuntimeMode) -> bool:
         return False
     if runtime_mode not in NON_PRODUCTION_MODES:
         return True
+    run_root = os.environ.get("BET_PIPELINE_RUN_ROOT")
+    if run_root:
+        from bet.pipeline.runtime_paths import is_safe_run_path
+        return is_safe_run_path(path, run_root)
     return _is_safe_tmp_path(path) and not _is_repo_local_data_path(path)
 
 
@@ -342,18 +346,25 @@ def main():
     )
     _assert_non_production_sandbox_safety(runtime_mode=runtime_mode, child_env=child_env)
 
-    shortlist_path, searched_paths = _search_shortlist_candidates(
-        child_env=child_env,
-        runtime_mode=runtime_mode,
-        betting_day=args.date,
-        run_id=args.run_id,
-    )
-    shortlist_error: str | None = None
-    shortlist_event_count: int | None = None
-    if shortlist_path is None:
-        shortlist_error = "BLOCKED_S3_SHORTLIST_MISSING"
-    else:
-        shortlist_error, shortlist_event_count = _load_shortlist_event_count(shortlist_path)
+    from bet.pipeline.integration_artifacts import resolve_bound_step_output
+
+    shortlist_error = None
+    shortlist_event_count = None
+    shortlist_path = None
+    searched_paths = []
+
+    try:
+        shortlist_path, s2_data = resolve_bound_step_output(
+            run_root=child_env["BET_PIPELINE_RUN_ROOT"],
+            step_id="S2",
+            betting_day=args.date,
+            run_id=args.run_id,
+            expected_artifact_type="S2_SHORTLIST",
+        )
+        shortlist_event_count = len(s2_data.get("candidates", []))
+    except Exception as exc:
+        shortlist_error = f"BLOCKED_S3_SHORTLIST_MISSING: {exc}"
+        print(shortlist_error)
 
     if shortlist_error is not None:
         print(shortlist_error)

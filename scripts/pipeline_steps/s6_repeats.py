@@ -4,12 +4,9 @@
 from __future__ import annotations
 
 import argparse
-import sys
-import os
 import json
-import io
-import contextlib
-import subprocess
+import os
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -19,20 +16,18 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 try:
-    from scripts.pipeline_steps._script_evidence import (
-        write_terminal_script_evidence_or_fail,
-        classify_wrapper_result,
-        run_wrapper_scripts_with_evidence,
-    )
     from scripts.pipeline_steps._runner import resolve_child_runtime_env, run_scripts
+    from scripts.pipeline_steps._script_evidence import (
+        run_wrapper_scripts_with_evidence,
+        write_terminal_script_evidence_or_fail,
+    )
 except Exception:
     sys.path.insert(0, str(ROOT / "scripts" / "pipeline_steps"))
-    from _script_evidence import (
-        write_terminal_script_evidence_or_fail,
-        classify_wrapper_result,
-        run_wrapper_scripts_with_evidence,
-    )
     from _runner import resolve_child_runtime_env, run_scripts
+    from _script_evidence import (
+        run_wrapper_scripts_with_evidence,
+        write_terminal_script_evidence_or_fail,
+    )
 
 SCRIPTS = ["check_48h_repeats.py"]
 BLOCKED_REASON_PATTERNS: tuple[tuple[str, str], ...] = (
@@ -51,7 +46,7 @@ def is_protected_repo_path(path: Path | str | None) -> bool:
     betting_data = (ROOT / "betting" / "data").resolve()
     betting_coupons = (ROOT / "betting" / "coupons").resolve()
     reports = (ROOT / "reports").resolve()
-    
+
     for parent in [betting_data, betting_coupons, reports]:
         try:
             abs_path.relative_to(parent)
@@ -86,10 +81,10 @@ def find_sandbox_input_candidate_json(child_env: dict[str, str], date: str | Non
         s4_artifact_path = artifact_dir / "S4.json"
         if is_safe(s4_artifact_path):
             try:
-                with open(s4_artifact_path, "r", encoding="utf-8") as f:
+                with open(s4_artifact_path, encoding="utf-8") as f:
                     s4_data = json.load(f)
                 payload = s4_data.get("payload") or {}
-                
+
                 # Check for direct path keys
                 for key in ["s4_output_path", "valuation_path", "candidate_path", "candidates_path"]:
                     val = payload.get(key)
@@ -109,7 +104,7 @@ def find_sandbox_input_candidate_json(child_env: dict[str, str], date: str | Non
                         if d.endswith(".json") and ("s4" in d.lower() or "valuation" in d.lower() or "candidate" in d.lower()):
                             found.append(d)
                     return found
-                
+
                 for candidate_str in search_dict(payload):
                     candidate_path = Path(candidate_str)
                     if is_safe(candidate_path):
@@ -195,27 +190,21 @@ def main():
         else:
             output_path = ROOT / "betting" / "data" / f"repeat_loss_handoff_{args.date}.json"
 
-    # Set resolved paths in env only if they are not None
+    # Setup ScriptInvocations
+    from scripts.pipeline_steps._runner import ScriptInvocation
+
+    argv = ["--date", args.date] if args.date else []
     if input_path:
-        os.environ["S6_RESOLVED_INPUT"] = str(input_path)
+        argv += ["--input", str(input_path)]
     if output_path:
-        os.environ["S6_RESOLVED_OUTPUT"] = str(output_path)
+        argv += ["--output", str(output_path)]
 
-    # Monkeypatch subprocess.run to inject arguments
-    original_run = subprocess.run
-    def custom_run(cmd, *args, **kwargs):
-        if len(cmd) > 1 and "check_48h_repeats.py" in cmd[1]:
-            inp = os.environ.get("S6_RESOLVED_INPUT")
-            out = os.environ.get("S6_RESOLVED_OUTPUT")
-            if inp:
-                cmd += ["--input", inp]
-            if out:
-                cmd += ["--output", out]
-        return original_run(cmd, *args, **kwargs)
-
-    subprocess.run = custom_run
-    import scripts.pipeline_steps._runner
-    scripts.pipeline_steps._runner.subprocess.run = custom_run
+    invocations = [
+        ScriptInvocation(
+            script="check_48h_repeats.py",
+            argv=argv,
+        )
+    ]
 
     # Safety: non-production safety checks
     if mode != RuntimeMode.PRODUCTION:
@@ -251,8 +240,9 @@ def main():
             sys.exit(5)
 
     # Check if run_scripts is mocked in tests
-    import scripts.pipeline_steps._script_evidence as evidence_module
     from unittest.mock import Mock
+
+    import scripts.pipeline_steps._script_evidence as evidence_module
     is_mocked = isinstance(run_scripts, Mock) or isinstance(evidence_module.run_scripts, Mock)
 
     # Check missing input path
@@ -290,7 +280,7 @@ def main():
     try:
         run_wrapper_scripts_with_evidence(
             step_id="S6",
-            wrapper_scripts=SCRIPTS,
+            wrapper_scripts=invocations,
             date=args.date,
             dry_run=args.dry_run,
             allow_write=args.allow_write,
@@ -301,7 +291,7 @@ def main():
             blocked_reason_patterns=BLOCKED_REASON_PATTERNS,
             fallback_blocked_reason="BLOCKED_REPEAT_GUARD_INPUT_MISSING",
         )
-    except SystemExit as exc:
+    except SystemExit:
         evidence_dir = Path(child_env.get("BET_PIPELINE_RUN_ROOT", "")) / "pipeline_runs" / args.date / args.run_id / "artifacts"
         evidence_path = evidence_dir / "S6.json"
         mirrored_path = Path(child_env.get("BET_PIPELINE_ARTIFACT_DIR", "")) / "S6.json"
@@ -311,10 +301,10 @@ def main():
         recent_losses_count = 0
         repeat_loss_count = 0
         candidate_source = "input_json"
-        
+
         if output_path and output_path.exists():
             try:
-                with open(output_path, "r", encoding="utf-8") as f:
+                with open(output_path, encoding="utf-8") as f:
                     handoff_data = json.load(f)
                 checked_candidates_count = handoff_data.get("checked_candidates_count", 0)
                 recent_losses_count = handoff_data.get("recent_losses_count", 0)
@@ -334,7 +324,7 @@ def main():
                     payload["recent_losses_count"] = recent_losses_count
                     payload["repeat_loss_count"] = repeat_loss_count
                     payload["candidate_source"] = candidate_source
-                    
+
                     data["payload"] = payload
                     path.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
                 except Exception:

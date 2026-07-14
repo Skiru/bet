@@ -5,8 +5,8 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import subprocess
 import sys
+from datetime import UTC
 from pathlib import Path
 from typing import Any
 
@@ -17,11 +17,17 @@ if str(ROOT) not in sys.path:
 try:
     from bet.pipeline.runtime_modes import RuntimeMode, parse_runtime_mode
     from scripts.pipeline_steps._runner import resolve_child_runtime_env, run_scripts
-    from scripts.pipeline_steps._script_evidence import run_wrapper_scripts_with_evidence, write_terminal_script_evidence_or_fail
+    from scripts.pipeline_steps._script_evidence import (
+        run_wrapper_scripts_with_evidence,
+        write_terminal_script_evidence_or_fail,
+    )
 except Exception:
     from bet.pipeline.runtime_modes import RuntimeMode, parse_runtime_mode
     from scripts.pipeline_steps._runner import resolve_child_runtime_env, run_scripts
-    from scripts.pipeline_steps._script_evidence import run_wrapper_scripts_with_evidence, write_terminal_script_evidence_or_fail
+    from scripts.pipeline_steps._script_evidence import (
+        run_wrapper_scripts_with_evidence,
+        write_terminal_script_evidence_or_fail,
+    )
 
 SCRIPTS = ["gate_checker.py"]
 BLOCKED_REASON_PATTERNS: tuple[tuple[str, str], ...] = (
@@ -39,46 +45,16 @@ BLOCKED_REASON_PATTERNS: tuple[tuple[str, str], ...] = (
 )
 
 
-def is_protected_repo_path(path: Path | str | None) -> bool:
-    if not path:
-        return False
-    abs_path = Path(path).resolve()
-    for parent in ((ROOT / "betting" / "data").resolve(), (ROOT / "betting" / "coupons").resolve(), (ROOT / "reports").resolve()):
-        try:
-            abs_path.relative_to(parent)
-            return True
-        except ValueError:
-            pass
-    return False
-
-
-def _safe_file(path: Path | None) -> Path | None:
-    if path is None:
-        return None
-    try:
-        resolved = path.resolve()
-    except FileNotFoundError:
-        return None
-    if not resolved.exists() or not resolved.is_file() or is_protected_repo_path(resolved):
-        return None
-    return resolved
-
-
 def _safe_run_scoped_file(path: Path | None, child_env: dict[str, str]) -> Path | None:
-    resolved = _safe_file(path)
-    if resolved is None:
-        return None
-    resolved_str = str(resolved)
-    if not (resolved_str.startswith("/tmp/") or resolved_str.startswith("/private/tmp/")):
+    if path is None:
         return None
     run_root_raw = child_env.get("BET_PIPELINE_RUN_ROOT")
     if not run_root_raw:
-        return resolved
-    try:
-        resolved.relative_to(Path(run_root_raw).resolve())
-    except ValueError:
         return None
-    return resolved
+    from bet.pipeline.runtime_paths import is_safe_run_path
+    if is_safe_run_path(path, run_root_raw):
+        return Path(path).resolve()
+    return None
 
 
 def _load_json(path: Path) -> Any | None:
@@ -130,14 +106,14 @@ def _resolve_upstream_payloads_for_s4(input_path: Path | None) -> tuple[dict[str
     shortlist_payload = None
     source_input_path = valuation_payload.get("source_input_path")
     if source_input_path:
-        s3_path = _safe_file(Path(source_input_path))
+        s3_path = _safe_run_scoped_file(Path(source_input_path), os.environ)
         if s3_path is not None:
             maybe_s3 = _load_json(s3_path)
             if isinstance(maybe_s3, dict):
                 s3_payload = maybe_s3
                 source_label = str(maybe_s3.get("source") or "")
                 if source_label.startswith("shortlist:"):
-                    shortlist_path = _safe_file(Path(source_label.split(":", 1)[1]))
+                    shortlist_path = _safe_run_scoped_file(Path(source_label.split(":", 1)[1]), os.environ)
                     if shortlist_path is not None:
                         maybe_shortlist = _load_json(shortlist_path)
                         if isinstance(maybe_shortlist, dict):
@@ -313,42 +289,28 @@ def _evidence_artifact_paths(child_env: dict[str, str], date: str | None, run_id
 
 
 def _resolve_s4_input(child_env: dict[str, str], date: str | None, run_id: str | None) -> dict[str, Any] | None:
-    data_dir = Path(child_env["BET_PIPELINE_DATA_DIR"]) if child_env.get("BET_PIPELINE_DATA_DIR") else None
-    saw_s4_pass = False
-
-    for artifact_path in _evidence_artifact_paths(child_env, date, run_id, "S4"):
-        candidate = _safe_file(artifact_path)
-        if candidate is None:
-            continue
-        payload = _load_json(candidate)
-        if not isinstance(payload, dict):
-            continue
-        if payload.get("status") == "PASS":
-            saw_s4_pass = True
-            nested_paths = _candidate_paths_from_payload(
-                payload.get("payload") or {},
-                child_env,
-                ("s4", "valuation", "value", "candidate", "odds"),
+    from bet.pipeline.integration_artifacts import resolve_bound_step_output
+    try:
+        output_path, output_data = resolve_bound_step_output(
+            run_root=child_env["BET_PIPELINE_RUN_ROOT"],
+            step_id="S4",
+            betting_day=str(date),
+            run_id=str(run_id),
+            expected_artifact_type="S4_VALUATION_CANDIDATE_SET_V2",
+        )
+        return _build_input_resolution(output_path, source_step="S4", source_kind="s4_evidence_payload")
+    except Exception:
+        try:
+            output_path, output_data = resolve_bound_step_output(
+                run_root=child_env["BET_PIPELINE_RUN_ROOT"],
+                step_id="S4",
+                betting_day=str(date),
+                run_id=str(run_id),
+                expected_artifact_type="S4_VALUATION_CANDIDATES",
             )
-            for nested in nested_paths:
-                inspection = _inspect_input_path(nested)
-                if inspection["is_candidate_universe"]:
-                    return _build_input_resolution(nested, source_step="S4", source_kind="s4_evidence_payload")
-
-    if saw_s4_pass and data_dir:
-        for pattern in ("*s4*.json", "*valuation*.json", "*value*.json", "*candidate*.json", "*odds*.json"):
-            for path in sorted(data_dir.glob(pattern)):
-                candidate = _safe_run_scoped_file(path, child_env)
-                if candidate is None:
-                    continue
-                inspection = _inspect_input_path(candidate)
-                if inspection["is_candidate_universe"]:
-                    return _build_input_resolution(candidate, source_step="S4", source_kind="s4_data_file")
-
-    if saw_s4_pass:
-        return _build_input_resolution(None, source_step="UNKNOWN", source_kind="missing_expected_s4", blocked_reason="BLOCKED_S7_S4_VALUATION_INPUT_MISSING")
-
-    return None
+            return _build_input_resolution(output_path, source_step="S4", source_kind="s4_evidence_payload")
+        except Exception:
+            return _build_input_resolution(None, source_step="UNKNOWN", source_kind="missing_expected_s4", blocked_reason="BLOCKED_S7_S4_VALUATION_INPUT_MISSING")
 
 
 def _infer_explicit_source_step(path: Path) -> str:
@@ -465,7 +427,7 @@ def _get_pipeline_counts(child_env: dict[str, str], date: str | None) -> dict[st
     artifact_dir = Path(child_env["BET_PIPELINE_ARTIFACT_DIR"]) if child_env.get("BET_PIPELINE_ARTIFACT_DIR") else None
     if not artifact_dir:
         return counts
-        
+
     # Load S1.json
     s1_path = artifact_dir / "S1.json"
     if s1_path.exists():
@@ -477,7 +439,7 @@ def _get_pipeline_counts(child_env: dict[str, str], date: str | None) -> dict[st
             counts["market_matrix_event_count"] = payload.get("market_matrix_event_count", 0)
         except Exception:
             pass
-            
+
     # Load S2.json
     s2_path = artifact_dir / "S2.json"
     if s2_path.exists():
@@ -487,7 +449,7 @@ def _get_pipeline_counts(child_env: dict[str, str], date: str | None) -> dict[st
             counts["shortlist_count"] = payload.get("shortlist_count", 0)
         except Exception:
             pass
-            
+
     # Load S2.9.json
     s29_path = artifact_dir / "S2.9.json"
     if s29_path.exists():
@@ -496,7 +458,7 @@ def _get_pipeline_counts(child_env: dict[str, str], date: str | None) -> dict[st
             counts["s2_9_readiness_count"] = 1 if s29_data.get("status") == "PASS" else 0
         except Exception:
             pass
-            
+
     # Load S3.json
     s3_path = artifact_dir / "S3.json"
     if s3_path.exists():
@@ -507,7 +469,7 @@ def _get_pipeline_counts(child_env: dict[str, str], date: str | None) -> dict[st
             counts["s3_valid_probability_count"] = payload.get("s3_valid_probability_count", 0)
         except Exception:
             pass
-            
+
     return counts
 
 
@@ -544,10 +506,13 @@ def main() -> None:
     expected_json_output = data_dir / f"{args.date}_s7_gate_results.json" if data_dir and args.date else None
     expected_markdown_output = data_dir / f"{args.date}_s7_gate_results.md" if data_dir and args.date else None
 
-    if mode != RuntimeMode.PRODUCTION and (
-        is_protected_repo_path(input_path)
-        or is_protected_repo_path(expected_json_output)
-        or is_protected_repo_path(expected_markdown_output)
+    run_root_raw = child_env.get("BET_PIPELINE_RUN_ROOT")
+    from bet.pipeline.runtime_paths import is_safe_run_path
+
+    if mode != RuntimeMode.PRODUCTION and run_root_raw and (
+        (input_path is not None and not is_safe_run_path(input_path, run_root_raw))
+        or (expected_json_output is not None and not is_safe_run_path(expected_json_output, run_root_raw))
+        or (expected_markdown_output is not None and not is_safe_run_path(expected_markdown_output, run_root_raw))
     ):
         payload = {
             "step_id": "S7",
@@ -585,6 +550,7 @@ def main() -> None:
         raise SystemExit(5)
 
     from unittest.mock import Mock
+
     import scripts.pipeline_steps._script_evidence as evidence_module
 
     is_mocked = isinstance(run_scripts, Mock) or isinstance(evidence_module.run_scripts, Mock)
@@ -662,10 +628,11 @@ def main() -> None:
         raise SystemExit(5)
 
     # Live Session Candidate Universe Quality Check
-    is_testing = "pytest" in sys.modules or os.environ.get("PYTEST_CURRENT_TEST") is not None
-    traceability_fields: dict[str, Any] | None = None
-    if input_path is not None and not is_mocked and not is_testing:
+    traceability_fields = {}
+    if input_path is not None and not is_mocked:
         try:
+            from datetime import datetime
+
             from bet.pipeline.analytical_candidate_bridge import (
                 build_analytical_candidate_handoff,
                 write_analytical_candidate_handoff,
@@ -674,7 +641,6 @@ def main() -> None:
                 LiveSessionUniverseConfig,
                 build_pre_s7_universe,
                 build_s7_traceability_fields,
-                write_universe_report,
             )
             raw_payload = _load_json(input_path)
             raw_candidates = _extract_candidate_entries(raw_payload) if raw_payload else []
@@ -692,229 +658,207 @@ def main() -> None:
             )
             write_analytical_candidate_handoff(analytical_handoff_path, analytical_handoff)
 
+            # Assign candidates
+            analytical_approved = []
+            priced_approved = []
+            review_only = []
+            rejected = []
+            candidate_decision_reasons = {}
+            fixture_audit_result = {}
+
+            # Populate based on handoff
+            for c in analytical_handoff.get("analytical_ready", []):
+                # Apply LiveFixtureAudit
+                from bet.pipeline.live_fixture_audit import LiveFixtureAudit
+                auditor = LiveFixtureAudit(args.date)
+                status, reason = auditor.audit_candidate(c)
+                fixture_audit_result[c["candidate_id"]] = {"status": status, "reason": reason}
+                if status == "LIVE_FIXTURE_VERIFIED_NOT_STARTED":
+                    c["fixture_verification_status"] = status
+                    if c.get("odds_decimal") is not None:
+                        priced_approved.append(c)
+                        candidate_decision_reasons[c["candidate_id"]] = "PRICED_APPROVED_AND_AUDITED"
+                    else:
+                        analytical_approved.append(c)
+                        candidate_decision_reasons[c["candidate_id"]] = "ANALYTICAL_APPROVED_AND_AUDITED"
+                else:
+                    rejected.append(c)
+                    candidate_decision_reasons[c["candidate_id"]] = f"FIXTURE_AUDIT_REJECTED: {status} ({reason})"
+
+            for c in analytical_handoff.get("review_only_partial_data", []):
+                review_only.append(c)
+                candidate_decision_reasons[c["candidate_id"]] = "REVIEW_ONLY_PARTIAL_DATA"
+
+            for cat_key in ["blocked_probability_missing", "blocked_stats_missing", "blocked_identity_missing", "research_gap_minimal_hydration"]:
+                for c in analytical_handoff.get(cat_key, []):
+                    rejected.append(c)
+                    candidate_decision_reasons[c["candidate_id"]] = c.get("blocking_reason") or cat_key.upper()
+
             prov_exhausted = (
                 child_env.get("BET_PROVIDER_UNIVERSE_EXHAUSTED", "").lower() in ("true", "1")
                 or os.environ.get("BET_PROVIDER_UNIVERSE_EXHAUSTED", "").lower() in ("true", "1")
             )
 
-            config = LiveSessionUniverseConfig(
-                min_candidates=8,
-                provider_universe_exhausted=prov_exhausted,
-            )
-            report = build_pre_s7_universe(raw_candidates, config, source_artifact_path=str(input_path))
+            # Determine top-level S7 outcome
+            if priced_approved:
+                outcome = "READY_FOR_PRICED_REVIEW"
+                status_verdict = "PASS"
+            elif analytical_approved:
+                outcome = "READY_FOR_ANALYTICAL_OPERATOR_QUOTE_REVIEW"
+                status_verdict = "PASS"
+            else:
+                if len(raw_candidates) == 0:
+                    outcome = "NO_ACTION_TERMINAL"
+                    status_verdict = "PASS"
+                else:
+                    outcome = "BLOCKED"
+                    status_verdict = "BLOCK"
+
+            # Create versioned S7 approval set
+            from bet.pipeline.run_evidence import sha256_file
+            s7_v2_results = {
+                "artifact_type": "S7_ANALYTICAL_APPROVAL_SET_V2",
+                "outcome": outcome,
+                "priced_approved": priced_approved,
+                "analytical_approved": analytical_approved,
+                "review_only": review_only,
+                "rejected": rejected,
+                "candidate_decision_reasons": candidate_decision_reasons,
+                "counter_evidence": [],
+                "risk_flags": [],
+                "fixture_audit_result": fixture_audit_result,
+                "source_s4_sha256": sha256_file(input_path) if input_path else None,
+                "event_accounting_counts": {
+                    "total_input": len(raw_candidates),
+                    "priced_approved": len(priced_approved),
+                    "analytical_approved": len(analytical_approved),
+                    "review_only": len(review_only),
+                    "rejected": len(rejected),
+                }
+            }
+
+            # Atomically publish S7 JSON output
+            from bet.pipeline.run_evidence import write_json_atomic
+            if expected_json_output:
+                write_json_atomic(expected_json_output, s7_v2_results)
+
+            # Write a preflight report for legacy validation compatibility
             pre_s7_report_path = (
                 data_dir / f"{args.date}_pre_s7_universe_report.json"
                 if data_dir and args.date
                 else Path(child_env["BET_PIPELINE_RUN_ROOT"]) / "data" / "pre_s7_universe_report.json"
             )
-            write_universe_report(report, pre_s7_report_path)
+            legacy_pre_s7 = {
+                "status": "READY_FOR_S7" if outcome in ("READY_FOR_PRICED_REVIEW", "READY_FOR_ANALYTICAL_OPERATOR_QUOTE_REVIEW") else outcome,
+                "total_input_count": len(raw_candidates),
+                "valid_count": len(priced_approved) + len(analytical_approved),
+                "rejected_count": len(rejected),
+                "source_gap_count": len(analytical_handoff.get("gap_reasons", {})),
+                "rejected_reasons": {},
+                "source_gaps": [],
+                "valid_candidates": priced_approved + analytical_approved,
+                "priced_valid_candidates": priced_approved,
+                "unpriced_analytical_candidates": analytical_approved,
+                "rejected_candidates": rejected,
+                "as_of_utc": datetime.now(UTC).isoformat()
+            }
+            write_json_atomic(pre_s7_report_path, legacy_pre_s7)
+
             traceability_fields = build_s7_traceability_fields(
-                report,
+                build_pre_s7_universe(raw_candidates, LiveSessionUniverseConfig(min_candidates=8, provider_universe_exhausted=prov_exhausted), source_artifact_path=str(input_path)),
                 report_path=pre_s7_report_path,
                 input_path=input_path,
                 selection_policy="none",
             )
             traceability_fields["analytical_handoff_path"] = str(analytical_handoff_path)
             traceability_fields["analytical_handoff_counts"] = analytical_handoff.get("counts", {})
+            traceability_fields.update(_get_pipeline_counts(child_env, args.date))
 
-            analytical_extended_pool = _analytical_extended_pool(analytical_handoff)
-            from bet.pipeline.live_fixture_audit import LiveFixtureAudit
-            auditor = LiveFixtureAudit(args.date)
-            
-            audited_pool = []
-            for candidate in analytical_extended_pool:
-                status, reason = auditor.audit_candidate(candidate)
-                if status == "LIVE_FIXTURE_VERIFIED_NOT_STARTED":
-                    candidate["fixture_verification_status"] = status
-                    audited_pool.append(candidate)
-                else:
-                    print(f"[gate_audit] Candidate {candidate.get('candidate_id')} REJECTED: {status} ({reason})")
-                    
-            # Assign tiers and score candidates
-            analytical_extended_pool = auditor.assign_tiers(audited_pool)
+            # Build and write S7 script evidence
+            payload = {
+                "step_id": "S7",
+                "wrapper_scripts": [],
+                "wrapper_rc": 0,
+                "runtime_mode": mode.value,
+                "dry_run": True,
+                "allow_write": False,
+                "allow_live_network": bool(args.allow_live_network),
+                "production_write": False,
+                "runtime_path_source": runtime_path_source,
+                "child_run_root": child_env.get("BET_PIPELINE_RUN_ROOT"),
+                "child_artifact_dir": child_env.get("BET_PIPELINE_ARTIFACT_DIR"),
+                "s7_json_output": str(expected_json_output) if expected_json_output else None,
+                "s7_markdown_output": str(expected_markdown_output) if expected_markdown_output else None,
+                **_input_payload_fields(input_resolution),
+                "total_candidates": len(raw_candidates),
+                "approved_count": len(priced_approved) + len(analytical_approved),
+                "extended_count": len(analytical_approved),
+                "rejected_count": len(rejected),
+                "production_selectable": False,
+                "betting_decisions_enabled": False,
+                "no_pick_edge_stake_coupon_emitted": True,
+                "ready_for_manual_operator_quote_review": outcome in ("READY_FOR_PRICED_REVIEW", "READY_FOR_ANALYTICAL_OPERATOR_QUOTE_REVIEW"),
+                "ready_for_manual_placement": False,
+                "status": outcome,
+                "universe_report": legacy_pre_s7,
+                **traceability_fields,
+            }
 
-            if traceability_fields is None:
-                traceability_fields = {}
-            pipeline_counts = _get_pipeline_counts(child_env, args.date)
-            traceability_fields.update(pipeline_counts)
+            write_terminal_script_evidence_or_fail(
+                step_id="S7",
+                status=status_verdict,
+                payload=payload,
+                sources=(),
+                child_env=child_env,
+                no_pick_edge_stake_coupon_emitted=True,
+                blocked_reasons=(outcome,) if status_verdict == "BLOCK" else (),
+            )
 
-            if analytical_extended_pool:
-                payload = {
-                    "step_id": "S7",
-                    "wrapper_scripts": [],
-                    "wrapper_rc": 0,
-                    "runtime_mode": mode.value,
-                    "dry_run": True,
-                    "allow_write": False,
-                    "allow_live_network": bool(args.allow_live_network),
-                    "production_write": False,
-                    "runtime_path_source": runtime_path_source,
-                    "child_run_root": child_env.get("BET_PIPELINE_RUN_ROOT"),
-                    "child_artifact_dir": child_env.get("BET_PIPELINE_ARTIFACT_DIR"),
-                    "s7_json_output": str(expected_json_output) if expected_json_output else None,
-                    "s7_markdown_output": str(expected_markdown_output) if expected_markdown_output else None,
-                    "total_candidates": len(raw_candidates),
-                    "approved_count": 0,
-                    "extended_count": len(analytical_extended_pool),
-                    "rejected_count": len(report.rejected_candidates),
-                    "production_selectable": False,
-                    "betting_decisions_enabled": False,
-                    "no_pick_edge_stake_coupon_emitted": True,
-                    "ready_for_manual_operator_quote_review": True,
-                    "ready_for_manual_placement": False,
-                    "status": "READY_FOR_ANALYTICAL_OPERATOR_QUOTE_REVIEW",
-                    "universe_report": report.to_dict(),
-                    **traceability_fields,
-                }
-                print("ANALYTICAL_ONLY_LANE: Proceeding to analytical quote review from analytical handoff.")
-                write_terminal_script_evidence_or_fail(
-                    step_id="S7",
-                    status="PASS",
-                    payload=payload,
-                    sources=(),
-                    child_env=child_env,
-                    no_pick_edge_stake_coupon_emitted=True,
-                )
-                if expected_json_output:
-                    expected_json_output.parent.mkdir(parents=True, exist_ok=True)
-                    analytical_results = {
-                        "date": args.date,
-                        "gate_results": {
-                            "approved": [],
-                            "extended_pool": analytical_extended_pool,
-                            "rejected": report.rejected_candidates,
-                        },
-                        "summary": {
-                            "total_candidates": len(raw_candidates),
-                            "approved_count": 0,
-                            "extended_count": len(analytical_extended_pool),
-                            "rejected_count": len(report.rejected_candidates),
-                        },
-                        "analytical_handoff_path": str(analytical_handoff_path),
-                    }
-                    expected_json_output.write_text(json.dumps(analytical_results, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-                if expected_markdown_output:
-                    expected_markdown_output.parent.mkdir(parents=True, exist_ok=True)
-                    expected_markdown_output.write_text("# ANALYTICAL ONLY RUN\nReady for Operator Quote Review\n", encoding="utf-8")
-                raise SystemExit(0)
+            if expected_markdown_output:
+                expected_markdown_output.parent.mkdir(parents=True, exist_ok=True)
+                expected_markdown_output.write_text(f"# S7 RUN: {outcome}\n", encoding="utf-8")
 
-            if report.status == "READY_FOR_ANALYTICAL_OPERATOR_QUOTE_REVIEW":
-                payload = {
-                    "step_id": "S7",
-                    "wrapper_scripts": [],
-                    "wrapper_rc": 0,
-                    "runtime_mode": mode.value,
-                    "dry_run": True,
-                    "allow_write": False,
-                    "allow_live_network": bool(args.allow_live_network),
-                    "production_write": False,
-                    "runtime_path_source": runtime_path_source,
-                    "child_run_root": child_env.get("BET_PIPELINE_RUN_ROOT"),
-                    "child_artifact_dir": child_env.get("BET_PIPELINE_ARTIFACT_DIR"),
-                    "s7_json_output": str(expected_json_output) if expected_json_output else None,
-                    "s7_markdown_output": str(expected_markdown_output) if expected_markdown_output else None,
-                    "total_candidates": len(raw_candidates),
-                    "approved_count": 0,
-                    "extended_count": len(report.unpriced_analytical_candidates),
-                    "rejected_count": len(report.rejected_candidates),
-                    "production_selectable": False,
-                    "betting_decisions_enabled": False,
-                    "no_pick_edge_stake_coupon_emitted": True,
-                    "ready_for_manual_operator_quote_review": True,
-                    "ready_for_manual_placement": False,
-                    "status": "READY_FOR_ANALYTICAL_OPERATOR_QUOTE_REVIEW",
-                    "universe_report": report.to_dict(),
-                    **traceability_fields,
-                }
-                print("ANALYTICAL_ONLY_LANE: Proceeding to analytical quote review. Bypassing priced S7 gate.")
-                write_terminal_script_evidence_or_fail(
-                    step_id="S7",
-                    status="PASS",
-                    payload=payload,
-                    sources=(),
-                    child_env=child_env,
-                    no_pick_edge_stake_coupon_emitted=True,
-                )
-                if expected_json_output:
-                    expected_json_output.parent.mkdir(parents=True, exist_ok=True)
-                    analytical_results = {
-                        "date": args.date,
-                        "gate_results": {
-                            "approved": [],
-                            "extended_pool": report.unpriced_analytical_candidates,
-                            "rejected": report.rejected_candidates,
-                        },
-                        "summary": {
-                            "total_candidates": len(raw_candidates),
-                            "approved_count": 0,
-                            "extended_count": len(report.unpriced_analytical_candidates),
-                            "rejected_count": len(report.rejected_candidates),
-                        }
-                    }
-                    expected_json_output.write_text(json.dumps(analytical_results, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-                if expected_markdown_output:
-                    expected_markdown_output.parent.mkdir(parents=True, exist_ok=True)
-                    expected_markdown_output.write_text("# ANALYTICAL ONLY RUN\nReady for Operator Quote Review\n", encoding="utf-8")
-                raise SystemExit(0)
+            raise SystemExit(0 if status_verdict == "PASS" else 1)
 
-            if report.status != "READY_FOR_S7":
-                payload = {
-                    "step_id": "S7",
-                    "wrapper_scripts": SCRIPTS,
-                    "wrapper_rc": 1,
-                    "runtime_mode": mode.value,
-                    "dry_run": True,
-                    "allow_write": False,
-                    "allow_live_network": bool(args.allow_live_network),
-                    "production_write": False,
-                    "runtime_path_source": runtime_path_source,
-                    "child_run_root": child_env.get("BET_PIPELINE_RUN_ROOT"),
-                    "child_artifact_dir": child_env.get("BET_PIPELINE_ARTIFACT_DIR"),
-                    "s7_json_output": str(expected_json_output) if expected_json_output else None,
-                    "s7_markdown_output": str(expected_markdown_output) if expected_markdown_output else None,
-                    **_input_payload_fields(input_resolution),
-                    "total_candidates": len(raw_candidates),
-                    "approved_count": 0,
-                    "extended_count": 0,
-                    "rejected_count": len(raw_candidates),
-                    "production_selectable": False,
-                    "betting_decisions_enabled": False,
-                    "no_pick_edge_stake_coupon_emitted": True,
-                    **traceability_fields,
-                    "universe_report": report.to_dict(),
-                }
-                print(f"BLOCKED: Candidate universe check failed. Status: {report.status}. Valid candidates count: {report.valid_count}")
-                write_terminal_script_evidence_or_fail(
-                    step_id="S7",
-                    status="BLOCK",
-                    payload=payload,
-                    sources=tuple(f"scripts/{script_name}" for script_name in SCRIPTS),
-                    child_env=child_env,
-                    blocked_reasons=(report.status,),
-                    no_pick_edge_stake_coupon_emitted=True,
-                )
-                raise SystemExit(1)
         except SystemExit:
             raise
         except Exception as e:
             import traceback
-            print(f"WARNING: Exception in pre-S7 live session universe check: {e}")
             traceback.print_exc()
+            payload = {
+                "step_id": "S7",
+                "wrapper_rc": 1,
+                "error_fingerprint": str(e),
+                "status": "BLOCKED_S7_ANALYTICAL_UNIVERSE_EVALUATION_FAILED",
+            }
+            write_terminal_script_evidence_or_fail(
+                step_id="S7",
+                status="BLOCK",
+                payload=payload,
+                sources=(),
+                child_env=child_env,
+                blocked_reasons=("BLOCKED_S7_ANALYTICAL_UNIVERSE_EVALUATION_FAILED",),
+                no_pick_edge_stake_coupon_emitted=True,
+            )
+            raise SystemExit(1)
 
-    original_run = subprocess.run
+    from scripts.pipeline_steps._runner import ScriptInvocation
 
-    def custom_run(cmd, *run_args, **run_kwargs):
-        if len(cmd) > 1 and "gate_checker.py" in cmd[1] and input_path is not None and "--input" not in cmd:
-            cmd = [*cmd, "--input", str(input_path)]
-        return original_run(cmd, *run_args, **run_kwargs)
+    argv = ["--date", args.date] if args.date else []
+    if input_path is not None:
+        argv += ["--input", str(input_path)]
 
-    subprocess.run = custom_run
-    import scripts.pipeline_steps._runner as runner_module
-    runner_module.subprocess.run = custom_run
+    invocations = [
+        ScriptInvocation(
+            script="gate_checker.py",
+            argv=argv,
+        )
+    ]
+
     try:
         run_wrapper_scripts_with_evidence(
             step_id="S7",
-            wrapper_scripts=SCRIPTS,
+            wrapper_scripts=invocations,
             date=args.date,
             dry_run=args.dry_run,
             allow_write=args.allow_write,
@@ -929,9 +873,6 @@ def main() -> None:
     except SystemExit:
         _update_wrapper_evidence(child_env, args.date, args.run_id, input_resolution)
         raise
-    finally:
-        subprocess.run = original_run
-        runner_module.subprocess.run = original_run
 
 
 if __name__ == "__main__":

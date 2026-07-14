@@ -160,3 +160,36 @@ def test_resume_ledger_rejects_cross_main_binding(tmp_path: Path):
     )
     with pytest.raises(ResumeLedgerError, match="BINDING_CONFLICT"):
         conflicting.assert_resumable()
+
+
+def test_resume_ledger_blocks_continuation_after_code_change(tmp_path: Path):
+    ledger1 = ResumeLedger(
+        tmp_path,
+        run_id="run_2026_07_14",
+        betting_day="2026-07-14",
+        main_sha="main-sha",
+        manifest_sha="manifest-sha",
+    )
+    s3_entry = ledger1.append(
+        step_id="S3",
+        status="PASS",
+        command_request={"script": "s3_stats.py"},
+        input_hashes={"s2_output": "sha256_s2_data"},
+        output_hashes={"s3_output": "sha256_s3_data"},
+    )
+    ledger2 = ResumeLedger(
+        tmp_path,
+        run_id="run_2026_07_14",
+        betting_day="2026-07-14",
+        main_sha="modified-main-sha",
+        manifest_sha="manifest-sha",
+    )
+    with pytest.raises(ResumeLedgerError, match="BINDING_CONFLICT"):
+        ledger2.append(
+            step_id="S4",
+            status="PASS",
+            command_request={"script": "s4_valuator.py"},
+            input_hashes={"s3_output": "sha256_s3_data"},
+            output_hashes={"s4_output": "sha256_s4_data"},
+            expected_previous_hash=s3_entry["entry_hash"],
+        )
