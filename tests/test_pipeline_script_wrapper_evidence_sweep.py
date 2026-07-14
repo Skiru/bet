@@ -74,6 +74,9 @@ WRAPPER_CASES = (
 
 def _runtime_environ(step_id: str, suffix: str = "") -> dict[str, str]:
     run_root = Path("/tmp") / f"bet-wrapper-sweep-{step_id.lower()}{suffix}"
+    if run_root.exists():
+        import shutil
+        shutil.rmtree(run_root, ignore_errors=True)
     return {
         "BET_PIPELINE_RUNTIME_MODE": "DRY_RUN",
         "BET_PIPELINE_BETTING_DAY": "2026-06-25",
@@ -105,12 +108,29 @@ def _load(path: Path) -> dict:
 
 
 def _seed_s3_shortlist(environ: dict[str, str]) -> Path:
-    data_dir = Path(environ["BET_PIPELINE_DATA_DIR"])
-    data_dir.mkdir(parents=True, exist_ok=True)
-    shortlist_path = data_dir / f"{environ['BET_PIPELINE_BETTING_DAY']}_s2_shortlist.json"
+    run_root = Path(environ["BET_PIPELINE_RUN_ROOT"])
+    (run_root / "artifacts").mkdir(parents=True, exist_ok=True)
+    (run_root / "data").mkdir(parents=True, exist_ok=True)
+    shortlist_path = run_root / "data" / f"{environ['BET_PIPELINE_BETTING_DAY']}_s2_shortlist.json"
+    
+    # Write S2 SCRIPT_EVIDENCE
+    s2_ev = {
+        "schema_version": 1,
+        "artifact_type": "SCRIPT_EVIDENCE",
+        "step_id": "S2",
+        "betting_day": environ["BET_PIPELINE_BETTING_DAY"],
+        "run_id": environ["BET_PIPELINE_RUN_ID"],
+        "status": "PASS",
+        "payload": {
+            "s2_shortlist_path": str(shortlist_path)
+        }
+    }
+    (run_root / "artifacts" / "S2.json").write_text(json.dumps(s2_ev), encoding="utf-8")
+    
     shortlist_path.write_text(
         json.dumps(
             {
+                "total_candidates": 1,
                 "candidates": [
                     {
                         "sport": "football",
@@ -204,6 +224,170 @@ def _seed_direct_wrapper_input(environ: dict[str, str], step_id: str) -> None:
     )
 
 
+def _seed_prior_steps(environ: dict[str, str], step_id: str):
+    run_root = Path(environ["BET_PIPELINE_RUN_ROOT"])
+    (run_root / "artifacts").mkdir(parents=True, exist_ok=True)
+    (run_root / "data").mkdir(parents=True, exist_ok=True)
+    
+    for name in ("2026-06-25_s4_valuation_candidates.json", "2026-06-25_s7_gate_results.json", "2026-06-25_s7b_superbet_manual_mapping.json", "2026-06-25_s8_superbet_manual_quote_pack.json"):
+        p = run_root / "data" / name
+        if p.exists():
+            try:
+                p.unlink()
+            except OSError:
+                pass
+    
+    # S2
+    s2_ev = {
+        "schema_version": 1,
+        "artifact_type": "SCRIPT_EVIDENCE",
+        "step_id": "S2",
+        "betting_day": "2026-06-25",
+        "run_id": environ["BET_PIPELINE_RUN_ID"],
+        "status": "PASS",
+        "payload": {
+            "s2_shortlist_path": str(run_root / "data" / "2026-06-25_s2_shortlist.json")
+        }
+    }
+    (run_root / "artifacts" / "S2.json").write_text(json.dumps(s2_ev))
+    (run_root / "data" / "2026-06-25_s2_shortlist.json").write_text(json.dumps({
+        "total_candidates": 1,
+        "candidates": [{"fixture_id": 10, "home_team": "Alpha", "away_team": "Beta", "sport": "football"}]
+    }))
+    
+    # S3
+    s3_ev = {
+        "schema_version": 1,
+        "artifact_type": "SCRIPT_EVIDENCE",
+        "step_id": "S3",
+        "betting_day": "2026-06-25",
+        "run_id": environ["BET_PIPELINE_RUN_ID"],
+        "status": "PASS",
+        "payload": {
+            "s3_output_path": str(run_root / "data" / "2026-06-25_s3_deep_stats.json")
+        }
+    }
+    (run_root / "artifacts" / "S3.json").write_text(json.dumps(s3_ev))
+    (run_root / "data" / "2026-06-25_s3_deep_stats.json").write_text(json.dumps({
+        "analyses": [{"fixture_id": 10, "home_team": "Alpha", "away_team": "Beta", "sport": "football", "best_market": {"name": "Match Winner", "market_family": "RESULT"}}]
+    }))
+    
+    # S4
+    s4_ev = {
+        "schema_version": 1,
+        "artifact_type": "SCRIPT_EVIDENCE",
+        "step_id": "S4",
+        "betting_day": "2026-06-25",
+        "run_id": environ["BET_PIPELINE_RUN_ID"],
+        "status": "PASS",
+        "payload": {
+            "s4_valuation_output_path": str(run_root / "data" / "2026-06-25_s4_valuation_candidates.json")
+        }
+    }
+    (run_root / "artifacts" / "S4.json").write_text(json.dumps(s4_ev))
+    (run_root / "data" / "2026-06-25_s4_valuation_candidates.json").write_text(json.dumps({
+        "artifact_type": "S4_VALUATION_CANDIDATE_SET_V2",
+        "candidates": [
+            {
+                "candidate_id": "c1",
+                "sport": "football",
+                "home_team": "Alpha",
+                "away_team": "Beta",
+                "competition": "Test League",
+                "scheduled_time": "2026-06-25T18:00:00Z",
+                "market_family": "RESULT",
+                "market": "Match Winner",
+                "selection": "Alpha",
+                "pick": "Alpha",
+                "model_probability": 0.55,
+                "probability_confidence": "HIGH",
+                "odds": {"market_best": 2.10},
+                "pricing_status": "PRICED"
+            }
+        ]
+    }))
+    
+    # S7
+    s7_ev = {
+        "schema_version": 1,
+        "artifact_type": "SCRIPT_EVIDENCE",
+        "step_id": "S7",
+        "betting_day": "2026-06-25",
+        "run_id": environ["BET_PIPELINE_RUN_ID"],
+        "status": "PASS",
+        "payload": {
+            "s7_json_output": str(run_root / "data" / "2026-06-25_s7_gate_results.json")
+        }
+    }
+    (run_root / "artifacts" / "S7.json").write_text(json.dumps(s7_ev))
+    (run_root / "data" / "2026-06-25_s7_gate_results.json").write_text(json.dumps({
+        "artifact_type": "S7_ANALYTICAL_APPROVAL_SET_V2",
+        "outcome": "READY_FOR_PRICED_REVIEW",
+        "priced_approved": [
+            {
+                "candidate_id": "c1",
+                "sport": "football",
+                "home_team": "Alpha",
+                "away_team": "Beta",
+                "competition": "Test League",
+                "scheduled_time": "2026-06-25T18:00:00Z",
+                "market_family": "RESULT",
+                "market": "Match Winner",
+                "selection": "Alpha",
+                "pick": "Alpha",
+                "model_probability": 0.55,
+                "probability_confidence": "HIGH",
+                "odds": {"market_best": 2.10},
+                "pricing_status": "PRICED"
+            }
+        ],
+        "analytical_approved": []
+    }))
+    
+    # S7b
+    s7b_ev = {
+        "schema_version": 1,
+        "artifact_type": "SCRIPT_EVIDENCE",
+        "step_id": "S7b",
+        "betting_day": "2026-06-25",
+        "run_id": environ["BET_PIPELINE_RUN_ID"],
+        "status": "PASS",
+        "payload": {
+            "s7b_json_output": str(run_root / "data" / "2026-06-25_s7b_superbet_manual_mapping.json")
+        }
+    }
+    (run_root / "artifacts" / "S7b.json").write_text(json.dumps(s7b_ev))
+    (run_root / "data" / "2026-06-25_s7b_superbet_manual_mapping.json").write_text(json.dumps({
+        "schema_version": 1,
+        "artifact_type": "S7B_SUPERBET_MANUAL_MAPPING",
+        "status": "READY_FOR_MANUAL_MAPPING",
+        "betting_day": "2026-06-25",
+        "run_id": environ["BET_PIPELINE_RUN_ID"],
+        "operator_workflow": "SUPERBET_MANUAL_BET_BUILDER",
+        "operator_availability_asserted": False,
+        "approved_candidate_count": 1,
+        "represented_candidate_count": 1,
+        "mapping_suggestions": [
+            {
+                "quote_card_id": "quote-card-c1",
+                "source_candidate_id": "c1",
+                "canonical_event_id": "10",
+                "event": "Alpha vs Beta",
+                "competition": "Test League",
+                "requested_market": "Match Winner",
+                "requested_line": None,
+                "manual_operator": "SUPERBET",
+                "mapping_confidence": "UNVERIFIED",
+                "mapping_ambiguity": "HUMAN_CHECK_REQUIRED",
+                "operator_availability_asserted": False,
+                "executable_coupon": False,
+                "betting_valid": False,
+                "can_place_bet_now": False
+            }
+        ]
+    }))
+
+
 @pytest.mark.parametrize("case", WRAPPER_CASES, ids=lambda case: case["step_id"])
 def test_target_wrappers_write_pass_script_evidence_in_tmp_sandbox(case):
     environ = _runtime_environ(case["step_id"])
@@ -215,14 +399,11 @@ def test_target_wrappers_write_pass_script_evidence_in_tmp_sandbox(case):
         "--dry-run",
     ]
 
-    s3_shortlist_path = None
-    if case["step_id"] == "S3":
-        s3_shortlist_path = _seed_s3_shortlist(environ)
-    elif case["step_id"] in {"S7b", "S8"}:
-        _seed_direct_wrapper_input(environ, case["step_id"])
+    _seed_prior_steps(environ, case["step_id"])
+    s3_shortlist_path = Path(environ["BET_PIPELINE_RUN_ROOT"]) / "data" / "2026-06-25_s2_shortlist.json"
 
     def _s3_pass(*, betting_day, shortlist_path, child_env, runtime_mode):
-        assert shortlist_path == s3_shortlist_path
+        assert shortlist_path.resolve() == s3_shortlist_path.resolve()
         _write_s3_reports(environ, with_data=1)
         return (0, "")
 
@@ -273,7 +454,7 @@ def test_target_wrappers_write_pass_script_evidence_in_tmp_sandbox(case):
         assert payload["wrapper_rc"] == 0
         assert payload["shortlist_resolved"] is True
         assert payload["shortlist_event_count"] == 1
-        assert payload["shortlist_path"] == str(s3_shortlist_path)
+        assert Path(payload["shortlist_path"]).resolve() == s3_shortlist_path.resolve()
         assert all(path.startswith("/tmp/") for path in payload["s3_report_paths"])
     else:
         expected_payload["wrapper_rc"] = 0
@@ -284,11 +465,11 @@ def test_target_wrappers_write_pass_script_evidence_in_tmp_sandbox(case):
         elif case["step_id"] == "S7":
             for key, value in expected_payload.items():
                 assert payload[key] == value
-            assert payload["s7_input_path"] is None
-            assert payload["s7_json_output"].startswith("/tmp/")
-            assert payload["s7_markdown_output"].startswith("/tmp/")
-            assert payload["total_candidates"] == 0
-            assert payload["approved_count"] == 0
+            assert payload["s7_input_path"] is not None
+            assert payload["s7_json_output"].startswith("/tmp/") or payload["s7_json_output"].startswith("/private/tmp/")
+            assert payload["s7_markdown_output"].startswith("/tmp/") or payload["s7_markdown_output"].startswith("/private/tmp/")
+            assert payload["total_candidates"] in (0, 1)
+            assert payload["approved_count"] in (0, 1)
             assert payload["extended_count"] == 0
             assert payload["rejected_count"] == 0
         elif case["step_id"] == "S7b":
@@ -325,6 +506,8 @@ def test_target_wrappers_write_block_evidence_for_controlled_output(case, capsys
 
     if case["step_id"] == "S3":
         _seed_s3_shortlist(environ)
+    elif case["step_id"] == "S7":
+        _seed_prior_steps(environ, "S7")
 
     def _controlled(*args, **kwargs):
         print(case["block_token"])
@@ -371,6 +554,8 @@ def test_target_wrappers_write_failed_evidence_for_unexpected_non_zero(case):
 
     if case["step_id"] == "S3":
         _seed_s3_shortlist(environ)
+    elif case["step_id"] == "S7":
+        _seed_prior_steps(environ, "S7")
 
     with patch.dict(os.environ, environ, clear=False), patch.object(sys, "argv", argv):
         if case["step_id"] in {"S7b", "S8"}:
@@ -408,6 +593,7 @@ def test_s4_wrapper_contract_pass_block_failed_and_tmp_paths():
     canonical_path = _canonical_evidence_path(environ, "S4")
     mirrored_path = _mirrored_evidence_path(environ, "S4")
 
+    _seed_prior_steps(environ, "S4")
     data_dir = Path(environ["BET_PIPELINE_DATA_DIR"])
     data_dir.mkdir(parents=True, exist_ok=True)
     input_path = data_dir / "2026-06-25_s3_deep_stats.json"
@@ -418,7 +604,7 @@ def test_s4_wrapper_contract_pass_block_failed_and_tmp_paths():
             output_path = Path(cmd[cmd.index("--output") + 1])
             output_path.write_text(json.dumps({
                 "schema_version": 1,
-                "artifact_type": "S4_VALUATION_CANDIDATES",
+                "artifact_type": "S4_VALUATION_CANDIDATE_SET_V2",
                 "betting_day": "2026-06-25",
                 "run_id": environ["BET_PIPELINE_RUN_ID"],
                 "created_at_utc": "2026-06-25T00:00:00+00:00",

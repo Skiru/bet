@@ -32,12 +32,30 @@ from bet.pipeline.runtime_modes import (
 )
 from bet.pipeline.runtime_paths import build_runtime_env
 
+# Sandbox paths keys
 RUNTIME_PATH_KEYS = (
     "BET_PIPELINE_RUN_ROOT",
     "BET_PIPELINE_DATA_DIR",
     "BET_PIPELINE_COUPON_DIR",
     "BET_PIPELINE_ARTIFACT_DIR",
 )
+
+
+class ScriptInvocation:
+    """Typed invocation contract for safe script execution without monkeypatching."""
+    def __init__(
+        self,
+        script: str,
+        argv: list[str] | None = None,
+        timeout_seconds: float | None = None,
+        idempotent: bool = True,
+        expected_exit_codes: set[int] | None = None,
+    ):
+        self.script = script
+        self.argv = argv or []
+        self.timeout_seconds = timeout_seconds
+        self.idempotent = idempotent
+        self.expected_exit_codes = expected_exit_codes or {0}
 
 
 def _venv_python() -> str:
@@ -115,7 +133,7 @@ def resolve_child_runtime_env(
 
 
 def run_scripts(
-    scripts: Iterable[str],
+    scripts: Iterable[str | ScriptInvocation],
     date: str | None = None,
     dry_run: bool = True,
     allow_write: bool = False,
@@ -127,14 +145,13 @@ def run_scripts(
     run_id: str | None = None,
     allow_live_network: bool = False,
     run_root: Path | str | None = None,
+    extra_args: list[str] | None = None,
 ) -> int:
     """Run one or more script paths (relative to repo root `scripts/`).
 
-    - `date` is passed as `date_arg` to the script if provided.
+    - Accepts either raw string script names or ScriptInvocation objects.
     - When `dry_run` is True and `allow_write` False, `DATABASE_URL` will be
       temporarily set to a temp file DB to avoid persisting changes.
-    - `continue_on_codes`: Exit codes that should NOT stop the sequence (default: [0]).
-      Use [0, 1] to allow PARTIAL verdicts to continue.
     Returns the subprocess return code (0 for success).
     """
     if continue_on_codes is None:
@@ -156,8 +173,9 @@ def run_scripts(
     # Check for live-target wrappers
     is_live_target = False
     for script in scripts:
-        s_name = Path(script).name
-        if s_name in [
+        s_name = script.script if isinstance(script, ScriptInvocation) else script
+        name = Path(s_name).name
+        if name in [
             "discover_events.py",
             "fetch_odds_multi.py",
             "settle_on_finish.py",
@@ -185,7 +203,6 @@ def run_scripts(
         allow_write = True
         dry_run = False
     else:
-        # Non-production modes must use sandboxed/dry-run settings
         allow_write = False
         dry_run = True
 
@@ -205,7 +222,6 @@ def run_scripts(
             return 3
         dry_run = False
 
-    # Inject sandboxed paths for non-production modes, preserving inherited orchestrator sandboxes.
     if runtime_mode != RuntimeMode.PRODUCTION:
         try:
             env, _ = resolve_child_runtime_env(
@@ -229,43 +245,57 @@ def run_scripts(
             env["DRY_RUN"] = "1"
         python = _venv_python()
         for script in scripts:
-            script_path = ROOT / "scripts" / script
+            if isinstance(script, ScriptInvocation):
+                script_name = script.script
+                argv = list(script.argv)
+                timeout = script.timeout_seconds
+                expected_codes = script.expected_exit_codes
+            else:
+                script_name = script
+                argv = []
+                if date:
+                    argv += [date_arg, date]
+                timeout = None
+                expected_codes = set(continue_on_codes or [0])
+
+            script_path = ROOT / "scripts" / script_name
             if not script_path.exists():
                 print(f"Script not found: {script_path}")
                 return 2
-            cmd = [python, str(script_path)]
-            if date:
-                cmd += [date_arg, date]
+            cmd = [python, str(script_path)] + argv
+            if extra_args:
+                cmd += extra_args
             print("Running:", " ".join(cmd))
-            res = subprocess.run(cmd, env=env, capture_output=True, text=True)
-            if res.returncode not in continue_on_codes:
+            kwargs = {}
+            if timeout is not None:
+                kwargs["timeout"] = timeout
+            res = subprocess.run(cmd, env=env, capture_output=True, text=True, **kwargs)
+            if res.returncode not in expected_codes:
                 if res.stdout:
                     print(res.stdout)
                 if res.stderr:
                     print(res.stderr)
 
-                stderr = (res.stderr or "").lower()
-                if date and ("unrecognized arguments" in stderr or "usage:" in stderr or "error:" in stderr):
-                    print(f"Retrying {script} without date flag to accommodate CLI differences")
+                if not isinstance(script, ScriptInvocation) and date and ("unrecognized arguments" in (res.stderr or "").lower() or "usage:" in (res.stderr or "").lower() or "error:" in (res.stderr or "").lower()):
+                    print(f"Retrying {script_name} without date flag to accommodate CLI differences")
                     cmd2 = [python, str(script_path)]
+                    if extra_args:
+                        cmd2 += extra_args
                     print("Running:", " ".join(cmd2))
-                    # Note: Original code used subprocess.run(cmd2, env=env) without capture_output, returning its returncode or continuing.
-                    # To remain fully compliant with exit code propagation and safety:
                     res2 = subprocess.run(cmd2, env=env, capture_output=True, text=True)
-                    if res2.returncode not in continue_on_codes:
+                    if res2.returncode not in expected_codes:
                         if res2.stdout:
                             print(res2.stdout)
                         if res2.stderr:
                             print(res2.stderr)
-                        print(f"Script {script} failed with code {res2.returncode}")
+                        print(f"Script {script_name} failed with code {res2.returncode}")
                         return res2.returncode
                     else:
                         continue
 
-                print(f"Script {script} failed with code {res.returncode}")
+                print(f"Script {script_name} failed with code {res.returncode}")
                 return res.returncode
             else:
-                # Still output stdout and stderr even if successful, for machine readability or logs
                 if res.stdout:
                     print(res.stdout)
                 if res.stderr:

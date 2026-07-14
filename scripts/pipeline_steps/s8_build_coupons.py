@@ -13,12 +13,13 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from bet.pipeline.integration_artifacts import script_evidence_path
 from bet.pipeline.artifact_io import publish_run_artifact
 from bet.pipeline.run_evidence import sha256_file
 from bet.pipeline.runtime_modes import parse_runtime_mode
 from scripts.pipeline_steps._runner import resolve_child_runtime_env
-from scripts.pipeline_steps._script_evidence import write_terminal_script_evidence_or_fail
+from scripts.pipeline_steps._script_evidence import (
+    write_terminal_script_evidence_or_fail,
+)
 
 SCRIPTS: list[str] = []
 BLANK_OPERATOR_FIELDS = (
@@ -42,30 +43,16 @@ def _s8_output_path(data_dir: Path, betting_day: str, _runtime_mode: object | No
 
 
 def _load_canonical_s7b(child_env: dict[str, str], day: str, run_id: str) -> tuple[Path, Path, dict[str, Any]]:
-    evidence_path = script_evidence_path("S7b", child_env)
-    if evidence_path is None:
-        raise ValueError("canonical S7b evidence path is unavailable")
+    from bet.pipeline.integration_artifacts import resolve_bound_step_output
     run_root = Path(child_env["BET_PIPELINE_RUN_ROOT"])
-    evidence_path = _run_scoped_file(evidence_path, run_root)
-    evidence = json.loads(evidence_path.read_text(encoding="utf-8"))
-    if (
-        evidence.get("schema_version") != 1
-        or evidence.get("artifact_type") != "SCRIPT_EVIDENCE"
-        or evidence.get("step_id") != "S7b"
-        or evidence.get("status") != "PASS"
-        or evidence.get("betting_day") != day
-        or evidence.get("run_id") != run_id
-    ):
-        raise ValueError("canonical S7b evidence binding is invalid")
-    payload = evidence.get("payload") or {}
-    output_value = payload.get("s7b_json_output")
-    expected_hash = payload.get("s7b_output_sha256")
-    if not isinstance(output_value, str) or not isinstance(expected_hash, str):
-        raise ValueError("canonical S7b output binding is incomplete")
-    output_path = _run_scoped_file(Path(output_value), run_root)
-    if sha256_file(output_path) != expected_hash:
-        raise ValueError("canonical S7b output hash mismatch")
-    mapping = json.loads(output_path.read_text(encoding="utf-8"))
+    output_path, mapping = resolve_bound_step_output(
+        run_root=run_root,
+        step_id="S7b",
+        betting_day=day,
+        run_id=run_id,
+        expected_artifact_type="S7B_SUPERBET_MANUAL_MAPPING",
+    )
+    evidence_path = run_root / "artifacts" / "S7b.json"
     return evidence_path, output_path, mapping
 
 

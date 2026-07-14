@@ -6,7 +6,6 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import subprocess
 import sys
 from pathlib import Path
 from typing import Any
@@ -14,56 +13,32 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[2]
 
 try:
-    from scripts.pipeline_steps._script_evidence import build_wrapper_payload, write_terminal_script_evidence_or_fail
     from scripts.pipeline_steps._runner import run_scripts
+    from scripts.pipeline_steps._script_evidence import (
+        build_wrapper_payload,
+        write_terminal_script_evidence_or_fail,
+    )
 except Exception:
     sys.path.insert(0, str(ROOT))
-    from scripts.pipeline_steps._script_evidence import build_wrapper_payload, write_terminal_script_evidence_or_fail
     from scripts.pipeline_steps._runner import run_scripts
+    from scripts.pipeline_steps._script_evidence import (
+        build_wrapper_payload,
+        write_terminal_script_evidence_or_fail,
+    )
 
 SCRIPTS = ["fetch_odds_multi.py", "odds_evaluator.py"]
 
 
-def is_protected_repo_path(path: Path | str | None) -> bool:
-    if not path:
-        return False
-    abs_path = Path(path).resolve()
-    for parent in ((ROOT / "betting" / "data").resolve(), (ROOT / "betting" / "coupons").resolve(), (ROOT / "reports").resolve()):
-        try:
-            abs_path.relative_to(parent)
-            return True
-        except ValueError:
-            pass
-    return False
-
-
-def _safe_file(path: Path | None) -> Path | None:
-    if path is None:
-        return None
-    try:
-        resolved = path.resolve()
-    except FileNotFoundError:
-        return None
-    if not resolved.exists() or not resolved.is_file() or is_protected_repo_path(resolved):
-        return None
-    return resolved
-
-
 def _safe_run_scoped_file(path: Path | None, child_env: dict[str, str]) -> Path | None:
-    resolved = _safe_file(path)
-    if resolved is None:
-        return None
-    resolved_str = str(resolved)
-    if not (resolved_str.startswith("/tmp/") or resolved_str.startswith("/private/tmp/")):
+    if path is None:
         return None
     run_root_raw = child_env.get("BET_PIPELINE_RUN_ROOT")
     if not run_root_raw:
-        return resolved
-    try:
-        resolved.relative_to(Path(run_root_raw).resolve())
-    except ValueError:
         return None
-    return resolved
+    from bet.pipeline.runtime_paths import is_safe_run_path
+    if is_safe_run_path(path, run_root_raw):
+        return Path(path).resolve()
+    return None
 
 
 def _load_json(path: Path) -> Any | None:
@@ -143,7 +118,18 @@ def main() -> None:
         run_root=None,
     )
     data_dir = Path(child_env.get("BET_PIPELINE_DATA_DIR", str(ROOT / "betting" / "data")))
-    s4_input_path = _resolve_s4_input_path(child_env, args.date)
+    from bet.pipeline.integration_artifacts import resolve_bound_step_output
+    try:
+        s4_input_path, s3_data = resolve_bound_step_output(
+            run_root=child_env["BET_PIPELINE_RUN_ROOT"],
+            step_id="S3",
+            betting_day=args.date,
+            run_id=args.run_id,
+            expected_artifact_type="S3_DEEP_STATS",
+        )
+    except Exception as exc:
+        print(f"S4 Input Resolution Error: {exc}")
+        s4_input_path = None
     s4_output_path = data_dir / f"{args.date}_s4_valuation_candidates.json" if args.date else data_dir / "s4_valuation_candidates.json"
 
     def _payload(fetch_rc: int, eval_rc: int | None = None, error: str | None = None, valuation_output: dict[str, Any] | None = None) -> dict[str, object]:
@@ -227,38 +213,31 @@ def main() -> None:
         )
         sys.exit(rc_fetch)
 
-    # Step 2: Run odds_evaluator.py
-    original_run = subprocess.run
+    # Step 2: Run odds_evaluator.py using ScriptInvocation
+    from scripts.pipeline_steps._runner import ScriptInvocation
 
-    def custom_run(cmd, *run_args, **run_kwargs):
-        if len(cmd) > 1 and "odds_evaluator.py" in cmd[1]:
-            injected = list(cmd)
-            if "--input" not in injected:
-                injected.extend(["--input", str(s4_input_path)])
-            if "--output" not in injected:
-                injected.extend(["--output", str(s4_output_path)])
-            if "--runtime-mode" not in injected:
-                injected.extend(["--runtime-mode", str(args.runtime_mode)])
-            cmd = injected
-        return original_run(cmd, *run_args, **run_kwargs)
+    argv = ["--date", args.date] if args.date else []
+    if s4_input_path:
+        argv += ["--input", str(s4_input_path)]
+    if s4_output_path:
+        argv += ["--output", str(s4_output_path)]
+    argv += ["--runtime-mode", str(args.runtime_mode)]
 
-    subprocess.run = custom_run
-    import scripts.pipeline_steps._runner as runner_module
-    runner_module.subprocess.run = custom_run
-    try:
-        rc_eval = run_scripts(
-            ["odds_evaluator.py"],
-            date=args.date,
-            dry_run=args.dry_run,
-            allow_write=args.allow_write,
-            runtime_mode=args.runtime_mode,
-            betting_day=args.date,
-            run_id=args.run_id,
-            allow_live_network=args.allow_live_network,
-        )
-    finally:
-        subprocess.run = original_run
-        runner_module.subprocess.run = original_run
+    invocation = ScriptInvocation(
+        script="odds_evaluator.py",
+        argv=argv,
+    )
+
+    rc_eval = run_scripts(
+        [invocation],
+        date=args.date,
+        dry_run=args.dry_run,
+        allow_write=args.allow_write,
+        runtime_mode=args.runtime_mode,
+        betting_day=args.date,
+        run_id=args.run_id,
+        allow_live_network=args.allow_live_network,
+    )
 
     if rc_eval != 0:
         if rc_eval == 1:
@@ -293,7 +272,7 @@ def main() -> None:
         )
         sys.exit(1)
 
-    if valuation_output.get("artifact_type") == "S4_VALUATION_CANDIDATES":
+    if valuation_output.get("artifact_type") in ("S4_VALUATION_CANDIDATE_SET_V2", "S4_VALUATION_CANDIDATES"):
         _write(
             status="PASS",
             payload=_payload(rc_fetch, rc_eval, valuation_output=valuation_output),

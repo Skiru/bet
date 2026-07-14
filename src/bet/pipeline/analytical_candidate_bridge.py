@@ -1,24 +1,26 @@
 """Bridge S3/S4 shortlist candidates into analytical handoff drafts."""
 from __future__ import annotations
 
-import json
 import os
 from dataclasses import asdict, dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any
 
-from bet.pipeline.market_probability_inputs import extract_market_semantics
-from bet.pipeline.market_probability_inputs import build_market_probability_input, validate_market_probability_input
 from bet.pipeline.analyzability_prefilter import (
     evaluate_candidate_analyzability,
     rank_analyzable_candidates,
 )
+from bet.pipeline.market_probability_inputs import (
+    build_market_probability_input,
+    extract_market_semantics,
+    validate_market_probability_input,
+)
 
 
 def _now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def _resolve_analyzability_report_path(source_artifact_path: str) -> Path:
@@ -402,6 +404,7 @@ def build_analytical_candidate_handoff(
     research_gap_minimal_hydration: list[dict[str, Any]] = []
     priced_candidates: list[dict[str, Any]] = []
     reports: list[dict[str, Any]] = []
+    rejection_ledger: list[dict[str, Any]] = []
 
     for position, valuation_entry in enumerate(valuation_candidates):
         if not isinstance(valuation_entry, dict):
@@ -550,7 +553,7 @@ def build_analytical_candidate_handoff(
         )
         report = evaluate_candidate_analyzability(valuation_entry, s3_entry, market_seed)
         reports.append(report)
-        
+
         if report["analyzability_status"] == "REVIEW_ONLY_PARTIAL_DATA":
             analytical_status = "REVIEW_ONLY_PARTIAL_DATA"
             probability_contract["model_probability"] = None
@@ -711,6 +714,41 @@ def build_analytical_candidate_handoff(
                 ResearchCandidateBlocked(**asdict(draft), blocking_reason="NOT_ANALYTICAL_ELIGIBLE").to_dict()
             )
 
+        # Define helper mapping to structured reason
+        def _map_to_structured_reason(status: str) -> str:
+            if status == "ANALYTICAL_READY":
+                return "READY"
+            if status == "REVIEW_ONLY_PARTIAL_DATA":
+                return "PARTIAL"
+            if status in {"INSUFFICIENT_MODEL_PROBABILITY", "PROBABILITY_MISSING"}:
+                return "PROBABILITY_MISSING"
+            if status == "PROBABILITY_INVALID":
+                return "PROBABILITY_INVALID"
+            if status in {"INSUFFICIENT_SUPPORTING_STATS", "BLOCKED_HYDRATION_FAILED", "SUPPORTING_STATS_MISSING"}:
+                return "SUPPORTING_STATS_MISSING"
+            if status in {"MISSING_MARKET_FAMILY", "UNSUPPORTED_PROP_MATCH", "AMBIGUOUS_MARKET_LABEL", "MARKET_IDENTITY_INVALID"}:
+                return "MARKET_IDENTITY_INVALID"
+            if status in {"MISSING_SPORT", "MISSING_COMPETITION", "IDENTITY_GAP", "EVENT_IDENTITY_INVALID"}:
+                return "EVENT_IDENTITY_INVALID"
+            if status == "STALE_INPUT":
+                return "STALE_INPUT"
+            if status == "UNSUPPORTED_MARKET":
+                return "UNSUPPORTED_MARKET"
+            if status == "SOURCE_BINDING_INVALID":
+                return "SOURCE_BINDING_INVALID"
+            return "OTHER_EXPLICIT_REASON"
+
+        rejection_ledger.append({
+            "candidate_id": candidate_id,
+            "input_s3_hash": valuation_payload.get("source_s3_sha256") or (s3_payload or {}).get("source_s3_sha256"),
+            "input_s4_hash": valuation_payload.get("source_s4_sha256") or valuation_payload.get("source_s4_hash"),
+            "fields_inspected": ["model_probability", "best_market", "stats_summary"],
+            "analytical_result": analytical_status,
+            "pricing_result": valuation_entry.get("pricing_status") or "UNPRICED",
+            "reason_codes": [_map_to_structured_reason(analytical_status)],
+            "evidence_paths": [source_artifact_path],
+        })
+
         if odds_decimal is not None and odds_decimal > Decimal("1") and analytical_status == "ANALYTICAL_READY":
             priced_candidates.append(draft_dict)
 
@@ -724,13 +762,10 @@ def build_analytical_candidate_handoff(
             for blocker in r["blocker_reasons"]:
                 gap_reasons[blocker] = gap_reasons.get(blocker, 0) + 1
 
-    # Write analyzability prefilter report to approved path
-    try:
-        from bet.pipeline.analyzability_prefilter import write_analyzability_report
-        workspace_report_path = _resolve_analyzability_report_path(source_artifact_path)
-        write_analyzability_report(workspace_report_path, reports)
-    except Exception as e:
-        print(f"WARNING: failed to write analyzability prefilter report: {e}")
+    # Write analyzability prefilter report to approved path (must not catch silently)
+    from bet.pipeline.analyzability_prefilter import write_analyzability_report
+    workspace_report_path = _resolve_analyzability_report_path(source_artifact_path)
+    write_analyzability_report(workspace_report_path, reports)
 
     # Set package type
     if analytical_ready:
@@ -739,6 +774,38 @@ def build_analytical_candidate_handoff(
         package_type = "REVIEW_ONLY_PARTIAL_DATA_PACKAGE"
     else:
         package_type = "RESEARCH_GAP_PACKAGE"
+
+    # Enforce strict partition invariant of Phase 7
+    input_ids = set()
+    for position, valuation_entry in enumerate(valuation_candidates):
+        key = _identity_key(valuation_entry)
+        alt_key = _normalized_key(
+            valuation_entry.get("home_team"),
+            valuation_entry.get("away_team"),
+            valuation_entry.get("scheduled_time") or valuation_entry.get("kickoff") or valuation_entry.get("start_time"),
+        )
+        s3_entry = s3_index.get(key) or (s3_index.get(alt_key) if alt_key else None)
+        shortlist_entry = shortlist_index.get(key) or (shortlist_index.get(alt_key) if alt_key else None)
+        c_id = _normalized(
+            valuation_entry.get("candidate_id")
+            or (s3_entry or {}).get("candidate_id")
+            or valuation_entry.get("fixture_key")
+            or valuation_entry.get("fixture_id")
+            or f"candidate-{position + 1}"
+        )
+        input_ids.add(c_id)
+
+    ready_ids = set(c["candidate_id"] for c in analytical_ready)
+    partial_ids = set(c["candidate_id"] for c in review_only_partial_data)
+    blocked_ids = set(c["candidate_id"] for c in blocked_probability_missing)
+    blocked_ids.update(c["candidate_id"] for c in blocked_stats_missing)
+    blocked_ids.update(c["candidate_id"] for c in blocked_identity_missing)
+    blocked_ids.update(c["candidate_id"] for c in research_gap_minimal_hydration)
+
+    all_assigned = ready_ids.union(partial_ids).union(blocked_ids)
+    disappeared = input_ids - all_assigned
+    if disappeared:
+        raise ValueError(f"Candidate partition invariant failed: {disappeared} are missing from any terminal categories!")
 
     return {
         "artifact_type": "ANALYTICAL_CANDIDATE_HANDOFF",
@@ -755,6 +822,7 @@ def build_analytical_candidate_handoff(
         "review_only_partial_data": review_only_partial_data,
         "research_gap_minimal_hydration": research_gap_minimal_hydration,
         "priced_candidates": priced_candidates,
+        "rejection_ledger": rejection_ledger,
         "counts": {
             "analytical_ready": len(analytical_ready),
             "blocked_probability_missing": len(blocked_probability_missing),
@@ -768,7 +836,6 @@ def build_analytical_candidate_handoff(
 
 
 def write_analytical_candidate_handoff(path: Path, payload: dict[str, Any]) -> Path:
-    resolved = Path(path)
-    resolved.parent.mkdir(parents=True, exist_ok=True)
-    resolved.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-    return resolved
+    from bet.pipeline.run_evidence import write_json_atomic
+    write_json_atomic(path, payload)
+    return Path(path)

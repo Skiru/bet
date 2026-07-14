@@ -120,3 +120,50 @@ def build_runtime_env(
         env["DRY_RUN"] = "1"
 
     return env
+
+
+def is_safe_run_path(
+    path: Path | str | None,
+    run_root: Path | str,
+    betting_day: str | None = None,
+    run_id: str | None = None,
+) -> bool:
+    """Enforce unified path safety rules.
+
+    A path is safe when:
+    - it is inside the exact current run root;
+    - it does not escape via symlink or traversal;
+    - it is not a protected operational DB or journal;
+    - it is not another run;
+    - it is not source/config/test code.
+    """
+    if not path:
+        return False
+
+    try:
+        path_p = Path(path).resolve()
+        run_root_p = Path(run_root).resolve()
+    except Exception:
+        return False
+
+    # Symlink escape check
+    if path_p.is_symlink():
+        return False
+
+    # Traversal check: must be inside run_root_p
+    try:
+        path_p.relative_to(run_root_p)
+    except ValueError:
+        return False
+
+    # Must not contain operational databases or journals
+    path_str = str(path_p).lower()
+    if "journal" in path_str or path_p.suffix in {".db", ".sqlite", ".sqlite3"}:
+        return False
+
+    # Must not contain source/config/test code
+    for parent in path_p.parents:
+        if parent.name in {"src", "tests", "config", "scripts", ".git", ".github", ".kilo"}:
+            return False
+
+    return True

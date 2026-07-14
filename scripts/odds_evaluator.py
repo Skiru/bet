@@ -417,7 +417,68 @@ def _build_valuation_output(
     runtime_mode: str | None,
     source_input_path: Path | None,
 ) -> dict:
-    valuation_candidates = [_build_valuation_candidate(candidate) for candidate in candidates]
+    valuation_candidates = []
+    for index, candidate in enumerate(candidates):
+        item = _build_valuation_candidate(candidate)
+        
+        # Determine analytical_status
+        prob = item.get("model_probability") or item.get("probability")
+        conf = str(item.get("probability_confidence") or "").upper()
+        
+        if prob is not None:
+            if conf in {"BLOCKED", "LOW", "MINIMAL", "LOW_CONFIDENCE"}:
+                analytical_status = "REVIEW_ONLY_PARTIAL_DATA"
+            else:
+                analytical_status = "ANALYTICAL_READY"
+        else:
+            analytical_status = "ANALYTICAL_BLOCKED"
+            
+        # Determine pricing_status
+        odds_dec = (item.get("odds") or {}).get("market_best") or item.get("odds_decimal")
+        if odds_dec is not None:
+            pricing_status = "PRICED"
+        else:
+            if analytical_status == "ANALYTICAL_BLOCKED":
+                pricing_status = "PRICING_BLOCKED_INVALID_INPUT"
+            else:
+                pricing_status = "PRICING_DEGRADED"
+                
+        # Determine risk_status
+        if analytical_status == "ANALYTICAL_READY":
+            risk_status = "ACCEPTABLE_FOR_MANUAL_QUOTE_REVIEW"
+        elif analytical_status == "REVIEW_ONLY_PARTIAL_DATA":
+            risk_status = "RECHECK_REQUIRED"
+        else:
+            risk_status = "REJECTED"
+            
+        # Determine final_status
+        if analytical_status == "ANALYTICAL_READY":
+            if pricing_status == "PRICED":
+                final_status = "READY_FOR_PRICED_REVIEW"
+            else:
+                final_status = "READY_FOR_ANALYTICAL_OPERATOR_QUOTE_REVIEW"
+        elif analytical_status == "REVIEW_ONLY_PARTIAL_DATA":
+            final_status = "READY_FOR_ANALYTICAL_OPERATOR_QUOTE_REVIEW"
+        else:
+            final_status = "BLOCKED"
+            
+        item["analytical_status"] = analytical_status
+        item["pricing_status"] = pricing_status
+        item["risk_status"] = risk_status
+        item["final_status"] = final_status
+        
+        # Missing odds must block EV, Kelly, stakes, bettable, final placement
+        if pricing_status != "PRICED":
+            item["ev"] = None
+            item["kelly_fraction"] = None
+            item["stake"] = None
+            item["bettable"] = False
+            if "ev_components" in item and isinstance(item["ev_components"], dict):
+                item["ev_components"]["odds"] = None
+                item["ev_components"]["ev"] = None
+            
+        valuation_candidates.append(item)
+
     market_semantics_ready_count = 0
     promotion_safe_model_probability_count = 0
     reference_model_probability_count = 0
@@ -439,9 +500,36 @@ def _build_valuation_output(
     candidates_with_ev = sum(1 for c in valuation_candidates if c.get("ev") is not None)
     positive_ev_count = sum(1 for c in valuation_candidates if c.get("ev") is not None and c.get("ev") > 0)
 
+    # Classify S4 top-level status
+    if not valuation_candidates:
+        status = "READY_ANALYTICAL_PRICE_PENDING"
+    else:
+        any_analytical_ready = any(c.get("analytical_status") == "ANALYTICAL_READY" for c in valuation_candidates)
+        all_analytical_blocked = all(c.get("analytical_status") == "ANALYTICAL_BLOCKED" for c in valuation_candidates)
+        
+        if all_analytical_blocked:
+            status = "BLOCKED_INVALID_ANALYTICAL_INPUT"
+        else:
+            all_priced = all(c.get("pricing_status") == "PRICED" for c in valuation_candidates if c.get("analytical_status") != "ANALYTICAL_BLOCKED")
+            any_priced = any(c.get("pricing_status") == "PRICED" for c in valuation_candidates if c.get("analytical_status") != "ANALYTICAL_BLOCKED")
+            all_degraded = all(c.get("pricing_status") in ("PRICING_DEGRADED", "PRICING_BLOCKED_INVALID_INPUT") for c in valuation_candidates)
+            
+            if any_analytical_ready:
+                if all_priced:
+                    status = "READY_PRICED"
+                elif any_priced:
+                    status = "READY_MIXED"
+                elif all_degraded:
+                    status = "PRICING_DEGRADED_ANALYSIS_PRESERVED"
+                else:
+                    status = "READY_ANALYTICAL_PRICE_PENDING"
+            else:
+                status = "BLOCKED_INVALID_ANALYTICAL_INPUT"
+
     return {
         "schema_version": 1,
-        "artifact_type": "S4_VALUATION_CANDIDATES",
+        "artifact_type": "S4_VALUATION_CANDIDATE_SET_V2",
+        "status": status,
         "betting_day": date,
         "run_id": run_id or os.environ.get("BET_PIPELINE_RUN_ID"),
         "created_at_utc": datetime.now(timezone.utc).isoformat(),

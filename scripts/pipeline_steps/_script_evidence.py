@@ -79,7 +79,7 @@ def _assert_non_production_sandbox_safety(
 def build_wrapper_payload(
     *,
     step_id: str,
-    wrapper_scripts: Iterable[str],
+    wrapper_scripts: Iterable[str | ScriptInvocation],
     wrapper_rc: int,
     runtime_mode: str | RuntimeMode,
     dry_run: bool,
@@ -94,7 +94,7 @@ def build_wrapper_payload(
     effective_dry_run = bool(dry_run) if mode == RuntimeMode.PRODUCTION else True
     payload: dict[str, Any] = {
         "step_id": step_id,
-        "wrapper_scripts": list(wrapper_scripts),
+        "wrapper_scripts": [s.script if hasattr(s, "script") else s for s in wrapper_scripts],
         "wrapper_rc": wrapper_rc,
         "runtime_mode": mode.value,
         "dry_run": effective_dry_run,
@@ -258,6 +258,7 @@ def run_wrapper_scripts_with_evidence(
     _assert_non_production_sandbox_safety(runtime_mode=mode, child_env=child_env)
 
     captured_stdout = io.StringIO()
+    script_names = [s.script if hasattr(s, "script") else s for s in wrapper_scripts]
     try:
         with redirect_stdout(captured_stdout):
             rc = run_scripts(
@@ -292,7 +293,7 @@ def run_wrapper_scripts_with_evidence(
             step_id=step_id,
             status="FAILED",
             payload=payload,
-            sources=tuple(f"scripts/{script_name}" for script_name in wrapper_scripts),
+            sources=tuple(f"scripts/{script_name}" for script_name in script_names),
             child_env=child_env,
             blocked_reasons=("FAILED_UNEXPECTED_SUBPROCESS_ERROR",),
             no_pick_edge_stake_coupon_emitted=no_pick_edge_stake_coupon_emitted,
@@ -325,7 +326,7 @@ def run_wrapper_scripts_with_evidence(
         step_id=step_id,
         status=status,
         payload=payload,
-        sources=tuple(f"scripts/{script_name}" for script_name in wrapper_scripts),
+        sources=tuple(f"scripts/{script_name}" for script_name in script_names),
         child_env=child_env,
         blocked_reasons=blocked_reasons,
         no_pick_edge_stake_coupon_emitted=no_pick_edge_stake_coupon_emitted,
