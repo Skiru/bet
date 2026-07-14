@@ -53,6 +53,10 @@ def _load_canonical_s7b(child_env: dict[str, str], day: str, run_id: str) -> tup
         expected_artifact_type="S7B_SUPERBET_MANUAL_MAPPING",
     )
     evidence_path = run_root / "artifacts" / "S7b.json"
+    if not evidence_path.exists():
+        nested_ev = run_root / "pipeline_runs" / day / run_id / "artifacts" / "S7b.json"
+        if nested_ev.exists():
+            evidence_path = nested_ev
     return evidence_path, output_path, mapping
 
 

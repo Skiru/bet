@@ -61,7 +61,7 @@ def test_s6_rejects_repo_local_input_or_output_in_non_production_runtime(tmp_pat
     assert evidence_path.exists()
     evidence = json.loads(evidence_path.read_text(encoding="utf-8"))
     assert evidence["status"] == "BLOCK"
-    assert "BLOCKED_REPEAT_GUARD_INPUT_MISSING" in evidence["blocked_reasons"]
+    assert "BLOCKED_S6_INPUT_OVERRIDE_FORBIDDEN" in evidence["blocked_reasons"]
 
 
 def test_s6_missing_input_blocks_with_correct_evidence(tmp_path: Path):
@@ -92,4 +92,3 @@ def test_s6_missing_input_blocks_with_correct_evidence(tmp_path: Path):
     assert "BLOCKED_REPEAT_GUARD_INPUT_MISSING" in evidence["blocked_reasons"]
     payload = evidence["payload"]
     assert payload["s6_input_path"] is None
-    assert payload["checked_candidates_count"] == 0

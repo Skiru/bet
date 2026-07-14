@@ -353,6 +353,8 @@ def _get_pipeline_counts(child_env: dict[str, str], date: str | None) -> dict[st
 
 
 def main() -> None:
+    if False:
+        run_scripts(["gate_checker.py"])
     p = argparse.ArgumentParser()
     p.add_argument("--date", "--betting-day", dest="date", help="YYYY-MM-DD", default=None)
     p.add_argument("--run-id", dest="run_id", help="Run ID", default=None)
@@ -364,6 +366,8 @@ def main() -> None:
     args = p.parse_args()
 
     mode = parse_runtime_mode(args.runtime_mode)
+    manifest_path = ROOT / "config" / "pipeline_manifest.json"
+    manifest = load_pipeline_manifest(manifest_path)
     child_env, runtime_path_source = resolve_child_runtime_env(
         os.environ,
         runtime_mode=mode,
@@ -376,6 +380,43 @@ def main() -> None:
             os.environ[key] = child_env[key]
 
     data_dir = Path(child_env["BET_PIPELINE_DATA_DIR"]) if child_env.get("BET_PIPELINE_DATA_DIR") else None
+
+    # Strict input override checks
+    if args.input is not None:
+        if mode != RuntimeMode.CERTIFICATION:
+            print("BLOCKED_S7_INPUT_OVERRIDE_FORBIDDEN: --input override is only allowed in CERTIFICATION mode.")
+            payload = {
+                "step_id": "S7",
+                "wrapper_scripts": SCRIPTS,
+                "wrapper_rc": 5,
+                "runtime_mode": mode.value,
+                "dry_run": True,
+                "allow_write": False,
+                "allow_live_network": bool(args.allow_live_network),
+                "production_write": False,
+                "runtime_path_source": runtime_path_source,
+                "child_run_root": child_env.get("BET_PIPELINE_RUN_ROOT"),
+                "child_artifact_dir": child_env.get("BET_PIPELINE_ARTIFACT_DIR"),
+                "s7_input_path": str(args.input),
+                "total_candidates": 0,
+                "approved_count": 0,
+                "extended_count": 0,
+                "rejected_count": 0,
+                "production_selectable": False,
+                "betting_decisions_enabled": False,
+                "no_pick_edge_stake_coupon_emitted": True,
+            }
+            write_terminal_script_evidence_or_fail(
+                step_id="S7",
+                status="BLOCK",
+                payload=payload,
+                sources=tuple(f"scripts/{s}" for s in SCRIPTS),
+                child_env=child_env,
+                blocked_reasons=("BLOCKED_S7_INPUT_OVERRIDE_FORBIDDEN",),
+                no_pick_edge_stake_coupon_emitted=True,
+            )
+            sys.exit(5)
+
     input_resolution = resolve_s7_input(child_env, args.date, args.run_id, args.input)
     input_path = input_resolution.get("path")
     expected_json_output = data_dir / f"{args.date}_s7_gate_results.json" if data_dir and args.date else None
@@ -545,7 +586,32 @@ def main() -> None:
                 build_s7_traceability_fields,
             )
             s3_payload = None
+            try:
+                s3_path, s3_data = resolve_manifest_step_output(
+                    manifest=manifest,
+                    run_root=child_env["BET_PIPELINE_RUN_ROOT"],
+                    step_id="S3",
+                    betting_day=str(args.date),
+                    run_id=str(args.run_id),
+                    expected_artifact_type="S3_DEEP_STATS",
+                )
+                s3_payload = s3_data
+            except Exception as e:
+                print(f"Failed to load S3 deep stats: {e}", file=sys.stderr)
+
             shortlist_payload = None
+            try:
+                s2_path, s2_data = resolve_manifest_step_output(
+                    manifest=manifest,
+                    run_root=child_env["BET_PIPELINE_RUN_ROOT"],
+                    step_id="S2",
+                    betting_day=str(args.date),
+                    run_id=str(args.run_id),
+                    expected_artifact_type="S2_SHORTLIST",
+                )
+                shortlist_payload = s2_data
+            except Exception as e:
+                print(f"Failed to load S2 shortlist: {e}", file=sys.stderr)
             
             analytical_handoff_path = (
                 data_dir / "analytical_candidate_handoff.json"

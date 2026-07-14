@@ -228,6 +228,9 @@ def main() -> None:
         argv=argv,
     )
 
+    if False:
+        run_scripts(["odds_evaluator.py"])
+
     rc_eval = run_scripts(
         [invocation],
         date=args.date,

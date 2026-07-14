@@ -7110,6 +7110,14 @@
     "expiry_or_review_policy": "NO_EXPIRY_RETAIN_PERMANENTLY"
   },
   {
+    "path": "tests/test_analytical_pricing_separation_matrix.py",
+    "category": "RETAINED_ENGINEERING",
+    "owner": "Kilo",
+    "reason": "Engineering utilities, linters, validators, model management tools or kilo config",
+    "references": [],
+    "expiry_or_review_policy": "REVIEW_ON_SCHEMA_UPGRADE"
+  },
+  {
     "path": "tests/test_analyzability_prefilter.py",
     "category": "RETAINED_TEST",
     "owner": "Kilo",
@@ -7188,6 +7196,14 @@
     "reason": "Unit and integration testing of pipeline components",
     "references": [],
     "expiry_or_review_policy": "NO_EXPIRY_RETAIN_PERMANENTLY"
+  },
+  {
+    "path": "tests/test_child_environment_isolation.py",
+    "category": "RETAINED_ENGINEERING",
+    "owner": "Kilo",
+    "reason": "Engineering utilities, linters, validators, model management tools or kilo config",
+    "references": [],
+    "expiry_or_review_policy": "REVIEW_ON_SCHEMA_UPGRADE"
   },
   {
     "path": "tests/test_compute_safety_scores.py",
@@ -7334,6 +7350,22 @@
     "expiry_or_review_policy": "NO_EXPIRY_RETAIN_PERMANENTLY"
   },
   {
+    "path": "tests/test_failed_run_replay.py",
+    "category": "RETAINED_ENGINEERING",
+    "owner": "Kilo",
+    "reason": "Engineering utilities, linters, validators, model management tools or kilo config",
+    "references": [],
+    "expiry_or_review_policy": "REVIEW_ON_SCHEMA_UPGRADE"
+  },
+  {
+    "path": "tests/test_fault_injection.py",
+    "category": "RETAINED_ENGINEERING",
+    "owner": "Kilo",
+    "reason": "Engineering utilities, linters, validators, model management tools or kilo config",
+    "references": [],
+    "expiry_or_review_policy": "REVIEW_ON_SCHEMA_UPGRADE"
+  },
+  {
     "path": "tests/test_fetch_odds_multi.py",
     "category": "RETAINED_TEST",
     "owner": "Kilo",
@@ -7404,6 +7436,14 @@
     "reason": "Unit and integration testing of pipeline components",
     "references": [],
     "expiry_or_review_policy": "NO_EXPIRY_RETAIN_PERMANENTLY"
+  },
+  {
+    "path": "tests/test_import_portability.py",
+    "category": "RETAINED_ENGINEERING",
+    "owner": "Kilo",
+    "reason": "Engineering utilities, linters, validators, model management tools or kilo config",
+    "references": [],
+    "expiry_or_review_policy": "REVIEW_ON_SCHEMA_UPGRADE"
   },
   {
     "path": "tests/test_integration_artifacts.py",

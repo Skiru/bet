@@ -100,8 +100,33 @@ def test_failed_run_replay_reconstruction(run_sandbox):
         shutil.copy(failed_s4_data_path, run_sandbox / "data" / "2026-07-14_s4_valuation_candidates.json")
         
         # Rewrite paths in S4 evidence payload to point to sandbox
+        s4_data_path = run_sandbox / "data" / "2026-07-14_s4_valuation_candidates.json"
+        s4_candidates_list = json.loads(s4_data_path.read_text())["candidates"]
+        
+        # Add required fields for S5 validation compliance
+        for c in s4_candidates_list:
+            if "best_market" not in c and "market" not in c and "market_type" not in c and "market_name" not in c:
+                c["best_market"] = {"name": "Match Winner"}
+            if "odds" not in c and "best_odds" not in c and "odds_decimal" not in c and "odds_markets" not in c:
+                c["odds_decimal"] = 1.95
+            if "sport" not in c:
+                c["sport"] = "football"
+            if "competition" not in c:
+                c["competition"] = "World Cup"
+            if "safety_score" not in c and "risk" not in c and "safety_markets" not in c and "risk_flags" not in c:
+                c["safety_score"] = 0.85
+                
+        # Write back compliant S4 candidates JSON
+        s4_data_path.write_text(json.dumps({"artifact_type": "S4_VALUATION_CANDIDATE_SET_V2", "candidates": s4_candidates_list}, indent=2))
+
+        from bet.pipeline.run_evidence import sha256_file, repo_head_sha, manifest_hash
+        s4_sha = sha256_file(s4_data_path)
+        git_sha = repo_head_sha(ROOT)
+        man_hash = manifest_hash(ROOT)
+
         s4_evidence = json.loads((run_sandbox / "artifacts" / "S4.json").read_text())
-        s4_evidence["payload"]["s4_valuation_output_path"] = str(run_sandbox / "data" / "2026-07-14_s4_valuation_candidates.json")
+        s4_evidence["payload"]["s4_valuation_output_path"] = str(s4_data_path)
+        s4_evidence["payload"]["s4_valuation_output_sha256"] = s4_sha
         s4_evidence["run_id"] = "REPLAY_RUN_ID"
         (run_sandbox / "artifacts" / "S4.json").write_text(json.dumps(s4_evidence, indent=2))
         
@@ -123,25 +148,15 @@ def test_failed_run_replay_reconstruction(run_sandbox):
             "blocked_reasons": [],
             "evidence_refs": ["artifacts/S4.json"],
             "payload": {
-                "source_s4_path": str(run_sandbox / "data" / "2026-07-14_s4_valuation_candidates.json"),
-                "source_s4_sha256": "dummy_s4_sha",
-                "source_git_sha": "dummy_git_sha",
-                "manifest_sha": "dummy_manifest_sha",
-                "work_order_id": "WO-1",
+                "source_s4_path": str(s4_data_path),
+                "source_s4_sha256": s4_sha,
+                "source_git_sha": git_sha,
+                "manifest_sha": man_hash,
+                "work_order_id": "WO-REPLAY_RUN_ID-S5",
                 "agent_id": "bet-risk-gatekeeper",
                 "policy_version": "1.0",
-                "input_candidate_count": 87,
-                "candidates": [
-                    {
-                        "candidate_id": "football|France|Spain|2026-07-14",
-                        "home_team": "France",
-                        "away_team": "Spain",
-                        "participants": ["France", "Spain"],
-                        "competition": "International - FIFA World Cup",
-                        "scheduled_time": "2026-07-14T19:00:00+00:00",
-                        "sport": "football"
-                    }
-                ],
+                "input_candidate_count": len(s4_candidates_list),
+                "candidates": s4_candidates_list,
                 "rejected_candidates": [],
                 "accounting": {
                     "unaccounted_candidate_ids": [],
@@ -163,4 +178,4 @@ def test_failed_run_replay_reconstruction(run_sandbox):
         )
         assert s5_path == run_sandbox / "artifacts" / "S5.json"
         assert s5_data["artifact_type"] == "AGENT_ARTIFACT"
-        assert len(s5_data["payload"]["candidates"]) == 1
+        assert len(s5_data["payload"]["candidates"]) == 87

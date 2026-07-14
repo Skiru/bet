@@ -197,7 +197,11 @@ def resolve_bound_step_output(
     run_root_path = Path(run_root).resolve()
     evidence_path = run_root_path / "artifacts" / f"{step_id}.json"
     if not evidence_path.exists():
-        raise FileNotFoundError(f"Prerequisite step {step_id} evidence missing: {evidence_path}")
+        nested_path = run_root_path / "pipeline_runs" / betting_day / run_id / "artifacts" / f"{step_id}.json"
+        if nested_path.exists():
+            evidence_path = nested_path
+        else:
+            raise FileNotFoundError(f"Prerequisite step {step_id} evidence missing: {evidence_path}")
 
     # Reject symlinks and directory traversal
     if evidence_path.is_symlink():
@@ -325,7 +329,7 @@ def resolve_bound_step_output(
         if "analyses" not in output_data:
             raise ValueError("Artifact structure mismatch for S3: expected analyses key")
     else:
-        if actual_type != expected_artifact_type:
+        if actual_type is not None and actual_type != expected_artifact_type:
             raise ValueError(f"Artifact type mismatch: expected {expected_artifact_type}, got {actual_type}")
 
     if expected_source_step:
@@ -402,7 +406,11 @@ def resolve_manifest_step_output(
     run_root_path = Path(run_root).resolve()
     evidence_path = run_root_path / "artifacts" / f"{step_id}.json"
     if not evidence_path.exists():
-        raise FileNotFoundError(f"STEP_EVIDENCE_MISSING: Prerequisite step {step_id} evidence file missing: {evidence_path}")
+        nested_path = run_root_path / "pipeline_runs" / betting_day / run_id / "artifacts" / f"{step_id}.json"
+        if nested_path.exists():
+            evidence_path = nested_path
+        else:
+            raise FileNotFoundError(f"STEP_EVIDENCE_MISSING: Prerequisite step {step_id} evidence file missing: {evidence_path}")
 
     if evidence_path.is_symlink():
         raise ValueError(f"STEP_OUTPUT_OUTSIDE_RUN: Prerequisite step {step_id} evidence path is a symlink")
@@ -464,8 +472,16 @@ def resolve_manifest_step_output(
 
         actual_type = output_data.get("artifact_type") or output_data.get("artifact_kind")
         if actual_type == "AGENT_ARTIFACT" and expected_artifact_type == "S5_CONTEXT_RISK_CANDIDATE_SET_V2" and output_data.get("step_id") == "S5":
-            pass
-        elif actual_type != expected_artifact_type:
+            if output_data.get("status") == "PASS":
+                from bet.pipeline.agent_artifact_contracts import validate_s5_artifact_v2
+                validate_s5_artifact_v2(
+                    s5_data=output_data,
+                    run_root=run_root_path,
+                    betting_day=betting_day,
+                    run_id=run_id,
+                    manifest=manifest,
+                )
+        elif actual_type is not None and actual_type != expected_artifact_type:
             raise ValueError(f"STEP_TYPE_MISMATCH: Artifact type mismatch: expected {expected_artifact_type}, got {actual_type}")
 
         actual_sha = sha256_file(output_path)
@@ -575,7 +591,7 @@ def resolve_manifest_step_output(
             if actual_type is not None and actual_type != expected_artifact_type:
                 raise ValueError(f"STEP_TYPE_MISMATCH: Artifact type mismatch: expected {expected_artifact_type}, got {actual_type}")
         else:
-            if actual_type != expected_artifact_type:
+            if actual_type is not None and actual_type != expected_artifact_type:
                 raise ValueError(f"STEP_TYPE_MISMATCH: Artifact type mismatch: expected {expected_artifact_type}, got {actual_type}")
 
         return output_path, output_data

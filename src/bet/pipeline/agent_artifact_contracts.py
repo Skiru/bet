@@ -393,3 +393,155 @@ def agent_artifact_template_for_step(step_id: str, betting_day: str, run_id: str
         }
         
     return template
+
+
+def find_repo_root(start_path: Path | str) -> Path:
+    """Helper to locate repo root containing config/pipeline_manifest.json or .git."""
+    from pathlib import Path
+    curr = Path(start_path).resolve()
+    for _ in range(6):
+        if (curr / "config" / "pipeline_manifest.json").exists() or (curr / ".git").exists():
+            return curr
+        curr = curr.parent
+    return Path(__file__).resolve().parents[3]
+
+
+def validate_s5_artifact_v2(
+    s5_data: dict[str, Any],
+    run_root: Path,
+    betting_day: str,
+    run_id: str,
+    manifest: Any = None,
+) -> None:
+    """Strong validation of S5_CONTEXT_RISK_CANDIDATE_SET_V2.
+    
+    Verifies that the S5 artifact is sound, complete, and exactly binds to S4 and other run state.
+    """
+    from pathlib import Path
+    from bet.pipeline.run_evidence import sha256_file, repo_head_sha, manifest_hash
+    from bet.pipeline.integration_artifacts import resolve_manifest_step_output
+
+    if not isinstance(s5_data, dict):
+        raise ValueError("S5_CANDIDATE_ACCOUNTING_MISMATCH: s5_data is not a dictionary")
+    
+    payload = s5_data.get("payload", {})
+    if not isinstance(payload, dict):
+        raise ValueError("S5_CANDIDATE_ACCOUNTING_MISMATCH: s5_data payload is not a dictionary")
+
+    # Check current run/day
+    if s5_data.get("betting_day") != betting_day:
+        raise ValueError(f"S5_WORK_ORDER_MISMATCH: betting_day mismatch: expected {betting_day}, got {s5_data.get('betting_day')}")
+    if s5_data.get("run_id") != run_id:
+        raise ValueError(f"S5_WORK_ORDER_MISMATCH: run_id mismatch: expected {run_id}, got {s5_data.get('run_id')}")
+
+    # Check work_order_id
+    expected_work_order = f"WO-{run_id}-S5"
+    if payload.get("work_order_id") != expected_work_order:
+        raise ValueError(f"S5_WORK_ORDER_MISMATCH: work_order_id mismatch: expected {expected_work_order}, got {payload.get('work_order_id')}")
+        
+    # Check agent_id
+    if payload.get("agent_id") != "bet-risk-gatekeeper":
+        raise ValueError(f"S5_AGENT_MISMATCH: agent_id mismatch: expected 'bet-risk-gatekeeper', got {payload.get('agent_id')}")
+
+    repo_root = find_repo_root(run_root)
+    
+    # Git SHA check
+    expected_git_sha = repo_head_sha(repo_root)
+    if (payload.get("source_git_sha") or payload.get("git_sha")) != expected_git_sha:
+        raise ValueError(f"S5_GIT_SHA_MISMATCH: Git SHA mismatch: expected {expected_git_sha}, got {payload.get('source_git_sha')}")
+        
+    # Manifest SHA check
+    expected_manifest_sha = manifest_hash(repo_root)
+    if (payload.get("manifest_sha") or payload.get("manifest_hash")) != expected_manifest_sha:
+        raise ValueError(f"S5_MANIFEST_SHA_MISMATCH: Manifest SHA mismatch: expected {expected_manifest_sha}, got {payload.get('manifest_sha')}")
+
+    # S4 Predecessor Resolution
+    try:
+        s4_path, s4_data = resolve_manifest_step_output(
+            manifest=manifest,
+            run_root=run_root,
+            step_id="S4",
+            betting_day=betting_day,
+            run_id=run_id,
+            expected_artifact_type="S4_VALUATION_CANDIDATE_SET_V2",
+        )
+    except Exception as exc:
+        raise ValueError(f"S5_SOURCE_PATH_MISMATCH: Failed to resolve S4 predecessor: {exc}")
+
+    # S4 Path check
+    source_s4_path = payload.get("source_s4_path")
+    if not source_s4_path:
+        raise ValueError("S5_SOURCE_PATH_MISMATCH: source_s4_path is missing")
+    if Path(source_s4_path).resolve() != s4_path.resolve():
+        raise ValueError(f"S5_SOURCE_PATH_MISMATCH: S4 path mismatch: expected {s4_path}, got {source_s4_path}")
+        
+    # S4 SHA check
+    source_s4_sha256 = payload.get("source_s4_sha256")
+    actual_s4_sha = sha256_file(s4_path)
+    if source_s4_sha256 != actual_s4_sha:
+        raise ValueError(f"S5_SOURCE_HASH_MISMATCH: S4 hash mismatch: expected {actual_s4_sha}, got {source_s4_sha256}")
+
+    # Partition and candidates checks
+    retained = payload.get("candidates", [])
+    rejected = payload.get("rejected_candidates", [])
+    input_candidate_count = payload.get("input_candidate_count")
+
+    retained_ids = []
+    for idx, c in enumerate(retained):
+        cid = c.get("candidate_id")
+        if not cid:
+            raise ValueError(f"S5_CANDIDATE_ACCOUNTING_MISMATCH: Retained candidate at index {idx} has no candidate_id")
+        retained_ids.append(cid)
+        
+        # Verify mandatory analytical/pricing/context/risk/provenance fields
+        if "home_team" not in c or "away_team" not in c:
+            raise ValueError(f"S5_CANDIDATE_ACCOUNTING_MISMATCH: Retained candidate {cid} is missing analytical fields (home_team/away_team)")
+        if not ("market" in c or "best_market" in c or "market_type" in c or "market_name" in c):
+            raise ValueError(f"S5_CANDIDATE_ACCOUNTING_MISMATCH: Retained candidate {cid} is missing analytical market field")
+        if not ("odds" in c or "best_odds" in c or "odds_decimal" in c or "odds_markets" in c):
+            raise ValueError(f"S5_CANDIDATE_ACCOUNTING_MISMATCH: Retained candidate {cid} is missing pricing fields")
+        if "sport" not in c or "competition" not in c:
+            raise ValueError(f"S5_CANDIDATE_ACCOUNTING_MISMATCH: Retained candidate {cid} is missing context fields (sport/competition)")
+        if not ("safety_score" in c or "risk" in c or "safety_markets" in c or "risk_flags" in c):
+            raise ValueError(f"S5_CANDIDATE_ACCOUNTING_MISMATCH: Retained candidate {cid} is missing risk fields")
+
+    rejected_ids = []
+    for idx, c in enumerate(rejected):
+        cid = c.get("candidate_id")
+        if not cid:
+            raise ValueError(f"S5_CANDIDATE_ACCOUNTING_MISMATCH: Rejected candidate at index {idx} has no candidate_id")
+        rejected_ids.append(cid)
+        
+        # stable rejection reasons
+        reasons = c.get("rejection_reasons") or c.get("reason_codes") or c.get("reasons") or c.get("reason")
+        if not reasons:
+            raise ValueError(f"S5_REJECTION_REASON_MISSING: Rejected candidate {cid} has no rejection reasons")
+        if isinstance(reasons, list) and len(reasons) == 0:
+            raise ValueError(f"S5_REJECTION_REASON_MISSING: Rejected candidate {cid} rejection reasons list is empty")
+        if isinstance(reasons, str) and not reasons.strip():
+            raise ValueError(f"S5_REJECTION_REASON_MISSING: Rejected candidate {cid} rejection reasons string is empty")
+
+    # uniqueness checks
+    if len(retained_ids) != len(set(retained_ids)):
+        raise ValueError("S5_CANDIDATE_DUPLICATE: Duplicate candidate IDs found in retained candidates")
+    if len(rejected_ids) != len(set(rejected_ids)):
+        raise ValueError("S5_CANDIDATE_DUPLICATE: Duplicate candidate IDs found in rejected candidates")
+        
+    # overlap checks
+    overlap = set(retained_ids) & set(rejected_ids)
+    if overlap:
+        raise ValueError(f"S5_TERMINAL_OVERLAP: Candidate IDs overlap between retained and rejected sets: {overlap}")
+
+    # S4 candidates partition check
+    s4_candidates = s4_data.get("candidates") or s4_data.get("payload", {}).get("candidates") or []
+    s4_ids = [c.get("candidate_id") for c in s4_candidates if c.get("candidate_id")]
+    
+    if set(retained_ids) | set(rejected_ids) != set(s4_ids):
+        raise ValueError(f"S5_CANDIDATE_ACCOUNTING_MISMATCH: Partition of S4 candidates does not match: S5 union has {len(set(retained_ids) | set(rejected_ids))} candidates, but S4 has {len(set(s4_ids))}")
+        
+    if input_candidate_count != len(s4_ids):
+        raise ValueError(f"S5_CANDIDATE_ACCOUNTING_MISMATCH: S5 input_candidate_count {input_candidate_count} does not match S4 candidates count {len(s4_ids)}")
+
+    if len(retained_ids) + len(rejected_ids) != len(s4_ids):
+        raise ValueError(f"S5_CANDIDATE_ACCOUNTING_MISMATCH: S5 candidates count sum {len(retained_ids) + len(rejected_ids)} does not match S4 candidates count {len(s4_ids)}")
+

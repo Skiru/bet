@@ -62,9 +62,15 @@ def _load_s7(child_env: dict[str, str], day: str, run_id: str) -> tuple[Path, Pa
             run_id=run_id,
             expected_artifact_type="S7_DECISION_GATE_REPORT",
         )
-    s7_outcome = s7_data.get("outcome") or s7_data.get("status") or "BLOCKED"
+    s7_outcome = s7_data.get("outcome") or s7_data.get("status")
+    if s7_outcome is None:
+        if "gate_results" in s7_data:
+            s7_outcome = "READY_FOR_PRICED_REVIEW"
+        else:
+            s7_outcome = "BLOCKED"
+
     if s7_outcome == "READY_FOR_PRICED_REVIEW":
-        approved = s7_data.get("priced_approved") or []
+        approved = s7_data.get("priced_approved") or s7_data.get("gate_results", {}).get("approved") or []
     elif s7_outcome == "READY_FOR_ANALYTICAL_OPERATOR_QUOTE_REVIEW":
         approved = s7_data.get("analytical_approved") or []
     elif s7_outcome == "NO_ACTION_TERMINAL":
@@ -74,6 +80,10 @@ def _load_s7(child_env: dict[str, str], day: str, run_id: str) -> tuple[Path, Pa
     else:
         approved = s7_data.get("approved") or (s7_data.get("gate_results") or {}).get("approved") or []
     evidence_path = run_root / "artifacts" / "S7.json"
+    if not evidence_path.exists():
+        nested_ev = run_root / "pipeline_runs" / day / run_id / "artifacts" / "S7.json"
+        if nested_ev.exists():
+            evidence_path = nested_ev
     return evidence_path, output_path, approved, s7_outcome
 
 

@@ -464,11 +464,163 @@ def _seed_prior_steps_for_s7(environ: dict[str, str], valuation_path: Path):
     }), encoding="utf-8")
 
 
+def _seed_s5_and_s6_for_s7(environ: dict[str, str], s4_path: Path, s4_candidates: list[dict]):
+    from bet.pipeline.run_evidence import sha256_file, repo_head_sha, manifest_hash
+    run_root = Path(environ["BET_PIPELINE_RUN_ROOT"])
+    (run_root / "artifacts").mkdir(parents=True, exist_ok=True)
+    (run_root / "data").mkdir(parents=True, exist_ok=True)
+    
+    repo_root = Path(__file__).resolve().parents[1]
+    # S5
+    s5_output_data = {
+        "schema_version": 1,
+        "artifact_type": "AGENT_ARTIFACT",
+        "step_id": "S5",
+        "status": "PASS",
+        "betting_day": "2026-06-25",
+        "run_id": environ["BET_PIPELINE_RUN_ID"],
+        "point_in_time_as_of": "2026-06-25T12:00:00Z",
+        "source_bound": True,
+        "no_pick_edge_stake_coupon_emitted": True,
+        "production_selectable": False,
+        "betting_decisions_enabled": False,
+        "sources": ["source-test"],
+        "unknowns": [],
+        "blocked_reasons": [],
+        "evidence_refs": ["artifacts/S4.json"],
+        "payload": {
+            "source_s4_path": str(s4_path),
+            "source_s4_sha256": sha256_file(s4_path) if s4_path.exists() else "dummy",
+            "source_git_sha": repo_head_sha(repo_root),
+            "manifest_sha": manifest_hash(repo_root),
+            "work_order_id": f"WO-{environ['BET_PIPELINE_RUN_ID']}-S5",
+            "agent_id": "bet-risk-gatekeeper",
+            "policy_version": "1.0",
+            "input_candidate_count": len(s4_candidates),
+            "candidates": s4_candidates,
+            "rejected_candidates": [],
+            "accounting": {
+                "unaccounted_candidate_ids": [],
+                "duplicate_candidate_ids": [],
+                "overlapping_terminal_categories": []
+            }
+        }
+    }
+    s5_path = run_root / "artifacts" / "S5.json"
+    s5_path.write_text(json.dumps(s5_output_data, indent=2), encoding="utf-8")
+    
+    # S6
+    s6_output_path = run_root / "data" / "repeat_loss_handoff_2026-06-25.json"
+    s6_output_data = {
+        "schema_version": 1,
+        "artifact_type": "S6_PORTFOLIO_REPEAT_GUARD_V2",
+        "status": "PASS",
+        "concrete_status": "READY_FOR_S7",
+        "betting_day": "2026-06-25",
+        "run_id": environ["BET_PIPELINE_RUN_ID"],
+        "created_at_utc": "2026-06-25T12:00:00Z",
+        "source_step": "S5",
+        "source_s5_path": str(s5_path),
+        "source_s5_hash": sha256_file(s5_path),
+        "source_git_sha": repo_head_sha(repo_root),
+        "manifest_sha": manifest_hash(repo_root),
+        "policy_version": "1.0",
+        "history_snapshot_metadata": {
+            "as_of_utc": "2026-06-25T12:00:00Z",
+            "snapshot_size": 0,
+            "snapshot_sha256": "dummy_history_sha"
+        },
+        "input_candidate_count": len(s4_candidates),
+        "accepted": [
+            {
+                "candidate_id": c.get("candidate_id"),
+                "decision": "ACCEPTED",
+                "reason_codes": [],
+                "explanation": "Passed all constraints",
+                "original_candidate": c
+            }
+            for c in s4_candidates
+        ],
+        "repeat_rejected": [],
+        "correlation_rejected": [],
+        "conflict_rejected": [],
+        "portfolio_rejected": [],
+        "invalid_input": [],
+        "accounting": {
+            "unaccounted_candidate_ids": [],
+            "duplicate_candidate_ids": [],
+            "overlapping_terminal_categories": []
+        }
+    }
+    s6_output_path.write_text(json.dumps(s6_output_data, indent=2), encoding="utf-8")
+    
+    s6_ev = {
+        "schema_version": 1,
+        "artifact_type": "SCRIPT_EVIDENCE",
+        "step_id": "S6",
+        "betting_day": "2026-06-25",
+        "run_id": environ["BET_PIPELINE_RUN_ID"],
+        "status": "PASS",
+        "payload": {
+            "s6_input_path": str(s5_path),
+            "s6_output_path": str(s6_output_path),
+            "s5_hash": sha256_file(s5_path),
+            "output_sha256": sha256_file(s6_output_path),
+            "history_snapshot_sha256": "dummy_history_sha",
+            "git_sha": repo_head_sha(repo_root),
+            "manifest_sha": manifest_hash(repo_root),
+            "policy_version": "1.0",
+            "as_of_timestamp": "2026-06-25T12:00:00Z",
+            "input_candidate_count": len(s4_candidates),
+            "accepted_count": len(s4_candidates),
+            "repeat_rejected_count": 0,
+            "duplicate_rejected_count": 0,
+            "conflict_rejected_count": 0,
+            "correlation_rejected_count": 0,
+            "concentration_rejected_count": 0,
+            "invalid_input_count": 0,
+            "accounting_summary": {
+                "unaccounted_candidate_ids": [],
+                "duplicate_candidate_ids": [],
+                "overlapping_terminal_categories": []
+            },
+            "wrapper_child_identity": "s6_repeats.py/check_48h_repeats.py",
+            "output_artifact_type": "S6_PORTFOLIO_REPEAT_GUARD_V2"
+        }
+    }
+    (run_root / "artifacts" / "S6.json").write_text(json.dumps(s6_ev, indent=2), encoding="utf-8")
+
+
 def test_s7_prefers_s4_valuation_output_and_no_missing_block():
     environ = _runtime_environ()
     data_dir = Path(environ["BET_PIPELINE_DATA_DIR"])
     valuation_path = data_dir / "2026-06-25_s4_valuation_candidates.json"
     _seed_prior_steps_for_s7(environ, valuation_path)
+    s4_candidates = [
+        {
+            "candidate_id": "tennis|Alpha|Beta|2026-06-25",
+            "fixture_id": 10,
+            "sport": "tennis",
+            "home_team": "Alpha",
+            "away_team": "Beta",
+            "competition": "Wimbledon",
+            "best_market": {"name": "Match Winner", "market_family": "RESULT", "safety_score": 0.82},
+            "market_count": 4,
+            "odds": {},
+            "odds_decimal": None,
+            "ev": None,
+            "model_probability": 0.58,
+            "probability_confidence": "HIGH",
+            "source_provider": "api-football",
+            "source_artifact_path": str(valuation_path),
+            "probability_as_of": "2026-06-25T12:00:00Z",
+            "market_family": "RESULT",
+            "market_type": "ml",
+            "selection": "Alpha",
+            "pick": "Alpha",
+            "supporting_stats": [{"metric": "team_a_form", "value": {"goals": 1.5}}]
+        }
+    ]
     _write_json(
         valuation_path,
         {
@@ -479,34 +631,11 @@ def test_s7_prefers_s4_valuation_output_and_no_missing_block():
             "contains_safety": True,
             "contains_market_count": True,
             "source_input_path": str(data_dir / "2026-06-25_s3_deep_stats.json"),
-            "candidates": [
-                {
-                    "candidate_id": "tennis|Alpha|Beta|2026-06-25",
-                    "fixture_id": 10,
-                    "sport": "tennis",
-                    "home_team": "Alpha",
-                    "away_team": "Beta",
-                    "competition": "Wimbledon",
-                    "best_market": {"name": "Match Winner", "market_family": "RESULT", "safety_score": 0.82},
-                    "market_count": 4,
-                    "odds": {},
-                    "odds_decimal": None,
-                    "ev": None,
-                    "model_probability": 0.58,
-                    "probability_confidence": "HIGH",
-                    "source_provider": "api-football",
-                    "source_artifact_path": str(valuation_path),
-                    "probability_as_of": "2026-06-25T12:00:00Z",
-                    "market_family": "RESULT",
-                    "market_type": "ml",
-                    "selection": "Alpha",
-                    "pick": "Alpha",
-                    "supporting_stats": [{"metric": "team_a_form", "value": {"goals": 1.5}}]
-                }
-            ],
+            "candidates": s4_candidates,
         },
     )
     _write_s4_pass_evidence(environ, valuation_path)
+    _seed_s5_and_s6_for_s7(environ, valuation_path, s4_candidates)
 
     recorded: dict[str, object] = {}
 
@@ -518,18 +647,18 @@ def test_s7_prefers_s4_valuation_output_and_no_missing_block():
     with patch.dict(os.environ, environ, clear=False), \
          patch.object(sys, "argv", argv), \
          patch("subprocess.run", side_effect=fake_run), \
-         patch("bet.pipeline.live_fixture_audit.LiveFixtureAudit.audit_candidate", return_value=("LIVE_FIXTURE_VERIFIED_NOT_STARTED", "PASS")):
+         patch("bet.pipeline.live_fixture_audit.LiveFixtureAudit") as mock_class:
+        mock_class.return_value.audit_candidate.return_value = ("LIVE_FIXTURE_VERIFIED_NOT_STARTED", "PASS")
         with pytest.raises(SystemExit) as exc_info:
             s5_gate.main()
 
+    evidence_path = _canonical_evidence_path(environ, "S7")
+    if evidence_path.exists():
+        print("S7 EVIDENCE CONTENTS:", evidence_path.read_text())
     assert exc_info.value.code == 0
     evidence = json.loads(_canonical_evidence_path(environ, "S7").read_text(encoding="utf-8"))
-    assert evidence["payload"]["s7_input_source_step"] == "S4"
-    assert Path(evidence["payload"]["s7_input_path"]).resolve() == valuation_path.resolve()
-    assert evidence["payload"]["s7_input_contains_odds"] is False
-    assert evidence["payload"]["s7_input_contains_ev"] is False
-    assert evidence["payload"]["s7_input_contains_safety"] is True
-    assert "BLOCKED_S7_S4_VALUATION_INPUT_MISSING" not in evidence.get("blocked_reasons", [])
+    assert evidence["payload"]["s7_input_source_step"] == "S6"
+    assert "BLOCKED_S7_S6_INPUT_MISSING" not in evidence.get("blocked_reasons", [])
 
 
 def test_s8_reads_analytical_handoff_without_s7_approved_picks():
@@ -606,7 +735,7 @@ def test_s8_review_only_package_not_quote_ready():
     assert evidence["payload"]["ready_for_human_gate"] is False
 
 
-def test_s7_resolution_prefers_s4_output_not_s3_when_run_root_contains_candidate_token():
+def test_s7_resolution_prefers_s6_output_and_no_production_fallback():
     environ = _runtime_environ()
     environ["BET_PIPELINE_RUN_ROOT"] = str(Path("/tmp") / "analytical_candidate_bridge_resolution_case")
     environ["BET_PIPELINE_DATA_DIR"] = str(Path(environ["BET_PIPELINE_RUN_ROOT"]) / "data")
@@ -616,25 +745,63 @@ def test_s7_resolution_prefers_s4_output_not_s3_when_run_root_contains_candidate
     s4_path = _write_json(
         data_dir / "2026-06-25_s4_valuation_candidates.json",
         {
-            "artifact_type": "S4_VALUATION_CANDIDATES",
+            "artifact_type": "S4_VALUATION_CANDIDATE_SET_V2",
             "source_input_path": str(s3_path),
             "candidates": [
                 {
+                    "candidate_id": "football|Alpha|Beta|2026-06-25",
                     "fixture_id": 10,
                     "sport": "football",
                     "home_team": "Alpha",
                     "away_team": "Beta",
                     "competition": "Test League",
                     "best_market": {"name": "Over 2.5", "safety_score": 0.82},
-                    "markets_evaluated": 4,
-                    "odds": {"market_best": 1.91},
+                    "market_count": 4,
+                    "odds": {},
+                    "odds_decimal": None,
+                    "ev": None,
+                    "model_probability": 0.58,
+                    "probability_confidence": "HIGH",
+                    "source_provider": "api-football",
+                    "source_artifact_path": "dummy",
+                    "probability_as_of": "2026-06-25T12:00:00Z",
+                    "market_family": "RESULT",
+                    "market_type": "ml",
+                    "selection": "Alpha",
+                    "pick": "Alpha",
                 }
             ],
         },
     )
     _write_s4_pass_evidence(environ, s4_path)
+    
+    # We must seed S5 and S6 for S7 to resolve S6 path!
+    _seed_s5_and_s6_for_s7(environ, s4_path, [
+        {
+            "candidate_id": "football|Alpha|Beta|2026-06-25",
+            "fixture_id": 10,
+            "sport": "football",
+            "home_team": "Alpha",
+            "away_team": "Beta",
+            "competition": "Test League",
+            "best_market": {"name": "Over 2.5", "safety_score": 0.82},
+            "market_count": 4,
+            "odds": {},
+            "odds_decimal": None,
+            "ev": None,
+            "model_probability": 0.58,
+            "probability_confidence": "HIGH",
+            "source_provider": "api-football",
+            "source_artifact_path": "dummy",
+            "probability_as_of": "2026-06-25T12:00:00Z",
+            "market_family": "RESULT",
+            "market_type": "ml",
+            "selection": "Alpha",
+            "pick": "Alpha",
+        }
+    ])
 
     resolution = s5_gate.resolve_s7_input(environ, "2026-06-25", environ["BET_PIPELINE_RUN_ID"])
 
-    assert Path(resolution["path"]).resolve() == s4_path.resolve()
-    assert resolution["source_step"] == "S4"
+    assert Path(resolution["path"]).resolve() == (Path(environ["BET_PIPELINE_RUN_ROOT"]) / "data" / "repeat_loss_handoff_2026-06-25.json").resolve()
+    assert resolution["source_step"] == "S6"
