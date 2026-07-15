@@ -1,4 +1,5 @@
 """Data contracts, schema generation, and disk writers for agent work orders."""
+
 from __future__ import annotations
 
 import hashlib
@@ -127,7 +128,7 @@ POLICIES: dict[str, AgentWorkOrderPolicy] = {
             "unknown_or_blocked_for_missing_data",
             "no_production_db_write",
             "no_betting_data_write",
-            "point_in_time_required"
+            "point_in_time_required",
         ],
         forbidden_outputs=[
             "internal_pick",
@@ -136,7 +137,7 @@ POLICIES: dict[str, AgentWorkOrderPolicy] = {
             "stake",
             "coupon",
             "parlay",
-            "accumulator"
+            "accumulator",
         ],
         instructions={
             "summary": "Detect enrichment gaps in input sources and flag missing required fields.",
@@ -144,11 +145,11 @@ POLICIES: dict[str, AgentWorkOrderPolicy] = {
                 "Detect enrichment gaps.",
                 "List unknowns and missing sources.",
                 "May output PASS only if gaps are understood and bounded.",
-                "May output BLOCK if required identity/source data is missing."
+                "May output BLOCK if required identity/source data is missing.",
             ],
             "must_not_do": [
                 "Must not emit pick, edge, stake, coupon.",
-                "Must not modify database or production data paths."
+                "Must not modify database or production data paths.",
             ],
             "unknown_policy": "Use UNKNOWN/BLOCK instead of guessing.",
             "output_contract": OUTPUT_CONTRACT_NOTES,
@@ -159,8 +160,8 @@ POLICIES: dict[str, AgentWorkOrderPolicy] = {
             "no_pick_edge_stake_coupon_emitted": True,
             "production_selectable": False,
             "betting_decisions_enabled": False,
-            "sources_required": True
-        }
+            "sources_required": True,
+        },
     ),
     "S2.5": AgentWorkOrderPolicy(
         agent="bet-enricher",
@@ -173,7 +174,7 @@ POLICIES: dict[str, AgentWorkOrderPolicy] = {
             "unknown_or_blocked_for_missing_data",
             "no_production_db_write",
             "no_betting_data_write",
-            "point_in_time_required"
+            "point_in_time_required",
         ],
         forbidden_outputs=[
             "internal_pick",
@@ -182,19 +183,19 @@ POLICIES: dict[str, AgentWorkOrderPolicy] = {
             "stake",
             "coupon",
             "parlay",
-            "accumulator"
+            "accumulator",
         ],
         instructions={
             "summary": "Collect provider enrichment observations and store them source-bound.",
             "must_do": [
                 "Collect provider enrichment observations.",
                 "Must be source-bound.",
-                "Include provider/source names and point-in-time timestamp."
+                "Include provider/source names and point-in-time timestamp.",
             ],
             "must_not_do": [
                 "Must not promote providers or change provider selection.",
                 "Must not emit pick, edge, stake, coupon.",
-                "Must not modify database or production data paths."
+                "Must not modify database or production data paths.",
             ],
             "unknown_policy": "Use UNKNOWN/BLOCK instead of guessing.",
             "output_contract": OUTPUT_CONTRACT_NOTES,
@@ -205,8 +206,8 @@ POLICIES: dict[str, AgentWorkOrderPolicy] = {
             "no_pick_edge_stake_coupon_emitted": True,
             "production_selectable": False,
             "betting_decisions_enabled": False,
-            "sources_required": True
-        }
+            "sources_required": True,
+        },
     ),
     "S2.7": AgentWorkOrderPolicy(
         agent="bet-enricher",
@@ -219,7 +220,7 @@ POLICIES: dict[str, AgentWorkOrderPolicy] = {
             "unknown_or_blocked_for_missing_data",
             "no_production_db_write",
             "no_betting_data_write",
-            "point_in_time_required"
+            "point_in_time_required",
         ],
         forbidden_outputs=[
             "internal_pick",
@@ -228,19 +229,19 @@ POLICIES: dict[str, AgentWorkOrderPolicy] = {
             "stake",
             "coupon",
             "parlay",
-            "accumulator"
+            "accumulator",
         ],
         instructions={
             "summary": "Reconcile facts across sources, explicitly marking disputed facts.",
             "must_do": [
                 "Reconcile facts across sources.",
                 "Mark disputed facts explicitly.",
-                "Include evidence_refs."
+                "Include evidence_refs.",
             ],
             "must_not_do": [
                 "Must not resolve disputes by guessing.",
                 "Must not emit pick, edge, stake, coupon.",
-                "Must not modify database or production data paths."
+                "Must not modify database or production data paths.",
             ],
             "unknown_policy": "Use UNKNOWN/BLOCK instead of guessing.",
             "output_contract": OUTPUT_CONTRACT_NOTES,
@@ -251,8 +252,8 @@ POLICIES: dict[str, AgentWorkOrderPolicy] = {
             "no_pick_edge_stake_coupon_emitted": True,
             "production_selectable": False,
             "betting_decisions_enabled": False,
-            "sources_required": True
-        }
+            "sources_required": True,
+        },
     ),
     "S2.9": AgentWorkOrderPolicy(
         agent="bet-enricher",
@@ -265,7 +266,7 @@ POLICIES: dict[str, AgentWorkOrderPolicy] = {
             "unknown_or_blocked_for_missing_data",
             "no_production_db_write",
             "no_betting_data_write",
-            "point_in_time_required"
+            "point_in_time_required",
         ],
         forbidden_outputs=[
             "internal_pick",
@@ -274,18 +275,18 @@ POLICIES: dict[str, AgentWorkOrderPolicy] = {
             "stake",
             "coupon",
             "parlay",
-            "accumulator"
+            "accumulator",
         ],
         instructions={
             "summary": "Data readiness gate checking whether subsequent analysis steps may proceed.",
             "must_do": [
                 "Assess and say whether S3 stats & probability may proceed.",
                 "PASS requires S2.3, S2.5, S2.7 artifacts valid.",
-                "BLOCK if data remains insufficient."
+                "BLOCK if data remains insufficient.",
             ],
             "must_not_do": [
                 "Must not emit pick, edge, stake, coupon.",
-                "Must not modify database or production data paths."
+                "Must not modify database or production data paths.",
             ],
             "unknown_policy": "Use UNKNOWN/BLOCK instead of guessing.",
             "output_contract": OUTPUT_CONTRACT_NOTES,
@@ -296,8 +297,8 @@ POLICIES: dict[str, AgentWorkOrderPolicy] = {
             "no_pick_edge_stake_coupon_emitted": True,
             "production_selectable": False,
             "betting_decisions_enabled": False,
-            "sources_required": True
-        }
+            "sources_required": True,
+        },
     ),
     "S5": AgentWorkOrderPolicy(
         agent="bet-risk-gatekeeper",
@@ -306,7 +307,7 @@ POLICIES: dict[str, AgentWorkOrderPolicy] = {
             "motivation_and_tournament_context_required",
             "travel_schedule_fatigue_checked",
             "morale_and_recent_result_context_checked",
-            "volatility_or_upset_risk_checked"
+            "volatility_or_upset_risk_checked",
         ],
         forbidden_outputs=[
             "internal_pick",
@@ -315,7 +316,7 @@ POLICIES: dict[str, AgentWorkOrderPolicy] = {
             "stake",
             "coupon",
             "parlay",
-            "accumulator"
+            "accumulator",
         ],
         instructions={
             "summary": "Evaluate context, motivation and volatility risk flags for shortlisted fixtures.",
@@ -328,11 +329,11 @@ POLICIES: dict[str, AgentWorkOrderPolicy] = {
                 "Use source-bound evidence and mark UNKNOWN if missing.",
                 "Copy every S4 candidate without changing canonical event_id, selection_id, market, selection, line, or period.",
                 "Partition every S4 selection_id exactly once into candidates or rejected_candidates.",
-                "Bind source_s4_path and source_s4_sha256 exactly to the work-order S4 input ref."
+                "Bind source_s4_path and source_s4_sha256 exactly to the work-order S4 input ref.",
             ],
             "must_not_do": [
                 "Must not emit coupon.",
-                "May identify risk flags and conditional objections, but not bypass S7/S7b/S8."
+                "May identify risk flags and conditional objections, but not bypass S7/S7b/S8.",
             ],
             "unknown_policy": "Use UNKNOWN/BLOCK instead of guessing.",
             "output_contract": OUTPUT_CONTRACT_NOTES,
@@ -343,8 +344,8 @@ POLICIES: dict[str, AgentWorkOrderPolicy] = {
             "no_pick_edge_stake_coupon_emitted": True,
             "production_selectable": False,
             "betting_decisions_enabled": False,
-            "sources_required": True
-        }
+            "sources_required": True,
+        },
     ),
 }
 
@@ -436,7 +437,9 @@ def discover_input_refs_for_step(
         else:
             kind = "AGENT_ARTIFACT"
 
-        path = _resolve_input_ref_path(dep_id, kind, Path(base_dir), betting_day, run_id)
+        path = _resolve_input_ref_path(
+            dep_id, kind, Path(base_dir), betting_day, run_id
+        )
         sha256 = calculate_sha256(path)
 
         input_refs.append(
@@ -462,13 +465,15 @@ def build_agent_work_order(
     """Construct an AgentWorkOrder matching schemas and policies."""
     if step_id not in POLICIES:
         raise ValueError(f"No agent work order policy defined for step_id: {step_id}")
-    
+
     policy = POLICIES[step_id]
     created_at = utc_now_iso()
-    
+
     input_refs = discover_input_refs_for_step(step_id, base_dir, betting_day, run_id)
-    expected_path = expected_agent_artifact_path_for(base_dir, betting_day, run_id, step_id)
-    
+    expected_path = expected_agent_artifact_path_for(
+        base_dir, betting_day, run_id, step_id
+    )
+
     required_output = AgentWorkOrderOutputContract(
         artifact_type="AGENT_ARTIFACT",
         step_id=step_id,
@@ -476,9 +481,9 @@ def build_agent_work_order(
         required_statuses=["PASS", "BLOCK", "COMMAND_REQUEST"],
         schema_requirements=policy.schema_requirements,
     )
-    
+
     work_order_id = f"WO-{run_id}-{step_id}"
-    
+
     return AgentWorkOrder(
         schema_version=1,
         work_order_id=work_order_id,
@@ -511,5 +516,28 @@ def write_agent_work_order(
         work_order.step_id,
     )
     target_path.parent.mkdir(parents=True, exist_ok=True)
-    write_json_atomic(target_path, work_order.to_jsonable())
+
+    payload = work_order.to_jsonable()
+    from bet.pipeline.canonical_continuity import (
+        canonical_json_bytes,
+        ContinuityContractError,
+    )
+
+    new_bytes = canonical_json_bytes(payload)
+
+    if target_path.exists():
+        existing_bytes = target_path.read_bytes()
+        try:
+            existing_payload = json.loads(existing_bytes)
+            existing_canon = canonical_json_bytes(existing_payload)
+        except Exception:
+            existing_canon = existing_bytes
+
+        if existing_canon != new_bytes:
+            raise ContinuityContractError(
+                f"WORK_ORDER_CONFLICT: {target_path} already exists with different content"
+            )
+        return target_path
+
+    write_json_atomic(target_path, payload)
     return target_path

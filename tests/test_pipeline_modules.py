@@ -195,7 +195,7 @@ class TestDeepStatsReport(unittest.TestCase):
              patch.object(dsr, "DATA_DIR", self.data_dir), \
              patch.object(norm_mod, "CACHE_DIR", empty_cache):
             result = dsr.analyze_candidate(
-                "football", "NoTeamA", "NoTeamB", "Unknown", "2026-05-01T15:00"
+                "football", "NoTeamA", "NoTeamB", "Unknown", "2026-05-01T15:00:00Z"
             )
         self.assertIn("has_data", result)
         # Markdown still generated
@@ -209,7 +209,7 @@ class TestDeepStatsReport(unittest.TestCase):
         p1, p2 = self._patch_dirs()
         with p1, p2, patch.object(norm_mod, "CACHE_DIR", self.cache_dir):
             result = dsr.analyze_candidate(
-                "football", "Liverpool", "Arsenal", "PL", "2026-05-01T15:00"
+                "football", "Liverpool", "Arsenal", "PL", "2026-05-01T15:00:00Z"
             )
         md = result["markdown"]
         for i in range(1, 11):
@@ -223,7 +223,7 @@ class TestDeepStatsReport(unittest.TestCase):
         pool = {
             "events": [
                 {"sport": "football", "home_team": "Liverpool", "away_team": "Arsenal",
-                 "competition": "PL", "kickoff": "2026-05-01T15:00:00",
+                 "competition": "PL", "kickoff": "2026-05-01T15:00:00Z",
                  "fixture_verified": True},
             ]
         }

@@ -35,6 +35,7 @@ def _runtime_environ(tmp_path: Path) -> dict[str, str]:
         "BET_PIPELINE_DATA_DIR": str(run_root / "data"),
         "BET_PIPELINE_COUPON_DIR": str(run_root / "coupons"),
         "BET_PIPELINE_ARTIFACT_DIR": str(run_root / "artifacts"),
+        "BET_PIPELINE_RUN_AS_OF_UTC": "2026-07-15T12:00:00Z",
     }
 
 

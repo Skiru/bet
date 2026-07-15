@@ -104,7 +104,9 @@ def replay_sandbox(tmp_path) -> Path:
 
     s2_ev_data = load_fixture_json("S2.json")
     s2_ev_data["payload"]["s2_shortlist_path"] = str(s2_path)
+    s2_ev_data["payload"]["s2_output_path"] = str(s2_path)
     s2_ev_data["payload"]["s2_shortlist_sha256"] = s2_sha
+    s2_ev_data["payload"]["s2_output_sha256"] = s2_sha
     (artifacts_dir / "S2.json").write_text(json.dumps(s2_ev_data, indent=2), encoding="utf-8")
 
     # 2. Write S3 Deep Stats & S3 Evidence
@@ -319,11 +321,18 @@ def test_real_subprocess_replay_success(replay_sandbox):
         "--start-step", "S6",
         "--stop-after-step", "S8",
         "--base-run-dir", str(replay_sandbox.parents[2]),
-        "--allow-write"
+        "--verbose"
     ]
 
     res = subprocess.run(cmd, env=env, capture_output=True, text=True)
-    assert res.returncode == 0, f"Pipeline execution failed: {res.stderr}\nStdout: {res.stdout}"
+    if res.returncode != 0:
+        log_content = ""
+        logs_dir = replay_sandbox / "logs"
+        if logs_dir.exists():
+            for f in logs_dir.glob("*"):
+                log_content += f"\n--- LOG {f.name} ---\n{f.read_text(errors='replace')}\n"
+        raise AssertionError(f"Pipeline execution failed: {res.stderr}\nStdout: {res.stdout}\nLogs:\n{log_content}")
+    assert res.returncode == 0
 
     # Verify S6, S7, S7b, S8 outputs & evidence exist canonically
     s6_output_path = replay_sandbox / "data" / "repeat_loss_handoff_2026-07-14.json"

@@ -107,6 +107,7 @@ def main() -> None:
 
     payload = {
         "s1e_json_output": str(output) if not blocked else None,
+        "s1e_output_path": str(output) if not blocked else None,
         "s1e_output_sha256": output_sha,
         "after_dedup_count": len(events),
         "outcome": "NO_ACTION_TERMINAL" if not blocked and not events else ("PASS" if not blocked else "BLOCKED"),

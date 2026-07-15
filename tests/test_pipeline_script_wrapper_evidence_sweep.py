@@ -773,6 +773,12 @@ def test_target_wrappers_write_pass_script_evidence_in_tmp_sandbox(case):
             assert payload["outcome"] == "READY_FOR_MANUAL_SUPERBET_QUOTE_REVIEW"
             assert payload["quote_card_count"] == 1
             assert payload["executable_coupon"] is False
+        elif case["step_id"] == "S2":
+            for key, value in expected_payload.items():
+                assert payload[key] == value
+            assert "s2_output_path" in payload
+            assert "s2_output_sha256" in payload
+            assert "event_records" in payload
         else:
             assert payload == expected_payload
     if case["no_pick"]:

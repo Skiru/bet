@@ -230,9 +230,19 @@ class LeaseRunLock:
         finally:
             temporary.unlink(missing_ok=True)
 
+    def check_health(self) -> None:
+        """Check lock heartbeat health."""
+        if self._heartbeat_error is not None:
+            raise RunLockError(f"RUN_LOCK_HEARTBEAT_FAILED: {self._heartbeat_error}") from self._heartbeat_error
+
     def release(self) -> None:
         self._stop_heartbeat()
+        hb_error = self._heartbeat_error
+        self._heartbeat_error = None
+
         if self.token is None:
+            if hb_error:
+                raise RunLockError(f"RUN_LOCK_HEARTBEAT_FAILED: {hb_error}") from hb_error
             return
         try:
             owner = json.loads(self.path.read_text(encoding="utf-8"))
@@ -242,13 +252,25 @@ class LeaseRunLock:
         finally:
             self.token = None
 
+        if hb_error:
+            raise RunLockError(f"RUN_LOCK_HEARTBEAT_FAILED: {hb_error}") from hb_error
+
     def __enter__(self) -> "LeaseRunLock":
         self.acquire()
         self._start_heartbeat()
         return self
 
-    def __exit__(self, _exc_type: object, _exc: object, _tb: object) -> None:
-        self.release()
+    def __exit__(self, exc_type: type[BaseException] | None, exc_val: BaseException | None, tb: object) -> None:
+        try:
+            self.release()
+        except BaseException as lock_exc:
+            if exc_val is not None:
+                if hasattr(exc_val, "add_note"):
+                    exc_val.add_note(f"Lock release failed: {lock_exc}")
+                else:
+                    exc_val.__context__ = lock_exc
+            else:
+                raise
 
     def _start_heartbeat(self) -> None:
         if self._heartbeat_thread is not None:
@@ -439,4 +461,6 @@ class ResumeLedger:
         # permanent run tombstone. The same step may resume and must append a
         # hash-linked resolution; downstream steps remain blocked by normal
         # step ordering until that happens.
-        self._load()
+        ledger = self._load()
+        if ledger.get("unresolved_command_request") is True:
+            raise ResumeLedgerError("BLOCKED_UNRESOLVED_COMMAND_REQUEST")

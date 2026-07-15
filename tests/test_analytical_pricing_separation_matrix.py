@@ -1,5 +1,6 @@
 import json
 import sys
+import hashlib
 from pathlib import Path
 
 import pytest
@@ -195,6 +196,17 @@ def test_step_output_resolution_collisions_and_fallback(tmp_path: Path) -> None:
     wrong_root.mkdir(parents=True, exist_ok=True)
     (wrong_root / "data").mkdir(parents=True, exist_ok=True)
 
+    # Write S2 shortlist (correct)
+    s2_shortlist = {
+        "artifact_type": "S2_SHORTLIST",
+        "total_candidates": 2,
+        "candidates": [{"id": "c1"}, {"id": "c2"}]
+    }
+    s2_shortlist_content = json.dumps(s2_shortlist)
+    (run_root / "data" / "2026-07-14_s2_shortlist.json").write_text(s2_shortlist_content)
+
+    s2_sha = hashlib.sha256(s2_shortlist_content.encode("utf-8")).hexdigest()
+
     # Write S2 evidence
     s2_evidence = {
         "schema_version": 1,
@@ -204,18 +216,12 @@ def test_step_output_resolution_collisions_and_fallback(tmp_path: Path) -> None:
         "run_id": "REPLAY_RUN",
         "status": "PASS",
         "payload": {
-            "s2_shortlist_path": str(run_root / "data" / "2026-07-14_s2_shortlist.json")
+            "s2_shortlist_path": str(run_root / "data" / "2026-07-14_s2_shortlist.json"),
+            "s2_output_path": str(run_root / "data" / "2026-07-14_s2_shortlist.json"),
+            "s2_output_sha256": s2_sha
         }
     }
     (run_root / "artifacts" / "S2.json").write_text(json.dumps(s2_evidence))
-
-    # Write S2 shortlist (correct)
-    s2_shortlist = {
-        "artifact_type": "S2_SHORTLIST",
-        "total_candidates": 2,
-        "candidates": [{"id": "c1"}, {"id": "c2"}]
-    }
-    (run_root / "data" / "2026-07-14_s2_shortlist.json").write_text(json.dumps(s2_shortlist))
 
     # Write wrong shortlist (collision candidate)
     (wrong_root / "data" / "2026-07-14_s2_shortlist.json").write_text(json.dumps({"total_candidates": 999}))

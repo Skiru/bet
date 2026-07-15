@@ -1025,11 +1025,43 @@ class Orchestrator:
                 if blocked_reason and blocked_reason.startswith("COMMAND_REQUEST")
                 else (step_status.value if hasattr(step_status, "value") else str(step_status))
             )
+            wo_sha = ""
+            predecessor_hashes = {}
+            if work_order_path and Path(work_order_path).is_file():
+                try:
+                    wo_bytes = Path(work_order_path).read_bytes()
+                    wo_sha = hashlib.sha256(wo_bytes).hexdigest()
+                    wo_data = json.loads(wo_bytes)
+                    for ref in wo_data.get("input_refs", []):
+                        ref_step_id = ref.get("step_id")
+                        ref_sha = ref.get("sha256")
+                        if ref_step_id and ref_sha:
+                            predecessor_hashes[f"predecessor_{ref_step_id}_sha256"] = ref_sha
+                except Exception:
+                    pass
+
+            ledger_input_hashes = {
+                "manifest": self._manifest_sha,
+                **predecessor_hashes
+            }
+
+            cmd_req_identity = {
+                "wrapper": step.wrapper,
+                "execution_mode": step.execution_mode,
+                "runtime_mode": self.runtime_mode.value,
+                "cwd": os.getcwd(),
+                "timeout": 900.0,
+                "expected_exit_code": 0,
+                "postconditions": ["SCRIPT_EVIDENCE_PASS"],
+                "work_order_sha256": wo_sha,
+                "argv": sys.argv,
+            }
+
             self._resume_ledger.append(
                 step_id=sid,
                 status=ledger_status,
-                command_request={"wrapper": step.wrapper, "execution_mode": step.execution_mode},
-                input_hashes={"manifest": self._manifest_sha},
+                command_request=cmd_req_identity,
+                input_hashes=ledger_input_hashes,
                 output_hashes=output_hashes,
             )
             self._run_lock.heartbeat()

@@ -231,7 +231,8 @@ def resolve_bound_step_output(
     payload = evidence.get("payload") or {}
 
     step_keys = {
-        "S2": ["s2_shortlist_path", "s2_output_path", "shortlist_path"],
+        "S1e": ["s1e_output_path", "s1e_json_output"],
+        "S2": ["s2_output_path", "s2_shortlist_path", "shortlist_path"],
         "S3": ["s3_output_path", "s3_json_output"],
         "S4": ["s4_valuation_output_path", "s4_output_path"],
         "S7": ["s7_json_output", "s7_output_path", "analytical_candidate_handoff_path"],
@@ -257,31 +258,32 @@ def resolve_bound_step_output(
                     output_val = p_str
                     break
 
-    if not output_val:
-        defaults = {
-            "S2": run_root_path / "data" / f"{betting_day}_s2_shortlist.json",
-            "S3": run_root_path / "data" / f"{betting_day}_s3_deep_stats.json",
-            "S4": run_root_path / "data" / f"{betting_day}_s4_valuation_candidates.json",
-            "S7": run_root_path / "data" / "analytical_candidate_handoff.json",
-        }
-        if step_id in defaults:
-            output_val = str(defaults[step_id])
-
     if not isinstance(output_val, str) or not output_val:
         raise ValueError(f"No output path declared in step {step_id} evidence payload")
 
     output_path = Path(output_val).resolve()
 
+    resolved_run_root = run_root_path.resolve()
+    resolved_output_path = output_path.resolve()
+
     try:
-        output_path.relative_to(run_root_path)
+        rel = resolved_output_path.relative_to(resolved_run_root)
+        curr = resolved_run_root
+        for part in rel.parts:
+            curr = curr / part
+            if curr.is_symlink():
+                raise ValueError(f"Step {step_id} output path contains a symlink component: {curr}")
     except ValueError:
         raise ValueError(f"Step {step_id} output path {output_path} is outside run root {run_root_path}")
 
-    if output_path.is_symlink():
+    if output_path.is_symlink() or resolved_output_path.is_symlink():
         raise ValueError(f"Step {step_id} output path {output_path} is a symlink")
 
     if not output_path.exists():
         raise FileNotFoundError(f"Step {step_id} output file missing: {output_path}")
+
+    if output_path.stat().st_size == 0:
+        raise ValueError(f"Step {step_id} output file is empty")
 
     expected_sha_keys = [
         f"{step_id.lower()}_output_sha256",
@@ -302,7 +304,7 @@ def resolve_bound_step_output(
             expected_sha = evidence[k]
             break
 
-    if step_id in {"S3", "S4", "S6", "S7", "S7b", "S8"} and not (
+    if step_id in {"S1e", "S2", "S3", "S4", "S6", "S7", "S7b", "S8"} and not (
         isinstance(expected_sha, str) and expected_sha
     ):
         raise ValueError(f"Step {step_id} evidence is missing the required output SHA-256")

@@ -931,6 +931,25 @@ def evaluate_gate_before_step(
         try:
             raw = load_artifact(path)
             artifact, issues = validate_pipeline_artifact(raw, req_step)
+            if req_step == "S2.9":
+                from bet.pipeline.agent_work_orders import work_order_path_for
+                from bet.pipeline.agent_artifact_contracts import validate_agent_artifact_for_work_order
+                wo_path = work_order_path_for(artifact_dir, betting_day, run_id, "S2.9")
+                if not wo_path.exists():
+                    failed_reqs.append(f"Missing S2.9 work order at {wo_path}")
+                    blocked.append(req_step)
+                else:
+                    try:
+                        with wo_path.open("r", encoding="utf-8") as f:
+                            wo_data = json.load(f)
+                        wo_errors = validate_agent_artifact_for_work_order(raw, wo_data)
+                        if wo_errors:
+                            for err in wo_errors:
+                                failed_reqs.append(f"S2.9 work order semantic validation failure: {err}")
+                            blocked.append(req_step)
+                    except Exception as exc:
+                        failed_reqs.append(f"Failed to load or validate S2.9 work order: {exc}")
+                        blocked.append(req_step)
             if req_step == "S9":
                 issues.extend(
                     validate_s9_human_gate_artifact_for_run(

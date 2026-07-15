@@ -191,15 +191,21 @@ def build_runtime_env(
             env["BET_PIPELINE_LEDGER_PATH"] = str(ledger_path)
 
     # 3. Provider credentials dynamically sourced from the registry
+    from bet.provider_registry import load_provider_registry
     try:
-        from bet.provider_registry import load_provider_registry
         reg = load_provider_registry()
-        allowed_credentials = []
-        for provider in reg.values():
-            cred_names = provider.policy.get("required_credential_names", [])
-            allowed_credentials.extend(cred_names)
-    except Exception:
-        allowed_credentials = ["ODDSPAPI_API_KEY", "THE_ODDS_API_KEY", "ODDS_API_IO_KEY", "API_FOOTBALL_KEY"]
+    except Exception as exc:
+        raise ValueError(f"PROVIDER_REGISTRY_LOAD_FAILED: {exc}") from exc
+
+    allowed_credentials_set = set()
+    for provider in reg.values():
+        cred_names = provider.policy.get("required_credential_names", [])
+        for cred_name in cred_names:
+            if not isinstance(cred_name, str) or not cred_name.strip():
+                raise ValueError("PROVIDER_REGISTRY_CREDENTIAL_NAME_INVALID")
+            allowed_credentials_set.add(cred_name.strip())
+
+    allowed_credentials = sorted(allowed_credentials_set)
 
     for cred_name in allowed_credentials:
         if cred_name in os.environ:

@@ -14,6 +14,7 @@ from bet.pipeline.event_accounting import (
     EventAccountingError,
     EventAccountingLedger,
     deduplicate_events,
+    canonical_event_id,
 )
 from scripts.pipeline_steps import s1e_event_ledger
 
@@ -23,8 +24,8 @@ RUN_ID = "event-accounting-test"
 
 def _events() -> list[dict]:
     return [
-        {"fixture_id": "football-1", "sport": "football", "home_team": "A", "away_team": "B", "kickoff": "2026-07-13T12:00:00Z"},
-        {"fixture_id": "tennis-1", "sport": "tennis", "home_team": "C", "away_team": "D", "kickoff": "2026-07-13T14:00:00Z"},
+        {"fixture_id": "football-1", "sport": "football", "competition": "test-league", "home_team": "A", "away_team": "B", "kickoff": "2026-07-13T12:00:00Z"},
+        {"fixture_id": "tennis-1", "sport": "tennis", "competition": "test-league", "home_team": "C", "away_team": "D", "kickoff": "2026-07-13T14:00:00Z"},
     ]
 
 
@@ -118,10 +119,12 @@ def _initialized_ledger(tmp_path: Path, events: list[dict]) -> EventAccountingLe
 
 
 def test_every_boundary_accounts_for_every_event_with_missing_tips_and_odds_explicit(tmp_path: Path):
-    ledger = _initialized_ledger(tmp_path, _events())
+    events = _events()
+    ledger = _initialized_ledger(tmp_path, events)
+    evt_ids = [canonical_event_id(e) for e in events]
     records = [
-        {"canonical_event_id": "football-1", "terminal_status": "TIPSTER_MISSING_EXPLICIT"},
-        {"canonical_event_id": "tennis-1", "terminal_status": "PRICE_PENDING_EXPLICIT"},
+        {"canonical_event_id": evt_ids[0], "terminal_status": "TIPSTER_MISSING_EXPLICIT"},
+        {"canonical_event_id": evt_ids[1], "terminal_status": "PRICE_PENDING_EXPLICIT"},
     ]
     for step in ACCOUNTING_BOUNDARY_STEPS:
         payload = ledger.record_boundary(step, records=records)
@@ -138,30 +141,33 @@ def test_boundary_cannot_fabricate_default_statuses(tmp_path: Path):
 
 
 def test_event_loss_and_unknown_event_fail_closed(tmp_path: Path):
-    ledger = _initialized_ledger(tmp_path, _events())
+    events = _events()
+    ledger = _initialized_ledger(tmp_path, events)
+    evt_ids = [canonical_event_id(e) for e in events]
     with pytest.raises(EventAccountingError, match="EVENT_BOUNDARY_LOSS"):
         ledger.record_boundary(
             "S2",
-            records=[{"canonical_event_id": "football-1", "terminal_status": "TIPSTER_MISSING"}],
+            records=[{"canonical_event_id": evt_ids[0], "terminal_status": "TIPSTER_MISSING"}],
         )
     with pytest.raises(EventAccountingError, match="UNKNOWN_EVENT"):
         ledger.record_boundary(
             "S2",
             records=[
-                {"canonical_event_id": "football-1", "terminal_status": "PASS"},
-                {"canonical_event_id": "unknown", "terminal_status": "PASS"},
+                {"canonical_event_id": evt_ids[0], "terminal_status": "PASS"},
+                {"canonical_event_id": "evt-unknown-123", "terminal_status": "PASS"},
             ],
         )
 
 
-def test_one_event_with_multiple_markets_is_one_fixture_account(tmp_path: Path):
-    ledger = _initialized_ledger(tmp_path, [_events()[0]])
-    payload = ledger.record_boundary(
-        "S8",
-        records=[
-            {"canonical_event_id": "football-1", "terminal_status": "MARKET_A_QUOTE_CARD"},
-            {"canonical_event_id": "football-1", "terminal_status": "MARKET_B_QUOTE_CARD"},
-        ],
-    )
-    assert payload["after_dedup_count"] == payload["events_with_terminal_status"] == 1
-    assert len(payload["boundaries"]["S8"]["football-1"]["terminal_statuses"]) == 2
+def test_duplicate_event_records_fail_closed(tmp_path: Path):
+    events = _events()
+    ledger = _initialized_ledger(tmp_path, events)
+    evt_ids = [canonical_event_id(e) for e in events]
+    with pytest.raises(EventAccountingError, match="EVENT_BOUNDARY_DUPLICATE_EVENT"):
+        ledger.record_boundary(
+            "S2",
+            records=[
+                {"canonical_event_id": evt_ids[0], "terminal_status": "PASS"},
+                {"canonical_event_id": evt_ids[0], "terminal_status": "PASS"},
+            ],
+        )

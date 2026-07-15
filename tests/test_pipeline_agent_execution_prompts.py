@@ -164,10 +164,12 @@ def test_validate_agent_artifact_cli_passes_for_valid_block_artifact(tmp_path):
     work_order = load_work_order(work_order_path)
     artifact_path = tmp_path / "S2.3_artifact.json"
     artifact = agent_artifact_template_for_step("S2.3", "2026-06-25", "run-agent-prompt")
+    artifact["blocked_reasons"] = ["UPSTREAM_DATA_MISSING"]
+    artifact["unknowns"] = []
     artifact["payload"] = {
         "enrichment_gaps": ["missing_fixture_identity"],
         "gaps_status": "blocking",
-        "approval_state": "NOT_FINAL_TEMPLATE",
+        "approval_state": "S2.3_BLOCK_OUTPUT",
     }
     artifact["work_order_id"] = work_order["work_order_id"]
     artifact_path.write_text(json.dumps(artifact), encoding="utf-8")

@@ -249,6 +249,10 @@ def _seed_s3_predecessors(environ: dict[str, str]) -> None:
     run_root = Path(environ["BET_PIPELINE_RUN_ROOT"])
     (run_root / "artifacts").mkdir(parents=True, exist_ok=True)
     (run_root / "data").mkdir(parents=True, exist_ok=True)
+    _seed_s3_shortlist(environ)
+    shortlist_path = run_root / "data" / "2026-06-25_s2_shortlist.json"
+    import hashlib
+    s2_sha = hashlib.sha256(shortlist_path.read_bytes()).hexdigest()
     s2_ev = {
         "schema_version": 1,
         "artifact_type": "SCRIPT_EVIDENCE",
@@ -257,11 +261,12 @@ def _seed_s3_predecessors(environ: dict[str, str]) -> None:
         "run_id": environ["BET_PIPELINE_RUN_ID"],
         "status": "PASS",
         "payload": {
-            "s2_shortlist_path": str(run_root / "data" / "2026-06-25_s2_shortlist.json")
+            "s2_shortlist_path": str(shortlist_path),
+            "s2_output_path": str(shortlist_path),
+            "s2_output_sha256": s2_sha
         }
     }
     (run_root / "artifacts" / "S2.json").write_text(json.dumps(s2_ev), encoding="utf-8")
-    _seed_s3_shortlist(environ)
 
 
 NORMALIZATION_CASES = (

@@ -138,9 +138,10 @@ def test_resume_ledger_blocks_conflict_invalid_predecessor_and_unresolved_reques
         input_hashes={"previous": first["entry_hash"]},
         output_hashes={},
     )
-    # A blocked attempt is retryable.  It remains part of the hash chain and
+    # A blocked attempt is retryable. It remains part of the hash chain and
     # downstream ordering still prevents bypassing the unresolved step.
-    ledger.assert_resumable()
+    with pytest.raises(ResumeLedgerError, match="BLOCKED_UNRESOLVED_COMMAND_REQUEST"):
+        ledger.assert_resumable()
     ledger.append(
         step_id="S2.3",
         status="PASS",
@@ -148,6 +149,7 @@ def test_resume_ledger_blocks_conflict_invalid_predecessor_and_unresolved_reques
         input_hashes={"previous": first["entry_hash"]},
         output_hashes={"artifact": "resolved"},
     )
+    ledger.assert_resumable()
     payload = json.loads(ledger.path.read_text())
     assert payload["unresolved_command_request"] is False
     assert payload["entries"][-1]["resolution_of_attempt_id"] == payload["entries"][-2]["attempt_id"]

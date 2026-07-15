@@ -8,6 +8,7 @@ from unittest.mock import patch
 
 import pytest
 
+from tests.test_pipeline_artifact_gate import setup_valid_s2_9_environment
 from bet.pipeline.manifest import load_pipeline_manifest, validate_pipeline_manifest
 from bet.pipeline.orchestrator import Orchestrator
 from bet.pipeline.readiness_contracts import PipelineReadinessStatus
@@ -161,8 +162,8 @@ def test_agent_step_generates_work_order_and_blocks_when_artifact_missing(tmp_pa
 
 def test_s3_can_proceed_if_s2_9_exists_and_valid(tmp_path, base_artifact_payload):
     """Verify S3 is executed if S2.9 artifact exists and passes."""
-    # Write S2.9 PASS artifact to reports dir
-    write_test_artifact(tmp_path / "reports", "S2.9", "PASS")
+    # Setup valid S2.9 environment inside the base run directory
+    setup_valid_s2_9_environment(tmp_path / "reports", status="PASS", run_id="run-999")
 
     orch = Orchestrator(
         betting_day="2026-06-25",

@@ -316,6 +316,60 @@ def run_wrapper_scripts_with_evidence(
     output = captured_stdout.getvalue()
     _replay_output(output)
 
+    if step_id == "S2":
+        output_file = Path(child_env["BET_PIPELINE_DATA_DIR"]) / f"{betting_day}_s2_shortlist.json"
+        if output_file.exists():
+            from bet.pipeline.run_evidence import sha256_file
+            s2_sha = sha256_file(output_file)
+            if not extra_payload:
+                extra_payload = {}
+            extra_payload["s2_output_path"] = str(output_file)
+            extra_payload["s2_shortlist_path"] = str(output_file)
+            extra_payload["s2_output_sha256"] = s2_sha
+
+            # Load S1e universe
+            s1e_file = Path(child_env["BET_PIPELINE_DATA_DIR"]) / f"{betting_day}_s1e_event_universe.json"
+            universe_ids = []
+            if s1e_file.exists():
+                try:
+                    s1e_data = json.loads(s1e_file.read_text(encoding="utf-8"))
+                    universe_ids = s1e_data.get("canonical_event_ids", [])
+                except Exception:
+                    pass
+
+            # Load S2 shortlist candidates
+            matched_event_ids = set()
+            try:
+                s2_data = json.loads(output_file.read_text(encoding="utf-8"))
+                candidates = s2_data.get("candidates", [])
+                for c in candidates:
+                    cid = c.get("canonical_event_id") or c.get("event_id")
+                    if cid and c.get("tipster_support"):
+                        matched_event_ids.add(cid)
+            except Exception:
+                pass
+
+            event_records = []
+            for eid in universe_ids:
+                if eid in matched_event_ids:
+                    event_records.append({
+                        "canonical_event_id": eid,
+                        "terminal_status": "CONTINUE",
+                        "reason_codes": [],
+                        "candidate_ids": []
+                    })
+                else:
+                    event_records.append({
+                        "canonical_event_id": eid,
+                        "terminal_status": "DEGRADED_CONTINUE",
+                        "reason_codes": ["DEGRADED_NO_TIPSTER_PICKS"],
+                        "candidate_ids": []
+                    })
+
+            extra_payload["event_records"] = event_records
+            if not matched_event_ids:
+                extra_payload["outcome"] = "DEGRADED_NO_TIPSTER_PICKS"
+
     payload = build_wrapper_payload(
         step_id=step_id,
         wrapper_scripts=wrapper_scripts,

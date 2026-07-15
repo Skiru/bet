@@ -162,6 +162,8 @@ def run_scripts(
       temporarily set to a temp file DB to avoid persisting changes.
     Returns the subprocess return code (0 for success).
     """
+    original_allow_write = allow_write
+
     if continue_on_codes is None:
         continue_on_codes = [0]
     env = os.environ.copy()
@@ -177,6 +179,10 @@ def run_scripts(
             runtime_mode = RuntimeMode(runtime_mode.upper())
         except ValueError:
             runtime_mode = RuntimeMode.DRY_RUN
+
+    if runtime_mode != RuntimeMode.PRODUCTION and original_allow_write:
+        print("BLOCKED_NON_PRODUCTION_WRITE_FORBIDDEN")
+        return 3
 
     # Check for live-target wrappers
     is_live_target = False
@@ -245,9 +251,12 @@ def run_scripts(
 
     temp_db_path = None
     try:
-        if dry_run and not allow_write:
-            fd, temp_db_path = tempfile.mkstemp(suffix=".db", prefix="bet_dryrun_")
-            os.close(fd)
+        if runtime_mode != RuntimeMode.PRODUCTION:
+            run_root_dir = Path(env.get("BET_PIPELINE_RUN_ROOT") or run_root or ROOT)
+            db_dir = run_root_dir / "data"
+            db_dir.mkdir(parents=True, exist_ok=True)
+            import uuid
+            temp_db_path = str(db_dir / f"bet_dryrun_{uuid.uuid4().hex}.db")
             _init_temp_db(temp_db_path)
             env["DATABASE_URL"] = f"sqlite:///{temp_db_path}"
             env["DRY_RUN"] = "1"

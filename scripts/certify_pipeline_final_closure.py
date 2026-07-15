@@ -25,6 +25,8 @@ DEFAULT_NODES = (
     "tests/test_canonical_continuity_reference.py",
     "tests/test_failed_run_replay.py",
     "tests/test_pipeline_certifier.py::test_certifier_child_fixture",
+    "tests/test_canonical_continuity_v4_owner_regressions.py",
+    "tests/test_canonical_continuity_v4_offline_chain_proof.py",
 )
 
 
@@ -222,7 +224,7 @@ def certify(
         "schema_version": 1,
         "artifact_type": "PIPELINE_CANONICAL_CONTINUITY_CERTIFICATE_V1",
         "status": "PASS",
-        "decision": "READY_FOR_HUMAN_MERGE_REVIEW",
+        "decision": "READY_FOR_BET_EXECUTOR_SESSION",
         "generated_at_utc": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
         "source": {
             "branch": branch,

@@ -132,9 +132,12 @@ def _run_s1_scripts(
 
     temp_db_path: str | None = None
     try:
-        if dry_run and not allow_write:
-            fd, temp_db_path = tempfile.mkstemp(suffix=".db", prefix="bet_dryrun_")
-            os.close(fd)
+        if not allow_write:
+            run_root_dir = Path(env["BET_PIPELINE_RUN_ROOT"])
+            db_dir = run_root_dir / "data"
+            db_dir.mkdir(parents=True, exist_ok=True)
+            import uuid
+            temp_db_path = str(db_dir / f"bet_dryrun_{uuid.uuid4().hex}.db")
             _init_temp_db(temp_db_path)
             env["DATABASE_URL"] = f"sqlite:///{temp_db_path}"
             env["DRY_RUN"] = "1"

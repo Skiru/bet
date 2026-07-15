@@ -1,9 +1,12 @@
 """Canonical identity, lineage, and partition contracts for S3 through S8."""
+
 from __future__ import annotations
 
 import hashlib
 import json
 import re
+import unicodedata
+from datetime import datetime, timezone
 from collections import Counter
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
@@ -16,7 +19,11 @@ class ContinuityContractError(ValueError):
 
 def canonical_json_bytes(value: Any) -> bytes:
     return json.dumps(
-        value, sort_keys=True, separators=(",", ":"), ensure_ascii=False, allow_nan=False
+        value,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+        allow_nan=False,
     ).encode("utf-8")
 
 
@@ -33,8 +40,46 @@ def file_sha256(path: Path | str) -> str:
 
 
 def _token(value: Any) -> str:
-    text = re.sub(r"\s+", " ", str(value or "").strip().casefold())
-    return re.sub(r"[^a-z0-9]+", "-", text).strip("-")
+    if value is None or value == "":
+        return ""
+    text = unicodedata.normalize("NFKC", str(value))
+    text = text.casefold()
+    chars = []
+    for c in text:
+        if c.isalnum():
+            chars.append(c)
+        else:
+            chars.append("-")
+    joined = "".join(chars)
+    collapsed = re.sub(r"-+", "-", joined).strip("-")
+    return collapsed
+
+
+def parse_aware_utc_timestamp(value: Any) -> str:
+    if value is None or value == "":
+        raise ContinuityContractError("MISSING_EVENT_KICKOFF")
+    text = str(value).strip()
+    try:
+        dt = datetime.fromisoformat(text)
+    except Exception as exc:
+        raise ContinuityContractError(f"INVALID_EVENT_KICKOFF: {text}") from exc
+    if dt.tzinfo is None:
+        raise ContinuityContractError(f"NAIVE_KICKOFF_REJECTED: {text}")
+
+    dt_utc = dt.astimezone(timezone.utc)
+    if dt_utc.microsecond == 0:
+        return dt_utc.strftime("%Y-%m-%dT%H:%M:%SZ")
+    else:
+        s = dt_utc.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+        parts = s.split(".")
+        if len(parts) == 2:
+            base, frac_z = parts
+            frac = frac_z[:-1].rstrip("0")
+            if frac:
+                return f"{base}.{frac}Z"
+            else:
+                return f"{base}Z"
+        return s
 
 
 def canonical_line(value: Any) -> str:
@@ -64,9 +109,12 @@ def _participants(candidate: Mapping[str, Any]) -> tuple[str, str]:
 
 def event_identity_fields(candidate: Mapping[str, Any]) -> dict[str, str]:
     home, away = _participants(candidate)
-    kickoff = candidate.get("kickoff") or candidate.get("start_time") or candidate.get("scheduled_at_utc")
-    if not kickoff:
-        raise ContinuityContractError("MISSING_EVENT_KICKOFF")
+    kickoff_raw = (
+        candidate.get("kickoff")
+        or candidate.get("start_time")
+        or candidate.get("scheduled_at_utc")
+    )
+    kickoff = parse_aware_utc_timestamp(kickoff_raw)
     sport = _token(candidate.get("sport"))
     competition = _token(candidate.get("competition") or candidate.get("league"))
     if not sport or not competition:
@@ -76,7 +124,7 @@ def event_identity_fields(candidate: Mapping[str, Any]) -> dict[str, str]:
         "competition": competition,
         "participant_a": home,
         "participant_b": away,
-        "kickoff": str(kickoff).strip(),
+        "kickoff": kickoff,
     }
 
 
@@ -84,11 +132,20 @@ def derive_event_id(candidate: Mapping[str, Any]) -> str:
     return f"evt_{canonical_sha256(event_identity_fields(candidate))[:32]}"
 
 
-def selection_identity_fields(candidate: Mapping[str, Any], event_id: str) -> dict[str, str]:
+def selection_identity_fields(
+    candidate: Mapping[str, Any], event_id: str
+) -> dict[str, str]:
     best_market = candidate.get("best_market")
     best = best_market if isinstance(best_market, Mapping) else {}
-    market = candidate.get("market_family") or candidate.get("market_type") or candidate.get("market") or best.get("name")
-    selection = candidate.get("selection") or best.get("selection") or best.get("direction")
+    market = (
+        candidate.get("market_family")
+        or candidate.get("market_type")
+        or candidate.get("market")
+        or best.get("name")
+    )
+    selection = (
+        candidate.get("selection") or best.get("selection") or best.get("direction")
+    )
     if not market or not selection:
         raise ContinuityContractError("MISSING_SELECTION_IDENTITY")
     return {
@@ -103,7 +160,9 @@ def selection_identity_fields(candidate: Mapping[str, Any], event_id: str) -> di
     }
 
 
-def derive_selection_id(candidate: Mapping[str, Any], event_id: str | None = None) -> str:
+def derive_selection_id(
+    candidate: Mapping[str, Any], event_id: str | None = None
+) -> str:
     resolved_event_id = event_id or derive_event_id(candidate)
     return f"sel_{canonical_sha256(selection_identity_fields(candidate, resolved_event_id))[:32]}"
 
@@ -153,7 +212,10 @@ def candidate_ids(candidates: Iterable[Mapping[str, Any]]) -> list[str]:
         candidate_id = candidate.get("selection_id") or candidate.get("candidate_id")
         if not isinstance(candidate_id, str) or not candidate_id:
             raise ContinuityContractError("MISSING_CANONICAL_SELECTION_ID")
-        if candidate.get("candidate_id") != candidate_id or candidate.get("selection_id") != candidate_id:
+        if (
+            candidate.get("candidate_id") != candidate_id
+            or candidate.get("selection_id") != candidate_id
+        ):
             raise ContinuityContractError("SELECTION_ID_ALIAS_MISMATCH")
         ids.append(candidate_id)
     if len(ids) != len(set(ids)):
@@ -172,10 +234,20 @@ def validate_exact_partition(
         values = list(records)
         counts[name] = len(values)
         for record in values:
-            original = record.get("original_candidate") if isinstance(record, Mapping) else None
-            candidate_id = record.get("selection_id") or record.get("candidate_id") if isinstance(record, Mapping) else None
+            original = (
+                record.get("original_candidate")
+                if isinstance(record, Mapping)
+                else None
+            )
+            candidate_id = (
+                record.get("selection_id") or record.get("candidate_id")
+                if isinstance(record, Mapping)
+                else None
+            )
             if not candidate_id and isinstance(original, Mapping):
-                candidate_id = original.get("selection_id") or original.get("candidate_id")
+                candidate_id = original.get("selection_id") or original.get(
+                    "candidate_id"
+                )
             if not isinstance(candidate_id, str) or not candidate_id:
                 raise ContinuityContractError("TERMINAL_RECORD_ID_MISSING")
             terminal.append(candidate_id)
