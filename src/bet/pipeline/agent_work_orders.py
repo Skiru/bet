@@ -300,7 +300,7 @@ POLICIES: dict[str, AgentWorkOrderPolicy] = {
         }
     ),
     "S5": AgentWorkOrderPolicy(
-        agent="bet-challenger",
+        agent="bet-risk-gatekeeper",
         hard_rules=[
             "injury_lineup_context_required",
             "motivation_and_tournament_context_required",
@@ -325,7 +325,10 @@ POLICIES: dict[str, AgentWorkOrderPolicy] = {
                 "Check travel/fatigue.",
                 "Check morale and recent results.",
                 "Check upset/volatility risk.",
-                "Use source-bound evidence and mark UNKNOWN if missing."
+                "Use source-bound evidence and mark UNKNOWN if missing.",
+                "Copy every S4 candidate without changing canonical event_id, selection_id, market, selection, line, or period.",
+                "Partition every S4 selection_id exactly once into candidates or rejected_candidates.",
+                "Bind source_s4_path and source_s4_sha256 exactly to the work-order S4 input ref."
             ],
             "must_not_do": [
                 "Must not emit coupon.",

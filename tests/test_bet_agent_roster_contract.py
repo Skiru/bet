@@ -42,7 +42,7 @@ def build_smoke_payload(active_runtime_model: str, **overrides):
 
 
 def test_required_agents_do_not_pin_model_overrides():
-    profile = load_jsonc(PROJECT_PROFILE_PATH)
+    profile = load_jsonc(PROJECT_PROFILE_PATH) if PROJECT_PROFILE_PATH.is_file() else {}
     for agent_name in REQUIRED_AGENTS:
         assert read_frontmatter_model(AGENT_DIR / f"{agent_name}.md") is None
         assert "model" not in profile.get("agent", {}).get(agent_name, {})

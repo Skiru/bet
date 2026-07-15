@@ -4,16 +4,18 @@ from __future__ import annotations
 import json
 import os
 import sys
+import uuid
 from pathlib import Path
 from unittest.mock import patch
 
 import pytest
 
+from bet.pipeline.run_evidence import sha256_file
 from scripts.pipeline_steps import s5_gate
 
 
 def _runtime_environ(tmp_path: Path) -> dict[str, str]:
-    run_root = Path("/tmp") / f"bet-s7-valuation-{tmp_path.name}"
+    run_root = Path("/tmp") / f"bet-s7-valuation-{tmp_path.name}-{uuid.uuid4().hex[:8]}"
     return {
         "BET_PIPELINE_RUNTIME_MODE": "DRY_RUN",
         "BET_PIPELINE_BETTING_DAY": "2026-06-25",
@@ -48,6 +50,7 @@ def _write_s6_pass_evidence(environ: dict[str, str], s6_output_path: Path | None
         "run_id": "run-s7-valuation",
         "payload": {
             "s6_output_path": str(s6_output_path) if s6_output_path else None,
+            "s6_output_sha256": sha256_file(s6_output_path) if s6_output_path else None,
         },
     }
     for path in (
@@ -64,21 +67,39 @@ def _write_json(path: Path, payload: dict) -> Path:
     return path
 
 
-def _s6_accepted_payload() -> dict:
+def _s6_accepted_payload(source_s5_path: Path) -> dict:
+    source_s5_sha = sha256_file(source_s5_path)
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "artifact_type": "S6_PORTFOLIO_REPEAT_GUARD_V2",
         "status": "PASS",
+        "concrete_status": "NO_ACTION_TERMINAL",
         "betting_day": "2026-06-25",
         "run_id": "run-s7-valuation",
+        "source_step": "S5",
+        "source_s5_path": str(source_s5_path),
+        "source_s5_sha256": source_s5_sha,
+        "worker_contract_version": "1.0",
+        "run_as_of_utc": "2026-06-25T12:00:00Z",
+        "validated_inputs": {
+            "s5_hash": source_s5_sha,
+            "history_hash": "a" * 64,
+            "policy_hash": "b" * 64,
+        },
+        "input_candidate_count": 0,
         "accepted": [],
         "repeat_rejected": [],
+        "duplicate_rejected": [],
         "correlation_rejected": [],
         "conflict_rejected": [],
-        "portfolio_rejected": [],
+        "concentration_rejected": [],
         "invalid_input": [],
         "accounting": {
+            "input_count": 0,
+            "terminal_count": 0,
+            "category_counts": {},
             "unaccounted_candidate_ids": [],
+            "unexpected_candidate_ids": [],
             "duplicate_candidate_ids": [],
             "overlapping_terminal_categories": []
         }
@@ -89,7 +110,11 @@ def test_s7_prefers_s6_input_and_records_evidence(tmp_path: Path):
     environ = _runtime_environ(tmp_path)
     data_dir = Path(environ["BET_PIPELINE_DATA_DIR"])
     data_dir.mkdir(parents=True, exist_ok=True)
-    s6_output_path = _write_json(data_dir / "repeat_loss_handoff_2026-06-25.json", _s6_accepted_payload())
+    s5_path = _write_json(Path(environ["BET_PIPELINE_ARTIFACT_DIR"]) / "S5.json", {})
+    s6_output_path = _write_json(
+        data_dir / "repeat_loss_handoff_2026-06-25.json",
+        _s6_accepted_payload(s5_path),
+    )
     _write_s6_pass_evidence(environ, s6_output_path)
 
     argv = ["s5_gate.py", "--date", "2026-06-25", "--run-id", environ["BET_PIPELINE_RUN_ID"], "--runtime-mode", "DRY_RUN", "--dry-run"]

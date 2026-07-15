@@ -288,7 +288,9 @@ def resolve_bound_step_output(
         f"{step_id.lower()}_output_sha",
         "s3_output_sha256",
         "s4_valuation_output_sha256",
+        "s7_output_sha256",
         "s7b_output_sha256",
+        "s8_quote_pack_sha256",
         "output_sha256",
     ]
     expected_sha = None
@@ -300,6 +302,10 @@ def resolve_bound_step_output(
             expected_sha = evidence[k]
             break
 
+    if step_id in {"S3", "S4", "S6", "S7", "S7b", "S8"} and not (
+        isinstance(expected_sha, str) and expected_sha
+    ):
+        raise ValueError(f"Step {step_id} evidence is missing the required output SHA-256")
     if expected_sha and isinstance(expected_sha, str):
         actual_sha = sha256_file(output_path)
         if actual_sha != expected_sha:
@@ -502,7 +508,7 @@ def resolve_manifest_step_output(
             "S6": ["s6_output_path", "repeat_loss_handoff_path", "output_path"],
             "S7": ["s7_json_output", "s7_output_path", "analytical_candidate_handoff_path"],
             "S7b": ["s7b_json_output", "s7b_output_path", "validated_market_availability_path"],
-            "S8": ["s8_output_path"],
+            "S8": ["s8_quote_pack_path", "s8_json_output", "s8_output_path"],
         }.get(step_id, [])
 
         output_val = None
@@ -553,7 +559,9 @@ def resolve_manifest_step_output(
             f"{step_id.lower()}_output_sha",
             "s3_output_sha256",
             "s4_valuation_output_sha256",
+            "s7_output_sha256",
             "s7b_output_sha256",
+            "s8_quote_pack_sha256",
             "output_sha256",
         ]
         recorded_sha = None
@@ -565,6 +573,12 @@ def resolve_manifest_step_output(
                 recorded_sha = evidence[k]
                 break
 
+        if step_id in {"S3", "S4", "S6", "S7", "S7b", "S8"} and not (
+            isinstance(recorded_sha, str) and recorded_sha
+        ):
+            raise ValueError(
+                f"STEP_OUTPUT_HASH_MISSING: Step {step_id} evidence is missing the required output SHA-256"
+            )
         if recorded_sha and actual_sha != recorded_sha:
             raise ValueError(f"STEP_OUTPUT_HASH_MISMATCH: Step {step_id} output file SHA-256 mismatch: expected {recorded_sha}, got {actual_sha}")
 
@@ -597,5 +611,3 @@ def resolve_manifest_step_output(
         return output_path, output_data
     else:
         raise ValueError(f"STEP_EVIDENCE_SCHEMA_INVALID: Unsupported execution mode '{exec_mode}' for step {step_id}")
-
-

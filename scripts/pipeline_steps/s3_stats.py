@@ -5,7 +5,6 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -58,11 +57,9 @@ def _certification_targets() -> None:
 
 
 def _is_safe_tmp_path(path: Path) -> bool:
-    try:
-        normalized = str(path.expanduser())
-        return normalized.startswith("/tmp/") or normalized.startswith("/private/tmp/")
-    except OSError:
-        return False
+    from bet.pipeline.runtime_paths import is_system_temp_path
+
+    return is_system_temp_path(path)
 
 
 def _repo_data_dir() -> Path:
@@ -248,8 +245,13 @@ def _build_evidence_fields(
     searched_paths: list[str],
     betting_day: str | None,
 ) -> dict[str, Any]:
+    from bet.pipeline.run_evidence import sha256_file
+
+    report_paths = _s3_report_paths(child_env.get("BET_PIPELINE_DATA_DIR"), betting_day)
+    json_reports = [Path(path) for path in report_paths if path.endswith(".json")]
     fields = {
         "shortlist_path": str(shortlist_path.expanduser()) if shortlist_path else None,
+        "shortlist_sha256": sha256_file(shortlist_path) if shortlist_path and shortlist_path.is_file() else None,
         "shortlist_resolved": shortlist_resolved,
         "shortlist_event_count": shortlist_event_count,
         "searched_paths": searched_paths,
@@ -257,7 +259,9 @@ def _build_evidence_fields(
         "data_dir": child_env.get("BET_PIPELINE_DATA_DIR"),
         "run_root": child_env.get("BET_PIPELINE_RUN_ROOT"),
         "runtime_path_source": runtime_path_source,
-        "s3_report_paths": _s3_report_paths(child_env.get("BET_PIPELINE_DATA_DIR"), betting_day),
+        "s3_report_paths": report_paths,
+        "s3_output_path": str(json_reports[0]) if json_reports else None,
+        "s3_output_sha256": sha256_file(json_reports[0]) if json_reports else None,
         "production_selectable": False,
         "betting_decisions_enabled": False,
         "no_pick_edge_stake_coupon_emitted": True,
@@ -273,6 +277,7 @@ def _invoke_deep_stats_report(
     runtime_mode: RuntimeMode,
 ) -> tuple[int, str]:
     env = child_env.copy()
+    env["BET_PIPELINE_S3_SOURCE_PATH"] = str(shortlist_path.resolve())
     temp_db_path: str | None = None
     try:
         if runtime_mode != RuntimeMode.PRODUCTION:
@@ -291,8 +296,11 @@ def _invoke_deep_stats_report(
             str(shortlist_path.expanduser()),
         ]
         print("Running:", " ".join(cmd))
-        res = subprocess.run(cmd, env=env, capture_output=True, text=True)
-        output_parts = [part for part in (res.stdout, res.stderr) if part]
+        from bet.pipeline.run_coordination import redact_sensitive_text, run_bounded_process
+        res = run_bounded_process(cmd, env=env, cwd=ROOT, timeout_seconds=900)
+        stdout = redact_sensitive_text(res.stdout, env)
+        stderr = redact_sensitive_text(res.stderr, env)
+        output_parts = [part for part in (stdout, stderr) if part]
         output = "".join(output_parts)
         if output:
             sys.stdout.write(output)
@@ -348,10 +356,14 @@ def main():
 
     from bet.pipeline.integration_artifacts import resolve_bound_step_output
 
-    shortlist_error = None
+    shortlist_error: str | None = None
+    shortlist_error_detail: str | None = None
     shortlist_event_count = None
     shortlist_path = None
-    searched_paths = []
+    searched_paths = [
+        str(Path(child_env["BET_PIPELINE_RUN_ROOT"]) / "artifacts" / "S2.json"),
+        str(Path(child_env["BET_PIPELINE_DATA_DIR"]) / f"{args.date}_s2_shortlist.json"),
+    ]
 
     try:
         shortlist_path, s2_data = resolve_bound_step_output(
@@ -361,13 +373,32 @@ def main():
             run_id=args.run_id,
             expected_artifact_type="S2_SHORTLIST",
         )
-        shortlist_event_count = len(s2_data.get("candidates", []))
+        shortlist_entries = s2_data.get("candidates")
+        declared_count = s2_data.get("total_candidates")
+        if not isinstance(shortlist_entries, list) or any(
+            not isinstance(candidate, dict) for candidate in shortlist_entries
+        ):
+            shortlist_error = "BLOCKED_S3_SHORTLIST_INVALID"
+            shortlist_error_detail = "S2 candidates must be a list of objects"
+        elif declared_count != len(shortlist_entries):
+            shortlist_error = "BLOCKED_S3_SHORTLIST_INVALID"
+            shortlist_error_detail = "S2 total_candidates does not match candidates"
+        elif not shortlist_entries:
+            shortlist_event_count = 0
+            shortlist_error = "BLOCKED_S3_SHORTLIST_EMPTY"
+            shortlist_error_detail = "S2 contains zero candidates"
+        else:
+            shortlist_event_count = len(shortlist_entries)
     except Exception as exc:
-        shortlist_error = f"BLOCKED_S3_SHORTLIST_MISSING: {exc}"
-        print(shortlist_error)
+        shortlist_error = (
+            "BLOCKED_S3_SHORTLIST_MISSING"
+            if isinstance(exc, FileNotFoundError)
+            else "BLOCKED_S3_SHORTLIST_INVALID"
+        )
+        shortlist_error_detail = str(exc)
 
     if shortlist_error is not None:
-        print(shortlist_error)
+        print(f"{shortlist_error}: {shortlist_error_detail}")
         evidence_fields = _build_evidence_fields(
             child_env=child_env,
             runtime_path_source=runtime_path_source,
@@ -435,13 +466,31 @@ def main():
         if report_json is None:
             status = "BLOCK"
             blocked_reasons = ("BLOCKED_STATS_INPUT_MISSING",)
-        elif shortlist_event_count and int(report_json.get("candidates_with_data", 0) or 0) == 0:
-            print("BLOCKED_STATS_GENERATION_INSUFFICIENT_DATA")
-            status = "BLOCK"
-            blocked_reasons = ("BLOCKED_STATS_GENERATION_INSUFFICIENT_DATA",)
         else:
-            status = "PASS"
-            blocked_reasons = ()
+            from bet.pipeline.runtime_paths import paths_refer_to_same_location
+
+            if (
+                report_json.get("schema_version") != 2
+                or report_json.get("artifact_type") != "S3_DEEP_STATS"
+                or report_json.get("betting_day") != args.date
+                or report_json.get("run_id") != args.run_id
+                or not paths_refer_to_same_location(
+                    report_json.get("source_s2_path", ""), shortlist_path
+                )
+                or report_json.get("source_s2_sha256")
+                != evidence_fields.get("shortlist_sha256")
+            ):
+                status = "BLOCK"
+                blocked_reasons = ("BLOCKED_S3_OUTPUT_CONTRACT_INVALID",)
+            elif shortlist_event_count and int(
+                report_json.get("candidates_with_data", 0) or 0
+            ) == 0:
+                print("BLOCKED_STATS_GENERATION_INSUFFICIENT_DATA")
+                status = "BLOCK"
+                blocked_reasons = ("BLOCKED_STATS_GENERATION_INSUFFICIENT_DATA",)
+            else:
+                status = "PASS"
+                blocked_reasons = ()
     else:
         status, blocked_reasons = classify_wrapper_result(
             rc=wrapper_rc,

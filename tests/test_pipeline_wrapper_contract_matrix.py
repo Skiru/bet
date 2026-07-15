@@ -5,6 +5,7 @@ import json
 import os
 import sys
 import hashlib
+import shutil
 from pathlib import Path
 from unittest.mock import patch
 
@@ -16,6 +17,7 @@ from scripts.pipeline_steps import s5_gate
 from scripts.pipeline_steps import s6_repeats
 from scripts.pipeline_steps import s7_validate
 from scripts.pipeline_steps import s8_build_coupons
+from bet.pipeline.canonical_continuity import bind_candidate_identity
 from bet.pipeline.run_evidence import sha256_file, repo_head_sha, manifest_hash
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -26,44 +28,66 @@ def _seed_s6_predecessors(environ: dict[str, str]) -> None:
     (run_root / "artifacts").mkdir(parents=True, exist_ok=True)
     (run_root / "data").mkdir(parents=True, exist_ok=True)
     
-    # Empty ledger setup
+    # Empty, schema-valid settled-loss ledger setup.
     ledger_path = run_root / "picks-ledger.csv"
     with open(ledger_path, "w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
-        writer.writerow(["betting_day", "pick_id", "event", "sport", "market", "selection", "status"])
+        writer.writerow(["betting_day", "pick_id", "event", "sport", "market", "selection", "status", "settled_at_utc"])
     os.environ["BET_PIPELINE_LEDGER_PATH"] = str(ledger_path)
     environ["BET_PIPELINE_LEDGER_PATH"] = str(ledger_path)
 
     # S4
     s4_path = run_root / "data" / "2026-06-25_s4_valuation_candidates.json"
-    cand_data = {
-        "candidate_id": "tennis|Alpha|Beta|2026-06-25",
+    cand_data = bind_candidate_identity({
         "home_team": "Alpha",
         "away_team": "Beta",
         "sport": "tennis",
         "competition": "Wimbledon",
-        "best_market": {"name": "Match Winner", "market_family": "RESULT"},
-        "market_count": 4,
-        "odds": {},
+        "kickoff": "2026-06-25T18:00:00Z",
+        "market": "Match Winner",
+        "market_family": "RESULT",
+        "market_type": "ml",
+        "selection": "Alpha",
         "odds_decimal": None,
         "ev": None,
         "model_probability": 0.58,
         "probability_confidence": "HIGH",
-        "source_provider": "api-football",
-        "source_artifact_path": str(s4_path),
         "probability_as_of": "2026-06-25T12:00:00Z",
-        "market_family": "RESULT",
-        "market_type": "ml",
-        "selection": "Alpha",
-        "pick": "Alpha",
-        "safety_score": 0.85
-    }
+        "analytical_status": "ANALYTICAL_READY",
+        "pricing_status": "PRICE_PENDING",
+        "bettable": False,
+        "risk_flags": [],
+        "counter_evidence": [],
+        "safety_score": 0.85,
+        "context_checks": {
+            name: {
+                "status": "CLEAR",
+                "as_of_utc": "2026-06-25T12:00:00Z",
+                "source_refs": ["test:bounded-fixture"],
+            }
+            for name in (
+                "injuries_lineups",
+                "motivation_tournament_context",
+                "travel_fatigue",
+                "morale_recent_form",
+                "upset_volatility_risk",
+            )
+        },
+    })
+    s3_path = run_root / "data" / "2026-06-25_s3_deep_stats.json"
+    s3_path.write_text(json.dumps({"artifact_type": "S3_DEEP_STATS", "analyses": [cand_data]}), encoding="utf-8")
     s4_path.write_text(json.dumps({
+        "schema_version": 2,
         "artifact_type": "S4_VALUATION_CANDIDATE_SET_V2",
+        "betting_day": "2026-06-25",
+        "run_id": environ["BET_PIPELINE_RUN_ID"],
+        "source_s3_path": str(s3_path),
+        "source_s3_sha256": sha256_file(s3_path),
+        "candidate_count": 1,
         "candidates": [cand_data]
     }), encoding="utf-8")
     s4_ev = {
-        "schema_version": 1,
+        "schema_version": 2,
         "artifact_type": "SCRIPT_EVIDENCE",
         "step_id": "S4",
         "betting_day": "2026-06-25",
@@ -244,13 +268,13 @@ NORMALIZATION_CASES = (
     ("S2", s2_tipsters, "s2_tipsters.py", ["tipster_aggregator.py", "tipster_xref.py"], "no valid tips after dedupe", "BLOCKED_NO_VALID_TIPS"),
     ("S3", s3_stats, "s3_stats.py", ["deep_stats_report.py"], "insufficient data for stats generation", "BLOCKED_STATS_GENERATION_INSUFFICIENT_DATA"),
     ("S6", s6_repeats, "s6_repeats.py", ["check_48h_repeats.py"], "repeat signal conflict detected", "BLOCKED_REPEAT_SIGNAL_CONFLICT"),
-    ("S7", s5_gate, "s5_gate.py", ["gate_checker.py"], "gate failed after hard approval review", "BLOCKED_HARD_APPROVAL_GATE"),
     ("S8", s8_build_coupons, "s8_build_coupons.py", ["coupon_builder.py"], "coupon blocked by construction guard", "BLOCKED_COUPON_CONSTRUCTION_GUARD"),
 )
 
 
 def _runtime_environ(step_id: str) -> dict[str, str]:
     run_root = Path("/tmp") / f"bet-wrapper-matrix-{step_id.lower()}"
+    shutil.rmtree(run_root, ignore_errors=True)
     return {
         "BET_PIPELINE_RUNTIME_MODE": "DRY_RUN",
         "BET_PIPELINE_BETTING_DAY": "2026-06-25",
@@ -263,6 +287,8 @@ def _runtime_environ(step_id: str) -> dict[str, str]:
 
 
 def _canonical_evidence_path(environ: dict[str, str], step_id: str) -> Path:
+    if step_id == "S6":
+        return Path(environ["BET_PIPELINE_ARTIFACT_DIR"]) / "S6.json"
     return (
         Path(environ["BET_PIPELINE_RUN_ROOT"])
         / "pipeline_runs"
@@ -311,8 +337,6 @@ def test_wrapper_contract_matrix_normalizes_controlled_block_outputs(
         _seed_s3_predecessors(environ)
     elif step_id == "S6":
         _seed_s6_predecessors(environ)
-    elif step_id == "S7":
-        _seed_s7_predecessors(environ)
 
     def _controlled(*args, **kwargs):
         print(message)
@@ -350,7 +374,6 @@ def test_wrapper_contract_matrix_normalizes_controlled_block_outputs(
         ("S2", s2_tipsters, "s2_tipsters.py", "missing upstream shortlist input", "BLOCKED_TIPSTER_DATA_MISSING"),
         ("S3", s3_stats, "s3_stats.py", "snapshot missing for stats stage", "BLOCKED_STATS_INPUT_MISSING"),
         ("S6", s6_repeats, "s6_repeats.py", "repeat guard input missing", "BLOCKED_REPEAT_GUARD_INPUT_MISSING"),
-        ("S7", s5_gate, "s5_gate.py", "approved picks missing before gate", "BLOCKED_APPROVED_PICKS_MISSING"),
         ("S7b", s7_validate, "s7_validate.py", "market unavailable for validation snapshot", "BLOCKED_MARKET_AVAILABILITY_MISSING"),
         ("S8", s8_build_coupons, "s8_build_coupons.py", "missing approved picks for coupon build", "BLOCKED_COUPON_INPUT_MISSING"),
     ),
@@ -369,8 +392,6 @@ def test_wrapper_contract_matrix_generic_controlled_phrases_map_to_expected_reas
         _seed_s3_predecessors(environ)
     elif step_id == "S6":
         _seed_s6_predecessors(environ)
-    elif step_id == "S7":
-        _seed_s7_predecessors(environ)
 
     def _controlled(*args, **kwargs):
         print(message)

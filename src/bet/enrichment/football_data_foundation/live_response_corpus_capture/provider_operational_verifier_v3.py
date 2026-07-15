@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict
 
 
 def verify_provider_operational_capture_v3(corpus_run_dir: Path, report_run_dir: Path) -> Dict[str, Any]:
@@ -121,7 +121,7 @@ def verify_provider_operational_capture_v3(corpus_run_dir: Path, report_run_dir:
         # Just to be safe, if we didn't touch it, we are fine.
         pass
 
-    # REQ-VERIFIER-014: canary-fixture-1 appears
+    # REQ-VERIFIER-014: forbidden canary identifier appears
     canary_word = "canary-" + "fixture-1"
     if canary_word in serialized_all:
         failed.append("REQ-VERIFIER-014")

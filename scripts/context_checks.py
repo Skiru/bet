@@ -7,6 +7,7 @@ Supports --verbose + AGENT_SUMMARY for agent-driven pipeline (R17/R19).
 
 import argparse
 import json
+import os
 import re
 import sys
 from pathlib import Path
@@ -348,11 +349,26 @@ def run_context_checks(date: str, state: dict) -> tuple[bool, str]:
     except Exception as e:
         return False, f"S5 candidate load error: {e}"
 
+    if not candidates:
+        state["context_checks"] = {
+            "candidate_count": 0,
+            "network_fallback_used": False,
+        }
+        return True, "Context checks: no candidates to enrich"
+
+    allow_fallback_fetch = (
+        os.environ.get("BET_PIPELINE_ALLOW_CONTEXT_FETCH") == "1"
+        and os.environ.get("BET_PIPELINE_RUNTIME_MODE", "").upper()
+        in {"LIVE_SHADOW", "PRODUCTION"}
+        and os.environ.get("BET_PIPELINE_LIVE_ACK")
+        == "I_UNDERSTAND_LIVE_PROVIDER_CALLS"
+    )
+
     # Weather data — flag candidates with weather impact
     weather_path = DATA_DIR / f"weather_{date}.json"
     weather_impacts = []
     # Fallback: fetch weather if not already available
-    if not weather_path.exists():
+    if not weather_path.exists() and allow_fallback_fetch:
         try:
             import subprocess
             import sys as _sys
@@ -394,7 +410,7 @@ def run_context_checks(date: str, state: dict) -> tuple[bool, str]:
     espn_path = DATA_DIR / f"espn_enrichment_{date}.json"
     injury_summary = []
     # Fallback: fetch ESPN enrichment if not already available
-    if not espn_path.exists():
+    if not espn_path.exists() and allow_fallback_fetch:
         try:
             from bet.api_clients.espn_adapter import ESPNMultiLeagueClient
             from bet.api_clients.rate_limiter import RateLimiter

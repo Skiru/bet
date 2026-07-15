@@ -11,15 +11,24 @@ from pathlib import Path
 from typing import Any, Iterable
 
 try:
-    from scripts.pipeline_steps._runner import resolve_child_runtime_env, run_scripts
+    from scripts.pipeline_steps._runner import (
+        ScriptInvocation,
+        resolve_child_runtime_env,
+        run_scripts,
+    )
 except Exception:
     ROOT = Path(__file__).resolve().parents[2]
     sys.path.insert(0, str(ROOT))
-    from scripts.pipeline_steps._runner import resolve_child_runtime_env, run_scripts
+    from scripts.pipeline_steps._runner import (
+        ScriptInvocation,
+        resolve_child_runtime_env,
+        run_scripts,
+    )
 
 from bet.pipeline.artifact_io import publish_run_artifact
 from bet.pipeline.integration_artifacts import write_script_evidence
 from bet.pipeline.runtime_modes import RuntimeMode, parse_runtime_mode
+from bet.pipeline.runtime_paths import is_system_temp_path
 
 BLOCKED_TOKEN_RE = re.compile(r"\b(BLOCKED_[A-Z0-9_]+|PRECONDITION_FAILED)\b")
 GENERIC_CONTROLLED_PATTERNS: tuple[re.Pattern[str], ...] = (
@@ -67,13 +76,16 @@ def _assert_non_production_sandbox_safety(
         return
 
     parent_run_root = os.environ.get("BET_PIPELINE_RUN_ROOT", "")
-    if not parent_run_root.startswith("/tmp"):
+    if not parent_run_root or not is_system_temp_path(parent_run_root):
         return
 
     child_run_root = child_env.get("BET_PIPELINE_RUN_ROOT", "")
     child_artifact_dir = child_env.get("BET_PIPELINE_ARTIFACT_DIR", "")
     if _is_reports_path(child_run_root) or _is_reports_path(child_artifact_dir):
-        raise RuntimeError("non-production wrapper resolved repo-local reports path under inherited /tmp sandbox")
+        raise RuntimeError(
+            "non-production wrapper resolved repo-local reports path under an "
+            "inherited temporary sandbox"
+        )
 
 
 def build_wrapper_payload(

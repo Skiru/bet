@@ -1,7 +1,6 @@
 import json
 import os
 import sqlite3
-import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -12,7 +11,7 @@ from scripts.pipeline_steps import s1_discover
 from scripts.pipeline_steps._runner import _init_temp_db
 
 ROOT = Path(__file__).resolve().parents[1]
-original_run = subprocess.run
+original_run = s1_discover.run_bounded_process
 
 def _runtime_environ(tmp_path: Path, run_id: str, db_path: str) -> dict[str, str]:
     run_root = tmp_path / "sandbox"
@@ -91,7 +90,7 @@ def test_deterministic_s1_fixture_reaches_pass(tmp_path, capsys):
     # Set the mock live ack
     with patch.dict(os.environ, {**environ, "BET_PIPELINE_LIVE_ACK": "I_UNDERSTAND_LIVE_PROVIDER_CALLS"}, clear=False), \
          patch.object(sys, "argv", argv), \
-         patch("subprocess.run", side_effect=_mock_run):
+         patch("scripts.pipeline_steps.s1_discover.run_bounded_process", side_effect=_mock_run):
         with pytest.raises(SystemExit) as exc_info:
             s1_discover.main()
             
@@ -157,7 +156,7 @@ def test_no_fixture_reaches_block(tmp_path):
     
     with patch.dict(os.environ, {**environ, "BET_PIPELINE_LIVE_ACK": "I_UNDERSTAND_LIVE_PROVIDER_CALLS"}, clear=False), \
          patch.object(sys, "argv", argv), \
-         patch("subprocess.run", side_effect=_mock_run):
+         patch("scripts.pipeline_steps.s1_discover.run_bounded_process", side_effect=_mock_run):
         with pytest.raises(SystemExit) as exc_info:
             s1_discover.main()
             
@@ -209,11 +208,11 @@ def test_invalid_matrix_cannot_start_shortlist(tmp_path):
     # or the matrix validation intercepts and blocks shortlist)
     with patch.dict(os.environ, {**environ, "BET_PIPELINE_LIVE_ACK": "I_UNDERSTAND_LIVE_PROVIDER_CALLS"}, clear=False), \
          patch.object(sys, "argv", argv), \
-         patch("subprocess.run") as mock_run:
+         patch("scripts.pipeline_steps.s1_discover.run_bounded_process") as mock_run:
         
         # mock discover_events and generate_market_matrix to succeed (return code 0)
         # but build_shortlist won't even be called because matrix is invalid
-        mock_run.return_value = subprocess.CompletedProcess(args=[], returncode=0)
+        mock_run.return_value = MagicMock(returncode=0, stdout="", stderr="", timed_out=False)
         
         with pytest.raises(SystemExit) as exc_info:
             s1_discover.main()

@@ -13,7 +13,9 @@ from unittest.mock import patch
 import pytest
 
 from bet.pipeline.integration_artifacts import write_script_evidence
-from bet.pipeline.run_evidence import sha256_file
+from bet.pipeline.canonical_continuity import bind_candidate_identity
+from bet.pipeline.run_evidence import manifest_hash, repo_head_sha, sha256_file
+from bet.pipeline.runtime_paths import is_system_temp_path
 from bet.pipeline.orchestrator import Orchestrator
 from scripts.pipeline_steps import s2_tipsters
 from scripts.pipeline_steps import s3_stats
@@ -56,8 +58,8 @@ WRAPPER_CASES = (
         "module": s5_gate,
         "argv0": "s5_gate.py",
         "run_patch": "scripts.pipeline_steps._script_evidence.run_scripts",
-        "expected_scripts": ["gate_checker.py"],
-        "block_token": "BLOCKED_HARD_APPROVAL_GATE",
+        "expected_scripts": [],
+        "block_token": "BLOCKED_S7_S6_INPUT_MISSING",
         "no_pick": True,
     },
     {
@@ -85,6 +87,7 @@ def _runtime_environ(step_id: str, suffix: str = "") -> dict[str, str]:
         "BET_PIPELINE_DATA_DIR": str(run_root / "data"),
         "BET_PIPELINE_COUPON_DIR": str(run_root / "coupons"),
         "BET_PIPELINE_ARTIFACT_DIR": str(run_root / "artifacts"),
+        "BET_PIPELINE_LEDGER_PATH": str(run_root / "journal" / "picks-ledger.csv"),
     }
 
 
@@ -113,20 +116,6 @@ def _seed_s3_shortlist(environ: dict[str, str]) -> Path:
     (run_root / "data").mkdir(parents=True, exist_ok=True)
     shortlist_path = run_root / "data" / f"{environ['BET_PIPELINE_BETTING_DAY']}_s2_shortlist.json"
     
-    # Write S2 SCRIPT_EVIDENCE
-    s2_ev = {
-        "schema_version": 1,
-        "artifact_type": "SCRIPT_EVIDENCE",
-        "step_id": "S2",
-        "betting_day": environ["BET_PIPELINE_BETTING_DAY"],
-        "run_id": environ["BET_PIPELINE_RUN_ID"],
-        "status": "PASS",
-        "payload": {
-            "s2_shortlist_path": str(shortlist_path)
-        }
-    }
-    (run_root / "artifacts" / "S2.json").write_text(json.dumps(s2_ev), encoding="utf-8")
-    
     shortlist_path.write_text(
         json.dumps(
             {
@@ -144,6 +133,19 @@ def _seed_s3_shortlist(environ: dict[str, str]) -> Path:
         ),
         encoding="utf-8",
     )
+    s2_ev = {
+        "schema_version": 1,
+        "artifact_type": "SCRIPT_EVIDENCE",
+        "step_id": "S2",
+        "betting_day": environ["BET_PIPELINE_BETTING_DAY"],
+        "run_id": environ["BET_PIPELINE_RUN_ID"],
+        "status": "PASS",
+        "payload": {
+            "s2_shortlist_path": str(shortlist_path),
+            "s2_output_sha256": sha256_file(shortlist_path),
+        }
+    }
+    (run_root / "artifacts" / "S2.json").write_text(json.dumps(s2_ev), encoding="utf-8")
     return shortlist_path
 
 
@@ -154,7 +156,12 @@ def _write_s3_reports(environ: dict[str, str], *, with_data: int = 1) -> None:
     (data_dir / f"{betting_day}_s3_deep_stats.json").write_text(
         json.dumps(
             {
-                "date": betting_day,
+                "schema_version": 2,
+                "artifact_type": "S3_DEEP_STATS",
+                "betting_day": betting_day,
+                "run_id": environ["BET_PIPELINE_RUN_ID"],
+                "source_s2_path": str(data_dir / f"{betting_day}_s2_shortlist.json"),
+                "source_s2_sha256": sha256_file(data_dir / f"{betting_day}_s2_shortlist.json"),
                 "total_candidates": 1,
                 "candidates_with_data": with_data,
                 "analyses": [],
@@ -238,6 +245,12 @@ def _seed_prior_steps(environ: dict[str, str], step_id: str):
                 pass
     
     # S2
+    s2_path = run_root / "data" / "2026-06-25_s2_shortlist.json"
+    s2_path.write_text(json.dumps({
+        "artifact_type": "S2_SHORTLIST",
+        "total_candidates": 1,
+        "candidates": [{"fixture_id": 10, "home_team": "Alpha", "away_team": "Beta", "sport": "football"}]
+    }))
     s2_ev = {
         "schema_version": 1,
         "artifact_type": "SCRIPT_EVIDENCE",
@@ -246,14 +259,11 @@ def _seed_prior_steps(environ: dict[str, str], step_id: str):
         "run_id": environ["BET_PIPELINE_RUN_ID"],
         "status": "PASS",
         "payload": {
-            "s2_shortlist_path": str(run_root / "data" / "2026-06-25_s2_shortlist.json")
+            "s2_shortlist_path": str(s2_path),
+            "s2_output_sha256": sha256_file(s2_path),
         }
     }
     (run_root / "artifacts" / "S2.json").write_text(json.dumps(s2_ev))
-    (run_root / "data" / "2026-06-25_s2_shortlist.json").write_text(json.dumps({
-        "total_candidates": 1,
-        "candidates": [{"fixture_id": 10, "home_team": "Alpha", "away_team": "Beta", "sport": "football"}]
-    }))
     
     # S3
     s3_ev = {
@@ -496,6 +506,175 @@ def _seed_prior_steps(environ: dict[str, str], step_id: str):
         ]
     }))
 
+    # Rebind the synthetic chain to the production contracts used by S4-S8.
+    canonical_candidate = bind_candidate_identity(
+        {
+            "sport": "football",
+            "competition": "Test League",
+            "home_team": "Alpha",
+            "away_team": "Beta",
+            "kickoff": "2026-06-25T18:00:00Z",
+            "market_family": "RESULT",
+            "market_type": "ml",
+            "market": "Match Winner",
+            "selection": "Alpha",
+            "model_probability": 0.55,
+            "probability_confidence": "HIGH",
+            "analytical_status": "ANALYTICAL_READY",
+            "pricing_status": "PRICE_PENDING",
+            "ev": None,
+            "odds_decimal": None,
+            "bettable": False,
+            "risk_flags": [],
+            "counter_evidence": [],
+            "safety_score": 0.8,
+            "context_checks": {
+                name: {
+                    "status": "CLEAR",
+                    "as_of_utc": "2026-06-25T12:00:00Z",
+                    "source_refs": ["test:bounded-fixture"],
+                }
+                for name in (
+                    "injuries_lineups",
+                    "motivation_tournament_context",
+                    "travel_fatigue",
+                    "morale_recent_form",
+                    "upset_volatility_risk",
+                )
+            },
+            "probability_as_of": "2026-06-25T12:00:00Z",
+        }
+    )
+
+    s3_path = run_root / "data" / "2026-06-25_s3_deep_stats.json"
+    s3_path.write_text(json.dumps({"artifact_type": "S3_DEEP_STATS", "analyses": [canonical_candidate]}))
+    s3_ev["payload"]["s3_output_sha256"] = sha256_file(s3_path)
+    (run_root / "artifacts" / "S3.json").write_text(json.dumps(s3_ev))
+
+    s4_path = run_root / "data" / "2026-06-25_s4_valuation_candidates.json"
+    s4_path.write_text(
+        json.dumps(
+            {
+                "schema_version": 2,
+                "artifact_type": "S4_VALUATION_CANDIDATE_SET_V2",
+                "betting_day": "2026-06-25",
+                "run_id": environ["BET_PIPELINE_RUN_ID"],
+                "source_s3_path": str(s3_path),
+                "source_s3_sha256": sha256_file(s3_path),
+                "candidate_count": 1,
+                "candidates": [canonical_candidate],
+            }
+        )
+    )
+    s4_ev["payload"]["s4_valuation_output_sha256"] = sha256_file(s4_path)
+    (run_root / "artifacts" / "S4.json").write_text(json.dumps(s4_ev))
+
+    repo_root = Path(__file__).resolve().parents[1]
+    s5_ev["payload"].update(
+        {
+            "source_s4_path": str(s4_path),
+            "source_s4_sha256": sha256_file(s4_path),
+            "source_git_sha": repo_head_sha(repo_root),
+            "manifest_sha": manifest_hash(repo_root),
+            "work_order_id": f"WO-{environ['BET_PIPELINE_RUN_ID']}-S5",
+            "input_candidate_count": 1,
+            "candidates": [canonical_candidate],
+            "rejected_candidates": [],
+        }
+    )
+    s5_path = run_root / "artifacts" / "S5.json"
+    s5_path.write_text(json.dumps(s5_ev))
+
+    terminal_record = {
+        "candidate_id": canonical_candidate["selection_id"],
+        "selection_id": canonical_candidate["selection_id"],
+        "decision": "ACCEPTED",
+        "reason_codes": [],
+        "original_candidate": canonical_candidate,
+    }
+    s6_path = run_root / "data" / "repeat_loss_handoff_2026-06-25.json"
+    s6_payload = {
+        "schema_version": 2,
+        "artifact_type": "S6_PORTFOLIO_REPEAT_GUARD_V2",
+        "status": "PASS",
+        "concrete_status": "READY_FOR_S7",
+        "betting_day": "2026-06-25",
+        "run_id": environ["BET_PIPELINE_RUN_ID"],
+        "source_step": "S5",
+        "source_s5_path": str(s5_path),
+        "source_s5_sha256": sha256_file(s5_path),
+        "worker_contract_version": "1.0",
+        "run_as_of_utc": "2026-06-25T12:00:00Z",
+        "validated_inputs": {
+            "s5_hash": sha256_file(s5_path),
+            "history_hash": "a" * 64,
+            "policy_hash": "b" * 64,
+        },
+        "input_candidate_count": 1,
+        "accepted": [terminal_record],
+        "repeat_rejected": [],
+        "duplicate_rejected": [],
+        "conflict_rejected": [],
+        "correlation_rejected": [],
+        "concentration_rejected": [],
+        "invalid_input": [],
+    }
+    s6_path.write_text(json.dumps(s6_payload))
+    s6_ev["payload"].update(
+        {"s6_output_path": str(s6_path), "s6_output_sha256": sha256_file(s6_path)}
+    )
+    (run_root / "artifacts" / "S6.json").write_text(json.dumps(s6_ev))
+
+    s7_path = run_root / "data" / "2026-06-25_s7_gate_results.json"
+    s7_path.write_text(
+        json.dumps(
+            {
+                "schema_version": 2,
+                "artifact_type": "S7_ANALYTICAL_APPROVAL_SET_V2",
+                "status": "PASS",
+                "outcome": "READY_FOR_ANALYTICAL_OPERATOR_QUOTE_REVIEW",
+                "betting_day": "2026-06-25",
+                "run_id": environ["BET_PIPELINE_RUN_ID"],
+                "priced_approved": [],
+                "analytical_approved": [canonical_candidate],
+                "rejected": [],
+            }
+        )
+    )
+    s7_ev["payload"].update(
+        {"s7_json_output": str(s7_path), "s7_output_sha256": sha256_file(s7_path)}
+    )
+    (run_root / "artifacts" / "S7.json").write_text(json.dumps(s7_ev))
+
+    s7b_path = run_root / "data" / "2026-06-25_s7b_superbet_manual_mapping.json"
+    s7b_mapping = json.loads(s7b_path.read_text())
+    s7b_mapping["schema_version"] = 2
+    card = s7b_mapping["mapping_suggestions"][0]
+    card["source_candidate_id"] = canonical_candidate["selection_id"]
+    card["selection_id"] = canonical_candidate["selection_id"]
+    card["canonical_event_id"] = canonical_candidate["canonical_event_id"]
+    for field in ("visible_operator_market_name", "visible_operator_line", "human_entered_decimal_quote", "quote_as_of"):
+        card[field] = None
+    s7b_path.write_text(json.dumps(s7b_mapping))
+    s7b_ev["payload"].update(
+        {"s7b_json_output": str(s7b_path), "s7b_output_sha256": sha256_file(s7b_path)}
+    )
+    (run_root / "artifacts" / "S7b.json").write_text(json.dumps(s7b_ev))
+
+    ledger_path = Path(environ["BET_PIPELINE_LEDGER_PATH"])
+    ledger_path.parent.mkdir(parents=True, exist_ok=True)
+    ledger_path.write_text(
+        "betting_day,pick_id,event,sport,market,selection,status,settled_at_utc\n",
+        encoding="utf-8",
+    )
+
+    if step_id == "S6":
+        s6_path.unlink()
+        (run_root / "artifacts" / "S6.json").unlink()
+    elif step_id == "S7":
+        s7_path.unlink()
+        (run_root / "artifacts" / "S7.json").unlink()
+
 
 @pytest.mark.parametrize("case", WRAPPER_CASES, ids=lambda case: case["step_id"])
 def test_target_wrappers_write_pass_script_evidence_in_tmp_sandbox(case):
@@ -517,7 +696,7 @@ def test_target_wrappers_write_pass_script_evidence_in_tmp_sandbox(case):
         return (0, "")
 
     with patch.dict(os.environ, environ, clear=False), patch.object(sys, "argv", argv):
-        if case["step_id"] in {"S7b", "S8"}:
+        if case["step_id"] in {"S6", "S7b", "S8"}:
             patch_target = nullcontext()
         elif case["step_id"] == "S3":
             patch_target = patch("scripts.pipeline_steps.s3_stats._invoke_deep_stats_report", side_effect=_s3_pass)
@@ -530,10 +709,13 @@ def test_target_wrappers_write_pass_script_evidence_in_tmp_sandbox(case):
     assert exc_info.value.code == 0
     canonical_path = _canonical_evidence_path(environ, case["step_id"])
     mirrored_path = _mirrored_evidence_path(environ, case["step_id"])
+    if case["step_id"] == "S6":
+        # S6 deliberately publishes one immutable evidence artifact only.
+        canonical_path = mirrored_path
     assert canonical_path.exists()
     assert mirrored_path.exists()
-    assert str(canonical_path).startswith("/tmp/")
-    assert str(mirrored_path).startswith("/tmp/")
+    assert is_system_temp_path(canonical_path)
+    assert is_system_temp_path(mirrored_path)
     assert "/reports/" not in str(canonical_path)
     assert "/reports/" not in str(mirrored_path)
 
@@ -564,7 +746,7 @@ def test_target_wrappers_write_pass_script_evidence_in_tmp_sandbox(case):
         assert payload["shortlist_resolved"] is True
         assert payload["shortlist_event_count"] == 1
         assert Path(payload["shortlist_path"]).resolve() == s3_shortlist_path.resolve()
-        assert all(path.startswith("/tmp/") for path in payload["s3_report_paths"])
+        assert all(is_system_temp_path(path) for path in payload["s3_report_paths"])
     else:
         expected_payload["wrapper_rc"] = 0
         payload = evidence["payload"]
@@ -574,13 +756,14 @@ def test_target_wrappers_write_pass_script_evidence_in_tmp_sandbox(case):
         elif case["step_id"] == "S7":
             for key, value in expected_payload.items():
                 assert payload[key] == value
-            assert payload["s7_input_path"] is not None
-            assert payload["s7_json_output"].startswith("/tmp/") or payload["s7_json_output"].startswith("/private/tmp/")
-            assert payload["s7_markdown_output"].startswith("/tmp/") or payload["s7_markdown_output"].startswith("/private/tmp/")
+                assert payload["s7_input_path"] is not None
+                assert is_system_temp_path(payload["s7_json_output"])
+                assert "s7_markdown_output" not in payload
             assert payload["total_candidates"] in (0, 1)
             assert payload["approved_count"] in (0, 1)
             assert payload["extended_count"] == 0
-            assert payload["rejected_count"] == 0
+            assert payload["rejected_count"] in (0, 1)
+            assert payload["approved_count"] + payload["rejected_count"] == payload["total_candidates"]
         elif case["step_id"] == "S7b":
             assert payload["outcome"] == "READY_FOR_MANUAL_MAPPING"
             assert payload["approved_candidate_count"] == 1
@@ -617,6 +800,9 @@ def test_target_wrappers_write_block_evidence_for_controlled_output(case, capsys
         _seed_s3_shortlist(environ)
     elif case["step_id"] in {"S6", "S7"}:
         _seed_prior_steps(environ, case["step_id"])
+        if case["step_id"] == "S7":
+            (Path(environ["BET_PIPELINE_ARTIFACT_DIR"]) / "S6.json").unlink()
+            (Path(environ["BET_PIPELINE_DATA_DIR"]) / "repeat_loss_handoff_2026-06-25.json").unlink()
 
     def _controlled(*args, **kwargs):
         print(case["block_token"])
@@ -626,7 +812,7 @@ def test_target_wrappers_write_block_evidence_for_controlled_output(case, capsys
         return (9, f"{case['block_token']}\n")
 
     with patch.dict(os.environ, environ, clear=False), patch.object(sys, "argv", argv):
-        if case["step_id"] in {"S7b", "S8"}:
+        if case["step_id"] in {"S7", "S7b", "S8"}:
             patch_target = nullcontext()
         elif case["step_id"] == "S3":
             patch_target = patch("scripts.pipeline_steps.s3_stats._invoke_deep_stats_report", side_effect=_s3_controlled)
@@ -636,11 +822,16 @@ def test_target_wrappers_write_block_evidence_for_controlled_output(case, capsys
             with pytest.raises(SystemExit) as exc_info:
                 case["module"].main()
 
-    assert exc_info.value.code == (5 if case["step_id"] in {"S7b", "S8"} else 9)
+    assert exc_info.value.code == (5 if case["step_id"] in {"S7", "S7b", "S8"} else 9)
     captured = capsys.readouterr()
     if case["step_id"] not in {"S3", "S7b", "S8"}:
         assert case["block_token"] in captured.out
-    evidence = _load(_canonical_evidence_path(environ, case["step_id"]))
+    evidence_path = (
+        _mirrored_evidence_path(environ, "S6")
+        if case["step_id"] == "S6"
+        else _canonical_evidence_path(environ, case["step_id"])
+    )
+    evidence = _load(evidence_path)
     assert evidence["status"] == "BLOCK"
     if case["step_id"] == "S7b":
         assert evidence["blocked_reasons"] == ["BLOCKED_S7B_CANONICAL_S7_MISSING"]
@@ -665,9 +856,12 @@ def test_target_wrappers_write_failed_evidence_for_unexpected_non_zero(case):
         _seed_s3_shortlist(environ)
     elif case["step_id"] in {"S6", "S7"}:
         _seed_prior_steps(environ, case["step_id"])
+        if case["step_id"] == "S7":
+            (Path(environ["BET_PIPELINE_ARTIFACT_DIR"]) / "S6.json").unlink()
+            (Path(environ["BET_PIPELINE_DATA_DIR"]) / "repeat_loss_handoff_2026-06-25.json").unlink()
 
     with patch.dict(os.environ, environ, clear=False), patch.object(sys, "argv", argv):
-        if case["step_id"] in {"S7b", "S8"}:
+        if case["step_id"] in {"S7", "S7b", "S8"}:
             patch_target = nullcontext()
         elif case["step_id"] == "S3":
             patch_target = patch("scripts.pipeline_steps.s3_stats._invoke_deep_stats_report", return_value=(42, "unexpected crash"))
@@ -677,9 +871,17 @@ def test_target_wrappers_write_failed_evidence_for_unexpected_non_zero(case):
             with pytest.raises(SystemExit) as exc_info:
                 case["module"].main()
 
-    assert exc_info.value.code == (5 if case["step_id"] in {"S7b", "S8"} else 42)
-    evidence = _load(_canonical_evidence_path(environ, case["step_id"]))
-    if case["step_id"] == "S7b":
+    assert exc_info.value.code == (5 if case["step_id"] in {"S7", "S7b", "S8"} else 42)
+    evidence_path = (
+        _mirrored_evidence_path(environ, "S6")
+        if case["step_id"] == "S6"
+        else _canonical_evidence_path(environ, case["step_id"])
+    )
+    evidence = _load(evidence_path)
+    if case["step_id"] == "S7":
+        assert evidence["status"] == "BLOCK"
+        assert evidence["blocked_reasons"] == ["BLOCKED_S7_S6_INPUT_MISSING"]
+    elif case["step_id"] == "S7b":
         assert evidence["status"] == "BLOCK"
         assert evidence["blocked_reasons"] == ["BLOCKED_S7B_CANONICAL_S7_MISSING"]
     elif case["step_id"] == "S8":
@@ -707,18 +909,29 @@ def test_s4_wrapper_contract_pass_block_failed_and_tmp_paths():
     data_dir.mkdir(parents=True, exist_ok=True)
     input_path = data_dir / "2026-06-25_s3_deep_stats.json"
     input_path.write_text(json.dumps({"analyses": [{"fixture_id": 10, "home_team": "Alpha", "away_team": "Beta", "best_market": {"name": "Over 2.5", "safety_score": 0.82}, "markets_evaluated": 4}]}), encoding="utf-8")
+    data_alias = Path(environ["BET_PIPELINE_RUN_ROOT"]) / "data-alias"
+    data_alias.symlink_to(data_dir, target_is_directory=True)
+    aliased_input_path = data_alias / input_path.name
+    s3_evidence_path = Path(environ["BET_PIPELINE_ARTIFACT_DIR"]) / "S3.json"
+    s3_evidence = _load(s3_evidence_path)
+    s3_evidence["payload"]["s3_output_sha256"] = sha256_file(input_path)
+    s3_evidence_path.write_text(json.dumps(s3_evidence), encoding="utf-8")
 
-    def _fake_run(cmd, env=None, capture_output=None, text=None):
-        if len(cmd) > 1 and "odds_evaluator.py" in cmd[1]:
+    def _fake_run_scripts(scripts, **_kwargs):
+        for invocation in scripts:
+            if getattr(invocation, "script", invocation) != "odds_evaluator.py":
+                continue
+            cmd = invocation.argv
             output_path = Path(cmd[cmd.index("--output") + 1])
             output_path.write_text(json.dumps({
-                "schema_version": 1,
+                "schema_version": 2,
                 "artifact_type": "S4_VALUATION_CANDIDATE_SET_V2",
                 "betting_day": "2026-06-25",
                 "run_id": environ["BET_PIPELINE_RUN_ID"],
                 "created_at_utc": "2026-06-25T00:00:00+00:00",
                 "runtime_mode": "DRY_RUN",
-                "source_input_path": str(input_path),
+                "source_s3_path": str(aliased_input_path),
+                "source_s3_sha256": sha256_file(input_path),
                 "odds_snapshot_paths": [],
                 "candidate_count": 1,
                 "contains_odds": True,
@@ -730,11 +943,11 @@ def test_s4_wrapper_contract_pass_block_failed_and_tmp_paths():
                 "no_pick_edge_stake_coupon_emitted": True,
                 "candidates": [{"fixture_id": 10, "home_team": "Alpha", "away_team": "Beta", "best_market": {"name": "Over 2.5", "safety_score": 0.82}, "market_count": 4, "markets_evaluated": 4, "odds": {"market_best": 1.91}, "ev": 0.11, "safety_score": 0.82, "safety_markets": [], "valuation_warnings": [], "valuation_status": "VALUED"}],
             }), encoding="utf-8")
-        return subprocess.CompletedProcess(cmd, 0, stdout="", stderr="")
+        return 0
 
     with patch.dict(os.environ, environ, clear=False), \
          patch.object(sys, "argv", argv), \
-         patch("subprocess.run", side_effect=_fake_run):
+         patch.object(s4_valuator, "run_scripts", side_effect=_fake_run_scripts):
         with pytest.raises(SystemExit) as exc_info:
             s4_valuator.main()
 
@@ -747,7 +960,7 @@ def test_s4_wrapper_contract_pass_block_failed_and_tmp_paths():
     assert evidence["betting_decisions_enabled"] is False
     assert evidence["payload"]["runtime_path_source"] == "orchestrator_inherited_sandbox"
     assert evidence["payload"]["child_artifact_dir"] == environ["BET_PIPELINE_ARTIFACT_DIR"]
-    assert str(canonical_path).startswith("/tmp/")
+    assert is_system_temp_path(canonical_path)
     assert "/reports/" not in str(canonical_path)
 
     output_path = data_dir / "2026-06-25_s4_valuation_candidates.json"
@@ -756,7 +969,7 @@ def test_s4_wrapper_contract_pass_block_failed_and_tmp_paths():
 
     with patch.dict(os.environ, environ, clear=False), \
          patch.object(sys, "argv", argv), \
-         patch("subprocess.run", side_effect=lambda cmd, env=None, capture_output=None, text=None: subprocess.CompletedProcess(cmd, 0, stdout="", stderr="")):
+         patch.object(s4_valuator, "run_scripts", return_value=0):
         with pytest.raises(SystemExit) as exc_info:
             s4_valuator.main()
 

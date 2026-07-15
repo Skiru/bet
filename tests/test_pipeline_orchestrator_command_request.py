@@ -94,12 +94,8 @@ def test_command_request_autopromotion_success(tmp_path, base_artifact_payload):
 
     # Write S2.3 with COMMAND_REQUEST
     cmd_req = {
-        "reason": "Run tests",
-        "argv": [".venv/bin/python3", "-m", "pytest", "tests/test_pipeline_readiness_contracts.py", "-q"],
-        "cwd": "REPO_ROOT",
-        "timeout_seconds": 30,
-        "expected_exit_code": 0,
-        "postconditions": ["rerun_validate_agent_artifact"]
+        "command_id": "WAIT_FOR_RATE_LIMIT",
+        "parameters": {"seconds": 1},
     }
     
     # Base payload override
@@ -133,10 +129,10 @@ def test_command_request_autopromotion_success(tmp_path, base_artifact_payload):
         summary = orc.run(start_step="S2.3", stop_after_step="S2.3")
         
         mock_run.assert_called_once_with(
-            cmd_req["argv"],
+            ["/bin/sleep", "1"],
             cwd=str(orc.repo_root),
             env=orc.env,
-            timeout_seconds=30.0,
+            timeout_seconds=3.0,
         )
         
         assert summary["status"] == "PASS"
@@ -152,9 +148,9 @@ def test_command_request_autopromotion_success(tmp_path, base_artifact_payload):
         assert ev_data["status"] == "PASS"
         assert ev_data["exit_code"] == 0
         
-        # Verify logs were written (logs folder is directly under run_root, not pipeline_runs)
-        assert (reports_dir / "2026-06-25/run-999/logs/S2.3_cmd_stdout.log").exists()
-        assert (reports_dir / "2026-06-25/run-999/logs/S2.3_cmd_stderr.log").exists()
+        # Logs are scoped beneath the canonical run root.
+        assert (reports_dir / "pipeline_runs/2026-06-25/run-999/logs/S2.3_cmd_stdout.log").exists()
+        assert (reports_dir / "pipeline_runs/2026-06-25/run-999/logs/S2.3_cmd_stderr.log").exists()
         
         # Verify original command_request preservation
         assert (reports_dir / "pipeline_runs/2026-06-25/run-999/artifacts/S2.3_command_request.json").exists()
@@ -232,8 +228,8 @@ def test_command_request_nonzero_exit_code_blocks(tmp_path):
 
     expected_path = write_test_artifact(reports_dir, "S2.3", "COMMAND_REQUEST", {
         "command_request": {
-            "argv": [".venv/bin/pytest", "tests/failing_test.py"],
-            "cwd": "REPO_ROOT"
+            "command_id": "WAIT_FOR_RATE_LIMIT",
+            "parameters": {"seconds": 1},
         },
         "unknowns": [],
     })
@@ -272,8 +268,8 @@ def test_command_request_timeout_blocks(tmp_path):
 
     expected_path = write_test_artifact(reports_dir, "S2.3", "COMMAND_REQUEST", {
         "command_request": {
-            "argv": ["sleep", "10"],
-            "timeout_seconds": 1
+            "command_id": "WAIT_FOR_RATE_LIMIT",
+            "parameters": {"seconds": 1},
         },
         "unknowns": [],
     })
@@ -293,7 +289,7 @@ def test_command_request_timeout_blocks(tmp_path):
         assert summary["command_request_count"] == 1
         assert summary["failed_count"] == 1
         assert summary["unresolved_count"] == 1
-        assert any("execution timed out after 1s" in b for b in summary["blockers"])
+        assert any("execution timed out after 3.0s" in b for b in summary["blockers"])
 
 
 def test_unresolved_command_request_blocks_downstream(tmp_path):

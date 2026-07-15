@@ -11,6 +11,9 @@ from unittest.mock import patch
 
 import pytest
 
+from bet.pipeline.canonical_continuity import bind_candidate_identity
+from bet.pipeline.run_evidence import sha256_file
+from bet.pipeline.runtime_paths import is_system_temp_path
 from scripts import odds_evaluator
 from scripts.pipeline_steps import s4_valuator, s5_gate, s8_build_coupons
 
@@ -81,6 +84,7 @@ def _write_s4_pass_evidence(environ: dict[str, str], valuation_path: Path) -> No
         "payload": {
             "step_id": "S4",
             "s4_valuation_output_path": str(valuation_path),
+            "s4_valuation_output_sha256": sha256_file(valuation_path),
         },
     }
     for path in (
@@ -282,6 +286,9 @@ def _seed_prior_evidence_for_s4(environ: dict[str, str]):
     run_root = Path(environ["BET_PIPELINE_RUN_ROOT"])
     (run_root / "artifacts").mkdir(parents=True, exist_ok=True)
     (run_root / "data").mkdir(parents=True, exist_ok=True)
+    s3_output = run_root / "data" / "2026-06-25_s3_deep_stats.json"
+    if not s3_output.exists():
+        s3_output.write_text(json.dumps(_input_payload()), encoding="utf-8")
     s3_ev = {
         "schema_version": 1,
         "artifact_type": "SCRIPT_EVIDENCE",
@@ -290,7 +297,8 @@ def _seed_prior_evidence_for_s4(environ: dict[str, str]):
         "run_id": environ["BET_PIPELINE_RUN_ID"],
         "status": "PASS",
         "payload": {
-            "s3_output_path": str(run_root / "data" / "2026-06-25_s3_deep_stats.json")
+            "s3_output_path": str(s3_output),
+            "s3_output_sha256": sha256_file(s3_output),
         }
     }
     (run_root / "artifacts" / "S3.json").write_text(json.dumps(s3_ev), encoding="utf-8")
@@ -303,19 +311,22 @@ def test_s4_wrapper_passes_explicit_input_output_and_writes_evidence():
     input_path = _write_json(data_dir / "2026-06-25_s3_deep_stats.json", _input_payload())
     recorded: dict[str, object] = {}
 
-    def fake_run(cmd, env=None, capture_output=None, text=None):
-        recorded.setdefault("cmds", []).append(list(cmd))
-        if len(cmd) > 1 and "odds_evaluator.py" in cmd[1]:
+    def fake_run_scripts(scripts, **_kwargs):
+        for invocation in scripts:
+            if getattr(invocation, "script", invocation) != "odds_evaluator.py":
+                continue
+            cmd = invocation.argv
             recorded["eval_cmd"] = list(cmd)
             output_path = Path(cmd[cmd.index("--output") + 1])
             output_payload = {
-                "schema_version": 1,
-            "artifact_type": "S4_VALUATION_CANDIDATE_SET_V2",
+                "schema_version": 2,
+                "artifact_type": "S4_VALUATION_CANDIDATE_SET_V2",
                 "betting_day": "2026-06-25",
                 "run_id": environ["BET_PIPELINE_RUN_ID"],
                 "created_at_utc": "2026-06-25T00:00:00+00:00",
                 "runtime_mode": "DRY_RUN",
-                "source_input_path": cmd[cmd.index("--input") + 1],
+                "source_s3_path": cmd[cmd.index("--input") + 1],
+                "source_s3_sha256": sha256_file(Path(cmd[cmd.index("--input") + 1])),
                 "odds_snapshot_paths": [str(data_dir / "odds_api_snapshot.json")],
                 "candidate_count": 1,
                 "contains_odds": True,
@@ -352,11 +363,13 @@ def test_s4_wrapper_passes_explicit_input_output_and_writes_evidence():
                 ],
             }
             output_path.write_text(json.dumps(output_payload), encoding="utf-8")
-        return subprocess.CompletedProcess(cmd, 0, stdout="", stderr="")
+        return 0
 
     _write_json(data_dir / "odds_api_snapshot.json", {"events": []})
     argv = ["s4_valuator.py", "--date", "2026-06-25", "--run-id", environ["BET_PIPELINE_RUN_ID"], "--runtime-mode", "DRY_RUN", "--dry-run"]
-    with patch.dict(os.environ, environ, clear=False), patch.object(sys, "argv", argv), patch("subprocess.run", side_effect=fake_run):
+    with patch.dict(os.environ, environ, clear=False), patch.object(sys, "argv", argv), patch.object(
+        s4_valuator, "run_scripts", side_effect=fake_run_scripts
+    ):
         with pytest.raises(SystemExit) as exc_info:
             s4_valuator.main()
 
@@ -367,7 +380,7 @@ def test_s4_wrapper_passes_explicit_input_output_and_writes_evidence():
     assert "--output" in eval_cmd
     evidence = json.loads(_canonical_evidence_path(environ, "S4").read_text(encoding="utf-8"))
     assert evidence["status"] == "PASS"
-    assert evidence["payload"]["s4_valuation_output_path"].startswith("/tmp/")
+    assert is_system_temp_path(evidence["payload"]["s4_valuation_output_path"])
     assert evidence["payload"]["s4_candidate_count"] == 1
     assert evidence["payload"]["s4_contains_odds"] is True
     assert evidence["payload"]["s4_contains_ev"] is True
@@ -395,11 +408,13 @@ def test_s4_wrapper_blocks_when_evaluator_does_not_write_output():
     data_dir = Path(environ["BET_PIPELINE_DATA_DIR"])
     _write_json(data_dir / "2026-06-25_s3_deep_stats.json", _input_payload())
 
-    def fake_run(cmd, env=None, capture_output=None, text=None):
-        return subprocess.CompletedProcess(cmd, 0, stdout="", stderr="")
+    def fake_run_scripts(_scripts, **_kwargs):
+        return 0
 
     argv = ["s4_valuator.py", "--date", "2026-06-25", "--run-id", environ["BET_PIPELINE_RUN_ID"], "--runtime-mode", "DRY_RUN", "--dry-run"]
-    with patch.dict(os.environ, environ, clear=False), patch.object(sys, "argv", argv), patch("subprocess.run", side_effect=fake_run):
+    with patch.dict(os.environ, environ, clear=False), patch.object(sys, "argv", argv), patch.object(
+        s4_valuator, "run_scripts", side_effect=fake_run_scripts
+    ):
         with pytest.raises(SystemExit) as exc_info:
             s4_valuator.main()
 
@@ -471,9 +486,19 @@ def _seed_s5_and_s6_for_s7(environ: dict[str, str], s4_path: Path, s4_candidates
     (run_root / "data").mkdir(parents=True, exist_ok=True)
     
     repo_root = Path(__file__).resolve().parents[1]
+    bound_candidates = []
+    for candidate in s4_candidates:
+        prepared = {
+            "kickoff": "2026-06-25T18:00:00Z",
+            "analytical_status": "ANALYTICAL_READY",
+            **candidate,
+        }
+        bound_candidates.append(bind_candidate_identity(prepared))
+    s4_candidates[:] = bound_candidates
+
     # S5
     s5_output_data = {
-        "schema_version": 1,
+        "schema_version": 2,
         "artifact_type": "AGENT_ARTIFACT",
         "step_id": "S5",
         "status": "PASS",
@@ -496,8 +521,8 @@ def _seed_s5_and_s6_for_s7(environ: dict[str, str], s4_path: Path, s4_candidates
             "work_order_id": f"WO-{environ['BET_PIPELINE_RUN_ID']}-S5",
             "agent_id": "bet-risk-gatekeeper",
             "policy_version": "1.0",
-            "input_candidate_count": len(s4_candidates),
-            "candidates": s4_candidates,
+            "input_candidate_count": len(bound_candidates),
+            "candidates": bound_candidates,
             "rejected_candidates": [],
             "accounting": {
                 "unaccounted_candidate_ids": [],
@@ -512,7 +537,7 @@ def _seed_s5_and_s6_for_s7(environ: dict[str, str], s4_path: Path, s4_candidates
     # S6
     s6_output_path = run_root / "data" / "repeat_loss_handoff_2026-06-25.json"
     s6_output_data = {
-        "schema_version": 1,
+        "schema_version": 2,
         "artifact_type": "S6_PORTFOLIO_REPEAT_GUARD_V2",
         "status": "PASS",
         "concrete_status": "READY_FOR_S7",
@@ -521,7 +546,7 @@ def _seed_s5_and_s6_for_s7(environ: dict[str, str], s4_path: Path, s4_candidates
         "created_at_utc": "2026-06-25T12:00:00Z",
         "source_step": "S5",
         "source_s5_path": str(s5_path),
-        "source_s5_hash": sha256_file(s5_path),
+        "source_s5_sha256": sha256_file(s5_path),
         "source_git_sha": repo_head_sha(repo_root),
         "manifest_sha": manifest_hash(repo_root),
         "policy_version": "1.0",
@@ -530,24 +555,37 @@ def _seed_s5_and_s6_for_s7(environ: dict[str, str], s4_path: Path, s4_candidates
             "snapshot_size": 0,
             "snapshot_sha256": "dummy_history_sha"
         },
-        "input_candidate_count": len(s4_candidates),
+        "worker_contract_version": "1.0",
+        "run_as_of_utc": "2026-06-25T12:00:00Z",
+        "validated_inputs": {
+            "s5_hash": sha256_file(s5_path),
+            "history_hash": "a" * 64,
+            "policy_hash": "b" * 64,
+        },
+        "input_candidate_count": len(bound_candidates),
         "accepted": [
             {
-                "candidate_id": c.get("candidate_id"),
+                "candidate_id": c["selection_id"],
+                "selection_id": c["selection_id"],
                 "decision": "ACCEPTED",
                 "reason_codes": [],
                 "explanation": "Passed all constraints",
                 "original_candidate": c
             }
-            for c in s4_candidates
+            for c in bound_candidates
         ],
         "repeat_rejected": [],
+        "duplicate_rejected": [],
         "correlation_rejected": [],
         "conflict_rejected": [],
-        "portfolio_rejected": [],
+        "concentration_rejected": [],
         "invalid_input": [],
         "accounting": {
+            "input_count": len(bound_candidates),
+            "terminal_count": len(bound_candidates),
+            "category_counts": {"accepted": len(bound_candidates)},
             "unaccounted_candidate_ids": [],
+            "unexpected_candidate_ids": [],
             "duplicate_candidate_ids": [],
             "overlapping_terminal_categories": []
         }
@@ -571,8 +609,8 @@ def _seed_s5_and_s6_for_s7(environ: dict[str, str], s4_path: Path, s4_candidates
             "manifest_sha": manifest_hash(repo_root),
             "policy_version": "1.0",
             "as_of_timestamp": "2026-06-25T12:00:00Z",
-            "input_candidate_count": len(s4_candidates),
-            "accepted_count": len(s4_candidates),
+            "input_candidate_count": len(bound_candidates),
+            "accepted_count": len(bound_candidates),
             "repeat_rejected_count": 0,
             "duplicate_rejected_count": 0,
             "conflict_rejected_count": 0,
@@ -647,7 +685,7 @@ def test_s7_prefers_s4_valuation_output_and_no_missing_block():
     with patch.dict(os.environ, environ, clear=False), \
          patch.object(sys, "argv", argv), \
          patch("subprocess.run", side_effect=fake_run), \
-         patch("bet.pipeline.live_fixture_audit.LiveFixtureAudit") as mock_class:
+         patch("bet.pipeline.hard_approval_gate.LiveFixtureAudit") as mock_class:
         mock_class.return_value.audit_candidate.return_value = ("LIVE_FIXTURE_VERIFIED_NOT_STARTED", "PASS")
         with pytest.raises(SystemExit) as exc_info:
             s5_gate.main()

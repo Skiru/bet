@@ -38,9 +38,11 @@ def _run_scoped_file(path: Path, run_root: Path) -> Path:
     return resolved
 
 
-def _candidate_id(candidate: dict[str, Any], index: int) -> str:
-    value = candidate.get("candidate_id") or candidate.get("fixture_id")
-    return str(value) if value not in (None, "") else f"s7-candidate-{index}"
+def _candidate_id(candidate: dict[str, Any], _index: int) -> str:
+    value = candidate.get("selection_id")
+    if not isinstance(value, str) or not value or candidate.get("candidate_id") != value:
+        raise ValueError("S7 approved candidate lacks canonical selection identity")
+    return value
 
 
 def _load_s7(child_env: dict[str, str], day: str, run_id: str) -> tuple[Path, Path, list[dict[str, Any]], str]:
@@ -63,16 +65,22 @@ def _load_s7(child_env: dict[str, str], day: str, run_id: str) -> tuple[Path, Pa
             expected_artifact_type="S7_DECISION_GATE_REPORT",
         )
     s7_outcome = s7_data.get("outcome") or s7_data.get("status")
+    if (
+        s7_data.get("schema_version") != 2
+        or s7_data.get("artifact_type") != "S7_ANALYTICAL_APPROVAL_SET_V2"
+        or s7_data.get("status") != "PASS"
+        or s7_data.get("betting_day") != day
+        or s7_data.get("run_id") != run_id
+    ):
+        raise ValueError("canonical S7 contract is invalid")
     if s7_outcome is None:
         if "gate_results" in s7_data:
             s7_outcome = "READY_FOR_PRICED_REVIEW"
         else:
             s7_outcome = "BLOCKED"
 
-    if s7_outcome == "READY_FOR_PRICED_REVIEW":
-        approved = s7_data.get("priced_approved") or s7_data.get("gate_results", {}).get("approved") or []
-    elif s7_outcome == "READY_FOR_ANALYTICAL_OPERATOR_QUOTE_REVIEW":
-        approved = s7_data.get("analytical_approved") or []
+    if s7_outcome in {"READY_FOR_PRICED_REVIEW", "READY_FOR_ANALYTICAL_OPERATOR_QUOTE_REVIEW"}:
+        approved = list(s7_data.get("priced_approved") or []) + list(s7_data.get("analytical_approved") or [])
     elif s7_outcome == "NO_ACTION_TERMINAL":
         approved = []
     elif s7_outcome == "BLOCKED":
@@ -87,7 +95,7 @@ def _load_s7(child_env: dict[str, str], day: str, run_id: str) -> tuple[Path, Pa
     return evidence_path, output_path, approved, s7_outcome
 
 
-def _build_cards(candidates: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def _build_cards(candidates: list[dict[str, Any]], source_s7_sha256: str | None = None) -> list[dict[str, Any]]:
     cards: list[dict[str, Any]] = []
     seen: set[str] = set()
     for index, candidate in enumerate(candidates):
@@ -102,6 +110,7 @@ def _build_cards(candidates: list[dict[str, Any]]) -> list[dict[str, Any]]:
             {
                 "quote_card_id": f"quote-card-{candidate_id}",
                 "source_candidate_id": candidate_id,
+                "selection_id": candidate_id,
                 "canonical_event_id": candidate.get("canonical_event_id") or candidate.get("fixture_id") or candidate.get("event_id"),
                 "event": candidate.get("event") or f"{candidate.get('home_team')} vs {candidate.get('away_team')}",
                 "sport": candidate.get("sport"),
@@ -125,7 +134,7 @@ def _build_cards(candidates: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "source_s3_hash": candidate.get("probability_input_sha256") or candidate.get("source_s3_sha256"),
                 "source_s4_hash": candidate.get("source_s4_sha256") or candidate.get("input_s4_hash"),
                 "source_s5_hash": candidate.get("source_s5_sha256") or candidate.get("input_s5_hash"),
-                "source_s7_hash": candidate.get("source_s7_sha256") or candidate.get("input_s7_hash"),
+                "source_s7_hash": source_s7_sha256,
                 "manual_operator": "SUPERBET",
                 "mapping_confidence": "UNVERIFIED",
                 "mapping_ambiguity": "HUMAN_CHECK_REQUIRED",
@@ -164,7 +173,7 @@ def main() -> None:
     s7_outcome: str = "BLOCKED"
     try:
         s7_evidence, s7_output, candidates, s7_outcome = _load_s7(child_env, args.date, args.run_id)
-        cards = _build_cards(candidates)
+        cards = _build_cards(candidates, sha256_file(s7_output))
     except FileNotFoundError as exc:
         blocked.append("BLOCKED_S7B_CANONICAL_S7_MISSING")
         print(f"BLOCKED_S7B_CANONICAL_S7_MISSING: {exc}")
@@ -177,7 +186,7 @@ def main() -> None:
     output_sha256: str | None = None
     if not blocked:
         output_artifact = {
-                "schema_version": 1,
+                "schema_version": 2,
                 "artifact_type": "S7B_SUPERBET_MANUAL_MAPPING",
                 "status": outcome,
                 "betting_day": args.date,

@@ -1,22 +1,31 @@
 from __future__ import annotations
 import os
 from datetime import datetime, timezone
-from pathlib import Path
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from bet.pipeline.analysis_status import has_explicit_test_provenance
+
+WARSAW = ZoneInfo("Europe/Warsaw")
+
+
+def _parse_aware(value: Any, label: str) -> datetime:
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(f"missing {label}")
+    parsed = datetime.fromisoformat(value.strip().replace("Z", "+00:00"))
+    if parsed.tzinfo is None:
+        raise ValueError(f"{label} must be timezone-aware")
+    return parsed
+
 
 def _get_run_clock() -> datetime:
     val = os.environ.get("BET_PIPELINE_RUN_AS_OF_UTC")
     if val:
         try:
-            dt = datetime.fromisoformat(val.replace("Z", "+00:00"))
-            if dt.tzinfo is None:
-                dt = dt.replace(tzinfo=timezone.utc)
-            return dt
+            return _parse_aware(val, "BET_PIPELINE_RUN_AS_OF_UTC")
         except Exception:
-            pass
-    return datetime.now(timezone.utc)
+            raise ValueError("invalid BET_PIPELINE_RUN_AS_OF_UTC")
+    raise ValueError("missing BET_PIPELINE_RUN_AS_OF_UTC")
 
 
 class LiveFixtureAudit:
@@ -37,32 +46,50 @@ class LiveFixtureAudit:
             return "REJECTED_UNVERIFIED_FIXTURE_IDENTITY", "Missing kickoff timestamp"
 
         try:
-            kickoff_dt = datetime.fromisoformat(kickoff_str.replace("Z", "+00:00"))
+            kickoff_dt = _parse_aware(kickoff_str, "kickoff")
             now_dt = _get_run_clock()
             if kickoff_dt <= now_dt:
                 return "REJECTED_ALREADY_STARTED", f"Kickoff {kickoff_str} is in the past relative to current time {now_dt.isoformat()}"
 
-            kickoff_date_warsaw = kickoff_dt.astimezone(timezone.utc).strftime("%Y-%m-%d")
+            kickoff_date_warsaw = kickoff_dt.astimezone(WARSAW).strftime("%Y-%m-%d")
             if kickoff_date_warsaw != self.target_date:
                 return "REJECTED_WRONG_BETTING_DAY", f"Kickoff date {kickoff_date_warsaw} does not match target {self.target_date}"
         except Exception as e:
             return "REJECTED_UNVERIFIED_FIXTURE_IDENTITY", f"Failed to parse kickoff timestamp: {e}"
 
-        home_team = candidate.get("home_team")
-        away_team = candidate.get("away_team")
+        home_team = candidate.get("home_team") or candidate.get("participant_a")
+        away_team = candidate.get("away_team") or candidate.get("participant_b")
         if not home_team or not away_team:
             return "REJECTED_PARTICIPANT_MISMATCH", "Missing home_team or away_team"
 
-        as_of = candidate.get("probability_as_of") or candidate.get("stats_as_of") or ""
-        if as_of:
-            try:
-                as_of_dt = datetime.fromisoformat(as_of.replace("Z", "+00:00"))
-                now_dt = _get_run_clock()
-                age_hours = (now_dt - as_of_dt).total_seconds() / 3600.0
-                if age_hours > 24.0:
-                    return "REJECTED_STALE_FIXTURE", f"Source artifact is stale (age: {age_hours:.1f} hours > 24h TTL)"
-            except Exception:
-                pass
+        as_of = candidate.get("probability_as_of") or candidate.get("stats_as_of")
+        try:
+            as_of_dt = _parse_aware(as_of, "candidate source as_of")
+            now_dt = _get_run_clock()
+            age_hours = (now_dt - as_of_dt).total_seconds() / 3600.0
+            if age_hours < 0:
+                return "REJECTED_UNVERIFIED_FIXTURE_IDENTITY", "Candidate source as_of is in the future"
+            if age_hours > 24.0:
+                return "REJECTED_STALE_FIXTURE", f"Source artifact is stale (age: {age_hours:.1f} hours > 24h TTL)"
+        except Exception as exc:
+            return "REJECTED_UNVERIFIED_FIXTURE_IDENTITY", f"Invalid candidate source timestamp: {exc}"
+
+        verification = candidate.get("fixture_verification")
+        if not isinstance(verification, dict):
+            return "REJECTED_UNVERIFIED_FIXTURE_IDENTITY", "Missing source-bound fixture_verification evidence"
+        if verification.get("status") != "LIVE_FIXTURE_VERIFIED_NOT_STARTED":
+            return "REJECTED_UNVERIFIED_FIXTURE_IDENTITY", "Fixture verification status is not verified/not-started"
+        if not str(verification.get("source") or "").strip():
+            return "REJECTED_UNVERIFIED_FIXTURE_IDENTITY", "Fixture verification source is missing"
+        try:
+            verified_at = _parse_aware(verification.get("verified_at_utc"), "fixture verified_at_utc")
+        except Exception as exc:
+            return "REJECTED_UNVERIFIED_FIXTURE_IDENTITY", str(exc)
+        if verified_at > now_dt or (now_dt - verified_at).total_seconds() > 3600:
+            return "REJECTED_STALE_FIXTURE", "Fixture verification is future-dated or older than one hour"
+        expected_event_id = candidate.get("canonical_event_id") or candidate.get("event_id")
+        if not expected_event_id or verification.get("canonical_event_id") != expected_event_id:
+            return "REJECTED_UNVERIFIED_FIXTURE_IDENTITY", "Fixture verification event identity mismatch"
 
         return "LIVE_FIXTURE_VERIFIED_NOT_STARTED", "PASS"
 

@@ -287,10 +287,13 @@ def test_subprocess_run_remains_unmodified() -> None:
 # SCENARIOS N, O, P, Q, R, S, T, U, V, W: S7/S7b/S8 Quote Card & Handoff Invariants
 # ===========================================================================
 
-def test_s7_gate_decision_model_and_handoff_lanes() -> None:
+def test_s7_gate_decision_model_and_handoff_lanes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     # Scenario N: Ensure S7 analytical logic runs under pytest
     # (By asserting the LiveFixtureAudit execution on ready candidates)
 
+    monkeypatch.setenv("BET_PIPELINE_RUN_AS_OF_UTC", "2026-07-14T12:00:00Z")
     ready_candidates = [
         {
             "candidate_id": "c1",
@@ -299,7 +302,15 @@ def test_s7_gate_decision_model_and_handoff_lanes() -> None:
             "kickoff": "2026-07-14T19:00:00Z",
             "model_probability": 0.55,
             "odds_decimal": 2.10,
-            "pricing_status": "PRICED"
+            "pricing_status": "PRICED",
+            "probability_as_of": "2026-07-14T11:30:00Z",
+            "canonical_event_id": "evt-c1",
+            "fixture_verification": {
+                "status": "LIVE_FIXTURE_VERIFIED_NOT_STARTED",
+                "source": "provider:fixture-feed",
+                "verified_at_utc": "2026-07-14T11:45:00Z",
+                "canonical_event_id": "evt-c1",
+            },
         },
         {
             "candidate_id": "c2",

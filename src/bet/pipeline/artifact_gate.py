@@ -579,6 +579,45 @@ def find_forbidden_decision_signals(payload: Any, path: str = "$") -> list[str]:
     return found
 
 
+def find_s5_forbidden_execution_signals(raw: dict[str, Any]) -> list[str]:
+    """Allow analytical selection/EV facts while blocking execution advice."""
+    payload = raw.get("payload")
+    if not isinstance(payload, dict):
+        return find_forbidden_decision_signals(raw)
+    candidate_keys = {"candidates", "rejected_candidates"}
+    scan_raw = dict(raw)
+    scan_raw["payload"] = {
+        key: value for key, value in payload.items() if key not in candidate_keys
+    }
+    found = find_forbidden_decision_signals(scan_raw)
+    execution_keys = {
+        "internal_pick",
+        "recommended_pick",
+        "stake",
+        "staking",
+        "stake_decimal",
+        "coupon",
+        "parlay",
+        "accumulator",
+        "betting_decision",
+        "executable_coupon",
+        "can_place_bet_now",
+    }
+    for category in candidate_keys:
+        records = payload.get(category, [])
+        if not isinstance(records, list):
+            continue
+        for index, record in enumerate(records):
+            if not isinstance(record, dict):
+                continue
+            for key in record:
+                if _normalize_key(str(key)) in execution_keys:
+                    found.append(
+                        f"$.payload.{category}[{index}].{key}: forbidden execution key '{key}'"
+                    )
+    return found
+
+
 def detect_secrets(node: Any, path: str = "$") -> list[str]:
     """Recursively check for forbidden secret/header keys without substring false positives."""
     found: list[str] = []
@@ -763,7 +802,11 @@ def validate_pipeline_artifact(
 
     # 7. Recursive forbidden signals & raw secrets
     payload = raw.get("payload", {})
-    signals = find_forbidden_decision_signals(raw)
+    signals = (
+        find_s5_forbidden_execution_signals(raw)
+        if expected_step_id == "S5"
+        else find_forbidden_decision_signals(raw)
+    )
     if signals:
         issues.append(
             ReadinessIssue(

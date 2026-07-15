@@ -248,7 +248,10 @@ def verify_run_directory(run_dir: Path) -> Dict[str, Any]:
     
     if src_dir.exists():
         for p in src_dir.rglob("*.py"):
-            if p.name == "verifier.py":
+            # Safety verifiers necessarily contain the exact forbidden tokens
+            # they inspect.  Exclude only the two explicit verifier modules;
+            # a broad filename-pattern exemption would create an easy bypass.
+            if p.name in {"verifier.py", "provider_operational_verifier_v3.py"}:
                 continue
             try:
                 text = p.read_text(encoding="utf-8")

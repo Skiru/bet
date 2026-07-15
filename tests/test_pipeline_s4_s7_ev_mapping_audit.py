@@ -160,6 +160,16 @@ def test_all_ev_mapping_invariants(tmp_path, monkeypatch):
     }
     
     candidates = [c1, c2, c3, c4, c5, c6, c7]
+    for candidate in candidates:
+        candidate.update(
+            {
+                "sport": "football",
+                "competition": "Test League",
+                "kickoff": "2026-06-26T18:00:00Z",
+            }
+        )
+        if candidate.get("best_market", {}).get("name"):
+            candidate["selection"] = "HOME"
     _inject_ev_from_odds(candidates, "2026-06-26")
     
     # Assert Test Case 1: EV = (0.65 * 2.0) - 1 = 0.30

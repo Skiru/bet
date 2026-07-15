@@ -50,7 +50,7 @@ def test_run_lock_conflict_and_token_safe_release(tmp_path: Path):
     assert not first.path.exists()
 
 
-def test_stale_lease_and_pid_identity_mismatch_are_recovered(tmp_path: Path):
+def test_live_owner_is_never_stolen_and_stale_identity_is_recovered(tmp_path: Path):
     lock = LeaseRunLock(tmp_path, "run", lease_seconds=0.01)
     lock.acquire()
     owner = json.loads(lock.path.read_text())
@@ -58,8 +58,8 @@ def test_stale_lease_and_pid_identity_mismatch_are_recovered(tmp_path: Path):
     lock.path.write_text(json.dumps(owner), encoding="utf-8")
     lock.token = None
     recovered = LeaseRunLock(tmp_path, "run", lease_seconds=30)
-    recovered.acquire()
-    recovered.release()
+    with pytest.raises(RunLockError, match="RUN_LOCK_CONFLICT"):
+        recovered.acquire()
 
     owner["heartbeat_epoch"] = time.time()
     owner["lease_seconds"] = 30
@@ -69,7 +69,7 @@ def test_stale_lease_and_pid_identity_mismatch_are_recovered(tmp_path: Path):
     recovered.acquire()
     recovered.release()
     lines = [json.loads(line) for line in lock.audit_path.read_text().splitlines()]
-    assert {line["reason"] for line in lines} == {"LEASE_EXPIRED", "OWNER_IDENTITY_STALE"}
+    assert {line["reason"] for line in lines} == {"OWNER_IDENTITY_STALE"}
 
 
 def _ledger(tmp_path: Path) -> ResumeLedger:
@@ -138,8 +138,19 @@ def test_resume_ledger_blocks_conflict_invalid_predecessor_and_unresolved_reques
         input_hashes={"previous": first["entry_hash"]},
         output_hashes={},
     )
-    with pytest.raises(ResumeLedgerError, match="UNRESOLVED_COMMAND_REQUEST"):
-        ledger.assert_resumable()
+    # A blocked attempt is retryable.  It remains part of the hash chain and
+    # downstream ordering still prevents bypassing the unresolved step.
+    ledger.assert_resumable()
+    ledger.append(
+        step_id="S2.3",
+        status="PASS",
+        command_request={"argv": ["python", "tool.py"]},
+        input_hashes={"previous": first["entry_hash"]},
+        output_hashes={"artifact": "resolved"},
+    )
+    payload = json.loads(ledger.path.read_text())
+    assert payload["unresolved_command_request"] is False
+    assert payload["entries"][-1]["resolution_of_attempt_id"] == payload["entries"][-2]["attempt_id"]
 
 
 def test_resume_ledger_rejects_cross_main_binding(tmp_path: Path):

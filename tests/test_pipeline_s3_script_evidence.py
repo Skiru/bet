@@ -13,6 +13,8 @@ from uuid import uuid4
 import pytest
 
 import scripts.deep_stats_report as dsr
+from bet.pipeline.run_evidence import sha256_file
+from bet.pipeline.runtime_paths import is_system_temp_path, paths_refer_to_same_location
 from scripts.pipeline_steps import s3_stats
 
 
@@ -47,6 +49,8 @@ def _write_shortlist(environ: dict[str, str]) -> Path:
     shortlist_path.write_text(
         json.dumps(
             {
+                "artifact_type": "S2_SHORTLIST",
+                "total_candidates": 1,
                 "candidates": [
                     {
                         "sport": "football",
@@ -56,6 +60,25 @@ def _write_shortlist(environ: dict[str, str]) -> Path:
                         "kickoff": "2026-06-25T18:00:00+00:00",
                     }
                 ]
+            }
+        ),
+        encoding="utf-8",
+    )
+    artifact_dir = Path(environ["BET_PIPELINE_ARTIFACT_DIR"])
+    artifact_dir.mkdir(parents=True, exist_ok=True)
+    (artifact_dir / "S2.json").write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "artifact_type": "SCRIPT_EVIDENCE",
+                "step_id": "S2",
+                "status": "PASS",
+                "betting_day": environ["BET_PIPELINE_BETTING_DAY"],
+                "run_id": environ["BET_PIPELINE_RUN_ID"],
+                "payload": {
+                    "s2_shortlist_path": str(shortlist_path),
+                    "s2_output_sha256": sha256_file(shortlist_path),
+                },
             }
         ),
         encoding="utf-8",
@@ -70,7 +93,12 @@ def _write_s3_reports(environ: dict[str, str]) -> None:
     (data_dir / f"{betting_day}_s3_deep_stats.json").write_text(
         json.dumps(
             {
-                "date": betting_day,
+                "schema_version": 2,
+                "artifact_type": "S3_DEEP_STATS",
+                "betting_day": betting_day,
+                "run_id": environ["BET_PIPELINE_RUN_ID"],
+                "source_s2_path": str(data_dir / f"{betting_day}_s2_shortlist.json"),
+                "source_s2_sha256": sha256_file(data_dir / f"{betting_day}_s2_shortlist.json"),
                 "total_candidates": 1,
                 "candidates_with_data": 1,
                 "analyses": [],
@@ -136,7 +164,7 @@ def test_s3_evidence_is_canonical_tmp_only_and_has_no_decision_outputs(tmp_path:
     ]
 
     def _invoke(*, betting_day, shortlist_path: Path, child_env, runtime_mode):
-        assert shortlist_path == shortlist_path_expected
+        assert shortlist_path.resolve() == shortlist_path_expected.resolve()
         _write_s3_reports(environ)
         return (0, "")
 
@@ -149,14 +177,14 @@ def test_s3_evidence_is_canonical_tmp_only_and_has_no_decision_outputs(tmp_path:
     assert exc_info.value.code == 0
     evidence_path = _canonical_evidence_path(environ)
     evidence = json.loads(evidence_path.read_text(encoding="utf-8"))
-    assert str(evidence_path).startswith("/tmp/")
+    assert is_system_temp_path(evidence_path)
     assert evidence["artifact_type"] == "SCRIPT_EVIDENCE"
     assert evidence["status"] == "PASS"
-    assert evidence["shortlist_path"] == str(shortlist_path_expected)
+    assert paths_refer_to_same_location(evidence["shortlist_path"], shortlist_path_expected)
     assert evidence["production_selectable"] is False
     assert evidence["betting_decisions_enabled"] is False
     assert evidence["no_pick_edge_stake_coupon_emitted"] is True
-    assert all(path.startswith("/tmp/") for path in evidence["s3_report_paths"])
+    assert all(is_system_temp_path(path) for path in evidence["s3_report_paths"])
     assert "/reports/" not in str(evidence_path)
     assert "/reports/" not in " ".join(evidence["s3_report_paths"])
     assert "production_coupon_write" not in evidence

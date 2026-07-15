@@ -77,13 +77,13 @@ def test_cross_run_traversal_and_symlink_escape_are_rejected(tmp_path: Path):
         _publish(current, current / "escape/result.json")
 
 
-def test_crash_before_replace_never_publishes_complete_artifact(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+def test_crash_before_exclusive_link_never_publishes_complete_artifact(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     target = tmp_path / "result.json"
 
-    def fail_replace(_source: object, _target: object) -> None:
-        raise OSError("injected crash before rename")
+    def fail_link(_source: object, _target: object) -> None:
+        raise OSError("injected crash before exclusive link")
 
-    monkeypatch.setattr(os, "replace", fail_replace)
+    monkeypatch.setattr(os, "link", fail_link)
     with pytest.raises(OSError, match="injected crash"):
         _publish(tmp_path, target)
     assert not target.exists()
@@ -103,7 +103,7 @@ def test_immutable_republication_is_idempotent_but_conflict_blocks(tmp_path: Pat
 @pytest.mark.parametrize(
     ("payload", "code"),
     [
-        (_payload(schema_version=2), "ARTIFACT_SCHEMA_INVALID"),
+        (_payload(schema_version=3), "ARTIFACT_SCHEMA_INVALID"),
         (_payload(betting_day="2026-07-12"), "ARTIFACT_DAY_MISMATCH"),
         (_payload(run_id="another-run"), "ARTIFACT_RUN_MISMATCH"),
         (_payload(artifact_type="OTHER"), "ARTIFACT_TYPE_MISMATCH"),

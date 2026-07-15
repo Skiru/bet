@@ -84,7 +84,7 @@ def find_matching_api_football_id(data: Any, home_team: str, away_team: str) -> 
 
 def capture_sportdb(fixture: Dict[str, Any], credential_value: str | None) -> List[ProviderResponseEnvelope]:
     slug = fixture["fixture_slug"]
-    now_str = datetime.datetime.utcnow().isoformat() + "Z"
+    now_str = datetime.datetime.now(datetime.UTC).isoformat().replace("+00:00", "Z")
     
     if not credential_value:
         return [ProviderResponseEnvelope(
@@ -202,7 +202,7 @@ def capture_sportdb(fixture: Dict[str, Any], credential_value: str | None) -> Li
 
 def capture_football_data_org(fixture: Dict[str, Any], credential_value: str | None) -> List[ProviderResponseEnvelope]:
     slug = fixture["fixture_slug"]
-    now_str = datetime.datetime.utcnow().isoformat() + "Z"
+    now_str = datetime.datetime.now(datetime.UTC).isoformat().replace("+00:00", "Z")
     
     if not credential_value:
         return [ProviderResponseEnvelope(
@@ -372,7 +372,7 @@ def capture_football_data_org(fixture: Dict[str, Any], credential_value: str | N
 
 def capture_highlightly(fixture: Dict[str, Any], credential_value: str | None) -> List[ProviderResponseEnvelope]:
     slug = fixture["fixture_slug"]
-    now_str = datetime.datetime.utcnow().isoformat() + "Z"
+    now_str = datetime.datetime.now(datetime.UTC).isoformat().replace("+00:00", "Z")
     
     if not credential_value:
         return [ProviderResponseEnvelope(
@@ -475,7 +475,7 @@ def capture_highlightly(fixture: Dict[str, Any], credential_value: str | None) -
 
 def capture_api_football(fixture: Dict[str, Any], credential_value: str | None) -> List[ProviderResponseEnvelope]:
     slug = fixture["fixture_slug"]
-    now_str = datetime.datetime.utcnow().isoformat() + "Z"
+    now_str = datetime.datetime.now(datetime.UTC).isoformat().replace("+00:00", "Z")
     
     if not credential_value:
         return [ProviderResponseEnvelope(
@@ -645,7 +645,7 @@ def capture_api_football(fixture: Dict[str, Any], credential_value: str | None) 
 
 def capture_espn_baseline(fixture: Dict[str, Any], credential_value: str | None = None) -> List[ProviderResponseEnvelope]:
     slug = fixture["fixture_slug"]
-    now_str = datetime.datetime.utcnow().isoformat() + "Z"
+    now_str = datetime.datetime.now(datetime.UTC).isoformat().replace("+00:00", "Z")
     
     mapped_id = get_mapped_id(slug, "espn-baseline")
     

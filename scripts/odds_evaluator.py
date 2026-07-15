@@ -27,6 +27,12 @@ sys.path.insert(0, str(ROOT_DIR / "src"))
 from utils import normalize_team_name as _norm_team
 from bet.utils import names_match
 from bet.pipeline.market_probability_inputs import extract_market_semantics
+from bet.pipeline.canonical_continuity import (
+    ContinuityContractError,
+    bind_candidate_identity,
+    bind_event_identity,
+    file_sha256,
+)
 
 
 def _runtime_mode_value(runtime_mode: str | None) -> str:
@@ -356,7 +362,9 @@ def _build_valuation_candidate(candidate: dict) -> dict:
     has_safety = _candidate_safety_score(candidate) is not None or bool(candidate.get("safety_markets"))
     return {
         "candidate_id": candidate.get("candidate_id") or _candidate_fixture_key(candidate) or candidate.get("fixture_id"),
-        "event_id": candidate.get("event_id") or candidate.get("fixture_id"),
+        "event_id": candidate.get("canonical_event_id") or candidate.get("event_id") or candidate.get("fixture_id"),
+        "canonical_event_id": candidate.get("canonical_event_id"),
+        "selection_id": candidate.get("selection_id"),
         "fixture_key": _candidate_fixture_key(candidate),
         "fixture_id": candidate.get("fixture_id"),
         "sport": candidate.get("sport"),
@@ -365,16 +373,18 @@ def _build_valuation_candidate(candidate: dict) -> dict:
         "participants": participants,
         "competition": candidate.get("competition"),
         "scheduled_time": candidate.get("scheduled_time") or candidate.get("kickoff"),
+        "kickoff": candidate.get("kickoff") or candidate.get("scheduled_time"),
         "source_steps": ["S3", "S4"],
         "market_family": candidate.get("market_family"),
         "market": candidate.get("market") or candidate.get("market_label") or candidate.get("market_type") or best_market.get("name"),
         "market_type": candidate.get("market_type") or best_market.get("name"),
         "market_label": candidate.get("market_label") or candidate.get("market") or candidate.get("market_type") or best_market.get("name"),
         "outcome_name": candidate.get("outcome_name"),
-        "selection": candidate.get("selection") or candidate.get("pick"),
+        "selection": candidate.get("selection") or candidate.get("pick") or best_market.get("selection") or best_market.get("direction"),
         "pick": candidate.get("pick") or best_market.get("direction"),
         "direction": candidate.get("direction") or best_market.get("direction"),
         "line": candidate.get("line") if candidate.get("line") is not None else best_market.get("line"),
+        "period": candidate.get("period") or "full_time",
         "point": candidate.get("point"),
         "provider_market_key": candidate.get("provider_market_key") or candidate.get("market_type"),
         "bookmaker": candidate.get("bookmaker") or candidate.get("best_bookmaker"),
@@ -462,6 +472,20 @@ def _build_valuation_output(
         else:
             final_status = "BLOCKED"
             
+        identity_error: str | None = None
+        try:
+            item = bind_candidate_identity(item)
+        except ContinuityContractError as exc:
+            identity_error = str(exc)
+            try:
+                item = bind_event_identity(item)
+            except ContinuityContractError:
+                pass
+            analytical_status = "ANALYTICAL_BLOCKED"
+            pricing_status = "PRICING_BLOCKED_INVALID_INPUT"
+            risk_status = "REJECTED"
+            final_status = "BLOCKED"
+        item["identity_error"] = identity_error
         item["analytical_status"] = analytical_status
         item["pricing_status"] = pricing_status
         item["risk_status"] = risk_status
@@ -527,14 +551,15 @@ def _build_valuation_output(
                 status = "BLOCKED_INVALID_ANALYTICAL_INPUT"
 
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "artifact_type": "S4_VALUATION_CANDIDATE_SET_V2",
         "status": status,
         "betting_day": date,
         "run_id": run_id or os.environ.get("BET_PIPELINE_RUN_ID"),
         "created_at_utc": datetime.now(timezone.utc).isoformat(),
         "runtime_mode": _runtime_mode_value(runtime_mode),
-        "source_input_path": str(source_input_path) if source_input_path else None,
+        "source_s3_path": str(source_input_path.resolve(strict=True)) if source_input_path else None,
+        "source_s3_sha256": file_sha256(source_input_path) if source_input_path else None,
         "odds_snapshot_paths": _odds_snapshot_paths(),
         "candidate_count": len(valuation_candidates),
         "contains_odds": any(bool(candidate.get("odds")) for candidate in valuation_candidates),

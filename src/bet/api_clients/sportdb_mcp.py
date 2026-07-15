@@ -226,7 +226,10 @@ class SportDBMCPClient:
 
     def __init__(self, endpoint: str = SPORTDB_MCP_ENDPOINT) -> None:
         self.endpoint = endpoint
-        self.api_key = self._resolve_api_key()
+        # Construction is offline-safe so schema validation, replay, and
+        # dependency injection do not require a production secret.  The first
+        # real network call resolves the credential fail-closed.
+        self.api_key = self._resolve_api_key(required=False)
         self.session_id: str | None = None
         self.mcp_tool_calls_made = 0
         self.mcp_session_calls_made = 0
@@ -247,7 +250,7 @@ class SportDBMCPClient:
         if rpc_method == "initialize" or rpc_method.startswith("session"):
             self.mcp_session_calls_made += 1
 
-    def _resolve_api_key(self) -> str:
+    def _resolve_api_key(self, *, required: bool = True) -> str:
         """Resolve API key from environment first, then .env file."""
         for alias in ("SPORTDB_API_KEY", "SPORTDB_KEY"):
             val = os.environ.get(alias, "").strip()
@@ -276,7 +279,9 @@ class SportDBMCPClient:
             except Exception:
                 pass
 
-        raise SportDBMCPAuthError("SPORTDB_API_KEY not found in environment or .env file.")
+        if required:
+            raise SportDBMCPAuthError("SPORTDB_API_KEY not found in environment or .env file.")
+        return ""
 
     def _parse_sse_payloads(self, raw_text: str) -> list[Any]:
         """Parse SSE payloads from raw event-stream text."""
@@ -370,10 +375,77 @@ class SportDBMCPClient:
 
         return result
 
+    def list_tools(self) -> list[dict[str, Any]]:
+        """Return the MCP server's advertised tools using the real protocol.
+
+        This is deliberately a ``tools/list`` JSON-RPC request, not a synthetic
+        wrapper around ``tools/call``.  Authentication, response modes, session
+        binding, and error mapping match :meth:`call_tool`.
+        """
+        if not self.api_key:
+            self.api_key = self._resolve_api_key(required=True)
+        headers = {
+            "X-API-Key": self.api_key,
+            "Content-Type": "application/json",
+            "Accept": SPORTDB_MCP_ACCEPT,
+            "User-Agent": "bet-sportdb-shadow-adapter/1.0",
+        }
+        if self.session_id:
+            headers["MCP-Session-Id"] = self.session_id
+        body = {
+            "jsonrpc": "2.0",
+            "id": f"list-{int(time.time() * 1000)}",
+            "method": "tools/list",
+            "params": {},
+        }
+        request = urllib.request.Request(
+            self.endpoint,
+            data=json.dumps(body).encode("utf-8"),
+            headers=headers,
+            method="POST",
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=30) as response:
+                response_headers = dict(response.headers.items())
+                content_type = response_headers.get("Content-Type", "")
+                session_id = response_headers.get("MCP-Session-Id") or response_headers.get("mcp-session-id")
+                if session_id:
+                    self.session_id = str(session_id).strip()
+                raw_bytes = response.read()
+        except urllib.error.HTTPError as exc:
+            if exc.code in (401, 403):
+                raise SportDBMCPAuthError(f"Authentication failed with status {exc.code}") from exc
+            if exc.code == 429:
+                raise SportDBMCPRateLimitError("Rate limit exceeded") from exc
+            if exc.code == 406:
+                raise SportDBMCPNotAcceptableError("Format not acceptable") from exc
+            if exc.code >= 500:
+                raise SportDBMCPServerError(f"Server error with status {exc.code}") from exc
+            raise SportDBMCPError(f"HTTP error with status {exc.code}") from exc
+        except Exception as exc:
+            raise SportDBMCPError(f"Transport/network failure: {exc}") from exc
+
+        raw_text = raw_bytes.decode("utf-8", errors="replace")
+        try:
+            if "text/event-stream" in content_type.lower():
+                parsed = self._parse_sse_payloads(raw_text)
+                primary = self._extract_primary_payload("sse", parsed)
+            else:
+                primary = self._extract_primary_payload("json", json.loads(raw_text))
+            result = self._extract_tool_result_payload(primary)
+        except SportDBMCPError:
+            raise
+        except Exception as exc:
+            raise SportDBMCPParserError(f"Failed to parse tools/list response: {exc}") from exc
+        tools = result.get("tools") if isinstance(result, dict) else None
+        if not isinstance(tools, list) or any(not isinstance(tool, dict) for tool in tools):
+            raise SportDBMCPParserError("tools/list response does not contain a tools array")
+        return tools
+
     def call_tool(self, tool_name: str, arguments: dict[str, Any]) -> Any:
         """Execute HTTP POST to call an MCP tool."""
         if not self.api_key:
-            raise SportDBMCPAuthError("SPORTDB_API_KEY is not configured.")
+            self.api_key = self._resolve_api_key(required=True)
 
         headers = {
             "X-API-Key": self.api_key,

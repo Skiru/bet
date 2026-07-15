@@ -62,7 +62,7 @@ def _load_canonical_s7b(child_env: dict[str, str], day: str, run_id: str) -> tup
 
 def _validate_mapping(mapping: dict[str, Any], day: str, run_id: str) -> tuple[str, list[dict[str, Any]]]:
     if (
-        mapping.get("schema_version") != 1
+        mapping.get("schema_version") != 2
         or mapping.get("artifact_type") != "S7B_SUPERBET_MANUAL_MAPPING"
         or mapping.get("betting_day") != day
         or mapping.get("run_id") != run_id
@@ -90,6 +90,8 @@ def _validate_mapping(mapping: dict[str, Any], day: str, run_id: str) -> tuple[s
         source_id = card.get("source_candidate_id")
         if not isinstance(card_id, str) or not card_id or not isinstance(source_id, str) or not source_id:
             raise ValueError("S7b quote card identity is incomplete")
+        if card.get("selection_id") != source_id:
+            raise ValueError("S7b quote card selection identity mismatch")
         if card_id in card_ids or source_id in source_ids:
             raise ValueError("S7b quote card identity is duplicated")
         card_ids.add(card_id)
@@ -141,7 +143,7 @@ def main() -> None:
     output_sha256: str | None = None
     if not blocked:
         output_artifact = {
-                "schema_version": 1,
+                "schema_version": 2,
                 "artifact_type": "S8_SUPERBET_MANUAL_QUOTE_PACK",
                 "status": outcome,
                 "betting_day": args.date,

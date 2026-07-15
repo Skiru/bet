@@ -1,6 +1,7 @@
 """Contracts and validators for agent artifacts generated from work orders."""
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 from bet.pipeline.artifact_gate import find_forbidden_decision_signals
@@ -148,41 +149,11 @@ def validate_agent_artifact_for_work_order(
         if not cmd_req:
             errors.append("COMMAND_REQUEST artifacts must contain a non-empty command_request")
         else:
-            import os
-            import shlex
-            argv = []
-            if isinstance(cmd_req, dict):
-                argv = cmd_req.get("argv")
-                if not isinstance(argv, list) or not argv:
-                    errors.append("Structured command_request must contain a non-empty 'argv' list")
-                    argv = []
-            elif isinstance(cmd_req, str):
-                meta = [";", "&", "|", "<", ">", "$", "(", ")", "*", "?", "[", "]", "\\", "!", "{", "}"]
-                if any(m in cmd_req for m in meta):
-                    errors.append("COMMAND_REQUEST command_request string contains disallowed shell metacharacters")
-                try:
-                    argv = shlex.split(cmd_req)
-                except Exception as e:
-                    errors.append(f"Failed to parse command_request string: {e}")
-                    argv = []
-            else:
-                errors.append("command_request must be a string or a structured object")
-
-            if argv:
-                meta = [";", "&", "|", "<", ">", "$", "(", ")", "*", "?", "[", "]", "\\", "!", "{", "}"]
-                for arg in argv:
-                    if any(m in str(arg) for m in meta):
-                        errors.append(f"COMMAND_REQUEST argument '{arg}' contains disallowed shell metacharacters")
-                executable = argv[0]
-                allowed_execs = {"python", "python3", "pytest", ".venv/bin/python3", ".venv/bin/python", ".venv/bin/pytest", "sleep", "/bin/sleep"}
-                is_safe_exec = False
-                base_exec = os.path.basename(executable)
-                if base_exec in allowed_execs or executable in allowed_execs:
-                    is_safe_exec = True
-                elif executable.endswith(".py") and ("scripts/" in executable or "tools/" in executable):
-                    is_safe_exec = True
-                if not is_safe_exec:
-                    errors.append(f"COMMAND_REQUEST executable '{executable}' is not in the allowlist of safe executables")
+            from bet.pipeline.command_registry import CommandRequestError, resolve_command_request
+            try:
+                resolve_command_request(cmd_req)
+            except CommandRequestError as exc:
+                errors.append(str(exc))
 
         forbidden_signals = ["pick", "picks", "selection", "selections", "bet", "betting_decision", "edge", "ev", "expected_value", "stake", "staking", "coupon", "accumulator", "parlay"]
         for key in payload.keys():
@@ -215,7 +186,29 @@ def validate_agent_artifact_for_work_order(
     # 6. Forbidden fields in the actual artifact payload
     forbidden_keys = work_order_data.get("forbidden_outputs", [])
     if forbidden_keys:
-        signals = find_forbidden_decision_signals(payload)
+        scan_payload = payload
+        if step_id == "S5":
+            # S5 must preserve S4 analytical identity and pricing facts such as
+            # `selection` and `ev`. They are inputs, not an execution decision.
+            # Decision-shaped fields outside the candidate partitions remain
+            # forbidden, and candidate records get a narrower execution scan.
+            scan_payload = {
+                key: value for key, value in payload.items()
+                if key not in {"candidates", "rejected_candidates"}
+            }
+            execution_keys = {
+                "internal_pick", "recommended_pick", "stake", "staking",
+                "coupon", "parlay", "accumulator", "betting_decision",
+            }
+            for category in ("candidates", "rejected_candidates"):
+                for index, candidate in enumerate(payload.get(category, [])):
+                    if isinstance(candidate, dict):
+                        for key in candidate:
+                            if str(key).strip().lower() in execution_keys:
+                                errors.append(
+                                    f"Forbidden execution signal found in payload.{category}[{index}]: {key}"
+                                )
+        signals = find_forbidden_decision_signals(scan_payload)
         for sig in signals:
             errors.append(f"Forbidden decision signal found in payload: {sig}")
 
@@ -385,6 +378,21 @@ def agent_artifact_template_for_step(step_id: str, betting_day: str, run_id: str
         template["payload"] = {
             "template_status": "TODO_FILL_BY_AGENT",
             "approval_state": "NOT_FINAL_TEMPLATE",
+            "policy_version": "S5_CONTEXT_RISK_V2",
+            "work_order_id": f"WO-{run_id}-S5",
+            "agent_id": "bet-risk-gatekeeper",
+            "source_s4_path": "TODO_EXACT_S4_PATH_FROM_WORK_ORDER",
+            "source_s4_sha256": "TODO_EXACT_S4_SHA256_FROM_WORK_ORDER",
+            "source_git_sha": "TODO_CURRENT_GIT_SHA",
+            "manifest_sha": "TODO_CURRENT_MANIFEST_SHA256",
+            "input_candidate_count": 0,
+            "candidates": [],
+            "rejected_candidates": [],
+            "accounting": {
+                "unaccounted_candidate_ids": [],
+                "duplicate_candidate_ids": [],
+                "overlapping_terminal_categories": [],
+            },
             "injuries_lineups": "TODO_FILL_BY_AGENT",
             "motivation_tournament_context": "TODO_FILL_BY_AGENT",
             "travel_fatigue": "TODO_FILL_BY_AGENT",
@@ -397,10 +405,12 @@ def agent_artifact_template_for_step(step_id: str, betting_day: str, run_id: str
 
 def find_repo_root(start_path: Path | str) -> Path:
     """Helper to locate repo root containing config/pipeline_manifest.json or .git."""
-    from pathlib import Path
     curr = Path(start_path).resolve()
     for _ in range(6):
-        if (curr / "config" / "pipeline_manifest.json").exists() or (curr / ".git").exists():
+        # A bare `.git` directory is not sufficient: sandboxed runners may
+        # expose placeholder mount points that are not repositories.  The
+        # canonical manifest is the stable project-root marker we need here.
+        if (curr / "config" / "pipeline_manifest.json").is_file():
             return curr
         curr = curr.parent
     return Path(__file__).resolve().parents[3]
@@ -419,6 +429,11 @@ def validate_s5_artifact_v2(
     """
     from pathlib import Path
 
+    from bet.pipeline.canonical_continuity import (
+        bind_candidate_identity,
+        selection_identity_fields,
+        validate_exact_partition,
+    )
     from bet.pipeline.integration_artifacts import resolve_manifest_step_output
     from bet.pipeline.run_evidence import manifest_hash, repo_head_sha, sha256_file
 
@@ -428,6 +443,18 @@ def validate_s5_artifact_v2(
     payload = s5_data.get("payload", {})
     if not isinstance(payload, dict):
         raise ValueError("S5_CANDIDATE_ACCOUNTING_MISMATCH: s5_data payload is not a dictionary")
+
+    if (
+        s5_data.get("schema_version") != 1
+        or s5_data.get("artifact_type") != "AGENT_ARTIFACT"
+        or s5_data.get("step_id") != "S5"
+        or s5_data.get("status") != "PASS"
+        or s5_data.get("source_bound") is not True
+        or s5_data.get("no_pick_edge_stake_coupon_emitted") is not True
+        or s5_data.get("production_selectable") is not False
+        or s5_data.get("betting_decisions_enabled") is not False
+    ):
+        raise ValueError("S5_TOP_LEVEL_CONTRACT_INVALID")
 
     # Check current run/day
     if s5_data.get("betting_day") != betting_day:
@@ -493,6 +520,9 @@ def validate_s5_artifact_v2(
         if not cid:
             raise ValueError(f"S5_CANDIDATE_ACCOUNTING_MISMATCH: Retained candidate at index {idx} has no candidate_id")
         retained_ids.append(cid)
+        bound = bind_candidate_identity(c)
+        if bound.get("candidate_id") != cid or c.get("selection_id") != cid:
+            raise ValueError(f"S5_CANONICAL_IDENTITY_MISMATCH: {cid}")
 
         # Verify mandatory analytical/pricing/context/risk/provenance fields
         if "home_team" not in c or "away_team" not in c:
@@ -556,6 +586,27 @@ def validate_s5_artifact_v2(
             raise ValueError(f"S5_CANDIDATE_ACCOUNTING_MISMATCH: Retained candidate {cid} is missing context fields (sport/competition)")
         if not ("safety_score" in c or "risk" in c or "safety_markets" in c or "risk_flags" in c):
             raise ValueError(f"S5_CANDIDATE_ACCOUNTING_MISMATCH: Retained candidate {cid} is missing risk fields")
+        context_checks = c.get("context_checks")
+        required_context = {
+            "injuries_lineups",
+            "motivation_tournament_context",
+            "travel_fatigue",
+            "morale_recent_form",
+            "upset_volatility_risk",
+        }
+        if not isinstance(context_checks, dict) or set(context_checks) & required_context != required_context:
+            raise ValueError(f"S5_CONTEXT_EVIDENCE_MISSING: {cid}")
+        for name in required_context:
+            check = context_checks[name]
+            if (
+                not isinstance(check, dict)
+                or str(check.get("status") or "").upper() not in {"CLEAR", "RISK_ACCEPTABLE", "BLOCK", "UNKNOWN"}
+                or not check.get("as_of_utc")
+                or not check.get("source_refs")
+            ):
+                raise ValueError(f"S5_CONTEXT_EVIDENCE_INVALID: {cid}:{name}")
+        if not isinstance(c.get("risk_flags"), list) or not isinstance(c.get("counter_evidence"), list):
+            raise ValueError(f"S5_RISK_EVIDENCE_INVALID: {cid}")
 
     rejected_ids = []
     for idx, c in enumerate(rejected):
@@ -563,6 +614,9 @@ def validate_s5_artifact_v2(
         if not cid:
             raise ValueError(f"S5_CANDIDATE_ACCOUNTING_MISMATCH: Rejected candidate at index {idx} has no candidate_id")
         rejected_ids.append(cid)
+        if c.get("selection_id") != cid:
+            raise ValueError(f"S5_CANONICAL_IDENTITY_MISMATCH: {cid}")
+        bind_candidate_identity(c)
 
         # stable rejection reasons
         reasons = c.get("rejection_reasons") or c.get("reason_codes") or c.get("reasons") or c.get("reason")
@@ -597,3 +651,15 @@ def validate_s5_artifact_v2(
     if len(retained_ids) + len(rejected_ids) != len(s4_ids):
         raise ValueError(f"S5_CANDIDATE_ACCOUNTING_MISMATCH: S5 candidates count sum {len(retained_ids) + len(rejected_ids)} does not match S4 candidates count {len(s4_ids)}")
 
+    validate_exact_partition(
+        s4_candidates,
+        {"candidates": retained, "rejected_candidates": rejected},
+    )
+    source_by_id = {candidate["selection_id"]: candidate for candidate in s4_candidates}
+    for candidate in retained + rejected:
+        candidate_id = candidate["selection_id"]
+        source = source_by_id[candidate_id]
+        if selection_identity_fields(candidate, candidate["canonical_event_id"]) != selection_identity_fields(
+            source, source["canonical_event_id"]
+        ):
+            raise ValueError(f"S5_SELECTION_IDENTITY_MUTATED: {candidate_id}")

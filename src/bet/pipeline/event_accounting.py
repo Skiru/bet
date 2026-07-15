@@ -101,25 +101,23 @@ class EventAccountingLedger:
         self,
         step_id: str,
         *,
-        records: list[dict[str, Any]] | None = None,
-        default_status: str,
+        records: list[dict[str, Any]] | None,
     ) -> dict[str, Any]:
         payload = self._load()
         universe = set(payload["canonical_event_ids"])
         statuses: dict[str, list[str]] = {}
         if records is None:
-            statuses = {event_id: [default_status] for event_id in universe}
-        else:
-            for record in records:
-                if not isinstance(record, dict):
-                    raise EventAccountingError("EVENT_BOUNDARY_RECORD_INVALID")
-                event_id = str(record.get("canonical_event_id") or "")
-                status = str(record.get("terminal_status") or "")
-                if event_id not in universe:
-                    raise EventAccountingError("EVENT_BOUNDARY_UNKNOWN_EVENT")
-                if not status:
-                    raise EventAccountingError("EVENT_BOUNDARY_STATUS_MISSING")
-                statuses.setdefault(event_id, []).append(status)
+            raise EventAccountingError("EVENT_BOUNDARY_RECORDS_MISSING")
+        for record in records:
+            if not isinstance(record, dict):
+                raise EventAccountingError("EVENT_BOUNDARY_RECORD_INVALID")
+            event_id = str(record.get("canonical_event_id") or "")
+            status = str(record.get("terminal_status") or "")
+            if event_id not in universe:
+                raise EventAccountingError("EVENT_BOUNDARY_UNKNOWN_EVENT")
+            if not status:
+                raise EventAccountingError("EVENT_BOUNDARY_STATUS_MISSING")
+            statuses.setdefault(event_id, []).append(status)
         missing = sorted(universe - set(statuses))
         if missing:
             raise EventAccountingError(f"EVENT_BOUNDARY_LOSS:{','.join(missing)}")
@@ -134,17 +132,6 @@ class EventAccountingLedger:
         return payload
 
 
-BOUNDARY_DEFAULT_STATUS = {
-    "S2": "TIPSTER_EVIDENCE_RECORDED_OR_MISSING_EXPLICIT",
-    "S2.3": "ENRICHMENT_GAPS_RECORDED",
-    "S2.5": "PROVIDER_OBSERVATIONS_RECORDED_OR_UNAVAILABLE",
-    "S2.7": "FACTS_RECONCILED_OR_UNKNOWN",
-    "S2.9": "READINESS_RECORDED",
-    "S3": "ANALYSIS_RECORDED",
-    "S4": "PRICED_OR_PRICE_PENDING",
-    "S5": "CONTEXT_RISK_RECORDED",
-    "S6": "PORTFOLIO_STATUS_RECORDED",
-    "S7": "APPROVED_REJECTED_OR_NO_ACTION",
-    "S7b": "MAPPED_OR_NO_ACTION",
-    "S8": "QUOTE_PACK_OR_NO_ACTION",
-}
+ACCOUNTING_BOUNDARY_STEPS = frozenset(
+    {"S2", "S2.3", "S2.5", "S2.7", "S2.9", "S3", "S4", "S5", "S6", "S7", "S7b", "S8"}
+)

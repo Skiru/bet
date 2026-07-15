@@ -22,7 +22,7 @@ def test_runtime_context_and_evidence_path(tmp_path):
     assert ctx["betting_day"] == "2026-06-25"
     assert ctx["run_id"] == "run-123"
     path = script_evidence_path("S7", env)
-    assert path == tmp_path / "2026-06-25" / "run-123" / "pipeline_runs" / "2026-06-25" / "run-123" / "artifacts" / "S7.json"
+    assert path == tmp_path / "pipeline_runs" / "2026-06-25" / "run-123" / "artifacts" / "S7.json"
 
 
 def test_write_and_require_pass_script_evidence(tmp_path, monkeypatch: pytest.MonkeyPatch):

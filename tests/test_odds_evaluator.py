@@ -81,9 +81,11 @@ def test_convert_espn_spread():
 def _candidate(home: str, away: str, *, fixture_id: int | None = None, ev=None) -> dict:
     candidate = {
         "sport": "football",
+        "competition": "test-league",
         "home_team": home,
         "away_team": away,
         "kickoff": "2099-01-01T12:00:00",
+        "best_market": {"name": "corners_total", "direction": "OVER", "line": 9.5},
         "ranking": [{"name": "Corners", "safety_score": 0.7}],
         "context_flags": [],
     }

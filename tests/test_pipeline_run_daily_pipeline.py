@@ -108,4 +108,4 @@ def test_create_agent_work_order_print_json(tmp_path):
     data = json.loads(res.stdout)
     assert data["step_id"] == "S5"
     assert data["runtime_mode"] == "LIVE_SHADOW"
-    assert data["agent"] == "bet-challenger"
+    assert data["agent"] == "bet-risk-gatekeeper"

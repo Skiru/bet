@@ -10,7 +10,6 @@ that need persistent schema across multiple calls work correctly.
 from __future__ import annotations
 
 import os
-import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -30,7 +29,8 @@ from bet.pipeline.runtime_modes import (
     WRITE_ACK_KEY,
     WRITE_ACK_VALUE,
 )
-from bet.pipeline.runtime_paths import build_runtime_env
+from bet.pipeline.runtime_paths import build_runtime_env, is_system_temp_path
+from bet.pipeline.run_coordination import redact_sensitive_text, run_bounded_process
 
 # Sandbox paths keys
 RUNTIME_PATH_KEYS = (
@@ -102,7 +102,10 @@ def resolve_child_runtime_env(
             for key in RUNTIME_PATH_KEYS:
                 env[key] = parent_env[key]
         else:
-            resolved_betting_day = betting_day or parent_env.get("BET_PIPELINE_BETTING_DAY") or "default_day"
+            # Generic dry-run helper scripts may not be bound to a betting day;
+            # use a syntactically valid non-production sentinel, never a path-like
+            # free-form placeholder.
+            resolved_betting_day = betting_day or parent_env.get("BET_PIPELINE_BETTING_DAY") or "1970-01-01"
             resolved_run_id = run_id or parent_env.get("BET_PIPELINE_RUN_ID")
             resolved_run_root = Path(run_root) if run_root else None
             sandbox_env = build_runtime_env(runtime_mode, resolved_betting_day, resolved_run_id, resolved_run_root)
@@ -120,9 +123,14 @@ def resolve_child_runtime_env(
         child_run_root = env.get("BET_PIPELINE_RUN_ROOT", "")
         child_run_root_resolved = str(Path(child_run_root).expanduser().resolve()) if child_run_root else ""
         repo_reports_root = str(_repo_reports_root().resolve())
-        if parent_run_root.startswith("/tmp") and child_run_root_resolved.startswith(repo_reports_root):
+        if (
+            parent_run_root
+            and is_system_temp_path(parent_run_root)
+            and child_run_root_resolved.startswith(repo_reports_root)
+        ):
             raise RuntimeError(
-                "Non-production child runtime sandbox fell back to repo-local reports despite inherited /tmp BET_PIPELINE_RUN_ROOT"
+                "Non-production child runtime sandbox fell back to repo-local reports "
+                "despite an inherited temporary BET_PIPELINE_RUN_ROOT"
             )
 
         for key in RUNTIME_PATH_KEYS:
@@ -231,7 +239,7 @@ def run_scripts(
                 run_id=run_id,
                 run_root=run_root,
             )
-        except RuntimeError as exc:
+        except (RuntimeError, ValueError) as exc:
             print(f"BLOCKED_RUNTIME_PATH_INHERITANCE_LOST: {exc}")
             return 6
 
@@ -255,10 +263,19 @@ def run_scripts(
                 argv = []
                 if date:
                     argv += [date_arg, date]
-                timeout = None
+                timeout = 900.0
                 expected_codes = set(continue_on_codes or [0])
 
-            script_path = ROOT / "scripts" / script_name
+            relative_script = Path(script_name)
+            if relative_script.is_absolute() or ".." in relative_script.parts:
+                print("BLOCKED_SCRIPT_PATH_OUTSIDE_REGISTRY")
+                return 2
+            script_path = (ROOT / "scripts" / relative_script).resolve(strict=False)
+            try:
+                script_path.relative_to((ROOT / "scripts").resolve())
+            except ValueError:
+                print("BLOCKED_SCRIPT_PATH_OUTSIDE_REGISTRY")
+                return 2
             if not script_path.exists():
                 print(f"Script not found: {script_path}")
                 return 2
@@ -266,28 +283,33 @@ def run_scripts(
             if extra_args:
                 cmd += extra_args
             print("Running:", " ".join(cmd))
-            kwargs = {}
-            if timeout is not None:
-                kwargs["timeout"] = timeout
-            res = subprocess.run(cmd, env=env, capture_output=True, text=True, **kwargs)
+            bounded_timeout = float(timeout if timeout is not None else 900.0)
+            if not 0 < bounded_timeout <= 3600:
+                print("BLOCKED_SCRIPT_TIMEOUT_INVALID")
+                return 2
+            res = run_bounded_process(cmd, env=env, timeout_seconds=bounded_timeout, cwd=ROOT)
+            stdout = redact_sensitive_text(res.stdout, env)
+            stderr = redact_sensitive_text(res.stderr, env)
             if res.returncode not in expected_codes:
-                if res.stdout:
-                    print(res.stdout)
-                if res.stderr:
-                    print(res.stderr)
+                if stdout:
+                    print(stdout)
+                if stderr:
+                    print(stderr)
 
-                if not isinstance(script, ScriptInvocation) and date and ("unrecognized arguments" in (res.stderr or "").lower() or "usage:" in (res.stderr or "").lower() or "error:" in (res.stderr or "").lower()):
+                if not isinstance(script, ScriptInvocation) and date and ("unrecognized arguments" in stderr.lower() or "usage:" in stderr.lower() or "error:" in stderr.lower()):
                     print(f"Retrying {script_name} without date flag to accommodate CLI differences")
                     cmd2 = [python, str(script_path)]
                     if extra_args:
                         cmd2 += extra_args
                     print("Running:", " ".join(cmd2))
-                    res2 = subprocess.run(cmd2, env=env, capture_output=True, text=True)
+                    res2 = run_bounded_process(cmd2, env=env, timeout_seconds=bounded_timeout, cwd=ROOT)
+                    stdout2 = redact_sensitive_text(res2.stdout, env)
+                    stderr2 = redact_sensitive_text(res2.stderr, env)
                     if res2.returncode not in expected_codes:
-                        if res2.stdout:
-                            print(res2.stdout)
-                        if res2.stderr:
-                            print(res2.stderr)
+                        if stdout2:
+                            print(stdout2)
+                        if stderr2:
+                            print(stderr2)
                         print(f"Script {script_name} failed with code {res2.returncode}")
                         return res2.returncode
                     else:
@@ -296,10 +318,10 @@ def run_scripts(
                 print(f"Script {script_name} failed with code {res.returncode}")
                 return res.returncode
             else:
-                if res.stdout:
-                    print(res.stdout)
-                if res.stderr:
-                    print(res.stderr)
+                if stdout:
+                    print(stdout)
+                if stderr:
+                    print(stderr)
         return 0
     finally:
         if temp_db_path:

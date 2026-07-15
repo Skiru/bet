@@ -4,13 +4,60 @@ from __future__ import annotations
 import pytest
 
 from bet.pipeline.agent_artifact_contracts import validate_s5_artifact_v2
+from bet.pipeline.canonical_continuity import bind_candidate_identity
+
+
+def _candidate() -> dict:
+    return bind_candidate_identity(
+        {
+            "home_team": "France",
+            "away_team": "Spain",
+            "kickoff": "2026-07-14T18:00:00Z",
+            "market": "Match Winner",
+            "market_family": "RESULT",
+            "market_type": "ml",
+            "selection": "France",
+            "sport": "football",
+            "competition": "World Cup",
+            "safety_score": 0.85,
+            "risk_flags": [],
+            "counter_evidence": [],
+            "context_checks": {
+                name: {
+                    "status": "CLEAR",
+                    "as_of_utc": "2026-07-14T12:00:00Z",
+                    "source_refs": ["fixture:pricing-contract"],
+                }
+                for name in (
+                    "injuries_lineups",
+                    "motivation_tournament_context",
+                    "travel_fatigue",
+                    "morale_recent_form",
+                    "upset_volatility_risk",
+                )
+            },
+            "analytical_status": "ANALYTICAL_READY",
+            "pricing_status": "PRICED",
+            "odds_decimal": 1.95,
+            "odds_source": "Superbet",
+            "odds_as_of": "2026-07-14T12:00:00Z",
+        }
+    )
 
 
 @pytest.fixture
 def base_s5_payload():
     return {
+        "schema_version": 1,
+        "artifact_type": "AGENT_ARTIFACT",
+        "step_id": "S5",
+        "status": "PASS",
         "betting_day": "2026-07-14",
         "run_id": "TEST_RUN_ID",
+        "source_bound": True,
+        "no_pick_edge_stake_coupon_emitted": True,
+        "production_selectable": False,
+        "betting_decisions_enabled": False,
         "payload": {
             "work_order_id": "WO-TEST_RUN_ID-S5",
             "agent_id": "bet-risk-gatekeeper",
@@ -19,23 +66,13 @@ def base_s5_payload():
             "source_s4_path": "/tmp/mock_s4.json",
             "source_s4_sha256": "dummy_s4_sha",
             "input_candidate_count": 1,
-            "candidates": [
-                {
-                    "candidate_id": "football|France|Spain|2026-07-14",
-                    "home_team": "France",
-                    "away_team": "Spain",
-                    "best_market": {"name": "Match Winner"},
-                    "sport": "football",
-                    "competition": "World Cup",
-                    "safety_score": 0.85,
-                    "analytical_status": "ANALYTICAL_READY",
-                    "pricing_status": "PRICED",
-                    "odds_decimal": 1.95,
-                    "odds_source": "Superbet",
-                    "odds_as_of": "2026-07-14T12:00:00Z"
-                }
-            ],
-            "rejected_candidates": []
+            "candidates": [_candidate()],
+            "rejected_candidates": [],
+            "accounting": {
+                "unaccounted_candidate_ids": [],
+                "duplicate_candidate_ids": [],
+                "overlapping_terminal_categories": [],
+            },
         }
     }
 
@@ -50,11 +87,7 @@ def mock_s4_file(tmp_path):
     s4_path = data_dir / "2026-07-14_s4_valuation_candidates.json"
     s4_content = {
         "artifact_type": "S4_VALUATION_CANDIDATE_SET_V2",
-        "candidates": [
-            {
-                "candidate_id": "football|France|Spain|2026-07-14"
-            }
-        ]
+        "candidates": [_candidate()]
     }
     import json
     s4_path.write_text(json.dumps(s4_content))

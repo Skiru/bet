@@ -2,7 +2,7 @@ import json
 from pathlib import Path
 
 
-WORKSPACE_ROOT = Path("/Users/mkoziol/projects/bet")
+WORKSPACE_ROOT = Path(__file__).resolve().parent.parent
 DOCS = [
     WORKSPACE_ROOT / "docs/pipeline/Unified Orchestrated Analyst Session Contract.md",
     WORKSPACE_ROOT / "docs/pipeline/Orchestrated Session Continuation Protocol.md",

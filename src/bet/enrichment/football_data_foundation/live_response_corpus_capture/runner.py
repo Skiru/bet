@@ -39,7 +39,7 @@ def run_live_response_corpus_capture(corpus_root: Path, max_fixtures: int = 3) -
     Discover fixtures, invoke providers, write envelopes and manifest.
     """
     # 1. Setup run_id and run directory
-    now_utc = datetime.datetime.utcnow()
+    now_utc = datetime.datetime.now(datetime.UTC)
     run_id = f"run_{now_utc.strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:6]}"
     run_dir = corpus_root / run_id
     run_dir.mkdir(parents=True, exist_ok=True)
@@ -131,7 +131,7 @@ def run_live_response_corpus_capture(corpus_root: Path, max_fixtures: int = 3) -
     # 6. Build and write manifest
     manifest = LiveCorpusManifest(
         run_id=run_id,
-        run_started_at_utc=now_utc.isoformat() + "Z",
+        run_started_at_utc=now_utc.isoformat().replace("+00:00", "Z"),
         target_date_utc=now_utc.strftime("%Y-%m-%d"),
         fixture_count=len(fixtures),
         provider_count=provider_count,
@@ -152,7 +152,7 @@ def run_live_response_corpus_capture(corpus_root: Path, max_fixtures: int = 3) -
     readme_content = f"""# Live Response Corpus Run: {run_id}
 
 Run ID: {run_id}
-Started At: {now_utc.isoformat()}Z
+Started At: {now_utc.isoformat().replace("+00:00", "Z")}
 Target Date: {now_utc.strftime('%Y-%m-%d')}
 Discovered Fixtures: {len(fixtures)}
 Providers Attempted: {provider_count}
@@ -194,7 +194,7 @@ def run_freemium_rescue_capture(corpus_root: Path) -> LiveCorpusManifest:
     import uuid
     from bet.enrichment.football_data_foundation.live_response_corpus_capture.verifier import verify_run_directory
 
-    now_utc = datetime.datetime.utcnow()
+    now_utc = datetime.datetime.now(datetime.UTC)
     run_id = f"run_{now_utc.strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:6]}"
     run_dir = corpus_root / run_id
     run_dir.mkdir(parents=True, exist_ok=True)
@@ -214,7 +214,7 @@ def run_freemium_rescue_capture(corpus_root: Path) -> LiveCorpusManifest:
 
     # Target info
     target_slug = "worldcup2026-norway-senegal"
-    now_str = now_utc.isoformat() + "Z"
+    now_str = now_utc.isoformat().replace("+00:00", "Z")
 
     # --- 1. SportDB Rescue ---
     sportdb_status = "SKIPPED_CREDENTIALS_MISSING"

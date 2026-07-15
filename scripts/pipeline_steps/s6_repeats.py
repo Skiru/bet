@@ -10,6 +10,7 @@ import sys
 from contextlib import redirect_stdout
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
@@ -26,7 +27,6 @@ from bet.pipeline.run_evidence import (
     manifest_hash,
     repo_head_sha,
     sha256_file,
-    write_json_atomic,
 )
 from bet.pipeline.runtime_modes import RuntimeMode, parse_runtime_mode
 from bet.pipeline.runtime_paths import is_safe_run_path
@@ -100,14 +100,11 @@ def load_recent_losses_snapshot(
                 # Guarantee correct subtraction in UTC for Warsaw DST boundaries
                 as_of_utc = as_of.astimezone(UTC)
                 settled_at_utc = settled_at.astimezone(UTC)
-                age_seconds = (as_of_utc - settled_at_utc).total_seconds()
-                lookback_seconds = hours * 3600
-
-                if age_seconds < 0:
+                if settled_at_utc > as_of_utc:
                     raise HistoryMalformedError(f"HISTORY_TIMESTAMP_INVALID: Future timestamp '{settled_at.isoformat()}' in row {idx}")
 
-                # Half-open lookback filter [lookback_start, as_of)
-                if age_seconds >= lookback_seconds:
+                # Exact half-open lookback filter [lookback_start, as_of).
+                if settled_at_utc < lookback_start.astimezone(UTC) or settled_at_utc >= as_of_utc:
                     continue
 
                 teams = _extract_teams_from_event(event)
@@ -137,7 +134,7 @@ def load_recent_losses_snapshot(
         "artifact_type": "S6_HISTORY_SNAPSHOT_V1",
         "as_of_utc": as_of.isoformat(),
         "lookback_start_utc": lookback_start.isoformat(),
-        "boundary_policy": "half_open_inclusive_start",
+        "boundary_policy": "[lookback_start_utc,as_of_utc)",
         "source_identity": ledger_path.name,
         "opened_read_only": True,
         "query_version": "1.0",
@@ -159,7 +156,9 @@ BLOCKED_REASON_PATTERNS: tuple[tuple[str, str], ...] = (
 
 
 import hashlib
-import time
+import uuid
+
+from bet.pipeline.artifact_io import ArtifactPublishError, publish_run_artifact
 
 
 def publish_terminal_evidence_immutable(
@@ -169,63 +168,52 @@ def publish_terminal_evidence_immutable(
     betting_day: str,
     run_id: str,
 ) -> str:
-    """Publish S6 terminal evidence atomically and immutably, with conflict audit logging as of REQ-V6-EVID-001."""
-    proposed_str = json.dumps(proposed_payload, sort_keys=True, ensure_ascii=False)
-    proposed_hash = hashlib.sha256(proposed_str.encode("utf-8")).hexdigest()
+    """Publish S6 evidence with exclusive-create semantics and audit conflicts."""
+    try:
+        receipt = publish_run_artifact(
+            run_root=run_root_path,
+            target=target_path,
+            payload=proposed_payload,
+            betting_day=betting_day,
+            run_id=run_id,
+            artifact_type=str(proposed_payload.get("artifact_type")),
+            immutable=True,
+        )
+        return "idempotent_reuse" if receipt.already_present else "atomic_create"
+    except ArtifactPublishError as exc:
+        if exc.code != "ARTIFACT_IMMUTABLE_CONFLICT":
+            raise
 
-    if target_path.exists():
-        try:
-            existing_data = json.loads(target_path.read_text(encoding="utf-8"))
-            existing_str = json.dumps(existing_data, sort_keys=True, ensure_ascii=False)
-            existing_hash = hashlib.sha256(existing_str.encode("utf-8")).hexdigest()
-        except Exception:
-            existing_hash = ""
-
-        if existing_hash == proposed_hash:
-            return "idempotent_reuse"
-        else:
-            # Write a separate immutable conflict-attempt record under <run_root>/validation/attempts/S6/<attempt_id>.json as of REQ-V6-EVID-003
-            attempts_dir = run_root_path / "validation" / "attempts" / "S6"
-            attempts_dir.mkdir(parents=True, exist_ok=True)
-
-            # Deterministically unique attempt_id for this attempt
-            attempt_id = f"conflict_{proposed_hash[:16]}_{int(time.time())}"
-            attempt_path = attempts_dir / f"{attempt_id}.json"
-
-            # Ensure we do not overwrite another attempt record
-            counter = 1
-            while attempt_path.exists():
-                attempt_path = attempts_dir / f"{attempt_id}_{counter}.json"
-                counter += 1
-
-            conflict_payload = {
-                "schema_version": 1,
-                "artifact_type": "S6_EVIDENCE_CONFLICT_AUDIT",
-                "betting_day": betting_day,
-                "run_id": run_id,
-                "attempt_id": attempt_id,
-                "existing_sha256": existing_hash,
-                "proposed_sha256": proposed_hash,
-                "reason": "BLOCKED_IMMUTABLE_S6_EVIDENCE_CONFLICT",
-                "proposed_payload_snippet": {
-                    "status": proposed_payload.get("status"),
-                    "blocked_reasons": proposed_payload.get("blocked_reasons"),
-                }
-            }
-            write_json_atomic(attempt_path, conflict_payload)
-            return "BLOCKED_IMMUTABLE_S6_EVIDENCE_CONFLICT"
-
-    # Path absent: atomically publish with immutable=true
-    write_json_atomic(target_path, proposed_payload)
-
-    # Read back and verify bytes and SHA
-    readback_data = json.loads(target_path.read_text(encoding="utf-8"))
-    readback_str = json.dumps(readback_data, sort_keys=True, ensure_ascii=False)
-    readback_hash = hashlib.sha256(readback_str.encode("utf-8")).hexdigest()
-    if readback_hash != proposed_hash:
-        raise ValueError("BLOCKED_PUBLICATION_FAILURE: Evidence read-back hash mismatch")
-
-    return "atomic_create"
+    existing_hash = sha256_file(target_path) if target_path.is_file() else ""
+    proposed_hash = hashlib.sha256(
+        (json.dumps(proposed_payload, indent=2, ensure_ascii=False, sort_keys=True) + "\n").encode("utf-8")
+    ).hexdigest()
+    attempt_id = f"conflict_{proposed_hash[:16]}_{uuid.uuid4().hex}"
+    attempt_path = run_root_path / "validation" / "attempts" / "S6" / f"{attempt_id}.json"
+    conflict_payload = {
+        "schema_version": 1,
+        "artifact_type": "S6_EVIDENCE_CONFLICT_AUDIT",
+        "betting_day": betting_day,
+        "run_id": run_id,
+        "attempt_id": attempt_id,
+        "existing_sha256": existing_hash,
+        "proposed_sha256": proposed_hash,
+        "reason": "BLOCKED_IMMUTABLE_S6_EVIDENCE_CONFLICT",
+        "proposed_payload_snippet": {
+            "status": proposed_payload.get("status"),
+            "blocked_reasons": proposed_payload.get("blocked_reasons"),
+        },
+    }
+    publish_run_artifact(
+        run_root=run_root_path,
+        target=attempt_path,
+        payload=conflict_payload,
+        betting_day=betting_day,
+        run_id=run_id,
+        artifact_type="S6_EVIDENCE_CONFLICT_AUDIT",
+        immutable=True,
+    )
+    return "BLOCKED_IMMUTABLE_S6_EVIDENCE_CONFLICT"
 
 
 def main() -> None:
@@ -253,10 +241,6 @@ def main() -> None:
         run_id=args.run_id,
         run_root=None,
     )
-    for key in ("BET_PIPELINE_RUN_ROOT", "BET_PIPELINE_DATA_DIR", "BET_PIPELINE_COUPON_DIR", "BET_PIPELINE_ARTIFACT_DIR", "BET_PIPELINE_BETTING_DAY", "BET_PIPELINE_RUN_ID", "BET_PIPELINE_RUNTIME_MODE"):
-        if child_env.get(key):
-            os.environ[key] = child_env[key]
-
     run_root_raw = child_env.get("BET_PIPELINE_RUN_ROOT")
     if not run_root_raw:
         print("BLOCKED_BINDING_FAILURE: BET_PIPELINE_RUN_ROOT is missing.")
@@ -277,7 +261,7 @@ def main() -> None:
         else:
             output_path = ROOT / "betting" / "data" / f"repeat_loss_handoff_{args.date}.json"
 
-    ledger_path = args.ledger or Path(os.environ.get("BET_PIPELINE_LEDGER_PATH", ROOT / "betting" / "journal" / "picks-ledger.csv"))
+    ledger_path = args.ledger or Path(child_env.get("BET_PIPELINE_LEDGER_PATH", ROOT / "betting" / "journal" / "picks-ledger.csv"))
 
     # Resolve manifest and hashes early as of REQ-V7-CLOCK-001
     git_sha = repo_head_sha(ROOT)
@@ -315,8 +299,9 @@ def main() -> None:
         print("BLOCKED_RUN_AS_OF_BINDING_MISMATCH: Failed to parse RFC3339 run clock")
         sys.exit(5)
 
-    # Propagate exact value
-    os.environ["BET_PIPELINE_RUN_AS_OF_UTC"] = run_as_of_str
+    # Propagate the exact bound clock only to descendants.  A wrapper must not
+    # mutate process-global environment: doing so leaks one run's identity and
+    # clock into later in-process invocations and concurrent tests.
     child_env["BET_PIPELINE_RUN_AS_OF_UTC"] = run_as_of_str
 
     # 3. Resolve and Validate S5 input
@@ -348,7 +333,7 @@ def main() -> None:
             sys.exit(5)
         else:
             # CERTIFICATION mode input override validations
-            ack = os.environ.get("BET_PIPELINE_CERTIFICATION_ACK")
+            ack = child_env.get("BET_PIPELINE_CERTIFICATION_ACK")
             if ack != "I_AM_CERTIFYING_THE_CANONICAL_REPLAY" and ack != "I_UNDERSTAND_CERTIFICATION_BYPASS":
                 print("BLOCKED_S6_CERTIFICATION_ACK_MISSING: BET_PIPELINE_CERTIFICATION_ACK is missing or invalid.")
                 sys.exit(5)
@@ -357,7 +342,7 @@ def main() -> None:
                 print("BLOCKED_S6_INPUT_OUTSIDE_RUN_ROOT: Override input path must be inside run root.")
                 sys.exit(5)
 
-            input_hash = args.input_hash or os.environ.get("BET_PIPELINE_CERTIFICATION_INPUT_HASH")
+            input_hash = args.input_hash or child_env.get("BET_PIPELINE_CERTIFICATION_INPUT_HASH")
             if not input_hash or input_hash in ("dummy", "dummy_s5_hash", "placeholder", ""):
                 print("BLOCKED_S6_CERTIFICATION_HASH_MISSING: input-hash is missing or invalid.")
                 sys.exit(5)
@@ -429,6 +414,10 @@ def main() -> None:
     except Exception as exc:
         print(f"BLOCKED_POLICY_INVALID: Failed to freeze policy: {exc}")
         sys.exit(5)
+    # Bind the worker to the bytes it will actually read.  The canonical
+    # publisher may normalize JSON formatting, so the repository source hash
+    # is provenance only and cannot stand in for the frozen snapshot hash.
+    policy_sha = sha256_file(run_policy_path)
 
     # Freeze history read once using the injected as_of
     try:
@@ -461,9 +450,9 @@ def main() -> None:
     if output_path.exists() and not s6_evidence_path.exists():
         try:
             output_data = json.loads(output_path.read_text(encoding="utf-8"))
-            if (output_data.get("artifact_type") == "S6_PORTFOLIO_REPEAT_GUARD_V2" and
-                output_data.get("betting_day") == args.date and
-                output_data.get("run_id") == args.run_id):
+            from bet.pipeline.hard_approval_gate import validate_s6_output
+            validate_s6_output(output_data, day=args.date, run_id=args.run_id)
+            if output_data.get("status") == "PASS":
                 s6_output_sha256 = sha256_file(output_path)
                 evidence = {
                     "schema_version": 1,
@@ -620,7 +609,7 @@ def main() -> None:
             "schema_version": 1,
             "artifact_type": "SCRIPT_EVIDENCE",
             "step_id": "S6",
-            "status": "BLOCK",
+            "status": status_verdict,
             "betting_day": args.date,
             "run_id": args.run_id,
             "blocked_reasons": list(blocked_reasons),
@@ -643,6 +632,8 @@ def main() -> None:
     # 7. Read back output & parse
     try:
         output_data = json.loads(output_path.read_text(encoding="utf-8"))
+        from bet.pipeline.hard_approval_gate import validate_s6_output
+        validate_s6_output(output_data, day=args.date, run_id=args.run_id)
         status_verdict = output_data.get("status") or "PASS"
         concrete_status = output_data.get("concrete_status") or "READY_FOR_S7"
 
@@ -669,7 +660,21 @@ def main() -> None:
         "status": status_verdict,
         "betting_day": args.date,
         "run_id": args.run_id,
+        "production_selectable": False,
+        "betting_decisions_enabled": False,
+        "no_pick_edge_stake_coupon_emitted": True,
         "payload": {
+            "step_id": "S6",
+            "wrapper_rc": 0,
+            "wrapper_scripts": SCRIPTS,
+            "runtime_mode": mode.value,
+            "dry_run": bool(args.dry_run),
+            "allow_write": bool(args.allow_write),
+            "allow_live_network": bool(args.allow_live_network),
+            "production_write": False,
+            "runtime_path_source": runtime_path_source,
+            "child_run_root": child_env["BET_PIPELINE_RUN_ROOT"],
+            "child_artifact_dir": child_env["BET_PIPELINE_ARTIFACT_DIR"],
             "s5_path": str(s5_path),
             "s5_sha": s5_sha,
             "policy_path": str(run_policy_path),
@@ -677,12 +682,12 @@ def main() -> None:
             "policy_sha": policy_sha,
             "history_snapshot_path": str(run_history_path),
             "history_snapshot_sha": history_sha,
-            "history_as_of": as_of.isoformat() + "Z",
+            "history_as_of": as_of.isoformat().replace("+00:00", "Z"),
             "output_path": str(output_path),
             "output_sha256": s6_output_sha256,
             "git_sha": git_sha,
             "manifest_sha": man_hash,
-            "as_of_timestamp": as_of.isoformat() + "Z",
+            "as_of_timestamp": as_of.isoformat().replace("+00:00", "Z"),
             "input_candidate_count": input_candidate_count,
             "accepted_count": accepted_count,
             "repeat_rejected_count": repeat_count,

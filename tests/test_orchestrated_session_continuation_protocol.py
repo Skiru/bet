@@ -3,7 +3,7 @@ from pathlib import Path
 from scripts.audit_orchestrated_session_continuation import REQUIRED_SNIPPETS, validate_resume_prompt
 
 
-WORKSPACE_ROOT = Path("/Users/mkoziol/projects/bet")
+WORKSPACE_ROOT = Path(__file__).resolve().parent.parent
 
 
 def test_contract_doc_exists_and_mentions_inheritance_policy():

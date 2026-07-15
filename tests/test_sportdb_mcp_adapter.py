@@ -21,6 +21,7 @@ from bet.api_clients.sportdb_mcp import (
     SportDBMCPClient,
     SportDBMCPShadowAdapter,
     SportDBMCPAuthError,
+    SportDBMCPParserError,
     SportDBMCPRateLimitError,
     RequiredPayloadFieldUnknownError,
 )
@@ -182,6 +183,42 @@ def test_call_tool_appends_called_provider_tool_name() -> None:
         client.call_tool("flashscore_get_match_stats", {"match_id": "match-1"})
 
     assert client.called_tool_names == ["flashscore_get_match_stats"]
+
+
+def test_list_tools_uses_mcp_tools_list_and_preserves_tool_call_accounting() -> None:
+    client = SportDBMCPClient()
+    response = FakeHTTPResponse(
+        {
+            "jsonrpc": "2.0",
+            "id": "rpc-list",
+            "result": {"tools": [{"name": "flashscore_get_match_stats"}]},
+        },
+        headers={"MCP-Session-Id": "session-1"},
+    )
+    with patch(
+        "bet.api_clients.sportdb_mcp.urllib.request.urlopen",
+        return_value=response,
+    ) as urlopen:
+        tools = client.list_tools()
+
+    request = urlopen.call_args.args[0]
+    body = json.loads(request.data.decode("utf-8"))
+    assert body["method"] == "tools/list"
+    assert tools == [{"name": "flashscore_get_match_stats"}]
+    assert client.session_id == "session-1"
+    assert client.mcp_tool_calls_made == 0
+
+
+def test_list_tools_rejects_malformed_protocol_result() -> None:
+    client = SportDBMCPClient()
+    with patch(
+        "bet.api_clients.sportdb_mcp.urllib.request.urlopen",
+        return_value=FakeHTTPResponse(
+            {"jsonrpc": "2.0", "id": "rpc-list", "result": {"tools": "invalid"}}
+        ),
+    ):
+        with pytest.raises(SportDBMCPParserError, match="tools array"):
+            client.list_tools()
 
 
 def test_five_provider_calls_count_as_five_tool_calls() -> None:

@@ -82,10 +82,13 @@ def _bm(pick: dict) -> dict:
     """Safely get best_market from a pick, handling None values."""
     bm = pick.get("best_market") or {}
     import os
-    import sys
-    is_pytest = "pytest" in sys.modules
+    fixture_injection_allowed = (
+        os.environ.get("BET_MOCK_ODDS_FIXTURE_INJECT_ALLOWED") == "True"
+        and os.environ.get("BET_PIPELINE_RUNTIME_MODE", "").upper()
+        in {"DRY_RUN", "CERTIFICATION"}
+    )
     if os.environ.get("BET_MOCK_ODDS") or os.environ.get("BET_PIPELINE_SKIP_FETCH"):
-        if os.environ.get("BET_MOCK_ODDS_FIXTURE_INJECT_ALLOWED") == "True" or is_pytest:
+        if fixture_injection_allowed:
             if not bm:
                 bm = {
                     "name": pick.get("market") or "match_winner",
@@ -601,10 +604,24 @@ def _apply_repeat_loss_hard_rejects(date: str, gate_results: dict) -> tuple[dict
             "computed_from": "ledger_fallback",
         }
 
+    findings = handoff.get("findings")
+    repeat_loss_count = handoff.get("repeat_loss_count")
+    clear = handoff.get("clear")
+    if (
+        not isinstance(findings, list)
+        or any(not isinstance(finding, dict) for finding in findings)
+        or not isinstance(repeat_loss_count, int)
+        or isinstance(repeat_loss_count, bool)
+        or repeat_loss_count != len(findings)
+        or not isinstance(clear, bool)
+        or clear != (repeat_loss_count == 0)
+    ):
+        print("[coupon_builder] BLOCKED: Malformed S7.6 handoff")
+        raise SystemExit(1)
+
     filtered_gate_results = copy.deepcopy(gate_results)
     gate_buckets = filtered_gate_results.setdefault("gate_results", {})
     pre_filter_counts = _gate_bucket_counts(filtered_gate_results)
-    findings = handoff.get("findings", [])
     rejected = list(gate_buckets.get("rejected", []) or [])
     excluded_candidates: list[dict] = []
 

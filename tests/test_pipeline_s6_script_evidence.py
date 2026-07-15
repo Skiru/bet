@@ -10,6 +10,7 @@ from unittest.mock import patch
 
 import pytest
 
+from bet.pipeline.canonical_continuity import bind_candidate_identity
 from bet.pipeline.portfolio_repeat_guard import (
     HistorySnapshot,
     PortfolioPolicy,
@@ -52,13 +53,13 @@ def mock_s5_data(tmp_path):
 
     # 1. Write S4 Candidates JSON
     s4_path = data_dir / "2026-07-14_s4_valuation_candidates.json"
-    s4_content = {
-        "artifact_type": "S4_VALUATION_CANDIDATE_SET_V2",
-        "candidates": [
+    candidates = [
+        bind_candidate_identity(candidate)
+        for candidate in [
             {
-                "candidate_id": "football|France|Spain|2026-07-14",
                 "home_team": "France",
                 "away_team": "Spain",
+                "kickoff": "2026-07-14T20:00:00Z",
                 "best_market": {"name": "Match Winner", "selection": "France"},
                 "sport": "football",
                 "competition": "World Cup",
@@ -67,12 +68,12 @@ def mock_s5_data(tmp_path):
                 "pricing_status": "PRICED",
                 "odds_decimal": 1.95,
                 "odds_source": "Superbet",
-                "odds_as_of": "2026-07-14T12:00:00Z"
+                "odds_as_of": "2026-07-14T12:00:00Z",
             },
             {
-                "candidate_id": "football|Italy|Germany|2026-07-14",
                 "home_team": "Italy",
                 "away_team": "Germany",
+                "kickoff": "2026-07-14T21:00:00Z",
                 "best_market": {"name": "Match Winner", "selection": "Italy"},
                 "sport": "football",
                 "competition": "World Cup",
@@ -81,9 +82,17 @@ def mock_s5_data(tmp_path):
                 "pricing_status": "PRICED",
                 "odds_decimal": 1.95,
                 "odds_source": "Superbet",
-                "odds_as_of": "2026-07-14T12:00:00Z"
-            }
+                "odds_as_of": "2026-07-14T12:00:00Z",
+            },
         ]
+    ]
+    s4_content = {
+        "schema_version": 2,
+        "artifact_type": "S4_VALUATION_CANDIDATE_SET_V2",
+        "status": "PASS",
+        "betting_day": "2026-07-14",
+        "run_id": "run-s6-evidence-test",
+        "candidates": candidates,
     }
     s4_path.write_text(json.dumps(s4_content))
 
@@ -106,6 +115,25 @@ def mock_s5_data(tmp_path):
 
     # 3. Write S5 Evidence (Prerequisite for S6 wrapper)
     s5_path = artifacts_dir / "S5.json"
+    context = {
+        name: {
+            "status": "CLEAR",
+            "as_of_utc": "2026-07-14T12:00:00Z",
+            "source_refs": [f"source:{name}"],
+        }
+        for name in (
+            "injuries_lineups",
+            "motivation_tournament_context",
+            "travel_fatigue",
+            "morale_recent_form",
+            "upset_volatility_risk",
+        )
+    }
+    s5_candidates = json.loads(json.dumps(candidates))
+    for candidate in s5_candidates:
+        candidate["context_checks"] = context
+        candidate["risk_flags"] = []
+        candidate["counter_evidence"] = []
     s5_content = {
         "schema_version": 1,
         "artifact_type": "AGENT_ARTIFACT",
@@ -113,6 +141,10 @@ def mock_s5_data(tmp_path):
         "status": "PASS",
         "betting_day": "2026-07-14",
         "run_id": "run-s6-evidence-test",
+        "source_bound": True,
+        "no_pick_edge_stake_coupon_emitted": True,
+        "production_selectable": False,
+        "betting_decisions_enabled": False,
         "payload": {
             "work_order_id": "WO-run-s6-evidence-test-S5",
             "agent_id": "bet-risk-gatekeeper",
@@ -120,9 +152,15 @@ def mock_s5_data(tmp_path):
             "manifest_sha": manifest_hash(ROOT),
             "source_s4_path": str(s4_path),
             "source_s4_sha256": s4_sha,
+            "policy_version": "S5_CONTEXT_RISK_V2",
             "input_candidate_count": 2,
-            "candidates": s4_content["candidates"],
-            "rejected_candidates": []
+            "candidates": s5_candidates,
+            "rejected_candidates": [],
+            "accounting": {
+                "unaccounted_candidate_ids": [],
+                "duplicate_candidate_ids": [],
+                "overlapping_terminal_categories": [],
+            },
         }
     }
     s5_path.write_text(json.dumps(s5_content))
@@ -237,10 +275,10 @@ def test_temporal_half_open_limits(mock_ledger):
     assert snapshot["row_count"] == 1
     assert snapshot["records"][0]["pick_id"] == "P-001"
 
-    # 2. Exact 48:00:00 lookback (excluded due to half-open boundary policy)
+    # 2. Exact 48:00:00 lookback is the inclusive start of [start, as_of).
     as_of_exact = datetime.fromisoformat("2026-07-15T18:00:00Z")
     snapshot_exact = load_recent_losses_snapshot(mock_ledger, hours=48, as_of=as_of_exact)
-    assert snapshot_exact["row_count"] == 0
+    assert snapshot_exact["row_count"] == 1
 
 
 def test_missing_timestamp_blocks(tmp_path):
@@ -257,7 +295,11 @@ def test_missing_timestamp_blocks(tmp_path):
         writer.writerows(rows)
 
     with pytest.raises(HistoryMalformedError, match="HISTORY_TIMESTAMP_MISSING"):
-        load_recent_losses_snapshot(ledger_path, hours=48)
+        load_recent_losses_snapshot(
+            ledger_path,
+            hours=48,
+            as_of=datetime.fromisoformat("2026-07-14T12:00:00Z"),
+        )
 
 
 def test_invalid_timestamp_blocks(tmp_path):
@@ -274,7 +316,11 @@ def test_invalid_timestamp_blocks(tmp_path):
         writer.writerows(rows)
 
     with pytest.raises(HistoryMalformedError, match="HISTORY_TIMESTAMP_INVALID"):
-        load_recent_losses_snapshot(ledger_path, hours=48)
+        load_recent_losses_snapshot(
+            ledger_path,
+            hours=48,
+            as_of=datetime.fromisoformat("2026-07-14T12:00:00Z"),
+        )
 
 
 def test_complete_disjoint_partition_contract():

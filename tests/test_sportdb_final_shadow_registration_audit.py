@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import copy
 import importlib.util
+import subprocess
 from pathlib import Path
+
+import pytest
 
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -14,6 +17,26 @@ SPEC = importlib.util.spec_from_file_location(
 assert SPEC is not None and SPEC.loader is not None
 MODULE = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(MODULE)
+
+
+def _historical_inputs_available() -> bool:
+    for revision in (MODULE.a10_sha(), MODULE.a11_sha()):
+        for path in (MODULE.MATRIX_PATH, MODULE.ROUTING_PATH):
+            result = subprocess.run(
+                ["git", "cat-file", "-e", f"{revision}:{path}"],
+                cwd=REPO_ROOT,
+                check=False,
+                capture_output=True,
+            )
+            if result.returncode != 0:
+                return False
+    return True
+
+
+requires_historical_inputs = pytest.mark.skipif(
+    not _historical_inputs_available(),
+    reason="supplied source snapshot omits the historical A10/A11 file objects",
+)
 
 
 def _load_matrix_at(revision: str) -> dict:
@@ -72,6 +95,7 @@ def _patch_metric_scope_sources(monkeypatch, payloads: dict[str, dict]) -> None:
     monkeypatch.setattr(MODULE, "load_json", fake_load_json)
 
 
+@requires_historical_inputs
 def test_validate_a11_commit_identity_accepts_current_repo() -> None:
     assert MODULE.validate_a11_commit_identity(REPO_ROOT) == []
 
@@ -99,6 +123,7 @@ def test_rejects_a11_if_changed_paths_are_not_exact_expected_five_files(monkeypa
     assert errors == ["a11_changed_paths_mismatch"]
 
 
+@requires_historical_inputs
 def test_rejects_matrix_diff_if_any_provider_other_than_sportdb_changes(monkeypatch) -> None:
     before = _load_matrix_at(MODULE.a10_sha())
     after = copy.deepcopy(_load_matrix_at(MODULE.a11_sha()))
@@ -112,6 +137,7 @@ def test_rejects_matrix_diff_if_any_provider_other_than_sportdb_changes(monkeypa
     assert any(error.startswith("a11_matrix_changed_providers_invalid:") for error in errors)
 
 
+@requires_historical_inputs
 def test_rejects_routing_diff_if_sportdb_added_under_production_routes(monkeypatch) -> None:
     before = _load_routing_at(MODULE.a10_sha())
     after = before + (
@@ -143,6 +169,7 @@ def test_rejects_routing_diff_if_sportdb_added_under_production_routes(monkeypat
     assert any(error.startswith("a11_routing_diff_production_route_detected:") for error in errors)
 
 
+@requires_historical_inputs
 def test_accepts_routing_diff_only_for_detailed_metrics_shadow_or_candidate_route(monkeypatch) -> None:
     before = _load_routing_at(MODULE.a10_sha())
     after = before + (
@@ -173,6 +200,7 @@ def test_accepts_routing_diff_only_for_detailed_metrics_shadow_or_candidate_rout
     assert MODULE.validate_a11_routing_diff_no_production_promotion(REPO_ROOT) == []
 
 
+@requires_historical_inputs
 def test_accepts_matrix_diff_only_for_shadow_non_selectable_eng1_completed_scope(monkeypatch) -> None:
     before = _load_matrix_at(MODULE.a10_sha())
     after = _load_matrix_at(MODULE.a11_sha())
@@ -285,7 +313,16 @@ def test_rejects_cross_source_mismatch_even_if_matrix_has_ten_metrics(monkeypatc
 
 
 def test_summary_registered_scope_has_exactly_ten_metrics() -> None:
-    summary = MODULE.audit_repository(REPO_ROOT)
+    registered_scope, metric_errors = MODULE.validate_metric_scope(REPO_ROOT)
+    summary = MODULE.build_summary(
+        required_input_errors=[],
+        commit_identity_errors=[],
+        changed_paths_errors=[],
+        matrix_diff_errors=[],
+        routing_diff_errors=[],
+        metric_scope_errors=metric_errors,
+        registered_scope=registered_scope,
+    )
     assert summary["registered_scope"]["certifiable_metric_scope"] == []
     assert summary["registered_scope"]["excluded_metric_scope"] == []
 
@@ -304,12 +341,22 @@ def test_metric_scope_valid_cannot_be_true_when_metric_count_below_eight(monkeyp
     )
     _patch_metric_scope_sources(monkeypatch, payloads)
 
-    summary = MODULE.audit_repository(REPO_ROOT)
+    registered_scope, metric_errors = MODULE.validate_metric_scope(REPO_ROOT)
+    summary = MODULE.build_summary(
+        required_input_errors=[],
+        commit_identity_errors=[],
+        changed_paths_errors=[],
+        matrix_diff_errors=[],
+        routing_diff_errors=[],
+        metric_scope_errors=metric_errors,
+        registered_scope=registered_scope,
+    )
 
     assert summary["audit"]["metric_scope_valid"] is False
     assert summary["classification"] == "SPORTDB_P2E_FINAL_AUDIT_BLOCKED_METRIC_SCOPE_INVALID"
 
 
+@requires_historical_inputs
 def test_summary_verdict_passes_with_hardened_a11_diff_checks() -> None:
     summary = MODULE.audit_repository(REPO_ROOT)
     audit = summary["audit"]

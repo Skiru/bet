@@ -10,7 +10,7 @@ from unittest.mock import patch
 import pytest
 
 from bet.pipeline.event_accounting import (
-    BOUNDARY_DEFAULT_STATUS,
+    ACCOUNTING_BOUNDARY_STEPS,
     EventAccountingError,
     EventAccountingLedger,
     deduplicate_events,
@@ -119,12 +119,22 @@ def _initialized_ledger(tmp_path: Path, events: list[dict]) -> EventAccountingLe
 
 def test_every_boundary_accounts_for_every_event_with_missing_tips_and_odds_explicit(tmp_path: Path):
     ledger = _initialized_ledger(tmp_path, _events())
-    for step, status in BOUNDARY_DEFAULT_STATUS.items():
-        payload = ledger.record_boundary(step, default_status=status)
+    records = [
+        {"canonical_event_id": "football-1", "terminal_status": "TIPSTER_MISSING_EXPLICIT"},
+        {"canonical_event_id": "tennis-1", "terminal_status": "PRICE_PENDING_EXPLICIT"},
+    ]
+    for step in ACCOUNTING_BOUNDARY_STEPS:
+        payload = ledger.record_boundary(step, records=records)
         assert payload["after_dedup_count"] == payload["events_with_terminal_status"] == 2
         assert payload["unaccounted_event_ids"] == []
-    assert "TIPSTER_EVIDENCE_RECORDED_OR_MISSING_EXPLICIT" in str(payload["boundaries"])
-    assert "PRICED_OR_PRICE_PENDING" in str(payload["boundaries"])
+    assert "TIPSTER_MISSING_EXPLICIT" in str(payload["boundaries"])
+    assert "PRICE_PENDING_EXPLICIT" in str(payload["boundaries"])
+
+
+def test_boundary_cannot_fabricate_default_statuses(tmp_path: Path):
+    ledger = _initialized_ledger(tmp_path, _events())
+    with pytest.raises(EventAccountingError, match="EVENT_BOUNDARY_RECORDS_MISSING"):
+        ledger.record_boundary("S2", records=None)
 
 
 def test_event_loss_and_unknown_event_fail_closed(tmp_path: Path):
@@ -133,7 +143,6 @@ def test_event_loss_and_unknown_event_fail_closed(tmp_path: Path):
         ledger.record_boundary(
             "S2",
             records=[{"canonical_event_id": "football-1", "terminal_status": "TIPSTER_MISSING"}],
-            default_status="unused",
         )
     with pytest.raises(EventAccountingError, match="UNKNOWN_EVENT"):
         ledger.record_boundary(
@@ -142,7 +151,6 @@ def test_event_loss_and_unknown_event_fail_closed(tmp_path: Path):
                 {"canonical_event_id": "football-1", "terminal_status": "PASS"},
                 {"canonical_event_id": "unknown", "terminal_status": "PASS"},
             ],
-            default_status="unused",
         )
 
 
@@ -154,7 +162,6 @@ def test_one_event_with_multiple_markets_is_one_fixture_account(tmp_path: Path):
             {"canonical_event_id": "football-1", "terminal_status": "MARKET_A_QUOTE_CARD"},
             {"canonical_event_id": "football-1", "terminal_status": "MARKET_B_QUOTE_CARD"},
         ],
-        default_status="unused",
     )
     assert payload["after_dedup_count"] == payload["events_with_terminal_status"] == 1
     assert len(payload["boundaries"]["S8"]["football-1"]["terminal_statuses"]) == 2

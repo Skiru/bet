@@ -9,6 +9,8 @@ from datetime import UTC, datetime
 from difflib import SequenceMatcher
 from typing import Any
 
+from bet.pipeline.canonical_continuity import canonical_line, validate_exact_partition
+
 
 @dataclass(frozen=True)
 class PortfolioPolicy:
@@ -162,13 +164,15 @@ def validate_history_snapshot_schema(history_data: dict[str, Any]) -> HistorySna
         raise ValueError(f"BLOCKED_HISTORY_UNAVAILABLE: Invalid artifact_type in history snapshot: {art_type}")
 
     as_of = history_data.get("as_of_utc")
-    if not as_of:
+    lookback_start = history_data.get("lookback_start_utc")
+    if not as_of or not lookback_start:
         raise ValueError("BLOCKED_HISTORY_UNAVAILABLE: Missing as_of_utc in history snapshot")
 
     # Timezone awareness check
     try:
-        dt = datetime.fromisoformat(as_of)
-        if dt.tzinfo is None:
+        dt = datetime.fromisoformat(str(as_of).replace("Z", "+00:00"))
+        start_dt = datetime.fromisoformat(str(lookback_start).replace("Z", "+00:00"))
+        if dt.tzinfo is None or start_dt.tzinfo is None or start_dt >= dt:
             raise ValueError("BLOCKED_HISTORY_UNAVAILABLE: as_of_utc must be timezone aware")
     except Exception as exc:
         raise ValueError(f"BLOCKED_HISTORY_UNAVAILABLE: Invalid or naive as_of_utc: {exc}")
@@ -182,17 +186,36 @@ def validate_history_snapshot_schema(history_data: dict[str, Any]) -> HistorySna
         if not ts:
             raise ValueError(f"BLOCKED_HISTORY_UNAVAILABLE: Record at index {idx} is missing settled/recorded UTC timestamp")
         try:
-            rdt = datetime.fromisoformat(ts)
+            rdt = datetime.fromisoformat(str(ts).replace("Z", "+00:00"))
             if rdt.tzinfo is None:
                 raise ValueError(f"BLOCKED_HISTORY_UNAVAILABLE: Record timestamp at index {idx} is timezone naive")
+            if not (start_dt <= rdt < dt):
+                raise ValueError(f"BLOCKED_HISTORY_UNAVAILABLE: Record timestamp at index {idx} is outside [start,as_of)")
         except Exception:
             raise ValueError(f"BLOCKED_HISTORY_UNAVAILABLE: Record timestamp at index {idx} is invalid")
+
+    if history_data.get("boundary_policy") not in {
+        "[lookback_start_utc,as_of_utc)",
+        "half_open_inclusive_start",
+    }:
+        raise ValueError("BLOCKED_HISTORY_UNAVAILABLE: Unsupported boundary_policy")
+    if history_data.get("opened_read_only") is not True:
+        raise ValueError("BLOCKED_HISTORY_UNAVAILABLE: History source was not opened read-only")
+    if not str(history_data.get("source_identity") or "").strip():
+        raise ValueError("BLOCKED_HISTORY_UNAVAILABLE: Missing source_identity")
+    if history_data.get("row_count") != len(records):
+        raise ValueError("BLOCKED_HISTORY_UNAVAILABLE: row_count does not match records")
+    expected_snapshot_sha = hashlib.sha256(
+        json.dumps(records, sort_keys=True).encode("utf-8")
+    ).hexdigest()
+    if history_data.get("snapshot_sha256") != expected_snapshot_sha:
+        raise ValueError("BLOCKED_HISTORY_UNAVAILABLE: snapshot_sha256 mismatch")
 
     return HistorySnapshot(
         schema_version=schema_ver,
         artifact_type=art_type,
         as_of_utc=as_of,
-        lookback_start_utc=history_data.get("lookback_start_utc", ""),
+        lookback_start_utc=str(lookback_start),
         boundary_policy=history_data.get("boundary_policy", "half_open"),
         source_identity=history_data.get("source_identity", ""),
         opened_read_only=bool(history_data.get("opened_read_only", True)),
@@ -205,13 +228,17 @@ def validate_history_snapshot_schema(history_data: dict[str, Any]) -> HistorySna
 
 
 def get_canonical_identity_tuple(c: dict[str, Any]) -> tuple:
-    event_id = c.get("event_id") or c.get("canonical_event_id") or f"{_normalize_team(c.get('home_team', ''))}|{_normalize_team(c.get('away_team', ''))}"
+    event_id = c.get("canonical_event_id") or c.get("event_id")
+    if not event_id:
+        kickoff = c.get("kickoff") or c.get("start_time") or ""
+        competition = str(c.get("competition") or c.get("league") or "").strip().casefold()
+        event_id = f"{_normalize_team(c.get('home_team', ''))}|{_normalize_team(c.get('away_team', ''))}|{competition}|{kickoff}"
     market_family = c.get("market_family") or ""
     market_type = _normalize_market(c.get("market_type") or c.get("best_market", {}).get("name") or c.get("market") or "")
     subject_id = c.get("subject_id") or c.get("player_id") or ""
     selection = str(c.get("selection") or c.get("best_market", {}).get("selection") or "").lower().strip()
     direction = str(c.get("direction") or "").lower().strip()
-    line = str(c.get("line") or "").lower().strip()
+    line = canonical_line(c.get("line", c.get("best_market", {}).get("line")))
     period = str(c.get("period") or "full_time").lower().strip()
 
     return (event_id, market_family, market_type, subject_id, selection, direction, line, period)
@@ -237,8 +264,14 @@ def are_selections_contradictory_v2(c1: dict[str, Any], c2: dict[str, Any]) -> b
             if sel1 in three_way and sel2 in three_way:
                 return True
             # Over vs Under (ensure line matches)
-            ou1 = {"over", "o", "under", "u"}
-            if any(x in sel1 for x in {"over", "o"}) and any(x in sel2 for x in {"under", "u"}):
+            over_aliases = {"over", "o"}
+            under_aliases = {"under", "u"}
+            sel1_direction = sel1.split()[0] if sel1 else ""
+            sel2_direction = sel2.split()[0] if sel2 else ""
+            if sel1_direction in over_aliases and sel2_direction in under_aliases:
+                if id1[6] == id2[6]:
+                    return True
+            if sel2_direction in over_aliases and sel1_direction in under_aliases:
                 if id1[6] == id2[6]:
                     return True
             # Yes vs No
@@ -251,7 +284,7 @@ def are_selections_contradictory_v2(c1: dict[str, Any], c2: dict[str, Any]) -> b
 def get_correlation_group_id(c: dict[str, Any]) -> str:
     """Deterministic typed function to derive a unique correlation group ID."""
     # We group by event
-    event_id = c.get("event_id") or c.get("canonical_event_id") or f"{_normalize_team(c.get('home_team', ''))}|{_normalize_team(c.get('away_team', ''))}"
+    event_id = get_canonical_identity_tuple(c)[0]
     return f"event_group_{event_id}"
 
 
@@ -282,17 +315,7 @@ def evaluate_portfolio_repeat_guard(
     if isinstance(history_obj, dict):
         history_obj = validate_history_snapshot_schema(history_obj)
     elif isinstance(history_obj, list):
-        records = history_obj
-        records_json = json.dumps(records, sort_keys=True)
-        h_sha = hashlib.sha256(records_json.encode("utf-8")).hexdigest()
-        snap_dict = {
-            "schema_version": 1,
-            "artifact_type": "S6_HISTORY_SNAPSHOT_V1",
-            "as_of_utc": datetime.now(UTC).isoformat() + "Z",
-            "records": records,
-            "snapshot_sha256": h_sha
-        }
-        history_obj = validate_history_snapshot_schema(snap_dict)
+        raise ValueError("BLOCKED_HISTORY_UNAVAILABLE: Unbound history lists are forbidden; provide a frozen snapshot")
     elif not isinstance(history_obj, HistorySnapshot):
         raise ValueError("BLOCKED_HISTORY_UNAVAILABLE: History snapshot is missing or malformed")
 
@@ -311,6 +334,8 @@ def evaluate_portfolio_repeat_guard(
             "teams_normalized": [_normalize_team(t) for t in teams],
             "market_normalized": _normalize_market(loss.get("market") or ""),
             "selection": loss.get("selection") or "",
+            "line": canonical_line(loss.get("line")) if loss.get("line") not in (None, "") else "",
+            "period": str(loss.get("period") or "full_time").strip().casefold(),
             "original": loss
         })
 
@@ -333,7 +358,20 @@ def evaluate_portfolio_repeat_guard(
     accepted_sport_counts = {}
     accepted_correlation_counts = {}
 
-    for c in guard_input.candidates:
+    def stable_priority(candidate: dict[str, Any]) -> tuple[float, float, str]:
+        best = candidate.get("best_market") if isinstance(candidate.get("best_market"), dict) else {}
+        try:
+            safety = float(candidate.get("safety_score", best.get("safety_score", 0)) or 0)
+        except (TypeError, ValueError):
+            safety = 0.0
+        try:
+            probability = float(candidate.get("probability", candidate.get("model_probability", 0)) or 0)
+        except (TypeError, ValueError):
+            probability = 0.0
+        return (-safety, -probability, str(candidate.get("selection_id") or candidate.get("candidate_id") or ""))
+
+    ordered_candidates = sorted(guard_input.candidates, key=stable_priority)
+    for c in ordered_candidates:
         c_id = c.get("candidate_id") or c.get("id")
         if not c_id and c.get("home_team") and c.get("away_team"):
             c_id = f"{c.get('sport', 'unknown')}|{c.get('home_team')}|{c.get('away_team')}"
@@ -405,12 +443,30 @@ def evaluate_portfolio_repeat_guard(
         match_losses = []
         check_teams_norm = [home_norm, away_norm]
         check_market_norm = market_norm
+        candidate_selection = str(c.get("selection") or c.get("best_market", {}).get("selection") or "").strip().casefold()
+        candidate_line = canonical_line(c.get("line", c.get("best_market", {}).get("line")))
+        candidate_period = str(c.get("period") or "full_time").strip().casefold()
 
         for loss in normalized_losses:
             for check_team in check_teams_norm:
                 for loss_team in loss["teams_normalized"]:
                     if _fuzzy_match(check_team, loss_team):
-                        if check_market_norm and _fuzzy_match(check_market_norm, loss["market_normalized"], 0.6):
+                        exact_selection = bool(
+                            candidate_selection
+                            and candidate_selection == str(loss["selection"]).strip().casefold()
+                        )
+                        # A line is part of the identity when the market has
+                        # one.  Non-line markets deliberately compare as
+                        # empty-to-empty rather than being made unmatchable.
+                        exact_line = candidate_line == loss["line"]
+                        exact_period = candidate_period == loss["period"]
+                        if (
+                            check_market_norm
+                            and _fuzzy_match(check_market_norm, loss["market_normalized"], 0.9)
+                            and exact_selection
+                            and exact_line
+                            and exact_period
+                        ):
                             match_losses.append(loss["original"])
 
         if match_losses:
@@ -548,23 +604,38 @@ def evaluate_portfolio_repeat_guard(
             cid = f"{c.get('sport', 'unknown')}|{c.get('home_team')}|{c.get('away_team')}"
         input_ids.append(cid)
 
-    if len(all_partitioned_ids) != total_input_count or set(all_partitioned_ids) != set(input_ids):
+    if all(c.get("selection_id") and c.get("candidate_id") == c.get("selection_id") for c in guard_input.candidates):
+        accounting = validate_exact_partition(
+            guard_input.candidates,
+            {
+                "accepted": accepted,
+                "repeat_rejected": repeat_rejected,
+                "duplicate_rejected": duplicate_rejected,
+                "conflict_rejected": conflict_rejected,
+                "correlation_rejected": correlation_rejected,
+                "concentration_rejected": concentration_rejected,
+                "invalid_input": invalid_input,
+            },
+        )
+    elif len(all_partitioned_ids) != total_input_count or set(all_partitioned_ids) != set(input_ids):
         unaccounted = list(set(input_ids) - set(all_partitioned_ids))
         raise ValueError(f"S6_CANDIDATE_ACCOUNTING_MISMATCH: Partition of S5 candidates is incomplete. Unaccounted IDs: {unaccounted}")
+    else:
+        accounting = {
+            "unaccounted_candidate_ids": [],
+            "duplicate_candidate_ids": [],
+            "overlapping_terminal_categories": [],
+        }
 
-    # All sets pairwise disjoint by definition of conditional loop structure
-    accounting = {
-        "unaccounted_candidate_ids": [],
-        "duplicate_candidate_ids": [],
-        "overlapping_terminal_categories": [],
+    accounting.update({
         "accepted_ids": accepted_ids,
         "repeat_rejected_ids": repeat_rejected_ids,
         "duplicate_rejected_ids": duplicate_rejected_ids,
         "conflict_rejected_ids": conflict_rejected_ids,
         "correlation_rejected_ids": correlation_rejected_ids,
         "concentration_rejected_ids": concentration_rejected_ids,
-        "invalid_input_ids": invalid_input_ids
-    }
+        "invalid_input_ids": invalid_input_ids,
+    })
 
     history_meta = {
         "schema_version": history_obj.schema_version,

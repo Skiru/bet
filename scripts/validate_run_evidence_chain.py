@@ -1,258 +1,232 @@
 #!/usr/bin/env python3
-"""Validator for pipeline run evidence hash chains."""
+"""Fail-closed validator for the canonical S6 -> S8 evidence chain."""
 from __future__ import annotations
 
 import argparse
 import hashlib
 import json
 import sys
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Mapping
 
-ROOT_DIR = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT_DIR / "src"))
 
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "src"))
+
+from bet.pipeline.integration_artifacts import resolve_manifest_step_output
+from bet.pipeline.manifest import load_pipeline_manifest
 from bet.pipeline.run_coordination import ResumeLedger, ResumeLedgerError
+from bet.pipeline.run_evidence import repo_head_sha, sha256_file, write_json_atomic
 
 
-def calculate_sha256(path: Path) -> str:
-    """Calculate SHA-256 hash of a file."""
-    h = hashlib.sha256()
-    with open(path, "rb") as f:
-        while chunk := f.read(8192):
-            h.update(chunk)
-    return h.hexdigest()
+STEP_TYPES = {
+    "S6": "S6_PORTFOLIO_REPEAT_GUARD_V2",
+    "S7": "S7_ANALYTICAL_APPROVAL_SET_V2",
+    "S7b": "S7B_SUPERBET_MANUAL_MAPPING",
+    "S8": "S8_SUPERBET_MANUAL_QUOTE_PACK",
+}
+SOURCE_FIELDS = {
+    "S6": ("source_s5_path", "source_s5_sha256"),
+    "S7": ("source_s6_path", "source_s6_sha256"),
+    "S7b": ("source_s7_output_path", "source_s7_output_sha256"),
+    "S8": ("source_s7b_output_path", "source_s7b_output_sha256"),
+}
 
 
-def is_under_dir(path_str: str | None, parent: Path) -> bool:
-    """Check if a path is strictly inside the parent directory."""
-    if not path_str:
-        return True
+def _inside_run(path_value: object, run_root: Path) -> Path:
+    if not isinstance(path_value, str) or not path_value:
+        raise ValueError("CHAIN_SOURCE_PATH_MISSING")
+    path = Path(path_value)
+    if path.is_symlink():
+        raise ValueError(f"CHAIN_SYMLINK_FORBIDDEN:{path}")
+    resolved = path.resolve(strict=True)
     try:
-        p = Path(path_str).resolve()
-        par = parent.resolve()
-        return par in p.parents or p == par
-    except Exception:
-        return False
+        resolved.relative_to(run_root)
+    except ValueError as exc:
+        raise ValueError(f"CHAIN_PATH_OUTSIDE_RUN:{resolved}") from exc
+    if not resolved.is_file():
+        raise ValueError(f"CHAIN_SOURCE_NOT_FILE:{resolved}")
+    return resolved
 
 
-def extract_step_details(step: str, ev: dict[str, Any]) -> tuple[str | None, str | None, str | None, str | None]:
-    """Extract output path, output SHA, predecessor path, predecessor SHA from evidence."""
-    payload = ev.get("payload", {})
-    output_path = None
-    output_sha = None
-    predecessor_path = None
-    predecessor_sha = None
-
-    if step == "S6":
-        output_path = payload.get("s6_output_path") or payload.get("output_path")
-        output_sha = payload.get("output_sha256") or ev.get("output_sha256") or payload.get("result_sha256_precursor")
-        predecessor_path = payload.get("source_s5_path") or payload.get("s5_input_path") or payload.get("s6_input_path")
-        predecessor_sha = payload.get("source_s5_hash") or payload.get("s5_output_sha256")
-    elif step == "S7":
-        output_path = payload.get("s7_json_output") or payload.get("output_path")
-        output_sha = payload.get("s7_json_sha256") or payload.get("output_sha256")
-        predecessor_path = payload.get("s7_input_path") or payload.get("source_s6_path") or payload.get("s6_output_path")
-        predecessor_sha = payload.get("source_s6_hash") or payload.get("s6_output_sha256")
-    elif step == "S7b":
-        output_path = payload.get("s7b_json_output") or payload.get("s7b_output_path") or payload.get("output_path")
-        output_sha = payload.get("s7b_output_sha256") or payload.get("output_sha256")
-        predecessor_path = payload.get("s7b_input_path") or payload.get("source_s7_output_path")
-        predecessor_sha = payload.get("source_s7_output_sha256")
-    elif step == "S8":
-        output_path = payload.get("s8_quote_pack_path") or payload.get("s8_json_output") or payload.get("output_path") or payload.get("coupon_draft_path")
-        output_sha = payload.get("s8_quote_pack_sha256") or payload.get("s8_json_sha256") or payload.get("output_sha256") or payload.get("coupon_draft_sha256")
-        predecessor_path = payload.get("s8_input_path") or payload.get("source_s7b_output_path")
-        predecessor_sha = payload.get("source_s7b_output_sha256")
-
-    return output_path, output_sha, predecessor_path, predecessor_sha
+def _canonical_payload_sha(payload: Mapping[str, Any]) -> str:
+    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser(description="Validate pipeline run evidence hash chains.")
+def validate_chain(
+    *,
+    run_root: Path,
+    betting_day: str,
+    run_id: str,
+    steps: tuple[str, ...],
+) -> dict[str, Any]:
+    run_root = run_root.resolve(strict=True)
+    if run_root.is_symlink() or not run_root.is_dir():
+        raise ValueError("CHAIN_RUN_ROOT_INVALID")
+    if not steps or len(set(steps)) != len(steps) or any(step not in STEP_TYPES for step in steps):
+        raise ValueError("CHAIN_STEP_SET_INVALID")
+    canonical_order = tuple(step for step in STEP_TYPES if step in steps)
+    if steps != canonical_order:
+        raise ValueError("CHAIN_STEP_ORDER_INVALID")
+
+    manifest = load_pipeline_manifest(ROOT / "config" / "pipeline_manifest.json")
+    issues: list[str] = []
+    evidence_hashes: dict[str, str] = {}
+    output_hashes: dict[str, str] = {}
+    output_paths: dict[str, str] = {}
+
+    ledger_path = run_root / "resume_ledger.json"
+    ledger: dict[str, Any] = {}
+    try:
+        ledger = json.loads(ledger_path.read_text(encoding="utf-8"))
+        ResumeLedger.verify(ledger)
+        if ledger.get("betting_day") != betting_day or ledger.get("run_id") != run_id:
+            issues.append("CHAIN_RESUME_BINDING_MISMATCH")
+    except (OSError, json.JSONDecodeError, ResumeLedgerError, TypeError, ValueError) as exc:
+        issues.append(f"CHAIN_RESUME_INVALID:{type(exc).__name__}")
+
+    predecessor_path = run_root / "artifacts" / "S5.json"
+    predecessor_sha = sha256_file(predecessor_path) if predecessor_path.is_file() else ""
+    if not predecessor_sha:
+        issues.append("CHAIN_S5_SOURCE_MISSING")
+
+    for step in steps:
+        evidence = run_root / "artifacts" / f"{step}.json"
+        duplicates = sorted(
+            candidate.resolve()
+            for candidate in run_root.rglob(f"{step}.json")
+            if candidate.parent.name == "artifacts"
+        )
+        if duplicates != [evidence.resolve()]:
+            issues.append(f"CHAIN_CANONICAL_EVIDENCE_CARDINALITY:{step}:{len(duplicates)}")
+            continue
+        try:
+            evidence_data = json.loads(evidence.read_text(encoding="utf-8"))
+            if (
+                evidence_data.get("artifact_type") != "SCRIPT_EVIDENCE"
+                or evidence_data.get("step_id") != step
+                or evidence_data.get("status") != "PASS"
+                or evidence_data.get("betting_day") != betting_day
+                or evidence_data.get("run_id") != run_id
+            ):
+                raise ValueError("CHAIN_EVIDENCE_CONTRACT_INVALID")
+            evidence_sha = sha256_file(evidence)
+            output_path, output_data = resolve_manifest_step_output(
+                manifest=manifest,
+                run_root=run_root,
+                step_id=step,
+                betting_day=betting_day,
+                run_id=run_id,
+                expected_artifact_type=STEP_TYPES[step],
+            )
+            output_sha = sha256_file(output_path)
+            if (
+                output_data.get("schema_version") != 2
+                or output_data.get("artifact_type") != STEP_TYPES[step]
+                or output_data.get("betting_day") != betting_day
+                or output_data.get("run_id") != run_id
+            ):
+                raise ValueError("CHAIN_OUTPUT_CONTRACT_INVALID")
+
+            source_path_field, source_sha_field = SOURCE_FIELDS[step]
+            source_path = _inside_run(output_data.get(source_path_field), run_root)
+            source_sha = output_data.get(source_sha_field)
+            if source_path != predecessor_path.resolve() or source_sha != predecessor_sha:
+                raise ValueError("CHAIN_PREDECESSOR_BINDING_MISMATCH")
+            if sha256_file(source_path) != source_sha:
+                raise ValueError("CHAIN_PREDECESSOR_HASH_MISMATCH")
+
+            # S7b and S8 also bind the predecessor evidence, not just output.
+            if step in {"S7b", "S8"}:
+                lower = "s7" if step == "S7b" else "s7b"
+                source_evidence = _inside_run(
+                    output_data.get(f"source_{lower}_evidence_path"), run_root
+                )
+                recorded_evidence_sha = output_data.get(f"source_{lower}_evidence_sha256")
+                if sha256_file(source_evidence) != recorded_evidence_sha:
+                    raise ValueError("CHAIN_PREDECESSOR_EVIDENCE_HASH_MISMATCH")
+
+            evidence_hashes[step] = evidence_sha
+            output_hashes[step] = output_sha
+            output_paths[step] = str(output_path)
+            predecessor_path = output_path
+            predecessor_sha = output_sha
+
+            entries = [
+                entry
+                for entry in ledger.get("entries", [])
+                if entry.get("step_id") == step and entry.get("status") == "PASS"
+            ]
+            if not any(
+                evidence_sha in entry.get("output_hashes", {}).values()
+                or output_sha in entry.get("output_hashes", {}).values()
+                for entry in entries
+            ):
+                issues.append(f"CHAIN_RESUME_OUTPUT_UNBOUND:{step}")
+        except (OSError, ValueError, TypeError, json.JSONDecodeError) as exc:
+            issues.append(f"{step}:{exc}")
+
+    conflicts = sorted((run_root / "validation" / "attempts" / "S6").glob("*.json"))
+    if conflicts:
+        issues.append(f"CHAIN_IMMUTABLE_CONFLICTS_PRESENT:{len(conflicts)}")
+
+    return {
+        "steps": list(steps),
+        "evidence_sha256": evidence_hashes,
+        "output_sha256": output_hashes,
+        "output_paths": output_paths,
+        "issues": issues,
+        "unresolved_conflicts_count": len(conflicts),
+    }
+
+
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--run-root", type=Path, required=True)
     parser.add_argument("--betting-day", required=True)
     parser.add_argument("--run-id", required=True)
     parser.add_argument("--steps", default="S6,S7,S7b,S8")
-    parser.add_argument("--output", type=Path, default=Path("/tmp/BET_PIPELINE_FINAL_EVIDENCE_AND_RUN_BINDING_CLOSURE_V6/replay/s6_s8_evidence_chain.json"))
-    args = parser.parse_args()
+    parser.add_argument("--output", type=Path, required=True)
+    return parser.parse_args(argv)
 
-    steps_to_check = [s.strip() for s in args.steps.split(",")]
-    missing_steps = []
-    hash_mismatches = []
-    resume_mismatches = []
-    binding_mismatches = []
-    duplicate_evidence = []
-    cross_run_paths = []
-    unresolved_conflicts = []
 
-    artifacts_dir = args.run_root / "artifacts"
-    resume_ledger_path = args.run_root / "resume_ledger.json"
-
-    # 1. Load and call ResumeLedger.verify() for full validation as of REQ-V7-CHAIN-001
-    ledger_data = {}
-    if resume_ledger_path.exists():
-        try:
-            ledger_data = json.loads(resume_ledger_path.read_text(encoding="utf-8"))
-            # Call canonical verify method on the ledger data
-            ResumeLedger.verify(ledger_data)
-        except ResumeLedgerError as exc:
-            resume_mismatches.append(f"Resume ledger hash chain is invalid: {exc}")
-        except Exception as exc:
-            resume_mismatches.append(f"Failed to parse resume ledger: {exc}")
-    else:
-        resume_mismatches.append("Missing resume ledger json file")
-
-    # Step-by-step verification
-    for step in steps_to_check:
-        evidence_path = artifacts_dir / f"{step}.json"
-
-        # 1.1 "exactly one canonical evidence file"
-        # We ensure there are no nested duplicate evidence files for this step ID
-        matching_evidence_files = list(args.run_root.rglob(f"artifacts/{step}.json"))
-        if len(matching_evidence_files) > 1:
-            duplicate_evidence.append(f"Duplicate evidence file found for {step}")
-
-        if not evidence_path.exists():
-            missing_steps.append(step)
-            continue
-
-        try:
-            ev = json.loads(evidence_path.read_text(encoding="utf-8"))
-        except Exception as exc:
-            hash_mismatches.append(f"Malformed evidence JSON for step {step}: {exc}")
-            continue
-
-        # 1.2 "evidence SHA"
-        ev_sha = calculate_sha256(evidence_path)
-        if not ev_sha:
-            hash_mismatches.append(f"Failed to calculate SHA for {step} evidence")
-
-        # 1.3 Binding checks
-        if ev.get("betting_day") != args.betting_day:
-            binding_mismatches.append(f"{step} betting_day mismatch: expected {args.betting_day}, got {ev.get('betting_day')}")
-        if ev.get("run_id") != args.run_id:
-            binding_mismatches.append(f"{step} run_id mismatch: expected {args.run_id}, got {ev.get('run_id')}")
-
-        # Extract details
-        out_path_str, out_sha, pred_path_str, pred_sha = extract_step_details(step, ev)
-
-        # 1.4 Output path and output SHA
-        if out_path_str:
-            out_path = Path(out_path_str)
-            if not out_path.exists():
-                hash_mismatches.append(f"Output file missing for step {step} at {out_path_str}")
-            else:
-                actual_out_sha = calculate_sha256(out_path)
-                if out_sha and actual_out_sha != out_sha:
-                    hash_mismatches.append(f"Output SHA mismatch for step {step}: expected {out_sha}, got {actual_out_sha}")
-                # Track calculated or verified SHA for resume checks
-                out_sha = actual_out_sha
-        else:
-            hash_mismatches.append(f"Missing output path in {step} evidence")
-
-        # 1.5 Predecessor path and predecessor SHA
-        if pred_path_str:
-            pred_path = Path(pred_path_str)
-            if not pred_path.exists():
-                hash_mismatches.append(f"Predecessor output file missing for step {step} at {pred_path_str}")
-            else:
-                actual_pred_sha = calculate_sha256(pred_path)
-                if pred_sha and actual_pred_sha != pred_sha:
-                    hash_mismatches.append(f"Predecessor SHA mismatch for step {step}: expected {pred_sha}, got {actual_pred_sha}")
-                # Track calculated predecessor SHA for resume checks
-                pred_sha = actual_pred_sha
-        elif step != "S6":  # S6 predecessor is S5, we always require predecessor unless first step is not checked
-            hash_mismatches.append(f"Missing predecessor path in {step} evidence")
-
-        # 1.6 "no cross-run path"
-        for path_val in (out_path_str, pred_path_str, str(evidence_path)):
-            if path_val and not is_under_dir(path_val, args.run_root):
-                cross_run_paths.append(f"{step}: path {path_val} is outside run root")
-
-        # 1.7 Check matching resume entry
-        step_entries = [e for e in ledger_data.get("entries", []) if e.get("step_id") == step]
-        if not step_entries:
-            resume_mismatches.append(f"Step {step} missing in resume ledger")
-        else:
-            # Match the correct entry for the step by comparing output hashes
-            matched_entry = None
-            for e in step_entries:
-                ledger_out = e.get("output_hashes", {}).get(step) or e.get("output_hashes", {}).get(step.lower()) or e.get("output_hashes", {}).get(f"{step.lower()}_output_hash") or e.get("output_hashes", {}).get("evidence")
-                if ledger_out == out_sha or ledger_out == ev_sha:
-                    matched_entry = e
-                    break
-            if not matched_entry:
-                matched_entry = step_entries[0]
-
-            entry = matched_entry
-            if entry.get("status") != ev.get("status"):
-                resume_mismatches.append(f"Ledger/evidence status mismatch for step {step}")
-
-            # 1.9 "resume input_hashes equal predecessor hashes"
-            if pred_sha:
-                pred_step_map = {"S6": "S5", "S7": "S6", "S7b": "S7", "S8": "S7b"}
-                pred_step_id = pred_step_map.get(step, "S5")
-                ledger_input_sha = entry.get("input_hashes", {}).get(pred_step_id) or entry.get("input_hashes", {}).get(pred_step_id.lower()) or entry.get("input_hashes", {}).get(f"{pred_step_id.lower()}_hash") or entry.get("input_hashes", {}).get("manifest")
-                if ledger_input_sha and ledger_input_sha != pred_sha and ledger_input_sha != "9b03fc1753dbc329126928c234b1675e6b8ffcac792a30e87bb1d283e2e19dd7" and ledger_input_sha != "28422d9c6c3085818a7c4b69f27da61416fc8516":
-                    resume_mismatches.append(f"Resume input_hashes mismatch for {step}: expected {pred_sha}, got {ledger_input_sha}")
-
-            # 1.10 "resume output_hashes equal actual output hashes"
-            if out_sha:
-                ledger_output_sha = entry.get("output_hashes", {}).get(step) or entry.get("output_hashes", {}).get(step.lower()) or entry.get("output_hashes", {}).get(f"{step.lower()}_output_hash") or entry.get("output_hashes", {}).get("evidence")
-                if ledger_output_sha != out_sha and ledger_output_sha != ev_sha:
-                    resume_mismatches.append(f"Resume output_hashes mismatch for {step}: expected {out_sha} or {ev_sha}, got {ledger_output_sha}")
-
-    # Audit S6 conflicts check
-    attempts_dir = args.run_root / "validation" / "attempts" / "S6"
-    if attempts_dir.exists():
-        conflicts = list(attempts_dir.glob("*.json"))
-        if conflicts:
-            unresolved_conflicts.append(f"Found {len(conflicts)} unresolved S6 attempt conflicts")
-
-    status = "BLOCK" if (missing_steps or hash_mismatches or resume_mismatches or binding_mismatches or duplicate_evidence or cross_run_paths or unresolved_conflicts) else "PASS"
-
-    # Determine canonical Git SHA from S6 evidence
-    canonical_git_sha = "f925aef8ec215da5b513081b1a0357a5e628fab9"
+def main(argv: list[str] | None = None) -> int:
+    args = parse_args(argv)
     try:
-        s6_ev_path = artifacts_dir / "S6.json"
-        if s6_ev_path.exists():
-            s6_ev = json.loads(s6_ev_path.read_text(encoding="utf-8"))
-            if s6_ev.get("payload", {}).get("git_sha"):
-                canonical_git_sha = s6_ev["payload"]["git_sha"]
-    except Exception:
-        pass
-
-    result_payload = {
-        "steps": steps_to_check,
-        "missing_steps": missing_steps,
-        "hash_mismatches": hash_mismatches,
-        "resume_mismatches": resume_mismatches,
-        "binding_mismatches": binding_mismatches,
-        "duplicate_evidence": duplicate_evidence,
-        "cross_run_paths": cross_run_paths,
-        "unresolved_conflicts": unresolved_conflicts,
-        "unresolved_conflicts_count": len(unresolved_conflicts),
-    }
-
-    result = {
+        payload = validate_chain(
+            run_root=args.run_root,
+            betting_day=args.betting_day,
+            run_id=args.run_id,
+            steps=tuple(step.strip() for step in args.steps.split(",") if step.strip()),
+        )
+    except (OSError, ValueError) as exc:
+        payload = {
+            "steps": [],
+            "evidence_sha256": {},
+            "output_sha256": {},
+            "output_paths": {},
+            "issues": [str(exc)],
+            "unresolved_conflicts_count": 0,
+        }
+    status = "PASS" if not payload["issues"] else "BLOCK"
+    report = {
         "schema_version": 1,
-        "task_id": "BET_PIPELINE_FINAL_TRUSTWORTHY_CERTIFICATION_V7",
-        "source_branch": "fix/s5-s6-s7-canonical-continuity-final-v1",
-        "source_git_sha": canonical_git_sha,
-        "staged_tree_sha": "28422d9c6c3085818a7c4b69f27da61416fc8516",
-        "generation_timestamp": "2026-07-14T23:30:00Z",
-        "producer": "evidence_chain_report_producer",
-        "command": "python scripts/validate_run_evidence_chain.py",
+        "artifact_type": "PIPELINE_RUN_EVIDENCE_CHAIN_VALIDATION_V1",
         "status": status,
-        "report_payload": result_payload,
-        "report_payload_sha256": hashlib.sha256(json.dumps(result_payload, sort_keys=True, separators=(',', ':')).encode("utf-8")).hexdigest(),
+        "betting_day": args.betting_day,
+        "run_id": args.run_id,
+        "source_git_sha": repo_head_sha(ROOT),
+        "generated_at_utc": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
+        "report_payload": payload,
+        "report_payload_sha256": _canonical_payload_sha(payload),
     }
-
     args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text(json.dumps(result, indent=2), encoding="utf-8")
-    print(f"Validation finished with status: {status}")
+    write_json_atomic(args.output, report)
+    print(json.dumps(report, sort_keys=True))
+    return 0 if status == "PASS" else 1
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

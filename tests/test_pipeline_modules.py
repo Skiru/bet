@@ -235,6 +235,13 @@ class TestDeepStatsReport(unittest.TestCase):
         self.assertGreater(result["candidates_with_data"], 0)
         self.assertEqual(len(result["analyses"]), 1)
 
+    def test_removed_gemini_backend_fails_closed_before_processing(self):
+        """A declared feature flag must not silently succeed via NameError catches."""
+        import scripts.deep_stats_report as dsr
+
+        with self.assertRaisesRegex(RuntimeError, "GEMINI_SECOND_OPINION_UNAVAILABLE"):
+            dsr.generate_deep_stats("2026-05-01", gemini=True)
+
     def test_deep_stats_main_summary_includes_persistence_metrics(self):
         """AGENT_SUMMARY exposes analyzed vs persisted counts for S3 dual-write audits."""
         import scripts.deep_stats_report as dsr
@@ -459,8 +466,8 @@ class TestGateChecker(unittest.TestCase):
             "team": "Liverpool",
             "teams": ["Liverpool", "Arsenal"],
             "teams_normalized": ["liverpool", "arsenal"],
-            "market": "Fouls Total O/U",
-            "market_normalized": "fouls total 22.5",
+            "market": "Fouls Total O/U 22.5",
+            "market_normalized": "fouls total o u 22.5",
             "lost_on": "2026-04-30",
             "betting_day": "2026-04-30",
             "pick_id": "TST-1",

@@ -6,9 +6,11 @@ import os
 import subprocess
 import sys
 from pathlib import Path
+from typing import Any
 
 import pytest
 
+from bet.pipeline.canonical_continuity import bind_candidate_identity
 from bet.pipeline.run_evidence import manifest_hash, repo_head_sha, sha256_file
 
 FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures" / "failed_run_20260714_pricing_degraded"
@@ -193,6 +195,7 @@ def replay_sandbox(tmp_path) -> Path:
 
     # 3. Write S4 Candidates with stable future timestamps to pass LiveFixtureAudit
     s4_content = load_fixture_json("2026-07-14_s4_valuation_candidates.json")
+    canonical_s4_candidates = []
     for c in s4_content["candidates"]:
         c["kickoff"] = future_time
         c["start_time"] = future_time
@@ -201,6 +204,10 @@ def replay_sandbox(tmp_path) -> Path:
         c["probability_confidence"] = "HIGH"
         c["probability_method"] = "MODEL"
         c["source_artifact_path"] = str(s4_path)
+        canonical_s4_candidates.append(bind_candidate_identity(c))
+    s4_content["schema_version"] = 2
+    s4_content["status"] = "PASS"
+    s4_content["candidates"] = canonical_s4_candidates
 
     s4_path.write_text(json.dumps(s4_content, indent=2), encoding="utf-8")
     s4_sha = sha256_file(s4_path)
@@ -212,21 +219,65 @@ def replay_sandbox(tmp_path) -> Path:
     (artifacts_dir / "S4.json").write_text(json.dumps(s4_ev_data, indent=2), encoding="utf-8")
 
     # 5. Write S5.json with corrected path/hash
-    s5_data = load_fixture_json("S5.json")
-    s5_data["payload"]["source_s4_path"] = str(s4_path)
-    s5_data["payload"]["source_s4_sha256"] = s4_sha
-    s5_data["payload"]["source_git_sha"] = repo_head_sha(Path(__file__).resolve().parents[1])
-    s5_data["payload"]["manifest_sha"] = manifest_hash(Path(__file__).resolve().parents[1])
-    for idx, c in enumerate(s5_data["payload"]["candidates"]):
-        c["event_id"] = idx + 1
-        c["fixture_id"] = idx + 1
-        c["kickoff"] = future_time
-        c["start_time"] = future_time
-        c["betting_day"] = "2026-07-14"
-        c["probability_as_of"] = "2026-07-14T06:00:00Z"
-        c["probability_confidence"] = "HIGH"
-        c["probability_method"] = "MODEL"
-        c["source_artifact_path"] = str(s4_path)
+    context_checks = {
+        name: {
+            "status": "CLEAR",
+            "as_of_utc": "2026-07-14T06:00:00Z",
+            "source_refs": [f"fixture:{name}"],
+        }
+        for name in (
+            "injuries_lineups",
+            "motivation_tournament_context",
+            "travel_fatigue",
+            "morale_recent_form",
+            "upset_volatility_risk",
+        )
+    }
+    s5_candidates = json.loads(json.dumps(canonical_s4_candidates))
+    for candidate in s5_candidates:
+        candidate["context_checks"] = context_checks
+        candidate["risk_flags"] = []
+        candidate["counter_evidence"] = []
+        candidate["fixture_verification"] = {
+            "status": "LIVE_FIXTURE_VERIFIED_NOT_STARTED",
+            "source": "fixture:canonical-replay",
+            "verified_at_utc": "2026-07-14T05:45:00Z",
+            "canonical_event_id": candidate["canonical_event_id"],
+        }
+    s5_data = {
+        "schema_version": 1,
+        "artifact_type": "AGENT_ARTIFACT",
+        "step_id": "S5",
+        "status": "PASS",
+        "betting_day": "2026-07-14",
+        "run_id": "CERT_REPLAY_20260714_PRICING_DEGRADED_V6",
+        "point_in_time_as_of": "2026-07-14T06:00:00Z",
+        "source_bound": True,
+        "no_pick_edge_stake_coupon_emitted": True,
+        "production_selectable": False,
+        "betting_decisions_enabled": False,
+        "sources": ["fixture:canonical-replay"],
+        "unknowns": [],
+        "blocked_reasons": [],
+        "evidence_refs": [str(artifacts_dir / "S4.json")],
+        "payload": {
+            "work_order_id": "WO-CERT_REPLAY_20260714_PRICING_DEGRADED_V6-S5",
+            "agent_id": "bet-risk-gatekeeper",
+            "source_git_sha": repo_head_sha(Path(__file__).resolve().parents[1]),
+            "manifest_sha": manifest_hash(Path(__file__).resolve().parents[1]),
+            "source_s4_path": str(s4_path),
+            "source_s4_sha256": s4_sha,
+            "policy_version": "S5_CONTEXT_RISK_V2",
+            "input_candidate_count": len(s5_candidates),
+            "candidates": s5_candidates,
+            "rejected_candidates": [],
+            "accounting": {
+                "unaccounted_candidate_ids": [],
+                "duplicate_candidate_ids": [],
+                "overlapping_terminal_categories": [],
+            },
+        },
+    }
     (artifacts_dir / "S5.json").write_text(json.dumps(s5_data, indent=2), encoding="utf-8")
 
     # 6. Copy and update picks-ledger.csv
@@ -243,7 +294,11 @@ def test_real_subprocess_replay_success(replay_sandbox):
 
     # Construct base child environment
     env = dict(os.environ)
-    env["PYTHONPATH"] = f"{repo_root}/src:{repo_root}"
+    env["PYTHONPATH"] = os.pathsep.join(
+        value
+        for value in (f"{repo_root}/src:{repo_root}", env.get("PYTHONPATH"))
+        if value
+    )
     env["BET_PIPELINE_RUN_ROOT"] = str(replay_sandbox)
     env["BET_PIPELINE_DATA_DIR"] = str(replay_sandbox / "data")
     env["BET_PIPELINE_COUPON_DIR"] = str(replay_sandbox / "coupons")
@@ -263,6 +318,7 @@ def test_real_subprocess_replay_success(replay_sandbox):
         "--runtime-mode", "CERTIFICATION",
         "--start-step", "S6",
         "--stop-after-step", "S8",
+        "--base-run-dir", str(replay_sandbox.parents[2]),
         "--allow-write"
     ]
 
@@ -373,62 +429,32 @@ def test_real_subprocess_replay_success(replay_sandbox):
     unaccounted = s5_ids - s6_partition_union
     assert len(unaccounted) == 0, f"Unaccounted candidate IDs must be empty: {unaccounted}"
 
-    # Helper to write V7 signed report
-    def write_v7_report(name, path, payload):
-        payload_str = json.dumps(payload, sort_keys=True, separators=(',', ':'))
-        calc_hash = hashlib.sha256(payload_str.encode("utf-8")).hexdigest()
-        report = {
-            "schema_version": 1,
-            "task_id": "BET_PIPELINE_FINAL_TRUSTWORTHY_CERTIFICATION_V7",
-            "source_branch": "fix/s5-s6-s7-canonical-continuity-final-v1",
-            "source_git_sha": "f925aef8ec215da5b513081b1a0357a5e628fab9",
-            "staged_tree_sha": "28422d9c6c3085818a7c4b69f27da61416fc8516",
-            "generation_timestamp": "2026-07-14T23:30:00Z",
-            "producer": f"{name}_producer",
-            "command": f"run_{name}",
-            "status": "PASS",
-            "report_payload": payload,
-            "report_payload_sha256": calc_hash
-        }
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(report, indent=2), encoding="utf-8")
-
-    # Build Replay Report Payload
-    replay_payload = {
-        "replay_runner_executed": True,
-        "replay_steps": ["S6", "S7", "S7b", "S8"],
-        "s6_worker_executed": True,
-        "hash_mismatches": [],
-        "unaccounted_ids": list(unaccounted),
-        "replay_synthetic_odds": [],
-        "worker_input_json_paths": [str(replay_sandbox / "data" / "2026-07-14_s4_valuation_candidates.json")]
-    }
-
-    # Write Replay Report
-    write_v7_report(
-        "canonical_replay_report",
-        Path("/tmp/BET_PIPELINE_FINAL_EVIDENCE_AND_RUN_BINDING_CLOSURE_V6/replay/canonical_replay_report.json"),
-        replay_payload
-    )
-
-    # Write Resume Chain Report
-    resume_chain_payload = {
-        "resume_mismatches": []
-    }
-    write_v7_report(
-        "resume_chain_report",
-        Path("/tmp/BET_PIPELINE_FINAL_EVIDENCE_AND_RUN_BINDING_CLOSURE_V6/replay/resume_chain_report.json"),
-        resume_chain_payload
-    )
-
-    # 6. Execute scripts/validate_run_evidence_chain.py which writes s6_s8_evidence_chain.json
+    # Validate the actual run.  No synthetic PASS reports or snapshot-specific
+    # Git identities are allowed to participate in this assertion.
+    chain_report = replay_sandbox / "validation" / "s6_s8_evidence_chain.json"
     validator_cmd = [
         sys.executable,
         str(repo_root / "scripts" / "validate_run_evidence_chain.py"),
         "--run-root", str(replay_sandbox),
         "--betting-day", "2026-07-14",
         "--run-id", "CERT_REPLAY_20260714_PRICING_DEGRADED_V6",
-        "--output", "/tmp/BET_PIPELINE_FINAL_EVIDENCE_AND_RUN_BINDING_CLOSURE_V6/replay/s6_s8_evidence_chain.json"
+        "--output", str(chain_report),
     ]
     validator_res = subprocess.run(validator_cmd, capture_output=True, text=True)
     assert validator_res.returncode == 0, f"Evidence chain validator failed: {validator_res.stderr}\nStdout: {validator_res.stdout}"
+    validation = json.loads(chain_report.read_text(encoding="utf-8"))
+    assert validation["status"] == "PASS"
+    assert validation["report_payload"]["issues"] == []
+    assert set(validation["report_payload"]["output_sha256"]) == {"S6", "S7", "S7b", "S8"}
+
+    # A post-publication byte change must turn the same validator into a
+    # non-zero BLOCK, not merely a report whose status callers can ignore.
+    s8_output["tampered_after_publication"] = True
+    s8_output_path.write_text(json.dumps(s8_output, indent=2), encoding="utf-8")
+    blocked_report = replay_sandbox / "validation" / "tampered_chain.json"
+    tampered_cmd = [*validator_cmd[:-1], str(blocked_report)]
+    tampered_res = subprocess.run(tampered_cmd, capture_output=True, text=True)
+    assert tampered_res.returncode == 1
+    blocked = json.loads(blocked_report.read_text(encoding="utf-8"))
+    assert blocked["status"] == "BLOCK"
+    assert blocked["report_payload"]["issues"]

@@ -31,6 +31,7 @@ from normalize_stats import build_safety_input, build_safety_input_from_cache
 from compute_safety_scores import rank_markets
 
 from bet.pipeline.market_probability_inputs import aggregate_split_stat_value
+from bet.pipeline.canonical_continuity import bind_event_identity, file_sha256
 from bet.stats.market_ranking import SPORT_STAT_KEYS
 
 from bet.utils import is_same_event
@@ -1707,7 +1708,7 @@ def analyze_candidate(
         "safety_input": safety_input,
     }
 
-    return {
+    analysis = {
         "sport": sport,
         "candidate_id": "|".join(part for part in (sport, home, away, kickoff[:10]) if part),
         "home_team": home,
@@ -1790,6 +1791,7 @@ def analyze_candidate(
     if analysis["h2h_status"] == "BLIND" and analysis.get("best_market"):
         analysis["best_market"]["_h2h_blind_penalty"] = False
         analysis["best_market"]["_h2h_blind_note"] = "penalty applied in compute_safety_scores only"
+    return analysis
 
 
 # ---------------------------------------------------------------------------
@@ -1898,6 +1900,12 @@ def generate_deep_stats(date: str, shortlist_path: str | None = None, top: int |
     Returns:
         dict with metadata and per-candidate analyses.
     """
+    if gemini:
+        raise RuntimeError(
+            "GEMINI_SECOND_OPINION_UNAVAILABLE: the removed Rapid-MLX backend "
+            "has no production implementation"
+        )
+
     if shortlist_path:
         # Explicit shortlist file overrides everything
         candidates = _load_candidates_from_shortlist(shortlist_path)
@@ -2125,45 +2133,6 @@ def generate_deep_stats(date: str, shortlist_path: str | None = None, top: int |
         "analyses": analyses,
     }
 
-    # --- Rapid-MLX deep analysis second opinion (feature flag) ---
-    if gemini and analyses:
-        try:
-            print(f"[deep_stats] Rapid-MLX second opinion for {len(analyses)} candidates...")
-            gemini_count = 0
-            for a in analyses:
-                if not a.get("has_data"):
-                    continue
-                candidate_dict = {
-                    "home_team": a.get("home_team", ""),
-                    "away_team": a.get("away_team", ""),
-                    "sport": a.get("sport", ""),
-                    "competition": a.get("competition", ""),
-                    "kickoff": a.get("kickoff", ""),
-                }
-                try:
-                    ga = gemini_analyze(candidate_dict, stats_data=a)
-                    if ga:
-                        python_top = a.get("best_market", "")
-                        python_safety = a.get("data_quality", {}).get("score", 5)
-                        agreement = compute_agreement_score(python_top, python_safety, ga)
-                        a["gemini_analysis"] = {
-                            "recommended_markets": [m.model_dump() for m in ga.recommended_markets] if ga.recommended_markets else [],
-                            "upset_risk_score": ga.upset_risk_score,
-                            "upset_risk_reasoning": ga.upset_risk_reasoning,
-                            "overall_confidence": ga.overall_confidence,
-                            "narrative": ga.narrative,
-                            "agreement_score": agreement,
-                        }
-                        gemini_count += 1
-                except Exception as e:
-                    print(f"[deep_stats] Gemini failed for {candidate_dict.get('home_team')} vs {candidate_dict.get('away_team')}: {e}")
-            print(f"[deep_stats] Rapid-MLX analysis complete: {gemini_count}/{len(analyses)} candidates")
-            output["gemini_analyzed"] = gemini_count
-        except ImportError:
-            pass
-        except Exception as e:
-            print(f"[deep_stats] Rapid-MLX analysis failed (non-fatal): {e}")
-
     # Write markdown first (doesn't need fixture_ids)
     _write_markdown(output, date)
 
@@ -2225,7 +2194,12 @@ def _write_json(output: dict, date: str) -> Path:
 
     # Build JSON-friendly version (strip large markdown from sections)
     json_output = {
+        "schema_version": 2,
+        "artifact_type": "S3_DEEP_STATS",
+        "status": "PASS",
         "date": output["date"],
+        "betting_day": output["date"],
+        "run_id": os.environ.get("BET_PIPELINE_RUN_ID", "standalone"),
         "generated_at": output["generated_at"],
         "source": output["source"],
         "total_candidates": output["total_candidates"],
@@ -2235,6 +2209,10 @@ def _write_json(output: dict, date: str) -> Path:
         "fixture_ids_injected": output.get("fixture_ids_injected", 0),
         "analyses": [],
     }
+    source_path_raw = os.environ.get("BET_PIPELINE_S3_SOURCE_PATH")
+    source_path = Path(source_path_raw).resolve(strict=True) if source_path_raw else None
+    json_output["source_s2_path"] = str(source_path) if source_path else None
+    json_output["source_s2_sha256"] = file_sha256(source_path) if source_path else None
 
     for a in output["analyses"]:
         json_entry = {
@@ -2270,7 +2248,7 @@ def _write_json(output: dict, date: str) -> Path:
         # Pass through tipster_support from shortlist (for gate → coupon)
         if (a.get("tipster_count") or 0) > 0 and a.get("tipster_support"):
             json_entry["tipster_support"] = a["tipster_support"]
-        json_output["analyses"].append(json_entry)
+        json_output["analyses"].append(bind_event_identity(json_entry))
 
     json_path.write_text(
         json.dumps(json_output, indent=2, ensure_ascii=False), encoding="utf-8"
@@ -2359,16 +2337,6 @@ def main():
             sys.exit(2)
         except Exception as e:
             out.warning(f"Precondition check skipped (DB error): {e}")
-
-    if args.gemini:
-        # Check if local model server is reachable before running the full pipeline
-        try:
-            if not LMStudioClient().health_check():
-                out.warning("⚠️  --gemini flag passed but local model server is not reachable at localhost:8000. "
-                           "LLM features will be disabled. Ensure Rapid-MLX is running.")
-        except Exception as e:
-            logger.debug("Non-critical failure in cache read / DB lookup: %s", e)
-            pass
 
     result = generate_deep_stats(
         args.date, args.shortlist, args.top,
