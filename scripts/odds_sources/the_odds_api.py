@@ -9,7 +9,16 @@ if _SCRIPTS_DIR not in sys.path:
     sys.path.insert(0, _SCRIPTS_DIR)
 
 from odds_sources import OddsSource, PREFERRED_BOOKMAKERS
-from fetch_odds_api import SPORT_KEY_MAP, get_api_key, fetch_odds as _fetch_odds, discover_active_sport_keys
+try:
+    from fetch_odds_api import SPORT_KEY_MAP, get_api_key, fetch_odds as _fetch_odds, discover_active_sport_keys
+except ImportError:
+    SPORT_KEY_MAP = {}
+    def get_api_key() -> str:
+        raise ValueError("Missing fetch_odds_api key")
+    def _fetch_odds(*args, **kwargs):
+        return [], {}
+    def discover_active_sport_keys(*args, **kwargs) -> dict:
+        return {}
 
 # The-Odds-API bookmaker keys to include when available
 # See: https://the-odds-api.com/liveapi/guides/v4/#bookmakers

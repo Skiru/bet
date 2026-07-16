@@ -108,6 +108,17 @@ def parse_junit(path: Path) -> dict[str, Any]:
     if not suites:
         raise CertificationError("CERT_JUNIT_EMPTY")
 
+    # Strict semantic validation of mandatory tests from JUnit XML
+    for tc in root.findall(".//testcase"):
+        classname = tc.attrib.get("classname", "")
+        is_regression = "test_canonical_continuity_v4_owner_regressions" in classname
+        is_chain_proof = "test_canonical_continuity_v4_offline_chain_proof" in classname
+        if is_regression or is_chain_proof:
+            if tc.find("skipped") is not None:
+                raise CertificationError(f"CERT_MANDATORY_TEST_SKIPPED:{tc.attrib.get('name')}")
+            if tc.find("failure") is not None or tc.find("error") is not None:
+                raise CertificationError(f"CERT_MANDATORY_TEST_FAILED:{tc.attrib.get('name')}")
+
     def total(field: str) -> int:
         try:
             return sum(int(suite.attrib.get(field, "0")) for suite in suites)

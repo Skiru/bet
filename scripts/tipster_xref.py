@@ -82,13 +82,19 @@ def run_tipster_xref(date: str, state: dict) -> tuple[bool, str]:
     """
     # DB-first (R2) — use TipsterRepo
     tips = []
+    db_success = False
     try:
         from bet.db.connection import get_db
         from bet.db.repositories import TipsterRepo
         with get_db() as conn:
             repo = TipsterRepo(conn)
             db_picks = repo.get_picks_by_date(date)
+            db_success = True
             if db_picks:
+                for idx, p in enumerate(db_picks):
+                    # Strict validation for malformed data
+                    if not getattr(p, "source_site", None) or not getattr(p, "event", None):
+                        raise ValueError(f"Malformed tipster data at row {idx}")
                 tips = [
                     {
                         "source_site": p.source_site, "tipster_name": p.tipster_name,
@@ -103,10 +109,13 @@ def run_tipster_xref(date: str, state: dict) -> tuple[bool, str]:
                 print(f"  → Loaded {len(tips)} tipster picks from DB (TipsterRepo)")
     except Exception as e:
         print(f"  ⚠ TipsterRepo DB load failed: {e}")
-        return False, f"PRECONDITION_FAILED: tipster_picks DB query failed ({e}). Check DB connectivity, then run tipster_aggregator.py (execution-spine STEP 6)."
+        return False, f"BLOCK: tipster_picks DB query failed or malformed ({e}). Check DB connectivity/integrity."
 
-    if not tips:
-        return False, "PRECONDITION_FAILED: tipster_picks has 0 rows for this date. Run tipster_aggregator.py first (execution-spine STEP 6)."
+    # If the DB query succeeded but returned 0 rows, this is a legal degraded outcome.
+    if db_success and not tips:
+        print("  → Zero tipster picks loaded. Legal degraded outcome.")
+        # We let the rest of execution run with tips = [] so that candidates are properly initialized on disk/DB
+
     # Import smart matching from shared utils
     from bet.utils import normalize_for_matching, names_match
 
@@ -299,9 +308,13 @@ def run_tipster_xref(date: str, state: dict) -> tuple[bool, str]:
                 else:
                     sport_key = candidate_sport or "unknown"
                     unmatched_by_sport[sport_key] = unmatched_by_sport.get(sport_key, 0) + 1
-                    # Unmatched candidates stay at tipster_count=0 / tipster_support_json=NULL
-                    # (set by clear_tipster_enrichment before each S2 rerun).
-                    # Per-sport status metadata lives in tipster_registry — not on candidate rows.
+                    # Explicitly set 0 tipsters support for unmatched candidates
+                    c["tipster_count"] = 0
+                    c["tipster_support"] = {
+                        "count": 0,
+                        "tipsters": [],
+                        "tips": [],
+                    }
 
             # Close any DB contexts we opened
             try:
@@ -339,8 +352,9 @@ def run_tipster_xref(date: str, state: dict) -> tuple[bool, str]:
             print(f"  ⚠ Shortlist enrichment error: {e}")
 
     n_tips = len(tips)
+    prefix = "DEGRADED_NO_TIPSTER_PICKS: " if n_tips == 0 else ""
     return True, (
-        f"Tipster cross-reference: {n_tips} tips loaded, "
+        f"{prefix}Tipster cross-reference: {n_tips} tips loaded, "
         f"{matched}/{total} shortlist candidates matched, "
         f"db_enriched={enriched_count}, "
         f"json_updated={'yes' if shortlist_source == 'json' and shortlist else 'no'}, "
