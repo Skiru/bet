@@ -550,6 +550,23 @@ def _build_valuation_output(
             else:
                 status = "BLOCKED_INVALID_ANALYTICAL_INPUT"
 
+    event_records = []
+    seen_events = set()
+    for candidate in valuation_candidates:
+        evt_id = candidate.get("canonical_event_id")
+        if evt_id and evt_id not in seen_events:
+            seen_events.add(evt_id)
+            has_tips = int(candidate.get("tipster_count") or 0) > 0
+            terminal_status = "CONTINUE" if has_tips else "DEGRADED_CONTINUE"
+            if candidate.get("final_status") == "BLOCKED":
+                terminal_status = "BLOCKED"
+            event_records.append({
+                "canonical_event_id": evt_id,
+                "terminal_status": terminal_status,
+                "reason_codes": [] if has_tips else ["DEGRADED_NO_TIPSTER_PICKS"],
+                "candidate_ids": [candidate.get("selection_id")] if candidate.get("selection_id") else []
+            })
+
     return {
         "schema_version": 2,
         "artifact_type": "S4_VALUATION_CANDIDATE_SET_V2",
@@ -575,6 +592,7 @@ def _build_valuation_output(
         "production_selectable": False,
         "betting_decisions_enabled": False,
         "no_pick_edge_stake_coupon_emitted": True,
+        "event_records": event_records,
         "candidates": valuation_candidates,
     }
 

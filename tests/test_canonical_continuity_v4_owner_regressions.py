@@ -378,6 +378,14 @@ def test_16_db_isolation(tmp_path: Path, monkeypatch):
         return orig_unlink(self, *args, **kwargs)
     monkeypatch.setattr(Path, "unlink", mock_unlink)
 
+    import os
+    orig_os_unlink = os.unlink
+    def mock_os_unlink(path, *args, **kwargs):
+        if "bet_dryrun_" in str(path):
+            return None
+        return orig_os_unlink(path, *args, **kwargs)
+    monkeypatch.setattr(os, "unlink", mock_os_unlink)
+
     run_root = tmp_path / "pipeline_runs" / "2026-07-15" / "run-1"
     run_root.mkdir(parents=True, exist_ok=True)
     monkeypatch.setenv("BET_PIPELINE_RUN_ROOT", str(run_root))

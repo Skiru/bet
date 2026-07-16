@@ -236,6 +236,19 @@ def _seed_prior_steps(environ: dict[str, str], step_id: str):
     (run_root / "artifacts").mkdir(parents=True, exist_ok=True)
     (run_root / "data").mkdir(parents=True, exist_ok=True)
     
+    s1e_path = run_root / "data" / "2026-06-25_s1e_event_universe.json"
+    s1e_path.write_text(json.dumps({
+        "canonical_event_ids": ["10"],
+        "event_records": {
+            "10": {
+                "fixture_id": 10,
+                "home_team": "Alpha",
+                "away_team": "Beta",
+                "sport": "football"
+            }
+        }
+    }))
+    
     for name in ("2026-06-25_s4_valuation_candidates.json", "2026-06-25_s7_gate_results.json", "2026-06-25_s7b_superbet_manual_mapping.json", "2026-06-25_s8_superbet_manual_quote_pack.json"):
         p = run_root / "data" / name
         if p.exists():

@@ -335,7 +335,6 @@ def run_scripts(
     finally:
         if temp_db_path:
             try:
-                if os.environ.get("BET_PIPELINE_OFFLINE_TEST_MODE") != "1":
-                    os.unlink(temp_db_path)
+                os.unlink(temp_db_path)
             except OSError:
                 pass

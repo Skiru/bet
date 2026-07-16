@@ -20,8 +20,6 @@ except Exception:
 
 import os
 SCRIPTS = ["tipster_aggregator.py", "tipster_xref.py"]
-if os.environ.get("BET_PIPELINE_OFFLINE_TEST_MODE") == "1":
-    SCRIPTS = ["tipster_xref.py"]
 BLOCKED_REASON_PATTERNS: tuple[tuple[str, str], ...] = (
     (r"no valid tips", "BLOCKED_NO_VALID_TIPS"),
     (r"tipster[_\s-]*xref failed|cross[-\s]*reference failed", "BLOCKED_TIPSTER_XREF_FAILED"),

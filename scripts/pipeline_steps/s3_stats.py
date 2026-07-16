@@ -276,46 +276,6 @@ def _invoke_deep_stats_report(
     child_env: dict[str, str],
     runtime_mode: RuntimeMode,
 ) -> tuple[int, str]:
-    if os.environ.get("BET_PIPELINE_OFFLINE_TEST_MODE") == "1":
-        from bet.pipeline.run_evidence import sha256_file
-        report_data = {
-            "schema_version": 2,
-            "artifact_type": "S3_DEEP_STATS",
-            "betting_day": betting_day,
-            "run_id": child_env.get("BET_PIPELINE_RUN_ID", ""),
-            "source_s2_path": str(shortlist_path.expanduser()),
-            "source_s2_sha256": sha256_file(shortlist_path),
-            "candidates_with_data": 1,
-            "event_records": [
-                {
-                    "canonical_event_id": "evt_649a5f6cc3964ae76d3d614b517f2a82",
-                    "terminal_status": "DEGRADED_CONTINUE",
-                    "reason_codes": ["DEGRADED_NO_TIPSTER_PICKS"],
-                    "candidate_ids": []
-                }
-            ],
-            "analyses": [
-                {
-                    "canonical_event_id": "evt_649a5f6cc3964ae76d3d614b517f2a82",
-                    "home_team": "ŁKS Łódź",
-                    "away_team": "KS D",
-                    "sport": "football",
-                    "competition": "Integration League",
-                    "kickoff": "2026-07-15T12:00:00Z",
-                    "calibrated_probabilities": {
-                        "Match Winner": {
-                            "home_win": 0.45,
-                            "draw": 0.25,
-                            "away_win": 0.30
-                        }
-                    }
-                }
-            ]
-        }
-        report_out = Path(child_env["BET_PIPELINE_DATA_DIR"]) / f"{betting_day}_s3_deep_stats.json"
-        report_out.write_text(json.dumps(report_data), encoding="utf-8")
-        return 0, "success"
-
     env = child_env.copy()
     env["BET_PIPELINE_S3_SOURCE_PATH"] = str(shortlist_path.resolve())
     temp_db_path: str | None = None

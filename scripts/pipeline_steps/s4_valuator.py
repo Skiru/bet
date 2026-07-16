@@ -184,59 +184,6 @@ def main() -> None:
             no_pick_edge_stake_coupon_emitted=True,
         )
 
-    if os.environ.get("BET_PIPELINE_OFFLINE_TEST_MODE") == "1" and s4_input_path:
-        from bet.pipeline.run_evidence import sha256_file
-        report_data = {
-            "schema_version": 2,
-            "artifact_type": "S4_VALUATION_CANDIDATE_SET_V2",
-            "betting_day": args.date,
-            "run_id": args.run_id,
-            "source_s3_path": str(s4_input_path),
-            "source_s3_sha256": sha256_file(s4_input_path) if s4_input_path else "",
-            "candidate_count": 1,
-            "contains_odds": True,
-            "contains_ev": True,
-            "contains_safety": True,
-            "contains_market_count": True,
-            "market_semantics_ready_count": 1,
-            "promotion_safe_model_probability_count": 1,
-            "reference_model_probability_count": 1,
-            "candidates_with_ev": 1,
-            "positive_ev_count": 1,
-            "ev_missing_reason_counts": {},
-            "event_records": [
-                {
-                    "canonical_event_id": "evt_649a5f6cc3964ae76d3d614b517f2a82",
-                    "terminal_status": "DEGRADED_CONTINUE",
-                    "reason_codes": ["DEGRADED_NO_TIPSTER_PICKS"],
-                    "candidate_ids": []
-                }
-            ],
-            "candidates": [
-                {
-                    "canonical_event_id": "evt_649a5f6cc3964ae76d3d614b517f2a82",
-                    "home_team": "ŁKS Łódź",
-                    "away_team": "KS D",
-                    "sport": "football",
-                    "competition": "Integration League",
-                    "kickoff": "2026-07-15T12:00:00Z",
-                    "best_market": {
-                        "name": "Match Winner",
-                        "selection": "ŁKS Łódź",
-                        "odds": 2.10,
-                        "ev": 0.05,
-                        "safety": "PASS"
-                    }
-                }
-            ]
-        }
-        s4_output_path.write_text(json.dumps(report_data), encoding="utf-8")
-        _write(
-            status="PASS",
-            payload=_payload(0, 0, valuation_output=report_data)
-        )
-        sys.exit(0)
-
     if s4_input_path is None:
         _write(
             status="BLOCK",

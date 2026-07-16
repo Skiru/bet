@@ -22,6 +22,14 @@ def _bootstrap_test_db(db_path: Path) -> Path:
     conn = sqlite3.connect(str(db_path))
     conn.execute("PRAGMA foreign_keys = ON")
     conn.executescript(schema)
+    
+    # Seed mock data for stats generation
+    conn.execute("INSERT INTO sports (id, name) VALUES (1, 'football')")
+    conn.execute("INSERT INTO teams (id, sport_id, name) VALUES (1, 1, 'ŁKS Łódź')")
+    conn.execute("INSERT INTO teams (id, sport_id, name) VALUES (2, 1, 'KS D')")
+    conn.execute("INSERT INTO team_form (team_id, sport_id, stat_key, l10_values, l10_avg, updated_at) VALUES (1, 1, 'goals', '[1, 2, 1]', 1.5, '2026-07-15')")
+    conn.execute("INSERT INTO team_form (team_id, sport_id, stat_key, l10_values, l10_avg, updated_at) VALUES (2, 1, 'goals', '[0, 1, 2]', 1.0, '2026-07-15')")
+    conn.commit()
     conn.close()
     return db_path
 
@@ -44,10 +52,75 @@ def test_v4_offline_chain_proof(tmp_path: Path, monkeypatch):
     monkeypatch.setenv("BET_PIPELINE_ARTIFACT_DIR", str(run_root / "artifacts"))
     monkeypatch.setenv("BET_PIPELINE_COUPON_DIR", str(run_root / "coupons"))
 
+    # Seed picks-ledger.csv
+    ledger_file = run_root / "journal" / "picks-ledger.csv"
+    ledger_file.parent.mkdir(parents=True, exist_ok=True)
+    ledger_file.write_text(
+        "betting_day,status,event,pick_id,sport,market,selection,settled_at_utc,result_recorded_at_utc\n",
+        encoding="utf-8"
+    )
+    monkeypatch.setenv("BET_PIPELINE_LEDGER_PATH", str(ledger_file))
+
     # Create directories
     (run_root / "data").mkdir(parents=True, exist_ok=True)
     (run_root / "artifacts").mkdir(parents=True, exist_ok=True)
     (run_root / "coupons").mkdir(parents=True, exist_ok=True)
+
+    # Seed stats_cache fallback files for S3
+    from scripts.deep_stats_report import slugify
+    cache_dir = run_root / "data" / "stats_cache" / "football"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    
+    slug_a = slugify("ŁKS Łódź")
+    slug_b = slugify("KS D")
+    
+    (cache_dir / f"{slug_a}.json").write_text(json.dumps({
+        "sources": ["db"],
+        "form": {
+            "l10_avg": {"goals": 1.5},
+            "l10_matches": [
+                {"goals": 1, "goals_conceded": 0},
+                {"goals": 2, "goals_conceded": 1},
+                {"goals": 1, "goals_conceded": 2},
+                {"goals": 0, "goals_conceded": 0},
+                {"goals": 3, "goals_conceded": 1},
+                {"goals": 1, "goals_conceded": 1},
+                {"goals": 2, "goals_conceded": 0},
+                {"goals": 0, "goals_conceded": 2},
+                {"goals": 1, "goals_conceded": 1},
+                {"goals": 2, "goals_conceded": 1}
+            ]
+        },
+        "h2h": {
+            slug_b: {
+                "matches": [{"home_team": "ŁKS Łódź", "away_team": "KS D", "home_score": 2, "away_score": 1}]
+            }
+        }
+    }), encoding="utf-8")
+    
+    (cache_dir / f"{slug_b}.json").write_text(json.dumps({
+        "sources": ["db"],
+        "form": {
+            "l10_avg": {"goals": 1.0},
+            "l10_matches": [
+                {"goals": 0, "goals_conceded": 1},
+                {"goals": 1, "goals_conceded": 2},
+                {"goals": 2, "goals_conceded": 1},
+                {"goals": 0, "goals_conceded": 0},
+                {"goals": 1, "goals_conceded": 3},
+                {"goals": 1, "goals_conceded": 1},
+                {"goals": 0, "goals_conceded": 2},
+                {"goals": 2, "goals_conceded": 0},
+                {"goals": 1, "goals_conceded": 1},
+                {"goals": 1, "goals_conceded": 2}
+            ]
+        },
+        "h2h": {
+            slug_a: {
+                "matches": [{"home_team": "ŁKS Łódź", "away_team": "KS D", "home_score": 2, "away_score": 1}]
+            }
+        }
+    }), encoding="utf-8")
 
     # 2. Seed S1 discover shortlist & evidence to initiate flow
     matrix_path = run_root / "data" / "market_matrix.json"
@@ -175,7 +248,46 @@ def test_v4_offline_chain_proof(tmp_path: Path, monkeypatch):
                 payload["tipster_sentiment"] = {}
                 payload["bet_builder_precheck"] = {}
                 payload["tournament_context"] = {}
-                evidence_refs = ["S4_ref"]
+                
+                # Fetch S4 data to dynamically link and validate correctly
+                from bet.pipeline.run_evidence import repo_head_sha, manifest_hash, sha256_file
+                s4_json_path = run_root / "data" / f"{DAY}_s4_valuation_candidates.json"
+                s4_data = json.loads(s4_json_path.read_text(encoding="utf-8"))
+                
+                # Strip forbidden execution fields and add S5 contract fields
+                clean_candidates = []
+                for c in s4_data["candidates"]:
+                    c_copy = dict(c)
+                    for key in ["stake", "kelly_fraction", "bettable", "edge"]:
+                        c_copy.pop(key, None)
+                    c_copy["context_checks"] = {
+                        "injuries_lineups": {"status": "CLEAR", "as_of_utc": "2026-07-15T12:00:00Z", "source_refs": ["mock_ref"]},
+                        "motivation_tournament_context": {"status": "CLEAR", "as_of_utc": "2026-07-15T12:00:00Z", "source_refs": ["mock_ref"]},
+                        "travel_fatigue": {"status": "CLEAR", "as_of_utc": "2026-07-15T12:00:00Z", "source_refs": ["mock_ref"]},
+                        "morale_recent_form": {"status": "CLEAR", "as_of_utc": "2026-07-15T12:00:00Z", "source_refs": ["mock_ref"]},
+                        "upset_volatility_risk": {"status": "CLEAR", "as_of_utc": "2026-07-15T12:00:00Z", "source_refs": ["mock_ref"]}
+                    }
+                    c_copy["risk_flags"] = []
+                    c_copy["counter_evidence"] = []
+                    c_copy["safety_score"] = 1.0
+                    clean_candidates.append(c_copy)
+                
+                payload["source_git_sha"] = repo_head_sha(Path(__file__).resolve().parents[1])
+                payload["manifest_sha"] = manifest_hash(Path(__file__).resolve().parents[1])
+                payload["source_s4_path"] = str(s4_json_path)
+                payload["source_s4_sha256"] = sha256_file(s4_json_path)
+                payload["work_order_id"] = f"WO-{RUN_ID}-S5"
+                payload["agent_id"] = "bet-risk-gatekeeper"
+                payload["policy_version"] = "1.0"
+                payload["accounting"] = {
+                    "unaccounted_candidate_ids": [],
+                    "duplicate_candidate_ids": [],
+                    "overlapping_terminal_categories": []
+                }
+                payload["input_candidate_count"] = len(clean_candidates)
+                payload["candidates"] = clean_candidates
+                payload["rejected_candidates"] = []
+                evidence_refs = ["artifacts/S4.json"]
 
             artifact = {
                 "schema_version": 1 if step_id != "S2.9" else 2,

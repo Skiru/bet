@@ -1445,7 +1445,7 @@ def analyze_candidate(
 
     # Build safety input and rank markets
     ranking_result = None
-    safety_input = build_safety_input(sport, home, away, competition)
+    safety_input = build_safety_input(sport, home, away, competition, cache_dir=CACHE_DIR)
     if safety_input and safety_input.get("markets"):
         ranking_result = rank_markets(safety_input)
     else:
@@ -1456,7 +1456,7 @@ def analyze_candidate(
                 enrich_team(home, sport)
                 enrich_team(away, sport)
                 # Retry safety input after enrichment
-                safety_input = build_safety_input(sport, home, away, competition)
+                safety_input = build_safety_input(sport, home, away, competition, cache_dir=CACHE_DIR)
                 if safety_input and safety_input.get("markets"):
                     ranking_result = rank_markets(safety_input)
             except Exception as e:
@@ -2213,6 +2213,18 @@ def _write_json(output: dict, date: str) -> Path:
     source_path = Path(source_path_raw).resolve(strict=True) if source_path_raw else None
     json_output["source_s2_path"] = str(source_path) if source_path else None
     json_output["source_s2_sha256"] = file_sha256(source_path) if source_path else None
+
+    event_records = []
+    for a in output["analyses"]:
+        evt_id = bind_event_identity(a).get("canonical_event_id")
+        has_tips = int(a.get("tipster_count") or 0) > 0
+        event_records.append({
+            "canonical_event_id": evt_id,
+            "terminal_status": "CONTINUE" if has_tips else "DEGRADED_CONTINUE",
+            "reason_codes": [] if has_tips else ["DEGRADED_NO_TIPSTER_PICKS"],
+            "candidate_ids": []
+        })
+    json_output["event_records"] = event_records
 
     for a in output["analyses"]:
         json_entry = {
