@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "provider_policies": {
+    "the-odds-api": {
+      "required": true
+    },
+    "oddspapi": {
+      "required": false
+    },
+    "odds-api-io": {
+      "required": false
+    },
+    "api-football-odds": {
+      "required": false
+    }
+  }
+}

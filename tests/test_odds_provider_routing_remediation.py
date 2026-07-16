@@ -11,8 +11,9 @@ from bet.odds_provider_access import odds_source_access_status
 
 def test_secret_values_never_emitted_in_provider_reports():
     """Verify that no actual key values from config/api_keys.json are emitted in reports or artifacts."""
-    artifacts_dir = Path("/Users/mkoziol/projects/bet/.kilo/artifacts")
-    keys_file = Path("/Users/mkoziol/projects/bet/config/api_keys.json")
+    repo_root = Path(__file__).resolve().parents[1]
+    artifacts_dir = repo_root / ".kilo/artifacts"
+    keys_file = repo_root / "config/api_keys.json"
     
     if not keys_file.exists():
         pytest.skip("api_keys.json is missing; cannot run audit validation")

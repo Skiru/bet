@@ -11,15 +11,24 @@ from pathlib import Path
 from typing import Any, Iterable
 
 try:
-    from scripts.pipeline_steps._runner import resolve_child_runtime_env, run_scripts
+    from scripts.pipeline_steps._runner import (
+        ScriptInvocation,
+        resolve_child_runtime_env,
+        run_scripts,
+    )
 except Exception:
     ROOT = Path(__file__).resolve().parents[2]
     sys.path.insert(0, str(ROOT))
-    from scripts.pipeline_steps._runner import resolve_child_runtime_env, run_scripts
+    from scripts.pipeline_steps._runner import (
+        ScriptInvocation,
+        resolve_child_runtime_env,
+        run_scripts,
+    )
 
 from bet.pipeline.artifact_io import publish_run_artifact
 from bet.pipeline.integration_artifacts import write_script_evidence
 from bet.pipeline.runtime_modes import RuntimeMode, parse_runtime_mode
+from bet.pipeline.runtime_paths import is_system_temp_path
 
 BLOCKED_TOKEN_RE = re.compile(r"\b(BLOCKED_[A-Z0-9_]+|PRECONDITION_FAILED)\b")
 GENERIC_CONTROLLED_PATTERNS: tuple[re.Pattern[str], ...] = (
@@ -67,13 +76,16 @@ def _assert_non_production_sandbox_safety(
         return
 
     parent_run_root = os.environ.get("BET_PIPELINE_RUN_ROOT", "")
-    if not parent_run_root.startswith("/tmp"):
+    if not parent_run_root or not is_system_temp_path(parent_run_root):
         return
 
     child_run_root = child_env.get("BET_PIPELINE_RUN_ROOT", "")
     child_artifact_dir = child_env.get("BET_PIPELINE_ARTIFACT_DIR", "")
     if _is_reports_path(child_run_root) or _is_reports_path(child_artifact_dir):
-        raise RuntimeError("non-production wrapper resolved repo-local reports path under inherited /tmp sandbox")
+        raise RuntimeError(
+            "non-production wrapper resolved repo-local reports path under an "
+            "inherited temporary sandbox"
+        )
 
 
 def build_wrapper_payload(
@@ -197,6 +209,29 @@ def write_terminal_script_evidence_or_fail(
     no_pick_edge_stake_coupon_emitted: bool,
     extra_top_level_fields: dict[str, Any] | None = None,
 ) -> Path:
+    if step_id in {"S3", "S4", "S6", "S7", "S7b", "S8"}:
+        betting_day = child_env.get("BET_PIPELINE_BETTING_DAY")
+        filenames = {
+            "S3": f"{betting_day}_s3_deep_stats.json",
+            "S4": f"{betting_day}_s4_valuation_candidates.json",
+            "S6": f"{betting_day}_s6_portfolio_repeat_guard.json",
+            "S7": f"{betting_day}_s7_gate_results.json",
+            "S7b": f"{betting_day}_s7b_superbet_manual_mapping.json",
+            "S8": f"{betting_day}_s8_superbet_manual_quote_pack.json",
+        }
+        fname = filenames.get(step_id)
+        records = None
+        if fname:
+            output_file = Path(child_env["BET_PIPELINE_DATA_DIR"]) / fname
+            s1e_file = Path(child_env["BET_PIPELINE_DATA_DIR"]) / f"{betting_day}_s1e_event_universe.json"
+            if s1e_file.exists() and (status == "PASS" or output_file.exists()):
+                data = json.loads(output_file.read_text(encoding="utf-8"))
+                if "event_records" not in data:
+                    raise ValueError(f"EVENT_BOUNDARY_RECORDS_MISSING: Step {step_id} output lacks 'event_records'")
+                records = data["event_records"]
+        if records:
+            payload["event_records"] = records
+
     evidence_path = write_script_evidence(
         step_id,
         status=status,
@@ -303,6 +338,215 @@ def run_wrapper_scripts_with_evidence(
 
     output = captured_stdout.getvalue()
     _replay_output(output)
+
+    if step_id == "S2":
+        output_file = Path(child_env["BET_PIPELINE_DATA_DIR"]) / f"{betting_day}_s2_shortlist.json"
+        if output_file.exists():
+            from bet.pipeline.run_evidence import sha256_file
+            s2_sha = sha256_file(output_file)
+            if not extra_payload:
+                extra_payload = {}
+            extra_payload["s2_output_path"] = str(output_file)
+            extra_payload["s2_shortlist_path"] = str(output_file)
+            extra_payload["s2_output_sha256"] = s2_sha
+
+            # Load S1e universe
+            s1e_file = Path(child_env["BET_PIPELINE_DATA_DIR"]) / f"{betting_day}_s1e_event_universe.json"
+            if not s1e_file.exists():
+                err_msg = "S1E file missing"
+                payload = build_wrapper_payload(
+                    step_id=step_id,
+                    wrapper_scripts=wrapper_scripts,
+                    wrapper_rc=-1,
+                    runtime_mode=mode,
+                    dry_run=dry_run,
+                    allow_write=allow_write,
+                    allow_live_network=allow_live_network,
+                    child_env=child_env,
+                    runtime_path_source=runtime_path_source,
+                    extra={**(extra_payload or {}), "error": err_msg},
+                )
+                write_terminal_script_evidence_or_fail(
+                    step_id=step_id,
+                    status="BLOCK",
+                    payload=payload,
+                    sources=tuple(f"scripts/{script_name}" for script_name in script_names),
+                    child_env=child_env,
+                    blocked_reasons=("S1E_FILE_MISSING",),
+                    no_pick_edge_stake_coupon_emitted=no_pick_edge_stake_coupon_emitted,
+                    extra_top_level_fields=extra_top_level_fields,
+                )
+                raise SystemExit(1)
+
+            try:
+                s1e_data = json.loads(s1e_file.read_text(encoding="utf-8"))
+            except Exception as exc:
+                err_msg = f"S1E JSON malformed: {exc}"
+                payload = build_wrapper_payload(
+                    step_id=step_id,
+                    wrapper_scripts=wrapper_scripts,
+                    wrapper_rc=-1,
+                    runtime_mode=mode,
+                    dry_run=dry_run,
+                    allow_write=allow_write,
+                    allow_live_network=allow_live_network,
+                    child_env=child_env,
+                    runtime_path_source=runtime_path_source,
+                    extra={**(extra_payload or {}), "error": err_msg},
+                )
+                write_terminal_script_evidence_or_fail(
+                    step_id=step_id,
+                    status="BLOCK",
+                    payload=payload,
+                    sources=tuple(f"scripts/{script_name}" for script_name in script_names),
+                    child_env=child_env,
+                    blocked_reasons=("S1E_JSON_MALFORMED",),
+                    no_pick_edge_stake_coupon_emitted=no_pick_edge_stake_coupon_emitted,
+                    extra_top_level_fields=extra_top_level_fields,
+                )
+                raise SystemExit(1)
+
+            if not isinstance(s1e_data, dict) or not isinstance(s1e_data.get("canonical_event_ids"), list):
+                err_msg = "S1E schema/type invalid"
+                payload = build_wrapper_payload(
+                    step_id=step_id,
+                    wrapper_scripts=wrapper_scripts,
+                    wrapper_rc=-1,
+                    runtime_mode=mode,
+                    dry_run=dry_run,
+                    allow_write=allow_write,
+                    allow_live_network=allow_live_network,
+                    child_env=child_env,
+                    runtime_path_source=runtime_path_source,
+                    extra={**(extra_payload or {}), "error": err_msg},
+                )
+                write_terminal_script_evidence_or_fail(
+                    step_id=step_id,
+                    status="BLOCK",
+                    payload=payload,
+                    sources=tuple(f"scripts/{script_name}" for script_name in script_names),
+                    child_env=child_env,
+                    blocked_reasons=("S1E_SCHEMA_INVALID",),
+                    no_pick_edge_stake_coupon_emitted=no_pick_edge_stake_coupon_emitted,
+                    extra_top_level_fields=extra_top_level_fields,
+                )
+                raise SystemExit(1)
+
+            universe_ids = s1e_data["canonical_event_ids"]
+
+            # Load S2 shortlist candidates
+            try:
+                s2_data = json.loads(output_file.read_text(encoding="utf-8"))
+            except Exception as exc:
+                err_msg = f"S2 JSON malformed: {exc}"
+                payload = build_wrapper_payload(
+                    step_id=step_id,
+                    wrapper_scripts=wrapper_scripts,
+                    wrapper_rc=-1,
+                    runtime_mode=mode,
+                    dry_run=dry_run,
+                    allow_write=allow_write,
+                    allow_live_network=allow_live_network,
+                    child_env=child_env,
+                    runtime_path_source=runtime_path_source,
+                    extra={**(extra_payload or {}), "error": err_msg},
+                )
+                write_terminal_script_evidence_or_fail(
+                    step_id=step_id,
+                    status="BLOCK",
+                    payload=payload,
+                    sources=tuple(f"scripts/{script_name}" for script_name in script_names),
+                    child_env=child_env,
+                    blocked_reasons=("S2_JSON_MALFORMED",),
+                    no_pick_edge_stake_coupon_emitted=no_pick_edge_stake_coupon_emitted,
+                    extra_top_level_fields=extra_top_level_fields,
+                )
+                raise SystemExit(1)
+
+            if not isinstance(s2_data, dict) or not isinstance(s2_data.get("candidates"), list):
+                err_msg = "S2 candidates not a list"
+                payload = build_wrapper_payload(
+                    step_id=step_id,
+                    wrapper_scripts=wrapper_scripts,
+                    wrapper_rc=-1,
+                    runtime_mode=mode,
+                    dry_run=dry_run,
+                    allow_write=allow_write,
+                    allow_live_network=allow_live_network,
+                    child_env=child_env,
+                    runtime_path_source=runtime_path_source,
+                    extra={**(extra_payload or {}), "error": err_msg},
+                )
+                write_terminal_script_evidence_or_fail(
+                    step_id=step_id,
+                    status="BLOCK",
+                    payload=payload,
+                    sources=tuple(f"scripts/{script_name}" for script_name in script_names),
+                    child_env=child_env,
+                    blocked_reasons=("S2_CANDIDATES_NOT_A_LIST",),
+                    no_pick_edge_stake_coupon_emitted=no_pick_edge_stake_coupon_emitted,
+                    extra_top_level_fields=extra_top_level_fields,
+                )
+                raise SystemExit(1)
+
+            candidates = s2_data["candidates"]
+            matched_event_ids = set()
+            for c in candidates:
+                cid = c.get("canonical_event_id") or c.get("event_id")
+                if not cid:
+                    continue
+                if cid not in universe_ids:
+                    err_msg = f"S2 event ID {cid} outside S1e universe"
+                    payload = build_wrapper_payload(
+                        step_id=step_id,
+                        wrapper_scripts=wrapper_scripts,
+                        wrapper_rc=-1,
+                        runtime_mode=mode,
+                        dry_run=dry_run,
+                        allow_write=allow_write,
+                        allow_live_network=allow_live_network,
+                        child_env=child_env,
+                        runtime_path_source=runtime_path_source,
+                        extra={**(extra_payload or {}), "error": err_msg},
+                    )
+                    write_terminal_script_evidence_or_fail(
+                        step_id=step_id,
+                        status="BLOCK",
+                        payload=payload,
+                        sources=tuple(f"scripts/{script_name}" for script_name in script_names),
+                        child_env=child_env,
+                        blocked_reasons=("S2_EVENT_NOT_IN_S1E_UNIVERSE",),
+                        no_pick_edge_stake_coupon_emitted=no_pick_edge_stake_coupon_emitted,
+                        extra_top_level_fields=extra_top_level_fields,
+                    )
+                    raise SystemExit(1)
+                if c.get("tipster_support"):
+                    matched_event_ids.add(cid)
+
+            event_records = []
+            for eid in universe_ids:
+                if eid in matched_event_ids:
+                    event_records.append({
+                        "canonical_event_id": eid,
+                        "terminal_status": "CONTINUE",
+                        "reason_codes": [],
+                        "candidate_ids": []
+                    })
+                else:
+                    event_records.append({
+                        "canonical_event_id": eid,
+                        "terminal_status": "DEGRADED_CONTINUE",
+                        "reason_codes": ["DEGRADED_NO_TIPSTER_PICKS"],
+                        "candidate_ids": []
+                    })
+
+            extra_payload["event_records"] = event_records
+            s2_data["event_records"] = event_records
+            output_file.write_text(json.dumps(s2_data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+            from bet.pipeline.run_evidence import sha256_file
+            extra_payload["s2_output_sha256"] = sha256_file(output_file)
+            if not matched_event_ids:
+                extra_payload["outcome"] = "DEGRADED_NO_TIPSTER_PICKS"
 
     payload = build_wrapper_payload(
         step_id=step_id,

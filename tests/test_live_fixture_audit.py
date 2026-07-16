@@ -64,11 +64,12 @@ def test_audit_candidate_invalid_kickoff_format() -> None:
     assert status == "REJECTED_UNVERIFIED_FIXTURE_IDENTITY"
     assert "Failed to parse kickoff timestamp" in reason
 
-def test_audit_candidate_already_started() -> None:
+def test_audit_candidate_already_started(monkeypatch: pytest.MonkeyPatch) -> None:
     audit = LiveFixtureAudit(target_date="2026-07-08")
     
     # Kickoff in the past
     past_time = (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat()
+    monkeypatch.setenv("BET_PIPELINE_RUN_AS_OF_UTC", datetime.now(timezone.utc).isoformat())
     candidate = {
         "candidate_id": "match_123",
         "betting_day": "2026-07-08",
@@ -80,7 +81,7 @@ def test_audit_candidate_already_started() -> None:
     assert status == "REJECTED_ALREADY_STARTED"
     assert "is in the past" in reason
 
-def test_audit_candidate_kickoff_wrong_betting_day() -> None:
+def test_audit_candidate_kickoff_wrong_betting_day(monkeypatch: pytest.MonkeyPatch) -> None:
     audit = LiveFixtureAudit(target_date="2026-07-08")
     
     # Kickoff on a different day (future)
@@ -88,6 +89,7 @@ def test_audit_candidate_kickoff_wrong_betting_day() -> None:
     # Ensure it's not on 2026-07-08
     if future_time.strftime("%Y-%m-%d") == "2026-07-08":
         future_time += timedelta(days=1)
+    monkeypatch.setenv("BET_PIPELINE_RUN_AS_OF_UTC", datetime.now(timezone.utc).isoformat())
     
     candidate = {
         "candidate_id": "match_123",
@@ -99,11 +101,12 @@ def test_audit_candidate_kickoff_wrong_betting_day() -> None:
     assert status == "REJECTED_WRONG_BETTING_DAY"
     assert "does not match target" in reason
 
-def test_audit_candidate_missing_participants() -> None:
+def test_audit_candidate_missing_participants(monkeypatch: pytest.MonkeyPatch) -> None:
     tomorrow = datetime.now(timezone.utc) + timedelta(days=1)
     target_date = tomorrow.strftime("%Y-%m-%d")
     kickoff_time = tomorrow.replace(hour=20, minute=0, second=0, microsecond=0).isoformat()
     audit = LiveFixtureAudit(target_date=target_date)
+    monkeypatch.setenv("BET_PIPELINE_RUN_AS_OF_UTC", datetime.now(timezone.utc).isoformat())
     
     # Missing home_team
     candidate = {
@@ -125,13 +128,14 @@ def test_audit_candidate_missing_participants() -> None:
     assert status == "REJECTED_PARTICIPANT_MISMATCH"
     assert "Missing home_team or away_team" in reason
 
-def test_audit_candidate_stale_fixture() -> None:
+def test_audit_candidate_stale_fixture(monkeypatch: pytest.MonkeyPatch) -> None:
     tomorrow = (datetime.now(timezone.utc) + timedelta(days=1))
     # Stale probability_as_of (> 24 hours)
     stale_time = (datetime.now(timezone.utc) - timedelta(hours=25)).isoformat()
     kickoff_time = (tomorrow + timedelta(hours=2)).isoformat()
     target_date = datetime.fromisoformat(kickoff_time).strftime("%Y-%m-%d")
     audit = LiveFixtureAudit(target_date=target_date)
+    monkeypatch.setenv("BET_PIPELINE_RUN_AS_OF_UTC", datetime.now(timezone.utc).isoformat())
     candidate = {
         "candidate_id": "match_123",
         "kickoff": kickoff_time,
@@ -155,19 +159,28 @@ def test_audit_candidate_stale_fixture() -> None:
     assert status == "REJECTED_STALE_FIXTURE"
     assert "Source artifact is stale" in reason
 
-def test_audit_candidate_valid() -> None:
+def test_audit_candidate_valid(monkeypatch: pytest.MonkeyPatch) -> None:
     # Valid candidate
     future_time = (datetime.now(timezone.utc) + timedelta(hours=2))
     # Force target_date to match the future_time's date
     target_date = future_time.strftime("%Y-%m-%d")
+    now = datetime.now(timezone.utc)
+    monkeypatch.setenv("BET_PIPELINE_RUN_AS_OF_UTC", now.isoformat())
     audit = LiveFixtureAudit(target_date=target_date)
     
     candidate = {
         "candidate_id": "match_123",
+        "canonical_event_id": "event_123",
         "kickoff": future_time.isoformat(),
         "home_team": "Team A",
         "away_team": "Team B",
-        "probability_as_of": (datetime.now(timezone.utc) - timedelta(hours=2)).isoformat()
+        "probability_as_of": (now - timedelta(hours=2)).isoformat(),
+        "fixture_verification": {
+            "status": "LIVE_FIXTURE_VERIFIED_NOT_STARTED",
+            "source": "provider:fixture-feed",
+            "verified_at_utc": (now - timedelta(minutes=5)).isoformat(),
+            "canonical_event_id": "event_123",
+        },
     }
     status, reason = audit.audit_candidate(candidate)
     assert status == "LIVE_FIXTURE_VERIFIED_NOT_STARTED"

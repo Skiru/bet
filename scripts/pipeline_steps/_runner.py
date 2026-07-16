@@ -10,7 +10,6 @@ that need persistent schema across multiple calls work correctly.
 from __future__ import annotations
 
 import os
-import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -30,7 +29,8 @@ from bet.pipeline.runtime_modes import (
     WRITE_ACK_KEY,
     WRITE_ACK_VALUE,
 )
-from bet.pipeline.runtime_paths import build_runtime_env
+from bet.pipeline.runtime_paths import build_runtime_env, is_system_temp_path
+from bet.pipeline.run_coordination import redact_sensitive_text, run_bounded_process
 
 # Sandbox paths keys
 RUNTIME_PATH_KEYS = (
@@ -63,9 +63,22 @@ def _venv_python() -> str:
 
 
 def _init_temp_db(db_path: str) -> None:
-    """Initialize schema in a temp DB for dry-run subprocesses."""
-    from bet.db.connection import get_db
+    """Initialize schema in a temp DB for dry-run subprocesses, copying existing operational DB if present."""
+    import shutil
+    import os
+    from bet.db.connection import get_db, _resolve_db_path
     from bet.db.schema import init_db
+
+    print("[DEBUG_DB] ENV DATABASE_URL:", os.environ.get("DATABASE_URL"))
+    print("[DEBUG_DB] KEYS:", [k for k in os.environ.keys() if "DATABASE" in k or "BET" in k or "URL" in k])
+    try:
+        op_path = _resolve_db_path()
+        print("[DEBUG_DB] RESOLVED OP PATH:", op_path, "IS FILE:", Path(op_path).is_file() if op_path else False)
+        if op_path and Path(op_path).is_file():
+            shutil.copy(op_path, db_path)
+    except Exception as exc:
+        print("[DEBUG_DB] RESOLVE FAILED:", exc)
+        pass
 
     with get_db(db_path) as conn:
         init_db(conn)
@@ -102,7 +115,10 @@ def resolve_child_runtime_env(
             for key in RUNTIME_PATH_KEYS:
                 env[key] = parent_env[key]
         else:
-            resolved_betting_day = betting_day or parent_env.get("BET_PIPELINE_BETTING_DAY") or "default_day"
+            # Generic dry-run helper scripts may not be bound to a betting day;
+            # use a syntactically valid non-production sentinel, never a path-like
+            # free-form placeholder.
+            resolved_betting_day = betting_day or parent_env.get("BET_PIPELINE_BETTING_DAY") or "1970-01-01"
             resolved_run_id = run_id or parent_env.get("BET_PIPELINE_RUN_ID")
             resolved_run_root = Path(run_root) if run_root else None
             sandbox_env = build_runtime_env(runtime_mode, resolved_betting_day, resolved_run_id, resolved_run_root)
@@ -120,9 +136,14 @@ def resolve_child_runtime_env(
         child_run_root = env.get("BET_PIPELINE_RUN_ROOT", "")
         child_run_root_resolved = str(Path(child_run_root).expanduser().resolve()) if child_run_root else ""
         repo_reports_root = str(_repo_reports_root().resolve())
-        if parent_run_root.startswith("/tmp") and child_run_root_resolved.startswith(repo_reports_root):
+        if (
+            parent_run_root
+            and is_system_temp_path(parent_run_root)
+            and child_run_root_resolved.startswith(repo_reports_root)
+        ):
             raise RuntimeError(
-                "Non-production child runtime sandbox fell back to repo-local reports despite inherited /tmp BET_PIPELINE_RUN_ROOT"
+                "Non-production child runtime sandbox fell back to repo-local reports "
+                "despite an inherited temporary BET_PIPELINE_RUN_ROOT"
             )
 
         for key in RUNTIME_PATH_KEYS:
@@ -154,6 +175,8 @@ def run_scripts(
       temporarily set to a temp file DB to avoid persisting changes.
     Returns the subprocess return code (0 for success).
     """
+    original_allow_write = allow_write
+
     if continue_on_codes is None:
         continue_on_codes = [0]
     env = os.environ.copy()
@@ -169,6 +192,10 @@ def run_scripts(
             runtime_mode = RuntimeMode(runtime_mode.upper())
         except ValueError:
             runtime_mode = RuntimeMode.DRY_RUN
+
+    if runtime_mode != RuntimeMode.PRODUCTION and original_allow_write:
+        print("BLOCKED_NON_PRODUCTION_WRITE_FORBIDDEN")
+        return 3
 
     # Check for live-target wrappers
     is_live_target = False
@@ -231,17 +258,21 @@ def run_scripts(
                 run_id=run_id,
                 run_root=run_root,
             )
-        except RuntimeError as exc:
+        except (RuntimeError, ValueError) as exc:
             print(f"BLOCKED_RUNTIME_PATH_INHERITANCE_LOST: {exc}")
             return 6
 
     temp_db_path = None
     try:
-        if dry_run and not allow_write:
-            fd, temp_db_path = tempfile.mkstemp(suffix=".db", prefix="bet_dryrun_")
-            os.close(fd)
+        if runtime_mode != RuntimeMode.PRODUCTION:
+            run_root_dir = Path(env.get("BET_PIPELINE_RUN_ROOT") or run_root or ROOT)
+            db_dir = run_root_dir / "data"
+            db_dir.mkdir(parents=True, exist_ok=True)
+            import uuid
+            temp_db_path = str(db_dir / f"bet_dryrun_{uuid.uuid4().hex}.db")
             _init_temp_db(temp_db_path)
             env["DATABASE_URL"] = f"sqlite:///{temp_db_path}"
+            env["BET_DB_PATH"] = temp_db_path
             env["DRY_RUN"] = "1"
         python = _venv_python()
         for script in scripts:
@@ -255,10 +286,19 @@ def run_scripts(
                 argv = []
                 if date:
                     argv += [date_arg, date]
-                timeout = None
+                timeout = 900.0
                 expected_codes = set(continue_on_codes or [0])
 
-            script_path = ROOT / "scripts" / script_name
+            relative_script = Path(script_name)
+            if relative_script.is_absolute() or ".." in relative_script.parts:
+                print("BLOCKED_SCRIPT_PATH_OUTSIDE_REGISTRY")
+                return 2
+            script_path = (ROOT / "scripts" / relative_script).resolve(strict=False)
+            try:
+                script_path.relative_to((ROOT / "scripts").resolve())
+            except ValueError:
+                print("BLOCKED_SCRIPT_PATH_OUTSIDE_REGISTRY")
+                return 2
             if not script_path.exists():
                 print(f"Script not found: {script_path}")
                 return 2
@@ -266,28 +306,33 @@ def run_scripts(
             if extra_args:
                 cmd += extra_args
             print("Running:", " ".join(cmd))
-            kwargs = {}
-            if timeout is not None:
-                kwargs["timeout"] = timeout
-            res = subprocess.run(cmd, env=env, capture_output=True, text=True, **kwargs)
+            bounded_timeout = float(timeout if timeout is not None else 900.0)
+            if not 0 < bounded_timeout <= 3600:
+                print("BLOCKED_SCRIPT_TIMEOUT_INVALID")
+                return 2
+            res = run_bounded_process(cmd, env=env, timeout_seconds=bounded_timeout, cwd=ROOT)
+            stdout = redact_sensitive_text(res.stdout, env)
+            stderr = redact_sensitive_text(res.stderr, env)
             if res.returncode not in expected_codes:
-                if res.stdout:
-                    print(res.stdout)
-                if res.stderr:
-                    print(res.stderr)
+                if stdout:
+                    print(stdout)
+                if stderr:
+                    print(stderr)
 
-                if not isinstance(script, ScriptInvocation) and date and ("unrecognized arguments" in (res.stderr or "").lower() or "usage:" in (res.stderr or "").lower() or "error:" in (res.stderr or "").lower()):
+                if not isinstance(script, ScriptInvocation) and date and ("unrecognized arguments" in stderr.lower() or "usage:" in stderr.lower() or "error:" in stderr.lower()):
                     print(f"Retrying {script_name} without date flag to accommodate CLI differences")
                     cmd2 = [python, str(script_path)]
                     if extra_args:
                         cmd2 += extra_args
                     print("Running:", " ".join(cmd2))
-                    res2 = subprocess.run(cmd2, env=env, capture_output=True, text=True)
+                    res2 = run_bounded_process(cmd2, env=env, timeout_seconds=bounded_timeout, cwd=ROOT)
+                    stdout2 = redact_sensitive_text(res2.stdout, env)
+                    stderr2 = redact_sensitive_text(res2.stderr, env)
                     if res2.returncode not in expected_codes:
-                        if res2.stdout:
-                            print(res2.stdout)
-                        if res2.stderr:
-                            print(res2.stderr)
+                        if stdout2:
+                            print(stdout2)
+                        if stderr2:
+                            print(stderr2)
                         print(f"Script {script_name} failed with code {res2.returncode}")
                         return res2.returncode
                     else:
@@ -296,13 +341,13 @@ def run_scripts(
                 print(f"Script {script_name} failed with code {res.returncode}")
                 return res.returncode
             else:
-                if res.stdout:
-                    print(res.stdout)
-                if res.stderr:
-                    print(res.stderr)
+                if stdout:
+                    print(stdout)
+                if stderr:
+                    print(stderr)
         return 0
     finally:
-        if temp_db_path:
+        if temp_db_path and not os.environ.get("BET_KEEP_TEMP_DB"):
             try:
                 os.unlink(temp_db_path)
             except OSError:

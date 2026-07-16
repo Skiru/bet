@@ -1,737 +1,590 @@
 #!/usr/bin/env python3
 """48-hour repeat pick detector — finds same team+market losses in recent history.
 
-Reads picks-ledger.csv and identifies picks in the last 48 hours with the same
-team+market combination that resulted in a loss. These are flagged for the S7 gate
-(§7.5 point #14: "48h repeat check — same team+market lost → HARD REJECT").
+Reads s6_history_snapshot.json and identifies picks in the last 48 hours with the same
+team+market combination that resulted in a loss. These are flagged for the S7 gate.
 """
+from __future__ import annotations
 
 import argparse
 import csv
+import hashlib
 import json
-import re
-import sys
 import os
-from datetime import datetime, timedelta
+import sys
+from datetime import UTC, datetime, timedelta
 from difflib import SequenceMatcher
 from pathlib import Path
-
+from typing import Any
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
-DATA_DIR = Path(os.environ.get("BET_PIPELINE_DATA_DIR", str(ROOT_DIR / "betting" / "data")))
-DEFAULT_LEDGER_PATH = ROOT_DIR / "betting" / "journal" / "picks-ledger.csv"
-REPEAT_LOSS_STEP = "s7_6_repeat_loss_check"
-
-# Ensure src/ is importable when the script is executed directly.
 sys.path.insert(0, str(ROOT_DIR / "src"))
 
+from bet.pipeline.canonical_continuity import bind_candidate_identity, validate_exact_partition
+from bet.pipeline.artifact_io import (
+    ArtifactPublishError,
+    publish_immutable_json_blob,
+    publish_run_artifact,
+)
+from bet.pipeline.portfolio_repeat_guard import (
+    PortfolioRepeatGuardInput,
+    evaluate_portfolio_repeat_guard,
+    validate_history_snapshot_schema,
+    validate_portfolio_policy_schema,
+)
+from bet.pipeline.run_evidence import (
+    manifest_hash,
+    repo_head_sha,
+    sha256_file,
+)
+from bet.pipeline.runtime_paths import is_safe_run_path
 
-def is_non_production_mode() -> bool:
-    mode = os.environ.get("BET_PIPELINE_RUNTIME_MODE", "DRY_RUN").upper()
-    return mode != "PRODUCTION"
+
+class HistoryUnavailableError(Exception):
+    pass
 
 
-def is_protected_repo_path(path: Path | str | None) -> bool:
-    if not path:
-        return False
-    abs_path = Path(path).resolve()
-    betting_data = (ROOT_DIR / "betting" / "data").resolve()
-    betting_coupons = (ROOT_DIR / "betting" / "coupons").resolve()
-    reports = (ROOT_DIR / "reports").resolve()
-    
-    for parent in [betting_data, betting_coupons, reports]:
-        try:
-            abs_path.relative_to(parent)
-            return True
-        except ValueError:
-            pass
-    return False
+class HistoryMalformedError(Exception):
+    pass
+
+
+DEFAULT_LEDGER_PATH = ROOT_DIR / "betting" / "journal" / "picks-ledger.csv"
+DATA_DIR = ROOT_DIR / "betting" / "data"
+REPEAT_LOSS_STEP = "S6_REPEAT_LOSS_GUARD"
 
 
 def normalize_team(name: str) -> str:
-    """Normalize team name for fuzzy matching."""
-    name = name.lower().strip()
-    name = re.sub(r"\s+", " ", name)
-    # Remove common suffixes/prefixes
-    for token in ["fc ", "sc ", "ac ", "ss ", "bv ", "ud ", "sv ", "tsv ", "vfb "]:
-        if name.startswith(token):
-            name = name[len(token):]
-    for token in [" fc", " sc", " ac", " cf"]:
-        if name.endswith(token):
-            name = name[: -len(token)]
-    return name.strip()
+    from bet.pipeline.portfolio_repeat_guard import _normalize_team
+    return _normalize_team(name)
 
 
 def normalize_market(market: str) -> str:
-    """Normalize market type for matching."""
-    market = market.lower().strip()
-    market = re.sub(r"\s+", " ", market)
-    # Normalize common variants
-    market = market.replace("over ", "o").replace("under ", "u")
-    market = market.replace("o/u ", "").replace("over/under ", "")
-    return market
+    from bet.pipeline.portfolio_repeat_guard import _normalize_market
+    return _normalize_market(market)
 
 
-def fuzzy_match(a: str, b: str, threshold: float = 0.75) -> bool:
-    """Check if two strings match above a similarity threshold."""
-    return SequenceMatcher(None, a, b).ratio() >= threshold
+def fuzzy_match(left: str, right: str, threshold: float = 0.75) -> bool:
+    return SequenceMatcher(None, str(left), str(right)).ratio() >= threshold
+
+
+def _extract_gate_candidates(payload: Any) -> list[dict[str, Any]]:
+    if isinstance(payload, list):
+        candidates = [item for item in payload if isinstance(item, dict)]
+    elif isinstance(payload, dict):
+        inner = payload.get("payload")
+        if isinstance(inner, dict):
+            return _extract_gate_candidates(inner)
+        gate = payload.get("gate_results")
+        if isinstance(gate, dict):
+            candidates = [
+                item
+                for key in ("approved", "extended_pool")
+                for item in gate.get(key, [])
+                if isinstance(item, dict)
+            ]
+        else:
+            candidates = []
+            for key in ("candidates", "valuations", "analyses", "accepted"):
+                if isinstance(payload.get(key), list):
+                    candidates = [item for item in payload[key] if isinstance(item, dict)]
+                    break
+    else:
+        candidates = []
+    if not candidates:
+        raise ValueError("zero candidates")
+    return candidates
 
 
 def load_recent_losses(
-    ledger_path: Path, hours: int = 48
-) -> list[dict]:
-    """Read picks-ledger.csv and filter to status=loss within last N hours."""
-    if not ledger_path.exists():
+    path: Path = DEFAULT_LEDGER_PATH,
+    hours: int = 48,
+    *,
+    as_of: datetime | None = None,
+) -> list[dict[str, Any]]:
+    """Compatibility reader for legacy consumers; production S6 uses snapshots."""
+    ledger_path = Path(path)
+    if not ledger_path.is_file():
         return []
-
-    cutoff = datetime.now() - timedelta(hours=hours)
-    losses = []
-
-    with open(ledger_path, "r", encoding="utf-8") as f:
-        reader = csv.DictReader(f)
-        for row in reader:
-            if row.get("status", "").strip().lower() != "loss":
+    as_of = as_of or datetime.now(UTC)
+    if as_of.tzinfo is None:
+        raise HistoryMalformedError("HISTORY_AS_OF_MUST_BE_TIMEZONE_AWARE")
+    start = as_of - timedelta(hours=hours)
+    losses: list[dict[str, Any]] = []
+    with ledger_path.open(encoding="utf-8", newline="") as handle:
+        for row in csv.DictReader(handle):
+            if str(row.get("status") or "").strip().casefold() != "loss":
                 continue
-
-            # Parse betting_day
-            betting_day = row.get("betting_day", "").strip()
-            if not betting_day:
+            timestamp = row.get("settled_at_utc") or row.get("result_recorded_at_utc")
+            if timestamp:
+                try:
+                    settled = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
+                    if settled.tzinfo is None:
+                        settled = settled.replace(tzinfo=UTC)
+                except ValueError as exc:
+                    raise HistoryMalformedError("HISTORY_TIMESTAMP_INVALID") from exc
+            else:
+                day = row.get("betting_day")
+                if not day:
+                    raise HistoryMalformedError("HISTORY_TIMESTAMP_MISSING")
+                settled = datetime.fromisoformat(f"{day}T23:59:59+00:00")
+            if not start <= settled < as_of:
                 continue
-            try:
-                # Treat betting_day as end-of-day to ensure full 48h calendar coverage
-                day_dt = datetime.strptime(betting_day, "%Y-%m-%d") + timedelta(hours=23, minutes=59)
-            except ValueError:
-                continue
-
-            if day_dt < cutoff:
-                continue
-
-            # Extract team names from event field
-            event = row.get("event", "").strip()
-            teams = extract_teams(event)
-
-            losses.append({
-                "betting_day": betting_day,
-                "pick_id": row.get("pick_id", "").strip(),
-                "event": event,
-                "sport": row.get("sport", "").strip(),
-                "market": row.get("market", "").strip(),
-                "selection": row.get("selection", "").strip(),
-                "teams": teams,
-                "teams_normalized": [normalize_team(t) for t in teams],
-                "market_normalized": normalize_market(row.get("market", "")),
-                "days_ago": (datetime.now() - day_dt).days,
-            })
-
+            event = str(row.get("event") or "")
+            from bet.pipeline.portfolio_repeat_guard import _extract_teams_from_event
+            teams = _extract_teams_from_event(event)
+            losses.append(
+                {
+                    **row,
+                    "teams": teams,
+                    "teams_normalized": [normalize_team(team) for team in teams],
+                    "market_normalized": normalize_market(row.get("market") or ""),
+                    "lost_on": row.get("betting_day") or settled.date().isoformat(),
+                }
+            )
     return losses
 
 
-def extract_teams(event: str) -> list[str]:
-    """Extract team/player names from event string."""
-    # Try "Team A vs Team B" pattern
-    match = re.match(r"(.+?)\s+(?:vs\.?|@)\s+(.+?)(?:\s*\(|$)", event, re.IGNORECASE)
-    if match:
-        return [match.group(1).strip(), match.group(2).strip()]
-    # Fallback: split by common separators
-    for sep in [" vs ", " vs. ", " @ ", " - "]:
-        if sep in event.lower():
-            idx = event.lower().index(sep)
-            return [event[:idx].strip(), event[idx + len(sep):].strip()]
-    return [event]
-
-
-def find_repeats(
-    check_teams: list[str],
-    recent_losses: list[dict],
-    check_market: str | None = None,
-) -> list[dict]:
-    """Find matching team+market combinations in recent losses."""
-    warnings = []
-    check_teams_norm = [normalize_team(t) for t in check_teams]
-    check_market_norm = normalize_market(check_market) if check_market else None
-
-    for loss in recent_losses:
-        for check_team in check_teams_norm:
-            for loss_team in loss["teams_normalized"]:
-                if fuzzy_match(check_team, loss_team):
-                    # Team matches — check market if provided
-                    if check_market_norm:
-                        if not fuzzy_match(check_market_norm, loss["market_normalized"], 0.6):
-                            continue
-
-                    warnings.append({
-                        "team": check_team,
-                        "matched_team": loss_team,
-                        "market": loss["market"],
-                        "selection": loss["selection"],
-                        "lost_on": loss["betting_day"],
-                        "pick_id": loss["pick_id"],
-                        "event": loss["event"],
-                        "sport": loss["sport"],
-                        "days_ago": loss["days_ago"],
-                        "action": "HARD REJECT per §7.5 #14",
-                    })
-
-    return warnings
-
-
-def parse_shortlist_teams(shortlist_path: Path) -> list[str]:
-    """Extract team names from shortlist markdown file."""
-    if not shortlist_path.exists():
-        return []
-
-    text = shortlist_path.read_text(encoding="utf-8")
-    teams = set()
-
-    # Look for "X vs Y" patterns
-    for match in re.finditer(
-        r"([A-ZÀ-Ža-zà-ž0-9\s.'&\-]+?)\s+vs\.?\s+([A-ZÀ-Ža-zà-ž0-9\s.'&\-]+?)(?:\s*[\|(]|$)",
-        text,
-        re.MULTILINE,
-    ):
-        teams.add(match.group(1).strip())
-        teams.add(match.group(2).strip())
-
-    return list(teams)
-
-
-def _candidate_market_name(candidate: dict) -> str:
-    best_market = candidate.get("best_market") or {}
-    return (
-        best_market.get("name")
-        or candidate.get("market_type")
-        or candidate.get("market")
-        or ""
-    )
-
-
-def _extract_gate_candidates(payload: dict | list) -> list[dict]:
-    if isinstance(payload, list):
-        candidates = [item for item in payload if isinstance(item, dict)]
-        if not candidates:
-            raise ValueError("zero candidates found in payload list")
-        return candidates
-
-    if not isinstance(payload, dict):
-        raise ValueError("Gate input payload must be a dict or list")
-
-    inner = payload.get("payload")
-    if isinstance(inner, dict):
-        try:
-            return _extract_gate_candidates(inner)
-        except ValueError:
-            pass
-
-    # 1. gate_results.approved + gate_results.extended_pool
-    gate_results = payload.get("gate_results")
-    if isinstance(gate_results, dict):
-        approved = gate_results.get("approved", []) or []
-        extended = gate_results.get("extended_pool", []) or []
-        candidates = [item for item in approved + extended if isinstance(item, dict)]
-        if not candidates:
-            raise ValueError("zero candidates found in gate_results buckets")
-        return candidates
-
-    # 2. candidates
-    candidates = payload.get("candidates")
-    if isinstance(candidates, list):
-        res = [item for item in candidates if isinstance(item, dict)]
-        if not res:
-            raise ValueError("zero candidates found in candidates list")
-        return res
-
-    # 3. results
-    results = payload.get("results")
-    if isinstance(results, list):
-        res = [item for item in results if isinstance(item, dict)]
-        if not res:
-            raise ValueError("zero candidates found in results list")
-        return res
-
-    # 4. events
-    events = payload.get("events")
-    if isinstance(events, list):
-        res = [item for item in events if isinstance(item, dict)]
-        if not res:
-            raise ValueError("zero candidates found in events list")
-        return res
-
-    # 5. valuations
-    valuations = payload.get("valuations")
-    if isinstance(valuations, list):
-        res = [item for item in valuations if isinstance(item, dict)]
-        if not res:
-            raise ValueError("zero candidates found in valuations list")
-        return res
-
-    # 6. analyses (from s3_deep_stats.json)
-    analyses = payload.get("analyses")
-    if isinstance(analyses, list):
-        res = [item for item in analyses if isinstance(item, dict)]
-        if not res:
-            raise ValueError("zero candidates found in analyses list")
-        return res
-
-    # 7. General search in keys of payload
-    for k, v in payload.items():
-        if k in ("candidates", "results", "events", "valuations", "analyses", "approved", "extended_pool") and isinstance(v, list):
-            res = [item for item in v if isinstance(item, dict)]
-            if res:
-                return res
-
-    raise ValueError("Gate input payload missing candidate/valuation buckets")
-
-
-def load_gate_candidates(date: str, input_path: Path | None = None) -> tuple[list[dict], str]:
-    """Load the S7 build universe for repeat-loss checks.
-
-    Returns a tuple of (candidates, source), where source is one of
-    ``input_json``, ``db``, or ``json``.
-    """
-    if input_path is not None:
-        if not input_path.exists():
-            raise FileNotFoundError(f"Gate input not found: {input_path}")
-        with open(input_path, encoding="utf-8") as handle:
-            payload = json.load(handle)
-        return _extract_gate_candidates(payload), "input_json"
-
-    from db_data_loader import load_gate_results_from_db_only
-
-    approved_db = load_gate_results_from_db_only(date, status="approved")
-    extended_db = load_gate_results_from_db_only(date, status="extended")
-    if approved_db or extended_db:
-        return approved_db + extended_db, "db"
-
-    for json_path in (DATA_DIR / f"{date}_s7_gate_results.json", DATA_DIR / f"s7_gate_results_{date}.json"):
-        if not json_path.exists():
+def find_repeats(teams: list[str], losses: list[dict[str, Any]], market: str) -> list[dict[str, Any]]:
+    normalized_market = normalize_market(market)
+    result: list[dict[str, Any]] = []
+    for loss in losses:
+        if normalize_market(loss.get("market") or "") != normalized_market:
             continue
-        with open(json_path, encoding="utf-8") as handle:
-            payload = json.load(handle)
-        return _extract_gate_candidates(payload), "json"
+        loss_teams = loss.get("teams_normalized")
+        if not isinstance(loss_teams, list):
+            loss_teams = [
+                loss.get("team_normalized")
+                or normalize_team(loss.get("team") or "")
+            ]
+        if any(
+            fuzzy_match(normalize_team(team), str(loss_team))
+            for team in teams
+            for loss_team in loss_teams
+        ):
+            result.append(loss)
+    return result
 
-    raise FileNotFoundError(f"No S7 gate results found for {date}. Run gate_checker.py first.")
 
-
-def find_repeat_loss_candidates(candidates: list[dict], recent_losses: list[dict]) -> list[dict]:
-    """Return same team+market repeat-loss findings for the given candidates."""
-    findings: list[dict] = []
-    seen: set[tuple[str, str, str]] = set()
-
+def find_repeat_loss_candidates(
+    candidates: list[dict[str, Any]], losses: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
+    findings: list[dict[str, Any]] = []
     for candidate in candidates:
-        market_name = _candidate_market_name(candidate)
-        home_team = candidate.get("home_team", "")
-        away_team = candidate.get("away_team", "")
-        teams = [team for team in (home_team, away_team) if team]
-        if not teams or not market_name:
-            continue
-
-        matches = find_repeats(teams, recent_losses, market_name)
-        for match in matches:
-            event_key = f"{normalize_team(home_team)}|{normalize_team(away_team)}"
-            match_key = (event_key, normalize_market(market_name), match.get("pick_id", ""))
-            if match_key in seen:
-                continue
-            seen.add(match_key)
+        best = candidate.get("best_market") if isinstance(candidate.get("best_market"), dict) else {}
+        market = candidate.get("market") or candidate.get("market_type") or best.get("name") or ""
+        matches = find_repeats(
+            [candidate.get("home_team") or "", candidate.get("away_team") or ""],
+            losses,
+            market,
+        )
+        if matches:
             findings.append(
                 {
+                    "candidate_id": candidate.get("candidate_id"),
                     "fixture_id": candidate.get("fixture_id"),
-                    "sport": candidate.get("sport", ""),
-                    "home_team": home_team,
-                    "away_team": away_team,
-                    "competition": candidate.get("competition", ""),
-                    "market_name": market_name,
-                    "market_normalized": normalize_market(market_name),
-                    "event_key": event_key,
-                    "reason": "Same team+market lost within 48h — HARD REJECT",
-                    "matched_loss": match,
-                    "action": "HARD_REJECT",
+                    "home_team": candidate.get("home_team"),
+                    "away_team": candidate.get("away_team"),
+                    "event_key": f"{normalize_team(candidate.get('home_team') or '')}|{normalize_team(candidate.get('away_team') or '')}",
+                    "market_name": market,
+                    "market_normalized": normalize_market(market),
+                    "matches": matches,
                 }
             )
-
     return findings
 
 
-def build_repeat_loss_payload(
-    *,
-    date: str,
-    hours: int,
-    recent_losses: list[dict],
-    candidates: list[dict],
-    findings: list[dict],
-    candidate_source: str,
-    artifact_path: Path,
-) -> dict:
+def load_repeat_loss_handoff(date: str) -> dict[str, Any] | None:
+    path = Path(os.environ.get("BET_PIPELINE_DATA_DIR", ROOT_DIR / "betting" / "data")) / f"repeat_loss_handoff_{date}.json"
+    if path.is_file():
+        try:
+            value = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            return None
+        if isinstance(value, dict):
+            value["artifact_path"] = str(path)
+            return value
+
+    # Read-only compatibility fallback for the pre-canonical coupon builder.
+    # Strict S7 consumes the hash-bound S6 artifact directly and never reaches it.
+    try:
+        from bet.db.connection import get_db
+        from bet.db.repositories import PipelineRepo
+
+        with get_db() as connection:
+            repository = PipelineRepo(connection)
+            for step in (REPEAT_LOSS_STEP, "s7_6_repeat_loss_check"):
+                receipt = repository.get_step(date, step)
+                if receipt and receipt.get("status") == "completed":
+                    stats = receipt.get("stats")
+                    if isinstance(stats, dict):
+                        return stats
+    except Exception:
+        return None
+    return None
+
+
+def load_recent_losses_snapshot(
+    ledger_path: Path, hours: int = 48, as_of: datetime | None = None
+) -> dict[str, Any]:
+    """Create the strict, hash-bound half-open history snapshot."""
+    if as_of is None:
+        raise ValueError("BLOCKED_RUN_AS_OF_BINDING_MISMATCH")
+    if as_of.tzinfo is None:
+        raise ValueError("BLOCKED_RUN_AS_OF_BINDING_MISMATCH")
+    if not Path(ledger_path).is_file():
+        raise HistoryUnavailableError("BLOCKED_HISTORY_UNAVAILABLE")
+    start = as_of - timedelta(hours=hours)
+    records: list[dict[str, Any]] = []
+    with Path(ledger_path).open(encoding="utf-8", newline="") as handle:
+        reader = csv.DictReader(handle)
+        if reader.fieldnames is None:
+            raise HistoryMalformedError("HISTORY_TIMESTAMP_INVALID")
+        for index, row in enumerate(reader):
+            if str(row.get("status") or "").strip().casefold() != "loss":
+                continue
+            timestamp = row.get("settled_at_utc") or row.get("result_recorded_at_utc")
+            if not timestamp:
+                raise HistoryMalformedError(f"HISTORY_TIMESTAMP_MISSING: row {index}")
+            try:
+                settled = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
+            except ValueError as exc:
+                raise HistoryMalformedError(f"HISTORY_TIMESTAMP_INVALID: row {index}") from exc
+            if settled.tzinfo is None:
+                raise HistoryMalformedError(f"HISTORY_TIMESTAMP_INVALID: row {index}")
+            if settled > as_of:
+                raise HistoryMalformedError(f"HISTORY_TIMESTAMP_INVALID: future row {index}")
+            if not start <= settled < as_of:
+                continue
+            records.append({**row, "settled_at_utc": settled.astimezone(UTC).isoformat()})
+    records.sort(key=lambda item: (item["settled_at_utc"], item.get("pick_id") or ""))
+    snapshot_sha = hashlib.sha256(json.dumps(records, sort_keys=True).encode("utf-8")).hexdigest()
     return {
-        "date": date,
-        "step": REPEAT_LOSS_STEP,
-        "window_hours": hours,
-        "candidate_source": candidate_source,
-        "artifact_path": str(artifact_path),
-        "checked_candidates_count": len(candidates),
-        "recent_losses_count": len(recent_losses),
-        "repeat_loss_count": len(findings),
-        "clear": len(findings) == 0,
-        "findings": findings,
-        "checked_at": datetime.now().isoformat(timespec="seconds"),
+        "schema_version": 1,
+        "artifact_type": "S6_HISTORY_SNAPSHOT_V1",
+        "as_of_utc": as_of.astimezone(UTC).isoformat(),
+        "lookback_start_utc": start.astimezone(UTC).isoformat(),
+        "boundary_policy": "[lookback_start_utc,as_of_utc)",
+        "source_identity": Path(ledger_path).name,
+        "opened_read_only": True,
+        "query_version": "2.0",
+        "policy_version": "1.0",
+        "records": records,
+        "row_count": len(records),
+        "snapshot_sha256": snapshot_sha,
     }
 
 
-def _persist_pipeline_handoff(date: str, payload: dict) -> None:
-    from bet.db.connection import get_db
-    from bet.db.repositories import PipelineRepo
-
-    with get_db() as conn:
-        repo = PipelineRepo(conn)
-        repo.complete_step(date, REPEAT_LOSS_STEP, stats=payload)
-        conn.commit()
-
-
 def _record_pipeline_start(date: str) -> None:
+    """Record the bounded legacy adapter receipt (never used by strict S6)."""
     from bet.db.connection import get_db
     from bet.db.repositories import PipelineRepo
 
-    with get_db() as conn:
-        repo = PipelineRepo(conn)
-        repo.start_step(date, REPEAT_LOSS_STEP)
-        conn.commit()
+    with get_db() as connection:
+        PipelineRepo(connection).start_step(date, REPEAT_LOSS_STEP)
 
 
-def _record_pipeline_failure(date: str, error: str) -> None:
+def _persist_pipeline_handoff(date: str, payload: dict[str, Any]) -> None:
+    """Persist the legacy dry-run receipt for consumers that still read the DB."""
     from bet.db.connection import get_db
     from bet.db.repositories import PipelineRepo
 
-    with get_db() as conn:
-        repo = PipelineRepo(conn)
-        repo.fail_step(date, REPEAT_LOSS_STEP, error)
-        conn.commit()
+    with get_db() as connection:
+        PipelineRepo(connection).complete_step(date, REPEAT_LOSS_STEP, payload)
 
 
-def load_repeat_loss_handoff(date: str) -> dict | None:
-    """Load the canonical S7.6 handoff from pipeline_runs.
-
-    Returns ``None`` when the step has not completed for the date.
-    Raises ``ValueError`` when a completed record exists but is malformed.
-    """
-    from bet.db.connection import get_db
-    from bet.db.repositories import PipelineRepo
-
-    with get_db() as conn:
-        record = PipelineRepo(conn).get_step(date, REPEAT_LOSS_STEP)
-
-    if record is None:
-        return None
-
-    if record.get("status") != "completed":
-        raise ValueError(
-            f"S7.6 handoff for {date} is not complete (status={record.get('status')})"
+def publish_immutable_or_reuse(target: Path, canonical_payload: dict[str, Any]) -> str:
+    """Publish with a real create-if-absent operation safe under concurrency."""
+    run_root = Path(os.environ["BET_PIPELINE_RUN_ROOT"])
+    if not all(
+        key in canonical_payload
+        for key in ("schema_version", "artifact_type", "betting_day", "run_id")
+    ):
+        receipt = publish_immutable_json_blob(
+            run_root=run_root,
+            target=target,
+            payload=canonical_payload,
         )
-
-    payload = record.get("stats")
-    if not isinstance(payload, dict):
-        raise ValueError(f"Malformed S7.6 handoff for {date}: stats payload missing")
-    if payload.get("date") != date:
-        raise ValueError(f"Malformed S7.6 handoff for {date}: unexpected payload date")
-    findings = payload.get("findings")
-    if not isinstance(findings, list):
-        raise ValueError(f"Malformed S7.6 handoff for {date}: findings must be a list")
-    if not isinstance(payload.get("repeat_loss_count"), int):
-        raise ValueError(f"Malformed S7.6 handoff for {date}: repeat_loss_count must be an int")
-    if payload.get("repeat_loss_count") != len(findings):
-        raise ValueError(f"Malformed S7.6 handoff for {date}: repeat_loss_count does not match findings")
-    return payload
+        return "idempotent_reuse" if receipt.already_present else "atomic_create"
+    try:
+        receipt = publish_run_artifact(
+            run_root=run_root,
+            target=target,
+            payload=canonical_payload,
+            betting_day=str(canonical_payload["betting_day"]),
+            run_id=str(canonical_payload["run_id"]),
+            artifact_type=str(canonical_payload["artifact_type"]),
+            immutable=True,
+        )
+    except ArtifactPublishError as exc:
+        raise ValueError(f"IMMUTABLE_ARTIFACT_CONFLICT: {exc}") from exc
+    return "idempotent_reuse" if receipt.already_present else "atomic_create"
 
 
 def main():
-    from agent_output import AgentOutput, add_agent_args
+    parser = argparse.ArgumentParser(description="Strict S6 Repeat Detector Worker.")
+    parser.add_argument("--date", help="Betting day YYYY-MM-DD")
+    parser.add_argument("--run-id")
+    parser.add_argument("--run-as-of-utc")
+    parser.add_argument("--validated-s5", type=Path)
+    parser.add_argument("--validated-s5-sha256")
+    parser.add_argument("--history-snapshot", type=Path)
+    parser.add_argument("--history-snapshot-sha256")
+    parser.add_argument("--policy-snapshot", type=Path)
+    parser.add_argument("--policy-snapshot-sha256")
+    parser.add_argument("--output", type=Path)
+    parser.add_argument("--worker-contract-version")
+    parser.add_argument("--input", type=Path, help="Legacy dry-run input adapter")
+    parser.add_argument("--ledger", type=Path, help="Legacy dry-run ledger adapter")
+    parser.add_argument("--format", choices=("json",), help=argparse.SUPPRESS)
 
-    parser = argparse.ArgumentParser(
-        description="Detect 48-hour repeat team+market losses in picks-ledger."
-    )
-    parser.add_argument(
-        "--date",
-        default=None,
-        help="Betting day YYYY-MM-DD. In pipeline mode, loads today's S7 gate universe and persists a durable handoff.",
-    )
-    parser.add_argument(
-        "--input",
-        type=Path,
-        default=None,
-        help="Optional S7 gate results JSON override for pipeline mode.",
-    )
-    parser.add_argument(
-        "--ledger",
-        type=Path,
-        default=DEFAULT_LEDGER_PATH,
-        help="Path to picks-ledger.csv",
-    )
-    parser.add_argument(
-        "--hours",
-        type=int,
-        default=48,
-        help="Lookback window in hours (default: 48)",
-    )
-    parser.add_argument(
-        "--teams",
-        type=str,
-        default=None,
-        help="Comma-separated team names to check (e.g., 'Liverpool,Arsenal')",
-    )
-    parser.add_argument(
-        "--shortlist",
-        type=Path,
-        default=None,
-        help="Path to shortlist markdown file to extract team names",
-    )
-    parser.add_argument(
-        "--format",
-        choices=["json", "text"],
-        default="json",
-        help="Output format (default: json)",
-    )
-    parser.add_argument(
-        "--output",
-        type=Path,
-        default=None,
-        help="Optional artifact path for pipeline mode. Default: betting/data/repeat_loss_handoff_{date}.json",
-    )
-    add_agent_args(parser)
-    args = parser.parse_args()
+    # If any required arg is missing or invalid, fail closed as of REQ-V6-WORKER-001
+    try:
+        args = parser.parse_args()
+    except SystemExit:
+        print("BLOCKED_INTERNAL_WORKER_CONTRACT_MISSING")
+        sys.exit(5)
 
-    out = AgentOutput("s7_6_repeats", verbose=args.verbose, stop_on_error=args.stop_on_error)
+    legacy_input = args.input
+    if legacy_input is None and args.ledger is not None and args.date:
+        legacy_input = DATA_DIR / f"{args.date}_s7_gate_results.json"
 
-    # Path safety validation for non-production modes
-    if is_non_production_mode():
-        if is_protected_repo_path(args.input) or is_protected_repo_path(args.output):
-            print("repeat guard input missing: Explicit input or output path under protected repo-local path is forbidden in non-production modes.")
+    if legacy_input is not None and args.validated_s5 is None:
+        runtime_mode = str(os.environ.get("BET_PIPELINE_RUNTIME_MODE") or "DRY_RUN").upper()
+        protected_roots = (
+            ROOT_DIR / "betting" / "data",
+            ROOT_DIR / "betting" / "journal",
+            ROOT_DIR / "reports",
+            ROOT_DIR / "src",
+            ROOT_DIR / "config",
+        )
+        resolved_input = legacy_input.resolve(strict=False)
+        if runtime_mode != "DRY_RUN" or any(
+            resolved_input == root.resolve() or resolved_input.is_relative_to(root.resolve())
+            for root in protected_roots
+        ):
+            print("BLOCKED_LEGACY_REPEAT_ADAPTER_PATH_OR_MODE")
+            sys.exit(5)
+        try:
+            if not args.date:
+                raise ValueError("date is required")
+            _record_pipeline_start(args.date)
+            payload = json.loads(legacy_input.read_text(encoding="utf-8"))
+            candidates = _extract_gate_candidates(payload)
+            legacy_as_of = datetime.fromisoformat(f"{args.date}T00:00:00+00:00") + timedelta(days=1)
+            losses = load_recent_losses(
+                args.ledger or DEFAULT_LEDGER_PATH,
+                hours=48,
+                as_of=legacy_as_of,
+            )
+            raw_findings = find_repeat_loss_candidates(candidates, losses)
+            findings = [
+                {
+                    **finding,
+                    "action": "HARD_REJECT",
+                    "matched_loss": finding["matches"][0],
+                }
+                for finding in raw_findings
+            ]
+            output_path = args.output or DATA_DIR / f"repeat_loss_handoff_{args.date}.json"
+            output = {
+                "schema_version": 1,
+                "artifact_type": "LEGACY_S6_REPEAT_HANDOFF",
+                "date": args.date,
+                "step": "s7_6_repeat_loss_check",
+                "window_hours": 48,
+                "candidate_source": "json",
+                "artifact_path": str(output_path),
+                "checked_candidates_count": len(candidates),
+                "recent_losses_count": len(losses),
+                "clear": not findings,
+                "repeat_loss_count": len(findings),
+                "findings": findings,
+                "checked_at": datetime.now(UTC).isoformat(),
+            }
+            from bet.pipeline.run_evidence import write_json_atomic
+            write_json_atomic(output_path, output)
+            _persist_pipeline_handoff(args.date, output)
+        except Exception as exc:
+            print(f"BLOCKED_LEGACY_REPEAT_ADAPTER_INVALID: {exc}")
+            sys.exit(5)
+        sys.exit(1 if findings else 0)
+
+    run_root_raw = os.environ.get("BET_PIPELINE_RUN_ROOT")
+    if not run_root_raw:
+        print("BLOCKED_INTERNAL_WORKER_CONTRACT_MISSING: Missing run root environment")
+        sys.exit(5)
+
+    # Validate that run ID is not ad-hoc
+    if not args.run_id or args.run_id in ("ad-hoc", "dummy", "placeholder", ""):
+        print("BLOCKED_INTERNAL_WORKER_CONTRACT_MISSING: Invalid or ad-hoc run ID")
+        sys.exit(5)
+
+    # Check that all strict arguments are populated and valid
+    for name, val in [
+        ("date", args.date),
+        ("run_as_of_utc", args.run_as_of_utc),
+        ("validated_s5", args.validated_s5),
+        ("validated_s5_sha256", args.validated_s5_sha256),
+        ("history_snapshot", args.history_snapshot),
+        ("history_snapshot_sha256", args.history_snapshot_sha256),
+        ("policy_snapshot", args.policy_snapshot),
+        ("policy_snapshot_sha256", args.policy_snapshot_sha256),
+        ("output", args.output),
+        ("worker_contract_version", args.worker_contract_version),
+    ]:
+        if not val or val in ("dummy", "dummy_s5_hash", "placeholder", ""):
+            print(f"BLOCKED_INTERNAL_WORKER_CONTRACT_MISSING: {name} is missing or has dummy value")
             sys.exit(5)
 
-    pipeline_mode = bool(args.date or args.input)
-    if args.input and not args.date:
-        parser.error("--input requires --date so the durable handoff can be persisted")
+    if args.worker_contract_version != "1.0":
+        print("BLOCKED_INTERNAL_WORKER_CONTRACT_MISSING: Invalid worker contract version")
+        sys.exit(5)
 
-    artifact_path = None
-    if pipeline_mode:
-        artifact_path = args.output or (DATA_DIR / f"repeat_loss_handoff_{args.date}.json")
-        if is_non_production_mode() and is_protected_repo_path(artifact_path):
-            print("repeat guard input missing: Default or explicit output path is under protected repo-local path.")
+    # Require every path to be inside the exact current run root
+    for path_arg in (args.validated_s5, args.history_snapshot, args.policy_snapshot, args.output):
+        if not is_safe_run_path(path_arg, run_root_raw):
+            print(f"BLOCK: path is outside run root: {path_arg}")
             sys.exit(5)
 
-    if pipeline_mode and args.date:
-        _record_pipeline_start(args.date)
+    # Validate all supplied hashes
+    for path, expected_hash, name in [
+        (args.validated_s5, args.validated_s5_sha256, "S5"),
+        (args.history_snapshot, args.history_snapshot_sha256, "History snapshot"),
+        (args.policy_snapshot, args.policy_snapshot_sha256, "Policy snapshot"),
+    ]:
+        if not path.exists():
+            print(f"BLOCK: {name} path does not exist")
+            sys.exit(5)
+        actual = sha256_file(path)
+        if actual != expected_hash:
+            print(f"BLOCK: {name} hash mismatch. Expected {expected_hash}, got {actual}")
+            sys.exit(5)
+
+    # Load S5 candidates
+    try:
+        s5_data = json.loads(args.validated_s5.read_text(encoding="utf-8"))
+        raw_candidates = s5_data.get("payload", {}).get("candidates") or s5_data.get("candidates") or []
+        candidates = [bind_candidate_identity(candidate) for candidate in raw_candidates]
+        if not candidates:
+            print("repeat guard input empty: candidate list is empty")
+            sys.exit(5)
+    except Exception as exc:
+        print(f"BLOCKED_INVALID_INPUT: Failed to parse S5: {exc}")
+        sys.exit(5)
+
+    # Load frozen snapshots
+    try:
+        recent_losses_snapshot = json.loads(args.history_snapshot.read_text(encoding="utf-8"))
+        history_obj = validate_history_snapshot_schema(recent_losses_snapshot)
+    except Exception as exc:
+        print(f"BLOCKED_HISTORY_UNAVAILABLE: Failed to validate history snapshot: {exc}")
+        sys.exit(5)
 
     try:
-        recent_losses = load_recent_losses(args.ledger, args.hours)
-
-        if pipeline_mode:
-            try:
-                candidates, candidate_source = load_gate_candidates(args.date, args.input)
-            except FileNotFoundError as exc:
-                print(f"repeat guard input missing: {exc}")
-                out.summary(
-                    verdict="BLOCK",
-                    metrics={
-                        "date": args.date,
-                        "mode": "pipeline",
-                        "error": str(exc),
-                    }
-                )
-                sys.exit(5)
-            except ValueError as exc:
-                if "zero candidates" in str(exc) or "empty" in str(exc):
-                    print(f"repeat guard input empty: {exc}")
-                else:
-                    print(f"repeat guard input missing: input payload shape issue: {exc}")
-                out.summary(
-                    verdict="BLOCK",
-                    metrics={
-                        "date": args.date,
-                        "mode": "pipeline",
-                        "error": str(exc),
-                    }
-                )
-                sys.exit(5)
-
-            findings = find_repeat_loss_candidates(candidates, recent_losses)
-            artifact_path = args.output or (DATA_DIR / f"repeat_loss_handoff_{args.date}.json")
-            artifact_path.parent.mkdir(parents=True, exist_ok=True)
-
-            payload = build_repeat_loss_payload(
-                date=args.date,
-                hours=args.hours,
-                recent_losses=recent_losses,
-                candidates=candidates,
-                findings=findings,
-                candidate_source=candidate_source,
-                artifact_path=artifact_path,
-            )
-            artifact_path.write_text(
-                json.dumps(payload, indent=2, ensure_ascii=False),
-                encoding="utf-8",
-            )
-            _persist_pipeline_handoff(args.date, payload)
-
-            if args.verbose:
-                out.event(
-                    "repeat_loss_handoff",
-                    date=args.date,
-                    candidate_source=candidate_source,
-                    checked_candidates=payload["checked_candidates_count"],
-                    recent_losses=payload["recent_losses_count"],
-                    repeat_loss_count=payload["repeat_loss_count"],
-                    artifact=artifact_path.name,
-                )
-
-            if findings:
-                print("repeat signal conflict: same team+market lost within 48h — HARD REJECT")
-
-            if args.format == "text":
-                print("═══ 48h Repeat Check (pipeline mode) ═══")
-                print(
-                    f"Candidates checked: {payload['checked_candidates_count']} | "
-                    f"Recent losses: {payload['recent_losses_count']}"
-                )
-                if findings:
-                    print(f"\n⚠️  REPEAT LOSSES FOUND: {len(findings)}")
-                    for finding in findings:
-                        match = finding["matched_loss"]
-                        print(
-                            f"  ✗ {finding['home_team']} vs {finding['away_team']} × "
-                            f"{finding['market_name']} — lost {match['lost_on']} ({match['pick_id']})"
-                        )
-                else:
-                    print("\n✓ No repeat-loss exclusions found. Clear to proceed.")
-            else:
-                print(json.dumps(payload, indent=2, ensure_ascii=False))
-
-            out.summary(
-                verdict="PARTIAL" if findings else "OK",
-                metrics={
-                    "date": args.date,
-                    "candidate_source": candidate_source,
-                    "checked_candidates": payload["checked_candidates_count"],
-                    "recent_losses": payload["recent_losses_count"],
-                    "repeat_loss_count": payload["repeat_loss_count"],
-                    "artifact": artifact_path.name,
-                },
-            )
-            sys.exit(1 if findings else 0)
-
-        result = {
-            "window_hours": args.hours,
-            "recent_losses_count": len(recent_losses),
-            "repeats_found": 0,
-            "warnings": [],
-        }
-
-        if not recent_losses:
-            if args.format == "text":
-                print(f"No losses found in last {args.hours}h. Clear to proceed.")
-            else:
-                print(json.dumps(result, indent=2, ensure_ascii=False))
-            out.summary(
-                verdict="OK",
-                metrics={
-                    "recent_losses": 0,
-                    "repeats_found": 0,
-                    "mode": "ad_hoc",
-                },
-            )
-            sys.exit(0)
-
-        if not args.teams and not args.shortlist:
-            if args.format == "text":
-                print(f"═══ Recent Losses (last {args.hours}h) ═══")
-                for loss in recent_losses:
-                    print(
-                        f"  {loss['betting_day']} | {loss['pick_id']} | "
-                        f"{loss['event']} | {loss['market']} | {loss['selection']}"
-                    )
-                print(f"\nTotal: {len(recent_losses)} losses")
-                print("Use --teams or --shortlist to check for repeats.")
-            else:
-                result["recent_losses"] = recent_losses
-                print(json.dumps(result, indent=2, ensure_ascii=False))
-            out.summary(
-                verdict="OK",
-                metrics={
-                    "recent_losses": len(recent_losses),
-                    "repeats_found": 0,
-                    "mode": "ad_hoc",
-                },
-            )
-            sys.exit(0)
-
-        check_teams = []
-        if args.teams:
-            check_teams = [t.strip() for t in args.teams.split(",")]
-        elif args.shortlist:
-            check_teams = parse_shortlist_teams(args.shortlist)
-
-        if not check_teams:
-            if args.format == "text":
-                print("No teams to check.")
-            else:
-                print(json.dumps(result, indent=2, ensure_ascii=False))
-            out.summary(
-                verdict="OK",
-                metrics={
-                    "recent_losses": len(recent_losses),
-                    "repeats_found": 0,
-                    "mode": "ad_hoc",
-                },
-            )
-            sys.exit(0)
-
-        warnings = find_repeats(check_teams, recent_losses)
-
-        seen = set()
-        unique_warnings = []
-        for w in warnings:
-            key = (w["team"], w["market"], w["pick_id"])
-            if key not in seen:
-                seen.add(key)
-                unique_warnings.append(w)
-
-        result["repeats_found"] = len(unique_warnings)
-        result["warnings"] = unique_warnings
-
-        if args.format == "text":
-            print(f"═══ 48h Repeat Check ═══")
-            print(f"Teams checked: {len(check_teams)} | Recent losses: {len(recent_losses)}")
-            if unique_warnings:
-                print(f"\n⚠️  REPEATS FOUND: {len(unique_warnings)}")
-                for w in unique_warnings:
-                    print(
-                        f"  ✗ {w['team']} × {w['market']} — lost {w['lost_on']} "
-                        f"({w['pick_id']}) → {w['action']}"
-                    )
-            else:
-                print("\n✓ No repeats found. Clear to proceed.")
-        else:
-            print(json.dumps(result, indent=2, ensure_ascii=False))
-
-        out.summary(
-            verdict="PARTIAL" if unique_warnings else "OK",
-            metrics={
-                "recent_losses": len(recent_losses),
-                "repeats_found": len(unique_warnings),
-                "mode": "ad_hoc",
-            },
-        )
-        sys.exit(1 if unique_warnings else 0)
+        p_data = json.loads(args.policy_snapshot.read_text(encoding="utf-8"))
+        policy_obj = validate_portfolio_policy_schema(p_data, args.policy_snapshot_sha256)
     except Exception as exc:
-        if pipeline_mode and args.date:
-            _record_pipeline_failure(args.date, str(exc))
-        out.error(str(exc), recoverable=False)
-        out.summary(
-            verdict="FAILED",
-            metrics={
-                "date": args.date,
-                "mode": "pipeline" if pipeline_mode else "ad_hoc",
-                "error": str(exc),
-            },
-        )
-        sys.exit(2)
+        print(f"BLOCKED_POLICY_INVALID: Failed to validate policy: {exc}")
+        sys.exit(5)
+
+    # Calculate run clock
+    try:
+        as_of = datetime.fromisoformat(args.run_as_of_utc.replace("Z", "+00:00"))
+        if as_of.tzinfo is None:
+            as_of = as_of.replace(tzinfo=UTC)
+    except Exception:
+        print("BLOCK: Invalid --run-as-of-utc format")
+        sys.exit(5)
+
+    guard_input = PortfolioRepeatGuardInput(
+        candidates=candidates,
+        history_snapshot=history_obj,
+        policy=policy_obj,
+        betting_day=args.date,
+        run_id=args.run_id,
+        source_s5_hash=args.validated_s5_sha256,
+    )
+
+    try:
+        guard_result = evaluate_portfolio_repeat_guard(guard_input)
+    except Exception as exc:
+        print(f"BLOCKED_INVALID_INPUT: {exc}")
+        sys.exit(5)
+
+    # Determine status
+    if guard_result.invalid_input:
+        status_verdict = "BLOCK"
+        concrete_status = "BLOCKED_INVALID_INPUT"
+    elif len(guard_result.accepted) > 0:
+        status_verdict = "PASS"
+        concrete_status = "READY_FOR_S7"
+    else:
+        status_verdict = "PASS"
+        concrete_status = "NO_ACTION_TERMINAL"
+
+    # Build S6 output dictionary with strict worker fields
+    s6_output_data = {
+        "schema_version": 2,
+        "artifact_type": "S6_PORTFOLIO_REPEAT_GUARD_V2",
+        "status": status_verdict,
+        "concrete_status": concrete_status,
+        "betting_day": args.date,
+        "run_id": args.run_id,
+        "created_at_utc": as_of.isoformat().replace("+00:00", "Z"),
+        "source_step": "S5",
+        "source_s5_path": str(args.validated_s5),
+        "source_s5_sha256": args.validated_s5_sha256,
+        "source_git_sha": repo_head_sha(ROOT_DIR),
+        "manifest_sha": manifest_hash(ROOT_DIR),
+        "policy_version": policy_obj.policy_version,
+        "history_snapshot_metadata": guard_result.history_snapshot_metadata,
+        "input_candidate_count": len(candidates),
+        "accepted": guard_result.accepted,
+        "repeat_rejected": guard_result.repeat_rejected,
+        "duplicate_rejected": guard_result.duplicate_rejected,
+        "conflict_rejected": guard_result.conflict_rejected,
+        "correlation_rejected": guard_result.correlation_rejected,
+        "portfolio_rejected": guard_result.portfolio_rejected,
+        "concentration_rejected": guard_result.concentration_rejected,
+        "invalid_input": guard_result.invalid_input,
+        "accounting": guard_result.accounting,
+
+        # New contract-mandated fields
+        "worker_contract_version": args.worker_contract_version,
+        "worker_script_sha256": sha256_file(Path(__file__)),
+        "validated_inputs": {
+            "s5_hash": args.validated_s5_sha256,
+            "history_hash": args.history_snapshot_sha256,
+            "policy_hash": args.policy_snapshot_sha256,
+        },
+        "run_as_of_utc": args.run_as_of_utc,
+        "result_sha256_precursor": hashlib.sha256(json.dumps(guard_result.accepted, sort_keys=True).encode("utf-8")).hexdigest(),
+    }
+
+    s6_output_data["accounting"] = validate_exact_partition(
+        candidates,
+        {
+            "accepted": guard_result.accepted,
+            "repeat_rejected": guard_result.repeat_rejected,
+            "duplicate_rejected": guard_result.duplicate_rejected,
+            "conflict_rejected": guard_result.conflict_rejected,
+            "correlation_rejected": guard_result.correlation_rejected,
+            "concentration_rejected": guard_result.concentration_rejected,
+            "invalid_input": guard_result.invalid_input,
+        },
+    )
+
+    # Immutable conflict detection and atomic publication
+    try:
+        publish_immutable_or_reuse(args.output, s6_output_data)
+    except Exception as exc:
+        print(f"BLOCK: Conflicting immutable output exists: {exc}")
+        sys.exit(5)
+
+    if guard_result.repeat_rejected:
+        print("repeat signal conflict: same team+market lost within 48h — HARD REJECT")
+
+    sys.exit(0 if status_verdict == "PASS" else 1)
 
 
 if __name__ == "__main__":

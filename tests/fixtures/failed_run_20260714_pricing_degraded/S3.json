@@ -1,0 +1,11 @@
+{
+  "artifact_type": "SCRIPT_EVIDENCE",
+  "step_id": "S3",
+  "status": "PASS",
+  "betting_day": "2026-07-14",
+  "run_id": "REPLAY_RUN_20260714_PRICING_DEGRADED",
+  "payload": {
+    "s3_output_path": "data/2026-07-14_s3_deep_stats.json",
+    "s3_deep_stats_sha256": "dummy"
+  }
+}

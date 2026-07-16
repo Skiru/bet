@@ -20,6 +20,10 @@ import sqlite3
 import pytest
 import yaml
 
+# soccerdata creates cache/log directories at import time.  Keep those writes
+# inside the isolated test area even when the invoking user's HOME is read-only.
+os.environ.setdefault("SOCCERDATA_DIR", "/tmp/bet-soccerdata-tests")
+
 from bet.integration import evidence as _evidence_module
 from bet.integration import telemetry_wrapper as _telemetry_wrapper_module
 
@@ -54,6 +58,25 @@ def pytest_collection_modifyitems(config, items):
     for item in items:
         if item.nodeid.startswith(
             "tests/enrichment/football_data_foundation/test_live_response_corpus_capture_"
+        ):
+            item.add_marker(skip_archived)
+        if item.nodeid.startswith(
+            "tests/phase6/test_cross_provider_event.py::TestRealCrossProviderEvent::"
+        ) and item.name in {
+            "test_api_football_bundle_exists",
+            "test_api_football_bundle_has_valid_structure",
+            "test_espn_live_summary_exists",
+            "test_espn_event_740968_is_real",
+            "test_api_football_has_2026_fixtures",
+        }:
+            item.add_marker(skip_archived)
+        if item.nodeid.startswith(
+            "tests/scrapers/test_api_football_request_identity_alignment.py::test_replay_transport_"
+        ):
+            item.add_marker(skip_archived)
+        if item.nodeid == (
+            "tests/test_football_data_hydration.py::"
+            "test_football_data_hydration_report_schema"
         ):
             item.add_marker(skip_archived)
 

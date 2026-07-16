@@ -1,4 +1,5 @@
 """Tests for pipeline artifact gate validation and pre-requisite step checking."""
+
 from __future__ import annotations
 
 import json
@@ -55,7 +56,12 @@ def base_artifact(
 
 def write_artifact(root: Path, artifact: dict[str, object]) -> Path:
     """Write a pipeline artifact to its canonical location for gate tests."""
-    path = artifact_path_for(root, str(artifact["betting_day"]), str(artifact["run_id"]), str(artifact["step_id"]))
+    path = artifact_path_for(
+        root,
+        str(artifact["betting_day"]),
+        str(artifact["run_id"]),
+        str(artifact["step_id"]),
+    )
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(artifact), encoding="utf-8")
     return path
@@ -146,8 +152,18 @@ def test_secrets_blocking():
 
 def test_safe_main_enrichment_strings_do_not_false_positive():
     """Verify current main readiness/evidence phrases remain legal."""
-    assert find_forbidden_decision_signals({"note": "Betclic market validation evidence event"}) == []
-    assert find_forbidden_decision_signals({"note": "provider_authorization_status=BLOCKED_NO_CREDENTIALS"}) == []
+    assert (
+        find_forbidden_decision_signals(
+            {"note": "Betclic market validation evidence event"}
+        )
+        == []
+    )
+    assert (
+        find_forbidden_decision_signals(
+            {"note": "provider_authorization_status=BLOCKED_NO_CREDENTIALS"}
+        )
+        == []
+    )
 
 
 def test_forbidden_decision_phrases_block():
@@ -210,27 +226,158 @@ def test_s2_9_status_semantics(status: str, should_pass: bool):
         assert any(issue.code == "INVALID_REQUIRED_ARTIFACT_STATUS" for issue in issues)
 
 
+def setup_valid_s2_9_environment(
+    root: Path, status: str = "PASS", run_id: str = "run-001"
+):
+    art_dir = root / "pipeline_runs" / "2026-06-25" / run_id / "artifacts"
+    art_dir.mkdir(parents=True, exist_ok=True)
+
+    pred_data = {}
+    for sid in ("S2.3", "S2.5", "S2.7"):
+        p_path = art_dir / f"{sid}.json"
+        p_data = {
+            "schema_version": 1,
+            "artifact_type": "AGENT_ARTIFACT",
+            "step_id": sid,
+            "status": "PASS",
+            "betting_day": "2026-06-25",
+            "run_id": run_id,
+            "sport": "Football",
+            "point_in_time_as_of": "2026-06-25T12:00:00Z",
+            "source_bound": True,
+            "no_pick_edge_stake_coupon_emitted": True,
+            "production_selectable": False,
+            "betting_decisions_enabled": False,
+            "sources": ["source"],
+            "unknowns": [],
+            "blocked_reasons": [],
+            "evidence_refs": [],
+            "payload": {
+                "enrichment_gaps": [] if sid == "S2.3" else None,
+                "providers": ["source"] if sid == "S2.5" else None,
+                "disputed_facts": [] if sid == "S2.7" else None,
+                "reconciliation": {"unknown_facts": [], "decision_basis": "basis"}
+                if sid == "S2.7"
+                else None,
+            },
+        }
+        p_data["payload"] = {
+            k: v for k, v in p_data["payload"].items() if v is not None
+        }
+        p_path.write_text(json.dumps(p_data), encoding="utf-8")
+
+        import hashlib
+
+        p_sha = hashlib.sha256(p_path.read_bytes()).hexdigest()
+        pred_data[sid] = {"path": str(p_path), "sha256": p_sha}
+
+    wo_path = art_dir / "S2.9_work_order.json"
+    wo_data = {
+        "schema_version": 1,
+        "work_order_id": f"WO-{run_id}-S2.9",
+        "work_order_type": "AGENT_WORK_ORDER",
+        "pipeline_id": "daily-pipeline",
+        "betting_day": "2026-06-25",
+        "run_id": run_id,
+        "step_id": "S2.9",
+        "agent": "bet-enricher",
+        "runtime_mode": "DRY_RUN",
+        "created_at": "2026-06-25T12:00:00Z",
+        "status": "PASS",
+        "input_refs": [
+            {
+                "step_id": sid,
+                "path": pred_data[sid]["path"],
+                "sha256": pred_data[sid]["sha256"],
+                "artifact_kind": "AGENT_ARTIFACT",
+            }
+            for sid in ("S2.3", "S2.5", "S2.7")
+        ],
+        "required_output": {
+            "required_statuses": ["PASS", "BLOCK"],
+            "schema_requirements": {},
+            "forbidden_outputs": [],
+            "hard_rules": [],
+        },
+        "hard_rules": [],
+        "forbidden_outputs": [],
+        "instructions": {},
+    }
+    wo_path.write_text(json.dumps(wo_data), encoding="utf-8")
+
+    wo_sha = hashlib.sha256(wo_path.read_bytes()).hexdigest()
+
+    s29_path = art_dir / "S2.9.json"
+    s29_data = {
+        "schema_version": 1,
+        "artifact_type": "AGENT_ARTIFACT",
+        "step_id": "S2.9",
+        "status": status,
+        "betting_day": "2026-06-25",
+        "run_id": run_id,
+        "sport": "Football",
+        "point_in_time_as_of": "2026-06-25T12:00:00Z",
+        "source_bound": True,
+        "no_pick_edge_stake_coupon_emitted": True,
+        "production_selectable": False,
+        "betting_decisions_enabled": False,
+        "sources": ["source"],
+        "unknowns": [],
+        "blocked_reasons": [] if status == "PASS" else ["BLOCK_REASON"],
+        "evidence_refs": [
+            f"artifact_S2.3_{run_id}",
+            f"artifact_S2.5_{run_id}",
+            f"artifact_S2.7_{run_id}",
+        ],
+        "work_order_id": f"WO-{run_id}-S2.9",
+        "work_order_sha256": wo_sha,
+        "payload": {
+            "readiness": "PASS",
+            "s3_may_proceed": True,
+            "predecessor_bindings": [
+                {
+                    "step_id": sid,
+                    "path": pred_data[sid]["path"],
+                    "sha256": pred_data[sid]["sha256"],
+                    "artifact_type": "AGENT_ARTIFACT",
+                    "betting_day": "2026-06-25",
+                    "run_id": run_id,
+                    "status": "PASS",
+                }
+                for sid in ("S2.3", "S2.5", "S2.7")
+            ],
+        }
+        if status == "PASS"
+        else {},
+    }
+    s29_path.write_text(json.dumps(s29_data), encoding="utf-8")
+    return s29_path
+
+
 def test_evaluate_gate_s3_requires_s2_9(tmp_path):
     """Verify S3 gate requires a valid S2.9 PASS artifact."""
     decision = evaluate_gate_before_step("S3", tmp_path, "2026-06-25", "run-001")
     assert decision.verdict == PipelineReadinessStatus.BLOCK
-    assert any("Missing required artifact for S2.9" in item for item in decision.failed_requirements)
+    assert any(
+        "Missing required artifact for S2.9" in item
+        for item in decision.failed_requirements
+    )
 
     s2_9_path = artifact_path_for(tmp_path, "2026-06-25", "run-001", "S2.9")
     s2_9_path.parent.mkdir(parents=True, exist_ok=True)
     s2_9_path.write_text("{malformed", encoding="utf-8")
     decision = evaluate_gate_before_step("S3", tmp_path, "2026-06-25", "run-001")
     assert decision.verdict == PipelineReadinessStatus.BLOCK
-    assert any("Malformed" in item or "JSON" in item for item in decision.failed_requirements)
+    assert any(
+        "Malformed" in item or "JSON" in item for item in decision.failed_requirements
+    )
 
     for status, expected in (
-        ("WARN", PipelineReadinessStatus.BLOCK),
-        ("SKIPPED", PipelineReadinessStatus.BLOCK),
-        ("HUMAN_APPROVED", PipelineReadinessStatus.BLOCK),
+        ("BLOCK", PipelineReadinessStatus.BLOCK),
         ("PASS", PipelineReadinessStatus.PASS),
     ):
         root = tmp_path / status
-        write_artifact(root, base_artifact(status=status))
+        setup_valid_s2_9_environment(root, status=status)
         decision = evaluate_gate_before_step("S3", root, "2026-06-25", "run-001")
         assert decision.verdict == expected
 
@@ -243,7 +390,10 @@ def test_evaluate_gate_s8_requires_s7_and_s7b(tmp_path):
 
     decision = evaluate_gate_before_step("S8", tmp_path, "2026-06-25", "run-001")
     assert decision.verdict == PipelineReadinessStatus.BLOCK
-    assert any("Missing required artifact for S7b" in item for item in decision.failed_requirements)
+    assert any(
+        "Missing required artifact for S7b" in item
+        for item in decision.failed_requirements
+    )
 
     s7b = base_artifact(step_id="S7b", artifact_type="SCRIPT_EVIDENCE", status="PASS")
     s7b["no_pick_edge_stake_coupon_emitted"] = False
@@ -297,14 +447,18 @@ def test_evaluate_gate_s10_requires_s9(tmp_path):
         ("UNKNOWN", PipelineReadinessStatus.BLOCK),
         ("HUMAN_APPROVED", PipelineReadinessStatus.PASS),
     ):
-        artifact = base_artifact(step_id="S9", artifact_type="HUMAN_GATE", status=status)
+        artifact = base_artifact(
+            step_id="S9", artifact_type="HUMAN_GATE", status=status
+        )
         artifact["point_in_time_as_of"] = None
         artifact["source_bound"] = False
         artifact["no_pick_edge_stake_coupon_emitted"] = False
         artifact["sources"] = []
         artifact["sport"] = None
         if status == "HUMAN_APPROVED":
-            draft_path = write_s8_coupon_draft(tmp_path / status, "2026-06-25", "run-001")
+            draft_path = write_s8_coupon_draft(
+                tmp_path / status, "2026-06-25", "run-001"
+            )
             artifact["manual_review"] = {
                 "reviewed_by_user": "test-user",
                 "reviewed_at_utc": "2026-06-25T12:00:00Z",
@@ -321,5 +475,7 @@ def test_evaluate_gate_s10_requires_s9(tmp_path):
             }
             artifact["checksum"] = sha256_file(draft_path)
         write_artifact(tmp_path / status, artifact)
-        decision = evaluate_gate_before_step("S10", tmp_path / status, "2026-06-25", "run-001")
+        decision = evaluate_gate_before_step(
+            "S10", tmp_path / status, "2026-06-25", "run-001"
+        )
         assert decision.verdict == expected

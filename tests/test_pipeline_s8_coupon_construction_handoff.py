@@ -37,6 +37,7 @@ def _card() -> dict:
     return {
         "quote_card_id": "quote-card-a",
         "source_candidate_id": "a",
+        "selection_id": "a",
         "manual_operator": "SUPERBET",
         "mapping_ambiguity": "HUMAN_CHECK_REQUIRED",
         "visible_operator_market_name": None,
@@ -56,7 +57,7 @@ def _write_s7b(env: dict[str, str], cards: list[dict], status: str) -> Path:
     output.write_text(
         json.dumps(
             {
-                "schema_version": 1,
+                "schema_version": 2,
                 "artifact_type": "S7B_SUPERBET_MANUAL_MAPPING",
                 "status": status,
                 "betting_day": DAY,

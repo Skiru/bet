@@ -9,6 +9,8 @@ from unittest.mock import patch
 
 import pytest
 
+from bet.pipeline.canonical_continuity import bind_candidate_identity
+from bet.pipeline.run_evidence import sha256_file
 from scripts.pipeline_steps import s7_validate
 
 DAY = "2026-06-25"
@@ -36,7 +38,38 @@ def _write_s7(env: dict[str, str], approved: list[dict], *, output_root: Path | 
     run_root = Path(env["BET_PIPELINE_RUN_ROOT"])
     output = (output_root or run_root) / "data" / f"{DAY}_s7_gate_results.json"
     output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_text(json.dumps({"gate_results": {"approved": approved}}), encoding="utf-8")
+    canonical_approved = []
+    for candidate in approved:
+        legacy_id = str(candidate.get("candidate_id") or "candidate")
+        prepared = {
+            "sport": "football",
+            "competition": "Test League",
+            "kickoff": f"{DAY}T18:00:00Z",
+            "home_team": f"Home {candidate.get('fixture_id') or legacy_id}",
+            "away_team": f"Away {candidate.get('fixture_id') or legacy_id}",
+            "market": "Match Winner",
+            "selection": "HOME",
+            **candidate,
+        }
+        canonical_approved.append(bind_candidate_identity(prepared))
+    approved[:] = canonical_approved
+    outcome = "READY_FOR_ANALYTICAL_OPERATOR_QUOTE_REVIEW" if approved else "NO_ACTION_TERMINAL"
+    output.write_text(
+        json.dumps(
+            {
+                "schema_version": 2,
+                "artifact_type": "S7_ANALYTICAL_APPROVAL_SET_V2",
+                "status": "PASS",
+                "outcome": outcome,
+                "betting_day": DAY,
+                "run_id": RUN_ID,
+                "priced_approved": [],
+                "analytical_approved": approved,
+                "rejected": [],
+            }
+        ),
+        encoding="utf-8",
+    )
     evidence = _evidence_path(env, "S7")
     evidence.parent.mkdir(parents=True, exist_ok=True)
     evidence.write_text(
@@ -48,7 +81,11 @@ def _write_s7(env: dict[str, str], approved: list[dict], *, output_root: Path | 
                 "status": "PASS",
                 "betting_day": DAY,
                 "run_id": RUN_ID,
-                "payload": {"s7_json_output": str(output), "approved_count": len(approved)},
+                "payload": {
+                    "s7_json_output": str(output),
+                    "s7_output_sha256": sha256_file(output),
+                    "approved_count": len(approved),
+                },
             }
         ),
         encoding="utf-8",
@@ -78,7 +115,9 @@ def test_s7b_maps_every_approved_candidate_once_with_blank_operator_fields(tmp_p
     evidence = json.loads(_evidence_path(env, "S7b").read_text(encoding="utf-8"))
     mapping = json.loads(Path(evidence["payload"]["s7b_json_output"]).read_text(encoding="utf-8"))
     assert mapping["approved_candidate_count"] == mapping["represented_candidate_count"] == 2
-    assert {card["source_candidate_id"] for card in mapping["mapping_suggestions"]} == {"a", "b"}
+    source_ids = {card["source_candidate_id"] for card in mapping["mapping_suggestions"]}
+    assert len(source_ids) == 2
+    assert all(candidate_id.startswith("sel_") for candidate_id in source_ids)
     for card in mapping["mapping_suggestions"]:
         assert card["manual_operator"] == "SUPERBET"
         assert card["mapping_ambiguity"] == "HUMAN_CHECK_REQUIRED"

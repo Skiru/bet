@@ -1,5 +1,6 @@
 import json
 import sys
+import hashlib
 from pathlib import Path
 
 import pytest
@@ -195,6 +196,17 @@ def test_step_output_resolution_collisions_and_fallback(tmp_path: Path) -> None:
     wrong_root.mkdir(parents=True, exist_ok=True)
     (wrong_root / "data").mkdir(parents=True, exist_ok=True)
 
+    # Write S2 shortlist (correct)
+    s2_shortlist = {
+        "artifact_type": "S2_SHORTLIST",
+        "total_candidates": 2,
+        "candidates": [{"id": "c1"}, {"id": "c2"}]
+    }
+    s2_shortlist_content = json.dumps(s2_shortlist)
+    (run_root / "data" / "2026-07-14_s2_shortlist.json").write_text(s2_shortlist_content)
+
+    s2_sha = hashlib.sha256(s2_shortlist_content.encode("utf-8")).hexdigest()
+
     # Write S2 evidence
     s2_evidence = {
         "schema_version": 1,
@@ -204,18 +216,12 @@ def test_step_output_resolution_collisions_and_fallback(tmp_path: Path) -> None:
         "run_id": "REPLAY_RUN",
         "status": "PASS",
         "payload": {
-            "s2_shortlist_path": str(run_root / "data" / "2026-07-14_s2_shortlist.json")
+            "s2_shortlist_path": str(run_root / "data" / "2026-07-14_s2_shortlist.json"),
+            "s2_output_path": str(run_root / "data" / "2026-07-14_s2_shortlist.json"),
+            "s2_output_sha256": s2_sha
         }
     }
     (run_root / "artifacts" / "S2.json").write_text(json.dumps(s2_evidence))
-
-    # Write S2 shortlist (correct)
-    s2_shortlist = {
-        "artifact_type": "S2_SHORTLIST",
-        "total_candidates": 2,
-        "candidates": [{"id": "c1"}, {"id": "c2"}]
-    }
-    (run_root / "data" / "2026-07-14_s2_shortlist.json").write_text(json.dumps(s2_shortlist))
 
     # Write wrong shortlist (collision candidate)
     (wrong_root / "data" / "2026-07-14_s2_shortlist.json").write_text(json.dumps({"total_candidates": 999}))
@@ -287,10 +293,13 @@ def test_subprocess_run_remains_unmodified() -> None:
 # SCENARIOS N, O, P, Q, R, S, T, U, V, W: S7/S7b/S8 Quote Card & Handoff Invariants
 # ===========================================================================
 
-def test_s7_gate_decision_model_and_handoff_lanes() -> None:
+def test_s7_gate_decision_model_and_handoff_lanes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     # Scenario N: Ensure S7 analytical logic runs under pytest
     # (By asserting the LiveFixtureAudit execution on ready candidates)
 
+    monkeypatch.setenv("BET_PIPELINE_RUN_AS_OF_UTC", "2026-07-14T12:00:00Z")
     ready_candidates = [
         {
             "candidate_id": "c1",
@@ -299,7 +308,15 @@ def test_s7_gate_decision_model_and_handoff_lanes() -> None:
             "kickoff": "2026-07-14T19:00:00Z",
             "model_probability": 0.55,
             "odds_decimal": 2.10,
-            "pricing_status": "PRICED"
+            "pricing_status": "PRICED",
+            "probability_as_of": "2026-07-14T11:30:00Z",
+            "canonical_event_id": "evt-c1",
+            "fixture_verification": {
+                "status": "LIVE_FIXTURE_VERIFIED_NOT_STARTED",
+                "source": "provider:fixture-feed",
+                "verified_at_utc": "2026-07-14T11:45:00Z",
+                "canonical_event_id": "evt-c1",
+            },
         },
         {
             "candidate_id": "c2",

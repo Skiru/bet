@@ -1,0 +1,27 @@
+{
+  "schema_version": "1.0",
+  "mandatory_nodes": [
+    "tests/test_canonical_continuity_v4_owner_regressions.py",
+    "tests/test_canonical_continuity_v4_offline_chain_proof.py"
+  ],
+  "expected_minimum_counts": {
+    "tests/test_canonical_continuity_v4_owner_regressions.py": 25,
+    "tests/test_canonical_continuity_v4_offline_chain_proof.py": 2
+  },
+  "tests_metadata": {
+    "adversarial_evidence_accounting": "test_strict_loader_adversarial_matrix",
+    "provider_failure_matrix": "test_provider_registry_failures_and_policies",
+    "provider_state_mapping": "test_fetch_odds_multi_provider_state_mapping",
+    "real_canonical_chain": "test_v4_offline_chain_proof",
+    "exact_db_immutability": "test_exact_database_immutability_proof"
+  },
+  "expected_full_suite_command": "env PYTHONPATH=src:scripts .venv/bin/pytest",
+  "expected_archived_suite_command": "env PYTHONPATH=src:scripts .venv/bin/pytest tests/archived",
+  "allowed_skips": [
+    {
+      "node_id": "tests/test_failed_run_replay.py::test_replay_cannot_be_synthesized",
+      "reason_regex": "replay of historical network captures requires manual audit confirmation"
+    }
+  ],
+  "session_handoff_command_schema": "env PYTHONPATH=src:scripts .venv/bin/python3 scripts/pipeline_steps/run_daily_pipeline.py --date 2026-07-16 --run-id \"<UNIQUE_RUN_ID>\" --runtime-mode LIVE_SHADOW --allow-live-network --base-run-dir reports/pipeline_runs --verbose"
+}

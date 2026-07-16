@@ -195,7 +195,7 @@ class TestDeepStatsReport(unittest.TestCase):
              patch.object(dsr, "DATA_DIR", self.data_dir), \
              patch.object(norm_mod, "CACHE_DIR", empty_cache):
             result = dsr.analyze_candidate(
-                "football", "NoTeamA", "NoTeamB", "Unknown", "2026-05-01T15:00"
+                "football", "NoTeamA", "NoTeamB", "Unknown", "2026-05-01T15:00:00Z"
             )
         self.assertIn("has_data", result)
         # Markdown still generated
@@ -209,7 +209,7 @@ class TestDeepStatsReport(unittest.TestCase):
         p1, p2 = self._patch_dirs()
         with p1, p2, patch.object(norm_mod, "CACHE_DIR", self.cache_dir):
             result = dsr.analyze_candidate(
-                "football", "Liverpool", "Arsenal", "PL", "2026-05-01T15:00"
+                "football", "Liverpool", "Arsenal", "PL", "2026-05-01T15:00:00Z"
             )
         md = result["markdown"]
         for i in range(1, 11):
@@ -223,7 +223,7 @@ class TestDeepStatsReport(unittest.TestCase):
         pool = {
             "events": [
                 {"sport": "football", "home_team": "Liverpool", "away_team": "Arsenal",
-                 "competition": "PL", "kickoff": "2026-05-01T15:00:00",
+                 "competition": "PL", "kickoff": "2026-05-01T15:00:00Z",
                  "fixture_verified": True},
             ]
         }
@@ -234,6 +234,13 @@ class TestDeepStatsReport(unittest.TestCase):
         self.assertEqual(result["total_candidates"], 1)
         self.assertGreater(result["candidates_with_data"], 0)
         self.assertEqual(len(result["analyses"]), 1)
+
+    def test_removed_gemini_backend_fails_closed_before_processing(self):
+        """A declared feature flag must not silently succeed via NameError catches."""
+        import scripts.deep_stats_report as dsr
+
+        with self.assertRaisesRegex(RuntimeError, "GEMINI_SECOND_OPINION_UNAVAILABLE"):
+            dsr.generate_deep_stats("2026-05-01", gemini=True)
 
     def test_deep_stats_main_summary_includes_persistence_metrics(self):
         """AGENT_SUMMARY exposes analyzed vs persisted counts for S3 dual-write audits."""
@@ -459,8 +466,8 @@ class TestGateChecker(unittest.TestCase):
             "team": "Liverpool",
             "teams": ["Liverpool", "Arsenal"],
             "teams_normalized": ["liverpool", "arsenal"],
-            "market": "Fouls Total O/U",
-            "market_normalized": "fouls total 22.5",
+            "market": "Fouls Total O/U 22.5",
+            "market_normalized": "fouls total o u 22.5",
             "lost_on": "2026-04-30",
             "betting_day": "2026-04-30",
             "pick_id": "TST-1",

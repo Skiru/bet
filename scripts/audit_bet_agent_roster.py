@@ -4,10 +4,12 @@ import re
 from pathlib import Path
 
 
-WORKSPACE_ROOT = Path("/Users/mkoziol/projects/bet")
+WORKSPACE_ROOT = Path(
+    os.environ.get("BET_WORKSPACE_ROOT", Path(__file__).resolve().parents[1])
+).resolve()
 GLOBAL_CONFIG_PATHS = [
-    Path("/Users/mkoziol/.config/kilo/kilo.jsonc"),
-    Path("/Users/mkoziol/.config/kilo/kilo.json"),
+    Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "kilo/kilo.jsonc",
+    Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "kilo/kilo.json",
 ]
 PROJECT_PROFILE_PATH = WORKSPACE_ROOT / ".kilo/profiles/kilo.local.jsonc"
 AGENTS_MD_PATH = WORKSPACE_ROOT / "AGENTS.md"
@@ -171,7 +173,7 @@ def normalize_smoke_results(smoke_payload: dict) -> dict:
 
 def scan_for_hardcoded_gemini_gates() -> list[str]:
     hits: list[str] = []
-    profile = load_jsonc(PROJECT_PROFILE_PATH)
+    profile = load_jsonc(PROJECT_PROFILE_PATH) if PROJECT_PROFILE_PATH.is_file() else {}
     if "model" in profile:
         hits.append(".kilo/profiles/kilo.local.jsonc: top-level model pin remains present")
     for agent_name in REQUIRED_AGENTS:
@@ -189,7 +191,7 @@ def scan_for_hardcoded_gemini_gates() -> list[str]:
 
 def build_matrix(smoke_payload: dict | None = None, run_dir: Path | None = None) -> tuple[dict, dict, list[str]]:
     failures: list[str] = []
-    profile = load_jsonc(PROJECT_PROFILE_PATH)
+    profile = load_jsonc(PROJECT_PROFILE_PATH) if PROJECT_PROFILE_PATH.is_file() else {}
     agents_cfg = profile.get("agent", {})
     if smoke_payload is None:
         run_dir = run_dir or detect_latest_run()

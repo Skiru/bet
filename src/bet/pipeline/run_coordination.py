@@ -8,6 +8,7 @@ import signal
 import socket
 import subprocess
 import tempfile
+import threading
 import time
 import uuid
 from dataclasses import dataclass
@@ -33,7 +34,31 @@ def _process_start_identity(pid: int) -> str | None:
     try:
         return f"{psutil.Process(pid).create_time():.6f}"
     except (psutil.NoSuchProcess, psutil.AccessDenied, ValueError):
+        pass
+
+    # Some container runtimes expose namespace-local PIDs to ``getpid`` and
+    # host PIDs in the mounted /proc.  Resolve NSpid explicitly so a live lock
+    # cannot be mistaken for a dead owner merely because psutil cannot bridge
+    # those namespaces.
+    proc = Path("/proc")
+    try:
+        boot_id = (proc / "sys/kernel/random/boot_id").read_text(encoding="ascii").strip()
+        for status_path in proc.glob("[0-9]*/status"):
+            status = status_path.read_text(encoding="utf-8", errors="replace")
+            namespace_line = next(
+                (line for line in status.splitlines() if line.startswith("NSpid:")),
+                "",
+            )
+            namespace_pids = namespace_line.partition(":")[2].split()
+            if not namespace_pids or int(namespace_pids[-1]) != pid:
+                continue
+            stat = (status_path.parent / "stat").read_text(encoding="ascii")
+            fields_from_state = stat.rsplit(") ", 1)[1].split()
+            start_ticks = fields_from_state[19]  # proc(5) field 22
+            return f"linux:{boot_id}:{status_path.parent.name}:{start_ticks}"
+    except (OSError, StopIteration, ValueError, IndexError):
         return None
+    return None
 
 
 @dataclass(frozen=True)
@@ -42,6 +67,18 @@ class BoundedProcessResult:
     timed_out: bool
     stdout: str
     stderr: str
+
+
+def redact_sensitive_text(text: str, env: dict[str, str], *, max_chars: int = 1_000_000) -> str:
+    """Redact credential-shaped environment values and bound captured output."""
+    redacted = str(text or "")
+    secret_tokens = ("key", "secret", "token", "password", "credential", "authorization", "auth")
+    for name, value in env.items():
+        if value and len(value) >= 4 and any(token in name.casefold() for token in secret_tokens):
+            redacted = redacted.replace(value, "[REDACTED]")
+    if len(redacted) > max_chars:
+        redacted = redacted[:max_chars] + "\n[OUTPUT_TRUNCATED]\n"
+    return redacted
 
 
 def run_bounded_process(
@@ -89,6 +126,9 @@ class LeaseRunLock:
         self.path = self.run_root / ".pipeline-run.lock"
         self.audit_path = self.run_root / "lock_recovery_audit.jsonl"
         self.token: str | None = None
+        self._heartbeat_stop: threading.Event | None = None
+        self._heartbeat_thread: threading.Thread | None = None
+        self._heartbeat_error: BaseException | None = None
 
     def _owner_alive(self, owner: dict[str, Any]) -> bool:
         pid = owner.get("pid")
@@ -96,8 +136,12 @@ class LeaseRunLock:
             return False
         try:
             os.kill(pid, 0)
-        except (ProcessLookupError, PermissionError):
+        except ProcessLookupError:
             return False
+        except PermissionError:
+            # EPERM proves that a process occupies the PID; identity matching
+            # below still protects against PID reuse.
+            pass
         expected = owner.get("process_start_identity")
         return bool(expected and _process_start_identity(pid) == expected)
 
@@ -118,19 +162,22 @@ class LeaseRunLock:
     def acquire(self) -> dict[str, Any]:
         self.run_root.mkdir(parents=True, exist_ok=True)
         token = uuid.uuid4().hex
+        process_identity = _process_start_identity(os.getpid())
+        if not process_identity:
+            raise RunLockError("RUN_LOCK_IDENTITY_UNAVAILABLE")
         owner = {
             "schema_version": 1,
             "token": token,
             "hostname": socket.gethostname(),
             "pid": os.getpid(),
-            "process_start_identity": _process_start_identity(os.getpid()),
+            "process_start_identity": process_identity,
             "acquired_at": _utc_now(),
             "heartbeat_at": _utc_now(),
             "heartbeat_epoch": time.time(),
             "lease_seconds": self.lease_seconds,
             "run_id": self.run_id,
         }
-        for _attempt in range(2):
+        for _attempt in range(8):
             try:
                 fd = os.open(self.path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
             except FileExistsError:
@@ -138,11 +185,20 @@ class LeaseRunLock:
                     current = json.loads(self.path.read_text(encoding="utf-8"))
                 except (OSError, ValueError, TypeError, json.JSONDecodeError):
                     current = {}
-                if not self._expired(current) and self._owner_alive(current):
+                if self._owner_alive(current):
                     raise RunLockError("RUN_LOCK_CONFLICT")
                 reason = "LEASE_EXPIRED" if self._expired(current) else "OWNER_IDENTITY_STALE"
+                try:
+                    latest = json.loads(self.path.read_text(encoding="utf-8"))
+                except (OSError, ValueError, TypeError, json.JSONDecodeError):
+                    latest = {}
+                if latest.get("token") != current.get("token"):
+                    continue
                 self._audit_recovery(current, reason)
-                self.path.unlink(missing_ok=True)
+                try:
+                    self.path.unlink()
+                except FileNotFoundError:
+                    continue
                 continue
             with os.fdopen(fd, "w", encoding="utf-8") as handle:
                 json.dump(owner, handle, sort_keys=True)
@@ -174,8 +230,19 @@ class LeaseRunLock:
         finally:
             temporary.unlink(missing_ok=True)
 
+    def check_health(self) -> None:
+        """Check lock heartbeat health."""
+        if self._heartbeat_error is not None:
+            raise RunLockError(f"RUN_LOCK_HEARTBEAT_FAILED: {self._heartbeat_error}") from self._heartbeat_error
+
     def release(self) -> None:
+        self._stop_heartbeat()
+        hb_error = self._heartbeat_error
+        self._heartbeat_error = None
+
         if self.token is None:
+            if hb_error:
+                raise RunLockError(f"RUN_LOCK_HEARTBEAT_FAILED: {hb_error}") from hb_error
             return
         try:
             owner = json.loads(self.path.read_text(encoding="utf-8"))
@@ -185,12 +252,55 @@ class LeaseRunLock:
         finally:
             self.token = None
 
+        if hb_error:
+            raise RunLockError(f"RUN_LOCK_HEARTBEAT_FAILED: {hb_error}") from hb_error
+
     def __enter__(self) -> "LeaseRunLock":
         self.acquire()
+        self._start_heartbeat()
         return self
 
-    def __exit__(self, _exc_type: object, _exc: object, _tb: object) -> None:
-        self.release()
+    def __exit__(self, exc_type: type[BaseException] | None, exc_val: BaseException | None, tb: object) -> None:
+        try:
+            self.release()
+        except BaseException as lock_exc:
+            if exc_val is not None:
+                if hasattr(exc_val, "add_note"):
+                    exc_val.add_note(f"Lock release failed: {lock_exc}")
+                else:
+                    exc_val.__context__ = lock_exc
+            else:
+                raise
+
+    def _start_heartbeat(self) -> None:
+        if self._heartbeat_thread is not None:
+            return
+        self._heartbeat_stop = threading.Event()
+        interval = max(0.1, min(self.lease_seconds / 3.0, 10.0))
+
+        def renew() -> None:
+            assert self._heartbeat_stop is not None
+            while not self._heartbeat_stop.wait(interval):
+                try:
+                    self.heartbeat()
+                except BaseException as exc:  # retained and surfaced on release
+                    self._heartbeat_error = exc
+                    return
+
+        self._heartbeat_thread = threading.Thread(
+            target=renew,
+            name=f"pipeline-lock-heartbeat-{self.run_id}",
+            daemon=True,
+        )
+        self._heartbeat_thread.start()
+
+    def _stop_heartbeat(self) -> None:
+        if self._heartbeat_stop is not None:
+            self._heartbeat_stop.set()
+        if self._heartbeat_thread is not None:
+            self._heartbeat_thread.join(timeout=max(1.0, min(self.lease_seconds, 5.0)))
+        self._heartbeat_stop = None
+        self._heartbeat_thread = None
 
 
 class ResumeLedgerError(RuntimeError):
@@ -198,28 +308,72 @@ class ResumeLedgerError(RuntimeError):
 
 
 class ResumeLedger:
-    def __init__(self, run_root: Path, *, run_id: str, betting_day: str, main_sha: str, manifest_sha: str):
+    def __init__(self, run_root: Path, *, run_id: str, betting_day: str, main_sha: str, manifest_sha: str, run_as_of_utc: str | None = None):
         self.run_root = Path(run_root)
         self.path = self.run_root / "resume_ledger.json"
+
+        # Determine the canonical run_as_of_utc as of REQ-V6-CLOCK-001
+        env_val = os.environ.get("BET_PIPELINE_RUN_AS_OF_UTC")
+        file_val = None
+        if self.path.exists():
+            try:
+                ledger_data = json.loads(self.path.read_text(encoding="utf-8"))
+                file_val = ledger_data.get("run_as_of_utc")
+            except Exception:
+                pass
+
+        resolved_as_of = run_as_of_utc or env_val or file_val
+
+        if not resolved_as_of:
+            if not self.path.exists():
+                from datetime import datetime, timezone
+                resolved_as_of = datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+            else:
+                raise ResumeLedgerError("BLOCKED_RUN_AS_OF_BINDING_MISMATCH")
+
+        if file_val and file_val != resolved_as_of:
+            raise ResumeLedgerError("BLOCKED_RUN_AS_OF_BINDING_MISMATCH")
+
+        if env_val and env_val != resolved_as_of:
+            raise ResumeLedgerError("BLOCKED_RUN_AS_OF_BINDING_MISMATCH")
+
         self.binding = {
             "run_id": run_id,
             "betting_day": betting_day,
             "main_sha": main_sha,
             "manifest_sha": manifest_sha,
+            "run_as_of_utc": resolved_as_of,
         }
 
     def _load(self) -> dict[str, Any]:
         if not self.path.exists():
-            return {
+            ledger = {
                 "schema_version": 1,
                 "artifact_type": "RUN_RESUME_LEDGER",
                 **self.binding,
                 "entries": [],
                 "ledger_hash_chain_valid": True,
             }
+            self.run_root.mkdir(parents=True, exist_ok=True)
+            publish_run_artifact(
+                run_root=self.run_root,
+                target=self.path,
+                payload=ledger,
+                betting_day=self.binding["betting_day"],
+                run_id=self.binding["run_id"],
+                artifact_type="RUN_RESUME_LEDGER",
+                immutable=False,
+            )
+            return ledger
         ledger = json.loads(self.path.read_text(encoding="utf-8"))
-        if any(ledger.get(key) != value for key, value in self.binding.items()):
-            raise ResumeLedgerError("RESUME_LEDGER_BINDING_CONFLICT")
+        mismatched = [
+            key for key, value in self.binding.items()
+            if ledger.get(key) != value
+        ]
+        if mismatched:
+            raise ResumeLedgerError(
+                "RESUME_LEDGER_BINDING_CONFLICT:" + ",".join(sorted(mismatched))
+            )
         self.verify(ledger)
         return ledger
 
@@ -251,25 +405,46 @@ class ResumeLedger:
         if expected_previous_hash is not None and expected_previous_hash != previous:
             raise ResumeLedgerError("RESUME_LEDGER_INVALID_PREDECESSOR")
         request_hash = _canonical_hash(command_request)
-        signature = (step_id, request_hash, input_hashes)
-        for existing in entries:
+        normalized_inputs = dict(sorted(input_hashes.items()))
+        normalized_outputs = dict(sorted(output_hashes.items()))
+        signature = (step_id, request_hash, normalized_inputs)
+        resolution_of_attempt_id: str | None = None
+        for existing in reversed(entries):
             if (existing["step_id"], existing["command_request_hash"], existing["input_hashes"]) == signature:
-                if existing["status"] == status and existing["output_hashes"] == output_hashes:
+                if existing["status"] == status and existing["output_hashes"] == normalized_outputs:
                     return existing
+                if (
+                    existing["status"] in {"BLOCK", "COMMAND_REQUEST_UNRESOLVED"}
+                    and status in {"PASS", "NO_ACTION_TERMINAL"}
+                    and normalized_outputs
+                ):
+                    resolution_of_attempt_id = str(existing["attempt_id"])
+                    break
                 raise ResumeLedgerError("RESUME_LEDGER_CONFLICTING_RERUN")
         entry = {
             "attempt_id": uuid.uuid4().hex,
             "step_id": step_id,
             "status": status,
             "recorded_at": _utc_now(),
-            "input_hashes": dict(sorted(input_hashes.items())),
-            "output_hashes": dict(sorted(output_hashes.items())),
+            "input_hashes": normalized_inputs,
+            "output_hashes": normalized_outputs,
             "command_request_hash": request_hash,
             "previous_hash": previous,
         }
+        if resolution_of_attempt_id:
+            entry["resolution_of_attempt_id"] = resolution_of_attempt_id
         entry["entry_hash"] = _canonical_hash(entry)
         entries.append(entry)
-        ledger["unresolved_command_request"] = status == "COMMAND_REQUEST_UNRESOLVED"
+        resolved_attempts = {
+            str(item.get("resolution_of_attempt_id"))
+            for item in entries
+            if item.get("resolution_of_attempt_id")
+        }
+        ledger["unresolved_command_request"] = any(
+            item.get("status") == "COMMAND_REQUEST_UNRESOLVED"
+            and str(item.get("attempt_id")) not in resolved_attempts
+            for item in entries
+        )
         publish_run_artifact(
             run_root=self.run_root,
             target=self.path,
@@ -282,5 +457,10 @@ class ResumeLedger:
         return entry
 
     def assert_resumable(self) -> None:
-        if self._load().get("unresolved_command_request") is True:
-            raise ResumeLedgerError("RESUME_BLOCKED_UNRESOLVED_COMMAND_REQUEST")
+        # An unresolved request is a recorded non-terminal attempt, not a
+        # permanent run tombstone. The same step may resume and must append a
+        # hash-linked resolution; downstream steps remain blocked by normal
+        # step ordering until that happens.
+        ledger = self._load()
+        if ledger.get("unresolved_command_request") is True:
+            raise ResumeLedgerError("BLOCKED_UNRESOLVED_COMMAND_REQUEST")

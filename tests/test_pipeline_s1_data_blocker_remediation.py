@@ -151,7 +151,7 @@ def test_s1_wrapper_passes_temp_db_path_to_discover_events(tmp_path: Path, monke
     def _fake_init_db(path: str) -> None:
         Path(path).touch()
 
-    def _fake_run(cmd, env, capture_output, text):
+    def _fake_run(cmd, *, env, cwd, timeout_seconds):
         calls.append((cmd, env.copy()))
         if "generate_market_matrix.py" in cmd[1]:
             data_dir = env.get("BET_PIPELINE_DATA_DIR")
@@ -183,7 +183,7 @@ def test_s1_wrapper_passes_temp_db_path_to_discover_events(tmp_path: Path, monke
         return result
 
     monkeypatch.setattr(s1_discover, "_init_temp_db", _fake_init_db)
-    monkeypatch.setattr(s1_discover.subprocess, "run", _fake_run)
+    monkeypatch.setattr(s1_discover, "run_bounded_process", _fake_run)
 
     run_metrics = {
         "discovery_rc": -1,

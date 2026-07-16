@@ -2,9 +2,83 @@
 from __future__ import annotations
 
 import os
+import re
+import sys
+import tempfile
 from pathlib import Path
 
 from bet.pipeline.runtime_modes import RuntimeMode
+
+
+_BETTING_DAY_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+_RUN_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
+
+
+def resolved_path(path: Path | str) -> Path:
+    """Return one canonical filesystem spelling without requiring existence.
+
+    macOS exposes ``/tmp`` through the ``/private/tmp`` symlink.  Pipeline
+    lineage must compare filesystem locations, not the two lexical spellings.
+    """
+    return Path(path).expanduser().resolve(strict=False)
+
+
+def paths_refer_to_same_location(left: Path | str, right: Path | str) -> bool:
+    """Compare path identity after resolving aliases and symlinks."""
+    try:
+        return resolved_path(left) == resolved_path(right)
+    except (OSError, RuntimeError, ValueError):
+        return False
+
+
+def system_temp_roots() -> tuple[Path, ...]:
+    """Return canonical temporary roots supported by the current platform."""
+    candidates = (tempfile.gettempdir(), "/tmp", "/var/tmp")
+    roots: list[Path] = []
+    for candidate in candidates:
+        try:
+            root = resolved_path(candidate)
+        except (OSError, RuntimeError, ValueError):
+            continue
+        if root not in roots:
+            roots.append(root)
+    return tuple(roots)
+
+
+def is_system_temp_path(path: Path | str) -> bool:
+    """Return whether *path* is within a canonical system temp root."""
+    try:
+        candidate = resolved_path(path)
+    except (OSError, RuntimeError, ValueError):
+        return False
+    return any(
+        candidate == root or candidate.is_relative_to(root)
+        for root in system_temp_roots()
+    )
+
+
+def validate_run_identifiers(betting_day: str, run_id: str | None) -> tuple[str, str]:
+    """Return safe run identifiers or fail before any path is created.
+
+    Path components are deliberately much stricter than general filesystem names:
+    absolute paths, traversal, separators, control characters, and empty IDs are
+    never valid pipeline identity.
+    """
+    day = str(betting_day or "")
+    rid = str(run_id or "default")
+    if not _BETTING_DAY_RE.fullmatch(day):
+        raise ValueError("INVALID_BETTING_DAY_IDENTIFIER")
+    if not _RUN_ID_RE.fullmatch(rid) or rid in {".", ".."}:
+        raise ValueError("INVALID_RUN_ID_IDENTIFIER")
+    return day, rid
+
+
+def _reject_symlinked_ancestors(path: Path, stop: Path) -> None:
+    current = path
+    while current != stop and current != current.parent:
+        if current.exists() and current.is_symlink():
+            raise ValueError("RUN_PATH_SYMLINK_FORBIDDEN")
+        current = current.parent
 
 
 def resolve_run_root(
@@ -16,6 +90,7 @@ def resolve_run_root(
 
     Default is reports/pipeline_runs/<betting_day>/<run_id>/
     """
+    day, rid = validate_run_identifiers(betting_day, run_id)
     if base_dir is None:
         # Find repo root. 1: runtime_paths.py, 2: pipeline, 3: bet, 4: src, 5: repo_root
         repo_root = Path(__file__).resolve().parents[3]
@@ -25,10 +100,20 @@ def resolve_run_root(
         if base_dir.name != "pipeline_runs" and "pipeline_runs" not in base_dir.parts:
             base_dir = base_dir / "pipeline_runs"
 
-    rid = run_id if run_id else "default"
-    if base_dir.name == rid and base_dir.parent.name == betting_day:
-        return base_dir
-    return base_dir / betting_day / rid
+    base_dir = base_dir.resolve(strict=False)
+    if base_dir.name == rid and base_dir.parent.name == day:
+        candidate = base_dir
+        approved_root = base_dir.parent.parent
+    else:
+        approved_root = base_dir
+        candidate = base_dir / day / rid
+    resolved = candidate.resolve(strict=False)
+    try:
+        resolved.relative_to(approved_root.resolve(strict=False))
+    except ValueError as exc:
+        raise ValueError("RUN_ROOT_ESCAPE_FORBIDDEN") from exc
+    _reject_symlinked_ancestors(candidate, approved_root)
+    return resolved
 
 
 def runtime_data_dir(run_root: Path) -> Path:
@@ -70,6 +155,7 @@ def build_runtime_env(
         "SSL_CERT_FILE", "SSL_CERT_DIR", "REQUESTS_CA_BUNDLE", "CURL_CA_BUNDLE",
         "VIRTUAL_ENV", "NO_PROXY", "HTTP_PROXY", "HTTPS_PROXY",
         "TERM", "SSH_AUTH_SOCK", "USER", "LOGNAME", "SHELL",
+        "DATABASE_URL", "BET_DB_PATH", "BET_KEEP_TEMP_DB",
     }
 
     env = {}
@@ -86,16 +172,41 @@ def build_runtime_env(
         if WRITE_ACK_KEY in os.environ:
             env[WRITE_ACK_KEY] = os.environ[WRITE_ACK_KEY]
 
+    # The S6 history source is the only caller-supplied pipeline path allowed
+    # through.  It must be either the canonical journal or a run-local replay
+    # fixture; arbitrary inherited BET_PIPELINE_* variables remain excluded.
+    ledger_value = os.environ.get("BET_PIPELINE_LEDGER_PATH")
+    if ledger_value:
+        ledger_path = Path(ledger_value).resolve(strict=False)
+        canonical_ledger = (
+            Path(__file__).resolve().parents[3]
+            / "betting"
+            / "journal"
+            / "picks-ledger.csv"
+        ).resolve(strict=False)
+        if (
+            ledger_path == canonical_ledger
+            or ledger_path == run_root
+            or ledger_path.is_relative_to(run_root)
+        ) and not Path(ledger_value).is_symlink():
+            env["BET_PIPELINE_LEDGER_PATH"] = str(ledger_path)
+
     # 3. Provider credentials dynamically sourced from the registry
+    from bet.provider_registry import load_provider_registry
     try:
-        from bet.provider_registry import load_provider_registry
         reg = load_provider_registry()
-        allowed_credentials = []
-        for provider in reg.values():
-            cred_names = provider.policy.get("required_credential_names", [])
-            allowed_credentials.extend(cred_names)
-    except Exception:
-        allowed_credentials = ["ODDSPAPI_API_KEY", "THE_ODDS_API_KEY", "ODDS_API_IO_KEY", "API_FOOTBALL_KEY"]
+    except Exception as exc:
+        raise ValueError(f"PROVIDER_REGISTRY_LOAD_FAILED: {exc}") from exc
+
+    allowed_credentials_set = set()
+    for provider in reg.values():
+        cred_names = provider.policy.get("required_credential_names", [])
+        for cred_name in cred_names:
+            if not isinstance(cred_name, str) or not cred_name.strip():
+                raise ValueError("PROVIDER_REGISTRY_CREDENTIAL_NAME_INVALID")
+            allowed_credentials_set.add(cred_name.strip())
+
+    allowed_credentials = sorted(allowed_credentials_set)
 
     for cred_name in allowed_credentials:
         if cred_name in os.environ:
@@ -113,7 +224,17 @@ def build_runtime_env(
     })
 
     repo_root = Path(__file__).resolve().parents[3]
-    env["PYTHONPATH"] = f"{repo_root}/src:{repo_root}"
+    python_paths = [str(repo_root / "src"), str(repo_root)]
+    locked_site_packages = (
+        repo_root
+        / ".venv"
+        / "lib"
+        / f"python{sys.version_info.major}.{sys.version_info.minor}"
+        / "site-packages"
+    )
+    if locked_site_packages.is_dir():
+        python_paths.append(str(locked_site_packages))
+    env["PYTHONPATH"] = os.pathsep.join(python_paths)
     env["BET_REPO_ROOT"] = str(repo_root)
 
     if mode_enum != RuntimeMode.PRODUCTION:
@@ -141,13 +262,18 @@ def is_safe_run_path(
         return False
 
     try:
-        path_p = Path(path).resolve()
-        run_root_p = Path(run_root).resolve()
+        raw_path = Path(path)
+        raw_root = Path(run_root)
+        if raw_path.exists() and raw_path.is_symlink():
+            return False
+        current = raw_path if raw_path.is_absolute() else raw_root / raw_path
+        while current != raw_root and current != current.parent:
+            if current.exists() and current.is_symlink():
+                return False
+            current = current.parent
+        path_p = raw_path.resolve()
+        run_root_p = raw_root.resolve()
     except Exception:
-        return False
-
-    # Symlink escape check
-    if path_p.is_symlink():
         return False
 
     # Traversal check: must be inside run_root_p

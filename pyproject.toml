@@ -6,8 +6,14 @@ requires-python = ">=3.12,<3.14"
 readme = "README.md"
 license = { text = "Proprietary" }
 dependencies = [
+    "psutil>=5.9,<8",
+    "pydantic>=2.10,<3",
+    "python-dotenv>=1.0,<2",
     "PyYAML>=6.0,<7",
+    "rapidfuzz>=3.0,<4",
+    "requests>=2.32,<3",
     "soccerdata>=1.9,<2",
+    "SQLAlchemy>=2.0,<3",
 ]
 
 [project.optional-dependencies]

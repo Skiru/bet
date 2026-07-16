@@ -87,7 +87,7 @@ def run_provider_access_rescue_diagnostic_v2(output_root_path: Path) -> Dict[str
     project_root = find_project_root()
     load_project_dotenv(project_root)
 
-    timestamp = datetime.datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.datetime.now(datetime.UTC).strftime("%Y%m%d_%H%M%S")
     run_dir = output_root_path / f"provider_access_rescue_v2_{timestamp}"
     run_dir.mkdir(parents=True, exist_ok=True)
 
@@ -104,13 +104,13 @@ def run_provider_access_rescue_diagnostic_v2(output_root_path: Path) -> Dict[str
 
     sportdb_probe_log = {
         "provider": "sportdb",
-        "timestamp": datetime.datetime.utcnow().isoformat() + "Z",
+        "timestamp": datetime.datetime.now(datetime.UTC).isoformat().replace("+00:00", "Z"),
         "requests": [],
         "verdict": "",
     }
     highlightly_probe_log = {
         "provider": "highlightly",
-        "timestamp": datetime.datetime.utcnow().isoformat() + "Z",
+        "timestamp": datetime.datetime.now(datetime.UTC).isoformat().replace("+00:00", "Z"),
         "requests": [],
         "verdict": "",
     }
@@ -588,7 +588,7 @@ def run_provider_access_rescue_diagnostic_v2(output_root_path: Path) -> Dict[str
     # Write summary.md and next_action.md
     md_summary = f"""# Provider Access Rescue V2 Diagnostic Summary
 
-- **Timestamp**: {datetime.datetime.utcnow().isoformat()}Z
+- **Timestamp**: {datetime.datetime.now(datetime.UTC).isoformat().replace("+00:00", "Z")}
 - **Verdict**: {overall_verdict}
 - **Secret Leak Check**: {secret_leak_check}
 

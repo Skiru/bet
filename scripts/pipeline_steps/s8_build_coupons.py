@@ -42,7 +42,7 @@ def _s8_output_path(data_dir: Path, betting_day: str, _runtime_mode: object | No
     return data_dir / f"{betting_day}_s8_superbet_manual_quote_pack.json"
 
 
-def _load_canonical_s7b(child_env: dict[str, str], day: str, run_id: str) -> tuple[Path, Path, dict[str, Any]]:
+def _load_canonical_s7b(child_env: dict[str, str], day: str, run_id: str) -> tuple[Path, Path, dict[str, Any], list[dict[str, Any]]]:
     from bet.pipeline.integration_artifacts import resolve_bound_step_output
     run_root = Path(child_env["BET_PIPELINE_RUN_ROOT"])
     output_path, mapping = resolve_bound_step_output(
@@ -53,12 +53,17 @@ def _load_canonical_s7b(child_env: dict[str, str], day: str, run_id: str) -> tup
         expected_artifact_type="S7B_SUPERBET_MANUAL_MAPPING",
     )
     evidence_path = run_root / "artifacts" / "S7b.json"
-    return evidence_path, output_path, mapping
+    if not evidence_path.exists():
+        nested_ev = run_root / "pipeline_runs" / day / run_id / "artifacts" / "S7b.json"
+        if nested_ev.exists():
+            evidence_path = nested_ev
+    records = mapping.get("event_records") or []
+    return evidence_path, output_path, mapping, records
 
 
 def _validate_mapping(mapping: dict[str, Any], day: str, run_id: str) -> tuple[str, list[dict[str, Any]]]:
     if (
-        mapping.get("schema_version") != 1
+        mapping.get("schema_version") != 2
         or mapping.get("artifact_type") != "S7B_SUPERBET_MANUAL_MAPPING"
         or mapping.get("betting_day") != day
         or mapping.get("run_id") != run_id
@@ -86,6 +91,8 @@ def _validate_mapping(mapping: dict[str, Any], day: str, run_id: str) -> tuple[s
         source_id = card.get("source_candidate_id")
         if not isinstance(card_id, str) or not card_id or not isinstance(source_id, str) or not source_id:
             raise ValueError("S7b quote card identity is incomplete")
+        if card.get("selection_id") != source_id:
+            raise ValueError("S7b quote card selection identity mismatch")
         if card_id in card_ids or source_id in source_ids:
             raise ValueError("S7b quote card identity is duplicated")
         card_ids.add(card_id)
@@ -122,8 +129,9 @@ def main() -> None:
     mapping_status = "BLOCKED"
     s7b_evidence: Path | None = None
     s7b_output: Path | None = None
+    s7b_records: list[dict[str, Any]] = []
     try:
-        s7b_evidence, s7b_output, mapping = _load_canonical_s7b(child_env, args.date, args.run_id)
+        s7b_evidence, s7b_output, mapping, s7b_records = _load_canonical_s7b(child_env, args.date, args.run_id)
         mapping_status, cards = _validate_mapping(mapping, args.date, args.run_id)
     except (OSError, ValueError, TypeError, json.JSONDecodeError) as exc:
         blocked.append("BLOCKED_S8_CANONICAL_S7B_INVALID")
@@ -137,7 +145,7 @@ def main() -> None:
     output_sha256: str | None = None
     if not blocked:
         output_artifact = {
-                "schema_version": 1,
+                "schema_version": 2,
                 "artifact_type": "S8_SUPERBET_MANUAL_QUOTE_PACK",
                 "status": outcome,
                 "betting_day": args.date,
@@ -150,6 +158,7 @@ def main() -> None:
                 "quote_card_count": len(cards),
                 "quote_cards": cards,
                 "idea_groups": [],
+                "event_records": s7b_records,
                 "analytical_status": "READY" if cards else "NO_ACTION",
                 "pricing_status": "UNPRICED",
                 "risk_status": "ACCEPTABLE_FOR_MANUAL_QUOTE" if cards else "NO_ACTION",
@@ -185,6 +194,7 @@ def main() -> None:
         "s8_quote_pack_sha256": output_sha256,
         "quote_card_count": len(cards),
         "outcome": outcome,
+        "event_records": s7b_records,
         "requires_human_gate": bool(cards) and not blocked,
         "ready_for_human_gate": ready_for_human_gate,
         "ready_for_production_execution": False,

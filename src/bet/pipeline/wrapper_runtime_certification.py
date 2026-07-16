@@ -23,7 +23,7 @@ LIVE_ONLY_TARGETS = {
     "scripts/settle_on_finish.py",
     "scripts/tipster_aggregator.py",
 }
-DIRECT_ARTIFACT_STEPS = {"S1e", "S7b", "S8"}
+DIRECT_ARTIFACT_STEPS = {"S1e", "S7", "S7b", "S8"}
 WRITE_SURFACE_PATTERNS = (
     "atomic_json_write(",
     ".write_text(",
@@ -62,10 +62,49 @@ def _literal_string_list(node: ast.AST | None, scope: dict[str, list[str]]) -> l
     if isinstance(node, (ast.List, ast.Tuple)):
         values: list[str] = []
         for elt in node.elts:
-            if not isinstance(elt, ast.Constant) or not isinstance(elt.value, str):
-                return None
-            values.append(elt.value)
+            if isinstance(elt, ast.Name) and elt.id in scope:
+                values.extend(scope[elt.id])
+                continue
+            if isinstance(elt, ast.Constant) and isinstance(elt.value, str):
+                values.append(elt.value)
+                continue
+            if isinstance(elt, ast.Call):
+                func = elt.func
+                is_invocation = (
+                    isinstance(func, ast.Name) and func.id == "ScriptInvocation"
+                ) or (
+                    isinstance(func, ast.Attribute) and func.attr == "ScriptInvocation"
+                )
+                script_node = next(
+                    (keyword.value for keyword in elt.keywords if keyword.arg == "script"),
+                    elt.args[0] if elt.args else None,
+                )
+                if (
+                    is_invocation
+                    and isinstance(script_node, ast.Constant)
+                    and isinstance(script_node.value, str)
+                ):
+                    values.append(script_node.value)
+                    continue
+            return None
         return values
+    if isinstance(node, ast.Call):
+        func = node.func
+        is_invocation = (
+            isinstance(func, ast.Name) and func.id == "ScriptInvocation"
+        ) or (
+            isinstance(func, ast.Attribute) and func.attr == "ScriptInvocation"
+        )
+        script_node = next(
+            (keyword.value for keyword in node.keywords if keyword.arg == "script"),
+            node.args[0] if node.args else None,
+        )
+        if (
+            is_invocation
+            and isinstance(script_node, ast.Constant)
+            and isinstance(script_node.value, str)
+        ):
+            return [script_node.value]
     return None
 
 
@@ -126,7 +165,7 @@ def _discover_in_statements(statements: list[ast.stmt], initial_scope: dict[str,
 
 
 def discover_wrapper_targets(wrapper_path: Path) -> list[str]:
-    """Discover real target scripts from wrapper source by parsing run_scripts calls."""
+    """Discover targets from calls or a bounded runtime loop over a literal list."""
     source = Path(wrapper_path).read_text(encoding="utf-8")
     tree = ast.parse(source, filename=str(wrapper_path))
 
@@ -138,6 +177,28 @@ def discover_wrapper_targets(wrapper_path: Path) -> list[str]:
             discovered.extend(_discover_in_statements(stmt.body, module_scope))
         else:
             discovered.extend(_discover_in_statements([stmt], module_scope))
+
+    # S1 needs each child's captured output for its accounting evidence, so it
+    # executes a literal SCRIPTS list with the same bounded primitive used by
+    # the shared runner.  Discover that real loop instead of accepting dead
+    # ``if False`` calls written only to fool static certification.
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.For) or not isinstance(node.iter, ast.Name):
+            continue
+        targets = module_scope.get(node.iter.id)
+        if not targets:
+            continue
+        has_bounded_call = any(
+            isinstance(child, ast.Call)
+            and (
+                (isinstance(child.func, ast.Name) and child.func.id == "run_bounded_process")
+                or (isinstance(child.func, ast.Attribute) and child.func.attr == "run_bounded_process")
+            )
+            for statement in node.body
+            for child in ast.walk(statement)
+        )
+        if has_bounded_call:
+            discovered.extend(f"scripts/{name}" for name in targets)
 
     ordered: list[str] = []
     seen: set[str] = set()
@@ -166,7 +227,11 @@ def _wrapper_dry_run_default(source: str) -> bool:
 
 
 def _wrapper_allows_partial(source: str) -> bool:
-    return "continue_on_codes=[0, 1]" in source or "continue_on_codes=(0, 1)" in source
+    return (
+        "continue_on_codes=[0, 1]" in source
+        or "continue_on_codes=(0, 1)" in source
+        or "res.returncode not in {0, 1}" in source
+    )
 
 
 def _target_source(repo_root: Path, target: str) -> str:
@@ -216,7 +281,7 @@ def _runner_contracts(repo_root: Path) -> dict[str, bool]:
     return {
         "write_ack_guard": WRITE_ACK_VALUE in runner_source and "BLOCKED_WRITE_ACK_MISSING" in runner_source,
         "force_allow_guard": "BLOCKED_FORCE_ALLOW_WRITE_UNSAFE" in runner_source,
-        "deterministic_subprocess": "cmd = [python, str(script_path)]" in runner_source and "subprocess.run(cmd" in runner_source,
+        "deterministic_subprocess": "cmd = [python, str(script_path)]" in runner_source and "run_bounded_process(" in runner_source,
         "exit_code_propagation": "return res.returncode" in runner_source and "return res2.returncode" in runner_source,
         "live_network_guard": "BLOCKED_LIVE_NETWORK_ACK_MISSING" in runner_source and "BET_PIPELINE_LIVE_ACK" in runner_source,
     }

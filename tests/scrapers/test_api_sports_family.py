@@ -346,6 +346,7 @@ class TestProductionWiring:
         monkeypatch.setattr(
             adapter._client, "get_fixtures_result", fake_get_fixtures_result
         )
+        monkeypatch.setattr(adapter._client, "is_available", lambda: True)
         monkeypatch.setattr(
             adapter._client,
             "get_fixtures",

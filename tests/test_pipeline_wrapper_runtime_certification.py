@@ -25,7 +25,7 @@ EXPECTED_TARGETS = {
     "S3": ["scripts/deep_stats_report.py"],
     "S4": ["scripts/fetch_odds_multi.py", "scripts/odds_evaluator.py"],
     "S6": ["scripts/check_48h_repeats.py"],
-    "S7": ["scripts/gate_checker.py"],
+    "S7": [],
     "S7b": [],
     "S8": [],
 }
@@ -73,9 +73,9 @@ def test_all_wrapper_target_scripts_compile(repo_root: Path):
         assert report["wrappers"][step_id]["targets_compile"] is True
 
 
-def test_s7b_and_s8_are_certified_as_direct_artifact_wrappers(repo_root: Path):
+def test_s7_s7b_and_s8_are_certified_as_direct_artifact_wrappers(repo_root: Path):
     report = certify_manifest_wrappers(repo_root)
-    for step_id in ("S7b", "S8"):
+    for step_id in ("S7", "S7b", "S8"):
         assert report["wrappers"][step_id]["targets"] == []
         assert report["wrappers"][step_id]["evidence_contract"] == "JSON"
         assert report["wrappers"][step_id]["verdict"] == "PASS"

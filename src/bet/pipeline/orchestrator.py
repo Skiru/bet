@@ -5,6 +5,7 @@ import hashlib
 import json
 import os
 import sys
+import tempfile
 import time
 from pathlib import Path
 from typing import Any
@@ -16,7 +17,7 @@ from bet.pipeline.artifact_gate import (
     validate_s9_human_gate_artifact_for_run,
 )
 from bet.pipeline.event_accounting import (
-    BOUNDARY_DEFAULT_STATUS,
+    ACCOUNTING_BOUNDARY_STEPS,
     EventAccountingError,
     EventAccountingLedger,
 )
@@ -60,6 +61,7 @@ from bet.pipeline.runtime_paths import (
     runtime_artifact_dir,
     runtime_coupon_dir,
     runtime_data_dir,
+    validate_run_identifiers,
 )
 
 # Ensure data directory references correct sandboxed path during execution
@@ -199,8 +201,7 @@ class Orchestrator:
         artifact_dir: Path | None = None,
         verbose: bool = False,
     ) -> None:
-        self.betting_day = betting_day
-        self.run_id = run_id
+        self.betting_day, self.run_id = validate_run_identifiers(betting_day, run_id)
         self.runtime_mode = parse_runtime_mode(runtime_mode)
         self.repo_root = discover_repo_root()
 
@@ -234,18 +235,50 @@ class Orchestrator:
             raise ValueError("Pipeline manifest global rule 'fail_closed' must be enabled")
 
         # Resolve paths
-        self.run_root = resolve_run_root(self.betting_day, self.run_id, base_run_dir)
+        env_run_root = os.environ.get("BET_PIPELINE_RUN_ROOT")
+        if env_run_root:
+            raw_run_root = Path(env_run_root)
+            current = raw_run_root
+            while current != current.parent:
+                if current.exists() and current.is_symlink():
+                    raise ValueError("RUN_PATH_SYMLINK_FORBIDDEN")
+                current = current.parent
+            self.run_root = raw_run_root.resolve(strict=False)
+            if self.run_root.name != self.run_id or self.run_root.parent.name != self.betting_day:
+                raise ValueError("RUN_ROOT_IDENTITY_BINDING_MISMATCH")
+            if base_run_dir is not None:
+                expected_root = resolve_run_root(self.betting_day, self.run_id, base_run_dir)
+                if self.run_root != expected_root:
+                    raise ValueError("RUN_ROOT_CONFIGURED_BASE_MISMATCH")
+            else:
+                approved_roots = (
+                    (self.repo_root / "reports" / "pipeline_runs").resolve(strict=False),
+                    Path(tempfile.gettempdir()).resolve(strict=False),
+                )
+                if not any(
+                    self.run_root == root or self.run_root.is_relative_to(root)
+                    for root in approved_roots
+                ):
+                    raise ValueError("RUN_ROOT_OUTSIDE_APPROVED_BASE")
+        else:
+            self.run_root = resolve_run_root(self.betting_day, self.run_id, base_run_dir)
         self.run_data_dir = runtime_data_dir(self.run_root)
         self.run_coupon_dir = runtime_coupon_dir(self.run_root)
 
         # Override artifact directory if requested
         if artifact_dir is not None:
-            self.run_artifact_dir = Path(artifact_dir)
+            self.run_artifact_dir = Path(artifact_dir).resolve(strict=False)
         else:
             self.run_artifact_dir = runtime_artifact_dir(self.run_root)
+        if self.run_artifact_dir != runtime_artifact_dir(self.run_root).resolve(strict=False):
+            raise ValueError("ARTIFACT_DIR_MUST_BE_CANONICAL_RUN_ARTIFACT_DIR")
 
         # Setup sandbox environment
         self.env = build_runtime_env(self.runtime_mode, self.betting_day, self.run_id, base_run_dir)
+        self.env["BET_PIPELINE_RUN_ROOT"] = str(self.run_root)
+        self.env["BET_PIPELINE_DATA_DIR"] = str(self.run_data_dir)
+        self.env["BET_PIPELINE_COUPON_DIR"] = str(self.run_coupon_dir)
+        self.env["BET_PIPELINE_ARTIFACT_DIR"] = str(self.run_artifact_dir)
         if artifact_dir is not None:
             self.env["BET_PIPELINE_ARTIFACT_DIR"] = str(self.run_artifact_dir)
 
@@ -278,6 +311,7 @@ class Orchestrator:
             main_sha=self._main_sha,
             manifest_sha=self._manifest_sha,
         )
+        self.env["BET_PIPELINE_RUN_AS_OF_UTC"] = self._resume_ledger.binding["run_as_of_utc"]
 
     def _step_timeout_seconds(self) -> int:
         default = int(self.manifest.runtime_contract.get("default_timeout_seconds", 900))
@@ -296,8 +330,19 @@ class Orchestrator:
     ) -> tuple[bool, str | None]:
         import hashlib
 
-        # 1. No unresolved command request or blocker exists
-        if self.unresolved_count > 0 or len(self.blockers) > 0:
+        waiting_at_s9 = any(
+            evidence.get("step_id") == "S9"
+            and evidence.get("blocked_reason") == BlockedReason.BLOCKED_WAITING_FOR_HUMAN_APPROVAL
+            for evidence in self.step_evidences
+        )
+        expected_s9_blocker = "Missing required human gate artifact for step S9"
+
+        # 1. No unresolved command request or unexpected blocker exists. Waiting
+        # for the S9 operator artifact is the intended human-gate state.
+        unexpected_blockers = [
+            blocker for blocker in self.blockers if not (waiting_at_s9 and blocker == expected_s9_blocker)
+        ]
+        if self.unresolved_count > 0 or unexpected_blockers:
             return False, None
 
         # 2. No S9 artifact exists
@@ -307,7 +352,10 @@ class Orchestrator:
             return False, None
 
         # 3. S8 completed successfully
-        if last_completed_step != "S8" or overall_status not in (PipelineReadinessStatus.PASS, PipelineReadinessStatus.WARN):
+        allowed_status = overall_status in (PipelineReadinessStatus.PASS, PipelineReadinessStatus.WARN)
+        if waiting_at_s9 and overall_status == PipelineReadinessStatus.BLOCK:
+            allowed_status = True
+        if last_completed_step != "S8" or not allowed_status:
             return False, None
 
         # 4. S8 SCRIPT_EVIDENCE schema validation
@@ -376,7 +424,7 @@ class Orchestrator:
             self.blockers.append(f"Malformed S8 output artifact: {e}")
             return False, None
 
-        if out_art.get("schema_version") != 1 or out_art.get("artifact_type") != "S8_SUPERBET_MANUAL_QUOTE_PACK":
+        if out_art.get("schema_version") != 2 or out_art.get("artifact_type") != "S8_SUPERBET_MANUAL_QUOTE_PACK":
             self.blockers.append("Invalid S8 output artifact schema or type")
             return False, None
 
@@ -697,49 +745,25 @@ class Orchestrator:
                             if cmd_req:
                                 if self.verbose:
                                     print(f"Intercepted COMMAND_REQUEST from subagent: {cmd_req}")
-                                import shlex
-                                argv = []
-                                timeout_seconds = 300
+                                from bet.pipeline.command_registry import (
+                                    CommandRequestError,
+                                    resolve_command_request,
+                                )
+                                argv: list[str] = []
+                                timeout_seconds = 0.0
                                 expected_exit_code = 0
                                 postconditions = ["rerun_validate_agent_artifact"]
                                 cwd_dir = str(self.repo_root)
                                 is_valid = True
-                                if isinstance(cmd_req, dict):
-                                    argv = cmd_req.get("argv")
-                                    if not isinstance(argv, list) or not argv:
-                                        self.blockers.append("COMMAND_REQUEST structured object missing non-empty 'argv'")
-                                        is_valid = False
-                                    timeout_seconds = cmd_req.get("timeout_seconds", 300)
-                                    expected_exit_code = cmd_req.get("expected_exit_code", 0)
-                                    postconditions = cmd_req.get("postconditions", ["rerun_validate_agent_artifact"])
-                                    if cmd_req.get("cwd") == "REPO_ROOT":
-                                        cwd_dir = str(self.repo_root)
-                                elif isinstance(cmd_req, str):
-                                    meta = [";", "&", "|", "<", ">", "$", "(", ")", "*", "?", "[", "]", "\\", "!", "{", "}"]
-                                    if any(m in cmd_req for m in meta):
-                                        self.blockers.append(f"COMMAND_REQUEST string contains disallowed shell metacharacters: {cmd_req}")
-                                        is_valid = False
-                                    else:
-                                        try:
-                                            argv = shlex.split(cmd_req)
-                                        except Exception as e:
-                                            self.blockers.append(f"Failed to split command string: {e}")
-                                            is_valid = False
-                                else:
-                                    self.blockers.append("COMMAND_REQUEST must be a string or structured dict")
+                                try:
+                                    resolved_command = resolve_command_request(cmd_req)
+                                    argv = resolved_command.argv
+                                    timeout_seconds = resolved_command.timeout_seconds
+                                    expected_exit_code = resolved_command.expected_exit_code
+                                    postconditions = resolved_command.postconditions
+                                except CommandRequestError as exc:
+                                    self.blockers.append(str(exc))
                                     is_valid = False
-                                if is_valid and argv:
-                                    executable = argv[0]
-                                    allowed_execs = {"python", "python3", "pytest", ".venv/bin/python3", ".venv/bin/python", ".venv/bin/pytest", "sleep", "/bin/sleep"}
-                                    is_safe_exec = False
-                                    base_exec = os.path.basename(executable)
-                                    if base_exec in allowed_execs or executable in allowed_execs:
-                                        is_safe_exec = True
-                                    elif executable.endswith(".py") and ("scripts/" in executable or "tools/" in executable):
-                                        is_safe_exec = True
-                                    if not is_safe_exec:
-                                        self.blockers.append(f"COMMAND_REQUEST executable '{executable}' is not in the allowlist of safe executables")
-                                        is_valid = False
                                 if not is_valid or not argv:
                                     self.failed_count += 1
                                     self.unresolved_count += 1
@@ -957,7 +981,7 @@ class Orchestrator:
             accounting = EventAccountingLedger(
                 self.run_root, betting_day=self.betting_day, run_id=self.run_id
             )
-            if sid in BOUNDARY_DEFAULT_STATUS and accounting.path.exists():
+            if sid in ACCOUNTING_BOUNDARY_STEPS and accounting.path.exists():
                 records = None
                 if evidence_path:
                     evidence_payload = _load_json_object(evidence_path) or {}
@@ -968,7 +992,6 @@ class Orchestrator:
                     accounting.record_boundary(
                         sid,
                         records=records,
-                        default_status=BOUNDARY_DEFAULT_STATUS[sid],
                     )
                 except EventAccountingError as exc:
                     step_status = PipelineReadinessStatus.BLOCK
@@ -1002,11 +1025,43 @@ class Orchestrator:
                 if blocked_reason and blocked_reason.startswith("COMMAND_REQUEST")
                 else (step_status.value if hasattr(step_status, "value") else str(step_status))
             )
+            wo_sha = ""
+            predecessor_hashes = {}
+            if work_order_path and Path(work_order_path).is_file():
+                try:
+                    wo_bytes = Path(work_order_path).read_bytes()
+                    wo_sha = hashlib.sha256(wo_bytes).hexdigest()
+                    wo_data = json.loads(wo_bytes)
+                    for ref in wo_data.get("input_refs", []):
+                        ref_step_id = ref.get("step_id")
+                        ref_sha = ref.get("sha256")
+                        if ref_step_id and ref_sha:
+                            predecessor_hashes[f"predecessor_{ref_step_id}_sha256"] = ref_sha
+                except Exception:
+                    pass
+
+            ledger_input_hashes = {
+                "manifest": self._manifest_sha,
+                **predecessor_hashes
+            }
+
+            cmd_req_identity = {
+                "wrapper": step.wrapper,
+                "execution_mode": step.execution_mode,
+                "runtime_mode": self.runtime_mode.value,
+                "cwd": os.getcwd(),
+                "timeout": 900.0,
+                "expected_exit_code": 0,
+                "postconditions": ["SCRIPT_EVIDENCE_PASS"],
+                "work_order_sha256": wo_sha,
+                "argv": sys.argv,
+            }
+
             self._resume_ledger.append(
                 step_id=sid,
                 status=ledger_status,
-                command_request={"wrapper": step.wrapper, "execution_mode": step.execution_mode},
-                input_hashes={"manifest": self._manifest_sha},
+                command_request=cmd_req_identity,
+                input_hashes=ledger_input_hashes,
                 output_hashes=output_hashes,
             )
             self._run_lock.heartbeat()

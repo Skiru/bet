@@ -61,26 +61,50 @@ def frontmatter(path: Path) -> tuple[dict, str]:
 
 
 def git_changed_files() -> list[str]:
-    base = subprocess.run(
-        ["git", "merge-base", "main", "HEAD"],
-        cwd=ROOT,
-        check=True,
-        capture_output=True,
-        text=True,
-    ).stdout.strip()
-    committed = subprocess.run(
-        [
-            "git",
-            "diff",
-            "--name-only",
-            "--diff-filter=ACMRTUXB",
-            f"{base}..HEAD",
-        ],
-        cwd=ROOT,
-        check=True,
-        capture_output=True,
-        text=True,
-    ).stdout.splitlines()
+    # Exported source snapshots and release tarballs legitimately have no
+    # local ``main`` ref.  Validation must remain deterministic in that
+    # topology instead of crashing before it can inspect the control plane.
+    committed: list[str] = []
+    configured_base = os.environ.get("POWER_AGENT_VALIDATION_BASE_REF")
+    base_candidates = tuple(
+        candidate
+        for candidate in (configured_base, "main", "origin/main")
+        if candidate
+    )
+    for candidate in base_candidates:
+        resolved = subprocess.run(
+            ["git", "rev-parse", "--verify", f"{candidate}^{{commit}}"],
+            cwd=ROOT,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        if resolved.returncode != 0:
+            continue
+        merge_base = subprocess.run(
+            ["git", "merge-base", candidate, "HEAD"],
+            cwd=ROOT,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        if merge_base.returncode != 0:
+            continue
+        base = merge_base.stdout.strip()
+        committed = subprocess.run(
+            [
+                "git",
+                "diff",
+                "--name-only",
+                "--diff-filter=ACMRTUXB",
+                f"{base}..HEAD",
+            ],
+            cwd=ROOT,
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.splitlines()
+        break
     working: list[str] = []
     if not os.environ.get("POWER_AGENT_VALIDATION_SKIP_WORKTREE_REPORTS"):
         working = subprocess.run(
@@ -90,7 +114,16 @@ def git_changed_files() -> list[str]:
             capture_output=True,
             text=True,
         ).stdout.splitlines()
-    return sorted(set(committed + working))
+    # This direct tracked-file check covers the single-commit snapshot case,
+    # where there is no meaningful base against which to calculate a patch.
+    tracked_reports = subprocess.run(
+        ["git", "ls-files", "reports/pipeline_runs"],
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.splitlines()
+    return sorted(set(committed + working + tracked_reports))
 
 
 def contains_value(value: object, needle: str) -> bool:

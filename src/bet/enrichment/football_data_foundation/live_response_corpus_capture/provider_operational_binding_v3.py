@@ -96,7 +96,7 @@ def run_provider_operational_binding_capture_v3(
     project_root = find_project_root()
     load_project_dotenv(project_root)
 
-    timestamp = datetime.datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.datetime.now(datetime.UTC).strftime("%Y%m%d_%H%M%S")
     run_id = f"run_v3_{timestamp}"
 
     corpus_run_dir = corpus_root / run_id
@@ -373,7 +373,7 @@ def run_provider_operational_binding_capture_v3(
     # Manifest & README
     manifest_data = {
         "run_id": run_id,
-        "timestamp": datetime.datetime.utcnow().isoformat() + "Z",
+        "timestamp": datetime.datetime.now(datetime.UTC).isoformat().replace("+00:00", "Z"),
         "sportdb_verdict": sportdb_verdict,
         "highlightly_verdict": highlightly_verdict,
         "sportdb_event_id_found": sdb_event_id_found,
@@ -382,7 +382,7 @@ def run_provider_operational_binding_capture_v3(
     write_json(corpus_run_dir / "manifest.json", manifest_data)
 
     readme_content = f"""# Operational Capture Run: {run_id}
-- Date: {datetime.datetime.utcnow().isoformat()}Z
+- Date: {datetime.datetime.now(datetime.UTC).isoformat().replace("+00:00", "Z")}
 - SportDB Verdict: {sportdb_verdict}
 - Highlightly Verdict: {highlightly_verdict}
 """

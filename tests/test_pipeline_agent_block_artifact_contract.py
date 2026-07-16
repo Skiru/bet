@@ -11,7 +11,11 @@ from bet.pipeline.artifact_gate import artifact_path_for, evaluate_gate_before_s
 from bet.pipeline.integration_artifacts import write_script_evidence
 from bet.pipeline.orchestrator import Orchestrator
 from bet.pipeline.readiness_contracts import PipelineReadinessStatus
-from bet.pipeline.runtime_paths import build_runtime_env, resolve_run_root
+from bet.pipeline.runtime_paths import (
+    build_runtime_env,
+    is_system_temp_path,
+    resolve_run_root,
+)
 from bet.pipeline.run_evidence import write_json_atomic
 
 
@@ -219,8 +223,8 @@ def test_s5_work_order_uses_canonical_existing_input_refs(tmp_path):
         assert Path(refs[step_id].path).exists()
         assert refs[step_id].sha256
 
-    assert refs["S3"].path.endswith(f"/{BETTING_DAY}/{RUN_ID}/pipeline_runs/{BETTING_DAY}/{RUN_ID}/artifacts/S3.json")
-    assert refs["S4"].path.endswith(f"/{BETTING_DAY}/{RUN_ID}/pipeline_runs/{BETTING_DAY}/{RUN_ID}/artifacts/S4.json")
+    assert refs["S3"].path.endswith(f"/pipeline_runs/{BETTING_DAY}/{RUN_ID}/artifacts/S3.json")
+    assert refs["S4"].path.endswith(f"/pipeline_runs/{BETTING_DAY}/{RUN_ID}/artifacts/S4.json")
     assert refs["S2.9"].path.endswith(f"/pipeline_runs/{BETTING_DAY}/{RUN_ID}/artifacts/S2.9.json")
 
 
@@ -235,7 +239,7 @@ def test_live_shadow_canonical_paths_stay_under_tmp_and_avoid_production_dirs():
     )
 
     for ref in work_order.input_refs:
-        assert ref.path.startswith("/tmp/") or ref.path.startswith("/private/tmp/")
+        assert is_system_temp_path(ref.path)
         assert "reports/" not in ref.path
         assert "betting/data/" not in ref.path
         assert "betting/coupons/" not in ref.path

@@ -266,7 +266,7 @@ def test_s3_stats_gap_reports_join_failure_reason(monkeypatch):
         "meetings": [],
         "averages": {},
     })
-    monkeypatch.setattr(dsr, "build_safety_input", lambda sport, home, away, competition: {})
+    monkeypatch.setattr(dsr, "build_safety_input", lambda sport, home, away, competition, *args, **kwargs: {})
 
     result = dsr.analyze_candidate(
         "football",
@@ -983,7 +983,7 @@ def test_team_identity_fallback_false_positive_does_not_generate_probability(mon
         "meetings": [{"goals": 3}] * 3,
         "averages": {"goals": 3.0},
     })
-    monkeypatch.setattr(dsr, "build_safety_input", lambda sport, home, away, competition: {
+    monkeypatch.setattr(dsr, "build_safety_input", lambda sport, home, away, competition, *args, **kwargs: {
         "markets": [{
             "name": "Goals Total O/U",
             "line": 2.5,

@@ -25,7 +25,10 @@
     "src/bet/pipeline/analyzability_prefilter.py",
     "src/bet/pipeline/artifact_gate.py",
     "src/bet/pipeline/artifact_io.py",
+    "src/bet/pipeline/canonical_continuity.py",
+    "src/bet/pipeline/command_registry.py",
     "src/bet/pipeline/event_accounting.py",
+    "src/bet/pipeline/hard_approval_gate.py",
     "src/bet/pipeline/integration_artifacts.py",
     "src/bet/pipeline/live_fixture_audit.py",
     "src/bet/pipeline/live_session_universe.py",
@@ -119,6 +122,7 @@
     "config/football_metrics.yaml",
     "config/football_routing.yaml",
     "config/pipeline_manifest.json",
+    "config/portfolio_policy.json",
     "config/production_surface.json",
     "config/production_surface.schema.json",
     "config/provider_capability_matrix.json",
@@ -599,6 +603,7 @@
     "src/bet/tipsters/zawodtyper.py"
   ],
   "validators": [
+    "scripts/certify_pipeline_final_closure.py",
     "scripts/validate_database_access.py",
     "scripts/validate_manifest_power_agents.py",
     "scripts/validate_power_agent_control_plane.py",
@@ -606,6 +611,7 @@
     "scripts/validate_provider_registry.py",
     "scripts/validate_reachability_graph.py",
     "scripts/validate_recovery_baseline.py"
+    ,"scripts/validate_run_evidence_chain.py"
   ],
   "tests": [
     "tests/__init__.py",
@@ -844,6 +850,7 @@
     "tests/test_pipeline_artifact_gate.py",
     "tests/test_pipeline_bet_action_path_sandbox_certification.py",
     "tests/test_pipeline_candidates.py",
+    "tests/test_pipeline_certifier.py",
     "tests/test_pipeline_core_integrations.py",
     "tests/test_pipeline_hardening_contracts.py",
     "tests/test_pipeline_integration.py",
@@ -885,6 +892,7 @@
     "tests/test_pipeline_wrapper_compile.py",
     "tests/test_pipeline_wrapper_contract_matrix.py",
     "tests/test_pipeline_wrapper_runtime_certification.py",
+    "tests/test_canonical_continuity_reference.py",
     "tests/test_power_agent_runtime_contracts.py",
     "tests/test_pricing_tier_classification.py",
     "tests/test_production_surface.py",
@@ -967,6 +975,7 @@
     "certification/football/p2e_sportdb_value_replay_against_accepted_provider_summary.json",
     "certification/football/p2e_sportdb_world_cup_shadow_scope_materialization_summary.json",
     "tests/fixtures/analyzability_prefilter_report.json",
+    "tests/fixtures/failed_run_20260714_pricing_degraded",
     "tests/fixtures/bet_artifact_write.ts",
     "tests/fixtures/enrichment/football_data_foundation/live_shadow_canary/fifa_match_centre_norway_senegal.html",
     "tests/fixtures/enrichment/football_data_foundation/live_shadow_canary/fifa_schedule_minimal.html",

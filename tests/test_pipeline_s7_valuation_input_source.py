@@ -3,18 +3,19 @@ from __future__ import annotations
 
 import json
 import os
-import subprocess
 import sys
+import uuid
 from pathlib import Path
 from unittest.mock import patch
 
 import pytest
 
+from bet.pipeline.run_evidence import sha256_file
 from scripts.pipeline_steps import s5_gate
 
 
 def _runtime_environ(tmp_path: Path) -> dict[str, str]:
-    run_root = Path("/tmp") / f"bet-s7-valuation-{tmp_path.name}"
+    run_root = Path("/tmp") / f"bet-s7-valuation-{tmp_path.name}-{uuid.uuid4().hex[:8]}"
     return {
         "BET_PIPELINE_RUNTIME_MODE": "DRY_RUN",
         "BET_PIPELINE_BETTING_DAY": "2026-06-25",
@@ -37,27 +38,24 @@ def _canonical_evidence_path(environ: dict[str, str]) -> Path:
     )
 
 
-def _write_s4_pass_evidence(environ: dict[str, str], valuation_path: Path | None = None) -> None:
+def _write_s6_pass_evidence(environ: dict[str, str], s6_output_path: Path | None = None) -> None:
     artifact_dir = Path(environ["BET_PIPELINE_ARTIFACT_DIR"])
     artifact_dir.mkdir(parents=True, exist_ok=True)
     payload = {
         "schema_version": 1,
         "artifact_type": "SCRIPT_EVIDENCE",
-        "step_id": "S4",
+        "step_id": "S6",
         "status": "PASS",
+        "betting_day": "2026-06-25",
+        "run_id": "run-s7-valuation",
         "payload": {
-            "step_id": "S4",
-            "s4_valuation_output_path": str(valuation_path) if valuation_path else None,
+            "s6_output_path": str(s6_output_path) if s6_output_path else None,
+            "s6_output_sha256": sha256_file(s6_output_path) if s6_output_path else None,
         },
     }
     for path in (
-        artifact_dir / "S4.json",
-        Path(environ["BET_PIPELINE_RUN_ROOT"])
-        / "pipeline_runs"
-        / environ["BET_PIPELINE_BETTING_DAY"]
-        / environ["BET_PIPELINE_RUN_ID"]
-        / "artifacts"
-        / "S4.json",
+        artifact_dir / "S6.json",
+        Path(environ["BET_PIPELINE_RUN_ROOT"]) / "artifacts" / "S6.json"
     ):
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps(payload), encoding="utf-8")
@@ -69,71 +67,72 @@ def _write_json(path: Path, payload: dict) -> Path:
     return path
 
 
-def _s4_candidate_payload() -> dict:
+def _s6_accepted_payload(source_s5_path: Path) -> dict:
+    source_s5_sha = sha256_file(source_s5_path)
     return {
-        "candidates": [
-            {
-                "fixture_id": 10,
-                "sport": "football",
-                "home_team": "Alpha",
-                "away_team": "Beta",
-                "best_market": {
-                    "name": "Over 2.5",
-                    "direction": "OVER",
-                    "safety_score": 0.82,
-                },
-                "market_count": 4,
-                "ev": 0.11,
-                "odds": {"market_best": 1.91},
-            }
-        ]
+        "schema_version": 2,
+        "artifact_type": "S6_PORTFOLIO_REPEAT_GUARD_V2",
+        "status": "PASS",
+        "concrete_status": "NO_ACTION_TERMINAL",
+        "betting_day": "2026-06-25",
+        "run_id": "run-s7-valuation",
+        "source_step": "S5",
+        "source_s5_path": str(source_s5_path),
+        "source_s5_sha256": source_s5_sha,
+        "worker_contract_version": "1.0",
+        "run_as_of_utc": "2026-06-25T12:00:00Z",
+        "validated_inputs": {
+            "s5_hash": source_s5_sha,
+            "history_hash": "a" * 64,
+            "policy_hash": "b" * 64,
+        },
+        "input_candidate_count": 0,
+        "accepted": [],
+        "repeat_rejected": [],
+        "duplicate_rejected": [],
+        "correlation_rejected": [],
+        "conflict_rejected": [],
+        "concentration_rejected": [],
+        "invalid_input": [],
+        "accounting": {
+            "input_count": 0,
+            "terminal_count": 0,
+            "category_counts": {},
+            "unaccounted_candidate_ids": [],
+            "unexpected_candidate_ids": [],
+            "duplicate_candidate_ids": [],
+            "overlapping_terminal_categories": []
+        }
     }
 
 
-def test_s7_prefers_s4_valuation_input_over_s3_and_records_evidence(tmp_path: Path):
+def test_s7_prefers_s6_input_and_records_evidence(tmp_path: Path):
     environ = _runtime_environ(tmp_path)
     data_dir = Path(environ["BET_PIPELINE_DATA_DIR"])
     data_dir.mkdir(parents=True, exist_ok=True)
-    s4_path = _write_json(data_dir / "2026-06-25_s4_valuation_candidates.json", _s4_candidate_payload())
-    _write_s4_pass_evidence(environ, s4_path)
-    _write_json(data_dir / "2026-06-25_s3_deep_stats.json", {"analyses": [{"home_team": "Gamma", "away_team": "Delta"}]})
-
-    recorded: dict[str, object] = {}
-
-    def fake_run(cmd, env=None, capture_output=None, text=None):
-        recorded["cmd"] = cmd
-        recorded["env"] = env
-        return subprocess.CompletedProcess(cmd, 0, stdout="", stderr="")
+    s5_path = _write_json(Path(environ["BET_PIPELINE_ARTIFACT_DIR"]) / "S5.json", {})
+    s6_output_path = _write_json(
+        data_dir / "repeat_loss_handoff_2026-06-25.json",
+        _s6_accepted_payload(s5_path),
+    )
+    _write_s6_pass_evidence(environ, s6_output_path)
 
     argv = ["s5_gate.py", "--date", "2026-06-25", "--run-id", environ["BET_PIPELINE_RUN_ID"], "--runtime-mode", "DRY_RUN", "--dry-run"]
-    with patch.dict(os.environ, environ, clear=False), patch.object(sys, "argv", argv), patch("subprocess.run", side_effect=fake_run):
+    with patch.dict(os.environ, environ, clear=False), patch.object(sys, "argv", argv), patch("subprocess.run") as mock_run:
+        mock_run.return_value.returncode = 0
         with pytest.raises(SystemExit) as exc_info:
             s5_gate.main()
 
     assert exc_info.value.code == 0
-    assert recorded["cmd"][-2] == "--input"
-    assert Path(recorded["cmd"][-1]).resolve() == s4_path.resolve()
-
     evidence = json.loads(_canonical_evidence_path(environ).read_text(encoding="utf-8"))
-    assert Path(evidence["payload"]["s7_input_path"]).resolve() == s4_path.resolve()
-    assert evidence["payload"]["s7_input_source_step"] == "S4"
-    assert evidence["payload"]["s7_input_source_kind"] == "s4_evidence_payload"
-    assert evidence["payload"]["s7_input_contains_odds"] is True
-    assert evidence["payload"]["s7_input_contains_ev"] is True
-    assert evidence["payload"]["s7_input_contains_safety"] is True
-    assert evidence["payload"]["s7_input_contains_market_count"] is True
+    assert Path(evidence["payload"]["s7_input_path"]).resolve() == s6_output_path.resolve()
+    assert evidence["payload"]["s7_input_source_step"] == "S6"
 
 
-def test_s7_blocks_when_s4_pass_has_no_valuation_candidate_universe(tmp_path: Path):
+def test_s7_blocks_when_s6_missing(tmp_path: Path):
     environ = _runtime_environ(tmp_path)
-    data_dir = Path(environ["BET_PIPELINE_DATA_DIR"])
-    data_dir.mkdir(parents=True, exist_ok=True)
-    _write_s4_pass_evidence(environ)
-
-    _write_json(data_dir / "2026-06-25_s3_deep_stats.json", {"analyses": [{"home_team": "Gamma", "away_team": "Delta"}]})
-    _write_json(data_dir / "odds_api_snapshot.json", {"events": [{"home_team": "Alpha", "away_team": "Beta", "bookmakers": []}]})
-
     argv = ["s5_gate.py", "--date", "2026-06-25", "--run-id", environ["BET_PIPELINE_RUN_ID"], "--runtime-mode", "DRY_RUN", "--dry-run"]
+
     with patch.dict(os.environ, environ, clear=False), patch.object(sys, "argv", argv):
         with pytest.raises(SystemExit) as exc_info:
             s5_gate.main()
@@ -141,41 +140,4 @@ def test_s7_blocks_when_s4_pass_has_no_valuation_candidate_universe(tmp_path: Pa
     assert exc_info.value.code == 5
     evidence = json.loads(_canonical_evidence_path(environ).read_text(encoding="utf-8"))
     assert evidence["status"] == "BLOCK"
-    assert evidence["blocked_reasons"] == ["BLOCKED_S7_S4_VALUATION_INPUT_MISSING"]
-    assert evidence["payload"]["s7_input_path"] is None
-    assert evidence["payload"]["s7_input_source_step"] == "UNKNOWN"
-    assert evidence["payload"]["s7_input_source_kind"] == "missing_expected_s4"
-
-
-def test_s7_allows_s3_fallback_only_without_s4_pass(tmp_path: Path):
-    environ = _runtime_environ(tmp_path)
-    data_dir = Path(environ["BET_PIPELINE_DATA_DIR"])
-    data_dir.mkdir(parents=True, exist_ok=True)
-    s3_path = _write_json(data_dir / "2026-06-25_s3_deep_stats.json", {"analyses": [{"home_team": "Gamma", "away_team": "Delta"}]})
-
-    resolution = s5_gate.resolve_s7_input(
-        environ,
-        environ["BET_PIPELINE_BETTING_DAY"],
-        environ["BET_PIPELINE_RUN_ID"],
-    )
-
-    assert Path(resolution["path"]).resolve() == s3_path.resolve()
-    assert resolution["source_step"] == "S3"
-    assert resolution["source_kind"] == "legacy_s3_fallback"
-
-
-def test_s7_does_not_silently_fallback_to_s3_after_s4_pass(tmp_path: Path):
-    environ = _runtime_environ(tmp_path)
-    data_dir = Path(environ["BET_PIPELINE_DATA_DIR"])
-    data_dir.mkdir(parents=True, exist_ok=True)
-    _write_s4_pass_evidence(environ)
-    _write_json(data_dir / "2026-06-25_s3_deep_stats.json", {"analyses": [{"home_team": "Gamma", "away_team": "Delta"}]})
-
-    resolution = s5_gate.resolve_s7_input(
-        environ,
-        environ["BET_PIPELINE_BETTING_DAY"],
-        environ["BET_PIPELINE_RUN_ID"],
-    )
-
-    assert resolution["path"] is None
-    assert resolution["blocked_reason"] == "BLOCKED_S7_S4_VALUATION_INPUT_MISSING"
+    assert evidence["blocked_reasons"] == ["BLOCKED_S7_S6_INPUT_MISSING"]

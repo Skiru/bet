@@ -1,9 +1,12 @@
 import importlib.util
 import json
+import shutil
 import sqlite3
 import subprocess
 import sys
 from pathlib import Path
+
+import pytest
 
 from bet.tipsters.contracts import ExtractionResult, ExtractorVerdict
 from bet.tipsters.extractors import dispatch_extract, make_raw
@@ -180,6 +183,7 @@ def test_review_gate_accepts_explicit_cookie_policy_fields():
     assert reason == "review_allows_live_dry_run"
 
 
+@pytest.mark.skipif(shutil.which("fish") is None, reason="fish shell is not installed")
 def test_tipster_live_summary_supports_db_alias(tmp_path):
     payload = {
         "schema_version": "tipster_consensus_v2.3",

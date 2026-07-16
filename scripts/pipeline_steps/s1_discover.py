@@ -7,7 +7,6 @@ import argparse
 import io
 import os
 import re
-import subprocess
 import sys
 import tempfile
 from contextlib import redirect_stdout
@@ -21,6 +20,7 @@ except Exception:
     from scripts.pipeline_steps._runner import _init_temp_db, resolve_child_runtime_env, run_scripts
 
 from bet.pipeline.integration_artifacts import write_script_evidence
+from bet.pipeline.run_coordination import redact_sensitive_text, run_bounded_process
 
 import json
 
@@ -105,12 +105,6 @@ def _replay_output(output: str) -> None:
             sys.stdout.write("\n")
 
 
-def _certification_declared_runner_contract() -> None:
-    """Static declaration for wrapper certification target discovery."""
-    if False:  # pragma: no cover - parsed statically by certification only
-        run_scripts(SCRIPTS, continue_on_codes=[0, 1])
-
-
 def _run_s1_scripts(
     *,
     date: str | None,
@@ -138,9 +132,12 @@ def _run_s1_scripts(
 
     temp_db_path: str | None = None
     try:
-        if dry_run and not allow_write:
-            fd, temp_db_path = tempfile.mkstemp(suffix=".db", prefix="bet_dryrun_")
-            os.close(fd)
+        if not allow_write:
+            run_root_dir = Path(env["BET_PIPELINE_RUN_ROOT"])
+            db_dir = run_root_dir / "data"
+            db_dir.mkdir(parents=True, exist_ok=True)
+            import uuid
+            temp_db_path = str(db_dir / f"bet_dryrun_{uuid.uuid4().hex}.db")
             _init_temp_db(temp_db_path)
             env["DATABASE_URL"] = f"sqlite:///{temp_db_path}"
             env["DRY_RUN"] = "1"
@@ -246,23 +243,25 @@ def _run_s1_scripts(
                 run_metrics["shortlist_started"] = True
 
             print("Running:", " ".join(cmd))
-            res = subprocess.run(cmd, env=env, capture_output=True, text=True)
-            if res.stdout:
-                print(res.stdout, end="" if res.stdout.endswith("\n") else "\n")
-            if res.stderr:
-                print(res.stderr, end="" if res.stderr.endswith("\n") else "\n")
+            res = run_bounded_process(cmd, env=env, cwd=ROOT, timeout_seconds=900.0)
+            stdout = redact_sensitive_text(res.stdout, env)
+            stderr = redact_sensitive_text(res.stderr, env)
+            if stdout:
+                print(stdout, end="" if stdout.endswith("\n") else "\n")
+            if stderr:
+                print(stderr, end="" if stderr.endswith("\n") else "\n")
             
             # Record individual return codes
             if script_name == "discover_events.py":
                 run_metrics["discovery_rc"] = res.returncode
                 
                 # Check for database migration errors or other crashes
-                combined_output = (res.stdout or "") + "\n" + (res.stderr or "")
+                combined_output = stdout + "\n" + stderr
                 if "no such column: logical_identity" in combined_output or "Migration preflight failed" in combined_output or "sqlite3" in combined_output:
                     run_metrics["db_schema_verdict"] = "FAIL"
                 
                 # Parse AGENT_SUMMARY
-                summary_match = re.search(r"AGENT_SUMMARY:(.*)", res.stdout or "")
+                summary_match = re.search(r"AGENT_SUMMARY:(.*)", stdout)
                 if summary_match:
                     try:
                         summary_data = json.loads(summary_match.group(1).strip())

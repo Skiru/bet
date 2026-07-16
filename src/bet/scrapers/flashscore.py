@@ -364,9 +364,6 @@ class FlashscoreScraper(BaseScraper):
             max_teams: If >0, limit to this many teams (for testing).
             team_list: If provided, use these team names instead of DB lookup.
         """
-        if c_requests is None:
-            raise ScraperError("curl_cffi is required for Flashscore scraper")
-
         try:
             with self._get_session() as session:
                 sport_id = self._find_or_create_sport(session, self.sport)
@@ -426,6 +423,9 @@ class FlashscoreScraper(BaseScraper):
 
                 if max_teams > 0:
                     team_names = team_names[:max_teams]
+
+                if c_requests is None:
+                    raise ScraperError("curl_cffi is required for Flashscore scraper")
 
                 logger.info(
                     "[%s] Flashscore: %d teams to fetch (from %d source rows)",

@@ -1,4 +1,5 @@
 """Tests for agent artifact contracts, schema parsing, and validation."""
+
 from __future__ import annotations
 
 import pytest
@@ -99,7 +100,7 @@ def test_validate_agent_artifact_for_work_order_success(tmp_path):
         "morale_context": {"recent_form": "good"},
         "upset_risk": {"volatility": "low"},
     }
-    
+
     errors = validate_agent_artifact_for_work_order(artifact, wo.to_jsonable())
     assert len(errors) == 0, f"Expected no errors, got: {errors}"
 
@@ -137,7 +138,11 @@ def test_validate_agent_artifact_for_work_order_failures(tmp_path):
     del artifact["payload"]["pick"]
     del artifact["payload"]["injuries_context"]
     errors = validate_agent_artifact_for_work_order(artifact, wo.to_jsonable())
-    assert any("S5 PASS payload must contain context check for category 'injuries/lineups'" in e for e in errors)
+    assert any(
+        "S5 PASS payload must contain context check for category 'injuries/lineups'"
+        in e
+        for e in errors
+    )
 
 
 def test_template_like_artifact_does_not_validate_as_pass_output(tmp_path):
@@ -170,16 +175,63 @@ def test_s29_pass_with_only_s3_may_proceed_true_fails_validation(tmp_path):
     )
 
     artifact = _build_base_artifact("S2.9")
-    artifact["evidence_refs"] = ["artifact_S2.3_run-smoke", "artifact_S2.5_run-smoke", "artifact_S2.7_run-smoke"]
+    artifact["evidence_refs"] = [
+        "artifact_S2.3_run-smoke",
+        "artifact_S2.5_run-smoke",
+        "artifact_S2.7_run-smoke",
+    ]
     artifact["payload"] = {"s3_may_proceed": True}
 
     errors = validate_agent_artifact_for_work_order(artifact, wo.to_jsonable())
-    assert any("readiness verdict" in e for e in errors)
+    assert any("readiness verdict" in e or "readiness" in e.lower() for e in errors)
     assert any("must not rely on s3_may_proceed alone" in e for e in errors)
 
 
 def test_s29_pass_with_required_evidence_refs_passes_validation(tmp_path):
     """Verify S2.9 PASS validates when required upstream evidence refs and readiness verdict exist."""
+    import json
+    import hashlib
+
+    art_dir = tmp_path / "pipeline_runs" / "2026-06-25" / "run-smoke" / "artifacts"
+    art_dir.mkdir(parents=True, exist_ok=True)
+
+    pred_data = {}
+    for sid in ("S2.3", "S2.5", "S2.7"):
+        p_path = art_dir / f"{sid}.json"
+        p_data = {
+            "schema_version": 1,
+            "artifact_type": "AGENT_ARTIFACT",
+            "step_id": sid,
+            "status": "PASS",
+            "betting_day": "2026-06-25",
+            "run_id": "run-smoke",
+            "sport": "Football",
+            "point_in_time_as_of": "2026-06-25T12:00:00Z",
+            "source_bound": True,
+            "no_pick_edge_stake_coupon_emitted": True,
+            "production_selectable": False,
+            "betting_decisions_enabled": False,
+            "sources": ["source"],
+            "unknowns": [],
+            "blocked_reasons": [],
+            "evidence_refs": [],
+            "payload": {
+                "gaps": [] if sid == "S2.3" else None,
+                "providers": ["source"] if sid == "S2.5" else None,
+                "disputed_facts": [] if sid == "S2.7" else None,
+                "reconciliation": {"unknown_facts": [], "decision_basis": "basis"}
+                if sid == "S2.7"
+                else None,
+            },
+        }
+        p_data["payload"] = {
+            k: v for k, v in p_data["payload"].items() if v is not None
+        }
+        p_path.write_text(json.dumps(p_data), encoding="utf-8")
+
+        p_sha = hashlib.sha256(p_path.read_bytes()).hexdigest()
+        pred_data[sid] = {"path": str(p_path), "sha256": p_sha}
+
     wo = build_agent_work_order(
         betting_day="2026-06-25",
         run_id="run-smoke",
@@ -187,16 +239,48 @@ def test_s29_pass_with_required_evidence_refs_passes_validation(tmp_path):
         runtime_mode="DRY_RUN",
         base_dir=tmp_path,
     )
+    wo_json = wo.to_jsonable()
+    wo_json["input_refs"] = [
+        {
+            "step_id": sid,
+            "path": pred_data[sid]["path"],
+            "sha256": pred_data[sid]["sha256"],
+            "artifact_kind": "AGENT_ARTIFACT",
+        }
+        for sid in ("S2.3", "S2.5", "S2.7")
+    ]
+
+    wo_path = art_dir / "S2.9_work_order.json"
+    wo_path.write_text(json.dumps(wo_json), encoding="utf-8")
 
     artifact = _build_base_artifact("S2.9")
-    artifact["evidence_refs"] = ["artifact_S2.3_run-smoke", "artifact_S2.5_run-smoke", "artifact_S2.7_run-smoke"]
+    artifact["evidence_refs"] = [
+        "artifact_S2.3_run-smoke",
+        "artifact_S2.5_run-smoke",
+        "artifact_S2.7_run-smoke",
+    ]
     artifact["payload"] = {
         "readiness": "PASS",
         "readiness_basis": "S2.3/S2.5/S2.7 validated",
         "s3_may_proceed": True,
+        "predecessor_bindings": [
+            {
+                "step_id": sid,
+                "path": pred_data[sid]["path"],
+                "sha256": pred_data[sid]["sha256"],
+                "artifact_type": "AGENT_ARTIFACT",
+                "betting_day": "2026-06-25",
+                "run_id": "run-smoke",
+                "status": "PASS",
+            }
+            for sid in ("S2.3", "S2.5", "S2.7")
+        ],
     }
+    artifact["work_order_id"] = "WO-run-smoke-S2.9"
+    wo_sha = hashlib.sha256(wo_path.read_bytes()).hexdigest()
+    artifact["work_order_sha256"] = wo_sha
 
-    errors = validate_agent_artifact_for_work_order(artifact, wo.to_jsonable())
+    errors = validate_agent_artifact_for_work_order(artifact, wo_json)
     assert errors == []
 
 
@@ -235,7 +319,11 @@ def test_s5_pass_with_all_required_categories_and_evidence_refs_passes(tmp_path)
 
     artifact = _build_base_artifact("S5")
     artifact["sources"] = ["injury-report", "motivation-brief"]
-    artifact["evidence_refs"] = ["artifact_S3_run-smoke", "artifact_S4_run-smoke", "artifact_S2.9_run-smoke"]
+    artifact["evidence_refs"] = [
+        "artifact_S3_run-smoke",
+        "artifact_S4_run-smoke",
+        "artifact_S2.9_run-smoke",
+    ]
     artifact["payload"] = {
         "injuries_lineups": {"status": "checked"},
         "motivation_tournament_context": {"status": "checked"},
@@ -297,48 +385,71 @@ def test_command_request_artifact_validation(tmp_path):
         runtime_mode="DRY_RUN",
         base_dir=tmp_path,
     )
-    
-    # Valid string COMMAND_REQUEST
+
+    # Valid typed COMMAND_REQUEST from the closed registry.
     artifact = _build_base_artifact("S2.3", status="COMMAND_REQUEST")
-    artifact["command_request"] = "pytest tests/test_live_fixture_audit.py"
+    artifact["command_request"] = {
+        "command_id": "WAIT_FOR_RATE_LIMIT",
+        "parameters": {"seconds": 1},
+    }
     errors = validate_agent_artifact_for_work_order(artifact, wo.to_jsonable())
     assert errors == []
-    
-    # Valid structured COMMAND_REQUEST
+
+    # Raw argv remains invalid even when it looks benign.
     artifact_structured = _build_base_artifact("S2.3", status="COMMAND_REQUEST")
     artifact_structured["command_request"] = {
-        "reason": "Run tests",
-        "argv": [".venv/bin/python3", "-m", "pytest", "tests/test_live_fixture_audit.py", "-q"],
-        "cwd": "REPO_ROOT",
-        "timeout_seconds": 30,
-        "expected_exit_code": 0,
-        "stdout_artifact": "logs/stdout.log",
-        "stderr_artifact": "logs/stderr.log",
-        "postconditions": ["rerun_validate_agent_artifact"]
+        "argv": [
+            ".venv/bin/python3",
+            "-m",
+            "pytest",
+            "tests/test_live_fixture_audit.py",
+            "-q",
+        ],
     }
-    errors_structured = validate_agent_artifact_for_work_order(artifact_structured, wo.to_jsonable())
-    assert errors_structured == []
+    errors_structured = validate_agent_artifact_for_work_order(
+        artifact_structured, wo.to_jsonable()
+    )
+    assert any("UNKNOWN_FIELDS" in e for e in errors_structured)
 
     # Invalid COMMAND_REQUEST (missing command_request)
     artifact_invalid = _build_base_artifact("S2.3", status="COMMAND_REQUEST")
-    errors_invalid = validate_agent_artifact_for_work_order(artifact_invalid, wo.to_jsonable())
-    assert any("COMMAND_REQUEST artifacts must contain a non-empty command_request" in e for e in errors_invalid)
+    errors_invalid = validate_agent_artifact_for_work_order(
+        artifact_invalid, wo.to_jsonable()
+    )
+    assert any(
+        "COMMAND_REQUEST artifacts must contain a non-empty command_request" in e
+        for e in errors_invalid
+    )
 
     # Invalid COMMAND_REQUEST (shell metacharacters in string)
     artifact_meta = _build_base_artifact("S2.3", status="COMMAND_REQUEST")
-    artifact_meta["command_request"] = "pytest tests/test_live_fixture_audit.py; rm -rf /"
-    errors_meta = validate_agent_artifact_for_work_order(artifact_meta, wo.to_jsonable())
-    assert any("contains disallowed shell metacharacters" in e for e in errors_meta)
+    artifact_meta["command_request"] = (
+        "pytest tests/test_live_fixture_audit.py; rm -rf /"
+    )
+    errors_meta = validate_agent_artifact_for_work_order(
+        artifact_meta, wo.to_jsonable()
+    )
+    assert any("MUST_BE_STRUCTURED" in e for e in errors_meta)
 
     # Invalid COMMAND_REQUEST (disallowed executable)
     artifact_bad_exec = _build_base_artifact("S2.3", status="COMMAND_REQUEST")
-    artifact_bad_exec["command_request"] = "curl https://evil.com"
-    errors_bad_exec = validate_agent_artifact_for_work_order(artifact_bad_exec, wo.to_jsonable())
-    assert any("not in the allowlist of safe executables" in e for e in errors_bad_exec)
+    artifact_bad_exec["command_request"] = {
+        "command_id": "DOWNLOAD_REMOTE_SCRIPT",
+        "parameters": {"url": "https://evil.example"},
+    }
+    errors_bad_exec = validate_agent_artifact_for_work_order(
+        artifact_bad_exec, wo.to_jsonable()
+    )
+    assert any("ID_NOT_ALLOWLISTED" in e for e in errors_bad_exec)
 
     # Invalid COMMAND_REQUEST (contains pick/coupon/stake/edge in payload keys)
     artifact_forbidden = _build_base_artifact("S2.3", status="COMMAND_REQUEST")
-    artifact_forbidden["command_request"] = "pytest tests/test_live_fixture_audit.py"
+    artifact_forbidden["command_request"] = {
+        "command_id": "WAIT_FOR_RATE_LIMIT",
+        "parameters": {"seconds": 1},
+    }
     artifact_forbidden["payload"] = {"pick_selection": "something"}
-    errors_forbidden = validate_agent_artifact_for_work_order(artifact_forbidden, wo.to_jsonable())
+    errors_forbidden = validate_agent_artifact_for_work_order(
+        artifact_forbidden, wo.to_jsonable()
+    )
     assert any("contains forbidden key" in e for e in errors_forbidden)

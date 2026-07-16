@@ -12,6 +12,7 @@ from unittest.mock import patch, MagicMock
 from bet.pipeline.orchestrator import Orchestrator
 from bet.pipeline.runtime_modes import RuntimeMode, LIVE_ACK_KEY, LIVE_ACK_VALUE
 from bet.pipeline.integration_artifacts import write_script_evidence, script_evidence_path
+from bet.pipeline.run_evidence import sha256_file
 from scripts.pipeline_steps import _runner, s4_valuator
 
 
@@ -173,7 +174,8 @@ def test_s4_wrapper_with_mocked_successful_target_scripts_writes_s4_pass_evidenc
     run_root = Path("/tmp") / f"bet-s4-pass-{tmp_path.name}"
     data_dir = run_root / "data"
     data_dir.mkdir(parents=True, exist_ok=True)
-    (data_dir / "2026-06-25_s3_deep_stats.json").write_text(json.dumps({"analyses": [{"fixture_id": 10, "home_team": "Alpha", "away_team": "Beta", "best_market": {"name": "Over 2.5", "safety_score": 0.82}, "markets_evaluated": 4}]}), encoding="utf-8")
+    s3_path = data_dir / "2026-06-25_s3_deep_stats.json"
+    s3_path.write_text(json.dumps({"analyses": [{"fixture_id": 10, "home_team": "Alpha", "away_team": "Beta", "best_market": {"name": "Over 2.5", "safety_score": 0.82}, "markets_evaluated": 4}]}), encoding="utf-8")
     
     environ = {
         "BET_PIPELINE_RUNTIME_MODE": "DRY_RUN",
@@ -184,18 +186,41 @@ def test_s4_wrapper_with_mocked_successful_target_scripts_writes_s4_pass_evidenc
         "BET_PIPELINE_COUPON_DIR": str(run_root / "coupons"),
         "BET_PIPELINE_ARTIFACT_DIR": str(run_root / "artifacts"),
     }
+    artifact_dir = Path(environ["BET_PIPELINE_ARTIFACT_DIR"])
+    artifact_dir.mkdir(parents=True, exist_ok=True)
+    (artifact_dir / "S3.json").write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "artifact_type": "SCRIPT_EVIDENCE",
+                "step_id": "S3",
+                "status": "PASS",
+                "betting_day": "2026-06-25",
+                "run_id": "run-999",
+                "payload": {
+                    "s3_output_path": str(s3_path),
+                    "s3_output_sha256": sha256_file(s3_path),
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
 
-    def fake_run(cmd, env=None, capture_output=None, text=None):
-        if len(cmd) > 1 and "odds_evaluator.py" in cmd[1]:
+    def fake_run_scripts(scripts, **_kwargs):
+        for invocation in scripts:
+            if getattr(invocation, "script", invocation) != "odds_evaluator.py":
+                continue
+            cmd = invocation.argv
             output_path = Path(cmd[cmd.index("--output") + 1])
             output_path.write_text(json.dumps({
-                "schema_version": 1,
-                "artifact_type": "S4_VALUATION_CANDIDATES",
+                "schema_version": 2,
+                "artifact_type": "S4_VALUATION_CANDIDATE_SET_V2",
                 "betting_day": "2026-06-25",
                 "run_id": "run-999",
                 "created_at_utc": "2026-06-25T00:00:00+00:00",
                 "runtime_mode": "DRY_RUN",
-                "source_input_path": cmd[cmd.index("--input") + 1],
+                "source_s3_path": cmd[cmd.index("--input") + 1],
+                "source_s3_sha256": sha256_file(Path(cmd[cmd.index("--input") + 1])),
                 "odds_snapshot_paths": [],
                 "candidate_count": 1,
                 "contains_odds": True,
@@ -207,12 +232,12 @@ def test_s4_wrapper_with_mocked_successful_target_scripts_writes_s4_pass_evidenc
                 "no_pick_edge_stake_coupon_emitted": True,
                 "candidates": [{"fixture_id": 10, "home_team": "Alpha", "away_team": "Beta", "best_market": {"name": "Over 2.5", "safety_score": 0.82}, "market_count": 4, "markets_evaluated": 4, "odds": {"market_best": 1.91}, "ev": 0.11, "safety_score": 0.82, "safety_markets": [], "valuation_warnings": [], "valuation_status": "VALUED"}],
             }), encoding="utf-8")
-        return subprocess.CompletedProcess(cmd, 0, stdout="", stderr="")
+        return 0
     
     with patch("argparse.ArgumentParser.parse_args") as mock_args, \
           pytest.raises(SystemExit) as exc_info, \
          patch.dict(os.environ, environ), \
-         patch("subprocess.run", side_effect=fake_run):
+         patch.object(s4_valuator, "run_scripts", side_effect=fake_run_scripts):
         
         mock_args.return_value = MagicMock(
             date="2026-06-25",
@@ -238,7 +263,8 @@ def test_s4_wrapper_with_missing_odds_snapshot_writes_s4_block_evidence(tmp_path
     run_root = Path("/tmp") / f"bet-s4-missing-{tmp_path.name}"
     data_dir = run_root / "data"
     data_dir.mkdir(parents=True, exist_ok=True)
-    (data_dir / "2026-06-25_s3_deep_stats.json").write_text(json.dumps({"analyses": [{"fixture_id": 10, "home_team": "Alpha", "away_team": "Beta"}]}), encoding="utf-8")
+    s3_path = data_dir / "2026-06-25_s3_deep_stats.json"
+    s3_path.write_text(json.dumps({"analyses": [{"fixture_id": 10, "home_team": "Alpha", "away_team": "Beta"}]}), encoding="utf-8")
     
     environ = {
         "BET_PIPELINE_RUNTIME_MODE": "DRY_RUN",
@@ -249,14 +275,33 @@ def test_s4_wrapper_with_missing_odds_snapshot_writes_s4_block_evidence(tmp_path
         "BET_PIPELINE_COUPON_DIR": str(run_root / "coupons"),
         "BET_PIPELINE_ARTIFACT_DIR": str(run_root / "artifacts"),
     }
+    artifact_dir = Path(environ["BET_PIPELINE_ARTIFACT_DIR"])
+    artifact_dir.mkdir(parents=True, exist_ok=True)
+    (artifact_dir / "S3.json").write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "artifact_type": "SCRIPT_EVIDENCE",
+                "step_id": "S3",
+                "status": "PASS",
+                "betting_day": "2026-06-25",
+                "run_id": "run-999",
+                "payload": {
+                    "s3_output_path": str(s3_path),
+                    "s3_output_sha256": sha256_file(s3_path),
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
 
-    def fake_run(cmd, env=None, capture_output=None, text=None):
-        return subprocess.CompletedProcess(cmd, 0, stdout="", stderr="")
+    def fake_run_scripts(_scripts, **_kwargs):
+        return 0
     
     with patch("argparse.ArgumentParser.parse_args") as mock_args, \
           pytest.raises(SystemExit) as exc_info, \
          patch.dict(os.environ, environ), \
-         patch("subprocess.run", side_effect=fake_run):
+         patch.object(s4_valuator, "run_scripts", side_effect=fake_run_scripts):
         
         mock_args.return_value = MagicMock(
             date="2026-06-25",
@@ -283,7 +328,8 @@ def test_s4_wrapper_with_target_failure_writes_s4_failed_evidence(tmp_path, clea
     run_root = Path("/tmp") / f"bet-s4-fail-{tmp_path.name}"
     data_dir = run_root / "data"
     data_dir.mkdir(parents=True, exist_ok=True)
-    (data_dir / "2026-06-25_s3_deep_stats.json").write_text(json.dumps({"analyses": [{"fixture_id": 10, "home_team": "Alpha", "away_team": "Beta"}]}), encoding="utf-8")
+    s3_path = data_dir / "2026-06-25_s3_deep_stats.json"
+    s3_path.write_text(json.dumps({"analyses": [{"fixture_id": 10, "home_team": "Alpha", "away_team": "Beta"}]}), encoding="utf-8")
     
     environ = {
         "BET_PIPELINE_RUNTIME_MODE": "DRY_RUN",
@@ -294,6 +340,25 @@ def test_s4_wrapper_with_target_failure_writes_s4_failed_evidence(tmp_path, clea
         "BET_PIPELINE_COUPON_DIR": str(run_root / "coupons"),
         "BET_PIPELINE_ARTIFACT_DIR": str(run_root / "artifacts"),
     }
+    artifact_dir = Path(environ["BET_PIPELINE_ARTIFACT_DIR"])
+    artifact_dir.mkdir(parents=True, exist_ok=True)
+    (artifact_dir / "S3.json").write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "artifact_type": "SCRIPT_EVIDENCE",
+                "step_id": "S3",
+                "status": "PASS",
+                "betting_day": "2026-06-25",
+                "run_id": "run-999",
+                "payload": {
+                    "s3_output_path": str(s3_path),
+                    "s3_output_sha256": sha256_file(s3_path),
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
     
     with patch("scripts.pipeline_steps.s4_valuator.run_scripts") as mock_run_scripts, \
          patch("argparse.ArgumentParser.parse_args") as mock_args, \

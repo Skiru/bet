@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "policy_version": "1.0",
+  "repeat_loss_lookback_hours": 48,
+  "duplicate_signal_enabled": true,
+  "same_event_conflict_enabled": true,
+  "correlation_group_limit_enabled": true,
+  "correlation_group_max_accepted": 3,
+  "concentration_enabled": true,
+  "per_event_limit": 2,
+  "per_team_limit": 2,
+  "per_competition_limit": 4,
+  "per_sport_limit": 8
+}

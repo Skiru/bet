@@ -310,7 +310,9 @@ def test_cli_e2e_scenarios(tmp_path):
 
 def test_cli_subprocess_execution(tmp_path):
     env = dict(os.environ)
-    env["PYTHONPATH"] = "src"
+    env["PYTHONPATH"] = os.pathsep.join(
+        value for value in ("src", env.get("PYTHONPATH")) if value
+    )
 
     res = subprocess.run(
         [sys.executable, "-m", "scripts.enrichment.football_history", "--help"],

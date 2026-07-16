@@ -579,6 +579,45 @@ def find_forbidden_decision_signals(payload: Any, path: str = "$") -> list[str]:
     return found
 
 
+def find_s5_forbidden_execution_signals(raw: dict[str, Any]) -> list[str]:
+    """Allow analytical selection/EV facts while blocking execution advice."""
+    payload = raw.get("payload")
+    if not isinstance(payload, dict):
+        return find_forbidden_decision_signals(raw)
+    candidate_keys = {"candidates", "rejected_candidates"}
+    scan_raw = dict(raw)
+    scan_raw["payload"] = {
+        key: value for key, value in payload.items() if key not in candidate_keys
+    }
+    found = find_forbidden_decision_signals(scan_raw)
+    execution_keys = {
+        "internal_pick",
+        "recommended_pick",
+        "stake",
+        "staking",
+        "stake_decimal",
+        "coupon",
+        "parlay",
+        "accumulator",
+        "betting_decision",
+        "executable_coupon",
+        "can_place_bet_now",
+    }
+    for category in candidate_keys:
+        records = payload.get(category, [])
+        if not isinstance(records, list):
+            continue
+        for index, record in enumerate(records):
+            if not isinstance(record, dict):
+                continue
+            for key in record:
+                if _normalize_key(str(key)) in execution_keys:
+                    found.append(
+                        f"$.payload.{category}[{index}].{key}: forbidden execution key '{key}'"
+                    )
+    return found
+
+
 def detect_secrets(node: Any, path: str = "$") -> list[str]:
     """Recursively check for forbidden secret/header keys without substring false positives."""
     found: list[str] = []
@@ -763,7 +802,11 @@ def validate_pipeline_artifact(
 
     # 7. Recursive forbidden signals & raw secrets
     payload = raw.get("payload", {})
-    signals = find_forbidden_decision_signals(raw)
+    signals = (
+        find_s5_forbidden_execution_signals(raw)
+        if expected_step_id == "S5"
+        else find_forbidden_decision_signals(raw)
+    )
     if signals:
         issues.append(
             ReadinessIssue(
@@ -888,6 +931,25 @@ def evaluate_gate_before_step(
         try:
             raw = load_artifact(path)
             artifact, issues = validate_pipeline_artifact(raw, req_step)
+            if req_step == "S2.9":
+                from bet.pipeline.agent_work_orders import work_order_path_for
+                from bet.pipeline.agent_artifact_contracts import validate_agent_artifact_for_work_order
+                wo_path = work_order_path_for(artifact_dir, betting_day, run_id, "S2.9")
+                if not wo_path.exists():
+                    failed_reqs.append(f"Missing S2.9 work order at {wo_path}")
+                    blocked.append(req_step)
+                else:
+                    try:
+                        with wo_path.open("r", encoding="utf-8") as f:
+                            wo_data = json.load(f)
+                        wo_errors = validate_agent_artifact_for_work_order(raw, wo_data)
+                        if wo_errors:
+                            for err in wo_errors:
+                                failed_reqs.append(f"S2.9 work order semantic validation failure: {err}")
+                            blocked.append(req_step)
+                    except Exception as exc:
+                        failed_reqs.append(f"Failed to load or validate S2.9 work order: {exc}")
+                        blocked.append(req_step)
             if req_step == "S9":
                 issues.extend(
                     validate_s9_human_gate_artifact_for_run(

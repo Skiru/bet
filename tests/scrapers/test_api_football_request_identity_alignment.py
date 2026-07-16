@@ -18,6 +18,12 @@ EVIDENCE_ROOT = REPO_ROOT / "betting" / "data" / "evidence"
 OLD_TEAM_BUNDLE = "b01f22fbb05326dc37de3230fe1accacd83c54586f3c2d17bdceb6fb76359e16"
 
 
+def _require_old_team_bundle() -> None:
+    path = EVIDENCE_ROOT / "bundles" / OLD_TEAM_BUNDLE[:2] / f"{OLD_TEAM_BUNDLE}.json"
+    if not path.is_file():
+        pytest.skip("supplied snapshot omits archived API-Football replay bundle")
+
+
 def _memory_db() -> sqlite3.Connection:
     conn = sqlite3.connect(":memory:")
     conn.row_factory = sqlite3.Row
@@ -85,6 +91,7 @@ def test_normalize_request_identity_sorts_query_params():
 
 
 def test_replay_transport_rejects_semantic_identity_mismatch():
+    _require_old_team_bundle()
     transport = build_replay_transport(OLD_TEAM_BUNDLE, EVIDENCE_ROOT)
 
     with pytest.raises(AssertionError, match="Unexpected replay request"):
@@ -100,6 +107,7 @@ def test_replay_transport_rejects_semantic_identity_mismatch():
 
 
 def test_replay_transport_accepts_query_order_variation():
+    _require_old_team_bundle()
     transport = build_replay_transport(OLD_TEAM_BUNDLE, EVIDENCE_ROOT)
 
     result = transport(

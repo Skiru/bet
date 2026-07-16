@@ -133,6 +133,7 @@ def main() -> None:
     s4_output_path = data_dir / f"{args.date}_s4_valuation_candidates.json" if args.date else data_dir / "s4_valuation_candidates.json"
 
     def _payload(fetch_rc: int, eval_rc: int | None = None, error: str | None = None, valuation_output: dict[str, Any] | None = None) -> dict[str, object]:
+        from bet.pipeline.run_evidence import sha256_file
         valuation_output = valuation_output or {}
         extra: dict[str, object] = {"fetch_odds_rc": fetch_rc}
         if eval_rc is not None:
@@ -142,7 +143,9 @@ def main() -> None:
         extra.update(
             {
                 "s4_input_path": str(s4_input_path) if s4_input_path else None,
+                "s4_input_sha256": sha256_file(s4_input_path) if s4_input_path and s4_input_path.is_file() else None,
                 "s4_valuation_output_path": str(s4_output_path),
+                "s4_valuation_output_sha256": sha256_file(s4_output_path) if s4_output_path.is_file() else None,
                 "s4_candidate_count": valuation_output.get("candidate_count"),
                 "s4_contains_odds": bool(valuation_output.get("contains_odds", False)),
                 "s4_contains_ev": bool(valuation_output.get("contains_ev", False)),
@@ -272,7 +275,19 @@ def main() -> None:
         )
         sys.exit(1)
 
-    if valuation_output.get("artifact_type") in ("S4_VALUATION_CANDIDATE_SET_V2", "S4_VALUATION_CANDIDATES"):
+    from bet.pipeline.run_evidence import sha256_file
+    from bet.pipeline.runtime_paths import paths_refer_to_same_location
+
+    if (
+        valuation_output.get("schema_version") == 2
+        and valuation_output.get("artifact_type") == "S4_VALUATION_CANDIDATE_SET_V2"
+        and valuation_output.get("betting_day") == args.date
+        and valuation_output.get("run_id") == args.run_id
+        and paths_refer_to_same_location(
+            valuation_output.get("source_s3_path", ""), s4_input_path
+        )
+        and valuation_output.get("source_s3_sha256") == sha256_file(s4_input_path)
+    ):
         _write(
             status="PASS",
             payload=_payload(rc_fetch, rc_eval, valuation_output=valuation_output),

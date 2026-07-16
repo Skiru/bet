@@ -77,3 +77,23 @@ def missing_provider_modules() -> list[str]:
         for registration in load_provider_registry().values()
         if importlib.util.find_spec(registration.module) is None
     )
+
+
+def load_and_validate_provider_policy(path: Path | None = None) -> dict[str, dict[str, Any]]:
+    if path is None:
+        path = Path(__file__).resolve().parents[2] / "config" / "provider_runtime_policy.json"
+        if not path.exists():
+            path = Path(__file__).resolve().parent / "config" / "provider_runtime_policy.json"
+
+    if not path.exists():
+        raise FileNotFoundError(f"Provider runtime policy config missing: {path}")
+
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except Exception as exc:
+        raise ValueError(f"PROVIDER_POLICY_JSON_INVALID: {exc}")
+
+    if data.get("schema_version") != 1 or not isinstance(data.get("provider_policies"), dict):
+        raise ValueError("PROVIDER_POLICY_SCHEMA_INVALID")
+
+    return data["provider_policies"]

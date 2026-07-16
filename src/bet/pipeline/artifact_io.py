@@ -70,8 +70,8 @@ def _confined_target(run_root: Path, target: Path) -> Path:
 def _validate_payload(
     payload: dict[str, Any], *, betting_day: str, run_id: str, artifact_type: str
 ) -> None:
-    if payload.get("schema_version") != 1:
-        raise ArtifactPublishError("ARTIFACT_SCHEMA_INVALID", "schema_version must equal 1")
+    if payload.get("schema_version") not in {1, 2}:
+        raise ArtifactPublishError("ARTIFACT_SCHEMA_INVALID", "schema_version must equal 1 or 2")
     if payload.get("betting_day") != betting_day:
         raise ArtifactPublishError("ARTIFACT_DAY_MISMATCH", str(payload.get("betting_day")))
     if payload.get("run_id") != run_id:
@@ -115,7 +115,21 @@ def publish_run_artifact(
             os.fsync(handle.fileno())
         decoded = json.loads(temporary.read_text(encoding="utf-8"))
         _validate_payload(decoded, betting_day=betting_day, run_id=run_id, artifact_type=artifact_type)
-        os.replace(temporary, target_path)
+        if immutable:
+            # link(2) is an atomic create-if-absent operation on the same
+            # filesystem.  Unlike an existence check followed by replace, it
+            # cannot overwrite a competing publisher's artifact.
+            try:
+                os.link(temporary, target_path)
+            except FileExistsError:
+                existing = target_path.read_bytes()
+                if existing != content:
+                    raise ArtifactPublishError("ARTIFACT_IMMUTABLE_CONFLICT", str(target_path))
+                return PublishedArtifact(target_path, expected_hash, len(content), True)
+            finally:
+                temporary.unlink(missing_ok=True)
+        else:
+            os.replace(temporary, target_path)
         directory_fd = os.open(target_path.parent, os.O_RDONLY)
         try:
             os.fsync(directory_fd)
@@ -130,3 +144,50 @@ def publish_run_artifact(
     if actual_hash != expected_hash:
         raise ArtifactPublishError("ARTIFACT_POST_PUBLISH_HASH_MISMATCH", str(target_path))
     return PublishedArtifact(target_path, actual_hash, len(published), False)
+
+
+def publish_immutable_json_blob(
+    *, run_root: Path, target: Path, payload: dict[str, Any]
+) -> PublishedArtifact:
+    """Exclusively publish a run-scoped JSON snapshot without stage metadata.
+
+    Frozen configuration/history inputs are not pipeline artifacts themselves,
+    but they require the same confinement and race guarantees.
+    """
+    resolved_root = _allowed_run_root(Path(run_root))
+    target_path = _confined_target(resolved_root, Path(target))
+    content = (json.dumps(payload, indent=2, ensure_ascii=False, sort_keys=True) + "\n").encode("utf-8")
+    expected_hash = _sha256_bytes(content)
+    target_path.parent.mkdir(parents=True, exist_ok=True)
+    target_path = _confined_target(resolved_root, target_path)
+    if target_path.exists():
+        existing = target_path.read_bytes()
+        if existing != content:
+            raise ArtifactPublishError("ARTIFACT_IMMUTABLE_CONFLICT", str(target_path))
+        return PublishedArtifact(target_path, expected_hash, len(content), True)
+    fd, temporary_name = tempfile.mkstemp(
+        prefix=f".{target_path.name}.", suffix=".tmp", dir=target_path.parent
+    )
+    temporary = Path(temporary_name)
+    try:
+        with os.fdopen(fd, "wb") as handle:
+            handle.write(content)
+            handle.flush()
+            os.fsync(handle.fileno())
+        try:
+            os.link(temporary, target_path)
+        except FileExistsError:
+            if target_path.read_bytes() != content:
+                raise ArtifactPublishError("ARTIFACT_IMMUTABLE_CONFLICT", str(target_path))
+            return PublishedArtifact(target_path, expected_hash, len(content), True)
+        finally:
+            temporary.unlink(missing_ok=True)
+        directory_fd = os.open(target_path.parent, os.O_RDONLY)
+        try:
+            os.fsync(directory_fd)
+        finally:
+            os.close(directory_fd)
+    except Exception:
+        temporary.unlink(missing_ok=True)
+        raise
+    return PublishedArtifact(target_path, expected_hash, len(content), False)

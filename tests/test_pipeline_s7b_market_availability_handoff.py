@@ -9,6 +9,8 @@ from unittest.mock import patch
 
 import pytest
 
+from bet.pipeline.canonical_continuity import bind_candidate_identity
+from bet.pipeline.run_evidence import sha256_file
 from scripts.pipeline_steps import s7_validate
 
 
@@ -41,8 +43,37 @@ def test_s7b_wrapper_resolves_s7_output_and_passes_explicit_input(tmp_path: Path
     data_dir = Path(environ["BET_PIPELINE_DATA_DIR"])
     data_dir.mkdir(parents=True, exist_ok=True)
 
+    candidate = bind_candidate_identity(
+        {
+            "home_team": "Alpha",
+            "away_team": "Beta",
+            "kickoff": "2026-06-25T20:00:00Z",
+            "sport": "football",
+            "competition": "Test League",
+            "best_market": {"name": "Goals Total", "selection": "Over", "line": 2.5},
+            "analytical_status": "ANALYTICAL_READY",
+            "pricing_status": "PRICE_PENDING",
+            "risk_flags": [],
+            "counter_evidence": [],
+        }
+    )
     s7_output = data_dir / "2026-06-25_s7_gate_results.json"
-    s7_output.write_text(json.dumps({"gate_results": {"approved": [{"home_team": "Alpha", "away_team": "Beta", "best_market": {"name": "Over 2.5", "market_type": "goals_total"}}]}}), encoding="utf-8")
+    s7_output.write_text(
+        json.dumps(
+            {
+                "schema_version": 2,
+                "artifact_type": "S7_ANALYTICAL_APPROVAL_SET_V2",
+                "status": "PASS",
+                "outcome": "READY_FOR_ANALYTICAL_OPERATOR_QUOTE_REVIEW",
+                "betting_day": "2026-06-25",
+                "run_id": "run-s7b-handoff",
+                "priced_approved": [],
+                "analytical_approved": [candidate],
+                "rejected": [],
+            }
+        ),
+        encoding="utf-8",
+    )
     s7_evidence = (
         Path(environ["BET_PIPELINE_RUN_ROOT"])
         / "pipeline_runs/2026-06-25/run-s7b-handoff/artifacts/S7.json"
@@ -50,13 +81,17 @@ def test_s7b_wrapper_resolves_s7_output_and_passes_explicit_input(tmp_path: Path
     s7_evidence.parent.mkdir(parents=True, exist_ok=True)
     s7_evidence.write_text(
         json.dumps({
-            "schema_version": 1,
+            "schema_version": 2,
             "artifact_type": "SCRIPT_EVIDENCE",
             "step_id": "S7",
             "status": "PASS",
             "betting_day": "2026-06-25",
             "run_id": "run-s7b-handoff",
-            "payload": {"approved_count": 1, "s7_json_output": str(s7_output)},
+            "payload": {
+                "approved_count": 1,
+                "s7_json_output": str(s7_output),
+                "s7_output_sha256": sha256_file(s7_output),
+            },
         }),
         encoding="utf-8",
     )

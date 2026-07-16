@@ -77,11 +77,12 @@ def test_verifier_passes_on_discovery_no_match_found(tmp_path):
     envelopes = {
         "sportdb/worldcup2026-norway-senegal_discovery.json": {
             "provider": "sportdb",
-            "status": "BLOCKED_DISCOVERY_ENDPOINT_UNKNOWN",
+            "status": "DISCOVERY_NO_MATCH_FOUND",
             "fixture_slug": "worldcup2026-norway-senegal",
             "source_url": "https://api.sportdb.dev/mcp/",
             "captured_at_utc": "2026-06-23T12:00:00Z",
             "request_purpose": "mcp_live_or_match_search_discovery",
+            "body_sha256": "0" * 64,
             "raw_headers_stored": False,
             "secrets_stored": False,
             "selectable_for_production": False,

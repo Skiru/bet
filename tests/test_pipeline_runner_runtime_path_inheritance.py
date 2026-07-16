@@ -114,10 +114,24 @@ def test_live_shadow_live_ack_guard_behavior_remains_unchanged(monkeypatch):
         monkeypatch.setattr(_runner, "ROOT", fixture_root)
         monkeypatch.delenv("BET_PIPELINE_LIVE_ACK", raising=False)
 
-        assert _runner.run_scripts(["settle_on_finish.py"], dry_run=True, allow_live_network=False, runtime_mode="LIVE_SHADOW") == 5
+        assert _runner.run_scripts(
+            ["settle_on_finish.py"],
+            dry_run=True,
+            allow_live_network=False,
+            runtime_mode="LIVE_SHADOW",
+            betting_day="2026-06-25",
+            run_id="live-ack-guard",
+        ) == 5
 
         monkeypatch.setenv("BET_PIPELINE_LIVE_ACK", "I_UNDERSTAND_LIVE_PROVIDER_CALLS")
-        assert _runner.run_scripts(["settle_on_finish.py"], dry_run=True, allow_live_network=True, runtime_mode="LIVE_SHADOW") == 0
+        assert _runner.run_scripts(
+            ["settle_on_finish.py"],
+            dry_run=True,
+            allow_live_network=True,
+            runtime_mode="LIVE_SHADOW",
+            betting_day="2026-06-25",
+            run_id="live-ack-guard",
+        ) == 0
     finally:
         if live_script.exists():
             live_script.unlink()

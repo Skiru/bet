@@ -5,6 +5,7 @@ import json
 from decimal import Decimal
 from pathlib import Path
 from datetime import datetime, timezone, timedelta
+from typing import Any
 import pytest
 from scripts.pipeline_steps import s5_gate
 
@@ -232,7 +233,7 @@ def test_metric_context_mixing_is_classified_explicitly():
     ) == "METRIC_CONTEXT_MIXED"
 
 
-def test_s7_never_reads_repeat_fallback_after_s4_pass(tmp_path: Path):
+def test_s7_blocks_when_canonical_s6_is_missing_after_s4_pass(tmp_path: Path):
     run_root = Path("/tmp") / f"bet-s7-traceability-{tmp_path.name}"
     environ = {
         "BET_PIPELINE_RUNTIME_MODE": "DRY_RUN",
@@ -293,8 +294,9 @@ def test_s7_never_reads_repeat_fallback_after_s4_pass(tmp_path: Path):
 
     resolution = s5_gate.resolve_s7_input(environ, "2026-06-28", "trace-run")
 
-    assert Path(resolution["path"]).resolve() == s4_path.resolve()
-    assert resolution["source_kind"] == "s4_evidence_payload"
+    assert resolution["path"] is None
+    assert resolution["source_kind"] == "missing"
+    assert "S6" in str(resolution["blocked_reason"])
 
 def test_discover_events_migrates_logical_identity_when_missing():
     import sqlite3

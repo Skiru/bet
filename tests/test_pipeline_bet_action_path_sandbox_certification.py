@@ -10,6 +10,7 @@ from unittest.mock import patch
 import pytest
 
 from bet.pipeline.artifact_gate import expected_s8_coupon_draft_path
+from bet.pipeline.canonical_continuity import bind_candidate_identity
 from bet.pipeline.orchestrator import Orchestrator
 from bet.pipeline.readiness_contracts import PipelineReadinessStatus
 from bet.pipeline.run_evidence import sha256_file
@@ -45,24 +46,27 @@ def test_bet_action_path_sandbox_certification(tmp_path: Path, sandbox_env: dict
 
     # 1. Prepare S7 gate results and write to standard data dir
     s7_output_filename = "2026-06-26_s7_gate_results.json"
+    approved_candidate = bind_candidate_identity(
+        {
+            "home_team": "Alpha",
+            "away_team": "Beta",
+            "sport": "football",
+            "competition": "Test League",
+            "kickoff": "2026-06-26T18:00:00Z",
+            "odds": {"market_best": 1.95},
+            "best_market": {
+                "name": "Goals Over 2.5",
+                "direction": "OVER",
+                "line": 2.5,
+                "safety_score": 0.85,
+                "probability": 0.85,
+            },
+        }
+    )
     s7_payload = {
         "date": "2026-06-26",
         "gate_results": {
-            "approved": [
-                {
-                    "home_team": "Alpha",
-                    "away_team": "Beta",
-                    "sport": "football",
-                    "odds": {"market_best": 1.95},
-                    "best_market": {
-                        "name": "Goals Over 2.5",
-                        "direction": "OVER",
-                        "line": 2.5,
-                        "safety_score": 0.85,
-                        "probability": 0.85,
-                    }
-                }
-            ],
+            "approved": [approved_candidate],
             "extended_pool": [],
             "rejected": []
         }
@@ -74,7 +78,7 @@ def test_bet_action_path_sandbox_certification(tmp_path: Path, sandbox_env: dict
     # Write the strict S7b current-run Superbet mapping consumed by S8.
     validation_filename = "2026-06-26_s7b_superbet_manual_mapping.json"
     validation_payload = {
-        "schema_version": 1,
+        "schema_version": 2,
         "artifact_type": "S7B_SUPERBET_MANUAL_MAPPING",
         "status": "READY_FOR_MANUAL_MAPPING",
         "betting_day": "2026-06-26",
@@ -86,8 +90,9 @@ def test_bet_action_path_sandbox_certification(tmp_path: Path, sandbox_env: dict
         "mapping_suggestions": [
             {
                 "quote_card_id": "quote-card-candidate-a",
-                "source_candidate_id": "candidate-a",
-                "canonical_event_id": "event-a",
+                "source_candidate_id": approved_candidate["selection_id"],
+                "selection_id": approved_candidate["selection_id"],
+                "canonical_event_id": approved_candidate["canonical_event_id"],
                 "event": "Alpha vs Beta",
                 "requested_market": "Goals Over 2.5",
                 "requested_line": 2.5,

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import pytest
 from unittest.mock import patch
 from bet.provider_registry import load_provider_registry, missing_provider_modules
 from scripts.validate_provider_registry import validate, validate_provider
@@ -251,3 +252,71 @@ def test_validator_fails_on_divergent_adapter() -> None:
         "not in the fetch_odds_multi.py _SOURCE_MODULES list" in f
         for f in res["findings"]
     )
+
+
+def test_provider_registry_failures_and_policies(tmp_path: Path):
+    from bet.provider_registry import load_and_validate_provider_policy
+
+    # 1. Test malformed policy JSON
+    bad_json_file = tmp_path / "bad_policy.json"
+    bad_json_file.write_text("{invalid")
+    with pytest.raises(ValueError, match="PROVIDER_POLICY_JSON_INVALID"):
+        load_and_validate_provider_policy(bad_json_file)
+
+    # 2. Test invalid policy schema
+    invalid_schema_file = tmp_path / "invalid_schema.json"
+    invalid_schema_file.write_text(json.dumps({"schema_version": 2}))
+    with pytest.raises(ValueError, match="PROVIDER_POLICY_SCHEMA_INVALID"):
+        load_and_validate_provider_policy(invalid_schema_file)
+
+    # 3. Test load valid policy config
+    valid_policy_file = tmp_path / "valid_policy.json"
+    valid_policy_file.write_text(json.dumps({
+        "schema_version": 1,
+        "provider_policies": {
+            "the-odds-api": {"required": True},
+            "oddspapi": {"required": False}
+        }
+    }))
+    policies = load_and_validate_provider_policy(valid_policy_file)
+    assert policies["the-odds-api"]["required"] is True
+    assert policies["oddspapi"]["required"] is False
+
+
+def test_fetch_odds_multi_provider_state_mapping(tmp_path: Path):
+    from scripts.fetch_odds_multi import run_multi_scan
+    with patch("scripts.fetch_odds_multi.DATA_DIR", tmp_path):
+        policy_file = tmp_path / "provider_runtime_policy.json"
+        policy_file.write_text(json.dumps({
+            "schema_version": 1,
+            "provider_policies": {
+                "the-odds-api": {"required": True},
+                "oddspapi": {"required": False}
+            }
+        }))
+
+        with patch("bet.provider_registry.load_and_validate_provider_policy") as mock_policy:
+            mock_policy.return_value = {
+                "the-odds-api": {"required": True},
+                "oddspapi": {"required": False}
+            }
+
+            class MockTheOddsAPISource:
+                name = "the-odds-api"
+                def supported_sports(self):
+                    return ["football"]
+                def fetch_odds(self, sport, date_from, date_to):
+                    raise ValueError("PROVIDER_AUTH_BLOCKED")
+
+            with patch("scripts.fetch_odds_multi._load_source") as mock_load:
+                mock_load.return_value = MockTheOddsAPISource()
+
+                with patch("scripts.fetch_odds_multi._source_gate_decision") as mock_gate:
+                    mock_gate.return_value = (True, {"enabled": True})
+
+                    run_multi_scan(sport_filter=["football"], source_filter=["the-odds-api"], dry_run=False, use_window=False)
+
+                    provenance_file = tmp_path / "odds_multi_sources.json"
+                    assert provenance_file.exists()
+                    provenance = json.loads(provenance_file.read_text())
+                    assert provenance["provider_states"]["the-odds-api"] == "REQUIRED_PROVIDER_BLOCKED"
