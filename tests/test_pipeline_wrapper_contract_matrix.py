@@ -78,7 +78,7 @@ def _seed_s6_predecessors(environ: dict[str, str]) -> None:
     s3_path.write_text(json.dumps({"artifact_type": "S3_DEEP_STATS", "analyses": [cand_data]}), encoding="utf-8")
     s4_path.write_text(json.dumps({
         "schema_version": 2,
-        "artifact_type": "S4_VALUATION_CANDIDATE_SET_V2",
+        "artifact_type": "S4_VALUATION_CANDIDATE_SET_V2", "event_records": [],
         "betting_day": "2026-06-25",
         "run_id": environ["BET_PIPELINE_RUN_ID"],
         "source_s3_path": str(s3_path),
@@ -148,7 +148,7 @@ def _seed_s7_predecessors(environ: dict[str, str]) -> None:
     s6_output_path = run_root / "data" / "repeat_loss_handoff_2026-06-25.json"
     s6_output_data = {
         "schema_version": 1,
-        "artifact_type": "S6_PORTFOLIO_REPEAT_GUARD_V2",
+        "artifact_type": "S6_PORTFOLIO_REPEAT_GUARD_V2", "event_records": [],
         "status": "PASS",
         "concrete_status": "READY_FOR_S7",
         "betting_day": "2026-06-25",

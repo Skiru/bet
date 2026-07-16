@@ -155,6 +155,7 @@ def build_runtime_env(
         "SSL_CERT_FILE", "SSL_CERT_DIR", "REQUESTS_CA_BUNDLE", "CURL_CA_BUNDLE",
         "VIRTUAL_ENV", "NO_PROXY", "HTTP_PROXY", "HTTPS_PROXY",
         "TERM", "SSH_AUTH_SOCK", "USER", "LOGNAME", "SHELL",
+        "DATABASE_URL", "BET_DB_PATH", "BET_KEEP_TEMP_DB",
     }
 
     env = {}

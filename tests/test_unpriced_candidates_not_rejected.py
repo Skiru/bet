@@ -84,12 +84,32 @@ def mock_s4_file(tmp_path):
     data_dir = tmp_path / "data"
     data_dir.mkdir(parents=True, exist_ok=True)
 
+    # Seed S1e universe file
+    s1e_path = data_dir / "2026-07-14_s1e_event_universe.json"
+    evt_id = "evt_649a5f6cc3964ae76d3d614b517f2a82"
+    import json
+    s1e_path.write_text(json.dumps({
+        "artifact_type": "S1E_EVENT_UNIVERSE_LEDGER",
+        "canonical_event_ids": [evt_id],
+        "events": []
+    }))
+
     s4_path = data_dir / "2026-07-14_s4_valuation_candidates.json"
     s4_content = {
+        "schema_version": 1,
         "artifact_type": "S4_VALUATION_CANDIDATE_SET_V2",
-        "candidates": [_candidate()]
+        "betting_day": "2026-07-14",
+        "run_id": "TEST_RUN_ID",
+        "candidates": [_candidate()],
+        "event_records": [
+            {
+                "canonical_event_id": evt_id,
+                "terminal_status": "DEGRADED_CONTINUE",
+                "reason_codes": ["DEGRADED_NO_TIPSTER_PICKS"],
+                "candidate_ids": []
+            }
+        ]
     }
-    import json
     s4_path.write_text(json.dumps(s4_content))
 
     s4_evidence_path = artifacts_dir / "S4.json"

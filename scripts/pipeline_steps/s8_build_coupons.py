@@ -42,7 +42,7 @@ def _s8_output_path(data_dir: Path, betting_day: str, _runtime_mode: object | No
     return data_dir / f"{betting_day}_s8_superbet_manual_quote_pack.json"
 
 
-def _load_canonical_s7b(child_env: dict[str, str], day: str, run_id: str) -> tuple[Path, Path, dict[str, Any]]:
+def _load_canonical_s7b(child_env: dict[str, str], day: str, run_id: str) -> tuple[Path, Path, dict[str, Any], list[dict[str, Any]]]:
     from bet.pipeline.integration_artifacts import resolve_bound_step_output
     run_root = Path(child_env["BET_PIPELINE_RUN_ROOT"])
     output_path, mapping = resolve_bound_step_output(
@@ -57,7 +57,8 @@ def _load_canonical_s7b(child_env: dict[str, str], day: str, run_id: str) -> tup
         nested_ev = run_root / "pipeline_runs" / day / run_id / "artifacts" / "S7b.json"
         if nested_ev.exists():
             evidence_path = nested_ev
-    return evidence_path, output_path, mapping
+    records = mapping.get("event_records") or []
+    return evidence_path, output_path, mapping, records
 
 
 def _validate_mapping(mapping: dict[str, Any], day: str, run_id: str) -> tuple[str, list[dict[str, Any]]]:
@@ -128,8 +129,9 @@ def main() -> None:
     mapping_status = "BLOCKED"
     s7b_evidence: Path | None = None
     s7b_output: Path | None = None
+    s7b_records: list[dict[str, Any]] = []
     try:
-        s7b_evidence, s7b_output, mapping = _load_canonical_s7b(child_env, args.date, args.run_id)
+        s7b_evidence, s7b_output, mapping, s7b_records = _load_canonical_s7b(child_env, args.date, args.run_id)
         mapping_status, cards = _validate_mapping(mapping, args.date, args.run_id)
     except (OSError, ValueError, TypeError, json.JSONDecodeError) as exc:
         blocked.append("BLOCKED_S8_CANONICAL_S7B_INVALID")
@@ -156,6 +158,7 @@ def main() -> None:
                 "quote_card_count": len(cards),
                 "quote_cards": cards,
                 "idea_groups": [],
+                "event_records": s7b_records,
                 "analytical_status": "READY" if cards else "NO_ACTION",
                 "pricing_status": "UNPRICED",
                 "risk_status": "ACCEPTABLE_FOR_MANUAL_QUOTE" if cards else "NO_ACTION",
@@ -191,6 +194,7 @@ def main() -> None:
         "s8_quote_pack_sha256": output_sha256,
         "quote_card_count": len(cards),
         "outcome": outcome,
+        "event_records": s7b_records,
         "requires_human_gate": bool(cards) and not blocked,
         "ready_for_human_gate": ready_for_human_gate,
         "ready_for_production_execution": False,

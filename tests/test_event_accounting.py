@@ -171,3 +171,217 @@ def test_duplicate_event_records_fail_closed(tmp_path: Path):
                 {"canonical_event_id": evt_ids[0], "terminal_status": "PASS"},
             ],
         )
+
+
+def test_strict_loader_adversarial_matrix(tmp_path: Path):
+    from bet.pipeline.integration_artifacts import strict_validate_step_output
+    run_root = tmp_path / "run"
+    run_root.mkdir()
+    data_dir = run_root / "data"
+    data_dir.mkdir()
+
+    betting_day = "2026-07-16"
+    run_id = "prod-run"
+
+    # Create valid S1e universe file
+    s1e_file = data_dir / f"{betting_day}_s1e_event_universe.json"
+    s1e_file.write_text(json.dumps({
+        "artifact_type": "S1E_EVENT_UNIVERSE_LEDGER",
+        "canonical_event_ids": ["evt-1", "evt-2"],
+        "events": [],
+    }))
+
+    # 1. Missing output
+    missing_path = run_root / "nonexistent.json"
+    with pytest.raises(FileNotFoundError, match="STEP_OUTPUT_MISSING"):
+        strict_validate_step_output(
+            step_id="S3",
+            output_path=missing_path,
+            output_data={},
+            run_root=run_root,
+            betting_day=betting_day,
+            run_id=run_id,
+            expected_artifact_type="S3_DEEP_STATS",
+        )
+
+    # 2. Outside run path
+    outside_path = tmp_path / "outside.json"
+    outside_path.write_text("{}")
+    with pytest.raises(ValueError, match="STEP_OUTPUT_OUTSIDE_RUN"):
+        strict_validate_step_output(
+            step_id="S3",
+            output_path=outside_path,
+            output_data={},
+            run_root=run_root,
+            betting_day=betting_day,
+            run_id=run_id,
+            expected_artifact_type="S3_DEEP_STATS",
+        )
+
+    # 3. Symlink escape
+    symlink_path = run_root / "symlink.json"
+    symlink_path.symlink_to(s1e_file)
+    with pytest.raises(ValueError, match="STEP_OUTPUT_OUTSIDE_RUN"):
+        strict_validate_step_output(
+            step_id="S3",
+            output_path=symlink_path,
+            output_data={},
+            run_root=run_root,
+            betting_day=betting_day,
+            run_id=run_id,
+            expected_artifact_type="S3_DEEP_STATS",
+        )
+
+    # 4. Empty file
+    empty_path = run_root / "empty.json"
+    empty_path.write_text("")
+    with pytest.raises(ValueError, match="STEP_OUTPUT_MISSING"):
+        strict_validate_step_output(
+            step_id="S3",
+            output_path=empty_path,
+            output_data={},
+            run_root=run_root,
+            betting_day=betting_day,
+            run_id=run_id,
+            expected_artifact_type="S3_DEEP_STATS",
+        )
+
+    # 5. Wrong artifact type
+    valid_file = run_root / "valid.json"
+    valid_file.write_text("{}")
+    with pytest.raises(ValueError, match="STEP_TYPE_MISMATCH"):
+        strict_validate_step_output(
+            step_id="S3",
+            output_path=valid_file,
+            output_data={"artifact_type": "WRONG_TYPE"},
+            run_root=run_root,
+            betting_day=betting_day,
+            run_id=run_id,
+            expected_artifact_type="S3_DEEP_STATS",
+        )
+
+    # 6. Wrong betting day or run ID
+    with pytest.raises(ValueError, match="STEP_DAY_MISMATCH"):
+        strict_validate_step_output(
+            step_id="S3",
+            output_path=valid_file,
+            output_data={"artifact_type": "S3_DEEP_STATS", "betting_day": "wrong-day", "run_id": run_id},
+            run_root=run_root,
+            betting_day=betting_day,
+            run_id=run_id,
+            expected_artifact_type="S3_DEEP_STATS",
+        )
+
+    # 7. Missing event_records
+    with pytest.raises(ValueError, match="EVENT_BOUNDARY_RECORDS_MISSING"):
+        strict_validate_step_output(
+            step_id="S3",
+            output_path=valid_file,
+            output_data={"artifact_type": "S3_DEEP_STATS", "betting_day": betting_day, "run_id": run_id},
+            run_root=run_root,
+            betting_day=betting_day,
+            run_id=run_id,
+            expected_artifact_type="S3_DEEP_STATS",
+        )
+
+    # 8. Duplicate event
+    with pytest.raises(ValueError, match="EVENT_BOUNDARY_DUPLICATE_EVENT"):
+        strict_validate_step_output(
+            step_id="S3",
+            output_path=valid_file,
+            output_data={
+                "artifact_type": "S3_DEEP_STATS",
+                "betting_day": betting_day,
+                "run_id": run_id,
+                "event_records": [
+                    {"canonical_event_id": "evt-1", "terminal_status": "CONTINUE"},
+                    {"canonical_event_id": "evt-1", "terminal_status": "CONTINUE"},
+                ]
+            },
+            run_root=run_root,
+            betting_day=betting_day,
+            run_id=run_id,
+            expected_artifact_type="S3_DEEP_STATS",
+        )
+
+    # 9. Unknown/extra event
+    with pytest.raises(ValueError, match="EVENT_BOUNDARY_UNKNOWN_EVENT"):
+        strict_validate_step_output(
+            step_id="S3",
+            output_path=valid_file,
+            output_data={
+                "artifact_type": "S3_DEEP_STATS",
+                "betting_day": betting_day,
+                "run_id": run_id,
+                "event_records": [
+                    {"canonical_event_id": "evt-1", "terminal_status": "CONTINUE"},
+                    {"canonical_event_id": "evt-2", "terminal_status": "CONTINUE"},
+                    {"canonical_event_id": "evt-unknown", "terminal_status": "CONTINUE"},
+                ]
+            },
+            run_root=run_root,
+            betting_day=betting_day,
+            run_id=run_id,
+            expected_artifact_type="S3_DEEP_STATS",
+        )
+
+    # 10. Loss / missing event
+    with pytest.raises(ValueError, match="EVENT_BOUNDARY_LOSS"):
+        strict_validate_step_output(
+            step_id="S3",
+            output_path=valid_file,
+            output_data={
+                "artifact_type": "S3_DEEP_STATS",
+                "betting_day": betting_day,
+                "run_id": run_id,
+                "event_records": [
+                    {"canonical_event_id": "evt-1", "terminal_status": "CONTINUE"},
+                ]
+            },
+            run_root=run_root,
+            betting_day=betting_day,
+            run_id=run_id,
+            expected_artifact_type="S3_DEEP_STATS",
+        )
+
+    # 11. Invalid terminal status
+    with pytest.raises(ValueError, match="EVENT_BOUNDARY_RECORD_INVALID"):
+        strict_validate_step_output(
+            step_id="S3",
+            output_path=valid_file,
+            output_data={
+                "artifact_type": "S3_DEEP_STATS",
+                "betting_day": betting_day,
+                "run_id": run_id,
+                "event_records": [
+                    {"canonical_event_id": "evt-1", "terminal_status": "INVALID_STATUS"},
+                    {"canonical_event_id": "evt-2", "terminal_status": "CONTINUE"},
+                ]
+            },
+            run_root=run_root,
+            betting_day=betting_day,
+            run_id=run_id,
+            expected_artifact_type="S3_DEEP_STATS",
+        )
+
+    # 12. Proof that no fixed event ID exists in production paths
+    fixed_id = "evt_649a5f6cc3964ae76d3d614b517f2a82"
+    with pytest.raises(ValueError, match="EVENT_BOUNDARY_UNKNOWN_EVENT"):
+        strict_validate_step_output(
+            step_id="S3",
+            output_path=valid_file,
+            output_data={
+                "artifact_type": "S3_DEEP_STATS",
+                "betting_day": betting_day,
+                "run_id": run_id,
+                "event_records": [
+                    {"canonical_event_id": "evt-1", "terminal_status": "CONTINUE"},
+                    {"canonical_event_id": "evt-2", "terminal_status": "CONTINUE"},
+                    {"canonical_event_id": fixed_id, "terminal_status": "CONTINUE"},
+                ]
+            },
+            run_root=run_root,
+            betting_day=betting_day,
+            run_id=run_id,
+            expected_artifact_type="S3_DEEP_STATS",
+        )

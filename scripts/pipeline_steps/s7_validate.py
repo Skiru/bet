@@ -45,7 +45,7 @@ def _candidate_id(candidate: dict[str, Any], _index: int) -> str:
     return value
 
 
-def _load_s7(child_env: dict[str, str], day: str, run_id: str) -> tuple[Path, Path, list[dict[str, Any]], str]:
+def _load_s7(child_env: dict[str, str], day: str, run_id: str) -> tuple[Path, Path, list[dict[str, Any]], str, list[dict[str, Any]]]:
     from bet.pipeline.integration_artifacts import resolve_bound_step_output
     run_root = Path(child_env["BET_PIPELINE_RUN_ROOT"])
     try:
@@ -92,7 +92,8 @@ def _load_s7(child_env: dict[str, str], day: str, run_id: str) -> tuple[Path, Pa
         nested_ev = run_root / "pipeline_runs" / day / run_id / "artifacts" / "S7.json"
         if nested_ev.exists():
             evidence_path = nested_ev
-    return evidence_path, output_path, approved, s7_outcome
+    records = s7_data.get("event_records") or []
+    return evidence_path, output_path, approved, s7_outcome, records
 
 
 def _build_cards(candidates: list[dict[str, Any]], source_s7_sha256: str | None = None) -> list[dict[str, Any]]:
@@ -171,8 +172,9 @@ def main() -> None:
     s7_evidence: Path | None = None
     s7_output: Path | None = None
     s7_outcome: str = "BLOCKED"
+    s7_records: list[dict[str, Any]] = []
     try:
-        s7_evidence, s7_output, candidates, s7_outcome = _load_s7(child_env, args.date, args.run_id)
+        s7_evidence, s7_output, candidates, s7_outcome, s7_records = _load_s7(child_env, args.date, args.run_id)
         cards = _build_cards(candidates, sha256_file(s7_output))
     except FileNotFoundError as exc:
         blocked.append("BLOCKED_S7B_CANONICAL_S7_MISSING")
@@ -199,6 +201,7 @@ def main() -> None:
                 "approved_candidate_count": len(cards),
                 "represented_candidate_count": len(cards),
                 "mapping_suggestions": cards,
+                "event_records": s7_records,
                 "manual_verification_required": bool(cards),
                 "operator_availability_asserted": False,
                 "executable_coupon": False,
@@ -222,6 +225,7 @@ def main() -> None:
         "approved_candidate_count": len(cards),
         "represented_candidate_count": len(cards),
         "outcome": outcome,
+        "event_records": s7_records,
         "ready_for_human_gate": False,
         "operator_workflow": "SUPERBET_MANUAL_BET_BUILDER",
         "operator_availability_asserted": False,

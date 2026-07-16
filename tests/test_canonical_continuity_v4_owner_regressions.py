@@ -298,8 +298,21 @@ def test_15_s2_evidence_bindings(tmp_path: Path):
     art_dir.mkdir(parents=True, exist_ok=True)
     data_dir.mkdir(parents=True, exist_ok=True)
 
+    s1e_file = data_dir / "2026-07-15_s1e_event_universe.json"
+    s1e_file.write_text(json.dumps({
+        "artifact_type": "S1E_EVENT_UNIVERSE_LEDGER",
+        "canonical_event_ids": [],
+        "events": [],
+    }), encoding="utf-8")
+
     s2_out = data_dir / "2026-07-15_s2_shortlist.json"
-    s2_out.write_text(json.dumps({"total_candidates": 0, "candidates": []}), encoding="utf-8")
+    s2_out.write_text(json.dumps({
+        "schema_version": 1,
+        "artifact_type": "S2_SHORTLIST",
+        "total_candidates": 0,
+        "candidates": [],
+        "event_records": []
+    }), encoding="utf-8")
     actual_sha = hashlib.sha256(s2_out.read_bytes()).hexdigest()
 
     s2_ev = {
@@ -429,11 +442,11 @@ def test_17_zero_tipster_picks(tmp_path: Path, monkeypatch):
     db_file = tmp_path / "test.db"
     _bootstrap_test_db(db_file)
     monkeypatch.setenv("BET_DB_PATH", str(db_file))
-    
+
     data_dir = tmp_path / "data"
     data_dir.mkdir(parents=True, exist_ok=True)
     monkeypatch.setenv("BET_PIPELINE_DATA_DIR", str(data_dir))
-    
+
     shortlist_path = data_dir / "2026-07-15_s2_shortlist.json"
     shortlist_path.write_text(json.dumps({
         "candidates": [
@@ -452,7 +465,7 @@ def test_17_zero_tipster_picks(tmp_path: Path, monkeypatch):
     ok, msg = run_tipster_xref("2026-07-15", {})
     assert ok is True
     assert "DEGRADED_NO_TIPSTER_PICKS" in msg
-    
+
     updated_data = json.loads(shortlist_path.read_text(encoding="utf-8"))
     cand = updated_data["candidates"][0]
     assert cand["tipster_count"] == 0
@@ -462,11 +475,11 @@ def test_17_zero_tipster_picks(tmp_path: Path, monkeypatch):
 # 18. A tipster-source-only failure cannot erase the core shortlist/universe.
 def test_18_tipster_source_failure(tmp_path: Path, monkeypatch):
     monkeypatch.setenv("BET_DB_PATH", str(tmp_path / "non_existent.db"))
-    
+
     data_dir = tmp_path / "data"
     data_dir.mkdir(parents=True, exist_ok=True)
     monkeypatch.setenv("BET_PIPELINE_DATA_DIR", str(data_dir))
-    
+
     shortlist_path = data_dir / "2026-07-15_s2_shortlist.json"
     orig_content = json.dumps({
         "candidates": [
@@ -527,7 +540,7 @@ def test_20_unresolved_cmd_blocks_resume(tmp_path: Path):
         input_hashes={},
         output_hashes={}
     )
-    
+
     with pytest.raises(ResumeLedgerError, match="BLOCKED_UNRESOLVED_COMMAND_REQUEST"):
         ledger.assert_resumable()
 
@@ -622,7 +635,7 @@ def test_24_provider_order_independent_imports():
     import subprocess
     import sys
     from bet.provider_registry import load_provider_registry
-    
+
     registry = load_provider_registry()
     for prov in registry.values():
         module_name = prov.module
@@ -639,12 +652,12 @@ def test_25_manifest_offline_flow(tmp_path: Path, monkeypatch):
 # AST Meta-Test checking both mandatory v4 files
 def test_v4_meta_test_no_vacuous_tests():
     import ast
-    
+
     mandatory_files = [
         Path(__file__).parent / "test_canonical_continuity_v4_owner_regressions.py",
         Path(__file__).parent / "test_canonical_continuity_v4_offline_chain_proof.py"
     ]
-    
+
     for f_path in mandatory_files:
         assert f_path.exists(), f"Mandatory file {f_path.name} is missing!"
         tree = ast.parse(f_path.read_text(encoding="utf-8"))
@@ -656,12 +669,12 @@ def test_v4_meta_test_no_vacuous_tests():
                     if isinstance(stmt, ast.Expr) and isinstance(stmt.value, (ast.Constant, ast.Str)):
                         continue
                     real_stmts.append(stmt)
-                
+
                 if not real_stmts:
                     raise AssertionError(f"Test {node.name} in {f_path.name} has an empty body.")
                 if len(real_stmts) == 1 and isinstance(real_stmts[0], ast.Pass):
                     raise AssertionError(f"Test {node.name} in {f_path.name} has only a 'pass' statement.")
-                
+
                 for dec in node.decorator_list:
                     if isinstance(dec, ast.Attribute) and dec.attr == "skip":
                         raise AssertionError(f"Test {node.name} in {f_path.name} has an unconditional skip.")
@@ -687,6 +700,6 @@ def test_v4_meta_test_no_vacuous_tests():
                     if isinstance(sub_node, ast.Call):
                         has_substance = True
                         break
-                
+
                 if not has_substance:
                     raise AssertionError(f"Test {node.name} in {f_path.name} has no executable assertion or call.")

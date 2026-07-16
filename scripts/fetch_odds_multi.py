@@ -279,6 +279,7 @@ def run_multi_scan(
     total_by_source: dict[str, int] = {}
     errors: list[dict] = []
     skipped_sources: list[dict[str, str]] = []
+    provider_states: dict[str, str] = {}
 
     for sport, sources in scan_plan.items():
         print(f"\n--- {sport.upper()} ---")
@@ -300,13 +301,26 @@ def run_multi_scan(
 
             source = _load_source(source_name)
             if source is None:
+                provider_states[source_name] = "PROVIDER_REGISTRY_LOAD_FAILED"
+                from bet.provider_registry import load_and_validate_provider_policy
+                try:
+                    policies = load_and_validate_provider_policy()
+                    is_required = policies.get(source_name, {}).get("required", False)
+                except Exception:
+                    is_required = True
+
+                if not is_required:
+                    provider_states[source_name] = "OPTIONAL_PROVIDER_DEGRADED"
+                else:
+                    provider_states[source_name] = "REQUIRED_PROVIDER_BLOCKED"
                 continue
 
-            if sport not in source.supported_sports():
-                print(f"  {source_name}: sport not supported — skipping")
-                continue
-
+            provider_state = "PROVIDER_SUCCESS_EMPTY"
             try:
+                if sport not in source.supported_sports():
+                    print(f"  {source_name}: sport not supported — skipping")
+                    continue
+
                 fetched = source.fetch_odds(sport, date_from, date_to)
                 new_count = 0
 
@@ -332,7 +346,39 @@ def run_multi_scan(
                 total_by_source[source_name] = total_by_source.get(source_name, 0) + new_count
                 print(f"  {source_name}: {len(fetched)} fetched, {new_count} new events")
 
+                if fetched:
+                    provider_state = "PROVIDER_SUCCESS_WITH_DATA"
+                else:
+                    provider_state = "PROVIDER_SUCCESS_EMPTY"
+                provider_states[source_name] = provider_state
+
             except Exception as exc:
+                err_msg = str(exc).upper()
+                if "PROVIDER_REGISTRY_LOAD_FAILED" in err_msg:
+                    provider_state = "PROVIDER_REGISTRY_LOAD_FAILED"
+                elif "AUTH" in err_msg or "KEY" in err_msg or "UNAUTHORIZED" in err_msg or "PROVIDER_AUTH_BLOCKED" in err_msg:
+                    provider_state = "PROVIDER_AUTH_BLOCKED"
+                elif "TIMEOUT" in err_msg or "CONNECTION" in err_msg or "PROVIDER_TIMEOUT" in err_msg:
+                    provider_state = "PROVIDER_TIMEOUT"
+                elif "SCHEMA" in err_msg or "PARSE" in err_msg or "JSON" in err_msg or "PROVIDER_SCHEMA_INVALID" in err_msg:
+                    provider_state = "PROVIDER_SCHEMA_INVALID"
+                else:
+                    provider_state = "REQUIRED_PROVIDER_BLOCKED"
+
+                from bet.provider_registry import load_and_validate_provider_policy
+                try:
+                    policies = load_and_validate_provider_policy()
+                    is_required = policies.get(source_name, {}).get("required", False)
+                except Exception:
+                    is_required = True
+
+                if not is_required:
+                    provider_state = "OPTIONAL_PROVIDER_DEGRADED"
+                else:
+                    provider_state = "REQUIRED_PROVIDER_BLOCKED"
+
+                provider_states[source_name] = provider_state
+
                 print(f"  {source_name}: ERROR — {exc}")
                 errors.append({
                     "source": source_name,
@@ -368,6 +414,7 @@ def run_multi_scan(
         "credits_remaining": "N/A",
         "total_events": len(all_events),
         "events": all_events,
+        "provider_states": provider_states,
     }
     snapshot_file = DATA_DIR / "odds_api_snapshot.json"
     atomic_json_write(snapshot_file, snapshot)
@@ -433,6 +480,7 @@ def run_multi_scan(
         "per_sport": provenance,
         "total_events": len(all_events),
         "total_by_source": total_by_source,
+        "provider_states": provider_states,
     }
     if errors:
         provenance_data["errors"] = errors

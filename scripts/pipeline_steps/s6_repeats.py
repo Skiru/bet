@@ -675,6 +675,7 @@ def main() -> None:
                         "candidate_ids": [c.get("candidate_id")] if is_accepted else []
                     })
         output_data["event_records"] = event_records
+        output_path.write_text(json.dumps(output_data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     except Exception as exc:
         print(f"BLOCKED_PUBLICATION_FAILURE: Failed to parse child output JSON: {exc}")
         sys.exit(5)

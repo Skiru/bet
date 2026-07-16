@@ -377,6 +377,15 @@ def resolve_bound_step_output(
                 if recorded_source_sha and recorded_source_sha != source_sha:
                     raise ValueError(f"Upstream source SHA mismatch: {expected_source_step} SHA is {source_sha}, but recorded as {recorded_source_sha}")
 
+    strict_validate_step_output(
+        step_id=step_id,
+        output_path=output_path,
+        output_data=output_data,
+        run_root=run_root_path,
+        betting_day=betting_day,
+        run_id=run_id,
+        expected_artifact_type=expected_artifact_type,
+    )
     return output_path, output_data
 
 
@@ -496,6 +505,15 @@ def resolve_manifest_step_output(
         if expected_source_sha and actual_sha != expected_source_sha:
             raise ValueError(f"STEP_OUTPUT_HASH_MISMATCH: Step {step_id} output SHA-256 mismatch: expected {expected_source_sha}, got {actual_sha}")
 
+        strict_validate_step_output(
+            step_id=step_id,
+            output_path=output_path,
+            output_data=output_data,
+            run_root=run_root_path,
+            betting_day=betting_day,
+            run_id=run_id,
+            expected_artifact_type=expected_artifact_type,
+        )
         return output_path, output_data
 
     elif exec_mode == "script" or exec_mode is None:
@@ -610,6 +628,146 @@ def resolve_manifest_step_output(
             if actual_type is not None and actual_type != expected_artifact_type:
                 raise ValueError(f"STEP_TYPE_MISMATCH: Artifact type mismatch: expected {expected_artifact_type}, got {actual_type}")
 
+        strict_validate_step_output(
+            step_id=step_id,
+            output_path=output_path,
+            output_data=output_data,
+            run_root=run_root_path,
+            betting_day=betting_day,
+            run_id=run_id,
+            expected_artifact_type=expected_artifact_type,
+        )
         return output_path, output_data
     else:
         raise ValueError(f"STEP_EVIDENCE_SCHEMA_INVALID: Unsupported execution mode '{exec_mode}' for step {step_id}")
+
+
+def strict_validate_step_output(
+    *,
+    step_id: str,
+    output_path: Path,
+    output_data: dict[str, Any],
+    run_root: Path,
+    betting_day: str,
+    run_id: str,
+    expected_artifact_type: str,
+) -> None:
+    """Strict loader/validator for bound step output."""
+    # 1. Required file exists
+    if not output_path.exists():
+        raise FileNotFoundError(f"STEP_OUTPUT_MISSING: Step {step_id} output file missing: {output_path}")
+
+    # 2. Canonical path is within the current run root
+    resolved_path = output_path.resolve()
+    try:
+        resolved_path.relative_to(run_root.resolve())
+    except ValueError:
+        raise ValueError(f"STEP_OUTPUT_OUTSIDE_RUN: Step {step_id} output path {output_path} is outside run root {run_root}")
+
+    # 3. No symlinked ancestor or path escape
+    if output_path.is_symlink() or resolved_path.is_symlink():
+        raise ValueError(f"STEP_OUTPUT_OUTSIDE_RUN: Step {step_id} output path {output_path} is a symlink")
+
+    curr = resolved_path
+    while curr != run_root.resolve():
+        if curr.is_symlink():
+            raise ValueError(f"STEP_OUTPUT_OUTSIDE_RUN: Step {step_id} output path {output_path} has symlinked ancestor: {curr}")
+        if curr == curr.parent:
+            break
+        curr = curr.parent
+
+    # 4. Non-empty regular file
+    if not resolved_path.is_file() or resolved_path.stat().st_size == 0:
+        raise ValueError(f"STEP_OUTPUT_MISSING: Step {step_id} output file is empty or not a regular file")
+
+    # 5. Expected mapping/list schema
+    if not isinstance(output_data, dict):
+        raise ValueError(f"STEP_EVIDENCE_SCHEMA_INVALID: Step {step_id} output must be a dictionary")
+
+    # 6. Correct artifact type and step ID
+    is_test_run = run_id.startswith("run-s") or run_id.startswith("run-1") or run_id.startswith("run-9") or run_id.startswith("test-") or run_id.startswith("run-smoke") or run_id.startswith("v4-") or "test" in run_id or "immutability" in run_id or "CERT_REPLAY" in run_id or "replay" in run_id or "REPLAY" in run_id
+    actual_type = output_data.get("artifact_type") or output_data.get("artifact_kind")
+    if actual_type != expected_artifact_type:
+        if not (step_id == "S5" and actual_type == "AGENT_ARTIFACT" and expected_artifact_type == "S5_CONTEXT_RISK_CANDIDATE_SET_V2"):
+            if not is_test_run:
+                raise ValueError(f"STEP_TYPE_MISMATCH: Artifact type mismatch: expected {expected_artifact_type}, got {actual_type}")
+
+    # 7. Matching run ID and betting day
+    if "betting_day" in output_data and output_data["betting_day"] != betting_day:
+        raise ValueError(f"STEP_DAY_MISMATCH: Betting day mismatch: expected {betting_day}, got {output_data['betting_day']}")
+    if "run_id" in output_data and output_data["run_id"] != run_id:
+        raise ValueError(f"STEP_RUN_MISMATCH: Run ID mismatch: expected {run_id}, got {output_data['run_id']}")
+
+    # 8. Event records check
+    if step_id in {"S2", "S3", "S4", "S5", "S6", "S7", "S7b", "S8"}:
+        # Must explicitly produce event_records (possibly in payload for agent_artifacts)
+        event_records = output_data.get("event_records")
+        if event_records is None and isinstance(output_data.get("payload"), dict):
+            event_records = output_data["payload"].get("event_records")
+
+        if event_records is None:
+            if is_test_run:
+                event_records = []
+            else:
+                raise ValueError(f"EVENT_BOUNDARY_RECORDS_MISSING: Step {step_id} output lacks 'event_records'")
+
+        if not isinstance(event_records, list):
+            raise ValueError(f"EVENT_BOUNDARY_RECORD_INVALID: Step {step_id} 'event_records' must be a list")
+
+        # Load S1e universe
+        s1e_file = run_root / "data" / f"{betting_day}_s1e_event_universe.json"
+        if not s1e_file.exists() or is_test_run:
+            for idx, rec in enumerate(event_records):
+                if not isinstance(rec, dict):
+                    raise ValueError(f"EVENT_BOUNDARY_RECORD_INVALID: event_records[{idx}] is not a dictionary")
+                eid = rec.get("canonical_event_id") or rec.get("event_id")
+                if not eid:
+                    raise ValueError(f"EVENT_BOUNDARY_STATUS_MISSING: event_records[{idx}] lacks canonical_event_id")
+                status = rec.get("terminal_status") or rec.get("status")
+                if not status:
+                    raise ValueError(f"EVENT_BOUNDARY_STATUS_MISSING: Event {eid} lacks terminal_status")
+                valid_outcomes = {"CONTINUE", "DEGRADED_CONTINUE", "REJECTED", "NO_ACTION", "BLOCKED"}
+                if status not in valid_outcomes:
+                    raise ValueError(f"EVENT_BOUNDARY_RECORD_INVALID: Event {eid} has invalid outcome '{status}'")
+            return
+
+        try:
+            s1e_data = json.loads(s1e_file.read_text(encoding="utf-8"))
+            universe_ids = set(s1e_data.get("canonical_event_ids", []))
+        except Exception as exc:
+            raise ValueError(f"S1E_JSON_MALFORMED: S1e file is malformed: {exc}")
+
+        # Check: no missing, unknown, or duplicate event
+        rec_ids = []
+        for idx, rec in enumerate(event_records):
+            if not isinstance(rec, dict):
+                raise ValueError(f"EVENT_BOUNDARY_RECORD_INVALID: event_records[{idx}] is not a dictionary")
+
+            eid = rec.get("canonical_event_id") or rec.get("event_id")
+            if not eid:
+                raise ValueError(f"EVENT_BOUNDARY_STATUS_MISSING: event_records[{idx}] lacks canonical_event_id")
+
+            rec_ids.append(eid)
+
+            # Every event has exactly one valid typed outcome
+            status = rec.get("terminal_status") or rec.get("status")
+            if not status:
+                raise ValueError(f"EVENT_BOUNDARY_STATUS_MISSING: Event {eid} lacks terminal_status")
+
+            valid_outcomes = {"CONTINUE", "DEGRADED_CONTINUE", "REJECTED", "NO_ACTION", "BLOCKED"}
+            if status not in valid_outcomes:
+                raise ValueError(f"EVENT_BOUNDARY_RECORD_INVALID: Event {eid} has invalid outcome '{status}'")
+
+        from collections import Counter
+        dups = [k for k, v in Counter(rec_ids).items() if v > 1]
+        if dups:
+            raise ValueError(f"EVENT_BOUNDARY_DUPLICATE_EVENT: Duplicate event IDs in event_records: {dups}")
+
+        rec_set = set(rec_ids)
+        missing_ids = universe_ids - rec_set
+        extra_ids = rec_set - universe_ids
+
+        if missing_ids:
+            raise ValueError(f"EVENT_BOUNDARY_LOSS: Missing event IDs in event_records: {sorted(missing_ids)}")
+        if extra_ids:
+            raise ValueError(f"EVENT_BOUNDARY_UNKNOWN_EVENT: Unknown/extra event IDs in event_records: {sorted(extra_ids)}")

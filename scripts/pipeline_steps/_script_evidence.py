@@ -223,31 +223,12 @@ def write_terminal_script_evidence_or_fail(
         records = None
         if fname:
             output_file = Path(child_env["BET_PIPELINE_DATA_DIR"]) / fname
-            if output_file.exists():
-                try:
-                    data = json.loads(output_file.read_text(encoding="utf-8"))
-                    if "event_records" in data:
-                        records = data["event_records"]
-                except Exception:
-                    pass
-        if not records:
-            # Fallback to S7 records if missing from own output (e.g., S7b/S8)
-            s7_file = Path(child_env["BET_PIPELINE_DATA_DIR"]) / f"{betting_day}_s7_gate_results.json"
-            if s7_file.exists():
-                try:
-                    s7_data = json.loads(s7_file.read_text(encoding="utf-8"))
-                    if "event_records" in s7_data:
-                        records = s7_data["event_records"]
-                    elif "priced_approved" in s7_data:
-                        evt_id = "evt_649a5f6cc3964ae76d3d614b517f2a82"
-                        records = [{
-                            "canonical_event_id": evt_id,
-                            "terminal_status": "DEGRADED_CONTINUE",
-                            "reason_codes": ["DEGRADED_NO_TIPSTER_PICKS"],
-                            "candidate_ids": []
-                        }]
-                except Exception:
-                    pass
+            s1e_file = Path(child_env["BET_PIPELINE_DATA_DIR"]) / f"{betting_day}_s1e_event_universe.json"
+            if s1e_file.exists() and (status == "PASS" or output_file.exists()):
+                data = json.loads(output_file.read_text(encoding="utf-8"))
+                if "event_records" not in data:
+                    raise ValueError(f"EVENT_BOUNDARY_RECORDS_MISSING: Step {step_id} output lacks 'event_records'")
+                records = data["event_records"]
         if records:
             payload["event_records"] = records
 
@@ -560,6 +541,10 @@ def run_wrapper_scripts_with_evidence(
                     })
 
             extra_payload["event_records"] = event_records
+            s2_data["event_records"] = event_records
+            output_file.write_text(json.dumps(s2_data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+            from bet.pipeline.run_evidence import sha256_file
+            extra_payload["s2_output_sha256"] = sha256_file(output_file)
             if not matched_event_ids:
                 extra_payload["outcome"] = "DEGRADED_NO_TIPSTER_PICKS"
 

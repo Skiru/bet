@@ -235,6 +235,58 @@ def evaluate_s7_hard_gate(
             "rejected": rejected,
         },
     )
+
+    s6_records = s6.get("event_records") or []
+    event_records = []
+
+    # Map event_id to its candidates in accepted
+    candidates_by_event = {}
+    for c in accepted:
+        evt_id = c.get("canonical_event_id") or c.get("fixture_id") or c.get("event_id")
+        if evt_id:
+            candidates_by_event.setdefault(evt_id, []).append(c)
+
+    # Approved & rejected candidate IDs in S7
+    approved_cids = {c["selection_id"] for c in priced_approved + analytical_approved}
+
+    for s6_rec in s6_records:
+        evt_id = s6_rec.get("canonical_event_id")
+        status_s6 = s6_rec.get("terminal_status")
+
+        if status_s6 in {"REJECTED", "NO_ACTION", "BLOCKED"}:
+            event_records.append({
+                "canonical_event_id": evt_id,
+                "terminal_status": status_s6,
+                "reason_codes": s6_rec.get("reason_codes", []),
+                "candidate_ids": []
+            })
+        else:
+            # S6 was CONTINUE or DEGRADED_CONTINUE
+            ev_candidates = candidates_by_event.get(evt_id, [])
+            if not ev_candidates:
+                event_records.append({
+                    "canonical_event_id": evt_id,
+                    "terminal_status": "NO_ACTION",
+                    "reason_codes": ["NO_CANDIDATES_AT_GATE"],
+                    "candidate_ids": []
+                })
+            else:
+                ev_approved_cids = [c["selection_id"] for c in ev_candidates if c["selection_id"] in approved_cids]
+                if ev_approved_cids:
+                    event_records.append({
+                        "canonical_event_id": evt_id,
+                        "terminal_status": status_s6, # CONTINUE or DEGRADED_CONTINUE
+                        "reason_codes": s6_rec.get("reason_codes", []),
+                        "candidate_ids": ev_approved_cids
+                    })
+                else:
+                    event_records.append({
+                        "canonical_event_id": evt_id,
+                        "terminal_status": "REJECTED",
+                        "reason_codes": ["ALL_CANDIDATES_REJECTED_AT_GATE"],
+                        "candidate_ids": []
+                    })
+
     approved_count = len(priced_approved) + len(analytical_approved)
     if not accepted or approved_count == 0:
         outcome = "NO_ACTION_TERMINAL"
@@ -259,6 +311,7 @@ def evaluate_s7_hard_gate(
         "rejected": rejected,
         "gate_results": gate_results,
         "accounting": accounting,
+        "event_records": event_records,
         "production_selectable": False,
         "betting_decisions_enabled": False,
         "no_pick_edge_stake_coupon_emitted": True,

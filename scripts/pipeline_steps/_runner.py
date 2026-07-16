@@ -63,9 +63,22 @@ def _venv_python() -> str:
 
 
 def _init_temp_db(db_path: str) -> None:
-    """Initialize schema in a temp DB for dry-run subprocesses."""
-    from bet.db.connection import get_db
+    """Initialize schema in a temp DB for dry-run subprocesses, copying existing operational DB if present."""
+    import shutil
+    import os
+    from bet.db.connection import get_db, _resolve_db_path
     from bet.db.schema import init_db
+
+    print("[DEBUG_DB] ENV DATABASE_URL:", os.environ.get("DATABASE_URL"))
+    print("[DEBUG_DB] KEYS:", [k for k in os.environ.keys() if "DATABASE" in k or "BET" in k or "URL" in k])
+    try:
+        op_path = _resolve_db_path()
+        print("[DEBUG_DB] RESOLVED OP PATH:", op_path, "IS FILE:", Path(op_path).is_file() if op_path else False)
+        if op_path and Path(op_path).is_file():
+            shutil.copy(op_path, db_path)
+    except Exception as exc:
+        print("[DEBUG_DB] RESOLVE FAILED:", exc)
+        pass
 
     with get_db(db_path) as conn:
         init_db(conn)
@@ -259,6 +272,7 @@ def run_scripts(
             temp_db_path = str(db_dir / f"bet_dryrun_{uuid.uuid4().hex}.db")
             _init_temp_db(temp_db_path)
             env["DATABASE_URL"] = f"sqlite:///{temp_db_path}"
+            env["BET_DB_PATH"] = temp_db_path
             env["DRY_RUN"] = "1"
         python = _venv_python()
         for script in scripts:
@@ -333,7 +347,7 @@ def run_scripts(
                     print(stderr)
         return 0
     finally:
-        if temp_db_path:
+        if temp_db_path and not os.environ.get("BET_KEEP_TEMP_DB"):
             try:
                 os.unlink(temp_db_path)
             except OSError:

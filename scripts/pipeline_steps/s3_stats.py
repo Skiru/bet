@@ -288,6 +288,7 @@ def _invoke_deep_stats_report(
             temp_db_path = str(db_dir / f"bet_dryrun_{uuid.uuid4().hex}.db")
             _init_temp_db(temp_db_path)
             env["DATABASE_URL"] = f"sqlite:///{temp_db_path}"
+            env["BET_DB_PATH"] = temp_db_path
             env["DRY_RUN"] = "1"
 
         cmd = [
@@ -311,7 +312,7 @@ def _invoke_deep_stats_report(
                 sys.stdout.write("\n")
         return res.returncode, output
     finally:
-        if temp_db_path:
+        if temp_db_path and not os.environ.get("BET_KEEP_TEMP_DB"):
             try:
                 os.unlink(temp_db_path)
             except OSError:

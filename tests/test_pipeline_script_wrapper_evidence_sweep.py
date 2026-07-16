@@ -164,7 +164,7 @@ def _write_s3_reports(environ: dict[str, str], *, with_data: int = 1) -> None:
                 "source_s2_sha256": sha256_file(data_dir / f"{betting_day}_s2_shortlist.json"),
                 "total_candidates": 1,
                 "candidates_with_data": with_data,
-                "analyses": [],
+                "analyses": [], "event_records": [],
             }
         ),
         encoding="utf-8",
@@ -188,7 +188,7 @@ def _seed_direct_wrapper_input(environ: dict[str, str], step_id: str) -> None:
         output.write_text(
             json.dumps({
                 "schema_version": 1,
-                "artifact_type": "S7B_SUPERBET_MANUAL_MAPPING",
+                "artifact_type": "S7B_SUPERBET_MANUAL_MAPPING", "event_records": [],
                 "status": "READY_FOR_MANUAL_MAPPING",
                 "betting_day": "2026-06-25",
                 "run_id": environ["BET_PIPELINE_RUN_ID"],
@@ -292,7 +292,7 @@ def _seed_prior_steps(environ: dict[str, str], step_id: str):
     }
     (run_root / "artifacts" / "S3.json").write_text(json.dumps(s3_ev))
     (run_root / "data" / "2026-06-25_s3_deep_stats.json").write_text(json.dumps({
-        "analyses": [{"fixture_id": 10, "home_team": "Alpha", "away_team": "Beta", "sport": "football", "best_market": {"name": "Match Winner", "market_family": "RESULT"}}]
+        "artifact_type": "S3_DEEP_STATS", "schema_version": 2, "event_records": [], "analyses": [{"fixture_id": 10, "home_team": "Alpha", "away_team": "Beta", "sport": "football", "best_market": {"name": "Match Winner", "market_family": "RESULT"}}]
     }))
     
     # S4
@@ -309,7 +309,7 @@ def _seed_prior_steps(environ: dict[str, str], step_id: str):
     }
     (run_root / "artifacts" / "S4.json").write_text(json.dumps(s4_ev))
     (run_root / "data" / "2026-06-25_s4_valuation_candidates.json").write_text(json.dumps({
-        "artifact_type": "S4_VALUATION_CANDIDATE_SET_V2",
+        "artifact_type": "S4_VALUATION_CANDIDATE_SET_V2", "event_records": [],
         "candidates": [
             {
                 "candidate_id": "c1",
@@ -399,7 +399,7 @@ def _seed_prior_steps(environ: dict[str, str], step_id: str):
     (run_root / "artifacts" / "S6.json").write_text(json.dumps(s6_ev))
     (run_root / "data" / "repeat_loss_handoff_2026-06-25.json").write_text(json.dumps({
         "schema_version": 1,
-        "artifact_type": "S6_PORTFOLIO_REPEAT_GUARD_V2",
+        "artifact_type": "S6_PORTFOLIO_REPEAT_GUARD_V2", "event_records": [],
         "status": "PASS",
         "betting_day": "2026-06-25",
         "run_id": environ["BET_PIPELINE_RUN_ID"],
@@ -453,7 +453,7 @@ def _seed_prior_steps(environ: dict[str, str], step_id: str):
     }
     (run_root / "artifacts" / "S7.json").write_text(json.dumps(s7_ev))
     (run_root / "data" / "2026-06-25_s7_gate_results.json").write_text(json.dumps({
-        "artifact_type": "S7_ANALYTICAL_APPROVAL_SET_V2",
+        "artifact_type": "S7_ANALYTICAL_APPROVAL_SET_V2", "event_records": [],
         "outcome": "READY_FOR_PRICED_REVIEW",
         "priced_approved": [
             {
@@ -491,7 +491,7 @@ def _seed_prior_steps(environ: dict[str, str], step_id: str):
     (run_root / "artifacts" / "S7b.json").write_text(json.dumps(s7b_ev))
     (run_root / "data" / "2026-06-25_s7b_superbet_manual_mapping.json").write_text(json.dumps({
         "schema_version": 1,
-        "artifact_type": "S7B_SUPERBET_MANUAL_MAPPING",
+        "artifact_type": "S7B_SUPERBET_MANUAL_MAPPING", "event_records": [],
         "status": "READY_FOR_MANUAL_MAPPING",
         "betting_day": "2026-06-25",
         "run_id": environ["BET_PIPELINE_RUN_ID"],
@@ -569,7 +569,7 @@ def _seed_prior_steps(environ: dict[str, str], step_id: str):
         json.dumps(
             {
                 "schema_version": 2,
-                "artifact_type": "S4_VALUATION_CANDIDATE_SET_V2",
+                "artifact_type": "S4_VALUATION_CANDIDATE_SET_V2", "event_records": [],
                 "betting_day": "2026-06-25",
                 "run_id": environ["BET_PIPELINE_RUN_ID"],
                 "source_s3_path": str(s3_path),
@@ -608,7 +608,7 @@ def _seed_prior_steps(environ: dict[str, str], step_id: str):
     s6_path = run_root / "data" / "repeat_loss_handoff_2026-06-25.json"
     s6_payload = {
         "schema_version": 2,
-        "artifact_type": "S6_PORTFOLIO_REPEAT_GUARD_V2",
+        "artifact_type": "S6_PORTFOLIO_REPEAT_GUARD_V2", "event_records": [],
         "status": "PASS",
         "concrete_status": "READY_FOR_S7",
         "betting_day": "2026-06-25",
@@ -643,7 +643,7 @@ def _seed_prior_steps(environ: dict[str, str], step_id: str):
         json.dumps(
             {
                 "schema_version": 2,
-                "artifact_type": "S7_ANALYTICAL_APPROVAL_SET_V2",
+                "artifact_type": "S7_ANALYTICAL_APPROVAL_SET_V2", "event_records": [],
                 "status": "PASS",
                 "outcome": "READY_FOR_ANALYTICAL_OPERATOR_QUOTE_REVIEW",
                 "betting_day": "2026-06-25",
@@ -927,7 +927,7 @@ def test_s4_wrapper_contract_pass_block_failed_and_tmp_paths():
     data_dir = Path(environ["BET_PIPELINE_DATA_DIR"])
     data_dir.mkdir(parents=True, exist_ok=True)
     input_path = data_dir / "2026-06-25_s3_deep_stats.json"
-    input_path.write_text(json.dumps({"analyses": [{"fixture_id": 10, "home_team": "Alpha", "away_team": "Beta", "best_market": {"name": "Over 2.5", "safety_score": 0.82}, "markets_evaluated": 4}]}), encoding="utf-8")
+    input_path.write_text(json.dumps({"artifact_type": "S3_DEEP_STATS", "schema_version": 2, "event_records": [], "analyses": [{"fixture_id": 10, "home_team": "Alpha", "away_team": "Beta", "best_market": {"name": "Over 2.5", "safety_score": 0.82}, "markets_evaluated": 4}]}), encoding="utf-8")
     data_alias = Path(environ["BET_PIPELINE_RUN_ROOT"]) / "data-alias"
     data_alias.symlink_to(data_dir, target_is_directory=True)
     aliased_input_path = data_alias / input_path.name
@@ -944,7 +944,7 @@ def test_s4_wrapper_contract_pass_block_failed_and_tmp_paths():
             output_path = Path(cmd[cmd.index("--output") + 1])
             output_path.write_text(json.dumps({
                 "schema_version": 2,
-                "artifact_type": "S4_VALUATION_CANDIDATE_SET_V2",
+                "artifact_type": "S4_VALUATION_CANDIDATE_SET_V2", "event_records": [],
                 "betting_day": "2026-06-25",
                 "run_id": environ["BET_PIPELINE_RUN_ID"],
                 "created_at_utc": "2026-06-25T00:00:00+00:00",
