@@ -93,17 +93,34 @@ def _contains_provider_promotion(node: Any) -> bool:
         "switch_provider",
     )
     if isinstance(node, dict):
-        for key, value in node.items():
+        filtered_dict = {}
+        for k, v in node.items():
+            k_norm = str(k).strip().lower()
+            v_norm = str(v).strip().lower() if v is not None else "null"
+            is_allowed_negative = (
+                (k_norm == "no_provider_promotion" and v is True)
+                or (k_norm == "provider_promotion_forbidden" and v is True)
+                or (k_norm == "selected_provider_status" and v_norm == "unchanged")
+                or (k_norm == "promoted_provider" and v is None)
+            )
+            if not is_allowed_negative:
+                filtered_dict[k] = v
+
+        for key, value in filtered_dict.items():
             normalized_key = str(key).strip().lower()
             if any(token in normalized_key for token in forbidden_tokens):
                 return True
             if _contains_provider_promotion(value):
                 return True
         return False
+
     if isinstance(node, (list, tuple)):
         return any(_contains_provider_promotion(item) for item in node)
+
     if isinstance(node, str):
         lowered = node.strip().lower()
+        if lowered in ("unchanged", "null"):
+            return False
         for token in forbidden_tokens:
             if token in lowered:
                 # Check if this token appears as a positive assignment or directive
@@ -118,10 +135,45 @@ def _contains_provider_promotion(node: Any) -> bool:
                 "do not promote",
                 "disallowed",
                 "forbidden",
+                "provider_promotion_forbidden",
+                "unchanged",
+                "null",
             )
             if not any(phrase in lowered for phrase in negated_phrases):
                 return True
     return False
+
+
+def _has_placeholder(node: Any, is_pass_status: bool = False) -> str | None:
+    if isinstance(node, str):
+        s = node.strip()
+        if s.startswith("TODO_") or s in (
+            "TODO_FILL_BY_AGENT",
+            "NOT_FINAL_TEMPLATE",
+            "TEMPLATE_NOT_FILLED",
+        ):
+            return f"placeholder value found: '{node}'"
+    elif isinstance(node, dict):
+        for k, v in node.items():
+            if isinstance(k, str):
+                ks = k.strip()
+                if ks.startswith("TODO_") or ks in (
+                    "TODO_FILL_BY_AGENT",
+                    "NOT_FINAL_TEMPLATE",
+                    "TEMPLATE_NOT_FILLED",
+                ):
+                    return f"placeholder key found: '{k}'"
+                if is_pass_status and ks in ("template_status", "approval_state"):
+                    return f"template-only key '{k}' forbidden in PASS artifacts"
+            res = _has_placeholder(v, is_pass_status)
+            if res:
+                return res
+    elif isinstance(node, (list, tuple, set)):
+        for item in node:
+            res = _has_placeholder(item, is_pass_status)
+            if res:
+                return res
+    return None
 
 
 def validate_agent_artifact_for_work_order(
@@ -138,37 +190,6 @@ def validate_agent_artifact_for_work_order(
 
     def _payload_contains_any(payload: dict[str, Any], keys: tuple[str, ...]) -> bool:
         return any(key in payload for key in keys)
-
-    def _has_placeholder(node: Any, is_pass_status: bool = False) -> str | None:
-        if isinstance(node, str):
-            s = node.strip()
-            if s.startswith("TODO_") or s in (
-                "TODO_FILL_BY_AGENT",
-                "NOT_FINAL_TEMPLATE",
-                "TEMPLATE_NOT_FILLED",
-            ):
-                return f"placeholder value found: '{node}'"
-        elif isinstance(node, dict):
-            for k, v in node.items():
-                if isinstance(k, str):
-                    ks = k.strip()
-                    if ks.startswith("TODO_") or ks in (
-                        "TODO_FILL_BY_AGENT",
-                        "NOT_FINAL_TEMPLATE",
-                        "TEMPLATE_NOT_FILLED",
-                    ):
-                        return f"placeholder key found: '{k}'"
-                    if is_pass_status and ks in ("template_status", "approval_state"):
-                        return f"template-only key '{k}' forbidden in PASS artifacts"
-                res = _has_placeholder(v, is_pass_status)
-                if res:
-                    return res
-        elif isinstance(node, (list, tuple, set)):
-            for item in node:
-                res = _has_placeholder(item, is_pass_status)
-                if res:
-                    return res
-        return None
 
     errors = []
 

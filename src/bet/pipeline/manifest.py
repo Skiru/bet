@@ -450,4 +450,114 @@ def validate_pipeline_manifest(manifest: PipelineManifest, repo_root: Path | Non
             if not (idx_s7 < idx_s7b < idx_s8):
                 errors.append("S7b must be after S7 and before S8")
 
+    # 5. Dependency and Graph Validation (P1-2)
+    depends_on_map = {}
+    required_inputs_map = {}
+
+    for step in manifest.steps:
+        sid = step.id
+        if not sid:
+            continue
+
+        deps = step.depends_on
+        reqs = step.required_inputs
+
+        if deps is not None:
+            # 1. No duplicate dependencies
+            if len(deps) != len(set(deps)):
+                errors.append(f"Step {sid} has duplicate dependencies in depends_on: {deps}")
+
+            # 2. No self-dependency
+            if sid in deps:
+                errors.append(f"Step {sid} has a self-dependency in depends_on")
+
+            # 3. Every dependency exists in manifest
+            for dep in deps:
+                if dep not in step_by_id:
+                    errors.append(f"Step {sid} depends on non-existent step: {dep}")
+
+            # 4. Dependencies precede the consuming step
+            sid_index = step_ids.index(sid) if sid in step_ids else -1
+            for dep in deps:
+                if dep in step_ids:
+                    dep_index = step_ids.index(dep)
+                    if dep_index >= sid_index:
+                        errors.append(f"Step {sid} depends on {dep} which does not precede it in step order")
+
+            # 5. Mandatory dependencies cannot be empty
+            if len(deps) == 0 and sid not in {"S0"}:
+                errors.append(f"Mandatory dependencies for step {sid} cannot be empty")
+
+            depends_on_map[sid] = deps
+        else:
+            depends_on_map[sid] = []
+
+        if reqs is not None:
+            # 1. No duplicate required_inputs
+            if len(reqs) != len(set(reqs)):
+                errors.append(f"Step {sid} has duplicate required_inputs: {reqs}")
+            required_inputs_map[sid] = reqs
+        else:
+            required_inputs_map[sid] = []
+
+    # Transitive dependencies helper
+    def get_transitive_deps(step_id: str, visited=None) -> set[str]:
+        if visited is None:
+            visited = set()
+        visited.add(step_id)
+        res = set()
+        for d in depends_on_map.get(step_id, []):
+            if d not in visited:
+                res.add(d)
+                res.update(get_transitive_deps(d, visited))
+        return res
+
+    # 6. Acyclic graph check
+    def has_cycle(step_id: str, visiting=None, visited=None) -> bool:
+        if visiting is None:
+            visiting = set()
+        if visited is None:
+            visited = set()
+        visiting.add(step_id)
+        for d in depends_on_map.get(step_id, []):
+            if d in visiting:
+                return True
+            if d not in visited:
+                if has_cycle(d, visiting, visited):
+                    return True
+        visiting.remove(step_id)
+        visited.add(step_id)
+        return False
+
+    for sid in step_ids:
+        if has_cycle(sid):
+            errors.append(f"Pipeline dependency graph has a cycle involving step: {sid}")
+
+    # 7. required_inputs reference existing direct/transitive dependencies
+    for sid, reqs in required_inputs_map.items():
+        trans_deps = get_transitive_deps(sid)
+        for r in reqs:
+            if r not in trans_deps:
+                errors.append(f"Step {sid} required_input {r} is not a direct or transitive dependency")
+
+    # 8. next edges and dependency edges are mutually coherent
+    next_reachable = {}
+    for sid in step_ids:
+        next_reachable[sid] = set()
+        queue = list(step_by_id[sid].next or [])
+        visited_next = set()
+        while queue:
+            curr = queue.pop(0)
+            if curr not in visited_next:
+                visited_next.add(curr)
+                next_reachable[sid].add(curr)
+                if curr in step_by_id:
+                    queue.extend(step_by_id[curr].next or [])
+
+    for sid in step_ids:
+        for dep in depends_on_map.get(sid, []):
+            if dep in step_by_id:
+                if sid not in next_reachable[dep]:
+                    errors.append(f"Incoherent edges: step {sid} depends on {dep}, but {sid} is not reachable from {dep} via next transitions")
+
     return errors

@@ -287,7 +287,7 @@ def test_v4_offline_chain_proof(tmp_path: Path, monkeypatch):
                 "schema_version": 1 if step_id != "S2.9" else 2,
                 "artifact_type": "AGENT_ARTIFACT",
                 "step_id": step_id,
-                "producer_agent_id": wo_data["agent"],
+                "producer_agent_id": wo_data.get("agent"),
                 "status": "PASS",
                 "betting_day": DAY,
                 "run_id": RUN_ID,
@@ -440,49 +440,53 @@ def test_exact_database_immutability_proof(tmp_path: Path, monkeypatch):
         encoding="utf-8"
     )
 
-    # Seed mock agent artifacts so S2.3, S2.5, S2.7, S2.9 can proceed smoothly and run S3
+    env = os.environ.copy()
+    env["DATABASE_URL"] = f"sqlite:///{sentinel_db}"
+    env["BET_DB_PATH"] = str(sentinel_db)
+    env["PYTHONPATH"] = "src:scripts"
+    env["BET_PIPELINE_RUN_ROOT"] = str(real_run_root)
+    env["BET_PIPELINE_DATA_DIR"] = str(real_run_root / "data")
+    env["BET_PIPELINE_ARTIFACT_DIR"] = str(real_run_root / "artifacts")
+    env["BET_PIPELINE_COUPON_DIR"] = str(real_run_root / "coupons")
+    env["BET_PIPELINE_LEDGER_PATH"] = str(ledger_file)
+    env["BET_MOCK_ODDS"] = "1"
+    env["BET_PIPELINE_SKIP_FETCH"] = "1"
+    env["BET_PIPELINE_LIVE_ACK"] = "I_UNDERSTAND_LIVE_PROVIDER_CALLS"
+    env["BET_KEEP_TEMP_DB"] = "1"
+
+    cmd = [
+        sys.executable,
+        "scripts/pipeline_steps/run_daily_pipeline.py",
+        "--date", "2026-07-16",
+        "--run-id", "immutability-run",
+        "--runtime-mode", "LIVE_SHADOW",
+        "--allow-live-network",
+        "--base-run-dir", str(tmp_path / "pipeline_runs"),
+        "--verbose"
+    ]
+
+    # 1. Run S1e and S2 first to generate S1e and S2 artifacts
+    cmd_pre = cmd + ["--start-step", "S1e", "--stop-after-step", "S2"]
+    res_pre = subprocess.run(cmd_pre, env=env, capture_output=True, text=True, cwd=str(Path(__file__).resolve().parents[1]))
+    assert res_pre.returncode == 0, f"Pre-run failed with unexpected code {res_pre.returncode}: {res_pre.stderr}\nStdout: {res_pre.stdout}"
+
+    # 2. Seed mock agent artifacts so S2.3, S2.5, S2.7, S2.9 can proceed smoothly and run S3
+    from bet.pipeline.agent_work_orders import build_agent_work_order, write_agent_work_order
+
     file_hashes = {}
     for step_id in ("S2.3", "S2.5", "S2.7", "S2.9"):
-        # 1. Write the work order JSON file first
-        step_agent_owner = "bet-researcher" if step_id.startswith("S2.") else "bet-risk-gatekeeper"
-        wo_artifact = {
-            "schema_version": 1,
-            "work_order_id": f"WO-immutability-run-{step_id}",
-            "work_order_type": "AGENT_ARTIFACT_REQUEST",
-            "pipeline_id": "bet_pipeline_v1",
-            "betting_day": "2026-07-16",
-            "run_id": "immutability-run",
-            "step_id": step_id,
-            "agent": step_agent_owner,
-            "runtime_mode": "LIVE_SHADOW",
-            "created_at": "2026-07-16T12:00:00Z",
-            "status": "PENDING_AGENT",
-            "input_refs": [],
-            "required_output": {
-                "artifact_type": "AGENT_ARTIFACT",
-                "step_id": step_id,
-                "expected_path": str(real_run_root / "artifacts" / f"{step_id}.json"),
-                "required_statuses": ["PASS", "BLOCK", "COMMAND_REQUEST"],
-                "schema_requirements": {}
-            }
-        }
-        if step_id == "S2.9":
-            wo_artifact["input_refs"] = [
-                {
-                    "step_id": dep,
-                    "artifact_kind": "AGENT_ARTIFACT",
-                    "path": str(real_run_root / "artifacts" / f"{dep}.json"),
-                    "required": True,
-                    "sha256": file_hashes[dep]
-                }
-                for dep in ("S2.3", "S2.5", "S2.7")
-            ]
-
+        wo = build_agent_work_order(
+            betting_day="2026-07-16",
+            run_id="immutability-run",
+            step_id=step_id,
+            runtime_mode="LIVE_SHADOW",
+            base_dir=tmp_path,
+        )
+        write_agent_work_order(wo, tmp_path)
         wo_path = real_run_root / "artifacts" / f"{step_id}_work_order.json"
-        wo_path.write_text(json.dumps(wo_artifact, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
         wo_sha = hashlib.sha256(wo_path.read_bytes()).hexdigest()
 
-        # 2. Build and publish the matching agent artifact with correct wo_sha
+        # Build and publish the matching agent artifact with correct wo_sha
         evt_id = canonical_event_id(event_data[0])
         payload = {
             "event_records": [
@@ -524,7 +528,7 @@ def test_exact_database_immutability_proof(tmp_path: Path, monkeypatch):
             "schema_version": 1 if step_id != "S2.9" else 2,
             "artifact_type": "AGENT_ARTIFACT",
             "step_id": step_id,
-            "producer_agent_id": step_agent_owner,
+            "producer_agent_id": wo.agent,
             "status": "PASS",
             "betting_day": "2026-07-16",
             "run_id": "immutability-run",
@@ -554,35 +558,9 @@ def test_exact_database_immutability_proof(tmp_path: Path, monkeypatch):
         )
         file_hashes[step_id] = receipt.sha256
 
-    env = os.environ.copy()
-    env["DATABASE_URL"] = f"sqlite:///{sentinel_db}"
-    env["BET_DB_PATH"] = str(sentinel_db)
-    env["PYTHONPATH"] = "src:scripts"
-    env["BET_PIPELINE_RUN_ROOT"] = str(real_run_root)
-    env["BET_PIPELINE_DATA_DIR"] = str(real_run_root / "data")
-    env["BET_PIPELINE_ARTIFACT_DIR"] = str(real_run_root / "artifacts")
-    env["BET_PIPELINE_COUPON_DIR"] = str(real_run_root / "coupons")
-    env["BET_PIPELINE_LEDGER_PATH"] = str(ledger_file)
-    env["BET_MOCK_ODDS"] = "1"
-    env["BET_PIPELINE_SKIP_FETCH"] = "1"
-    env["BET_PIPELINE_LIVE_ACK"] = "I_UNDERSTAND_LIVE_PROVIDER_CALLS"
-    env["BET_KEEP_TEMP_DB"] = "1"
-
-    cmd = [
-        sys.executable,
-        "scripts/pipeline_steps/run_daily_pipeline.py",
-        "--date", "2026-07-16",
-        "--run-id", "immutability-run",
-        "--runtime-mode", "LIVE_SHADOW",
-        "--allow-live-network",
-        "--base-run-dir", str(tmp_path / "pipeline_runs"),
-        "--verbose"
-    ]
-
-    # Run sequentially up to S3 so database-opening and run-scoped write paths are fully exercised!
-    cmd += ["--start-step", "S1e", "--stop-after-step", "S3"]
-
-    res = subprocess.run(cmd, env=env, capture_output=True, text=True, cwd=str(Path(__file__).resolve().parents[1]))
+    # 3. Run sequentially starting from S2.3 up to S3
+    cmd_main = cmd + ["--start-step", "S2.3", "--stop-after-step", "S3"]
+    res = subprocess.run(cmd_main, env=env, capture_output=True, text=True, cwd=str(Path(__file__).resolve().parents[1]))
     if res.returncode != 0:
         print("RUN ROOT:", real_run_root)
         print("FILES:")

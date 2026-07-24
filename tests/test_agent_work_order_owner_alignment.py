@@ -43,12 +43,40 @@ def manifest(repo_root: Path) -> PipelineManifest:
     return load_pipeline_manifest(repo_root / "config" / "pipeline_manifest.json")
 
 
+def seed_predecessors(base_dir: Path, betting_day: str, run_id: str):
+    artifacts_dir = base_dir / "pipeline_runs" / betting_day / run_id / "artifacts"
+    artifacts_dir.mkdir(parents=True, exist_ok=True)
+    for dep_id, kind in [
+        ("S2", "SCRIPT_EVIDENCE"),
+        ("S3", "SCRIPT_EVIDENCE"),
+        ("S4", "SCRIPT_EVIDENCE"),
+        ("S2.3", "AGENT_ARTIFACT"),
+        ("S2.5", "AGENT_ARTIFACT"),
+        ("S2.7", "AGENT_ARTIFACT"),
+        ("S2.9", "AGENT_ARTIFACT"),
+    ]:
+        p = artifacts_dir / f"{dep_id}.json"
+        if not p.is_file():
+            payload = {
+                "schema_version": 1,
+                "artifact_type": kind,
+                "step_id": dep_id,
+                "status": "PASS",
+                "betting_day": betting_day,
+                "run_id": run_id,
+                "sport": "football",
+                "payload": {},
+            }
+            p.write_text(json.dumps(payload), encoding="utf-8")
+
+
 def _write_valid_work_order_and_artifact(
-    base_dir: Path, step_id: str, status: str = "PASS"
+    base_dir: Path, step_id: str, status: str = "PASS", run_id: str = "run-alignment-test"
 ) -> tuple[dict, dict, Path]:
+    seed_predecessors(base_dir, "2026-07-24", run_id)
     wo = build_agent_work_order(
         betting_day="2026-07-24",
-        run_id="run-alignment-test",
+        run_id=run_id,
         step_id=step_id,
         runtime_mode="DRY_RUN",
         base_dir=base_dir,
@@ -63,7 +91,7 @@ def _write_valid_work_order_and_artifact(
         "producer_agent_id": wo.agent,
         "status": status,
         "betting_day": "2026-07-24",
-        "run_id": "run-alignment-test",
+        "run_id": run_id,
         "sport": "football",
         "point_in_time_as_of": "2026-07-24T12:00:00Z",
         "source_bound": True,
@@ -128,6 +156,7 @@ def _write_valid_work_order_and_artifact(
 def test_1_work_order_agents_align_with_manifest_and_allowlist(
     manifest: PipelineManifest, repo_root: Path
 ):
+    seed_predecessors(repo_root, "2026-07-24", "run-alignment")
     allowed_tasks = get_executor_allowed_tasks(repo_root)
     agent_steps = [s for s in manifest.steps if s.execution_mode == "agent_artifact"]
 
@@ -147,6 +176,7 @@ def test_1_work_order_agents_align_with_manifest_and_allowlist(
 
 # 2. Work-order hard_rules match manifest hard_rules (Finding 1)
 def test_2_work_order_hard_rules_align_with_manifest(manifest: PipelineManifest, repo_root: Path):
+    seed_predecessors(repo_root, "2026-07-24", "run-alignment")
     for step in manifest.steps:
         if step.execution_mode == "agent_artifact":
             wo = build_agent_work_order(
@@ -162,6 +192,7 @@ def test_2_work_order_hard_rules_align_with_manifest(manifest: PipelineManifest,
 
 # 3. Work-order generation is idempotent (Finding 2)
 def test_3_work_order_generation_is_idempotent(tmp_path: Path):
+    seed_predecessors(tmp_path, "2026-07-24", "run-idempotent")
     wo1 = build_agent_work_order(
         betting_day="2026-07-24",
         run_id="run-idempotent",
@@ -503,7 +534,7 @@ def test_19_command_request_bindings_must_match_before_execution(tmp_path: Path)
 
     for case_name, mutator in cases:
         run_id = f"run-cmd-{case_name}"
-        wo_data, art, wo_path = _write_valid_work_order_and_artifact(tmp_path, "S2.3", "PASS")
+        wo_data, art, wo_path = _write_valid_work_order_and_artifact(tmp_path, "S2.3", "PASS", run_id=run_id)
         art["status"] = "COMMAND_REQUEST"
         art["command_request"] = {
             "command_id": "WAIT_FOR_RATE_LIMIT",
@@ -622,6 +653,7 @@ def test_23_provider_promotion_mixed_negation_matrix():
 
 # 24. Manifest hard-rule mutation propagates without a second policy map
 def test_24_manifest_hard_rule_mutation_propagates(tmp_path: Path):
+    seed_predecessors(tmp_path, "2026-07-24", "run-mut-test")
     manifest = load_pipeline_manifest()
     # Find S2.3 step in manifest
     s23_step = next(s for s in manifest.steps if s.id == "S2.3")

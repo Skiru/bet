@@ -56,8 +56,8 @@ def test_certifier_runs_real_pytest_and_binds_current_source(tmp_path: Path) -> 
     _, expected_tree = source_manifest(ROOT)
     assert certificate["status"] == "PASS"
     assert certificate["source"]["source_tree_sha256"] == expected_tree
-    assert certificate["test_run"]["nodes"] == [node]
-    assert certificate["test_run"]["tests"] == 1
+    assert node in certificate["test_run"]["nodes"]
+    assert certificate["test_run"]["tests"] >= 33
     assert certificate["claims"]["live_pipeline_executed"] is False
     assert parse_junit(junit)["failures"] == 0
 
@@ -125,3 +125,36 @@ def test_certifier_contains_no_snapshot_specific_branch_or_sha() -> None:
     assert "fix/s5-s6-s7-canonical-continuity-final-v1" not in source
     assert "f925aef8" not in source
     assert "28422d9c" not in source
+
+
+def test_one_test_bypass_probe_fails_to_bypass_mandatory_set(tmp_path: Path) -> None:
+    """Adversarial test proving that a one-test certification invocation still runs the complete mandatory set."""
+    if os.environ.get("BET_PIPELINE_CERTIFIER_ACTIVE") == "1":
+        return
+    output = tmp_path / "certificate_adversarial.json"
+    junit = tmp_path / "results_adversarial.xml"
+    node = "tests/test_pipeline_certifier.py::test_certifier_child_fixture"
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(SCRIPT),
+            "--repo-root",
+            str(ROOT),
+            "--pytest-node",
+            node,
+            "--output",
+            str(output),
+            "--junit",
+            str(junit),
+            "--timeout-seconds",
+            "60",
+        ],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        timeout=90,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    certificate = json.loads(output.read_text(encoding="utf-8"))
+    assert certificate["status"] == "PASS"
+    assert certificate["test_run"]["tests"] >= 33

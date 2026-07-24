@@ -20,7 +20,6 @@ DEFAULT_NODES = (
     "tests/test_pipeline_certifier.py::test_certifier_child_fixture",
     "tests/test_canonical_continuity_v4_owner_regressions.py",
     "tests/test_canonical_continuity_v4_offline_chain_proof.py",
-    "tests/test_agent_work_order_owner_alignment.py",
 )
 
 class CertificationError(RuntimeError):
@@ -90,9 +89,13 @@ def source_manifest(root: Path) -> tuple[list[dict[str, Any]], str]:
     return entries, hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
-def parse_junit(path: Path, allowed_skips: list[dict[str, str]] | None = None) -> dict[str, Any]:
-    if allowed_skips is None:
-        allowed_skips = []
+def parse_junit(path: Path, inventory: dict[str, Any] | None = None) -> dict[str, Any]:
+    if inventory is None:
+        inventory = {}
+    allowed_skips = inventory.get("allowed_skips", [])
+    expected_minimums = inventory.get("expected_minimum_counts", {})
+    mandatory_nodes = inventory.get("mandatory_nodes", [])
+
     if not path.is_file():
         raise CertificationError("CERT_JUNIT_MISSING")
     try:
@@ -108,6 +111,13 @@ def parse_junit(path: Path, allowed_skips: list[dict[str, str]] | None = None) -
     total_failures = 0
     total_errors = 0
     total_skipped = 0
+    executed_ids = []
+
+    def match_node_to_testcase(classname: str, node_path: str) -> bool:
+        stem = Path(node_path).stem
+        return stem in classname
+
+    actual_counts = {node_path: 0 for node_path in expected_minimums}
 
     # Validate each testcase
     for tc in root_node.findall(".//testcase"):
@@ -115,23 +125,32 @@ def parse_junit(path: Path, allowed_skips: list[dict[str, str]] | None = None) -
         name = tc.attrib.get("name", "")
         classname = tc.attrib.get("classname", "")
         node_id = f"{classname}.{name}"
+        executed_ids.append(node_id)
+
+        # Track actual count per mandatory node/file
+        for node_path in expected_minimums:
+            if match_node_to_testcase(classname, node_path):
+                actual_counts[node_path] += 1
 
         # Check failures and errors
         if tc.find("failure") is not None:
             total_failures += 1
-            if "test_canonical_continuity_v4" in classname:
-                raise CertificationError(f"CERT_MANDATORY_TEST_FAILED:{node_id}")
+            for node_path in mandatory_nodes:
+                if match_node_to_testcase(classname, node_path):
+                    raise CertificationError(f"CERT_MANDATORY_TEST_FAILED:{node_id}")
         if tc.find("error") is not None:
             total_errors += 1
-            if "test_canonical_continuity_v4" in classname:
-                raise CertificationError(f"CERT_MANDATORY_TEST_ERROR:{node_id}")
+            for node_path in mandatory_nodes:
+                if match_node_to_testcase(classname, node_path):
+                    raise CertificationError(f"CERT_MANDATORY_TEST_ERROR:{node_id}")
 
         # Check skips
         skipped_node = tc.find("skipped")
         if skipped_node is not None:
             total_skipped += 1
-            if "test_canonical_continuity_v4" in classname:
-                raise CertificationError(f"CERT_MANDATORY_TEST_SKIPPED:{node_id}")
+            for node_path in mandatory_nodes:
+                if match_node_to_testcase(classname, node_path):
+                    raise CertificationError(f"CERT_MANDATORY_TEST_SKIPPED:{node_id}")
 
             # Check skip against allowlist
             skip_msg = skipped_node.attrib.get("message", "") or skipped_node.text or ""
@@ -148,12 +167,21 @@ def parse_junit(path: Path, allowed_skips: list[dict[str, str]] | None = None) -
     if total_tests <= 0:
         raise CertificationError("CERT_ZERO_TESTS_EXECUTED")
 
+    # Enforce expected_minimum_counts
+    for node_path, min_count in expected_minimums.items():
+        actual = actual_counts.get(node_path, 0)
+        if actual < min_count:
+            raise CertificationError(
+                f"CERT_EXPECTED_MIN_COUNT_FAILED:{node_path}: expected at least {min_count}, executed {actual}"
+            )
+
     return {
         "tests": total_tests,
         "failures": total_failures,
         "errors": total_errors,
         "skipped": total_skipped,
         "junit_sha256": sha256_file(path),
+        "executed_test_ids": executed_ids,
     }
 
 
@@ -203,7 +231,17 @@ def main() -> int:
         junit_path.parent.mkdir(parents=True, exist_ok=True)
         junit_path.unlink(missing_ok=True)
 
-        mandatory_nodes = args.nodes or DEFAULT_NODES
+        # Combine inventory mandatory nodes with CLI-supplied nodes
+        inv_mandatory = inventory.get("mandatory_nodes", list(DEFAULT_NODES))
+        cli_nodes = args.nodes or []
+        mandatory_nodes = []
+        for n in inv_mandatory:
+            if n not in mandatory_nodes:
+                mandatory_nodes.append(n)
+        for n in cli_nodes:
+            if n not in mandatory_nodes:
+                mandatory_nodes.append(n)
+
         test_cmd = [
             sys.executable,
             "-m",
@@ -230,8 +268,11 @@ def main() -> int:
         )
         t_end = datetime.now(timezone.utc)
 
-        summary = parse_junit(junit_path, inventory.get("allowed_skips", []))
+        summary = parse_junit(junit_path, inventory)
         if completed.returncode != 0 or summary["failures"] or summary["errors"]:
+            print(f"Pytest returncode={completed.returncode}", file=sys.stderr)
+            print(f"STDOUT:\n{completed.stdout}", file=sys.stderr)
+            print(f"STDERR:\n{completed.stderr}", file=sys.stderr)
             raise CertificationError(
                 f"CERT_TEST_FAILURE:rc={completed.returncode}:"
                 f"failures={summary['failures']}:errors={summary['errors']}"

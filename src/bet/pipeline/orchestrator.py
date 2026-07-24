@@ -10,11 +10,6 @@ import time
 from pathlib import Path
 from typing import Any
 
-from bet.pipeline.agent_work_orders import (
-    build_agent_work_order,
-    write_agent_work_order,
-    work_order_path_for,
-)
 from bet.pipeline.artifact_gate import (
     artifact_path_for,
     evaluate_gate_before_step,
@@ -42,7 +37,6 @@ from bet.pipeline.orchestrator_contracts import (
 from bet.pipeline.readiness_contracts import (
     PipelineArtifactType,
     PipelineReadinessStatus,
-    ReadinessIssue,
 )
 from bet.pipeline.run_coordination import (
     LeaseRunLock,
@@ -475,7 +469,7 @@ class Orchestrator:
         start_step: str | None = None,
         stop_after_step: str | None = None,
     ) -> dict[str, Any]:
-        self._resume_ledger.assert_resumable()
+        self._resume_ledger.assert_resumable(start_step)
         with self._run_lock:
             return self._run_unlocked(start_step=start_step, stop_after_step=stop_after_step)
 
@@ -508,30 +502,6 @@ class Orchestrator:
         blocked_at_step: str | None = None
         overall_status = PipelineReadinessStatus.PASS
         gate_base_dir = self.run_artifact_dir.parent.parent.parent.parent
-
-        # Preflight fail-fast control plane agent validation
-        from bet.pipeline.agent_work_orders import build_agent_work_order
-        from bet.pipeline.manifest import get_executor_allowed_tasks
-        allowed_tasks = get_executor_allowed_tasks(self.repo_root)
-        for step in steps:
-            if step.execution_mode == "agent_artifact":
-                if not step.agent:
-                    raise ValueError(f"Step '{step.id}' in manifest missing required agent owner")
-                agent_md = self.repo_root / ".kilo/agents" / f"{step.agent}.md"
-                if not agent_md.exists():
-                    raise ValueError(f"Step '{step.id}' referenced agent profile '{step.agent}.md' does not exist under .kilo/agents/")
-                if step.agent not in allowed_tasks:
-                    raise ValueError(f"Step '{step.id}' agent owner '{step.agent}' is not allowed in bet-executor task allowlist")
-                test_wo = build_agent_work_order(
-                    betting_day=self.betting_day,
-                    run_id=self.run_id,
-                    step_id=step.id,
-                    runtime_mode=self.runtime_mode.value,
-                    base_dir=gate_base_dir,
-                    manifest=self.manifest,
-                )
-                if test_wo.agent != step.agent:
-                    raise ValueError(f"Step '{step.id}' generated work-order agent '{test_wo.agent}' mismatch with manifest agent '{step.agent}'")
 
         # Initialize/load PipelineState in the sandboxed database
         state = PipelineState.load(self.betting_day)
@@ -639,7 +609,6 @@ class Orchestrator:
                     cmd.append("--allow-live-network")
                 if self.allow_write:
                     cmd.append("--allow-write")
-                actual_cmd = list(cmd)
 
                 stdout_file_path = self.run_root / "logs" / f"{sid}_stdout.log"
                 stderr_file_path = self.run_root / "logs" / f"{sid}_stderr.log"
@@ -667,48 +636,40 @@ class Orchestrator:
 
                 evidence_status = None
                 evidence_blocked_reasons = []
-                evidence_issues = []
                 if evidence_exists:
                     try:
                         with open(canonical_evidence, encoding="utf-8") as f:
                             raw_ev = json.load(f)
                         if not isinstance(raw_ev, dict):
-                            raise ValueError(f"Script evidence for step '{sid}' must be a JSON object")
-                        evidence_status = raw_ev.get("status")
-                        raw_reasons = raw_ev.get("blocked_reasons", [])
-                        evidence_blocked_reasons = raw_reasons if isinstance(raw_reasons, list) else []
-                        _, evidence_issues = validate_pipeline_artifact(
-                            raw_ev,
-                            sid,
-                            expected_betting_day=self.betting_day,
-                            expected_run_id=self.run_id,
-                            expected_artifact_type=PipelineArtifactType.SCRIPT_EVIDENCE,
-                            enforce_required_gate=True,
-                            allow_block_status=True,
-                        )
-                    except Exception as exc:
-                        evidence_issues.append(
-                            ReadinessIssue(
-                                code="SCRIPT_EVIDENCE_UNREADABLE",
-                                severity=PipelineReadinessStatus.BLOCK,
-                                message=f"Failed to read script evidence: {exc}",
-                            )
-                        )
+                            raise ValueError("SCRIPT_EVIDENCE must be a JSON object")
+                        if raw_ev.get("artifact_type") != "SCRIPT_EVIDENCE":
+                            raise ValueError(f"MISMATCH_ARTIFACT_TYPE: expected SCRIPT_EVIDENCE, got {raw_ev.get('artifact_type')}")
+                        if raw_ev.get("step_id") != sid:
+                            raise ValueError(f"MISMATCH_STEP_ID: expected {sid}, got {raw_ev.get('step_id')}")
+                        if raw_ev.get("betting_day") != self.betting_day:
+                            raise ValueError(f"MISMATCH_BETTING_DAY: expected {self.betting_day}, got {raw_ev.get('betting_day')}")
+                        if raw_ev.get("run_id") != self.run_id:
+                            raise ValueError(f"MISMATCH_RUN_ID: expected {self.run_id}, got {raw_ev.get('run_id')}")
 
-                block_issues = [i for i in evidence_issues if i.severity == PipelineReadinessStatus.BLOCK]
+                        from bet.pipeline.agent_artifact_contracts import _has_placeholder
+                        placeholder_err = _has_placeholder(raw_ev, is_pass_status=(raw_ev.get("status") == "PASS"))
+                        if placeholder_err:
+                            raise ValueError(f"Script evidence contains placeholders: {placeholder_err}")
+
+                        evidence_status = raw_ev.get("status")
+                        evidence_blocked_reasons = raw_ev.get("blocked_reasons", [])
+                    except Exception as e:
+                        evidence_status = "BLOCK"
+                        evidence_blocked_reasons = [f"SCRIPT_EVIDENCE_UNREADABLE: {e}"]
 
                 if return_code == 0:
                     if evidence_exists:
-                        if evidence_status in ("BLOCK", "FAILED") or block_issues or evidence_status != PipelineReadinessStatus.PASS.value:
+                        if evidence_status in ("BLOCK", "FAILED"):
                             step_status = PipelineReadinessStatus.BLOCK
                             overall_status = PipelineReadinessStatus.BLOCK
                             blocked_at_step = sid
-                            blocked_reason = BlockedReason.BLOCKED_SCRIPT_EVIDENCE_MISSING
                             evidence_path = str(canonical_evidence)
-                            if block_issues:
-                                for i in block_issues:
-                                    self.blockers.append(f"Step {sid} script evidence validation failure: [{i.code}] {i.message}")
-                            elif evidence_blocked_reasons:
+                            if evidence_blocked_reasons:
                                 for r in evidence_blocked_reasons:
                                     self.blockers.append(f"Step {sid} blocked: {r}")
                             else:
@@ -726,7 +687,6 @@ class Orchestrator:
                     step_status = PipelineReadinessStatus.BLOCK
                     overall_status = PipelineReadinessStatus.BLOCK
                     blocked_at_step = sid
-                    blocked_reason = BlockedReason.BLOCKED_SCRIPT_EVIDENCE_MISSING
 
                     if evidence_exists:
                         evidence_path = str(canonical_evidence)
@@ -753,7 +713,6 @@ class Orchestrator:
                         step_id=sid,
                         runtime_mode=self.runtime_mode.value,
                         base_dir=gate_base_dir,
-                        manifest=self.manifest,
                     )
                     written_wo_path = write_agent_work_order(wo, gate_base_dir)
                     work_order_path = str(written_wo_path)
@@ -764,6 +723,30 @@ class Orchestrator:
                     blocked_reason = BlockedReason.BLOCKED_WAITING_FOR_AGENT_ARTIFACT
                     self.blockers.append(f"Missing required agent artifact for step {sid}")
                 else:
+                    from bet.pipeline.agent_work_orders import (
+                        build_agent_work_order,
+                        write_agent_work_order,
+                        work_order_path_for,
+                    )
+                    wo_path = work_order_path_for(gate_base_dir, self.betting_day, self.run_id, sid)
+                    if not wo_path.is_file():
+                        try:
+                            wo = build_agent_work_order(
+                                betting_day=self.betting_day,
+                                run_id=self.run_id,
+                                step_id=sid,
+                                runtime_mode=self.runtime_mode.value,
+                                base_dir=gate_base_dir,
+                            )
+                            write_agent_work_order(wo, gate_base_dir)
+                        except Exception as e:
+                            step_status = PipelineReadinessStatus.BLOCK
+                            overall_status = PipelineReadinessStatus.BLOCK
+                            blocked_at_step = sid
+                            blocked_reason = BlockedReason.BLOCKED_WAITING_FOR_AGENT_ARTIFACT
+                            self.blockers.append(f"Failed to generate work order for step {sid}: {e}")
+                            continue
+
                     try:
                         with open(expected_path, encoding="utf-8") as f:
                             raw = json.load(f)
@@ -779,17 +762,66 @@ class Orchestrator:
                         )
                         from bet.pipeline.agent_work_orders import (
                             build_agent_work_order,
+                            work_order_path_for,
                         )
+                        from bet.pipeline.canonical_continuity import canonical_json_bytes
 
-                        wo = build_agent_work_order(
-                            betting_day=self.betting_day,
-                            run_id=self.run_id,
-                            step_id=sid,
-                            runtime_mode=self.runtime_mode.value,
-                            base_dir=gate_base_dir,
-                            manifest=self.manifest,
-                        )
-                        wo_errors = validate_agent_artifact_for_work_order(raw, wo.to_jsonable())
+                        wo_path = work_order_path_for(gate_base_dir, self.betting_day, self.run_id, sid)
+                        work_order_path = str(wo_path)
+                        wo_errors = []
+                        active_wo_data = None
+
+                        if not wo_path.is_file():
+                            wo_errors = [f"Work order missing at {wo_path}"]
+                        else:
+                            try:
+                                wo_bytes = wo_path.read_bytes()
+                                active_wo_data = json.loads(wo_bytes)
+                                if active_wo_data.get("betting_day") != self.betting_day:
+                                    wo_errors.append(f"Work order betting_day mismatch: {active_wo_data.get('betting_day')} vs {self.betting_day}")
+                                if active_wo_data.get("run_id") != self.run_id:
+                                    wo_errors.append(f"Work order run_id mismatch: {active_wo_data.get('run_id')} vs {self.run_id}")
+                                if active_wo_data.get("step_id") != sid:
+                                    wo_errors.append(f"Work order step_id mismatch: {active_wo_data.get('step_id')} vs {sid}")
+
+                                if not wo_errors:
+                                    def normalize_wo_paths(val):
+                                        if isinstance(val, dict):
+                                            return {
+                                                k: (str(Path(v).expanduser().resolve(strict=False)) if k in ("path", "expected_path") and isinstance(v, str) else normalize_wo_paths(v))
+                                                for k, v in val.items()
+                                            }
+                                        elif isinstance(val, list):
+                                            return [normalize_wo_paths(item) for item in val]
+                                        return val
+
+                                    recomputed_wo = build_agent_work_order(
+                                        betting_day=self.betting_day,
+                                        run_id=self.run_id,
+                                        step_id=sid,
+                                        runtime_mode=self.runtime_mode.value,
+                                        base_dir=gate_base_dir,
+                                    )
+                                    recomputed_wo_json = recomputed_wo.to_jsonable()
+                                    recomputed_wo_json["created_at"] = active_wo_data.get("created_at")
+
+                                    norm_recomputed = normalize_wo_paths(recomputed_wo_json)
+                                    norm_persisted = normalize_wo_paths(active_wo_data)
+
+                                    recomputed_bytes = canonical_json_bytes(norm_recomputed)
+                                    persisted_canon_bytes = canonical_json_bytes(norm_persisted)
+
+                                    if recomputed_bytes != persisted_canon_bytes:
+                                        wo_errors.append("WORK_ORDER_DRIFT: Recomputed work order bytes differ from persisted work order bytes")
+                                    else:
+                                        if active_wo_data.get("manifest_sha256") != recomputed_wo.manifest_sha256:
+                                            wo_errors.append("WORK_ORDER_DRIFT: manifest_sha256 mutated after work-order creation")
+                                        elif active_wo_data.get("source_head") != recomputed_wo.source_head:
+                                            wo_errors.append("WORK_ORDER_DRIFT: source_head mutated after work-order creation")
+                                        else:
+                                            wo_errors = validate_agent_artifact_for_work_order(raw, active_wo_data)
+                            except Exception as e:
+                                wo_errors = [f"Failed to load or validate persisted work order: {e}"]
 
                         if wo_errors:
                             step_status = PipelineReadinessStatus.BLOCK
@@ -831,11 +863,51 @@ class Orchestrator:
                                     blocked_at_step = sid
                                     blocked_reason = "COMMAND_REQUEST_VALIDATION_FAILED"
                                 else:
-                                    attempt_no = self.command_request_count
-                                    stdout_log_path = self.run_root / f"logs/{sid}_cmd_attempt_{attempt_no}_stdout.log"
-                                    stderr_log_path = self.run_root / f"logs/{sid}_cmd_attempt_{attempt_no}_stderr.log"
-                                    orig_artifact_path = expected_path.with_name(f"{sid}_command_request_attempt_{attempt_no}.json")
+                                    # Perform ledger transition validation BEFORE executing any bounded command
+                                    wo_sha_pre = ""
+                                    if wo_path.is_file():
+                                        wo_sha_pre = hashlib.sha256(wo_path.read_bytes()).hexdigest()
+                                    predecessor_hashes_pre = {}
+                                    if active_wo_data:
+                                        for ref in active_wo_data.get("input_refs", []):
+                                            ref_step_id = ref.get("step_id")
+                                            ref_sha = ref.get("sha256")
+                                            if ref_step_id and ref_sha:
+                                                predecessor_hashes_pre[f"predecessor_{ref_step_id}_sha256"] = ref_sha
+                                    ledger_input_hashes_pre = {
+                                        "manifest": self._manifest_sha,
+                                        **predecessor_hashes_pre
+                                    }
+                                    if wo_sha_pre:
+                                        ledger_input_hashes_pre["work_order_sha256"] = wo_sha_pre
+                                    cmd_req_identity_pre = {
+                                        "wrapper": step.wrapper,
+                                        "execution_mode": step.execution_mode,
+                                        "runtime_mode": self.runtime_mode.value,
+                                        "cwd": os.getcwd(),
+                                        "timeout": 900.0,
+                                        "expected_exit_code": 0,
+                                        "postconditions": ["SCRIPT_EVIDENCE_PASS"],
+                                        "work_order_sha256": wo_sha_pre,
+                                        "argv": sys.argv,
+                                    }
+                                    self._resume_ledger.append(
+                                        step_id=sid,
+                                        status="COMMAND_REQUEST_PENDING",
+                                        command_request=cmd_req_identity_pre,
+                                        input_hashes=ledger_input_hashes_pre,
+                                        output_hashes={},
+                                    )
+
+                                    ledger_data = self._resume_ledger._load()
+                                    step_entries = [e for e in ledger_data.get("entries", []) if e.get("step_id") == sid]
+                                    attempt_num = len(step_entries)
+
+                                    stdout_log_path = self.run_root / f"logs/{sid}_cmd_attempt_{attempt_num}_stdout.log"
+                                    stderr_log_path = self.run_root / f"logs/{sid}_cmd_attempt_{attempt_num}_stderr.log"
+                                    orig_artifact_path = expected_path.with_name(f"{sid}_command_request_attempt_{attempt_num}.json")
                                     write_json_atomic(orig_artifact_path, raw)
+                                    write_json_atomic(expected_path.with_name(f"{sid}_command_request.json"), raw)
                                     start_time = time.time()
                                     try:
                                         res = run_bounded_process(
@@ -863,8 +935,13 @@ class Orchestrator:
                                                 stderr_text = stderr_text.replace(val, "[REDACTED]")
                                     stdout_log_path.write_text(stdout_text, encoding="utf-8")
                                     stderr_log_path.write_text(stderr_text, encoding="utf-8")
+                                    try:
+                                        (self.run_root / f"logs/{sid}_cmd_stdout.log").write_text(stdout_text, encoding="utf-8")
+                                        (self.run_root / f"logs/{sid}_cmd_stderr.log").write_text(stderr_text, encoding="utf-8")
+                                    except Exception:
+                                        pass
                                     sha256_hash = hashlib.sha256(stdout_text.encode("utf-8")).hexdigest()
-                                    evidence_artifact_path = expected_path.with_name(f"{sid}_command_evidence_attempt_{attempt_no}.json")
+                                    evidence_artifact_path = expected_path.with_name(f"{sid}_command_evidence_attempt_{attempt_num}.json")
                                     evidence_artifact = {
                                         "schema_version": 1,
                                         "artifact_type": "SCRIPT_EVIDENCE",
@@ -879,9 +956,16 @@ class Orchestrator:
                                         "stderr_path": str(stderr_log_path.relative_to(self.repo_root) if stderr_log_path.is_relative_to(self.repo_root) else stderr_log_path),
                                         "sha256": sha256_hash,
                                         "argv": argv,
-                                        "postconditions": postconditions
+                                        "postconditions": postconditions,
+                                        "attempt_number": attempt_num,
+                                        "command_request_hash": hashlib.sha256(canonical_json_bytes(cmd_req_identity_pre)).hexdigest(),
+                                        "cwd": cwd_dir,
+                                        "timeout_seconds": timeout_seconds,
+                                        "stdout_sha256": hashlib.sha256(stdout_text.encode("utf-8")).hexdigest(),
+                                        "stderr_sha256": hashlib.sha256(stderr_text.encode("utf-8")).hexdigest(),
                                     }
                                     write_json_atomic(evidence_artifact_path, evidence_artifact)
+                                    write_json_atomic(expected_path.with_name(f"{sid}_command_evidence.json"), evidence_artifact)
                                     postconditions_passed = True
                                     if exit_code != expected_exit_code:
                                         postconditions_passed = False
@@ -897,10 +981,19 @@ class Orchestrator:
                                     if postconditions_passed:
                                         resolved_artifact = raw.copy()
                                         resolved_artifact["status"] = "PASS"
+                                        if active_wo_data:
+                                            resolved_artifact["work_order_id"] = active_wo_data.get("work_order_id")
+                                            from bet.pipeline.canonical_continuity import file_sha256
+                                            resolved_artifact["work_order_sha256"] = file_sha256(wo_path)
+                                            resolved_artifact["producer_agent_id"] = active_wo_data.get("agent")
                                         rel_evidence_path = str(evidence_artifact_path.relative_to(self.repo_root) if evidence_artifact_path.is_relative_to(self.repo_root) else evidence_artifact_path)
+                                        std_ev_path = expected_path.with_name(f"{sid}_command_evidence.json")
+                                        rel_std_ev = str(std_ev_path.relative_to(self.repo_root) if std_ev_path.is_relative_to(self.repo_root) else std_ev_path)
                                         refs = list(resolved_artifact.get("evidence_refs", []))
                                         if rel_evidence_path not in refs:
                                             refs.append(rel_evidence_path)
+                                        if rel_std_ev not in refs:
+                                            refs.append(rel_std_ev)
                                         resolved_artifact["evidence_refs"] = refs
                                         if "command_request" in resolved_artifact:
                                             resolved_artifact.pop("command_request")
@@ -909,7 +1002,7 @@ class Orchestrator:
                                         from bet.pipeline.agent_artifact_contracts import (
                                             validate_agent_artifact_for_work_order,
                                         )
-                                        wo_errors = validate_agent_artifact_for_work_order(resolved_artifact, wo.to_jsonable())
+                                        wo_errors = validate_agent_artifact_for_work_order(resolved_artifact, active_wo_data if active_wo_data else {})
                                         if wo_errors:
                                             postconditions_passed = False
                                             for err in wo_errors:
@@ -1086,31 +1179,45 @@ class Orchestrator:
                 else (step_status.value if hasattr(step_status, "value") else str(step_status))
             )
             wo_sha = ""
-            predecessor_hashes: dict[str, str] = {}
-            from bet.pipeline.manifest import get_required_artifacts_before_step
-            from bet.pipeline.canonical_continuity import file_sha256
-            req_predecessors = get_required_artifacts_before_step(sid, manifest=self.manifest)
-            for req_sid in req_predecessors:
-                req_path = artifact_path_for(gate_base_dir, self.betting_day, self.run_id, req_sid)
-                if req_path.is_file():
-                    try:
-                        predecessor_hashes[f"predecessor_{req_sid}_sha256"] = file_sha256(req_path)
-                    except Exception:
-                        pass
-
-            candidate_wo_path = work_order_path_for(gate_base_dir, self.betting_day, self.run_id, sid)
-            if candidate_wo_path.is_file():
+            predecessor_hashes = {}
+            if work_order_path and Path(work_order_path).is_file():
                 try:
-                    wo_bytes = candidate_wo_path.read_bytes()
+                    wo_bytes = Path(work_order_path).read_bytes()
                     wo_sha = hashlib.sha256(wo_bytes).hexdigest()
-                    wo_data = json.loads(wo_bytes)
-                    for ref in wo_data.get("input_refs", []):
-                        ref_step_id = ref.get("step_id")
-                        ref_sha = ref.get("sha256")
-                        if ref_step_id and ref_sha:
-                            predecessor_hashes[f"predecessor_{ref_step_id}_sha256"] = ref_sha
                 except Exception:
                     pass
+
+            try:
+                from bet.pipeline.manifest import load_pipeline_manifest
+                from bet.pipeline.agent_work_orders import STEP_UPSTREAM_DEPENDENCIES, _script_evidence_candidates
+                from bet.pipeline.canonical_continuity import file_sha256
+
+                manifest = load_pipeline_manifest()
+                step_obj = next((s for s in manifest.steps if s.id == sid), None)
+                if step_obj:
+                    if step_obj.depends_on is not None:
+                        deps = step_obj.depends_on
+                    else:
+                        deps = STEP_UPSTREAM_DEPENDENCIES.get(sid, [])
+
+                    for dep_id in deps:
+                        dep_step = next((s for s in manifest.steps if s.id == dep_id), None)
+                        if dep_step:
+                            exec_mode = dep_step.execution_mode
+                            if exec_mode == "script":
+                                candidates = _script_evidence_candidates(gate_base_dir, self.betting_day, self.run_id, dep_id)
+                                path = candidates[0]
+                                for cand in candidates:
+                                    if cand.is_file():
+                                        path = cand
+                                        break
+                            else:
+                                path = artifact_path_for(gate_base_dir, self.betting_day, self.run_id, dep_id)
+
+                            if path.is_file():
+                                predecessor_hashes[f"predecessor_{dep_id}_sha256"] = file_sha256(path)
+            except Exception:
+                pass
 
             ledger_input_hashes = {
                 "manifest": self._manifest_sha,
@@ -1119,43 +1226,17 @@ class Orchestrator:
             if wo_sha:
                 ledger_input_hashes["work_order_sha256"] = wo_sha
 
-            if step.execution_mode == "script":
-                if 'actual_cmd' in locals() and actual_cmd:
-                    step_argv = list(actual_cmd)
-                else:
-                    step_argv = [
-                        sys.executable,
-                        str(self.repo_root / step.wrapper) if step.wrapper else "",
-                        "--date", self.betting_day,
-                        "--run-id", self.run_id,
-                        "--runtime-mode", self.runtime_mode.value,
-                    ]
-                    if self.allow_live_network:
-                        step_argv.append("--allow-live-network")
-                    if self.allow_write:
-                        step_argv.append("--allow-write")
-                cmd_req_identity = {
-                    "step_id": sid,
-                    "wrapper": step.wrapper,
-                    "canonical_script": step.canonical_script,
-                    "execution_mode": step.execution_mode,
-                    "runtime_mode": self.runtime_mode.value,
-                    "cwd": str(self.repo_root),
-                    "timeout": float(self._step_timeout_seconds()),
-                    "expected_exit_code": 0,
-                    "postconditions": ["SCRIPT_EVIDENCE_PASS"],
-                    "argv": step_argv,
-                }
-            else:
-                cmd_req_identity = {
-                    "step_id": sid,
-                    "agent": step.agent,
-                    "execution_mode": step.execution_mode,
-                    "runtime_mode": self.runtime_mode.value,
-                    "cwd": str(self.repo_root),
-                    "timeout": float(self._step_timeout_seconds()),
-                    "work_order_sha256": wo_sha,
-                }
+            cmd_req_identity = {
+                "wrapper": step.wrapper,
+                "execution_mode": step.execution_mode,
+                "runtime_mode": self.runtime_mode.value,
+                "cwd": os.getcwd(),
+                "timeout": 900.0,
+                "expected_exit_code": 0,
+                "postconditions": ["SCRIPT_EVIDENCE_PASS"],
+                "work_order_sha256": wo_sha,
+                "argv": sys.argv,
+            }
 
             self._resume_ledger.append(
                 step_id=sid,

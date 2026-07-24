@@ -408,19 +408,41 @@ class ResumeLedger:
         normalized_inputs = dict(sorted(input_hashes.items()))
         normalized_outputs = dict(sorted(output_hashes.items()))
         signature = (step_id, request_hash, normalized_inputs)
+        LEGAL_TRANSITIONS = {
+            "WAITING_FOR_AGENT_ARTIFACT": {"PASS", "AGENT_ARTIFACT_BLOCK", "COMMAND_REQUEST_PENDING", "NO_ACTION_TERMINAL"},
+            "COMMAND_REQUEST_PENDING": {"PASS", "COMMAND_REQUEST_UNRESOLVED", "NO_ACTION_TERMINAL"},
+            "COMMAND_REQUEST_UNRESOLVED": {"PASS", "AGENT_ARTIFACT_BLOCK", "COMMAND_REQUEST_PENDING", "NO_ACTION_TERMINAL"},
+            "AGENT_ARTIFACT_BLOCK": {"PASS", "COMMAND_REQUEST_PENDING", "NO_ACTION_TERMINAL"},
+        }
+
+        existing_entry = None
+        for entry in reversed(entries):
+            if entry.get("step_id") == step_id:
+                existing_entry = entry
+                break
+
         resolution_of_attempt_id: str | None = None
-        for existing in reversed(entries):
-            if (existing["step_id"], existing["command_request_hash"], existing["input_hashes"]) == signature:
-                if existing["status"] == status and existing["output_hashes"] == normalized_outputs:
-                    return existing
+        if existing_entry:
+            old_status = existing_entry.get("status")
+            if old_status == status:
                 if (
-                    existing["status"] in {"BLOCK", "COMMAND_REQUEST_UNRESOLVED"}
-                    and status in {"PASS", "NO_ACTION_TERMINAL"}
-                    and normalized_outputs
+                    existing_entry.get("command_request_hash") == request_hash
+                    and existing_entry.get("input_hashes") == normalized_inputs
                 ):
-                    resolution_of_attempt_id = str(existing["attempt_id"])
-                    break
-                raise ResumeLedgerError("RESUME_LEDGER_CONFLICTING_RERUN")
+                    if existing_entry.get("output_hashes") == normalized_outputs:
+                        return existing_entry
+                    else:
+                        raise ResumeLedgerError("RESUME_LEDGER_CONFLICTING_RERUN")
+            else:
+                allowed = LEGAL_TRANSITIONS.get(old_status, set())
+                if old_status == "BLOCK":
+                    allowed = {"PASS", "NO_ACTION_TERMINAL", "BLOCK"}
+                
+                if status not in allowed:
+                    raise ResumeLedgerError("RESUME_LEDGER_CONFLICTING_RERUN")
+
+                resolution_of_attempt_id = str(existing_entry["attempt_id"])
+
         entry = {
             "attempt_id": uuid.uuid4().hex,
             "step_id": step_id,
@@ -441,7 +463,7 @@ class ResumeLedger:
             if item.get("resolution_of_attempt_id")
         }
         ledger["unresolved_command_request"] = any(
-            item.get("status") == "COMMAND_REQUEST_UNRESOLVED"
+            item.get("status") in {"COMMAND_REQUEST_UNRESOLVED", "COMMAND_REQUEST_PENDING"}
             and str(item.get("attempt_id")) not in resolved_attempts
             for item in entries
         )
@@ -456,11 +478,29 @@ class ResumeLedger:
         )
         return entry
 
-    def assert_resumable(self) -> None:
+    def assert_resumable(self, start_step: str | None = None) -> None:
         # An unresolved request is a recorded non-terminal attempt, not a
         # permanent run tombstone. The same step may resume and must append a
         # hash-linked resolution; downstream steps remain blocked by normal
         # step ordering until that happens.
         ledger = self._load()
         if ledger.get("unresolved_command_request") is True:
-            raise ResumeLedgerError("BLOCKED_UNRESOLVED_COMMAND_REQUEST")
+            entries = ledger.get("entries", [])
+            resolved_attempts = {
+                str(item.get("resolution_of_attempt_id"))
+                for item in entries
+                if item.get("resolution_of_attempt_id")
+            }
+            unresolved_step = None
+            for item in entries:
+                if (
+                    item.get("status") in {"COMMAND_REQUEST_UNRESOLVED", "COMMAND_REQUEST_PENDING"}
+                    and str(item.get("attempt_id")) not in resolved_attempts
+                ):
+                    unresolved_step = item.get("step_id")
+                    break
+
+            if unresolved_step:
+                if start_step == unresolved_step:
+                    return
+                raise ResumeLedgerError("BLOCKED_UNRESOLVED_COMMAND_REQUEST")
