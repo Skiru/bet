@@ -10,6 +10,11 @@ import time
 from pathlib import Path
 from typing import Any
 
+from bet.pipeline.agent_work_orders import (
+    build_agent_work_order,
+    write_agent_work_order,
+    work_order_path_for,
+)
 from bet.pipeline.artifact_gate import (
     artifact_path_for,
     evaluate_gate_before_step,
@@ -503,6 +508,30 @@ class Orchestrator:
         overall_status = PipelineReadinessStatus.PASS
         gate_base_dir = self.run_artifact_dir.parent.parent.parent.parent
 
+        # Preflight fail-fast control plane agent validation
+        from bet.pipeline.agent_work_orders import build_agent_work_order
+        from bet.pipeline.manifest import get_executor_allowed_tasks
+        allowed_tasks = get_executor_allowed_tasks(self.repo_root)
+        for step in steps:
+            if step.execution_mode == "agent_artifact":
+                if not step.agent:
+                    raise ValueError(f"Step '{step.id}' in manifest missing required agent owner")
+                agent_md = self.repo_root / ".kilo/agents" / f"{step.agent}.md"
+                if not agent_md.exists():
+                    raise ValueError(f"Step '{step.id}' referenced agent profile '{step.agent}.md' does not exist under .kilo/agents/")
+                if step.agent not in allowed_tasks:
+                    raise ValueError(f"Step '{step.id}' agent owner '{step.agent}' is not allowed in bet-executor task allowlist")
+                test_wo = build_agent_work_order(
+                    betting_day=self.betting_day,
+                    run_id=self.run_id,
+                    step_id=step.id,
+                    runtime_mode=self.runtime_mode.value,
+                    base_dir=gate_base_dir,
+                    manifest=self.manifest,
+                )
+                if test_wo.agent != step.agent:
+                    raise ValueError(f"Step '{step.id}' generated work-order agent '{test_wo.agent}' mismatch with manifest agent '{step.agent}'")
+
         # Initialize/load PipelineState in the sandboxed database
         state = PipelineState.load(self.betting_day)
 
@@ -636,23 +665,41 @@ class Orchestrator:
 
                 evidence_status = None
                 evidence_blocked_reasons = []
+                evidence_issues = []
                 if evidence_exists:
                     try:
                         with open(canonical_evidence, encoding="utf-8") as f:
                             raw_ev = json.load(f)
                         evidence_status = raw_ev.get("status")
                         evidence_blocked_reasons = raw_ev.get("blocked_reasons", [])
-                    except Exception:
-                        pass
+                        _, evidence_issues = validate_pipeline_artifact(
+                            raw_ev,
+                            sid,
+                            enforce_required_gate=False,
+                            allow_block_status=True,
+                        )
+                    except Exception as exc:
+                        evidence_issues.append(
+                            ReadinessIssue(
+                                code="SCRIPT_EVIDENCE_UNREADABLE",
+                                severity=PipelineReadinessStatus.BLOCK,
+                                message=f"Failed to read script evidence: {exc}",
+                            )
+                        )
+
+                block_issues = [i for i in evidence_issues if i.severity == PipelineReadinessStatus.BLOCK]
 
                 if return_code == 0:
                     if evidence_exists:
-                        if evidence_status in ("BLOCK", "FAILED"):
+                        if evidence_status in ("BLOCK", "FAILED") or block_issues:
                             step_status = PipelineReadinessStatus.BLOCK
                             overall_status = PipelineReadinessStatus.BLOCK
                             blocked_at_step = sid
                             evidence_path = str(canonical_evidence)
-                            if evidence_blocked_reasons:
+                            if block_issues:
+                                for i in block_issues:
+                                    self.blockers.append(f"Step {sid} script evidence validation failure: {i.message}")
+                            elif evidence_blocked_reasons:
                                 for r in evidence_blocked_reasons:
                                     self.blockers.append(f"Step {sid} blocked: {r}")
                             else:
@@ -696,6 +743,7 @@ class Orchestrator:
                         step_id=sid,
                         runtime_mode=self.runtime_mode.value,
                         base_dir=gate_base_dir,
+                        manifest=self.manifest,
                     )
                     written_wo_path = write_agent_work_order(wo, gate_base_dir)
                     work_order_path = str(written_wo_path)
@@ -729,6 +777,7 @@ class Orchestrator:
                             step_id=sid,
                             runtime_mode=self.runtime_mode.value,
                             base_dir=gate_base_dir,
+                            manifest=self.manifest,
                         )
                         wo_errors = validate_agent_artifact_for_work_order(raw, wo.to_jsonable())
 
@@ -772,9 +821,10 @@ class Orchestrator:
                                     blocked_at_step = sid
                                     blocked_reason = "COMMAND_REQUEST_VALIDATION_FAILED"
                                 else:
-                                    stdout_log_path = self.run_root / f"logs/{sid}_cmd_stdout.log"
-                                    stderr_log_path = self.run_root / f"logs/{sid}_cmd_stderr.log"
-                                    orig_artifact_path = expected_path.with_name(f"{sid}_command_request.json")
+                                    attempt_no = self.command_request_count
+                                    stdout_log_path = self.run_root / f"logs/{sid}_cmd_attempt_{attempt_no}_stdout.log"
+                                    stderr_log_path = self.run_root / f"logs/{sid}_cmd_attempt_{attempt_no}_stderr.log"
+                                    orig_artifact_path = expected_path.with_name(f"{sid}_command_request_attempt_{attempt_no}.json")
                                     write_json_atomic(orig_artifact_path, raw)
                                     start_time = time.time()
                                     try:
@@ -804,7 +854,7 @@ class Orchestrator:
                                     stdout_log_path.write_text(stdout_text, encoding="utf-8")
                                     stderr_log_path.write_text(stderr_text, encoding="utf-8")
                                     sha256_hash = hashlib.sha256(stdout_text.encode("utf-8")).hexdigest()
-                                    evidence_artifact_path = expected_path.with_name(f"{sid}_command_evidence.json")
+                                    evidence_artifact_path = expected_path.with_name(f"{sid}_command_evidence_attempt_{attempt_no}.json")
                                     evidence_artifact = {
                                         "schema_version": 1,
                                         "artifact_type": "SCRIPT_EVIDENCE",
@@ -1027,9 +1077,10 @@ class Orchestrator:
             )
             wo_sha = ""
             predecessor_hashes = {}
-            if work_order_path and Path(work_order_path).is_file():
+            candidate_wo_path = work_order_path_for(gate_base_dir, self.betting_day, self.run_id, sid)
+            if candidate_wo_path.is_file():
                 try:
-                    wo_bytes = Path(work_order_path).read_bytes()
+                    wo_bytes = candidate_wo_path.read_bytes()
                     wo_sha = hashlib.sha256(wo_bytes).hexdigest()
                     wo_data = json.loads(wo_bytes)
                     for ref in wo_data.get("input_refs", []):
@@ -1044,18 +1095,39 @@ class Orchestrator:
                 "manifest": self._manifest_sha,
                 **predecessor_hashes
             }
+            if wo_sha:
+                ledger_input_hashes["work_order_sha256"] = wo_sha
 
-            cmd_req_identity = {
-                "wrapper": step.wrapper,
-                "execution_mode": step.execution_mode,
-                "runtime_mode": self.runtime_mode.value,
-                "cwd": os.getcwd(),
-                "timeout": 900.0,
-                "expected_exit_code": 0,
-                "postconditions": ["SCRIPT_EVIDENCE_PASS"],
-                "work_order_sha256": wo_sha,
-                "argv": sys.argv,
-            }
+            if step.execution_mode == "script":
+                step_argv = [
+                    sys.executable,
+                    str(self.repo_root / step.wrapper) if step.wrapper else "",
+                    "--date", self.betting_day,
+                    "--run-id", self.run_id,
+                    "--runtime-mode", self.runtime_mode.value,
+                ]
+                cmd_req_identity = {
+                    "step_id": sid,
+                    "wrapper": step.wrapper,
+                    "canonical_script": step.canonical_script,
+                    "execution_mode": step.execution_mode,
+                    "runtime_mode": self.runtime_mode.value,
+                    "cwd": str(self.repo_root),
+                    "timeout": float(self._step_timeout_seconds()),
+                    "expected_exit_code": 0,
+                    "postconditions": ["SCRIPT_EVIDENCE_PASS"],
+                    "argv": step_argv,
+                }
+            else:
+                cmd_req_identity = {
+                    "step_id": sid,
+                    "agent": step.agent,
+                    "execution_mode": step.execution_mode,
+                    "runtime_mode": self.runtime_mode.value,
+                    "cwd": str(self.repo_root),
+                    "timeout": float(self._step_timeout_seconds()),
+                    "work_order_sha256": wo_sha,
+                }
 
             self._resume_ledger.append(
                 step_id=sid,

@@ -86,6 +86,38 @@ FORBIDDEN_SECRET_KEYS = {
 }
 
 
+def _has_placeholder(node: Any, is_pass_status: bool = False) -> str | None:
+    if isinstance(node, str):
+        s = node.strip()
+        if s.startswith("TODO_") or s in (
+            "TODO_FILL_BY_AGENT",
+            "NOT_FINAL_TEMPLATE",
+            "TEMPLATE_NOT_FILLED",
+        ):
+            return f"placeholder value found: '{node}'"
+    elif isinstance(node, dict):
+        for k, v in node.items():
+            if isinstance(k, str):
+                ks = k.strip()
+                if ks.startswith("TODO_") or ks in (
+                    "TODO_FILL_BY_AGENT",
+                    "NOT_FINAL_TEMPLATE",
+                    "TEMPLATE_NOT_FILLED",
+                ):
+                    return f"placeholder key found: '{k}'"
+                if is_pass_status and ks in ("template_status", "approval_state"):
+                    return f"template-only key '{k}' forbidden in PASS artifacts"
+            res = _has_placeholder(v, is_pass_status)
+            if res:
+                return res
+    elif isinstance(node, (list, tuple, set)):
+        for item in node:
+            res = _has_placeholder(item, is_pass_status)
+            if res:
+                return res
+    return None
+
+
 def _normalize_key(key: str) -> str:
     return str(key).strip().lower().replace("-", "_").replace(".", "_")
 
@@ -826,6 +858,17 @@ def validate_pipeline_artifact(
             )
         )
 
+    if status_val in (PipelineReadinessStatus.PASS, PipelineReadinessStatus.HUMAN_APPROVED):
+        ph_err = _has_placeholder(raw, is_pass_status=True)
+        if ph_err:
+            issues.append(
+                ReadinessIssue(
+                    code="PLACEHOLDER_DATA_FOUND",
+                    severity=PipelineReadinessStatus.BLOCK,
+                    message=f"Placeholder data found in PASS artifact: {ph_err}",
+                )
+            )
+
     # 8. List/tuple verification
     if art_type == PipelineArtifactType.AGENT_ARTIFACT:
         if "sources" not in raw:
@@ -894,21 +937,8 @@ def validate_pipeline_artifact(
 
 def required_artifacts_before_step(step_id: str) -> tuple[str, ...]:
     """Map pipeline steps to their direct prerequisite step artifacts."""
-    if step_id == "S3":
-        return ("S2.9",)
-    if step_id == "S6":
-        return ("S5",)
-    if step_id == "S8":
-        return ("S7", "S7b")
-    if step_id == "S10":
-        return ("S9",)
-    if step_id == "S2.5":
-        return ("S2.3",)
-    if step_id == "S2.7":
-        return ("S2.5",)
-    if step_id == "S2.9":
-        return ("S2.7",)
-    return ()
+    from bet.pipeline.manifest import get_required_artifacts_before_step
+    return get_required_artifacts_before_step(step_id)
 
 
 def evaluate_gate_before_step(

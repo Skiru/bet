@@ -87,9 +87,26 @@ def _agent_artifact(step_id: str, status: str) -> dict[str, object]:
 
 
 def _write_agent_artifact(base_dir: Path, step_id: str, status: str) -> Path:
+    from bet.pipeline.agent_work_orders import build_agent_work_order, write_agent_work_order
+    import hashlib
+    wo = build_agent_work_order(
+        betting_day=BETTING_DAY,
+        run_id=RUN_ID,
+        step_id=step_id,
+        runtime_mode="LIVE_SHADOW",
+        base_dir=base_dir,
+    )
+    wo_path = write_agent_work_order(wo, base_dir)
+    wo_sha = hashlib.sha256(wo_path.read_bytes()).hexdigest()
+
+    art = _agent_artifact(step_id, status)
+    art["producer_agent_id"] = wo.agent
+    art["work_order_id"] = wo.work_order_id
+    art["work_order_sha256"] = wo_sha
+
     path = artifact_path_for(base_dir, BETTING_DAY, RUN_ID, step_id)
     path.parent.mkdir(parents=True, exist_ok=True)
-    write_json_atomic(path, _agent_artifact(step_id, status))
+    write_json_atomic(path, art)
     return path
 
 

@@ -52,6 +52,57 @@ def required_agent_output_contract(step_id: str) -> dict[str, Any]:
     }
 
 
+def _refs_cover_required_steps(
+    evidence_refs: list[str], required_steps: tuple[str, ...]
+) -> bool:
+    for required_step in required_steps:
+        matched = False
+        for ref in evidence_refs:
+            p = Path(ref)
+            if required_step in p.name or required_step in ref:
+                matched = True
+                break
+        if not matched:
+            return False
+    return True
+
+
+def _contains_provider_promotion(node: Any) -> bool:
+    forbidden_tokens = (
+        "promote_provider",
+        "provider_promotion",
+        "preferred_provider",
+        "promoted_provider",
+        "selected_provider",
+        "switch_provider",
+    )
+    negated_phrases = (
+        "do_not_change_provider_selection",
+        "no_provider_promotion",
+        "must_not_promote",
+        "no provider promotion",
+        "do not promote",
+        "disallowed",
+        "forbidden",
+    )
+    if isinstance(node, dict):
+        for key, value in node.items():
+            normalized_key = str(key).strip().lower()
+            if any(token in normalized_key for token in forbidden_tokens):
+                return True
+            if _contains_provider_promotion(value):
+                return True
+        return False
+    if isinstance(node, list):
+        return any(_contains_provider_promotion(item) for item in node)
+    if isinstance(node, str):
+        lowered = node.strip().lower()
+        if any(phrase in lowered for phrase in negated_phrases):
+            return False
+        return any(token in lowered for token in forbidden_tokens)
+    return False
+
+
 def validate_agent_artifact_for_work_order(
     artifact_data: dict[str, Any],
     work_order_data: dict[str, Any],
@@ -66,40 +117,6 @@ def validate_agent_artifact_for_work_order(
 
     def _payload_contains_any(payload: dict[str, Any], keys: tuple[str, ...]) -> bool:
         return any(key in payload for key in keys)
-
-    def _refs_cover_required_steps(
-        evidence_refs: list[str], required_steps: tuple[str, ...]
-    ) -> bool:
-        return all(
-            any(required_step in ref for ref in evidence_refs)
-            for required_step in required_steps
-        )
-
-    def _contains_provider_promotion(node: Any) -> bool:
-        forbidden_tokens = (
-            "promote",
-            "promotion",
-            "preferred_provider",
-            "promoted_provider",
-            "selected_provider",
-            "provider_selection",
-            "selection_change",
-            "switch_provider",
-        )
-        if isinstance(node, dict):
-            for key, value in node.items():
-                normalized_key = str(key).strip().lower()
-                if any(token in normalized_key for token in forbidden_tokens):
-                    return True
-                if _contains_provider_promotion(value):
-                    return True
-            return False
-        if isinstance(node, list):
-            return any(_contains_provider_promotion(item) for item in node)
-        if isinstance(node, str):
-            lowered = node.strip().lower()
-            return any(token in lowered for token in forbidden_tokens)
-        return False
 
     def _has_placeholder(node: Any, is_pass_status: bool = False) -> str | None:
         if isinstance(node, str):
@@ -153,19 +170,30 @@ def validate_agent_artifact_for_work_order(
             f"betting_day mismatch: expected {betting_day}, got {artifact_data.get('betting_day')}"
         )
 
-    # Determine run root
-    repo_root = find_repo_root(Path(__file__))
-    run_root = repo_root / "pipeline_runs" / betting_day / run_id
-    wo_input_refs = work_order_data.get("input_refs", [])
-    for ref in wo_input_refs:
-        ref_path = (
-            ref.get("path") if isinstance(ref, dict) else getattr(ref, "path", None)
-        )
-        if ref_path:
-            run_root = Path(ref_path).resolve().parents[1]
-            break
+    # Determine run root and work order path
+    req_output = work_order_data.get("required_output", {})
+    expected_artifact_path_str = req_output.get("expected_path")
+    if expected_artifact_path_str:
+        art_parent = Path(expected_artifact_path_str).parent
+        wo_path = art_parent / f"{step_id}_work_order.json"
+        run_root = art_parent.parent
+    else:
+        wo_input_refs = work_order_data.get("input_refs", [])
+        run_root = None
+        for ref in wo_input_refs:
+            ref_path = ref.get("path") if isinstance(ref, dict) else getattr(ref, "path", None)
+            if ref_path:
+                p_ref = Path(ref_path).resolve()
+                if len(p_ref.parents) >= 2:
+                    run_root = p_ref.parents[1]
+                    break
+        if run_root is None:
+            repo_root = find_repo_root(Path(__file__))
+            run_root = repo_root / "pipeline_runs" / betting_day / run_id
+        wo_path = run_root / "artifacts" / f"{step_id}_work_order.json"
 
     # 1. Verify predecessors have not changed after work-order creation
+    wo_input_refs = work_order_data.get("input_refs", [])
     for ref in wo_input_refs:
         ref_step_id = (
             ref.get("step_id")
@@ -194,26 +222,49 @@ def validate_agent_artifact_for_work_order(
                     )
 
     # 2. Load the actual persisted work order from disk and verify its hash
-    wo_path = run_root / "artifacts" / f"{step_id}_work_order.json"
-    if wo_path.exists():
-        from bet.pipeline.canonical_continuity import file_sha256
+    status_val = artifact_data.get("status")
 
-        actual_wo_sha = file_sha256(wo_path)
-        status_val = artifact_data.get("status")
-        if status_val == "PASS":
-            if "work_order_id" not in artifact_data:
-                errors.append("PASS artifact missing 'work_order_id'")
-            elif artifact_data["work_order_id"] != work_order_data.get("work_order_id"):
-                errors.append(
-                    f"work_order_id mismatch: {artifact_data['work_order_id']} vs {work_order_data.get('work_order_id')}"
-                )
+    if status_val in ("PASS", "COMMAND_REQUEST"):
+        if not wo_path.exists():
+            errors.append(f"Persisted work order file missing at {wo_path}")
+        else:
+            from bet.pipeline.canonical_continuity import file_sha256
 
-            if "work_order_sha256" not in artifact_data:
-                errors.append("PASS artifact missing 'work_order_sha256'")
-            elif artifact_data["work_order_sha256"] != actual_wo_sha:
-                errors.append(
-                    f"work_order_sha256 mismatch: {artifact_data['work_order_sha256']} vs {actual_wo_sha}"
-                )
+            actual_wo_sha = file_sha256(wo_path)
+            if status_val == "PASS":
+                if "work_order_id" not in artifact_data:
+                    errors.append("PASS artifact missing 'work_order_id'")
+                elif artifact_data["work_order_id"] != work_order_data.get("work_order_id"):
+                    errors.append(
+                        f"work_order_id mismatch: {artifact_data['work_order_id']} vs {work_order_data.get('work_order_id')}"
+                    )
+
+                if "work_order_sha256" not in artifact_data:
+                    errors.append("PASS artifact missing 'work_order_sha256'")
+                elif artifact_data["work_order_sha256"] != actual_wo_sha:
+                    errors.append(
+                        f"work_order_sha256 mismatch: {artifact_data['work_order_sha256']} vs {actual_wo_sha}"
+                    )
+
+    # 2b. Producer agent binding check
+    expected_agent = work_order_data.get("agent")
+    actual_producer = (
+        artifact_data.get("producer_agent_id")
+        or artifact_data.get("payload", {}).get("producer_agent_id")
+        or artifact_data.get("payload", {}).get("agent_id")
+        or artifact_data.get("agent")
+    )
+    if status_val == "PASS":
+        if not actual_producer:
+            errors.append("PASS artifact missing producer_agent_id / agent_id binding")
+        elif actual_producer != expected_agent:
+            errors.append(
+                f"producer_agent_id mismatch: expected {expected_agent}, got {actual_producer}"
+            )
+    elif actual_producer and actual_producer != expected_agent:
+        errors.append(
+            f"producer_agent_id mismatch: expected {expected_agent}, got {actual_producer}"
+        )
 
     # 2. artifact_type check
     if artifact_data.get("artifact_type") != "AGENT_ARTIFACT":

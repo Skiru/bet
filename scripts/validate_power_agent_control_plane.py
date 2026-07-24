@@ -207,6 +207,31 @@ def validate() -> list[str]:
     )
     if {step["agent"] for step in manifest["steps"]} - set(AGENT_NAMES):
         errors.append("manifest uses a non-power agent")
+
+    # Validate work-order ownership and task allowlist alignment
+    from bet.pipeline.agent_work_orders import build_agent_work_order
+    from bet.pipeline.manifest import load_pipeline_manifest
+    parsed_manifest = load_pipeline_manifest(ROOT / "config/pipeline_manifest.json")
+    for step_dict in manifest["steps"]:
+        sid = step_dict.get("id")
+        agent_name = step_dict.get("agent")
+        exec_mode = step_dict.get("execution_mode")
+        if exec_mode == "agent_artifact":
+            if agent_name not in partner_names:
+                errors.append(f"step {sid} agent_artifact owner '{agent_name}' is not allowed in bet-executor task allowlist")
+            try:
+                wo = build_agent_work_order(
+                    betting_day="2026-07-24",
+                    run_id="run-validation",
+                    step_id=sid,
+                    runtime_mode="DRY_RUN",
+                    base_dir=ROOT,
+                    manifest=parsed_manifest,
+                )
+                if wo.agent != agent_name:
+                    errors.append(f"step {sid} work order agent '{wo.agent}' mismatches manifest agent '{agent_name}'")
+            except Exception as exc:
+                errors.append(f"step {sid} work order generation failed: {exc}")
     serialized_manifest = json.dumps(manifest)
     for forbidden in ("minimum_one_valid_tip",):
         if forbidden in serialized_manifest:

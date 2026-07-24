@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -11,6 +12,16 @@ from typing import Any
 
 from bet.pipeline.run_evidence import utc_now_iso, write_json_atomic
 from bet.pipeline.artifact_gate import artifact_path_for
+from bet.pipeline.manifest import (
+    CANONICAL_POWER_AGENTS,
+    PipelineManifest,
+    discover_repo_root,
+    get_executor_allowed_tasks,
+    get_step_agent,
+    get_step_hard_rules,
+    get_upstream_dependencies,
+    load_pipeline_manifest,
+)
 from bet.pipeline.runtime_paths import resolve_run_root, runtime_artifact_dir
 
 
@@ -52,7 +63,6 @@ class AgentWorkOrderOutputContract:
 
 @dataclass
 class AgentWorkOrderPolicy:
-    agent: str
     hard_rules: list[str]
     forbidden_outputs: list[str]
     instructions: dict[str, Any]
@@ -118,7 +128,6 @@ OUTPUT_CONTRACT_NOTES = [
 
 POLICIES: dict[str, AgentWorkOrderPolicy] = {
     "S2.3": AgentWorkOrderPolicy(
-        agent="bet-enricher",
         hard_rules=[
             "no_pick",
             "no_edge",
@@ -164,7 +173,6 @@ POLICIES: dict[str, AgentWorkOrderPolicy] = {
         },
     ),
     "S2.5": AgentWorkOrderPolicy(
-        agent="bet-enricher",
         hard_rules=[
             "no_pick",
             "no_edge",
@@ -210,7 +218,6 @@ POLICIES: dict[str, AgentWorkOrderPolicy] = {
         },
     ),
     "S2.7": AgentWorkOrderPolicy(
-        agent="bet-enricher",
         hard_rules=[
             "no_pick",
             "no_edge",
@@ -256,7 +263,6 @@ POLICIES: dict[str, AgentWorkOrderPolicy] = {
         },
     ),
     "S2.9": AgentWorkOrderPolicy(
-        agent="bet-enricher",
         hard_rules=[
             "no_pick",
             "no_edge",
@@ -301,7 +307,6 @@ POLICIES: dict[str, AgentWorkOrderPolicy] = {
         },
     ),
     "S5": AgentWorkOrderPolicy(
-        agent="bet-risk-gatekeeper",
         hard_rules=[
             "injury_lineup_context_required",
             "motivation_and_tournament_context_required",
@@ -427,9 +432,10 @@ def discover_input_refs_for_step(
     base_dir: Path,
     betting_day: str,
     run_id: str,
+    manifest: PipelineManifest | None = None,
 ) -> list[AgentWorkOrderInputRef]:
-    """Find and hash files for upstream step dependencies."""
-    dependencies = STEP_UPSTREAM_DEPENDENCIES.get(step_id, [])
+    """Find and hash files for upstream step dependencies from manifest."""
+    dependencies = get_upstream_dependencies(step_id, manifest=manifest)
     input_refs = []
     for dep_id in dependencies:
         if dep_id in {"S2", "S3", "S4"}:
@@ -461,15 +467,51 @@ def build_agent_work_order(
     step_id: str,
     runtime_mode: str,
     base_dir: Path,
+    manifest: PipelineManifest | None = None,
+    manifest_path: Path | None = None,
 ) -> AgentWorkOrder:
     """Construct an AgentWorkOrder matching schemas and policies."""
     if step_id not in POLICIES:
         raise ValueError(f"No agent work order policy defined for step_id: {step_id}")
 
     policy = POLICIES[step_id]
-    created_at = utc_now_iso()
 
-    input_refs = discover_input_refs_for_step(step_id, base_dir, betting_day, run_id)
+    repo_root = discover_repo_root()
+    if manifest is None:
+        if manifest_path is None:
+            candidate = Path(base_dir) / "config" / "pipeline_manifest.json"
+            if candidate.is_file():
+                manifest_path = candidate
+            else:
+                manifest_path = repo_root / "config" / "pipeline_manifest.json"
+        manifest = load_pipeline_manifest(manifest_path)
+
+    agent_owner = get_step_agent(step_id, manifest=manifest)
+    if agent_owner not in CANONICAL_POWER_AGENTS:
+        raise ValueError(f"Step {step_id} manifest agent '{agent_owner}' is not a canonical power agent")
+
+    agent_file = repo_root / ".kilo/agents" / f"{agent_owner}.md"
+    if not agent_file.exists():
+        raise ValueError(f"Step {step_id} manifest agent file '{agent_owner}.md' does not exist under .kilo/agents/")
+
+    allowed_tasks = get_executor_allowed_tasks(repo_root)
+    if agent_owner not in allowed_tasks:
+        raise ValueError(f"Step {step_id} manifest agent '{agent_owner}' is not allowed in bet-executor task allowlist")
+
+    hard_rules = get_step_hard_rules(step_id, manifest=manifest)
+
+    # Idempotent created_at timestamp
+    target_wo_path = work_order_path_for(base_dir, betting_day, run_id, step_id)
+    if target_wo_path.exists():
+        try:
+            existing_wo = json.loads(target_wo_path.read_text(encoding="utf-8"))
+            created_at = existing_wo.get("created_at") or os.environ.get("BET_PIPELINE_RUN_AS_OF_UTC") or utc_now_iso()
+        except Exception:
+            created_at = os.environ.get("BET_PIPELINE_RUN_AS_OF_UTC") or utc_now_iso()
+    else:
+        created_at = os.environ.get("BET_PIPELINE_RUN_AS_OF_UTC") or utc_now_iso()
+
+    input_refs = discover_input_refs_for_step(step_id, base_dir, betting_day, run_id, manifest=manifest)
     expected_path = expected_agent_artifact_path_for(
         base_dir, betting_day, run_id, step_id
     )
@@ -492,13 +534,13 @@ def build_agent_work_order(
         betting_day=betting_day,
         run_id=run_id,
         step_id=step_id,
-        agent=policy.agent,
+        agent=agent_owner,
         runtime_mode=runtime_mode,
         created_at=created_at,
         status="PENDING_AGENT",
         input_refs=input_refs,
         required_output=required_output,
-        hard_rules=policy.hard_rules,
+        hard_rules=hard_rules,
         forbidden_outputs=policy.forbidden_outputs,
         instructions=policy.instructions,
     )

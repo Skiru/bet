@@ -103,6 +103,21 @@ def write_test_artifact(base_dir: Path, step_id: str, status: str, payload_overr
         "payload": {},
         "manual_review": s9_manual_review,
     }
+    if step_id in ("S2.3", "S2.5", "S2.7", "S2.9", "S5"):
+        from bet.pipeline.agent_work_orders import build_agent_work_order, write_agent_work_order
+        import hashlib
+        wo = build_agent_work_order(
+            betting_day="2026-06-25",
+            run_id="run-999",
+            step_id=step_id,
+            runtime_mode="DRY_RUN",
+            base_dir=base_dir,
+        )
+        wo_path = write_agent_work_order(wo, base_dir)
+        wo_sha = hashlib.sha256(wo_path.read_bytes()).hexdigest()
+        art["producer_agent_id"] = wo.agent
+        art["work_order_id"] = wo.work_order_id
+        art["work_order_sha256"] = wo_sha
     if s9_manual_review is not None:
         art["checksum"] = s9_manual_review["coupon_draft_sha256"]
     if payload_override:

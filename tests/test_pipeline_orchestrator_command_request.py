@@ -46,10 +46,23 @@ def base_artifact_payload():
 
 
 def write_test_artifact(base_dir: Path, step_id: str, status: str, payload_override: dict | None = None) -> Path:
+    from bet.pipeline.agent_work_orders import build_agent_work_order, write_agent_work_order
+    import hashlib
+    wo = build_agent_work_order(
+        betting_day="2026-06-25",
+        run_id="run-999",
+        step_id=step_id,
+        runtime_mode="DRY_RUN",
+        base_dir=base_dir,
+    )
+    wo_path = write_agent_work_order(wo, base_dir)
+    wo_sha = hashlib.sha256(wo_path.read_bytes()).hexdigest()
+
     art = {
         "schema_version": 1,
         "artifact_type": "AGENT_ARTIFACT",
         "step_id": step_id,
+        "producer_agent_id": wo.agent,
         "status": status,
         "betting_day": "2026-06-25",
         "run_id": "run-999",
@@ -65,6 +78,8 @@ def write_test_artifact(base_dir: Path, step_id: str, status: str, payload_overr
         "unknowns": [],
         "blocked_reasons": [],
         "evidence_refs": [],
+        "work_order_id": wo.work_order_id,
+        "work_order_sha256": wo_sha,
         "payload": {},
     }
     
@@ -142,23 +157,23 @@ def test_command_request_autopromotion_success(tmp_path, base_artifact_payload):
         assert summary["unresolved_count"] == 0
         
         # Verify separate evidence file is written
-        evidence_path = reports_dir / "pipeline_runs/2026-06-25/run-999/artifacts/S2.3_command_evidence.json"
+        evidence_path = reports_dir / "pipeline_runs/2026-06-25/run-999/artifacts/S2.3_command_evidence_attempt_1.json"
         assert evidence_path.exists()
         ev_data = json.loads(evidence_path.read_text(encoding="utf-8"))
         assert ev_data["status"] == "PASS"
         assert ev_data["exit_code"] == 0
         
         # Logs are scoped beneath the canonical run root.
-        assert (reports_dir / "pipeline_runs/2026-06-25/run-999/logs/S2.3_cmd_stdout.log").exists()
-        assert (reports_dir / "pipeline_runs/2026-06-25/run-999/logs/S2.3_cmd_stderr.log").exists()
+        assert (reports_dir / "pipeline_runs/2026-06-25/run-999/logs/S2.3_cmd_attempt_1_stdout.log").exists()
+        assert (reports_dir / "pipeline_runs/2026-06-25/run-999/logs/S2.3_cmd_attempt_1_stderr.log").exists()
         
         # Verify original command_request preservation
-        assert (reports_dir / "pipeline_runs/2026-06-25/run-999/artifacts/S2.3_command_request.json").exists()
+        assert (reports_dir / "pipeline_runs/2026-06-25/run-999/artifacts/S2.3_command_request_attempt_1.json").exists()
         
         # Verify original S2.3 was promoted to PASS and contains reference
         final_artifact = json.loads(expected_path.read_text(encoding="utf-8"))
         assert final_artifact["status"] == "PASS"
-        assert any("S2.3_command_evidence.json" in ref for ref in final_artifact["evidence_refs"])
+        assert any("S2.3_command_evidence_attempt_1.json" in ref for ref in final_artifact["evidence_refs"])
 
 
 def test_command_request_string_and_metacharacter_rejection(tmp_path):

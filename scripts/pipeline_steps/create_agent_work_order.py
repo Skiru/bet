@@ -26,7 +26,7 @@ def main() -> None:
     # Load and validate manifest to ensure everything is correct
     manifest_path = Path(args.manifest)
     try:
-        load_pipeline_manifest(manifest_path)
+        manifest = load_pipeline_manifest(manifest_path)
     except Exception as e:
         print(f"Error loading manifest: {e}", file=sys.stderr)
         sys.exit(1)
@@ -41,6 +41,7 @@ def main() -> None:
             step_id=args.step_id,
             runtime_mode=args.runtime_mode,
             base_dir=base_dir,
+            manifest=manifest,
         )
     except Exception as e:
         print(f"Error building work order: {e}", file=sys.stderr)

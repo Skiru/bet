@@ -20,6 +20,7 @@ DEFAULT_NODES = (
     "tests/test_pipeline_certifier.py::test_certifier_child_fixture",
     "tests/test_canonical_continuity_v4_owner_regressions.py",
     "tests/test_canonical_continuity_v4_offline_chain_proof.py",
+    "tests/test_agent_work_order_owner_alignment.py",
 )
 
 class CertificationError(RuntimeError):

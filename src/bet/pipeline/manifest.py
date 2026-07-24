@@ -110,6 +110,124 @@ def load_pipeline_manifest(path: Path | None = None) -> PipelineManifest:
     )
 
 
+CANONICAL_POWER_AGENTS: tuple[str, ...] = (
+    "bet-executor",
+    "bet-researcher",
+    "bet-modeler",
+    "bet-risk-gatekeeper",
+    "bet-builder",
+    "bet-auditor",
+    "bet-settler-postevent",
+)
+
+
+def get_executor_allowed_tasks(repo_root: Path | None = None) -> set[str]:
+    """Extract allowed task names from bet-executor.md frontmatter."""
+    if repo_root is None:
+        repo_root = discover_repo_root()
+    executor_md = Path(repo_root) / ".kilo/agents" / "bet-executor.md"
+    if not executor_md.exists():
+        return set()
+    try:
+        import yaml
+        content = executor_md.read_text(encoding="utf-8")
+        if content.startswith("---\n") and "\n---\n" in content:
+            header = content[4:].split("\n---\n", 1)[0]
+            data = yaml.safe_load(header)
+            if isinstance(data, dict):
+                task = data.get("permission", {}).get("task", {})
+                if isinstance(task, dict) and task.get("*") == "deny":
+                    return {k for k, v in task.items() if k != "*" and v == "allow"}
+    except Exception:
+        pass
+    return set()
+
+
+def get_step_agent(
+    step_id: str,
+    manifest: PipelineManifest | None = None,
+    manifest_path: Path | None = None,
+) -> str:
+    """Get the canonical agent owner of a step from the pipeline manifest."""
+    if manifest is None:
+        manifest = load_pipeline_manifest(manifest_path)
+    for step in manifest.steps:
+        if step.id == step_id:
+            if not step.agent:
+                raise PipelineManifestError(f"Step {step_id} has no agent specified in manifest")
+            return step.agent
+    raise PipelineManifestError(f"Unknown step_id in manifest: {step_id}")
+
+
+def get_step_hard_rules(
+    step_id: str,
+    manifest: PipelineManifest | None = None,
+    manifest_path: Path | None = None,
+) -> list[str]:
+    """Get the canonical hard_rules for a step from the pipeline manifest."""
+    if manifest is None:
+        manifest = load_pipeline_manifest(manifest_path)
+    for step in manifest.steps:
+        if step.id == step_id:
+            if step.hard_rules is None:
+                raise PipelineManifestError(f"Step {step_id} has no hard_rules specified in manifest")
+            return list(step.hard_rules)
+    raise PipelineManifestError(f"Unknown step_id in manifest: {step_id}")
+
+
+def get_upstream_dependencies(
+    step_id: str,
+    manifest: PipelineManifest | None = None,
+    manifest_path: Path | None = None,
+) -> list[str]:
+    """Get the canonical upstream dependency step IDs for a given step_id from the manifest graph."""
+    if manifest is None:
+        manifest = load_pipeline_manifest(manifest_path)
+    step_ids = [s.id for s in manifest.steps if s.id]
+    if step_id not in step_ids:
+        raise PipelineManifestError(f"Unknown step_id in manifest: {step_id}")
+
+    if step_id == "S2.3":
+        return ["S2"]
+    if step_id == "S2.5":
+        return ["S2", "S2.3"]
+    if step_id == "S2.7":
+        return ["S2", "S2.3", "S2.5"]
+    if step_id == "S2.9":
+        return ["S2", "S2.3", "S2.5", "S2.7"]
+    if step_id == "S5":
+        return ["S3", "S4", "S2.9"]
+
+    # Fallback to direct predecessors in manifest graph
+    preds = []
+    for step in manifest.steps:
+        if step.next and step_id in step.next and step.id:
+            preds.append(step.id)
+    return preds
+
+
+def get_required_artifacts_before_step(
+    step_id: str,
+    manifest: PipelineManifest | None = None,
+) -> tuple[str, ...]:
+    """Get prerequisite step IDs whose artifacts are required before step_id."""
+    if step_id == "S3":
+        return ("S2.9",)
+    if step_id == "S6":
+        return ("S5",)
+    if step_id == "S8":
+        return ("S7", "S7b")
+    if step_id == "S10":
+        return ("S9",)
+    if step_id == "S2.5":
+        return ("S2.3",)
+    if step_id == "S2.7":
+        return ("S2.5",)
+    if step_id == "S2.9":
+        return ("S2.7",)
+    return ()
+
+
 def get_step_order() -> list[str]:
     """Return the ordered list of step IDs from the canonical manifest."""
     manifest = load_pipeline_manifest()
@@ -273,11 +391,21 @@ def validate_pipeline_manifest(manifest: PipelineManifest, repo_root: Path | Non
                     if not path_obj.exists():
                         errors.append(f"Step {sid} referenced {field_name} path does not exist: {path_str}")
 
-        # Referenced agent file validation
+        # Referenced agent validation
         if step.agent is not None:
+            if step.agent not in CANONICAL_POWER_AGENTS:
+                errors.append(f"Step {sid} agent '{step.agent}' is not a canonical power agent")
             agent_file = repo_root / ".kilo/agents" / f"{step.agent}.md"
             if not agent_file.exists():
                 errors.append(f"Step {sid} referenced agent file does not exist under .kilo/agents: {step.agent}.md")
+
+        # Execution mode task allowlist validation
+        if step.execution_mode == "agent_artifact" and step.agent is not None:
+            allowed_tasks = get_executor_allowed_tasks(repo_root)
+            if step.agent not in allowed_tasks:
+                errors.append(
+                    f"Step {sid} agent_artifact owner '{step.agent}' is not allowed in bet-executor task allowlist"
+                )
 
         # Enrichment step rules checking
         enrichment_steps = ["S2.3", "S2.5", "S2.7", "S2.9"]

@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 
 from bet.pipeline.manifest import load_pipeline_manifest
-from bet.pipeline.agent_work_orders import build_agent_work_order
+from bet.pipeline.agent_work_orders import build_agent_work_order, write_agent_work_order
 from bet.pipeline.agent_artifact_contracts import (
     agent_steps_from_manifest,
     required_agent_output_contract,
@@ -62,6 +62,7 @@ def _build_base_artifact(step_id: str, status: str = "PASS") -> dict:
         "schema_version": 1,
         "artifact_type": "AGENT_ARTIFACT",
         "step_id": step_id,
+        "producer_agent_id": "bet-researcher" if step_id.startswith("S2.") else "bet-risk-gatekeeper",
         "status": status,
         "betting_day": "2026-06-25",
         "run_id": "run-smoke",
@@ -83,6 +84,7 @@ def _build_base_artifact(step_id: str, status: str = "PASS") -> dict:
 
 def test_validate_agent_artifact_for_work_order_success(tmp_path):
     """Verify validation passes on a correct artifact conforming to work order rules."""
+    import hashlib
     wo = build_agent_work_order(
         betting_day="2026-06-25",
         run_id="run-smoke",
@@ -90,7 +92,11 @@ def test_validate_agent_artifact_for_work_order_success(tmp_path):
         runtime_mode="DRY_RUN",
         base_dir=tmp_path,
     )
+    wo_path = write_agent_work_order(wo, tmp_path)
+    wo_sha = hashlib.sha256(wo_path.read_bytes()).hexdigest()
     artifact = _build_base_artifact("S5")
+    artifact["work_order_id"] = wo.work_order_id
+    artifact["work_order_sha256"] = wo_sha
     artifact["sources"] = ["team-news", "travel-report"]
     artifact["evidence_refs"] = ["artifact_S3_run-smoke", "artifact_S4_run-smoke"]
     artifact["payload"] = {
@@ -114,6 +120,7 @@ def test_validate_agent_artifact_for_work_order_failures(tmp_path):
         runtime_mode="DRY_RUN",
         base_dir=tmp_path,
     )
+    write_agent_work_order(wo, tmp_path)
 
     artifact = _build_base_artifact("S5")
     artifact["run_id"] = "wrong-run-id"
@@ -280,6 +287,7 @@ def test_s29_pass_with_required_evidence_refs_passes_validation(tmp_path):
     wo_sha = hashlib.sha256(wo_path.read_bytes()).hexdigest()
     artifact["work_order_sha256"] = wo_sha
 
+    artifact["producer_agent_id"] = "bet-researcher"
     errors = validate_agent_artifact_for_work_order(artifact, wo_json)
     assert errors == []
 
@@ -293,6 +301,7 @@ def test_s5_pass_missing_required_category_fails_validation(tmp_path):
         runtime_mode="DRY_RUN",
         base_dir=tmp_path,
     )
+    write_agent_work_order(wo, tmp_path)
 
     artifact = _build_base_artifact("S5")
     artifact["evidence_refs"] = ["artifact_S3_run-smoke", "artifact_S4_run-smoke"]
@@ -309,6 +318,7 @@ def test_s5_pass_missing_required_category_fails_validation(tmp_path):
 
 def test_s5_pass_with_all_required_categories_and_evidence_refs_passes(tmp_path):
     """Verify S5 PASS validates when all context categories and evidence refs are present."""
+    import hashlib
     wo = build_agent_work_order(
         betting_day="2026-06-25",
         run_id="run-smoke",
@@ -316,13 +326,17 @@ def test_s5_pass_with_all_required_categories_and_evidence_refs_passes(tmp_path)
         runtime_mode="DRY_RUN",
         base_dir=tmp_path,
     )
+    wo_path = write_agent_work_order(wo, tmp_path)
+    wo_sha = hashlib.sha256(wo_path.read_bytes()).hexdigest()
 
     artifact = _build_base_artifact("S5")
+    artifact["work_order_id"] = wo.work_order_id
+    artifact["work_order_sha256"] = wo_sha
     artifact["sources"] = ["injury-report", "motivation-brief"]
     artifact["evidence_refs"] = [
-        "artifact_S3_run-smoke",
-        "artifact_S4_run-smoke",
-        "artifact_S2.9_run-smoke",
+        "S3.json",
+        "S4.json",
+        "S2.9.json",
     ]
     artifact["payload"] = {
         "injuries_lineups": {"status": "checked"},
@@ -385,6 +399,7 @@ def test_command_request_artifact_validation(tmp_path):
         runtime_mode="DRY_RUN",
         base_dir=tmp_path,
     )
+    write_agent_work_order(wo, tmp_path)
 
     # Valid typed COMMAND_REQUEST from the closed registry.
     artifact = _build_base_artifact("S2.3", status="COMMAND_REQUEST")

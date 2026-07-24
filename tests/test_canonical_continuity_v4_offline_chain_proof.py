@@ -287,6 +287,7 @@ def test_v4_offline_chain_proof(tmp_path: Path, monkeypatch):
                 "schema_version": 1 if step_id != "S2.9" else 2,
                 "artifact_type": "AGENT_ARTIFACT",
                 "step_id": step_id,
+                "producer_agent_id": wo_data["agent"],
                 "status": "PASS",
                 "betting_day": DAY,
                 "run_id": RUN_ID,
@@ -443,6 +444,7 @@ def test_exact_database_immutability_proof(tmp_path: Path, monkeypatch):
     file_hashes = {}
     for step_id in ("S2.3", "S2.5", "S2.7", "S2.9"):
         # 1. Write the work order JSON file first
+        step_agent_owner = "bet-researcher" if step_id.startswith("S2.") else "bet-risk-gatekeeper"
         wo_artifact = {
             "schema_version": 1,
             "work_order_id": f"WO-immutability-run-{step_id}",
@@ -451,7 +453,7 @@ def test_exact_database_immutability_proof(tmp_path: Path, monkeypatch):
             "betting_day": "2026-07-16",
             "run_id": "immutability-run",
             "step_id": step_id,
-            "agent": "dummy-agent",
+            "agent": step_agent_owner,
             "runtime_mode": "LIVE_SHADOW",
             "created_at": "2026-07-16T12:00:00Z",
             "status": "PENDING_AGENT",
@@ -522,6 +524,7 @@ def test_exact_database_immutability_proof(tmp_path: Path, monkeypatch):
             "schema_version": 1 if step_id != "S2.9" else 2,
             "artifact_type": "AGENT_ARTIFACT",
             "step_id": step_id,
+            "producer_agent_id": step_agent_owner,
             "status": "PASS",
             "betting_day": "2026-07-16",
             "run_id": "immutability-run",

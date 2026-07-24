@@ -229,16 +229,46 @@ def test_s2_9_status_semantics(status: str, should_pass: bool):
 def setup_valid_s2_9_environment(
     root: Path, status: str = "PASS", run_id: str = "run-001"
 ):
+    import hashlib
     art_dir = root / "pipeline_runs" / "2026-06-25" / run_id / "artifacts"
     art_dir.mkdir(parents=True, exist_ok=True)
 
     pred_data = {}
     for sid in ("S2.3", "S2.5", "S2.7"):
+        pred_wo_path = art_dir / f"{sid}_work_order.json"
+        pred_wo_data = {
+            "schema_version": 1,
+            "work_order_id": f"WO-{run_id}-{sid}",
+            "work_order_type": "AGENT_WORK_ORDER",
+            "pipeline_id": "daily-pipeline",
+            "betting_day": "2026-06-25",
+            "run_id": run_id,
+            "step_id": sid,
+            "agent": "bet-researcher",
+            "runtime_mode": "DRY_RUN",
+            "created_at": "2026-06-25T12:00:00Z",
+            "status": "PASS",
+            "input_refs": [],
+            "required_output": {
+                "expected_path": str(art_dir / f"{sid}.json"),
+                "required_statuses": ["PASS", "BLOCK"],
+                "schema_requirements": {},
+                "forbidden_outputs": [],
+                "hard_rules": [],
+            },
+            "hard_rules": [],
+            "forbidden_outputs": [],
+            "instructions": {},
+        }
+        pred_wo_path.write_text(json.dumps(pred_wo_data), encoding="utf-8")
+        pred_wo_sha = hashlib.sha256(pred_wo_path.read_bytes()).hexdigest()
+
         p_path = art_dir / f"{sid}.json"
         p_data = {
             "schema_version": 1,
             "artifact_type": "AGENT_ARTIFACT",
             "step_id": sid,
+            "producer_agent_id": "bet-researcher",
             "status": "PASS",
             "betting_day": "2026-06-25",
             "run_id": run_id,
@@ -252,6 +282,8 @@ def setup_valid_s2_9_environment(
             "unknowns": [],
             "blocked_reasons": [],
             "evidence_refs": [],
+            "work_order_id": f"WO-{run_id}-{sid}",
+            "work_order_sha256": pred_wo_sha,
             "payload": {
                 "enrichment_gaps": [] if sid == "S2.3" else None,
                 "providers": ["source"] if sid == "S2.5" else None,
@@ -266,8 +298,6 @@ def setup_valid_s2_9_environment(
         }
         p_path.write_text(json.dumps(p_data), encoding="utf-8")
 
-        import hashlib
-
         p_sha = hashlib.sha256(p_path.read_bytes()).hexdigest()
         pred_data[sid] = {"path": str(p_path), "sha256": p_sha}
 
@@ -280,7 +310,7 @@ def setup_valid_s2_9_environment(
         "betting_day": "2026-06-25",
         "run_id": run_id,
         "step_id": "S2.9",
-        "agent": "bet-enricher",
+        "agent": "bet-researcher",
         "runtime_mode": "DRY_RUN",
         "created_at": "2026-06-25T12:00:00Z",
         "status": "PASS",
@@ -294,6 +324,7 @@ def setup_valid_s2_9_environment(
             for sid in ("S2.3", "S2.5", "S2.7")
         ],
         "required_output": {
+            "expected_path": str(art_dir / "S2.9.json"),
             "required_statuses": ["PASS", "BLOCK"],
             "schema_requirements": {},
             "forbidden_outputs": [],
@@ -312,6 +343,7 @@ def setup_valid_s2_9_environment(
         "schema_version": 1,
         "artifact_type": "AGENT_ARTIFACT",
         "step_id": "S2.9",
+        "producer_agent_id": "bet-researcher",
         "status": status,
         "betting_day": "2026-06-25",
         "run_id": run_id,

@@ -1,0 +1,401 @@
+"""Adversarial regression tests for control-plane agent work-order ownership alignment."""
+
+from __future__ import annotations
+
+import hashlib
+import json
+import os
+from pathlib import Path
+from unittest.mock import MagicMock, patch
+
+import pytest
+
+from bet.pipeline.agent_artifact_contracts import (
+    _contains_provider_promotion,
+    _refs_cover_required_steps,
+    validate_agent_artifact_for_work_order,
+)
+from bet.pipeline.agent_work_orders import (
+    build_agent_work_order,
+    write_agent_work_order,
+)
+from bet.pipeline.manifest import (
+    CANONICAL_POWER_AGENTS,
+    PipelineManifest,
+    discover_repo_root,
+    get_executor_allowed_tasks,
+    get_step_agent,
+    get_step_hard_rules,
+    get_upstream_dependencies,
+    load_pipeline_manifest,
+    validate_pipeline_manifest,
+)
+from bet.pipeline.orchestrator import Orchestrator
+
+
+@pytest.fixture
+def repo_root() -> Path:
+    return discover_repo_root()
+
+
+@pytest.fixture
+def manifest(repo_root: Path) -> PipelineManifest:
+    return load_pipeline_manifest(repo_root / "config" / "pipeline_manifest.json")
+
+
+def _write_valid_work_order_and_artifact(
+    base_dir: Path, step_id: str, status: str = "PASS"
+) -> tuple[dict, dict, Path]:
+    wo = build_agent_work_order(
+        betting_day="2026-07-24",
+        run_id="run-alignment-test",
+        step_id=step_id,
+        runtime_mode="DRY_RUN",
+        base_dir=base_dir,
+    )
+    wo_path = write_agent_work_order(wo, base_dir)
+    wo_sha = hashlib.sha256(wo_path.read_bytes()).hexdigest()
+
+    art = {
+        "schema_version": 1 if step_id != "S2.9" else 2,
+        "artifact_type": "AGENT_ARTIFACT",
+        "step_id": step_id,
+        "producer_agent_id": wo.agent,
+        "status": status,
+        "betting_day": "2026-07-24",
+        "run_id": "run-alignment-test",
+        "sport": "football",
+        "point_in_time_as_of": "2026-07-24T12:00:00Z",
+        "source_bound": True,
+        "no_pick_edge_stake_coupon_emitted": True,
+        "production_selectable": False,
+        "betting_decisions_enabled": False,
+        "sources": ["verified-source"],
+        "unknowns": [],
+        "blocked_reasons": [] if status == "PASS" else ["EXPLICIT_BLOCK"],
+        "evidence_refs": [f"{sid}.json" for sid in get_upstream_dependencies(step_id)],
+        "work_order_id": wo.work_order_id,
+        "work_order_sha256": wo_sha,
+        "payload": {},
+    }
+
+    if step_id == "S2.3":
+        art["payload"] = {"enrichment_gaps": [], "gaps_status": "bounded"}
+    elif step_id == "S2.5":
+        art["payload"] = {"providers": ["verified-source"]}
+    elif step_id == "S2.7":
+        art["payload"] = {
+            "disputed_facts": [],
+            "reconciliation": {"unknown_facts": [], "decision_basis": "verified"},
+        }
+    elif step_id == "S2.9":
+        art["payload"] = {
+            "readiness": "PASS",
+            "s3_may_proceed": True,
+            "predecessor_bindings": [
+                {
+                    "step_id": dep,
+                    "path": str(
+                        base_dir
+                        / "pipeline_runs"
+                        / "2026-07-24"
+                        / "run-alignment-test"
+                        / "artifacts"
+                        / f"{dep}.json"
+                    ),
+                    "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+                    "artifact_type": "AGENT_ARTIFACT",
+                    "betting_day": "2026-07-24",
+                    "run_id": "run-alignment-test",
+                    "status": "PASS",
+                }
+                for dep in ("S2.3", "S2.5", "S2.7")
+            ],
+        }
+    elif step_id == "S5":
+        art["payload"] = {
+            "injuries_lineups": {"status": "checked"},
+            "motivation_tournament_context": {"status": "checked"},
+            "travel_fatigue": {"status": "checked"},
+            "morale_recent_form": {"status": "checked"},
+            "upset_volatility_risk": {"status": "checked"},
+        }
+
+    return wo.to_jsonable(), art, wo_path
+
+
+# 1. Every agent_artifact step matches manifest owner and bet-executor allowlist
+def test_1_work_order_agents_align_with_manifest_and_allowlist(
+    manifest: PipelineManifest, repo_root: Path
+):
+    allowed_tasks = get_executor_allowed_tasks(repo_root)
+    agent_steps = [s for s in manifest.steps if s.execution_mode == "agent_artifact"]
+
+    for step in agent_steps:
+        wo = build_agent_work_order(
+            betting_day="2026-07-24",
+            run_id="run-alignment",
+            step_id=step.id,
+            runtime_mode="DRY_RUN",
+            base_dir=repo_root,
+            manifest=manifest,
+        )
+        assert wo.agent == step.agent, f"Step {step.id} work order agent {wo.agent} != manifest {step.agent}"
+        assert wo.agent in CANONICAL_POWER_AGENTS, f"Step {step.id} agent {wo.agent} not a canonical power agent"
+        assert wo.agent in allowed_tasks, f"Step {step.id} agent {wo.agent} not in bet-executor allowlist"
+
+
+# 2. Work-order hard_rules match manifest hard_rules (Finding 1)
+def test_2_work_order_hard_rules_align_with_manifest(manifest: PipelineManifest, repo_root: Path):
+    for step in manifest.steps:
+        if step.execution_mode == "agent_artifact":
+            wo = build_agent_work_order(
+                betting_day="2026-07-24",
+                run_id="run-alignment",
+                step_id=step.id,
+                runtime_mode="DRY_RUN",
+                base_dir=repo_root,
+                manifest=manifest,
+            )
+            assert wo.hard_rules == step.hard_rules, f"Step {step.id} hard_rules drift: {wo.hard_rules} != {step.hard_rules}"
+
+
+# 3. Work-order generation is idempotent (Finding 2)
+def test_3_work_order_generation_is_idempotent(tmp_path: Path):
+    wo1 = build_agent_work_order(
+        betting_day="2026-07-24",
+        run_id="run-idempotent",
+        step_id="S2.3",
+        runtime_mode="DRY_RUN",
+        base_dir=tmp_path,
+    )
+    p1 = write_agent_work_order(wo1, tmp_path)
+    b1 = p1.read_bytes()
+
+    wo2 = build_agent_work_order(
+        betting_day="2026-07-24",
+        run_id="run-idempotent",
+        step_id="S2.3",
+        runtime_mode="DRY_RUN",
+        base_dir=tmp_path,
+    )
+    p2 = write_agent_work_order(wo2, tmp_path)
+    b2 = p2.read_bytes()
+
+    assert b1 == b2, "Work order regeneration is not byte-identical"
+
+
+# 4. PASS artifact validation fails when persisted work order is missing (Finding 3)
+def test_4_pass_validation_fails_when_work_order_file_missing(tmp_path: Path):
+    wo_data, art, wo_path = _write_valid_work_order_and_artifact(tmp_path, "S2.3", "PASS")
+    wo_path.unlink()
+
+    errors = validate_agent_artifact_for_work_order(art, wo_data)
+    assert any("Persisted work order file missing" in e for e in errors), f"Expected missing wo error, got: {errors}"
+
+
+# 5. Resume ledger execution identity uses step identity & work-order SHA (Finding 4)
+def test_5_resume_ledger_execution_identity_and_hashes(tmp_path: Path):
+    s2_path = tmp_path / "pipeline_runs" / "2026-07-24" / "run-alignment-test" / "artifacts" / "S2.json"
+    s2_path.parent.mkdir(parents=True, exist_ok=True)
+    s2_path.write_text(json.dumps({
+        "schema_version": 1,
+        "artifact_type": "SCRIPT_EVIDENCE",
+        "step_id": "S2",
+        "status": "PASS",
+        "betting_day": "2026-07-24",
+        "run_id": "run-alignment-test",
+        "payload": {"tipsters": []},
+    }), encoding="utf-8")
+
+    wo_data, art, wo_path = _write_valid_work_order_and_artifact(tmp_path, "S2.3", "PASS")
+    art_path = tmp_path / "pipeline_runs" / "2026-07-24" / "run-alignment-test" / "artifacts" / "S2.3.json"
+    art_path.write_text(json.dumps(art), encoding="utf-8")
+
+    orch = Orchestrator(
+        betting_day="2026-07-24",
+        run_id="run-alignment-test",
+        runtime_mode="DRY_RUN",
+        base_run_dir=tmp_path,
+    )
+    res = orch.run(start_step="S2.3", stop_after_step="S2.3")
+    status_str = res["status"].value if hasattr(res["status"], "value") else str(res["status"])
+    assert status_str == "PASS"
+
+    ledger_path = tmp_path / "pipeline_runs" / "2026-07-24" / "run-alignment-test" / "resume_ledger.json"
+    assert ledger_path.exists()
+    ledger = json.loads(ledger_path.read_text(encoding="utf-8"))
+    s23_entry = next(e for e in ledger["entries"] if e["step_id"] == "S2.3")
+    assert "work_order_sha256" in s23_entry["input_hashes"]
+
+
+# 6. Script-mode orchestration validates SCRIPT_EVIDENCE schema & rules (Finding 5)
+def test_6_script_mode_validates_script_evidence_artifact(tmp_path: Path):
+    orch = Orchestrator(
+        betting_day="2026-07-24",
+        run_id="run-script-test",
+        runtime_mode="DRY_RUN",
+        base_run_dir=tmp_path,
+    )
+
+    with patch("bet.pipeline.orchestrator.run_bounded_process") as mock_run:
+        def side_effect(*args, **kwargs):
+            ev_dir = tmp_path / "pipeline_runs" / "2026-07-24" / "run-script-test" / "artifacts"
+            ev_dir.mkdir(parents=True, exist_ok=True)
+            ev_path = ev_dir / "S1.json"
+            ev_path.write_text(json.dumps({
+                "schema_version": 1,
+                "artifact_type": "SCRIPT_EVIDENCE",
+                "step_id": "S1",
+                "status": "PASS",
+                "betting_day": "2026-07-24",
+                "run_id": "run-script-test",
+                "payload": {"TODO_FILL_BY_AGENT": True},
+            }), encoding="utf-8")
+            result = MagicMock()
+            result.returncode = 0
+            return result
+
+        mock_run.side_effect = side_effect
+        summary = orch.run(start_step="S1", stop_after_step="S1")
+        status_str = summary["status"].value if hasattr(summary["status"], "value") else str(summary["status"])
+        assert status_str == "BLOCK"
+        assert any("placeholder" in b.lower() or "validation" in b.lower() for b in summary["blockers"])
+
+
+# 7. Agent artifact requires producer_agent_id matching work order (Finding 6)
+def test_7_agent_artifact_requires_producer_agent_id_matching_work_order(tmp_path: Path):
+    wo_data, art, wo_path = _write_valid_work_order_and_artifact(tmp_path, "S2.3", "PASS")
+
+    art.pop("producer_agent_id", None)
+    art.pop("agent", None)
+    errors = validate_agent_artifact_for_work_order(art, wo_data)
+    assert any("producer_agent_id" in e for e in errors)
+
+    art["producer_agent_id"] = "bet-enricher"
+    errors = validate_agent_artifact_for_work_order(art, wo_data)
+    assert any("producer_agent_id mismatch" in e for e in errors)
+
+
+# 8. COMMAND_REQUEST files are attempt-scoped (Finding 7)
+def test_8_command_request_execution_files_are_attempt_scoped(tmp_path: Path):
+    wo_data, art, wo_path = _write_valid_work_order_and_artifact(tmp_path, "S2.3", "PASS")
+    art["status"] = "COMMAND_REQUEST"
+    art["command_request"] = {
+        "command_id": "WAIT_FOR_RATE_LIMIT",
+        "parameters": {"seconds": 1},
+    }
+    art_path = tmp_path / "pipeline_runs" / "2026-07-24" / "run-alignment-test" / "artifacts" / "S2.3.json"
+    art_path.write_text(json.dumps(art), encoding="utf-8")
+
+    orch = Orchestrator(
+        betting_day="2026-07-24",
+        run_id="run-alignment-test",
+        runtime_mode="DRY_RUN",
+        base_run_dir=tmp_path,
+    )
+    with patch("bet.pipeline.orchestrator.run_bounded_process") as mock_run:
+        m = MagicMock()
+        m.returncode = 0
+        m.stdout = "OK"
+        m.stderr = ""
+        mock_run.return_value = m
+        orch.run(start_step="S2.3", stop_after_step="S2.3")
+
+    attempt_log = tmp_path / "pipeline_runs" / "2026-07-24" / "run-alignment-test" / "logs" / "S2.3_cmd_attempt_1_stdout.log"
+    assert attempt_log.exists()
+
+
+# 9. Pipeline dependencies derived from manifest (Finding 8)
+def test_9_pipeline_dependencies_derived_from_manifest(manifest: PipelineManifest):
+    deps_s23 = get_upstream_dependencies("S2.3", manifest=manifest)
+    assert deps_s23 == ["S2"]
+
+    deps_s29 = get_upstream_dependencies("S2.9", manifest=manifest)
+    assert deps_s29 == ["S2", "S2.3", "S2.5", "S2.7"]
+
+    deps_s5 = get_upstream_dependencies("S5", manifest=manifest)
+    assert deps_s5 == ["S3", "S4", "S2.9"]
+
+
+# 10. Specific step work orders point to expected power agents
+def test_10_specific_step_work_orders_point_to_canonical_agents(repo_root: Path, manifest: PipelineManifest):
+    assert get_step_agent("S2.3", manifest=manifest) == "bet-researcher"
+    assert get_step_agent("S2.5", manifest=manifest) == "bet-researcher"
+    assert get_step_agent("S2.7", manifest=manifest) == "bet-researcher"
+    assert get_step_agent("S2.9", manifest=manifest) == "bet-researcher"
+    assert get_step_agent("S5", manifest=manifest) == "bet-risk-gatekeeper"
+
+
+# 11. Static manifest validation rejects invalid agent or allowlist mismatch (Finding 9)
+def test_11_static_manifest_validation_enforces_agent_invariant(manifest: PipelineManifest):
+    errors = validate_pipeline_manifest(manifest)
+    assert errors == []
+
+    manifest_copy = json.loads(json.dumps(manifest.steps[0].__dict__))
+    bad_manifest = load_pipeline_manifest()
+    for s in bad_manifest.steps:
+        if s.id == "S2.3":
+            s.agent = "bet-enricher"
+
+    bad_errors = validate_pipeline_manifest(bad_manifest)
+    assert any("bet-enricher" in e for e in bad_errors)
+
+
+# 12. Executable delegability proof over all agent_artifact steps (Finding 10)
+def test_12_executable_delegability_proof_for_all_agent_artifact_steps(repo_root: Path, manifest: PipelineManifest):
+    allowed_tasks = get_executor_allowed_tasks(repo_root)
+    agent_steps = [s for s in manifest.steps if s.execution_mode == "agent_artifact"]
+
+    assert len(agent_steps) == 5
+    for step in agent_steps:
+        agent_owner = get_step_agent(step.id, manifest=manifest)
+        assert agent_owner in allowed_tasks, f"Step {step.id} owner {agent_owner} cannot be delegated by bet-executor"
+
+
+# 13. Provider promotion detection avoids false positives on negated text (Finding 11)
+def test_13_provider_promotion_detection_avoids_false_positives():
+    payload_negated = {
+        "provider_observations": ["coverage checked"],
+        "note": "DO_NOT_CHANGE_PROVIDER_SELECTION",
+    }
+    assert _contains_provider_promotion(payload_negated) is False
+
+    payload_promotion = {
+        "provider_observations": ["coverage checked"],
+        "promoted_provider": "new_provider",
+    }
+    assert _contains_provider_promotion(payload_promotion) is True
+
+
+# 14. Evidence ref coverage requires step ID matching (Finding 12)
+def test_14_evidence_ref_coverage_matching():
+    refs = ["S2.3.json", "S2.5.json", "S2.7.json"]
+    assert _refs_cover_required_steps(refs, ("S2.3", "S2.5", "S2.7")) is True
+
+    refs_incomplete = ["S2.3.json", "S2.5.json"]
+    assert _refs_cover_required_steps(refs_incomplete, ("S2.3", "S2.5", "S2.7")) is False
+
+
+# 15. Repository contains no active runtime references to bet-enricher or bet-challenger
+def test_15_no_active_runtime_references_to_legacy_agents(repo_root: Path):
+    active_paths = [
+        repo_root / "AGENTS.md",
+        repo_root / "config/pipeline_manifest.json",
+        *sorted((repo_root / "src").glob("**/*.py")),
+        *sorted((repo_root / "scripts").glob("*.py")),
+        *sorted((repo_root / ".kilo/agents").glob("bet-*.md")),
+    ]
+
+    ignored_validator_files = {
+        "validate-bet-agent-config.py",
+        "validate-unattended-permissions.py",
+    }
+
+    import re
+    legacy_pattern = re.compile(r"\bbet-(?:enricher|challenger)\b")
+    for path in active_paths:
+        if path.name in ignored_validator_files:
+            continue
+        text = path.read_text(encoding="utf-8")
+        assert not legacy_pattern.search(text), f"Active file {path.relative_to(repo_root)} contains legacy agent reference"

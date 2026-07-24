@@ -8598,14 +8598,6 @@
     "expiry_or_review_policy": "REVIEW_ON_SCHEMA_UPGRADE"
   },
   {
-    "path": "src/bet/pipeline/analysis_status.py",
-    "category": "RETAINED_ENGINEERING",
-    "owner": "Kilo",
-    "reason": "Retained analytical contract helper",
-    "references": [],
-    "expiry_or_review_policy": "REVIEW_ON_SCHEMA_UPGRADE"
-  },
-  {
     "path": "src/bet/pipeline/analytical_candidate_bridge.py",
     "category": "RETAINED_ENGINEERING",
     "owner": "Kilo",
@@ -8619,14 +8611,6 @@
     "owner": "Kilo",
     "reason": "Retained analytical prefilter",
     "references": [],
-    "expiry_or_review_policy": "REVIEW_ON_SCHEMA_UPGRADE"
-  },
-  {
-    "path": "src/bet/pipeline/live_fixture_audit.py",
-    "category": "RETAINED_ENGINEERING",
-    "owner": "Kilo",
-    "reason": "S7 point-in-time live-fixture audit service",
-    "references": ["src/bet/pipeline/hard_approval_gate.py"],
     "expiry_or_review_policy": "REVIEW_ON_SCHEMA_UPGRADE"
   },
   {
@@ -8724,6 +8708,38 @@
     "reason": "Sanitized deterministic canonical replay fixture",
     "references": ["tests/test_failed_run_replay.py"],
     "expiry_or_review_policy": "NO_EXPIRY_RETAIN_PERMANENTLY"
+  },
+  {
+    "path": "config/pipeline_certification_inventory.json",
+    "category": "RETAINED_ENGINEERING",
+    "owner": "Kilo",
+    "reason": "Pipeline final closure certification inventory authority",
+    "references": [],
+    "expiry_or_review_policy": "REVIEW_ON_SCHEMA_UPGRADE"
+  },
+  {
+    "path": "config/provider_runtime_policy.json",
+    "category": "RETAINED_ENGINEERING",
+    "owner": "Kilo",
+    "reason": "Provider runtime policy configuration",
+    "references": [],
+    "expiry_or_review_policy": "REVIEW_ON_SCHEMA_UPGRADE"
+  },
+  {
+    "path": "tests/support/__init__.py",
+    "category": "RETAINED_TEST",
+    "owner": "Kilo",
+    "reason": "Test support package",
+    "references": [],
+    "expiry_or_review_policy": "REVIEW_ON_SCHEMA_UPGRADE"
+  },
+  {
+    "path": "tests/support/adapters.py",
+    "category": "RETAINED_TEST",
+    "owner": "Kilo",
+    "reason": "Test support adapters",
+    "references": [],
+    "expiry_or_review_policy": "REVIEW_ON_SCHEMA_UPGRADE"
   },
   {
     "path": "uv.lock",
