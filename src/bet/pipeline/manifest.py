@@ -21,6 +21,8 @@ class PipelineStep:
     output: str | None
     next: list[str] | None
     hard_rules: list[str] | None
+    depends_on: list[str] | None = None
+    required_inputs: list[str] | None = None
     wrapper: str | None = None
     canonical_script: str | None = None
 
@@ -89,6 +91,8 @@ def load_pipeline_manifest(path: Path | None = None) -> PipelineManifest:
             output=step_data.get("output"),
             next=step_data.get("next"),
             hard_rules=step_data.get("hard_rules"),
+            depends_on=step_data.get("depends_on"),
+            required_inputs=step_data.get("required_inputs"),
             wrapper=step_data.get("wrapper"),
             canonical_script=step_data.get("canonical_script")
         )
@@ -175,6 +179,39 @@ def get_step_hard_rules(
     raise PipelineManifestError(f"Unknown step_id in manifest: {step_id}")
 
 
+class PipelineGraph:
+    """Canonical validated pipeline graph built from manifest."""
+
+    def __init__(self, manifest: PipelineManifest):
+        self.manifest = manifest
+        self.steps_by_id = {s.id: s for s in manifest.steps if s.id}
+        self.order = [s.id for s in manifest.steps if s.id]
+
+    def direct_dependencies(self, step_id: str) -> list[str]:
+        step = self.steps_by_id.get(step_id)
+        if not step:
+            return []
+        if step.depends_on is not None:
+            return list(step.depends_on)
+        return [s.id for s in self.manifest.steps if s.next and step_id in s.next and s.id]
+
+    def all_upstream_dependencies(self, step_id: str) -> list[str]:
+        visited: set[str] = set()
+        def traverse(sid: str) -> None:
+            for dep in self.direct_dependencies(sid):
+                if dep not in visited:
+                    visited.add(dep)
+                    traverse(dep)
+        traverse(step_id)
+        return [sid for sid in self.order if sid in visited]
+
+    def required_artifacts_before_step(self, step_id: str) -> tuple[str, ...]:
+        step = self.steps_by_id.get(step_id)
+        if step and step.required_inputs is not None:
+            return tuple(step.required_inputs)
+        return tuple(self.direct_dependencies(step_id))
+
+
 def get_upstream_dependencies(
     step_id: str,
     manifest: PipelineManifest | None = None,
@@ -183,27 +220,10 @@ def get_upstream_dependencies(
     """Get the canonical upstream dependency step IDs for a given step_id from the manifest graph."""
     if manifest is None:
         manifest = load_pipeline_manifest(manifest_path)
-    step_ids = [s.id for s in manifest.steps if s.id]
-    if step_id not in step_ids:
+    graph = PipelineGraph(manifest)
+    if step_id not in graph.steps_by_id:
         raise PipelineManifestError(f"Unknown step_id in manifest: {step_id}")
-
-    if step_id == "S2.3":
-        return ["S2"]
-    if step_id == "S2.5":
-        return ["S2", "S2.3"]
-    if step_id == "S2.7":
-        return ["S2", "S2.3", "S2.5"]
-    if step_id == "S2.9":
-        return ["S2", "S2.3", "S2.5", "S2.7"]
-    if step_id == "S5":
-        return ["S3", "S4", "S2.9"]
-
-    # Fallback to direct predecessors in manifest graph
-    preds = []
-    for step in manifest.steps:
-        if step.next and step_id in step.next and step.id:
-            preds.append(step.id)
-    return preds
+    return graph.direct_dependencies(step_id)
 
 
 def get_required_artifacts_before_step(
@@ -211,21 +231,10 @@ def get_required_artifacts_before_step(
     manifest: PipelineManifest | None = None,
 ) -> tuple[str, ...]:
     """Get prerequisite step IDs whose artifacts are required before step_id."""
-    if step_id == "S3":
-        return ("S2.9",)
-    if step_id == "S6":
-        return ("S5",)
-    if step_id == "S8":
-        return ("S7", "S7b")
-    if step_id == "S10":
-        return ("S9",)
-    if step_id == "S2.5":
-        return ("S2.3",)
-    if step_id == "S2.7":
-        return ("S2.5",)
-    if step_id == "S2.9":
-        return ("S2.7",)
-    return ()
+    if manifest is None:
+        manifest = load_pipeline_manifest()
+    graph = PipelineGraph(manifest)
+    return graph.required_artifacts_before_step(step_id)
 
 
 def get_step_order() -> list[str]:

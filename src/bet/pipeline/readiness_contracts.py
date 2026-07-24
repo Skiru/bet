@@ -94,6 +94,9 @@ def required_statuses_for_artifact(
     """Return statuses that satisfy a required gate for a step/type pair."""
     step_id = expected_step_id.strip()
 
+    if artifact_type == PipelineArtifactType.SCRIPT_EVIDENCE:
+        return (PipelineReadinessStatus.PASS,)
+
     if step_id == "S9":
         if artifact_type == PipelineArtifactType.HUMAN_GATE:
             return (PipelineReadinessStatus.HUMAN_APPROVED,)
@@ -106,11 +109,6 @@ def required_statuses_for_artifact(
 
     if step_id in {"S2.3", "S2.5", "S2.7", "S2.9", "S5"}:
         if artifact_type == PipelineArtifactType.AGENT_ARTIFACT:
-            return (PipelineReadinessStatus.PASS,)
-        return ()
-
-    if step_id in {"S7", "S7b"}:
-        if artifact_type == PipelineArtifactType.SCRIPT_EVIDENCE:
             return (PipelineReadinessStatus.PASS,)
         return ()
 

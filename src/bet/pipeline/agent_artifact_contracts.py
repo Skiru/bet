@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 from typing import Any
 
@@ -35,34 +36,49 @@ def agent_steps_from_manifest(manifest: PipelineManifest | dict[str, Any]) -> li
     return steps_list
 
 
-def required_agent_output_contract(step_id: str) -> dict[str, Any]:
+def required_agent_output_contract(
+    step_id: str,
+    *,
+    manifest: Any | None = None,
+    work_order: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     """Retrieve output contract requirements for a specific step."""
     from bet.pipeline.agent_work_orders import POLICIES
+    from bet.pipeline.manifest import get_step_hard_rules
 
     if step_id not in POLICIES:
         raise ValueError(f"No policy defined for step_id: {step_id}")
     policy = POLICIES[step_id]
+
+    if work_order and isinstance(work_order.get("hard_rules"), list):
+        hard_rules = list(work_order["hard_rules"])
+    else:
+        hard_rules = get_step_hard_rules(step_id, manifest=manifest)
+
     return {
         "artifact_type": "AGENT_ARTIFACT",
         "step_id": step_id,
         "required_statuses": ["PASS", "BLOCK", "COMMAND_REQUEST"],
         "schema_requirements": policy.schema_requirements,
         "forbidden_outputs": policy.forbidden_outputs,
-        "hard_rules": policy.hard_rules,
+        "hard_rules": hard_rules,
     }
+
+
+def _is_exact_step_ref(ref: str, step_id: str) -> bool:
+    lowered = ref.lower()
+    if any(bad in lowered for bad in ("fake", "garbage", "not-artifact", "not_artifact")) or ref.endswith(".txt"):
+        return False
+    name = Path(ref).name
+    pattern = rf"(?:^|[\/\._\-]){re.escape(step_id)}(?:$|[\/\._\-])"
+    return bool(re.search(pattern, name) or re.search(pattern, ref))
 
 
 def _refs_cover_required_steps(
     evidence_refs: list[str], required_steps: tuple[str, ...]
 ) -> bool:
     for required_step in required_steps:
-        matched = False
-        for ref in evidence_refs:
-            p = Path(ref)
-            if required_step in p.name or required_step in ref:
-                matched = True
-                break
-        if not matched:
+        if not any(_is_exact_step_ref(ref, required_step) for ref in evidence_refs):
             return False
     return True
 
@@ -76,15 +92,6 @@ def _contains_provider_promotion(node: Any) -> bool:
         "selected_provider",
         "switch_provider",
     )
-    negated_phrases = (
-        "do_not_change_provider_selection",
-        "no_provider_promotion",
-        "must_not_promote",
-        "no provider promotion",
-        "do not promote",
-        "disallowed",
-        "forbidden",
-    )
     if isinstance(node, dict):
         for key, value in node.items():
             normalized_key = str(key).strip().lower()
@@ -93,13 +100,27 @@ def _contains_provider_promotion(node: Any) -> bool:
             if _contains_provider_promotion(value):
                 return True
         return False
-    if isinstance(node, list):
+    if isinstance(node, (list, tuple)):
         return any(_contains_provider_promotion(item) for item in node)
     if isinstance(node, str):
         lowered = node.strip().lower()
-        if any(phrase in lowered for phrase in negated_phrases):
-            return False
-        return any(token in lowered for token in forbidden_tokens)
+        for token in forbidden_tokens:
+            if token in lowered:
+                # Check if this token appears as a positive assignment or directive
+                if re.search(rf"\b{re.escape(token)}\s*[:=]|\b{re.escape(token)}\s+to\b", lowered):
+                    return True
+        if any(token in lowered for token in forbidden_tokens):
+            negated_phrases = (
+                "do_not_change_provider_selection",
+                "no_provider_promotion",
+                "must_not_promote",
+                "no provider promotion",
+                "do not promote",
+                "disallowed",
+                "forbidden",
+            )
+            if not any(phrase in lowered for phrase in negated_phrases):
+                return True
     return False
 
 
@@ -231,16 +252,16 @@ def validate_agent_artifact_for_work_order(
             from bet.pipeline.canonical_continuity import file_sha256
 
             actual_wo_sha = file_sha256(wo_path)
-            if status_val == "PASS":
+            if status_val in ("PASS", "COMMAND_REQUEST"):
                 if "work_order_id" not in artifact_data:
-                    errors.append("PASS artifact missing 'work_order_id'")
+                    errors.append(f"{status_val} artifact missing 'work_order_id'")
                 elif artifact_data["work_order_id"] != work_order_data.get("work_order_id"):
                     errors.append(
                         f"work_order_id mismatch: {artifact_data['work_order_id']} vs {work_order_data.get('work_order_id')}"
                     )
 
                 if "work_order_sha256" not in artifact_data:
-                    errors.append("PASS artifact missing 'work_order_sha256'")
+                    errors.append(f"{status_val} artifact missing 'work_order_sha256'")
                 elif artifact_data["work_order_sha256"] != actual_wo_sha:
                     errors.append(
                         f"work_order_sha256 mismatch: {artifact_data['work_order_sha256']} vs {actual_wo_sha}"
@@ -254,9 +275,9 @@ def validate_agent_artifact_for_work_order(
         or artifact_data.get("payload", {}).get("agent_id")
         or artifact_data.get("agent")
     )
-    if status_val == "PASS":
+    if status_val in ("PASS", "COMMAND_REQUEST"):
         if not actual_producer:
-            errors.append("PASS artifact missing producer_agent_id / agent_id binding")
+            errors.append(f"{status_val} artifact missing producer_agent_id / agent_id binding")
         elif actual_producer != expected_agent:
             errors.append(
                 f"producer_agent_id mismatch: expected {expected_agent}, got {actual_producer}"

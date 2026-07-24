@@ -42,6 +42,7 @@ from bet.pipeline.orchestrator_contracts import (
 from bet.pipeline.readiness_contracts import (
     PipelineArtifactType,
     PipelineReadinessStatus,
+    ReadinessIssue,
 )
 from bet.pipeline.run_coordination import (
     LeaseRunLock,
@@ -638,6 +639,7 @@ class Orchestrator:
                     cmd.append("--allow-live-network")
                 if self.allow_write:
                     cmd.append("--allow-write")
+                actual_cmd = list(cmd)
 
                 stdout_file_path = self.run_root / "logs" / f"{sid}_stdout.log"
                 stderr_file_path = self.run_root / "logs" / f"{sid}_stderr.log"
@@ -670,12 +672,18 @@ class Orchestrator:
                     try:
                         with open(canonical_evidence, encoding="utf-8") as f:
                             raw_ev = json.load(f)
+                        if not isinstance(raw_ev, dict):
+                            raise ValueError(f"Script evidence for step '{sid}' must be a JSON object")
                         evidence_status = raw_ev.get("status")
-                        evidence_blocked_reasons = raw_ev.get("blocked_reasons", [])
+                        raw_reasons = raw_ev.get("blocked_reasons", [])
+                        evidence_blocked_reasons = raw_reasons if isinstance(raw_reasons, list) else []
                         _, evidence_issues = validate_pipeline_artifact(
                             raw_ev,
                             sid,
-                            enforce_required_gate=False,
+                            expected_betting_day=self.betting_day,
+                            expected_run_id=self.run_id,
+                            expected_artifact_type=PipelineArtifactType.SCRIPT_EVIDENCE,
+                            enforce_required_gate=True,
                             allow_block_status=True,
                         )
                     except Exception as exc:
@@ -691,14 +699,15 @@ class Orchestrator:
 
                 if return_code == 0:
                     if evidence_exists:
-                        if evidence_status in ("BLOCK", "FAILED") or block_issues:
+                        if evidence_status in ("BLOCK", "FAILED") or block_issues or evidence_status != PipelineReadinessStatus.PASS.value:
                             step_status = PipelineReadinessStatus.BLOCK
                             overall_status = PipelineReadinessStatus.BLOCK
                             blocked_at_step = sid
+                            blocked_reason = BlockedReason.BLOCKED_SCRIPT_EVIDENCE_MISSING
                             evidence_path = str(canonical_evidence)
                             if block_issues:
                                 for i in block_issues:
-                                    self.blockers.append(f"Step {sid} script evidence validation failure: {i.message}")
+                                    self.blockers.append(f"Step {sid} script evidence validation failure: [{i.code}] {i.message}")
                             elif evidence_blocked_reasons:
                                 for r in evidence_blocked_reasons:
                                     self.blockers.append(f"Step {sid} blocked: {r}")
@@ -717,6 +726,7 @@ class Orchestrator:
                     step_status = PipelineReadinessStatus.BLOCK
                     overall_status = PipelineReadinessStatus.BLOCK
                     blocked_at_step = sid
+                    blocked_reason = BlockedReason.BLOCKED_SCRIPT_EVIDENCE_MISSING
 
                     if evidence_exists:
                         evidence_path = str(canonical_evidence)
@@ -1076,7 +1086,18 @@ class Orchestrator:
                 else (step_status.value if hasattr(step_status, "value") else str(step_status))
             )
             wo_sha = ""
-            predecessor_hashes = {}
+            predecessor_hashes: dict[str, str] = {}
+            from bet.pipeline.manifest import get_required_artifacts_before_step
+            from bet.pipeline.canonical_continuity import file_sha256
+            req_predecessors = get_required_artifacts_before_step(sid, manifest=self.manifest)
+            for req_sid in req_predecessors:
+                req_path = artifact_path_for(gate_base_dir, self.betting_day, self.run_id, req_sid)
+                if req_path.is_file():
+                    try:
+                        predecessor_hashes[f"predecessor_{req_sid}_sha256"] = file_sha256(req_path)
+                    except Exception:
+                        pass
+
             candidate_wo_path = work_order_path_for(gate_base_dir, self.betting_day, self.run_id, sid)
             if candidate_wo_path.is_file():
                 try:
@@ -1099,13 +1120,20 @@ class Orchestrator:
                 ledger_input_hashes["work_order_sha256"] = wo_sha
 
             if step.execution_mode == "script":
-                step_argv = [
-                    sys.executable,
-                    str(self.repo_root / step.wrapper) if step.wrapper else "",
-                    "--date", self.betting_day,
-                    "--run-id", self.run_id,
-                    "--runtime-mode", self.runtime_mode.value,
-                ]
+                if 'actual_cmd' in locals() and actual_cmd:
+                    step_argv = list(actual_cmd)
+                else:
+                    step_argv = [
+                        sys.executable,
+                        str(self.repo_root / step.wrapper) if step.wrapper else "",
+                        "--date", self.betting_day,
+                        "--run-id", self.run_id,
+                        "--runtime-mode", self.runtime_mode.value,
+                    ]
+                    if self.allow_live_network:
+                        step_argv.append("--allow-live-network")
+                    if self.allow_write:
+                        step_argv.append("--allow-write")
                 cmd_req_identity = {
                     "step_id": sid,
                     "wrapper": step.wrapper,

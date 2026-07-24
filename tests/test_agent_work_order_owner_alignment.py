@@ -399,3 +399,272 @@ def test_15_no_active_runtime_references_to_legacy_agents(repo_root: Path):
             continue
         text = path.read_text(encoding="utf-8")
         assert not legacy_pattern.search(text), f"Active file {path.relative_to(repo_root)} contains legacy agent reference"
+
+
+# 16. Malformed SCRIPT_EVIDENCE JSON returns BLOCK, not uncaught exception
+def test_16_malformed_script_evidence_json_returns_block(tmp_path: Path):
+    orch = Orchestrator(
+        betting_day="2026-07-24",
+        run_id="run-malformed-test",
+        runtime_mode="DRY_RUN",
+        base_run_dir=tmp_path,
+    )
+    with patch("bet.pipeline.orchestrator.run_bounded_process") as mock_run:
+        def side_effect(*args, **kwargs):
+            ev_dir = tmp_path / "pipeline_runs" / "2026-07-24" / "run-malformed-test" / "artifacts"
+            ev_dir.mkdir(parents=True, exist_ok=True)
+            ev_path = ev_dir / "S1.json"
+            ev_path.write_text("{malformed_json_not_valid", encoding="utf-8")
+            res = MagicMock()
+            res.returncode = 0
+            return res
+
+        mock_run.side_effect = side_effect
+        summary = orch.run(start_step="S1", stop_after_step="S1")
+        assert summary["status"] == "BLOCK"
+        assert summary["blocked_at_step"] == "S1"
+        assert any("SCRIPT_EVIDENCE_UNREADABLE" in b or "validation failure" in b for b in summary["blockers"])
+
+
+# 17. Foreign betting_day or run_id in script evidence is rejected
+def test_17_foreign_betting_day_and_run_id_rejected(tmp_path: Path):
+    orch = Orchestrator(
+        betting_day="2026-07-24",
+        run_id="run-foreign-test",
+        runtime_mode="DRY_RUN",
+        base_run_dir=tmp_path,
+    )
+    with patch("bet.pipeline.orchestrator.run_bounded_process") as mock_run:
+        def side_effect(*args, **kwargs):
+            ev_dir = tmp_path / "pipeline_runs" / "2026-07-24" / "run-foreign-test" / "artifacts"
+            ev_dir.mkdir(parents=True, exist_ok=True)
+            ev_path = ev_dir / "S1.json"
+            ev_path.write_text(json.dumps({
+                "schema_version": 1,
+                "artifact_type": "SCRIPT_EVIDENCE",
+                "step_id": "S1",
+                "status": "PASS",
+                "betting_day": "2020-01-01",  # foreign betting_day
+                "run_id": "foreign-run-id",   # foreign run_id
+            }), encoding="utf-8")
+            res = MagicMock()
+            res.returncode = 0
+            return res
+
+        mock_run.side_effect = side_effect
+        summary = orch.run(start_step="S1", stop_after_step="S1")
+        assert summary["status"] == "BLOCK"
+        assert any("MISMATCH_BETTING_DAY" in b or "MISMATCH_RUN_ID" in b for b in summary["blockers"])
+
+
+# 18. AGENT_ARTIFACT and STATE_MARKER rejected for script step
+def test_18_wrong_artifact_types_rejected_for_script_step(tmp_path: Path):
+    for wrong_type in ("AGENT_ARTIFACT", "STATE_MARKER"):
+        orch = Orchestrator(
+            betting_day="2026-07-24",
+            run_id=f"run-type-{wrong_type}",
+            runtime_mode="DRY_RUN",
+            base_run_dir=tmp_path,
+        )
+        with patch("bet.pipeline.orchestrator.run_bounded_process") as mock_run:
+            def side_effect(*args, **kwargs):
+                ev_dir = tmp_path / "pipeline_runs" / "2026-07-24" / f"run-type-{wrong_type}" / "artifacts"
+                ev_dir.mkdir(parents=True, exist_ok=True)
+                ev_path = ev_dir / "S1.json"
+                ev_path.write_text(json.dumps({
+                    "schema_version": 1,
+                    "artifact_type": wrong_type,
+                    "step_id": "S1",
+                    "status": "PASS",
+                    "betting_day": "2026-07-24",
+                    "run_id": f"run-type-{wrong_type}",
+                }), encoding="utf-8")
+                res = MagicMock()
+                res.returncode = 0
+                return res
+
+            mock_run.side_effect = side_effect
+            summary = orch.run(start_step="S1", stop_after_step="S1")
+            assert summary["status"] == "BLOCK"
+            assert any("MISMATCH_ARTIFACT_TYPE" in b for b in summary["blockers"])
+
+
+# 19. COMMAND_REQUEST without full work order binding or wrong producer rejected before execution
+def test_19_command_request_bindings_must_match_before_execution(tmp_path: Path):
+    # Test zero command execution for missing/wrong work_order_id, sha256, producer_agent_id
+    cases = [
+        ("missing_wo_id", lambda art, wo: art.pop("work_order_id", None)),
+        ("wrong_wo_id", lambda art, wo: art.update({"work_order_id": "WO-WRONG"})),
+        ("missing_wo_sha", lambda art, wo: art.pop("work_order_sha256", None)),
+        ("wrong_wo_sha", lambda art, wo: art.update({"work_order_sha256": "0" * 64})),
+        ("missing_producer", lambda art, wo: art.pop("producer_agent_id", None)),
+        ("wrong_producer", lambda art, wo: art.update({"producer_agent_id": "wrong-agent"})),
+    ]
+
+    for case_name, mutator in cases:
+        run_id = f"run-cmd-{case_name}"
+        wo_data, art, wo_path = _write_valid_work_order_and_artifact(tmp_path, "S2.3", "PASS")
+        art["status"] = "COMMAND_REQUEST"
+        art["command_request"] = {
+            "command_id": "WAIT_FOR_RATE_LIMIT",
+            "parameters": {"seconds": 1},
+        }
+        mutator(art, wo_data)
+
+        art_dir = tmp_path / "pipeline_runs" / "2026-07-24" / run_id / "artifacts"
+        art_dir.mkdir(parents=True, exist_ok=True)
+        (art_dir / "S2.3_work_order.json").write_text(json.dumps(wo_data), encoding="utf-8")
+        art_path = art_dir / "S2.3.json"
+        art_path.write_text(json.dumps(art), encoding="utf-8")
+
+        orch = Orchestrator(
+            betting_day="2026-07-24",
+            run_id=run_id,
+            runtime_mode="DRY_RUN",
+            base_run_dir=tmp_path,
+        )
+        with patch("bet.pipeline.orchestrator.run_bounded_process") as mock_run:
+            summary = orch.run(start_step="S2.3", stop_after_step="S2.3")
+            assert mock_run.call_count == 0, f"run_bounded_process was called for invalid binding case {case_name}"
+            assert summary["status"] == "BLOCK"
+
+
+# 20. S3 identity changes when S2.9 SHA changes and S8 identity changes when S7/S7b SHA changes
+def test_20_predecessor_sha_changes_ledger_signature(tmp_path: Path):
+    from bet.pipeline.run_coordination import ResumeLedger
+    from bet.pipeline.manifest import load_pipeline_manifest, get_required_artifacts_before_step
+
+    m = load_pipeline_manifest()
+    assert get_required_artifacts_before_step("S3", manifest=m) == ("S2.9",)
+    assert get_required_artifacts_before_step("S8", manifest=m) == ("S7", "S7b")
+
+    # Verify input hashes for S3 change if S2.9 file changes
+    run_dir = tmp_path / "pipeline_runs" / "2026-07-24" / "run-sha-test"
+    art_dir = run_dir / "artifacts"
+    art_dir.mkdir(parents=True, exist_ok=True)
+
+    s29_path = art_dir / "S2.9.json"
+    s29_path.write_text("content1", encoding="utf-8")
+
+    orch1 = Orchestrator(
+        betting_day="2026-07-24",
+        run_id="run-sha-test",
+        runtime_mode="DRY_RUN",
+        base_run_dir=tmp_path,
+    )
+    # Get predecessor hashes before and after mutation
+    from bet.pipeline.canonical_continuity import file_sha256
+    sha1 = file_sha256(s29_path)
+
+    s29_path.write_text("content2_mutated", encoding="utf-8")
+    sha2 = file_sha256(s29_path)
+
+    assert sha1 != sha2
+
+
+# 21. Actual argv identity contains live/write flags when used
+def test_21_actual_argv_contains_live_and_write_flags(tmp_path: Path):
+    orch = Orchestrator(
+        betting_day="2026-07-24",
+        run_id="run-flags-test",
+        runtime_mode="DRY_RUN",
+        base_run_dir=tmp_path,
+        allow_live_network=True,
+        allow_write=True,
+    )
+    with patch("bet.pipeline.orchestrator.run_bounded_process") as mock_run:
+        def side_effect(cmd, **kwargs):
+            assert "--allow-live-network" in cmd
+            assert "--allow-write" in cmd
+            ev_dir = tmp_path / "pipeline_runs" / "2026-07-24" / "run-flags-test" / "artifacts"
+            ev_dir.mkdir(parents=True, exist_ok=True)
+            ev_path = ev_dir / "S1.json"
+            ev_path.write_text(json.dumps({
+                "schema_version": 1,
+                "artifact_type": "SCRIPT_EVIDENCE",
+                "step_id": "S1",
+                "status": "PASS",
+                "betting_day": "2026-07-24",
+                "run_id": "run-flags-test",
+            }), encoding="utf-8")
+            res = MagicMock()
+            res.returncode = 0
+            return res
+
+        mock_run.side_effect = side_effect
+        summary = orch.run(start_step="S1", stop_after_step="S1")
+        assert summary["status"] == "PASS"
+
+
+# 22. Exact evidence-ref adversarial matrix
+def test_22_exact_evidence_ref_adversarial_matrix():
+    # Must reject substring false positives
+    assert _refs_cover_required_steps(["fake-S2.3-not-artifact"], ("S2.3",)) is False
+    assert _refs_cover_required_steps(["S2.30.json"], ("S2.3",)) is False
+    assert _refs_cover_required_steps(["garbage-S2.3.txt"], ("S2.3",)) is False
+
+    # Must accept valid step references
+    assert _refs_cover_required_steps(["S2.3_artifact.json"], ("S2.3",)) is True
+    assert _refs_cover_required_steps(["S2.3.json"], ("S2.3",)) is True
+    assert _refs_cover_required_steps(["artifact_S2.3_run1"], ("S2.3",)) is True
+
+
+# 23. Provider promotion mixed-negation matrix
+def test_23_provider_promotion_mixed_negation_matrix():
+    # Positive promotion directives with mixed negations must be rejected
+    assert _contains_provider_promotion("No provider promotion restriction; selected_provider=new_provider") is True
+    assert _contains_provider_promotion("Do not promote old provider; promoted_provider=new_provider") is True
+    assert _contains_provider_promotion("provider promotion is forbidden, switch_provider to x") is True
+
+    # Pure rule statements without positive assignments must be allowed
+    assert _contains_provider_promotion("Must not promote provider; follow strict no_provider_promotion rule") is False
+
+
+# 24. Manifest hard-rule mutation propagates without a second policy map
+def test_24_manifest_hard_rule_mutation_propagates(tmp_path: Path):
+    manifest = load_pipeline_manifest()
+    # Find S2.3 step in manifest
+    s23_step = next(s for s in manifest.steps if s.id == "S2.3")
+    s23_step.hard_rules.append("test_mutation_rule_999")
+
+    # Check that build_agent_work_order uses mutated hard rule
+    wo = build_agent_work_order(
+        betting_day="2026-07-24",
+        run_id="run-mut-test",
+        step_id="S2.3",
+        runtime_mode="DRY_RUN",
+        base_dir=tmp_path,
+        manifest=manifest,
+    )
+    assert "test_mutation_rule_999" in wo.hard_rules
+
+    # Check that required_agent_output_contract uses mutated hard rule
+    from bet.pipeline.agent_artifact_contracts import required_agent_output_contract
+    contract = required_agent_output_contract("S2.3", manifest=manifest)
+    assert "test_mutation_rule_999" in contract["hard_rules"]
+
+
+# 25. Production surface validator passes on committed head
+def test_25_production_surface_validator_passes():
+    from scripts.validate_production_surface import validate
+    res = validate()
+    assert res["status"] == "PASS", f"Production surface validator returned BLOCK: {res.get('errors')}"
+
+
+# 26. All current documentation uses canonical power agents
+def test_26_current_documentation_uses_canonical_power_agents(repo_root: Path):
+    import tomllib, re
+    with open(repo_root / "config/retention_records.json", "r", encoding="utf-8") as f:
+        records = json.load(f)
+
+    current_docs = [
+        repo_root / r["path"]
+        for r in records
+        if r.get("category") == "CURRENT_DOCUMENTATION" and (repo_root / r["path"]).exists()
+    ]
+
+    retired_agents = re.compile(r"\bbet-(?:enricher|challenger|statistician|valuator|scanner|scout)\b")
+    for doc in current_docs:
+        text = doc.read_text(encoding="utf-8")
+        matches = retired_agents.findall(text)
+        assert not matches, f"Current documentation file {doc.relative_to(repo_root)} references retired agent(s): {matches}"

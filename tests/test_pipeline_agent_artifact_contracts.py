@@ -58,6 +58,7 @@ def test_agent_artifact_template_for_step():
 
 
 def _build_base_artifact(step_id: str, status: str = "PASS") -> dict:
+    is_valid_status = status in ("PASS", "COMMAND_REQUEST")
     return {
         "schema_version": 1,
         "artifact_type": "AGENT_ARTIFACT",
@@ -69,14 +70,14 @@ def _build_base_artifact(step_id: str, status: str = "PASS") -> dict:
         "sport": "Football",
         "fixture_id": None,
         "fixture_key": None,
-        "point_in_time_as_of": "2026-06-25T14:00:00Z" if status == "PASS" else None,
-        "source_bound": True if status == "PASS" else False,
+        "point_in_time_as_of": "2026-06-25T14:00:00Z" if is_valid_status else None,
+        "source_bound": True if is_valid_status else False,
         "no_pick_edge_stake_coupon_emitted": True,
         "production_selectable": False,
         "betting_decisions_enabled": False,
-        "sources": ["verified-source"] if status == "PASS" else [],
+        "sources": ["verified-source"] if is_valid_status else [],
         "unknowns": [],
-        "blocked_reasons": [] if status == "PASS" else ["UPSTREAM_DATA_MISSING"],
+        "blocked_reasons": [] if is_valid_status else ["UPSTREAM_DATA_MISSING"],
         "evidence_refs": [],
         "payload": {},
     }
@@ -392,6 +393,9 @@ def test_s25_pass_rejects_provider_promotion_changes(tmp_path):
 
 def test_command_request_artifact_validation(tmp_path):
     """Verify COMMAND_REQUEST artifacts validate when they contain a command_request."""
+    from bet.pipeline.agent_work_orders import work_order_path_for
+    from bet.pipeline.canonical_continuity import file_sha256
+
     wo = build_agent_work_order(
         betting_day="2026-06-25",
         run_id="run-smoke",
@@ -399,10 +403,17 @@ def test_command_request_artifact_validation(tmp_path):
         runtime_mode="DRY_RUN",
         base_dir=tmp_path,
     )
-    write_agent_work_order(wo, tmp_path)
+    wo_path = write_agent_work_order(wo, tmp_path)
+    wo_sha = file_sha256(wo_path)
+
+    def _bind(art):
+        art["work_order_id"] = wo.work_order_id
+        art["work_order_sha256"] = wo_sha
+        art["producer_agent_id"] = wo.agent
+        return art
 
     # Valid typed COMMAND_REQUEST from the closed registry.
-    artifact = _build_base_artifact("S2.3", status="COMMAND_REQUEST")
+    artifact = _bind(_build_base_artifact("S2.3", status="COMMAND_REQUEST"))
     artifact["command_request"] = {
         "command_id": "WAIT_FOR_RATE_LIMIT",
         "parameters": {"seconds": 1},
@@ -411,7 +422,7 @@ def test_command_request_artifact_validation(tmp_path):
     assert errors == []
 
     # Raw argv remains invalid even when it looks benign.
-    artifact_structured = _build_base_artifact("S2.3", status="COMMAND_REQUEST")
+    artifact_structured = _bind(_build_base_artifact("S2.3", status="COMMAND_REQUEST"))
     artifact_structured["command_request"] = {
         "argv": [
             ".venv/bin/python3",
@@ -427,7 +438,7 @@ def test_command_request_artifact_validation(tmp_path):
     assert any("UNKNOWN_FIELDS" in e for e in errors_structured)
 
     # Invalid COMMAND_REQUEST (missing command_request)
-    artifact_invalid = _build_base_artifact("S2.3", status="COMMAND_REQUEST")
+    artifact_invalid = _bind(_build_base_artifact("S2.3", status="COMMAND_REQUEST"))
     errors_invalid = validate_agent_artifact_for_work_order(
         artifact_invalid, wo.to_jsonable()
     )
@@ -437,7 +448,7 @@ def test_command_request_artifact_validation(tmp_path):
     )
 
     # Invalid COMMAND_REQUEST (shell metacharacters in string)
-    artifact_meta = _build_base_artifact("S2.3", status="COMMAND_REQUEST")
+    artifact_meta = _bind(_build_base_artifact("S2.3", status="COMMAND_REQUEST"))
     artifact_meta["command_request"] = (
         "pytest tests/test_live_fixture_audit.py; rm -rf /"
     )
@@ -447,7 +458,7 @@ def test_command_request_artifact_validation(tmp_path):
     assert any("MUST_BE_STRUCTURED" in e for e in errors_meta)
 
     # Invalid COMMAND_REQUEST (disallowed executable)
-    artifact_bad_exec = _build_base_artifact("S2.3", status="COMMAND_REQUEST")
+    artifact_bad_exec = _bind(_build_base_artifact("S2.3", status="COMMAND_REQUEST"))
     artifact_bad_exec["command_request"] = {
         "command_id": "DOWNLOAD_REMOTE_SCRIPT",
         "parameters": {"url": "https://evil.example"},
@@ -458,7 +469,7 @@ def test_command_request_artifact_validation(tmp_path):
     assert any("ID_NOT_ALLOWLISTED" in e for e in errors_bad_exec)
 
     # Invalid COMMAND_REQUEST (contains pick/coupon/stake/edge in payload keys)
-    artifact_forbidden = _build_base_artifact("S2.3", status="COMMAND_REQUEST")
+    artifact_forbidden = _bind(_build_base_artifact("S2.3", status="COMMAND_REQUEST"))
     artifact_forbidden["command_request"] = {
         "command_id": "WAIT_FOR_RATE_LIMIT",
         "parameters": {"seconds": 1},

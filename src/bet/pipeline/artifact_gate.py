@@ -671,6 +671,9 @@ def validate_pipeline_artifact(
     raw: dict[str, Any],
     expected_step_id: str,
     *,
+    expected_betting_day: str | None = None,
+    expected_run_id: str | None = None,
+    expected_artifact_type: PipelineArtifactType | str | None = None,
     enforce_required_gate: bool = True,
     allow_block_status: bool = False,
 ) -> tuple[PipelineArtifact | None, list[ReadinessIssue]]:
@@ -729,7 +732,22 @@ def validate_pipeline_artifact(
                 )
             )
 
-    # 3. step_id check
+    if expected_artifact_type is not None and art_type is not None:
+        expected_art_val = (
+            expected_artifact_type.value
+            if isinstance(expected_artifact_type, PipelineArtifactType)
+            else str(expected_artifact_type)
+        )
+        if art_type.value != expected_art_val:
+            issues.append(
+                ReadinessIssue(
+                    code="MISMATCH_ARTIFACT_TYPE",
+                    severity=PipelineReadinessStatus.BLOCK,
+                    message=f"Expected artifact_type {expected_art_val}, got {art_type.value}",
+                )
+            )
+
+    # 3. step_id, betting_day, run_id check
     if "step_id" not in raw:
         issues.append(
             ReadinessIssue(
@@ -746,6 +764,26 @@ def validate_pipeline_artifact(
                 message=f"Expected step_id {expected_step_id}, got {raw['step_id']}",
             )
         )
+
+    if expected_betting_day is not None:
+        if raw.get("betting_day") != expected_betting_day:
+            issues.append(
+                ReadinessIssue(
+                    code="MISMATCH_BETTING_DAY",
+                    severity=PipelineReadinessStatus.BLOCK,
+                    message=f"Expected betting_day {expected_betting_day}, got {raw.get('betting_day')}",
+                )
+            )
+
+    if expected_run_id is not None:
+        if raw.get("run_id") != expected_run_id:
+            issues.append(
+                ReadinessIssue(
+                    code="MISMATCH_RUN_ID",
+                    severity=PipelineReadinessStatus.BLOCK,
+                    message=f"Expected run_id {expected_run_id}, got {raw.get('run_id')}",
+                )
+            )
 
     # 4. status check
     status_val = PipelineReadinessStatus.UNKNOWN

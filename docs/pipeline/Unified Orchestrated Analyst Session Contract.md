@@ -11,7 +11,7 @@
 
 ## Runtime Proof
 
-- `bet-enricher` and `bet-statistician` require live launch smoke evidence before J2 resumes.
-- `bet-valuator` should be smoke-tested with them for runtime-inheritance proof.
+- `bet-researcher` and `bet-modeler` require live launch smoke evidence before J2 resumes.
+- `bet-modeler` should be smoke-tested with them for runtime-inheritance proof.
 - The recorded active runtime may be OpenAI, Gemini, local, or another user-accessible subscribed model if launch smoke passes under the active UI selection.
 - A stale or precheck-blocked handoff does not satisfy runtime proof.

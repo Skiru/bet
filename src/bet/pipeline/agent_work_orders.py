@@ -63,7 +63,6 @@ class AgentWorkOrderOutputContract:
 
 @dataclass
 class AgentWorkOrderPolicy:
-    hard_rules: list[str]
     forbidden_outputs: list[str]
     instructions: dict[str, Any]
     schema_requirements: dict[str, Any]
@@ -109,15 +108,6 @@ class AgentWorkOrder:
         }
 
 
-STEP_UPSTREAM_DEPENDENCIES: dict[str, list[str]] = {
-    "S2.3": ["S2"],
-    "S2.5": ["S2", "S2.3"],
-    "S2.7": ["S2", "S2.3", "S2.5"],
-    "S2.9": ["S2", "S2.3", "S2.5", "S2.7"],
-    "S5": ["S3", "S4", "S2.9"],
-}
-
-
 OUTPUT_CONTRACT_NOTES = [
     "Template scaffolds are not accepted final output.",
     "Fill required evidence fields before returning an artifact.",
@@ -128,17 +118,6 @@ OUTPUT_CONTRACT_NOTES = [
 
 POLICIES: dict[str, AgentWorkOrderPolicy] = {
     "S2.3": AgentWorkOrderPolicy(
-        hard_rules=[
-            "no_pick",
-            "no_edge",
-            "no_stake",
-            "no_coupon",
-            "source_bound_only",
-            "unknown_or_blocked_for_missing_data",
-            "no_production_db_write",
-            "no_betting_data_write",
-            "point_in_time_required",
-        ],
         forbidden_outputs=[
             "internal_pick",
             "recommended_pick",
@@ -173,17 +152,6 @@ POLICIES: dict[str, AgentWorkOrderPolicy] = {
         },
     ),
     "S2.5": AgentWorkOrderPolicy(
-        hard_rules=[
-            "no_pick",
-            "no_edge",
-            "no_stake",
-            "no_coupon",
-            "source_bound_only",
-            "unknown_or_blocked_for_missing_data",
-            "no_production_db_write",
-            "no_betting_data_write",
-            "point_in_time_required",
-        ],
         forbidden_outputs=[
             "internal_pick",
             "recommended_pick",
@@ -218,17 +186,6 @@ POLICIES: dict[str, AgentWorkOrderPolicy] = {
         },
     ),
     "S2.7": AgentWorkOrderPolicy(
-        hard_rules=[
-            "no_pick",
-            "no_edge",
-            "no_stake",
-            "no_coupon",
-            "source_bound_only",
-            "unknown_or_blocked_for_missing_data",
-            "no_production_db_write",
-            "no_betting_data_write",
-            "point_in_time_required",
-        ],
         forbidden_outputs=[
             "internal_pick",
             "recommended_pick",
@@ -263,17 +220,6 @@ POLICIES: dict[str, AgentWorkOrderPolicy] = {
         },
     ),
     "S2.9": AgentWorkOrderPolicy(
-        hard_rules=[
-            "no_pick",
-            "no_edge",
-            "no_stake",
-            "no_coupon",
-            "source_bound_only",
-            "unknown_or_blocked_for_missing_data",
-            "no_production_db_write",
-            "no_betting_data_write",
-            "point_in_time_required",
-        ],
         forbidden_outputs=[
             "internal_pick",
             "recommended_pick",
@@ -307,13 +253,6 @@ POLICIES: dict[str, AgentWorkOrderPolicy] = {
         },
     ),
     "S5": AgentWorkOrderPolicy(
-        hard_rules=[
-            "injury_lineup_context_required",
-            "motivation_and_tournament_context_required",
-            "travel_schedule_fatigue_checked",
-            "morale_and_recent_result_context_checked",
-            "volatility_or_upset_risk_checked",
-        ],
         forbidden_outputs=[
             "internal_pick",
             "recommended_pick",
