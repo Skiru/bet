@@ -866,6 +866,7 @@
     "tests/test_pipeline_modules.py",
     "tests/test_pipeline_orchestrator.py",
     "tests/test_pipeline_orchestrator_command_request.py",
+    "tests/test_pipeline_orchestrator_ledger_integration.py",
     "tests/test_pipeline_readiness_contracts.py",
     "tests/test_pipeline_run_daily_pipeline.py",
     "tests/test_pipeline_run_evidence.py",

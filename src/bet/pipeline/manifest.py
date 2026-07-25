@@ -8,21 +8,29 @@ from pathlib import Path
 
 class PipelineGraph:
     """Canonical dependency graph mapping pipeline steps to prerequisite steps."""
+    _instance: PipelineGraph | None = None
+
+    def __init__(self, manifest: PipelineManifest):
+        self._manifest = manifest
+        self._dependencies = {}
+        for step in manifest.steps:
+            if step.id is not None:
+                self._dependencies[step.id] = list(step.depends_on or [])
+
+    def get_dependencies_instance(self, step_id: str) -> list[str]:
+        if step_id not in self._dependencies:
+            raise PipelineManifestError(f"Unknown step ID: {step_id}")
+        return self._dependencies[step_id]
 
     @classmethod
     def get_dependencies(cls, step_id: str) -> list[str]:
-        try:
-            root = discover_repo_root()
-            path = root / "config/pipeline_manifest.json"
-            with open(path, "r", encoding="utf-8") as f:
-                data = json.load(f)
-            steps = data.get("steps", [])
-            for step in steps:
-                if step.get("id") == step_id:
-                    return list(step.get("depends_on") or [])
-        except Exception:
-            pass
-        return []
+        if cls._instance is None:
+            manifest = load_pipeline_manifest()
+            errors = validate_pipeline_manifest(manifest)
+            if errors:
+                raise PipelineManifestError(f"Pipeline manifest is invalid: {errors}")
+            cls._instance = cls(manifest)
+        return cls._instance.get_dependencies_instance(step_id)
 
 
 class PipelineManifestError(Exception):
@@ -122,7 +130,7 @@ def load_pipeline_manifest(path: Path | None = None) -> PipelineManifest:
     except (ValueError, TypeError):
         raise PipelineManifestError("schema_version must be an integer")
 
-    return PipelineManifest(
+    manifest_obj = PipelineManifest(
         schema_version=schema_version,
         pipeline_id=str(data["pipeline_id"]),
         timezone=str(data["timezone"]),
@@ -131,6 +139,8 @@ def load_pipeline_manifest(path: Path | None = None) -> PipelineManifest:
         steps=steps_list,
         runtime_contract=dict(data.get("runtime_contract", {})) if isinstance(data.get("runtime_contract"), dict) else {},
     )
+    PipelineGraph._instance = PipelineGraph(manifest_obj)
+    return manifest_obj
 
 
 def get_step_agent(

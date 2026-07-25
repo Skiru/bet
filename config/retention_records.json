@@ -7830,6 +7830,14 @@
     "expiry_or_review_policy": "NO_EXPIRY_RETAIN_PERMANENTLY"
   },
   {
+    "path": "tests/test_pipeline_orchestrator_ledger_integration.py",
+    "category": "RETAINED_TEST",
+    "owner": "Kilo",
+    "reason": "Unit and integration testing of pipeline components",
+    "references": [],
+    "expiry_or_review_policy": "NO_EXPIRY_RETAIN_PERMANENTLY"
+  },
+  {
     "path": "tests/test_pipeline_readiness_contracts.py",
     "category": "RETAINED_TEST",
     "owner": "Kilo",

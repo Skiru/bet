@@ -262,3 +262,52 @@ def test_s0_and_s10_phases_and_order():
     # only S10 has phase POST_EVENT
     post_event_steps = [s.id for s in steps if s.phase == "POST_EVENT"]
     assert post_event_steps == ["S10"]
+
+
+def test_p1_1_adversarial_malformed_manifest(tmp_path: Path):
+    """Proves that a malformed manifest raises an error instead of returning empty dependencies."""
+    from bet.pipeline.manifest import load_pipeline_manifest, PipelineGraph, PipelineManifestError
+    from unittest.mock import patch
+    bad_manifest_path = tmp_path / "bad_manifest.json"
+    bad_manifest_path.write_text("{invalid json", encoding="utf-8")
+
+    with pytest.raises(PipelineManifestError):
+        load_pipeline_manifest(bad_manifest_path)
+
+    PipelineGraph._instance = None
+    with patch("bet.pipeline.manifest.discover_repo_root", return_value=tmp_path):
+        (tmp_path / "config").mkdir(parents=True, exist_ok=True)
+        (tmp_path / "config" / "pipeline_manifest.json").write_text("{invalid json", encoding="utf-8")
+        with pytest.raises(PipelineManifestError):
+            PipelineGraph.get_dependencies("S8")
+
+
+def test_p1_1_adversarial_unavailable_manifest(tmp_path: Path):
+    """Proves that an unavailable manifest raises an error instead of returning empty dependencies."""
+    from bet.pipeline.manifest import load_pipeline_manifest, PipelineManifestError
+    missing_path = tmp_path / "does_not_exist.json"
+
+    with pytest.raises(PipelineManifestError):
+        load_pipeline_manifest(missing_path)
+
+
+def test_p1_1_adversarial_unknown_step_id():
+    """Proves that looking up an unknown step ID raises an error instead of returning empty dependencies."""
+    from bet.pipeline.manifest import PipelineGraph, PipelineManifestError
+    with pytest.raises(PipelineManifestError):
+        PipelineGraph.get_dependencies("INVALID_STEP_ID")
+
+
+def test_p1_1_adversarial_dependency_resolution_blocks_wrapper():
+    """Proves that dependency resolution failure blocks before wrapper execution."""
+    from unittest.mock import patch
+    from bet.pipeline.manifest import PipelineGraph, PipelineManifestError
+    from bet.pipeline.wrapper_runtime_certification import certify_wrapper
+
+    with patch.object(PipelineGraph, "get_dependencies", side_effect=PipelineManifestError("Forced failure")):
+        with pytest.raises(PipelineManifestError, match="Forced failure"):
+            certify_wrapper(
+                step_id="S8",
+                wrapper_path=Path("scripts/pipeline_steps/_runner.py"),
+                repo_root=discover_repo_root()
+            )

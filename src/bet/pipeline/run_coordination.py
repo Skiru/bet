@@ -437,7 +437,7 @@ class ResumeLedger:
                 allowed = LEGAL_TRANSITIONS.get(old_status, set())
                 if old_status == "BLOCK":
                     allowed = {"PASS", "NO_ACTION_TERMINAL", "BLOCK"}
-                
+
                 if status not in allowed:
                     raise ResumeLedgerError("RESUME_LEDGER_CONFLICTING_RERUN")
 
