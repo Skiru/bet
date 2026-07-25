@@ -83,9 +83,48 @@ def _build_base_artifact(step_id: str, status: str = "PASS") -> dict:
     }
 
 
+def _seed_s5_prereqs(tmp_path, betting_day, run_id):
+    from bet.pipeline.run_evidence import write_json_atomic
+    from bet.pipeline.artifact_gate import artifact_path_for
+    
+    # We can write S2, S3, S4 script evidences
+    for sid in ("S2", "S3", "S4"):
+        p = artifact_path_for(tmp_path, betting_day, run_id, sid)
+        p.parent.mkdir(parents=True, exist_ok=True)
+        write_json_atomic(p, {
+            "schema_version": 1,
+            "artifact_type": "SCRIPT_EVIDENCE",
+            "step_id": sid,
+            "status": "PASS",
+            "betting_day": betting_day,
+            "run_id": run_id,
+            "payload": {}
+        })
+        
+    # We can write agent artifacts S2.3, S2.5, S2.7, S2.9
+    for sid in ("S2.3", "S2.5", "S2.7", "S2.9"):
+        p = artifact_path_for(tmp_path, betting_day, run_id, sid)
+        p.parent.mkdir(parents=True, exist_ok=True)
+        write_json_atomic(p, {
+            "schema_version": 1,
+            "artifact_type": "AGENT_ARTIFACT",
+            "step_id": sid,
+            "status": "PASS",
+            "betting_day": betting_day,
+            "run_id": run_id,
+            "payload": {}
+        })
+
+
+@pytest.fixture(autouse=True)
+def seed_all_test_prereqs(tmp_path):
+    _seed_s5_prereqs(tmp_path, "2026-06-25", "run-smoke")
+
+
 def test_validate_agent_artifact_for_work_order_success(tmp_path):
     """Verify validation passes on a correct artifact conforming to work order rules."""
     import hashlib
+    _seed_s5_prereqs(tmp_path, "2026-06-25", "run-smoke")
     wo = build_agent_work_order(
         betting_day="2026-06-25",
         run_id="run-smoke",
@@ -99,7 +138,10 @@ def test_validate_agent_artifact_for_work_order_success(tmp_path):
     artifact["work_order_id"] = wo.work_order_id
     artifact["work_order_sha256"] = wo_sha
     artifact["sources"] = ["team-news", "travel-report"]
-    artifact["evidence_refs"] = ["artifact_S3_run-smoke", "artifact_S4_run-smoke"]
+    artifact["evidence_refs"] = [
+        f"pipeline_runs/2026-06-25/run-smoke/artifacts/S3.json",
+        f"pipeline_runs/2026-06-25/run-smoke/artifacts/S4.json"
+    ]
     artifact["payload"] = {
         "injuries_context": {"player_A": "out"},
         "motivation_context": {"importance": "high"},
@@ -114,6 +156,7 @@ def test_validate_agent_artifact_for_work_order_success(tmp_path):
 
 def test_validate_agent_artifact_for_work_order_failures(tmp_path):
     """Verify validation detects mismatches, forbidden outputs, and missing fields."""
+    _seed_s5_prereqs(tmp_path, "2026-06-25", "run-smoke")
     wo = build_agent_work_order(
         betting_day="2026-06-25",
         run_id="run-smoke",
@@ -125,7 +168,7 @@ def test_validate_agent_artifact_for_work_order_failures(tmp_path):
 
     artifact = _build_base_artifact("S5")
     artifact["run_id"] = "wrong-run-id"
-    artifact["evidence_refs"] = ["artifact_S3_run-smoke"]
+    artifact["evidence_refs"] = [f"pipeline_runs/2026-06-25/run-smoke/artifacts/S3.json"]
     artifact["payload"] = {
         "injuries_context": {},
         "motivation_context": {},
@@ -361,7 +404,15 @@ def test_block_artifact_with_explicit_blocked_reasons_passes_validation(tmp_path
         base_dir=tmp_path,
     )
 
+    import hashlib
+    from bet.pipeline.agent_work_orders import write_agent_work_order
+    wo_path = write_agent_work_order(wo, tmp_path)
+    wo_sha = hashlib.sha256(wo_path.read_bytes()).hexdigest()
+
     artifact = _build_base_artifact("S2.3", status="BLOCK")
+    artifact["work_order_id"] = wo.work_order_id
+    artifact["work_order_sha256"] = wo_sha
+    artifact["producer_agent_id"] = "bet-researcher"
     artifact["payload"] = {
         "enrichment_gaps": ["missing_fixture_identity"],
         "gaps_status": "blocking",

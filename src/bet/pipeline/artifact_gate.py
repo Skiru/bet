@@ -918,24 +918,104 @@ def evaluate_gate_before_step(
         try:
             raw = load_artifact(path)
             artifact, issues = validate_pipeline_artifact(raw, req_step)
-            if req_step == "S2.9":
-                from bet.pipeline.agent_work_orders import work_order_path_for
+            from bet.pipeline.manifest import load_pipeline_manifest
+            manifest = load_pipeline_manifest()
+            req_step_meta = next((s for s in manifest.steps if s.id == req_step), None)
+            if req_step_meta and req_step_meta.execution_mode == "agent_artifact":
+                from bet.pipeline.agent_work_orders import work_order_path_for, get_source_head, get_manifest_sha
+                from bet.pipeline.canonical_continuity import file_sha256
                 from bet.pipeline.agent_artifact_contracts import validate_agent_artifact_for_work_order
-                wo_path = work_order_path_for(artifact_dir, betting_day, run_id, "S2.9")
+
+                wo_path = work_order_path_for(artifact_dir, betting_day, run_id, req_step)
                 if not wo_path.exists():
-                    failed_reqs.append(f"Missing S2.9 work order at {wo_path}")
+                    failed_reqs.append(f"Missing persisted work order for {req_step} at {wo_path}")
                     blocked.append(req_step)
                 else:
                     try:
                         with wo_path.open("r", encoding="utf-8") as f:
                             wo_data = json.load(f)
+
+                        # Validate producer_agent_id
+                        actual_producer = (
+                            raw.get("producer_agent_id")
+                            or raw.get("payload", {}).get("producer_agent_id")
+                            or raw.get("payload", {}).get("agent_id")
+                            or raw.get("agent")
+                        )
+                        if not actual_producer:
+                            failed_reqs.append(f"Artifact {req_step} missing producer_agent_id")
+                            blocked.append(req_step)
+                            continue
+                        if actual_producer != req_step_meta.agent:
+                            failed_reqs.append(f"Artifact {req_step} producer_agent_id mismatch: expected {req_step_meta.agent}, got {actual_producer}")
+                            blocked.append(req_step)
+                            continue
+
+                        # Verify work order owner matches manifest
+                        if wo_data.get("agent") != req_step_meta.agent:
+                            failed_reqs.append(f"Work order owner against manifest mismatch: expected {req_step_meta.agent}, got {wo_data.get('agent')}")
+                            blocked.append(req_step)
+                            continue
+
+                        # Verify work_order_id
+                        wo_id = wo_data.get("work_order_id")
+                        if raw.get("work_order_id") != wo_id:
+                            failed_reqs.append(f"Artifact {req_step} work_order_id mismatch: expected {wo_id}, got {raw.get('work_order_id')}")
+                            blocked.append(req_step)
+                            continue
+
+                        # Verify work_order_sha256
+                        actual_wo_sha256 = file_sha256(wo_path)
+                        if raw.get("work_order_sha256") != actual_wo_sha256:
+                            failed_reqs.append(f"Artifact {req_step} work_order_sha256 mismatch: expected {actual_wo_sha256}, got {raw.get('work_order_sha256')}")
+                            blocked.append(req_step)
+                            continue
+
+                        # Verify source_head and manifest_sha
+                        curr_source_head = get_source_head(artifact_dir)
+                        curr_manifest_sha = get_manifest_sha(artifact_dir)
+                        if wo_data.get("source_head") != curr_source_head:
+                            failed_reqs.append(f"Work order source_head mismatch: expected {curr_source_head}, got {wo_data.get('source_head')}")
+                            blocked.append(req_step)
+                            continue
+                        if wo_data.get("manifest_sha256") != curr_manifest_sha:
+                            failed_reqs.append(f"Work order manifest_sha256 mismatch: expected {curr_manifest_sha}, got {wo_data.get('manifest_sha256')}")
+                            blocked.append(req_step)
+                            continue
+
+                        # Verify every input hash
+                        input_refs = wo_data.get("input_refs", [])
+                        hash_err = False
+                        for ref in input_refs:
+                            ref_step_id = ref.get("step_id")
+                            ref_path_str = ref.get("path")
+                            expected_hash = ref.get("sha256")
+                            if not ref_path_str or not expected_hash:
+                                failed_reqs.append(f"Work order input ref for {ref_step_id} is missing path or sha256")
+                                hash_err = True
+                                break
+                            ref_path = Path(ref_path_str)
+                            if not ref_path.exists():
+                                failed_reqs.append(f"Work order input path {ref_path} for {ref_step_id} does not exist")
+                                hash_err = True
+                                break
+                            actual_hash = file_sha256(ref_path)
+                            if actual_hash != expected_hash:
+                                failed_reqs.append(f"Work order input hash mismatch for {ref_step_id}: expected {expected_hash}, got {actual_hash}")
+                                hash_err = True
+                                break
+                        if hash_err:
+                            blocked.append(req_step)
+                            continue
+
+                        # Validate the agent artifact against that persisted work order
                         wo_errors = validate_agent_artifact_for_work_order(raw, wo_data)
                         if wo_errors:
                             for err in wo_errors:
-                                failed_reqs.append(f"S2.9 work order semantic validation failure: {err}")
+                                failed_reqs.append(f"{req_step} work order validation failure: {err}")
                             blocked.append(req_step)
                     except Exception as exc:
-                        failed_reqs.append(f"Failed to load or validate S2.9 work order: {exc}")
+                        failed_reqs.append(f"Failed to load or validate {req_step} work order: {exc}")
                         blocked.append(req_step)
             if req_step == "S9":
                 issues.extend(

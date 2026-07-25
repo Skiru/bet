@@ -230,6 +230,10 @@ def setup_valid_s2_9_environment(
     root: Path, status: str = "PASS", run_id: str = "run-001"
 ):
     import hashlib
+    from bet.pipeline.agent_work_orders import get_source_head, get_manifest_sha
+    curr_source_head = get_source_head(root)
+    curr_manifest_sha = get_manifest_sha(root)
+
     art_dir = root / "pipeline_runs" / "2026-06-25" / run_id / "artifacts"
     art_dir.mkdir(parents=True, exist_ok=True)
 
@@ -259,6 +263,8 @@ def setup_valid_s2_9_environment(
             "hard_rules": [],
             "forbidden_outputs": [],
             "instructions": {},
+            "source_head": curr_source_head,
+            "manifest_sha256": curr_manifest_sha,
         }
         pred_wo_path.write_text(json.dumps(pred_wo_data), encoding="utf-8")
         pred_wo_sha = hashlib.sha256(pred_wo_path.read_bytes()).hexdigest()
@@ -333,6 +339,8 @@ def setup_valid_s2_9_environment(
         "hard_rules": [],
         "forbidden_outputs": [],
         "instructions": {},
+        "source_head": curr_source_head,
+        "manifest_sha256": curr_manifest_sha,
     }
     wo_path.write_text(json.dumps(wo_data), encoding="utf-8")
 
@@ -511,3 +519,141 @@ def test_evaluate_gate_s10_requires_s9(tmp_path):
             "S10", tmp_path / status, "2026-06-25", "run-001"
         )
         assert decision.verdict == expected
+
+
+def test_p0_2_agent_predecessor_binding_direct_resume(tmp_path):
+    """Direct-resume tests for P0-2:
+    - S2.5 cannot start with S2.3 artifact but no S2.3 work order;
+    - S2.7 cannot start with unbound S2.5;
+    - S2.9 cannot start with unbound S2.3/S2.5/S2.7;
+    - S6 cannot start with unbound S5;
+    - wrong work-order SHA blocks before wrapper or delegation;
+    - wrong producer blocks before downstream execution.
+    """
+    import json
+    import hashlib
+    from bet.pipeline.agent_work_orders import get_source_head, get_manifest_sha
+    curr_source_head = get_source_head(tmp_path)
+    curr_manifest_sha = get_manifest_sha(tmp_path)
+    run_id = "run-resume"
+    betting_day = "2026-06-25"
+
+    art_dir = tmp_path / "pipeline_runs" / betting_day / run_id / "artifacts"
+    art_dir.mkdir(parents=True, exist_ok=True)
+
+    # Write a dummy script evidence for S2
+    s2_path = art_dir / "S2.json"
+    s2_data = {
+        "schema_version": 1,
+        "artifact_type": "SCRIPT_EVIDENCE",
+        "step_id": "S2",
+        "status": "PASS",
+        "betting_day": betting_day,
+        "run_id": run_id,
+        "payload": {}
+    }
+    s2_path.write_text(json.dumps(s2_data), encoding="utf-8")
+
+    # Helper to write a basic mock agent artifact and work order
+    def write_mock_agent_step(sid, agent="bet-researcher", wo_id=None, wo_sha=None, producer=None, mutate_wo=False):
+        p_wo_path = art_dir / f"{sid}_work_order.json"
+        p_wo_data = {
+            "schema_version": 1,
+            "work_order_id": wo_id or f"WO-{run_id}-{sid}",
+            "work_order_type": "AGENT_WORK_ORDER",
+            "pipeline_id": "daily-pipeline",
+            "betting_day": betting_day,
+            "run_id": run_id,
+            "step_id": sid,
+            "agent": agent,
+            "runtime_mode": "DRY_RUN",
+            "created_at": "2026-06-25T12:00:00Z",
+            "status": "PASS",
+            "input_refs": [],
+            "required_output": {
+                "expected_path": str(art_dir / f"{sid}.json"),
+                "required_statuses": ["PASS", "BLOCK"],
+                "schema_requirements": {},
+                "forbidden_outputs": [],
+                "hard_rules": [],
+            },
+            "hard_rules": [],
+            "forbidden_outputs": [],
+            "instructions": {},
+            "source_head": curr_source_head,
+            "manifest_sha256": curr_manifest_sha,
+        }
+        if not mutate_wo:
+            p_wo_path.write_text(json.dumps(p_wo_data), encoding="utf-8")
+            computed_wo_sha = hashlib.sha256(p_wo_path.read_bytes()).hexdigest()
+        else:
+            computed_wo_sha = "some-invalid-sha"
+
+        p_path = art_dir / f"{sid}.json"
+        p_data = {
+            "schema_version": 1,
+            "artifact_type": "AGENT_ARTIFACT",
+            "step_id": sid,
+            "producer_agent_id": producer or agent,
+            "status": "PASS",
+            "betting_day": betting_day,
+            "run_id": run_id,
+            "sport": "Football",
+            "point_in_time_as_of": "2026-06-25T12:00:00Z",
+            "source_bound": True,
+            "no_pick_edge_stake_coupon_emitted": True,
+            "production_selectable": False,
+            "betting_decisions_enabled": False,
+            "sources": ["source"],
+            "unknowns": [],
+            "blocked_reasons": [],
+            "evidence_refs": [],
+            "work_order_id": wo_id or f"WO-{run_id}-{sid}",
+            "work_order_sha256": wo_sha or computed_wo_sha,
+            "payload": {},
+        }
+        p_path.write_text(json.dumps(p_data), encoding="utf-8")
+        return p_path, p_wo_path
+
+    # Case 1: S2.5 cannot start with S2.3 artifact but no S2.3 work order
+    s23_path, _ = write_mock_agent_step("S2.3")
+    s23_wo_path = art_dir / "S2.3_work_order.json"
+    if s23_wo_path.exists():
+        s23_wo_path.unlink()
+
+    decision = evaluate_gate_before_step("S2.5", tmp_path, betting_day, run_id)
+    assert decision.verdict == PipelineReadinessStatus.BLOCK
+    assert any("Missing persisted work order" in err for err in decision.failed_requirements)
+
+    # Case 2: S2.7 cannot start with unbound S2.5 (mismatched ID)
+    write_mock_agent_step("S2.3")
+    p_path, p_wo_path = write_mock_agent_step("S2.5")
+    # Mutate artifact to make it unbound
+    data = json.loads(p_path.read_text(encoding="utf-8"))
+    data["work_order_id"] = "WO-MISMATCHED-ID"
+    p_path.write_text(json.dumps(data), encoding="utf-8")
+
+    decision = evaluate_gate_before_step("S2.7", tmp_path, betting_day, run_id)
+    assert decision.verdict == PipelineReadinessStatus.BLOCK
+    assert any("work_order_id mismatch" in err for err in decision.failed_requirements)
+
+    # Case 3: S2.9 cannot start with unbound S2.3/S2.5/S2.7
+    write_mock_agent_step("S2.3")
+    write_mock_agent_step("S2.5")
+    write_mock_agent_step("S2.7", producer="wrong-agent")
+    decision = evaluate_gate_before_step("S2.9", tmp_path, betting_day, run_id)
+    assert decision.verdict == PipelineReadinessStatus.BLOCK
+    assert any("producer_agent_id mismatch" in err for err in decision.failed_requirements)
+
+    # Case 4: S6 cannot start with unbound S5
+    write_mock_agent_step("S5", agent="bet-risk-gatekeeper", producer="wrong-agent")
+    decision = evaluate_gate_before_step("S6", tmp_path, betting_day, run_id)
+    assert decision.verdict == PipelineReadinessStatus.BLOCK
+    assert any("producer_agent_id mismatch" in err for err in decision.failed_requirements)
+
+    # Case 5: wrong work-order SHA blocks
+    write_mock_agent_step("S5", agent="bet-risk-gatekeeper", wo_sha="wrong-sha")
+    decision = evaluate_gate_before_step("S6", tmp_path, betting_day, run_id)
+    assert decision.verdict == PipelineReadinessStatus.BLOCK
+    assert any("work_order_sha256 mismatch" in err for err in decision.failed_requirements)
+

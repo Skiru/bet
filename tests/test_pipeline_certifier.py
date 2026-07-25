@@ -31,6 +31,7 @@ def test_certifier_runs_real_pytest_and_binds_current_source(tmp_path: Path) -> 
     output = tmp_path / "certificate.json"
     junit = tmp_path / "results.xml"
     node = "tests/test_pipeline_certifier.py"
+    _, expected_tree = source_manifest(ROOT)
     result = subprocess.run(
         [
             sys.executable,
@@ -45,6 +46,8 @@ def test_certifier_runs_real_pytest_and_binds_current_source(tmp_path: Path) -> 
             str(junit),
             "--timeout-seconds",
             "60",
+            "--expected-source-tree-sha256",
+            expected_tree,
         ],
         cwd=ROOT,
         capture_output=True,
@@ -53,7 +56,6 @@ def test_certifier_runs_real_pytest_and_binds_current_source(tmp_path: Path) -> 
     )
     assert result.returncode == 0, result.stdout + result.stderr
     certificate = json.loads(output.read_text(encoding="utf-8"))
-    _, expected_tree = source_manifest(ROOT)
     assert certificate["status"] == "PASS"
     assert certificate["source"]["source_tree_sha256"] == expected_tree
     assert node in certificate["test_run"]["nodes"]
@@ -64,6 +66,7 @@ def test_certifier_runs_real_pytest_and_binds_current_source(tmp_path: Path) -> 
 
 def test_certifier_does_not_publish_when_pytest_cannot_collect(tmp_path: Path) -> None:
     output = tmp_path / "must-not-exist.json"
+    _, expected_tree = source_manifest(ROOT)
     result = subprocess.run(
         [
             sys.executable,
@@ -78,6 +81,8 @@ def test_certifier_does_not_publish_when_pytest_cannot_collect(tmp_path: Path) -
             str(output),
             "--junit",
             str(tmp_path / "failure.xml"),
+            "--expected-source-tree-sha256",
+            expected_tree,
         ],
         cwd=ROOT,
         capture_output=True,
@@ -92,6 +97,7 @@ def test_certifier_does_not_publish_when_pytest_cannot_collect(tmp_path: Path) -
 def test_certifier_rejects_a_preexisting_certificate(tmp_path: Path) -> None:
     output = tmp_path / "existing.json"
     output.write_text("do not overwrite", encoding="utf-8")
+    _, expected_tree = source_manifest(ROOT)
     result = subprocess.run(
         [
             sys.executable,
@@ -104,6 +110,8 @@ def test_certifier_rejects_a_preexisting_certificate(tmp_path: Path) -> None:
             str(output),
             "--junit",
             str(tmp_path / "unused.xml"),
+            "--expected-source-tree-sha256",
+            expected_tree,
         ],
         cwd=ROOT,
         capture_output=True,
@@ -136,6 +144,7 @@ def test_one_test_bypass_probe_fails_to_bypass_mandatory_set(tmp_path: Path) -> 
     output = tmp_path / "certificate_adversarial.json"
     junit = tmp_path / "results_adversarial.xml"
     node = "tests/test_pipeline_certifier.py::test_certifier_child_fixture"
+    _, expected_tree = source_manifest(ROOT)
     result = subprocess.run(
         [
             sys.executable,
@@ -150,6 +159,8 @@ def test_one_test_bypass_probe_fails_to_bypass_mandatory_set(tmp_path: Path) -> 
             str(junit),
             "--timeout-seconds",
             "60",
+            "--expected-source-tree-sha256",
+            expected_tree,
         ],
         cwd=ROOT,
         capture_output=True,
@@ -158,3 +169,184 @@ def test_one_test_bypass_probe_fails_to_bypass_mandatory_set(tmp_path: Path) -> 
     )
     assert result.returncode == 1
     assert "CERT_ONLY_ONE_CLI_TEST_SUPPLIED" in result.stderr
+
+
+def test_p0_3_exploit_regression(tmp_path: Path) -> None:
+    """Exploit regression tests for P0-3:
+    1. create a second linked worktree at the same HEAD (or copy checkouts);
+    2. modify bet-executor task permissions so its own validator fails;
+    3. replace mandatory tests with equal-count dummy tests;
+    4. call certifier from another checkout with --repo-root target;
+    5. certification must fail before tests or validators report PASS.
+    """
+    import hashlib
+    if os.environ.get("BET_PIPELINE_CERTIFIER_ACTIVE") == "1":
+        return
+
+    # Let's scaffold a mock repo inside a temporary directory
+    mock_root = tmp_path / "mock-repo"
+    mock_root.mkdir()
+
+    # Copy some elements to simulate a repository setup
+    # Initialise git inside mock_root
+    subprocess.run(["git", "init", "-b", "main"], cwd=mock_root, capture_output=True, check=True)
+    subprocess.run(["git", "config", "user.name", "test-user"], cwd=mock_root, capture_output=True, check=True)
+    subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=mock_root, capture_output=True, check=True)
+
+    exclude_file = mock_root / ".git" / "info" / "exclude"
+    exclude_file.write_text(".pytest_cache/\n__pycache__/\n*.pyc\n", encoding="utf-8")
+
+    # 1. Config inventory
+    config_dir = mock_root / "config"
+    config_dir.mkdir()
+    inv_file = config_dir / "pipeline_certification_inventory.json"
+
+    # Create dummy tests file in tests/test_mandatory_mock.py
+    tests_dir = mock_root / "tests"
+    tests_dir.mkdir()
+    test_mock_file = tests_dir / "test_mandatory_mock.py"
+    test_mock_content = """
+def test_one():
+    assert True
+def test_two():
+    assert True
+"""
+    test_mock_file.write_text(test_mock_content, encoding="utf-8")
+    actual_test_sha = hashlib.sha256(test_mock_file.read_bytes()).hexdigest()
+
+    inventory_data = {
+        "schema_version": "1.0",
+        "mandatory_nodes": [
+            "tests/test_mandatory_mock.py"
+        ],
+        "mandatory_file_sha256s": {
+            "tests/test_mandatory_mock.py": actual_test_sha
+        },
+        "expected_minimum_counts": {
+            "tests/test_mandatory_mock.py": 2
+        },
+        "allowed_skips": []
+    }
+    inv_file.write_text(json.dumps(inventory_data), encoding="utf-8")
+
+    # Create scripts folder with validators and certifier
+    scripts_dir = mock_root / "scripts"
+    scripts_dir.mkdir()
+    
+    # Copy certifier script there so it is verifiably identical
+    target_certifier_path = scripts_dir / "certify_pipeline_final_closure.py"
+    target_certifier_path.write_bytes(SCRIPT.read_bytes())
+
+    # Create a validator script
+    val_script = scripts_dir / "validate_production_surface.py"
+    val_script.write_text("import sys; sys.exit(0)", encoding="utf-8")
+
+    # Write other dummy validators so script doesn't fail on missing validator file
+    other_vals = [
+        "validate_power_agent_control_plane.py",
+        "validate_manifest_power_agents.py",
+        "validate_reachability_graph.py",
+        "validate_provider_registry.py",
+        "validate_database_access.py"
+    ]
+    for ov in other_vals:
+        (scripts_dir / ov).write_text("import sys; sys.exit(0)", encoding="utf-8")
+
+    # Commit all changes to get a clean repository
+    subprocess.run(["git", "add", "."], cwd=mock_root, capture_output=True, check=True)
+    subprocess.run(["git", "commit", "-m", "initial commit"], cwd=mock_root, capture_output=True, check=True)
+
+    # Now let's verify git status is clean, and certification passes
+    output_cert = tmp_path / "cert.json"
+    junit_file = tmp_path / "junit.xml"
+
+    # Get the clean tree SHA
+    _, expected_tree = source_manifest(mock_root)
+
+    # Execute and ensure it passes when clean
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(target_certifier_path),
+            "--repo-root",
+            str(mock_root),
+            "--output",
+            str(output_cert),
+            "--junit",
+            str(junit_file),
+            "--expected-source-tree-sha256",
+            expected_tree,
+        ],
+        cwd=mock_root,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, f"Clean certification failed: {result.stdout} {result.stderr}"
+
+    # Let's clean output for exploit tests
+    output_cert.unlink(missing_ok=True)
+
+    # EXPLOIT SCENARIO 2: Modify bet-executor task permissions so its own validator fails
+    val_script.write_text("import sys; sys.exit(1)", encoding="utf-8")
+    
+    # Running certifier should now FAIL
+    result_exploit_val = subprocess.run(
+        [
+            sys.executable,
+            str(target_certifier_path),
+            "--repo-root",
+            str(mock_root),
+            "--output",
+            str(output_cert),
+            "--junit",
+            str(junit_file),
+            "--expected-source-tree-sha256",
+            expected_tree,
+        ],
+        cwd=mock_root,
+        capture_output=True,
+        text=True,
+    )
+    assert result_exploit_val.returncode == 1
+    assert (
+        "CERT_VALIDATOR_FAILED" in result_exploit_val.stderr
+        or "Target repository worktree is dirty" in result_exploit_val.stderr
+        or "CERT_SOURCE_TREE_MISMATCH" in result_exploit_val.stderr
+    )
+
+    # EXPLOIT SCENARIO 3: Replace mandatory tests with equal-count dummy tests
+    val_script.write_text("import sys; sys.exit(0)", encoding="utf-8")
+    subprocess.run(["git", "add", "."], cwd=mock_root, capture_output=True, check=True)
+    subprocess.run(["git", "commit", "-m", "fix validator"], cwd=mock_root, capture_output=True, check=False)
+
+    # Now replace tests with dummy tests (equal count: 2 tests)
+    test_mock_file.write_text("""
+def test_dummy_1():
+    assert True
+def test_dummy_2():
+    assert True
+""", encoding="utf-8")
+
+    result_exploit_tests = subprocess.run(
+        [
+            sys.executable,
+            str(target_certifier_path),
+            "--repo-root",
+            str(mock_root),
+            "--output",
+            str(output_cert),
+            "--junit",
+            str(junit_file),
+            "--expected-source-tree-sha256",
+            expected_tree,
+        ],
+        cwd=mock_root,
+        capture_output=True,
+        text=True,
+    )
+    assert result_exploit_tests.returncode == 1
+    assert (
+        "CERT_MANDATORY_FILE_HASH_MISMATCH" in result_exploit_tests.stderr
+        or "Target repository worktree is dirty" in result_exploit_tests.stderr
+        or "CERT_SOURCE_TREE_MISMATCH" in result_exploit_tests.stderr
+    )

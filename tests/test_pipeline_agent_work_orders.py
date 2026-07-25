@@ -348,3 +348,141 @@ def test_agent_work_order_idempotency_and_drift(tmp_path):
             runtime_mode="DRY_RUN",
             base_dir=tmp_path,
         )
+
+
+def test_p0_1_adversarial_missing_dependencies(tmp_path):
+    """Adversarial tests for P0-1:
+    1. base_dir under /tmp with missing S2: build_agent_work_order(S2.3) raises stable missing-dependency error.
+    2. base_dir containing 'pytest' behaves identically.
+    3. caller function name containing 'cannot_generate' does not change behavior.
+    4. failed work-order generation creates zero predecessor artifacts.
+    """
+    betting_day = "2026-06-25"
+    run_id = "run-adversarial"
+
+    # 1. Base dir containing "/tmp" (or tmp_path / "tmp-dir")
+    tmp_base = tmp_path / "tmp-dir"
+    tmp_base.mkdir()
+
+    with pytest.raises(ValueError, match="Required dependency file is missing"):
+        build_agent_work_order(
+            betting_day=betting_day,
+            run_id=run_id,
+            step_id="S2.3",
+            runtime_mode="DRY_RUN",
+            base_dir=tmp_base,
+        )
+
+    # 2. Base dir containing "pytest"
+    pytest_base = tmp_path / "pytest-dir"
+    pytest_base.mkdir()
+
+    with pytest.raises(ValueError, match="Required dependency file is missing"):
+        build_agent_work_order(
+            betting_day=betting_day,
+            run_id=run_id,
+            step_id="S2.3",
+            runtime_mode="DRY_RUN",
+            base_dir=pytest_base,
+        )
+
+    # 3. Caller containing "cannot_generate"
+    def cannot_generate_test_helper():
+        with pytest.raises(ValueError, match="Required dependency file is missing"):
+            build_agent_work_order(
+                betting_day=betting_day,
+                run_id=run_id,
+                step_id="S2.3",
+                runtime_mode="DRY_RUN",
+                base_dir=tmp_base,
+            )
+
+    cannot_generate_test_helper()
+
+    # 4. Failed work-order generation creates zero predecessor artifacts.
+    # Check that in tmp_base, no artifacts or pipeline directories are created at all
+    artifacts_dir = tmp_base / "pipeline_runs" / betting_day / run_id / "artifacts"
+    if artifacts_dir.exists():
+        created_files = list(artifacts_dir.glob("*"))
+        assert len(created_files) == 0
+
+    # 5. no source function imports inspect for test detection
+    src_file = Path(__file__).parents[1] / "src" / "bet" / "pipeline" / "agent_work_orders.py"
+    if src_file.exists():
+        content = src_file.read_text(encoding="utf-8")
+        assert "inspect" not in content
+        assert "stack()" not in content
+
+
+def test_p1_2_alternate_manifest(tmp_path):
+    """Verify that build_agent_work_order honors an alternate manifest throughout."""
+    from bet.pipeline.manifest import load_pipeline_manifest
+    
+    # 1. Load the original manifest
+    orig_manifest = load_pipeline_manifest()
+    
+    # 2. Let's create an alternate manifest where S2.3 has different hard rules and agent owner
+    alt_manifest_path = tmp_path / "alt_manifest.json"
+    
+    alt_steps = []
+    for step in orig_manifest.steps:
+        step_dict = {
+            "id": step.id,
+            "name": step.name,
+            "phase": step.phase,
+            "agent": step.agent,
+            "execution_mode": step.execution_mode,
+            "output": step.output,
+            "next": step.next,
+            "hard_rules": step.hard_rules,
+            "wrapper": step.wrapper,
+            "canonical_script": step.canonical_script,
+            "depends_on": step.depends_on,
+            "required_inputs": step.required_inputs,
+        }
+        if step.id == "S2.3":
+            step_dict["agent"] = "bet-modeler"  # change agent owner
+            step_dict["hard_rules"] = ["alternate_rule_1"]  # change hard rules
+        alt_steps.append(step_dict)
+        
+    alt_data = {
+        "schema_version": orig_manifest.schema_version,
+        "pipeline_id": orig_manifest.pipeline_id,
+        "timezone": orig_manifest.timezone,
+        "betting_day": orig_manifest.betting_day,
+        "global_rules": orig_manifest.global_rules,
+        "steps": alt_steps,
+        "runtime_contract": orig_manifest.runtime_contract,
+    }
+    
+    alt_manifest_path.write_text(json.dumps(alt_data), encoding="utf-8")
+    
+    # Let's seed S2 prerequisite
+    create_mock_artifacts(tmp_path, "2026-06-25", "run-smoke-alt")
+    
+    # Build with default manifest
+    wo_orig = build_agent_work_order(
+        betting_day="2026-06-25",
+        run_id="run-smoke-alt",
+        step_id="S2.3",
+        runtime_mode="DRY_RUN",
+        base_dir=tmp_path,
+    )
+    assert wo_orig.agent == "bet-researcher"
+    assert "alternate_rule_1" not in wo_orig.hard_rules
+    
+    # Build with alternate manifest_path
+    wo_alt = build_agent_work_order(
+        betting_day="2026-06-25",
+        run_id="run-smoke-alt",
+        step_id="S2.3",
+        runtime_mode="DRY_RUN",
+        base_dir=tmp_path,
+        manifest_path=alt_manifest_path,
+    )
+    
+    assert wo_alt.agent == "bet-modeler"
+    assert "alternate_rule_1" in wo_alt.hard_rules
+    assert wo_alt.manifest_sha256 == calculate_sha256(alt_manifest_path)
+
+

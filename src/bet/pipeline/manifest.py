@@ -303,29 +303,19 @@ def validate_pipeline_manifest(manifest: PipelineManifest, repo_root: Path | Non
         if step.execution_mode is not None and step.execution_mode not in allowed_execution_modes:
             errors.append(f"Step {sid} has invalid execution_mode: {step.execution_mode}")
 
-        # Next transition validation
-        expected_transitions = {
-            "S0": ["S1"],
-            "S1": ["S1e"],
-            "S1e": ["S2"],
-            "S2": ["S2.3"],
-            "S2.3": ["S2.5"],
-            "S2.5": ["S2.7"],
-            "S2.7": ["S2.9"],
-            "S2.9": ["S3"],
-            "S3": ["S4"],
-            "S4": ["S5"],
-            "S5": ["S6"],
-            "S6": ["S7"],
-            "S7": ["S7b"],
-            "S7b": ["S8"],
-            "S8": ["S9"],
-            "S9": ["S10"],
-            "S10": [],
-        }
-        if step.id in expected_transitions:
-            if step.next != expected_transitions[step.id]:
-                errors.append(f"Step {sid} next transition must be exactly {expected_transitions[step.id]}, got {step.next}")
+        # Next transition validation using manifest-derived graph and canonical ordered steps
+        expected_next = []
+        try:
+            current_idx = expected_order.index(step.id)
+            if current_idx < len(expected_order) - 1:
+                expected_next = [expected_order[current_idx + 1]]
+        except ValueError:
+            pass
+
+        if step.next != expected_next:
+            errors.append(
+                f"Step {sid} next transition must be exactly {expected_next}, got {step.next}"
+            )
 
         # Script execution_mode validation
         if step.execution_mode == "script":

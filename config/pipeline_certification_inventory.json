@@ -6,6 +6,12 @@
     "tests/test_agent_work_order_owner_alignment.py",
     "tests/test_pipeline_orchestrator_ledger_integration.py"
   ],
+  "mandatory_file_sha256s": {
+    "tests/test_canonical_continuity_v4_owner_regressions.py": "f132a90a48c72605639508a50b7d3467c52e9b3606a2e0f831d1f6607b7c3384",
+    "tests/test_canonical_continuity_v4_offline_chain_proof.py": "b0765a16980b7758cf75c244991aac064ec78962a5fb059eb39f8ccd7e34e2ef",
+    "tests/test_agent_work_order_owner_alignment.py": "12f5379b1a51a70cbe780cabfe3956d0639cc03b00d3f85d1a937dfd0be1cc5f",
+    "tests/test_pipeline_orchestrator_ledger_integration.py": "1f18de7f98bf0d4e7b1339330e17d01bd50b5273fb7abc5836610fabf48587e9"
+  },
   "expected_minimum_counts": {
     "tests/test_canonical_continuity_v4_owner_regressions.py": 30,
     "tests/test_canonical_continuity_v4_offline_chain_proof.py": 2,

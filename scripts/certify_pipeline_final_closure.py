@@ -193,13 +193,34 @@ def main() -> int:
         if Path(args.output).exists():
             raise CertificationError("CERT_OUTPUT_ALREADY_EXISTS")
 
+        root_path = Path(args.repo_root or ROOT).resolve(strict=True)
+
+        # Fail if the certifier script itself is not located inside or verifiably
+        # identical to root_path/scripts/certify_pipeline_final_closure.py.
+        self_script_path = Path(__file__).resolve()
+        expected_script_path = root_path / "scripts" / "certify_pipeline_final_closure.py"
+        if not expected_script_path.is_file():
+            raise CertificationError(f"Certifier script not found under target root at {expected_script_path}")
+        if self_script_path != expected_script_path:
+            if sha256_file(self_script_path) != sha256_file(expected_script_path):
+                raise CertificationError("Running certifier script is not identical to target root script")
+
+        # Before collection require git status --porcelain == empty
+        # or require and verify an exact expected source-tree hash as a mandatory argument.
+        status_res = subprocess.run(["git", "status", "--porcelain"], cwd=root_path, capture_output=True, text=True)
+        if status_res.returncode != 0:
+            raise CertificationError("Failed to check git status on target root")
+        
+        is_dirty = bool(status_res.stdout.strip())
+        if is_dirty and not args.expected_source_tree_sha256:
+            raise CertificationError(f"Target repository worktree is dirty. Must provide matching --expected-source-tree-sha256 to certify.\n{status_res.stdout.strip()}")
+
         # Load and validate inventory
-        inv_path = ROOT / "config" / "pipeline_certification_inventory.json"
+        inv_path = root_path / "config" / "pipeline_certification_inventory.json"
         if not inv_path.is_file():
             raise CertificationError("CERT_INVENTORY_MISSING")
         inventory = json.loads(inv_path.read_text(encoding="utf-8"))
 
-        root_path = Path(args.repo_root).resolve(strict=True)
         head = _git("rev-parse", "HEAD", root=root_path)
         branch = _git("symbolic-ref", "--short", "-q", "HEAD", root=root_path, check=False) or "DETACHED"
 
@@ -207,11 +228,7 @@ def main() -> int:
             raise CertificationError(f"CERT_HEAD_MISMATCH:{head}")
 
         entries_before, tree_before = source_manifest(root_path)
-        if args.expected_source_tree_sha256 and tree_before != args.expected_source_tree_sha256:
-            raise CertificationError(f"CERT_SOURCE_TREE_MISMATCH:{tree_before}")
-
-        entries_before, tree_before = source_manifest(root_path)
-        if args.expected_source_tree_sha256 and tree_before != args.expected_source_tree_sha256:
+        if tree_before != args.expected_source_tree_sha256:
             raise CertificationError(f"CERT_SOURCE_TREE_MISMATCH:{tree_before}")
 
         # Load mandatory nodes and counts
@@ -225,11 +242,18 @@ def main() -> int:
         # effective_nodes = mandatory_nodes UNION additional_nodes
         effective_nodes = list(sorted(set(inventory_mandatory) | set(cli_nodes)))
 
-        # Ensure mandatory files exist on disk
+        # Ensure mandatory files exist on disk and verify their SHA-256
+        mandatory_shas = inventory.get("mandatory_file_sha256s", {})
         for f in inventory_mandatory:
             f_path = root_path / f
             if not f_path.is_file():
                 raise CertificationError(f"CERT_MANDATORY_FILE_MISSING:{f}")
+            actual_sha = sha256_file(f_path)
+            expected_sha = mandatory_shas.get(f)
+            if not expected_sha:
+                raise CertificationError(f"CERT_MANDATORY_FILE_HASH_MISSING_IN_INVENTORY:{f}")
+            if actual_sha != expected_sha:
+                raise CertificationError(f"CERT_MANDATORY_FILE_HASH_MISMATCH:{f}:got={actual_sha}:expected={expected_sha}")
 
         # Pytest collection and substance check on effective_nodes
         collect_cmd = [sys.executable, "-m", "pytest", "--collect-only", "-q"] + effective_nodes
@@ -319,7 +343,14 @@ def main() -> int:
 
         entries_after, tree_after = source_manifest(root_path)
         if entries_after != entries_before or tree_after != tree_before:
-            raise CertificationError("CERT_SOURCE_MUTATED_DURING_TESTS")
+            diff_msg = f"Before: {len(entries_before)} files, After: {len(entries_after)} files."
+            added = [e["path"] for e in entries_after if e not in entries_before]
+            removed = [e["path"] for e in entries_before if e not in entries_after]
+            if added:
+                diff_msg += f" Added: {added}"
+            if removed:
+                diff_msg += f" Removed: {removed}"
+            raise CertificationError(f"CERT_SOURCE_MUTATED_DURING_TESTS: {diff_msg}")
 
         # Execute mandatory production validators as part of closure
         validators_run_records = []
@@ -332,9 +363,13 @@ def main() -> int:
             "validate_database_access.py",
         ]
         for val_script in validators:
-            val_cmd = [sys.executable, str(ROOT / "scripts" / val_script)]
+            val_script_path = root_path / "scripts" / val_script
+            # Verify validator command path is under root_path
+            if not val_script_path.resolve().is_relative_to(root_path):
+                raise CertificationError(f"Validator script path escapes root_path: {val_script_path}")
+            val_cmd = [sys.executable, str(val_script_path)]
             val_env = dict(os.environ)
-            val_env["PYTHONPATH"] = f"src:{ROOT}"
+            val_env["PYTHONPATH"] = f"src:{root_path}"
             val_res = subprocess.run(val_cmd, cwd=root_path, env=val_env, capture_output=True, text=True, timeout=60)
 
             out_sha = hashlib.sha256(val_res.stdout.encode("utf-8")).hexdigest()
@@ -388,9 +423,32 @@ def main() -> int:
             },
         }
 
+        # Certificate output must be outside the repository or explicitly excluded
+        output_path = Path(args.output).resolve()
+        is_under_root = False
+        try:
+            output_path.relative_to(root_path)
+            is_under_root = True
+        except ValueError:
+            pass
+
+        if is_under_root:
+            ignore_check = subprocess.run(
+                ["git", "check-ignore", "-q", str(output_path)],
+                cwd=root_path,
+                capture_output=True
+            )
+            if ignore_check.returncode != 0:
+                raise CertificationError(f"Certificate output path {output_path} is under repo root and is not excluded/ignored in git")
+
         # Write exclusive certificate file
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_text(json.dumps(certificate, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+        # After writing certificate, perform a final source/worktree check
+        entries_final, tree_final = source_manifest(root_path)
+        if entries_final != entries_before or tree_final != tree_before:
+            raise CertificationError("CERT_SOURCE_MUTATED_AFTER_WRITING_CERTIFICATE")
 
         print(json.dumps(certificate, sort_keys=True, indent=2))
         return 0

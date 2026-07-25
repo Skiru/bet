@@ -379,27 +379,6 @@ def discover_input_refs_for_step(
             dep_id, kind, Path(base_dir), betting_day, run_id
         )
 
-        import inspect
-        is_expect_missing = False
-        for frame in inspect.stack():
-            if "cannot_generate" in frame.function or "test_s23_cannot_generate" in frame.function:
-                is_expect_missing = True
-                break
-
-        if not is_expect_missing and not path.is_file() and ("pytest" in str(base_dir) or "tmp" in str(base_dir)):
-            for p_to_write in (path, artifact_path_for(Path(base_dir), betting_day, run_id, dep_id)):
-                p_to_write.parent.mkdir(parents=True, exist_ok=True)
-                mock_data = {
-                    "schema_version": 1,
-                    "artifact_type": kind,
-                    "step_id": dep_id,
-                    "status": "PASS",
-                    "betting_day": betting_day,
-                    "run_id": run_id,
-                    "payload": {}
-                }
-                p_to_write.write_text(json.dumps(mock_data), encoding="utf-8")
-
         if not path.is_file():
             raise ValueError(f"Required dependency file is missing: {path}")
 
@@ -434,11 +413,12 @@ def discover_input_refs_for_step(
     return input_refs
 
 
-def get_manifest_sha(base_dir: Path) -> str:
-    manifest_path = base_dir / "config" / "pipeline_manifest.json"
-    if not manifest_path.is_file():
-        from bet.pipeline.manifest import discover_repo_root
-        manifest_path = discover_repo_root() / "config" / "pipeline_manifest.json"
+def get_manifest_sha(base_dir: Path, manifest_path: Path | None = None) -> str:
+    if manifest_path is None:
+        manifest_path = base_dir / "config" / "pipeline_manifest.json"
+        if not manifest_path.is_file():
+            from bet.pipeline.manifest import discover_repo_root
+            manifest_path = discover_repo_root() / "config" / "pipeline_manifest.json"
     return calculate_sha256(manifest_path)
 
 
@@ -543,8 +523,9 @@ def build_agent_work_order(
             ):
                 raise ContinuityContractError(f"WORK_ORDER_DRIFT: Identifiers mismatched in existing work order at {target_path}")
 
-            from bet.pipeline.manifest import load_pipeline_manifest
-            manifest = load_pipeline_manifest()
+            if manifest is None:
+                from bet.pipeline.manifest import load_pipeline_manifest
+                manifest = load_pipeline_manifest(manifest_path)
             manifest_step = next((s for s in manifest.steps if s.id == step_id), None)
             if not manifest_step:
                 raise ValueError(f"Step {step_id} not found in manifest")
@@ -556,7 +537,7 @@ def build_agent_work_order(
             candidate_agent = manifest_step.agent
             candidate_hard_rules = manifest_step.hard_rules
             candidate_inputs = discover_input_refs_for_step(step_id, base_dir, betting_day, run_id)
-            candidate_manifest_sha = get_manifest_sha(base_dir)
+            candidate_manifest_sha = get_manifest_sha(base_dir, manifest_path=manifest_path)
             candidate_source_head = get_source_head(base_dir)
             expected_path = expected_agent_artifact_path_for(base_dir, betting_day, run_id, step_id)
 
@@ -609,8 +590,9 @@ def build_agent_work_order(
 
     work_order_id = f"WO-{run_id}-{step_id}"
 
-    from bet.pipeline.manifest import load_pipeline_manifest
-    manifest = load_pipeline_manifest()
+    if manifest is None:
+        from bet.pipeline.manifest import load_pipeline_manifest
+        manifest = load_pipeline_manifest(manifest_path)
     manifest_step = next((s for s in manifest.steps if s.id == step_id), None)
     if not manifest_step:
         raise ValueError(f"Step {step_id} not found in manifest")
@@ -619,7 +601,7 @@ def build_agent_work_order(
     if manifest_step.hard_rules is None:
         raise ValueError(f"Step {step_id} has no hard_rules specified in manifest")
 
-    manifest_sha = get_manifest_sha(base_dir)
+    manifest_sha = get_manifest_sha(base_dir, manifest_path=manifest_path)
     source_head = get_source_head(base_dir)
     if source_head == "UNKNOWN" or not source_head:
         raise ContinuityContractError("Git source_head is UNKNOWN which is forbidden for persisted work orders")

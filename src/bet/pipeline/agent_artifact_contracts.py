@@ -267,14 +267,14 @@ def validate_agent_artifact_for_work_order(
     # 2. Load the actual persisted work order from disk and verify its hash
     status_val = artifact_data.get("status")
 
-    if status_val in ("PASS", "COMMAND_REQUEST"):
+    if status_val in ("PASS", "BLOCK", "COMMAND_REQUEST"):
         if not wo_path.exists():
             errors.append(f"Persisted work order file missing at {wo_path}")
         else:
             from bet.pipeline.canonical_continuity import file_sha256
 
             actual_wo_sha = file_sha256(wo_path)
-            if status_val in ("PASS", "COMMAND_REQUEST"):
+            if status_val in ("PASS", "BLOCK", "COMMAND_REQUEST"):
                 if "work_order_id" not in artifact_data:
                     errors.append(f"{status_val} artifact missing 'work_order_id'")
                 elif artifact_data["work_order_id"] != work_order_data.get("work_order_id"):
@@ -297,7 +297,7 @@ def validate_agent_artifact_for_work_order(
         or artifact_data.get("payload", {}).get("agent_id")
         or artifact_data.get("agent")
     )
-    if status_val in ("PASS", "COMMAND_REQUEST"):
+    if status_val in ("PASS", "BLOCK", "COMMAND_REQUEST"):
         if not actual_producer:
             errors.append(f"{status_val} artifact missing producer_agent_id / agent_id binding")
         elif actual_producer != expected_agent:
