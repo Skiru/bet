@@ -23,7 +23,7 @@ BETTING_DAY = "2026-06-26"
 RUN_ID = "run-agent-block-contract"
 
 
-def _agent_artifact(step_id: str, status: str) -> dict[str, object]:
+def _agent_artifact(step_id: str, status: str, base_dir: Path | None = None) -> dict[str, object]:
     payload: dict[str, object] = {}
     evidence_refs: list[str] = []
     sources: list[str] = []
@@ -32,10 +32,27 @@ def _agent_artifact(step_id: str, status: str) -> dict[str, object]:
     source_bound = True
 
     if step_id == "S2.9" and status == "PASS":
+        s2_3_sha = "dummy"
+        s2_5_sha = "dummy"
+        s2_7_sha = "dummy"
+        if base_dir is not None:
+            from bet.pipeline.agent_work_orders import calculate_sha256
+            s2_3_path = artifact_path_for(base_dir, BETTING_DAY, RUN_ID, "S2.3")
+            s2_5_path = artifact_path_for(base_dir, BETTING_DAY, RUN_ID, "S2.5")
+            s2_7_path = artifact_path_for(base_dir, BETTING_DAY, RUN_ID, "S2.7")
+            s2_3_sha = calculate_sha256(s2_3_path) or "dummy"
+            s2_5_sha = calculate_sha256(s2_5_path) or "dummy"
+            s2_7_sha = calculate_sha256(s2_7_path) or "dummy"
+
         payload = {
             "readiness": "PASS",
             "readiness_basis": "S2.3/S2.5/S2.7 validated",
             "s3_may_proceed": True,
+            "predecessor_bindings": [
+                {"step_id": "S2.3", "path": "artifacts/S2.3.json", "sha256": s2_3_sha, "artifact_type": "AGENT_ARTIFACT", "betting_day": BETTING_DAY, "run_id": RUN_ID, "status": "PASS"},
+                {"step_id": "S2.5", "path": "artifacts/S2.5.json", "sha256": s2_5_sha, "artifact_type": "AGENT_ARTIFACT", "betting_day": BETTING_DAY, "run_id": RUN_ID, "status": "PASS"},
+                {"step_id": "S2.7", "path": "artifacts/S2.7.json", "sha256": s2_7_sha, "artifact_type": "AGENT_ARTIFACT", "betting_day": BETTING_DAY, "run_id": RUN_ID, "status": "PASS"},
+            ]
         }
         evidence_refs = ["artifact_S2.3", "artifact_S2.5", "artifact_S2.7"]
         sources = ["source-bound-enrichment"]
@@ -86,20 +103,20 @@ def _agent_artifact(step_id: str, status: str) -> dict[str, object]:
     }
 
 
-def _write_agent_artifact(base_dir: Path, step_id: str, status: str) -> Path:
+def _write_agent_artifact(base_dir: Path, step_id: str, status: str, runtime_mode: str = "LIVE_SHADOW") -> Path:
     from bet.pipeline.agent_work_orders import build_agent_work_order, write_agent_work_order
     import hashlib
     wo = build_agent_work_order(
         betting_day=BETTING_DAY,
         run_id=RUN_ID,
         step_id=step_id,
-        runtime_mode="LIVE_SHADOW",
+        runtime_mode=runtime_mode,
         base_dir=base_dir,
     )
     wo_path = write_agent_work_order(wo, base_dir)
     wo_sha = hashlib.sha256(wo_path.read_bytes()).hexdigest()
 
-    art = _agent_artifact(step_id, status)
+    art = _agent_artifact(step_id, status, base_dir)
     art["producer_agent_id"] = wo.agent
     art["work_order_id"] = wo.work_order_id
     art["work_order_sha256"] = wo_sha
@@ -143,7 +160,7 @@ def test_validate_agent_artifact_for_work_order_accepts_s5_block(tmp_path):
         base_dir=tmp_path,
     )
 
-    errors = validate_agent_artifact_for_work_order(_agent_artifact("S5", "BLOCK"), work_order.to_jsonable())
+    errors = validate_agent_artifact_for_work_order(_agent_artifact("S5", "BLOCK", tmp_path), work_order.to_jsonable())
     assert errors == []
 
 
@@ -158,6 +175,7 @@ def test_orchestrator_accepts_valid_s5_block_as_terminal_result(tmp_path):
         base_run_dir=tmp_path,
     )
     summary = orch.run(start_step="S5", stop_after_step="S5")
+    print("\nS5 BLOCK BLOCKERS:", summary["blockers"])
 
     s5_step = next(step for step in summary["steps"] if step["step_id"] == "S5")
     assert summary["status"] == "BLOCK"
@@ -171,7 +189,7 @@ def test_orchestrator_accepts_valid_s5_block_as_terminal_result(tmp_path):
 
 def test_orchestrator_advances_past_s5_on_valid_pass(tmp_path):
     _write_s5_prereqs(tmp_path)
-    _write_agent_artifact(tmp_path, "S5", "PASS")
+    _write_agent_artifact(tmp_path, "S5", "PASS", runtime_mode="DRY_RUN")
 
     orch = Orchestrator(
         betting_day=BETTING_DAY,
@@ -196,6 +214,7 @@ def test_orchestrator_advances_past_s5_on_valid_pass(tmp_path):
 
         mock_run.side_effect = side_effect
         summary = orch.run(start_step="S5", stop_after_step="S6")
+        print("\nS5 PASS BLOCKERS:", summary["blockers"])
 
     assert summary["status"] == "PASS"
     assert summary["last_completed_step"] == "S6"

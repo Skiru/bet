@@ -944,7 +944,7 @@ def test_21_command_request_hash_comparison_owner_round3(tmp_path: Path):
         runtime_mode="DRY_RUN",
         base_run_dir=reports_dir,
     )
-    
+
     from unittest.mock import patch
     from bet.pipeline.run_coordination import BoundedProcessResult
     mock_res = BoundedProcessResult(returncode=0, timed_out=False, stdout="pytest output", stderr="")
@@ -1060,5 +1060,4 @@ def test_command_attempts_durable_processes_owner_round3(tmp_path: Path):
     # Verify both attempt 1 and attempt 2 evidence files exist on disk
     artifacts_dir = reports_dir / "pipeline_runs" / betting_day / run_id / "artifacts"
     assert (artifacts_dir / "S2.3_command_evidence_attempt_1.json").exists()
-    assert (artifacts_dir / "S2.3_command_evidence_attempt_3.json").exists()
-
+    assert (artifacts_dir / "S2.3_command_evidence_attempt_2.json").exists()

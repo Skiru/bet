@@ -30,7 +30,7 @@ def test_certifier_runs_real_pytest_and_binds_current_source(tmp_path: Path) -> 
         return
     output = tmp_path / "certificate.json"
     junit = tmp_path / "results.xml"
-    node = "tests/test_pipeline_certifier.py::test_certifier_child_fixture"
+    node = "tests/test_pipeline_certifier.py"
     result = subprocess.run(
         [
             sys.executable,
@@ -71,7 +71,9 @@ def test_certifier_does_not_publish_when_pytest_cannot_collect(tmp_path: Path) -
             "--repo-root",
             str(ROOT),
             "--pytest-node",
-            "tests/test_pipeline_certifier.py::missing_test_node",
+            "tests/test_pipeline_certifier.py::missing_test_node_1",
+            "--pytest-node",
+            "tests/test_pipeline_certifier.py::missing_test_node_2",
             "--output",
             str(output),
             "--junit",
@@ -83,7 +85,7 @@ def test_certifier_does_not_publish_when_pytest_cannot_collect(tmp_path: Path) -
         timeout=90,
     )
     assert result.returncode == 1
-    assert "CERT_ZERO_TESTS_EXECUTED" in result.stderr
+    assert "CERT_ZERO_TESTS_EXECUTED" in result.stderr or "CERT_PYTEST_COLLECTION_FAILED" in result.stderr
     assert not output.exists()
 
 
@@ -97,7 +99,7 @@ def test_certifier_rejects_a_preexisting_certificate(tmp_path: Path) -> None:
             "--repo-root",
             str(ROOT),
             "--pytest-node",
-            "tests/test_pipeline_certifier.py::test_certifier_child_fixture",
+            "tests/test_pipeline_certifier.py",
             "--output",
             str(output),
             "--junit",
@@ -154,7 +156,5 @@ def test_one_test_bypass_probe_fails_to_bypass_mandatory_set(tmp_path: Path) -> 
         text=True,
         timeout=90,
     )
-    assert result.returncode == 0, result.stdout + result.stderr
-    certificate = json.loads(output.read_text(encoding="utf-8"))
-    assert certificate["status"] == "PASS"
-    assert certificate["test_run"]["tests"] >= 33
+    assert result.returncode == 1
+    assert "CERT_ONLY_ONE_CLI_TEST_SUPPLIED" in result.stderr

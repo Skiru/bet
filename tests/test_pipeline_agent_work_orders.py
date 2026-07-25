@@ -18,7 +18,7 @@ from bet.pipeline.agent_work_orders import (
 def create_mock_artifacts(base_dir: Path, betting_day: str, run_id: str):
     artifacts_dir = base_dir / "pipeline_runs" / betting_day / run_id / "artifacts"
     artifacts_dir.mkdir(parents=True, exist_ok=True)
-    
+
     steps = {
         "S2": "SCRIPT_EVIDENCE",
         "S2.3": "AGENT_ARTIFACT",
@@ -28,7 +28,7 @@ def create_mock_artifacts(base_dir: Path, betting_day: str, run_id: str):
         "S3": "SCRIPT_EVIDENCE",
         "S4": "SCRIPT_EVIDENCE",
     }
-    
+
     for step_id, art_type in steps.items():
         payload = {
             "artifact_type": art_type,
@@ -57,7 +57,7 @@ def test_work_order_generation_and_policies(tmp_path):
     """Verify work order generation for each agent step: S2.3, S2.5, S2.7, S2.9, S5."""
     create_mock_artifacts(tmp_path, "2026-06-25", "run-smoke-1")
     steps = ["S2.3", "S2.5", "S2.7", "S2.9", "S5"]
-    
+
     for step_id in steps:
         wo = build_agent_work_order(
             betting_day="2026-06-25",
@@ -66,7 +66,7 @@ def test_work_order_generation_and_policies(tmp_path):
             runtime_mode="DRY_RUN",
             base_dir=tmp_path,
         )
-        
+
         # Verify schema adherence
         assert wo.schema_version == 1
         assert wo.work_order_type == "AGENT_ARTIFACT_REQUEST"
@@ -77,16 +77,16 @@ def test_work_order_generation_and_policies(tmp_path):
         assert wo.runtime_mode == "DRY_RUN"
         assert wo.status == "PENDING_AGENT"
         assert wo.created_at is not None
-        
+
         # Verify required output contract
         req_out = wo.required_output
         assert req_out.artifact_type == "AGENT_ARTIFACT"
         assert req_out.step_id == step_id
-        
+
         # Verify includes exact expected output path
         expected_path = expected_agent_artifact_path_for(tmp_path, "2026-06-25", "run-smoke-1", step_id)
         assert req_out.expected_path == str(expected_path)
-        
+
         # Verify work order forbids pick/edge/stake/coupon outputs
         for forbidden in ["pick", "edge", "stake", "coupon"]:
             assert any(forbidden in fo.lower() for fo in wo.forbidden_outputs)
@@ -96,7 +96,7 @@ def test_work_order_generation_and_policies(tmp_path):
         assert any("Template scaffolds are not accepted final output" in item for item in output_contract)
         assert any("BLOCK is acceptable and preferred over guessing" in item for item in output_contract)
         assert any("PASS requires full contract evidence" in item for item in output_contract)
-             
+
         # Verify input refs matching step dependency graph
         refs = wo.input_refs
         assert isinstance(refs, list)
@@ -127,7 +127,7 @@ def test_s5_work_order_specific_checks(tmp_path):
         runtime_mode="DRY_RUN",
         base_dir=tmp_path,
     )
-    
+
     # Check for hard rules in S5 policy
     expected_rules = [
         "injury_lineup_context_required",
@@ -138,7 +138,7 @@ def test_s5_work_order_specific_checks(tmp_path):
     ]
     for rule in expected_rules:
         assert rule in wo.hard_rules
-        
+
     # Check must_do instructions
     must_dos = wo.instructions["must_do"]
     categories = ["injuries", "motivation", "travel", "morale", "upset/volatility"]
@@ -171,12 +171,12 @@ def test_write_agent_work_order(tmp_path):
         runtime_mode="DRY_RUN",
         base_dir=tmp_path,
     )
-    
+
     written_path = write_agent_work_order(wo, tmp_path)
     expected_path = work_order_path_for(tmp_path, "2026-06-25", "run-smoke-1", "S2.3")
     assert written_path == expected_path
     assert expected_path.exists()
-    
+
     # Read and assert JSON fields match
     with open(expected_path, "r", encoding="utf-8") as f:
         data = json.load(f)
@@ -188,7 +188,7 @@ def test_s23_cannot_generate_work_order_without_s2(tmp_path):
     """Regression test proving S2.3 cannot generate a work order or PASS without a valid current-run S2 artifact."""
     betting_day = "2026-06-25"
     run_id = "run-smoke-1"
-    
+
     # Case 1: S2 artifact missing
     with pytest.raises(ValueError, match="Required dependency file is missing"):
         build_agent_work_order(
@@ -268,7 +268,7 @@ def test_s23_cannot_generate_work_order_without_s2(tmp_path):
     payload["artifact_type"] = "SCRIPT_EVIDENCE"
     with open(s2_path, "w", encoding="utf-8") as f:
         json.dump(payload, f)
-    
+
     wo = build_agent_work_order(
         betting_day=betting_day,
         run_id=run_id,
@@ -278,3 +278,73 @@ def test_s23_cannot_generate_work_order_without_s2(tmp_path):
     )
     assert wo is not None
     assert wo.input_refs[0].step_id == "S2"
+
+
+def test_agent_work_order_idempotency_and_drift(tmp_path):
+    """Verify work order idempotency and drift detection under repeated calls."""
+    from bet.pipeline.agent_work_orders import (
+        build_agent_work_order,
+        write_agent_work_order,
+        work_order_path_for,
+    )
+    from bet.pipeline.canonical_continuity import ContinuityContractError
+    import time
+
+    betting_day = "2026-06-25"
+    run_id = "run-idempotency-test"
+    step_id = "S2.3"
+
+    create_mock_artifacts(tmp_path, betting_day, run_id)
+
+    # 1. first runner call creates work order and waits
+    wo1 = build_agent_work_order(
+        betting_day=betting_day,
+        run_id=run_id,
+        step_id=step_id,
+        runtime_mode="DRY_RUN",
+        base_dir=tmp_path,
+    )
+    path1 = write_agent_work_order(wo1, tmp_path)
+    created_at1 = wo1.created_at
+
+    # Wait briefly
+    time.sleep(0.1)
+
+    # 2. second runner call with no artifact reuses it and remains waiting
+    wo2 = build_agent_work_order(
+        betting_day=betting_day,
+        run_id=run_id,
+        step_id=step_id,
+        runtime_mode="DRY_RUN",
+        base_dir=tmp_path,
+    )
+    path2 = write_agent_work_order(wo2, tmp_path)
+
+    assert path1 == path2
+    assert wo1.created_at == wo2.created_at
+    assert wo1.work_order_id == wo2.work_order_id
+
+    # 3. third runner call after agent artifact resolves the same work order
+    wo3 = build_agent_work_order(
+        betting_day=betting_day,
+        run_id=run_id,
+        step_id=step_id,
+        runtime_mode="DRY_RUN",
+        base_dir=tmp_path,
+    )
+    assert wo3.created_at == created_at1
+
+    # 4. upstream mutation still produces WORK_ORDER_DRIFT
+    s2_path = tmp_path / "pipeline_runs" / betting_day / run_id / "artifacts" / "S2.json"
+    s2_data = json.loads(s2_path.read_text(encoding="utf-8"))
+    s2_data["status"] = "BLOCK"  # mutate content slightly to change the file hash
+    s2_path.write_text(json.dumps(s2_data), encoding="utf-8")
+
+    with pytest.raises(ContinuityContractError, match="WORK_ORDER_DRIFT"):
+        build_agent_work_order(
+            betting_day=betting_day,
+            run_id=run_id,
+            step_id=step_id,
+            runtime_mode="DRY_RUN",
+            base_dir=tmp_path,
+        )

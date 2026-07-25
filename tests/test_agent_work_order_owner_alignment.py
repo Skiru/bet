@@ -97,26 +97,93 @@ def test_owner_alignment_matrix_generation_isolated(tmp_path: Path):
         assert Path(wo.required_output.expected_path).resolve().is_relative_to(tmp_path.resolve())
 
 
-def test_toggling_flags_changes_script_identity_hash():
+def test_toggling_flags_changes_script_identity_hash(tmp_path: Path):
     """Verify that toggling live-network or write flags changes the command hash in ResumeLedger."""
-    from bet.pipeline.run_coordination import _canonical_hash
-
-    cmd_base = [sys.executable, "scripts/pipeline_steps/s1_discover.py", "--date", "2026-07-25", "--run-id", "run-1", "--runtime-mode", "DRY_RUN"]
+    from bet.pipeline.run_coordination import ResumeLedger
+    import json
 
     # 1. Base command (dry run, offline)
-    hash_base = _canonical_hash({"argv": cmd_base})
+    ledger_base = ResumeLedger(
+        tmp_path / "base",
+        run_id="run-1",
+        betting_day="2026-07-25",
+        main_sha="main-sha",
+        manifest_sha="manifest-sha",
+    )
+
+    cmd_base = {
+        "interpreter": sys.executable,
+        "wrapper_path": "scripts/pipeline_steps/s1_discover.py",
+        "date": "2026-07-25",
+        "run_id": "run-1",
+        "runtime_mode": "DRY_RUN",
+        "allow_live_network": False,
+        "allow_write": False,
+        "cwd": "/path/to/repo",
+        "timeout_seconds": 900.0,
+        "expected_exit_code": 0,
+        "postconditions": ["SCRIPT_EVIDENCE_PASS"],
+        "predecessor_hashes": {},
+    }
+
+    ledger_base.append(
+        step_id="S1",
+        status="PASS",
+        command_request=cmd_base,
+        input_hashes={},
+        output_hashes={},
+    )
+
+    data_base = json.loads((tmp_path / "base" / "resume_ledger.json").read_text(encoding="utf-8"))
+    hash_base = data_base["entries"][0]["command_request_hash"]
 
     # 2. Add live network flag
-    cmd_live = cmd_base + ["--allow-live-network"]
-    hash_live = _canonical_hash({"argv": cmd_live})
+    ledger_live = ResumeLedger(
+        tmp_path / "live",
+        run_id="run-1",
+        betting_day="2026-07-25",
+        main_sha="main-sha",
+        manifest_sha="manifest-sha",
+    )
+    cmd_live = dict(cmd_base)
+    cmd_live["allow_live_network"] = True
+
+    ledger_live.append(
+        step_id="S1",
+        status="PASS",
+        command_request=cmd_live,
+        input_hashes={},
+        output_hashes={},
+    )
+
+    data_live = json.loads((tmp_path / "live" / "resume_ledger.json").read_text(encoding="utf-8"))
+    hash_live = data_live["entries"][0]["command_request_hash"]
 
     # 3. Add write flag
-    cmd_write = cmd_base + ["--allow-write"]
-    hash_write = _canonical_hash({"argv": cmd_write})
+    ledger_write = ResumeLedger(
+        tmp_path / "write",
+        run_id="run-1",
+        betting_day="2026-07-25",
+        main_sha="main-sha",
+        manifest_sha="manifest-sha",
+    )
+    cmd_write = dict(cmd_base)
+    cmd_write["allow_write"] = True
 
-    assert hash_base != hash_live, "Toggling live-network flag must change the command hash"
-    assert hash_base != hash_write, "Toggling write flag must change the command hash"
-    assert hash_live != hash_write, "Live and write flags must produce distinct hashes"
+    ledger_write.append(
+        step_id="S1",
+        status="PASS",
+        command_request=cmd_write,
+        input_hashes={},
+        output_hashes={},
+    )
+
+    data_write = json.loads((tmp_path / "write" / "resume_ledger.json").read_text(encoding="utf-8"))
+    hash_write = data_write["entries"][0]["command_request_hash"]
+
+    assert hash_base != hash_live, "Toggling live-network flag must change the command hash in persisted ledger"
+    assert hash_base != hash_write, "Toggling write flag must change the command hash in persisted ledger"
+    assert hash_live != hash_write, "Live and write flags must produce distinct hashes in persisted ledger"
 
 
 def test_strict_script_evidence_status_adversarial():
@@ -281,3 +348,15 @@ def test_direct_resume_dependencies(tmp_path: Path):
     )
     assert decision.verdict == PipelineReadinessStatus.BLOCK
     assert any("Missing required artifact for S3" in req for req in decision.failed_requirements)
+
+
+def test_get_source_head_linked_worktree():
+    """Verify that get_source_head returns a real valid git commit hash in our worktree environment."""
+    from bet.pipeline.agent_work_orders import get_source_head
+    from pathlib import Path
+
+    head = get_source_head(Path.cwd())
+    assert head != "UNKNOWN"
+    assert len(head) == 40
+    # Commit hash is hexadecimal
+    int(head, 16)

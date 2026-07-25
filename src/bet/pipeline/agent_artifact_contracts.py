@@ -345,6 +345,7 @@ def validate_agent_artifact_for_work_order(
             ref_path = None
             base_candidates = []
             if run_root:
+                base_candidates.append(run_root.parent.parent.parent)
                 base_candidates.append(run_root.parent.parent)
                 base_candidates.append(run_root)
             if repo_root:
@@ -411,16 +412,28 @@ def validate_agent_artifact_for_work_order(
             if matching_ref:
                 ref_path_val = matching_ref.get("path") if isinstance(matching_ref, dict) else getattr(matching_ref, "path", None)
                 ref_sha_val = matching_ref.get("sha256") if isinstance(matching_ref, dict) else getattr(matching_ref, "sha256", None)
+                expected_kind = matching_ref.get("artifact_kind") if isinstance(matching_ref, dict) else getattr(matching_ref, "artifact_kind", None)
 
                 wo_path_resolved = Path(ref_path_val).resolve()
                 if ref_path != wo_path_resolved:
-                    if ref_path.parent != wo_path_resolved.parent:
-                        errors.append(f"Evidence ref {ref} path mismatch against work order input ref")
-
-                if ref_path == wo_path_resolved:
+                    errors.append(f"Evidence ref {ref} path mismatch against work order input ref: expected {wo_path_resolved}, got {ref_path}")
+                else:
                     curr_sha = hashlib.sha256(ref_path.read_bytes()).hexdigest()
                     if curr_sha != ref_sha_val:
-                        errors.append(f"Evidence ref {ref} SHA-256 mismatch")
+                        errors.append(f"Evidence ref {ref} SHA-256 mismatch: expected {ref_sha_val}, got {curr_sha}")
+
+                matching_ref_step_id = matching_ref.get("step_id") if isinstance(matching_ref, dict) else getattr(matching_ref, "step_id", None)
+                if clean_ev_step != matching_ref_step_id:
+                    errors.append(f"Evidence ref {ref} step_id mismatch: expected {matching_ref_step_id}, got {clean_ev_step}")
+
+                if expected_kind and ev_data.get("artifact_type") != expected_kind:
+                    errors.append(f"Evidence ref {ref} artifact_type mismatch: expected {expected_kind}, got {ev_data.get('artifact_type')}")
+
+                if ev_data.get("betting_day") != betting_day:
+                    errors.append(f"Evidence ref {ref} betting_day mismatch: expected {betting_day}, got {ev_data.get('betting_day')}")
+
+                if ev_data.get("run_id") != run_id:
+                    errors.append(f"Evidence ref {ref} run_id mismatch: expected {run_id}, got {ev_data.get('run_id')}")
             else:
                 from bet.pipeline.manifest import PipelineGraph
                 allowed_deps = PipelineGraph.get_dependencies(step_id)

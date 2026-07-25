@@ -91,6 +91,14 @@ def test_live_shadow_s1_without_ack_blocks_before_wrapper_execution(tmp_path):
             base_run_dir=tmp_path / "sandbox",
             allow_live_network=False,
         )
+        write_script_evidence(
+            "S0",
+            status="PASS",
+            payload={"test": True},
+            sources=(),
+            evidence_refs=(),
+            environ=orch.env,
+        )
         with patch("bet.pipeline.orchestrator.run_bounded_process") as mock_run:
             summary = orch.run(start_step="S1", stop_after_step="S1")
 
@@ -108,6 +116,14 @@ def test_live_shadow_s1_with_ack_can_execute_wrapper(tmp_path):
             runtime_mode="LIVE_SHADOW",
             base_run_dir=tmp_path / "sandbox",
             allow_live_network=True,
+        )
+        write_script_evidence(
+            "S0",
+            status="PASS",
+            payload={"test": True},
+            sources=(),
+            evidence_refs=(),
+            environ=orch.env,
         )
         with patch("bet.pipeline.orchestrator.run_bounded_process") as mock_run:
             def side_effect(*args, **kwargs):

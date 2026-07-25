@@ -8,29 +8,21 @@ from pathlib import Path
 
 class PipelineGraph:
     """Canonical dependency graph mapping pipeline steps to prerequisite steps."""
-    _DEPENDENCIES = {
-        "S0": [],
-        "S1": ["S0"],
-        "S1e": ["S1"],
-        "S2": ["S1e"],
-        "S2.3": ["S2"],
-        "S2.5": ["S2", "S2.3"],
-        "S2.7": ["S2", "S2.3", "S2.5"],
-        "S2.9": ["S2", "S2.3", "S2.5", "S2.7"],
-        "S3": ["S2.9"],
-        "S4": ["S3"],
-        "S5": ["S3", "S4", "S2.9"],
-        "S6": ["S5"],
-        "S7": ["S6"],
-        "S7b": ["S7"],
-        "S8": ["S7", "S7b"],
-        "S9": ["S8"],
-        "S10": ["S9"],
-    }
 
     @classmethod
     def get_dependencies(cls, step_id: str) -> list[str]:
-        return cls._DEPENDENCIES.get(step_id, [])
+        try:
+            root = discover_repo_root()
+            path = root / "config/pipeline_manifest.json"
+            with open(path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            steps = data.get("steps", [])
+            for step in steps:
+                if step.get("id") == step_id:
+                    return list(step.get("depends_on") or [])
+        except Exception:
+            pass
+        return []
 
 
 class PipelineManifestError(Exception):
@@ -50,6 +42,8 @@ class PipelineStep:
     hard_rules: list[str] | None
     wrapper: str | None = None
     canonical_script: str | None = None
+    depends_on: list[str] | None = None
+    required_inputs: list[str] | None = None
 
 
 @dataclass
@@ -117,7 +111,9 @@ def load_pipeline_manifest(path: Path | None = None) -> PipelineManifest:
             next=step_data.get("next"),
             hard_rules=step_data.get("hard_rules"),
             wrapper=step_data.get("wrapper"),
-            canonical_script=step_data.get("canonical_script")
+            canonical_script=step_data.get("canonical_script"),
+            depends_on=step_data.get("depends_on"),
+            required_inputs=step_data.get("required_inputs"),
         )
         steps_list.append(step_obj)
 
@@ -135,6 +131,38 @@ def load_pipeline_manifest(path: Path | None = None) -> PipelineManifest:
         steps=steps_list,
         runtime_contract=dict(data.get("runtime_contract", {})) if isinstance(data.get("runtime_contract"), dict) else {},
     )
+
+
+def get_step_agent(
+    step_id: str,
+    manifest: PipelineManifest | None = None,
+    manifest_path: Path | None = None,
+) -> str:
+    """Get the canonical agent owner of a step from the pipeline manifest."""
+    if manifest is None:
+        manifest = load_pipeline_manifest(manifest_path)
+    for step in manifest.steps:
+        if step.id == step_id:
+            if not step.agent:
+                raise PipelineManifestError(f"Step {step_id} has no agent specified in manifest")
+            return step.agent
+    raise PipelineManifestError(f"Unknown step_id in manifest: {step_id}")
+
+
+def get_step_hard_rules(
+    step_id: str,
+    manifest: PipelineManifest | None = None,
+    manifest_path: Path | None = None,
+) -> list[str]:
+    """Get the canonical hard_rules for a step from the pipeline manifest."""
+    if manifest is None:
+        manifest = load_pipeline_manifest(manifest_path)
+    for step in manifest.steps:
+        if step.id == step_id:
+            if step.hard_rules is None:
+                raise PipelineManifestError(f"Step {step_id} has no hard_rules specified in manifest")
+            return list(step.hard_rules)
+    raise PipelineManifestError(f"Unknown step_id in manifest: {step_id}")
 
 
 def get_step_order() -> list[str]:
@@ -339,5 +367,74 @@ def validate_pipeline_manifest(manifest: PipelineManifest, repo_root: Path | Non
         if idx_s7 != -1 and idx_s7b != -1 and idx_s8 != -1:
             if not (idx_s7 < idx_s7b < idx_s8):
                 errors.append("S7b must be after S7 and before S8")
+
+    # 5. Dependency / Pipeline Graph validations (P1-1)
+    step_ids_set = set(step_ids)
+    for step in manifest.steps:
+        sid = step.id or "<missing id>"
+        deps = step.depends_on or []
+        req_inputs = step.required_inputs or []
+
+        # - dependency IDs exist
+        for d in deps:
+            if d not in step_ids_set:
+                errors.append(f"Step {sid} has unknown dependency ID: {d}")
+
+        # - no self dependencies
+        if sid in deps:
+            errors.append(f"Step {sid} has a self-dependency")
+
+        # - no duplicates
+        if len(deps) != len(set(deps)):
+            errors.append(f"Step {sid} has duplicate dependencies: {deps}")
+
+        # - dependency precedes consumer
+        for d in deps:
+            if d in step_ids_set:
+                idx_d = step_ids.index(d)
+                idx_sid = step_ids.index(sid)
+                if idx_d >= idx_sid:
+                    errors.append(f"Dependency {d} must precede consumer {sid}")
+
+        # - required inputs are coherent with dependencies
+        for r_in in req_inputs:
+            if r_in not in deps:
+                errors.append(f"Step {sid} has required input {r_in} which is not in depends_on")
+
+        # - next and dependency edges are coherent
+        if step.next:
+            for n in step.next:
+                if n in step_ids_set:
+                    idx_n = step_ids.index(n)
+                    idx_sid = step_ids.index(sid)
+                    if idx_n <= idx_sid:
+                        errors.append(f"Next step {n} must be after current step {sid}")
+
+        # - artifact kind follows dependency execution_mode
+        for d in deps:
+            dep_step = step_by_id.get(d)
+            if dep_step:
+                expected_kind = "SCRIPT_EVIDENCE" if dep_step.execution_mode == "script" else "AGENT_ARTIFACT"
+
+    # - graph is acyclic
+    visited = {}  # 0 = unvisited, 1 = visiting, 2 = visited
+    def has_cycle(u):
+        visited[u] = 1
+        deps = step_by_id[u].depends_on or []
+        for v in deps:
+            if v in step_by_id:
+                if visited.get(v, 0) == 1:
+                    return True
+                if visited.get(v, 0) == 0:
+                    if has_cycle(v):
+                        return True
+        visited[u] = 2
+        return False
+
+    for sid in step_ids:
+        if visited.get(sid, 0) == 0:
+            if has_cycle(sid):
+                errors.append("Pipeline graph has a cycle (is not acyclic)")
+                break
 
     return errors

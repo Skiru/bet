@@ -662,41 +662,93 @@ class Orchestrator:
                         evidence_status = "BLOCK"
                         evidence_blocked_reasons = [f"SCRIPT_EVIDENCE_UNREADABLE: {e}"]
 
+                # P0-7: Strict Script Evidence Contract
+                is_valid_script_evidence = False
                 if return_code == 0:
                     if evidence_exists:
-                        if evidence_status in ("BLOCK", "FAILED"):
-                            step_status = PipelineReadinessStatus.BLOCK
-                            overall_status = PipelineReadinessStatus.BLOCK
-                            blocked_at_step = sid
-                            evidence_path = str(canonical_evidence)
-                            if evidence_blocked_reasons:
-                                for r in evidence_blocked_reasons:
-                                    self.blockers.append(f"Step {sid} blocked: {r}")
+                        try:
+                            # 1. Full validate_pipeline_artifact contract passes
+                            artifact, issues = validate_pipeline_artifact(raw_ev, sid)
+                            block_issues = [i for i in issues if i.severity == PipelineReadinessStatus.BLOCK]
+
+                            # 2. Strict status check: must be "PASS" exactly
+                            status_is_pass = (evidence_status == "PASS")
+
+                            # 3. Artifact type must be SCRIPT_EVIDENCE
+                            type_is_ok = (raw_ev.get("artifact_type") == "SCRIPT_EVIDENCE")
+
+                            # 4. Step ID, betting day, and run ID match
+                            id_match = (raw_ev.get("step_id") == sid)
+                            day_match = (raw_ev.get("betting_day") == self.betting_day)
+                            run_match = (raw_ev.get("run_id") == self.run_id)
+
+                            # 5. Placeholders/forbidden values check
+                            from bet.pipeline.agent_artifact_contracts import _has_placeholder
+                            placeholder_err = _has_placeholder(raw_ev, is_pass_status=True)
+
+                            if (
+                                not block_issues
+                                and status_is_pass
+                                and type_is_ok
+                                and id_match
+                                and day_match
+                                and run_match
+                                and not placeholder_err
+                            ):
+                                is_valid_script_evidence = True
                             else:
-                                self.blockers.append(f"Step {sid} completed with {evidence_status} status")
-                        else:
-                            step_status = PipelineReadinessStatus.PASS
-                            evidence_path = str(canonical_evidence)
+                                if block_issues:
+                                    for issue in block_issues:
+                                        self.blockers.append(f"Step {sid} structural issue: {issue.message}")
+                                if not status_is_pass:
+                                    if evidence_status == "BLOCK":
+                                        if evidence_blocked_reasons:
+                                            for r in evidence_blocked_reasons:
+                                                self.blockers.append(f"Step {sid} blocked: {r}")
+                                        else:
+                                            self.blockers.append(f"Step {sid} completed with BLOCK status")
+                                    else:
+                                        self.blockers.append(f"Step {sid} has invalid status for script step: {evidence_status}")
+                                if placeholder_err:
+                                    self.blockers.append(f"Step {sid} contains placeholders: {placeholder_err}")
+                        except Exception as exc:
+                            self.blockers.append(f"Step {sid} validation error: {exc}")
                     else:
-                        step_status = PipelineReadinessStatus.BLOCK
-                        overall_status = PipelineReadinessStatus.BLOCK
-                        blocked_at_step = sid
-                        blocked_reason = BlockedReason.BLOCKED_SCRIPT_EVIDENCE_MISSING
                         self.blockers.append(f"Canonical script evidence missing for step '{sid}'")
+                        blocked_reason = BlockedReason.BLOCKED_SCRIPT_EVIDENCE_MISSING
+                else:
+                    if evidence_exists:
+                        try:
+                            artifact, issues = validate_pipeline_artifact(raw_ev, sid)
+                            block_issues = [
+                                i for i in issues
+                                if i.severity == PipelineReadinessStatus.BLOCK
+                                and i.code not in ("BLOCKING_STATUS", "INVALID_REQUIRED_ARTIFACT_STATUS")
+                            ]
+                            if not block_issues and evidence_status == "BLOCK":
+                                if evidence_blocked_reasons:
+                                    for r in evidence_blocked_reasons:
+                                        self.blockers.append(f"Step {sid} blocked: {r}")
+                                else:
+                                    self.blockers.append(f"Step {sid} completed with {evidence_status} status")
+                            else:
+                                self.blockers.append(f"Wrapper script for step '{sid}' exited with non-zero code {return_code}")
+                        except Exception:
+                            self.blockers.append(f"Wrapper script for step '{sid}' exited with non-zero code {return_code}")
+                    else:
+                        self.blockers.append(f"Wrapper script for step '{sid}' exited with non-zero code {return_code}")
+
+                if is_valid_script_evidence:
+                    step_status = PipelineReadinessStatus.PASS
+                    evidence_path = str(canonical_evidence)
                 else:
                     step_status = PipelineReadinessStatus.BLOCK
                     overall_status = PipelineReadinessStatus.BLOCK
                     blocked_at_step = sid
-
                     if evidence_exists:
                         evidence_path = str(canonical_evidence)
-                        if evidence_blocked_reasons:
-                            for r in evidence_blocked_reasons:
-                                self.blockers.append(f"Step {sid} blocked: {r}")
-                        else:
-                            self.blockers.append(f"Step {sid} failed with status {evidence_status}")
-                    else:
-                        self.blockers.append(f"Wrapper script for step '{sid}' failed with exit code {return_code}")
+                    if not blocked_reason:
+                        blocked_reason = "SCRIPT_EVIDENCE_VALIDATION_FAILED"
 
             elif step.execution_mode == "agent_artifact":
                 # Check for existing agent artifact
@@ -881,15 +933,16 @@ class Orchestrator:
                                     if wo_sha_pre:
                                         ledger_input_hashes_pre["work_order_sha256"] = wo_sha_pre
                                     cmd_req_identity_pre = {
-                                        "wrapper": step.wrapper,
-                                        "execution_mode": step.execution_mode,
+                                        "command_request_payload": cmd_req,
+                                        "command_id": cmd_req.get("command_id", "UNKNOWN"),
+                                        "argv": argv,
+                                        "cwd": cwd_dir,
+                                        "timeout_seconds": float(timeout_seconds),
+                                        "expected_exit_code": expected_exit_code,
+                                        "postconditions": postconditions,
                                         "runtime_mode": self.runtime_mode.value,
-                                        "cwd": os.getcwd(),
-                                        "timeout": 900.0,
-                                        "expected_exit_code": 0,
-                                        "postconditions": ["SCRIPT_EVIDENCE_PASS"],
                                         "work_order_sha256": wo_sha_pre,
-                                        "argv": sys.argv,
+                                        "predecessor_hashes": predecessor_hashes_pre,
                                     }
                                     self._resume_ledger.append(
                                         step_id=sid,
@@ -900,13 +953,14 @@ class Orchestrator:
                                     )
 
                                     ledger_data = self._resume_ledger._load()
-                                    step_entries = [e for e in ledger_data.get("entries", []) if e.get("step_id") == sid]
+                                    step_entries = [e for e in ledger_data.get("entries", []) if e.get("step_id") == sid and e.get("status") == "COMMAND_REQUEST_PENDING"]
                                     attempt_num = len(step_entries)
 
                                     stdout_log_path = self.run_root / f"logs/{sid}_cmd_attempt_{attempt_num}_stdout.log"
                                     stderr_log_path = self.run_root / f"logs/{sid}_cmd_attempt_{attempt_num}_stderr.log"
                                     orig_artifact_path = expected_path.with_name(f"{sid}_command_request_attempt_{attempt_num}.json")
                                     write_json_atomic(orig_artifact_path, raw)
+                                    # Non-authoritative pointer alias (convenience only; authoritative series is attempt-scoped)
                                     write_json_atomic(expected_path.with_name(f"{sid}_command_request.json"), raw)
                                     start_time = time.time()
                                     try:
@@ -965,6 +1019,7 @@ class Orchestrator:
                                         "stderr_sha256": hashlib.sha256(stderr_text.encode("utf-8")).hexdigest(),
                                     }
                                     write_json_atomic(evidence_artifact_path, evidence_artifact)
+                                    # Non-authoritative pointer alias (convenience only; authoritative series is attempt-scoped)
                                     write_json_atomic(expected_path.with_name(f"{sid}_command_evidence.json"), evidence_artifact)
                                     postconditions_passed = True
                                     if exit_code != expected_exit_code:
@@ -1173,11 +1228,55 @@ class Orchestrator:
             output_hashes: dict[str, str] = {}
             if evidence_path and Path(evidence_path).is_file():
                 output_hashes["evidence"] = hashlib.sha256(Path(evidence_path).read_bytes()).hexdigest()
-            ledger_status = (
-                "COMMAND_REQUEST_UNRESOLVED"
-                if blocked_reason and blocked_reason.startswith("COMMAND_REQUEST")
-                else (step_status.value if hasattr(step_status, "value") else str(step_status))
-            )
+            # Wire ledger states through orchestrator (P0-3)
+            if step.execution_mode == "agent_artifact":
+                if blocked_reason == BlockedReason.BLOCKED_WAITING_FOR_AGENT_ARTIFACT:
+                    ledger_status = "WAITING_FOR_AGENT_ARTIFACT"
+                elif blocked_reason in (
+                    "COMMAND_REQUEST_VALIDATION_FAILED",
+                    "COMMAND_REQUEST_POSTCONDITIONS_FAILED",
+                    "COMMAND_REQUEST_MISSING_COMMAND"
+                ) or (blocked_reason and "COMMAND_REQUEST" in str(blocked_reason)):
+                    ledger_status = "COMMAND_REQUEST_UNRESOLVED"
+                else:
+                    status_val = None
+                    if evidence_path and Path(evidence_path).is_file():
+                        try:
+                            raw_data = json.loads(Path(evidence_path).read_text(encoding="utf-8"))
+                            status_val = raw_data.get("status")
+                        except Exception:
+                            pass
+                    if status_val == "PASS":
+                        ledger_status = "PASS"
+                    elif status_val == "NO_ACTION_TERMINAL":
+                        ledger_status = "NO_ACTION_TERMINAL"
+                    elif status_val == "BLOCK":
+                        ledger_status = "AGENT_ARTIFACT_BLOCK"
+                    else:
+                        if blocked_reason and "drift" in str(blocked_reason).lower():
+                            ledger_status = "WAITING_FOR_AGENT_ARTIFACT"
+                        elif not evidence_path or not Path(evidence_path).is_file():
+                            ledger_status = "WAITING_FOR_AGENT_ARTIFACT"
+                        else:
+                            ledger_status = "AGENT_ARTIFACT_BLOCK"
+            else:
+                # Script steps
+                if return_code == 0:
+                    status_val = None
+                    if evidence_path and Path(evidence_path).is_file():
+                        try:
+                            raw_data = json.loads(Path(evidence_path).read_text(encoding="utf-8"))
+                            status_val = raw_data.get("status")
+                        except Exception:
+                            pass
+                    if status_val == "PASS":
+                        ledger_status = "PASS"
+                    elif status_val == "NO_ACTION_TERMINAL":
+                        ledger_status = "NO_ACTION_TERMINAL"
+                    else:
+                        ledger_status = "COMMAND_REQUEST_UNRESOLVED"
+                else:
+                    ledger_status = "COMMAND_REQUEST_UNRESOLVED"
             wo_sha = ""
             predecessor_hashes = {}
             if work_order_path and Path(work_order_path).is_file():
@@ -1188,17 +1287,14 @@ class Orchestrator:
                     pass
 
             try:
-                from bet.pipeline.manifest import load_pipeline_manifest
-                from bet.pipeline.agent_work_orders import STEP_UPSTREAM_DEPENDENCIES, _script_evidence_candidates
+                from bet.pipeline.manifest import load_pipeline_manifest, PipelineGraph
+                from bet.pipeline.agent_work_orders import _script_evidence_candidates
                 from bet.pipeline.canonical_continuity import file_sha256
 
                 manifest = load_pipeline_manifest()
                 step_obj = next((s for s in manifest.steps if s.id == sid), None)
                 if step_obj:
-                    if step_obj.depends_on is not None:
-                        deps = step_obj.depends_on
-                    else:
-                        deps = STEP_UPSTREAM_DEPENDENCIES.get(sid, [])
+                    deps = PipelineGraph.get_dependencies(sid)
 
                     for dep_id in deps:
                         dep_step = next((s for s in manifest.steps if s.id == dep_id), None)
@@ -1214,10 +1310,18 @@ class Orchestrator:
                             else:
                                 path = artifact_path_for(gate_base_dir, self.betting_day, self.run_id, dep_id)
 
-                            if path.is_file():
+                            if not path.is_file():
+                                raise FileNotFoundError(f"Required predecessor artifact missing for {dep_id} at {path}")
+                            try:
                                 predecessor_hashes[f"predecessor_{dep_id}_sha256"] = file_sha256(path)
-            except Exception:
-                pass
+                            except Exception as exc:
+                                raise ValueError(f"Failed to hash predecessor {dep_id} at {path}: {exc}")
+            except Exception as e:
+                step_status = PipelineReadinessStatus.BLOCK
+                overall_status = PipelineReadinessStatus.BLOCK
+                blocked_at_step = sid
+                blocked_reason = f"Predecessor hashing failed: {e}"
+                self.blockers.append(blocked_reason)
 
             ledger_input_hashes = {
                 "manifest": self._manifest_sha,
@@ -1226,17 +1330,40 @@ class Orchestrator:
             if wo_sha:
                 ledger_input_hashes["work_order_sha256"] = wo_sha
 
-            cmd_req_identity = {
-                "wrapper": step.wrapper,
-                "execution_mode": step.execution_mode,
-                "runtime_mode": self.runtime_mode.value,
-                "cwd": os.getcwd(),
-                "timeout": 900.0,
-                "expected_exit_code": 0,
-                "postconditions": ["SCRIPT_EVIDENCE_PASS"],
-                "work_order_sha256": wo_sha,
-                "argv": sys.argv,
-            }
+            if step.execution_mode == "script":
+                wrapper_path = self.repo_root / step.wrapper
+                reconstructed_cmd = [sys.executable, str(wrapper_path), "--date", self.betting_day, "--run-id", self.run_id, "--runtime-mode", self.runtime_mode.value]
+                if self.allow_live_network:
+                    reconstructed_cmd.append("--allow-live-network")
+                if self.allow_write:
+                    reconstructed_cmd.append("--allow-write")
+
+                cmd_req_identity = {
+                    "interpreter": reconstructed_cmd[0],
+                    "wrapper_path": reconstructed_cmd[1],
+                    "date": self.betting_day,
+                    "run_id": self.run_id,
+                    "runtime_mode": self.runtime_mode.value,
+                    "allow_live_network": self.allow_live_network,
+                    "allow_write": self.allow_write,
+                    "cwd": str(self.repo_root),
+                    "timeout_seconds": self._step_timeout_seconds(),
+                    "expected_exit_code": 0,
+                    "postconditions": ["SCRIPT_EVIDENCE_PASS"],
+                    "predecessor_hashes": predecessor_hashes,
+                }
+            else:
+                cmd_req_identity = {
+                    "wrapper": step.wrapper,
+                    "execution_mode": step.execution_mode,
+                    "runtime_mode": self.runtime_mode.value,
+                    "cwd": str(self.repo_root),
+                    "timeout": 900.0,
+                    "expected_exit_code": 0,
+                    "postconditions": ["SCRIPT_EVIDENCE_PASS"],
+                    "work_order_sha256": wo_sha,
+                    "argv": sys.argv,
+                }
 
             self._resume_ledger.append(
                 step_id=sid,

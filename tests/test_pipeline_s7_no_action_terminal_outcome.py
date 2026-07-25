@@ -59,6 +59,15 @@ def _run_s7_with_script_evidence(
         runtime_mode="DRY_RUN",
         base_run_dir=tmp_path / "sandbox",
     )
+    from bet.pipeline.integration_artifacts import write_script_evidence
+    write_script_evidence(
+        "S6",
+        status="PASS",
+        payload={},
+        sources=(),
+        evidence_refs=(),
+        environ=orch.env,
+    )
 
     with patch("bet.pipeline.orchestrator.run_bounded_process") as mock_run:
         def side_effect(*args, **kwargs):

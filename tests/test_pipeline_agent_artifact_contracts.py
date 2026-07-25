@@ -335,9 +335,9 @@ def test_s5_pass_with_all_required_categories_and_evidence_refs_passes(tmp_path)
     artifact["work_order_sha256"] = wo_sha
     artifact["sources"] = ["injury-report", "motivation-brief"]
     artifact["evidence_refs"] = [
-        "S3.json",
-        "S4.json",
-        "S2.9.json",
+        "artifacts/S3.json",
+        "artifacts/S4.json",
+        "artifacts/S2.9.json",
     ]
     artifact["payload"] = {
         "injuries_lineups": {"status": "checked"},
