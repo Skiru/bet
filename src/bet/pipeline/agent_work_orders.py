@@ -52,8 +52,6 @@ class AgentWorkOrderOutputContract:
 
 @dataclass
 class AgentWorkOrderPolicy:
-    agent: str
-    hard_rules: list[str]
     forbidden_outputs: list[str]
     instructions: dict[str, Any]
     schema_requirements: dict[str, Any]
@@ -103,15 +101,6 @@ class AgentWorkOrder:
         }
 
 
-STEP_UPSTREAM_DEPENDENCIES: dict[str, list[str]] = {
-    "S2.3": ["S2"],
-    "S2.5": ["S2", "S2.3"],
-    "S2.7": ["S2", "S2.3", "S2.5"],
-    "S2.9": ["S2", "S2.3", "S2.5", "S2.7"],
-    "S5": ["S3", "S4", "S2.9"],
-}
-
-
 OUTPUT_CONTRACT_NOTES = [
     "Template scaffolds are not accepted final output.",
     "Fill required evidence fields before returning an artifact.",
@@ -122,18 +111,6 @@ OUTPUT_CONTRACT_NOTES = [
 
 POLICIES: dict[str, AgentWorkOrderPolicy] = {
     "S2.3": AgentWorkOrderPolicy(
-        agent="bet-researcher",
-        hard_rules=[
-            "no_pick",
-            "no_edge",
-            "no_stake",
-            "no_coupon",
-            "source_bound_only",
-            "unknown_or_blocked_for_missing_data",
-            "no_production_db_write",
-            "no_betting_data_write",
-            "point_in_time_required",
-        ],
         forbidden_outputs=[
             "internal_pick",
             "recommended_pick",
@@ -168,18 +145,6 @@ POLICIES: dict[str, AgentWorkOrderPolicy] = {
         },
     ),
     "S2.5": AgentWorkOrderPolicy(
-        agent="bet-researcher",
-        hard_rules=[
-            "no_pick",
-            "no_edge",
-            "no_stake",
-            "no_coupon",
-            "source_bound_only",
-            "unknown_or_blocked_for_missing_data",
-            "no_production_db_write",
-            "no_betting_data_write",
-            "point_in_time_required",
-        ],
         forbidden_outputs=[
             "internal_pick",
             "recommended_pick",
@@ -214,18 +179,6 @@ POLICIES: dict[str, AgentWorkOrderPolicy] = {
         },
     ),
     "S2.7": AgentWorkOrderPolicy(
-        agent="bet-researcher",
-        hard_rules=[
-            "no_pick",
-            "no_edge",
-            "no_stake",
-            "no_coupon",
-            "source_bound_only",
-            "unknown_or_blocked_for_missing_data",
-            "no_production_db_write",
-            "no_betting_data_write",
-            "point_in_time_required",
-        ],
         forbidden_outputs=[
             "internal_pick",
             "recommended_pick",
@@ -260,18 +213,6 @@ POLICIES: dict[str, AgentWorkOrderPolicy] = {
         },
     ),
     "S2.9": AgentWorkOrderPolicy(
-        agent="bet-researcher",
-        hard_rules=[
-            "no_pick",
-            "no_edge",
-            "no_stake",
-            "no_coupon",
-            "source_bound_only",
-            "unknown_or_blocked_for_missing_data",
-            "no_production_db_write",
-            "no_betting_data_write",
-            "point_in_time_required",
-        ],
         forbidden_outputs=[
             "internal_pick",
             "recommended_pick",
@@ -305,14 +246,6 @@ POLICIES: dict[str, AgentWorkOrderPolicy] = {
         },
     ),
     "S5": AgentWorkOrderPolicy(
-        agent="bet-risk-gatekeeper",
-        hard_rules=[
-            "injury_lineup_context_required",
-            "motivation_and_tournament_context_required",
-            "travel_schedule_fatigue_checked",
-            "morale_and_recent_result_context_checked",
-            "volatility_or_upset_risk_checked",
-        ],
         forbidden_outputs=[
             "internal_pick",
             "recommended_pick",
@@ -404,6 +337,7 @@ def _script_evidence_candidates(
     run_root = resolve_run_root(betting_day, run_id, base_dir)
     runtime_artifacts = runtime_artifact_dir(run_root)
     return (
+        artifact_path_for(run_root, betting_day, run_id, step_id),
         runtime_artifacts / f"{step_id}.json",
         artifact_path_for(base_dir, betting_day, run_id, step_id),
     )
@@ -430,138 +364,49 @@ def discover_input_refs_for_step(
     base_dir: Path,
     betting_day: str,
     run_id: str,
-    manifest: PipelineManifest | None = None,
 ) -> list[AgentWorkOrderInputRef]:
     """Find and hash files for upstream step dependencies."""
-    if manifest is None:
-        from bet.pipeline.manifest import load_pipeline_manifest
-        manifest = load_pipeline_manifest()
-
-    step = next((s for s in manifest.steps if s.id == step_id), None)
-
-    if step and step.depends_on is not None:
-        dependencies = step.depends_on
-    else:
-        dependencies = STEP_UPSTREAM_DEPENDENCIES.get(step_id, [])
-
-    if step and step.required_inputs is not None and step.execution_mode != "agent_artifact":
-        required_inputs = step.required_inputs
-    else:
-        required_inputs = dependencies
-
-    # Build dependency map for transitive validation
-    dep_map = {}
-    for s in manifest.steps:
-        s_id = s.id
-        if s_id:
-            if s.depends_on is not None:
-                dep_map[s_id] = s.depends_on
-            else:
-                dep_map[s_id] = STEP_UPSTREAM_DEPENDENCIES.get(s_id, [])
-
-    # Transitive closure helper
-    def get_transitive_dependencies(sid: str, visited=None) -> set[str]:
-        if visited is None:
-            visited = set()
-        visited.add(sid)
-        result = set()
-        for dep in dep_map.get(sid, []):
-            if dep not in visited:
-                result.add(dep)
-                result.update(get_transitive_dependencies(dep, visited))
-        return result
-
-    transitive_deps = get_transitive_dependencies(step_id)
-
-    # Validate semantic relationship: all required_inputs must be in transitive dependencies
-    for req in required_inputs:
-        if req not in transitive_deps:
-            raise ValueError(
-                f"Semantic relationship violation: required_input '{req}' for step '{step_id}' "
-                f"is not a direct or transitive dependency."
-            )
-
-    run_root = resolve_run_root(betting_day, run_id, base_dir).resolve()
-
+    from bet.pipeline.manifest import PipelineGraph
+    dependencies = PipelineGraph.get_dependencies(step_id)
     input_refs = []
     for dep_id in dependencies:
-        dep_step = next((s for s in manifest.steps if s.id == dep_id), None)
-        if not dep_step:
-            raise ValueError(f"Dependency step {dep_id} not found in manifest")
-
-        # Resolve dynamic artifact kind from dependency step's execution_mode
-        exec_mode = dep_step.execution_mode
-        if exec_mode == "script":
+        if dep_id in {"S0", "S1", "S1e", "S2", "S3", "S4", "S6", "S7", "S7b", "S8"}:
             kind = "SCRIPT_EVIDENCE"
-        elif exec_mode == "agent_artifact":
-            kind = "AGENT_ARTIFACT"
-        elif exec_mode == "human_gate":
-            kind = "HUMAN_GATE"
-        elif exec_mode == "state_only":
-            kind = "STATE_MARKER"
         else:
-            raise ValueError(f"Unsupported execution_mode '{exec_mode}' for dependency {dep_id}")
+            kind = "AGENT_ARTIFACT"
 
-        is_required = dep_id in required_inputs
-
-        # Resolve path
         path = _resolve_input_ref_path(
             dep_id, kind, Path(base_dir), betting_day, run_id
         )
-        resolved_path = Path(path).resolve()
 
-        # Enforce validations if the dependency is required
-        if is_required:
-            # 1. Check if file exists
-            if not resolved_path.is_file():
-                raise ValueError(f"Required dependency file is missing: {resolved_path}")
+        if not path.is_file():
+            raise ValueError(f"Required dependency file is missing: {path}")
 
-            # 2. Check if readable and parseable JSON
-            try:
-                with open(resolved_path, "r", encoding="utf-8") as f:
-                    content = json.load(f)
-            except Exception as e:
-                raise ValueError(f"Required dependency file {resolved_path} is unreadable or invalid JSON: {e}")
+        try:
+            content = path.read_text(encoding="utf-8").strip()
+            if not content:
+                raise ValueError("Empty file")
+            data = json.loads(content)
+        except Exception:
+            raise ValueError(f"Dependency {dep_id} file is unreadable or invalid JSON")
 
-            # 3. Check empty SHA-256
-            sha256 = calculate_sha256(resolved_path)
-            if not sha256:
-                raise ValueError(f"Required dependency file {resolved_path} has an empty SHA-256")
+        if data.get("betting_day") != betting_day:
+            raise ValueError(f"Wrong betting_day in artifact: {data.get('betting_day')} vs {betting_day}")
 
-            # 4. Check outside current run or wrong day/run
-            if not resolved_path.is_relative_to(run_root):
-                raise ValueError(f"Required dependency file {resolved_path} is outside the current run root {run_root}")
+        if data.get("run_id") != run_id:
+            raise ValueError(f"Wrong run_id in artifact: {data.get('run_id')} vs {run_id}")
 
-            # 5. Check wrong artifact type / step_id / betting_day / run_id
-            if content.get("artifact_type") != kind:
-                raise ValueError(
-                    f"Wrong artifact type for {resolved_path}: "
-                    f"expected {kind}, got {content.get('artifact_type')}"
-                )
-            if content.get("step_id") != dep_id:
-                raise ValueError(
-                    f"Wrong step_id in artifact for {resolved_path}: "
-                    f"expected {dep_id}, got {content.get('step_id')}"
-                )
-            if content.get("betting_day") != betting_day:
-                raise ValueError(
-                    f"Wrong betting_day in artifact for {resolved_path}: "
-                    f"expected {betting_day}, got {content.get('betting_day')}"
-                )
-            if content.get("run_id") != run_id:
-                raise ValueError(
-                    f"Wrong run_id in artifact for {resolved_path}: "
-                    f"expected {run_id}, got {content.get('run_id')}"
-                )
-        else:
-            sha256 = calculate_sha256(resolved_path)
+        if data.get("artifact_type") != kind:
+            raise ValueError(f"Wrong artifact type: {data.get('artifact_type')} vs {kind}")
+
+        sha256 = calculate_sha256(path)
 
         input_refs.append(
             AgentWorkOrderInputRef(
                 step_id=dep_id,
                 artifact_kind=kind,
-                path=str(resolved_path),
-                required=is_required,
+                path=str(path),
+                required=True,
                 sha256=sha256,
             )
         )
@@ -606,35 +451,15 @@ def build_agent_work_order(
     step_id: str,
     runtime_mode: str,
     base_dir: Path,
-    manifest: PipelineManifest | None = None,
-    manifest_path: Path | None = None,
 ) -> AgentWorkOrder:
     """Construct an AgentWorkOrder matching schemas and policies."""
     if step_id not in POLICIES:
         raise ValueError(f"No agent work order policy defined for step_id: {step_id}")
 
     policy = POLICIES[step_id]
-    import os
-    target_wo_path = work_order_path_for(base_dir, betting_day, run_id, step_id)
-    if target_wo_path.exists():
-        try:
-            existing_wo = json.loads(target_wo_path.read_text(encoding="utf-8"))
-            created_at = existing_wo.get("created_at") or os.environ.get("BET_PIPELINE_RUN_AS_OF_UTC") or utc_now_iso()
-        except Exception:
-            created_at = os.environ.get("BET_PIPELINE_RUN_AS_OF_UTC") or utc_now_iso()
-    else:
-        created_at = os.environ.get("BET_PIPELINE_RUN_AS_OF_UTC") or utc_now_iso()
+    created_at = utc_now_iso()
 
-    if manifest is None:
-        from bet.pipeline.manifest import load_pipeline_manifest
-        if manifest_path is None:
-            manifest_path = Path(base_dir) / "config" / "pipeline_manifest.json"
-            if not manifest_path.is_file():
-                from bet.pipeline.manifest import discover_repo_root
-                manifest_path = discover_repo_root() / "config" / "pipeline_manifest.json"
-        manifest = load_pipeline_manifest(manifest_path)
-
-    input_refs = discover_input_refs_for_step(step_id, base_dir, betting_day, run_id, manifest=manifest)
+    input_refs = discover_input_refs_for_step(step_id, base_dir, betting_day, run_id)
     expected_path = expected_agent_artifact_path_for(
         base_dir, betting_day, run_id, step_id
     )
@@ -648,12 +473,19 @@ def build_agent_work_order(
     )
 
     work_order_id = f"WO-{run_id}-{step_id}"
+
+    from bet.pipeline.manifest import load_pipeline_manifest
+    manifest = load_pipeline_manifest()
+    manifest_step = next((s for s in manifest.steps if s.id == step_id), None)
+    if not manifest_step:
+        raise ValueError(f"Step {step_id} not found in manifest")
+    if not manifest_step.agent:
+        raise ValueError(f"Step {step_id} has no agent specified in manifest")
+    if manifest_step.hard_rules is None:
+        raise ValueError(f"Step {step_id} has no hard_rules specified in manifest")
+
     manifest_sha = get_manifest_sha(base_dir)
     source_head = get_source_head(base_dir)
-
-    step_obj = next((s for s in manifest.steps if s.id == step_id), None)
-    hard_rules = step_obj.hard_rules if step_obj and step_obj.hard_rules is not None else policy.hard_rules
-    agent = step_obj.agent if step_obj and step_obj.agent is not None else policy.agent
 
     return AgentWorkOrder(
         schema_version=1,
@@ -663,13 +495,13 @@ def build_agent_work_order(
         betting_day=betting_day,
         run_id=run_id,
         step_id=step_id,
-        agent=agent,
+        agent=manifest_step.agent,
         runtime_mode=runtime_mode,
         created_at=created_at,
         status="PENDING_AGENT",
         input_refs=input_refs,
         required_output=required_output,
-        hard_rules=hard_rules,
+        hard_rules=manifest_step.hard_rules,
         forbidden_outputs=policy.forbidden_outputs,
         instructions=policy.instructions,
         manifest_sha256=manifest_sha,

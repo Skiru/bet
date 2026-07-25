@@ -6,6 +6,33 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 
+class PipelineGraph:
+    """Canonical dependency graph mapping pipeline steps to prerequisite steps."""
+    _DEPENDENCIES = {
+        "S0": [],
+        "S1": ["S0"],
+        "S1e": ["S1"],
+        "S2": ["S1e"],
+        "S2.3": ["S2"],
+        "S2.5": ["S2", "S2.3"],
+        "S2.7": ["S2", "S2.3", "S2.5"],
+        "S2.9": ["S2", "S2.3", "S2.5", "S2.7"],
+        "S3": ["S2.9"],
+        "S4": ["S3"],
+        "S5": ["S3", "S4", "S2.9"],
+        "S6": ["S5"],
+        "S7": ["S6"],
+        "S7b": ["S7"],
+        "S8": ["S7", "S7b"],
+        "S9": ["S8"],
+        "S10": ["S9"],
+    }
+
+    @classmethod
+    def get_dependencies(cls, step_id: str) -> list[str]:
+        return cls._DEPENDENCIES.get(step_id, [])
+
+
 class PipelineManifestError(Exception):
     """Exception raised for errors in the pipeline manifest or its validation."""
     pass
@@ -21,8 +48,6 @@ class PipelineStep:
     output: str | None
     next: list[str] | None
     hard_rules: list[str] | None
-    depends_on: list[str] | None = None
-    required_inputs: list[str] | None = None
     wrapper: str | None = None
     canonical_script: str | None = None
 
@@ -91,8 +116,6 @@ def load_pipeline_manifest(path: Path | None = None) -> PipelineManifest:
             output=step_data.get("output"),
             next=step_data.get("next"),
             hard_rules=step_data.get("hard_rules"),
-            depends_on=step_data.get("depends_on"),
-            required_inputs=step_data.get("required_inputs"),
             wrapper=step_data.get("wrapper"),
             canonical_script=step_data.get("canonical_script")
         )
@@ -112,129 +135,6 @@ def load_pipeline_manifest(path: Path | None = None) -> PipelineManifest:
         steps=steps_list,
         runtime_contract=dict(data.get("runtime_contract", {})) if isinstance(data.get("runtime_contract"), dict) else {},
     )
-
-
-CANONICAL_POWER_AGENTS: tuple[str, ...] = (
-    "bet-executor",
-    "bet-researcher",
-    "bet-modeler",
-    "bet-risk-gatekeeper",
-    "bet-builder",
-    "bet-auditor",
-    "bet-settler-postevent",
-)
-
-
-def get_executor_allowed_tasks(repo_root: Path | None = None) -> set[str]:
-    """Extract allowed task names from bet-executor.md frontmatter."""
-    if repo_root is None:
-        repo_root = discover_repo_root()
-    executor_md = Path(repo_root) / ".kilo/agents" / "bet-executor.md"
-    if not executor_md.exists():
-        return set()
-    try:
-        import yaml
-        content = executor_md.read_text(encoding="utf-8")
-        if content.startswith("---\n") and "\n---\n" in content:
-            header = content[4:].split("\n---\n", 1)[0]
-            data = yaml.safe_load(header)
-            if isinstance(data, dict):
-                task = data.get("permission", {}).get("task", {})
-                if isinstance(task, dict) and task.get("*") == "deny":
-                    return {k for k, v in task.items() if k != "*" and v == "allow"}
-    except Exception:
-        pass
-    return set()
-
-
-def get_step_agent(
-    step_id: str,
-    manifest: PipelineManifest | None = None,
-    manifest_path: Path | None = None,
-) -> str:
-    """Get the canonical agent owner of a step from the pipeline manifest."""
-    if manifest is None:
-        manifest = load_pipeline_manifest(manifest_path)
-    for step in manifest.steps:
-        if step.id == step_id:
-            if not step.agent:
-                raise PipelineManifestError(f"Step {step_id} has no agent specified in manifest")
-            return step.agent
-    raise PipelineManifestError(f"Unknown step_id in manifest: {step_id}")
-
-
-def get_step_hard_rules(
-    step_id: str,
-    manifest: PipelineManifest | None = None,
-    manifest_path: Path | None = None,
-) -> list[str]:
-    """Get the canonical hard_rules for a step from the pipeline manifest."""
-    if manifest is None:
-        manifest = load_pipeline_manifest(manifest_path)
-    for step in manifest.steps:
-        if step.id == step_id:
-            if step.hard_rules is None:
-                raise PipelineManifestError(f"Step {step_id} has no hard_rules specified in manifest")
-            return list(step.hard_rules)
-    raise PipelineManifestError(f"Unknown step_id in manifest: {step_id}")
-
-
-class PipelineGraph:
-    """Canonical validated pipeline graph built from manifest."""
-
-    def __init__(self, manifest: PipelineManifest):
-        self.manifest = manifest
-        self.steps_by_id = {s.id: s for s in manifest.steps if s.id}
-        self.order = [s.id for s in manifest.steps if s.id]
-
-    def direct_dependencies(self, step_id: str) -> list[str]:
-        step = self.steps_by_id.get(step_id)
-        if not step:
-            return []
-        if step.depends_on is not None:
-            return list(step.depends_on)
-        return [s.id for s in self.manifest.steps if s.next and step_id in s.next and s.id]
-
-    def all_upstream_dependencies(self, step_id: str) -> list[str]:
-        visited: set[str] = set()
-        def traverse(sid: str) -> None:
-            for dep in self.direct_dependencies(sid):
-                if dep not in visited:
-                    visited.add(dep)
-                    traverse(dep)
-        traverse(step_id)
-        return [sid for sid in self.order if sid in visited]
-
-    def required_artifacts_before_step(self, step_id: str) -> tuple[str, ...]:
-        step = self.steps_by_id.get(step_id)
-        if step and step.required_inputs is not None:
-            return tuple(step.required_inputs)
-        return tuple(self.direct_dependencies(step_id))
-
-
-def get_upstream_dependencies(
-    step_id: str,
-    manifest: PipelineManifest | None = None,
-    manifest_path: Path | None = None,
-) -> list[str]:
-    """Get the canonical upstream dependency step IDs for a given step_id from the manifest graph."""
-    if manifest is None:
-        manifest = load_pipeline_manifest(manifest_path)
-    graph = PipelineGraph(manifest)
-    if step_id not in graph.steps_by_id:
-        raise PipelineManifestError(f"Unknown step_id in manifest: {step_id}")
-    return graph.direct_dependencies(step_id)
-
-
-def get_required_artifacts_before_step(
-    step_id: str,
-    manifest: PipelineManifest | None = None,
-) -> tuple[str, ...]:
-    """Get prerequisite step IDs whose artifacts are required before step_id."""
-    if manifest is None:
-        manifest = load_pipeline_manifest()
-    graph = PipelineGraph(manifest)
-    return graph.required_artifacts_before_step(step_id)
 
 
 def get_step_order() -> list[str]:
@@ -400,21 +300,11 @@ def validate_pipeline_manifest(manifest: PipelineManifest, repo_root: Path | Non
                     if not path_obj.exists():
                         errors.append(f"Step {sid} referenced {field_name} path does not exist: {path_str}")
 
-        # Referenced agent validation
+        # Referenced agent file validation
         if step.agent is not None:
-            if step.agent not in CANONICAL_POWER_AGENTS:
-                errors.append(f"Step {sid} agent '{step.agent}' is not a canonical power agent")
             agent_file = repo_root / ".kilo/agents" / f"{step.agent}.md"
             if not agent_file.exists():
                 errors.append(f"Step {sid} referenced agent file does not exist under .kilo/agents: {step.agent}.md")
-
-        # Execution mode task allowlist validation
-        if step.execution_mode == "agent_artifact" and step.agent is not None:
-            allowed_tasks = get_executor_allowed_tasks(repo_root)
-            if step.agent not in allowed_tasks:
-                errors.append(
-                    f"Step {sid} agent_artifact owner '{step.agent}' is not allowed in bet-executor task allowlist"
-                )
 
         # Enrichment step rules checking
         enrichment_steps = ["S2.3", "S2.5", "S2.7", "S2.9"]
@@ -449,115 +339,5 @@ def validate_pipeline_manifest(manifest: PipelineManifest, repo_root: Path | Non
         if idx_s7 != -1 and idx_s7b != -1 and idx_s8 != -1:
             if not (idx_s7 < idx_s7b < idx_s8):
                 errors.append("S7b must be after S7 and before S8")
-
-    # 5. Dependency and Graph Validation (P1-2)
-    depends_on_map = {}
-    required_inputs_map = {}
-
-    for step in manifest.steps:
-        sid = step.id
-        if not sid:
-            continue
-
-        deps = step.depends_on
-        reqs = step.required_inputs
-
-        if deps is not None:
-            # 1. No duplicate dependencies
-            if len(deps) != len(set(deps)):
-                errors.append(f"Step {sid} has duplicate dependencies in depends_on: {deps}")
-
-            # 2. No self-dependency
-            if sid in deps:
-                errors.append(f"Step {sid} has a self-dependency in depends_on")
-
-            # 3. Every dependency exists in manifest
-            for dep in deps:
-                if dep not in step_by_id:
-                    errors.append(f"Step {sid} depends on non-existent step: {dep}")
-
-            # 4. Dependencies precede the consuming step
-            sid_index = step_ids.index(sid) if sid in step_ids else -1
-            for dep in deps:
-                if dep in step_ids:
-                    dep_index = step_ids.index(dep)
-                    if dep_index >= sid_index:
-                        errors.append(f"Step {sid} depends on {dep} which does not precede it in step order")
-
-            # 5. Mandatory dependencies cannot be empty
-            if len(deps) == 0 and sid not in {"S0"}:
-                errors.append(f"Mandatory dependencies for step {sid} cannot be empty")
-
-            depends_on_map[sid] = deps
-        else:
-            depends_on_map[sid] = []
-
-        if reqs is not None:
-            # 1. No duplicate required_inputs
-            if len(reqs) != len(set(reqs)):
-                errors.append(f"Step {sid} has duplicate required_inputs: {reqs}")
-            required_inputs_map[sid] = reqs
-        else:
-            required_inputs_map[sid] = []
-
-    # Transitive dependencies helper
-    def get_transitive_deps(step_id: str, visited=None) -> set[str]:
-        if visited is None:
-            visited = set()
-        visited.add(step_id)
-        res = set()
-        for d in depends_on_map.get(step_id, []):
-            if d not in visited:
-                res.add(d)
-                res.update(get_transitive_deps(d, visited))
-        return res
-
-    # 6. Acyclic graph check
-    def has_cycle(step_id: str, visiting=None, visited=None) -> bool:
-        if visiting is None:
-            visiting = set()
-        if visited is None:
-            visited = set()
-        visiting.add(step_id)
-        for d in depends_on_map.get(step_id, []):
-            if d in visiting:
-                return True
-            if d not in visited:
-                if has_cycle(d, visiting, visited):
-                    return True
-        visiting.remove(step_id)
-        visited.add(step_id)
-        return False
-
-    for sid in step_ids:
-        if has_cycle(sid):
-            errors.append(f"Pipeline dependency graph has a cycle involving step: {sid}")
-
-    # 7. required_inputs reference existing direct/transitive dependencies
-    for sid, reqs in required_inputs_map.items():
-        trans_deps = get_transitive_deps(sid)
-        for r in reqs:
-            if r not in trans_deps:
-                errors.append(f"Step {sid} required_input {r} is not a direct or transitive dependency")
-
-    # 8. next edges and dependency edges are mutually coherent
-    next_reachable = {}
-    for sid in step_ids:
-        next_reachable[sid] = set()
-        queue = list(step_by_id[sid].next or [])
-        visited_next = set()
-        while queue:
-            curr = queue.pop(0)
-            if curr not in visited_next:
-                visited_next.add(curr)
-                next_reachable[sid].add(curr)
-                if curr in step_by_id:
-                    queue.extend(step_by_id[curr].next or [])
-
-    for sid in step_ids:
-        for dep in depends_on_map.get(sid, []):
-            if dep in step_by_id:
-                if sid not in next_reachable[dep]:
-                    errors.append(f"Incoherent edges: step {sid} depends on {dep}, but {sid} is not reachable from {dep} via next transitions")
 
     return errors

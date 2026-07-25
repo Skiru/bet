@@ -7134,14 +7134,6 @@
     "expiry_or_review_policy": "NO_EXPIRY_RETAIN_PERMANENTLY"
   },
   {
-    "path": "tests/test_agent_work_order_owner_alignment.py",
-    "category": "RETAINED_TEST",
-    "owner": "Kilo",
-    "reason": "Unit and integration testing of pipeline components",
-    "references": [],
-    "expiry_or_review_policy": "NO_EXPIRY_RETAIN_PERMANENTLY"
-  },
-  {
     "path": "tests/test_basketball_enrichment.py",
     "category": "RETAINED_TEST",
     "owner": "Kilo",
@@ -8721,9 +8713,9 @@
     "path": "config/pipeline_certification_inventory.json",
     "category": "RETAINED_ENGINEERING",
     "owner": "Kilo",
-    "reason": "Pipeline final closure certification inventory authority",
+    "reason": "Pipeline certification inventory configuration",
     "references": [],
-    "expiry_or_review_policy": "REVIEW_ON_SCHEMA_UPGRADE"
+    "expiry_or_review_policy": "NO_EXPIRY_RETAIN_PERMANENTLY"
   },
   {
     "path": "config/provider_runtime_policy.json",
@@ -8731,15 +8723,15 @@
     "owner": "Kilo",
     "reason": "Provider runtime policy configuration",
     "references": [],
-    "expiry_or_review_policy": "REVIEW_ON_SCHEMA_UPGRADE"
+    "expiry_or_review_policy": "NO_EXPIRY_RETAIN_PERMANENTLY"
   },
   {
     "path": "tests/support/__init__.py",
     "category": "RETAINED_TEST",
     "owner": "Kilo",
-    "reason": "Test support package",
+    "reason": "Test support helpers",
     "references": [],
-    "expiry_or_review_policy": "REVIEW_ON_SCHEMA_UPGRADE"
+    "expiry_or_review_policy": "NO_EXPIRY_RETAIN_PERMANENTLY"
   },
   {
     "path": "tests/support/adapters.py",
@@ -8747,7 +8739,15 @@
     "owner": "Kilo",
     "reason": "Test support adapters",
     "references": [],
-    "expiry_or_review_policy": "REVIEW_ON_SCHEMA_UPGRADE"
+    "expiry_or_review_policy": "NO_EXPIRY_RETAIN_PERMANENTLY"
+  },
+  {
+    "path": "tests/test_agent_work_order_owner_alignment.py",
+    "category": "RETAINED_TEST",
+    "owner": "Kilo",
+    "reason": "Owner alignment verification and git status checks",
+    "references": [],
+    "expiry_or_review_policy": "NO_EXPIRY_RETAIN_PERMANENTLY"
   },
   {
     "path": "uv.lock",

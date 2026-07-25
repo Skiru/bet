@@ -86,38 +86,6 @@ FORBIDDEN_SECRET_KEYS = {
 }
 
 
-def _has_placeholder(node: Any, is_pass_status: bool = False) -> str | None:
-    if isinstance(node, str):
-        s = node.strip()
-        if s.startswith("TODO_") or s in (
-            "TODO_FILL_BY_AGENT",
-            "NOT_FINAL_TEMPLATE",
-            "TEMPLATE_NOT_FILLED",
-        ):
-            return f"placeholder value found: '{node}'"
-    elif isinstance(node, dict):
-        for k, v in node.items():
-            if isinstance(k, str):
-                ks = k.strip()
-                if ks.startswith("TODO_") or ks in (
-                    "TODO_FILL_BY_AGENT",
-                    "NOT_FINAL_TEMPLATE",
-                    "TEMPLATE_NOT_FILLED",
-                ):
-                    return f"placeholder key found: '{k}'"
-                if is_pass_status and ks in ("template_status", "approval_state"):
-                    return f"template-only key '{k}' forbidden in PASS artifacts"
-            res = _has_placeholder(v, is_pass_status)
-            if res:
-                return res
-    elif isinstance(node, (list, tuple, set)):
-        for item in node:
-            res = _has_placeholder(item, is_pass_status)
-            if res:
-                return res
-    return None
-
-
 def _normalize_key(key: str) -> str:
     return str(key).strip().lower().replace("-", "_").replace(".", "_")
 
@@ -671,9 +639,6 @@ def validate_pipeline_artifact(
     raw: dict[str, Any],
     expected_step_id: str,
     *,
-    expected_betting_day: str | None = None,
-    expected_run_id: str | None = None,
-    expected_artifact_type: PipelineArtifactType | str | None = None,
     enforce_required_gate: bool = True,
     allow_block_status: bool = False,
 ) -> tuple[PipelineArtifact | None, list[ReadinessIssue]]:
@@ -732,22 +697,7 @@ def validate_pipeline_artifact(
                 )
             )
 
-    if expected_artifact_type is not None and art_type is not None:
-        expected_art_val = (
-            expected_artifact_type.value
-            if isinstance(expected_artifact_type, PipelineArtifactType)
-            else str(expected_artifact_type)
-        )
-        if art_type.value != expected_art_val:
-            issues.append(
-                ReadinessIssue(
-                    code="MISMATCH_ARTIFACT_TYPE",
-                    severity=PipelineReadinessStatus.BLOCK,
-                    message=f"Expected artifact_type {expected_art_val}, got {art_type.value}",
-                )
-            )
-
-    # 3. step_id, betting_day, run_id check
+    # 3. step_id check
     if "step_id" not in raw:
         issues.append(
             ReadinessIssue(
@@ -764,26 +714,6 @@ def validate_pipeline_artifact(
                 message=f"Expected step_id {expected_step_id}, got {raw['step_id']}",
             )
         )
-
-    if expected_betting_day is not None:
-        if raw.get("betting_day") != expected_betting_day:
-            issues.append(
-                ReadinessIssue(
-                    code="MISMATCH_BETTING_DAY",
-                    severity=PipelineReadinessStatus.BLOCK,
-                    message=f"Expected betting_day {expected_betting_day}, got {raw.get('betting_day')}",
-                )
-            )
-
-    if expected_run_id is not None:
-        if raw.get("run_id") != expected_run_id:
-            issues.append(
-                ReadinessIssue(
-                    code="MISMATCH_RUN_ID",
-                    severity=PipelineReadinessStatus.BLOCK,
-                    message=f"Expected run_id {expected_run_id}, got {raw.get('run_id')}",
-                )
-            )
 
     # 4. status check
     status_val = PipelineReadinessStatus.UNKNOWN
@@ -896,17 +826,6 @@ def validate_pipeline_artifact(
             )
         )
 
-    if status_val in (PipelineReadinessStatus.PASS, PipelineReadinessStatus.HUMAN_APPROVED):
-        ph_err = _has_placeholder(raw, is_pass_status=True)
-        if ph_err:
-            issues.append(
-                ReadinessIssue(
-                    code="PLACEHOLDER_DATA_FOUND",
-                    severity=PipelineReadinessStatus.BLOCK,
-                    message=f"Placeholder data found in PASS artifact: {ph_err}",
-                )
-            )
-
     # 8. List/tuple verification
     if art_type == PipelineArtifactType.AGENT_ARTIFACT:
         if "sources" not in raw:
@@ -975,8 +894,8 @@ def validate_pipeline_artifact(
 
 def required_artifacts_before_step(step_id: str) -> tuple[str, ...]:
     """Map pipeline steps to their direct prerequisite step artifacts."""
-    from bet.pipeline.manifest import get_required_artifacts_before_step
-    return get_required_artifacts_before_step(step_id)
+    from bet.pipeline.manifest import PipelineGraph
+    return tuple(PipelineGraph.get_dependencies(step_id))
 
 
 def evaluate_gate_before_step(

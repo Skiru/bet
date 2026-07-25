@@ -191,6 +191,7 @@ def validate_agent_artifact_for_work_order(
     def _payload_contains_any(payload: dict[str, Any], keys: tuple[str, ...]) -> bool:
         return any(key in payload for key in keys)
 
+    repo_root = find_repo_root(Path(__file__))
     errors = []
 
     # 1. basic matching
@@ -333,6 +334,98 @@ def validate_agent_artifact_for_work_order(
     evidence_refs = artifact_data.get("evidence_refs", [])
     is_pass = status == "PASS"
     is_block = status == "BLOCK"
+
+    # Strict evidence_refs check of P1-2
+    import hashlib
+    if isinstance(evidence_refs, list):
+        for ref in evidence_refs:
+            if not ref.endswith(".json") and "/" not in ref and "\\" not in ref:
+                continue
+
+            ref_path = None
+            base_candidates = []
+            if run_root:
+                base_candidates.append(run_root.parent.parent)
+                base_candidates.append(run_root)
+            if repo_root:
+                base_candidates.append(repo_root)
+
+            for base_dir in base_candidates:
+                candidate_path = (base_dir / ref).resolve()
+                if candidate_path.is_file():
+                    ref_path = candidate_path
+                    break
+
+            if not ref_path:
+                ref_path = (repo_root / ref).resolve()
+
+            # 1. Path existence
+            if not ref_path.is_file():
+                errors.append(f"Evidence ref path does not exist: {ref}")
+                continue
+
+            # 2. Path containment (must remain inside the current run root)
+            resolved_str = str(ref_path).replace("\\", "/")
+            expected_segment = f"pipeline_runs/{betting_day}/{run_id}"
+            if expected_segment not in resolved_str:
+                errors.append(f"Evidence ref escapes current run directory: {ref}")
+                continue
+
+            # Check for backup/outside suffixes
+            if ref_path.name.endswith(".backup") or ref_path.suffix == ".backup":
+                errors.append(f"Evidence ref uses invalid backup suffix: {ref}")
+                continue
+
+            # 3. Load evidence and validate contents
+            try:
+                with ref_path.open("r", encoding="utf-8") as f:
+                    ev_data = json.load(f)
+            except Exception as exc:
+                errors.append(f"Failed to load evidence ref {ref}: {exc}")
+                continue
+
+            # 4. Check betting_day and run_id
+            if ev_data.get("betting_day") != betting_day or ev_data.get("run_id") != run_id:
+                errors.append(f"Evidence ref {ref} contains mismatching betting_day/run_id")
+                continue
+
+            # 5. Check expected artifact type
+            if ev_data.get("artifact_type") not in ("SCRIPT_EVIDENCE", "AGENT_ARTIFACT"):
+                errors.append(f"Evidence ref {ref} contains invalid artifact type: {ev_data.get('artifact_type')}")
+                continue
+
+            # 6. Verify against work-order input refs or exact matching step_id and SHA-256
+            ev_step_id = ev_data.get("step_id")
+            clean_ev_step = ev_step_id.replace("_EXECUTION_EVIDENCE", "") if ev_step_id else ""
+
+            matching_ref = None
+            if isinstance(wo_input_refs, list):
+                for r in wo_input_refs:
+                    if isinstance(r, dict) and r.get("step_id") == clean_ev_step:
+                        matching_ref = r
+                        break
+                    elif hasattr(r, "step_id") and getattr(r, "step_id") == clean_ev_step:
+                        matching_ref = r
+                        break
+
+            if matching_ref:
+                ref_path_val = matching_ref.get("path") if isinstance(matching_ref, dict) else getattr(matching_ref, "path", None)
+                ref_sha_val = matching_ref.get("sha256") if isinstance(matching_ref, dict) else getattr(matching_ref, "sha256", None)
+
+                wo_path_resolved = Path(ref_path_val).resolve()
+                if ref_path != wo_path_resolved:
+                    if ref_path.parent != wo_path_resolved.parent:
+                        errors.append(f"Evidence ref {ref} path mismatch against work order input ref")
+
+                if ref_path == wo_path_resolved:
+                    curr_sha = hashlib.sha256(ref_path.read_bytes()).hexdigest()
+                    if curr_sha != ref_sha_val:
+                        errors.append(f"Evidence ref {ref} SHA-256 mismatch")
+            else:
+                from bet.pipeline.manifest import PipelineGraph
+                allowed_deps = PipelineGraph.get_dependencies(step_id)
+                if clean_ev_step != step_id and clean_ev_step not in allowed_deps:
+                    errors.append(f"Evidence ref {ref} step_id {ev_step_id} is not a valid dependency of {step_id}")
 
     # 4. common safety invariants
     placeholder_error = _has_placeholder(artifact_data, is_pass_status=is_pass)

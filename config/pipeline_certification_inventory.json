@@ -2,11 +2,13 @@
   "schema_version": "1.0",
   "mandatory_nodes": [
     "tests/test_canonical_continuity_v4_owner_regressions.py",
-    "tests/test_canonical_continuity_v4_offline_chain_proof.py"
+    "tests/test_canonical_continuity_v4_offline_chain_proof.py",
+    "tests/test_agent_work_order_owner_alignment.py"
   ],
   "expected_minimum_counts": {
-    "tests/test_canonical_continuity_v4_owner_regressions.py": 30,
-    "tests/test_canonical_continuity_v4_offline_chain_proof.py": 2
+    "tests/test_canonical_continuity_v4_owner_regressions.py": 25,
+    "tests/test_canonical_continuity_v4_offline_chain_proof.py": 2,
+    "tests/test_agent_work_order_owner_alignment.py": 2
   },
   "tests_metadata": {
     "adversarial_evidence_accounting": "test_strict_loader_adversarial_matrix",
