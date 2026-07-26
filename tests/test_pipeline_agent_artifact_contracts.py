@@ -86,7 +86,7 @@ def _build_base_artifact(step_id: str, status: str = "PASS") -> dict:
 def _seed_s5_prereqs(tmp_path, betting_day, run_id):
     from bet.pipeline.run_evidence import write_json_atomic
     from bet.pipeline.artifact_gate import artifact_path_for
-    
+
     # We can write S2, S3, S4 script evidences
     for sid in ("S2", "S3", "S4"):
         p = artifact_path_for(tmp_path, betting_day, run_id, sid)
@@ -100,7 +100,7 @@ def _seed_s5_prereqs(tmp_path, betting_day, run_id):
             "run_id": run_id,
             "payload": {}
         })
-        
+
     # We can write agent artifacts S2.3, S2.5, S2.7, S2.9
     for sid in ("S2.3", "S2.5", "S2.7", "S2.9"):
         p = artifact_path_for(tmp_path, betting_day, run_id, sid)

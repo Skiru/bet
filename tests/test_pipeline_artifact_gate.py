@@ -656,4 +656,3 @@ def test_p0_2_agent_predecessor_binding_direct_resume(tmp_path):
     decision = evaluate_gate_before_step("S6", tmp_path, betting_day, run_id)
     assert decision.verdict == PipelineReadinessStatus.BLOCK
     assert any("work_order_sha256 mismatch" in err for err in decision.failed_requirements)
-

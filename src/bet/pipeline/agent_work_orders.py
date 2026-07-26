@@ -364,16 +364,26 @@ def discover_input_refs_for_step(
     base_dir: Path,
     betting_day: str,
     run_id: str,
+    manifest: PipelineManifest,
 ) -> list[AgentWorkOrderInputRef]:
     """Find and hash files for upstream step dependencies."""
-    from bet.pipeline.manifest import PipelineGraph
-    dependencies = PipelineGraph.get_dependencies(step_id)
+    target_step = next((s for s in manifest.steps if s.id == step_id), None)
+    if not target_step:
+        raise ValueError(f"Step {step_id} not found in manifest")
+
+    dependencies = list(target_step.depends_on or [])
     input_refs = []
     for dep_id in dependencies:
-        if dep_id in {"S0", "S1", "S1e", "S2", "S3", "S4", "S6", "S7", "S7b", "S8"}:
+        dep_step = next((s for s in manifest.steps if s.id == dep_id), None)
+        if not dep_step:
+            raise ValueError(f"Dependency step {dep_id} not found in manifest")
+
+        if dep_step.execution_mode == "script":
             kind = "SCRIPT_EVIDENCE"
-        else:
+        elif dep_step.execution_mode == "agent_artifact":
             kind = "AGENT_ARTIFACT"
+        else:
+            raise ValueError(f"Unsupported execution mode '{dep_step.execution_mode}' for dependency {dep_id}")
 
         path = _resolve_input_ref_path(
             dep_id, kind, Path(base_dir), betting_day, run_id
@@ -536,7 +546,7 @@ def build_agent_work_order(
 
             candidate_agent = manifest_step.agent
             candidate_hard_rules = manifest_step.hard_rules
-            candidate_inputs = discover_input_refs_for_step(step_id, base_dir, betting_day, run_id)
+            candidate_inputs = discover_input_refs_for_step(step_id, base_dir, betting_day, run_id, manifest)
             candidate_manifest_sha = get_manifest_sha(base_dir, manifest_path=manifest_path)
             candidate_source_head = get_source_head(base_dir)
             expected_path = expected_agent_artifact_path_for(base_dir, betting_day, run_id, step_id)
@@ -575,7 +585,11 @@ def build_agent_work_order(
 
     created_at = utc_now_iso()
 
-    input_refs = discover_input_refs_for_step(step_id, base_dir, betting_day, run_id)
+    if manifest is None:
+        from bet.pipeline.manifest import load_pipeline_manifest
+        manifest = load_pipeline_manifest(manifest_path)
+
+    input_refs = discover_input_refs_for_step(step_id, base_dir, betting_day, run_id, manifest)
     expected_path = expected_agent_artifact_path_for(
         base_dir, betting_day, run_id, step_id
     )
@@ -590,9 +604,6 @@ def build_agent_work_order(
 
     work_order_id = f"WO-{run_id}-{step_id}"
 
-    if manifest is None:
-        from bet.pipeline.manifest import load_pipeline_manifest
-        manifest = load_pipeline_manifest(manifest_path)
     manifest_step = next((s for s in manifest.steps if s.id == step_id), None)
     if not manifest_step:
         raise ValueError(f"Step {step_id} not found in manifest")

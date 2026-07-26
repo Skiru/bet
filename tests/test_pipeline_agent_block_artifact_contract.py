@@ -68,8 +68,10 @@ def _seed_all_up_to_step(base_dir: Path, target_step: str) -> None:
             }
             write_json_atomic(path, payload)
         elif mode == "agent_artifact":
+            from bet.pipeline.manifest import load_pipeline_manifest
             from bet.pipeline.agent_work_orders import discover_input_refs_for_step
-            refs = discover_input_refs_for_step(sid, base_dir, BETTING_DAY, RUN_ID)
+            manifest = load_pipeline_manifest()
+            refs = discover_input_refs_for_step(sid, base_dir, BETTING_DAY, RUN_ID, manifest)
             input_refs_json = [r.to_jsonable() for r in refs]
 
             p_wo_path = base_dir / "pipeline_runs" / BETTING_DAY / RUN_ID / "artifacts" / f"{sid}_work_order.json"

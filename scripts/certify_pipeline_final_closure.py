@@ -206,14 +206,13 @@ def main() -> int:
                 raise CertificationError("Running certifier script is not identical to target root script")
 
         # Before collection require git status --porcelain == empty
-        # or require and verify an exact expected source-tree hash as a mandatory argument.
         status_res = subprocess.run(["git", "status", "--porcelain"], cwd=root_path, capture_output=True, text=True)
         if status_res.returncode != 0:
             raise CertificationError("Failed to check git status on target root")
-        
+
         is_dirty = bool(status_res.stdout.strip())
-        if is_dirty and not args.expected_source_tree_sha256:
-            raise CertificationError(f"Target repository worktree is dirty. Must provide matching --expected-source-tree-sha256 to certify.\n{status_res.stdout.strip()}")
+        if is_dirty:
+            raise CertificationError("CERT_DIRTY_WORKTREE")
 
         # Load and validate inventory
         inv_path = root_path / "config" / "pipeline_certification_inventory.json"

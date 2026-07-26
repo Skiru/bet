@@ -417,13 +417,13 @@ def test_p0_1_adversarial_missing_dependencies(tmp_path):
 def test_p1_2_alternate_manifest(tmp_path):
     """Verify that build_agent_work_order honors an alternate manifest throughout."""
     from bet.pipeline.manifest import load_pipeline_manifest
-    
+
     # 1. Load the original manifest
     orig_manifest = load_pipeline_manifest()
-    
+
     # 2. Let's create an alternate manifest where S2.3 has different hard rules and agent owner
     alt_manifest_path = tmp_path / "alt_manifest.json"
-    
+
     alt_steps = []
     for step in orig_manifest.steps:
         step_dict = {
@@ -444,7 +444,7 @@ def test_p1_2_alternate_manifest(tmp_path):
             step_dict["agent"] = "bet-modeler"  # change agent owner
             step_dict["hard_rules"] = ["alternate_rule_1"]  # change hard rules
         alt_steps.append(step_dict)
-        
+
     alt_data = {
         "schema_version": orig_manifest.schema_version,
         "pipeline_id": orig_manifest.pipeline_id,
@@ -454,12 +454,12 @@ def test_p1_2_alternate_manifest(tmp_path):
         "steps": alt_steps,
         "runtime_contract": orig_manifest.runtime_contract,
     }
-    
+
     alt_manifest_path.write_text(json.dumps(alt_data), encoding="utf-8")
-    
+
     # Let's seed S2 prerequisite
     create_mock_artifacts(tmp_path, "2026-06-25", "run-smoke-alt")
-    
+
     # Build with default manifest
     wo_orig = build_agent_work_order(
         betting_day="2026-06-25",
@@ -470,7 +470,7 @@ def test_p1_2_alternate_manifest(tmp_path):
     )
     assert wo_orig.agent == "bet-researcher"
     assert "alternate_rule_1" not in wo_orig.hard_rules
-    
+
     # Build with alternate manifest_path
     wo_alt = build_agent_work_order(
         betting_day="2026-06-25",
@@ -480,9 +480,108 @@ def test_p1_2_alternate_manifest(tmp_path):
         base_dir=tmp_path,
         manifest_path=alt_manifest_path,
     )
-    
+
     assert wo_alt.agent == "bet-modeler"
     assert "alternate_rule_1" in wo_alt.hard_rules
     assert wo_alt.manifest_sha256 == calculate_sha256(alt_manifest_path)
 
 
+def test_dependency_execution_mode_changes_artifact_kind(tmp_path):
+    """Verify that changing a dependency's execution_mode changes the expected artifact kind."""
+    from bet.pipeline.manifest import load_pipeline_manifest
+
+    # 1. Load original manifest
+    orig_manifest = load_pipeline_manifest()
+
+    # 2. Create alternate manifest where S2 (dependency of S2.3) is changed from "script" to "agent_artifact"
+    alt_manifest_path = tmp_path / "alt_manifest_dep.json"
+
+    alt_steps = []
+    for step in orig_manifest.steps:
+        step_dict = {
+            "id": step.id,
+            "name": step.name,
+            "phase": step.phase,
+            "agent": step.agent,
+            "execution_mode": step.execution_mode,
+            "output": step.output,
+            "next": step.next,
+            "hard_rules": step.hard_rules,
+            "wrapper": step.wrapper,
+            "canonical_script": step.canonical_script,
+            "depends_on": step.depends_on,
+            "required_inputs": step.required_inputs,
+        }
+        if step.id == "S2":
+            step_dict["execution_mode"] = "agent_artifact"
+        alt_steps.append(step_dict)
+
+    alt_data = {
+        "schema_version": orig_manifest.schema_version,
+        "pipeline_id": orig_manifest.pipeline_id,
+        "timezone": orig_manifest.timezone,
+        "betting_day": orig_manifest.betting_day,
+        "global_rules": orig_manifest.global_rules,
+        "steps": alt_steps,
+        "runtime_contract": orig_manifest.runtime_contract,
+    }
+
+    alt_manifest_path.write_text(json.dumps(alt_data), encoding="utf-8")
+
+    # Seed S2 prerequisite
+    betting_day = "2026-06-25"
+    run_id = "run-execution-mode-test"
+
+    artifacts_dir = tmp_path / "pipeline_runs" / betting_day / run_id / "artifacts"
+    artifacts_dir.mkdir(parents=True, exist_ok=True)
+
+    # Under default manifest, S2 is "script" -> expects SCRIPT_EVIDENCE
+    s2_path = artifacts_dir / "S2.json"
+    s2_script_payload = {
+        "schema_version": 1,
+        "artifact_type": "SCRIPT_EVIDENCE",
+        "step_id": "S2",
+        "status": "PASS",
+        "betting_day": betting_day,
+        "run_id": run_id,
+        "payload": {}
+    }
+    s2_path.write_text(json.dumps(s2_script_payload), encoding="utf-8")
+
+    # 3. Build S2.3 work order with default manifest
+    wo_orig = build_agent_work_order(
+        betting_day=betting_day,
+        run_id=run_id,
+        step_id="S2.3",
+        runtime_mode="DRY_RUN",
+        base_dir=tmp_path,
+    )
+    assert wo_orig.input_refs[0].artifact_kind == "SCRIPT_EVIDENCE"
+
+    # 4. Under alternate manifest, S2 is "agent_artifact" -> expects AGENT_ARTIFACT
+    s2_agent_payload = {
+        "schema_version": 1,
+        "artifact_type": "AGENT_ARTIFACT",
+        "step_id": "S2",
+        "status": "PASS",
+        "betting_day": betting_day,
+        "run_id": run_id,
+        "point_in_time_as_of": "2026-06-25T12:00:00Z",
+        "source_bound": True,
+        "no_pick_edge_stake_coupon_emitted": True,
+        "production_selectable": False,
+        "betting_decisions_enabled": False,
+        "sources": [],
+        "payload": {}
+    }
+    s2_path.write_text(json.dumps(s2_agent_payload), encoding="utf-8")
+
+    wo_alt = build_agent_work_order(
+        betting_day=betting_day,
+        run_id=run_id,
+        step_id="S2.3",
+        runtime_mode="DRY_RUN",
+        base_dir=tmp_path,
+        manifest_path=alt_manifest_path,
+    )
+    assert wo_alt.input_refs[0].artifact_kind == "AGENT_ARTIFACT"

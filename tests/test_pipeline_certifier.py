@@ -232,7 +232,7 @@ def test_two():
     # Create scripts folder with validators and certifier
     scripts_dir = mock_root / "scripts"
     scripts_dir.mkdir()
-    
+
     # Copy certifier script there so it is verifiably identical
     target_certifier_path = scripts_dir / "certify_pipeline_final_closure.py"
     target_certifier_path.write_bytes(SCRIPT.read_bytes())
@@ -288,7 +288,7 @@ def test_two():
 
     # EXPLOIT SCENARIO 2: Modify bet-executor task permissions so its own validator fails
     val_script.write_text("import sys; sys.exit(1)", encoding="utf-8")
-    
+
     # Running certifier should now FAIL
     result_exploit_val = subprocess.run(
         [
@@ -312,6 +312,7 @@ def test_two():
         "CERT_VALIDATOR_FAILED" in result_exploit_val.stderr
         or "Target repository worktree is dirty" in result_exploit_val.stderr
         or "CERT_SOURCE_TREE_MISMATCH" in result_exploit_val.stderr
+        or "CERT_DIRTY_WORKTREE" in result_exploit_val.stderr
     )
 
     # EXPLOIT SCENARIO 3: Replace mandatory tests with equal-count dummy tests
@@ -349,4 +350,204 @@ def test_dummy_2():
         "CERT_MANDATORY_FILE_HASH_MISMATCH" in result_exploit_tests.stderr
         or "Target repository worktree is dirty" in result_exploit_tests.stderr
         or "CERT_SOURCE_TREE_MISMATCH" in result_exploit_tests.stderr
+        or "CERT_DIRTY_WORKTREE" in result_exploit_tests.stderr
     )
+
+
+def test_certifier_dirty_worktree_rejections(tmp_path: Path) -> None:
+    """Add focused tests proving dirty worktree rejections."""
+    import hashlib
+    if os.environ.get("BET_PIPELINE_CERTIFIER_ACTIVE") == "1":
+        return
+
+    mock_root = tmp_path / "mock-repo"
+    mock_root.mkdir()
+
+    # Initialise git inside mock_root
+    subprocess.run(["git", "init", "-b", "main"], cwd=mock_root, capture_output=True, check=True)
+    subprocess.run(["git", "config", "user.name", "test-user"], cwd=mock_root, capture_output=True, check=True)
+    subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=mock_root, capture_output=True, check=True)
+
+    exclude_file = mock_root / ".git" / "info" / "exclude"
+    exclude_file.write_text(".pytest_cache/\n__pycache__/\n*.pyc\n", encoding="utf-8")
+
+    # Config inventory
+    config_dir = mock_root / "config"
+    config_dir.mkdir()
+    inv_file = config_dir / "pipeline_certification_inventory.json"
+
+    # Create dummy tests file
+    tests_dir = mock_root / "tests"
+    tests_dir.mkdir()
+    test_mock_file = tests_dir / "test_mandatory_mock.py"
+    test_mock_content = "def test_one():\n    assert True\n"
+    test_mock_file.write_text(test_mock_content, encoding="utf-8")
+    actual_test_sha = hashlib.sha256(test_mock_file.read_bytes()).hexdigest()
+
+    inventory_data = {
+        "schema_version": "1.0",
+        "mandatory_nodes": [
+            "tests/test_mandatory_mock.py"
+        ],
+        "mandatory_file_sha256s": {
+            "tests/test_mandatory_mock.py": actual_test_sha
+        },
+        "expected_minimum_counts": {
+            "tests/test_mandatory_mock.py": 1
+        },
+        "allowed_skips": []
+    }
+    inv_file.write_text(json.dumps(inventory_data), encoding="utf-8")
+
+    # Create scripts folder with validators and certifier
+    scripts_dir = mock_root / "scripts"
+    scripts_dir.mkdir()
+
+    target_certifier_path = scripts_dir / "certify_pipeline_final_closure.py"
+    target_certifier_path.write_bytes(SCRIPT.read_bytes())
+
+    # Create a validator script
+    val_script = scripts_dir / "validate_production_surface.py"
+    val_script.write_text("import sys; sys.exit(0)", encoding="utf-8")
+
+    other_vals = [
+        "validate_power_agent_control_plane.py",
+        "validate_manifest_power_agents.py",
+        "validate_reachability_graph.py",
+        "validate_provider_registry.py",
+        "validate_database_access.py"
+    ]
+    for val in other_vals:
+        (scripts_dir / val).write_text("import sys; sys.exit(0)", encoding="utf-8")
+
+    # Commit initial state to have a clean git tree
+    subprocess.run(["git", "add", "."], cwd=mock_root, capture_output=True, check=True)
+    subprocess.run(["git", "commit", "-m", "initial clean"], cwd=mock_root, capture_output=True, check=True)
+
+    # Calculate expected source tree sha of clean tree
+    _, expected_tree = source_manifest(mock_root)
+    output_cert = tmp_path / "certificate.json"
+    junit_file = tmp_path / "results.xml"
+
+    # CASE 5: Clean worktree plus matching head/tree continues to pass
+    res_clean = subprocess.run(
+        [
+            sys.executable,
+            str(target_certifier_path),
+            "--repo-root",
+            str(mock_root),
+            "--output",
+            str(output_cert),
+            "--junit",
+            str(junit_file),
+            "--expected-source-tree-sha256",
+            expected_tree,
+        ],
+        cwd=mock_root,
+        capture_output=True,
+        text=True,
+    )
+    assert res_clean.returncode == 0, f"Clean check failed: {res_clean.stderr}"
+    assert output_cert.exists()
+    output_cert.unlink()
+
+    # CASE 1: Tracked modification is rejected
+    test_mock_file.write_text("def test_one():\n    assert False\n", encoding="utf-8")
+    res_modified = subprocess.run(
+        [
+            sys.executable,
+            str(target_certifier_path),
+            "--repo-root",
+            str(mock_root),
+            "--output",
+            str(output_cert),
+            "--junit",
+            str(junit_file),
+            "--expected-source-tree-sha256",
+            expected_tree,
+        ],
+        cwd=mock_root,
+        capture_output=True,
+        text=True,
+    )
+    assert res_modified.returncode == 1
+    assert "CERT_DIRTY_WORKTREE" in res_modified.stderr
+    assert not output_cert.exists()
+
+    # Reset tracked modification
+    subprocess.run(["git", "checkout", "--", "tests/test_mandatory_mock.py"], cwd=mock_root, capture_output=True, check=True)
+
+    # CASE 2: Staged modification is rejected
+    test_mock_file.write_text("def test_one():\n    assert True\n# comment\n", encoding="utf-8")
+    subprocess.run(["git", "add", "tests/test_mandatory_mock.py"], cwd=mock_root, capture_output=True, check=True)
+    res_staged = subprocess.run(
+        [
+            sys.executable,
+            str(target_certifier_path),
+            "--repo-root",
+            str(mock_root),
+            "--output",
+            str(output_cert),
+            "--junit",
+            str(junit_file),
+            "--expected-source-tree-sha256",
+            expected_tree,
+        ],
+        cwd=mock_root,
+        capture_output=True,
+        text=True,
+    )
+    assert res_staged.returncode == 1
+    assert "CERT_DIRTY_WORKTREE" in res_staged.stderr
+    assert not output_cert.exists()
+
+    # Reset staged modification
+    subprocess.run(["git", "reset", "HEAD", "tests/test_mandatory_mock.py"], cwd=mock_root, capture_output=True, check=True)
+    subprocess.run(["git", "checkout", "--", "tests/test_mandatory_mock.py"], cwd=mock_root, capture_output=True, check=True)
+
+    # CASE 3: Untracked file is rejected
+    untracked_file = mock_root / "untracked.py"
+    untracked_file.write_text("# untracked file\n", encoding="utf-8")
+    res_untracked = subprocess.run(
+        [
+            sys.executable,
+            str(target_certifier_path),
+            "--repo-root",
+            str(mock_root),
+            "--output",
+            str(output_cert),
+            "--junit",
+            str(junit_file),
+            "--expected-source-tree-sha256",
+            expected_tree,
+        ],
+        cwd=mock_root,
+        capture_output=True,
+        text=True,
+    )
+    assert res_untracked.returncode == 1
+    assert "CERT_DIRTY_WORKTREE" in res_untracked.stderr
+    assert not output_cert.exists()
+
+    # CASE 4: Supplying a matching expected tree hash does not bypass dirty-worktree rejection
+    _, dirty_tree = source_manifest(mock_root)
+    res_bypass_check = subprocess.run(
+        [
+            sys.executable,
+            str(target_certifier_path),
+            "--repo-root",
+            str(mock_root),
+            "--output",
+            str(output_cert),
+            "--junit",
+            str(junit_file),
+            "--expected-source-tree-sha256",
+            dirty_tree,
+        ],
+        cwd=mock_root,
+        capture_output=True,
+        text=True,
+    )
+    assert res_bypass_check.returncode == 1
+    assert "CERT_DIRTY_WORKTREE" in res_bypass_check.stderr
+    assert not output_cert.exists()
