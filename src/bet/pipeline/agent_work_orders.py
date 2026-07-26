@@ -52,8 +52,6 @@ class AgentWorkOrderOutputContract:
 
 @dataclass
 class AgentWorkOrderPolicy:
-    agent: str
-    hard_rules: list[str]
     forbidden_outputs: list[str]
     instructions: dict[str, Any]
     schema_requirements: dict[str, Any]
@@ -77,6 +75,8 @@ class AgentWorkOrder:
     hard_rules: list[str]
     forbidden_outputs: list[str]
     instructions: dict[str, Any]
+    manifest_sha256: str = "UNKNOWN"
+    source_head: str = "UNKNOWN"
 
     def to_jsonable(self) -> dict[str, Any]:
         return {
@@ -96,16 +96,9 @@ class AgentWorkOrder:
             "hard_rules": self.hard_rules,
             "forbidden_outputs": self.forbidden_outputs,
             "instructions": self.instructions,
+            "manifest_sha256": self.manifest_sha256,
+            "source_head": self.source_head,
         }
-
-
-STEP_UPSTREAM_DEPENDENCIES: dict[str, list[str]] = {
-    "S2.3": ["S2"],
-    "S2.5": ["S2", "S2.3"],
-    "S2.7": ["S2", "S2.3", "S2.5"],
-    "S2.9": ["S2", "S2.3", "S2.5", "S2.7"],
-    "S5": ["S3", "S4", "S2.9"],
-}
 
 
 OUTPUT_CONTRACT_NOTES = [
@@ -118,18 +111,6 @@ OUTPUT_CONTRACT_NOTES = [
 
 POLICIES: dict[str, AgentWorkOrderPolicy] = {
     "S2.3": AgentWorkOrderPolicy(
-        agent="bet-enricher",
-        hard_rules=[
-            "no_pick",
-            "no_edge",
-            "no_stake",
-            "no_coupon",
-            "source_bound_only",
-            "unknown_or_blocked_for_missing_data",
-            "no_production_db_write",
-            "no_betting_data_write",
-            "point_in_time_required",
-        ],
         forbidden_outputs=[
             "internal_pick",
             "recommended_pick",
@@ -164,18 +145,6 @@ POLICIES: dict[str, AgentWorkOrderPolicy] = {
         },
     ),
     "S2.5": AgentWorkOrderPolicy(
-        agent="bet-enricher",
-        hard_rules=[
-            "no_pick",
-            "no_edge",
-            "no_stake",
-            "no_coupon",
-            "source_bound_only",
-            "unknown_or_blocked_for_missing_data",
-            "no_production_db_write",
-            "no_betting_data_write",
-            "point_in_time_required",
-        ],
         forbidden_outputs=[
             "internal_pick",
             "recommended_pick",
@@ -210,18 +179,6 @@ POLICIES: dict[str, AgentWorkOrderPolicy] = {
         },
     ),
     "S2.7": AgentWorkOrderPolicy(
-        agent="bet-enricher",
-        hard_rules=[
-            "no_pick",
-            "no_edge",
-            "no_stake",
-            "no_coupon",
-            "source_bound_only",
-            "unknown_or_blocked_for_missing_data",
-            "no_production_db_write",
-            "no_betting_data_write",
-            "point_in_time_required",
-        ],
         forbidden_outputs=[
             "internal_pick",
             "recommended_pick",
@@ -256,18 +213,6 @@ POLICIES: dict[str, AgentWorkOrderPolicy] = {
         },
     ),
     "S2.9": AgentWorkOrderPolicy(
-        agent="bet-enricher",
-        hard_rules=[
-            "no_pick",
-            "no_edge",
-            "no_stake",
-            "no_coupon",
-            "source_bound_only",
-            "unknown_or_blocked_for_missing_data",
-            "no_production_db_write",
-            "no_betting_data_write",
-            "point_in_time_required",
-        ],
         forbidden_outputs=[
             "internal_pick",
             "recommended_pick",
@@ -301,14 +246,6 @@ POLICIES: dict[str, AgentWorkOrderPolicy] = {
         },
     ),
     "S5": AgentWorkOrderPolicy(
-        agent="bet-risk-gatekeeper",
-        hard_rules=[
-            "injury_lineup_context_required",
-            "motivation_and_tournament_context_required",
-            "travel_schedule_fatigue_checked",
-            "morale_and_recent_result_context_checked",
-            "volatility_or_upset_risk_checked",
-        ],
         forbidden_outputs=[
             "internal_pick",
             "recommended_pick",
@@ -400,7 +337,7 @@ def _script_evidence_candidates(
     run_root = resolve_run_root(betting_day, run_id, base_dir)
     runtime_artifacts = runtime_artifact_dir(run_root)
     return (
-        artifact_path_for(run_root, betting_day, run_id, step_id),
+        run_root / "artifacts" / f"{step_id}.json",
         runtime_artifacts / f"{step_id}.json",
         artifact_path_for(base_dir, betting_day, run_id, step_id),
     )
@@ -427,19 +364,51 @@ def discover_input_refs_for_step(
     base_dir: Path,
     betting_day: str,
     run_id: str,
+    manifest: PipelineManifest,
 ) -> list[AgentWorkOrderInputRef]:
     """Find and hash files for upstream step dependencies."""
-    dependencies = STEP_UPSTREAM_DEPENDENCIES.get(step_id, [])
+    target_step = next((s for s in manifest.steps if s.id == step_id), None)
+    if not target_step:
+        raise ValueError(f"Step {step_id} not found in manifest")
+
+    dependencies = list(target_step.depends_on or [])
     input_refs = []
     for dep_id in dependencies:
-        if dep_id in {"S2", "S3", "S4"}:
+        dep_step = next((s for s in manifest.steps if s.id == dep_id), None)
+        if not dep_step:
+            raise ValueError(f"Dependency step {dep_id} not found in manifest")
+
+        if dep_step.execution_mode == "script":
             kind = "SCRIPT_EVIDENCE"
-        else:
+        elif dep_step.execution_mode == "agent_artifact":
             kind = "AGENT_ARTIFACT"
+        else:
+            raise ValueError(f"Unsupported execution mode '{dep_step.execution_mode}' for dependency {dep_id}")
 
         path = _resolve_input_ref_path(
             dep_id, kind, Path(base_dir), betting_day, run_id
         )
+
+        if not path.is_file():
+            raise ValueError(f"Required dependency file is missing: {path}")
+
+        try:
+            content = path.read_text(encoding="utf-8").strip()
+            if not content:
+                raise ValueError("Empty file")
+            data = json.loads(content)
+        except Exception:
+            raise ValueError(f"Dependency {dep_id} file is unreadable or invalid JSON")
+
+        if data.get("betting_day") != betting_day:
+            raise ValueError(f"Wrong betting_day in artifact: {data.get('betting_day')} vs {betting_day}")
+
+        if data.get("run_id") != run_id:
+            raise ValueError(f"Wrong run_id in artifact: {data.get('run_id')} vs {run_id}")
+
+        if data.get("artifact_type") != kind:
+            raise ValueError(f"Wrong artifact type: {data.get('artifact_type')} vs {kind}")
+
         sha256 = calculate_sha256(path)
 
         input_refs.append(
@@ -454,6 +423,80 @@ def discover_input_refs_for_step(
     return input_refs
 
 
+def get_manifest_sha(base_dir: Path, manifest_path: Path | None = None) -> str:
+    if manifest_path is None:
+        manifest_path = base_dir / "config" / "pipeline_manifest.json"
+        if not manifest_path.is_file():
+            from bet.pipeline.manifest import discover_repo_root
+            manifest_path = discover_repo_root() / "config" / "pipeline_manifest.json"
+    return calculate_sha256(manifest_path)
+
+
+def get_source_head(base_dir: Path) -> str:
+    from bet.pipeline.manifest import discover_repo_root
+    import subprocess
+    try:
+        root = discover_repo_root()
+    except Exception:
+        root = base_dir
+    try:
+        res = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=str(root),
+            capture_output=True,
+            text=True,
+            check=True,
+            timeout=10,
+        )
+        sha = res.stdout.strip()
+        if sha:
+            return sha
+    except Exception:
+        pass
+    return "UNKNOWN"
+
+
+def load_agent_work_order_from_dict(data: dict[str, Any]) -> AgentWorkOrder:
+    input_refs = [
+        AgentWorkOrderInputRef(
+            step_id=ref["step_id"],
+            artifact_kind=ref["artifact_kind"],
+            path=ref["path"],
+            required=ref["required"],
+            sha256=ref["sha256"],
+        )
+        for ref in data["input_refs"]
+    ]
+    req_out = data["required_output"]
+    required_output = AgentWorkOrderOutputContract(
+        artifact_type=req_out["artifact_type"],
+        step_id=req_out["step_id"],
+        expected_path=req_out["expected_path"],
+        required_statuses=req_out["required_statuses"],
+        schema_requirements=req_out["schema_requirements"],
+    )
+    return AgentWorkOrder(
+        schema_version=data["schema_version"],
+        work_order_id=data["work_order_id"],
+        work_order_type=data["work_order_type"],
+        pipeline_id=data["pipeline_id"],
+        betting_day=data["betting_day"],
+        run_id=data["run_id"],
+        step_id=data["step_id"],
+        agent=data["agent"],
+        runtime_mode=data["runtime_mode"],
+        created_at=data["created_at"],
+        status=data["status"],
+        input_refs=input_refs,
+        required_output=required_output,
+        hard_rules=data["hard_rules"],
+        forbidden_outputs=data["forbidden_outputs"],
+        instructions=data["instructions"],
+        manifest_sha256=data.get("manifest_sha256", "UNKNOWN"),
+        source_head=data.get("source_head", "UNKNOWN"),
+    )
+
+
 def build_agent_work_order(
     *,
     betting_day: str,
@@ -461,15 +504,92 @@ def build_agent_work_order(
     step_id: str,
     runtime_mode: str,
     base_dir: Path,
+    manifest: Any | None = None,
+    manifest_path: Any | None = None,
+    **kwargs: Any,
 ) -> AgentWorkOrder:
     """Construct an AgentWorkOrder matching schemas and policies."""
+    from bet.pipeline.canonical_continuity import ContinuityContractError
+
     if step_id not in POLICIES:
         raise ValueError(f"No agent work order policy defined for step_id: {step_id}")
 
     policy = POLICIES[step_id]
+    target_path = work_order_path_for(base_dir, betting_day, run_id, step_id)
+    if target_path.is_file():
+        try:
+            content = target_path.read_text(encoding="utf-8")
+            existing_data = json.loads(content)
+            existing_wo = load_agent_work_order_from_dict(existing_data)
+        except Exception:
+            existing_wo = None
+
+        if existing_wo is not None:
+            if (
+                existing_wo.betting_day != betting_day
+                or existing_wo.run_id != run_id
+                or existing_wo.step_id != step_id
+                or existing_wo.runtime_mode != runtime_mode
+            ):
+                raise ContinuityContractError(f"WORK_ORDER_DRIFT: Identifiers mismatched in existing work order at {target_path}")
+
+            if manifest is None:
+                from bet.pipeline.manifest import load_pipeline_manifest
+                manifest = load_pipeline_manifest(manifest_path)
+            manifest_step = next((s for s in manifest.steps if s.id == step_id), None)
+            if not manifest_step:
+                raise ValueError(f"Step {step_id} not found in manifest")
+            if not manifest_step.agent:
+                raise ValueError(f"Step {step_id} has no agent specified in manifest")
+            if manifest_step.hard_rules is None:
+                raise ValueError(f"Step {step_id} has no hard_rules specified in manifest")
+
+            candidate_agent = manifest_step.agent
+            candidate_hard_rules = manifest_step.hard_rules
+            candidate_inputs = discover_input_refs_for_step(step_id, base_dir, betting_day, run_id, manifest)
+            candidate_manifest_sha = get_manifest_sha(base_dir, manifest_path=manifest_path)
+            candidate_source_head = get_source_head(base_dir)
+            expected_path = expected_agent_artifact_path_for(base_dir, betting_day, run_id, step_id)
+
+            if existing_wo.agent != candidate_agent:
+                raise ContinuityContractError(f"WORK_ORDER_DRIFT: owner changed from {existing_wo.agent} to {candidate_agent}")
+
+            if existing_wo.hard_rules != candidate_hard_rules:
+                raise ContinuityContractError(f"WORK_ORDER_DRIFT: hard_rules changed")
+
+            if len(existing_wo.input_refs) != len(candidate_inputs):
+                raise ContinuityContractError("WORK_ORDER_DRIFT: inputs count changed")
+            for ref_existing, ref_candidate in zip(existing_wo.input_refs, candidate_inputs):
+                if (
+                    ref_existing.step_id != ref_candidate.step_id
+                    or ref_existing.artifact_kind != ref_candidate.artifact_kind
+                    or ref_existing.path != ref_candidate.path
+                    or ref_existing.required != ref_candidate.required
+                    or ref_existing.sha256 != ref_candidate.sha256
+                ):
+                    raise ContinuityContractError("WORK_ORDER_DRIFT: inputs changed")
+
+            if existing_wo.manifest_sha256 != candidate_manifest_sha:
+                raise ContinuityContractError("WORK_ORDER_DRIFT: manifest_sha256 changed")
+
+            if existing_wo.source_head != candidate_source_head:
+                raise ContinuityContractError("WORK_ORDER_DRIFT: source_head changed")
+
+            if existing_wo.required_output.expected_path != str(expected_path):
+                raise ContinuityContractError("WORK_ORDER_DRIFT: expected output path changed")
+
+            if existing_wo.required_output.schema_requirements != policy.schema_requirements:
+                raise ContinuityContractError("WORK_ORDER_DRIFT: schema_requirements changed")
+
+            return existing_wo
+
     created_at = utc_now_iso()
 
-    input_refs = discover_input_refs_for_step(step_id, base_dir, betting_day, run_id)
+    if manifest is None:
+        from bet.pipeline.manifest import load_pipeline_manifest
+        manifest = load_pipeline_manifest(manifest_path)
+
+    input_refs = discover_input_refs_for_step(step_id, base_dir, betting_day, run_id, manifest)
     expected_path = expected_agent_artifact_path_for(
         base_dir, betting_day, run_id, step_id
     )
@@ -484,6 +604,19 @@ def build_agent_work_order(
 
     work_order_id = f"WO-{run_id}-{step_id}"
 
+    manifest_step = next((s for s in manifest.steps if s.id == step_id), None)
+    if not manifest_step:
+        raise ValueError(f"Step {step_id} not found in manifest")
+    if not manifest_step.agent:
+        raise ValueError(f"Step {step_id} has no agent specified in manifest")
+    if manifest_step.hard_rules is None:
+        raise ValueError(f"Step {step_id} has no hard_rules specified in manifest")
+
+    manifest_sha = get_manifest_sha(base_dir, manifest_path=manifest_path)
+    source_head = get_source_head(base_dir)
+    if source_head == "UNKNOWN" or not source_head:
+        raise ContinuityContractError("Git source_head is UNKNOWN which is forbidden for persisted work orders")
+
     return AgentWorkOrder(
         schema_version=1,
         work_order_id=work_order_id,
@@ -492,15 +625,17 @@ def build_agent_work_order(
         betting_day=betting_day,
         run_id=run_id,
         step_id=step_id,
-        agent=policy.agent,
+        agent=manifest_step.agent,
         runtime_mode=runtime_mode,
         created_at=created_at,
         status="PENDING_AGENT",
         input_refs=input_refs,
         required_output=required_output,
-        hard_rules=policy.hard_rules,
+        hard_rules=manifest_step.hard_rules,
         forbidden_outputs=policy.forbidden_outputs,
         instructions=policy.instructions,
+        manifest_sha256=manifest_sha,
+        source_head=source_head,
     )
 
 

@@ -264,6 +264,115 @@ def validate() -> list[str]:
     for changed in git_changed_files():
         if changed.startswith("reports/pipeline_runs/"):
             errors.append(f"report artifact in source diff: {changed}")
+
+    # 5. Work-order generation matrix and validation inside TemporaryDirectory
+    import tempfile
+    from bet.pipeline.manifest import load_pipeline_manifest
+    from bet.pipeline.agent_work_orders import build_agent_work_order
+    from bet.pipeline.artifact_gate import artifact_path_for
+
+    try:
+        manifest_obj = load_pipeline_manifest()
+
+        with tempfile.TemporaryDirectory() as tmp_dir_str:
+            tmp_dir = Path(tmp_dir_str)
+            betting_day = "2026-07-25"
+            run_id = "validate-run"
+
+            # Determine dependency graph and steps to test
+            from bet.pipeline.manifest import PipelineGraph
+
+            # Seed valid, current-run predecessor artifacts dynamically
+            all_steps = [s.id for s in manifest_obj.steps if s.id]
+            for s_id in all_steps:
+                path = tmp_dir / "pipeline_runs" / betting_day / run_id / "artifacts" / f"{s_id}.json"
+                path.parent.mkdir(parents=True, exist_ok=True)
+
+                m_step = next((s for s in manifest_obj.steps if s.id == s_id), None)
+                if m_step and m_step.execution_mode == "script":
+                    data = {
+                        "schema_version": 1,
+                        "artifact_type": "SCRIPT_EVIDENCE",
+                        "step_id": s_id,
+                        "status": "PASS",
+                        "betting_day": betting_day,
+                        "run_id": run_id,
+                        "payload": {}
+                    }
+                else:
+                    data = {
+                        "schema_version": 1,
+                        "artifact_type": "AGENT_ARTIFACT",
+                        "step_id": s_id,
+                        "status": "PASS",
+                        "betting_day": betting_day,
+                        "run_id": run_id,
+                        "point_in_time_as_of": "2026-07-25T12:00:00Z",
+                        "source_bound": True,
+                        "no_pick_edge_stake_coupon_emitted": True,
+                        "production_selectable": False,
+                        "betting_decisions_enabled": False,
+                        "sources": [],
+                        "payload": {}
+                    }
+                path.write_text(json.dumps(data), encoding="utf-8")
+
+            # Validate each agent_artifact step
+            agent_artifact_steps = [
+                s for s in manifest_obj.steps if s.execution_mode == "agent_artifact"
+            ]
+            for step in agent_artifact_steps:
+                step_id = step.id
+                wo = build_agent_work_order(
+                    betting_day=betting_day,
+                    run_id=run_id,
+                    step_id=step_id,
+                    runtime_mode="DRY_RUN",
+                    base_dir=tmp_dir,
+                )
+
+                # Validate: generated agent == manifest agent
+                if wo.agent != step.agent:
+                    errors.append(f"{step_id}: generated agent {wo.agent} != manifest agent {step.agent}")
+
+                # Validate: agent exists
+                agent_path = ROOT / ".kilo/agents" / f"{wo.agent}.md"
+                if not agent_path.exists():
+                    errors.append(f"{step_id}: agent file does not exist: {agent_path}")
+
+                # Validate: agent is task-allowed
+                if wo.agent != "bet-executor":
+                    executor_task = permissions.get("bet-executor", {}).get("task", {})
+                    if executor_task.get(wo.agent) != "allow":
+                        errors.append(f"{step_id}: agent {wo.agent} is not task-allowed by bet-executor")
+
+                # Validate: hard_rules exactly match manifest
+                if sorted(wo.hard_rules) != sorted(step.hard_rules):
+                    errors.append(f"{step_id}: hard_rules mismatch: {wo.hard_rules} vs manifest {step.hard_rules}")
+
+                # Validate: every required input exists and has non-empty SHA
+                if not wo.input_refs:
+                    expected_deps = PipelineGraph.get_dependencies(step_id)
+                    if expected_deps:
+                        errors.append(f"{step_id}: has expected dependencies {expected_deps} but no input_refs generated")
+                for ref in wo.input_refs:
+                    ref_path = Path(ref.path)
+                    if not ref_path.exists():
+                        errors.append(f"{step_id}: required input {ref.step_id} path does not exist: {ref.path}")
+                    if not ref.sha256 or len(ref.sha256) != 64:
+                        errors.append(f"{step_id}: required input {ref.step_id} has invalid or empty SHA-256: {ref.sha256}")
+
+                # Validate: paths remain inside the temporary run root
+                resolved_tmp = tmp_dir.resolve()
+                if not Path(wo.required_output.expected_path).resolve().is_relative_to(resolved_tmp):
+                    errors.append(f"{step_id}: expected output path escapes temporary run root: {wo.required_output.expected_path}")
+                for ref in wo.input_refs:
+                    if not Path(ref.path).resolve().is_relative_to(resolved_tmp):
+                        errors.append(f"{step_id}: input ref path escapes temporary run root: {ref.path}")
+
+    except Exception as exc:
+        errors.append(f"Work-order matrix validation failed with exception: {exc}")
+
     return errors
 
 

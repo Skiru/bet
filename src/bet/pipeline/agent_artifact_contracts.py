@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 from typing import Any
 
@@ -35,21 +36,144 @@ def agent_steps_from_manifest(manifest: PipelineManifest | dict[str, Any]) -> li
     return steps_list
 
 
-def required_agent_output_contract(step_id: str) -> dict[str, Any]:
+def required_agent_output_contract(
+    step_id: str,
+    *,
+    manifest: Any | None = None,
+    work_order: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     """Retrieve output contract requirements for a specific step."""
     from bet.pipeline.agent_work_orders import POLICIES
+    from bet.pipeline.manifest import get_step_hard_rules
 
     if step_id not in POLICIES:
         raise ValueError(f"No policy defined for step_id: {step_id}")
     policy = POLICIES[step_id]
+
+    if work_order and isinstance(work_order.get("hard_rules"), list):
+        hard_rules = list(work_order["hard_rules"])
+    else:
+        hard_rules = get_step_hard_rules(step_id, manifest=manifest)
+
     return {
         "artifact_type": "AGENT_ARTIFACT",
         "step_id": step_id,
         "required_statuses": ["PASS", "BLOCK", "COMMAND_REQUEST"],
         "schema_requirements": policy.schema_requirements,
         "forbidden_outputs": policy.forbidden_outputs,
-        "hard_rules": policy.hard_rules,
+        "hard_rules": hard_rules,
     }
+
+
+def _is_exact_step_ref(ref: str, step_id: str) -> bool:
+    lowered = ref.lower()
+    if any(bad in lowered for bad in ("fake", "garbage", "not-artifact", "not_artifact")) or ref.endswith(".txt"):
+        return False
+    name = Path(ref).name
+    pattern = rf"(?:^|[\/\._\-]){re.escape(step_id)}(?:$|[\/\._\-])"
+    return bool(re.search(pattern, name) or re.search(pattern, ref))
+
+
+def _refs_cover_required_steps(
+    evidence_refs: list[str], required_steps: tuple[str, ...]
+) -> bool:
+    for required_step in required_steps:
+        if not any(_is_exact_step_ref(ref, required_step) for ref in evidence_refs):
+            return False
+    return True
+
+
+def _contains_provider_promotion(node: Any) -> bool:
+    forbidden_tokens = (
+        "promote_provider",
+        "provider_promotion",
+        "preferred_provider",
+        "promoted_provider",
+        "selected_provider",
+        "switch_provider",
+    )
+    if isinstance(node, dict):
+        filtered_dict = {}
+        for k, v in node.items():
+            k_norm = str(k).strip().lower()
+            v_norm = str(v).strip().lower() if v is not None else "null"
+            is_allowed_negative = (
+                (k_norm == "no_provider_promotion" and v is True)
+                or (k_norm == "provider_promotion_forbidden" and v is True)
+                or (k_norm == "selected_provider_status" and v_norm == "unchanged")
+                or (k_norm == "promoted_provider" and v is None)
+            )
+            if not is_allowed_negative:
+                filtered_dict[k] = v
+
+        for key, value in filtered_dict.items():
+            normalized_key = str(key).strip().lower()
+            if any(token in normalized_key for token in forbidden_tokens):
+                return True
+            if _contains_provider_promotion(value):
+                return True
+        return False
+
+    if isinstance(node, (list, tuple)):
+        return any(_contains_provider_promotion(item) for item in node)
+
+    if isinstance(node, str):
+        lowered = node.strip().lower()
+        if lowered in ("unchanged", "null"):
+            return False
+        for token in forbidden_tokens:
+            if token in lowered:
+                # Check if this token appears as a positive assignment or directive
+                if re.search(rf"\b{re.escape(token)}\s*[:=]|\b{re.escape(token)}\s+to\b", lowered):
+                    return True
+        if any(token in lowered for token in forbidden_tokens):
+            negated_phrases = (
+                "do_not_change_provider_selection",
+                "no_provider_promotion",
+                "must_not_promote",
+                "no provider promotion",
+                "do not promote",
+                "disallowed",
+                "forbidden",
+                "provider_promotion_forbidden",
+                "unchanged",
+                "null",
+            )
+            if not any(phrase in lowered for phrase in negated_phrases):
+                return True
+    return False
+
+
+def _has_placeholder(node: Any, is_pass_status: bool = False) -> str | None:
+    if isinstance(node, str):
+        s = node.strip()
+        if s.startswith("TODO_") or s in (
+            "TODO_FILL_BY_AGENT",
+            "NOT_FINAL_TEMPLATE",
+            "TEMPLATE_NOT_FILLED",
+        ):
+            return f"placeholder value found: '{node}'"
+    elif isinstance(node, dict):
+        for k, v in node.items():
+            if isinstance(k, str):
+                ks = k.strip()
+                if ks.startswith("TODO_") or ks in (
+                    "TODO_FILL_BY_AGENT",
+                    "NOT_FINAL_TEMPLATE",
+                    "TEMPLATE_NOT_FILLED",
+                ):
+                    return f"placeholder key found: '{k}'"
+                if is_pass_status and ks in ("template_status", "approval_state"):
+                    return f"template-only key '{k}' forbidden in PASS artifacts"
+            res = _has_placeholder(v, is_pass_status)
+            if res:
+                return res
+    elif isinstance(node, (list, tuple, set)):
+        for item in node:
+            res = _has_placeholder(item, is_pass_status)
+            if res:
+                return res
+    return None
 
 
 def validate_agent_artifact_for_work_order(
@@ -67,71 +191,7 @@ def validate_agent_artifact_for_work_order(
     def _payload_contains_any(payload: dict[str, Any], keys: tuple[str, ...]) -> bool:
         return any(key in payload for key in keys)
 
-    def _refs_cover_required_steps(
-        evidence_refs: list[str], required_steps: tuple[str, ...]
-    ) -> bool:
-        return all(
-            any(required_step in ref for ref in evidence_refs)
-            for required_step in required_steps
-        )
-
-    def _contains_provider_promotion(node: Any) -> bool:
-        forbidden_tokens = (
-            "promote",
-            "promotion",
-            "preferred_provider",
-            "promoted_provider",
-            "selected_provider",
-            "provider_selection",
-            "selection_change",
-            "switch_provider",
-        )
-        if isinstance(node, dict):
-            for key, value in node.items():
-                normalized_key = str(key).strip().lower()
-                if any(token in normalized_key for token in forbidden_tokens):
-                    return True
-                if _contains_provider_promotion(value):
-                    return True
-            return False
-        if isinstance(node, list):
-            return any(_contains_provider_promotion(item) for item in node)
-        if isinstance(node, str):
-            lowered = node.strip().lower()
-            return any(token in lowered for token in forbidden_tokens)
-        return False
-
-    def _has_placeholder(node: Any, is_pass_status: bool = False) -> str | None:
-        if isinstance(node, str):
-            s = node.strip()
-            if s.startswith("TODO_") or s in (
-                "TODO_FILL_BY_AGENT",
-                "NOT_FINAL_TEMPLATE",
-                "TEMPLATE_NOT_FILLED",
-            ):
-                return f"placeholder value found: '{node}'"
-        elif isinstance(node, dict):
-            for k, v in node.items():
-                if isinstance(k, str):
-                    ks = k.strip()
-                    if ks.startswith("TODO_") or ks in (
-                        "TODO_FILL_BY_AGENT",
-                        "NOT_FINAL_TEMPLATE",
-                        "TEMPLATE_NOT_FILLED",
-                    ):
-                        return f"placeholder key found: '{k}'"
-                    if is_pass_status and ks in ("template_status", "approval_state"):
-                        return f"template-only key '{k}' forbidden in PASS artifacts"
-                res = _has_placeholder(v, is_pass_status)
-                if res:
-                    return res
-        elif isinstance(node, (list, tuple, set)):
-            for item in node:
-                res = _has_placeholder(item, is_pass_status)
-                if res:
-                    return res
-        return None
-
+    repo_root = find_repo_root(Path(__file__))
     errors = []
 
     # 1. basic matching
@@ -153,19 +213,30 @@ def validate_agent_artifact_for_work_order(
             f"betting_day mismatch: expected {betting_day}, got {artifact_data.get('betting_day')}"
         )
 
-    # Determine run root
-    repo_root = find_repo_root(Path(__file__))
-    run_root = repo_root / "pipeline_runs" / betting_day / run_id
-    wo_input_refs = work_order_data.get("input_refs", [])
-    for ref in wo_input_refs:
-        ref_path = (
-            ref.get("path") if isinstance(ref, dict) else getattr(ref, "path", None)
-        )
-        if ref_path:
-            run_root = Path(ref_path).resolve().parents[1]
-            break
+    # Determine run root and work order path
+    req_output = work_order_data.get("required_output", {})
+    expected_artifact_path_str = req_output.get("expected_path")
+    if expected_artifact_path_str:
+        art_parent = Path(expected_artifact_path_str).parent
+        wo_path = art_parent / f"{step_id}_work_order.json"
+        run_root = art_parent.parent
+    else:
+        wo_input_refs = work_order_data.get("input_refs", [])
+        run_root = None
+        for ref in wo_input_refs:
+            ref_path = ref.get("path") if isinstance(ref, dict) else getattr(ref, "path", None)
+            if ref_path:
+                p_ref = Path(ref_path).resolve()
+                if len(p_ref.parents) >= 2:
+                    run_root = p_ref.parents[1]
+                    break
+        if run_root is None:
+            repo_root = find_repo_root(Path(__file__))
+            run_root = repo_root / "pipeline_runs" / betting_day / run_id
+        wo_path = run_root / "artifacts" / f"{step_id}_work_order.json"
 
     # 1. Verify predecessors have not changed after work-order creation
+    wo_input_refs = work_order_data.get("input_refs", [])
     for ref in wo_input_refs:
         ref_step_id = (
             ref.get("step_id")
@@ -194,26 +265,49 @@ def validate_agent_artifact_for_work_order(
                     )
 
     # 2. Load the actual persisted work order from disk and verify its hash
-    wo_path = run_root / "artifacts" / f"{step_id}_work_order.json"
-    if wo_path.exists():
-        from bet.pipeline.canonical_continuity import file_sha256
+    status_val = artifact_data.get("status")
 
-        actual_wo_sha = file_sha256(wo_path)
-        status_val = artifact_data.get("status")
-        if status_val == "PASS":
-            if "work_order_id" not in artifact_data:
-                errors.append("PASS artifact missing 'work_order_id'")
-            elif artifact_data["work_order_id"] != work_order_data.get("work_order_id"):
-                errors.append(
-                    f"work_order_id mismatch: {artifact_data['work_order_id']} vs {work_order_data.get('work_order_id')}"
-                )
+    if status_val in ("PASS", "BLOCK", "COMMAND_REQUEST"):
+        if not wo_path.exists():
+            errors.append(f"Persisted work order file missing at {wo_path}")
+        else:
+            from bet.pipeline.canonical_continuity import file_sha256
 
-            if "work_order_sha256" not in artifact_data:
-                errors.append("PASS artifact missing 'work_order_sha256'")
-            elif artifact_data["work_order_sha256"] != actual_wo_sha:
-                errors.append(
-                    f"work_order_sha256 mismatch: {artifact_data['work_order_sha256']} vs {actual_wo_sha}"
-                )
+            actual_wo_sha = file_sha256(wo_path)
+            if status_val in ("PASS", "BLOCK", "COMMAND_REQUEST"):
+                if "work_order_id" not in artifact_data:
+                    errors.append(f"{status_val} artifact missing 'work_order_id'")
+                elif artifact_data["work_order_id"] != work_order_data.get("work_order_id"):
+                    errors.append(
+                        f"work_order_id mismatch: {artifact_data['work_order_id']} vs {work_order_data.get('work_order_id')}"
+                    )
+
+                if "work_order_sha256" not in artifact_data:
+                    errors.append(f"{status_val} artifact missing 'work_order_sha256'")
+                elif artifact_data["work_order_sha256"] != actual_wo_sha:
+                    errors.append(
+                        f"work_order_sha256 mismatch: {artifact_data['work_order_sha256']} vs {actual_wo_sha}"
+                    )
+
+    # 2b. Producer agent binding check
+    expected_agent = work_order_data.get("agent")
+    actual_producer = (
+        artifact_data.get("producer_agent_id")
+        or artifact_data.get("payload", {}).get("producer_agent_id")
+        or artifact_data.get("payload", {}).get("agent_id")
+        or artifact_data.get("agent")
+    )
+    if status_val in ("PASS", "BLOCK", "COMMAND_REQUEST"):
+        if not actual_producer:
+            errors.append(f"{status_val} artifact missing producer_agent_id / agent_id binding")
+        elif actual_producer != expected_agent:
+            errors.append(
+                f"producer_agent_id mismatch: expected {expected_agent}, got {actual_producer}"
+            )
+    elif actual_producer and actual_producer != expected_agent:
+        errors.append(
+            f"producer_agent_id mismatch: expected {expected_agent}, got {actual_producer}"
+        )
 
     # 2. artifact_type check
     if artifact_data.get("artifact_type") != "AGENT_ARTIFACT":
@@ -240,6 +334,111 @@ def validate_agent_artifact_for_work_order(
     evidence_refs = artifact_data.get("evidence_refs", [])
     is_pass = status == "PASS"
     is_block = status == "BLOCK"
+
+    # Strict evidence_refs check of P1-2
+    import hashlib
+    if isinstance(evidence_refs, list):
+        for ref in evidence_refs:
+            if not ref.endswith(".json") and "/" not in ref and "\\" not in ref:
+                continue
+
+            ref_path = None
+            base_candidates = []
+            if run_root:
+                base_candidates.append(run_root.parent.parent.parent)
+                base_candidates.append(run_root.parent.parent)
+                base_candidates.append(run_root)
+            if repo_root:
+                base_candidates.append(repo_root)
+
+            for base_dir in base_candidates:
+                candidate_path = (base_dir / ref).resolve()
+                if candidate_path.is_file():
+                    ref_path = candidate_path
+                    break
+
+            if not ref_path:
+                ref_path = (repo_root / ref).resolve()
+
+            # 1. Path existence
+            if not ref_path.is_file():
+                errors.append(f"Evidence ref path does not exist: {ref}")
+                continue
+
+            # 2. Path containment (must remain inside the current run root)
+            resolved_str = str(ref_path).replace("\\", "/")
+            expected_segment = f"pipeline_runs/{betting_day}/{run_id}"
+            if expected_segment not in resolved_str:
+                errors.append(f"Evidence ref escapes current run directory: {ref}")
+                continue
+
+            # Check for backup/outside suffixes
+            if ref_path.name.endswith(".backup") or ref_path.suffix == ".backup":
+                errors.append(f"Evidence ref uses invalid backup suffix: {ref}")
+                continue
+
+            # 3. Load evidence and validate contents
+            try:
+                with ref_path.open("r", encoding="utf-8") as f:
+                    ev_data = json.load(f)
+            except Exception as exc:
+                errors.append(f"Failed to load evidence ref {ref}: {exc}")
+                continue
+
+            # 4. Check betting_day and run_id
+            if ev_data.get("betting_day") != betting_day or ev_data.get("run_id") != run_id:
+                errors.append(f"Evidence ref {ref} contains mismatching betting_day/run_id")
+                continue
+
+            # 5. Check expected artifact type
+            if ev_data.get("artifact_type") not in ("SCRIPT_EVIDENCE", "AGENT_ARTIFACT"):
+                errors.append(f"Evidence ref {ref} contains invalid artifact type: {ev_data.get('artifact_type')}")
+                continue
+
+            # 6. Verify against work-order input refs or exact matching step_id and SHA-256
+            ev_step_id = ev_data.get("step_id")
+            clean_ev_step = ev_step_id.replace("_EXECUTION_EVIDENCE", "") if ev_step_id else ""
+
+            matching_ref = None
+            if isinstance(wo_input_refs, list):
+                for r in wo_input_refs:
+                    if isinstance(r, dict) and r.get("step_id") == clean_ev_step:
+                        matching_ref = r
+                        break
+                    elif hasattr(r, "step_id") and getattr(r, "step_id") == clean_ev_step:
+                        matching_ref = r
+                        break
+
+            if matching_ref:
+                ref_path_val = matching_ref.get("path") if isinstance(matching_ref, dict) else getattr(matching_ref, "path", None)
+                ref_sha_val = matching_ref.get("sha256") if isinstance(matching_ref, dict) else getattr(matching_ref, "sha256", None)
+                expected_kind = matching_ref.get("artifact_kind") if isinstance(matching_ref, dict) else getattr(matching_ref, "artifact_kind", None)
+
+                wo_path_resolved = Path(ref_path_val).resolve()
+                if ref_path != wo_path_resolved:
+                    errors.append(f"Evidence ref {ref} path mismatch against work order input ref: expected {wo_path_resolved}, got {ref_path}")
+                else:
+                    curr_sha = hashlib.sha256(ref_path.read_bytes()).hexdigest()
+                    if curr_sha != ref_sha_val:
+                        errors.append(f"Evidence ref {ref} SHA-256 mismatch: expected {ref_sha_val}, got {curr_sha}")
+
+                matching_ref_step_id = matching_ref.get("step_id") if isinstance(matching_ref, dict) else getattr(matching_ref, "step_id", None)
+                if clean_ev_step != matching_ref_step_id:
+                    errors.append(f"Evidence ref {ref} step_id mismatch: expected {matching_ref_step_id}, got {clean_ev_step}")
+
+                if expected_kind and ev_data.get("artifact_type") != expected_kind:
+                    errors.append(f"Evidence ref {ref} artifact_type mismatch: expected {expected_kind}, got {ev_data.get('artifact_type')}")
+
+                if ev_data.get("betting_day") != betting_day:
+                    errors.append(f"Evidence ref {ref} betting_day mismatch: expected {betting_day}, got {ev_data.get('betting_day')}")
+
+                if ev_data.get("run_id") != run_id:
+                    errors.append(f"Evidence ref {ref} run_id mismatch: expected {run_id}, got {ev_data.get('run_id')}")
+            else:
+                from bet.pipeline.manifest import PipelineGraph
+                allowed_deps = PipelineGraph.get_dependencies(step_id)
+                if clean_ev_step != step_id and clean_ev_step not in allowed_deps:
+                    errors.append(f"Evidence ref {ref} step_id {ev_step_id} is not a valid dependency of {step_id}")
 
     # 4. common safety invariants
     placeholder_error = _has_placeholder(artifact_data, is_pass_status=is_pass)

@@ -23,7 +23,95 @@ BETTING_DAY = "2026-06-26"
 RUN_ID = "run-agent-block-contract"
 
 
-def _agent_artifact(step_id: str, status: str) -> dict[str, object]:
+def _seed_all_up_to_step(base_dir: Path, target_step: str) -> None:
+    from bet.pipeline.agent_work_orders import get_source_head, get_manifest_sha
+    import hashlib
+    curr_source_head = get_source_head(base_dir)
+    curr_manifest_sha = get_manifest_sha(base_dir)
+
+    steps_execution_modes = {
+        "S0": "script",
+        "S1": "script",
+        "S1e": "script",
+        "S2": "script",
+        "S2.3": "agent_artifact",
+        "S2.5": "agent_artifact",
+        "S2.7": "agent_artifact",
+        "S2.9": "agent_artifact",
+        "S3": "script",
+        "S4": "script",
+        "S5": "agent_artifact",
+        "S6": "script",
+        "S7": "script",
+        "S7b": "script",
+        "S8": "script",
+        "S9": "human_gate"
+    }
+
+    all_steps = ["S0", "S1", "S1e", "S2", "S2.3", "S2.5", "S2.7", "S2.9", "S3", "S4", "S5", "S6"]
+    limit_idx = all_steps.index(target_step)
+
+    for sid in all_steps[:limit_idx]:
+        mode = steps_execution_modes[sid]
+        path = artifact_path_for(base_dir, BETTING_DAY, RUN_ID, sid)
+        path.parent.mkdir(parents=True, exist_ok=True)
+
+        if mode == "script":
+            payload = {
+                "schema_version": 1,
+                "artifact_type": "SCRIPT_EVIDENCE",
+                "step_id": sid,
+                "status": "PASS",
+                "betting_day": BETTING_DAY,
+                "run_id": RUN_ID,
+                "payload": {}
+            }
+            write_json_atomic(path, payload)
+        elif mode == "agent_artifact":
+            from bet.pipeline.manifest import load_pipeline_manifest
+            from bet.pipeline.agent_work_orders import discover_input_refs_for_step
+            manifest = load_pipeline_manifest()
+            refs = discover_input_refs_for_step(sid, base_dir, BETTING_DAY, RUN_ID, manifest)
+            input_refs_json = [r.to_jsonable() for r in refs]
+
+            p_wo_path = base_dir / "pipeline_runs" / BETTING_DAY / RUN_ID / "artifacts" / f"{sid}_work_order.json"
+            p_wo_data = {
+                "schema_version": 1,
+                "work_order_id": f"WO-{RUN_ID}-{sid}",
+                "work_order_type": "AGENT_WORK_ORDER",
+                "pipeline_id": "daily-pipeline",
+                "betting_day": BETTING_DAY,
+                "run_id": RUN_ID,
+                "step_id": sid,
+                "agent": "bet-researcher" if "S2" in sid else "bet-risk-gatekeeper",
+                "runtime_mode": "DRY_RUN",
+                "created_at": "2026-06-25T12:00:00Z",
+                "status": "PASS",
+                "input_refs": input_refs_json,
+                "required_output": {
+                    "expected_path": str(path),
+                    "required_statuses": ["PASS", "BLOCK"],
+                    "schema_requirements": {},
+                    "forbidden_outputs": [],
+                    "hard_rules": [],
+                },
+                "hard_rules": [],
+                "forbidden_outputs": [],
+                "instructions": {},
+                "source_head": curr_source_head,
+                "manifest_sha256": curr_manifest_sha,
+            }
+            write_json_atomic(p_wo_path, p_wo_data)
+            wo_sha = hashlib.sha256(p_wo_path.read_bytes()).hexdigest()
+
+            payload = _agent_artifact(sid, "PASS", base_dir)
+            payload["producer_agent_id"] = "bet-researcher" if "S2" in sid else "bet-risk-gatekeeper"
+            payload["work_order_id"] = f"WO-{RUN_ID}-{sid}"
+            payload["work_order_sha256"] = wo_sha
+            write_json_atomic(path, payload)
+
+
+def _agent_artifact(step_id: str, status: str, base_dir: Path | None = None) -> dict[str, object]:
     payload: dict[str, object] = {}
     evidence_refs: list[str] = []
     sources: list[str] = []
@@ -32,10 +120,27 @@ def _agent_artifact(step_id: str, status: str) -> dict[str, object]:
     source_bound = True
 
     if step_id == "S2.9" and status == "PASS":
+        s2_3_sha = "dummy"
+        s2_5_sha = "dummy"
+        s2_7_sha = "dummy"
+        if base_dir is not None:
+            from bet.pipeline.agent_work_orders import calculate_sha256
+            s2_3_path = artifact_path_for(base_dir, BETTING_DAY, RUN_ID, "S2.3")
+            s2_5_path = artifact_path_for(base_dir, BETTING_DAY, RUN_ID, "S2.5")
+            s2_7_path = artifact_path_for(base_dir, BETTING_DAY, RUN_ID, "S2.7")
+            s2_3_sha = calculate_sha256(s2_3_path) or "dummy"
+            s2_5_sha = calculate_sha256(s2_5_path) or "dummy"
+            s2_7_sha = calculate_sha256(s2_7_path) or "dummy"
+
         payload = {
             "readiness": "PASS",
             "readiness_basis": "S2.3/S2.5/S2.7 validated",
             "s3_may_proceed": True,
+            "predecessor_bindings": [
+                {"step_id": "S2.3", "path": "artifacts/S2.3.json", "sha256": s2_3_sha, "artifact_type": "AGENT_ARTIFACT", "betting_day": BETTING_DAY, "run_id": RUN_ID, "status": "PASS"},
+                {"step_id": "S2.5", "path": "artifacts/S2.5.json", "sha256": s2_5_sha, "artifact_type": "AGENT_ARTIFACT", "betting_day": BETTING_DAY, "run_id": RUN_ID, "status": "PASS"},
+                {"step_id": "S2.7", "path": "artifacts/S2.7.json", "sha256": s2_7_sha, "artifact_type": "AGENT_ARTIFACT", "betting_day": BETTING_DAY, "run_id": RUN_ID, "status": "PASS"},
+            ]
         }
         evidence_refs = ["artifact_S2.3", "artifact_S2.5", "artifact_S2.7"]
         sources = ["source-bound-enrichment"]
@@ -86,10 +191,28 @@ def _agent_artifact(step_id: str, status: str) -> dict[str, object]:
     }
 
 
-def _write_agent_artifact(base_dir: Path, step_id: str, status: str) -> Path:
+def _write_agent_artifact(base_dir: Path, step_id: str, status: str, runtime_mode: str = "LIVE_SHADOW") -> Path:
+    _seed_all_up_to_step(base_dir, step_id)
+    from bet.pipeline.agent_work_orders import build_agent_work_order, write_agent_work_order
+    import hashlib
+    wo = build_agent_work_order(
+        betting_day=BETTING_DAY,
+        run_id=RUN_ID,
+        step_id=step_id,
+        runtime_mode=runtime_mode,
+        base_dir=base_dir,
+    )
+    wo_path = write_agent_work_order(wo, base_dir)
+    wo_sha = hashlib.sha256(wo_path.read_bytes()).hexdigest()
+
+    art = _agent_artifact(step_id, status, base_dir)
+    art["producer_agent_id"] = wo.agent
+    art["work_order_id"] = wo.work_order_id
+    art["work_order_sha256"] = wo_sha
+
     path = artifact_path_for(base_dir, BETTING_DAY, RUN_ID, step_id)
     path.parent.mkdir(parents=True, exist_ok=True)
-    write_json_atomic(path, _agent_artifact(step_id, status))
+    write_json_atomic(path, art)
     return path
 
 
@@ -118,6 +241,7 @@ def _write_s5_prereqs(base_dir: Path) -> None:
 
 
 def test_validate_agent_artifact_for_work_order_accepts_s5_block(tmp_path):
+    _seed_all_up_to_step(tmp_path, "S5")
     work_order = build_agent_work_order(
         betting_day=BETTING_DAY,
         run_id=RUN_ID,
@@ -126,7 +250,17 @@ def test_validate_agent_artifact_for_work_order_accepts_s5_block(tmp_path):
         base_dir=tmp_path,
     )
 
-    errors = validate_agent_artifact_for_work_order(_agent_artifact("S5", "BLOCK"), work_order.to_jsonable())
+    import hashlib
+    from bet.pipeline.agent_work_orders import write_agent_work_order
+    wo_path = write_agent_work_order(work_order, tmp_path)
+    wo_sha = hashlib.sha256(wo_path.read_bytes()).hexdigest()
+
+    art = _agent_artifact("S5", "BLOCK", tmp_path)
+    art["producer_agent_id"] = "bet-risk-gatekeeper"
+    art["work_order_id"] = work_order.work_order_id
+    art["work_order_sha256"] = wo_sha
+
+    errors = validate_agent_artifact_for_work_order(art, work_order.to_jsonable())
     assert errors == []
 
 
@@ -141,6 +275,7 @@ def test_orchestrator_accepts_valid_s5_block_as_terminal_result(tmp_path):
         base_run_dir=tmp_path,
     )
     summary = orch.run(start_step="S5", stop_after_step="S5")
+    print("\nS5 BLOCK BLOCKERS:", summary["blockers"])
 
     s5_step = next(step for step in summary["steps"] if step["step_id"] == "S5")
     assert summary["status"] == "BLOCK"
@@ -154,7 +289,7 @@ def test_orchestrator_accepts_valid_s5_block_as_terminal_result(tmp_path):
 
 def test_orchestrator_advances_past_s5_on_valid_pass(tmp_path):
     _write_s5_prereqs(tmp_path)
-    _write_agent_artifact(tmp_path, "S5", "PASS")
+    _write_agent_artifact(tmp_path, "S5", "PASS", runtime_mode="DRY_RUN")
 
     orch = Orchestrator(
         betting_day=BETTING_DAY,
@@ -179,6 +314,7 @@ def test_orchestrator_advances_past_s5_on_valid_pass(tmp_path):
 
         mock_run.side_effect = side_effect
         summary = orch.run(start_step="S5", stop_after_step="S6")
+        print("\nS5 PASS BLOCKERS:", summary["blockers"])
 
     assert summary["status"] == "PASS"
     assert summary["last_completed_step"] == "S6"

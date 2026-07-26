@@ -75,11 +75,11 @@ KILO_PREFIX_TEMPLATE = """You are Kilo, a highly skilled software engineer with 
 
 | Phase | Scope | Mandatory specialists | Exit artifact |
 |---|---|---|---|
-| A | S0 settlement and historical learning | `bet-settler`, `bet-db-analyst`, `bet-test-engineer` | `.kilo/state/phase-A-handoff.md` |
-| B | S1–S1e discovery and shortlist | `bet-scanner`, `bet-test-engineer` | `.kilo/state/phase-B-handoff.md` |
-| C | S2 tipster aggregation | `bet-scout`, `bet-test-engineer` | `.kilo/state/phase-C-handoff.md` |
-| D | S2.3–S7 enrichment, modelling and gates | `bet-enricher`, `bet-statistician`, `bet-valuator`, `bet-challenger`, `bet-test-engineer` | `.kilo/state/phase-D-handoff.md` |
-| E | S8–S10 construction and final validation | `bet-builder`, `bet-test-engineer` | `.kilo/state/phase-E-handoff.md` |
+| A | S0 settlement and historical learning | `bet-settler-postevent`, `bet-auditor` | `.kilo/state/phase-A-handoff.md` |
+| B | S1–S1e discovery and shortlist | `bet-researcher`, `bet-auditor` | `.kilo/state/phase-B-handoff.md` |
+| C | S2 tipster aggregation | `bet-researcher`, `bet-auditor` | `.kilo/state/phase-C-handoff.md` |
+| D | S2.3–S7 enrichment, modelling and gates | `bet-researcher`, `bet-modeler`, `bet-risk-gatekeeper`, `bet-auditor` | `.kilo/state/phase-D-handoff.md` |
+| E | S8–S10 construction and final validation | `bet-builder`, `bet-auditor` | `.kilo/state/phase-E-handoff.md` |
 
 # Specialist result schema
 
@@ -91,8 +91,8 @@ Every betting specialist returns only: `STATUS`, `DECISION`, `EVIDENCE`, `CALCUL
 - Database mutations use reviewed repository scripts and focused tests.
 - Every factual betting claim traces to a DB row, generated artifact, or current external source with `as_of`.
 - Never invent odds, fixtures, teams, markets, injuries, statistics, lineups, consensus, or model outputs.
-- Material external facts should use two independent current sources when available; unresolved conflicts invoke `bet-reconciler`.
-- `bet-test-engineer` must return `PASS` before a phase completes.
+- Material external facts should use two independent current sources when available; unresolved conflicts invoke `bet-researcher`.
+- `bet-auditor` must return `PASS` before a phase completes.
 - All picks remain conditional until the user enters the exact visible Superbet quote.
 
 # Repository and command safety

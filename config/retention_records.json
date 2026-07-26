@@ -7830,6 +7830,14 @@
     "expiry_or_review_policy": "NO_EXPIRY_RETAIN_PERMANENTLY"
   },
   {
+    "path": "tests/test_pipeline_orchestrator_ledger_integration.py",
+    "category": "RETAINED_TEST",
+    "owner": "Kilo",
+    "reason": "Unit and integration testing of pipeline components",
+    "references": [],
+    "expiry_or_review_policy": "NO_EXPIRY_RETAIN_PERMANENTLY"
+  },
+  {
     "path": "tests/test_pipeline_readiness_contracts.py",
     "category": "RETAINED_TEST",
     "owner": "Kilo",
@@ -8598,14 +8606,6 @@
     "expiry_or_review_policy": "REVIEW_ON_SCHEMA_UPGRADE"
   },
   {
-    "path": "src/bet/pipeline/analysis_status.py",
-    "category": "RETAINED_ENGINEERING",
-    "owner": "Kilo",
-    "reason": "Retained analytical contract helper",
-    "references": [],
-    "expiry_or_review_policy": "REVIEW_ON_SCHEMA_UPGRADE"
-  },
-  {
     "path": "src/bet/pipeline/analytical_candidate_bridge.py",
     "category": "RETAINED_ENGINEERING",
     "owner": "Kilo",
@@ -8619,14 +8619,6 @@
     "owner": "Kilo",
     "reason": "Retained analytical prefilter",
     "references": [],
-    "expiry_or_review_policy": "REVIEW_ON_SCHEMA_UPGRADE"
-  },
-  {
-    "path": "src/bet/pipeline/live_fixture_audit.py",
-    "category": "RETAINED_ENGINEERING",
-    "owner": "Kilo",
-    "reason": "S7 point-in-time live-fixture audit service",
-    "references": ["src/bet/pipeline/hard_approval_gate.py"],
     "expiry_or_review_policy": "REVIEW_ON_SCHEMA_UPGRADE"
   },
   {
@@ -8723,6 +8715,46 @@
     "owner": "Kilo",
     "reason": "Sanitized deterministic canonical replay fixture",
     "references": ["tests/test_failed_run_replay.py"],
+    "expiry_or_review_policy": "NO_EXPIRY_RETAIN_PERMANENTLY"
+  },
+  {
+    "path": "config/pipeline_certification_inventory.json",
+    "category": "RETAINED_ENGINEERING",
+    "owner": "Kilo",
+    "reason": "Pipeline certification inventory configuration",
+    "references": [],
+    "expiry_or_review_policy": "NO_EXPIRY_RETAIN_PERMANENTLY"
+  },
+  {
+    "path": "config/provider_runtime_policy.json",
+    "category": "RETAINED_ENGINEERING",
+    "owner": "Kilo",
+    "reason": "Provider runtime policy configuration",
+    "references": [],
+    "expiry_or_review_policy": "NO_EXPIRY_RETAIN_PERMANENTLY"
+  },
+  {
+    "path": "tests/support/__init__.py",
+    "category": "RETAINED_TEST",
+    "owner": "Kilo",
+    "reason": "Test support helpers",
+    "references": [],
+    "expiry_or_review_policy": "NO_EXPIRY_RETAIN_PERMANENTLY"
+  },
+  {
+    "path": "tests/support/adapters.py",
+    "category": "RETAINED_TEST",
+    "owner": "Kilo",
+    "reason": "Test support adapters",
+    "references": [],
+    "expiry_or_review_policy": "NO_EXPIRY_RETAIN_PERMANENTLY"
+  },
+  {
+    "path": "tests/test_agent_work_order_owner_alignment.py",
+    "category": "RETAINED_TEST",
+    "owner": "Kilo",
+    "reason": "Owner alignment verification and git status checks",
+    "references": [],
     "expiry_or_review_policy": "NO_EXPIRY_RETAIN_PERMANENTLY"
   },
   {

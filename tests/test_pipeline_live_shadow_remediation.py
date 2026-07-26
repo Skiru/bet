@@ -63,12 +63,21 @@ def test_dry_run_s0_does_not_block_due_live_ack(tmp_path, clean_env, monkeypatch
 
 def test_live_shadow_s1_without_ack_still_blocks(tmp_path, clean_env):
     """Verify that LIVE_SHADOW S1 without live network ACK blocks before execution."""
+    from bet.pipeline.integration_artifacts import write_script_evidence
     orch = Orchestrator(
         betting_day="2026-06-25",
         run_id="run-remediation-live-s1-no-ack",
         runtime_mode="LIVE_SHADOW",
         base_run_dir=tmp_path / "reports",
         allow_live_network=False,
+    )
+    write_script_evidence(
+        "S0",
+        status="PASS",
+        payload={"test": True},
+        sources=(),
+        evidence_refs=(),
+        environ=orch.env,
     )
     summary = orch.run(start_step="S1", stop_after_step="S1")
     assert summary["status"] == "BLOCK"
@@ -78,12 +87,21 @@ def test_live_shadow_s1_without_ack_still_blocks(tmp_path, clean_env):
 
 def test_live_shadow_s4_without_ack_still_blocks(tmp_path, clean_env):
     """Verify that LIVE_SHADOW S4 without live network ACK blocks before execution."""
+    from bet.pipeline.integration_artifacts import write_script_evidence
     orch = Orchestrator(
         betting_day="2026-06-25",
         run_id="run-remediation-live-s4-no-ack",
         runtime_mode="LIVE_SHADOW",
         base_run_dir=tmp_path / "reports",
         allow_live_network=False,
+    )
+    write_script_evidence(
+        "S3",
+        status="PASS",
+        payload={"test": True},
+        sources=(),
+        evidence_refs=(),
+        environ=orch.env,
     )
     summary = orch.run(start_step="S4", stop_after_step="S4")
     assert summary["status"] == "BLOCK"

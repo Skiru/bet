@@ -109,7 +109,7 @@ def required_statuses_for_artifact(
             return (PipelineReadinessStatus.PASS,)
         return ()
 
-    if step_id in {"S7", "S7b"}:
+    if step_id in {"S0", "S1", "S1e", "S2", "S3", "S4", "S6", "S7", "S7b", "S8"}:
         if artifact_type == PipelineArtifactType.SCRIPT_EVIDENCE:
             return (PipelineReadinessStatus.PASS,)
         return ()

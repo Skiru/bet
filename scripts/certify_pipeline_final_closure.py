@@ -20,6 +20,7 @@ DEFAULT_NODES = (
     "tests/test_pipeline_certifier.py::test_certifier_child_fixture",
     "tests/test_canonical_continuity_v4_owner_regressions.py",
     "tests/test_canonical_continuity_v4_offline_chain_proof.py",
+    "tests/test_agent_work_order_owner_alignment.py",
 )
 
 class CertificationError(RuntimeError):
@@ -89,9 +90,11 @@ def source_manifest(root: Path) -> tuple[list[dict[str, Any]], str]:
     return entries, hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
-def parse_junit(path: Path, allowed_skips: list[dict[str, str]] | None = None) -> dict[str, Any]:
+def parse_junit(path: Path, allowed_skips: list[dict[str, str]] | None = None, inventory_mandatory: list[str] | None = None) -> dict[str, Any]:
     if allowed_skips is None:
         allowed_skips = []
+    if inventory_mandatory is None:
+        inventory_mandatory = []
     if not path.is_file():
         raise CertificationError("CERT_JUNIT_MISSING")
     try:
@@ -107,29 +110,46 @@ def parse_junit(path: Path, allowed_skips: list[dict[str, str]] | None = None) -
     total_failures = 0
     total_errors = 0
     total_skipped = 0
+    executed_nodes = []
 
     # Validate each testcase
     for tc in root_node.findall(".//testcase"):
         total_tests += 1
         name = tc.attrib.get("name", "")
         classname = tc.attrib.get("classname", "")
-        node_id = f"{classname}.{name}"
+        tc_file = tc.attrib.get("file", "")
+        if tc_file:
+            node_id = f"{tc_file}::{name}"
+        else:
+            # Normalize classname.name to path/to/file.py::name format for comparison
+            parts = classname.rsplit(".", 1)
+            if parts and len(parts) == 2:
+                class_part, test_name = parts
+                # If there's a dot in classname, convert to path format
+                path_str = classname.replace(".", "/") + ".py"
+                node_id = f"{path_str}::{name}"
+            else:
+                path_str = classname.replace(".", "/") + ".py"
+                node_id = f"{path_str}::{name}"
+        executed_nodes.append(node_id)
+
+        is_mandatory = any(m in node_id or m in classname for m in inventory_mandatory)
 
         # Check failures and errors
         if tc.find("failure") is not None:
             total_failures += 1
-            if "test_canonical_continuity_v4" in classname:
+            if is_mandatory:
                 raise CertificationError(f"CERT_MANDATORY_TEST_FAILED:{node_id}")
         if tc.find("error") is not None:
             total_errors += 1
-            if "test_canonical_continuity_v4" in classname:
+            if is_mandatory:
                 raise CertificationError(f"CERT_MANDATORY_TEST_ERROR:{node_id}")
 
         # Check skips
         skipped_node = tc.find("skipped")
         if skipped_node is not None:
             total_skipped += 1
-            if "test_canonical_continuity_v4" in classname:
+            if is_mandatory:
                 raise CertificationError(f"CERT_MANDATORY_TEST_SKIPPED:{node_id}")
 
             # Check skip against allowlist
@@ -153,6 +173,7 @@ def parse_junit(path: Path, allowed_skips: list[dict[str, str]] | None = None) -
         "errors": total_errors,
         "skipped": total_skipped,
         "junit_sha256": sha256_file(path),
+        "executed_nodes": executed_nodes,
     }
 
 
@@ -172,13 +193,33 @@ def main() -> int:
         if Path(args.output).exists():
             raise CertificationError("CERT_OUTPUT_ALREADY_EXISTS")
 
+        root_path = Path(args.repo_root or ROOT).resolve(strict=True)
+
+        # Fail if the certifier script itself is not located inside or verifiably
+        # identical to root_path/scripts/certify_pipeline_final_closure.py.
+        self_script_path = Path(__file__).resolve()
+        expected_script_path = root_path / "scripts" / "certify_pipeline_final_closure.py"
+        if not expected_script_path.is_file():
+            raise CertificationError(f"Certifier script not found under target root at {expected_script_path}")
+        if self_script_path != expected_script_path:
+            if sha256_file(self_script_path) != sha256_file(expected_script_path):
+                raise CertificationError("Running certifier script is not identical to target root script")
+
+        # Before collection require git status --porcelain == empty
+        status_res = subprocess.run(["git", "status", "--porcelain"], cwd=root_path, capture_output=True, text=True)
+        if status_res.returncode != 0:
+            raise CertificationError("Failed to check git status on target root")
+
+        is_dirty = bool(status_res.stdout.strip())
+        if is_dirty:
+            raise CertificationError("CERT_DIRTY_WORKTREE")
+
         # Load and validate inventory
-        inv_path = ROOT / "config" / "pipeline_certification_inventory.json"
+        inv_path = root_path / "config" / "pipeline_certification_inventory.json"
         if not inv_path.is_file():
             raise CertificationError("CERT_INVENTORY_MISSING")
         inventory = json.loads(inv_path.read_text(encoding="utf-8"))
 
-        root_path = Path(args.repo_root).resolve(strict=True)
         head = _git("rev-parse", "HEAD", root=root_path)
         branch = _git("symbolic-ref", "--short", "-q", "HEAD", root=root_path, check=False) or "DETACHED"
 
@@ -186,31 +227,72 @@ def main() -> int:
             raise CertificationError(f"CERT_HEAD_MISMATCH:{head}")
 
         entries_before, tree_before = source_manifest(root_path)
-        if args.expected_source_tree_sha256 and tree_before != args.expected_source_tree_sha256:
+        if tree_before != args.expected_source_tree_sha256:
             raise CertificationError(f"CERT_SOURCE_TREE_MISMATCH:{tree_before}")
 
-        # Pytest collection and substance check
-        collect_cmd = [sys.executable, "-m", "pytest", "--collect-only", "-q"]
+        # Load mandatory nodes and counts
+        inventory_mandatory = inventory.get("mandatory_nodes", [])
+        expected_minimum_counts = inventory.get("expected_minimum_counts", {})
+
+        cli_nodes = args.nodes or []
+        if cli_nodes and len(cli_nodes) == 1 and "::" in cli_nodes[0]:
+            raise CertificationError("CERT_ONLY_ONE_CLI_TEST_SUPPLIED")
+
+        # effective_nodes = mandatory_nodes UNION additional_nodes
+        effective_nodes = list(sorted(set(inventory_mandatory) | set(cli_nodes)))
+
+        # Ensure mandatory files exist on disk and verify their SHA-256
+        mandatory_shas = inventory.get("mandatory_file_sha256s", {})
+        for f in inventory_mandatory:
+            f_path = root_path / f
+            if not f_path.is_file():
+                raise CertificationError(f"CERT_MANDATORY_FILE_MISSING:{f}")
+            actual_sha = sha256_file(f_path)
+            expected_sha = mandatory_shas.get(f)
+            if not expected_sha:
+                raise CertificationError(f"CERT_MANDATORY_FILE_HASH_MISSING_IN_INVENTORY:{f}")
+            if actual_sha != expected_sha:
+                raise CertificationError(f"CERT_MANDATORY_FILE_HASH_MISMATCH:{f}:got={actual_sha}:expected={expected_sha}")
+
+        # Pytest collection and substance check on effective_nodes
+        collect_cmd = [sys.executable, "-m", "pytest", "--collect-only", "-q"] + effective_nodes
         collect_res = subprocess.run(collect_cmd, cwd=root_path, capture_output=True, text=True, timeout=60)
         if collect_res.returncode == 5:
             raise CertificationError("CERT_PYTEST_COLLECTION_EMPTY")
         elif collect_res.returncode != 0:
             raise CertificationError(f"CERT_PYTEST_COLLECTION_FAILED: {collect_res.stderr}")
 
-        # Execute test suite
+        collected_nodes = []
+        for line in collect_res.stdout.splitlines():
+            line = line.strip()
+            if "::" in line and " " not in line and not line.startswith("no-tests-ran"):
+                collected_nodes.append(line)
+
+        # Count collection per mandatory file
+        collected_by_file = {}
+        for node in collected_nodes:
+            for f in inventory_mandatory:
+                if node.startswith(f):
+                    collected_by_file.setdefault(f, []).append(node)
+
+        for f in inventory_mandatory:
+            col_count = len(collected_by_file.get(f, []))
+            expected_min = expected_minimum_counts.get(f, 0)
+            if col_count < expected_min:
+                raise CertificationError(f"CERT_COLLECTION_BELOW_MINIMUM:{f}:got={col_count}:expected={expected_min}")
+
+        # Execute test suite on effective_nodes
         junit_path = Path(args.junit).resolve()
         junit_path.parent.mkdir(parents=True, exist_ok=True)
         junit_path.unlink(missing_ok=True)
 
-        mandatory_nodes = args.nodes or DEFAULT_NODES
         test_cmd = [
             sys.executable,
             "-m",
             "pytest",
             "-q",
             f"--junitxml={junit_path}",
-            *mandatory_nodes,
-        ]
+        ] + effective_nodes
 
         # Inject environment safety markers
         env = dict(os.environ)
@@ -229,7 +311,29 @@ def main() -> int:
         )
         t_end = datetime.now(timezone.utc)
 
-        summary = parse_junit(junit_path, inventory.get("allowed_skips", []))
+        summary = parse_junit(junit_path, inventory.get("allowed_skips", []), inventory_mandatory)
+        executed_nodes = summary.get("executed_nodes", [])
+
+        # Ensure no collected mandatory node was deselected or renamed
+        executed_nodes_set = set(executed_nodes)
+        for f in inventory_mandatory:
+            for node in collected_by_file.get(f, []):
+                # Pytest JUnit report outputs absolute or relative class paths, let's normalize check:
+                # E.g., tc_file can be matched by endswith or relative checks.
+                # To be bulletproof, check that the node (or its stem/ending) was executed.
+                found_exec = False
+                for exec_node in executed_nodes:
+                    # check if the relative parts match
+                    if (
+                        node == exec_node
+                        or node in exec_node
+                        or exec_node in node
+                        or node.replace("/", ".").replace(".py", "") in exec_node.replace("/", ".").replace(".py", "")
+                    ):
+                        found_exec = True
+                        break
+                if not found_exec:
+                    raise CertificationError(f"CERT_MANDATORY_NODE_DESELECTED_OR_RENAMED:{node}")
         if completed.returncode != 0 or summary["failures"] or summary["errors"]:
             raise CertificationError(
                 f"CERT_TEST_FAILURE:rc={completed.returncode}:"
@@ -238,7 +342,50 @@ def main() -> int:
 
         entries_after, tree_after = source_manifest(root_path)
         if entries_after != entries_before or tree_after != tree_before:
-            raise CertificationError("CERT_SOURCE_MUTATED_DURING_TESTS")
+            diff_msg = f"Before: {len(entries_before)} files, After: {len(entries_after)} files."
+            added = [e["path"] for e in entries_after if e not in entries_before]
+            removed = [e["path"] for e in entries_before if e not in entries_after]
+            if added:
+                diff_msg += f" Added: {added}"
+            if removed:
+                diff_msg += f" Removed: {removed}"
+            raise CertificationError(f"CERT_SOURCE_MUTATED_DURING_TESTS: {diff_msg}")
+
+        # Execute mandatory production validators as part of closure
+        validators_run_records = []
+        validators = [
+            "validate_production_surface.py",
+            "validate_power_agent_control_plane.py",
+            "validate_manifest_power_agents.py",
+            "validate_reachability_graph.py",
+            "validate_provider_registry.py",
+            "validate_database_access.py",
+        ]
+        for val_script in validators:
+            val_script_path = root_path / "scripts" / val_script
+            # Verify validator command path is under root_path
+            if not val_script_path.resolve().is_relative_to(root_path):
+                raise CertificationError(f"Validator script path escapes root_path: {val_script_path}")
+            val_cmd = [sys.executable, str(val_script_path)]
+            val_env = dict(os.environ)
+            val_env["PYTHONPATH"] = f"src:{root_path}"
+            val_res = subprocess.run(val_cmd, cwd=root_path, env=val_env, capture_output=True, text=True, timeout=60)
+
+            out_sha = hashlib.sha256(val_res.stdout.encode("utf-8")).hexdigest()
+            validators_run_records.append({
+                "script": val_script,
+                "command": val_cmd,
+                "exit_code": val_res.returncode,
+                "output_sha256": out_sha,
+            })
+
+            if val_res.returncode != 0:
+                raise CertificationError(f"CERT_VALIDATOR_FAILED:{val_script}:rc={val_res.returncode}:{val_res.stderr.strip()}")
+
+            # Verify git status remains unchanged after every validator
+            entries_curr, tree_curr = source_manifest(root_path)
+            if entries_curr != entries_before or tree_curr != tree_before:
+                raise CertificationError(f"CERT_SOURCE_MUTATED_DURING_VALIDATOR:{val_script}")
 
         # Record exact certification receipt
         certificate = {
@@ -253,12 +400,19 @@ def main() -> int:
                 "source_tree_sha256": tree_before,
                 "source_file_count": len(entries_before),
             },
+            "validators": validators_run_records,
             "test_run": {
-                "nodes": mandatory_nodes,
+                "nodes": effective_nodes,
+                "collected_node_ids": collected_nodes,
+                "executed_node_ids": executed_nodes,
                 "command_argv": test_cmd,
                 "return_code": completed.returncode,
                 "duration_seconds": (t_end - t_start).total_seconds(),
-                **summary,
+                "tests": summary.get("tests", 0),
+                "failures": summary.get("failures", 0),
+                "errors": summary.get("errors", 0),
+                "skipped": summary.get("skipped", 0),
+                "junit_sha256": summary.get("junit_sha256", ""),
             },
             "claims": {
                 "live_pipeline_executed": False,
@@ -268,9 +422,32 @@ def main() -> int:
             },
         }
 
+        # Certificate output must be outside the repository or explicitly excluded
+        output_path = Path(args.output).resolve()
+        is_under_root = False
+        try:
+            output_path.relative_to(root_path)
+            is_under_root = True
+        except ValueError:
+            pass
+
+        if is_under_root:
+            ignore_check = subprocess.run(
+                ["git", "check-ignore", "-q", str(output_path)],
+                cwd=root_path,
+                capture_output=True
+            )
+            if ignore_check.returncode != 0:
+                raise CertificationError(f"Certificate output path {output_path} is under repo root and is not excluded/ignored in git")
+
         # Write exclusive certificate file
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_text(json.dumps(certificate, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+        # After writing certificate, perform a final source/worktree check
+        entries_final, tree_final = source_manifest(root_path)
+        if entries_final != entries_before or tree_final != tree_before:
+            raise CertificationError("CERT_SOURCE_MUTATED_AFTER_WRITING_CERTIFICATE")
 
         print(json.dumps(certificate, sort_keys=True, indent=2))
         return 0

@@ -55,6 +55,8 @@
       "wrapper": "scripts/pipeline_steps/s0_settler.py",
       "canonical_script": "scripts/pipeline_steps/s0_settler.py",
       "output": "historical_pnl",
+      "depends_on": [],
+      "required_inputs": [],
       "next": [
         "S1"
       ],
@@ -73,6 +75,10 @@
       "wrapper": "scripts/pipeline_steps/s1_discover.py",
       "canonical_script": "scripts/pipeline_steps/s1_discover.py",
       "output": "fixtures_shortlist",
+      "depends_on": [
+        "S0"
+      ],
+      "required_inputs": [],
       "next": [
         "S1e"
       ],
@@ -92,6 +98,12 @@
       "wrapper": "scripts/pipeline_steps/s1e_event_ledger.py",
       "canonical_script": "scripts/pipeline_steps/s1e_event_ledger.py",
       "output": "s1e_event_universe_ledger",
+      "depends_on": [
+        "S1"
+      ],
+      "required_inputs": [
+        "S1"
+      ],
       "next": [
         "S2"
       ],
@@ -110,6 +122,10 @@
       "wrapper": "scripts/pipeline_steps/s2_tipsters.py",
       "canonical_script": "scripts/pipeline_steps/s2_tipsters.py",
       "output": "tipster_consensus",
+      "depends_on": [
+        "S1e"
+      ],
+      "required_inputs": [],
       "next": [
         "S2.3"
       ],
@@ -128,6 +144,10 @@
       "agent": "bet-researcher",
       "execution_mode": "agent_artifact",
       "output": "s2_3_enrichment_gaps",
+      "depends_on": [
+        "S2"
+      ],
+      "required_inputs": [],
       "next": [
         "S2.5"
       ],
@@ -152,6 +172,13 @@
       "agent": "bet-researcher",
       "execution_mode": "agent_artifact",
       "output": "s2_5_provider_observations",
+      "depends_on": [
+        "S2",
+        "S2.3"
+      ],
+      "required_inputs": [
+        "S2.3"
+      ],
       "next": [
         "S2.7"
       ],
@@ -177,6 +204,14 @@
       "agent": "bet-researcher",
       "execution_mode": "agent_artifact",
       "output": "s2_7_reconciled_facts",
+      "depends_on": [
+        "S2",
+        "S2.3",
+        "S2.5"
+      ],
+      "required_inputs": [
+        "S2.5"
+      ],
       "next": [
         "S2.9"
       ],
@@ -201,6 +236,15 @@
       "agent": "bet-researcher",
       "execution_mode": "agent_artifact",
       "output": "s2_9_data_readiness",
+      "depends_on": [
+        "S2",
+        "S2.3",
+        "S2.5",
+        "S2.7"
+      ],
+      "required_inputs": [
+        "S2.7"
+      ],
       "next": [
         "S3"
       ],
@@ -228,6 +272,12 @@
       "wrapper": "scripts/pipeline_steps/s3_stats.py",
       "canonical_script": "scripts/pipeline_steps/s3_stats.py",
       "output": "calibrated_probabilities",
+      "depends_on": [
+        "S2.9"
+      ],
+      "required_inputs": [
+        "S2.9"
+      ],
       "next": [
         "S4"
       ],
@@ -247,6 +297,10 @@
       "wrapper": "scripts/pipeline_steps/s4_valuator.py",
       "canonical_script": "scripts/pipeline_steps/s4_valuator.py",
       "output": "expected_value_estimates",
+      "depends_on": [
+        "S3"
+      ],
+      "required_inputs": [],
       "next": [
         "S5"
       ],
@@ -265,6 +319,12 @@
       "agent": "bet-risk-gatekeeper",
       "execution_mode": "agent_artifact",
       "output": "s5_context_motivation_risk",
+      "depends_on": [
+        "S3",
+        "S4",
+        "S2.9"
+      ],
+      "required_inputs": [],
       "next": [
         "S6"
       ],
@@ -289,6 +349,12 @@
       "wrapper": "scripts/pipeline_steps/s6_repeats.py",
       "canonical_script": "scripts/pipeline_steps/s6_repeats.py",
       "output": "s6_portfolio_repeat_guard",
+      "depends_on": [
+        "S5"
+      ],
+      "required_inputs": [
+        "S5"
+      ],
       "next": [
         "S7"
       ],
@@ -308,6 +374,10 @@
       "wrapper": "scripts/pipeline_steps/s5_gate.py",
       "canonical_script": "scripts/pipeline_steps/s5_gate.py",
       "output": "approved_picks",
+      "depends_on": [
+        "S6"
+      ],
+      "required_inputs": [],
       "next": [
         "S7b"
       ],
@@ -327,6 +397,10 @@
       "wrapper": "scripts/pipeline_steps/s7_validate.py",
       "canonical_script": "scripts/pipeline_steps/s7_validate.py",
       "output": "s7b_superbet_manual_mapping",
+      "depends_on": [
+        "S7"
+      ],
+      "required_inputs": [],
       "next": [
         "S8"
       ],
@@ -347,6 +421,14 @@
       "wrapper": "scripts/pipeline_steps/s8_build_coupons.py",
       "canonical_script": "scripts/pipeline_steps/s8_build_coupons.py",
       "output": "s8_superbet_manual_quote_pack",
+      "depends_on": [
+        "S7",
+        "S7b"
+      ],
+      "required_inputs": [
+        "S7",
+        "S7b"
+      ],
       "next": [
         "S9"
       ],
@@ -366,6 +448,10 @@
       "agent": "bet-risk-gatekeeper",
       "execution_mode": "human_gate",
       "output": "executed_bets_journal",
+      "depends_on": [
+        "S8"
+      ],
+      "required_inputs": [],
       "next": [
         "S10"
       ],
@@ -385,6 +471,12 @@
       "agent": "bet-settler-postevent",
       "execution_mode": "state_only",
       "output": "s10_settlement_handoff",
+      "depends_on": [
+        "S9"
+      ],
+      "required_inputs": [
+        "S9"
+      ],
       "next": [],
       "hard_rules": [
         "final_accounting_verification",

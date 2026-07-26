@@ -10,6 +10,7 @@ import pytest
 
 from tests.test_pipeline_artifact_gate import setup_valid_s2_9_environment
 from bet.pipeline.manifest import load_pipeline_manifest, validate_pipeline_manifest
+from bet.pipeline.run_evidence import write_json_atomic
 from bet.pipeline.orchestrator import Orchestrator
 from bet.pipeline.readiness_contracts import PipelineReadinessStatus
 
@@ -103,6 +104,21 @@ def write_test_artifact(base_dir: Path, step_id: str, status: str, payload_overr
         "payload": {},
         "manual_review": s9_manual_review,
     }
+    if step_id in ("S2.3", "S2.5", "S2.7", "S2.9", "S5"):
+        from bet.pipeline.agent_work_orders import build_agent_work_order, write_agent_work_order
+        import hashlib
+        wo = build_agent_work_order(
+            betting_day="2026-06-25",
+            run_id="run-999",
+            step_id=step_id,
+            runtime_mode="DRY_RUN",
+            base_dir=base_dir,
+        )
+        wo_path = write_agent_work_order(wo, base_dir)
+        wo_sha = hashlib.sha256(wo_path.read_bytes()).hexdigest()
+        art["producer_agent_id"] = wo.agent
+        art["work_order_id"] = wo.work_order_id
+        art["work_order_sha256"] = wo_sha
     if s9_manual_review is not None:
         art["checksum"] = s9_manual_review["coupon_draft_sha256"]
     if payload_override:
@@ -150,6 +166,8 @@ def test_agent_step_generates_work_order_and_blocks_when_artifact_missing(tmp_pa
         runtime_mode="DRY_RUN",
         base_run_dir=tmp_path / "reports",
     )
+    from bet.pipeline.integration_artifacts import write_script_evidence
+    write_script_evidence("S2", status="PASS", payload={}, sources=(), evidence_refs=(), environ=orch.env)
 
     summary = orch.run(start_step="S2.3", stop_after_step="S2.3")
 
@@ -302,6 +320,8 @@ def test_s9_human_gate_step_blocks_on_unbound_coupon_draft(tmp_path):
         runtime_mode="DRY_RUN",
         base_run_dir=tmp_path / "reports",
     )
+    from bet.pipeline.integration_artifacts import write_script_evidence
+    write_script_evidence("S8", status="PASS", payload={}, sources=(), evidence_refs=(), environ=orch.env)
     summary = orch.run(start_step="S9", stop_after_step="S9")
 
     assert summary["status"] == "BLOCK"
@@ -362,6 +382,8 @@ def test_s4_live_shadow_without_live_ack_blocks_and_no_subprocess(tmp_path):
         base_run_dir=tmp_path / "reports",
         allow_live_network=False,
     )
+    from bet.pipeline.integration_artifacts import write_script_evidence
+    write_script_evidence("S3", status="PASS", payload={}, sources=(), evidence_refs=(), environ=orch.env)
     with patch("bet.pipeline.orchestrator.run_bounded_process") as mock_run:
         summary = orch.run(start_step="S4", stop_after_step="S4")
         assert summary["status"] == "BLOCK"
@@ -380,6 +402,8 @@ def test_s4_live_shadow_with_live_ack_runs_subprocess(tmp_path):
             base_run_dir=tmp_path / "reports",
             allow_live_network=True,
         )
+        from bet.pipeline.integration_artifacts import write_script_evidence
+        write_script_evidence("S3", status="PASS", payload={}, sources=(), evidence_refs=(), environ=orch.env)
         with patch("bet.pipeline.orchestrator.run_bounded_process") as mock_run:
             def side_effect(*args, **kwargs):
                 from bet.pipeline.integration_artifacts import write_script_evidence
@@ -487,6 +511,14 @@ def test_s1_controlled_block_populates_run_summary_evidence_path(tmp_path):
         base_run_dir=tmp_path / "sandbox",
     )
     write_script_evidence(
+        "S0",
+        status="PASS",
+        payload={"test": True},
+        sources=(),
+        evidence_refs=(),
+        environ=orch.env,
+    )
+    write_script_evidence(
         "S1",
         status="BLOCK",
         payload={"test": True},
@@ -503,7 +535,7 @@ def test_s1_controlled_block_populates_run_summary_evidence_path(tmp_path):
         from unittest.mock import MagicMock
 
         result = MagicMock()
-        result.returncode = 2
+        result.returncode = 0
         mock_run.return_value = result
         summary = orch.run(start_step="S1", stop_after_step="S1")
 
@@ -534,6 +566,8 @@ def test_orchestrator_writes_work_order_when_s2_3_missing(tmp_path):
         runtime_mode="DRY_RUN",
         base_run_dir=tmp_path / "reports",
     )
+    from bet.pipeline.integration_artifacts import write_script_evidence
+    write_script_evidence("S2", status="PASS", payload={}, sources=(), evidence_refs=(), environ=orch.env)
     summary = orch.run(start_step="S2.3", stop_after_step="S2.5")
     
     # Blocks at S2.3
@@ -564,7 +598,20 @@ def test_orchestrator_writes_work_order_when_s5_missing(tmp_path):
         runtime_mode="DRY_RUN",
         base_run_dir=tmp_path / "reports",
     )
-    summary = orch.run(start_step="S5", stop_after_step="S6")
+    from bet.pipeline.artifact_gate import GateDecision
+    decision = GateDecision(
+        gate_id="S5_gate",
+        target_step_id="S5",
+        verdict=PipelineReadinessStatus.PASS,
+        failed_requirements=(),
+        warnings=(),
+        required_artifacts=(),
+        accepted_artifacts=(),
+        blocked_artifacts=(),
+        metrics={},
+    )
+    with patch("bet.pipeline.orchestrator.evaluate_gate_before_step", return_value=decision):
+        summary = orch.run(start_step="S5", stop_after_step="S6")
     
     # Blocks at S5
     assert summary["status"] == "BLOCK"

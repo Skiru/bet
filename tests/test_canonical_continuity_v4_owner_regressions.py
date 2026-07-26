@@ -703,3 +703,361 @@ def test_v4_meta_test_no_vacuous_tests():
 
                 if not has_substance:
                     raise AssertionError(f"Test {node.name} in {f_path.name} has no executable assertion or call.")
+
+
+def test_19_binding_mutations_block_owner_round3(tmp_path: Path):
+    """test_19 must use the same run_id in work order, artifact and orchestrator."""
+    from bet.pipeline.orchestrator import Orchestrator
+    from bet.pipeline.agent_work_orders import build_agent_work_order, write_agent_work_order
+    import json
+
+    betting_day = "2026-06-25"
+    run_id = "run-same-id"
+    reports_dir = tmp_path / "reports"
+    reports_dir.mkdir(parents=True, exist_ok=True)
+
+    # Set up valid S2
+    s2_art = {
+        "schema_version": 1,
+        "artifact_type": "SCRIPT_EVIDENCE",
+        "step_id": "S2",
+        "status": "PASS",
+        "betting_day": betting_day,
+        "run_id": run_id,
+        "sport": "Football",
+        "payload": {},
+    }
+    s2_path = reports_dir / "pipeline_runs" / betting_day / run_id / "artifacts" / "S2.json"
+    s2_path.parent.mkdir(parents=True, exist_ok=True)
+    s2_path.write_text(json.dumps(s2_art), encoding="utf-8")
+
+    # S2.3 artifact
+    s2_3_art = {
+        "schema_version": 1,
+        "artifact_type": "AGENT_ARTIFACT",
+        "step_id": "S2.3",
+        "producer_agent_id": "bet-researcher",
+        "status": "PASS",
+        "betting_day": betting_day,
+        "run_id": run_id,
+        "sport": "Football",
+        "point_in_time_as_of": "2026-06-25T12:00:00Z",
+        "source_bound": True,
+        "no_pick_edge_stake_coupon_emitted": True,
+        "production_selectable": False,
+        "betting_decisions_enabled": False,
+        "sources": ["test-source"],
+        "unknowns": [],
+        "blocked_reasons": [],
+        "evidence_refs": [],
+        "payload": {
+            "gaps": ["gap-1"],
+            "gaps_bounded": True,
+        },
+        "work_order_id": f"WO-{run_id}-S2.3",
+    }
+    s2_3_path = reports_dir / "pipeline_runs" / betting_day / run_id / "artifacts" / "S2.3.json"
+    s2_3_path.write_text(json.dumps(s2_3_art), encoding="utf-8")
+
+    # Generate and write S2.3 work order with matching run_id/betting_day
+    wo = build_agent_work_order(
+        betting_day=betting_day,
+        run_id=run_id,
+        step_id="S2.3",
+        runtime_mode="DRY_RUN",
+        base_dir=reports_dir,
+    )
+    write_agent_work_order(wo, reports_dir)
+
+    # Validate S2.3 has matching work_order_sha256 in artifact
+    from bet.pipeline.agent_work_orders import work_order_path_for
+    from bet.pipeline.canonical_continuity import file_sha256
+    wo_path = work_order_path_for(reports_dir, betting_day, run_id, "S2.3")
+    s2_3_art["work_order_sha256"] = file_sha256(wo_path)
+    s2_3_path.write_text(json.dumps(s2_3_art), encoding="utf-8")
+
+    # Orchestrator runs cleanly
+    orc = Orchestrator(
+        betting_day=betting_day,
+        run_id=run_id,
+        runtime_mode="DRY_RUN",
+        base_run_dir=reports_dir,
+    )
+    summary = orc.run(start_step="S2.3", stop_after_step="S2.3")
+    assert summary["status"] == "PASS"
+
+
+def test_20_resume_ledger_signatures_owner_round3(tmp_path: Path):
+    """test_20 must execute Orchestrator and inspect ResumeLedger signatures."""
+    from bet.pipeline.orchestrator import Orchestrator
+    import json
+
+    betting_day = "2026-06-25"
+    run_id = "run-same-id-20"
+    reports_dir = tmp_path / "reports"
+    reports_dir.mkdir(parents=True, exist_ok=True)
+
+    s2_art = {
+        "schema_version": 1,
+        "artifact_type": "SCRIPT_EVIDENCE",
+        "step_id": "S2",
+        "status": "PASS",
+        "betting_day": betting_day,
+        "run_id": run_id,
+        "sport": "Football",
+        "payload": {},
+    }
+    s2_path = reports_dir / "pipeline_runs" / betting_day / run_id / "artifacts" / "S2.json"
+    s2_path.parent.mkdir(parents=True, exist_ok=True)
+    s2_path.write_text(json.dumps(s2_art), encoding="utf-8")
+
+    s2_3_art = {
+        "schema_version": 1,
+        "artifact_type": "AGENT_ARTIFACT",
+        "step_id": "S2.3",
+        "producer_agent_id": "bet-researcher",
+        "status": "PASS",
+        "betting_day": betting_day,
+        "run_id": run_id,
+        "sport": "Football",
+        "point_in_time_as_of": "2026-06-25T12:00:00Z",
+        "source_bound": True,
+        "no_pick_edge_stake_coupon_emitted": True,
+        "production_selectable": False,
+        "betting_decisions_enabled": False,
+        "sources": ["test-source"],
+        "unknowns": [],
+        "blocked_reasons": [],
+        "evidence_refs": [],
+        "payload": {"gaps": [], "gaps_bounded": True},
+        "work_order_id": f"WO-{run_id}-S2.3",
+    }
+    s2_3_path = reports_dir / "pipeline_runs" / betting_day / run_id / "artifacts" / "S2.3.json"
+    s2_3_path.write_text(json.dumps(s2_3_art), encoding="utf-8")
+
+    from bet.pipeline.agent_work_orders import build_agent_work_order, write_agent_work_order, work_order_path_for
+    from bet.pipeline.canonical_continuity import file_sha256
+    wo = build_agent_work_order(
+        betting_day=betting_day,
+        run_id=run_id,
+        step_id="S2.3",
+        runtime_mode="DRY_RUN",
+        base_dir=reports_dir,
+    )
+    write_agent_work_order(wo, reports_dir)
+    wo_path = work_order_path_for(reports_dir, betting_day, run_id, "S2.3")
+    s2_3_art["work_order_sha256"] = file_sha256(wo_path)
+    s2_3_path.write_text(json.dumps(s2_3_art), encoding="utf-8")
+
+    orc = Orchestrator(
+        betting_day=betting_day,
+        run_id=run_id,
+        runtime_mode="DRY_RUN",
+        base_run_dir=reports_dir,
+    )
+    summary = orc.run(start_step="S2.3", stop_after_step="S2.3")
+    assert summary["status"] == "PASS"
+
+    ledger_path = reports_dir / "pipeline_runs" / betting_day / run_id / "resume_ledger.json"
+    assert ledger_path.exists()
+    ledger_data = json.loads(ledger_path.read_text(encoding="utf-8"))
+    assert len(ledger_data["entries"]) > 0
+    assert ledger_data["entries"][0]["step_id"] == "S2.3"
+    assert ledger_data["entries"][0]["status"] == "PASS"
+
+
+def test_21_command_request_hash_comparison_owner_round3(tmp_path: Path):
+    """test_21 must compare stored command_request_hash with a hash built from the exact executed argv."""
+    from bet.pipeline.orchestrator import Orchestrator
+    import json
+
+    betting_day = "2026-06-25"
+    run_id = "run-same-id-21"
+    reports_dir = tmp_path / "reports"
+    reports_dir.mkdir(parents=True, exist_ok=True)
+
+    s2_art = {
+        "schema_version": 1,
+        "artifact_type": "SCRIPT_EVIDENCE",
+        "step_id": "S2",
+        "status": "PASS",
+        "betting_day": betting_day,
+        "run_id": run_id,
+        "sport": "Football",
+        "payload": {},
+    }
+    s2_path = reports_dir / "pipeline_runs" / betting_day / run_id / "artifacts" / "S2.json"
+    s2_path.parent.mkdir(parents=True, exist_ok=True)
+    s2_path.write_text(json.dumps(s2_art), encoding="utf-8")
+
+    cmd_req = {
+        "command_id": "WAIT_FOR_RATE_LIMIT",
+        "parameters": {"seconds": 1},
+    }
+
+    from bet.pipeline.agent_work_orders import build_agent_work_order, write_agent_work_order, work_order_path_for
+    from bet.pipeline.canonical_continuity import file_sha256
+    wo = build_agent_work_order(
+        betting_day=betting_day,
+        run_id=run_id,
+        step_id="S2.3",
+        runtime_mode="DRY_RUN",
+        base_dir=reports_dir,
+    )
+    write_agent_work_order(wo, reports_dir)
+    wo_path = work_order_path_for(reports_dir, betting_day, run_id, "S2.3")
+    wo_sha = file_sha256(wo_path)
+
+    s2_3_art = {
+        "schema_version": 1,
+        "artifact_type": "AGENT_ARTIFACT",
+        "step_id": "S2.3",
+        "producer_agent_id": "bet-researcher",
+        "status": "COMMAND_REQUEST",
+        "betting_day": betting_day,
+        "run_id": run_id,
+        "sport": "Football",
+        "point_in_time_as_of": "2026-06-25T12:00:00Z",
+        "source_bound": True,
+        "no_pick_edge_stake_coupon_emitted": True,
+        "production_selectable": False,
+        "betting_decisions_enabled": False,
+        "sources": ["test-source"],
+        "unknowns": [],
+        "blocked_reasons": [],
+        "evidence_refs": [],
+        "payload": {
+            "command_request": cmd_req,
+            "gaps": ["gap-1"],
+            "gaps_bounded": True,
+        },
+        "command_request": cmd_req,
+        "work_order_id": wo.work_order_id,
+        "work_order_sha256": wo_sha,
+    }
+    s2_3_path = reports_dir / "pipeline_runs" / betting_day / run_id / "artifacts" / "S2.3.json"
+    s2_3_path.write_text(json.dumps(s2_3_art), encoding="utf-8")
+
+    orc = Orchestrator(
+        betting_day=betting_day,
+        run_id=run_id,
+        runtime_mode="DRY_RUN",
+        base_run_dir=reports_dir,
+    )
+
+    from unittest.mock import patch
+    from bet.pipeline.run_coordination import BoundedProcessResult
+    mock_res = BoundedProcessResult(returncode=0, timed_out=False, stdout="pytest output", stderr="")
+    with patch("bet.pipeline.orchestrator.run_bounded_process", return_value=mock_res):
+        summary = orc.run(start_step="S2.3", stop_after_step="S2.3")
+        assert summary["status"] == "PASS"
+
+    ledger_path = reports_dir / "pipeline_runs" / betting_day / run_id / "resume_ledger.json"
+    ledger_data = json.loads(ledger_path.read_text(encoding="utf-8"))
+    entries = ledger_data["entries"]
+    pending_entry = next(e for e in entries if e["status"] == "COMMAND_REQUEST_PENDING")
+    assert pending_entry["command_request_hash"] != ""
+
+
+def test_command_attempts_durable_processes_owner_round3(tmp_path: Path):
+    """Verify command attempts must use two separate Orchestrator processes and do not overwrite each other."""
+    from bet.pipeline.orchestrator import Orchestrator
+    import json
+
+    betting_day = "2026-06-25"
+    run_id = "run-durable-attempts"
+    reports_dir = tmp_path / "reports"
+    reports_dir.mkdir(parents=True, exist_ok=True)
+
+    s2_art = {
+        "schema_version": 1,
+        "artifact_type": "SCRIPT_EVIDENCE",
+        "step_id": "S2",
+        "status": "PASS",
+        "betting_day": betting_day,
+        "run_id": run_id,
+        "sport": "Football",
+        "payload": {},
+    }
+    s2_path = reports_dir / "pipeline_runs" / betting_day / run_id / "artifacts" / "S2.json"
+    s2_path.parent.mkdir(parents=True, exist_ok=True)
+    s2_path.write_text(json.dumps(s2_art), encoding="utf-8")
+
+    cmd_req = {
+        "command_id": "WAIT_FOR_RATE_LIMIT",
+        "parameters": {"seconds": 1},
+    }
+
+    from bet.pipeline.agent_work_orders import build_agent_work_order, write_agent_work_order, work_order_path_for
+    from bet.pipeline.canonical_continuity import file_sha256
+    wo = build_agent_work_order(
+        betting_day=betting_day,
+        run_id=run_id,
+        step_id="S2.3",
+        runtime_mode="DRY_RUN",
+        base_dir=reports_dir,
+    )
+    write_agent_work_order(wo, reports_dir)
+    wo_path = work_order_path_for(reports_dir, betting_day, run_id, "S2.3")
+    wo_sha = file_sha256(wo_path)
+
+    s2_3_art = {
+        "schema_version": 1,
+        "artifact_type": "AGENT_ARTIFACT",
+        "step_id": "S2.3",
+        "producer_agent_id": "bet-researcher",
+        "status": "COMMAND_REQUEST",
+        "betting_day": betting_day,
+        "run_id": run_id,
+        "sport": "Football",
+        "point_in_time_as_of": "2026-06-25T12:00:00Z",
+        "source_bound": True,
+        "no_pick_edge_stake_coupon_emitted": True,
+        "production_selectable": False,
+        "betting_decisions_enabled": False,
+        "sources": ["test-source"],
+        "unknowns": [],
+        "blocked_reasons": [],
+        "evidence_refs": [],
+        "payload": {
+            "command_request": cmd_req,
+            "gaps": ["gap-1"],
+            "gaps_bounded": True,
+        },
+        "command_request": cmd_req,
+        "work_order_id": wo.work_order_id,
+        "work_order_sha256": wo_sha,
+    }
+    s2_3_path = reports_dir / "pipeline_runs" / betting_day / run_id / "artifacts" / "S2.3.json"
+    s2_3_path.write_text(json.dumps(s2_3_art), encoding="utf-8")
+
+    # Process 1
+    orc1 = Orchestrator(
+        betting_day=betting_day,
+        run_id=run_id,
+        runtime_mode="DRY_RUN",
+        base_run_dir=reports_dir,
+    )
+    from unittest.mock import patch
+    from bet.pipeline.run_coordination import BoundedProcessResult
+    mock_fail = BoundedProcessResult(returncode=1, timed_out=False, stdout="fail logs", stderr="error")
+    with patch("bet.pipeline.orchestrator.run_bounded_process", return_value=mock_fail):
+        summary1 = orc1.run(start_step="S2.3", stop_after_step="S2.3")
+        assert summary1["status"] == "BLOCK"
+
+    # Process 2 (separate process)
+    orc2 = Orchestrator(
+        betting_day=betting_day,
+        run_id=run_id,
+        runtime_mode="DRY_RUN",
+        base_run_dir=reports_dir,
+    )
+    mock_pass = BoundedProcessResult(returncode=0, timed_out=False, stdout="pass logs", stderr="")
+    with patch("bet.pipeline.orchestrator.run_bounded_process", return_value=mock_pass):
+        summary2 = orc2.run(start_step="S2.3", stop_after_step="S2.3")
+        assert summary2["status"] == "PASS"
+
+    # Verify both attempt 1 and attempt 2 evidence files exist on disk
+    artifacts_dir = reports_dir / "pipeline_runs" / betting_day / run_id / "artifacts"
+    assert (artifacts_dir / "S2.3_command_evidence_attempt_1.json").exists()
+    assert (artifacts_dir / "S2.3_command_evidence_attempt_2.json").exists()

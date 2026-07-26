@@ -43,6 +43,7 @@ docs/pipeline/tipster_terms_review.local.json
 .kilo/artifacts/**/backup.patch
 
 # Avoid tracking sqlite files under pipeline runs
+reports/
 reports/pipeline_runs/**/*.sqlite
 reports/pipeline_runs/**/*.sqlite-shm
 reports/pipeline_runs/**/*.sqlite-wal

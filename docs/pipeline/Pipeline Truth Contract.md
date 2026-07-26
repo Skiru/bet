@@ -10,23 +10,23 @@ By centralizing the steps, associated agents, execution modes, outputs, permitte
 
 The pipeline progresses sequentially through 17 explicit steps in this exact order:
 
-1. **S0**: Settler (Phase: `DATA`, Agent: `bet-settler`) — The first DATA step of the daily pipeline, which may settle prior events before current-day discovery.
-2. **S1**: Discover (Phase: `DATA`, Agent: `bet-scanner`)
-3. **S1e**: Events Discovery (Phase: `DATA`, Agent: `bet-scanner`)
-4. **S2**: Tipsters Discovery (Phase: `DATA`, Agent: `bet-scout`)
-5. **S2.3**: Enrichment Gap Detection (Phase: `DATA`, Agent: `bet-enricher`)
-6. **S2.5**: Provider Enrichment (Phase: `DATA`, Agent: `bet-enricher`)
-7. **S2.7**: Source Reconciliation (Phase: `DATA`, Agent: `bet-enricher`)
-8. **S2.9**: Data Readiness Gate (Phase: `DATA`, Agent: `bet-enricher`)
-9. **S3**: Stats & Probability (Phase: `ANALYSIS_BUILD`, Agent: `bet-statistician`)
-10. **S4**: Valuator & CLV (Phase: `ANALYSIS_BUILD`, Agent: `bet-valuator`)
-11. **S5**: Context/Motivation/Risk (Phase: `ANALYSIS_BUILD`, Agent: `bet-challenger`)
-12. **S6**: Portfolio/Repeat Guard (Phase: `ANALYSIS_BUILD`, Agent: `bet-challenger`)
-13. **S7**: Hard Approval Gate (Phase: `ANALYSIS_BUILD`, Agent: `bet-challenger`)
-14. **S7b**: Market Availability Validation (Phase: `ANALYSIS_BUILD`, Agent: `bet-test-engineer`)
+1. **S0**: Settler (Phase: `DATA`, Agent: `bet-settler-postevent`) — The first DATA step of the daily pipeline, which may settle prior events before current-day discovery.
+2. **S1**: Discover (Phase: `DATA`, Agent: `bet-researcher`)
+3. **S1e**: Events Discovery (Phase: `DATA`, Agent: `bet-researcher`)
+4. **S2**: Tipsters Discovery (Phase: `DATA`, Agent: `bet-researcher`)
+5. **S2.3**: Enrichment Gap Detection (Phase: `DATA`, Agent: `bet-researcher`)
+6. **S2.5**: Provider Enrichment (Phase: `DATA`, Agent: `bet-researcher`)
+7. **S2.7**: Source Reconciliation (Phase: `DATA`, Agent: `bet-researcher`)
+8. **S2.9**: Data Readiness Gate (Phase: `DATA`, Agent: `bet-researcher`)
+9. **S3**: Stats & Probability (Phase: `ANALYSIS_BUILD`, Agent: `bet-modeler`)
+10. **S4**: Valuator & CLV (Phase: `ANALYSIS_BUILD`, Agent: `bet-modeler`)
+11. **S5**: Context/Motivation/Risk (Phase: `ANALYSIS_BUILD`, Agent: `bet-risk-gatekeeper`)
+12. **S6**: Portfolio/Repeat Guard (Phase: `ANALYSIS_BUILD`, Agent: `bet-risk-gatekeeper`)
+13. **S7**: Hard Approval Gate (Phase: `ANALYSIS_BUILD`, Agent: `bet-risk-gatekeeper`)
+14. **S7b**: Market Availability Validation (Phase: `ANALYSIS_BUILD`, Agent: `bet-auditor`)
 15. **S8**: Coupon Construction (Phase: `ANALYSIS_BUILD`, Agent: `bet-builder`)
-16. **S9**: Human Execution Gate (Phase: `EXECUTION`, Agent: `bet-challenger`)
-17. **S10**: Settlement Handoff (Phase: `POST_EVENT`, Agent: `bet-settler`) — The POST_EVENT settlement/learning handoff.
+16. **S9**: Human Execution Gate (Phase: `EXECUTION`, Agent: `bet-risk-gatekeeper`)
+17. **S10**: Settlement Handoff (Phase: `POST_EVENT`, Agent: `bet-settler-postevent`) — The POST_EVENT settlement/learning handoff.
 
 ## Execution Modes
 
