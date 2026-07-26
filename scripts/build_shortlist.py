@@ -1353,8 +1353,13 @@ def write_shortlist_json(selected: list[tuple[float, dict]], date: str) -> Path:
     verified_count = 0
     unverified_count = 0
 
+    run_id = os.environ.get("BET_PIPELINE_RUN_ID", "")
     output = {
+        "schema_version": 1,
+        "artifact_type": "S2_SHORTLIST",
+        "betting_day": date,
         "date": date,
+        "run_id": run_id,
         "total_candidates": len(selected),
         "sports": sorted(set(e["sport"] for _, e in selected)),
         "selection_telemetry": dict(_LAST_SHORTLIST_TELEMETRY),
@@ -1399,9 +1404,7 @@ def write_shortlist_json(selected: list[tuple[float, dict]], date: str) -> Path:
               f"{unverified_count} UNVERIFIED ({output['fixture_verification']['pct']}% verified)")
 
     output_path = DATA_DIR / f"{date}_s2_shortlist.json"
-    output_path.write_text(
-        json.dumps(output, indent=2, ensure_ascii=False), encoding="utf-8"
-    )
+    atomic_json_write(output_path, output)
     print(f"[shortlist] JSON: {output_path}")
     return output_path
 

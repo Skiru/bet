@@ -558,8 +558,133 @@ def test_s1_controlled_block_populates_run_summary_evidence_path(tmp_path):
     assert any("BLOCKED_MISSING_MARKET_MATRIX" in blocker for blocker in summary_data["blockers"])
 
 
+def _seed_orchestrator_prereqs(base_dir: Path, betting_day: str = "2026-06-25", run_id: str = "run-999", exclude_steps: tuple[str, ...] = ()) -> None:
+    run_dir = base_dir / "pipeline_runs" / betting_day / run_id
+    art_dir = run_dir / "artifacts"
+    data_dir = run_dir / "data"
+    art_dir.mkdir(parents=True, exist_ok=True)
+    data_dir.mkdir(parents=True, exist_ok=True)
+
+    # S1e
+    if "S1e" not in exclude_steps:
+        if not (data_dir / f"{betting_day}_s1e_event_universe.json").exists():
+            (data_dir / f"{betting_day}_s1e_event_universe.json").write_text(json.dumps({
+                "schema_version": 1, "artifact_type": "S1E_EVENT_UNIVERSE_LEDGER",
+                "betting_day": betting_day, "run_id": run_id, "canonical_event_ids": ["evt_1"]
+            }), encoding="utf-8")
+        if not (art_dir / "S1e.json").exists():
+            (art_dir / "S1e.json").write_text(json.dumps({
+                "schema_version": 1, "artifact_type": "SCRIPT_EVIDENCE", "step_id": "S1e",
+                "betting_day": betting_day, "run_id": run_id, "status": "PASS",
+                "payload": {"s1e_output_path": str(data_dir / f"{betting_day}_s1e_event_universe.json")}
+            }), encoding="utf-8")
+
+    # S2
+    if "S2" not in exclude_steps:
+        s2_path = data_dir / f"{betting_day}_s2_shortlist.json"
+        if not s2_path.exists():
+            s2_path.write_text(json.dumps({
+                "schema_version": 1, "artifact_type": "S2_SHORTLIST",
+                "betting_day": betting_day, "run_id": run_id, "total_candidates": 1, "candidates": [{"sport": "football"}]
+            }), encoding="utf-8")
+        if not (art_dir / "S2.json").exists():
+            (art_dir / "S2.json").write_text(json.dumps({
+                "schema_version": 1, "artifact_type": "SCRIPT_EVIDENCE", "step_id": "S2",
+                "betting_day": betting_day, "run_id": run_id, "status": "PASS",
+                "payload": {"s2_output_path": str(s2_path)}
+            }), encoding="utf-8")
+
+    # S2.3, S2.5, S2.7, S2.9
+    for sub in ["S2.3", "S2.5", "S2.7", "S2.9"]:
+        if sub not in exclude_steps and not (art_dir / f"{sub}.json").exists():
+            (art_dir / f"{sub}.json").write_text(json.dumps({
+                "schema_version": 1, "artifact_type": "AGENT_ARTIFACT", "step_id": sub,
+                "betting_day": betting_day, "run_id": run_id, "status": "PASS", "payload": {}
+            }), encoding="utf-8")
+
+    # S3
+    if "S3" not in exclude_steps:
+        s3_path = data_dir / f"{betting_day}_s3_deep_stats.json"
+        if not s3_path.exists():
+            s3_path.write_text(json.dumps({
+                "schema_version": 1, "artifact_type": "S3_DEEP_STATS",
+                "betting_day": betting_day, "run_id": run_id, "analyses": []
+            }), encoding="utf-8")
+        if not (art_dir / "S3.json").exists():
+            (art_dir / "S3.json").write_text(json.dumps({
+                "schema_version": 1, "artifact_type": "SCRIPT_EVIDENCE", "step_id": "S3",
+                "betting_day": betting_day, "run_id": run_id, "status": "PASS",
+                "payload": {"s3_output_path": str(s3_path)}
+            }), encoding="utf-8")
+
+    # S4
+    if "S4" not in exclude_steps:
+        s4_path = data_dir / f"{betting_day}_s4_valuation_candidates.json"
+        if not s4_path.exists():
+            s4_path.write_text(json.dumps({
+                "schema_version": 1, "artifact_type": "S4_VALUATION_CANDIDATE_SET_V2",
+                "betting_day": betting_day, "run_id": run_id, "valuation_candidates": []
+            }), encoding="utf-8")
+        if not (art_dir / "S4.json").exists():
+            (art_dir / "S4.json").write_text(json.dumps({
+                "schema_version": 1, "artifact_type": "SCRIPT_EVIDENCE", "step_id": "S4",
+                "betting_day": betting_day, "run_id": run_id, "status": "PASS",
+                "payload": {"s4_output_path": str(s4_path)}
+            }), encoding="utf-8")
+    if not (art_dir / "S1e.json").exists():
+        (art_dir / "S1e.json").write_text(json.dumps({
+            "schema_version": 1, "artifact_type": "SCRIPT_EVIDENCE", "step_id": "S1e",
+            "betting_day": betting_day, "run_id": run_id, "status": "PASS",
+            "payload": {"s1e_output_path": str(data_dir / f"{betting_day}_s1e_event_universe.json")}
+        }), encoding="utf-8")
+
+    # S2
+    s2_path = data_dir / f"{betting_day}_s2_shortlist.json"
+    if not s2_path.exists():
+        s2_path.write_text(json.dumps({
+            "schema_version": 1, "artifact_type": "S2_SHORTLIST",
+            "betting_day": betting_day, "run_id": run_id, "total_candidates": 1, "candidates": [{"sport": "football"}]
+        }), encoding="utf-8")
+    if not (art_dir / "S2.json").exists():
+        (art_dir / "S2.json").write_text(json.dumps({
+            "schema_version": 1, "artifact_type": "SCRIPT_EVIDENCE", "step_id": "S2",
+            "betting_day": betting_day, "run_id": run_id, "status": "PASS",
+            "payload": {"s2_output_path": str(s2_path)}
+        }), encoding="utf-8")
+
+    # S3
+    s3_path = data_dir / f"{betting_day}_s3_deep_stats.json"
+    if not s3_path.exists():
+        s3_path.write_text(json.dumps({
+            "schema_version": 1, "artifact_type": "S3_DEEP_STATS",
+            "betting_day": betting_day, "run_id": run_id, "analyses": []
+        }), encoding="utf-8")
+    if not (art_dir / "S3.json").exists():
+        (art_dir / "S3.json").write_text(json.dumps({
+            "schema_version": 1, "artifact_type": "SCRIPT_EVIDENCE", "step_id": "S3",
+            "betting_day": betting_day, "run_id": run_id, "status": "PASS",
+            "payload": {"s3_output_path": str(s3_path)}
+        }), encoding="utf-8")
+
+    # S4
+    s4_path = data_dir / f"{betting_day}_s4_valuation_candidates.json"
+    if not s4_path.exists():
+        s4_path.write_text(json.dumps({
+            "schema_version": 1, "artifact_type": "S4_VALUATION_CANDIDATE_SET_V2",
+            "betting_day": betting_day, "run_id": run_id, "valuation_candidates": []
+        }), encoding="utf-8")
+    if not (art_dir / "S4.json").exists():
+        (art_dir / "S4.json").write_text(json.dumps({
+            "schema_version": 1, "artifact_type": "SCRIPT_EVIDENCE", "step_id": "S4",
+            "betting_day": betting_day, "run_id": run_id, "status": "PASS",
+            "payload": {"s4_output_path": str(s4_path)}
+        }), encoding="utf-8")
+
+
 def test_orchestrator_writes_work_order_when_s2_3_missing(tmp_path):
     """Verify orchestrator writes work order when S2.3 artifact is missing, blocks, and does not run S2.5."""
+    _seed_orchestrator_prereqs(tmp_path / "reports", exclude_steps=("S2.3", "S2.5", "S2.7", "S2.9"))
+    _seed_orchestrator_prereqs(tmp_path / "reports")
     orch = Orchestrator(
         betting_day="2026-06-25",
         run_id="run-999",
@@ -592,6 +717,8 @@ def test_orchestrator_writes_work_order_when_s2_3_missing(tmp_path):
 
 def test_orchestrator_writes_work_order_when_s5_missing(tmp_path):
     """Verify orchestrator writes work order when S5 artifact is missing, blocks, and does not run S6."""
+    _seed_orchestrator_prereqs(tmp_path / "reports", exclude_steps=("S5", "S6"))
+    _seed_orchestrator_prereqs(tmp_path / "reports")
     orch = Orchestrator(
         betting_day="2026-06-25",
         run_id="run-999",
@@ -631,6 +758,7 @@ def test_orchestrator_writes_work_order_when_s5_missing(tmp_path):
 
 def test_orchestrator_proceeds_on_valid_agent_artifact(tmp_path):
     """Verify orchestrator proceeds when a valid agent artifact exists."""
+    _seed_orchestrator_prereqs(tmp_path / "reports", exclude_steps=("S2.3",))
     # Write a fully valid S2.3 artifact
     write_test_artifact(
         tmp_path / "reports",
@@ -642,6 +770,7 @@ def test_orchestrator_proceeds_on_valid_agent_artifact(tmp_path):
             "payload": {
                 "enrichment_gaps": [],
                 "gaps_status": "bounded",
+                "event_records": [{"canonical_event_id": "evt_1", "terminal_status": "CONTINUE", "reason_codes": [], "candidate_ids": []}],
             },
         }
     )
@@ -660,6 +789,8 @@ def test_orchestrator_proceeds_on_valid_agent_artifact(tmp_path):
 
 def test_orchestrator_blocks_on_invalid_agent_artifact(tmp_path):
     """Verify orchestrator blocks when an agent artifact is invalid."""
+    _seed_orchestrator_prereqs(tmp_path / "reports", exclude_steps=("S2.3",))
+    _seed_orchestrator_prereqs(tmp_path / "reports")
     # Write S2.3 artifact with missing key fields / forbidden fields
     write_test_artifact(
         tmp_path / "reports",

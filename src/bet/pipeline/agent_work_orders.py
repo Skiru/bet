@@ -563,7 +563,7 @@ def build_agent_work_order(
                 if (
                     ref_existing.step_id != ref_candidate.step_id
                     or ref_existing.artifact_kind != ref_candidate.artifact_kind
-                    or ref_existing.path != ref_candidate.path
+                    or Path(ref_existing.path).resolve() != Path(ref_candidate.path).resolve()
                     or ref_existing.required != ref_candidate.required
                     or ref_existing.sha256 != ref_candidate.sha256
                 ):
@@ -575,7 +575,7 @@ def build_agent_work_order(
             if existing_wo.source_head != candidate_source_head:
                 raise ContinuityContractError("WORK_ORDER_DRIFT: source_head changed")
 
-            if existing_wo.required_output.expected_path != str(expected_path):
+            if Path(existing_wo.required_output.expected_path).resolve() != Path(expected_path).resolve():
                 raise ContinuityContractError("WORK_ORDER_DRIFT: expected output path changed")
 
             if existing_wo.required_output.schema_requirements != policy.schema_requirements:

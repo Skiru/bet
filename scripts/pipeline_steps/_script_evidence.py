@@ -542,11 +542,73 @@ def run_wrapper_scripts_with_evidence(
 
             extra_payload["event_records"] = event_records
             s2_data["event_records"] = event_records
+            if child_env.get("BET_PIPELINE_RUN_ID"):
+                s2_data["run_id"] = child_env["BET_PIPELINE_RUN_ID"]
             output_file.write_text(json.dumps(s2_data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
             from bet.pipeline.run_evidence import sha256_file
-            extra_payload["s2_output_sha256"] = sha256_file(output_file)
+            s2_actual_sha = sha256_file(output_file)
+            extra_payload["s2_output_sha256"] = s2_actual_sha
             if not matched_event_ids:
                 extra_payload["outcome"] = "DEGRADED_NO_TIPSTER_PICKS"
+
+            # Producer-side self-validation before S2 SCRIPT_EVIDENCE can report PASS
+            try:
+                if not output_file.exists():
+                    raise FileNotFoundError(f"S2 output file missing: {output_file}")
+                s2_final_bytes = output_file.read_bytes()
+                if not s2_final_bytes:
+                    raise ValueError("S2 output file is empty")
+                s2_final = json.loads(s2_final_bytes.decode("utf-8"))
+                if not isinstance(s2_final, dict):
+                    raise ValueError("S2 output is not a dictionary")
+                if s2_final.get("artifact_type") != "S2_SHORTLIST":
+                    raise ValueError(f"STEP_TYPE_MISMATCH: Artifact type mismatch: expected S2_SHORTLIST, got {s2_final.get('artifact_type')}")
+                if "total_candidates" not in s2_final or "candidates" not in s2_final:
+                    raise ValueError("S2 output missing required total_candidates or candidates keys")
+                candidates_list = s2_final.get("candidates")
+                if not isinstance(candidates_list, list):
+                    raise ValueError("S2 candidates is not a list")
+                if s2_final["total_candidates"] != len(candidates_list):
+                    raise ValueError(f"S2 candidate count mismatch: total_candidates is {s2_final['total_candidates']}, but candidates len is {len(candidates_list)}")
+
+                if extra_payload.get("s2_output_sha256") != s2_actual_sha:
+                    raise ValueError("S2 recorded SHA mismatch with output file SHA")
+
+                from bet.pipeline.integration_artifacts import strict_validate_step_output
+                strict_validate_step_output(
+                    step_id="S2",
+                    output_path=output_file,
+                    output_data=s2_final,
+                    run_root=Path(child_env["BET_PIPELINE_RUN_ROOT"]),
+                    betting_day=betting_day or "",
+                    run_id=child_env.get("BET_PIPELINE_RUN_ID", run_id or ""),
+                    expected_artifact_type="S2_SHORTLIST",
+                )
+            except Exception as validation_exc:
+                print(f"[S2 validator] Producer-side self-validation failed: {validation_exc}", file=sys.stderr)
+                payload = build_wrapper_payload(
+                    step_id=step_id,
+                    wrapper_scripts=wrapper_scripts,
+                    wrapper_rc=-1,
+                    runtime_mode=mode,
+                    dry_run=dry_run,
+                    allow_write=allow_write,
+                    allow_live_network=allow_live_network,
+                    child_env=child_env,
+                    runtime_path_source=runtime_path_source,
+                    extra={**(extra_payload or {}), "error": str(validation_exc)},
+                )
+                write_terminal_script_evidence_or_fail(
+                    step_id=step_id,
+                    status="BLOCK",
+                    payload=payload,
+                    sources=tuple(f"scripts/{script_name}" for script_name in script_names),
+                    child_env=child_env,
+                    blocked_reasons=("BLOCKED_S2_SHORTLIST_INVALID",),
+                    no_pick_edge_stake_coupon_emitted=no_pick_edge_stake_coupon_emitted,
+                    extra_top_level_fields=extra_top_level_fields,
+                )
+                raise SystemExit(1) from validation_exc
 
     payload = build_wrapper_payload(
         step_id=step_id,

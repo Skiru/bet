@@ -322,23 +322,15 @@ def resolve_bound_step_output(
         raise ValueError(f"Step {step_id} output is not a JSON object")
 
     actual_type = output_data.get("artifact_type") or output_data.get("artifact_kind")
+    if actual_type != expected_artifact_type:
+        if not (step_id == "S5" and actual_type == "AGENT_ARTIFACT" and expected_artifact_type == "S5_CONTEXT_RISK_CANDIDATE_SET_V2"):
+            raise ValueError(f"STEP_TYPE_MISMATCH: Artifact type mismatch: expected {expected_artifact_type}, got {actual_type}")
     if step_id == "S2":
-        if expected_artifact_type != "S2_SHORTLIST":
-            raise ValueError(f"Artifact type mismatch: expected {expected_artifact_type}, got {actual_type or 'S2_SHORTLIST'}")
-        if actual_type is not None and actual_type != expected_artifact_type:
-            raise ValueError(f"Artifact type mismatch: expected {expected_artifact_type}, got {actual_type}")
         if "total_candidates" not in output_data:
             raise ValueError("Artifact structure mismatch for S2: expected total_candidates key")
     elif step_id == "S3":
-        if expected_artifact_type != "S3_DEEP_STATS":
-            raise ValueError(f"Artifact type mismatch: expected {expected_artifact_type}, got {actual_type or 'S3_DEEP_STATS'}")
-        if actual_type is not None and actual_type != expected_artifact_type:
-            raise ValueError(f"Artifact type mismatch: expected {expected_artifact_type}, got {actual_type}")
         if "analyses" not in output_data:
             raise ValueError("Artifact structure mismatch for S3: expected analyses key")
-    else:
-        if actual_type is not None and actual_type != expected_artifact_type:
-            raise ValueError(f"Artifact type mismatch: expected {expected_artifact_type}, got {actual_type}")
 
     if expected_source_step:
         source_evidence_path = run_root_path / "artifacts" / f"{expected_source_step}.json"
@@ -498,7 +490,7 @@ def resolve_manifest_step_output(
                     run_id=run_id,
                     manifest=manifest,
                 )
-        elif actual_type is not None and actual_type != expected_artifact_type:
+        elif actual_type != expected_artifact_type:
             raise ValueError(f"STEP_TYPE_MISMATCH: Artifact type mismatch: expected {expected_artifact_type}, got {actual_type}")
 
         actual_sha = sha256_file(output_path)
@@ -689,13 +681,12 @@ def strict_validate_step_output(
     actual_type = output_data.get("artifact_type") or output_data.get("artifact_kind")
     if actual_type != expected_artifact_type:
         if not (step_id == "S5" and actual_type == "AGENT_ARTIFACT" and expected_artifact_type == "S5_CONTEXT_RISK_CANDIDATE_SET_V2"):
-            if not is_test_run:
-                raise ValueError(f"STEP_TYPE_MISMATCH: Artifact type mismatch: expected {expected_artifact_type}, got {actual_type}")
+            raise ValueError(f"STEP_TYPE_MISMATCH: Artifact type mismatch: expected {expected_artifact_type}, got {actual_type}")
 
     # 7. Matching run ID and betting day
     if "betting_day" in output_data and output_data["betting_day"] != betting_day:
         raise ValueError(f"STEP_DAY_MISMATCH: Betting day mismatch: expected {betting_day}, got {output_data['betting_day']}")
-    if "run_id" in output_data and output_data["run_id"] != run_id:
+    if output_data.get("run_id") and output_data["run_id"] != run_id:
         raise ValueError(f"STEP_RUN_MISMATCH: Run ID mismatch: expected {run_id}, got {output_data['run_id']}")
 
     # 8. Event records check

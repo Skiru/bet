@@ -409,7 +409,7 @@ def test_16_db_isolation(tmp_path: Path, monkeypatch):
     data_dir = run_root / "data"
     data_dir.mkdir(parents=True, exist_ok=True)
     shortlist_path = data_dir / "2026-07-15_s2_shortlist.json"
-    shortlist_path.write_text(json.dumps({"total_candidates": 0, "candidates": []}), encoding="utf-8")
+    shortlist_path.write_text(json.dumps({"schema_version": 1, "artifact_type": "S2_SHORTLIST", "total_candidates": 0, "candidates": []}), encoding="utf-8")
 
     # Seed S1e ledger output to satisfy S2 prerequisites
     universe_path = data_dir / "2026-07-15_s1e_event_universe.json"
