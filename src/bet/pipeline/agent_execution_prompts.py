@@ -203,15 +203,20 @@ def render_agent_execution_prompt(work_order: dict[str, Any]) -> str:
                 f"- max_queries={acq.get('max_queries', 10)}",
             ]
         )
-        for req in acq.get("requirements", []):
-            prompt_lines.append(
-                f"  * requirement_id={req.get('requirement_id')} "
-                f"fact_type={req.get('fact_type')} "
-                f"level={req.get('requirement_level')} "
-                f"tools={','.join(req.get('allowed_tools', ()))} "
-                f"max_age_hours={req.get('max_age_hours', 48)} "
-                f"min_sources={req.get('min_independent_sources', 1)}"
-            )
+        reqs = acq.get("requirements") or acq.get("fact_requirements") or []
+        for req in reqs:
+            if isinstance(req, dict):
+                tools_str = ",".join(req.get("allowed_tools", ()))
+                prompt_lines.append(
+                    f"  * requirement_id={req.get('requirement_id')} "
+                    f"fact_type={req.get('fact_type')} "
+                    f"level={req.get('requirement_level')} "
+                    f"tools={tools_str} "
+                    f"max_age_hours={req.get('max_age_hours', 48)} "
+                    f"min_sources={req.get('min_independent_sources', 1)}"
+                )
+            elif isinstance(req, str):
+                prompt_lines.append(f"  * requirement={req}")
 
     prompt_lines.extend(["", "MUST DO:"])
     prompt_lines.extend(f"- {item}" for item in instructions.get("must_do", []))

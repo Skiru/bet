@@ -232,10 +232,19 @@ class ModelRegistry:
     def list_cards(self) -> list[ModelCardV1]:
         return list(self._cards.values())
 
-    def list_model_cards(self, sport: str | None = None) -> list[ModelCardV1]:
+    def list_model_cards(
+        self,
+        sport: str | None = None,
+        competition_scope: str | None = None,
+        market_family: str | None = None,
+    ) -> list[ModelCardV1]:
         cards = list(self._cards.values())
         if sport:
             cards = [c for c in cards if c.sport.lower() == sport.lower()]
+        if competition_scope and competition_scope != "ALL":
+            cards = [c for c in cards if c.competition_scope.lower() in ("all", competition_scope.lower())]
+        if market_family and market_family != "ALL":
+            cards = [c for c in cards if c.market_family.lower() == market_family.lower()]
         return cards
 
 

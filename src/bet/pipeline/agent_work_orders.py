@@ -645,28 +645,30 @@ def build_agent_work_order(
 
     acq_plan = kwargs.get("acquisition_plan")
     allowed_tools = kwargs.get("allowed_tools", [])
-    if acq_plan is None and step_id in {"S2.3", "S2.5", "S2.7", "S2.9"}:
-        allowed_tools = ["bet_sqlite_query", "read", "glob", "grep"]
+    if acq_plan is None and step_id in {"S2.3", "S2.5", "S2.7", "S2.9", "S5"}:
+        allowed_tools = ["bet_sqlite_query", "webfetch", "read", "glob", "grep"]
         acq_plan = {
-            "step_id": step_id,
-            "betting_day": betting_day,
-            "run_id": run_id,
-            "allowed_tools": allowed_tools,
+            "plan_id": f"PLAN-{work_order_id}",
+            "canonical_event_id": kwargs.get("canonical_event_id") or "ALL_SHORTLIST_EVENTS",
+            "sport": kwargs.get("sport") or "football",
+            "max_queries": 10,
+            "requirements": [
+                {
+                    "requirement_id": f"REQ-{step_id}-01",
+                    "fact_type": "LINEUP_INJURY_FORM_FACTS",
+                    "sport": kwargs.get("sport") or "football",
+                    "market_families_affected": ["result", "corners", "goals"],
+                    "requirement_level": "REQUIRED_FOR_PRICING",
+                    "allowed_tools": list(allowed_tools),
+                    "max_age_hours": 48,
+                    "min_independent_sources": 2,
+                }
+            ],
             "query_budget": {
                 "max_queries_per_event": 5,
                 "max_total_queries": 25,
                 "max_wall_time_seconds": 300,
             },
-            "fact_requirements": [
-                "two_independent_current_sources",
-                "explicit_as_of_timestamps",
-                "no_invented_identity_or_odds",
-            ],
-            "forbidden_actions": [
-                "open_ended_web_browsing",
-                "operator_scraping_or_login",
-                "synthetic_s9_approval",
-            ],
         }
 
     return AgentWorkOrder(

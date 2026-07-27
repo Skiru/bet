@@ -137,6 +137,8 @@ class S27ReconciledFactsV1(StrictBaseModel):
 class DataReadinessRecordV1(StrictBaseModel):
     canonical_event_id: str
     sport: str
+    competition: str | None = None
+    market_family: str | None = None
     quality_grade: Literal["HIGH", "MEDIUM", "LOW", "UNKNOWN"]
     readiness_tier: Literal["READY_FOR_PRICING", "ANALYSIS_ONLY", "BLOCKED"]
     missing_fields: list[str] = Field(default_factory=list)
@@ -156,13 +158,43 @@ class S29DataReadinessV1(StrictBaseModel):
     @model_validator(mode="after")
     def validate_pricing_readiness_model_requirement(self) -> S29DataReadinessV1:
         from bet.models.registry import GLOBAL_MODEL_REGISTRY
+        from bet.pipeline.sports.registry import GLOBAL_SPORT_PROTOCOL_REGISTRY
+
         for rec in self.readiness_by_event:
+            # Execute market-specific sport protocol check
+            protocol = GLOBAL_SPORT_PROTOCOL_REGISTRY.get(rec.sport)
+            if protocol:
+                event_data = {
+                    "canonical_event_id": rec.canonical_event_id,
+                    "sport": rec.sport,
+                    "competition": rec.competition or "ALL",
+                    "home_team": "Home",
+                    "away_team": "Away",
+                }
+                m_fam = rec.market_family or "result"
+                dossier_data = rec.market_dossiers[0] if rec.market_dossiers else {}
+                decision = protocol.evaluate_market_readiness(
+                    canonical_event_id=rec.canonical_event_id,
+                    market_family=m_fam,
+                    event_data=event_data,
+                    row_data=dossier_data,
+                )
+                if decision.allowed_action == "BLOCKED" and rec.readiness_tier == "READY_FOR_PRICING":
+                    raise ValueError(
+                        f"S29_PRICING_READINESS_FORBIDDEN: Event {rec.canonical_event_id} ({rec.sport}/{m_fam}) failed sport protocol: {decision.reason_codes}"
+                    )
+
             if rec.readiness_tier == "READY_FOR_PRICING":
-                # Verify that at least one pricing-eligible model exists for this sport
-                cards = GLOBAL_MODEL_REGISTRY.list_model_cards(sport=rec.sport)
+                m_fam = rec.market_family or "result"
+                comp = rec.competition or "ALL"
+                cards = GLOBAL_MODEL_REGISTRY.list_model_cards(
+                    sport=rec.sport,
+                    competition_scope=comp,
+                    market_family=m_fam,
+                )
                 eligible_cards = [c for c in cards if c.is_pricing_eligible()]
                 if not eligible_cards:
                     raise ValueError(
-                        f"S29_PRICING_READINESS_FORBIDDEN: Event {rec.canonical_event_id} ({rec.sport}) claims READY_FOR_PRICING but no resolvable pricing-eligible model package exists."
+                        f"S29_PRICING_READINESS_FORBIDDEN: Event {rec.canonical_event_id} ({rec.sport}/{comp}/{m_fam}) claims READY_FOR_PRICING but no resolvable pricing-eligible model package exists for exact scope."
                     )
         return self
