@@ -17,6 +17,7 @@ from src.bet.pipeline.contracts.base import ValidatedPipelineDefinition, Validat
 from src.bet.pipeline.contracts.registry import GLOBAL_CONTRACT_REGISTRY
 from src.bet.pipeline.contracts.migration import migrate_artifact_payload
 from src.bet.pipeline.contracts.canonical_json import dumps_canonical_json
+from src.bet.pipeline.contracts.common import EventRecordV1
 from src.bet.pipeline.contracts.steps.s0_to_s2 import S1FixturesShortlistV1
 from src.bet.pipeline.contracts.steps.s3_to_s10 import S8SuperbetManualQuotePackV1
 from src.bet.pipeline.sharding.models import ChunkExecutionPlanV1
@@ -24,6 +25,11 @@ from src.bet.pipeline.sharding.lifecycle import aggregate_chunks
 from src.bet.pipeline.sports.models import SportEventDossierV1
 from src.bet.pipeline.sports.protocols import FootballProtocol
 from src.bet.pipeline.sports.registry import GLOBAL_SPORT_PROTOCOL_REGISTRY
+from src.bet.models.contracts import MarketOutcomeLabelV1
+from src.bet.models.registry import GLOBAL_MODEL_REGISTRY, ProbabilityEstimateV2
+from src.bet.models.dixon_coles import calculate_dixon_coles_outcomes
+from src.bet.builder.models import SameEventBuilderCandidateV1, S8IdeaGroupV1
+from src.bet.builder.engine import generate_same_event_builders
 
 
 def runtime_context(environ: dict[str, str] | None = None) -> dict[str, str | None]:

@@ -60,6 +60,9 @@
     "src/bet/pipeline/state.py"
   ],
   "domain_and_analytics": [
+    "src/bet/builder/__init__.py",
+    "src/bet/builder/engine.py",
+    "src/bet/builder/models.py",
     "src/bet/enrichment/football_service.py",
     "src/bet/enrichment/football_snapshot.py",
     "src/bet/enrichment/models.py",
@@ -816,6 +819,7 @@
     "tests/test_c2_sharding_and_acquisition.py",
     "tests/test_c3_sport_intelligence.py",
     "tests/test_c4_model_governance.py",
+    "tests/test_c5_bet_builder.py",
     "tests/test_canonical_continuity_reference.py",
     "tests/test_compute_safety_scores.py",
     "tests/test_context_upset.py",

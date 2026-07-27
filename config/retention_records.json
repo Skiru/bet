@@ -1942,6 +1942,14 @@
     "expiry_or_review_policy": "REVIEW_ON_SCHEMA_UPGRADE"
   },
   {
+    "path": "src/bet/builder/__init__.py",
+    "category": "RETAINED_ENGINEERING",
+    "owner": "Kilo",
+    "reason": "Package init export authority",
+    "references": [],
+    "expiry_or_review_policy": "PERMANENT_RETAINED_PRODUCTION"
+  },
+  {
     "path": "src/bet/db/__init__.py",
     "category": "RETAINED_ENGINEERING",
     "owner": "Kilo",
@@ -7447,6 +7455,14 @@
   },
   {
     "path": "tests/test_c4_model_governance.py",
+    "category": "RETAINED_TEST",
+    "owner": "Kilo",
+    "reason": "Pipeline V5 acceptance test suite",
+    "references": [],
+    "expiry_or_review_policy": "PERMANENT_RETAINED_PRODUCTION"
+  },
+  {
+    "path": "tests/test_c5_bet_builder.py",
     "category": "RETAINED_TEST",
     "owner": "Kilo",
     "reason": "Pipeline V5 acceptance test suite",
