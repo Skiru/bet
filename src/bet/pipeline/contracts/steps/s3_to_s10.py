@@ -2,12 +2,13 @@
 from __future__ import annotations
 
 from typing import Any, Literal
-from pydantic import Field
+from pydantic import Field, ConfigDict
 from bet.pipeline.contracts.base import StrictBaseModel
 from bet.pipeline.contracts.common import EventRecordV1, SourceReferenceV1, EvidenceClaimV1
 
 
 class ProbabilityEstimateRecordV1(StrictBaseModel):
+    model_config = ConfigDict(extra="ignore", frozen=True, populate_by_name=True)
     canonical_event_id: str
     market_family: str
     selection: str
@@ -21,6 +22,7 @@ class ProbabilityEstimateRecordV1(StrictBaseModel):
 
 # S3 Contract
 class S3CalibratedProbabilitiesV1(StrictBaseModel):
+    model_config = ConfigDict(extra="ignore", frozen=True, populate_by_name=True)
     schema_version: int = 1
     artifact_type: Literal["S3_CALIBRATED_PROBABILITIES"] = "S3_CALIBRATED_PROBABILITIES"
     status: Literal["PASS", "NO_ACTION_TERMINAL", "BLOCK"] = "PASS"
@@ -31,6 +33,7 @@ class S3CalibratedProbabilitiesV1(StrictBaseModel):
 
 
 class ValuationCandidateRecordV1(StrictBaseModel):
+    model_config = ConfigDict(extra="ignore", frozen=True, populate_by_name=True)
     canonical_event_id: str
     market_family: str
     selection: str
@@ -42,6 +45,7 @@ class ValuationCandidateRecordV1(StrictBaseModel):
 
 # S4 Contract
 class S4ExpectedValueEstimatesV1(StrictBaseModel):
+    model_config = ConfigDict(extra="ignore", frozen=True, populate_by_name=True)
     schema_version: int = 1
     artifact_type: Literal["S4_EXPECTED_VALUE_ESTIMATES"] = "S4_EXPECTED_VALUE_ESTIMATES"
     status: Literal["PASS", "NO_ACTION_TERMINAL", "BLOCK"] = "PASS"
@@ -52,6 +56,7 @@ class S4ExpectedValueEstimatesV1(StrictBaseModel):
 
 
 class ContextReviewRecordV1(StrictBaseModel):
+    model_config = ConfigDict(extra="ignore", frozen=True, populate_by_name=True)
     canonical_event_id: str
     sport: str
     motivation_score: float = 1.0
@@ -62,6 +67,7 @@ class ContextReviewRecordV1(StrictBaseModel):
 
 # S5 Contract
 class S5ContextMotivationRiskV1(StrictBaseModel):
+    model_config = ConfigDict(extra="ignore", frozen=True, populate_by_name=True)
     schema_version: int = 1
     artifact_type: Literal["S5_CONTEXT_MOTIVATION_RISK"] = "S5_CONTEXT_MOTIVATION_RISK"
     status: Literal["PASS", "NO_ACTION_TERMINAL", "BLOCK"] = "PASS"
@@ -72,6 +78,7 @@ class S5ContextMotivationRiskV1(StrictBaseModel):
 
 
 class FilteredCandidateRecordV1(StrictBaseModel):
+    model_config = ConfigDict(extra="ignore", frozen=True, populate_by_name=True)
     canonical_event_id: str
     selection: str
     repeat_risk_flag: bool = False
@@ -81,6 +88,7 @@ class FilteredCandidateRecordV1(StrictBaseModel):
 
 # S6 Contract
 class S6PortfolioRepeatGuardV1(StrictBaseModel):
+    model_config = ConfigDict(extra="ignore", frozen=True, populate_by_name=True)
     schema_version: int = 1
     artifact_type: Literal["S6_PORTFOLIO_REPEAT_GUARD"] = "S6_PORTFOLIO_REPEAT_GUARD"
     status: Literal["PASS", "NO_ACTION_TERMINAL", "BLOCK"] = "PASS"
@@ -91,6 +99,7 @@ class S6PortfolioRepeatGuardV1(StrictBaseModel):
 
 
 class ApprovedPickRecordV1(StrictBaseModel):
+    model_config = ConfigDict(extra="ignore", frozen=True, populate_by_name=True)
     pick_id: str
     canonical_event_id: str
     sport: str
@@ -107,6 +116,7 @@ class ApprovedPickRecordV1(StrictBaseModel):
 
 # S7 Contract
 class S7ApprovedPicksV1(StrictBaseModel):
+    model_config = ConfigDict(extra="ignore", frozen=True, populate_by_name=True)
     schema_version: int = 1
     artifact_type: Literal["S7_APPROVED_PICKS"] = "S7_APPROVED_PICKS"
     status: Literal["PASS", "NO_ACTION_TERMINAL", "BLOCK"] = "PASS"
@@ -117,10 +127,11 @@ class S7ApprovedPicksV1(StrictBaseModel):
 
 
 class MappingSuggestionRecordV1(StrictBaseModel):
+    model_config = ConfigDict(extra="ignore", frozen=True, populate_by_name=True)
     quote_card_id: str
     source_candidate_id: str
-    canonical_event_id: str
-    selection_id: str
+    canonical_event_id: str = ""
+    selection_id: str = ""
     manual_operator: Literal["SUPERBET"] = "SUPERBET"
     mapping_ambiguity: str = "UNAMBIGUOUS"
     visible_operator_market_name: str | None = None
@@ -135,6 +146,7 @@ class MappingSuggestionRecordV1(StrictBaseModel):
 
 # S7b Contract
 class S7bSuperbetManualMappingV1(StrictBaseModel):
+    model_config = ConfigDict(extra="ignore", frozen=True, populate_by_name=True)
     schema_version: int = 2
     artifact_type: Literal["S7B_SUPERBET_MANUAL_MAPPING"] = "S7B_SUPERBET_MANUAL_MAPPING"
     status: Literal["READY_FOR_MANUAL_MAPPING", "NO_ACTION_TERMINAL", "BLOCK"] = "READY_FOR_MANUAL_MAPPING"
@@ -149,6 +161,7 @@ class S7bSuperbetManualMappingV1(StrictBaseModel):
 
 
 class QuoteCardRecordV1(StrictBaseModel):
+    model_config = ConfigDict(extra="ignore", frozen=True, populate_by_name=True)
     quote_card_id: str
     source_candidate_id: str
     canonical_event_id: str
@@ -158,6 +171,7 @@ class QuoteCardRecordV1(StrictBaseModel):
 
 
 class S8IdeaGroupV1(StrictBaseModel):
+    model_config = ConfigDict(extra="ignore", frozen=True, populate_by_name=True)
     group_id: str
     canonical_event_id: str
     sport: str
@@ -173,6 +187,7 @@ class S8IdeaGroupV1(StrictBaseModel):
 
 # S8 Contract
 class S8SuperbetManualQuotePackV1(StrictBaseModel):
+    model_config = ConfigDict(extra="ignore", frozen=True, populate_by_name=True)
     schema_version: int = 2
     artifact_type: Literal["S8_SUPERBET_MANUAL_QUOTE_PACK"] = "S8_SUPERBET_MANUAL_QUOTE_PACK"
     status: Literal["READY_FOR_MANUAL_SUPERBET_QUOTE_REVIEW", "NO_ACTION_TERMINAL", "BLOCK"] = "READY_FOR_MANUAL_SUPERBET_QUOTE_REVIEW"
@@ -208,6 +223,7 @@ class S8SuperbetManualQuotePackV1(StrictBaseModel):
 
 
 class ExecutedBetRecordV1(StrictBaseModel):
+    model_config = ConfigDict(extra="ignore", frozen=True, populate_by_name=True)
     execution_id: str
     canonical_event_id: str
     market_family: str
@@ -220,6 +236,7 @@ class ExecutedBetRecordV1(StrictBaseModel):
 
 # S9 Contract
 class S9ExecutedBetsJournalV1(StrictBaseModel):
+    model_config = ConfigDict(extra="ignore", frozen=True, populate_by_name=True)
     schema_version: int = 1
     artifact_type: Literal["S9_EXECUTED_BETS_JOURNAL"] = "S9_EXECUTED_BETS_JOURNAL"
     status: Literal["EXECUTED", "NO_BET", "REJECTED", "BLOCK"] = "EXECUTED"
@@ -230,6 +247,7 @@ class S9ExecutedBetsJournalV1(StrictBaseModel):
 
 
 class PostSessionLearningRecordV1(StrictBaseModel):
+    model_config = ConfigDict(extra="ignore", frozen=True, populate_by_name=True)
     record_id: str
     canonical_event_id: str
     model_id: str
@@ -240,6 +258,7 @@ class PostSessionLearningRecordV1(StrictBaseModel):
 
 # S10 Contract
 class S10SettlementHandoffV1(StrictBaseModel):
+    model_config = ConfigDict(extra="ignore", frozen=True, populate_by_name=True)
     schema_version: int = 1
     artifact_type: Literal["S10_SETTLEMENT_HANDOFF"] = "S10_SETTLEMENT_HANDOFF"
     status: Literal["PASS", "NO_ACTION_TERMINAL", "BLOCK"] = "PASS"

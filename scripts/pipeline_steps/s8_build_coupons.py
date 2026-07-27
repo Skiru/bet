@@ -16,6 +16,9 @@ if str(ROOT) not in sys.path:
 from bet.pipeline.artifact_io import publish_run_artifact
 from bet.pipeline.run_evidence import sha256_file
 from bet.pipeline.runtime_modes import parse_runtime_mode
+from bet.builder.engine import generate_same_event_builders
+from bet.builder.models import BuilderLegV1, JointModelScopeV1
+from bet.models.contracts import FeatureSnapshotV1
 from scripts.pipeline_steps._runner import resolve_child_runtime_env
 from scripts.pipeline_steps._script_evidence import (
     write_terminal_script_evidence_or_fail,
@@ -133,6 +136,8 @@ def main() -> None:
     try:
         s7b_evidence, s7b_output, mapping, s7b_records = _load_canonical_s7b(child_env, args.date, args.run_id)
         mapping_status, cards = _validate_mapping(mapping, args.date, args.run_id)
+        if not cards and mapping_status != "BLOCKED":
+            mapping_status = "NO_ACTION_TERMINAL"
     except (OSError, ValueError, TypeError, json.JSONDecodeError) as exc:
         blocked.append("BLOCKED_S8_CANONICAL_S7B_INVALID")
         print(f"BLOCKED_S8_CANONICAL_S7B_INVALID: {exc}")

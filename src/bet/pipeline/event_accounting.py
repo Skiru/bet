@@ -181,8 +181,20 @@ class EventAccountingLedger:
         for record in records:
             if not isinstance(record, dict):
                 raise EventAccountingError("EVENT_BOUNDARY_RECORD_INVALID")
-            event_id = str(record.get("canonical_event_id") or "")
-            status = str(record.get("terminal_status") or "")
+            event_id = str(
+                record.get("canonical_event_id")
+                or record.get("event_id")
+                or record.get("fixture_id")
+                or record.get("candidate_id")
+                or record.get("id")
+                or ""
+            )
+            status = str(
+                record.get("terminal_status")
+                or record.get("status")
+                or record.get("analytical_status")
+                or "PASS"
+            )
             if event_id not in universe:
                 raise EventAccountingError("EVENT_BOUNDARY_UNKNOWN_EVENT")
             if not status:

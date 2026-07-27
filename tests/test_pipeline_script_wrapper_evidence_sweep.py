@@ -152,9 +152,12 @@ def _seed_s3_shortlist(environ: dict[str, str]) -> Path:
 
 
 def _write_s3_reports(environ: dict[str, str], *, with_data: int = 1) -> None:
+    from bet.pipeline.event_accounting import canonical_event_id
     data_dir = Path(environ["BET_PIPELINE_DATA_DIR"])
     betting_day = environ["BET_PIPELINE_BETTING_DAY"]
     (data_dir / f"{betting_day}_s3_deep_stats.md").write_text("# S3\n", encoding="utf-8")
+    alpha_beta_eid = canonical_event_id({"home_team": "Alpha", "away_team": "Beta", "sport": "football", "competition": "Test League", "scheduled_time": "2026-06-25T18:00:00Z"})
+    recs = [{"canonical_event_id": alpha_beta_eid, "fixture_id": 10, "home_team": "Alpha", "away_team": "Beta", "competition": "Test League", "sport": "football", "status": "PASS"}] if with_data else []
     (data_dir / f"{betting_day}_s3_deep_stats.json").write_text(
         json.dumps(
             {
@@ -166,7 +169,7 @@ def _write_s3_reports(environ: dict[str, str], *, with_data: int = 1) -> None:
                 "source_s2_sha256": sha256_file(data_dir / f"{betting_day}_s2_shortlist.json"),
                 "total_candidates": 1,
                 "candidates_with_data": with_data,
-                "analyses": [], "event_records": [],
+                "analyses": recs, "event_records": recs,
             }
         ),
         encoding="utf-8",
@@ -234,19 +237,24 @@ def _seed_direct_wrapper_input(environ: dict[str, str], step_id: str) -> None:
 
 
 def _seed_prior_steps(environ: dict[str, str], step_id: str):
+    from bet.pipeline.event_accounting import canonical_event_id
     run_root = Path(environ["BET_PIPELINE_RUN_ROOT"])
     (run_root / "artifacts").mkdir(parents=True, exist_ok=True)
     (run_root / "data").mkdir(parents=True, exist_ok=True)
     
+    alpha_beta_eid = canonical_event_id({"home_team": "Alpha", "away_team": "Beta", "sport": "football", "competition": "Test League", "scheduled_time": "2026-06-25T18:00:00Z"})
     s1e_path = run_root / "data" / "2026-06-25_s1e_event_universe.json"
     s1e_path.write_text(json.dumps({
-        "canonical_event_ids": ["10"],
+        "canonical_event_ids": [alpha_beta_eid],
         "event_records": {
-            "10": {
+            alpha_beta_eid: {
+                "canonical_event_id": alpha_beta_eid,
                 "fixture_id": 10,
                 "home_team": "Alpha",
                 "away_team": "Beta",
-                "sport": "football"
+                "sport": "football",
+                "competition": "Test League",
+                "event_start_time": "2026-06-25T18:00:00Z"
             }
         }
     }))
@@ -264,7 +272,7 @@ def _seed_prior_steps(environ: dict[str, str], step_id: str):
     s2_path.write_text(json.dumps({
         "artifact_type": "S2_SHORTLIST",
         "total_candidates": 1,
-        "candidates": [{"fixture_id": 10, "home_team": "Alpha", "away_team": "Beta", "sport": "football"}]
+        "candidates": [{"canonical_event_id": alpha_beta_eid, "fixture_id": 10, "home_team": "Alpha", "away_team": "Beta", "sport": "football"}]
     }))
     s2_ev = {
         "schema_version": 1,
@@ -294,7 +302,7 @@ def _seed_prior_steps(environ: dict[str, str], step_id: str):
     }
     (run_root / "artifacts" / "S3.json").write_text(json.dumps(s3_ev))
     (run_root / "data" / "2026-06-25_s3_deep_stats.json").write_text(json.dumps({
-        "artifact_type": "S3_DEEP_STATS", "schema_version": 2, "event_records": [], "analyses": [{"fixture_id": 10, "home_team": "Alpha", "away_team": "Beta", "sport": "football", "best_market": {"name": "Match Winner", "market_family": "RESULT"}}]
+        "artifact_type": "S3_DEEP_STATS", "schema_version": 2, "event_records": [], "analyses": [{"canonical_event_id": alpha_beta_eid, "fixture_id": 10, "home_team": "Alpha", "away_team": "Beta", "sport": "football", "best_market": {"name": "Match Winner", "market_family": "RESULT"}}]
     }))
     
     # S4
@@ -314,7 +322,9 @@ def _seed_prior_steps(environ: dict[str, str], step_id: str):
         "artifact_type": "S4_VALUATION_CANDIDATE_SET_V2", "event_records": [],
         "candidates": [
             {
-                "candidate_id": "c1",
+                "canonical_event_id": alpha_beta_eid,
+                "candidate_id": alpha_beta_eid,
+                "fixture_id": 10,
                 "sport": "football",
                 "home_team": "Alpha",
                 "away_team": "Beta",
@@ -360,7 +370,9 @@ def _seed_prior_steps(environ: dict[str, str], step_id: str):
             "input_candidate_count": 1,
             "candidates": [
                 {
-                    "candidate_id": "c1",
+                    "canonical_event_id": alpha_beta_eid,
+                    "candidate_id": alpha_beta_eid,
+                    "fixture_id": 10,
                     "sport": "football",
                     "home_team": "Alpha",
                     "away_team": "Beta",
@@ -401,18 +413,20 @@ def _seed_prior_steps(environ: dict[str, str], step_id: str):
     (run_root / "artifacts" / "S6.json").write_text(json.dumps(s6_ev))
     (run_root / "data" / "repeat_loss_handoff_2026-06-25.json").write_text(json.dumps({
         "schema_version": 1,
-        "artifact_type": "S6_PORTFOLIO_REPEAT_GUARD_V2", "event_records": [],
+        "artifact_type": "S6_PORTFOLIO_REPEAT_GUARD_V2",
         "status": "PASS",
         "betting_day": "2026-06-25",
         "run_id": environ["BET_PIPELINE_RUN_ID"],
         "accepted": [
             {
-                "candidate_id": "c1",
+                "canonical_event_id": alpha_beta_eid,
+                "candidate_id": alpha_beta_eid,
                 "decision": "ACCEPTED",
                 "reason_codes": [],
                 "explanation": "Passed all checks",
                 "original_candidate": {
-                    "candidate_id": "c1",
+                    "canonical_event_id": alpha_beta_eid,
+                    "candidate_id": alpha_beta_eid,
                     "sport": "football",
                     "home_team": "Alpha",
                     "away_team": "Beta",
@@ -929,7 +943,9 @@ def test_s4_wrapper_contract_pass_block_failed_and_tmp_paths():
     data_dir = Path(environ["BET_PIPELINE_DATA_DIR"])
     data_dir.mkdir(parents=True, exist_ok=True)
     input_path = data_dir / "2026-06-25_s3_deep_stats.json"
-    input_path.write_text(json.dumps({"artifact_type": "S3_DEEP_STATS", "schema_version": 2, "event_records": [], "analyses": [{"fixture_id": 10, "home_team": "Alpha", "away_team": "Beta", "best_market": {"name": "Over 2.5", "safety_score": 0.82}, "markets_evaluated": 4}]}), encoding="utf-8")
+    from bet.pipeline.event_accounting import canonical_event_id
+    alpha_beta_eid = canonical_event_id({"home_team": "Alpha", "away_team": "Beta", "sport": "football", "competition": "Test League", "scheduled_time": "2026-06-25T18:00:00Z"})
+    input_path.write_text(json.dumps({"artifact_type": "S3_DEEP_STATS", "schema_version": 2, "event_records": [], "analyses": [{"canonical_event_id": alpha_beta_eid, "fixture_id": 10, "home_team": "Alpha", "away_team": "Beta", "best_market": {"name": "Over 2.5", "safety_score": 0.82}, "markets_evaluated": 4}]}), encoding="utf-8")
     data_alias = Path(environ["BET_PIPELINE_RUN_ROOT"]) / "data-alias"
     data_alias.symlink_to(data_dir, target_is_directory=True)
     aliased_input_path = data_alias / input_path.name
@@ -962,7 +978,7 @@ def test_s4_wrapper_contract_pass_block_failed_and_tmp_paths():
                 "production_selectable": False,
                 "betting_decisions_enabled": False,
                 "no_pick_edge_stake_coupon_emitted": True,
-                "candidates": [{"fixture_id": 10, "home_team": "Alpha", "away_team": "Beta", "best_market": {"name": "Over 2.5", "safety_score": 0.82}, "market_count": 4, "markets_evaluated": 4, "odds": {"market_best": 1.91}, "ev": 0.11, "safety_score": 0.82, "safety_markets": [], "valuation_warnings": [], "valuation_status": "VALUED"}],
+                    "candidates": [{"canonical_event_id": alpha_beta_eid, "fixture_id": 10, "home_team": "Alpha", "away_team": "Beta", "best_market": {"name": "Over 2.5", "safety_score": 0.82}, "market_count": 4, "markets_evaluated": 4, "odds": {"market_best": 1.91}, "ev": 0.11, "safety_score": 0.82, "safety_markets": [], "valuation_warnings": [], "valuation_status": "VALUED"}],
             }), encoding="utf-8")
         return 0
 

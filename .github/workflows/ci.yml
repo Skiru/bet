@@ -43,6 +43,8 @@ jobs:
           uv run python scripts/validate_manifest_power_agents.py
           uv run python scripts/validate_database_access.py
           uv run python scripts/validate_reachability_graph.py
+          uv run python scripts/validate_provider_registry.py
+          uv run python scripts/validate_no_src_bet_imports.py
 
       - name: Run Pipeline V5 Checkpoint Test Suites
         run: |

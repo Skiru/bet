@@ -2,12 +2,13 @@
 from __future__ import annotations
 
 from typing import Any, Literal
-from pydantic import Field
+from pydantic import Field, ConfigDict
 from bet.pipeline.contracts.base import StrictBaseModel
 from bet.pipeline.contracts.common import EventRecordV1, SourceReferenceV1, EvidenceClaimV1
 
 
 class SettledRecordV1(StrictBaseModel):
+    model_config = ConfigDict(extra="ignore", frozen=True, populate_by_name=True)
     bet_id: str
     canonical_event_id: str
     market_family: str
@@ -55,6 +56,7 @@ class S1eCanonicalEventUniverseV1(StrictBaseModel):
 
 
 class ConsensusRecordV1(StrictBaseModel):
+    model_config = ConfigDict(extra="ignore", frozen=True, populate_by_name=True)
     canonical_event_id: str
     tipster_count: int = Field(ge=0, default=0)
     consensus_signal: str | None = None
@@ -75,6 +77,7 @@ class S2TipsterConsensusV1(StrictBaseModel):
 
 
 class EnrichmentGapRecordV1(StrictBaseModel):
+    model_config = ConfigDict(extra="ignore", frozen=True, populate_by_name=True)
     gap_id: str
     canonical_event_id: str
     required_field: str
@@ -106,6 +109,7 @@ class S25ProviderObservationsV1(StrictBaseModel):
 
 
 class UnresolvedConflictRecordV1(StrictBaseModel):
+    model_config = ConfigDict(extra="ignore", frozen=True, populate_by_name=True)
     conflict_id: str
     canonical_event_id: str
     field_name: str
@@ -127,6 +131,7 @@ class S27ReconciledFactsV1(StrictBaseModel):
 
 
 class DataReadinessRecordV1(StrictBaseModel):
+    model_config = ConfigDict(extra="ignore", frozen=True, populate_by_name=True)
     canonical_event_id: str
     sport: str
     quality_grade: Literal["HIGH", "MEDIUM", "LOW", "UNKNOWN"] = "HIGH"

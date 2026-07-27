@@ -1628,6 +1628,14 @@
     "expiry_or_review_policy": "REVIEW_ON_SCHEMA_UPGRADE"
   },
   {
+    "path": "scripts/validate_no_src_bet_imports.py",
+    "category": "RETAINED_ENGINEERING",
+    "owner": "Kilo",
+    "reason": "Pipeline V5 canonical runtime architecture file",
+    "references": [],
+    "expiry_or_review_policy": "PERMANENT_RETAINED_PRODUCTION"
+  },
+  {
     "path": "scripts/validate_power_agent_control_plane.py",
     "category": "RETAINED_ENGINEERING",
     "owner": "Kilo",
@@ -3751,14 +3759,6 @@
   },
   {
     "path": "src/bet/pipeline/contracts/__init__.py",
-    "category": "RETAINED_ENGINEERING",
-    "owner": "Kilo",
-    "reason": "Package init export authority",
-    "references": [],
-    "expiry_or_review_policy": "PERMANENT_RETAINED_PRODUCTION"
-  },
-  {
-    "path": "src/bet/pipeline/contracts/steps/__init__.py",
     "category": "RETAINED_ENGINEERING",
     "owner": "Kilo",
     "reason": "Package init export authority",

@@ -5,21 +5,36 @@
     "tests/test_canonical_continuity_v4_offline_chain_proof.py",
     "tests/test_agent_work_order_owner_alignment.py",
     "tests/test_pipeline_orchestrator_ledger_integration.py",
-    "tests/test_s2_shortlist_contract_closure.py"
+    "tests/test_s2_shortlist_contract_closure.py",
+    "tests/test_c1_step_contracts.py",
+    "tests/test_c2_sharding_and_acquisition.py",
+    "tests/test_c3_sport_intelligence.py",
+    "tests/test_c4_model_governance.py",
+    "tests/test_c5_bet_builder.py"
   ],
   "mandatory_file_sha256s": {
     "tests/test_canonical_continuity_v4_owner_regressions.py": "60ff68b1fecc9af05ad2b4287598720fc68d9eddda2576b97bbf6afcd9d1388d",
     "tests/test_canonical_continuity_v4_offline_chain_proof.py": "ac9b88de1be7f7edec9a7602ea055bec731b3d194927b2d9c80a0b9e0307ac61",
     "tests/test_agent_work_order_owner_alignment.py": "12f5379b1a51a70cbe780cabfe3956d0639cc03b00d3f85d1a937dfd0be1cc5f",
     "tests/test_pipeline_orchestrator_ledger_integration.py": "1f18de7f98bf0d4e7b1339330e17d01bd50b5273fb7abc5836610fabf48587e9",
-    "tests/test_s2_shortlist_contract_closure.py": "d0e0ad97153c1be5fc5b0697c443bfb89d0a6771644597facbd9e69da64fbaa3"
+    "tests/test_s2_shortlist_contract_closure.py": "d0e0ad97153c1be5fc5b0697c443bfb89d0a6771644597facbd9e69da64fbaa3",
+    "tests/test_c1_step_contracts.py": "efd31de59501dafe66aa81b9f95212fda092d12173fae8e219b299580106cf4b",
+    "tests/test_c2_sharding_and_acquisition.py": "15372648f097044faa811fb7fa2d22093eae7275c61cb814c1987109f2704dae",
+    "tests/test_c3_sport_intelligence.py": "36df580edcc6eb80fba13f56e4dad46af6ebc54e4cf0da68491965b894b9cb5e",
+    "tests/test_c4_model_governance.py": "9a1ff2ff460b444407d3648cac5ace25e5e0b68543520acd3e8b108d83455cb5",
+    "tests/test_c5_bet_builder.py": "1319c7ff6672bb42a2ab494a0e9fc11b96cef8ad3ffc72e53d93c5bbd80d80ea"
   },
   "expected_minimum_counts": {
     "tests/test_canonical_continuity_v4_owner_regressions.py": 30,
     "tests/test_canonical_continuity_v4_offline_chain_proof.py": 2,
     "tests/test_agent_work_order_owner_alignment.py": 7,
     "tests/test_pipeline_orchestrator_ledger_integration.py": 5,
-    "tests/test_s2_shortlist_contract_closure.py": 7
+    "tests/test_s2_shortlist_contract_closure.py": 7,
+    "tests/test_c1_step_contracts.py": 5,
+    "tests/test_c2_sharding_and_acquisition.py": 4,
+    "tests/test_c3_sport_intelligence.py": 4,
+    "tests/test_c4_model_governance.py": 5,
+    "tests/test_c5_bet_builder.py": 3
   },
   "tests_metadata": {
     "adversarial_evidence_accounting": "test_strict_loader_adversarial_matrix",

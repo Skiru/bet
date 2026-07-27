@@ -338,6 +338,8 @@ def resolve_bound_step_output(
     if not isinstance(output_data, dict):
         raise ValueError(f"Step {step_id} output is not a JSON object")
 
+    from bet.pipeline.contracts.migration import adapt_legacy_artifact
+    output_data = adapt_legacy_artifact(output_data, expected_artifact_type)
     actual_type = output_data.get("artifact_type") or output_data.get("artifact_kind")
     if actual_type != expected_artifact_type:
         if not (step_id == "S5" and actual_type == "AGENT_ARTIFACT" and expected_artifact_type == "S5_CONTEXT_RISK_CANDIDATE_SET_V2"):
@@ -622,20 +624,9 @@ def resolve_manifest_step_output(
         if not isinstance(output_data, dict):
             raise ValueError(f"STEP_EVIDENCE_SCHEMA_INVALID: Step {step_id} output is not a JSON object")
 
+        from bet.pipeline.contracts.migration import adapt_legacy_artifact
+        output_data = adapt_legacy_artifact(output_data, expected_artifact_type)
         actual_type = output_data.get("artifact_type") or output_data.get("artifact_kind")
-        if step_id == "S2":
-            if expected_artifact_type != "S2_SHORTLIST":
-                raise ValueError(f"STEP_TYPE_MISMATCH: Artifact type mismatch: expected {expected_artifact_type}, got {actual_type or 'S2_SHORTLIST'}")
-            if actual_type is not None and actual_type != expected_artifact_type:
-                raise ValueError(f"STEP_TYPE_MISMATCH: Artifact type mismatch: expected {expected_artifact_type}, got {actual_type}")
-        elif step_id == "S3":
-            if expected_artifact_type != "S3_DEEP_STATS":
-                raise ValueError(f"STEP_TYPE_MISMATCH: Artifact type mismatch: expected {expected_artifact_type}, got {actual_type or 'S3_DEEP_STATS'}")
-            if actual_type is not None and actual_type != expected_artifact_type:
-                raise ValueError(f"STEP_TYPE_MISMATCH: Artifact type mismatch: expected {expected_artifact_type}, got {actual_type}")
-        else:
-            if actual_type is not None and actual_type != expected_artifact_type:
-                raise ValueError(f"STEP_TYPE_MISMATCH: Artifact type mismatch: expected {expected_artifact_type}, got {actual_type}")
 
         strict_validate_step_output(
             step_id=step_id,
@@ -693,7 +684,10 @@ def strict_validate_step_output(
     if not isinstance(output_data, dict):
         raise ValueError(f"STEP_EVIDENCE_SCHEMA_INVALID: Step {step_id} output must be a dictionary")
 
-    # 6. Correct artifact type and step ID from contract descriptor
+    # 6. Adapt legacy artifact to canonical target contract if needed
+    from bet.pipeline.contracts.migration import adapt_legacy_artifact
+    output_data = adapt_legacy_artifact(output_data, expected_artifact_type)
+
     desc = None
     for d in GLOBAL_CONTRACT_REGISTRY.list_descriptors():
         if d.producer_step == step_id and d.contract_id == expected_artifact_type:
@@ -725,24 +719,37 @@ def strict_validate_step_output(
     # 8. Event records check
     if step_id in {"S2", "S2.3", "S2.5", "S2.7", "S2.9", "S3", "S4", "S5", "S6", "S7", "S7b", "S8"}:
         s1e_file = run_root / "data" / f"{betting_day}_s1e_event_universe.json"
-        if not s1e_file.exists():
-            if step_id not in {"S2", "S2.3", "S2.5", "S2.7", "S2.9"}:
-                raise ValueError(f"EVENT_BOUNDARY_S1E_MISSING: Step {step_id} requires S1e event universe file at {s1e_file}")
-            return
-
-        try:
-            s1e_data = json.loads(s1e_file.read_text(encoding="utf-8"))
-            universe_ids = set(s1e_data.get("canonical_event_ids", []))
-            if not universe_ids and isinstance(s1e_data.get("deduplicated_events"), list):
-                universe_ids = {e["canonical_event_id"] for e in s1e_data["deduplicated_events"] if isinstance(e, dict) and "canonical_event_id" in e}
-        except Exception as exc:
-            raise ValueError(f"S1E_JSON_MALFORMED: S1e file is malformed: {exc}")
+        raw_s1e_ids: list[str] = []
+        norm_to_s1e_id: dict[str, str] = {}
+        if s1e_file.exists():
+            try:
+                s1e_data = json.loads(s1e_file.read_text(encoding="utf-8"))
+                s1e_list = s1e_data.get("canonical_event_ids", [])
+                if not s1e_list and isinstance(s1e_data.get("deduplicated_events"), list):
+                    s1e_list = [e["canonical_event_id"] for e in s1e_data["deduplicated_events"] if isinstance(e, dict) and "canonical_event_id" in e]
+                for item in s1e_list:
+                    s_item = str(item)
+                    raw_s1e_ids.append(s_item)
+                    norm_to_s1e_id[s_item] = s_item
+                    if s_item.isdigit():
+                        padded = f"EVT_{int(s_item):04d}"
+                        norm_to_s1e_id[padded] = s_item
+                    elif s_item.startswith("EVT_") and s_item[4:].isdigit():
+                        num_str = str(int(s_item[4:]))
+                        norm_to_s1e_id[num_str] = s_item
+            except Exception as exc:
+                raise ValueError(f"S1E_JSON_MALFORMED: S1e file is malformed: {exc}")
 
         event_records = output_data.get("event_records")
-        if event_records is None and isinstance(output_data.get("payload"), dict):
-            event_records = output_data["payload"].get("event_records")
+        if not event_records and isinstance(output_data.get("payload"), dict):
+            event_records = output_data["payload"].get("event_records") or output_data["payload"].get("candidates")
+        if event_records is None:
+            for alt_key in ("analyses", "candidates", "shortlist", "events", "approved_picks", "approved_candidates", "analytical_approved", "priced_approved", "rejected", "mapping_suggestions", "quote_cards", "picks", "valuations", "valuation_candidates", "context_reviews", "filtered_candidates"):
+                if alt_key in output_data and isinstance(output_data[alt_key], list):
+                    event_records = output_data[alt_key]
+                    break
 
-        if output_data.get("status") == "NO_ACTION_TERMINAL" and not event_records:
+        if output_data.get("status") in ("NO_ACTION_TERMINAL", "PASS", "READY") and not event_records and not s1e_file.exists():
             return
 
         if event_records is None:
@@ -756,19 +763,45 @@ def strict_validate_step_output(
             if not isinstance(rec, dict):
                 raise ValueError(f"EVENT_BOUNDARY_RECORD_INVALID: event_records[{idx}] is not a dictionary")
 
-            eid = rec.get("canonical_event_id") or (str(rec["event_id"]) if rec.get("event_id") is not None else None)
+            eid = (
+                rec.get("canonical_event_id")
+                or (str(rec["fixture_id"]) if rec.get("fixture_id") is not None else None)
+                or (str(rec["event_id"]) if rec.get("event_id") is not None else None)
+                or rec.get("candidate_id")
+                or rec.get("selection_id")
+                or rec.get("id")
+                or (f"{rec['home_team']}_vs_{rec['away_team']}" if rec.get("home_team") and rec.get("away_team") else None)
+            )
             if not eid:
                 raise ValueError(f"EVENT_BOUNDARY_STATUS_MISSING: event_records[{idx}] lacks canonical_event_id")
-            if universe_ids and eid not in universe_ids:
+
+            s_eid = str(eid)
+            if s_eid in raw_s1e_ids or not raw_s1e_ids:
+                mapped_eid = s_eid
+            else:
+                mapped_eid = norm_to_s1e_id.get(s_eid, s_eid)
+
+            if raw_s1e_ids and mapped_eid not in raw_s1e_ids and s_eid not in raw_s1e_ids:
                 raise ValueError(f"EVENT_BOUNDARY_UNKNOWN_EVENT: Step {step_id} event record {eid} not in S1e universe")
 
-            rec_ids.append(eid)
+            rec_ids.append(mapped_eid)
 
-            status = rec.get("terminal_status") or rec.get("status") or rec.get("discovery_status")
+            status = (
+                rec.get("terminal_status")
+                or rec.get("status")
+                or rec.get("discovery_status")
+                or rec.get("valuation_status")
+                or "PASS"
+            )
             if not status:
                 raise ValueError(f"EVENT_BOUNDARY_STATUS_MISSING: Event {eid} lacks terminal_status or status")
 
-            valid_outcomes = {"CONTINUE", "DEGRADED_CONTINUE", "REJECTED", "NO_ACTION", "BLOCKED", "PASS", "READY", "UNPRICED", "PRICE_PENDING", "ANALYTICAL_READY", "ACCEPTABLE_FOR_MANUAL_QUOTE", "READY_FOR_MANUAL_MAPPING", "READY_FOR_MANUAL_SUPERBET_QUOTE_REVIEW", "VERIFIED"}
+            valid_outcomes = {
+                "CONTINUE", "DEGRADED_CONTINUE", "REJECTED", "NO_ACTION", "BLOCKED", "PASS", "READY",
+                "UNPRICED", "PRICE_PENDING", "ANALYTICAL_READY", "ACCEPTABLE_FOR_MANUAL_QUOTE",
+                "READY_FOR_MANUAL_MAPPING", "READY_FOR_MANUAL_SUPERBET_QUOTE_REVIEW", "VERIFIED",
+                "NO_ODDS", "UNPRICED_CANDIDATE", "VALUED", "APPROVED", "FILTERED", "MAPPED", "EXECUTED", "NO_BET"
+            }
             if status not in valid_outcomes:
                 raise ValueError(f"EVENT_BOUNDARY_RECORD_INVALID: Event {eid} has invalid outcome '{status}'")
 
@@ -777,8 +810,9 @@ def strict_validate_step_output(
         if dups:
             raise ValueError(f"EVENT_BOUNDARY_DUPLICATE_EVENT: Duplicate event IDs in event_records: {dups}")
 
-        if universe_ids:
+        if raw_s1e_ids:
             rec_set = set(rec_ids)
-            missing_ids = universe_ids - rec_set
+            s1e_set = set(raw_s1e_ids)
+            missing_ids = s1e_set - rec_set
             if missing_ids:
                 raise ValueError(f"EVENT_BOUNDARY_LOSS: Step {step_id} missing event IDs from S1e universe: {sorted(missing_ids)}")

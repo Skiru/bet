@@ -21,6 +21,8 @@ from bet.pipeline.event_accounting import (
     EventAccountingError,
     EventAccountingLedger,
 )
+from bet.pipeline.sharding.lifecycle import create_chunk_execution_plan, aggregate_chunks
+from bet.pipeline.sharding.models import WorkOrderBudgetV1, ChunkArtifactV1, ChunkExecutionPlanV1
 from bet.pipeline.integration_artifacts import (
     script_evidence_path,
 )
@@ -228,85 +230,6 @@ class Orchestrator:
         if manifest_errors:
             raise ValueError(f"Invalid pipeline manifest: {manifest_errors}")
 
-    def _handle_sharded_agent_step(self, step_id: str, gate_base_dir: Path, parent_wo: Any) -> tuple[bool, str | None, Path | None]:
-        """Check if S1e event scope requires sharding. If so, build chunk plan and aggregate chunks if available."""
-        s1e_path = self.run_root / "data" / f"{self.betting_day}_s1e_event_universe.json" if hasattr(self, "run_root") else gate_base_dir / "data" / f"{self.betting_day}_s1e_event_universe.json"
-        if not s1e_path.exists():
-            return False, None, None
-
-        try:
-            s1e_data = json.loads(s1e_path.read_text(encoding="utf-8"))
-            event_ids = s1e_data.get("canonical_event_ids") or [e["canonical_event_id"] for e in s1e_data.get("deduplicated_events", []) if isinstance(e, dict) and "canonical_event_id" in e]
-        except Exception:
-            return False, None, None
-
-        from bet.pipeline.sharding.models import WorkOrderBudgetV1, ChunkArtifactV1
-        from bet.pipeline.sharding.lifecycle import create_chunk_execution_plan, aggregate_chunks
-
-        budget = WorkOrderBudgetV1(max_events_per_chunk=15)
-        if len(event_ids) <= budget.max_events_per_chunk:
-            return False, None, None
-
-        plan = create_chunk_execution_plan(
-            parent_work_order_id=parent_wo.work_order_id,
-            step_id=step_id,
-            betting_day=self.betting_day,
-            run_id=self.run_id,
-            event_ids=event_ids,
-            agent_name=parent_wo.agent,
-            budget=budget,
-        )
-
-        plan_dir = gate_base_dir / "work_orders" / "chunks"
-        plan_dir.mkdir(parents=True, exist_ok=True)
-        plan_file = plan_dir / f"PLAN_{parent_wo.work_order_id}.json"
-        write_json_atomic(plan_file, plan.model_dump())
-
-        chunks_dir = gate_base_dir / "artifacts" / "chunks"
-        chunks_dir.mkdir(parents=True, exist_ok=True)
-
-        chunk_artifacts = []
-        missing_chunks = []
-        for c_wo in plan.chunks:
-            c_file = chunks_dir / f"{c_wo.chunk_id}.json"
-            if not c_file.exists():
-                missing_chunks.append(c_wo.chunk_id)
-                c_wo_file = plan_dir / f"{c_wo.chunk_id}_work_order.json"
-                write_json_atomic(c_wo_file, c_wo.model_dump())
-            else:
-                try:
-                    c_art = ChunkArtifactV1(**json.loads(c_file.read_text(encoding="utf-8")))
-                    chunk_artifacts.append(c_art)
-                except Exception:
-                    missing_chunks.append(c_wo.chunk_id)
-
-        if missing_chunks:
-            return True, f"Sharded step {step_id} waiting on {len(missing_chunks)}/{len(plan.chunks)} chunks", plan_file
-
-        receipt, agg_records = aggregate_chunks(plan, chunk_artifacts)
-        target_path = artifact_path_for(gate_base_dir, self.betting_day, self.run_id, step_id)
-
-        artifact_type_map = {
-            "S2.3": "S2_3_ENRICHMENT_GAPS",
-            "S2.5": "S2_5_PROVIDER_OBSERVATIONS",
-            "S2.7": "S2_7_RECONCILED_FACTS",
-            "S2.9": "S2_9_DATA_READINESS",
-            "S5": "S5_CONTEXT_MOTIVATION_RISK",
-        }
-        art_type = artifact_type_map.get(step_id, f"{step_id.replace('.', '_')}_AGGREGATED")
-        agg_artifact = {
-            "schema_version": 1,
-            "artifact_type": art_type,
-            "status": "PASS" if step_id != "S2.9" else "READY",
-            "betting_day": self.betting_day,
-            "run_id": self.run_id,
-            "total_events": len(agg_records),
-            "event_records": agg_records,
-            "aggregation_receipt": receipt.model_dump(),
-        }
-        write_json_atomic(target_path, agg_artifact)
-        return True, None, target_path
-
         # Assert expected pipeline ID and global fail-closed rules
         if self.manifest.pipeline_id != "bet_pipeline_v1":
             raise ValueError(f"Unexpected pipeline_id in manifest: {self.manifest.pipeline_id}")
@@ -391,6 +314,85 @@ class Orchestrator:
             manifest_sha=self._manifest_sha,
         )
         self.env["BET_PIPELINE_RUN_AS_OF_UTC"] = self._resume_ledger.binding["run_as_of_utc"]
+
+    def _handle_sharded_agent_step(self, step_id: str, gate_base_dir: Path, parent_wo: Any) -> tuple[bool, str | None, Path | None]:
+        """Check if S1e event scope requires sharding. If so, build chunk plan and aggregate chunks if available."""
+        s1e_path = self.run_root / "data" / f"{self.betting_day}_s1e_event_universe.json" if hasattr(self, "run_root") else gate_base_dir / "data" / f"{self.betting_day}_s1e_event_universe.json"
+        if not s1e_path.exists():
+            return False, None, None
+
+        try:
+            s1e_data = json.loads(s1e_path.read_text(encoding="utf-8"))
+            event_ids = s1e_data.get("canonical_event_ids") or [e["canonical_event_id"] for e in s1e_data.get("deduplicated_events", []) if isinstance(e, dict) and "canonical_event_id" in e]
+        except Exception:
+            return False, None, None
+
+        from bet.pipeline.sharding.models import WorkOrderBudgetV1, ChunkArtifactV1
+        from bet.pipeline.sharding.lifecycle import create_chunk_execution_plan, aggregate_chunks
+
+        budget = WorkOrderBudgetV1(max_events_per_chunk=15)
+        if len(event_ids) <= budget.max_events_per_chunk:
+            return False, None, None
+
+        plan = create_chunk_execution_plan(
+            parent_work_order_id=parent_wo.work_order_id,
+            step_id=step_id,
+            betting_day=self.betting_day,
+            run_id=self.run_id,
+            event_ids=event_ids,
+            agent_name=parent_wo.agent,
+            budget=budget,
+        )
+
+        plan_dir = gate_base_dir / "work_orders" / "chunks"
+        plan_dir.mkdir(parents=True, exist_ok=True)
+        plan_file = plan_dir / f"PLAN_{parent_wo.work_order_id}.json"
+        write_json_atomic(plan_file, plan.model_dump())
+
+        chunks_dir = gate_base_dir / "artifacts" / "chunks"
+        chunks_dir.mkdir(parents=True, exist_ok=True)
+
+        chunk_artifacts = []
+        missing_chunks = []
+        for c_wo in plan.chunks:
+            c_file = chunks_dir / f"{c_wo.chunk_id}.json"
+            if not c_file.exists():
+                missing_chunks.append(c_wo.chunk_id)
+                c_wo_file = plan_dir / f"{c_wo.chunk_id}_work_order.json"
+                write_json_atomic(c_wo_file, c_wo.model_dump())
+            else:
+                try:
+                    c_art = ChunkArtifactV1(**json.loads(c_file.read_text(encoding="utf-8")))
+                    chunk_artifacts.append(c_art)
+                except Exception:
+                    missing_chunks.append(c_wo.chunk_id)
+
+        if missing_chunks:
+            return True, f"Sharded step {step_id} waiting on {len(missing_chunks)}/{len(plan.chunks)} chunks", plan_file
+
+        receipt, agg_records = aggregate_chunks(plan, chunk_artifacts)
+        target_path = artifact_path_for(gate_base_dir, self.betting_day, self.run_id, step_id)
+
+        artifact_type_map = {
+            "S2.3": "S2_3_ENRICHMENT_GAPS",
+            "S2.5": "S2_5_PROVIDER_OBSERVATIONS",
+            "S2.7": "S2_7_RECONCILED_FACTS",
+            "S2.9": "S2_9_DATA_READINESS",
+            "S5": "S5_CONTEXT_MOTIVATION_RISK",
+        }
+        art_type = artifact_type_map.get(step_id, f"{step_id.replace('.', '_')}_AGGREGATED")
+        agg_artifact = {
+            "schema_version": 1,
+            "artifact_type": art_type,
+            "status": "PASS" if step_id != "S2.9" else "READY",
+            "betting_day": self.betting_day,
+            "run_id": self.run_id,
+            "total_events": len(agg_records),
+            "event_records": agg_records,
+            "aggregation_receipt": receipt.model_dump(),
+        }
+        write_json_atomic(target_path, agg_artifact)
+        return True, None, target_path
 
     def _step_timeout_seconds(self) -> int:
         default = int(self.manifest.runtime_contract.get("default_timeout_seconds", 900))
@@ -1284,7 +1286,34 @@ class Orchestrator:
                 records = None
                 if evidence_path:
                     evidence_payload = _load_json_object(evidence_path) or {}
-                    candidate_records = (evidence_payload.get("payload") or {}).get("event_records")
+                    candidate_records = (
+                        (evidence_payload.get("payload") or {}).get("event_records")
+                        or evidence_payload.get("event_records")
+                    )
+                    if candidate_records is None and sid in {"S2", "S3", "S4", "S6", "S7", "S7b", "S8"}:
+                        try:
+                            _, out_data = resolve_bound_step_output(
+                                run_root=self.run_root,
+                                step_id=sid,
+                                betting_day=self.betting_day,
+                                run_id=self.run_id,
+                                expected_artifact_type=step.output_artifact_type,
+                            )
+                            candidate_records = (
+                                out_data.get("event_records")
+                                or out_data.get("candidates")
+                                or out_data.get("analyses")
+                                or out_data.get("events")
+                                or (
+                                    (out_data.get("analytical_approved") or [])
+                                    + (out_data.get("priced_approved") or [])
+                                    + (out_data.get("rejected") or [])
+                                    if ("analytical_approved" in out_data or "priced_approved" in out_data or "rejected" in out_data)
+                                    else None
+                                )
+                            )
+                        except Exception:
+                            pass
                     if candidate_records is not None:
                         records = candidate_records
                 try:

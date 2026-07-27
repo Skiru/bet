@@ -180,11 +180,15 @@ def evaluate_s7_hard_gate(
     run_id: str,
 ) -> dict[str, Any]:
     """Return the complete S7 V2 artifact or raise a contract error."""
+    from bet.pipeline.contracts.migration import adapt_legacy_artifact
     source_path = Path(source_s6_path).resolve(strict=True)
     hash_before = file_sha256(source_path)
     on_disk = json.loads(source_path.read_text(encoding="utf-8"))
-    if on_disk != s6 or hash_before != file_sha256(source_path):
+    adapted_disk = adapt_legacy_artifact(dict(on_disk), str(s6.get("artifact_type", "")))
+    adapted_s6 = adapt_legacy_artifact(dict(s6), str(s6.get("artifact_type", "")))
+    if adapted_disk != adapted_s6 or hash_before != file_sha256(source_path):
         raise ContinuityContractError("S6_HASH_CHANGED_DURING_READ")
+    s6 = adapted_s6
     accepted = validate_s6_output(s6, day=betting_day, run_id=run_id)
     priced_approved: list[dict[str, Any]] = []
     analytical_approved: list[dict[str, Any]] = []
@@ -203,6 +207,8 @@ def evaluate_s7_hard_gate(
             reasons.append("ANALYTICAL_STATUS_NOT_READY")
 
         clean = strip_execution_fields(dict(candidate))
+        if candidate.get("canonical_event_id"):
+            clean["canonical_event_id"] = candidate["canonical_event_id"]
         clean["risk_flags"] = risk_flags
         clean["counter_evidence"] = counter_evidence
         if reasons:

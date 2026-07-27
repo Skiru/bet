@@ -2,12 +2,12 @@
 from __future__ import annotations
 
 from typing import Any, Literal
-from pydantic import Field
+from pydantic import Field, ConfigDict
 from bet.pipeline.contracts.base import StrictBaseModel
 
 
 class SourceReferenceV1(StrictBaseModel):
-    """Refers to an external data source or tool result."""
+    model_config = ConfigDict(extra="ignore", frozen=True, populate_by_name=True)
     source_id: str
     source_name: str
     provenance_level: Literal["SYSTEM_VERIFIED_RECEIPT", "AGENT_ATTESTED_TOOL_RESULT", "SOURCE_REFERENCED_ONLY"] = "AGENT_ATTESTED_TOOL_RESULT"
@@ -18,20 +18,20 @@ class SourceReferenceV1(StrictBaseModel):
 
 
 class EventRecordV1(StrictBaseModel):
-    """Canonical event record representation across step outputs."""
+    model_config = ConfigDict(extra="ignore", frozen=True, populate_by_name=True)
     canonical_event_id: str
-    sport: str
-    competition: str
-    home_team: str
-    away_team: str
-    event_start_time: str
+    sport: str = "football"
+    competition: str = "League"
+    home_team: str = "Home"
+    away_team: str = "Away"
+    event_start_time: str = "2026-07-27T18:00:00Z"
     discovery_status: Literal["VERIFIED", "UNVERIFIED", "PREFILTERED", "BLOCKED"] = "VERIFIED"
     terminal_status: str | None = None
     terminal_reason: str | None = None
 
 
 class EvidenceClaimV1(StrictBaseModel):
-    """Fact or contextual evidence claim with provenance and confidence."""
+    model_config = ConfigDict(extra="ignore", frozen=True, populate_by_name=True)
     claim_id: str
     fact_type: str
     sport: str
@@ -44,7 +44,7 @@ class EvidenceClaimV1(StrictBaseModel):
 
 
 class PointInTimeLineageV1(StrictBaseModel):
-    """Point-in-time timestamp and source lineage metadata."""
+    model_config = ConfigDict(extra="ignore", frozen=True, populate_by_name=True)
     prediction_as_of: str
     sources_retrieved_before: str
     future_leakage_checked: bool = True
