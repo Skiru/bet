@@ -14,7 +14,7 @@ def validate_no_src_bet_imports() -> list[str]:
     src_bet_token = "src" + "." + "bet"
     import_src_bet = "import " + src_bet_token
     from_src_bet = "from " + src_bet_token
-    
+
     for scan_dir in scan_dirs:
         if not scan_dir.exists():
             continue
@@ -26,7 +26,7 @@ def validate_no_src_bet_imports() -> list[str]:
             except Exception as e:
                 errors.append(f"Failed to read {py_file}: {e}")
                 continue
-            
+
             for line_idx, line in enumerate(content.splitlines(), start=1):
                 stripped = line.strip()
                 if stripped.startswith("#"):

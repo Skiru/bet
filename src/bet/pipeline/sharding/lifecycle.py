@@ -2,8 +2,9 @@
 from __future__ import annotations
 
 import hashlib
+from pathlib import Path
 from typing import Any, Sequence
-from bet.pipeline.contracts.canonical_json import hash_canonical_json, dumps_canonical_json
+from bet.pipeline.contracts.canonical_json import hash_canonical_json
 from bet.pipeline.sharding.models import (
     WorkOrderBudgetV1,
     ChunkWorkOrderV1,
@@ -18,15 +19,29 @@ class ChunkLifecycleError(ValueError):
     pass
 
 
+def get_aggregator_source_sha256() -> str:
+    """Compute the actual SHA256 of this lifecycle implementation file."""
+    path = Path(__file__).resolve()
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
 def create_chunk_execution_plan(
     *,
     parent_work_order_id: str,
+    parent_work_order_sha256: str = "",
     step_id: str,
     betting_day: str,
     run_id: str,
+    runtime_mode: str = "DRY_RUN",
+    source_head: str = "",
+    source_tree: str = "",
+    manifest_sha256: str = "",
     event_ids: Sequence[str],
     agent_name: str,
     allowed_tools: Sequence[str] = (),
+    acquisition_plan_refs: Sequence[str] = (),
+    hard_rules: Sequence[str] = (),
+    forbidden_outputs: Sequence[str] = (),
     budget: WorkOrderBudgetV1 | None = None,
 ) -> ChunkExecutionPlanV1:
     """Deterministically partition an event list into immutable chunk work orders.
@@ -34,7 +49,7 @@ def create_chunk_execution_plan(
     Preserves order and rejects duplicate input event IDs.
     """
     effective_budget = budget or WorkOrderBudgetV1()
-    
+
     # Reject duplicate input event IDs
     if len(event_ids) != len(set(event_ids)):
         from collections import Counter
@@ -60,18 +75,29 @@ def create_chunk_execution_plan(
             work_order = ChunkWorkOrderV1(
                 chunk_id=chunk_id,
                 parent_work_order_id=parent_work_order_id,
+                parent_work_order_sha256=parent_work_order_sha256,
+                step_id=step_id,
+                betting_day=betting_day,
+                run_id=run_id,
+                runtime_mode=runtime_mode,
+                source_head=source_head,
+                source_tree=source_tree,
+                manifest_sha256=manifest_sha256,
+                parent_plan_id=f"PLAN-{parent_work_order_id}",
                 parent_plan_sha256="",
                 chunk_index=idx,
                 total_chunks=total_chunks,
                 event_ids=tuple(subset),
                 agent_name=agent_name,
                 allowed_tools=tuple(allowed_tools),
+                acquisition_plan_refs=tuple(acquisition_plan_refs),
+                hard_rules=tuple(hard_rules),
+                forbidden_outputs=tuple(forbidden_outputs),
                 budget=effective_budget,
             )
             chunk_orders_list.append(work_order)
         chunk_orders = tuple(chunk_orders_list)
 
-    # Compute preliminary plan without plan_sha256 to bind it
     preliminary = ChunkExecutionPlanV1(
         plan_id=f"PLAN-{parent_work_order_id}",
         parent_work_order_id=parent_work_order_id,
@@ -85,9 +111,8 @@ def create_chunk_execution_plan(
     data = preliminary.model_dump(exclude={"plan_sha256"})
     plan_sha256 = hash_canonical_json(data)
 
-    # Bind plan_sha256 to chunk work orders
     bound_chunks = tuple(
-        c.model_copy(update={"parent_plan_sha256": plan_sha256})
+        c.model_copy(update={"parent_plan_sha256": plan_sha256, "parent_plan_id": preliminary.plan_id})
         for c in preliminary.chunks
     )
 
@@ -114,7 +139,7 @@ def validate_chunk_against_work_order(
         )
     if chunk.parent_work_order_id != work_order.parent_work_order_id:
         raise ChunkLifecycleError("Parent work order ID mismatch.")
-    if chunk.parent_plan_sha256 != work_order.parent_plan_sha256:
+    if work_order.parent_plan_sha256 and chunk.parent_plan_sha256 != work_order.parent_plan_sha256:
         raise ChunkLifecycleError("Parent plan SHA256 mismatch.")
 
     wo_events = set(work_order.event_ids)
@@ -136,6 +161,7 @@ def aggregate_chunks(
     """Deterministically aggregate all chunks into a complete event accounting receipt.
 
     Verifies exact union, zero overlap, zero missing, zero duplicate, zero foreign.
+    Uses actual aggregator source code SHA256.
     """
     if len(chunk_artifacts) != len(plan.chunks):
         raise ChunkLifecycleError(
@@ -179,8 +205,7 @@ def aggregate_chunks(
     if extra:
         raise ChunkLifecycleError(f"Aggregate contains foreign events: {sorted(extra)}")
 
-    code_bytes = b"DETERMINISTIC_CHUNK_AGGREGATOR_V1"
-    code_sha = hashlib.sha256(code_bytes).hexdigest()
+    code_sha = get_aggregator_source_sha256()
 
     receipt = ChunkAggregationReceiptV1(
         aggregation_id=f"AGG-{plan.parent_work_order_id}",

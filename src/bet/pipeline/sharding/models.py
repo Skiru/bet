@@ -2,9 +2,9 @@
 from __future__ import annotations
 
 from typing import Any, Sequence
-from pydantic import Field
+from pydantic import Field, field_validator
 from bet.pipeline.contracts.base import StrictBaseModel
-from bet.pipeline.contracts.common import SourceReferenceV1, EvidenceClaimV1
+from bet.pipeline.contracts.common import SourceReferenceV1, EvidenceClaimV1, _validate_sha256
 
 
 class WorkOrderBudgetV1(StrictBaseModel):
@@ -23,12 +23,28 @@ class ChunkWorkOrderV1(StrictBaseModel):
     """Work order for an individual event chunk."""
     chunk_id: str
     parent_work_order_id: str
-    parent_plan_sha256: str
+    parent_work_order_sha256: str = ""
+    step_id: str = ""
+    betting_day: str = ""
+    run_id: str = ""
+    runtime_mode: str = "DRY_RUN"
+    source_head: str = ""
+    source_tree: str = ""
+    manifest_sha256: str = ""
+    parent_plan_id: str = ""
+    parent_plan_sha256: str = ""
     chunk_index: int = Field(ge=0)
     total_chunks: int = Field(ge=1)
     event_ids: tuple[str, ...]
     agent_name: str
     allowed_tools: tuple[str, ...]
+    acquisition_plan_refs: tuple[str, ...] = ()
+    hard_rules: tuple[str, ...] = ()
+    forbidden_outputs: tuple[str, ...] = ()
+    expected_artifact_path: str = ""
+    expected_artifact_type: str = ""
+    allowed_artifact_statuses: tuple[str, ...] = ("PASS", "NO_ACTION_TERMINAL", "BLOCK")
+    attempt_number: int = 1
     budget: WorkOrderBudgetV1 = Field(default_factory=WorkOrderBudgetV1)
 
 
@@ -42,12 +58,6 @@ class ChunkExecutionPlanV1(StrictBaseModel):
     total_events: int = Field(ge=0)
     chunks: tuple[ChunkWorkOrderV1, ...]
     plan_sha256: str = ""
-
-    def __post_init__(self) -> None:
-        if not self.plan_sha256:
-            from bet.pipeline.contracts.canonical_json import hash_canonical_json
-            data = self.model_dump(exclude={"plan_sha256"})
-            object.__setattr__(self, "plan_sha256", hash_canonical_json(data))
 
 
 class ChunkArtifactV1(StrictBaseModel):
@@ -78,6 +88,14 @@ class ChunkAggregationReceiptV1(StrictBaseModel):
     aggregation_code_sha256: str
     status: str = "PASS"
 
+    @field_validator("aggregation_code_sha256")
+    @classmethod
+    def check_sha(cls, v: str) -> str:
+        res = _validate_sha256(v)
+        if res is None:
+            raise ValueError("aggregation_code_sha256 cannot be None")
+        return res
+
 
 class FactRequirementV1(StrictBaseModel):
     """Specific fact requirement for market analysis or pricing."""
@@ -85,7 +103,7 @@ class FactRequirementV1(StrictBaseModel):
     fact_type: str
     sport: str
     market_families_affected: tuple[str, ...] = ()
-    requirement_level: str = "REQUIRED_FOR_PRICING"  # REQUIRED_FOR_PRICING | REQUIRED_FOR_ANALYSIS | OPTIONAL_CONTEXT
+    requirement_level: str = "REQUIRED_FOR_PRICING"
     allowed_tools: tuple[str, ...] = ("bet_sqlite_query", "webfetch")
     query_templates: tuple[str, ...] = ()
     max_age_hours: int = 48
@@ -113,7 +131,7 @@ class RetrievalReceiptV1(StrictBaseModel):
     effective_at: str | None = None
     normalized_excerpt: str
     content_sha256: str
-    provenance_level: str = "AGENT_ATTESTED_TOOL_RESULT"  # SYSTEM_VERIFIED_RECEIPT | AGENT_ATTESTED_TOOL_RESULT | SOURCE_REFERENCED_ONLY
+    provenance_level: str = "AGENT_ATTESTED_TOOL_RESULT"
 
 
 class DatabaseQueryReceiptV1(StrictBaseModel):
@@ -133,7 +151,7 @@ class EvidenceConflictV1(StrictBaseModel):
     canonical_event_id: str
     fact_type: str
     conflicting_claim_ids: tuple[str, ...]
-    resolution_status: str = "UNRESOLVED"  # UNRESOLVED | RESOLVED_HIGHER_TIER | RESOLVED_MAJORITY | UNRESOLVED_BLOCKED
+    resolution_status: str = "UNRESOLVED"
 
 
 class SourceIndependenceClusterV1(StrictBaseModel):
