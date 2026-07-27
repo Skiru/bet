@@ -21,6 +21,9 @@ from src.bet.pipeline.contracts.steps.s0_to_s2 import S1FixturesShortlistV1
 from src.bet.pipeline.contracts.steps.s3_to_s10 import S8SuperbetManualQuotePackV1
 from src.bet.pipeline.sharding.models import ChunkExecutionPlanV1
 from src.bet.pipeline.sharding.lifecycle import aggregate_chunks
+from src.bet.pipeline.sports.models import SportEventDossierV1
+from src.bet.pipeline.sports.protocols import FootballProtocol
+from src.bet.pipeline.sports.registry import GLOBAL_SPORT_PROTOCOL_REGISTRY
 
 
 def runtime_context(environ: dict[str, str] | None = None) -> dict[str, str | None]:

@@ -7446,6 +7446,14 @@
     "expiry_or_review_policy": "PERMANENT_RETAINED_PRODUCTION"
   },
   {
+    "path": "tests/test_c4_model_governance.py",
+    "category": "RETAINED_TEST",
+    "owner": "Kilo",
+    "reason": "Pipeline V5 acceptance test suite",
+    "references": [],
+    "expiry_or_review_policy": "PERMANENT_RETAINED_PRODUCTION"
+  },
+  {
     "path": "tests/test_canonical_continuity_reference.py",
     "category": "RETAINED_TEST",
     "owner": "Kilo",
