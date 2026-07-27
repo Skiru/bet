@@ -510,12 +510,38 @@
     "expiry_or_review_policy": "REVIEW_ON_SCHEMA_UPGRADE"
   },
   {
+    "path": "config/pipeline_certification_inventory.json",
+    "category": "RETAINED_ENGINEERING",
+    "owner": "Kilo",
+    "reason": "Pipeline certification inventory configuration",
+    "references": [],
+    "expiry_or_review_policy": "NO_EXPIRY_RETAIN_PERMANENTLY"
+  },
+  {
+    "path": "config/portfolio_policy.json",
+    "category": "RETAINED_ENGINEERING",
+    "owner": "Kilo",
+    "reason": "Canonical portfolio repeat-guard policy",
+    "references": [
+      "scripts/pipeline_steps/s6_repeats.py"
+    ],
+    "expiry_or_review_policy": "REVIEW_ON_SCHEMA_UPGRADE"
+  },
+  {
     "path": "config/provider_capability_matrix.json",
     "category": "RETAINED_ENGINEERING",
     "owner": "Kilo",
     "reason": "Configuration example or secondary config file",
     "references": [],
     "expiry_or_review_policy": "REVIEW_ON_SCHEMA_UPGRADE"
+  },
+  {
+    "path": "config/provider_runtime_policy.json",
+    "category": "RETAINED_ENGINEERING",
+    "owner": "Kilo",
+    "reason": "Provider runtime policy configuration",
+    "references": [],
+    "expiry_or_review_policy": "NO_EXPIRY_RETAIN_PERMANENTLY"
   },
   {
     "path": "config/retention_records.json",
@@ -814,6 +840,14 @@
     "expiry_or_review_policy": "REVIEW_ON_SCHEMA_UPGRADE"
   },
   {
+    "path": "scripts/__init__.py",
+    "category": "RETAINED_ENGINEERING",
+    "owner": "Kilo",
+    "reason": "Engineering script package marker",
+    "references": [],
+    "expiry_or_review_policy": "REVIEW_ON_SCHEMA_UPGRADE"
+  },
+  {
     "path": "scripts/agent_output.py",
     "category": "RETAINED_ENGINEERING",
     "owner": "Kilo",
@@ -867,6 +901,16 @@
     "owner": "Kilo",
     "reason": "Engineering utilities, linters, validators, model management tools or kilo config",
     "references": [],
+    "expiry_or_review_policy": "REVIEW_ON_SCHEMA_UPGRADE"
+  },
+  {
+    "path": "scripts/certify_pipeline_final_closure.py",
+    "category": "RETAINED_ENGINEERING",
+    "owner": "Kilo",
+    "reason": "Evidence-derived bounded certification validator",
+    "references": [
+      "tests/test_pipeline_certifier.py"
+    ],
     "expiry_or_review_policy": "REVIEW_ON_SCHEMA_UPGRADE"
   },
   {
@@ -1003,6 +1047,16 @@
     "owner": "Kilo",
     "reason": "Engineering utilities, linters, validators, model management tools or kilo config",
     "references": [],
+    "expiry_or_review_policy": "REVIEW_ON_SCHEMA_UPGRADE"
+  },
+  {
+    "path": "scripts/gate_checker.py",
+    "category": "RETAINED_ENGINEERING",
+    "owner": "Kilo",
+    "reason": "Offline compatibility checker, no longer a production S7 target",
+    "references": [
+      "tests/test_pipeline_modules.py"
+    ],
     "expiry_or_review_policy": "REVIEW_ON_SCHEMA_UPGRADE"
   },
   {
@@ -1603,6 +1657,16 @@
     "owner": "Kilo",
     "reason": "Engineering utilities, linters, validators, model management tools or kilo config",
     "references": [],
+    "expiry_or_review_policy": "REVIEW_ON_SCHEMA_UPGRADE"
+  },
+  {
+    "path": "scripts/validate_run_evidence_chain.py",
+    "category": "RETAINED_ENGINEERING",
+    "owner": "Kilo",
+    "reason": "Run evidence and resume hash-chain validator",
+    "references": [
+      "tests/test_failed_run_replay.py"
+    ],
     "expiry_or_review_policy": "REVIEW_ON_SCHEMA_UPGRADE"
   },
   {
@@ -3638,6 +3702,22 @@
     "expiry_or_review_policy": "REVIEW_ON_SCHEMA_UPGRADE"
   },
   {
+    "path": "src/bet/pipeline/analytical_candidate_bridge.py",
+    "category": "RETAINED_ENGINEERING",
+    "owner": "Kilo",
+    "reason": "Retained analytical compatibility bridge",
+    "references": [],
+    "expiry_or_review_policy": "REVIEW_ON_SCHEMA_UPGRADE"
+  },
+  {
+    "path": "src/bet/pipeline/analyzability_prefilter.py",
+    "category": "RETAINED_ENGINEERING",
+    "owner": "Kilo",
+    "reason": "Retained analytical prefilter",
+    "references": [],
+    "expiry_or_review_policy": "REVIEW_ON_SCHEMA_UPGRADE"
+  },
+  {
     "path": "src/bet/pipeline/bet_builder_analytical.py",
     "category": "RETAINED_ENGINEERING",
     "owner": "Kilo",
@@ -3652,6 +3732,22 @@
     "reason": "Retained inactive provider, scraper, model or domain helper",
     "references": [],
     "expiry_or_review_policy": "REVIEW_ON_SCHEMA_UPGRADE"
+  },
+  {
+    "path": "src/bet/pipeline/contracts/__init__.py",
+    "category": "RETAINED_ENGINEERING",
+    "owner": "Kilo",
+    "reason": "Package init export authority",
+    "references": [],
+    "expiry_or_review_policy": "PERMANENT_RETAINED_PRODUCTION"
+  },
+  {
+    "path": "src/bet/pipeline/contracts/steps/__init__.py",
+    "category": "RETAINED_ENGINEERING",
+    "owner": "Kilo",
+    "reason": "Package init export authority",
+    "references": [],
+    "expiry_or_review_policy": "PERMANENT_RETAINED_PRODUCTION"
   },
   {
     "path": "src/bet/pipeline/core_integration_inventory.py",
@@ -3674,6 +3770,14 @@
     "category": "RETAINED_ENGINEERING",
     "owner": "Kilo",
     "reason": "Retained inactive provider, scraper, model or domain helper",
+    "references": [],
+    "expiry_or_review_policy": "REVIEW_ON_SCHEMA_UPGRADE"
+  },
+  {
+    "path": "src/bet/pipeline/live_session_universe.py",
+    "category": "RETAINED_ENGINEERING",
+    "owner": "Kilo",
+    "reason": "Retained live-session traceability helper",
     "references": [],
     "expiry_or_review_policy": "REVIEW_ON_SCHEMA_UPGRADE"
   },
@@ -3708,6 +3812,14 @@
     "reason": "Retained inactive provider, scraper, model or domain helper",
     "references": [],
     "expiry_or_review_policy": "REVIEW_ON_SCHEMA_UPGRADE"
+  },
+  {
+    "path": "src/bet/pipeline/sharding/__init__.py",
+    "category": "RETAINED_ENGINEERING",
+    "owner": "Kilo",
+    "reason": "Package init export authority",
+    "references": [],
+    "expiry_or_review_policy": "PERMANENT_RETAINED_PRODUCTION"
   },
   {
     "path": "src/bet/pipeline/sport_coverage.py",
@@ -4183,7 +4295,7 @@
   },
   {
     "path": "tests/__init__.py",
-    "category": "RETAINED_TEST",
+    "category": "RETAINED_ENGINEERING",
     "owner": "Kilo",
     "reason": "Unit and integration testing of pipeline components",
     "references": [],
@@ -4239,7 +4351,7 @@
   },
   {
     "path": "tests/discovery/__init__.py",
-    "category": "RETAINED_TEST",
+    "category": "RETAINED_ENGINEERING",
     "owner": "Kilo",
     "reason": "Unit and integration testing of pipeline components",
     "references": [],
@@ -5734,6 +5846,86 @@
     "expiry_or_review_policy": "NO_EXPIRY_RETAIN_PERMANENTLY"
   },
   {
+    "path": "tests/fixtures/failed_run_20260714_pricing_degraded/2026-07-14_s2_shortlist.json",
+    "category": "RETAINED_FIXTURE",
+    "owner": "Kilo",
+    "reason": "Sanitized deterministic canonical replay fixture",
+    "references": [
+      "tests/test_failed_run_replay.py"
+    ],
+    "expiry_or_review_policy": "NO_EXPIRY_RETAIN_PERMANENTLY"
+  },
+  {
+    "path": "tests/fixtures/failed_run_20260714_pricing_degraded/2026-07-14_s3_deep_stats.json",
+    "category": "RETAINED_FIXTURE",
+    "owner": "Kilo",
+    "reason": "Sanitized deterministic canonical replay fixture",
+    "references": [
+      "tests/test_failed_run_replay.py"
+    ],
+    "expiry_or_review_policy": "NO_EXPIRY_RETAIN_PERMANENTLY"
+  },
+  {
+    "path": "tests/fixtures/failed_run_20260714_pricing_degraded/2026-07-14_s4_valuation_candidates.json",
+    "category": "RETAINED_FIXTURE",
+    "owner": "Kilo",
+    "reason": "Sanitized deterministic canonical replay fixture",
+    "references": [
+      "tests/test_failed_run_replay.py"
+    ],
+    "expiry_or_review_policy": "NO_EXPIRY_RETAIN_PERMANENTLY"
+  },
+  {
+    "path": "tests/fixtures/failed_run_20260714_pricing_degraded/S2.json",
+    "category": "RETAINED_FIXTURE",
+    "owner": "Kilo",
+    "reason": "Sanitized deterministic canonical replay fixture",
+    "references": [
+      "tests/test_failed_run_replay.py"
+    ],
+    "expiry_or_review_policy": "NO_EXPIRY_RETAIN_PERMANENTLY"
+  },
+  {
+    "path": "tests/fixtures/failed_run_20260714_pricing_degraded/S3.json",
+    "category": "RETAINED_FIXTURE",
+    "owner": "Kilo",
+    "reason": "Sanitized deterministic canonical replay fixture",
+    "references": [
+      "tests/test_failed_run_replay.py"
+    ],
+    "expiry_or_review_policy": "NO_EXPIRY_RETAIN_PERMANENTLY"
+  },
+  {
+    "path": "tests/fixtures/failed_run_20260714_pricing_degraded/S4.json",
+    "category": "RETAINED_FIXTURE",
+    "owner": "Kilo",
+    "reason": "Sanitized deterministic canonical replay fixture",
+    "references": [
+      "tests/test_failed_run_replay.py"
+    ],
+    "expiry_or_review_policy": "NO_EXPIRY_RETAIN_PERMANENTLY"
+  },
+  {
+    "path": "tests/fixtures/failed_run_20260714_pricing_degraded/S5.json",
+    "category": "RETAINED_FIXTURE",
+    "owner": "Kilo",
+    "reason": "Sanitized deterministic canonical replay fixture",
+    "references": [
+      "tests/test_failed_run_replay.py"
+    ],
+    "expiry_or_review_policy": "NO_EXPIRY_RETAIN_PERMANENTLY"
+  },
+  {
+    "path": "tests/fixtures/failed_run_20260714_pricing_degraded/picks-ledger.csv",
+    "category": "RETAINED_FIXTURE",
+    "owner": "Kilo",
+    "reason": "Sanitized deterministic canonical replay fixture",
+    "references": [
+      "tests/test_failed_run_replay.py"
+    ],
+    "expiry_or_review_policy": "NO_EXPIRY_RETAIN_PERMANENTLY"
+  },
+  {
     "path": "tests/fixtures/football_data_foundation/active_enrichment_profiles/world-cup-2026/scanner_event_input.json",
     "category": "RETAINED_FIXTURE",
     "owner": "Kilo",
@@ -6911,7 +7103,7 @@
   },
   {
     "path": "tests/scrapers/__init__.py",
-    "category": "RETAINED_TEST",
+    "category": "RETAINED_ENGINEERING",
     "owner": "Kilo",
     "reason": "Unit and integration testing of pipeline components",
     "references": [],
@@ -6919,7 +7111,7 @@
   },
   {
     "path": "tests/scrapers/basketball/__init__.py",
-    "category": "RETAINED_TEST",
+    "category": "RETAINED_ENGINEERING",
     "owner": "Kilo",
     "reason": "Unit and integration testing of pipeline components",
     "references": [],
@@ -6951,7 +7143,7 @@
   },
   {
     "path": "tests/scrapers/football/__init__.py",
-    "category": "RETAINED_TEST",
+    "category": "RETAINED_ENGINEERING",
     "owner": "Kilo",
     "reason": "Unit and integration testing of pipeline components",
     "references": [],
@@ -6959,7 +7151,7 @@
   },
   {
     "path": "tests/scrapers/hockey/__init__.py",
-    "category": "RETAINED_TEST",
+    "category": "RETAINED_ENGINEERING",
     "owner": "Kilo",
     "reason": "Unit and integration testing of pipeline components",
     "references": [],
@@ -6983,7 +7175,7 @@
   },
   {
     "path": "tests/scrapers/tennis/__init__.py",
-    "category": "RETAINED_TEST",
+    "category": "RETAINED_ENGINEERING",
     "owner": "Kilo",
     "reason": "Unit and integration testing of pipeline components",
     "references": [],
@@ -7071,7 +7263,7 @@
   },
   {
     "path": "tests/scrapers/volleyball/__init__.py",
-    "category": "RETAINED_TEST",
+    "category": "RETAINED_ENGINEERING",
     "owner": "Kilo",
     "reason": "Unit and integration testing of pipeline components",
     "references": [],
@@ -7082,6 +7274,30 @@
     "category": "RETAINED_TEST",
     "owner": "Kilo",
     "reason": "Unit and integration testing of pipeline components",
+    "references": [],
+    "expiry_or_review_policy": "NO_EXPIRY_RETAIN_PERMANENTLY"
+  },
+  {
+    "path": "tests/support/__init__.py",
+    "category": "RETAINED_ENGINEERING",
+    "owner": "Kilo",
+    "reason": "Test support helpers",
+    "references": [],
+    "expiry_or_review_policy": "NO_EXPIRY_RETAIN_PERMANENTLY"
+  },
+  {
+    "path": "tests/support/adapters.py",
+    "category": "RETAINED_TEST",
+    "owner": "Kilo",
+    "reason": "Test support adapters",
+    "references": [],
+    "expiry_or_review_policy": "NO_EXPIRY_RETAIN_PERMANENTLY"
+  },
+  {
+    "path": "tests/test_agent_work_order_owner_alignment.py",
+    "category": "RETAINED_TEST",
+    "owner": "Kilo",
+    "reason": "Owner alignment verification and git status checks",
     "references": [],
     "expiry_or_review_policy": "NO_EXPIRY_RETAIN_PERMANENTLY"
   },
@@ -7198,18 +7414,34 @@
     "expiry_or_review_policy": "NO_EXPIRY_RETAIN_PERMANENTLY"
   },
   {
-    "path": "tests/test_canonical_continuity_v4_offline_chain_proof.py",
+    "path": "tests/test_c1_step_contracts.py",
     "category": "RETAINED_TEST",
     "owner": "Kilo",
-    "reason": "Unit and integration testing of pipeline components",
+    "reason": "Pipeline V5 acceptance test suite",
+    "references": [],
+    "expiry_or_review_policy": "PERMANENT_RETAINED_PRODUCTION"
+  },
+  {
+    "path": "tests/test_c2_sharding_and_acquisition.py",
+    "category": "RETAINED_TEST",
+    "owner": "Kilo",
+    "reason": "Pipeline V5 acceptance test suite",
+    "references": [],
+    "expiry_or_review_policy": "PERMANENT_RETAINED_PRODUCTION"
+  },
+  {
+    "path": "tests/test_canonical_continuity_reference.py",
+    "category": "RETAINED_TEST",
+    "owner": "Kilo",
+    "reason": "Canonical continuity, safety, race, and tamper tests",
     "references": [],
     "expiry_or_review_policy": "NO_EXPIRY_RETAIN_PERMANENTLY"
   },
   {
-    "path": "tests/test_s2_shortlist_contract_closure.py",
+    "path": "tests/test_canonical_continuity_v4_offline_chain_proof.py",
     "category": "RETAINED_TEST",
     "owner": "Kilo",
-    "reason": "Unit and integration testing of S2 shortlist producer-consumer contract",
+    "reason": "Unit and integration testing of pipeline components",
     "references": [],
     "expiry_or_review_policy": "NO_EXPIRY_RETAIN_PERMANENTLY"
   },
@@ -7758,6 +7990,14 @@
     "expiry_or_review_policy": "NO_EXPIRY_RETAIN_PERMANENTLY"
   },
   {
+    "path": "tests/test_pipeline_certifier.py",
+    "category": "RETAINED_TEST",
+    "owner": "Kilo",
+    "reason": "Evidence-derived certifier fail-closed tests",
+    "references": [],
+    "expiry_or_review_policy": "NO_EXPIRY_RETAIN_PERMANENTLY"
+  },
+  {
     "path": "tests/test_pipeline_core_integrations.py",
     "category": "RETAINED_TEST",
     "owner": "Kilo",
@@ -8154,6 +8394,14 @@
     "category": "RETAINED_TEST",
     "owner": "Kilo",
     "reason": "Unit and integration testing of pipeline components",
+    "references": [],
+    "expiry_or_review_policy": "NO_EXPIRY_RETAIN_PERMANENTLY"
+  },
+  {
+    "path": "tests/test_s2_shortlist_contract_closure.py",
+    "category": "RETAINED_TEST",
+    "owner": "Kilo",
+    "reason": "Unit and integration testing of S2 shortlist producer-consumer contract",
     "references": [],
     "expiry_or_review_policy": "NO_EXPIRY_RETAIN_PERMANENTLY"
   },
@@ -8578,190 +8826,6 @@
     "category": "RETAINED_TEST",
     "owner": "Kilo",
     "reason": "Unit and integration testing of pipeline components",
-    "references": [],
-    "expiry_or_review_policy": "NO_EXPIRY_RETAIN_PERMANENTLY"
-  },
-  {
-    "path": "config/portfolio_policy.json",
-    "category": "RETAINED_ENGINEERING",
-    "owner": "Kilo",
-    "reason": "Canonical portfolio repeat-guard policy",
-    "references": ["scripts/pipeline_steps/s6_repeats.py"],
-    "expiry_or_review_policy": "REVIEW_ON_SCHEMA_UPGRADE"
-  },
-  {
-    "path": "scripts/certify_pipeline_final_closure.py",
-    "category": "RETAINED_ENGINEERING",
-    "owner": "Kilo",
-    "reason": "Evidence-derived bounded certification validator",
-    "references": ["tests/test_pipeline_certifier.py"],
-    "expiry_or_review_policy": "REVIEW_ON_SCHEMA_UPGRADE"
-  },
-  {
-    "path": "scripts/__init__.py",
-    "category": "RETAINED_ENGINEERING",
-    "owner": "Kilo",
-    "reason": "Engineering script package marker",
-    "references": [],
-    "expiry_or_review_policy": "REVIEW_ON_SCHEMA_UPGRADE"
-  },
-  {
-    "path": "scripts/gate_checker.py",
-    "category": "RETAINED_ENGINEERING",
-    "owner": "Kilo",
-    "reason": "Offline compatibility checker, no longer a production S7 target",
-    "references": ["tests/test_pipeline_modules.py"],
-    "expiry_or_review_policy": "REVIEW_ON_SCHEMA_UPGRADE"
-  },
-  {
-    "path": "src/bet/pipeline/analytical_candidate_bridge.py",
-    "category": "RETAINED_ENGINEERING",
-    "owner": "Kilo",
-    "reason": "Retained analytical compatibility bridge",
-    "references": [],
-    "expiry_or_review_policy": "REVIEW_ON_SCHEMA_UPGRADE"
-  },
-  {
-    "path": "src/bet/pipeline/analyzability_prefilter.py",
-    "category": "RETAINED_ENGINEERING",
-    "owner": "Kilo",
-    "reason": "Retained analytical prefilter",
-    "references": [],
-    "expiry_or_review_policy": "REVIEW_ON_SCHEMA_UPGRADE"
-  },
-  {
-    "path": "src/bet/pipeline/live_session_universe.py",
-    "category": "RETAINED_ENGINEERING",
-    "owner": "Kilo",
-    "reason": "Retained live-session traceability helper",
-    "references": [],
-    "expiry_or_review_policy": "REVIEW_ON_SCHEMA_UPGRADE"
-  },
-  {
-    "path": "scripts/validate_run_evidence_chain.py",
-    "category": "RETAINED_ENGINEERING",
-    "owner": "Kilo",
-    "reason": "Run evidence and resume hash-chain validator",
-    "references": ["tests/test_failed_run_replay.py"],
-    "expiry_or_review_policy": "REVIEW_ON_SCHEMA_UPGRADE"
-  },
-  {
-    "path": "tests/test_canonical_continuity_reference.py",
-    "category": "RETAINED_TEST",
-    "owner": "Kilo",
-    "reason": "Canonical continuity, safety, race, and tamper tests",
-    "references": [],
-    "expiry_or_review_policy": "NO_EXPIRY_RETAIN_PERMANENTLY"
-  },
-  {
-    "path": "tests/test_pipeline_certifier.py",
-    "category": "RETAINED_TEST",
-    "owner": "Kilo",
-    "reason": "Evidence-derived certifier fail-closed tests",
-    "references": [],
-    "expiry_or_review_policy": "NO_EXPIRY_RETAIN_PERMANENTLY"
-  },
-  {
-    "path": "tests/fixtures/failed_run_20260714_pricing_degraded/2026-07-14_s2_shortlist.json",
-    "category": "RETAINED_FIXTURE",
-    "owner": "Kilo",
-    "reason": "Sanitized deterministic canonical replay fixture",
-    "references": ["tests/test_failed_run_replay.py"],
-    "expiry_or_review_policy": "NO_EXPIRY_RETAIN_PERMANENTLY"
-  },
-  {
-    "path": "tests/fixtures/failed_run_20260714_pricing_degraded/2026-07-14_s3_deep_stats.json",
-    "category": "RETAINED_FIXTURE",
-    "owner": "Kilo",
-    "reason": "Sanitized deterministic canonical replay fixture",
-    "references": ["tests/test_failed_run_replay.py"],
-    "expiry_or_review_policy": "NO_EXPIRY_RETAIN_PERMANENTLY"
-  },
-  {
-    "path": "tests/fixtures/failed_run_20260714_pricing_degraded/2026-07-14_s4_valuation_candidates.json",
-    "category": "RETAINED_FIXTURE",
-    "owner": "Kilo",
-    "reason": "Sanitized deterministic canonical replay fixture",
-    "references": ["tests/test_failed_run_replay.py"],
-    "expiry_or_review_policy": "NO_EXPIRY_RETAIN_PERMANENTLY"
-  },
-  {
-    "path": "tests/fixtures/failed_run_20260714_pricing_degraded/S2.json",
-    "category": "RETAINED_FIXTURE",
-    "owner": "Kilo",
-    "reason": "Sanitized deterministic canonical replay fixture",
-    "references": ["tests/test_failed_run_replay.py"],
-    "expiry_or_review_policy": "NO_EXPIRY_RETAIN_PERMANENTLY"
-  },
-  {
-    "path": "tests/fixtures/failed_run_20260714_pricing_degraded/S3.json",
-    "category": "RETAINED_FIXTURE",
-    "owner": "Kilo",
-    "reason": "Sanitized deterministic canonical replay fixture",
-    "references": ["tests/test_failed_run_replay.py"],
-    "expiry_or_review_policy": "NO_EXPIRY_RETAIN_PERMANENTLY"
-  },
-  {
-    "path": "tests/fixtures/failed_run_20260714_pricing_degraded/S4.json",
-    "category": "RETAINED_FIXTURE",
-    "owner": "Kilo",
-    "reason": "Sanitized deterministic canonical replay fixture",
-    "references": ["tests/test_failed_run_replay.py"],
-    "expiry_or_review_policy": "NO_EXPIRY_RETAIN_PERMANENTLY"
-  },
-  {
-    "path": "tests/fixtures/failed_run_20260714_pricing_degraded/S5.json",
-    "category": "RETAINED_FIXTURE",
-    "owner": "Kilo",
-    "reason": "Sanitized deterministic canonical replay fixture",
-    "references": ["tests/test_failed_run_replay.py"],
-    "expiry_or_review_policy": "NO_EXPIRY_RETAIN_PERMANENTLY"
-  },
-  {
-    "path": "tests/fixtures/failed_run_20260714_pricing_degraded/picks-ledger.csv",
-    "category": "RETAINED_FIXTURE",
-    "owner": "Kilo",
-    "reason": "Sanitized deterministic canonical replay fixture",
-    "references": ["tests/test_failed_run_replay.py"],
-    "expiry_or_review_policy": "NO_EXPIRY_RETAIN_PERMANENTLY"
-  },
-  {
-    "path": "config/pipeline_certification_inventory.json",
-    "category": "RETAINED_ENGINEERING",
-    "owner": "Kilo",
-    "reason": "Pipeline certification inventory configuration",
-    "references": [],
-    "expiry_or_review_policy": "NO_EXPIRY_RETAIN_PERMANENTLY"
-  },
-  {
-    "path": "config/provider_runtime_policy.json",
-    "category": "RETAINED_ENGINEERING",
-    "owner": "Kilo",
-    "reason": "Provider runtime policy configuration",
-    "references": [],
-    "expiry_or_review_policy": "NO_EXPIRY_RETAIN_PERMANENTLY"
-  },
-  {
-    "path": "tests/support/__init__.py",
-    "category": "RETAINED_TEST",
-    "owner": "Kilo",
-    "reason": "Test support helpers",
-    "references": [],
-    "expiry_or_review_policy": "NO_EXPIRY_RETAIN_PERMANENTLY"
-  },
-  {
-    "path": "tests/support/adapters.py",
-    "category": "RETAINED_TEST",
-    "owner": "Kilo",
-    "reason": "Test support adapters",
-    "references": [],
-    "expiry_or_review_policy": "NO_EXPIRY_RETAIN_PERMANENTLY"
-  },
-  {
-    "path": "tests/test_agent_work_order_owner_alignment.py",
-    "category": "RETAINED_TEST",
-    "owner": "Kilo",
-    "reason": "Owner alignment verification and git status checks",
     "references": [],
     "expiry_or_review_policy": "NO_EXPIRY_RETAIN_PERMANENTLY"
   },
