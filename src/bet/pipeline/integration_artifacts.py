@@ -736,6 +736,12 @@ def strict_validate_step_output(
             event_records = output_data["candidates"]
 
         if event_records is None:
+            for alt_key in ("analyses", "accepted", "priced_approved", "analytical_approved", "mapping_suggestions", "quote_cards", "picks", "approved_picks"):
+                if isinstance(output_data.get(alt_key), list):
+                    event_records = output_data[alt_key]
+                    break
+
+        if event_records is None:
             raise ValueError(f"EVENT_BOUNDARY_RECORDS_MISSING: Step {step_id} output lacks 'event_records'")
 
         if not isinstance(event_records, list):
