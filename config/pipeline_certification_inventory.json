@@ -31,7 +31,7 @@
     "tests/test_c5_bet_builder.py": "8dc0cdb89911f3a6e262fbdbe93960d85f3dd3a47720b2a7e10c143294fbb0a1",
     "tests/test_r0_reproductions.py": "dec8a8c460a76448fb19c6ddfb5e7d62f63497eb3e16fbac6325b71f22560301",
     "tests/test_t1_strict_contracts.py": "c0a2eae2c5028bb850d63c1a1aa17be7b1ab6627baefc1e8cce96d6ba089812e",
-    "tests/test_t2_sharding_lifecycle.py": "b37e8f9b8041534a104c345ecca08df5c294bf809283ee63b89025c04bbf3890",
+    "tests/test_t2_sharding_lifecycle.py": "6e3bfc8f3b3e13e17cb207e01ec0b8b6c6e472576dfd6cb616c7c530bb39b7ac",
     "tests/test_t3_acquisition_and_dossiers.py": "1ea71168aaf05be5b4594935b13c4e2aa3db00e0d556e3a21092d8c7614b4ca9",
     "tests/test_t4_model_artifacts.py": "06c5f19e17afa1e980b42a5510ed9580090132c48c9422bc49632d3b5fe09df4",
     "tests/test_t5_builder_pricing.py": "a8d88e7b404371317b614639db89de23fb5787cbc7512f9e2c1ade5d23c37fe6"

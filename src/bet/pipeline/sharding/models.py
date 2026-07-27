@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from typing import Any, Sequence
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 from bet.pipeline.contracts.base import StrictBaseModel
 from bet.pipeline.contracts.common import SourceReferenceV1, EvidenceClaimV1, _validate_sha256
 
@@ -51,6 +51,16 @@ class ChunkWorkOrderV1(StrictBaseModel):
     attempt_id: str = ""
     budget: WorkOrderBudgetV1 = Field(default_factory=WorkOrderBudgetV1)
 
+    @model_validator(mode="after")
+    def validate_chunk_bindings(self) -> ChunkWorkOrderV1:
+        if not self.chunk_id or not self.parent_work_order_id:
+            raise ValueError("CHUNK_WO_BINDING_EMPTY: chunk_id and parent_work_order_id are required")
+        if not self.event_ids:
+            raise ValueError("CHUNK_WO_BINDING_EMPTY: event_ids tuple cannot be empty")
+        if not self.agent_name:
+            raise ValueError("CHUNK_WO_BINDING_EMPTY: agent_name is required")
+        return self
+
 
 class ChunkExecutionPlanV1(StrictBaseModel):
     """Plan partitioning a parent event universe into deterministic chunks."""
@@ -67,14 +77,24 @@ class ChunkExecutionPlanV1(StrictBaseModel):
 class ChunkArtifactV1(StrictBaseModel):
     """Artifact emitted by a single completed chunk."""
     chunk_id: str
+    chunk_work_order_sha256: str = ""
     parent_work_order_id: str
-    parent_plan_sha256: str
+    parent_work_order_sha256: str = ""
+    parent_plan_id: str = ""
+    parent_plan_sha256: str = ""
     chunk_index: int = Field(ge=0)
+    total_chunks: int = Field(ge=1, default=1)
     status: str = "PASS"  # PASS | BLOCK | FAILED
     producer_agent_id: str
+    betting_day: str = ""
+    run_id: str = ""
+    source_head: str = ""
+    source_tree: str = ""
+    manifest_sha256: str = ""
     processed_event_ids: tuple[str, ...]
     event_records: list[dict[str, Any]] = Field(default_factory=list)
     payload: dict[str, Any] = Field(default_factory=dict)
+    receipts: list[dict[str, Any]] = Field(default_factory=list)
     chunk_sha256: str = ""
 
 

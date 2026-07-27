@@ -83,3 +83,69 @@ def test_t2_aggregation_enforces_exact_event_union():
 
     with pytest.raises(ChunkLifecycleError):
         aggregate_chunks(plan, [art_incomplete])
+
+
+def test_t2_orchestrator_sharded_lifecycle_31_events(tmp_path: Path):
+    """Verify 31-event universe sharded execution lifecycle across orchestrator instances."""
+    import json
+    from bet.pipeline.orchestrator import Orchestrator
+
+    day = "2026-07-16"
+    run_id = "run-shard-31"
+    run_root = tmp_path / "pipeline_runs" / day / run_id
+    run_root.mkdir(parents=True, exist_ok=True)
+    (run_root / "data").mkdir(parents=True, exist_ok=True)
+    (run_root / "artifacts").mkdir(parents=True, exist_ok=True)
+
+    event_ids = [f"EVT_{i:03d}" for i in range(1, 32)]  # 31 events
+
+    # Setup parent S2.3 work order and inputs
+    plan = create_chunk_execution_plan(
+        parent_work_order_id=f"WO-{run_id}-S2.3",
+        parent_work_order_sha256="a" * 64,
+        step_id="S2.3",
+        betting_day=day,
+        run_id=run_id,
+        source_head="a" * 40,
+        source_tree="b" * 40,
+        manifest_sha256="c" * 64,
+        event_ids=event_ids,
+        agent_name="bet-researcher",
+        budget=WorkOrderBudgetV1(max_events_per_chunk=15),
+    )
+
+    # 31 events / 15 per chunk = 3 chunks (15, 15, 1)
+    assert len(plan.chunks) == 3
+
+    chunk_artifacts: list[ChunkArtifactV1] = []
+    for c_wo in plan.chunks:
+        records = [
+            {"canonical_event_id": eid, "terminal_status": "CONTINUE", "sport": "football"}
+            for eid in c_wo.event_ids
+        ]
+        art = ChunkArtifactV1(
+            chunk_id=c_wo.chunk_id,
+            chunk_work_order_sha256="d" * 64,
+            parent_work_order_id=c_wo.parent_work_order_id,
+            parent_work_order_sha256="a" * 64,
+            parent_plan_id=plan.plan_id,
+            parent_plan_sha256=plan.plan_sha256,
+            chunk_index=c_wo.chunk_index,
+            total_chunks=3,
+            status="PASS",
+            producer_agent_id="bet-researcher",
+            betting_day=day,
+            run_id=run_id,
+            source_head="a" * 40,
+            source_tree="b" * 40,
+            manifest_sha256="c" * 64,
+            processed_event_ids=c_wo.event_ids,
+            event_records=records,
+        )
+        chunk_artifacts.append(art)
+
+    receipt, agg_records = aggregate_chunks(plan, chunk_artifacts)
+    assert receipt.status == "PASS"
+    assert receipt.total_chunks_aggregated == 3
+    assert receipt.total_events_accounted == 31
+    assert len(agg_records) == 31

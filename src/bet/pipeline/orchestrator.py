@@ -926,46 +926,54 @@ class Orchestrator:
                     step_status = PipelineReadinessStatus.BLOCK
                     overall_status = PipelineReadinessStatus.BLOCK
                     blocked_at_step = sid
-                    blocked_reason = BlockedReason.BLOCKED_WAITING_FOR_AGENT_ARTIFACT
+                    blocked_reason = "WAITING_FOR_CHUNK_ARTIFACT"
                     self.blockers.append(shard_block_reason)
-                    continue
-
-                # Check for existing agent artifact
-                expected_path = agg_path or artifact_path_for(gate_base_dir, self.betting_day, self.run_id, sid)
-                if not expected_path.exists():
-                    step_status = PipelineReadinessStatus.BLOCK
-                    overall_status = PipelineReadinessStatus.BLOCK
-                    blocked_at_step = sid
-                    blocked_reason = BlockedReason.BLOCKED_WAITING_FOR_AGENT_ARTIFACT
-                    self.blockers.append(f"Missing required agent artifact for step {sid}")
+                    if self.pending_chunk_work_order_path:
+                        work_order_path = self.pending_chunk_work_order_path
                 else:
-                    from bet.pipeline.agent_work_orders import (
-                        build_agent_work_order,
-                        write_agent_work_order,
-                        work_order_path_for,
-                    )
-                    wo_path = work_order_path_for(gate_base_dir, self.betting_day, self.run_id, sid)
-                    if not wo_path.is_file():
+                    # Check for existing agent artifact
+                    expected_path = agg_path or artifact_path_for(gate_base_dir, self.betting_day, self.run_id, sid)
+                    if not expected_path.exists():
+                        step_status = PipelineReadinessStatus.BLOCK
+                        overall_status = PipelineReadinessStatus.BLOCK
+                        blocked_at_step = sid
+                        blocked_reason = BlockedReason.BLOCKED_WAITING_FOR_AGENT_ARTIFACT
+                        self.blockers.append(f"Missing required agent artifact for step {sid}")
+                    else:
+                        from bet.pipeline.agent_work_orders import (
+                            build_agent_work_order,
+                            write_agent_work_order,
+                            work_order_path_for,
+                        )
+                        wo_path = work_order_path_for(gate_base_dir, self.betting_day, self.run_id, sid)
+                        if not wo_path.is_file():
+                            try:
+                                wo = build_agent_work_order(
+                                    betting_day=self.betting_day,
+                                    run_id=self.run_id,
+                                    step_id=sid,
+                                    runtime_mode=self.runtime_mode.value,
+                                    base_dir=gate_base_dir,
+                                )
+                                write_agent_work_order(wo, gate_base_dir)
+                            except Exception as e:
+                                step_status = PipelineReadinessStatus.BLOCK
+                                overall_status = PipelineReadinessStatus.BLOCK
+                                blocked_at_step = sid
+                                blocked_reason = BlockedReason.BLOCKED_WAITING_FOR_AGENT_ARTIFACT
+                                self.blockers.append(f"Failed to generate work order for step {sid}: {e}")
+                                continue
+
                         try:
-                            wo = build_agent_work_order(
-                                betting_day=self.betting_day,
-                                run_id=self.run_id,
-                                step_id=sid,
-                                runtime_mode=self.runtime_mode.value,
-                                base_dir=gate_base_dir,
-                            )
-                            write_agent_work_order(wo, gate_base_dir)
+                            with open(expected_path, encoding="utf-8") as f:
+                                raw = json.load(f)
                         except Exception as e:
                             step_status = PipelineReadinessStatus.BLOCK
                             overall_status = PipelineReadinessStatus.BLOCK
                             blocked_at_step = sid
                             blocked_reason = BlockedReason.BLOCKED_WAITING_FOR_AGENT_ARTIFACT
-                            self.blockers.append(f"Failed to generate work order for step {sid}: {e}")
+                            self.blockers.append(f"Failed to read agent artifact for step {sid}: {e}")
                             continue
-
-                    try:
-                        with open(expected_path, encoding="utf-8") as f:
-                            raw = json.load(f)
                         artifact, issues = validate_pipeline_artifact(
                             raw,
                             sid,
@@ -1269,12 +1277,6 @@ class Orchestrator:
                         else:
                             step_status = artifact.status
                             evidence_path = str(expected_path)
-                    except Exception as e:
-                        step_status = PipelineReadinessStatus.BLOCK
-                        overall_status = PipelineReadinessStatus.BLOCK
-                        blocked_at_step = sid
-                        blocked_reason = BlockedReason.BLOCKED_WAITING_FOR_AGENT_ARTIFACT
-                        self.blockers.append(f"Failed to read/validate agent artifact for step {sid}: {e}")
 
             elif step.execution_mode == "human_gate":
                 # Validate S9 human gate artifact
@@ -1426,7 +1428,9 @@ class Orchestrator:
                 output_hashes["evidence"] = hashlib.sha256(Path(evidence_path).read_bytes()).hexdigest()
             # Wire ledger states through orchestrator (P0-3)
             if step.execution_mode == "agent_artifact":
-                if blocked_reason == BlockedReason.BLOCKED_WAITING_FOR_AGENT_ARTIFACT:
+                if blocked_reason == "WAITING_FOR_CHUNK_ARTIFACT":
+                    ledger_status = "WAITING_FOR_CHUNK_ARTIFACT"
+                elif blocked_reason == BlockedReason.BLOCKED_WAITING_FOR_AGENT_ARTIFACT:
                     ledger_status = "WAITING_FOR_AGENT_ARTIFACT"
                 elif blocked_reason in (
                     "COMMAND_REQUEST_VALIDATION_FAILED",
