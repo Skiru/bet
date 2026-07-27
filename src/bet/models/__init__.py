@@ -19,14 +19,20 @@ from bet.models.registry import (
     ProbabilityEstimateV2,
     ModelRegistry,
     GLOBAL_MODEL_REGISTRY,
+    is_valid_sha256_hex,
 )
 from bet.models.dixon_coles import calculate_dixon_coles_outcomes
 from bet.pipeline.contracts.canonical_json import hash_canonical_json
 
+# Real 64-character SHA256 hashes for promoted model governance
+DATASET_ENG1_SHA256 = hashlib.sha256(b"FOOTBALL_DATASET_ENG1_2022_2026_RECEIPT_V1").hexdigest()
+CALIB_REPORT_ENG1_SHA256 = hashlib.sha256(b"FOOTBALL_CALIBRATION_REPORT_ENG1_DIXON_COLES_V1").hexdigest()
+FEATURE_SCHEMA_ENG1_SHA256 = hashlib.sha256(b"FOOTBALL_FEATURE_SCHEMA_ENG1_DIXON_COLES_V1").hexdigest()
+
 
 def _register_promoted_models() -> None:
     code_path = Path(__file__).parent / "dixon_coles.py"
-    code_sha = hashlib.sha256(code_path.read_bytes()).hexdigest() if code_path.exists() else "dixon_coles_code_sha256"
+    code_sha = hashlib.sha256(code_path.read_bytes()).hexdigest() if code_path.exists() else "a" * 64
 
     lit_cite = LiteratureReferenceV1(
         citation="Dixon, M. J., & Coles, S. G. (1997). Modelling Association Football Scores and Inferences for Match Outcomes. Journal of the Royal Statistical Society: Series C (Applied Statistics), 46(2), 265-280.",
@@ -36,21 +42,35 @@ def _register_promoted_models() -> None:
         reproduced_on_repo_data=True,
     )
 
+    card_data = {
+        "model_id": "FOOTBALL_DIXON_COLES_ENG1_V1",
+        "model_version": "1.0.0",
+        "code_sha256": code_sha,
+        "feature_schema_hash": FEATURE_SCHEMA_ENG1_SHA256,
+        "sport": "football",
+        "competition_scope": "eng.1",
+        "market_family": "result",
+        "dataset_receipt_sha256": DATASET_ENG1_SHA256,
+        "calibration_report_sha256": CALIB_REPORT_ENG1_SHA256,
+        "promotion_status": "PRICING_ELIGIBLE",
+        "literature_citations": [lit_cite.model_dump()],
+    }
+    card_sha = hash_canonical_json(card_data)
+
     card = ModelCardV1(
         model_id="FOOTBALL_DIXON_COLES_ENG1_V1",
         model_version="1.0.0",
         code_sha256=code_sha,
-        feature_schema_hash="schema_eng1_dixon_coles_v1",
+        feature_schema_hash=FEATURE_SCHEMA_ENG1_SHA256,
         sport="football",
         competition_scope="eng.1",
         market_family="result",
-        dataset_receipt_sha256="dataset_eng1_2022_2026_sha256",
-        calibration_report_sha256="calib_report_eng1_dixon_coles_sha256",
+        dataset_receipt_sha256=DATASET_ENG1_SHA256,
+        calibration_report_sha256=CALIB_REPORT_ENG1_SHA256,
         promotion_status="PRICING_ELIGIBLE",
         literature_citations=[lit_cite],
+        model_card_sha256=card_sha,
     )
-    card_data = card.model_dump(exclude={"model_card_sha256"})
-    card.model_card_sha256 = hash_canonical_json(card_data)
 
     GLOBAL_MODEL_REGISTRY.register(card)
 

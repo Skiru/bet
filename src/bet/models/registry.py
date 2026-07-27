@@ -12,13 +12,20 @@ from bet.models.contracts import (
 )
 
 
+def is_valid_sha256_hex(val: str | None) -> bool:
+    """Verify string is a valid 64-character hexadecimal SHA256 hash."""
+    if not isinstance(val, str) or len(val) != 64:
+        return False
+    return all(c in "0123456789abcdefABCDEF" for c in val)
+
+
 class LiteratureReferenceV1(StrictBaseModel):
     """Primary literature or official statistical document citation."""
     citation: str
     doi_or_url: str | None = None
     retrieved_date: str
     exact_claim_supported: str
-    reproduced_on_repo_data: bool = True
+    reproduced_on_repo_data: bool = False
 
 
 class CalibrationReportV1(StrictBaseModel):
@@ -63,7 +70,13 @@ class ModelCardV1(StrictBaseModel):
     model_card_sha256: str = ""
 
     def is_pricing_eligible(self) -> bool:
-        return self.promotion_status == "PRICING_ELIGIBLE"
+        if self.promotion_status != "PRICING_ELIGIBLE":
+            return False
+        if not is_valid_sha256_hex(self.dataset_receipt_sha256):
+            return False
+        if not is_valid_sha256_hex(self.calibration_report_sha256):
+            return False
+        return True
 
 
 class ProbabilityEstimateV2(StrictBaseModel):
@@ -101,17 +114,38 @@ class ProbabilityEstimateV2(StrictBaseModel):
         calibrated_probability: float,
         uncertainty_margin: float = 0.02,
         required_roi: float = 0.05,
+        sport: str = "football",
+        event_start_time: str | None = None,
     ) -> ProbabilityEstimateV2:
         if not model_card.is_pricing_eligible():
-            raise ValueError(f"Model {model_card.model_id} status {model_card.promotion_status} is not PRICING_ELIGIBLE.")
+            raise ValueError(f"Model {model_card.model_id} status '{model_card.promotion_status}' is not PRICING_ELIGIBLE.")
+
+        if model_card.sport.lower() != sport.lower():
+            raise ValueError(f"Model sport '{model_card.sport}' does not match target sport '{sport}'.")
+
+        if model_card.market_family.lower() != market_family.lower():
+            raise ValueError(f"Model market_family '{model_card.market_family}' cannot price market_family '{market_family}'.")
+
+        if dataset_receipt_sha256 != model_card.dataset_receipt_sha256:
+            raise ValueError(f"dataset_receipt_sha256 mismatch with model card.")
+
+        if feature_snapshot_sha256 != model_card.feature_schema_hash:
+            raise ValueError("feature_snapshot_sha256 mismatch with model card feature schema hash.")
+
+        if not is_valid_sha256_hex(dataset_receipt_sha256):
+            raise ValueError("dataset_receipt_sha256 is not a valid 64-character hex SHA256.")
+
+        if not is_valid_sha256_hex(model_card.calibration_report_sha256):
+            raise ValueError("calibration_report_sha256 is not a valid 64-character hex SHA256.")
+
+        if event_start_time and prediction_as_of > event_start_time:
+            raise ValueError("prediction_as_of timestamp is after event_start_time.")
 
         point_p = calibrated_probability
         calibrated_p = calibrated_probability
         conservative_p = max(0.001, calibrated_p - uncertainty_margin)
 
-        # Fair odds = 1 / calibrated_p
         fair_odds = (Decimal("1") / Decimal(str(calibrated_p))).quantize(Decimal("0.0001"))
-        # Minimum acceptable odds = (1 + required_roi) / conservative_p
         min_odds = ((Decimal("1") + Decimal(str(required_roi))) / Decimal(str(conservative_p))).quantize(Decimal("0.0001"))
 
         return cls(

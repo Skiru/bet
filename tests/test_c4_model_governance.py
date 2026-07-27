@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import pytest
 from decimal import Decimal
+from bet.models import DATASET_ENG1_SHA256, FEATURE_SCHEMA_ENG1_SHA256
 from bet.models.contracts import TemporalSplitPlanV1
 from bet.models.registry import (
     ModelCardV1,
@@ -26,21 +27,21 @@ def test_unpromoted_model_cannot_produce_pricing_estimate():
     exp_card = ModelCardV1(
         model_id="EXPERIMENTAL_MODEL_001",
         model_version="0.1.0",
-        code_sha256="code123",
-        feature_schema_hash="feat123",
+        code_sha256="0" * 64,
+        feature_schema_hash="1" * 64,
         sport="football",
         competition_scope="eng.1",
         market_family="corners",
-        dataset_receipt_sha256="dataset123",
-        calibration_report_sha256="calib123",
+        dataset_receipt_sha256="2" * 64,
+        calibration_report_sha256="3" * 64,
         promotion_status="EXPERIMENTAL",
     )
 
     with pytest.raises(ValueError, match="is not PRICING_ELIGIBLE"):
         ProbabilityEstimateV2.create(
             model_card=exp_card,
-            dataset_receipt_sha256="ds_sha",
-            feature_snapshot_sha256="feat_sha",
+            dataset_receipt_sha256="2" * 64,
+            feature_snapshot_sha256="1" * 64,
             prediction_as_of="2026-07-27T10:00:00Z",
             canonical_event_id="EVT_001",
             market_family="corners",
@@ -55,8 +56,8 @@ def test_minimum_odds_decimal_calculation():
 
     estimate = ProbabilityEstimateV2.create(
         model_card=card,
-        dataset_receipt_sha256="ds_sha_123",
-        feature_snapshot_sha256="feat_sha_123",
+        dataset_receipt_sha256=DATASET_ENG1_SHA256,
+        feature_snapshot_sha256=FEATURE_SCHEMA_ENG1_SHA256,
         prediction_as_of="2026-07-27T10:00:00Z",
         canonical_event_id="EVT_ARS_CHE_001",
         market_family="result",
