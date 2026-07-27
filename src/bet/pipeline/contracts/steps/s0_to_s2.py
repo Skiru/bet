@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from typing import Any, Literal
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 from bet.pipeline.contracts.base import StrictBaseModel
 from bet.pipeline.contracts.common import EventRecordV1, SourceReferenceV1, EvidenceClaimV1, _validate_sha256
 
@@ -140,6 +140,7 @@ class DataReadinessRecordV1(StrictBaseModel):
     quality_grade: Literal["HIGH", "MEDIUM", "LOW", "UNKNOWN"]
     readiness_tier: Literal["READY_FOR_PRICING", "ANALYSIS_ONLY", "BLOCKED"]
     missing_fields: list[str] = Field(default_factory=list)
+    market_dossiers: list[dict[str, Any]] = Field(default_factory=list)
 
 
 # S2.9 Contract
@@ -151,3 +152,17 @@ class S29DataReadinessV1(StrictBaseModel):
     run_id: str
     data_quality_label: Literal["HIGH", "MEDIUM", "LOW", "UNKNOWN"] = "HIGH"
     readiness_by_event: list[DataReadinessRecordV1] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def validate_pricing_readiness_model_requirement(self) -> S29DataReadinessV1:
+        from bet.models.registry import GLOBAL_MODEL_REGISTRY
+        for rec in self.readiness_by_event:
+            if rec.readiness_tier == "READY_FOR_PRICING":
+                # Verify that at least one pricing-eligible model exists for this sport
+                cards = GLOBAL_MODEL_REGISTRY.list_model_cards(sport=rec.sport)
+                eligible_cards = [c for c in cards if c.is_pricing_eligible()]
+                if not eligible_cards:
+                    raise ValueError(
+                        f"S29_PRICING_READINESS_FORBIDDEN: Event {rec.canonical_event_id} ({rec.sport}) claims READY_FOR_PRICING but no resolvable pricing-eligible model package exists."
+                    )
+        return self

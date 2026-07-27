@@ -77,9 +77,16 @@ class AgentWorkOrder:
     instructions: dict[str, Any]
     manifest_sha256: str = "UNKNOWN"
     source_head: str = "UNKNOWN"
+    allowed_tools: list[str] = field(default_factory=list)
+    task_allowlist: list[str] = field(default_factory=list)
+    acquisition_plan: dict[str, Any] | None = None
+    parent_work_order_id: str | None = None
+    parent_work_order_sha256: str | None = None
+    plan_id: str | None = None
+    plan_sha256: str | None = None
 
     def to_jsonable(self) -> dict[str, Any]:
-        return {
+        res = {
             "schema_version": self.schema_version,
             "work_order_id": self.work_order_id,
             "work_order_type": self.work_order_type,
@@ -98,7 +105,19 @@ class AgentWorkOrder:
             "instructions": self.instructions,
             "manifest_sha256": self.manifest_sha256,
             "source_head": self.source_head,
+            "allowed_tools": self.allowed_tools,
+            "task_allowlist": self.task_allowlist,
+            "acquisition_plan": self.acquisition_plan,
         }
+        if self.parent_work_order_id:
+            res["parent_work_order_id"] = self.parent_work_order_id
+        if self.parent_work_order_sha256:
+            res["parent_work_order_sha256"] = self.parent_work_order_sha256
+        if self.plan_id:
+            res["plan_id"] = self.plan_id
+        if self.plan_sha256:
+            res["plan_sha256"] = self.plan_sha256
+        return res
 
 
 OUTPUT_CONTRACT_NOTES = [
@@ -494,6 +513,13 @@ def load_agent_work_order_from_dict(data: dict[str, Any]) -> AgentWorkOrder:
         instructions=data["instructions"],
         manifest_sha256=data.get("manifest_sha256", "UNKNOWN"),
         source_head=data.get("source_head", "UNKNOWN"),
+        allowed_tools=data.get("allowed_tools", []),
+        task_allowlist=data.get("task_allowlist", []),
+        acquisition_plan=data.get("acquisition_plan"),
+        parent_work_order_id=data.get("parent_work_order_id"),
+        parent_work_order_sha256=data.get("parent_work_order_sha256"),
+        plan_id=data.get("plan_id"),
+        plan_sha256=data.get("plan_sha256"),
     )
 
 
@@ -617,6 +643,32 @@ def build_agent_work_order(
     if source_head == "UNKNOWN" or not source_head:
         raise ContinuityContractError("Git source_head is UNKNOWN which is forbidden for persisted work orders")
 
+    acq_plan = kwargs.get("acquisition_plan")
+    allowed_tools = kwargs.get("allowed_tools", [])
+    if acq_plan is None and step_id in {"S2.3", "S2.5", "S2.7", "S2.9"}:
+        allowed_tools = ["bet_sqlite_query", "read", "glob", "grep"]
+        acq_plan = {
+            "step_id": step_id,
+            "betting_day": betting_day,
+            "run_id": run_id,
+            "allowed_tools": allowed_tools,
+            "query_budget": {
+                "max_queries_per_event": 5,
+                "max_total_queries": 25,
+                "max_wall_time_seconds": 300,
+            },
+            "fact_requirements": [
+                "two_independent_current_sources",
+                "explicit_as_of_timestamps",
+                "no_invented_identity_or_odds",
+            ],
+            "forbidden_actions": [
+                "open_ended_web_browsing",
+                "operator_scraping_or_login",
+                "synthetic_s9_approval",
+            ],
+        }
+
     return AgentWorkOrder(
         schema_version=1,
         work_order_id=work_order_id,
@@ -636,6 +688,13 @@ def build_agent_work_order(
         instructions=policy.instructions,
         manifest_sha256=manifest_sha,
         source_head=source_head,
+        allowed_tools=allowed_tools,
+        task_allowlist=kwargs.get("task_allowlist", []),
+        acquisition_plan=acq_plan,
+        parent_work_order_id=kwargs.get("parent_work_order_id"),
+        parent_work_order_sha256=kwargs.get("parent_work_order_sha256"),
+        plan_id=kwargs.get("plan_id"),
+        plan_sha256=kwargs.get("plan_sha256"),
     )
 
 
