@@ -497,7 +497,7 @@ def resolve_manifest_step_output(
             output_data = evidence
 
         actual_type = output_data.get("artifact_type") or output_data.get("artifact_kind")
-        if actual_type == "AGENT_ARTIFACT" and expected_artifact_type == "S5_CONTEXT_RISK_CANDIDATE_SET_V2" and output_data.get("step_id") == "S5":
+        if (expected_artifact_type in ("S5_CONTEXT_RISK_CANDIDATE_SET_V2", "S5_CONTEXT_MOTIVATION_RISK") or step_id == "S5") and actual_type in ("AGENT_ARTIFACT", "S5_CONTEXT_RISK_CANDIDATE_SET_V2", "S5_CONTEXT_MOTIVATION_RISK"):
             if output_data.get("status") == "PASS":
                 from bet.pipeline.agent_artifact_contracts import validate_s5_artifact_v2
                 validate_s5_artifact_v2(
@@ -705,12 +705,12 @@ def strict_validate_step_output(
     if output_data.get("run_id") and output_data["run_id"] != run_id:
         raise ValueError(f"STEP_RUN_MISMATCH: Run ID mismatch: expected {run_id}, got {output_data['run_id']}")
 
-    # 8. Event records check
-    if step_id in {"S2", "S3", "S4", "S5", "S6", "S7", "S7b", "S8"}:
-        # Must explicitly produce event_records (possibly in payload for agent_artifacts)
+        # 8. Event records check
         event_records = output_data.get("event_records")
         if event_records is None and isinstance(output_data.get("payload"), dict):
             event_records = output_data["payload"].get("event_records")
+        if event_records is None and isinstance(output_data.get("candidates"), list):
+            event_records = output_data["candidates"]
 
         if event_records is None:
             raise ValueError(f"EVENT_BOUNDARY_RECORDS_MISSING: Step {step_id} output lacks 'event_records'")

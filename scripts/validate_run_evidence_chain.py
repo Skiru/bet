@@ -12,7 +12,11 @@ from typing import Any, Mapping
 
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "src"))
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+src_path = str(ROOT / "src")
+if src_path not in sys.path:
+    sys.path.insert(0, src_path)
 
 from bet.pipeline.integration_artifacts import resolve_manifest_step_output
 from bet.pipeline.manifest import load_pipeline_manifest
