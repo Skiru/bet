@@ -124,6 +124,7 @@
   "configuration": [
     ".env.example",
     ".gitattributes",
+    ".github/workflows/ci.yml",
     ".gitignore",
     ".kilo/agents/bet-auditor.md",
     ".kilo/agents/bet-builder.md",

@@ -16,6 +16,14 @@
     "expiry_or_review_policy": "REVIEW_ON_SCHEMA_UPGRADE"
   },
   {
+    "path": ".github/workflows/ci.yml",
+    "category": "RETAINED_ENGINEERING",
+    "owner": "Kilo",
+    "reason": "GitHub Actions CI workflow for Pipeline V5",
+    "references": [],
+    "expiry_or_review_policy": "PERMANENT_RETAINED_PRODUCTION"
+  },
+  {
     "path": ".gitignore",
     "category": "RETAINED_ENGINEERING",
     "owner": "Kilo",
