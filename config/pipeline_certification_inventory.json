@@ -28,12 +28,12 @@
     "tests/test_c2_sharding_and_acquisition.py": "15372648f097044faa811fb7fa2d22093eae7275c61cb814c1987109f2704dae",
     "tests/test_c3_sport_intelligence.py": "36df580edcc6eb80fba13f56e4dad46af6ebc54e4cf0da68491965b894b9cb5e",
     "tests/test_c4_model_governance.py": "5f7a57490a3f8938a7e413f090da41a53539b25889d4ce50f9c7ed0bee8ead99",
-    "tests/test_c5_bet_builder.py": "f73733521ac1e9ce93534df1d0469f31fa669a2765352fa0adae6d9784b06da6",
+    "tests/test_c5_bet_builder.py": "8dc0cdb89911f3a6e262fbdbe93960d85f3dd3a47720b2a7e10c143294fbb0a1",
     "tests/test_r0_reproductions.py": "dec8a8c460a76448fb19c6ddfb5e7d62f63497eb3e16fbac6325b71f22560301",
     "tests/test_t1_strict_contracts.py": "c0a2eae2c5028bb850d63c1a1aa17be7b1ab6627baefc1e8cce96d6ba089812e",
     "tests/test_t2_sharding_lifecycle.py": "b37e8f9b8041534a104c345ecca08df5c294bf809283ee63b89025c04bbf3890",
     "tests/test_t3_acquisition_and_dossiers.py": "1ea71168aaf05be5b4594935b13c4e2aa3db00e0d556e3a21092d8c7614b4ca9",
-    "tests/test_t4_model_artifacts.py": "9e327503fc16679dc7f25eede3c29d0c551b1523950006c3e602c69a312d0935",
+    "tests/test_t4_model_artifacts.py": "06c5f19e17afa1e980b42a5510ed9580090132c48c9422bc49632d3b5fe09df4",
     "tests/test_t5_builder_pricing.py": "a8d88e7b404371317b614639db89de23fb5787cbc7512f9e2c1ade5d23c37fe6"
   },
   "expected_minimum_counts": {
@@ -69,5 +69,6 @@
       "reason_regex": "replay of historical network captures requires manual audit confirmation"
     }
   ],
-  "session_handoff_command_schema": "env PYTHONPATH=src:scripts .venv/bin/python3 scripts/pipeline_steps/run_daily_pipeline.py --date 2026-07-16 --run-id \"<UNIQUE_RUN_ID>\" --runtime-mode LIVE_SHADOW --allow-live-network --base-run-dir reports/pipeline_runs --verbose"
+  "session_handoff_command_schema": "env PYTHONPATH=src:scripts .venv/bin/python3 scripts/pipeline_steps/run_daily_pipeline.py --date 2026-07-16 --run-id \"<UNIQUE_RUN_ID>\" --runtime-mode LIVE_SHADOW --allow-live-network --base-run-dir reports/pipeline_runs --verbose",
+  "expected_source_tree_sha256": "e597f78e24fbcd0df0fed6919765e2efc44abdb4a0e8bc657059fda95825aefd"
 }
