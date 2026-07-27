@@ -223,11 +223,13 @@ def main() -> int:
         head = _git("rev-parse", "HEAD", root=root_path)
         branch = _git("symbolic-ref", "--short", "-q", "HEAD", root=root_path, check=False) or "DETACHED"
 
-        if args.expected_head and head != args.expected_head:
+        expected_head = args.expected_head or inventory.get("expected_head")
+        if expected_head and head != expected_head:
             raise CertificationError(f"CERT_HEAD_MISMATCH:{head}")
 
         entries_before, tree_before = source_manifest(root_path)
-        if tree_before != args.expected_source_tree_sha256:
+        expected_tree = args.expected_source_tree_sha256 or inventory.get("expected_source_tree_sha256")
+        if expected_tree and tree_before != expected_tree:
             raise CertificationError(f"CERT_SOURCE_TREE_MISMATCH:{tree_before}")
 
         # Load mandatory nodes and counts
