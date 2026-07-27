@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from decimal import Decimal
 from typing import Sequence
-from src.bet.builder.models import (
+from bet.builder.models import (
     BuilderLegV1,
     BuilderCompatibilityDecisionV1,
     JointModelScopeV1,

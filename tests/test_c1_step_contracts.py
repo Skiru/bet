@@ -5,17 +5,17 @@ import json
 import pytest
 from pydantic import ValidationError
 
-from src.bet.pipeline.contracts.base import (
+from bet.pipeline.contracts.base import (
     StrictBaseModel,
     CompletionEnvelopeType,
     ArtifactRole,
     ValidatedPipelineDefinition,
     ValidatedRunContext,
 )
-from src.bet.pipeline.contracts.registry import GLOBAL_CONTRACT_REGISTRY, ContractDescriptor
-from src.bet.pipeline.contracts.canonical_json import dumps_canonical_json, hash_canonical_json
-from src.bet.pipeline.contracts.migration import migrate_artifact_payload, MigrationAdapterError
-from src.bet.pipeline.contracts.steps.s0_to_s2 import (
+from bet.pipeline.contracts.registry import GLOBAL_CONTRACT_REGISTRY, ContractDescriptor
+from bet.pipeline.contracts.canonical_json import dumps_canonical_json, hash_canonical_json
+from bet.pipeline.contracts.migration import migrate_artifact_payload, MigrationAdapterError
+from bet.pipeline.contracts.steps.s0_to_s2 import (
     S0HistoricalPnlV1,
     S1FixturesShortlistV1,
     S1eCanonicalEventUniverseV1,
@@ -25,7 +25,7 @@ from src.bet.pipeline.contracts.steps.s0_to_s2 import (
     S27ReconciledFactsV1,
     S29DataReadinessV1,
 )
-from src.bet.pipeline.contracts.steps.s3_to_s10 import (
+from bet.pipeline.contracts.steps.s3_to_s10 import (
     S3CalibratedProbabilitiesV1,
     S4ExpectedValueEstimatesV1,
     S5ContextMotivationRiskV1,

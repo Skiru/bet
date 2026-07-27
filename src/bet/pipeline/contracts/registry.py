@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from typing import Any, Callable, Type
 from pydantic import Field
-from src.bet.pipeline.contracts.base import (
+from bet.pipeline.contracts.base import (
     StrictBaseModel,
     CompletionEnvelopeType,
     ArtifactRole,

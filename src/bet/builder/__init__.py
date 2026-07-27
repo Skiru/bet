@@ -1,7 +1,7 @@
 """Same-event Bet Builder engine module."""
 from __future__ import annotations
 
-from src.bet.builder.models import (
+from bet.builder.models import (
     BuilderLegV1,
     BuilderCompatibilityDecisionV1,
     JointModelScopeV1,
@@ -10,7 +10,7 @@ from src.bet.builder.models import (
     S8IdeaGroupV1,
     BuilderRejectionV1,
 )
-from src.bet.builder.engine import (
+from bet.builder.engine import (
     BetBuilderEngineError,
     validate_leg_compatibility,
     compute_joint_builder_pricing,

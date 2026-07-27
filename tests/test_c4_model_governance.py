@@ -3,13 +3,13 @@ from __future__ import annotations
 
 import pytest
 from decimal import Decimal
-from src.bet.models.contracts import TemporalSplitPlanV1
-from src.bet.models.registry import (
+from bet.models.contracts import TemporalSplitPlanV1
+from bet.models.registry import (
     ModelCardV1,
     ProbabilityEstimateV2,
     GLOBAL_MODEL_REGISTRY,
 )
-from src.bet.models.dixon_coles import calculate_dixon_coles_outcomes
+from bet.models.dixon_coles import calculate_dixon_coles_outcomes
 
 
 def test_promoted_model_card_is_pricing_eligible():

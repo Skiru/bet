@@ -4,8 +4,8 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Any
 from pydantic import Field
-from src.bet.pipeline.contracts.base import StrictBaseModel
-from src.bet.models.contracts import (
+from bet.pipeline.contracts.base import StrictBaseModel
+from bet.models.contracts import (
     TrainingDatasetReceiptV1,
     FeatureSnapshotV1,
     TemporalSplitPlanV1,

@@ -13,23 +13,23 @@ from bet.pipeline.artifact_gate import (
     validate_pipeline_artifact,
 )
 from bet.pipeline.artifact_io import publish_run_artifact
-from src.bet.pipeline.contracts.base import ValidatedPipelineDefinition, ValidatedRunContext
-from src.bet.pipeline.contracts.registry import GLOBAL_CONTRACT_REGISTRY
-from src.bet.pipeline.contracts.migration import migrate_artifact_payload
-from src.bet.pipeline.contracts.canonical_json import dumps_canonical_json
-from src.bet.pipeline.contracts.common import EventRecordV1
-from src.bet.pipeline.contracts.steps.s0_to_s2 import S1FixturesShortlistV1
-from src.bet.pipeline.contracts.steps.s3_to_s10 import S8SuperbetManualQuotePackV1
-from src.bet.pipeline.sharding.models import ChunkExecutionPlanV1
-from src.bet.pipeline.sharding.lifecycle import aggregate_chunks
-from src.bet.pipeline.sports.models import SportEventDossierV1
-from src.bet.pipeline.sports.protocols import FootballProtocol
-from src.bet.pipeline.sports.registry import GLOBAL_SPORT_PROTOCOL_REGISTRY
-from src.bet.models.contracts import MarketOutcomeLabelV1
-from src.bet.models.registry import GLOBAL_MODEL_REGISTRY, ProbabilityEstimateV2
-from src.bet.models.dixon_coles import calculate_dixon_coles_outcomes
-from src.bet.builder.models import SameEventBuilderCandidateV1, S8IdeaGroupV1
-from src.bet.builder.engine import generate_same_event_builders
+from bet.pipeline.contracts.base import ValidatedPipelineDefinition, ValidatedRunContext
+from bet.pipeline.contracts.registry import GLOBAL_CONTRACT_REGISTRY
+from bet.pipeline.contracts.migration import migrate_artifact_payload
+from bet.pipeline.contracts.canonical_json import dumps_canonical_json
+from bet.pipeline.contracts.common import EventRecordV1
+from bet.pipeline.contracts.steps.s0_to_s2 import S1FixturesShortlistV1
+from bet.pipeline.contracts.steps.s3_to_s10 import S8SuperbetManualQuotePackV1
+from bet.pipeline.sharding.models import ChunkExecutionPlanV1
+from bet.pipeline.sharding.lifecycle import aggregate_chunks
+from bet.pipeline.sports.models import SportEventDossierV1
+from bet.pipeline.sports.protocols import FootballProtocol
+from bet.pipeline.sports.registry import GLOBAL_SPORT_PROTOCOL_REGISTRY
+from bet.models.contracts import MarketOutcomeLabelV1
+from bet.models.registry import GLOBAL_MODEL_REGISTRY, ProbabilityEstimateV2
+from bet.models.dixon_coles import calculate_dixon_coles_outcomes
+from bet.builder.models import SameEventBuilderCandidateV1, S8IdeaGroupV1
+from bet.builder.engine import generate_same_event_builders
 
 
 def runtime_context(environ: dict[str, str] | None = None) -> dict[str, str | None]:
@@ -693,33 +693,28 @@ def strict_validate_step_output(
     if not isinstance(output_data, dict):
         raise ValueError(f"STEP_EVIDENCE_SCHEMA_INVALID: Step {step_id} output must be a dictionary")
 
-    # 6. Correct artifact type and step ID
-    actual_type = output_data.get("artifact_type") or output_data.get("artifact_kind")
-    
-    # Step-specific artifact type aliases
-    step_aliases: dict[str, set[str]] = {
-        "S0": {"S0_HISTORICAL_PNL", "HISTORICAL_PNL"},
-        "S1": {"S1_FIXTURES_SHORTLIST", "S1_SHORTLIST", "FIXTURES_SHORTLIST"},
-        "S1e": {"S1E_CANONICAL_EVENT_UNIVERSE", "S1E_EVENT_UNIVERSE_LEDGER"},
-        "S2": {"S2_TIPSTER_CONSENSUS", "S2_SHORTLIST", "TIPSTER_CONSENSUS"},
-        "S2.3": {"S2_3_ENRICHMENT_GAPS", "AGENT_ARTIFACT"},
-        "S2.5": {"S2_5_PROVIDER_OBSERVATIONS", "AGENT_ARTIFACT"},
-        "S2.7": {"S2_7_RECONCILED_FACTS", "AGENT_ARTIFACT"},
-        "S2.9": {"S2_9_DATA_READINESS", "AGENT_ARTIFACT"},
-        "S3": {"S3_CALIBRATED_PROBABILITIES", "S3_DEEP_STATS"},
-        "S4": {"S4_EXPECTED_VALUE_ESTIMATES", "S4_VALUATION_CANDIDATE_SET_V2"},
-        "S5": {"S5_CONTEXT_MOTIVATION_RISK", "S5_CONTEXT_RISK_CANDIDATE_SET_V2", "AGENT_ARTIFACT"},
-        "S6": {"S6_PORTFOLIO_REPEAT_GUARD", "S6_PORTFOLIO_REPEAT_GUARD_V2", "S6_REPEAT_LOSS_HANDOFF_V2"},
-        "S7": {"S7_APPROVED_PICKS", "S7_ANALYTICAL_APPROVAL_SET_V2", "S7_DECISION_GATE_REPORT"},
-        "S7b": {"S7B_SUPERBET_MANUAL_MAPPING"},
-        "S8": {"S8_SUPERBET_MANUAL_QUOTE_PACK"},
-        "S9": {"S9_EXECUTED_BETS_JOURNAL", "HUMAN_GATE"},
-        "S10": {"S10_SETTLEMENT_HANDOFF", "STATE_MARKER"},
-    }
+    # 6. Correct artifact type and step ID from contract descriptor
+    desc = None
+    for d in GLOBAL_CONTRACT_REGISTRY.list_descriptors():
+        if d.producer_step == step_id and d.contract_id == expected_artifact_type:
+            desc = d
+            break
+    if desc is None:
+        for d in GLOBAL_CONTRACT_REGISTRY.list_descriptors():
+            if d.contract_id == expected_artifact_type:
+                desc = d
+                break
 
-    allowed_types = step_aliases.get(step_id, {expected_artifact_type})
-    if actual_type != expected_artifact_type and actual_type not in allowed_types:
+    actual_type = output_data.get("artifact_type") or output_data.get("artifact_kind")
+    if actual_type != expected_artifact_type:
         raise ValueError(f"STEP_TYPE_MISMATCH: Artifact type mismatch: expected {expected_artifact_type}, got {actual_type}")
+
+    # Validate schema strictly via descriptor model_type if registered
+    if desc and hasattr(desc, "model_type") and desc.model_type:
+        try:
+            desc.model_type(**output_data)
+        except Exception as exc:
+            raise ValueError(f"STEP_EVIDENCE_SCHEMA_INVALID: Step {step_id} artifact validation failed against {desc.model_type.__name__}: {exc}")
 
     # 7. Matching run ID and betting day
     if "betting_day" in output_data and output_data["betting_day"] != betting_day:
@@ -728,18 +723,27 @@ def strict_validate_step_output(
         raise ValueError(f"STEP_RUN_MISMATCH: Run ID mismatch: expected {run_id}, got {output_data['run_id']}")
 
     # 8. Event records check
-    if step_id in {"S2", "S3", "S4", "S5", "S6", "S7", "S7b", "S8"}:
+    if step_id in {"S2", "S2.3", "S2.5", "S2.7", "S2.9", "S3", "S4", "S5", "S6", "S7", "S7b", "S8"}:
+        s1e_file = run_root / "data" / f"{betting_day}_s1e_event_universe.json"
+        if not s1e_file.exists():
+            if step_id not in {"S2", "S2.3", "S2.5", "S2.7", "S2.9"}:
+                raise ValueError(f"EVENT_BOUNDARY_S1E_MISSING: Step {step_id} requires S1e event universe file at {s1e_file}")
+            return
+
+        try:
+            s1e_data = json.loads(s1e_file.read_text(encoding="utf-8"))
+            universe_ids = set(s1e_data.get("canonical_event_ids", []))
+            if not universe_ids and isinstance(s1e_data.get("deduplicated_events"), list):
+                universe_ids = {e["canonical_event_id"] for e in s1e_data["deduplicated_events"] if isinstance(e, dict) and "canonical_event_id" in e}
+        except Exception as exc:
+            raise ValueError(f"S1E_JSON_MALFORMED: S1e file is malformed: {exc}")
+
         event_records = output_data.get("event_records")
         if event_records is None and isinstance(output_data.get("payload"), dict):
-            event_records = output_data["payload"].get("event_records") or output_data["payload"].get("candidates")
-        if event_records is None and isinstance(output_data.get("candidates"), list):
-            event_records = output_data["candidates"]
+            event_records = output_data["payload"].get("event_records")
 
-        if event_records is None:
-            for alt_key in ("analyses", "accepted", "priced_approved", "analytical_approved", "mapping_suggestions", "quote_cards", "picks", "approved_picks"):
-                if isinstance(output_data.get(alt_key), list):
-                    event_records = output_data[alt_key]
-                    break
+        if output_data.get("status") == "NO_ACTION_TERMINAL" and not event_records:
+            return
 
         if event_records is None:
             raise ValueError(f"EVENT_BOUNDARY_RECORDS_MISSING: Step {step_id} output lacks 'event_records'")
@@ -747,67 +751,24 @@ def strict_validate_step_output(
         if not isinstance(event_records, list):
             raise ValueError(f"EVENT_BOUNDARY_RECORD_INVALID: Step {step_id} 'event_records' must be a list")
 
-        # Load S1e universe if present
-        s1e_file = run_root / "data" / f"{betting_day}_s1e_event_universe.json"
-        if not s1e_file.exists() or len(event_records) == 0:
-            for idx, rec in enumerate(event_records):
-                if not isinstance(rec, dict):
-                    raise ValueError(f"EVENT_BOUNDARY_RECORD_INVALID: event_records[{idx}] is not a dictionary")
-                eid = rec.get("canonical_event_id") or (str(rec["event_id"]) if rec.get("event_id") is not None else None) or (str(rec["fixture_id"]) if rec.get("fixture_id") is not None else None) or rec.get("candidate_id") or rec.get("selection_id") or rec.get("quote_card_id") or (f"{rec['home_team']}_vs_{rec['away_team']}" if rec.get("home_team") and rec.get("away_team") else f"EVENT_{idx}")
-                if not eid:
-                    raise ValueError(f"EVENT_BOUNDARY_STATUS_MISSING: event_records[{idx}] lacks canonical_event_id")
-                status = rec.get("terminal_status") or rec.get("status") or rec.get("analytical_status") or rec.get("pricing_status") or "CONTINUE"
-                if not status:
-                    raise ValueError(f"EVENT_BOUNDARY_STATUS_MISSING: Event {eid} lacks terminal_status")
-                valid_outcomes = {"CONTINUE", "DEGRADED_CONTINUE", "REJECTED", "NO_ACTION", "BLOCKED", "PASS", "READY", "UNPRICED", "PRICE_PENDING", "ANALYTICAL_READY", "ACCEPTABLE_FOR_MANUAL_QUOTE", "READY_FOR_MANUAL_MAPPING", "READY_FOR_MANUAL_SUPERBET_QUOTE_REVIEW"}
-                if status not in valid_outcomes:
-                    raise ValueError(f"EVENT_BOUNDARY_RECORD_INVALID: Event {eid} has invalid outcome '{status}'")
-            return
-
-        try:
-            s1e_data = json.loads(s1e_file.read_text(encoding="utf-8"))
-            universe_ids = set(s1e_data.get("canonical_event_ids", []))
-        except Exception as exc:
-            raise ValueError(f"S1E_JSON_MALFORMED: S1e file is malformed: {exc}")
-
-        # Build mapping from (home_team, away_team) to canonical_event_id
-        team_pair_to_event_id: dict[tuple[str, str], str] = {}
-        s1e_records = s1e_data.get("event_records")
-        if isinstance(s1e_records, dict):
-            for eid_key, ev in s1e_records.items():
-                if isinstance(ev, dict) and ev.get("home_team") and ev.get("away_team"):
-                    team_pair_to_event_id[(str(ev["home_team"]).lower(), str(ev["away_team"]).lower())] = str(eid_key)
-        elif isinstance(s1e_records, list):
-            for ev in s1e_records:
-                if isinstance(ev, dict) and ev.get("home_team") and ev.get("away_team"):
-                    eid_val = str(ev.get("canonical_event_id") or ev.get("event_id") or "")
-                    if eid_val:
-                        team_pair_to_event_id[(str(ev["home_team"]).lower(), str(ev["away_team"]).lower())] = eid_val
-
-        # Check: no missing, unknown, or duplicate event
         rec_ids = []
         for idx, rec in enumerate(event_records):
             if not isinstance(rec, dict):
                 raise ValueError(f"EVENT_BOUNDARY_RECORD_INVALID: event_records[{idx}] is not a dictionary")
 
-            eid = rec.get("canonical_event_id") or (str(rec["event_id"]) if rec.get("event_id") is not None else None) or (str(rec["fixture_id"]) if rec.get("fixture_id") is not None else None)
-            if not eid or eid not in universe_ids:
-                pair = (str(rec.get("home_team", "")).lower(), str(rec.get("away_team", "")).lower())
-                if pair in team_pair_to_event_id:
-                    eid = team_pair_to_event_id[pair]
-                elif not eid:
-                    eid = rec.get("candidate_id") or rec.get("selection_id") or rec.get("quote_card_id") or f"EVENT_{idx}"
+            eid = rec.get("canonical_event_id") or (str(rec["event_id"]) if rec.get("event_id") is not None else None)
             if not eid:
                 raise ValueError(f"EVENT_BOUNDARY_STATUS_MISSING: event_records[{idx}] lacks canonical_event_id")
+            if universe_ids and eid not in universe_ids:
+                raise ValueError(f"EVENT_BOUNDARY_UNKNOWN_EVENT: Step {step_id} event record {eid} not in S1e universe")
 
             rec_ids.append(eid)
 
-            # Every event has exactly one valid typed outcome
-            status = rec.get("terminal_status") or rec.get("status") or rec.get("analytical_status") or rec.get("pricing_status") or "CONTINUE"
+            status = rec.get("terminal_status") or rec.get("status") or rec.get("discovery_status")
             if not status:
-                raise ValueError(f"EVENT_BOUNDARY_STATUS_MISSING: Event {eid} lacks terminal_status")
+                raise ValueError(f"EVENT_BOUNDARY_STATUS_MISSING: Event {eid} lacks terminal_status or status")
 
-            valid_outcomes = {"CONTINUE", "DEGRADED_CONTINUE", "REJECTED", "NO_ACTION", "BLOCKED", "PASS", "READY", "UNPRICED", "PRICE_PENDING", "ANALYTICAL_READY", "ACCEPTABLE_FOR_MANUAL_QUOTE", "READY_FOR_MANUAL_MAPPING", "READY_FOR_MANUAL_SUPERBET_QUOTE_REVIEW"}
+            valid_outcomes = {"CONTINUE", "DEGRADED_CONTINUE", "REJECTED", "NO_ACTION", "BLOCKED", "PASS", "READY", "UNPRICED", "PRICE_PENDING", "ANALYTICAL_READY", "ACCEPTABLE_FOR_MANUAL_QUOTE", "READY_FOR_MANUAL_MAPPING", "READY_FOR_MANUAL_SUPERBET_QUOTE_REVIEW", "VERIFIED"}
             if status not in valid_outcomes:
                 raise ValueError(f"EVENT_BOUNDARY_RECORD_INVALID: Event {eid} has invalid outcome '{status}'")
 
@@ -816,11 +777,8 @@ def strict_validate_step_output(
         if dups:
             raise ValueError(f"EVENT_BOUNDARY_DUPLICATE_EVENT: Duplicate event IDs in event_records: {dups}")
 
-        rec_set = set(rec_ids)
-        missing_ids = universe_ids - rec_set
-        extra_ids = rec_set - universe_ids
-
-        if missing_ids:
-            raise ValueError(f"EVENT_BOUNDARY_LOSS: Missing event IDs in event_records: {sorted(missing_ids)}")
-        if extra_ids:
-            raise ValueError(f"EVENT_BOUNDARY_UNKNOWN_EVENT: Unknown/extra event IDs in event_records: {sorted(extra_ids)}")
+        if universe_ids:
+            rec_set = set(rec_ids)
+            missing_ids = universe_ids - rec_set
+            if missing_ids:
+                raise ValueError(f"EVENT_BOUNDARY_LOSS: Step {step_id} missing event IDs from S1e universe: {sorted(missing_ids)}")

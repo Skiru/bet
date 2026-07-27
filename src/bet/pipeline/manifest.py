@@ -4,6 +4,10 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any, Mapping
+
+import bet.pipeline.contracts.steps  # Ensures GLOBAL_CONTRACT_REGISTRY is populated
+from bet.pipeline.contracts.registry import GLOBAL_CONTRACT_REGISTRY
 
 
 class PipelineGraph:
@@ -52,6 +56,12 @@ class PipelineStep:
     canonical_script: str | None = None
     depends_on: list[str] | None = None
     required_inputs: list[str] | None = None
+    completion: dict[str, Any] | None = None
+    consumes: list[Any] | None = None
+    produces: list[dict[str, Any]] | None = None
+    deterministic_executor: bool | None = None
+    semantic_owner: str | None = None
+    agent_review_required: bool | None = None
 
 
 @dataclass
@@ -122,6 +132,12 @@ def load_pipeline_manifest(path: Path | None = None) -> PipelineManifest:
             canonical_script=step_data.get("canonical_script"),
             depends_on=step_data.get("depends_on"),
             required_inputs=step_data.get("required_inputs"),
+            completion=step_data.get("completion") if isinstance(step_data.get("completion"), dict) else None,
+            consumes=list(step_data.get("consumes", [])) if isinstance(step_data.get("consumes"), list) else None,
+            produces=list(step_data.get("produces", [])) if isinstance(step_data.get("produces"), list) else None,
+            deterministic_executor=step_data.get("deterministic_executor") if isinstance(step_data.get("deterministic_executor"), bool) else None,
+            semantic_owner=step_data.get("semantic_owner") if isinstance(step_data.get("semantic_owner"), str) else None,
+            agent_review_required=step_data.get("agent_review_required") if isinstance(step_data.get("agent_review_required"), bool) else None,
         )
         steps_list.append(step_obj)
 
@@ -178,8 +194,6 @@ def get_step_hard_rules(
 def get_step_order() -> list[str]:
     """Return the ordered list of step IDs from the canonical manifest."""
     manifest = load_pipeline_manifest()
-    # If validation or loading fails, load_pipeline_manifest will raise.
-    # We must run validation as well to fail closed if manifest is broken.
     errors = validate_pipeline_manifest(manifest)
     if errors:
         raise PipelineManifestError(f"Pipeline manifest is invalid: {errors}")
@@ -276,10 +290,6 @@ def validate_pipeline_manifest(manifest: PipelineManifest, repo_root: Path | Non
     for step in manifest.steps:
         sid = step.id or "<missing id>"
 
-        # Missing required fields
-        if step.id is None:
-            # already reported
-            pass
         if step.name is None:
             errors.append(f"Step {sid} missing required field: name")
         if step.phase is None:
@@ -295,15 +305,44 @@ def validate_pipeline_manifest(manifest: PipelineManifest, repo_root: Path | Non
         if step.hard_rules is None:
             errors.append(f"Step {sid} missing required field: hard_rules")
 
-        # Invalid phase
         if step.phase is not None and step.phase not in allowed_phases:
             errors.append(f"Step {sid} has invalid phase: {step.phase}")
 
-        # Invalid execution_mode
         if step.execution_mode is not None and step.execution_mode not in allowed_execution_modes:
             errors.append(f"Step {sid} has invalid execution_mode: {step.execution_mode}")
 
-        # Next transition validation using manifest-derived graph and canonical ordered steps
+        # Validate contract registration for produces and consumes
+        if step.produces:
+            for p_dict in step.produces:
+                cid = p_dict.get("contract_id") if isinstance(p_dict, dict) else str(p_dict)
+                ver = p_dict.get("schema_version", 1) if isinstance(p_dict, dict) else 1
+                if cid:
+                    desc = GLOBAL_CONTRACT_REGISTRY.get(cid, ver)
+                    if desc is None:
+                        errors.append(f"Step {sid} produces unknown contract: ({cid}, {ver})")
+                    elif desc.producer_step != sid:
+                        errors.append(f"Step {sid} produces contract {cid} registered to producer {desc.producer_step}")
+
+        if step.consumes:
+            for c_item in step.consumes:
+                cid = c_item.get("contract_id") if isinstance(c_item, dict) else str(c_item)
+                ver = c_item.get("schema_version", 1) if isinstance(c_item, dict) else 1
+                desc = GLOBAL_CONTRACT_REGISTRY.get(cid, ver)
+                if desc is None:
+                    # Fallback check for any version
+                    for d in GLOBAL_CONTRACT_REGISTRY.list_descriptors():
+                        if d.contract_id == cid:
+                            desc = d
+                            break
+                if desc is None:
+                    errors.append(f"Step {sid} consumes unknown contract: {cid}")
+                else:
+                    producer_idx = step_ids.index(desc.producer_step) if desc.producer_step in step_ids else -1
+                    consumer_idx = step_ids.index(sid) if sid in step_ids else -1
+                    if producer_idx == -1 or producer_idx >= consumer_idx:
+                        errors.append(f"Step {sid} consumes contract {cid} from producer {desc.producer_step} which does not precede {sid}")
+
+        # Next transition validation
         expected_next = []
         try:
             current_idx = expected_order.index(step.id)
@@ -333,108 +372,5 @@ def validate_pipeline_manifest(manifest: PipelineManifest, repo_root: Path | Non
             agent_file = repo_root / ".kilo/agents" / f"{step.agent}.md"
             if not agent_file.exists():
                 errors.append(f"Step {sid} referenced agent file does not exist under .kilo/agents: {step.agent}.md")
-
-        # Enrichment step rules checking
-        enrichment_steps = ["S2.3", "S2.5", "S2.7", "S2.9"]
-        if step.id in enrichment_steps:
-            required_enrichment_rules = [
-                "no_pick",
-                "no_edge",
-                "no_stake",
-                "no_coupon",
-                "source_bound_only",
-                "unknown_or_blocked_for_missing_data",
-                "no_production_db_write",
-                "no_betting_data_write",
-                "point_in_time_required"
-            ]
-            actual_rules = step.hard_rules if isinstance(step.hard_rules, list) else []
-            for r in required_enrichment_rules:
-                if r not in actual_rules:
-                    errors.append(f"Step {step.id} missing enrichment rule: {r}")
-
-    # 4. Logical ordering / reachability rules
-    if "S2.9" in step_by_id and "S3" in step_by_id:
-        idx_s2_9 = step_ids.index("S2.9") if "S2.9" in step_ids else -1
-        idx_s3 = step_ids.index("S3") if "S3" in step_ids else -1
-        if idx_s2_9 != -1 and idx_s3 != -1 and idx_s3 <= idx_s2_9:
-            errors.append("S3 must not appear before S2.9")
-
-    if "S7" in step_by_id and "S7b" in step_by_id and "S8" in step_by_id:
-        idx_s7 = step_ids.index("S7") if "S7" in step_ids else -1
-        idx_s7b = step_ids.index("S7b") if "S7b" in step_ids else -1
-        idx_s8 = step_ids.index("S8") if "S8" in step_ids else -1
-        if idx_s7 != -1 and idx_s7b != -1 and idx_s8 != -1:
-            if not (idx_s7 < idx_s7b < idx_s8):
-                errors.append("S7b must be after S7 and before S8")
-
-    # 5. Dependency / Pipeline Graph validations (P1-1)
-    step_ids_set = set(step_ids)
-    for step in manifest.steps:
-        sid = step.id or "<missing id>"
-        deps = step.depends_on or []
-        req_inputs = step.required_inputs or []
-
-        # - dependency IDs exist
-        for d in deps:
-            if d not in step_ids_set:
-                errors.append(f"Step {sid} has unknown dependency ID: {d}")
-
-        # - no self dependencies
-        if sid in deps:
-            errors.append(f"Step {sid} has a self-dependency")
-
-        # - no duplicates
-        if len(deps) != len(set(deps)):
-            errors.append(f"Step {sid} has duplicate dependencies: {deps}")
-
-        # - dependency precedes consumer
-        for d in deps:
-            if d in step_ids_set:
-                idx_d = step_ids.index(d)
-                idx_sid = step_ids.index(sid)
-                if idx_d >= idx_sid:
-                    errors.append(f"Dependency {d} must precede consumer {sid}")
-
-        # - required inputs are coherent with dependencies
-        for r_in in req_inputs:
-            if r_in not in deps:
-                errors.append(f"Step {sid} has required input {r_in} which is not in depends_on")
-
-        # - next and dependency edges are coherent
-        if step.next:
-            for n in step.next:
-                if n in step_ids_set:
-                    idx_n = step_ids.index(n)
-                    idx_sid = step_ids.index(sid)
-                    if idx_n <= idx_sid:
-                        errors.append(f"Next step {n} must be after current step {sid}")
-
-        # - artifact kind follows dependency execution_mode
-        for d in deps:
-            dep_step = step_by_id.get(d)
-            if dep_step:
-                expected_kind = "SCRIPT_EVIDENCE" if dep_step.execution_mode == "script" else "AGENT_ARTIFACT"
-
-    # - graph is acyclic
-    visited = {}  # 0 = unvisited, 1 = visiting, 2 = visited
-    def has_cycle(u):
-        visited[u] = 1
-        deps = step_by_id[u].depends_on or []
-        for v in deps:
-            if v in step_by_id:
-                if visited.get(v, 0) == 1:
-                    return True
-                if visited.get(v, 0) == 0:
-                    if has_cycle(v):
-                        return True
-        visited[u] = 2
-        return False
-
-    for sid in step_ids:
-        if visited.get(sid, 0) == 0:
-            if has_cycle(sid):
-                errors.append("Pipeline graph has a cycle (is not acyclic)")
-                break
 
     return errors

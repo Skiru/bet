@@ -3,8 +3,8 @@ from __future__ import annotations
 
 from typing import Any, Sequence
 from pydantic import Field
-from src.bet.pipeline.contracts.base import StrictBaseModel
-from src.bet.pipeline.contracts.common import SourceReferenceV1, EvidenceClaimV1
+from bet.pipeline.contracts.base import StrictBaseModel
+from bet.pipeline.contracts.common import SourceReferenceV1, EvidenceClaimV1
 
 
 class WorkOrderBudgetV1(StrictBaseModel):
@@ -45,7 +45,7 @@ class ChunkExecutionPlanV1(StrictBaseModel):
 
     def __post_init__(self) -> None:
         if not self.plan_sha256:
-            from src.bet.pipeline.contracts.canonical_json import hash_canonical_json
+            from bet.pipeline.contracts.canonical_json import hash_canonical_json
             data = self.model_dump(exclude={"plan_sha256"})
             object.__setattr__(self, "plan_sha256", hash_canonical_json(data))
 

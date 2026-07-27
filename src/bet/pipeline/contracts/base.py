@@ -8,12 +8,11 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class StrictBaseModel(BaseModel):
-    """Base model enforcing strict validation and forbidding unknown extra fields."""
+    """Base model enforcing strict validation, frozen immutability, and forbidding unknown extra fields."""
     model_config = ConfigDict(
         extra="forbid",
-        frozen=False,
+        frozen=True,
         populate_by_name=True,
-        validate_assignment=True,
         str_strip_whitespace=True,
     )
 

@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from typing import Any, Mapping
-from src.bet.pipeline.sports.models import (
+from bet.pipeline.sports.models import (
     MarketEvidenceRequirementV1,
     SourceFreshnessPolicyV1,
     SportReadinessDecisionV1,

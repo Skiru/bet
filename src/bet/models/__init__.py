@@ -4,14 +4,14 @@ from __future__ import annotations
 import hashlib
 from pathlib import Path
 
-from src.bet.models.contracts import (
+from bet.models.contracts import (
     SettlementRuleV1,
     MarketOutcomeLabelV1,
     FeatureSnapshotV1,
     TrainingDatasetReceiptV1,
     TemporalSplitPlanV1,
 )
-from src.bet.models.registry import (
+from bet.models.registry import (
     LiteratureReferenceV1,
     CalibrationReportV1,
     BacktestReportV1,
@@ -20,8 +20,8 @@ from src.bet.models.registry import (
     ModelRegistry,
     GLOBAL_MODEL_REGISTRY,
 )
-from src.bet.models.dixon_coles import calculate_dixon_coles_outcomes
-from src.bet.pipeline.contracts.canonical_json import hash_canonical_json
+from bet.models.dixon_coles import calculate_dixon_coles_outcomes
+from bet.pipeline.contracts.canonical_json import hash_canonical_json
 
 
 def _register_promoted_models() -> None:

@@ -3,8 +3,8 @@ from __future__ import annotations
 
 import hashlib
 from typing import Any, Sequence
-from src.bet.pipeline.contracts.canonical_json import hash_canonical_json, dumps_canonical_json
-from src.bet.pipeline.sharding.models import (
+from bet.pipeline.contracts.canonical_json import hash_canonical_json, dumps_canonical_json
+from bet.pipeline.sharding.models import (
     WorkOrderBudgetV1,
     ChunkWorkOrderV1,
     ChunkExecutionPlanV1,

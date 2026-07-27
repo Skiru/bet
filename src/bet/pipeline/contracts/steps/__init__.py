@@ -1,10 +1,10 @@
 """Step business models and contract registrations."""
 from __future__ import annotations
 
-from src.bet.pipeline.contracts.base import CompletionEnvelopeType, ArtifactRole
-from src.bet.pipeline.contracts.registry import ContractDescriptor, GLOBAL_CONTRACT_REGISTRY
+from bet.pipeline.contracts.base import CompletionEnvelopeType, ArtifactRole
+from bet.pipeline.contracts.registry import ContractDescriptor, GLOBAL_CONTRACT_REGISTRY
 
-from src.bet.pipeline.contracts.steps.s0_to_s2 import (
+from bet.pipeline.contracts.steps.s0_to_s2 import (
     S0HistoricalPnlV1,
     S1FixturesShortlistV1,
     S1eCanonicalEventUniverseV1,
@@ -14,7 +14,7 @@ from src.bet.pipeline.contracts.steps.s0_to_s2 import (
     S27ReconciledFactsV1,
     S29DataReadinessV1,
 )
-from src.bet.pipeline.contracts.steps.s3_to_s10 import (
+from bet.pipeline.contracts.steps.s3_to_s10 import (
     S3CalibratedProbabilitiesV1,
     S4ExpectedValueEstimatesV1,
     S5ContextMotivationRiskV1,

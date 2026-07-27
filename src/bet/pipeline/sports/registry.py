@@ -1,7 +1,7 @@
 """Programmatic registry for all 8 supported sport protocols."""
 from __future__ import annotations
 
-from src.bet.pipeline.sports.protocols import (
+from bet.pipeline.sports.protocols import (
     BaseSportProtocol,
     FootballProtocol,
     TennisProtocol,

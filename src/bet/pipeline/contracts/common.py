@@ -1,17 +1,16 @@
 """Shared sub-models and metadata components for step business contracts."""
 from __future__ import annotations
 
-from decimal import Decimal
-from typing import Any
+from typing import Any, Literal
 from pydantic import Field
-from src.bet.pipeline.contracts.base import StrictBaseModel
+from bet.pipeline.contracts.base import StrictBaseModel
 
 
 class SourceReferenceV1(StrictBaseModel):
     """Refers to an external data source or tool result."""
     source_id: str
     source_name: str
-    provenance_level: str = "AGENT_ATTESTED_TOOL_RESULT"  # SYSTEM_VERIFIED_RECEIPT | AGENT_ATTESTED_TOOL_RESULT | SOURCE_REFERENCED_ONLY
+    provenance_level: Literal["SYSTEM_VERIFIED_RECEIPT", "AGENT_ATTESTED_TOOL_RESULT", "SOURCE_REFERENCED_ONLY"] = "AGENT_ATTESTED_TOOL_RESULT"
     retrieved_at: str
     effective_at: str | None = None
     url_or_query: str | None = None
@@ -26,7 +25,7 @@ class EventRecordV1(StrictBaseModel):
     home_team: str
     away_team: str
     event_start_time: str
-    discovery_status: str = "VERIFIED"
+    discovery_status: Literal["VERIFIED", "UNVERIFIED", "PREFILTERED", "BLOCKED"] = "VERIFIED"
     terminal_status: str | None = None
     terminal_reason: str | None = None
 

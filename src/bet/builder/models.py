@@ -4,7 +4,7 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Any
 from pydantic import Field
-from src.bet.pipeline.contracts.base import StrictBaseModel
+from bet.pipeline.contracts.base import StrictBaseModel
 
 
 class BuilderLegV1(StrictBaseModel):

@@ -1,7 +1,7 @@
 """Specialist chunking and evidence acquisition module."""
 from __future__ import annotations
 
-from src.bet.pipeline.sharding.models import (
+from bet.pipeline.sharding.models import (
     WorkOrderBudgetV1,
     ChunkWorkOrderV1,
     ChunkExecutionPlanV1,
@@ -15,7 +15,7 @@ from src.bet.pipeline.sharding.models import (
     SourceIndependenceClusterV1,
     EvidenceBundleV1,
 )
-from src.bet.pipeline.sharding.lifecycle import (
+from bet.pipeline.sharding.lifecycle import (
     ChunkLifecycleError,
     create_chunk_execution_plan,
     validate_chunk_against_work_order,

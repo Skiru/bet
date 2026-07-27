@@ -2,10 +2,10 @@
 from __future__ import annotations
 
 import pytest
-from src.bet.pipeline.sports.models import ContextFactorV1, SportEventDossierV1
-from src.bet.pipeline.sports.registry import GLOBAL_SPORT_PROTOCOL_REGISTRY
-from src.bet.pipeline.market_evidence_sufficiency import evaluate_evidence_sufficiency
-from src.bet.pipeline.contracts.canonical_json import hash_canonical_json
+from bet.pipeline.sports.models import ContextFactorV1, SportEventDossierV1
+from bet.pipeline.sports.registry import GLOBAL_SPORT_PROTOCOL_REGISTRY
+from bet.pipeline.market_evidence_sufficiency import evaluate_evidence_sufficiency
+from bet.pipeline.contracts.canonical_json import hash_canonical_json
 
 
 def test_football_corners_cannot_be_high_without_stats():

@@ -3,12 +3,12 @@ from __future__ import annotations
 
 import pytest
 from decimal import Decimal
-from src.bet.builder.models import (
+from bet.builder.models import (
     BuilderLegV1,
     JointModelScopeV1,
     SameEventBuilderCandidateV1,
 )
-from src.bet.builder.engine import (
+from bet.builder.engine import (
     BetBuilderEngineError,
     validate_leg_compatibility,
     compute_joint_builder_pricing,

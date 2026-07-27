@@ -5,7 +5,7 @@ Delegates to the programmatic GLOBAL_SPORT_PROTOCOL_REGISTRY for all 8 sports.
 from __future__ import annotations
 
 from typing import Any, Mapping
-from src.bet.pipeline.sports.registry import GLOBAL_SPORT_PROTOCOL_REGISTRY
+from bet.pipeline.sports.registry import GLOBAL_SPORT_PROTOCOL_REGISTRY
 
 
 def evaluate_evidence_sufficiency(

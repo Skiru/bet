@@ -32,10 +32,10 @@ def test_guardrail_forbidden_imports():
     _require_source_layout()
     
     forbidden_prefixes = (
-        "bet.db", "src.bet.db",
-        "bet.pipeline", "src.bet.pipeline",
-        "bet.scrapers", "src.bet.scrapers",
-        "betting", "src.betting",
+        "bet.db", "bet.db",
+        "bet.pipeline", "bet.pipeline",
+        "bet.scrapers", "bet.scrapers",
+        "betting", "betting",
     )
     
     for p in SRC_DIR.rglob("*.py"):
