@@ -8430,6 +8430,14 @@
     "expiry_or_review_policy": "PERMANENT_RETAINED_PRODUCTION"
   },
   {
+    "path": "tests/test_r1_to_r11_reproductions.py",
+    "category": "RETAINED_TEST",
+    "owner": "Kilo",
+    "reason": "Pipeline V5 Final Analysis Closure regression test",
+    "references": [],
+    "expiry_or_review_policy": "PERMANENT_RETAINED_PRODUCTION"
+  },
+  {
     "path": "tests/test_reachability_graph.py",
     "category": "RETAINED_TEST",
     "owner": "Kilo",

@@ -934,6 +934,7 @@
     "tests/test_provider_capabilities.py",
     "tests/test_provider_registry.py",
     "tests/test_r0_reproductions.py",
+    "tests/test_r1_to_r11_reproductions.py",
     "tests/test_reachability_graph.py",
     "tests/test_run_coordination.py",
     "tests/test_run_scoped_artifact_io.py",
