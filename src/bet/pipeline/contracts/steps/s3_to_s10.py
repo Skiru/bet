@@ -164,10 +164,32 @@ class S7bSuperbetManualMappingV1(StrictBaseModel):
     source_s7_evidence_sha256: str | None = None
     source_s7_output_path: str | None = None
     source_s7_output_sha256: str | None = None
-    manual_verification_required: bool = False
+    manual_verification_required: bool = True
     executable_coupon: bool = False
     betting_valid: bool = False
     can_place_bet_now: bool = False
+
+    @model_validator(mode="after")
+    def validate_s7b_invariants(self) -> S7bSuperbetManualMappingV1:
+        if self.status in ("READY_FOR_MANUAL_MAPPING", "READY"):
+            if not self.event_records and self.approved_candidate_count > 0:
+                raise ValueError("S7B_INVARIANT_VIOLATION: READY S7b artifact requires non-empty event_records")
+            if len(self.mapping_suggestions) != self.approved_candidate_count or len(self.mapping_suggestions) != self.represented_candidate_count:
+                raise ValueError("S7B_INVARIANT_VIOLATION: mapping_suggestions count must equal approved_candidate_count and represented_candidate_count")
+            rec_eids = {e.canonical_event_id for e in self.event_records}
+            for sug in self.mapping_suggestions:
+                if rec_eids and sug.canonical_event_id not in rec_eids:
+                    raise ValueError(f"S7B_INVARIANT_VIOLATION: suggestion event {sug.canonical_event_id} not in event_records")
+                if sug.human_entered_decimal_quote is not None or sug.quote_as_of is not None:
+                    raise ValueError("S7B_INVARIANT_VIOLATION: operator-entered fields must be null prior to manual quote entry")
+            if not self.manual_verification_required:
+                raise ValueError("S7B_INVARIANT_VIOLATION: manual_verification_required must be True for READY S7b artifact")
+            if self.executable_coupon or self.betting_valid or self.can_place_bet_now:
+                raise ValueError("S7B_INVARIANT_VIOLATION: automated execution flags must be False")
+        elif self.status == "NO_ACTION_TERMINAL":
+            if self.mapping_suggestions:
+                raise ValueError("S7B_INVARIANT_VIOLATION: NO_ACTION_TERMINAL cannot have mapping suggestions")
+        return self
 
 
 class QuoteCardRecordV1(StrictBaseModel):
@@ -227,6 +249,31 @@ class S8SuperbetManualQuotePackV1(StrictBaseModel):
     ready_for_production_execution: bool = False
     production_selectable: bool = False
     production_coupon_write: bool = False
+
+    @model_validator(mode="after")
+    def validate_s8_invariants(self) -> S8SuperbetManualQuotePackV1:
+        if self.status in ("READY_FOR_MANUAL_SUPERBET_QUOTE_REVIEW", "READY"):
+            if len(self.quote_cards) == 0 and len(self.idea_groups) == 0:
+                raise ValueError("S8_INVARIANT_VIOLATION: Zero valid cards/groups must be typed NO_ACTION_TERMINAL, not READY")
+            if self.quote_card_count != len(self.quote_cards):
+                raise ValueError("S8_INVARIANT_VIOLATION: quote_card_count does not match len(quote_cards)")
+            rec_eids = {e.canonical_event_id for e in self.event_records}
+            for qc in self.quote_cards:
+                if rec_eids and qc.canonical_event_id not in rec_eids:
+                    raise ValueError(f"S8_INVARIANT_VIOLATION: quote card event {qc.canonical_event_id} not in event_records")
+                if qc.minimum_acceptable_odds is not None and qc.minimum_acceptable_odds <= 1.0:
+                    raise ValueError("S8_INVARIANT_VIOLATION: minimum_acceptable_odds must be > 1.0")
+            for ig in self.idea_groups:
+                if ig.minimum_acceptable_odds is not None and ig.minimum_acceptable_odds <= 1.0:
+                    raise ValueError("S8_INVARIANT_VIOLATION: idea group minimum_acceptable_odds must be > 1.0")
+            if not self.ready_for_human_gate:
+                raise ValueError("S8_INVARIANT_VIOLATION: ready_for_human_gate must be True for READY S8 artifact")
+            if self.ready_for_production_execution or self.production_selectable or self.production_coupon_write:
+                raise ValueError("S8_INVARIANT_VIOLATION: production execution flags must be False")
+        elif self.status == "NO_ACTION_TERMINAL":
+            if self.quote_cards or self.idea_groups:
+                raise ValueError("S8_INVARIANT_VIOLATION: NO_ACTION_TERMINAL cannot contain quote cards or idea groups")
+        return self
     executable_coupon: bool = False
     betting_valid: bool = False
     can_place_bet_now: bool = False

@@ -63,6 +63,11 @@ class PipelineStep:
     semantic_owner: str | None = None
     agent_review_required: bool | None = None
 
+    def primary_produces_contract_id(self) -> str | None:
+        if self.produces and len(self.produces) > 0 and isinstance(self.produces[0], dict):
+            return self.produces[0].get("contract_id")
+        return None
+
 
 @dataclass
 class PipelineManifest:
@@ -73,6 +78,12 @@ class PipelineManifest:
     global_rules: dict[str, bool]
     steps: list[PipelineStep]
     runtime_contract: dict[str, object] = field(default_factory=dict)
+
+    def get_step(self, step_id: str) -> PipelineStep | None:
+        for s in self.steps:
+            if s.id == step_id or (hasattr(s, "step_id") and getattr(s, "step_id") == step_id):
+                return s
+        return None
 
 
 def discover_repo_root() -> Path:

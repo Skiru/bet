@@ -719,32 +719,38 @@ def strict_validate_step_output(
     # 8. Event records check
     if step_id in {"S2", "S2.3", "S2.5", "S2.7", "S2.9", "S3", "S4", "S5", "S6", "S7", "S7b", "S8"}:
         s1e_file = run_root / "data" / f"{betting_day}_s1e_event_universe.json"
+        if not s1e_file.exists():
+            raise ValueError(f"S1E_FILE_MISSING: Step {step_id} requires existing S1e universe file at {s1e_file}")
+
         raw_s1e_ids: list[str] = []
         norm_to_s1e_id: dict[str, str] = {}
-        if s1e_file.exists():
-            try:
-                s1e_data = json.loads(s1e_file.read_text(encoding="utf-8"))
-                s1e_list = s1e_data.get("canonical_event_ids", [])
-                if not s1e_list and isinstance(s1e_data.get("deduplicated_events"), list):
-                    s1e_list = [e["canonical_event_id"] for e in s1e_data["deduplicated_events"] if isinstance(e, dict) and "canonical_event_id" in e]
-                for item in s1e_list:
-                    s_item = str(item)
-                    raw_s1e_ids.append(s_item)
-                    norm_to_s1e_id[s_item] = s_item
-                    if s_item.isdigit():
-                        padded = f"EVT_{int(s_item):04d}"
-                        norm_to_s1e_id[padded] = s_item
-                    elif s_item.startswith("EVT_") and s_item[4:].isdigit():
-                        num_str = str(int(s_item[4:]))
-                        norm_to_s1e_id[num_str] = s_item
-            except Exception as exc:
-                raise ValueError(f"S1E_JSON_MALFORMED: S1e file is malformed: {exc}")
+        try:
+            s1e_data = json.loads(s1e_file.read_text(encoding="utf-8"))
+            s1e_list = s1e_data.get("canonical_event_ids", [])
+            if not s1e_list and isinstance(s1e_data.get("deduplicated_events"), list):
+                s1e_list = [e["canonical_event_id"] for e in s1e_data["deduplicated_events"] if isinstance(e, dict) and "canonical_event_id" in e]
+            for item in s1e_list:
+                s_item = str(item)
+                raw_s1e_ids.append(s_item)
+                norm_to_s1e_id[s_item] = s_item
+                if s_item.isdigit():
+                    padded = f"EVT_{int(s_item):04d}"
+                    norm_to_s1e_id[padded] = s_item
+                elif s_item.startswith("EVT_") and s_item[4:].isdigit():
+                    num_str = str(int(s_item[4:]))
+                    norm_to_s1e_id[num_str] = s_item
+        except Exception as exc:
+            if "S1E_FILE_MISSING" in str(exc):
+                raise
+            raise ValueError(f"S1E_JSON_MALFORMED: S1e file is malformed: {exc}")
 
         event_records = output_data.get("event_records")
         if not event_records and isinstance(output_data.get("payload"), dict):
             event_records = output_data["payload"].get("event_records")
 
-        if output_data.get("status") == "NO_ACTION_TERMINAL" and not event_records and not s1e_file.exists():
+        if output_data.get("status") == "NO_ACTION_TERMINAL" and (event_records is None or len(event_records) == 0):
+            if len(raw_s1e_ids) > 0:
+                raise ValueError(f"EVENT_BOUNDARY_EMPTY_TERMINAL_INVALID: Step {step_id} output has zero event_records but S1e contains {len(raw_s1e_ids)} events")
             return
 
         if event_records is None:

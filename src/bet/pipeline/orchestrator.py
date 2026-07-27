@@ -1291,13 +1291,20 @@ class Orchestrator:
                         or evidence_payload.get("event_records")
                     )
                     if candidate_records is None and sid in {"S2", "S3", "S4", "S6", "S7", "S7b", "S8"}:
-                        try:
+                        manifest_step = self.manifest.get_step(sid) if hasattr(self.manifest, "get_step") else None
+                        exp_type = manifest_step.primary_produces_contract_id() if manifest_step else None
+                        if not exp_type:
+                            for desc in GLOBAL_CONTRACT_REGISTRY.list_descriptors():
+                                if desc.producer_step == sid:
+                                    exp_type = desc.contract_id
+                                    break
+                        if exp_type:
                             _, out_data = resolve_bound_step_output(
                                 run_root=self.run_root,
                                 step_id=sid,
                                 betting_day=self.betting_day,
                                 run_id=self.run_id,
-                                expected_artifact_type=step.output_artifact_type,
+                                expected_artifact_type=exp_type,
                             )
                             candidate_records = (
                                 out_data.get("event_records")
@@ -1312,8 +1319,6 @@ class Orchestrator:
                                     else None
                                 )
                             )
-                        except Exception:
-                            pass
                     if candidate_records is not None:
                         records = candidate_records
                 try:
