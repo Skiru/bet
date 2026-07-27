@@ -705,7 +705,8 @@ def strict_validate_step_output(
     if output_data.get("run_id") and output_data["run_id"] != run_id:
         raise ValueError(f"STEP_RUN_MISMATCH: Run ID mismatch: expected {run_id}, got {output_data['run_id']}")
 
-        # 8. Event records check
+    # 8. Event records check
+    if step_id in {"S2", "S3", "S4", "S5", "S6", "S7", "S7b", "S8"}:
         event_records = output_data.get("event_records")
         if event_records is None and isinstance(output_data.get("payload"), dict):
             event_records = output_data["payload"].get("event_records")
