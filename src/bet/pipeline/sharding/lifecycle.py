@@ -39,9 +39,14 @@ def create_chunk_execution_plan(
     event_ids: Sequence[str],
     agent_name: str,
     allowed_tools: Sequence[str] = (),
+    input_refs: Sequence[dict[str, Any]] = (),
+    task_allowlist: Sequence[str] = (),
     acquisition_plan_refs: Sequence[str] = (),
+    acquisition_plan: dict[str, Any] | None = None,
     hard_rules: Sequence[str] = (),
     forbidden_outputs: Sequence[str] = (),
+    expected_artifact_path: str = "",
+    expected_artifact_type: str = "",
     budget: WorkOrderBudgetV1 | None = None,
 ) -> ChunkExecutionPlanV1:
     """Deterministically partition an event list into immutable chunk work orders.
@@ -90,9 +95,15 @@ def create_chunk_execution_plan(
                 event_ids=tuple(subset),
                 agent_name=agent_name,
                 allowed_tools=tuple(allowed_tools),
+                input_refs=tuple(input_refs),
+                task_allowlist=tuple(task_allowlist),
                 acquisition_plan_refs=tuple(acquisition_plan_refs),
+                acquisition_plan=acquisition_plan,
                 hard_rules=tuple(hard_rules),
                 forbidden_outputs=tuple(forbidden_outputs),
+                expected_artifact_path=expected_artifact_path,
+                expected_artifact_type=expected_artifact_type,
+                attempt_id=f"{chunk_id}-ATT1",
                 budget=effective_budget,
             )
             chunk_orders_list.append(work_order)

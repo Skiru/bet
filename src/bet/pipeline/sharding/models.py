@@ -37,14 +37,18 @@ class ChunkWorkOrderV1(StrictBaseModel):
     total_chunks: int = Field(ge=1)
     event_ids: tuple[str, ...]
     agent_name: str
-    allowed_tools: tuple[str, ...]
+    allowed_tools: tuple[str, ...] = ()
+    input_refs: tuple[dict[str, Any], ...] = ()
+    task_allowlist: tuple[str, ...] = ()
     acquisition_plan_refs: tuple[str, ...] = ()
+    acquisition_plan: dict[str, Any] | None = None
     hard_rules: tuple[str, ...] = ()
     forbidden_outputs: tuple[str, ...] = ()
     expected_artifact_path: str = ""
     expected_artifact_type: str = ""
     allowed_artifact_statuses: tuple[str, ...] = ("PASS", "NO_ACTION_TERMINAL", "BLOCK")
     attempt_number: int = 1
+    attempt_id: str = ""
     budget: WorkOrderBudgetV1 = Field(default_factory=WorkOrderBudgetV1)
 
 

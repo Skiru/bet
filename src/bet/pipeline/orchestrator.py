@@ -317,36 +317,92 @@ class Orchestrator:
 
     def _handle_sharded_agent_step(self, step_id: str, gate_base_dir: Path, parent_wo: Any) -> tuple[bool, str | None, Path | None]:
         """Check if S1e event scope requires sharding. If so, build chunk plan and aggregate chunks if available."""
-        s1e_path = self.run_root / "data" / f"{self.betting_day}_s1e_event_universe.json" if hasattr(self, "run_root") else gate_base_dir / "data" / f"{self.betting_day}_s1e_event_universe.json"
-        if not s1e_path.exists():
-            return False, None, None
-
-        try:
-            s1e_data = json.loads(s1e_path.read_text(encoding="utf-8"))
-            event_ids = s1e_data.get("canonical_event_ids") or [e["canonical_event_id"] for e in s1e_data.get("deduplicated_events", []) if isinstance(e, dict) and "canonical_event_id" in e]
-        except Exception:
-            return False, None, None
-
         from bet.pipeline.sharding.models import WorkOrderBudgetV1, ChunkArtifactV1
         from bet.pipeline.sharding.lifecycle import create_chunk_execution_plan, aggregate_chunks
+        from bet.pipeline.contracts.canonical_json import hash_canonical_json
 
-        budget = WorkOrderBudgetV1(max_events_per_chunk=15)
+        # 1. Derive event IDs from parent work order's input refs and active records
+        event_ids: list[str] = []
+        if hasattr(parent_wo, "input_refs") and parent_wo.input_refs:
+            for ref in parent_wo.input_refs:
+                ref_path_str = ref.path if hasattr(ref, "path") else ref.get("path", "") if isinstance(ref, dict) else ""
+                ref_path = Path(ref_path_str) if ref_path_str else None
+                if ref_path and ref_path.exists():
+                    try:
+                        ref_data = json.loads(ref_path.read_text(encoding="utf-8"))
+                        recs = (
+                            ref_data.get("event_records")
+                            or ref_data.get("candidates")
+                            or ref_data.get("events")
+                            or ref_data.get("deduplicated_events")
+                            or []
+                        )
+                        for r in recs:
+                            eid = r.get("canonical_event_id") if isinstance(r, dict) else str(r) if r else None
+                            if eid and str(eid) not in event_ids:
+                                event_ids.append(str(eid))
+                    except Exception:
+                        pass
+
+        if not event_ids:
+            s1e_path = self.run_root / "data" / f"{self.betting_day}_s1e_event_universe.json" if hasattr(self, "run_root") else gate_base_dir / "data" / f"{self.betting_day}_s1e_event_universe.json"
+            if s1e_path.exists():
+                try:
+                    s1e_data = json.loads(s1e_path.read_text(encoding="utf-8"))
+                    e_list = s1e_data.get("canonical_event_ids") or [
+                        e["canonical_event_id"] for e in s1e_data.get("deduplicated_events", [])
+                        if isinstance(e, dict) and "canonical_event_id" in e
+                    ]
+                    for eid in e_list:
+                        s_eid = str(eid)
+                        if s_eid not in event_ids:
+                            event_ids.append(s_eid)
+                except Exception:
+                    pass
+
+        if not event_ids:
+            return False, None, None
+
+        # Load policy-driven budget from manifest
+        sharding_cfg = (
+            self.manifest.runtime_contract.get("sharding_policy", {})
+            if hasattr(self, "manifest") and self.manifest and isinstance(self.manifest.runtime_contract, dict)
+            else {}
+        )
+        budget = WorkOrderBudgetV1(**sharding_cfg) if sharding_cfg else WorkOrderBudgetV1()
+
         if len(event_ids) <= budget.max_events_per_chunk:
             return False, None, None
 
+        parent_wo_dict = parent_wo.to_jsonable() if hasattr(parent_wo, "to_jsonable") else (
+            parent_wo.model_dump() if hasattr(parent_wo, "model_dump") else {}
+        )
+        parent_wo_sha = hash_canonical_json(parent_wo_dict) if parent_wo_dict else ""
+
         plan = create_chunk_execution_plan(
-            parent_work_order_id=parent_wo.work_order_id,
+            parent_work_order_id=getattr(parent_wo, "work_order_id", f"WO-{step_id}"),
+            parent_work_order_sha256=parent_wo_sha,
             step_id=step_id,
             betting_day=self.betting_day,
             run_id=self.run_id,
+            runtime_mode=getattr(parent_wo, "runtime_mode", "STANDALONE_DETERMINISTIC"),
+            source_head=getattr(parent_wo, "source_head", ""),
+            source_tree=getattr(parent_wo, "source_tree", ""),
+            manifest_sha256=getattr(parent_wo, "manifest_sha256", ""),
             event_ids=event_ids,
-            agent_name=parent_wo.agent,
+            agent_name=getattr(parent_wo, "agent", "bet-executor"),
+            allowed_tools=getattr(parent_wo, "allowed_tools", ()),
+            input_refs=[ref.to_jsonable() if hasattr(ref, "to_jsonable") else ref for ref in getattr(parent_wo, "input_refs", ())],
+            task_allowlist=getattr(parent_wo, "task_allowlist", ()),
+            acquisition_plan=getattr(parent_wo, "acquisition_plan", None),
+            hard_rules=getattr(parent_wo, "hard_rules", ()),
+            forbidden_outputs=getattr(parent_wo, "forbidden_outputs", ()),
             budget=budget,
         )
 
         plan_dir = gate_base_dir / "work_orders" / "chunks"
         plan_dir.mkdir(parents=True, exist_ok=True)
-        plan_file = plan_dir / f"PLAN_{parent_wo.work_order_id}.json"
+        plan_file = plan_dir / f"PLAN_{getattr(parent_wo, 'work_order_id', step_id)}.json"
         write_json_atomic(plan_file, plan.model_dump())
 
         chunks_dir = gate_base_dir / "artifacts" / "chunks"
@@ -354,12 +410,21 @@ class Orchestrator:
 
         chunk_artifacts = []
         missing_chunks = []
+        first_pending_wo_path = None
+        first_pending_wo_sha = None
+        first_pending_expected_out = None
+
         for c_wo in plan.chunks:
             c_file = chunks_dir / f"{c_wo.chunk_id}.json"
             if not c_file.exists():
                 missing_chunks.append(c_wo.chunk_id)
                 c_wo_file = plan_dir / f"{c_wo.chunk_id}_work_order.json"
-                write_json_atomic(c_wo_file, c_wo.model_dump())
+                c_wo_data = c_wo.model_dump()
+                write_json_atomic(c_wo_file, c_wo_data)
+                if first_pending_wo_path is None:
+                    first_pending_wo_path = str(c_wo_file)
+                    first_pending_wo_sha = hash_canonical_json(c_wo_data)
+                    first_pending_expected_out = str(c_file)
             else:
                 try:
                     c_art = ChunkArtifactV1(**json.loads(c_file.read_text(encoding="utf-8")))
@@ -368,19 +433,23 @@ class Orchestrator:
                     missing_chunks.append(c_wo.chunk_id)
 
         if missing_chunks:
+            self.pending_chunk_work_order_path = first_pending_wo_path
+            self.pending_chunk_work_order_sha256 = first_pending_wo_sha
+            self.pending_chunk_expected_output_path = first_pending_expected_out
             return True, f"Sharded step {step_id} waiting on {len(missing_chunks)}/{len(plan.chunks)} chunks", plan_file
 
         receipt, agg_records = aggregate_chunks(plan, chunk_artifacts)
         target_path = artifact_path_for(gate_base_dir, self.betting_day, self.run_id, step_id)
 
-        artifact_type_map = {
-            "S2.3": "S2_3_ENRICHMENT_GAPS",
-            "S2.5": "S2_5_PROVIDER_OBSERVATIONS",
-            "S2.7": "S2_7_RECONCILED_FACTS",
-            "S2.9": "S2_9_DATA_READINESS",
-            "S5": "S5_CONTEXT_MOTIVATION_RISK",
-        }
-        art_type = artifact_type_map.get(step_id, f"{step_id.replace('.', '_')}_AGGREGATED")
+        manifest_step = self.manifest.get_step(step_id) if hasattr(self.manifest, "get_step") else None
+        art_type = manifest_step.primary_produces_contract_id() if manifest_step else None
+        if not art_type:
+            for desc in GLOBAL_CONTRACT_REGISTRY.list_descriptors():
+                if desc.producer_step == step_id:
+                    art_type = desc.contract_id
+                    break
+
+        art_type = art_type or f"{step_id.replace('.', '_')}_AGGREGATED"
         agg_artifact = {
             "schema_version": 1,
             "artifact_type": art_type,
@@ -1561,6 +1630,11 @@ class Orchestrator:
             "failed_count": self.failed_count,
             "unresolved_count": self.unresolved_count,
         }
+
+        if getattr(self, "pending_chunk_work_order_path", None):
+            summary["pending_chunk_work_order_path"] = self.pending_chunk_work_order_path
+            summary["pending_chunk_work_order_sha256"] = getattr(self, "pending_chunk_work_order_sha256", None)
+            summary["pending_chunk_expected_output_path"] = getattr(self, "pending_chunk_expected_output_path", None)
 
         if no_action_terminal is not None:
             summary.update(no_action_terminal)
