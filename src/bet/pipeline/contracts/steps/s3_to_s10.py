@@ -1,7 +1,7 @@
 """Business contracts for ANALYSIS_BUILD, EXECUTION, and POST_EVENT steps (S3 to S10)."""
 from __future__ import annotations
 
-from typing import Literal
+from typing import Any, Literal
 from pydantic import Field, field_validator, model_validator
 from bet.pipeline.contracts.base import StrictBaseModel
 from bet.pipeline.contracts.common import EventRecordV1, SourceReferenceV1, EvidenceClaimV1, _validate_sha256
@@ -48,10 +48,10 @@ class ValuationCandidateRecordV1(StrictBaseModel):
     canonical_event_id: str
     market_family: str
     selection: str
-    fair_odds: float = Field(ge=1.0)
-    ev_estimate: float = 0.0
-    minimum_acceptable_odds: float = Field(ge=1.0)
-    status: Literal["PASS", "DEGRADED_CONTINUE", "REJECTED", "NO_ACTION", "BLOCKED", "UNPRICED", "PRICE_PENDING"] = "PASS"
+    fair_odds: float | None = None
+    ev_estimate: float | None = None
+    minimum_acceptable_odds: float | None = None
+    status: Literal["PASS", "DEGRADED_CONTINUE", "REJECTED", "NO_ACTION", "BLOCKED", "UNPRICED", "PRICE_PENDING", "ANALYSIS_ONLY"]
 
 
 # S4 Contract
@@ -68,10 +68,10 @@ class S4ExpectedValueEstimatesV1(StrictBaseModel):
 class ContextReviewRecordV1(StrictBaseModel):
     canonical_event_id: str
     sport: str
-    motivation_score: float = 1.0
-    risk_classification: str = "LOW"
+    motivation_score: float
+    risk_classification: str
     context_notes: str | None = None
-    terminal_status: Literal["PASS", "DEGRADED_CONTINUE", "REJECTED", "NO_ACTION", "BLOCKED"] = "PASS"
+    terminal_status: Literal["PASS", "DEGRADED_CONTINUE", "REJECTED", "NO_ACTION", "BLOCKED"]
 
 
 # S5 Contract
@@ -88,9 +88,9 @@ class S5ContextMotivationRiskV1(StrictBaseModel):
 class FilteredCandidateRecordV1(StrictBaseModel):
     canonical_event_id: str
     selection: str
-    repeat_risk_flag: bool = False
-    action: Literal["ALLOW", "FILTER_DUPLICATE", "FILTER_EXPOSURE"] = "ALLOW"
-    terminal_status: Literal["PASS", "DEGRADED_CONTINUE", "REJECTED", "NO_ACTION", "BLOCKED"] = "PASS"
+    repeat_risk_flag: bool
+    action: Literal["ALLOW", "FILTER_DUPLICATE", "FILTER_EXPOSURE"]
+    terminal_status: Literal["PASS", "DEGRADED_CONTINUE", "REJECTED", "NO_ACTION", "BLOCKED"]
 
 
 # S6 Contract
@@ -114,9 +114,17 @@ class ApprovedPickRecordV1(StrictBaseModel):
     market_family: str
     selection: str
     line: float | None = None
-    model_fair_probability: float = Field(ge=0.0, le=1.0)
-    recommended_minimum_odds: float = Field(ge=1.0)
-    terminal_status: Literal["PASS", "DEGRADED_CONTINUE", "REJECTED", "NO_ACTION", "BLOCKED"] = "PASS"
+    calibrated_probability: float | None = None
+    model_fair_probability: float | None = None
+    fair_decimal_odds: float | None = None
+    minimum_acceptable_operator_odds: float | None = None
+    recommended_minimum_odds: float | None = None
+    pricing_status: str = "UNPRICED"
+    model_id: str | None = None
+    model_card_sha256: str | None = None
+    dataset_receipt_sha256: str | None = None
+    calibration_report_sha256: str | None = None
+    terminal_status: Literal["PASS", "DEGRADED_CONTINUE", "REJECTED", "NO_ACTION", "BLOCKED"]
 
 
 # S7 Contract
@@ -135,6 +143,24 @@ class MappingSuggestionRecordV1(StrictBaseModel):
     source_candidate_id: str
     canonical_event_id: str
     selection_id: str
+    sport: str | None = None
+    competition: str | None = None
+    home_team: str | None = None
+    away_team: str | None = None
+    event_start_time: str | None = None
+    market_family: str | None = None
+    selection: str | None = None
+    line: float | None = None
+    calibrated_probability: float | None = None
+    model_fair_probability: float | None = None
+    fair_decimal_odds: float | None = None
+    minimum_acceptable_operator_odds: float | None = None
+    recommended_minimum_odds: float | None = None
+    pricing_status: str = "UNPRICED"
+    model_id: str | None = None
+    model_card_sha256: str | None = None
+    dataset_receipt_sha256: str | None = None
+    calibration_report_sha256: str | None = None
     manual_operator: Literal["SUPERBET"] = "SUPERBET"
     mapping_ambiguity: str = "UNAMBIGUOUS"
     visible_operator_market_name: str | None = None
@@ -197,8 +223,25 @@ class QuoteCardRecordV1(StrictBaseModel):
     source_candidate_id: str
     canonical_event_id: str
     selection_id: str
-    manual_operator: Literal["SUPERBET"] = "SUPERBET"
+    sport: str | None = None
+    competition: str | None = None
+    home_team: str | None = None
+    away_team: str | None = None
+    event_start_time: str | None = None
+    market_family: str | None = None
+    selection: str | None = None
+    line: float | None = None
+    calibrated_probability: float | None = None
+    fair_decimal_odds: float | None = None
+    minimum_acceptable_operator_odds: float | None = None
     minimum_acceptable_odds: float | None = None
+    pricing_status: str = "UNPRICED"
+    model_id: str | None = None
+    model_card_sha256: str | None = None
+    dataset_receipt_sha256: str | None = None
+    calibration_report_sha256: str | None = None
+    manual_operator: Literal["SUPERBET"] = "SUPERBET"
+    mapping_ambiguity: str | None = "UNAMBIGUOUS"
 
 
 class S8IdeaGroupV1(StrictBaseModel):
@@ -224,7 +267,7 @@ class S8IdeaGroupV1(StrictBaseModel):
 class S8SuperbetManualQuotePackV1(StrictBaseModel):
     schema_version: int = 2
     artifact_type: Literal["S8_SUPERBET_MANUAL_QUOTE_PACK"] = "S8_SUPERBET_MANUAL_QUOTE_PACK"
-    status: Literal["READY_FOR_MANUAL_SUPERBET_QUOTE_REVIEW", "NO_ACTION_TERMINAL", "BLOCK"] = "READY_FOR_MANUAL_SUPERBET_QUOTE_REVIEW"
+    status: Literal["READY_FOR_MANUAL_SUPERBET_QUOTE_REVIEW", "ANALYSIS_ONLY_OUTPUT", "NO_ACTION_TERMINAL", "BLOCK"]
     betting_day: str
     run_id: str
     operator_workflow: Literal["SUPERBET_MANUAL_BET_BUILDER"] = "SUPERBET_MANUAL_BET_BUILDER"
@@ -235,6 +278,7 @@ class S8SuperbetManualQuotePackV1(StrictBaseModel):
     quote_card_count: int = Field(ge=0, default=0)
     quote_cards: list[QuoteCardRecordV1] = Field(default_factory=list)
     idea_groups: list[S8IdeaGroupV1] = Field(default_factory=list)
+    rejections: list[dict[str, Any]] = Field(default_factory=list)
     event_records: list[EventRecordV1] = Field(default_factory=list)
     analytical_status: str = "READY"
     pricing_status: str = "UNPRICED"
@@ -254,15 +298,16 @@ class S8SuperbetManualQuotePackV1(StrictBaseModel):
     def validate_s8_invariants(self) -> S8SuperbetManualQuotePackV1:
         if self.status in ("READY_FOR_MANUAL_SUPERBET_QUOTE_REVIEW", "READY"):
             if len(self.quote_cards) == 0 and len(self.idea_groups) == 0:
-                raise ValueError("S8_INVARIANT_VIOLATION: Zero valid cards/groups must be typed NO_ACTION_TERMINAL, not READY")
+                raise ValueError("S8_INVARIANT_VIOLATION: Zero valid cards/groups must be typed NO_ACTION_TERMINAL or ANALYSIS_ONLY_OUTPUT, not READY")
             if self.quote_card_count != len(self.quote_cards):
                 raise ValueError("S8_INVARIANT_VIOLATION: quote_card_count does not match len(quote_cards)")
             rec_eids = {e.canonical_event_id for e in self.event_records}
             for qc in self.quote_cards:
                 if rec_eids and qc.canonical_event_id not in rec_eids:
                     raise ValueError(f"S8_INVARIANT_VIOLATION: quote card event {qc.canonical_event_id} not in event_records")
-                if qc.minimum_acceptable_odds is not None and qc.minimum_acceptable_odds <= 1.0:
-                    raise ValueError("S8_INVARIANT_VIOLATION: minimum_acceptable_odds must be > 1.0")
+                min_price = qc.minimum_acceptable_operator_odds or qc.minimum_acceptable_odds
+                if min_price is None or min_price <= 1.0:
+                    raise ValueError("S8_INVARIANT_VIOLATION: READY status requires verified minimum acceptable odds > 1.0 on every quote card")
             for ig in self.idea_groups:
                 if ig.minimum_acceptable_odds is not None and ig.minimum_acceptable_odds <= 1.0:
                     raise ValueError("S8_INVARIANT_VIOLATION: idea group minimum_acceptable_odds must be > 1.0")
@@ -270,8 +315,10 @@ class S8SuperbetManualQuotePackV1(StrictBaseModel):
                 raise ValueError("S8_INVARIANT_VIOLATION: ready_for_human_gate must be True for READY S8 artifact")
             if self.ready_for_production_execution or self.production_selectable or self.production_coupon_write:
                 raise ValueError("S8_INVARIANT_VIOLATION: production execution flags must be False")
-        elif self.status == "NO_ACTION_TERMINAL":
-            if self.quote_cards or self.idea_groups:
+        elif self.status in ("ANALYSIS_ONLY_OUTPUT", "NO_ACTION_TERMINAL"):
+            if self.ready_for_human_gate:
+                raise ValueError("S8_INVARIANT_VIOLATION: ready_for_human_gate must be False for ANALYSIS_ONLY_OUTPUT or NO_ACTION_TERMINAL")
+            if self.status == "NO_ACTION_TERMINAL" and (self.quote_cards or self.idea_groups):
                 raise ValueError("S8_INVARIANT_VIOLATION: NO_ACTION_TERMINAL cannot contain quote cards or idea groups")
         return self
     executable_coupon: bool = False

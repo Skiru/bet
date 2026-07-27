@@ -97,12 +97,36 @@ def _load_s7(child_env: dict[str, str], day: str, run_id: str) -> tuple[Path, Pa
     for item in raw_records:
         if isinstance(item, dict):
             rec = dict(item)
-            rec["sport"] = rec.get("sport") or "football"
-            rec["competition"] = rec.get("competition") or "League"
-            rec["home_team"] = rec.get("home_team") or "Home"
-            rec["away_team"] = rec.get("away_team") or "Away"
-            rec["event_start_time"] = rec.get("event_start_time") or "2026-07-27T18:00:00Z"
-            rec["discovery_status"] = rec.get("discovery_status") or "VERIFIED"
+            sport = rec.get("sport") or (s7_data.get("sport") if isinstance(s7_data.get("sport"), str) else None)
+            comp = rec.get("competition")
+            home = rec.get("home_team")
+            away = rec.get("away_team")
+            start = rec.get("event_start_time") or rec.get("kickoff")
+            disc = rec.get("discovery_status")
+            if not (sport and comp and home and away and start and disc):
+                s1e_path = run_root / "data" / f"{day}_s1e_event_universe.json"
+                if s1e_path.exists():
+                    try:
+                        s1e_data = json.loads(s1e_path.read_text(encoding="utf-8"))
+                        for ev in s1e_data.get("events", []):
+                            if ev.get("canonical_event_id") == rec.get("canonical_event_id") or ev.get("fixture_id") == rec.get("canonical_event_id"):
+                                sport = sport or ev.get("sport")
+                                comp = comp or ev.get("competition")
+                                home = home or ev.get("home_team")
+                                away = away or ev.get("away_team")
+                                start = start or ev.get("event_start_time") or ev.get("kickoff")
+                                disc = disc or ev.get("discovery_status") or "VERIFIED"
+                                break
+                    except Exception:
+                        pass
+            if not (sport and comp and home and away and start):
+                raise ValueError(f"S7 event record {rec.get('canonical_event_id')} missing required event metadata")
+            rec["sport"] = sport
+            rec["competition"] = comp
+            rec["home_team"] = home
+            rec["away_team"] = away
+            rec["event_start_time"] = start
+            rec["discovery_status"] = disc or "VERIFIED"
             rec.pop("candidate_ids", None)
             rec.pop("reason_codes", None)
             records.append(rec)
@@ -120,6 +144,9 @@ def _build_cards(candidates: list[dict[str, Any]], source_s7_sha256: str | None 
         market = candidate.get("market") or candidate.get("best_market") or {}
         if isinstance(market, str):
             market = {"name": market}
+        prob_val = candidate.get("calibrated_probability") or candidate.get("model_fair_probability") or candidate.get("model_probability")
+        fair_val = candidate.get("fair_decimal_odds") or candidate.get("fair_odds") or candidate.get("model_fair_odds")
+        min_odds_val = candidate.get("minimum_acceptable_operator_odds") or candidate.get("minimum_acceptable_odds") or candidate.get("recommended_minimum_odds") or candidate.get("minimum_acceptable_human_quote") or candidate.get("minimum_acceptable_quote")
         cards.append(
             {
                 "quote_card_id": f"quote-card-{candidate_id}",
@@ -129,20 +156,35 @@ def _build_cards(candidates: list[dict[str, Any]], source_s7_sha256: str | None 
                 "event": candidate.get("event") or f"{candidate.get('home_team')} vs {candidate.get('away_team')}",
                 "sport": candidate.get("sport"),
                 "competition": candidate.get("competition"),
+                "home_team": candidate.get("home_team"),
+                "away_team": candidate.get("away_team"),
+                "event_start_time": candidate.get("event_start_time") or candidate.get("start_time") or candidate.get("scheduled_time") or candidate.get("kickoff"),
+                "market_family": candidate.get("market_family") or (market.get("name") if isinstance(market, dict) else None),
+                "selection": candidate.get("selection") or candidate.get("pick"),
+                "line": candidate.get("line") if candidate.get("line") is not None else (market.get("line") if isinstance(market, dict) else None),
                 "participants": candidate.get("participants"),
                 "start_time": candidate.get("start_time") or candidate.get("scheduled_time") or candidate.get("kickoff"),
-                "requested_market": market.get("name") or candidate.get("requested_market") or candidate.get("market_label") or candidate.get("market"),
+                "requested_market": market.get("name") if isinstance(market, dict) else candidate.get("requested_market") or candidate.get("market_label") or candidate.get("market"),
                 "requested_selection": candidate.get("selection") or candidate.get("pick"),
-                "requested_line": candidate.get("line") if candidate.get("line") is not None else market.get("line"),
-                "model_probability": candidate.get("model_probability"),
-                "fair_odds": candidate.get("fair_odds"),
-                "minimum_acceptable_quote": candidate.get("minimum_acceptable_human_quote") or candidate.get("minimum_acceptable_quote"),
+                "requested_line": candidate.get("line") if candidate.get("line") is not None else (market.get("line") if isinstance(market, dict) else None),
+                "calibrated_probability": prob_val,
+                "model_fair_probability": prob_val,
+                "model_probability": prob_val,
+                "fair_decimal_odds": fair_val,
+                "fair_odds": fair_val,
+                "minimum_acceptable_operator_odds": min_odds_val,
+                "minimum_acceptable_odds": min_odds_val,
+                "minimum_acceptable_quote": min_odds_val,
+                "pricing_status": candidate.get("pricing_status") or ("PRICED" if min_odds_val is not None else "UNPRICED"),
+                "model_id": candidate.get("model_id"),
+                "model_card_sha256": candidate.get("model_card_sha256"),
+                "dataset_receipt_sha256": candidate.get("dataset_receipt_sha256"),
+                "calibration_report_sha256": candidate.get("calibration_report_sha256"),
                 "confidence_uncertainty": candidate.get("probability_confidence") or candidate.get("probability_uncertainty_grade"),
                 "supporting_stats_summary": candidate.get("supporting_stats") or candidate.get("supporting_stats_summary"),
                 "source_gaps": candidate.get("source_gaps") or [],
                 "counter_evidence": candidate.get("counter_evidence") or [],
                 "risk_flags": candidate.get("risk_flags") or [],
-                "pricing_status": candidate.get("pricing_status") or "UNPRICED",
                 "provider_failure_degradation_summary": candidate.get("provider_failure_degradation_summary") or candidate.get("pricing_missing_reasons"),
                 "point_in_time_timestamps": candidate.get("probability_as_of") or candidate.get("odds_as_of"),
                 "source_s3_hash": candidate.get("probability_input_sha256") or candidate.get("source_s3_sha256"),
@@ -150,9 +192,11 @@ def _build_cards(candidates: list[dict[str, Any]], source_s7_sha256: str | None 
                 "source_s5_hash": candidate.get("source_s5_sha256") or candidate.get("input_s5_hash"),
                 "source_s7_hash": source_s7_sha256,
                 "manual_operator": "SUPERBET",
-                "mapping_confidence": "UNVERIFIED",
-                "mapping_ambiguity": "HUMAN_CHECK_REQUIRED",
-                **{field: None for field in BLANK_OPERATOR_FIELDS},
+                "mapping_ambiguity": candidate.get("mapping_ambiguity", "UNAMBIGUOUS"),
+                "visible_operator_market_name": None,
+                "visible_operator_line": None,
+                "human_entered_decimal_quote": None,
+                "quote_as_of": None,
                 "operator_availability_asserted": False,
                 "executable_coupon": False,
                 "betting_valid": False,

@@ -142,10 +142,25 @@ def main() -> None:
         blocked.append("BLOCKED_S8_CANONICAL_S7B_INVALID")
         print(f"BLOCKED_S8_CANONICAL_S7B_INVALID: {exc}")
 
-    outcome = "BLOCKED" if blocked else (
-        "NO_ACTION_TERMINAL" if mapping_status == "NO_ACTION_TERMINAL" else "READY_FOR_MANUAL_SUPERBET_QUOTE_REVIEW"
-    )
-    ready_for_human_gate = outcome == "READY_FOR_MANUAL_SUPERBET_QUOTE_REVIEW" and bool(cards)
+    has_verified_pricing = any(
+        card.get("minimum_acceptable_operator_odds") is not None
+        or card.get("minimum_acceptable_odds") is not None
+        or card.get("recommended_minimum_odds") is not None
+        for card in cards
+    ) if cards else False
+
+    if blocked:
+        outcome = "BLOCKED"
+        ready_for_human_gate = False
+    elif not cards or mapping_status == "NO_ACTION_TERMINAL":
+        outcome = "NO_ACTION_TERMINAL"
+        ready_for_human_gate = False
+    elif not has_verified_pricing:
+        outcome = "ANALYSIS_ONLY_OUTPUT"
+        ready_for_human_gate = False
+    else:
+        outcome = "READY_FOR_MANUAL_SUPERBET_QUOTE_REVIEW"
+        ready_for_human_gate = True
     output_path = _s8_output_path(Path(child_env["BET_PIPELINE_DATA_DIR"]), args.date, mode)
     output_sha256: str | None = None
     if not blocked:

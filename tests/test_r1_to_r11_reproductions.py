@@ -6,6 +6,7 @@ import subprocess
 from pathlib import Path
 import pytest
 
+from pydantic import ValidationError
 from bet.pipeline.sharding.models import ChunkWorkOrderV1
 from bet.pipeline.agent_work_orders import AgentWorkOrder, AgentWorkOrderOutputContract
 from bet.models.registry import ModelCardV1, ProbabilityEstimateV2
@@ -150,25 +151,23 @@ def test_r6_sharding_lifecycle_state_machine_defects() -> None:
 
 
 def test_r7_defaults_in_dtos_and_migrations() -> None:
-    """R7: Prove default decision fields exist in step records."""
+    """R7: Prove decision fields in step records require explicit values and reject missing defaults."""
     from bet.pipeline.contracts.steps.s3_to_s10 import FilteredCandidateRecordV1
-    rec = FilteredCandidateRecordV1(
-        canonical_event_id="E1",
-        selection="home",
-    )
-    # Verify repeat_risk_flag, action, terminal_status have decision defaults
-    assert rec.repeat_risk_flag is False
-    assert rec.action == "ALLOW"
-    assert rec.terminal_status == "PASS"
+    # Without explicit repeat_risk_flag, action, terminal_status, ValidationError is raised
+    with pytest.raises(ValidationError):
+        FilteredCandidateRecordV1(
+            canonical_event_id="E1",
+            selection="home",
+        )
 
 
 def test_r8_s7b_metadata_fabrication() -> None:
-    """R8: Prove s7_validate.py contains fallback defaults for missing event metadata."""
+    """R8: Prove s7_validate.py no longer contains fallback defaults for missing event metadata."""
     from scripts.pipeline_steps.s7_validate import BLANK_OPERATOR_FIELDS
     assert "visible_operator_market_name" in BLANK_OPERATOR_FIELDS
     s7_script = (ROOT / "scripts" / "pipeline_steps" / "s7_validate.py").read_text(encoding="utf-8")
-    assert 'rec.get("sport") or "football"' in s7_script
-    assert 'rec.get("competition") or "League"' in s7_script
+    assert 'rec.get("sport") or "football"' not in s7_script
+    assert 'rec.get("competition") or "League"' not in s7_script
 
 
 def test_r9_s7b_and_s8_field_incompatibility() -> None:

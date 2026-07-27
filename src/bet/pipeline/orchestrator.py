@@ -25,7 +25,9 @@ from bet.pipeline.sharding.lifecycle import create_chunk_execution_plan, aggrega
 from bet.pipeline.sharding.models import WorkOrderBudgetV1, ChunkArtifactV1, ChunkExecutionPlanV1
 from bet.pipeline.integration_artifacts import (
     script_evidence_path,
+    resolve_bound_step_output,
 )
+from bet.pipeline.contracts.registry import GLOBAL_CONTRACT_REGISTRY
 from bet.pipeline.manifest import (
     discover_repo_root,
     load_pipeline_manifest,
