@@ -8422,6 +8422,14 @@
     "expiry_or_review_policy": "NO_EXPIRY_RETAIN_PERMANENTLY"
   },
   {
+    "path": "tests/test_r0_reproductions.py",
+    "category": "RETAINED_TEST",
+    "owner": "Kilo",
+    "reason": "Pipeline V5 Truth Closure regression test",
+    "references": [],
+    "expiry_or_review_policy": "PERMANENT_RETAINED_PRODUCTION"
+  },
+  {
     "path": "tests/test_reachability_graph.py",
     "category": "RETAINED_TEST",
     "owner": "Kilo",
@@ -8636,6 +8644,46 @@
     "reason": "Unit and integration testing of pipeline components",
     "references": [],
     "expiry_or_review_policy": "NO_EXPIRY_RETAIN_PERMANENTLY"
+  },
+  {
+    "path": "tests/test_t1_strict_contracts.py",
+    "category": "RETAINED_TEST",
+    "owner": "Kilo",
+    "reason": "Pipeline V5 Truth Closure regression test",
+    "references": [],
+    "expiry_or_review_policy": "PERMANENT_RETAINED_PRODUCTION"
+  },
+  {
+    "path": "tests/test_t2_sharding_lifecycle.py",
+    "category": "RETAINED_TEST",
+    "owner": "Kilo",
+    "reason": "Pipeline V5 Truth Closure regression test",
+    "references": [],
+    "expiry_or_review_policy": "PERMANENT_RETAINED_PRODUCTION"
+  },
+  {
+    "path": "tests/test_t3_acquisition_and_dossiers.py",
+    "category": "RETAINED_TEST",
+    "owner": "Kilo",
+    "reason": "Pipeline V5 Truth Closure regression test",
+    "references": [],
+    "expiry_or_review_policy": "PERMANENT_RETAINED_PRODUCTION"
+  },
+  {
+    "path": "tests/test_t4_model_artifacts.py",
+    "category": "RETAINED_TEST",
+    "owner": "Kilo",
+    "reason": "Pipeline V5 Truth Closure regression test",
+    "references": [],
+    "expiry_or_review_policy": "PERMANENT_RETAINED_PRODUCTION"
+  },
+  {
+    "path": "tests/test_t5_builder_pricing.py",
+    "category": "RETAINED_TEST",
+    "owner": "Kilo",
+    "reason": "Pipeline V5 Truth Closure regression test",
+    "references": [],
+    "expiry_or_review_policy": "PERMANENT_RETAINED_PRODUCTION"
   },
   {
     "path": "tests/test_tennis_market_rows_can_promote_candidates.py",

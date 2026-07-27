@@ -10,7 +10,13 @@
     "tests/test_c2_sharding_and_acquisition.py",
     "tests/test_c3_sport_intelligence.py",
     "tests/test_c4_model_governance.py",
-    "tests/test_c5_bet_builder.py"
+    "tests/test_c5_bet_builder.py",
+    "tests/test_r0_reproductions.py",
+    "tests/test_t1_strict_contracts.py",
+    "tests/test_t2_sharding_lifecycle.py",
+    "tests/test_t3_acquisition_and_dossiers.py",
+    "tests/test_t4_model_artifacts.py",
+    "tests/test_t5_builder_pricing.py"
   ],
   "mandatory_file_sha256s": {
     "tests/test_canonical_continuity_v4_owner_regressions.py": "60ff68b1fecc9af05ad2b4287598720fc68d9eddda2576b97bbf6afcd9d1388d",
@@ -18,11 +24,17 @@
     "tests/test_agent_work_order_owner_alignment.py": "12f5379b1a51a70cbe780cabfe3956d0639cc03b00d3f85d1a937dfd0be1cc5f",
     "tests/test_pipeline_orchestrator_ledger_integration.py": "1f18de7f98bf0d4e7b1339330e17d01bd50b5273fb7abc5836610fabf48587e9",
     "tests/test_s2_shortlist_contract_closure.py": "d0e0ad97153c1be5fc5b0697c443bfb89d0a6771644597facbd9e69da64fbaa3",
-    "tests/test_c1_step_contracts.py": "efd31de59501dafe66aa81b9f95212fda092d12173fae8e219b299580106cf4b",
+    "tests/test_c1_step_contracts.py": "3505484af9f6cabc903aa0d9942be922b21ec3dc288e3f1bbe384ff1cfe869fc",
     "tests/test_c2_sharding_and_acquisition.py": "15372648f097044faa811fb7fa2d22093eae7275c61cb814c1987109f2704dae",
     "tests/test_c3_sport_intelligence.py": "36df580edcc6eb80fba13f56e4dad46af6ebc54e4cf0da68491965b894b9cb5e",
-    "tests/test_c4_model_governance.py": "9a1ff2ff460b444407d3648cac5ace25e5e0b68543520acd3e8b108d83455cb5",
-    "tests/test_c5_bet_builder.py": "1319c7ff6672bb42a2ab494a0e9fc11b96cef8ad3ffc72e53d93c5bbd80d80ea"
+    "tests/test_c4_model_governance.py": "5f7a57490a3f8938a7e413f090da41a53539b25889d4ce50f9c7ed0bee8ead99",
+    "tests/test_c5_bet_builder.py": "f73733521ac1e9ce93534df1d0469f31fa669a2765352fa0adae6d9784b06da6",
+    "tests/test_r0_reproductions.py": "dec8a8c460a76448fb19c6ddfb5e7d62f63497eb3e16fbac6325b71f22560301",
+    "tests/test_t1_strict_contracts.py": "c0a2eae2c5028bb850d63c1a1aa17be7b1ab6627baefc1e8cce96d6ba089812e",
+    "tests/test_t2_sharding_lifecycle.py": "b37e8f9b8041534a104c345ecca08df5c294bf809283ee63b89025c04bbf3890",
+    "tests/test_t3_acquisition_and_dossiers.py": "1ea71168aaf05be5b4594935b13c4e2aa3db00e0d556e3a21092d8c7614b4ca9",
+    "tests/test_t4_model_artifacts.py": "9e327503fc16679dc7f25eede3c29d0c551b1523950006c3e602c69a312d0935",
+    "tests/test_t5_builder_pricing.py": "a8d88e7b404371317b614639db89de23fb5787cbc7512f9e2c1ade5d23c37fe6"
   },
   "expected_minimum_counts": {
     "tests/test_canonical_continuity_v4_owner_regressions.py": 30,
@@ -34,7 +46,13 @@
     "tests/test_c2_sharding_and_acquisition.py": 4,
     "tests/test_c3_sport_intelligence.py": 4,
     "tests/test_c4_model_governance.py": 5,
-    "tests/test_c5_bet_builder.py": 3
+    "tests/test_c5_bet_builder.py": 3,
+    "tests/test_r0_reproductions.py": 6,
+    "tests/test_t1_strict_contracts.py": 4,
+    "tests/test_t2_sharding_lifecycle.py": 3,
+    "tests/test_t3_acquisition_and_dossiers.py": 3,
+    "tests/test_t4_model_artifacts.py": 2,
+    "tests/test_t5_builder_pricing.py": 2
   },
   "tests_metadata": {
     "adversarial_evidence_accounting": "test_strict_loader_adversarial_matrix",
