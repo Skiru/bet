@@ -53,6 +53,10 @@
     "src/bet/pipeline/sharding/__init__.py",
     "src/bet/pipeline/sharding/lifecycle.py",
     "src/bet/pipeline/sharding/models.py",
+    "src/bet/pipeline/sports/__init__.py",
+    "src/bet/pipeline/sports/models.py",
+    "src/bet/pipeline/sports/protocols.py",
+    "src/bet/pipeline/sports/registry.py",
     "src/bet/pipeline/state.py"
   ],
   "domain_and_analytics": [
@@ -806,6 +810,7 @@
     "tests/test_builder_group_schema_quality.py",
     "tests/test_c1_step_contracts.py",
     "tests/test_c2_sharding_and_acquisition.py",
+    "tests/test_c3_sport_intelligence.py",
     "tests/test_canonical_continuity_reference.py",
     "tests/test_compute_safety_scores.py",
     "tests/test_context_upset.py",

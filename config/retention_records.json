@@ -3838,6 +3838,14 @@
     "expiry_or_review_policy": "REVIEW_ON_SCHEMA_UPGRADE"
   },
   {
+    "path": "src/bet/pipeline/sports/__init__.py",
+    "category": "RETAINED_ENGINEERING",
+    "owner": "Kilo",
+    "reason": "Package init export authority",
+    "references": [],
+    "expiry_or_review_policy": "PERMANENT_RETAINED_PRODUCTION"
+  },
+  {
     "path": "src/bet/pipeline/structured_output.py",
     "category": "RETAINED_ENGINEERING",
     "owner": "Kilo",
@@ -7423,6 +7431,14 @@
   },
   {
     "path": "tests/test_c2_sharding_and_acquisition.py",
+    "category": "RETAINED_TEST",
+    "owner": "Kilo",
+    "reason": "Pipeline V5 acceptance test suite",
+    "references": [],
+    "expiry_or_review_policy": "PERMANENT_RETAINED_PRODUCTION"
+  },
+  {
+    "path": "tests/test_c3_sport_intelligence.py",
     "category": "RETAINED_TEST",
     "owner": "Kilo",
     "reason": "Pipeline V5 acceptance test suite",
