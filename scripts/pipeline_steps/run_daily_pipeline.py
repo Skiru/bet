@@ -6,8 +6,10 @@ import argparse
 import sys
 from pathlib import Path
 
-# Ensure src/ is importable for package imports
+# Ensure repo root and src/ are importable for package imports
 ROOT = Path(__file__).resolve().parents[2]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 src_path = str(ROOT / "src")
 if src_path not in sys.path:
     sys.path.insert(0, src_path)

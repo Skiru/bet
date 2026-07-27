@@ -140,6 +140,19 @@ class TennisProtocol(BaseSportProtocol):
         missing: list[str] = []
         family = str(market_family or row_data.get("market_family") or "").lower()
 
+        if family in {"total_games", "game_handicap", "set_handicap"}:
+            line = row_data.get("line")
+            if line in (None, "", "UNKNOWN", "N/A"):
+                return SportReadinessDecisionV1(
+                    canonical_event_id=canonical_event_id,
+                    sport=self.sport_id,
+                    market_family=family,
+                    quality_grade="UNKNOWN",
+                    missing_requirements=("LINE_SEMANTICS_MISSING",),
+                    allowed_action="BLOCKED",
+                    reason_codes=("LINE_SEMANTICS_MISSING",),
+                )
+
         ranking = pack.get("player_ranking") or pack.get("seed") or event_data.get("ranking_proxy")
         form = pack.get("recent_form") or pack.get("form") or event_data.get("form_proxy")
         surface = pack.get("surface") or event_data.get("surface")

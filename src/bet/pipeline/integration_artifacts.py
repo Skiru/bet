@@ -713,7 +713,7 @@ def strict_validate_step_output(
             event_records = output_data["payload"].get("event_records")
 
         if event_records is None:
-            event_records = []
+            raise ValueError(f"EVENT_BOUNDARY_RECORDS_MISSING: Step {step_id} output lacks 'event_records'")
 
         if not isinstance(event_records, list):
             raise ValueError(f"EVENT_BOUNDARY_RECORD_INVALID: Step {step_id} 'event_records' must be a list")
