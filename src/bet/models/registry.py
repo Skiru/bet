@@ -72,11 +72,40 @@ class ModelCardV1(StrictBaseModel):
     def is_pricing_eligible(self) -> bool:
         if self.promotion_status != "PRICING_ELIGIBLE":
             return False
-        if not is_valid_sha256_hex(self.dataset_receipt_sha256):
+        if not is_valid_sha256_hex(self.dataset_receipt_sha256) or self.dataset_receipt_sha256 == "0" * 64:
             return False
-        if not is_valid_sha256_hex(self.calibration_report_sha256):
+        if not is_valid_sha256_hex(self.calibration_report_sha256) or self.calibration_report_sha256 == "0" * 64:
             return False
-        return True
+        if not is_valid_sha256_hex(self.code_sha256) or self.code_sha256 == "0" * 64:
+            return False
+        if not is_valid_sha256_hex(self.feature_schema_hash) or self.feature_schema_hash == "0" * 64:
+            return False
+
+        from pathlib import Path
+        import hashlib
+        root = Path(__file__).resolve().parent.parent.parent.parent
+        artifact_dirs = [
+            root / "models",
+            root / ".kilo" / "artifacts" / "models",
+            root / "data" / "models",
+        ]
+        found_dataset = False
+        found_calibration = False
+        for d in artifact_dirs:
+            if not d.exists():
+                continue
+            for p in d.rglob("*"):
+                if p.is_file():
+                    try:
+                        content = p.read_bytes()
+                        h = hashlib.sha256(content).hexdigest()
+                        if h == self.dataset_receipt_sha256:
+                            found_dataset = True
+                        if h == self.calibration_report_sha256:
+                            found_calibration = True
+                    except Exception:
+                        pass
+        return found_dataset and found_calibration
 
 
 class ProbabilityEstimateV2(StrictBaseModel):
@@ -200,6 +229,12 @@ class ModelRegistry:
 
     def list_cards(self) -> list[ModelCardV1]:
         return list(self._cards.values())
+
+    def list_model_cards(self, sport: str | None = None) -> list[ModelCardV1]:
+        cards = list(self._cards.values())
+        if sport:
+            cards = [c for c in cards if c.sport.lower() == sport.lower()]
+        return cards
 
 
 GLOBAL_MODEL_REGISTRY = ModelRegistry()
