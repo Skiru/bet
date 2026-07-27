@@ -184,6 +184,28 @@ def render_agent_execution_prompt(work_order: dict[str, Any]) -> str:
     )
     prompt_lines.extend(f"- {item}" for item in STEP_FOCUS.get(work_order["step_id"], []))
 
+    if work_order.get("acquisition_plan"):
+        acq = work_order["acquisition_plan"]
+        prompt_lines.extend(
+            [
+                "",
+                "FACT ACQUISITION PLAN:",
+                f"- plan_id={acq.get('plan_id')}",
+                f"- canonical_event_id={acq.get('canonical_event_id')}",
+                f"- sport={acq.get('sport')}",
+                f"- max_queries={acq.get('max_queries', 10)}",
+            ]
+        )
+        for req in acq.get("requirements", []):
+            prompt_lines.append(
+                f"  * requirement_id={req.get('requirement_id')} "
+                f"fact_type={req.get('fact_type')} "
+                f"level={req.get('requirement_level')} "
+                f"tools={','.join(req.get('allowed_tools', ()))} "
+                f"max_age_hours={req.get('max_age_hours', 48)} "
+                f"min_sources={req.get('min_independent_sources', 1)}"
+            )
+
     prompt_lines.extend(["", "MUST DO:"])
     prompt_lines.extend(f"- {item}" for item in instructions.get("must_do", []))
 

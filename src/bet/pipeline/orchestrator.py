@@ -228,6 +228,85 @@ class Orchestrator:
         if manifest_errors:
             raise ValueError(f"Invalid pipeline manifest: {manifest_errors}")
 
+    def _handle_sharded_agent_step(self, step_id: str, gate_base_dir: Path, parent_wo: Any) -> tuple[bool, str | None, Path | None]:
+        """Check if S1e event scope requires sharding. If so, build chunk plan and aggregate chunks if available."""
+        s1e_path = self.run_root / "data" / f"{self.betting_day}_s1e_event_universe.json" if hasattr(self, "run_root") else gate_base_dir / "data" / f"{self.betting_day}_s1e_event_universe.json"
+        if not s1e_path.exists():
+            return False, None, None
+
+        try:
+            s1e_data = json.loads(s1e_path.read_text(encoding="utf-8"))
+            event_ids = s1e_data.get("canonical_event_ids") or [e["canonical_event_id"] for e in s1e_data.get("deduplicated_events", []) if isinstance(e, dict) and "canonical_event_id" in e]
+        except Exception:
+            return False, None, None
+
+        from bet.pipeline.sharding.models import WorkOrderBudgetV1, ChunkArtifactV1
+        from bet.pipeline.sharding.lifecycle import create_chunk_execution_plan, aggregate_chunks
+
+        budget = WorkOrderBudgetV1(max_events_per_chunk=15)
+        if len(event_ids) <= budget.max_events_per_chunk:
+            return False, None, None
+
+        plan = create_chunk_execution_plan(
+            parent_work_order_id=parent_wo.work_order_id,
+            step_id=step_id,
+            betting_day=self.betting_day,
+            run_id=self.run_id,
+            event_ids=event_ids,
+            agent_name=parent_wo.agent,
+            budget=budget,
+        )
+
+        plan_dir = gate_base_dir / "work_orders" / "chunks"
+        plan_dir.mkdir(parents=True, exist_ok=True)
+        plan_file = plan_dir / f"PLAN_{parent_wo.work_order_id}.json"
+        write_json_atomic(plan_file, plan.model_dump())
+
+        chunks_dir = gate_base_dir / "artifacts" / "chunks"
+        chunks_dir.mkdir(parents=True, exist_ok=True)
+
+        chunk_artifacts = []
+        missing_chunks = []
+        for c_wo in plan.chunks:
+            c_file = chunks_dir / f"{c_wo.chunk_id}.json"
+            if not c_file.exists():
+                missing_chunks.append(c_wo.chunk_id)
+                c_wo_file = plan_dir / f"{c_wo.chunk_id}_work_order.json"
+                write_json_atomic(c_wo_file, c_wo.model_dump())
+            else:
+                try:
+                    c_art = ChunkArtifactV1(**json.loads(c_file.read_text(encoding="utf-8")))
+                    chunk_artifacts.append(c_art)
+                except Exception:
+                    missing_chunks.append(c_wo.chunk_id)
+
+        if missing_chunks:
+            return True, f"Sharded step {step_id} waiting on {len(missing_chunks)}/{len(plan.chunks)} chunks", plan_file
+
+        receipt, agg_records = aggregate_chunks(plan, chunk_artifacts)
+        target_path = artifact_path_for(gate_base_dir, self.betting_day, self.run_id, step_id)
+
+        artifact_type_map = {
+            "S2.3": "S2_3_ENRICHMENT_GAPS",
+            "S2.5": "S2_5_PROVIDER_OBSERVATIONS",
+            "S2.7": "S2_7_RECONCILED_FACTS",
+            "S2.9": "S2_9_DATA_READINESS",
+            "S5": "S5_CONTEXT_MOTIVATION_RISK",
+        }
+        art_type = artifact_type_map.get(step_id, f"{step_id.replace('.', '_')}_AGGREGATED")
+        agg_artifact = {
+            "schema_version": 1,
+            "artifact_type": art_type,
+            "status": "PASS" if step_id != "S2.9" else "READY",
+            "betting_day": self.betting_day,
+            "run_id": self.run_id,
+            "total_events": len(agg_records),
+            "event_records": agg_records,
+            "aggregation_receipt": receipt.model_dump(),
+        }
+        write_json_atomic(target_path, agg_artifact)
+        return True, None, target_path
+
         # Assert expected pipeline ID and global fail-closed rules
         if self.manifest.pipeline_id != "bet_pipeline_v1":
             raise ValueError(f"Unexpected pipeline_id in manifest: {self.manifest.pipeline_id}")
@@ -751,24 +830,36 @@ class Orchestrator:
                         blocked_reason = "SCRIPT_EVIDENCE_VALIDATION_FAILED"
 
             elif step.execution_mode == "agent_artifact":
-                # Check for existing agent artifact
-                expected_path = artifact_path_for(gate_base_dir, self.betting_day, self.run_id, sid)
-                if not expected_path.exists():
-                    from bet.pipeline.agent_work_orders import (
-                        build_agent_work_order,
-                        write_agent_work_order,
-                    )
-                    # Generate work order JSON under run artifact directory
-                    wo = build_agent_work_order(
-                        betting_day=self.betting_day,
-                        run_id=self.run_id,
-                        step_id=sid,
-                        runtime_mode=self.runtime_mode.value,
-                        base_dir=gate_base_dir,
-                    )
-                    written_wo_path = write_agent_work_order(wo, gate_base_dir)
-                    work_order_path = str(written_wo_path)
+                from bet.pipeline.agent_work_orders import (
+                    build_agent_work_order,
+                    write_agent_work_order,
+                    work_order_path_for,
+                )
+                from bet.pipeline.sharding.models import WorkOrderBudgetV1
 
+                wo = build_agent_work_order(
+                    betting_day=self.betting_day,
+                    run_id=self.run_id,
+                    step_id=sid,
+                    runtime_mode=self.runtime_mode.value,
+                    base_dir=gate_base_dir,
+                )
+                written_wo_path = write_agent_work_order(wo, gate_base_dir)
+                work_order_path = str(written_wo_path)
+
+                # Check if event scope requires sharded execution
+                is_sharded, shard_block_reason, agg_path = self._handle_sharded_agent_step(sid, gate_base_dir, wo)
+                if is_sharded and shard_block_reason:
+                    step_status = PipelineReadinessStatus.BLOCK
+                    overall_status = PipelineReadinessStatus.BLOCK
+                    blocked_at_step = sid
+                    blocked_reason = BlockedReason.BLOCKED_WAITING_FOR_AGENT_ARTIFACT
+                    self.blockers.append(shard_block_reason)
+                    continue
+
+                # Check for existing agent artifact
+                expected_path = agg_path or artifact_path_for(gate_base_dir, self.betting_day, self.run_id, sid)
+                if not expected_path.exists():
                     step_status = PipelineReadinessStatus.BLOCK
                     overall_status = PipelineReadinessStatus.BLOCK
                     blocked_at_step = sid

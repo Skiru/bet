@@ -31,18 +31,25 @@ def create_chunk_execution_plan(
 ) -> ChunkExecutionPlanV1:
     """Deterministically partition an event list into immutable chunk work orders.
 
-    Events are sorted alphabetically by canonical event ID to guarantee identical chunking.
+    Preserves order and rejects duplicate input event IDs.
     """
     effective_budget = budget or WorkOrderBudgetV1()
-    sorted_event_ids = sorted(set(event_ids))
-    total_events = len(sorted_event_ids)
+    
+    # Reject duplicate input event IDs
+    if len(event_ids) != len(set(event_ids)):
+        from collections import Counter
+        dups = [k for k, v in Counter(event_ids).items() if v > 1]
+        raise ChunkLifecycleError(f"Duplicate input event IDs detected: {dups}")
+
+    ordered_event_ids = list(event_ids)
+    total_events = len(ordered_event_ids)
 
     if total_events == 0:
         chunk_orders = ()
     else:
         chunk_size = effective_budget.max_events_per_chunk
         chunks_list: list[list[str]] = [
-            sorted_event_ids[i : i + chunk_size]
+            ordered_event_ids[i : i + chunk_size]
             for i in range(0, total_events, chunk_size)
         ]
         total_chunks = len(chunks_list)
