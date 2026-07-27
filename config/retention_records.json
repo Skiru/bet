@@ -7206,6 +7206,14 @@
     "expiry_or_review_policy": "NO_EXPIRY_RETAIN_PERMANENTLY"
   },
   {
+    "path": "tests/test_s2_shortlist_contract_closure.py",
+    "category": "RETAINED_TEST",
+    "owner": "Kilo",
+    "reason": "Unit and integration testing of S2 shortlist producer-consumer contract",
+    "references": [],
+    "expiry_or_review_policy": "NO_EXPIRY_RETAIN_PERMANENTLY"
+  },
+  {
     "path": "tests/test_canonical_continuity_v4_owner_regressions.py",
     "category": "RETAINED_TEST",
     "owner": "Kilo",

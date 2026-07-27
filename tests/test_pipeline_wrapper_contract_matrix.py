@@ -310,6 +310,8 @@ def _seed_s3_shortlist(environ: dict[str, str]) -> None:
     (data_dir / f"{environ['BET_PIPELINE_BETTING_DAY']}_s2_shortlist.json").write_text(
         json.dumps(
             {
+                "schema_version": 1,
+                "artifact_type": "S2_SHORTLIST",
                 "total_candidates": 1,
                 "candidates": [
                     {

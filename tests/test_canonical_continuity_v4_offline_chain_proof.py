@@ -148,14 +148,11 @@ def test_v4_offline_chain_proof(tmp_path: Path, monkeypatch):
     }
     s1_ev_path.write_text(json.dumps(s1_ev), encoding="utf-8")
 
-    # Seed S2 shortlist as well!
-    s2_shortlist_path = run_root / "data" / f"{DAY}_s2_shortlist.json"
-    s2_shortlist_path.write_text(json.dumps({
-        "schema_version": 1,
-        "artifact_type": "S2_SHORTLIST",
-        "total_candidates": len(event_data),
-        "candidates": event_data
-    }), encoding="utf-8")
+    # Invoke real S2 producer
+    from build_shortlist import write_shortlist_json
+    selected = [(85.0, ev) for ev in event_data]
+    monkeypatch.setattr("build_shortlist.DATA_DIR", run_root / "data")
+    s2_shortlist_path = write_shortlist_json(selected, date=DAY)
 
     # Override S2 tipster scripts to bypass live scrapers
     import scripts.pipeline_steps.s2_tipsters as s2_tipsters
@@ -423,14 +420,11 @@ def test_exact_database_immutability_proof(tmp_path: Path, monkeypatch):
     }
     s1_ev_path.write_text(json.dumps(s1_ev), encoding="utf-8")
 
-    # Seed S2 shortlist in the database dryrun structure
-    s2_shortlist_path = real_run_root / "data" / "2026-07-16_s2_shortlist.json"
-    s2_shortlist_path.write_text(json.dumps({
-        "schema_version": 1,
-        "artifact_type": "S2_SHORTLIST",
-        "total_candidates": len(event_data),
-        "candidates": event_data
-    }), encoding="utf-8")
+    # Invoke real S2 producer
+    from build_shortlist import write_shortlist_json
+    selected = [(85.0, ev) for ev in event_data]
+    monkeypatch.setattr("build_shortlist.DATA_DIR", real_run_root / "data")
+    s2_shortlist_path = write_shortlist_json(selected, date="2026-07-16")
 
     # Set up picks-ledger
     ledger_file = real_run_root / "journal" / "picks-ledger.csv"

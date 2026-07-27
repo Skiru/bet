@@ -44,6 +44,8 @@ def _canonical_evidence_path(environ: dict[str, str], step_id: str) -> Path:
 
 def _input_payload() -> dict:
     return {
+        "schema_version": 1,
+        "artifact_type": "S3_DEEP_STATS",
         "analyses": [
             {
                 "fixture_id": 10,
@@ -457,6 +459,8 @@ def _seed_prior_steps_for_s7(environ: dict[str, str], valuation_path: Path):
     }
     (run_root / "artifacts" / "S3.json").write_text(json.dumps(s3_ev), encoding="utf-8")
     (run_root / "data" / "2026-06-25_s3_deep_stats.json").write_text(json.dumps({
+        "schema_version": 1,
+        "artifact_type": "S3_DEEP_STATS",
         "analyses": [
             {
                 "candidate_id": "tennis|Alpha|Beta|2026-06-25",

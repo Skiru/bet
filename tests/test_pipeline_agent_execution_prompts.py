@@ -17,7 +17,70 @@ from bet.pipeline.agent_execution_prompts import (
 from bet.pipeline.agent_work_orders import build_agent_work_order, write_agent_work_order
 
 
+def _seed_dependencies(tmp_path: Path, betting_day: str = "2026-06-25", run_id: str = "run-agent-prompt") -> None:
+    run_dir = tmp_path / "pipeline_runs" / betting_day / run_id
+    art_dir = run_dir / "artifacts"
+    data_dir = run_dir / "data"
+    art_dir.mkdir(parents=True, exist_ok=True)
+    data_dir.mkdir(parents=True, exist_ok=True)
+
+    # S1e
+    (art_dir / "S1e.json").write_text(json.dumps({
+        "schema_version": 1, "artifact_type": "SCRIPT_EVIDENCE", "step_id": "S1e",
+        "betting_day": betting_day, "run_id": run_id, "status": "PASS",
+        "payload": {"s1e_output_path": str(data_dir / f"{betting_day}_s1e_event_universe.json")}
+    }), encoding="utf-8")
+    (data_dir / f"{betting_day}_s1e_event_universe.json").write_text(json.dumps({
+        "schema_version": 1, "artifact_type": "S1E_EVENT_UNIVERSE_LEDGER",
+        "betting_day": betting_day, "run_id": run_id, "canonical_event_ids": ["evt_1"]
+    }), encoding="utf-8")
+
+    # S2
+    s2_path = data_dir / f"{betting_day}_s2_shortlist.json"
+    s2_path.write_text(json.dumps({
+        "schema_version": 1, "artifact_type": "S2_SHORTLIST",
+        "betting_day": betting_day, "run_id": run_id, "total_candidates": 1, "candidates": [{"sport": "football"}]
+    }), encoding="utf-8")
+    (art_dir / "S2.json").write_text(json.dumps({
+        "schema_version": 1, "artifact_type": "SCRIPT_EVIDENCE", "step_id": "S2",
+        "betting_day": betting_day, "run_id": run_id, "status": "PASS",
+        "payload": {"s2_output_path": str(s2_path)}
+    }), encoding="utf-8")
+
+    # S2.3, S2.5, S2.7, S2.9
+    for sub in ["S2.3", "S2.5", "S2.7", "S2.9"]:
+        (art_dir / f"{sub}.json").write_text(json.dumps({
+            "schema_version": 1, "artifact_type": "AGENT_ARTIFACT", "step_id": sub,
+            "betting_day": betting_day, "run_id": run_id, "status": "PASS", "payload": {}
+        }), encoding="utf-8")
+
+    # S3
+    s3_path = data_dir / f"{betting_day}_s3_deep_stats.json"
+    s3_path.write_text(json.dumps({
+        "schema_version": 1, "artifact_type": "S3_DEEP_STATS",
+        "betting_day": betting_day, "run_id": run_id, "analyses": []
+    }), encoding="utf-8")
+    (art_dir / "S3.json").write_text(json.dumps({
+        "schema_version": 1, "artifact_type": "SCRIPT_EVIDENCE", "step_id": "S3",
+        "betting_day": betting_day, "run_id": run_id, "status": "PASS",
+        "payload": {"s3_output_path": str(s3_path)}
+    }), encoding="utf-8")
+
+    # S4
+    s4_path = data_dir / f"{betting_day}_s4_valuation_candidates.json"
+    s4_path.write_text(json.dumps({
+        "schema_version": 1, "artifact_type": "S4_VALUATION_CANDIDATE_SET_V2",
+        "betting_day": betting_day, "run_id": run_id, "valuation_candidates": []
+    }), encoding="utf-8")
+    (art_dir / "S4.json").write_text(json.dumps({
+        "schema_version": 1, "artifact_type": "SCRIPT_EVIDENCE", "step_id": "S4",
+        "betting_day": betting_day, "run_id": run_id, "status": "PASS",
+        "payload": {"s4_output_path": str(s4_path)}
+    }), encoding="utf-8")
+
+
 def _build_work_order(tmp_path: Path, step_id: str) -> dict:
+    _seed_dependencies(tmp_path)
     work_order = build_agent_work_order(
         betting_day="2026-06-25",
         run_id="run-agent-prompt",
@@ -29,6 +92,7 @@ def _build_work_order(tmp_path: Path, step_id: str) -> dict:
 
 
 def _write_work_order(tmp_path: Path, step_id: str) -> Path:
+    _seed_dependencies(tmp_path)
     work_order = build_agent_work_order(
         betting_day="2026-06-25",
         run_id="run-agent-prompt",
@@ -172,6 +236,10 @@ def test_validate_agent_artifact_cli_passes_for_valid_block_artifact(tmp_path):
         "approval_state": "S2.3_BLOCK_OUTPUT",
     }
     artifact["work_order_id"] = work_order["work_order_id"]
+    from bet.pipeline.run_evidence import sha256_file
+    artifact["work_order_sha256"] = sha256_file(work_order_path)
+    artifact["producer_agent_id"] = work_order["agent"]
+    artifact["agent_id"] = work_order["agent"]
     artifact_path.write_text(json.dumps(artifact), encoding="utf-8")
 
     cli_path = Path(__file__).resolve().parents[1] / "scripts/pipeline_steps/validate_agent_artifact.py"

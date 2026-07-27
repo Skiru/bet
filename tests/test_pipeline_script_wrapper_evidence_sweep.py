@@ -119,6 +119,8 @@ def _seed_s3_shortlist(environ: dict[str, str]) -> Path:
     shortlist_path.write_text(
         json.dumps(
             {
+                "schema_version": 1,
+                "artifact_type": "S2_SHORTLIST",
                 "total_candidates": 1,
                 "candidates": [
                     {

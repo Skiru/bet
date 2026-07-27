@@ -193,7 +193,7 @@ def test_s4_wrapper_with_mocked_successful_target_scripts_writes_s4_pass_evidenc
     data_dir = run_root / "data"
     data_dir.mkdir(parents=True, exist_ok=True)
     s3_path = data_dir / "2026-06-25_s3_deep_stats.json"
-    s3_path.write_text(json.dumps({"analyses": [{"fixture_id": 10, "home_team": "Alpha", "away_team": "Beta", "best_market": {"name": "Over 2.5", "safety_score": 0.82}, "markets_evaluated": 4}]}), encoding="utf-8")
+    s3_path.write_text(json.dumps({"schema_version": 1, "artifact_type": "S3_DEEP_STATS", "analyses": [{"fixture_id": 10, "home_team": "Alpha", "away_team": "Beta", "best_market": {"name": "Over 2.5", "safety_score": 0.82}, "markets_evaluated": 4}]}), encoding="utf-8")
     
     environ = {
         "BET_PIPELINE_RUNTIME_MODE": "DRY_RUN",
@@ -282,7 +282,7 @@ def test_s4_wrapper_with_missing_odds_snapshot_writes_s4_block_evidence(tmp_path
     data_dir = run_root / "data"
     data_dir.mkdir(parents=True, exist_ok=True)
     s3_path = data_dir / "2026-06-25_s3_deep_stats.json"
-    s3_path.write_text(json.dumps({"analyses": [{"fixture_id": 10, "home_team": "Alpha", "away_team": "Beta"}]}), encoding="utf-8")
+    s3_path.write_text(json.dumps({"schema_version": 1, "artifact_type": "S3_DEEP_STATS", "analyses": [{"fixture_id": 10, "home_team": "Alpha", "away_team": "Beta"}]}), encoding="utf-8")
     
     environ = {
         "BET_PIPELINE_RUNTIME_MODE": "DRY_RUN",
@@ -347,7 +347,7 @@ def test_s4_wrapper_with_target_failure_writes_s4_failed_evidence(tmp_path, clea
     data_dir = run_root / "data"
     data_dir.mkdir(parents=True, exist_ok=True)
     s3_path = data_dir / "2026-06-25_s3_deep_stats.json"
-    s3_path.write_text(json.dumps({"analyses": [{"fixture_id": 10, "home_team": "Alpha", "away_team": "Beta"}]}), encoding="utf-8")
+    s3_path.write_text(json.dumps({"schema_version": 1, "artifact_type": "S3_DEEP_STATS", "analyses": [{"fixture_id": 10, "home_team": "Alpha", "away_team": "Beta"}]}), encoding="utf-8")
     
     environ = {
         "BET_PIPELINE_RUNTIME_MODE": "DRY_RUN",

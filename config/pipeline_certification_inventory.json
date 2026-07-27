@@ -4,19 +4,22 @@
     "tests/test_canonical_continuity_v4_owner_regressions.py",
     "tests/test_canonical_continuity_v4_offline_chain_proof.py",
     "tests/test_agent_work_order_owner_alignment.py",
-    "tests/test_pipeline_orchestrator_ledger_integration.py"
+    "tests/test_pipeline_orchestrator_ledger_integration.py",
+    "tests/test_s2_shortlist_contract_closure.py"
   ],
   "mandatory_file_sha256s": {
-    "tests/test_canonical_continuity_v4_owner_regressions.py": "f132a90a48c72605639508a50b7d3467c52e9b3606a2e0f831d1f6607b7c3384",
-    "tests/test_canonical_continuity_v4_offline_chain_proof.py": "b0765a16980b7758cf75c244991aac064ec78962a5fb059eb39f8ccd7e34e2ef",
+    "tests/test_canonical_continuity_v4_owner_regressions.py": "60ff68b1fecc9af05ad2b4287598720fc68d9eddda2576b97bbf6afcd9d1388d",
+    "tests/test_canonical_continuity_v4_offline_chain_proof.py": "ac9b88de1be7f7edec9a7602ea055bec731b3d194927b2d9c80a0b9e0307ac61",
     "tests/test_agent_work_order_owner_alignment.py": "12f5379b1a51a70cbe780cabfe3956d0639cc03b00d3f85d1a937dfd0be1cc5f",
-    "tests/test_pipeline_orchestrator_ledger_integration.py": "1f18de7f98bf0d4e7b1339330e17d01bd50b5273fb7abc5836610fabf48587e9"
+    "tests/test_pipeline_orchestrator_ledger_integration.py": "1f18de7f98bf0d4e7b1339330e17d01bd50b5273fb7abc5836610fabf48587e9",
+    "tests/test_s2_shortlist_contract_closure.py": "d0e0ad97153c1be5fc5b0697c443bfb89d0a6771644597facbd9e69da64fbaa3"
   },
   "expected_minimum_counts": {
     "tests/test_canonical_continuity_v4_owner_regressions.py": 30,
     "tests/test_canonical_continuity_v4_offline_chain_proof.py": 2,
     "tests/test_agent_work_order_owner_alignment.py": 7,
-    "tests/test_pipeline_orchestrator_ledger_integration.py": 5
+    "tests/test_pipeline_orchestrator_ledger_integration.py": 5,
+    "tests/test_s2_shortlist_contract_closure.py": 7
   },
   "tests_metadata": {
     "adversarial_evidence_accounting": "test_strict_loader_adversarial_matrix",
