@@ -47,26 +47,38 @@ def test_unpromoted_model_cannot_produce_pricing_estimate():
         )
 
 
-def test_promoted_model_minimum_odds_decimal_calculation():
-    """Verify a truly promoted model card calculates fair/minimum odds with Decimal precision."""
+def test_promoted_model_minimum_odds_decimal_calculation(tmp_path):
+    """Verify a truly promoted model card calculates fair/minimum odds with Decimal precision when backed by test artifacts."""
+    import hashlib
+    dataset_file = tmp_path / "dataset_receipt.json"
+    dataset_file.write_text('{"dataset_id": "eng1_train"}', encoding="utf-8")
+    dataset_sha = hashlib.sha256(dataset_file.read_bytes()).hexdigest()
+
+    calibration_file = tmp_path / "calibration_report.json"
+    calibration_file.write_text('{"brier_score": 0.1}', encoding="utf-8")
+    calibration_sha = hashlib.sha256(calibration_file.read_bytes()).hexdigest()
+
+    code_sha = hashlib.sha256(b"code").hexdigest()
+    schema_sha = hashlib.sha256(b"schema").hexdigest()
+
     promoted_card = ModelCardV1(
         model_id="PROMOTED_MODEL_001",
         model_version="1.0.0",
-        code_sha256="0" * 64,
-        feature_schema_hash="1" * 64,
+        code_sha256=code_sha,
+        feature_schema_hash=schema_sha,
         sport="football",
         competition_scope="eng.1",
         market_family="result",
-        dataset_receipt_sha256="2" * 64,
-        calibration_report_sha256="3" * 64,
+        dataset_receipt_sha256=dataset_sha,
+        calibration_report_sha256=calibration_sha,
         promotion_status="PRICING_ELIGIBLE",
         model_card_sha256="4" * 64,
     )
 
     estimate = ProbabilityEstimateV2.create(
         model_card=promoted_card,
-        dataset_receipt_sha256="2" * 64,
-        feature_snapshot_sha256="1" * 64,
+        dataset_receipt_sha256=dataset_sha,
+        feature_snapshot_sha256=schema_sha,
         prediction_as_of="2026-07-27T10:00:00Z",
         canonical_event_id="EVT_ARS_CHE_001",
         market_family="result",
@@ -74,6 +86,7 @@ def test_promoted_model_minimum_odds_decimal_calculation():
         calibrated_probability=0.50,
         uncertainty_margin=0.02,  # conservative_p = 0.48
         required_roi=0.05,
+        search_dirs=[tmp_path],
     )
 
     assert estimate.calibrated_probability == 0.50

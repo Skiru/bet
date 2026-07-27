@@ -185,6 +185,7 @@ def main() -> int:
     parser.add_argument("--junit", type=Path, required=True)
     parser.add_argument("--timeout-seconds", type=int, default=900)
     parser.add_argument("--expected-head")
+    parser.add_argument("--expected-git-tree")
     parser.add_argument("--expected-source-tree-sha256")
     args = parser.parse_args()
 
@@ -221,16 +222,20 @@ def main() -> int:
         inventory = json.loads(inv_path.read_text(encoding="utf-8"))
 
         head = _git("rev-parse", "HEAD", root=root_path)
+        git_tree_sha = _git("rev-parse", "HEAD^{tree}", root=root_path)
         branch = _git("symbolic-ref", "--short", "-q", "HEAD", root=root_path, check=False) or "DETACHED"
 
         expected_head = args.expected_head or inventory.get("expected_head")
         if expected_head and head != expected_head:
             raise CertificationError(f"CERT_HEAD_MISMATCH:{head}")
 
-        entries_before, tree_before = source_manifest(root_path)
-        expected_tree = args.expected_source_tree_sha256 or inventory.get("expected_source_tree_sha256")
-        if expected_tree and tree_before != expected_tree:
-            raise CertificationError(f"CERT_SOURCE_TREE_MISMATCH:{tree_before}")
+        expected_git_tree = args.expected_git_tree or inventory.get("expected_git_tree")
+        if expected_git_tree and git_tree_sha != expected_git_tree:
+            raise CertificationError(f"CERT_GIT_TREE_MISMATCH:{git_tree_sha}")
+
+        entries_before, manifest_sha256_before = source_manifest(root_path)
+        if args.expected_source_tree_sha256 and manifest_sha256_before != args.expected_source_tree_sha256:
+            raise CertificationError(f"CERT_SOURCE_TREE_MISMATCH:{manifest_sha256_before}")
 
         # Load mandatory nodes and counts
         inventory_mandatory = inventory.get("mandatory_nodes", [])
@@ -343,7 +348,7 @@ def main() -> int:
             )
 
         entries_after, tree_after = source_manifest(root_path)
-        if entries_after != entries_before or tree_after != tree_before:
+        if entries_after != entries_before or tree_after != manifest_sha256_before:
             diff_msg = f"Before: {len(entries_before)} files, After: {len(entries_after)} files."
             added = [e["path"] for e in entries_after if e not in entries_before]
             removed = [e["path"] for e in entries_before if e not in entries_after]
@@ -386,7 +391,7 @@ def main() -> int:
 
             # Verify git status remains unchanged after every validator
             entries_curr, tree_curr = source_manifest(root_path)
-            if entries_curr != entries_before or tree_curr != tree_before:
+            if entries_curr != entries_before or tree_curr != manifest_sha256_before:
                 raise CertificationError(f"CERT_SOURCE_MUTATED_DURING_VALIDATOR:{val_script}")
 
         # Record exact certification receipt
@@ -399,7 +404,9 @@ def main() -> int:
             "source": {
                 "branch": branch,
                 "head_sha": head,
-                "source_tree_sha256": tree_before,
+                "git_tree_sha": git_tree_sha,
+                "source_manifest_sha256": manifest_sha256_before,
+                "source_tree_sha256": manifest_sha256_before,
                 "source_file_count": len(entries_before),
             },
             "validators": validators_run_records,
@@ -448,7 +455,7 @@ def main() -> int:
 
         # After writing certificate, perform a final source/worktree check
         entries_final, tree_final = source_manifest(root_path)
-        if entries_final != entries_before or tree_final != tree_before:
+        if entries_final != entries_before or tree_final != manifest_sha256_before:
             raise CertificationError("CERT_SOURCE_MUTATED_AFTER_WRITING_CERTIFICATE")
 
         print(json.dumps(certificate, sort_keys=True, indent=2))

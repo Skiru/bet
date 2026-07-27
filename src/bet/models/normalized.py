@@ -5,6 +5,7 @@ odds, player stats, and standings across all API sources in the pipeline.
 """
 
 from dataclasses import dataclass, field
+from typing import Any
 
 
 @dataclass
@@ -31,7 +32,7 @@ class NormalizedMatchStats:
     home_team: str
     away_team: str
     date: str
-    stats: dict = field(default_factory=dict)
+    stats: dict[str, Any] = field(default_factory=dict)
     # stats keys are sport-specific, values are dicts with "home" and "away" sub-keys
     # e.g. {"corners": {"home": 5, "away": 3}, "fouls": {"home": 12, "away": 9}}
 
@@ -46,14 +47,14 @@ class NormalizedOdds:
     away_team: str
     bookmaker: str  # provider name (e.g., "DraftKings", "FanDuel")
     timestamp: str  # ISO datetime of odds snapshot
-    markets: dict = field(default_factory=dict)
+    markets: dict[str, Any] = field(default_factory=dict)
     # markets structure:
     # {
     #   "moneyline": {"home": decimal_odds, "away": decimal_odds, "draw": decimal_odds | None},
     #   "spread": {"home": decimal_odds, "away": decimal_odds, "line": float},
     #   "totals": {"over": decimal_odds, "under": decimal_odds, "line": float},
     # }
-    opening_line: dict = field(default_factory=dict)  # Same structure as markets, for line movement
+    opening_line: dict[str, Any] = field(default_factory=dict)  # Same structure as markets, for line movement
 
 
 @dataclass
@@ -65,9 +66,9 @@ class NormalizedPlayerStats:
     sport: str
     team: str
     season: str
-    games: list = field(default_factory=list)  # gamelog entries [{date, opponent, stats: {}}]
-    splits: dict = field(default_factory=dict)  # {"home": {stat: avg}, "away": {stat: avg}}
-    averages: dict = field(default_factory=dict)  # season averages {stat: value}
+    games: list[Any] = field(default_factory=list)  # gamelog entries [{date, opponent, stats: {}}]
+    splits: dict[str, Any] = field(default_factory=dict)  # {"home": {stat: avg}, "away": {stat: avg}}
+    averages: dict[str, Any] = field(default_factory=dict)  # season averages {stat: value}
 
 
 @dataclass
@@ -77,7 +78,7 @@ class NormalizedStandings:
     league: str
     season: str
     source: str  # "espn-standings"
-    teams: list = field(default_factory=list)
+    teams: list[Any] = field(default_factory=list)
     # Each team entry: {
     #   "name": str, "rank": int,
     #   "wins": int, "draws": int, "losses": int,

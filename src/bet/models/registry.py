@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from decimal import Decimal
+from pathlib import Path
 from typing import Any
 from pydantic import Field
 from bet.pipeline.contracts.base import StrictBaseModel
@@ -69,7 +70,7 @@ class ModelCardV1(StrictBaseModel):
     literature_citations: list[LiteratureReferenceV1] = Field(default_factory=list)
     model_card_sha256: str = ""
 
-    def is_pricing_eligible(self) -> bool:
+    def is_pricing_eligible(self, search_dirs: list[Path] | None = None) -> bool:
         if self.promotion_status != "PRICING_ELIGIBLE":
             return False
         if not is_valid_sha256_hex(self.dataset_receipt_sha256) or self.dataset_receipt_sha256 == "0" * 64:
@@ -84,7 +85,7 @@ class ModelCardV1(StrictBaseModel):
         from pathlib import Path
         import hashlib
         root = Path(__file__).resolve().parent.parent.parent.parent
-        artifact_dirs = [
+        artifact_dirs = search_dirs or [
             root / "models",
             root / ".kilo" / "artifacts" / "models",
             root / "data" / "models",
@@ -145,8 +146,9 @@ class ProbabilityEstimateV2(StrictBaseModel):
         required_roi: float = 0.05,
         sport: str = "football",
         event_start_time: str | None = None,
+        search_dirs: list[Path] | None = None,
     ) -> ProbabilityEstimateV2:
-        if not model_card.is_pricing_eligible():
+        if not model_card.is_pricing_eligible(search_dirs=search_dirs):
             raise ValueError(f"Model {model_card.model_id} status '{model_card.promotion_status}' is not PRICING_ELIGIBLE.")
 
         if model_card.sport.lower() != sport.lower():

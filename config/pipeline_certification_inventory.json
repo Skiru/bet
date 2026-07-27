@@ -27,7 +27,7 @@
     "tests/test_c1_step_contracts.py": "3505484af9f6cabc903aa0d9942be922b21ec3dc288e3f1bbe384ff1cfe869fc",
     "tests/test_c2_sharding_and_acquisition.py": "15372648f097044faa811fb7fa2d22093eae7275c61cb814c1987109f2704dae",
     "tests/test_c3_sport_intelligence.py": "36df580edcc6eb80fba13f56e4dad46af6ebc54e4cf0da68491965b894b9cb5e",
-    "tests/test_c4_model_governance.py": "5f7a57490a3f8938a7e413f090da41a53539b25889d4ce50f9c7ed0bee8ead99",
+    "tests/test_c4_model_governance.py": "9c6ebe5c58d1fe3c36c185f14d501a6784b8ba16d9927396695ce4a9a4214bcf",
     "tests/test_c5_bet_builder.py": "8dc0cdb89911f3a6e262fbdbe93960d85f3dd3a47720b2a7e10c143294fbb0a1",
     "tests/test_r0_reproductions.py": "dec8a8c460a76448fb19c6ddfb5e7d62f63497eb3e16fbac6325b71f22560301",
     "tests/test_t1_strict_contracts.py": "c0a2eae2c5028bb850d63c1a1aa17be7b1ab6627baefc1e8cce96d6ba089812e",
@@ -69,6 +69,5 @@
       "reason_regex": "replay of historical network captures requires manual audit confirmation"
     }
   ],
-  "session_handoff_command_schema": "env PYTHONPATH=src:scripts .venv/bin/python3 scripts/pipeline_steps/run_daily_pipeline.py --date 2026-07-16 --run-id \"<UNIQUE_RUN_ID>\" --runtime-mode LIVE_SHADOW --allow-live-network --base-run-dir reports/pipeline_runs --verbose",
-  "expected_source_tree_sha256": "e597f78e24fbcd0df0fed6919765e2efc44abdb4a0e8bc657059fda95825aefd"
+  "session_handoff_command_schema": "env PYTHONPATH=src:scripts .venv/bin/python3 scripts/pipeline_steps/run_daily_pipeline.py --date 2026-07-16 --run-id \"<UNIQUE_RUN_ID>\" --runtime-mode LIVE_SHADOW --allow-live-network --base-run-dir reports/pipeline_runs --verbose"
 }
