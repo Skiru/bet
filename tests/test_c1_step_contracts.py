@@ -129,6 +129,7 @@ def test_producer_consumer_chain_matrix():
                 "home_team": "Arsenal",
                 "away_team": "Chelsea",
                 "event_start_time": "2026-07-27T15:00:00Z",
+                "discovery_status": "VERIFIED",
             }
         ]
     )

@@ -2,13 +2,12 @@
 from __future__ import annotations
 
 from typing import Any, Literal
-from pydantic import Field, ConfigDict
+from pydantic import Field, field_validator
 from bet.pipeline.contracts.base import StrictBaseModel
-from bet.pipeline.contracts.common import EventRecordV1, SourceReferenceV1, EvidenceClaimV1
+from bet.pipeline.contracts.common import EventRecordV1, SourceReferenceV1, EvidenceClaimV1, _validate_sha256
 
 
 class SettledRecordV1(StrictBaseModel):
-    model_config = ConfigDict(extra="ignore", frozen=True, populate_by_name=True)
     bet_id: str
     canonical_event_id: str
     market_family: str
@@ -54,9 +53,16 @@ class S1eCanonicalEventUniverseV1(StrictBaseModel):
     total_events: int = Field(ge=0)
     deduplicated_events: list[EventRecordV1] = Field(default_factory=list)
 
+    @field_validator("source_s1_hash")
+    @classmethod
+    def check_hash(cls, v: str) -> str:
+        res = _validate_sha256(v)
+        if res is None:
+            raise ValueError("source_s1_hash cannot be None")
+        return res
+
 
 class ConsensusRecordV1(StrictBaseModel):
-    model_config = ConfigDict(extra="ignore", frozen=True, populate_by_name=True)
     canonical_event_id: str
     tipster_count: int = Field(ge=0, default=0)
     consensus_signal: str | None = None
@@ -77,7 +83,6 @@ class S2TipsterConsensusV1(StrictBaseModel):
 
 
 class EnrichmentGapRecordV1(StrictBaseModel):
-    model_config = ConfigDict(extra="ignore", frozen=True, populate_by_name=True)
     gap_id: str
     canonical_event_id: str
     required_field: str
@@ -109,11 +114,10 @@ class S25ProviderObservationsV1(StrictBaseModel):
 
 
 class UnresolvedConflictRecordV1(StrictBaseModel):
-    model_config = ConfigDict(extra="ignore", frozen=True, populate_by_name=True)
     conflict_id: str
     canonical_event_id: str
     field_name: str
-    conflicting_values: list[Any] = Field(default_factory=list)
+    conflicting_values: list[str | float | int | bool] = Field(default_factory=list)
     status: Literal["UNRESOLVED", "RESOLVED_BY_TIER", "DISCARDED"] = "UNRESOLVED"
 
 
@@ -131,11 +135,10 @@ class S27ReconciledFactsV1(StrictBaseModel):
 
 
 class DataReadinessRecordV1(StrictBaseModel):
-    model_config = ConfigDict(extra="ignore", frozen=True, populate_by_name=True)
     canonical_event_id: str
     sport: str
-    quality_grade: Literal["HIGH", "MEDIUM", "LOW", "UNKNOWN"] = "HIGH"
-    readiness_tier: Literal["READY_FOR_PRICING", "ANALYSIS_ONLY", "BLOCKED"] = "READY_FOR_PRICING"
+    quality_grade: Literal["HIGH", "MEDIUM", "LOW", "UNKNOWN"]
+    readiness_tier: Literal["READY_FOR_PRICING", "ANALYSIS_ONLY", "BLOCKED"]
     missing_fields: list[str] = Field(default_factory=list)
 
 

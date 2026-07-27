@@ -742,14 +742,9 @@ def strict_validate_step_output(
 
         event_records = output_data.get("event_records")
         if not event_records and isinstance(output_data.get("payload"), dict):
-            event_records = output_data["payload"].get("event_records") or output_data["payload"].get("candidates")
-        if event_records is None:
-            for alt_key in ("analyses", "candidates", "shortlist", "events", "approved_picks", "approved_candidates", "analytical_approved", "priced_approved", "rejected", "mapping_suggestions", "quote_cards", "picks", "valuations", "valuation_candidates", "context_reviews", "filtered_candidates"):
-                if alt_key in output_data and isinstance(output_data[alt_key], list):
-                    event_records = output_data[alt_key]
-                    break
+            event_records = output_data["payload"].get("event_records")
 
-        if output_data.get("status") in ("NO_ACTION_TERMINAL", "PASS", "READY") and not event_records and not s1e_file.exists():
+        if output_data.get("status") == "NO_ACTION_TERMINAL" and not event_records and not s1e_file.exists():
             return
 
         if event_records is None:
@@ -763,17 +758,9 @@ def strict_validate_step_output(
             if not isinstance(rec, dict):
                 raise ValueError(f"EVENT_BOUNDARY_RECORD_INVALID: event_records[{idx}] is not a dictionary")
 
-            eid = (
-                rec.get("canonical_event_id")
-                or (str(rec["fixture_id"]) if rec.get("fixture_id") is not None else None)
-                or (str(rec["event_id"]) if rec.get("event_id") is not None else None)
-                or rec.get("candidate_id")
-                or rec.get("selection_id")
-                or rec.get("id")
-                or (f"{rec['home_team']}_vs_{rec['away_team']}" if rec.get("home_team") and rec.get("away_team") else None)
-            )
-            if not eid:
-                raise ValueError(f"EVENT_BOUNDARY_STATUS_MISSING: event_records[{idx}] lacks canonical_event_id")
+            eid = rec.get("canonical_event_id")
+            if not eid or not isinstance(eid, str):
+                raise ValueError(f"EVENT_BOUNDARY_STATUS_MISSING: event_records[{idx}] lacks valid canonical_event_id string")
 
             s_eid = str(eid)
             if s_eid in raw_s1e_ids or not raw_s1e_ids:
@@ -786,15 +773,9 @@ def strict_validate_step_output(
 
             rec_ids.append(mapped_eid)
 
-            status = (
-                rec.get("terminal_status")
-                or rec.get("status")
-                or rec.get("discovery_status")
-                or rec.get("valuation_status")
-                or "PASS"
-            )
-            if not status:
-                raise ValueError(f"EVENT_BOUNDARY_STATUS_MISSING: Event {eid} lacks terminal_status or status")
+            status = rec.get("terminal_status") or rec.get("status") or rec.get("discovery_status") or rec.get("valuation_status")
+            if not status or not isinstance(status, str):
+                raise ValueError(f"EVENT_BOUNDARY_STATUS_MISSING: Event {eid} lacks explicit terminal_status or status")
 
             valid_outcomes = {
                 "CONTINUE", "DEGRADED_CONTINUE", "REJECTED", "NO_ACTION", "BLOCKED", "PASS", "READY",
