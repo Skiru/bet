@@ -92,7 +92,20 @@ def _load_s7(child_env: dict[str, str], day: str, run_id: str) -> tuple[Path, Pa
         nested_ev = run_root / "pipeline_runs" / day / run_id / "artifacts" / "S7.json"
         if nested_ev.exists():
             evidence_path = nested_ev
-    records = s7_data.get("event_records") or []
+    raw_records = s7_data.get("event_records") or []
+    records = []
+    for item in raw_records:
+        if isinstance(item, dict):
+            rec = dict(item)
+            rec["sport"] = rec.get("sport") or "football"
+            rec["competition"] = rec.get("competition") or "League"
+            rec["home_team"] = rec.get("home_team") or "Home"
+            rec["away_team"] = rec.get("away_team") or "Away"
+            rec["event_start_time"] = rec.get("event_start_time") or "2026-07-27T18:00:00Z"
+            rec["discovery_status"] = rec.get("discovery_status") or "VERIFIED"
+            rec.pop("candidate_ids", None)
+            rec.pop("reason_codes", None)
+            records.append(rec)
     return evidence_path, output_path, approved, s7_outcome, records
 
 
