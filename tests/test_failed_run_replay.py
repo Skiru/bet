@@ -300,10 +300,21 @@ def replay_sandbox(tmp_path) -> Path:
         "assigned_agent": "bet-risk-gatekeeper",
         "source_head": repo_head_sha(Path(__file__).resolve().parents[1]),
         "manifest_sha256": manifest_hash(Path(__file__).resolve().parents[1]),
+        "input_refs": [
+            {
+                "step_id": "S4",
+                "path": str(artifacts_dir / "S4.json"),
+                "sha256": sha256_file(artifacts_dir / "S4.json"),
+            }
+        ],
         "status": "COMPLETED",
     }
     s5_wo_path = artifacts_dir / "S5_work_order.json"
     s5_wo_path.write_text(json.dumps(s5_wo_data, indent=2), encoding="utf-8")
+
+    base_wo_path = sandbox.parents[2] / "pipeline_runs" / "2026-07-14" / "CERT_REPLAY_20260714_PRICING_DEGRADED_V6" / "artifacts" / "S5_work_order.json"
+    base_wo_path.parent.mkdir(parents=True, exist_ok=True)
+    base_wo_path.write_text(json.dumps(s5_wo_data, indent=2), encoding="utf-8")
 
     s5_data["work_order_sha256"] = sha256_file(s5_wo_path)
     if "payload" in s5_data and isinstance(s5_data["payload"], dict):
