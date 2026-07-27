@@ -83,6 +83,11 @@ def compute_joint_builder_pricing(
     p_a = leg_a.calibrated_probability
     p_b = leg_b.calibrated_probability
 
+    if not getattr(joint_model, "assumes_independence", False):
+        raise BetBuilderEngineError(
+            f"Joint model {joint_model.joint_model_id} has no copula/dependence method loaded and does not declare assumes_independence=True."
+        )
+
     joint_p = max(0.01, min(0.95, p_a * p_b))
     conservative_joint_p = joint_p
 
@@ -93,7 +98,7 @@ def compute_joint_builder_pricing(
         joint_model_id=joint_model.joint_model_id,
         calibrated_joint_probability=round(joint_p, 4),
         conservative_joint_probability=round(conservative_joint_p, 4),
-        independence_assumed=False,
+        independence_assumed=True,
         fair_combined_odds=fair_combined,
         minimum_acceptable_combined_odds=min_combined,
     )

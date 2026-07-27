@@ -18,6 +18,14 @@ from bet.builder.engine import (
 
 def test_corners_and_shots_same_event_builder():
     """Verify valid corners + shots pair produces an S8 idea group with non-null fair and minimum odds."""
+    import hashlib
+    from pathlib import Path
+    models_dir = Path(__file__).resolve().parent.parent / "models"
+    models_dir.mkdir(exist_ok=True)
+    cal_data = b"joint_calibration_report_001"
+    cal_hash = hashlib.sha256(cal_data).hexdigest()
+    (models_dir / f"cal_{cal_hash[:8]}.bin").write_bytes(cal_data)
+
     leg_corners = BuilderLegV1(
         leg_id="LEG_001",
         canonical_event_id="EVT_FB_ARS_CHE",
@@ -52,8 +60,9 @@ def test_corners_and_shots_same_event_builder():
         model_version="1.0.0",
         sport="football",
         supported_market_family_pairs=(("corners", "shots"),),
-        calibration_report_sha256="0" * 64,
+        calibration_report_sha256=cal_hash,
         promotion_status="PRICING_ELIGIBLE",
+        assumes_independence=True,
     )
 
     idea_groups, rejections = generate_same_event_builders(

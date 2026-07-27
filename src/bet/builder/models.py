@@ -41,6 +41,7 @@ class JointModelScopeV1(StrictBaseModel):
     supported_market_family_pairs: tuple[tuple[str, str], ...]
     calibration_report_sha256: str
     promotion_status: str = "ANALYSIS_ONLY"  # ANALYSIS_ONLY | PRICING_ELIGIBLE | RETIRED
+    assumes_independence: bool = False
 
     @field_validator("calibration_report_sha256")
     @classmethod
@@ -53,7 +54,31 @@ class JointModelScopeV1(StrictBaseModel):
     def is_pricing_eligible(self) -> bool:
         if self.promotion_status != "PRICING_ELIGIBLE":
             return False
-        return is_valid_sha256_hex(self.calibration_report_sha256)
+        if not is_valid_sha256_hex(self.calibration_report_sha256) or self.calibration_report_sha256 == "0" * 64:
+            return False
+
+        from pathlib import Path
+        import hashlib
+        root = Path(__file__).resolve().parent.parent.parent.parent
+        artifact_dirs = [
+            root / "models",
+            root / ".kilo" / "artifacts" / "models",
+            root / "data" / "models",
+        ]
+        found_calibration = False
+        for d in artifact_dirs:
+            if not d.exists():
+                continue
+            for p in d.rglob("*"):
+                if p.is_file():
+                    try:
+                        content = p.read_bytes()
+                        h = hashlib.sha256(content).hexdigest()
+                        if h == self.calibration_report_sha256:
+                            found_calibration = True
+                    except Exception:
+                        pass
+        return found_calibration
 
 
 class JointProbabilityEstimateV1(StrictBaseModel):

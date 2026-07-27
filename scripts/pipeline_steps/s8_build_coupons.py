@@ -160,27 +160,31 @@ def main() -> None:
             legs: list[BuilderLegV1] = []
             event_metadata: dict[str, dict[str, str]] = {}
             for card in cards:
-                eid = card.get("canonical_event_id") or card.get("source_candidate_id")
-                if not eid:
+                eid = card.get("canonical_event_id")
+                card_id = card.get("quote_card_id")
+                sport = card.get("sport")
+                comp = card.get("competition")
+                home = card.get("home_team")
+                away = card.get("away_team")
+                m_fam = card.get("market_family")
+                sel = card.get("selection")
+                if not (eid and card_id and sport and comp and home and away and m_fam and sel):
                     continue
+
                 min_odds_val = card.get("recommended_minimum_odds") or card.get("minimum_acceptable_odds")
                 fair_odds_val = card.get("fair_odds") or card.get("model_fair_odds") or min_odds_val
                 prob_val = card.get("model_fair_probability") or card.get("calibrated_probability")
-                sport = card.get("sport") or "football"
-                comp = card.get("competition") or "League"
-                home = card.get("home_team") or "Home"
-                away = card.get("away_team") or "Away"
 
                 if not min_odds_val or not prob_val or not fair_odds_val:
                     continue
 
                 legs.append(
                     BuilderLegV1(
-                        leg_id=str(card.get("quote_card_id", "LEG_001")),
+                        leg_id=str(card_id),
                         canonical_event_id=str(eid),
                         sport=str(sport),
-                        market_family=str(card.get("market_family", "result")),
-                        selection=str(card.get("selection", "home")),
+                        market_family=str(m_fam),
+                        selection=str(sel),
                         line=card.get("line"),
                         calibrated_probability=float(prob_val),
                         fair_odds=Decimal(str(fair_odds_val)),
@@ -199,8 +203,13 @@ def main() -> None:
 
             # Only pass registered PRICING_ELIGIBLE joint models from registry (do NOT synthesize fake joint models in daily wrapper)
             promoted_joint_models: list[JointModelScopeV1] = []
-            groups, _ = generate_same_event_builders(legs, promoted_joint_models, event_metadata)
+            groups, rejections = generate_same_event_builders(legs, promoted_joint_models, event_metadata)
             idea_groups_list = [g.model_dump(mode="json") for g in groups]
+            rejections_list = [r.model_dump(mode="json") for r in rejections]
+
+        if not cards:
+            outcome = "NO_ACTION_TERMINAL"
+            ready_for_human_gate = False
 
         output_artifact = {
                 "schema_version": 2,
@@ -216,6 +225,7 @@ def main() -> None:
                 "quote_card_count": len(cards),
                 "quote_cards": cards,
                 "idea_groups": idea_groups_list,
+                "rejections": rejections_list if cards else [],
                 "event_records": s7b_records,
                 "analytical_status": "READY" if cards else "NO_ACTION",
                 "pricing_status": "UNPRICED",
