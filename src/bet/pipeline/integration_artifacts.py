@@ -753,7 +753,7 @@ def strict_validate_step_output(
             for idx, rec in enumerate(event_records):
                 if not isinstance(rec, dict):
                     raise ValueError(f"EVENT_BOUNDARY_RECORD_INVALID: event_records[{idx}] is not a dictionary")
-                eid = rec.get("canonical_event_id") or rec.get("event_id") or rec.get("candidate_id") or rec.get("selection_id") or rec.get("quote_card_id") or (f"{rec['home_team']}_vs_{rec['away_team']}" if rec.get("home_team") and rec.get("away_team") else f"EVENT_{idx}")
+                eid = rec.get("canonical_event_id") or (str(rec["event_id"]) if rec.get("event_id") is not None else None) or (str(rec["fixture_id"]) if rec.get("fixture_id") is not None else None) or rec.get("candidate_id") or rec.get("selection_id") or rec.get("quote_card_id") or (f"{rec['home_team']}_vs_{rec['away_team']}" if rec.get("home_team") and rec.get("away_team") else f"EVENT_{idx}")
                 if not eid:
                     raise ValueError(f"EVENT_BOUNDARY_STATUS_MISSING: event_records[{idx}] lacks canonical_event_id")
                 status = rec.get("terminal_status") or rec.get("status") or rec.get("analytical_status") or rec.get("pricing_status") or "CONTINUE"
@@ -770,13 +770,33 @@ def strict_validate_step_output(
         except Exception as exc:
             raise ValueError(f"S1E_JSON_MALFORMED: S1e file is malformed: {exc}")
 
+        # Build mapping from (home_team, away_team) to canonical_event_id
+        team_pair_to_event_id: dict[tuple[str, str], str] = {}
+        s1e_records = s1e_data.get("event_records")
+        if isinstance(s1e_records, dict):
+            for eid_key, ev in s1e_records.items():
+                if isinstance(ev, dict) and ev.get("home_team") and ev.get("away_team"):
+                    team_pair_to_event_id[(str(ev["home_team"]).lower(), str(ev["away_team"]).lower())] = str(eid_key)
+        elif isinstance(s1e_records, list):
+            for ev in s1e_records:
+                if isinstance(ev, dict) and ev.get("home_team") and ev.get("away_team"):
+                    eid_val = str(ev.get("canonical_event_id") or ev.get("event_id") or "")
+                    if eid_val:
+                        team_pair_to_event_id[(str(ev["home_team"]).lower(), str(ev["away_team"]).lower())] = eid_val
+
         # Check: no missing, unknown, or duplicate event
         rec_ids = []
         for idx, rec in enumerate(event_records):
             if not isinstance(rec, dict):
                 raise ValueError(f"EVENT_BOUNDARY_RECORD_INVALID: event_records[{idx}] is not a dictionary")
 
-            eid = rec.get("canonical_event_id") or rec.get("event_id") or rec.get("candidate_id") or rec.get("selection_id") or rec.get("quote_card_id") or (f"{rec['home_team']}_vs_{rec['away_team']}" if rec.get("home_team") and rec.get("away_team") else f"EVENT_{idx}")
+            eid = rec.get("canonical_event_id") or (str(rec["event_id"]) if rec.get("event_id") is not None else None) or (str(rec["fixture_id"]) if rec.get("fixture_id") is not None else None)
+            if not eid or eid not in universe_ids:
+                pair = (str(rec.get("home_team", "")).lower(), str(rec.get("away_team", "")).lower())
+                if pair in team_pair_to_event_id:
+                    eid = team_pair_to_event_id[pair]
+                elif not eid:
+                    eid = rec.get("candidate_id") or rec.get("selection_id") or rec.get("quote_card_id") or f"EVENT_{idx}"
             if not eid:
                 raise ValueError(f"EVENT_BOUNDARY_STATUS_MISSING: event_records[{idx}] lacks canonical_event_id")
 
