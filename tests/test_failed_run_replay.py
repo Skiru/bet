@@ -305,10 +305,6 @@ def replay_sandbox(tmp_path) -> Path:
     s5_wo_path = artifacts_dir / "S5_work_order.json"
     s5_wo_path.write_text(json.dumps(s5_wo_data, indent=2), encoding="utf-8")
 
-    repo_root_wo = Path(__file__).resolve().parents[1] / "pipeline_runs" / "2026-07-14" / "CERT_REPLAY_20260714_PRICING_DEGRADED_V6" / "artifacts" / "S5_work_order.json"
-    repo_root_wo.parent.mkdir(parents=True, exist_ok=True)
-    repo_root_wo.write_text(json.dumps(s5_wo_data, indent=2), encoding="utf-8")
-
     s5_data["work_order_sha256"] = sha256_file(s5_wo_path)
     if "payload" in s5_data and isinstance(s5_data["payload"], dict):
         s5_data["payload"]["work_order_sha256"] = sha256_file(s5_wo_path)
