@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from decimal import Decimal
-from typing import Sequence
+from typing import Mapping, Sequence
 from bet.builder.models import (
     BuilderLegV1,
     BuilderCompatibilityDecisionV1,
@@ -29,6 +29,14 @@ def validate_leg_compatibility(leg_a: BuilderLegV1, leg_b: BuilderLegV1) -> Buil
             rejection_reason="DIFFERENT_EVENTS",
         )
 
+    if leg_a.sport != leg_b.sport:
+        return BuilderCompatibilityDecisionV1(
+            compatible=False,
+            canonical_event_id=leg_a.canonical_event_id,
+            leg_ids=(leg_a.leg_id, leg_b.leg_id),
+            rejection_reason="CROSS_SPORT_BUILDER_FORBIDDEN",
+        )
+
     if leg_a.market_family == leg_b.market_family:
         return BuilderCompatibilityDecisionV1(
             compatible=False,
@@ -36,10 +44,6 @@ def validate_leg_compatibility(leg_a: BuilderLegV1, leg_b: BuilderLegV1) -> Buil
             leg_ids=(leg_a.leg_id, leg_b.leg_id),
             rejection_reason="DUPLICATE_MARKET_FAMILY",
         )
-
-    # Check incompatible/contradictory selections
-    if (leg_a.selection == "under" and leg_b.selection == "over") or (leg_a.selection == "over" and leg_b.selection == "under"):
-        pass  # Over + Under on different market families (e.g. over corners + under cards) is allowed
 
     return BuilderCompatibilityDecisionV1(
         compatible=True,
@@ -59,6 +63,11 @@ def compute_joint_builder_pricing(
 
     Rejects naive marginal multiplication (p_a * p_b) without joint model scope.
     """
+    if leg_a.sport != joint_model.sport or leg_b.sport != joint_model.sport:
+        raise BetBuilderEngineError(
+            f"Leg sports ({leg_a.sport}, {leg_b.sport}) mismatch joint model sport {joint_model.sport}."
+        )
+
     pair = (leg_a.market_family, leg_b.market_family)
     reverse_pair = (leg_b.market_family, leg_a.market_family)
 
@@ -70,7 +79,7 @@ def compute_joint_builder_pricing(
     p_a = leg_a.calibrated_probability
     p_b = leg_b.calibrated_probability
 
-    # Joint probability with copula/dependence adjustment (e.g., positive correlation for corners + shots)
+    # Calibrated joint probability using bound joint model copula formula
     joint_p = p_a * p_b + (dependence_correlation * (p_a * (1.0 - p_a) * p_b * (1.0 - p_b)) ** 0.5)
     joint_p = max(0.01, min(0.95, joint_p))
 
@@ -92,10 +101,12 @@ def compute_joint_builder_pricing(
 def generate_same_event_builders(
     legs: Sequence[BuilderLegV1],
     joint_models: Sequence[JointModelScopeV1],
+    event_metadata: Mapping[str, dict[str, str]] | None = None,
 ) -> tuple[list[S8IdeaGroupV1], list[BuilderRejectionV1]]:
     """Generate same-event Bet Builder candidates and group them into S8 idea groups."""
     rejections: list[BuilderRejectionV1] = []
     idea_groups_map: dict[str, S8IdeaGroupV1] = {}
+    meta_map = event_metadata or {}
 
     if len(legs) < 2:
         return [], rejections
@@ -104,8 +115,6 @@ def generate_same_event_builders(
     legs_by_event: dict[str, list[BuilderLegV1]] = {}
     for leg in legs:
         legs_by_event.setdefault(leg.canonical_event_id, []).append(leg)
-
-    joint_model_map = {m.joint_model_id: m for m in joint_models}
 
     for eid, event_legs in legs_by_event.items():
         if len(event_legs) < 2:
@@ -151,13 +160,19 @@ def generate_same_event_builders(
 
                 joint_pricing = compute_joint_builder_pricing(leg1, leg2, matching_model)
 
+                # Extract event metadata dynamically (never hardcode teams/competitions)
+                emeta = meta_map.get(eid, {})
+                comp = emeta.get("competition") or leg1.competition
+                home = emeta.get("home_team") or leg1.home_team
+                away = emeta.get("away_team") or leg1.away_team
+
                 candidate = SameEventBuilderCandidateV1(
                     builder_id=f"BUILDER-{eid}-{i+1}-{j+1}",
                     canonical_event_id=eid,
                     sport=leg1.sport,
-                    competition="Premier League",
-                    home_team="Arsenal",
-                    away_team="Chelsea",
+                    competition=comp,
+                    home_team=home,
+                    away_team=away,
                     legs=(leg1, leg2),
                     joint_model_id=matching_model.joint_model_id,
                     joint_probability=joint_pricing,
@@ -167,12 +182,13 @@ def generate_same_event_builders(
                 builder_candidates.append(candidate)
 
         if builder_candidates:
+            b0 = builder_candidates[0]
             idea_groups_map[eid] = S8IdeaGroupV1(
                 idea_group_id=f"IDEA-{eid}",
                 canonical_event_id=eid,
-                sport=builder_candidates[0].sport,
-                competition=builder_candidates[0].competition,
-                event_name=f"{builder_candidates[0].home_team} vs {builder_candidates[0].away_team}",
+                sport=b0.sport,
+                competition=b0.competition,
+                event_name=f"{b0.home_team} vs {b0.away_team}",
                 builder_candidates=builder_candidates,
             )
 

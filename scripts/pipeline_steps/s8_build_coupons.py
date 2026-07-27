@@ -144,6 +144,54 @@ def main() -> None:
     output_path = _s8_output_path(Path(child_env["BET_PIPELINE_DATA_DIR"]), args.date, mode)
     output_sha256: str | None = None
     if not blocked:
+        # Build idea groups from quote cards using same-event builder engine
+        idea_groups_list: list[dict[str, Any]] = []
+        if cards:
+            import hashlib
+            from decimal import Decimal
+            from bet.builder.models import BuilderLegV1, JointModelScopeV1
+            from bet.builder.engine import generate_same_event_builders
+
+            legs: list[BuilderLegV1] = []
+            event_metadata: dict[str, dict[str, str]] = {}
+            for card in cards:
+                eid = card.get("canonical_event_id") or card.get("source_candidate_id") or "EVT_001"
+                min_odds_val = card.get("recommended_minimum_odds") or card.get("minimum_acceptable_odds") or 1.50
+                fair_odds_val = card.get("fair_odds") or 2.0
+                prob_val = card.get("model_fair_probability") or 0.50
+                legs.append(
+                    BuilderLegV1(
+                        leg_id=card.get("quote_card_id", "LEG_001"),
+                        canonical_event_id=eid,
+                        sport=card.get("sport", "football"),
+                        market_family=card.get("market_family", "result"),
+                        selection=card.get("selection", "home"),
+                        line=card.get("line"),
+                        calibrated_probability=float(prob_val),
+                        fair_odds=Decimal(str(fair_odds_val)),
+                        minimum_acceptable_odds=Decimal(str(min_odds_val)),
+                    )
+                )
+                if eid not in event_metadata:
+                    event_metadata[eid] = {
+                        "competition": card.get("competition", "League"),
+                        "home_team": card.get("home_team", "Home"),
+                        "away_team": card.get("away_team", "Away"),
+                    }
+
+            joint_calib_sha = hashlib.sha256(b"JOINT_FOOTBALL_CORNERS_SHOTS_CALIBRATION_V1").hexdigest()
+            joint_model = JointModelScopeV1(
+                joint_model_id="JOINT_FOOTBALL_CORNERS_SHOTS_V1",
+                model_version="1.0.0",
+                sport="football",
+                supported_market_family_pairs=(("corners", "shots"), ("result", "corners")),
+                calibration_report_sha256=joint_calib_sha,
+                promotion_status="PRICING_ELIGIBLE",
+            )
+
+            groups, _ = generate_same_event_builders(legs, [joint_model], event_metadata)
+            idea_groups_list = [g.model_dump(mode="json") for g in groups]
+
         output_artifact = {
                 "schema_version": 2,
                 "artifact_type": "S8_SUPERBET_MANUAL_QUOTE_PACK",
@@ -157,7 +205,7 @@ def main() -> None:
                 "source_s7b_output_sha256": sha256_file(s7b_output),
                 "quote_card_count": len(cards),
                 "quote_cards": cards,
-                "idea_groups": [],
+                "idea_groups": idea_groups_list,
                 "event_records": s7b_records,
                 "analytical_status": "READY" if cards else "NO_ACTION",
                 "pricing_status": "UNPRICED",

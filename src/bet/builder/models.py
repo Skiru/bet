@@ -5,6 +5,7 @@ from decimal import Decimal
 from typing import Any
 from pydantic import Field
 from bet.pipeline.contracts.base import StrictBaseModel
+from bet.models.registry import is_valid_sha256_hex
 
 
 class BuilderLegV1(StrictBaseModel):
@@ -18,6 +19,9 @@ class BuilderLegV1(StrictBaseModel):
     calibrated_probability: float = Field(gt=0.0, lt=1.0)
     fair_odds: Decimal
     minimum_acceptable_odds: Decimal
+    competition: str = "UNKNOWN_COMPETITION"
+    home_team: str = "Team Home"
+    away_team: str = "Team Away"
 
 
 class BuilderCompatibilityDecisionV1(StrictBaseModel):
@@ -36,6 +40,11 @@ class JointModelScopeV1(StrictBaseModel):
     supported_market_family_pairs: tuple[tuple[str, str], ...]
     calibration_report_sha256: str
     promotion_status: str = "PRICING_ELIGIBLE"
+
+    def is_pricing_eligible(self) -> bool:
+        if self.promotion_status != "PRICING_ELIGIBLE":
+            return False
+        return is_valid_sha256_hex(self.calibration_report_sha256)
 
 
 class JointProbabilityEstimateV1(StrictBaseModel):
