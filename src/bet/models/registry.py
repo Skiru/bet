@@ -138,8 +138,18 @@ class ProbabilityEstimateV2(StrictBaseModel):
         if not is_valid_sha256_hex(model_card.calibration_report_sha256):
             raise ValueError("calibration_report_sha256 is not a valid 64-character hex SHA256.")
 
-        if event_start_time and prediction_as_of > event_start_time:
-            raise ValueError("prediction_as_of timestamp is after event_start_time.")
+        if event_start_time:
+            from datetime import datetime
+            try:
+                dt_pred = datetime.fromisoformat(prediction_as_of.replace("Z", "+00:00"))
+                dt_start = datetime.fromisoformat(event_start_time.replace("Z", "+00:00"))
+                if dt_pred >= dt_start:
+                    raise ValueError("prediction_as_of timestamp is at or after event_start_time.")
+            except ValueError as exc:
+                if "at or after" in str(exc):
+                    raise
+                if prediction_as_of >= event_start_time:
+                    raise ValueError("prediction_as_of timestamp is at or after event_start_time.")
 
         point_p = calibrated_probability
         calibrated_p = calibrated_probability

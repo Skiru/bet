@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import pytest
 from decimal import Decimal
-from bet.models import DATASET_ENG1_SHA256, FEATURE_SCHEMA_ENG1_SHA256
 from bet.models.contracts import TemporalSplitPlanV1
 from bet.models.registry import (
     ModelCardV1,
@@ -13,17 +12,15 @@ from bet.models.registry import (
 from bet.models.dixon_coles import calculate_dixon_coles_outcomes
 
 
-def test_promoted_model_card_is_pricing_eligible():
-    """Verify FOOTBALL_DIXON_COLES_ENG1_V1 is registered and PRICING_ELIGIBLE."""
+def test_dixon_coles_registered_as_analysis_only():
+    """Verify default Dixon-Coles model is ANALYSIS_ONLY until verified fitted artifacts exist."""
     card = GLOBAL_MODEL_REGISTRY.get_strict("FOOTBALL_DIXON_COLES_ENG1_V1")
-    assert card.promotion_status == "PRICING_ELIGIBLE"
-    assert card.is_pricing_eligible()
-    assert len(card.literature_citations) >= 1
-    assert "Dixon" in card.literature_citations[0].citation
+    assert card.promotion_status == "ANALYSIS_ONLY"
+    assert not card.is_pricing_eligible()
 
 
 def test_unpromoted_model_cannot_produce_pricing_estimate():
-    """Verify an EXPERIMENTAL or SHADOW_ONLY model card rejects pricing probability estimate creation."""
+    """Verify an EXPERIMENTAL, ANALYSIS_ONLY or SHADOW_ONLY model card rejects pricing probability estimate creation."""
     exp_card = ModelCardV1(
         model_id="EXPERIMENTAL_MODEL_001",
         model_version="0.1.0",
@@ -50,27 +47,39 @@ def test_unpromoted_model_cannot_produce_pricing_estimate():
         )
 
 
-def test_minimum_odds_decimal_calculation():
-    """Verify minimum acceptable odds uses conservative probability and Decimal precision."""
-    card = GLOBAL_MODEL_REGISTRY.get_strict("FOOTBALL_DIXON_COLES_ENG1_V1")
+def test_promoted_model_minimum_odds_decimal_calculation():
+    """Verify a truly promoted model card calculates fair/minimum odds with Decimal precision."""
+    promoted_card = ModelCardV1(
+        model_id="PROMOTED_MODEL_001",
+        model_version="1.0.0",
+        code_sha256="0" * 64,
+        feature_schema_hash="1" * 64,
+        sport="football",
+        competition_scope="eng.1",
+        market_family="result",
+        dataset_receipt_sha256="2" * 64,
+        calibration_report_sha256="3" * 64,
+        promotion_status="PRICING_ELIGIBLE",
+        model_card_sha256="4" * 64,
+    )
 
     estimate = ProbabilityEstimateV2.create(
-        model_card=card,
-        dataset_receipt_sha256=DATASET_ENG1_SHA256,
-        feature_snapshot_sha256=FEATURE_SCHEMA_ENG1_SHA256,
+        model_card=promoted_card,
+        dataset_receipt_sha256="2" * 64,
+        feature_snapshot_sha256="1" * 64,
         prediction_as_of="2026-07-27T10:00:00Z",
         canonical_event_id="EVT_ARS_CHE_001",
         market_family="result",
         selection="home",
         calibrated_probability=0.50,
         uncertainty_margin=0.02,  # conservative_p = 0.48
-        required_roi=0.05,  # 1.05 / 0.48 = 2.1875
+        required_roi=0.05,
     )
 
     assert estimate.calibrated_probability == 0.50
     assert estimate.conservative_probability == 0.48
-    assert estimate.fair_decimal_odds == Decimal("2.0000")  # 1 / 0.50 = 2.0
-    assert estimate.minimum_acceptable_operator_odds == Decimal("2.1875")  # (1.05) / 0.48 = 2.1875
+    assert estimate.fair_decimal_odds == Decimal("2.0000")
+    assert estimate.minimum_acceptable_operator_odds == Decimal("2.1875")
 
 
 def test_chronological_temporal_split_order():
