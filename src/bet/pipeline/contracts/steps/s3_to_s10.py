@@ -160,6 +160,14 @@ class S7bSuperbetManualMappingV1(StrictBaseModel):
     represented_candidate_count: int = Field(ge=0, default=0)
     mapping_suggestions: list[MappingSuggestionRecordV1] = Field(default_factory=list)
     event_records: list[EventRecordV1] = Field(default_factory=list)
+    source_s7_evidence_path: str | None = None
+    source_s7_evidence_sha256: str | None = None
+    source_s7_output_path: str | None = None
+    source_s7_output_sha256: str | None = None
+    manual_verification_required: bool = False
+    executable_coupon: bool = False
+    betting_valid: bool = False
+    can_place_bet_now: bool = False
 
 
 class QuoteCardRecordV1(StrictBaseModel):
