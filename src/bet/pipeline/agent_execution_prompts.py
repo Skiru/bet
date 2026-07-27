@@ -139,12 +139,19 @@ def render_agent_execution_prompt(work_order: dict[str, Any]) -> str:
         "Return BLOCK instead of guessing.",
         "Do not emit pick, edge, stake, coupon, parlay or accumulator.",
         "Do not write to betting/data, betting/coupons, reports or production DB.",
-        "Do not call external APIs unless the work order input artifacts already contain the required source evidence.",
+    ]
+
+    if work_order.get("acquisition_plan"):
+        prompt_lines.append("Use only the allowed tools and queries listed in the FACT ACQUISITION PLAN. Open-ended browsing remains forbidden.")
+    else:
+        prompt_lines.append("Do not call external APIs or browse externally; use only the evidence provided in the input artifacts.")
+
+    prompt_lines.extend([
         "Do not include secrets.",
         "Do not include production write instructions.",
         "",
         "INPUT REFS:",
-    ]
+    ])
 
     for ref in work_order["input_refs"]:
         prompt_lines.append(
@@ -260,10 +267,13 @@ def validate_rendered_prompt(prompt: str, work_order: dict[str, Any]) -> list[st
         "Return BLOCK instead of guessing.",
         "Do not emit pick, edge, stake, coupon, parlay or accumulator.",
         "Do not write to betting/data, betting/coupons, reports or production DB.",
-        "Do not call external APIs unless the work order input artifacts already contain the required source evidence.",
         "JSON ARTIFACT SCHEMA SKELETON:",
         "FINAL OUTPUT SCHEMA:",
     ]
+    if work_order.get("acquisition_plan"):
+        required_fragments.append("Use only the allowed tools and queries listed in the FACT ACQUISITION PLAN.")
+    else:
+        required_fragments.append("Do not call external APIs or browse externally;")
     for fragment in required_fragments:
         if fragment not in prompt:
             errors.append(f"Prompt missing required fragment: {fragment}")
