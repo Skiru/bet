@@ -731,7 +731,7 @@ def strict_validate_step_output(
     if step_id in {"S2", "S3", "S4", "S5", "S6", "S7", "S7b", "S8"}:
         event_records = output_data.get("event_records")
         if event_records is None and isinstance(output_data.get("payload"), dict):
-            event_records = output_data["payload"].get("event_records")
+            event_records = output_data["payload"].get("event_records") or output_data["payload"].get("candidates")
         if event_records is None and isinstance(output_data.get("candidates"), list):
             event_records = output_data["candidates"]
 
