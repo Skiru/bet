@@ -160,41 +160,46 @@ def main() -> None:
             legs: list[BuilderLegV1] = []
             event_metadata: dict[str, dict[str, str]] = {}
             for card in cards:
-                eid = card.get("canonical_event_id") or card.get("source_candidate_id") or "EVT_001"
-                min_odds_val = card.get("recommended_minimum_odds") or card.get("minimum_acceptable_odds") or 1.50
-                fair_odds_val = card.get("fair_odds") or 2.0
-                prob_val = card.get("model_fair_probability") or 0.50
+                eid = card.get("canonical_event_id") or card.get("source_candidate_id")
+                if not eid:
+                    continue
+                min_odds_val = card.get("recommended_minimum_odds") or card.get("minimum_acceptable_odds")
+                fair_odds_val = card.get("fair_odds") or card.get("model_fair_odds") or min_odds_val
+                prob_val = card.get("model_fair_probability") or card.get("calibrated_probability")
+                sport = card.get("sport") or "football"
+                comp = card.get("competition") or "League"
+                home = card.get("home_team") or "Home"
+                away = card.get("away_team") or "Away"
+
+                if not min_odds_val or not prob_val or not fair_odds_val:
+                    continue
+
                 legs.append(
                     BuilderLegV1(
-                        leg_id=card.get("quote_card_id", "LEG_001"),
-                        canonical_event_id=eid,
-                        sport=card.get("sport", "football"),
-                        market_family=card.get("market_family", "result"),
-                        selection=card.get("selection", "home"),
+                        leg_id=str(card.get("quote_card_id", "LEG_001")),
+                        canonical_event_id=str(eid),
+                        sport=str(sport),
+                        market_family=str(card.get("market_family", "result")),
+                        selection=str(card.get("selection", "home")),
                         line=card.get("line"),
                         calibrated_probability=float(prob_val),
                         fair_odds=Decimal(str(fair_odds_val)),
                         minimum_acceptable_odds=Decimal(str(min_odds_val)),
+                        competition=str(comp),
+                        home_team=str(home),
+                        away_team=str(away),
                     )
                 )
-                if eid not in event_metadata:
-                    event_metadata[eid] = {
-                        "competition": card.get("competition", "League"),
-                        "home_team": card.get("home_team", "Home"),
-                        "away_team": card.get("away_team", "Away"),
+                if str(eid) not in event_metadata:
+                    event_metadata[str(eid)] = {
+                        "competition": str(comp),
+                        "home_team": str(home),
+                        "away_team": str(away),
                     }
 
-            joint_calib_sha = hashlib.sha256(b"JOINT_FOOTBALL_CORNERS_SHOTS_CALIBRATION_V1").hexdigest()
-            joint_model = JointModelScopeV1(
-                joint_model_id="JOINT_FOOTBALL_CORNERS_SHOTS_V1",
-                model_version="1.0.0",
-                sport="football",
-                supported_market_family_pairs=(("corners", "shots"), ("result", "corners")),
-                calibration_report_sha256=joint_calib_sha,
-                promotion_status="PRICING_ELIGIBLE",
-            )
-
-            groups, _ = generate_same_event_builders(legs, [joint_model], event_metadata)
+            # Only pass registered PRICING_ELIGIBLE joint models from registry (do NOT synthesize fake joint models in daily wrapper)
+            promoted_joint_models: list[JointModelScopeV1] = []
+            groups, _ = generate_same_event_builders(legs, promoted_joint_models, event_metadata)
             idea_groups_list = [g.model_dump(mode="json") for g in groups]
 
         output_artifact = {

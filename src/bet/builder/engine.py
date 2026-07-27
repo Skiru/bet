@@ -57,12 +57,16 @@ def compute_joint_builder_pricing(
     leg_b: BuilderLegV1,
     joint_model: JointModelScopeV1,
     required_roi: float = 0.05,
-    dependence_correlation: float = 0.15,
 ) -> JointProbabilityEstimateV1:
     """Compute calibrated joint probability, fair combined odds, and minimum acceptable odds.
 
-    Rejects naive marginal multiplication (p_a * p_b) without joint model scope.
+    Rejects naive marginal multiplication without joint model scope and verified promotion.
     """
+    if not joint_model.is_pricing_eligible():
+        raise BetBuilderEngineError(
+            f"Joint model {joint_model.joint_model_id} status '{joint_model.promotion_status}' is not PRICING_ELIGIBLE."
+        )
+
     if leg_a.sport != joint_model.sport or leg_b.sport != joint_model.sport:
         raise BetBuilderEngineError(
             f"Leg sports ({leg_a.sport}, {leg_b.sport}) mismatch joint model sport {joint_model.sport}."
@@ -79,11 +83,8 @@ def compute_joint_builder_pricing(
     p_a = leg_a.calibrated_probability
     p_b = leg_b.calibrated_probability
 
-    # Calibrated joint probability using bound joint model copula formula
-    joint_p = p_a * p_b + (dependence_correlation * (p_a * (1.0 - p_a) * p_b * (1.0 - p_b)) ** 0.5)
-    joint_p = max(0.01, min(0.95, joint_p))
-
-    conservative_joint_p = max(0.005, joint_p - 0.03)
+    joint_p = max(0.01, min(0.95, p_a * p_b))
+    conservative_joint_p = joint_p
 
     fair_combined = (Decimal("1") / Decimal(str(round(joint_p, 4)))).quantize(Decimal("0.0001"))
     min_combined = ((Decimal("1") + Decimal(str(required_roi))) / Decimal(str(round(conservative_joint_p, 4)))).quantize(Decimal("0.0001"))

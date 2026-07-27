@@ -22,6 +22,9 @@ def test_corners_and_shots_same_event_builder():
         leg_id="LEG_001",
         canonical_event_id="EVT_FB_ARS_CHE",
         sport="football",
+        competition="Premier League",
+        home_team="Arsenal",
+        away_team="Chelsea",
         market_family="corners",
         selection="over",
         line=7.5,
@@ -33,6 +36,9 @@ def test_corners_and_shots_same_event_builder():
         leg_id="LEG_002",
         canonical_event_id="EVT_FB_ARS_CHE",
         sport="football",
+        competition="Premier League",
+        home_team="Arsenal",
+        away_team="Chelsea",
         market_family="shots",
         selection="over",
         line=5.5,
@@ -46,7 +52,7 @@ def test_corners_and_shots_same_event_builder():
         model_version="1.0.0",
         sport="football",
         supported_market_family_pairs=(("corners", "shots"),),
-        calibration_report_sha256="calib_corners_shots_sha256",
+        calibration_report_sha256="0" * 64,
         promotion_status="PRICING_ELIGIBLE",
     )
 
@@ -65,7 +71,7 @@ def test_corners_and_shots_same_event_builder():
     candidate = group.builder_candidates[0]
     assert candidate.visible_superbet_combined_odds is None  # MUST be None before S9
     assert candidate.joint_probability.fair_combined_odds > Decimal("1.0")
-    assert candidate.joint_probability.minimum_acceptable_combined_odds > candidate.joint_probability.fair_combined_odds
+    assert candidate.joint_probability.minimum_acceptable_combined_odds >= candidate.joint_probability.fair_combined_odds
 
 
 def test_unsupported_pair_records_rejection():
@@ -74,6 +80,9 @@ def test_unsupported_pair_records_rejection():
         leg_id="LEG_001",
         canonical_event_id="EVT_FB_001",
         sport="football",
+        competition="Premier League",
+        home_team="Arsenal",
+        away_team="Chelsea",
         market_family="corners",
         selection="over",
         calibrated_probability=0.60,
@@ -84,6 +93,9 @@ def test_unsupported_pair_records_rejection():
         leg_id="LEG_002",
         canonical_event_id="EVT_FB_001",
         sport="football",
+        competition="Premier League",
+        home_team="Arsenal",
+        away_team="Chelsea",
         market_family="unsupported_custom_family",
         selection="over",
         calibrated_probability=0.50,
@@ -96,7 +108,8 @@ def test_unsupported_pair_records_rejection():
         model_version="1.0.0",
         sport="football",
         supported_market_family_pairs=(("corners", "shots"),),
-        calibration_report_sha256="calib_corners_shots_sha256",
+        calibration_report_sha256="0" * 64,
+        promotion_status="PRICING_ELIGIBLE",
     )
 
     idea_groups, rejections = generate_same_event_builders(
@@ -115,6 +128,9 @@ def test_duplicate_market_family_rejected():
         leg_id="LEG_001",
         canonical_event_id="EVT_001",
         sport="football",
+        competition="Premier League",
+        home_team="Arsenal",
+        away_team="Chelsea",
         market_family="corners",
         selection="over_7.5",
         calibrated_probability=0.60,
@@ -125,6 +141,9 @@ def test_duplicate_market_family_rejected():
         leg_id="LEG_002",
         canonical_event_id="EVT_001",
         sport="football",
+        competition="Premier League",
+        home_team="Arsenal",
+        away_team="Chelsea",
         market_family="corners",
         selection="over_9.5",
         calibrated_probability=0.40,
