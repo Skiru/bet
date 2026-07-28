@@ -4,7 +4,11 @@ from __future__ import annotations
 from pydantic import Field
 from bet.pipeline.contracts.base import StrictBaseModel, CompletionEnvelopeType, ArtifactRole
 from bet.pipeline.contracts.registry import ContractDescriptor, GLOBAL_CONTRACT_REGISTRY
-from bet.pipeline.contracts.steps.s3_to_s10 import S7CandidateRecord, S7bCandidateRecord, S8InputCandidateRecord
+from bet.pipeline.contracts.steps.s3_to_s10 import (
+    S7ApprovedPicksV1,
+    S7bSuperbetManualMappingV1,
+    S8SuperbetManualQuotePackV1,
+)
 
 
 class DummyStepModel(StrictBaseModel):
@@ -25,9 +29,9 @@ def _register_step_contracts() -> None:
         ("S4_EXPECTED_VALUE_ESTIMATES", 1, CompletionEnvelopeType.SCRIPT_EVIDENCE, "S4", ("S5",)),
         ("S5_CONTEXT_MOTIVATION_RISK", 1, CompletionEnvelopeType.AGENT_ARTIFACT, "S5", ("S6",)),
         ("S6_PORTFOLIO_REPEAT_GUARD", 1, CompletionEnvelopeType.SCRIPT_EVIDENCE, "S6", ("S7",)),
-        ("S7_APPROVED_PICKS", 1, CompletionEnvelopeType.SCRIPT_EVIDENCE, "S7", ("S7b",), S7CandidateRecord),
-        ("S7B_SUPERBET_MANUAL_MAPPING", 2, CompletionEnvelopeType.SCRIPT_EVIDENCE, "S7b", ("S8",), S7bCandidateRecord),
-        ("S8_SUPERBET_MANUAL_QUOTE_PACK", 2, CompletionEnvelopeType.SCRIPT_EVIDENCE, "S8", ("S9",), S8InputCandidateRecord),
+        ("S7_APPROVED_PICKS", 1, CompletionEnvelopeType.SCRIPT_EVIDENCE, "S7", ("S7b",), S7ApprovedPicksV1),
+        ("S7B_SUPERBET_MANUAL_MAPPING", 2, CompletionEnvelopeType.SCRIPT_EVIDENCE, "S7b", ("S8",), S7bSuperbetManualMappingV1),
+        ("S8_SUPERBET_MANUAL_QUOTE_PACK", 2, CompletionEnvelopeType.SCRIPT_EVIDENCE, "S8", ("S9",), S8SuperbetManualQuotePackV1),
         ("S9_HUMAN_OPERATOR_APPROVAL", 1, CompletionEnvelopeType.HUMAN_GATE, "S9", ("S10",)),
         ("S9_EXECUTED_BETS_JOURNAL", 1, CompletionEnvelopeType.HUMAN_GATE, "S9", ("S10",)),
         ("S10_POSTEVENT_ACCOUNTING", 1, CompletionEnvelopeType.STATE_MARKER, "S10", ()),

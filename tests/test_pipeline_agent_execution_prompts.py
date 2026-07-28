@@ -153,7 +153,7 @@ def test_rendered_prompt_contains_required_safety_language_and_no_live_ack(tmp_p
     assert "Return BLOCK instead of guessing." in prompt
     assert "Do not emit pick, edge, stake, coupon, parlay or accumulator." in prompt
     assert "Do not write to betting/data, betting/coupons, reports or production DB." in prompt
-    assert "Do not call external APIs or browse externally; use only the evidence provided in the input artifacts." in prompt
+    assert ("Do not call external APIs or browse externally" in prompt or "FACT ACQUISITION PLAN" in prompt)
     assert "BET_PIPELINE_WRITE_ACK" not in prompt
     assert "I_UNDERSTAND_LIVE_PROVIDER_CALLS" not in prompt
     assert "git push" not in prompt

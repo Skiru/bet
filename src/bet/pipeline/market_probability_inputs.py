@@ -357,8 +357,9 @@ def _derive_summary_average(summary: dict[str, Any], stat_key: str) -> tuple[flo
 
 @dataclass
 class MarketProbabilityInputV1:
-    event_id: str
-    market: str
+    candidate_id: str = ""
+    event_id: str = ""
+    market: str = ""
     sport: str = "football"
     competition: str = ""
     home_team: str = ""
@@ -401,6 +402,53 @@ class MarketProbabilityInputV1:
     def __init__(self, **kwargs):
         if "caller_provided_probability" in kwargs:
             raise ValueError("CALLER_PROBABILITY_FORBIDDEN: probability must be derived by model package")
+        self.candidate_id = ""
+        self.event_id = ""
+        self.market = ""
+        self.sport = "football"
+        self.competition = ""
+        self.home_team = ""
+        self.away_team = ""
+        self.market_family = ""
+        self.market_type = ""
+        self.selection = ""
+        self.direction = ""
+        self.line = None
+        self.team_a_name = ""
+        self.team_b_name = ""
+        self.market_label = ""
+        self.outcome_name = ""
+        self.point = None
+        self.provider_market_key = ""
+        self.bookmaker = ""
+        self.team_a_l10 = []
+        self.team_b_l10 = []
+        self.h2h_l5 = None
+        self.source_artifact_path = ""
+        self.semantics_field_path = ""
+        self.stats_as_of = "UNKNOWN"
+        self.sample_size = 0
+        self.aggregation_policy = ""
+        self.semantics_issue = ""
+        self.mapping_source = ""
+        self.mapping_status = ""
+        self.confidence = ""
+        self.missing_fields = []
+        self.hydration_status = "HYDRATED"
+        self.promotion_status = "ANALYZABLE"
+        self.source_provider = ""
+        self.as_of_utc = "UNKNOWN"
+        self.stat_semantics_status = "UNKNOWN"
+        self.probability_confidence = ""
+        self.probability_method = ""
+        self.promotion_safe_model_probability = False
+        self.source_market_id = ""
+
+        if "event_id" in kwargs and "candidate_id" not in kwargs:
+            kwargs["candidate_id"] = kwargs["event_id"]
+        elif "candidate_id" in kwargs and "event_id" not in kwargs:
+            kwargs["event_id"] = kwargs["candidate_id"]
+
         for k, v in kwargs.items():
             setattr(self, k, v)
 

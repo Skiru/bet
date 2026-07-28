@@ -86,7 +86,8 @@ def mock_s4_file(tmp_path):
 
     # Seed S1e universe file
     s1e_path = data_dir / "2026-07-14_s1e_event_universe.json"
-    evt_id = "evt_649a5f6cc3964ae76d3d614b517f2a82"
+    cand = _candidate()
+    evt_id = cand["canonical_event_id"]
     import json
     s1e_path.write_text(json.dumps({
         "artifact_type": "S1E_EVENT_UNIVERSE_LEDGER",

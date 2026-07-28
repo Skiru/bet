@@ -8996,5 +8996,37 @@
     "reason": "Runtime acceptance security tests",
     "references": [],
     "expiry_or_review_policy": "PERMANENT_RETAINED_PRODUCTION"
+  },
+  {
+    "path": "tests/test_v5_report_generator_receipt_verification.py",
+    "category": "RETAINED_TEST",
+    "owner": "Kilo",
+    "reason": "Report generator receipt verification tests",
+    "references": [],
+    "expiry_or_review_policy": "PERMANENT_RETAINED_PRODUCTION"
+  },
+  {
+    "path": "tools/v5_acceptance/README.md",
+    "category": "RETAINED_ENGINEERING",
+    "owner": "Kilo",
+    "reason": "External acceptance harness documentation",
+    "references": [],
+    "expiry_or_review_policy": "PERMANENT_RETAINED_PRODUCTION"
+  },
+  {
+    "path": "tools/v5_acceptance/external_acceptance.py",
+    "category": "RETAINED_ENGINEERING",
+    "owner": "Kilo",
+    "reason": "External acceptance harness runner",
+    "references": [],
+    "expiry_or_review_policy": "PERMANENT_RETAINED_PRODUCTION"
+  },
+  {
+    "path": "tools/v5_acceptance/requirements.json",
+    "category": "RETAINED_ENGINEERING",
+    "owner": "Kilo",
+    "reason": "External acceptance requirements mapping",
+    "references": [],
+    "expiry_or_review_policy": "PERMANENT_RETAINED_PRODUCTION"
   }
 ]

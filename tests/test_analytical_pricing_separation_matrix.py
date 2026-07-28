@@ -196,10 +196,27 @@ def test_step_output_resolution_collisions_and_fallback(tmp_path: Path) -> None:
     wrong_root.mkdir(parents=True, exist_ok=True)
     (wrong_root / "data").mkdir(parents=True, exist_ok=True)
 
+    # Write S1e universe fixture required by S2 contract
+    s1e_universe = {
+        "schema_version": 1,
+        "artifact_type": "S1E_CANONICAL_EVENT_UNIVERSE",
+        "step_id": "S1e",
+        "status": "PASS",
+        "betting_day": "2026-07-14",
+        "run_id": "REPLAY_RUN",
+        "deduplicated_events": [
+            {"canonical_event_id": "c1", "sport": "football", "competition": "EPL", "home_team": "H1", "away_team": "A1"},
+            {"canonical_event_id": "c2", "sport": "football", "competition": "EPL", "home_team": "H2", "away_team": "A2"},
+        ],
+        "total_events": 2,
+    }
+    (run_root / "data" / "2026-07-14_s1e_event_universe.json").write_text(json.dumps(s1e_universe))
+
     # Write S2 shortlist (correct)
     s2_shortlist = {
         "artifact_type": "S2_SHORTLIST",
         "total_candidates": 2,
+        "event_records": [{"canonical_event_id": "c1", "terminal_status": "PASS"}, {"canonical_event_id": "c2", "terminal_status": "PASS"}],
         "candidates": [{"id": "c1"}, {"id": "c2"}]
     }
     s2_shortlist_content = json.dumps(s2_shortlist)

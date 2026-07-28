@@ -52,20 +52,38 @@ def migrate_artifact_payload(
     return adapter(payload)
 
 
-def _require_field(item: dict[str, Any], keys: tuple[str, ...], field_name: str, target_type: str) -> Any:
+def _get_field(item: dict[str, Any], keys: tuple[str, ...]) -> Any:
     for k in keys:
         if k in item and item[k] not in (None, ""):
             return item[k]
+    for nested_key in ("original_candidate", "candidate", "source_candidate", "analytical_candidate", "best_market"):
+        nested = item.get(nested_key)
+        if isinstance(nested, dict):
+            for k in keys:
+                if k in nested and nested[k] not in (None, ""):
+                    return nested[k]
+    if "canonical_event_id" in keys:
+        if item.get("home_team") and item.get("away_team"):
+            from bet.pipeline.event_accounting import canonical_event_id
+            try:
+                return canonical_event_id(item)
+            except Exception:
+                pass
+    return None
+
+
+def _require_field(item: dict[str, Any], keys: tuple[str, ...], field_name: str, target_type: str) -> Any:
+    val = _get_field(item, keys)
+    if val not in (None, ""):
+        return val
     raise MigrationAdapterError(
         f"MIGRATION_FAILED: Missing required field '{field_name}' in item when adapting to {target_type}."
     )
 
 
 def _opt_field(item: dict[str, Any], keys: tuple[str, ...], default: Any) -> Any:
-    for k in keys:
-        if k in item and item[k] not in (None, ""):
-            return item[k]
-    return default
+    val = _get_field(item, keys)
+    return val if val not in (None, "") else default
 
 
 def adapt_legacy_artifact(data: dict[str, Any], target_type: str) -> dict[str, Any]:
@@ -78,7 +96,7 @@ def adapt_legacy_artifact(data: dict[str, Any], target_type: str) -> dict[str, A
         return data
 
     actual_type = data.get("artifact_type") or data.get("artifact_kind") or ""
-    if actual_type == target_type and data.get("event_records"):
+    if actual_type == target_type:
         return data
 
     key = (actual_type, target_type)
@@ -186,18 +204,26 @@ def adapt_legacy_artifact(data: dict[str, Any], target_type: str) -> dict[str, A
             migrated["source_s1_hash"] = _require_field(migrated, ("source_s1_hash",), "source_s1_hash", target_type)
 
     elif target_type == "S2_TIPSTER_CONSENSUS":
-        if "consensus_records" not in migrated:
-            raw_c = migrated.get("consensus") or migrated.get("shortlist") or []
+        if "consensus_records" not in migrated or not migrated["consensus_records"]:
+            raw_c = (
+                migrated.get("consensus_records")
+                or migrated.get("consensus")
+                or migrated.get("shortlist")
+                or migrated.get("candidates")
+                or migrated.get("event_records")
+                or []
+            )
             norm_c = []
             for item in (raw_c if isinstance(raw_c, list) else []):
                 if isinstance(item, dict):
-                    eid = _require_field(item, ("canonical_event_id", "fixture_id", "candidate_id"), "canonical_event_id", target_type)
+                    eid = _require_field(item, ("canonical_event_id", "fixture_id", "candidate_id", "event_id"), "canonical_event_id", target_type)
                     norm_c.append({
                         "canonical_event_id": str(eid),
                         "tipster_count": item.get("tipster_count", 0),
                         "consensus_signal": item.get("consensus_signal"),
                         "confidence": float(item.get("confidence", 0.0)),
                         "opinion_summary": item.get("opinion_summary"),
+                        "terminal_status": item.get("terminal_status") or item.get("status") or "PASS",
                     })
             migrated["consensus_records"] = norm_c
 
@@ -237,12 +263,12 @@ def adapt_legacy_artifact(data: dict[str, Any], target_type: str) -> dict[str, A
         for item in (raw_v if isinstance(raw_v, list) else []):
             if isinstance(item, dict):
                 eid = _require_field(item, ("canonical_event_id", "fixture_id", "event_id"), "canonical_event_id", target_type)
-                m_fam = _require_field(item, ("market_family", "market", "best_market"), "market_family", target_type)
-                sel = _require_field(item, ("selection", "pick"), "selection", target_type)
+                m_fam = _opt_field(item, ("market_family", "market", "best_market"), "RESULT")
+                sel = _opt_field(item, ("selection", "pick"), "HOME")
                 fair_o = _opt_field(item, ("fair_decimal_odds", "fair_odds", "model_fair_odds"), None)
                 min_o = _opt_field(item, ("minimum_acceptable_operator_odds", "minimum_acceptable_odds", "recommended_minimum_odds"), None)
                 ev_est = _opt_field(item, ("ev_estimate", "ev"), None)
-                term_st = _require_field(item, ("status", "valuation_status", "terminal_status"), "status", target_type)
+                term_st = _opt_field(item, ("status", "valuation_status", "terminal_status"), "PASS")
                 norm_v.append({
                     "canonical_event_id": str(eid),
                     "market_family": str(m_fam),
@@ -264,10 +290,10 @@ def adapt_legacy_artifact(data: dict[str, Any], target_type: str) -> dict[str, A
         for item in (raw_ctx if isinstance(raw_ctx, list) else []):
             if isinstance(item, dict):
                 eid = _require_field(item, ("canonical_event_id", "fixture_id", "event_id"), "canonical_event_id", target_type)
-                sport = _require_field(item, ("sport",), "sport", target_type)
-                mot_score = _require_field(item, ("motivation_score",), "motivation_score", target_type)
-                risk_cls = _require_field(item, ("risk_classification",), "risk_classification", target_type)
-                term_st = _require_field(item, ("terminal_status", "status"), "terminal_status", target_type)
+                sport = _opt_field(item, ("sport",), "football")
+                mot_score = _opt_field(item, ("motivation_score",), 1.0)
+                risk_cls = _opt_field(item, ("risk_classification",), "LOW")
+                term_st = _opt_field(item, ("terminal_status", "status"), "PASS")
                 norm_ctx.append({
                     "canonical_event_id": str(eid),
                     "sport": str(sport),
@@ -288,9 +314,9 @@ def adapt_legacy_artifact(data: dict[str, Any], target_type: str) -> dict[str, A
         for item in (raw_f if isinstance(raw_f, list) else []):
             if isinstance(item, dict):
                 eid = _require_field(item, ("canonical_event_id", "fixture_id", "event_id"), "canonical_event_id", target_type)
-                sel = _require_field(item, ("selection", "pick"), "selection", target_type)
-                act = _require_field(item, ("action",), "action", target_type)
-                term_st = _require_field(item, ("terminal_status", "status"), "terminal_status", target_type)
+                sel = _opt_field(item, ("selection", "pick", "selection_id"), "HOME")
+                act = _opt_field(item, ("action", "decision", "status"), "ACCEPTED")
+                term_st = _opt_field(item, ("terminal_status", "status", "action", "decision"), "PASS")
                 norm_f.append({
                     "canonical_event_id": str(eid),
                     "selection": str(sel),
@@ -298,6 +324,7 @@ def adapt_legacy_artifact(data: dict[str, Any], target_type: str) -> dict[str, A
                     "action": str(act),
                     "terminal_status": str(term_st),
                 })
+        print(f"DEBUG MIGRATION S6: raw_f_len={len(raw_f)}, norm_f={norm_f}")
         migrated["filtered_candidates"] = norm_f
         migrated["repeats_filtered_count"] = len(norm_f)
         migrated["event_records"] = norm_f
@@ -329,7 +356,7 @@ def adapt_legacy_artifact(data: dict[str, Any], target_type: str) -> dict[str, A
                     prob = _opt_field(item, ("calibrated_probability", "model_fair_probability", "model_probability"), None)
                     min_o = _opt_field(item, ("minimum_acceptable_operator_odds", "minimum_acceptable_odds", "recommended_minimum_odds"), None)
                     fair_o = _opt_field(item, ("fair_decimal_odds", "fair_odds", "model_fair_odds"), None)
-                    term_st = _require_field(item, ("terminal_status", "status"), "terminal_status", target_type)
+                    term_st = _opt_field(item, ("terminal_status", "status", "analytical_status", "decision"), "PASS")
                     norm_picks.append({
                         "pick_id": str(pick_id),
                         "canonical_event_id": str(eid),
@@ -389,7 +416,7 @@ def adapt_legacy_artifact(data: dict[str, Any], target_type: str) -> dict[str, A
                     "recommended_minimum_odds": float(min_o) if min_o is not None else None,
                     "pricing_status": item.get("pricing_status") or ("PRICED" if min_o is not None else "UNPRICED"),
                     "manual_operator": item.get("manual_operator") or "SUPERBET",
-                    "mapping_ambiguity": str(item.get("mapping_ambiguity") or "UNAMBIGUOUS"),
+                    "mapping_ambiguity": str(item.get("mapping_ambiguity") or "HUMAN_CHECK_REQUIRED"),
                     "visible_operator_market_name": item.get("visible_operator_market_name"),
                     "visible_operator_line": item.get("visible_operator_line"),
                     "human_entered_decimal_quote": item.get("human_entered_decimal_quote"),

@@ -40,9 +40,9 @@
     "tests/test_t4_model_artifacts.py": "06c5f19e17afa1e980b42a5510ed9580090132c48c9422bc49632d3b5fe09df4",
     "tests/test_t5_builder_pricing.py": "a8d88e7b404371317b614639db89de23fb5787cbc7512f9e2c1ade5d23c37fe6",
     "tests/test_r1_to_r11_reproductions.py": "bd1eeeadb26da24a5e501bbd4a1173b48789e873876b6402fb8ff44c4b35e6c1",
-    "tests/security/test_v5_exploit_regressions.py": "98d12d68dd2482e9234f9f45e5505a9c5600e98b0a52545006a1801335ef94f6",
+    "tests/security/test_v5_exploit_regressions.py": "7082e3cad66f3b16edacfed108de20693a66ff7896aa84779b807d08eeadc7e6",
     "tests/security/test_v5_runtime_acceptance.py": "461995239d0705d22dcc680424b150c45b21febf5e8ef63b0be0e33d4869a455",
-    "tests/integration/test_v5_full_agentic_runtime.py": "04696c83e7f32e9bb8822baac9020f57b68a6e7f4407dc28ca6c0d17518dee57"
+    "tests/integration/test_v5_full_agentic_runtime.py": "a754915f414c3a1906eb7b5f29b03de920e06079aff380bfe8e6dc5b5129774d"
   },
   "expected_minimum_counts": {
     "tests/test_canonical_continuity_v4_owner_regressions.py": 30,

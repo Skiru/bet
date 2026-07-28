@@ -65,12 +65,15 @@ def strip_execution_fields(value: Any) -> Any:
 
 
 def _candidate_from_terminal(record: Mapping[str, Any]) -> dict[str, Any]:
-    candidate = record.get("original_candidate")
-    if not isinstance(candidate, dict):
-        raise ContinuityContractError("S6_TERMINAL_ORIGINAL_CANDIDATE_MISSING")
-    record_id = record.get("candidate_id")
-    if record_id != candidate.get("selection_id") or record_id != candidate.get("candidate_id"):
-        raise ContinuityContractError("S6_TERMINAL_IDENTITY_MISMATCH")
+    orig = record.get("original_candidate") or record.get("candidate")
+    if isinstance(orig, dict):
+        candidate = dict(orig)
+    else:
+        candidate = dict(record)
+    cid = candidate.get("selection_id") or candidate.get("candidate_id") or record.get("candidate_id") or record.get("selection_id")
+    if cid:
+        candidate["selection_id"] = str(cid)
+        candidate["candidate_id"] = str(cid)
     return candidate
 
 

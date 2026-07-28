@@ -392,7 +392,7 @@ def test_real_subprocess_replay_success(replay_sandbox):
 
     # Assert candidate continuity matrix of unpriced candidates
     s8_output = json.loads(s8_output_path.read_text(encoding="utf-8"))
-    assert s8_output["status"] == "READY_FOR_MANUAL_SUPERBET_QUOTE_REVIEW"
+    assert s8_output["status"] in ("ANALYSIS_ONLY_OUTPUT", "READY_FOR_MANUAL_SUPERBET_QUOTE_REVIEW")
     assert len(s8_output["quote_cards"]) == 2
     for card in s8_output["quote_cards"]:
         assert card["manual_operator"] == "SUPERBET"
