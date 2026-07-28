@@ -50,11 +50,6 @@ class PlaywrightBaseClient(BaseAPIClient):
     def _new_page(self):
         """Create a new stealth page with random UA."""
         raise RuntimeError("BROWSER_AUTOMATION_DISABLED: Playwright browser automation is permanently disabled in production pipeline")
-                Stealth().apply_stealth_sync(page)
-            return ctx, page
-        except Exception:
-            ctx.close()
-            raise
 
     def _dismiss_cookies(self, page):
         """Dismiss cookie consent banner if present."""
