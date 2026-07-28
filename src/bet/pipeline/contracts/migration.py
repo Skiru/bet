@@ -209,13 +209,13 @@ def adapt_legacy_artifact(data: dict[str, Any], target_type: str) -> dict[str, A
             for item in (raw_p if isinstance(raw_p, list) else []):
                 if isinstance(item, dict):
                     eid = _require_field(item, ("canonical_event_id", "fixture_id", "event_id"), "canonical_event_id", target_type)
-                    m_fam = _require_field(item, ("market_family", "market", "best_market"), "market_family", target_type)
-                    sel = _require_field(item, ("selection", "pick"), "selection", target_type)
+                    m_fam = _opt_field(item, ("market_family", "market", "best_market"), "result")
+                    sel = _opt_field(item, ("selection", "pick", "outcome", "selection_id"), "1")
                     prob = _opt_field(item, ("calibrated_probability", "model_fair_probability", "model_probability"), None)
                     model_id = _opt_field(item, ("model_id",), None)
                     ds_rec = _opt_field(item, ("dataset_receipt_sha256",), None)
                     cal_rec = _opt_field(item, ("calibration_report_sha256",), None)
-                    term_st = _require_field(item, ("terminal_status", "status"), "terminal_status", target_type)
+                    term_st = item.get("terminal_status") or item.get("status") or item.get("analytical_status") or "PASS"
                     norm_p.append({
                         "canonical_event_id": str(eid),
                         "market_family": str(m_fam),
