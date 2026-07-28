@@ -19,6 +19,49 @@ class ChunkLifecycleError(ValueError):
     pass
 
 
+WAITING_FOR_CHUNK_ARTIFACT = "WAITING_FOR_CHUNK_ARTIFACT"
+
+
+def validate_chunk_aggregation(
+    parent_events: Sequence[str],
+    chunk_events: Sequence[Sequence[str]],
+) -> None:
+    """Validate that chunk events form an exact disjoint cover of parent events."""
+    parent_set = set(parent_events)
+    all_chunk_events: list[str] = []
+    for c_list in chunk_events:
+        all_chunk_events.extend(c_list)
+
+    seen = set()
+    for eid in all_chunk_events:
+        if eid in seen:
+            raise ChunkLifecycleError(f"Duplicate event {eid} across chunks in aggregation.")
+        seen.add(eid)
+        if eid not in parent_set:
+            raise ChunkLifecycleError(f"Foreign event {eid} in chunk aggregation.")
+
+    missing = parent_set - seen
+    if missing:
+        raise ChunkLifecycleError(f"Chunk aggregation missing events: {sorted(missing)}")
+
+
+def resume_chunk_execution(
+    chunk_work_order: ChunkWorkOrderV1,
+    ledger_state: dict[str, Any],
+) -> dict[str, Any]:
+    """Resume execution of a chunk work order from saved ledger state."""
+    if not isinstance(ledger_state, dict):
+        raise ChunkLifecycleError("INVALID_LEDGER_STATE: ledger_state must be a dict")
+    status = ledger_state.get("status") or ledger_state.get("ledger_status")
+    if status not in (WAITING_FOR_CHUNK_ARTIFACT, "WAITING_FOR_CHUNK_ARTIFACT", "PENDING", "IN_PROGRESS"):
+        raise ChunkLifecycleError(f"CANNOT_RESUME_CHUNK: invalid state {status}")
+    return {
+        "chunk_id": chunk_work_order.chunk_id,
+        "status": "RESUMED",
+        "work_order": chunk_work_order,
+    }
+
+
 def get_aggregator_source_sha256() -> str:
     """Compute the actual SHA256 of this lifecycle implementation file."""
     path = Path(__file__).resolve()

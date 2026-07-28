@@ -14,8 +14,12 @@ from bet.pipeline.artifact_gate import artifact_path_for
 from bet.pipeline.runtime_paths import resolve_run_root, runtime_artifact_dir
 
 
-@dataclass
-class AgentWorkOrderInputRef:
+from pydantic import Field, field_validator, model_validator
+from bet.pipeline.contracts.base import StrictBaseModel
+from bet.pipeline.sharding.models import FactAcquisitionPlanV1
+
+
+class AgentWorkOrderInputRefV1(StrictBaseModel):
     step_id: str
     artifact_kind: str
     path: str
@@ -23,43 +27,28 @@ class AgentWorkOrderInputRef:
     sha256: str
 
     def to_jsonable(self) -> dict[str, Any]:
-        return {
-            "step_id": self.step_id,
-            "artifact_kind": self.artifact_kind,
-            "path": self.path,
-            "required": self.required,
-            "sha256": self.sha256,
-        }
+        return self.model_dump()
 
 
-@dataclass
-class AgentWorkOrderOutputContract:
+class AgentWorkOrderOutputContractV1(StrictBaseModel):
     artifact_type: str
     step_id: str
     expected_path: str
     required_statuses: list[str]
-    schema_requirements: dict[str, Any]
+    schema_requirements: dict[str, Any] = Field(default_factory=dict)
 
     def to_jsonable(self) -> dict[str, Any]:
-        return {
-            "artifact_type": self.artifact_type,
-            "step_id": self.step_id,
-            "expected_path": self.expected_path,
-            "required_statuses": self.required_statuses,
-            "schema_requirements": self.schema_requirements,
-        }
+        return self.model_dump()
 
 
-@dataclass
-class AgentWorkOrderPolicy:
+class AgentWorkOrderPolicy(StrictBaseModel):
     forbidden_outputs: list[str]
-    instructions: dict[str, Any]
-    schema_requirements: dict[str, Any]
+    instructions: dict[str, Any] = Field(default_factory=dict)
+    schema_requirements: dict[str, Any] = Field(default_factory=dict)
 
 
-@dataclass
-class AgentWorkOrder:
-    schema_version: int
+class AgentWorkOrderV1(StrictBaseModel):
+    schema_version: int = 1
     work_order_id: str
     work_order_type: str
     pipeline_id: str
@@ -70,54 +59,47 @@ class AgentWorkOrder:
     runtime_mode: str
     created_at: str
     status: str
-    input_refs: list[AgentWorkOrderInputRef]
-    required_output: AgentWorkOrderOutputContract
-    hard_rules: list[str]
-    forbidden_outputs: list[str]
-    instructions: dict[str, Any]
+    input_refs: list[AgentWorkOrderInputRefV1] = Field(default_factory=list)
+    required_output: AgentWorkOrderOutputContractV1
+    hard_rules: list[str] = Field(default_factory=list)
+    forbidden_outputs: list[str] = Field(default_factory=list)
+    instructions: dict[str, Any] = Field(default_factory=dict)
     manifest_sha256: str = "UNKNOWN"
     source_head: str = "UNKNOWN"
-    allowed_tools: list[str] = field(default_factory=list)
-    task_allowlist: list[str] = field(default_factory=list)
-    acquisition_plan: dict[str, Any] | None = None
+    allowed_tools: list[str] = Field(default_factory=list)
+    task_allowlist: list[str] = Field(default_factory=list)
+    acquisition_plan: FactAcquisitionPlanV1 | None = None
     parent_work_order_id: str | None = None
     parent_work_order_sha256: str | None = None
     plan_id: str | None = None
     plan_sha256: str | None = None
 
     def to_jsonable(self) -> dict[str, Any]:
-        res = {
-            "schema_version": self.schema_version,
-            "work_order_id": self.work_order_id,
-            "work_order_type": self.work_order_type,
-            "pipeline_id": self.pipeline_id,
-            "betting_day": self.betting_day,
-            "run_id": self.run_id,
-            "step_id": self.step_id,
-            "agent": self.agent,
-            "runtime_mode": self.runtime_mode,
-            "created_at": self.created_at,
-            "status": self.status,
-            "input_refs": [ref.to_jsonable() for ref in self.input_refs],
-            "required_output": self.required_output.to_jsonable(),
-            "hard_rules": self.hard_rules,
-            "forbidden_outputs": self.forbidden_outputs,
-            "instructions": self.instructions,
-            "manifest_sha256": self.manifest_sha256,
-            "source_head": self.source_head,
-            "allowed_tools": self.allowed_tools,
-            "task_allowlist": self.task_allowlist,
-            "acquisition_plan": self.acquisition_plan,
-        }
-        if self.parent_work_order_id:
-            res["parent_work_order_id"] = self.parent_work_order_id
-        if self.parent_work_order_sha256:
-            res["parent_work_order_sha256"] = self.parent_work_order_sha256
-        if self.plan_id:
-            res["plan_id"] = self.plan_id
-        if self.plan_sha256:
-            res["plan_sha256"] = self.plan_sha256
-        return res
+        return self.model_dump()
+
+
+AgentWorkOrderInputRef = AgentWorkOrderInputRefV1
+AgentWorkOrderOutputContract = AgentWorkOrderOutputContractV1
+AgentWorkOrder = AgentWorkOrderV1
+
+
+VALID_PROJECT_TOOLS = frozenset({
+    "bet_sqlite_query",
+    "webfetch",
+    "websearch",
+    "brave-search_brave_web_search",
+    "read",
+    "glob",
+    "grep",
+})
+
+
+def compute_allowed_tools(plan_tools: list[str] | None, agent_profile_tools: list[str]) -> list[str]:
+    """Compute allowed tools as intersection of plan requirements and agent profile tools."""
+    if not plan_tools:
+        browsing_tools = {"webfetch", "websearch", "brave-search_brave_web_search"}
+        return sorted([t for t in agent_profile_tools if t in VALID_PROJECT_TOOLS and t not in browsing_tools])
+    return sorted(list(set(plan_tools) & set(agent_profile_tools) & VALID_PROJECT_TOOLS))
 
 
 OUTPUT_CONTRACT_NOTES = [

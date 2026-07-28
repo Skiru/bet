@@ -193,6 +193,10 @@ def _classify_s7_no_action_terminal(
 class Orchestrator:
     """Runnable manifest-driven pipeline orchestrator."""
 
+    pending_chunk_work_order_path: str | None = None
+    pending_chunk_work_order_sha256: str | None = None
+    pending_chunk_expected_output_path: str | None = None
+
     def __init__(
         self,
         betting_day: str,
