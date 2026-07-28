@@ -609,3 +609,9 @@ class Dota2Protocol(BaseSportProtocol):
             quality_grade="HIGH",
             allowed_action="READY_FOR_PRICING",
         )
+
+
+def get_sport_protocol_handler(sport_id: str) -> BaseSportProtocol | None:
+    """Retrieve the registered sport protocol handler for a given sport ID."""
+    from bet.pipeline.sports.registry import GLOBAL_SPORT_PROTOCOL_REGISTRY
+    return GLOBAL_SPORT_PROTOCOL_REGISTRY.get(str(sport_id).lower())

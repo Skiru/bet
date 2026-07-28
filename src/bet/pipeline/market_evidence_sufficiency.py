@@ -8,6 +8,32 @@ from typing import Any, Mapping
 from bet.pipeline.sports.registry import GLOBAL_SPORT_PROTOCOL_REGISTRY
 
 
+from pydantic import Field
+from bet.pipeline.contracts.base import StrictBaseModel
+from bet.pipeline.sharding.models import (
+    RetrievalReceiptV1,
+    DatabaseQueryReceiptV1,
+    EvidenceConflictV1,
+)
+from bet.pipeline.contracts.common import EvidenceClaimV1
+
+
+class MarketDossierV1(StrictBaseModel):
+    """Source-bound market dossier containing evidence claims, receipts, conflicts, and readiness decision."""
+    dossier_id: str
+    canonical_event_id: str
+    sport: str
+    competition: str
+    market_family: str
+    claims: list[EvidenceClaimV1] = Field(default_factory=list)
+    retrieval_receipts: list[RetrievalReceiptV1] = Field(default_factory=list)
+    database_receipts: list[DatabaseQueryReceiptV1] = Field(default_factory=list)
+    conflicts: list[EvidenceConflictV1] = Field(default_factory=list)
+    readiness_status: str = "EVIDENCE_SCOPE_READY"
+    quality_grade: str = "HIGH"
+    content_sha256: str = ""
+
+
 def evaluate_evidence_sufficiency(
     sport: str,
     market_family: str,

@@ -875,3 +875,16 @@ def explain_probability_input_gap(input_data: MarketProbabilityInput) -> str:
     if valid:
         return ""
     return reason
+
+
+def validate_model_scope_match(
+    model_scope: dict[str, Any],
+    event_scope: dict[str, Any],
+) -> bool:
+    """Validate exact match between model scope and event scope (sport, competition, market)."""
+    if not isinstance(model_scope, dict) or not isinstance(event_scope, dict):
+        return False
+    sport_match = str(model_scope.get("sport", "")).lower() == str(event_scope.get("sport", "")).lower()
+    comp_match = str(model_scope.get("competition", "")).lower() == str(event_scope.get("competition", "")).lower()
+    market_match = str(model_scope.get("market", "")).lower() == str(event_scope.get("market", "")).lower()
+    return bool(sport_match and comp_match and market_match)
