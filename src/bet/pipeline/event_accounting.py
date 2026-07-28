@@ -259,4 +259,3 @@ def validate_event_accounting(
     missing = sorted(universe_set - seen)
     if missing:
         raise EventAccountingError(f"EVENT_BOUNDARY_LOSS: {','.join(missing)} in step {step_id}")
-
