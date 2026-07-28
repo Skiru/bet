@@ -51,34 +51,28 @@ class JointModelScopeV1(StrictBaseModel):
             raise ValueError("calibration_report_sha256 cannot be None")
         return res
 
-    def is_pricing_eligible(self) -> bool:
+    def is_pricing_eligible(self, search_dirs: list[Path] | None = None) -> bool:
         if self.promotion_status != "PRICING_ELIGIBLE":
             return False
         if not is_valid_sha256_hex(self.calibration_report_sha256) or self.calibration_report_sha256 == "0" * 64:
             return False
 
+        from bet.pipeline.readiness_contracts import JointModelPackageResolver
         from pathlib import Path
-        import hashlib
         root = Path(__file__).resolve().parent.parent.parent.parent
-        artifact_dirs = [
+        artifact_dirs = search_dirs or [
             root / "models",
             root / ".kilo" / "artifacts" / "models",
             root / "data" / "models",
         ]
-        found_calibration = False
         for d in artifact_dirs:
-            if not d.exists():
-                continue
-            for p in d.rglob("*"):
-                if p.is_file():
-                    try:
-                        content = p.read_bytes()
-                        h = hashlib.sha256(content).hexdigest()
-                        if h == self.calibration_report_sha256:
-                            found_calibration = True
-                    except Exception:
-                        pass
-        return found_calibration
+            if d.exists() and d.is_dir():
+                for p in d.iterdir():
+                    if p.is_dir():
+                        pkg = JointModelPackageResolver.resolve_package(p)
+                        if pkg and pkg.is_eligible and getattr(pkg, "calibration_report_sha256", "") == self.calibration_report_sha256:
+                            return True
+        return False
 
 
 class JointProbabilityEstimateV1(StrictBaseModel):

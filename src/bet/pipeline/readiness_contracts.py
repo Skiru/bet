@@ -354,36 +354,103 @@ class ModelPackageResolver:
         "model-card.json",
     )
 
+    APPROVED_MODEL_STORES = (
+        "models",
+        ".kilo/artifacts/models",
+        "data/models",
+    )
+
     @classmethod
     def resolve_package(cls, package_dir: str | Path) -> ModelPackageV1 | None:
-        p = Path(package_dir)
+        p = Path(package_dir).resolve(strict=False)
         if not p.is_dir():
             return None
+
+        # Verify package root is inside an approved model store directory
+        repo_root = Path(__file__).resolve().parents[3]
+        approved_paths = [repo_root / rel for rel in cls.APPROVED_MODEL_STORES]
+        is_approved = any(p == store or p.is_relative_to(store) for store in approved_paths if store.exists())
+        if not is_approved:
+            return None
+
         for fname in cls.REQUIRED_FILES:
-            if not (p / fname).is_file():
+            file_path = p / fname
+            if not file_path.is_file() or file_path.is_symlink():
                 return None
+
         try:
             meta = json.loads((p / "model-package.json").read_text(encoding="utf-8"))
             prom = json.loads((p / "promotion-decision.json").read_text(encoding="utf-8"))
             if prom.get("status") != "PROMOTED":
                 return None
+
+            pkg_sha = meta.get("model_package_sha256") or meta.get("sha256")
+            dataset_sha = meta.get("dataset_receipt_sha256")
+            schema_sha = meta.get("feature_schema_sha256")
+            fitted_sha = meta.get("fitted_model_sha256")
+            code_sha = meta.get("code_receipt_sha256")
+            split_sha = meta.get("temporal_split_sha256")
+            backtest_sha = meta.get("backtest_report_sha256")
+            calib_sha = meta.get("calibration_report_sha256")
+            unc_sha = meta.get("uncertainty_method_sha256")
+            prom_sha = meta.get("promotion_decision_sha256")
+            card_sha = meta.get("model_card_sha256")
+
+            all_shas = [pkg_sha, dataset_sha, schema_sha, fitted_sha, code_sha, split_sha, backtest_sha, calib_sha, unc_sha, prom_sha, card_sha]
+            if not all(isinstance(s, str) and len(s) == 64 and all(c in "0123456789abcdefABCDEF" for c in s) for s in all_shas):
+                return None
+
+            def check_file_sha(fname: str, expected_sha: str) -> bool:
+                f_path = p / fname
+                if not f_path.is_file():
+                    return False
+                h = hashlib.sha256()
+                with f_path.open("rb") as handle:
+                    while chunk := handle.read(65536):
+                        h.update(chunk)
+                return h.hexdigest().lower() == expected_sha.lower()
+
+            if not check_file_sha("dataset-receipt.json", dataset_sha):
+                return None
+            if not check_file_sha("feature-schema.json", schema_sha):
+                return None
+            if not check_file_sha("code-receipt.json", code_sha):
+                return None
+            if not check_file_sha("temporal-split.json", split_sha):
+                return None
+            if not check_file_sha("backtest.json", backtest_sha):
+                return None
+            if not check_file_sha("calibration.json", calib_sha):
+                return None
+            if not check_file_sha("uncertainty-method.json", unc_sha):
+                return None
+            if not check_file_sha("promotion-decision.json", prom_sha):
+                return None
+            if not check_file_sha("model-card.json", card_sha):
+                return None
+
+            bound_hashes = prom.get("bound_artifact_hashes", {})
+            if isinstance(bound_hashes, dict) and bound_hashes:
+                if bound_hashes.get("dataset_receipt_sha256") != dataset_sha or bound_hashes.get("calibration_report_sha256") != calib_sha:
+                    return None
+
             return ModelPackageV1(
                 package_id=meta["package_id"],
                 sport=meta["sport"],
                 competition=meta["competition"],
                 market=meta["market"],
                 model_package_path=str(p),
-                model_package_sha256=meta.get("sha256", "a"*64),
-                dataset_receipt_sha256=meta.get("dataset_receipt_sha256", "b"*64),
-                feature_schema_sha256=meta.get("feature_schema_sha256", "c"*64),
-                fitted_model_sha256=meta.get("fitted_model_sha256", "d"*64),
-                code_receipt_sha256=meta.get("code_receipt_sha256", "e"*64),
-                temporal_split_sha256=meta.get("temporal_split_sha256", "f"*64),
-                backtest_report_sha256=meta.get("backtest_report_sha256", "g"*64),
-                calibration_report_sha256=meta.get("calibration_report_sha256", "h"*64),
-                uncertainty_method_sha256=meta.get("uncertainty_method_sha256", "i"*64),
-                promotion_decision_sha256=meta.get("promotion_decision_sha256", "j"*64),
-                model_card_sha256=meta.get("model_card_sha256", "k"*64),
+                model_package_sha256=pkg_sha,
+                dataset_receipt_sha256=dataset_sha,
+                feature_schema_sha256=schema_sha,
+                fitted_model_sha256=fitted_sha,
+                code_receipt_sha256=code_sha,
+                temporal_split_sha256=split_sha,
+                backtest_report_sha256=backtest_sha,
+                calibration_report_sha256=calib_sha,
+                uncertainty_method_sha256=unc_sha,
+                promotion_decision_sha256=prom_sha,
+                model_card_sha256=card_sha,
                 is_eligible=True,
             )
         except Exception:
@@ -409,6 +476,7 @@ class JointModelPackageV1(StrictBaseModel):
     competition: str
     market_pair: tuple[str, ...]
     model_package_path: str
+    calibration_report_sha256: str = ""
     is_eligible: bool = True
 
 
@@ -425,25 +493,54 @@ class JointModelPackageResolver:
         "joint-promotion-decision.json",
     )
 
+    APPROVED_MODEL_STORES = (
+        "models",
+        ".kilo/artifacts/models",
+        "data/models",
+    )
+
     @classmethod
     def resolve_package(cls, package_dir: str | Path) -> JointModelPackageV1 | None:
-        p = Path(package_dir)
+        p = Path(package_dir).resolve(strict=False)
         if not p.is_dir():
             return None
+
+        repo_root = Path(__file__).resolve().parents[3]
+        approved_paths = [repo_root / rel for rel in cls.APPROVED_MODEL_STORES]
+        is_approved = any(p == store or p.is_relative_to(store) for store in approved_paths if store.exists())
+        if not is_approved:
+            return None
+
         for fname in cls.REQUIRED_FILES:
-            if not (p / fname).is_file():
+            file_path = p / fname
+            if not file_path.is_file() or file_path.is_symlink():
                 return None
+
         try:
             meta = json.loads((p / "joint-model-package.json").read_text(encoding="utf-8"))
             prom = json.loads((p / "joint-promotion-decision.json").read_text(encoding="utf-8"))
             if prom.get("status") != "PROMOTED":
                 return None
+
+            calib_sha = meta.get("calibration_report_sha256") or meta.get("joint_calibration_sha256")
+            if not calib_sha or len(calib_sha) != 64 or not all(c in "0123456789abcdefABCDEF" for c in calib_sha):
+                return None
+
+            f_path = p / "joint-calibration.json"
+            h = hashlib.sha256()
+            with f_path.open("rb") as handle:
+                while chunk := handle.read(65536):
+                    h.update(chunk)
+            if h.hexdigest().lower() != calib_sha.lower():
+                return None
+
             return JointModelPackageV1(
                 package_id=meta["package_id"],
                 sport=meta["sport"],
                 competition=meta["competition"],
                 market_pair=tuple(meta["market_pair"]),
                 model_package_path=str(p),
+                calibration_report_sha256=calib_sha,
                 is_eligible=True,
             )
         except Exception:

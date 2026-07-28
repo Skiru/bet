@@ -82,31 +82,22 @@ class ModelCardV1(StrictBaseModel):
         if not is_valid_sha256_hex(self.feature_schema_hash) or self.feature_schema_hash == "0" * 64:
             return False
 
+        from bet.pipeline.readiness_contracts import ModelPackageResolver
         from pathlib import Path
-        import hashlib
         root = Path(__file__).resolve().parent.parent.parent.parent
         artifact_dirs = search_dirs or [
             root / "models",
             root / ".kilo" / "artifacts" / "models",
             root / "data" / "models",
         ]
-        found_dataset = False
-        found_calibration = False
         for d in artifact_dirs:
-            if not d.exists():
-                continue
-            for p in d.rglob("*"):
-                if p.is_file():
-                    try:
-                        content = p.read_bytes()
-                        h = hashlib.sha256(content).hexdigest()
-                        if h == self.dataset_receipt_sha256:
-                            found_dataset = True
-                        if h == self.calibration_report_sha256:
-                            found_calibration = True
-                    except Exception:
-                        pass
-        return found_dataset and found_calibration
+            if d.exists() and d.is_dir():
+                for p in d.iterdir():
+                    if p.is_dir():
+                        pkg = ModelPackageResolver.resolve_package(p)
+                        if pkg and pkg.is_eligible and pkg.calibration_report_sha256 == self.calibration_report_sha256:
+                            return True
+        return False
 
 
 class ProbabilityEstimateV2(StrictBaseModel):

@@ -177,7 +177,7 @@ def generate_same_event_builders(
                             matching_model = jm
                             break
 
-                if matching_model is None:
+                if matching_model is None or not hasattr(matching_model, "compute_conjunction"):
                     rejections.append(
                         BuilderRejectionV1(
                             rejection_id=f"REJ-{leg_a.leg_id}-{leg_b.leg_id}",
@@ -190,7 +190,18 @@ def generate_same_event_builders(
 
                 prob_a = leg_a.calibrated_probability
                 prob_b = leg_b.calibrated_probability
-                joint_prob = prob_a * prob_b if matching_model.assumes_independence else prob_a * prob_b
+                conjunction_res = matching_model.compute_conjunction([prob_a, prob_b])
+                joint_prob = conjunction_res.get("joint_probability")
+                if joint_prob is None or joint_prob <= 0 or joint_prob >= 1:
+                    rejections.append(
+                        BuilderRejectionV1(
+                            rejection_id=f"REJ-{leg_a.leg_id}-{leg_b.leg_id}",
+                            canonical_event_id=eid,
+                            leg_ids=(leg_a.leg_id, leg_b.leg_id),
+                            reason_code="NO_JOINT_MODEL_SCOPE",
+                        )
+                    )
+                    continue
 
                 fair_odds_dec = (Decimal("1.0") / Decimal(str(joint_prob))).quantize(
                     Decimal("0.0001"), rounding=ROUND_HALF_UP
