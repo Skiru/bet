@@ -104,7 +104,7 @@ def test_r4_sport_protocols_not_in_runtime() -> None:
 
 
 def test_r5_acquisition_plan_untyped() -> None:
-    """R5: Prove AgentWorkOrder acquisition_plan is untyped dict and lacks plan_id/scope/tools."""
+    """R5: Prove AgentWorkOrder acquisition_plan rejects raw untyped dict and requires FactAcquisitionPlanV1."""
     out_contract = AgentWorkOrderOutputContract(
         artifact_type="S2_DOSSIER",
         step_id="S2",
@@ -112,28 +112,27 @@ def test_r5_acquisition_plan_untyped() -> None:
         required_statuses=["PASS"],
         schema_requirements={},
     )
-    order = AgentWorkOrder(
-        schema_version=1,
-        work_order_id="WO-01",
-        work_order_type="RESEARCH",
-        pipeline_id="P1",
-        betting_day="2026-07-16",
-        run_id="R1",
-        step_id="S2",
-        agent="bet-researcher",
-        runtime_mode="DRY_RUN",
-        created_at="2026-07-16T00:00:00Z",
-        status="PENDING",
-        input_refs=[],
-        required_output=out_contract,
-        hard_rules=[],
-        forbidden_outputs=[],
-        instructions={},
-        acquisition_plan={"fact_requirements": ["lineup"]},
-    )
-    assert isinstance(order.acquisition_plan, dict)
-    assert "plan_id" not in order.acquisition_plan
-    assert "allowed_tools" not in order.acquisition_plan
+    import pydantic
+    with pytest.raises(pydantic.ValidationError):
+        AgentWorkOrder(
+            schema_version=1,
+            work_order_id="WO-01",
+            work_order_type="RESEARCH",
+            pipeline_id="P1",
+            betting_day="2026-07-16",
+            run_id="R1",
+            step_id="S2",
+            agent="bet-researcher",
+            runtime_mode="DRY_RUN",
+            created_at="2026-07-16T00:00:00Z",
+            status="PENDING",
+            input_refs=[],
+            required_output=out_contract,
+            hard_rules=[],
+            forbidden_outputs=[],
+            instructions={},
+            acquisition_plan={"fact_requirements": ["lineup"]},
+        )
 
 
 def test_r6_sharding_lifecycle_state_machine_defects() -> None:
