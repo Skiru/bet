@@ -3,20 +3,30 @@
 Mutation Proof Runner for BET PIPELINE V5.
 
 Executes controlled mutations MUT-001 through MUT-013 in isolated temp clones.
-Verifies that every mutation is caught by repo external harness or relevant repo tests.
-Emits detailed receipt to specified JSON file.
+Verifies that every mutation is caught specifically by both the external acceptance harness and required tests.
+Emits typed, cryptographically-bound MutationReceiptV1 JSON.
 """
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import shutil
 import subprocess
 import sys
 import tempfile
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+from bet.pipeline.receipts import (
+    get_git_commit_head,
+    get_git_tree_sha,
+    compute_source_manifest_sha256,
+    get_sanitized_env_fingerprint,
+    MutationReceiptV1,
+)
 
 MUTATIONS: list[dict[str, Any]] = [
     {
@@ -138,21 +148,30 @@ MUTATIONS: list[dict[str, Any]] = [
     },
 ]
 
+
 def parse_args():
     parser = argparse.ArgumentParser(description="V5 Mutation Proof Runner")
     parser.add_argument("--repo-root", default=os.getcwd(), help="Target repository directory")
     parser.add_argument("--receipt-out", default="/tmp/v5_mutation_receipt.json", help="Output path for mutation receipt JSON")
     return parser.parse_args()
 
+
 def run_mutation_proof():
     args = parse_args()
     repo_root = Path(args.repo_root).resolve(strict=True)
-    harness_path = repo_root / "tools" / "v5_acceptance" / "external_acceptance.py"
     receipt_out = Path(args.receipt_out)
+    started_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+    head_sha = get_git_commit_head(repo_root)
+    git_tree_sha = get_git_tree_sha(repo_root)
+    source_manifest_sha = compute_source_manifest_sha256(repo_root)
+    env_fingerprint = get_sanitized_env_fingerprint()
 
     print(f"Starting Mutation Proof against repo root: {repo_root}")
     results: dict[str, dict[str, Any]] = {}
     detected_count = 0
+    detected_mutation_ids = []
+    expected_mutation_ids = [m["id"] for m in MUTATIONS]
 
     with tempfile.TemporaryDirectory() as temp_parent:
         for mut in MUTATIONS:
@@ -216,7 +235,6 @@ def run_mutation_proof():
                     for acc_id, r_data in report.get("results", {}).items():
                         if not r_data.get("passed"):
                             failing_acc_ids.append(acc_id)
-                    # Mutation is detected by harness if an expected failing ACC ID actually failed
                     for expected_acc in mut.get("expected_failing_acc", []):
                         if expected_acc in failing_acc_ids:
                             acc_detected = True
@@ -241,9 +259,11 @@ def run_mutation_proof():
                 if res_test.returncode != 0:
                     test_detected = True
 
-            is_detected = acc_detected or test_detected
+            # Both ACC and repo tests must specifically detect the mutation if expected
+            is_detected = acc_detected and (test_detected or not repo_tests)
             if is_detected:
                 detected_count += 1
+                detected_mutation_ids.append(mut_id)
                 print(f"  -> DETECTED ({mut_id}): Failing ACCs = {failing_acc_ids}, Test Detected = {test_detected}")
             else:
                 print(f"  -> SURVIVED ({mut_id})! Mutation was not detected!")
@@ -263,21 +283,41 @@ def run_mutation_proof():
                 "test_stderr": test_stderr,
             }
 
-    receipt = {
+    finished_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    all_detected = (detected_count == len(MUTATIONS) and set(detected_mutation_ids) == set(expected_mutation_ids))
+
+    receipt_data = {
+        "head_sha": head_sha,
+        "git_tree_sha": git_tree_sha,
+        "source_manifest_sha256": source_manifest_sha,
+        "command_argv": sys.argv,
+        "cwd": str(repo_root),
+        "environment_fingerprint": env_fingerprint,
+        "started_at": started_at,
+        "finished_at": finished_at,
+        "exit_code": 0 if all_detected else 1,
+        "stdout_sha256": "",
+        "stderr_sha256": "",
+        "artifact_sha256": "",
         "mutation_score": f"{detected_count}/{len(MUTATIONS)}",
         "total_mutations": len(MUTATIONS),
         "detected_mutations": detected_count,
-        "all_detected": (detected_count == len(MUTATIONS)),
+        "all_detected": all_detected,
+        "expected_mutation_set": expected_mutation_ids,
+        "detected_mutation_set": detected_mutation_ids,
         "results": results,
     }
 
-    receipt_out.parent.mkdir(parents=True, exist_ok=True)
-    receipt_out.write_text(json.dumps(receipt, indent=2), encoding="utf-8")
+    validated_receipt = MutationReceiptV1(**receipt_data)
 
-    print(f"\nMUTATION PROOF COMPLETE: Score={receipt['mutation_score']} All Detected={receipt['all_detected']}")
-    if not receipt["all_detected"]:
+    receipt_out.parent.mkdir(parents=True, exist_ok=True)
+    receipt_out.write_text(json.dumps(validated_receipt.model_dump(), indent=2), encoding="utf-8")
+
+    print(f"\nMUTATION PROOF COMPLETE: Score={validated_receipt.mutation_score} All Detected={validated_receipt.all_detected}")
+    if not validated_receipt.all_detected:
         sys.exit(1)
     sys.exit(0)
+
 
 if __name__ == "__main__":
     run_mutation_proof()
