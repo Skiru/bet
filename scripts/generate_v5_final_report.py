@@ -20,8 +20,15 @@ def generate_report():
     tree = subprocess.run(["git", "rev-parse", "HEAD^{tree}"], cwd=WORKTREE, capture_output=True, text=True).stdout.strip()
     branch = subprocess.run(["git", "branch", "--show-current"], cwd=WORKTREE, capture_output=True, text=True).stdout.strip()
 
+    # Ensure clean output targets for certifier
+    if CERT_REPORT.exists():
+        CERT_REPORT.unlink()
+    junit_path = Path("/tmp/pipeline_junit.xml")
+    if junit_path.exists():
+        junit_path.unlink()
+
     # Run certifier to ensure fresh cert report
-    cert_cmd = [sys.executable, "scripts/certify_pipeline_final_closure.py", "--junit", "/tmp/pipeline_junit.xml", "--output", str(CERT_REPORT)]
+    cert_cmd = [sys.executable, "scripts/certify_pipeline_final_closure.py", "--junit", str(junit_path), "--output", str(CERT_REPORT)]
     cert_res = subprocess.run(cert_cmd, cwd=WORKTREE, capture_output=True, text=True)
 
     acc_data = json.loads(ACC_REPORT.read_text()) if ACC_REPORT.exists() else {}
