@@ -16,4 +16,3 @@ def test_full_agentic_sharding_lifecycle(tmp_path):
         if hasattr(o, "pending_chunk_work_order_path"):
             assert hasattr(o, "pending_chunk_work_order_path")
             assert hasattr(sl, "WAITING_FOR_CHUNK_ARTIFACT") or "WAITING_FOR_CHUNK_ARTIFACT" in dir(sl)
-EOF

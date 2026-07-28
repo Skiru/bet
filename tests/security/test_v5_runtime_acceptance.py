@@ -53,4 +53,3 @@ def test_s8_unpriced_output_status():
         gate = res.get("ready_for_human_gate") if isinstance(res, dict) else getattr(res, "ready_for_human_gate", None)
         assert status == "ANALYSIS_ONLY_OUTPUT", f"Status was {status}"
         assert gate == False, f"ready_for_human_gate was {gate}"
-EOF

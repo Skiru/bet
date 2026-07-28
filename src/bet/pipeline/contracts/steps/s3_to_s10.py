@@ -104,27 +104,53 @@ class S6PortfolioRepeatGuardV1(StrictBaseModel):
     filtered_candidates: list[FilteredCandidateRecordV1] = Field(default_factory=list)
 
 
-class ApprovedPickRecordV1(StrictBaseModel):
-    pick_id: str
+class CanonicalCandidateRecordV1(StrictBaseModel):
+    quote_card_id: str | None = None
+    pick_id: str | None = None
+    source_candidate_id: str | None = None
     canonical_event_id: str
-    sport: str
-    competition: str
-    home_team: str
-    away_team: str
-    market_family: str
-    selection: str
+    selection_id: str | None = None
+    sport: str | None = None
+    competition: str | None = None
+    home_team: str | None = None
+    away_team: str | None = None
+    event_start_time: str | None = None
+    market_family: str | None = None
+    selection: str | None = None
     line: float | None = None
     calibrated_probability: float | None = None
     model_fair_probability: float | None = None
     fair_decimal_odds: float | None = None
     minimum_acceptable_operator_odds: float | None = None
+    minimum_acceptable_odds: float | None = None
     recommended_minimum_odds: float | None = None
     pricing_status: str = "UNPRICED"
     model_id: str | None = None
+    model_package_id: str | None = None
+    model_package_sha256: str | None = None
     model_card_sha256: str | None = None
     dataset_receipt_sha256: str | None = None
+    feature_snapshot_sha256: str | None = None
     calibration_report_sha256: str | None = None
-    terminal_status: Literal["PASS", "DEGRADED_CONTINUE", "REJECTED", "NO_ACTION", "BLOCKED"]
+    manual_operator: Literal["SUPERBET"] = "SUPERBET"
+    mapping_ambiguity: str = "UNAMBIGUOUS"
+    visible_operator_market_name: str | None = None
+    visible_operator_line: str | None = None
+    human_entered_decimal_quote: float | None = None
+    quote_as_of: str | None = None
+    operator_availability_asserted: bool = False
+    executable_coupon: bool = False
+    betting_valid: bool = False
+    can_place_bet_now: bool = False
+    terminal_status: Literal["PASS", "DEGRADED_CONTINUE", "REJECTED", "NO_ACTION", "BLOCKED"] = "PASS"
+
+
+class ApprovedPickRecordV1(CanonicalCandidateRecordV1):
+    pass
+
+
+# S7 Candidate Record Alias
+S7CandidateRecord = ApprovedPickRecordV1
 
 
 # S7 Contract
@@ -138,39 +164,12 @@ class S7ApprovedPicksV1(StrictBaseModel):
     approved_picks: list[ApprovedPickRecordV1] = Field(default_factory=list)
 
 
-class MappingSuggestionRecordV1(StrictBaseModel):
-    quote_card_id: str
-    source_candidate_id: str
-    canonical_event_id: str
-    selection_id: str
-    sport: str | None = None
-    competition: str | None = None
-    home_team: str | None = None
-    away_team: str | None = None
-    event_start_time: str | None = None
-    market_family: str | None = None
-    selection: str | None = None
-    line: float | None = None
-    calibrated_probability: float | None = None
-    model_fair_probability: float | None = None
-    fair_decimal_odds: float | None = None
-    minimum_acceptable_operator_odds: float | None = None
-    recommended_minimum_odds: float | None = None
-    pricing_status: str = "UNPRICED"
-    model_id: str | None = None
-    model_card_sha256: str | None = None
-    dataset_receipt_sha256: str | None = None
-    calibration_report_sha256: str | None = None
-    manual_operator: Literal["SUPERBET"] = "SUPERBET"
-    mapping_ambiguity: str = "UNAMBIGUOUS"
-    visible_operator_market_name: str | None = None
-    visible_operator_line: str | None = None
-    human_entered_decimal_quote: float | None = None
-    quote_as_of: str | None = None
-    operator_availability_asserted: bool = False
-    executable_coupon: bool = False
-    betting_valid: bool = False
-    can_place_bet_now: bool = False
+class MappingSuggestionRecordV1(CanonicalCandidateRecordV1):
+    pass
+
+
+# S7b Candidate Record Alias
+S7bCandidateRecord = MappingSuggestionRecordV1
 
 
 # S7b Contract
@@ -218,30 +217,12 @@ class S7bSuperbetManualMappingV1(StrictBaseModel):
         return self
 
 
-class QuoteCardRecordV1(StrictBaseModel):
-    quote_card_id: str
-    source_candidate_id: str
-    canonical_event_id: str
-    selection_id: str
-    sport: str | None = None
-    competition: str | None = None
-    home_team: str | None = None
-    away_team: str | None = None
-    event_start_time: str | None = None
-    market_family: str | None = None
-    selection: str | None = None
-    line: float | None = None
-    calibrated_probability: float | None = None
-    fair_decimal_odds: float | None = None
-    minimum_acceptable_operator_odds: float | None = None
-    minimum_acceptable_odds: float | None = None
-    pricing_status: str = "UNPRICED"
-    model_id: str | None = None
-    model_card_sha256: str | None = None
-    dataset_receipt_sha256: str | None = None
-    calibration_report_sha256: str | None = None
-    manual_operator: Literal["SUPERBET"] = "SUPERBET"
-    mapping_ambiguity: str | None = "UNAMBIGUOUS"
+class QuoteCardRecordV1(CanonicalCandidateRecordV1):
+    pass
+
+
+# S8 Input Candidate Record Alias
+S8InputCandidateRecord = MappingSuggestionRecordV1
 
 
 class S8IdeaGroupV1(StrictBaseModel):

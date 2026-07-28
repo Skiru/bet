@@ -841,3 +841,57 @@ def write_analytical_candidate_handoff(path: Path, payload: dict[str, Any]) -> P
     from bet.pipeline.run_evidence import write_json_atomic
     write_json_atomic(path, payload)
     return Path(path)
+
+
+def map_s7_to_s7b(s7_candidate: dict[str, Any]) -> dict[str, Any]:
+    """Map S7 approved pick candidate to S7b mapping suggestion strictly without defaults."""
+    card_id = s7_candidate.get("quote_card_id") or s7_candidate.get("pick_id") or s7_candidate.get("candidate_id") or f"card-{s7_candidate.get('canonical_event_id', '')}"
+    src_id = s7_candidate.get("source_candidate_id") or s7_candidate.get("pick_id") or s7_candidate.get("candidate_id") or card_id
+    sel_id = s7_candidate.get("selection_id") or s7_candidate.get("selection") or "1"
+
+    sport = s7_candidate.get("sport")
+    comp = s7_candidate.get("competition")
+    home = s7_candidate.get("home_team")
+    away = s7_candidate.get("away_team")
+
+    ambiguity = "UNAMBIGUOUS"
+    if not all((sport, comp, home, away)):
+        ambiguity = "AMBIGUOUS"
+
+    return {
+        "quote_card_id": str(card_id),
+        "source_candidate_id": str(src_id),
+        "canonical_event_id": str(s7_candidate.get("canonical_event_id") or ""),
+        "selection_id": str(sel_id),
+        "sport": sport,
+        "competition": comp,
+        "home_team": home,
+        "away_team": away,
+        "event_start_time": s7_candidate.get("event_start_time"),
+        "market_family": s7_candidate.get("market_family"),
+        "selection": s7_candidate.get("selection"),
+        "line": s7_candidate.get("line"),
+        "calibrated_probability": s7_candidate.get("calibrated_probability"),
+        "model_fair_probability": s7_candidate.get("model_fair_probability"),
+        "fair_decimal_odds": s7_candidate.get("fair_decimal_odds"),
+        "minimum_acceptable_operator_odds": s7_candidate.get("minimum_acceptable_operator_odds"),
+        "recommended_minimum_odds": s7_candidate.get("recommended_minimum_odds"),
+        "pricing_status": s7_candidate.get("pricing_status") or "UNPRICED",
+        "model_id": s7_candidate.get("model_id"),
+        "model_package_id": s7_candidate.get("model_package_id"),
+        "model_package_sha256": s7_candidate.get("model_package_sha256"),
+        "model_card_sha256": s7_candidate.get("model_card_sha256"),
+        "dataset_receipt_sha256": s7_candidate.get("dataset_receipt_sha256"),
+        "feature_snapshot_sha256": s7_candidate.get("feature_snapshot_sha256"),
+        "calibration_report_sha256": s7_candidate.get("calibration_report_sha256"),
+        "manual_operator": "SUPERBET",
+        "mapping_ambiguity": ambiguity,
+        "visible_operator_market_name": None,
+        "visible_operator_line": None,
+        "human_entered_decimal_quote": None,
+        "quote_as_of": None,
+        "operator_availability_asserted": False,
+        "executable_coupon": False,
+        "betting_valid": False,
+        "can_place_bet_now": False,
+    }

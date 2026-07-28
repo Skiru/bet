@@ -143,6 +143,7 @@ def adapt_legacy_artifact(data: dict[str, Any], target_type: str) -> dict[str, A
                     away = _require_field(item, ("away_team", "away"), "away_team", target_type)
                     start = _require_field(item, ("event_start_time", "start_time"), "event_start_time", target_type)
                     disc = _require_field(item, ("discovery_status",), "discovery_status", target_type)
+                    term_st = _require_field(item, ("terminal_status", "status"), "terminal_status", target_type)
                     norm_events.append({
                         "canonical_event_id": str(eid),
                         "sport": str(sport),
@@ -151,7 +152,7 @@ def adapt_legacy_artifact(data: dict[str, Any], target_type: str) -> dict[str, A
                         "away_team": str(away),
                         "event_start_time": str(start),
                         "discovery_status": str(disc),
-                        "terminal_status": item.get("terminal_status", "PASS"),
+                        "terminal_status": str(term_st),
                     })
             migrated["events"] = norm_events
             migrated["discovered_event_count"] = len(norm_events)
@@ -169,6 +170,7 @@ def adapt_legacy_artifact(data: dict[str, Any], target_type: str) -> dict[str, A
                     away = _require_field(item, ("away_team", "away"), "away_team", target_type)
                     start = _require_field(item, ("event_start_time", "start_time"), "event_start_time", target_type)
                     disc = _require_field(item, ("discovery_status",), "discovery_status", target_type)
+                    term_st = _require_field(item, ("terminal_status", "status"), "terminal_status", target_type)
                     norm_events.append({
                         "canonical_event_id": str(eid),
                         "sport": str(sport),
@@ -177,7 +179,7 @@ def adapt_legacy_artifact(data: dict[str, Any], target_type: str) -> dict[str, A
                         "away_team": str(away),
                         "event_start_time": str(start),
                         "discovery_status": str(disc),
-                        "terminal_status": item.get("terminal_status", "PASS"),
+                        "terminal_status": str(term_st),
                     })
             migrated["deduplicated_events"] = norm_events
             migrated["total_events"] = len(norm_events)
@@ -207,12 +209,13 @@ def adapt_legacy_artifact(data: dict[str, Any], target_type: str) -> dict[str, A
             for item in (raw_p if isinstance(raw_p, list) else []):
                 if isinstance(item, dict):
                     eid = _require_field(item, ("canonical_event_id", "fixture_id", "event_id"), "canonical_event_id", target_type)
-                    m_fam = _opt_field(item, ("market_family", "market", "best_market"), "result")
-                    sel = _opt_field(item, ("selection", "pick"), "home")
+                    m_fam = _require_field(item, ("market_family", "market", "best_market"), "market_family", target_type)
+                    sel = _require_field(item, ("selection", "pick"), "selection", target_type)
                     prob = _opt_field(item, ("calibrated_probability", "model_fair_probability", "model_probability"), None)
-                    model_id = _opt_field(item, ("model_id",), "ANALYSIS_ONLY")
+                    model_id = _opt_field(item, ("model_id",), None)
                     ds_rec = _opt_field(item, ("dataset_receipt_sha256",), None)
                     cal_rec = _opt_field(item, ("calibration_report_sha256",), None)
+                    term_st = _require_field(item, ("terminal_status", "status"), "terminal_status", target_type)
                     norm_p.append({
                         "canonical_event_id": str(eid),
                         "market_family": str(m_fam),
@@ -222,7 +225,7 @@ def adapt_legacy_artifact(data: dict[str, Any], target_type: str) -> dict[str, A
                         "model_id": str(model_id) if model_id else None,
                         "dataset_receipt_sha256": str(ds_rec) if ds_rec else None,
                         "calibration_report_sha256": str(cal_rec) if cal_rec else None,
-                        "terminal_status": item.get("terminal_status") or item.get("status") or "PASS",
+                        "terminal_status": str(term_st),
                     })
             migrated["probability_estimates"] = norm_p
             migrated["probabilities_count"] = len(norm_p)
@@ -234,11 +237,12 @@ def adapt_legacy_artifact(data: dict[str, Any], target_type: str) -> dict[str, A
         for item in (raw_v if isinstance(raw_v, list) else []):
             if isinstance(item, dict):
                 eid = _require_field(item, ("canonical_event_id", "fixture_id", "event_id"), "canonical_event_id", target_type)
-                m_fam = _opt_field(item, ("market_family", "market", "best_market"), "result")
-                sel = _opt_field(item, ("selection", "pick"), "home")
+                m_fam = _require_field(item, ("market_family", "market", "best_market"), "market_family", target_type)
+                sel = _require_field(item, ("selection", "pick"), "selection", target_type)
                 fair_o = _opt_field(item, ("fair_decimal_odds", "fair_odds", "model_fair_odds"), None)
                 min_o = _opt_field(item, ("minimum_acceptable_operator_odds", "minimum_acceptable_odds", "recommended_minimum_odds"), None)
                 ev_est = _opt_field(item, ("ev_estimate", "ev"), None)
+                term_st = _require_field(item, ("status", "valuation_status", "terminal_status"), "status", target_type)
                 norm_v.append({
                     "canonical_event_id": str(eid),
                     "market_family": str(m_fam),
@@ -246,7 +250,7 @@ def adapt_legacy_artifact(data: dict[str, Any], target_type: str) -> dict[str, A
                     "fair_odds": float(fair_o) if fair_o is not None else None,
                     "ev_estimate": float(ev_est) if ev_est is not None else None,
                     "minimum_acceptable_odds": float(min_o) if min_o is not None else None,
-                    "status": item.get("status") or item.get("valuation_status") or ("PASS" if fair_o is not None else "ANALYSIS_ONLY"),
+                    "status": str(term_st),
                 })
         migrated["valuation_candidates"] = norm_v
         migrated["candidates_valuated_count"] = len(norm_v)
@@ -261,15 +265,16 @@ def adapt_legacy_artifact(data: dict[str, Any], target_type: str) -> dict[str, A
             if isinstance(item, dict):
                 eid = _require_field(item, ("canonical_event_id", "fixture_id", "event_id"), "canonical_event_id", target_type)
                 sport = _require_field(item, ("sport",), "sport", target_type)
-                mot_score = item.get("motivation_score")
-                risk_cls = item.get("risk_classification") or "UNSPECIFIED"
+                mot_score = _require_field(item, ("motivation_score",), "motivation_score", target_type)
+                risk_cls = _require_field(item, ("risk_classification",), "risk_classification", target_type)
+                term_st = _require_field(item, ("terminal_status", "status"), "terminal_status", target_type)
                 norm_ctx.append({
                     "canonical_event_id": str(eid),
                     "sport": str(sport),
-                    "motivation_score": float(mot_score) if mot_score is not None else 1.0,
+                    "motivation_score": float(mot_score),
                     "risk_classification": str(risk_cls),
                     "context_notes": item.get("context_notes"),
-                    "terminal_status": item.get("terminal_status") or item.get("status") or "PASS",
+                    "terminal_status": str(term_st),
                 })
         migrated["context_reviews"] = norm_ctx
         migrated["events_reviewed_count"] = len(norm_ctx)
@@ -284,12 +289,14 @@ def adapt_legacy_artifact(data: dict[str, Any], target_type: str) -> dict[str, A
             if isinstance(item, dict):
                 eid = _require_field(item, ("canonical_event_id", "fixture_id", "event_id"), "canonical_event_id", target_type)
                 sel = _require_field(item, ("selection", "pick"), "selection", target_type)
+                act = _require_field(item, ("action",), "action", target_type)
+                term_st = _require_field(item, ("terminal_status", "status"), "terminal_status", target_type)
                 norm_f.append({
                     "canonical_event_id": str(eid),
                     "selection": str(sel),
                     "repeat_risk_flag": bool(item.get("repeat_risk_flag", False)),
-                    "action": item.get("action") or "ALLOW",
-                    "terminal_status": item.get("terminal_status") or item.get("status") or "PASS",
+                    "action": str(act),
+                    "terminal_status": str(term_st),
                 })
         migrated["filtered_candidates"] = norm_f
         migrated["repeats_filtered_count"] = len(norm_f)
@@ -312,16 +319,17 @@ def adapt_legacy_artifact(data: dict[str, Any], target_type: str) -> dict[str, A
             for idx, item in enumerate(raw_picks if isinstance(raw_picks, list) else []):
                 if isinstance(item, dict):
                     eid = _require_field(item, ("canonical_event_id", "fixture_id", "event_id"), "canonical_event_id", target_type)
-                    pick_id = _opt_field(item, ("pick_id", "candidate_id"), f"pick-{idx}")
+                    pick_id = _require_field(item, ("pick_id", "candidate_id", "quote_card_id"), "pick_id", target_type)
                     sport = _require_field(item, ("sport",), "sport", target_type)
                     comp = _require_field(item, ("competition", "league"), "competition", target_type)
                     home = _require_field(item, ("home_team", "home"), "home_team", target_type)
                     away = _require_field(item, ("away_team", "away"), "away_team", target_type)
-                    m_fam = _opt_field(item, ("market_family", "market", "best_market"), "result")
+                    m_fam = _require_field(item, ("market_family", "market", "best_market"), "market_family", target_type)
                     sel = _require_field(item, ("selection", "pick"), "selection", target_type)
                     prob = _opt_field(item, ("calibrated_probability", "model_fair_probability", "model_probability"), None)
                     min_o = _opt_field(item, ("minimum_acceptable_operator_odds", "minimum_acceptable_odds", "recommended_minimum_odds"), None)
                     fair_o = _opt_field(item, ("fair_decimal_odds", "fair_odds", "model_fair_odds"), None)
+                    term_st = _require_field(item, ("terminal_status", "status"), "terminal_status", target_type)
                     norm_picks.append({
                         "pick_id": str(pick_id),
                         "canonical_event_id": str(eid),
@@ -338,7 +346,7 @@ def adapt_legacy_artifact(data: dict[str, Any], target_type: str) -> dict[str, A
                         "minimum_acceptable_operator_odds": float(min_o) if min_o is not None else None,
                         "recommended_minimum_odds": float(min_o) if min_o is not None else None,
                         "pricing_status": item.get("pricing_status") or ("PRICED" if min_o is not None else "UNPRICED"),
-                        "terminal_status": item.get("terminal_status") or item.get("status") or "PASS",
+                        "terminal_status": str(term_st),
                     })
             migrated["approved_picks"] = norm_picks
             migrated["approved_candidate_count"] = len(norm_picks)

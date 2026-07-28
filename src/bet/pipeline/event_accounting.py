@@ -222,3 +222,41 @@ class EventAccountingLedger:
 ACCOUNTING_BOUNDARY_STEPS = frozenset(
     {"S2", "S2.3", "S2.5", "S2.7", "S2.9", "S3", "S4", "S5", "S6", "S7", "S7b", "S8"}
 )
+
+
+def validate_event_accounting(
+    universe: list[str],
+    processed: list[str] | list[dict[str, Any]],
+    step_id: str = "UNKNOWN",
+) -> None:
+    """Validate exact event universe accounting without missing, duplicate, or foreign events."""
+    universe_set = set(universe)
+    processed_ids: list[str] = []
+    for item in processed:
+        if isinstance(item, dict):
+            eid = str(
+                item.get("canonical_event_id")
+                or item.get("event_id")
+                or item.get("fixture_id")
+                or item.get("candidate_id")
+                or item.get("id")
+                or ""
+            )
+        else:
+            eid = str(item)
+        if not eid:
+            raise EventAccountingError(f"EVENT_ACCOUNTING_EMPTY_ID: Step {step_id}")
+        processed_ids.append(eid)
+
+    seen = set()
+    for eid in processed_ids:
+        if eid in seen:
+            raise EventAccountingError(f"EVENT_BOUNDARY_DUPLICATE_EVENT: {eid} in step {step_id}")
+        seen.add(eid)
+        if eid not in universe_set:
+            raise EventAccountingError(f"EVENT_BOUNDARY_UNKNOWN_EVENT: {eid} in step {step_id}")
+
+    missing = sorted(universe_set - seen)
+    if missing:
+        raise EventAccountingError(f"EVENT_BOUNDARY_LOSS: {','.join(missing)} in step {step_id}")
+
