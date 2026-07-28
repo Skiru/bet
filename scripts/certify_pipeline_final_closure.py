@@ -400,6 +400,8 @@ def main() -> int:
             "artifact_type": "PIPELINE_CANONICAL_CONTINUITY_CERTIFICATE_V1",
             "status": "PASS",
             "decision": "READY_FOR_BET_EXECUTOR_SESSION",
+            "READY_FOR_BET_EXECUTOR_ANALYSIS_SESSION": "YES",
+            "READY_FOR_PRICED_COUPON_SESSION": "NO",
             "generated_at_utc": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
             "source": {
                 "branch": branch,

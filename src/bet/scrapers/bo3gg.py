@@ -272,21 +272,8 @@ class Bo3GGScraper:
     # --- Playwright-based methods for JS-rendered pages (odds, match details) ---
 
     def _ensure_browser(self):
-        """Lazy-init Playwright browser for JS-rendered bo3.gg pages."""
-        if hasattr(self, "_browser") and self._browser is not None:
-            return True
-        try:
-            from playwright.sync_api import sync_playwright
-            self._pw = sync_playwright().start()
-            self._browser = self._pw.chromium.launch(
-                headless=True,
-                args=["--disable-blink-features=AutomationControlled", "--no-sandbox"],
-            )
-            return True
-        except Exception as e:
-            logger.warning("bo3.gg: Playwright not available: %s", e)
-            self._browser = None
-            return False
+        """Lazy-init Playwright browser - permanently disabled in production."""
+        raise RuntimeError("BROWSER_AUTOMATION_DISABLED: Playwright browser automation is permanently disabled in production pipeline")
 
     def _get_rendered(self, url: str, wait_selector: str = "a[href*='/matches/']", timeout_ms: int = 12000, use_networkidle: bool = False) -> BeautifulSoup | None:
         """Fetch a JS-rendered page via Playwright with rate limiting."""

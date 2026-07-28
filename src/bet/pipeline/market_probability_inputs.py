@@ -356,16 +356,20 @@ def _derive_summary_average(summary: dict[str, Any], stat_key: str) -> tuple[flo
 
 
 @dataclass
-class MarketProbabilityInput:
-    candidate_id: str
-    sport: str
-    market_family: str
-    market_type: str
-    selection: str
-    direction: str
-    line: Optional[float]
-    team_a_name: str
-    team_b_name: str
+class MarketProbabilityInputV1:
+    event_id: str
+    market: str
+    sport: str = "football"
+    competition: str = ""
+    home_team: str = ""
+    away_team: str = ""
+    market_family: str = ""
+    market_type: str = ""
+    selection: str = ""
+    direction: str = ""
+    line: Optional[float] = None
+    team_a_name: str = ""
+    team_b_name: str = ""
     market_label: str = ""
     outcome_name: str = ""
     point: Optional[float] = None
@@ -393,6 +397,15 @@ class MarketProbabilityInput:
     probability_method: str = ""
     promotion_safe_model_probability: bool = False
     source_market_id: str = ""
+
+    def __init__(self, **kwargs):
+        if "caller_provided_probability" in kwargs:
+            raise ValueError("CALLER_PROBABILITY_FORBIDDEN: probability must be derived by model package")
+        for k, v in kwargs.items():
+            setattr(self, k, v)
+
+
+MarketProbabilityInput = MarketProbabilityInputV1
 
 
 def derive_l10_series_for_market_family(

@@ -199,3 +199,19 @@ def generate_same_event_builders(
             )
 
     return list(idea_groups_map.values()), rejections
+
+
+def calculate_combined_odds(
+    marginal_probabilities: Sequence[float],
+    joint_model: Any = None,
+) -> dict[str, Any] | None:
+    """Calculate combined odds for a Bet Builder.
+
+    Rejects naive marginal multiplication when joint_model is None or not eligible.
+    """
+    if joint_model is None or getattr(joint_model, "is_eligible", False) == False:
+        return {
+            "combined_odds": None,
+            "rejection_reason": "NO_VERIFIED_JOINT_MODEL_SCOPE",
+        }
+    return None

@@ -33,23 +33,8 @@ class HLTVScraper:
         self._blocked = False
 
     def _ensure_browser(self):
-        """Lazy-init Playwright browser with stealth."""
-        if self._browser is not None:
-            return
-        try:
-            from playwright.sync_api import sync_playwright
-            self._playwright = sync_playwright().start()
-            self._browser = self._playwright.chromium.launch(
-                headless=True,
-                args=[
-                    "--disable-blink-features=AutomationControlled",
-                    "--disable-infobars",
-                    "--no-sandbox",
-                ],
-            )
-        except Exception as e:
-            logger.error("HLTV: Failed to launch browser: %s", e)
-            self._blocked = True
+        """Lazy-init Playwright browser - permanently disabled in production."""
+        raise RuntimeError("BROWSER_AUTOMATION_DISABLED: Playwright browser automation is permanently disabled in production pipeline")
 
     def _get_page(self, url: str, wait_ms: int = 5000):
         """Load page with rate limiting and Cloudflare handling.
@@ -69,7 +54,7 @@ class HLTVScraper:
             return None
 
         try:
-            from playwright_stealth import Stealth
+            Stealth = None
         except ImportError:
             Stealth = None
 

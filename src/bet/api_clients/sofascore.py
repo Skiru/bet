@@ -81,37 +81,7 @@ class SofascoreClient(BaseAPIClient):
             raise APIError(f"Sofascore Network error: {e}")
 
     def _request_playwright(self, url: str, params: dict | None = None) -> dict:
-        """Stealth Playwright — intercept Sofascore's own API calls from schedule page."""
-        import threading
-        # Playwright sync API cannot run inside ThreadPoolExecutor workers (greenlet crash).
-        # If we're NOT in the main thread, skip Playwright and raise immediately.
-        if threading.current_thread() is not threading.main_thread():
-            SofascoreClient._stealth_failures += 1
-            if SofascoreClient._stealth_failures >= SofascoreClient._STEALTH_FAILURE_THRESHOLD:
-                SofascoreClient._stealth_circuit_open = True
-            raise APIError(f"Sofascore Playwright fallback disabled in worker thread (would crash greenlet)")
-
-        from playwright.sync_api import sync_playwright
-        from playwright_stealth import Stealth
-        import urllib.parse
-        import time
-        import random
-        import json as _json
-        
-        try:
-            from scripts.stealth_utils import USER_AGENTS, BROWSER_ARGS
-        except ImportError:
-            try:
-                from stealth_utils import USER_AGENTS, BROWSER_ARGS
-            except ImportError:
-                USER_AGENTS = [
-                    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36",
-                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36",
-                ]
-                BROWSER_ARGS = ['--disable-blink-features=AutomationControlled', '--disable-infobars', '--no-sandbox']
-        
-        if params:
-            query = urllib.parse.urlencode(params)
+        raise RuntimeError("BROWSER_AUTOMATION_DISABLED: Playwright browser automation is permanently disabled in production pipeline")
             full_url = f"{url}?{query}"
         else:
             full_url = url
