@@ -135,14 +135,41 @@ class FactRequirementV1(StrictBaseModel):
     conflict_policy: str = "FAIL_CLOSED"
     missing_data_action: str = "BLOCK"
 
+    @field_validator("market_families_affected", "allowed_tools", "query_templates", mode="before")
+    @classmethod
+    def coerce_tuples(cls, v: Any) -> tuple[str, ...]:
+        if isinstance(v, (list, set, tuple)):
+            return tuple(str(x) for x in v)
+        return ()
+
 
 class FactAcquisitionPlanV1(StrictBaseModel):
     """Plan specifying facts to acquire for an event."""
     plan_id: str
     canonical_event_id: str
     sport: str
-    requirements: tuple[FactRequirementV1, ...]
+    requirements: tuple[FactRequirementV1, ...] = ()
     max_queries: int = 10
+
+    @field_validator("requirements", mode="before")
+    @classmethod
+    def coerce_requirements(cls, v: Any) -> tuple[FactRequirementV1, ...]:
+        if isinstance(v, (list, tuple)):
+            res = []
+            for item in v:
+                if isinstance(item, dict):
+                    res.append(FactRequirementV1.model_validate(item))
+                elif isinstance(item, FactRequirementV1):
+                    res.append(item)
+            return tuple(res)
+        return ()
+
+    @field_validator("canonical_event_id")
+    @classmethod
+    def check_canonical_event_id(cls, v: str) -> str:
+        if v == "ALL_SHORTLIST_EVENTS":
+            raise ValueError("FactAcquisitionPlanV1 requires event-specific canonical_event_id, ALL_SHORTLIST_EVENTS forbidden")
+        return v
 
 
 class RetrievalReceiptV1(StrictBaseModel):

@@ -625,13 +625,14 @@ def build_agent_work_order(
     if source_head == "UNKNOWN" or not source_head:
         raise ContinuityContractError("Git source_head is UNKNOWN which is forbidden for persisted work orders")
 
-    acq_plan = kwargs.get("acquisition_plan")
+    acq_plan_data = kwargs.get("acquisition_plan")
     allowed_tools = kwargs.get("allowed_tools", [])
-    if acq_plan is None and step_id in {"S2.3", "S2.5", "S2.7", "S2.9", "S5"}:
+    if acq_plan_data is None and step_id in {"S2.3", "S2.5", "S2.7", "S2.9", "S5"}:
         allowed_tools = ["bet_sqlite_query", "webfetch", "read", "glob", "grep"]
-        acq_plan = {
+        eid = kwargs.get("canonical_event_id") or "event_scope_shortlist"
+        acq_plan_data = {
             "plan_id": f"PLAN-{work_order_id}",
-            "canonical_event_id": kwargs.get("canonical_event_id") or "ALL_SHORTLIST_EVENTS",
+            "canonical_event_id": eid,
             "sport": kwargs.get("sport") or "football",
             "max_queries": 10,
             "requirements": [
@@ -646,12 +647,15 @@ def build_agent_work_order(
                     "min_independent_sources": 2,
                 }
             ],
-            "query_budget": {
-                "max_queries_per_event": 5,
-                "max_total_queries": 25,
-                "max_wall_time_seconds": 300,
-            },
         }
+
+    parsed_plan = None
+    if isinstance(acq_plan_data, dict):
+        # Remove extra dict fields like query_budget
+        acq_plan_data.pop("query_budget", None)
+        parsed_plan = FactAcquisitionPlanV1.model_validate(acq_plan_data)
+    elif isinstance(acq_plan_data, FactAcquisitionPlanV1):
+        parsed_plan = acq_plan_data
 
     return AgentWorkOrder(
         schema_version=1,
@@ -674,7 +678,7 @@ def build_agent_work_order(
         source_head=source_head,
         allowed_tools=allowed_tools,
         task_allowlist=kwargs.get("task_allowlist", []),
-        acquisition_plan=acq_plan,
+        acquisition_plan=parsed_plan,
         parent_work_order_id=kwargs.get("parent_work_order_id"),
         parent_work_order_sha256=kwargs.get("parent_work_order_sha256"),
         plan_id=kwargs.get("plan_id"),
