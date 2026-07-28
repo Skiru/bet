@@ -8940,5 +8940,61 @@
     "reason": "Repository configuration authority",
     "references": [],
     "expiry_or_review_policy": "REVIEW_ON_SCHEMA_UPGRADE"
+  },
+  {
+    "path": "docs/V5_BASELINE_ACCEPTANCE.md",
+    "category": "CURRENT_DOCUMENTATION",
+    "owner": "Kilo",
+    "reason": "V5 baseline acceptance documentation",
+    "references": [],
+    "expiry_or_review_policy": "PERMANENT_RETAINED_PRODUCTION"
+  },
+  {
+    "path": "docs/V5_CLOSURE_CERTIFICATION.md",
+    "category": "CURRENT_DOCUMENTATION",
+    "owner": "Kilo",
+    "reason": "V5 closure certification documentation",
+    "references": [],
+    "expiry_or_review_policy": "PERMANENT_RETAINED_PRODUCTION"
+  },
+  {
+    "path": "scripts/generate_v5_final_report.py",
+    "category": "RETAINED_ENGINEERING",
+    "owner": "Kilo",
+    "reason": "Machine-receipt backed final report generator",
+    "references": [],
+    "expiry_or_review_policy": "PERMANENT_RETAINED_PRODUCTION"
+  },
+  {
+    "path": "scripts/test_mutation_proof.py",
+    "category": "RETAINED_ENGINEERING",
+    "owner": "Kilo",
+    "reason": "Controlled mutation proof runner",
+    "references": [],
+    "expiry_or_review_policy": "PERMANENT_RETAINED_PRODUCTION"
+  },
+  {
+    "path": "tests/integration/test_v5_full_agentic_runtime.py",
+    "category": "RETAINED_TEST",
+    "owner": "Kilo",
+    "reason": "Full agentic runtime integration tests",
+    "references": [],
+    "expiry_or_review_policy": "PERMANENT_RETAINED_PRODUCTION"
+  },
+  {
+    "path": "tests/security/test_v5_exploit_regressions.py",
+    "category": "RETAINED_TEST",
+    "owner": "Kilo",
+    "reason": "Exploit regression security tests",
+    "references": [],
+    "expiry_or_review_policy": "PERMANENT_RETAINED_PRODUCTION"
+  },
+  {
+    "path": "tests/security/test_v5_runtime_acceptance.py",
+    "category": "RETAINED_TEST",
+    "owner": "Kilo",
+    "reason": "Runtime acceptance security tests",
+    "references": [],
+    "expiry_or_review_policy": "PERMANENT_RETAINED_PRODUCTION"
   }
 ]
