@@ -322,49 +322,37 @@ class Orchestrator:
         self.env["BET_PIPELINE_RUN_AS_OF_UTC"] = self._resume_ledger.binding["run_as_of_utc"]
 
     def _handle_sharded_agent_step(self, step_id: str, gate_base_dir: Path, parent_wo: Any) -> tuple[bool, str | None, Path | None]:
-        """Check if S1e event scope requires sharding. If so, build chunk plan and aggregate chunks if available."""
+        """Check if event scope requires sharding. If so, build chunk plan and aggregate chunks if available."""
         from bet.pipeline.sharding.models import WorkOrderBudgetV1, ChunkArtifactV1
-        from bet.pipeline.sharding.lifecycle import create_chunk_execution_plan, aggregate_chunks
+        from bet.pipeline.sharding.lifecycle import create_chunk_execution_plan, aggregate_chunks, validate_chunk_against_work_order, WAITING_FOR_CHUNK_ARTIFACT
         from bet.pipeline.contracts.canonical_json import hash_canonical_json
 
-        # 1. Derive event IDs from parent work order's input refs and active records
+        # 1. Derive event IDs strictly from parent work order's input refs and active records
         event_ids: list[str] = []
         if hasattr(parent_wo, "input_refs") and parent_wo.input_refs:
             for ref in parent_wo.input_refs:
                 ref_path_str = ref.path if hasattr(ref, "path") else ref.get("path", "") if isinstance(ref, dict) else ""
                 ref_path = Path(ref_path_str) if ref_path_str else None
-                if ref_path and ref_path.exists():
-                    try:
-                        ref_data = json.loads(ref_path.read_text(encoding="utf-8"))
-                        recs = (
-                            ref_data.get("event_records")
-                            or ref_data.get("candidates")
-                            or ref_data.get("events")
-                            or ref_data.get("deduplicated_events")
-                            or []
-                        )
-                        for r in recs:
-                            eid = r.get("canonical_event_id") if isinstance(r, dict) else str(r) if r else None
-                            if eid and str(eid) not in event_ids:
-                                event_ids.append(str(eid))
-                    except Exception:
-                        pass
+                if not ref_path or not ref_path.exists():
+                    raise ValueError(f"REQUIRED_INPUT_REF_MISSING: Input reference path {ref_path_str} does not exist for sharding step {step_id}")
 
-        if not event_ids:
-            s1e_path = self.run_root / "data" / f"{self.betting_day}_s1e_event_universe.json" if hasattr(self, "run_root") else gate_base_dir / "data" / f"{self.betting_day}_s1e_event_universe.json"
-            if s1e_path.exists():
-                try:
-                    s1e_data = json.loads(s1e_path.read_text(encoding="utf-8"))
-                    e_list = s1e_data.get("canonical_event_ids") or [
-                        e["canonical_event_id"] for e in s1e_data.get("deduplicated_events", [])
-                        if isinstance(e, dict) and "canonical_event_id" in e
-                    ]
-                    for eid in e_list:
-                        s_eid = str(eid)
-                        if s_eid not in event_ids:
-                            event_ids.append(s_eid)
-                except Exception:
-                    pass
+                ref_data = json.loads(ref_path.read_text(encoding="utf-8"))
+                payload = ref_data.get("payload") if isinstance(ref_data.get("payload"), dict) else ref_data
+                recs = (
+                    payload.get("event_records")
+                    or payload.get("candidates")
+                    or payload.get("events")
+                    or payload.get("deduplicated_events")
+                    or ref_data.get("event_records")
+                    or ref_data.get("candidates")
+                    or ref_data.get("events")
+                    or ref_data.get("deduplicated_events")
+                    or []
+                )
+                for r in recs:
+                    eid = r.get("canonical_event_id") if isinstance(r, dict) else str(r) if r else None
+                    if eid and str(eid) not in event_ids:
+                        event_ids.append(str(eid))
 
         if not event_ids:
             return False, None, None
@@ -406,12 +394,12 @@ class Orchestrator:
             budget=budget,
         )
 
-        plan_dir = gate_base_dir / "work_orders" / "chunks"
+        plan_dir = self.run_root / "work_orders" / "chunks"
         plan_dir.mkdir(parents=True, exist_ok=True)
         plan_file = plan_dir / f"PLAN_{getattr(parent_wo, 'work_order_id', step_id)}.json"
         write_json_atomic(plan_file, plan.model_dump())
 
-        chunks_dir = gate_base_dir / "artifacts" / "chunks"
+        chunks_dir = self.run_artifact_dir / "chunks"
         chunks_dir.mkdir(parents=True, exist_ok=True)
 
         chunk_artifacts = []
@@ -434,6 +422,7 @@ class Orchestrator:
             else:
                 try:
                     c_art = ChunkArtifactV1(**json.loads(c_file.read_text(encoding="utf-8")))
+                    validate_chunk_against_work_order(c_art, c_wo)
                     chunk_artifacts.append(c_art)
                 except Exception:
                     missing_chunks.append(c_wo.chunk_id)
@@ -442,7 +431,7 @@ class Orchestrator:
             self.pending_chunk_work_order_path = first_pending_wo_path
             self.pending_chunk_work_order_sha256 = first_pending_wo_sha
             self.pending_chunk_expected_output_path = first_pending_expected_out
-            return True, f"Sharded step {step_id} waiting on {len(missing_chunks)}/{len(plan.chunks)} chunks", plan_file
+            return True, f"Sharded step {step_id} waiting on {len(missing_chunks)}/{len(plan.chunks)} chunks ({WAITING_FOR_CHUNK_ARTIFACT})", plan_file
 
         receipt, agg_records = aggregate_chunks(plan, chunk_artifacts)
         target_path = artifact_path_for(gate_base_dir, self.betting_day, self.run_id, step_id)

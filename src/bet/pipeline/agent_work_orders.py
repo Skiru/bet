@@ -338,6 +338,7 @@ def _script_evidence_candidates(
     run_root = resolve_run_root(betting_day, run_id, base_dir)
     runtime_artifacts = runtime_artifact_dir(run_root)
     return (
+        runtime_artifacts / step_id / f"{step_id}_artifact.json",
         run_root / "artifacts" / f"{step_id}.json",
         runtime_artifacts / f"{step_id}.json",
         artifact_path_for(base_dir, betting_day, run_id, step_id),

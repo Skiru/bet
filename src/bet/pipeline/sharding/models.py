@@ -41,7 +41,7 @@ class ChunkWorkOrderV1(StrictBaseModel):
     input_refs: tuple[dict[str, Any], ...] = ()
     task_allowlist: tuple[str, ...] = ()
     acquisition_plan_refs: tuple[str, ...] = ()
-    acquisition_plan: dict[str, Any] | None = None
+    acquisition_plan: FactAcquisitionPlanV1 | dict[str, Any] | None = None
     hard_rules: tuple[str, ...] = ()
     forbidden_outputs: tuple[str, ...] = ()
     expected_artifact_path: str = ""
@@ -50,6 +50,13 @@ class ChunkWorkOrderV1(StrictBaseModel):
     attempt_number: int = 1
     attempt_id: str = ""
     budget: WorkOrderBudgetV1 = Field(default_factory=WorkOrderBudgetV1)
+
+    @field_validator("event_ids", "allowed_tools", "task_allowlist", "acquisition_plan_refs", "hard_rules", "forbidden_outputs", "allowed_artifact_statuses", mode="before")
+    @classmethod
+    def coerce_tuples(cls, v: Any) -> tuple[str, ...]:
+        if isinstance(v, (list, tuple, set)):
+            return tuple(str(x) for x in v)
+        return ()
 
     @model_validator(mode="after")
     def validate_chunk_bindings(self) -> ChunkWorkOrderV1:
@@ -96,6 +103,13 @@ class ChunkArtifactV1(StrictBaseModel):
     payload: dict[str, Any] = Field(default_factory=dict)
     receipts: list[dict[str, Any]] = Field(default_factory=list)
     chunk_sha256: str = ""
+
+    @field_validator("processed_event_ids", mode="before")
+    @classmethod
+    def coerce_processed_event_ids(cls, v: Any) -> tuple[str, ...]:
+        if isinstance(v, (list, tuple, set)):
+            return tuple(str(x) for x in v)
+        return ()
 
 
 class ChunkAggregationReceiptV1(StrictBaseModel):

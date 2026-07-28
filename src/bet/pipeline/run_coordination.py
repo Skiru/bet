@@ -409,10 +409,12 @@ class ResumeLedger:
         normalized_outputs = dict(sorted(output_hashes.items()))
         signature = (step_id, request_hash, normalized_inputs)
         LEGAL_TRANSITIONS = {
-            "WAITING_FOR_AGENT_ARTIFACT": {"PASS", "AGENT_ARTIFACT_BLOCK", "COMMAND_REQUEST_PENDING", "NO_ACTION_TERMINAL"},
-            "COMMAND_REQUEST_PENDING": {"PASS", "COMMAND_REQUEST_UNRESOLVED", "NO_ACTION_TERMINAL"},
-            "COMMAND_REQUEST_UNRESOLVED": {"PASS", "AGENT_ARTIFACT_BLOCK", "COMMAND_REQUEST_PENDING", "NO_ACTION_TERMINAL"},
-            "AGENT_ARTIFACT_BLOCK": {"PASS", "COMMAND_REQUEST_PENDING", "NO_ACTION_TERMINAL"},
+            "WAITING_FOR_AGENT_ARTIFACT": {"PASS", "BLOCK", "AGENT_ARTIFACT_BLOCK", "COMMAND_REQUEST_PENDING", "NO_ACTION_TERMINAL", "WAITING_FOR_CHUNK_ARTIFACT"},
+            "COMMAND_REQUEST_PENDING": {"PASS", "BLOCK", "COMMAND_REQUEST_UNRESOLVED", "NO_ACTION_TERMINAL"},
+            "COMMAND_REQUEST_UNRESOLVED": {"PASS", "BLOCK", "AGENT_ARTIFACT_BLOCK", "COMMAND_REQUEST_PENDING", "NO_ACTION_TERMINAL"},
+            "AGENT_ARTIFACT_BLOCK": {"PASS", "BLOCK", "COMMAND_REQUEST_PENDING", "NO_ACTION_TERMINAL"},
+            "BLOCK": {"PASS", "BLOCK", "NO_ACTION_TERMINAL", "WAITING_FOR_CHUNK_ARTIFACT", "WAITING_FOR_AGENT_ARTIFACT"},
+            "WAITING_FOR_CHUNK_ARTIFACT": {"PASS", "BLOCK", "NO_ACTION_TERMINAL", "WAITING_FOR_CHUNK_ARTIFACT", "WAITING_FOR_AGENT_ARTIFACT"},
         }
 
         existing_entry = None
@@ -431,12 +433,16 @@ class ResumeLedger:
                 ):
                     if existing_entry.get("output_hashes") == normalized_outputs:
                         return existing_entry
+                    elif old_status in ("BLOCK", "WAITING_FOR_CHUNK_ARTIFACT", "PENDING", "COMMAND_REQUEST", "WAITING_FOR_AGENT_ARTIFACT"):
+                        resolution_of_attempt_id = str(existing_entry["attempt_id"])
                     else:
                         raise ResumeLedgerError("RESUME_LEDGER_CONFLICTING_RERUN")
+                elif old_status in ("BLOCK", "WAITING_FOR_CHUNK_ARTIFACT", "PENDING", "COMMAND_REQUEST", "WAITING_FOR_AGENT_ARTIFACT"):
+                    resolution_of_attempt_id = str(existing_entry["attempt_id"])
+                else:
+                    raise ResumeLedgerError("RESUME_LEDGER_CONFLICTING_RERUN")
             else:
-                allowed = LEGAL_TRANSITIONS.get(old_status, set())
-                if old_status == "BLOCK":
-                    allowed = {"PASS", "NO_ACTION_TERMINAL", "BLOCK"}
+                allowed = LEGAL_TRANSITIONS.get(old_status, {"PASS", "BLOCK", "NO_ACTION_TERMINAL", "WAITING_FOR_CHUNK_ARTIFACT", "WAITING_FOR_AGENT_ARTIFACT"})
 
                 if status not in allowed:
                     raise ResumeLedgerError("RESUME_LEDGER_CONFLICTING_RERUN")
