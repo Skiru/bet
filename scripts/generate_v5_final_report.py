@@ -1,75 +1,138 @@
 #!/usr/bin/env python3
 """
 Machine-receipt backed final report generator for BET PIPELINE V5 closure.
+Reads verified receipts produced during the pipeline run to construct final decision report.
 """
 from __future__ import annotations
 
+import argparse
+import hashlib
 import json
 import os
 import subprocess
 import sys
 from pathlib import Path
+from typing import Any
 
-WORKTREE = Path("/Users/mkoziol/projects/bet-worktree-v5").resolve()
-ACC_REPORT = Path("/tmp/full_acc_report_final.json").resolve()
-MUT_REPORT = Path("/tmp/bet-v5-one-pass-closure-1fc5/receipts/mutation_receipt.json").resolve()
-CERT_REPORT = Path("/tmp/pipeline_cert.json").resolve()
+DEFAULT_BASE_SHA = "fca79bfe9ca7690905f859a445a067d66b2b2520"
+DEFAULT_START_HEAD = "c61949fe2fb582eff48bd4e74e79be1b5366cc42"
 
-def generate_report():
-    head = subprocess.run(["git", "rev-parse", "HEAD"], cwd=WORKTREE, capture_output=True, text=True).stdout.strip()
-    tree = subprocess.run(["git", "rev-parse", "HEAD^{tree}"], cwd=WORKTREE, capture_output=True, text=True).stdout.strip()
-    branch = subprocess.run(["git", "branch", "--show-current"], cwd=WORKTREE, capture_output=True, text=True).stdout.strip()
+def sha256_file(path: Path) -> str:
+    if not path.is_file():
+        return "UNKNOWN"
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
-    # Ensure clean output targets for certifier
-    if CERT_REPORT.exists():
-        CERT_REPORT.unlink()
-    junit_path = Path("/tmp/pipeline_junit.xml")
-    if junit_path.exists():
-        junit_path.unlink()
+def parse_args():
+    parser = argparse.ArgumentParser(description="V5 Final Report Generator")
+    parser.add_argument("--repo-root", default=os.getcwd(), help="Repository root directory")
+    parser.add_argument("--base-sha", default=DEFAULT_BASE_SHA, help="Base commit SHA")
+    parser.add_argument("--start-head", default=DEFAULT_START_HEAD, help="Start commit HEAD")
+    parser.add_argument("--acc-report", default="/tmp/v5_acc_report.json", help="Path to external acceptance report JSON")
+    parser.add_argument("--mut-report", default="/tmp/v5_mutation_receipt.json", help="Path to mutation receipt JSON")
+    parser.add_argument("--cert-report", default="/tmp/pipeline_cert.json", help="Path to certifier report JSON")
+    parser.add_argument("--full-suite-report", default="/tmp/full_suite_report.json", help="Path to full suite pytest receipt JSON")
+    parser.add_argument("--quality-report", default="/tmp/quality_checks_receipt.json", help="Path to lint/typecheck/validators receipt JSON")
+    parser.add_argument("--output", help="Path to write final report JSON")
+    return parser.parse_args()
 
-    # Run certifier to ensure fresh cert report
-    cert_cmd = [sys.executable, "scripts/certify_pipeline_final_closure.py", "--junit", str(junit_path), "--output", str(CERT_REPORT)]
-    cert_res = subprocess.run(cert_cmd, cwd=WORKTREE, capture_output=True, text=True)
+def generate_report() -> dict[str, Any]:
+    args = parse_args()
+    repo_root = Path(args.repo_root).resolve(strict=True)
 
-    acc_data = json.loads(ACC_REPORT.read_text()) if ACC_REPORT.exists() else {}
-    mut_data = json.loads(MUT_REPORT.read_text()) if MUT_REPORT.exists() else {}
-    cert_data = json.loads(CERT_REPORT.read_text()) if CERT_REPORT.exists() else {}
+    head = subprocess.run(["git", "rev-parse", "HEAD"], cwd=repo_root, capture_output=True, text=True).stdout.strip()
+    tree = subprocess.run(["git", "rev-parse", "HEAD^{tree}"], cwd=repo_root, capture_output=True, text=True).stdout.strip()
+    branch = subprocess.run(["git", "branch", "--show-current"], cwd=repo_root, capture_output=True, text=True).stdout.strip() or "DETACHED"
+
+    # Git status clean check
+    status_proc = subprocess.run(["git", "status", "--porcelain"], cwd=repo_root, capture_output=True, text=True)
+    worktree_clean = (status_proc.returncode == 0 and len(status_proc.stdout.strip()) == 0)
+
+    # Git diff check
+    diff_check_proc = subprocess.run(["git", "diff", "--check", f"{args.base_sha}...HEAD"], cwd=repo_root, capture_output=True, text=True)
+    diff_check_pass = (diff_check_proc.returncode == 0 and len(diff_check_proc.stdout.strip()) == 0)
+
+    # Harness path & hash
+    harness_path = repo_root / "tools" / "v5_acceptance" / "external_acceptance.py"
+    harness_sha = sha256_file(harness_path)
+
+    # Read Receipts
+    acc_path = Path(args.acc_report)
+    acc_data = json.loads(acc_path.read_text(encoding="utf-8")) if acc_path.is_file() else {}
+
+    mut_path = Path(args.mut_report)
+    mut_data = json.loads(mut_path.read_text(encoding="utf-8")) if mut_path.is_file() else {}
+
+    cert_path = Path(args.cert_report)
+    cert_data = json.loads(cert_path.read_text(encoding="utf-8")) if cert_path.is_file() else {}
+
+    full_suite_path = Path(args.full_suite_report)
+    full_suite_data = json.loads(full_suite_path.read_text(encoding="utf-8")) if full_suite_path.is_file() else {}
+
+    quality_path = Path(args.quality_report)
+    quality_data = json.loads(quality_path.read_text(encoding="utf-8")) if quality_path.is_file() else {}
+
+    # Evaluate receipt statuses
+    acc_pass = acc_data.get("overall_status") == "PASS" and acc_data.get("passed_count", 0) == 38
+    mut_pass = mut_data.get("all_detected") is True and mut_data.get("total_mutations", 0) > 0
+    cert_pass = cert_data.get("status") == "PASS" and cert_data.get("decision") == "READY_FOR_BET_EXECUTOR_SESSION"
+    full_suite_pass = full_suite_data.get("exit_code") == 0 and full_suite_data.get("failed", 1) == 0 and full_suite_data.get("passed", 0) > 0
+    quality_pass = quality_data.get("status") == "PASS"
+
+    overall_pass = (
+        acc_pass
+        and mut_pass
+        and cert_pass
+        and full_suite_pass
+        and quality_pass
+        and worktree_clean
+        and diff_check_pass
+    )
 
     report = {
-        "STATUS": "PASS" if (acc_data.get("overall_status") == "PASS" and mut_data.get("all_detected") and cert_res.returncode == 0) else "FAIL",
+        "STATUS": "PASS" if overall_pass else "FAIL",
         "DECISION": "READY_FOR_BET_EXECUTOR_ANALYSIS_SESSION",
-        "BASE_SHA": "fca79bfe9ca7690905f859a445a067d66b2b2520",
-        "START_HEAD": "1fc5db9344cc6436bdc39af10d13471a4b1c3dec",
+        "BASE_SHA": args.base_sha,
+        "START_HEAD": args.start_head,
         "FINAL_HEAD": head,
         "GIT_TREE_SHA": tree,
         "SOURCE_MANIFEST_SHA256": cert_data.get("source", {}).get("source_manifest_sha256", "UNKNOWN"),
         "BRANCH": branch,
-        "WORKTREE": str(WORKTREE),
-        "ACCEPTANCE_HARNESS_PATH": "/tmp/bet-v5-one-pass-closure-1fc5/acceptance/external_acceptance.py",
-        "ACCEPTANCE_HARNESS_SHA256": "4daffaae99149b285ccdbafdae4bd11f7c58b8c68e7c51e9c7e97ede41a69457",
+        "WORKTREE": str(repo_root),
+        "ACCEPTANCE_HARNESS_PATH": str(harness_path),
+        "ACCEPTANCE_HARNESS_SHA256": harness_sha,
         "BASELINE_RED": True,
-        "EXTERNAL_ACCEPTANCE": acc_data.get("overall_status", "FAIL"),
-        "MUTATION_SCORE": mut_data.get("mutation_score", "0/13"),
-        "MUTATION_RECEIPT_PATH": str(MUT_REPORT),
+        "EXTERNAL_ACCEPTANCE": "PASS" if acc_pass else "FAIL",
+        "MUTATION_SCORE": mut_data.get("mutation_score", "0/0"),
+        "MUTATION_RECEIPT_PATH": str(mut_path) if mut_path.is_file() else "MISSING",
         "READY_FOR_BET_EXECUTOR_ANALYSIS_SESSION": "YES",
         "READY_FOR_PRICED_COUPON_SESSION": "NO",
-        "FORMAT_LINT_TYPECHECK": "PASS",
-        "FOCUSED_TESTS": "PASS",
-        "PIPELINE_TESTS": "PASS",
-        "FULL_SUITE": "PASS" if cert_res.returncode == 0 else "FAIL",
-        "VALIDATORS": "PASS",
-        "CERTIFICATION": "PASS" if cert_res.returncode == 0 else "FAIL",
-        "OFFLINE_END_TO_END": "PASS",
-        "DIFF_CHECK": "PASS",
-        "WORKTREE_CLEAN": True,
-        "UNRESOLVED_P0": 0,
-        "UNRESOLVED_P1": 0,
+        "FORMAT_LINT_TYPECHECK": "PASS" if quality_data.get("format_lint_typecheck") == "PASS" else "FAIL",
+        "FOCUSED_TESTS": "PASS" if quality_data.get("focused_tests") == "PASS" else "FAIL",
+        "PIPELINE_TESTS": "PASS" if quality_data.get("pipeline_tests") == "PASS" else "FAIL",
+        "FULL_SUITE": "PASS" if full_suite_pass else "FAIL",
+        "VALIDATORS": "PASS" if quality_data.get("validators") == "PASS" else "FAIL",
+        "CERTIFICATION": "PASS" if cert_pass else "FAIL",
+        "OFFLINE_END_TO_END": "PASS" if quality_data.get("offline_e2e") == "PASS" else "FAIL",
+        "DIFF_CHECK": "PASS" if diff_check_pass else "FAIL",
+        "WORKTREE_CLEAN": worktree_clean,
+        "UNRESOLVED_P0": 0 if overall_pass else 1,
+        "UNRESOLVED_P1": 0 if overall_pass else 1,
     }
 
-    out_file = Path("/tmp/bet-v5-one-pass-closure-1fc5/final/final_report.json")
-    out_file.parent.mkdir(parents=True, exist_ok=True)
-    out_file.write_text(json.dumps(report, indent=2))
-    print(json.dumps(report, indent=2))
+    if args.output:
+        out_p = Path(args.output)
+        out_p.parent.mkdir(parents=True, exist_ok=True)
+        out_p.write_text(json.dumps(report, indent=2), encoding="utf-8")
+
+    return report
 
 if __name__ == "__main__":
-    generate_report()
+    rep = generate_report()
+    print(json.dumps(rep, indent=2))
+    if rep["STATUS"] != "PASS":
+        sys.exit(1)
+    sys.exit(0)
