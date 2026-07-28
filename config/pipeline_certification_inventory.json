@@ -17,7 +17,10 @@
     "tests/test_t3_acquisition_and_dossiers.py",
     "tests/test_t4_model_artifacts.py",
     "tests/test_t5_builder_pricing.py",
-    "tests/test_r1_to_r11_reproductions.py"
+    "tests/test_r1_to_r11_reproductions.py",
+    "tests/security/test_v5_exploit_regressions.py",
+    "tests/security/test_v5_runtime_acceptance.py",
+    "tests/integration/test_v5_full_agentic_runtime.py"
   ],
   "mandatory_file_sha256s": {
     "tests/test_canonical_continuity_v4_owner_regressions.py": "60ff68b1fecc9af05ad2b4287598720fc68d9eddda2576b97bbf6afcd9d1388d",
@@ -36,7 +39,10 @@
     "tests/test_t3_acquisition_and_dossiers.py": "1ea71168aaf05be5b4594935b13c4e2aa3db00e0d556e3a21092d8c7614b4ca9",
     "tests/test_t4_model_artifacts.py": "06c5f19e17afa1e980b42a5510ed9580090132c48c9422bc49632d3b5fe09df4",
     "tests/test_t5_builder_pricing.py": "a8d88e7b404371317b614639db89de23fb5787cbc7512f9e2c1ade5d23c37fe6",
-    "tests/test_r1_to_r11_reproductions.py": "254d4527b36d4de8884c54079e85af788768422edbf32c38452b454fa18e9d9e"
+    "tests/test_r1_to_r11_reproductions.py": "bd1eeeadb26da24a5e501bbd4a1173b48789e873876b6402fb8ff44c4b35e6c1",
+    "tests/security/test_v5_exploit_regressions.py": "98d12d68dd2482e9234f9f45e5505a9c5600e98b0a52545006a1801335ef94f6",
+    "tests/security/test_v5_runtime_acceptance.py": "461995239d0705d22dcc680424b150c45b21febf5e8ef63b0be0e33d4869a455",
+    "tests/integration/test_v5_full_agentic_runtime.py": "04696c83e7f32e9bb8822baac9020f57b68a6e7f4407dc28ca6c0d17518dee57"
   },
   "expected_minimum_counts": {
     "tests/test_canonical_continuity_v4_owner_regressions.py": 30,
@@ -55,7 +61,10 @@
     "tests/test_t3_acquisition_and_dossiers.py": 3,
     "tests/test_t4_model_artifacts.py": 2,
     "tests/test_t5_builder_pricing.py": 2,
-    "tests/test_r1_to_r11_reproductions.py": 11
+    "tests/test_r1_to_r11_reproductions.py": 11,
+    "tests/security/test_v5_exploit_regressions.py": 5,
+    "tests/security/test_v5_runtime_acceptance.py": 5,
+    "tests/integration/test_v5_full_agentic_runtime.py": 2
   },
   "tests_metadata": {
     "adversarial_evidence_accounting": "test_strict_loader_adversarial_matrix",
