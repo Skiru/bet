@@ -91,15 +91,28 @@ def test_orchestrator_sharded_runtime_multi_process_lifecycle(tmp_path):
     chunks_art_dir = run_root / "artifacts" / "chunks"
     chunks_art_dir.mkdir(parents=True, exist_ok=True)
 
+    from bet.pipeline.contracts.canonical_json import hash_canonical_json
+
+    head_sha = "a" * 40
+    tree_sha = "b" * 40
+    manifest_sha = "c" * 64
+
     c1_art = ChunkArtifactV1(
         chunk_id=wo_data["chunk_id"],
+        chunk_work_order_sha256=hash_canonical_json(wo_data),
         parent_work_order_id=wo_data["parent_work_order_id"],
+        parent_work_order_sha256=wo_data["parent_work_order_sha256"],
         parent_plan_id=wo_data["parent_plan_id"],
         parent_plan_sha256=wo_data["parent_plan_sha256"],
         chunk_index=0,
         total_chunks=3,
         status="PASS",
         producer_agent_id="bet-researcher",
+        betting_day=betting_day,
+        run_id=run_id,
+        source_head=wo_data.get("source_head") or head_sha,
+        source_tree=wo_data.get("source_tree") or tree_sha,
+        manifest_sha256=wo_data.get("manifest_sha256") or manifest_sha,
         processed_event_ids=tuple(wo_data["event_ids"]),
         event_records=[{"canonical_event_id": eid, "terminal_status": "PASS"} for eid in wo_data["event_ids"]]
     )
@@ -125,13 +138,20 @@ def test_orchestrator_sharded_runtime_multi_process_lifecycle(tmp_path):
         c_wo_data = json.loads(c_wo_file.read_text())
         c_art = ChunkArtifactV1(
             chunk_id=c_wo_data["chunk_id"],
+            chunk_work_order_sha256=hash_canonical_json(c_wo_data),
             parent_work_order_id=c_wo_data["parent_work_order_id"],
+            parent_work_order_sha256=c_wo_data["parent_work_order_sha256"],
             parent_plan_id=c_wo_data["parent_plan_id"],
             parent_plan_sha256=c_wo_data["parent_plan_sha256"],
             chunk_index=chunk_idx - 1,
             total_chunks=3,
             status="PASS",
             producer_agent_id="bet-researcher",
+            betting_day=betting_day,
+            run_id=run_id,
+            source_head=c_wo_data.get("source_head") or head_sha,
+            source_tree=c_wo_data.get("source_tree") or tree_sha,
+            manifest_sha256=c_wo_data.get("manifest_sha256") or manifest_sha,
             processed_event_ids=tuple(c_wo_data["event_ids"]),
             event_records=[{"canonical_event_id": eid, "terminal_status": "PASS"} for eid in c_wo_data["event_ids"]]
         )
