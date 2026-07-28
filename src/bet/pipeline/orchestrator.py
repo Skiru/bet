@@ -47,6 +47,7 @@ from bet.pipeline.run_coordination import (
     ResumeLedger,
     run_bounded_process,
 )
+from bet.pipeline.receipts import get_git_tree_sha
 from bet.pipeline.run_evidence import (
     manifest_hash,
     repo_head_sha,
@@ -368,10 +369,10 @@ class Orchestrator:
         if len(event_ids) <= budget.max_events_per_chunk:
             return False, None, None
 
-        parent_wo_dict = parent_wo.to_jsonable() if hasattr(parent_wo, "to_jsonable") else (
-            parent_wo.model_dump() if hasattr(parent_wo, "model_dump") else {}
-        )
-        parent_wo_sha = hash_canonical_json(parent_wo_dict) if parent_wo_dict else ""
+        from bet.pipeline.run_evidence import sha256_file
+        from bet.pipeline.agent_work_orders import work_order_path_for
+        wo_path = work_order_path_for(gate_base_dir, self.betting_day, self.run_id, step_id)
+        parent_wo_sha = sha256_file(wo_path) if wo_path.is_file() else (hash_canonical_json(parent_wo_dict) if parent_wo_dict else "")
 
         plan = create_chunk_execution_plan(
             parent_work_order_id=getattr(parent_wo, "work_order_id", f"WO-{step_id}"),
@@ -380,9 +381,9 @@ class Orchestrator:
             betting_day=self.betting_day,
             run_id=self.run_id,
             runtime_mode=getattr(parent_wo, "runtime_mode", "STANDALONE_DETERMINISTIC"),
-            source_head=getattr(parent_wo, "source_head", ""),
-            source_tree=getattr(parent_wo, "source_tree", ""),
-            manifest_sha256=getattr(parent_wo, "manifest_sha256", ""),
+            source_head=getattr(parent_wo, "source_head", None) or self._main_sha,
+            source_tree=getattr(parent_wo, "source_tree", None) or get_git_tree_sha(self.repo_root),
+            manifest_sha256=getattr(parent_wo, "manifest_sha256", None) or self._manifest_sha,
             event_ids=event_ids,
             agent_name=getattr(parent_wo, "agent", "bet-executor"),
             allowed_tools=getattr(parent_wo, "allowed_tools", ()),
@@ -391,6 +392,8 @@ class Orchestrator:
             acquisition_plan=getattr(parent_wo, "acquisition_plan", None),
             hard_rules=getattr(parent_wo, "hard_rules", ()),
             forbidden_outputs=getattr(parent_wo, "forbidden_outputs", ()),
+            expected_artifact_path=str(artifact_path_for(gate_base_dir, self.betting_day, self.run_id, step_id)),
+            expected_artifact_type=f"{step_id.replace('.', '_')}_CHUNK_ARTIFACT",
             budget=budget,
         )
 
@@ -436,24 +439,36 @@ class Orchestrator:
         receipt, agg_records = aggregate_chunks(plan, chunk_artifacts)
         target_path = artifact_path_for(gate_base_dir, self.betting_day, self.run_id, step_id)
 
-        manifest_step = self.manifest.get_step(step_id) if hasattr(self.manifest, "get_step") else None
-        art_type = manifest_step.primary_produces_contract_id() if manifest_step else None
-        if not art_type:
-            for desc in GLOBAL_CONTRACT_REGISTRY.list_descriptors():
-                if desc.producer_step == step_id:
-                    art_type = desc.contract_id
-                    break
-
-        art_type = art_type or f"{step_id.replace('.', '_')}_AGGREGATED"
         agg_artifact = {
             "schema_version": 1,
-            "artifact_type": art_type,
+            "artifact_type": "AGENT_ARTIFACT",
+            "step_id": step_id,
             "status": "PASS" if step_id != "S2.9" else "READY",
             "betting_day": self.betting_day,
             "run_id": self.run_id,
+            "work_order_id": getattr(parent_wo, "work_order_id", f"WO-{self.run_id}-{step_id}"),
+            "work_order_sha256": parent_wo_sha,
+            "producer_agent_id": getattr(parent_wo, "agent", "bet-researcher"),
+            "agent_id": getattr(parent_wo, "agent", "bet-researcher"),
+            "point_in_time_as_of": self.env.get("BET_PIPELINE_RUN_AS_OF_UTC") or utc_now_iso(),
+            "source_bound": True,
+            "no_pick_edge_stake_coupon_emitted": True,
+            "production_selectable": False,
+            "betting_decisions_enabled": False,
+            "sources": ["sharded_chunk_aggregator"],
+            "unknowns": [],
+            "blocked_reasons": [],
+            "evidence_refs": [],
             "total_events": len(agg_records),
             "event_records": agg_records,
             "aggregation_receipt": receipt.model_dump(),
+            "payload": {
+                "event_records": agg_records,
+                "gaps": [],
+                "enrichment_gaps": [],
+                "gaps_bounded": True,
+                "gaps_blocking": False,
+            },
         }
         write_json_atomic(target_path, agg_artifact)
         return True, None, target_path

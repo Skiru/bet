@@ -23,14 +23,14 @@ class ChunkWorkOrderV1(StrictBaseModel):
     """Work order for an individual event chunk."""
     chunk_id: str
     parent_work_order_id: str
-    parent_work_order_sha256: str = ""
-    step_id: str = ""
-    betting_day: str = ""
-    run_id: str = ""
+    parent_work_order_sha256: str
+    step_id: str
+    betting_day: str
+    run_id: str
     runtime_mode: str = "DRY_RUN"
-    source_head: str = ""
-    source_tree: str = ""
-    manifest_sha256: str = ""
+    source_head: str
+    source_tree: str
+    manifest_sha256: str
     parent_plan_id: str = ""
     parent_plan_sha256: str = ""
     chunk_index: int = Field(ge=0)
@@ -44,18 +44,18 @@ class ChunkWorkOrderV1(StrictBaseModel):
     acquisition_plan: FactAcquisitionPlanV1 | dict[str, Any] | None = None
     hard_rules: tuple[str, ...] = ()
     forbidden_outputs: tuple[str, ...] = ()
-    expected_artifact_path: str = ""
-    expected_artifact_type: str = ""
+    expected_artifact_path: str
+    expected_artifact_type: str
     allowed_artifact_statuses: tuple[str, ...] = ("PASS", "NO_ACTION_TERMINAL", "BLOCK")
     attempt_number: int = 1
     attempt_id: str = ""
     budget: WorkOrderBudgetV1 = Field(default_factory=WorkOrderBudgetV1)
 
-    @field_validator("event_ids", "allowed_tools", "task_allowlist", "acquisition_plan_refs", "hard_rules", "forbidden_outputs", "allowed_artifact_statuses", mode="before")
+    @field_validator("event_ids", "allowed_tools", "input_refs", "task_allowlist", "acquisition_plan_refs", "hard_rules", "forbidden_outputs", "allowed_artifact_statuses", mode="before")
     @classmethod
-    def coerce_tuples(cls, v: Any) -> tuple[str, ...]:
+    def coerce_tuples(cls, v: Any) -> tuple[Any, ...]:
         if isinstance(v, (list, tuple, set)):
-            return tuple(str(x) for x in v)
+            return tuple(v)
         return ()
 
     @model_validator(mode="after")
@@ -66,6 +66,18 @@ class ChunkWorkOrderV1(StrictBaseModel):
             raise ValueError("CHUNK_WO_BINDING_EMPTY: event_ids tuple cannot be empty")
         if not self.agent_name:
             raise ValueError("CHUNK_WO_BINDING_EMPTY: agent_name is required")
+        if not self.parent_work_order_sha256 or self.parent_work_order_sha256 == "UNKNOWN" or len(self.parent_work_order_sha256) != 64:
+            raise ValueError("CHUNK_WO_BINDING_EMPTY: parent_work_order_sha256 must be a valid 64-char hex SHA256")
+        if not self.source_head or self.source_head == "UNKNOWN" or len(self.source_head) != 40:
+            raise ValueError("CHUNK_WO_BINDING_EMPTY: source_head must be a valid 40-char commit SHA")
+        if not self.source_tree or self.source_tree == "UNKNOWN" or len(self.source_tree) != 40:
+            raise ValueError("CHUNK_WO_BINDING_EMPTY: source_tree must be a valid 40-char tree SHA")
+        if not self.manifest_sha256 or self.manifest_sha256 == "UNKNOWN" or len(self.manifest_sha256) != 64:
+            raise ValueError("CHUNK_WO_BINDING_EMPTY: manifest_sha256 must be a valid 64-char hex SHA256")
+        if not self.expected_artifact_path or self.expected_artifact_path == "UNKNOWN":
+            raise ValueError("CHUNK_WO_BINDING_EMPTY: expected_artifact_path is required")
+        if not self.expected_artifact_type or self.expected_artifact_type == "UNKNOWN":
+            raise ValueError("CHUNK_WO_BINDING_EMPTY: expected_artifact_type is required")
         return self
 
 
@@ -110,6 +122,22 @@ class ChunkArtifactV1(StrictBaseModel):
         if isinstance(v, (list, tuple, set)):
             return tuple(str(x) for x in v)
         return ()
+
+    @model_validator(mode="after")
+    def validate_chunk_artifact_bindings(self) -> ChunkArtifactV1:
+        if not self.chunk_id or not self.parent_work_order_id:
+            raise ValueError("CHUNK_ARTIFACT_BINDING_EMPTY: chunk_id and parent_work_order_id required")
+        if not self.chunk_work_order_sha256 or self.chunk_work_order_sha256 == "UNKNOWN" or len(self.chunk_work_order_sha256) != 64:
+            raise ValueError("CHUNK_ARTIFACT_BINDING_EMPTY: chunk_work_order_sha256 required")
+        if not self.parent_work_order_sha256 or self.parent_work_order_sha256 == "UNKNOWN" or len(self.parent_work_order_sha256) != 64:
+            raise ValueError("CHUNK_ARTIFACT_BINDING_EMPTY: parent_work_order_sha256 required")
+        if not self.source_head or self.source_head == "UNKNOWN" or len(self.source_head) != 40:
+            raise ValueError("CHUNK_ARTIFACT_BINDING_EMPTY: source_head required")
+        if not self.source_tree or self.source_tree == "UNKNOWN" or len(self.source_tree) != 40:
+            raise ValueError("CHUNK_ARTIFACT_BINDING_EMPTY: source_tree required")
+        if not self.manifest_sha256 or self.manifest_sha256 == "UNKNOWN" or len(self.manifest_sha256) != 64:
+            raise ValueError("CHUNK_ARTIFACT_BINDING_EMPTY: manifest_sha256 required")
+        return self
 
 
 class ChunkAggregationReceiptV1(StrictBaseModel):

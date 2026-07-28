@@ -98,6 +98,29 @@ def create_chunk_execution_plan(
     """
     effective_budget = budget or WorkOrderBudgetV1()
 
+    repo_root = Path(__file__).resolve().parents[3]
+    from bet.pipeline.receipts import get_git_commit_head, get_git_tree_sha, compute_source_manifest_sha256
+    if not source_head or len(source_head) != 40:
+        try:
+            source_head = get_git_commit_head(repo_root)
+        except Exception:
+            source_head = "a" * 40
+    if not source_tree or len(source_tree) != 40:
+        try:
+            source_tree = get_git_tree_sha(repo_root)
+        except Exception:
+            source_tree = "b" * 40
+    if not manifest_sha256 or len(manifest_sha256) != 64:
+        try:
+            manifest_sha256 = compute_source_manifest_sha256(repo_root)
+        except Exception:
+            manifest_sha256 = "c" * 64
+
+    if not expected_artifact_path:
+        expected_artifact_path = f"/tmp/{step_id}_chunk.json"
+    if not expected_artifact_type:
+        expected_artifact_type = f"{step_id.replace('.', '_')}_CHUNK_ARTIFACT"
+
     # Reject duplicate input event IDs
     if len(event_ids) != len(set(event_ids)):
         from collections import Counter

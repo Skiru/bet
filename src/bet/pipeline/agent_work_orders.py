@@ -629,26 +629,47 @@ def build_agent_work_order(
     acq_plan_data = kwargs.get("acquisition_plan")
     allowed_tools = kwargs.get("allowed_tools", [])
     if acq_plan_data is None and step_id in {"S2.3", "S2.5", "S2.7", "S2.9", "S5"}:
-        allowed_tools = ["bet_sqlite_query", "webfetch", "read", "glob", "grep"]
-        eid = kwargs.get("canonical_event_id") or "event_scope_shortlist"
+        consumed_eids = []
+        consumed_sport = kwargs.get("sport") or "football"
+        for ref in input_refs:
+            ref_path = Path(ref.path)
+            if ref_path.is_file():
+                try:
+                    ref_data = json.loads(ref_path.read_text(encoding="utf-8"))
+                    payload = ref_data.get("payload") if isinstance(ref_data.get("payload"), dict) else ref_data
+                    recs = payload.get("event_records") or payload.get("candidates") or payload.get("events") or []
+                    for r in recs:
+                        if isinstance(r, dict):
+                            eid = r.get("canonical_event_id") or r.get("event_id")
+                            if eid and str(eid) not in consumed_eids:
+                                consumed_eids.append(str(eid))
+                            if r.get("sport"):
+                                consumed_sport = str(r["sport"])
+                except Exception:
+                    pass
+
+        eid = kwargs.get("canonical_event_id") or (consumed_eids[0] if consumed_eids else "evt_default_shortlist")
+        plan_tools = ["bet_sqlite_query", "webfetch", "read", "glob", "grep"]
         acq_plan_data = {
             "plan_id": f"PLAN-{work_order_id}",
             "canonical_event_id": eid,
-            "sport": kwargs.get("sport") or "football",
+            "sport": consumed_sport,
             "max_queries": 10,
             "requirements": [
                 {
                     "requirement_id": f"REQ-{step_id}-01",
                     "fact_type": "LINEUP_INJURY_FORM_FACTS",
-                    "sport": kwargs.get("sport") or "football",
-                    "market_families_affected": ["result", "corners", "goals"],
+                    "sport": consumed_sport,
+                    "market_families_affected": ["RESULT", "GOALS_TOTALS", "CORNERS"],
                     "requirement_level": "REQUIRED_FOR_PRICING",
-                    "allowed_tools": list(allowed_tools),
+                    "allowed_tools": list(plan_tools),
                     "max_age_hours": 48,
                     "min_independent_sources": 2,
                 }
             ],
         }
+        if not allowed_tools:
+            allowed_tools = plan_tools
 
     parsed_plan = None
     if isinstance(acq_plan_data, dict):
