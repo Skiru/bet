@@ -177,7 +177,7 @@ def generate_same_event_builders(
                             matching_model = jm
                             break
 
-                if matching_model is None or not hasattr(matching_model, "compute_conjunction"):
+                if matching_model is None:
                     rejections.append(
                         BuilderRejectionV1(
                             rejection_id=f"REJ-{leg_a.leg_id}-{leg_b.leg_id}",
@@ -190,8 +190,15 @@ def generate_same_event_builders(
 
                 prob_a = leg_a.calibrated_probability
                 prob_b = leg_b.calibrated_probability
-                conjunction_res = matching_model.compute_conjunction([prob_a, prob_b])
-                joint_prob = conjunction_res.get("joint_probability")
+
+                if hasattr(matching_model, "compute_conjunction"):
+                    conjunction_res = matching_model.compute_conjunction([prob_a, prob_b])
+                    joint_prob = conjunction_res.get("joint_probability") if isinstance(conjunction_res, dict) else conjunction_res
+                elif getattr(matching_model, "assumes_independence", False) is True:
+                    joint_prob = prob_a * prob_b
+                else:
+                    joint_prob = None
+
                 if joint_prob is None or joint_prob <= 0 or joint_prob >= 1:
                     rejections.append(
                         BuilderRejectionV1(

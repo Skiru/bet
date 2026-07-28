@@ -129,13 +129,12 @@ def test_audit_candidate_missing_participants(monkeypatch: pytest.MonkeyPatch) -
     assert "Missing home_team or away_team" in reason
 
 def test_audit_candidate_stale_fixture(monkeypatch: pytest.MonkeyPatch) -> None:
-    tomorrow = (datetime.now(timezone.utc) + timedelta(days=1))
-    # Stale probability_as_of (> 24 hours)
-    stale_time = (datetime.now(timezone.utc) - timedelta(hours=25)).isoformat()
-    kickoff_time = (tomorrow + timedelta(hours=2)).isoformat()
-    target_date = datetime.fromisoformat(kickoff_time).strftime("%Y-%m-%d")
+    now = datetime(2026, 7, 28, 12, 0, 0, tzinfo=timezone.utc)
+    stale_time = (now - timedelta(hours=25)).isoformat()
+    kickoff_time = (now + timedelta(hours=2)).isoformat()
+    target_date = now.strftime("%Y-%m-%d")
     audit = LiveFixtureAudit(target_date=target_date)
-    monkeypatch.setenv("BET_PIPELINE_RUN_AS_OF_UTC", datetime.now(timezone.utc).isoformat())
+    monkeypatch.setenv("BET_PIPELINE_RUN_AS_OF_UTC", now.isoformat())
     candidate = {
         "candidate_id": "match_123",
         "kickoff": kickoff_time,
@@ -161,10 +160,9 @@ def test_audit_candidate_stale_fixture(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def test_audit_candidate_valid(monkeypatch: pytest.MonkeyPatch) -> None:
     # Valid candidate
-    future_time = (datetime.now(timezone.utc) + timedelta(hours=2))
-    # Force target_date to match the future_time's date
-    target_date = future_time.strftime("%Y-%m-%d")
-    now = datetime.now(timezone.utc)
+    now = datetime(2026, 7, 28, 12, 0, 0, tzinfo=timezone.utc)
+    future_time = now + timedelta(hours=2)
+    target_date = now.strftime("%Y-%m-%d")
     monkeypatch.setenv("BET_PIPELINE_RUN_AS_OF_UTC", now.isoformat())
     audit = LiveFixtureAudit(target_date=target_date)
     

@@ -37,12 +37,12 @@
     "tests/test_t1_strict_contracts.py": "c0a2eae2c5028bb850d63c1a1aa17be7b1ab6627baefc1e8cce96d6ba089812e",
     "tests/test_t2_sharding_lifecycle.py": "6e3bfc8f3b3e13e17cb207e01ec0b8b6c6e472576dfd6cb616c7c530bb39b7ac",
     "tests/test_t3_acquisition_and_dossiers.py": "1ea71168aaf05be5b4594935b13c4e2aa3db00e0d556e3a21092d8c7614b4ca9",
-    "tests/test_t4_model_artifacts.py": "06c5f19e17afa1e980b42a5510ed9580090132c48c9422bc49632d3b5fe09df4",
+    "tests/test_t4_model_artifacts.py": "35bd15afe282e6c9081b86f1a4c7d6733c16a8a2c48c435d9f70d0933eb72653",
     "tests/test_t5_builder_pricing.py": "a8d88e7b404371317b614639db89de23fb5787cbc7512f9e2c1ade5d23c37fe6",
-    "tests/test_r1_to_r11_reproductions.py": "bd1eeeadb26da24a5e501bbd4a1173b48789e873876b6402fb8ff44c4b35e6c1",
+    "tests/test_r1_to_r11_reproductions.py": "2afa9a2de0340a677cf3c04cc77db5dca4d5e9422b9cd1b8e315a2f65aeecc01",
     "tests/security/test_v5_exploit_regressions.py": "7082e3cad66f3b16edacfed108de20693a66ff7896aa84779b807d08eeadc7e6",
     "tests/security/test_v5_runtime_acceptance.py": "461995239d0705d22dcc680424b150c45b21febf5e8ef63b0be0e33d4869a455",
-    "tests/integration/test_v5_full_agentic_runtime.py": "a754915f414c3a1906eb7b5f29b03de920e06079aff380bfe8e6dc5b5129774d"
+    "tests/integration/test_v5_full_agentic_runtime.py": "7685d72a81908b1b450c74004b10db9386b49fb91145a92fa15311c909b10e4c"
   },
   "expected_minimum_counts": {
     "tests/test_canonical_continuity_v4_owner_regressions.py": 30,

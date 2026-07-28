@@ -1,3 +1,5 @@
+.pytest_cache/
+downloaded_files/
 .venv/
 .vscode/mcp.json
 .roo/mcp.json

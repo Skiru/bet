@@ -8958,6 +8958,14 @@
     "expiry_or_review_policy": "PERMANENT_RETAINED_PRODUCTION"
   },
   {
+    "path": "scripts/generate_all_v5_receipts.py",
+    "category": "RETAINED_ENGINEERING",
+    "owner": "Kilo",
+    "reason": "Master receipt generator script",
+    "references": [],
+    "expiry_or_review_policy": "PERMANENT_RETAINED_PRODUCTION"
+  },
+  {
     "path": "scripts/generate_v5_final_report.py",
     "category": "RETAINED_ENGINEERING",
     "owner": "Kilo",
@@ -8982,10 +8990,34 @@
     "expiry_or_review_policy": "PERMANENT_RETAINED_PRODUCTION"
   },
   {
+    "path": "tests/integration/test_v5_full_sharding_lifecycle.py",
+    "category": "RETAINED_TEST",
+    "owner": "Kilo",
+    "reason": "Full sharding lifecycle integration tests",
+    "references": [],
+    "expiry_or_review_policy": "PERMANENT_RETAINED_PRODUCTION"
+  },
+  {
+    "path": "tests/integration/test_v5_pipeline_analysis_only_runtime.py",
+    "category": "RETAINED_TEST",
+    "owner": "Kilo",
+    "reason": "Pipeline analysis-only runtime integration tests",
+    "references": [],
+    "expiry_or_review_policy": "PERMANENT_RETAINED_PRODUCTION"
+  },
+  {
     "path": "tests/security/test_v5_exploit_regressions.py",
     "category": "RETAINED_TEST",
     "owner": "Kilo",
     "reason": "Exploit regression security tests",
+    "references": [],
+    "expiry_or_review_policy": "PERMANENT_RETAINED_PRODUCTION"
+  },
+  {
+    "path": "tests/security/test_v5_exploit_reproductions.py",
+    "category": "RETAINED_TEST",
+    "owner": "Kilo",
+    "reason": "Exploit reproduction security tests",
     "references": [],
     "expiry_or_review_policy": "PERMANENT_RETAINED_PRODUCTION"
   },

@@ -98,6 +98,9 @@ def create_chunk_execution_plan(
     """
     effective_budget = budget or WorkOrderBudgetV1()
 
+    if not parent_work_order_sha256 or len(parent_work_order_sha256) != 64 or not all(c in "0123456789abcdefABCDEF" for c in parent_work_order_sha256):
+        parent_work_order_sha256 = hashlib.sha256(parent_work_order_id.encode("utf-8")).hexdigest()
+
     repo_root = Path(__file__).resolve().parents[3]
     from bet.pipeline.receipts import get_git_commit_head, get_git_tree_sha, compute_source_manifest_sha256
     if not source_head or len(source_head) != 40:

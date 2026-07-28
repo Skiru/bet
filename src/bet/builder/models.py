@@ -59,6 +59,7 @@ class JointModelScopeV1(StrictBaseModel):
 
         from bet.pipeline.readiness_contracts import JointModelPackageResolver
         from pathlib import Path
+        import hashlib
         root = Path(__file__).resolve().parent.parent.parent.parent
         artifact_dirs = search_dirs or [
             root / "models",
@@ -67,11 +68,20 @@ class JointModelScopeV1(StrictBaseModel):
         ]
         for d in artifact_dirs:
             if d.exists() and d.is_dir():
-                for p in d.iterdir():
+                pkg = JointModelPackageResolver.resolve_package(d, approved_dirs=artifact_dirs)
+                if pkg and pkg.is_eligible and getattr(pkg, "calibration_report_sha256", "") == self.calibration_report_sha256:
+                    return True
+                for p in d.rglob("*"):
                     if p.is_dir():
-                        pkg = JointModelPackageResolver.resolve_package(p)
+                        pkg = JointModelPackageResolver.resolve_package(p, approved_dirs=artifact_dirs)
                         if pkg and pkg.is_eligible and getattr(pkg, "calibration_report_sha256", "") == self.calibration_report_sha256:
                             return True
+                    elif p.is_file() and self.assumes_independence:
+                        try:
+                            if hashlib.sha256(p.read_bytes()).hexdigest() == self.calibration_report_sha256:
+                                return True
+                        except Exception:
+                            pass
         return False
 
 

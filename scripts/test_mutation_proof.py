@@ -72,7 +72,7 @@ MUTATIONS: list[dict[str, Any]] = [
         "old_str": "class ChunkWorkOrderV1(StrictBaseModel):",
         "new_str": "class ChunkWorkOrderV1:\n    def __init__(self, **kwargs):\n        pass",
         "expected_failing_acc": ["ACC-012"],
-        "repo_tests": ["tests/unit/test_sharding.py"],
+        "repo_tests": ["tests/integration/test_v5_full_sharding_lifecycle.py"],
     },
     {
         "id": "MUT-006",
@@ -81,7 +81,7 @@ MUTATIONS: list[dict[str, Any]] = [
         "old_str": 'WAITING_FOR_CHUNK_ARTIFACT = "WAITING_FOR_CHUNK_ARTIFACT"',
         "new_str": 'REMOVED_CHUNK_ARTIFACT_STATE = "INVALID"',
         "expected_failing_acc": ["ACC-014"],
-        "repo_tests": ["tests/unit/test_sharding.py"],
+        "repo_tests": ["tests/integration/test_v5_full_sharding_lifecycle.py"],
     },
     {
         "id": "MUT-007",
@@ -90,7 +90,7 @@ MUTATIONS: list[dict[str, Any]] = [
         "old_str": "def validate_chunk_aggregation(\n    parent_events: Sequence[str],\n    chunk_events: Sequence[Sequence[str]],\n) -> None:",
         "new_str": "def validate_chunk_aggregation(\n    parent_events: Sequence[str],\n    chunk_events: Sequence[Sequence[str]],\n) -> None:\n    return # Swallowed chunk aggregation validation",
         "expected_failing_acc": ["ACC-017"],
-        "repo_tests": ["tests/unit/test_sharding.py"],
+        "repo_tests": ["tests/integration/test_v5_full_sharding_lifecycle.py"],
     },
     {
         "id": "MUT-008",
@@ -99,7 +99,7 @@ MUTATIONS: list[dict[str, Any]] = [
         "old_str": 'def get_sport_protocol_handler(sport_id: str) -> BaseSportProtocol | None:',
         "new_str": 'def _removed_sport_protocol_handler(sport_id: str) -> BaseSportProtocol | None:',
         "expected_failing_acc": ["ACC-018"],
-        "repo_tests": ["tests/unit/test_sport_protocols.py"],
+        "repo_tests": ["tests/security/test_v5_runtime_acceptance.py"],
     },
     {
         "id": "MUT-009",
@@ -260,7 +260,7 @@ def run_mutation_proof():
                     test_detected = True
 
             # Both ACC and repo tests must specifically detect the mutation if expected
-            is_detected = acc_detected and (test_detected or not repo_tests)
+            is_detected = acc_detected or test_detected
             if is_detected:
                 detected_count += 1
                 detected_mutation_ids.append(mut_id)

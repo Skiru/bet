@@ -1,6 +1,7 @@
 """Pipeline run readiness contracts - dataclasses and enums representing pipeline states."""
 from __future__ import annotations
 
+import hashlib
 import json
 from dataclasses import dataclass, field, asdict
 from enum import Enum
@@ -361,14 +362,20 @@ class ModelPackageResolver:
     )
 
     @classmethod
-    def resolve_package(cls, package_dir: str | Path) -> ModelPackageV1 | None:
+    def resolve_package(cls, package_dir: str | Path, approved_dirs: tuple[Path, ...] | list[Path] | None = None) -> ModelPackageV1 | None:
         p = Path(package_dir).resolve(strict=False)
         if not p.is_dir():
             return None
 
-        # Verify package root is inside an approved model store directory
-        repo_root = Path(__file__).resolve().parents[3]
+        from bet.pipeline.manifest import discover_repo_root
+        try:
+            repo_root = discover_repo_root()
+        except Exception:
+            repo_root = Path(__file__).resolve().parents[2]
         approved_paths = [repo_root / rel for rel in cls.APPROVED_MODEL_STORES]
+        if approved_dirs:
+            approved_paths.extend([Path(d).resolve(strict=False) for d in approved_dirs])
+
         is_approved = any(p == store or p.is_relative_to(store) for store in approved_paths if store.exists())
         if not is_approved:
             return None
@@ -500,13 +507,20 @@ class JointModelPackageResolver:
     )
 
     @classmethod
-    def resolve_package(cls, package_dir: str | Path) -> JointModelPackageV1 | None:
+    def resolve_package(cls, package_dir: str | Path, approved_dirs: tuple[Path, ...] | list[Path] | None = None) -> JointModelPackageV1 | None:
         p = Path(package_dir).resolve(strict=False)
         if not p.is_dir():
             return None
 
-        repo_root = Path(__file__).resolve().parents[3]
+        from bet.pipeline.manifest import discover_repo_root
+        try:
+            repo_root = discover_repo_root()
+        except Exception:
+            repo_root = Path(__file__).resolve().parents[2]
         approved_paths = [repo_root / rel for rel in cls.APPROVED_MODEL_STORES]
+        if approved_dirs:
+            approved_paths.extend([Path(d).resolve(strict=False) for d in approved_dirs])
+
         is_approved = any(p == store or p.is_relative_to(store) for store in approved_paths if store.exists())
         if not is_approved:
             return None
