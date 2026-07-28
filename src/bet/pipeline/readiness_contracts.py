@@ -390,6 +390,19 @@ class ModelPackageResolver:
             return None
 
 
+class ModelCardV1(StrictBaseModel):
+    package_path: str = ""
+    model_package: ModelPackageV1 | None = None
+
+    def is_pricing_eligible(self) -> bool:
+        if self.model_package is not None:
+            return getattr(self.model_package, "is_eligible", False) is True
+        if self.package_path:
+            pkg = ModelPackageResolver.resolve_package(self.package_path)
+            return pkg is not None and getattr(pkg, "is_eligible", False) is True
+        return False
+
+
 class JointModelPackageV1(StrictBaseModel):
     package_id: str
     sport: str
@@ -435,6 +448,51 @@ class JointModelPackageResolver:
             )
         except Exception:
             return None
+
+
+class JointModelScopeV1(StrictBaseModel):
+    package_path: str = ""
+    joint_package: JointModelPackageV1 | None = None
+    calibration_file_path: str = ""
+
+    def is_pricing_eligible(self) -> bool:
+        if self.joint_package is not None:
+            return getattr(self.joint_package, "is_eligible", False) is True
+        if self.package_path:
+            pkg = JointModelPackageResolver.resolve_package(self.package_path)
+            return pkg is not None and getattr(pkg, "is_eligible", False) is True
+        return False
+
+
+class ProbabilityEstimateV2(StrictBaseModel):
+    candidate_id: str
+    derived_probability: float
+    uncertainty_margin: float
+    model_package_id: str
+    model_package_sha256: str
+
+    @classmethod
+    def create(
+        cls,
+        *,
+        candidate_id: str,
+        model_package: ModelPackageV1,
+        prediction_result: dict[str, Any],
+        **kwargs: Any,
+    ) -> ProbabilityEstimateV2:
+        if "calibrated_probability" in kwargs or "uncertainty_margin" in kwargs or "caller_provided_probability" in kwargs:
+            raise ValueError("CALLER_PROBABILITY_FORBIDDEN: probability and uncertainty margin must be derived by model package")
+        if not model_package or getattr(model_package, "is_eligible", False) is False:
+            raise ValueError("MODEL_NOT_ELIGIBLE: cannot create probability estimate without an eligible model package")
+        prob = float(prediction_result["derived_probability"])
+        margin = float(prediction_result["uncertainty_margin"])
+        return cls(
+            candidate_id=candidate_id,
+            derived_probability=prob,
+            uncertainty_margin=margin,
+            model_package_id=model_package.package_id,
+            model_package_sha256=model_package.model_package_sha256,
+        )
 
 
 def get_central_safety_classification(
