@@ -66,4 +66,3 @@ def generate_report():
 
 if __name__ == "__main__":
     generate_report()
-chmod +x /Users/mkoziol/projects/bet-worktree-v5/scripts/generate_v5_final_report.py
