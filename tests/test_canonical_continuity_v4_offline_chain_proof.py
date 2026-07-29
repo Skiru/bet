@@ -38,6 +38,7 @@ def _bootstrap_test_db(db_path: Path) -> Path:
 
 
 def test_v4_offline_chain_proof(tmp_path: Path, monkeypatch):
+    monkeypatch.delenv("BET_PIPELINE_CERTIFIER_ACTIVE", raising=False)
     run_root = tmp_path / "pipeline_runs" / DAY / RUN_ID
     run_root.mkdir(parents=True, exist_ok=True)
     (run_root / "data").mkdir(parents=True, exist_ok=True)
