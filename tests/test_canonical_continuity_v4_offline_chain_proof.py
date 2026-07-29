@@ -248,29 +248,29 @@ def test_v4_offline_chain_proof(tmp_path: Path, monkeypatch):
                 s4_json_path = run_root / "data" / f"{DAY}_s4_valuation_candidates.json"
                 s4_data = json.loads(s4_json_path.read_text(encoding="utf-8"))
 
-                    clean_candidates = []
-                    for c in s4_data["candidates"]:
-                        c_copy = dict(c)
-                        for key in ["stake", "kelly_fraction", "bettable", "edge"]:
-                            c_copy.pop(key, None)
-                        c_copy["home_team"] = c_copy.get("home_team") or "ŁKS Łódź"
-                        c_copy["away_team"] = c_copy.get("away_team") or "KS D"
-                        c_copy["canonical_event_id"] = c_copy.get("canonical_event_id") or evt_id
-                        c_copy["candidate_id"] = c_copy.get("candidate_id") or f"{evt_id}_1X2_HOME"
-                        c_copy["terminal_status"] = "PASS"
-                        c_copy["risk_classification"] = "LOW"
-                        c_copy["best_market"] = c_copy.get("best_market") or {"name": "1X2", "safety_score": 1.0}
-                        c_copy["context_checks"] = {
-                            "injuries_lineups": {"status": "CLEAR", "as_of_utc": "2026-07-16T12:00:00Z", "source_refs": ["mock_ref"]},
-                            "motivation_tournament_context": {"status": "CLEAR", "as_of_utc": "2026-07-16T12:00:00Z", "source_refs": ["mock_ref"]},
-                            "travel_fatigue": {"status": "CLEAR", "as_of_utc": "2026-07-16T12:00:00Z", "source_refs": ["mock_ref"]},
-                            "morale_recent_form": {"status": "CLEAR", "as_of_utc": "2026-07-16T12:00:00Z", "source_refs": ["mock_ref"]},
-                            "upset_volatility_risk": {"status": "CLEAR", "as_of_utc": "2026-07-16T12:00:00Z", "source_refs": ["mock_ref"]}
-                        }
-                        c_copy["risk_flags"] = []
-                        c_copy["counter_evidence"] = []
-                        c_copy["safety_score"] = 1.0
-                        clean_candidates.append(c_copy)
+                clean_candidates = []
+                for c in s4_data["candidates"]:
+                    c_copy = dict(c)
+                    for key in ["stake", "kelly_fraction", "bettable", "edge"]:
+                        c_copy.pop(key, None)
+                    c_copy["home_team"] = c_copy.get("home_team") or "ŁKS Łódź"
+                    c_copy["away_team"] = c_copy.get("away_team") or "KS D"
+                    c_copy["canonical_event_id"] = c_copy.get("canonical_event_id") or evt_id
+                    c_copy["candidate_id"] = c_copy.get("candidate_id") or f"{evt_id}_1X2_HOME"
+                    c_copy["terminal_status"] = "PASS"
+                    c_copy["risk_classification"] = "LOW"
+                    c_copy["best_market"] = c_copy.get("best_market") or {"name": "1X2", "safety_score": 1.0}
+                    c_copy["context_checks"] = {
+                        "injuries_lineups": {"status": "CLEAR", "as_of_utc": "2026-07-16T12:00:00Z", "source_refs": ["mock_ref"]},
+                        "motivation_tournament_context": {"status": "CLEAR", "as_of_utc": "2026-07-16T12:00:00Z", "source_refs": ["mock_ref"]},
+                        "travel_fatigue": {"status": "CLEAR", "as_of_utc": "2026-07-16T12:00:00Z", "source_refs": ["mock_ref"]},
+                        "morale_recent_form": {"status": "CLEAR", "as_of_utc": "2026-07-16T12:00:00Z", "source_refs": ["mock_ref"]},
+                        "upset_volatility_risk": {"status": "CLEAR", "as_of_utc": "2026-07-16T12:00:00Z", "source_refs": ["mock_ref"]}
+                    }
+                    c_copy["risk_flags"] = []
+                    c_copy["counter_evidence"] = []
+                    c_copy["safety_score"] = 1.0
+                    clean_candidates.append(c_copy)
 
                 from bet.pipeline.run_evidence import repo_head_sha, manifest_hash, sha256_file
                 payload["source_git_sha"] = repo_head_sha(Path(__file__).resolve().parents[1])

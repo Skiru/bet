@@ -26,7 +26,7 @@
   ],
   "mandatory_file_sha256s": {
     "tests/test_canonical_continuity_v4_owner_regressions.py": "18b82bb9abf9285be00e231f96db4746ce5a747f72d6cda6ed4b12015a4745e5",
-    "tests/test_canonical_continuity_v4_offline_chain_proof.py": "6cd930ccc5487de36cae5af56d30c0411d7495eb4c21c7952b538fa28248de62",
+    "tests/test_canonical_continuity_v4_offline_chain_proof.py": "471a9f9f1499ecb6b3db4dc7533fc98f9f0fea54e028db884f2d7e2ac97ac9a9",
     "tests/test_agent_work_order_owner_alignment.py": "12f5379b1a51a70cbe780cabfe3956d0639cc03b00d3f85d1a937dfd0be1cc5f",
     "tests/test_pipeline_orchestrator_ledger_integration.py": "1f18de7f98bf0d4e7b1339330e17d01bd50b5273fb7abc5836610fabf48587e9",
     "tests/test_s2_shortlist_contract_closure.py": "d0e0ad97153c1be5fc5b0697c443bfb89d0a6771644597facbd9e69da64fbaa3",
