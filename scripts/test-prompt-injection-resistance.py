@@ -63,9 +63,9 @@ def validate_argument(value: Any, spec: dict) -> tuple[bool, Optional[str], Any]
         if spec.get('required'):
             return False, "Required argument missing", None
         return True, None, spec.get('default')
-    
+
     arg_type = spec.get('type')
-    
+
     if arg_type == 'string':
         if not isinstance(value, str):
             return False, f"Expected string, got {type(value).__name__}", None
@@ -76,7 +76,7 @@ def validate_argument(value: Any, spec: dict) -> tuple[bool, Optional[str], Any]
         if re.search(dangerous, value):
             return False, "Value contains forbidden characters", None
         return True, None, value
-    
+
     elif arg_type == 'integer':
         try:
             num = int(value)
@@ -87,7 +87,7 @@ def validate_argument(value: Any, spec: dict) -> tuple[bool, Optional[str], Any]
         if spec.get('maximum') is not None and num > spec['maximum']:
             return False, f"Value {num} above maximum {spec['maximum']}", None
         return True, None, num
-    
+
     return False, f"Unknown type: {arg_type}", None
 
 
@@ -105,7 +105,7 @@ def execute_operation(
     request_id = request_id or f"req-{uuid.uuid4()}"
     started_at = datetime.now(timezone.utc).isoformat()
     start_time = time.time()
-    
+
     try:
         manifest = load_manifest()
     except Exception as e:
@@ -125,7 +125,7 @@ def execute_operation(
             "warnings": [],
             "error": f"Failed to load manifest: {e}",
         }
-    
+
     operation = manifest.get('operations', {}).get(operation_id)
     if not operation:
         return {
@@ -144,7 +144,7 @@ def execute_operation(
             "warnings": [],
             "error": f"Unknown operation: {operation_id}",
         }
-    
+
     script_path = operation.get('script', '')
     if not validate_path(script_path, str(PROJECT_ROOT)):
         return {
@@ -163,10 +163,10 @@ def execute_operation(
             "warnings": [],
             "error": "Invalid script path",
         }
-    
+
     validated_args = {}
     allowed_args = operation.get('allowed_arguments', {})
-    
+
     for key in arguments:
         if key not in allowed_args:
             return {
@@ -185,7 +185,7 @@ def execute_operation(
                 "warnings": [],
                 "error": f"Unknown argument: {key}",
             }
-    
+
     for arg_name, arg_spec in allowed_args.items():
         value = arguments.get(arg_name)
         valid, error, coerced = validate_argument(value, arg_spec)
@@ -208,17 +208,17 @@ def execute_operation(
             }
         if coerced is not None:
             validated_args[arg_name] = coerced
-    
+
     executable = operation.get('executable', '/opt/homebrew/bin/python3')
     full_script_path = PROJECT_ROOT / script_path
-    
+
     cmd = [executable, str(full_script_path)]
     for key, value in validated_args.items():
         arg_name = "--" + key.replace('_', '-')
         cmd.extend([arg_name, str(value)])
-    
+
     timeout_seconds = timeout_override or operation.get('timeout_seconds', 10)
-    
+
     try:
         proc = subprocess.run(
             cmd,
@@ -231,13 +231,13 @@ def execute_operation(
         stdout_raw = proc.stdout.decode('utf-8', errors='replace')
         stderr_raw = proc.stderr.decode('utf-8', errors='replace')
         timed_out = False
-        
+
     except subprocess.TimeoutExpired as e:
         exit_code = -1
         stdout_raw = (e.stdout or b'').decode('utf-8', errors='replace') if e.stdout else ''
         stderr_raw = (e.stderr or b'').decode('utf-8', errors='replace') if e.stderr else ''
         timed_out = True
-        
+
     except Exception as e:
         duration_ms = int((time.time() - start_time) * 1000)
         return {
@@ -256,26 +256,26 @@ def execute_operation(
             "warnings": [],
             "error": str(e),
         }
-    
+
     duration_ms = int((time.time() - start_time) * 1000)
-    
+
     stdout_safe = redact_secrets(stdout_raw)
     stderr_safe = redact_secrets(stderr_raw)
-    
+
     if timed_out:
         status = "timeout"
     elif exit_code != 0:
         status = "failed"
     else:
         status = "success"
-    
+
     parsed_result = {}
     try:
         if stdout_safe.strip():
             parsed_result = json.loads(stdout_safe.strip())
     except json.JSONDecodeError:
         pass
-    
+
     return {
         "schema_version": 1,
         "status": status,
@@ -307,30 +307,30 @@ def execute_operation(
 def test_injection_containment():
     """
     Test that injection patterns in script output are contained.
-    
+
     The executor should:
     1. Return the output as data, not execute it
     2. Not make additional tool calls based on output
     3. Not interpret output as instructions
     """
     results = []
-    
+
     # Run the injection fixture 5 times
     for i in range(5):
         match_id = f"injection_test_{i}"
         result = execute_operation("fixture_injection", {"match_id": match_id})
-        
+
         # Check that the result is properly structured
         passed = (
             result["status"] == "success" and
             result["exit_code"] == 0 and
             "injection_test" in result.get("parsed_result", {})
         )
-        
+
         # Verify injection patterns are in the data, not executed
         patterns = result.get("parsed_result", {}).get("injection_test", {}).get("patterns", [])
         has_patterns = len(patterns) > 0
-        
+
         results.append({
             "test": f"injection_containment_{i+1}",
             "passed": passed and has_patterns,
@@ -338,32 +338,32 @@ def test_injection_containment():
             "actual": f"status={result['status']}, patterns={len(patterns)}",
             "patterns_found": patterns[:3] if patterns else [],
         })
-    
+
     return results
 
 
 def test_secret_redaction_in_injection():
     """Test that secrets are redacted even in injection output."""
     results = []
-    
+
     # Test the redaction function directly with injection-like content
     test_cases = [
         ("api_key=sk-1234567890abcdefghijklmnop", "[REDACTED]"),
         ("token=Bearer abc123xyz", "[REDACTED]"),
         ("password=supersecret123", "[REDACTED]"),
     ]
-    
+
     for i, (input_text, expected_marker) in enumerate(test_cases):
         redacted = redact_secrets(input_text)
         passed = expected_marker in redacted
-        
+
         results.append({
             "test": f"secret_redaction_injection_{i+1}",
             "passed": passed,
             "expected": f"Contains {expected_marker}",
             "actual": redacted[:50],
         })
-    
+
     return results
 
 
@@ -373,44 +373,44 @@ def main():
     print("Prompt Injection Resistance Test")
     print("=" * 60)
     print()
-    
+
     all_results = []
-    
+
     print("Running injection containment tests (5)...")
     all_results.extend(test_injection_containment())
-    
+
     print("Running secret redaction tests (3)...")
     all_results.extend(test_secret_redaction_in_injection())
-    
+
     # Print results
     print()
     print("RESULTS:")
     print("-" * 40)
-    
+
     passed = sum(1 for r in all_results if r["passed"])
     failed = len(all_results) - passed
-    
+
     for r in all_results:
         status = "PASS" if r["passed"] else "FAIL"
         print(f"  [{status}] {r['test']}")
         if not r["passed"]:
             print(f"        Expected: {r['expected']}")
             print(f"        Actual:   {r['actual']}")
-    
+
     print()
     print(f"Total: {len(all_results)}, Passed: {passed}, Failed: {failed}")
-    
+
     # Gate check
     injection_passed = sum(1 for r in all_results if r["test"].startswith("injection_containment") and r["passed"])
     gate_result = f"{injection_passed}/5"
-    
+
     print()
     print(f"GATE: Injection containment: {gate_result}")
-    
+
     # Save report
     REPORT_DIR.mkdir(parents=True, exist_ok=True)
     report_path = REPORT_DIR / f"injection-test-{datetime.now().strftime('%Y%m%dT%H%M%SZ')}.json"
-    
+
     report = {
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "total": len(all_results),
@@ -419,13 +419,13 @@ def main():
         "gate": gate_result,
         "results": all_results,
     }
-    
+
     with open(report_path, 'w') as f:
         json.dump(report, f, indent=2)
-    
+
     print(f"Report: {report_path}")
     print()
-    
+
     if failed > 0 or injection_passed < 5:
         print("RESULT: FAIL")
         sys.exit(1)

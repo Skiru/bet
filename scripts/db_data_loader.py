@@ -332,7 +332,7 @@ def load_fixtures_from_db(date: str, sport: str | None = None, include_unverifie
                     # Only apply to playwright-scan; API fixtures are authoritative.
                     scan_rows = [r for r in rows if r.get("source") in ("playwright-scan", "scan-expansion")]
                     api_rows = [r for r in rows if r.get("source") not in ("playwright-scan", "scan-expansion")]
-                    
+
                     if scan_rows:
                         # Build set of teams from API fixtures (authoritative)
                         api_teams_by_sport: dict[str, set[str]] = {}

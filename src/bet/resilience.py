@@ -127,7 +127,7 @@ def resilient_request(
     """
     start_time = time.perf_counter()
     requester = session.request if session else requests.request
-    
+
     retryable_exceptions = (
         requests.exceptions.ConnectionError,
         requests.exceptions.Timeout,
@@ -141,7 +141,7 @@ def resilient_request(
         try:
             kwargs.setdefault("timeout", timeout)
             response = requester(method, url, **kwargs)
-            
+
             # Raise HTTPError for bad responses to trigger retry if 5xx
             if response.status_code >= 500:
                 response.raise_for_status()
@@ -165,15 +165,15 @@ def resilient_request(
             last_error_msg = str(e)
             if isinstance(e, requests.exceptions.HTTPError) and e.response is not None:
                 last_status = e.response.status_code
-                
+
             if attempt == max_retries:
                 logger.error(f"Request {method} {url} failed after {max_retries} retries: {e}")
                 break
-                
+
             delay = _calculate_delay(attempt, base_delay, jitter)
             logger.warning(f"Request {method} {url} failed: {e}. Retrying in {delay:.2f}s...")
             time.sleep(delay)
-            
+
         except Exception as e:
             # Non-retryable exception
             last_error_msg = str(e)
@@ -208,7 +208,7 @@ def safe_json_load(path_or_str: Path | str, default: Any = None) -> Any:
                 return json.load(f)
         else:
             return json.loads(str(path_or_str))
-            
+
     except (json.JSONDecodeError, FileNotFoundError, OSError, UnicodeDecodeError) as e:
         context = str(path_or_str)[:100] + ("..." if len(str(path_or_str)) > 100 else "")
         logger.warning(f"safe_json_load failed: {e} | Context: {context}")
@@ -222,11 +222,11 @@ def atomic_write(path: Path | str, content: str | bytes, encoding: str = 'utf-8'
     """
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    
+
     pid = os.getpid()
     rnd = random.randint(0, 999999)
     tmp_path = path.with_suffix(f"{path.suffix}.tmp-{pid}-{rnd}")
-    
+
     try:
         if isinstance(content, bytes):
             with open(tmp_path, 'wb') as f:
@@ -238,7 +238,7 @@ def atomic_write(path: Path | str, content: str | bytes, encoding: str = 'utf-8'
                 f.write(content)
                 f.flush()
                 os.fsync(f.fileno())
-        
+
         os.replace(tmp_path, path)
     finally:
         try:
@@ -267,11 +267,11 @@ class CircuitBreaker:
     def __init__(self, failure_threshold: int = 5, recovery_timeout: float = 60.0):
         self.failure_threshold = failure_threshold
         self.recovery_timeout = recovery_timeout
-        
+
         self.state = self.CLOSED
         self.failures = 0
         self.last_failure_time = 0.0
-        
+
         self._lock = threading.Lock()
 
     def __call__(self, func: Callable[..., T]) -> Callable[..., T]:

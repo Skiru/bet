@@ -84,13 +84,13 @@ def test_08_09_synthetic_odds_and_ev_not_promoted():
     try:
         state1 = {"reviewed": {"c1": {"best_odds": 2.10}}}
         state2 = {"reviewed": {"c1": {"ev": 0.15}}}
-        
+
         classification1 = get_central_safety_classification(state1)
         classification2 = get_central_safety_classification(state2)
-        
+
         assert classification1.production_eligibility is False
         assert classification1.runtime_classification == "TEST_ONLY_MOCK_ODDS"
-        
+
         assert classification2.production_eligibility is False
         assert classification2.runtime_classification == "TEST_ONLY_SYNTHETIC_INPUT"
     finally:
@@ -170,7 +170,7 @@ def test_20_21_propagation_and_downstream_cannot_clear():
         classification = get_central_safety_classification(state)
         assert classification.production_eligibility is False
         assert classification.can_place_bet_now is False
-        
+
         # Downstream serialization
         json_data = json.dumps(classification.to_jsonable())
         loaded = json.loads(json_data)

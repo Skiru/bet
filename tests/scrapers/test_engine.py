@@ -11,7 +11,7 @@ def test_sqlite_pragmas(session_factory):
         # Test WAL mode
         res = session.execute(text("PRAGMA journal_mode")).fetchone()
         assert res[0].lower() == "wal"
-        
+
         # Test Foreign Keys
         res = session.execute(text("PRAGMA foreign_keys")).fetchone()
         assert res[0] == 1

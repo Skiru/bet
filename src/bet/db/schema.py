@@ -77,7 +77,7 @@ def migrate(conn: sqlite3.Connection, from_version: int, to_version: int) -> Non
         migration_path = Path(__file__).parent / "migrations" / "003_decision_learning.sql"
         if migration_path.exists():
             conn.executescript(migration_path.read_text(encoding="utf-8"))
-        
+
         columns = _table_columns(conn, "fixture_capability_observation")
         if "logical_identity" not in columns:
             conn.execute("ALTER TABLE fixture_capability_observation ADD COLUMN logical_identity TEXT")
@@ -87,7 +87,7 @@ def migrate(conn: sqlite3.Connection, from_version: int, to_version: int) -> Non
         migration_path = Path(__file__).parent / "migrations" / "005_espn_deep_tables.sql"
         if migration_path.exists():
             conn.executescript(migration_path.read_text(encoding="utf-8"))
-        
+
         columns = _table_columns(conn, "fixture_capability_observation")
         if "logical_identity" not in columns:
             conn.execute("ALTER TABLE fixture_capability_observation ADD COLUMN logical_identity TEXT")
@@ -120,7 +120,7 @@ def migrate(conn: sqlite3.Connection, from_version: int, to_version: int) -> Non
         migration_path = Path(__file__).parent / "migrations" / "007_scraper_tables.sql"
         if migration_path.exists():
             conn.executescript(migration_path.read_text(encoding="utf-8"))
-        
+
         columns = _table_columns(conn, "fixture_capability_observation")
         if "logical_identity" not in columns:
             conn.execute("ALTER TABLE fixture_capability_observation ADD COLUMN logical_identity TEXT")
@@ -136,7 +136,7 @@ def migrate(conn: sqlite3.Connection, from_version: int, to_version: int) -> Non
         migration_path = Path(__file__).parent / "migrations" / "008_fixture_sources.sql"
         if migration_path.exists():
             conn.executescript(migration_path.read_text(encoding="utf-8"))
-        
+
         columns = _table_columns(conn, "fixture_capability_observation")
         if "logical_identity" not in columns:
             conn.execute("ALTER TABLE fixture_capability_observation ADD COLUMN logical_identity TEXT")
@@ -183,7 +183,7 @@ def migrate(conn: sqlite3.Connection, from_version: int, to_version: int) -> Non
         migration_path = Path(__file__).parent / "migrations" / "010_betclic_markets.sql"
         if migration_path.exists():
             conn.executescript(migration_path.read_text(encoding="utf-8"))
-        
+
         columns = _table_columns(conn, "fixture_capability_observation")
         if "logical_identity" not in columns:
             conn.execute("ALTER TABLE fixture_capability_observation ADD COLUMN logical_identity TEXT")
@@ -193,7 +193,7 @@ def migrate(conn: sqlite3.Connection, from_version: int, to_version: int) -> Non
         migration_path = Path(__file__).parent / "migrations" / "011_scan_run_stats.sql"
         if migration_path.exists():
             conn.executescript(migration_path.read_text(encoding="utf-8"))
-        
+
         columns = _table_columns(conn, "fixture_capability_observation")
         if "logical_identity" not in columns:
             conn.execute("ALTER TABLE fixture_capability_observation ADD COLUMN logical_identity TEXT")
@@ -203,7 +203,7 @@ def migrate(conn: sqlite3.Connection, from_version: int, to_version: int) -> Non
         migration_path = Path(__file__).parent / "migrations" / "012_known_missing.sql"
         if migration_path.exists():
             conn.executescript(migration_path.read_text(encoding="utf-8"))
-        
+
         columns = _table_columns(conn, "fixture_capability_observation")
         if "logical_identity" not in columns:
             conn.execute("ALTER TABLE fixture_capability_observation ADD COLUMN logical_identity TEXT")
@@ -213,7 +213,7 @@ def migrate(conn: sqlite3.Connection, from_version: int, to_version: int) -> Non
         migration_path = Path(__file__).parent / "migrations" / "013_market_matrix_tables.sql"
         if migration_path.exists():
             conn.executescript(migration_path.read_text(encoding="utf-8"))
-        
+
         columns = _table_columns(conn, "fixture_capability_observation")
         if "logical_identity" not in columns:
             conn.execute("ALTER TABLE fixture_capability_observation ADD COLUMN logical_identity TEXT")
@@ -441,7 +441,7 @@ def _migrate_v17_fixture_capability_observation_versioning(conn: sqlite3.Connect
         conn.execute("DROP INDEX IF EXISTS idx_fixture_capability_observation_identity")
         conn.execute(
             "CREATE UNIQUE INDEX IF NOT EXISTS idx_fixture_capability_observation_identity "
-            "ON fixture_capability_observation(" 
+            "ON fixture_capability_observation("
             "canonical_fixture_id, team_id, capability, source, request_identity, "
             "COALESCE(evidence_bundle_id, ''), valid_at, COALESCE(payload_sha256, '')"
             ")"

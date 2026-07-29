@@ -264,7 +264,7 @@ def test_live_target_gating_allows_with_ack(tmp_path: Path, monkeypatch: pytest.
 def test_dry_run_injects_sandbox_output_dirs(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     fixture_root = Path(__file__).parent / "fixtures" / "pipeline_wrappers"
     record_path = tmp_path / "capture.json"
-    
+
     # We want to check what environment variables were set! Let's write a script that dumps them.
     dump_script = fixture_root / "scripts" / "dump_env.py"
     dump_script.write_text(
@@ -294,7 +294,7 @@ def test_dry_run_injects_sandbox_output_dirs(tmp_path: Path, monkeypatch: pytest
         assert "BET_PIPELINE_DATA_DIR" in payload
         assert "BET_PIPELINE_COUPON_DIR" in payload
         assert "BET_PIPELINE_ARTIFACT_DIR" in payload
-        
+
         # Verify directories were created on disk
         assert Path(payload["BET_PIPELINE_DATA_DIR"]).exists()
         assert Path(payload["BET_PIPELINE_COUPON_DIR"]).exists()

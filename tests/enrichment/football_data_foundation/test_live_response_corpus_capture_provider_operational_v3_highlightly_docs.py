@@ -31,7 +31,7 @@ def test_highlightly_matches_and_targeted_search() -> None:
     target_date = "2026-06-23"
     home_team = "Norway"
     away_team = "Senegal"
-    
+
     path_by_date = f"/matches?date={target_date}&timezone=Etc/UTC&limit=100"
     path_targeted = f"/matches?date={target_date}&timezone=Etc/UTC&homeTeamName={home_team}&awayTeamName={away_team}&limit=100"
 

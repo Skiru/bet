@@ -170,14 +170,14 @@ def main() -> None:
             cmd.extend(["--source", s])
 
     print("Running shadow runner:", " ".join(cmd))
-    
+
     # Set up environments
     env = child_env.copy()
     if args.allow_live_network:
         env["BET_PIPELINE_LIVE_ACK"] = "I_UNDERSTAND_LIVE_PROVIDER_CALLS"
 
     res = subprocess.run(cmd, env=env, capture_output=True, text=True)
-    
+
     output_parts = [part for part in (res.stdout, res.stderr) if part]
     output = "".join(output_parts)
     if output:

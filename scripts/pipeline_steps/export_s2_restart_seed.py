@@ -19,7 +19,7 @@ def export_s2_restart_seed(
     output_dir: Path,
 ) -> tuple[Path, Path]:
     """Package through-S1e artifacts and transitive input dependencies into a verified restart seed.
-    
+
     Excludes ALL S2+ state by construction and attaches semantic origin step metadata.
     """
     source_run_root = Path(source_run_root).resolve(strict=True)

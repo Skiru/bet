@@ -85,7 +85,7 @@ def test_preserves_existing_epl_sportdb_shadow_registration(monkeypatch, tmp_pat
             "football-data": {},
         }
     }
-    
+
     routing_text = (
         "routing:\n"
         "  detailed_metrics:\n"

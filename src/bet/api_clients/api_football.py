@@ -101,7 +101,7 @@ class APIFootballClient(APISportsClient):
             return SourceOperationResult(status=SourceResultStatus.UNSUPPORTED, retryable=False, error_code="empty_batch")
         if len(clean_ids) > 20:
             return SourceOperationResult(status=SourceResultStatus.UNSUPPORTED, retryable=False, error_code="too_many_ids")
-        
+
         ids_str = "-".join(clean_ids)
         return self._request_with_evidence(
             endpoint="/fixtures",

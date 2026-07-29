@@ -39,16 +39,16 @@ def summarize_events(events: Any) -> Dict[str, Any]:
             "substitutions_count": 0,
             "provider_event_categories": []
         }
-    
+
     goals = []
     cards_count = 0
     substitutions_count = 0
     categories = set()
-    
+
     for item in events:
         if not isinstance(item, dict):
             continue
-        
+
         # Get category
         cat = item.get("type") or item.get("incidentType") or ""
         if isinstance(cat, dict):
@@ -56,15 +56,15 @@ def summarize_events(events: Any) -> Dict[str, Any]:
         cat_str = str(cat).strip()
         if cat_str:
             categories.add(cat_str.lower())
-            
+
         # Also check detail
         detail = str(item.get("detail") or item.get("incidentClass") or "").lower()
-        
+
         # Identify type
         is_goal = "goal" in cat_str.lower() or "goal" in detail
         is_card = "card" in cat_str.lower() or "card" in detail
         is_sub = "subst" in cat_str.lower() or "substitution" in detail or "sub" in cat_str.lower()
-        
+
         if is_goal:
             minute = None
             if isinstance(item.get("time"), dict):
@@ -73,7 +73,7 @@ def summarize_events(events: Any) -> Dict[str, Any]:
                 minute = item.get("elapsed")
             elif item.get("minute") is not None:
                 minute = item.get("minute")
-            
+
             team = None
             if isinstance(item.get("team"), dict):
                 team = item["team"].get("name")
@@ -81,7 +81,7 @@ def summarize_events(events: Any) -> Dict[str, Any]:
                 team = item.get("teamName")
             elif item.get("team") is not None:
                 team = item.get("team")
-                
+
             player = None
             if isinstance(item.get("player"), dict):
                 player = item["player"].get("name")
@@ -89,19 +89,19 @@ def summarize_events(events: Any) -> Dict[str, Any]:
                 player = item.get("playerName")
             elif item.get("player") is not None:
                 player = item.get("player")
-                
+
             goals.append({
                 "minute": int(minute) if minute is not None and str(minute).isdigit() else minute,
                 "team": str(team) if team else None,
                 "player": str(player) if player else None
             })
-            
+
         if is_card:
             cards_count += 1
-            
+
         if is_sub:
             substitutions_count += 1
-            
+
     return {
         "event_count": len(events),
         "goals": goals,
@@ -118,18 +118,18 @@ def summarize_lineups(lineups: Any) -> Dict[str, Any]:
             "listed_player_count": 0,
             "unavailable_suspension_injury_counts": {"unavailable": 0, "suspension": 0, "injury": 0}
         }
-        
+
     team_names = set()
     formations = []
     player_count = 0
     unavailable = 0
     suspension = 0
     injury = 0
-    
+
     for item in lineups:
         if not isinstance(item, dict):
             continue
-            
+
         team = item.get("team")
         if isinstance(team, dict):
             team_name = team.get("name")
@@ -137,22 +137,22 @@ def summarize_lineups(lineups: Any) -> Dict[str, Any]:
             team_name = item.get("teamName") or item.get("name")
         if team_name:
             team_names.add(str(team_name))
-            
+
         formation = item.get("formation") or item.get("system")
         if formation:
             formations.append(str(formation))
-            
+
         start_xi = item.get("startXI") or []
         subs = item.get("substitutes") or []
         players_list = item.get("players") or item.get("lineup") or []
-        
+
         if isinstance(start_xi, list):
             player_count += len(start_xi)
         if isinstance(subs, list):
             player_count += len(subs)
         if isinstance(players_list, list) and not start_xi:
             player_count += len(players_list)
-            
+
         missing_players = item.get("missingPlayers") or item.get("injuries") or item.get("suspended") or []
         if isinstance(missing_players, list):
             for mp in missing_players:
@@ -165,7 +165,7 @@ def summarize_lineups(lineups: Any) -> Dict[str, Any]:
                     suspension += 1
                 else:
                     unavailable += 1
-                    
+
     return {
         "teams_with_lineups": len(team_names) or len(lineups),
         "formations": sorted(list(set(formations))),
@@ -184,10 +184,10 @@ def summarize_statistics(stats: Any) -> Dict[str, Any]:
             "stat_groups": [],
             "selected_numeric_stats": {}
         }
-        
+
     stat_groups = set()
     selected_numeric_stats = {}
-    
+
     if isinstance(stats, list):
         for item in stats:
             if not isinstance(item, dict):
@@ -195,7 +195,7 @@ def summarize_statistics(stats: Any) -> Dict[str, Any]:
             team_stats = item.get("statistics")
             team_name = item.get("team", {}).get("name") or item.get("teamName") or ""
             team_suffix = f"_{team_name.lower().replace(' ', '_')}" if team_name else ""
-            
+
             if isinstance(team_stats, list):
                 for stat in team_stats:
                     if not isinstance(stat, dict):
@@ -245,7 +245,7 @@ def summarize_statistics(stats: Any) -> Dict[str, Any]:
                         selected_numeric_stats[str(key).lower().replace(' ', '_')] = float(clean_val)
                 except ValueError:
                     pass
-                    
+
     return {
         "stat_group_count": len(stat_groups),
         "stat_groups": sorted(list(stat_groups)),
@@ -255,7 +255,7 @@ def summarize_statistics(stats: Any) -> Dict[str, Any]:
 def summarize_odds(odds_data: Any) -> Dict[str, Any]:
     bookmaker_count = 0
     market_count = 0
-    
+
     if isinstance(odds_data, list):
         bookmaker_count = len(odds_data)
         markets = set()
@@ -275,7 +275,7 @@ def summarize_odds(odds_data: Any) -> Dict[str, Any]:
     elif isinstance(odds_data, dict):
         bookmaker_count = 1
         market_count = len(odds_data.get("markets") or odds_data.get("odds") or odds_data)
-        
+
     return {
         "odds_reference_available": True,
         "bookmaker_count": bookmaker_count if bookmaker_count > 0 else 1,
@@ -287,10 +287,10 @@ def normalize_api_football(env: ProviderEnvelope, provider_match_id: Optional[st
     role = "primary_detailed_replay"
     facts: List[NormalizedFact] = []
     body = env.body or {}
-    
+
     if provider_match_id:
         facts.append(_fact(env, role, "provider_mapping", "api-football.provider_match_id", provider_match_id, provider_match_id))
-    
+
     response = body.get("response") or []
     if not response or not isinstance(response, list):
         return facts
@@ -400,12 +400,12 @@ def normalize_espn_baseline(env: ProviderEnvelope, provider_match_id: Optional[s
     competitions = header.get("competitions") or []
     match_data = competitions[0] if competitions else {}
     competitors = match_data.get("competitors") or []
-    
+
     home_team = None
     away_team = None
     home_score = None
     away_score = None
-    
+
     for comp in competitors:
         team_name = comp.get("team", {}).get("name")
         home_away = comp.get("homeAway")

@@ -16,7 +16,7 @@ def to_legacy_pick(p: TipsterPick) -> dict:
     from .source_registry import CERTIFIED_SHADOW_SOURCE_IDS
     is_certified = p.source_id in CERTIFIED_SHADOW_SOURCE_IDS
     policy = get_risk_policy(p.source_id, is_certified=is_certified)
-    
+
     warnings_list = list(p.warnings or [])
     if not is_certified:
         for rw in policy.risk_warnings:
@@ -89,7 +89,7 @@ def consensus_from_picks(picks: Iterable[TipsterPick]) -> list[dict]:
         best_market = max(markets, key=markets.get)
         total = len(event_picks)
         evidence_fields = sorted({key for p in event_picks for key in p.valuable_signals.keys()})
-        
+
         # Calculate agent readiness summary for consensus
         readiness_list = [analyze_pick_readiness(p) for p in event_picks]
         needs_match_resolution_count = sum(1 for r in readiness_list if r["agent_use_decision"] == "NEEDS_MATCH_ID_RESOLUTION")

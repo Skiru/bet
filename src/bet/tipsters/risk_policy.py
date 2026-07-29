@@ -52,7 +52,7 @@ class RiskPolicy:
 def get_risk_policy(source_id: str, is_certified: bool = False) -> RiskPolicy:
     """Factory to build RiskPolicy for a source."""
     forbidden = ["EV", "stake", "coupon", "final bet", "Superbet combined odds"]
-    
+
     if is_certified:
         return RiskPolicy(
             source_id=source_id,

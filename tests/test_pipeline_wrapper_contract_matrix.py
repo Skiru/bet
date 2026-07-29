@@ -27,7 +27,7 @@ def _seed_s6_predecessors(environ: dict[str, str]) -> None:
     run_root = Path(environ["BET_PIPELINE_RUN_ROOT"])
     (run_root / "artifacts").mkdir(parents=True, exist_ok=True)
     (run_root / "data").mkdir(parents=True, exist_ok=True)
-    
+
     # Empty, schema-valid settled-loss ledger setup.
     ledger_path = run_root / "picks-ledger.csv"
     with open(ledger_path, "w", newline="", encoding="utf-8") as f:
@@ -143,7 +143,7 @@ def _seed_s7_predecessors(environ: dict[str, str]) -> None:
     (run_root / "artifacts").mkdir(parents=True, exist_ok=True)
     (run_root / "data").mkdir(parents=True, exist_ok=True)
     _seed_s6_predecessors(environ)
-    
+
     s5_path = run_root / "artifacts" / "S5.json"
     s6_output_path = run_root / "data" / "repeat_loss_handoff_2026-06-25.json"
     s6_output_data = {
@@ -207,7 +207,7 @@ def _seed_s7_predecessors(environ: dict[str, str]) -> None:
         }
     }
     s6_output_path.write_text(json.dumps(s6_output_data), encoding="utf-8")
-    
+
     s6_ev = {
         "schema_version": 1,
         "artifact_type": "SCRIPT_EVIDENCE",

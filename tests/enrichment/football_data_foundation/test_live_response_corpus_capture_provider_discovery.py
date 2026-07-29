@@ -19,7 +19,7 @@ def test_find_matching_football_data_org_id():
             }
         ]
     }
-    
+
     assert find_matching_football_data_org_id(data, "Norway", "Senegal") == "12345"
     assert find_matching_football_data_org_id(data, "England", "Italy") == "67890"
     assert find_matching_football_data_org_id(data, "France", "Spain") is None
@@ -44,7 +44,7 @@ def test_find_matching_api_football_id():
             }
         ]
     }
-    
+
     assert find_matching_api_football_id(data, "Norway", "Senegal") == "1122"
     assert find_matching_api_football_id(data, "England", "Italy") == "3344"
     assert find_matching_api_football_id(data, "France", "Spain") is None

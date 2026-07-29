@@ -63,14 +63,14 @@ def db_conn(monkeypatch):
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     init_db(conn)
-    
+
     import bet.db.connection
     from contextlib import contextmanager
-    
+
     @contextmanager
     def mock_get_db(db_path=None):
         yield conn
-        
+
     monkeypatch.setattr(bet.db.connection, "get_db", mock_get_db)
     yield conn
     conn.close()
@@ -80,17 +80,17 @@ def db_conn(monkeypatch):
 def valid_bundle_id(tmp_path):
     import hashlib
     from bet.integration.evidence import write_source_operation_bundle, EvidenceRef
-    
+
     # Set BET_EVIDENCE_ROOT to tmp_path
     os.environ["BET_EVIDENCE_ROOT"] = str(tmp_path)
-    
+
     # Write the object file
     response_body_bytes = b'{"test": "data"}'
     digest = hashlib.sha256(response_body_bytes).hexdigest()
     object_path = tmp_path / "objects" / digest[:2] / digest
     object_path.parent.mkdir(parents=True, exist_ok=True)
     object_path.write_bytes(response_body_bytes)
-    
+
     ref = EvidenceRef(
         operation="test",
         request_identity="test",
@@ -100,7 +100,7 @@ def valid_bundle_id(tmp_path):
         http_status=200,
         captured_at=datetime.now(UTC).isoformat(),
     )
-    
+
     bundle_id, manifest_path = write_source_operation_bundle(
         registered_source_key="espn-football",
         operation_name="test",
@@ -118,37 +118,37 @@ def seeded_db(db_conn):
     sport_repo = SportRepo(db_conn)
     sport_repo.seed_defaults()
     football = sport_repo.get_by_name("football")
-    
+
     team_repo = TeamRepo(db_conn)
     home = team_repo.find_or_create("Arsenal", football.id)
     away = team_repo.find_or_create("Chelsea", football.id)
-    
+
     # Create a fixture
     db_conn.execute(
         "INSERT INTO fixtures (sport_id, home_team_id, away_team_id, kickoff, status, fetched_at) VALUES (?, ?, ?, ?, ?, ?)",
         (football.id, home.id, away.id, "2026-06-14T18:00:00+00:00", "scheduled", datetime.now(UTC).isoformat())
     )
     fixture_id = db_conn.execute("SELECT last_insert_rowid()").fetchone()[0]
-    
+
     # Insert fixture sources
     db_conn.execute(
         "INSERT INTO fixture_sources (fixture_id, source, external_id, confidence, fetched_at) VALUES (?, ?, ?, ?, ?)",
         (fixture_id, "espn-football", "740968", 1.0, datetime.now(UTC).isoformat())
     )
-    
+
     # Insert sports entity and source entity references
     db_conn.execute(
         "INSERT INTO sports_entity (sport, entity_type, domain_table, domain_entity_id, created_at) VALUES (?, ?, ?, ?, ?)",
         ("football", "PARTICIPANT", "teams", home.id, datetime.now(UTC).isoformat())
     )
     home_entity_id = db_conn.execute("SELECT last_insert_rowid()").fetchone()[0]
-    
+
     db_conn.execute(
         "INSERT INTO sports_entity (sport, entity_type, domain_table, domain_entity_id, created_at) VALUES (?, ?, ?, ?, ?)",
         ("football", "PARTICIPANT", "teams", away.id, datetime.now(UTC).isoformat())
     )
     away_entity_id = db_conn.execute("SELECT last_insert_rowid()").fetchone()[0]
-    
+
     db_conn.execute(
         "INSERT INTO source_entity_reference (sport, entity_type, canonical_entity_id, provider, provider_entity_id, valid_from, verification_status, verification_method) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
         ("football", "PARTICIPANT", home_entity_id, "espn-football", "359", datetime.now(UTC).isoformat(), "QUALIFIED", "manual")
@@ -157,7 +157,7 @@ def seeded_db(db_conn):
         "INSERT INTO source_entity_reference (sport, entity_type, canonical_entity_id, provider, provider_entity_id, valid_from, verification_status, verification_method) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
         ("football", "PARTICIPANT", away_entity_id, "espn-football", "384", datetime.now(UTC).isoformat(), "QUALIFIED", "manual")
     )
-    
+
     db_conn.commit()
     return fixture_id, home.id, away.id
 
@@ -186,24 +186,24 @@ def test_snapshot_codec_roundtrip():
             ),
         ),
     )
-    
+
     # Serialize
     serialized = to_dict(snapshot)
     assert isinstance(serialized, dict)
     assert serialized["schema_version"] == "1.0"
-    
+
     # Deserialize
     deserialized = from_dict(FootballEnrichmentSnapshot, serialized)
     assert isinstance(deserialized, FootballEnrichmentSnapshot)
     assert deserialized.canonical_fixture_id == 42
     assert deserialized.home_participant.name == "Arsenal"
     assert deserialized.capability_outcomes[0].selected_status == "SUCCESS"
-    
+
     # Stable canonical hash
     hash1 = canonical_hash(snapshot)
     hash2 = canonical_hash(deserialized)
     assert hash1 == hash2
-    
+
     # Changed evidence changes hash
     snapshot_changed = FootballEnrichmentSnapshot(
         run_id="123",
@@ -215,7 +215,7 @@ def test_snapshot_codec_roundtrip():
         bundle_ids=("different_bundle",),
     )
     assert canonical_hash(snapshot) != canonical_hash(snapshot_changed)
-    
+
     # Unknown schema version rejected
     serialized_bad = serialized.copy()
     serialized_bad["schema_version"] = "99.0"
@@ -234,13 +234,13 @@ def test_truthful_statuses_empty_and_unsupported():
         value=None,
     )
     assert res_empty.status == SourceResultStatus.VALID_EMPTY
-    
+
     # NOT_PUBLISHED_YET remains distinct
     res_not_published = SourceOperationResult(
         status=SourceResultStatus.NOT_PUBLISHED_YET,
     )
     assert res_not_published.status == SourceResultStatus.NOT_PUBLISHED_YET
-    
+
     # PLAN_RESTRICTED remains distinct
     res_restricted = SourceOperationResult(
         status=SourceResultStatus.PLAN_RESTRICTED,
@@ -255,7 +255,7 @@ def test_truthful_statuses_empty_and_unsupported():
 def test_evidence_chain_validation(seeded_db, db_conn, monkeypatch):
     fixture_id, home_id, away_id = seeded_db
     monkeypatch.setenv("FOOTBALL_ENRICHMENT_MODE", "shadow")
-    
+
     # Mock the ESPN client to return a successful result with an invalid/missing bundle ID
     mock_client = MagicMock()
     mock_client.get_team_last_fixtures_result.return_value = SourceOperationResult(
@@ -282,10 +282,10 @@ def test_evidence_chain_validation(seeded_db, db_conn, monkeypatch):
         bundle_id="invalid_bundle_id",
         evidence_refs=(EvidenceRef(operation="test", request_identity="test", media_type="application/json", byte_size=16, object_sha256="40b61fe1b15af0a4d5402735b26343e8cf8a045f4d81710e6108a21d91eaf366"),),
     )
-    
+
     service = create_football_enrichment_service(espn_client=mock_client)
     service.enrich_fixture(fixture_id, datetime.now(UTC))
-    
+
     # Verify that the attempts for SUCCESS results are recorded as EVIDENCE_ERROR
     attempts = db_conn.execute("SELECT * FROM source_operation_attempt").fetchall()
     for attempt in attempts:
@@ -303,7 +303,7 @@ def test_evidence_chain_validation(seeded_db, db_conn, monkeypatch):
 def test_attempt_history_persistence(seeded_db, db_conn, monkeypatch, valid_bundle_id):
     fixture_id, home_id, away_id = seeded_db
     monkeypatch.setenv("FOOTBALL_ENRICHMENT_MODE", "shadow")
-    
+
     # Mock the ESPN client to return a successful result with evidence
     mock_client = MagicMock()
     mock_client.get_team_last_fixtures_result.return_value = SourceOperationResult(
@@ -330,10 +330,10 @@ def test_attempt_history_persistence(seeded_db, db_conn, monkeypatch, valid_bund
         bundle_id=valid_bundle_id,
         evidence_refs=(EvidenceRef(operation="test", request_identity="test", media_type="application/json", byte_size=16, object_sha256="40b61fe1b15af0a4d5402735b26343e8cf8a045f4d81710e6108a21d91eaf366"),),
     )
-    
+
     service = create_football_enrichment_service(espn_client=mock_client)
     service.enrich_fixture(fixture_id, datetime.now(UTC))
-    
+
     # Verify attempts are persisted in source_operation_attempt table
     attempts = db_conn.execute("SELECT * FROM source_operation_attempt").fetchall()
     assert len(attempts) > 0
@@ -349,7 +349,7 @@ def test_attempt_history_persistence(seeded_db, db_conn, monkeypatch, valid_bund
 def test_full_offline_vertical(seeded_db, db_conn, monkeypatch, valid_bundle_id):
     fixture_id, home_id, away_id = seeded_db
     monkeypatch.setenv("FOOTBALL_ENRICHMENT_MODE", "shadow")
-    
+
     # Mock the ESPN client to return a successful result with evidence
     mock_client = MagicMock()
     mock_client.get_team_last_fixtures_result.return_value = SourceOperationResult(
@@ -376,13 +376,13 @@ def test_full_offline_vertical(seeded_db, db_conn, monkeypatch, valid_bundle_id)
         bundle_id=valid_bundle_id,
         evidence_refs=(EvidenceRef(operation="test", request_identity="test", media_type="application/json", byte_size=16, object_sha256="40b61fe1b15af0a4d5402735b26343e8cf8a045f4d81710e6108a21d91eaf366"),),
     )
-    
+
     service = create_football_enrichment_service(espn_client=mock_client)
     snapshot = service.enrich_fixture(fixture_id, datetime.now(UTC))
 
     assert isinstance(snapshot, FootballEnrichmentSnapshot)
     assert snapshot.snapshot_state == "COMPLETE"
-    
+
     # Verify downstream reader
     reader = FootballSnapshotReader(db_conn)
     read_snapshot = reader.get_snapshot(fixture_id)
@@ -397,7 +397,7 @@ def test_full_offline_vertical(seeded_db, db_conn, monkeypatch, valid_bundle_id)
 def test_atomicity_on_failure(seeded_db, db_conn, monkeypatch, valid_bundle_id):
     fixture_id, home_id, away_id = seeded_db
     monkeypatch.setenv("FOOTBALL_ENRICHMENT_MODE", "shadow")
-    
+
     # Mock the ESPN client to raise an exception during standings fetch
     mock_client = MagicMock()
     mock_client.get_team_last_fixtures_result.return_value = SourceOperationResult(
@@ -419,16 +419,16 @@ def test_atomicity_on_failure(seeded_db, db_conn, monkeypatch, valid_bundle_id):
         evidence_refs=(EvidenceRef(operation="test", request_identity="test", media_type="application/json", byte_size=16, object_sha256="40b61fe1b15af0a4d5402735b26343e8cf8a045f4d81710e6108a21d91eaf366"),),
     )
     mock_client.get_standings_result.side_effect = RuntimeError("Simulated database failure")
-    
+
     service = create_football_enrichment_service(espn_client=mock_client)
-    
+
     with pytest.raises(RuntimeError):
         service.enrich_fixture(fixture_id, datetime.now(UTC))
-        
+
     # Verify no COMPLETE snapshot is visible
     reader = FootballSnapshotReader(db_conn)
     assert reader.get_snapshot(fixture_id) is None
-    
+
     # Verify failed run is recorded truthfully
     failed_run = db_conn.execute("SELECT * FROM sports_enrichment_run WHERE status = 'FAILED'").fetchone()
     assert failed_run is not None
@@ -442,7 +442,7 @@ def test_atomicity_on_failure(seeded_db, db_conn, monkeypatch, valid_bundle_id):
 def test_idempotency_behavior(seeded_db, db_conn, monkeypatch, valid_bundle_id):
     fixture_id, home_id, away_id = seeded_db
     monkeypatch.setenv("FOOTBALL_ENRICHMENT_MODE", "shadow")
-    
+
     mock_client = MagicMock()
     mock_client.get_team_last_fixtures_result.return_value = SourceOperationResult(
         status=SourceResultStatus.SUCCESS,
@@ -468,17 +468,17 @@ def test_idempotency_behavior(seeded_db, db_conn, monkeypatch, valid_bundle_id):
         bundle_id=valid_bundle_id,
         evidence_refs=(EvidenceRef(operation="test", request_identity="test", media_type="application/json", byte_size=16, object_sha256="40b61fe1b15af0a4d5402735b26343e8cf8a045f4d81710e6108a21d91eaf366"),),
     )
-    
+
     service = create_football_enrichment_service(espn_client=mock_client)
-    
+
     cutoff = datetime.now(UTC)
     # First run
     snap1 = service.enrich_fixture(fixture_id, cutoff)
-    
+
     # Second run without force_refresh
     snap2 = service.enrich_fixture(fixture_id, cutoff)
     assert snap1.snapshot_id == snap2.snapshot_id
-    
+
     # Verify no duplicate COMPLETE snapshots are created
     snapshots = db_conn.execute("SELECT * FROM analysis_snapshot WHERE canonical_fixture_id = ?", (fixture_id,)).fetchall()
     assert len(snapshots) == 1
@@ -490,12 +490,12 @@ def test_idempotency_behavior(seeded_db, db_conn, monkeypatch, valid_bundle_id):
 
 def test_shadow_mode_behavior(seeded_db, db_conn, monkeypatch):
     fixture_id, home_id, away_id = seeded_db
-    
+
     # Invalid mode fails closed
     monkeypatch.setenv("FOOTBALL_ENRICHMENT_MODE", "invalid_mode")
     with pytest.raises(ValueError):
         build_safety_input("football", "Arsenal", "Chelsea", "Premier League", fixture_id=fixture_id)
-        
+
     # Off mode causes no enrichment writes
     monkeypatch.setenv("FOOTBALL_ENRICHMENT_MODE", "off")
     build_safety_input("football", "Arsenal", "Chelsea", "Premier League", fixture_id=fixture_id)
@@ -512,7 +512,7 @@ def test_configuration_validation():
     assert "policy_config_hash" in config
     assert "provider_capability_matrix" in config
     assert len(config["policy_config_hash"]) == 64
-    
+
     # All active routes reference registered providers
     for route_name, route_info in config["routing"].items():
         for provider in route_info.get("precedence", []):
@@ -528,7 +528,7 @@ def test_home_away_form_separation(seeded_db, db_conn, monkeypatch, valid_bundle
     """Verify separate adapter operations populate distinct home_form and away_form."""
     fixture_id, home_id, away_id = seeded_db
     monkeypatch.setenv("FOOTBALL_ENRICHMENT_MODE", "shadow")
-    
+
     mock_client = MagicMock()
     # Return different matches for home and away form
     mock_client.get_team_last_fixtures_result.side_effect = [
@@ -551,12 +551,12 @@ def test_home_away_form_separation(seeded_db, db_conn, monkeypatch, valid_bundle
     mock_ms_home.home_participant_id = "359"
     mock_ms_home.away_participant_id = "384"
     mock_ms_home.stats = {"goals": {"home": 2, "away": 1}}
-    
+
     mock_ms_away = MagicMock()
     mock_ms_away.home_participant_id = "359"
     mock_ms_away.away_participant_id = "384"
     mock_ms_away.stats = {"goals": {"home": 1, "away": 2}}
-    
+
     mock_client.get_fixture_stats_result.side_effect = [
         # For HOME form fixture "111"
         SourceOperationResult(
@@ -592,10 +592,10 @@ def test_home_away_form_separation(seeded_db, db_conn, monkeypatch, valid_bundle
         bundle_id=valid_bundle_id,
         evidence_refs=(EvidenceRef(operation="test", request_identity="test", media_type="application/json", byte_size=16, object_sha256="40b61fe1b15af0a4d5402735b26343e8cf8a045f4d81710e6108a21d91eaf366"),),
     )
-    
+
     service = create_football_enrichment_service(espn_client=mock_client)
     snapshot = service.enrich_fixture(fixture_id, datetime.now(UTC))
-    
+
     assert isinstance(snapshot, FootballEnrichmentSnapshot)
     # Verify distinct home and away form matches are populated
     assert len(snapshot.home_form) == 1
@@ -608,7 +608,7 @@ def test_status_and_fallback_behavior(seeded_db, db_conn, monkeypatch, valid_bun
     """Verify failed primary remains in attempt history while qualified fallback is selected."""
     fixture_id, home_id, away_id = seeded_db
     monkeypatch.setenv("FOOTBALL_ENRICHMENT_MODE", "shadow")
-    
+
     # We will register two providers for fixture statistics: primary (espn) and fallback (api-football)
     # Primary (espn) returns RATE_LIMITED, fallback (api-football) returns SUCCESS
     mock_espn = MagicMock()
@@ -636,7 +636,7 @@ def test_status_and_fallback_behavior(seeded_db, db_conn, monkeypatch, valid_bun
         bundle_id=valid_bundle_id,
         evidence_refs=(EvidenceRef(operation="test", request_identity="test", media_type="application/json", byte_size=16, object_sha256="40b61fe1b15af0a4d5402735b26343e8cf8a045f4d81710e6108a21d91eaf366"),),
     )
-    
+
     mock_api_football = MagicMock()
     mock_api_football.get_fixture_stats_result.return_value = SourceOperationResult(
         status=SourceResultStatus.SUCCESS,
@@ -644,13 +644,13 @@ def test_status_and_fallback_behavior(seeded_db, db_conn, monkeypatch, valid_bun
         bundle_id=valid_bundle_id,
         evidence_refs=(EvidenceRef(operation="test", request_identity="test", media_type="application/json", byte_size=16, object_sha256="40b61fe1b15af0a4d5402735b26343e8cf8a045f4d81710e6108a21d91eaf366"),),
     )
-    
+
     # Let's register both in the service
     from bet.enrichment.football_service import FootballAdapterRegistry, ESPNFootballAdapter, APIFootballCandidateAdapter
     registry = FootballAdapterRegistry()
     registry.register("espn", ESPNFootballAdapter(mock_espn))
     registry.register("api-football", APIFootballCandidateAdapter(mock_api_football))
-    
+
     # Set api-football as qualified shadow so it can be used as fallback
     monkeypatch.setitem(CANDIDATE_REGISTRY, "api-football", CandidateRecord(
         provider_key="api-football",
@@ -663,7 +663,7 @@ def test_status_and_fallback_behavior(seeded_db, db_conn, monkeypatch, valid_bun
         live_probe_eligibility=True,
     ))
     monkeypatch.setitem(PROVIDER_REGISTRY, "api-football", ProviderState.QUALIFIED_SHADOW)
-    
+
     # Update routing config and qualification matrix to have both espn and api-football for fixture statistics
     original_load_config = load_and_validate_config
     def mock_load_config(*args, **kwargs):
@@ -686,10 +686,10 @@ def test_status_and_fallback_behavior(seeded_db, db_conn, monkeypatch, valid_bun
         status=SourceResultStatus.RATE_LIMITED,
         error_code="rate_limited",
     )
-    
+
     service = FootballEnrichmentService(registry)
     service.enrich_fixture(fixture_id, datetime.now(UTC))
-    
+
     # Verify that both attempts are in history
     attempts = db_conn.execute("SELECT * FROM source_operation_attempt WHERE operation = 'fixture_team_statistics'").fetchall()
     assert len(attempts) == 2
@@ -703,7 +703,7 @@ def test_transaction_boundary_assertion(seeded_db, db_conn, monkeypatch, valid_b
     """Verify that adapter asserts no SQLite write transaction is active when called."""
     fixture_id, home_id, away_id = seeded_db
     monkeypatch.setenv("FOOTBALL_ENRICHMENT_MODE", "shadow")
-    
+
     mock_client = MagicMock()
     mock_client.get_team_last_fixtures_result.return_value = SourceOperationResult(
         status=SourceResultStatus.SUCCESS,
@@ -729,8 +729,8 @@ def test_transaction_boundary_assertion(seeded_db, db_conn, monkeypatch, valid_b
         bundle_id=valid_bundle_id,
         evidence_refs=(EvidenceRef(operation="test", request_identity="test", media_type="application/json", byte_size=16, object_sha256="40b61fe1b15af0a4d5402735b26343e8cf8a045f4d81710e6108a21d91eaf366"),),
     )
-    
+
     service = create_football_enrichment_service(espn_client=mock_client)
-    
+
     # If we run normally, it should pass because Stage 2 is outside of any transaction
     service.enrich_fixture(fixture_id, datetime.now(UTC))

@@ -175,7 +175,7 @@ def test_provider_access_failure_is_fully_sanitized(monkeypatch) -> None:
         ProviderProbePolicy,
         run_provider_probe,
     )
-    
+
     mapping = ProviderMappingArtifact(
         artifact_id="pass_e:basketball:api-sports-family:api_basketball_games",
         sport="basketball",
@@ -200,27 +200,27 @@ def test_provider_access_failure_is_fully_sanitized(monkeypatch) -> None:
         allow_real_network=True,
         terms_review_approved=True,
     )
-    
+
     def mock_urlopen(*args, **kwargs):
         raise urllib.error.URLError("http://api.sports.io/error?token=rawsecret Forbidden")
-        
+
     monkeypatch.setattr(urllib.request, "urlopen", mock_urlopen)
-    
+
     env = {
         "API_SPORTS_KEY": "some-secret-key-123456",
         "MULTISPORT_PASS_F_ALLOW_REAL_NETWORK": "1"
     }
-    
+
     artifact = run_provider_probe(mapping, policy, env)
-    
+
     assert artifact.status == "SANITIZED_PROBE_BLOCKED_PROVIDER_ACCESS"
     assert artifact.blocked_reason == "provider_access_failed_sanitized"
-    
+
     assert artifact.sanitized_response_envelope == {
         "status": "error",
         "error_class": "URLError"
     }
-    
+
     artifact_str = str(artifact.to_jsonable()).lower()
     for forbidden in ("bearer", "authorization", "cookie", "x-api-key", "x-apisports-key", "x-rapidapi-key", "some-secret-key", "token=", "forbidden"):
         assert forbidden not in artifact_str
@@ -303,14 +303,14 @@ def test_results_by_sport_includes_sanitized_headers_metadata() -> None:
 
     art = run_provider_probe(mapping, policy, {"API_SPORTS_KEY": "present"})
     headers = art.sanitized_request_headers
-    
+
     assert "credential_header_present" in headers
     assert "credential_header_family" in headers
     assert "credential_value" in headers
     assert headers["credential_header_present"] is True
     assert headers["credential_header_family"] == "provider_auth"
     assert headers["credential_value"] == "redacted_presence_only"
-    
+
     art_str = str(art.to_jsonable()).lower()
     for forbidden in ("bearer", "authorization", "cookie", "x-api-key", "x-apisports-key", "x-rapidapi-key"):
         assert forbidden not in art_str

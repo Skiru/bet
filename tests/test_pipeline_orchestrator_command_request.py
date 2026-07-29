@@ -105,7 +105,7 @@ def write_test_artifact(base_dir: Path, step_id: str, status: str, payload_overr
         art["work_order_id"] = wo_id
     if wo_sha:
         art["work_order_sha256"] = wo_sha
-    
+
     if step_id == "S2.3":
         art["payload"] = {
             "gaps": ["gap-1"],
@@ -115,10 +115,10 @@ def write_test_artifact(base_dir: Path, step_id: str, status: str, payload_overr
         art["payload"] = {
             "provider_observations": ["coverage improved"],
         }
-        
+
     if payload_override:
         art.update(payload_override)
-        
+
     path = artifact_path_for(base_dir, "2026-06-25", "run-999", step_id)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(art), encoding="utf-8")
@@ -135,64 +135,64 @@ def test_command_request_autopromotion_success(tmp_path, base_artifact_payload):
         "command_id": "WAIT_FOR_RATE_LIMIT",
         "parameters": {"seconds": 1},
     }
-    
+
     # Base payload override
     payload = {
         "command_request": cmd_req,
         "gaps": ["gap-1"],
         "gaps_bounded": True,
     }
-    
+
     expected_path = write_test_artifact(reports_dir, "S2.3", "COMMAND_REQUEST", {
         "command_request": cmd_req,
         "payload": payload,
         "unknowns": [],
     })
-    
+
     orc = Orchestrator(
         betting_day="2026-06-25",
         run_id="run-999",
         runtime_mode="DRY_RUN",
         base_run_dir=reports_dir,
     )
-    
+
     # Mock subprocess.run
     mock_res = MagicMock()
     mock_res.returncode = 0
     mock_res.stdout = "pytest passed successfully"
     mock_res.stderr = ""
     mock_res.timed_out = False
-    
+
     with patch("bet.pipeline.orchestrator.run_bounded_process", return_value=mock_res) as mock_run:
         summary = orc.run(start_step="S2.3", stop_after_step="S2.3")
-        
+
         mock_run.assert_called_once_with(
             ["/bin/sleep", "1"],
             cwd=str(orc.repo_root),
             env=orc.env,
             timeout_seconds=3.0,
         )
-        
+
         assert summary["status"] == "PASS"
         assert summary["command_request_count"] == 1
         assert summary["executed_count"] == 1
         assert summary["failed_count"] == 0
         assert summary["unresolved_count"] == 0
-        
+
         # Verify separate evidence file is written
         evidence_path = reports_dir / "pipeline_runs/2026-06-25/run-999/artifacts/S2.3_command_evidence.json"
         assert evidence_path.exists()
         ev_data = json.loads(evidence_path.read_text(encoding="utf-8"))
         assert ev_data["status"] == "PASS"
         assert ev_data["exit_code"] == 0
-        
+
         # Logs are scoped beneath the canonical run root.
         assert (reports_dir / "pipeline_runs/2026-06-25/run-999/logs/S2.3_cmd_stdout.log").exists()
         assert (reports_dir / "pipeline_runs/2026-06-25/run-999/logs/S2.3_cmd_stderr.log").exists()
-        
+
         # Verify original command_request preservation
         assert (reports_dir / "pipeline_runs/2026-06-25/run-999/artifacts/S2.3_command_request.json").exists()
-        
+
         # Verify original S2.3 was promoted to PASS and contains reference
         final_artifact = json.loads(expected_path.read_text(encoding="utf-8"))
         assert final_artifact["status"] == "PASS"
@@ -208,18 +208,18 @@ def test_command_request_string_and_metacharacter_rejection(tmp_path):
         "command_request": "pytest tests/; rm -rf /",
         "unknowns": [],
     })
-    
+
     orc = Orchestrator(
         betting_day="2026-06-25",
         run_id="run-999",
         runtime_mode="DRY_RUN",
         base_run_dir=reports_dir,
     )
-    
+
     with patch("bet.pipeline.orchestrator.run_bounded_process") as mock_run:
         summary = orc.run(start_step="S2.3", stop_after_step="S2.3")
         mock_run.assert_not_called()
-        
+
         assert summary["status"] == "BLOCK"
         # Since contract validation fails before step executes, counters remain 0, which is correct
         assert summary["command_request_count"] == 0
@@ -240,18 +240,18 @@ def test_command_request_disallowed_executable_rejection(tmp_path):
         },
         "unknowns": [],
     })
-    
+
     orc = Orchestrator(
         betting_day="2026-06-25",
         run_id="run-999",
         runtime_mode="DRY_RUN",
         base_run_dir=reports_dir,
     )
-    
+
     with patch("bet.pipeline.orchestrator.run_bounded_process") as mock_run:
         summary = orc.run(start_step="S2.3", stop_after_step="S2.3")
         mock_run.assert_not_called()
-        
+
         assert summary["status"] == "BLOCK"
         assert summary["command_request_count"] == 0
         assert summary["failed_count"] == 0
@@ -271,29 +271,29 @@ def test_command_request_nonzero_exit_code_blocks(tmp_path):
         },
         "unknowns": [],
     })
-    
+
     orc = Orchestrator(
         betting_day="2026-06-25",
         run_id="run-999",
         runtime_mode="DRY_RUN",
         base_run_dir=reports_dir,
     )
-    
+
     mock_res = MagicMock()
     mock_res.returncode = 1
     mock_res.stdout = "1 test failed"
     mock_res.stderr = ""
     mock_res.timed_out = False
-    
+
     with patch("bet.pipeline.orchestrator.run_bounded_process", return_value=mock_res):
         summary = orc.run(start_step="S2.3", stop_after_step="S2.3")
-        
+
         assert summary["status"] == "BLOCK"
         assert summary["command_request_count"] == 1
         assert summary["failed_count"] == 1
         assert summary["unresolved_count"] == 1
         assert any("exited with code 1, expected 0" in b for b in summary["blockers"])
-        
+
         # Verify original S2.3 remained in COMMAND_REQUEST status (not promoted)
         final_artifact = json.loads(expected_path.read_text(encoding="utf-8"))
         assert final_artifact["status"] == "COMMAND_REQUEST"
@@ -311,18 +311,18 @@ def test_command_request_timeout_blocks(tmp_path):
         },
         "unknowns": [],
     })
-    
+
     orc = Orchestrator(
         betting_day="2026-06-25",
         run_id="run-999",
         runtime_mode="DRY_RUN",
         base_run_dir=reports_dir,
     )
-    
+
     timed_out = BoundedProcessResult(returncode=-124, timed_out=True, stdout="", stderr="")
     with patch("bet.pipeline.orchestrator.run_bounded_process", return_value=timed_out):
         summary = orc.run(start_step="S2.3", stop_after_step="S2.3")
-        
+
         assert summary["status"] == "BLOCK"
         assert summary["command_request_count"] == 1
         assert summary["failed_count"] == 1
@@ -337,7 +337,7 @@ def test_unresolved_command_request_blocks_downstream(tmp_path):
 
     # S2.3 has COMMAND_REQUEST, but we try to run S2.5
     write_test_artifact(reports_dir, "S2.3", "COMMAND_REQUEST", {"unknowns": []})
-    
+
     # We do NOT run S2.3, we try to run S2.5 directly.
     # Prerequisite gate before S2.5 checks S2.3 artifact.
     orc = Orchestrator(
@@ -346,9 +346,9 @@ def test_unresolved_command_request_blocks_downstream(tmp_path):
         runtime_mode="DRY_RUN",
         base_run_dir=reports_dir,
     )
-    
+
     summary = orc.run(start_step="S2.5", stop_after_step="S2.5")
-    
+
     # S2.5 must be blocked because its prerequisite S2.3 is in COMMAND_REQUEST status (which is not PASS)
     assert summary["status"] == "BLOCK"
     assert summary["blocked_at_step"] == "S2.5"

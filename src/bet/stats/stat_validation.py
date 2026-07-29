@@ -4,7 +4,7 @@ Defines allowed stat_keys per sport. Any enrichment write with an invalid
 stat_key for the sport is rejected.
 """
 
-# Extended valid stats per sport (superset of SPORT_STAT_KEYS — includes 
+# Extended valid stats per sport (superset of SPORT_STAT_KEYS — includes
 # intermediate/raw keys that may appear in enrichment but aren't market-ranked)
 VALID_STATS: dict[str, set[str]] = {
     "football": {
@@ -128,7 +128,7 @@ VALID_STATS: dict[str, set[str]] = {
 
 def is_valid_stat_key(sport: str, stat_key: str) -> bool:
     """Check if a stat_key is valid for the given sport.
-    
+
     Returns True if the key is allowed, False if it would be contamination.
     """
     sport_lower = sport.lower()
@@ -154,7 +154,7 @@ def filter_valid_stats(sport: str, stat_keys: list[str] | set[str]) -> list[str]
 
 def detect_contamination(sport: str, stat_keys: list[str] | set[str]) -> list[str]:
     """Detect stat keys that don't belong to the given sport (contamination).
-    
+
     Returns list of invalid keys.
     """
     valid = VALID_STATS.get(sport.lower())

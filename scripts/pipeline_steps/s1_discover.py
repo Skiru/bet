@@ -146,7 +146,7 @@ def _run_s1_scripts(
             cmd = [sys.executable, str(ROOT / "scripts" / script_name)]
             if date:
                 cmd += ["--date", date]
-            
+
             if script_name == "discover_events.py":
                 db_url = env.get("DATABASE_URL", "")
                 resolved_db_path = None
@@ -154,7 +154,7 @@ def _run_s1_scripts(
                     resolved_db_path = db_url[len("sqlite:///"):]
                 elif temp_db_path:
                     resolved_db_path = temp_db_path
-                
+
                 if resolved_db_path:
                     cmd += ["--db-path", resolved_db_path]
             elif script_name == "generate_market_matrix.py":
@@ -163,55 +163,55 @@ def _run_s1_scripts(
                     "--pipeline-safe",
                     "--json-only"
                 ]
-            
+
             # Validate the market matrix right before starting build_shortlist.py
             if script_name == "build_shortlist.py":
                 matrix_date = date or env.get("BET_PIPELINE_BETTING_DAY")
                 if not matrix_date:
                     import datetime
                     matrix_date = datetime.date.today().isoformat()
-                
+
                 data_dir_str = env.get("BET_PIPELINE_DATA_DIR")
                 if not data_dir_str:
                     print("BLOCKED_SHORTLIST_INPUT_MISSING")
                     run_metrics["market_matrix_validated"] = False
                     return 2
-                
+
                 matrix_path = Path(data_dir_str) / f"market_matrix_{matrix_date}.json"
                 if not matrix_path.exists():
                     print("BLOCKED_MISSING_MARKET_MATRIX")
                     run_metrics["market_matrix_validated"] = False
                     return 2
-                
+
                 try:
                     matrix_data = json.loads(matrix_path.read_text(encoding="utf-8"))
                 except Exception:
                     print("BLOCKED_MARKET_MATRIX_INVALID")
                     run_metrics["market_matrix_validated"] = False
                     return 2
-                
+
                 if matrix_data.get("artifact_type") != "MARKET_MATRIX" or matrix_data.get("date") != matrix_date:
                     print("BLOCKED_MARKET_MATRIX_INVALID")
                     run_metrics["market_matrix_validated"] = False
                     return 2
-                
+
                 events = matrix_data.get("events")
                 if not isinstance(events, list):
                     print("BLOCKED_MARKET_MATRIX_INVALID")
                     run_metrics["market_matrix_validated"] = False
                     return 2
-                
+
                 if len(events) == 0:
                     print("BLOCKED_MARKET_MATRIX_EMPTY")
                     run_metrics["market_matrix_validated"] = False
                     return 2
-                
+
                 # Check safety fields:
                 if not matrix_data.get("pipeline_safe") or matrix_data.get("production_selectable") is not False or matrix_data.get("betting_decisions_enabled") is not False or matrix_data.get("no_pick_edge_stake_coupon_emitted") is not True:
                     print("BLOCKED_MARKET_MATRIX_INVALID")
                     run_metrics["market_matrix_validated"] = False
                     return 2
-                
+
                 forbidden_keys = {"recommended_pick", "internal_pick", "edge", "stake", "coupon", "parlay", "accumulator"}
                 for e in events:
                     if not e.get("sport") or not e.get("home_team") or not e.get("away_team") or "data_tier" not in e or not e.get("kickoff"):
@@ -233,7 +233,7 @@ def _run_s1_scripts(
                                                 print("BLOCKED_MARKET_MATRIX_INVALID")
                                                 run_metrics["market_matrix_validated"] = False
                                                 return 2
-                
+
                 # Matrix is valid! Populate metrics
                 run_metrics["market_matrix_validated"] = True
                 run_metrics["market_matrix_path"] = str(matrix_path)
@@ -250,16 +250,16 @@ def _run_s1_scripts(
                 print(stdout, end="" if stdout.endswith("\n") else "\n")
             if stderr:
                 print(stderr, end="" if stderr.endswith("\n") else "\n")
-            
+
             # Record individual return codes
             if script_name == "discover_events.py":
                 run_metrics["discovery_rc"] = res.returncode
-                
+
                 # Check for database migration errors or other crashes
                 combined_output = stdout + "\n" + stderr
                 if "no such column: logical_identity" in combined_output or "Migration preflight failed" in combined_output or "sqlite3" in combined_output:
                     run_metrics["db_schema_verdict"] = "FAIL"
-                
+
                 # Parse AGENT_SUMMARY
                 summary_match = re.search(r"AGENT_SUMMARY:(.*)", stdout)
                 if summary_match:
@@ -267,12 +267,12 @@ def _run_s1_scripts(
                         summary_data = json.loads(summary_match.group(1).strip())
                         run_metrics["raw_discovery_count"] = summary_data.get("total_discovered", 0)
                         run_metrics["after_dedup_count"] = summary_data.get("total_after_dedup", 0)
-                        
+
                         provider_counts = {}
                         for src_name, src_stats in summary_data.get("sources", {}).items():
                             provider_counts[src_name] = src_stats.get("events", 0)
                         run_metrics["provider_counts"] = provider_counts
-                        
+
                         run_metrics["fallback_used"] = summary_data.get("fallback_used", False)
                         run_metrics["fallback_reason"] = summary_data.get("fallback_reason", "N/A")
                         if "db_schema_verdict" in summary_data:

@@ -256,7 +256,7 @@ def check_reviewability() -> List[str]:
     src_dir = Path(__file__).parent
     if not src_dir.exists():
         return [f"SOURCE_DIR_MISSING:{src_dir}"]
-        
+
     for py_file in src_dir.glob("*.py"):
         try:
             content_bytes = py_file.read_bytes()
@@ -264,42 +264,42 @@ def check_reviewability() -> List[str]:
         except Exception as e:
             failed_review.append(f"READ_FAIL:{py_file.name}:{e}")
             continue
-            
+
         if b"\r" in content_bytes:
             failed_review.append(f"CR_LINE_ENDINGS_FOUND:{py_file.name}")
-            
+
         try:
             ast.parse(content_str)
         except Exception as e:
             failed_review.append(f"AST_PARSE_FAIL:{py_file.name}:{e}")
-            
+
         lines = content_str.split("\n")
         if py_file.name != "__init__.py":
             if len(lines) < 40:
                 failed_review.append(f"FILE_TOO_SHORT:{py_file.name}:{len(lines)}")
-                
+
         for idx, line in enumerate(lines, 1):
             if len(line) > 300 and ";" in line:
                 failed_review.append(f"COLLAPSED_SEMICOLONS:{py_file.name}:line_{idx}")
-                
+
         target_f1 = "from" + " future import annotations"
         target_f2 = "from" + " __future__ import annotations"
         if target_f1 in content_str or target_f2 in content_str:
             failed_review.append(f"FUTURE_ANNOTATIONS_FOUND:{py_file.name}")
-            
+
         for idx, line in enumerate(lines, 1):
             if "#" in line:
                 comment = line.split("#", 1)[1].lower()
                 if "line ending" in comment or "lf only" in comment or "line-ending" in comment:
                     failed_review.append(f"LINE_ENDING_PROOF_COMMENT_FOUND:{py_file.name}:line_{idx}")
-                    
+
     return failed_review
 
 def walk_json_structural(data: Any, is_espn: bool = False, path: List[str] = None) -> List[str]:
     if path is None:
         path = []
     failures = []
-    
+
     FORBIDDEN_FIELD_NAMES = {
         "raw_payload", "raw_headers", "authorization", "x-api-key",
         "x-rapidapi-key", "cookie", "set-cookie", "token", "api_key",
@@ -319,7 +319,7 @@ def walk_json_structural(data: Any, is_espn: bool = False, path: List[str] = Non
                 failures.append(f"FORBIDDEN_FIELD_NAME:{'.'.join(path + [k])}")
             if is_espn and k_lower in ESPN_FORBIDDEN_KEYS:
                 failures.append(f"ESPN_RAW_FIELD_PRESENT:{'.'.join(path + [k])}")
-            
+
             failures.extend(walk_json_structural(v, is_espn=is_espn, path=path + [k]))
     elif isinstance(data, list):
         for idx, item in enumerate(data):
@@ -338,7 +338,7 @@ def walk_json_structural(data: Any, is_espn: bool = False, path: List[str] = Non
 def check_sqlite_contents(sqlite_path: Path) -> Dict[str, Any]:
     errors = []
     required_tables = {"snapshot_metadata", "provider_ids", "facts", "conflicts"}
-    
+
     if not sqlite_path.exists():
         errors.append("SQLITE_FILE_MISSING")
         return {
@@ -353,22 +353,22 @@ def check_sqlite_contents(sqlite_path: Path) -> Dict[str, Any]:
             "row_count_check": "FAIL",
             "errors": errors,
         }
-        
+
     try:
         conn = sqlite3.connect(sqlite_path)
         cursor = conn.cursor()
-        
+
         # 1. Table check
         cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
         existing_tables = {row[0] for row in cursor.fetchall()}
-        
+
         missing_tables = required_tables - existing_tables
         if missing_tables:
             errors.append(f"SQLITE_MISSING_TABLES:{','.join(sorted(missing_tables))}")
             table_check = "FAIL"
         else:
             table_check = "PASS"
-            
+
         # 2. Row count check
         row_count_check = "PASS"
         if table_check == "PASS":
@@ -377,13 +377,13 @@ def check_sqlite_contents(sqlite_path: Path) -> Dict[str, Any]:
             if cursor.fetchone()[0] == 0:
                 errors.append("SQLITE_EMPTY_snapshot_metadata")
                 row_count_check = "FAIL"
-                
+
             # provider_ids
             cursor.execute("SELECT COUNT(*) FROM provider_ids")
             if cursor.fetchone()[0] == 0:
                 errors.append("SQLITE_EMPTY_provider_ids")
                 row_count_check = "FAIL"
-                
+
             # facts
             cursor.execute("SELECT COUNT(*) FROM facts")
             if cursor.fetchone()[0] == 0:
@@ -397,14 +397,14 @@ def check_sqlite_contents(sqlite_path: Path) -> Dict[str, Any]:
                 if missing_providers:
                     errors.append(f"SQLITE_FACTS_MISSING_PROVIDERS:{','.join(sorted(missing_providers))}")
                     row_count_check = "FAIL"
-                
+
                 # Check for zero rows per provider
                 for provider in REQUIRED_PROVIDERS:
                     cursor.execute("SELECT COUNT(*) FROM facts WHERE source=?", (provider,))
                     if cursor.fetchone()[0] == 0:
                         errors.append(f"SQLITE_FACTS_EMPTY_FOR_PROVIDER:{provider}")
                         row_count_check = "FAIL"
-                        
+
         # 3. Structural forbidden content check on SQLite schema and data
         FORBIDDEN_FIELDS = {
             "raw_payload", "raw_headers", "authorization", "x-api-key",
@@ -417,29 +417,29 @@ def check_sqlite_contents(sqlite_path: Path) -> Dict[str, Any]:
             "secret", "bearer", "token", "password", "raw_payload", "raw_headers",
             "authorization", "x-api-key", "x-rapidapi-key", "api_key"
         }
-        
+
         for table in existing_tables:
             cursor.execute(f"PRAGMA table_info({table})")
             columns = [col[1] for col in cursor.fetchall()]
             for col in columns:
                 if col.lower() in FORBIDDEN_FIELDS:
                     errors.append(f"SQLITE_FORBIDDEN_COLUMN_NAME:{table}.{col}")
-                    
+
             cursor.execute(f"SELECT * FROM {table}")
             rows = cursor.fetchall()
             for r_idx, row in enumerate(rows):
                 row_dict = dict(zip(columns, row))
-                
+
                 is_espn_row = False
                 if table == "facts" and "source" in row_dict and row_dict["source"] == "espn-baseline":
                     is_espn_row = True
-                    
+
                 for col_name, val in row_dict.items():
                     if val is None:
                         continue
                     val_str = str(val)
                     val_str_lower = val_str.lower()
-                    
+
                     try:
                         parsed_json = json.loads(val_str)
                         if isinstance(parsed_json, (dict, list)):
@@ -449,7 +449,7 @@ def check_sqlite_contents(sqlite_path: Path) -> Dict[str, Any]:
                             continue
                     except ValueError:
                         pass
-                        
+
                     for token in FORBIDDEN_TEXT_VALUES:
                         if token in val_str_lower:
                             if token == "tip" and "tippeligaen" in val_str_lower:
@@ -461,13 +461,13 @@ def check_sqlite_contents(sqlite_path: Path) -> Dict[str, Any]:
                         for token in ESPN_FORBIDDEN_KEYS:
                             if token in val_str_lower:
                                 errors.append(f"SQLITE_ESPN_FORBIDDEN_KEY:{table}[{col_name}]:{token}")
-                                
+
         conn.close()
     except Exception as e:
         errors.append(f"SQLITE_INSPECTION_FAILED:{e}")
         table_check = "FAIL"
         row_count_check = "FAIL"
-        
+
     return {
         "table_check": table_check,
         "row_count_check": row_count_check,
@@ -483,7 +483,7 @@ def verify_public_python_source(path: str, text: str) -> PublicRawResult:
         failures.append("PUBLIC_RAW_TOO_FEW_LINES")
     if any("LINE_TOO_LONG" in f for f in failures) and "PUBLIC_RAW_LINE_TOO_LONG" not in failures:
         failures.append("PUBLIC_RAW_LINE_TOO_LONG")
-        
+
     return PublicRawResult(
         path=res.path,
         line_count=res.line_count,
@@ -497,7 +497,7 @@ def verify_public_python_source(path: str, text: str) -> PublicRawResult:
 def verify_sqlite_blob(path: str, blob: bytes) -> ArtifactBlobResult:
     res = check_sqlite_blob_bytes(path, blob, required_tables=REQUIRED_TABLES, required_providers=REQUIRED_PROVIDERS)
     failures = list(res.failures)
-    
+
     facts_row_count = 0
     if res.sqlite_header_ok and len(blob) >= 4096:
         with NamedTemporaryFile(suffix=".sqlite") as tmp:
@@ -516,7 +516,7 @@ def verify_sqlite_blob(path: str, blob: bytes) -> ArtifactBlobResult:
     for f in failures:
         if f.startswith("SQLITE_TOO_SMALL"):
             failures.append(f"SQLITE_BLOB_TOO_SMALL:{len(blob)}")
-            
+
     return ArtifactBlobResult(
         path=res.path,
         size_bytes=res.size_bytes,
@@ -532,12 +532,12 @@ def verify_sqlite_blob(path: str, blob: bytes) -> ArtifactBlobResult:
 def verify_public_json_report(path: str, text: str) -> Dict[str, Any]:
     res = check_json_report(path, text.encode("utf-8"))
     failures = list(res.failures)
-    
+
     if any("NOT_PRETTY_PRINTED" in f for f in failures) and "JSON_REPORT_COLLAPSED" not in failures:
         failures.append("JSON_REPORT_COLLAPSED")
     if any("LINE_TOO_LONG" in f for f in failures) and "JSON_REPORT_LINE_TOO_LONG" not in failures:
         failures.append("JSON_REPORT_LINE_TOO_LONG")
-        
+
     return {
         "path": res.path,
         "line_count": res.line_count,
@@ -612,7 +612,7 @@ def generate_public_artifact_proof(
     failed_requirements = []
     source_file_checks = {}
     report_file_checks = {}
-    
+
     public_raw_source_fetch_status = {}
     public_raw_report_fetch_status = {}
 
@@ -621,7 +621,7 @@ def generate_public_artifact_proof(
         url = f"https://raw.githubusercontent.com/Skiru/bet/{artifact_commit_sha}/{sf}"
         status, content_bytes = fetch_url(url)
         public_raw_source_fetch_status[filename] = status
-        
+
         text_to_check = ""
         is_fallback = False
         if status == 200 and content_bytes is not None:
@@ -652,7 +652,7 @@ def generate_public_artifact_proof(
         url = f"https://raw.githubusercontent.com/Skiru/bet/{report_commit}/{rf}"
         status, content_bytes = fetch_url(url)
         public_raw_report_fetch_status[filename] = status
-        
+
         text_to_check = ""
         is_fallback = False
         if status == 200 and content_bytes is not None:
@@ -712,7 +712,7 @@ def generate_public_artifact_proof(
 
     sqlite_url = f"https://raw.githubusercontent.com/Skiru/bet/{report_commit}/{sqlite_file}"
     sqlite_status, raw_sqlite_blob = fetch_url(sqlite_url)
-    
+
     is_raw_sqlite_fallback = False
     if sqlite_status != 200 or raw_sqlite_blob is None:
         raw_sqlite_blob = committed_blob
@@ -789,13 +789,13 @@ def verify_shadow_bundle(
     expected_fixture_slug: str = "worldcup2026-norway-senegal",
 ) -> Dict[str, Any]:
     failed: List[str] = []
-    
+
     if not snapshot_path.exists():
         failed.append("SNAPSHOT_FILE_MISSING")
         return {"verdict": "FAIL", "failed_requirements": ["SNAPSHOT_FILE_MISSING"]}
 
     snapshot_data = json.loads(snapshot_path.read_text(encoding="utf-8"))
-    
+
     json_errors = walk_json_structural(snapshot_data, is_espn=False)
     for fact in snapshot_data.get("facts", []):
         if fact.get("source") == "espn-baseline":
@@ -804,7 +804,7 @@ def verify_shadow_bundle(
             for ee in espn_errors:
                 json_errors.append(f"ESPN_RAW_FIELD_PRESENT:{ee}")
     failed.extend(json_errors)
-    
+
     shadow_status = snapshot_data.get("shadow_status")
     if shadow_status == "PRODUCTION_READY":
         failed.append("STATUS_IS_PRODUCTION_READY")
@@ -959,7 +959,7 @@ def verify_shadow_bundle(
     commit_sha = get_latest_commit_sha()
     import os
     strict_val = os.environ.get("STRICT_REMOTE", "false").lower() in ("1", "true", "yes")
-    
+
     artifact_commit_sha = os.environ.get("ARTIFACT_COMMIT_SHA", commit_sha)
     proof_commit_sha = os.environ.get("PROOF_COMMIT_SHA")
     final_public_proof_commit_sha = os.environ.get("FINAL_PUBLIC_PROOF_COMMIT_SHA")
@@ -971,13 +971,13 @@ def verify_shadow_bundle(
         final_public_proof_commit_sha=final_public_proof_commit_sha,
         strict_remote=strict_val
     )
-    
+
     proof_path = sqlite_path.parent / "public_artifact_proof.json"
     proof_path.write_text(json.dumps(proof, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
     public_raw_reviewability_check = "pass" if all(v is True for v in proof["source_file_checks"].values()) else "fail"
     committed_blob_sqlite_check = "pass" if (proof["committed_sqlite_header_ok"] and not any("SQLITE_" in req for req in proof["failed_requirements"])) else "fail"
-    
+
     if any(st == 200 for st in proof["public_raw_report_fetch_status"].values()):
         public_raw_sqlite_check = "pass" if (proof["public_raw_sqlite_header_ok"] and not any("SQLITE_" in req for req in proof["failed_requirements"])) else "fail"
     else:
@@ -1022,5 +1022,5 @@ def verify_shadow_bundle(
         "proof_commit_sha": proof_commit_sha or "NONE",
         "final_public_proof_commit_sha": final_public_proof_commit_sha or "NONE",
     }
-    
+
     return result

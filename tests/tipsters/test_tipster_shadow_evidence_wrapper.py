@@ -39,7 +39,7 @@ def test_wrapper_fails_closed_with_nonexistent_local_review_json(tmp_path, monke
 def test_wrapper_paths_deterministic_and_respect_sandbox(tmp_path, monkeypatch):
     """Verify that default output paths respect BET_PIPELINE_ARTIFACT_DIR/BET_PIPELINE_DATA_DIR."""
     date = "2026-07-06"
-    
+
     # Set up sandbox folders
     run_root = tmp_path / "run_root"
     artifact_dir = run_root / "artifacts"
@@ -84,7 +84,7 @@ def test_wrapper_paths_deterministic_and_respect_sandbox(tmp_path, monkeypatch):
         # Create mock handoff file to simulate script success
         h_out = cmd[cmd.index("--handoff-out") + 1]
         out = cmd[cmd.index("--out") + 1]
-        
+
         # Write dummy output files
         Path(out).write_text(json.dumps({"total_picks": 1, "consensus": []}), encoding="utf-8")
         Path(h_out).write_text(json.dumps({
@@ -97,7 +97,7 @@ def test_wrapper_paths_deterministic_and_respect_sandbox(tmp_path, monkeypatch):
             "events": [],
             "fail_closed": False,
         }), encoding="utf-8")
-        
+
         return DummyCompletedProcess()
 
     monkeypatch.setattr(wrapper_mod.subprocess, "run", mock_subprocess_run)
@@ -114,9 +114,9 @@ def test_wrapper_paths_deterministic_and_respect_sandbox(tmp_path, monkeypatch):
 
     assert exc_info.value.code == 0
     assert len(called_args) == 1
-    
+
     cmd, env = called_args[0]
-    
+
     # Assert default output paths used sandboxed directories
     out_arg = cmd[cmd.index("--out") + 1]
     handoff_arg = cmd[cmd.index("--handoff-out") + 1]

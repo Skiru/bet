@@ -206,7 +206,7 @@ class TestFixtureScopedSnapshots:
 
     def test_two_fixtures_same_team_different_cutoffs(self, db_conn):
         """Two fixtures for one team with different cutoffs cannot share snapshot.
-        
+
         DEFECT (Phase 5): Current implementation overwrites team_form instead of
         creating fixture-scoped history. This test documents the requirement.
         """

@@ -44,7 +44,7 @@ def test_status_safety() -> None:
         "BOUNDED_LIVE_SHADOW_CANARY_SKIPPED_CREDENTIALS_MISSING",
         "BOUNDED_LIVE_SHADOW_CANARY_SKIPPED_OFFICIAL_CONTEXT_UNAVAILABLE",
     }
-    
+
     # We assert that the status string we expect is inside this set
     summary = LiveShadowCanarySummary(
         run_id="run-1",
@@ -53,7 +53,7 @@ def test_status_safety() -> None:
         provider_results=[],
     )
     assert summary.status in allowed_statuses
-    
+
     # Check that forbidden status "PRODUCTION" + "_READY" is not in the allowed set
     forbidden_status = "PRODUCTION_" + "READY"
     assert forbidden_status not in allowed_statuses

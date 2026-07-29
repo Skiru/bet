@@ -22,7 +22,7 @@ def build_provider_discovery_plans(fixture: Dict[str, Any]) -> List[ProviderDisc
     """
     kickoff = fixture.get("kickoff_at") or ""
     date = kickoff[:10] if kickoff else "2026-06-23"
-    
+
     return [
         ProviderDiscoveryPlan(
             provider="football-data-org",

@@ -27,23 +27,23 @@ def extract_count_from_file(filepath: Path, pattern: str, group: int = 1) -> int
 
 def check_consistency():
     base = Path(".")
-    
+
     # Load V4 manifest
     manifest_path = base / "LIVE_TEST_EVIDENCE_V4" / "MANIFEST.json"
     if not manifest_path.exists():
         print("ERROR: MANIFEST.json not found")
         return False
-    
+
     manifest = load_manifest(manifest_path)
     manifest_total = manifest["total_runs"]
     manifest_success = manifest["summary"]["LIVE_NETWORK_SUCCESS"]
     manifest_partial = manifest["summary"]["LIVE_NETWORK_PARTIAL"]
-    
+
     print(f"Manifest: {manifest_total} runs, {manifest_success} SUCCESS, {manifest_partial} PARTIAL")
-    
+
     # Check V4 reports
     errors = []
-    
+
     # SOURCE_CAPABILITY_MATRIX_V4.md
     matrix_path = base / "SOURCE_CAPABILITY_MATRIX_V4.md"
     if matrix_path.exists():
@@ -52,7 +52,7 @@ def check_consistency():
             errors.append(f"SOURCE_CAPABILITY_MATRIX_V4.md: total_runs={count}, expected={manifest_total}")
     else:
         errors.append("SOURCE_CAPABILITY_MATRIX_V4.md not found")
-    
+
     # INTEGRATION_DECISION_MATRIX_V4.md
     decision_path = base / "INTEGRATION_DECISION_MATRIX_V4.md"
     if decision_path.exists():
@@ -61,7 +61,7 @@ def check_consistency():
             errors.append(f"INTEGRATION_DECISION_MATRIX_V4.md: total_runs={count}, expected={manifest_total}")
     else:
         errors.append("INTEGRATION_DECISION_MATRIX_V4.md not found")
-    
+
     # AUDIT_REQUIREMENTS_TRACEABILITY_V4.md
     trace_path = base / "AUDIT_REQUIREMENTS_TRACEABILITY_V4.md"
     if trace_path.exists():
@@ -70,18 +70,18 @@ def check_consistency():
             errors.append(f"TRACEABILITY_V4.md: total_runs={count}, expected={manifest_total}")
     else:
         errors.append("AUDIT_REQUIREMENTS_TRACEABILITY_V4.md not found")
-    
+
     # EVENT_ENRICHMENT_COVERAGE_V4.md
     coverage_path = base / "EVENT_ENRICHMENT_COVERAGE_V4.md"
     if not coverage_path.exists():
         errors.append("EVENT_ENRICHMENT_COVERAGE_V4.md not found")
-    
+
     if errors:
         print("\nCONSISTENCY ERRORS:")
         for e in errors:
             print(f"  - {e}")
         return False
-    
+
     print("\nCONSISTENCY CHECK PASSED")
     return True
 

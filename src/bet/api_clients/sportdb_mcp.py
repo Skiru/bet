@@ -166,7 +166,7 @@ class SportDBEvidenceBundleWriter:
                 preview_path.write_text(json.dumps(response_preview, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
             project_root = Path(__file__).resolve().parents[3]
-            
+
             def safe_rel(p: Path) -> str:
                 try:
                     return str(p.relative_to(project_root))
@@ -478,7 +478,7 @@ class SportDBMCPClient:
             with urllib.request.urlopen(req, timeout=30) as resp:
                 resp_headers = dict(resp.headers.items())
                 content_type = resp_headers.get("Content-Type", "")
-                
+
                 # Check for session id in response headers
                 sess_id = resp_headers.get("MCP-Session-Id") or resp_headers.get("mcp-session-id")
                 if sess_id:
@@ -490,7 +490,7 @@ class SportDBMCPClient:
             resp_headers = dict(exc.headers.items()) if exc.headers is not None else {}
             raw_bytes = exc.read() if exc.fp is not None else b""
             status = exc.code
-            
+
             # Map known status codes to custom exceptions
             if status in (401, 403):
                 raise SportDBMCPAuthError(f"Authentication failed with status {status}")
@@ -546,7 +546,7 @@ class SportDBMCPShadowAdapter:
     ) -> None:
         self.schema_path = Path(schema_path)
         self.mapping_path = Path(mapping_path)
-        
+
         if not self.schema_path.exists():
             raise FileNotFoundError(f"Missing schema summary path: {self.schema_path}")
         if not self.mapping_path.exists():
@@ -629,7 +629,7 @@ class SportDBMCPShadowAdapter:
             home_name = item.get("homeName") or item.get("homeFirstName") or item.get("home_team", {}).get("name") if isinstance(item.get("home_team"), dict) else item.get("home_team")
             away_name = item.get("awayName") or item.get("awayFirstName") or item.get("away_team", {}).get("name") if isinstance(item.get("away_team"), dict) else item.get("away_team")
             status = item.get("eventStage") or item.get("status") or item.get("state")
-            
+
             home_score = item.get("homeScore") or item.get("homeFullTimeScore") or item.get("home_score")
             away_score = item.get("awayScore") or item.get("awayFullTimeScore") or item.get("away_score")
             score = item.get("score")
@@ -925,7 +925,7 @@ class SportDBMCPShadowAdapter:
                 home_name = item.get("homeName") or item.get("homeFirstName") or item.get("home_team", {}).get("name") if isinstance(item.get("home_team"), dict) else item.get("home_team")
                 away_name = item.get("awayName") or item.get("awayFirstName") or item.get("away_team", {}).get("name") if isinstance(item.get("away_team"), dict) else item.get("away_team")
                 status = item.get("eventStage") or item.get("status") or item.get("state")
-                
+
                 home_score = item.get("homeScore") or item.get("homeFullTimeScore") or item.get("home_score")
                 away_score = item.get("awayScore") or item.get("awayFullTimeScore") or item.get("away_score")
                 score = item.get("score")

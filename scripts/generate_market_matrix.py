@@ -1228,12 +1228,12 @@ def generate_market_matrix(
             if "data_tier" not in e:
                 e["data_tier"] = "FIXTURE_ONLY"
             e["suggested"] = None
-            
+
             # remove any forbidden keys at top level of event
             for k in list(e.keys()):
                 if k in forbidden_keys:
                     del e[k]
-            
+
             # remove any forbidden keys in nested markets
             for sub_list_name in ("odds_markets", "safety_markets"):
                 if sub_list_name in e and isinstance(e[sub_list_name], list):
@@ -1956,7 +1956,7 @@ def main():
     # Enforce data directory resolution rules
     global DATA_DIR, CACHE_DIR
     ROOT_DIR = Path(__file__).resolve().parent.parent
-    
+
     output_dir_str = args.output_dir or os.environ.get("BET_PIPELINE_DATA_DIR")
     runtime_mode = os.environ.get("BET_PIPELINE_RUNTIME_MODE", "").upper()
 

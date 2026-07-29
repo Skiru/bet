@@ -53,19 +53,19 @@ def test_provider_probes_blocked_on_missing_match_id(clean_env) -> None:
         results = run_provider_shadow_probes(
             context, transport=mock_transport, out_batches=out_batches
         )
-        
+
         assert len(results) == 3
-        
+
         # SportDB: blocked on missing match_id
         sportdb_res = next(r for r in results if r.provider == "sportdb")
         assert sportdb_res.status == "BLOCKED_MISSING_PROVIDER_MATCH_ID"
         assert sportdb_res.request_attempted is False
-        
+
         # Highlightly: blocked on missing match_id
         highlightly_res = next(r for r in results if r.provider == "highlightly")
         assert highlightly_res.status == "BLOCKED_MISSING_PROVIDER_MATCH_ID"
         assert highlightly_res.request_attempted is False
-        
+
         # FootballDataOrg: succeeds because it's competition-wide and doesn't need match_id
         fdorg_res = next(r for r in results if r.provider == "football-data-org")
         assert fdorg_res.status == "SUCCESS"

@@ -96,7 +96,7 @@ def test_extract_candidates_various_formats():
 
 def test_check_repeats_rejects_protected_path(tmp_path: Path):
     repo_data_path = Path(__file__).resolve().parents[1] / "betting" / "data" / "some_input.json"
-    
+
     with patch.dict(os.environ, {"BET_PIPELINE_RUNTIME_MODE": "DRY_RUN"}, clear=False), \
          patch.object(sys, "argv", ["check_48h_repeats.py", "--date", "2026-06-25", "--input", str(repo_data_path)]), \
          pytest.raises(SystemExit) as exc_info:

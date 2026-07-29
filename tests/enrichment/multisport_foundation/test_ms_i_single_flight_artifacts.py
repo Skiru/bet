@@ -167,14 +167,14 @@ def test_raw_value_safety():
     }
     t = FakeTransport(payload)
     a = run_single_flight_probe(enabled_policy(), operator_network_flag=True, transport=t)
-    
+
     # Check that artifact / response envelope has no raw payload values
     combined = str(a.to_jsonable())
     assert "391053" not in combined
     assert "2026-01-01T00:00:00Z" not in combined
     # Let's make sure the raw team values 'A' or 'B' are not in observed fields or envelope (though single characters like 'A' could exist elsewhere, but we can check specifically)
     assert a.sanitized_response_envelope.get("minimum_fact_fields_observed") == ["fixture_id", "home_team", "away_team", "start_time"]
-    
+
     env = a.sanitized_response_envelope
     # sanitized_response_envelope may contain only logical field names, missing logical field names, payload shape, forbidden field names and raw_payload_persisted=false
     allowed_keys = {

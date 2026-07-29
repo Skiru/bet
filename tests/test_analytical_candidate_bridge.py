@@ -283,20 +283,20 @@ def test_s3_stats_gap_reports_join_failure_reason(monkeypatch):
 
 def test_team_identity_resolver_exact_and_alias_matches():
     from bet.enrichment.team_identity_resolver import resolve_team_identity
-    
+
     # Test exact match
     res_exact = resolve_team_identity("Brazil", "football")
     assert res_exact.resolved is True
     assert res_exact.canonical_name == "Brazil"
     assert res_exact.provider_team_id == "api-football:1"
     assert res_exact.confidence == "HIGH"
-    
+
     # Test alias match
     res_alias = resolve_team_identity("Seleção", "football")
     assert res_alias.resolved is True
     assert res_alias.canonical_name == "Brazil"
     assert res_alias.provider_team_id == "api-football:1"
-    
+
     # Test normalized match
     res_norm = resolve_team_identity("f.c. melgar", "football")
     assert res_norm.resolved is True
@@ -321,7 +321,7 @@ def test_s3_stats_gap_reports_team_identity_failure(monkeypatch):
         "has_data": False,
         "espn_enrichment": None,
     })
-    
+
     result = dsr.analyze_candidate(
         "football",
         "Unknown_Team_X",
@@ -345,25 +345,25 @@ def test_api_football_stats_probe_redacts_secret():
 
 def test_market_family_mapping_result_totals_corners_cards_shots():
     from bet.pipeline.analytical_candidate_bridge import _market_family_from_seed, _supported_analytical_family
-    
+
     m_ml = {"name": "Match Winner", "market_type": "ml"}
     assert _market_family_from_seed(m_ml) == "RESULT"
-    
+
     m_totals = {"name": "goals_over/under", "market_type": "totals"}
     assert _market_family_from_seed(m_totals) == "GOALS_TOTALS"
-    
+
     m_corners = {"name": "corners_over_under", "market_type": "corners"}
     assert _market_family_from_seed(m_corners) == "CORNERS"
-    
+
     m_cards = {"name": "yellow_cards", "market_type": "cards"}
     assert _market_family_from_seed(m_cards) == "CARDS"
-    
+
     m_shots = {"name": "shots", "market_type": "shots"}
     assert _market_family_from_seed(m_shots) == "SHOTS"
-    
+
     m_sot = {"name": "shots_on_target", "market_type": "shots_on_target"}
     assert _market_family_from_seed(m_sot) == "SHOTS_ON_TARGET"
-    
+
     # Verify supported families
     assert _supported_analytical_family("RESULT") is True
     assert _supported_analytical_family("GOALS_TOTALS") is True
@@ -473,7 +473,7 @@ def test_missing_line_blocks_ou_probability_input():
 
 def test_model_probability_requires_real_stats():
     from scripts.probability_engine import enrich_ranking_with_probabilities
-    
+
     # If len of L10 stats is less than 5, must fall back to hit rate proxy
     ranking_result = {
         "ranking": [
@@ -533,7 +533,7 @@ def test_analytical_bridge_promotes_only_when_identity_stats_probability_ready()
             }
         ]
     }
-    
+
     # 1. Stats missing blocks promotion
     handoff_no_stats = build_analytical_candidate_handoff(
         valuation_payload,

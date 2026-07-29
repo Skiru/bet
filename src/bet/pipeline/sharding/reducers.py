@@ -344,7 +344,7 @@ _REDUCER_REGISTRY: dict[str, Callable[[Sequence[ChunkArtifactV1]], ReducedParent
 
 def get_reducer_for_step(step_id: str, strict: bool = False) -> Callable[[Sequence[ChunkArtifactV1]], ReducedParentResultV1] | None:
     """Get the registered reducer function for a sharded step.
-    
+
     If strict is True and step_id is unregistered, raises KeyError.
     """
     reducer = _REDUCER_REGISTRY.get(step_id)

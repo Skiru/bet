@@ -71,7 +71,7 @@ def run_live_response_corpus_capture(corpus_root: Path, max_fixtures: int = 3) -
 
     for fixture in fixtures:
         slug = fixture["fixture_slug"]
-        
+
         # We attempt each provider: sportdb, football_data_org, highlightly, api_football, espn_baseline
         attempts = [
             ("sportdb", capture_sportdb, sportdb_cred),
@@ -80,17 +80,17 @@ def run_live_response_corpus_capture(corpus_root: Path, max_fixtures: int = 3) -
             ("api-football", capture_api_football, af_cred),
             ("espn-baseline", capture_espn_baseline, None),
         ]
-        
+
         for prov_name, capture_fn, cred in attempts:
             envelopes_or_single = capture_fn(fixture, cred)
             if isinstance(envelopes_or_single, list):
                 envelopes = envelopes_or_single
             else:
                 envelopes = [envelopes_or_single]
-                
+
             for envelope in envelopes:
                 envelope.validate()
-                
+
                 # Count statuses
                 status = envelope.status
                 if status in (CaptureStatus.FETCHED.value, CaptureStatus.DISCOVERY_FETCHED.value):
@@ -105,7 +105,7 @@ def run_live_response_corpus_capture(corpus_root: Path, max_fixtures: int = 3) -
                     skipped_count += 1
                 else:
                     failed_count += 1
-                    
+
                 # Track mapping candidate if found
                 if status == CaptureStatus.DISCOVERY_FETCHED.value and envelope.provider_fixture_id:
                     mapping_candidates.append({
@@ -114,13 +114,13 @@ def run_live_response_corpus_capture(corpus_root: Path, max_fixtures: int = 3) -
                         "provider_fixture_id": envelope.provider_fixture_id,
                         "discovered_at_utc": envelope.captured_at_utc,
                     })
-                    
+
                 # Determine file path
                 if envelope.request_purpose.endswith("discovery") or "discovery" in envelope.request_purpose:
                     rel_envelope_path = f"{prov_name}/{slug}_discovery.json"
                 else:
                     rel_envelope_path = f"{prov_name}/{slug}.json"
-                    
+
                 write_json(run_dir / rel_envelope_path, envelope.to_dict())
                 files_written.append(rel_envelope_path)
 
@@ -143,7 +143,7 @@ def run_live_response_corpus_capture(corpus_root: Path, max_fixtures: int = 3) -
         selectable_for_production=False,
     )
     manifest.validate()
-    
+
     write_json(run_dir / "manifest.json", manifest.to_dict())
     files_written.append("manifest.json")
 
@@ -164,7 +164,7 @@ This corpus was captured for football enrichment, isolating real external provid
 """
     readme_path.write_text(readme_content, encoding="utf-8")
     files_written.append("README.md")
-    
+
     # Update manifest with final list of files written
     manifest = LiveCorpusManifest(
         run_id=run_id,
@@ -181,7 +181,7 @@ This corpus was captured for football enrichment, isolating real external provid
     )
     # Write the updated manifest
     write_json(run_dir / "manifest.json", manifest.to_dict())
-    
+
     return manifest
 
 
@@ -268,14 +268,14 @@ def run_freemium_rescue_capture(corpus_root: Path) -> LiveCorpusManifest:
             try:
                 sanitized = sanitize_json_body(resp_body)
                 sha = compute_body_sha256(sanitized)
-                
+
                 # Check for Norway vs Senegal in the live matches
                 matches = []
                 if isinstance(sanitized, list):
                     matches = sanitized
                 elif isinstance(sanitized, dict):
                     matches = sanitized.get("matches") or sanitized.get("games") or sanitized.get("data") or []
-                
+
                 sportdb_match_id = None
                 if isinstance(matches, list):
                     for m in matches:
@@ -296,7 +296,7 @@ def run_freemium_rescue_capture(corpus_root: Path) -> LiveCorpusManifest:
                         "discovered_at_utc": now_str,
                         "rescue_attempt": True,
                     })
-                    
+
                     # Call at most one detail endpoint
                     detail_url = f"https://api.sportdb.dev/api/match/{sportdb_match_id}"
                     det_status_code, det_body, det_err = safe_http_get(detail_url, headers=headers, timeout=15.0)
@@ -445,7 +445,7 @@ def run_freemium_rescue_capture(corpus_root: Path) -> LiveCorpusManifest:
     espn_envelope = None
     espn_status = "RESCUE_FAILED_HTTP"
     espn_url = "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?limit=950&dates=20260622-20260623"
-    
+
     espn_status_code, espn_body, espn_err = safe_http_get(espn_url, timeout=15.0)
 
     if espn_err:
@@ -471,12 +471,12 @@ def run_freemium_rescue_capture(corpus_root: Path) -> LiveCorpusManifest:
         try:
             espn_sanitized = sanitize_json_body(espn_body)
             espn_sha = compute_body_sha256(espn_sanitized)
-            
+
             espn_event_id = None
             events = []
             if isinstance(espn_sanitized, dict):
                 events = espn_sanitized.get("events") or []
-            
+
             if isinstance(events, list):
                 for ev in events:
                     if not isinstance(ev, dict):
@@ -495,12 +495,12 @@ def run_freemium_rescue_capture(corpus_root: Path) -> LiveCorpusManifest:
                             name = str(team.get("name") or "").lower()
                             abbrev = str(team.get("abbreviation") or "").lower()
                             displayName = str(team.get("displayName") or "").lower()
-                            
+
                             if "norway" in name or "nor" in abbrev or "norway" in displayName:
                                 has_norway = True
                             if "senegal" in name or "sen" in abbrev or "senegal" in displayName:
                                 has_senegal = True
-                        
+
                         if has_norway and has_senegal:
                             espn_event_id = str(ev.get("id") or "")
                             break
@@ -516,7 +516,7 @@ def run_freemium_rescue_capture(corpus_root: Path) -> LiveCorpusManifest:
                     "discovered_at_utc": now_str,
                     "rescue_attempt": True,
                 })
-                
+
                 # Fetch summary endpoint
                 summary_url = f"http://site.api.espn.com/apis/site/v2/sports/soccer/all/summary?event={espn_event_id}"
                 sum_status_code, sum_body, sum_err = safe_http_get(summary_url, timeout=15.0)

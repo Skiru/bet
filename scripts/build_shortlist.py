@@ -166,7 +166,7 @@ PROTECTED_DOMESTIC_LEAGUES: dict[str, list[str]] = {
 
 def _is_protected_domestic_league(sport: str, competition: str) -> bool:
     """Check if a competition is a protected major domestic league (§SCAN.9).
-    
+
     Normalizes separators (e.g. 'Brazil - Serie A' → 'brazil serie a') to handle
     URL-derived competition names that use ' - ' between country and league.
     """
@@ -377,7 +377,7 @@ def _score_competition(sport: str, competition: str) -> int:
 
 def _score_event(event: dict, tipster_events: set[str], tipster_db: dict[str, dict] | None = None) -> float:
     """Score an event for shortlist ranking. Higher = better candidate.
-    
+
     Scoring philosophy: BETTABILITY > data quantity.
     Events in recognized leagues score higher than poorly sourced competitions.
     """
@@ -499,7 +499,7 @@ def _score_event(event: dict, tipster_events: set[str], tipster_db: dict[str, di
         away_team = event.get("away_team", "").lower()
         if _GAMELOG_TEAMS and (home_team in _GAMELOG_TEAMS or away_team in _GAMELOG_TEAMS):
             score += 8
-            
+
     # FIXTURE_ONLY events sink below data-rich events but not crushed entirely.
     # Major leagues (comp_score >= 7) get lighter penalty — enrichment will fill them.
     if tier == "FIXTURE_ONLY":
@@ -591,7 +591,7 @@ def _load_tipster_events_from_db(date: str) -> dict[str, dict]:
 
 def _load_tipster_events(date: str) -> set[str]:
     """Load tipster prefetch to identify events with tipster coverage.
-    
+
     Returns a set of normalized team name pairs like 'braga vs freiburg'.
     Parses both markdown headers AND pipe-delimited table entries (ZT format).
     """
@@ -1015,7 +1015,7 @@ def build_shortlist(
     # Exception: tennis players legitimately play singles + doubles.
     def _normalize_team(name: str) -> str:
         """Normalize team name for phantom matching.
-        
+
         Only strip generic club prefixes/suffixes (FC, SC, etc.).
         DO NOT strip city names — they distinguish different teams.
         """

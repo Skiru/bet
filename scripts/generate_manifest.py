@@ -18,7 +18,7 @@ def sha256_file(filepath: Path) -> str:
 def classify_run(result: dict, response: dict) -> str:
     """Properly classify a test run."""
     error = result.get("error")
-    
+
     # Check for setup failures first
     if error:
         if "playwright" in error.lower():
@@ -26,22 +26,22 @@ def classify_run(result: dict, response: dict) -> str:
         if "module" in error.lower() and "not found" in error.lower():
             return "FAILED_SETUP"
         return "FAILED_SETUP"
-    
+
     # Check if network was attempted
     if not result.get("network_attempted", False):
         return "STATIC_ANALYSIS"
-    
+
     # Check for actual verifiable data
     raw_records = result.get("raw_records", 0)
     parsed_records = result.get("parsed_records", 0)
-    
+
     # For response data, check if it has actual content
     response_has_data = False
     if response and isinstance(response, dict):
         # Exclude empty responses
         if response.get("error") is None and len(response) > 0 and not all(v is None for v in response.values()):
             response_has_data = True
-    
+
     if parsed_records > 0 and response_has_data:
         return "LIVE_NETWORK_SUCCESS"
     elif raw_records > 0 and response_has_data:
@@ -58,7 +58,7 @@ for run_dir in sorted(EVIDENCE_DIR.iterdir()):
         result_file = run_dir / "result.json"
         response_file = run_dir / "raw_response_sanitized.json"
         parsed_file = run_dir / "parsed_response.json"
-        
+
         if result_file.exists():
             with open(result_file) as f:
                 result = json.load(f)
@@ -66,25 +66,25 @@ for run_dir in sorted(EVIDENCE_DIR.iterdir()):
                 response = json.load(f)
             with open(parsed_file) as f:
                 parsed = json.load(f)
-            
+
             # Properly reclassify
             proper_class = classify_run(result, response)
             result["classification"] = proper_class
-            
+
             # Update checks
             checks = {
                 "data_returned": result.get("parsed_records", 0) > 0,
                 "has_verifiable_content": len(str(parsed)) > 50 and parsed != {} and parsed.get("error") is None
             }
             result["checks"] = checks
-            
+
             # Calculate SHA256 if files exist
             sha256_hashes = {}
             for fname in ["command.txt", "result.json", "raw_response_sanitized.json", "parsed_response.json", "checks.json", "sha256.txt"]:
                 fpath = run_dir / fname
                 if fpath.exists():
                     sha256_hashes[fname] = sha256_file(fpath)
-            
+
             runs.append({
                 "run_id": result.get("run_id"),
                 "source": result.get("source"),

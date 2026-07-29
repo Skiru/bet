@@ -694,21 +694,21 @@ def test_orchestrator_writes_work_order_when_s2_3_missing(tmp_path):
     from bet.pipeline.integration_artifacts import write_script_evidence
     write_script_evidence("S2", status="PASS", payload={}, sources=(), evidence_refs=(), environ=orch.env)
     summary = orch.run(start_step="S2.3", stop_after_step="S2.5")
-    
+
     # Blocks at S2.3
     assert summary["status"] == "BLOCK"
     assert summary["blocked_at_step"] == "S2.3"
-    
+
     # Work order is written
     from bet.pipeline.agent_work_orders import work_order_path_for
     wo_path = work_order_path_for(tmp_path / "reports", "2026-06-25", "run-999", "S2.3")
     assert wo_path.exists()
-    
+
     # Contains work order path in top level and in individual steps
     assert summary["work_order_path"] == str(wo_path)
     s23_step = next(s for s in summary["steps"] if s["step_id"] == "S2.3")
     assert s23_step["work_order_path"] == str(wo_path)
-    
+
     # S2.5 was not executed (skipped/not reached in loop execution list)
     steps_executed = [s["step_id"] for s in summary["steps"]]
     assert "S2.3" in steps_executed
@@ -739,18 +739,18 @@ def test_orchestrator_writes_work_order_when_s5_missing(tmp_path):
     )
     with patch("bet.pipeline.orchestrator.evaluate_gate_before_step", return_value=decision):
         summary = orch.run(start_step="S5", stop_after_step="S6")
-    
+
     # Blocks at S5
     assert summary["status"] == "BLOCK"
     assert summary["blocked_at_step"] == "S5"
-    
+
     # Work order is written
     from bet.pipeline.agent_work_orders import work_order_path_for
     wo_path = work_order_path_for(tmp_path / "reports", "2026-06-25", "run-999", "S5")
     assert wo_path.exists()
-    
+
     assert summary["work_order_path"] == str(wo_path)
-    
+
     steps_executed = [s["step_id"] for s in summary["steps"]]
     assert "S5" in steps_executed
     assert "S6" not in steps_executed
@@ -774,7 +774,7 @@ def test_orchestrator_proceeds_on_valid_agent_artifact(tmp_path):
             },
         }
     )
-    
+
     orch = Orchestrator(
         betting_day="2026-06-25",
         run_id="run-999",
@@ -782,7 +782,7 @@ def test_orchestrator_proceeds_on_valid_agent_artifact(tmp_path):
         base_run_dir=tmp_path / "reports",
     )
     summary = orch.run(start_step="S2.3", stop_after_step="S2.3")
-    
+
     assert summary["status"] == "PASS"
     assert summary["last_completed_step"] == "S2.3"
 
@@ -803,7 +803,7 @@ def test_orchestrator_blocks_on_invalid_agent_artifact(tmp_path):
             }
         }
     )
-    
+
     orch = Orchestrator(
         betting_day="2026-06-25",
         run_id="run-999",
@@ -811,7 +811,7 @@ def test_orchestrator_blocks_on_invalid_agent_artifact(tmp_path):
         base_run_dir=tmp_path / "reports",
     )
     summary = orch.run(start_step="S2.3", stop_after_step="S2.3")
-    
+
     assert summary["status"] == "BLOCK"
     assert summary["blocked_at_step"] == "S2.3"
     assert any("contract validation failure" in b for b in summary["blockers"])

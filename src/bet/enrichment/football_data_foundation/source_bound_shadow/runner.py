@@ -109,9 +109,9 @@ def _run_enrichment_flow(
         project_root / "reports/football_data_foundation/live_response_corpus/run_20260623_104359_4c5781",
         project_root / "reports/football_data_foundation/live_response_corpus/run_v3_20260623_131229",
     ]
-    
+
     mappings = load_mapping_metadata(run_dirs)
-    
+
     provider_ids: Dict[str, str] = {}
     for mapping in mappings:
         if mapping.get("fixture_slug") == fixture_slug:
@@ -119,7 +119,7 @@ def _run_enrichment_flow(
             p_id = mapping.get("provider_fixture_id")
             if provider and p_id:
                 provider_ids[provider] = p_id
-            
+
             sportdb_id = mapping.get("sportdb_event_id")
             if sportdb_id:
                 provider_ids["sportdb"] = sportdb_id
@@ -128,17 +128,17 @@ def _run_enrichment_flow(
                 provider_ids["highlightly"] = highlightly_id
 
     envelopes = load_provider_envelopes(run_dirs)
-    
+
     facts: List[NormalizedFact] = []
     for env in envelopes:
         p_id = provider_ids.get(env.provider)
         facts.extend(normalize_envelope(env, provider_match_id=p_id))
 
     snapshot = fuse_match_snapshot(facts, fixture_slug)
-    
+
     diagnostics = get_normalization_diagnostics(facts)
     fact_counts = get_provider_fact_counts(facts)
-    
+
     target_output_root.mkdir(parents=True, exist_ok=True)
     snapshot_json_path = target_output_root / "source_bound_shadow_snapshot.json"
     snapshot_md_path = target_output_root / "source_bound_shadow_snapshot.md"
@@ -148,19 +148,19 @@ def _run_enrichment_flow(
     readme_path = target_output_root / "README.md"
 
     write_shadow_json(snapshot, snapshot_json_path)
-    
+
     md_report = generate_markdown_report(snapshot)
     snapshot_md_path.write_text(md_report, encoding="utf-8")
-    
+
     diagnostics_path.write_text(json.dumps(diagnostics, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     extended_fact_counts = dict(fact_counts)
     extended_fact_counts["meta_as_of"] = "2026-06-23"
     extended_fact_counts["meta_fixture_slug"] = fixture_slug
     extended_fact_counts["meta_phase"] = "FOOTBALL_ENRICHMENT_B6_RAW_LINE_TRUTH_REPAIR"
     fact_counts_path.write_text(json.dumps(extended_fact_counts, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    
+
     write_shadow_sqlite(snapshot, sqlite_path, diagnostics)
-    
+
     readme_content = f"""# Source-Bound Shadow Replay Artifacts
 
 This directory contains the production-grade source-bound shadow enrichment replay for:
@@ -219,11 +219,11 @@ def run_source_bound_shadow_enrichment(
         probe_result,
         expected_fixture_slug=fixture_slug,
     )
-    
+
     # Write verifier result to final output_root
     verifier_path = output_root / "source_bound_verifier_result.json"
     verifier_path.write_text(json.dumps(verifier_result, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    
+
     # 4. Return results dictionary matching required parameters
     return {
         "verdict": verifier_result["verdict"],

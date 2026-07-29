@@ -19,7 +19,7 @@ def test_rescue_runner_mock_execution(tmp_path):
         "home": {"name": "Norway"},
         "away": {"name": "Senegal"}
     }
-    
+
     mock_espn_scoreboard = {
         "events": [
             {
@@ -35,7 +35,7 @@ def test_rescue_runner_mock_execution(tmp_path):
             }
         ]
     }
-    
+
     mock_espn_summary = {
         "boxscore": {},
         "header": {"id": "espn-456"}
@@ -55,21 +55,21 @@ def test_rescue_runner_mock_execution(tmp_path):
     with patch("bet.enrichment.football_data_foundation.live_response_corpus_capture.runner.safe_http_get", side_effect=mock_safe_http_get), \
          patch("bet.enrichment.football_data_foundation.live_response_corpus_capture.runner.get_credential", return_value="fake_key"), \
          patch("bet.enrichment.football_data_foundation.live_response_corpus_capture.runner.credential_presence_map", return_value={"sportdb": True, "highlightly": True}):
-         
+
         manifest = run_freemium_rescue_capture(tmp_path)
-        
+
         # Verify Manifest
         assert manifest.run_id is not None
         assert manifest.fixture_count == 1
         assert manifest.provider_count == 3
         assert manifest.selectable_for_production is False
-        
+
         run_dir = tmp_path / manifest.run_id
         assert (run_dir / "manifest.json").exists()
         assert (run_dir / "README.md").exists()
         assert (run_dir / "mapping_candidate.json").exists()
         assert (run_dir / "capture_verifier_result.json").exists()
-        
+
         # Load written files to verify properties
         sportdb_live_json = json.loads((run_dir / "sportdb" / "worldcup2026-norway-senegal_rescue_live.json").read_text())
         assert sportdb_live_json["status"] == "RESCUE_FETCHED"

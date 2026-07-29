@@ -275,7 +275,7 @@ class TestMigrationV16:
         conn = sqlite3.connect(":memory:")
         conn.row_factory = sqlite3.Row
         init_db(conn)
-        
+
         cursor = conn.execute(
             "SELECT name FROM sqlite_master WHERE type='table' AND name='fixture_capability_observation'"
         )
@@ -287,7 +287,7 @@ class TestMigrationV16:
         conn = sqlite3.connect(":memory:")
         conn.row_factory = sqlite3.Row
         init_db(conn)
-        
+
         cursor = conn.execute(
             "SELECT name FROM sqlite_master WHERE type='table' AND name='fixture_capability_projection'"
         )
@@ -302,10 +302,10 @@ class TestMigrationV16:
         # Simulate v15 state
         conn.execute("UPDATE schema_meta SET value = '15' WHERE key = 'version'")
         conn.commit()
-        
+
         # Run migration
         migrate(conn, 15, 16)
-        
+
         cursor = conn.execute(
             "SELECT name FROM sqlite_master WHERE type='table' AND name='fixture_capability_observation'"
         )
@@ -317,7 +317,7 @@ class TestMigrationV16:
         conn = sqlite3.connect(":memory:")
         conn.row_factory = sqlite3.Row
         init_db(conn)
-        
+
         cursor = conn.execute(
             "SELECT name FROM sqlite_master WHERE type='index' AND name='idx_fixture_capability_observation_identity'"
         )
@@ -330,7 +330,7 @@ class TestMigrationV16:
         conn.row_factory = sqlite3.Row
         init_db(conn)
         conn.execute("PRAGMA foreign_keys = OFF")
-        
+
         with pytest.raises(sqlite3.IntegrityError):
             conn.execute(
                 """INSERT INTO fixture_capability_observation
@@ -345,7 +345,7 @@ class TestMigrationV16:
         conn.row_factory = sqlite3.Row
         init_db(conn)
         conn.execute("PRAGMA foreign_keys = OFF")
-        
+
         with pytest.raises(sqlite3.IntegrityError):
             conn.execute(
                 """INSERT INTO fixture_capability_observation
@@ -360,7 +360,7 @@ class TestMigrationV16:
         conn.row_factory = sqlite3.Row
         init_db(conn)
         conn.execute("PRAGMA foreign_keys = OFF")
-        
+
         with pytest.raises(sqlite3.IntegrityError):
             conn.execute(
                 """INSERT INTO fixture_capability_observation
@@ -375,28 +375,28 @@ class TestMigrationV16:
         conn.row_factory = sqlite3.Row
         init_db(conn)
         conn.execute("PRAGMA foreign_keys = OFF")
-        
+
         # First fixture, first cutoff
         conn.execute(
             """INSERT INTO fixture_capability_observation
                (canonical_fixture_id, team_id, capability, source, request_identity, status, valid_at, observed_at)
                VALUES (1, 1, 'current_recent_form', 'espn', 'GET https://example.com/1', 'SUCCESS', '2026-06-12T18:00:00+00:00', '2026-06-12T18:00:00+00:00')"""
         )
-        
+
         # First fixture, second cutoff
         conn.execute(
             """INSERT INTO fixture_capability_observation
                (canonical_fixture_id, team_id, capability, source, request_identity, status, valid_at, observed_at)
                VALUES (1, 1, 'current_recent_form', 'espn', 'GET https://example.com/2', 'SUCCESS', '2026-06-12T20:00:00+00:00', '2026-06-12T20:00:00+00:00')"""
         )
-        
+
         # Second fixture, first cutoff
         conn.execute(
             """INSERT INTO fixture_capability_observation
                (canonical_fixture_id, team_id, capability, source, request_identity, status, valid_at, observed_at)
                VALUES (2, 1, 'current_recent_form', 'espn', 'GET https://example.com/3', 'SUCCESS', '2026-06-12T18:00:00+00:00', '2026-06-12T18:00:00+00:00')"""
         )
-        
+
         cursor = conn.execute("SELECT COUNT(*) as cnt FROM fixture_capability_observation")
         assert cursor.fetchone()["cnt"] == 3
         conn.close()

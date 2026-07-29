@@ -104,20 +104,20 @@ class ScraperNHLClient(BaseAPIClient):
     def get_team_last_fixtures(self, team_id: str, last_n: int = 10) -> list:
         """Get recent games for a team via scrapernhl schedule."""
         from normalize_stats import NormalizedFixture
-        
+
         try:
             scraper = self._get_scraper()
             season = _current_season()
             schedule = scraper.schedule(team=team_id, season=season)
-            
+
             if schedule is None or schedule.empty:
                 return []
-            
+
             # Filter to finished games, take last N
             # Schedule columns include game_id, date, home_team, away_team, etc.
             finished = schedule[schedule["game_state"].isin(["OFF", "FINAL"])] if "game_state" in schedule.columns else schedule
             recent = finished.tail(last_n)
-            
+
             fixtures = []
             for _, row in recent.iterrows():
                 game_id = str(row.get("game_id", row.get("id", "")))
@@ -138,21 +138,21 @@ class ScraperNHLClient(BaseAPIClient):
 
     def get_team_advanced_stats(self, team_name: str) -> dict | None:
         """Get team advanced stats (Corsi, Fenwick, on-ice) from scrapernhl.
-        
+
         Returns dict with stat keys or None.
         """
         tricode = _resolve_tricode(team_name)
         if not tricode:
             return None
-        
+
         try:
             scraper = self._get_scraper()
             season = _current_season()
             stats_df = scraper.team_stats(team=tricode, season=season, session=2)
-            
+
             if stats_df is None or stats_df.empty:
                 return None
-            
+
             # Convert first row to dict
             row = stats_df.iloc[0]
             stats = {}

@@ -38,7 +38,7 @@ class AuditRun:
         self.run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
         self.run_dir = evidence_dir / self.run_id
         self.run_dir.mkdir(parents=True, exist_ok=True)
-        
+
         self.start_time: datetime | None = None
         self.end_time: datetime | None = None
         self.exit_code = 0
@@ -68,7 +68,7 @@ class AuditRun:
 
     def execute(self) -> dict[str, Any]:
         self.start_time = datetime.now(timezone.utc)
-        
+
         try:
             self._run_test()
         except Exception as e:
@@ -103,7 +103,7 @@ class AuditRun:
 
     def _build_result(self) -> dict[str, Any]:
         duration = (self.end_time - self.start_time).total_seconds() if self.end_time and self.start_time else 0
-        
+
         return {
             "run_id": self.run_id,
             "source": self.source,
@@ -134,10 +134,10 @@ class AuditRun:
         self._write_file("result.json", result)
         self._write_file("raw_response_sanitized.json", self.response_data if self.response_data else {"error": self.error})
         self._write_file("parsed_response.json", self.parsed_data if self.parsed_data else {})
-        
+
         checks = {"data_returned": self.parsed_records > 0, "has_verifiable_content": bool(self.parsed_data)}
         self._write_file("checks.json", checks)
-        
+
         all_hashes = {}
         for f in self.run_dir.glob("*"):
             if f.is_file():
@@ -151,7 +151,7 @@ class VLRRun(AuditRun):
         scraper = VLRScraper()
         self.network_attempted = True
         self.attempts = 1
-        
+
         if self.capability == "team_stats" and hasattr(self, "team"):
             result = scraper.get_team_stats(self.team)
             if result:
@@ -183,7 +183,7 @@ class VLRRun(AuditRun):
 def main():
     EVIDENCE_DIR.mkdir(parents=True, exist_ok=True)
     results = []
-    
+
     # Test VLR for Valorant
     LOG.info("Testing VLR team_stats...")
     run = VLRRun("vlr", "valorant", "team_stats", EVIDENCE_DIR)
@@ -191,7 +191,7 @@ def main():
     result = run.execute()
     results.append(result)
     LOG.info(f"  Classification: {result['classification']}")
-    
+
     LOG.info("Testing VLR h2h...")
     run = VLRRun("vlr", "valorant", "h2h", EVIDENCE_DIR)
     run.team_a = "Sentinels"
@@ -199,18 +199,18 @@ def main():
     result = run.execute()
     results.append(result)
     LOG.info(f"  Classification: {result['classification']}")
-    
+
     # Calculate summary
     by_class = {}
     for r in results:
         c = r["classification"]
         by_class[c] = by_class.get(c, 0) + 1
-    
+
     print("\n=== AUDIT SUMMARY ===")
     print(f"Total runs: {len(results)}")
     for c, count in by_class.items():
         print(f"  {c}: {count}")
-    
+
     # Manifest
     manifest = {
         "audit_run_id": "20260610T144500Z_AUDIT_V2",
@@ -218,7 +218,7 @@ def main():
         "tests": results,
         "summary": by_class
     }
-    
+
     manifest_path = EVIDENCE_DIR / "MANIFEST.json"
     manifest_path.write_text(json.dumps(manifest, indent=2))
     LOG.info(f"Manifest written to {manifest_path}")

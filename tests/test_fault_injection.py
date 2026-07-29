@@ -9,7 +9,7 @@ def test_s4_output_atomic_rename_and_interruption(tmp_path: Path) -> None:
     # Verify that write_json_atomic operates atomically and never leaves partially written outputs
     target_file = tmp_path / "output.json"
     payload = {"data": "complete"}
-    
+
     write_json_atomic(target_file, payload)
     assert target_file.exists()
     assert json.loads(target_file.read_text()) == payload
@@ -64,7 +64,7 @@ def test_fault_injection_accounting_and_passes() -> None:
     false_passes = []
     silent_candidate_losses = []
     unhandled_faults = []
-    
+
     assert len(false_passes) == 0
     assert len(silent_candidate_losses) == 0
     assert len(unhandled_faults) == 0

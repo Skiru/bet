@@ -25,7 +25,7 @@ def get_process_info(pid: int) -> dict:
             parts = lines[1].split()
             result["rss_kb"] = int(parts[2])
             result["vsz_kb"] = int(parts[3])
-        
+
         # Get children
         output = subprocess.check_output(["pgrep", "-P", str(pid)], text=True)
         for child_pid in output.strip().split():
@@ -113,11 +113,11 @@ def main():
     if len(sys.argv) < 2:
         print("Usage: memory_trace_2h.py <output.json> [--dry-run]")
         sys.exit(1)
-    
+
     output_path = Path(sys.argv[1])
     dry_run = "--dry-run" in sys.argv
     duration = 60 if dry_run else DURATION_SECONDS
-    
+
     # Get PID
     try:
         pid_file = Path(".kilo/runtime/rapid-mlx-8000.pid")
@@ -125,27 +125,27 @@ def main():
     except:
         print("ERROR: Cannot read PID file")
         sys.exit(1)
-    
+
     started_at = datetime.now(timezone.utc)
     samples = []
     request_count = 0
     success_count = 0
-    
+
     print(f"Starting {duration}s trace at {started_at.isoformat()}")
     print(f"PID: {pid}, Output: {output_path}")
-    
+
     end_time = time.time() + duration
-    
+
     while time.time() < end_time:
         now = time.time()
-        
+
         # Collect sample
         process_info = get_process_info(pid)
         vm_stats = get_vm_stats()
         swap_mb = get_swap_mb()
         pressure = get_memory_pressure()
         health_ok, health_latency = make_health_request()
-        
+
         # Make workload request every 5 samples
         workload_ok, workload_latency, workload_result = False, 0.0, "skipped"
         if len(samples) % 5 == 0:
@@ -153,7 +153,7 @@ def main():
             request_count += 1
             if workload_ok:
                 success_count += 1
-        
+
         sample = {
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "elapsed_s": round(now - started_at.timestamp(), 1),
@@ -170,17 +170,17 @@ def main():
             "workload_result": workload_result,
         }
         samples.append(sample)
-        
+
         # Save intermediate results every 60 samples
         if len(samples) % 60 == 0:
             elapsed = time.time() - started_at.timestamp()
             print(f"Sample {len(samples)}, elapsed {elapsed:.0f}s, swap {swap_mb:.0f}MB, requests {success_count}/{request_count}")
-        
+
         time.sleep(INTERVAL_SECONDS)
-    
+
     ended_at = datetime.now(timezone.utc)
     actual_duration = (ended_at - started_at).total_seconds()
-    
+
     report = {
         "started_at_utc": started_at.isoformat(),
         "ended_at_utc": ended_at.isoformat(),
@@ -198,14 +198,14 @@ def main():
             "swap_end_mb": samples[-1]["swap_used_mb"],
         }
     }
-    
+
     # Validation
     if actual_duration < 7200 and not dry_run:
         report["VALIDATION"] = "FAILED: duration < 7200 seconds"
         print(f"ERROR: Duration {actual_duration}s < 7200s required")
         output_path.write_text(json.dumps(report, indent=2))
         sys.exit(1)
-    
+
     output_path.write_text(json.dumps(report, indent=2))
     print(f"Wrote {len(samples)} samples to {output_path}")
     print(f"Duration: {actual_duration:.0f}s, Requests: {success_count}/{request_count}")

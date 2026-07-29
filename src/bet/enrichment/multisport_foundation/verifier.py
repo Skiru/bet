@@ -205,16 +205,16 @@ def verify_activation_candidates(artifacts: list[ActivationCandidateArtifact]) -
             failed.append(f"production_selectable_forbidden:{artifact.artifact_id}")
         if artifact.betting_decisions_enabled:
             failed.append(f"betting_decisions_forbidden:{artifact.artifact_id}")
-        
+
         if artifact.activation_candidate and artifact.status != "ACTIVATION_CANDIDATE_SHADOW_ONLY":
             failed.append(f"activation_candidate_true_without_shadow_only_status:{artifact.artifact_id}")
-        
+
         if artifact.status == "ACTIVATION_CANDIDATE_SHADOW_ONLY":
             if artifact.source_pass_b_status != "SOURCE_BOUND_SHADOW_READY":
                 failed.append(f"activation_candidate_shadow_only_requires_pass_b_shadow_ready:{artifact.artifact_id}")
             if not artifact.source_keys or not artifact.corpus_ids:
                 failed.append(f"activation_candidate_shadow_only_requires_sources_and_corpus_ids:{artifact.artifact_id}")
-        
+
         if artifact.source_pass_b_status == "BLOCKED_PROVIDER_MAPPING_NOT_FOUND" and artifact.status != "BLOCKED_NO_REAL_PROVIDER_ACCESS":
             failed.append(f"mapping_not_found_must_map_to_blocked_no_real_provider_access:{artifact.artifact_id}")
         if artifact.source_pass_b_status == "BLOCKED_PROVIDER_TERMS_OR_SCOPE" and artifact.status != "BLOCKED_PROVIDER_TERMS_OR_SCOPE":
@@ -233,7 +233,7 @@ def verify_activation_candidates(artifacts: list[ActivationCandidateArtifact]) -
             assert_no_forbidden_success_text(artifact.to_json())
         except AssertionError as exc:
             failed.append(f"forbidden_success_text:{artifact.artifact_id}:{exc}")
-            
+
     return PassCVerificationResult("PASS" if not failed else "FAIL", failed, {"artifact_count": len(artifacts)})
 
 
@@ -284,15 +284,15 @@ def verify_provider_mapping() -> VerificationResult:
         validate_mapping_plan,
         default_route_specs,
     )
-    
+
     failed: list[str] = []
-    
+
     # 1. Target sports must exactly match seven sports
     plan_empty = build_provider_mapping_plan({})
     sports = set(plan_empty.get("target_sports", []))
     if sports != set(TARGET_SPORTS):
         failed.append("target_sports_mismatch")
-        
+
     # 2. No route has live_call_allowed=True, production_selectable=True, or betting_decisions_enabled=True
     for spec in default_route_specs():
         if spec.live_call_allowed:
@@ -347,7 +347,7 @@ def verify_provider_mapping() -> VerificationResult:
         "target_sports_count": len(TARGET_SPORTS),
         "route_specs_count": len(default_route_specs()),
     }
-    
+
     return VerificationResult(
         verdict="PASS" if not failed else "FAIL",
         failed_requirements=failed,
@@ -369,9 +369,9 @@ def verify_provider_probes() -> VerificationResult:
         run_provider_probe,
     )
     from .provider_corpus import contains_raw_secret
-    
+
     failed: list[str] = []
-    
+
     # 1. Verify default policies have the required defaults
     for spec in default_route_specs():
         policy = ProviderProbePolicy(
@@ -440,7 +440,7 @@ def verify_provider_probes() -> VerificationResult:
             terms_review_approved=(spec.provider_key == "api-sports-family"),
         )
         artifact = run_provider_probe(mapping, policy, {})
-        
+
         # Verify invariants
         if artifact.production_selectable:
             failed.append(f"artifact_production_selectable_true:{spec.route_key}")
@@ -450,7 +450,7 @@ def verify_provider_probes() -> VerificationResult:
             failed.append(f"artifact_live_call_made_true_by_default:{spec.route_key}")
         if artifact.provider_access_attempted:
             failed.append(f"artifact_provider_access_attempted_true_by_default:{spec.route_key}")
-            
+
         # Verify secrets/tokens/headers checking
         payload = dict(artifact.to_jsonable())
         for key in ["status", "source_mapping_status", "artifact_id", "blocked_reason", "request_url_template", "evidence_refs"]:
@@ -638,13 +638,13 @@ def verify_single_flight_probes() -> VerificationResult:
     # - default reports cover exactly seven sports
     if len(report.get("target_sports", [])) != 7:
         failed.append("default_report_must_cover_exactly_seven_sports")
-    
+
     # - default reports have no live calls and no provider access attempted
     if report.get("live_calls_made") is not False:
         failed.append("default_report_must_have_no_live_calls")
     if report.get("provider_access_attempted") is not False:
         failed.append("default_report_must_have_no_provider_access_attempted")
-        
+
     # - no production activation and no betting decisions
     if report.get("production_activation") is not False:
         failed.append("production_activation_not_false")
@@ -656,13 +656,13 @@ def verify_single_flight_probes() -> VerificationResult:
             # - source_probe_status is present in every artifact
             if "source_probe_status" not in item:
                 failed.append(f"source_probe_status_missing:{sport}")
-            
+
             # - no artifact can reach transport unless source_probe_status == SANITIZED_PROBE_READY_DRY_RUN
             # Transport is reached/attempted if live_call_made or provider_access_attempted is true
             if (item.get("live_call_made") or item.get("provider_access_attempted")):
                 if item.get("source_probe_status") != "SANITIZED_PROBE_READY_DRY_RUN":
                     failed.append(f"transport_attempted_without_dry_run_ready:{sport}")
-            
+
             # - raw_payload_persisted=false
             env = item.get("sanitized_response_envelope", {})
             if env.get("raw_payload_persisted") is not False:

@@ -45,11 +45,11 @@ def main() -> int:
 
     # Execute all 5 operations
     operations_data = {}
-    
+
     for op_name, run_fn in ops.items():
         try:
             res = run_fn()
-            
+
             # Check contract properties
             if not isinstance(res, SourceOperationResult) or res.__class__.__name__ != "SourceOperationResult":
                 contract_ok["source_operation_result_used"] = False

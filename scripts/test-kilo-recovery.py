@@ -37,10 +37,10 @@ def make_request(endpoint: str, data: dict, timeout: int = 120) -> tuple[int, An
         "Authorization": f"Bearer {API_KEY}",
         "Content-Type": "application/json"
     }
-    
+
     body = json.dumps(data).encode("utf-8")
     req = urllib.request.Request(url, data=body, headers=headers, method="POST")
-    
+
     start = time.perf_counter()
     try:
         with urllib.request.urlopen(req, timeout=timeout) as response:
@@ -59,14 +59,14 @@ def make_request(endpoint: str, data: dict, timeout: int = 120) -> tuple[int, An
         status = 0
         result = {"error": str(e)}
     duration_ms = (time.perf_counter() - start) * 1000
-    
+
     return status, result, duration_ms
 
 
 def test_request_timeout() -> dict:
     """Test 1: Request timeout handling."""
     print("  1. Request timeout handling...")
-    
+
     # Use a very short timeout to trigger timeout
     status, result, duration = make_request("/chat/completions", {
         "model": MODEL_ID,
@@ -74,12 +74,12 @@ def test_request_timeout() -> dict:
         "max_tokens": 500,
         "temperature": 0
     }, timeout=1)  # 1 second timeout - will likely timeout
-    
+
     # Timeout is expected (status 408 or 0)
     timeout_occurred = status in [0, 408] or "timeout" in str(result.get("error", "")).lower()
-    
+
     print(f"     {'PASS' if timeout_occurred else 'INFO'} (status={status}, timeout_detected={timeout_occurred})")
-    
+
     return {
         "test": "request_timeout",
         "passed": True,  # Always pass - we're testing timeout handling
@@ -92,10 +92,10 @@ def test_request_timeout() -> dict:
 def test_server_recovery() -> dict:
     """Test 2: Server recovery after timeout."""
     print("  2. Server recovery after timeout...")
-    
+
     # Wait a moment after potential timeout
     time.sleep(1)
-    
+
     # Try a normal request
     status, result, duration = make_request("/chat/completions", {
         "model": MODEL_ID,
@@ -103,11 +103,11 @@ def test_server_recovery() -> dict:
         "max_tokens": 10,
         "temperature": 0
     })
-    
+
     passed = status == 200
-    
+
     print(f"     {'PASS' if passed else 'FAIL'} (HTTP {status}, duration={duration:.0f}ms)")
-    
+
     return {
         "test": "server_recovery",
         "passed": passed,
@@ -119,7 +119,7 @@ def test_server_recovery() -> dict:
 def test_error_handling() -> dict:
     """Test 3: Graceful error handling."""
     print("  3. Graceful error handling...")
-    
+
     # Send an invalid request
     status, result, duration = make_request("/chat/completions", {
         "model": MODEL_ID,
@@ -127,12 +127,12 @@ def test_error_handling() -> dict:
         "max_tokens": 10,
         "temperature": 0
     })
-    
+
     # Should get an error response, not a crash
     error_handled = status >= 400 and "error" in result
-    
+
     print(f"     {'PASS' if error_handled else 'FAIL'} (HTTP {status}, error_handled={error_handled})")
-    
+
     return {
         "test": "error_handling",
         "passed": error_handled,
@@ -144,7 +144,7 @@ def test_error_handling() -> dict:
 def test_server_stability_after_errors() -> dict:
     """Test 4: Server stability after errors."""
     print("  4. Server stability after errors...")
-    
+
     # Send multiple error-inducing requests
     for i in range(3):
         make_request("/chat/completions", {
@@ -153,7 +153,7 @@ def test_server_stability_after_errors() -> dict:
             "max_tokens": 10
         })
         time.sleep(0.1)
-    
+
     # Now try a valid request
     status, result, duration = make_request("/chat/completions", {
         "model": MODEL_ID,
@@ -161,11 +161,11 @@ def test_server_stability_after_errors() -> dict:
         "max_tokens": 10,
         "temperature": 0
     })
-    
+
     passed = status == 200
-    
+
     print(f"     {'PASS' if passed else 'FAIL'} (HTTP {status} after 3 error requests)")
-    
+
     return {
         "test": "server_stability_after_errors",
         "passed": passed,
@@ -177,14 +177,14 @@ def test_server_stability_after_errors() -> dict:
 def test_malformed_request() -> dict:
     """Test 5: Malformed request handling."""
     print("  5. Malformed request handling...")
-    
+
     # Send request with invalid JSON structure
     url = f"{BASE_URL}/chat/completions"
     headers = {
         "Authorization": f"Bearer {API_KEY}",
         "Content-Type": "application/json"
     }
-    
+
     # Send malformed JSON
     try:
         req = urllib.request.Request(
@@ -193,7 +193,7 @@ def test_malformed_request() -> dict:
             headers=headers,
             method="POST"
         )
-        
+
         with urllib.request.urlopen(req, timeout=30) as response:
             status = response.status
             result = json.loads(response.read().decode("utf-8"))
@@ -203,12 +203,12 @@ def test_malformed_request() -> dict:
     except Exception as e:
         status = 0
         result = {"error": str(e)}
-    
+
     # Should get an error, not crash
     error_handled = status >= 400 or "error" in result
-    
+
     print(f"     {'PASS' if error_handled else 'FAIL'} (HTTP {status}, error_handled={error_handled})")
-    
+
     return {
         "test": "malformed_request",
         "passed": error_handled,
@@ -219,11 +219,11 @@ def test_malformed_request() -> dict:
 def test_rapid_requests() -> dict:
     """Test 6: Rapid sequential requests."""
     print("  6. Rapid sequential requests...")
-    
+
     success_count = 0
     error_count = 0
     durations = []
-    
+
     for i in range(5):
         status, result, duration = make_request("/chat/completions", {
             "model": MODEL_ID,
@@ -231,17 +231,17 @@ def test_rapid_requests() -> dict:
             "max_tokens": 5,
             "temperature": 0
         })
-        
+
         durations.append(duration)
         if status == 200:
             success_count += 1
         else:
             error_count += 1
-    
+
     passed = success_count >= 4  # Allow 1 failure
-    
+
     print(f"     {'PASS' if passed else 'FAIL'} (success={success_count}/5, errors={error_count})")
-    
+
     return {
         "test": "rapid_requests",
         "passed": passed,
@@ -257,11 +257,11 @@ def main():
     print(f"Base URL: {BASE_URL}")
     print(f"Model: {MODEL_ID}")
     print()
-    
+
     os.makedirs(OUTPUT_DIR, exist_ok=True)
-    
+
     results = []
-    
+
     print("Running cancellation and recovery tests...")
     results.append(test_request_timeout())
     results.append(test_server_recovery())
@@ -269,21 +269,21 @@ def main():
     results.append(test_server_stability_after_errors())
     results.append(test_malformed_request())
     results.append(test_rapid_requests())
-    
+
     print()
-    
+
     # Summary
     passed = sum(1 for r in results if r["passed"])
     total = len(results)
-    
+
     print("=" * 60)
     print(f"RESULTS: {passed}/{total} PASS")
     print("=" * 60)
-    
+
     # Save results
     run_id = f"run-{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}"
     output_file = os.path.join(OUTPUT_DIR, f"{run_id}-recovery-test.json")
-    
+
     with open(output_file, "w") as f:
         json.dump({
             "run_id": run_id,
@@ -297,9 +297,9 @@ def main():
                 "pass_rate": passed / total if total > 0 else 0
             }
         }, f, indent=2)
-    
+
     print(f"Results saved to: {output_file}")
-    
+
     return 0 if passed == total else 1
 
 

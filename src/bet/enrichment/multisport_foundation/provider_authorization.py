@@ -115,7 +115,7 @@ def authorize_probe(spec: ProviderAuthorizationSpec, env: dict[str, str]) -> Pro
     terms_ok = flag_enabled(env, spec.terms_approval_env_key)
     scope_ok = flag_enabled(env, spec.data_scope_approval_env_key)
     operator_ok = flag_enabled(env, spec.operator_approval_env_key)
-    
+
     if not credential_present:
         status = ProviderAuthorizationStatus.BLOCKED_NO_CREDENTIALS
         reason = "credential_presence_missing"
@@ -131,7 +131,7 @@ def authorize_probe(spec: ProviderAuthorizationSpec, env: dict[str, str]) -> Pro
     else:
         status = ProviderAuthorizationStatus.AUTHORIZED_FOR_SANITIZED_LIVE_PROBE
         reason = ""
-        
+
     return ProviderAuthorizationArtifact(
         artifact_id=f"pass_h:{spec.sport}:{spec.provider_key}",
         sport=spec.sport,

@@ -49,12 +49,12 @@ def find_match_id(data: Any, home_seed: str = "Norway", away_seed: str = "Senega
                 home_val = v.get("name", "") or v.get("team_name", "") or ""
             elif "away" in kl and isinstance(v, dict):
                 away_val = v.get("name", "") or v.get("team_name", "") or ""
-                
+
         if home_seed.lower() in home_val.lower() and away_seed.lower() in away_val.lower():
             for id_key in ("eventId", "match_id", "id", "matchId", "idLive", "fixtureId"):
                 if id_key in data and data[id_key] is not None:
                     return str(data[id_key])
-                    
+
         has_home = False
         has_away = False
         for k, v in data.items():
@@ -79,7 +79,7 @@ def find_match_id(data: Any, home_seed: str = "Norway", away_seed: str = "Senega
             res = find_match_id(item, home_seed, away_seed)
             if res:
                 return res
-                
+
     return None
 
 
@@ -206,9 +206,9 @@ def run_provider_operational_binding_capture_v3(
             # Paced as well
             from bet.enrichment.football_data_foundation.live_response_corpus_capture.provider_operational_transport_v3 import _sdb_pacer
             _sdb_pacer.pace()
-            
+
             raw_tools_data = mcp_client.list_tools()
-            
+
             sdb_mcp_tools_env = create_envelope(
                 provider="sportdb",
                 access_mode="MCP",

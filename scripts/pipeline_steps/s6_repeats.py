@@ -646,14 +646,14 @@ def main() -> None:
         concentration_count = len(output_data.get("concentration_rejected", []))
         invalid_count = len(output_data.get("invalid_input", []))
         accounting = output_data.get("accounting", {})
-        
+
         # Build event_records dynamically inheriting from S5
         event_records = []
         seen_events = set()
         s5_candidates = s5_data.get("candidates") or s5_data.get("payload", {}).get("candidates") or []
         s5_records = s5_data.get("event_records") or s5_data.get("payload", {}).get("event_records") or []
         s5_status_by_evt = {r["canonical_event_id"]: r for r in s5_records}
-        
+
         for c in s5_candidates:
             evt_id = c.get("canonical_event_id")
             if evt_id and evt_id not in seen_events:

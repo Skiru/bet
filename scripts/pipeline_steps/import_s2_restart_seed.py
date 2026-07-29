@@ -31,7 +31,7 @@ def revalidate_event_freshness(
     min_lead_seconds: int = 900,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     """Revalidate event freshness against point-in-time as_of_utc and minimum lead time.
-    
+
     Classifies every event into explicit statuses:
     - ACTIVE_FOR_S2_RESTART
     - STARTED_BEFORE_RESTART

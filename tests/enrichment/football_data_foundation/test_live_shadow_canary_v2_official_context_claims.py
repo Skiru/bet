@@ -19,15 +19,15 @@ def test_build_official_context_claims() -> None:
     )
 
     batch = build_official_context_claim_batch(context)
-    
+
     assert batch.source_key == "fifa-official-match-centre"
     assert len(batch.claims) == 2
-    
+
     # Assert fact types
     fact_types = {c.fact_type for c in batch.claims}
     assert FactType.FIXTURE_IDENTITY in fact_types
     assert FactType.REFERENCE_SCHEDULE in fact_types
-    
+
     for c in batch.claims:
         assert c.proof_level == ProofLevel.REAL_LIVE_API_PROOF
         assert c.selectable_for_production is False
@@ -49,7 +49,7 @@ def test_build_official_context_claims_synthetic() -> None:
     )
 
     batch = build_official_context_claim_batch(context)
-    
+
     assert len(batch.claims) == 1
     claim = batch.claims[0]
     assert claim.fact_type == FactType.FIXTURE_IDENTITY

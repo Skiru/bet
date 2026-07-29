@@ -40,7 +40,7 @@ def audit_sport_promotion_obligations(
     blockers_by_sport: Mapping[str, dict[str, str]] = None,  # sport -> {"class": ..., "reason": ...}
 ) -> PromotionObligationsAudit:
     """Audits the multisport promotion obligations.
-    
+
     If tennis, basketball, esports, or volleyball have sufficient market rows,
     they must produce candidates and quote cards, or be explicitly blocked with
     a valid technical blocker class.
@@ -74,7 +74,7 @@ def audit_sport_promotion_obligations(
         qc_count = quote_cards_by_sport.get(sport, 0)
 
         eligible = events_count > 0 and rows_count > 0
-        
+
         if not eligible:
             results[sport] = SportObligationResult(
                 sport=sport,
@@ -90,10 +90,10 @@ def audit_sport_promotion_obligations(
         if sport_block:
             b_class = sport_block.get("class")
             b_reason = sport_block.get("reason")
-            
+
             if b_class not in VALID_BLOCKER_CLASSES:
                 errors.append(f"Sport {sport} has invalid blocker class '{b_class}'")
-                
+
             results[sport] = SportObligationResult(
                 sport=sport,
                 eligible=True,
@@ -123,7 +123,7 @@ def audit_sport_promotion_obligations(
                     errors.append(f"tennis has {rows_count} market rows and {wimbledon_market_rows} Wimbledon rows, but only generated {cand_count} candidates (minimum 10 required or explicit block)")
                 if qc_count < 5:
                     errors.append(f"tennis has {rows_count} market rows and {wimbledon_market_rows} Wimbledon rows, but only generated {qc_count} quote cards (minimum 5 required or explicit block)")
-            
+
             results[sport] = SportObligationResult(
                 sport=sport,
                 eligible=True,
@@ -179,7 +179,7 @@ def audit_sport_promotion_obligations(
         # All non-football eligible sports have zero candidates
         if all(results[s].candidates_count == 0 for s in non_football_eligible):
             errors.append("All non-football promotion-eligible sports generated zero candidates")
-            
+
         # All non-football eligible sports are blocked by generic/missing mapper reasons
         all_generic_blocked = True
         for s in non_football_eligible:

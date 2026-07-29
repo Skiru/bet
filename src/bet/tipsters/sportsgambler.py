@@ -42,7 +42,7 @@ def build_sportsgambler_entrypoints(date: str, sports: list[str] | None = None) 
     """Build entrypoint URLs for Sportsgambler."""
     if not sports:
         return ["https://www.sportsgambler.com/betting-tips/football/"]
-    
+
     urls = []
     for sport in sports:
         s = sport.lower()
@@ -58,12 +58,12 @@ def is_allowed_sportsgambler_url(url: str) -> bool:
     parsed = urlparse(url)
     if parsed.netloc != "www.sportsgambler.com":
         return False
-    
+
     # Block list as per rules
     for forbidden in ("/r/", "/odds.php", "/betting-sites/go/", "/login", "/signup", "/account", "/bonus", "/casino"):
         if forbidden in url.lower():
             return False
-            
+
     # Allow only betting tips or predictions detail pages
     path = parsed.path.lower()
     if path.startswith("/betting-tips/") or path.startswith("/predictions/"):
@@ -167,7 +167,7 @@ def parse_sportsgambler_detail(html: str, url: str) -> list[TipsterPick]:
             blocks.append(txt)
     if not blocks:
         blocks = text_blocks(html)
-        
+
     picks = []
     seen = set()
     EVENT_PATTERNS = [
@@ -190,13 +190,13 @@ def parse_sportsgambler_detail(html: str, url: str) -> list[TipsterPick]:
             away = clean_team_name(m.group("away"))
             if not is_valid_sportsgambler_teams(home, away):
                 continue
-            
+
             context = joined_context(blocks[i:i + 8], window=8)
             market = extract_market_text(context)
             fam = market_family(market + " " + context)
             dirn = direction(market + " " + context)
             reasoning = collapse_ws(context)[:1100]
-            
+
             # Check length of reasoning to prevent empty claims
             quality = len(reasoning) >= 40
             warnings = []
@@ -204,9 +204,9 @@ def parse_sportsgambler_detail(html: str, url: str) -> list[TipsterPick]:
                 warnings.append("market_not_detected")
             if not quality:
                 warnings.append("weak_or_empty_reasoning")
-                
+
             signals = valuable_signals(context)
-            
+
             # Boost extraction quality if injuries/lineups are found
             base_quality = 0.40
             if market != "N/A":
@@ -215,12 +215,12 @@ def parse_sportsgambler_detail(html: str, url: str) -> list[TipsterPick]:
                 base_quality += min(0.20, len(signals) * 0.05)
             if stats_cited(context):
                 base_quality += 0.10
-                
+
             key = (home.lower(), away.lower(), market.lower())
             if key in seen:
                 continue
             seen.add(key)
-            
+
             picks.append(TipsterPick(
                 source_id="sportsgambler",
                 source_name="Sportsgambler",
@@ -242,7 +242,7 @@ def parse_sportsgambler_detail(html: str, url: str) -> list[TipsterPick]:
                 tipster_name=author,
                 source_record_type="source_claim_evidence",
             ))
-            
+
     if not picks:
         for pat in EVENT_PATTERNS:
             for m in pat.finditer(text):
@@ -257,19 +257,19 @@ def parse_sportsgambler_detail(html: str, url: str) -> list[TipsterPick]:
                 fam = market_family(market + " " + context)
                 dirn = direction(market + " " + context)
                 reasoning = collapse_ws(context)[:1100]
-                
+
                 warnings = []
                 if market == "N/A":
                     warnings.append("market_not_detected")
                 if len(reasoning) < 40:
                     warnings.append("weak_or_empty_reasoning")
                 signals = valuable_signals(context)
-                
+
                 key = (home.lower(), away.lower(), market.lower())
                 if key in seen:
                     continue
                 seen.add(key)
-                
+
                 picks.append(TipsterPick(
                     source_id="sportsgambler",
                     source_name="Sportsgambler",
@@ -299,7 +299,7 @@ def extract_sportsgambler_documents(docs: list[RawDocument]) -> ExtractionResult
     all_picks = []
     warnings = []
     seen_keys = set()
-    
+
     if not docs:
         return ExtractionResult(
             source_id="sportsgambler",
@@ -309,7 +309,7 @@ def extract_sportsgambler_documents(docs: list[RawDocument]) -> ExtractionResult
             warnings=["empty_documents_list"],
             parser_version=PARSER_VERSION
         )
-        
+
     primary_url = docs[0].url
     for doc in docs:
         picks = parse_sportsgambler_detail(doc.html, doc.url)
@@ -319,7 +319,7 @@ def extract_sportsgambler_documents(docs: list[RawDocument]) -> ExtractionResult
                 continue
             seen_keys.add(key)
             all_picks.append(p)
-            
+
     verdict = ExtractorVerdict.OK if all_picks else ExtractorVerdict.EMPTY
     return ExtractionResult(
         source_id="sportsgambler",

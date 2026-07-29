@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 _JS_EXTRACT_GENERIC = """() => {
     const results = [];
     const seen = new Set();
-    
+
     // Strategy 1: Find elements with tipster/prediction-related classes or data attributes
     const selectors = [
         'article', '.prediction', '.tip', '.match', '.event', '.pick',
@@ -37,13 +37,13 @@ _JS_EXTRACT_GENERIC = """() => {
         '[data-match]', '[data-event]', '[data-fixture]',
         'li', 'tr', 'section > div', 'main div'
     ];
-    
+
     const allElements = document.querySelectorAll(selectors.join(', '));
-    
+
     for (const el of allElements) {
         const text = el.innerText || '';
         if (text.length < 15 || text.length > 8000) continue;
-        
+
         // Look for "vs" or " - " patterns indicating a match
         // Support: "Team A vs Team B", "Team A - Team B", "Team A v Team B", "Team A @ Team B"
         const vsPatterns = [
@@ -51,7 +51,7 @@ _JS_EXTRACT_GENERIC = """() => {
             /([A-ZÀ-Ž][A-Za-zÀ-ž0-9.'\\/\\s-]{1,40}?)\\s+[-–—]\\s+([A-ZÀ-Ž][A-Za-zÀ-ž0-9.'\\/\\s-]{1,40})/u,
             /([A-ZÀ-Ž][A-Za-zÀ-ž0-9.'\\/\\s-]{1,40}?)\\s+@\\s+([A-ZÀ-Ž][A-Za-zÀ-ž0-9.'\\/\\s-]{1,40})/u,
         ];
-        
+
         let home = '', away = '';
         for (const pat of vsPatterns) {
             const m = text.match(pat);
@@ -59,12 +59,12 @@ _JS_EXTRACT_GENERIC = """() => {
         }
         if (!home || !away) continue;
         if (home.length < 2 || away.length < 2 || home.length > 45 || away.length > 45) continue;
-        
+
         // Dedup by teams
         const key = (home + '|' + away).toLowerCase();
         if (seen.has(key)) continue;
         seen.add(key);
-        
+
         // Extract reasoning from nearby elements or text after team names
         let reasoning = '';
         const reasoningSelectors = '.reasoning, .analysis, .description, .content, .tip-content, .prediction-content, .expert-analysis, .comment, .text, p';
@@ -74,7 +74,7 @@ _JS_EXTRACT_GENERIC = """() => {
             const afterTeams = text.substring(text.indexOf(away) + away.length).trim();
             if (afterTeams.length > 10) reasoning = afterTeams;
         }
-        
+
         // Extract odds (decimal format: 1.50 - 99.00)
         let odds = null;
         const oddsPatterns = [
@@ -90,7 +90,7 @@ _JS_EXTRACT_GENERIC = """() => {
                 if (val >= 1.01 && val <= 100) { odds = val; break; }
             }
         }
-        
+
         // Extract market from text (extended patterns)
         let market = 'N/A';
         const marketPatterns = [
@@ -110,7 +110,7 @@ _JS_EXTRACT_GENERIC = """() => {
             const m = text.match(pat);
             if (m) { market = m[0].trim(); break; }
         }
-        
+
         // Extract accuracy/percentage
         let accuracy = null;
         const accMatch = text.match(/(\\d{1,3})\\s*%/);
@@ -118,17 +118,17 @@ _JS_EXTRACT_GENERIC = """() => {
             const val = parseInt(accMatch[1]);
             if (val > 0 && val <= 100) accuracy = val;
         }
-        
+
         // Extract tipster name from child elements
         let tipster = '';
         const tipsterEl = el.querySelector('.tipster, .author, .expert, .username, .user, [class*="tipster"], [class*="author"], [class*="user"], [class*="expert"]');
         if (tipsterEl) tipster = (tipsterEl.innerText || '').trim();
-        
+
         // Extract competition/league
         let competition = '';
         const compEl = el.querySelector('.league, .competition, .tournament, [class*="league"], [class*="competition"], [class*="tournament"], [class*="country"]');
         if (compEl) competition = (compEl.innerText || '').trim();
-        
+
         results.push({
             home: home,
             away: away,
@@ -141,7 +141,7 @@ _JS_EXTRACT_GENERIC = """() => {
             full_text: text.substring(0, 1500),
         });
     }
-    
+
     return results;
 }"""
 
@@ -149,71 +149,71 @@ _JS_EXTRACT_GENERIC = """() => {
 _JS_EXTRACT_ZAWODTYPER = """() => {
     const results = [];
     const seen = new Set();
-    
+
     // Strategy 1: Find match-name elements (legacy structure)
     const matchIds = [];
     document.querySelectorAll('[id^="match-name"]').forEach(el => {
         const id = el.id.replace('match-name', '');
         if (id) matchIds.push(id);
     });
-    
+
     for (const mid of matchIds) {
         const matchEl = document.querySelector('#match-name' + mid);
         const typeEl = document.querySelector('#type' + mid);
         if (!matchEl) continue;
-        
+
         const searchDiv = matchEl.querySelector('.searched-in') || matchEl;
         const matchText = (searchDiv.innerText || searchDiv.textContent || '').trim();
-        
+
         const typeDiv = typeEl ? (typeEl.querySelector('.searched-in') || typeEl) : null;
         const typeText = typeDiv ? (typeDiv.innerText || typeDiv.textContent || '').trim() : '';
-        
+
         let home = '', away = '';
         const dashMatch = matchText.match(/(.+?)\\s*[-–—]\\s*(.+)/);
         const vsMatch = matchText.match(/(.+?)\\s+vs\\.?\\s+(.+)/i);
         if (dashMatch) { home = dashMatch[1].trim(); away = dashMatch[2].trim(); }
         else if (vsMatch) { home = vsMatch[1].trim(); away = vsMatch[2].trim(); }
         else continue;
-        
+
         if (home.length < 3 || away.length < 3) continue;
         const key = (home + '|' + away).toLowerCase();
         if (seen.has(key)) continue;
         seen.add(key);
-        
+
         const parentBlock = matchEl.closest('.tip-block, .prediction-block, .row, article, section') || matchEl.parentElement;
         const blockText = parentBlock ? (parentBlock.innerText || '').trim() : '';
-        
+
         let reasoning = '';
         if (parentBlock) {
             const reasoningEl = parentBlock.querySelector('.argument, .reasoning, .uzasadnienie, .description, p');
             if (reasoningEl) reasoning = (reasoningEl.innerText || '').trim();
         }
-        
+
         let odds = null;
         const oddsMatch = blockText.match(/kurs\\s*[:=]?\\s*(\\d+\\.\\d+)|@\\s*(\\d+\\.\\d+)|(\\d+\\.\\d{2})\\b/i);
         if (oddsMatch) {
             const val = parseFloat(oddsMatch[1] || oddsMatch[2] || oddsMatch[3]);
             if (val >= 1.01 && val <= 100) odds = val;
         }
-        
+
         let accuracy = null;
         const accMatch = blockText.match(/(\\d{1,3})\\s*%\\s*\\((\\d+)\\)/);
         if (accMatch) {
             const val = parseInt(accMatch[1]);
             if (val > 0 && val <= 100) accuracy = val;
         }
-        
+
         let tipster = 'ZawodTyper';
         const tipsterMatch = blockText.match(/(?:Typer|Tipster|Autor):\\s*(\\S+)/i);
         if (tipsterMatch) tipster = tipsterMatch[1];
-        
+
         // Build meaningful reasoning
         const reasonParts = [];
         if (accuracy) reasonParts.push('Tipster accuracy: ' + accuracy + '% (tracked)');
         if (typeText) reasonParts.push('Pick: ' + typeText);
         if (reasoning && reasoning.length > 20) reasonParts.push(reasoning);
         const finalReasoning = reasonParts.join(' | ') || blockText.substring(0, 400);
-        
+
         results.push({
             home, away,
             market: typeText || 'N/A',
@@ -223,32 +223,32 @@ _JS_EXTRACT_ZAWODTYPER = """() => {
             full_text: blockText.substring(0, 1500),
         });
     }
-    
+
     // Strategy 2: New ZawodTyper structure — find pick blocks by content patterns
     // The site uses dynamic content with tipster accuracy badges and pick text
     if (results.length < 3) {
         // Look for elements containing "vs" or " - " with team-like content
         const allText = document.body.innerText || '';
         const lines = allText.split('\\n').map(l => l.trim()).filter(l => l.length > 0);
-        
+
         for (let i = 0; i < lines.length; i++) {
             const line = lines[i];
             // Match "Team A - Team B" pattern
             const matchPat = line.match(/^([A-Z\\u00C0-\\u024F][^\\n]{2,35})\\s*[-\\u2013\\u2014]\\s*([A-Z\\u00C0-\\u024F][^\\n]{2,35})$/);
             if (!matchPat) continue;
-            
+
             let home = matchPat[1].trim();
             let away = matchPat[2].trim();
-            
+
             // Skip if contains garbage
             if (home.length < 3 || away.length < 3 || home.length > 40 || away.length > 40) continue;
             const key = (home + '|' + away).toLowerCase();
             if (seen.has(key)) continue;
             seen.add(key);
-            
+
             // Look at surrounding lines for pick details (next 5 lines)
             const context = lines.slice(Math.max(0, i-2), Math.min(lines.length, i+8)).join(' ');
-            
+
             // Extract pick type (next meaningful line after match)
             let typeText = '';
             for (let j = i+1; j < Math.min(i+5, lines.length); j++) {
@@ -259,17 +259,17 @@ _JS_EXTRACT_ZAWODTYPER = """() => {
                     break;
                 }
             }
-            
+
             // Extract accuracy
             let accuracy = null;
             const accMatch = context.match(/(\\d{1,3})\\s*%\\s*\\((\\d+)\\)/);
             if (accMatch) accuracy = parseInt(accMatch[1]);
-            
+
             // Build reasoning
             const reasonParts = [];
             if (accuracy) reasonParts.push('Tipster accuracy: ' + accuracy + '% (tracked)');
             if (typeText) reasonParts.push('Pick: ' + typeText);
-            
+
             results.push({
                 home, away,
                 market: typeText || 'N/A',
@@ -282,14 +282,14 @@ _JS_EXTRACT_ZAWODTYPER = """() => {
             });
         }
     }
-    
+
     return results;
 }"""
 
 # PicksWise: Next.js — extract from __NEXT_DATA__ + rendered expert predictions
 _JS_EXTRACT_PICKSWISE = """() => {
     const results = [];
-    
+
     // Method 1: Extract from __NEXT_DATA__
     try {
         const ndEl = document.querySelector('#__NEXT_DATA__');
@@ -320,7 +320,7 @@ _JS_EXTRACT_PICKSWISE = """() => {
             }
         }
     } catch(e) {}
-    
+
     // Method 2: Extract from rendered Expert Predictions section
     const expertSection = document.querySelector('[class*="expert"], [class*="prediction-detail"], article');
     if (expertSection) {
@@ -328,20 +328,20 @@ _JS_EXTRACT_PICKSWISE = """() => {
         for (const pickEl of picks) {
             const pickText = (pickEl.innerText || '').trim();
             if (pickText.length < 10) continue;
-            
+
             // Extract the pick type and value
             const lines = pickText.split('\\n').map(l => l.trim()).filter(l => l);
             if (lines.length >= 2) {
                 const market = lines[0];
                 const value = lines[1];
-                
+
                 // Find reasoning nearby
                 let reasoning = '';
                 const next = pickEl.nextElementSibling;
                 if (next && next.textContent.length > 30) {
                     reasoning = next.innerText.trim();
                 }
-                
+
                 results.push({
                     home: '',
                     away: '',
@@ -357,20 +357,20 @@ _JS_EXTRACT_PICKSWISE = """() => {
             }
         }
     }
-    
+
     return results;
 }"""
 
 # Sportsgambler: match cards with team names and prediction links
 _JS_EXTRACT_SPORTSGAMBLER = """() => {
     const results = [];
-    
+
     // Find prediction link blocks
     const predLinks = document.querySelectorAll('a[href*="/betting-tips/"][href*="/predictions/"]');
     for (const link of predLinks) {
         const text = (link.innerText || '').trim();
         const lines = text.split('\\n').map(l => l.trim()).filter(l => l);
-        
+
         let home = '', away = '', competition = '';
         for (let i = 0; i < lines.length; i++) {
             if (lines[i].toLowerCase() === 'vs' || lines[i].toLowerCase() === 'v') {
@@ -389,16 +389,16 @@ _JS_EXTRACT_SPORTSGAMBLER = """() => {
                 break;
             }
         }
-        
+
         if (!home || !away || home.length < 3 || away.length < 3) continue;
-        
+
         // Detect sport from URL
         let sport = 'football';
         const href = link.getAttribute('href') || '';
         if (href.includes('/tennis/')) sport = 'tennis';
         else if (href.includes('/basketball/') || href.includes('/nba/')) sport = 'basketball';
         else if (href.includes('/hockey/') || href.includes('/nhl/')) sport = 'hockey';
-        
+
         results.push({
             home: home,
             away: away,
@@ -412,18 +412,18 @@ _JS_EXTRACT_SPORTSGAMBLER = """() => {
             sport: sport,
         });
     }
-    
+
     // Also find match cards in the main content
     const matchCards = document.querySelectorAll('.match-card, .prediction-card, [class*="match-item"]');
     for (const card of matchCards) {
         const text = (card.innerText || '').trim();
         const vsMatch = text.match(/([A-ZÀ-Ž][A-Za-zÀ-ž.'\\s]+?)\\s+vs?\\.?\\s+([A-ZÀ-Ž][A-Za-zÀ-ž.'\\s]+)/u);
         if (!vsMatch) continue;
-        
+
         const home = vsMatch[1].trim();
         const away = vsMatch[2].trim();
         if (home.length < 3 || away.length < 3) continue;
-        
+
         results.push({
             home: home,
             away: away,
@@ -436,7 +436,7 @@ _JS_EXTRACT_SPORTSGAMBLER = """() => {
             full_text: text.substring(0, 1500),
         });
     }
-    
+
     return results;
 }"""
 
@@ -444,34 +444,34 @@ _JS_EXTRACT_SPORTSGAMBLER = """() => {
 _JS_EXTRACT_BETIDEAS = r"""() => {
     const results = [];
     const seen = new Set();
-    
+
     // BetIdeas renders match cards via AJAX with fbbackend plugin
     // Each card has a link to the detail page with format: /league/team-vs-team-id
     const links = document.querySelectorAll('a[href*="-vs-"]');
     for (const link of links) {
         const href = link.href || link.getAttribute('href') || '';
         if (!href || !href.includes('-vs-')) continue;
-        
+
         // Extract team names from link text or href
         const text = (link.innerText || '').trim();
         const hrefParts = href.split('/').filter(p => p);
         const slug = hrefParts[hrefParts.length - 1] || '';
-        
+
         // Extract teams from slug: "team-a-vs-team-b-1234567"
         const vsMatch = slug.match(/^(.+?)-vs-(.+?)-(\d+)$/);
         if (!vsMatch) continue;
-        
+
         let home = vsMatch[1].replace(/-/g, ' ').trim();
         let away = vsMatch[2].replace(/-/g, ' ').trim();
-        
+
         // Capitalize words
         home = home.replace(/\\b\\w/g, c => c.toUpperCase());
         away = away.replace(/\\b\\w/g, c => c.toUpperCase());
-        
+
         const key = (home + '|' + away).toLowerCase();
         if (seen.has(key)) continue;
         seen.add(key);
-        
+
         // Try to find odds from nearby elements
         let odds = null;
         const card = link.closest('[class*="card"], [class*="match"], [class*="fixture"], tr, li, article');
@@ -483,7 +483,7 @@ _JS_EXTRACT_BETIDEAS = r"""() => {
                 if (oddsMatch) odds = parseFloat(oddsMatch[1]);
             }
         }
-        
+
         results.push({
             home: home,
             away: away,
@@ -496,14 +496,14 @@ _JS_EXTRACT_BETIDEAS = r"""() => {
             detail_url: href.startsWith('http') ? href : 'https://betideas.com' + href,
         });
     }
-    
+
     return results;
 }"""
 
 # Deep reasoning extraction — finds expert analysis, comments, tipster arguments
 _JS_EXTRACT_DEEP_REASONING = """() => {
     const sections = [];
-    
+
     // Look for analysis/reasoning sections
     const selectors = [
         '.analysis', '.reasoning', '.expert-analysis', '.prediction-analysis',
@@ -515,13 +515,13 @@ _JS_EXTRACT_DEEP_REASONING = """() => {
         // Comment sections
         '.comments', '.user-comments', '[class*="comment"]',
     ];
-    
+
     for (const sel of selectors) {
         const elements = document.querySelectorAll(sel);
         for (const el of elements) {
             const text = (el.innerText || '').trim();
             if (text.length < 50 || text.length > 5000) continue;
-            
+
             // Find parent event context
             let eventContext = '';
             const parent = el.closest('article, .prediction, .tip, .match, [class*="prediction"]');
@@ -529,7 +529,7 @@ _JS_EXTRACT_DEEP_REASONING = """() => {
                 const headerEl = parent.querySelector('h1, h2, h3, h4, .title, .event-name');
                 if (headerEl) eventContext = (headerEl.innerText || '').trim();
             }
-            
+
             // Extract stats mentioned
             const stats = [];
             const statPatterns = [
@@ -544,7 +544,7 @@ _JS_EXTRACT_DEEP_REASONING = """() => {
                 const matches = text.match(pat);
                 if (matches) stats.push(...matches.map(m => m.trim()));
             }
-            
+
             sections.push({
                 text: text.substring(0, 2000),
                 event_context: eventContext,
@@ -553,7 +553,7 @@ _JS_EXTRACT_DEEP_REASONING = """() => {
             });
         }
     }
-    
+
     return sections;
 }"""
 

@@ -85,7 +85,7 @@ def parse_typersi_static_tables(html: str, url: str) -> list[TipsterPick]:
     soup = BeautifulSoup(html, "html.parser")
     picks = []
     seen = set()
-    
+
     # Iterate over all tables on the page
     tables = soup.find_all("table")
     for table in tables:
@@ -104,7 +104,7 @@ def parse_typersi_static_tables(html: str, url: str) -> list[TipsterPick]:
             cells = [c.get_text(separator=" ").strip() for c in r.find_all(["td", "th"])]
             if len(cells) < 4:
                 continue
-                
+
             # Typersi rows typically contain:
             # - Hour/Time (e.g., "18:00")
             # - Tipster/User
@@ -112,7 +112,7 @@ def parse_typersi_static_tables(html: str, url: str) -> list[TipsterPick]:
             # - Tip/Pick (e.g., "1X", "over 2.5")
             # - Odds/Kurs (e.g., "1.85")
             # - Bookmaker Name or logo
-            
+
             # Let's map cells based on simple heuristic matching:
             # Cell 0/1 usually has time, cell 1/2 user, cell 2/3 event, cell 3/4 tip, cell 4/5 odds
             event_idx = -1
@@ -120,57 +120,57 @@ def parse_typersi_static_tables(html: str, url: str) -> list[TipsterPick]:
                 if "-" in val or " vs " in val or " v " in val:
                     event_idx = idx
                     break
-                    
+
             if event_idx == -1:
                 continue
-                
+
             # Safely extract event teams
             event_raw = cells[event_idx]
             parts = re.split(r'\s+-\s+|\s+vs\.?\s+|\s+v\.?\s+', event_raw, maxsplit=1, flags=re.I)
             if len(parts) != 2:
                 continue
-                
+
             home = clean_typersi_team_name(parts[0])
             away = clean_typersi_team_name(parts[1])
             if is_garbage_team(home) or is_garbage_team(away) or home.lower() == away.lower():
                 continue
-                
+
             # Extract tipster name
             tipster = "Typersi"
             if event_idx > 0:
                 tipster = cells[event_idx - 1] or "Typersi"
-                
+
             # Extract market/pick
             market = "N/A"
             if event_idx + 1 < len(cells):
                 market = cells[event_idx + 1] or "N/A"
-                
+
             # Extract odds
             odds = None
             if event_idx + 2 < len(cells):
                 odds = extract_odds(cells[event_idx + 2])
-                
+
             # Extract bookmaker name as metadata only
             bookmaker = "Metadata Only"
             if event_idx + 3 < len(cells):
                 bookmaker = cells[event_idx + 3] or "Metadata Only"
-                
+
             # Map double chance and basic outcome markets
             normalized_market = market
             if market in ("1", "X", "2", "1X", "X2", "12"):
                 normalized_market = f"Winner: {market}"
-                
+
             fam = market_family(normalized_market)
             dirn = direction(normalized_market)
-            
+
             # Formulate reasoning-free row context
             reasoning = "" # No narrative reasoning text is present in the table itself
-            
+
             key = (home.lower(), away.lower(), normalized_market.lower())
             if key in seen:
                 continue
             seen.add(key)
-            
+
             # Typersi is Polish community site, we preserve Polish chars
             picks.append(TipsterPick(
                 source_id="typersi",
@@ -193,7 +193,7 @@ def parse_typersi_static_tables(html: str, url: str) -> list[TipsterPick]:
                 valuable_signals={"bookmaker_metadata": [bookmaker]},
                 source_record_type="source_claim_evidence",
             ))
-            
+
     return picks
 
 

@@ -23,12 +23,12 @@ def build_tipster_evidence_handoff(payload: dict[str, Any]) -> dict[str, Any]:
 
         # Extract readiness records
         readiness_list = [p.get("agent_readiness", {}) for p in picks_in_group]
-        
+
         needs_match_resolution = any(r.get("requires_match_resolution", False) for r in readiness_list)
         needs_manual_review = any(
-            r.get("agent_use_decision") == "NEEDS_MANUAL_REVIEW" 
-            or not p.get("reasoning") 
-            or len(p.get("reasoning", "")) < 30 
+            r.get("agent_use_decision") == "NEEDS_MANUAL_REVIEW"
+            or not p.get("reasoning")
+            or len(p.get("reasoning", "")) < 30
             for p, r in zip(picks_in_group, readiness_list)
         )
 
@@ -43,7 +43,7 @@ def build_tipster_evidence_handoff(payload: dict[str, Any]) -> dict[str, Any]:
         from .source_registry import CERTIFIED_SHADOW_SOURCE_IDS
         certified_srcs = sorted(list({p.get("source_id") for p in picks_in_group if p.get("source_id") and p.get("source_id") in CERTIFIED_SHADOW_SOURCE_IDS}))
         operator_srcs = sorted(list({p.get("source_id") for p in picks_in_group if p.get("source_id") and p.get("source_id") not in CERTIFIED_SHADOW_SOURCE_IDS}))
-        
+
         if certified_srcs and operator_srcs:
             source_risk_mix = "mixed"
         elif certified_srcs:

@@ -35,12 +35,12 @@ def test_certified_shadow_consensus_and_handoff(tmp_path):
         p.source_name = "ZawodTyper"
 
     res_typersi = extract_typersi_document(doc_typersi)
-    
+
     all_results = [res_zawod, res_typersi]
     picks = [p for r in all_results for p in r.picks]
-    
+
     assert len(picks) == 2
-    
+
     consensus = consensus_from_picks(picks)
     assert len(consensus) == 1
     assert consensus[0]["total_tipsters"] == 2
@@ -53,7 +53,7 @@ def test_certified_shadow_consensus_and_handoff(tmp_path):
         "sources": [r.to_dict() for r in all_results],
         "consensus": consensus,
     }
-    
+
     handoff = build_tipster_evidence_handoff(payload)
     assert len(handoff["events"]) == 1
     event = handoff["events"][0]

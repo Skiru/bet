@@ -41,7 +41,7 @@ def default_probe_policies(env: dict[str, str] | None = None) -> list[ProviderPr
 def build_probe_plan_payload(policies: list[ProviderProbePolicy] | None = None) -> dict[str, Any]:
     if policies is None:
         policies = default_probe_policies()
-        
+
     by_sport: dict[str, list[dict[str, Any]]] = {sport: [] for sport in TARGET_SPORTS}
     for policy in policies:
         # Covert policy to a dict
@@ -77,14 +77,14 @@ def build_probe_results_payload(
         # Use only presence of keys in os.environ, mock values for safety,
         # never actual secrets in env.
         env = {k: "present" for k in os.environ if os.environ.get(k)}
-        
+
     if policies is None:
         policies = default_probe_policies()
 
     by_sport: dict[str, list[dict[str, Any]]] = {sport: [] for sport in TARGET_SPORTS}
-    
+
     policy_by_route = {p.route_key: p for p in policies}
-    
+
     for spec in default_route_specs():
         mapping = build_mapping_artifact(spec, env)
         policy = policy_by_route.get(spec.route_key)
@@ -97,7 +97,7 @@ def build_probe_results_payload(
                 allow_real_network=False,
                 terms_review_approved=(spec.provider_key == "api-sports-family"),
             )
-        
+
         artifact = run_provider_probe(mapping, policy, env)
         by_sport[spec.sport].append(artifact.to_jsonable())
 

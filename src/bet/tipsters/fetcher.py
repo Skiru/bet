@@ -60,7 +60,7 @@ def fetch_public_html(
                 reviewed_at_utc = str(review.get("reviewed_at_utc", "")).strip()
                 notes = str(review.get("notes", "")).lower()
                 status = str(review.get("status", "")).lower()
-                
+
                 # Check all compliance requirements
                 has_flags = (
                     review.get("terms_reviewed") is True and
@@ -68,7 +68,7 @@ def fetch_public_html(
                     review.get("public_html_only") is True and
                     review.get("no_auth_no_premium_no_bypass") is True
                 )
-                
+
                 import re
                 valid_ts = bool(re.match(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$", reviewed_at_utc))
                 placeholders = {"", "REPLACE_WITH_OPERATOR", "REPLACE_WITH_UTC_TIMESTAMP"}
@@ -77,10 +77,10 @@ def fetch_public_html(
                     reviewed_at_utc not in placeholders and
                     valid_ts
                 )
-                
+
                 valid_notes = "np_ajax.php" in notes or "public xhr review" in notes
                 valid_status = status in ("allow_live_dry_run", "allow_shadow_dry_run")
-                
+
                 if allow_public_xhr_capture and has_flags and valid_attestation and valid_notes and valid_status:
                     is_allowed = True
                 else:
@@ -94,7 +94,7 @@ def fetch_public_html(
                         reason = "zawodtyper_xhr_review_notes_must_mention_np_ajax_or_public_xhr_review"
                     elif not valid_status:
                         reason = f"invalid_review_status:{status}"
-        
+
         if not is_allowed:
             return FetchOutcome(False, reason=f"compliance_block:BLOCK_XHR:{reason}")
 

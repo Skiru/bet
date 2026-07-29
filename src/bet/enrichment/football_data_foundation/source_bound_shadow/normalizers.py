@@ -52,7 +52,7 @@ def normalize_envelope(env: ProviderEnvelope, provider_match_id: Optional[str] =
     valid_statuses = {"SUCCESS", "DISCOVERY_FETCHED", "FETCHED", "RESCUE_FETCHED"}
     if env.status not in valid_statuses:
         return []
-    
+
     valid_providers = {"sportdb", "highlightly", "api-football", "football-data-org", "espn-baseline"}
     if env.provider not in valid_providers:
         return []

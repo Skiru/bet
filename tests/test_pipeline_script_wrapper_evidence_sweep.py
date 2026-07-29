@@ -278,7 +278,7 @@ def _seed_prior_steps(environ: dict[str, str], step_id: str):
     run_root = Path(environ["BET_PIPELINE_RUN_ROOT"])
     (run_root / "artifacts").mkdir(parents=True, exist_ok=True)
     (run_root / "data").mkdir(parents=True, exist_ok=True)
-    
+
     alpha_beta_eid = canonical_event_id({"home_team": "Alpha", "away_team": "Beta", "sport": "football", "competition": "Test League", "scheduled_time": "2026-06-25T18:00:00Z"})
     s1e_path = run_root / "data" / "2026-06-25_s1e_event_universe.json"
     s1e_path.write_text(json.dumps({
@@ -295,7 +295,7 @@ def _seed_prior_steps(environ: dict[str, str], step_id: str):
             }
         }
     }))
-    
+
     for name in ("2026-06-25_s4_valuation_candidates.json", "2026-06-25_s7_gate_results.json", "2026-06-25_s7b_superbet_manual_mapping.json", "2026-06-25_s8_superbet_manual_quote_pack.json"):
         p = run_root / "data" / name
         if p.exists():
@@ -303,7 +303,7 @@ def _seed_prior_steps(environ: dict[str, str], step_id: str):
                 p.unlink()
             except OSError:
                 pass
-    
+
     # S2
     s2_path = run_root / "data" / "2026-06-25_s2_shortlist.json"
     s2_path.write_text(json.dumps({
@@ -324,7 +324,7 @@ def _seed_prior_steps(environ: dict[str, str], step_id: str):
         }
     }
     (run_root / "artifacts" / "S2.json").write_text(json.dumps(s2_ev))
-    
+
     # S3
     s3_ev = {
         "schema_version": 1,
@@ -343,7 +343,7 @@ def _seed_prior_steps(environ: dict[str, str], step_id: str):
         "event_records": [{"canonical_event_id": alpha_beta_eid, "terminal_status": "PASS"}],
         "analyses": [{"canonical_event_id": alpha_beta_eid, "fixture_id": 10, "home_team": "Alpha", "away_team": "Beta", "sport": "football", "best_market": {"name": "Match Winner", "market_family": "RESULT"}}]
     }))
-    
+
     # S4
     s4_ev = {
         "schema_version": 1,
@@ -381,7 +381,7 @@ def _seed_prior_steps(environ: dict[str, str], step_id: str):
             }
         ]
     }))
-    
+
     # S5
     s5_ev = {
         "schema_version": 1,
@@ -496,7 +496,7 @@ def _seed_prior_steps(environ: dict[str, str], step_id: str):
             "overlapping_terminal_categories": []
         }
     }))
-    
+
     # S7
     s7_ev = {
         "schema_version": 1,
@@ -534,7 +534,7 @@ def _seed_prior_steps(environ: dict[str, str], step_id: str):
         ],
         "analytical_approved": []
     }))
-    
+
     # S7b
     s7b_ev = {
         "schema_version": 1,

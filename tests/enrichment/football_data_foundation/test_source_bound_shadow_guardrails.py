@@ -14,7 +14,7 @@ def test_guardrail_forbids_live_network_usage(tmp_path):
         )
         assert result["verdict"] == "PASS"
         assert result["network_probe_check"] == "PASS"
-        
+
         # Verify no committed test reports were written to the standard workspace path
         workspace_test_report = Path("reports/football_data_foundation/source_bound_shadow/worldcup2026_norway_senegal_test")
         assert not workspace_test_report.exists()
@@ -23,21 +23,21 @@ def test_changed_files_ast_parseable_and_multiline():
     src_dir = Path("src/bet/enrichment/football_data_foundation/source_bound_shadow")
     files = list(src_dir.glob("*.py"))
     assert len(files) >= 5
-    
+
     for f in files:
         content = f.read_text(encoding="utf-8")
         # Assert ast-parseable (REQ-REVIEW-003)
         tree = ast.parse(content)
         assert tree is not None
-        
+
         # Assert no CR bytes (REQ-REVIEW-002)
         assert b"\r" not in f.read_bytes()
-        
+
         # Assert line count >= 40 (unless __init__.py) (REQ-REVIEW-004)
         lines = content.split("\n")
         if f.name != "__init__.py":
             assert len(lines) >= 40, f"File {f.name} has only {len(lines)} lines, must be >= 40"
-            
+
         # Assert no from __future__ import annotations (REQ-REVIEW-006)
         assert "from __future__ import annotations" not in content, f"File {f.name} contains forbidden import annotations"
         assert "from future import annotations" not in content, f"File {f.name} contains forbidden import annotations"

@@ -13,7 +13,7 @@ def run_contaminated_smoke():
     try:
         # Run central safety check
         classification = get_central_safety_classification()
-        
+
         # Enforce and map to contract properties
         decision = "SMOKE_PASS_NOT_BETTING_VALID" if not classification.production_eligibility else "PASS"
         betting_valid = classification.betting_valid
@@ -41,7 +41,7 @@ def run_clean_unquoted_smoke():
     # Ensure no contamination environment variable is active
     for key in ["BET_MOCK_ODDS", "BET_MOCK_NOW", "BET_PIPELINE_NOW", "BET_NO_DB", "BET_PIPELINE_SKIP_FETCH"]:
         os.environ.pop(key, None)
-        
+
     # Clean analytical state with unquoted candidates
     clean_state = {
         "reviewed": {
@@ -51,9 +51,9 @@ def run_clean_unquoted_smoke():
             }
         }
     }
-    
+
     classification = get_central_safety_classification(clean_state)
-    
+
     analytical_coverage_allowed = classification.production_eligibility
     decision = "MANUAL_QUOTE_REQUIRED" if not classification.can_place_bet_now or clean_state["reviewed"]["cand-1"]["odds_decimal"] <= 1.0 else "READY_TO_PLACE"
     can_place_bet_now = classification.can_place_bet_now and clean_state["reviewed"]["cand-1"]["odds_decimal"] > 1.0

@@ -521,7 +521,7 @@ def derive_l10_series_for_market_family(
     # Path 2: Reconstruct from l10_matches or summaries
     stats_a = stats_seed.get("stats_a_summary") or {}
     stats_b = stats_seed.get("stats_b_summary") or {}
-    
+
     stat_key_map = {
         "GOALS_TOTALS": "goals",
         "CORNERS": "corners",
@@ -530,10 +530,10 @@ def derive_l10_series_for_market_family(
         "SHOTS_ON_TARGET": "shots_on_target",
         "RESULT": "goals",
     }
-    
+
     stat_key = stat_key_map.get(market_family)
     sport = _normalized_text(stats_seed.get("sport")).lower()
-    
+
     if sport == "tennis":
         stat_key = "games_won"
         combined_text = str(market_family).lower() + " " + str((stats_seed.get("best_market") or {}).get("name", "")).lower() + " " + str(stats_seed.get("market_label", "")).lower() + " " + str(stats_seed.get("market", "")).lower()
@@ -552,10 +552,10 @@ def derive_l10_series_for_market_family(
 
     team_a_l10 = []
     team_b_l10 = []
-    
+
     team_a_raw = raw_data.get("team_a_l10") or {}
     team_b_raw = raw_data.get("team_b_l10") or {}
-    
+
     for team_raw, target_list in ((team_a_raw, team_a_l10), (team_b_raw, team_b_l10)):
         matches = team_raw.get("l10_matches") or []
         for match in matches:
@@ -877,10 +877,10 @@ def validate_market_probability_input(input_data: MarketProbabilityInput) -> tup
 
     if not input_data.market_family:
         return False, "MARKET_SPECIFIC_INPUT_NOT_BUILT"
-        
+
     if "UNSUPPORTED" in input_data.market_family or "PROP" in input_data.market_family or "tackles" in input_data.market_type:
         return False, "UNSUPPORTED_PROP_MATCH"
-        
+
     if input_data.market_family not in SUPPORTED_MARKET_FAMILIES:
         return False, "MARKET_FAMILY_NOT_SUPPORTED_BY_ENGINE"
 

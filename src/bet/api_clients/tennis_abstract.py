@@ -88,10 +88,10 @@ class TennisAbstractClient(BaseAPIClient):
         """Fuzzy match opponent name (handles abbreviations, diacritics)."""
         opp_norm = self._normalize_name(opp_name)
         target_norm = self._normalize_name(target_name)
-        
+
         if opp_norm == target_norm:
             return True
-        
+
         # Try rapidfuzz
         try:
             from rapidfuzz import fuzz
@@ -101,7 +101,7 @@ class TennisAbstractClient(BaseAPIClient):
                 return True
         except ImportError:
             pass
-        
+
         # Last-name fallback
         opp_parts = opp_name.strip().split()
         target_parts = target_name.strip().split()
@@ -110,7 +110,7 @@ class TennisAbstractClient(BaseAPIClient):
             target_last = self._normalize_name(target_parts[-1])
             if len(opp_last) > 3 and opp_last == target_last:
                 return True
-        
+
         return False
 
     def resolve_team_id(self, team_name: str, **kwargs) -> str | None:
@@ -367,9 +367,9 @@ class TennisAbstractClient(BaseAPIClient):
     @staticmethod
     def _url_name(player_name: str) -> str:
         """Convert player name to URL format (remove spaces, special chars, transliterate diacritics).
-        
+
         Tennis Abstract uses ASCII-only names without spaces:
-        - "Vit Kopřiva" → "VitKopriva"  
+        - "Vit Kopřiva" → "VitKopriva"
         - "Jiří Lehečka" → "JiriLehecka"
         - "Carlos Alcaraz" → "CarlosAlcaraz"
         """

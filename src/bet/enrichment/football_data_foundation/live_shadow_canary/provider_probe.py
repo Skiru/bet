@@ -17,7 +17,7 @@ def run_provider_shadow_probes(
     out_batches: Optional[List[EvidenceClaimBatch]] = None
 ) -> List[ProviderProbeResult]:
     results = []
-    
+
     # 1. SportDB Probe
     sportdb_key = os.getenv("SPORTDB_API_KEY")
     if not sportdb_key:

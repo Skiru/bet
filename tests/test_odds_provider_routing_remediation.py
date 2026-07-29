@@ -14,13 +14,13 @@ def test_secret_values_never_emitted_in_provider_reports():
     repo_root = Path(__file__).resolve().parents[1]
     artifacts_dir = repo_root / ".kilo/artifacts"
     keys_file = repo_root / "config/api_keys.json"
-    
+
     if not keys_file.exists():
         pytest.skip("api_keys.json is missing; cannot run audit validation")
-        
+
     keys_data = json.loads(keys_file.read_text(encoding="utf-8"))
     secret_values = [str(v).strip() for v in keys_data.values() if v and len(str(v)) > 8]
-    
+
     # Audit all files inside the artifacts directory
     for filepath in artifacts_dir.glob("*.md"):
         content = filepath.read_text(encoding="utf-8")
@@ -35,9 +35,9 @@ def test_the_odds_api_env_precedence_is_explicit(monkeypatch, tmp_path):
     config_dir.mkdir()
     keys_file = config_dir / "api_keys.json"
     keys_file.write_text('{"odds-api": "config-key"}', encoding="utf-8")
-    
+
     monkeypatch.setattr("bet.discovery.sources.odds_api.CONFIG_DIR", config_dir)
-    
+
     # Case 1: Environment variable is set
     monkeypatch.setenv("ODDS_API_KEY", "env-key")
     adapter = OddsAPIAdapter()
@@ -50,10 +50,10 @@ def test_the_odds_api_config_key_can_be_selected_when_env_missing(monkeypatch, t
     config_dir.mkdir()
     keys_file = config_dir / "api_keys.json"
     keys_file.write_text('{"odds-api": "config-key"}', encoding="utf-8")
-    
+
     monkeypatch.setattr("bet.discovery.sources.odds_api.CONFIG_DIR", config_dir)
     monkeypatch.delenv("ODDS_API_KEY", raising=False)
-    
+
     adapter = OddsAPIAdapter()
     assert adapter._api_key == "config-key"
 
@@ -63,7 +63,7 @@ def test_odds_provider_routing_marks_oddspapi_shadow_only(monkeypatch):
     monkeypatch.setenv("ODDSPAPI_ENABLE_SHADOW", "1")
     monkeypatch.delenv("ODDSPAPI_ENABLE_LIVE", raising=False)
     monkeypatch.delenv("ODDSPAPI_LIVE_CERTIFIED", raising=False)
-    
+
     status = odds_source_access_status("oddspapi")
     assert status["mode"] == "shadow"
     assert status["enabled"] is True
@@ -78,7 +78,7 @@ def test_oddspapi_not_production_selectable_without_adapter_certification(monkey
     status_a = odds_source_access_status("oddspapi")
     assert status_a["production_selectable"] is False
     assert status_a["enabled"] is False
-    
+
     # Scenario B: Certified but live disabled
     monkeypatch.delenv("ODDSPAPI_ENABLE_LIVE", raising=False)
     monkeypatch.setenv("ODDSPAPI_LIVE_CERTIFIED", "1")
@@ -89,22 +89,22 @@ def test_oddspapi_not_production_selectable_without_adapter_certification(monkey
 def test_provider_auth_fail_does_not_become_zero_odds_pass(monkeypatch):
     """Verify that an authentication failure (HTTP 401) is explicitly recorded as auth failure."""
     adapter = OddsAPIAdapter(api_key="invalid-key")
-    
+
     class MockResponse:
         status_code = 401
         text = "Unauthorized"
         headers = {}
         def json(self):
             return {"error": "Invalid API key"}
-            
+
     # Mock request wrapper or requests.get to return 401
     import requests
     def mock_get(*args, **kwargs):
         return MockResponse()
-        
+
     monkeypatch.setattr(requests, "get", mock_get)
     monkeypatch.setattr("bet.discovery.sources.odds_api.BASE_URL", "https://mock")
-    
+
     events = adapter._fetch_for_key("soccer_epl", "football", "2026-06-29")
     assert events == []
     assert adapter._auth_failed is True
@@ -118,9 +118,9 @@ def test_bet_builder_provider_odds_are_reference_not_operator_combined_quote():
     # Our system must refuse to compute combined bookmaker quotes mathematically.
     home_win_odds = 2.0
     over_25_goals_odds = 1.8
-    
+
     def calculate_compound_bet_builder_odds(odds_list: list[float]) -> float:
         raise ValueError("CRITICAL ARTIFACT GUARD: Compounding correlated outcomes to fabricate combined Bet Builder odds is strictly prohibited!")
-        
+
     with pytest.raises(ValueError, match="Compounding correlated outcomes"):
         calculate_compound_bet_builder_odds([home_win_odds, over_25_goals_odds])

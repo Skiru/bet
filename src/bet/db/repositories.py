@@ -794,11 +794,11 @@ class StatsRepo:
         WARNING: Concurrent Write Hazard!
         Three scripts write to team_form simultaneously:
         - build_stats_cache.py (via ingest_scan_stats)
-        - data_enrichment_agent.py (via _save_to_db) 
+        - data_enrichment_agent.py (via _save_to_db)
         - deep_stats_report.py (inline enrichment when NO_ENRICH is not set)
         Pipeline must serialize these writes (run sequentially, not in parallel).
         If parallel execution is needed, use WAL mode + retry on SQLITE_BUSY.
-        
+
         Uses DELETE+INSERT wrapped in a SAVEPOINT to ensure atomicity.
         SQLite ON CONFLICT doesn't work with expression-based unique indexes
         (NULL h2h_opponent_id).
@@ -1057,10 +1057,10 @@ class FootballSnapshotReader:
 
 class FixtureCapabilityRepo:
     """Repository for fixture-scoped observations and projections."""
-    
+
     def __init__(self, conn: sqlite3.Connection):
         self.conn = conn
-    
+
     def save_observation(self, obs: FixtureCapabilityObservation) -> int:
         """Insert observation and return a deterministic observation ID."""
         try:
@@ -1115,7 +1115,7 @@ class FixtureCapabilityRepo:
             if row:
                 return int(row["id"] if hasattr(row, "keys") else row[0])
             raise
-    
+
     def get_observation(
         self,
         canonical_fixture_id: int,
@@ -1132,7 +1132,7 @@ class FixtureCapabilityRepo:
             (canonical_fixture_id, team_id, capability, source, valid_at),
         ).fetchone()
         return self._row_to_observation(row) if row else None
-    
+
     def get_observations_for_fixture(
         self,
         canonical_fixture_id: int,
@@ -1154,10 +1154,10 @@ class FixtureCapabilityRepo:
                 (canonical_fixture_id,),
             ).fetchall()
         return [self._row_to_observation(r) for r in rows]
-    
+
     def save_projection(self, proj: FixtureCapabilityProjection) -> int:
         """Upsert projection. Returns projection ID.
-        
+
         Uses DELETE+INSERT to handle upsert with expression-based unique index.
         """
         self.conn.execute("SAVEPOINT save_projection")
@@ -1198,7 +1198,7 @@ class FixtureCapabilityRepo:
             self.conn.execute("ROLLBACK TO SAVEPOINT save_projection")
             self.conn.execute("RELEASE SAVEPOINT save_projection")
             raise
-    
+
     def get_projection(
         self,
         canonical_fixture_id: int,
@@ -1214,7 +1214,7 @@ class FixtureCapabilityRepo:
             (canonical_fixture_id, team_id, capability, analysis_cutoff_at),
         ).fetchone()
         return self._row_to_projection(row) if row else None
-    
+
     def get_projections_for_fixture(
         self,
         canonical_fixture_id: int,
@@ -1236,7 +1236,7 @@ class FixtureCapabilityRepo:
                 (canonical_fixture_id,),
             ).fetchall()
         return [self._row_to_projection(r) for r in rows]
-    
+
     def get_snapshot_for_analysis(
         self,
         canonical_fixture_id: int,
@@ -1245,7 +1245,7 @@ class FixtureCapabilityRepo:
         analysis_cutoff_at: str,
     ) -> dict:
         """Get fixture-scoped snapshot for downstream analysis.
-        
+
         Returns dict with:
         - status: selected_status
         - source: selected_source
@@ -1267,7 +1267,7 @@ class FixtureCapabilityRepo:
                 "payload": None,
                 "value": "UNKNOWN",
             }
-        
+
         # Get linked observation for evidence details
         obs = None
         if proj.selected_observation_id:
@@ -1276,7 +1276,7 @@ class FixtureCapabilityRepo:
                 (proj.selected_observation_id,),
             ).fetchone()
             obs = self._row_to_observation(row) if row else None
-        
+
         payload = None
         if obs and obs.payload_json:
             payload = json.loads(obs.payload_json)
@@ -1297,7 +1297,7 @@ class FixtureCapabilityRepo:
             "primary_status": proj.primary_status,
             "fallback_reason": proj.fallback_reason,
         }
-    
+
     @staticmethod
     def _row_to_observation(row: sqlite3.Row) -> FixtureCapabilityObservation:
         return FixtureCapabilityObservation(
@@ -1323,7 +1323,7 @@ class FixtureCapabilityRepo:
             dto_version=row["dto_version"] if "dto_version" in row.keys() else "1",
             evidence_package_id=row["evidence_package_id"] if "evidence_package_id" in row.keys() else "",
         )
-    
+
     @staticmethod
     def _row_to_projection(row: sqlite3.Row) -> FixtureCapabilityProjection:
         return FixtureCapabilityProjection(

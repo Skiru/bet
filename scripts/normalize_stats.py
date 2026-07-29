@@ -786,7 +786,7 @@ def build_safety_input(
     """DB-first wrapper with JSON cache fallback."""
     from bet.enrichment.football_service import parse_enrichment_mode
     mode = parse_enrichment_mode()
-    
+
     if mode == "shadow" and sport.lower() == "football":
         if not fixture_id or not analysis_cutoff_at:
             print("[SHADOW] Skipping shadow enrichment run: fixture_id or analysis_cutoff_at is unavailable")

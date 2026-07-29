@@ -107,9 +107,9 @@ def validate_argument(value: Any, spec: dict) -> tuple[bool, Optional[str], Any]
         if spec.get('required'):
             return False, "Required argument missing", None
         return True, None, spec.get('default')
-    
+
     arg_type = spec.get('type')
-    
+
     if arg_type == 'string':
         if not isinstance(value, str):
             return False, f"Expected string, got {type(value).__name__}", None
@@ -120,7 +120,7 @@ def validate_argument(value: Any, spec: dict) -> tuple[bool, Optional[str], Any]
         if re.search(dangerous, value):
             return False, "Value contains forbidden characters", None
         return True, None, value
-    
+
     elif arg_type == 'integer':
         try:
             num = int(value)
@@ -131,7 +131,7 @@ def validate_argument(value: Any, spec: dict) -> tuple[bool, Optional[str], Any]
         if spec.get('maximum') is not None and num > spec['maximum']:
             return False, f"Value {num} above maximum {spec['maximum']}", None
         return True, None, num
-    
+
     elif arg_type == 'boolean':
         if isinstance(value, bool):
             return True, None, value
@@ -140,7 +140,7 @@ def validate_argument(value: Any, spec: dict) -> tuple[bool, Optional[str], Any]
         if value in ('false', '0', False):
             return True, None, False
         return False, f"Expected boolean, got {type(value).__name__}", None
-    
+
     return False, f"Unknown type: {arg_type}", None
 
 
@@ -163,7 +163,7 @@ def execute_operation(
     request_id = request_id or f"req-{uuid.uuid4()}"
     started_at = datetime.now(timezone.utc).isoformat()
     start_time = time.time()
-    
+
     # Load manifest
     try:
         manifest = load_manifest()
@@ -184,7 +184,7 @@ def execute_operation(
             "warnings": [],
             "error": f"Failed to load manifest: {e}",
         }
-    
+
     # Validate operation exists
     operation = manifest.get('operations', {}).get(operation_id)
     if not operation:
@@ -204,7 +204,7 @@ def execute_operation(
             "warnings": [],
             "error": f"Unknown operation: {operation_id}",
         }
-    
+
     # Validate script path
     script_path = operation.get('script', '')
     if not validate_path(script_path, str(PROJECT_ROOT)):
@@ -224,11 +224,11 @@ def execute_operation(
             "warnings": [],
             "error": "Invalid script path",
         }
-    
+
     # Validate arguments
     validated_args = {}
     allowed_args = operation.get('allowed_arguments', {})
-    
+
     # Check for unknown arguments
     for key in arguments:
         if key not in allowed_args:
@@ -248,7 +248,7 @@ def execute_operation(
                 "warnings": [],
                 "error": f"Unknown argument: {key}",
             }
-    
+
     # Validate each argument
     for arg_name, arg_spec in allowed_args.items():
         value = arguments.get(arg_name)
@@ -272,21 +272,21 @@ def execute_operation(
             }
         if coerced is not None:
             validated_args[arg_name] = coerced
-    
+
     # Build command
     executable = operation.get('executable', '/opt/homebrew/bin/python3')
     full_script_path = PROJECT_ROOT / script_path
-    
+
     cmd = [executable, str(full_script_path)]
     for key, value in validated_args.items():
         arg_name = "--" + key.replace('_', '-')
         cmd.extend([arg_name, str(value)])
-    
+
     # Execute
     timeout_seconds = timeout_override or operation.get('timeout_seconds', 10)
     max_stdout = operation.get('max_stdout_bytes', 32768)
     max_stderr = operation.get('max_stderr_bytes', 16384)
-    
+
     try:
         proc = subprocess.run(
             cmd,
@@ -300,14 +300,14 @@ def execute_operation(
         stderr_raw = proc.stderr.decode('utf-8', errors='replace')
         timed_out = False
         truncated = False
-        
+
     except subprocess.TimeoutExpired as e:
         exit_code = -1
         stdout_raw = (e.stdout or b'').decode('utf-8', errors='replace') if e.stdout else ''
         stderr_raw = (e.stderr or b'').decode('utf-8', errors='replace') if e.stderr else ''
         timed_out = True
         truncated = False
-        
+
     except Exception as e:
         duration_ms = int((time.time() - start_time) * 1000)
         return {
@@ -326,20 +326,20 @@ def execute_operation(
             "warnings": [],
             "error": str(e),
         }
-    
+
     duration_ms = int((time.time() - start_time) * 1000)
-    
+
     # Check output limits
     stdout_bytes = len(stdout_raw.encode('utf-8'))
     stderr_bytes = len(stderr_raw.encode('utf-8'))
-    
+
     if stdout_bytes > max_stdout or stderr_bytes > max_stderr:
         truncated = True
-    
+
     # Redact secrets
     stdout_safe = redact_secrets(stdout_raw)
     stderr_safe = redact_secrets(stderr_raw)
-    
+
     # Determine status
     if timed_out:
         status = "timeout"
@@ -349,7 +349,7 @@ def execute_operation(
         status = "failed"
     else:
         status = "success"
-    
+
     # Parse JSON from stdout
     parsed_result = {}
     try:
@@ -357,7 +357,7 @@ def execute_operation(
             parsed_result = json.loads(stdout_safe.strip())
     except json.JSONDecodeError:
         pass
-    
+
     return {
         "schema_version": 1,
         "status": status,
@@ -393,18 +393,18 @@ def execute_operation(
 def test_valid_execution() -> list[TestResult]:
     """Test valid execution with correct arguments."""
     results = []
-    
+
     for i in range(20):
         match_id = f"test_match_{i:03d}"
         result = execute_operation("fixture_success", {"match_id": match_id})
-        
+
         passed = (
             result["status"] == "success" and
             result["exit_code"] == 0 and
             result["parsed_result"].get("match_id") == match_id and
             not result["stdout"]["truncated"]
         )
-        
+
         results.append(TestResult(
             test_id=f"valid_exec_{i:03d}",
             test_name=f"Valid execution #{i+1}",
@@ -415,14 +415,14 @@ def test_valid_execution() -> list[TestResult]:
             duration_ms=result["duration_ms"],
             evidence={"match_id": match_id, "result": result},
         ))
-    
+
     return results
 
 
 def test_validation_failures() -> list[TestResult]:
     """Test that invalid requests are rejected before execution."""
     results = []
-    
+
     # Unknown operation
     result = execute_operation("unknown_operation", {})
     results.append(TestResult(
@@ -435,7 +435,7 @@ def test_validation_failures() -> list[TestResult]:
         duration_ms=result["duration_ms"],
         error=result.get("error"),
     ))
-    
+
     # Missing required argument
     result = execute_operation("fixture_success", {})
     results.append(TestResult(
@@ -448,7 +448,7 @@ def test_validation_failures() -> list[TestResult]:
         duration_ms=result["duration_ms"],
         error=result.get("error"),
     ))
-    
+
     # Unknown argument
     result = execute_operation("fixture_success", {"match_id": "test", "unknown_arg": "value"})
     results.append(TestResult(
@@ -461,7 +461,7 @@ def test_validation_failures() -> list[TestResult]:
         duration_ms=result["duration_ms"],
         error=result.get("error"),
     ))
-    
+
     # Invalid type
     result = execute_operation("fixture_failure", {"error_code": "not_a_number"})
     results.append(TestResult(
@@ -474,7 +474,7 @@ def test_validation_failures() -> list[TestResult]:
         duration_ms=result["duration_ms"],
         error=result.get("error"),
     ))
-    
+
     # Invalid pattern
     result = execute_operation("fixture_success", {"match_id": "invalid!@#$%"})
     results.append(TestResult(
@@ -487,7 +487,7 @@ def test_validation_failures() -> list[TestResult]:
         duration_ms=result["duration_ms"],
         error=result.get("error"),
     ))
-    
+
     # Oversized argument (too long match_id)
     result = execute_operation("fixture_success", {"match_id": "x" * 100})
     results.append(TestResult(
@@ -500,7 +500,7 @@ def test_validation_failures() -> list[TestResult]:
         duration_ms=result["duration_ms"],
         error=result.get("error"),
     ))
-    
+
     # Shell metacharacters in argument
     result = execute_operation("fixture_success", {"match_id": "test; rm -rf /"})
     results.append(TestResult(
@@ -513,7 +513,7 @@ def test_validation_failures() -> list[TestResult]:
         duration_ms=result["duration_ms"],
         error=result.get("error"),
     ))
-    
+
     # Integer out of range
     result = execute_operation("fixture_failure", {"error_code": 300})
     results.append(TestResult(
@@ -526,22 +526,22 @@ def test_validation_failures() -> list[TestResult]:
         duration_ms=result["duration_ms"],
         error=result.get("error"),
     ))
-    
+
     return results
 
 
 def test_script_failure() -> list[TestResult]:
     """Test that script failures are captured correctly."""
     results = []
-    
+
     result = execute_operation("fixture_failure", {"error_code": 42})
-    
+
     passed = (
         result["status"] == "failed" and
         result["exit_code"] == 42 and
         result["stderr"]["bytes_captured"] > 0
     )
-    
+
     results.append(TestResult(
         test_id="script_failure",
         test_name="Script failure captured",
@@ -552,22 +552,22 @@ def test_script_failure() -> list[TestResult]:
         duration_ms=result["duration_ms"],
         evidence={"stderr": result["stderr"]["summary"]},
     ))
-    
+
     return results
 
 
 def test_timeout() -> list[TestResult]:
     """Test that timeouts are enforced."""
     results = []
-    
+
     # Use a short timeout and a script that sleeps longer
     result = execute_operation("fixture_slow", {"sleep_seconds": 10}, timeout_override=1)
-    
+
     passed = (
         result["status"] == "timeout" and
         result["timed_out"] == True
     )
-    
+
     results.append(TestResult(
         test_id="timeout_enforced",
         test_name="Timeout enforced",
@@ -577,21 +577,21 @@ def test_timeout() -> list[TestResult]:
         actual=f"status={result['status']}, timed_out={result['timed_out']}",
         duration_ms=result["duration_ms"],
     ))
-    
+
     return results
 
 
 def test_output_limit() -> list[TestResult]:
     """Test that output limits are enforced."""
     results = []
-    
+
     # The manifest has max_stdout_bytes=1024 for fixture_large_output
     result = execute_operation("fixture_large_output", {"size_kb": 64})
-    
+
     # Note: Our Python test harness doesn't implement streaming truncation
     # The TypeScript tool does. We check that the operation runs.
     passed = result["status"] in ("success", "output_limit_exceeded")
-    
+
     results.append(TestResult(
         test_id="output_limit",
         test_name="Output limit handling",
@@ -602,26 +602,26 @@ def test_output_limit() -> list[TestResult]:
         duration_ms=result["duration_ms"],
         evidence={"stdout_bytes": result["stdout"]["bytes_captured"]},
     ))
-    
+
     return results
 
 
 def test_secret_redaction() -> list[TestResult]:
     """Test that secrets are redacted from output."""
     results = []
-    
+
     # Create a test that would output a fake secret
     # For now, we test the redaction function directly
-    
+
     test_output = "api_key=sk-1234567890abcdefghijklmnop token=Bearer abc123xyz"
     redacted = redact_secrets(test_output)
-    
+
     passed = (
         "sk-1234567890abcdefghijklmnop" not in redacted and
         "Bearer abc123xyz" not in redacted and
         "[REDACTED]" in redacted
     )
-    
+
     results.append(TestResult(
         test_id="secret_redaction",
         test_name="Secret redaction works",
@@ -631,7 +631,7 @@ def test_secret_redaction() -> list[TestResult]:
         actual=redacted[:100],
         duration_ms=0,
     ))
-    
+
     return results
 
 
@@ -642,35 +642,35 @@ def test_secret_redaction() -> list[TestResult]:
 def run_tests() -> TestReport:
     """Run all tests and return a report."""
     all_results = []
-    
+
     print("Running direct mechanical tests for bet_script_run...")
     print()
-    
+
     # Run test categories
     print("  Valid execution tests (20)...")
     all_results.extend(test_valid_execution())
-    
+
     print("  Validation failure tests (8)...")
     all_results.extend(test_validation_failures())
-    
+
     print("  Script failure tests (1)...")
     all_results.extend(test_script_failure())
-    
+
     print("  Timeout tests (1)...")
     all_results.extend(test_timeout())
-    
+
     print("  Output limit tests (1)...")
     all_results.extend(test_output_limit())
-    
+
     print("  Secret redaction tests (1)...")
     all_results.extend(test_secret_redaction())
-    
+
     print()
-    
+
     # Calculate summary
     passed = sum(1 for r in all_results if r.passed)
     failed = sum(1 for r in all_results if not r.passed)
-    
+
     # Gates
     gates = {
         "valid_executions": f"{sum(1 for r in all_results if r.category == 'valid_execution' and r.passed)}/20",
@@ -680,7 +680,7 @@ def run_tests() -> TestReport:
         "output_limit": "PASS" if any(r.test_id == "output_limit" and r.passed for r in all_results) else "FAIL",
         "secret_redaction": "PASS" if any(r.test_id == "secret_redaction" and r.passed for r in all_results) else "FAIL",
     }
-    
+
     report = TestReport(
         schema_version=SCHEMA_VERSION,
         suite_version=SUITE_VERSION,
@@ -692,7 +692,7 @@ def run_tests() -> TestReport:
         results=[asdict(r) for r in all_results],
         gates=gates,
     )
-    
+
     return report
 
 
@@ -701,15 +701,15 @@ def main():
     # Ensure directories exist
     RUNS_DIR.mkdir(parents=True, exist_ok=True)
     FAILURES_DIR.mkdir(parents=True, exist_ok=True)
-    
+
     # Run tests
     report = run_tests()
-    
+
     # Save report
     report_path = RUNS_DIR / f"test-run-{datetime.now().strftime('%Y%m%dT%H%M%SZ')}.json"
     with open(report_path, 'w') as f:
         json.dump(asdict(report), f, indent=2)
-    
+
     # Print summary
     print("=" * 60)
     print("TEST SUMMARY")
@@ -724,7 +724,7 @@ def main():
     print()
     print(f"Report: {report_path}")
     print()
-    
+
     # Print failures
     failures = [r for r in report.results if not r['passed']]
     if failures:
@@ -736,7 +736,7 @@ def main():
             if f.get('error'):
                 print(f"    Error:    {f['error']}")
         print()
-    
+
     # Exit code
     if report.failed > 0:
         print("RESULT: FAIL")

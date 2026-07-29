@@ -43,7 +43,7 @@ class PlayerSeasonStat(Base):
 def _reflect_existing_tables(engine=None):
     if engine is None:
         engine = get_engine()
-    
+
     # We selectively reflect tables that are referred to by Scraper ORM models,
     # or any existing ones, to safely interact with them.
     # Note: `extend_existing=True` ensures we can safely re-reflect or augment.

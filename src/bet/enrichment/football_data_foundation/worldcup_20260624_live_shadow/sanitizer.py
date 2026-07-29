@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any
 
 SECRET_KEYS = {
-    "api_key", "x-api-key", "x-auth-token", "authorization", 
+    "api_key", "x-api-key", "x-auth-token", "authorization",
     "bearer", "token", "cookie", "set-cookie", "secret", "password"
 }
 
@@ -27,7 +27,7 @@ def sanitize_json_body(val: Any) -> Any:
     if isinstance(val, str):
         if is_html(val):
             raise ValueError("HTML content is not allowed in response body")
-        
+
         # Check if the string itself contains any secret-like words
         val_lower = val.lower()
         if any(secret in val_lower for secret in ["bearer ", "token=", "api_key=", "password="]):
@@ -43,12 +43,12 @@ def sanitize_json_body(val: Any) -> Any:
         for k, v in val.items():
             k_str = str(k)
             k_lower = k_str.lower()
-            
+
             # Force selectable_for_production to False
             if k_lower == "selectable_for_production":
                 new_dict[k_str] = False
                 continue
-                
+
             if SECRET_PATTERN.search(k_str) or any(s in k_lower for s in SECRET_KEYS):
                 new_dict[k_str] = "[REDACTED_SECRET]"
             else:

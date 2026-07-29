@@ -16,7 +16,7 @@ class FixtureSourceModel(Base):
 
     def __repr__(self):
         return f"<FixtureSource fixture={self.fixture_id} source={self.source} ext_id={self.external_id}>"
-    
+
     def to_dict(self):
         return {
             "id": self.id, "fixture_id": self.fixture_id, "source": self.source,

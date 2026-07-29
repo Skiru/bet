@@ -10,16 +10,16 @@ def test_scraper_run_crud(session_factory):
         )
         session.add(run)
         session.commit()
-        
+
         assert run.id is not None
         assert run.status == "running"
         assert run.records_scraped == 0
-        
+
         # Modify
         run.status = "success"
         run.records_inserted = 100
         session.commit()
-        
+
         fetched = session.query(ScraperRun).filter_by(id=run.id).first()
         assert fetched.status == "success"
         assert fetched.records_inserted == 100
@@ -42,7 +42,7 @@ def test_player_season_stat_relationships(session_factory, sample_sport_id):
         )
         session.add(stat)
         session.commit()
-        
+
         fetched = session.query(PlayerSeasonStat).filter_by(id=stat.id).first()
         assert fetched.games_played == 10
         assert fetched.season == "2425"

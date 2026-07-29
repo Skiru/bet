@@ -301,19 +301,19 @@ def test_s7_blocks_when_canonical_s6_is_missing_after_s4_pass(tmp_path: Path):
 def test_discover_events_migrates_logical_identity_when_missing():
     import sqlite3
     from bet.db.schema import init_db, get_schema_version
-    
+
     # 1. Create a database up to v19 manually but WITHOUT logical_identity column in fixture_capability_observation
     conn = sqlite3.connect(":memory:")
     conn.execute("CREATE TABLE schema_meta (key TEXT PRIMARY KEY, value TEXT)")
     conn.execute("INSERT INTO schema_meta (key, value) VALUES ('version', '19')")
-    
+
     # Create all required tables by migration version 20
     conn.execute("CREATE TABLE fixtures (id INTEGER PRIMARY KEY, status TEXT, kickoff TEXT, home_team_id INTEGER, away_team_id INTEGER)")
     conn.execute("CREATE TABLE teams (id INTEGER PRIMARY KEY, name TEXT)")
     conn.execute("CREATE TABLE analysis_snapshot (run_id TEXT)")
     conn.execute("CREATE TABLE source_entity_reference (sport TEXT, entity_type TEXT, provider TEXT, provider_entity_id TEXT, valid_to TEXT)")
     conn.execute("CREATE TABLE fixture_sources (fixture_id INTEGER REFERENCES fixtures(id), source TEXT, external_id TEXT)")
-    
+
     conn.execute(
         "CREATE TABLE fixture_capability_observation ("
         "id INTEGER PRIMARY KEY AUTOINCREMENT,"
@@ -340,11 +340,11 @@ def test_discover_events_migrates_logical_identity_when_missing():
         # logical_identity is missing!
         ")"
     )
-    
+
     # 2. Run migrate directly to trigger the version 20 migration
     from bet.db.schema import migrate
     migrate(conn, 19, 20)
-    
+
     # 3. Check column exists
     cursor = conn.execute("PRAGMA table_info(fixture_capability_observation)")
     columns = [row[1] for row in cursor.fetchall()]
@@ -357,17 +357,17 @@ def test_discover_events_reports_schema_mismatch_without_silent_fallback():
     import subprocess
     import sys
     from pathlib import Path
-    
+
     # We can invoke discover_events.py with a bad db path pointing to a directory
     # which raises sqlite3.OperationalError on opening
     script_path = Path(__file__).resolve().parent.parent / "scripts" / "discover_events.py"
-    
+
     res = subprocess.run(
         [sys.executable, str(script_path), "--date", "2026-06-28", "--db-path", str(Path(__file__).parent)],
         capture_output=True,
         text=True
     )
-    
+
     assert res.returncode == 2
     assert "BLOCKED_DISCOVERY_DB_SCHEMA_MISMATCH" in res.stdout
     assert '"db_schema_verdict": "FAIL"' in res.stdout
@@ -376,7 +376,7 @@ def test_discover_events_reports_schema_mismatch_without_silent_fallback():
 def test_s1_output_marks_fallback_universe_explicitly():
     # Verify S1 output wrapper script captures fallback and schema verdicts
     from scripts.pipeline_steps.s1_discover import _payload
-    
+
     run_metrics = {
         "raw_discovery_count": 10,
         "after_dedup_count": 8,
@@ -385,7 +385,7 @@ def test_s1_output_marks_fallback_universe_explicitly():
         "fallback_reason": "scrapers offline",
         "db_schema_verdict": "PASS"
     }
-    
+
     p = _payload(
         rc=0,
         runtime_mode="LIVE_SHADOW",
@@ -396,7 +396,7 @@ def test_s1_output_marks_fallback_universe_explicitly():
         runtime_path_source="test",
         run_metrics=run_metrics
     )
-    
+
     assert p["raw_discovery_count"] == 10
     assert p["after_dedup_count"] == 8
     assert p["provider_counts"] == {"api-football": 10}
@@ -421,7 +421,7 @@ def test_live_session_universe_requires_non_fallback_or_sufficient_universe():
     raw_list = [_candidate({"candidate_id": f"cand-{i}"}) for i in range(5)]
     report = build_pre_s7_universe(raw_list, config)
     assert report.status == "BLOCKED_INSUFFICIENT_CANDIDATE_UNIVERSE"
-    
+
     # If min candidates is met, status is READY_FOR_S7
     config_met = LiveSessionUniverseConfig(min_candidates=5, provider_universe_exhausted=False)
     report_met = build_pre_s7_universe(raw_list, config_met)
@@ -429,13 +429,13 @@ def test_live_session_universe_requires_non_fallback_or_sufficient_universe():
 
 def test_pre_s7_gate_rejects_empty_competition_and_stale_kickoff():
     config = LiveSessionUniverseConfig()
-    
+
     # Rejects empty competition
     cand_empty_comp = CandidateInput.from_dict(_candidate({"competition": ""}))
     res_comp = classify_candidate_quality(cand_empty_comp, config)
     assert res_comp.is_valid is False
     assert res_comp.verdict == "REJECTED_MISSING_COMPETITION"
-    
+
     # Rejects stale kickoff
     past_time = (datetime.now(timezone.utc) - timedelta(hours=5)).isoformat().replace("+00:00", "Z")
     cand_stale = CandidateInput.from_dict(_candidate({"kickoff": past_time}))
@@ -449,15 +449,15 @@ def test_expanded_discovery_does_not_report_no_bet_when_raw_discovery_zero():
     import subprocess
     import sys
     from pathlib import Path
-    
+
     script_path = Path(__file__).resolve().parent.parent / "scripts" / "discover_events.py"
-    
+
     # Let's run with a future date where there will be 0 events in db and live fetch has 0 results.
     import tempfile
     import os
     fd, db_path = tempfile.mkstemp(suffix=".db")
     os.close(fd)
-    
+
     try:
         res = subprocess.run(
             [sys.executable, str(script_path), "--date", "2035-12-31", "--db-path", db_path, "--sports", "valorant"],

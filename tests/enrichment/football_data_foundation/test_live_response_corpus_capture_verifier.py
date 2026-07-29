@@ -9,7 +9,7 @@ from bet.enrichment.football_data_foundation.live_response_corpus_capture.verifi
 def write_mock_corpus(dir_path: Path, manifest_data: dict, envelopes: dict) -> None:
     dir_path.mkdir(parents=True, exist_ok=True)
     (dir_path / "manifest.json").write_text(json.dumps(manifest_data, indent=2), encoding="utf-8")
-    
+
     for relative_path, env_data in envelopes.items():
         p = dir_path / relative_path
         p.parent.mkdir(parents=True, exist_ok=True)
@@ -32,7 +32,7 @@ def test_verifier_fails_on_credential_present_only_blocked(tmp_path):
         "credentials_present": {"sportdb": True},
         "files_written": ["sportdb/worldcup2026-norway-senegal.json", "manifest.json"],
     }
-    
+
     envelopes = {
         "sportdb/worldcup2026-norway-senegal.json": {
             "provider": "sportdb",
@@ -46,7 +46,7 @@ def test_verifier_fails_on_credential_present_only_blocked(tmp_path):
             "selectable_for_production": False,
         }
     }
-    
+
     write_mock_corpus(tmp_path, manifest, envelopes)
     res = verify_run_directory(tmp_path)
     assert res["verdict"] == "FAIL"
@@ -73,7 +73,7 @@ def test_verifier_passes_on_discovery_no_match_found(tmp_path):
             "manifest.json"
         ],
     }
-    
+
     envelopes = {
         "sportdb/worldcup2026-norway-senegal_discovery.json": {
             "provider": "sportdb",
@@ -99,7 +99,7 @@ def test_verifier_passes_on_discovery_no_match_found(tmp_path):
             "selectable_for_production": False,
         }
     }
-    
+
     write_mock_corpus(tmp_path, manifest, envelopes)
     res = verify_run_directory(tmp_path)
     assert res["verdict"] == "PASS"
@@ -122,7 +122,7 @@ def test_discovery_fetched_requires_source_url_and_body_sha256(tmp_path):
         "credentials_present": {"sportdb": True},
         "files_written": ["sportdb/worldcup2026-norway-senegal_discovery.json", "manifest.json"],
     }
-    
+
     envelopes = {
         "sportdb/worldcup2026-norway-senegal_discovery.json": {
             "provider": "sportdb",
@@ -137,7 +137,7 @@ def test_discovery_fetched_requires_source_url_and_body_sha256(tmp_path):
             "selectable_for_production": False,
         }
     }
-    
+
     write_mock_corpus(tmp_path, manifest, envelopes)
     res = verify_run_directory(tmp_path)
     assert res["verdict"] == "FAIL"
@@ -160,7 +160,7 @@ def test_no_secrets_or_headers_in_reports(tmp_path):
         "credentials_present": {"sportdb": True},
         "files_written": ["sportdb/worldcup2026-norway-senegal.json", "manifest.json"],
     }
-    
+
     # Test failure when secrets_stored=True
     envelopes = {
         "sportdb/worldcup2026-norway-senegal.json": {
@@ -178,7 +178,7 @@ def test_no_secrets_or_headers_in_reports(tmp_path):
     write_mock_corpus(tmp_path, manifest, envelopes)
     res = verify_run_directory(tmp_path)
     assert res["verdict"] == "FAIL"
-    
+
     # Test failure when raw_headers_stored=True
     envelopes2 = {
         "sportdb/worldcup2026-norway-senegal.json": {
@@ -214,7 +214,7 @@ def test_selectable_for_production_remains_false(tmp_path):
         "credentials_present": {"sportdb": True},
         "files_written": ["sportdb/worldcup2026-norway-senegal.json", "manifest.json"],
     }
-    
+
     # Test failure when selectable_for_production=True
     envelopes = {
         "sportdb/worldcup2026-norway-senegal.json": {

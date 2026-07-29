@@ -56,10 +56,10 @@ class SofascoreClient(BaseAPIClient):
         url = f"{self.base_url}/{endpoint.lstrip('/')}"
         if hasattr(self.rate_limiter, 'wait'):
             self.rate_limiter.wait("sofascore")
-        
+
         try:
             resp = self.session.get(url, params=params, timeout=self.TIMEOUT)
-            
+
             if resp.status_code == 404:
                 raise APINotFoundError(f"Resource not found: {url}")
             if resp.status_code in (403, 429):
@@ -67,7 +67,7 @@ class SofascoreClient(BaseAPIClient):
                     raise APIError(f"Sofascore blocked ({resp.status_code}) and stealth circuit is OPEN — skipping Playwright")
                 logger.warning(f"Sofascore blocked HTTP request ({resp.status_code}) for {url}. Falling back to Playwright...")
                 return self._request_playwright(url, params)
-                
+
             resp.raise_for_status()
             # Reset circuit on HTTP success
             SofascoreClient._stealth_failures = 0
@@ -82,17 +82,17 @@ class SofascoreClient(BaseAPIClient):
 
     def _request_playwright(self, url: str, params: dict | None = None) -> dict:
         raise RuntimeError("BROWSER_AUTOMATION_DISABLED: Playwright browser automation is permanently disabled in production pipeline")
-        
+
         # Extract the API path to know what response to intercept
         # e.g. /sport/football/scheduled-events/2026-05-13
         api_path = full_url.replace(self.base_url, "").lstrip("/")
-        
+
         def _safe_close(ctx):
             try:
                 ctx.close()
             except Exception:
                 pass
-        
+
         # Reuse shared browser instance to avoid expensive per-request launches
         if SofascoreClient._pw_browser is None:
             SofascoreClient._pw_instance = sync_playwright().start()
@@ -100,7 +100,7 @@ class SofascoreClient(BaseAPIClient):
                 headless=True, args=BROWSER_ARGS,
             )
         browser = SofascoreClient._pw_browser
-        
+
         # Build the schedule page URL from the API endpoint
         # /sport/{sport}/scheduled-events/{date} → sofascore.com/{sport}/{date}
         schedule_url = None
@@ -109,11 +109,11 @@ class SofascoreClient(BaseAPIClient):
             sport_slug = m.group(1)
             date_str = m.group(2)
             schedule_url = f"https://www.sofascore.com/{sport_slug}/{date_str}"
-        
+
         # For event-specific endpoints, extract event ID
         event_match = re.match(r"event/(\d+)/", api_path)
         event_id = event_match.group(1) if event_match else None
-            
+
         for attempt, backoff in enumerate([5, 12], 1):
             captured_data = {}
             ua = random.choice(USER_AGENTS)
@@ -124,10 +124,10 @@ class SofascoreClient(BaseAPIClient):
             )
             page = context.new_page()
             Stealth().apply_stealth_sync(page)
-            
+
             # Set up response interceptor for API calls
             all_api_responses = []
-            
+
             def handle_response(response):
                 resp_url = response.url
                 # Capture ALL Sofascore API responses
@@ -146,9 +146,9 @@ class SofascoreClient(BaseAPIClient):
                             logger.debug(f"[Sofascore stealth] Captured other: {resp_url[:100]}")
                     except Exception:
                         pass
-            
+
             page.on("response", handle_response)
-            
+
             try:
                 # Navigate to the appropriate Sofascore page
                 wants_event_statistics = bool(event_id and api_path.startswith(f"event/{event_id}/statistics"))
@@ -158,39 +158,39 @@ class SofascoreClient(BaseAPIClient):
                     nav_url = f"https://www.sofascore.com/event/{event_id}"
                 else:
                     raise APIError(f"Sofascore stealth: no valid navigation target for path '{api_path}'")
-                
+
                 logger.info(f"[Sofascore stealth] Attempt {attempt}: navigating to {nav_url}")
                 page.goto(nav_url, wait_until="domcontentloaded", timeout=25000)
-                
+
                 # Wait for JS hydration + API calls
                 page.wait_for_timeout(6000)
-                
+
                 # Handle Cloudflare challenge
                 content = page.content()
                 if "Just a moment" in content:
                     logger.info("[Sofascore stealth] Cloudflare challenge, waiting 8s...")
                     page.wait_for_timeout(8000)
-                
+
                 # Check if we already captured API data during page load
                 if captured_data.get("json"):
                     logger.info(f"[Sofascore stealth] Intercepted during load: {captured_data.get('url', '?')[:80]}")
                     result = captured_data["json"]
                     _safe_close(context)
                     return result
-                
+
                 # Wait more — Sofascore may lazy-load after hydration
                 page.wait_for_timeout(5000)
-                
+
                 if captured_data.get("json"):
                     logger.info(f"[Sofascore stealth] Intercepted after wait")
                     result = captured_data["json"]
                     _safe_close(context)
                     return result
-                
+
                 # Try scrolling to trigger lazy loading
                 page.evaluate("window.scrollBy(0, 500)")
                 page.wait_for_timeout(3000)
-                
+
                 if captured_data.get("json"):
                     logger.info(f"[Sofascore stealth] Intercepted after scroll")
                     result = captured_data["json"]
@@ -230,12 +230,12 @@ class SofascoreClient(BaseAPIClient):
                             result = captured_data["json"]
                             _safe_close(context)
                             return result
-                
+
                 # Last resort: check all captured API responses
                 logger.info(f"[Sofascore stealth] No exact match for {api_path}. Captured {len(all_api_responses)} API responses.")
                 for resp in all_api_responses:
                     logger.info(f"  - {resp['url'][:120]}")
-                
+
                 # Try to find events in any captured response
                 for resp in all_api_responses:
                     if "events" in resp.get("json", {}):
@@ -243,7 +243,7 @@ class SofascoreClient(BaseAPIClient):
                         result = resp["json"]
                         _safe_close(context)
                         return result
-                
+
                 if wants_event_statistics:
                     dom_items = self._extract_statistics_from_dom(page)
                     if dom_items:
@@ -270,7 +270,7 @@ class SofascoreClient(BaseAPIClient):
                         return next_data
                 except Exception:
                     pass
-                
+
                 logger.warning(f"[Sofascore stealth] No API response captured on attempt {attempt}")
                 SofascoreClient._stealth_failures += 1
                 if SofascoreClient._stealth_failures >= SofascoreClient._STEALTH_FAILURE_THRESHOLD:
@@ -281,7 +281,7 @@ class SofascoreClient(BaseAPIClient):
                     time.sleep(backoff)
                     continue
                 raise APIError(f"Sofascore stealth: no data intercepted for {api_path}")
-                
+
             except (APIError, APINotFoundError):
                 _safe_close(context)
                 raise
@@ -390,17 +390,17 @@ class SofascoreClient(BaseAPIClient):
 
     def get_fixtures(self, date: str, sport: str = "football") -> list:
         """Get all scheduled events for a sport on a specific date (YYYY-MM-DD).
-        
+
         Returns list of APIFixture objects (matching the common contract).
         """
         from .api_football import APIFixture
         from datetime import datetime, timezone
-        
+
         try:
             data = self._request(f"/sport/{sport}/scheduled-events/{date}")
         except (APINotFoundError, APIError):
             return []
-        
+
         raw_events = data.get("events", [])
         fixtures = []
         for ev in raw_events:
@@ -410,16 +410,16 @@ class SofascoreClient(BaseAPIClient):
                 comp_name = tournament.get("name", "Unknown")
                 home = ev.get("homeTeam", {}).get("name", "Unknown")
                 away = ev.get("awayTeam", {}).get("name", "Unknown")
-                
+
                 # Convert Unix timestamp to ISO format
                 ts = ev.get("startTimestamp")
                 if ts:
                     kickoff = datetime.fromtimestamp(ts, tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
                 else:
                     kickoff = date + "T00:00:00Z"
-                
+
                 status_desc = ev.get("status", {}).get("description", "Not started")
-                
+
                 fixtures.append(APIFixture(
                     external_id=event_id,
                     source="sofascore",
@@ -433,7 +433,7 @@ class SofascoreClient(BaseAPIClient):
             except Exception as e:
                 logger.debug(f"Skipping Sofascore event: {e}")
                 continue
-        
+
         return fixtures
 
     # Mapping SofaScore stat names → normalized stat keys
@@ -483,7 +483,7 @@ class SofascoreClient(BaseAPIClient):
     def get_fixture_stats(self, event_id: str):
         """Get match statistics for a specific fixture as NormalizedMatchStats."""
         from bet.models.normalized import NormalizedMatchStats
-        
+
         if not self._is_sofascore_id(event_id):
             logger.debug(f"Skipping get_fixture_stats — non-Sofascore ID: {event_id}")
             return None
@@ -492,7 +492,7 @@ class SofascoreClient(BaseAPIClient):
             statistics = data.get("statistics", [])
             if not statistics:
                 return None
-            
+
             # Get event info for team names
             try:
                 event_data = self._request(f"/event/{event_id}")
@@ -506,7 +506,7 @@ class SofascoreClient(BaseAPIClient):
                     date_str = datetime.fromtimestamp(start_ts, tz=timezone.utc).strftime("%Y-%m-%d")
             except Exception:
                 home_team, away_team, date_str = "", "", ""
-            
+
             # Parse stats — take "ALL" period if available
             all_period = None
             for period_data in statistics:
@@ -520,10 +520,10 @@ class SofascoreClient(BaseAPIClient):
                         break
             if not all_period and statistics:
                 all_period = statistics[0]
-            
+
             if not all_period:
                 return None
-            
+
             stats_dict = {}
             for group in all_period.get("groups", []):
                 for item in group.get("statisticsItems", []):
@@ -535,10 +535,10 @@ class SofascoreClient(BaseAPIClient):
                     away_val = self._parse_stat_value(item.get("away", "0"))
                     if home_val is not None and away_val is not None:
                         stats_dict[stat_key] = {"home": home_val, "away": away_val}
-            
+
             if not stats_dict:
                 return None
-            
+
             return NormalizedMatchStats(
                 fixture_id=str(event_id),
                 source="sofascore",
@@ -564,7 +564,7 @@ class SofascoreClient(BaseAPIClient):
 
     def get_h2h(self, team1_id: str, team2_id: str, last_n: int = 10) -> list[dict]:
         """Sofascore usually provides H2H via the event endpoint.
-        If we want direct team-to-team H2H, we could query historical data or 
+        If we want direct team-to-team H2H, we could query historical data or
         fetch from known event's h2h endpoint.
         """
         logger.warning("get_h2h directly via team ids is not supported in Sofascore without event_id. Use get_event_h2h instead.")
@@ -581,16 +581,16 @@ class SofascoreClient(BaseAPIClient):
             return str(teams[0].get("id", ""))
         except (APIError, APINotFoundError):
             return None
-        
+
     def get_team_last_fixtures(self, team_id: str, last_n: int = 10) -> list:
         """Get the latest form/results for a team as NormalizedFixture objects."""
         from bet.models.normalized import NormalizedFixture
-        
+
         if not self._is_sofascore_id(team_id):
             logger.debug(f"Skipping get_team_last_fixtures — non-Sofascore ID: {team_id}")
             return []
         try:
-            # endpoint: /team/{id}/events/last/0 
+            # endpoint: /team/{id}/events/last/0
             data = self._request(f"/team/{team_id}/events/last/0")
             events = data.get("events", [])
             fixtures = []
@@ -640,7 +640,7 @@ class SofascoreClient(BaseAPIClient):
             return self._request(f"/event/{event_id}/h2h")
         except (APINotFoundError, APIError):
             return {}
-            
+
     def get_event_odds(self, event_id: str) -> dict:
         """Get pre-match odds for an event (usually 1x2 and O/U)."""
         if not self._is_sofascore_id(event_id):
@@ -671,7 +671,7 @@ class SofascoreClient(BaseAPIClient):
             return self._request(f"/event/{event_id}/lineups")
         except APINotFoundError:
             return {}
-            
+
     def get_player_stats(self, event_id: str) -> dict:
         """Get individual player summary statistics for a match."""
         if not self._is_sofascore_id(event_id):

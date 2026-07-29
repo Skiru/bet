@@ -8,7 +8,7 @@ def test_normalizers_extract_all_provider_ids_and_details(tmp_path):
     providers = ["sportdb", "highlightly", "api-football", "football-data-org", "espn-baseline"]
     for p in providers:
         (run / p).mkdir(parents=True, exist_ok=True)
-        
+
     def write(provider: str, name: str, body: object, sha: str = "abc") -> None:
         env = {
             "provider": provider,
@@ -31,7 +31,7 @@ def test_normalizers_extract_all_provider_ids_and_details(tmp_path):
     write("sportdb", "match_stats.json", [{"type": "Shots on Goal", "value": "5"}])
     write("sportdb", "match_lineups.json", [{"teamName": "Norway", "formation": "4-3-3", "players": [{"name": "Haaland"}]}])
     write("sportdb", "match_odds.json", [{"bookmakerName": "Midnite", "odds": [{"name": "1X2"}]}])
-    
+
     # Highlightly files
     write("highlightly", "match_detail.json", {
         "id": 1267481035, "homeTeam": {"name": "Norway"}, "awayTeam": {"name": "Senegal"},

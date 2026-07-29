@@ -209,7 +209,7 @@ def test_resolve_target_entrypoints_for_zawodtyper():
     assert spec and spec.loader
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
-    
+
     entrypoints, fallback = mod.resolve_target_entrypoints("zawodtyper", "2026-07-04")
     assert len(entrypoints) == 1
     assert entrypoints[0] == "https://www.zawodtyper.pl/typy-dnia-4-lipca-sobota/"
@@ -320,7 +320,7 @@ def test_pipeline_use_safely_serialized_to_dict():
         else:
             p_use_str = str(p_use)
         formatted.append(p_use_str)
-        
+
     assert formatted[0] == "use_1,use_2"
     assert formatted[1] == "use_a,use_b"
     assert formatted[2] == "None"
@@ -353,7 +353,7 @@ def test_xhr_gate_blocks_xhr_payload_without_flag():
         status_code=200,
         content_type="application/json",
     )
-    
+
     # Test 1: Empty or missing review data (defaults to False)
     result1 = extract_zawodtyper(doc, review_data=None)
     assert len(result1.picks) == 0
@@ -567,7 +567,7 @@ def test_summary_helper_pipeline_use_list_dict():
         else:
             p_use_str = str(p_use)
         formatted.append(p_use_str)
-        
+
     assert formatted[0] == "use_1,use_2"
     assert formatted[1] == "use_a,use_b"
     assert formatted[2] == "None"

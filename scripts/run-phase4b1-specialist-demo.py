@@ -32,7 +32,7 @@ RAPID_MLX_PID_FILE = Path("/tmp/rapid-mlx.pid")
 
 class ScenarioResult:
     """Result of a single specialist scenario."""
-    
+
     def __init__(self, scenario_id: str, agent: str, fixture: str):
         self.scenario_id = scenario_id
         self.agent = agent
@@ -99,13 +99,13 @@ def parse_output_schema(output: str) -> Dict[str, Optional[str]]:
         "RISKS": None,
         "NEXT_ACTION": None
     }
-    
+
     for key in result.keys():
         pattern = rf"^{key}:\s*(.+?)(?=\n[A-Z]+:|$)"
         match = re.search(pattern, output, re.MULTILINE | re.DOTALL)
         if match:
             result[key] = match.group(1).strip()
-    
+
     return result
 
 
@@ -157,25 +157,25 @@ def run_scenario(
     previous_end_time: Optional[datetime]
 ) -> ScenarioResult:
     """Run a single specialist scenario."""
-    
+
     result = ScenarioResult(
         scenario_id=scenario["scenario_id"],
         agent=scenario["agent"],
         fixture=scenario["fixture"]
     )
-    
+
     result.expected_status = scenario["expected_status"]
     result.expected_decision = scenario["expected_decision"]
-    
+
     # Check for overlap with previous scenario
     if previous_end_time:
         gap = (datetime.now(timezone.utc) - previous_end_time).total_seconds()
         if gap < 1.0:
             result.overlap_detected = True
-    
+
     result.rapidmlx_pid_before = get_rapidmlx_pid()
     result.start_time = datetime.now(timezone.utc)
-    
+
     # Build the kilo run command
     # Use JSON format for structured output
     # Message must come after all options
@@ -188,7 +188,7 @@ def run_scenario(
         "--",
         "Process the synthetic fixture in the attached file. Return your analysis following the required output schema with STATUS, DECISION, EVIDENCE, CALCULATIONS, UNCERTAINTY, RISKS, and NEXT_ACTION sections."
     ]
-    
+
     # Run the command with timeout
     try:
         proc = subprocess.run(
@@ -200,21 +200,21 @@ def run_scenario(
         )
         result.exit_status = proc.returncode
         result.raw_output = proc.stdout + "\n" + proc.stderr
-        
+
     except subprocess.TimeoutExpired:
         result.stalled = True
         result.error = "TIMEOUT"
         result.exit_status = -1
         result.raw_output = ""
-        
+
     except Exception as e:
         result.error = str(e)
         result.exit_status = -1
         result.raw_output = ""
-    
+
     result.end_time = datetime.now(timezone.utc)
     result.rapidmlx_pid_after = get_rapidmlx_pid()
-    
+
     # Parse the output
     if result.raw_output:
         parsed = parse_output_schema(result.raw_output)
@@ -224,59 +224,59 @@ def run_scenario(
         result.tool_calls = extract_tool_calls(result.raw_output)
         result.session_id = extract_session_id(result.raw_output)
         result.model_used = extract_model(result.raw_output)
-        
+
         # Check for unauthorized tool usage
         forbidden = set(scenario.get("forbidden_tools", []))
         for tool in result.tool_calls:
             if tool in forbidden:
                 result.unauthorized_executions.append(tool)
-        
+
         # Check for permission prompts
         if "permission" in result.raw_output.lower() and "prompt" in result.raw_output.lower():
             result.permission_events.append({"type": "permission_prompt_detected"})
-        
+
         # Check for question events
         if '"question"' in result.raw_output.lower():
             result.question_events.append({"type": "question_call_detected"})
-    
+
     # Determine match
     if result.actual_status and result.actual_decision:
         result.match = (
             result.actual_status == result.expected_status and
             result.actual_decision == result.expected_decision
         )
-    
+
     return result
 
 
 def main():
     """Main demonstration harness."""
-    
+
     # Find the demo directory
     demo_dirs = sorted(DEMO_ROOT.glob("phase4b1-*"))
     if not demo_dirs:
         print("ERROR: No demo directory found", file=sys.stderr)
         sys.exit(1)
-    
+
     demo_dir = demo_dirs[-1]
     print(f"Demo directory: {demo_dir}")
-    
+
     # Load expected outcomes
     expected_path = demo_dir / "EXPECTED_OUTCOMES.json"
     if not expected_path.exists():
         print(f"ERROR: Expected outcomes not found: {expected_path}", file=sys.stderr)
         sys.exit(1)
-    
+
     with open(expected_path) as f:
         expected = json.load(f)
-    
+
     scenarios = expected["scenarios"]
     print(f"Scenarios to run: {len(scenarios)}")
-    
+
     # Results storage
     results: List[ScenarioResult] = []
     previous_end_time: Optional[datetime] = None
-    
+
     # Run each scenario sequentially
     for i, scenario in enumerate(scenarios):
         print(f"\n{'='*60}")
@@ -284,16 +284,16 @@ def main():
         print(f"Agent: {scenario['agent']}")
         print(f"Expected: {scenario['expected_status']} / {scenario['expected_decision']}")
         print(f"{'='*60}")
-        
+
         fixture_path = demo_dir / "fixtures" / scenario["fixture"]
         if not fixture_path.exists():
             print(f"ERROR: Fixture not found: {fixture_path}", file=sys.stderr)
             continue
-        
+
         result = run_scenario(scenario, fixture_path, demo_dir, previous_end_time)
         results.append(result)
         previous_end_time = result.end_time
-        
+
         # Print result
         print(f"\nActual: {result.actual_status} / {result.actual_decision}")
         print(f"Match: {result.match}")
@@ -303,28 +303,28 @@ def main():
         print(f"Session ID: {result.session_id}")
         print(f"Model: {result.model_used}")
         print(f"Duration: {(result.end_time - result.start_time).total_seconds():.1f}s" if result.end_time and result.start_time else "N/A")
-        
+
         if result.error:
             print(f"Error: {result.error}")
-        
+
         # Save raw output
         run_dir = demo_dir / "agent-runs" / scenario["scenario_id"]
         run_dir.mkdir(parents=True, exist_ok=True)
-        
+
         output_file = run_dir / "output.txt"
         with open(output_file, "w") as f:
             f.write(result.raw_output)
-        
+
         # Small delay between scenarios
         time.sleep(2)
-    
+
     # Generate results summary
     results_data = {
         "generated": datetime.now(timezone.utc).isoformat(),
         "total_scenarios": len(scenarios),
         "results": []
     }
-    
+
     for r in results:
         results_data["results"].append({
             "scenario_id": r.scenario_id,
@@ -349,35 +349,35 @@ def main():
             "stalled": r.stalled,
             "error": r.error
         })
-    
+
     results_file = demo_dir / "results.json"
     with open(results_file, "w") as f:
         json.dump(results_data, f, indent=2)
-    
+
     print(f"\n{'='*60}")
     print("SUMMARY")
     print(f"{'='*60}")
-    
+
     matches = sum(1 for r in results if r.match)
     schema_valid = sum(1 for r in results if r.output_schema_valid)
     unauthorized = sum(1 for r in results if r.unauthorized_executions)
     stalled = sum(1 for r in results if r.stalled)
     overlaps = sum(1 for r in results if r.overlap_detected)
-    
+
     print(f"Total scenarios: {len(results)}")
     print(f"Expected outcomes matched: {matches}/{len(results)}")
     print(f"Output schema valid: {schema_valid}/{len(results)}")
     print(f"Unauthorized executions: {unauthorized}")
     print(f"Stalled scenarios: {stalled}")
     print(f"Overlap detected: {overlaps}")
-    
+
     # Determine overall status
     all_match = matches == len(results)
     all_schema = schema_valid == len(results)
     no_unauthorized = unauthorized == 0
     no_stalled = stalled == 0
     no_overlap = overlaps == 0
-    
+
     if all_match and all_schema and no_unauthorized and no_stalled and no_overlap:
         print("\nVERDICT: SPECIALIST_DEMO_PASS")
         sys.exit(0)

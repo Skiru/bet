@@ -15,7 +15,7 @@ def write_shadow_sqlite(
     diagnostics: Dict[str, Any]
 ) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    
+
     con = sqlite3.connect(path)
     try:
         # Create legacy/original tables to ensure writer tests pass
@@ -28,7 +28,7 @@ def write_shadow_sqlite(
                 shadow_status TEXT NOT NULL
             )
         """)
-        
+
         con.execute("""
             CREATE TABLE IF NOT EXISTS shadow_provider_ids (
                 fixture_slug TEXT,
@@ -37,7 +37,7 @@ def write_shadow_sqlite(
                 PRIMARY KEY (fixture_slug, provider)
             )
         """)
-        
+
         con.execute("""
             CREATE TABLE IF NOT EXISTS shadow_facts (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -51,7 +51,7 @@ def write_shadow_sqlite(
                 source_file TEXT NOT NULL
             )
         """)
-        
+
         con.execute("""
             CREATE TABLE IF NOT EXISTS shadow_conflicts_diagnostics (
                 fixture_slug TEXT PRIMARY KEY,
@@ -90,7 +90,7 @@ def write_shadow_sqlite(
                 value TEXT NOT NULL
             )
         """)
-        
+
         # Insert snapshot metadata (original)
         con.execute(
             "INSERT OR REPLACE INTO shadow_match_snapshot VALUES (?, ?, ?, ?, ?)",
@@ -102,14 +102,14 @@ def write_shadow_sqlite(
                 snapshot.shadow_status
             )
         )
-        
+
         # Insert provider IDs (original)
         for provider, provider_id in snapshot.provider_ids.items():
             con.execute(
                 "INSERT OR REPLACE INTO shadow_provider_ids VALUES (?, ?, ?)",
                 (snapshot.fixture_slug, provider, provider_id)
             )
-            
+
         # Insert facts (original)
         con.execute("DELETE FROM shadow_facts WHERE fixture_slug = ?", (snapshot.fixture_slug,))
         for fact in snapshot.facts:
@@ -129,7 +129,7 @@ def write_shadow_sqlite(
                     fact.source_file
                 )
             )
-            
+
         # Insert conflicts and diagnostics (original)
         con.execute(
             "INSERT OR REPLACE INTO shadow_conflicts_diagnostics VALUES (?, ?, ?)",
@@ -165,7 +165,7 @@ def write_shadow_sqlite(
         else:
             # Let's ensure conflicts exists even if empty, no rows is allowed if no conflicts exist
             pass
-        
+
         con.commit()
     finally:
         con.close()

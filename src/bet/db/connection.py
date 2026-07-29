@@ -142,7 +142,7 @@ def retry_on_lock(
     **kwargs: Any,
 ) -> T:
     """Call fn(*args, **kwargs) with retry on sqlite3.OperationalError (database locked).
-    
+
     Exponential backoff: 0.5s → 1s → 2s (default 3 retries).
     Re-raises non-lock OperationalErrors immediately.
     """

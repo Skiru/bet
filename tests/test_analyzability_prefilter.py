@@ -58,7 +58,7 @@ def _valid_stats_seed() -> dict:
 def test_analyzability_prefilter_marks_supported_candidate_analyzable():
     cand = _valid_candidate()
     stats = _valid_stats_seed()
-    
+
     report = evaluate_candidate_analyzability(cand, stats)
     assert report["analyzability_status"] == "ANALYZABLE"
     assert report["analyzability_score"] == 1.0
@@ -72,7 +72,7 @@ def test_analyzability_prefilter_blocks_l10_missing():
     stats["raw_data"]["safety_input"]["markets"] = []
     # Make sure we don't have existing model probability which would bypass it
     cand["model_probability"] = None
-    
+
     report = evaluate_candidate_analyzability(cand, stats)
     assert report["analyzability_status"] == "RESEARCH_GAP_L10_MISSING"
     assert "L10_SERIES_MISSING" in report["blocker_reasons"]
@@ -82,7 +82,7 @@ def test_analyzability_prefilter_blocks_unknown_split_stat_semantics():
     cand = _valid_candidate()
     stats = _valid_stats_seed()
     cand["model_probability"] = None
-    
+
     # We corrupt the stats series to produce a semantic mapping issue
     stats["raw_data"] = {
         "team_a_l10": {
@@ -92,7 +92,7 @@ def test_analyzability_prefilter_blocks_unknown_split_stat_semantics():
             "l10_matches": [{"stats": {"mystery_stat": {"home": 1}}}]
         }
     }
-    
+
     report = evaluate_candidate_analyzability(cand, stats)
     assert report["analyzability_status"] == "RESEARCH_GAP_L10_MISSING"
 
@@ -101,7 +101,7 @@ def test_analyzability_prefilter_blocks_missing_line_for_ou_market():
     cand = _valid_candidate()
     stats = _valid_stats_seed()
     cand["best_market"]["line"] = None
-    
+
     report = evaluate_candidate_analyzability(cand, stats)
     assert report["analyzability_status"] == "LINE_OR_DIRECTION_GAP"
     assert "LINE_MISSING" in report["blocker_reasons"]
@@ -111,7 +111,7 @@ def test_analyzability_prefilter_blocks_unsupported_player_prop():
     cand = _valid_candidate()
     stats = _valid_stats_seed()
     cand["best_market"]["name"] = "Player Tackles"
-    
+
     report = evaluate_candidate_analyzability(cand, stats)
     assert report["analyzability_status"] == "UNSUPPORTED_MARKET_FAMILY"
     assert "UNSUPPORTED_MARKET_FAMILY" in report["blocker_reasons"]
@@ -120,7 +120,7 @@ def test_analyzability_prefilter_blocks_unsupported_player_prop():
 def test_analyzability_prefilter_preserves_source_artifact_and_field_path():
     cand = _valid_candidate()
     stats = _valid_stats_seed()
-    
+
     report = evaluate_candidate_analyzability(cand, stats)
     assert report["source_artifact_path"] == "/tmp/s4.json"
     assert report["field_path"] == "candidates[0]"
@@ -130,7 +130,7 @@ def test_rank_analyzable_candidates_prefers_probability_input_ready():
     c1 = {"candidate_id": "c1", "analyzability_score": 0.5, "market_probability_input_status": False}
     c2 = {"candidate_id": "c2", "analyzability_score": 1.0, "market_probability_input_status": True}
     c3 = {"candidate_id": "c3", "analyzability_score": 0.8, "market_probability_input_status": True}
-    
+
     ranked = rank_analyzable_candidates([c1, c2, c3])
     assert ranked[0]["candidate_id"] == "c2"
     assert ranked[1]["candidate_id"] == "c3"
@@ -141,7 +141,7 @@ def test_full_smoke_selection_uses_analyzable_candidates_first():
     cand = _valid_candidate()
     cand["fixture_id"] = 2
     stats = _valid_stats_seed()
-    
+
     # Let's run a full handoff with 1 valid and 1 blocked candidate
     cand_blocked = _valid_candidate()
     cand_blocked["candidate_id"] = "blocked"
@@ -149,7 +149,7 @@ def test_full_smoke_selection_uses_analyzable_candidates_first():
     cand_blocked["model_probability"] = None
     stats_blocked = _valid_stats_seed()
     stats_blocked["raw_data"]["safety_input"]["markets"] = []
-    
+
     valuation_payload = {
         "candidates": [cand_blocked, cand]
     }
@@ -159,13 +159,13 @@ def test_full_smoke_selection_uses_analyzable_candidates_first():
             {**stats, "candidate_id": cand["candidate_id"], "fixture_id": 2}
         ]
     }
-    
+
     handoff = build_analytical_candidate_handoff(
         valuation_payload,
         s3_payload=s3_payload,
         source_artifact_path="/tmp/s4.json"
     )
-    
+
     # Ranked correctly
     assert handoff["counts"]["analytical_ready"] == 1
     assert handoff["analytical_ready"][0]["candidate_id"] == cand["candidate_id"]
@@ -177,20 +177,20 @@ def test_research_gap_package_when_no_analyzable_candidates():
     cand1["model_probability"] = None
     stats1 = _valid_stats_seed()
     stats1["raw_data"]["safety_input"]["markets"] = []
-    
+
     valuation_payload = {
         "candidates": [cand1]
     }
     s3_payload = {
         "analyses": [{**stats1, "candidate_id": cand1["candidate_id"]}]
     }
-    
+
     handoff = build_analytical_candidate_handoff(
         valuation_payload,
         s3_payload=s3_payload,
         source_artifact_path="/tmp/s4.json"
     )
-    
+
     assert handoff["counts"]["analytical_ready"] == 0
     assert handoff["package_type"] == "RESEARCH_GAP_PACKAGE"
 
@@ -198,10 +198,10 @@ def test_research_gap_package_when_no_analyzable_candidates():
 def test_no_fake_stats_or_probability_in_prefilter():
     cand = _valid_candidate()
     stats = _valid_stats_seed()
-    
+
     # Force fake stats flag
     cand["is_fake"] = True
-    
+
     report = evaluate_candidate_analyzability(cand, stats)
     assert report["analyzability_status"] == "UNSUPPORTED_MARKET_FAMILY"
     assert "FAKE_DATA_DETECTED" in report["blocker_reasons"]

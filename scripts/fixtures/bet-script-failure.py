@@ -18,7 +18,7 @@ import sys
 
 def main():
     parser = argparse.ArgumentParser(description="Failure fixture")
-    parser.add_argument("--error-code", type=int, default=1, 
+    parser.add_argument("--error-code", type=int, default=1,
                         help="Exit code to return (1-255)")
     args = parser.parse_args()
 

@@ -38,10 +38,10 @@ def make_request(endpoint: str, data: dict) -> tuple[int, Any, float]:
         "Authorization": f"Bearer {API_KEY}",
         "Content-Type": "application/json"
     }
-    
+
     body = json.dumps(data).encode("utf-8")
     req = urllib.request.Request(url, data=body, headers=headers, method="POST")
-    
+
     start = time.perf_counter()
     try:
         with urllib.request.urlopen(req, timeout=TIMEOUT) as response:
@@ -54,14 +54,14 @@ def make_request(endpoint: str, data: dict) -> tuple[int, Any, float]:
         status = 0
         result = {"error": str(e)}
     duration_ms = (time.perf_counter() - start) * 1000
-    
+
     return status, result, duration_ms
 
 
 def test_brave_search_tool_call() -> dict:
     """Test 1: Brave Web Search tool call."""
     print("  1. Brave Web Search tool call...")
-    
+
     tools = [{
         "type": "function",
         "function": {
@@ -79,11 +79,11 @@ def test_brave_search_tool_call() -> dict:
             }
         }
     }]
-    
+
     messages = [
         {"role": "user", "content": "Search the web for 'Python 3.14 release date' using the brave-search_brave_web_search function."}
     ]
-    
+
     status, result, duration = make_request("/chat/completions", {
         "model": MODEL_ID,
         "messages": messages,
@@ -92,22 +92,22 @@ def test_brave_search_tool_call() -> dict:
         "max_tokens": 200,
         "temperature": 0
     })
-    
+
     passed = status == 200
     tool_calls = []
     tool_name = None
-    
+
     if passed:
         choice = result.get("choices", [{}])[0]
         message = choice.get("message", {})
         tool_calls = message.get("tool_calls", [])
         if tool_calls:
             tool_name = tool_calls[0].get("function", {}).get("name")
-    
+
     passed = passed and len(tool_calls) > 0 and tool_name == "brave-search_brave_web_search"
-    
+
     print(f"     {'PASS' if passed else 'FAIL'} (HTTP {status}, tool_calls={len(tool_calls)}, tool_name={tool_name})")
-    
+
     return {
         "test": "brave_search_tool_call",
         "passed": passed,
@@ -121,7 +121,7 @@ def test_brave_search_tool_call() -> dict:
 def test_context7_tool_call() -> dict:
     """Test 2: Context7 resolve library tool call."""
     print("  2. Context7 resolve library tool call...")
-    
+
     tools = [{
         "type": "function",
         "function": {
@@ -143,11 +143,11 @@ def test_context7_tool_call() -> dict:
             }
         }
     }]
-    
+
     messages = [
         {"role": "user", "content": "Use context7_resolve-library-id to find the library ID for 'React' with query 'How to use hooks'."}
     ]
-    
+
     status, result, duration = make_request("/chat/completions", {
         "model": MODEL_ID,
         "messages": messages,
@@ -156,12 +156,12 @@ def test_context7_tool_call() -> dict:
         "max_tokens": 200,
         "temperature": 0
     })
-    
+
     passed = status == 200
     tool_calls = []
     tool_name = None
     arguments_valid = False
-    
+
     if passed:
         choice = result.get("choices", [{}])[0]
         message = choice.get("message", {})
@@ -174,11 +174,11 @@ def test_context7_tool_call() -> dict:
                 arguments_valid = "libraryName" in args
             except:
                 pass
-    
+
     passed = passed and len(tool_calls) > 0 and tool_name == "context7_resolve-library-id" and arguments_valid
-    
+
     print(f"     {'PASS' if passed else 'FAIL'} (HTTP {status}, tool_calls={len(tool_calls)}, args_valid={arguments_valid})")
-    
+
     return {
         "test": "context7_tool_call",
         "passed": passed,
@@ -193,7 +193,7 @@ def test_context7_tool_call() -> dict:
 def test_tool_call_parsing() -> dict:
     """Test 3: Tool call parsing validation."""
     print("  3. Tool call parsing validation...")
-    
+
     tools = [{
         "type": "function",
         "function": {
@@ -216,11 +216,11 @@ def test_tool_call_parsing() -> dict:
             }
         }
     }]
-    
+
     messages = [
         {"role": "user", "content": "What's the weather in Tokyo? Use get_weather function."}
     ]
-    
+
     status, result, duration = make_request("/chat/completions", {
         "model": MODEL_ID,
         "messages": messages,
@@ -229,34 +229,34 @@ def test_tool_call_parsing() -> dict:
         "max_tokens": 200,
         "temperature": 0
     })
-    
+
     passed = status == 200
     parsing_valid = False
     tool_call_id = None
     arguments_parsed = False
-    
+
     if passed:
         choice = result.get("choices", [{}])[0]
         message = choice.get("message", {})
         tool_calls = message.get("tool_calls", [])
-        
+
         if tool_calls:
             tc = tool_calls[0]
             tool_call_id = tc.get("id")
             func = tc.get("function", {})
             args_str = func.get("arguments", "{}")
-            
+
             try:
                 args = json.loads(args_str)
                 arguments_parsed = True
                 parsing_valid = "location" in args
             except:
                 pass
-    
+
     passed = passed and parsing_valid
-    
+
     print(f"     {'PASS' if passed else 'FAIL'} (HTTP {status}, parsing_valid={parsing_valid}, args_parsed={arguments_parsed})")
-    
+
     return {
         "test": "tool_call_parsing",
         "passed": passed,
@@ -271,7 +271,7 @@ def test_tool_call_parsing() -> dict:
 def test_streaming_tool_call() -> dict:
     """Test 4: Streaming tool call through API."""
     print("  4. Streaming tool call...")
-    
+
     tools = [{
         "type": "function",
         "function": {
@@ -289,18 +289,18 @@ def test_streaming_tool_call() -> dict:
             }
         }
     }]
-    
+
     messages = [
         {"role": "user", "content": "Calculate 123 * 456 using the calculate function."}
     ]
-    
+
     # For streaming, we need to handle SSE
     url = f"{BASE_URL}/chat/completions"
     headers = {
         "Authorization": f"Bearer {API_KEY}",
         "Content-Type": "application/json"
     }
-    
+
     data = {
         "model": MODEL_ID,
         "messages": messages,
@@ -310,9 +310,9 @@ def test_streaming_tool_call() -> dict:
         "temperature": 0,
         "stream": True
     }
-    
+
     start = time.perf_counter()
-    
+
     try:
         req = urllib.request.Request(
             url,
@@ -320,11 +320,11 @@ def test_streaming_tool_call() -> dict:
             headers=headers,
             method="POST"
         )
-        
+
         chunks_received = 0
         tool_call_chunks = 0
         finish_reason = None
-        
+
         with urllib.request.urlopen(req, timeout=TIMEOUT) as response:
             for line in response:
                 line = line.decode("utf-8").strip()
@@ -343,20 +343,20 @@ def test_streaming_tool_call() -> dict:
                             finish_reason = finish
                     except:
                         pass
-        
+
         duration_ms = (time.perf_counter() - start) * 1000
-        
+
         passed = chunks_received > 0 and tool_call_chunks > 0 and finish_reason == "tool_calls"
-        
+
     except Exception as e:
         passed = False
         chunks_received = 0
         tool_call_chunks = 0
         finish_reason = None
         duration_ms = 0
-    
+
     print(f"     {'PASS' if passed else 'FAIL'} (chunks={chunks_received}, tool_chunks={tool_call_chunks}, finish={finish_reason})")
-    
+
     return {
         "test": "streaming_tool_call",
         "passed": passed,
@@ -370,7 +370,7 @@ def test_streaming_tool_call() -> dict:
 def test_multi_tool_call() -> dict:
     """Test 5: Multiple tool calls in sequence."""
     print("  5. Multiple tool calls in sequence...")
-    
+
     tools = [
         {
             "type": "function",
@@ -389,11 +389,11 @@ def test_multi_tool_call() -> dict:
             }
         }
     ]
-    
+
     messages = [
         {"role": "user", "content": "Get both the current time and date using the available functions."}
     ]
-    
+
     status, result, duration = make_request("/chat/completions", {
         "model": MODEL_ID,
         "messages": messages,
@@ -402,22 +402,22 @@ def test_multi_tool_call() -> dict:
         "max_tokens": 300,
         "temperature": 0
     })
-    
+
     passed = status == 200
     tool_calls = []
     unique_tools = set()
-    
+
     if passed:
         choice = result.get("choices", [{}])[0]
         message = choice.get("message", {})
         tool_calls = message.get("tool_calls", [])
         unique_tools = {tc.get("function", {}).get("name") for tc in tool_calls}
-    
+
     # Note: Model may call one or both tools depending on interpretation
     passed = passed and len(tool_calls) >= 1
-    
+
     print(f"     {'PASS' if passed else 'FAIL'} (HTTP {status}, tool_calls={len(tool_calls)}, unique_tools={unique_tools})")
-    
+
     return {
         "test": "multi_tool_call",
         "passed": passed,
@@ -434,32 +434,32 @@ def main():
     print(f"Base URL: {BASE_URL}")
     print(f"Model: {MODEL_ID}")
     print()
-    
+
     os.makedirs(OUTPUT_DIR, exist_ok=True)
-    
+
     results = []
-    
+
     print("Running MCP integration tests...")
     results.append(test_brave_search_tool_call())
     results.append(test_context7_tool_call())
     results.append(test_tool_call_parsing())
     results.append(test_streaming_tool_call())
     results.append(test_multi_tool_call())
-    
+
     print()
-    
+
     # Summary
     passed = sum(1 for r in results if r["passed"])
     total = len(results)
-    
+
     print("=" * 60)
     print(f"RESULTS: {passed}/{total} PASS")
     print("=" * 60)
-    
+
     # Save results
     run_id = f"run-{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}"
     output_file = os.path.join(OUTPUT_DIR, f"{run_id}-mcp-test.json")
-    
+
     with open(output_file, "w") as f:
         json.dump({
             "run_id": run_id,
@@ -473,9 +473,9 @@ def main():
                 "pass_rate": passed / total if total > 0 else 0
             }
         }, f, indent=2)
-    
+
     print(f"Results saved to: {output_file}")
-    
+
     return 0 if passed == total else 1
 
 

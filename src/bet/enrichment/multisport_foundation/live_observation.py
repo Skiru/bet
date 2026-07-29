@@ -70,7 +70,7 @@ def build_live_observation(
     blocked_reason: str | None = None,
 ) -> LiveObservationArtifact:
     """Build a LiveObservationArtifact from Pass B status and inputs."""
-    
+
     if pass_b_status == "SOURCE_BOUND_SHADOW_READY" and source_keys and corpus_ids:
         status = "ACTIVATION_CANDIDATE_SHADOW_ONLY"
         derived_blocked_reason = None
@@ -118,10 +118,10 @@ def write_pass_c_reports(
         pass_b_data = json.load(fh)
 
     sports = ["basketball", "volleyball", "hockey", "tennis", "cs2", "dota2", "valorant"]
-    
+
     activation_reports = {}
     observation_reports = {}
-    
+
     metrics = {
         "total_target_sports": len(sports),
         "activation_candidate_shadow_only_count": 0,
@@ -153,7 +153,7 @@ def write_pass_c_reports(
             source_shadow_report_path=pass_b_path,
             blocked_reason=blocked_reason,
         )
-        
+
         obs_art = build_live_observation(
             sport=sport,
             pass_b_status=pass_b_status,
@@ -189,7 +189,7 @@ def write_pass_c_reports(
     }
 
     os.makedirs(out_dir, exist_ok=True)
-    
+
     paths = {
         "activation": os.path.join(out_dir, "activation_candidate_by_sport.json"),
         "observation": os.path.join(out_dir, "live_fail_closed_observation_by_sport.json"),

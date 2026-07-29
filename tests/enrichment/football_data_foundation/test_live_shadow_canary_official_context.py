@@ -21,9 +21,9 @@ def test_build_official_fixture_context_norway_senegal_success(tmp_path: Path) -
 
     with patch("urllib.request.urlopen", return_value=mock_resp) as mock_urlopen:
         context = build_official_worldcup_fixture_context(tmp_path)
-        
+
         mock_urlopen.assert_called_once()
-        
+
         assert context.home_team == "Norway"
         assert context.away_team == "Senegal"
         assert context.match_id == "400021491"
@@ -59,7 +59,7 @@ def test_build_official_fixture_context_bs4_missing_fallback(tmp_path: Path) -> 
     with patch("urllib.request.urlopen", return_value=mock_resp):
         with patch.object(oc, "_HAS_BS4", False):
             context = build_official_worldcup_fixture_context(tmp_path)
-            
+
             # Should fall back to stdlib HTMLParser and succeed!
             assert context.home_team == "Norway"
             assert context.away_team == "Senegal"
@@ -72,7 +72,7 @@ def test_build_official_fixture_context_bs4_missing_fallback(tmp_path: Path) -> 
 def test_build_official_fixture_context_failure_does_not_fake(tmp_path: Path) -> None:
     # HTML missing metadata completely
     mock_html = b"<div>Completely un-related HTML data structure</div>"
-    
+
     mock_resp = MagicMock()
     mock_resp.read.return_value = mock_html
     mock_resp.__enter__.return_value = mock_resp
@@ -93,7 +93,7 @@ def test_build_official_fixture_context_poland_mexico_legacy(tmp_path: Path) -> 
 
     with patch("urllib.request.urlopen", return_value=mock_resp):
         context = build_official_worldcup_fixture_context(tmp_path)
-        
+
         assert context.home_team == "Poland"
         assert context.away_team == "Mexico"
         assert context.kickoff_at == "2026-06-15T18:00:00Z"

@@ -15,7 +15,7 @@ def test_v14_regression_no_football_only_quote_board() -> None:
         return
     data = json.loads(path.read_text(encoding="utf-8"))
     by_sport = data.get("quote_cards_by_sport") or data.get("QUOTE_CARDS_BY_SPORT") or {}
-    
+
     # Assert that there are non-football quote cards in the final board
     non_football_sports = [s for s in by_sport if s != "football"]
     assert len(non_football_sports) > 0

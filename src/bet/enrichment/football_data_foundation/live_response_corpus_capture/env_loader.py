@@ -14,42 +14,42 @@ def load_project_dotenv(project_root: Path) -> dict[str, str]:
     """
     global _env_store
     _env_store.clear()
-    
+
     env_path = project_root / ".env"
     if not env_path.exists():
         return {}
-        
+
     try:
         content = env_path.read_text(encoding="utf-8")
     except Exception:
         return {}
-        
+
     for line in content.splitlines():
         stripped = line.strip()
         if not stripped or stripped.startswith("#") or "=" not in stripped:
             continue
-            
+
         key, val = stripped.split("=", 1)
         key = key.strip()
         val = val.strip()
-        
+
         # Strip matching surrounding single or double quotes
         if len(val) >= 2 and (
-            (val.startswith('"') and val.endswith('"')) or 
+            (val.startswith('"') and val.endswith('"')) or
             (val.startswith("'") and val.endswith("'"))
         ):
             val = val[1:-1]
-            
+
         if key:
             _env_store[key] = val
-            
+
     return _env_store.copy()
 
 
 def get_credential(name: str, aliases: Sequence[str] = ()) -> str | None:
     """
     Retrieve credential by name, trying aliases in sequence.
-    If the same key exists in real process env and .env, prefer real process env 
+    If the same key exists in real process env and .env, prefer real process env
     only if it is non-empty; otherwise use .env.
     """
     keys = [name] + list(aliases)

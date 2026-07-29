@@ -178,7 +178,7 @@ def test_bet_action_path_sandbox_certification(tmp_path: Path, sandbox_env: dict
     assert str(draft_path) != "/tmp/2026-06-26_s8_coupon_drafts.json"
     assert s8_payload["executable_coupon"] is False
     assert s8_payload["requires_human_gate"] in (False, True)
-    
+
     draft_data = json.loads(draft_path.read_text(encoding="utf-8"))
     assert draft_data["artifact_type"] == "S8_SUPERBET_MANUAL_QUOTE_PACK"
     assert draft_data["quote_card_count"] > 0

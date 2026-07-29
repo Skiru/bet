@@ -24,7 +24,7 @@ def test_audit_candidate_rejected_test_or_synthetic() -> None:
 
 def test_audit_candidate_rejected_wrong_betting_day() -> None:
     audit = LiveFixtureAudit(target_date="2026-07-08")
-    
+
     # Wrong betting_day field
     candidate = {
         "candidate_id": "match_123",
@@ -39,7 +39,7 @@ def test_audit_candidate_rejected_wrong_betting_day() -> None:
 
 def test_audit_candidate_missing_kickoff() -> None:
     audit = LiveFixtureAudit(target_date="2026-07-08")
-    
+
     candidate = {
         "candidate_id": "match_123",
         "betting_day": "2026-07-08",
@@ -52,7 +52,7 @@ def test_audit_candidate_missing_kickoff() -> None:
 
 def test_audit_candidate_invalid_kickoff_format() -> None:
     audit = LiveFixtureAudit(target_date="2026-07-08")
-    
+
     candidate = {
         "candidate_id": "match_123",
         "betting_day": "2026-07-08",
@@ -66,7 +66,7 @@ def test_audit_candidate_invalid_kickoff_format() -> None:
 
 def test_audit_candidate_already_started(monkeypatch: pytest.MonkeyPatch) -> None:
     audit = LiveFixtureAudit(target_date="2026-07-08")
-    
+
     # Kickoff in the past
     past_time = (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat()
     monkeypatch.setenv("BET_PIPELINE_RUN_AS_OF_UTC", datetime.now(timezone.utc).isoformat())
@@ -83,14 +83,14 @@ def test_audit_candidate_already_started(monkeypatch: pytest.MonkeyPatch) -> Non
 
 def test_audit_candidate_kickoff_wrong_betting_day(monkeypatch: pytest.MonkeyPatch) -> None:
     audit = LiveFixtureAudit(target_date="2026-07-08")
-    
+
     # Kickoff on a different day (future)
     future_time = (datetime.now(timezone.utc) + timedelta(days=2))
     # Ensure it's not on 2026-07-08
     if future_time.strftime("%Y-%m-%d") == "2026-07-08":
         future_time += timedelta(days=1)
     monkeypatch.setenv("BET_PIPELINE_RUN_AS_OF_UTC", datetime.now(timezone.utc).isoformat())
-    
+
     candidate = {
         "candidate_id": "match_123",
         "kickoff": future_time.isoformat(),
@@ -107,7 +107,7 @@ def test_audit_candidate_missing_participants(monkeypatch: pytest.MonkeyPatch) -
     kickoff_time = tomorrow.replace(hour=20, minute=0, second=0, microsecond=0).isoformat()
     audit = LiveFixtureAudit(target_date=target_date)
     monkeypatch.setenv("BET_PIPELINE_RUN_AS_OF_UTC", datetime.now(timezone.utc).isoformat())
-    
+
     # Missing home_team
     candidate = {
         "candidate_id": "match_123",
@@ -165,7 +165,7 @@ def test_audit_candidate_valid(monkeypatch: pytest.MonkeyPatch) -> None:
     target_date = now.strftime("%Y-%m-%d")
     monkeypatch.setenv("BET_PIPELINE_RUN_AS_OF_UTC", now.isoformat())
     audit = LiveFixtureAudit(target_date=target_date)
-    
+
     candidate = {
         "candidate_id": "match_123",
         "canonical_event_id": "event_123",
@@ -186,7 +186,7 @@ def test_audit_candidate_valid(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def test_assign_tiers_score_calculation() -> None:
     audit = LiveFixtureAudit(target_date="2026-07-08")
-    
+
     # Base candidate with probability, standard hydration, high data quality, safety score
     candidate = {
         "candidate_id": "match_1",
@@ -197,14 +197,14 @@ def test_assign_tiers_score_calculation() -> None:
         "data_quality": {"label": "HIGH"},
         "safety_score": 0.5
     }
-    
+
     # Expected score:
     # 0.6 * 10.0 = 6.0
     # standard hydration -> 0.0
     # data quality HIGH -> +2.0
     # safety_score 0.5 -> +2.5
     # Total = 10.5
-    
+
     results = audit.assign_tiers([candidate])
     assert len(results) == 1
     assert results[0]["review_score"] == 10.5
@@ -213,7 +213,7 @@ def test_assign_tiers_score_calculation() -> None:
 
 def test_assign_tiers_minimal_hydration_and_tiny_sample() -> None:
     audit = LiveFixtureAudit(target_date="2026-07-08")
-    
+
     # Minimal hydration and tiny sample size
     candidate = {
         "candidate_id": "match_1",
@@ -224,7 +224,7 @@ def test_assign_tiers_minimal_hydration_and_tiny_sample() -> None:
         "data_quality": {"label": "MINIMAL"},
         "best_market": {"safety_score": 0.2}
     }
-    
+
     # Expected score:
     # 0.8 * 10.0 = 8.0
     # MINIMAL_HYDRATION -> -3.0
@@ -232,7 +232,7 @@ def test_assign_tiers_minimal_hydration_and_tiny_sample() -> None:
     # best_market safety_score 0.2 -> +1.0
     # Total = 5.0
     # Since is_tiny_sample or is_minimal is True, tier should be C_WATCHLIST_ONLY
-    
+
     results = audit.assign_tiers([candidate])
     assert len(results) == 1
     assert results[0]["review_score"] == 5.0
@@ -241,7 +241,7 @@ def test_assign_tiers_minimal_hydration_and_tiny_sample() -> None:
 
 def test_assign_tiers_small_sample() -> None:
     audit = LiveFixtureAudit(target_date="2026-07-08")
-    
+
     # Small sample size (5 <= sample_size < 8)
     candidate = {
         "candidate_id": "match_1",
@@ -252,14 +252,14 @@ def test_assign_tiers_small_sample() -> None:
         "data_quality": {"label": "MEDIUM"},
         "safety_score": 0.4
     }
-    
+
     # Expected score:
     # 0.8 * 10.0 = 8.0
     # data quality MEDIUM -> +1.0
     # safety_score 0.4 -> +2.0
     # Total = 11.0
     # Since is_small_sample is True, tier should be B_MANUAL_QUOTE_SECONDARY
-    
+
     results = audit.assign_tiers([candidate])
     assert len(results) == 1
     assert results[0]["review_score"] == 11.0
@@ -267,7 +267,7 @@ def test_assign_tiers_small_sample() -> None:
 
 def test_assign_tiers_capping_and_sorting() -> None:
     audit = LiveFixtureAudit(target_date="2026-07-08")
-    
+
     # Create 30 candidates that would normally be A_MANUAL_QUOTE_PRIORITY
     # (score >= 7.5, sample_size >= 8, standard hydration)
     candidates = []
@@ -281,12 +281,12 @@ def test_assign_tiers_capping_and_sorting() -> None:
             # Give them slightly different scores to test sorting
             "safety_score": 0.1 * (30 - i)
         })
-        
+
     results = audit.assign_tiers(candidates)
-    
+
     # Verify sorting: first candidate should have the highest score
     assert results[0]["review_score"] > results[-1]["review_score"]
-    
+
     # Verify capping:
     # Max 12 A_MANUAL_QUOTE_PRIORITY
     # Max 25 total A + B
@@ -294,7 +294,7 @@ def test_assign_tiers_capping_and_sorting() -> None:
     a_tier = [c for c in results if c["review_tier"] == "A_MANUAL_QUOTE_PRIORITY"]
     b_tier = [c for c in results if c["review_tier"] == "B_MANUAL_QUOTE_SECONDARY"]
     c_tier = [c for c in results if c["review_tier"] == "C_WATCHLIST_ONLY"]
-    
+
     assert len(a_tier) == 12
     assert len(b_tier) == 13 # 25 - 12 = 13
     assert len(c_tier) == 5

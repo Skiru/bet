@@ -68,14 +68,14 @@ def redact_text(value: str) -> str:
         secret = os.environ.get(alias, "")
         if secret:
             redacted = redacted.replace(secret, "REDACTED")
-    
+
     # Also redact from dot_env
     dot_env = parse_dot_env(Path(".env"))
     for alias in ("SPORTDB_API_KEY", "SPORTDB_KEY"):
         secret = dot_env.get(alias, "")
         if secret:
             redacted = redacted.replace(secret, "REDACTED")
-            
+
     return redacted
 
 
@@ -214,7 +214,7 @@ def main() -> int:
         adapter = SportDBMCPShadowAdapter()
         summary["schema_source"]["loaded"] = True
         summary["mapping_source"]["loaded"] = True
-        
+
         # Populate mapping source fields
         map_src = adapter.mapping_summary
         summary["mapping_source"].update({
@@ -236,7 +236,7 @@ def main() -> int:
             summary["classification"] = "SPORTDB_SHADOW_ADAPTER_BLOCKED_MAPPING_SUMMARY_INVALID"
             summary["next_step"] = "blocked_or_retry_after_review"
             summary["blockers"].append("mapping_summary_file_missing")
-        
+
         out_path.write_text(json.dumps(summary, indent=2, sort_keys=True), encoding="utf-8")
         print(json.dumps(summary, indent=2, sort_keys=True))
         return 0
@@ -448,7 +448,7 @@ def main() -> int:
 
     # Save summary file
     out_path.write_text(json.dumps(summary, indent=2, sort_keys=True), encoding="utf-8")
-    
+
     # Print summary as compact JSON as required
     print(json.dumps(summary, sort_keys=True))
     return 0

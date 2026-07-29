@@ -30,18 +30,18 @@ def test_guardrail_forbidden_imports():
     provider clients instead of duplicating network/authentication code.
     """
     _require_source_layout()
-    
+
     forbidden_prefixes = (
         "bet.db", "bet.db",
         "bet.pipeline", "bet.pipeline",
         "bet.scrapers", "bet.scrapers",
         "betting", "betting",
     )
-    
+
     for p in SRC_DIR.rglob("*.py"):
         content = p.read_text(encoding="utf-8")
         tree = ast.parse(content, filename=str(p))
-        
+
         for node in ast.walk(tree):
             if isinstance(node, ast.Import):
                 for alias in node.names:
@@ -68,13 +68,13 @@ def test_guardrail_no_canary_fixture_1():
     REQ-TEST-007 no canary_fixture_1.
     """
     _require_source_layout()
-    
+
     forbidden = "-".join(["canary", "fixture", "1"])
-    
+
     for p in SRC_DIR.rglob("*.py"):
         content = p.read_text(encoding="utf-8")
         assert forbidden not in content, f"Forbidden string '{forbidden}' found in src/{p.name}"
-        
+
     for p in TEST_DIR.glob("test_live_response_corpus_capture_*.py"):
         if p.name == "test_live_response_corpus_capture_guardrails.py":
             continue

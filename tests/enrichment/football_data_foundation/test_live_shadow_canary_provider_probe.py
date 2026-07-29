@@ -31,10 +31,10 @@ def test_provider_probes_all_missing_credentials(clean_env) -> None:
         away_team="Mexico",
         kickoff_at="2026-06-15T18:00:00Z",
     )
-    
+
     results = run_provider_shadow_probes(context)
     assert len(results) == 3
-    
+
     for r in results:
         assert r.status == "SKIPPED_CREDENTIALS_MISSING"
         assert r.request_attempted is False
@@ -78,16 +78,16 @@ def test_provider_probes_with_credentials_and_success() -> None:
         results = run_provider_shadow_probes(
             context, transport=mock_transport, out_batches=out_batches
         )
-        
+
         assert len(results) == 3
         # Exactly 3 network requests should be attempted on transport (1 for each provider)
         assert mock_transport.get.call_count == 3
-        
+
         for r in results:
             assert r.status == "SUCCESS"
             assert r.request_attempted is True
             assert r.selectable_for_production is False
-            
+
         assert len(out_batches) == 3
 
 
@@ -117,12 +117,12 @@ def test_provider_probes_with_failure() -> None:
         results = run_provider_shadow_probes(
             context, transport=mock_transport, out_batches=out_batches
         )
-        
+
         assert len(results) == 3
         for r in results:
             assert r.status == "FAILED_PROVIDER_ERROR"
             assert r.request_attempted is True
             assert "API Connection failure" in r.error
             assert r.selectable_for_production is False
-            
+
         assert len(out_batches) == 0

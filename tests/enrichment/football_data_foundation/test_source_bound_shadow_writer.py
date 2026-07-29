@@ -34,11 +34,11 @@ def test_writer_writes_deterministic_json_and_sqlite(tmp_path):
     json_path = allowed_dir / "snapshot.json"
     write_shadow_json(snapshot, json_path)
     assert json_path.exists()
-    
+
     content = json_path.read_text(encoding="utf-8")
     data = json.loads(content)
     assert data["fixture_slug"] == "worldcup2026-norway-senegal"
-    
+
     sqlite_path = allowed_dir / "shadow.sqlite"
     write_shadow_sqlite(snapshot, sqlite_path, diagnostics={})
     assert sqlite_path.exists()
@@ -50,7 +50,7 @@ def test_writer_writes_deterministic_json_and_sqlite(tmp_path):
         row = cur.fetchone()
         assert row[0] == "worldcup2026-norway-senegal"
         assert row[1] == "SHADOW_ENRICHMENT_READY_FOR_MANUAL_REVIEW"
-        
+
         cur.execute("SELECT provider, provider_match_id FROM shadow_provider_ids")
         row2 = cur.fetchone()
         assert row2[0] == "sportdb"

@@ -133,10 +133,10 @@ def wait_for_readiness(timeout_s: int = STARTUP_TIMEOUT_S) -> tuple[bool, float]
     """Wait for server readiness."""
     import urllib.request
     import urllib.error
-    
+
     start = time.time()
     deadline = start + timeout_s
-    
+
     while time.time() < deadline:
         try:
             req = urllib.request.Request(f"http://{HOST}:{PORT}/health", method="GET")
@@ -146,7 +146,7 @@ def wait_for_readiness(timeout_s: int = STARTUP_TIMEOUT_S) -> tuple[bool, float]
         except (urllib.error.URLError, urllib.error.HTTPError, ConnectionRefusedError, TimeoutError):
             pass
         time.sleep(1)
-    
+
     return False, time.time() - start
 
 
@@ -191,34 +191,34 @@ def verify_fingerprint(pid: int) -> tuple[bool, dict[str, Any]]:
         "forbidden_flags_absent": False,
         "cmdline": None,
     }
-    
+
     cmdline = get_process_cmdline(pid)
     if cmdline is None:
         return False, result
-    
+
     result["cmdline"] = cmdline
-    
+
     # Check executable
     cmdline_str = " ".join(cmdline)
     if str(RAPID_MLX_BIN) in cmdline_str:
         result["executable_match"] = True
-    
+
     # Check model
     if MODEL_ALIAS in cmdline_str:
         result["model_match"] = True
-    
+
     # Check host
     if "--host" in cmdline:
         idx = cmdline.index("--host")
         if idx + 1 < len(cmdline) and cmdline[idx + 1] == HOST:
             result["host_match"] = True
-    
+
     # Check port
     if "--port" in cmdline:
         idx = cmdline.index("--port")
         if idx + 1 < len(cmdline) and cmdline[idx + 1] == str(PORT):
             result["port_match"] = True
-    
+
     # Check forbidden flags
     forbidden = [
         "--kv-cache-quantization",
@@ -234,7 +234,7 @@ def verify_fingerprint(pid: int) -> tuple[bool, dict[str, Any]]:
     found_forbidden = [f for f in forbidden if f in cmdline_str]
     result["forbidden_flags_absent"] = len(found_forbidden) == 0
     result["found_forbidden"] = found_forbidden
-    
+
     all_ok = (
         result["executable_match"]
         and result["model_match"]
@@ -242,7 +242,7 @@ def verify_fingerprint(pid: int) -> tuple[bool, dict[str, Any]]:
         and result["port_match"]
         and result["forbidden_flags_absent"]
     )
-    
+
     return all_ok, result
 
 
@@ -258,19 +258,19 @@ def test_initial_state() -> tuple[bool, dict[str, Any]]:
         "no_pid_file": False,
         "connection_refused": False,
     }
-    
+
     # Check port is free
     details["port_free"] = check_port_free(PORT)
-    
+
     # Check no listener
     details["no_listener"] = not check_listener_exists(PORT)
-    
+
     # Check no PID file
     details["no_pid_file"] = not PID_FILE.exists()
-    
+
     # Check connection refused
     details["connection_refused"] = check_connection_refused(PORT)
-    
+
     passed = details["port_free"] or (details["no_listener"] and details["connection_refused"])
     return passed, details
 
@@ -285,39 +285,39 @@ def test_start() -> tuple[bool, dict[str, Any]]:
         "fingerprint_ok": False,
         "manifest_exists": False,
     }
-    
+
     # Run start
     exit_code, stdout, stderr = run_lifecycle_command("start")
     details["exit_code"] = exit_code
     details["stdout"] = stdout[:500] if stdout else ""
     details["stderr"] = stderr[:500] if stderr else ""
-    
+
     if exit_code != 0:
         return False, details
-    
+
     # Get PID
     pid = get_pid_from_file()
     details["pid"] = pid
-    
+
     if pid is None:
         return False, details
-    
+
     # Wait for readiness
     ready, duration = wait_for_readiness()
     details["readiness_succeeded"] = ready
     details["readiness_duration_s"] = duration
-    
+
     if not ready:
         return False, details
-    
+
     # Verify fingerprint
     fingerprint_ok, fingerprint = verify_fingerprint(pid)
     details["fingerprint_ok"] = fingerprint_ok
     details["fingerprint"] = fingerprint
-    
+
     # Check manifest
     details["manifest_exists"] = MANIFEST_FILE.exists()
-    
+
     passed = (
         exit_code == 0
         and pid is not None
@@ -332,11 +332,11 @@ def test_health() -> tuple[bool, dict[str, Any]]:
     details = {
         "exit_code": None,
     }
-    
+
     exit_code, stdout, stderr = run_lifecycle_command("health")
     details["exit_code"] = exit_code
     details["stdout"] = stdout[:500] if stdout else ""
-    
+
     return exit_code == 0, details
 
 
@@ -346,12 +346,12 @@ def test_status() -> tuple[bool, dict[str, Any]]:
         "exit_code": None,
         "shows_running": False,
     }
-    
+
     exit_code, stdout, stderr = run_lifecycle_command("status")
     details["exit_code"] = exit_code
     details["stdout"] = stdout[:500] if stdout else ""
     details["shows_running"] = "running" in stdout.lower()
-    
+
     return exit_code == 0 and details["shows_running"], details
 
 
@@ -360,11 +360,11 @@ def test_smoke() -> tuple[bool, dict[str, Any]]:
     details = {
         "exit_code": None,
     }
-    
+
     exit_code, stdout, stderr = run_lifecycle_command("smoke", timeout=SMOKE_TIMEOUT_S)
     details["exit_code"] = exit_code
     details["stdout"] = stdout[:500] if stdout else ""
-    
+
     return exit_code == 0, details
 
 
@@ -374,12 +374,12 @@ def test_logs() -> tuple[bool, dict[str, Any]]:
         "exit_code": None,
         "has_output": False,
     }
-    
+
     exit_code, stdout, stderr = run_lifecycle_command("logs")
     details["exit_code"] = exit_code
     details["has_output"] = len(stdout) > 0
     details["stdout_lines"] = len(stdout.split('\n')) if stdout else 0
-    
+
     return exit_code == 0 and details["has_output"], details
 
 
@@ -391,20 +391,20 @@ def test_duplicate_start() -> tuple[bool, dict[str, Any]]:
         "pid_unchanged": False,
         "no_duplicate_process": False,
     }
-    
+
     # Get current PID
     first_pid = get_pid_from_file()
     details["first_pid"] = first_pid
-    
+
     # Try to start again
     exit_code, stdout, stderr = run_lifecycle_command("start")
     details["second_exit_code"] = exit_code
     details["stdout"] = stdout[:500] if stdout else ""
-    
+
     # Check PID unchanged
     second_pid = get_pid_from_file()
     details["pid_unchanged"] = first_pid == second_pid
-    
+
     # Check no duplicate process
     try:
         result = subprocess.run(
@@ -419,7 +419,7 @@ def test_duplicate_start() -> tuple[bool, dict[str, Any]]:
     except Exception as e:
         details["error"] = str(e)
         details["no_duplicate_process"] = False
-    
+
     passed = (
         details["pid_unchanged"]
         and details["no_duplicate_process"]
@@ -436,26 +436,26 @@ def test_restart() -> tuple[bool, dict[str, Any]]:
         "pid_changed": False,
         "readiness_ok": False,
     }
-    
+
     old_pid = get_pid_from_file()
     details["old_pid"] = old_pid
-    
+
     exit_code, stdout, stderr = run_lifecycle_command("restart", timeout=STARTUP_TIMEOUT_S + GRACEFUL_SHUTDOWN_S)
     details["exit_code"] = exit_code
     details["stdout"] = stdout[:500] if stdout else ""
-    
+
     if exit_code != 0:
         return False, details
-    
+
     new_pid = get_pid_from_file()
     details["new_pid"] = new_pid
     details["pid_changed"] = old_pid != new_pid
-    
+
     # Wait for readiness
     ready, duration = wait_for_readiness()
     details["readiness_ok"] = ready
     details["readiness_duration_s"] = duration
-    
+
     passed = (
         exit_code == 0
         and details["pid_changed"]
@@ -478,29 +478,29 @@ def test_stop() -> tuple[bool, dict[str, Any]]:
         "no_listener": False,
         "pid_file_removed": False,
     }
-    
+
     exit_code, stdout, stderr = run_lifecycle_command("stop", timeout=GRACEFUL_SHUTDOWN_S + FORCED_SHUTDOWN_S)
     details["exit_code"] = exit_code
     details["stdout"] = stdout[:500] if stdout else ""
-    
+
     # Wait for cleanup
     time.sleep(2)
-    
+
     # Check process gone
     pid = get_pid_from_file()
     if pid:
         details["process_gone"] = not is_process_alive(pid)
     else:
         details["process_gone"] = True
-    
+
     # Check port free
     details["port_free"] = check_port_free(PORT)
     details["no_listener"] = not check_listener_exists(PORT)
     details["connection_refused"] = check_connection_refused(PORT)
-    
+
     # Check PID file removed
     details["pid_file_removed"] = not PID_FILE.exists()
-    
+
     passed = (
         exit_code == 0
         and details["process_gone"]
@@ -515,11 +515,11 @@ def test_duplicate_stop() -> tuple[bool, dict[str, Any]]:
     details = {
         "exit_code": None,
     }
-    
+
     exit_code, stdout, stderr = run_lifecycle_command("stop")
     details["exit_code"] = exit_code
     details["stdout"] = stdout[:500] if stdout else ""
-    
+
     # Should succeed (idempotent)
     return exit_code == 0, details
 
@@ -531,28 +531,28 @@ def test_stale_pid_handling() -> tuple[bool, dict[str, Any]]:
         "start_succeeded": False,
         "stale_file_cleaned": False,
     }
-    
+
     # Create stale PID file with non-existent PID
     stale_pid = 999999  # Very unlikely to exist
     RUNTIME_DIR.mkdir(parents=True, exist_ok=True)
     PID_FILE.write_text(str(stale_pid))
     details["stale_pid_created"] = PID_FILE.exists()
-    
+
     # Try to start - should clean up stale file
     exit_code, stdout, stderr = run_lifecycle_command("start")
     details["start_exit_code"] = exit_code
     details["start_succeeded"] = exit_code == 0
-    
+
     if exit_code == 0:
         # Verify new PID is different
         new_pid = get_pid_from_file()
         details["new_pid"] = new_pid
         details["pid_differs"] = new_pid != stale_pid
-        
+
         # Stop for next test
         run_lifecycle_command("stop")
         time.sleep(2)
-    
+
     passed = details["start_succeeded"]
     return passed, details
 
@@ -567,7 +567,7 @@ def test_unrelated_pid_protection() -> tuple[bool, dict[str, Any]]:
         "test_process_survived": False,
         "cleanup_done": False,
     }
-    
+
     # Start a harmless test process (sleep)
     test_proc = subprocess.Popen(
         ["sleep", "60"],
@@ -576,27 +576,27 @@ def test_unrelated_pid_protection() -> tuple[bool, dict[str, Any]]:
     )
     details["test_process_started"] = True
     details["test_pid"] = test_proc.pid
-    
+
     # Create PID file pointing to test process
     PID_FILE.write_text(str(test_proc.pid))
     details["stale_pid_file_created"] = True
-    
+
     # Try to start - should refuse (PID exists but is not Rapid-MLX)
     exit_code, stdout, stderr = run_lifecycle_command("start")
     details["start_exit_code"] = exit_code
     details["start_refused"] = exit_code != 0
     details["start_stderr"] = stderr[:300] if stderr else ""
-    
+
     # Verify test process still alive
     time.sleep(1)
     details["test_process_survived"] = is_process_alive(test_proc.pid)
-    
+
     # Cleanup
     test_proc.terminate()
     test_proc.wait(timeout=5)
     PID_FILE.unlink(missing_ok=True)
     details["cleanup_done"] = True
-    
+
     passed = (
         details["start_refused"]
         and details["test_process_survived"]
@@ -612,7 +612,7 @@ def test_port_conflict_handling() -> tuple[bool, dict[str, Any]]:
         "dummy_survived": False,
         "cleanup_done": False,
     }
-    
+
     # Start a dummy listener on the port
     dummy_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     dummy_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -624,20 +624,20 @@ def test_port_conflict_handling() -> tuple[bool, dict[str, Any]]:
         details["error"] = str(e)
         dummy_sock.close()
         return False, details
-    
+
     # Try to start - should refuse
     exit_code, stdout, stderr = run_lifecycle_command("start")
     details["start_exit_code"] = exit_code
     details["start_refused"] = exit_code != 0
     details["start_stderr"] = stderr[:300] if stderr else ""
-    
+
     # Verify dummy still listening
     details["dummy_survived"] = check_listener_exists(PORT)
-    
+
     # Cleanup
     dummy_sock.close()
     details["cleanup_done"] = True
-    
+
     passed = (
         details["start_refused"]
         and details["dummy_survived"]
@@ -653,22 +653,22 @@ def test_failed_start_cleanup() -> tuple[bool, dict[str, Any]]:
         "no_orphan_process": False,
         "port_freed": False,
     }
-    
+
     # Start server normally first
     exit_code, stdout, stderr = run_lifecycle_command("start")
     if exit_code != 0:
         details["error"] = "Failed to start server for test"
         return False, details
-    
+
     time.sleep(5)
-    
+
     # Get PID
     pid = get_pid_from_file()
     details["original_pid"] = pid
-    
+
     # Port should be occupied
     details["port_occupied"] = check_listener_exists(PORT)
-    
+
     # Kill the process abruptly (simulating crash)
     if pid and is_process_alive(pid):
         try:
@@ -676,14 +676,14 @@ def test_failed_start_cleanup() -> tuple[bool, dict[str, Any]]:
             time.sleep(2)
         except Exception as e:
             details["kill_error"] = str(e)
-    
+
     # Clean up PID file to simulate failed state
     PID_FILE.unlink(missing_ok=True)
-    
+
     # Verify port is now free or process is gone
     details["no_orphan_process"] = not is_process_alive(pid) if pid else True
     details["port_freed"] = not check_listener_exists(PORT) or check_connection_refused(PORT)
-    
+
     passed = details["no_orphan_process"]
     return passed, details
 
@@ -696,11 +696,11 @@ def test_final_cleanup() -> tuple[bool, dict[str, Any]]:
         "connection_refused": False,
         "no_pid_file": False,
     }
-    
+
     # Ensure stopped
     run_lifecycle_command("stop")
     time.sleep(3)
-    
+
     # Check no Rapid-MLX process
     try:
         result = subprocess.run(
@@ -714,16 +714,16 @@ def test_final_cleanup() -> tuple[bool, dict[str, Any]]:
         details["no_process"] = len(pids) == 0
     except Exception:
         details["no_process"] = True
-    
+
     # Check no listener
     details["no_listener"] = not check_listener_exists(PORT)
-    
+
     # Check connection refused
     details["connection_refused"] = check_connection_refused(PORT)
-    
+
     # Check no PID file
     details["no_pid_file"] = not PID_FILE.exists()
-    
+
     passed = (
         details["no_process"]
         and details["no_listener"]
@@ -739,7 +739,7 @@ def test_secret_scan() -> tuple[bool, dict[str, Any]]:
         "no_api_key_in_logs": False,
         "no_bearer_in_logs": False,
     }
-    
+
     # Check manifest
     if MANIFEST_FILE.exists():
         manifest_content = MANIFEST_FILE.read_text()
@@ -750,16 +750,16 @@ def test_secret_scan() -> tuple[bool, dict[str, Any]]:
         )
     else:
         details["no_api_key_in_manifest"] = True
-    
+
     # Check logs
     log_files = list(LOG_DIR.glob("*.log")) if LOG_DIR.exists() else []
     log_content = ""
     for log_file in log_files:
         log_content += log_file.read_text(errors="ignore")
-    
+
     details["no_api_key_in_logs"] = "--api-key" not in log_content
     details["no_bearer_in_logs"] = "Bearer " not in log_content
-    
+
     passed = (
         details["no_api_key_in_manifest"]
         and details["no_api_key_in_logs"]
@@ -777,10 +777,10 @@ def main():
     print("P2 LIFECYCLE CERTIFICATION")
     print("=" * 60)
     print()
-    
+
     # Ensure evidence directory exists
     EVIDENCE_DIR.mkdir(parents=True, exist_ok=True)
-    
+
     # Run tests in order
     tests = [
         ("01_initial_state", test_initial_state),
@@ -801,9 +801,9 @@ def main():
         ("16_final_cleanup", test_final_cleanup),
         ("17_secret_scan", test_secret_scan),
     ]
-    
+
     all_passed = True
-    
+
     for name, test_func in tests:
         print(f"Running {name}...", end=" ")
         try:
@@ -818,7 +818,7 @@ def main():
             print(f"ERROR: {e}")
             add_test_result(name, False, {"error": str(e)})
             all_passed = False
-    
+
     # Collect fingerprint
     print()
     print("Collecting fingerprint...")
@@ -840,7 +840,7 @@ def main():
         evidence["fingerprint"]["gpu_memory"] = GPU_MEM_UTIL
     except Exception as e:
         evidence["fingerprint"]["error"] = str(e)
-    
+
     # Final state
     print("Checking final state...")
     evidence["final_state"] = {
@@ -849,11 +849,11 @@ def main():
         "connection_refused": check_connection_refused(PORT),
         "pid_file_exists": PID_FILE.exists(),
     }
-    
+
     # Summary
     evidence["completed_at"] = datetime.now(timezone.utc).isoformat()
     evidence["status"] = "PASS" if all_passed else "FAIL"
-    
+
     # Count results
     passed_count = sum(1 for t in evidence["tests"] if t["passed"])
     total_count = len(evidence["tests"])
@@ -862,11 +862,11 @@ def main():
         "total": total_count,
         "all_passed": all_passed,
     }
-    
+
     # Write evidence
     evidence_file = EVIDENCE_DIR / "p2-lifecycle-certification.json"
     evidence_file.write_text(json.dumps(evidence, indent=2))
-    
+
     # Write console log
     console_file = EVIDENCE_DIR / "p2-lifecycle-certification-console.txt"
     console_content = f"""P2 LIFECYCLE CERTIFICATION
@@ -881,7 +881,7 @@ TESTS
     for test in evidence["tests"]:
         status = "PASS" if test["passed"] else "FAIL"
         console_content += f"{test['name']}: {status}\n"
-    
+
     console_content += f"""
 SUMMARY
 -------
@@ -905,14 +905,14 @@ No listener: {evidence["final_state"]["no_listener"]}
 Connection refused: {evidence["final_state"]["connection_refused"]}
 """
     console_file.write_text(console_content)
-    
+
     print()
     print("=" * 60)
     print(f"P2 CERTIFICATION: {evidence['status']}")
     print(f"Tests: {passed_count}/{total_count}")
     print(f"Evidence: {evidence_file}")
     print("=" * 60)
-    
+
     return 0 if all_passed else 1
 
 
