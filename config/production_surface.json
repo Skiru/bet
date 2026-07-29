@@ -211,6 +211,7 @@
     "scripts/audit_orchestrated_session_continuation.py",
     "scripts/audit_sport_coverage.py",
     "scripts/audit_v2.py",
+    "scripts/build_v5_v4_closure_package.py",
     "scripts/build_shortlist.py",
     "scripts/check_48h_repeats.py",
     "scripts/compute_safety_scores.py",

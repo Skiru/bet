@@ -177,7 +177,7 @@ def test_p0_07_chunk_work_order_schema():
 
 def test_p0_08_model_package_governance():
     """P0-08: Untracked or missing-fitted-model packages must be rejected by ModelPackageResolver."""
-    untracked_pkg = Path("models/store/test_pkg_t4")
+    untracked_pkg = Path("models/store/untracked_pkg_test_p0_08")
     res = ModelPackageResolver.resolve_package(untracked_pkg)
     assert isinstance(res, ModelPackageResolutionResult)
     assert res.is_eligible is False
