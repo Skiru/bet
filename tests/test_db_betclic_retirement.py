@@ -17,7 +17,7 @@ def test_fresh_bootstrap_contains_no_retired_operator_objects(tmp_path: Path) ->
     conn = sqlite3.connect(tmp_path / "fresh.sqlite")
     try:
         init_db(conn)
-        assert get_schema_version(conn) == SCHEMA_VERSION == 21
+        assert get_schema_version(conn) == SCHEMA_VERSION
         assert not {name for name in _object_names(conn) if "betclic" in name}
         columns = {row[1] for row in conn.execute("PRAGMA table_info(coupons)")}
         assert "operator_ref" in columns
@@ -50,7 +50,7 @@ def test_version_20_upgrade_retires_objects_and_preserves_data(tmp_path: Path) -
         )
         migrate(conn, 20, SCHEMA_VERSION)
 
-        assert get_schema_version(conn) == 21
+        assert get_schema_version(conn) == SCHEMA_VERSION
         assert not {name for name in _object_names(conn) if "betclic" in name}
         assert conn.execute("SELECT operator_ref FROM coupons WHERE id = 1").fetchone()[0] == "legacy-reference"
         assert conn.execute("SELECT value FROM unrelated WHERE id = 1").fetchone()[0] == "preserved"
@@ -58,6 +58,6 @@ def test_version_20_upgrade_retires_objects_and_preserves_data(tmp_path: Path) -
         assert conn.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
 
         migrate(conn, SCHEMA_VERSION, SCHEMA_VERSION)
-        assert get_schema_version(conn) == 21
+        assert get_schema_version(conn) == SCHEMA_VERSION
     finally:
         conn.close()

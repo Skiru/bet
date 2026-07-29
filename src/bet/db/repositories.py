@@ -8,6 +8,7 @@ JSON columns are serialized with json.dumps() on write and json.loads() on read.
 
 import json
 import logging
+import os
 import re
 import sqlite3
 from typing import Any
@@ -530,8 +531,12 @@ class CompetitionRepo:
 # ---------------------------------------------------------------------------
 
 class FixtureRepo:
+    """Repository for fixtures table operations."""
+
     def __init__(self, conn: sqlite3.Connection):
         self.conn = conn
+        if conn.row_factory != sqlite3.Row:
+            conn.row_factory = sqlite3.Row
 
     def upsert(self, fixture: Fixture) -> int:
         """Insert or update fixture. Returns row ID."""
@@ -574,6 +579,33 @@ class FixtureRepo:
 
     def get_by_date(self, date: str, sport_id: int | None = None) -> list[Fixture]:
         """Get fixtures for a date (YYYY-MM-DD prefix match on kickoff)."""
+        selection_run_id = os.environ.get("BET_PIPELINE_SELECTION_RUN_ID")
+        if selection_run_id:
+            table_check = self.conn.execute(
+                "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='pipeline_runtime_event_selection'"
+            ).fetchone()[0]
+            if not table_check:
+                raise RuntimeError(
+                    f"SELECTION_RUN_ID_ENFORCEMENT_FAILED: pipeline_runtime_event_selection table missing when BET_PIPELINE_SELECTION_RUN_ID={selection_run_id} is set."
+                )
+            if sport_id is not None:
+                rows = self.conn.execute(
+                    "SELECT f.* FROM fixtures f "
+                    "JOIN pipeline_runtime_event_selection s "
+                    "  ON s.run_id = ? AND (s.fixture_id = f.id OR s.canonical_event_id = CAST(f.id AS TEXT)) "
+                    "WHERE f.kickoff LIKE ? AND f.sport_id = ? AND s.decision = 'ANALYZE_FROM_S2'",
+                    (selection_run_id, f"{date}%", sport_id),
+                ).fetchall()
+            else:
+                rows = self.conn.execute(
+                    "SELECT f.* FROM fixtures f "
+                    "JOIN pipeline_runtime_event_selection s "
+                    "  ON s.run_id = ? AND (s.fixture_id = f.id OR s.canonical_event_id = CAST(f.id AS TEXT)) "
+                    "WHERE f.kickoff LIKE ? AND s.decision = 'ANALYZE_FROM_S2'",
+                    (selection_run_id, f"{date}%"),
+                ).fetchall()
+            return [self._row_to_fixture(r) for r in rows]
+
         if sport_id is not None:
             rows = self.conn.execute(
                 "SELECT * FROM fixtures WHERE kickoff LIKE ? AND sport_id = ?",
@@ -606,6 +638,56 @@ class FixtureRepo:
         Returns: [{fixture_id, sport_id, competition, home_team, away_team,
                    home_team_id, away_team_id, kickoff, status, ...}]
         """
+        selection_run_id = os.environ.get("BET_PIPELINE_SELECTION_RUN_ID")
+        if selection_run_id:
+            table_check = self.conn.execute(
+                "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='pipeline_runtime_event_selection'"
+            ).fetchone()[0]
+            if not table_check:
+                raise RuntimeError(
+                    f"SELECTION_RUN_ID_ENFORCEMENT_FAILED: pipeline_runtime_event_selection table missing when BET_PIPELINE_SELECTION_RUN_ID={selection_run_id} is set."
+                )
+            sql = (
+                "SELECT f.id AS fixture_id, f.sport_id, f.kickoff, f.status, "
+                "f.score_home, f.score_away, f.external_id, f.source, "
+                "ht.name AS home_team, at.name AS away_team, "
+                "ht.id AS home_team_id, at.id AS away_team_id, "
+                "COALESCE(c.name, '') AS competition, "
+                "COALESCE(s.name, '') AS sport_name "
+                "FROM fixtures f "
+                "JOIN pipeline_runtime_event_selection sel "
+                "  ON sel.run_id = ? AND (sel.fixture_id = f.id OR sel.canonical_event_id = CAST(f.id AS TEXT)) "
+                "JOIN teams ht ON f.home_team_id = ht.id "
+                "JOIN teams at ON f.away_team_id = at.id "
+                "LEFT JOIN competitions c ON f.competition_id = c.id "
+                "LEFT JOIN sports s ON f.sport_id = s.id "
+                "WHERE f.kickoff LIKE ? AND sel.decision = 'ANALYZE_FROM_S2'"
+            )
+            params: list = [selection_run_id, f"{date}%"]
+            if sport_id is not None:
+                sql += " AND f.sport_id = ?"
+                params.append(sport_id)
+            sql += " ORDER BY f.kickoff"
+            rows = self.conn.execute(sql, params).fetchall()
+            return [
+                {
+                    "fixture_id": r["fixture_id"],
+                    "sport_id": r["sport_id"],
+                    "sport_name": r["sport_name"],
+                    "competition": r["competition"],
+                    "home_team": r["home_team"],
+                    "away_team": r["away_team"],
+                    "home_team_id": r["home_team_id"],
+                    "away_team_id": r["away_team_id"],
+                    "kickoff": r["kickoff"],
+                    "status": r["status"],
+                    "score_home": r["score_home"],
+                    "score_away": r["score_away"],
+                    "external_id": r["external_id"],
+                    "source": r["source"],
+                }
+                for r in rows
+            ]
         sql = (
             "SELECT f.id AS fixture_id, f.sport_id, f.kickoff, f.status, "
             "f.score_home, f.score_away, f.external_id, f.source, "
@@ -701,6 +783,7 @@ class FixtureRepo:
 
     @staticmethod
     def _row_to_fixture(row: sqlite3.Row) -> Fixture:
+        keys = row.keys() if hasattr(row, "keys") else []
         return Fixture(
             id=row["id"],
             sport_id=row["sport_id"],
@@ -709,11 +792,11 @@ class FixtureRepo:
             away_team_id=row["away_team_id"],
             kickoff=row["kickoff"],
             status=row["status"],
-            score_home=row["score_home"],
-            score_away=row["score_away"],
-            external_id=row["external_id"] or "",
-            source=row["source"] or "",
-            fetched_at=row["fetched_at"] or "",
+            score_home=row["score_home"] if "score_home" in keys else None,
+            score_away=row["score_away"] if "score_away" in keys else None,
+            external_id=(row["external_id"] or "") if "external_id" in keys else "",
+            source=(row["source"] or "") if "source" in keys else "",
+            fetched_at=(row["fetched_at"] or "") if "fetched_at" in keys else "",
         )
 
 
@@ -3643,6 +3726,8 @@ class PipelineCandidateRepo:
 
     def __init__(self, conn: sqlite3.Connection):
         self.conn = conn
+        if conn.row_factory != sqlite3.Row:
+            conn.row_factory = sqlite3.Row
 
     def save_candidates(self, date: str, candidates: list[dict]) -> int:
         """Bulk insert candidates for a date, replacing any existing."""
@@ -3688,6 +3773,25 @@ class PipelineCandidateRepo:
 
     def get_by_date(self, date: str) -> list[dict]:
         """Get all candidates for a date, sorted by rank."""
+        selection_run_id = os.environ.get("BET_PIPELINE_SELECTION_RUN_ID")
+        if selection_run_id:
+            table_check = self.conn.execute(
+                "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='pipeline_runtime_event_selection'"
+            ).fetchone()[0]
+            if not table_check:
+                raise RuntimeError(
+                    f"SELECTION_RUN_ID_ENFORCEMENT_FAILED: pipeline_runtime_event_selection table missing when BET_PIPELINE_SELECTION_RUN_ID={selection_run_id} is set."
+                )
+            rows = self.conn.execute(
+                "SELECT c.* FROM pipeline_candidates c "
+                "JOIN pipeline_runtime_event_selection s "
+                "  ON s.run_id = ? AND (s.fixture_id = c.fixture_id OR s.canonical_event_id = CAST(c.fixture_id AS TEXT)) "
+                "WHERE c.betting_date = ? AND s.decision = 'ANALYZE_FROM_S2' "
+                "ORDER BY c.rank",
+                (selection_run_id, date),
+            ).fetchall()
+            return [self._row_to_dict(r) for r in rows]
+
         rows = self.conn.execute(
             "SELECT * FROM pipeline_candidates WHERE betting_date = ? ORDER BY rank",
             (date,),
@@ -3696,6 +3800,25 @@ class PipelineCandidateRepo:
 
     def get_by_date_and_sport(self, date: str, sport: str) -> list[dict]:
         """Get candidates for a date filtered by sport."""
+        selection_run_id = os.environ.get("BET_PIPELINE_SELECTION_RUN_ID")
+        if selection_run_id:
+            table_check = self.conn.execute(
+                "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='pipeline_runtime_event_selection'"
+            ).fetchone()[0]
+            if not table_check:
+                raise RuntimeError(
+                    f"SELECTION_RUN_ID_ENFORCEMENT_FAILED: pipeline_runtime_event_selection table missing when BET_PIPELINE_SELECTION_RUN_ID={selection_run_id} is set."
+                )
+            rows = self.conn.execute(
+                "SELECT c.* FROM pipeline_candidates c "
+                "JOIN pipeline_runtime_event_selection s "
+                "  ON s.run_id = ? AND (s.fixture_id = c.fixture_id OR s.canonical_event_id = CAST(c.fixture_id AS TEXT)) "
+                "WHERE c.betting_date = ? AND c.sport = ? AND s.decision = 'ANALYZE_FROM_S2' "
+                "ORDER BY c.rank",
+                (selection_run_id, date, sport),
+            ).fetchall()
+            return [self._row_to_dict(r) for r in rows]
+
         rows = self.conn.execute(
             "SELECT * FROM pipeline_candidates WHERE betting_date = ? AND sport = ? ORDER BY rank",
             (date, sport),
@@ -3911,3 +4034,64 @@ class MarketMatrixRepo:
             "scores24_h2h": json.loads(row["scores24_h2h_json"]) if row["scores24_h2h_json"] else None,
             "scores24_form": json.loads(row["scores24_form_json"]) if row["scores24_form_json"] else None,
         }
+
+
+# ---------------------------------------------------------------------------
+# PipelineDatabaseAdapter (Phase 1 Database Contract Helper)
+# ---------------------------------------------------------------------------
+
+class PipelineDatabaseAdapter:
+    """Repository-level adapter for checking analysis/gate status, completion, and validity."""
+
+    def __init__(self, conn: sqlite3.Connection):
+        self.conn = conn
+
+    def check_analysis_exists(self, fixture_id: int, betting_date: str) -> bool:
+        row = self.conn.execute(
+            "SELECT 1 FROM analysis_results WHERE fixture_id = ? AND betting_date = ?",
+            (fixture_id, betting_date),
+        ).fetchone()
+        return row is not None
+
+    def check_analysis_complete(self, fixture_id: int, betting_date: str) -> bool:
+        cols = [c[1] for c in self.conn.execute("PRAGMA table_info(analysis_results)").fetchall()]
+        if "has_data" in cols:
+            row = self.conn.execute(
+                "SELECT has_data, best_market_name FROM analysis_results WHERE fixture_id = ? AND betting_date = ?",
+                (fixture_id, betting_date),
+            ).fetchone()
+            if not row:
+                return False
+            return bool(row[0]) or bool(row[1])
+        elif "status" in cols:
+            row = self.conn.execute(
+                "SELECT status FROM analysis_results WHERE fixture_id = ? AND betting_date = ?",
+                (fixture_id, betting_date),
+            ).fetchone()
+            if not row:
+                return False
+            return str(row[0]).upper() in ("COMPLETED", "PASS", "APPROVED", "1")
+        else:
+            return self.check_analysis_exists(fixture_id, betting_date)
+
+    def check_gate_result_exists(self, fixture_id: int, betting_date: str) -> bool:
+        cols = [c[1] for c in self.conn.execute("PRAGMA table_info(gate_results)").fetchall()]
+        if "status" in cols:
+            row = self.conn.execute(
+                "SELECT status FROM gate_results WHERE fixture_id = ? AND betting_date = ?",
+                (fixture_id, betting_date),
+            ).fetchone()
+            if not row:
+                return False
+            st = str(row[0]).strip().upper()
+            return st in ("APPROVED", "EXTENDED", "EXTENDED_POOL", "REJECTED", "COMPLETED")
+        return self.conn.execute(
+            "SELECT 1 FROM gate_results WHERE fixture_id = ? AND betting_date = ?",
+            (fixture_id, betting_date),
+        ).fetchone() is not None
+
+    def check_result_hash_valid(self, fixture_id: int, betting_date: str) -> bool:
+        return self.check_analysis_complete(fixture_id, betting_date) and self.check_gate_result_exists(fixture_id, betting_date)
+
+    def is_result_reusable_for_event(self, fixture_id: int, betting_date: str) -> bool:
+        return self.check_result_hash_valid(fixture_id, betting_date)

@@ -6,7 +6,7 @@ import sqlite3
 from pathlib import Path
 
 SCHEMA_SQL = Path(__file__).parent / "schema.sql"
-SCHEMA_VERSION = 21
+SCHEMA_VERSION = 22
 
 
 def init_db(conn: sqlite3.Connection) -> None:
@@ -241,6 +241,9 @@ def migrate(conn: sqlite3.Connection, from_version: int, to_version: int) -> Non
 
     if from_version < 21 and to_version >= 21:
         _migrate_v21_retired_operator_schema(conn)
+
+    if from_version < 22 and to_version >= 22:
+        _migrate_v22_pipeline_runtime_bridge(conn)
 
 
     _set_schema_version(conn, to_version)
@@ -623,3 +626,9 @@ def _migrate_v20_football_history_engine(conn: sqlite3.Connection) -> None:
             if "no such savepoint" not in str(re).lower():
                 raise
         raise e
+
+
+def _migrate_v22_pipeline_runtime_bridge(conn: sqlite3.Connection) -> None:
+    bridge_migration_path = Path(__file__).parent / "migrations" / "022_pipeline_runtime_bridge.sql"
+    if bridge_migration_path.exists():
+        conn.executescript(bridge_migration_path.read_text(encoding="utf-8"))

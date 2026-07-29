@@ -9,6 +9,7 @@ class RuntimeMode(str, Enum):
     CERTIFICATION = "CERTIFICATION"
     DRY_RUN = "DRY_RUN"
     LIVE_SHADOW = "LIVE_SHADOW"
+    LIVE_ANALYSIS_SHADOW = "LIVE_ANALYSIS_SHADOW"
     PRODUCTION = "PRODUCTION"
 
 
@@ -44,7 +45,7 @@ def validate_runtime_mode_acks(mode: RuntimeMode | str) -> tuple[bool, str]:
     """
     mode_enum = parse_runtime_mode(mode)
 
-    if mode_enum == RuntimeMode.LIVE_SHADOW:
+    if mode_enum in (RuntimeMode.LIVE_SHADOW, RuntimeMode.LIVE_ANALYSIS_SHADOW):
         live_ack = os.environ.get(LIVE_ACK_KEY, "")
         if live_ack != LIVE_ACK_VALUE:
             return False, "BLOCKED_LIVE_NETWORK_ACK_MISSING"

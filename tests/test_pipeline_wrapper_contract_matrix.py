@@ -74,6 +74,7 @@ def _seed_s6_predecessors(environ: dict[str, str]) -> None:
             )
         },
     })
+    cand_data["risk_classification"] = "LOW_RISK"
     s3_path = run_root / "data" / "2026-06-25_s3_deep_stats.json"
     s3_path.write_text(json.dumps({"artifact_type": "S3_DEEP_STATS", "analyses": [cand_data]}), encoding="utf-8")
     s4_path.write_text(json.dumps({
@@ -117,6 +118,7 @@ def _seed_s6_predecessors(environ: dict[str, str]) -> None:
         "unknowns": [],
         "blocked_reasons": [],
         "evidence_refs": ["artifacts/S4.json"],
+            "event_records": [{"canonical_event_id": cand_data.get("canonical_event_id", "evt_1"), "risk_classification": "LOW_RISK", "terminal_status": "PASS"}],
         "payload": {
             "source_s4_path": str(s4_path),
             "source_s4_sha256": sha256_file(s4_path),

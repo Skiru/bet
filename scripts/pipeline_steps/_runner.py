@@ -264,7 +264,34 @@ def run_scripts(
 
     temp_db_path = None
     try:
-        if runtime_mode != RuntimeMode.PRODUCTION:
+        if runtime_mode == RuntimeMode.LIVE_ANALYSIS_SHADOW:
+            inherited_db = env.get("BET_DB_PATH") or os.environ.get("BET_DB_PATH")
+            if not inherited_db:
+                db_url = env.get("DATABASE_URL") or os.environ.get("DATABASE_URL") or ""
+                if db_url.startswith("sqlite:///"):
+                    inherited_db = db_url[len("sqlite:///"):].split("?")[0]
+            if not inherited_db or not Path(inherited_db).is_file():
+                run_root_dir = Path(env.get("BET_PIPELINE_RUN_ROOT") or run_root or ROOT)
+                shadow_db_p = run_root_dir / "data" / "runtime_analysis_shadow.db"
+                if shadow_db_p.is_file():
+                    inherited_db = str(shadow_db_p)
+
+            if not inherited_db or not Path(inherited_db).is_file():
+                print("BLOCKED_LIVE_ANALYSIS_SHADOW_DB_MISSING")
+                return 6
+
+            db_abs_path = str(Path(inherited_db).resolve())
+            env["BET_DB_PATH"] = db_abs_path
+            env["DATABASE_URL"] = f"sqlite:///{db_abs_path}"
+            env["BET_PIPELINE_RUNTIME_DB_KIND"] = "LIVE_ANALYSIS_SHADOW"
+            resolved_r_id = run_id or env.get("BET_PIPELINE_RUN_ID") or ""
+            if resolved_r_id:
+                env["BET_PIPELINE_RUNTIME_DB_RUN_ID"] = resolved_r_id
+                env["BET_PIPELINE_SELECTION_RUN_ID"] = resolved_r_id
+            env["DRY_RUN"] = "1"
+            temp_db_path = None  # Do NOT delete inherited run-scoped shadow DB!
+
+        elif runtime_mode != RuntimeMode.PRODUCTION:
             run_root_dir = Path(env.get("BET_PIPELINE_RUN_ROOT") or run_root or ROOT)
             db_dir = run_root_dir / "data"
             db_dir.mkdir(parents=True, exist_ok=True)

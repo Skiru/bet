@@ -43,9 +43,15 @@ def build_pipeline_parser() -> argparse.ArgumentParser:
     p.add_argument("--run-id", required=True, help="Run ID")
     p.add_argument(
         "--runtime-mode",
-        choices=["CERTIFICATION", "DRY_RUN", "LIVE_SHADOW"],
+        choices=["CERTIFICATION", "DRY_RUN", "LIVE_SHADOW", "LIVE_ANALYSIS_SHADOW"],
         default="DRY_RUN",
         help="Pipeline runtime execution mode",
+    )
+    p.add_argument(
+        "--plan-only",
+        action="store_true",
+        default=False,
+        help="Execute pre-S2 plan-only DB reconciliation, event classification, and queue construction",
     )
     p.add_argument("--start-step", help="Optional step to start execution from")
     p.add_argument("--stop-after-step", help="Optional step to stop execution after")
@@ -131,6 +137,52 @@ def main() -> None:
 
     target_run_root = Path(args.base_run_dir) / args.date / args.run_id
 
+    if args.plan_only:
+        from bet.pipeline.launch_bridge import execute_plan_only
+        res = execute_plan_only(
+            repo_root=ROOT,
+            date=args.date,
+            run_id=args.run_id,
+            target_run_root=target_run_root,
+            manifest_path=Path(args.manifest),
+            allow_live_network=args.allow_live_network,
+            seed_tar_path=args.restart_seed,
+            seed_manifest_path=args.restart_seed_manifest,
+        )
+
+        keys_to_print = [
+            "DATABASE_PATH",
+            "CANONICAL_DB_SHA256",
+            "SHADOW_DB_PATH",
+            "SHADOW_DB_SHA256_INITIAL",
+            "TOTAL_DB_EVENTS_FOR_DATE",
+            "SEED_EVENTS_RECONCILED",
+            "NEW_PROVIDER_EVENTS",
+            "PROVIDER_REVALIDATED",
+            "PROVIDER_FAILURES",
+            "ALREADY_VALID_COMPLETE",
+            "STARTED",
+            "LIVE",
+            "FINISHED",
+            "POSTPONED",
+            "CANCELLED",
+            "TIME_EXPIRED_UNCONFIRMED",
+            "INSUFFICIENT_LEAD",
+            "IDENTITY_CONFLICTS",
+            "SETTLEMENT_REQUIRED",
+            "ANALYZE_FROM_S2",
+            "SELECTION_LEDGER_SHA256",
+            "RUNTIME_S1E_EVENT_COUNT",
+            "EVENT_ACCOUNTING_EXACT",
+            "PLAN_STATUS",
+        ]
+        print("=== PLAN-ONLY SUMMARY ===")
+        for k in keys_to_print:
+            if k in res:
+                print(f"{k}={res[k]}")
+
+        sys.exit(0 if res.get("PLAN_STATUS") == "PASS" else 1)
+
     seed_tar_to_import = args.restart_seed
     seed_man_to_import = args.restart_seed_manifest
     seed_tar_sha = args.restart_seed_sha256
@@ -164,6 +216,16 @@ def main() -> None:
             expected_seed_manifest_sha256=seed_man_sha,
             runtime_mode=args.runtime_mode,
         )
+
+    if args.runtime_mode == "LIVE_ANALYSIS_SHADOW":
+        from bet.pipeline.launch_bridge import create_runtime_analysis_shadow_db, resolve_canonical_db_path
+        canonical_p = resolve_canonical_db_path()
+        sh_res = create_runtime_analysis_shadow_db(canonical_p, target_run_root, args.run_id)
+        os.environ["BET_DB_PATH"] = sh_res["shadow_db_path"]
+        os.environ["DATABASE_URL"] = f"sqlite:///{sh_res['shadow_db_path']}"
+        os.environ["BET_PIPELINE_RUNTIME_DB_KIND"] = "LIVE_ANALYSIS_SHADOW"
+        os.environ["BET_PIPELINE_RUNTIME_DB_RUN_ID"] = args.run_id
+        os.environ["BET_PIPELINE_SELECTION_RUN_ID"] = args.run_id
 
     orchestrator = Orchestrator(
         betting_day=args.date,
