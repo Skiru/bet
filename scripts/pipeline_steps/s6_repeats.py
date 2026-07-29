@@ -378,6 +378,8 @@ def main() -> None:
             )
             s5_sha = sha256_file(s5_path)
         except Exception as exc:
+            with open("/tmp/s6_error_debug.txt", "w") as f:
+                f.write(f"EXC: {exc}\n")
             print(f"BLOCKED_BINDING_FAILURE: Failed to resolve prerequisite S5 output: {exc}")
             evidence_block = {
                 "schema_version": 1,
@@ -596,6 +598,8 @@ def main() -> None:
             run_id=args.run_id,
         )
     child_output = f_out.getvalue()
+    with open("/tmp/s6_child_output.txt", "w") as f:
+        f.write(f"RC={rc}\nOUTPUT:\n{child_output}\n")
     print(child_output)
 
     if rc != 0:
