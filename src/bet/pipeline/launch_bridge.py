@@ -1043,7 +1043,7 @@ def execute_plan_only(
     canonical_db_path = Path(preflight.canonical_db_path)
 
     # 2. Create runtime analysis shadow DB
-    shadow_res = create_runtime_analysis_shadow_db(canonical_db_path, target_run_root, run_id)
+    shadow_res = create_runtime_analysis_shadow_db(canonical_db_path, target_run_root, run_id, allow_overwrite=True)
     if shadow_res["status"] != "PASS":
         return {
             "PLAN_STATUS": "BLOCKED",
