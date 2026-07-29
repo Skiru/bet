@@ -1140,6 +1140,14 @@
     "expiry_or_review_policy": "PERMANENT_RETAINED_PRODUCTION"
   },
   {
+    "path": "scripts/build_v5_v4_closure_package.py",
+    "category": "RETAINED_ENGINEERING",
+    "owner": "Kilo",
+    "reason": "Closure package builder for V5 V4 closure",
+    "references": [],
+    "expiry_or_review_policy": "PERMANENT_RETAINED_PRODUCTION"
+  },
+  {
     "path": "scripts/healthcheck-local-model.fish",
     "category": "RETAINED_ENGINEERING",
     "owner": "Kilo",
@@ -7426,6 +7434,14 @@
     "category": "RETAINED_TEST",
     "owner": "Kilo",
     "reason": "Regression test suite for V4 closure",
+    "references": [],
+    "expiry_or_review_policy": "PERMANENT_RETAINED_PRODUCTION"
+  },
+  {
+    "path": "tests/security/test_v5_v4_phase1_red_reproductions.py",
+    "category": "RETAINED_TEST",
+    "owner": "Kilo",
+    "reason": "Phase 1 red test suite for V5 V4 closure",
     "references": [],
     "expiry_or_review_policy": "PERMANENT_RETAINED_PRODUCTION"
   },
