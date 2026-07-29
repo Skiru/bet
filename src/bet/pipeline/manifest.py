@@ -88,13 +88,11 @@ class PipelineManifest:
 
 def discover_repo_root() -> Path:
     """Robustly find the repository root without calling git."""
-    cwd = Path.cwd().resolve()
-    if (cwd / ".kilo").exists() or (cwd / "kilo.json").exists():
-        return cwd
     current = Path(__file__).resolve().parent
     for parent in [current] + list(current.parents):
-        if (parent / ".kilo").exists() or (parent / "kilo.json").exists():
+        if (parent / "pyproject.toml").exists() or (parent / ".git").exists() or (parent / ".kilo").exists() or (parent / "kilo.json").exists():
             return parent
+    cwd = Path.cwd().resolve()
     return cwd
 
 
