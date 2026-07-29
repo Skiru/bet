@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 import tempfile
 from pathlib import Path
@@ -52,6 +53,21 @@ def build_pipeline_parser() -> argparse.ArgumentParser:
         action="store_true",
         default=False,
         help="Execute pre-S2 plan-only DB reconciliation, event classification, and queue construction",
+    )
+    p.add_argument(
+        "--execute-existing-plan",
+        action="store_true",
+        default=False,
+        help="Execute S2-S8 continuation from an existing plan without recreating shadow DB",
+    )
+    p.add_argument(
+        "--plan-checkpoint",
+        type=Path,
+        help="Path to immutable plan checkpoint/receipt JSON",
+    )
+    p.add_argument(
+        "--selection-ledger-sha256",
+        help="Expected SHA256 of selection_ledger.json",
     )
     p.add_argument("--start-step", help="Optional step to start execution from")
     p.add_argument("--stop-after-step", help="Optional step to stop execution after")
@@ -135,6 +151,14 @@ def parse_pipeline_args(argv: list[str] | None = None) -> argparse.Namespace:
 def main() -> None:
     args = parse_pipeline_args()
 
+    if args.allow_live_network:
+        live_ack = os.environ.get("BET_PIPELINE_LIVE_ACK")
+        if live_ack != "I_UNDERSTAND_LIVE_PROVIDER_CALLS":
+            raise ValueError(
+                "BLOCKED_LIVE_NETWORK_ACK_MISSING: BET_PIPELINE_LIVE_ACK=I_UNDERSTAND_LIVE_PROVIDER_CALLS "
+                "environment variable is required when --allow-live-network is enabled."
+            )
+
     target_run_root = Path(args.base_run_dir) / args.date / args.run_id
 
     if args.plan_only:
@@ -217,10 +241,26 @@ def main() -> None:
             runtime_mode=args.runtime_mode,
         )
 
-    if args.runtime_mode == "LIVE_ANALYSIS_SHADOW":
+    if args.execute_existing_plan:
+        from bet.pipeline.launch_bridge import verify_and_prepare_plan_continuation
+        cont_res = verify_and_prepare_plan_continuation(
+            target_run_root=target_run_root,
+            run_id=args.run_id,
+            expected_selection_ledger_sha256=args.selection_ledger_sha256,
+            expected_plan_checkpoint_path=args.plan_checkpoint,
+        )
+        shadow_db_path = cont_res["shadow_db_path"]
+        os.environ["BET_DB_PATH"] = shadow_db_path
+        os.environ["DATABASE_URL"] = f"sqlite:///{shadow_db_path}"
+        os.environ["BET_PIPELINE_RUNTIME_DB_KIND"] = "LIVE_ANALYSIS_SHADOW"
+        os.environ["BET_PIPELINE_RUNTIME_DB_RUN_ID"] = args.run_id
+        os.environ["BET_PIPELINE_SELECTION_RUN_ID"] = args.run_id
+        args.start_step = args.start_step or "S2"
+        args.stop_after_step = args.stop_after_step or "S8"
+    elif args.runtime_mode == "LIVE_ANALYSIS_SHADOW":
         from bet.pipeline.launch_bridge import create_runtime_analysis_shadow_db, resolve_canonical_db_path
         canonical_p = resolve_canonical_db_path()
-        sh_res = create_runtime_analysis_shadow_db(canonical_p, target_run_root, args.run_id)
+        sh_res = create_runtime_analysis_shadow_db(canonical_p, target_run_root, args.run_id, allow_overwrite=True)
         os.environ["BET_DB_PATH"] = sh_res["shadow_db_path"]
         os.environ["DATABASE_URL"] = f"sqlite:///{sh_res['shadow_db_path']}"
         os.environ["BET_PIPELINE_RUNTIME_DB_KIND"] = "LIVE_ANALYSIS_SHADOW"

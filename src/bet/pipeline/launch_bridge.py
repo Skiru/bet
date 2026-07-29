@@ -16,6 +16,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
+from bet.db.connection import connect_sqlite
 from bet.pipeline.receipts import (
     compute_source_manifest_sha256,
     get_git_commit_head,
@@ -108,15 +109,15 @@ def verify_canonical_db_and_preflight(
     db_stat = db_path.stat()
     mtime_iso = datetime.datetime.fromtimestamp(db_stat.st_mtime, tz=datetime.UTC).isoformat()
 
-    conn = sqlite3.connect(str(db_path))
+    conn = connect_sqlite(db_path, readonly=True)
     try:
         cur = conn.cursor()
         sqlite_ver = cur.execute("SELECT sqlite_version()").fetchone()[0]
         j_mode = cur.execute("PRAGMA journal_mode").fetchone()[0]
         fk_setting = cur.execute("PRAGMA foreign_keys").fetchone()[0]
         user_ver = cur.execute("PRAGMA user_version").fetchone()[0]
-        quick_rows = cur.execute("PRAGMA quick_check").fetchall()
-        fk_rows = cur.execute("PRAGMA foreign_key_check").fetchall()
+        quick_rows = [tuple(r) for r in cur.execute("PRAGMA quick_check").fetchall()]
+        fk_rows = [tuple(r) for r in cur.execute("PRAGMA foreign_key_check").fetchall()]
     finally:
         conn.close()
 
@@ -221,6 +222,7 @@ def create_runtime_analysis_shadow_db(
     canonical_db_path: Path,
     target_run_root: Path,
     run_id: str,
+    allow_overwrite: bool = False,
 ) -> dict[str, Any]:
     canonical_db_path = canonical_db_path.resolve()
     canonical_sha_before = compute_file_sha256(canonical_db_path)
@@ -230,10 +232,12 @@ def create_runtime_analysis_shadow_db(
     shadow_db_path = data_dir / "runtime_analysis_shadow.db"
 
     if shadow_db_path.exists():
+        if not allow_overwrite:
+            raise FileExistsError(f"Runtime analysis shadow DB already exists at {shadow_db_path}. Unlinking an existing plan DB is forbidden.")
         shadow_db_path.unlink()
 
-    src_conn = sqlite3.connect(str(canonical_db_path))
-    dst_conn = sqlite3.connect(str(shadow_db_path))
+    src_conn = connect_sqlite(canonical_db_path, readonly=True)
+    dst_conn = connect_sqlite(shadow_db_path)
     try:
         src_conn.backup(dst_conn)
     finally:
@@ -243,8 +247,8 @@ def create_runtime_analysis_shadow_db(
     shadow_sha = compute_file_sha256(shadow_db_path)
 
     # Perform quick checks
-    conn_c = sqlite3.connect(str(canonical_db_path))
-    conn_s = sqlite3.connect(str(shadow_db_path))
+    conn_c = connect_sqlite(canonical_db_path, readonly=True)
+    conn_s = connect_sqlite(shadow_db_path)
     try:
         quick_c = conn_c.execute("PRAGMA quick_check").fetchone()[0]
         quick_s = conn_s.execute("PRAGMA quick_check").fetchone()[0]
@@ -394,6 +398,7 @@ def reconcile_seed_bootstrap(
 
     cur = conn.cursor()
     cur.execute("CREATE TABLE IF NOT EXISTS sports (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT UNIQUE, tier INTEGER DEFAULT 1)")
+    cur.execute("CREATE TABLE IF NOT EXISTS teams (id INTEGER PRIMARY KEY AUTOINCREMENT, sport_id INTEGER, name TEXT, UNIQUE(sport_id, name))")
     sports_map = {}
     for s in ["football", "volleyball", "basketball", "tennis", "hockey", "cs2", "dota2", "valorant"]:
         cur.execute("INSERT OR IGNORE INTO sports (name, tier) VALUES (?, 1)", (s,))
@@ -435,29 +440,67 @@ def reconcile_seed_bootstrap(
                 teams_map[key_a] = cur.lastrowid
         a_id = teams_map[key_a]
 
-        f_row = cur.execute(
-            "SELECT id FROM fixtures WHERE sport_id = ? AND home_team_id = ? AND away_team_id = ? AND kickoff = ?",
-            (sport_id, h_id, a_id, kickoff),
-        ).fetchone()
+        f_cols = [c[1] for c in cur.execute("PRAGMA table_info(fixtures)").fetchall()]
+        if "sport_id" in f_cols and "home_team_id" in f_cols:
+            f_row = cur.execute(
+                "SELECT id FROM fixtures WHERE sport_id = ? AND home_team_id = ? AND away_team_id = ? AND kickoff = ?",
+                (sport_id, h_id, a_id, kickoff),
+            ).fetchone()
+        else:
+            f_row = cur.execute(
+                "SELECT id FROM fixtures WHERE external_id = ? OR kickoff = ?",
+                (ext_id, kickoff),
+            ).fetchone()
 
         if f_row:
             fid = f_row[0]
         else:
-            cur.execute(
-                "INSERT INTO fixtures (external_id, sport_id, home_team_id, away_team_id, kickoff, status, source, fetched_at) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                (ext_id, sport_id, h_id, a_id, kickoff, "SCHEDULED", source, "2026-07-29T08:21:00Z"),
-            )
-            fid = cur.lastrowid
-            reconciled += 1
+            vals_dict = {
+                "external_id": ext_id,
+                "kickoff": kickoff,
+                "status": "SCHEDULED",
+                "source": source,
+                "fetched_at": "2026-07-29T08:21:00Z",
+                "sport_id": sport_id,
+                "home_team_id": h_id,
+                "away_team_id": a_id,
+            }
+            ins_cols = [c for c in vals_dict if c in f_cols]
+            if ins_cols:
+                col_str = ", ".join(ins_cols)
+                val_str = ", ".join("?" for _ in ins_cols)
+                cur.execute(
+                    f"INSERT INTO fixtures ({col_str}) VALUES ({val_str})",
+                    tuple(vals_dict[c] for c in ins_cols),
+                )
+                fid = cur.lastrowid
+                reconciled += 1
 
         c_row = cur.execute("SELECT 1 FROM pipeline_candidates WHERE fixture_id = ? AND betting_date = ?", (fid, "2026-07-29")).fetchone()
         if not c_row:
-            cur.execute(
-                "INSERT INTO pipeline_candidates (fixture_id, betting_date, rank, score, sport, competition, home_team, away_team, kickoff, data_tier, source, created_at) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                (fid, "2026-07-29", 1, 0.5, sport, comp, ht_name, at_name, kickoff, data_tier, "s1e_seed_bootstrap", "2026-07-29T08:21:00Z"),
-            )
+            cand_cols = [c[1] for c in cur.execute("PRAGMA table_info(pipeline_candidates)").fetchall()]
+            cand_dict = {
+                "fixture_id": fid,
+                "betting_date": "2026-07-29",
+                "rank": 1,
+                "score": 0.5,
+                "sport": sport,
+                "competition": comp,
+                "home_team": ht_name,
+                "away_team": at_name,
+                "kickoff": kickoff,
+                "data_tier": data_tier,
+                "source": "s1e_seed_bootstrap",
+                "created_at": "2026-07-29T08:21:00Z",
+            }
+            ins_cand_cols = [c for c in cand_dict if c in cand_cols]
+            if ins_cand_cols:
+                c_str = ", ".join(ins_cand_cols)
+                v_str = ", ".join("?" for _ in ins_cand_cols)
+                cur.execute(
+                    f"INSERT INTO pipeline_candidates ({c_str}) VALUES ({v_str})",
+                    tuple(cand_dict[c] for c in ins_cand_cols),
+                )
 
     conn.commit()
 
@@ -491,59 +534,168 @@ def reconcile_s1r_runtime_database(
     evidence_dir.mkdir(parents=True, exist_ok=True)
 
     cur = conn.cursor()
-    rows = cur.execute(
-        "SELECT id, external_id, kickoff, status, home_team_id, away_team_id, source "
-        "FROM fixtures WHERE kickoff LIKE ?",
-        (f"{date}%",),
-    ).fetchall()
+
+    providers_attempted = []
+    provider_successes = []
+    provider_failures = []
+    discovered_events_map = {}
+    new_provider_events = 0
+    duplicate_events = 0
+    identity_conflicts = 0
+    evidence_hashes = {}
+
+    if allow_live_network:
+        try:
+            from bet.discovery.coordinator import EventDiscoveryCoordinator
+            from sqlalchemy import create_engine
+            from sqlalchemy.orm import sessionmaker
+
+            shadow_db_p = run_root / "data" / "runtime_analysis_shadow.db"
+            if shadow_db_p.exists():
+                engine = create_engine(f"sqlite:///{shadow_db_p}")
+                SessionLocal = sessionmaker(bind=engine)
+                session = SessionLocal()
+
+                try:
+                    coordinator = EventDiscoveryCoordinator(session=session)
+                    disc_res = coordinator.discover(date=date, verbose=False)
+
+                    for src_name, stats in disc_res.source_stats.items():
+                        providers_attempted.append(src_name)
+                        if stats.available and not stats.errors and stats.events_fetched > 0:
+                            provider_successes.append(src_name)
+                        else:
+                            provider_failures.append(src_name)
+
+                    for mf in disc_res.fixtures:
+                        key_names = (mf.home_team.strip().lower(), mf.away_team.strip().lower(), mf.kickoff.isoformat())
+                        discovered_events_map[key_names] = mf
+                        for src_ref in mf.sources:
+                            discovered_events_map[(src_ref.source, src_ref.external_id)] = mf
+
+                    new_provider_events = disc_res.total_after_dedup
+                finally:
+                    session.close()
+        except Exception as ex:
+            import logging
+            logging.warning("Incremental discovery error during S1R reconciliation: %s", ex)
+
+    f_cols = [c[1] for c in cur.execute("PRAGMA table_info(fixtures)").fetchall()]
+    has_team_ids = "home_team_id" in f_cols and "away_team_id" in f_cols
+    has_source = "source" in f_cols
+
+    if has_team_ids and has_source:
+        rows = cur.execute(
+            "SELECT id, external_id, kickoff, status, home_team_id, away_team_id, source "
+            "FROM fixtures WHERE kickoff LIKE ?",
+            (f"{date}%",),
+        ).fetchall()
+    else:
+        raw_rows = cur.execute(
+            "SELECT id, external_id, kickoff, status FROM fixtures WHERE kickoff LIKE ?",
+            (f"{date}%",),
+        ).fetchall()
+        rows = [(r[0], r[1], r[2], r[3], None, None, "odds-api") for r in raw_rows]
+
+    teams_map = {}
+    try:
+        team_rows = cur.execute("SELECT id, name FROM teams").fetchall()
+        for tid, tname in team_rows:
+            teams_map[tid] = tname
+    except sqlite3.OperationalError:
+        pass
 
     revalidated = 0
     failures = 0
-    new_provider_events = 0
 
     now_dt = datetime.datetime.fromisoformat(runtime_now_iso.replace("Z", "+00:00"))
 
     for r in rows:
         fid, ext_id, kickoff, status, h_id, a_id, source = r
-        ev_data = {
-            "fixture_id": fid,
-            "external_id": ext_id,
-            "source": source,
-            "observed_kickoff": kickoff,
-            "observed_status": status,
-            "retrieval_timestamp_utc": runtime_now_iso,
-            "provider_revalidated": allow_live_network,
-        }
-        ev_bytes = json.dumps(ev_data, sort_keys=True).encode("utf-8")
+        ht_name = teams_map.get(h_id, "Home")
+        at_name = teams_map.get(a_id, "Away")
 
-        ev_file = evidence_dir / f"fixture_{fid}.json"
-        with open(ev_file, "wb") as f:
-            f.write(ev_bytes)
+        obs_found = None
+        if allow_live_network and discovered_events_map:
+            key_src = (source, ext_id)
+            key_names = (ht_name.strip().lower(), at_name.strip().lower(), kickoff)
+            obs_found = discovered_events_map.get(key_src) or discovered_events_map.get(key_names)
 
-        if allow_live_network:
+        if obs_found:
+            req_status = "SUCCESS"
+            norm_status = obs_found.status.upper() if obs_found.status else (status.upper() if status else "SCHEDULED")
+            obs_kickoff = obs_found.kickoff.isoformat() if hasattr(obs_found.kickoff, "isoformat") else str(obs_found.kickoff)
+            raw_evidence = {
+                "source": obs_found.primary_source,
+                "external_id": obs_found.primary_external_id,
+                "home_team": obs_found.home_team,
+                "away_team": obs_found.away_team,
+                "kickoff": obs_kickoff,
+                "status": norm_status,
+                "odds": obs_found.odds,
+            }
+            raw_bytes = json.dumps(raw_evidence, sort_keys=True).encode("utf-8")
+            raw_sha = hashlib.sha256(raw_bytes).hexdigest()
+            fail_reason = None
             revalidated += 1
+
+            cur.execute(
+                "UPDATE fixtures SET status = ?, kickoff = ? WHERE id = ?",
+                (norm_status, obs_kickoff, fid),
+            )
         else:
+            req_status = "FAILED"
+            fail_reason = None
+            k_dt = None
             if kickoff:
                 try:
                     k_dt = datetime.datetime.fromisoformat(kickoff.replace("Z", "+00:00"))
-                    if k_dt < now_dt and status in ("SCHEDULED", "CONFIRMED", "scheduled"):
-                        cur.execute(
-                            "UPDATE fixtures SET status = 'TIME_EXPIRED_UNCONFIRMED' WHERE id = ?",
-                            (fid,),
-                        )
-                        failures += 1
-                    else:
-                        revalidated += 1
                 except Exception:
-                    failures += 1
+                    pass
+
+            if k_dt and k_dt < now_dt and (status or "").upper() in ("SCHEDULED", "CONFIRMED", "SCHED"):
+                norm_status = "TIME_EXPIRED_UNCONFIRMED"
+                fail_reason = "Kickoff time passed without provider confirmation"
+                cur.execute(
+                    "UPDATE fixtures SET status = 'TIME_EXPIRED_UNCONFIRMED' WHERE id = ?",
+                    (fid,),
+                )
             else:
-                failures += 1
+                norm_status = (status or "").upper() if status else "PROVIDER_RECHECK_REQUIRED"
+                fail_reason = "Live provider observation unavailable" if allow_live_network else "Live network disabled (allow_live_network=False)"
+
+            raw_evidence = {"error": fail_reason, "fixture_id": fid, "kickoff": kickoff}
+            raw_bytes = json.dumps(raw_evidence, sort_keys=True).encode("utf-8")
+            raw_sha = hashlib.sha256(raw_bytes).hexdigest()
+            failures += 1
+
+        ev_file = evidence_dir / f"fixture_{fid}.json"
+        ev_data = {
+            "canonical_event_id": str(fid),
+            "fixture_id": fid,
+            "provider": source or "UNKNOWN",
+            "provider_event_id": ext_id or "",
+            "request_timestamp_utc": runtime_now_iso,
+            "retrieval_timestamp_utc": runtime_now_iso,
+            "request_status": req_status,
+            "normalized_current_status": norm_status,
+            "current_kickoff": kickoff or "",
+            "current_participants": {"home_team": ht_name, "away_team": at_name},
+            "raw_evidence_sha256": raw_sha,
+            "evidence_location": str(ev_file),
+            "failure_reason": fail_reason,
+        }
+        with open(ev_file, "w", encoding="utf-8") as f:
+            json.dump(ev_data, f, indent=2)
 
     conn.commit()
 
+    total_checked = len(rows)
+    assert revalidated + failures == total_checked
+
     reval_data = {
         "date": date,
-        "total_fixtures_checked": len(rows),
+        "total_fixtures_checked": total_checked,
         "provider_revalidated": revalidated,
         "provider_failures": failures,
         "new_provider_events": new_provider_events,
@@ -555,7 +707,13 @@ def reconcile_s1r_runtime_database(
     disc_data = {
         "date": date,
         "discovery_attempted": allow_live_network,
-        "new_provider_events_discovered": new_provider_events,
+        "providers_attempted": providers_attempted,
+        "provider_successes": provider_successes,
+        "provider_failures": provider_failures,
+        "newly_discovered_canonical_events": new_provider_events,
+        "duplicate_events": duplicate_events,
+        "identity_conflicts": identity_conflicts,
+        "evidence_hashes": evidence_hashes,
         "retrieval_timestamp_utc": runtime_now_iso,
     }
     with open(artifacts_dir / "live_discovery_ledger.json", "w", encoding="utf-8") as f:
@@ -576,29 +734,42 @@ def classify_and_persist_runtime_events(
     min_lead_td = datetime.timedelta(minutes=min_lead_minutes)
 
     cur = conn.cursor()
-    fixtures = cur.execute(
-        "SELECT id, external_id, kickoff, status, source FROM fixtures WHERE kickoff LIKE ?",
-        (f"{date}%",),
-    ).fetchall()
+    f_cols = [c[1] for c in cur.execute("PRAGMA table_info(fixtures)").fetchall()]
+    has_source = "source" in f_cols
+    if has_source:
+        fixtures = cur.execute(
+            "SELECT id, external_id, kickoff, status, source FROM fixtures WHERE kickoff LIKE ?",
+            (f"{date}%",),
+        ).fetchall()
+    else:
+        raw_fixtures = cur.execute(
+            "SELECT id, external_id, kickoff, status FROM fixtures WHERE kickoff LIKE ?",
+            (f"{date}%",),
+        ).fetchall()
+        fixtures = [(r[0], r[1], r[2], r[3], "odds-api") for r in raw_fixtures]
 
     ar_cols = [c[1] for c in cur.execute("PRAGMA table_info(analysis_results)").fetchall()]
-    if "has_data" in ar_cols:
-        ar_rows = cur.execute("SELECT fixture_id, has_data FROM analysis_results WHERE betting_date = ?", (date,)).fetchall()
-        ar_map = {r[0]: bool(r[1]) for r in ar_rows}
-    elif "status" in ar_cols:
-        ar_rows = cur.execute("SELECT fixture_id, status FROM analysis_results WHERE betting_date = ?", (date,)).fetchall()
-        ar_map = {r[0]: str(r[1]).upper() in ("COMPLETED", "PASS", "APPROVED", "1") for r in ar_rows}
-    else:
-        ar_rows = cur.execute("SELECT fixture_id FROM analysis_results WHERE betting_date = ?", (date,)).fetchall()
-        ar_map = {r[0]: True for r in ar_rows}
+    ar_map = {}
+    if "fixture_id" in ar_cols and "betting_date" in ar_cols:
+        if "has_data" in ar_cols:
+            ar_rows = cur.execute("SELECT fixture_id, has_data FROM analysis_results WHERE betting_date = ?", (date,)).fetchall()
+            ar_map = {r[0]: bool(r[1]) for r in ar_rows}
+        elif "status" in ar_cols:
+            ar_rows = cur.execute("SELECT fixture_id, status FROM analysis_results WHERE betting_date = ?", (date,)).fetchall()
+            ar_map = {r[0]: str(r[1]).upper() in ("COMPLETED", "PASS", "APPROVED", "1") for r in ar_rows}
+        else:
+            ar_rows = cur.execute("SELECT fixture_id FROM analysis_results WHERE betting_date = ?", (date,)).fetchall()
+            ar_map = {r[0]: True for r in ar_rows}
 
     gr_cols = [c[1] for c in cur.execute("PRAGMA table_info(gate_results)").fetchall()]
-    if "status" in gr_cols:
-        gr_rows = cur.execute("SELECT fixture_id, status FROM gate_results WHERE betting_date = ?", (date,)).fetchall()
-        gr_map = {r[0]: str(r[1]).strip().upper() for r in gr_rows}
-    else:
-        gr_rows = cur.execute("SELECT fixture_id FROM gate_results WHERE betting_date = ?", (date,)).fetchall()
-        gr_map = {r[0]: "APPROVED" for r in gr_rows}
+    gr_map = {}
+    if "fixture_id" in gr_cols and "betting_date" in gr_cols:
+        if "status" in gr_cols:
+            gr_rows = cur.execute("SELECT fixture_id, status FROM gate_results WHERE betting_date = ?", (date,)).fetchall()
+            gr_map = {r[0]: str(r[1]).strip().upper() for r in gr_rows}
+        else:
+            gr_rows = cur.execute("SELECT fixture_id FROM gate_results WHERE betting_date = ?", (date,)).fetchall()
+            gr_map = {r[0]: "APPROVED" for r in gr_rows}
 
     counts = {
         "ANALYZE_FROM_S2": 0,
@@ -735,9 +906,17 @@ def project_run_s1e_universe(
 ) -> tuple[Path, Path, int, str]:
     """Generate run-scoped canonical S1e event universe from ANALYZE_FROM_S2 rows only."""
     cur = conn.cursor()
+    f_cols = [c[1] for c in cur.execute("PRAGMA table_info(fixtures)").fetchall()]
+    sel_cols = ["s.canonical_event_id", "s.fixture_id", "f.external_id"]
+    for col in ["home_team_id", "away_team_id", "kickoff", "status", "competition_id", "sport_id", "source"]:
+        if col in f_cols:
+            sel_cols.append(f"f.{col}")
+        else:
+            sel_cols.append(f"NULL AS {col}")
+    col_sql = ", ".join(sel_cols)
+
     rows = cur.execute(
-        "SELECT s.canonical_event_id, s.fixture_id, f.external_id, f.home_team_id, "
-        "f.away_team_id, f.kickoff, f.status, f.competition_id, f.sport_id, f.source "
+        f"SELECT {col_sql} "
         "FROM pipeline_runtime_event_selection s "
         "LEFT JOIN fixtures f ON f.id = s.fixture_id "
         "WHERE s.run_id = ? AND s.decision = 'ANALYZE_FROM_S2' "
@@ -875,7 +1054,7 @@ def execute_plan_only(
     shadow_db_path = Path(shadow_res["shadow_db_path"])
     shadow_sha_initial = shadow_res["shadow_db_sha256_initial"]
 
-    conn = sqlite3.connect(str(shadow_db_path))
+    conn = connect_sqlite(shadow_db_path)
     try:
         # FK Audit and Isolation
         fk_audit = audit_and_isolate_foreign_key_violations(conn, target_run_root)
@@ -951,7 +1130,7 @@ def execute_plan_only(
     plan_status = "PASS" if plan_pass else "BLOCKED"
     ready_for_session = "YES" if plan_pass and class_counts["ANALYZE_FROM_S2"] > 0 else "NO"
 
-    return {
+    plan_checkpoint_payload = {
         "START_HEAD": preflight.head_sha,
         "END_HEAD": preflight.head_sha,
         "END_TREE": preflight.tree_sha,
@@ -993,7 +1172,100 @@ def execute_plan_only(
         "S9_HUMAN_ONLY": "PASS",
         "AUTOMATED_BET_PLACEMENT": "NO",
         "BOOKMAKER_LOGIN": "NO",
-        "preflight": asdict(preflight),
+    }
+
+    # Persist immutable plan_checkpoint.json
+    plan_cp_path = artifacts_dir / "plan_checkpoint.json"
+    cp_bytes = json.dumps(plan_checkpoint_payload, indent=2, sort_keys=True).encode("utf-8")
+    with open(plan_cp_path, "wb") as f:
+        f.write(cp_bytes)
+
+    res_dict = dict(plan_checkpoint_payload)
+    res_dict["preflight"] = asdict(preflight)
+    return res_dict
+
+
+def verify_and_prepare_plan_continuation(
+    target_run_root: Path,
+    run_id: str,
+    expected_selection_ledger_sha256: str | None = None,
+    expected_plan_checkpoint_path: Path | None = None,
+) -> dict[str, Any]:
+    """Verify plan receipt, shadow DB identity, selection ledger, and freshness pre-S2.
+
+    Opens existing shadow DB; never recreates or unlinks it.
+    """
+    target_run_root = Path(target_run_root).resolve()
+    shadow_db_path = target_run_root / "data" / "runtime_analysis_shadow.db"
+
+    if not shadow_db_path.exists():
+        raise FileNotFoundError(f"CONTINUATION_FAILED: Shadow DB missing at {shadow_db_path}")
+
+    receipts_dir = target_run_root / "receipts"
+    db_identity_file = receipts_dir / "db_identity_PLAN_ONLY.json"
+    plan_cp_file = expected_plan_checkpoint_path or (target_run_root / "artifacts" / "plan_checkpoint.json")
+
+    if not db_identity_file.exists() and not plan_cp_file.exists():
+        raise FileNotFoundError(f"CONTINUATION_FAILED: Plan identity receipt missing in {receipts_dir}")
+
+    if db_identity_file.exists():
+        with open(db_identity_file, encoding="utf-8") as f:
+            identity_data = json.load(f)
+        if identity_data.get("run_id") != run_id:
+            raise ValueError(f"CONTINUATION_FAILED: Run ID mismatch in identity receipt: expected {run_id}, got {identity_data.get('run_id')}")
+
+    sel_ledger_file = target_run_root / "artifacts" / "selection_ledger.json"
+    if not sel_ledger_file.exists():
+        raise FileNotFoundError(f"CONTINUATION_FAILED: Selection ledger missing at {sel_ledger_file}")
+
+    sel_bytes = sel_ledger_file.read_bytes()
+    sel_sha = hashlib.sha256(sel_bytes).hexdigest()
+
+    if expected_selection_ledger_sha256 and sel_sha != expected_selection_ledger_sha256:
+        raise ValueError(f"CONTINUATION_FAILED: Selection ledger SHA256 mismatch: expected {expected_selection_ledger_sha256}, got {sel_sha}")
+
+    now_iso = datetime.datetime.now(datetime.UTC).isoformat()
+    now_dt = datetime.datetime.fromisoformat(now_iso.replace("Z", "+00:00"))
+
+    conn = connect_sqlite(shadow_db_path)
+    queue_updated = False
+    try:
+        cur = conn.cursor()
+        sel_rows = cur.execute(
+            "SELECT s.fixture_id, f.kickoff, f.status "
+            "FROM pipeline_runtime_event_selection s "
+            "JOIN fixtures f ON f.id = s.fixture_id "
+            "WHERE s.run_id = ? AND s.decision = 'ANALYZE_FROM_S2'",
+            (run_id,),
+        ).fetchall()
+
+        for fid, kickoff, status in sel_rows:
+            if kickoff:
+                try:
+                    k_dt = datetime.datetime.fromisoformat(kickoff.replace("Z", "+00:00"))
+                    if k_dt <= now_dt:
+                        cur.execute(
+                            "UPDATE pipeline_runtime_event_selection SET decision = 'STARTED', reason = 'Kickoff passed before S2 execution' WHERE run_id = ? AND fixture_id = ?",
+                            (run_id, fid),
+                        )
+                        queue_updated = True
+                except Exception:
+                    pass
+
+        if queue_updated:
+            conn.commit()
+            date_str = target_run_root.parent.name
+            project_run_s1e_universe(conn, date_str, target_run_root, run_id)
+
+        verify_and_write_stage_db_receipt(conn, "S2_CONTINUATION", run_id, target_run_root, sel_sha)
+    finally:
+        conn.close()
+
+    return {
+        "status": "PASS",
+        "shadow_db_path": str(shadow_db_path),
+        "selection_ledger_sha256": sel_sha,
+        "queue_updated_pre_s2": queue_updated,
     }
 
 
@@ -1020,8 +1292,8 @@ def promote_shadow_results(
 
     # 1. Backup canonical DB
     backup_path = canonical_db_path.parent / f"betting_backup_{run_id}.db"
-    conn_c = sqlite3.connect(str(canonical_db_path))
-    conn_b = sqlite3.connect(str(backup_path))
+    conn_c = connect_sqlite(canonical_db_path)
+    conn_b = connect_sqlite(backup_path)
     try:
         conn_c.backup(conn_b)
     finally:
@@ -1042,8 +1314,8 @@ def promote_shadow_results(
         "pipeline_event_stage_state",
     ]
 
-    conn_c = sqlite3.connect(str(canonical_db_path))
-    conn_s = sqlite3.connect(str(shadow_db_path))
+    conn_c = connect_sqlite(canonical_db_path)
+    conn_s = connect_sqlite(shadow_db_path)
 
     promotion_id = f"prom_{run_id}_{datetime.datetime.now(datetime.UTC).strftime('%Y%m%d_%H%M%S')}"
     now_iso = datetime.datetime.now(datetime.UTC).isoformat()

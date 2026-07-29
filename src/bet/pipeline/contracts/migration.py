@@ -311,7 +311,7 @@ def adapt_legacy_artifact(data: dict[str, Any], target_type: str) -> dict[str, A
                 sport = _opt_field(item, ("sport",), "football")
                 mot_score = _opt_field(item, ("motivation_score",), 1.0)
                 risk_cls = _require_field(item, ("risk_classification", "risk_tier", "risk"), "risk_classification", target_type)
-                term_st = _require_field(item, ("terminal_status", "status", "analytical_status"), "terminal_status", target_type)
+                term_st = _opt_field(item, ("terminal_status", "status", "analytical_status", "valuation_status", "action", "decision"), "PASS")
                 norm_ctx.append({
                     "canonical_event_id": str(eid),
                     "sport": str(sport),

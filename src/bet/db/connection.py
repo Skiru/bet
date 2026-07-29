@@ -71,6 +71,26 @@ def _resolve_db_path(db_path: Path | str | None = None) -> Path | str:
     )
 
 
+def connect_sqlite(db_path: Path | str, *, readonly: bool = False, timeout_ms: int = BUSY_TIMEOUT_MS) -> sqlite3.Connection:
+    """Connect to a SQLite database using canonical settings."""
+    resolved = str(db_path)
+    if readonly:
+        resolved_p = Path(resolved).resolve()
+        conn = sqlite3.connect(f"file:{resolved_p}?mode=ro", uri=True)
+        conn.execute("PRAGMA foreign_keys = ON")
+        conn.execute(f"PRAGMA busy_timeout = {timeout_ms}")
+        conn.execute("PRAGMA query_only = ON")
+        conn.row_factory = sqlite3.Row
+        return conn
+
+    conn = sqlite3.connect(resolved)
+    conn.execute("PRAGMA journal_mode = WAL")
+    conn.execute("PRAGMA foreign_keys = ON")
+    conn.execute(f"PRAGMA busy_timeout = {timeout_ms}")
+    conn.row_factory = sqlite3.Row
+    return conn
+
+
 def _configure_connection(conn: sqlite3.Connection) -> None:
     """Apply standard pragmas and settings."""
     conn.execute("PRAGMA journal_mode = WAL")

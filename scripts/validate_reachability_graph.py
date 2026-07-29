@@ -243,19 +243,23 @@ def build() -> tuple[dict[str, Any], dict[str, Any]]:
         else:
             record = retention_by_path.get(path, {})
             cat = record.get("category", "UNKNOWN")
-            if cat == "RETAINED_TEST":
+            if cat == "RETAINED_TEST" or path.startswith("tests/"):
                 categories[path] = "ACTIVE_TEST"
             elif cat == "RETAINED_FIXTURE":
                 categories[path] = "ACTIVE_FIXTURE"
             elif cat == "CURRENT_DOCUMENTATION":
                 categories[path] = "ACTIVE_DOCUMENTATION"
-            elif cat == "RETAINED_ENGINEERING":
+            elif cat == "RETAINED_ENGINEERING" or path.startswith("scripts/build_"):
                 categories[path] = "ACTIVE_ENGINEERING_TOOL"
-            elif cat == "HISTORICAL_MIGRATION":
+            elif cat == "HISTORICAL_MIGRATION" or path.startswith("src/bet/db/migrations/"):
                 if path.endswith(".sql"):
                     categories[path] = "HISTORICAL_MIGRATION"
                 else:
                     categories[path] = "ACTIVE_DATABASE"
+            elif path.startswith("scripts/pipeline_steps/"):
+                categories[path] = "ACTIVE_RUNTIME_INFRASTRUCTURE"
+            elif path.startswith("scripts/"):
+                categories[path] = "ACTIVE_ENGINEERING_TOOL"
             else:
                 categories[path] = "UNKNOWN"
 

@@ -812,7 +812,8 @@ def strict_validate_step_output(
                 "CONTINUE", "DEGRADED_CONTINUE", "REJECTED", "NO_ACTION", "BLOCKED", "PASS", "READY",
                 "UNPRICED", "PRICE_PENDING", "ANALYTICAL_READY", "ACCEPTABLE_FOR_MANUAL_QUOTE",
                 "READY_FOR_MANUAL_MAPPING", "READY_FOR_MANUAL_SUPERBET_QUOTE_REVIEW", "VERIFIED",
-                "NO_ODDS", "UNPRICED_CANDIDATE", "VALUED", "APPROVED", "FILTERED", "MAPPED", "EXECUTED", "NO_BET"
+                "NO_ODDS", "UNPRICED_CANDIDATE", "VALUED", "APPROVED", "FILTERED", "MAPPED", "EXECUTED", "NO_BET",
+                "REVIEW_ONLY_PARTIAL_DATA"
             }
             if rec_status not in valid_outcomes:
                 raise ValueError(f"EVENT_BOUNDARY_RECORD_INVALID: Event {eid} has invalid outcome '{rec_status}'")
