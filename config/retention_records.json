@@ -952,6 +952,30 @@
     "expiry_or_review_policy": "REVIEW_ON_SCHEMA_UPGRADE"
   },
   {
+    "path": "scripts/build_v5_v4_closure_package.py",
+    "category": "RETAINED_ENGINEERING",
+    "owner": "Kilo",
+    "reason": "Closure package builder for V5 V4 closure",
+    "references": [],
+    "expiry_or_review_policy": "PERMANENT_RETAINED_PRODUCTION"
+  },
+  {
+    "path": "scripts/build_v5_v7_2_delivery.py",
+    "category": "RETAINED_ENGINEERING",
+    "owner": "bet-executor",
+    "reason": "V7.2 delivery package build utility",
+    "references": [],
+    "expiry_or_review_policy": "PERMANENT_RETAINED_PRODUCTION"
+  },
+  {
+    "path": "scripts/build_v5_v7_launch_bridge_delivery.py",
+    "category": "RETAINED_ENGINEERING",
+    "owner": "bet-executor",
+    "reason": "V7.1 delivery package build utility",
+    "references": [],
+    "expiry_or_review_policy": "PERMANENT_RETAINED_PRODUCTION"
+  },
+  {
     "path": "scripts/certify_pipeline_final_closure.py",
     "category": "RETAINED_ENGINEERING",
     "owner": "Kilo",
@@ -1140,14 +1164,6 @@
     "expiry_or_review_policy": "PERMANENT_RETAINED_PRODUCTION"
   },
   {
-    "path": "scripts/build_v5_v4_closure_package.py",
-    "category": "RETAINED_ENGINEERING",
-    "owner": "Kilo",
-    "reason": "Closure package builder for V5 V4 closure",
-    "references": [],
-    "expiry_or_review_policy": "PERMANENT_RETAINED_PRODUCTION"
-  },
-  {
     "path": "scripts/healthcheck-local-model.fish",
     "category": "RETAINED_ENGINEERING",
     "owner": "Kilo",
@@ -1186,6 +1202,14 @@
     "reason": "Engineering utilities, linters, validators, model management tools or kilo config",
     "references": [],
     "expiry_or_review_policy": "REVIEW_ON_SCHEMA_UPGRADE"
+  },
+  {
+    "path": "scripts/next_executor_prompt.sh",
+    "category": "RETAINED_ENGINEERING",
+    "owner": "bet-executor",
+    "reason": "V7.2 next executor zsh prompt script",
+    "references": [],
+    "expiry_or_review_policy": "PERMANENT_RETAINED_PRODUCTION"
   },
   {
     "path": "scripts/odds_sources/__init__.py",
@@ -1806,31 +1830,7 @@
     "expiry_or_review_policy": "REVIEW_ON_SCHEMA_UPGRADE"
   },
   {
-    "path": "src/bet/api_clients/api_basketball.py",
-    "category": "RETAINED_ENGINEERING",
-    "owner": "Kilo",
-    "reason": "Retained inactive provider, scraper, model or domain helper",
-    "references": [],
-    "expiry_or_review_policy": "REVIEW_ON_SCHEMA_UPGRADE"
-  },
-  {
-    "path": "src/bet/api_clients/api_hockey.py",
-    "category": "RETAINED_ENGINEERING",
-    "owner": "Kilo",
-    "reason": "Retained inactive provider, scraper, model or domain helper",
-    "references": [],
-    "expiry_or_review_policy": "REVIEW_ON_SCHEMA_UPGRADE"
-  },
-  {
     "path": "src/bet/api_clients/api_tennis.py",
-    "category": "RETAINED_ENGINEERING",
-    "owner": "Kilo",
-    "reason": "Retained inactive provider, scraper, model or domain helper",
-    "references": [],
-    "expiry_or_review_policy": "REVIEW_ON_SCHEMA_UPGRADE"
-  },
-  {
-    "path": "src/bet/api_clients/api_volleyball.py",
     "category": "RETAINED_ENGINEERING",
     "owner": "Kilo",
     "reason": "Retained inactive provider, scraper, model or domain helper",
@@ -2166,6 +2166,14 @@
     "expiry_or_review_policy": "NO_EXPIRY_RETAIN_PERMANENTLY"
   },
   {
+    "path": "src/bet/db/migrations/022_pipeline_runtime_bridge.sql",
+    "category": "HISTORICAL_MIGRATION",
+    "owner": "bet-executor",
+    "reason": "V7.1 runtime bridge schema migration",
+    "references": [],
+    "expiry_or_review_policy": "PERMANENT_RETAINED_PRODUCTION"
+  },
+  {
     "path": "src/bet/db/schema.sql",
     "category": "HISTORICAL_MIGRATION",
     "owner": "Kilo",
@@ -2175,126 +2183,6 @@
   },
   {
     "path": "src/bet/discovery/capabilities.py",
-    "category": "RETAINED_ENGINEERING",
-    "owner": "Kilo",
-    "reason": "Retained inactive provider, scraper, model or domain helper",
-    "references": [],
-    "expiry_or_review_policy": "REVIEW_ON_SCHEMA_UPGRADE"
-  },
-  {
-    "path": "src/bet/discovery/coordinator.py",
-    "category": "RETAINED_ENGINEERING",
-    "owner": "Kilo",
-    "reason": "Retained inactive provider, scraper, model or domain helper",
-    "references": [],
-    "expiry_or_review_policy": "REVIEW_ON_SCHEMA_UPGRADE"
-  },
-  {
-    "path": "src/bet/discovery/dedup.py",
-    "category": "RETAINED_ENGINEERING",
-    "owner": "Kilo",
-    "reason": "Retained inactive provider, scraper, model or domain helper",
-    "references": [],
-    "expiry_or_review_policy": "REVIEW_ON_SCHEMA_UPGRADE"
-  },
-  {
-    "path": "src/bet/discovery/esports_aliases.py",
-    "category": "RETAINED_ENGINEERING",
-    "owner": "Kilo",
-    "reason": "Retained inactive provider, scraper, model or domain helper",
-    "references": [],
-    "expiry_or_review_policy": "REVIEW_ON_SCHEMA_UPGRADE"
-  },
-  {
-    "path": "src/bet/discovery/models.py",
-    "category": "RETAINED_ENGINEERING",
-    "owner": "Kilo",
-    "reason": "Retained inactive provider, scraper, model or domain helper",
-    "references": [],
-    "expiry_or_review_policy": "REVIEW_ON_SCHEMA_UPGRADE"
-  },
-  {
-    "path": "src/bet/discovery/repository.py",
-    "category": "RETAINED_ENGINEERING",
-    "owner": "Kilo",
-    "reason": "Retained inactive provider, scraper, model or domain helper",
-    "references": [],
-    "expiry_or_review_policy": "REVIEW_ON_SCHEMA_UPGRADE"
-  },
-  {
-    "path": "src/bet/discovery/sources/__init__.py",
-    "category": "RETAINED_ENGINEERING",
-    "owner": "Kilo",
-    "reason": "Retained inactive provider, scraper, model or domain helper",
-    "references": [],
-    "expiry_or_review_policy": "REVIEW_ON_SCHEMA_UPGRADE"
-  },
-  {
-    "path": "src/bet/discovery/sources/api_basketball.py",
-    "category": "RETAINED_ENGINEERING",
-    "owner": "Kilo",
-    "reason": "Retained inactive provider, scraper, model or domain helper",
-    "references": [],
-    "expiry_or_review_policy": "REVIEW_ON_SCHEMA_UPGRADE"
-  },
-  {
-    "path": "src/bet/discovery/sources/api_football.py",
-    "category": "RETAINED_ENGINEERING",
-    "owner": "Kilo",
-    "reason": "Retained inactive provider, scraper, model or domain helper",
-    "references": [],
-    "expiry_or_review_policy": "REVIEW_ON_SCHEMA_UPGRADE"
-  },
-  {
-    "path": "src/bet/discovery/sources/api_hockey.py",
-    "category": "RETAINED_ENGINEERING",
-    "owner": "Kilo",
-    "reason": "Retained inactive provider, scraper, model or domain helper",
-    "references": [],
-    "expiry_or_review_policy": "REVIEW_ON_SCHEMA_UPGRADE"
-  },
-  {
-    "path": "src/bet/discovery/sources/api_volleyball.py",
-    "category": "RETAINED_ENGINEERING",
-    "owner": "Kilo",
-    "reason": "Retained inactive provider, scraper, model or domain helper",
-    "references": [],
-    "expiry_or_review_policy": "REVIEW_ON_SCHEMA_UPGRADE"
-  },
-  {
-    "path": "src/bet/discovery/sources/base.py",
-    "category": "RETAINED_ENGINEERING",
-    "owner": "Kilo",
-    "reason": "Retained inactive provider, scraper, model or domain helper",
-    "references": [],
-    "expiry_or_review_policy": "REVIEW_ON_SCHEMA_UPGRADE"
-  },
-  {
-    "path": "src/bet/discovery/sources/espn.py",
-    "category": "RETAINED_ENGINEERING",
-    "owner": "Kilo",
-    "reason": "Retained inactive provider, scraper, model or domain helper",
-    "references": [],
-    "expiry_or_review_policy": "REVIEW_ON_SCHEMA_UPGRADE"
-  },
-  {
-    "path": "src/bet/discovery/sources/football_data_org.py",
-    "category": "RETAINED_ENGINEERING",
-    "owner": "Kilo",
-    "reason": "Retained inactive provider, scraper, model or domain helper",
-    "references": [],
-    "expiry_or_review_policy": "REVIEW_ON_SCHEMA_UPGRADE"
-  },
-  {
-    "path": "src/bet/discovery/sources/odds_api.py",
-    "category": "RETAINED_ENGINEERING",
-    "owner": "Kilo",
-    "reason": "Retained inactive provider, scraper, model or domain helper",
-    "references": [],
-    "expiry_or_review_policy": "REVIEW_ON_SCHEMA_UPGRADE"
-  },
-  {
-    "path": "src/bet/discovery/sources/odds_api_io.py",
     "category": "RETAINED_ENGINEERING",
     "owner": "Kilo",
     "reason": "Retained inactive provider, scraper, model or domain helper",
@@ -8922,6 +8810,22 @@
     "category": "RETAINED_TEST",
     "owner": "Kilo",
     "reason": "Report generator receipt verification tests",
+    "references": [],
+    "expiry_or_review_policy": "PERMANENT_RETAINED_PRODUCTION"
+  },
+  {
+    "path": "tests/test_v5_v7_db_aware_launch_bridge.py",
+    "category": "RETAINED_TEST",
+    "owner": "bet-auditor",
+    "reason": "V7.1 DB-aware launch bridge tests",
+    "references": [],
+    "expiry_or_review_policy": "PERMANENT_RETAINED_PRODUCTION"
+  },
+  {
+    "path": "tests/test_v7_2_truthful_launch_fixes.py",
+    "category": "RETAINED_TEST",
+    "owner": "bet-auditor",
+    "reason": "V7.2 truthful live plan and continuation tests",
     "references": [],
     "expiry_or_review_policy": "PERMANENT_RETAINED_PRODUCTION"
   },
