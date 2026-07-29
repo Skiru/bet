@@ -119,7 +119,7 @@ def test_05_canonical_db_unchanged_during_plan_only(repo_root: Path, sample_cano
     )
     assert res["PLAN_STATUS"] == "PASS"
 
-    sha_after = create_runtime_analysis_shadow_db(sample_canonical_db, temp_run_dir, "RUN_TEST_001_CHECK")["canonical_db_sha256_before"]
+    sha_after = create_runtime_analysis_shadow_db(sample_canonical_db, temp_run_dir, "RUN_TEST_001_CHECK", allow_overwrite=True)["canonical_db_sha256_before"]
     assert sha_before == sha_after
 
 
@@ -275,7 +275,7 @@ def test_35_36_controlled_promotion(sample_canonical_db: Path, temp_run_dir: Pat
     sh_res = create_runtime_analysis_shadow_db(sample_canonical_db, temp_run_dir, "RUN_TEST_001")
     shadow_path = Path(sh_res["shadow_db_path"])
 
-    c_sha_before = create_runtime_analysis_shadow_db(sample_canonical_db, temp_run_dir, "RUN_TEST_BEFORE")["canonical_db_sha256_before"]
+    c_sha_before = create_runtime_analysis_shadow_db(sample_canonical_db, temp_run_dir, "RUN_TEST_BEFORE", allow_overwrite=True)["canonical_db_sha256_before"]
 
     prom_res = promote_shadow_results(
         canonical_db_path=sample_canonical_db,
