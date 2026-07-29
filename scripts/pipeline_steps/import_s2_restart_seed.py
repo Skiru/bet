@@ -47,7 +47,7 @@ def revalidate_event_freshness(
 
     for evt in events:
         eid = str(evt.get("canonical_event_id") or evt.get("event_id") or "")
-        start_time_str = evt.get("start_time_utc") or evt.get("kickoff_utc") or evt.get("event_time") or ""
+        start_time_str = evt.get("start_time_utc") or evt.get("kickoff_utc") or evt.get("event_time") or evt.get("kickoff") or evt.get("event_start_time") or ""
         raw_status = str(evt.get("status") or evt.get("event_status") or "SCHEDULED").upper()
 
         if not eid or not start_time_str:
