@@ -392,6 +392,7 @@ def test_restart_01_safe_s2_fork():
     """RESTART-01: Safe S2 restart seed export and import mechanism."""
     from scripts.pipeline_steps.export_s2_restart_seed import export_s2_restart_seed
     from scripts.pipeline_steps.import_s2_restart_seed import import_s2_restart_seed
+    from bet.pipeline.receipts import get_git_commit_head, get_git_tree_sha, compute_source_manifest_sha256
 
     source_run_root = Path("/private/tmp/pipeline_runs/2026-07-29/v5_analysis_20260729_002")
     if source_run_root.exists():
@@ -403,14 +404,20 @@ def test_restart_01_safe_s2_fork():
             assert seed_tar.exists()
             assert seed_manifest.exists()
 
+            repo_root = Path(".").resolve()
+            cur_head = get_git_commit_head(repo_root)
+            cur_tree = get_git_tree_sha(repo_root)
+            cur_manifest = compute_source_manifest_sha256(repo_root)
+
             target_run_root = Path(tmp_dir) / "target_run_003"
             import_receipt = import_s2_restart_seed(
                 seed_tar_path=seed_tar,
                 target_run_root=target_run_root,
                 target_run_id="v5_analysis_20260729_003",
-                target_head="a" * 40,
-                target_tree="b" * 40,
-                target_manifest="c" * 64,
+                target_head=cur_head,
+                target_tree=cur_tree,
+                target_manifest=cur_manifest,
+                seed_manifest_path=seed_manifest,
             )
             assert import_receipt["imported_event_count"] == 766
             assert import_receipt["reused_s2_plus"] is False

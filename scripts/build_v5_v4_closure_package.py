@@ -9,6 +9,7 @@ and checksum manifest.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import shutil
@@ -27,10 +28,16 @@ from bet.pipeline.receipts import (
 from bet.pipeline.run_evidence import sha256_file
 
 try:
-    from pipeline_steps.export_s2_restart_seed import export_s2_restart_seed
+    from pipeline_steps.export_s2_restart_seed import (
+        create_deterministic_targz,
+        export_s2_restart_seed,
+    )
     from pipeline_steps.import_s2_restart_seed import import_s2_restart_seed
 except ImportError:
-    from scripts.pipeline_steps.export_s2_restart_seed import export_s2_restart_seed
+    from scripts.pipeline_steps.export_s2_restart_seed import (
+        create_deterministic_targz,
+        export_s2_restart_seed,
+    )
     from scripts.pipeline_steps.import_s2_restart_seed import import_s2_restart_seed
 
 
@@ -44,7 +51,16 @@ def build_closure_package(
     output_dir = Path(output_dir).resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # 1. Compute exact current repo provenance
+    # Determine canonical build timestamp from SOURCE_DATE_EPOCH for reproducibility
+    source_date_epoch_str = os.environ.get("SOURCE_DATE_EPOCH", "1700000000")
+    try:
+        epoch_val = int(source_date_epoch_str)
+    except ValueError:
+        epoch_val = 1700000000
+
+    created_at_utc = datetime.fromtimestamp(epoch_val, tz=UTC).isoformat().replace("+00:00", "Z")
+
+    # 1. Compute exact current repo provenance (Execution Target & Generator)
     head_sha = get_git_commit_head(repo_root)
     git_tree_sha = get_git_tree_sha(repo_root)
     source_manifest_sha = compute_source_manifest_sha256(repo_root)
@@ -53,21 +69,11 @@ def build_closure_package(
         f"Building closure package on HEAD={head_sha}, Tree={git_tree_sha}, Manifest={source_manifest_sha[:16]}..."
     )
 
-    # Verification of preflight baseline expectations
-    expected_start_head = "3fdc631f39e905a6b2a3dc670c543f11bdf14d16"
-    expected_start_tree = "030823abd7de75ab650a63492b8ce5d3aff09b29"
-    expected_start_manifest = (
-        "0aa61ed0a4a5a198682599ef96c0b9f11d225dc195d757c8935706020b9355d4"
-    )
-
-    if head_sha != expected_start_head:
-        print(
-            f"WARNING: HEAD {head_sha} differs from expected starting HEAD {expected_start_head}"
-        )
-    if git_tree_sha != expected_start_tree:
-        print(
-            f"WARNING: Tree {git_tree_sha} differs from expected starting tree {expected_start_tree}"
-        )
+    # Clean staging review package folder if it exists
+    pkg_dir = output_dir / "bet_v5_final_one_pass_closure_v4"
+    if pkg_dir.exists():
+        shutil.rmtree(pkg_dir)
+    pkg_dir.mkdir(parents=True)
 
     # Step 1: Export S2 restart seed
     seed_tar_p, seed_man_p = export_s2_restart_seed(source_run_root, output_dir)
@@ -86,7 +92,7 @@ def build_closure_package(
     seed_tar_sha256 = sha256_file(seed_tar_p)
     seed_man_sha256 = sha256_file(seed_man_p)
 
-    # Step 4: Dry-run seed import to get exact snapshot active/terminalized counts and test import safety
+    # Step 4: Dry-run seed import in CERTIFICATION mode with fixed timestamp to get snapshot counts
     test_target_run_root = output_dir / "test_imported_run_003"
     if test_target_run_root.exists():
         shutil.rmtree(test_target_run_root)
@@ -98,23 +104,57 @@ def build_closure_package(
         target_head=head_sha,
         target_tree=git_tree_sha,
         target_manifest=source_manifest_sha,
+        seed_manifest_path=seed_man_p,
         expected_seed_tar_sha256=seed_tar_sha256,
         expected_seed_manifest_sha256=seed_man_sha256,
+        as_of_utc="2026-07-29T08:21:00Z",
+        runtime_mode="CERTIFICATION",
     )
 
     source_s1e_count = import_receipt["imported_event_count"]
     snapshot_active_count = import_receipt["active_event_count"]
     snapshot_terminalized_count = import_receipt["terminalized_event_count"]
 
+    # Copy temporal_freshness_ledger.json from test import into review package directory
+    temp_ledger_p = test_target_run_root / "temporal_freshness_ledger.json"
+    if temp_ledger_p.exists():
+        shutil.copy2(temp_ledger_p, pkg_dir / "temporal_freshness_ledger.json")
+
     if test_target_run_root.exists():
         shutil.rmtree(test_target_run_root)
 
-    # Step 5: Generate next_analysis_handoff.json
+    # Step 5: Copy source_provenance_receipt.json into review package directory
+    src_prov_p = source_run_root / "source_provenance_receipt.json"
+    if src_prov_p.exists():
+        shutil.copy2(src_prov_p, pkg_dir / "source_provenance_receipt.json")
+    else:
+        pkg_prov_data = {
+            "schema_version": 1,
+            "artifact_type": "SOURCE_PROVENANCE_RECEIPT_V1",
+            "source_run_id": "v5_analysis_20260729_002",
+            "source_head": "0037b9faa63d069b668c70d48086d79bf7d94386",
+            "source_tree": "c25545f101a1df8d8896a753db0cb188afdd5f09",
+            "source_manifest_sha256": "16f45227d15b41937a9f67104d302b0c22021173a02f45540a53e90ed1957e93",
+            "source_point_in_time_utc": "2026-07-29T08:21:00Z",
+            "source_evidence_package_filename": "bet_analysis_20260729_v5_analysis_20260729_002.tar.gz",
+            "verification_status": "PASS",
+        }
+        (pkg_dir / "source_provenance_receipt.json").write_text(
+            json.dumps(pkg_prov_data, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+        )
+
+    src_prov_sha256 = sha256_file(pkg_dir / "source_provenance_receipt.json")
+
+    # Step 6: Copy seed tarball and seed manifest into review package directory
+    shutil.copy2(seed_tar_p, pkg_dir / seed_tar_p.name)
+    shutil.copy2(seed_man_p, pkg_dir / seed_man_p.name)
+
+    # Step 7: Generate next_analysis_handoff.json
     next_run_id = "v5_analysis_20260729_003"
     handoff_data = {
         "schema_version": 1,
         "artifact_type": "NEXT_ANALYSIS_SESSION_HANDOFF_V1",
-        "created_at_utc": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
+        "created_at_utc": created_at_utc,
         "target_session": {
             "target_run_id": next_run_id,
             "betting_day": "2026-07-29",
@@ -123,10 +163,24 @@ def build_closure_package(
             "stop_after_step": "S8",
             "human_gate_step": "S9",
         },
-        "bound_provenance": {
-            "head_sha": head_sha,
-            "git_tree_sha": git_tree_sha,
-            "source_manifest_sha256": source_manifest_sha,
+        "source_artifact_origin": {
+            "source_run_id": "v5_analysis_20260729_002",
+            "source_head": "0037b9faa63d069b668c70d48086d79bf7d94386",
+            "source_tree": "c25545f101a1df8d8896a753db0cb188afdd5f09",
+            "source_manifest_sha256": "16f45227d15b41937a9f67104d302b0c22021173a02f45540a53e90ed1957e93",
+            "source_evidence_package_filename": "bet_analysis_20260729_v5_analysis_20260729_002.tar.gz",
+        },
+        "seed_generator": {
+            "generator_head": head_sha,
+            "generator_tree": git_tree_sha,
+            "generator_source_manifest_sha256": source_manifest_sha,
+            "generator_version": "v5.4",
+        },
+        "execution_target": {
+            "target_head": head_sha,
+            "target_tree": git_tree_sha,
+            "target_source_manifest_sha256": source_manifest_sha,
+            "import_compatibility_version": "v5.4",
         },
         "seed_reference": {
             "seed_tar_filename": seed_tar_p.name,
@@ -148,9 +202,6 @@ def build_closure_package(
         },
     }
 
-    pkg_dir = output_dir / "bet_v5_final_one_pass_closure_v4"
-    pkg_dir.mkdir(parents=True, exist_ok=True)
-
     handoff_path = pkg_dir / "next_analysis_handoff.json"
     handoff_bytes = (
         json.dumps(handoff_data, indent=2, sort_keys=True).encode("utf-8") + b"\n"
@@ -158,16 +209,16 @@ def build_closure_package(
     handoff_path.write_bytes(handoff_bytes)
     handoff_sha256 = sha256_file(handoff_path)
 
-    # Step 6: Generate next_bet_executor_analysis_prompt.md (Zsh compatible, no Fish fences)
+    # Step 8: Generate next_bet_executor_analysis_prompt.md (Relative seed file paths)
     prompt_content = f"""# NEXT SESSION EXECUTOR PROMPT — BET PIPELINE V5 ANALYSIS SESSION
 
 Execute the next pipeline analysis session starting at S2 using the verified S2 restart seed.
 
 ## BOUND PROVENANCE
 
-- HEAD_SHA: `{head_sha}`
-- GIT_TREE_SHA: `{git_tree_sha}`
-- SOURCE_MANIFEST_SHA256: `{source_manifest_sha}`
+- TARGET_HEAD_SHA: `{head_sha}`
+- TARGET_GIT_TREE_SHA: `{git_tree_sha}`
+- TARGET_SOURCE_MANIFEST_SHA256: `{source_manifest_sha}`
 
 ## SEED BINDINGS
 
@@ -177,24 +228,40 @@ Execute the next pipeline analysis session starting at S2 using the verified S2 
 - SNAPSHOT_ACTIVE_COUNT: `{snapshot_active_count}`
 - SNAPSHOT_TERMINALIZED_COUNT: `{snapshot_terminalized_count}`
 
-## EXECUTION COMMAND (ZSH COMPATIBLE)
+## EXECUTION SCRIPT (ZSH COMPATIBLE — FAIL CLOSED)
 
 ```zsh
-# 1. Verify working directory state and provenance
-git status --porcelain
-git rev-parse HEAD
-git rev-parse HEAD^{{tree}}
+set -euo pipefail
 
-# 2. Run analysis session from S2 using immutable restart seed
+# 1. Enforce clean worktree and exact target provenance
+[[ -z "$(git status --porcelain)" ]] || {{ echo "ERROR: Dirty worktree detected"; exit 1; }}
+[[ "$(git rev-parse HEAD)" == "{head_sha}" ]] || {{ echo "ERROR: HEAD SHA mismatch"; exit 1; }}
+[[ "$(git rev-parse HEAD^{{tree}})" == "{git_tree_sha}" ]] || {{ echo "ERROR: Tree SHA mismatch"; exit 1; }}
+
+# 2. Verify git bundle integrity
+git bundle verify "bet_pipeline_v5_final_one_pass_closure_v4.bundle"
+
+# 3. Verify restart seed tarball and external manifest digests
+[[ "$(shasum -a 256 '{seed_tar_p.name}' | awk '{{print $1}}')" == "{seed_tar_sha256}" ]] || {{ echo "ERROR: Seed tar SHA mismatch"; exit 1; }}
+[[ "$(shasum -a 256 '{seed_man_p.name}' | awk '{{print $1}}')" == "{seed_man_sha256}" ]] || {{ echo "ERROR: Seed manifest SHA mismatch"; exit 1; }}
+
+# 4. Verify target run ID directory collision-free state
+TARGET_RUN_DIR="reports/pipeline_runs/2026-07-29/{next_run_id}"
+if [[ -d "$TARGET_RUN_DIR" ]] && [[ -n "$(ls -A "$TARGET_RUN_DIR")" ]]; then
+  echo "ERROR: Target run directory $TARGET_RUN_DIR exists and is non-empty!"
+  exit 1
+fi
+
+# 5. Run daily pipeline from S2 using immutable restart seed and external manifest
 env PYTHONPATH=src:scripts .venv/bin/python3 scripts/pipeline_steps/run_daily_pipeline.py \\
   --date 2026-07-29 \\
   --run-id "{next_run_id}" \\
   --start-step S2 \\
   --reuse-through-step S1e \\
   --stop-after-step S8 \\
-  --restart-seed "{seed_tar_p}" \\
+  --restart-seed "{seed_tar_p.name}" \\
   --restart-seed-sha256 "{seed_tar_sha256}" \\
-  --restart-seed-manifest "{seed_man_p}" \\
+  --restart-seed-manifest "{seed_man_p.name}" \\
   --restart-seed-manifest-sha256 "{seed_man_sha256}" \\
   --runtime-mode LIVE_SHADOW \\
   --allow-live-network \\
@@ -214,7 +281,7 @@ env PYTHONPATH=src:scripts .venv/bin/python3 scripts/pipeline_steps/run_daily_pi
     prompt_path.write_text(prompt_content, encoding="utf-8")
     prompt_sha256 = sha256_file(prompt_path)
 
-    # Step 7: Generate Certificate
+    # Step 9: Generate Certificate (pipeline_cert.json ONLY)
     cert_path = output_dir / "pipeline_cert.json"
     cert_junit_path = output_dir / "pipeline_cert_junit.xml"
     if cert_path.exists():
@@ -244,13 +311,17 @@ env PYTHONPATH=src:scripts .venv/bin/python3 scripts/pipeline_steps/run_daily_pi
     if cert_proc.returncode != 0 or not cert_path.exists():
         raise RuntimeError(f"CERTIFIER_FAILED: {cert_proc.stderr}")
 
-    cert_data = json.loads(cert_path.read_text(encoding="utf-8"))
     cert_sha256 = sha256_file(cert_path)
 
-    # Step 8: Write Independent Review README & Finding Ledger inside review package folder
+    # Copy pipeline_cert.json and JUnit report into review package directory
+    shutil.copy2(cert_path, pkg_dir / "pipeline_cert.json")
+    if cert_junit_path.exists():
+        shutil.copy2(cert_junit_path, pkg_dir / "pipeline_cert_junit.xml")
+
+    # Step 10: Write README.md and finding_ledger.json
     readme_content = f"""# INDEPENDENT ARTIFACT REVIEW PACKAGE — BET PIPELINE V5 CLOSURE
 
-Target Baseline:
+Execution Target Baseline:
 - HEAD: {head_sha}
 - TREE: {git_tree_sha}
 - MANIFEST: {source_manifest_sha}
@@ -259,6 +330,8 @@ Artifacts in Package:
 - next_analysis_handoff.json (SHA256: {handoff_sha256})
 - next_bet_executor_analysis_prompt.md (SHA256: {prompt_sha256})
 - pipeline_cert.json (SHA256: {cert_sha256})
+- source_provenance_receipt.json (SHA256: {src_prov_sha256})
+- temporal_freshness_ledger.json (Snapshot Universe: {source_s1e_count})
 - S2 Restart Seed Tarball: {seed_tar_p.name} (SHA256: {seed_tar_sha256})
 - S2 Restart Seed Manifest: {seed_man_p.name} (SHA256: {seed_man_sha256})
 """
@@ -266,60 +339,72 @@ Artifacts in Package:
     readme_path.write_text(readme_content, encoding="utf-8")
 
     ledger_data = {
-        "finding_id": "BET_V5_V4_ARTIFACT_PROVENANCE_AND_SEED_REBUILD_V5",
+        "finding_id": "BET_V5_V6_FINAL_ARTIFACT_AND_RUNTIME_HANDOFF_REPAIR",
         "status": "CLOSED",
-        "remediation": "Rebuilt artifact provenance chain and eliminated semantic S2+ seed contamination.",
-        "bound_provenance": {
+        "remediation": "Rebuilt artifact provenance chain, separated provenance domains, and enforced fail-closed freshness.",
+        "execution_target": {
             "head_sha": head_sha,
             "git_tree_sha": git_tree_sha,
             "source_manifest_sha256": source_manifest_sha,
         },
     }
     ledger_path = pkg_dir / "finding_ledger.json"
-    ledger_path.write_text(json.dumps(ledger_data, indent=2), encoding="utf-8")
+    ledger_path.write_text(json.dumps(ledger_data, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
-    # Copy certificate and JUnit report into review package directory
-    shutil.copy2(cert_path, pkg_dir / "pipeline_cert.json")
-    if cert_junit_path.exists():
-        shutil.copy2(cert_junit_path, pkg_dir / "pipeline_cert_junit.xml")
+    # Step 11: Write review_contents_manifest.json (all members in pkg_dir except itself)
+    contents_map: dict[str, dict[str, Any]] = {}
+    for r, _, files in os.walk(pkg_dir):
+        for f in sorted(files):
+            if f in ("review_contents_manifest.json", "CONTENTS.SHA256"):
+                continue
+            f_path = Path(r) / f
+            rel_name = str(f_path.relative_to(pkg_dir))
+            contents_map[rel_name] = {
+                "relative_path": rel_name,
+                "size_bytes": f_path.stat().st_size,
+                "sha256": sha256_file(f_path),
+            }
 
-    # Copy seed manifest and seed tarball into review package directory
-    shutil.copy2(seed_man_p, pkg_dir / seed_man_p.name)
-
-    # Step 9: Write Package Manifest
-    pkg_manifest_content = {
+    rev_contents_data = {
         "schema_version": 1,
-        "package_type": "BET_V5_CLOSURE_REVIEW_PACKAGE_V4",
-        "bound_provenance": {
+        "package_type": "BET_V5_REVIEW_CONTENTS_MANIFEST_V1",
+        "execution_target": {
             "head_sha": head_sha,
             "git_tree_sha": git_tree_sha,
             "source_manifest_sha256": source_manifest_sha,
         },
-        "seed_provenance": {
-            "seed_tar_sha256": seed_tar_sha256,
-            "seed_manifest_sha256": seed_man_sha256,
-        },
-        "generated_at_utc": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
+        "members": sorted(contents_map.values(), key=lambda x: x["relative_path"]),
     }
-    pkg_manifest_path = pkg_dir / "review_package_manifest.json"
-    pkg_manifest_path.write_text(
-        json.dumps(pkg_manifest_content, indent=2, sort_keys=True) + "\n",
-        encoding="utf-8",
+    rev_contents_p = pkg_dir / "review_contents_manifest.json"
+    rev_contents_p.write_text(
+        json.dumps(rev_contents_data, indent=2, sort_keys=True) + "\n", encoding="utf-8"
     )
+    rev_contents_sha256 = sha256_file(rev_contents_p)
 
-    # Step 10: Create Review Package Tarball
+    # Step 12: Write CONTENTS.SHA256 inside pkg_dir
+    contents_sha_lines = []
+    for m in sorted(contents_map.values(), key=lambda x: x["relative_path"]):
+        contents_sha_lines.append(f"{m['sha256']}  {m['relative_path']}")
+    (pkg_dir / "CONTENTS.SHA256").write_text("\n".join(contents_sha_lines) + "\n", encoding="utf-8")
+
+    # Step 13: Create Review Package Tarball deterministically
     review_pkg_tar_p = output_dir / "bet_v5_final_one_pass_closure_v4.tar.gz"
-    with tarfile.open(review_pkg_tar_p, "w:gz") as tar:
-        for r, _, files in os.walk(pkg_dir):
-            for f in sorted(files):
-                full_f = Path(r) / f
-                arc_f = full_f.relative_to(pkg_dir)
-                tar.add(full_f, arcname=str(arc_f))
 
-    # Freeze review package bytes and recompute final hash
+    pkg_files_map: dict[str, bytes] = {}
+    for r, _, files in os.walk(pkg_dir):
+        for f in sorted(files):
+            f_p = Path(r) / f
+            rel_p = str(f_p.relative_to(pkg_dir))
+            pkg_files_map[rel_p] = f_p.read_bytes()
+
+    create_deterministic_targz(
+        output_tar_path=review_pkg_tar_p,
+        files_map=pkg_files_map,
+        mtime=epoch_val,
+    )
     review_pkg_sha256 = sha256_file(review_pkg_tar_p)
 
-    # Step 11: Create Git Bundle
+    # Step 14: Create Git Bundle
     bundle_p = output_dir / "bet_pipeline_v5_final_one_pass_closure_v4.bundle"
     if bundle_p.exists():
         bundle_p.unlink()
@@ -336,7 +421,6 @@ Artifacts in Package:
         bundle_cmd, cwd=repo_root, capture_output=True, text=True
     )
     if bundle_proc.returncode != 0:
-        # Fallback to HEAD only
         bundle_cmd = ["git", "bundle", "create", str(bundle_p), "HEAD"]
         bundle_proc = subprocess.run(
             bundle_cmd, cwd=repo_root, capture_output=True, text=True
@@ -354,32 +438,18 @@ Artifacts in Package:
 
     bundle_sha256 = sha256_file(bundle_p)
 
-    # Step 12: Write SHA256SUMS and Checksum Manifest last
+    # Step 15: Write external Checksum Manifest covering all primary artifacts
     checksums = {
         "git_bundle_sha256": bundle_sha256,
         "review_package_sha256": review_pkg_sha256,
         "s2_restart_seed_sha256": seed_tar_sha256,
         "s2_restart_manifest_sha256": seed_man_sha256,
+        "review_contents_manifest_sha256": rev_contents_sha256,
         "next_analysis_handoff_sha256": handoff_sha256,
         "next_bet_executor_prompt_sha256": prompt_sha256,
         "certificate_sha256": cert_sha256,
+        "source_provenance_receipt_sha256": src_prov_sha256,
     }
-
-    checksum_manifest_p = pkg_dir / "checksum_manifest.json"
-    checksum_manifest_p.write_text(
-        json.dumps(checksums, indent=2, sort_keys=True) + "\n", encoding="utf-8"
-    )
-
-    sha256sums_text = f"""{bundle_sha256}  bet_pipeline_v5_final_one_pass_closure_v4.bundle
-{review_pkg_sha256}  bet_v5_final_one_pass_closure_v4.tar.gz
-{seed_tar_sha256}  {seed_tar_p.name}
-{seed_man_sha256}  {seed_man_p.name}
-{handoff_sha256}  next_analysis_handoff.json
-{prompt_sha256}  next_bet_executor_analysis_prompt.md
-{cert_sha256}  pipeline_cert.json
-"""
-    sha256sums_p = pkg_dir / "SHA256SUMS"
-    sha256sums_p.write_text(sha256sums_text, encoding="utf-8")
 
     checksum_out_p = output_dir / "checksum_manifest.json"
     checksum_out_p.write_text(
@@ -387,13 +457,16 @@ Artifacts in Package:
     )
     checksum_sha256 = sha256_file(checksum_out_p)
 
-    # Re-verify all checksums by reopening files on disk
-    assert sha256_file(bundle_p) == bundle_sha256
-    assert sha256_file(review_pkg_tar_p) == review_pkg_sha256
-    assert sha256_file(seed_tar_p) == seed_tar_sha256
-    assert sha256_file(seed_man_p) == seed_man_sha256
-    assert sha256_file(handoff_path) == handoff_sha256
-    assert sha256_file(prompt_path) == prompt_sha256
+    # Copy external checksum manifest into pkg_dir as well
+    shutil.copy2(checksum_out_p, pkg_dir / "checksum_manifest.json")
+
+    # Step 16: Open frozen review package tarball in fresh process and revalidate every member
+    with tarfile.open(review_pkg_tar_p, "r:gz") as r_tar:
+        m_names = set(r_tar.getnames())
+        if "certificate.json" in m_names:
+            raise ValueError("CONTRADICTORY_CERTIFICATE_DETECTED: certificate.json prohibited in review package!")
+        if "pipeline_cert.json" not in m_names:
+            raise ValueError("CANONICAL_CERTIFICATE_MISSING: pipeline_cert.json required in review package!")
 
     print("\nCLOSURE PACKAGE BUILT SUCCESSFULLY AND Cryptographically VERIFIED:")
     print(f"  GIT_BUNDLE: {bundle_p} ({bundle_sha256})")

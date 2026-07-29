@@ -864,11 +864,9 @@ def test_v5_01_unknown_provenance_rejection(tmp_path):
     )
     write_json_atomic(data / "events.json", {"canonical_event_ids": ["evt_1"]})
 
-    # Since repo_head_sha is UNKNOWN in summary, exporter must resolve valid git head or raise
-    tar_p, man_p = export_s2_restart_seed(source_run, tmp_path / "out")
-    man = json.loads(man_p.read_text())
-    assert man["source_head"] != "UNKNOWN"
-    assert len(man["source_head"]) == 40
+    # Since repo_head_sha is UNKNOWN in summary and no source provenance receipt exists, exporter must raise PROVENANCE_UNKNOWN_REJECTED
+    with pytest.raises(ValueError, match="PROVENANCE_UNKNOWN_REJECTED"):
+        export_s2_restart_seed(source_run, tmp_path / "out")
 
 
 def test_v5_02_cross_artifact_head_mismatch_rejection():
@@ -1128,6 +1126,9 @@ def test_v5_10_exact_archive_member_allowlist(tmp_path):
                 "source_head": "a" * 40,
                 "source_tree": "b" * 40,
                 "source_manifest_sha256": "c" * 64,
+                "generator_head": "d" * 40,
+                "generator_tree": "e" * 40,
+                "generator_source_manifest_sha256": "f" * 64,
                 "included_files": [
                     {
                         "relative_path": "artifacts/S1e.json",
@@ -1155,14 +1156,28 @@ def test_v5_10_exact_archive_member_allowlist(tmp_path):
         ti_2.size = len(f2_data)
         tar.addfile(ti_2, io.BytesIO(f2_data))
 
+    extra_man = tmp_path / "extra_manifest.json"
+    extra_man.write_bytes(manifest_bytes)
+
+    from bet.pipeline.receipts import (
+        get_git_commit_head,
+        get_git_tree_sha,
+        compute_source_manifest_sha256,
+    )
+    repo_root = Path(".").resolve()
+    cur_head = get_git_commit_head(repo_root)
+    cur_tree = get_git_tree_sha(repo_root)
+    cur_manifest = compute_source_manifest_sha256(repo_root)
+
     with pytest.raises(ValueError) as exc_info:
         import_s2_restart_seed(
             seed_tar_path=extra_tar,
             target_run_root=tmp_path / "target_extra",
             target_run_id="run_extra",
-            target_head="a" * 40,
-            target_tree="b" * 40,
-            target_manifest="c" * 64,
+            target_head=cur_head,
+            target_tree=cur_tree,
+            target_manifest=cur_manifest,
+            seed_manifest_path=extra_man,
         )
     assert "SEED_MEMBER_MISMATCH" in str(exc_info.value)
 

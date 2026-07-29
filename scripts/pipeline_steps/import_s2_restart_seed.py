@@ -15,31 +15,31 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from bet.pipeline.receipts import (
+    compute_source_manifest_sha256,
+    get_git_commit_head,
+    get_git_tree_sha,
+)
 from bet.pipeline.run_evidence import sha256_file, write_json_atomic
 
 HEX_40_REGEX = re.compile(r"^[0-9a-fA-F]{40}$")
 HEX_64_REGEX = re.compile(r"^[0-9a-fA-F]{64}$")
 
-S2_PLUS_KEYWORDS = (
-    "s2",
-    "s3",
-    "s4",
-    "s5",
-    "s6",
-    "s7",
-    "s8",
-    "s9",
-    "s10",
-    "chunks",
-    "work_orders",
-    "tipster_consensus",
-    "shortlist",
-    "market_matrix",
-    "coupon",
-    "pricing",
-    "model",
-    "risk",
-)
+S2_PLUS_STEPS = {
+    "S2",
+    "S2.3",
+    "S2.5",
+    "S2.7",
+    "S2.9",
+    "S3",
+    "S4",
+    "S5",
+    "S6",
+    "S7",
+    "S8",
+    "S9",
+    "S10",
+}
 
 
 def validate_provenance_field(value: Any, name: str, is_64: bool = False) -> str:
@@ -60,72 +60,101 @@ def validate_provenance_field(value: Any, name: str, is_64: bool = False) -> str
         raise ValueError(
             f"PROVENANCE_FORMAT_REJECTED: {name} string '{val_str}' is not valid hex digest"
         )
-    return val_str
+    return val_str.lower()
+
+
+def has_s2_plus_markers(obj: Any) -> bool:
+    """Recursively check JSON structures for S2+ contamination markers."""
+    if isinstance(obj, dict):
+        for k, v in obj.items():
+            k_lower = str(k).lower()
+            v_str = str(v).upper() if isinstance(v, (str, int, float)) else ""
+
+            if k_lower in ("stage", "step_id", "position", "producer_step", "origin_step"):
+                if v_str in S2_PLUS_STEPS or any(
+                    s in v_str for s in ("S2", "S3", "S4", "S5", "S6", "S7", "S8")
+                ):
+                    return True
+
+            if k_lower in ("blocked_at_step", "blocked_at"):
+                if v_str in S2_PLUS_STEPS or any(
+                    s in v_str for s in ("S2", "S3", "S4", "S5", "S6", "S7", "S8")
+                ):
+                    return True
+
+            if k_lower in ("completed_steps", "boundaries", "step_boundaries"):
+                if isinstance(v, list):
+                    if any(
+                        str(x).upper() in S2_PLUS_STEPS
+                        for x in v
+                        if isinstance(x, (str, int))
+                    ):
+                        return True
+
+            if k_lower in ("work_order", "work_order_path", "pricing", "coupon", "reducer") and v:
+                return True
+
+            if has_s2_plus_markers(v):
+                return True
+
+    elif isinstance(obj, (list, tuple, set)):
+        for item in obj:
+            if has_s2_plus_markers(item):
+                return True
+
+    elif isinstance(obj, str):
+        val_upper = obj.upper()
+        if val_upper in S2_PLUS_STEPS:
+            return True
+
+    return False
 
 
 def is_semantically_s2_plus(rel_path: str, full_path: Path) -> bool:
-    """Return True if rel_path or full_path semantically belongs to S2+."""
+    """Return True if rel_path or file content semantically belongs to S2+."""
     rel_lower = rel_path.lower()
     file_name = full_path.name.lower()
 
-    if rel_path in (
-        "artifacts/S0.json",
-        "artifacts/S1.json",
-        "artifacts/S1e.json",
-        "restart_seed_manifest.json",
+    if file_name in (
+        "s2.json",
+        "s2.3.json",
+        "s2.5.json",
+        "s2.7.json",
+        "s2.9.json",
+        "s3.json",
+        "s4.json",
+        "s5.json",
+        "s6.json",
+        "s7.json",
+        "s8.json",
     ):
-        return False
-    if "s1e_event_universe" in file_name:
-        return False
+        return True
 
-    for kw in S2_PLUS_KEYWORDS:
-        if kw in rel_lower or kw in file_name:
-            return True
+    if any(
+        kw in file_name or kw in rel_lower
+        for kw in (
+            "tipster_consensus",
+            "shortlist",
+            "chunks",
+            "work_order",
+            "market_matrix",
+            "coupon",
+            "pricing",
+        )
+    ):
+        return True
+    if "artifacts/chunks" in rel_lower or "work_orders" in rel_lower:
+        return True
 
     if full_path.suffix == ".json" and full_path.is_file():
         try:
             content = json.loads(full_path.read_text(encoding="utf-8"))
-            if isinstance(content, dict):
-                stage = str(
-                    content.get("stage")
-                    or content.get("step_id")
-                    or content.get("position")
-                    or ""
-                ).upper()
-                if any(
-                    k in stage
-                    for k in ("S2", "S3", "S4", "S5", "S6", "S7", "S8", "S9", "S10")
-                ):
-                    return True
-                blocked_at = str(content.get("blocked_at_step") or "").upper()
-                if any(
-                    k in blocked_at for k in ("S2", "S3", "S4", "S5", "S6", "S7", "S8")
-                ):
-                    return True
-                completed = [
-                    str(x).upper()
-                    for x in content.get("completed_steps", [])
-                    if isinstance(x, str)
-                ]
-                if any(
-                    k in c
-                    for c in completed
-                    for k in ("S2", "S3", "S4", "S5", "S6", "S7", "S8")
-                ):
-                    return True
-                boundaries = [
-                    str(x).upper()
-                    for x in content.get("boundaries", [])
-                    if isinstance(x, str)
-                ]
-                if any(
-                    k in b
-                    for b in boundaries
-                    for k in ("S2", "S3", "S4", "S5", "S6", "S7", "S8")
-                ):
-                    return True
-        except Exception:
-            pass
+            if has_s2_plus_markers(content):
+                return True
+        except Exception as exc:
+            raise ValueError(
+                f"MALFORMED_JSON_BLOCKED: Failed to parse JSON at {rel_path}: {exc}"
+            ) from exc
 
     return False
 
@@ -224,20 +253,110 @@ def import_s2_restart_seed(
     target_head: str,
     target_tree: str,
     target_manifest: str,
+    seed_manifest_path: Path | str | None = None,
     expected_seed_tar_sha256: str | None = None,
     expected_seed_manifest_sha256: str | None = None,
     as_of_utc: str | None = None,
     min_lead_seconds: int = 900,
+    runtime_mode: str = "LIVE_SHADOW",
 ) -> dict[str, Any]:
     """Import and verify S2 restart seed into target_run_root using staged extraction."""
     seed_tar_path = Path(seed_tar_path).resolve(strict=True)
     target_run_root = Path(target_run_root).resolve()
 
+    # 1. Reject target directory collisions first
+    if target_run_root.exists() and any(target_run_root.iterdir()):
+        raise ValueError(f"TARGET_RUN_ROOT_EXISTS_NON_EMPTY: {target_run_root}")
+
+    # 2. Inspect tar member safety before extraction
+    with tarfile.open(seed_tar_path, "r:gz") as tar:
+        members = tar.getmembers()
+        if len(members) > 1000:
+            raise ValueError(
+                f"SAFE_TAR_IMPORT_LIMIT_EXCEEDED: member count {len(members)} > 1000"
+            )
+
+        seen_names: set[str] = set()
+        total_uncompressed_bytes = 0
+
+        for m in members:
+            m_path = Path(m.name)
+            if (
+                m_path.is_absolute()
+                or ".." in m_path.parts
+                or m.name.startswith("/")
+                or m.name.startswith("\\")
+            ):
+                raise ValueError(
+                    f"SAFE_TAR_IMPORT_TRAVERSAL_DETECTED: Unsafe member path {m.name}"
+                )
+
+            if not (m.isfile() or m.isdir()):
+                raise ValueError(
+                    f"SAFE_TAR_IMPORT_UNSAFE_TYPE: Member {m.name} type is unsafe (symlink/hardlink/device)"
+                )
+
+            norm_name = str(m_path).lower()
+            if norm_name in seen_names:
+                raise ValueError(
+                    f"SAFE_TAR_IMPORT_DUPLICATE_MEMBER: Member {m.name} duplicate or case collision"
+                )
+            seen_names.add(norm_name)
+
+            if m.size > 100 * 1024 * 1024:
+                raise ValueError(
+                    f"SAFE_TAR_IMPORT_OVERSIZED_MEMBER: Member {m.name} size {m.size} > 100MB"
+                )
+            total_uncompressed_bytes += m.size
+
+        if total_uncompressed_bytes > 500 * 1024 * 1024:
+            raise ValueError(
+                f"SAFE_TAR_IMPORT_OVERSIZED_TOTAL: Total uncompressed size {total_uncompressed_bytes} > 500MB"
+            )
+
+    # 3. Resolve external manifest path or sibling manifest file
+    if not seed_manifest_path:
+        cand1 = seed_tar_path.parent / (seed_tar_path.name.replace(".tar.gz", "") + "_manifest.json")
+        cand2 = seed_tar_path.parent / "restart_seed_manifest.json"
+        if cand1.exists():
+            seed_manifest_path = cand1
+        elif cand2.exists():
+            seed_manifest_path = cand2
+        else:
+            raise ValueError(
+                "EXTERNAL_MANIFEST_MISSING: External seed manifest path required (--restart-seed-manifest)"
+            )
+
+    try:
+        seed_man_p = Path(seed_manifest_path).resolve(strict=True)
+    except FileNotFoundError as exc:
+        raise ValueError(f"EXTERNAL_MANIFEST_MISSING: External manifest file not found at {seed_manifest_path}") from exc
+
+    if not seed_man_p.exists():
+        raise ValueError(f"EXTERNAL_MANIFEST_MISSING: External manifest file not found at {seed_man_p}")
+
+    external_manifest_bytes = seed_man_p.read_bytes()
+
+    # 4. Verify target execution provenance against current repository state
     target_head = validate_provenance_field(target_head, "target_head")
     target_tree = validate_provenance_field(target_tree, "target_tree")
     target_manifest = validate_provenance_field(
         target_manifest, "target_manifest", is_64=True
     )
+
+    repo_root = Path(__file__).resolve().parents[2]
+    cur_head = get_git_commit_head(repo_root)
+    cur_tree = get_git_tree_sha(repo_root)
+    cur_manifest = compute_source_manifest_sha256(repo_root)
+
+    if (
+        target_head.lower() != cur_head.lower()
+        or target_tree.lower() != cur_tree.lower()
+        or target_manifest.lower() != cur_manifest.lower()
+    ):
+        raise ValueError(
+            f"TARGET_PROVENANCE_MISMATCH: Target execution params ({target_head[:8]}/{target_tree[:8]}/{target_manifest[:8]}) do not match repo state ({cur_head[:8]}/{cur_tree[:8]}/{cur_manifest[:8]})"
+        )
 
     if expected_seed_tar_sha256:
         actual_tar_sha = sha256_file(seed_tar_path)
@@ -246,8 +365,12 @@ def import_s2_restart_seed(
                 f"SEED_TAR_SHA_MISMATCH: {actual_tar_sha} vs expected {expected_seed_tar_sha256}"
             )
 
-    if target_run_root.exists() and any(target_run_root.iterdir()):
-        raise ValueError(f"TARGET_RUN_ROOT_EXISTS_NON_EMPTY: {target_run_root}")
+    if expected_seed_manifest_sha256:
+        actual_man_sha = sha256_file(seed_man_p)
+        if actual_man_sha.lower() != expected_seed_manifest_sha256.lower():
+            raise ValueError(
+                f"SEED_MANIFEST_SHA_MISMATCH: {actual_man_sha} vs expected {expected_seed_manifest_sha256}"
+            )
 
     parent_dir = target_run_root.parent
     parent_dir.mkdir(parents=True, exist_ok=True)
@@ -257,80 +380,43 @@ def import_s2_restart_seed(
     )
 
     try:
-        # Member safety inspection before extraction
+        # Extract safely
         with tarfile.open(seed_tar_path, "r:gz") as tar:
-            members = tar.getmembers()
-            if len(members) > 1000:
-                raise ValueError(
-                    f"SAFE_TAR_IMPORT_LIMIT_EXCEEDED: member count {len(members)} > 1000"
-                )
+            if hasattr(tarfile, "data_filter"):
+                tar.extractall(path=staging_dir, filter="data")
+            else:
+                tar.extractall(path=staging_dir)
 
-            seen_names: set[str] = set()
-            total_uncompressed_bytes = 0
-
-            for m in members:
-                # Path traversal checks
-                m_path = Path(m.name)
-                if (
-                    m_path.is_absolute()
-                    or ".." in m_path.parts
-                    or m.name.startswith("/")
-                    or m.name.startswith("\\")
-                ):
-                    raise ValueError(
-                        f"SAFE_TAR_IMPORT_TRAVERSAL_DETECTED: Unsafe member path {m.name}"
-                    )
-
-                # Type checks: accept regular files and directories only
-                if not (m.isfile() or m.isdir()):
-                    raise ValueError(
-                        f"SAFE_TAR_IMPORT_UNSAFE_TYPE: Member {m.name} type is unsafe (symlink/hardlink/device)"
-                    )
-
-                # Duplicate / case collision check
-                norm_name = str(m_path).lower()
-                if norm_name in seen_names:
-                    raise ValueError(
-                        f"SAFE_TAR_IMPORT_DUPLICATE_MEMBER: Member {m.name} duplicate or case collision"
-                    )
-                seen_names.add(norm_name)
-
-                # Size bounds
-                if m.size > 100 * 1024 * 1024:
-                    raise ValueError(
-                        f"SAFE_TAR_IMPORT_OVERSIZED_MEMBER: Member {m.name} size {m.size} > 100MB"
-                    )
-                total_uncompressed_bytes += m.size
-
-            if total_uncompressed_bytes > 500 * 1024 * 1024:
-                raise ValueError(
-                    f"SAFE_TAR_IMPORT_OVERSIZED_TOTAL: Total uncompressed size {total_uncompressed_bytes} > 500MB"
-                )
-
-            # Staged extraction
-            tar.extractall(path=staging_dir)
-
-        manifest_file = staging_dir / "restart_seed_manifest.json"
-        if not manifest_file.exists():
+        # Verify internal vs external manifest byte-identity
+        internal_manifest_p = staging_dir / "restart_seed_manifest.json"
+        if not internal_manifest_p.exists():
             raise ValueError(
                 f"Imported seed archive missing restart_seed_manifest.json in staging {staging_dir}"
             )
 
-        if expected_seed_manifest_sha256:
-            actual_man_sha = sha256_file(manifest_file)
-            if actual_man_sha.lower() != expected_seed_manifest_sha256.lower():
-                raise ValueError(
-                    f"SEED_MANIFEST_SHA_MISMATCH: {actual_man_sha} vs expected {expected_seed_manifest_sha256}"
-                )
+        internal_manifest_bytes = internal_manifest_p.read_bytes()
+        if external_manifest_bytes != internal_manifest_bytes:
+            raise ValueError(
+                "EXTERNAL_INTERNAL_MANIFEST_MISMATCH: External seed manifest is not byte-identical to internal manifest"
+            )
 
-        seed_manifest = json.loads(manifest_file.read_text(encoding="utf-8"))
+        seed_manifest = json.loads(internal_manifest_bytes.decode("utf-8"))
 
-        # Verify source provenance in seed manifest
+        # Verify source origin provenance fields in seed manifest
         validate_provenance_field(seed_manifest.get("source_head"), "source_head")
         validate_provenance_field(seed_manifest.get("source_tree"), "source_tree")
         validate_provenance_field(
             seed_manifest.get("source_manifest_sha256"),
             "source_manifest_sha256",
+            is_64=True,
+        )
+
+        # Verify generator provenance fields in seed manifest
+        validate_provenance_field(seed_manifest.get("generator_head"), "generator_head")
+        validate_provenance_field(seed_manifest.get("generator_tree"), "generator_tree")
+        validate_provenance_field(
+            seed_manifest.get("generator_source_manifest_sha256"),
+            "generator_source_manifest_sha256",
             is_64=True,
         )
 
@@ -366,20 +452,17 @@ def import_s2_restart_seed(
             extra = extracted_files - included_rel_paths
             raise ValueError(f"SEED_MEMBER_MISMATCH: missing={missing}, extra={extra}")
 
-        # Ensure NO S2+ artifacts exist in staging semantically
+        # Ensure NO S2+ artifacts exist in staging semantically and parse all JSON
         for r, _, files in os.walk(staging_dir):
             for f in files:
                 p = Path(r) / f
                 rel_p = str(p.relative_to(staging_dir))
-                if rel_p != "restart_seed_manifest.json":
-                    if is_semantically_s2_plus(rel_p, p):
-                        raise ValueError(
-                            f"S2_PLUS_SEED_CONTAMINATION: S2+ file {rel_p} found in seed!"
-                        )
+                if is_semantically_s2_plus(rel_p, p):
+                    raise ValueError(
+                        f"S2_PLUS_SEED_CONTAMINATION: S2+ file {rel_p} found in seed!"
+                    )
 
         artifacts_dir = staging_dir / "artifacts"
-
-        # Perform event freshness revalidation on S1e event universe
         s1e_file = artifacts_dir / "S1e.json"
         if not s1e_file.exists():
             raise ValueError("Required S1e.json artifact missing in imported seed")
@@ -391,7 +474,6 @@ def import_s2_restart_seed(
             else s1e_data
         )
 
-        # Load full event list from s1e_output_path or payload
         raw_events: list[dict[str, Any]] = []
         if payload.get("s1e_output_path"):
             s1e_out_p = staging_dir / payload["s1e_output_path"]
@@ -402,15 +484,6 @@ def import_s2_restart_seed(
                 raw_events = (
                     univ_data.get("events") or univ_data.get("event_records") or []
                 )
-                if not raw_events and univ_data.get("canonical_event_ids"):
-                    raw_events = [
-                        {
-                            "canonical_event_id": eid,
-                            "start_time_utc": "2026-07-29T18:00:00Z",
-                            "status": "SCHEDULED",
-                        }
-                        for eid in univ_data["canonical_event_ids"]
-                    ]
 
         if not raw_events:
             raw_recs = (
@@ -419,24 +492,16 @@ def import_s2_restart_seed(
             for r in raw_recs:
                 if isinstance(r, dict):
                     raw_events.append(r)
-                elif isinstance(r, str):
-                    raw_events.append(
-                        {
-                            "canonical_event_id": r,
-                            "start_time_utc": "2026-07-29T18:00:00Z",
-                            "status": "SCHEDULED",
-                        }
-                    )
 
         source_s1e_count = seed_manifest.get("event_counts", {}).get(
             "s1e_canonical_universe", len(raw_events)
         )
 
-        point_in_time = (
-            as_of_utc
-            or seed_manifest.get("source_run_as_of_utc")
-            or datetime.now(UTC).isoformat().replace("+00:00", "Z")
-        )
+        # Temporal import filter and runtime freshness timestamp selection
+        if runtime_mode == "LIVE_SHADOW" or as_of_utc is None:
+            point_in_time = datetime.now(UTC).isoformat().replace("+00:00", "Z")
+        else:
+            point_in_time = as_of_utc
 
         ledger, active_events = revalidate_event_freshness(
             events=raw_events,
@@ -447,12 +512,28 @@ def import_s2_restart_seed(
         active_count = len(active_events)
         terminalized_count = len(ledger) - active_count
 
-        if active_count + terminalized_count != len(ledger):
+        if active_count + terminalized_count != len(ledger) or len(ledger) != source_s1e_count:
             raise ValueError(
-                f"EVENT_ACCOUNTING_MISMATCH: active ({active_count}) + terminalized ({terminalized_count}) != total ({len(ledger)})"
+                f"EVENT_ACCOUNTING_MISMATCH: active ({active_count}) + terminalized ({terminalized_count}) = {len(ledger)} != required universe ({source_s1e_count})"
             )
 
-        # Write restart event accounting ledger
+        # Persist temporal_freshness_ledger.json with all event records
+        freshness_ledger_path = staging_dir / "temporal_freshness_ledger.json"
+        write_json_atomic(
+            freshness_ledger_path,
+            {
+                "schema_version": 1,
+                "artifact_type": "TEMPORAL_FRESHNESS_LEDGER_V1",
+                "source_s1e_count": source_s1e_count,
+                "revalidated_total_count": len(ledger),
+                "active_for_s2_restart_count": active_count,
+                "terminalized_count": terminalized_count,
+                "as_of_utc": point_in_time,
+                "events": ledger,
+            },
+        )
+
+        # Write event_accounting_ledger.json for backward compatibility
         ledger_path = staging_dir / "event_accounting_ledger.json"
         write_json_atomic(
             ledger_path,
@@ -466,7 +547,23 @@ def import_s2_restart_seed(
             },
         )
 
-        # Write filtered active event universe
+        # Persist live event revalidation ledger
+        reval_ledger_path = staging_dir / "live_event_revalidation_ledger.json"
+        write_json_atomic(
+            reval_ledger_path,
+            {
+                "schema_version": 1,
+                "artifact_type": "LIVE_EVENT_REVALIDATION_LEDGER_V1",
+                "revalidation_timestamp_utc": point_in_time,
+                "total_revalidated": len(ledger),
+                "active_count": active_count,
+                "terminalized_count": terminalized_count,
+                "revalidation_policy": "FAIL_CLOSED_LEAD_TIME",
+                "revalidated_events": ledger,
+            },
+        )
+
+        # Persist filtered active event universe
         active_eids = sorted(
             [
                 str(e.get("canonical_event_id") or e.get("event_id"))
@@ -550,6 +647,7 @@ def main():
         description="Import S2 restart seed into target run root."
     )
     p.add_argument("--seed-tar", required=True, help="Path to seed tar archive")
+    p.add_argument("--restart-seed-manifest", required=True, help="Path to external restart seed manifest")
     p.add_argument("--target-run-root", required=True, help="Path to target run root")
     p.add_argument("--target-run-id", required=True, help="Target run ID")
     p.add_argument("--target-head", required=True, help="Target HEAD SHA")
@@ -570,6 +668,7 @@ def main():
         target_head=args.target_head,
         target_tree=args.target_tree,
         target_manifest=args.target_manifest,
+        seed_manifest_path=Path(args.restart_seed_manifest),
         expected_seed_tar_sha256=args.expected_seed_tar_sha256,
         expected_seed_manifest_sha256=args.expected_seed_manifest_sha256,
     )

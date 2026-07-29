@@ -113,11 +113,15 @@ def parse_pipeline_args(argv: list[str] | None = None) -> argparse.Namespace:
     p = build_pipeline_parser()
     args = p.parse_args(argv)
 
-    if args.restart-seed if hasattr(args, "restart-seed") else getattr(args, "restart_seed", None):
+    restart_seed = getattr(args, "restart_seed", None)
+    restart_man = getattr(args, "restart_seed_manifest", None)
+    if restart_seed:
         if args.reuse_through_step != "S1e":
             raise ValueError(f"RESTART_SEED_REQUIRES_REUSE_THROUGH_S1E: Only S1e reuse supported, got {args.reuse_through_step}")
         if args.start_step and args.start_step != "S2":
             raise ValueError(f"RESTART_SEED_REQUIRES_START_STEP_S2: Restart seed mode requires start step S2, got {args.start_step}")
+        if not restart_man:
+            raise ValueError("EXTERNAL_MANIFEST_MISSING: --restart-seed-manifest is required when using --restart-seed")
 
     return args
 
@@ -128,6 +132,7 @@ def main() -> None:
     target_run_root = Path(args.base_run_dir) / args.date / args.run_id
 
     seed_tar_to_import = args.restart_seed
+    seed_man_to_import = args.restart_seed_manifest
     seed_tar_sha = args.restart_seed_sha256
     seed_man_sha = args.restart_seed_manifest_sha256
 
@@ -136,7 +141,7 @@ def main() -> None:
             from scripts.pipeline_steps.export_s2_restart_seed import export_s2_restart_seed
             src_root = Path(args.source_run_root).resolve(strict=True)
             with tempfile.TemporaryDirectory(prefix="s2_export_") as tmp_dir:
-                seed_tar_to_import, seed_man = export_s2_restart_seed(source_run_root=src_root, output_dir=Path(tmp_dir))
+                seed_tar_to_import, seed_man_to_import = export_s2_restart_seed(source_run_root=src_root, output_dir=Path(tmp_dir))
 
     if seed_tar_to_import and args.start_step == "S2":
         from scripts.pipeline_steps.import_s2_restart_seed import import_s2_restart_seed
@@ -154,8 +159,10 @@ def main() -> None:
             target_head=cur_head,
             target_tree=cur_tree,
             target_manifest=cur_manifest,
+            seed_manifest_path=seed_man_to_import,
             expected_seed_tar_sha256=seed_tar_sha,
             expected_seed_manifest_sha256=seed_man_sha,
+            runtime_mode=args.runtime_mode,
         )
 
     orchestrator = Orchestrator(
