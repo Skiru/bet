@@ -162,5 +162,3 @@ def test_excluded_events_cannot_enter_s2_s3_s5_s8(tmp_path: Path):
     assert active_fixture_ids == [1]
     assert 2 not in active_fixture_ids
     assert 3 not in active_fixture_ids
-
-
