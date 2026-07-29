@@ -25,7 +25,7 @@
     "tests/security/test_v5_v4_phase1_red_reproductions.py"
   ],
   "mandatory_file_sha256s": {
-    "tests/test_canonical_continuity_v4_owner_regressions.py": "60ff68b1fecc9af05ad2b4287598720fc68d9eddda2576b97bbf6afcd9d1388d",
+    "tests/test_canonical_continuity_v4_owner_regressions.py": "18b82bb9abf9285be00e231f96db4746ce5a747f72d6cda6ed4b12015a4745e5",
     "tests/test_canonical_continuity_v4_offline_chain_proof.py": "813bfbf6ba27311e91b96424b72664fd11e45ae7898a559b606a1cf2454eb141",
     "tests/test_agent_work_order_owner_alignment.py": "12f5379b1a51a70cbe780cabfe3956d0639cc03b00d3f85d1a937dfd0be1cc5f",
     "tests/test_pipeline_orchestrator_ledger_integration.py": "1f18de7f98bf0d4e7b1339330e17d01bd50b5273fb7abc5836610fabf48587e9",
