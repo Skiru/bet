@@ -424,7 +424,10 @@ class Orchestrator:
                     first_pending_expected_out = str(c_file)
             else:
                 try:
-                    c_art = ChunkArtifactV1(**json.loads(c_file.read_text(encoding="utf-8")))
+                    c_art_dict = json.loads(c_file.read_text(encoding="utf-8"))
+                    if "step_id" not in c_art_dict or not c_art_dict["step_id"]:
+                        c_art_dict["step_id"] = step_id
+                    c_art = ChunkArtifactV1(**c_art_dict)
                     validate_chunk_against_work_order(c_art, c_wo)
                     chunk_artifacts.append(c_art)
                 except Exception:
@@ -440,19 +443,14 @@ class Orchestrator:
         target_path = artifact_path_for(gate_base_dir, self.betting_day, self.run_id, step_id)
 
         from bet.pipeline.sharding.reducers import get_reducer_for_step
-        reducer = get_reducer_for_step(step_id)
-        if reducer:
-            reduced_payload = reducer(chunk_artifacts)
-        else:
-            reduced_payload = {"event_records": agg_records, "status": "PASS" if step_id != "S2.9" else "READY"}
-
-        step_status = reduced_payload.get("status", "PASS" if step_id != "S2.9" else "READY")
+        reducer = get_reducer_for_step(step_id, strict=True)
+        reduced_res = reducer(chunk_artifacts)
 
         agg_artifact = {
             "schema_version": 1,
             "artifact_type": "AGENT_ARTIFACT",
             "step_id": step_id,
-            "status": step_status,
+            "status": reduced_res.status,
             "betting_day": self.betting_day,
             "run_id": self.run_id,
             "work_order_id": getattr(parent_wo, "work_order_id", f"WO-{self.run_id}-{step_id}"),
@@ -460,19 +458,29 @@ class Orchestrator:
             "producer_agent_id": getattr(parent_wo, "agent", "bet-researcher"),
             "agent_id": getattr(parent_wo, "agent", "bet-researcher"),
             "point_in_time_as_of": self.env.get("BET_PIPELINE_RUN_AS_OF_UTC") or utc_now_iso(),
-            "source_bound": True,
+            "source_bound": reduced_res.source_bound,
             "no_pick_edge_stake_coupon_emitted": True,
             "production_selectable": False,
             "betting_decisions_enabled": False,
-            "sources": ["sharded_chunk_aggregator"],
-            "unknowns": [],
-            "blocked_reasons": [],
-            "evidence_refs": [],
-            "total_events": len(agg_records),
-            "event_records": agg_records,
+            "sources": list(reduced_res.sources),
+            "unknowns": list(reduced_res.unknowns),
+            "blocked_reasons": list(reduced_res.blocked_reasons),
+            "evidence_refs": list(reduced_res.evidence_refs),
+            "predecessor_bindings": list(reduced_res.predecessor_bindings),
+            "total_events": len(reduced_res.event_records or agg_records),
+            "event_records": list(reduced_res.event_records or agg_records),
             "aggregation_receipt": receipt.model_dump(),
-            "payload": reduced_payload,
+            "payload": reduced_res.payload,
         }
+
+        # V4-P1-02: Validate reduced parent artifact in memory before atomic persistence
+        if parent_wo:
+            p_wo_data = parent_wo.model_dump() if hasattr(parent_wo, "model_dump") else parent_wo
+            from bet.pipeline.agent_artifact_contracts import validate_agent_artifact_for_work_order
+            wo_errs = validate_agent_artifact_for_work_order(agg_artifact, p_wo_data)
+            if wo_errs and reduced_res.status == "PASS":
+                raise ValueError(f"INVALID_REDUCED_PARENT_ARTIFACT: Parent artifact validation failed: {wo_errs}")
+
         write_json_atomic(target_path, agg_artifact)
         return True, None, target_path
 

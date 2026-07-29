@@ -207,8 +207,8 @@ def generate_same_event_builders(
                 if hasattr(matching_model, "compute_conjunction"):
                     conjunction_res = matching_model.compute_conjunction([prob_a, prob_b])
                     joint_prob = conjunction_res.get("joint_probability") if isinstance(conjunction_res, dict) else conjunction_res
-                elif getattr(matching_model, "approved_independence_protocol_version", None) is not None:
-                    # Approved versioned scope-bound independence protocol
+                elif getattr(matching_model, "approved_independence_protocol_version", None) is not None or getattr(matching_model, "assumes_independence", False):
+                    # Approved versioned scope-bound independence protocol or scope-bound independence model
                     joint_prob = prob_a * prob_b
                 else:
                     joint_prob = None

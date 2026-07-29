@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+import tempfile
 from pathlib import Path
 
 # Ensure repo root and src/ are importable for package imports
@@ -35,7 +36,8 @@ import bet.builder.engine
 import bet.builder.models
 
 
-def main() -> None:
+def build_pipeline_parser() -> argparse.ArgumentParser:
+    """Build and return ArgumentParser for run_daily_pipeline."""
     p = argparse.ArgumentParser(description="Run daily manifest-driven pipeline.")
     p.add_argument("--date", "--betting-day", required=True, help="YYYY-MM-DD")
     p.add_argument("--run-id", required=True, help="Run ID")
@@ -74,6 +76,24 @@ def main() -> None:
         help="Optional source run root directory for lineage-preserving restart from S2",
     )
     p.add_argument(
+        "--restart-seed",
+        type=Path,
+        help="Path to exact immutable restart seed tar archive",
+    )
+    p.add_argument(
+        "--restart-seed-sha256",
+        help="Expected SHA256 digest of restart seed tar archive",
+    )
+    p.add_argument(
+        "--restart-seed-manifest",
+        type=Path,
+        help="Path to restart seed manifest JSON file",
+    )
+    p.add_argument(
+        "--restart-seed-manifest-sha256",
+        help="Expected SHA256 digest of restart seed manifest JSON file",
+    )
+    p.add_argument(
         "--reuse-through-step",
         default="S1e",
         help="Step through which to reuse artifacts from source run (default S1e)",
@@ -85,12 +105,40 @@ def main() -> None:
         default=False,
         help="Enable verbose orchestrator logging",
     )
-    args = p.parse_args()
+    return p
+
+
+def parse_pipeline_args(argv: list[str] | None = None) -> argparse.Namespace:
+    """Parse and validate CLI arguments for daily pipeline."""
+    p = build_pipeline_parser()
+    args = p.parse_args(argv)
+
+    if args.restart-seed if hasattr(args, "restart-seed") else getattr(args, "restart_seed", None):
+        if args.reuse_through_step != "S1e":
+            raise ValueError(f"RESTART_SEED_REQUIRES_REUSE_THROUGH_S1E: Only S1e reuse supported, got {args.reuse_through_step}")
+        if args.start_step and args.start_step != "S2":
+            raise ValueError(f"RESTART_SEED_REQUIRES_START_STEP_S2: Restart seed mode requires start step S2, got {args.start_step}")
+
+    return args
+
+
+def main() -> None:
+    args = parse_pipeline_args()
 
     target_run_root = Path(args.base_run_dir) / args.date / args.run_id
 
-    if args.source_run_root and args.start_step == "S2":
-        from scripts.pipeline_steps.export_s2_restart_seed import export_s2_restart_seed
+    seed_tar_to_import = args.restart_seed
+    seed_tar_sha = args.restart_seed_sha256
+    seed_man_sha = args.restart_seed_manifest_sha256
+
+    if args.source_run_root and not seed_tar_to_import:
+        if args.start_step == "S2":
+            from scripts.pipeline_steps.export_s2_restart_seed import export_s2_restart_seed
+            src_root = Path(args.source_run_root).resolve(strict=True)
+            with tempfile.TemporaryDirectory(prefix="s2_export_") as tmp_dir:
+                seed_tar_to_import, seed_man = export_s2_restart_seed(source_run_root=src_root, output_dir=Path(tmp_dir))
+
+    if seed_tar_to_import and args.start_step == "S2":
         from scripts.pipeline_steps.import_s2_restart_seed import import_s2_restart_seed
         from bet.pipeline.receipts import get_git_commit_head, get_git_tree_sha, compute_source_manifest_sha256
 
@@ -99,16 +147,15 @@ def main() -> None:
         cur_tree = get_git_tree_sha(repo_root)
         cur_manifest = compute_source_manifest_sha256(repo_root)
 
-        src_root = Path(args.source_run_root).resolve(strict=True)
-        tmp_seed_dir = Path("/tmp/s2_restart_seed")
-        seed_tar, _ = export_s2_restart_seed(source_run_root=src_root, output_dir=tmp_seed_dir)
         import_s2_restart_seed(
-            seed_tar_path=seed_tar,
+            seed_tar_path=seed_tar_to_import,
             target_run_root=target_run_root,
             target_run_id=args.run_id,
             target_head=cur_head,
             target_tree=cur_tree,
             target_manifest=cur_manifest,
+            expected_seed_tar_sha256=seed_tar_sha,
+            expected_seed_manifest_sha256=seed_man_sha,
         )
 
     orchestrator = Orchestrator(

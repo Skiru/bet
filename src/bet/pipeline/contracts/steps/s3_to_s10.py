@@ -27,6 +27,12 @@ class S3CalibratedProbabilitiesV1(StrictBaseModel):
     total_probabilities_derived: int = Field(ge=0, default=0)
     probabilities: list[ProbabilityRecordV1] = Field(default_factory=list)
 
+    @model_validator(mode="after")
+    def validate_non_empty_positive(self) -> S3CalibratedProbabilitiesV1:
+        if self.status == "PASS" and not self.probabilities:
+            raise ValueError("EMPTY_POSITIVE_TYPED_ARTIFACT: PASS status requires non-empty probabilities list")
+        return self
+
 
 class ValuationRecordV1(StrictBaseModel):
     canonical_event_id: str
@@ -47,6 +53,12 @@ class S4ExpectedValueEstimatesV1(StrictBaseModel):
     total_candidates_valued: int = Field(ge=0, default=0)
     estimates: list[ValuationRecordV1] = Field(default_factory=list)
 
+    @model_validator(mode="after")
+    def validate_non_empty_positive(self) -> S4ExpectedValueEstimatesV1:
+        if self.status == "PASS" and not self.estimates:
+            raise ValueError("EMPTY_POSITIVE_TYPED_ARTIFACT: PASS status requires non-empty estimates list")
+        return self
+
 
 class ContextRecordV1(StrictBaseModel):
     canonical_event_id: str
@@ -65,6 +77,15 @@ class S5ContextMotivationRiskV1(StrictBaseModel):
     run_id: str
     total_candidates_screened: int = Field(ge=0, default=0)
     context_records: list[ContextRecordV1] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def validate_non_empty_positive(self) -> S5ContextMotivationRiskV1:
+        if self.status == "PASS" and not self.context_records:
+            raise ValueError("EMPTY_POSITIVE_TYPED_ARTIFACT: PASS status requires non-empty context_records list")
+        return self
+
+
+S5ContextMotivationRiskV2 = S5ContextMotivationRiskV1
 
 
 class FilteredCandidateRecordV1(StrictBaseModel):

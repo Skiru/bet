@@ -20,7 +20,8 @@
     "tests/test_r1_to_r11_reproductions.py",
     "tests/security/test_v5_exploit_regressions.py",
     "tests/security/test_v5_runtime_acceptance.py",
-    "tests/integration/test_v5_full_agentic_runtime.py"
+    "tests/integration/test_v5_full_agentic_runtime.py",
+    "tests/security/test_v5_v4_closure_regressions.py"
   ],
   "mandatory_file_sha256s": {
     "tests/test_canonical_continuity_v4_owner_regressions.py": "60ff68b1fecc9af05ad2b4287598720fc68d9eddda2576b97bbf6afcd9d1388d",
@@ -40,9 +41,10 @@
     "tests/test_t4_model_artifacts.py": "35bd15afe282e6c9081b86f1a4c7d6733c16a8a2c48c435d9f70d0933eb72653",
     "tests/test_t5_builder_pricing.py": "a8d88e7b404371317b614639db89de23fb5787cbc7512f9e2c1ade5d23c37fe6",
     "tests/test_r1_to_r11_reproductions.py": "2afa9a2de0340a677cf3c04cc77db5dca4d5e9422b9cd1b8e315a2f65aeecc01",
-    "tests/security/test_v5_exploit_regressions.py": "7082e3cad66f3b16edacfed108de20693a66ff7896aa84779b807d08eeadc7e6",
+    "tests/security/test_v5_exploit_regressions.py": "f4d39df5ad9493ad586518d714e97e9967892b0bc5ca00127fea4f6b44890633",
     "tests/security/test_v5_runtime_acceptance.py": "461995239d0705d22dcc680424b150c45b21febf5e8ef63b0be0e33d4869a455",
-    "tests/integration/test_v5_full_agentic_runtime.py": "7685d72a81908b1b450c74004b10db9386b49fb91145a92fa15311c909b10e4c"
+    "tests/integration/test_v5_full_agentic_runtime.py": "7685d72a81908b1b450c74004b10db9386b49fb91145a92fa15311c909b10e4c",
+    "tests/security/test_v5_v4_closure_regressions.py": "1923f5b100058fcd33132edce83680a7cac021c385a33f5f00bb5df8d2876fe9"
   },
   "expected_minimum_counts": {
     "tests/test_canonical_continuity_v4_owner_regressions.py": 30,
@@ -57,14 +59,15 @@
     "tests/test_c5_bet_builder.py": 3,
     "tests/test_r0_reproductions.py": 6,
     "tests/test_t1_strict_contracts.py": 4,
-    "tests/test_t2_sharding_lifecycle.py": 3,
+    "tests/test_t2_sharding_lifecycle.py": 4,
     "tests/test_t3_acquisition_and_dossiers.py": 3,
     "tests/test_t4_model_artifacts.py": 2,
     "tests/test_t5_builder_pricing.py": 2,
     "tests/test_r1_to_r11_reproductions.py": 11,
-    "tests/security/test_v5_exploit_regressions.py": 5,
+    "tests/security/test_v5_exploit_regressions.py": 7,
     "tests/security/test_v5_runtime_acceptance.py": 5,
-    "tests/integration/test_v5_full_agentic_runtime.py": 2
+    "tests/integration/test_v5_full_agentic_runtime.py": 2,
+    "tests/security/test_v5_v4_closure_regressions.py": 20
   },
   "tests_metadata": {
     "adversarial_evidence_accounting": "test_strict_loader_adversarial_matrix",

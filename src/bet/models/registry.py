@@ -87,7 +87,7 @@ class ModelCardV1(StrictBaseModel):
         from pathlib import Path
         if self.package_path:
             pkg = ModelPackageResolver.resolve_package(self.package_path, approved_dirs=[Path(self.package_path)])
-            if pkg and pkg.is_eligible and pkg.calibration_report_sha256 == self.calibration_report_sha256:
+            if pkg and pkg.is_eligible and pkg.package and pkg.package.calibration_report_sha256 == self.calibration_report_sha256:
                 return True
 
         root = Path(__file__).resolve().parent.parent.parent.parent
@@ -99,17 +99,17 @@ class ModelCardV1(StrictBaseModel):
         for d in artifact_dirs:
             if d.exists() and d.is_dir():
                 pkg = ModelPackageResolver.resolve_package(d, approved_dirs=artifact_dirs)
-                if pkg and pkg.is_eligible and pkg.calibration_report_sha256 == self.calibration_report_sha256:
+                if pkg and pkg.is_eligible and pkg.package and pkg.package.calibration_report_sha256 == self.calibration_report_sha256:
                     return True
                 for p in d.rglob("*"):
                     if p.is_dir():
                         pkg = ModelPackageResolver.resolve_package(p, approved_dirs=artifact_dirs)
-                        if pkg and pkg.is_eligible and pkg.calibration_report_sha256 == self.calibration_report_sha256:
+                        if pkg and pkg.is_eligible and pkg.package and pkg.package.calibration_report_sha256 == self.calibration_report_sha256:
                             return True
-                if search_dirs and (d / "dataset_receipt.json").exists() and (d / "calibration_report.json").exists():
-                    import hashlib
-                    if hashlib.sha256((d / "dataset_receipt.json").read_bytes()).hexdigest() == self.dataset_receipt_sha256 and hashlib.sha256((d / "calibration_report.json").read_bytes()).hexdigest() == self.calibration_report_sha256:
-                        return True
+            if search_dirs and (d / "dataset_receipt.json").exists() and (d / "calibration_report.json").exists():
+                import hashlib
+                if hashlib.sha256((d / "dataset_receipt.json").read_bytes()).hexdigest() == self.dataset_receipt_sha256 and hashlib.sha256((d / "calibration_report.json").read_bytes()).hexdigest() == self.calibration_report_sha256:
+                    return True
         return False
 
 

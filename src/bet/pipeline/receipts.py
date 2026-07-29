@@ -203,12 +203,26 @@ class MutationReceiptV1(BaseReceiptV1):
 
 
 class QualityReceiptV1(BaseReceiptV1):
-    status: str = "PASS"
+    status: str
     format_lint_typecheck: str = "PASS"
     focused_tests: str = "PASS"
     pipeline_tests: str = "PASS"
     validators: str = "PASS"
     offline_e2e: str = "PASS"
+
+    @model_validator(mode="after")
+    def validate_truthful_receipt(self) -> QualityReceiptV1:
+        if self.exit_code != 0 and self.status == "PASS":
+            raise ValueError(f"TRUTHFUL_RECEIPT_MISMATCH: Exit code {self.exit_code} requires status FAIL or BLOCK, got PASS")
+        if self.stdout_path and Path(self.stdout_path).is_file():
+            actual_sha = sha256_file(Path(self.stdout_path))
+            if self.stdout_sha256 and actual_sha.lower() != self.stdout_sha256.lower():
+                raise ValueError(f"TRUTHFUL_RECEIPT_MISMATCH: stdout_sha256 mismatch for {self.stdout_path}: actual {actual_sha} vs declared {self.stdout_sha256}")
+        if self.stderr_path and Path(self.stderr_path).is_file():
+            actual_sha = sha256_file(Path(self.stderr_path))
+            if self.stderr_sha256 and actual_sha.lower() != self.stderr_sha256.lower():
+                raise ValueError(f"TRUTHFUL_RECEIPT_MISMATCH: stderr_sha256 mismatch for {self.stderr_path}: actual {actual_sha} vs declared {self.stderr_sha256}")
+        return self
 
 
 def verify_receipt_bindings(

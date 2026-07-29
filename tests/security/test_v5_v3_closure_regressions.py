@@ -383,8 +383,9 @@ def test_runtime_01_s2_5_payload_shape():
     )
 
     res = reduce_s2_5_chunks([art])
-    assert "provider_observations" in res or "observations" in res
-    assert "gaps" not in res, "S2.5 payload must not contain S2.3 gaps field"
+    payload = res.payload if hasattr(res, "payload") else res
+    assert "provider_observations" in payload or "observations" in payload
+    assert "gaps" not in payload, "S2.5 payload must not contain S2.3 gaps field"
 
 
 def test_restart_01_safe_s2_fork():

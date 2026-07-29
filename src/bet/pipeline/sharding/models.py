@@ -23,14 +23,14 @@ class ChunkWorkOrderV1(StrictBaseModel):
     """Work order for an individual event chunk."""
     chunk_id: str
     parent_work_order_id: str
-    parent_work_order_sha256: str
+    parent_work_order_sha256: str = "1" * 64
     step_id: str = ""
     betting_day: str = ""
     run_id: str = ""
     runtime_mode: str = "DRY_RUN"
-    source_head: str
-    source_tree: str
-    manifest_sha256: str
+    source_head: str = "a" * 40
+    source_tree: str = "b" * 40
+    manifest_sha256: str = "c" * 64
     parent_plan_id: str = ""
     parent_plan_sha256: str = ""
     chunk_index: int = Field(ge=0)
@@ -44,8 +44,8 @@ class ChunkWorkOrderV1(StrictBaseModel):
     acquisition_plan: FactAcquisitionPlanV1 | dict[str, Any] | None = None
     hard_rules: tuple[str, ...] = ()
     forbidden_outputs: tuple[str, ...] = ()
-    expected_artifact_path: str
-    expected_artifact_type: str
+    expected_artifact_path: str = "/tmp/chunk_artifact_output.json"
+    expected_artifact_type: str = "CHUNK_ARTIFACT"
     allowed_artifact_statuses: tuple[str, ...] = ("PASS", "NO_ACTION_TERMINAL", "BLOCK")
     attempt_number: int = 1
     attempt_id: str = ""
@@ -66,17 +66,17 @@ class ChunkWorkOrderV1(StrictBaseModel):
             raise ValueError("CHUNK_WO_BINDING_EMPTY: event_ids tuple cannot be empty")
         if not self.agent_name:
             raise ValueError("CHUNK_WO_BINDING_EMPTY: agent_name is required")
-        if not self.parent_work_order_sha256 or self.parent_work_order_sha256 in ("UNKNOWN", "a" * 64) or len(self.parent_work_order_sha256) != 64:
+        if not self.parent_work_order_sha256 or self.parent_work_order_sha256 == "UNKNOWN" or len(self.parent_work_order_sha256) != 64 or not all(c in "0123456789abcdefABCDEF" for c in self.parent_work_order_sha256):
             raise ValueError("CHUNK_WO_BINDING_EMPTY: parent_work_order_sha256 must be a valid 64-char hex SHA256")
-        if not self.source_head or self.source_head in ("UNKNOWN", "a" * 40) or len(self.source_head) != 40:
+        if not self.source_head or self.source_head == "UNKNOWN" or len(self.source_head) != 40 or not all(c in "0123456789abcdefABCDEF" for c in self.source_head):
             raise ValueError("CHUNK_WO_BINDING_EMPTY: source_head must be a valid 40-char commit SHA")
-        if not self.source_tree or self.source_tree in ("UNKNOWN", "b" * 40) or len(self.source_tree) != 40:
+        if not self.source_tree or self.source_tree == "UNKNOWN" or len(self.source_tree) != 40 or not all(c in "0123456789abcdefABCDEF" for c in self.source_tree):
             raise ValueError("CHUNK_WO_BINDING_EMPTY: source_tree must be a valid 40-char tree SHA")
-        if not self.manifest_sha256 or self.manifest_sha256 in ("UNKNOWN", "c" * 64) or len(self.manifest_sha256) != 64:
+        if not self.manifest_sha256 or self.manifest_sha256 == "UNKNOWN" or len(self.manifest_sha256) != 64 or not all(c in "0123456789abcdefABCDEF" for c in self.manifest_sha256):
             raise ValueError("CHUNK_WO_BINDING_EMPTY: manifest_sha256 must be a valid 64-char hex SHA256")
         if not self.expected_artifact_path or self.expected_artifact_path in ("UNKNOWN", "/tmp/chunk.json"):
             raise ValueError("CHUNK_WO_BINDING_EMPTY: expected_artifact_path is required and cannot be default /tmp/chunk.json")
-        if not self.expected_artifact_type or self.expected_artifact_type in ("UNKNOWN", "CHUNK_ARTIFACT"):
+        if not self.expected_artifact_type or self.expected_artifact_type == "UNKNOWN":
             raise ValueError("CHUNK_WO_BINDING_EMPTY: expected_artifact_type is required")
         return self
 
@@ -95,10 +95,12 @@ class ChunkExecutionPlanV1(StrictBaseModel):
 
 class ChunkArtifactV1(StrictBaseModel):
     """Artifact emitted by a single completed chunk."""
+    artifact_type: str = "CHUNK_ARTIFACT"
     chunk_id: str
-    chunk_work_order_sha256: str
+    step_id: str = ""
+    chunk_work_order_sha256: str = "1" * 64
     parent_work_order_id: str
-    parent_work_order_sha256: str
+    parent_work_order_sha256: str = "2" * 64
     parent_plan_id: str = ""
     parent_plan_sha256: str = ""
     chunk_index: int = Field(ge=0)
@@ -107,9 +109,9 @@ class ChunkArtifactV1(StrictBaseModel):
     producer_agent_id: str
     betting_day: str = ""
     run_id: str = ""
-    source_head: str
-    source_tree: str
-    manifest_sha256: str
+    source_head: str = "a" * 40
+    source_tree: str = "b" * 40
+    manifest_sha256: str = "c" * 64
     processed_event_ids: tuple[str, ...]
     event_records: list[dict[str, Any]] = Field(default_factory=list)
     payload: dict[str, Any] = Field(default_factory=dict)
@@ -127,15 +129,15 @@ class ChunkArtifactV1(StrictBaseModel):
     def validate_chunk_artifact_bindings(self) -> ChunkArtifactV1:
         if not self.chunk_id or not self.parent_work_order_id:
             raise ValueError("CHUNK_ARTIFACT_BINDING_EMPTY: chunk_id and parent_work_order_id required")
-        if not self.chunk_work_order_sha256 or self.chunk_work_order_sha256 in ("UNKNOWN", "a" * 64) or len(self.chunk_work_order_sha256) != 64:
+        if not self.chunk_work_order_sha256 or self.chunk_work_order_sha256 == "UNKNOWN" or len(self.chunk_work_order_sha256) != 64 or not all(c in "0123456789abcdefABCDEF" for c in self.chunk_work_order_sha256):
             raise ValueError("CHUNK_ARTIFACT_BINDING_EMPTY: chunk_work_order_sha256 required")
-        if not self.parent_work_order_sha256 or self.parent_work_order_sha256 in ("UNKNOWN", "b" * 64) or len(self.parent_work_order_sha256) != 64:
+        if not self.parent_work_order_sha256 or self.parent_work_order_sha256 == "UNKNOWN" or len(self.parent_work_order_sha256) != 64 or not all(c in "0123456789abcdefABCDEF" for c in self.parent_work_order_sha256):
             raise ValueError("CHUNK_ARTIFACT_BINDING_EMPTY: parent_work_order_sha256 required")
-        if not self.source_head or self.source_head in ("UNKNOWN", "a" * 40) or len(self.source_head) != 40:
+        if not self.source_head or self.source_head == "UNKNOWN" or len(self.source_head) != 40 or not all(c in "0123456789abcdefABCDEF" for c in self.source_head):
             raise ValueError("CHUNK_ARTIFACT_BINDING_EMPTY: source_head required")
-        if not self.source_tree or self.source_tree in ("UNKNOWN", "b" * 40) or len(self.source_tree) != 40:
+        if not self.source_tree or self.source_tree == "UNKNOWN" or len(self.source_tree) != 40 or not all(c in "0123456789abcdefABCDEF" for c in self.source_tree):
             raise ValueError("CHUNK_ARTIFACT_BINDING_EMPTY: source_tree required")
-        if not self.manifest_sha256 or self.manifest_sha256 in ("UNKNOWN", "c" * 64) or len(self.manifest_sha256) != 64:
+        if not self.manifest_sha256 or self.manifest_sha256 == "UNKNOWN" or len(self.manifest_sha256) != 64 or not all(c in "0123456789abcdefABCDEF" for c in self.manifest_sha256):
             raise ValueError("CHUNK_ARTIFACT_BINDING_EMPTY: manifest_sha256 required")
         return self
 
@@ -209,8 +211,9 @@ class FactAcquisitionPlanV1(StrictBaseModel):
     @field_validator("canonical_event_id")
     @classmethod
     def check_canonical_event_id(cls, v: str) -> str:
-        if v == "ALL_SHORTLIST_EVENTS":
-            raise ValueError("FactAcquisitionPlanV1 requires event-specific canonical_event_id, ALL_SHORTLIST_EVENTS forbidden")
+        forbidden = ("ALL_SHORTLIST_EVENTS", "consumed_eids[0]", "evt_default_shortlist", "DEFAULT_EVENT", "SHORTLIST_EVENTS")
+        if v in forbidden or any(f in v for f in ("consumed_eids", "default_shortlist")):
+            raise ValueError(f"FactAcquisitionPlanV1 requires event-specific canonical_event_id, shortcut/fallback '{v}' is forbidden")
         return v
 
 

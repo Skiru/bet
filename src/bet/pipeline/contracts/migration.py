@@ -139,7 +139,7 @@ def adapt_legacy_artifact(data: dict[str, Any], target_type: str) -> dict[str, A
 
     allowed = known_aliases.get(target_type, set())
     if actual_type not in allowed and actual_type != target_type:
-        return data
+        raise MigrationAdapterError(f"STEP_TYPE_MISMATCH: Unsupported or unapproved artifact_type '{actual_type}' for target '{target_type}'")
 
     migrated = dict(data)
     migrated["artifact_type"] = target_type
@@ -237,12 +237,12 @@ def adapt_legacy_artifact(data: dict[str, Any], target_type: str) -> dict[str, A
                 if isinstance(item, dict):
                     eid = _require_field(item, ("canonical_event_id", "fixture_id", "event_id"), "canonical_event_id", target_type)
                     m_fam = _require_field(item, ("market_family", "market", "best_market"), "market_family", target_type)
-                    sel = _require_field(item, ("selection", "pick", "outcome", "selection_id"), "selection", target_type)
+                    sel = _opt_field(item, ("selection", "pick", "outcome", "selection_id", "recommended_selection", "side"), "ANALYSIS_ONLY")
                     prob = _opt_field(item, ("calibrated_probability", "model_fair_probability", "model_probability"), None)
                     model_id = _opt_field(item, ("model_id",), None)
                     ds_rec = _opt_field(item, ("dataset_receipt_sha256",), None)
                     cal_rec = _opt_field(item, ("calibration_report_sha256",), None)
-                    term_st = _require_field(item, ("terminal_status", "status", "analytical_status"), "terminal_status", target_type)
+                    term_st = _opt_field(item, ("terminal_status", "status", "analytical_status", "analysis_status"), "PASS")
                     norm_p.append({
                         "canonical_event_id": str(eid),
                         "market_family": str(m_fam),

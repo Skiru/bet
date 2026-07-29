@@ -391,13 +391,19 @@ def validate_agent_artifact_for_work_order(
                 continue
 
             # 5. Check expected artifact type
-            if ev_data.get("artifact_type") not in ("SCRIPT_EVIDENCE", "AGENT_ARTIFACT"):
+            art_type = str(ev_data.get("artifact_type") or "")
+            if art_type not in ("SCRIPT_EVIDENCE", "AGENT_ARTIFACT", "CHUNK_ARTIFACT") and not art_type.endswith("_CHUNK_ARTIFACT"):
                 errors.append(f"Evidence ref {ref} contains invalid artifact type: {ev_data.get('artifact_type')}")
                 continue
 
             # 6. Verify against work-order input refs or exact matching step_id and SHA-256
             ev_step_id = ev_data.get("step_id")
             clean_ev_step = ev_step_id.replace("_EXECUTION_EVIDENCE", "") if ev_step_id else ""
+
+            is_chunk_art = art_type == "CHUNK_ARTIFACT" or art_type.endswith("_CHUNK_ARTIFACT") or "chunks/" in ref
+            if is_chunk_art and (not clean_ev_step or clean_ev_step == step_id):
+                # Valid chunk artifact for this step
+                continue
 
             matching_ref = None
             if isinstance(wo_input_refs, list):

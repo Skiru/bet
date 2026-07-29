@@ -672,28 +672,29 @@ def build_agent_work_order(
                 except Exception:
                     pass
 
-        eid = kwargs.get("canonical_event_id") or (consumed_eids[0] if consumed_eids else "evt_default_shortlist")
-        plan_tools = ["bet_sqlite_query", "webfetch", "read", "glob", "grep"]
-        acq_plan_data = {
-            "plan_id": f"PLAN-{work_order_id}",
-            "canonical_event_id": eid,
-            "sport": consumed_sport,
-            "max_queries": 10,
-            "requirements": [
-                {
-                    "requirement_id": f"REQ-{step_id}-01",
-                    "fact_type": "LINEUP_INJURY_FORM_FACTS",
-                    "sport": consumed_sport,
-                    "market_families_affected": ["RESULT", "GOALS_TOTALS", "CORNERS"],
-                    "requirement_level": "REQUIRED_FOR_PRICING",
-                    "allowed_tools": list(plan_tools),
-                    "max_age_hours": 48,
-                    "min_independent_sources": 2,
-                }
-            ],
-        }
-        if not allowed_tools:
-            allowed_tools = plan_tools
+        target_eid = kwargs.get("canonical_event_id") or (consumed_eids[0] if consumed_eids else None)
+        if target_eid:
+            plan_tools = ["bet_sqlite_query", "webfetch", "read", "glob", "grep"]
+            acq_plan_data = {
+                "plan_id": f"PLAN-{work_order_id}",
+                "canonical_event_id": target_eid,
+                "sport": consumed_sport,
+                "max_queries": 10,
+                "requirements": [
+                    {
+                        "requirement_id": f"REQ-{step_id}-01",
+                        "fact_type": "LINEUP_INJURY_FORM_FACTS",
+                        "sport": consumed_sport,
+                        "market_families_affected": ["RESULT", "GOALS_TOTALS", "CORNERS"],
+                        "requirement_level": "REQUIRED_FOR_PRICING",
+                        "allowed_tools": list(plan_tools),
+                        "max_age_hours": 48,
+                        "min_independent_sources": 2,
+                    }
+                ],
+            }
+            if not allowed_tools:
+                allowed_tools = plan_tools
 
     parsed_plan = None
     if isinstance(acq_plan_data, dict):
