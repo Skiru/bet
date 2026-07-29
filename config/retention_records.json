@@ -256,6 +256,22 @@
     "expiry_or_review_policy": "REVIEW_ON_ARCHITECTURE_CHANGE"
   },
   {
+    "path": "BET_V5_FINAL_ONE_PASS_CLOSURE_V4.md",
+    "category": "CURRENT_DOCUMENTATION",
+    "owner": "Kilo",
+    "reason": "Closure specification for V4 engineering session",
+    "references": [],
+    "expiry_or_review_policy": "PERMANENT_RETAINED_PRODUCTION"
+  },
+  {
+    "path": "BET_V5_FINAL_ONE_PASS_REPAIR_AND_S2_RESTART_V3.md",
+    "category": "CURRENT_DOCUMENTATION",
+    "owner": "Kilo",
+    "reason": "Closure specification for V3 engineering session",
+    "references": [],
+    "expiry_or_review_policy": "PERMANENT_RETAINED_PRODUCTION"
+  },
+  {
     "path": "README.md",
     "category": "CURRENT_DOCUMENTATION",
     "owner": "Kilo",
@@ -518,6 +534,14 @@
     "expiry_or_review_policy": "REVIEW_ON_SCHEMA_UPGRADE"
   },
   {
+    "path": "config/model_registry.json",
+    "category": "RETAINED_ENGINEERING",
+    "owner": "Kilo",
+    "reason": "Immutable model package registry authority",
+    "references": [],
+    "expiry_or_review_policy": "PERMANENT_RETAINED_PRODUCTION"
+  },
+  {
     "path": "config/pipeline_certification_inventory.json",
     "category": "RETAINED_ENGINEERING",
     "owner": "Kilo",
@@ -574,6 +598,22 @@
     "reason": "Engineering utilities, linters, validators, model management tools or kilo config",
     "references": [],
     "expiry_or_review_policy": "REVIEW_ON_SCHEMA_UPGRADE"
+  },
+  {
+    "path": "docs/V5_BASELINE_ACCEPTANCE.md",
+    "category": "CURRENT_DOCUMENTATION",
+    "owner": "Kilo",
+    "reason": "V5 baseline acceptance documentation",
+    "references": [],
+    "expiry_or_review_policy": "PERMANENT_RETAINED_PRODUCTION"
+  },
+  {
+    "path": "docs/V5_CLOSURE_CERTIFICATION.md",
+    "category": "CURRENT_DOCUMENTATION",
+    "owner": "Kilo",
+    "reason": "V5 closure certification documentation",
+    "references": [],
+    "expiry_or_review_policy": "PERMANENT_RETAINED_PRODUCTION"
   },
   {
     "path": "docs/multisport_enrichment/multisport_kernel.md",
@@ -1076,12 +1116,28 @@
     "expiry_or_review_policy": "REVIEW_ON_SCHEMA_UPGRADE"
   },
   {
+    "path": "scripts/generate_all_v5_receipts.py",
+    "category": "RETAINED_ENGINEERING",
+    "owner": "Kilo",
+    "reason": "Master receipt generator script",
+    "references": [],
+    "expiry_or_review_policy": "PERMANENT_RETAINED_PRODUCTION"
+  },
+  {
     "path": "scripts/generate_manifest.py",
     "category": "RETAINED_ENGINEERING",
     "owner": "Kilo",
     "reason": "Engineering utilities, linters, validators, model management tools or kilo config",
     "references": [],
     "expiry_or_review_policy": "REVIEW_ON_SCHEMA_UPGRADE"
+  },
+  {
+    "path": "scripts/generate_v5_final_report.py",
+    "category": "RETAINED_ENGINEERING",
+    "owner": "Kilo",
+    "reason": "Machine-receipt backed final report generator",
+    "references": [],
+    "expiry_or_review_policy": "PERMANENT_RETAINED_PRODUCTION"
   },
   {
     "path": "scripts/healthcheck-local-model.fish",
@@ -1578,6 +1634,14 @@
     "reason": "Engineering utilities, linters, validators, model management tools or kilo config",
     "references": [],
     "expiry_or_review_policy": "REVIEW_ON_SCHEMA_UPGRADE"
+  },
+  {
+    "path": "scripts/test_mutation_proof.py",
+    "category": "RETAINED_ENGINEERING",
+    "owner": "Kilo",
+    "reason": "Controlled mutation proof runner",
+    "references": [],
+    "expiry_or_review_policy": "PERMANENT_RETAINED_PRODUCTION"
   },
   {
     "path": "scripts/upset_risk.py",
@@ -7110,6 +7174,30 @@
     "expiry_or_review_policy": "NO_EXPIRY_RETAIN_PERMANENTLY"
   },
   {
+    "path": "tests/integration/test_v5_full_agentic_runtime.py",
+    "category": "RETAINED_TEST",
+    "owner": "Kilo",
+    "reason": "Full agentic runtime integration tests",
+    "references": [],
+    "expiry_or_review_policy": "PERMANENT_RETAINED_PRODUCTION"
+  },
+  {
+    "path": "tests/integration/test_v5_full_sharding_lifecycle.py",
+    "category": "RETAINED_TEST",
+    "owner": "Kilo",
+    "reason": "Full sharding lifecycle integration tests",
+    "references": [],
+    "expiry_or_review_policy": "PERMANENT_RETAINED_PRODUCTION"
+  },
+  {
+    "path": "tests/integration/test_v5_pipeline_analysis_only_runtime.py",
+    "category": "RETAINED_TEST",
+    "owner": "Kilo",
+    "reason": "Pipeline analysis-only runtime integration tests",
+    "references": [],
+    "expiry_or_review_policy": "PERMANENT_RETAINED_PRODUCTION"
+  },
+  {
     "path": "tests/phase0/test_golden_vertical_defects.py",
     "category": "RETAINED_TEST",
     "owner": "Kilo",
@@ -7300,6 +7388,46 @@
     "reason": "Unit and integration testing of pipeline components",
     "references": [],
     "expiry_or_review_policy": "NO_EXPIRY_RETAIN_PERMANENTLY"
+  },
+  {
+    "path": "tests/security/test_v5_exploit_regressions.py",
+    "category": "RETAINED_TEST",
+    "owner": "Kilo",
+    "reason": "Exploit regression security tests",
+    "references": [],
+    "expiry_or_review_policy": "PERMANENT_RETAINED_PRODUCTION"
+  },
+  {
+    "path": "tests/security/test_v5_exploit_reproductions.py",
+    "category": "RETAINED_TEST",
+    "owner": "Kilo",
+    "reason": "Exploit reproduction security tests",
+    "references": [],
+    "expiry_or_review_policy": "PERMANENT_RETAINED_PRODUCTION"
+  },
+  {
+    "path": "tests/security/test_v5_runtime_acceptance.py",
+    "category": "RETAINED_TEST",
+    "owner": "Kilo",
+    "reason": "Runtime acceptance security tests",
+    "references": [],
+    "expiry_or_review_policy": "PERMANENT_RETAINED_PRODUCTION"
+  },
+  {
+    "path": "tests/security/test_v5_v3_closure_regressions.py",
+    "category": "RETAINED_TEST",
+    "owner": "Kilo",
+    "reason": "Regression test suite for V3 closure",
+    "references": [],
+    "expiry_or_review_policy": "PERMANENT_RETAINED_PRODUCTION"
+  },
+  {
+    "path": "tests/security/test_v5_v4_closure_regressions.py",
+    "category": "RETAINED_TEST",
+    "owner": "Kilo",
+    "reason": "Regression test suite for V4 closure",
+    "references": [],
+    "expiry_or_review_policy": "PERMANENT_RETAINED_PRODUCTION"
   },
   {
     "path": "tests/support/__init__.py",
@@ -8774,6 +8902,14 @@
     "expiry_or_review_policy": "NO_EXPIRY_RETAIN_PERMANENTLY"
   },
   {
+    "path": "tests/test_v5_report_generator_receipt_verification.py",
+    "category": "RETAINED_TEST",
+    "owner": "Kilo",
+    "reason": "Report generator receipt verification tests",
+    "references": [],
+    "expiry_or_review_policy": "PERMANENT_RETAINED_PRODUCTION"
+  },
+  {
     "path": "tests/test_volleyball_enrichment.py",
     "category": "RETAINED_TEST",
     "owner": "Kilo",
@@ -8934,110 +9070,6 @@
     "expiry_or_review_policy": "NO_EXPIRY_RETAIN_PERMANENTLY"
   },
   {
-    "path": "uv.lock",
-    "category": "RETAINED_ENGINEERING",
-    "owner": "Kilo",
-    "reason": "Repository configuration authority",
-    "references": [],
-    "expiry_or_review_policy": "REVIEW_ON_SCHEMA_UPGRADE"
-  },
-  {
-    "path": "docs/V5_BASELINE_ACCEPTANCE.md",
-    "category": "CURRENT_DOCUMENTATION",
-    "owner": "Kilo",
-    "reason": "V5 baseline acceptance documentation",
-    "references": [],
-    "expiry_or_review_policy": "PERMANENT_RETAINED_PRODUCTION"
-  },
-  {
-    "path": "docs/V5_CLOSURE_CERTIFICATION.md",
-    "category": "CURRENT_DOCUMENTATION",
-    "owner": "Kilo",
-    "reason": "V5 closure certification documentation",
-    "references": [],
-    "expiry_or_review_policy": "PERMANENT_RETAINED_PRODUCTION"
-  },
-  {
-    "path": "scripts/generate_all_v5_receipts.py",
-    "category": "RETAINED_ENGINEERING",
-    "owner": "Kilo",
-    "reason": "Master receipt generator script",
-    "references": [],
-    "expiry_or_review_policy": "PERMANENT_RETAINED_PRODUCTION"
-  },
-  {
-    "path": "scripts/generate_v5_final_report.py",
-    "category": "RETAINED_ENGINEERING",
-    "owner": "Kilo",
-    "reason": "Machine-receipt backed final report generator",
-    "references": [],
-    "expiry_or_review_policy": "PERMANENT_RETAINED_PRODUCTION"
-  },
-  {
-    "path": "scripts/test_mutation_proof.py",
-    "category": "RETAINED_ENGINEERING",
-    "owner": "Kilo",
-    "reason": "Controlled mutation proof runner",
-    "references": [],
-    "expiry_or_review_policy": "PERMANENT_RETAINED_PRODUCTION"
-  },
-  {
-    "path": "tests/integration/test_v5_full_agentic_runtime.py",
-    "category": "RETAINED_TEST",
-    "owner": "Kilo",
-    "reason": "Full agentic runtime integration tests",
-    "references": [],
-    "expiry_or_review_policy": "PERMANENT_RETAINED_PRODUCTION"
-  },
-  {
-    "path": "tests/integration/test_v5_full_sharding_lifecycle.py",
-    "category": "RETAINED_TEST",
-    "owner": "Kilo",
-    "reason": "Full sharding lifecycle integration tests",
-    "references": [],
-    "expiry_or_review_policy": "PERMANENT_RETAINED_PRODUCTION"
-  },
-  {
-    "path": "tests/integration/test_v5_pipeline_analysis_only_runtime.py",
-    "category": "RETAINED_TEST",
-    "owner": "Kilo",
-    "reason": "Pipeline analysis-only runtime integration tests",
-    "references": [],
-    "expiry_or_review_policy": "PERMANENT_RETAINED_PRODUCTION"
-  },
-  {
-    "path": "tests/security/test_v5_exploit_regressions.py",
-    "category": "RETAINED_TEST",
-    "owner": "Kilo",
-    "reason": "Exploit regression security tests",
-    "references": [],
-    "expiry_or_review_policy": "PERMANENT_RETAINED_PRODUCTION"
-  },
-  {
-    "path": "tests/security/test_v5_exploit_reproductions.py",
-    "category": "RETAINED_TEST",
-    "owner": "Kilo",
-    "reason": "Exploit reproduction security tests",
-    "references": [],
-    "expiry_or_review_policy": "PERMANENT_RETAINED_PRODUCTION"
-  },
-  {
-    "path": "tests/security/test_v5_runtime_acceptance.py",
-    "category": "RETAINED_TEST",
-    "owner": "Kilo",
-    "reason": "Runtime acceptance security tests",
-    "references": [],
-    "expiry_or_review_policy": "PERMANENT_RETAINED_PRODUCTION"
-  },
-  {
-    "path": "tests/test_v5_report_generator_receipt_verification.py",
-    "category": "RETAINED_TEST",
-    "owner": "Kilo",
-    "reason": "Report generator receipt verification tests",
-    "references": [],
-    "expiry_or_review_policy": "PERMANENT_RETAINED_PRODUCTION"
-  },
-  {
     "path": "tools/v5_acceptance/README.md",
     "category": "RETAINED_ENGINEERING",
     "owner": "Kilo",
@@ -9060,5 +9092,13 @@
     "reason": "External acceptance requirements mapping",
     "references": [],
     "expiry_or_review_policy": "PERMANENT_RETAINED_PRODUCTION"
+  },
+  {
+    "path": "uv.lock",
+    "category": "RETAINED_ENGINEERING",
+    "owner": "Kilo",
+    "reason": "Repository configuration authority",
+    "references": [],
+    "expiry_or_review_policy": "REVIEW_ON_SCHEMA_UPGRADE"
   }
 ]
