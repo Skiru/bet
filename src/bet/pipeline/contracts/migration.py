@@ -90,7 +90,7 @@ def adapt_legacy_artifact(data: dict[str, Any], target_type: str) -> dict[str, A
     """Losslessly adapt a legacy artifact payload to canonical target contract structure.
 
     Fails with MigrationAdapterError if required decision-bearing values are missing.
-    Does NOT fabricate missing event IDs, probabilities, models, odds, or quote cards.
+    Does NOT fabricate missing event IDs, market families, selections, probabilities, risks, statuses, or quote cards.
     """
     if not isinstance(data, dict):
         return data
@@ -217,13 +217,14 @@ def adapt_legacy_artifact(data: dict[str, Any], target_type: str) -> dict[str, A
             for item in (raw_c if isinstance(raw_c, list) else []):
                 if isinstance(item, dict):
                     eid = _require_field(item, ("canonical_event_id", "fixture_id", "candidate_id", "event_id"), "canonical_event_id", target_type)
+                    term_st = _require_field(item, ("terminal_status", "status"), "terminal_status", target_type)
                     norm_c.append({
                         "canonical_event_id": str(eid),
                         "tipster_count": item.get("tipster_count", 0),
                         "consensus_signal": item.get("consensus_signal"),
                         "confidence": float(item.get("confidence", 0.0)),
                         "opinion_summary": item.get("opinion_summary"),
-                        "terminal_status": item.get("terminal_status") or item.get("status") or "PASS",
+                        "terminal_status": str(term_st),
                     })
             migrated["consensus_records"] = norm_c
 
@@ -235,13 +236,13 @@ def adapt_legacy_artifact(data: dict[str, Any], target_type: str) -> dict[str, A
             for item in (raw_p if isinstance(raw_p, list) else []):
                 if isinstance(item, dict):
                     eid = _require_field(item, ("canonical_event_id", "fixture_id", "event_id"), "canonical_event_id", target_type)
-                    m_fam = _opt_field(item, ("market_family", "market", "best_market"), "result")
-                    sel = _opt_field(item, ("selection", "pick", "outcome", "selection_id"), "1")
+                    m_fam = _require_field(item, ("market_family", "market", "best_market"), "market_family", target_type)
+                    sel = _require_field(item, ("selection", "pick", "outcome", "selection_id"), "selection", target_type)
                     prob = _opt_field(item, ("calibrated_probability", "model_fair_probability", "model_probability"), None)
                     model_id = _opt_field(item, ("model_id",), None)
                     ds_rec = _opt_field(item, ("dataset_receipt_sha256",), None)
                     cal_rec = _opt_field(item, ("calibration_report_sha256",), None)
-                    term_st = item.get("terminal_status") or item.get("status") or item.get("analytical_status") or "PASS"
+                    term_st = _require_field(item, ("terminal_status", "status", "analytical_status"), "terminal_status", target_type)
                     norm_p.append({
                         "canonical_event_id": str(eid),
                         "market_family": str(m_fam),
@@ -253,8 +254,8 @@ def adapt_legacy_artifact(data: dict[str, Any], target_type: str) -> dict[str, A
                         "calibration_report_sha256": str(cal_rec) if cal_rec else None,
                         "terminal_status": str(term_st),
                     })
-            migrated["probability_estimates"] = norm_p
-            migrated["probabilities_count"] = len(norm_p)
+            migrated["probabilities"] = norm_p
+            migrated["total_probabilities_derived"] = len(norm_p)
             migrated["event_records"] = norm_p
 
     elif target_type in {"S4_EXPECTED_VALUE_ESTIMATES", "S4_VALUATION_CANDIDATE_SET_V2"}:
@@ -263,12 +264,12 @@ def adapt_legacy_artifact(data: dict[str, Any], target_type: str) -> dict[str, A
         for item in (raw_v if isinstance(raw_v, list) else []):
             if isinstance(item, dict):
                 eid = _require_field(item, ("canonical_event_id", "fixture_id", "event_id"), "canonical_event_id", target_type)
-                m_fam = _opt_field(item, ("market_family", "market", "best_market"), "RESULT")
-                sel = _opt_field(item, ("selection", "pick"), "HOME")
+                m_fam = _require_field(item, ("market_family", "market", "best_market"), "market_family", target_type)
+                sel = _require_field(item, ("selection", "pick"), "selection", target_type)
                 fair_o = _opt_field(item, ("fair_decimal_odds", "fair_odds", "model_fair_odds"), None)
                 min_o = _opt_field(item, ("minimum_acceptable_operator_odds", "minimum_acceptable_odds", "recommended_minimum_odds"), None)
                 ev_est = _opt_field(item, ("ev_estimate", "ev"), None)
-                term_st = _opt_field(item, ("status", "valuation_status", "terminal_status"), "PASS")
+                term_st = _require_field(item, ("status", "valuation_status", "terminal_status"), "status", target_type)
                 norm_v.append({
                     "canonical_event_id": str(eid),
                     "market_family": str(m_fam),
@@ -278,11 +279,9 @@ def adapt_legacy_artifact(data: dict[str, Any], target_type: str) -> dict[str, A
                     "minimum_acceptable_odds": float(min_o) if min_o is not None else None,
                     "status": str(term_st),
                 })
-        migrated["valuation_candidates"] = norm_v
-        migrated["candidates_valuated_count"] = len(norm_v)
+        migrated["estimates"] = norm_v
+        migrated["total_candidates_valued"] = len(norm_v)
         migrated["event_records"] = norm_v
-        migrated.pop("candidates", None)
-        migrated.pop("valuations", None)
 
     elif target_type in {"S5_CONTEXT_MOTIVATION_RISK", "S5_CONTEXT_RISK_CANDIDATE_SET_V2"}:
         raw_ctx = migrated.get("candidates") or migrated.get("reviews") or migrated.get("context_reviews") or []
@@ -290,10 +289,10 @@ def adapt_legacy_artifact(data: dict[str, Any], target_type: str) -> dict[str, A
         for item in (raw_ctx if isinstance(raw_ctx, list) else []):
             if isinstance(item, dict):
                 eid = _require_field(item, ("canonical_event_id", "fixture_id", "event_id"), "canonical_event_id", target_type)
-                sport = _opt_field(item, ("sport",), "football")
+                sport = _require_field(item, ("sport",), "sport", target_type)
                 mot_score = _opt_field(item, ("motivation_score",), 1.0)
-                risk_cls = _opt_field(item, ("risk_classification",), "LOW")
-                term_st = _opt_field(item, ("terminal_status", "status"), "PASS")
+                risk_cls = _require_field(item, ("risk_classification",), "risk_classification", target_type)
+                term_st = _require_field(item, ("terminal_status", "status"), "terminal_status", target_type)
                 norm_ctx.append({
                     "canonical_event_id": str(eid),
                     "sport": str(sport),
@@ -302,11 +301,9 @@ def adapt_legacy_artifact(data: dict[str, Any], target_type: str) -> dict[str, A
                     "context_notes": item.get("context_notes"),
                     "terminal_status": str(term_st),
                 })
-        migrated["context_reviews"] = norm_ctx
-        migrated["events_reviewed_count"] = len(norm_ctx)
+        migrated["context_records"] = norm_ctx
+        migrated["total_candidates_screened"] = len(norm_ctx)
         migrated["event_records"] = norm_ctx
-        migrated.pop("candidates", None)
-        migrated.pop("reviews", None)
 
     elif target_type in {"S6_PORTFOLIO_REPEAT_GUARD", "S6_PORTFOLIO_REPEAT_GUARD_V2", "S6_REPEAT_LOSS_HANDOFF_V2"}:
         raw_f = migrated.get("accepted") or migrated.get("candidates") or migrated.get("filtered") or migrated.get("filtered_candidates") or []
@@ -314,9 +311,9 @@ def adapt_legacy_artifact(data: dict[str, Any], target_type: str) -> dict[str, A
         for item in (raw_f if isinstance(raw_f, list) else []):
             if isinstance(item, dict):
                 eid = _require_field(item, ("canonical_event_id", "fixture_id", "event_id"), "canonical_event_id", target_type)
-                sel = _opt_field(item, ("selection", "pick", "selection_id"), "HOME")
-                act = _opt_field(item, ("action", "decision", "status"), "ACCEPTED")
-                term_st = _opt_field(item, ("terminal_status", "status", "action", "decision"), "PASS")
+                sel = _require_field(item, ("selection", "pick", "selection_id"), "selection", target_type)
+                act = _require_field(item, ("action", "decision", "status"), "action", target_type)
+                term_st = _require_field(item, ("terminal_status", "status", "action", "decision"), "terminal_status", target_type)
                 norm_f.append({
                     "canonical_event_id": str(eid),
                     "selection": str(sel),
@@ -324,144 +321,9 @@ def adapt_legacy_artifact(data: dict[str, Any], target_type: str) -> dict[str, A
                     "action": str(act),
                     "terminal_status": str(term_st),
                 })
-        print(f"DEBUG MIGRATION S6: raw_f_len={len(raw_f)}, norm_f={norm_f}")
-        migrated["filtered_candidates"] = norm_f
-        migrated["repeats_filtered_count"] = len(norm_f)
+        migrated["guarded_records"] = norm_f
+        migrated["total_candidates_guarded"] = len(norm_f)
         migrated["event_records"] = norm_f
-        migrated.pop("candidates", None)
-        migrated.pop("accepted", None)
-        migrated.pop("filtered", None)
-
-    elif target_type in {"S7_APPROVED_PICKS", "S7_ANALYTICAL_APPROVAL_SET_V2", "S7_DECISION_GATE_REPORT", "S7_HARD_APPROVAL_GATE_V2"}:
-        if not (isinstance(migrated.get("event_records"), list) and migrated["event_records"]):
-            raw_picks = (
-                migrated.get("approved_candidates")
-                or migrated.get("analytical_approved")
-                or migrated.get("priced_approved")
-                or migrated.get("picks")
-                or migrated.get("candidates")
-                or []
-            )
-            norm_picks = []
-            for idx, item in enumerate(raw_picks if isinstance(raw_picks, list) else []):
-                if isinstance(item, dict):
-                    eid = _require_field(item, ("canonical_event_id", "fixture_id", "event_id"), "canonical_event_id", target_type)
-                    pick_id = _require_field(item, ("pick_id", "candidate_id", "quote_card_id"), "pick_id", target_type)
-                    sport = _require_field(item, ("sport",), "sport", target_type)
-                    comp = _require_field(item, ("competition", "league"), "competition", target_type)
-                    home = _require_field(item, ("home_team", "home"), "home_team", target_type)
-                    away = _require_field(item, ("away_team", "away"), "away_team", target_type)
-                    m_fam = _require_field(item, ("market_family", "market", "best_market"), "market_family", target_type)
-                    sel = _require_field(item, ("selection", "pick"), "selection", target_type)
-                    prob = _opt_field(item, ("calibrated_probability", "model_fair_probability", "model_probability"), None)
-                    min_o = _opt_field(item, ("minimum_acceptable_operator_odds", "minimum_acceptable_odds", "recommended_minimum_odds"), None)
-                    fair_o = _opt_field(item, ("fair_decimal_odds", "fair_odds", "model_fair_odds"), None)
-                    term_st = _opt_field(item, ("terminal_status", "status", "analytical_status", "decision"), "PASS")
-                    norm_picks.append({
-                        "pick_id": str(pick_id),
-                        "canonical_event_id": str(eid),
-                        "sport": str(sport),
-                        "competition": str(comp),
-                        "home_team": str(home),
-                        "away_team": str(away),
-                        "market_family": str(m_fam),
-                        "selection": str(sel),
-                        "line": item.get("line"),
-                        "calibrated_probability": float(prob) if prob is not None else None,
-                        "model_fair_probability": float(prob) if prob is not None else None,
-                        "fair_decimal_odds": float(fair_o) if fair_o is not None else None,
-                        "minimum_acceptable_operator_odds": float(min_o) if min_o is not None else None,
-                        "recommended_minimum_odds": float(min_o) if min_o is not None else None,
-                        "pricing_status": item.get("pricing_status") or ("PRICED" if min_o is not None else "UNPRICED"),
-                        "terminal_status": str(term_st),
-                    })
-            migrated["approved_picks"] = norm_picks
-            migrated["approved_candidate_count"] = len(norm_picks)
-            migrated["event_records"] = norm_picks
-            migrated.pop("approved_candidates", None)
-            migrated.pop("analytical_approved", None)
-            migrated.pop("priced_approved", None)
-            migrated.pop("picks", None)
-            migrated.pop("candidates", None)
-
-    elif target_type == "S7B_SUPERBET_MANUAL_MAPPING":
-        raw_sug = _require_field(migrated, ("mapping_suggestions",), "mapping_suggestions", target_type)
-        norm_sug = []
-        for idx, item in enumerate(raw_sug if isinstance(raw_sug, list) else []):
-            if isinstance(item, dict):
-                eid = _require_field(item, ("canonical_event_id", "fixture_id"), "canonical_event_id", target_type)
-                card_id = _require_field(item, ("quote_card_id",), "quote_card_id", target_type)
-                src_id = _require_field(item, ("source_candidate_id", "candidate_id"), "source_candidate_id", target_type)
-                sel_id = _require_field(item, ("selection_id",), "selection_id", target_type)
-                prob = _opt_field(item, ("calibrated_probability", "model_fair_probability", "model_probability"), None)
-                fair_o = _opt_field(item, ("fair_decimal_odds", "fair_odds", "model_fair_odds"), None)
-                min_o = _opt_field(item, ("minimum_acceptable_operator_odds", "minimum_acceptable_odds", "recommended_minimum_odds"), None)
-                norm_sug.append({
-                    "quote_card_id": str(card_id),
-                    "source_candidate_id": str(src_id),
-                    "canonical_event_id": str(eid),
-                    "selection_id": str(sel_id),
-                    "sport": item.get("sport"),
-                    "competition": item.get("competition"),
-                    "home_team": item.get("home_team"),
-                    "away_team": item.get("away_team"),
-                    "event_start_time": item.get("event_start_time"),
-                    "market_family": item.get("market_family"),
-                    "selection": item.get("selection"),
-                    "line": item.get("line"),
-                    "calibrated_probability": float(prob) if prob is not None else None,
-                    "model_fair_probability": float(prob) if prob is not None else None,
-                    "fair_decimal_odds": float(fair_o) if fair_o is not None else None,
-                    "minimum_acceptable_operator_odds": float(min_o) if min_o is not None else None,
-                    "recommended_minimum_odds": float(min_o) if min_o is not None else None,
-                    "pricing_status": item.get("pricing_status") or ("PRICED" if min_o is not None else "UNPRICED"),
-                    "manual_operator": item.get("manual_operator") or "SUPERBET",
-                    "mapping_ambiguity": str(item.get("mapping_ambiguity") or "HUMAN_CHECK_REQUIRED"),
-                    "visible_operator_market_name": item.get("visible_operator_market_name"),
-                    "visible_operator_line": item.get("visible_operator_line"),
-                    "human_entered_decimal_quote": item.get("human_entered_decimal_quote"),
-                    "quote_as_of": item.get("quote_as_of"),
-                    "operator_availability_asserted": bool(item.get("operator_availability_asserted", False)),
-                    "executable_coupon": False,
-                    "betting_valid": False,
-                    "can_place_bet_now": False,
-                })
-        migrated["mapping_suggestions"] = norm_sug
-
-    elif target_type == "S8_SUPERBET_MANUAL_QUOTE_PACK":
-        raw_qc = _require_field(migrated, ("quote_cards",), "quote_cards", target_type)
-        norm_qc = []
-        for idx, item in enumerate(raw_qc if isinstance(raw_qc, list) else []):
-            if isinstance(item, dict):
-                eid = _require_field(item, ("canonical_event_id", "fixture_id"), "canonical_event_id", target_type)
-                card_id = _require_field(item, ("quote_card_id",), "quote_card_id", target_type)
-                src_id = _require_field(item, ("source_candidate_id", "candidate_id"), "source_candidate_id", target_type)
-                sel_id = _require_field(item, ("selection_id",), "selection_id", target_type)
-                prob = _opt_field(item, ("calibrated_probability", "model_fair_probability", "model_probability"), None)
-                fair_o = _opt_field(item, ("fair_decimal_odds", "fair_odds", "model_fair_odds"), None)
-                min_o = _opt_field(item, ("minimum_acceptable_operator_odds", "minimum_acceptable_odds", "recommended_minimum_odds"), None)
-                norm_qc.append({
-                    "quote_card_id": str(card_id),
-                    "source_candidate_id": str(src_id),
-                    "canonical_event_id": str(eid),
-                    "selection_id": str(sel_id),
-                    "sport": item.get("sport"),
-                    "competition": item.get("competition"),
-                    "home_team": item.get("home_team"),
-                    "away_team": item.get("away_team"),
-                    "event_start_time": item.get("event_start_time"),
-                    "market_family": item.get("market_family"),
-                    "selection": item.get("selection"),
-                    "line": item.get("line"),
-                    "calibrated_probability": float(prob) if prob is not None else None,
-                    "fair_decimal_odds": float(fair_o) if fair_o is not None else None,
-                    "minimum_acceptable_operator_odds": float(min_o) if min_o is not None else None,
-                    "minimum_acceptable_odds": float(min_o) if min_o is not None else None,
-                    "pricing_status": item.get("pricing_status") or ("PRICED" if min_o is not None else "UNPRICED"),
-                    "manual_operator": item.get("manual_operator") or "SUPERBET",
-                    "mapping_ambiguity": item.get("mapping_ambiguity", "UNAMBIGUOUS"),
-                })
-        migrated["quote_cards"] = norm_qc
 
     return migrated
 

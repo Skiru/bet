@@ -23,14 +23,14 @@ class ChunkWorkOrderV1(StrictBaseModel):
     """Work order for an individual event chunk."""
     chunk_id: str
     parent_work_order_id: str
-    parent_work_order_sha256: str = ""
+    parent_work_order_sha256: str
     step_id: str = ""
     betting_day: str = ""
     run_id: str = ""
     runtime_mode: str = "DRY_RUN"
-    source_head: str = ""
-    source_tree: str = ""
-    manifest_sha256: str = ""
+    source_head: str
+    source_tree: str
+    manifest_sha256: str
     parent_plan_id: str = ""
     parent_plan_sha256: str = ""
     chunk_index: int = Field(ge=0)
@@ -44,8 +44,8 @@ class ChunkWorkOrderV1(StrictBaseModel):
     acquisition_plan: FactAcquisitionPlanV1 | dict[str, Any] | None = None
     hard_rules: tuple[str, ...] = ()
     forbidden_outputs: tuple[str, ...] = ()
-    expected_artifact_path: str = ""
-    expected_artifact_type: str = ""
+    expected_artifact_path: str
+    expected_artifact_type: str
     allowed_artifact_statuses: tuple[str, ...] = ("PASS", "NO_ACTION_TERMINAL", "BLOCK")
     attempt_number: int = 1
     attempt_id: str = ""
@@ -58,24 +58,6 @@ class ChunkWorkOrderV1(StrictBaseModel):
             return tuple(v)
         return ()
 
-    @model_validator(mode="before")
-    @classmethod
-    def populate_default_chunk_wo_bindings(cls, data: Any) -> Any:
-        if isinstance(data, dict):
-            if not data.get("parent_work_order_sha256"):
-                data["parent_work_order_sha256"] = "a" * 64
-            if not data.get("source_head"):
-                data["source_head"] = "a" * 40
-            if not data.get("source_tree"):
-                data["source_tree"] = "b" * 40
-            if not data.get("manifest_sha256"):
-                data["manifest_sha256"] = "c" * 64
-            if not data.get("expected_artifact_path"):
-                data["expected_artifact_path"] = "/tmp/chunk.json"
-            if not data.get("expected_artifact_type"):
-                data["expected_artifact_type"] = "CHUNK_ARTIFACT"
-        return data
-
     @model_validator(mode="after")
     def validate_chunk_bindings(self) -> ChunkWorkOrderV1:
         if not self.chunk_id or not self.parent_work_order_id:
@@ -84,17 +66,17 @@ class ChunkWorkOrderV1(StrictBaseModel):
             raise ValueError("CHUNK_WO_BINDING_EMPTY: event_ids tuple cannot be empty")
         if not self.agent_name:
             raise ValueError("CHUNK_WO_BINDING_EMPTY: agent_name is required")
-        if not self.parent_work_order_sha256 or self.parent_work_order_sha256 == "UNKNOWN" or len(self.parent_work_order_sha256) != 64:
+        if not self.parent_work_order_sha256 or self.parent_work_order_sha256 in ("UNKNOWN", "a" * 64) or len(self.parent_work_order_sha256) != 64:
             raise ValueError("CHUNK_WO_BINDING_EMPTY: parent_work_order_sha256 must be a valid 64-char hex SHA256")
-        if not self.source_head or self.source_head == "UNKNOWN" or len(self.source_head) != 40:
+        if not self.source_head or self.source_head in ("UNKNOWN", "a" * 40) or len(self.source_head) != 40:
             raise ValueError("CHUNK_WO_BINDING_EMPTY: source_head must be a valid 40-char commit SHA")
-        if not self.source_tree or self.source_tree == "UNKNOWN" or len(self.source_tree) != 40:
+        if not self.source_tree or self.source_tree in ("UNKNOWN", "b" * 40) or len(self.source_tree) != 40:
             raise ValueError("CHUNK_WO_BINDING_EMPTY: source_tree must be a valid 40-char tree SHA")
-        if not self.manifest_sha256 or self.manifest_sha256 == "UNKNOWN" or len(self.manifest_sha256) != 64:
+        if not self.manifest_sha256 or self.manifest_sha256 in ("UNKNOWN", "c" * 64) or len(self.manifest_sha256) != 64:
             raise ValueError("CHUNK_WO_BINDING_EMPTY: manifest_sha256 must be a valid 64-char hex SHA256")
-        if not self.expected_artifact_path or self.expected_artifact_path == "UNKNOWN":
-            raise ValueError("CHUNK_WO_BINDING_EMPTY: expected_artifact_path is required")
-        if not self.expected_artifact_type or self.expected_artifact_type == "UNKNOWN":
+        if not self.expected_artifact_path or self.expected_artifact_path in ("UNKNOWN", "/tmp/chunk.json"):
+            raise ValueError("CHUNK_WO_BINDING_EMPTY: expected_artifact_path is required and cannot be default /tmp/chunk.json")
+        if not self.expected_artifact_type or self.expected_artifact_type in ("UNKNOWN", "CHUNK_ARTIFACT"):
             raise ValueError("CHUNK_WO_BINDING_EMPTY: expected_artifact_type is required")
         return self
 
@@ -114,9 +96,9 @@ class ChunkExecutionPlanV1(StrictBaseModel):
 class ChunkArtifactV1(StrictBaseModel):
     """Artifact emitted by a single completed chunk."""
     chunk_id: str
-    chunk_work_order_sha256: str = ""
+    chunk_work_order_sha256: str
     parent_work_order_id: str
-    parent_work_order_sha256: str = ""
+    parent_work_order_sha256: str
     parent_plan_id: str = ""
     parent_plan_sha256: str = ""
     chunk_index: int = Field(ge=0)
@@ -125,9 +107,9 @@ class ChunkArtifactV1(StrictBaseModel):
     producer_agent_id: str
     betting_day: str = ""
     run_id: str = ""
-    source_head: str = ""
-    source_tree: str = ""
-    manifest_sha256: str = ""
+    source_head: str
+    source_tree: str
+    manifest_sha256: str
     processed_event_ids: tuple[str, ...]
     event_records: list[dict[str, Any]] = Field(default_factory=list)
     payload: dict[str, Any] = Field(default_factory=dict)
@@ -141,35 +123,19 @@ class ChunkArtifactV1(StrictBaseModel):
             return tuple(str(x) for x in v)
         return ()
 
-    @model_validator(mode="before")
-    @classmethod
-    def populate_default_artifact_bindings(cls, data: Any) -> Any:
-        if isinstance(data, dict):
-            if not data.get("chunk_work_order_sha256"):
-                data["chunk_work_order_sha256"] = "a" * 64
-            if not data.get("parent_work_order_sha256"):
-                data["parent_work_order_sha256"] = "b" * 64
-            if not data.get("source_head"):
-                data["source_head"] = "a" * 40
-            if not data.get("source_tree"):
-                data["source_tree"] = "b" * 40
-            if not data.get("manifest_sha256"):
-                data["manifest_sha256"] = "c" * 64
-        return data
-
     @model_validator(mode="after")
     def validate_chunk_artifact_bindings(self) -> ChunkArtifactV1:
         if not self.chunk_id or not self.parent_work_order_id:
             raise ValueError("CHUNK_ARTIFACT_BINDING_EMPTY: chunk_id and parent_work_order_id required")
-        if not self.chunk_work_order_sha256 or len(self.chunk_work_order_sha256) != 64:
+        if not self.chunk_work_order_sha256 or self.chunk_work_order_sha256 in ("UNKNOWN", "a" * 64) or len(self.chunk_work_order_sha256) != 64:
             raise ValueError("CHUNK_ARTIFACT_BINDING_EMPTY: chunk_work_order_sha256 required")
-        if not self.parent_work_order_sha256 or len(self.parent_work_order_sha256) != 64:
+        if not self.parent_work_order_sha256 or self.parent_work_order_sha256 in ("UNKNOWN", "b" * 64) or len(self.parent_work_order_sha256) != 64:
             raise ValueError("CHUNK_ARTIFACT_BINDING_EMPTY: parent_work_order_sha256 required")
-        if not self.source_head or len(self.source_head) != 40:
+        if not self.source_head or self.source_head in ("UNKNOWN", "a" * 40) or len(self.source_head) != 40:
             raise ValueError("CHUNK_ARTIFACT_BINDING_EMPTY: source_head required")
-        if not self.source_tree or len(self.source_tree) != 40:
+        if not self.source_tree or self.source_tree in ("UNKNOWN", "b" * 40) or len(self.source_tree) != 40:
             raise ValueError("CHUNK_ARTIFACT_BINDING_EMPTY: source_tree required")
-        if not self.manifest_sha256 or len(self.manifest_sha256) != 64:
+        if not self.manifest_sha256 or self.manifest_sha256 in ("UNKNOWN", "c" * 64) or len(self.manifest_sha256) != 64:
             raise ValueError("CHUNK_ARTIFACT_BINDING_EMPTY: manifest_sha256 required")
         return self
 

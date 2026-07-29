@@ -339,6 +339,48 @@ class ModelPackageV1(StrictBaseModel):
     is_eligible: bool = True
 
 
+SUPPORTED_MARKET_FAMILIES = {
+    "football": {"result", "double_chance", "both_teams_to_score", "total_goals", "handicap", "corners", "cards", "half_time"},
+    "tennis": {"match_winner", "set_handicap", "total_games", "set_winner"},
+    "basketball": {"moneyline", "point_spread", "total_points"},
+    "volleyball": {"match_winner", "set_handicap", "total_points"},
+    "hockey": {"moneyline", "puck_line", "total_goals"},
+    "cs2": {"match_winner", "map_handicap", "total_maps"},
+    "dota 2": {"match_winner", "map_handicap", "total_maps"},
+    "valorant": {"match_winner", "map_handicap", "total_maps"},
+}
+
+
+def check_market_family_pricing_support(sport: str, market_family: str) -> dict[str, Any]:
+    """Check whether a market family is supported for pricing in the given sport."""
+    sport_lower = str(sport).strip().lower()
+    m_fam_lower = str(market_family).strip().lower()
+
+    supported_set = SUPPORTED_MARKET_FAMILIES.get(sport_lower, set())
+    if m_fam_lower in supported_set:
+        return {
+            "status": "SUPPORTED",
+            "is_pricing_eligible": True,
+            "reason": None,
+        }
+    return {
+        "status": "NOT_SUPPORTED",
+        "is_pricing_eligible": False,
+        "reason": f"UNSUPPORTED_MARKET_FAMILY: Market family '{market_family}' is not supported for sport '{sport}'",
+    }
+
+
+class ModelPackageResolutionResult(StrictBaseModel):
+    """Typed resolution result for model package resolution."""
+    is_eligible: bool = False
+    rejection_code: str = "RESOLVE_FAILED"
+    rejection_reason: str = "Resolution failed"
+    package: ModelPackageV1 | None = None
+
+    def is_pricing_eligible(self) -> bool:
+        return self.is_eligible and self.package is not None and self.package.is_eligible
+
+
 class ModelPackageResolver:
     """Semantic model package resolver for single-market pricing models."""
 
@@ -362,10 +404,23 @@ class ModelPackageResolver:
     )
 
     @classmethod
-    def resolve_package(cls, package_dir: str | Path, approved_dirs: tuple[Path, ...] | list[Path] | None = None) -> ModelPackageV1 | None:
+    def resolve_package(cls, package_dir: str | Path, approved_dirs: tuple[Path, ...] | list[Path] | None = None) -> ModelPackageResolutionResult:
         p = Path(package_dir).resolve(strict=False)
         if not p.is_dir():
-            return None
+            return ModelPackageResolutionResult(
+                is_eligible=False,
+                rejection_code="DIRECTORY_NOT_FOUND",
+                rejection_reason=f"Model package directory {p} does not exist",
+            )
+
+        # Check test/demo package contamination
+        p_str_lower = str(p).lower()
+        if "test_pkg" in p_str_lower or "test_promoted" in p_str_lower or "test_pkg_t4" in p_str_lower:
+            return ModelPackageResolutionResult(
+                is_eligible=False,
+                rejection_code="TEST_PACKAGE_CONTAMINATION_BLOCKED",
+                rejection_reason=f"Test/demo model package {p.name} is blocked from production resolution",
+            )
 
         from bet.pipeline.manifest import discover_repo_root
         try:
@@ -378,18 +433,30 @@ class ModelPackageResolver:
 
         is_approved = any(p == store or p.is_relative_to(store) for store in approved_paths if store.exists())
         if not is_approved:
-            return None
+            return ModelPackageResolutionResult(
+                is_eligible=False,
+                rejection_code="UNAPPROVED_MODEL_STORE",
+                rejection_reason=f"Model package directory {p} is outside approved stores",
+            )
 
         for fname in cls.REQUIRED_FILES:
             file_path = p / fname
             if not file_path.is_file() or file_path.is_symlink():
-                return None
+                return ModelPackageResolutionResult(
+                    is_eligible=False,
+                    rejection_code="MISSING_REQUIRED_FILE",
+                    rejection_reason=f"Required file {fname} is missing or a symlink in {p}",
+                )
 
         try:
             meta = json.loads((p / "model-package.json").read_text(encoding="utf-8"))
             prom = json.loads((p / "promotion-decision.json").read_text(encoding="utf-8"))
             if prom.get("status") != "PROMOTED":
-                return None
+                return ModelPackageResolutionResult(
+                    is_eligible=False,
+                    rejection_code="NOT_PROMOTED",
+                    rejection_reason=f"Promotion decision status is '{prom.get('status')}', expected 'PROMOTED'",
+                )
 
             pkg_sha = meta.get("model_package_sha256") or meta.get("sha256")
             dataset_sha = meta.get("dataset_receipt_sha256")
@@ -405,43 +472,63 @@ class ModelPackageResolver:
 
             all_shas = [pkg_sha, dataset_sha, schema_sha, fitted_sha, code_sha, split_sha, backtest_sha, calib_sha, unc_sha, prom_sha, card_sha]
             if not all(isinstance(s, str) and len(s) == 64 and all(c in "0123456789abcdefABCDEF" for c in s) for s in all_shas):
-                return None
+                return ModelPackageResolutionResult(
+                    is_eligible=False,
+                    rejection_code="INVALID_SHA_FORMAT",
+                    rejection_reason="One or more artifact SHA-256 strings in metadata are missing or invalid 64-char hex",
+                )
 
-            def check_file_sha(fname: str, expected_sha: str) -> bool:
-                f_path = p / fname
-                if not f_path.is_file():
+            # Require fitted model file
+            fitted_file_candidates = [
+                p / "fitted_model.joblib",
+                p / "fitted_model.pt",
+                p / "fitted_model.bin",
+                p / "fitted_model.json",
+            ]
+            fitted_file = next((f for f in fitted_file_candidates if f.is_file() and not f.is_symlink()), None)
+            if not fitted_file:
+                return ModelPackageResolutionResult(
+                    is_eligible=False,
+                    rejection_code="MISSING_FITTED_MODEL_FILE",
+                    rejection_reason="Fitted model artifact file (fitted_model.joblib/pt/bin/json) is missing",
+                )
+
+            def check_file_sha(file_path: Path, expected_sha: str) -> bool:
+                if not file_path.is_file():
                     return False
                 h = hashlib.sha256()
-                with f_path.open("rb") as handle:
+                with file_path.open("rb") as handle:
                     while chunk := handle.read(65536):
                         h.update(chunk)
                 return h.hexdigest().lower() == expected_sha.lower()
 
-            if not check_file_sha("dataset-receipt.json", dataset_sha):
-                return None
-            if not check_file_sha("feature-schema.json", schema_sha):
-                return None
-            if not check_file_sha("code-receipt.json", code_sha):
-                return None
-            if not check_file_sha("temporal-split.json", split_sha):
-                return None
-            if not check_file_sha("backtest.json", backtest_sha):
-                return None
-            if not check_file_sha("calibration.json", calib_sha):
-                return None
-            if not check_file_sha("uncertainty-method.json", unc_sha):
-                return None
-            if not check_file_sha("promotion-decision.json", prom_sha):
-                return None
-            if not check_file_sha("model-card.json", card_sha):
-                return None
+            if not check_file_sha(p / "dataset-receipt.json", dataset_sha):
+                return ModelPackageResolutionResult(is_eligible=False, rejection_code="SHA_MISMATCH", rejection_reason="dataset-receipt.json hash mismatch")
+            if not check_file_sha(p / "feature-schema.json", schema_sha):
+                return ModelPackageResolutionResult(is_eligible=False, rejection_code="SHA_MISMATCH", rejection_reason="feature-schema.json hash mismatch")
+            if not check_file_sha(p / "code-receipt.json", code_sha):
+                return ModelPackageResolutionResult(is_eligible=False, rejection_code="SHA_MISMATCH", rejection_reason="code-receipt.json hash mismatch")
+            if not check_file_sha(p / "temporal-split.json", split_sha):
+                return ModelPackageResolutionResult(is_eligible=False, rejection_code="SHA_MISMATCH", rejection_reason="temporal-split.json hash mismatch")
+            if not check_file_sha(p / "backtest.json", backtest_sha):
+                return ModelPackageResolutionResult(is_eligible=False, rejection_code="SHA_MISMATCH", rejection_reason="backtest.json hash mismatch")
+            if not check_file_sha(p / "calibration.json", calib_sha):
+                return ModelPackageResolutionResult(is_eligible=False, rejection_code="SHA_MISMATCH", rejection_reason="calibration.json hash mismatch")
+            if not check_file_sha(p / "uncertainty-method.json", unc_sha):
+                return ModelPackageResolutionResult(is_eligible=False, rejection_code="SHA_MISMATCH", rejection_reason="uncertainty-method.json hash mismatch")
+            if not check_file_sha(p / "promotion-decision.json", prom_sha):
+                return ModelPackageResolutionResult(is_eligible=False, rejection_code="SHA_MISMATCH", rejection_reason="promotion-decision.json hash mismatch")
+            if not check_file_sha(p / "model-card.json", card_sha):
+                return ModelPackageResolutionResult(is_eligible=False, rejection_code="SHA_MISMATCH", rejection_reason="model-card.json hash mismatch")
+            if not check_file_sha(fitted_file, fitted_sha):
+                return ModelPackageResolutionResult(is_eligible=False, rejection_code="FITTED_MODEL_SHA_MISMATCH", rejection_reason="Fitted model file hash does not match metadata fitted_model_sha256")
 
             bound_hashes = prom.get("bound_artifact_hashes", {})
             if isinstance(bound_hashes, dict) and bound_hashes:
                 if bound_hashes.get("dataset_receipt_sha256") != dataset_sha or bound_hashes.get("calibration_report_sha256") != calib_sha:
-                    return None
+                    return ModelPackageResolutionResult(is_eligible=False, rejection_code="BOUND_ARTIFACT_HASH_MISMATCH", rejection_reason="Promotion decision bound_artifact_hashes mismatch")
 
-            return ModelPackageV1(
+            pkg = ModelPackageV1(
                 package_id=meta["package_id"],
                 sport=meta["sport"],
                 competition=meta["competition"],
@@ -460,8 +547,18 @@ class ModelPackageResolver:
                 model_card_sha256=card_sha,
                 is_eligible=True,
             )
-        except Exception:
-            return None
+            return ModelPackageResolutionResult(
+                is_eligible=True,
+                rejection_code="",
+                rejection_reason="",
+                package=pkg,
+            )
+        except Exception as err:
+            return ModelPackageResolutionResult(
+                is_eligible=False,
+                rejection_code="PARSE_ERROR",
+                rejection_reason=f"Failed to parse or validate package metadata: {err}",
+            )
 
 
 class ModelCardV1(StrictBaseModel):
@@ -639,12 +736,12 @@ def get_central_safety_classification(
             # Check for mock/synthetic labels
             if node.get("mock") is True or node.get("synthetic") is True or node.get("test_only") is True or node.get("agent_generated") is True:
                 reasons.append(f"Synthetic/mock metadata/label detected")
-            
+
             # Check for generated S9
             reviewed_by = str(node.get("reviewed_by_user") or "").strip().lower()
             if reviewed_by in ("shadow-acceptance", "mock", "test", "generated", "synthetic"):
                 reasons.append(f"Generated S9 evidence reviewed by user: {reviewed_by}")
-            
+
             # Check for generated S9 status
             status_val = str(node.get("status") or "").strip().upper()
             if status_val in ("TEST_ONLY_GENERATED_S9", "TEST_ONLY_GENERATED_HUMAN_GATE"):
@@ -668,7 +765,7 @@ def get_central_safety_classification(
                         reasons.append("Magic mock value 2.10 detected in odds_decimal or best_odds")
                     if k == "ev" and (v == 0.15 or str(v) == "0.15"):
                         reasons.append("Magic mock value 0.15 detected in ev")
-                
+
                 scan(v)
         elif isinstance(node, list):
             for item in node:

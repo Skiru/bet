@@ -439,11 +439,20 @@ class Orchestrator:
         receipt, agg_records = aggregate_chunks(plan, chunk_artifacts)
         target_path = artifact_path_for(gate_base_dir, self.betting_day, self.run_id, step_id)
 
+        from bet.pipeline.sharding.reducers import get_reducer_for_step
+        reducer = get_reducer_for_step(step_id)
+        if reducer:
+            reduced_payload = reducer(chunk_artifacts)
+        else:
+            reduced_payload = {"event_records": agg_records, "status": "PASS" if step_id != "S2.9" else "READY"}
+
+        step_status = reduced_payload.get("status", "PASS" if step_id != "S2.9" else "READY")
+
         agg_artifact = {
             "schema_version": 1,
             "artifact_type": "AGENT_ARTIFACT",
             "step_id": step_id,
-            "status": "PASS" if step_id != "S2.9" else "READY",
+            "status": step_status,
             "betting_day": self.betting_day,
             "run_id": self.run_id,
             "work_order_id": getattr(parent_wo, "work_order_id", f"WO-{self.run_id}-{step_id}"),
@@ -462,13 +471,7 @@ class Orchestrator:
             "total_events": len(agg_records),
             "event_records": agg_records,
             "aggregation_receipt": receipt.model_dump(),
-            "payload": {
-                "event_records": agg_records,
-                "gaps": [],
-                "enrichment_gaps": [],
-                "gaps_bounded": True,
-                "gaps_blocking": False,
-            },
+            "payload": reduced_payload,
         }
         write_json_atomic(target_path, agg_artifact)
         return True, None, target_path

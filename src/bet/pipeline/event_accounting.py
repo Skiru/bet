@@ -43,6 +43,22 @@ def deduplicate_events(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return [unique[event_id] for event_id in sorted(unique)]
 
 
+def validate_s1e_universe_coverage(
+    s1e_event_ids: Sequence[str] | set[str] | None,
+    current_event_ids: Sequence[str] | set[str],
+) -> None:
+    """Mandatory validation of event universe against S1e canonical universe."""
+    if s1e_event_ids is None:
+        raise EventAccountingError("S1E_UNIVERSE_REQUIRED: S1e event universe is mandatory for step validation")
+
+    s1e_set = set(str(x) for x in s1e_event_ids)
+    curr_set = set(str(x) for x in current_event_ids)
+
+    foreign = curr_set - s1e_set
+    if foreign:
+        raise EventAccountingError(f"FOREIGN_EVENT_IDS_IN_UNIVERSE: Event IDs escape S1e universe: {sorted(foreign)}")
+
+
 class EventAccountingLedger:
     def __init__(self, run_root: Path, *, betting_day: str, run_id: str):
         self.run_root = Path(run_root)

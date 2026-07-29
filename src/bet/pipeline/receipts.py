@@ -14,7 +14,25 @@ from bet.pipeline.contracts.base import StrictBaseModel
 from bet.pipeline.contracts.common import _validate_sha256
 
 
+class ProvenanceResolutionError(ValueError):
+    """Raised when repository commit HEAD, tree SHA, or source manifest cannot be authentically resolved."""
+    pass
+
+
+def _validate_hex(val: str, expected_length: int, field_name: str) -> str:
+    if not isinstance(val, str) or len(val) != expected_length:
+        raise ProvenanceResolutionError(f"INVALID_PROVENANCE_HEX: {field_name} must be {expected_length}-char hex string, got '{val}'")
+    val_lower = val.lower()
+    if not all(c in "0123456789abcdef" for c in val_lower):
+        raise ProvenanceResolutionError(f"INVALID_PROVENANCE_HEX: {field_name} contains non-hex characters: '{val}'")
+    return val_lower
+
+
 def get_git_commit_head(repo_root: Path) -> str:
+    repo_root = Path(repo_root).resolve(strict=False)
+    if not repo_root.exists():
+        raise ProvenanceResolutionError(f"REPO_ROOT_NOT_FOUND: Path {repo_root} does not exist")
+
     try:
         res = subprocess.run(
             ["git", "rev-parse", "HEAD"],
@@ -24,27 +42,16 @@ def get_git_commit_head(repo_root: Path) -> str:
             check=True,
         )
         sha = res.stdout.strip()
-        if sha and len(sha) == 40:
-            return sha
-    except Exception:
-        pass
-
-    try:
-        from bet.pipeline.manifest import discover_repo_root
-        parent = discover_repo_root()
-        res = subprocess.run(
-            ["git", "rev-parse", "HEAD"],
-            cwd=str(parent),
-            capture_output=True,
-            text=True,
-            check=True,
-        )
-        return res.stdout.strip()
-    except Exception:
-        return "a" * 40
+        return _validate_hex(sha, 40, "git_commit_head")
+    except Exception as e:
+        raise ProvenanceResolutionError(f"GIT_HEAD_RESOLUTION_FAILED: Could not resolve git commit HEAD at {repo_root}: {e}")
 
 
 def get_git_tree_sha(repo_root: Path) -> str:
+    repo_root = Path(repo_root).resolve(strict=False)
+    if not repo_root.exists():
+        raise ProvenanceResolutionError(f"REPO_ROOT_NOT_FOUND: Path {repo_root} does not exist")
+
     try:
         res = subprocess.run(
             ["git", "rev-parse", "HEAD^{tree}"],
@@ -54,39 +61,32 @@ def get_git_tree_sha(repo_root: Path) -> str:
             check=True,
         )
         sha = res.stdout.strip()
-        if sha and len(sha) == 40:
-            return sha
-    except Exception:
-        pass
-
-    try:
-        from bet.pipeline.manifest import discover_repo_root
-        parent = discover_repo_root()
-        res = subprocess.run(
-            ["git", "rev-parse", "HEAD^{tree}"],
-            cwd=str(parent),
-            capture_output=True,
-            text=True,
-            check=True,
-        )
-        return res.stdout.strip()
-    except Exception:
-        return "b" * 40
+        return _validate_hex(sha, 40, "git_tree_sha")
+    except Exception as e:
+        raise ProvenanceResolutionError(f"GIT_TREE_RESOLUTION_FAILED: Could not resolve git tree SHA at {repo_root}: {e}")
 
 
 def compute_source_manifest_sha256(repo_root: Path) -> str:
+    repo_root = Path(repo_root).resolve(strict=False)
+    if not repo_root.exists():
+        raise ProvenanceResolutionError(f"REPO_ROOT_NOT_FOUND: Path {repo_root} does not exist")
+
     try:
         raw = subprocess.run(
             ["git", "ls-files", "--cached", "--others", "--exclude-standard", "-z"],
             cwd=str(repo_root),
-            check=False,
+            check=True,
             capture_output=True,
         )
-        if raw.returncode == 0 and raw.stdout:
+        if raw.returncode == 0 and raw.stdout is not None:
             entries: list[dict[str, Any]] = []
             for encoded in sorted(filter(None, raw.stdout.split(b"\0"))):
                 relative = os.fsdecode(encoded)
-                path = repo_root / relative
+                path = (repo_root / relative).resolve(strict=False)
+                # Prevent path escape / aliasing
+                if not path.is_relative_to(repo_root):
+                    raise ProvenanceResolutionError(f"PATH_ESCAPE_DETECTED: File {relative} escapes repo root")
+
                 if path.is_symlink():
                     entries.append({"path": relative, "kind": "symlink", "target": os.readlink(path)})
                 elif path.is_file():
@@ -94,19 +94,15 @@ def compute_source_manifest_sha256(repo_root: Path) -> str:
                     with path.open("rb") as f:
                         while chunk := f.read(65536):
                             h.update(chunk)
-                    entries.append({"path": relative, "kind": "file", "size": path.stat().st_size, "sha256": h.hexdigest()})
+                    entries.append({"path": relative, "kind": "file", "size": path.stat().st_size, "sha256": h.hexdigest().lower()})
                 else:
                     entries.append({"path": relative, "kind": "deleted"})
             canonical = json.dumps(entries, sort_keys=True, separators=(",", ":"))
-            return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
-    except Exception:
-        pass
-
-    try:
-        from bet.pipeline.manifest import discover_repo_root
-        return compute_source_manifest_sha256(discover_repo_root())
-    except Exception:
-        return "c" * 64
+            m_sha = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+            return _validate_hex(m_sha, 64, "source_manifest_sha256")
+        raise ProvenanceResolutionError("MANIFEST_EMPTY_OUTPUT: git ls-files returned empty output")
+    except Exception as e:
+        raise ProvenanceResolutionError(f"MANIFEST_RESOLUTION_FAILED: Could not compute source manifest sha256 at {repo_root}: {e}")
 
 
 def get_sanitized_env_fingerprint() -> dict[str, str]:
@@ -130,7 +126,9 @@ class BaseReceiptV1(StrictBaseModel):
     started_at: str
     finished_at: str
     exit_code: int
+    stdout_path: str = ""
     stdout_sha256: str = ""
+    stderr_path: str = ""
     stderr_sha256: str = ""
     artifact_sha256: str = ""
 
@@ -201,7 +199,7 @@ class MutationReceiptV1(BaseReceiptV1):
     all_detected: bool
     expected_mutation_set: list[str] = Field(default_factory=list)
     detected_mutation_set: list[str] = Field(default_factory=list)
-    results: dict[str, dict[str, Any]] = Field(default_factory=dict)
+    results: dict[str, Any] = Field(default_factory=dict)
 
 
 class QualityReceiptV1(BaseReceiptV1):

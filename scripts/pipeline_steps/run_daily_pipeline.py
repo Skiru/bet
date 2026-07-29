@@ -70,6 +70,15 @@ def main() -> None:
         help="Explicit operator acknowledgment required for database/storage writes",
     )
     p.add_argument(
+        "--source-run-root",
+        help="Optional source run root directory for lineage-preserving restart from S2",
+    )
+    p.add_argument(
+        "--reuse-through-step",
+        default="S1e",
+        help="Step through which to reuse artifacts from source run (default S1e)",
+    )
+    p.add_argument(
         "--verbose",
         "-v",
         action="store_true",
@@ -77,6 +86,30 @@ def main() -> None:
         help="Enable verbose orchestrator logging",
     )
     args = p.parse_args()
+
+    target_run_root = Path(args.base_run_dir) / args.date / args.run_id
+
+    if args.source_run_root and args.start_step == "S2":
+        from scripts.pipeline_steps.export_s2_restart_seed import export_s2_restart_seed
+        from scripts.pipeline_steps.import_s2_restart_seed import import_s2_restart_seed
+        from bet.pipeline.receipts import get_git_commit_head, get_git_tree_sha, compute_source_manifest_sha256
+
+        repo_root = ROOT
+        cur_head = get_git_commit_head(repo_root)
+        cur_tree = get_git_tree_sha(repo_root)
+        cur_manifest = compute_source_manifest_sha256(repo_root)
+
+        src_root = Path(args.source_run_root).resolve(strict=True)
+        tmp_seed_dir = Path("/tmp/s2_restart_seed")
+        seed_tar, _ = export_s2_restart_seed(source_run_root=src_root, output_dir=tmp_seed_dir)
+        import_s2_restart_seed(
+            seed_tar_path=seed_tar,
+            target_run_root=target_run_root,
+            target_run_id=args.run_id,
+            target_head=cur_head,
+            target_tree=cur_tree,
+            target_manifest=cur_manifest,
+        )
 
     orchestrator = Orchestrator(
         betting_day=args.date,

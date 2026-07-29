@@ -2,8 +2,20 @@
 from __future__ import annotations
 
 from typing import Any, Literal
-from pydantic import Field
+from pydantic import Field, field_validator, model_validator
 from bet.pipeline.contracts.base import StrictBaseModel
+
+
+class ProbabilityRecordV1(StrictBaseModel):
+    canonical_event_id: str
+    market_family: str
+    selection: str
+    calibrated_probability: float | None = Field(default=None, ge=0.0, le=1.0)
+    uncertainty_margin: float = Field(default=0.02, ge=0.0)
+    model_id: str | None = None
+    dataset_receipt_sha256: str | None = None
+    calibration_report_sha256: str | None = None
+    terminal_status: str = "PASS"
 
 
 class S3CalibratedProbabilitiesV1(StrictBaseModel):
@@ -13,7 +25,17 @@ class S3CalibratedProbabilitiesV1(StrictBaseModel):
     betting_day: str
     run_id: str
     total_probabilities_derived: int = Field(ge=0, default=0)
-    probabilities: list[dict[str, Any]] = Field(default_factory=list)
+    probabilities: list[ProbabilityRecordV1] = Field(default_factory=list)
+
+
+class ValuationRecordV1(StrictBaseModel):
+    canonical_event_id: str
+    market_family: str
+    selection: str
+    fair_odds: float | None = Field(default=None, ge=1.0)
+    ev_estimate: float | None = None
+    minimum_acceptable_odds: float | None = Field(default=None, ge=1.0)
+    status: str = "PASS"
 
 
 class S4ExpectedValueEstimatesV1(StrictBaseModel):
@@ -23,7 +45,16 @@ class S4ExpectedValueEstimatesV1(StrictBaseModel):
     betting_day: str
     run_id: str
     total_candidates_valued: int = Field(ge=0, default=0)
-    estimates: list[dict[str, Any]] = Field(default_factory=list)
+    estimates: list[ValuationRecordV1] = Field(default_factory=list)
+
+
+class ContextRecordV1(StrictBaseModel):
+    canonical_event_id: str
+    sport: str
+    motivation_score: float = Field(default=1.0, ge=0.0, le=2.0)
+    risk_classification: Literal["LOW", "MEDIUM", "HIGH", "UNACCEPTABLE"] = "LOW"
+    context_notes: str | None = None
+    terminal_status: str = "PASS"
 
 
 class S5ContextMotivationRiskV1(StrictBaseModel):
@@ -33,7 +64,7 @@ class S5ContextMotivationRiskV1(StrictBaseModel):
     betting_day: str
     run_id: str
     total_candidates_screened: int = Field(ge=0, default=0)
-    context_records: list[dict[str, Any]] = Field(default_factory=list)
+    context_records: list[ContextRecordV1] = Field(default_factory=list)
 
 
 class FilteredCandidateRecordV1(StrictBaseModel):
@@ -51,7 +82,7 @@ class S6PortfolioRepeatGuardV1(StrictBaseModel):
     betting_day: str
     run_id: str
     total_candidates_guarded: int = Field(ge=0, default=0)
-    guarded_records: list[dict[str, Any]] = Field(default_factory=list)
+    guarded_records: list[FilteredCandidateRecordV1] = Field(default_factory=list)
 
 
 class S7CandidateRecord(StrictBaseModel):
@@ -203,6 +234,14 @@ class S8SuperbetManualQuotePackV1(StrictBaseModel):
     can_place_bet_now: bool = False
     operator_availability_asserted: bool = False
     operator_automation_enabled: bool = False
+
+    @model_validator(mode="after")
+    def validate_s8_status_semantics(self) -> S8SuperbetManualQuotePackV1:
+        if self.pricing_status == "UNPRICED" and self.executable_coupon:
+            raise ValueError("UNPRICED_CANNOT_BE_EXECUTABLE: UNPRICED S8 quote pack cannot be executable coupon")
+        if self.pricing_status == "UNPRICED" and (self.ev_available or self.stake_available):
+            raise ValueError("UNPRICED_CANNOT_HAVE_EV_OR_STAKE: UNPRICED S8 quote pack cannot have EV or stake available without human quote")
+        return self
 
 
 class S9ExecutedBetsJournalV1(StrictBaseModel):

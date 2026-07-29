@@ -168,7 +168,20 @@ def generate_same_event_builders(
 
                 matching_model = None
                 for jm in joint_models:
-                    if getattr(jm, "is_pricing_eligible", lambda: False)():
+                    is_elig = False
+                    if hasattr(jm, "is_pricing_eligible"):
+                        attr = getattr(jm, "is_pricing_eligible")
+                        if callable(attr):
+                            try:
+                                is_elig = bool(attr())
+                            except Exception:
+                                is_elig = False
+                        else:
+                            is_elig = bool(attr)
+                    else:
+                        is_elig = getattr(jm, "is_eligible", False) is True
+
+                    if is_elig:
                         supported = getattr(jm, "supported_market_family_pairs", ())
                         norm_pairs = [
                             (p[0].lower(), p[1].lower()) for p in supported
@@ -194,7 +207,8 @@ def generate_same_event_builders(
                 if hasattr(matching_model, "compute_conjunction"):
                     conjunction_res = matching_model.compute_conjunction([prob_a, prob_b])
                     joint_prob = conjunction_res.get("joint_probability") if isinstance(conjunction_res, dict) else conjunction_res
-                elif getattr(matching_model, "assumes_independence", False) is True:
+                elif getattr(matching_model, "approved_independence_protocol_version", None) is not None:
+                    # Approved versioned scope-bound independence protocol
                     joint_prob = prob_a * prob_b
                 else:
                     joint_prob = None

@@ -94,6 +94,30 @@ VALID_PROJECT_TOOLS = frozenset({
 })
 
 
+AGENT_PROFILE_TOOLS = {
+    "bet-executor": ("bash", "read", "glob", "grep"),
+    "bet-researcher": ("bet_sqlite_query", "webfetch", "websearch", "brave-search_brave_web_search", "read", "glob", "grep"),
+    "bet-modeler": ("bet_sqlite_query", "read", "glob", "grep"),
+    "bet-risk-gatekeeper": ("bet_sqlite_query", "webfetch", "websearch", "brave-search_brave_web_search", "read", "glob", "grep"),
+    "bet-builder": ("read", "glob", "grep"),
+    "bet-auditor": ("bash", "bet_sqlite_query", "read", "glob", "grep"),
+}
+
+
+def enforce_tool_governance_intersection(
+    agent_profile: str,
+    manifest_policy: list[str] | tuple[str, ...],
+    requirement_policy: list[str] | tuple[str, ...],
+) -> tuple[str, ...]:
+    """Compute allowed tools as intersection of agent profile, manifest policy, and requirement policy."""
+    agent_tools = set(AGENT_PROFILE_TOOLS.get(agent_profile, ()))
+    manifest_tools = set(manifest_policy) if manifest_policy else VALID_PROJECT_TOOLS
+    req_tools = set(requirement_policy) if requirement_policy else VALID_PROJECT_TOOLS
+
+    intersection = agent_tools & manifest_tools & req_tools & VALID_PROJECT_TOOLS
+    return tuple(sorted(list(intersection)))
+
+
 def compute_allowed_tools(plan_tools: list[str] | None, agent_profile_tools: list[str]) -> list[str]:
     """Compute allowed tools as intersection of plan requirements and agent profile tools."""
     if not plan_tools:
