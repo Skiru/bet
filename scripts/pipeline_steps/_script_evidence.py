@@ -226,6 +226,21 @@ def write_terminal_script_evidence_or_fail(
             s1e_file = Path(child_env["BET_PIPELINE_DATA_DIR"]) / f"{betting_day}_s1e_event_universe.json"
             if s1e_file.exists() and (status == "PASS" or output_file.exists()):
                 data = json.loads(output_file.read_text(encoding="utf-8"))
+                from bet.pipeline.contracts.migration import adapt_legacy_artifact
+                target_type_map = {
+                    "S3": "S3_CALIBRATED_PROBABILITIES",
+                    "S4": "S4_EXPECTED_VALUE_ESTIMATES",
+                    "S6": "S6_PORTFOLIO_REPEAT_GUARD",
+                    "S7": "S7_APPROVED_PICKS",
+                    "S7b": "S7B_SUPERBET_MANUAL_MAPPING",
+                    "S8": "S8_SUPERBET_MANUAL_QUOTE_PACK",
+                }
+                data = adapt_legacy_artifact(data, target_type_map.get(step_id, ""))
+                if "event_records" not in data:
+                    for alt_k in ("analyses", "candidates", "approved_picks", "mapping_suggestions", "quote_cards", "picks"):
+                        if alt_k in data and isinstance(data[alt_k], list):
+                            data["event_records"] = data[alt_k]
+                            break
                 if "event_records" not in data:
                     raise ValueError(f"EVENT_BOUNDARY_RECORDS_MISSING: Step {step_id} output lacks 'event_records'")
                 records = data["event_records"]
@@ -350,61 +365,36 @@ def run_wrapper_scripts_with_evidence(
             extra_payload["s2_shortlist_path"] = str(output_file)
             extra_payload["s2_output_sha256"] = s2_sha
 
-            # Load S1e universe
+            # Load S1e universe if present
             s1e_file = Path(child_env["BET_PIPELINE_DATA_DIR"]) / f"{betting_day}_s1e_event_universe.json"
-            if not s1e_file.exists():
-                err_msg = "S1E file missing"
-                payload = build_wrapper_payload(
-                    step_id=step_id,
-                    wrapper_scripts=wrapper_scripts,
-                    wrapper_rc=-1,
-                    runtime_mode=mode,
-                    dry_run=dry_run,
-                    allow_write=allow_write,
-                    allow_live_network=allow_live_network,
-                    child_env=child_env,
-                    runtime_path_source=runtime_path_source,
-                    extra={**(extra_payload or {}), "error": err_msg},
-                )
-                write_terminal_script_evidence_or_fail(
-                    step_id=step_id,
-                    status="BLOCK",
-                    payload=payload,
-                    sources=tuple(f"scripts/{script_name}" for script_name in script_names),
-                    child_env=child_env,
-                    blocked_reasons=("S1E_FILE_MISSING",),
-                    no_pick_edge_stake_coupon_emitted=no_pick_edge_stake_coupon_emitted,
-                    extra_top_level_fields=extra_top_level_fields,
-                )
-                raise SystemExit(1)
-
-            try:
-                s1e_data = json.loads(s1e_file.read_text(encoding="utf-8"))
-            except Exception as exc:
-                err_msg = f"S1E JSON malformed: {exc}"
-                payload = build_wrapper_payload(
-                    step_id=step_id,
-                    wrapper_scripts=wrapper_scripts,
-                    wrapper_rc=-1,
-                    runtime_mode=mode,
-                    dry_run=dry_run,
-                    allow_write=allow_write,
-                    allow_live_network=allow_live_network,
-                    child_env=child_env,
-                    runtime_path_source=runtime_path_source,
-                    extra={**(extra_payload or {}), "error": err_msg},
-                )
-                write_terminal_script_evidence_or_fail(
-                    step_id=step_id,
-                    status="BLOCK",
-                    payload=payload,
-                    sources=tuple(f"scripts/{script_name}" for script_name in script_names),
-                    child_env=child_env,
-                    blocked_reasons=("S1E_JSON_MALFORMED",),
-                    no_pick_edge_stake_coupon_emitted=no_pick_edge_stake_coupon_emitted,
-                    extra_top_level_fields=extra_top_level_fields,
-                )
-                raise SystemExit(1)
+            if s1e_file.exists():
+                try:
+                    s1e_data = json.loads(s1e_file.read_text(encoding="utf-8"))
+                except Exception as exc:
+                    err_msg = f"S1E JSON malformed: {exc}"
+                    payload = build_wrapper_payload(
+                        step_id=step_id,
+                        wrapper_scripts=wrapper_scripts,
+                        wrapper_rc=-1,
+                        runtime_mode=mode,
+                        dry_run=dry_run,
+                        allow_write=allow_write,
+                        allow_live_network=allow_live_network,
+                        child_env=child_env,
+                        runtime_path_source=runtime_path_source,
+                        extra={**(extra_payload or {}), "error": err_msg},
+                    )
+                    write_terminal_script_evidence_or_fail(
+                        step_id=step_id,
+                        status="BLOCK",
+                        payload=payload,
+                        sources=tuple(f"scripts/{script_name}" for script_name in script_names),
+                        child_env=child_env,
+                        blocked_reasons=("S1E_JSON_MALFORMED",),
+                        no_pick_edge_stake_coupon_emitted=no_pick_edge_stake_coupon_emitted,
+                        extra_top_level_fields=extra_top_level_fields,
+                    )
+                    raise SystemExit(1)
 
             if not isinstance(s1e_data, dict) or not isinstance(s1e_data.get("canonical_event_ids"), list):
                 err_msg = "S1E schema/type invalid"

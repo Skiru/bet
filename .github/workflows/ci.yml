@@ -1,0 +1,66 @@
+name: Pipeline V5 CI
+
+on:
+  push:
+    branches: [ main, "feat/**" ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  validate:
+    name: Validate & Test Pipeline V5
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@0b93645e9fea7312eed977e2852fe36e09849206 # v5.3.0
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@8878411b069d2e1d713c77840ecdd342c3886561 # v5.1.0
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --frozen --extra dev
+
+      - name: Lockfile Check
+        run: uv lock --check
+
+      - name: Whitespace Diff Check
+        run: git diff --check origin/main...HEAD || git diff --check HEAD~1...HEAD
+
+      - name: Code Formatter Check
+        run: uv run ruff format --check .
+
+      - name: Linter Check
+        run: uv run ruff check .
+
+      - name: Static Type Check
+        run: uv run mypy src/bet/pipeline/contracts src/bet/models src/bet/builder
+
+      - name: Run Production Validators
+        run: |
+          uv run python scripts/validate_production_surface.py
+          uv run python scripts/validate_power_agent_control_plane.py
+          uv run python scripts/validate_manifest_power_agents.py
+          uv run python scripts/validate_database_access.py
+          uv run python scripts/validate_reachability_graph.py
+          uv run python scripts/validate_provider_registry.py
+          uv run python scripts/validate_no_src_bet_imports.py
+
+      - name: Run Pipeline V5 Checkpoint Test Suites
+        run: |
+          uv run pytest tests/test_r0_reproductions.py tests/test_t1_strict_contracts.py tests/test_t2_sharding_lifecycle.py tests/test_t3_acquisition_and_dossiers.py tests/test_t4_model_artifacts.py tests/test_t5_builder_pricing.py tests/test_c1_step_contracts.py tests/test_c2_sharding_and_acquisition.py tests/test_c3_sport_intelligence.py tests/test_c4_model_governance.py tests/test_c5_bet_builder.py
+
+      - name: Run Final Pipeline Certifier
+        run: |
+          uv run python scripts/certify_pipeline_final_closure.py --output reports/certificate.json --junit reports/junit.xml
+
+      - name: Run Full Pytest Suite
+        run: uv run pytest -n auto

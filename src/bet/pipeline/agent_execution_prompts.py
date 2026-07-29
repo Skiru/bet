@@ -139,12 +139,19 @@ def render_agent_execution_prompt(work_order: dict[str, Any]) -> str:
         "Return BLOCK instead of guessing.",
         "Do not emit pick, edge, stake, coupon, parlay or accumulator.",
         "Do not write to betting/data, betting/coupons, reports or production DB.",
-        "Do not call external APIs unless the work order input artifacts already contain the required source evidence.",
+    ]
+
+    if work_order.get("acquisition_plan"):
+        prompt_lines.append("Use only the allowed tools and queries listed in the FACT ACQUISITION PLAN. Open-ended browsing remains forbidden.")
+    else:
+        prompt_lines.append("Do not call external APIs or browse externally; use only the evidence provided in the input artifacts.")
+
+    prompt_lines.extend([
         "Do not include secrets.",
         "Do not include production write instructions.",
         "",
         "INPUT REFS:",
-    ]
+    ])
 
     for ref in work_order["input_refs"]:
         prompt_lines.append(
@@ -183,6 +190,33 @@ def render_agent_execution_prompt(work_order: dict[str, Any]) -> str:
         ]
     )
     prompt_lines.extend(f"- {item}" for item in STEP_FOCUS.get(work_order["step_id"], []))
+
+    if work_order.get("acquisition_plan"):
+        acq = work_order["acquisition_plan"]
+        prompt_lines.extend(
+            [
+                "",
+                "FACT ACQUISITION PLAN:",
+                f"- plan_id={acq.get('plan_id')}",
+                f"- canonical_event_id={acq.get('canonical_event_id')}",
+                f"- sport={acq.get('sport')}",
+                f"- max_queries={acq.get('max_queries', 10)}",
+            ]
+        )
+        reqs = acq.get("requirements") or acq.get("fact_requirements") or []
+        for req in reqs:
+            if isinstance(req, dict):
+                tools_str = ",".join(req.get("allowed_tools", ()))
+                prompt_lines.append(
+                    f"  * requirement_id={req.get('requirement_id')} "
+                    f"fact_type={req.get('fact_type')} "
+                    f"level={req.get('requirement_level')} "
+                    f"tools={tools_str} "
+                    f"max_age_hours={req.get('max_age_hours', 48)} "
+                    f"min_sources={req.get('min_independent_sources', 1)}"
+                )
+            elif isinstance(req, str):
+                prompt_lines.append(f"  * requirement={req}")
 
     prompt_lines.extend(["", "MUST DO:"])
     prompt_lines.extend(f"- {item}" for item in instructions.get("must_do", []))
@@ -238,10 +272,13 @@ def validate_rendered_prompt(prompt: str, work_order: dict[str, Any]) -> list[st
         "Return BLOCK instead of guessing.",
         "Do not emit pick, edge, stake, coupon, parlay or accumulator.",
         "Do not write to betting/data, betting/coupons, reports or production DB.",
-        "Do not call external APIs unless the work order input artifacts already contain the required source evidence.",
         "JSON ARTIFACT SCHEMA SKELETON:",
         "FINAL OUTPUT SCHEMA:",
     ]
+    if work_order.get("acquisition_plan"):
+        required_fragments.append("Use only the allowed tools and queries listed in the FACT ACQUISITION PLAN.")
+    else:
+        required_fragments.append("Do not call external APIs or browse externally;")
     for fragment in required_fragments:
         if fragment not in prompt:
             errors.append(f"Prompt missing required fragment: {fragment}")

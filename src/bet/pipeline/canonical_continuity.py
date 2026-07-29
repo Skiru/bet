@@ -113,6 +113,8 @@ def event_identity_fields(candidate: Mapping[str, Any]) -> dict[str, str]:
         candidate.get("kickoff")
         or candidate.get("start_time")
         or candidate.get("scheduled_at_utc")
+        or candidate.get("event_start_time")
+        or candidate.get("scheduled_time")
     )
     kickoff = parse_aware_utc_timestamp(kickoff_raw)
     sport = _token(candidate.get("sport"))

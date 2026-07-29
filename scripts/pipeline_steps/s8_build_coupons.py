@@ -16,6 +16,9 @@ if str(ROOT) not in sys.path:
 from bet.pipeline.artifact_io import publish_run_artifact
 from bet.pipeline.run_evidence import sha256_file
 from bet.pipeline.runtime_modes import parse_runtime_mode
+from bet.builder.engine import generate_same_event_builders
+from bet.builder.models import BuilderLegV1, JointModelScopeV1
+from bet.models.contracts import FeatureSnapshotV1
 from scripts.pipeline_steps._runner import resolve_child_runtime_env
 from scripts.pipeline_steps._script_evidence import (
     write_terminal_script_evidence_or_fail,
@@ -133,17 +136,96 @@ def main() -> None:
     try:
         s7b_evidence, s7b_output, mapping, s7b_records = _load_canonical_s7b(child_env, args.date, args.run_id)
         mapping_status, cards = _validate_mapping(mapping, args.date, args.run_id)
+        if not cards and mapping_status != "BLOCKED":
+            mapping_status = "NO_ACTION_TERMINAL"
     except (OSError, ValueError, TypeError, json.JSONDecodeError) as exc:
         blocked.append("BLOCKED_S8_CANONICAL_S7B_INVALID")
         print(f"BLOCKED_S8_CANONICAL_S7B_INVALID: {exc}")
 
-    outcome = "BLOCKED" if blocked else (
-        "NO_ACTION_TERMINAL" if mapping_status == "NO_ACTION_TERMINAL" else "READY_FOR_MANUAL_SUPERBET_QUOTE_REVIEW"
-    )
-    ready_for_human_gate = outcome == "READY_FOR_MANUAL_SUPERBET_QUOTE_REVIEW" and bool(cards)
+    has_verified_pricing = any(
+        card.get("minimum_acceptable_operator_odds") is not None
+        or card.get("minimum_acceptable_odds") is not None
+        or card.get("recommended_minimum_odds") is not None
+        for card in cards
+    ) if cards else False
+
+    if blocked:
+        outcome = "BLOCKED"
+        ready_for_human_gate = False
+    elif not cards or mapping_status == "NO_ACTION_TERMINAL":
+        outcome = "NO_ACTION_TERMINAL"
+        ready_for_human_gate = False
+    elif not has_verified_pricing:
+        outcome = "ANALYSIS_ONLY_OUTPUT"
+        ready_for_human_gate = False
+    else:
+        outcome = "READY_FOR_MANUAL_SUPERBET_QUOTE_REVIEW"
+        ready_for_human_gate = True
     output_path = _s8_output_path(Path(child_env["BET_PIPELINE_DATA_DIR"]), args.date, mode)
     output_sha256: str | None = None
     if not blocked:
+        # Build idea groups from quote cards using same-event builder engine
+        idea_groups_list: list[dict[str, Any]] = []
+        if cards:
+            import hashlib
+            from decimal import Decimal
+            from bet.builder.models import BuilderLegV1, JointModelScopeV1
+            from bet.builder.engine import generate_same_event_builders
+
+            legs: list[BuilderLegV1] = []
+            event_metadata: dict[str, dict[str, str]] = {}
+            for card in cards:
+                eid = card.get("canonical_event_id")
+                card_id = card.get("quote_card_id")
+                sport = card.get("sport")
+                comp = card.get("competition")
+                home = card.get("home_team")
+                away = card.get("away_team")
+                m_fam = card.get("market_family")
+                sel = card.get("selection")
+                if not (eid and card_id and sport and comp and home and away and m_fam and sel):
+                    continue
+
+                min_odds_val = card.get("recommended_minimum_odds") or card.get("minimum_acceptable_odds")
+                fair_odds_val = card.get("fair_odds") or card.get("model_fair_odds") or min_odds_val
+                prob_val = card.get("model_fair_probability") or card.get("calibrated_probability")
+
+                if not min_odds_val or not prob_val or not fair_odds_val:
+                    continue
+
+                legs.append(
+                    BuilderLegV1(
+                        leg_id=str(card_id),
+                        canonical_event_id=str(eid),
+                        sport=str(sport),
+                        market_family=str(m_fam),
+                        selection=str(sel),
+                        line=card.get("line"),
+                        calibrated_probability=float(prob_val),
+                        fair_odds=Decimal(str(fair_odds_val)),
+                        minimum_acceptable_odds=Decimal(str(min_odds_val)),
+                        competition=str(comp),
+                        home_team=str(home),
+                        away_team=str(away),
+                    )
+                )
+                if str(eid) not in event_metadata:
+                    event_metadata[str(eid)] = {
+                        "competition": str(comp),
+                        "home_team": str(home),
+                        "away_team": str(away),
+                    }
+
+            # Only pass registered PRICING_ELIGIBLE joint models from registry (do NOT synthesize fake joint models in daily wrapper)
+            promoted_joint_models: list[JointModelScopeV1] = []
+            groups, rejections = generate_same_event_builders(legs, promoted_joint_models, event_metadata)
+            idea_groups_list = [g.model_dump(mode="json") for g in groups]
+            rejections_list = [r.model_dump(mode="json") for r in rejections]
+
+        if not cards:
+            outcome = "NO_ACTION_TERMINAL"
+            ready_for_human_gate = False
+
         output_artifact = {
                 "schema_version": 2,
                 "artifact_type": "S8_SUPERBET_MANUAL_QUOTE_PACK",
@@ -157,7 +239,8 @@ def main() -> None:
                 "source_s7b_output_sha256": sha256_file(s7b_output),
                 "quote_card_count": len(cards),
                 "quote_cards": cards,
-                "idea_groups": [],
+                "idea_groups": idea_groups_list,
+                "rejections": rejections_list if cards else [],
                 "event_records": s7b_records,
                 "analytical_status": "READY" if cards else "NO_ACTION",
                 "pricing_status": "UNPRICED",

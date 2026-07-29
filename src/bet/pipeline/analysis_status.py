@@ -32,3 +32,16 @@ def classify_candidate_status(
         "executable_coupon": False,
         "can_place_bet_now": False,
     }
+
+
+def resolve_analysis_status(
+    *,
+    evidence_ready: bool,
+    model_package: Any = None,
+) -> str:
+    """Resolve analysis status based on evidence readiness and model package availability."""
+    if not evidence_ready:
+        return "EVIDENCE_BLOCKED"
+    if model_package is None or getattr(model_package, "is_eligible", False) == False:
+        return "ANALYSIS_ONLY"
+    return "PRICING_ELIGIBLE"

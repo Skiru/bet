@@ -233,6 +233,11 @@ def replay_sandbox(tmp_path) -> Path:
             "travel_fatigue",
             "morale_recent_form",
             "upset_volatility_risk",
+            "injuries/lineups",
+            "motivation/tournament context",
+            "travel/fatigue",
+            "morale/recent form",
+            "upset/volatility risk",
         )
     }
     s5_candidates = json.loads(json.dumps(canonical_s4_candidates))
@@ -253,6 +258,7 @@ def replay_sandbox(tmp_path) -> Path:
         "status": "PASS",
         "betting_day": "2026-07-14",
         "run_id": "CERT_REPLAY_20260714_PRICING_DEGRADED_V6",
+        "work_order_id": "WO-CERT_REPLAY_20260714_PRICING_DEGRADED_V6-S5",
         "point_in_time_as_of": "2026-07-14T06:00:00Z",
         "source_bound": True,
         "no_pick_edge_stake_coupon_emitted": True,
@@ -270,6 +276,11 @@ def replay_sandbox(tmp_path) -> Path:
             "source_s4_path": str(s4_path),
             "source_s4_sha256": s4_sha,
             "policy_version": "S5_CONTEXT_RISK_V2",
+            "injuries_lineups": {"status": "CLEAR"},
+            "motivation_tournament_context": {"status": "CLEAR"},
+            "travel_fatigue": {"status": "CLEAR"},
+            "morale_recent_form": {"status": "CLEAR"},
+            "upset_volatility_risk": {"status": "CLEAR"},
             "input_candidate_count": len(s5_candidates),
             "candidates": s5_candidates,
             "rejected_candidates": [],
@@ -280,6 +291,34 @@ def replay_sandbox(tmp_path) -> Path:
             },
         },
     }
+    s5_wo_data = {
+        "work_order_id": "WO-CERT_REPLAY_20260714_PRICING_DEGRADED_V6-S5",
+        "step_id": "S5",
+        "betting_day": "2026-07-14",
+        "run_id": "CERT_REPLAY_20260714_PRICING_DEGRADED_V6",
+        "agent": "bet-risk-gatekeeper",
+        "assigned_agent": "bet-risk-gatekeeper",
+        "source_head": repo_head_sha(Path(__file__).resolve().parents[1]),
+        "manifest_sha256": manifest_hash(Path(__file__).resolve().parents[1]),
+        "input_refs": [
+            {
+                "step_id": "S4",
+                "path": str(artifacts_dir / "S4.json"),
+                "sha256": sha256_file(artifacts_dir / "S4.json"),
+            }
+        ],
+        "status": "COMPLETED",
+    }
+    s5_wo_path = artifacts_dir / "S5_work_order.json"
+    s5_wo_path.write_text(json.dumps(s5_wo_data, indent=2), encoding="utf-8")
+
+    base_wo_path = sandbox.parents[2] / "pipeline_runs" / "2026-07-14" / "CERT_REPLAY_20260714_PRICING_DEGRADED_V6" / "artifacts" / "S5_work_order.json"
+    base_wo_path.parent.mkdir(parents=True, exist_ok=True)
+    base_wo_path.write_text(json.dumps(s5_wo_data, indent=2), encoding="utf-8")
+
+    s5_data["work_order_sha256"] = sha256_file(s5_wo_path)
+    if "payload" in s5_data and isinstance(s5_data["payload"], dict):
+        s5_data["payload"]["work_order_sha256"] = sha256_file(s5_wo_path)
     (artifacts_dir / "S5.json").write_text(json.dumps(s5_data, indent=2), encoding="utf-8")
 
     # 6. Copy and update picks-ledger.csv
@@ -331,6 +370,9 @@ def test_real_subprocess_replay_success(replay_sandbox):
         if logs_dir.exists():
             for f in logs_dir.glob("*"):
                 log_content += f"\n--- LOG {f.name} ---\n{f.read_text(errors='replace')}\n"
+        print(f"DEBUG STDOUT: {res.stdout}")
+        print(f"DEBUG STDERR: {res.stderr}")
+        print(f"DEBUG LOGS: {log_content}")
         raise AssertionError(f"Pipeline execution failed: {res.stderr}\nStdout: {res.stdout}\nLogs:\n{log_content}")
     assert res.returncode == 0
 

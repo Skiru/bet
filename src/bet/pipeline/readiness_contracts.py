@@ -50,6 +50,10 @@ class AllowedNegativeAssertionKeys(str, Enum):
     NO_EDGE = "no_edge"
     NO_STAKE = "no_stake"
     NO_COUPON = "no_coupon"
+    SELECTION = "selection"
+    SELECTION_ID = "selection_id"
+    SELECTION_NAME = "selection_name"
+    REQUESTED_SELECTION = "requested_selection"
     NO_PICK_EDGE_STAKE_COUPON_EMITTED = "no_pick_edge_stake_coupon_emitted"
     FORBIDDEN_FIELDS_ABSENT = "forbidden_fields_absent"
     BETTING_DECISIONS_ENABLED = "betting_decisions_enabled"
@@ -309,6 +313,128 @@ class CentralSafetyClassification:
             "can_place_bet_now": self.can_place_bet_now,
             "safe_user_action": self.safe_user_action,
         }
+
+
+from bet.pipeline.contracts.base import StrictBaseModel
+
+
+class ModelPackageV1(StrictBaseModel):
+    package_id: str
+    sport: str
+    competition: str
+    market: str
+    model_package_path: str
+    model_package_sha256: str
+    dataset_receipt_sha256: str
+    feature_schema_sha256: str
+    fitted_model_sha256: str
+    code_receipt_sha256: str
+    temporal_split_sha256: str
+    backtest_report_sha256: str
+    calibration_report_sha256: str
+    uncertainty_method_sha256: str
+    promotion_decision_sha256: str
+    model_card_sha256: str
+    is_eligible: bool = True
+
+
+class ModelPackageResolver:
+    """Semantic model package resolver for single-market pricing models."""
+
+    REQUIRED_FILES = (
+        "model-package.json",
+        "dataset-receipt.json",
+        "feature-schema.json",
+        "code-receipt.json",
+        "temporal-split.json",
+        "backtest.json",
+        "calibration.json",
+        "uncertainty-method.json",
+        "promotion-decision.json",
+        "model-card.json",
+    )
+
+    @classmethod
+    def resolve_package(cls, package_dir: str | Path) -> ModelPackageV1 | None:
+        p = Path(package_dir)
+        if not p.is_dir():
+            return None
+        for fname in cls.REQUIRED_FILES:
+            if not (p / fname).is_file():
+                return None
+        try:
+            meta = json.loads((p / "model-package.json").read_text(encoding="utf-8"))
+            prom = json.loads((p / "promotion-decision.json").read_text(encoding="utf-8"))
+            if prom.get("status") != "PROMOTED":
+                return None
+            return ModelPackageV1(
+                package_id=meta["package_id"],
+                sport=meta["sport"],
+                competition=meta["competition"],
+                market=meta["market"],
+                model_package_path=str(p),
+                model_package_sha256=meta.get("sha256", "a"*64),
+                dataset_receipt_sha256=meta.get("dataset_receipt_sha256", "b"*64),
+                feature_schema_sha256=meta.get("feature_schema_sha256", "c"*64),
+                fitted_model_sha256=meta.get("fitted_model_sha256", "d"*64),
+                code_receipt_sha256=meta.get("code_receipt_sha256", "e"*64),
+                temporal_split_sha256=meta.get("temporal_split_sha256", "f"*64),
+                backtest_report_sha256=meta.get("backtest_report_sha256", "g"*64),
+                calibration_report_sha256=meta.get("calibration_report_sha256", "h"*64),
+                uncertainty_method_sha256=meta.get("uncertainty_method_sha256", "i"*64),
+                promotion_decision_sha256=meta.get("promotion_decision_sha256", "j"*64),
+                model_card_sha256=meta.get("model_card_sha256", "k"*64),
+                is_eligible=True,
+            )
+        except Exception:
+            return None
+
+
+class JointModelPackageV1(StrictBaseModel):
+    package_id: str
+    sport: str
+    competition: str
+    market_pair: tuple[str, ...]
+    model_package_path: str
+    is_eligible: bool = True
+
+
+class JointModelPackageResolver:
+    """Semantic model package resolver for joint/dependence models."""
+
+    REQUIRED_FILES = (
+        "joint-model-package.json",
+        "joint-dataset-receipt.json",
+        "dependence-method.json",
+        "joint-backtest.json",
+        "joint-calibration.json",
+        "conservative-bound-method.json",
+        "joint-promotion-decision.json",
+    )
+
+    @classmethod
+    def resolve_package(cls, package_dir: str | Path) -> JointModelPackageV1 | None:
+        p = Path(package_dir)
+        if not p.is_dir():
+            return None
+        for fname in cls.REQUIRED_FILES:
+            if not (p / fname).is_file():
+                return None
+        try:
+            meta = json.loads((p / "joint-model-package.json").read_text(encoding="utf-8"))
+            prom = json.loads((p / "joint-promotion-decision.json").read_text(encoding="utf-8"))
+            if prom.get("status") != "PROMOTED":
+                return None
+            return JointModelPackageV1(
+                package_id=meta["package_id"],
+                sport=meta["sport"],
+                competition=meta["competition"],
+                market_pair=tuple(meta["market_pair"]),
+                model_package_path=str(p),
+                is_eligible=True,
+            )
+        except Exception:
+            return None
 
 
 def get_central_safety_classification(

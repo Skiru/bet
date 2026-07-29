@@ -44,39 +44,12 @@ class PlaywrightBaseClient(BaseAPIClient):
         self._browser = None
 
     def _ensure_browser(self):
-        """Lazy-init Playwright browser."""
-        if self._browser is not None:
-            return
-        try:
-            from playwright.sync_api import sync_playwright
-            self._playwright = sync_playwright().start()
-            self._browser = self._playwright.chromium.launch(
-                headless=True, args=BROWSER_ARGS,
-            )
-        except Exception as e:
-            logger.error(f"[{self.api_name.capitalize()}] Failed to launch browser: {e}")
-            raise APIError(f"{self.api_name.capitalize()} browser launch failed: {e}")
+        """Lazy-init Playwright browser - permanently disabled in production."""
+        raise RuntimeError("BROWSER_AUTOMATION_DISABLED: Playwright browser automation is permanently disabled in production pipeline")
 
     def _new_page(self):
         """Create a new stealth page with random UA."""
-        try:
-            from playwright_stealth import Stealth
-        except ImportError:
-            Stealth = None
-
-        ctx = self._browser.new_context(
-            user_agent=random.choice(USER_AGENTS),
-            viewport={"width": 1920, "height": 1080},
-            locale="en-GB",
-        )
-        try:
-            page = ctx.new_page()
-            if Stealth:
-                Stealth().apply_stealth_sync(page)
-            return ctx, page
-        except Exception:
-            ctx.close()
-            raise
+        raise RuntimeError("BROWSER_AUTOMATION_DISABLED: Playwright browser automation is permanently disabled in production pipeline")
 
     def _dismiss_cookies(self, page):
         """Dismiss cookie consent banner if present."""

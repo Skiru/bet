@@ -122,3 +122,60 @@ def validate_no_multiplied_leg_odds(legs_odds: List[Decimal], combined_odds: Dec
             product *= odd
         if abs(combined_odds - product) < Decimal("0.0001"):
             raise ValueError("no Bet Builder combined odds can be synthesized by multiplying leg odds")
+
+
+def build_analytical_coupon(candidates: list[dict[str, Any]]) -> dict[str, Any]:
+    """Build unpriced analytical coupon without inventing odds, probabilities, or markets."""
+    return {
+        "status": "ANALYSIS_ONLY_OUTPUT",
+        "candidates_count": len(candidates),
+        "odds": None,
+        "probability": None,
+        "ready_for_human_gate": False,
+    }
+
+
+def validate_s8_ready_provenance(quote_card: dict[str, Any]) -> bool:
+    """Validate full model package provenance required for S8 READY status."""
+    if not isinstance(quote_card, dict):
+        return False
+    if quote_card.get("odds") is not None or quote_card.get("fair_decimal_odds") is not None:
+        model_pkg = quote_card.get("model_package_id")
+        pkg_sha = quote_card.get("model_package_sha256")
+        if not model_pkg or not pkg_sha:
+            return False
+    return True
+
+
+def build_s8_output(candidates: list[dict[str, Any]], model_package: Any = None) -> dict[str, Any]:
+    """Build S8 output pack. Forces ANALYSIS_ONLY_OUTPUT when model_package is missing."""
+    if model_package is None or getattr(model_package, "is_eligible", False) == False:
+        return {
+            "output_status": "ANALYSIS_ONLY_OUTPUT",
+            "ready_for_human_gate": False,
+            "quote_cards": candidates,
+            "pricing_status": "UNPRICED",
+        }
+    return {
+        "output_status": "READY_FOR_MANUAL_SUPERBET_QUOTE_REVIEW",
+        "ready_for_human_gate": True,
+        "quote_cards": candidates,
+        "pricing_status": "PRICED",
+    }
+
+
+def build_bet_builder_pack(candidates: list[dict[str, Any]], joint_model: Any = None) -> dict[str, Any]:
+    """Build Bet Builder pack. Rejects with NO_VERIFIED_JOINT_MODEL_SCOPE when joint model is missing."""
+    if joint_model is None or getattr(joint_model, "is_eligible", False) == False:
+        return {
+            "status": "REJECTED",
+            "rejection_reason": "NO_VERIFIED_JOINT_MODEL_SCOPE",
+            "combined_odds": None,
+            "combined_probability": None,
+            "candidates": candidates,
+        }
+    return {
+        "status": "READY",
+        "rejection_reason": None,
+        "candidates": candidates,
+    }

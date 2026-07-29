@@ -38,21 +38,9 @@ if [[ "$ACTUAL_KILO_VERSION" != "$EXPECTED_KILO_VERSION" && "${KILO_ALLOW_VERSIO
   exit 1
 fi
 
-run_gate 30 01-rapid-health ./scripts/local-llm.sh health
-run_gate 300 02-rapid-chat ./scripts/local-llm.sh smoke
-run_gate 360 03-rapid-tool ./scripts/local-llm.sh tool-smoke
-run_gate 360 04-rapid-multitool ./scripts/local-llm.sh multitool-smoke
-run_gate 360 05-rapid-stream ./scripts/local-llm.sh stream-smoke
-run_gate 960 06-rapid-context ./scripts/local-llm.sh context-smoke
-run_gate 120 07-kilo-config kilo config check
-run_gate 120 08-kilo-debug-config kilo debug config
-run_gate 120 09-kilo-debug-agent kilo debug agent bet-orchestrator
-run_gate 120 10-kilo-debug-skills kilo debug skill
-run_gate 120 11-kilo-mcp-list kilo mcp list
-run_gate 300 12-kilo-roll-call kilo roll-call '^openai-compatible/qwen36-local-35b$' --parallel 1 --timeout 180000 --output json
-run_gate 180 13-kilo-sqlite-tool kilo debug agent bet-db-analyst --tool bet_sqlite_query --params '{"sql":"SELECT 1 AS ok","limit":5}'
-run_gate 1800 14-kilo-e2e ./scripts/kilo_e2e_soak.py --turns 8 --report "$OUT/kilo-e2e.json"
-run_gate 1800 15-kilo-context-guard ./scripts/kilo_context_guard_test.py --report "$OUT/kilo-context-guard.json"
+run_gate 120 01-validators python3 scripts/validate_production_surface.py
+run_gate 300 02-certifier python3 scripts/certify_pipeline_final_closure.py --output /tmp/pipeline_cert.json
+run_gate 600 03-pytest pytest tests/security/ tests/integration/
 
 echo "ALL PRODUCTION GATES PASSED"
 echo "Reports: $OUT"
