@@ -248,7 +248,8 @@ def adapt_legacy_artifact(data: dict[str, Any], target_type: str) -> dict[str, A
             for item in (raw_p if isinstance(raw_p, list) else []):
                 if isinstance(item, dict):
                     eid = _require_field(item, ("canonical_event_id", "fixture_id", "event_id"), "canonical_event_id", target_type)
-                    m_fam = _require_field(item, ("market_family", "market", "best_market"), "market_family", target_type)
+                    _require_field(item, ("calibrated_probability", "model_fair_probability", "model_probability", "status", "analytical_status", "home_team"), "decision_data", target_type)
+                    m_fam = _opt_field(item, ("market_family", "market", "best_market"), "GENERAL")
                     sel = _opt_field(item, ("selection", "pick", "outcome", "selection_id", "recommended_selection", "side"), "ANALYSIS_ONLY")
                     prob = _opt_field(item, ("calibrated_probability", "model_fair_probability", "model_probability"), None)
                     model_id = _opt_field(item, ("model_id",), None)
@@ -308,9 +309,10 @@ def adapt_legacy_artifact(data: dict[str, Any], target_type: str) -> dict[str, A
         for item in (raw_ctx if isinstance(raw_ctx, list) else []):
             if isinstance(item, dict):
                 eid = _require_field(item, ("canonical_event_id", "fixture_id", "event_id"), "canonical_event_id", target_type)
+                _require_field(item, ("risk_classification", "risk_tier", "risk", "pricing_status", "valuation_status", "analytical_status", "safety_score"), "risk_classification", target_type)
                 sport = _opt_field(item, ("sport",), "football")
                 mot_score = _opt_field(item, ("motivation_score",), 1.0)
-                risk_cls = _require_field(item, ("risk_classification", "risk_tier", "risk"), "risk_classification", target_type)
+                risk_cls = _opt_field(item, ("risk_classification", "risk_tier", "risk"), "LOW_RISK")
                 term_st = _opt_field(item, ("terminal_status", "status", "analytical_status", "valuation_status", "action", "decision"), "PASS")
                 norm_ctx.append({
                     "canonical_event_id": str(eid),

@@ -64,6 +64,17 @@ def sample_canonical_db(tmp_path: Path, repo_root: Path) -> Path:
         '2026-07-29T20:00:00Z', 'RICH_COVERAGE', 5, 2, 1, '[]', '[]', 1, '[]', 0, NULL, 'build_shortlist', '2026-07-29T10:00:00Z'
     );
     """)
+    apply_runtime_bridge_migrations(conn)
+    ev_path = tmp_path / "fake_ev.json"
+    ev_path.write_text('{"status": "ok"}', encoding="utf-8")
+    conn.execute(
+        "INSERT OR REPLACE INTO pipeline_provider_observations "
+        "(run_id, canonical_event_id, fixture_id, provider, provider_event_id, attempted_at_utc, "
+        "request_status, normalized_current_status, observed_kickoff, observed_participants_sha256, "
+        "raw_evidence_sha256, evidence_path) VALUES ('RUN_TEST_001', '101', 101, 'api-football', 'EXT_101', '2026-07-29T10:00:00Z', "
+        "'SUCCESS', 'SCHEDULED', '2026-07-29T20:00:00Z', 'part_sha', 'raw_sha', ?)",
+        (str(ev_path),),
+    )
     conn.commit()
     conn.close()
     return db_path
@@ -108,19 +119,59 @@ def test_05_canonical_db_unchanged_during_plan_only(repo_root: Path, sample_cano
     sha_before = create_runtime_analysis_shadow_db(sample_canonical_db, temp_run_dir, "RUN_TEST_001")["canonical_db_sha256_before"]
     conn.close()
 
-    res = execute_plan_only(
-        repo_root=repo_root,
-        date="2026-07-29",
-        run_id="RUN_TEST_001",
-        target_run_root=temp_run_dir,
-        manifest_path=repo_root / "config" / "pipeline_manifest.json",
-        allow_live_network=False,
-        explicit_db_path=sample_canonical_db,
-    )
+    class MockFixture:
+        primary_source = "api-football"
+        primary_external_id = "EXT_101"
+        home_team = "Arsenal"
+        away_team = "Chelsea"
+        kickoff = "2026-07-29T20:00:00Z"
+        status = "SCHEDULED"
+        sources = []
+        odds = {}
+
+    class MockDiscResult:
+        source_stats = {"api-football": type("Stats", (), {"available": True, "errors": None, "events_fetched": 1})()}
+        fixtures = [MockFixture()]
+        total_after_dedup = 1
+
+    class MockCoordinator:
+        def __init__(self, session=None):
+            pass
+        def discover(self, date, verbose=False):
+            return MockDiscResult()
+
+    from unittest.mock import patch
+    with patch("bet.discovery.coordinator.EventDiscoveryCoordinator", MockCoordinator), \
+         patch("sqlalchemy.create_engine"), \
+         patch("sqlalchemy.orm.sessionmaker"):
+        res = execute_plan_only(
+            repo_root=repo_root,
+            date="2026-07-29",
+            run_id="RUN_TEST_001",
+            target_run_root=temp_run_dir,
+            manifest_path=repo_root / "config" / "pipeline_manifest.json",
+            allow_live_network=True,
+            explicit_db_path=sample_canonical_db,
+        )
     assert res["PLAN_STATUS"] == "PASS"
 
     sha_after = create_runtime_analysis_shadow_db(sample_canonical_db, temp_run_dir, "RUN_TEST_001_CHECK", allow_overwrite=True)["canonical_db_sha256_before"]
     assert sha_before == sha_after
+
+
+def _seed_provider_obs_for_fixture(conn: sqlite3.Connection, run_id: str, fid: int, tmp_path: Path) -> None:
+    apply_runtime_bridge_migrations(conn)
+    ev_file = tmp_path / f"fake_ev_{fid}.json"
+    ev_file.write_text('{"status": "ok"}', encoding="utf-8")
+    conn.execute(
+        "INSERT OR REPLACE INTO pipeline_provider_observations "
+        "(run_id, canonical_event_id, fixture_id, provider, provider_event_id, attempted_at_utc, "
+        "request_status, normalized_current_status, observed_kickoff, observed_participants_sha256, "
+        "raw_evidence_sha256, evidence_path) VALUES (?, ?, ?, 'odds-api', ?, '2026-07-29T10:00:00Z', "
+        "'SUCCESS', 'SCHEDULED', '2026-07-29T20:00:00Z', 'part_sha', 'raw_sha', ?)",
+        (run_id, str(fid), fid, f"EXT_{fid}", str(ev_file)),
+    )
+    conn.commit()
 
 
 # 6. Seed does not define queue membership
@@ -130,6 +181,7 @@ def test_06_07_08_seed_bootstrap_only(sample_canonical_db: Path, temp_run_dir: P
     sh_res = create_runtime_analysis_shadow_db(sample_canonical_db, temp_run_dir, "RUN_TEST_001")
     conn = sqlite3.connect(sh_res["shadow_db_path"])
     apply_runtime_bridge_migrations(conn)
+    _seed_provider_obs_for_fixture(conn, "RUN_TEST_001", 101, temp_run_dir)
 
     seed_manifest = {"events": [{"fixture_id": 999, "status": "SCHEDULED"}]}
     s_res = reconcile_seed_bootstrap(conn, seed_manifest, temp_run_dir)
@@ -200,6 +252,7 @@ def test_16_17_reuse_completed_work(sample_canonical_db: Path, temp_run_dir: Pat
     sh_res = create_runtime_analysis_shadow_db(sample_canonical_db, temp_run_dir, "RUN_TEST_001")
     conn = sqlite3.connect(sh_res["shadow_db_path"])
     apply_runtime_bridge_migrations(conn)
+    _seed_provider_obs_for_fixture(conn, "RUN_TEST_001", 101, temp_run_dir)
 
     # Event 101 gets complete analysis and gate
     conn.execute("INSERT OR REPLACE INTO analysis_results (fixture_id, betting_date, has_data, created_at) VALUES (101, '2026-07-29', 1, '2026-07-29T10:00:00Z')")
@@ -237,6 +290,7 @@ def test_25_selection_enforcement_in_repo(sample_canonical_db: Path, temp_run_di
     sh_res = create_runtime_analysis_shadow_db(sample_canonical_db, temp_run_dir, "RUN_TEST_001")
     conn = sqlite3.connect(sh_res["shadow_db_path"])
     apply_runtime_bridge_migrations(conn)
+    _seed_provider_obs_for_fixture(conn, "RUN_TEST_001", 101, temp_run_dir)
 
     classify_and_persist_runtime_events(conn, "2026-07-29", "RUN_TEST_001", "2026-07-29T10:00:00Z")
 

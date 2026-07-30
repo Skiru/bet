@@ -249,6 +249,11 @@ def main() -> None:
             expected_selection_ledger_sha256=args.selection_ledger_sha256,
             expected_plan_checkpoint_path=args.plan_checkpoint,
         )
+        if cont_res.get("status") == "BLOCKED" or cont_res.get("blocker") == "PLAN_REFRESH_REQUIRED":
+            print("STATUS=BLOCKED")
+            print("BLOCKER=PLAN_REFRESH_REQUIRED")
+            print(f"REASON={cont_res.get('reason')}")
+            sys.exit(1)
         shadow_db_path = cont_res["shadow_db_path"]
         os.environ["BET_DB_PATH"] = shadow_db_path
         os.environ["DATABASE_URL"] = f"sqlite:///{shadow_db_path}"

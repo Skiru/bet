@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import shutil
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -366,6 +367,8 @@ def test_s5_work_order_uses_canonical_existing_input_refs(tmp_path):
 
 def test_live_shadow_canonical_paths_stay_under_tmp_and_avoid_production_dirs():
     base_dir = Path("/tmp") / "bet-agent-block-contract-live-shadow"
+    shutil.rmtree(base_dir, ignore_errors=True)
+    _write_s5_prereqs(base_dir)
     work_order = build_agent_work_order(
         betting_day=BETTING_DAY,
         run_id=RUN_ID,

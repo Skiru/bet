@@ -968,6 +968,14 @@
     "expiry_or_review_policy": "PERMANENT_RETAINED_PRODUCTION"
   },
   {
+    "path": "scripts/build_v5_v7_3_delivery.py",
+    "category": "RETAINED_ENGINEERING",
+    "owner": "bet-executor",
+    "reason": "V7.3 delivery package build utility",
+    "references": [],
+    "expiry_or_review_policy": "PERMANENT_RETAINED_PRODUCTION"
+  },
+  {
     "path": "scripts/build_v5_v7_launch_bridge_delivery.py",
     "category": "RETAINED_ENGINEERING",
     "owner": "bet-executor",
@@ -8826,6 +8834,14 @@
     "category": "RETAINED_TEST",
     "owner": "bet-auditor",
     "reason": "V7.2 truthful live plan and continuation tests",
+    "references": [],
+    "expiry_or_review_policy": "PERMANENT_RETAINED_PRODUCTION"
+  },
+  {
+    "path": "tests/test_v7_3_provider_gate_and_continuation.py",
+    "category": "RETAINED_TEST",
+    "owner": "bet-auditor",
+    "reason": "V7.3 provider gating and continuation tests",
     "references": [],
     "expiry_or_review_policy": "PERMANENT_RETAINED_PRODUCTION"
   },

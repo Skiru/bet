@@ -23,9 +23,9 @@ from bet.pipeline.receipts import (
     get_git_tree_sha,
 )
 
-EXPECTED_START_HEAD = "f5bcba12c7135427255ca69dd28db4504af9a875"
-EXPECTED_START_TREE = "427725f7bbcd1872230731d25ce5125413be868f"
-EXPECTED_START_SOURCE_MANIFEST_SHA256 = "6a7aab9de436d4c269afc84518b51b9b4a0e8d2d0ea029818485e3b772fc3483"
+EXPECTED_START_HEAD = "20ee2145a82e9b88cf1e4a64a38d2f1d248b9487"
+EXPECTED_START_TREE = "8ba53fe9520cb95dfd0c15ebc22d1cc3efdcae1c"
+EXPECTED_START_SOURCE_MANIFEST_SHA256 = "b2a2f65109ecf5f6bd54a5c531d0ebbbbd3fa96df990e668c2dd04fead45d7b5"
 
 
 @dataclass
@@ -177,6 +177,26 @@ def apply_runtime_bridge_migrations(conn: sqlite3.Connection) -> None:
         ON pipeline_runtime_event_selection(run_id, decision);
     CREATE INDEX IF NOT EXISTS idx_pipeline_runtime_event_selection_date
         ON pipeline_runtime_event_selection(betting_date);
+
+    CREATE TABLE IF NOT EXISTS pipeline_provider_observations (
+        run_id TEXT NOT NULL,
+        canonical_event_id TEXT NOT NULL,
+        fixture_id INTEGER,
+        provider TEXT NOT NULL,
+        provider_event_id TEXT,
+        attempted_at_utc TEXT NOT NULL,
+        request_status TEXT NOT NULL,
+        normalized_current_status TEXT,
+        observed_kickoff TEXT,
+        observed_participants_sha256 TEXT,
+        raw_evidence_sha256 TEXT,
+        evidence_path TEXT,
+        failure_reason TEXT,
+        PRIMARY KEY(run_id, canonical_event_id, provider)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_pipeline_provider_obs_run_status
+        ON pipeline_provider_observations(run_id, request_status);
 
     CREATE TABLE IF NOT EXISTS pipeline_event_stage_state (
         canonical_event_id TEXT NOT NULL,
@@ -523,6 +543,7 @@ def reconcile_s1r_runtime_database(
     run_root: Path,
     runtime_now_iso: str,
     allow_live_network: bool,
+    run_id: str = "DEFAULT_RUN",
 ) -> dict[str, Any]:
     """Execute provider-backed S1R reconciliation against shadow DB.
 
@@ -533,6 +554,7 @@ def reconcile_s1r_runtime_database(
     evidence_dir = artifacts_dir / "s1r_evidence"
     evidence_dir.mkdir(parents=True, exist_ok=True)
 
+    apply_runtime_bridge_migrations(conn)
     cur = conn.cursor()
 
     providers_attempted = []
@@ -568,7 +590,8 @@ def reconcile_s1r_runtime_database(
                             provider_failures.append(src_name)
 
                     for mf in disc_res.fixtures:
-                        key_names = (mf.home_team.strip().lower(), mf.away_team.strip().lower(), mf.kickoff.isoformat())
+                        k_str = mf.kickoff.isoformat() if hasattr(mf.kickoff, "isoformat") else str(mf.kickoff)
+                        key_names = (mf.home_team.strip().lower(), mf.away_team.strip().lower(), k_str)
                         discovered_events_map[key_names] = mf
                         for src_ref in mf.sources:
                             discovered_events_map[(src_ref.source, src_ref.external_id)] = mf
@@ -688,6 +711,31 @@ def reconcile_s1r_runtime_database(
         with open(ev_file, "w", encoding="utf-8") as f:
             json.dump(ev_data, f, indent=2)
 
+        part_sha = hashlib.sha256(f"{ht_name.strip().lower()}:{at_name.strip().lower()}".encode("utf-8")).hexdigest()
+        cur.execute(
+            "INSERT OR REPLACE INTO pipeline_provider_observations ("
+            "run_id, canonical_event_id, fixture_id, provider, provider_event_id, "
+            "attempted_at_utc, request_status, normalized_current_status, "
+            "observed_kickoff, observed_participants_sha256, raw_evidence_sha256, "
+            "evidence_path, failure_reason"
+            ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                run_id,
+                str(fid),
+                fid,
+                source or "UNKNOWN",
+                ext_id or "",
+                runtime_now_iso,
+                req_status,
+                norm_status,
+                kickoff or "",
+                part_sha,
+                raw_sha,
+                str(ev_file),
+                fail_reason,
+            ),
+        )
+
     conn.commit()
 
     total_checked = len(rows)
@@ -734,6 +782,20 @@ def classify_and_persist_runtime_events(
     min_lead_td = datetime.timedelta(minutes=min_lead_minutes)
 
     cur = conn.cursor()
+    obs_rows = cur.execute(
+        "SELECT canonical_event_id, request_status, raw_evidence_sha256, evidence_path "
+        "FROM pipeline_provider_observations WHERE run_id = ?",
+        (run_id,),
+    ).fetchall()
+    obs_map = {
+        r[0]: {
+            "request_status": r[1],
+            "raw_evidence_sha256": r[2],
+            "evidence_path": r[3],
+        }
+        for r in obs_rows
+    }
+
     f_cols = [c[1] for c in cur.execute("PRAGMA table_info(fixtures)").fetchall()]
     has_source = "source" in f_cols
     if has_source:
@@ -835,6 +897,15 @@ def classify_and_persist_runtime_events(
             decision = "TIME_EXPIRED_UNCONFIRMED"
             reason = "Kickoff time passed without provider revalidation"
         else:
+            obs = obs_map.get(canonical_event_id)
+            has_provider_success = (
+                obs is not None
+                and obs["request_status"] == "SUCCESS"
+                and obs["raw_evidence_sha256"]
+                and len(obs["raw_evidence_sha256"]) > 0
+                and obs["evidence_path"]
+                and Path(obs["evidence_path"]).exists()
+            )
             if kickoff:
                 try:
                     k_dt = datetime.datetime.fromisoformat(kickoff.replace("Z", "+00:00"))
@@ -844,12 +915,15 @@ def classify_and_persist_runtime_events(
                     elif k_dt < now_dt + min_lead_td:
                         decision = "INSUFFICIENT_LEAD"
                         reason = f"Less than {min_lead_minutes} minutes to kickoff"
+                    elif not has_provider_success:
+                        decision = "PROVIDER_RECHECK_REQUIRED"
+                        reason = "Missing or failed current provider revalidation"
                     elif has_analysis and has_gate:
                         decision = "ALREADY_VALID_COMPLETE"
                         reason = "Fresh complete analysis and gate result exist in DB"
                     else:
                         decision = "ANALYZE_FROM_S2"
-                        reason = "Valid scheduled event ready for S2-S8 analysis"
+                        reason = "Valid scheduled event with confirmed provider evidence ready for S2-S8 analysis"
                 except Exception:
                     decision = "PROVIDER_RECHECK_REQUIRED"
                     reason = f"Invalid kickoff format: {kickoff}"
@@ -1069,11 +1143,28 @@ def execute_plan_only(
 
         # 4. Provider-backed S1R reconciliation
         s1r_res = reconcile_s1r_runtime_database(
-            conn, date, target_run_root, now_iso, allow_live_network=allow_live_network
+            conn, date, target_run_root, now_iso, allow_live_network=allow_live_network, run_id=run_id
         )
 
         # 5. DB-aware event classification
         class_counts = classify_and_persist_runtime_events(conn, date, run_id, now_iso)
+
+        # Verification query for selected events without provider success
+        unverified_selected = conn.execute(
+            "SELECT s.canonical_event_id "
+            "FROM pipeline_runtime_event_selection s "
+            "LEFT JOIN pipeline_provider_observations p "
+            "  ON s.run_id = p.run_id "
+            " AND s.canonical_event_id = p.canonical_event_id "
+            " AND p.request_status = 'SUCCESS' "
+            " AND p.raw_evidence_sha256 IS NOT NULL "
+            " AND LENGTH(p.raw_evidence_sha256) > 0 "
+            "WHERE s.run_id = ? "
+            "  AND s.decision = 'ANALYZE_FROM_S2' "
+            "  AND p.canonical_event_id IS NULL",
+            (run_id,),
+        ).fetchall()
+        selected_without_provider_success = len(unverified_selected)
 
         # 6. S1e projection
         universe_file, s1e_artifact, s1e_count, ledger_sha = project_run_s1e_universe(
@@ -1126,9 +1217,25 @@ def execute_plan_only(
     finally:
         conn.close()
 
-    plan_pass = accounting_exact and total_events > 0
-    plan_status = "PASS" if plan_pass else "BLOCKED"
-    ready_for_session = "YES" if plan_pass and class_counts["ANALYZE_FROM_S2"] > 0 else "NO"
+    plan_pass = (
+        accounting_exact
+        and total_events > 0
+        and selected_without_provider_success == 0
+        and class_counts["ANALYZE_FROM_S2"] <= s1r_res["provider_revalidated"]
+    )
+
+    if plan_pass and class_counts["ANALYZE_FROM_S2"] > 0 and s1r_res["provider_revalidated"] > 0 and allow_live_network:
+        ready_for_session = "YES"
+        decision_val = "READY_FOR_FINAL_INDEPENDENT_LAUNCH_REVIEW"
+        plan_status = "PASS"
+    elif plan_pass and class_counts["ANALYZE_FROM_S2"] == 0 and allow_live_network:
+        ready_for_session = "NO"
+        decision_val = "NO_CONFIRMED_ELIGIBLE_EVENTS"
+        plan_status = "PASS"
+    else:
+        ready_for_session = "NO"
+        decision_val = "BLOCKED_FOR_PROVIDER_DATA" if not allow_live_network or s1r_res["provider_revalidated"] == 0 else "BLOCKED_FOR_ENGINEERING"
+        plan_status = "BLOCKED"
 
     plan_checkpoint_payload = {
         "START_HEAD": preflight.head_sha,
@@ -1161,7 +1268,9 @@ def execute_plan_only(
         "INSUFFICIENT_LEAD": class_counts["INSUFFICIENT_LEAD"],
         "IDENTITY_CONFLICTS": class_counts["IDENTITY_CONFLICT"],
         "SETTLEMENT_REQUIRED": class_counts["SETTLEMENT_REQUIRED"],
+        "PROVIDER_RECHECK_REQUIRED": class_counts["PROVIDER_RECHECK_REQUIRED"],
         "ANALYZE_FROM_S2": class_counts["ANALYZE_FROM_S2"],
+        "SELECTED_EVENTS_WITHOUT_PROVIDER_SUCCESS": selected_without_provider_success,
         "SELECTION_LEDGER_SHA256": sel_ledger_sha,
         "RUNTIME_S1E_EVENT_COUNT": s1e_count,
         "RUNTIME_S1E_SELECTION_MATCH": "YES" if s1e_count == class_counts["ANALYZE_FROM_S2"] else "NO",
@@ -1169,6 +1278,7 @@ def execute_plan_only(
         "PLAN_STATUS": plan_status,
         "READY_FOR_BET_EXECUTOR_ANALYSIS_SESSION": ready_for_session,
         "READY_FOR_PRICED_COUPON_SESSION": "NO",
+        "DECISION": decision_val,
         "S9_HUMAN_ONLY": "PASS",
         "AUTOMATED_BET_PLACEMENT": "NO",
         "BOOKMAKER_LOGIN": "NO",
@@ -1232,30 +1342,43 @@ def verify_and_prepare_plan_continuation(
     try:
         cur = conn.cursor()
         sel_rows = cur.execute(
-            "SELECT s.fixture_id, f.kickoff, f.status "
+            "SELECT s.fixture_id, f.kickoff, f.status, p.request_status "
             "FROM pipeline_runtime_event_selection s "
             "JOIN fixtures f ON f.id = s.fixture_id "
+            "LEFT JOIN pipeline_provider_observations p ON p.run_id = s.run_id AND p.canonical_event_id = s.canonical_event_id "
             "WHERE s.run_id = ? AND s.decision = 'ANALYZE_FROM_S2'",
             (run_id,),
         ).fetchall()
 
-        for fid, kickoff, status in sel_rows:
+        queue_changed = False
+        change_reasons = []
+
+        for fid, kickoff, status, req_status in sel_rows:
+            status_upper = (status or "").upper()
+            if status_upper not in ("SCHEDULED", "CONFIRMED", "SCHED"):
+                queue_changed = True
+                change_reasons.append(f"Fixture {fid} status changed to {status_upper}")
+            if req_status != "SUCCESS":
+                queue_changed = True
+                change_reasons.append(f"Fixture {fid} lacks successful provider observation")
             if kickoff:
                 try:
                     k_dt = datetime.datetime.fromisoformat(kickoff.replace("Z", "+00:00"))
                     if k_dt <= now_dt:
-                        cur.execute(
-                            "UPDATE pipeline_runtime_event_selection SET decision = 'STARTED', reason = 'Kickoff passed before S2 execution' WHERE run_id = ? AND fixture_id = ?",
-                            (run_id, fid),
-                        )
-                        queue_updated = True
+                        queue_changed = True
+                        change_reasons.append(f"Fixture {fid} kickoff passed ({kickoff})")
                 except Exception:
                     pass
 
-        if queue_updated:
-            conn.commit()
-            date_str = target_run_root.parent.name
-            project_run_s1e_universe(conn, date_str, target_run_root, run_id)
+        if queue_changed:
+            return {
+                "status": "BLOCKED",
+                "blocker": "PLAN_REFRESH_REQUIRED",
+                "reason": "; ".join(change_reasons),
+                "shadow_db_path": str(shadow_db_path),
+                "selection_ledger_sha256": sel_sha,
+                "queue_updated_pre_s2": False,
+            }
 
         verify_and_write_stage_db_receipt(conn, "S2_CONTINUATION", run_id, target_run_root, sel_sha)
     finally:
