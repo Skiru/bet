@@ -233,6 +233,11 @@ unenriched. If that happened, say it: the fix is another run with a higher
 
 Per match, not per row. The operator thinks in matches.
 
+When the caller asks for the day's report file, **return the markdown body as
+your final text** -- you have no Write tool and must not try to acquire one. The
+caller saves it to `runs/<date>/<date>_analiza.md`. Sort every table by
+confidence (`p_low` x 100) descending; that is the operator's reading order.
+
 ```text
 DAY: <date>  RUN(S): <run_id(s)>  PIPELINE VERDICT: <OK|PARTIAL>
 POOL: <rows> rows / <n> matches analysed | <n> CALL, <n> LEAN, <n> WEAK, <n> dropped
