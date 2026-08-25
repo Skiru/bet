@@ -738,6 +738,13 @@ def fetch_highlightly_history(
     return outcome
 
 
+# Shortest token pairing that can anchor a team match on its own. Three, not
+# four: "Man Utd" / "Manchester United" abbreviates *every* token, so a 4+
+# floor rejects it, while the false positives this guard exists for are all
+# two-letter fragments ("sp" in "southampton", "be" in "barnsley").
+_SUBSTANTIVE_TOKEN_LEN = 3
+
+
 def _token_matches(one: str, two: str) -> bool:
     """Whether two team-name tokens denote the same word.
 
@@ -751,9 +758,17 @@ def _token_matches(one: str, two: str) -> bool:
     short, long = (one, two) if len(one) <= len(two) else (two, one)
     # Two-letter contractions are real and common ("Ulsan HD" for "Ulsan
     # Hyundai"). They are safe to accept here only because _team_matches
-    # additionally requires the pairing to be anchored by a substantive (4+
-    # char) token match, so "Botafogo-SP" still never matches "Botafogo RJ".
+    # additionally requires some pairing to be anchored on both sides by
+    # _SUBSTANTIVE_TOKEN_LEN characters, so "Botafogo-SP" still never matches
+    # "Botafogo RJ".
     if len(short) < 2:
+        return False
+    # A contraction keeps the word's first letter ("Utd"/"United",
+    # "Atl."/"Atletico", "Dep."/"Deportivo"). Without that anchor the
+    # subsequence test below accepts any short token whose letters merely
+    # appear in order somewhere inside the longer one -- "al" inside "basel",
+    # which is how every Saudi side of 2026-08-25 matched FC Basel's season.
+    if short[0] != long[0]:
         return False
     if long.startswith(short):
         return True
@@ -767,9 +782,17 @@ def _team_matches(one: str, two: str) -> bool:
     """Whether two normalized team names refer to the same team.
 
     Every token of the shorter name must match some token of the longer, and at
-    least one substantive (4+ char) token must be involved -- so "Real Betis"
+    least one pairing must be substantive on *both* sides -- so "Real Betis"
     matches "Betis" and "Manchester Utd" matches "Manchester United", while
     "Botafogo-SP" does not match "Botafogo RJ".
+
+    Measuring the anchor on both sides, rather than on either side, is what
+    stops a two-letter fragment from carrying a whole name: "sp" is a
+    subsequence of "southampton" and "be" (split off "Be'er" by the
+    apostrophe) of "barnsley", and with the anchor satisfied by the long side
+    alone those two counted as team identity. Shorter tokens can still
+    participate in a pairing -- "Ulsan HD" matches "Ulsan Hyundai" on "Ulsan"
+    -- they just cannot be the only thing holding the match together.
     """
     if not one or not two:
         return False
@@ -782,7 +805,7 @@ def _team_matches(one: str, two: str) -> bool:
         partner = next((other for other in long if _token_matches(token, other)), None)
         if partner is None:
             return False
-        if len(token) >= 4 or len(partner) >= 4:
+        if min(len(token), len(partner)) >= _SUBSTANTIVE_TOKEN_LEN:
             matched_substantive = True
     return matched_substantive
 
@@ -836,12 +859,39 @@ def _is_recent(match_date: str) -> bool:
 # country-name match adds 0.6, so any genuine country-qualified hit clears this
 # comfortably, while a merely similar-sounding league in an unrelated country
 # ("La Liga" -> Argentina's "Liga A", ratio 0.72) does not.
+#
+# This number is a filter, not a guarantee, and it is deliberately not being
+# raised. Name distance cannot separate "Saudi Pro League" from Switzerland's
+# "Super League" (0.786) or Belgium's "Pro League" (0.769) -- every threshold
+# that excludes one admits the other. What actually keeps foreign-league
+# history out is _league_fields_either_team, which checks the resolved season's
+# participants instead of its label.
 _COMPETITION_MATCH_THRESHOLD = 0.75
+
+
+# Letters that NFKD does not decompose into base + combining mark, so the
+# [^a-z0-9] strip below would delete them outright: "Bodo/Glimt" spelled with
+# the Norwegian slashed o folded to "bod glimt", and that three-letter remnant
+# then matched "Brentford".
+_TRANSLITERATIONS = str.maketrans(
+    {
+        "\u00f8": "o", "\u00d8": "o",    # o-slash   (Bodo/Glimt, Aalesund)
+        "\u00e6": "ae", "\u00c6": "ae",  # ae
+        "\u0153": "oe", "\u0152": "oe",  # oe
+        "\u00df": "ss",                  # sharp s
+        "\u0111": "d", "\u0110": "d",    # d-stroke  (Dinamo Zagreb rosters)
+        "\u00f0": "d", "\u00d0": "d",    # eth
+        "\u0142": "l", "\u0141": "l",    # l-stroke  (Legia, Lech Poznan)
+        "\u0131": "i", "\u0130": "i",    # dotless/dotted i (Turkish sides)
+        "\u00fe": "th", "\u00de": "th",  # thorn
+    }
+)
 
 
 def _fold(text: str) -> str:
     """Lowercase, strip diacritics and punctuation: "Brazil Série B" -> "brazil serie b"."""
-    decomposed = unicodedata.normalize("NFKD", text or "")
+    translated = (text or "").translate(_TRANSLITERATIONS)
+    decomposed = unicodedata.normalize("NFKD", translated)
     ascii_only = "".join(ch for ch in decomposed if not unicodedata.combining(ch))
     return " ".join(re.sub(r"[^a-z0-9]+", " ", ascii_only.lower()).split())
 
@@ -920,6 +970,45 @@ def _sportdb_season_results(client: Any, competition: str, season: str) -> list[
             with _SPORTDB_SEASON_CACHE_LOCK:
                 _SPORTDB_SEASON_CACHE[cache_key] = rows
         return rows
+
+
+def _league_fields_either_team(rows: list[dict], target: str, other: str) -> bool | None:
+    """Whether either side of today's fixture actually appears in the season
+    results that were resolved for it. ``None`` means the question could not be
+    asked, because no row carried a readable team name.
+
+    This is the check that catches a mis-resolved competition, and the point of
+    it is that it never looks at the league's *name*. On 2026-08-25
+    "Saudi Pro League" scored 0.786 against Switzerland's "Super League" -- the
+    Swiss top flight is called literally that -- and every Saudi event of the
+    day was served FC Basel's season as history. Raising
+    _COMPETITION_MATCH_THRESHOLD does not close that: 0.80 still admits
+    Belgium's "Pro League" at 0.769, and every new threshold buys one more
+    collision. Asking the resolved season whether it contains either of the two
+    teams cannot be tuned around, because it consults the data rather than the
+    label.
+
+    Either side suffices, not both: in the opening weeks of a season -- and
+    whenever _season_candidates has fallen back to the previous one -- a newly
+    promoted side legitimately has no rows yet, and rejecting the league over
+    that would discard good data.
+    """
+    saw_any_name = False
+    for row in rows:
+        for side in ("homeName", "awayName"):
+            name = _normalize_team_name(str(row.get(side) or ""))
+            if not name:
+                continue
+            saw_any_name = True
+            if _team_matches(name, target):
+                return True
+            if other and _team_matches(name, other):
+                return True
+    # No row carried a readable team name at all. That is a payload-shape
+    # change (the normalizer already has to cope with homeName vs home_name),
+    # not evidence about which league this is, and reporting it as "wrong
+    # league" would send the next reader looking in the wrong place.
+    return None if not saw_any_name else False
 
 
 def fetch_sportdb_match(
@@ -1140,6 +1229,24 @@ def fetch_sportdb_history(
 
     target = _normalize_team_name(team_name)
     other = _normalize_team_name(opponent_name)
+
+    # No data beats data from the wrong league. A silent wrong-league dossier
+    # is worse than BLOCKED: on 2026-08-25 it produced the four most confident
+    # rows of the whole sheet.
+    fields_either = _league_fields_either_team(rows, target, other)
+    if fields_either is None:
+        outcome.data_gaps.append(
+            f"sportdb: season results for '{competition}' carry no readable "
+            "team names -- payload shape changed, cannot verify the league"
+        )
+        return outcome
+    if not fields_either:
+        outcome.data_gaps.append(
+            f"sportdb: resolved competition '{competition}' fields neither "
+            f"'{team_name}' nor '{opponent_name}' -- wrong league, discarded"
+        )
+        return outcome
+
     matches = []
     for row in rows:
         home = _normalize_team_name(str(row.get("homeName") or ""))

@@ -6,8 +6,10 @@ APIs, verified live on 2026-08-25.
 """
 import pytest
 
+from bet.simple_stats import providers
 from bet.simple_stats.providers import (
     _combine_stats,
+    _league_fields_either_team,
     _flat_from_dict_stats,
     _normalize_team_name,
     _parse_sportdb_number,
@@ -139,3 +141,142 @@ def test_season_candidates_cover_span_and_calendar_year_leagues():
     assert candidates[0] == "2026-2027"
     assert "2025-2026" in candidates  # Flashscore's current season can lag
     assert "2026" in candidates       # calendar-year leagues
+
+
+@pytest.mark.parametrize(
+    "one,two",
+    [
+        # 2026-08-25: SportDB resolved "Saudi Pro League" to Switzerland's
+        # "Super League" (name ratio 0.786, over the 0.75 gate) and the team
+        # filter then failed to reject it, because "basel" contains "a" then
+        # "l" in order and _token_matches read that as a contraction of "Al-".
+        ("Al-Taawoun", "Basel"),
+        ("Al-Fayha", "FC Basel"),
+        ("Al-Khaleej", "Basel"),
+        # Same shape, other direction: no shared first letter, no match.
+        ("Al-Hilal", "Thun"),
+    ],
+)
+def test_team_matching_rejects_letters_that_merely_appear_in_order(one, two):
+    assert _team_matches(_normalize_team_name(one), _normalize_team_name(two)) is False
+
+
+# Two real Swiss Super League rows from 2026-08-25, exactly as
+# flashscore_get_competition_results returned them, plus the Saudi fixture that
+# was wrongly served them.
+_SWISS_SEASON_ROWS = [
+    {
+        "eventId": "4OCMUGc4",
+        "homeName": "Basel",
+        "awayName": "Zurich",
+        "eventStage": "FINISHED",
+        "startDateTimeUtc": "2026-08-22T18:30:00.000Z",
+    },
+    {
+        "eventId": "KGGZJaqn",
+        "homeName": "Basel",
+        "awayName": "Thun",
+        "eventStage": "FINISHED",
+        "startDateTimeUtc": "2026-08-09T14:30:00.000Z",
+    },
+]
+
+
+def test_wrong_league_season_is_rejected_by_its_participants():
+    """The league gate must not depend on name distance: no threshold separates
+    "Saudi Pro League" from Switzerland's "Super League"."""
+    assert (
+        _league_fields_either_team(
+            _SWISS_SEASON_ROWS,
+            _normalize_team_name("Al-Taawoun"),
+            _normalize_team_name("Al-Fayha"),
+        )
+        is False
+    )
+
+
+def test_right_league_season_is_accepted_from_one_side_alone():
+    """Either side suffices -- a promoted team with no rows yet must not veto an
+    otherwise correct league."""
+    rows = [
+        {
+            "eventId": "x1",
+            "homeName": "Al-Taawoun",
+            "awayName": "Al-Nassr",
+            "eventStage": "FINISHED",
+            "startDateTimeUtc": "2026-08-18T16:00:00.000Z",
+        }
+    ]
+    assert (
+        _league_fields_either_team(
+            rows, _normalize_team_name("Al-Fayha"), _normalize_team_name("Al-Taawoun")
+        )
+        is True
+    )
+
+
+def test_history_from_a_wrong_league_is_a_data_gap_not_observations(monkeypatch):
+    """End to end: a mis-resolved competition yields zero observations and an
+    explicit data_gap. On 2026-08-25 it instead yielded the four highest-p_low
+    rows in the artifact."""
+    monkeypatch.setattr(
+        providers, "_sportdb_season_results", lambda *a, **k: _SWISS_SEASON_ROWS
+    )
+    monkeypatch.setattr(providers, "SportDBMCPShadowAdapter", lambda *a, **k: object())
+
+    def _must_not_be_called(*args, **kwargs):
+        raise AssertionError("per-match stats were fetched for a rejected league")
+
+    monkeypatch.setattr(providers, "fetch_sportdb_match", _must_not_be_called)
+
+    outcome = providers.fetch_sportdb_history(
+        "Al-Taawoun", "Al-Fayha", "Saudi Pro League", "2026-2027", mode="l10"
+    )
+
+    assert outcome.metrics == {}
+    assert any("wrong league" in gap for gap in outcome.data_gaps), outcome.data_gaps
+
+
+@pytest.mark.parametrize(
+    "one,two",
+    [
+        # A two- or three-letter fragment used to anchor a whole name, because
+        # the substantive-token rule accepted 4+ chars on either side. All four
+        # of these are real names from the 2026-08-25 slate.
+        ("Botafogo-SP", "Southampton"),      # "sp" is a subsequence of "southampton"
+        ("Barnsley", "Hapoel Be'er Sheva"),  # the apostrophe splits off "be"
+        ("Brentford", "Hapoel Be'er Sheva"),
+        ("Bodø/Glimt", "Brentford"),         # folding dropped the o-slash: "bod"
+    ],
+)
+def test_short_fragments_cannot_anchor_a_team_identity(one, two):
+    assert _team_matches(_normalize_team_name(one), _normalize_team_name(two)) is False
+
+
+@pytest.mark.parametrize(
+    "one,two",
+    [
+        ("Ulsan Hyundai", "Ulsan HD"),   # short token still participates...
+        ("Manchester United", "Man Utd"),
+        ("FC Seoul", "Seoul"),
+        ("Bodø/Glimt", "Bodo/Glimt"),    # ...and o-slash still folds to "o"
+        ("Lech Poznań", "Lech Poznan"),
+        ("Legia Warszawa", "Legia Warsaw"),
+    ],
+)
+def test_tightening_keeps_genuine_abbreviations(one, two):
+    assert _team_matches(_normalize_team_name(one), _normalize_team_name(two)) is True
+
+
+def test_letters_nfkd_cannot_decompose_are_transliterated_not_dropped():
+    """"Bodø" folded to "bod", and that remnant matched unrelated clubs."""
+    assert _normalize_team_name("Bodø/Glimt") == "bodo glimt"
+    assert _normalize_team_name("Łódź") == "lodz"
+    assert _normalize_team_name("Beşiktaş") == "besiktas"
+
+
+def test_unreadable_season_payload_is_not_blamed_on_the_league():
+    """A key rename in the payload is a payload problem. Reporting it as the
+    wrong league would send the next reader to the resolver."""
+    rows = [{"eventId": "x", "home_name": "Al-Taawoun", "away_name": "Al-Nassr"}]
+    assert _league_fields_either_team(rows, "al taawoun", "al nassr") is None

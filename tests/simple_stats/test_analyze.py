@@ -2,6 +2,7 @@
 from bet.stats.market_ranking import STANDARD_MARKET_LINES
 
 from bet.simple_stats.analyze import (
+    _all_values,
     _cross_provider_agreement,
     analyze_dossier,
     compute_hit_rate,
@@ -279,3 +280,63 @@ def test_the_sheet_is_unchanged_when_no_signal_is_passed(tmp_path):
             k: v for k, v in b.items() if k != "tipster"
         }
         assert a["tipster"] is None
+
+
+def test_one_match_counts_once_across_overlapping_buckets():
+    """A league fixture the two sides already played this season sits in
+    team_a's last-10, team_b's last-10 and h2h. Counted once per bucket it
+    tripled sample_size, and sample_size is what _confidence reads."""
+    def pv(match_id, value, provider="sportdb"):
+        return ProviderValue(
+            provider=provider, match_id=match_id, match_date="2026-02-01",
+            opponent="Real Betis", value=value,
+            observed_at="2026-02-01T00:00:00+00:00",
+        )
+
+    obs = MetricObservation(
+        canonical_name="corners_total",
+        team_a_l10=[pv("A1", 8.0), pv("H2H1", 12.0)],
+        team_b_l10=[pv("B1", 7.0), pv("H2H1", 12.0)],
+        h2h=[pv("H2H1", 12.0)],
+    )
+
+    values = _all_values(obs)
+    assert [v.match_id for v in values] == ["A1", "H2H1", "B1"]
+    assert sum(1 for v in values if v.match_id == "H2H1") == 1
+
+
+def test_two_providers_on_the_same_match_both_survive_dedup():
+    """Cross-provider corroboration is the point of the pipeline; dedup keys on
+    (provider, match_id) precisely so it is not destroyed."""
+    def pv(provider, value):
+        return ProviderValue(
+            provider=provider, match_id="M1", match_date="2026-02-01",
+            opponent="Real Betis", value=value,
+            observed_at="2026-02-01T00:00:00+00:00",
+        )
+
+    obs = MetricObservation(
+        canonical_name="corners_total",
+        team_a_l10=[pv("sportdb", 9.0)],
+        team_b_l10=[pv("espn-football", 9.0)],
+        h2h=[],
+    )
+    values = _all_values(obs)
+    assert {v.provider for v in values} == {"sportdb", "espn-football"}
+    assert _cross_provider_agreement("corners_total", values) == "AGREE"
+
+
+def test_observations_without_a_match_id_are_never_collapsed():
+    """No id means no proof they are the same match, so all of them are kept."""
+    def pv(value):
+        return ProviderValue(
+            provider="api-football", match_id="", match_date="2026-02-01",
+            opponent="Real Betis", value=value,
+            observed_at="2026-02-01T00:00:00+00:00",
+        )
+
+    obs = MetricObservation(
+        canonical_name="corners_total",
+        team_a_l10=[pv(8.0), pv(8.0)], team_b_l10=[pv(8.0)], h2h=[],
+    )
+    assert len(_all_values(obs)) == 3

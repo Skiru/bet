@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from bet.api_clients.rate_limiter import RateLimiter
 
@@ -142,10 +142,40 @@ def _compute_readiness(sport: Sport, metrics: dict[str, MetricObservation]) -> s
     return "PARTIAL"
 
 
+# A fixture already under way cannot be backed pre-match, and one kicking off
+# in three minutes will be off the board before its dossier is written, so the
+# buffer treats both the same.
+_KICKOFF_BUFFER = timedelta(minutes=5)
+
+
+def _has_started(event: EventRecord, now: datetime) -> bool:
+    """Whether ``event`` is past kickoff, or inside the pre-kickoff buffer.
+
+    ``start_time`` is an offset-aware ISO string in EVENT_LIST_V1
+    ("2026-08-25T16:10:00+00:00"); a naive one is read as UTC rather than
+    raising on the comparison. An unparseable one counts as *not* started: a
+    format we have not seen must not quietly demote every event at once.
+    """
+    try:
+        parsed = datetime.fromisoformat(event.start_time)
+    except (TypeError, ValueError):
+        return False
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed <= now + _KICKOFF_BUFFER
+
+
 def _dossier_for_event(
-    event: EventRecord, buckets: dict[str, FetchOutcome]
+    event: EventRecord, buckets: dict[str, FetchOutcome], now: datetime | None = None
 ) -> EventDossierV1:
     data_gaps: list[str] = []
+    # Deprioritizing started events only helps when a cap is in force. Under a
+    # generous cap, or none, they are enriched normally and reach the stats
+    # sheet looking exactly like a bettable row, so the dossier has to say
+    # otherwise -- the whole point of the cap fix is that these are not
+    # backable pre-match.
+    if now is not None and _has_started(event, now):
+        data_gaps.append("kickoff already passed: not bettable pre-match")
     data_gaps.extend(f"team_a: {g}" for g in buckets["team_a"].data_gaps)
     data_gaps.extend(f"team_b: {g}" for g in buckets["team_b"].data_gaps)
     data_gaps.extend(f"h2h: {g}" for g in buckets["h2h"].data_gaps)
@@ -172,14 +202,31 @@ def _dossier_for_event(
     )
 
 
-def _enrichment_priority(event: EventRecord) -> tuple[int, str]:
+def _enrichment_priority(event: EventRecord, now: datetime) -> tuple[int, int, str]:
     """Order events best-corroborated-first, so a capped run spends its
     provider budget on the events most likely to reach READY: identity
     CONFIRMED by two sources beats a single-source FUZZY_MATCHED one, and an
-    event whose Highlightly native ids were captured beats one without."""
+    event whose Highlightly native ids were captured beats one without.
+
+    Kickoff outranks corroboration. When no event is CONFIRMED and none carries
+    native ids -- the normal case, every event FUZZY_MATCHED -- the
+    corroboration term is the same constant for all of them and the sort
+    collapses to "earliest kickoff wins", which is exactly backwards under a
+    cap. On 2026-08-25 that sent three of five slots to K League fixtures whose
+    kickoff was 86 minutes before the run finished, while Valencia - Real
+    Betis, Bodo/Glimt - NEC and LASK - Celtic came back BLOCKED on the cap.
+
+    Started events are pushed behind the cap rather than dropped from ACTIVE,
+    so a run over a past date (a backfill or a re-analysis) still enriches
+    everything it is given.
+    """
     confirmed = 0 if event.identity_confidence == "CONFIRMED" else 1
     has_native_ids = 0 if event.provider_team_ids else 1
-    return (confirmed + has_native_ids, event.start_time)
+    return (
+        1 if _has_started(event, now) else 0,
+        confirmed + has_native_ids,
+        event.start_time,
+    )
 
 
 def enrich_events(
@@ -201,10 +248,11 @@ def enrich_events(
     rate_limiter = rate_limiter or RateLimiter()
     run_budget = RunBudget(limit=provider_call_budget)
     active_events = [e for e in event_list.events if e.status == "ACTIVE"]
+    now = datetime.now(timezone.utc)
 
     skipped: list[EventRecord] = []
     if max_events is not None and len(active_events) > max_events:
-        active_events.sort(key=_enrichment_priority)
+        active_events.sort(key=lambda e: _enrichment_priority(e, now))
         active_events, skipped = active_events[:max_events], active_events[max_events:]
 
     per_event: dict[str, dict[str, FetchOutcome]] = {
@@ -223,7 +271,9 @@ def enrich_events(
                 outcome = FetchOutcome(data_gaps=[f"{task.provider}: unhandled error: {exc}"])
             per_event[task.event.event_id][task.slot].merge(outcome)
 
-    dossiers = [_dossier_for_event(event, per_event[event.event_id]) for event in active_events]
+    dossiers = [
+        _dossier_for_event(event, per_event[event.event_id], now) for event in active_events
+    ]
 
     for event in event_list.events:
         if event.status == "BLOCKED_IDENTITY":
@@ -244,7 +294,14 @@ def enrich_events(
                 sport=event.sport,
                 metrics={},
                 readiness="BLOCKED",
-                data_gaps=[f"not enriched: run capped at {max_events} events"],
+                data_gaps=[
+                    f"not enriched: run capped at {max_events} events"
+                    + (
+                        " (kickoff already passed, deprioritized: not bettable pre-match)"
+                        if _has_started(event, now)
+                        else ""
+                    )
+                ],
             )
         )
 

@@ -78,7 +78,33 @@ def compute_hit_rate(values: list[float], line: float, direction: str) -> tuple[
 
 
 def _all_values(obs) -> list[ProviderValue]:
-    return [*obs.team_a_l10, *obs.team_b_l10, *obs.h2h]
+    """Every observation for one metric, each historical match counted once.
+
+    The three buckets overlap by construction. A league fixture the two sides
+    already played this season is in team_a's last-10 *and* team_b's last-10
+    *and* h2h, so before deduplication one match contributed three values to
+    sample_size, hit_rate, mean and median -- and sample_size is exactly what
+    _confidence reads to award HIGH (>=8) or LOW (<5). A 4-match sample read
+    as 12 is not a rounding error, it is a confidence tier bought with
+    duplicates.
+
+    The key is (provider, match_id), not match_id: two providers reporting the
+    same match is the corroboration that _cross_provider_agreement exists to
+    check, and must survive. Observations with no match_id are all kept, since
+    without an id there is nothing to prove they are the same match.
+    """
+    seen: set[tuple[str, str]] = set()
+    unique: list[ProviderValue] = []
+    for pv in (*obs.team_a_l10, *obs.team_b_l10, *obs.h2h):
+        if not pv.match_id:
+            unique.append(pv)
+            continue
+        key = (pv.provider, pv.match_id)
+        if key in seen:
+            continue
+        seen.add(key)
+        unique.append(pv)
+    return unique
 
 
 def _cross_provider_agreement(metric: str, observations: list[ProviderValue]) -> str:

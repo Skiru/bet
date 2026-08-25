@@ -5,6 +5,7 @@ tests/fixtures/reports/football_data_foundation/live_response_corpus (Norway
 vs Senegal, WC 2026) instead of hand-written mocks.
 """
 import json
+from datetime import datetime, timezone
 from pathlib import Path
 
 import bet.simple_stats.enrich as enrich_module
@@ -125,3 +126,87 @@ def test_blocked_identity_event_carried_through_as_blocked_dossier():
     assert "evt-blocked" in ids
     assert ids["evt-blocked"].readiness == "BLOCKED"
     assert "conflicting start_time" in ids["evt-blocked"].data_gaps[0]
+
+
+def _event(event_id: str, start_time: str, **overrides) -> EventRecord:
+    return EventRecord(
+        event_id=event_id,
+        sport="football",
+        competition=overrides.pop("competition", "Test League"),
+        home_team=overrides.pop("home_team", f"{event_id} home"),
+        away_team=overrides.pop("away_team", f"{event_id} away"),
+        start_time=start_time,
+        source_ids={},
+        identity_confidence=overrides.pop("identity_confidence", "FUZZY_MATCHED"),
+        status="ACTIVE",
+        **overrides,
+    )
+
+
+def test_started_events_sort_behind_upcoming_ones_under_a_cap():
+    """2026-08-25: three of five slots went to K League fixtures that kicked off
+    at 10:30 UTC while the run ended at 11:56, and Valencia - Real Betis (19:00)
+    came back BLOCKED on the cap. Every event was FUZZY_MATCHED with no native
+    ids, so the old (confirmed + has_native_ids, start_time) key was a constant
+    followed by start_time: earliest kickoff won."""
+    now = datetime(2026, 8, 25, 11, 56, tzinfo=timezone.utc)
+    kicked_off = _event("k-league", "2026-08-25T10:30:00+00:00")
+    imminent = _event("imminent", "2026-08-25T11:58:00+00:00")
+    later = _event("valencia", "2026-08-25T19:00:00+00:00")
+    evening = _event("lask", "2026-08-25T19:00:00+00:00")
+
+    ordered = sorted(
+        [kicked_off, imminent, later, evening],
+        key=lambda e: enrich_module._enrichment_priority(e, now),
+    )
+
+    # Both 19:00 events share a sort key, so their relative order is just
+    # sorted()'s stability -- what matters is that neither started event
+    # outranks them.
+    assert {e.event_id for e in ordered[:2]} == {"lask", "valencia"}
+    assert {e.event_id for e in ordered[2:]} == {"k-league", "imminent"}
+
+
+def test_corroboration_still_orders_events_with_the_same_kickoff_state():
+    now = datetime(2026, 8, 25, 11, 56, tzinfo=timezone.utc)
+    fuzzy = _event("fuzzy", "2026-08-25T19:00:00+00:00")
+    confirmed = _event(
+        "confirmed",
+        "2026-08-25T19:00:00+00:00",
+        identity_confidence="CONFIRMED",
+        provider_team_ids={"highlightly": {"home": "1", "away": "2"}},
+    )
+
+    ordered = sorted(
+        [fuzzy, confirmed], key=lambda e: enrich_module._enrichment_priority(e, now)
+    )
+    assert [e.event_id for e in ordered] == ["confirmed", "fuzzy"]
+
+
+def test_unparseable_start_time_is_not_treated_as_started():
+    """A start_time format we have not seen must not demote every event at once."""
+    now = datetime(2026, 8, 25, 11, 56, tzinfo=timezone.utc)
+    assert enrich_module._has_started(_event("bad", "not-a-timestamp"), now) is False
+    assert enrich_module._has_started(_event("naive", "2026-08-25T10:30:00"), now) is True
+
+
+def test_started_event_dropped_by_the_cap_says_why(monkeypatch):
+    monkeypatch.setattr(enrich_module, "fetch_provider_team_metrics", lambda *a, **kw: FetchOutcome())
+    monkeypatch.setattr(enrich_module, "fetch_provider_h2h_metrics", lambda *a, **kw: FetchOutcome())
+    monkeypatch.setattr(enrich_module, "fetch_highlightly_history", lambda *a, **kw: FetchOutcome())
+    monkeypatch.setattr(enrich_module, "fetch_sportdb_history", lambda *a, **kw: FetchOutcome())
+
+    past = _event("past", "2000-01-01T10:30:00+00:00")
+    future = _event("future", "2999-01-01T19:00:00+00:00")
+    event_list = EventListV1(
+        generated_at="x", date="2026-08-25", sports=["football"], events=[past, future]
+    )
+
+    dossiers = {d.event_id: d for d in enrich_events(event_list, max_events=1).dossiers}
+
+    # The upcoming event keeps the single slot; the started one is BLOCKED with
+    # a reason that names the cause, never silently dropped.
+    assert dossiers["past"].readiness == "BLOCKED"
+    gap = dossiers["past"].data_gaps[0]
+    assert "run capped at 1 events" in gap
+    assert "kickoff already passed" in gap
