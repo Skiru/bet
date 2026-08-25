@@ -1,0 +1,1053 @@
+{
+  "schema": "SPORTDB_COMPETITION_MAP_V1",
+  "purpose": [
+    "Pin discovery's competition names to Flashscore's structured refs, so",
+    "resolving a league is a lookup instead of a SequenceMatcher guess.",
+    "",
+    "'country' and 'expect_teams' are asserted knowledge, hand-authored: a",
+    "league's country never changes and its member clubs are stable for years.",
+    "'refs' and 'verification' are NOT hand-authored -- they are written by",
+    "scripts/simple/build_sportdb_competition_map.py, which enumerates that",
+    "country's real competitions and keeps the one whose real season results",
+    "contain at least two of the expected clubs.",
+    "",
+    "So the assertion comes from knowledge and the proof comes from the",
+    "provider's own data. Name similarity is used only to decide which",
+    "candidates to try first; it never decides which one is written. An entry",
+    "with no 'verification' block is a to-do, not a pin, and the runtime",
+    "ignores it."
+  ],
+  "competitions": {
+    "saudi pro league": {
+      "display_name": "Saudi Pro League",
+      "country": "Saudi Arabia",
+      "kind": "league",
+      "flashscore_names": [
+        "Saudi Professional League",
+        "Saudi Pro League"
+      ],
+      "expect_teams": [
+        "Al-Hilal",
+        "Al-Nassr",
+        "Al-Ittihad",
+        "Al-Ahli",
+        "Al-Taawoun",
+        "Al-Fayha"
+      ],
+      "refs": {
+        "sport": "football",
+        "country_slug": "saudi-arabia",
+        "country_id": 165,
+        "competition_slug": "saudi-professional-league",
+        "competition_id": "tUxUbLR2"
+      },
+      "verification": {
+        "flashscore_name": "Saudi Professional League",
+        "flashscore_country": "Saudi Arabia",
+        "season": "2026-2027",
+        "matched_teams": [
+          "Al-Hilal",
+          "Al-Nassr",
+          "Al-Ittihad",
+          "Al-Ahli",
+          "Al-Taawoun",
+          "Al-Fayha"
+        ],
+        "verified_on": "2026-08-25"
+      }
+    },
+    "k league 1": {
+      "display_name": "K League 1",
+      "country": "South Korea",
+      "kind": "league",
+      "flashscore_names": [
+        "K League 1"
+      ],
+      "expect_teams": [
+        "Ulsan Hyundai",
+        "Jeonbuk Motors",
+        "FC Seoul",
+        "Pohang Steelers",
+        "Gangwon"
+      ],
+      "refs": {
+        "sport": "football",
+        "country_slug": "south-korea",
+        "country_id": 106,
+        "competition_slug": "k-league-1",
+        "competition_id": "0IDCJLlH"
+      },
+      "verification": {
+        "flashscore_name": "K League 1",
+        "flashscore_country": "South Korea",
+        "season": "2026",
+        "matched_teams": [
+          "Ulsan Hyundai",
+          "Jeonbuk Motors",
+          "FC Seoul",
+          "Pohang Steelers",
+          "Gangwon"
+        ],
+        "verified_on": "2026-08-25"
+      }
+    },
+    "efl cup": {
+      "display_name": "EFL Cup",
+      "country": "England",
+      "kind": "cup",
+      "flashscore_names": [
+        "EFL Cup",
+        "League Cup"
+      ],
+      "expect_teams": [
+        "Manchester United",
+        "Liverpool",
+        "Arsenal",
+        "Chelsea",
+        "Everton",
+        "Newcastle"
+      ],
+      "refs": {
+        "sport": "football",
+        "country_slug": "england",
+        "country_id": 198,
+        "competition_slug": "efl-cup",
+        "competition_id": "OMT80ou8"
+      },
+      "verification": {
+        "flashscore_name": "EFL Cup",
+        "flashscore_country": "England",
+        "season": "2025-2026",
+        "matched_teams": [
+          "Manchester United",
+          "Liverpool",
+          "Arsenal",
+          "Chelsea",
+          "Everton",
+          "Newcastle"
+        ],
+        "verified_on": "2026-08-25"
+      }
+    },
+    "fa cup": {
+      "display_name": "FA Cup",
+      "country": "England",
+      "kind": "cup",
+      "flashscore_names": [
+        "FA Cup"
+      ],
+      "expect_teams": [
+        "Manchester United",
+        "Liverpool",
+        "Arsenal",
+        "Chelsea",
+        "Tottenham",
+        "Aston Villa"
+      ],
+      "refs": {
+        "sport": "football",
+        "country_slug": "england",
+        "country_id": 198,
+        "competition_slug": "fa-cup",
+        "competition_id": "lYQtaqPQ"
+      },
+      "verification": {
+        "flashscore_name": "FA Cup",
+        "flashscore_country": "England",
+        "season": "2025-2026",
+        "matched_teams": [
+          "Manchester United",
+          "Liverpool",
+          "Arsenal",
+          "Chelsea",
+          "Tottenham",
+          "Aston Villa"
+        ],
+        "verified_on": "2026-08-25"
+      }
+    },
+    "premier league": {
+      "display_name": "Premier League",
+      "country": "England",
+      "kind": "league",
+      "flashscore_names": [
+        "Premier League"
+      ],
+      "expect_teams": [
+        "Arsenal",
+        "Liverpool",
+        "Manchester City",
+        "Chelsea",
+        "Tottenham",
+        "Newcastle"
+      ],
+      "refs": {
+        "sport": "football",
+        "country_slug": "england",
+        "country_id": 198,
+        "competition_slug": "premier-league",
+        "competition_id": "dYlOSQOD"
+      },
+      "verification": {
+        "flashscore_name": "Premier League",
+        "flashscore_country": "England",
+        "season": "2026-2027",
+        "matched_teams": [
+          "Arsenal",
+          "Liverpool",
+          "Manchester City",
+          "Chelsea",
+          "Tottenham",
+          "Newcastle"
+        ],
+        "verified_on": "2026-08-25"
+      }
+    },
+    "championship": {
+      "display_name": "Championship",
+      "country": "England",
+      "kind": "league",
+      "flashscore_names": [
+        "Championship"
+      ],
+      "expect_teams": [
+        "Leeds United",
+        "Norwich",
+        "Middlesbrough",
+        "Coventry",
+        "Millwall",
+        "Swansea"
+      ],
+      "refs": {
+        "sport": "football",
+        "country_slug": "england",
+        "country_id": 198,
+        "competition_slug": "championship",
+        "competition_id": "2DSCa5fE"
+      },
+      "verification": {
+        "flashscore_name": "Championship",
+        "flashscore_country": "England",
+        "season": "2026-2027",
+        "matched_teams": [
+          "Norwich",
+          "Middlesbrough",
+          "Millwall",
+          "Swansea"
+        ],
+        "verified_on": "2026-08-25"
+      }
+    },
+    "la liga": {
+      "display_name": "LaLiga",
+      "country": "Spain",
+      "kind": "league",
+      "flashscore_names": [
+        "LaLiga",
+        "La Liga"
+      ],
+      "expect_teams": [
+        "Real Madrid",
+        "Barcelona",
+        "Atletico Madrid",
+        "Sevilla",
+        "Valencia",
+        "Real Betis"
+      ],
+      "refs": {
+        "sport": "football",
+        "country_slug": "spain",
+        "country_id": 176,
+        "competition_slug": "laliga",
+        "competition_id": "QVmLl54o"
+      },
+      "verification": {
+        "flashscore_name": "LaLiga",
+        "flashscore_country": "Spain",
+        "season": "2026-2027",
+        "matched_teams": [
+          "Real Madrid",
+          "Barcelona",
+          "Atletico Madrid",
+          "Sevilla",
+          "Valencia",
+          "Real Betis"
+        ],
+        "verified_on": "2026-08-25"
+      }
+    },
+    "serie a": {
+      "display_name": "Serie A",
+      "country": "Italy",
+      "kind": "league",
+      "flashscore_names": [
+        "Serie A"
+      ],
+      "expect_teams": [
+        "Juventus",
+        "Inter",
+        "Milan",
+        "Napoli",
+        "Roma",
+        "Lazio"
+      ],
+      "refs": {
+        "sport": "football",
+        "country_slug": "italy",
+        "country_id": 98,
+        "competition_slug": "serie-a",
+        "competition_id": "COuk57Ci"
+      },
+      "verification": {
+        "flashscore_name": "Serie A",
+        "flashscore_country": "Italy",
+        "season": "2026-2027",
+        "matched_teams": [
+          "Juventus",
+          "Inter",
+          "Milan",
+          "Napoli",
+          "Roma",
+          "Lazio"
+        ],
+        "verified_on": "2026-08-25"
+      }
+    },
+    "bundesliga": {
+      "display_name": "Bundesliga",
+      "country": "Germany",
+      "kind": "league",
+      "flashscore_names": [
+        "Bundesliga"
+      ],
+      "expect_teams": [
+        "Bayern Munich",
+        "Borussia Dortmund",
+        "Bayer Leverkusen",
+        "RB Leipzig",
+        "Stuttgart",
+        "Freiburg"
+      ],
+      "refs": {
+        "sport": "football",
+        "country_slug": "germany",
+        "country_id": 81,
+        "competition_slug": "bundesliga",
+        "competition_id": "W6BOzpK2"
+      },
+      "verification": {
+        "flashscore_name": "Bundesliga",
+        "flashscore_country": "Germany",
+        "season": "2025-2026",
+        "matched_teams": [
+          "Bayern Munich",
+          "Borussia Dortmund",
+          "Bayer Leverkusen",
+          "RB Leipzig",
+          "Stuttgart",
+          "Freiburg"
+        ],
+        "verified_on": "2026-08-25"
+      }
+    },
+    "ligue 1": {
+      "display_name": "Ligue 1",
+      "country": "France",
+      "kind": "league",
+      "flashscore_names": [
+        "Ligue 1"
+      ],
+      "expect_teams": [
+        "Paris Saint-Germain",
+        "Marseille",
+        "Lyon",
+        "Monaco",
+        "Lille",
+        "Nice"
+      ],
+      "refs": {
+        "sport": "football",
+        "country_slug": "france",
+        "country_id": 77,
+        "competition_slug": "ligue-1",
+        "competition_id": "KIShoMk3"
+      },
+      "verification": {
+        "flashscore_name": "Ligue 1",
+        "flashscore_country": "France",
+        "season": "2026-2027",
+        "matched_teams": [
+          "Paris Saint-Germain",
+          "Marseille",
+          "Lyon",
+          "Monaco",
+          "Lille",
+          "Nice"
+        ],
+        "verified_on": "2026-08-25"
+      }
+    },
+    "eredivisie": {
+      "display_name": "Eredivisie",
+      "country": "Netherlands",
+      "kind": "league",
+      "flashscore_names": [
+        "Eredivisie"
+      ],
+      "expect_teams": [
+        "Ajax",
+        "PSV Eindhoven",
+        "Feyenoord",
+        "AZ Alkmaar",
+        "Twente",
+        "Utrecht"
+      ],
+      "refs": {
+        "sport": "football",
+        "country_slug": "netherlands",
+        "country_id": 139,
+        "competition_slug": "eredivisie",
+        "competition_id": "Or1bBrWD"
+      },
+      "verification": {
+        "flashscore_name": "Eredivisie",
+        "flashscore_country": "Netherlands",
+        "season": "2026-2027",
+        "matched_teams": [
+          "Ajax",
+          "PSV Eindhoven",
+          "Feyenoord",
+          "AZ Alkmaar",
+          "Twente",
+          "Utrecht"
+        ],
+        "verified_on": "2026-08-25"
+      }
+    },
+    "primeira liga": {
+      "display_name": "Primeira Liga",
+      "country": "Portugal",
+      "kind": "league",
+      "flashscore_names": [
+        "Liga Portugal",
+        "Primeira Liga"
+      ],
+      "expect_teams": [
+        "Benfica",
+        "Porto",
+        "Sporting Lisbon",
+        "Braga",
+        "Vitoria Guimaraes",
+        "Boavista"
+      ],
+      "refs": {
+        "sport": "football",
+        "country_slug": "portugal",
+        "country_id": 155,
+        "competition_slug": "liga-portugal",
+        "competition_id": "UmMRoGzp"
+      },
+      "verification": {
+        "flashscore_name": "Liga Portugal",
+        "flashscore_country": "Portugal",
+        "season": "2026-2027",
+        "matched_teams": [
+          "Benfica",
+          "Porto",
+          "Braga",
+          "Vitoria Guimaraes"
+        ],
+        "verified_on": "2026-08-25"
+      }
+    },
+    "super lig": {
+      "display_name": "Super Lig",
+      "country": "Turkey",
+      "kind": "league",
+      "flashscore_names": [
+        "Super Lig"
+      ],
+      "expect_teams": [
+        "Galatasaray",
+        "Fenerbahce",
+        "Besiktas",
+        "Trabzonspor",
+        "Basaksehir",
+        "Konyaspor"
+      ],
+      "refs": {
+        "sport": "football",
+        "country_slug": "turkey",
+        "country_id": 191,
+        "competition_slug": "super-lig",
+        "competition_id": "Opdcd08Q"
+      },
+      "verification": {
+        "flashscore_name": "Super Lig",
+        "flashscore_country": "Turkey",
+        "season": "2026-2027",
+        "matched_teams": [
+          "Galatasaray",
+          "Fenerbahce",
+          "Besiktas",
+          "Trabzonspor",
+          "Basaksehir",
+          "Konyaspor"
+        ],
+        "verified_on": "2026-08-25"
+      }
+    },
+    "ekstraklasa": {
+      "display_name": "Ekstraklasa",
+      "country": "Poland",
+      "kind": "league",
+      "flashscore_names": [
+        "Ekstraklasa"
+      ],
+      "expect_teams": [
+        "Legia Warszawa",
+        "Lech Poznan",
+        "Rakow Czestochowa",
+        "Jagiellonia",
+        "Pogon Szczecin",
+        "Cracovia"
+      ],
+      "refs": {
+        "sport": "football",
+        "country_slug": "poland",
+        "country_id": 154,
+        "competition_slug": "ekstraklasa",
+        "competition_id": "lrMHUHDc"
+      },
+      "verification": {
+        "flashscore_name": "Ekstraklasa",
+        "flashscore_country": "Poland",
+        "season": "2026-2027",
+        "matched_teams": [
+          "Legia Warszawa",
+          "Lech Poznan",
+          "Rakow Czestochowa",
+          "Jagiellonia",
+          "Pogon Szczecin",
+          "Cracovia"
+        ],
+        "verified_on": "2026-08-25"
+      }
+    },
+    "allsvenskan": {
+      "display_name": "Allsvenskan",
+      "country": "Sweden",
+      "kind": "league",
+      "flashscore_names": [
+        "Allsvenskan"
+      ],
+      "expect_teams": [
+        "Malmo FF",
+        "AIK",
+        "Djurgarden",
+        "Hammarby",
+        "IFK Goteborg",
+        "Elfsborg"
+      ],
+      "refs": {
+        "sport": "football",
+        "country_slug": "sweden",
+        "country_id": 181,
+        "competition_slug": "allsvenskan",
+        "competition_id": "nXxWpLmT"
+      },
+      "verification": {
+        "flashscore_name": "Allsvenskan",
+        "flashscore_country": "Sweden",
+        "season": "2026",
+        "matched_teams": [
+          "Malmo FF",
+          "AIK",
+          "Djurgarden",
+          "Hammarby",
+          "IFK Goteborg",
+          "Elfsborg"
+        ],
+        "verified_on": "2026-08-25"
+      }
+    },
+    "superettan": {
+      "display_name": "Superettan",
+      "country": "Sweden",
+      "kind": "league",
+      "flashscore_names": [
+        "Superettan"
+      ],
+      "expect_teams": [
+        "Landskrona",
+        "Orebro",
+        "Osters IF",
+        "Trelleborg",
+        "Helsingborg",
+        "Umea"
+      ],
+      "refs": {
+        "sport": "football",
+        "country_slug": "sweden",
+        "country_id": 181,
+        "competition_slug": "superettan",
+        "competition_id": "bBIP6pm3"
+      },
+      "verification": {
+        "flashscore_name": "Superettan",
+        "flashscore_country": "Sweden",
+        "season": "2026",
+        "matched_teams": [
+          "Landskrona",
+          "Orebro",
+          "Osters IF",
+          "Helsingborg"
+        ],
+        "verified_on": "2026-08-25"
+      }
+    },
+    "eliteserien": {
+      "display_name": "Eliteserien",
+      "country": "Norway",
+      "kind": "league",
+      "flashscore_names": [
+        "Eliteserien"
+      ],
+      "expect_teams": [
+        "Bodo/Glimt",
+        "Molde",
+        "Rosenborg",
+        "Brann",
+        "Viking",
+        "Lillestrom"
+      ],
+      "refs": {
+        "sport": "football",
+        "country_slug": "norway",
+        "country_id": 145,
+        "competition_slug": "eliteserien",
+        "competition_id": "GOvB22xg"
+      },
+      "verification": {
+        "flashscore_name": "Eliteserien",
+        "flashscore_country": "Norway",
+        "season": "2026",
+        "matched_teams": [
+          "Bodo/Glimt",
+          "Molde",
+          "Rosenborg",
+          "Brann",
+          "Viking",
+          "Lillestrom"
+        ],
+        "verified_on": "2026-08-25"
+      }
+    },
+    "brazil serie a": {
+      "display_name": "Brazil Serie A",
+      "country": "Brazil",
+      "kind": "league",
+      "flashscore_names": [
+        "Serie A Betano",
+        "Serie A"
+      ],
+      "expect_teams": [
+        "Flamengo",
+        "Palmeiras",
+        "Corinthians",
+        "Sao Paulo",
+        "Gremio",
+        "Internacional"
+      ],
+      "refs": {
+        "sport": "football",
+        "country_slug": "brazil",
+        "country_id": 39,
+        "competition_slug": "serie-a-betano",
+        "competition_id": "Yq4hUnzQ"
+      },
+      "verification": {
+        "flashscore_name": "Serie A Betano",
+        "flashscore_country": "Brazil",
+        "season": "2026",
+        "matched_teams": [
+          "Flamengo",
+          "Palmeiras",
+          "Corinthians",
+          "Sao Paulo",
+          "Gremio",
+          "Internacional"
+        ],
+        "verified_on": "2026-08-25"
+      }
+    },
+    "brazil serie b": {
+      "display_name": "Brazil Serie B",
+      "country": "Brazil",
+      "kind": "league",
+      "flashscore_names": [
+        "Serie B"
+      ],
+      "expect_teams": [
+        "Novorizontino",
+        "Chapecoense",
+        "Goias",
+        "Coritiba",
+        "Avai",
+        "Athletico-PR"
+      ],
+      "refs": {
+        "sport": "football",
+        "country_slug": "brazil",
+        "country_id": 39,
+        "competition_slug": "serie-b",
+        "competition_id": "vRtLP6rs"
+      },
+      "verification": {
+        "flashscore_name": "Serie B",
+        "flashscore_country": "Brazil",
+        "season": "2026",
+        "matched_teams": [
+          "Novorizontino",
+          "Goias",
+          "Coritiba",
+          "Avai",
+          "Athletico-PR"
+        ],
+        "verified_on": "2026-08-25"
+      }
+    },
+    "swiss super league": {
+      "display_name": "Swiss Super League",
+      "country": "Switzerland",
+      "kind": "league",
+      "flashscore_names": [
+        "Super League"
+      ],
+      "expect_teams": [
+        "Basel",
+        "Young Boys",
+        "Zurich",
+        "Lugano",
+        "Servette",
+        "St. Gallen"
+      ],
+      "refs": {
+        "sport": "football",
+        "country_slug": "switzerland",
+        "country_id": 182,
+        "competition_slug": "super-league",
+        "competition_id": "KAjTCI1l"
+      },
+      "verification": {
+        "flashscore_name": "Super League",
+        "flashscore_country": "Switzerland",
+        "season": "2026-2027",
+        "matched_teams": [
+          "Basel",
+          "Young Boys",
+          "Zurich",
+          "Lugano",
+          "Servette",
+          "St. Gallen"
+        ],
+        "verified_on": "2026-08-25"
+      }
+    },
+    "belgian pro league": {
+      "display_name": "Belgian Pro League",
+      "country": "Belgium",
+      "kind": "league",
+      "flashscore_names": [
+        "Jupiler Pro League",
+        "Pro League"
+      ],
+      "expect_teams": [
+        "Club Brugge",
+        "Anderlecht",
+        "Genk",
+        "Gent",
+        "Antwerp",
+        "Standard Liege"
+      ],
+      "refs": {
+        "sport": "football",
+        "country_slug": "belgium",
+        "country_id": 32,
+        "competition_slug": "jupiler-pro-league",
+        "competition_id": "dG2SqPrf"
+      },
+      "verification": {
+        "flashscore_name": "Jupiler Pro League",
+        "flashscore_country": "Belgium",
+        "season": "2026-2027",
+        "matched_teams": [
+          "Club Brugge",
+          "Anderlecht",
+          "Genk",
+          "Gent",
+          "Antwerp",
+          "Standard Liege"
+        ],
+        "verified_on": "2026-08-25"
+      }
+    },
+    "scottish premiership": {
+      "display_name": "Scottish Premiership",
+      "country": "Scotland",
+      "kind": "league",
+      "flashscore_names": [
+        "Premiership"
+      ],
+      "expect_teams": [
+        "Celtic",
+        "Rangers",
+        "Hearts",
+        "Hibernian",
+        "Aberdeen",
+        "Dundee United"
+      ],
+      "refs": {
+        "sport": "football",
+        "country_slug": "scotland",
+        "country_id": 199,
+        "competition_slug": "premiership",
+        "competition_id": "tGwiyvJ1"
+      },
+      "verification": {
+        "flashscore_name": "Premiership",
+        "flashscore_country": "Scotland",
+        "season": "2026-2027",
+        "matched_teams": [
+          "Celtic",
+          "Rangers",
+          "Hearts",
+          "Hibernian",
+          "Aberdeen",
+          "Dundee United"
+        ],
+        "verified_on": "2026-08-25"
+      }
+    },
+    "austrian bundesliga": {
+      "display_name": "Austrian Bundesliga",
+      "country": "Austria",
+      "kind": "league",
+      "flashscore_names": [
+        "Bundesliga"
+      ],
+      "expect_teams": [
+        "Red Bull Salzburg",
+        "Sturm Graz",
+        "Rapid Wien",
+        "Austria Wien",
+        "LASK",
+        "Wolfsberger AC"
+      ],
+      "refs": {
+        "sport": "football",
+        "country_slug": "austria",
+        "country_id": 25,
+        "competition_slug": "bundesliga",
+        "competition_id": "rJg7S7Me"
+      },
+      "verification": {
+        "flashscore_name": "Bundesliga",
+        "flashscore_country": "Austria",
+        "season": "2026-2027",
+        "matched_teams": [
+          "Red Bull Salzburg",
+          "Sturm Graz",
+          "LASK",
+          "Wolfsberger AC"
+        ],
+        "verified_on": "2026-08-25"
+      }
+    },
+    "j1 league": {
+      "display_name": "J1 League",
+      "country": "Japan",
+      "kind": "league",
+      "flashscore_names": [
+        "J1 League"
+      ],
+      "expect_teams": [
+        "Kawasaki Frontale",
+        "Yokohama F. Marinos",
+        "Kashima Antlers",
+        "Urawa Reds",
+        "Vissel Kobe",
+        "Gamba Osaka"
+      ],
+      "refs": {
+        "sport": "football",
+        "country_slug": "japan",
+        "country_id": 100,
+        "competition_slug": "j1-league",
+        "competition_id": "pAq4eRQ9"
+      },
+      "verification": {
+        "flashscore_name": "J1 League",
+        "flashscore_country": "Japan",
+        "season": "2026-2027",
+        "matched_teams": [
+          "Kawasaki Frontale",
+          "Yokohama F. Marinos",
+          "Kashima Antlers",
+          "Urawa Reds",
+          "Vissel Kobe",
+          "Gamba Osaka"
+        ],
+        "verified_on": "2026-08-25"
+      }
+    },
+    "mls": {
+      "display_name": "MLS",
+      "country": "USA",
+      "kind": "league",
+      "flashscore_names": [
+        "MLS"
+      ],
+      "expect_teams": [
+        "Inter Miami",
+        "LA Galaxy",
+        "Seattle Sounders",
+        "Atlanta United",
+        "Columbus Crew",
+        "Portland Timbers"
+      ],
+      "refs": {
+        "sport": "football",
+        "country_slug": "usa",
+        "country_id": 200,
+        "competition_slug": "mls",
+        "competition_id": "CQv5qrFt"
+      },
+      "verification": {
+        "flashscore_name": "MLS",
+        "flashscore_country": "USA",
+        "season": "2026",
+        "matched_teams": [
+          "Inter Miami",
+          "Seattle Sounders",
+          "Atlanta United",
+          "Columbus Crew",
+          "Portland Timbers"
+        ],
+        "verified_on": "2026-08-25"
+      }
+    },
+    "liga mx": {
+      "display_name": "Liga MX",
+      "country": "Mexico",
+      "kind": "league",
+      "flashscore_names": [
+        "Liga MX",
+        "Liga de Expansion MX"
+      ],
+      "expect_teams": [
+        "America",
+        "Guadalajara",
+        "Monterrey",
+        "Tigres UANL",
+        "Cruz Azul",
+        "Pumas UNAM"
+      ],
+      "refs": {
+        "sport": "football",
+        "country_slug": "mexico",
+        "country_id": 128,
+        "competition_slug": "liga-mx",
+        "competition_id": "bm2Vlsfl"
+      },
+      "verification": {
+        "flashscore_name": "Liga MX",
+        "flashscore_country": "Mexico",
+        "season": "2026-2027",
+        "matched_teams": [
+          "America",
+          "Guadalajara",
+          "Monterrey",
+          "Tigres UANL",
+          "Cruz Azul",
+          "Pumas UNAM"
+        ],
+        "verified_on": "2026-08-25"
+      }
+    },
+    "superliga": {
+      "display_name": "Danish Superliga",
+      "country": "Denmark",
+      "kind": "league",
+      "flashscore_names": [
+        "Superliga"
+      ],
+      "expect_teams": [
+        "FC Copenhagen",
+        "Midtjylland",
+        "Brondby",
+        "Nordsjaelland",
+        "Aarhus",
+        "Randers"
+      ],
+      "refs": {
+        "sport": "football",
+        "country_slug": "denmark",
+        "country_id": 63,
+        "competition_slug": "superliga",
+        "competition_id": "O6W7GIaF"
+      },
+      "verification": {
+        "flashscore_name": "Superliga",
+        "flashscore_country": "Denmark",
+        "season": "2026-2027",
+        "matched_teams": [
+          "FC Copenhagen",
+          "Midtjylland",
+          "Brondby",
+          "Nordsjaelland",
+          "Aarhus",
+          "Randers"
+        ],
+        "verified_on": "2026-08-25"
+      }
+    },
+    "super league greece": {
+      "display_name": "Super League Greece",
+      "country": "Greece",
+      "kind": "league",
+      "flashscore_names": [
+        "Super League 1",
+        "Super League"
+      ],
+      "expect_teams": [
+        "Olympiacos",
+        "PAOK",
+        "Panathinaikos",
+        "AEK Athens",
+        "Aris",
+        "OFI"
+      ],
+      "refs": {
+        "sport": "football",
+        "country_slug": "greece",
+        "country_id": 83,
+        "competition_slug": "super-league",
+        "competition_id": "d2pwJFHI"
+      },
+      "verification": {
+        "flashscore_name": "Super League",
+        "flashscore_country": "Greece",
+        "season": "2026-2027",
+        "matched_teams": [
+          "Olympiacos",
+          "PAOK",
+          "AEK Athens",
+          "Aris",
+          "OFI"
+        ],
+        "verified_on": "2026-08-25"
+      }
+    }
+  }
+}

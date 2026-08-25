@@ -14,10 +14,12 @@ STANDARD_MARKET_LINES markets are phrased (e.g. football "Corners Total").
 """
 from __future__ import annotations
 
+import json
 import logging
 import re
 import threading
 import unicodedata
+from pathlib import Path
 from difflib import SequenceMatcher
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -1090,6 +1092,31 @@ def _country_in_query(client: Any, query: str) -> dict | None:
     return best
 
 
+# Credit for a candidate whose own country name shares a whole word with the
+# query, when the full country name is absent so _country_in_query found
+# nothing. "Saudi Pro League" names its country by short form only, and the
+# search path was scoring the name alone: Switzerland's and China's "Super
+# League" both took 0.800 while the correct "Saudi Professional League"
+# (country "Saudi Arabia") came third at 0.757.
+#
+# Sized to break ties between plausible candidates, not to promote implausible
+# ones: closing that particular gap needs 0.05, and at 0.10 a genuinely weak
+# 0.55 match still lands at 0.65 and is still rejected. A larger bonus would
+# start lifting wrong-competition-right-country hits ("Saudi Super Cup" for
+# "Saudi Pro League") over the threshold.
+_PARTIAL_COUNTRY_BONUS = 0.10
+
+
+def _shares_country_token(query: str, country_name: str) -> bool:
+    """Whether the query and a candidate's country name share a substantive
+    whole word ("saudi" from "Saudi Arabia"). Whole tokens only, no fuzz: this
+    is meant to read a country the query already names, not to guess one."""
+    if not country_name:
+        return False
+    country_tokens = {t for t in country_name.split() if len(t) >= 4}
+    return bool(country_tokens & set(query.split()))
+
+
 def _ref_candidate(item: dict, query: str, country_name: str) -> tuple[float, dict[str, Any]] | None:
     """Score one competition candidate against the query, returning
     (score, structured refs) or None if its link cannot be parsed."""
@@ -1110,6 +1137,8 @@ def _ref_candidate(item: dict, query: str, country_name: str) -> tuple[float, di
     score = SequenceMatcher(None, bare_query.replace(" ", ""), name.replace(" ", "")).ratio()
     if country_hit:
         score += 0.6
+    elif _shares_country_token(query, country_name):
+        score += _PARTIAL_COUNTRY_BONUS
 
     try:
         country_id_value: Any = int(country_id)
@@ -1124,10 +1153,53 @@ def _ref_candidate(item: dict, query: str, country_name: str) -> tuple[float, di
     }
 
 
+_COMPETITION_MAP_PATH = (
+    Path(__file__).resolve().parents[3] / "config" / "sportdb_competition_map.json"
+)
+_COMPETITION_MAP_CACHE: dict[str, dict[str, Any]] | None = None
+_COMPETITION_MAP_LOCK = threading.Lock()
+
+
+def _pinned_competition_map() -> dict[str, dict[str, Any]]:
+    """The verified entries of config/sportdb_competition_map.json, keyed by
+    folded competition name. Read once per process.
+
+    Only entries carrying both ``refs`` and a ``verification`` block are
+    returned: a seed with no verification is a to-do, and treating it as a pin
+    would be exactly the unproven guess the map exists to eliminate. A missing
+    or malformed file yields an empty map rather than raising -- config trouble
+    must degrade the resolver to its search path, not abort the run.
+    """
+    global _COMPETITION_MAP_CACHE
+    with _COMPETITION_MAP_LOCK:
+        if _COMPETITION_MAP_CACHE is not None:
+            return _COMPETITION_MAP_CACHE
+    pinned: dict[str, dict[str, Any]] = {}
+    try:
+        document = json.loads(_COMPETITION_MAP_PATH.read_text(encoding="utf-8"))
+        for key, entry in (document.get("competitions") or {}).items():
+            refs = entry.get("refs")
+            if isinstance(refs, dict) and entry.get("verification"):
+                pinned[_fold(key)] = refs
+    except (OSError, ValueError, AttributeError):
+        pinned = {}
+    with _COMPETITION_MAP_LOCK:
+        if _COMPETITION_MAP_CACHE is None:
+            _COMPETITION_MAP_CACHE = pinned
+        return _COMPETITION_MAP_CACHE
+
+
 def _sportdb_competition_refs(client: Any, competition: str) -> dict[str, Any] | None:
     """Resolve a free-text competition name to the structured refs
     flashscore_get_competition_results requires (sport / country_slug /
     country_id / competition_slug / competition_id).
+
+    config/sportdb_competition_map.json is consulted first and answers most
+    slates outright. Everything below it is the fallback for a league nobody
+    has pinned yet -- worth keeping, because an unpinned league should still
+    return data, but it is a guess and the map is not. To pin a new league, add
+    a seed there and run scripts/simple/build_sportdb_competition_map.py; do
+    not tune the scoring below to accommodate it.
 
     When the name carries a country ("La Liga - Spain", "Brazil Série B"), that
     country's full competition list is enumerated and matched deterministically;
@@ -1149,6 +1221,13 @@ def _sportdb_competition_refs(client: Any, competition: str) -> dict[str, Any] |
     query = _fold(competition)
     if not query:
         return None
+
+    # A pinned league is a lookup, not a guess: its refs were written only
+    # after that country's real season results were shown to contain clubs
+    # asserted by hand. Nothing fuzzy participates, and it costs no call.
+    pinned = _pinned_competition_map().get(query)
+    if pinned is not None:
+        return dict(pinned)
 
     candidates: list[tuple[dict, str]] = []
     country = _country_in_query(client, query)

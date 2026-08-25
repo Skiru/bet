@@ -1,0 +1,522 @@
+{
+  "endpoint": "/api/flashscore/search",
+  "source_status_code": 200,
+  "data": {
+    "query": "EFL Cup",
+    "results": [
+      {
+        "id": "OMT80ou8",
+        "url": "efl-cup",
+        "name": "EFL Cup",
+        "link": "/api/flashscore/football/england:198/efl-cup:OMT80ou8",
+        "gender": {
+          "id": 1,
+          "name": "Men"
+        },
+        "type": "competition",
+        "sport": {
+          "id": 1,
+          "name": "Soccer"
+        },
+        "country": {
+          "id": 198,
+          "name": "England",
+          "images": [
+            "https://static.flashscore.com/res/image/data/2yGc8QR6-fqCjSvcO.png",
+            "https://static.flashscore.com/res/image/data/dbF17psD-fqCjSvcO.png"
+          ],
+          "link": "/api/flashscore/football/england:198"
+        },
+        "images": [
+          "https://static.flashscore.com/res/image/data/jRNIWijD-AT39uKFC.png"
+        ]
+      },
+      {
+        "id": "dvo7eZkg",
+        "url": "president-cup",
+        "name": "President Cup",
+        "link": "/api/flashscore/football/indonesia:228/president-cup:dvo7eZkg",
+        "gender": {
+          "id": 1,
+          "name": "Men"
+        },
+        "type": "competition",
+        "sport": {
+          "id": 1,
+          "name": "Soccer"
+        },
+        "country": {
+          "id": 228,
+          "name": "Indonesia",
+          "images": [
+            "https://static.flashscore.com/res/image/data/K4xyf2P6-WhytsfHl.png",
+            "https://static.flashscore.com/res/image/data/lvsugMvD-WhytsfHl.png"
+          ],
+          "link": "/api/flashscore/football/indonesia:228"
+        },
+        "images": [
+          "https://static.flashscore.com/res/image/data/zqJYsXU1-Glicu3Uo.png"
+        ]
+      },
+      {
+        "id": "YTYRo1YM",
+        "url": "super-cup",
+        "name": "Super Cup",
+        "link": "/api/flashscore/football/spain:176/super-cup:YTYRo1YM",
+        "gender": {
+          "id": 1,
+          "name": "Men"
+        },
+        "type": "competition",
+        "sport": {
+          "id": 1,
+          "name": "Soccer"
+        },
+        "country": {
+          "id": 176,
+          "name": "Spain",
+          "images": [
+            "https://static.flashscore.com/res/image/data/QFbOpTR6-GtJBBjyH.png",
+            "https://static.flashscore.com/res/image/data/KxbSqmsD-GtJBBjyH.png"
+          ],
+          "link": "/api/flashscore/football/spain:176"
+        },
+        "images": [
+          "https://static.flashscore.com/res/image/data/0pkzmnU1-fcsAeSiF.png"
+        ]
+      },
+      {
+        "id": "AiiibTti",
+        "url": "super-cup",
+        "name": "Super Cup",
+        "link": "/api/flashscore/football/italy:98/super-cup:AiiibTti",
+        "gender": {
+          "id": 1,
+          "name": "Men"
+        },
+        "type": "competition",
+        "sport": {
+          "id": 1,
+          "name": "Soccer"
+        },
+        "country": {
+          "id": 98,
+          "name": "Italy",
+          "images": [
+            "https://static.flashscore.com/res/image/data/WjWDIeSN-rVunUrKK.png",
+            "https://static.flashscore.com/res/image/data/0QzIHFsU-rVunUrKK.png"
+          ],
+          "link": "/api/flashscore/football/italy:98"
+        },
+        "images": [
+          "https://static.flashscore.com/res/image/data/YPeMC9Tp-jsOA0PE1.png"
+        ]
+      },
+      {
+        "id": "YoSkIXsp",
+        "url": "fifa-club-world-cup",
+        "name": "FIFA Club World Cup",
+        "link": "/api/flashscore/football/world:8/fifa-club-world-cup:YoSkIXsp",
+        "gender": {
+          "id": 1,
+          "name": "Men"
+        },
+        "type": "competition",
+        "sport": {
+          "id": 1,
+          "name": "Soccer"
+        },
+        "country": {
+          "id": 8,
+          "name": "World",
+          "images": [
+            "https://static.flashscore.com/res/image/data/42RZve6e-zJyeJre4.png",
+            "https://static.flashscore.com/res/image/data/YyWwvFL1-zJyeJre4.png"
+          ],
+          "link": "/api/flashscore/football/world:8"
+        },
+        "images": [
+          "https://static.flashscore.com/res/image/data/GYrv8eC7-lAqBEeCk.png"
+        ]
+      },
+      {
+        "id": "xna99dEj",
+        "url": "uefa-super-cup",
+        "name": "UEFA Super Cup",
+        "link": "/api/flashscore/football/europe:6/uefa-super-cup:xna99dEj",
+        "gender": {
+          "id": 1,
+          "name": "Men"
+        },
+        "type": "competition",
+        "sport": {
+          "id": 1,
+          "name": "Soccer"
+        },
+        "country": {
+          "id": 6,
+          "name": "Europe",
+          "images": [
+            "https://static.flashscore.com/res/image/data/bkjl8NNk-nsHAw7sC.png",
+            "https://static.flashscore.com/res/image/data/6Fkh7swd-nsHAw7sC.png"
+          ],
+          "link": "/api/flashscore/football/europe:6"
+        },
+        "images": [
+          "https://static.flashscore.com/res/image/data/fu0jERU1-CxEfubKP.png"
+        ]
+      },
+      {
+        "id": "69Jb7MZL",
+        "url": "super-cup",
+        "name": "Super Cup",
+        "link": "/api/flashscore/football/france:77/super-cup:69Jb7MZL",
+        "gender": {
+          "id": 1,
+          "name": "Men"
+        },
+        "type": "competition",
+        "sport": {
+          "id": 1,
+          "name": "Soccer"
+        },
+        "country": {
+          "id": 77,
+          "name": "France",
+          "images": [
+            "https://static.flashscore.com/res/image/data/YwNQTQ7C-IqEa4ziS.png",
+            "https://static.flashscore.com/res/image/data/S0MUSpNI-IqEa4ziS.png"
+          ],
+          "link": "/api/flashscore/football/france:77"
+        },
+        "images": [
+          "https://static.flashscore.com/res/image/data/OWugmKVI-ILFiAMP5.png"
+        ]
+      },
+      {
+        "id": "AaJWovgK",
+        "url": "super-cup",
+        "name": "Super Cup",
+        "link": "/api/flashscore/football/turkey:191/super-cup:AaJWovgK",
+        "gender": {
+          "id": 1,
+          "name": "Men"
+        },
+        "type": "competition",
+        "sport": {
+          "id": 1,
+          "name": "Soccer"
+        },
+        "country": {
+          "id": 191,
+          "name": "Turkey",
+          "images": [
+            "https://static.flashscore.com/res/image/data/hSevcgP6-p4HXraP1.png",
+            "https://static.flashscore.com/res/image/data/nkerdDvD-p4HXraP1.png"
+          ],
+          "link": "/api/flashscore/football/turkey:191"
+        },
+        "images": [
+          "https://static.flashscore.com/res/image/data/E7B8z2Sp-I3pO0ATD.png"
+        ]
+      },
+      {
+        "id": "8bP2bXmH",
+        "url": "africa-cup-of-nations",
+        "name": "Africa Cup of Nations",
+        "link": "/api/flashscore/football/africa:1/africa-cup-of-nations:8bP2bXmH",
+        "gender": {
+          "id": 1,
+          "name": "Men"
+        },
+        "type": "competition",
+        "sport": {
+          "id": 1,
+          "name": "Soccer"
+        },
+        "country": {
+          "id": 1,
+          "name": "Africa",
+          "images": [
+            "https://static.flashscore.com/res/image/data/KfqTz3lI-4GlVZcl5.png",
+            "https://static.flashscore.com/res/image/data/n3CdJzJp-4GlVZcl5.png"
+          ],
+          "link": "/api/flashscore/football/africa:1"
+        },
+        "images": [
+          "https://static.flashscore.com/res/image/data/CIV7neDO-SbPEtXRu.png"
+        ]
+      },
+      {
+        "id": "GAHfHicj",
+        "url": "fifa-confederations-cup",
+        "name": "FIFA Confederations Cup",
+        "link": "/api/flashscore/football/world:8/fifa-confederations-cup:GAHfHicj",
+        "gender": {
+          "id": 1,
+          "name": "Men"
+        },
+        "type": "competition",
+        "sport": {
+          "id": 1,
+          "name": "Soccer"
+        },
+        "country": {
+          "id": 8,
+          "name": "World",
+          "images": [
+            "https://static.flashscore.com/res/image/data/42RZve6e-zJyeJre4.png",
+            "https://static.flashscore.com/res/image/data/YyWwvFL1-zJyeJre4.png"
+          ],
+          "link": "/api/flashscore/football/world:8"
+        },
+        "images": [
+          "https://static.flashscore.com/res/image/data/rkwbpoV1-O4g3SEWt.png"
+        ]
+      },
+      {
+        "id": "GCHgI4hp",
+        "url": "asian-cup",
+        "name": "Asian Cup",
+        "link": "/api/flashscore/football/asia:5/asian-cup:GCHgI4hp",
+        "gender": {
+          "id": 1,
+          "name": "Men"
+        },
+        "type": "competition",
+        "sport": {
+          "id": 1,
+          "name": "Soccer"
+        },
+        "country": {
+          "id": 5,
+          "name": "Asia",
+          "images": [
+            "https://static.flashscore.com/res/image/data/xQbjqKrp-nqILux7r.png",
+            "https://static.flashscore.com/res/image/data/6a3frvbj-nqILux7r.png"
+          ],
+          "link": "/api/flashscore/football/asia:5"
+        },
+        "images": [
+          "https://static.flashscore.com/res/image/data/ddUCmSmd-ENVz5ibT.png"
+        ]
+      },
+      {
+        "id": "bHJMFqJE",
+        "url": "super-cup",
+        "name": "Super Cup",
+        "link": "/api/flashscore/football/germany:81/super-cup:bHJMFqJE",
+        "gender": {
+          "id": 1,
+          "name": "Men"
+        },
+        "type": "competition",
+        "sport": {
+          "id": 1,
+          "name": "Soccer"
+        },
+        "country": {
+          "id": 81,
+          "name": "Germany",
+          "images": [
+            "https://static.flashscore.com/res/image/data/Yg9OhUnI-8hqSsydl.png",
+            "https://static.flashscore.com/res/image/data/QkXiy2Hp-8hqSsydl.png"
+          ],
+          "link": "/api/flashscore/football/germany:81"
+        },
+        "images": [
+          "https://static.flashscore.com/res/image/data/G4kbUZDO-EPWIvnAr.png"
+        ]
+      },
+      {
+        "id": "MTHOuyIf",
+        "url": "fifa-intercontinental-cup",
+        "name": "FIFA Intercontinental Cup",
+        "link": "/api/flashscore/football/world:8/fifa-intercontinental-cup:MTHOuyIf",
+        "gender": {
+          "id": 1,
+          "name": "Men"
+        },
+        "type": "competition",
+        "sport": {
+          "id": 1,
+          "name": "Soccer"
+        },
+        "country": {
+          "id": 8,
+          "name": "World",
+          "images": [
+            "https://static.flashscore.com/res/image/data/42RZve6e-zJyeJre4.png",
+            "https://static.flashscore.com/res/image/data/YyWwvFL1-zJyeJre4.png"
+          ],
+          "link": "/api/flashscore/football/world:8"
+        },
+        "images": [
+          "https://static.flashscore.com/res/image/data/KSKYVwRp-M7FrkoFh.png"
+        ]
+      },
+      {
+        "id": "Otj3kJ2U",
+        "url": "durand-cup",
+        "name": "Durand Cup",
+        "link": "/api/flashscore/football/india:93/durand-cup:Otj3kJ2U",
+        "gender": {
+          "id": 1,
+          "name": "Men"
+        },
+        "type": "competition",
+        "sport": {
+          "id": 1,
+          "name": "Soccer"
+        },
+        "country": {
+          "id": 93,
+          "name": "India",
+          "images": [
+            "https://static.flashscore.com/res/image/data/vT7sshQk-29gMSgSG.png",
+            "https://static.flashscore.com/res/image/data/82CotCud-29gMSgSG.png"
+          ],
+          "link": "/api/flashscore/football/india:93"
+        },
+        "images": [
+          "https://static.flashscore.com/res/image/data/M3TbhPhU-bwSWYg28.png"
+        ]
+      },
+      {
+        "id": "U7w6AibD",
+        "url": "super-cup",
+        "name": "Super Cup",
+        "link": "/api/flashscore/football/romania:157/super-cup:U7w6AibD",
+        "gender": {
+          "id": 1,
+          "name": "Men"
+        },
+        "type": "competition",
+        "sport": {
+          "id": 1,
+          "name": "Soccer"
+        },
+        "country": {
+          "id": 157,
+          "name": "Romania",
+          "images": [
+            "https://static.flashscore.com/res/image/data/8paBzbOk-dCriVR4j.png",
+            "https://static.flashscore.com/res/image/data/27bFZHwd-dCriVR4j.png"
+          ],
+          "link": "/api/flashscore/football/romania:157"
+        },
+        "images": [
+          "https://static.flashscore.com/res/image/data/2w5ajxhU-6cnEX7Wh.png"
+        ]
+      },
+      {
+        "id": "WdKOwxDM",
+        "url": "league-cup",
+        "name": "League Cup",
+        "link": "/api/flashscore/football/portugal:155/league-cup:WdKOwxDM",
+        "gender": {
+          "id": 1,
+          "name": "Men"
+        },
+        "type": "competition",
+        "sport": {
+          "id": 1,
+          "name": "Soccer"
+        },
+        "country": {
+          "id": 155,
+          "name": "Portugal",
+          "images": [
+            "https://static.flashscore.com/res/image/data/YV4tYkp1-QmQnV6mg.png",
+            "https://static.flashscore.com/res/image/data/Sh4pX9a7-QmQnV6mg.png"
+          ],
+          "link": "/api/flashscore/football/portugal:155"
+        },
+        "images": [
+          "https://static.flashscore.com/res/image/data/dvm9OrTp-KYPXNWtQ.png"
+        ]
+      },
+      {
+        "id": "SA3Ytn2m",
+        "url": "cecafa-kagame-cup",
+        "name": "CECAFA Kagame Cup",
+        "link": "/api/flashscore/football/africa:1/cecafa-kagame-cup:SA3Ytn2m",
+        "gender": {
+          "id": 1,
+          "name": "Men"
+        },
+        "type": "competition",
+        "sport": {
+          "id": 1,
+          "name": "Soccer"
+        },
+        "country": {
+          "id": 1,
+          "name": "Africa",
+          "images": [
+            "https://static.flashscore.com/res/image/data/KfqTz3lI-4GlVZcl5.png",
+            "https://static.flashscore.com/res/image/data/n3CdJzJp-4GlVZcl5.png"
+          ],
+          "link": "/api/flashscore/football/africa:1"
+        },
+        "images": [
+          "https://static.flashscore.com/res/image/data/nFKbSxU1-fPyCmtlL.png"
+        ]
+      },
+      {
+        "id": "rX6AFTig",
+        "url": "fifa-arab-cup",
+        "name": "FIFA Arab Cup",
+        "link": "/api/flashscore/football/world:8/fifa-arab-cup:rX6AFTig",
+        "gender": {
+          "id": 1,
+          "name": "Men"
+        },
+        "type": "competition",
+        "sport": {
+          "id": 1,
+          "name": "Soccer"
+        },
+        "country": {
+          "id": 8,
+          "name": "World",
+          "images": [
+            "https://static.flashscore.com/res/image/data/42RZve6e-zJyeJre4.png",
+            "https://static.flashscore.com/res/image/data/YyWwvFL1-zJyeJre4.png"
+          ],
+          "link": "/api/flashscore/football/world:8"
+        },
+        "images": [
+          "https://static.flashscore.com/res/image/data/bBqV019j-xrnTPakT.png"
+        ]
+      },
+      {
+        "id": "pEFC3yK9",
+        "url": "kirin-cup-japan",
+        "name": "Kirin Cup (Japan)",
+        "link": "/api/flashscore/football/world:8/kirin-cup-japan:pEFC3yK9",
+        "gender": {
+          "id": 1,
+          "name": "Men"
+        },
+        "type": "competition",
+        "sport": {
+          "id": 1,
+          "name": "Soccer"
+        },
+        "country": {
+          "id": 8,
+          "name": "World",
+          "images": [
+            "https://static.flashscore.com/res/image/data/42RZve6e-zJyeJre4.png",
+            "https://static.flashscore.com/res/image/data/YyWwvFL1-zJyeJre4.png"
+          ],
+          "link": "/api/flashscore/football/world:8"
+        },
+        "images": [
+          "https://static.flashscore.com/res/image/data/viWJ7DB7-l6JYiJpg.png"
+        ]
+      }
+    ]
+  }
+}

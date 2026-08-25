@@ -1,0 +1,549 @@
+{
+  "endpoint": "/api/flashscore/search",
+  "source_status_code": 200,
+  "data": {
+    "query": "FA Cup",
+    "results": [
+      {
+        "id": "lYQtaqPQ",
+        "url": "fa-cup",
+        "name": "FA Cup",
+        "link": "/api/flashscore/football/england:198/fa-cup:lYQtaqPQ",
+        "gender": {
+          "id": 1,
+          "name": "Men"
+        },
+        "type": "competition",
+        "sport": {
+          "id": 1,
+          "name": "Soccer"
+        },
+        "country": {
+          "id": 198,
+          "name": "England",
+          "images": [
+            "https://static.flashscore.com/res/image/data/2yGc8QR6-fqCjSvcO.png",
+            "https://static.flashscore.com/res/image/data/dbF17psD-fqCjSvcO.png"
+          ],
+          "link": "/api/flashscore/football/england:198"
+        },
+        "images": [
+          "https://static.flashscore.com/res/image/data/dGfMroW1-SAcWr5dg.png"
+        ]
+      },
+      {
+        "id": "hQWz6gLn",
+        "url": "fa-cup",
+        "name": "FA Cup",
+        "link": "/api/flashscore/football/china:52/fa-cup:hQWz6gLn",
+        "gender": {
+          "id": 1,
+          "name": "Men"
+        },
+        "type": "competition",
+        "sport": {
+          "id": 1,
+          "name": "Soccer"
+        },
+        "country": {
+          "id": 52,
+          "name": "China",
+          "images": [
+            "https://static.flashscore.com/res/image/data/bZcdnxBT-zP6JYKSm.png",
+            "https://static.flashscore.com/res/image/data/GEpOsdJp-zP6JYKSm.png"
+          ],
+          "link": "/api/flashscore/football/china:52"
+        },
+        "images": [
+          "https://static.flashscore.com/res/image/data/hWT9iFiD-ATq8tdHL.png"
+        ]
+      },
+      {
+        "id": "2wJajrWO",
+        "url": "thai-fa-cup",
+        "name": "Thai FA Cup",
+        "link": "/api/flashscore/football/thailand:186/thai-fa-cup:2wJajrWO",
+        "gender": {
+          "id": 1,
+          "name": "Men"
+        },
+        "type": "competition",
+        "sport": {
+          "id": 1,
+          "name": "Soccer"
+        },
+        "country": {
+          "id": 186,
+          "name": "Thailand",
+          "images": [
+            "https://static.flashscore.com/res/image/data/6wdIEtSN-8p9Uuxud.png",
+            "https://static.flashscore.com/res/image/data/zD0MD0sU-8p9Uuxud.png"
+          ],
+          "link": "/api/flashscore/football/thailand:186"
+        },
+        "images": [
+          "https://static.flashscore.com/res/image/data/KYRqVaDO-xtmmkVRL.png"
+        ]
+      },
+      {
+        "id": "QkGeVG1n",
+        "url": "fai-cup",
+        "name": "FAI Cup",
+        "link": "/api/flashscore/football/ireland:96/fai-cup:QkGeVG1n",
+        "gender": {
+          "id": 1,
+          "name": "Men"
+        },
+        "type": "competition",
+        "sport": {
+          "id": 1,
+          "name": "Soccer"
+        },
+        "country": {
+          "id": 96,
+          "name": "Ireland",
+          "images": [
+            "https://static.flashscore.com/res/image/data/KCxL6tlI-rBRfGJwm.png",
+            "https://static.flashscore.com/res/image/data/C80lkEIp-rBRfGJwm.png"
+          ],
+          "link": "/api/flashscore/football/ireland:96"
+        },
+        "images": [
+          "https://static.flashscore.com/res/image/data/UTtJuHRp-S0SWVtCO.png"
+        ]
+      },
+      {
+        "id": "IkTatONq",
+        "url": "faroe-islands-cup",
+        "name": "Faroe Islands Cup",
+        "link": "/api/flashscore/football/faroe-islands:231/faroe-islands-cup:IkTatONq",
+        "gender": {
+          "id": 1,
+          "name": "Men"
+        },
+        "type": "competition",
+        "sport": {
+          "id": 1,
+          "name": "Soccer"
+        },
+        "country": {
+          "id": 231,
+          "name": "Faroe Islands",
+          "images": [
+            "https://static.flashscore.com/res/image/data/h0wqFcrp-MsxWuByJ.png",
+            "https://static.flashscore.com/res/image/data/nNxmEHcj-MsxWuByJ.png"
+          ],
+          "link": "/api/flashscore/football/faroe-islands:231"
+        },
+        "images": [
+          "https://static.flashscore.com/res/image/data/CGGbwPiU-GQ6Tqwci.png"
+        ]
+      },
+      {
+        "id": "OOyGIrif",
+        "url": "fa-cup",
+        "name": "FA Cup",
+        "link": "/api/flashscore/football/malaysia:121/fa-cup:OOyGIrif",
+        "gender": {
+          "id": 1,
+          "name": "Men"
+        },
+        "type": "competition",
+        "sport": {
+          "id": 1,
+          "name": "Soccer"
+        },
+        "country": {
+          "id": 121,
+          "name": "Malaysia",
+          "images": [
+            "https://static.flashscore.com/res/image/data/YuIAF4SN-UHxkKJtq.png",
+            "https://static.flashscore.com/res/image/data/S2HEEOsU-UHxkKJtq.png"
+          ],
+          "link": "/api/flashscore/football/malaysia:121"
+        },
+        "images": [
+          "https://static.flashscore.com/res/image/data/8E8V8Q8j-hlm0pAJR.png"
+        ]
+      },
+      {
+        "id": "QoMJjjvA",
+        "url": "fa-cup",
+        "name": "FA Cup",
+        "link": "/api/flashscore/football/hong-kong:222/fa-cup:QoMJjjvA",
+        "gender": {
+          "id": 1,
+          "name": "Men"
+        },
+        "type": "competition",
+        "sport": {
+          "id": 1,
+          "name": "Soccer"
+        },
+        "country": {
+          "id": 222,
+          "name": "Hong Kong",
+          "images": [
+            "https://static.flashscore.com/res/image/data/WY8bhIoI-tAVv8TKB.png",
+            "https://static.flashscore.com/res/image/data/Qe82ix1O-tAVv8TKB.png"
+          ],
+          "link": "/api/flashscore/football/hong-kong:222"
+        },
+        "images": [
+          "https://static.flashscore.com/res/image/data/nez8IoDO-nDih8sfb.png"
+        ]
+      },
+      {
+        "id": "Ey4QFxce",
+        "url": "fa-cup",
+        "name": "FA Cup",
+        "link": "/api/flashscore/football/oman:146/fa-cup:Ey4QFxce",
+        "gender": {
+          "id": 1,
+          "name": "Men"
+        },
+        "type": "competition",
+        "sport": {
+          "id": 1,
+          "name": "Soccer"
+        },
+        "country": {
+          "id": 146,
+          "name": "Oman",
+          "images": [
+            "https://static.flashscore.com/res/image/data/rXOFWrOk-pOJoEpxL.png",
+            "https://static.flashscore.com/res/image/data/xfOJV2wd-pOJoEpxL.png"
+          ],
+          "link": "/api/flashscore/football/oman:146"
+        },
+        "images": [
+          "https://static.flashscore.com/res/image/data/GlPpSTiD-EeLHi7MA.png"
+        ]
+      },
+      {
+        "id": "4CIh5uRh",
+        "url": "fa-youth-cup",
+        "name": "FA Youth Cup",
+        "link": "/api/flashscore/football/england:198/fa-youth-cup:4CIh5uRh",
+        "gender": {
+          "id": 1,
+          "name": "Men"
+        },
+        "type": "competition",
+        "sport": {
+          "id": 1,
+          "name": "Soccer"
+        },
+        "country": {
+          "id": 198,
+          "name": "England",
+          "images": [
+            "https://static.flashscore.com/res/image/data/2yGc8QR6-fqCjSvcO.png",
+            "https://static.flashscore.com/res/image/data/dbF17psD-fqCjSvcO.png"
+          ],
+          "link": "/api/flashscore/football/england:198"
+        },
+        "images": [
+          "https://static.flashscore.com/res/image/data/rg0VkBfU-fkqHRhv3.png"
+        ]
+      },
+      {
+        "id": "MLJwzR4L",
+        "url": "federation-cup",
+        "name": "Federation Cup",
+        "link": "/api/flashscore/football/tanzania:185/federation-cup:MLJwzR4L",
+        "gender": {
+          "id": 1,
+          "name": "Men"
+        },
+        "type": "competition",
+        "sport": {
+          "id": 1,
+          "name": "Soccer"
+        },
+        "country": {
+          "id": 185,
+          "name": "Tanzania",
+          "images": [
+            "https://static.flashscore.com/res/image/data/jamwue3e-YsTcjVdn.png",
+            "https://static.flashscore.com/res/image/data/pz2tvFI1-YsTcjVdn.png"
+          ],
+          "link": "/api/flashscore/football/tanzania:185"
+        },
+        "images": [
+          "https://static.flashscore.com/res/image/data/Krcqlamd-6XlsRuP5.png"
+        ]
+      },
+      {
+        "id": "QmryvWCK",
+        "url": "women-s-fa-cup",
+        "name": "Women’s FA Cup",
+        "link": "/api/flashscore/football/england:198/women-s-fa-cup:QmryvWCK",
+        "gender": {
+          "id": 2,
+          "name": "Women"
+        },
+        "type": "competition",
+        "sport": {
+          "id": 1,
+          "name": "Soccer"
+        },
+        "country": {
+          "id": 198,
+          "name": "England",
+          "images": [
+            "https://static.flashscore.com/res/image/data/2yGc8QR6-fqCjSvcO.png",
+            "https://static.flashscore.com/res/image/data/dbF17psD-fqCjSvcO.png"
+          ],
+          "link": "/api/flashscore/football/england:198"
+        },
+        "images": [
+          "https://static.flashscore.com/res/image/data/YD3T88B7-GKkEBJfd.png"
+        ]
+      },
+      {
+        "id": "8jPmJLZG",
+        "url": "fai-cup-women",
+        "name": "FAI Cup Women",
+        "link": "/api/flashscore/football/ireland:96/fai-cup-women:8jPmJLZG",
+        "gender": {
+          "id": 2,
+          "name": "Women"
+        },
+        "type": "competition",
+        "sport": {
+          "id": 1,
+          "name": "Soccer"
+        },
+        "country": {
+          "id": 96,
+          "name": "Ireland",
+          "images": [
+            "https://static.flashscore.com/res/image/data/KCxL6tlI-rBRfGJwm.png",
+            "https://static.flashscore.com/res/image/data/C80lkEIp-rBRfGJwm.png"
+          ],
+          "link": "/api/flashscore/football/ireland:96"
+        },
+        "images": [
+          "https://static.flashscore.com/res/image/data/rc485r7j-b9tBHXm9.png"
+        ]
+      },
+      {
+        "id": "8G5ufQTg",
+        "url": "afc-asian-cup",
+        "name": "AFC Asian Cup",
+        "link": "/api/flashscore/futsal/asia:5/afc-asian-cup:8G5ufQTg",
+        "gender": {
+          "id": 1,
+          "name": "Men"
+        },
+        "type": "competition",
+        "sport": {
+          "id": 11,
+          "name": "Futsal"
+        },
+        "country": {
+          "id": 5,
+          "name": "Asia",
+          "images": [
+            "https://static.flashscore.com/res/image/data/xQbjqKrp-nqILux7r.png",
+            "https://static.flashscore.com/res/image/data/6a3frvbj-nqILux7r.png"
+          ],
+          "link": "/api/flashscore/futsal/asia:5"
+        },
+        "images": [
+          "https://static.flashscore.com/res/image/data/nw9Fx2WI-lC4bcrwm.png"
+        ]
+      },
+      {
+        "id": "j7WKjtqI",
+        "url": "fa-cup",
+        "name": "FA Cup",
+        "link": "/api/flashscore/football/wales:207/fa-cup:j7WKjtqI",
+        "gender": {
+          "id": 1,
+          "name": "Men"
+        },
+        "type": "competition",
+        "sport": {
+          "id": 1,
+          "name": "Soccer"
+        },
+        "country": {
+          "id": 207,
+          "name": "Wales",
+          "images": [
+            "https://static.flashscore.com/res/image/data/fDT92h6e-M5j0fiva.png",
+            "https://static.flashscore.com/res/image/data/OnYD1CL1-M5j0fiva.png"
+          ],
+          "link": "/api/flashscore/football/wales:207"
+        },
+        "images": [
+          "https://static.flashscore.com/res/image/data/nBUpd0V1-jktiQW9U.png"
+        ]
+      },
+      {
+        "id": "KpKWz8Hc",
+        "url": "cup-of-siberia-and-far-east",
+        "name": "Cup of Siberia and Far East",
+        "link": "/api/flashscore/volleyball/russia:158/cup-of-siberia-and-far-east:KpKWz8Hc",
+        "gender": {
+          "id": 1,
+          "name": "Men"
+        },
+        "type": "competition",
+        "sport": {
+          "id": 12,
+          "name": "Volleyball"
+        },
+        "country": {
+          "id": 158,
+          "name": "Russia",
+          "images": [
+            "https://static.flashscore.com/res/image/data/zNRfWYo1-GjWJhM2E.png",
+            "https://static.flashscore.com/res/image/data/UqRbVh17-GjWJhM2E.png"
+          ],
+          "link": "/api/flashscore/volleyball/russia:158"
+        },
+        "images": [
+          "https://static.flashscore.com/res/image/data/rs8mPYU1-0QUPq11C.png"
+        ]
+      },
+      {
+        "id": "hhD7Jcxa",
+        "url": "cup-of-siberia-and-far-east-women",
+        "name": "Cup of Siberia and Far East Women",
+        "link": "/api/flashscore/volleyball/russia:158/cup-of-siberia-and-far-east-women:hhD7Jcxa",
+        "gender": {
+          "id": 2,
+          "name": "Women"
+        },
+        "type": "competition",
+        "sport": {
+          "id": 12,
+          "name": "Volleyball"
+        },
+        "country": {
+          "id": 158,
+          "name": "Russia",
+          "images": [
+            "https://static.flashscore.com/res/image/data/zNRfWYo1-GjWJhM2E.png",
+            "https://static.flashscore.com/res/image/data/UqRbVh17-GjWJhM2E.png"
+          ],
+          "link": "/api/flashscore/volleyball/russia:158"
+        },
+        "images": [
+          "https://static.flashscore.com/res/image/data/UJVVLaT1-QZ4G6T1N.png"
+        ]
+      },
+      {
+        "id": "6H4ToHv3",
+        "url": "fa-cup",
+        "name": "FA Cup",
+        "link": "/api/flashscore/football/united-arab-emirates:196/fa-cup:6H4ToHv3",
+        "gender": {
+          "id": 1,
+          "name": "Men"
+        },
+        "type": "competition",
+        "sport": {
+          "id": 1,
+          "name": "Soccer"
+        },
+        "country": {
+          "id": 196,
+          "name": "United Arab Emirates",
+          "images": [
+            "https://static.flashscore.com/res/image/data/xvlJlrS6-MRDVXgYc.png",
+            "https://static.flashscore.com/res/image/data/W0mNm2sD-MRDVXgYc.png"
+          ],
+          "link": "/api/flashscore/football/united-arab-emirates:196"
+        },
+        "images": [
+          "https://static.flashscore.com/res/image/data/SdJlucld-8MYziE7A.png"
+        ]
+      },
+      {
+        "id": "bJbHfbbO",
+        "url": "faw-premier-cup",
+        "name": "FAW Premier Cup",
+        "link": "/api/flashscore/football/wales:207/faw-premier-cup:bJbHfbbO",
+        "gender": {
+          "id": 1,
+          "name": "Men"
+        },
+        "type": "competition",
+        "sport": {
+          "id": 1,
+          "name": "Soccer"
+        },
+        "country": {
+          "id": 207,
+          "name": "Wales",
+          "images": [
+            "https://static.flashscore.com/res/image/data/fDT92h6e-M5j0fiva.png",
+            "https://static.flashscore.com/res/image/data/OnYD1CL1-M5j0fiva.png"
+          ],
+          "link": "/api/flashscore/football/wales:207"
+        },
+        "images": [
+          "https://static.flashscore.com/res/image/data/Io5DT7EO-WrUg5ZNK.png"
+        ]
+      },
+      {
+        "id": "dvo7eZkg",
+        "url": "president-cup",
+        "name": "President Cup",
+        "link": "/api/flashscore/football/indonesia:228/president-cup:dvo7eZkg",
+        "gender": {
+          "id": 1,
+          "name": "Men"
+        },
+        "type": "competition",
+        "sport": {
+          "id": 1,
+          "name": "Soccer"
+        },
+        "country": {
+          "id": 228,
+          "name": "Indonesia",
+          "images": [
+            "https://static.flashscore.com/res/image/data/K4xyf2P6-WhytsfHl.png",
+            "https://static.flashscore.com/res/image/data/lvsugMvD-WhytsfHl.png"
+          ],
+          "link": "/api/flashscore/football/indonesia:228"
+        },
+        "images": [
+          "https://static.flashscore.com/res/image/data/zqJYsXU1-Glicu3Uo.png"
+        ]
+      },
+      {
+        "id": "YTYRo1YM",
+        "url": "super-cup",
+        "name": "Super Cup",
+        "link": "/api/flashscore/football/spain:176/super-cup:YTYRo1YM",
+        "gender": {
+          "id": 1,
+          "name": "Men"
+        },
+        "type": "competition",
+        "sport": {
+          "id": 1,
+          "name": "Soccer"
+        },
+        "country": {
+          "id": 176,
+          "name": "Spain",
+          "images": [
+            "https://static.flashscore.com/res/image/data/QFbOpTR6-GtJBBjyH.png",
+            "https://static.flashscore.com/res/image/data/KxbSqmsD-GtJBBjyH.png"
+          ],
+          "link": "/api/flashscore/football/spain:176"
+        },
+        "images": [
+          "https://static.flashscore.com/res/image/data/0pkzmnU1-fcsAeSiF.png"
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,95 @@
+{
+  "data": [
+    {
+      "name": "Belgium",
+      "id": 32,
+      "slug": "belgium",
+      "sportId": 1,
+      "competitions": "/api/flashscore/football/belgium:32"
+    },
+    {
+      "name": "Bosnia and Herzegovina",
+      "id": 37,
+      "slug": "bosnia-and-herzegovina",
+      "sportId": 1,
+      "competitions": "/api/flashscore/football/bosnia-and-herzegovina:37"
+    },
+    {
+      "name": "Brazil",
+      "id": 39,
+      "slug": "brazil",
+      "sportId": 1,
+      "competitions": "/api/flashscore/football/brazil:39"
+    },
+    {
+      "name": "China",
+      "id": 52,
+      "slug": "china",
+      "sportId": 1,
+      "competitions": "/api/flashscore/football/china:52"
+    },
+    {
+      "name": "England",
+      "id": 198,
+      "slug": "england",
+      "sportId": 1,
+      "competitions": "/api/flashscore/football/england:198"
+    },
+    {
+      "name": "Oman",
+      "id": 146,
+      "slug": "oman",
+      "sportId": 1,
+      "competitions": "/api/flashscore/football/oman:146"
+    },
+    {
+      "name": "Saudi Arabia",
+      "id": 165,
+      "slug": "saudi-arabia",
+      "sportId": 1,
+      "competitions": "/api/flashscore/football/saudi-arabia:165"
+    },
+    {
+      "name": "South Korea",
+      "id": 106,
+      "slug": "south-korea",
+      "sportId": 1,
+      "competitions": "/api/flashscore/football/south-korea:106"
+    },
+    {
+      "name": "Spain",
+      "id": 176,
+      "slug": "spain",
+      "sportId": 1,
+      "competitions": "/api/flashscore/football/spain:176"
+    },
+    {
+      "name": "Sweden",
+      "id": 181,
+      "slug": "sweden",
+      "sportId": 1,
+      "competitions": "/api/flashscore/football/sweden:181"
+    },
+    {
+      "name": "Switzerland",
+      "id": 182,
+      "slug": "switzerland",
+      "sportId": 1,
+      "competitions": "/api/flashscore/football/switzerland:182"
+    },
+    {
+      "name": "United Arab Emirates",
+      "id": 196,
+      "slug": "united-arab-emirates",
+      "sportId": 1,
+      "competitions": "/api/flashscore/football/united-arab-emirates:196"
+    },
+    {
+      "name": "Wales",
+      "id": 207,
+      "slug": "wales",
+      "sportId": 1,
+      "competitions": "/api/flashscore/football/wales:207"
+    }
+  ]
+}
