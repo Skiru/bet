@@ -32,13 +32,14 @@ from agent_output import AgentOutput, add_agent_args  # noqa: E402
 from bet.db.connection import get_db  # noqa: E402
 from bet.simple_stats.analyze import analyze_dossiers  # noqa: E402
 from bet.simple_stats.artifact_io import sha256_file, write_json_atomic  # noqa: E402
-from bet.simple_stats.contracts import EventDossierListV1  # noqa: E402
+from bet.simple_stats.contracts import EventDossierListV1, TipsterSignalV1  # noqa: E402
 from bet.simple_stats.persistence import (  # noqa: E402
     default_db_path,
     fixture_ids_by_event_id,
     persist_stats_sheet,
 )
 from bet.simple_stats.run_context import record_run  # noqa: E402
+from bet.simple_stats.tipster_signal import attach_tipster_column  # noqa: E402
 
 STEP = "simple_stats:ANALYZE"
 
@@ -49,6 +50,13 @@ def main() -> None:
     parser.add_argument("--output-dir", required=True)
     parser.add_argument(
         "--db-path", default=None, help=f"SQLite DB to persist into (default: {default_db_path()})"
+    )
+    parser.add_argument(
+        "--tipster-signal",
+        default=None,
+        help="Optional TIPSTER_SIGNAL_V1 from run_tipsters.py. Fills row.tipster "
+             "and nothing else -- public agreement is reported beside the "
+             "statistics, never mixed into them.",
     )
     add_agent_args(parser)
     args = parser.parse_args()
@@ -72,6 +80,49 @@ def main() -> None:
         _record(args, run_id, betting_date, "FAILED", {"error": str(exc)}, started_at, str(exc))
         out.summary(verdict="FAILED", metrics={"total_rows": 0, "run_id": run_id})
         sys.exit(2)
+
+    # Attached after every statistic is computed, so the numbers above cannot
+    # depend on it even by accident. A missing or unreadable signal file leaves
+    # every row.tipster at None; the sheet is still a complete sheet.
+    tipster_metrics: dict = {"tipster_signal": None}
+    if args.tipster_signal:
+        signal_path = Path(args.tipster_signal)
+        signal = None
+        try:
+            signal = TipsterSignalV1.model_validate_json(signal_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError) as exc:
+            out.warning(f"tipster signal unusable, continuing without the column: {exc}", path=str(signal_path))
+            tipster_metrics["tipster_signal_error"] = str(exc)
+
+        # A signal for another day must never attach. run_pipeline.py names the
+        # file per date so this should not happen, but --start-at analyze with a
+        # hand-passed path is exactly how it would, and yesterday's opinions
+        # silently labelled as today's is the worst failure available to this
+        # column.
+        if signal is not None and signal.date and signal.date != betting_date:
+            out.error(
+                f"tipster signal is for {signal.date}, not {betting_date} -- refusing to attach it",
+                recoverable=True,
+                path=str(signal_path),
+            )
+            tipster_metrics["tipster_signal_error"] = f"date_mismatch:{signal.date}!={betting_date}"
+            signal = None
+
+        if signal is not None:
+            stats_sheet = attach_tipster_column(stats_sheet, signal)
+            covered = sum(1 for r in stats_sheet.rows if r.tipster and r.tipster.verdict != "NO_COVERAGE")
+            tipster_metrics = {
+                "tipster_signal": str(signal_path),
+                "tipster_rows_with_opinion": covered,
+                "tipster_events_covered": len(signal.events),
+                "tipster_countable_claims": signal.countable_claims,
+            }
+            out.event(
+                "tipster_column_attached",
+                rows_with_opinion=covered,
+                events_covered=len(signal.events),
+                countable_claims=signal.countable_claims,
+            )
 
     output_path = Path(args.output_dir) / f"{dossier_path.stem}_stats_sheet.json"
     write_json_atomic(output_path, stats_sheet.model_dump(mode="json"))
@@ -113,6 +164,7 @@ def main() -> None:
         "output_sha256": digest,
         "persisted": persisted,
         "persist_error": persist_error,
+        **tipster_metrics,
     }
 
     if not rows:

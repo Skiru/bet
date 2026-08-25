@@ -139,13 +139,7 @@ def test_discover_public_detail_links_blocks_commercial_paths():
 
 
 def test_live_review_gate_requires_all_operator_attestations(tmp_path):
-    import importlib.util
-    from pathlib import Path
-    script = Path(__file__).resolve().parents[2] / "scripts/pipeline_steps/s2_tipsters_v2_live_dry_run.py"
-    spec = importlib.util.spec_from_file_location("s2_live", script)
-    assert spec and spec.loader
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
+    from bet.tipsters import live as mod
     data = {"source_reviews": {"forebet": {"status": "allow_live_dry_run", "terms_reviewed": True}}}
     allowed, reason = mod.review_allows_source(data, "forebet")
     assert not allowed

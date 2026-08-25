@@ -87,6 +87,7 @@ def _all_ok_stubs(tmp_path, out_dir, date="2026-08-25", run_id="RID-1"):
     event_list = out_dir / f"{date}_event_list.json"
     dossier = out_dir / f"{date}_event_dossiers.json"
     sheet = out_dir / f"{date}_event_dossiers_stats_sheet.json"
+    signal = out_dir / f"{date}_tipster_signal.json"
     return {
         "discover": _stub(
             tmp_path / "d.py", verdict="OK",
@@ -97,6 +98,11 @@ def _all_ok_stubs(tmp_path, out_dir, date="2026-08-25", run_id="RID-1"):
             tmp_path / "e.py", verdict="OK",
             metrics={"run_id": run_id, "output_path": str(dossier), "persisted": True},
             exit_code=0, writes=str(dossier),
+        ),
+        "tipsters": _stub(
+            tmp_path / "t.py", verdict="OK",
+            metrics={"run_id": run_id, "output_path": str(signal), "persisted": None},
+            exit_code=0, writes=str(signal),
         ),
         "analyze": _stub(
             tmp_path / "a.py", verdict="OK",
@@ -111,7 +117,7 @@ def test_clean_run_is_ok_and_exits_zero(tmp_path, out_dir):
     code, summary, _ = _run(tmp_path, stubs, "--date", "2026-08-25", "--output-dir", str(out_dir))
     assert code == 0
     assert summary["verdict"] == "OK"
-    assert summary["metrics"]["steps_run"] == ["discover", "enrich", "analyze"]
+    assert summary["metrics"]["steps_run"] == ["discover", "enrich", "tipsters", "analyze"]
 
 
 def test_exactly_one_agent_summary_is_emitted(tmp_path, out_dir):
@@ -134,6 +140,7 @@ def test_verdict_is_the_worst_step_not_the_last(tmp_path, out_dir):
     assert summary["metrics"]["step_verdicts"] == {
         "discover": "OK",
         "enrich": "PARTIAL",
+        "tipsters": "OK",
         "analyze": "OK",
     }
     assert summary["verdict"] == "PARTIAL"
@@ -236,7 +243,7 @@ def test_a_receipt_is_written_next_to_the_artifacts(tmp_path, out_dir):
     receipt = json.loads((out_dir / "2026-08-25_run_summary.json").read_text())
     assert receipt["verdict"] == "OK"
     assert receipt["run_id"] == "RID-1"
-    assert set(receipt["steps"]) == {"discover", "enrich", "analyze"}
+    assert set(receipt["steps"]) == {"discover", "enrich", "tipsters", "analyze"}
     assert receipt["steps"]["analyze"]["persisted"] is True
 
 
@@ -252,3 +259,70 @@ def test_summary_validates_against_the_repo_agent_contract(tmp_path, out_dir, mo
 def test_severity_ordering_puts_failed_above_partial(module):
     sev = module._SEVERITY
     assert sev["OK"] < sev["PARTIAL"] < sev["PRECONDITION_FAILED"] <= sev["FAILED"]
+
+
+# --- TIPSTERS: the one optional step ---------------------------------------
+#
+# It reaches third-party web pages, so it will fail sometimes for reasons that
+# have nothing to do with the betting day. These pin down that a bad tipster
+# fetch costs the run its agreement column and nothing else.
+
+
+def test_a_failed_tipster_step_does_not_fail_the_run(tmp_path, out_dir):
+    stubs = _all_ok_stubs(tmp_path, out_dir)
+    stubs["tipsters"] = _stub(
+        tmp_path / "t_fail.py", verdict="FAILED", metrics={"run_id": "RID-1"}, exit_code=2
+    )
+    code, summary, _ = _run(tmp_path, stubs, "--date", "2026-08-25", "--output-dir", str(out_dir))
+    assert code == 0
+    assert summary["verdict"] == "OK"
+    # Recorded per step, so the failure is visible rather than swallowed...
+    assert summary["metrics"]["step_verdicts"]["tipsters"] == "FAILED"
+    # ...and ANALYZE still ran, which is the whole point.
+    assert summary["metrics"]["step_verdicts"]["analyze"] == "OK"
+
+
+def test_a_failed_tipster_step_does_not_halt_the_pipeline(tmp_path, out_dir):
+    """A non-optional failure stops the run; an optional one must not."""
+    stubs = _all_ok_stubs(tmp_path, out_dir)
+    stubs["tipsters"] = _stub(
+        tmp_path / "t_pf.py", verdict="PRECONDITION_FAILED", metrics={"run_id": "RID-1"}, exit_code=2
+    )
+    _, summary, _ = _run(tmp_path, stubs, "--date", "2026-08-25", "--output-dir", str(out_dir))
+    assert summary["metrics"]["steps_run"] == ["discover", "enrich", "tipsters", "analyze"]
+
+
+def test_skip_tipsters_omits_the_step_entirely(tmp_path, out_dir):
+    stubs = _all_ok_stubs(tmp_path, out_dir)
+    code, summary, _ = _run(
+        tmp_path, stubs, "--date", "2026-08-25", "--output-dir", str(out_dir), "--skip-tipsters"
+    )
+    assert code == 0
+    assert summary["metrics"]["steps_run"] == ["discover", "enrich", "analyze"]
+    assert summary["metrics"]["tipster_signal"] is None
+
+
+def test_analyze_is_handed_the_signal_only_when_it_exists(tmp_path, out_dir):
+    """The --tipster-signal flag must not appear when the file was never written.
+
+    Passing a path that does not exist would make ANALYZE warn on every run in
+    which the tipster step was skipped, training the operator to ignore warnings.
+    """
+    date = "2026-08-25"
+    stubs = _all_ok_stubs(tmp_path, out_dir)
+    # A tipster step that reports OK but writes nothing (every source blocked).
+    stubs["tipsters"] = _stub(
+        tmp_path / "t_empty.py", verdict="PARTIAL", metrics={"run_id": "RID-1"}, exit_code=1
+    )
+    echo = tmp_path / "a_echo.py"
+    echo.write_text(
+        "import json, sys\n"
+        "print('ARGV:' + json.dumps(sys.argv[1:]))\n"
+        "print('AGENT_SUMMARY:' + json.dumps({'step': 'stub', 'verdict': 'OK',"
+        " 'metrics': {'run_id': 'RID-1'}, 'issues': [], 'counts': {'errors': 0, 'warnings': 0}}))\n",
+        encoding="utf-8",
+    )
+    stubs["analyze"] = str(echo)
+    _, _, stdout = _run(tmp_path, stubs, "--date", date, "--output-dir", str(out_dir))
+    argv_line = next(line for line in stdout.splitlines() if line.startswith("ARGV:"))
+    assert "--tipster-signal" not in argv_line

@@ -32,10 +32,44 @@ hedge about them.
 
 `StatsSheetRow` carries `event_id, sport, market, line, direction, hits,
 sample_size, hit_rate, mean, median, sources, cross_provider_agreement,
-confidence, data_quality`. No price field, and the pipeline never reads one --
-DISCOVER deliberately uses The Odds API's free `/events` endpoint. So you never
-say "good bet". You say "the history leans this way, this strongly, and the
-screen must show at least X.XX to pay for that lean".
+confidence, data_quality` and the optional `tipster`. No price field, and the
+pipeline never reads one -- DISCOVER deliberately uses The Odds API's free
+`/events` endpoint. So you never say "good bet". You say "the history leans this
+way, this strongly, and the screen must show at least X.XX to pay for that lean".
+
+## The `tipster` column: report it, never compute with it
+
+`row.tipster` is public-tipster agreement, written by the optional TIPSTERS step.
+It is `null` when that step did not run or no tipster covered the fixture.
+
+```json
+{"verdict": "CONFIRMS", "agree": 3, "oppose": 0, "considered": 7,
+ "sources": ["zawodtyper"], "excluded": {"outcome_market_not_a_total": 4}}
+```
+
+`agree`/`oppose` count only claims on **this exact market, line and side**.
+`considered` is how many tipster picks existed for the fixture at all, so
+`agree=0, considered=7` means seven tipsters talked about the match and none
+about this bet -- almost always because they were betting 1X2. `excluded` says
+why each was left out.
+
+**A tipster pick is an opinion, not a sample.** It has no observations behind it,
+it is often derived from the same public numbers the pipeline already read, and
+it sometimes carries a bookmaker affiliation. So:
+
+- It **never** enters `p_low`, `hit_rate`, a tier, or any arithmetic. `p_low`
+  comes from the artifact's counts, full stop -- the same rule as web evidence.
+- It **may not** promote a tier. `SPLIT` or `CONTRADICTS` is worth a sentence as
+  a reason to look harder; it does not demote a tier on its own either, because
+  the crowd being wrong is the ordinary case.
+- Report it as its own column, phrased as agreement: `3/3 typerów` or `brak`.
+  Never as a percentage -- a percentage reads like a probability.
+
+`<date>_tipster_signal.json` holds the per-fixture detail: every claim verbatim,
+what was made of it, and `public_lean` -- the 1X2/BTTS tally. Quote `public_lean`
+only when the operator asks about the match result. It is a **different market**
+than the totals here and cannot be converted into one; do not present it as
+agreement or disagreement with a totals row.
 
 ## Read the artifacts AND the DB
 
@@ -44,6 +78,7 @@ runs/<date>/<date>_event_dossiers_stats_sheet.json   # rows -- the headline numb
 runs/<date>/<date>_event_dossiers.json               # per-metric raw observations + data_gaps
 runs/<date>/<date>_event_list.json                   # event_id -> teams, competition, kickoff, identity_confidence
 runs/<date>/<date>_run_summary.json                  # run_id, verdict, per-step metrics
+runs/<date>/<date>_tipster_signal.json               # optional -- public tipster picks per event
 ```
 
 `event_id` is a hash -- always resolve it to `Home vs Away`, competition and
@@ -245,12 +280,13 @@ COVERAGE: <n> events discovered, <n> enriched, <n> capped out
 EVIDENCE BASE: <providers that actually contributed> | max n seen: <n> | DB depth: <yes/no, from probe>
 
 === <Home> vs <Away> | <competition> | <HH:MM UTC> ===
-  corners      UNDER 10.5   p_low 0.58 (9/12)  n=12 a6/b6/h0  AGREE          need >= 1.90   [CALL]
-  cards        OVER 3.5     p_low 0.41 (7/12)  n=12 a0/b12/h0 SINGLE_SOURCE  need >= 2.70   [LEAN] one side only
+  corners      UNDER 10.5   p_low 0.58 (9/12)  n=12 a6/b6/h0  AGREE          need >= 1.90   typerzy 2/2   [CALL]
+  cards        OVER 3.5     p_low 0.41 (7/12)  n=12 a0/b12/h0 SINGLE_SOURCE  need >= 2.70   typerzy 1/3   [LEAN] one side only
   shots on t.  --           dropped (n=2)
-  fouls        OVER 22.5    --                 n=4  a0/b4/h0  SINGLE_SOURCE  [WEAK] 4/4, no threshold given
+  fouls        OVER 22.5    --                 n=4  a0/b4/h0  SINGLE_SOURCE                 typerzy brak  [WEAK] 4/4, no threshold given
   context: mean 10.4 / median 10 corners; sportdb + espn-football
   gaps: <what the dossier says is missing>
+  typerzy: <n> picks on this match, <n> comparable; public 1X2 lean if asked
   web: <verified checks, each tagged, or "not checked">
 
 === <next match> ===
@@ -278,5 +314,6 @@ less unlikely than the product suggests, and is priced accordingly.
 - Every number traces to an artifact, a query you ran, or arithmetic you showed.
   Invent nothing: no fixture, hit rate, sample size, provider agreement, or odds.
 - Never present `SINGLE_SOURCE` as corroborated, or `WEAK` as actionable.
+- Never let tipster agreement change a tier, a `p_low`, or a minimum odds.
 - Never read, echo or log `.env` values.
 - No stake sizing. No automated placement. Ever.

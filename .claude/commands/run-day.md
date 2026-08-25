@@ -34,6 +34,11 @@ python3 scripts/simple/run_pipeline.py --preflight
 python3 scripts/simple/run_pipeline.py --date <resolved> -v [--max-events N]
 ```
 
+`TIPSTERS` runs between ENRICH and ANALYZE and fills the *Typerzy* column. It is
+optional and excluded from the run verdict, so a `tipsters: FAILED` or `PARTIAL`
+in `step_verdicts` is not a reason to stop — report it in *Czego zabrakło* and
+carry on. Pass `--skip-tipsters` to omit the column entirely.
+
 Take `--max-events` from preflight's `recommended_max_events`. Raise it above
 that only with a stated reason — and say plainly that events beyond the
 recommendation cannot be corroborated, so they will come back `SINGLE_SOURCE`.
@@ -79,13 +84,21 @@ below a 9/12 at 58%, which is the ordering you want and the reason not to sort o
 
 ## Ranking
 
-| # | Pewność | Mecz | Rynek | Strona | Surowo | n | a/b/h2h | Zgodność | Min. kurs | Tier |
-|--:|--------:|------|-------|--------|-------:|--:|---------|----------|----------:|------|
-| 1 | 58.2% | Valencia – Betis | rożne 10.5 | UNDER | 9/12 | 12 | 6/6/0 | AGREE | 1.90 | CALL |
-| 2 | 51.0% | FC Seoul – Bucheon | kartki 3.5 | OVER | 4/4 | 4 | 0/4/0 | SINGLE_SOURCE | — | WEAK |
+| # | Pewność | Mecz | Rynek | Strona | Surowo | n | a/b/h2h | Zgodność | Typerzy | Min. kurs | Tier |
+|--:|--------:|------|-------|--------|-------:|--:|---------|----------|---------|----------:|------|
+| 1 | 58.2% | Valencia – Betis | rożne 10.5 | UNDER | 9/12 | 12 | 6/6/0 | AGREE | 2/2 | 1.90 | CALL |
+| 2 | 51.0% | FC Seoul – Bucheon | kartki 3.5 | OVER | 4/4 | 4 | 0/4/0 | SINGLE_SOURCE | brak | — | WEAK |
 
 `WEAK` nie dostaje minimalnego kursu — próg policzony z czterech obserwacji
 udaje precyzję, której tam nie ma.
+
+Kolumna *Typerzy* to `row.tipster` — ilu publicznych typerów obstawiło **ten sam
+rynek, tę samą linię i tę samą stronę** (`agree/agree+oppose`), albo `brak`, gdy
+żaden. Nie wchodzi do *Pewności* i nie zmienia tieru: typ to opinia, nie próbka,
+często wyliczona z tych samych publicznych danych, czasem z afiliacją do
+bukmachera. Stoi obok, żebyś sam zdecydował, czy zgodność Cię cieszy, czy
+niepokoi. Nigdy nie podawaj jej jako procentu — procent czyta się jak
+prawdopodobieństwo.
 
 ## Mecze
 
@@ -95,6 +108,12 @@ weryfikacja z sieci z tagiem [WEB: domena, data]>
 
 ## Sprzeczne (DISAGREE)
 <obie wartości, obaj providerzy, bez rozstrzygania>
+
+## Zdanie publiczności (inny rynek)
+<tylko gdy typerzy pokryli mecze z rankingu: `public_lean` z
+`<data>_tipster_signal.json`, czyli 1X2/BTTS. Zaznacz wyraźnie, że to inny rynek
+niż totale powyżej i że jednego nie przelicza się na drugie. Pomiń sekcję, gdy
+krok TIPSTERS nie działał.>
 
 ## Czego zabrakło
 <jeden konkret, który najbardziej osłabił dzień, i akcja, która to naprawia>

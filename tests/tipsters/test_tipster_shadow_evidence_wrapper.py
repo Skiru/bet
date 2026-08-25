@@ -7,8 +7,21 @@ import pytest
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
-import scripts.pipeline_steps.s2_tipsters_shadow_evidence as wrapper_mod
-from bet.pipeline.runtime_modes import RuntimeMode
+# The S2 shadow-evidence wrapper is part of the S0-S10 stack quarantined under
+# legacy/ in b2a222c3. It depends on scripts.pipeline_steps._runner and
+# ._script_evidence -- the sandbox/evidence machinery the quarantine removed from
+# the import path -- so reviving this import means reviving that package, which
+# is the decision the quarantine made. Skipped rather than deleted: the tipster
+# transport it wraps is live and tested (tests/tipsters/test_live_dry_run.py,
+# test_zawodtyper_transport.py), and if the wrapper is ever ported these
+# assertions are the specification.
+pytest.importorskip(
+    "scripts.pipeline_steps.s2_tipsters_shadow_evidence",
+    reason="S0-S10 wrapper stack is quarantined under legacy/; see module docstring",
+)
+
+import scripts.pipeline_steps.s2_tipsters_shadow_evidence as wrapper_mod  # noqa: E402
+from bet.pipeline.runtime_modes import RuntimeMode  # noqa: E402
 
 
 def test_wrapper_fails_closed_without_local_review_json(tmp_path, monkeypatch):

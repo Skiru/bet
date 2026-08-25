@@ -4,6 +4,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any
 
+from .claim import classify_claim
 from .contracts import Direction, MarketFamily, TipsterPick
 from .market_parser import direction as parse_direction
 from .market_parser import extract_odds, market_family, parse_line
@@ -63,12 +64,22 @@ def normalize_legacy_source_id(name: str | None) -> str:
 
 
 def map_legacy_market_to_v2(market: str | None, market_type: str | None, direction: str | None) -> tuple[MarketFamily, Direction, float | None]:
+    """Family, direction and line for one legacy pick.
+
+    Direction is read from the claim text first and only falls back to the
+    caller's value when the claim itself says nothing. The old order was
+    inverted, and because ZawodTyper's caller derived its direction from
+    ``pick_type + " " + content``, a claim of "Pow.2,5 gola" (over) inside a
+    paragraph containing the word "mniej" (fewer) was stored as UNDER -- the
+    signal flipped by prose it was not about. Live run 2026-08-25 reproduced it.
+    """
     market_text = collapse_ws(market or "")
     combined = market_text if market_text else collapse_ws(str(market_type or ""))
     family = market_family(combined)
-    mapped_direction = _DIRECTION_MAP.get(str(direction or "").strip().upper())
-    if mapped_direction is None:
-        mapped_direction = parse_direction(combined)
+
+    mapped_direction: Direction = parse_direction(combined)
+    if mapped_direction == "OTHER":
+        mapped_direction = _DIRECTION_MAP.get(str(direction or "").strip().upper()) or "OTHER"
     return family, mapped_direction, parse_line(combined)
 
 
@@ -140,6 +151,37 @@ def convert_legacy_pick_to_v2(legacy_pick: dict | object) -> TipsterPick:
     if not extracted_at:
         extracted_at = datetime.now(timezone.utc).isoformat()
 
+    match_date = str(_get_field(payload, "match_date") or "").strip() or None
+    if match_date is None:
+        warnings.append("match_date_absent_cannot_attribute_to_betting_day")
+
+    # A combo is either declared by the source (ZawodTyper's is_betbuilder) or
+    # visible in the claim text. Both are recorded here rather than left for the
+    # consensus layer, so a pick that reaches the column has already been judged
+    # once on whether its legs are separable.
+    is_combo = bool(_get_field(payload, "is_combo_source_flag") or False)
+    claim = classify_claim(market, str(_get_field(payload, "home_team") or ""), str(_get_field(payload, "away_team") or ""))
+    if claim.is_combo:
+        is_combo = True
+    if is_combo:
+        warnings.append("combo_bet_legs_not_separable")
+
+    is_settled = bool(_get_field(payload, "is_settled") or False)
+    if is_settled:
+        warnings.append("already_settled_at_source_historical_claim")
+
+    accuracy_int: int | None
+    try:
+        accuracy_int = int(accuracy) if accuracy not in (None, "") else None
+    except (TypeError, ValueError):
+        accuracy_int = None
+
+    bet_count = _get_field(payload, "tipster_bet_count")
+    try:
+        bet_count_int = int(bet_count) if bet_count not in (None, "") else None
+    except (TypeError, ValueError):
+        bet_count_int = None
+
     return TipsterPick(
         source_id=source_id,
         source_name=source_name or source_id,
@@ -157,8 +199,15 @@ def convert_legacy_pick_to_v2(legacy_pick: dict | object) -> TipsterPick:
         stats_cited=stats[:12],
         tipster_name=collapse_ws(str(_get_field(payload, "tipster_name") or "")) or None,
         competition=collapse_ws(str(_get_field(payload, "competition") or "")) or None,
-        published_at=None,
+        published_at=match_date,
         source_url=collapse_ws(str(_get_field(payload, "source_url") or _get_field(payload, "url") or "")) or None,
+        match_date=match_date,
+        kickoff_time=collapse_ws(str(_get_field(payload, "kickoff_time") or "")) or None,
+        is_combo=is_combo,
+        is_settled=is_settled,
+        tipster_accuracy_pct=accuracy_int,
+        tipster_bet_count=bet_count_int,
+        source_ref=collapse_ws(str(_get_field(payload, "source_comment_id") or "")) or None,
         extracted_at_utc=extracted_at,
         extraction_quality=extraction_quality,
         warnings=warnings,

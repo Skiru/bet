@@ -93,6 +93,12 @@ def _stats_row_to_dict(row: StatsSheetRow) -> dict:
         "cross_provider_agreement": row.cross_provider_agreement,
         "confidence": row.confidence,
         "data_quality": row.data_quality,
+        # Carried into ranking_json because the analyst is told to cross-check
+        # the DB for other run_ids of the same day, and rows reachable only
+        # there would otherwise lose the column the artifact shows. Omitted
+        # entirely when absent, so a pre-TIPSTERS row is unchanged rather than
+        # gaining a null that reads as "checked, nobody agreed".
+        **({"tipster": row.tipster.model_dump(mode="json")} if row.tipster else {}),
     }
 
 

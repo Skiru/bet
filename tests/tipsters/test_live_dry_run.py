@@ -13,7 +13,9 @@ from bet.tipsters.extractors import dispatch_extract, make_raw
 from bet.tipsters.storage import build_payload
 
 
-SCRIPT = Path(__file__).resolve().parents[2] / "scripts/pipeline_steps/s2_tipsters_v2_live_dry_run.py"
+# The gate logic lives in bet.tipsters.live; this path is only the thin CLI
+# wrapper over it, exercised here for its argument handling and exit codes.
+SCRIPT = Path(__file__).resolve().parents[2] / "legacy/pipeline_steps/s2_tipsters_v2_live_dry_run.py"
 
 
 def _load_live_module():
@@ -215,7 +217,7 @@ def test_tipster_live_summary_supports_db_alias(tmp_path):
         conn.execute("create table tipster_picks_v2 (id integer primary key)")
         conn.execute("create table tipster_consensus_v2 (id integer primary key)")
         conn.commit()
-    script = Path(__file__).resolve().parents[2] / "scripts/pipeline_steps/tipster_live_summary.fish"
+    script = Path(__file__).resolve().parents[2] / "legacy/pipeline_steps/tipster_live_summary.fish"
     result = subprocess.run(
         ["fish", str(script), f"--json={json_path}", f"--db={db_path}"],
         check=False,

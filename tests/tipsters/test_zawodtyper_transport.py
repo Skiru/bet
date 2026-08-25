@@ -159,13 +159,7 @@ def test_accuracy_pct_becomes_source_quality_metadata_only():
 
 
 def test_missing_review_gives_skip_not_fetch():
-    import importlib.util
-    from pathlib import Path
-    script = Path(__file__).resolve().parents[2] / "scripts/pipeline_steps/s2_tipsters_v2_live_dry_run.py"
-    spec = importlib.util.spec_from_file_location("s2_live", script)
-    assert spec and spec.loader
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
+    from bet.tipsters import live as mod
     review_data = {"source_reviews": {}}
     allowed, reason = mod.review_allows_source(review_data, "zawodtyper")
     assert not allowed
@@ -202,13 +196,7 @@ def test_no_playwright_or_stealth_imports_in_zawodtyper_transport():
 
 
 def test_resolve_target_entrypoints_for_zawodtyper():
-    import importlib.util
-    from pathlib import Path
-    script = Path(__file__).resolve().parents[2] / "scripts/pipeline_steps/s2_tipsters_v2_live_dry_run.py"
-    spec = importlib.util.spec_from_file_location("s2_live", script)
-    assert spec and spec.loader
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
+    from bet.tipsters import live as mod
 
     entrypoints, fallback = mod.resolve_target_entrypoints("zawodtyper", "2026-07-04")
     assert len(entrypoints) == 1
@@ -412,12 +400,7 @@ def test_xhr_gate_allows_xhr_payload_with_flag():
 
 
 def test_review_gate_enforces_zawodtyper_note_check():
-    import importlib.util
-    from pathlib import Path
-    script = Path(__file__).resolve().parents[2] / "scripts/pipeline_steps/s2_tipsters_v2_live_dry_run.py"
-    spec = importlib.util.spec_from_file_location("s2_live", script)
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
+    from bet.tipsters import live as mod
 
     # Test 1: notes missing NP_ajax.php or public XHR review
     review_data_invalid = {
@@ -510,11 +493,7 @@ def test_zawodtyper_xhr_gate_rejects_without_flag():
 
 
 def test_zawodtyper_xhr_gate_requires_notes_token():
-    import importlib.util
-    script = Path(__file__).resolve().parents[2] / "scripts/pipeline_steps/s2_tipsters_v2_live_dry_run.py"
-    spec = importlib.util.spec_from_file_location("s2_live", script)
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
+    from bet.tipsters import live as mod
 
     review_data_invalid = {
         "source_reviews": {

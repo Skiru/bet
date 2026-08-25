@@ -131,6 +131,42 @@ class EventDossierListV1(StrictBaseModel):
     dossiers: list[EventDossierV1] = Field(default_factory=list)
 
 
+class TipsterColumn(StrictBaseModel):
+    """Public-tipster agreement for one stats-sheet row. Never a probability.
+
+    This exists as its own nested object rather than as loose fields on
+    ``StatsSheetRow`` so the boundary is structural instead of a convention
+    somebody has to remember. Every number a row uses to make a claim about a
+    fixture -- ``hits``, ``sample_size``, ``hit_rate``, ``confidence`` -- is
+    derived from provider observations that can be traced back to specific
+    matches. A tipster pick has no sample behind it; it is one person's opinion,
+    often computed from the same public data and sometimes attached to a
+    bookmaker affiliation. Averaging the two would destroy the only property
+    ``p_low`` has, which is that you can ask where it came from and get an
+    answer.
+
+    So this column is read *beside* the confidence figure and never into it:
+    it tells you whether the public agrees with a read you arrived at
+    independently, which is a genuinely different question from whether the read
+    is right.
+
+    ``agree`` and ``oppose`` count only claims addressing this exact market,
+    line and side. ``considered`` is how many tipster picks existed for the
+    fixture at all, so a ``0/0`` verdict is distinguishable from "nobody covered
+    this fixture" -- the difference between no opinion and no data.
+    """
+
+    verdict: Literal["CONFIRMS", "CONTRADICTS", "SPLIT", "NO_COVERAGE"]
+    agree: int = 0
+    oppose: int = 0
+    considered: int = 0
+    sources: list[str] = Field(default_factory=list)
+    # Why the fixture's other picks did not qualify, e.g.
+    # {"outcome_market_not_a_total": 4, "team_total_not_a_match_total": 2}.
+    # Present so an empty column is auditable rather than merely empty.
+    excluded: dict[str, int] = Field(default_factory=dict)
+
+
 class StatsSheetRow(StrictBaseModel):
     """One row of STATS_SHEET_V1: event x market x line x direction."""
 
@@ -148,6 +184,10 @@ class StatsSheetRow(StrictBaseModel):
     cross_provider_agreement: Literal["AGREE", "DISAGREE", "SINGLE_SOURCE", "NOT_APPLICABLE"]
     confidence: Literal["HIGH", "MEDIUM", "LOW"]
     data_quality: Literal["READY", "PARTIAL", "BLOCKED"]
+    # Optional and always last: a sheet produced without a tipster run is a
+    # valid sheet, and every field above it is computed with no knowledge that
+    # this one exists.
+    tipster: TipsterColumn | None = None
 
 
 class StatsSheetV1(StrictBaseModel):
@@ -157,3 +197,72 @@ class StatsSheetV1(StrictBaseModel):
     date: str = ""
     generated_at: str
     rows: list[StatsSheetRow] = Field(default_factory=list)
+
+
+class TipsterPickRef(StrictBaseModel):
+    """One tipster claim, kept verbatim next to what we made of it.
+
+    ``claim`` is the source's own text and is never rewritten, because the
+    classification is a judgement and the operator must be able to check it.
+    ``reject_reason`` is empty exactly when ``countable`` is True.
+    """
+
+    source_id: str
+    source_name: str
+    tipster_name: str | None = None
+    claim: str
+    market: str | None = None
+    line: float | None = None
+    direction: str
+    countable: bool
+    reject_reason: str = ""
+    odds: float | None = None
+    tipster_accuracy_pct: int | None = None
+    tipster_bet_count: int | None = None
+    match_date: str | None = None
+    source_url: str | None = None
+
+
+class TipsterEventSignal(StrictBaseModel):
+    """Every tipster pick matched to one discovered event.
+
+    ``public_lean`` summarises the 1X2/BTTS picks -- by far the bulk of what
+    these sources publish. They are reported because "eleven of thirteen
+    tipsters back the home side" is real information about public sentiment, and
+    withheld from ``TipsterColumn`` because it is information about a *different
+    market* than the total this pipeline analyses. One cannot be converted into
+    the other, so they are shown separately and never summed.
+    """
+
+    event_id: str
+    home_team: str
+    away_team: str
+    match_quality: Literal["EXACT", "FUZZY"]
+    match_score: int
+    picks: list[TipsterPickRef] = Field(default_factory=list)
+    public_lean: dict[str, int] = Field(default_factory=dict)
+
+
+class TipsterSignalV1(StrictBaseModel):
+    """TIPSTERS artifact: public-opinion coverage of one betting day.
+
+    Separate from STATS_SHEET_V1 on purpose. It is produced by a different
+    stage, from different sources, with a different trust level, and the
+    pipeline must run to completion without it.
+    """
+
+    run_id: str = ""
+    date: str = ""
+    generated_at: str
+    sources_attempted: list[str] = Field(default_factory=list)
+    sources_with_picks: list[str] = Field(default_factory=list)
+    sources_blocked: list[dict[str, str]] = Field(default_factory=list)
+    picks_ingested: int = 0
+    picks_matched: int = 0
+    picks_unmatched: int = 0
+    countable_claims: int = 0
+    date_filter: dict[str, int] = Field(default_factory=dict)
+    # Kept so a thin day is diagnosable: which fixtures the sources talked about
+    # that our own discovery never found.
+    unmatched_events: list[str] = Field(default_factory=list)
+    events: list[TipsterEventSignal] = Field(default_factory=list)

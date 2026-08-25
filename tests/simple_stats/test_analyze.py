@@ -118,3 +118,164 @@ def test_disagreement_detected_across_spellings():
         ),
     ]
     assert _cross_provider_agreement("corners_total", observations) == "DISAGREE"
+
+
+# --- The ANALYZE script's tipster-signal guards -------------------------------
+#
+# Attaching a signal from another day would label yesterday's opinions as
+# today's -- silently, and looking exactly like a correct column. These run the
+# script, because the guards live in its argument handling, not in analyze.py.
+
+
+def _minimal_artifacts(tmp_path, *, signal_date: str):
+    import json
+
+    dossier = {
+        "run_id": "RID-1",
+        "date": "2026-08-25",
+        "generated_at": "2026-08-25T09:00:00Z",
+        "dossiers": [
+            {
+                "event_id": "EV1",
+                "sport": "football",
+                "readiness": "PARTIAL",
+                "data_gaps": [],
+                "metrics": {
+                    "corners_total": {
+                        "canonical_name": "corners_total",
+                        "team_a_l10": [
+                            {
+                                "provider": "espn-football",
+                                "match_id": f"m{i}",
+                                "match_date": f"2026-08-0{i+1}",
+                                "opponent": f"Opp{i}",
+                                "value": 9.0 + i,
+                                "observed_at": "2026-08-25T09:00:00Z",
+                            }
+                            for i in range(6)
+                        ],
+                        "team_b_l10": [],
+                        "h2h": [],
+                    }
+                },
+            }
+        ],
+    }
+    signal = {
+        "run_id": "RID-1",
+        "date": signal_date,
+        "generated_at": "2026-08-25T10:00:00Z",
+        "sources_attempted": ["zawodtyper"],
+        "sources_with_picks": ["zawodtyper"],
+        "picks_ingested": 1,
+        "picks_matched": 1,
+        "picks_unmatched": 0,
+        "countable_claims": 1,
+        "events": [
+            {
+                "event_id": "EV1",
+                "home_team": "A",
+                "away_team": "B",
+                "match_quality": "EXACT",
+                "match_score": 100,
+                "picks": [
+                    {
+                        "source_id": "zawodtyper",
+                        "source_name": "ZawodTyper",
+                        "tipster_name": "AnalystA",
+                        "claim": "Poniżej 10,5 rzutów rożnych",
+                        "market": "corners_total",
+                        "line": 10.5,
+                        "direction": "UNDER",
+                        "countable": True,
+                    }
+                ],
+                "public_lean": {},
+            }
+        ],
+    }
+    dossier_path = tmp_path / "2026-08-25_event_dossiers.json"
+    signal_path = tmp_path / "signal.json"
+    dossier_path.write_text(json.dumps(dossier), encoding="utf-8")
+    signal_path.write_text(json.dumps(signal), encoding="utf-8")
+    return dossier_path, signal_path
+
+
+def _run_analyze(tmp_path, dossier_path, *extra):
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[2]
+    proc = subprocess.run(
+        [
+            sys.executable,
+            str(root / "scripts" / "simple" / "run_analyze.py"),
+            "--dossier", str(dossier_path),
+            "--output-dir", str(tmp_path),
+            "--db-path", str(tmp_path / "x.sqlite"),
+            *extra,
+        ],
+        capture_output=True, text=True, cwd=root,
+    )
+    import json as _json
+
+    summary = {}
+    for line in proc.stdout.splitlines():
+        if line.startswith("AGENT_SUMMARY:"):
+            summary = _json.loads(line[len("AGENT_SUMMARY:"):])
+    return summary
+
+
+def test_a_matching_signal_populates_the_column(tmp_path):
+    dossier_path, signal_path = _minimal_artifacts(tmp_path, signal_date="2026-08-25")
+    summary = _run_analyze(tmp_path, dossier_path, "--tipster-signal", str(signal_path))
+    assert summary["metrics"]["tipster_rows_with_opinion"] >= 1
+    assert summary["metrics"]["tipster_countable_claims"] == 1
+
+    import json
+
+    sheet = json.loads((tmp_path / "2026-08-25_event_dossiers_stats_sheet.json").read_text())
+    matching = [
+        r for r in sheet["rows"]
+        if r["market"] == "corners_total" and r["line"] == 10.5 and r["direction"] == "UNDER"
+    ]
+    assert matching and matching[0]["tipster"]["verdict"] == "CONFIRMS"
+
+
+def test_a_signal_for_another_day_is_refused(tmp_path):
+    dossier_path, signal_path = _minimal_artifacts(tmp_path, signal_date="2026-08-24")
+    summary = _run_analyze(tmp_path, dossier_path, "--tipster-signal", str(signal_path))
+    assert summary["metrics"]["tipster_signal_error"].startswith("date_mismatch")
+    assert summary["metrics"]["tipster_signal"] is None
+
+    import json
+
+    sheet = json.loads((tmp_path / "2026-08-25_event_dossiers_stats_sheet.json").read_text())
+    assert all(r["tipster"] is None for r in sheet["rows"])
+
+
+def test_a_missing_signal_file_is_a_warning_not_a_crash(tmp_path):
+    dossier_path, _ = _minimal_artifacts(tmp_path, signal_date="2026-08-25")
+    summary = _run_analyze(tmp_path, dossier_path, "--tipster-signal", str(tmp_path / "gone.json"))
+    assert summary["verdict"] in ("OK", "PARTIAL")
+    assert "tipster_signal_error" in summary["metrics"]
+
+
+def test_the_sheet_is_unchanged_when_no_signal_is_passed(tmp_path):
+    import json
+
+    dossier_path, signal_path = _minimal_artifacts(tmp_path, signal_date="2026-08-25")
+    without = _run_analyze(tmp_path, dossier_path)
+    sheet_without = json.loads((tmp_path / "2026-08-25_event_dossiers_stats_sheet.json").read_text())
+
+    with_signal = _run_analyze(tmp_path, dossier_path, "--tipster-signal", str(signal_path))
+    sheet_with = json.loads((tmp_path / "2026-08-25_event_dossiers_stats_sheet.json").read_text())
+
+    assert without["metrics"]["total_rows"] == with_signal["metrics"]["total_rows"]
+    # Every field except the column itself is identical.
+    for a, b in zip(sheet_without["rows"], sheet_with["rows"]):
+        assert {k: v for k, v in a.items() if k != "tipster"} == {
+            k: v for k, v in b.items() if k != "tipster"
+        }
+        assert a["tipster"] is None

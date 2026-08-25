@@ -5,15 +5,22 @@ import re
 from .contracts import Direction, MarketFamily
 from .normalization import collapse_ws
 
+# Polish stems are anchored at the start and left OPEN at the end. The previous
+# patterns closed every alternative with \b, which requires a non-word character
+# after the stem -- but Polish inflects by suffix, so "rzutów rożnych",
+# "kartkami" and "strzałów" all continue the word and none of them matched. The
+# corners pattern in particular never fired on live Polish text and every such
+# pick fell through to the "goals" catch-all, which is why the 4417-row history
+# contains almost no corners rows despite the sources publishing them.
 _STAT_PATTERNS: list[tuple[MarketFamily, re.Pattern[str]]] = [
-    ("corners", re.compile(r"\b(corners?|rzut(?:y|ow|ów)?\s*ro[żz]n|ck)\b", re.I)),
-    ("cards", re.compile(r"\b(cards?|yellow|kart(?:ki|ek|ka)|żółt)\b", re.I)),
-    ("shots", re.compile(r"\b(shots?|strza(?:ly|ły|l|ł))\b", re.I)),
-    ("fouls", re.compile(r"\b(fouls?|faul(?:e|i)?)\b", re.I)),
-    ("tennis_games", re.compile(r"\b(games?|gemy?|sets?|sety?|aces?|break points?)\b", re.I)),
-    ("basketball_points", re.compile(r"\b(points?|punkty|rebounds?|assists?|steals?)\b", re.I)),
-    ("hockey_total", re.compile(r"\b(puck line|power play|shots on goal|penalty minutes|goals?)\b", re.I)),
-    ("goals", re.compile(r"\b(goals?|bram(?:ki|ek|ka)|gole?)\b", re.I)),
+    ("corners", re.compile(r"\b(corners?|rzut\w*\s+ro[żz]n\w*|ro[żz]n\w*|ck)\b", re.I)),
+    ("cards", re.compile(r"\b(cards?|bookings?|yellow|kart\w*|[żz][óo][łl]t\w*|czerwon\w*)\b", re.I)),
+    ("shots", re.compile(r"\b(shots?|strza[łl]\w*)\b", re.I)),
+    ("fouls", re.compile(r"\b(fouls?|faul\w*|przewinien\w*)\b", re.I)),
+    ("tennis_games", re.compile(r"\b(games?|gem\w*|sets?|set[óo]w|aces?|break points?)\b", re.I)),
+    ("basketball_points", re.compile(r"\b(points?|punkt\w*|pkt|rebounds?|assists?|steals?)\b", re.I)),
+    ("hockey_total", re.compile(r"\b(puck line|power play|shots on goal|penalty minutes)\b", re.I)),
+    ("goals", re.compile(r"\b(goals?|bram\w*|gol\w*)\b", re.I)),
 ]
 
 
@@ -31,8 +38,12 @@ def parse_line(text: str) -> float | None:
     if explicit:
         val = float(explicit.group(1).replace(",", "."))
         return val if -50.0 <= val <= 250.0 else None
+    # Whitespace between number and unit is required: "1set" is an ordinal
+    # period marker ("1st set"), and reading it as a line turned
+    # "1set Szwecja -2,5pkt" into line=1.0 on the wrong market entirely.
     reverse = re.search(
-        r"\b([0-9]+(?:[.,][0-9]+)?)\s*(?:goals?|corners?|cards?|shots?|fouls?|games?|sets?|points?|bramki|kartki|rożne|rozne)\b",
+        r"\b([0-9]+(?:[.,][0-9]+)?)\s+(?:goals?|corners?|cards?|shots?|fouls?|games?|sets?|points?|pkt"
+        r"|bram\w*|gol\w*|kart\w*|strza[łl]\w*|ro[żz]n\w*|punkt\w*)",
         text,
         re.I,
     )
@@ -80,9 +91,18 @@ def market_family(text: str) -> MarketFamily:
 
 def direction(text: str) -> Direction:
     low = text.lower()
-    if re.search(r"\b(over|powyzej|powyżej|więcej|wiecej)\b", low):
+    # "pow."/"pon." are the abbreviations ZawodTyper's tipsters actually use;
+    # spelled-out forms alone left "Pow.2,5 gola" with no direction at all.
+    # "+3,5 kartki" is the other shorthand: without it the persisted row read
+    # OTHER while the claim classifier read OVER, so the DB and the artifact
+    # disagreed about the same pick. It is only shorthand for "over" on a total
+    # though -- on a handicap "+1.5" is the line's sign, and reading it as OVER
+    # gave every Asian-handicap pick a direction it never claimed.
+    is_handicap = re.search(r"(\bhandicap\b|\bhc\b|\bfora\b|\bah\b|\bazjat\w*|\bspread\b)", low)
+    over_shorthand = "" if is_handicap else r"|\+\s*\d"
+    if re.search(rf"(\bover\b|\bpowyzej\b|\bpowyżej\b|\bpow\.|\bponad\b|\bwięcej\b|\bwiecej\b{over_shorthand})", low):
         return "OVER"
-    if re.search(r"\b(under|ponizej|poniżej|mniej)\b", low):
+    if re.search(r"(\bunder\b|\bponizej\b|\bponiżej\b|\bpon\.|\bmniej\b)", low):
         return "UNDER"
     if re.search(r"\b(btts no|both teams not|obie nie)\b", low):
         return "BTTS_NO"

@@ -11,15 +11,26 @@ import sqlite3
 from pathlib import Path
 from typing import Iterable
 
+from .claim import classify_claim
 from .contracts import ExtractionResult, TipsterPick
 from .pipeline_adapter import consensus_from_picks, to_legacy_pick
 
+# The claim_* columns record what bet.tipsters.claim made of each pick. Without
+# them the strict classification would exist only in today's artifact, and the
+# question this whole column is for -- does public agreement predict anything --
+# needs a history that can be queried without re-parsing Polish free text months
+# later. match_date is separate from extracted_at_utc so a pick can be
+# attributed to a betting day rather than to the moment we happened to fetch it.
 TIPSTER_PICK_COLUMNS = [
     "source_id", "source_name", "sport", "event", "home_team", "away_team",
     "market", "market_family", "direction", "line", "odds_decimal",
     "confidence_label", "reasoning", "stats_cited_json", "valuable_signals_json",
     "source_url", "extracted_at_utc", "extraction_quality", "warnings_json",
     "source_record_type", "pipeline_use_json",
+    "tipster_name", "match_date", "kickoff_time", "is_combo", "is_settled",
+    "tipster_accuracy_pct", "tipster_bet_count", "source_ref",
+    "claim_market", "claim_line", "claim_direction", "claim_countable",
+    "claim_reject_reason",
 ]
 
 
@@ -97,7 +108,25 @@ def init_sqlite(conn: sqlite3.Connection) -> None:
             warnings_json TEXT NOT NULL,
             source_record_type TEXT NOT NULL,
             pipeline_use_json TEXT NOT NULL,
-            UNIQUE(source_id, source_url, sport, home_team, away_team, market, extracted_at_utc)
+            tipster_name TEXT,
+            match_date TEXT,
+            kickoff_time TEXT,
+            is_combo INTEGER NOT NULL DEFAULT 0,
+            is_settled INTEGER NOT NULL DEFAULT 0,
+            tipster_accuracy_pct INTEGER,
+            tipster_bet_count INTEGER,
+            source_ref TEXT,
+            claim_market TEXT,
+            claim_line REAL,
+            claim_direction TEXT,
+            claim_countable INTEGER NOT NULL DEFAULT 0,
+            claim_reject_reason TEXT,
+            -- source_ref is the source's own per-bet id (ZawodTyper's
+            -- comment_id). Keyed on rather than the market text so two tipsters
+            -- posting the same claim on the same fixture stay two rows: they are
+            -- two opinions, and collapsing them is what made the old consensus
+            -- denominator always 1.
+            UNIQUE(source_id, source_ref, home_team, away_team, market, extracted_at_utc)
         )
         """
     )
@@ -119,11 +148,55 @@ def init_sqlite(conn: sqlite3.Connection) -> None:
         )
         """
     )
+    _add_missing_columns(conn)
     conn.execute("CREATE INDEX IF NOT EXISTS idx_tipster_picks_v2_event ON tipster_picks_v2(sport, home_team, away_team)")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_tipster_picks_v2_market ON tipster_picks_v2(market_family, direction)")
+    # The two queries this table exists to answer: "what did tipsters say about
+    # this betting day" and "did the countable claims turn out to be right".
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_tipster_picks_v2_date ON tipster_picks_v2(match_date)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_tipster_picks_v2_claim ON tipster_picks_v2(claim_countable, claim_market, claim_line)")
+
+
+# Columns added after the table's first release, with the type each needs. A
+# CREATE TABLE IF NOT EXISTS is a no-op against an existing table, so a database
+# created by the earlier schema would keep its old column set and every insert
+# would fail on arity. Adding them one at a time is idempotent and cheap.
+_LATE_COLUMNS: tuple[tuple[str, str], ...] = (
+    ("tipster_name", "TEXT"),
+    ("match_date", "TEXT"),
+    ("kickoff_time", "TEXT"),
+    ("is_combo", "INTEGER NOT NULL DEFAULT 0"),
+    ("is_settled", "INTEGER NOT NULL DEFAULT 0"),
+    ("tipster_accuracy_pct", "INTEGER"),
+    ("tipster_bet_count", "INTEGER"),
+    ("source_ref", "TEXT"),
+    ("claim_market", "TEXT"),
+    ("claim_line", "REAL"),
+    ("claim_direction", "TEXT"),
+    ("claim_countable", "INTEGER NOT NULL DEFAULT 0"),
+    ("claim_reject_reason", "TEXT"),
+)
+
+
+def _add_missing_columns(conn: sqlite3.Connection) -> None:
+    """Bring a pre-existing tipster_picks_v2 up to the current column set.
+
+    Only additive: the UNIQUE constraint cannot be altered in place, so a table
+    created by the old schema keeps keying on (source_id, source_url, ...)
+    instead of source_ref. That is a weaker duplicate guard, not a wrong one --
+    extracted_at_utc differs per run either way -- and it is not worth rebuilding
+    a table for.
+    """
+    existing = {row[1] for row in conn.execute("PRAGMA table_info(tipster_picks_v2)")}
+    if not existing:
+        return
+    for name, decl in _LATE_COLUMNS:
+        if name not in existing:
+            conn.execute(f"ALTER TABLE tipster_picks_v2 ADD COLUMN {name} {decl}")
 
 
 def _pick_row(p: TipsterPick) -> tuple:
+    claim = classify_claim(p.market, p.home_team, p.away_team)
     return (
         p.source_id, p.source_name, p.sport, p.event, p.home_team, p.away_team,
         p.market, p.market_family, p.direction, p.line, p.odds_decimal,
@@ -131,6 +204,11 @@ def _pick_row(p: TipsterPick) -> tuple:
         json.dumps(p.valuable_signals, ensure_ascii=False), p.source_url,
         p.extracted_at_utc, p.extraction_quality, json.dumps(p.warnings, ensure_ascii=False),
         p.source_record_type, json.dumps(p.pipeline_use, ensure_ascii=False),
+        p.tipster_name, p.match_date, p.kickoff_time, int(p.is_combo), int(p.is_settled),
+        p.tipster_accuracy_pct, p.tipster_bet_count, p.source_ref,
+        claim.market, claim.line, claim.direction,
+        int(claim.countable and not p.is_combo),
+        claim.reject_reason or ("combo_bet_legs_not_separable" if p.is_combo else ""),
     )
 
 

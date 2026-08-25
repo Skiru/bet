@@ -42,7 +42,13 @@ from agent_output import AgentOutput, add_agent_args  # noqa: E402
 
 from bet.simple_stats.run_context import new_run_id  # noqa: E402
 
-STEPS = ("discover", "enrich", "analyze")
+# TIPSTERS sits between ENRICH and ANALYZE because it needs DISCOVER's event
+# list and ANALYZE consumes its output, and it is listed as a full step so
+# --start-at / --stop-after can address it. It is the only optional step: its
+# inputs are third-party web pages, so it reports PARTIAL rather than FAILED and
+# the run continues without the column.
+STEPS = ("discover", "enrich", "tipsters", "analyze")
+OPTIONAL_STEPS = frozenset({"tipsters"})
 
 # Indirection so tests can substitute stub steps: the wrapper's job is
 # sequencing, artifact threading and verdict aggregation, and none of that
@@ -50,6 +56,7 @@ STEPS = ("discover", "enrich", "analyze")
 STEP_SCRIPTS = {
     "discover": "scripts/simple/run_discover.py",
     "enrich": "scripts/simple/run_enrich.py",
+    "tipsters": "scripts/simple/run_tipsters.py",
     "analyze": "scripts/simple/run_analyze.py",
 }
 
@@ -231,6 +238,15 @@ def main() -> None:
     )
     parser.add_argument("--stop-after", choices=STEPS, default="analyze")
     parser.add_argument(
+        "--skip-tipsters", action="store_true",
+        help="Do not fetch public tipster pages. The stats sheet is produced "
+             "without the agreement column.",
+    )
+    parser.add_argument(
+        "--tipster-source", action="append", default=None,
+        help="Repeatable. Overrides the default live tipster source set.",
+    )
+    parser.add_argument(
         "--preflight", action="store_true",
         help="Check providers and stop. Spends nothing -- run this first, in the morning.",
     )
@@ -273,6 +289,7 @@ def main() -> None:
     # fallbacks used only when that step did not run in this process.
     event_list = output_dir / f"{date}_event_list.json"
     dossier = output_dir / f"{date}_event_dossiers.json"
+    tipster_signal = output_dir / f"{date}_tipster_signal.json"
 
     first = STEPS.index(args.start_at)
     last = STEPS.index(args.stop_after)
@@ -305,6 +322,24 @@ def main() -> None:
             ]
             if args.skip_preflight:
                 argv.append("--skip-preflight")
+        elif name == "tipsters":
+            if args.skip_tipsters:
+                out.event("step_skipped", pipeline_step=name, reason="--skip-tipsters")
+                continue
+            if not event_list.exists():
+                out.warning(
+                    f"skipping TIPSTERS: {event_list} is missing, so no pick can be "
+                    "attributed to a fixture",
+                    pipeline_step=name,
+                )
+                continue
+            argv = [
+                STEP_SCRIPTS["tipsters"],
+                "--event-list", str(event_list),
+                *common,
+            ]
+            for source in args.tipster_source or []:
+                argv += ["--source", source]
         else:
             if not dossier.exists():
                 out.error(
@@ -314,9 +349,19 @@ def main() -> None:
                 out.summary(verdict="PRECONDITION_FAILED", metrics={"run_id": run_id, "date": date})
                 sys.exit(2)
             argv = [STEP_SCRIPTS["analyze"], "--dossier", str(dossier), *common]
+            # Absent unless TIPSTERS actually wrote it, so a skipped or failed
+            # tipster step leaves ANALYZE exactly as it was before this stage
+            # existed.
+            if tipster_signal.exists():
+                argv += ["--tipster-signal", str(tipster_signal)]
 
         verdict, metrics, code = _run_step(out, name, argv, verbose=args.verbose)
-        verdicts.append(verdict)
+        # An optional step's verdict is recorded per step but kept out of the
+        # run verdict: a tipster page that moved overnight is not a bad betting
+        # day, and reporting it as one would train the operator to ignore the
+        # field that matters.
+        if name not in OPTIONAL_STEPS:
+            verdicts.append(verdict)
 
         # On a resumed run, ENRICH/ANALYZE inherit the run_id stamped into the
         # artifact they read, which is the id of the original run -- not the one
@@ -341,13 +386,15 @@ def main() -> None:
                 event_list = Path(produced)
             elif name == "enrich":
                 dossier = Path(produced)
+            elif name == "tipsters":
+                tipster_signal = Path(produced)
             else:
                 stats_sheet = produced
 
         # DISCOVER/ENRICH failing means the next step has no input to read.
         # There is nothing to salvage by continuing, and continuing would spend
         # provider quota producing an artifact nobody can use.
-        if verdict in ("FAILED", "PRECONDITION_FAILED"):
+        if verdict in ("FAILED", "PRECONDITION_FAILED") and name not in OPTIONAL_STEPS:
             out.error(
                 f"{name} returned {verdict} -- stopping before {STEPS[STEPS.index(name) + 1]}"
                 if name != "analyze" else f"{name} returned {verdict}",
@@ -365,6 +412,7 @@ def main() -> None:
         "steps_run": list(step_results),
         "step_verdicts": {name: r["verdict"] for name, r in step_results.items()},
         "stats_sheet": stats_sheet,
+        "tipster_signal": str(tipster_signal) if tipster_signal.exists() else None,
         "elapsed_s": round(time.monotonic() - wall_start, 1),
         "started_at": started_at,
     }

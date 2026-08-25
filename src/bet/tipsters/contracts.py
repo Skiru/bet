@@ -129,6 +129,22 @@ class TipsterPick:
     competition: str | None = None
     published_at: str | None = None
     source_url: str | None = None
+    # The fixture's own date (YYYY-MM-DD) as the source states it, distinct from
+    # extracted_at_utc. Without it a pick cannot be attributed to a betting day,
+    # and a page that lists several days -- which every one of these sources
+    # does -- silently contributes yesterday's opinions to today's column.
+    match_date: str | None = None
+    kickoff_time: str | None = None
+    # A parlay: its legs do not resolve independently, so it is never a
+    # single-market opinion. Flagged at extraction so the consensus layer does
+    # not have to re-derive it from prose.
+    is_combo: bool = False
+    # Already resolved at the source. A settled claim is a historical record,
+    # not a read on an upcoming fixture.
+    is_settled: bool = False
+    tipster_accuracy_pct: int | None = None
+    tipster_bet_count: int | None = None
+    source_ref: str | None = None
     extracted_at_utc: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     extraction_quality: float = 0.0
     warnings: list[str] = field(default_factory=list)

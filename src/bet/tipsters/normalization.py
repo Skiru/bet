@@ -74,11 +74,32 @@ def clean_team_name(raw: str) -> str:
     return collapse_ws(text[:80])
 
 
+# Fixture-list scaffolding that the "A vs B" patterns happily swallow when a
+# listing page is flattened to text. Live run 2026-08-25 produced Sportsgambler
+# "teams" such as "00 Mon 24/08 vs Premier League Fulham Chelsea Expired
+# Fulham": a clock time, a weekday, a date, a league name, a status badge and
+# two real clubs, all matched as one side. Names carrying any of these markers
+# are structurally not club names, whatever else is in them.
+_SCAFFOLDING_MARKERS = (
+    re.compile(r"\b\d{1,2}[:.]\d{2}\b"),                                        # 19:00
+    re.compile(r"\b\d{1,2}\s*/\s*\d{1,2}\b"),                                   # 24/08
+    re.compile(r"\b\d{1,2}\.\d{1,2}\.\d{2,4}\b"),                               # 24.08.2026
+    re.compile(r"\b(?:mon|tue|wed|thu|fri|sat|sun)\b", re.I),
+    re.compile(r"\b(?:expired|postponed|cancelled|canceled|finished|live now|ft|ended)\b", re.I),
+)
+
+
 def is_garbage_team(name: str) -> bool:
     key = normalize_key(name)
     if len(key) < 2 or key in TEAM_NOISE or key in LEAGUE_WORDS:
         return True
     if re.fullmatch(r"\d+", key):
+        return True
+    # Checked against the raw text, not the normalized key: normalize_key strips
+    # the punctuation ("19:00" -> "19 00") that identifies a timestamp.
+    if any(pattern.search(name) for pattern in _SCAFFOLDING_MARKERS):
+        return True
+    if any(league in key for league in LEAGUE_WORDS):
         return True
     words = key.split()
     if len(words) > 7:

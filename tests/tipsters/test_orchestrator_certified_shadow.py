@@ -3,8 +3,8 @@ from __future__ import annotations
 import pytest
 from pathlib import Path
 from bet.tipsters.source_registry import CERTIFIED_SHADOW_SOURCE_IDS
-from scripts.pipeline_steps.s2_tipsters_v2_live_dry_run import (
-    _review_gate_details,
+from bet.tipsters.live import (
+    review_gate_details as _review_gate_details,
     review_allows_source,
     resolve_target_entrypoints,
 )

@@ -12,6 +12,7 @@ from bs4 import BeautifulSoup
 
 from .contracts import ExtractionResult, ExtractorVerdict, RawDocument, TipsterPick
 from .normalization import clean_team_name, is_garbage_team, collapse_ws
+from bet.pipeline.tipster_parsers import DISCIPLINE_MAP
 from .market_parser import market_family, direction, parse_line, extract_odds, stats_cited
 from .extractors import detect_sport, PARSER_VERSION
 
@@ -135,10 +136,23 @@ def parse_typersi_static_tables(html: str, url: str) -> list[TipsterPick]:
             if is_garbage_team(home) or is_garbage_team(away) or home.lower() == away.lower():
                 continue
 
-            # Extract tipster name
+            # Extract tipster name. Scanning back to the first *meaningful* cell
+            # rather than taking event_idx-1 blindly: the live row layout is
+            # ['', 'Kasia', '11:00', '', 'Orix Buffaloes - Rakuten G', ...], so
+            # the immediately preceding cell is the empty bookmaker-logo column
+            # and every pick came out attributed to "Typersi". A consensus whose
+            # members are all one name cannot be weighted by who said it.
             tipster = "Typersi"
-            if event_idx > 0:
-                tipster = cells[event_idx - 1] or "Typersi"
+            for cell in reversed(cells[:event_idx]):
+                candidate = collapse_ws(cell)
+                if not candidate:
+                    continue
+                if re.fullmatch(r"\d{1,2}[:.]\d{2}", candidate):  # kickoff time
+                    continue
+                if re.fullmatch(r"[\d.,]+", candidate):  # odds or a count
+                    continue
+                tipster = candidate
+                break
 
             # Extract market/pick
             market = "N/A"
@@ -154,6 +168,27 @@ def parse_typersi_static_tables(html: str, url: str) -> list[TipsterPick]:
             bookmaker = "Metadata Only"
             if event_idx + 3 < len(cells):
                 bookmaker = cells[event_idx + 3] or "Metadata Only"
+
+            # The site states the discipline in its own cell, last in the row
+            # ("Piłka nożna", "Tenis", "Baseball"). Reading it beats inferring
+            # from the team names, which is what detect_sport did: it has no
+            # football keyword to find in "Semenistaja D. - Kinoshita H." and so
+            # returned its "football" default for every row. The live run of
+            # 2026-08-25 labelled 29 of 29 picks football, tennis and NPB
+            # baseball fixtures included. A mislabelled sport cannot match a
+            # discovered event -- sport equality is exact by design -- so the
+            # pick was silently dropped rather than wrongly attributed.
+            sport = ""
+            for cell in reversed(cells[event_idx + 1:]):
+                mapped = DISCIPLINE_MAP.get(collapse_ws(cell).lower())
+                if mapped:
+                    sport = mapped
+                    break
+            warnings = ["weak_or_empty_reasoning", "odds_reference_only"]
+            if not sport:
+                # Fall back to the old inference, but say that it was a guess.
+                sport = detect_sport(event_raw, url)
+                warnings.append("sport_inferred_no_discipline_cell")
 
             # Map double chance and basic outcome markets
             normalized_market = market
@@ -175,7 +210,7 @@ def parse_typersi_static_tables(html: str, url: str) -> list[TipsterPick]:
             picks.append(TipsterPick(
                 source_id="typersi",
                 source_name="Typersi",
-                sport=detect_sport(event_raw, url),
+                sport=sport,
                 event=f"{home} vs {away}",
                 home_team=home,
                 away_team=away,
@@ -189,7 +224,7 @@ def parse_typersi_static_tables(html: str, url: str) -> list[TipsterPick]:
                 tipster_name=tipster,
                 source_url=url,
                 extraction_quality=0.48, # table context only, no narrative reasoning
-                warnings=["weak_or_empty_reasoning", "odds_reference_only"],
+                warnings=warnings,
                 valuable_signals={"bookmaker_metadata": [bookmaker]},
                 source_record_type="source_claim_evidence",
             ))

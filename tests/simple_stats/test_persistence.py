@@ -155,3 +155,41 @@ def test_fixture_ids_by_event_id_looks_up_persisted_fixtures(db_with_sports):
     conn.commit()
 
     assert fixture_ids_by_event_id(conn, {"evt1"}) == fixture_ids
+
+
+# --- The tipster column has to survive the trip into analysis_results ---------
+#
+# bet-analyst is instructed to cross-check the DB for other run_ids of the same
+# day, so a row reachable only there would otherwise lose the column that the
+# artifact shows.
+
+
+def test_ranking_json_carries_the_tipster_column_when_present():
+    from bet.simple_stats.contracts import StatsSheetRow, TipsterColumn
+    from bet.simple_stats.persistence import _stats_row_to_dict
+
+    row = StatsSheetRow(
+        event_id="EV1", sport="football", market="corners_total", line=10.5,
+        direction="UNDER", hits=9, sample_size=12, hit_rate=0.75, mean=9.0, median=9.0,
+        sources=["espn-football"], cross_provider_agreement="AGREE", confidence="HIGH",
+        data_quality="READY",
+        tipster=TipsterColumn(verdict="CONFIRMS", agree=2, oppose=0, considered=5, sources=["zawodtyper"]),
+    )
+    payload = _stats_row_to_dict(row)
+    assert payload["tipster"]["verdict"] == "CONFIRMS"
+    assert payload["tipster"]["agree"] == 2
+
+
+def test_ranking_json_omits_the_key_entirely_when_no_tipster_ran():
+    """Not a null: a null reads as "checked, nobody agreed", which is a different
+    statement from "this column was never populated"."""
+    from bet.simple_stats.contracts import StatsSheetRow
+    from bet.simple_stats.persistence import _stats_row_to_dict
+
+    row = StatsSheetRow(
+        event_id="EV1", sport="football", market="corners_total", line=10.5,
+        direction="UNDER", hits=9, sample_size=12, hit_rate=0.75, mean=9.0, median=9.0,
+        sources=["espn-football"], cross_provider_agreement="AGREE", confidence="HIGH",
+        data_quality="READY",
+    )
+    assert "tipster" not in _stats_row_to_dict(row)
