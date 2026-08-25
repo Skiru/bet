@@ -115,10 +115,10 @@ def make_request(endpoint: str, data: dict, stream: bool = False) -> tuple[int, 
         "Authorization": f"Bearer {API_KEY}",
         "Content-Type": "application/json"
     }
-    
+
     body = json.dumps(data).encode("utf-8")
     req = urllib.request.Request(url, data=body, headers=headers, method="POST")
-    
+
     start = time.perf_counter()
     try:
         with urllib.request.urlopen(req, timeout=TIMEOUT) as response:
@@ -131,19 +131,19 @@ def make_request(endpoint: str, data: dict, stream: bool = False) -> tuple[int, 
         status = 0
         result = {"error": str(e)}
     duration_ms = (time.perf_counter() - start) * 1000
-    
+
     return status, result, duration_ms
 
 
 def test_cold_start_with_prefix() -> dict:
     """Test 1: Cold start with full Kilo prefix."""
     print("  1. Cold start with Kilo prefix...")
-    
+
     messages = [
         {"role": "system", "content": KILO_PREFIX_TEMPLATE},
         {"role": "user", "content": "What is 2+2? Reply with only the number."}
     ]
-    
+
     status, result, duration = make_request("/chat/completions", {
         "model": MODEL_ID,
         "messages": messages,
@@ -151,12 +151,12 @@ def test_cold_start_with_prefix() -> dict:
         "temperature": 0,
         "stream": False
     })
-    
+
     passed = status == 200
     prompt_tokens = result.get("usage", {}).get("prompt_tokens", 0) if passed else 0
-    
+
     print(f"     {'PASS' if passed else 'FAIL'} (HTTP {status}, {duration:.0f}ms, prompt_tokens={prompt_tokens})")
-    
+
     return {
         "test": "cold_start_with_prefix",
         "passed": passed,
@@ -170,12 +170,12 @@ def test_cold_start_with_prefix() -> dict:
 def test_warm_cache_benefit() -> dict:
     """Test 2: Warm cache benefit measurement."""
     print("  2. Warm cache benefit...")
-    
+
     messages = [
         {"role": "system", "content": KILO_PREFIX_TEMPLATE},
         {"role": "user", "content": "What is 3+3? Reply with only the number."}
     ]
-    
+
     # First request (should be cached from previous if prefix similar)
     status1, result1, duration1 = make_request("/chat/completions", {
         "model": MODEL_ID,
@@ -184,7 +184,7 @@ def test_warm_cache_benefit() -> dict:
         "temperature": 0,
         "stream": False
     })
-    
+
     # Second request (should hit cache)
     status2, result2, duration2 = make_request("/chat/completions", {
         "model": MODEL_ID,
@@ -193,12 +193,12 @@ def test_warm_cache_benefit() -> dict:
         "temperature": 0,
         "stream": False
     })
-    
+
     passed = status1 == 200 and status2 == 200
     cache_benefit = duration1 - duration2  # Positive if warm is faster
-    
+
     print(f"     {'PASS' if passed else 'FAIL'} (cold={duration1:.0f}ms, warm={duration2:.0f}ms, benefit={cache_benefit:.0f}ms)")
-    
+
     return {
         "test": "warm_cache_benefit",
         "passed": passed,
@@ -212,14 +212,14 @@ def test_warm_cache_benefit() -> dict:
 def test_context_accounting() -> dict:
     """Test 3: Context accounting accuracy."""
     print("  3. Context accounting accuracy...")
-    
+
     # Build a message with known token count
     test_content = "a " * 100  # ~100 tokens
     messages = [
         {"role": "system", "content": KILO_PREFIX_TEMPLATE},
         {"role": "user", "content": test_content}
     ]
-    
+
     status, result, duration = make_request("/chat/completions", {
         "model": MODEL_ID,
         "messages": messages,
@@ -227,20 +227,20 @@ def test_context_accounting() -> dict:
         "temperature": 0,
         "stream": False
     })
-    
+
     passed = status == 200
     usage = result.get("usage", {})
     prompt_tokens = usage.get("prompt_tokens", 0)
     completion_tokens = usage.get("completion_tokens", 0)
     total_tokens = usage.get("total_tokens", 0)
-    
+
     # Verify accounting: total should equal prompt + completion
     accounting_valid = total_tokens == prompt_tokens + completion_tokens
-    
+
     passed = passed and accounting_valid
-    
+
     print(f"     {'PASS' if passed else 'FAIL'} (prompt={prompt_tokens}, completion={completion_tokens}, total={total_tokens}, accounting_valid={accounting_valid})")
-    
+
     return {
         "test": "context_accounting",
         "passed": passed,
@@ -254,12 +254,12 @@ def test_context_accounting() -> dict:
 def test_token_limit_enforcement() -> dict:
     """Test 4: Token limit enforcement."""
     print("  4. Token limit enforcement...")
-    
+
     messages = [
         {"role": "system", "content": KILO_PREFIX_TEMPLATE},
         {"role": "user", "content": "Count from 1 to 100, one number per line."}
     ]
-    
+
     # Request with small max_tokens
     max_tokens = 20
     status, result, duration = make_request("/chat/completions", {
@@ -269,17 +269,17 @@ def test_token_limit_enforcement() -> dict:
         "temperature": 0,
         "stream": False
     })
-    
+
     passed = status == 200
     finish_reason = result.get("choices", [{}])[0].get("finish_reason", "")
     completion_tokens = result.get("usage", {}).get("completion_tokens", 0)
-    
+
     # Should be truncated (finish_reason should be "length" not "stop")
     truncated = finish_reason == "length" or completion_tokens <= max_tokens
     passed = passed and truncated
-    
+
     print(f"     {'PASS' if passed else 'FAIL'} (finish_reason={finish_reason}, completion_tokens={completion_tokens}, max_tokens={max_tokens})")
-    
+
     return {
         "test": "token_limit_enforcement",
         "passed": passed,
@@ -293,16 +293,16 @@ def test_token_limit_enforcement() -> dict:
 def test_multi_turn_stability() -> dict:
     """Test 5: Multi-turn stability under prefix."""
     print("  5. Multi-turn stability (5 turns)...")
-    
+
     messages = [
         {"role": "system", "content": KILO_PREFIX_TEMPLATE},
         {"role": "user", "content": "My name is Alice. Remember it."}
     ]
-    
+
     turns_passed = 0
     total_tokens = 0
     errors = []
-    
+
     # Turn 1: Initial
     status, result, _ = make_request("/chat/completions", {
         "model": MODEL_ID,
@@ -310,7 +310,7 @@ def test_multi_turn_stability() -> dict:
         "max_tokens": 50,
         "temperature": 0
     })
-    
+
     if status == 200:
         turns_passed += 1
         total_tokens += result.get("usage", {}).get("total_tokens", 0)
@@ -318,7 +318,7 @@ def test_multi_turn_stability() -> dict:
         messages.append({"role": "assistant", "content": assistant_reply})
     else:
         errors.append(f"Turn 1 failed: {status}")
-    
+
     # Turn 2-5: Continue conversation
     follow_ups = [
         "What is my name?",
@@ -326,7 +326,7 @@ def test_multi_turn_stability() -> dict:
         "What was the calculation result?",
         "Summarize our conversation in one sentence."
     ]
-    
+
     for i, follow_up in enumerate(follow_ups, start=2):
         messages.append({"role": "user", "content": follow_up})
         status, result, _ = make_request("/chat/completions", {
@@ -335,7 +335,7 @@ def test_multi_turn_stability() -> dict:
             "max_tokens": 100,
             "temperature": 0
         })
-        
+
         if status == 200:
             turns_passed += 1
             total_tokens += result.get("usage", {}).get("total_tokens", 0)
@@ -343,11 +343,11 @@ def test_multi_turn_stability() -> dict:
             messages.append({"role": "assistant", "content": assistant_reply})
         else:
             errors.append(f"Turn {i} failed: {status}")
-    
+
     passed = turns_passed == 5
-    
+
     print(f"     {'PASS' if passed else 'FAIL'} (turns_passed={turns_passed}/5, total_tokens={total_tokens})")
-    
+
     return {
         "test": "multi_turn_stability",
         "passed": passed,
@@ -361,17 +361,17 @@ def test_multi_turn_stability() -> dict:
 def test_context_boundary() -> dict:
     """Test 6: Context boundary near limit."""
     print("  6. Context boundary test...")
-    
+
     # Build a message that approaches but stays under the limit
     # Kilo prefix is ~4K tokens, we have 24K input limit
     # Let's test with a large but safe payload
-    
+
     large_content = "x " * 5000  # ~5000 tokens
     messages = [
         {"role": "system", "content": KILO_PREFIX_TEMPLATE},
         {"role": "user", "content": large_content}
     ]
-    
+
     status, result, duration = make_request("/chat/completions", {
         "model": MODEL_ID,
         "messages": messages,
@@ -379,12 +379,12 @@ def test_context_boundary() -> dict:
         "temperature": 0,
         "stream": False
     })
-    
+
     passed = status == 200
     prompt_tokens = result.get("usage", {}).get("prompt_tokens", 0) if passed else 0
-    
+
     print(f"     {'PASS' if passed else 'FAIL'} (HTTP {status}, prompt_tokens={prompt_tokens}, duration={duration:.0f}ms)")
-    
+
     return {
         "test": "context_boundary",
         "passed": passed,
@@ -401,11 +401,11 @@ def main():
     print(f"Base URL: {BASE_URL}")
     print(f"Model: {MODEL_ID}")
     print()
-    
+
     os.makedirs(OUTPUT_DIR, exist_ok=True)
-    
+
     results = []
-    
+
     print("Running context prefix tests...")
     results.append(test_cold_start_with_prefix())
     results.append(test_warm_cache_benefit())
@@ -413,21 +413,21 @@ def main():
     results.append(test_token_limit_enforcement())
     results.append(test_multi_turn_stability())
     results.append(test_context_boundary())
-    
+
     print()
-    
+
     # Summary
     passed = sum(1 for r in results if r["passed"])
     total = len(results)
-    
+
     print("=" * 60)
     print(f"RESULTS: {passed}/{total} PASS")
     print("=" * 60)
-    
+
     # Save results
     run_id = f"run-{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}"
     output_file = os.path.join(OUTPUT_DIR, f"{run_id}-context-test.json")
-    
+
     with open(output_file, "w") as f:
         json.dump({
             "run_id": run_id,
@@ -441,9 +441,9 @@ def main():
                 "pass_rate": passed / total if total > 0 else 0
             }
         }, f, indent=2)
-    
+
     print(f"Results saved to: {output_file}")
-    
+
     return 0 if passed == total else 1
 
 

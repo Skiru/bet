@@ -7,6 +7,7 @@ import pytest
 
 from bet.pipeline.agent_work_orders import (
     build_agent_work_order,
+    load_agent_work_order_from_dict,
     write_agent_work_order,
     work_order_path_for,
     discover_input_refs_for_step,
@@ -21,6 +22,7 @@ def create_mock_artifacts(base_dir: Path, betting_day: str, run_id: str):
 
     steps = {
         "S2": "SCRIPT_EVIDENCE",
+        "S1e": "SCRIPT_EVIDENCE",
         "S2.3": "AGENT_ARTIFACT",
         "S2.5": "AGENT_ARTIFACT",
         "S2.7": "AGENT_ARTIFACT",
@@ -101,8 +103,7 @@ def test_work_order_generation_and_policies(tmp_path):
         refs = wo.input_refs
         assert isinstance(refs, list)
         if step_id == "S2.3":
-            assert len(refs) == 1
-            assert refs[0].step_id == "S2"
+            assert [ref.step_id for ref in refs] == ["S2", "S1e"]
         elif step_id == "S2.5":
             assert len(refs) == 2
             assert {r.step_id for r in refs} == {"S2", "S2.3"}
@@ -115,6 +116,58 @@ def test_work_order_generation_and_policies(tmp_path):
         elif step_id == "S5":
             assert len(refs) == 3
             assert {r.step_id for r in refs} == {"S3", "S4", "S2.9"}
+
+
+def test_multisport_input_generates_event_scoped_agent_plans(tmp_path):
+    """Verify the real work-order builder preserves every input event for the agent."""
+    betting_day = "2026-06-25"
+    run_id = "run-multisport-plans"
+    create_mock_artifacts(tmp_path, betting_day, run_id)
+    artifacts_dir = tmp_path / "pipeline_runs" / betting_day / run_id / "artifacts"
+    events = [
+        {"canonical_event_id": "EVT_FOOTBALL", "sport": "football"},
+        {"canonical_event_id": "EVT_TENNIS", "sport": "tennis"},
+        {"canonical_event_id": "EVT_BASKETBALL", "sport": "basketball"},
+        {"canonical_event_id": "EVT_VOLLEYBALL", "sport": "volleyball"},
+        {"canonical_event_id": "EVT_CS2", "sport": "cs2"},
+        {"canonical_event_id": "EVT_VALORANT", "sport": "valorant"},
+    ]
+    for step_id in ("S2", "S1e"):
+        path = artifacts_dir / f"{step_id}.json"
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        payload["payload"] = {"event_records": events}
+        path.write_text(json.dumps(payload), encoding="utf-8")
+
+    work_order = build_agent_work_order(
+        betting_day=betting_day,
+        run_id=run_id,
+        step_id="S2.3",
+        runtime_mode="DRY_RUN",
+        base_dir=tmp_path,
+    )
+
+    assert [plan.canonical_event_id for plan in work_order.event_acquisition_plans] == [
+        event["canonical_event_id"] for event in events
+    ]
+    assert [plan.sport for plan in work_order.event_acquisition_plans] == [
+        event["sport"] for event in events
+    ]
+    assert all(
+        requirement.min_independent_sources == 2
+        and requirement.conflict_policy == "FAIL_CLOSED"
+        and requirement.missing_data_action == "BLOCK"
+        for plan in work_order.event_acquisition_plans
+        for requirement in plan.requirements
+    )
+    written_path = write_agent_work_order(work_order, tmp_path)
+    reloaded = json.loads(written_path.read_text(encoding="utf-8"))
+    typed_reload = load_agent_work_order_from_dict(reloaded)
+    assert [plan.canonical_event_id for plan in typed_reload.event_acquisition_plans] == [
+        event["canonical_event_id"] for event in events
+    ]
+    assert [plan["canonical_event_id"] for plan in reloaded["event_acquisition_plans"]] == [
+        event["canonical_event_id"] for event in events
+    ]
 
 
 def test_s5_work_order_specific_checks(tmp_path):
@@ -268,6 +321,17 @@ def test_s23_cannot_generate_work_order_without_s2(tmp_path):
     payload["artifact_type"] = "SCRIPT_EVIDENCE"
     with open(s2_path, "w", encoding="utf-8") as f:
         json.dump(payload, f)
+    s1e_path = artifacts_dir / "S1e.json"
+    with open(s1e_path, "w", encoding="utf-8") as f:
+        json.dump(
+            {
+                "artifact_type": "SCRIPT_EVIDENCE",
+                "step_id": "S1e",
+                "betting_day": betting_day,
+                "run_id": run_id,
+            },
+            f,
+        )
 
     wo = build_agent_work_order(
         betting_day=betting_day,
@@ -547,6 +611,15 @@ def test_dependency_execution_mode_changes_artifact_kind(tmp_path):
         "payload": {}
     }
     s2_path.write_text(json.dumps(s2_script_payload), encoding="utf-8")
+    (artifacts_dir / "S1e.json").write_text(json.dumps({
+        "schema_version": 1,
+        "artifact_type": "SCRIPT_EVIDENCE",
+        "step_id": "S1e",
+        "status": "PASS",
+        "betting_day": betting_day,
+        "run_id": run_id,
+        "payload": {},
+    }), encoding="utf-8")
 
     # 3. Build S2.3 work order with default manifest
     wo_orig = build_agent_work_order(

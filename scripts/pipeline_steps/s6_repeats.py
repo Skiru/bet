@@ -378,6 +378,8 @@ def main() -> None:
             )
             s5_sha = sha256_file(s5_path)
         except Exception as exc:
+            with open("/tmp/s6_error_debug.txt", "w") as f:
+                f.write(f"EXC: {exc}\n")
             print(f"BLOCKED_BINDING_FAILURE: Failed to resolve prerequisite S5 output: {exc}")
             evidence_block = {
                 "schema_version": 1,
@@ -596,6 +598,8 @@ def main() -> None:
             run_id=args.run_id,
         )
     child_output = f_out.getvalue()
+    with open("/tmp/s6_child_output.txt", "w") as f:
+        f.write(f"RC={rc}\nOUTPUT:\n{child_output}\n")
     print(child_output)
 
     if rc != 0:
@@ -646,14 +650,14 @@ def main() -> None:
         concentration_count = len(output_data.get("concentration_rejected", []))
         invalid_count = len(output_data.get("invalid_input", []))
         accounting = output_data.get("accounting", {})
-        
+
         # Build event_records dynamically inheriting from S5
         event_records = []
         seen_events = set()
         s5_candidates = s5_data.get("candidates") or s5_data.get("payload", {}).get("candidates") or []
         s5_records = s5_data.get("event_records") or s5_data.get("payload", {}).get("event_records") or []
         s5_status_by_evt = {r["canonical_event_id"]: r for r in s5_records}
-        
+
         for c in s5_candidates:
             evt_id = c.get("canonical_event_id")
             if evt_id and evt_id not in seen_events:

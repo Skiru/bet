@@ -137,9 +137,9 @@ def run_provider_access_rescue_diagnostic(output_root_path: Path) -> Dict[str, A
         # Try REST endpoint first
         rest_url = "https://api.sportdb.dev/api/football/live"
         rest_headers = {"X-API-Key": sportdb_key, "Accept": "application/json"}
-        
+
         status_code, body, error = safe_http_get(rest_url, headers=rest_headers)
-        
+
         rest_req_record = {
             "url": "https://api.sportdb.dev/api/football/live",
             "method": "GET",
@@ -242,7 +242,7 @@ def run_provider_access_rescue_diagnostic(output_root_path: Path) -> Dict[str, A
                         tools_resp_body["result"], dict
                     ):
                         raw_tools = tools_resp_body["result"].get("tools", [])
-                    
+
                     tool_names = sorted(
                         [
                             t.get("name")

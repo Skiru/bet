@@ -184,7 +184,7 @@ class AgentOutput:
     @staticmethod
     def validate_summary(payload: dict) -> list[str]:
         """Validate AGENT_SUMMARY structure. Returns list of warning strings (empty = valid).
-        
+
         Checks:
         - verdict is one of OK, PARTIAL, FAILED, NO_BET
         - metrics is a dict with ≥1 entry
@@ -192,56 +192,56 @@ class AgentOutput:
         - step is a non-empty string
         """
         warnings = []
-        
+
         # coupon_builder.py emits NO_BET for a valid no-pick session path.
         # PRECONDITION_FAILED is used by data_enrichment_agent when shortlist is missing.
         valid_verdicts = {"OK", "PARTIAL", "FAILED", "NO_BET", "PRECONDITION_FAILED"}
         verdict = payload.get("verdict")
         if verdict not in valid_verdicts:
             warnings.append(f"Invalid verdict '{verdict}' — expected one of {valid_verdicts}")
-        
+
         metrics = payload.get("metrics")
         if not isinstance(metrics, dict):
             warnings.append(f"metrics should be dict, got {type(metrics).__name__}")
         elif len(metrics) == 0:
             warnings.append("metrics dict is empty — should contain ≥1 metric")
-        
+
         issues = payload.get("issues")
         if not isinstance(issues, list):
             warnings.append(f"issues should be list, got {type(issues).__name__}")
-        
+
         step = payload.get("step")
         if not step or not isinstance(step, str):
             warnings.append(f"step should be non-empty string, got '{step}'")
-        
+
         return warnings
 
     @classmethod
     def validate_input_contract(cls, step_id: str, date: str,
                                 contracts: dict | None = None) -> dict:
         """Check whether expected input files/DB tables exist for a pipeline step.
-        
+
         Args:
             step_id: Pipeline step identifier (e.g. 's3_deep_stats', 's7_gate')
             date: Betting date YYYY-MM-DD
             contracts: Optional explicit contracts dict. If None, lazy-imports
                        DATA_FLOW_CONTRACTS from agent_protocol.
-        
+
         Returns:
             {"status": "OK"|"PARTIAL"|"MISSING"|"UNKNOWN",
              "found": [...], "missing": [...], "warnings": [...]}
         """
         from pathlib import Path
         import re
-        
+
         result = {"status": "OK", "found": [], "missing": [], "warnings": []}
-        
+
         # Validate date format to prevent path traversal
         if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", date):
             result["status"] = "UNKNOWN"
             result["warnings"].append(f"Invalid date format: {date!r}")
             return result
-        
+
         # Load contracts
         if contracts is None:
             try:
@@ -251,15 +251,15 @@ class AgentOutput:
                 result["status"] = "UNKNOWN"
                 result["warnings"].append("Could not import DATA_FLOW_CONTRACTS from agent_protocol")
                 return result
-        
+
         contract = contracts.get(step_id)
         if contract is None:
             result["status"] = "UNKNOWN"
             result["warnings"].append(f"No contract defined for step '{step_id}'")
             return result
-        
+
         requires = contract.get("requires", {})
-        
+
         # Check required files
         root = Path(__file__).resolve().parent.parent
         for file_pattern in requires.get("files", []):
@@ -268,7 +268,7 @@ class AgentOutput:
                 result["found"].append(str(file_pattern))
             else:
                 result["missing"].append(str(file_pattern))
-        
+
         # Check required DB tables
         required_tables = requires.get("db", [])
         if required_tables:
@@ -300,14 +300,14 @@ class AgentOutput:
                             result["warnings"].append(f"DB check failed for {table}: {e}")
             except Exception as e:
                 result["warnings"].append(f"DB connection failed: {e}")
-        
+
         # Determine status
         if result["missing"]:
             if result["found"]:
                 result["status"] = "PARTIAL"
             else:
                 result["status"] = "MISSING"
-        
+
         return result
 
     # ── Utility ──────────────────────────────────────────────────────

@@ -13,12 +13,12 @@ def test_verifier_output_format() -> None:
     """REQ-TEST-015: Verifier output is deterministic JSON."""
     corpus_run_dir = Path("/tmp/non_existent_run_dir_1")
     report_run_dir = Path("/tmp/non_existent_run_dir_2")
-    
+
     result = verify_provider_operational_capture_v3(corpus_run_dir, report_run_dir)
     assert isinstance(result, dict)
     assert "verdict" in result
     assert "failed_requirements" in result
-    
+
     # Check that it serializes to JSON perfectly
     serialized = json.dumps(result)
     assert isinstance(serialized, str)

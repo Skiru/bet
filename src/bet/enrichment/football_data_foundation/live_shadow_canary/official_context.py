@@ -97,7 +97,7 @@ def build_official_worldcup_fixture_context(output_dir: Path) -> OfficialFixture
         )
 
     headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
-    
+
     try:
         req = urllib.request.Request(url, headers=headers)
         # Timeout <= 20 seconds, max bytes <= 2,000,000
@@ -107,7 +107,7 @@ def build_official_worldcup_fixture_context(output_dir: Path) -> OfficialFixture
         raise OfficialContextUnavailableError(f"HTTP fetch failed for official FIFA context: {e}")
 
     html_hash = hashlib.sha256(raw_data).hexdigest()
-    
+
     match_id = None
     home_team = None
     away_team = None
@@ -122,19 +122,19 @@ def build_official_worldcup_fixture_context(output_dir: Path) -> OfficialFixture
             card = soup.select_one(".match-detail-card, .match-card, .fixture-card, [data-match-id], .match")
             if card:
                 match_id = card.get("data-match-id") or card.get("id")
-                
+
                 home_el = card.select_one(".team-home, .home, [data-home-team], .home-team")
                 if home_el:
                     home_team = home_el.get_text(strip=True)
-                    
+
                 away_el = card.select_one(".team-away, .away, [data-away-team], .away-team")
                 if away_el:
                     away_team = away_el.get_text(strip=True)
-                    
+
                 kickoff_el = card.select_one(".match-date, .date, .kickoff, .kickoff-at")
                 if kickoff_el:
                     kickoff_at = kickoff_el.get_text(strip=True)
-                    
+
                 venue_el = card.select_one(".match-venue, .venue, .stadium")
                 if venue_el:
                     venue = venue_el.get_text(strip=True)
@@ -247,7 +247,7 @@ def build_official_worldcup_fixture_context(output_dir: Path) -> OfficialFixture
 
     # Ensure output directory exists
     output_dir.mkdir(parents=True, exist_ok=True)
-    
+
     # Save sanitized context JSON (no raw HTML persisted!)
     sanitized_data = {
         "fixture_slug": context.fixture_slug,
@@ -263,7 +263,7 @@ def build_official_worldcup_fixture_context(output_dir: Path) -> OfficialFixture
         "html_sha256": html_hash,
         "selectable_for_production": False,
     }
-    
+
     with open(output_dir / "official_context_sanitized.json", "w", encoding="utf-8") as f:
         json.dump(sanitized_data, f, indent=2, sort_keys=True)
 

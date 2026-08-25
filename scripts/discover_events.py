@@ -58,20 +58,20 @@ def main():
         import sqlite3
         print("\nFATAL ERROR DURING EVENT DISCOVERY", file=sys.stderr)
         traceback.print_exc(file=sys.stderr)
-        
+
         # Check if this looks like a schema/migration mismatch or SQLite operational error
         err_msg = str(e).lower()
         is_schema = (
             isinstance(e, sqlite3.Error) or
             any(x in err_msg for x in ("schema", "column", "migration", "table", "preflight", "duplicate", "savepoint", "sqlite3", "unable to open", "database"))
         )
-        
+
         verdict = "BLOCKED_DISCOVERY_DB_SCHEMA_MISMATCH" if is_schema else "FAILED"
         if is_schema:
             print("BLOCKED_DISCOVERY_DB_SCHEMA_MISMATCH")
         else:
             print("BLOCKED_DISCOVERY_FAILED")
-            
+
         summary = {
             "verdict": verdict,
             "total_discovered": 0,
@@ -100,7 +100,7 @@ def main():
         else:
             verdict = "BLOCKED_DISCOVERY_EMPTY_UNIVERSE"
             print("BLOCKED_DISCOVERY_EMPTY_UNIVERSE")
-            
+
         summary = {
             "verdict": verdict,
             "total_discovered": 0,

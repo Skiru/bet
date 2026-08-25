@@ -20,7 +20,7 @@ from bet.enrichment.football_data_foundation.shadow_certification.summary import
 
 def test_summarize_shadow_certification() -> None:
     observed_at = datetime.now(UTC)
-    
+
     desc_live = SourceDescriptor(
         source_key="sportdb",
         display_name="SportDB",

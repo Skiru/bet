@@ -23,6 +23,10 @@ class ContractDescriptor(StrictBaseModel):
     current_runtime: bool = True
     migration_from_versions: tuple[int, ...] = ()
     event_scope_kind: str = "FULL_DAY"
+<<<<<<< HEAD
+=======
+    output_scope: str = "run"
+>>>>>>> fix/bet-v5-final-one-pass-closure-v4
     status_policy: tuple[str, ...] = ("PASS", "READY", "NO_ACTION_TERMINAL", "PRICE_PENDING")
 
 

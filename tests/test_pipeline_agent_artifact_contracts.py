@@ -196,6 +196,45 @@ def test_validate_agent_artifact_for_work_order_failures(tmp_path):
     )
 
 
+def test_chunk_artifact_uses_chunk_contract_and_rejects_structured_refs(tmp_path):
+    from bet.pipeline.sharding.lifecycle import create_chunk_execution_plan
+    from bet.pipeline.sharding.models import ChunkArtifactV1
+
+    plan = create_chunk_execution_plan(
+        parent_work_order_id="WO-CHUNK-CONTRACT",
+        step_id="S2.3",
+        betting_day="2026-06-25",
+        run_id="run-smoke",
+        event_ids=["EVT_001"],
+        agent_name="bet-researcher",
+    )
+    chunk_wo = plan.chunks[0]
+    artifact = ChunkArtifactV1(
+        chunk_id=chunk_wo.chunk_id,
+        parent_work_order_id=chunk_wo.parent_work_order_id,
+        parent_plan_sha256=chunk_wo.parent_plan_sha256,
+        chunk_index=chunk_wo.chunk_index,
+        status="BLOCK",
+        producer_agent_id="bet-researcher",
+        processed_event_ids=chunk_wo.event_ids,
+        event_records=[{"canonical_event_id": "EVT_001"}],
+        payload={"evidence_refs": [{"receipt_id": "dbq-1"}]},
+    )
+
+    errors = validate_agent_artifact_for_work_order(
+        artifact.model_dump(), chunk_wo.model_dump()
+    )
+
+    assert errors == []
+
+    artifact_data = artifact.model_dump()
+    artifact_data["evidence_refs"] = [{"receipt_id": "dbq-1"}]
+    errors = validate_agent_artifact_for_work_order(
+        artifact_data, chunk_wo.model_dump()
+    )
+    assert any("evidence_refs must contain text paths" in error for error in errors)
+
+
 def test_template_like_artifact_does_not_validate_as_pass_output(tmp_path):
     """Verify a draft-like template cannot masquerade as a PASS artifact."""
     wo = build_agent_work_order(

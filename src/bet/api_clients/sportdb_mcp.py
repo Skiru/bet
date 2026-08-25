@@ -20,6 +20,7 @@ from typing import Any
 
 from bet.integration.source_result import SourceOperationResult, SourceResultStatus
 from bet.integration.evidence import EvidenceRef
+from .env import get_env
 
 SPORTDB_MCP_ENDPOINT = "https://api.sportdb.dev/mcp/"
 SPORTDB_MCP_ACCEPT = "application/json, text/event-stream"
@@ -166,7 +167,7 @@ class SportDBEvidenceBundleWriter:
                 preview_path.write_text(json.dumps(response_preview, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
             project_root = Path(__file__).resolve().parents[3]
-            
+
             def safe_rel(p: Path) -> str:
                 try:
                     return str(p.relative_to(project_root))
@@ -251,33 +252,10 @@ class SportDBMCPClient:
             self.mcp_session_calls_made += 1
 
     def _resolve_api_key(self, *, required: bool = True) -> str:
-        """Resolve API key from environment first, then .env file."""
-        for alias in ("SPORTDB_API_KEY", "SPORTDB_KEY"):
-            val = os.environ.get(alias, "").strip()
-            if val:
-                return val
-
-        # Parse .env if present
-        env_path = Path(".env")
-        if env_path.exists():
-            try:
-                for line in env_path.read_text(encoding="utf-8").splitlines():
-                    line = line.strip()
-                    if not line or line.startswith("#") or "=" not in line:
-                        continue
-                    k, v = line.split("=", 1)
-                    k = k.strip()
-                    v = v.strip()
-                    if k in ("SPORTDB_API_KEY", "SPORTDB_KEY"):
-                        if len(v) >= 2 and (
-                            (v[0] == '"' and v[-1] == '"')
-                            or (v[0] == "'" and v[-1] == "'")
-                        ):
-                            v = v[1:-1]
-                        if v.strip():
-                            return v.strip()
-            except Exception:
-                pass
+        """Resolve API key from process environment or project .env."""
+        val = get_env("SPORTDB_API_KEY", "SPORTDB_KEY")
+        if val:
+            return val
 
         if required:
             raise SportDBMCPAuthError("SPORTDB_API_KEY not found in environment or .env file.")
@@ -478,7 +456,7 @@ class SportDBMCPClient:
             with urllib.request.urlopen(req, timeout=30) as resp:
                 resp_headers = dict(resp.headers.items())
                 content_type = resp_headers.get("Content-Type", "")
-                
+
                 # Check for session id in response headers
                 sess_id = resp_headers.get("MCP-Session-Id") or resp_headers.get("mcp-session-id")
                 if sess_id:
@@ -490,7 +468,7 @@ class SportDBMCPClient:
             resp_headers = dict(exc.headers.items()) if exc.headers is not None else {}
             raw_bytes = exc.read() if exc.fp is not None else b""
             status = exc.code
-            
+
             # Map known status codes to custom exceptions
             if status in (401, 403):
                 raise SportDBMCPAuthError(f"Authentication failed with status {status}")
@@ -546,7 +524,7 @@ class SportDBMCPShadowAdapter:
     ) -> None:
         self.schema_path = Path(schema_path)
         self.mapping_path = Path(mapping_path)
-        
+
         if not self.schema_path.exists():
             raise FileNotFoundError(f"Missing schema summary path: {self.schema_path}")
         if not self.mapping_path.exists():
@@ -629,7 +607,7 @@ class SportDBMCPShadowAdapter:
             home_name = item.get("homeName") or item.get("homeFirstName") or item.get("home_team", {}).get("name") if isinstance(item.get("home_team"), dict) else item.get("home_team")
             away_name = item.get("awayName") or item.get("awayFirstName") or item.get("away_team", {}).get("name") if isinstance(item.get("away_team"), dict) else item.get("away_team")
             status = item.get("eventStage") or item.get("status") or item.get("state")
-            
+
             home_score = item.get("homeScore") or item.get("homeFullTimeScore") or item.get("home_score")
             away_score = item.get("awayScore") or item.get("awayFullTimeScore") or item.get("away_score")
             score = item.get("score")
@@ -925,7 +903,7 @@ class SportDBMCPShadowAdapter:
                 home_name = item.get("homeName") or item.get("homeFirstName") or item.get("home_team", {}).get("name") if isinstance(item.get("home_team"), dict) else item.get("home_team")
                 away_name = item.get("awayName") or item.get("awayFirstName") or item.get("away_team", {}).get("name") if isinstance(item.get("away_team"), dict) else item.get("away_team")
                 status = item.get("eventStage") or item.get("status") or item.get("state")
-                
+
                 home_score = item.get("homeScore") or item.get("homeFullTimeScore") or item.get("home_score")
                 away_score = item.get("awayScore") or item.get("awayFullTimeScore") or item.get("away_score")
                 score = item.get("score")

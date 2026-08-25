@@ -201,7 +201,7 @@ class FlashscoreClient(PlaywrightBaseClient):
         if (!tournament) tournament = document.querySelector('.tournamentHeader__country');
         if (!tournament) tournament = document.querySelector('[class*="tournamentHeader__title"]');
         if (!tournament) tournament = document.querySelector('.breadcrumb');
-        
+
         info.tournament = tournament ? tournament.textContent.trim() : '';
 
         const startTime = document.querySelector('.duelParticipant__startTime');
@@ -379,7 +379,7 @@ class FlashscoreClient(PlaywrightBaseClient):
             # Try structured DOM extraction first
             js_stats = page.evaluate(self._JS_EXTRACT_STATS)
             stats = []
-            
+
             if js_stats:
                 for st in js_stats:
                     cat = st.get("category", "")
@@ -396,7 +396,7 @@ class FlashscoreClient(PlaywrightBaseClient):
                     const d = document.querySelector('#detail');
                     return d ? d.innerText : '';
                 }""")
-    
+
                 if detail_text and len(detail_text) >= 100:
                     stats = self._parse_stats_text(detail_text)
 
@@ -485,10 +485,10 @@ class FlashscoreClient(PlaywrightBaseClient):
             # Extract form (W/D/L sequences)
             form_data = page.evaluate("""() => {
                 const result = {home: [], away: []};
-                
+
                 // Try to find the form section
                 const formContainers = document.querySelectorAll('.formTable, [class*="form"]');
-                
+
                 // Flashscore often splits home/away somehow or relies on columns.
                 // We'll try the older structure with fallback to icon search
                 const teams = document.querySelectorAll('.detailTeamForm__team');

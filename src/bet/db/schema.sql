@@ -906,3 +906,253 @@ CREATE UNIQUE INDEX IF NOT EXISTS fixture_capability_observation_logical_identit
 CREATE UNIQUE INDEX IF NOT EXISTS analysis_snapshot_run_id_idx ON analysis_snapshot(run_id);
 CREATE UNIQUE INDEX IF NOT EXISTS source_entity_reference_active_api_football_idx ON source_entity_reference(sport, entity_type, provider, provider_entity_id) WHERE provider = 'api-football' AND valid_to IS NULL;
 CREATE UNIQUE INDEX IF NOT EXISTS fixture_sources_api_football_idx ON fixture_sources(source, external_id) WHERE source = 'api-football';
+
+-- v22: Pipeline Runtime Launch Bridge tables
+CREATE TABLE IF NOT EXISTS pipeline_runtime_event_selection (
+    run_id TEXT NOT NULL,
+    canonical_event_id TEXT NOT NULL,
+    fixture_id INTEGER,
+    betting_date TEXT NOT NULL,
+    decision TEXT NOT NULL,
+    resume_action TEXT NOT NULL,
+    observed_status TEXT,
+    observed_kickoff TEXT,
+    observation_timestamp_utc TEXT NOT NULL,
+    provider TEXT,
+    provider_event_id TEXT,
+    source_evidence_sha256 TEXT,
+    previous_analysis_status TEXT,
+    previous_analysis_sha256 TEXT,
+    previous_gate_status TEXT,
+    previous_gate_sha256 TEXT,
+    input_fingerprint TEXT NOT NULL,
+    reason TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    PRIMARY KEY(run_id, canonical_event_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_pipeline_runtime_event_selection_run_decision
+    ON pipeline_runtime_event_selection(run_id, decision);
+CREATE INDEX IF NOT EXISTS idx_pipeline_runtime_event_selection_date
+    ON pipeline_runtime_event_selection(betting_date);
+
+CREATE TABLE IF NOT EXISTS pipeline_event_stage_state (
+    canonical_event_id TEXT NOT NULL,
+    stage_id TEXT NOT NULL,
+    status TEXT NOT NULL,
+    input_fingerprint TEXT NOT NULL,
+    output_sha256 TEXT,
+    receipt_sha256 TEXT,
+    code_head TEXT NOT NULL,
+    source_manifest_sha256 TEXT NOT NULL,
+    model_registry_sha256 TEXT,
+    provider_config_sha256 TEXT,
+    run_id TEXT NOT NULL,
+    completed_at TEXT,
+    updated_at TEXT NOT NULL,
+    PRIMARY KEY(canonical_event_id, stage_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_pipeline_event_stage_state_run
+    ON pipeline_event_stage_state(run_id);
+CREATE INDEX IF NOT EXISTS idx_pipeline_event_stage_state_stage
+    ON pipeline_event_stage_state(stage_id, status);
+
+CREATE TABLE IF NOT EXISTS pipeline_event_stage_artifacts (
+    canonical_event_id TEXT NOT NULL,
+    stage_id TEXT NOT NULL,
+    run_id TEXT NOT NULL,
+    output_path TEXT NOT NULL,
+    output_sha256 TEXT NOT NULL,
+    receipt_path TEXT NOT NULL,
+    receipt_sha256 TEXT NOT NULL,
+    artifact_root TEXT NOT NULL,
+    stage_contract_version TEXT NOT NULL,
+    policy_config_sha256 TEXT,
+    producer TEXT NOT NULL,
+    dependency_output_hashes_json TEXT NOT NULL DEFAULT '{}',
+    dependency_status TEXT NOT NULL DEFAULT 'CURRENT'
+        CHECK(dependency_status IN ('CURRENT', 'STALE', 'INVALIDATED')),
+    registered_at TEXT NOT NULL,
+    PRIMARY KEY(canonical_event_id, stage_id),
+    FOREIGN KEY(canonical_event_id, stage_id)
+        REFERENCES pipeline_event_stage_state(canonical_event_id, stage_id)
+        ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_pipeline_event_stage_artifacts_run
+    ON pipeline_event_stage_artifacts(run_id);
+
+CREATE TABLE IF NOT EXISTS pipeline_runtime_plans (
+    plan_id TEXT PRIMARY KEY,
+    run_id TEXT NOT NULL UNIQUE,
+    betting_date TEXT NOT NULL,
+    status TEXT NOT NULL CHECK(status IN (
+        'CREATING', 'PLANNED', 'VALIDATING', 'READY', 'INVALIDATED',
+        'EXECUTING', 'CONSUMED', 'FAILED'
+    )),
+    created_at_utc TEXT NOT NULL,
+    expires_at_utc TEXT NOT NULL,
+    canonical_db_path TEXT NOT NULL,
+    canonical_db_sha256_at_snapshot TEXT NOT NULL,
+    run_root_path TEXT NOT NULL,
+    shadow_db_path TEXT NOT NULL,
+    shadow_db_initial_sha256 TEXT NOT NULL,
+    shadow_db_identity TEXT NOT NULL,
+    selection_ledger_path TEXT NOT NULL,
+    selection_ledger_sha256 TEXT NOT NULL,
+    provider_observation_set_sha256 TEXT NOT NULL,
+    runtime_s1e_path TEXT NOT NULL,
+    runtime_s1e_sha256 TEXT NOT NULL,
+    plan_checkpoint_path TEXT NOT NULL,
+    plan_checkpoint_sha256 TEXT NOT NULL,
+    plan_snapshot_path TEXT NOT NULL,
+    plan_snapshot_sha256 TEXT NOT NULL,
+    selected_event_set_sha256 TEXT NOT NULL,
+    selected_event_count INTEGER NOT NULL CHECK(selected_event_count >= 0),
+    minimum_lead_minutes INTEGER NOT NULL CHECK(minimum_lead_minutes >= 0),
+    classification_policy_sha256 TEXT NOT NULL,
+    code_head TEXT,
+    code_tree TEXT,
+    source_manifest_sha256 TEXT,
+    continuation_started_at_utc TEXT,
+    continuation_completed_at_utc TEXT,
+    invalidated_at_utc TEXT,
+    invalidated_reason TEXT,
+    execution_started_at_utc TEXT,
+    consumed_at_utc TEXT,
+    validation_result_json TEXT,
+    created_by TEXT NOT NULL,
+    stage_work_plan_path TEXT,
+    stage_work_plan_sha256 TEXT,
+    required_manifest_digest TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_pipeline_runtime_plans_status
+    ON pipeline_runtime_plans(status);
+CREATE INDEX IF NOT EXISTS idx_pipeline_runtime_plans_date
+    ON pipeline_runtime_plans(betting_date);
+
+CREATE TABLE IF NOT EXISTS pipeline_runtime_event_stage_work (
+    plan_id TEXT NOT NULL, run_id TEXT NOT NULL, selection_run_id TEXT NOT NULL,
+    stage_id TEXT NOT NULL, canonical_event_id TEXT NOT NULL, fixture_id INTEGER,
+    action TEXT NOT NULL CHECK(action IN ('EXECUTE', 'REUSE')),
+    reason_code TEXT NOT NULL, stage_input_fingerprint TEXT NOT NULL,
+    dependency_set_sha256 TEXT NOT NULL, required_chain_digest TEXT NOT NULL,
+    selection_ledger_sha256 TEXT NOT NULL, created_at_utc TEXT NOT NULL,
+    PRIMARY KEY(plan_id, stage_id, canonical_event_id)
+);
+CREATE TABLE IF NOT EXISTS pipeline_runtime_run_stage_work (
+    plan_id TEXT NOT NULL, run_id TEXT NOT NULL, stage_id TEXT NOT NULL,
+    action TEXT NOT NULL CHECK(action = 'EXECUTE'), input_event_set_sha256 TEXT NOT NULL,
+    dependency_stage_set_sha256 TEXT NOT NULL, selection_ledger_sha256 TEXT NOT NULL,
+    created_at_utc TEXT NOT NULL, PRIMARY KEY(plan_id, stage_id)
+);
+CREATE TABLE IF NOT EXISTS pipeline_runtime_run_stage_inputs (
+    plan_id TEXT NOT NULL, run_stage_id TEXT NOT NULL, canonical_event_id TEXT NOT NULL,
+    required_source_stage_id TEXT NOT NULL, expected_output_fingerprint TEXT NOT NULL,
+    expected_output_sha256 TEXT, created_at_utc TEXT NOT NULL,
+    PRIMARY KEY(plan_id, run_stage_id, canonical_event_id, required_source_stage_id)
+);
+
+CREATE TABLE IF NOT EXISTS pipeline_shadow_promotions (
+    promotion_id TEXT PRIMARY KEY,
+    run_id TEXT NOT NULL,
+    canonical_db_sha256_before TEXT NOT NULL,
+    shadow_db_sha256 TEXT NOT NULL,
+    status TEXT NOT NULL,
+    promoted_tables_json TEXT NOT NULL,
+    started_at TEXT NOT NULL,
+    completed_at TEXT,
+    receipt_sha256 TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_pipeline_shadow_promotions_run
+    ON pipeline_shadow_promotions(run_id);
+
+-- Migration 023: Add pipeline_provider_observation_attempts table
+CREATE TABLE IF NOT EXISTS pipeline_provider_observation_attempts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+    run_id TEXT NOT NULL,
+    phase TEXT NOT NULL CHECK(phase IN ('PLAN', 'CONTINUATION')),
+    attempt_number INTEGER NOT NULL CHECK(attempt_number >= 1),
+
+    canonical_event_id TEXT NOT NULL,
+    fixture_id INTEGER REFERENCES fixtures(id) ON DELETE SET NULL,
+
+    provider TEXT NOT NULL,
+    provider_event_id TEXT,
+
+    attempted_at_utc TEXT NOT NULL,
+    request_status TEXT NOT NULL CHECK(request_status IN (
+        'SUCCESS',
+        'FAILED',
+        'UNSUPPORTED',
+        'IDENTITY_MISSING',
+        'IDENTITY_CONFLICT'
+    )),
+
+    raw_provider_status TEXT,
+    canonical_event_status TEXT NOT NULL CHECK(canonical_event_status IN (
+        'SCHEDULED',
+        'LIVE',
+        'FINISHED',
+        'POSTPONED',
+        'CANCELLED',
+        'ABANDONED',
+        'SUSPENDED',
+        'WALKOVER',
+        'AWARDED_TERMINAL',
+        'UNKNOWN'
+    )),
+
+    raw_observed_kickoff TEXT,
+    observed_kickoff_utc TEXT,
+
+    observed_home_name TEXT,
+    observed_away_name TEXT,
+    participant_identity_sha256 TEXT,
+
+    competition_identity_sha256 TEXT,
+
+    upstream_evidence_bundle_id TEXT,
+    upstream_evidence_refs_json TEXT,
+
+    observation_envelope_sha256 TEXT,
+    evidence_path TEXT,
+
+    error_code TEXT,
+    error_detail TEXT,
+
+    created_at TEXT NOT NULL,
+
+    UNIQUE(
+        run_id,
+        phase,
+        canonical_event_id,
+        provider,
+        attempt_number
+    )
+);
+
+CREATE INDEX IF NOT EXISTS idx_obs_attempts_run_phase
+    ON pipeline_provider_observation_attempts(run_id, phase);
+
+CREATE INDEX IF NOT EXISTS idx_obs_attempts_event_phase
+    ON pipeline_provider_observation_attempts(canonical_event_id, phase);
+
+CREATE INDEX IF NOT EXISTS idx_obs_attempts_fixture
+    ON pipeline_provider_observation_attempts(fixture_id);
+
+CREATE INDEX IF NOT EXISTS idx_obs_attempts_provider_ext
+    ON pipeline_provider_observation_attempts(provider, provider_event_id);
+
+CREATE INDEX IF NOT EXISTS idx_obs_attempts_request_status
+    ON pipeline_provider_observation_attempts(request_status);
+
+CREATE INDEX IF NOT EXISTS idx_obs_attempts_canonical_status
+    ON pipeline_provider_observation_attempts(canonical_event_status);
+
+CREATE INDEX IF NOT EXISTS idx_obs_attempts_attempted_at
+    ON pipeline_provider_observation_attempts(attempted_at_utc);

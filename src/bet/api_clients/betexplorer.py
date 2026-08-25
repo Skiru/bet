@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 class BetExplorerClient(BaseAPIClient):
     """BetExplorer client — HTTP-first odds comparison and fixture discovery."""
-    
+
     SPORT_PATHS = {
         "football": "/football/",
         "tennis": "/tennis/",
@@ -30,10 +30,10 @@ class BetExplorerClient(BaseAPIClient):
         "hockey": "/hockey/",
         "volleyball": "/volleyball/",
     }
-    
+
     def __init__(self, rate_limiter: RateLimiter):
         super().__init__("betexplorer", "https://www.betexplorer.com", rate_limiter)
-        
+
     def _load_api_key(self) -> str:
         return "no-key"  # No API key needed for HTML scraping
 
@@ -62,7 +62,7 @@ class BetExplorerClient(BaseAPIClient):
             return []
 
         path = self.SPORT_PATHS[sport]
-        
+
         # Add year, month, day to path if scraping a specific date
         today_str = datetime.now().strftime("%Y-%m-%d")
         if date >= today_str:
@@ -73,7 +73,7 @@ class BetExplorerClient(BaseAPIClient):
         if not self.rate_limiter.can_request("betexplorer-scraper"):
             logger.warning("Rate limit exceeded for betexplorer-scraper")
             return []
-            
+
         try:
             resp = requests.get(url, headers=self._build_headers(), timeout=self.TIMEOUT)
             self.rate_limiter.record_request("betexplorer-scraper", url[:100])
@@ -84,10 +84,10 @@ class BetExplorerClient(BaseAPIClient):
 
         soup = BeautifulSoup(resp.text, 'html.parser')
         match_tables = soup.find_all("table", class_="table-main")
-        
+
         results = []
         current_league = "Unknown Competition"
-        
+
         for table in match_tables:
             for row in table.find_all("tr"):
                 # Check for league header
@@ -97,34 +97,34 @@ class BetExplorerClient(BaseAPIClient):
                     if league_link:
                         current_league = league_link.text.strip()
                     continue
-                    
+
                 # Parse match row
                 time_span = row.find("span", class_="table-main__time")
                 time_str = time_span.text.strip() if time_span else ""
-                
+
                 # Check for either class (results page might use table-main__tt, fixtures might use h-text-left)
                 td_left = row.find("td", class_="h-text-left") or row.find("td", class_="table-main__tt")
                 if not td_left:
                     continue
-                    
+
                 match_link = td_left.find("a")
                 if not match_link:
                     continue
-                    
+
                 match_url = match_link.get('href')
                 # The text can have strong tags inside span
                 match_name_texts = []
                 for s in match_link.stripped_strings:
                     match_name_texts.append(s)
                 match_name = " ".join(match_name_texts)
-                
+
                 parts = match_name.split(" - ", 1)
                 home_team = parts[0].strip() if len(parts) > 0 else "Unknown"
                 away_team = parts[1].strip() if len(parts) > 1 else "Unknown"
-                
+
                 # External ID can be extracted from URL: /sport/country/league/home-away/ID/
                 match_id = match_url.rstrip('/').split('/')[-1] if match_url else ""
-                
+
                 # Try to parse data-dt from row format "d,m,Y,H,M" => "13,5,2026,10,00"
                 dt_attr = row.get("data-dt")
                 if dt_attr:

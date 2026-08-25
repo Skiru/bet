@@ -89,7 +89,7 @@ def test_no_protected_writes_detection():
 def test_s8_output_path_run_scoped_contract():
     from scripts.pipeline_steps.s8_build_coupons import _s8_output_path
     from bet.pipeline.runtime_modes import RuntimeMode
-    
+
     data_dir = Path("/tmp/run-root/data")
     for mode in [RuntimeMode.DRY_RUN, RuntimeMode.LIVE_SHADOW, RuntimeMode.CERTIFICATION, RuntimeMode.PRODUCTION]:
         path = _s8_output_path(data_dir, "2026-06-25", mode)

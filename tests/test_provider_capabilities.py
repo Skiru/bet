@@ -15,7 +15,7 @@ def test_provider_capability_matrix_includes_all_default_sources():
     """Verify that the capability matrix includes all default sources."""
     assert "odds-api-io" in PROVIDER_CAPABILITY_REGISTRY
     assert "odds-api" in PROVIDER_CAPABILITY_REGISTRY
-    
+
     for key, val in PROVIDER_CAPABILITY_REGISTRY.items():
         assert val["provider_name"] == key
         assert val["adapter_file"].startswith("src/bet/discovery/sources/")

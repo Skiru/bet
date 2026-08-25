@@ -36,14 +36,14 @@ def test_runner_official_context_unavailable(tmp_path: Path, clean_env) -> None:
             "bet.enrichment.football_data_foundation.live_shadow_canary.runner.run_provider_shadow_probes"
         ) as mock_probes:
             summary = run_bounded_live_shadow_canary(tmp_path)
-            
+
             # Verify no provider calls are made
             mock_probes.assert_not_called()
-            
+
             assert summary.status == "BOUNDED_LIVE_SHADOW_CANARY_SKIPPED_OFFICIAL_CONTEXT_UNAVAILABLE"
             assert summary.network_used is True
             assert summary.provider_network_calls == 0
-            
+
             # Verify files are written
             assert (tmp_path / "live_shadow_canary_summary.json").exists()
             assert (tmp_path / "live_shadow_canary_summary.md").exists()
@@ -66,11 +66,11 @@ def test_runner_no_credentials(tmp_path: Path, clean_env) -> None:
         return_value=context,
     ):
         summary = run_bounded_live_shadow_canary(tmp_path)
-        
+
         assert summary.status == "BOUNDED_LIVE_SHADOW_CANARY_OFFICIAL_CONTEXT_ONLY_READY_FOR_MANUAL_REVIEW"
         assert summary.network_used is True
         assert summary.provider_network_calls == 0
-        
+
         # Verify readiness matrix contains skipped results
         matrix_path = tmp_path / ("provider_probe_" + "mat" + "rix.json")
         assert matrix_path.exists()
@@ -166,20 +166,20 @@ def test_runner_with_clean_provider_claims(tmp_path: Path) -> None:
         ):
             with patch.dict(os.environ, mock_env):
                 summary = run_bounded_live_shadow_canary(tmp_path)
-                
+
                 # Check status
                 assert summary.status == "BOUNDED_LIVE_SHADOW_CANARY_READY_FOR_MANUAL_REVIEW"
                 assert summary.network_used is True
                 assert summary.provider_network_calls == 1
                 assert summary.selectable_for_production is False
                 assert summary.manual_authorization_required is True
-                
+
                 # Verify that shadow fusion files were written
                 fusion_json = tmp_path / "worldcup2026-poland-mexico.shadow_fusion.json"
                 fusion_md = tmp_path / "worldcup2026-poland-mexico.shadow_fusion.md"
                 assert fusion_json.exists()
                 assert fusion_md.exists()
-                
+
                 # No DB writes should ever occur
                 assert summary.no_db_writes is True
                 assert summary.no_betting_decisions is True

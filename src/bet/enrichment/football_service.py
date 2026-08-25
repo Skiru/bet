@@ -415,36 +415,36 @@ def require_production_route(
 def load_and_validate_config(config_dir: Path | str = "config") -> dict[str, Any]:
     config_dir = Path(config_dir)
     mode = parse_enrichment_mode()
-    
+
     # Load capabilities
     with open(config_dir / "football_capabilities.yaml", "r") as f:
         caps_data = yaml.safe_load(f) or {}
     capabilities = caps_data.get("capabilities", {})
-    
+
     # Load freshness
     with open(config_dir / "football_freshness.yaml", "r") as f:
         fresh_data = yaml.safe_load(f) or {}
     freshness = fresh_data.get("freshness", {})
-    
+
     # Load routing
     with open(config_dir / "football_routing.yaml", "r") as f:
         routing_data = yaml.safe_load(f) or {}
     routing = routing_data.get("routing", {})
 
     provider_capability_matrix = load_provider_capability_matrix(config_dir)
-    
+
     # Load metrics
     with open(config_dir / "football_metrics.yaml", "r") as f:
         metrics_data = yaml.safe_load(f) or {}
     metrics = metrics_data.get("metrics", {})
-    
+
     # Validation rules:
     # 1. Reject unknown capability names in routing
     # 2. Validate freshness values (must be positive integers)
     for k, v in freshness.items():
         if not isinstance(v, int) or v <= 0:
             raise ValueError(f"Invalid freshness value for {k}: {v}")
-            
+
     # 3. Validate routing
     for route_name, route_info in routing.items():
         normalized_routes = _normalize_route_entries(route_info or {})
@@ -502,7 +502,7 @@ def load_and_validate_config(config_dir: Path | str = "config") -> dict[str, Any
                     raise ValueError(
                         f"Production route {route_name}/{provider} exact matrix tuple is not CERTIFIED_SELECTABLE with selectable_as_projection=true and evidence_replay=true"
                     )
-                
+
     # Compute policy_config_hash from canonicalized contents of the configuration actually used for the run
     canonical_config = {
         "capabilities": capabilities,
@@ -513,7 +513,7 @@ def load_and_validate_config(config_dir: Path | str = "config") -> dict[str, Any
     }
     config_json = json.dumps(canonical_config, sort_keys=True, separators=(",", ":"))
     policy_config_hash = hashlib.sha256(config_json.encode("utf-8")).hexdigest()
-    
+
     return {
         "capabilities": capabilities,
         "freshness": freshness,
@@ -563,17 +563,17 @@ class ESPNFootballAdapter:
             team_id = kwargs.get("team_id")
             native_team_id = kwargs.get("native_team_id")
             target_event_id = kwargs.get("native_fixture_id")
-            
+
             if not native_team_id:
                 return SourceOperationResult(SourceResultStatus.NOT_FOUND, error_code="native_team_id_missing")
-                
+
             last_fixtures_res = self.client.get_team_last_fixtures_result(
                 native_team_id,
                 last_n=5,
                 analysis_cutoff_at=analysis_cutoff_at.isoformat(),
                 exclude_event_ids={target_event_id} if target_event_id else None
             )
-            
+
             if last_fixtures_res.status is not SourceResultStatus.SUCCESS:
                 return SourceOperationResult(
                     status=last_fixtures_res.status,
@@ -581,7 +581,7 @@ class ESPNFootballAdapter:
                     error_code=last_fixtures_res.error_code,
                     evidence_refs=last_fixtures_res.evidence_refs,
                 )
-                
+
             last_fixtures = last_fixtures_res.value or []
             if not last_fixtures:
                 return SourceOperationResult(
@@ -589,32 +589,32 @@ class ESPNFootballAdapter:
                     value=[],
                     evidence_refs=last_fixtures_res.evidence_refs,
                 )
-                
+
             matches = []
             evidence_refs = list(last_fixtures_res.evidence_refs)
-            
+
             for fix_data in last_fixtures:
                 fix_id = str(fix_data.get("id", ""))
                 if not fix_id:
                     continue
-                    
+
                 stats_res = self.client.get_fixture_stats_result(fix_id)
                 evidence_refs.extend(stats_res.evidence_refs)
-                
+
                 if stats_res.status is not SourceResultStatus.SUCCESS or not stats_res.value:
                     continue
-                    
+
                 for ms in stats_res.value:
                     home_id = getattr(ms, "home_participant_id", "")
                     away_id = getattr(ms, "away_participant_id", "")
-                    
+
                     if str(native_team_id) not in (str(home_id), str(away_id)):
                         continue
-                        
+
                     is_home = str(native_team_id) == str(home_id)
                     opp_id = away_id if is_home else home_id
                     goals_val = ms.stats.get("goals", {}).get("home" if is_home else "away", 0)
-                    
+
                     match_dto = NormalizedTeamMatch(
                         canonical_fixture_id=None,
                         native_fixture_id=fix_id,
@@ -632,10 +632,10 @@ class ESPNFootballAdapter:
                         )
                     )
                     matches.append(match_dto)
-                    
+
             if not evidence_refs:
                 return SourceOperationResult(SourceResultStatus.EVIDENCE_ERROR, error_code="no_evidence_refs")
-                
+
             source_refs = namespaced_source_refs("espn-football", [target_event_id] if target_event_id else [])
             bundle_id, _ = write_source_operation_bundle(
                 registered_source_key="espn-football",
@@ -645,7 +645,7 @@ class ESPNFootballAdapter:
                 source_event_refs=source_refs,
                 evidence_refs=evidence_refs,
             )
-            
+
             return SourceOperationResult(
                 status=SourceResultStatus.SUCCESS,
                 value=matches,
@@ -663,10 +663,10 @@ class ESPNFootballAdapter:
             native_team1_id = kwargs.get("native_team1_id")
             native_team2_id = kwargs.get("native_team2_id")
             target_event_id = kwargs.get("native_fixture_id")
-            
+
             if not native_team1_id or not native_team2_id:
                 return SourceOperationResult(SourceResultStatus.NOT_FOUND, error_code="native_team_ids_missing")
-                
+
             h2h_res = self.client.get_h2h_result(
                 native_team1_id,
                 native_team2_id,
@@ -674,7 +674,7 @@ class ESPNFootballAdapter:
                 exclude_event_ids={target_event_id} if target_event_id else None,
                 last_n=5
             )
-            
+
             if h2h_res.status is not SourceResultStatus.SUCCESS:
                 return SourceOperationResult(
                     status=h2h_res.status,
@@ -682,7 +682,7 @@ class ESPNFootballAdapter:
                     error_code=h2h_res.error_code,
                     evidence_refs=h2h_res.evidence_refs,
                 )
-                
+
             meetings = h2h_res.value or []
             if not meetings:
                 return SourceOperationResult(
@@ -690,16 +690,16 @@ class ESPNFootballAdapter:
                     value=[],
                     evidence_refs=h2h_res.evidence_refs,
                 )
-                
+
             matches = []
             evidence_refs = list(h2h_res.evidence_refs)
-            
+
             for meeting in meetings:
                 fix_id = meeting.get("event_id")
                 home_id = meeting.get("home_participant_id")
                 away_id = meeting.get("away_participant_id")
                 score = meeting.get("score", "")
-                
+
                 home_goals = 0
                 away_goals = 0
                 if "-" in score:
@@ -707,7 +707,7 @@ class ESPNFootballAdapter:
                         home_goals, away_goals = map(int, score.split("-"))
                     except ValueError:
                         pass
-                        
+
                 match_dto = NormalizedTeamMatch(
                     canonical_fixture_id=None,
                     native_fixture_id=fix_id,
@@ -725,10 +725,10 @@ class ESPNFootballAdapter:
                     )
                 )
                 matches.append(match_dto)
-                
+
             if not evidence_refs:
                 return SourceOperationResult(SourceResultStatus.EVIDENCE_ERROR, error_code="no_evidence_refs")
-                
+
             source_refs = namespaced_source_refs("espn-football", [target_event_id] if target_event_id else [])
             bundle_id, _ = write_source_operation_bundle(
                 registered_source_key="espn-football",
@@ -738,7 +738,7 @@ class ESPNFootballAdapter:
                 source_event_refs=source_refs,
                 evidence_refs=evidence_refs,
             )
-            
+
             return SourceOperationResult(
                 status=SourceResultStatus.SUCCESS,
                 value=matches,
@@ -753,9 +753,9 @@ class ESPNFootballAdapter:
         elif capability == "standings_competition_context":
             competition_id = kwargs.get("competition_id")
             native_competition_id = kwargs.get("native_competition_id")
-            
+
             standings_res = self.client.get_standings_result()
-            
+
             if standings_res.status is not SourceResultStatus.SUCCESS:
                 return SourceOperationResult(
                     status=standings_res.status,
@@ -763,7 +763,7 @@ class ESPNFootballAdapter:
                     error_code=standings_res.error_code,
                     evidence_refs=standings_res.evidence_refs,
                 )
-                
+
             raw_rows = standings_res.value or []
             if not raw_rows:
                 return SourceOperationResult(
@@ -771,7 +771,7 @@ class ESPNFootballAdapter:
                     value=None,
                     evidence_refs=standings_res.evidence_refs,
                 )
-                
+
             rows = []
             for r in raw_rows:
                 row_dto = NormalizedStandingRow(
@@ -789,7 +789,7 @@ class ESPNFootballAdapter:
                     form=str(r.get("form") or "")
                 )
                 rows.append(row_dto)
-                
+
             table_dto = NormalizedStandingTable(
                 competition_canonical_id=competition_id,
                 competition_native_id=str(native_competition_id),
@@ -797,10 +797,10 @@ class ESPNFootballAdapter:
                 source_timestamp=analysis_cutoff_at,
                 rows=tuple(rows)
             )
-            
+
             if not standings_res.evidence_refs:
                 return SourceOperationResult(SourceResultStatus.EVIDENCE_ERROR, error_code="no_evidence_refs")
-                
+
             bundle_id, _ = write_source_operation_bundle(
                 registered_source_key="espn-football",
                 operation_name="standings_competition_context",
@@ -809,7 +809,7 @@ class ESPNFootballAdapter:
                 source_event_refs=[],
                 evidence_refs=list(standings_res.evidence_refs),
             )
-            
+
             return SourceOperationResult(
                 status=SourceResultStatus.SUCCESS,
                 value=table_dto,
@@ -823,12 +823,12 @@ class ESPNFootballAdapter:
 
         elif capability == "fixture_team_statistics":
             native_fixture_id = kwargs.get("native_fixture_id")
-            
+
             if not native_fixture_id:
                 return SourceOperationResult(SourceResultStatus.NOT_FOUND, error_code="native_fixture_id_missing")
-                
+
             stats_res = self.client.get_fixture_stats_result(native_fixture_id)
-            
+
             if stats_res.status is not SourceResultStatus.SUCCESS:
                 return SourceOperationResult(
                     status=stats_res.status,
@@ -836,7 +836,7 @@ class ESPNFootballAdapter:
                     error_code=stats_res.error_code,
                     evidence_refs=stats_res.evidence_refs,
                 )
-                
+
             raw_stats = stats_res.value or []
             if not raw_stats:
                 return SourceOperationResult(
@@ -844,17 +844,17 @@ class ESPNFootballAdapter:
                     value=None,
                     evidence_refs=stats_res.evidence_refs,
                 )
-                
+
             ms = raw_stats[0]
             metric_set = NormalizedMetricSet(
                 provider="espn",
                 source_timestamp=analysis_cutoff_at,
                 values=ms.stats
             )
-            
+
             if not stats_res.evidence_refs:
                 return SourceOperationResult(SourceResultStatus.EVIDENCE_ERROR, error_code="no_evidence_refs")
-                
+
             bundle_id, _ = write_source_operation_bundle(
                 registered_source_key="espn-football",
                 operation_name="fixture_team_statistics",
@@ -863,7 +863,7 @@ class ESPNFootballAdapter:
                 source_event_refs=namespaced_source_refs("espn-football", [native_fixture_id]),
                 evidence_refs=list(stats_res.evidence_refs),
             )
-            
+
             return SourceOperationResult(
                 status=SourceResultStatus.SUCCESS,
                 value=metric_set,
@@ -1134,16 +1134,16 @@ class ProbeRunner:
     ) -> SourceOperationResult[Any]:
         if provider not in CANDIDATE_REGISTRY:
             raise ValueError(f"Provider {provider} not found in candidate registry")
-            
+
         record = CANDIDATE_REGISTRY[provider]
-        
+
         # 1. if operation is not in record.supported_capabilities, block as not supported
         if operation not in record.supported_capabilities:
             return SourceOperationResult(
                 status=SourceResultStatus.NOT_SUPPORTED,
                 error_code="capability_not_supported",
             )
-            
+
         # 2. live_probe_eligibility must gate only live probing, not offline replay
         if self.allow_live:
             if not record.live_probe_eligibility:
@@ -1164,10 +1164,10 @@ class ProbeRunner:
         provider_calls = len([c for c in self.call_ledger if c["provider"] == provider])
         if provider_calls >= self.provider_budgets.get(provider, 0):
             return SourceOperationResult(SourceResultStatus.RATE_LIMITED, error_code="provider_budget_exceeded")
-            
+
         if len(self.call_ledger) >= self.global_budget:
             return SourceOperationResult(SourceResultStatus.RATE_LIMITED, error_code="global_budget_exceeded")
-            
+
         if not self.allow_live:
             bundle_id = kwargs.get("bundle_id")
             adapter = kwargs.get("adapter")
@@ -1199,7 +1199,7 @@ class ProbeRunner:
                     status=SourceResultStatus.BLOCKED,
                     error_code="RETAINED_EVIDENCE_REQUIRED",
                 )
-            
+
         raise PermissionError("External network calls are blocked by default. Live mode is unused in this session.")
 
 
@@ -1284,7 +1284,7 @@ class FootballEnrichmentService:
     ) -> FootballEnrichmentSnapshot:
         """Enrich a football fixture and publish an atomic immutable snapshot."""
         from bet.db.connection import get_db
-        
+
         # Validate mode
         try:
             mode = parse_enrichment_mode()
@@ -1304,7 +1304,7 @@ class FootballEnrichmentService:
         base_identity = hashlib.sha256(
             f"football|{canonical_fixture_id}|{analysis_cutoff_at.isoformat()}|{policy_config_hash}".encode()
         ).hexdigest()
-        
+
         if force_refresh:
             run_identity = f"{base_identity}_ref_{int(datetime.now(UTC).timestamp())}"
         else:
@@ -1775,11 +1775,11 @@ def create_football_enrichment_service(
     football_data_client: FootballDataOrgClient | None = None,
 ) -> FootballEnrichmentService:
     registry = FootballAdapterRegistry()
-    
+
     if not espn_client:
         espn_client = ESPNClient(sport="football", league="eng.1", rate_limiter=RateLimiter())
     registry.register("espn", ESPNFootballAdapter(espn_client))
-    
+
     if not api_football_client:
         api_football_client = APIFootballClient(rate_limiter=RateLimiter())
     registry.register("api-football", APIFootballCandidateAdapter(api_football_client))
@@ -1787,5 +1787,5 @@ def create_football_enrichment_service(
     if not football_data_client:
         football_data_client = FootballDataOrgClient(rate_limiter=RateLimiter())
     registry.register("football-data", FootballDataStandingsAdapter(football_data_client))
-    
+
     return FootballEnrichmentService(registry)

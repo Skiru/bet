@@ -1,17 +1,25 @@
 """Pipeline manifest and validation contract."""
+
 from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
+<<<<<<< HEAD
 from typing import Any, Mapping
 
 import bet.pipeline.contracts.steps  # Ensures GLOBAL_CONTRACT_REGISTRY is populated
+=======
+from typing import Any
+
+import bet.pipeline.contracts.steps  # noqa: F401 - populates contract registry
+>>>>>>> fix/bet-v5-final-one-pass-closure-v4
 from bet.pipeline.contracts.registry import GLOBAL_CONTRACT_REGISTRY
 
 
 class PipelineGraph:
     """Canonical dependency graph mapping pipeline steps to prerequisite steps."""
+
     _instance: PipelineGraph | None = None
 
     def __init__(self, manifest: PipelineManifest):
@@ -39,6 +47,7 @@ class PipelineGraph:
 
 class PipelineManifestError(Exception):
     """Exception raised for errors in the pipeline manifest or its validation."""
+
     pass
 
 
@@ -62,9 +71,26 @@ class PipelineStep:
     deterministic_executor: bool | None = None
     semantic_owner: str | None = None
     agent_review_required: bool | None = None
+<<<<<<< HEAD
 
     def primary_produces_contract_id(self) -> str | None:
         if self.produces and len(self.produces) > 0 and isinstance(self.produces[0], dict):
+=======
+    stage_scope: str | None = None
+    completion_policy: str | None = None
+    condition_id: str | None = None
+    automated: bool | None = None
+    uses_model_registry: bool = False
+    uses_provider_config: bool = False
+    uses_policy_config: bool = False
+
+    def primary_produces_contract_id(self) -> str | None:
+        if (
+            self.produces
+            and len(self.produces) > 0
+            and isinstance(self.produces[0], dict)
+        ):
+>>>>>>> fix/bet-v5-final-one-pass-closure-v4
             return self.produces[0].get("contract_id")
         return None
 
@@ -81,20 +107,29 @@ class PipelineManifest:
 
     def get_step(self, step_id: str) -> PipelineStep | None:
         for s in self.steps:
+<<<<<<< HEAD
             if s.id == step_id or (hasattr(s, "step_id") and getattr(s, "step_id") == step_id):
+=======
+            if s.id == step_id or (
+                hasattr(s, "step_id") and getattr(s, "step_id") == step_id
+            ):
+>>>>>>> fix/bet-v5-final-one-pass-closure-v4
                 return s
         return None
 
 
 def discover_repo_root() -> Path:
     """Robustly find the repository root without calling git."""
-    cwd = Path.cwd().resolve()
-    if (cwd / ".kilo").exists() or (cwd / "kilo.json").exists():
-        return cwd
     current = Path(__file__).resolve().parent
     for parent in [current] + list(current.parents):
-        if (parent / ".kilo").exists() or (parent / "kilo.json").exists():
+        if (
+            (parent / "pyproject.toml").exists()
+            or (parent / ".git").exists()
+            or (parent / ".kilo").exists()
+            or (parent / "kilo.json").exists()
+        ):
             return parent
+    cwd = Path.cwd().resolve()
     return cwd
 
 
@@ -120,10 +155,19 @@ def load_pipeline_manifest(path: Path | None = None) -> PipelineManifest:
     if not isinstance(data, dict):
         raise PipelineManifestError("Manifest JSON top-level must be an object")
 
-    required_top = ["schema_version", "pipeline_id", "timezone", "betting_day", "global_rules", "steps"]
+    required_top = [
+        "schema_version",
+        "pipeline_id",
+        "timezone",
+        "betting_day",
+        "global_rules",
+        "steps",
+    ]
     for field_name in required_top:
         if field_name not in data:
-            raise PipelineManifestError(f"Missing required top-level field: {field_name}")
+            raise PipelineManifestError(
+                f"Missing required top-level field: {field_name}"
+            )
 
     steps_list = []
     for step_data in data.get("steps", []):
@@ -143,12 +187,42 @@ def load_pipeline_manifest(path: Path | None = None) -> PipelineManifest:
             canonical_script=step_data.get("canonical_script"),
             depends_on=step_data.get("depends_on"),
             required_inputs=step_data.get("required_inputs"),
+<<<<<<< HEAD
             completion=step_data.get("completion") if isinstance(step_data.get("completion"), dict) else None,
             consumes=list(step_data.get("consumes", [])) if isinstance(step_data.get("consumes"), list) else None,
             produces=list(step_data.get("produces", [])) if isinstance(step_data.get("produces"), list) else None,
             deterministic_executor=step_data.get("deterministic_executor") if isinstance(step_data.get("deterministic_executor"), bool) else None,
             semantic_owner=step_data.get("semantic_owner") if isinstance(step_data.get("semantic_owner"), str) else None,
             agent_review_required=step_data.get("agent_review_required") if isinstance(step_data.get("agent_review_required"), bool) else None,
+=======
+            completion=step_data.get("completion")
+            if isinstance(step_data.get("completion"), dict)
+            else None,
+            consumes=list(step_data.get("consumes", []))
+            if isinstance(step_data.get("consumes"), list)
+            else None,
+            produces=list(step_data.get("produces", []))
+            if isinstance(step_data.get("produces"), list)
+            else None,
+            deterministic_executor=step_data.get("deterministic_executor")
+            if isinstance(step_data.get("deterministic_executor"), bool)
+            else None,
+            semantic_owner=step_data.get("semantic_owner")
+            if isinstance(step_data.get("semantic_owner"), str)
+            else None,
+            agent_review_required=step_data.get("agent_review_required")
+            if isinstance(step_data.get("agent_review_required"), bool)
+            else None,
+            stage_scope=step_data.get("stage_scope"),
+            completion_policy=step_data.get("completion_policy"),
+            condition_id=step_data.get("condition_id"),
+            automated=step_data.get("automated")
+            if isinstance(step_data.get("automated"), bool)
+            else None,
+            uses_model_registry=step_data.get("uses_model_registry") is True,
+            uses_provider_config=step_data.get("uses_provider_config") is True,
+            uses_policy_config=step_data.get("uses_policy_config") is True,
+>>>>>>> fix/bet-v5-final-one-pass-closure-v4
         )
         steps_list.append(step_obj)
 
@@ -162,9 +236,13 @@ def load_pipeline_manifest(path: Path | None = None) -> PipelineManifest:
         pipeline_id=str(data["pipeline_id"]),
         timezone=str(data["timezone"]),
         betting_day=str(data["betting_day"]),
-        global_rules=dict(data["global_rules"]) if isinstance(data["global_rules"], dict) else {},
+        global_rules=dict(data["global_rules"])
+        if isinstance(data["global_rules"], dict)
+        else {},
         steps=steps_list,
-        runtime_contract=dict(data.get("runtime_contract", {})) if isinstance(data.get("runtime_contract"), dict) else {},
+        runtime_contract=dict(data.get("runtime_contract", {}))
+        if isinstance(data.get("runtime_contract"), dict)
+        else {},
     )
     PipelineGraph._instance = PipelineGraph(manifest_obj)
     return manifest_obj
@@ -181,7 +259,9 @@ def get_step_agent(
     for step in manifest.steps:
         if step.id == step_id:
             if not step.agent:
-                raise PipelineManifestError(f"Step {step_id} has no agent specified in manifest")
+                raise PipelineManifestError(
+                    f"Step {step_id} has no agent specified in manifest"
+                )
             return step.agent
     raise PipelineManifestError(f"Unknown step_id in manifest: {step_id}")
 
@@ -197,7 +277,9 @@ def get_step_hard_rules(
     for step in manifest.steps:
         if step.id == step_id:
             if step.hard_rules is None:
-                raise PipelineManifestError(f"Step {step_id} has no hard_rules specified in manifest")
+                raise PipelineManifestError(
+                    f"Step {step_id} has no hard_rules specified in manifest"
+                )
             return list(step.hard_rules)
     raise PipelineManifestError(f"Unknown step_id in manifest: {step_id}")
 
@@ -230,7 +312,9 @@ def get_step_phase(step_id: str) -> str:
     raise PipelineManifestError(f"Unknown step: {step_id}")
 
 
-def validate_pipeline_manifest(manifest: PipelineManifest, repo_root: Path | None = None) -> list[str]:
+def validate_pipeline_manifest(
+    manifest: PipelineManifest, repo_root: Path | None = None
+) -> list[str]:
     """Validate a loaded PipelineManifest against all contract constraints."""
     errors = []
     if repo_root is None:
@@ -266,7 +350,7 @@ def validate_pipeline_manifest(manifest: PipelineManifest, repo_root: Path | Non
         "no_automated_bookmaker_placement",
         "tipster_absence_does_not_block_core_analysis",
         "no_event_drop_due_only_to_tipster_absence",
-        "every_discovered_event_requires_terminal_status_or_reason"
+        "every_discovered_event_requires_terminal_status_or_reason",
     ]
     for rule in required_global_rules:
         if rule not in global_rules or global_rules[rule] is not True:
@@ -274,8 +358,23 @@ def validate_pipeline_manifest(manifest: PipelineManifest, repo_root: Path | Non
 
     # 2. Step ID checking & Step ordering
     expected_order = [
-        "S0", "S1", "S1e", "S2", "S2.3", "S2.5", "S2.7", "S2.9",
-        "S3", "S4", "S5", "S6", "S7", "S7b", "S8", "S9", "S10",
+        "S0",
+        "S1",
+        "S1e",
+        "S2",
+        "S2.3",
+        "S2.5",
+        "S2.7",
+        "S2.9",
+        "S3",
+        "S4",
+        "S5",
+        "S6",
+        "S7",
+        "S7b",
+        "S8",
+        "S9",
+        "S10",
     ]
 
     step_ids = []
@@ -297,6 +396,8 @@ def validate_pipeline_manifest(manifest: PipelineManifest, repo_root: Path | Non
     # 3. Individual Step validation
     allowed_phases = ["DATA", "ANALYSIS_BUILD", "EXECUTION", "POST_EVENT"]
     allowed_execution_modes = ["script", "agent_artifact", "human_gate", "state_only"]
+    allowed_scopes = {"event", "run", "human"}
+    allowed_policies = {"required", "optional", "conditional", "human_only"}
 
     for step in manifest.steps:
         sid = step.id or "<missing id>"
@@ -315,21 +416,73 @@ def validate_pipeline_manifest(manifest: PipelineManifest, repo_root: Path | Non
             errors.append(f"Step {sid} missing required field: next")
         if step.hard_rules is None:
             errors.append(f"Step {sid} missing required field: hard_rules")
+        if step.stage_scope not in allowed_scopes:
+            errors.append(
+                f"Step {sid} missing or invalid stage_scope: {step.stage_scope}"
+            )
+        if step.completion_policy not in allowed_policies:
+            errors.append(
+                f"Step {sid} missing or invalid completion_policy: "
+                f"{step.completion_policy}"
+            )
+        if step.automated is None:
+            errors.append(f"Step {sid} missing required field: automated")
+        if step.completion_policy == "conditional" and not step.condition_id:
+            errors.append(f"Step {sid} conditional policy requires condition_id")
+        if step.completion_policy != "conditional" and step.condition_id is not None:
+            errors.append(f"Step {sid} non-conditional policy forbids condition_id")
+        if step.stage_scope == "human":
+            if step.automated is not False:
+                errors.append(f"Step {sid} human scope must not be automated")
+            if step.completion_policy != "human_only":
+                errors.append(f"Step {sid} human scope requires human_only policy")
+        if sid == "S9" and (
+            step.stage_scope != "human"
+            or step.completion_policy != "human_only"
+            or step.automated is not False
+        ):
+            errors.append("S9 must be human-only and non-automated")
+        if step.completion_policy == "conditional" and step.condition_id:
+            from bet.pipeline.stage_conditions import GLOBAL_STAGE_CONDITION_REGISTRY
+
+            if not GLOBAL_STAGE_CONDITION_REGISTRY.contains(step.condition_id):
+                errors.append(
+                    f"Step {sid} has unknown condition_id: {step.condition_id}"
+                )
 
         if step.phase is not None and step.phase not in allowed_phases:
             errors.append(f"Step {sid} has invalid phase: {step.phase}")
 
+<<<<<<< HEAD
         if step.execution_mode is not None and step.execution_mode not in allowed_execution_modes:
             errors.append(f"Step {sid} has invalid execution_mode: {step.execution_mode}")
+=======
+        if (
+            step.execution_mode is not None
+            and step.execution_mode not in allowed_execution_modes
+        ):
+            errors.append(
+                f"Step {sid} has invalid execution_mode: {step.execution_mode}"
+            )
+>>>>>>> fix/bet-v5-final-one-pass-closure-v4
 
         # Validate contract registration for produces and consumes
         if step.produces:
             for p_dict in step.produces:
+<<<<<<< HEAD
                 cid = p_dict.get("contract_id") if isinstance(p_dict, dict) else str(p_dict)
+=======
+                cid = (
+                    p_dict.get("contract_id")
+                    if isinstance(p_dict, dict)
+                    else str(p_dict)
+                )
+>>>>>>> fix/bet-v5-final-one-pass-closure-v4
                 ver = p_dict.get("schema_version", 1) if isinstance(p_dict, dict) else 1
                 if cid:
                     desc = GLOBAL_CONTRACT_REGISTRY.get(cid, ver)
                     if desc is None:
+<<<<<<< HEAD
                         errors.append(f"Step {sid} produces unknown contract: ({cid}, {ver})")
                     elif desc.producer_step != sid:
                         errors.append(f"Step {sid} produces contract {cid} registered to producer {desc.producer_step}")
@@ -337,6 +490,28 @@ def validate_pipeline_manifest(manifest: PipelineManifest, repo_root: Path | Non
         if step.consumes:
             for c_item in step.consumes:
                 cid = c_item.get("contract_id") if isinstance(c_item, dict) else str(c_item)
+=======
+                        errors.append(
+                            f"Step {sid} produces unknown contract: ({cid}, {ver})"
+                        )
+                    elif desc.producer_step != sid:
+                        errors.append(
+                            f"Step {sid} produces contract {cid} registered to producer {desc.producer_step}"
+                        )
+                    elif step.stage_scope and desc.output_scope != step.stage_scope:
+                        errors.append(
+                            f"Step {sid} scope {step.stage_scope} conflicts with "
+                            f"contract {cid} scope {desc.output_scope}"
+                        )
+
+        if step.consumes:
+            for c_item in step.consumes:
+                cid = (
+                    c_item.get("contract_id")
+                    if isinstance(c_item, dict)
+                    else str(c_item)
+                )
+>>>>>>> fix/bet-v5-final-one-pass-closure-v4
                 ver = c_item.get("schema_version", 1) if isinstance(c_item, dict) else 1
                 desc = GLOBAL_CONTRACT_REGISTRY.get(cid, ver)
                 if desc is None:
@@ -348,10 +523,23 @@ def validate_pipeline_manifest(manifest: PipelineManifest, repo_root: Path | Non
                 if desc is None:
                     errors.append(f"Step {sid} consumes unknown contract: {cid}")
                 else:
+<<<<<<< HEAD
                     producer_idx = step_ids.index(desc.producer_step) if desc.producer_step in step_ids else -1
                     consumer_idx = step_ids.index(sid) if sid in step_ids else -1
                     if producer_idx == -1 or producer_idx >= consumer_idx:
                         errors.append(f"Step {sid} consumes contract {cid} from producer {desc.producer_step} which does not precede {sid}")
+=======
+                    producer_idx = (
+                        step_ids.index(desc.producer_step)
+                        if desc.producer_step in step_ids
+                        else -1
+                    )
+                    consumer_idx = step_ids.index(sid) if sid in step_ids else -1
+                    if producer_idx == -1 or producer_idx >= consumer_idx:
+                        errors.append(
+                            f"Step {sid} consumes contract {cid} from producer {desc.producer_step} which does not precede {sid}"
+                        )
+>>>>>>> fix/bet-v5-final-one-pass-closure-v4
 
         # Next transition validation
         expected_next = []
@@ -370,18 +558,67 @@ def validate_pipeline_manifest(manifest: PipelineManifest, repo_root: Path | Non
         # Script execution_mode validation
         if step.execution_mode == "script":
             if not step.wrapper and not step.canonical_script:
-                errors.append(f"Step {sid} is in script execution_mode but has neither wrapper nor canonical_script")
+                errors.append(
+                    f"Step {sid} is in script execution_mode but has neither wrapper nor canonical_script"
+                )
 
-            for field_name, path_str in [("wrapper", step.wrapper), ("canonical_script", step.canonical_script)]:
+            for field_name, path_str in [
+                ("wrapper", step.wrapper),
+                ("canonical_script", step.canonical_script),
+            ]:
                 if path_str:
                     path_obj = repo_root / path_str
                     if not path_obj.exists():
-                        errors.append(f"Step {sid} referenced {field_name} path does not exist: {path_str}")
+                        errors.append(
+                            f"Step {sid} referenced {field_name} path does not exist: {path_str}"
+                        )
 
         # Referenced agent file validation
         if step.agent is not None:
             agent_file = repo_root / ".kilo/agents" / f"{step.agent}.md"
             if not agent_file.exists():
-                errors.append(f"Step {sid} referenced agent file does not exist under .kilo/agents: {step.agent}.md")
+                errors.append(
+                    f"Step {sid} referenced agent file does not exist under .kilo/agents: {step.agent}.md"
+                )
 
+<<<<<<< HEAD
+=======
+    graph = {step.id: list(step.depends_on or []) for step in manifest.steps if step.id}
+    for step in manifest.steps:
+        if not step.id:
+            continue
+        for dependency in step.depends_on or []:
+            if dependency not in graph:
+                errors.append(f"Step {step.id} has missing dependency: {dependency}")
+                continue
+            dependency_step = step_by_id[dependency]
+            if step.automated and dependency_step.stage_scope == "human":
+                errors.append(
+                    f"Automated step {step.id} cannot depend on human step {dependency}"
+                )
+            if step.stage_scope == "event" and dependency_step.stage_scope == "human":
+                errors.append(
+                    f"Event step {step.id} cannot depend on human step {dependency}"
+                )
+
+    visiting: set[str] = set()
+    visited: set[str] = set()
+
+    def visit(stage_id: str) -> None:
+        if stage_id in visiting:
+            errors.append(f"Dependency cycle detected at {stage_id}")
+            return
+        if stage_id in visited:
+            return
+        visiting.add(stage_id)
+        for dependency in graph.get(stage_id, []):
+            if dependency in graph:
+                visit(dependency)
+        visiting.remove(stage_id)
+        visited.add(stage_id)
+
+    for stage_id in graph:
+        visit(stage_id)
+
+>>>>>>> fix/bet-v5-final-one-pass-closure-v4
     return errors

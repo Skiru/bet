@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 """Same-event Bet Builder engine module."""
 from __future__ import annotations
 
@@ -16,3 +17,6 @@ from bet.builder.engine import (
     compute_joint_builder_pricing,
     generate_same_event_builders,
 )
+=======
+"""Bet Builder calculation and pricing engine."""
+>>>>>>> fix/bet-v5-final-one-pass-closure-v4

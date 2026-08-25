@@ -1,9 +1,14 @@
+<<<<<<< HEAD
 """Business contracts for ANALYSIS_BUILD, EXECUTION, and POST_EVENT steps (S3 to S10)."""
+=======
+"""Typed candidate contracts for S3 through S10 pipeline steps."""
+>>>>>>> fix/bet-v5-final-one-pass-closure-v4
 from __future__ import annotations
 
 from typing import Any, Literal
 from pydantic import Field, field_validator, model_validator
 from bet.pipeline.contracts.base import StrictBaseModel
+<<<<<<< HEAD
 from bet.pipeline.contracts.common import EventRecordV1, SourceReferenceV1, EvidenceClaimV1, _validate_sha256
 
 
@@ -34,12 +39,29 @@ class ProbabilityEstimateRecordV1(StrictBaseModel):
 
 
 # S3 Contract
+=======
+
+
+class ProbabilityRecordV1(StrictBaseModel):
+    canonical_event_id: str
+    market_family: str
+    selection: str
+    calibrated_probability: float | None = Field(default=None, ge=0.0, le=1.0)
+    uncertainty_margin: float = Field(default=0.02, ge=0.0)
+    model_id: str | None = None
+    dataset_receipt_sha256: str | None = None
+    calibration_report_sha256: str | None = None
+    terminal_status: str = "PASS"
+
+
+>>>>>>> fix/bet-v5-final-one-pass-closure-v4
 class S3CalibratedProbabilitiesV1(StrictBaseModel):
     schema_version: int = 1
     artifact_type: Literal["S3_CALIBRATED_PROBABILITIES"] = "S3_CALIBRATED_PROBABILITIES"
     status: Literal["PASS", "NO_ACTION_TERMINAL", "BLOCK"] = "PASS"
     betting_day: str
     run_id: str
+<<<<<<< HEAD
     probabilities_count: int = Field(ge=0, default=0)
     probability_estimates: list[ProbabilityEstimateRecordV1] = Field(default_factory=list)
 
@@ -55,12 +77,35 @@ class ValuationCandidateRecordV1(StrictBaseModel):
 
 
 # S4 Contract
+=======
+    total_probabilities_derived: int = Field(ge=0, default=0)
+    probabilities: list[ProbabilityRecordV1] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def validate_non_empty_positive(self) -> S3CalibratedProbabilitiesV1:
+        if self.status == "PASS" and not self.probabilities:
+            raise ValueError("EMPTY_POSITIVE_TYPED_ARTIFACT: PASS status requires non-empty probabilities list")
+        return self
+
+
+class ValuationRecordV1(StrictBaseModel):
+    canonical_event_id: str
+    market_family: str
+    selection: str
+    fair_odds: float | None = Field(default=None, ge=1.0)
+    ev_estimate: float | None = None
+    minimum_acceptable_odds: float | None = Field(default=None, ge=1.0)
+    status: str = "PASS"
+
+
+>>>>>>> fix/bet-v5-final-one-pass-closure-v4
 class S4ExpectedValueEstimatesV1(StrictBaseModel):
     schema_version: int = 1
     artifact_type: Literal["S4_EXPECTED_VALUE_ESTIMATES"] = "S4_EXPECTED_VALUE_ESTIMATES"
     status: Literal["PASS", "NO_ACTION_TERMINAL", "BLOCK"] = "PASS"
     betting_day: str
     run_id: str
+<<<<<<< HEAD
     candidates_valuated_count: int = Field(ge=0, default=0)
     valuation_candidates: list[ValuationCandidateRecordV1] = Field(default_factory=list)
 
@@ -75,31 +120,74 @@ class ContextReviewRecordV1(StrictBaseModel):
 
 
 # S5 Contract
+=======
+    total_candidates_valued: int = Field(ge=0, default=0)
+    estimates: list[ValuationRecordV1] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def validate_non_empty_positive(self) -> S4ExpectedValueEstimatesV1:
+        if self.status == "PASS" and not self.estimates:
+            raise ValueError("EMPTY_POSITIVE_TYPED_ARTIFACT: PASS status requires non-empty estimates list")
+        return self
+
+
+class ContextRecordV1(StrictBaseModel):
+    canonical_event_id: str
+    sport: str
+    motivation_score: float = Field(default=1.0, ge=0.0, le=2.0)
+    risk_classification: Literal["LOW", "MEDIUM", "HIGH", "UNACCEPTABLE"] = "LOW"
+    context_notes: str | None = None
+    terminal_status: str = "PASS"
+
+
+>>>>>>> fix/bet-v5-final-one-pass-closure-v4
 class S5ContextMotivationRiskV1(StrictBaseModel):
     schema_version: int = 1
     artifact_type: Literal["S5_CONTEXT_MOTIVATION_RISK"] = "S5_CONTEXT_MOTIVATION_RISK"
     status: Literal["PASS", "NO_ACTION_TERMINAL", "BLOCK"] = "PASS"
     betting_day: str
     run_id: str
+<<<<<<< HEAD
     events_reviewed_count: int = Field(ge=0, default=0)
     context_reviews: list[ContextReviewRecordV1] = Field(default_factory=list)
+=======
+    total_candidates_screened: int = Field(ge=0, default=0)
+    context_records: list[ContextRecordV1] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def validate_non_empty_positive(self) -> S5ContextMotivationRiskV1:
+        if self.status == "PASS" and not self.context_records:
+            raise ValueError("EMPTY_POSITIVE_TYPED_ARTIFACT: PASS status requires non-empty context_records list")
+        return self
+
+
+S5ContextMotivationRiskV2 = S5ContextMotivationRiskV1
+>>>>>>> fix/bet-v5-final-one-pass-closure-v4
 
 
 class FilteredCandidateRecordV1(StrictBaseModel):
     canonical_event_id: str
     selection: str
     repeat_risk_flag: bool
+<<<<<<< HEAD
     action: Literal["ALLOW", "FILTER_DUPLICATE", "FILTER_EXPOSURE"]
     terminal_status: Literal["PASS", "DEGRADED_CONTINUE", "REJECTED", "NO_ACTION", "BLOCKED"]
 
 
 # S6 Contract
+=======
+    action: str
+    terminal_status: str
+
+
+>>>>>>> fix/bet-v5-final-one-pass-closure-v4
 class S6PortfolioRepeatGuardV1(StrictBaseModel):
     schema_version: int = 1
     artifact_type: Literal["S6_PORTFOLIO_REPEAT_GUARD"] = "S6_PORTFOLIO_REPEAT_GUARD"
     status: Literal["PASS", "NO_ACTION_TERMINAL", "BLOCK"] = "PASS"
     betting_day: str
     run_id: str
+<<<<<<< HEAD
     repeats_filtered_count: int = Field(ge=0, default=0)
     filtered_candidates: list[FilteredCandidateRecordV1] = Field(default_factory=list)
 
@@ -138,10 +226,31 @@ class CanonicalCandidateRecordV1(StrictBaseModel):
     visible_operator_line: str | None = None
     human_entered_decimal_quote: float | None = None
     quote_as_of: str | None = None
+=======
+    total_candidates_guarded: int = Field(ge=0, default=0)
+    guarded_records: list[FilteredCandidateRecordV1] = Field(default_factory=list)
+
+
+class S7CandidateRecord(StrictBaseModel):
+    quote_card_id: str
+    source_candidate_id: str
+    selection_id: str
+    canonical_event_id: str
+    sport: str
+    competition: str
+    home_team: str
+    away_team: str
+    market_family: str
+    selection: str
+    line: float | None = None
+    manual_operator: str = "SUPERBET"
+    mapping_ambiguity: str = "EXACT_NAME_MATCH"
+>>>>>>> fix/bet-v5-final-one-pass-closure-v4
     operator_availability_asserted: bool = False
     executable_coupon: bool = False
     betting_valid: bool = False
     can_place_bet_now: bool = False
+<<<<<<< HEAD
     terminal_status: Literal["PASS", "DEGRADED_CONTINUE", "REJECTED", "NO_ACTION", "BLOCKED"] = "PASS"
 
 
@@ -185,15 +294,109 @@ class S7bSuperbetManualMappingV1(StrictBaseModel):
     represented_candidate_count: int = Field(ge=0, default=0)
     mapping_suggestions: list[MappingSuggestionRecordV1] = Field(default_factory=list)
     event_records: list[EventRecordV1] = Field(default_factory=list)
+=======
+    recommended_minimum_odds: float | None = None
+    minimum_acceptable_odds: float | None = None
+    fair_odds: float | None = None
+    model_fair_odds: float | None = None
+    model_fair_probability: float | None = None
+    calibrated_probability: float | None = None
+    model_package_path: str | None = None
+    model_package_id: str | None = None
+
+
+class S7bCandidateRecord(StrictBaseModel):
+    quote_card_id: str
+    source_candidate_id: str
+    selection_id: str
+    canonical_event_id: str
+    sport: str
+    competition: str
+    home_team: str
+    away_team: str
+    market_family: str
+    selection: str
+    line: float | None = None
+    manual_operator: str = "SUPERBET"
+    mapping_ambiguity: str = "EXACT_NAME_MATCH"
+    operator_availability_asserted: bool = False
+    executable_coupon: bool = False
+    betting_valid: bool = False
+    can_place_bet_now: bool = False
+    recommended_minimum_odds: float | None = None
+    minimum_acceptable_odds: float | None = None
+    fair_odds: float | None = None
+    model_fair_odds: float | None = None
+    model_fair_probability: float | None = None
+    calibrated_probability: float | None = None
+    model_package_path: str | None = None
+    model_package_id: str | None = None
+
+
+class S8InputCandidateRecord(StrictBaseModel):
+    quote_card_id: str
+    source_candidate_id: str
+    selection_id: str
+    canonical_event_id: str
+    sport: str
+    competition: str
+    home_team: str
+    away_team: str
+    market_family: str
+    selection: str
+    line: float | None = None
+    manual_operator: str = "SUPERBET"
+    mapping_ambiguity: str = "EXACT_NAME_MATCH"
+    operator_availability_asserted: bool = False
+    executable_coupon: bool = False
+    betting_valid: bool = False
+    can_place_bet_now: bool = False
+    recommended_minimum_odds: float | None = None
+    minimum_acceptable_odds: float | None = None
+    fair_odds: float | None = None
+    model_fair_odds: float | None = None
+    model_fair_probability: float | None = None
+    calibrated_probability: float | None = None
+    model_package_path: str | None = None
+    model_package_id: str | None = None
+
+
+class S7ApprovedPicksV1(StrictBaseModel):
+    schema_version: int = 1
+    artifact_type: str = "S7_APPROVED_PICKS"
+    status: str
+    betting_day: str
+    run_id: str
+    event_records: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class S7bSuperbetManualMappingV1(StrictBaseModel):
+    schema_version: int = 2
+    artifact_type: str = "S7B_SUPERBET_MANUAL_MAPPING"
+    status: str
+    betting_day: str
+    run_id: str
+    operator_workflow: str = "SUPERBET_MANUAL_BET_BUILDER"
+>>>>>>> fix/bet-v5-final-one-pass-closure-v4
     source_s7_evidence_path: str | None = None
     source_s7_evidence_sha256: str | None = None
     source_s7_output_path: str | None = None
     source_s7_output_sha256: str | None = None
+<<<<<<< HEAD
     manual_verification_required: bool = True
+=======
+    approved_candidate_count: int = 0
+    represented_candidate_count: int = 0
+    mapping_suggestions: list[dict[str, Any]] = Field(default_factory=list)
+    event_records: list[dict[str, Any]] = Field(default_factory=list)
+    manual_verification_required: bool = False
+    operator_availability_asserted: bool = False
+>>>>>>> fix/bet-v5-final-one-pass-closure-v4
     executable_coupon: bool = False
     betting_valid: bool = False
     can_place_bet_now: bool = False
 
+<<<<<<< HEAD
     @model_validator(mode="after")
     def validate_s7b_invariants(self) -> S7bSuperbetManualMappingV1:
         if self.status in ("READY_FOR_MANUAL_MAPPING", "READY"):
@@ -252,10 +455,21 @@ class S8SuperbetManualQuotePackV1(StrictBaseModel):
     betting_day: str
     run_id: str
     operator_workflow: Literal["SUPERBET_MANUAL_BET_BUILDER"] = "SUPERBET_MANUAL_BET_BUILDER"
+=======
+
+class S8SuperbetManualQuotePackV1(StrictBaseModel):
+    schema_version: int = 2
+    artifact_type: str = "S8_SUPERBET_MANUAL_QUOTE_PACK"
+    status: str
+    betting_day: str
+    run_id: str
+    operator_workflow: str = "SUPERBET_MANUAL_BET_BUILDER"
+>>>>>>> fix/bet-v5-final-one-pass-closure-v4
     source_s7b_evidence_path: str | None = None
     source_s7b_evidence_sha256: str | None = None
     source_s7b_output_path: str | None = None
     source_s7b_output_sha256: str | None = None
+<<<<<<< HEAD
     quote_card_count: int = Field(ge=0, default=0)
     quote_cards: list[QuoteCardRecordV1] = Field(default_factory=list)
     idea_groups: list[S8IdeaGroupV1] = Field(default_factory=list)
@@ -265,10 +479,22 @@ class S8SuperbetManualQuotePackV1(StrictBaseModel):
     pricing_status: str = "UNPRICED"
     risk_status: str = "ACCEPTABLE_FOR_MANUAL_QUOTE"
     final_status: str = "READY_FOR_MANUAL_SUPERBET_QUOTE_REVIEW"
+=======
+    quote_card_count: int = 0
+    quote_cards: list[dict[str, Any]] = Field(default_factory=list)
+    idea_groups: list[dict[str, Any]] = Field(default_factory=list)
+    rejections: list[dict[str, Any]] = Field(default_factory=list)
+    event_records: list[dict[str, Any]] = Field(default_factory=list)
+    analytical_status: str = "NO_ACTION"
+    pricing_status: str = "UNPRICED"
+    risk_status: str = "NO_ACTION"
+    final_status: str = "NO_ACTION_TERMINAL"
+>>>>>>> fix/bet-v5-final-one-pass-closure-v4
     ev_available: bool = False
     kelly_available: bool = False
     stake_available: bool = False
     combined_bookmaker_odds: float | None = None
+<<<<<<< HEAD
     requires_human_gate: bool = True
     ready_for_human_gate: bool = True
     ready_for_production_execution: bool = False
@@ -302,12 +528,20 @@ class S8SuperbetManualQuotePackV1(StrictBaseModel):
             if self.status == "NO_ACTION_TERMINAL" and (self.quote_cards or self.idea_groups):
                 raise ValueError("S8_INVARIANT_VIOLATION: NO_ACTION_TERMINAL cannot contain quote cards or idea groups")
         return self
+=======
+    requires_human_gate: bool = False
+    ready_for_human_gate: bool = False
+    ready_for_production_execution: bool = False
+    production_selectable: bool = False
+    production_coupon_write: bool = False
+>>>>>>> fix/bet-v5-final-one-pass-closure-v4
     executable_coupon: bool = False
     betting_valid: bool = False
     can_place_bet_now: bool = False
     operator_availability_asserted: bool = False
     operator_automation_enabled: bool = False
 
+<<<<<<< HEAD
     @field_validator("source_s7b_evidence_sha256", "source_s7b_output_sha256")
     @classmethod
     def check_hashes(cls, v: str | None) -> str | None:
@@ -353,3 +587,30 @@ class S10SettlementHandoffV1(StrictBaseModel):
     betting_day: str
     run_id: str
     post_session_learning_records: list[PostSessionLearningRecordV1] = Field(default_factory=list)
+=======
+    @model_validator(mode="after")
+    def validate_s8_status_semantics(self) -> S8SuperbetManualQuotePackV1:
+        if self.pricing_status == "UNPRICED" and self.executable_coupon:
+            raise ValueError("UNPRICED_CANNOT_BE_EXECUTABLE: UNPRICED S8 quote pack cannot be executable coupon")
+        if self.pricing_status == "UNPRICED" and (self.ev_available or self.stake_available):
+            raise ValueError("UNPRICED_CANNOT_HAVE_EV_OR_STAKE: UNPRICED S8 quote pack cannot have EV or stake available without human quote")
+        return self
+
+
+class S9ExecutedBetsJournalV1(StrictBaseModel):
+    schema_version: int = 1
+    artifact_type: Literal["S9_HUMAN_OPERATOR_APPROVAL", "S9_EXECUTED_BETS_JOURNAL"] = "S9_HUMAN_OPERATOR_APPROVAL"
+    status: str = "HUMAN_APPROVED"
+    betting_day: str
+    run_id: str
+    approved_bets: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class S10SettlementHandoffV1(StrictBaseModel):
+    schema_version: int = 1
+    artifact_type: Literal["S10_POSTEVENT_ACCOUNTING", "S10_SETTLEMENT_HANDOFF"] = "S10_POSTEVENT_ACCOUNTING"
+    status: str = "PASS"
+    betting_day: str
+    run_id: str
+    settled_bets: list[dict[str, Any]] = Field(default_factory=list)
+>>>>>>> fix/bet-v5-final-one-pass-closure-v4

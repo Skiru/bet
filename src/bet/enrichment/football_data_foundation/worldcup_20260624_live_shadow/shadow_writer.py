@@ -32,7 +32,7 @@ def write_shadow_json_and_sqlite(
                 shadow_status TEXT NOT NULL
             )
         """)
-        
+
         con.execute("""
             CREATE TABLE IF NOT EXISTS shadow_provider_ids (
                 fixture_slug TEXT,
@@ -41,7 +41,7 @@ def write_shadow_json_and_sqlite(
                 PRIMARY KEY (fixture_slug, provider)
             )
         """)
-        
+
         con.execute("""
             CREATE TABLE IF NOT EXISTS shadow_facts (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -55,7 +55,7 @@ def write_shadow_json_and_sqlite(
                 source_file TEXT NOT NULL
             )
         """)
-        
+
         con.execute("""
             CREATE TABLE IF NOT EXISTS shadow_conflicts_diagnostics (
                 fixture_slug TEXT PRIMARY KEY,

@@ -645,6 +645,7 @@ def test_24_provider_order_independent_imports():
 
 # 25. A manifest-driven, non-empty, offline fixture flow can cross S1e→S8 with exact event accounting and no synthetic PASS.
 def test_25_manifest_offline_flow(tmp_path: Path, monkeypatch):
+    monkeypatch.delenv("BET_PIPELINE_CERTIFIER_ACTIVE", raising=False)
     # Delegate to the full manifest-driven offline integration flow proof test
     from tests.test_canonical_continuity_v4_offline_chain_proof import test_v4_offline_chain_proof
     test_v4_offline_chain_proof(tmp_path, monkeypatch)

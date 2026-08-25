@@ -253,33 +253,33 @@ def summarize(name: str, results: list[SampleResult]) -> TestSummary:
 if __name__ == "__main__":
     import sys
     reports = []
-    
+
     print("Running chat tests (20 attempts)...")
     s1 = run_repeated_chat(20)
     print(f"  {s1.passed}/{s1.attempts} passed")
     reports.append(asdict(s1))
-    
+
     print("Running tool tests (30 attempts)...")
     s2 = run_repeated_tool(30)
     print(f"  {s2.passed}/{s2.attempts} passed")
     reports.append(asdict(s2))
-    
+
     print("Running multitool tests (30 attempts)...")
     s3 = run_repeated_multitool(30)
     print(f"  {s3.passed}/{s3.attempts} passed")
     reports.append(asdict(s3))
-    
+
     print("Running non-thinking stream tests (20 attempts)...")
     s4 = run_repeated_stream_nonthinking(20)
     print(f"  {s4.passed}/{s4.attempts} passed")
     reports.append(asdict(s4))
-    
+
     report_path = Path("reports/implementation/2026-06-10T15-22-failed-baseline/repeated-tests.json")
     report_path.write_text(json.dumps({"tests": reports}, indent=2) + "\n")
-    
+
     print("\n=== SUMMARY ===")
     for r in reports:
         print(f"{r['name']}: {r['passed']}/{r['attempts']} ({100*r['passed']/r['attempts']:.1f}%)")
-    
+
     all_pass = all(r["passed"] == r["attempts"] for r in reports)
     sys.exit(0 if all_pass else 1)

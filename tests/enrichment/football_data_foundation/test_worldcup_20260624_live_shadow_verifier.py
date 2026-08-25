@@ -16,7 +16,7 @@ def test_verifier_fails_fewer_than_4_shadow_ready() -> None:
         "betting_decision_check": "PASS",
         "final_status": "WORLD_CUP_2026_24_JUNE_LIVE_SHADOW_COMPLETE"
     }
-    
+
     with tempfile.TemporaryDirectory() as tmp:
         res = verify_live_shadow_run(run_summary, Path(tmp))
         assert res["verdict"] == "FAIL"
@@ -37,7 +37,7 @@ def test_verifier_fails_betting_decision() -> None:
         "final_status": "WORLD_CUP_2026_24_JUNE_LIVE_SHADOW_COMPLETE",
         "notes": "We recommend placing a stake on Switzerland" # forbidden betting decision text
     }
-    
+
     with tempfile.TemporaryDirectory() as tmp:
         res = verify_live_shadow_run(run_summary, Path(tmp))
         assert res["verdict"] == "FAIL"
@@ -57,12 +57,12 @@ def test_verifier_fails_production_selectable() -> None:
         "betting_decision_check": "PASS",
         "final_status": "WORLD_CUP_2026_24_JUNE_LIVE_SHADOW_COMPLETE"
     }
-    
+
     with tempfile.TemporaryDirectory() as tmp:
         run_dir = Path(tmp)
         artifacts_dir = run_dir / "shadow_artifacts" / "worldcup2026_switzerland_canada"
         artifacts_dir.mkdir(parents=True, exist_ok=True)
-        
+
         # Write snapshot with production_selectable = True
         snap_data = {
             "fixture_slug": "worldcup2026-switzerland-canada",
@@ -70,7 +70,7 @@ def test_verifier_fails_production_selectable() -> None:
             "manual_authorization_required": True
         }
         (artifacts_dir / "source_bound_shadow_snapshot.json").write_text(json.dumps(snap_data))
-        
+
         res = verify_live_shadow_run(run_summary, run_dir)
         assert res["verdict"] == "FAIL"
         assert any("production_selectable_enabled" in f for f in res["failed_requirements"])
@@ -89,19 +89,19 @@ def test_verifier_fails_raw_headers() -> None:
         "betting_decision_check": "PASS",
         "final_status": "WORLD_CUP_2026_24_JUNE_LIVE_SHADOW_COMPLETE"
     }
-    
+
     with tempfile.TemporaryDirectory() as tmp:
         run_dir = Path(tmp)
         cache_dir = run_dir / "cache" / "sportdb"
         cache_dir.mkdir(parents=True, exist_ok=True)
-        
+
         # Write envelope containing raw_headers
         env_data = {
             "fixture_slug": "switzerland",
             "raw_headers": {"Authorization": "bearer xyz"} # should fail
         }
         (cache_dir / "switzerland.json").write_text(json.dumps(env_data))
-        
+
         res = verify_live_shadow_run(run_summary, run_dir)
         assert res["verdict"] == "FAIL"
         assert any("raw_headers" in f for f in res["failed_requirements"]) or any("headers_stored" in f for f in res["failed_requirements"])
@@ -124,13 +124,13 @@ def test_verifier_fails_fake_url_term() -> None:
         run_dir = Path(tmp)
         cache_dir = run_dir / "cache" / "sportdb"
         cache_dir.mkdir(parents=True, exist_ok=True)
-        
+
         env_data = {
             "fixture_slug": "switzerland",
             "source_url": "https://api.sportdb.com/v4/matches/switzerland" # fake url, should fail
         }
         (cache_dir / "switzerland.json").write_text(json.dumps(env_data))
-        
+
         res = verify_live_shadow_run(run_summary, run_dir)
         assert res["verdict"] == "FAIL"
         assert any("fake_url" in f for f in res["failed_requirements"])
@@ -153,14 +153,14 @@ def test_verifier_fails_fetched_status_with_network_used_false() -> None:
         run_dir = Path(tmp)
         cache_dir = run_dir / "cache" / "sportdb"
         cache_dir.mkdir(parents=True, exist_ok=True)
-        
+
         env_data = {
             "fixture_slug": "switzerland",
             "status": "FETCHED",
             "network_used": False # FETCHED with network_used False should fail
         }
         (cache_dir / "switzerland.json").write_text(json.dumps(env_data))
-        
+
         res = verify_live_shadow_run(run_summary, run_dir)
         assert res["verdict"] == "FAIL"
         assert any("network_used_false" in f or "network_used" in f for f in res["failed_requirements"])

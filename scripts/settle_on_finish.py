@@ -311,7 +311,7 @@ class _FlashscoreBatchFetcher:
                     from playwright_stealth import Stealth
                 except ImportError:
                     Stealth = None
-                
+
                 browser = p.chromium.launch(
                     headless=True,
                     args=['--disable-blink-features=AutomationControlled', '--disable-infobars', '--no-sandbox']
@@ -966,25 +966,25 @@ def main():
 def _append_learning_log(settled: list[dict], betting_day: str):
     """Auto-append structured settlement summary to learning-log.md."""
     log_path = BASE.parent / "betting" / "journal" / "learning-log.md"
-    
+
     # Idempotent: check if entry for this date already exists
     if log_path.exists():
         content = log_path.read_text(encoding="utf-8")
         if f"## {betting_day}" in content:
             log(f"[learning-log] Entry for {betting_day} already exists — skipping")
             return
-    
+
     wins = sum(1 for p in settled if p.get("status") == "win")
     losses = sum(1 for p in settled if p.get("status") == "loss")
     voids = sum(1 for p in settled if p.get("status") in ("void", "push"))
-    
+
     total_pnl = 0.0
     for p in settled:
         try:
             total_pnl += float(p.get("pnl_pln") or 0)
         except (ValueError, TypeError):
             pass
-    
+
     # Per-market breakdown
     from collections import Counter
     market_wins = Counter()
@@ -994,10 +994,10 @@ def _append_learning_log(settled: list[dict], betting_day: str):
         market_total[market] += 1
         if p.get("status") == "win":
             market_wins[market] += 1
-    
+
     best_market = max(market_total.keys(), key=lambda m: market_wins[m] / max(market_total[m], 1), default="N/A")
     worst_market = min(market_total.keys(), key=lambda m: market_wins[m] / max(market_total[m], 1), default="N/A")
-    
+
     entry_lines = [
         f"\n## {betting_day} — Settlement Summary\n",
         f"- **Settled:** {len(settled)} bets ({wins}W / {losses}L / {voids}V)",
@@ -1006,7 +1006,7 @@ def _append_learning_log(settled: list[dict], betting_day: str):
         f"- **Worst market:** {worst_market} ({market_wins[worst_market]}/{market_total[worst_market]})",
         f"- **Rule changes:** None (auto-generated, review manually)",
     ]
-    
+
     # Drawdown alert
     try:
         cfg = json.loads((BASE.parent / "config" / "betting_config.json").read_text())
@@ -1016,14 +1016,14 @@ def _append_learning_log(settled: list[dict], betting_day: str):
     except Exception as e:
         logger.debug("Non-critical failure: %s", e)
         pass
-    
+
     entry_lines.append("")
-    
+
     # Append to file
     log_path.parent.mkdir(parents=True, exist_ok=True)
     with open(log_path, "a", encoding="utf-8") as f:
         f.write("\n".join(entry_lines))
-    
+
     log(f"[learning-log] Appended entry for {betting_day}")
 
 

@@ -27,12 +27,12 @@ def test_ambiguous_kickoff_unknown():
         "kickoff_at": "2026-06-23 18:00",  # No timezone/UTC offset!
         "timezone_assumption": "UNCERTAIN",
     }
-    
+
     # Simple check matching our logic
     assert "Z" not in fixture_with_ambiguity["kickoff_at"]
     if "Z" not in fixture_with_ambiguity["kickoff_at"] and "+00" not in fixture_with_ambiguity["kickoff_at"]:
         utc_kickoff = "UNKNOWN"
     else:
         utc_kickoff = fixture_with_ambiguity["kickoff_at"]
-        
+
     assert utc_kickoff == "UNKNOWN"

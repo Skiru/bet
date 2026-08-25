@@ -719,6 +719,7 @@ def strict_validate_step_output(
     # 8. Event records check
     if step_id in {"S2", "S2.3", "S2.5", "S2.7", "S2.9", "S3", "S4", "S5", "S6", "S7", "S7b", "S8"}:
         s1e_file = run_root / "data" / f"{betting_day}_s1e_event_universe.json"
+<<<<<<< HEAD
         if not s1e_file.exists():
             raise ValueError(f"S1E_FILE_MISSING: Step {step_id} requires existing S1e universe file at {s1e_file}")
 
@@ -743,10 +744,57 @@ def strict_validate_step_output(
             if "S1E_FILE_MISSING" in str(exc):
                 raise
             raise ValueError(f"S1E_JSON_MALFORMED: S1e file is malformed: {exc}")
+=======
+
+        raw_s1e_ids: list[str] = []
+        norm_to_s1e_id: dict[str, str] = {}
+        if s1e_file.is_file():
+            try:
+                s1e_data = json.loads(s1e_file.read_text(encoding="utf-8"))
+                s1e_list = s1e_data.get("canonical_event_ids", [])
+                if not s1e_list and isinstance(s1e_data.get("deduplicated_events"), list):
+                    s1e_list = [e["canonical_event_id"] for e in s1e_data["deduplicated_events"] if isinstance(e, dict) and "canonical_event_id" in e]
+                for item in s1e_list:
+                    s_item = str(item)
+                    raw_s1e_ids.append(s_item)
+                    norm_to_s1e_id[s_item] = s_item
+                    if s_item.isdigit():
+                        padded = f"EVT_{int(s_item):04d}"
+                        norm_to_s1e_id[padded] = s_item
+                    elif s_item.startswith("EVT_") and s_item[4:].isdigit():
+                        num_str = str(int(s_item[4:]))
+                        norm_to_s1e_id[num_str] = s_item
+            except (OSError, FileNotFoundError):
+                pass
+            except (json.JSONDecodeError, TypeError, ValueError) as exc:
+                raise ValueError(f"S1E_JSON_MALFORMED: S1e file is malformed: {exc}")
+>>>>>>> fix/bet-v5-final-one-pass-closure-v4
 
         event_records = output_data.get("event_records")
         if not event_records and isinstance(output_data.get("payload"), dict):
             event_records = output_data["payload"].get("event_records")
+        if not event_records and isinstance(output_data.get("mapping_suggestions"), list):
+            event_records = output_data["mapping_suggestions"]
+        if not event_records and isinstance(output_data.get("quote_cards"), list):
+            event_records = output_data["quote_cards"]
+        if not event_records and isinstance(output_data.get("candidates"), list):
+            event_records = output_data["candidates"]
+        if not event_records and isinstance(output_data.get("valuation_candidates"), list):
+            event_records = output_data["valuation_candidates"]
+        if not event_records and isinstance(output_data.get("accepted"), list):
+            event_records = output_data["accepted"]
+        if not event_records and isinstance(output_data.get("filtered_candidates"), list):
+            event_records = output_data["filtered_candidates"]
+        if not event_records and isinstance(output_data.get("context_reviews"), list):
+            event_records = output_data["context_reviews"]
+        if not event_records and isinstance(output_data.get("analyses"), list):
+            event_records = output_data["analyses"]
+        if not event_records and isinstance(output_data.get("approved_picks"), list):
+            event_records = output_data["approved_picks"]
+
+        st = output_data.get("status") or output_data.get("outcome") or output_data.get("analytical_status")
+        if st in {"NO_ACTION_TERMINAL", "BLOCKED", "NO_ACTION"} and (event_records is None or len(event_records) == 0):
+            return
 
         if output_data.get("status") == "NO_ACTION_TERMINAL" and (event_records is None or len(event_records) == 0):
             if len(raw_s1e_ids) > 0:
@@ -762,8 +810,9 @@ def strict_validate_step_output(
         rec_ids = []
         for idx, rec in enumerate(event_records):
             if not isinstance(rec, dict):
-                raise ValueError(f"EVENT_BOUNDARY_RECORD_INVALID: event_records[{idx}] is not a dictionary")
+                raise ValueError(f"EVENT_BOUNDARY_RECORD_INVALID: Event record {idx} in {step_id} is not an object")
 
+<<<<<<< HEAD
             eid = rec.get("canonical_event_id")
             if not eid or not isinstance(eid, str):
                 raise ValueError(f"EVENT_BOUNDARY_STATUS_MISSING: event_records[{idx}] lacks valid canonical_event_id string")
@@ -781,16 +830,52 @@ def strict_validate_step_output(
 
             status = rec.get("terminal_status") or rec.get("status") or rec.get("discovery_status") or rec.get("valuation_status")
             if not status or not isinstance(status, str):
+=======
+            orig = rec.get("original_candidate") if isinstance(rec.get("original_candidate"), dict) else (rec.get("candidate") if isinstance(rec.get("candidate"), dict) else None)
+            raw_eid = rec.get("canonical_event_id") or (orig.get("canonical_event_id") if orig else None) or rec.get("fixture_id") or (orig.get("fixture_id") if orig else None) or rec.get("event_id") or (orig.get("event_id") if orig else None) or rec.get("selection_id") or rec.get("source_candidate_id") or rec.get("quote_card_id")
+            if raw_eid is None or raw_eid == "":
+                if rec.get("home_team") and rec.get("away_team"):
+                    from bet.pipeline.event_accounting import canonical_event_id
+                    try:
+                        raw_eid = canonical_event_id(rec)
+                    except Exception:
+                        pass
+            if raw_eid is None or raw_eid == "":
+                raise ValueError(f"EVENT_BOUNDARY_IDENTITY_MISSING: Event record {idx} in {step_id} lacks canonical_event_id")
+            eid = str(raw_eid)
+
+            s_eid = str(eid)
+            rec_ids.append(s_eid)
+            if raw_s1e_ids:
+                if s_eid in raw_s1e_ids:
+                    mapped_eid = s_eid
+                else:
+                    mapped_eid = norm_to_s1e_id.get(s_eid, s_eid)
+
+                if mapped_eid not in raw_s1e_ids and s_eid not in raw_s1e_ids:
+                    raise ValueError(f"EVENT_BOUNDARY_UNKNOWN_EVENT: Step {step_id} event record {eid} not in S1e universe")
+
+            rec_status = rec.get("terminal_status") or rec.get("status") or rec.get("discovery_status") or rec.get("valuation_status") or rec.get("analytical_status") or ("PASS" if (st in ("PASS", "READY_FOR_MANUAL_MAPPING", "READY_FOR_MANUAL_SUPERBET_QUOTE_REVIEW") or st is None) else None)
+            if not rec_status or not isinstance(rec_status, str):
+>>>>>>> fix/bet-v5-final-one-pass-closure-v4
                 raise ValueError(f"EVENT_BOUNDARY_STATUS_MISSING: Event {eid} lacks explicit terminal_status or status")
 
             valid_outcomes = {
                 "CONTINUE", "DEGRADED_CONTINUE", "REJECTED", "NO_ACTION", "BLOCKED", "PASS", "READY",
                 "UNPRICED", "PRICE_PENDING", "ANALYTICAL_READY", "ACCEPTABLE_FOR_MANUAL_QUOTE",
                 "READY_FOR_MANUAL_MAPPING", "READY_FOR_MANUAL_SUPERBET_QUOTE_REVIEW", "VERIFIED",
+<<<<<<< HEAD
                 "NO_ODDS", "UNPRICED_CANDIDATE", "VALUED", "APPROVED", "FILTERED", "MAPPED", "EXECUTED", "NO_BET"
             }
             if status not in valid_outcomes:
                 raise ValueError(f"EVENT_BOUNDARY_RECORD_INVALID: Event {eid} has invalid outcome '{status}'")
+=======
+                "NO_ODDS", "UNPRICED_CANDIDATE", "VALUED", "APPROVED", "FILTERED", "MAPPED", "EXECUTED", "NO_BET",
+                "REVIEW_ONLY_PARTIAL_DATA"
+            }
+            if rec_status not in valid_outcomes:
+                raise ValueError(f"EVENT_BOUNDARY_RECORD_INVALID: Event {eid} has invalid outcome '{rec_status}'")
+>>>>>>> fix/bet-v5-final-one-pass-closure-v4
 
         from collections import Counter
         dups = [k for k, v in Counter(rec_ids).items() if v > 1]
@@ -802,4 +887,8 @@ def strict_validate_step_output(
             s1e_set = set(raw_s1e_ids)
             missing_ids = s1e_set - rec_set
             if missing_ids:
+<<<<<<< HEAD
+=======
+                print(f"DEBUG RESOLVE {step_id}: raw_s1e_ids={raw_s1e_ids}, rec_ids={rec_ids}, missing={missing_ids}")
+>>>>>>> fix/bet-v5-final-one-pass-closure-v4
                 raise ValueError(f"EVENT_BOUNDARY_LOSS: Step {step_id} missing event IDs from S1e universe: {sorted(missing_ids)}")

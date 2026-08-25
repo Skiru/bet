@@ -42,6 +42,17 @@ def _resolve_db_path(db_path: Path | str | None = None) -> Path | str:
     3. `DATABASE_URL` environment variable (sqlite:/// or sqlite:///:memory:)
     A path is mandatory. There is no implicit operational database fallback.
     """
+    live_shadow = os.environ.get("BET_PIPELINE_RUNTIME_MODE") == "LIVE_ANALYSIS_SHADOW"
+    if live_shadow:
+        from bet.pipeline.runtime_execution import RuntimeExecutionContext
+
+        context = RuntimeExecutionContext.from_child_env(dict(os.environ))
+        requested = Path(str(db_path or context.shadow_db_path)).resolve()
+        if requested != Path(context.shadow_db_path).resolve():
+            raise DatabaseInfrastructureError(
+                code="SHADOW_DB_TARGET_MISMATCH", operation="resolve_path"
+            )
+        return context.shadow_db_path
     if db_path is not None:
         return db_path
 
@@ -71,6 +82,28 @@ def _resolve_db_path(db_path: Path | str | None = None) -> Path | str:
     )
 
 
+def connect_sqlite(
+    db_path: Path | str, *, readonly: bool = False, timeout_ms: int = BUSY_TIMEOUT_MS
+) -> sqlite3.Connection:
+    """Connect to a SQLite database using canonical settings."""
+    resolved = str(db_path)
+    if readonly:
+        resolved_p = Path(resolved).resolve()
+        conn = sqlite3.connect(f"file:{resolved_p}?mode=ro", uri=True)
+        conn.execute("PRAGMA foreign_keys = ON")
+        conn.execute(f"PRAGMA busy_timeout = {timeout_ms}")
+        conn.execute("PRAGMA query_only = ON")
+        conn.row_factory = sqlite3.Row
+        return conn
+
+    conn = sqlite3.connect(resolved)
+    conn.execute("PRAGMA journal_mode = WAL")
+    conn.execute("PRAGMA foreign_keys = ON")
+    conn.execute(f"PRAGMA busy_timeout = {timeout_ms}")
+    conn.row_factory = sqlite3.Row
+    return conn
+
+
 def _configure_connection(conn: sqlite3.Connection) -> None:
     """Apply standard pragmas and settings."""
     conn.execute("PRAGMA journal_mode = WAL")
@@ -82,9 +115,21 @@ def _configure_connection(conn: sqlite3.Connection) -> None:
 @contextmanager
 def get_db(db_path: Path | str | None = None) -> Iterator[sqlite3.Connection]:
     """Own one explicit read-write transaction and commit only on clean exit."""
-    resolved = _resolve_db_path(db_path)
-    conn = sqlite3.connect(str(resolved))
-    _configure_connection(conn)
+    if os.environ.get("BET_PIPELINE_RUNTIME_MODE") == "LIVE_ANALYSIS_SHADOW":
+        from bet.pipeline.runtime_execution import (
+            RuntimeDatabaseAccessPolicy,
+            RuntimeDbRole,
+            RuntimeExecutionContext,
+        )
+
+        context = RuntimeExecutionContext.from_child_env(dict(os.environ))
+        conn = RuntimeDatabaseAccessPolicy(context).connect(
+            RuntimeDbRole.SHADOW_READ_WRITE
+        )
+    else:
+        resolved = _resolve_db_path(db_path)
+        conn = sqlite3.connect(str(resolved))
+        _configure_connection(conn)
     try:
         yield conn
         conn.commit()
@@ -117,7 +162,9 @@ async def get_async_db(db_path: Path | str | None = None) -> AsyncIterator[Any]:
     Resolves the DB path via `_resolve_db_path()`.
     """
     if aiosqlite is None:
-        raise ImportError("aiosqlite is required for async database access. Install with: pip install aiosqlite")
+        raise ImportError(
+            "aiosqlite is required for async database access. Install with: pip install aiosqlite"
+        )
     resolved = _resolve_db_path(db_path)
     conn = await aiosqlite.connect(str(resolved))
     await conn.execute("PRAGMA journal_mode = WAL")
@@ -142,21 +189,24 @@ def retry_on_lock(
     **kwargs: Any,
 ) -> T:
     """Call fn(*args, **kwargs) with retry on sqlite3.OperationalError (database locked).
-    
+
     Exponential backoff: 0.5s → 1s → 2s (default 3 retries).
     Re-raises non-lock OperationalErrors immediately.
     """
     import time
     import logging
+
     for attempt in range(max_retries + 1):
         try:
             return fn(*args, **kwargs)
         except sqlite3.OperationalError as e:
             if "locked" in str(e).lower() and attempt < max_retries:
-                delay = base_delay * (2 ** attempt)
+                delay = base_delay * (2**attempt)
                 logging.getLogger(__name__).warning(
                     "DB locked (attempt %d/%d), retrying in %.1fs",
-                    attempt + 1, max_retries, delay,
+                    attempt + 1,
+                    max_retries,
+                    delay,
                 )
                 time.sleep(delay)
                 continue

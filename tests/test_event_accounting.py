@@ -81,7 +81,12 @@ def test_s1e_materializes_identity_deduplicated_multi_sport_universe(tmp_path: P
     universe = json.loads(Path(evidence["payload"]["s1e_json_output"]).read_text())
     assert universe["after_dedup_count"] == 2
     assert len(set(universe["canonical_event_ids"])) == 2
+    assert len(universe["event_records"]) == 2
+    assert {record["terminal_status"] for record in universe["event_records"]} == {"CONTINUE"}
     assert universe["source_s1_sha256"]
+    ledger_payload = json.loads((Path(env["BET_PIPELINE_RUN_ROOT"]) / "event_accounting_ledger.json").read_text())
+    assert ledger_payload["events_with_terminal_status"] == 2
+    assert ledger_payload["unaccounted_event_ids"] == []
 
 
 def test_s1e_accepts_zero_event_universe_after_discovery_attempt(tmp_path: Path):

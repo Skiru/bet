@@ -22,10 +22,10 @@ def parse_fifa_html(html_text: str) -> Dict[str, str] | None:
     # Simple regex parsing
     home_match = re.search(r'class="[^"]*(?:team-home|home-team|home)[^"]*"[^>]*>([^<]+)', html_text)
     away_match = re.search(r'class="[^"]*(?:team-away|away-team|away)[^"]*"[^>]*>([^<]+)', html_text)
-    
+
     home_team = home_match.group(1).strip() if home_match else None
     away_team = away_match.group(1).strip() if away_match else None
-    
+
     if home_team and away_team:
         return {
             "home_team": home_team,
@@ -63,17 +63,17 @@ def discover_canary_fixtures(max_fixtures: int = 3) -> List[Dict[str, Any]]:
     If parsing fails/HTTP fails, falls back to audited official seed candidate.
     """
     url = "https://www.fifa.com/en/match-centre/match/17/285023/289273/400021491"
-    
+
     # Perform safe GET
     status_code, body, err = safe_http_get(url, timeout=5.0)
-    
+
     if status_code == 200 and isinstance(body, str) and ("[BLOCKED_HTML]" not in body):
         parsed = parse_fifa_html(body)
         if parsed and parsed.get("home_team") and parsed.get("away_team"):
             home = parsed["home_team"]
             away = parsed["away_team"]
             slug = f"worldcup2026-{make_safe_slug(home)}-{make_safe_slug(away)}"
-            
+
             fixture = {
                 "fixture_slug": slug,
                 "home_team": home,

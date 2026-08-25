@@ -49,7 +49,7 @@ def get_fixture_scoped_form_snapshot(
     stat_key: str,
 ) -> dict | None:
     """Read fixture-scoped form snapshot for downstream analysis.
-    
+
     Returns None if no projection exists (caller should fall back to global team_form).
     Returns dict with:
     - l10_values: list[float] or None
@@ -66,22 +66,22 @@ def get_fixture_scoped_form_snapshot(
     - primary_source: str
     - primary_status: str
     - fallback_reason: str
-    
+
     This function reads from fixture_capability_projection, NOT from team_form.
     The global team_form table remains a latest cache only.
     """
     repo = FixtureCapabilityRepo(db_conn)
-    
+
     # Map stat_key to capability
     capability = Capability.CURRENT_RECENT_FORM
-    
+
     snapshot = repo.get_snapshot_for_analysis(
         canonical_fixture_id=canonical_fixture_id,
         team_id=team_id,
         capability=capability.value,
         analysis_cutoff_at=analysis_cutoff_at,
     )
-    
+
     if snapshot["status"] == "NOT_FOUND":
         return None
 
@@ -413,7 +413,7 @@ async def _enrich_team(
     team, sport: str, stat_keys: list[str], db_conn, pool, fixture_contexts: list[dict] | None = None
 ) -> bool:
     """Fetch and store stats for a single team. Returns True if data was fetched.
-    
+
     For football: checks fixture-scoped projections first, only fetches if no
     projection exists for the given fixture+cutoff.
     """

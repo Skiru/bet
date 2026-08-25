@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 from pathlib import Path
 
 import pytest
@@ -222,49 +223,44 @@ def test_discovery_without_run_scripts_returns_empty_and_blocks(tmp_path: Path):
 
 
 def test_live_target_gating_blocks_without_ack(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
-    fixture_root = Path(__file__).parent / "fixtures" / "pipeline_wrappers"
-    # Copy/write a dummy live script to fixture_root/scripts
+    source_fixture_root = Path(__file__).parent / "fixtures" / "pipeline_wrappers"
+    fixture_root = tmp_path / "pipeline_wrappers"
+    shutil.copytree(source_fixture_root, fixture_root)
     live_script = fixture_root / "scripts" / "settle_on_finish.py"
     live_script.write_text(
         "import sys\nsys.exit(0)\n",
         encoding="utf-8",
     )
-    try:
-        monkeypatch.setattr(_runner, "ROOT", fixture_root)
-        monkeypatch.delenv("BET_PIPELINE_LIVE_ACK", raising=False)
+    monkeypatch.setattr(_runner, "ROOT", fixture_root)
+    monkeypatch.delenv("BET_PIPELINE_LIVE_ACK", raising=False)
 
-        rc = _runner.run_scripts(["settle_on_finish.py"], dry_run=True, allow_live_network=False, runtime_mode="LIVE_SHADOW")
-        assert rc == 5
+    rc = _runner.run_scripts(["settle_on_finish.py"], dry_run=True, allow_live_network=False, runtime_mode="LIVE_SHADOW")
+    assert rc == 5
 
-        rc = _runner.run_scripts(["settle_on_finish.py"], dry_run=True, allow_live_network=True, runtime_mode="LIVE_SHADOW")
-        assert rc == 5
-    finally:
-        if live_script.exists():
-            live_script.unlink()
+    rc = _runner.run_scripts(["settle_on_finish.py"], dry_run=True, allow_live_network=True, runtime_mode="LIVE_SHADOW")
+    assert rc == 5
 
 
 def test_live_target_gating_allows_with_ack(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
-    fixture_root = Path(__file__).parent / "fixtures" / "pipeline_wrappers"
+    source_fixture_root = Path(__file__).parent / "fixtures" / "pipeline_wrappers"
+    fixture_root = tmp_path / "pipeline_wrappers"
+    shutil.copytree(source_fixture_root, fixture_root)
     live_script = fixture_root / "scripts" / "settle_on_finish.py"
     live_script.write_text(
         "import sys\nsys.exit(0)\n",
         encoding="utf-8",
     )
-    try:
-        monkeypatch.setattr(_runner, "ROOT", fixture_root)
-        monkeypatch.setenv("BET_PIPELINE_LIVE_ACK", "I_UNDERSTAND_LIVE_PROVIDER_CALLS")
+    monkeypatch.setattr(_runner, "ROOT", fixture_root)
+    monkeypatch.setenv("BET_PIPELINE_LIVE_ACK", "I_UNDERSTAND_LIVE_PROVIDER_CALLS")
 
-        rc = _runner.run_scripts(["settle_on_finish.py"], dry_run=True, allow_live_network=True, runtime_mode="LIVE_SHADOW")
-        assert rc == 0
-    finally:
-        if live_script.exists():
-            live_script.unlink()
+    rc = _runner.run_scripts(["settle_on_finish.py"], dry_run=True, allow_live_network=True, runtime_mode="LIVE_SHADOW")
+    assert rc == 0
 
 
 def test_dry_run_injects_sandbox_output_dirs(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     fixture_root = Path(__file__).parent / "fixtures" / "pipeline_wrappers"
     record_path = tmp_path / "capture.json"
-    
+
     # We want to check what environment variables were set! Let's write a script that dumps them.
     dump_script = fixture_root / "scripts" / "dump_env.py"
     dump_script.write_text(
@@ -294,7 +290,7 @@ def test_dry_run_injects_sandbox_output_dirs(tmp_path: Path, monkeypatch: pytest
         assert "BET_PIPELINE_DATA_DIR" in payload
         assert "BET_PIPELINE_COUPON_DIR" in payload
         assert "BET_PIPELINE_ARTIFACT_DIR" in payload
-        
+
         # Verify directories were created on disk
         assert Path(payload["BET_PIPELINE_DATA_DIR"]).exists()
         assert Path(payload["BET_PIPELINE_COUPON_DIR"]).exists()

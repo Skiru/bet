@@ -414,7 +414,7 @@ for _sport_lines in STANDARD_MARKET_LINES.values():
 
 def is_standard_line(sport: str, market: str, line: float) -> bool:
     """Check if a line value comes from STANDARD_MARKET_LINES (not a real bookmaker).
-    
+
     Returns True if the line matches a default standard line for this sport/market.
     Picks using standard lines should be flagged as LINE_UNVERIFIED.
     """

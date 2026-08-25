@@ -12,20 +12,20 @@ from bet.scrapers.models import _reflect_existing_tables
 def tmp_db_path():
     with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
         path = Path(f.name)
-    
+
     # Initialize basic db schema
     with sqlite3.connect(path) as conn:
         init_db(conn)
-        
+
     # In order to make it work with Scraper models, we reset session and engine
     import bet.scrapers.engine as scraper_engine
     scraper_engine._ENGINE = None
     scraper_engine._SESSION_FACTORY = None
-    
+
     # Recreate the declarative mapping with the new schema in place
     engine = scraper_engine.get_engine(path)
     _reflect_existing_tables(engine)
-    
+
     # Initialize scraper_db specifically to create new ORM mapped tables like scraper_runs and player_season_stats
     scraper_engine.init_scraper_db(path)
 

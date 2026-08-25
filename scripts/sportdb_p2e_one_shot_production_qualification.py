@@ -123,7 +123,7 @@ def validate_baseline_state(root: Path) -> list[str]:
         sportdb = providers.get("sportdb", {})
         capabilities = sportdb.get("capabilities", {})
         detailed_metrics = capabilities.get("detailed_metrics", [])
-        
+
         # Verify EPL shadow entry exists
         found_shadow = False
         for entry in detailed_metrics:
@@ -139,10 +139,10 @@ def validate_baseline_state(root: Path) -> list[str]:
                 for m in EXPECTED_EXCLUDED_METRICS:
                     if m in cert_metrics:
                         errors.append(f"baseline_excluded_metric_found:{m}")
-        
+
         if not found_shadow:
             errors.append("baseline_missing_sportdb_epl_shadow")
-            
+
         # Verify other accepted providers are intact
         for provider in ("espn", "highlightly", "football-data"):
             if provider not in providers:
@@ -183,31 +183,31 @@ def write_evidence_bundle(
         "web": "web_confirmation/football/p2e_a13_one_shot",
     }
     sub_dir = sub_dir_map.get(source_type, "web_confirmation/football/p2e_a13_one_shot")
-    
+
     # Base folder
     folder = root / "betting/data/evidence" / sub_dir / f"{operation}_{fixture_id}"
     folder.mkdir(parents=True, exist_ok=True)
-    
+
     # Response bytes hash
     resp_bytes = json.dumps(raw_response, sort_keys=True).encode("utf-8")
     resp_hash = hashlib.sha256(resp_bytes).hexdigest()
-    
+
     # Normalized bytes hash
     norm_bytes = json.dumps(normalized_value, sort_keys=True).encode("utf-8")
     norm_hash = hashlib.sha256(norm_bytes).hexdigest()
-    
+
     # Write response.sha256.txt
     sha_path = folder / "response.sha256.txt"
     sha_path.write_text(resp_hash + "\n", encoding="utf-8")
-    
+
     # Write request.json
     req_path = folder / "request.json"
     req_path.write_text(json.dumps(request_payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    
+
     # Write normalized.json
     norm_path = folder / "normalized.json"
     norm_path.write_text(json.dumps(normalized_value, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    
+
     # Preview
     preview = {}
     if isinstance(raw_response, dict):
@@ -218,7 +218,7 @@ def write_evidence_bundle(
         preview = {"raw": str(raw_response)[:1000]}
     preview_path = folder / "response.safe_preview.json"
     preview_path.write_text(json.dumps(preview, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    
+
     # Manifest
     manifest = {
         "source/provider": "sportdb" if source_type == "sportdb" else (request_payload.get("provider") or "web"),
@@ -232,7 +232,7 @@ def write_evidence_bundle(
     }
     man_path = folder / "manifest.json"
     man_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    
+
     return {
         "folder": str(folder.relative_to(root)),
         "response_hash": resp_hash,
@@ -250,11 +250,11 @@ def discover_world_cup_scope_with_sportdb(adapter: Any, max_mcp_tool_calls: int 
         "sportdb_competition_identity": {},
         "candidate_competitions": [],
     }
-    
+
     client = adapter.client
     # Let's perform flashscore_search with required terms
     search_queries = ["FIFA World Cup 2026", "World Cup 2026", "FIFA World Cup", "World Cup"]
-    
+
     discovered_comp = None
     for q in search_queries:
         if len(client.called_tool_names) >= max_mcp_tool_calls:
@@ -272,17 +272,17 @@ def discover_world_cup_scope_with_sportdb(adapter: Any, max_mcp_tool_calls: int 
                     slug = str(item.get("slug") or "")
                     cid = str(item.get("id") or "")
                     link = str(item.get("link") or "")
-                    
+
                     if not slug and link:
                         parts = link.strip("/").split("/")
                         if parts:
                             last = parts[-1]
                             slug = last.split(":")[0] if ":" in last else last
-                    
+
                     candidate = {"id": cid, "name": name, "slug": slug, "link": link}
                     if candidate not in result["candidate_competitions"]:
                         result["candidate_competitions"].append(candidate)
-                    
+
                     # Look for World Championship under world:8 or World Cup
                     if "world championship" in name.lower() or "world cup" in name.lower() or "championship" in name.lower():
                         if "world" in link.lower() or "world" in slug.lower():
@@ -379,7 +379,7 @@ def discover_world_cup_scope_with_sportdb(adapter: Any, max_mcp_tool_calls: int 
                 }
         except Exception as e:
             result["discovery_path"].append(f"seasons_error:{type(e).__name__}")
-            
+
     return result
 
 
@@ -394,7 +394,7 @@ def select_production_qualification_fixtures(adapter: Any, comp_identity: dict[s
         "competition_id": comp_identity["competition_id"],
         "season": "2026"
     })
-    
+
     results_payload = client.call_tool("flashscore_get_competition_results", {
         "sport": "football",
         "country_slug": "world",
@@ -406,15 +406,15 @@ def select_production_qualification_fixtures(adapter: Any, comp_identity: dict[s
 
     results_data = results_payload.get("data", []) if isinstance(results_payload, dict) else results_payload
     fixtures_data = fixtures_payload.get("data", []) if isinstance(fixtures_payload, dict) else fixtures_payload
-    
+
     results_list = results_data if isinstance(results_data, list) else []
     fixtures_list = fixtures_data if isinstance(fixtures_data, list) else []
 
     selected = []
-    
+
     # 1. Choose up to 5 completed matches with stats (completed has eventStage == "FINISHED" or similar)
     completed_matches = [r for r in results_list if isinstance(r, dict) and r.get("eventStage") == "FINISHED"]
-    
+
     # Specific ones we probed and verified stats exist for:
     # "On5HOkVj" (Mexico vs South Korea), "67vLrBMM" (Canada vs Qatar), "djmY6NcJ" (Switzerland vs Bosnia & Herzegovina)
     verified_ids = {"On5HOkVj", "67vLrBMM", "djmY6NcJ"}
@@ -423,7 +423,7 @@ def select_production_qualification_fixtures(adapter: Any, comp_identity: dict[s
         eid = m.get("eventId") or m.get("id")
         if eid in verified_ids:
             chosen_completed.append(m)
-            
+
     for m in completed_matches:
         eid = m.get("eventId") or m.get("id")
         if eid not in verified_ids and len(chosen_completed) < 4:
@@ -444,7 +444,7 @@ def select_production_qualification_fixtures(adapter: Any, comp_identity: dict[s
         if not score and item.get("homeScore") is not None and item.get("awayScore") is not None:
             score = f"{item.get('homeScore')}-{item.get('awayScore')}"
         ts = item.get("startTime")
-        
+
         selected.append({
             "eventId": eid,
             "homeName": home,
@@ -453,7 +453,7 @@ def select_production_qualification_fixtures(adapter: Any, comp_identity: dict[s
             "score": score,
             "startTime": ts,
         })
-        
+
     return selected
 
 
@@ -466,7 +466,7 @@ def capture_sportdb_fixture_evidence(
     """Retrieve match stats, events, lineups, and bundle them for SportDB."""
     eid = fixture["eventId"]
     client = adapter.client
-    
+
     # 1. Fetch Stats if completed
     raw_stats = {}
     norm_stats = {}
@@ -568,10 +568,10 @@ def capture_accepted_provider_baseline_evidence(
     away_name = fixture["awayName"]
     ts = fixture["startTime"]
     date_str = datetime.fromtimestamp(float(ts), UTC).strftime("%Y-%m-%d")
-    
+
     espn_fixtures = espn_client.get_fixtures(date_str)
     matching_f = None
-    
+
     # Find matching team names by simple substring/overlap
     for f in espn_fixtures:
         f_home = str(f.home_team_name).lower()
@@ -581,11 +581,11 @@ def capture_accepted_provider_baseline_evidence(
         clean_away = f_away.replace("-", " ")
         h_clean = home_name.lower().replace("-", " ")
         a_clean = away_name.lower().replace("-", " ")
-        
+
         if (h_clean in clean_home or clean_home in h_clean) and (a_clean in clean_away or clean_away in a_clean):
             matching_f = f
             break
-            
+
     if not matching_f:
         # Try looser matching
         for f in espn_fixtures:
@@ -659,23 +659,23 @@ def capture_official_web_confirmation(
         "confidence": "UNKNOWN",
         "raw_text_hash": "",
     }
-    
+
     try:
         req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
         with urllib.request.urlopen(req, timeout=15) as resp:
             raw_bytes = resp.read()
             html_text = raw_bytes.decode("utf-8", errors="replace")
-            
+
         web_data["raw_text_hash"] = hashlib.sha256(raw_bytes).hexdigest()
-        
+
         # Simple text matching to confirm team names and stage
         h = fixture["homeName"].lower()
         a = fixture["awayName"].lower()
-        
+
         # Clean team names for matching (e.g. United States -> United States, Czech Republic -> Czech)
         h_tok = h.replace("republic", "").strip()[:5]
         a_tok = a.replace("republic", "").strip()[:5]
-        
+
         if h_tok in html_text.lower() and a_tok in html_text.lower():
             web_data["confidence"] = "HIGH"
             web_data["extracted_fields"] = {
@@ -691,18 +691,18 @@ def capture_official_web_confirmation(
                 "match_confirmed": False,
                 "message": "Team tokens not fully found on current schedule page.",
             }
-            
+
         # Write evidence bundle
         write_evidence_bundle(
             root, "web", "official_web_confirm", fixture["eventId"],
             raw_response={"preview": html_text[:2000]}, normalized_value=web_data,
             request_payload={"url": url}, request_identity=f"web:bbc_confirm:{fixture['eventId']}"
         )
-        
+
     except Exception as e:
         web_data["confidence"] = "LOW"
         web_data["extracted_fields"] = {"error": str(e)}
-        
+
     return web_data
 
 
@@ -744,7 +744,7 @@ def normalize_canonical_metrics(source: str, stats_payload: dict[str, Any]) -> d
             if isinstance(p, dict) and p.get("period") == "Match":
                 match_period = p
                 break
-        
+
         stats_list = match_period.get("stats") or []
         for s in stats_list:
             if isinstance(s, dict):
@@ -782,7 +782,7 @@ def normalize_canonical_metrics(source: str, stats_payload: dict[str, Any]) -> d
                     if "/" in pass_str:
                         # Extract passes
                         pass
-                
+
                 if norm_key:
                     h_val = str(s.get("homeValue", "0")).replace("%", "").strip()
                     a_val = str(s.get("awayValue", "0")).replace("%", "").strip()
@@ -790,7 +790,7 @@ def normalize_canonical_metrics(source: str, stats_payload: dict[str, Any]) -> d
                         norm[norm_key] = {"home": float(h_val), "away": float(a_val)}
                     except ValueError:
                         pass
-                        
+
     else:  # ESPN
         raw_stats = stats_payload.get("stats") or {}
         for k, v in raw_stats.items():
@@ -829,13 +829,13 @@ def normalize_canonical_metrics(source: str, stats_payload: dict[str, Any]) -> d
 def compare_identity_across_sources(sportdb_id: dict[str, Any], accepted_id: dict[str, Any]) -> dict[str, Any]:
     """Compare fixture metadata across sources."""
     errors = []
-    
+
     def clean_team_name(name: str) -> str:
         text = name.lower().strip()
         text = text.replace("-", " ").replace("&", "and").replace(".", " ")
         import re
         text = re.sub(r"\s+", " ", text).strip()
-        
+
         # Equate common variants
         aliases = {
             "usa": "usa", "united states": "usa", "us": "usa",
@@ -854,13 +854,13 @@ def compare_identity_across_sources(sportdb_id: dict[str, Any], accepted_id: dic
     a_s = clean_team_name(sportdb_id["away"])
     h_a = clean_team_name(accepted_id["home"])
     a_a = clean_team_name(accepted_id["away"])
-    
+
     # Substring overlap verification
     if h_s not in h_a and h_a not in h_s and h_s[:4] not in h_a and h_a[:4] not in h_s:
         errors.append("home_team_mismatch")
     if a_s not in a_a and a_a not in a_s and a_s[:4] not in a_a and a_a[:4] not in a_s:
         errors.append("away_team_mismatch")
-        
+
     return {
         "valid": len(errors) == 0,
         "errors": errors,
@@ -888,23 +888,23 @@ def compare_metrics_across_sources(sportdb_metrics: dict[str, Any], accepted_met
     mismatches = []
     gaps = []
     compared = []
-    
+
     for metric in EXPECTED_CERTIFIABLE_METRICS:
         if metric in sportdb_metrics and metric in accepted_metrics:
             compared.append(metric)
             s_val = sportdb_metrics[metric]
             a_val = accepted_metrics[metric]
-            
+
             h_diff = abs(s_val["home"] - a_val["home"])
             a_diff = abs(s_val["away"] - a_val["away"])
-            
+
             # Allow minor differences in tracking (possession may vary by 1-2%, shots may vary slightly)
             tolerance = 2.5 if metric == "possession" else 1.0
             if h_diff > tolerance or a_diff > tolerance:
                 mismatches.append(f"{metric}_mismatch:home_diff={h_diff}:away_diff={a_diff}")
         else:
             gaps.append(f"{metric}_missing_in_one_source")
-            
+
     return {
         "compared_metrics": compared,
         "mismatches": mismatches,
@@ -922,7 +922,7 @@ def compare_events_and_lineups_structurally(sportdb_ev: dict[str, Any], sportdb_
     if not isinstance(sportdb_line, dict) or "player_count" not in sportdb_line:
         valid = False
         errors.append("invalid_lineups_structure")
-        
+
     return {
         "valid": valid,
         "errors": errors,
@@ -955,7 +955,7 @@ def decide_route_family_eligibility(cross_val: dict[str, Any]) -> dict[str, Any]
         "current_form": "NOT_ELIGIBLE",
         "historical_form_h2h": "NOT_ELIGIBLE",
     }
-    
+
     # Detailed metrics eligibility: needs successful completed checks, web confirmation, and matching teams/scores
     if (cross_val["fixture_identity_validated_count"] >= 5 and
             len(cross_val["hard_identity_mismatches"]) == 0 and
@@ -963,16 +963,16 @@ def decide_route_family_eligibility(cross_val: dict[str, Any]) -> dict[str, Any]
             len(cross_val["web_confirmation_gaps"]) == 0 and
             cross_val["detailed_metrics_validated_fixture_count"] >= 3):
         eligibility["detailed_metrics"] = "ELIGIBLE_FOR_SHADOW"
-        
+
     if cross_val["events_structurally_validated_count"] >= 3:
         eligibility["events"] = "ELIGIBLE_FOR_SHADOW"
-        
+
     if cross_val["lineups_structurally_validated_count"] >= 3:
         eligibility["lineups"] = "ELIGIBLE_FOR_SHADOW"
-        
+
     if cross_val["standings_validated"]:
         eligibility["standings"] = "ELIGIBLE_FOR_SHADOW"
-        
+
     return eligibility
 
 
@@ -1001,7 +1001,7 @@ def maybe_apply_scope_limited_config_update(
         "existing_shadow_preserved": True,
         "proposed_config_patch": None,
     }
-    
+
     if not allowed["matrix_change_allowed"] or not allowed["routing_change_allowed"]:
         # Proposed config patch only (Outcome B/C/D)
         status["proposed_config_patch"] = {
@@ -1048,14 +1048,14 @@ def build_summary(
 ) -> dict[str, Any]:
     """Construct complete Step 8 JSON payload."""
     classification = classify_summary_local(baseline_errors, discovery_res, fixtures, cross_val)
-    
+
     # Completed count
     completed_cnt = sum(1 for f in fixtures if f["eventStage"] == "FINISHED")
     distinct_teams = set()
     for f in fixtures:
         distinct_teams.add(f["homeName"])
         distinct_teams.add(f["awayName"])
-        
+
     date_count = len(set(datetime.fromtimestamp(float(f["startTime"]), UTC).strftime("%Y-%m-%d") for f in fixtures))
 
     return {
@@ -1115,19 +1115,19 @@ def classify_summary_local(
     """Classify qualification summary results helper."""
     if baseline_errors:
         return CLASSIFICATION_C
-        
+
     if not discovery_res.get("discovered"):
         return CLASSIFICATION_C
-        
+
     completed_cnt = sum(1 for f in fixtures if f["eventStage"] == "FINISHED")
     if len(fixtures) < 5 or completed_cnt < 3:
         return CLASSIFICATION_C
-        
+
     if (len(cross_val["hard_identity_mismatches"]) > 0 or
             len(cross_val["hard_result_mismatches"]) > 0 or
             len(cross_val["hard_metric_mismatches"]) > 0):
         return CLASSIFICATION_C
-        
+
     # Standard Outcome B for clean shadow readiness
     return CLASSIFICATION_B
 
@@ -1143,7 +1143,7 @@ def main() -> int:
     args = parser.parse_args()
 
     root = Path(PROTECTED_WORKTREE)
-    
+
     # 1. Baseline Preservation
     baseline_errors = validate_baseline_state(root)
     if baseline_errors:
@@ -1156,7 +1156,7 @@ def main() -> int:
         from bet.api_clients.sportdb_mcp import SportDBMCPShadowAdapter
         from bet.api_clients.espn import ESPNClient
         from bet.api_clients.rate_limiter import RateLimiter
-        
+
         adapter = SportDBMCPShadowAdapter()
         espn_client = ESPNClient(sport="football", league="fifa.world", rate_limiter=RateLimiter())
     except Exception as e:
@@ -1245,7 +1245,7 @@ def main() -> int:
         if f["eventStage"] == "FINISHED" and espn_capture["matched"]:
             sdb_norm_metrics = normalize_canonical_metrics("sportdb", sdb_capture["stats"])
             espn_norm_metrics = normalize_canonical_metrics("accepted", espn_capture["stats"])
-            
+
             met_comp = compare_metrics_across_sources(sdb_norm_metrics, espn_norm_metrics)
             if len(met_comp["mismatches"]) == 0:
                 cross_val["detailed_metrics_validated_fixture_count"] += 1
@@ -1281,7 +1281,7 @@ def main() -> int:
         root, baseline_errors, discovery_res, fixtures,
         sportdb_accounting, cross_val, eligibility, config_status
     )
-    
+
     # Save Summary
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(json.dumps(summary, indent=2, sort_keys=True) + "\n", encoding="utf-8")
@@ -1294,7 +1294,7 @@ def main() -> int:
         "fixtures": len(fixtures),
         "validated": cross_val["fixture_identity_validated_count"],
     }, indent=None))
-    
+
     return 0
 
 

@@ -48,7 +48,7 @@ def create_mock_bundle(root: Path, score: dict | None = None, fact_counts: dict 
     fixture_slug = "worldcup2026-norway-senegal"
     shadow_root = root / "reports/football_data_foundation/source_bound_shadow"
     paths = ActivationArtifactPaths.from_shadow_root(shadow_root, fixture_slug)
-    
+
     counts = fact_counts or {p: 10 for p in REQUIRED_PROVIDERS}
     snapshot = {
         "fixture_slug": fixture_slug,
@@ -62,13 +62,13 @@ def create_mock_bundle(root: Path, score: dict | None = None, fact_counts: dict 
     }
     verifier = {"verdict": "PASS"}
     public_proof = {"verdict": "PASS"}
-    
+
     write_json(paths.snapshot_path, snapshot)
     write_json(paths.verifier_path, verifier)
     write_json(paths.provider_fact_counts_path, counts)
     write_json(paths.public_artifact_proof_path, public_proof)
     write_sqlite(paths.sqlite_path, counts)
-    
+
     return paths
 
 

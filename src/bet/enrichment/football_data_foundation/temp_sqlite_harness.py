@@ -11,13 +11,13 @@ def create_temp_sqlite_store() -> sqlite3.Connection:
     """
     # Create an in-memory database
     conn = sqlite3.connect(":memory:")
-    
+
     # Enable foreign keys
     conn.execute("PRAGMA foreign_keys = ON")
-    
+
     # Initialize schema
     init_db(conn)
-    
+
     return conn
 
 
@@ -38,7 +38,7 @@ def get_table_counts(conn: sqlite3.Connection) -> dict[str, int]:
         "fixture_capability_observation",
         "fixture_capability_projection",
     ]
-    
+
     counts: dict[str, int] = {}
     for table in relevant_tables:
         try:
@@ -46,5 +46,5 @@ def get_table_counts(conn: sqlite3.Connection) -> dict[str, int]:
             counts[table] = row[0] if row else 0
         except sqlite3.OperationalError:
             counts[table] = -1  # Indicates the table does not exist or has schema issues
-            
+
     return counts

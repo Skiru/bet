@@ -2,7 +2,11 @@
 from __future__ import annotations
 
 from typing import Any, Sequence
+<<<<<<< HEAD
 from pydantic import Field
+=======
+from pydantic import Field, model_validator
+>>>>>>> fix/bet-v5-final-one-pass-closure-v4
 from bet.pipeline.contracts.base import StrictBaseModel
 
 
@@ -61,6 +65,29 @@ class SportEventDossierV1(StrictBaseModel):
     dossier_sha256: str = ""
 
 
+<<<<<<< HEAD
+=======
+class SportDossierReadinessV1(StrictBaseModel):
+    """Readiness verification for sport dossiers requiring authentic identities."""
+    canonical_event_id: str
+    sport: str
+    competition: str
+    home_team: str
+    away_team: str
+
+    @model_validator(mode="after")
+    def validate_authentic_identities(self) -> SportDossierReadinessV1:
+        placeholders = {"home", "away", "all", "default league", "league", "unknown"}
+        if self.home_team.strip().lower() in placeholders:
+            raise ValueError(f"PLACEHOLDER_IDENTITY_FORBIDDEN: home_team '{self.home_team}' is a placeholder")
+        if self.away_team.strip().lower() in placeholders:
+            raise ValueError(f"PLACEHOLDER_IDENTITY_FORBIDDEN: away_team '{self.away_team}' is a placeholder")
+        if self.competition.strip().lower() in placeholders:
+            raise ValueError(f"PLACEHOLDER_IDENTITY_FORBIDDEN: competition '{self.competition}' is a placeholder")
+        return self
+
+
+>>>>>>> fix/bet-v5-final-one-pass-closure-v4
 class SportReadinessDecisionV1(StrictBaseModel):
     """Readiness decision for a sport event and market family."""
     canonical_event_id: str

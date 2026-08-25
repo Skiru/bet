@@ -6,7 +6,7 @@ TARGET_SPORTS = {"basketball", "volleyball", "hockey", "tennis", "cs2", "dota2",
 def test_reports_exist():
     plan_path = Path("tests/fixtures/multisport_foundation/pass_e/provider_mapping_plan.json")
     summary_path = Path("tests/fixtures/multisport_foundation/pass_e/pass_e_summary.json")
-    
+
     assert plan_path.is_file()
     assert summary_path.is_file()
 
@@ -25,7 +25,7 @@ def test_reports_cover_exactly_seven_target_sports():
     plan = json.loads(plan_text)
     assert set(plan["target_sports"]) == TARGET_SPORTS
     assert set(plan["provider_mapping_by_sport"]) == TARGET_SPORTS
-    
+
     # Summary report
     summary_text = Path("tests/fixtures/multisport_foundation/pass_e/pass_e_summary.json").read_text(encoding="utf-8")
     summary = json.loads(summary_text)
@@ -34,7 +34,7 @@ def test_reports_cover_exactly_seven_target_sports():
 
 def test_no_raw_secrets_or_forbidden_headers_in_reports():
     forbidden_tokens = [
-        "authorization", "cookie", "bearer", "x-api-key", 
+        "authorization", "cookie", "bearer", "x-api-key",
         "x-apisports-key", "x-rapidapi-key"
     ]
     for name in ["provider_mapping_plan.json", "pass_e_summary.json"]:

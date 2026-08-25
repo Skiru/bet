@@ -34,11 +34,11 @@ _JS_EXTRACT_MATCHES = """() => {
 
 class Scores24Client(PlaywrightBaseClient):
     """Scores24 client — multi-sport deep data via Playwright.
-    
+
     Provides: fixture listings, H2H, team form, odds, and structured
     betting trends with hit rates. Trends are the unique value.
     """
-    
+
     SPORT_PATHS = {
         "football": "/en/soccer",
         "tennis": "/en/tennis",
@@ -46,15 +46,15 @@ class Scores24Client(PlaywrightBaseClient):
         "hockey": "/en/ice-hockey",
         "volleyball": "/en/volleyball",
     }
-    
+
     # Override cookie selector defined in base class
     _COOKIE_SELECTOR = ""
-    
+
     def __init__(self, rate_limiter: "RateLimiter | None" = None):
         if rate_limiter is None:
             rate_limiter = RateLimiter()
         super().__init__(api_name="scores24", base_url="https://scores24.live", rate_limiter=rate_limiter)
-    
+
     def get_fixtures(self, date: str, sport: str = "football") -> list:
         """Get fixtures for a sport from Scores24 listing page.
 

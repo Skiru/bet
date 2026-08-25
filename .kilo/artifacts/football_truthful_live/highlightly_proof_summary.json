@@ -1,0 +1,190 @@
+{
+  "evidence_bundle_ids": [
+    "e38a602f80a5246d9ee67fe169e1a1811e59bdc1ce2d7985122a3dcd94d7be6e",
+    "36cfd175228562111ea09cc0e52f6ece26cd62ec087bddd50a78c96d7f7e8046",
+    "3fc0df149eb0f6671e55920131e2809bc422fce3bcd28bcdcbbebf23ef69c6a8",
+    "526d0161e7c8ddce5edb7275bc9783ac8c28a20d0c2b99f45aff28f44006f775",
+    "cc4c2646f19379233f3aa6d28c29e614de9c495c129fe4993aa0c6f54f5f2526",
+    "6f4f9c027675ba0b3b7246b8994e3ce984d6a990f6c152bf6bdcbc106a88c290"
+  ],
+  "key_alias_used": "HIGHLIGHTLY_API_KEY",
+  "missing_target_metrics": [
+    "Red cards"
+  ],
+  "operations": [
+    {
+      "accepted_count": 1,
+      "capability": "current_discovery",
+      "competition_scope": "football:eng.1",
+      "evidence_bundle_id": "e38a602f80a5246d9ee67fe169e1a1811e59bdc1ce2d7985122a3dcd94d7be6e",
+      "key_alias_used": "HIGHLIGHTLY_API_KEY",
+      "mode": "shadow",
+      "normalized_payload_sha256": "b49c647bf53405d87af6ec32540bbd4449d28c37431df32e51654c1d8e771a01",
+      "operation": "league_discovery",
+      "parser_version": "highlightly-league-discovery-v1",
+      "provider": "highlightly",
+      "rate_limit_headers": {
+        "minute_limit": 100,
+        "minute_remaining": 98
+      },
+      "raw_response_sha256": "f948bddbb4eab12169f8cd4ecb21bf2829f67dce804de57114a8a5e4d539dc8b",
+      "rejected_count": 0,
+      "request_params": {
+        "countryName": "England",
+        "leagueName": "Premier League",
+        "season": 2025
+      },
+      "request_path_without_secret": "/leagues",
+      "response_status": 200,
+      "season_scope": "current-season-completed"
+    },
+    {
+      "accepted_count": 20,
+      "capability": "current_discovery",
+      "competition_scope": "football:eng.1",
+      "evidence_bundle_id": "36cfd175228562111ea09cc0e52f6ece26cd62ec087bddd50a78c96d7f7e8046",
+      "key_alias_used": "HIGHLIGHTLY_API_KEY",
+      "mode": "shadow",
+      "normalized_payload_sha256": "48304ff9885b2affc6e7ca437edb16dbff8450027b5fde2be7b425ab7141897b",
+      "operation": "match_discovery",
+      "parser_version": "highlightly-match-discovery-v1",
+      "provider": "highlightly",
+      "rate_limit_headers": {
+        "minute_limit": 100,
+        "minute_remaining": 97
+      },
+      "raw_response_sha256": "a7aebc1d338f9313c9680bfd30f3dcb220cbaa2b04d07bc697b57910e1a8d1fa",
+      "rejected_count": 0,
+      "request_params": {
+        "leagueId": "33973",
+        "limit": 20,
+        "season": 2025
+      },
+      "request_path_without_secret": "/matches",
+      "response_status": 200,
+      "season_scope": "current-season-completed"
+    },
+    {
+      "accepted_count": 5,
+      "capability": "current_form",
+      "competition_scope": "football:eng.1",
+      "evidence_bundle_id": "3fc0df149eb0f6671e55920131e2809bc422fce3bcd28bcdcbbebf23ef69c6a8",
+      "key_alias_used": "HIGHLIGHTLY_API_KEY",
+      "mode": "shadow",
+      "normalized_payload_sha256": "4d586bc0360507aab99ae5f8dcd57d89886e251510ae03ff39085a17f1e2a187",
+      "operation": "home_form",
+      "parser_version": "highlightly-current-form-v1",
+      "provider": "highlightly",
+      "rate_limit_headers": {
+        "minute_limit": 100,
+        "minute_remaining": 96
+      },
+      "raw_response_sha256": "7ab0360df9ba0336596af4c395b6df4070c07fc923fd347b1ef0e31d16ad9f4d",
+      "rejected_count": 0,
+      "request_params": {
+        "teamId": "30569"
+      },
+      "request_path_without_secret": "/last-five-games",
+      "response_status": 200,
+      "season_scope": "current-season-completed"
+    },
+    {
+      "accepted_count": 5,
+      "capability": "current_form",
+      "competition_scope": "football:eng.1",
+      "evidence_bundle_id": "526d0161e7c8ddce5edb7275bc9783ac8c28a20d0c2b99f45aff28f44006f775",
+      "key_alias_used": "HIGHLIGHTLY_API_KEY",
+      "mode": "shadow",
+      "normalized_payload_sha256": "4e6e0c3e1b6b81608dfc51978162d9048f02fdc0264ed125b71de2d529a8350f",
+      "operation": "away_form",
+      "parser_version": "highlightly-current-form-v1",
+      "provider": "highlightly",
+      "rate_limit_headers": {
+        "minute_limit": 100,
+        "minute_remaining": 95
+      },
+      "raw_response_sha256": "c2b7c5150a3745369e36bd028c0cbce62d31d71ea661701f59d7a77251340e49",
+      "rejected_count": 0,
+      "request_params": {
+        "teamId": "39930"
+      },
+      "request_path_without_secret": "/last-five-games",
+      "response_status": 200,
+      "season_scope": "current-season-completed"
+    },
+    {
+      "accepted_count": 6,
+      "capability": "historical_form_h2h",
+      "competition_scope": "football:eng.1",
+      "evidence_bundle_id": "cc4c2646f19379233f3aa6d28c29e614de9c495c129fe4993aa0c6f54f5f2526",
+      "key_alias_used": "HIGHLIGHTLY_API_KEY",
+      "mode": "shadow",
+      "normalized_payload_sha256": "6fc13262976dd7d357155bea70bea502fba60601fd84b2a342b8aa1acd67c15e",
+      "operation": "head_to_head",
+      "parser_version": "highlightly-h2h-v1",
+      "provider": "highlightly",
+      "rate_limit_headers": {
+        "minute_limit": 100,
+        "minute_remaining": 94
+      },
+      "raw_response_sha256": "5fd00e7145f15771207b9032a29433b57f839eb076bca527046d9b12def212ef",
+      "rejected_count": 0,
+      "request_params": {
+        "teamIdOne": "30569",
+        "teamIdTwo": "39930"
+      },
+      "request_path_without_secret": "/head-2-head",
+      "response_status": 200,
+      "season_scope": "current-season-completed"
+    },
+    {
+      "accepted_count": 39,
+      "capability": "detailed_metrics",
+      "competition_scope": "football:eng.1",
+      "evidence_bundle_id": "6f4f9c027675ba0b3b7246b8994e3ce984d6a990f6c152bf6bdcbc106a88c290",
+      "key_alias_used": "HIGHLIGHTLY_API_KEY",
+      "mode": "shadow",
+      "normalized_payload_sha256": "5ba490cbe9efeb1b1c92e02afb91af3f38cfc9eaa4cdfb94aeb7aeddf85426be",
+      "operation": "statistics",
+      "parser_version": "highlightly-statistics-v1",
+      "provider": "highlightly",
+      "rate_limit_headers": {
+        "minute_limit": 100,
+        "minute_remaining": 93
+      },
+      "raw_response_sha256": "80b6ae63564a9b31e96943f909301a5f4e2dbd09c246a30a9fdf0461f50b27c6",
+      "rejected_count": 0,
+      "request_params": {},
+      "request_path_without_secret": "/statistics/1028343227",
+      "response_status": 200,
+      "season_scope": "current-season-completed"
+    }
+  ],
+  "proof_id": "0720da6e0691c1b24c022b163cbe447b4ddcd80eea53881715cb89a1e6dbe57b",
+  "provider": "highlightly",
+  "raw_stat_field_names": [
+    "Expected Goals",
+    "Big Chances Created",
+    "Free Kicks",
+    "Throw-Ins",
+    "Goal Kicks",
+    "Shots accuracy",
+    "Shots on target",
+    "Shots off target",
+    "Blocked shots",
+    "Shots within penalty area",
+    "Shots outside penalty area",
+    "Fouls",
+    "Corners",
+    "Offsides",
+    "Possession",
+    "Yellow cards",
+    "Goalkeeper saves",
+    "Total passes",
+    "Successful passes",
+    "Failed passes"
+  ],
+  "replay_verification": "PASS",
+  "scope": "football:eng.1/current-season-completed/shadow",
+  "secret_safe": true
+}

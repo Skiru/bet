@@ -4,10 +4,10 @@ from pathlib import Path
 def test_pass_c_summary_preserved_and_fail_closed():
     path = Path("tests/fixtures/multisport_foundation/pass_c/pass_c_summary.json")
     assert path.is_file()
-    
+
     data = json.loads(path.read_text(encoding="utf-8"))
     metrics = data["metrics"]
-    
+
     # Still says no live calls, no production activation, no betting decisions
     assert metrics["live_calls_made"] is False
     assert metrics["provider_access_attempted"] is False

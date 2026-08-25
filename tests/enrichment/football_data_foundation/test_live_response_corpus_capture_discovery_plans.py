@@ -15,7 +15,7 @@ def test_football_data_org_discovery_plan_format():
     }
     plans = build_provider_discovery_plans(fixture)
     fdo_plan = next(p for p in plans if p.provider == "football-data-org")
-    
+
     assert "dateFrom=2026-06-23" in fdo_plan.url
     assert "dateTo=2026-06-23" in fdo_plan.url
     assert fdo_plan.auth_header_name == "X-Auth-Token"
@@ -34,7 +34,7 @@ def test_api_football_discovery_plan_format():
     }
     plans = build_provider_discovery_plans(fixture)
     af_plan = next(p for p in plans if p.provider == "api-football")
-    
+
     assert "fixtures?date=2026-06-23" in af_plan.url
     assert af_plan.auth_header_name == "x-apisports-key"
     assert af_plan.credential_env == "API_FOOTBALL_KEY"

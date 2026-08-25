@@ -15,7 +15,7 @@ def test_reports_generation_content_and_invariants() -> None:
         pass_b_path="tests/fixtures/multisport_foundation/pass_b/source_bound_shadow_status_by_sport.json",
         out_dir="/tmp/pass_c",
     )
-    
+
     act_path = Path(paths["activation"])
     obs_path = Path(paths["observation"])
     sum_path = Path(paths["summary"])
@@ -33,7 +33,7 @@ def test_reports_generation_content_and_invariants() -> None:
         sum_data = json.load(fh)
 
     expected_sports = {"basketball", "volleyball", "hockey", "tennis", "cs2", "dota2", "valorant"}
-    
+
     # Assert each report covers exactly seven target sports
     assert set(act_data.keys()) == expected_sports
     assert set(obs_data.keys()) == expected_sports

@@ -24,7 +24,7 @@ def make_sample_run(root: Path) -> Path:
     write("api-football", "fixture.json", {"fixture": {"id": 1489401}})
     write("football-data-org", "match.json", {"id": 537394})
     write("espn-baseline", "summary.json", {"id": "760454"})
-    
+
     # Write metadata files to test skipping
     (run / "manifest.json").write_text("{}", encoding="utf-8")
     (run / "mapping_candidate.json").write_text("[]", encoding="utf-8")
@@ -34,11 +34,11 @@ def make_sample_run(root: Path) -> Path:
 def test_loader_reads_runs_and_skips_meta_files(tmp_path):
     run_dir = make_sample_run(tmp_path)
     envelopes = load_provider_envelopes([run_dir])
-    
+
     assert len(envelopes) == 5
     providers = {e.provider for e in envelopes}
     assert providers == {"sportdb", "highlightly", "api-football", "football-data-org", "espn-baseline"}
-    
+
     # Ensure meta files are skipped
     paths = {e.path.name for e in envelopes}
     assert "manifest.json" not in paths

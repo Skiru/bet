@@ -12,6 +12,7 @@ from pathlib import Path
 
 import requests
 
+from bet.api_clients.env import get_env
 from ..models import DiscoveredEvent
 from .base import AbstractSourceAdapter
 
@@ -216,7 +217,7 @@ class OddsAPIAdapter(AbstractSourceAdapter):
         """Load Odds API key from config."""
         import os
 
-        key = os.environ.get("ODDS_API_KEY")
+        key = get_env("ODDS_API_KEY")
         if key and key.strip():
             return key.strip()
 

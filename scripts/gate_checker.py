@@ -535,7 +535,7 @@ def _check_three_way(c: dict) -> tuple[bool, str]:
 
 def _check_data_quality(c: dict) -> tuple[bool, str]:
     """Gate #18: DATA QUALITY — both teams have stat data, not one-sided.
-    
+
     REVISED 2026-05-23: Synthetic source with strong hit rate (≥7/10 + L5≥4/5)
     passes this gate with an advisory flag instead of hard rejection.
     """
@@ -1363,7 +1363,7 @@ def check_20_point_gate(candidate: dict, repeat_losses: list) -> dict:
 
     total_checks = len(GATE_LABELS)
     gate_score_val = len(passed)
-    
+
     # Per-sport gate threshold awareness
     # Sports with historically thin data get a boost when they have FULL data tier
     THIN_DATA_SPORTS = {"volleyball", "cs2", "valorant", "dota2"}
@@ -1813,15 +1813,15 @@ def run_gate(candidates: list[dict], date: str, strict: bool = False) -> dict:
         # Hard reject: ONLY for structural issues (phantoms, 48h repeats, ZT red flags)
         hard_reject = False
         hard_reject_reason = ""
-        
+
         # SAFETY FLOOR (BUG 1 FIX): Hard reject below 0.15, extend below 0.30
         MINIMUM_SAFETY_FLOOR = 0.15
         SOFT_SAFETY_FLOOR = 0.30
-        
+
         if safety < MINIMUM_SAFETY_FLOOR:
             hard_reject = True
             hard_reject_reason = f"MINIMUM_SAFETY_FLOOR: safety={safety:.2f} < {MINIMUM_SAFETY_FLOOR:.2f} — hard reject"
-        
+
         if not hard_reject:
             for detail in gate_result["gate_details"].values():
                 msg = detail.get("message", "")
@@ -1944,7 +1944,7 @@ def run_gate(candidates: list[dict], date: str, strict: bool = False) -> dict:
                 has_real_odds = ((c.get("odds") or {}).get("market_best") or 0) > 1.0
                 ev_ready = ev is not None and ev > 0 and has_real_odds and safety >= 0.30
                 has_actionable_market = bool((c.get("best_market") or {}).get("name")) and markets_evaluated > 0
-                
+
                 # Parse hit rate like "5/10" → 0.5
                 hit_rate_val = 0.0
                 hit_num = 0
@@ -2005,7 +2005,7 @@ def run_gate(candidates: list[dict], date: str, strict: bool = False) -> dict:
                     entry.setdefault("advisory_notes", []).append(
                         f"EV_OVERRIDE: positive EV {ev:+.1%} with real odds keeps candidate eligible for APPROVED"
                     )
-                
+
                 if extended_reasons:
                     entry["advisory_tier"] = "FLAGGED"
                     entry.setdefault("tier_caps", []).extend(extended_reasons)
@@ -2016,7 +2016,7 @@ def run_gate(candidates: list[dict], date: str, strict: bool = False) -> dict:
                     approved.append(entry)
 
     diversity = check_sport_diversity(approved)
-    
+
     # BUG 4 FIX: Correlation pre-check — reject duplicate picks BEFORE S8
     # Track approved picks and reject duplicates at gate level
     approved_picks_set: set[tuple[str, str, str, str]] = set()
@@ -2029,7 +2029,7 @@ def run_gate(candidates: list[dict], date: str, strict: bool = False) -> dict:
         market_name = (best.get("name") or "").lower()
         direction = (best.get("direction") or "").upper()
         pick_key = (home, away, market_name, direction)
-        
+
         if pick_key in approved_picks_set:
             correlation_rejected += 1
             _set_entry_bucket(entry, "rejected", "DUPLICATE_PICK: same bet already approved in this session")
@@ -2037,7 +2037,7 @@ def run_gate(candidates: list[dict], date: str, strict: bool = False) -> dict:
         else:
             approved_picks_set.add(pick_key)
             deduplicated_approved.append(entry)
-    
+
     if correlation_rejected:
         print(f"[gate_checker] Correlation pre-check: rejected {correlation_rejected} duplicate picks")
         approved = deduplicated_approved

@@ -31,7 +31,7 @@ _JS_EXTRACT_MATCHES = """() => {
         const score = row.querySelector('.match_goal');
         const status = row.querySelector('.match_status_minutes');
         const statsLink = row.querySelector('a[href*="/stats/"]');
-        
+
         return {
             league: league ? league.textContent.trim() : '',
             home: home ? home.textContent.trim() : '',
@@ -53,20 +53,20 @@ _JS_EXTRACT_MATCHES = """() => {
 
 class TotalCornerClient(PlaywrightBaseClient):
     """TotalCorner client — football corner predictions via Playwright.
-    
+
     Football only. Provides: corner data from match listings,
     corner predictions from detail pages, dangerous attack stats.
     """
-    
+
     _COOKIE_SELECTOR = ".qc-cmp2-summary-buttons [mode='primary']"
     _COOKIE_TIMEOUT = 3000
-    
+
     def __init__(self, rate_limiter: "RateLimiter | None" = None):
         if rate_limiter is None:
             rate_limiter = RateLimiter()
         super().__init__(api_name="totalcorner", base_url="https://www.totalcorner.com", rate_limiter=rate_limiter)
         self._corner_cache: dict = {}
-        
+
     def _parse_dash_string(self, text: str) -> tuple[int, int]:
         """Parse strings like '46 - 72' into (46, 72)."""
         if not text:

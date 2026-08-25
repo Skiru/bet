@@ -234,7 +234,7 @@ def test_req_test_014_verifier_result_includes_final_public_truth_fields(tmp_pat
 
     probe = NetworkProbeResult(True, 0, "monkeypatch", "tmp")
     res = verify_shadow_bundle(json_path, sqlite_path, Path("d"), Path("c"), network_probe=probe)
-    
+
     assert "public_raw_reviewability_check" in res
     assert "public_raw_report_format_check" in res
     assert "committed_blob_sqlite_check" in res

@@ -410,11 +410,11 @@ def compute_safety_score(hit_rate_l10: float, hit_rate_h2h: float) -> float:
 
 def validate_direction_context(market_entry: dict, context_flags: list[str] | None = None) -> dict:
     """BUG 3 FIX: Check if direction aligns with L5 trend and motivation context.
-    
+
     Validates that the recommended direction doesn't conflict with:
     1. L5 trend (if L5 contradicts direction with tight margin)
     2. Motivation context (attacking situation with UNDER, defensive with OVER)
-    
+
     Returns dict with:
         - direction_flag: OK | CONFLICTED | CONFLICTED_MOTIVATION
         - confidence_penalty: 0 to -0.25
@@ -425,13 +425,13 @@ def validate_direction_context(market_entry: dict, context_flags: list[str] | No
     l5_avg = market_entry.get("l5_avg") or market_entry.get("combined_avg", 0)
     l10_avg = market_entry.get("combined_avg", 0)
     margin = abs(l10_avg - line)
-    
+
     result = {
         "direction_flag": "OK",
         "confidence_penalty": 0.0,
         "details": "",
     }
-    
+
     # Check L5 contradicts direction
     l5_contradicts = False
     if l5_avg > 0 and line > 0:
@@ -441,7 +441,7 @@ def validate_direction_context(market_entry: dict, context_flags: list[str] | No
         elif direction == "UNDER" and l5_avg > line:
             l5_contradicts = True
             result["details"] = f"L5 avg ({l5_avg:.1f}) > line ({line}) contradicts UNDER"
-    
+
     # Check motivation context conflicts
     motivation_conflict = False
     if context_flags:
@@ -461,20 +461,20 @@ def validate_direction_context(market_entry: dict, context_flags: list[str] | No
                     if result["details"]:
                         result["details"] += "; "
                     result["details"] += f"Motivation requires defense but direction is OVER"
-    
+
     # Apply penalties for conflicts
     if l5_contradicts and margin <= 0.5:
         result["direction_flag"] = "CONFLICTED"
         result["confidence_penalty"] = -0.15
-    
+
     if motivation_conflict and margin <= 1.0:
         result["direction_flag"] = "CONFLICTED_MOTIVATION"
         result["confidence_penalty"] = -0.20
-    
+
     if l5_contradicts and motivation_conflict:
         result["direction_flag"] = "CONFLICTED_MULTI"
         result["confidence_penalty"] = -0.25
-    
+
     return result
 
 
@@ -482,7 +482,7 @@ def compute_three_way_check(
     l10_avg: float, h2h_avg: float | None, l5_avg: float, line: float
 ) -> dict:
     """Compute three-way cross-check alignment.
-    
+
     h2h_avg=None means NO H2H data available.
     h2h_avg=0.0 means real data where stat was zero in all H2H meetings.
     """
@@ -729,7 +729,7 @@ def rank_markets(data: dict) -> dict:
         if sport == "tennis" and elo_info:
             if elo_info["is_mismatch"] and "games" in name.lower():
                 market_entry["safety_score"] = max(round(market_entry["safety_score"] + elo_info["adjustment"], 2), 0.0)
-            
+
             if blowout and blowout["blowout_risk"]:
                 market_entry["wildcard_blowout_risk"] = True
                 market_entry["max_safe_games_line"] = blowout["max_safe_games_line"]
@@ -807,7 +807,7 @@ def rank_markets(data: dict) -> dict:
                     hit_den = int(parts[1]) if len(parts) > 1 else 10
                 except (ValueError, IndexError):
                     pass
-            
+
             l5_str = r.get("hit_rate_l5", "")
             l5_num = 0
             l5_den = 5
@@ -818,13 +818,13 @@ def rank_markets(data: dict) -> dict:
                     l5_den = int(parts[1]) if len(parts) > 1 else 5
                 except (ValueError, IndexError):
                     pass
-            
+
             # Strong pattern: hit≥70% with ≥8 sample AND L5≥80% with ≥5 sample → use higher cap
             hit_rate_pct = hit_num / hit_den if hit_den > 0 else 0
             l5_rate_pct = l5_num / l5_den if l5_den > 0 else 0
             is_strong = (hit_rate_pct >= 0.70 and hit_den >= 8 and l5_rate_pct >= 0.80 and l5_den >= 5)
             cap = SYNTHETIC_SAFETY_CAP_STRONG if is_strong else SYNTHETIC_SAFETY_CAP_WEAK
-            
+
             if r["safety_score"] > cap:
                 r.setdefault("original_safety", r["safety_score"])
                 r["safety_score"] = cap
@@ -1138,10 +1138,10 @@ def generate_three_way_markdown(tw: dict) -> str:
     return "\n".join(lines)
 
 
-def compute_tennis_elo_adjustment(player_a_elo: dict | None, player_b_elo: dict | None, 
+def compute_tennis_elo_adjustment(player_a_elo: dict | None, player_b_elo: dict | None,
                                    surface: str = "") -> dict:
     """Compute Elo-based safety adjustment for tennis markets.
-    
+
     Returns dict with:
         - elo_gap: absolute Elo difference
         - favorite: 'A' or 'B'
@@ -1156,10 +1156,10 @@ def compute_tennis_elo_adjustment(player_a_elo: dict | None, player_b_elo: dict 
         "is_mismatch": False,
         "wildcard_risk": False,
     }
-    
+
     if not player_a_elo or not player_b_elo:
         return result
-    
+
     # Use surface-specific Elo if available
     elo_a = None
     elo_b = None
@@ -1170,34 +1170,34 @@ def compute_tennis_elo_adjustment(player_a_elo: dict | None, player_b_elo: dict 
     else:
         elo_a = player_a_elo.get("elo")
         elo_b = player_b_elo.get("elo")
-    
+
     if not elo_a or not elo_b:
         return result
-    
+
     gap = abs(elo_a - elo_b)
     result["elo_gap"] = gap
     result["favorite"] = "A" if elo_a > elo_b else "B"
-    
+
     # Safety adjustment based on gap
     if gap > 300:
         result["adjustment"] = -1.0  # Strong mismatch → game totals risky (blowout potential)
         result["is_mismatch"] = True
         result["wildcard_risk"] = True
     elif gap > 200:
-        result["adjustment"] = -0.5  # Moderate mismatch 
+        result["adjustment"] = -0.5  # Moderate mismatch
         result["is_mismatch"] = True
     elif gap > 100:
         result["adjustment"] = 0.0  # Expected favorite, no adjustment
     else:
         result["adjustment"] = 0.5  # Competitive match → game totals more predictable
-    
+
     return result
 
 
 def detect_wildcard_blowout_risk(player_a_elo: dict | None, player_b_elo: dict | None,
                                   league_name: str = "") -> dict:
     """§3.2G: Detect WC/Q/LL vs seeded player in Grand Slam R1/R2.
-    
+
     Returns risk assessment for over-games markets.
     """
     result = {
@@ -1206,16 +1206,16 @@ def detect_wildcard_blowout_risk(player_a_elo: dict | None, player_b_elo: dict |
         "max_safe_games_line": None,
         "reason": None,
     }
-    
+
     # Check if this is a Grand Slam
     gs_indicators = ["australian open", "roland garros", "french open", "wimbledon", "us open"]
     if league_name:
         league_lower = league_name.lower()
         result["is_grand_slam"] = any(gs in league_lower for gs in gs_indicators)
-    
+
     if not result["is_grand_slam"]:
         return result
-    
+
     # Check ranking differential
     rank_a = None
     rank_b = None
@@ -1223,15 +1223,15 @@ def detect_wildcard_blowout_risk(player_a_elo: dict | None, player_b_elo: dict |
         rank_a = player_a_elo.get("official_rank") or player_a_elo.get("elo_rank")
     if player_b_elo:
         rank_b = player_b_elo.get("official_rank") or player_b_elo.get("elo_rank")
-    
+
     if not rank_a or not rank_b:
         return result
-    
+
     # Detect WC/Q/LL vs seeded (top 32)
     # WC/Q/LL typically have rank > 100, seeded = top 32
     higher_rank = min(rank_a, rank_b)
     lower_rank = max(rank_a, rank_b)
-    
+
     if higher_rank <= 32 and lower_rank > 100:
         result["blowout_risk"] = True
         result["max_safe_games_line"] = 20.5  # O22.5 = HARD REJECT per §3.2G
@@ -1239,7 +1239,7 @@ def detect_wildcard_blowout_risk(player_a_elo: dict | None, player_b_elo: dict |
     elif higher_rank <= 32 and lower_rank > 50:
         result["max_safe_games_line"] = 21.5  # O22.5 reject, O21.5 cautious
         result["reason"] = f"Significant rank gap ({higher_rank} vs {lower_rank}) in GS"
-    
+
     return result
 
 

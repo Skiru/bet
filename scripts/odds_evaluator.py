@@ -344,7 +344,7 @@ def _build_valuation_candidate(candidate: dict) -> dict:
     markets_evaluated = candidate.get("markets_evaluated")
     participants = candidate.get("participants") or [candidate.get("home_team"), candidate.get("away_team")]
     participants = [participant for participant in participants if participant]
-    
+
     # Precedence: best_market.probability > top-level.probability > hit_rate_l10
     probability = None
     if isinstance(best_market, dict) and best_market.get("probability") is not None:
@@ -430,11 +430,11 @@ def _build_valuation_output(
     valuation_candidates = []
     for index, candidate in enumerate(candidates):
         item = _build_valuation_candidate(candidate)
-        
+
         # Determine analytical_status
         prob = item.get("model_probability") or item.get("probability")
         conf = str(item.get("probability_confidence") or "").upper()
-        
+
         if prob is not None:
             if conf in {"BLOCKED", "LOW", "MINIMAL", "LOW_CONFIDENCE"}:
                 analytical_status = "REVIEW_ONLY_PARTIAL_DATA"
@@ -442,7 +442,7 @@ def _build_valuation_output(
                 analytical_status = "ANALYTICAL_READY"
         else:
             analytical_status = "ANALYTICAL_BLOCKED"
-            
+
         # Determine pricing_status
         odds_dec = (item.get("odds") or {}).get("market_best") or item.get("odds_decimal")
         if odds_dec is not None:
@@ -452,7 +452,7 @@ def _build_valuation_output(
                 pricing_status = "PRICING_BLOCKED_INVALID_INPUT"
             else:
                 pricing_status = "PRICING_DEGRADED"
-                
+
         # Determine risk_status
         if analytical_status == "ANALYTICAL_READY":
             risk_status = "ACCEPTABLE_FOR_MANUAL_QUOTE_REVIEW"
@@ -460,7 +460,7 @@ def _build_valuation_output(
             risk_status = "RECHECK_REQUIRED"
         else:
             risk_status = "REJECTED"
-            
+
         # Determine final_status
         if analytical_status == "ANALYTICAL_READY":
             if pricing_status == "PRICED":
@@ -471,7 +471,7 @@ def _build_valuation_output(
             final_status = "READY_FOR_ANALYTICAL_OPERATOR_QUOTE_REVIEW"
         else:
             final_status = "BLOCKED"
-            
+
         identity_error: str | None = None
         try:
             item = bind_candidate_identity(item)
@@ -490,7 +490,7 @@ def _build_valuation_output(
         item["pricing_status"] = pricing_status
         item["risk_status"] = risk_status
         item["final_status"] = final_status
-        
+
         # Missing odds must block EV, Kelly, stakes, bettable, final placement
         if pricing_status != "PRICED":
             item["ev"] = None
@@ -500,7 +500,7 @@ def _build_valuation_output(
             if "ev_components" in item and isinstance(item["ev_components"], dict):
                 item["ev_components"]["odds"] = None
                 item["ev_components"]["ev"] = None
-            
+
         valuation_candidates.append(item)
 
     market_semantics_ready_count = 0
@@ -516,11 +516,11 @@ def _build_valuation_output(
             promotion_safe_model_probability_count += 1
         if candidate.get("reference_model_probability") is not None:
             reference_model_probability_count += 1
-    
+
     from collections import Counter
     reasons = [c.get("ev_missing_reason") for c in valuation_candidates if c.get("ev_missing_reason") is not None]
     ev_missing_reason_counts = dict(Counter(reasons))
-    
+
     candidates_with_ev = sum(1 for c in valuation_candidates if c.get("ev") is not None)
     positive_ev_count = sum(1 for c in valuation_candidates if c.get("ev") is not None and c.get("ev") > 0)
 
@@ -530,14 +530,14 @@ def _build_valuation_output(
     else:
         any_analytical_ready = any(c.get("analytical_status") == "ANALYTICAL_READY" for c in valuation_candidates)
         all_analytical_blocked = all(c.get("analytical_status") == "ANALYTICAL_BLOCKED" for c in valuation_candidates)
-        
+
         if all_analytical_blocked:
             status = "BLOCKED_INVALID_ANALYTICAL_INPUT"
         else:
             all_priced = all(c.get("pricing_status") == "PRICED" for c in valuation_candidates if c.get("analytical_status") != "ANALYTICAL_BLOCKED")
             any_priced = any(c.get("pricing_status") == "PRICED" for c in valuation_candidates if c.get("analytical_status") != "ANALYTICAL_BLOCKED")
             all_degraded = all(c.get("pricing_status") in ("PRICING_DEGRADED", "PRICING_BLOCKED_INVALID_INPUT") for c in valuation_candidates)
-            
+
             if any_analytical_ready:
                 if all_priced:
                     status = "READY_PRICED"
@@ -614,14 +614,14 @@ KELLY_FRACTIONS = {
 def compute_adjusted_kelly(hit_rate: float, odds: float, data_quality_score: float,
                            h2h_blind: bool = False, sample_size: int = 10) -> dict:
     """Compute Kelly fraction adjusted for data uncertainty.
-    
+
     Args:
         hit_rate: Estimated probability (0.0-1.0)
         odds: Decimal odds
         data_quality_score: Data quality metric (0.0-1.0)
         h2h_blind: True if no H2H data available
         sample_size: Number of data points in L10
-    
+
     Returns dict with:
         kelly_fraction: Recommended fraction of bankroll
         base_kelly: Unadjusted Kelly value
@@ -635,13 +635,13 @@ def compute_adjusted_kelly(hit_rate: float, odds: float, data_quality_score: flo
             "quality_tier": "poor",
             "adjustment_reason": "Invalid odds or hit_rate",
         }
-    
+
     # Base Kelly: f = (b*p - q) / b where b = odds-1, p = prob, q = 1-p
     b = odds - 1.0
     p = hit_rate
     q = 1.0 - p
     base_kelly = (b * p - q) / b if b > 0 else 0.0
-    
+
     # Negative edge = no bet
     if base_kelly <= 0:
         return {
@@ -650,19 +650,19 @@ def compute_adjusted_kelly(hit_rate: float, odds: float, data_quality_score: flo
             "quality_tier": "none",
             "adjustment_reason": f"Negative edge: base_kelly={base_kelly:.3f}",
         }
-    
+
     # Determine quality tier
     # Additional penalties for data gaps
     effective_quality = data_quality_score
-    
+
     # H2H blind reduces quality
     if h2h_blind:
         effective_quality = min(effective_quality, 0.60)
-    
+
     # Small sample size reduces quality
     if sample_size < 8:
         effective_quality = min(effective_quality, 0.50)
-    
+
     # Select Kelly fraction based on quality
     if effective_quality < 0.50:
         quality_tier = "poor"
@@ -676,7 +676,7 @@ def compute_adjusted_kelly(hit_rate: float, odds: float, data_quality_score: flo
         quality_tier = "good"
         kelly_frac = KELLY_FRACTIONS["good"]
         reason = f"Good data quality ({effective_quality:.2f}) → {kelly_frac*100:.0f}% Kelly"
-    
+
     # Add penalty notations
     penalties = []
     if h2h_blind:
@@ -685,9 +685,9 @@ def compute_adjusted_kelly(hit_rate: float, odds: float, data_quality_score: flo
         penalties.append(f"sample={sample_size}")
     if penalties:
         reason += f" (penalties: {', '.join(penalties)})"
-    
+
     adjusted_kelly = base_kelly * kelly_frac
-    
+
     return {
         "kelly_fraction": round(adjusted_kelly, 4),
         "base_kelly": round(base_kelly, 4),
@@ -1071,11 +1071,11 @@ def _inject_ev_from_odds(candidates: list[dict], date: str):
         best_market = c.get("best_market") or {}
         market_name = best_market.get("name")
         has_market = bool(market_name)
-        
+
         # Precedence: best_market.probability > top-level.probability > hit_rate_l10
         prob_val = None
         prob_src = None
-        
+
         # 1. best_market probability
         if isinstance(best_market, dict) and best_market.get("probability") is not None:
             prob_val = best_market.get("probability")
@@ -1147,7 +1147,7 @@ def _inject_ev_from_odds(candidates: list[dict], date: str):
         away = _norm_team(c.get("away_team") or "")
         key = f"{home}|{away}"
         entry = odds_lookup.get(key) if odds_lookup else None
-        
+
         # Fuzzy fallback: use names_match() for robust team matching
         if odds_lookup and not entry:
             best_score = 0

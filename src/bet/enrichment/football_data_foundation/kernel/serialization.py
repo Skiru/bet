@@ -27,7 +27,7 @@ def deserialize_batch(
     source_descriptors: Mapping[str, SourceDescriptor],
 ) -> EvidenceClaimBatch:
     """Deserializes an EvidenceClaimBatch JSON string back to objects.
-    
+
     Requires a mapping of source_key to SourceDescriptor because descriptors are referenced.
     """
     data = json.loads(data_str)
@@ -44,7 +44,7 @@ def deserialize_batch(
             is_current_truth_allowed=False,
         )
         policy = PayloadPolicy()
-        
+
         claim = EvidenceClaim(
             source=descriptor,
             proof_level=ProofLevel(c_data["proof_level"]),

@@ -41,7 +41,7 @@ def _score_conflicts(facts: List[NormalizedFact]) -> List[Dict[str, Any]]:
                 scores[norm_str].append(fact)
     if len(scores) <= 1:
         return []
-    
+
     conflict_dict = {}
     for norm_str, fact_list in scores.items():
         conflict_dict[norm_str] = sorted(list(set(f.source for f in fact_list)))

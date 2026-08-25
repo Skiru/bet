@@ -3,6 +3,10 @@ from __future__ import annotations
 
 import pytest
 from bet.pipeline.sharding.models import FactAcquisitionPlanV1, FactRequirementV1, RetrievalReceiptV1
+<<<<<<< HEAD
+=======
+from bet.pipeline.agent_work_orders import build_event_acquisition_plans
+>>>>>>> fix/bet-v5-final-one-pass-closure-v4
 from bet.pipeline.agent_execution_prompts import render_agent_execution_prompt, validate_rendered_prompt
 from bet.pipeline.sports.registry import GLOBAL_SPORT_PROTOCOL_REGISTRY
 
@@ -40,6 +44,64 @@ def test_t3_prompt_acquisition_plan_consistency(tmp_path):
     assert not validate_rendered_prompt(prompt_with_plan, wo_with_plan)
 
 
+<<<<<<< HEAD
+=======
+def test_event_scoped_acquisition_plans_preserve_broad_multisport_universe():
+    records = [
+        {"canonical_event_id": "EVT_FOOTBALL", "sport": "football"},
+        {"canonical_event_id": "EVT_TENNIS", "sport": "tennis"},
+        {"canonical_event_id": "EVT_CS2", "sport": "cs2"},
+    ]
+
+    plans = build_event_acquisition_plans(
+        "S2.3",
+        "WO-RUN-S2.3",
+        records,
+        ["bet_sqlite_query", "webfetch"],
+    )
+
+    assert [plan.canonical_event_id for plan in plans] == [
+        "EVT_FOOTBALL", "EVT_TENNIS", "EVT_CS2"
+    ]
+    assert [plan.sport for plan in plans] == ["football", "tennis", "cs2"]
+    assert all(plan.max_queries == 4 for plan in plans)
+    assert all(
+        requirement.min_independent_sources == 2
+        and requirement.max_age_hours == 48
+        and requirement.conflict_policy == "FAIL_CLOSED"
+        and requirement.missing_data_action == "BLOCK"
+        for plan in plans
+        for requirement in plan.requirements
+    )
+    assert plans[0].requirements[0].market_families_affected == (
+        "RESULT", "GOALS_TOTALS", "CORNERS"
+    )
+    assert plans[1].requirements[0].market_families_affected == (
+        "MATCH_WINNER", "SETS", "GAMES_TOTALS"
+    )
+
+
+def test_unknown_sport_is_kept_with_explicit_fallback_dossier():
+    plans = build_event_acquisition_plans(
+        "S2.3",
+        "WO-UNKNOWN",
+        [
+            {"canonical_event_id": "EVT_EMPTY", "sport": ""},
+            {"canonical_event_id": "EVT_MISSING"},
+            {"canonical_event_id": "EVT_NEW", "sport": "future_sport"},
+        ],
+        ["bet_sqlite_query"],
+    )
+
+    assert [plan.canonical_event_id for plan in plans] == [
+        "EVT_EMPTY", "EVT_MISSING", "EVT_NEW"
+    ]
+    assert [plan.sport for plan in plans] == ["unknown", "unknown", "future_sport"]
+    assert plans[0].requirements[0].fact_type == "AVAILABILITY"
+    assert plans[0].requirements[0].market_families_affected == ()
+
+
+>>>>>>> fix/bet-v5-final-one-pass-closure-v4
 def test_t3_retrieval_receipt_provenance_enum():
     """Verify RetrievalReceiptV1 requires valid provenance level enum."""
     rec = RetrievalReceiptV1(

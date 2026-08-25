@@ -182,6 +182,28 @@ def validate_agent_artifact_for_work_order(
 ) -> list[str]:
     """Compare an agent-produced artifact against its work order rules."""
 
+    # Chunk artifacts have a separate typed contract and are not ordinary
+    # AgentWorkOrder artifacts. Keep the two schemas from being cross-validated.
+    is_chunk_artifact = (
+        artifact_data.get("artifact_type") == "CHUNK_ARTIFACT"
+        or (
+            bool(artifact_data.get("chunk_id"))
+            and bool(artifact_data.get("parent_work_order_id"))
+            and "chunk_index" in artifact_data
+        )
+    )
+    if is_chunk_artifact:
+        from bet.pipeline.sharding.lifecycle import validate_chunk_against_work_order
+        from bet.pipeline.sharding.models import ChunkArtifactV1, ChunkWorkOrderV1
+
+        try:
+            chunk = ChunkArtifactV1.model_validate(artifact_data)
+            chunk_work_order = ChunkWorkOrderV1.model_validate(work_order_data)
+            validate_chunk_against_work_order(chunk, chunk_work_order)
+        except Exception as exc:
+            return [f"chunk artifact contract validation failure: {exc}"]
+        return []
+
     def _non_empty_list(value: Any) -> bool:
         return isinstance(value, list) and len(value) > 0
 
@@ -339,6 +361,12 @@ def validate_agent_artifact_for_work_order(
     import hashlib
     if isinstance(evidence_refs, list):
         for ref in evidence_refs:
+            if not isinstance(ref, str):
+                errors.append(
+                    "evidence_refs entries must be text paths; structured evidence "
+                    "receipts belong in receipts/source fields"
+                )
+                continue
             if not ref.endswith(".json") and "/" not in ref and "\\" not in ref:
                 continue
 
@@ -391,13 +419,19 @@ def validate_agent_artifact_for_work_order(
                 continue
 
             # 5. Check expected artifact type
-            if ev_data.get("artifact_type") not in ("SCRIPT_EVIDENCE", "AGENT_ARTIFACT"):
+            art_type = str(ev_data.get("artifact_type") or "")
+            if art_type not in ("SCRIPT_EVIDENCE", "AGENT_ARTIFACT", "CHUNK_ARTIFACT") and not art_type.endswith("_CHUNK_ARTIFACT"):
                 errors.append(f"Evidence ref {ref} contains invalid artifact type: {ev_data.get('artifact_type')}")
                 continue
 
             # 6. Verify against work-order input refs or exact matching step_id and SHA-256
             ev_step_id = ev_data.get("step_id")
             clean_ev_step = ev_step_id.replace("_EXECUTION_EVIDENCE", "") if ev_step_id else ""
+
+            is_chunk_art = art_type == "CHUNK_ARTIFACT" or art_type.endswith("_CHUNK_ARTIFACT") or "chunks/" in ref
+            if is_chunk_art and (not clean_ev_step or clean_ev_step == step_id):
+                # Valid chunk artifact for this step
+                continue
 
             matching_ref = None
             if isinstance(wo_input_refs, list):

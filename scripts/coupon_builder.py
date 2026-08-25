@@ -1128,7 +1128,7 @@ def _build_tipster_insight(pick: dict) -> str:
             # Check if tipster agrees with our pick — require matching market category
             tip_market_lower = market.lower().replace("_", " ").replace("-", " ")
             our_market_lower = our_market.lower().replace("_", " ").replace("-", " ")
-            
+
             # Extract market categories (goals, corners, fouls, cards, etc.)
             market_categories = ["goals", "corners", "fouls", "cards", "yellow", "shots",
                                  "points", "rebounds", "assists", "maps", "rounds", "sets", "games",
@@ -1136,7 +1136,7 @@ def _build_tipster_insight(pick: dict) -> str:
                                  "totals", "handicap", "spread", "moneyline", "btts"]
             tip_category = next((cat for cat in market_categories if cat in tip_market_lower), None)
             our_category = next((cat for cat in market_categories if cat in our_market_lower), None)
-            
+
             # Market overlap requires matching category OR one contains the other fully
             if tip_category and our_category:
                 market_overlap = tip_category == our_category
@@ -2202,10 +2202,10 @@ def _filter_non_playable_fixtures(picks: list, date: str) -> tuple[list, list]:
 
 def _filter_quality(picks: list, tier: str = "core") -> tuple[list, list]:
     """Filter picks by data quality for coupon construction.
-    
+
     Returns (quality_picks, demoted_picks).
     Demoted picks go to extended pool with quality warnings.
-    
+
     Core tier requirements (REVISED 2026-05-23):
     - source != "db-synthetic" UNLESS hit_rate ≥ 7/10 AND L5 ≥ 4/5 (strong pattern)
     - markets_evaluated >= 3
@@ -2214,7 +2214,7 @@ def _filter_quality(picks: list, tier: str = "core") -> tuple[list, list]:
     """
     quality = []
     demoted = []
-    
+
     for pick in picks:
         best = pick.get("best_market") or {}
         source = best.get("source", "")
@@ -2228,10 +2228,10 @@ def _filter_quality(picks: list, tier: str = "core") -> tuple[list, list]:
         ev = pick.get("ev")
         safety = best.get("safety_score") or 0
         ev_ready = ev is not None and ev > 0 and line_verified and safety >= 0.30
-        
+
         # Parse hit rate using existing _safe_float helper (handles fractions like "5/10")
         hit_rate_val = _safe_float(hit_rate_str, 0.0)
-        
+
         # Also parse as fraction to get numerator for strong-pattern check
         _hit_num = 0
         _l5_num = 0
@@ -2247,9 +2247,9 @@ def _filter_quality(picks: list, tier: str = "core") -> tuple[list, list]:
             except (ValueError, IndexError):
                 pass
         _synthetic_strong = (_hit_num >= 7 and _l5_num >= 4)
-        
+
         reasons = []
-        
+
         # Check synthetic source — REVISED 2026-05-23
         # Only demote WEAK synthetic (hit<7/10). Strong patterns are proven.
         if source == "db-synthetic" and not _synthetic_strong:
@@ -2259,7 +2259,7 @@ def _filter_quality(picks: list, tier: str = "core") -> tuple[list, list]:
             pick.setdefault("_advisory_notes", []).append(
                 f"ℹ️ Synthetic source ale SILNY wzorzec: {hit_rate_str} L10 + {l5_str} L5"
             )
-        
+
         # Check minimum markets evaluated — only when field explicitly exists
         # Sport-specific minimums (tennis=2, volleyball=2, others=3)
         _sport = (pick.get("sport") or "").lower()
@@ -2269,11 +2269,11 @@ def _filter_quality(picks: list, tier: str = "core") -> tuple[list, list]:
                 reasons.append(f"⚠️ MAŁO RYNKÓW: {markets_eval}/{_min_mkts} wymagane")
             elif markets_eval == 0:
                 reasons.append("⚠️ ZERO RYNKÓW: brak analizy statystycznej")
-        
+
         # Check coin-flip hit rate
         if hit_rate_val > 0 and hit_rate_val <= 0.50 and not ev_ready:
             reasons.append(f"⚠️ COIN FLIP: {hit_rate_str} (≤50% = brak przewagi)")
-        
+
         # Check misleading margin: average looks good but hit rate is poor
         # e.g., L10 avg=5.2 vs line 4.5 (+16%) but only 5/10 actually hit
         _l10_avg = best.get("l10_avg") or best.get("combined_avg")
@@ -2291,14 +2291,14 @@ def _filter_quality(picks: list, tier: str = "core") -> tuple[list, list]:
             # Flag: big margin (>10%) but low hit rate (<60%) = misleading average
             if avg_margin > 10 and hit_pct < 60 and _hit_num < (_hit_total * 0.6):
                 reasons.append(f"⚠️ MISLEADING AVG: margines +{avg_margin:.0f}% ale trafienia tylko {_hit_num}/{_hit_total} ({hit_pct:.0f}%)")
-        
+
         if reasons and tier == "core":
             pick["_quality_demoted"] = True
             pick["_quality_reasons"] = reasons
             demoted.append(pick)
         else:
             quality.append(pick)
-    
+
     return quality, demoted
 
 def build_coupons(gate_results: dict, config: dict) -> dict:
@@ -2757,14 +2757,14 @@ def build_coupons(gate_results: dict, config: dict) -> dict:
             for row in rows:
                 home, away = (row[0] or "").strip(), (row[1] or "").strip()
                 h_lower, a_lower = home.lower(), away.lower()
-                
+
                 # Check if this tipster event is already covered by gate results
                 is_covered = False
                 for covered_home, covered_away in covered_event_pairs:
                     if is_same_event(h_lower, a_lower, covered_home, covered_away, threshold=75):
                         is_covered = True
                         break
-                
+
                 if is_covered:
                     continue
 
@@ -3098,7 +3098,7 @@ def _coupon_section(title: str, coupons: list[dict]) -> list[str]:
         stake = c.get("stake", 0)
         ret = c.get("potential_return", 0)
         stats_first = c.get("stats_first", False)
-        
+
         coupon_id = c.get('id', f'COUPON-{i}')
         is_single = c.get("is_single", False) or n_legs == 1
         if is_single:

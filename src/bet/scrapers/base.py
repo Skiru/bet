@@ -148,7 +148,7 @@ class BaseScraper(ABC):
         ).fetchone()
         if res:
             return res[0]
-        
+
         session.execute(
             text("INSERT OR IGNORE INTO sports (name) VALUES (:n)"),
             {"n": sport_name}
@@ -166,7 +166,7 @@ class BaseScraper(ABC):
         ).fetchone()
         if res:
             return res[0]
-            
+
         session.execute(
             text("INSERT OR IGNORE INTO competitions (sport_id, name, country, season) VALUES (:sid, :n, :c, :sea)"),
             {"sid": sport_id, "n": name, "c": country, "sea": season}
@@ -275,12 +275,12 @@ class BaseScraper(ABC):
         ).fetchone()
         if res:
             return res[0]
-            
+
         from datetime import datetime, timezone
         now_str = datetime.now(timezone.utc).isoformat()
         session.execute(
             text("""
-                INSERT OR IGNORE INTO athletes (external_id, sport_id, team_id, name, position, source, updated_at) 
+                INSERT OR IGNORE INTO athletes (external_id, sport_id, team_id, name, position, source, updated_at)
                 VALUES (:eid, :sid, :tid, :n, :pos, :src, :upd)
             """),
             {

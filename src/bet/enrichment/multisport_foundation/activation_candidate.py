@@ -29,13 +29,13 @@ class ActivationCandidateArtifact:
             raise ValueError("betting_decisions_enabled must always be false.")
         if self.activation_candidate and self.status != "ACTIVATION_CANDIDATE_SHADOW_ONLY":
             raise ValueError("activation_candidate can only be true when status is ACTIVATION_CANDIDATE_SHADOW_ONLY.")
-        
+
         if self.status == "ACTIVATION_CANDIDATE_SHADOW_ONLY":
             if self.source_pass_b_status != "SOURCE_BOUND_SHADOW_READY":
                 raise ValueError("ACTIVATION_CANDIDATE_SHADOW_ONLY requires Pass B status to be SOURCE_BOUND_SHADOW_READY.")
             if not self.source_keys or not self.corpus_ids:
                 raise ValueError("ACTIVATION_CANDIDATE_SHADOW_ONLY requires non-empty source_keys and corpus_ids.")
-        
+
         if self.source_pass_b_status == "BLOCKED_PROVIDER_MAPPING_NOT_FOUND" and self.status != "BLOCKED_NO_REAL_PROVIDER_ACCESS":
             raise ValueError("BLOCKED_PROVIDER_MAPPING_NOT_FOUND must map to BLOCKED_NO_REAL_PROVIDER_ACCESS.")
         if self.source_pass_b_status == "BLOCKED_PROVIDER_TERMS_OR_SCOPE" and self.status != "BLOCKED_PROVIDER_TERMS_OR_SCOPE":
@@ -71,7 +71,7 @@ def build_activation_candidate(
     blocked_reason: str | None = None,
 ) -> ActivationCandidateArtifact:
     """Build an ActivationCandidateArtifact from Pass B status and inputs."""
-    
+
     if pass_b_status == "SOURCE_BOUND_SHADOW_READY" and source_keys and corpus_ids:
         status = "ACTIVATION_CANDIDATE_SHADOW_ONLY"
         activation_candidate = True

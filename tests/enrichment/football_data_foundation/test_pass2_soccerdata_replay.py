@@ -30,24 +30,24 @@ def test_soccerdata_replay_normalization() -> None:
         ("sofifa", FactType.PLAYER_DATA_CONTEXT),
         ("understat", FactType.XG),
     ]
-    
+
     for source, fact_type in sources_and_types:
         input_path = FIXTURES_DIR / "soccerdata" / f"{source}.json"
         batch = normalize_soccerdata_replay(source, input_path)
-        
+
         assert len(batch.claims) == 1
         claim = batch.claims[0]
-        
+
         if source == "espn":
             assert batch.source_key == "soccerdata-espn"
-            
+
         assert claim.fact_type == fact_type
         assert claim.proof_level == ProofLevel.REAL_DEPENDENCY_REPLAY_PROOF
         assert claim.freshness.is_current_truth_allowed is False
-        
+
         if source == "fivethirtyeight":
             assert "staleness_risk" in claim.claim_value
-            
+
         if source == "matchhistory":
             assert claim.claim_value["odds_reference_not_decision"] is True
 

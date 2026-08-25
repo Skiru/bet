@@ -13,7 +13,7 @@ def clean_env():
     # Clear internal env store and clean os.environ changes
     from bet.enrichment.football_data_foundation.live_response_corpus_capture import env_loader
     env_loader._env_store.clear()
-    
+
     # Save original environ
     orig_env = dict(os.environ)
     yield
@@ -37,7 +37,7 @@ def test_parses_dotenv_and_strips_quotes(tmp_path):
         "API_FOOTBALL_KEY=qux\n",
         encoding="utf-8"
     )
-    
+
     res = load_project_dotenv(tmp_path)
     assert res == {
         "SPORTDB_API_KEY": "foo",
@@ -45,7 +45,7 @@ def test_parses_dotenv_and_strips_quotes(tmp_path):
         "HIGHLIGHTLY_API_KEY": "baz",
         "API_FOOTBALL_KEY": "qux",
     }
-    
+
     assert get_credential("SPORTDB_API_KEY") == "foo"
     assert get_credential("FOOTBALL_DATA_ORG_KEY") == "bar"
     assert get_credential("HIGHLIGHTLY_API_KEY") == "baz"
@@ -78,14 +78,14 @@ def test_does_not_expose_secret_values_in_credential_presence_map(tmp_path):
         encoding="utf-8"
     )
     load_project_dotenv(tmp_path)
-    
+
     presence = credential_presence_map()
     assert presence["sportdb"] is True
     assert presence["football_data_org"] is True
     assert presence["highlightly"] is True
     assert presence["api_football"] is True
     assert presence["espn_baseline"] is False
-    
+
     for val in presence.values():
         assert isinstance(val, bool)
 
@@ -95,10 +95,10 @@ def test_football_data_org_primary_and_legacy_alias(tmp_path):
     env_file.write_text("FOOTBALL_DATA_ORG_KEY=primary_secret\n", encoding="utf-8")
     load_project_dotenv(tmp_path)
     assert get_credential("FOOTBALL_DATA_ORG_KEY", ("FOOTBALL_DATA_API_KEY",)) == "primary_secret"
-    
+
     from bet.enrichment.football_data_foundation.live_response_corpus_capture import env_loader
     env_loader._env_store.clear()
-    
+
     env_file.write_text("FOOTBALL_DATA_API_KEY=legacy_secret\n", encoding="utf-8")
     load_project_dotenv(tmp_path)
     assert get_credential("FOOTBALL_DATA_ORG_KEY", ("FOOTBALL_DATA_API_KEY",)) == "legacy_secret"
@@ -115,12 +115,12 @@ def test_process_env_non_empty_wins_over_dotenv(tmp_path):
     env_file = tmp_path / ".env"
     env_file.write_text("SPORTDB_API_KEY=dotenv_val\n", encoding="utf-8")
     load_project_dotenv(tmp_path)
-    
+
     assert get_credential("SPORTDB_API_KEY") == "dotenv_val"
-    
+
     os.environ["SPORTDB_API_KEY"] = "proc_val"
     assert get_credential("SPORTDB_API_KEY") == "proc_val"
-    
+
     os.environ["SPORTDB_API_KEY"] = ""
     assert get_credential("SPORTDB_API_KEY") == "dotenv_val"
 

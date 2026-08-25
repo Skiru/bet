@@ -13,10 +13,10 @@ from bet.tipsters.source_certification import (
 
 def test_every_registry_source_is_covered_in_rescue_matrix():
     matrix = build_source_certification_matrix(run_robots_probe=False)
-    
+
     # Check that all SOURCES in source_registry are present in the static matrix keys
     assert len(matrix) == len(SOURCES)
-    
+
     matrix_ids = {entry["source_id"] for entry in matrix}
     for source_id in SOURCES:
         assert source_id in matrix_ids
@@ -25,7 +25,7 @@ def test_every_registry_source_is_covered_in_rescue_matrix():
 def test_zawodtyper_remains_certified_shadow_live():
     matrix = build_source_certification_matrix(run_robots_probe=False)
     zawodtyper_entry = next(entry for entry in matrix if entry["source_id"] == "zawodtyper")
-    
+
     assert zawodtyper_entry["classification"] == Classification.CERTIFIED_SHADOW_LIVE
     assert zawodtyper_entry["priority"] == "P0"
     assert "stealth" in zawodtyper_entry["disallowed_methods"]

@@ -4,6 +4,7 @@ import os
 from datetime import UTC, datetime
 from typing import Any, Mapping
 
+from bet.api_clients.env import get_env
 from bet.enrichment.football_data_foundation.kernel.contracts import (
     EvidenceClaim,
     EvidenceClaimBatch,
@@ -55,7 +56,7 @@ class SportDBLiveClient:
         )
 
     def fetch_match_stats(self, fixture_id: str) -> EvidenceClaimBatch:
-        api_key = os.getenv("SPORTDB_API_KEY")  # credential
+        api_key = get_env("SPORTDB_API_KEY", "SPORTDB_KEY")  # credential
         if not api_key:  # credential
             raise CredentialsMissingError("SPORTDB_API_KEY env variable is required")
 
@@ -148,7 +149,7 @@ class FootballDataOrgLiveClient:
         )
 
     def fetch_competition_standings(self, competition_code: str) -> EvidenceClaimBatch:
-        api_key = os.getenv("FOOTBALL_DATA_API_KEY")  # credential
+        api_key = get_env("FOOTBALL_DATA_API_KEY", "FOOTBALL_DATA_ORG_KEY")  # credential
         if not api_key:  # credential
             raise CredentialsMissingError(
                 "FOOTBALL_DATA_API_KEY env variable is required"
@@ -229,7 +230,7 @@ class HighlightlyLiveClient:
         )
 
     def fetch_match_statistics(self, fixture_id: str) -> EvidenceClaimBatch:
-        api_key = os.getenv("HIGHLIGHTLY_API_KEY")  # credential
+        api_key = get_env("HIGHLIGHTLY_API_KEY", "RAPIDAPI_KEY")  # credential
         if not api_key:  # credential
             raise CredentialsMissingError(
                 "HIGHLIGHTLY_API_KEY env variable is required"

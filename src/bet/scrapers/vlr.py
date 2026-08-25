@@ -59,12 +59,12 @@ class VLRScraper:
         lower = name.lower().strip()
         if lower in self._team_url_cache:
             return self._team_url_cache[lower]
-        
+
         # Normalize name for comparison (remove diacritics)
         def normalize_for_match(s):
             n = unicodedata.normalize('NFKD', s)
             return ''.join(c for c in n if not unicodedata.combining(c)).lower().strip()
-        
+
         normalized_query = normalize_for_match(name)
 
         soup = self._get(f"{BASE_URL}/search/?q={requests.utils.quote(name)}&type=teams")
@@ -76,7 +76,7 @@ class VLRScraper:
         team_items = soup.select("a.search-item[href*='/search/r/team/']")
         best_match = None
         best_score = 0
-        
+
         for item in team_items:
             title_el = item.select_one(".search-item-title")
             if not title_el:
@@ -84,7 +84,7 @@ class VLRScraper:
             title = title_el.get_text().strip()
             href = item.get("href", "")
             title_normalized = normalize_for_match(title)
-            
+
             # Score the match: exact = 100, starts_with = 50, contains = 25
             if title_normalized == normalized_query:
                 score = 100
@@ -94,7 +94,7 @@ class VLRScraper:
                 score = 25
             else:
                 score = 0
-            
+
             if score > best_score:
                 best_score = score
                 best_match = href
@@ -149,7 +149,7 @@ class VLRScraper:
         team_name_el = soup.select_one(".team-header-name h1.wf-title")
         if team_name_el:
             stats["team_name"] = team_name_el.get_text().strip()
-        
+
         team_tag_el = soup.select_one(".team-header-tag")
         if team_tag_el:
             stats["team_tag"] = team_tag_el.get_text().strip()

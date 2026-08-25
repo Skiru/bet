@@ -27,14 +27,14 @@ def test_generated_s9_human_gate_rejected():
             "coupon_draft_sha256": "abcdef",
         },
     }
-    
+
     issues = validate_s9_human_gate_artifact_for_run(
         raw,
         base_dir=Path("/tmp"),
         betting_day="2026-07-11",
         run_id="run-test",
     )
-    
+
     assert raw["status"] == "TEST_ONLY_GENERATED_HUMAN_GATE"
     assert raw["can_place_bet_now"] is False
     assert raw["safe_user_action"] == "DO_NOT_PLACE_BET"

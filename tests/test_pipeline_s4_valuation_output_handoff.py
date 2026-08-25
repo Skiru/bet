@@ -488,7 +488,7 @@ def _seed_s5_and_s6_for_s7(environ: dict[str, str], s4_path: Path, s4_candidates
     run_root = Path(environ["BET_PIPELINE_RUN_ROOT"])
     (run_root / "artifacts").mkdir(parents=True, exist_ok=True)
     (run_root / "data").mkdir(parents=True, exist_ok=True)
-    
+
     repo_root = Path(__file__).resolve().parents[1]
     bound_candidates = []
     for candidate in s4_candidates:
@@ -537,7 +537,7 @@ def _seed_s5_and_s6_for_s7(environ: dict[str, str], s4_path: Path, s4_candidates
     }
     s5_path = run_root / "artifacts" / "S5.json"
     s5_path.write_text(json.dumps(s5_output_data, indent=2), encoding="utf-8")
-    
+
     # S6
     s6_output_path = run_root / "data" / "repeat_loss_handoff_2026-06-25.json"
     s6_output_data = {
@@ -595,7 +595,7 @@ def _seed_s5_and_s6_for_s7(environ: dict[str, str], s4_path: Path, s4_candidates
         }
     }
     s6_output_path.write_text(json.dumps(s6_output_data, indent=2), encoding="utf-8")
-    
+
     s6_ev = {
         "schema_version": 1,
         "artifact_type": "SCRIPT_EVIDENCE",
@@ -816,7 +816,7 @@ def test_s7_resolution_prefers_s6_output_and_no_production_fallback():
         },
     )
     _write_s4_pass_evidence(environ, s4_path)
-    
+
     # We must seed S5 and S6 for S7 to resolve S6 path!
     _seed_s5_and_s6_for_s7(environ, s4_path, [
         {

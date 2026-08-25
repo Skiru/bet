@@ -122,7 +122,7 @@ def test_create_agent_work_order_writes_json(tmp_path):
     _seed_dependencies(tmp_path, "2026-06-25", "run-cli-test")
     cli_path = Path(__file__).resolve().parents[1] / "scripts/pipeline_steps/create_agent_work_order.py"
     manifest_path = Path(__file__).resolve().parents[1] / "config/pipeline_manifest.json"
-    
+
     cmd = [
         sys.executable,
         str(cli_path),
@@ -136,12 +136,12 @@ def test_create_agent_work_order_writes_json(tmp_path):
     res = subprocess.run(cmd, capture_output=True, text=True)
     assert res.returncode == 0, f"CLI execution failed: {res.stderr}"
     assert "Agent work order successfully written" in res.stdout
-    
+
     # Assert JSON file actually written
     from bet.pipeline.agent_work_orders import work_order_path_for
     wo_path = work_order_path_for(tmp_path, "2026-06-25", "run-cli-test", "S2.3")
     assert wo_path.exists()
-    
+
     with open(wo_path, "r", encoding="utf-8") as f:
         data = json.load(f)
     assert data["step_id"] == "S2.3"
@@ -153,7 +153,7 @@ def test_create_agent_work_order_print_json(tmp_path):
     _seed_dependencies(tmp_path, "2026-06-25", "run-cli-test-print")
     cli_path = Path(__file__).resolve().parents[1] / "scripts/pipeline_steps/create_agent_work_order.py"
     manifest_path = Path(__file__).resolve().parents[1] / "config/pipeline_manifest.json"
-    
+
     cmd = [
         sys.executable,
         str(cli_path),
@@ -167,7 +167,7 @@ def test_create_agent_work_order_print_json(tmp_path):
     ]
     res = subprocess.run(cmd, capture_output=True, text=True)
     assert res.returncode == 0, f"CLI execution failed: {res.stderr}"
-    
+
     # stdout must be valid JSON
     data = json.loads(res.stdout)
     assert data["step_id"] == "S5"

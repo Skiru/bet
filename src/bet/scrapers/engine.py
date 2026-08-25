@@ -30,7 +30,7 @@ def get_engine(db_path=DEFAULT_DB_PATH):
             cursor.execute("PRAGMA foreign_keys=ON")
             cursor.execute("PRAGMA busy_timeout=5000")
             cursor.close()
-            
+
     return _ENGINE
 
 def get_session_factory(db_path=DEFAULT_DB_PATH):

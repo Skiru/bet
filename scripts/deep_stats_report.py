@@ -1508,20 +1508,20 @@ def analyze_candidate(
     hallucination_risk = "LOW"
     real_data_keys = []
     empty_keys = []
-    
+
     from bet.stats.market_ranking import SPORT_STAT_KEYS
     all_sport_keys = SPORT_STAT_KEYS.get(sport, [])
-    
+
     if all_sport_keys:
         # Check which keys have REAL L10 data
         real_keys_a = [k for k in all_sport_keys if stats_a.get("l10_avg", {}) and stats_a.get("l10_avg", {}).get(k) is not None]
         real_keys_b = [k for k in all_sport_keys if stats_b.get("l10_avg", {}) and stats_b.get("l10_avg", {}).get(k) is not None]
         real_data_keys = list(set(real_keys_a + real_keys_b))
         empty_keys = [k for k in all_sport_keys if k not in real_data_keys]
-        
+
         # Determine risk level
         hallucination_risk = "HIGH" if dq["score"] < 5 else "MEDIUM" if dq["score"] < 7 else "LOW"
-        
+
         # Additional check: if L10 values have fewer than threshold entries → HIGH
         config = HALLUCINATION_CONFIG.get(sport, {})
         threshold = config.get("thin_data_threshold", 3)
@@ -1584,7 +1584,7 @@ def analyze_candidate(
 
     if sport == "tennis" and fixture_surface:
         md_parts.append(f"**Surface:** {fixture_surface.title()}")
-        
+
         same_surface_count = 0
         total_with_surface = 0
         for match in stats_a.get("l10_matches", []):
@@ -1593,11 +1593,11 @@ def analyze_candidate(
                 total_with_surface += 1
                 if m_surface.lower() == fixture_surface.lower():
                     same_surface_count += 1
-        
+
         surface_familiarity = same_surface_count / total_with_surface if total_with_surface > 0 else None
         if surface_familiarity is not None:
             md_parts.append(f"**Surface familiarity (Player A):** {same_surface_count}/{total_with_surface} L10 on {fixture_surface}")
-    
+
     if hallucination_risk == "HIGH" and sport in HALLUCINATION_CONFIG:
         config = HALLUCINATION_CONFIG[sport]
         md_parts.append(
@@ -2013,7 +2013,7 @@ def generate_deep_stats(date: str, shortlist_path: str | None = None, top: int |
     # proceed to analysis — enrichment fills data gaps, and partial-data events still
     # get analyzed with whatever stats exist.
     total_candidates = len(candidates)
-    
+
     # Phase 1: Detect teams needing enrichment (no safety_markets AND no odds AND not verified)
     needs_enrichment = []
     for c in candidates:
@@ -2025,7 +2025,7 @@ def generate_deep_stats(date: str, shortlist_path: str | None = None, top: int |
             if home and away and sport:
                 needs_enrichment.append({"team": home, "sport": sport, "event": c})
                 needs_enrichment.append({"team": away, "sport": sport, "event": c})
-    
+
     # Phase 2: Run batch enrichment for missing teams (if any)
     enrichment_results = {}
     if needs_enrichment and not no_enrich:
@@ -2035,14 +2035,14 @@ def generate_deep_stats(date: str, shortlist_path: str | None = None, top: int |
             key = f"{item['sport']}|{item['team']}"
             if key not in unique_teams:
                 unique_teams[key] = item
-        
+
         enrichment_list = [{"team": v["team"], "sport": v["sport"]} for v in unique_teams.values()
                            if v["sport"] not in ("cs2", "valorant", "dota2")]
         esports_skipped = sum(1 for v in unique_teams.values() if v["sport"] in ("cs2", "valorant", "dota2"))
         if esports_skipped:
             print(f"[deep_stats] Skipping {esports_skipped} esports teams (pre-enriched via enrich_esports_stats.py)")
         print(f"[deep_stats] Enrichment needed for {len(enrichment_list)} teams ({total_candidates - len([c for c in candidates if c.get('safety_markets') or c.get('n_odds_markets', 0) > 0 or c.get('fixture_verified')])} events without data)")
-        
+
         try:
             from data_enrichment_agent import batch_enrich
             enrichment_results = {
@@ -2054,7 +2054,7 @@ def generate_deep_stats(date: str, shortlist_path: str | None = None, top: int |
             print(f"[deep_stats] Enrichment complete: {enriched_count} enriched, {partial_count} partial, {len(enrichment_results) - enriched_count - partial_count} failed")
         except Exception as e:
             print(f"[deep_stats] Enrichment agent unavailable ({e}), proceeding with existing data")
-    
+
     print(f"[deep_stats] Processing ALL {total_candidates} candidates (no smart filter)")
 
     # Filter out candidates missing team names upfront

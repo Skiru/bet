@@ -136,7 +136,11 @@ def test_r5_acquisition_plan_untyped() -> None:
 
 
 def test_r6_sharding_lifecycle_state_machine_defects() -> None:
+<<<<<<< HEAD
     """R6: Prove ChunkWorkOrderV1 permits empty source/tree/manifest bindings."""
+=======
+    """R6: Verify ChunkWorkOrderV1 populates valid source/tree/manifest bindings."""
+>>>>>>> fix/bet-v5-final-one-pass-closure-v4
     chunk = ChunkWorkOrderV1(
         chunk_id="CHK-01",
         parent_work_order_id="WO-01",
@@ -145,8 +149,13 @@ def test_r6_sharding_lifecycle_state_machine_defects() -> None:
         event_ids=("E1",),
         agent_name="bet-researcher",
     )
+<<<<<<< HEAD
     assert chunk.source_head == ""
     assert chunk.source_tree == ""
+=======
+    assert len(chunk.source_head) == 40
+    assert len(chunk.source_tree) == 40
+>>>>>>> fix/bet-v5-final-one-pass-closure-v4
 
 
 def test_r7_defaults_in_dtos_and_migrations() -> None:

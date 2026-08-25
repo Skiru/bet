@@ -28,7 +28,7 @@ def test_imports_and_types():
 
 def test_evidence_writer_creates_deterministic_files(temp_evidence_root):
     writer = SportDBEvidenceBundleWriter(evidence_root=temp_evidence_root)
-    
+
     operation = "match_stats"
     arguments = {"sport": "football", "match_id": "test_id"}
     raw_response = {"some": "data", "status": "ok"}
@@ -97,7 +97,7 @@ def test_with_evidence_method_returns_source_operation_result(temp_evidence_root
     with tempfile.TemporaryDirectory() as temp_schema_dir:
         schema_path = Path(temp_schema_dir) / "schema.json"
         mapping_path = Path(temp_schema_dir) / "mapping.json"
-        
+
         schema_path.write_text(json.dumps(schema_payload), encoding="utf-8")
         mapping_path.write_text(json.dumps(mapping_payload), encoding="utf-8")
 
@@ -135,13 +135,13 @@ def test_evidence_write_failure_maps_to_evidence_error(temp_evidence_root):
     with tempfile.TemporaryDirectory() as temp_schema_dir:
         schema_path = Path(temp_schema_dir) / "schema.json"
         mapping_path = Path(temp_schema_dir) / "mapping.json"
-        
+
         schema_path.write_text(json.dumps(schema_payload), encoding="utf-8")
         mapping_path.write_text(json.dumps(mapping_payload), encoding="utf-8")
 
         adapter = SportDBMCPShadowAdapter(schema_path=schema_path, mapping_path=mapping_path)
         adapter.writer = SportDBEvidenceBundleWriter(evidence_root=temp_evidence_root)
-        
+
         # Mock writer to fail
         adapter.writer.write_bundle = MagicMock(side_effect=RuntimeError("disk full"))
         adapter.client.call_tool = MagicMock(return_value={"data": []})
@@ -166,7 +166,7 @@ def test_required_payload_field_unknown_maps_to_schema_error():
     with tempfile.TemporaryDirectory() as temp_schema_dir:
         schema_path = Path(temp_schema_dir) / "schema.json"
         mapping_path = Path(temp_schema_dir) / "mapping.json"
-        
+
         schema_path.write_text(json.dumps(schema_payload), encoding="utf-8")
         mapping_path.write_text(json.dumps(mapping_payload), encoding="utf-8")
 
@@ -177,7 +177,7 @@ def test_required_payload_field_unknown_maps_to_schema_error():
 def test_source_paths_safety():
     src_path = Path("src/bet/api_clients/sportdb_mcp.py")
     content = src_path.read_text(encoding="utf-8")
-    
+
     # Check no forbidden REST routes are hardcoded
     for forbidden in ["/api/football", "/api/match", "/api/clubs", "/api/players"]:
         assert forbidden not in content

@@ -44,17 +44,17 @@ def main() -> None:
     val_path = sandbox_dir / "data" / "2026-06-29_s4_valuation_candidates.json"
     s3_path = sandbox_dir / "data" / "2026-06-29_s3_deep_stats.json"
     shortlist_path = sandbox_dir / "data" / "2026-06-29_s2_shortlist.json"
-    
+
     if not val_path.exists():
         print(f"Error: Sandbox valuation file {val_path} does not exist.")
         return
-        
+
     val_payload = json.loads(val_path.read_text(encoding="utf-8"))
     s3_payload = json.loads(s3_path.read_text(encoding="utf-8")) if s3_path.exists() else None
     shortlist_payload = json.loads(shortlist_path.read_text(encoding="utf-8")) if shortlist_path.exists() else None
-    
+
     print(f"Loaded sandbox candidates: {len(val_payload.get('candidates', []))}")
-    
+
     # Compute handoff
     handoff = build_analytical_candidate_handoff(
         val_payload,
@@ -62,12 +62,12 @@ def main() -> None:
         shortlist_payload=shortlist_payload,
         source_artifact_path=str(val_path)
     )
-    
+
     output_path = _resolve_output_path(val_path)
     write_analytical_candidate_handoff(output_path, handoff)
     analytical_ready = handoff.get("analytical_ready") or []
     all_candidates = _all_handoff_candidates(handoff)
-    
+
     print("\n--- Smoke Run Handoff Summary ---")
     print(f"Handoff Output Path: {output_path}")
     print(f"HYDRATED_COUNT: {sum(1 for candidate in all_candidates if candidate.get('hydration_status') == 'HYDRATED')}")
@@ -82,6 +82,6 @@ def main() -> None:
     print(f"READY_FOR_MANUAL_OPERATOR_QUOTE_REVIEW: {_quote_ready_count(analytical_ready) > 0}")
     print(f"Gap Reasons: {json.dumps(handoff['gap_reasons'])}")
     print(f"Priced Candidates count: {handoff['counts']['priced_candidates']}")
-    
+
 if __name__ == "__main__":
     main()

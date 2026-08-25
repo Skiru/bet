@@ -78,7 +78,7 @@ def check_dotenv_preflight(project_root: Path) -> Dict[str, Any]:
     for canonical_name, aliases in keys_to_check.items():
         val = get_credential(canonical_name, aliases)
         present = val is not None and len(val.strip()) > 0
-        
+
         # Determine source mode
         source_mode = "none"
         if present:

@@ -49,7 +49,7 @@ def validate_tipster_opinion_alignment(
 ) -> list[str]:
     """Validates that no quote card or coupon leg incorrectly claims tipster support."""
     errors: list[str] = []
-    
+
     # Extract matched opinion refs from tipster opinion payload
     opinion_ids = {str(op.get("opinion_id") or op.get("id") or "").strip() for op in opinions if op}
     opinion_ids.discard("")
@@ -57,7 +57,7 @@ def validate_tipster_opinion_alignment(
     for card in quote_cards:
         card_id = card.get("quote_card_id") or card.get("candidate_id") or "UNKNOWN_CARD"
         claims_tipster = card.get("tipster_consensus_ref") or card.get("tipster_alignment_claimed")
-        
+
         if claims_tipster:
             ref_str = str(claims_tipster).strip()
             # If status says no matches/not configured/etc., or ref is not in actual opinions list
@@ -89,9 +89,9 @@ def generate_tipster_context_report(
         blocked=blocked,
         configured=configured,
     )
-    
+
     errors = validate_tipster_opinion_alignment(status=status, quote_cards=quote_cards, opinions=opinions)
-    
+
     if mandatory and status == TipsterContextState.NOT_ATTEMPTED:
         errors.append("Tipster phase is MANDATORY but was NOT_ATTEMPTED, blocking production")
 
@@ -112,11 +112,11 @@ def generate_tipster_context_report(
 def write_tipster_status_artifacts(report: dict[str, Any], output_dir: Path) -> None:
     """Writes 16B_tipster_context_status.json and .md."""
     output_dir.mkdir(parents=True, exist_ok=True)
-    
+
     # JSON
     json_path = output_dir / "16B_tipster_context_status.json"
     json_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    
+
     # MD
     md_path = output_dir / "16B_tipster_context_status.md"
     md_lines = [
@@ -133,7 +133,7 @@ def write_tipster_status_artifacts(report: dict[str, Any], output_dir: Path) -> 
             md_lines.append(f"- :red_circle: {err}")
     else:
         md_lines.append("- :white_check_mark: None")
-        
+
     md_lines.extend([
         "",
         "## Warnings",
@@ -143,5 +143,5 @@ def write_tipster_status_artifacts(report: dict[str, Any], output_dir: Path) -> 
             md_lines.append(f"- :warning: {warn}")
     else:
         md_lines.append("- None")
-        
+
     md_path.write_text("\n".join(md_lines) + "\n", encoding="utf-8")

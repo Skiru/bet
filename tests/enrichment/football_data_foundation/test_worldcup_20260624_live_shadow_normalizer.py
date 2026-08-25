@@ -46,7 +46,7 @@ def test_normalizer_produces_summary_facts() -> None:
             ]
         }
         write_valid_fetched_envelope(cache_dir, "api-football", "worldcup2026-switzerland-canada", apif_body)
-        
+
         snapshot = normalize_fixture_snapshot(
             fixture_slug="worldcup2026-switzerland-canada",
             home_team="Switzerland",
@@ -56,12 +56,12 @@ def test_normalizer_produces_summary_facts() -> None:
             cache_dir=cache_dir,
             run_id="run_123"
         )
-        
+
         assert snapshot["fixture_slug"] == "worldcup2026-switzerland-canada"
         assert "raw_payload" not in snapshot
         assert "raw_headers" not in snapshot
         assert "cookie" not in snapshot
-        
+
         # Check that summary facts are generated
         fact_types = {fact["fact_type"] for fact in snapshot["facts"]}
         assert "provider_mapping" in fact_types
@@ -91,7 +91,7 @@ def test_odds_are_reference_only() -> None:
             ]
         }
         write_valid_fetched_envelope(cache_dir, "api-football", "worldcup2026-switzerland-canada", apif_body)
-        
+
         snapshot = normalize_fixture_snapshot(
             fixture_slug="worldcup2026-switzerland-canada",
             home_team="Switzerland",
@@ -101,7 +101,7 @@ def test_odds_are_reference_only() -> None:
             cache_dir=cache_dir,
             run_id="run_123"
         )
-        
+
         odds_facts = [f for f in snapshot["facts"] if f["fact_type"] == "odds_reference"]
         assert len(odds_facts) > 0
         for fact in odds_facts:

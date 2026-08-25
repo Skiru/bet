@@ -3,6 +3,7 @@ from typing import Any
 from typing import List
 from typing import Optional
 
+from bet.api_clients.env import get_env
 from bet.enrichment.football_data_foundation.live_shadow_canary.contracts import ProviderProbeResult
 from bet.enrichment.football_data_foundation.live_shadow_canary.contracts import OfficialFixtureContext
 from bet.enrichment.football_data_foundation.kernel.contracts import EvidenceClaimBatch
@@ -17,9 +18,9 @@ def run_provider_shadow_probes(
     out_batches: Optional[List[EvidenceClaimBatch]] = None
 ) -> List[ProviderProbeResult]:
     results = []
-    
+
     # 1. SportDB Probe
-    sportdb_key = os.getenv("SPORTDB_API_KEY")
+    sportdb_key = get_env("SPORTDB_API_KEY", "SPORTDB_KEY")
     if not sportdb_key:
         results.append(
             ProviderProbeResult(
@@ -79,7 +80,7 @@ def run_provider_shadow_probes(
             )
 
     # 2. FootballDataOrg Probe
-    fdorg_key = os.getenv("FOOTBALL_DATA_API_KEY")
+    fdorg_key = get_env("FOOTBALL_DATA_API_KEY", "FOOTBALL_DATA_ORG_KEY")
     if not fdorg_key:
         results.append(
             ProviderProbeResult(
@@ -127,7 +128,7 @@ def run_provider_shadow_probes(
             )
 
     # 3. Highlightly Probe
-    highlightly_key = os.getenv("HIGHLIGHTLY_API_KEY")
+    highlightly_key = get_env("HIGHLIGHTLY_API_KEY", "RAPIDAPI_KEY")
     if not highlightly_key:
         results.append(
             ProviderProbeResult(

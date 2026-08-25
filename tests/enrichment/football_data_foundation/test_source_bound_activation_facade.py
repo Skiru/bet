@@ -25,18 +25,18 @@ def test_facade_returns_activation_candidate_shadow_only(tmp_path: Path) -> None
 
 def test_facade_performs_no_writes(tmp_path: Path) -> None:
     paths = create_mock_bundle(tmp_path)
-    
+
     # We patch Path.write_text, Path.write_bytes, Path.mkdir, open to ensure no writes occur during facade invocation
     with patch.object(Path, "write_text") as mock_write_text, \
          patch.object(Path, "write_bytes") as mock_write_bytes, \
          patch.object(Path, "mkdir") as mock_mkdir:
-         
+
         candidate = build_football_source_bound_activation_candidate(
             project_root=tmp_path,
             fixture_slug="worldcup2026-norway-senegal",
         )
         assert candidate is not None
-        
+
         # Verify no write/mkdir methods were called
         mock_write_text.assert_not_called()
         mock_write_bytes.assert_not_called()

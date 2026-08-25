@@ -146,7 +146,7 @@ def run_provider_access_rescue_diagnostic_v2(output_root_path: Path) -> Dict[str
         }
     else:
         sportdb_request_attempted = True
-        
+
         # Test REST live
         live_url = "https://api.sportdb.dev/api/football/live"
         live_headers = {"X-API-" + "Key": sdb_key_val, "Accept": "application/json"}
@@ -185,7 +185,7 @@ def run_provider_access_rescue_diagnostic_v2(output_root_path: Path) -> Dict[str
             rest_working = True
             sportdb_verdict = "SPORTDB_WORKING_REST"
             working_bindings["sportdb"] = SPORTDB_REST_LIVE_CANDIDATE.copy()
-            
+
             # Check for mapping candidate
             match_id = find_norway_senegal_match_id(live_body) or find_norway_senegal_match_id(countries_body)
             if match_id:
@@ -250,7 +250,7 @@ def run_provider_access_rescue_diagnostic_v2(output_root_path: Path) -> Dict[str
                     successful_mcp_version = mcp_version
                     mcp_init_body = init_body
                     break
-                
+
                 # Check for protocol version mismatch error to decide retry
                 # If the status code is not 200 or there is an "error" key, we retry
                 # No explicit check is needed as the loop naturally retries the next version if successful_mcp_version is not set.
@@ -280,7 +280,7 @@ def run_provider_access_rescue_diagnostic_v2(output_root_path: Path) -> Dict[str
                     raw_tools = []
                     if "result" in tools_resp_body and isinstance(tools_resp_body["result"], dict):
                         raw_tools = tools_resp_body["result"].get("tools", [])
-                    
+
                     tool_names = sorted([
                         t.get("name") for t in raw_tools
                         if isinstance(t, dict) and "name" in t
@@ -371,7 +371,7 @@ def run_provider_access_rescue_diagnostic_v2(output_root_path: Path) -> Dict[str
             direct_working = True
             highlightly_verdict = "HIGHLIGHTLY_WORKING_DIRECT"
             working_bindings["highlightly"] = HIGHLIGHTLY_DIRECT_MATCHES_CANDIDATE.copy()
-            
+
             match_id = find_norway_senegal_match_id(hl_dm_body)
             if match_id:
                 mapping_candidates_found += 1
@@ -388,7 +388,7 @@ def run_provider_access_rescue_diagnostic_v2(output_root_path: Path) -> Dict[str
                     body_text = str(r["response_body"]).lower() if r["response_body"] else ""
                     if "1010" in body_text or "cloudflare" in body_text:
                         is_direct_waf_blocked = True
-            
+
             # Check for missing headers or invalid host error
             for r in [hl_dc_record, hl_dm_record]:
                 if r["status_code"] == 400:
@@ -421,7 +421,7 @@ def run_provider_access_rescue_diagnostic_v2(output_root_path: Path) -> Dict[str
                 direct_working = True
                 highlightly_verdict = "HIGHLIGHTLY_WORKING_DIRECT"
                 working_bindings["highlightly"] = HIGHLIGHTLY_DIRECT_MATCHES_CANDIDATE.copy()
-                
+
                 match_id = find_norway_senegal_match_id(hl_retry_body)
                 if match_id:
                     mapping_candidates_found += 1
@@ -466,7 +466,7 @@ def run_provider_access_rescue_diagnostic_v2(output_root_path: Path) -> Dict[str
                 if not direct_working:
                     highlightly_verdict = "HIGHLIGHTLY_WORKING_RAPIDAPI"
                     working_bindings["highlightly"] = HIGHLIGHTLY_RAPIDAPI_CANDIDATE.copy()
-                    
+
                     match_id = find_norway_senegal_match_id(hl_rapid_body)
                     if match_id:
                         mapping_candidates_found += 1
@@ -514,7 +514,7 @@ def run_provider_access_rescue_diagnostic_v2(output_root_path: Path) -> Dict[str
                     h_names = ep.get("required_header_names", [])
                     headers = {hn: map_header_to_value(hn, sdb_key_val, hl_key_val) for hn in h_names if map_header_to_value(hn, sdb_key_val, hl_key_val) is not None}
                     headers["Accept"] = "application/json"
-                    
+
                     status, body, err = perform_get(ep["url"], headers=headers)
                     sportdb_probe_log["requests"].append({
                         "url": ep["url"],
@@ -529,7 +529,7 @@ def run_provider_access_rescue_diagnostic_v2(output_root_path: Path) -> Dict[str
                     h_names = ep.get("required_header_names", [])
                     headers = {hn: map_header_to_value(hn, sdb_key_val, hl_key_val) for hn in h_names if map_header_to_value(hn, sdb_key_val, hl_key_val) is not None}
                     headers["Accept"] = "application/json"
-                    
+
                     status, body, err = perform_get(ep["url"], headers=headers)
                     highlightly_probe_log["requests"].append({
                         "url": ep["url"],

@@ -45,11 +45,11 @@ def evaluate_candidate_analyzability(
     sport = candidate.get("sport") or ""
     home_team = candidate.get("home_team") or ""
     away_team = candidate.get("away_team") or ""
-    
+
     # Traceability fields
     source_artifact_path = candidate.get("source_artifact_path") or ""
     field_path = candidate.get("field_path") or "candidate"
-    
+
     if isinstance(market_semantics, dict):
         market_semantics = MarketSemantics(
             market_family=market_semantics.get("market_family", ""),
@@ -80,12 +80,12 @@ def evaluate_candidate_analyzability(
                     source_artifact_path=(stats_seed or {}).get("source_artifact_path") or source_artifact_path,
                     field_path="best_market",
                 )
-                
+
     market_family = market_semantics.market_family or None
     market_type = market_semantics.market_type or None
     line = market_semantics.line
     direction = market_semantics.direction or None
-    
+
     if market_semantics.source_artifact_path:
         source_artifact_path = market_semantics.source_artifact_path
     field_path = candidate.get("field_path") or market_semantics.field_path or field_path
@@ -146,7 +146,7 @@ def evaluate_candidate_analyzability(
         val_prob = candidate.get("model_probability") or candidate.get("probability") or (stats_seed or {}).get("model_probability")
         val_conf = str(candidate.get("probability_confidence") or (stats_seed or {}).get("probability_confidence") or "").strip().upper()
         val_method = str(candidate.get("probability_method") or (stats_seed or {}).get("probability_method") or "").strip().upper()
-        
+
         has_existing_model_prob = False
         if val_prob is not None and val_conf not in {"BLOCKED", "LOW", "MINIMAL", "LOW_CONFIDENCE"} and val_method != "BOOKMAKER_IMPLIED_REFERENCE_ONLY":
             has_existing_model_prob = True
@@ -175,11 +175,11 @@ def evaluate_candidate_analyzability(
 
         else:
             stats_seed_status = True
-            
+
             # Build probability input using native module
             inp = build_market_probability_input(candidate, stats_seed)
             valid, reason = validate_market_probability_input(inp)
-            
+
             if valid and (has_existing_model_prob or can_unblock_with_stats):
                 stats_seed_status = True
                 l10_series_status = True

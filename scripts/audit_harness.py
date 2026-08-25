@@ -70,7 +70,7 @@ class AuditRun:
             LOG.error(f"Test failed: {e}")
         finally:
             self.end_time = datetime.now(timezone.utc)
-        
+
         return self._build_result()
 
     def _run_test(self) -> Any:
@@ -93,7 +93,7 @@ class AuditRun:
         from bet.scrapers.hltv import HLTVScraper
         scraper = HLTVScraper()
         self.attempts = 1
-        
+
         if self.capability == "team_stats" and self.team:
             result = scraper.get_team_stats(self.team)
             if result:
@@ -118,7 +118,7 @@ class AuditRun:
         from bet.scrapers.vlr import VLRScraper
         scraper = VLRScraper()
         self.attempts = 1
-        
+
         if self.capability == "team_stats" and self.team:
             result = scraper.get_team_stats(self.team)
             if result:
@@ -143,7 +143,7 @@ class AuditRun:
         from bet.api_clients.opendota import OpenDotaClient
         client = OpenDotaClient()
         self.attempts = 1
-        
+
         if self.capability == "team_stats" and self.team:
             result = client.get_team_stats(self.team)
             if result and result.get("matches_found", 0) > 0:
@@ -158,7 +158,7 @@ class AuditRun:
         from bet.api_clients.rate_limiter import RateLimiter
         client = SackmannClient(rate_limiter=RateLimiter())
         self.attempts = 1
-        
+
         if self.capability == "player_stats" and self.team:
             result = client.get_player_season_stats(self.team)
             if result:
@@ -172,7 +172,7 @@ class AuditRun:
         from bet.api_clients.espn import ESPNClient
         client = ESPNClient()
         self.attempts = 1
-        
+
         if self.capability == "schedule" and self.sport:
             result = client.get_schedule(self.sport)
             self.raw_records = len(result) if result else 0
@@ -191,7 +191,7 @@ class AuditRun:
         from bet.scrapers.flashscore import FlashscoreScraper
         scraper = FlashscoreScraper()
         self.attempts = 1
-        
+
         if self.capability == "upcoming" and self.sport:
             cls_map = {
                 "football": "FootballFlashscoreScraper",
@@ -218,10 +218,10 @@ class AuditRun:
 
     def _build_result(self) -> dict[str, Any]:
         duration = (self.end_time - self.start_time).total_seconds() if self.end_time and self.start_time else 0
-        
+
         response_str = json.dumps(self.response_data, default=str) if self.response_data else ""
         self.response_hash = hashlib.sha256(response_str.encode()).hexdigest()[:16] if response_str else None
-        
+
         result = {
             "run_id": self.run_id,
             "source": self.source,
@@ -247,19 +247,19 @@ class AuditRun:
             "conclusion": "PASS" if self.exit_code == 0 and self.parsed_records > 0 else "FAIL" if self.exit_code != 0 else "PARTIAL",
             "error": self.error,
         }
-        
+
         return result
 
     def save_evidence(self, result: dict[str, Any]) -> Path:
         run_dir = self.evidence_dir / self.run_id
         run_dir.mkdir(parents=True, exist_ok=True)
-        
+
         with open(run_dir / "result.json", "w") as f:
             json.dump(result, f, indent=2, default=str)
-        
+
         with open(run_dir / "response.json", "w") as f:
             json.dump(self.response_data if self.response_data else {"error": self.error}, f, indent=2, default=str)
-        
+
         return run_dir
 
 
@@ -274,12 +274,12 @@ def main():
     parser.add_argument("--team-b", help="Team B for H2H")
     parser.add_argument("--timeout", type=int, default=30, help="Timeout in seconds")
     parser.add_argument("--evidence-dir", type=Path, help="Evidence directory")
-    
+
     args = parser.parse_args()
-    
+
     evidence_dir = args.evidence_dir or Path(__file__).parent.parent / "LIVE_TEST_EVIDENCE" / "20260610T135421Z_ACTUAL_AUDIT"
     evidence_dir.mkdir(parents=True, exist_ok=True)
-    
+
     run = AuditRun(
         source=args.source,
         sport=args.sport,
@@ -291,13 +291,13 @@ def main():
         team=args.team,
         timeout=args.timeout,
     )
-    
+
     result = run.execute()
     evidence_path = run.save_evidence(result)
-    
+
     print(json.dumps(result, indent=2, default=str))
     print(f"\nEvidence saved to: {evidence_path}")
-    
+
     return result["exit_code"]
 
 

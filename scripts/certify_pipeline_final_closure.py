@@ -400,8 +400,26 @@ def main() -> int:
             "artifact_type": "PIPELINE_CANONICAL_CONTINUITY_CERTIFICATE_V1",
             "status": "PASS",
             "decision": "READY_FOR_BET_EXECUTOR_SESSION",
+<<<<<<< HEAD
             "READY_FOR_BET_EXECUTOR_ANALYSIS_SESSION": "YES",
             "READY_FOR_PRICED_COUPON_SESSION": "NO",
+=======
+            "ARTIFACT_CHAIN_READY": "YES",
+            "DB_RUNTIME_BRIDGE_READY": "YES",
+            "PLAN_ONLY_READY": "YES",
+            "FULL_ANALYSIS_EXECUTED": "NO",
+            "PRICED_COUPON_READY": "NO",
+            "READY_FOR_BET_EXECUTOR_ANALYSIS_SESSION": "YES",
+            "READY_FOR_PRICED_COUPON_SESSION": "NO",
+            "head_sha": head,
+            "git_tree_sha": git_tree_sha,
+            "source_manifest_sha256": manifest_sha256_before,
+            "command_argv": sys.argv,
+            "cwd": str(root_path),
+            "started_at": t_start.isoformat().replace("+00:00", "Z"),
+            "finished_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+            "exit_code": 0,
+>>>>>>> fix/bet-v5-final-one-pass-closure-v4
             "generated_at_utc": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
             "source": {
                 "branch": branch,

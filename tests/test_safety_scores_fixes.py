@@ -7,12 +7,12 @@ def test_half_win_hit_rate_pushes():
     # Let's test with line 9.0
     line = 9.0
     values = [10.0, 11.0, 9.0, 8.0] # 2 hits (over), 1 push, 1 miss
-    
+
     hits, total, pushes = compute_hit_rate(values, line, "OVER")
     assert hits == 2
     assert pushes == 1
     assert total == 4
-    
+
     # Mathematical representation of what our code does now:
     rate = (hits + (0.5 * pushes)) / total
     assert rate == (2 + 0.5) / 4.0 # 0.625
@@ -22,11 +22,11 @@ def test_volatility_margin_cap():
     # direction OVER: avg = 20.0, line = 5.0 -> avg/line = 4.0 -> should cap at 1.50
     margin_over = compute_margin(avg=20.0, line=5.0, direction="OVER")
     assert margin_over == 1.50
-    
+
     # direction UNDER: avg = 2.0, line = 10.0 -> line/avg = 5.0 -> should cap at 1.50
     margin_under = compute_margin(avg=2.0, line=10.0, direction="UNDER")
     assert margin_under == 1.50
-    
+
     # Normal margin shouldn't be affected
     margin_normal = compute_margin(avg=6.0, line=5.0, direction="OVER")
     assert margin_normal == 1.2  # 6/5
@@ -39,11 +39,11 @@ def test_small_sample_penalty():
     hits = 3
     pushes = 0
     raw_rate = (hits + 0.5 * pushes) / total_l10
-    
+
     if total_l10 > 0 and total_l10 < 8:
         penalized_rate = round(raw_rate * (total_l10 / 10.0), 3)
     else:
         penalized_rate = raw_rate
-        
+
     assert penalized_rate == 0.3
 

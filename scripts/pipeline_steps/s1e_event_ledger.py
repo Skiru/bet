@@ -79,6 +79,25 @@ def main() -> None:
     output = Path(child_env["BET_PIPELINE_DATA_DIR"]) / f"{args.date}_s1e_event_universe.json"
     output_sha: str | None = None
     if not blocked:
+        event_records = [
+            {
+                "canonical_event_id": event["canonical_event_id"],
+                "discovery_status": "VERIFIED",
+                "terminal_status": "CONTINUE",
+                **{
+                    key: event[key]
+                    for key in (
+                        "sport",
+                        "home_team",
+                        "away_team",
+                        "competition",
+                        "kickoff",
+                    )
+                    if event.get(key) is not None
+                },
+            }
+            for event in events
+        ]
         artifact = {
             "schema_version": 1,
             "artifact_type": "S1E_EVENT_UNIVERSE_LEDGER",
@@ -91,6 +110,7 @@ def main() -> None:
             "after_dedup_count": len(events),
             "canonical_event_ids": [event["canonical_event_id"] for event in events],
             "events": events,
+            "event_records": event_records,
             "zero_event_universe": not events,
             "discovery_attempted": True,
         }
@@ -103,7 +123,10 @@ def main() -> None:
             artifact_type="S1E_EVENT_UNIVERSE_LEDGER",
         )
         output_sha = receipt.sha256
-        EventAccountingLedger.initialize(run_root, output, betting_day=args.date, run_id=args.run_id)
+        ledger = EventAccountingLedger.initialize(
+            run_root, output, betting_day=args.date, run_id=args.run_id
+        )
+        ledger.record_boundary("S1e", records=event_records)
 
     payload = {
         "s1e_json_output": str(output) if not blocked else None,

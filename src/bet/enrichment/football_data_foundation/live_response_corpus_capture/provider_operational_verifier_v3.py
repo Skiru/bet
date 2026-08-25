@@ -74,7 +74,7 @@ def verify_provider_operational_capture_v3(corpus_run_dir: Path, report_run_dir:
     hl_key = os.environ.get("HIGHLIGHTLY_API_KEY", "").strip()
     if hl_key:
         matches_attempted = any(
-            "matches" in e.get("request_purpose", "") 
+            "matches" in e.get("request_purpose", "")
             for e in highlightly_envelopes if e.get("request_attempted")
         )
         if not matches_attempted:

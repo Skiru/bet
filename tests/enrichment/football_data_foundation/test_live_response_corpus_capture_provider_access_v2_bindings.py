@@ -48,7 +48,7 @@ def test_previous_wrong_urls_forbidden():
     # REQ-TEST-004: Previous wrong Highlightly URLs are forbidden.
     wrong_1 = "sports." + "highlightly." + "net/football/matches"
     wrong_2 = "sport-" + "highlights-api." + "p." + "rapidapi." + "com/football/matches"
-    
+
     for cand in [
         SPORTDB_REST_LIVE_CANDIDATE,
         SPORTDB_REST_COUNTRIES_CANDIDATE,

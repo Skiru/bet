@@ -16,7 +16,7 @@ class FixtureSourceModel(Base):
 
     def __repr__(self):
         return f"<FixtureSource fixture={self.fixture_id} source={self.source} ext_id={self.external_id}>"
-    
+
     def to_dict(self):
         return {
             "id": self.id, "fixture_id": self.fixture_id, "source": self.source,
@@ -47,11 +47,34 @@ class DiscoveredEvent(BaseModel):
     odds: dict | None = None
     raw_data: dict | None = None
 
+class ProviderEventCandidate(BaseModel):
+    provider: str
+    provider_event_id: str
+    sport: str
+    raw_status: str | None = None
+    raw_kickoff: str | None = None
+    observed_kickoff_utc: datetime | None = None
+    raw_home_name: str
+    raw_away_name: str
+    participant_identity_sha256: str
+    raw_competition_name: str | None = None
+    competition_identity_sha256: str | None = None
+    event_format: str | None = None
+    fetched_at_utc: datetime
+    upstream_evidence_bundle_id: str | None = None
+    upstream_evidence_refs: list[str] = Field(default_factory=list)
+    raw_data: dict | None = None
+
 class SourceRef(BaseModel):
     source: str
     external_id: str
     confidence: float = 1.0
     raw_data: dict | None = None
+    raw_status: str | None = None
+    raw_kickoff: str | datetime | None = None
+    raw_home_team: str | None = None
+    raw_away_team: str | None = None
+    participant_identity_sha256: str | None = None
 
 class MergedFixture(BaseModel):
     sport: str

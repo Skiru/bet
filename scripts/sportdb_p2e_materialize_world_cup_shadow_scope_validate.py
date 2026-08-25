@@ -66,7 +66,7 @@ def main() -> int:
     routing_file = repo_root / ROUTING_PATH
 
     errors: list[str] = []
-    
+
     existing_epl_shadow_preserved = False
     world_cup_shadow_materialized = False
     certifiable_metric_scope: list[str] = []
@@ -96,7 +96,7 @@ def main() -> int:
         sportdb_classification = sportdb.get("classification")
         if sportdb_classification == "PRODUCTION_READY":
             errors.append("sportdb_incorrectly_marked_production_ready")
-        
+
         sportdb_capabilities = sportdb.get("capabilities", {})
         detailed_metrics_caps = sportdb_capabilities.get("detailed_metrics", [])
 
@@ -121,7 +121,7 @@ def main() -> int:
             and cap.get("mode") == "shadow"
             and cap.get("status") == "CERTIFIED_SHADOW"
         ]
-        
+
         if not wc_caps:
             errors.append("world_cup_detailed_metrics_matrix_cap_missing")
         else:
@@ -132,7 +132,7 @@ def main() -> int:
                 errors.append("world_cup_matrix_cap_evidence_replay_not_true")
             if wc_cap.get("evidence_source") != "p2e_sportdb_one_shot_production_qualification_summary.json":
                 errors.append("world_cup_matrix_cap_evidence_source_mismatch")
-            
+
             # Verify metric scope
             certifiable_metric_scope = wc_cap.get("certifiable_metric_scope", [])
             excluded_metric_scope = wc_cap.get("excluded_metric_scope", [])
@@ -152,12 +152,12 @@ def main() -> int:
 
         # 3. Check football_routing.yaml
         routing_data = routing.get("routing", {})
-        
+
         # Verify SportDB not added to other routing families
         for family_name, family_routes in routing_data.items():
             if family_name == "detailed_metrics":
                 continue
-            
+
             # Check production and shadow/candidate routes
             for bucket_name in ["production_routes", "shadow_routes", "candidate_routes"]:
                 routes = family_routes.get(bucket_name, [])
@@ -253,7 +253,7 @@ def main() -> int:
     out_path = args.out
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(json.dumps(summary, indent=2, sort_keys=True, ensure_ascii=False) + "\n", encoding="utf-8")
-    
+
     if final_review == "PASS":
         print("SPORTDB_WORLD_CUP_SHADOW_SCOPE_VALIDATION_PASS")
         return 0

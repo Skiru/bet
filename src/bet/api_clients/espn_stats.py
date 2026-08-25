@@ -378,17 +378,17 @@ class ESPNStatsClient:
 
     def get_realtime_news(self, sport: str | None = None, league: str | None = None, team: str | None = None, limit: int = 25) -> list[dict]:
         """Get real-time news feed.
-        
+
         URL: https://now.core.api.espn.com/v1/sports/news?sport={sport}&limit={limit}
         Optional: &leagues={league}, &team={team_abbreviation}
-        
+
         Returns list of: {headline, description, published, type, link}
         """
         cache_key_parts = ["espn_stats/news", f"limit_{limit}"]
         if sport: cache_key_parts.append(f"sport_{self._sport_slug(sport)}")
         if league: cache_key_parts.append(f"lg_{league}")
         if team: cache_key_parts.append(f"tm_{team}")
-        
+
         cache_key = "/".join(cache_key_parts)
         cached = self._check_cache(cache_key, ttl_hours=1)
         if cached is not None:

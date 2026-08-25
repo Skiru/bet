@@ -35,7 +35,7 @@ def request_stream(payload: dict, timeout: int = 120) -> tuple[str, dict]:
     completion_tokens = None
     has_reasoning = False
     has_content = False
-    
+
     start = time.perf_counter()
     with urllib.request.urlopen(req, timeout=timeout) as response:
         for line in response:
@@ -82,9 +82,9 @@ def test_non_thinking_stream() -> TestResult:
         "stream": True,
         "chat_template_kwargs": {"enable_thinking": False},
     }
-    
+
     text, meta = request_stream(payload)
-    
+
     # Check for marker in content (not reasoning_content)
     content_parts = []
     for line in text.split("\n"):
@@ -96,7 +96,7 @@ def test_non_thinking_stream() -> TestResult:
                     content_parts.append(content)
             except:
                 pass
-    
+
     full_content = "".join(content_parts)
     marker_found = marker in full_content
     has_done = "[DONE]" in text
@@ -106,7 +106,7 @@ def test_non_thinking_stream() -> TestResult:
         and meta["finish_reason"] == "stop"
         and meta["has_final_content"]
     )
-    
+
     return TestResult(
         name="non_thinking_stream",
         passed=passed,
@@ -131,9 +131,9 @@ def test_reasoning_aware_stream() -> TestResult:
         "max_tokens": 512,
         "stream": True,
     }
-    
+
     text, meta = request_stream(payload)
-    
+
     # Collect all content
     content_parts = []
     reasoning_parts = []
@@ -148,7 +148,7 @@ def test_reasoning_aware_stream() -> TestResult:
                     reasoning_parts.append(delta["reasoning_content"])
             except:
                 pass
-    
+
     full_content = "".join(content_parts)
     marker_found = marker in full_content
     has_done = "[DONE]" in text
@@ -159,7 +159,7 @@ def test_reasoning_aware_stream() -> TestResult:
         and meta["has_reasoning_content"]
         and meta["has_final_content"]
     )
-    
+
     return TestResult(
         name="reasoning_aware_stream",
         passed=passed,
@@ -178,9 +178,9 @@ def test_cancellation_recovery() -> dict:
     """Test stream cancellation and immediate recovery."""
     import socket
     import ssl
-    
+
     results = {"cancellation": None, "recovery_health": None, "recovery_chat": None, "recovery_stream": None}
-    
+
     # Start a long streaming request
     url = f"{BASE_URL}/chat/completions"
     payload = {
@@ -190,7 +190,7 @@ def test_cancellation_recovery() -> dict:
         "max_tokens": 4096,
         "stream": True,
     }
-    
+
     # Open connection but don't read all
     try:
         data = json.dumps(payload).encode()
@@ -204,16 +204,16 @@ def test_cancellation_recovery() -> dict:
         results["cancellation"] = {"ok": True, "chunks_read": i + 1}
     except Exception as e:
         results["cancellation"] = {"ok": False, "error": str(e)}
-    
+
     time.sleep(1)
-    
+
     # Recovery test 1: health check
     try:
         with urllib.request.urlopen(f"{BASE_URL}/models", timeout=10) as response:
             results["recovery_health"] = {"ok": response.status == 200}
     except Exception as e:
         results["recovery_health"] = {"ok": False, "error": str(e)}
-    
+
     # Recovery test 2: non-streaming completion
     try:
         payload = {
@@ -231,7 +231,7 @@ def test_cancellation_recovery() -> dict:
             results["recovery_chat"] = {"ok": "RECOVERY_OK" in content, "content": content[:50]}
     except Exception as e:
         results["recovery_chat"] = {"ok": False, "error": str(e)}
-    
+
     # Recovery test 3: post-cancel streaming
     try:
         payload = {
@@ -250,26 +250,26 @@ def test_cancellation_recovery() -> dict:
         results["recovery_stream"] = {"ok": "POST_CANCEL_STREAM_OK" in full_text and "[DONE]" in full_text}
     except Exception as e:
         results["recovery_stream"] = {"ok": False, "error": str(e)}
-    
+
     return results
 
 
 if __name__ == "__main__":
     import sys
-    
+
     print("=== Non-Thinking Stream Test ===")
     r1 = test_non_thinking_stream()
     print(json.dumps(asdict(r1), indent=2))
-    
+
     print("\n=== Reasoning-Aware Stream Test ===")
     r2 = test_reasoning_aware_stream()
     print(json.dumps(asdict(r2), indent=2))
-    
+
     print("\n=== Cancellation Recovery Test ===")
     r3 = test_cancellation_recovery()
     print(json.dumps(r3, indent=2))
-    
+
     all_passed = r1.passed and r2.passed and all(r3.get(k, {}).get("ok", False) for k in ["recovery_health", "recovery_chat", "recovery_stream"])
-    
+
     print(f"\n=== OVERALL: {'PASS' if all_passed else 'FAIL'} ===")
     sys.exit(0 if all_passed else 1)

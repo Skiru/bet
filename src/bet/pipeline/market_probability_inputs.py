@@ -357,8 +357,14 @@ def _derive_summary_average(summary: dict[str, Any], stat_key: str) -> tuple[flo
 
 @dataclass
 class MarketProbabilityInputV1:
+<<<<<<< HEAD
     event_id: str
     market: str
+=======
+    candidate_id: str = ""
+    event_id: str = ""
+    market: str = ""
+>>>>>>> fix/bet-v5-final-one-pass-closure-v4
     sport: str = "football"
     competition: str = ""
     home_team: str = ""
@@ -401,6 +407,56 @@ class MarketProbabilityInputV1:
     def __init__(self, **kwargs):
         if "caller_provided_probability" in kwargs:
             raise ValueError("CALLER_PROBABILITY_FORBIDDEN: probability must be derived by model package")
+<<<<<<< HEAD
+=======
+        self.candidate_id = ""
+        self.event_id = ""
+        self.market = ""
+        self.sport = "football"
+        self.competition = ""
+        self.home_team = ""
+        self.away_team = ""
+        self.market_family = ""
+        self.market_type = ""
+        self.selection = ""
+        self.direction = ""
+        self.line = None
+        self.team_a_name = ""
+        self.team_b_name = ""
+        self.market_label = ""
+        self.outcome_name = ""
+        self.point = None
+        self.provider_market_key = ""
+        self.bookmaker = ""
+        self.team_a_l10 = []
+        self.team_b_l10 = []
+        self.h2h_l5 = None
+        self.source_artifact_path = ""
+        self.semantics_field_path = ""
+        self.stats_as_of = "UNKNOWN"
+        self.sample_size = 0
+        self.aggregation_policy = ""
+        self.semantics_issue = ""
+        self.mapping_source = ""
+        self.mapping_status = ""
+        self.confidence = ""
+        self.missing_fields = []
+        self.hydration_status = "HYDRATED"
+        self.promotion_status = "ANALYZABLE"
+        self.source_provider = ""
+        self.as_of_utc = "UNKNOWN"
+        self.stat_semantics_status = "UNKNOWN"
+        self.probability_confidence = ""
+        self.probability_method = ""
+        self.promotion_safe_model_probability = False
+        self.source_market_id = ""
+
+        if "event_id" in kwargs and "candidate_id" not in kwargs:
+            kwargs["candidate_id"] = kwargs["event_id"]
+        elif "candidate_id" in kwargs and "event_id" not in kwargs:
+            kwargs["event_id"] = kwargs["candidate_id"]
+
+>>>>>>> fix/bet-v5-final-one-pass-closure-v4
         for k, v in kwargs.items():
             setattr(self, k, v)
 
@@ -473,7 +529,7 @@ def derive_l10_series_for_market_family(
     # Path 2: Reconstruct from l10_matches or summaries
     stats_a = stats_seed.get("stats_a_summary") or {}
     stats_b = stats_seed.get("stats_b_summary") or {}
-    
+
     stat_key_map = {
         "GOALS_TOTALS": "goals",
         "CORNERS": "corners",
@@ -482,10 +538,10 @@ def derive_l10_series_for_market_family(
         "SHOTS_ON_TARGET": "shots_on_target",
         "RESULT": "goals",
     }
-    
+
     stat_key = stat_key_map.get(market_family)
     sport = _normalized_text(stats_seed.get("sport")).lower()
-    
+
     if sport == "tennis":
         stat_key = "games_won"
         combined_text = str(market_family).lower() + " " + str((stats_seed.get("best_market") or {}).get("name", "")).lower() + " " + str(stats_seed.get("market_label", "")).lower() + " " + str(stats_seed.get("market", "")).lower()
@@ -504,10 +560,10 @@ def derive_l10_series_for_market_family(
 
     team_a_l10 = []
     team_b_l10 = []
-    
+
     team_a_raw = raw_data.get("team_a_l10") or {}
     team_b_raw = raw_data.get("team_b_l10") or {}
-    
+
     for team_raw, target_list in ((team_a_raw, team_a_l10), (team_b_raw, team_b_l10)):
         matches = team_raw.get("l10_matches") or []
         for match in matches:
@@ -818,7 +874,8 @@ def validate_market_probability_input(input_data: MarketProbabilityInput) -> tup
     if input_data.semantics_issue in {"AMBIGUOUS_MARKET_SERIES_MATCH", "MARKET_SERIES_NOT_FOUND_FOR_FAMILY_LINE"}:
         return False, input_data.semantics_issue
 
-    if input_data.stat_semantics_status == "UNKNOWN" or input_data.semantics_issue == "UNKNOWN_SPLIT_STAT_SEMANTICS" or "unknown_split_stat_semantics" in input_data.missing_fields:
+    missing_fields = getattr(input_data, "missing_fields", [])
+    if input_data.stat_semantics_status == "UNKNOWN" or input_data.semantics_issue == "UNKNOWN_SPLIT_STAT_SEMANTICS" or "unknown_split_stat_semantics" in missing_fields:
         return False, "UNKNOWN_SPLIT_STAT_SEMANTICS"
 
     if input_data.mapping_status == "AMBIGUOUS_MARKET_LABEL":
@@ -829,10 +886,10 @@ def validate_market_probability_input(input_data: MarketProbabilityInput) -> tup
 
     if not input_data.market_family:
         return False, "MARKET_SPECIFIC_INPUT_NOT_BUILT"
-        
+
     if "UNSUPPORTED" in input_data.market_family or "PROP" in input_data.market_family or "tackles" in input_data.market_type:
         return False, "UNSUPPORTED_PROP_MATCH"
-        
+
     if input_data.market_family not in SUPPORTED_MARKET_FAMILIES:
         return False, "MARKET_FAMILY_NOT_SUPPORTED_BY_ENGINE"
 

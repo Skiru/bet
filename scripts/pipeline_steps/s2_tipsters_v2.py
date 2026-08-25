@@ -44,7 +44,7 @@ def main() -> int:
         results.append(dispatch_extract(doc, source_id))
     out = args.out or Path("betting/data") / f"{args.date}_tipster_consensus_v2.json"
     write_json_artifact(results, out)
-    
+
     if args.handoff_out:
         payload = build_payload(results)
         write_handoff_artifact(payload, args.handoff_out)

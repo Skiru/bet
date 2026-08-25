@@ -82,14 +82,14 @@ class CandidateInput:
             line = semantics.get("point")
         if line in (None, ""):
             line = best_market.get("line") or ""
-        
+
         # Fallback for nested S4/S7 structure
         if not market and best_market:
             market = best_market.get("name") or ""
             pick = best_market.get("direction") or ""
             direction = best_market.get("direction") or direction
             line = best_market.get("line") or ""
-            
+
         ev_components = data.get("ev_components") or {}
         odds_dec = Decimal("0")
         if data.get("odds_decimal") is not None:
@@ -117,10 +117,10 @@ class CandidateInput:
         scheduled_time = data.get("scheduled_time") or data.get("kickoff") or ""
         comp = data.get("competition") or ""
         sport = data.get("sport") or ""
-        
+
         supporting = data.get("supporting_stats") or []
         counter = data.get("counter_stats") or []
-        
+
         model_prob = None
         prob_raw = data.get("model_probability") or data.get("probability") or data.get("prob")
         if prob_raw is not None:
@@ -243,13 +243,13 @@ def classify_candidate_quality(candidate: CandidateInput, config: LiveSessionUni
     event_str = candidate.event.lower()
     market_str = candidate.market.lower()
     pick_str = candidate.pick.lower()
-    
+
     has_fixture_label = False
     for label in ("selection-win", "selection-loss", "selection-void", "fixture", "test"):
         if label in c_id or label in event_str or label in market_str or label in pick_str:
             has_fixture_label = True
             break
-            
+
     if has_fixture_label:
         is_valid = False
         reasons.append("Forbidden fixture/test label found in fields")
@@ -343,7 +343,7 @@ def classify_candidate_quality(candidate: CandidateInput, config: LiveSessionUni
                 break
         if not real_h2h:
             has_h2h = False
-            
+
     if not has_h2h:
         source_gaps.append(SourceGap(candidate.candidate_id, "H2H", "No historical H2H meetings dataset exists"))
 

@@ -49,7 +49,7 @@ class OddsAPIioAdapter(AbstractSourceAdapter):
     def _fetch_events_impl(self, date: str, sport: str) -> list[DiscoveredEvent]:
         if sport in self.ESPORTS_SPORTS:
             return self._fetch_esports_filtered(date, sport)
-            
+
         slug = SPORT_SLUG_MAP.get(sport, sport)
         from_dt = f"{date}T00:00:00Z"
         to_dt = f"{date}T23:59:59Z"
@@ -105,7 +105,7 @@ class OddsAPIioAdapter(AbstractSourceAdapter):
     def _fetch_esports_filtered(self, date: str, target_sport: str) -> list[DiscoveredEvent]:
         """Fetch all esports events, return only those matching target_sport."""
         raw_events = self._get_esports_raw(date)
-        
+
         events = []
         for ev in raw_events:
             league_name = ""
@@ -114,11 +114,11 @@ class OddsAPIioAdapter(AbstractSourceAdapter):
                 league_name = league.get("name", "")
             elif isinstance(league, str):
                 league_name = league
-            
+
             parsed_sport = self._parse_esports_sport(league_name)
             if parsed_sport != target_sport:
                 continue
-            
+
             try:
                 home = (ev.get("home") or "").strip()
                 away = (ev.get("away") or "").strip()
@@ -149,7 +149,7 @@ class OddsAPIioAdapter(AbstractSourceAdapter):
             except Exception as e:
                 self.logger.debug("Skipping esports event: %s", e)
                 continue
-        
+
         self._attach_odds_to_events(events)
         return events
 

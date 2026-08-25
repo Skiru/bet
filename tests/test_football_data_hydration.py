@@ -66,7 +66,7 @@ def test_football_data_hydration_report_schema():
     if not schema_path.is_file():
         pytest.skip("supplied snapshot omits archived football hydration contract")
     schema = json.loads(schema_path.read_text(encoding="utf-8"))
-    
+
     assert schema["title"] == "FootballDataHydrationReport"
     assert "hydration_status" in schema["required"]
     assert "HYDRATED" in schema["properties"]["hydration_status"]["enum"]
@@ -77,7 +77,7 @@ def test_hydrated_l10_series_unblocks_analyzability():
     cand = _valid_candidate()
     cand["probability_confidence"] = "HIGH"
     stats = _valid_stats_seed()
-    
+
     report = evaluate_candidate_analyzability(cand, stats)
     assert report["analyzability_status"] == "ANALYZABLE"
     assert report["analyzability_score"] == 1.0
@@ -88,7 +88,7 @@ def test_partial_hydration_remains_research_gap():
     stats = _valid_stats_seed()
     # Shorter series than 5 elements (creates PARTIAL_HYDRATION)
     stats["raw_data"]["safety_input"]["markets"][0]["team_a_l10"] = [2.0, 1.0]
-    
+
     report = evaluate_candidate_analyzability(cand, stats)
     assert report["analyzability_status"] == "REVIEW_ONLY_PARTIAL_DATA"
     assert "PARTIAL_HYDRATION_BLOCKED" in report["blocker_reasons"]
@@ -98,13 +98,13 @@ def test_api_football_probe_redacts_secret():
     # Ensure any printed key details are fully redacted
     api_key_env_var = "API_FOOTBALL_KEY"
     raw_secret = "secret-apisports-key-value-12345"
-    
+
     # Simple log or string check helper
     def redact_key(log_message: str, key_value: str) -> str:
         if key_value in log_message:
             return log_message.replace(key_value, "[REDACTED]")
         return log_message
-        
+
     log_line = f"Connecting to api-sports using key {raw_secret}"
     redacted = redact_key(log_line, raw_secret)
     assert raw_secret not in redacted
@@ -115,7 +115,7 @@ def test_hydration_budget_bound_enforced():
     # Hydration must have strict bounded constraints
     max_batch_size = 20
     requested_ids = [str(i) for i in range(50)]
-    
+
     # Logic constraint check from get_history_details client method
     assert len(requested_ids) > max_batch_size
     clean_ids = requested_ids[:max_batch_size]
@@ -126,7 +126,7 @@ def test_unknown_stat_semantics_stays_blocked():
     cand = _valid_candidate()
     stats = _valid_stats_seed()
     cand["model_probability"] = None
-    
+
     # Corrupt the raw data to produce an unknown split stat semantics issue
     stats["raw_data"] = {
         "team_a_l10": {
@@ -136,7 +136,7 @@ def test_unknown_stat_semantics_stays_blocked():
             "l10_matches": [{"stats": {"mystery_split_stat": {"home": 1, "away": 0}}}]
         }
     }
-    
+
     # We map "Goals Total O/U" to goals, but the stats seed is missing goals key completely and has mystery split key
     val, policy = aggregate_split_stat_value("mystery_split_stat", 2, 1)
     assert val is None
@@ -156,7 +156,7 @@ def test_known_corners_stats_build_l10_series():
     stats = _valid_stats_seed()
     cand = _valid_candidate()
     cand["best_market"] = {"name": "Corners Total O/U", "direction": "OVER", "line": 9.5}
-    
+
     # Inject corners market
     stats["raw_data"]["safety_input"]["markets"] = [
         {
@@ -166,7 +166,7 @@ def test_known_corners_stats_build_l10_series():
             "team_b_l10": [9, 8, 10, 7, 9, 8, 10, 7, 9, 8],
         }
     ]
-    
+
     inp = build_market_probability_input(cand, stats)
     assert inp.market_family == "CORNERS"
     assert len(inp.team_a_l10) == 10
@@ -177,7 +177,7 @@ def test_percentage_stats_not_summed():
     # Possession stats are percentage based, so they must use mean aggregation of home/away percentages, never sum.
     policy = split_stat_aggregation_policy("possession")
     assert policy == "MEAN_OF_HOME_AWAY_PERCENTAGES"
-    
+
     val, pol = aggregate_split_stat_value("possession", 55.0, 45.0)
     assert val == 50.0  # Mean, not sum!
     assert pol == "MEAN_OF_HOME_AWAY_PERCENTAGES"
@@ -187,7 +187,7 @@ def test_no_fake_stats_in_hydration():
     cand = _valid_candidate()
     stats = _valid_stats_seed()
     cand["is_fake"] = True
-    
+
     report = evaluate_candidate_analyzability(cand, stats)
     assert report["analyzability_status"] == "UNSUPPORTED_MARKET_FAMILY"
     assert "FAKE_DATA_DETECTED" in report["blocker_reasons"]
@@ -198,7 +198,7 @@ def test_bookmaker_implied_probability_not_used_as_stats():
     cand["probability_method"] = "BOOKMAKER_IMPLIED_REFERENCE_ONLY"
     cand["model_probability"] = 0.55
     stats = _valid_stats_seed()
-    
+
     # Bookmaker implied reference only must stay blocked from ANALYZABLE
     report = evaluate_candidate_analyzability(cand, stats)
     assert report["analyzability_status"] == "RESEARCH_GAP_MARKET_INPUT_NOT_BUILT"
@@ -208,7 +208,7 @@ def test_analyzability_prefilter_uses_hydrated_stats():
     cand = _valid_candidate()
     cand["probability_confidence"] = "HIGH"
     stats = _valid_stats_seed()
-    
+
     # Active prefilter unblocking test using fully hydrated stats seed
     report = evaluate_candidate_analyzability(cand, stats)
     assert report["analyzability_status"] == "ANALYZABLE"
@@ -221,7 +221,7 @@ def test_minimal_confidence_cannot_be_analyzable():
     cand = _valid_candidate()
     stats = _valid_stats_seed()
     cand["probability_confidence"] = "MINIMAL"
-    
+
     report = evaluate_candidate_analyzability(cand, stats)
     assert report["analyzability_status"] == "RESEARCH_GAP_MINIMAL_HYDRATION"
     assert "LOW_CONFIDENCE_PROMOTION_BLOCKED" in report["blocker_reasons"]
@@ -231,7 +231,7 @@ def test_partial_hydration_cannot_be_analyzable():
     cand = _valid_candidate()
     stats = _valid_stats_seed()
     cand["probability_confidence"] = "PARTIAL"
-    
+
     report = evaluate_candidate_analyzability(cand, stats)
     assert report["analyzability_status"] == "REVIEW_ONLY_PARTIAL_DATA"
     assert "PARTIAL_HYDRATION_BLOCKED" in report["blocker_reasons"]
@@ -244,7 +244,7 @@ def test_partial_hydration_review_only_not_quote_ready():
     cand["probability_confidence"] = "PARTIAL"
     cand["fixture_id"] = 1
     stats["fixture_id"] = 1
-    
+
     handoff = build_analytical_candidate_handoff(
         {"candidates": [cand]},
         s3_payload={"analyses": [{**stats, "candidate_id": cand["candidate_id"], "fixture_id": 1}]},
@@ -262,7 +262,7 @@ def test_minimal_hydration_research_gap_not_quote_ready():
     cand["probability_confidence"] = "MINIMAL"
     cand["fixture_id"] = 1
     stats["fixture_id"] = 1
-    
+
     handoff = build_analytical_candidate_handoff(
         {"candidates": [cand]},
         s3_payload={"analyses": [{**stats, "candidate_id": cand["candidate_id"], "fixture_id": 1}]},
@@ -284,7 +284,7 @@ def test_partial_minimal_do_not_generate_fair_odds():
     cand2["fixture_id"] = 2
     cand2["candidate_id"] = "cand2"
     stats = _valid_stats_seed()
-    
+
     handoff = build_analytical_candidate_handoff(
         {"candidates": [cand1, cand2]},
         s3_payload={"analyses": [
@@ -467,7 +467,7 @@ def test_exact_market_family_line_direction_match_required():
     cand = _valid_candidate()
     stats = _valid_stats_seed()
     cand["probability_confidence"] = "HIGH"
-    
+
     inp = build_market_probability_input(cand, stats)
     valid, reason = validate_market_probability_input(inp)
     assert valid

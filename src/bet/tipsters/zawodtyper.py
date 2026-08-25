@@ -581,15 +581,15 @@ def _extract_zawodtyper_internal(doc: RawDocument, review_data: dict[str, Any] |
 def extract_zawodtyper(doc: RawDocument, review_data: dict[str, Any] | None = None) -> ExtractionResult:
     """Deterministic extractor wrapper for ZawodTyper with coverage tracking."""
     res = _extract_zawodtyper_internal(doc, review_data)
-    
+
     visible_match = re.search(r'(?:Typów|Typow|Typy|Picks)\s*(?:dnia)?\s*[:\s]*(\d+)', doc.html, re.IGNORECASE)
     expected_visible_count = int(visible_match.group(1)) if visible_match else None
     extracted_count = len(res.picks)
-    
+
     coverage_ratio = None
     if expected_visible_count is not None and expected_visible_count > 0:
         coverage_ratio = round(extracted_count / expected_visible_count, 4)
-        
+
     coverage_status = "FULL_OR_ACCEPTABLE"
     if expected_visible_count is not None:
         if extracted_count < expected_visible_count:
@@ -603,7 +603,7 @@ def extract_zawodtyper(doc: RawDocument, review_data: dict[str, Any] | None = No
                 coverage_status = "PARTIAL_PUBLIC_HTML"
     elif "NEEDS_PUBLIC_XHR_REVIEW" in res.warnings:
         coverage_status = "NEEDS_PUBLIC_XHR_REVIEW"
-                
+
     res.expected_visible_count = expected_visible_count
     res.extracted_count = extracted_count
     res.coverage_ratio = coverage_ratio

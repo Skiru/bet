@@ -33,7 +33,7 @@ def main():
     print("Phase 3 Fingerprint Generator")
     print("=" * 60)
     print()
-    
+
     # Git HEAD
     proc = subprocess.run(
         ["git", "rev-parse", "HEAD"],
@@ -42,7 +42,7 @@ def main():
         cwd=str(PROJECT_ROOT),
     )
     git_head = proc.stdout.strip()
-    
+
     # Phase 2 fingerprint
     p2_state = PROJECT_ROOT / "reports" / "kilo-rapidmlx-baseline" / "STATE.md"
     p2_fingerprint = "UNKNOWN"
@@ -52,7 +52,7 @@ def main():
             if 'Configuration fingerprint:' in line:
                 p2_fingerprint = line.split(':')[1].strip()
                 break
-    
+
     # Kilo version
     proc = subprocess.run(
         ["kilo", "--version"],
@@ -60,7 +60,7 @@ def main():
         text=True,
     )
     kilo_version = proc.stdout.strip()
-    
+
     # Rapid-MLX fingerprint
     proc = subprocess.run(
         ["curl", "-s", "-H", f"Authorization: Bearer {subprocess.os.environ.get('RAPID_MLX_API_KEY', 'test')}",
@@ -73,12 +73,12 @@ def main():
         rapid_mlx_fingerprint = hashlib.sha256(proc.stdout.encode()).hexdigest()[:16]
     except:
         rapid_mlx_fingerprint = "ERROR"
-    
+
     # File hashes
     kilo_jsonc_hash = file_hash(PROJECT_ROOT / "kilo.jsonc")
     tool_hash = file_hash(PROJECT_ROOT / ".kilo" / "tool" / "bet_script_run.ts")
     manifest_hash = file_hash(PROJECT_ROOT / "config" / "bet-script-operations.json")
-    
+
     # Fixture hashes
     fixtures = [
         "scripts/fixtures/bet-script-success.py",
@@ -88,10 +88,10 @@ def main():
         "scripts/fixtures/bet-script-injection.py",
     ]
     fixture_hashes = {f: file_hash(PROJECT_ROOT / f) for f in fixtures}
-    
+
     # Test harness hash
     test_harness_hash = file_hash(PROJECT_ROOT / "scripts" / "test-bet-script-executor.py")
-    
+
     # Resolved permissions
     proc = subprocess.run(
         ["kilo", "debug", "config"],
@@ -102,7 +102,7 @@ def main():
     config = json.loads(proc.stdout)
     permissions = config.get("permission", {})
     bet_script_run_perm = permissions.get("bet_script_run", "NOT_FOUND")
-    
+
     # Build fingerprint
     fingerprint = {
         "phase": "P3",
@@ -124,12 +124,12 @@ def main():
         },
         "mcp_servers_disabled": sum(1 for s in config.get("mcp", {}).values() if not s.get("enabled", True)),
     }
-    
+
     # Generate fingerprint hash
     fingerprint_json = json.dumps(fingerprint, sort_keys=True)
     fingerprint_hash = hashlib.sha256(fingerprint_json.encode()).hexdigest()[:16]
     fingerprint["fingerprint_hash"] = fingerprint_hash
-    
+
     # Print fingerprint
     print("FINGERPRINT:")
     print("-" * 40)
@@ -140,15 +140,15 @@ def main():
                 print(f"    {k}: {v}")
         else:
             print(f"  {key}: {value}")
-    
+
     # Save fingerprint
     report_dir = PROJECT_ROOT / "reports" / "bet-script-executor"
     report_dir.mkdir(parents=True, exist_ok=True)
     fingerprint_path = report_dir / "fingerprint.json"
-    
+
     with open(fingerprint_path, 'w') as f:
         json.dump(fingerprint, f, indent=2)
-    
+
     print()
     print(f"Fingerprint hash: {fingerprint_hash}")
     print(f"Saved to: {fingerprint_path}")

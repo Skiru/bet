@@ -17,7 +17,7 @@ def test_basketball_market_rows_can_promote_candidates() -> None:
     }
     family = normalize_market_family("basketball", row)
     assert family == "spread"
-    
+
     ref = build_market_reference(event, row)
     assert ref is not None
     assert ref.market_family == "spread"

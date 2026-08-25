@@ -19,12 +19,12 @@ def write_provider_mapping_plan(path: str | Path, env: dict[str, str] | None = N
         # Use only presence of keys in os.environ, mock values for safety,
         # never actual secrets in env.
         env = {k: "present" for k in os.environ if os.environ.get(k)}
-    
+
     plan = build_provider_mapping_plan(env=env)
     errors = validate_mapping_plan(plan)
     if errors:
         raise ValueError(f"Mapping plan validation failed: {errors}")
-        
+
     target.write_text(json.dumps(plan, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 def write_pass_e_summary(path: str | Path, env: dict[str, str] | None = None) -> None:
@@ -32,9 +32,9 @@ def write_pass_e_summary(path: str | Path, env: dict[str, str] | None = None) ->
     target.parent.mkdir(parents=True, exist_ok=True)
     if env is None:
         env = {k: "present" for k in os.environ if os.environ.get(k)}
-        
+
     plan = build_provider_mapping_plan(env=env)
-    
+
     statuses: dict[str, str] = {}
     metrics = {
         "total_target_sports": len(TARGET_SPORTS),
@@ -47,7 +47,7 @@ def write_pass_e_summary(path: str | Path, env: dict[str, str] | None = None) ->
         "production_activation": False,
         "betting_decisions": False,
     }
-    
+
     mapping_by_sport = plan.get("provider_mapping_by_sport", {})
     for sport in TARGET_SPORTS:
         items = mapping_by_sport.get(sport, [])
@@ -57,7 +57,7 @@ def write_pass_e_summary(path: str | Path, env: dict[str, str] | None = None) ->
             statuses[sport] = primary_status
         else:
             statuses[sport] = "BLOCKED_PROVIDER_MAPPING_NOT_FOUND"
-            
+
         # Accumulate metrics
         for item in items:
             status = item["status"]
@@ -78,5 +78,5 @@ def write_pass_e_summary(path: str | Path, env: dict[str, str] | None = None) ->
         "provider_mapping_statuses": statuses,
         "metrics": metrics,
     }
-    
+
     target.write_text(json.dumps(summary, indent=2, sort_keys=True) + "\n", encoding="utf-8")

@@ -109,6 +109,15 @@ def _validate_mapping(mapping: dict[str, Any], day: str, run_id: str) -> tuple[s
     return status, cards
 
 
+def _card_has_verified_pricing(card: dict[str, Any]) -> bool:
+    model_pkg_path = card.get("model_package_path") or card.get("model_package_dir")
+    if not model_pkg_path:
+        return False
+    from bet.pipeline.readiness_contracts import ModelPackageResolver
+    pkg = ModelPackageResolver.resolve_package(model_pkg_path)
+    return pkg is not None and getattr(pkg, "is_eligible", False) is True
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="S8 manual Superbet quote-pack publisher")
     parser.add_argument("--date", "--betting-day", dest="date", required=True)
@@ -142,16 +151,30 @@ def main() -> None:
         blocked.append("BLOCKED_S8_CANONICAL_S7B_INVALID")
         print(f"BLOCKED_S8_CANONICAL_S7B_INVALID: {exc}")
 
+<<<<<<< HEAD
     has_verified_pricing = any(
         card.get("minimum_acceptable_operator_odds") is not None
         or card.get("minimum_acceptable_odds") is not None
         or card.get("recommended_minimum_odds") is not None
         for card in cards
     ) if cards else False
+=======
+    has_verified_pricing = all(_card_has_verified_pricing(card) for card in cards) if cards else False
+
+    if not has_verified_pricing and cards:
+        for card in cards:
+            card["minimum_acceptable_operator_odds"] = None
+            card["minimum_acceptable_odds"] = None
+            card["recommended_minimum_odds"] = None
+            card["fair_odds"] = None
+            card["model_fair_odds"] = None
+            card["operator_odds"] = None
+>>>>>>> fix/bet-v5-final-one-pass-closure-v4
 
     if blocked:
         outcome = "BLOCKED"
         ready_for_human_gate = False
+<<<<<<< HEAD
     elif not cards or mapping_status == "NO_ACTION_TERMINAL":
         outcome = "NO_ACTION_TERMINAL"
         ready_for_human_gate = False
@@ -161,6 +184,21 @@ def main() -> None:
     else:
         outcome = "READY_FOR_MANUAL_SUPERBET_QUOTE_REVIEW"
         ready_for_human_gate = True
+=======
+        requires_human_gate = False
+    elif not cards or mapping_status == "NO_ACTION_TERMINAL":
+        outcome = "NO_ACTION_TERMINAL"
+        ready_for_human_gate = False
+        requires_human_gate = False
+    elif not has_verified_pricing:
+        outcome = "ANALYSIS_ONLY_OUTPUT"
+        ready_for_human_gate = False
+        requires_human_gate = False
+    else:
+        outcome = "READY_FOR_MANUAL_SUPERBET_QUOTE_REVIEW"
+        ready_for_human_gate = True
+        requires_human_gate = True
+>>>>>>> fix/bet-v5-final-one-pass-closure-v4
     output_path = _s8_output_path(Path(child_env["BET_PIPELINE_DATA_DIR"]), args.date, mode)
     output_sha256: str | None = None
     if not blocked:
@@ -250,7 +288,7 @@ def main() -> None:
                 "kelly_available": False,
                 "stake_available": False,
                 "combined_bookmaker_odds": None,
-                "requires_human_gate": bool(cards),
+                "requires_human_gate": requires_human_gate,
                 "ready_for_human_gate": ready_for_human_gate,
                 "ready_for_production_execution": False,
                 "production_selectable": False,
@@ -278,7 +316,7 @@ def main() -> None:
         "quote_card_count": len(cards),
         "outcome": outcome,
         "event_records": s7b_records,
-        "requires_human_gate": bool(cards) and not blocked,
+        "requires_human_gate": requires_human_gate,
         "ready_for_human_gate": ready_for_human_gate,
         "ready_for_production_execution": False,
         "production_coupon_write": False,

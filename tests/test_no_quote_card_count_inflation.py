@@ -15,7 +15,7 @@ def test_no_quote_card_inflation() -> None:
         return
     data = json.loads(path.read_text(encoding="utf-8"))
     cards = data.get("quote_cards") or []
-    
+
     sigs = []
     for card in cards:
         sig = (
@@ -25,5 +25,5 @@ def test_no_quote_card_inflation() -> None:
             card.get("line"),
         )
         sigs.append(sig)
-        
+
     assert len(sigs) == len(set(sigs))

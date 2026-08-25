@@ -62,16 +62,16 @@ class MoneyPuckClient(BaseAPIClient):
 
     def get_team_last_fixtures(self, team_id: str, last_n: int = 10) -> list:
         """MoneyPuck provides season aggregates, not per-fixture data.
-        
+
         We return a single synthetic 'fixture' containing the season stats
         so the enrichment pipeline can extract them.
         """
         from normalize_stats import NormalizedFixture
-        
+
         stats_data = get_team_stats(team_id)
         if not stats_data:
             return []
-        
+
         # Return a synthetic fixture so get_fixture_stats can use it
         return [NormalizedFixture(
             fixture_id=f"moneypuck_{team_id}_season",

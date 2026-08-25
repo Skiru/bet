@@ -41,6 +41,19 @@ def main():
     p.add_argument("--dry-run", dest="dry_run", action="store_true", default=True)
     args = p.parse_args()
 
+    shortlist_path = Path(os.environ.get("BET_PIPELINE_DATA_DIR", "betting/data")) / f"{args.date}_s2_shortlist.json"
+    if not shortlist_path.is_file():
+        run_scripts(
+            ["build_shortlist.py"],
+            date=args.date,
+            dry_run=args.dry_run,
+            allow_write=args.allow_write,
+            runtime_mode=args.runtime_mode,
+            betting_day=args.date,
+            run_id=args.run_id,
+            allow_live_network=args.allow_live_network,
+        )
+
     run_wrapper_scripts_with_evidence(
         step_id="S2",
         wrapper_scripts=SCRIPTS,

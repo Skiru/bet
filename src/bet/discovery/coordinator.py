@@ -382,19 +382,19 @@ class EventDiscoveryCoordinator:
                             mkey = parts[1]
                             selection = parts[2]
                             line = None
-                            
+
                             # Parse line from selection if possible (for totals/spreads)
                             match = re.search(r"([-+]?\d*\.\d+|\b[-+]?\d+\b)", selection)
                             if match:
                                 line = float(match.group(1))
                                 selection = re.sub(r"[-+]?\d*\.\d+|\b[-+]?\d+\b", "", selection).strip().rstrip("_").strip()
-                                
+
                             if len(parts) >= 4 and parts[3]:
                                 try:
                                     line = float(parts[3])
                                 except ValueError:
                                     pass
-                                    
+
                             self.session.execute(
                                 text(
                                     "INSERT OR IGNORE INTO odds_history "

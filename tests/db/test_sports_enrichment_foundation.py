@@ -36,7 +36,7 @@ def test_evidence_package_revision_requires_complete_member_count(db_conn):
     """Verify evidence_package_revision constraints and fields."""
     now = datetime.now(UTC).isoformat()
     db_conn.execute(
-        """INSERT INTO evidence_package_revision 
+        """INSERT INTO evidence_package_revision
            (package_id, source_key, operation_name, request_identity, parser_version, dto_version, revision_hash, member_count, completeness_state, created_at)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
         ("pkg_123", "espn", "get_fixtures", "GET /fixtures", "v1", "1.0", "hash_abc", 5, "COMPLETE", now)
@@ -54,19 +54,19 @@ def test_changed_evidence_creates_new_observation_version(db_conn):
     sport_repo = SportRepo(db_conn)
     sport_repo.seed_defaults()
     football = sport_repo.get_by_name("football")
-    
+
     team_repo = TeamRepo(db_conn)
     team = team_repo.find_or_create("Arsenal", football.id)
-    
+
     # Create a fixture
     db_conn.execute(
         "INSERT INTO fixtures (sport_id, home_team_id, away_team_id, kickoff, status, fetched_at) VALUES (?, ?, ?, ?, ?, ?)",
         (football.id, team.id, team.id, "2026-06-14T18:00:00+00:00", "scheduled", datetime.now(UTC).isoformat())
     )
     fixture_id = db_conn.execute("SELECT last_insert_rowid()").fetchone()[0]
-    
+
     repo = FixtureCapabilityRepo(db_conn)
-    
+
     obs1 = create_observation(
         canonical_fixture_id=fixture_id,
         team_id=team.id,
@@ -79,13 +79,13 @@ def test_changed_evidence_creates_new_observation_version(db_conn):
         payload_sha256="sha_1",
         payload_json='{"form": "W"}'
     )
-    
+
     id1 = repo.save_observation(obs1)
-    
+
     # Save identical observation -> should return same ID
     id2 = repo.save_observation(obs1)
     assert id1 == id2
-    
+
     # Save observation with changed evidence/payload -> should create new row
     obs2 = create_observation(
         canonical_fixture_id=fixture_id,
@@ -108,19 +108,19 @@ def test_projection_write_records_selection_history(db_conn):
     sport_repo = SportRepo(db_conn)
     sport_repo.seed_defaults()
     football = sport_repo.get_by_name("football")
-    
+
     team_repo = TeamRepo(db_conn)
     team = team_repo.find_or_create("Arsenal", football.id)
-    
+
     # Create a fixture
     db_conn.execute(
         "INSERT INTO fixtures (sport_id, home_team_id, away_team_id, kickoff, status, fetched_at) VALUES (?, ?, ?, ?, ?, ?)",
         (football.id, team.id, team.id, "2026-06-14T18:00:00+00:00", "scheduled", datetime.now(UTC).isoformat())
     )
     fixture_id = db_conn.execute("SELECT last_insert_rowid()").fetchone()[0]
-    
+
     repo = FixtureCapabilityRepo(db_conn)
-    
+
     obs = create_observation(
         canonical_fixture_id=fixture_id,
         team_id=team.id,
@@ -134,7 +134,7 @@ def test_projection_write_records_selection_history(db_conn):
         payload_json='{"form": "W"}'
     )
     obs_id = repo.save_observation(obs)
-    
+
     proj = create_projection(
         canonical_fixture_id=fixture_id,
         team_id=team.id,
@@ -144,18 +144,18 @@ def test_projection_write_records_selection_history(db_conn):
         selected_status="SUCCESS",
         selected_observation_id=obs_id
     )
-    
+
     repo.save_projection(proj)
-    
+
     # Record selection history manually or via trigger/repo helper
     db_conn.execute(
-        """INSERT INTO capability_selection_history 
+        """INSERT INTO capability_selection_history
            (canonical_fixture_id, team_id, capability, analysis_cutoff_at, selected_observation_id, selected_source, selected_status, recorded_at)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
         (fixture_id, team.id, "recent_form", "2026-06-14T15:00:00+00:00", obs_id, "espn", "SUCCESS", datetime.now(UTC).isoformat())
     )
     db_conn.commit()
-    
+
     history = db_conn.execute("SELECT * FROM capability_selection_history WHERE canonical_fixture_id = ?", (fixture_id,)).fetchall()
     assert len(history) == 1
     assert history[0]["selected_source"] == "espn"
@@ -165,30 +165,30 @@ def test_snapshot_run_publication_is_atomic(db_conn):
     # Create a run
     now = datetime.now(UTC).isoformat()
     db_conn.execute(
-        """INSERT INTO sports_enrichment_run 
+        """INSERT INTO sports_enrichment_run
            (run_identity, sport, canonical_event_id, analysis_cutoff_at, status, started_at, policy_config_hash, requested_capabilities)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
         ("run_123", "football", 1, "2026-06-14T15:00:00+00:00", "RUNNING", now, "policy_hash", "recent_form")
     )
     run_id = db_conn.execute("SELECT last_insert_rowid()").fetchone()[0]
-    
+
     # Insert snapshot as uncommitted/incomplete
     db_conn.execute(
-        """INSERT INTO analysis_snapshot 
+        """INSERT INTO analysis_snapshot
            (schema_version, run_id, canonical_fixture_id, analysis_cutoff_at, status, snapshot_hash, payload_json, created_at)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
         ("1.0", run_id, 1, "2026-06-14T15:00:00+00:00", "DEGRADED", "hash_1", "{}", now)
     )
-    
+
     # Downstream reader should not see COMPLETE snapshot
     row = db_conn.execute("SELECT * FROM analysis_snapshot WHERE status = 'COMPLETE'").fetchone()
     assert row is None
-    
+
     # Update run and snapshot to COMPLETE atomically
     db_conn.execute("UPDATE sports_enrichment_run SET status = 'COMPLETE', completed_at = ? WHERE id = ?", (now, run_id))
     db_conn.execute("UPDATE analysis_snapshot SET status = 'COMPLETE', published_at = ? WHERE run_id = ?", (now, run_id))
     db_conn.commit()
-    
+
     row = db_conn.execute("SELECT * FROM analysis_snapshot WHERE status = 'COMPLETE'").fetchone()
     assert row is not None
     assert row["status"] == "COMPLETE"
@@ -196,7 +196,7 @@ def test_snapshot_run_publication_is_atomic(db_conn):
 def test_generic_athlete_vs_athlete_entity_contract(db_conn):
     """Verify that the generic sports_entity and source_entity_reference tables can represent a tennis-like athlete-vs-athlete event without Football-specific columns."""
     now = datetime.now(UTC).isoformat()
-    
+
     # Create sports_entity for Athlete A
     db_conn.execute(
         """INSERT INTO sports_entity (sport, entity_type, domain_table, domain_entity_id, created_at)
@@ -204,7 +204,7 @@ def test_generic_athlete_vs_athlete_entity_contract(db_conn):
         ("tennis", "ATHLETE", "athletes", 101, now)
     )
     athlete_a_id = db_conn.execute("SELECT last_insert_rowid()").fetchone()[0]
-    
+
     # Create sports_entity for Athlete B
     db_conn.execute(
         """INSERT INTO sports_entity (sport, entity_type, domain_table, domain_entity_id, created_at)
@@ -212,7 +212,7 @@ def test_generic_athlete_vs_athlete_entity_contract(db_conn):
         ("tennis", "ATHLETE", "athletes", 102, now)
     )
     athlete_b_id = db_conn.execute("SELECT last_insert_rowid()").fetchone()[0]
-    
+
     # Create sports_entity for the Event
     db_conn.execute(
         """INSERT INTO sports_entity (sport, entity_type, domain_table, domain_entity_id, created_at)
@@ -220,20 +220,20 @@ def test_generic_athlete_vs_athlete_entity_contract(db_conn):
         ("tennis", "EVENT", "fixtures", 501, now)
     )
     event_id = db_conn.execute("SELECT last_insert_rowid()").fetchone()[0]
-    
+
     # Create source_entity_reference for the Event
     db_conn.execute(
-        """INSERT INTO source_entity_reference 
+        """INSERT INTO source_entity_reference
            (sport, entity_type, canonical_entity_id, provider, provider_entity_id, valid_from, verification_status, verification_method)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
         ("tennis", "EVENT", event_id, "espn", "tennis_event_999", now, "QUALIFIED", "exact_match")
     )
     db_conn.commit()
-    
+
     # Verify we can query the generic entities
     entities = db_conn.execute("SELECT * FROM sports_entity WHERE sport = 'tennis'").fetchall()
     assert len(entities) == 3
-    
+
     ref = db_conn.execute("SELECT * FROM source_entity_reference WHERE canonical_entity_id = ?", (event_id,)).fetchone()
     assert ref is not None
     assert ref["provider_entity_id"] == "tennis_event_999"

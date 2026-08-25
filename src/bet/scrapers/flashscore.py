@@ -498,23 +498,23 @@ class TennisFlashscoreScraper(FlashscoreScraper):
 
     def fetch_match_stats(self, match_id: str) -> dict | None:
         """Fetch per-match serve statistics from Flashscore match detail.
-        
+
         Uses the Flashscore internal JSON feed endpoint for match statistics.
-        Returns dict with keys: aces, double_faults, first_serve_pct, 
+        Returns dict with keys: aces, double_faults, first_serve_pct,
         break_points_won, break_points_total, winners, unforced_errors, or None.
         """
         if c_requests is None:
             return None
-        
+
         # Flashscore match stats endpoint
         url = f"https://d.flashscore.com/x/feed/d_st_{match_id}"
         headers = {
             "x-fsign": "SW9D1eZo",
             "referer": "https://www.flashscore.com/",
         }
-        
+
         _fs_rate_limit("flashscore.com")
-        
+
         try:
             from bet.integration.telemetry_wrapper import wrap_request
             result = wrap_request(
@@ -534,37 +534,37 @@ class TennisFlashscoreScraper(FlashscoreScraper):
         except Exception as e:
             logger.debug("Flashscore match stats error for %s: %s", match_id, e)
             return None
-    
+
     def _parse_match_stats_feed(self, feed_text: str) -> dict | None:
         """Parse Flashscore stat feed format into normalized dict.
-        
+
         Feed format is ¬-delimited key÷value pairs:
         "SE÷Aces¬SH÷5¬SA÷8¬SE÷Double Faults¬SH÷2¬SA÷4..."
         SE = stat name, SH = home value, SA = away value.
         """
         if not feed_text or len(feed_text) < 20:
             return None
-        
+
         stats = {}
-        
+
         # Flashscore uses ¬-delimited key÷value pairs
         # Common stat identifiers for tennis:
         # - Aces
         # - Double Faults
-        # - 1st Serve Percentage  
+        # - 1st Serve Percentage
         # - Break Points Won (X/Y format)
         # - Winners
         # - Unforced Errors
-        
+
         # Parse all stat rows
         stat_rows = []
         current_row = {}
-        
+
         for token in feed_text.split("¬"):
             if "÷" not in token:
                 continue
             key, val = token.split("÷", 1)
-            
+
             if key == "SE":  # Stat category name
                 if current_row:
                     stat_rows.append(current_row)
@@ -573,13 +573,13 @@ class TennisFlashscoreScraper(FlashscoreScraper):
                 current_row["home"] = val
             elif key == "SA":  # Away value
                 current_row["away"] = val
-        
+
         if current_row:
             stat_rows.append(current_row)
-        
+
         if not stat_rows:
             return None
-        
+
         # Map stat names to our keys
         name_map = {
             "aces": "aces",
@@ -593,36 +593,36 @@ class TennisFlashscoreScraper(FlashscoreScraper):
             "2nd serve points won": "second_serve_win_pct",
             "1st serve points won": "first_serve_win_pct",
         }
-        
+
         for row in stat_rows:
             name_lower = row.get("name", "").lower().strip()
             mapped_key = name_map.get(name_lower)
             if not mapped_key:
                 continue
-            
+
             home_val = self._parse_stat_value(row.get("home", ""))
             away_val = self._parse_stat_value(row.get("away", ""))
-            
+
             if home_val is not None:
                 stats[f"{mapped_key}_home"] = home_val
             if away_val is not None:
                 stats[f"{mapped_key}_away"] = away_val
-        
+
         return stats if stats else None
-    
+
     def _parse_stat_value(self, val_str: str) -> float | None:
         """Parse a stat value string. Handles: '5', '65%', '3/7'."""
         if not val_str:
             return None
         val_str = val_str.strip()
-        
+
         # Percentage: "65%"
         if val_str.endswith("%"):
             try:
                 return float(val_str[:-1])
             except ValueError:
                 return None
-        
+
         # Fraction: "3/7" (break points won/total) → compute percentage
         if "/" in val_str:
             parts = val_str.split("/")
@@ -633,7 +633,7 @@ class TennisFlashscoreScraper(FlashscoreScraper):
                     return round(num / denom * 100, 1) if denom > 0 else 0.0
                 except (ValueError, ZeroDivisionError):
                     return None
-        
+
         # Plain number
         try:
             return float(val_str)
@@ -642,26 +642,26 @@ class TennisFlashscoreScraper(FlashscoreScraper):
 
     def fetch_player_recent_matches(self, player_name: str, last_n: int = 10) -> list[dict]:
         """Fetch per-match game/set data from Flashscore embedded feed.
-        
+
         Uses the ~AA÷ embedded feed format in the player's results page.
         Extracts: total_games, games_won, sets_won, total_sets, opponent, surface, date.
-        
+
         Note: Serve stats (aces, DFs) require d_st_ API which is token-gated.
         This method provides reliable game totals for "Total Games O/U" markets.
         """
         if c_requests is None:
             return []
-        
+
         # Resolve player entity
         entity_type, slug, entity_id = _get_flashscore_entity(player_name, "tennis")
         if not slug or not entity_id:
             logger.debug("Could not find Flashscore entity for tennis player: %s", player_name)
             return []
-        
+
         # Fetch results page
         results_url = f"https://www.flashscore.com/{entity_type}/{slug}/{entity_id}/results/"
         _fs_rate_limit("flashscore.com")
-        
+
         try:
             from bet.integration.telemetry_wrapper import wrap_request
             result = wrap_request(
@@ -687,31 +687,31 @@ class TennisFlashscoreScraper(FlashscoreScraper):
 
     def _parse_embedded_results(self, html: str, entity_id: str, player_name: str, last_n: int) -> list[dict]:
         """Parse the ~AA÷ embedded feed from Flashscore player results page.
-        
+
         Fields: AE=home_player, AF=away_player, AG/AH=sets_won,
         BA/BB=set1 games, BC/BD=set2 games, BE/BF=set3, BG/BH=set4, BI/BJ=set5,
         PY=our_entity_id, ~ZA=competition+surface, AD=timestamp.
         """
         if "~AA" not in html:
             return []
-        
+
         matches_raw = html.split("~AA")[1:]
         results = []
-        
+
         for match_block in matches_raw:
             if len(results) >= last_n:
                 break
-            
+
             fields = {}
             for field in match_block.split("\xac"):  # ¬
                 if "\xf7" in field:  # ÷
                     k, _, v = field.partition("\xf7")
                     fields[k] = v
-            
+
             # Only finished matches (AB=3)
             if fields.get("AB") != "3":
                 continue
-            
+
             # Determine which side is our player
             is_home = fields.get("PX") == entity_id
             is_away = fields.get("PY") == entity_id
@@ -723,14 +723,14 @@ class TennisFlashscoreScraper(FlashscoreScraper):
                     is_away = True
                 else:
                     continue
-            
+
             # Extract per-set game scores
             set_pairs = [("BA", "BB"), ("BC", "BD"), ("BE", "BF"), ("BG", "BH"), ("BI", "BJ")]
             total_games = 0
             games_won = 0
             total_sets = 0
             sets_won = 0
-            
+
             for home_key, away_key in set_pairs:
                 h_str = fields.get(home_key)
                 a_str = fields.get(away_key)
@@ -741,10 +741,10 @@ class TennisFlashscoreScraper(FlashscoreScraper):
                     a_games = int(a_str)
                 except ValueError:
                     break
-                
+
                 total_sets += 1
                 total_games += h_games + a_games
-                
+
                 if is_home:
                     games_won += h_games
                     if h_games > a_games:
@@ -753,10 +753,10 @@ class TennisFlashscoreScraper(FlashscoreScraper):
                     games_won += a_games
                     if a_games > h_games:
                         sets_won += 1
-            
+
             if total_sets == 0:
                 continue
-            
+
             # Determine result
             home_sets = int(fields.get("AG", "0"))
             away_sets = int(fields.get("AH", "0"))
@@ -766,7 +766,7 @@ class TennisFlashscoreScraper(FlashscoreScraper):
             else:
                 result = "W" if away_sets > home_sets else "L"
                 opponent = fields.get("AE", "")
-            
+
             # Extract surface from ~ZA field (e.g. "ATP - SINGLES: Rome (Italy), clay")
             surface = ""
             za_field = fields.get("~ZA", "")
@@ -774,7 +774,7 @@ class TennisFlashscoreScraper(FlashscoreScraper):
                 if surf in za_field.lower():
                     surface = surf
                     break
-            
+
             # Timestamp to date
             import datetime
             try:
@@ -782,7 +782,7 @@ class TennisFlashscoreScraper(FlashscoreScraper):
                 date_str = datetime.datetime.fromtimestamp(ts).strftime("%Y%m%d") if ts > 0 else ""
             except (ValueError, OSError):
                 date_str = ""
-            
+
             results.append({
                 "match_id": fields.get("", ""),
                 "date": date_str,
@@ -795,7 +795,7 @@ class TennisFlashscoreScraper(FlashscoreScraper):
                 "result": result,
                 "competition": za_field,
             })
-        
+
         return results
 
 

@@ -27,7 +27,7 @@ def _seed_s6_predecessors(environ: dict[str, str]) -> None:
     run_root = Path(environ["BET_PIPELINE_RUN_ROOT"])
     (run_root / "artifacts").mkdir(parents=True, exist_ok=True)
     (run_root / "data").mkdir(parents=True, exist_ok=True)
-    
+
     # Empty, schema-valid settled-loss ledger setup.
     ledger_path = run_root / "picks-ledger.csv"
     with open(ledger_path, "w", newline="", encoding="utf-8") as f:
@@ -74,6 +74,7 @@ def _seed_s6_predecessors(environ: dict[str, str]) -> None:
             )
         },
     })
+    cand_data["risk_classification"] = "LOW_RISK"
     s3_path = run_root / "data" / "2026-06-25_s3_deep_stats.json"
     s3_path.write_text(json.dumps({"artifact_type": "S3_DEEP_STATS", "analyses": [cand_data]}), encoding="utf-8")
     s4_path.write_text(json.dumps({
@@ -117,6 +118,7 @@ def _seed_s6_predecessors(environ: dict[str, str]) -> None:
         "unknowns": [],
         "blocked_reasons": [],
         "evidence_refs": ["artifacts/S4.json"],
+            "event_records": [{"canonical_event_id": cand_data.get("canonical_event_id", "evt_1"), "risk_classification": "LOW_RISK", "terminal_status": "PASS"}],
         "payload": {
             "source_s4_path": str(s4_path),
             "source_s4_sha256": sha256_file(s4_path),
@@ -143,7 +145,7 @@ def _seed_s7_predecessors(environ: dict[str, str]) -> None:
     (run_root / "artifacts").mkdir(parents=True, exist_ok=True)
     (run_root / "data").mkdir(parents=True, exist_ok=True)
     _seed_s6_predecessors(environ)
-    
+
     s5_path = run_root / "artifacts" / "S5.json"
     s6_output_path = run_root / "data" / "repeat_loss_handoff_2026-06-25.json"
     s6_output_data = {
@@ -207,7 +209,7 @@ def _seed_s7_predecessors(environ: dict[str, str]) -> None:
         }
     }
     s6_output_path.write_text(json.dumps(s6_output_data), encoding="utf-8")
-    
+
     s6_ev = {
         "schema_version": 1,
         "artifact_type": "SCRIPT_EVIDENCE",

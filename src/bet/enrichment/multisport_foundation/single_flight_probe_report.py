@@ -10,7 +10,7 @@ def write_single_flight_reports(base_dir: str | Path) -> None:
     errors = validate_single_flight_report(report)
     if errors:
         raise ValueError(errors)
-    
+
     (target / 'single_flight_probe_by_sport.json').write_text(
         json.dumps(report['single_flight_probe_by_sport'], indent=2, sort_keys=True) + '\n',
         encoding='utf-8'

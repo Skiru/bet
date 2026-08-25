@@ -278,7 +278,7 @@ def check_logical_field(raw: dict[str, Any], logical_name: str) -> bool:
 
 def _sanitize_response(raw: dict[str, Any], proof_fields: tuple[str, ...]) -> tuple[dict[str, Any], tuple[str, ...], tuple[str, ...]]:
     forbidden = {"odds", "prediction", "predictions", "pick", "stake", "edge", "recommendation", "bookmaker"}
-    
+
     # Check if raw or nested parts contains forbidden fields
     def has_forbidden(obj: Any) -> list[str]:
         found = []
@@ -293,7 +293,7 @@ def _sanitize_response(raw: dict[str, Any], proof_fields: tuple[str, ...]) -> tu
         return found
 
     forbidden_found = sorted(list(set(has_forbidden(raw))))
-    
+
     observed_list = []
     missing_list = []
     for f in proof_fields:
@@ -301,10 +301,10 @@ def _sanitize_response(raw: dict[str, Any], proof_fields: tuple[str, ...]) -> tu
             observed_list.append(f)
         else:
             missing_list.append(f)
-            
+
     observed = tuple(observed_list)
     missing = tuple(missing_list)
-    
+
     envelope = {
         "payload_shape": "object",
         "minimum_fact_fields_observed": list(observed),

@@ -31,7 +31,7 @@ def map_multisport_market(sport: str, row: Mapping[str, Any], event: Mapping[str
     sport_lower = str(sport or event.get("sport") or "").lower()
     prov_key = str(row.get("provider_market_key") or row.get("market_type") or "unknown").lower()
     raw_family = str(row.get("market_family") or row.get("market") or "").lower()
-    
+
     # Extract line and selection
     line = row.get("line")
     selection = str(row.get("selection") or row.get("outcome_name") or "")

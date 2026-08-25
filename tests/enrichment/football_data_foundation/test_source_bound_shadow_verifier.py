@@ -51,15 +51,15 @@ def create_sqlite(path: Path) -> None:
         conn.execute("CREATE TABLE IF NOT EXISTS provider_ids (provider TEXT, provider_id TEXT)")
         conn.execute("CREATE TABLE IF NOT EXISTS facts (source TEXT, fact_type TEXT, key TEXT, value_json TEXT)")
         conn.execute("CREATE TABLE IF NOT EXISTS conflicts (value TEXT)")
-        
+
         # Populate minimum rows to pass table emptiness and row checks
         conn.execute("INSERT INTO snapshot_metadata VALUES ('shadow_status', 'SHADOW_ENRICHMENT_READY_FOR_MANUAL_REVIEW')")
         conn.execute("INSERT INTO snapshot_metadata VALUES ('fixture_slug', 'worldcup2026-norway-senegal')")
-        
+
         for prov in ["sportdb", "highlightly", "api-football", "football-data-org", "espn-baseline"]:
             conn.execute("INSERT INTO provider_ids VALUES (?, ?)", (prov, "123"))
             conn.execute("INSERT INTO facts (source, fact_type, key, value_json) VALUES (?, 'match_event_summary', 'event_summary', '{}')", (prov,))
-            
+
         conn.commit()
     finally:
         conn.close()

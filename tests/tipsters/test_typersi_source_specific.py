@@ -50,7 +50,7 @@ def test_typersi_parse_static_tables():
     """
     picks = parse_typersi_static_tables(html, "https://typersi.pl/")
     assert len(picks) == 2
-    
+
     p0 = picks[0]
     assert p0.home_team == "Sandecja Nowy Sącz"
     assert p0.away_team == "KKS 1925 Kalisz"
@@ -59,7 +59,7 @@ def test_typersi_parse_static_tables():
     assert p0.odds_decimal == 1.45
     assert p0.tipster_name == "@zawodowiec"
     assert p0.valuable_signals["bookmaker_metadata"] == ["Superbet"]
-    
+
     p1 = picks[1]
     assert p1.home_team == "Paris Saint-Germain"
     assert p1.away_team == "Lyon"

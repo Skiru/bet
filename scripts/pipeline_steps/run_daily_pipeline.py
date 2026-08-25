@@ -1,9 +1,13 @@
 #!/usr/bin/env python3
 """CLI entrypoint for running the daily betting pipeline orchestrator."""
+
 from __future__ import annotations
 
 import argparse
+import json
+import os
 import sys
+import tempfile
 from pathlib import Path
 
 # Ensure repo root and src/ are importable for package imports
@@ -35,15 +39,37 @@ import bet.builder.engine
 import bet.builder.models
 
 
-def main() -> None:
+def build_pipeline_parser() -> argparse.ArgumentParser:
+    """Build and return ArgumentParser for run_daily_pipeline."""
     p = argparse.ArgumentParser(description="Run daily manifest-driven pipeline.")
     p.add_argument("--date", "--betting-day", required=True, help="YYYY-MM-DD")
     p.add_argument("--run-id", required=True, help="Run ID")
     p.add_argument(
         "--runtime-mode",
-        choices=["CERTIFICATION", "DRY_RUN", "LIVE_SHADOW"],
+        choices=["CERTIFICATION", "DRY_RUN", "LIVE_SHADOW", "LIVE_ANALYSIS_SHADOW"],
         default="DRY_RUN",
         help="Pipeline runtime execution mode",
+    )
+    p.add_argument(
+        "--plan-only",
+        action="store_true",
+        default=False,
+        help="Execute pre-S2 plan-only DB reconciliation, event classification, and queue construction",
+    )
+    p.add_argument(
+        "--execute-existing-plan",
+        action="store_true",
+        default=False,
+        help="Validate an existing plan and stop at READY before S2",
+    )
+    p.add_argument(
+        "--plan-checkpoint",
+        type=Path,
+        help="Path to immutable plan checkpoint/receipt JSON",
+    )
+    p.add_argument(
+        "--selection-ledger-sha256",
+        help="Expected SHA256 of selection_ledger.json",
     )
     p.add_argument("--start-step", help="Optional step to start execution from")
     p.add_argument("--stop-after-step", help="Optional step to stop execution after")
@@ -68,6 +94,7 @@ def main() -> None:
         action="store_true",
         default=False,
         help="Explicit operator acknowledgment required for database/storage writes",
+<<<<<<< HEAD
     )
     p.add_argument(
         "--verbose",
@@ -78,6 +105,228 @@ def main() -> None:
     )
     args = p.parse_args()
 
+=======
+    )
+    p.add_argument(
+        "--source-run-root",
+        help="Optional source run root directory for lineage-preserving restart",
+    )
+    p.add_argument(
+        "--restart-seed",
+        type=Path,
+        help="Path to exact immutable restart seed tar archive",
+    )
+    p.add_argument(
+        "--restart-seed-sha256",
+        help="Expected SHA256 digest of restart seed tar archive",
+    )
+    p.add_argument(
+        "--restart-seed-manifest",
+        type=Path,
+        help="Path to restart seed manifest JSON file",
+    )
+    p.add_argument(
+        "--restart-seed-manifest-sha256",
+        help="Expected SHA256 digest of restart seed manifest JSON file",
+    )
+    p.add_argument(
+        "--reuse-through-step",
+        default="S1e",
+        choices=["S1", "S1e"],
+        help="Step through which to reuse artifacts from source run",
+    )
+    p.add_argument(
+        "--verbose",
+        "-v",
+        action="store_true",
+        default=False,
+        help="Enable verbose orchestrator logging",
+    )
+    return p
+
+
+def parse_pipeline_args(argv: list[str] | None = None) -> argparse.Namespace:
+    """Parse and validate CLI arguments for daily pipeline."""
+    p = build_pipeline_parser()
+    args = p.parse_args(argv)
+
+    if args.reuse_through_step == "S1" and args.start_step != "S1e":
+        p.error("--reuse-through-step S1 requires --start-step S1e")
+    if args.start_step == "S1e" and not args.source_run_root:
+        p.error("--start-step S1e requires --source-run-root")
+
+    restart_seed = getattr(args, "restart_seed", None)
+    restart_man = getattr(args, "restart_seed_manifest", None)
+    if restart_seed:
+        if args.reuse_through_step != "S1e":
+            raise ValueError(
+                f"RESTART_SEED_REQUIRES_REUSE_THROUGH_S1E: Only S1e reuse supported, got {args.reuse_through_step}"
+            )
+        if args.start_step and args.start_step != "S2":
+            raise ValueError(
+                f"RESTART_SEED_REQUIRES_START_STEP_S2: Restart seed mode requires start step S2, got {args.start_step}"
+            )
+        if not restart_man:
+            raise ValueError(
+                "EXTERNAL_MANIFEST_MISSING: --restart-seed-manifest is required when using --restart-seed"
+            )
+
+    return args
+
+
+def main() -> None:
+    args = parse_pipeline_args()
+
+    if args.allow_live_network:
+        live_ack = os.environ.get("BET_PIPELINE_LIVE_ACK")
+        if live_ack != "I_UNDERSTAND_LIVE_PROVIDER_CALLS":
+            raise ValueError(
+                "BLOCKED_LIVE_NETWORK_ACK_MISSING: BET_PIPELINE_LIVE_ACK=I_UNDERSTAND_LIVE_PROVIDER_CALLS "
+                "environment variable is required when --allow-live-network is enabled."
+            )
+
+    target_run_root = Path(args.base_run_dir) / args.date / args.run_id
+
+    if args.reuse_through_step == "S1":
+        from scripts.pipeline_steps.restart_through_s1 import prepare_restart_through_s1
+
+        source_root = Path(args.source_run_root).resolve(strict=True)
+        source_summary = json.loads((source_root / "run_summary.json").read_text(encoding="utf-8"))
+        source_run_id = str(source_summary.get("run_id") or source_root.name)
+        prepare_restart_through_s1(
+            source_root=source_root,
+            target_root=target_run_root,
+            source_run_id=source_run_id,
+            target_run_id=args.run_id,
+            day=args.date,
+            expected_s0="23e00e1510bdb2c050fb553ac2d13e829c2a069515fbae460bd9ba11a291bdbc",
+            expected_s1="49bdbec2fa4093f28967ddabec52d693f60e199f4fe25a71ac987be29641fa01",
+        )
+
+    if args.plan_only:
+        from bet.pipeline.launch_bridge import execute_plan_only
+
+        res = execute_plan_only(
+            repo_root=ROOT,
+            date=args.date,
+            run_id=args.run_id,
+            target_run_root=target_run_root,
+            manifest_path=Path(args.manifest),
+            allow_live_network=args.allow_live_network,
+            seed_tar_path=args.restart_seed,
+            seed_manifest_path=args.restart_seed_manifest,
+        )
+
+        keys_to_print = [
+            "DATABASE_PATH",
+            "CANONICAL_DB_SHA256",
+            "SHADOW_DB_PATH",
+            "SHADOW_DB_SHA256_INITIAL",
+            "TOTAL_DB_EVENTS_FOR_DATE",
+            "SEED_EVENTS_RECONCILED",
+            "NEW_PROVIDER_EVENTS",
+            "PROVIDER_REVALIDATED",
+            "PROVIDER_FAILURES",
+            "ALREADY_VALID_COMPLETE",
+            "STARTED",
+            "LIVE",
+            "FINISHED",
+            "POSTPONED",
+            "CANCELLED",
+            "TIME_EXPIRED_UNCONFIRMED",
+            "INSUFFICIENT_LEAD",
+            "IDENTITY_CONFLICTS",
+            "SETTLEMENT_REQUIRED",
+            "ANALYZE_FROM_S2",
+            "SELECTION_LEDGER_SHA256",
+            "RUNTIME_S1E_EVENT_COUNT",
+            "EVENT_ACCOUNTING_EXACT",
+            "PLAN_STATUS",
+        ]
+        print("=== PLAN-ONLY SUMMARY ===")
+        for k in keys_to_print:
+            if k in res:
+                print(f"{k}={res[k]}")
+
+        sys.exit(0 if res.get("PLAN_STATUS") == "PASS" else 1)
+
+    seed_tar_to_import = args.restart_seed
+    seed_man_to_import = args.restart_seed_manifest
+    seed_tar_sha = args.restart_seed_sha256
+    seed_man_sha = args.restart_seed_manifest_sha256
+
+    if args.source_run_root and not seed_tar_to_import:
+        if args.start_step == "S2":
+            from scripts.pipeline_steps.export_s2_restart_seed import (
+                export_s2_restart_seed,
+            )
+
+            src_root = Path(args.source_run_root).resolve(strict=True)
+            with tempfile.TemporaryDirectory(prefix="s2_export_") as tmp_dir:
+                seed_tar_to_import, seed_man_to_import = export_s2_restart_seed(
+                    source_run_root=src_root, output_dir=Path(tmp_dir)
+                )
+
+    if seed_tar_to_import and args.start_step == "S2":
+        from scripts.pipeline_steps.import_s2_restart_seed import import_s2_restart_seed
+        from bet.pipeline.receipts import (
+            get_git_commit_head,
+            get_git_tree_sha,
+            compute_source_manifest_sha256,
+        )
+
+        repo_root = ROOT
+        cur_head = get_git_commit_head(repo_root)
+        cur_tree = get_git_tree_sha(repo_root)
+        cur_manifest = compute_source_manifest_sha256(repo_root)
+
+        import_s2_restart_seed(
+            seed_tar_path=seed_tar_to_import,
+            target_run_root=target_run_root,
+            target_run_id=args.run_id,
+            target_head=cur_head,
+            target_tree=cur_tree,
+            target_manifest=cur_manifest,
+            seed_manifest_path=seed_man_to_import,
+            expected_seed_tar_sha256=seed_tar_sha,
+            expected_seed_manifest_sha256=seed_man_sha,
+            runtime_mode=args.runtime_mode,
+        )
+
+    if args.execute_existing_plan:
+        from bet.pipeline.launch_bridge import verify_and_prepare_plan_continuation
+
+        cont_res = verify_and_prepare_plan_continuation(
+            target_run_root=target_run_root,
+            run_id=args.run_id,
+            expected_selection_ledger_sha256=args.selection_ledger_sha256,
+            expected_plan_checkpoint_path=args.plan_checkpoint,
+        )
+        if cont_res.get("status") == "BLOCKED":
+            print("STATUS=BLOCKED")
+            print(f"BLOCKER={cont_res.get('blocker')}")
+            print(f"REASON={cont_res.get('reason')}")
+            sys.exit(1)
+        print("STATUS=READY")
+        print(f"PLAN_STATUS={cont_res.get('plan_status', 'READY')}")
+        sys.exit(0)
+    elif args.runtime_mode == "LIVE_ANALYSIS_SHADOW":
+        from bet.pipeline.launch_bridge import (
+            create_runtime_analysis_shadow_db,
+            resolve_canonical_db_path,
+        )
+
+        canonical_p = resolve_canonical_db_path()
+        sh_res = create_runtime_analysis_shadow_db(
+            canonical_p, target_run_root, args.run_id, allow_overwrite=True
+        )
+        os.environ["BET_DB_PATH"] = sh_res["shadow_db_path"]
+        os.environ["DATABASE_URL"] = f"sqlite:///{sh_res['shadow_db_path']}"
+        os.environ["BET_PIPELINE_RUNTIME_DB_KIND"] = "LIVE_ANALYSIS_SHADOW"
+        os.environ["BET_PIPELINE_RUNTIME_DB_RUN_ID"] = args.run_id
+        os.environ["BET_PIPELINE_SELECTION_RUN_ID"] = args.run_id
+
+>>>>>>> fix/bet-v5-final-one-pass-closure-v4
     orchestrator = Orchestrator(
         betting_day=args.date,
         run_id=args.run_id,

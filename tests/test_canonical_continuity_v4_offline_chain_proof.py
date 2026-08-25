@@ -38,6 +38,9 @@ def _bootstrap_test_db(db_path: Path) -> Path:
 
 
 def test_v4_offline_chain_proof(tmp_path: Path, monkeypatch):
+    monkeypatch.delenv("BET_PIPELINE_CERTIFIER_ACTIVE", raising=False)
+    monkeypatch.delenv("BET_MOCK_ODDS", raising=False)
+    monkeypatch.delenv("BET_PIPELINE_SKIP_FETCH", raising=False)
     run_root = tmp_path / "pipeline_runs" / DAY / RUN_ID
     run_root.mkdir(parents=True, exist_ok=True)
     (run_root / "data").mkdir(parents=True, exist_ok=True)
@@ -250,6 +253,13 @@ def test_v4_offline_chain_proof(tmp_path: Path, monkeypatch):
                     c_copy = dict(c)
                     for key in ["stake", "kelly_fraction", "bettable", "edge"]:
                         c_copy.pop(key, None)
+                    c_copy["home_team"] = c_copy.get("home_team") or "ŁKS Łódź"
+                    c_copy["away_team"] = c_copy.get("away_team") or "KS D"
+                    c_copy["canonical_event_id"] = c_copy.get("canonical_event_id") or evt_id
+                    c_copy["candidate_id"] = c_copy.get("candidate_id") or f"{evt_id}_1X2_HOME"
+                    c_copy["terminal_status"] = "PASS"
+                    c_copy["risk_classification"] = "LOW"
+                    c_copy["best_market"] = c_copy.get("best_market") or {"name": "1X2", "safety_score": 1.0}
                     c_copy["context_checks"] = {
                         "injuries_lineups": {"status": "CLEAR", "as_of_utc": "2026-07-16T12:00:00Z", "source_refs": ["mock_ref"]},
                         "motivation_tournament_context": {"status": "CLEAR", "as_of_utc": "2026-07-16T12:00:00Z", "source_refs": ["mock_ref"]},

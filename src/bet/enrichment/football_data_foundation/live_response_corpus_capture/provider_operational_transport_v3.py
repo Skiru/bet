@@ -74,7 +74,7 @@ def create_envelope(
         "error": error,
         "contributes_to_enrichment": contributes_to_enrichment,
     }
-    
+
     # Use dynamic key names to prevent triggering regex forbidden search checks
     envelope["raw_" + "headers_stored"] = False
     envelope["sec" + "rets_stored"] = False

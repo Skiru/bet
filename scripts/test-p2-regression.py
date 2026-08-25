@@ -31,7 +31,7 @@ API_KEY = os.environ.get("RAPID_MLX_API_KEY", "test")
 def test_connectivity():
     """Test Rapid-MLX connectivity."""
     results = []
-    
+
     # Test 1: Models endpoint
     try:
         proc = subprocess.run(
@@ -56,7 +56,7 @@ def test_connectivity():
             "expected": "At least one model",
             "actual": f"error: {e}",
         })
-    
+
     # Test 2: Chat completion
     try:
         payload = {
@@ -87,14 +87,14 @@ def test_connectivity():
             "expected": "Chat completion with choices",
             "actual": f"error: {e}",
         })
-    
+
     return results
 
 
 def test_read_operations():
     """Test read operations."""
     results = []
-    
+
     # Test 1: Read file
     test_file = PROJECT_ROOT / "kilo.jsonc"
     passed = test_file.exists()
@@ -104,7 +104,7 @@ def test_read_operations():
         "expected": "kilo.jsonc exists",
         "actual": f"exists: {passed}",
     })
-    
+
     # Test 2: Glob
     py_files = list(PROJECT_ROOT.glob("scripts/**/*.py"))
     passed = len(py_files) > 0
@@ -114,14 +114,14 @@ def test_read_operations():
         "expected": "Python files in scripts/",
         "actual": f"files: {len(py_files)}",
     })
-    
+
     return results
 
 
 def test_mcp_disabled():
     """Test that MCP servers are disabled."""
     results = []
-    
+
     try:
         proc = subprocess.run(
             ["kilo", "debug", "config"],
@@ -131,10 +131,10 @@ def test_mcp_disabled():
         )
         config = json.loads(proc.stdout)
         mcp = config.get("mcp", {})
-        
+
         disabled_count = sum(1 for s in mcp.values() if not s.get("enabled", True))
         passed = disabled_count >= 4
-        
+
         results.append({
             "test": "mcp_disabled",
             "passed": passed,
@@ -148,14 +148,14 @@ def test_mcp_disabled():
             "expected": "All MCP servers disabled",
             "actual": f"error: {e}",
         })
-    
+
     return results
 
 
 def test_rapid_mlx_health():
     """Test Rapid-MLX process health."""
     results = []
-    
+
     try:
         proc = subprocess.run(
             ["ps", "aux"],
@@ -176,7 +176,7 @@ def test_rapid_mlx_health():
             "expected": "Rapid-MLX process running",
             "actual": f"error: {e}",
         })
-    
+
     return results
 
 
@@ -186,49 +186,49 @@ def main():
     print("Phase 2 Regression Test")
     print("=" * 60)
     print()
-    
+
     all_results = []
-    
+
     print("Running connectivity tests (2)...")
     all_results.extend(test_connectivity())
-    
+
     print("Running read operation tests (2)...")
     all_results.extend(test_read_operations())
-    
+
     print("Running MCP disabled tests (1)...")
     all_results.extend(test_mcp_disabled())
-    
+
     print("Running Rapid-MLX health tests (1)...")
     all_results.extend(test_rapid_mlx_health())
-    
+
     # Print results
     print()
     print("RESULTS:")
     print("-" * 40)
-    
+
     passed = sum(1 for r in all_results if r["passed"])
     failed = len(all_results) - passed
-    
+
     for r in all_results:
         status = "PASS" if r["passed"] else "FAIL"
         print(f"  [{status}] {r['test']}")
         if not r["passed"]:
             print(f"        Expected: {r['expected']}")
             print(f"        Actual:   {r['actual']}")
-    
+
     print()
     print(f"Total: {len(all_results)}, Passed: {passed}, Failed: {failed}")
-    
+
     # Gate check
     gate_result = f"{passed}/{len(all_results)}"
-    
+
     print()
     print(f"GATE: Phase 2 regression: {gate_result}")
-    
+
     # Save report
     REPORT_DIR.mkdir(parents=True, exist_ok=True)
     report_path = REPORT_DIR / f"p2-regression-{datetime.now().strftime('%Y%m%dT%H%M%SZ')}.json"
-    
+
     report = {
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "total": len(all_results),
@@ -237,13 +237,13 @@ def main():
         "gate": gate_result,
         "results": all_results,
     }
-    
+
     with open(report_path, 'w') as f:
         json.dump(report, f, indent=2)
-    
+
     print(f"Report: {report_path}")
     print()
-    
+
     if failed > 0:
         print("RESULT: FAIL")
         sys.exit(1)

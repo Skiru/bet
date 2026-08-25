@@ -99,6 +99,48 @@ def test_missing_chunk_blocks_aggregation():
         aggregate_chunks(plan, [art1])
 
 
+<<<<<<< HEAD
+=======
+def test_complete_blocked_chunks_are_accounted():
+    """Verify complete fail-closed chunk artifacts can be aggregated."""
+    event_ids = [f"EVT_{i:03d}" for i in range(1, 31)]
+    plan = create_chunk_execution_plan(
+        parent_work_order_id="WO_BLOCKED_CHUNKS",
+        step_id="S2.3",
+        betting_day="2026-07-27",
+        run_id="RUN_SHARD_BLOCKED",
+        event_ids=event_ids,
+        agent_name="bet-researcher",
+    )
+
+    artifacts = []
+    for chunk_wo in plan.chunks:
+        artifacts.append(
+            ChunkArtifactV1(
+                chunk_id=chunk_wo.chunk_id,
+                parent_work_order_id=chunk_wo.parent_work_order_id,
+                parent_plan_sha256=chunk_wo.parent_plan_sha256,
+                chunk_index=chunk_wo.chunk_index,
+                status="BLOCK",
+                producer_agent_id="bet-researcher",
+                processed_event_ids=chunk_wo.event_ids,
+                event_records=[
+                    {"canonical_event_id": eid, "terminal_status": "BLOCK"}
+                    for eid in chunk_wo.event_ids
+                ],
+            )
+        )
+
+    receipt, records = aggregate_chunks(plan, artifacts)
+
+    assert receipt.total_chunks_aggregated == 2
+    assert receipt.total_events_accounted == 30
+    assert len(records) == 30
+
+
+
+
+>>>>>>> fix/bet-v5-final-one-pass-closure-v4
 def test_foreign_event_in_chunk_rejected():
     """Verify a chunk artifact containing an unassigned foreign event is rejected."""
     event_ids = ["EVT_001", "EVT_002"]

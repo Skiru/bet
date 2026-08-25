@@ -18,7 +18,7 @@ def test_pass_f_reports_exist_and_are_valid() -> None:
 
     for path in (plan_path, results_path, summary_path):
         content = path.read_text(encoding="utf-8")
-        
+
         # 1. Must be pretty JSON with 2 spaces indent
         lines = content.splitlines()
         # Simple check: should be multi-line
@@ -46,7 +46,7 @@ def test_pass_f_reports_exist_and_are_valid() -> None:
 
 def test_reports_cover_exactly_seven_sports() -> None:
     base_dir = Path("tests/fixtures/multisport_foundation/pass_f")
-    
+
     plan = json.loads((base_dir / "provider_probe_plan.json").read_text(encoding="utf-8"))
     assert set(plan.get("target_sports", [])) == set(TARGET_SPORTS)
     assert len(plan.get("provider_probe_policies_by_sport", {})) == 7

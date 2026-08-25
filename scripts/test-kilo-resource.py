@@ -62,10 +62,10 @@ def make_request(endpoint: str, data: dict) -> tuple[int, Any, float]:
         "Authorization": f"Bearer {API_KEY}",
         "Content-Type": "application/json"
     }
-    
+
     body = json.dumps(data).encode("utf-8")
     req = urllib.request.Request(url, data=body, headers=headers, method="POST")
-    
+
     start = time.perf_counter()
     try:
         with urllib.request.urlopen(req, timeout=120) as response:
@@ -78,14 +78,14 @@ def make_request(endpoint: str, data: dict) -> tuple[int, Any, float]:
         status = 0
         result = {"error": str(e)}
     duration_ms = (time.perf_counter() - start) * 1000
-    
+
     return status, result, duration_ms
 
 
 def test_memory_tracking() -> dict:
     """Test 1: Memory usage tracking."""
     print("  1. Memory usage tracking...")
-    
+
     # Read PID
     try:
         with open(PID_FILE, "r") as f:
@@ -93,21 +93,21 @@ def test_memory_tracking() -> dict:
     except:
         print("     FAIL (Cannot read PID file)")
         return {"test": "memory_tracking", "passed": False, "error": "Cannot read PID file"}
-    
+
     info = get_process_info(pid)
-    
+
     if "error" in info:
         print(f"     FAIL ({info['error']})")
         return {"test": "memory_tracking", "passed": False, "error": info["error"]}
-    
+
     rss_mb = info["rss_kb"] / 1024
     vsz_mb = info["vsz_kb"] / 1024
-    
+
     # RSS should be reasonable (under 10GB for this model)
     passed = rss_mb < 10240
-    
+
     print(f"     {'PASS' if passed else 'FAIL'} (RSS={rss_mb:.0f}MB, VSZ={vsz_mb:.0f}MB)")
-    
+
     return {
         "test": "memory_tracking",
         "passed": passed,
@@ -120,7 +120,7 @@ def test_memory_tracking() -> dict:
 def test_memory_stability() -> dict:
     """Test 2: Memory stability over time."""
     print("  2. Memory stability over time...")
-    
+
     # Read PID
     try:
         with open(PID_FILE, "r") as f:
@@ -128,15 +128,15 @@ def test_memory_stability() -> dict:
     except:
         print("     FAIL (Cannot read PID file)")
         return {"test": "memory_stability", "passed": False, "error": "Cannot read PID file"}
-    
+
     # Take initial measurement
     initial_info = get_process_info(pid)
     if "error" in initial_info:
         print(f"     FAIL ({initial_info['error']})")
         return {"test": "memory_stability", "passed": False, "error": initial_info["error"]}
-    
+
     initial_rss = initial_info["rss_kb"]
-    
+
     # Run several requests
     for i in range(5):
         make_request("/chat/completions", {
@@ -146,21 +146,21 @@ def test_memory_stability() -> dict:
             "temperature": 0
         })
         time.sleep(0.2)
-    
+
     # Take final measurement
     final_info = get_process_info(pid)
     if "error" in final_info:
         print(f"     FAIL ({final_info['error']})")
         return {"test": "memory_stability", "passed": False, "error": final_info["error"]}
-    
+
     final_rss = final_info["rss_kb"]
-    
+
     # Memory should not grow excessively (allow 20% growth)
     growth_pct = ((final_rss - initial_rss) / initial_rss * 100) if initial_rss > 0 else 0
     passed = growth_pct < 20 or final_rss <= initial_rss  # Allow no growth or small growth
-    
+
     print(f"     {'PASS' if passed else 'INFO'} (initial={initial_rss/1024:.0f}MB, final={final_rss/1024:.0f}MB, growth={growth_pct:.1f}%)")
-    
+
     return {
         "test": "memory_stability",
         "passed": passed,
@@ -173,7 +173,7 @@ def test_memory_stability() -> dict:
 def test_resource_cleanup() -> dict:
     """Test 3: Resource cleanup verification."""
     print("  3. Resource cleanup verification...")
-    
+
     # Read PID
     try:
         with open(PID_FILE, "r") as f:
@@ -181,13 +181,13 @@ def test_resource_cleanup() -> dict:
     except:
         print("     FAIL (Cannot read PID file)")
         return {"test": "resource_cleanup", "passed": False, "error": "Cannot read PID file"}
-    
+
     # Get initial state
     initial_info = get_process_info(pid)
     if "error" in initial_info:
         print(f"     FAIL ({initial_info['error']})")
         return {"test": "resource_cleanup", "passed": False, "error": initial_info["error"]}
-    
+
     # Run requests with large outputs
     for i in range(3):
         make_request("/chat/completions", {
@@ -197,19 +197,19 @@ def test_resource_cleanup() -> dict:
             "temperature": 0.5
         })
         time.sleep(0.3)
-    
+
     # Get final state
     final_info = get_process_info(pid)
     if "error" in final_info:
         print(f"     FAIL ({final_info['error']})")
         return {"test": "resource_cleanup", "passed": False, "error": final_info["error"]}
-    
+
     # Check if memory is stable
     rss_diff = abs(final_info["rss_kb"] - initial_info["rss_kb"])
     passed = rss_diff < 500000  # Allow 500MB variance
-    
+
     print(f"     {'PASS' if passed else 'INFO'} (RSS variance={rss_diff/1024:.0f}MB)")
-    
+
     return {
         "test": "resource_cleanup",
         "passed": passed,
@@ -222,11 +222,11 @@ def test_resource_cleanup() -> dict:
 def test_server_health() -> dict:
     """Test 4: Server health monitoring."""
     print("  4. Server health monitoring...")
-    
+
     # Check health endpoint
     url = f"{BASE_URL.replace('/v1', '')}/health"
     headers = {"Authorization": f"Bearer {API_KEY}"}
-    
+
     try:
         req = urllib.request.Request(url, headers=headers, method="GET")
         with urllib.request.urlopen(req, timeout=10) as response:
@@ -238,11 +238,11 @@ def test_server_health() -> dict:
     except Exception as e:
         status = 0
         body = str(e)
-    
+
     passed = status == 200
-    
+
     print(f"     {'PASS' if passed else 'FAIL'} (HTTP {status})")
-    
+
     return {
         "test": "server_health",
         "passed": passed,
@@ -254,7 +254,7 @@ def test_server_health() -> dict:
 def test_process_alive() -> dict:
     """Test 5: Process alive check."""
     print("  5. Process alive check...")
-    
+
     # Read PID
     try:
         with open(PID_FILE, "r") as f:
@@ -262,7 +262,7 @@ def test_process_alive() -> dict:
     except:
         print("     FAIL (Cannot read PID file)")
         return {"test": "process_alive", "passed": False, "error": "Cannot read PID file"}
-    
+
     # Check if process is alive
     try:
         result = subprocess.run(
@@ -273,7 +273,7 @@ def test_process_alive() -> dict:
         alive = result.returncode == 0
     except:
         alive = False
-    
+
     # Also check port
     try:
         result = subprocess.run(
@@ -286,11 +286,11 @@ def test_process_alive() -> dict:
         port_ok = port_owner == str(pid)
     except:
         port_ok = False
-    
+
     passed = alive and port_ok
-    
+
     print(f"     {'PASS' if passed else 'FAIL'} (alive={alive}, port_ok={port_ok})")
-    
+
     return {
         "test": "process_alive",
         "passed": passed,
@@ -303,7 +303,7 @@ def test_process_alive() -> dict:
 def test_thermal_status() -> dict:
     """Test 6: Thermal status check."""
     print("  6. Thermal status check...")
-    
+
     # On macOS, check for thermal pressure
     try:
         result = subprocess.run(
@@ -313,7 +313,7 @@ def test_thermal_status() -> dict:
             timeout=10
         )
         therm_output = result.stdout
-        
+
         # Check for thermal warnings
         has_warning = "warning" in therm_output.lower() or "limited" in therm_output.lower()
         passed = not has_warning
@@ -321,9 +321,9 @@ def test_thermal_status() -> dict:
         # If we can't check, assume OK
         therm_output = "Unable to check thermal status"
         passed = True
-    
+
     print(f"     {'PASS' if passed else 'WARN'} (thermal_warning={not passed})")
-    
+
     return {
         "test": "thermal_status",
         "passed": passed,
@@ -338,11 +338,11 @@ def main():
     print(f"Base URL: {BASE_URL}")
     print(f"Model: {MODEL_ID}")
     print()
-    
+
     os.makedirs(OUTPUT_DIR, exist_ok=True)
-    
+
     results = []
-    
+
     print("Running resource observation tests...")
     results.append(test_memory_tracking())
     results.append(test_memory_stability())
@@ -350,21 +350,21 @@ def main():
     results.append(test_server_health())
     results.append(test_process_alive())
     results.append(test_thermal_status())
-    
+
     print()
-    
+
     # Summary
     passed = sum(1 for r in results if r["passed"])
     total = len(results)
-    
+
     print("=" * 60)
     print(f"RESULTS: {passed}/{total} PASS")
     print("=" * 60)
-    
+
     # Save results
     run_id = f"run-{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}"
     output_file = os.path.join(OUTPUT_DIR, f"{run_id}-resource-test.json")
-    
+
     with open(output_file, "w") as f:
         json.dump({
             "run_id": run_id,
@@ -378,9 +378,9 @@ def main():
                 "pass_rate": passed / total if total > 0 else 0
             }
         }, f, indent=2)
-    
+
     print(f"Results saved to: {output_file}")
-    
+
     return 0 if passed == total else 1
 
 

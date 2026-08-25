@@ -30,7 +30,7 @@ def normalize_market_family(sport: str, row: Mapping[str, Any]) -> str | None:
     mapped = map_multisport_market(sport_lower, row, {})
     if mapped and mapped.get("market_family") != "unknown":
         return mapped["market_family"]
-        
+
     # Fallback to simple original matching if mapping dictionary is empty/unknown
     family = _text(row.get("market_family")).lower()
     market_type = _text(row.get("market_type")).lower()

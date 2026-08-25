@@ -1,0 +1,5 @@
+{
+  "schema_version": "1.0",
+  "description": "Immutable, tracked model package registry for single-market pricing models",
+  "registered_packages": []
+}

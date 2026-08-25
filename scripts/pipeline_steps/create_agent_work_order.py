@@ -32,7 +32,7 @@ def main() -> None:
         sys.exit(1)
 
     base_dir = Path(args.base_run_dir)
-    
+
     # Build work order
     try:
         wo = build_agent_work_order(

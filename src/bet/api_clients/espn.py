@@ -1900,7 +1900,7 @@ class ESPNClient(BaseAPIClient):
 
     def get_standings_result(self) -> SourceOperationResult[list[dict]]:
         """Get league standings with typed result for capability router.
-        
+
         Returns SourceOperationResult with:
         - status: SUCCESS, NOT_FOUND, etc.
         - value: list of standings dicts
@@ -2151,9 +2151,9 @@ class ESPNClient(BaseAPIClient):
 
     def get_coaches(self, season_year: int | None = None) -> list[dict]:
         """Get coaching staff for the league/season.
-        
+
         URL: https://sports.core.api.espn.com/v2/sports/{sport}/leagues/{league}/seasons/{year}/coaches
-        
+
         Returns list of: {id, name, team, record, experience_years}
         Note: Only works for US sports (NBA, NHL). Soccer returns HTTP 500.
         """
@@ -2197,10 +2197,10 @@ class ESPNClient(BaseAPIClient):
 
     def get_coach_record(self, coach_id: str | int, record_type: int = 0) -> dict:
         """Get coaching record by type.
-        
+
         URL: https://sports.core.api.espn.com/v2/sports/{sport}/leagues/{league}/coaches/{coachId}/record/{type}
         record_type: 0=Total, 1=Home, 2=Away (numeric IDs)
-        
+
         Returns: {name, summary, win_pct, stats: {...}}
         """
         coach_id = str(coach_id)
@@ -2236,13 +2236,13 @@ class ESPNClient(BaseAPIClient):
 
     def get_play_by_play(self, event_id: str, limit: int = 300) -> list[dict]:
         """Get play-by-play data for a match.
-        
+
         URL: https://sports.core.api.espn.com/v2/sports/{sport}/leagues/{league}/events/{event_id}/competitions/{event_id}/plays?limit={limit}
-        
+
         For soccer: goals, cards, corners, substitutions with timestamps
         For basketball: shots, rebounds, assists with quarter/time
         For hockey: goals, penalties, shots with period/time
-        
+
         Returns list of: {id, type, text, clock, period, team, athlete}
         """
         cache_key = f"espn/{self.sport}/{self.league}/events/{event_id}/plays"
@@ -2279,9 +2279,9 @@ class ESPNClient(BaseAPIClient):
 
     def get_cdn_game_package(self, game_id: str) -> dict:
         """Get full game package via CDN (boxscore + plays + odds + matchup in one call).
-        
+
         URL: https://cdn.espn.com/core/{sport}/game?xhr=1&gameId={game_id}
-        
+
         For soccer, also needs &league={league} parameter.
         Returns: dict with 'gamepackageJSON' containing boxscore, plays, odds, matchup data.
         Note: CDN endpoint may be unreliable (redirects/HTML). Falls back gracefully.
@@ -2327,7 +2327,7 @@ class ESPNClient(BaseAPIClient):
 
     def _core_request(self, url: str) -> dict:
         """Make a request to a full URL (Core API) with retry and backoff.
-        
+
         Unlike self._request() which prepends base_url, this accepts a complete URL.
         Used for sports.core.api.espn.com endpoints and $ref resolution.
         """

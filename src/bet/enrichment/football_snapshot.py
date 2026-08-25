@@ -35,25 +35,25 @@ class FootballEnrichmentSnapshot:
     snapshot_state: str = "COMPLETE" # COMPLETE, DEGRADED, BLOCKED
     canonical_fixture_id: int = 0
     analysis_cutoff_at: datetime | None = None
-    
+
     # Event metadata
     kickoff_at: datetime | None = None
     event_status: str = ""
     competition_canonical_id: int | None = None
     season_canonical_id: int | None = None
-    
+
     # Participants
     home_participant: NormalizedParticipant | None = None
     away_participant: NormalizedParticipant | None = None
-    
+
     # Form and H2H
     home_form: tuple[NormalizedTeamMatch, ...] = field(default_factory=tuple)
     away_form: tuple[NormalizedTeamMatch, ...] = field(default_factory=tuple)
     h2h_records: tuple[NormalizedTeamMatch, ...] = field(default_factory=tuple)
-    
+
     # Standings
     standings: NormalizedStandingTable | None = None
-    
+
     # Lineups and availability
     home_lineup: NormalizedLineupState | None = None
     away_lineup: NormalizedLineupState | None = None
@@ -61,15 +61,15 @@ class FootballEnrichmentSnapshot:
     away_availability: NormalizedAvailabilityState | None = None
     home_roster: NormalizedRoster | None = None
     away_roster: NormalizedRoster | None = None
-    
+
     # Context
     venue: NormalizedVenueContext | None = None
     official: NormalizedOfficialContext | None = None
-    
+
     # Metrics and advanced metrics
     selected_metrics: dict[str, Any] = field(default_factory=dict)
     advanced_metrics: dict[str, Any] = field(default_factory=dict)
-    
+
     # Provenance and metadata
     selected_provider_ids: dict[str, str] = field(default_factory=dict)
     capability_outcomes: tuple[CapabilityOutcome, ...] = field(default_factory=tuple)
@@ -153,25 +153,25 @@ def _deserialize_type(t: Any, val: Any) -> Any:
         return None
     origin = get_origin(t)
     args = get_args(t)
-    
+
     import types
     if origin in (Union, types.UnionType) or origin is type(Union):
         non_none_types = [a for a in args if a is not type(None)]
         if not non_none_types:
             return val
         return _deserialize_type(non_none_types[0], val)
-        
+
     if origin in (list, tuple):
         item_type = args[0] if args else Any
         items = [_deserialize_type(item_type, item) for item in val]
         if origin is tuple:
             return tuple(items)
         return items
-        
+
     if origin is dict:
         val_type = args[1] if len(args) > 1 else Any
         return {k: _deserialize_type(val_type, v) for k, v in val.items()}
-        
+
     if isinstance(t, type):
         if issubclass(t, datetime):
             return parse_datetime(val)
@@ -179,7 +179,7 @@ def _deserialize_type(t: Any, val: Any) -> Any:
             return t(val)
         if is_dataclass(t):
             return from_dict(t, val)
-            
+
     return val
 
 def canonical_json_bytes(data: Any) -> bytes:

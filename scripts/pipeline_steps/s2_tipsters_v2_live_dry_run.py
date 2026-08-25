@@ -206,7 +206,7 @@ def resolve_target_entrypoints(source_id: str, date_str: str | None) -> tuple[li
 
 def fetch_extract_source(source_id: str, *, review_data: dict[str, Any], max_pages: int, timeout: float, max_bytes: int, date_str: str | None = None, operator_risk_data: dict[str, Any] | None = None) -> list[ExtractionResult]:
     policy = SOURCES[source_id]
-    
+
     if source_id not in CERTIFIED_SHADOW_SOURCE_IDS:
         # Operator-risk / Candidate source
         authorized = False
@@ -300,12 +300,12 @@ def fetch_extract_source(source_id: str, *, review_data: dict[str, Any], max_pag
         if len(urls_seen) >= max_pages:
             break
         outcome = fetch_public_html(policy, entrypoint, robots=robots, limiter=limiter, terms_reviewed=True, config=config, review_data=review_data, operator_risk_data=operator_risk_data)
-        
+
         # If fetch fails or status is not 200, try the optional homepage fallback for zawodtyper
         if not outcome.allowed or outcome.document is None or outcome.status_code != 200:
             status_code = outcome.status_code if outcome.document else 0
             print(f"[live-dry-run][{source_id}] FETCH_BLOCK/FAIL {entrypoint} reason={outcome.reason} status={status_code}")
-            
+
             if source_id == "zawodtyper" and fallback_homepage and entrypoint != fallback_homepage:
                 print(f"[live-dry-run][{source_id}] DAILY URL FAILED. Falling back to homepage: {fallback_homepage}")
                 outcome = fetch_public_html(policy, fallback_homepage, robots=robots, limiter=limiter, terms_reviewed=True, config=config, review_data=review_data, operator_risk_data=operator_risk_data)
@@ -454,7 +454,7 @@ def main() -> int:
 
     out = args.out or Path("betting/data") / f"{args.date}_tipster_consensus_v2_live_dry_run.json"
     write_json_artifact(all_results, out)
-    
+
     if args.handoff_out:
         payload = build_payload(all_results)
         write_handoff_artifact(payload, args.handoff_out)

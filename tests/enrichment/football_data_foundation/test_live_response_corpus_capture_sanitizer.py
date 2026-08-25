@@ -45,7 +45,7 @@ def test_sanitize_json_body_selectable_for_production():
 def test_blocks_html_content():
     with pytest.raises(ValueError, match="HTML content"):
         sanitize_json_body("<html><body>Hello</body></html>")
-        
+
     with pytest.raises(ValueError, match="HTML content"):
         sanitize_json_body("<!DOCTYPE html><div>test</div>")
 
@@ -53,10 +53,10 @@ def test_blocks_html_content():
 def test_compute_body_sha256_stable():
     body1 = {"b": 2, "a": 1}
     body2 = {"a": 1, "b": 2}
-    
+
     sha1 = compute_body_sha256(body1)
     sha2 = compute_body_sha256(body2)
-    
+
     assert sha1 == sha2
     assert len(sha1) == 64
 
@@ -65,7 +65,7 @@ def test_write_json_deterministic(tmp_path):
     path = tmp_path / "test.json"
     data = {"b": 2, "a": 1}
     write_json(path, data)
-    
+
     content = path.read_text(encoding="utf-8")
     expected = '{\n  "a": 1,\n  "b": 2\n}\n'
     assert content == expected

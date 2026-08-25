@@ -58,7 +58,7 @@ def test_runner_mock_execution(tmp_path):
          patch("bet.enrichment.football_data_foundation.live_response_corpus_capture.runner.capture_highlightly", mock_hl), \
          patch("bet.enrichment.football_data_foundation.live_response_corpus_capture.runner.capture_api_football", mock_af), \
          patch("bet.enrichment.football_data_foundation.live_response_corpus_capture.runner.capture_espn_baseline", mock_espn):
-        
+
         mock_disc.return_value = [{
             "fixture_slug": "worldcup2026-norway-senegal",
             "home_team": "Norway",
@@ -69,9 +69,9 @@ def test_runner_mock_execution(tmp_path):
             "match_id": "400021491",
             "is_seed": True,
         }]
-        
+
         manifest = run_live_response_corpus_capture(tmp_path, max_fixtures=1)
-        
+
         assert manifest.run_id is not None
         assert manifest.fixture_count == 1
         assert manifest.provider_count == 5

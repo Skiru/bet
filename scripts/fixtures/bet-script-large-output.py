@@ -30,17 +30,17 @@ def main():
     # Generate JSON with large data field
     # Each 'X' is 1 byte, so we need size_kb * 1024 bytes
     target_bytes = args.size_kb * 1024
-    
+
     # Use a JSON structure with a large data field
     # Account for JSON overhead: {"data": "..."}
     overhead = 12  # {"data": ""}
     data_size = target_bytes - overhead
-    
+
     if data_size < 1:
         data_size = 1
-    
+
     large_data = "X" * data_size
-    
+
     result = {
         "status": "large_output",
         "size_kb": args.size_kb,

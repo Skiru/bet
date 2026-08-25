@@ -36,18 +36,18 @@ def test_sportdb_client(monkeypatch) -> None:
         client.fetch_match_stats("sdb-1")
 
     monkeypatch.setenv("SPORTDB_API_KEY", "test-key-123")
-    
+
     fixture_path = FIXTURES_DIR / "providers" / "sportdb_stats.json"
     mock_body = json.loads(fixture_path.read_text(encoding="utf-8"))
-    
+
     transport = MockHttpJsonTransport({"sportdb.dev": mock_body})
     client = SportDBLiveClient(transport=transport)
-    
+
     batch = client.fetch_match_stats("sdb-1")
-    
+
     assert len(transport.calls) == 1
     assert transport.calls[0]["headers"]["X-API-Key"] == "test-key-123"
-    
+
     assert len(batch.claims) == 1
     claim = batch.claims[0]
     assert claim.proof_level == ProofLevel.REAL_LIVE_API_PROOF
@@ -67,15 +67,15 @@ def test_football_data_org_client(monkeypatch) -> None:
     monkeypatch.setenv("FOOTBALL_DATA_API_KEY", "test-auth-token")
     fixture_path = FIXTURES_DIR / "providers" / "football_data_standings.json"
     mock_body = json.loads(fixture_path.read_text(encoding="utf-8"))
-    
+
     transport = MockHttpJsonTransport({"football-data.org": mock_body})
     client = FootballDataOrgLiveClient(transport=transport)
-    
+
     batch = client.fetch_competition_standings("PL")
-    
+
     assert len(transport.calls) == 1
     assert transport.calls[0]["headers"]["X-Auth-Token"] == "test-auth-token"
-    
+
     assert len(batch.claims) == 1
     claim = batch.claims[0]
     assert claim.proof_level == ProofLevel.REAL_LIVE_API_PROOF
@@ -94,15 +94,15 @@ def test_highlightly_client(monkeypatch) -> None:
     monkeypatch.setenv("HIGHLIGHTLY_API_KEY", "test-hl-key")
     fixture_path = FIXTURES_DIR / "providers" / "highlightly_stats.json"
     mock_body = json.loads(fixture_path.read_text(encoding="utf-8"))
-    
+
     transport = MockHttpJsonTransport({"highlightly.com": mock_body})
     client = HighlightlyLiveClient(transport=transport)
-    
+
     batch = client.fetch_match_statistics("h-1")
-    
+
     assert len(transport.calls) == 1
     assert transport.calls[0]["headers"]["Authorization"] == "Bearer test-hl-key"
-    
+
     assert len(batch.claims) == 1
     claim = batch.claims[0]
     assert claim.claim_value["stat_count"] == 3
@@ -114,7 +114,7 @@ def test_deferred_and_metadata_clients() -> None:
     client_deferred = APIFootballDeferredClient()
     with pytest.raises(ProviderCapabilityError):
         client_deferred.fetch_match_stats("api-1")
-        
+
     client_metadata = TheSportsDBMetadataClient()
     with pytest.raises(ProviderCapabilityError):
         client_metadata.fetch_metadata()

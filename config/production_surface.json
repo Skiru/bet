@@ -46,6 +46,7 @@
     "src/bet/pipeline/orchestrator.py",
     "src/bet/pipeline/orchestrator_contracts.py",
     "src/bet/pipeline/readiness_contracts.py",
+    "src/bet/pipeline/receipts.py",
     "src/bet/pipeline/run_coordination.py",
     "src/bet/pipeline/run_evidence.py",
     "src/bet/pipeline/runtime_modes.py",
@@ -145,6 +146,7 @@
     "config/football_freshness.yaml",
     "config/football_metrics.yaml",
     "config/football_routing.yaml",
+    "config/model_registry.json",
     "config/pipeline_certification_inventory.json",
     "config/pipeline_manifest.json",
     "config/portfolio_policy.json",
@@ -209,6 +211,7 @@
     "scripts/audit_orchestrated_session_continuation.py",
     "scripts/audit_sport_coverage.py",
     "scripts/audit_v2.py",
+    "scripts/build_v5_v4_closure_package.py",
     "scripts/build_shortlist.py",
     "scripts/check_48h_repeats.py",
     "scripts/compute_safety_scores.py",
@@ -235,6 +238,10 @@
     "scripts/generate-fingerprint.py",
     "scripts/generate_manifest.py",
     "scripts/generate_market_matrix.py",
+<<<<<<< HEAD
+=======
+    "scripts/generate_all_v5_receipts.py",
+>>>>>>> fix/bet-v5-final-one-pass-closure-v4
     "scripts/generate_v5_final_report.py",
     "scripts/healthcheck-local-model.fish",
     "scripts/kilo_agent_model_contract_check.py",
@@ -779,6 +786,11 @@
     "tests/enrichment/test_m0a_provider_probe.py",
     "tests/football/test_truthful_closure_regressions.py",
     "tests/integration/test_v5_full_agentic_runtime.py",
+<<<<<<< HEAD
+=======
+    "tests/integration/test_v5_full_sharding_lifecycle.py",
+    "tests/integration/test_v5_pipeline_analysis_only_runtime.py",
+>>>>>>> fix/bet-v5-final-one-pass-closure-v4
     "tests/phase0/test_golden_vertical_defects.py",
     "tests/phase6/test_cross_provider_event.py",
     "tests/scrapers/__init__.py",
@@ -804,7 +816,14 @@
     "tests/scrapers/volleyball/__init__.py",
     "tests/scrapers/volleyball/test_volleybox.py",
     "tests/security/test_v5_exploit_regressions.py",
+<<<<<<< HEAD
     "tests/security/test_v5_runtime_acceptance.py",
+=======
+    "tests/security/test_v5_exploit_reproductions.py",
+    "tests/security/test_v5_runtime_acceptance.py",
+    "tests/security/test_v5_v3_closure_regressions.py",
+    "tests/security/test_v5_v4_closure_regressions.py",
+>>>>>>> fix/bet-v5-final-one-pass-closure-v4
     "tests/support/__init__.py",
     "tests/support/adapters.py",
     "tests/test_agent_work_order_owner_alignment.py",
@@ -1229,6 +1248,8 @@
   "documentation": [
     "AGENTS.md",
     "ARCHITECTURE.md",
+    "BET_V5_FINAL_ONE_PASS_CLOSURE_V4.md",
+    "BET_V5_FINAL_ONE_PASS_REPAIR_AND_S2_RESTART_V3.md",
     "README.md",
     "docs/V5_BASELINE_ACCEPTANCE.md",
     "docs/V5_CLOSURE_CERTIFICATION.md",

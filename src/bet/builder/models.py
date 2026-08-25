@@ -51,20 +51,33 @@ class JointModelScopeV1(StrictBaseModel):
             raise ValueError("calibration_report_sha256 cannot be None")
         return res
 
+<<<<<<< HEAD
     def is_pricing_eligible(self) -> bool:
+=======
+    def is_pricing_eligible(self, search_dirs: list[Path] | None = None) -> bool:
+>>>>>>> fix/bet-v5-final-one-pass-closure-v4
         if self.promotion_status != "PRICING_ELIGIBLE":
             return False
         if not is_valid_sha256_hex(self.calibration_report_sha256) or self.calibration_report_sha256 == "0" * 64:
             return False
 
+<<<<<<< HEAD
         from pathlib import Path
         import hashlib
         root = Path(__file__).resolve().parent.parent.parent.parent
         artifact_dirs = [
+=======
+        from bet.pipeline.readiness_contracts import JointModelPackageResolver
+        from pathlib import Path
+        import hashlib
+        root = Path(__file__).resolve().parent.parent.parent.parent
+        artifact_dirs = search_dirs or [
+>>>>>>> fix/bet-v5-final-one-pass-closure-v4
             root / "models",
             root / ".kilo" / "artifacts" / "models",
             root / "data" / "models",
         ]
+<<<<<<< HEAD
         found_calibration = False
         for d in artifact_dirs:
             if not d.exists():
@@ -79,6 +92,25 @@ class JointModelScopeV1(StrictBaseModel):
                     except Exception:
                         pass
         return found_calibration
+=======
+        for d in artifact_dirs:
+            if d.exists() and d.is_dir():
+                pkg = JointModelPackageResolver.resolve_package(d, approved_dirs=artifact_dirs)
+                if pkg and pkg.is_eligible and getattr(pkg, "calibration_report_sha256", "") == self.calibration_report_sha256:
+                    return True
+                for p in d.rglob("*"):
+                    if p.is_dir():
+                        pkg = JointModelPackageResolver.resolve_package(p, approved_dirs=artifact_dirs)
+                        if pkg and pkg.is_eligible and getattr(pkg, "calibration_report_sha256", "") == self.calibration_report_sha256:
+                            return True
+                    elif p.is_file() and self.assumes_independence:
+                        try:
+                            if hashlib.sha256(p.read_bytes()).hexdigest() == self.calibration_report_sha256:
+                                return True
+                        except Exception:
+                            pass
+        return False
+>>>>>>> fix/bet-v5-final-one-pass-closure-v4
 
 
 class JointProbabilityEstimateV1(StrictBaseModel):

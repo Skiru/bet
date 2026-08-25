@@ -587,9 +587,9 @@ class ESPNOddsClient:
 
     def get_futures(self, sport: str, league: str, season_year: int | None = None) -> list[dict]:
         """Get season futures odds.
-        
+
         URL: https://sports.core.api.espn.com/v2/sports/{sport}/leagues/{league}/seasons/{year}/futures
-        
+
         Returns list of futures markets with odds per team/player.
         """
         slug = self._sport_slug(sport)

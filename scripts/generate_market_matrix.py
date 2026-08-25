@@ -1228,12 +1228,12 @@ def generate_market_matrix(
             if "data_tier" not in e:
                 e["data_tier"] = "FIXTURE_ONLY"
             e["suggested"] = None
-            
+
             # remove any forbidden keys at top level of event
             for k in list(e.keys()):
                 if k in forbidden_keys:
                     del e[k]
-            
+
             # remove any forbidden keys in nested markets
             for sub_list_name in ("odds_markets", "safety_markets"):
                 if sub_list_name in e and isinstance(e[sub_list_name], list):
@@ -1956,7 +1956,7 @@ def main():
     # Enforce data directory resolution rules
     global DATA_DIR, CACHE_DIR
     ROOT_DIR = Path(__file__).resolve().parent.parent
-    
+
     output_dir_str = args.output_dir or os.environ.get("BET_PIPELINE_DATA_DIR")
     runtime_mode = os.environ.get("BET_PIPELINE_RUNTIME_MODE", "").upper()
 
@@ -1969,7 +1969,18 @@ def main():
     else:
         output_dir = Path(output_dir_str).resolve()
 
-    # Reject resolved pipeline output path inside repo-local
+    # Reject repo-local output unless it is the isolated directory for this run.
+    pipeline_run_root_str = os.environ.get("BET_PIPELINE_RUN_ROOT")
+    pipeline_run_root = (
+        Path(pipeline_run_root_str).resolve() if pipeline_run_root_str else None
+    )
+    is_isolated_run_output = False
+    if pipeline_run_root is not None:
+        try:
+            is_isolated_run_output = output_dir.is_relative_to(pipeline_run_root)
+        except ValueError:
+            pass
+
     forbidden_dirs = [
         (ROOT_DIR / "betting" / "data").resolve(),
         (ROOT_DIR / "betting" / "coupons").resolve(),
@@ -1978,7 +1989,10 @@ def main():
 
     for forbidden in forbidden_dirs:
         try:
-            if output_dir == forbidden or output_dir.is_relative_to(forbidden):
+            if (
+                not is_isolated_run_output
+                and (output_dir == forbidden or output_dir.is_relative_to(forbidden))
+            ):
                 if runtime_mode in {"DRY_RUN", "LIVE_SHADOW", "CERTIFICATION"}:
                     print(f"[matrix] ERROR: Resolved pipeline output path '{output_dir}' is inside forbidden repo-local '{forbidden}'")
                     print("FAILED_MARKET_MATRIX_GENERATION")
