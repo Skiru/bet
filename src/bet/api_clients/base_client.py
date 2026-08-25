@@ -20,6 +20,7 @@ from typing import Any
 import requests
 
 from .rate_limiter import RateLimiter
+from .env import get_env
 
 # Resolve project root: src/bet/api_clients/base_client.py → project root
 PROJECT_ROOT = Path(__file__).parent.parent.parent.parent
@@ -103,11 +104,15 @@ class BaseAPIClient(ABC):
         return bool(self.api_key)
 
     def _load_api_key(self) -> str | None:
-        """Load API key from env var → config/api_keys.json → None."""
+        """Load API key from process env/.env, then legacy JSON fallback."""
         env_var = self.api_name.upper().replace("-", "_") + "_KEY"
-        key = os.environ.get(env_var)
-        if key and key.strip():
-            return key.strip()
+        aliases = {
+            "THESPORTSDB_KEY": ("THESPORTSDB_API_KEY",),
+            "ODDS_API_IO_KEY": ("ODDS_API_IO_API_KEY",),
+        }.get(env_var, ())
+        key = get_env(env_var, *aliases)
+        if key:
+            return key
 
         keys_file = CONFIG_DIR / "api_keys.json"
         if keys_file.exists():
@@ -264,9 +269,9 @@ class APISportsClient(BaseAPIClient):
         if not self._SHARES_FOOTBALL_KEY:
             return None
 
-        env_key = os.environ.get("API_FOOTBALL_KEY")
-        if env_key and env_key.strip():
-            return env_key.strip()
+        env_key = get_env("API_FOOTBALL_KEY")
+        if env_key:
+            return env_key
 
         keys_file = CONFIG_DIR / "api_keys.json"
         if keys_file.exists():

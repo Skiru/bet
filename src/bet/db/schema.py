@@ -6,7 +6,7 @@ import sqlite3
 from pathlib import Path
 
 SCHEMA_SQL = Path(__file__).parent / "schema.sql"
-SCHEMA_VERSION = 22
+SCHEMA_VERSION = 27
 
 
 def init_db(conn: sqlite3.Connection) -> None:
@@ -244,6 +244,21 @@ def migrate(conn: sqlite3.Connection, from_version: int, to_version: int) -> Non
 
     if from_version < 22 and to_version >= 22:
         _migrate_v22_pipeline_runtime_bridge(conn)
+
+    if from_version < 23 and to_version >= 23:
+        _migrate_v23_pipeline_provider_observation_attempts(conn)
+
+    if from_version < 24 and to_version >= 24:
+        _migrate_v24_pipeline_event_stage_artifacts(conn)
+
+    if from_version < 25 and to_version >= 25:
+        _migrate_v25_pipeline_runtime_plans(conn)
+
+    if from_version < 26 and to_version >= 26:
+        _migrate_v26_pipeline_runtime_stage_work(conn)
+
+    if from_version < 27 and to_version >= 27:
+        _migrate_v27_pipeline_runtime_plan_stage_work_binding(conn)
 
 
     _set_schema_version(conn, to_version)
@@ -632,3 +647,43 @@ def _migrate_v22_pipeline_runtime_bridge(conn: sqlite3.Connection) -> None:
     bridge_migration_path = Path(__file__).parent / "migrations" / "022_pipeline_runtime_bridge.sql"
     if bridge_migration_path.exists():
         conn.executescript(bridge_migration_path.read_text(encoding="utf-8"))
+
+
+def _migrate_v23_pipeline_provider_observation_attempts(conn: sqlite3.Connection) -> None:
+    migration_path = Path(__file__).parent / "migrations" / "023_pipeline_provider_observation_attempts.sql"
+    if migration_path.exists():
+        conn.executescript(migration_path.read_text(encoding="utf-8"))
+
+
+def _migrate_v24_pipeline_event_stage_artifacts(conn: sqlite3.Connection) -> None:
+    migration_path = Path(__file__).parent / "migrations" / "024_pipeline_event_stage_artifacts.sql"
+    if migration_path.exists():
+        conn.executescript(migration_path.read_text(encoding="utf-8"))
+
+
+def _migrate_v25_pipeline_runtime_plans(conn: sqlite3.Connection) -> None:
+    migration_path = Path(__file__).parent / "migrations" / "025_pipeline_runtime_plans.sql"
+    if migration_path.exists():
+        conn.executescript(migration_path.read_text(encoding="utf-8"))
+
+
+def _migrate_v26_pipeline_runtime_stage_work(conn: sqlite3.Connection) -> None:
+    migration_path = Path(__file__).parent / "migrations" / "026_pipeline_runtime_stage_work.sql"
+    if migration_path.exists():
+        conn.executescript(migration_path.read_text(encoding="utf-8"))
+
+
+def _migrate_v27_pipeline_runtime_plan_stage_work_binding(conn: sqlite3.Connection) -> None:
+    columns = {
+        row[1]
+        for row in conn.execute("PRAGMA table_info(pipeline_runtime_plans)").fetchall()
+    }
+    for column in (
+        "stage_work_plan_path",
+        "stage_work_plan_sha256",
+        "required_manifest_digest",
+    ):
+        if column not in columns:
+            conn.execute(
+                f"ALTER TABLE pipeline_runtime_plans ADD COLUMN {column} TEXT"
+            )

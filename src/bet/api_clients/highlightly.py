@@ -13,6 +13,7 @@ from bet.integration.evidence import (
 from bet.integration.source_result import SourceOperationResult, SourceResultStatus
 
 from .base_client import BaseAPIClient
+from .env import get_env
 from .rate_limiter import RateLimiter
 
 LEAGUE_DISCOVERY_PARSER_VERSION = "highlightly-league-discovery-v1"
@@ -59,9 +60,9 @@ class HighlightlyClient(BaseAPIClient):
 
     def _load_api_key(self) -> str | None:
         for alias in ("HIGHLIGHTLY_API_KEY", "RAPIDAPI_KEY"):
-            value = os.environ.get(alias, "")
-            if value and value.strip():
-                return value.strip()
+            value = get_env(alias)
+            if value:
+                return value
         return super()._load_api_key()
 
     def _build_headers(self) -> dict[str, str]:

@@ -182,6 +182,28 @@ def validate_agent_artifact_for_work_order(
 ) -> list[str]:
     """Compare an agent-produced artifact against its work order rules."""
 
+    # Chunk artifacts have a separate typed contract and are not ordinary
+    # AgentWorkOrder artifacts. Keep the two schemas from being cross-validated.
+    is_chunk_artifact = (
+        artifact_data.get("artifact_type") == "CHUNK_ARTIFACT"
+        or (
+            bool(artifact_data.get("chunk_id"))
+            and bool(artifact_data.get("parent_work_order_id"))
+            and "chunk_index" in artifact_data
+        )
+    )
+    if is_chunk_artifact:
+        from bet.pipeline.sharding.lifecycle import validate_chunk_against_work_order
+        from bet.pipeline.sharding.models import ChunkArtifactV1, ChunkWorkOrderV1
+
+        try:
+            chunk = ChunkArtifactV1.model_validate(artifact_data)
+            chunk_work_order = ChunkWorkOrderV1.model_validate(work_order_data)
+            validate_chunk_against_work_order(chunk, chunk_work_order)
+        except Exception as exc:
+            return [f"chunk artifact contract validation failure: {exc}"]
+        return []
+
     def _non_empty_list(value: Any) -> bool:
         return isinstance(value, list) and len(value) > 0
 
@@ -339,6 +361,12 @@ def validate_agent_artifact_for_work_order(
     import hashlib
     if isinstance(evidence_refs, list):
         for ref in evidence_refs:
+            if not isinstance(ref, str):
+                errors.append(
+                    "evidence_refs entries must be text paths; structured evidence "
+                    "receipts belong in receipts/source fields"
+                )
+                continue
             if not ref.endswith(".json") and "/" not in ref and "\\" not in ref:
                 continue
 

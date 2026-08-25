@@ -46,7 +46,7 @@
     "tests/security/test_v5_runtime_acceptance.py": "461995239d0705d22dcc680424b150c45b21febf5e8ef63b0be0e33d4869a455",
     "tests/integration/test_v5_full_agentic_runtime.py": "7685d72a81908b1b450c74004b10db9386b49fb91145a92fa15311c909b10e4c",
     "tests/security/test_v5_v4_closure_regressions.py": "7600c60976881bafee8e36ec35823d31463d601e573f3a17ad3f630420d4c831",
-    "tests/security/test_v5_v4_phase1_red_reproductions.py": "ce276162f56d862a27823675ed3737866a183ec62a62b288cab6833e78e81ba9"
+    "tests/security/test_v5_v4_phase1_red_reproductions.py": "0dadd68e78445b8cfe1121c94f910bfebde940727d2b32dfc571ccacb8823f97"
   },
   "expected_minimum_counts": {
     "tests/test_canonical_continuity_v4_owner_regressions.py": 30,

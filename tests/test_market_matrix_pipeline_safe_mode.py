@@ -129,6 +129,28 @@ def test_sandbox_prevents_repo_local_writes(tmp_path):
     assert "forbidden" in res.stdout or "Repo-local fallback is forbidden" in res.stdout
 
 
+def test_sandbox_allows_isolated_run_output_under_reports(tmp_path):
+    run_root = tmp_path / "reports" / "pipeline_runs" / "2026-08-24" / "run-1"
+    output_dir = run_root / "data"
+    output_dir.mkdir(parents=True)
+    env = os.environ.copy()
+    env["BET_PIPELINE_RUNTIME_MODE"] = "DRY_RUN"
+    env["BET_PIPELINE_RUN_ROOT"] = str(run_root)
+
+    cmd = [
+        sys.executable,
+        str(ROOT / "scripts" / "generate_market_matrix.py"),
+        "--date", "2026-06-25",
+        "--output-dir", str(output_dir),
+        "--pipeline-safe",
+        "--json-only",
+    ]
+
+    res = subprocess.run(cmd, env=env, capture_output=True, text=True)
+    assert res.returncode != 6
+    assert "Resolved pipeline output path" not in res.stdout
+
+
 def test_json_only_writes_only_json(tmp_path):
     # 4. --pipeline-safe --json-only writes only the JSON matrix
     db_fd, db_path = tempfile.mkstemp(suffix=".db")

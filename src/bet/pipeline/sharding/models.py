@@ -12,8 +12,8 @@ class WorkOrderBudgetV1(StrictBaseModel):
     max_events_per_chunk: int = Field(default=15, ge=1, le=100)
     max_prompt_bytes: int = Field(default=32000, ge=1000)
     max_estimated_tokens: int = Field(default=8000, ge=500)
-    max_retrieval_queries_per_event: int = Field(default=5, ge=0)
-    max_total_retrievals_per_chunk: int = Field(default=25, ge=0)
+    max_retrieval_queries_per_event: int = Field(default=4, ge=0)
+    max_total_retrievals_per_chunk: int = Field(default=35, ge=0)
     max_wall_time_seconds: int = Field(default=300, ge=10)
     max_retries: int = Field(default=1, ge=0)
     sequential_execution_required: bool = True
@@ -42,6 +42,7 @@ class ChunkWorkOrderV1(StrictBaseModel):
     task_allowlist: tuple[str, ...] = ()
     acquisition_plan_refs: tuple[str, ...] = ()
     acquisition_plan: FactAcquisitionPlanV1 | dict[str, Any] | None = None
+    event_acquisition_plans: tuple[FactAcquisitionPlanV1, ...] = ()
     hard_rules: tuple[str, ...] = ()
     forbidden_outputs: tuple[str, ...] = ()
     expected_artifact_path: str = "/tmp/chunk_artifact_output.json"
@@ -51,11 +52,29 @@ class ChunkWorkOrderV1(StrictBaseModel):
     attempt_id: str = ""
     budget: WorkOrderBudgetV1 = Field(default_factory=WorkOrderBudgetV1)
 
-    @field_validator("event_ids", "allowed_tools", "input_refs", "task_allowlist", "acquisition_plan_refs", "hard_rules", "forbidden_outputs", "allowed_artifact_statuses", mode="before")
+    @field_validator(
+        "event_ids", "allowed_tools", "input_refs", "task_allowlist",
+        "acquisition_plan_refs", "event_acquisition_plans", "hard_rules",
+        "forbidden_outputs", "allowed_artifact_statuses", mode="before"
+    )
     @classmethod
     def coerce_tuples(cls, v: Any) -> tuple[Any, ...]:
         if isinstance(v, (list, tuple, set)):
             return tuple(v)
+        return ()
+
+    @field_validator("event_acquisition_plans", mode="before")
+    @classmethod
+    def coerce_event_acquisition_plans(
+        cls, v: Any
+    ) -> tuple[FactAcquisitionPlanV1, ...]:
+        if isinstance(v, (list, tuple)):
+            return tuple(
+                FactAcquisitionPlanV1.model_validate(item)
+                if isinstance(item, dict)
+                else item
+                for item in v
+            )
         return ()
 
     @model_validator(mode="after")
@@ -78,6 +97,14 @@ class ChunkWorkOrderV1(StrictBaseModel):
             raise ValueError("CHUNK_WO_BINDING_EMPTY: expected_artifact_path is required and cannot be default /tmp/chunk.json")
         if not self.expected_artifact_type or self.expected_artifact_type == "UNKNOWN":
             raise ValueError("CHUNK_WO_BINDING_EMPTY: expected_artifact_type is required")
+        planned_ids = {
+            plan.canonical_event_id for plan in self.event_acquisition_plans
+        }
+        if planned_ids and planned_ids != set(self.event_ids):
+            raise ValueError(
+                "CHUNK_WO_BINDING_MISMATCH: event acquisition plans must cover "
+                "exactly the chunk events"
+            )
         return self
 
 
@@ -95,6 +122,7 @@ class ChunkExecutionPlanV1(StrictBaseModel):
 
 class ChunkArtifactV1(StrictBaseModel):
     """Artifact emitted by a single completed chunk."""
+    schema_version: int = 1
     artifact_type: str = "CHUNK_ARTIFACT"
     chunk_id: str
     step_id: str = ""
@@ -109,9 +137,19 @@ class ChunkArtifactV1(StrictBaseModel):
     producer_agent_id: str
     betting_day: str = ""
     run_id: str = ""
+    agent_id: str | None = None
     source_head: str = "a" * 40
     source_tree: str = "b" * 40
     manifest_sha256: str = "c" * 64
+    point_in_time_as_of: str | None = None
+    source_bound: bool = True
+    no_pick_edge_stake_coupon_emitted: bool = True
+    production_selectable: bool = False
+    betting_decisions_enabled: bool = False
+    sources: list[str] = Field(default_factory=list)
+    unknowns: list[str] = Field(default_factory=list)
+    blocked_reasons: list[str] = Field(default_factory=list)
+    evidence_refs: list[str] = Field(default_factory=list)
     processed_event_ids: tuple[str, ...]
     event_records: list[dict[str, Any]] = Field(default_factory=list)
     payload: dict[str, Any] = Field(default_factory=dict)
@@ -124,6 +162,14 @@ class ChunkArtifactV1(StrictBaseModel):
         if isinstance(v, (list, tuple, set)):
             return tuple(str(x) for x in v)
         return ()
+
+    @field_validator("evidence_refs", mode="before")
+    @classmethod
+    def require_text_evidence_refs(cls, v: Any) -> list[str]:
+        refs = v if isinstance(v, list) else []
+        if any(not isinstance(ref, str) for ref in refs):
+            raise ValueError("CHUNK_ARTIFACT_EVIDENCE_REF_TYPE: evidence_refs must contain text paths")
+        return refs
 
     @model_validator(mode="after")
     def validate_chunk_artifact_bindings(self) -> ChunkArtifactV1:
@@ -192,8 +238,9 @@ class FactAcquisitionPlanV1(StrictBaseModel):
     plan_id: str
     canonical_event_id: str
     sport: str
+    source_strategy: str = ""
     requirements: tuple[FactRequirementV1, ...] = ()
-    max_queries: int = 10
+    max_queries: int = 4
 
     @field_validator("requirements", mode="before")
     @classmethod

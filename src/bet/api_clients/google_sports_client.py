@@ -28,6 +28,7 @@ from pathlib import Path
 import requests
 
 from .base_client import BaseAPIClient, CACHE_DIR
+from .env import get_env
 from .rate_limiter import RateLimiter
 from bet.models.normalized import NormalizedFixture, NormalizedMatchStats
 
@@ -125,10 +126,7 @@ class GoogleSportsClient(BaseAPIClient):
 
         Override base class to use 'serpapi' key name instead of 'google-sports'.
         """
-        import os
-
-        # Check env var first
-        env_key = os.environ.get("SERPAPI_KEY", "")
+        env_key = get_env("SERPAPI_KEY")
         if env_key:
             return env_key
 

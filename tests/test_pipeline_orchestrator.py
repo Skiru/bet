@@ -168,6 +168,7 @@ def test_agent_step_generates_work_order_and_blocks_when_artifact_missing(tmp_pa
     )
     from bet.pipeline.integration_artifacts import write_script_evidence
     write_script_evidence("S2", status="PASS", payload={}, sources=(), evidence_refs=(), environ=orch.env)
+    write_script_evidence("S1e", status="PASS", payload={}, sources=(), evidence_refs=(), environ=orch.env)
 
     summary = orch.run(start_step="S2.3", stop_after_step="S2.3")
 

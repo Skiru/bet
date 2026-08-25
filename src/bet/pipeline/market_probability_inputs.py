@@ -866,7 +866,8 @@ def validate_market_probability_input(input_data: MarketProbabilityInput) -> tup
     if input_data.semantics_issue in {"AMBIGUOUS_MARKET_SERIES_MATCH", "MARKET_SERIES_NOT_FOUND_FOR_FAMILY_LINE"}:
         return False, input_data.semantics_issue
 
-    if input_data.stat_semantics_status == "UNKNOWN" or input_data.semantics_issue == "UNKNOWN_SPLIT_STAT_SEMANTICS" or "unknown_split_stat_semantics" in input_data.missing_fields:
+    missing_fields = getattr(input_data, "missing_fields", [])
+    if input_data.stat_semantics_status == "UNKNOWN" or input_data.semantics_issue == "UNKNOWN_SPLIT_STAT_SEMANTICS" or "unknown_split_stat_semantics" in missing_fields:
         return False, "UNKNOWN_SPLIT_STAT_SEMANTICS"
 
     if input_data.mapping_status == "AMBIGUOUS_MARKET_LABEL":

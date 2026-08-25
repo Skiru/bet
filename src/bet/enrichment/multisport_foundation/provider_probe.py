@@ -21,6 +21,8 @@ class ProviderProbeStatus(StrEnum):
 @dataclass(frozen=True)
 class ProviderProbePolicy:
     provider_key: str
+    from bet.api_clients.env import get_env
+
     sport: str
     route_key: str
     allow_real_network: bool = False
@@ -171,7 +173,6 @@ def run_provider_probe(
 
     # 2. Mapping is ready. Evaluate real network conditions.
     allow_real_network_env = (env.get("MULTISPORT_PASS_F_ALLOW_REAL_NETWORK") == "1")
-
     if not credentials_present:
         status = ProviderProbeStatus.SANITIZED_PROBE_BLOCKED_NO_CREDENTIALS
         blocked_reason = "missing_probe_credentials"
@@ -265,7 +266,7 @@ def run_provider_probe(
     # Build real headers
     real_headers = {}
     if mapping.provider_key == "pandascore":
-        token = env.get("PANDASCORE_TOKEN", "")
+        token = env.get("PANDASCORE_TOKEN", "") or get_env("PANDASCORE_TOKEN")
         real_headers["Authorization"] = f"Bearer {token}"
     else:
         # api-sports key

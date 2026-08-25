@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 """CLI entrypoint for running the daily betting pipeline orchestrator."""
+
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import sys
 import tempfile
@@ -58,7 +60,7 @@ def build_pipeline_parser() -> argparse.ArgumentParser:
         "--execute-existing-plan",
         action="store_true",
         default=False,
-        help="Execute S2-S8 continuation from an existing plan without recreating shadow DB",
+        help="Validate an existing plan and stop at READY before S2",
     )
     p.add_argument(
         "--plan-checkpoint",
@@ -95,7 +97,7 @@ def build_pipeline_parser() -> argparse.ArgumentParser:
     )
     p.add_argument(
         "--source-run-root",
-        help="Optional source run root directory for lineage-preserving restart from S2",
+        help="Optional source run root directory for lineage-preserving restart",
     )
     p.add_argument(
         "--restart-seed",
@@ -118,7 +120,8 @@ def build_pipeline_parser() -> argparse.ArgumentParser:
     p.add_argument(
         "--reuse-through-step",
         default="S1e",
-        help="Step through which to reuse artifacts from source run (default S1e)",
+        choices=["S1", "S1e"],
+        help="Step through which to reuse artifacts from source run",
     )
     p.add_argument(
         "--verbose",
@@ -135,15 +138,26 @@ def parse_pipeline_args(argv: list[str] | None = None) -> argparse.Namespace:
     p = build_pipeline_parser()
     args = p.parse_args(argv)
 
+    if args.reuse_through_step == "S1" and args.start_step != "S1e":
+        p.error("--reuse-through-step S1 requires --start-step S1e")
+    if args.start_step == "S1e" and not args.source_run_root:
+        p.error("--start-step S1e requires --source-run-root")
+
     restart_seed = getattr(args, "restart_seed", None)
     restart_man = getattr(args, "restart_seed_manifest", None)
     if restart_seed:
         if args.reuse_through_step != "S1e":
-            raise ValueError(f"RESTART_SEED_REQUIRES_REUSE_THROUGH_S1E: Only S1e reuse supported, got {args.reuse_through_step}")
+            raise ValueError(
+                f"RESTART_SEED_REQUIRES_REUSE_THROUGH_S1E: Only S1e reuse supported, got {args.reuse_through_step}"
+            )
         if args.start_step and args.start_step != "S2":
-            raise ValueError(f"RESTART_SEED_REQUIRES_START_STEP_S2: Restart seed mode requires start step S2, got {args.start_step}")
+            raise ValueError(
+                f"RESTART_SEED_REQUIRES_START_STEP_S2: Restart seed mode requires start step S2, got {args.start_step}"
+            )
         if not restart_man:
-            raise ValueError("EXTERNAL_MANIFEST_MISSING: --restart-seed-manifest is required when using --restart-seed")
+            raise ValueError(
+                "EXTERNAL_MANIFEST_MISSING: --restart-seed-manifest is required when using --restart-seed"
+            )
 
     return args
 
@@ -161,8 +175,25 @@ def main() -> None:
 
     target_run_root = Path(args.base_run_dir) / args.date / args.run_id
 
+    if args.reuse_through_step == "S1":
+        from scripts.pipeline_steps.restart_through_s1 import prepare_restart_through_s1
+
+        source_root = Path(args.source_run_root).resolve(strict=True)
+        source_summary = json.loads((source_root / "run_summary.json").read_text(encoding="utf-8"))
+        source_run_id = str(source_summary.get("run_id") or source_root.name)
+        prepare_restart_through_s1(
+            source_root=source_root,
+            target_root=target_run_root,
+            source_run_id=source_run_id,
+            target_run_id=args.run_id,
+            day=args.date,
+            expected_s0="23e00e1510bdb2c050fb553ac2d13e829c2a069515fbae460bd9ba11a291bdbc",
+            expected_s1="49bdbec2fa4093f28967ddabec52d693f60e199f4fe25a71ac987be29641fa01",
+        )
+
     if args.plan_only:
         from bet.pipeline.launch_bridge import execute_plan_only
+
         res = execute_plan_only(
             repo_root=ROOT,
             date=args.date,
@@ -214,14 +245,23 @@ def main() -> None:
 
     if args.source_run_root and not seed_tar_to_import:
         if args.start_step == "S2":
-            from scripts.pipeline_steps.export_s2_restart_seed import export_s2_restart_seed
+            from scripts.pipeline_steps.export_s2_restart_seed import (
+                export_s2_restart_seed,
+            )
+
             src_root = Path(args.source_run_root).resolve(strict=True)
             with tempfile.TemporaryDirectory(prefix="s2_export_") as tmp_dir:
-                seed_tar_to_import, seed_man_to_import = export_s2_restart_seed(source_run_root=src_root, output_dir=Path(tmp_dir))
+                seed_tar_to_import, seed_man_to_import = export_s2_restart_seed(
+                    source_run_root=src_root, output_dir=Path(tmp_dir)
+                )
 
     if seed_tar_to_import and args.start_step == "S2":
         from scripts.pipeline_steps.import_s2_restart_seed import import_s2_restart_seed
-        from bet.pipeline.receipts import get_git_commit_head, get_git_tree_sha, compute_source_manifest_sha256
+        from bet.pipeline.receipts import (
+            get_git_commit_head,
+            get_git_tree_sha,
+            compute_source_manifest_sha256,
+        )
 
         repo_root = ROOT
         cur_head = get_git_commit_head(repo_root)
@@ -243,29 +283,31 @@ def main() -> None:
 
     if args.execute_existing_plan:
         from bet.pipeline.launch_bridge import verify_and_prepare_plan_continuation
+
         cont_res = verify_and_prepare_plan_continuation(
             target_run_root=target_run_root,
             run_id=args.run_id,
             expected_selection_ledger_sha256=args.selection_ledger_sha256,
             expected_plan_checkpoint_path=args.plan_checkpoint,
         )
-        if cont_res.get("status") == "BLOCKED" or cont_res.get("blocker") == "PLAN_REFRESH_REQUIRED":
+        if cont_res.get("status") == "BLOCKED":
             print("STATUS=BLOCKED")
-            print("BLOCKER=PLAN_REFRESH_REQUIRED")
+            print(f"BLOCKER={cont_res.get('blocker')}")
             print(f"REASON={cont_res.get('reason')}")
             sys.exit(1)
-        shadow_db_path = cont_res["shadow_db_path"]
-        os.environ["BET_DB_PATH"] = shadow_db_path
-        os.environ["DATABASE_URL"] = f"sqlite:///{shadow_db_path}"
-        os.environ["BET_PIPELINE_RUNTIME_DB_KIND"] = "LIVE_ANALYSIS_SHADOW"
-        os.environ["BET_PIPELINE_RUNTIME_DB_RUN_ID"] = args.run_id
-        os.environ["BET_PIPELINE_SELECTION_RUN_ID"] = args.run_id
-        args.start_step = args.start_step or "S2"
-        args.stop_after_step = args.stop_after_step or "S8"
+        print("STATUS=READY")
+        print(f"PLAN_STATUS={cont_res.get('plan_status', 'READY')}")
+        sys.exit(0)
     elif args.runtime_mode == "LIVE_ANALYSIS_SHADOW":
-        from bet.pipeline.launch_bridge import create_runtime_analysis_shadow_db, resolve_canonical_db_path
+        from bet.pipeline.launch_bridge import (
+            create_runtime_analysis_shadow_db,
+            resolve_canonical_db_path,
+        )
+
         canonical_p = resolve_canonical_db_path()
-        sh_res = create_runtime_analysis_shadow_db(canonical_p, target_run_root, args.run_id, allow_overwrite=True)
+        sh_res = create_runtime_analysis_shadow_db(
+            canonical_p, target_run_root, args.run_id, allow_overwrite=True
+        )
         os.environ["BET_DB_PATH"] = sh_res["shadow_db_path"]
         os.environ["DATABASE_URL"] = f"sqlite:///{sh_res['shadow_db_path']}"
         os.environ["BET_PIPELINE_RUNTIME_DB_KIND"] = "LIVE_ANALYSIS_SHADOW"

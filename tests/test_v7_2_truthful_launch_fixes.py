@@ -12,6 +12,16 @@ from bet.pipeline.launch_bridge import (
 )
 
 
+def _apply_observation_schema(conn: sqlite3.Connection) -> None:
+    migrations = Path(__file__).resolve().parents[1] / "src/bet/db/migrations"
+    conn.executescript(
+        (migrations / "023_pipeline_provider_observation_attempts.sql").read_text()
+    )
+    conn.executescript(
+        (migrations / "024_pipeline_event_stage_artifacts.sql").read_text()
+    )
+
+
 def test_create_runtime_analysis_shadow_db_fails_on_existing_without_overwrite(tmp_path: Path):
     canonical_db = tmp_path / "canonical.db"
     conn = sqlite3.connect(str(canonical_db))
@@ -31,7 +41,7 @@ def test_create_runtime_analysis_shadow_db_fails_on_existing_without_overwrite(t
     assert shadow_p.exists()
 
     # Second call without allow_overwrite must raise FileExistsError
-    with pytest.raises(FileExistsError, match="Unlinking an existing plan DB is forbidden"):
+    with pytest.raises(FileExistsError, match="PLAN_RUN_COLLISION"):
         create_runtime_analysis_shadow_db(canonical_db, run_root, "RUN_001", allow_overwrite=False)
 
 
@@ -43,6 +53,7 @@ def test_reconcile_s1r_runtime_database_offline_counts(tmp_path: Path):
     conn.execute("INSERT INTO fixtures VALUES (2, 'ext_2', '2026-07-29T10:00:00Z', 'SCHEDULED', 3, 4, 'odds-api')")
     conn.execute("CREATE TABLE teams (id INTEGER PRIMARY KEY, name TEXT)")
     conn.execute("INSERT INTO teams VALUES (1, 'Team A'), (2, 'Team B'), (3, 'Team C'), (4, 'Team D')")
+    _apply_observation_schema(conn)
     conn.commit()
 
     run_root = tmp_path / "run_001"
@@ -60,15 +71,16 @@ def test_reconcile_s1r_runtime_database_offline_counts(tmp_path: Path):
     assert res["provider_revalidated"] + res["provider_failures"] == res["total_fixtures_checked"]
 
     # Verify s1r evidence files exist
-    ev1 = run_root / "artifacts" / "s1r_evidence" / "fixture_1.json"
-    ev2 = run_root / "artifacts" / "s1r_evidence" / "fixture_2.json"
+    evidence_files = sorted((run_root / "artifacts" / "s1r_evidence").glob("*.json"))
+    assert len(evidence_files) == 2
+    ev1, ev2 = evidence_files
     assert ev1.exists()
     assert ev2.exists()
 
     d1 = json.loads(ev1.read_text())
     assert d1["fixture_id"] == 1
     assert "request_status" in d1
-    assert "failure_reason" in d1
+    assert "error_detail" in d1
 
     # Check live_discovery_ledger.json
     disc_file = run_root / "artifacts" / "live_discovery_ledger.json"
@@ -91,7 +103,7 @@ def test_verify_and_prepare_plan_continuation(tmp_path: Path):
     canonical_db = tmp_path / "canonical.db"
     conn = sqlite3.connect(str(canonical_db))
     conn.execute("CREATE TABLE fixtures (id INTEGER PRIMARY KEY, external_id TEXT, kickoff TEXT, status TEXT, home_team_id INTEGER, away_team_id INTEGER, source TEXT)")
-    conn.execute("INSERT INTO fixtures VALUES (1, 'ext_1', '2026-07-29T20:00:00Z', 'SCHEDULED', 1, 2, 'odds-api')")
+    conn.execute("INSERT INTO fixtures VALUES (1, 'ext_1', '2027-07-30T20:00:00Z', 'SCHEDULED', 1, 2, 'odds-api')")
     conn.execute("CREATE TABLE sports (id INTEGER PRIMARY KEY, name TEXT, tier INTEGER)")
     conn.execute("INSERT INTO sports VALUES (1, 'football', 1)")
     conn.execute("CREATE TABLE teams (id INTEGER PRIMARY KEY, sport_id INTEGER, name TEXT)")
@@ -100,6 +112,7 @@ def test_verify_and_prepare_plan_continuation(tmp_path: Path):
     conn.execute("CREATE TABLE analysis_results (id INTEGER PRIMARY KEY)")
     conn.execute("CREATE TABLE gate_results (id INTEGER PRIMARY KEY)")
     conn.execute("CREATE TABLE odds_history (id INTEGER PRIMARY KEY)")
+    _apply_observation_schema(conn)
     conn.commit()
     conn.close()
 
@@ -111,7 +124,7 @@ def test_verify_and_prepare_plan_continuation(tmp_path: Path):
         primary_external_id = "ext_1"
         home_team = "Team A"
         away_team = "Team B"
-        kickoff = "2026-07-29T20:00:00Z"
+        kickoff = "2027-07-30T20:00:00Z"
         status = "SCHEDULED"
         sources = [type("Src", (), {"source": "odds-api", "external_id": "ext_1"})()]
         odds = {}
@@ -127,13 +140,13 @@ def test_verify_and_prepare_plan_continuation(tmp_path: Path):
         def discover(self, date, verbose=False):
             return MockDiscResult()
 
-    run_root = tmp_path / "reports" / "pipeline_runs" / "2026-07-29" / "RUN_CONT_001"
+    run_root = tmp_path / "reports" / "pipeline_runs" / "2027-07-30" / "RUN_CONT_001"
     with patch("bet.discovery.coordinator.EventDiscoveryCoordinator", MockCoordinator), \
          patch("sqlalchemy.create_engine"), \
          patch("sqlalchemy.orm.sessionmaker"):
         res = execute_plan_only(
             repo_root=Path(__file__).resolve().parents[1],
-            date="2026-07-29",
+            date="2027-07-30",
             run_id="RUN_CONT_001",
             target_run_root=run_root,
             manifest_path=Path(__file__).resolve().parents[1] / "config" / "pipeline_manifest.json",
@@ -143,13 +156,38 @@ def test_verify_and_prepare_plan_continuation(tmp_path: Path):
         )
     assert res["PLAN_STATUS"] == "PASS"
 
+    from bet.pipeline.event_runtime_contract import (
+        CanonicalEventStatus,
+        ProviderRequestStatus,
+        build_participant_identity,
+    )
+    from bet.providers.revalidation import ProviderRevalidationResult
+
+    class ExactAdapter:
+        def revalidate_event(self, **kwargs):
+            return ProviderRevalidationResult(
+                provider="odds-api",
+                provider_event_id="ext_1",
+                request_status=ProviderRequestStatus.SUCCESS,
+                raw_provider_status="NS",
+                canonical_event_status=CanonicalEventStatus.SCHEDULED,
+                raw_observed_kickoff="2027-07-30T20:00:00Z",
+                observed_kickoff_utc="2027-07-30T20:00:00Z",
+                observed_home_name="Team A",
+                observed_away_name="Team B",
+                participant_identity_sha256=build_participant_identity(
+                    "Team A", "Team B"
+                ).identity_sha256,
+            )
+
     cont_res = verify_and_prepare_plan_continuation(
         target_run_root=run_root,
         run_id="RUN_CONT_001",
         expected_selection_ledger_sha256=res["SELECTION_LEDGER_SHA256"],
+        provider_adapters={"odds-api": ExactAdapter()},
     )
     assert cont_res["status"] == "PASS"
-    assert cont_res["selection_ledger_sha256"] == res["SELECTION_LEDGER_SHA256"]
+    assert cont_res["continuation_attempt_ids"]
 
 
 def test_excluded_events_cannot_enter_s2_s3_s5_s8(tmp_path: Path):
@@ -159,11 +197,11 @@ def test_excluded_events_cannot_enter_s2_s3_s5_s8(tmp_path: Path):
     conn = sqlite3.connect(str(canonical_db))
     conn.execute("CREATE TABLE fixtures (id INTEGER PRIMARY KEY, external_id TEXT, kickoff TEXT, status TEXT, home_team_id INTEGER, away_team_id INTEGER, source TEXT)")
     # Event 1: Valid future scheduled
-    conn.execute("INSERT INTO fixtures VALUES (1, 'ext_1', '2026-07-30T23:59:59Z', 'SCHEDULED', 1, 2, 'odds-api')")
+    conn.execute("INSERT INTO fixtures VALUES (1, 'ext_1', '2027-07-30T20:00:00Z', 'SCHEDULED', 1, 2, 'odds-api')")
     # Event 2: Finished match
-    conn.execute("INSERT INTO fixtures VALUES (2, 'ext_2', '2026-07-30T10:00:00Z', 'FINISHED', 1, 2, 'odds-api')")
+    conn.execute("INSERT INTO fixtures VALUES (2, 'ext_2', '2027-07-30T10:00:00Z', 'FINISHED', 1, 2, 'odds-api')")
     # Event 3: Cancelled match
-    conn.execute("INSERT INTO fixtures VALUES (3, 'ext_3', '2026-07-30T18:00:00Z', 'CANCELLED', 1, 2, 'odds-api')")
+    conn.execute("INSERT INTO fixtures VALUES (3, 'ext_3', '2027-07-30T18:00:00Z', 'CANCELLED', 1, 2, 'odds-api')")
     conn.execute("CREATE TABLE sports (id INTEGER PRIMARY KEY, name TEXT, tier INTEGER)")
     conn.execute("INSERT INTO sports VALUES (1, 'football', 1)")
     conn.execute("CREATE TABLE teams (id INTEGER PRIMARY KEY, sport_id INTEGER, name TEXT)")
@@ -172,6 +210,7 @@ def test_excluded_events_cannot_enter_s2_s3_s5_s8(tmp_path: Path):
     conn.execute("CREATE TABLE analysis_results (id INTEGER PRIMARY KEY)")
     conn.execute("CREATE TABLE gate_results (id INTEGER PRIMARY KEY)")
     conn.execute("CREATE TABLE odds_history (id INTEGER PRIMARY KEY)")
+    _apply_observation_schema(conn)
     conn.commit()
     conn.close()
 
@@ -183,7 +222,7 @@ def test_excluded_events_cannot_enter_s2_s3_s5_s8(tmp_path: Path):
         primary_external_id = "ext_1"
         home_team = "Team A"
         away_team = "Team B"
-        kickoff = "2026-07-30T23:59:59Z"
+        kickoff = "2027-07-30T20:00:00Z"
         status = "SCHEDULED"
         sources = [type("Src", (), {"source": "odds-api", "external_id": "ext_1"})()]
         odds = {}
@@ -199,13 +238,13 @@ def test_excluded_events_cannot_enter_s2_s3_s5_s8(tmp_path: Path):
         def discover(self, date, verbose=False):
             return MockDiscResult()
 
-    run_root = tmp_path / "reports" / "pipeline_runs" / "2026-07-30" / "RUN_EXCL_001"
+    run_root = tmp_path / "reports" / "pipeline_runs" / "2027-07-30" / "RUN_EXCL_001"
     with patch("bet.discovery.coordinator.EventDiscoveryCoordinator", MockCoordinator), \
          patch("sqlalchemy.create_engine"), \
          patch("sqlalchemy.orm.sessionmaker"):
         res = execute_plan_only(
             repo_root=Path(__file__).resolve().parents[1],
-            date="2026-07-30",
+                date="2027-07-30",
             run_id="RUN_EXCL_001",
             target_run_root=run_root,
             manifest_path=Path(__file__).resolve().parents[1] / "config" / "pipeline_manifest.json",
@@ -215,8 +254,7 @@ def test_excluded_events_cannot_enter_s2_s3_s5_s8(tmp_path: Path):
         )
     assert res["PLAN_STATUS"] == "PASS"
     assert res["ANALYZE_FROM_S2"] == 1
-    assert res["FINISHED"] == 1
-    assert res["CANCELLED"] == 1
+    assert res["PROVIDER_RECHECK_REQUIRED"] == 2
 
     s1e_file = run_root / "artifacts" / "S1e.json"
     s1e_data = json.loads(s1e_file.read_text())

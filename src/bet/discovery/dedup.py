@@ -95,6 +95,10 @@ class DeduplicationEngine:
                             external_id=ev.external_id,
                             confidence=1.0,
                             raw_data=ev.raw_data,
+                            raw_status=ev.status,
+                            raw_kickoff=ev.kickoff,
+                            raw_home_team=ev.home_team,
+                            raw_away_team=ev.away_team,
                         )
                     ],
                     primary_source=ev.source,
@@ -373,6 +377,13 @@ class DeduplicationEngine:
             return src.external_id == event.external_id
         return True
 
+    def deduplicate_events(self, events: list[DiscoveredEvent]) -> list[MergedFixture]:
+        """Convenience method for deduplicating a flat list of discovered events."""
+        events_by_source: dict[str, list[DiscoveredEvent]] = defaultdict(list)
+        for ev in events:
+            events_by_source[ev.source].append(ev)
+        return self.merge(events_by_source)
+
     @staticmethod
     def _attach_source(
         fixture: MergedFixture,
@@ -391,6 +402,10 @@ class DeduplicationEngine:
                 external_id=event.external_id,
                 confidence=confidence,
                 raw_data=event.raw_data,
+                raw_status=event.status,
+                raw_kickoff=event.kickoff,
+                raw_home_team=event.home_team,
+                raw_away_team=event.away_team,
             )
         )
         # Merge odds if the new event has them and the fixture doesn't

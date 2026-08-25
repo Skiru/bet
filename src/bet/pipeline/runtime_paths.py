@@ -1,4 +1,5 @@
 """Runtime paths and environment builder for sandboxed execution."""
+
 from __future__ import annotations
 
 import os
@@ -140,7 +141,7 @@ def build_runtime_env(
     """Build environment dictionary with sandboxed path configurations."""
     from pathlib import Path
 
-    from bet.pipeline.runtime_modes import parse_runtime_mode
+    from bet.pipeline.runtime_modes import parse_runtime_mode, runtime_mode_capabilities
 
     mode_enum = parse_runtime_mode(runtime_mode)
 
@@ -151,11 +152,28 @@ def build_runtime_env(
 
     # 1. Minimal platform allowlist
     allowed_platform_keys = {
-        "PATH", "HOME", "TMPDIR", "TMP", "TEMP", "TZ",
-        "SSL_CERT_FILE", "SSL_CERT_DIR", "REQUESTS_CA_BUNDLE", "CURL_CA_BUNDLE",
-        "VIRTUAL_ENV", "NO_PROXY", "HTTP_PROXY", "HTTPS_PROXY",
-        "TERM", "SSH_AUTH_SOCK", "USER", "LOGNAME", "SHELL",
-        "DATABASE_URL", "BET_DB_PATH", "BET_KEEP_TEMP_DB",
+        "PATH",
+        "HOME",
+        "TMPDIR",
+        "TMP",
+        "TEMP",
+        "TZ",
+        "SSL_CERT_FILE",
+        "SSL_CERT_DIR",
+        "REQUESTS_CA_BUNDLE",
+        "CURL_CA_BUNDLE",
+        "VIRTUAL_ENV",
+        "NO_PROXY",
+        "HTTP_PROXY",
+        "HTTPS_PROXY",
+        "TERM",
+        "SSH_AUTH_SOCK",
+        "USER",
+        "LOGNAME",
+        "SHELL",
+        "DATABASE_URL",
+        "BET_DB_PATH",
+        "BET_KEEP_TEMP_DB",
     }
 
     env = {}
@@ -165,7 +183,8 @@ def build_runtime_env(
 
     # 2. Live and write acknowledgements
     from bet.pipeline.runtime_modes import LIVE_ACK_KEY, WRITE_ACK_KEY
-    if mode_enum == RuntimeMode.LIVE_SHADOW or mode_enum == RuntimeMode.PRODUCTION:
+
+    if mode_enum in (RuntimeMode.LIVE_ANALYSIS_SHADOW, RuntimeMode.LIVE_SHADOW, RuntimeMode.PRODUCTION):
         if LIVE_ACK_KEY in os.environ:
             env[LIVE_ACK_KEY] = os.environ[LIVE_ACK_KEY]
     if mode_enum == RuntimeMode.PRODUCTION:
@@ -193,6 +212,7 @@ def build_runtime_env(
 
     # 3. Provider credentials dynamically sourced from the registry
     from bet.provider_registry import load_provider_registry
+
     try:
         reg = load_provider_registry()
     except Exception as exc:
@@ -213,15 +233,35 @@ def build_runtime_env(
             env[cred_name] = os.environ[cred_name]
 
     # 4. Sandbox controlled variables
-    env.update({
-        "BET_PIPELINE_RUN_ROOT": str(run_root),
-        "BET_PIPELINE_BETTING_DAY": betting_day,
-        "BET_PIPELINE_RUN_ID": run_root.name,
-        "BET_PIPELINE_DATA_DIR": str(data_dir),
-        "BET_PIPELINE_COUPON_DIR": str(coupon_dir),
-        "BET_PIPELINE_ARTIFACT_DIR": str(artifact_dir),
-        "BET_PIPELINE_RUNTIME_MODE": mode_enum.value,
-    })
+    env.update(
+        {
+            "BET_PIPELINE_RUN_ROOT": str(run_root),
+            "BET_PIPELINE_BETTING_DAY": betting_day,
+            "BET_PIPELINE_RUN_ID": run_root.name,
+            "BET_PIPELINE_DATA_DIR": str(data_dir),
+            "BET_PIPELINE_COUPON_DIR": str(coupon_dir),
+            "BET_PIPELINE_ARTIFACT_DIR": str(artifact_dir),
+            "BET_PIPELINE_RUNTIME_MODE": mode_enum.value,
+        }
+    )
+
+    capabilities = runtime_mode_capabilities(mode_enum)
+    if mode_enum is RuntimeMode.LIVE_ANALYSIS_SHADOW:
+        shadow_db = data_dir / "runtime_analysis_shadow.db"
+        env.update(
+            {
+                "BET_DB_PATH": str(shadow_db),
+                "DATABASE_URL": f"sqlite:///{shadow_db}",
+                "BET_PIPELINE_SELECTION_RUN_ID": run_root.name,
+                "BET_PIPELINE_SELECTION_HASH": "0" * 64,
+                "BET_PIPELINE_STORAGE_SCOPE": "SHADOW",
+                "BET_PIPELINE_SHADOW_WRITE_ALLOWED": "1",
+                "BET_PIPELINE_CANONICAL_WRITE_ALLOWED": "0",
+                "BET_PIPELINE_S9_ALLOWED": "0",
+                "BET_PIPELINE_BOOKMAKER_ALLOWED": "0",
+                "BET_PIPELINE_AUTOMATED_BET_PLACEMENT_ALLOWED": "0",
+            }
+        )
 
     repo_root = Path(__file__).resolve().parents[3]
     python_paths = [str(repo_root / "src"), str(repo_root)]
@@ -237,10 +277,32 @@ def build_runtime_env(
     env["PYTHONPATH"] = os.pathsep.join(python_paths)
     env["BET_REPO_ROOT"] = str(repo_root)
 
-    if mode_enum != RuntimeMode.PRODUCTION:
+    if capabilities.synthetic_outputs:
         env["DRY_RUN"] = "1"
+    elif mode_enum is RuntimeMode.LIVE_ANALYSIS_SHADOW:
+        env["DRY_RUN"] = "0"
 
     return env
+
+
+def verify_db_write_isolation(
+    *,
+    target_db_path: Path | str,
+    canonical_db_path: Path | str,
+    shadow_db_path: Path | str,
+    storage_scope: str,
+) -> tuple[bool, str]:
+    """Fail closed before a runtime write target is opened."""
+    target = resolved_path(target_db_path)
+    canonical = resolved_path(canonical_db_path)
+    shadow = resolved_path(shadow_db_path)
+    if target == canonical:
+        return False, "CANONICAL_DB_WRITE_PROHIBITED"
+    if storage_scope != "SHADOW":
+        return False, "RUNTIME_STORAGE_SCOPE_INVALID"
+    if target != shadow:
+        return False, "SHADOW_DB_TARGET_MISMATCH"
+    return True, ""
 
 
 def is_safe_run_path(
@@ -289,7 +351,15 @@ def is_safe_run_path(
 
     # Must not contain source/config/test code
     for parent in path_p.parents:
-        if parent.name in {"src", "tests", "config", "scripts", ".git", ".github", ".kilo"}:
+        if parent.name in {
+            "src",
+            "tests",
+            "config",
+            "scripts",
+            ".git",
+            ".github",
+            ".kilo",
+        }:
             return False
 
     return True

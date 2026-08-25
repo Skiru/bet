@@ -63,8 +63,11 @@ def render_agent_execution_prompt(work_order: dict[str, Any] | Any) -> str:
         "Do not write to betting/data, betting/coupons, reports or production DB.",
     ]
 
-    if wo.get("acquisition_plan"):
-        prompt_lines.append("Use only the allowed tools and queries listed in the FACT ACQUISITION PLAN. Open-ended browsing remains forbidden.")
+    if wo.get("acquisition_plan") or wo.get("event_acquisition_plans"):
+        prompt_lines.append(
+            "Use only the allowed tools and queries listed in the FACT "
+            "ACQUISITION PLAN. Open-ended browsing remains forbidden."
+        )
     else:
         prompt_lines.append("Do not call external APIs or browse externally; use only the evidence provided in the input artifacts.")
 
@@ -88,8 +91,16 @@ def render_agent_execution_prompt(work_order: dict[str, Any] | Any) -> str:
         )
 
     req_out = wo.get("required_output") or {}
-    exp_path = req_out.get("expected_path") if isinstance(req_out, dict) else wo.get("expected_artifact_path", "")
-    exp_type = req_out.get("artifact_type") if isinstance(req_out, dict) else wo.get("expected_artifact_type", "AGENT_ARTIFACT")
+    exp_path = (
+        req_out.get("expected_path")
+        if isinstance(req_out, dict) and req_out.get("expected_path")
+        else wo.get("expected_artifact_path", "")
+    )
+    exp_type = (
+        req_out.get("artifact_type")
+        if isinstance(req_out, dict) and req_out.get("artifact_type")
+        else wo.get("expected_artifact_type", "AGENT_ARTIFACT")
+    )
 
     prompt_lines.extend(
         [
@@ -122,11 +133,15 @@ def render_agent_execution_prompt(work_order: dict[str, Any] | Any) -> str:
         for focus in STEP_FOCUS[step_id]:
             prompt_lines.append(f"- {focus}")
 
-    if wo.get("acquisition_plan"):
+    if wo.get("acquisition_plan") or wo.get("event_acquisition_plans"):
         prompt_lines.extend([
             "",
             "FACT ACQUISITION PLAN:",
-            json.dumps(wo["acquisition_plan"], indent=2),
+            "EVENT-SCOPED PLANS:",
+            json.dumps(
+                wo.get("event_acquisition_plans") or wo.get("acquisition_plan", {}),
+                indent=2,
+            ),
         ])
 
     return "\n".join(prompt_lines)
@@ -166,6 +181,41 @@ def render_agent_artifact_skeleton(work_order: dict[str, Any] | Any, status: str
     agent = wo.get("agent") or wo.get("agent_name") or "bet-executor"
     day = wo.get("betting_day") or ""
     run_id = wo.get("run_id") or ""
+
+    if wo.get("chunk_id"):
+        return {
+            "schema_version": 1,
+            "artifact_type": wo.get("expected_artifact_type", "CHUNK_ARTIFACT"),
+            "chunk_id": wo["chunk_id"],
+            "step_id": step_id,
+            "chunk_work_order_sha256": wo.get("chunk_work_order_sha256", "1" * 64),
+            "parent_work_order_id": wo.get("parent_work_order_id", ""),
+            "parent_work_order_sha256": wo.get("parent_work_order_sha256", ""),
+            "parent_plan_id": wo.get("parent_plan_id", ""),
+            "parent_plan_sha256": wo.get("parent_plan_sha256", ""),
+            "chunk_index": wo.get("chunk_index", 0),
+            "total_chunks": wo.get("total_chunks", 1),
+            "status": status,
+            "producer_agent_id": agent,
+            "agent_id": agent,
+            "betting_day": day,
+            "run_id": run_id,
+            "source_head": wo.get("source_head", ""),
+            "source_tree": wo.get("source_tree", ""),
+            "manifest_sha256": wo.get("manifest_sha256", ""),
+            "point_in_time_as_of": None,
+            "source_bound": True,
+            "no_pick_edge_stake_coupon_emitted": True,
+            "production_selectable": False,
+            "betting_decisions_enabled": False,
+            "sources": [],
+            "unknowns": [],
+            "blocked_reasons": ["TEMPLATE_NOT_FILLED"],
+            "evidence_refs": [],
+            "processed_event_ids": list(wo.get("event_ids", [])),
+            "event_records": [],
+            "payload": {},
+        }
 
     return {
         "schema_version": 1,

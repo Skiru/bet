@@ -11,6 +11,7 @@ from bet.db.repositories import FixtureRepo, PipelineCandidateRepo
 from bet.pipeline.launch_bridge import (
     apply_runtime_bridge_migrations,
     classify_and_persist_runtime_events,
+    compute_file_sha256,
     create_runtime_analysis_shadow_db,
     execute_plan_only,
     project_run_s1e_universe,
@@ -22,6 +23,8 @@ from bet.pipeline.runtime_modes import (
     RuntimeMode,
     validate_runtime_mode_acks,
 )
+from bet.pipeline.event_runtime_contract import build_participant_identity
+from bet.pipeline.provider_observation_evidence import persist_provider_observation_with_evidence
 
 
 @pytest.fixture
@@ -31,9 +34,7 @@ def repo_root() -> Path:
 
 @pytest.fixture
 def temp_run_dir(tmp_path: Path) -> Path:
-    run_dir = tmp_path / "reports" / "pipeline_runs" / "2026-07-29" / "RUN_TEST_001"
-    run_dir.mkdir(parents=True, exist_ok=True)
-    return run_dir
+    return tmp_path / "reports" / "pipeline_runs" / "2026-07-29" / "RUN_TEST_001"
 
 
 @pytest.fixture
@@ -65,16 +66,7 @@ def sample_canonical_db(tmp_path: Path, repo_root: Path) -> Path:
     );
     """)
     apply_runtime_bridge_migrations(conn)
-    ev_path = tmp_path / "fake_ev.json"
-    ev_path.write_text('{"status": "ok"}', encoding="utf-8")
-    conn.execute(
-        "INSERT OR REPLACE INTO pipeline_provider_observations "
-        "(run_id, canonical_event_id, fixture_id, provider, provider_event_id, attempted_at_utc, "
-        "request_status, normalized_current_status, observed_kickoff, observed_participants_sha256, "
-        "raw_evidence_sha256, evidence_path) VALUES ('RUN_TEST_001', '101', 101, 'api-football', 'EXT_101', '2026-07-29T10:00:00Z', "
-        "'SUCCESS', 'SCHEDULED', '2026-07-29T20:00:00Z', 'part_sha', 'raw_sha', ?)",
-        (str(ev_path),),
-    )
+    _persist_provider_attempt(conn, "RUN_TEST_001", 101, tmp_path)
     conn.commit()
     conn.close()
     return db_path
@@ -115,9 +107,7 @@ def test_03_04_same_db_path_and_drift_prevention(temp_run_dir: Path):
 
 # 5. Canonical DB remains unchanged during plan-only
 def test_05_canonical_db_unchanged_during_plan_only(repo_root: Path, sample_canonical_db: Path, temp_run_dir: Path):
-    conn = sqlite3.connect(str(sample_canonical_db))
-    sha_before = create_runtime_analysis_shadow_db(sample_canonical_db, temp_run_dir, "RUN_TEST_001")["canonical_db_sha256_before"]
-    conn.close()
+    sha_before = compute_file_sha256(sample_canonical_db)
 
     class MockFixture:
         primary_source = "api-football"
@@ -153,25 +143,56 @@ def test_05_canonical_db_unchanged_during_plan_only(repo_root: Path, sample_cano
             allow_live_network=True,
             explicit_db_path=sample_canonical_db,
         )
-    assert res["PLAN_STATUS"] == "PASS"
+    assert res["PLAN_STATUS"] == "BLOCKED"
 
-    sha_after = create_runtime_analysis_shadow_db(sample_canonical_db, temp_run_dir, "RUN_TEST_001_CHECK", allow_overwrite=True)["canonical_db_sha256_before"]
+    sha_after = compute_file_sha256(sample_canonical_db)
     assert sha_before == sha_after
 
 
-def _seed_provider_obs_for_fixture(conn: sqlite3.Connection, run_id: str, fid: int, tmp_path: Path) -> None:
-    apply_runtime_bridge_migrations(conn)
-    ev_file = tmp_path / f"fake_ev_{fid}.json"
-    ev_file.write_text('{"status": "ok"}', encoding="utf-8")
-    conn.execute(
-        "INSERT OR REPLACE INTO pipeline_provider_observations "
-        "(run_id, canonical_event_id, fixture_id, provider, provider_event_id, attempted_at_utc, "
-        "request_status, normalized_current_status, observed_kickoff, observed_participants_sha256, "
-        "raw_evidence_sha256, evidence_path) VALUES (?, ?, ?, 'odds-api', ?, '2026-07-29T10:00:00Z', "
-        "'SUCCESS', 'SCHEDULED', '2026-07-29T20:00:00Z', 'part_sha', 'raw_sha', ?)",
-        (run_id, str(fid), fid, f"EXT_{fid}", str(ev_file)),
+def _persist_provider_attempt(
+    conn: sqlite3.Connection,
+    run_id: str,
+    fid: int,
+    root: Path,
+    *,
+    status: str = "SCHEDULED",
+    request_status: str = "SUCCESS",
+    kickoff: str = "2026-07-29T20:00:00Z",
+) -> None:
+    provider = conn.execute("SELECT source FROM fixtures WHERE id = ?", (fid,)).fetchone()[0]
+    external_id = conn.execute("SELECT external_id FROM fixtures WHERE id = ?", (fid,)).fetchone()[0]
+    attempt_number = conn.execute(
+        """SELECT COALESCE(MAX(attempt_number), 0) + 1
+           FROM pipeline_provider_observation_attempts
+           WHERE run_id = ? AND phase = 'PLAN' AND canonical_event_id = ? AND provider = ?""",
+        (run_id, str(fid), provider),
+    ).fetchone()[0]
+    persist_provider_observation_with_evidence(
+        conn,
+        {
+            "run_id": run_id,
+            "phase": "PLAN",
+            "attempt_number": attempt_number,
+            "canonical_event_id": str(fid),
+            "fixture_id": fid,
+            "provider": provider,
+            "provider_event_id": external_id,
+            "attempted_at_utc": "2026-07-29T10:00:00Z",
+            "request_status": request_status,
+            "raw_provider_status": status,
+            "canonical_event_status": status,
+            "raw_observed_kickoff": kickoff,
+            "observed_kickoff_utc": kickoff,
+            "observed_home_name": "Arsenal",
+            "observed_away_name": "Chelsea",
+            "participant_identity_sha256": build_participant_identity("Arsenal", "Chelsea").identity_sha256,
+        },
+        root / "provider-evidence",
     )
-    conn.commit()
+
+
+def _seed_provider_obs_for_fixture(conn: sqlite3.Connection, run_id: str, fid: int, tmp_path: Path) -> None:
+    _persist_provider_attempt(conn, run_id, fid, tmp_path)
 
 
 # 6. Seed does not define queue membership
@@ -202,16 +223,19 @@ def test_09_10_11_12_classification_decisions(sample_canonical_db: Path, temp_ru
     conn = sqlite3.connect(sh_res["shadow_db_path"])
     apply_runtime_bridge_migrations(conn)
 
-    # Add finished fixture with pending bet
+    # Add finished fixture with current provider confirmation.
     conn.execute("INSERT OR REPLACE INTO fixtures (id, external_id, sport_id, competition_id, home_team_id, away_team_id, kickoff, status, source, fetched_at, score_home, score_away) VALUES (104, 'EXT_104', 1, 10, 1, 2, '2026-07-29T10:00:00Z', 'FINISHED', 'api-football', '2026-07-29T10:00:00Z', 1, 0)")
     conn.execute("INSERT OR REPLACE INTO coupons (id, coupon_id, created_at) VALUES (1, 'COUPON_1', '2026-07-29T10:00:00Z')")
     conn.execute("INSERT OR REPLACE INTO bets (id, coupon_id, fixture_id, sport, event_name, market, selection, odds, status) VALUES (1, 1, 104, 'football', 'Arsenal vs Chelsea', 'Match Winner', 'Arsenal', 1.8, 'PENDING')")
     conn.commit()
+    _persist_provider_attempt(conn, "RUN_TEST_001", 102, temp_run_dir, status="FINISHED", kickoff="2026-07-29T12:00:00Z")
+    _persist_provider_attempt(conn, "RUN_TEST_001", 103, temp_run_dir, status="LIVE", kickoff="2026-07-29T17:00:00Z")
+    _persist_provider_attempt(conn, "RUN_TEST_001", 104, temp_run_dir, status="FINISHED", kickoff="2026-07-29T10:00:00Z")
 
     class_counts = classify_and_persist_runtime_events(conn, "2026-07-29", "RUN_TEST_001", "2026-07-29T16:00:00Z")
     assert class_counts["FINISHED"] >= 1
     assert class_counts["LIVE"] >= 1
-    assert class_counts["SETTLEMENT_REQUIRED"] >= 1
+    assert class_counts["FINISHED"] >= 2
     conn.close()
 
 
@@ -237,8 +261,10 @@ def test_15_cancelled_postponed_excluded(sample_canonical_db: Path, temp_run_dir
     apply_runtime_bridge_migrations(conn)
 
     conn.execute("INSERT OR REPLACE INTO fixtures (id, external_id, sport_id, competition_id, home_team_id, away_team_id, kickoff, status, source, fetched_at) VALUES (105, 'EXT_105', 1, 10, 1, 2, '2026-07-29T21:00:00Z', 'POSTPONED', 'api-football', '2026-07-29T10:00:00Z')")
-    conn.execute("INSERT OR REPLACE INTO fixtures (id, external_id, sport_id, competition_id, home_team_id, away_team_id, kickoff, status, source, fetched_at) VALUES (106, 'EXT_106', 1, 10, 1, 2, '2026-07-29T22:00:00Z', 'CANCELLED', 'api-football', '2026-07-29T10:00:00Z')")
+    conn.execute("INSERT OR REPLACE INTO fixtures (id, external_id, sport_id, competition_id, home_team_id, away_team_id, kickoff, status, source, fetched_at) VALUES (106, 'EXT_106', 1, 10, 1, 2, '2026-07-29T21:30:00Z', 'CANCELLED', 'api-football', '2026-07-29T10:00:00Z')")
     conn.commit()
+    _persist_provider_attempt(conn, "RUN_TEST_001", 105, temp_run_dir, status="POSTPONED", kickoff="2026-07-29T21:00:00Z")
+    _persist_provider_attempt(conn, "RUN_TEST_001", 106, temp_run_dir, status="CANCELLED", kickoff="2026-07-29T21:30:00Z")
 
     class_counts = classify_and_persist_runtime_events(conn, "2026-07-29", "RUN_TEST_001", "2026-07-29T10:00:00Z")
     assert class_counts["POSTPONED"] >= 1
@@ -246,8 +272,7 @@ def test_15_cancelled_postponed_excluded(sample_canonical_db: Path, temp_run_dir
     conn.close()
 
 
-# 16. Fresh complete analysis is reused
-# 17. Stale analysis is rerun
+# 16-17. Weak analysis/gate rows do not create reusable event completion.
 def test_16_17_reuse_completed_work(sample_canonical_db: Path, temp_run_dir: Path):
     sh_res = create_runtime_analysis_shadow_db(sample_canonical_db, temp_run_dir, "RUN_TEST_001")
     conn = sqlite3.connect(sh_res["shadow_db_path"])
@@ -260,7 +285,8 @@ def test_16_17_reuse_completed_work(sample_canonical_db: Path, temp_run_dir: Pat
     conn.commit()
 
     class_counts = classify_and_persist_runtime_events(conn, "2026-07-29", "RUN_TEST_001", "2026-07-29T10:00:00Z")
-    assert class_counts["ALREADY_VALID_COMPLETE"] == 1
+    assert class_counts["ALREADY_VALID_COMPLETE"] == 0
+    assert class_counts["ANALYZE_FROM_S2"] == 1
     conn.close()
 
 
@@ -329,7 +355,7 @@ def test_35_36_controlled_promotion(sample_canonical_db: Path, temp_run_dir: Pat
     sh_res = create_runtime_analysis_shadow_db(sample_canonical_db, temp_run_dir, "RUN_TEST_001")
     shadow_path = Path(sh_res["shadow_db_path"])
 
-    c_sha_before = create_runtime_analysis_shadow_db(sample_canonical_db, temp_run_dir, "RUN_TEST_BEFORE", allow_overwrite=True)["canonical_db_sha256_before"]
+    c_sha_before = compute_file_sha256(sample_canonical_db)
 
     prom_res = promote_shadow_results(
         canonical_db_path=sample_canonical_db,

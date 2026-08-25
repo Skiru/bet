@@ -14,6 +14,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 import os
+from .env import get_env
 import re
 import random
 import time
@@ -79,7 +80,7 @@ class OddspapiConfig:
 
     @classmethod
     def from_env(cls) -> "OddspapiConfig":
-        api_key = os.getenv("ODDSPAPI_API_KEY", "").strip()
+        api_key = get_env("ODDSPAPI_API_KEY")
         if not api_key:
             raise RuntimeError("ODDSPAPI_API_KEY is required for OddsPapi Superbet odds")
         base_url = os.getenv("ODDSPAPI_BASE_URL", DEFAULT_BASE_URL).strip().rstrip("/")

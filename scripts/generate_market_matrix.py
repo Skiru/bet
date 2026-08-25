@@ -1969,7 +1969,18 @@ def main():
     else:
         output_dir = Path(output_dir_str).resolve()
 
-    # Reject resolved pipeline output path inside repo-local
+    # Reject repo-local output unless it is the isolated directory for this run.
+    pipeline_run_root_str = os.environ.get("BET_PIPELINE_RUN_ROOT")
+    pipeline_run_root = (
+        Path(pipeline_run_root_str).resolve() if pipeline_run_root_str else None
+    )
+    is_isolated_run_output = False
+    if pipeline_run_root is not None:
+        try:
+            is_isolated_run_output = output_dir.is_relative_to(pipeline_run_root)
+        except ValueError:
+            pass
+
     forbidden_dirs = [
         (ROOT_DIR / "betting" / "data").resolve(),
         (ROOT_DIR / "betting" / "coupons").resolve(),
@@ -1978,7 +1989,10 @@ def main():
 
     for forbidden in forbidden_dirs:
         try:
-            if output_dir == forbidden or output_dir.is_relative_to(forbidden):
+            if (
+                not is_isolated_run_output
+                and (output_dir == forbidden or output_dir.is_relative_to(forbidden))
+            ):
                 if runtime_mode in {"DRY_RUN", "LIVE_SHADOW", "CERTIFICATION"}:
                     print(f"[matrix] ERROR: Resolved pipeline output path '{output_dir}' is inside forbidden repo-local '{forbidden}'")
                     print("FAILED_MARKET_MATRIX_GENERATION")

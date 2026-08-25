@@ -23,6 +23,7 @@ class ContractDescriptor(StrictBaseModel):
     current_runtime: bool = True
     migration_from_versions: tuple[int, ...] = ()
     event_scope_kind: str = "FULL_DAY"
+    output_scope: str = "run"
     status_policy: tuple[str, ...] = ("PASS", "READY", "NO_ACTION_TERMINAL", "PRICE_PENDING")
 
 

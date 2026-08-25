@@ -7,6 +7,7 @@ Wrappers use this helper to run the canonical scripts while enforcing a
 Dry-run creates a temp DB with schema initialized so subprocess scripts
 that need persistent schema across multiple calls work correctly.
 """
+
 from __future__ import annotations
 
 import os
@@ -43,6 +44,7 @@ RUNTIME_PATH_KEYS = (
 
 class ScriptInvocation:
     """Typed invocation contract for safe script execution without monkeypatching."""
+
     def __init__(
         self,
         script: str,
@@ -70,10 +72,18 @@ def _init_temp_db(db_path: str) -> None:
     from bet.db.schema import init_db
 
     print("[DEBUG_DB] ENV DATABASE_URL:", os.environ.get("DATABASE_URL"))
-    print("[DEBUG_DB] KEYS:", [k for k in os.environ.keys() if "DATABASE" in k or "BET" in k or "URL" in k])
+    print(
+        "[DEBUG_DB] KEYS:",
+        [k for k in os.environ.keys() if "DATABASE" in k or "BET" in k or "URL" in k],
+    )
     try:
         op_path = _resolve_db_path()
-        print("[DEBUG_DB] RESOLVED OP PATH:", op_path, "IS FILE:", Path(op_path).is_file() if op_path else False)
+        print(
+            "[DEBUG_DB] RESOLVED OP PATH:",
+            op_path,
+            "IS FILE:",
+            Path(op_path).is_file() if op_path else False,
+        )
         if op_path and Path(op_path).is_file():
             shutil.copy(op_path, db_path)
     except Exception as exc:
@@ -109,6 +119,22 @@ def resolve_child_runtime_env(
     env = parent_env.copy()
     runtime_path_source = "unmanaged"
 
+    if runtime_mode == RuntimeMode.LIVE_ANALYSIS_SHADOW:
+        from bet.pipeline.runtime_execution import (
+            RuntimeExecutionContext,
+            build_runtime_child_environment,
+        )
+
+        context = RuntimeExecutionContext.from_child_env(parent_env)
+        return (
+            build_runtime_child_environment(
+                parent_environment=parent_env,
+                runtime_context=context,
+                provider_secret_allowlist=(),
+            ),
+            "runtime_execution_context",
+        )
+
     if runtime_mode != RuntimeMode.PRODUCTION:
         if _has_runtime_path_env(parent_env):
             runtime_path_source = "orchestrator_inherited_sandbox"
@@ -118,10 +144,16 @@ def resolve_child_runtime_env(
             # Generic dry-run helper scripts may not be bound to a betting day;
             # use a syntactically valid non-production sentinel, never a path-like
             # free-form placeholder.
-            resolved_betting_day = betting_day or parent_env.get("BET_PIPELINE_BETTING_DAY") or "1970-01-01"
+            resolved_betting_day = (
+                betting_day
+                or parent_env.get("BET_PIPELINE_BETTING_DAY")
+                or "1970-01-01"
+            )
             resolved_run_id = run_id or parent_env.get("BET_PIPELINE_RUN_ID")
             resolved_run_root = Path(run_root) if run_root else None
-            sandbox_env = build_runtime_env(runtime_mode, resolved_betting_day, resolved_run_id, resolved_run_root)
+            sandbox_env = build_runtime_env(
+                runtime_mode, resolved_betting_day, resolved_run_id, resolved_run_root
+            )
             env.update(sandbox_env)
             runtime_path_source = "runner_built_sandbox"
 
@@ -134,7 +166,9 @@ def resolve_child_runtime_env(
 
         parent_run_root = parent_env.get("BET_PIPELINE_RUN_ROOT", "")
         child_run_root = env.get("BET_PIPELINE_RUN_ROOT", "")
-        child_run_root_resolved = str(Path(child_run_root).expanduser().resolve()) if child_run_root else ""
+        child_run_root_resolved = (
+            str(Path(child_run_root).expanduser().resolve()) if child_run_root else ""
+        )
         repo_reports_root = str(_repo_reports_root().resolve())
         if (
             parent_run_root
@@ -193,7 +227,10 @@ def run_scripts(
         except ValueError:
             runtime_mode = RuntimeMode.DRY_RUN
 
-    if runtime_mode != RuntimeMode.PRODUCTION and original_allow_write:
+    if (
+        runtime_mode not in (RuntimeMode.PRODUCTION, RuntimeMode.LIVE_ANALYSIS_SHADOW)
+        and original_allow_write
+    ):
         print("BLOCKED_NON_PRODUCTION_WRITE_FORBIDDEN")
         return 3
 
@@ -216,7 +253,10 @@ def run_scripts(
         if runtime_mode == RuntimeMode.CERTIFICATION:
             print("BLOCKED_LIVE_NETWORK_ACK_MISSING")
             return 5
-        elif runtime_mode == RuntimeMode.LIVE_SHADOW:
+        elif runtime_mode in (
+            RuntimeMode.LIVE_SHADOW,
+            RuntimeMode.LIVE_ANALYSIS_SHADOW,
+        ):
             if not allow_live_network:
                 print("BLOCKED_LIVE_NETWORK_ACK_MISSING")
                 return 5
@@ -229,7 +269,7 @@ def run_scripts(
     if runtime_mode == RuntimeMode.PRODUCTION:
         allow_write = True
         dry_run = False
-    else:
+    elif runtime_mode != RuntimeMode.LIVE_ANALYSIS_SHADOW:
         allow_write = False
         dry_run = True
 
@@ -265,37 +305,39 @@ def run_scripts(
     temp_db_path = None
     try:
         if runtime_mode == RuntimeMode.LIVE_ANALYSIS_SHADOW:
-            inherited_db = env.get("BET_DB_PATH") or os.environ.get("BET_DB_PATH")
-            if not inherited_db:
-                db_url = env.get("DATABASE_URL") or os.environ.get("DATABASE_URL") or ""
-                if db_url.startswith("sqlite:///"):
-                    inherited_db = db_url[len("sqlite:///"):].split("?")[0]
-            if not inherited_db or not Path(inherited_db).is_file():
-                run_root_dir = Path(env.get("BET_PIPELINE_RUN_ROOT") or run_root or ROOT)
-                shadow_db_p = run_root_dir / "data" / "runtime_analysis_shadow.db"
-                if shadow_db_p.is_file():
-                    inherited_db = str(shadow_db_p)
+            from bet.pipeline.runtime_execution import (
+                RuntimeExecutionContext,
+                require_stage_capability,
+                write_runtime_identity_receipt,
+            )
 
-            if not inherited_db or not Path(inherited_db).is_file():
-                print("BLOCKED_LIVE_ANALYSIS_SHADOW_DB_MISSING")
+            try:
+                context = RuntimeExecutionContext.from_child_env(env)
+                context.verify_filesystem_bindings()
+                if env.get(LIVE_ACK_KEY) != LIVE_ACK_VALUE:
+                    raise ValueError("LIVE_ACK_REQUIRED")
+                env["DRY_RUN"] = "0"
+                for script in scripts:
+                    name = Path(
+                        script.script
+                        if isinstance(script, ScriptInvocation)
+                        else script
+                    ).stem
+                    stage_id = name.split("_")[0].upper()
+                    if stage_id.startswith("S") and stage_id[1:].isdigit():
+                        require_stage_capability(context, stage_id)
+                        write_runtime_identity_receipt(context, stage_id)
+            except (ValueError, PermissionError, FileExistsError) as exc:
+                print(f"BLOCKED_LIVE_ANALYSIS_SHADOW_CONTEXT: {exc}")
                 return 6
-
-            db_abs_path = str(Path(inherited_db).resolve())
-            env["BET_DB_PATH"] = db_abs_path
-            env["DATABASE_URL"] = f"sqlite:///{db_abs_path}"
-            env["BET_PIPELINE_RUNTIME_DB_KIND"] = "LIVE_ANALYSIS_SHADOW"
-            resolved_r_id = run_id or env.get("BET_PIPELINE_RUN_ID") or ""
-            if resolved_r_id:
-                env["BET_PIPELINE_RUNTIME_DB_RUN_ID"] = resolved_r_id
-                env["BET_PIPELINE_SELECTION_RUN_ID"] = resolved_r_id
-            env["DRY_RUN"] = "1"
-            temp_db_path = None  # Do NOT delete inherited run-scoped shadow DB!
+            temp_db_path = None
 
         elif runtime_mode != RuntimeMode.PRODUCTION:
             run_root_dir = Path(env.get("BET_PIPELINE_RUN_ROOT") or run_root or ROOT)
             db_dir = run_root_dir / "data"
             db_dir.mkdir(parents=True, exist_ok=True)
             import uuid
+
             temp_db_path = str(db_dir / f"bet_dryrun_{uuid.uuid4().hex}.db")
             _init_temp_db(temp_db_path)
             env["DATABASE_URL"] = f"sqlite:///{temp_db_path}"
@@ -337,7 +379,9 @@ def run_scripts(
             if not 0 < bounded_timeout <= 3600:
                 print("BLOCKED_SCRIPT_TIMEOUT_INVALID")
                 return 2
-            res = run_bounded_process(cmd, env=env, timeout_seconds=bounded_timeout, cwd=ROOT)
+            res = run_bounded_process(
+                cmd, env=env, timeout_seconds=bounded_timeout, cwd=ROOT
+            )
             stdout = redact_sensitive_text(res.stdout, env)
             stderr = redact_sensitive_text(res.stderr, env)
             if res.returncode not in expected_codes:
@@ -346,13 +390,25 @@ def run_scripts(
                 if stderr:
                     print(stderr)
 
-                if not isinstance(script, ScriptInvocation) and date and ("unrecognized arguments" in stderr.lower() or "usage:" in stderr.lower() or "error:" in stderr.lower()):
-                    print(f"Retrying {script_name} without date flag to accommodate CLI differences")
+                if (
+                    not isinstance(script, ScriptInvocation)
+                    and date
+                    and (
+                        "unrecognized arguments" in stderr.lower()
+                        or "usage:" in stderr.lower()
+                        or "error:" in stderr.lower()
+                    )
+                ):
+                    print(
+                        f"Retrying {script_name} without date flag to accommodate CLI differences"
+                    )
                     cmd2 = [python, str(script_path)]
                     if extra_args:
                         cmd2 += extra_args
                     print("Running:", " ".join(cmd2))
-                    res2 = run_bounded_process(cmd2, env=env, timeout_seconds=bounded_timeout, cwd=ROOT)
+                    res2 = run_bounded_process(
+                        cmd2, env=env, timeout_seconds=bounded_timeout, cwd=ROOT
+                    )
                     stdout2 = redact_sensitive_text(res2.stdout, env)
                     stderr2 = redact_sensitive_text(res2.stderr, env)
                     if res2.returncode not in expected_codes:
@@ -360,7 +416,9 @@ def run_scripts(
                             print(stdout2)
                         if stderr2:
                             print(stderr2)
-                        print(f"Script {script_name} failed with code {res2.returncode}")
+                        print(
+                            f"Script {script_name} failed with code {res2.returncode}"
+                        )
                         return res2.returncode
                     else:
                         continue

@@ -57,7 +57,7 @@ def reduce_s2_3_chunks(artifacts: Sequence[ChunkArtifactV1]) -> ReducedParentRes
     all_gaps = []
     all_records = []
     for art in sorted(artifacts, key=lambda a: a.chunk_index):
-        if art.status != "PASS":
+        if art.status not in ("PASS", "BLOCK"):
             raise ReducerError(f"REDUCER_FAILED: S2.3 chunk {art.chunk_id} status is {art.status}")
 
         payload = art.payload or {}

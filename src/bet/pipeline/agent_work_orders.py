@@ -16,7 +16,7 @@ from bet.pipeline.runtime_paths import resolve_run_root, runtime_artifact_dir
 
 from pydantic import Field, field_validator, model_validator
 from bet.pipeline.contracts.base import StrictBaseModel
-from bet.pipeline.sharding.models import FactAcquisitionPlanV1
+from bet.pipeline.sharding.models import FactAcquisitionPlanV1, FactRequirementV1
 
 
 class AgentWorkOrderInputRefV1(StrictBaseModel):
@@ -39,6 +39,41 @@ class AgentWorkOrderOutputContractV1(StrictBaseModel):
 
     def to_jsonable(self) -> dict[str, Any]:
         return self.model_dump()
+
+
+class AgentEventWorkItemV1(StrictBaseModel):
+    canonical_event_id: str
+    fixture_id: int | None = None
+    stage_input_fingerprint: str
+    dependency_set_sha256: str
+    required_chain_digest: str
+    action: str = "EXECUTE"
+    acquisition_plan: FactAcquisitionPlanV1 | None = None
+
+    @field_validator("action")
+    @classmethod
+    def _execute_only(cls, value: str) -> str:
+        if value != "EXECUTE":
+            raise ValueError("agent event work items must be EXECUTE")
+        return value
+
+
+class AgentWorkOrderRuntimeBindingV1(StrictBaseModel):
+    plan_id: str
+    runtime_context_sha256: str
+    selection_run_id: str
+    selection_ledger_sha256: str
+    runtime_s1e_sha256: str
+    stage_work_plan_sha256: str
+    stage_work_order_path: str
+    stage_work_order_sha256: str
+    required_chain_digest: str
+    manifest_digest: str
+    execute_event_ids: tuple[str, ...]
+    reuse_event_ids: tuple[str, ...]
+    expected_execute_event_set_sha256: str
+    expected_reuse_event_set_sha256: str
+    dependency_output_set_sha256: str
 
 
 class AgentWorkOrderPolicy(StrictBaseModel):
@@ -69,10 +104,45 @@ class AgentWorkOrderV1(StrictBaseModel):
     allowed_tools: list[str] = Field(default_factory=list)
     task_allowlist: list[str] = Field(default_factory=list)
     acquisition_plan: FactAcquisitionPlanV1 | None = None
+    event_acquisition_plans: tuple[FactAcquisitionPlanV1, ...] = ()
     parent_work_order_id: str | None = None
     parent_work_order_sha256: str | None = None
     plan_id: str | None = None
     plan_sha256: str | None = None
+    runtime_binding: AgentWorkOrderRuntimeBindingV1 | None = None
+    event_work_items: tuple[AgentEventWorkItemV1, ...] = ()
+
+    @field_validator("event_acquisition_plans", mode="before")
+    @classmethod
+    def coerce_event_acquisition_plans(
+        cls, value: Any
+    ) -> tuple[FactAcquisitionPlanV1, ...]:
+        if isinstance(value, (list, tuple)):
+            return tuple(
+                FactAcquisitionPlanV1.model_validate(item)
+                if isinstance(item, dict)
+                else item
+                for item in value
+            )
+        return ()
+
+    @model_validator(mode="after")
+    def _validate_runtime_binding(self):
+        if self.runtime_binding is None:
+            return self
+        binding = self.runtime_binding
+        if self.plan_id and self.plan_id != binding.plan_id:
+            raise ValueError("agent runtime binding plan mismatch")
+        execute = tuple(sorted(binding.execute_event_ids))
+        reuse = tuple(sorted(binding.reuse_event_ids))
+        if len(execute) != len(set(execute)) or len(reuse) != len(set(reuse)):
+            raise ValueError("agent runtime binding duplicate event ID")
+        if set(execute) & set(reuse):
+            raise ValueError("agent runtime binding execute/reuse overlap")
+        item_ids = tuple(sorted(item.canonical_event_id for item in self.event_work_items))
+        if item_ids != execute:
+            raise ValueError("agent event work items do not match execute scope")
+        return self
 
     def to_jsonable(self) -> dict[str, Any]:
         return self.model_dump()
@@ -523,11 +593,101 @@ def load_agent_work_order_from_dict(data: dict[str, Any]) -> AgentWorkOrder:
         allowed_tools=data.get("allowed_tools", []),
         task_allowlist=data.get("task_allowlist", []),
         acquisition_plan=data.get("acquisition_plan"),
+        event_acquisition_plans=tuple(data.get("event_acquisition_plans", ())),
         parent_work_order_id=data.get("parent_work_order_id"),
         parent_work_order_sha256=data.get("parent_work_order_sha256"),
         plan_id=data.get("plan_id"),
         plan_sha256=data.get("plan_sha256"),
+        runtime_binding=data.get("runtime_binding"),
+        event_work_items=tuple(data.get("event_work_items", ())),
     )
+
+
+SPORT_ACQUISITION_DOSSIERS: dict[
+    str, tuple[tuple[str, ...], tuple[str, ...], str]
+] = {
+    "football": (
+        (
+            "LINEUPS", "INJURIES_AVAILABILITY", "RECENT_FORM", "WEATHER",
+            "COMPETITION_CONTEXT",
+        ),
+        ("RESULT", "GOALS_TOTALS", "CORNERS"),
+        "official league or club source + independent results/news/statistics service",
+    ),
+    "tennis": (
+        (
+            "PLAYER_AVAILABILITY", "RECENT_FORM", "TOURNAMENT_STATUS",
+            "SCHEDULE_CONTEXT", "WEATHER",
+        ),
+        ("MATCH_WINNER", "SETS", "GAMES_TOTALS"),
+        "official tournament or player source + independent results/statistics service",
+    ),
+    "basketball": (
+        ("ROSTER_AVAILABILITY", "RECENT_FORM", "COMPETITION_STATUS", "VENUE_CONTEXT"),
+        ("MATCH_WINNER", "SPREAD", "TOTALS"),
+        "official league or club source + independent statistics/news service",
+    ),
+    "volleyball": (
+        ("ROSTER_AVAILABILITY", "RECENT_FORM", "COMPETITION_STATUS", "VENUE_CONTEXT"),
+        ("MATCH_WINNER", "SETS", "TOTALS"),
+        "official federation or competition source + independent results service",
+    ),
+    "cs2": (
+        ("ACTIVE_ROSTER", "MAP_FORM", "MATCH_STATUS", "TOURNAMENT_CONTEXT"),
+        ("MATCH_WINNER", "MAP_WINNER", "MAP_TOTALS"),
+        "official tournament or team source + independent results/statistics service",
+    ),
+    "valorant": (
+        (
+            "ACTIVE_ROSTER", "RECENT_MATCH_FORM", "MAP_FORM",
+            "TOURNAMENT_STATUS", "SCHEDULE_CONTEXT",
+        ),
+        ("MATCH_WINNER", "MAP_ROUNDS"),
+        "official tournament or team source + independent results/statistics service",
+    ),
+}
+
+
+def build_event_acquisition_plans(
+    step_id: str,
+    work_order_id: str,
+    event_records: list[dict[str, Any]],
+    plan_tools: list[str],
+) -> tuple[FactAcquisitionPlanV1, ...]:
+    """Build one sport-specific retrieval plan per event in the input universe."""
+    plans: list[FactAcquisitionPlanV1] = []
+    for record in event_records:
+        event_id = record.get("canonical_event_id") or record.get("event_id")
+        sport = str(record.get("sport") or "unknown").lower()
+        if not event_id:
+            continue
+        fact_types, markets, source_strategy = SPORT_ACQUISITION_DOSSIERS.get(
+            sport,
+            (
+                ("AVAILABILITY", "RECENT_FORM", "COMPETITION_CONTEXT"),
+                (),
+                "official event source + independent results/statistics service",
+            ),
+        )
+        plans.append(FactAcquisitionPlanV1(
+            plan_id=f"PLAN-{work_order_id}-{event_id}",
+            canonical_event_id=str(event_id),
+            sport=sport,
+            source_strategy=source_strategy,
+            max_queries=4,
+            requirements=tuple(FactRequirementV1(
+                requirement_id=f"REQ-{step_id}-{event_id}-{index:02d}",
+                fact_type=fact_type,
+                sport=sport,
+                market_families_affected=markets,
+                allowed_tools=plan_tools,
+                max_age_hours=48,
+                min_independent_sources=2,
+                conflict_policy="FAIL_CLOSED",
+                missing_data_action="BLOCK",
+            ) for index, fact_type in enumerate(fact_types, start=1)),
+        ))
+    return tuple(plans)
 
 
 def build_agent_work_order(
@@ -549,6 +709,7 @@ def build_agent_work_order(
 
     policy = POLICIES[step_id]
     target_path = work_order_path_for(base_dir, betting_day, run_id, step_id)
+    preserved_created_at: str | None = None
     if target_path.is_file():
         try:
             content = target_path.read_text(encoding="utf-8")
@@ -558,6 +719,9 @@ def build_agent_work_order(
             existing_wo = None
 
         if existing_wo is not None:
+            preserved_created_at = existing_wo.created_at
+
+        if existing_wo is not None and not kwargs.get("allow_input_refresh", False):
             if (
                 existing_wo.betting_day != betting_day
                 or existing_wo.run_id != run_id
@@ -616,13 +780,17 @@ def build_agent_work_order(
 
             return existing_wo
 
-    created_at = utc_now_iso()
+    created_at = preserved_created_at or utc_now_iso()
 
     if manifest is None:
         from bet.pipeline.manifest import load_pipeline_manifest
         manifest = load_pipeline_manifest(manifest_path)
 
-    input_refs = discover_input_refs_for_step(step_id, base_dir, betting_day, run_id, manifest)
+    runtime_binding = kwargs.get("runtime_binding")
+    explicit_input_refs = kwargs.get("input_refs")
+    if runtime_binding is not None and explicit_input_refs is None:
+        raise ValueError("C8 runtime binding requires scoped input_refs")
+    input_refs = list(explicit_input_refs) if explicit_input_refs is not None else discover_input_refs_for_step(step_id, base_dir, betting_day, run_id, manifest)
     expected_path = expected_agent_artifact_path_for(
         base_dir, betting_day, run_id, step_id
     )
@@ -651,10 +819,10 @@ def build_agent_work_order(
         raise ContinuityContractError("Git source_head is UNKNOWN which is forbidden for persisted work orders")
 
     acq_plan_data = kwargs.get("acquisition_plan")
+    event_acquisition_plans: tuple[FactAcquisitionPlanV1, ...] = ()
     allowed_tools = kwargs.get("allowed_tools", [])
-    if acq_plan_data is None and step_id in {"S2.3", "S2.5", "S2.7", "S2.9", "S5"}:
-        consumed_eids = []
-        consumed_sport = kwargs.get("sport") or "football"
+    if runtime_binding is None and acq_plan_data is None and step_id in {"S2.3", "S2.5", "S2.7", "S2.9", "S5"}:
+        event_records: list[dict[str, Any]] = []
         for ref in input_refs:
             ref_path = Path(ref.path)
             if ref_path.is_file():
@@ -665,36 +833,22 @@ def build_agent_work_order(
                     for r in recs:
                         if isinstance(r, dict):
                             eid = r.get("canonical_event_id") or r.get("event_id")
-                            if eid and str(eid) not in consumed_eids:
-                                consumed_eids.append(str(eid))
-                            if r.get("sport"):
-                                consumed_sport = str(r["sport"])
+                            if eid and not any(str(existing.get("canonical_event_id") or existing.get("event_id")) == str(eid) for existing in event_records):
+                                event_records.append(r)
                 except Exception:
                     pass
 
-        target_eid = kwargs.get("canonical_event_id") or (consumed_eids[0] if consumed_eids else None)
-        if target_eid:
-            plan_tools = ["bet_sqlite_query", "webfetch", "read", "glob", "grep"]
-            acq_plan_data = {
-                "plan_id": f"PLAN-{work_order_id}",
-                "canonical_event_id": target_eid,
-                "sport": consumed_sport,
-                "max_queries": 10,
-                "requirements": [
-                    {
-                        "requirement_id": f"REQ-{step_id}-01",
-                        "fact_type": "LINEUP_INJURY_FORM_FACTS",
-                        "sport": consumed_sport,
-                        "market_families_affected": ["RESULT", "GOALS_TOTALS", "CORNERS"],
-                        "requirement_level": "REQUIRED_FOR_PRICING",
-                        "allowed_tools": list(plan_tools),
-                        "max_age_hours": 48,
-                        "min_independent_sources": 2,
-                    }
-                ],
-            }
+        if kwargs.get("canonical_event_id") and not event_records:
+            event_records = [{"canonical_event_id": kwargs["canonical_event_id"], "sport": kwargs.get("sport", "")}]
+        if event_records:
+            plan_tools = ["bet_sqlite_query", "webfetch", "read", "glob", "grep", "edit"]
+            event_acquisition_plans = build_event_acquisition_plans(step_id, work_order_id, event_records, plan_tools)
             if not allowed_tools:
                 allowed_tools = plan_tools
+
+    task_allowlist = list(kwargs.get("task_allowlist", []))
+    if step_id in {"S2.3", "S2.5", "S2.7", "S2.9"} and "write_exact_expected_artifact" not in task_allowlist:
+        task_allowlist.append("write_exact_expected_artifact")
 
     parsed_plan = None
     if isinstance(acq_plan_data, dict):
@@ -704,6 +858,12 @@ def build_agent_work_order(
     elif isinstance(acq_plan_data, FactAcquisitionPlanV1):
         parsed_plan = acq_plan_data
 
+    event_work_items = tuple(kwargs.get("event_work_items") or ())
+    if runtime_binding is not None:
+        runtime_binding = AgentWorkOrderRuntimeBindingV1.model_validate(runtime_binding)
+        event_work_items = tuple(AgentEventWorkItemV1.model_validate(item) for item in event_work_items)
+        if runtime_mode == "LIVE_ANALYSIS_SHADOW" and not event_work_items and runtime_binding.execute_event_ids:
+            raise ValueError("C8 runtime binding requires event_work_items")
     return AgentWorkOrder(
         schema_version=1,
         work_order_id=work_order_id,
@@ -724,18 +884,23 @@ def build_agent_work_order(
         manifest_sha256=manifest_sha,
         source_head=source_head,
         allowed_tools=allowed_tools,
-        task_allowlist=kwargs.get("task_allowlist", []),
+        task_allowlist=task_allowlist,
         acquisition_plan=parsed_plan,
+        event_acquisition_plans=event_acquisition_plans,
         parent_work_order_id=kwargs.get("parent_work_order_id"),
         parent_work_order_sha256=kwargs.get("parent_work_order_sha256"),
         plan_id=kwargs.get("plan_id"),
         plan_sha256=kwargs.get("plan_sha256"),
+        runtime_binding=runtime_binding,
+        event_work_items=event_work_items,
     )
 
 
 def write_agent_work_order(
     work_order: AgentWorkOrder,
     base_dir: Path,
+    *,
+    allow_replace: bool = False,
 ) -> Path:
     """Atomically write an agent work order to its expected location."""
     target_path = work_order_path_for(
@@ -754,7 +919,7 @@ def write_agent_work_order(
 
     new_bytes = canonical_json_bytes(payload)
 
-    if target_path.exists():
+    if target_path.exists() and not allow_replace:
         existing_bytes = target_path.read_bytes()
         try:
             existing_payload = json.loads(existing_bytes)

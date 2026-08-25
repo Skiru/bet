@@ -54,7 +54,7 @@ def test_red_02_compare_internal_provenance_fields(tmp_path):
     cur_manifest = compute_source_manifest_sha256(repo_root)
 
     source_run = Path("/private/tmp/pipeline_runs/2026-07-29/v5_analysis_20260729_002")
-    if source_run.exists():
+    if (source_run / "run_summary.json").is_file():
         tar_p, man_p = export_s2_restart_seed(source_run, tmp_path)
         man_data = json.loads(man_p.read_text(encoding="utf-8"))
 
@@ -88,7 +88,7 @@ def test_red_03_unknown_source_provenance_fallback_prohibition(tmp_path):
 def test_red_04_target_head_mismatch(tmp_path):
     """4. Prove import_s2_restart_seed rejects target HEAD mismatch with TARGET_PROVENANCE_MISMATCH."""
     source_run = Path("/private/tmp/pipeline_runs/2026-07-29/v5_analysis_20260729_002")
-    if not source_run.exists():
+    if not (source_run / "run_summary.json").is_file():
         return
 
     tar_p, man_p = export_s2_restart_seed(source_run, tmp_path / "seed")
@@ -205,7 +205,7 @@ def test_red_09_stale_seed_timestamp_freshness():
 def test_red_10_deterministic_seed_export(tmp_path):
     """10. Export the same seed twice with fixed inputs and prove tar bytes are identical."""
     source_run = Path("/private/tmp/pipeline_runs/2026-07-29/v5_analysis_20260729_002")
-    if not source_run.exists():
+    if not (source_run / "run_summary.json").is_file():
         return
 
     out1 = tmp_path / "out1"
@@ -223,7 +223,7 @@ def test_red_10_deterministic_seed_export(tmp_path):
 def test_red_11_snapshot_counts_emitted_with_ledger(tmp_path):
     """11. Prove active/terminalized counts are backed by the full 766-event ledger."""
     source_run = Path("/private/tmp/pipeline_runs/2026-07-29/v5_analysis_20260729_002")
-    if not source_run.exists():
+    if not (source_run / "run_summary.json").is_file():
         return
 
     tar_p, man_p = export_s2_restart_seed(source_run, tmp_path / "seed")

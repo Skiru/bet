@@ -50,6 +50,7 @@ def _register_step_contracts() -> None:
         ("S10_SETTLEMENT_HANDOFF", 1, CompletionEnvelopeType.STATE_MARKER, "S10", (), S10SettlementHandoffV1),
     ]
 
+    event_steps = {"S2", "S2.3", "S2.5", "S2.7", "S2.9", "S3", "S4", "S5"}
     for item in contracts:
         cid, ver, env, producer, consumers, model = item
         desc = ContractDescriptor(
@@ -60,6 +61,13 @@ def _register_step_contracts() -> None:
             producer_step=producer,
             consumer_steps=consumers,
             artifact_role=ArtifactRole.PRIMARY,
+            output_scope=(
+                "event"
+                if producer in event_steps
+                else "human"
+                if producer == "S9"
+                else "run"
+            ),
         )
         GLOBAL_CONTRACT_REGISTRY._descriptors[(cid, ver)] = desc
 

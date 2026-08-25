@@ -57,6 +57,7 @@ from bet.db.observation_models import (
     create_projection,
 )
 
+
 def _now() -> str:
     """Return current UTC time as ISO string."""
     return datetime.now(timezone.utc).isoformat()
@@ -66,6 +67,7 @@ def _now() -> str:
 # SportRepo
 # ---------------------------------------------------------------------------
 
+
 class SportRepo:
     def __init__(self, conn: sqlite3.Connection):
         self.conn = conn
@@ -73,14 +75,60 @@ class SportRepo:
     def seed_defaults(self) -> None:
         """Insert all 14 sports with stat_keys."""
         _FALLBACK_STAT_KEYS = {
-            "football": ["corners", "fouls", "yellow_cards", "red_cards", "shots", "shots_on_target", "possession", "goals", "offsides", "saves"],
-            "basketball": ["points", "rebounds", "assists", "steals", "blocks", "turnovers", "fg_pct", "three_pct", "ft_pct"],
-            "hockey": ["goals", "shots", "powerplay_goals", "pim", "hits", "blocks", "faceoff_pct"],
-            "tennis": ["aces", "double_faults", "first_serve_pct", "break_points_won", "games_won", "sets_won", "total_games"],
-            "volleyball": ["points", "aces", "blocks", "hitting_pct", "sets_won", "total_points", "errors"],
+            "football": [
+                "corners",
+                "fouls",
+                "yellow_cards",
+                "red_cards",
+                "shots",
+                "shots_on_target",
+                "possession",
+                "goals",
+                "offsides",
+                "saves",
+            ],
+            "basketball": [
+                "points",
+                "rebounds",
+                "assists",
+                "steals",
+                "blocks",
+                "turnovers",
+                "fg_pct",
+                "three_pct",
+                "ft_pct",
+            ],
+            "hockey": [
+                "goals",
+                "shots",
+                "powerplay_goals",
+                "pim",
+                "hits",
+                "blocks",
+                "faceoff_pct",
+            ],
+            "tennis": [
+                "aces",
+                "double_faults",
+                "first_serve_pct",
+                "break_points_won",
+                "games_won",
+                "sets_won",
+                "total_games",
+            ],
+            "volleyball": [
+                "points",
+                "aces",
+                "blocks",
+                "hitting_pct",
+                "sets_won",
+                "total_points",
+                "errors",
+            ],
         }
         try:
             from bet.stats.market_ranking import SPORT_STAT_KEYS
+
             # Merge: imported keys override fallback where present
             stat_keys_dict = {**_FALLBACK_STAT_KEYS, **SPORT_STAT_KEYS}
         except (ImportError, ModuleNotFoundError):
@@ -133,20 +181,21 @@ class SportRepo:
 # TeamRepo
 # ---------------------------------------------------------------------------
 
+
 class TeamRepo:
     # Reject team names that are clearly scraped garbage (ads, odds, separators)
     _GARBAGE_PATTERNS = re.compile(
-        r"^\s*$"                     # empty/whitespace
-        r"|^\W+$"                    # only non-word chars ("- -", "---")
-        r"|^#\d+"                    # ad anchors ("#100 FREE $20")
-        r"|\$\d+"                    # dollar amounts
-        r"|FREE|Sign Up|PICKSWISE"   # ad keywords
-        r"|\[VIDEO\]"               # media tags
-        r"|^\d[\d\s.]+$"            # pure numbers/odds ("1.03 11.00 23.00")
-        r"|Bet \$"                   # betting promos
-        r"|Get \$"                   # promo text
-        r"|Bonus Bets"               # promo text
-        , re.IGNORECASE
+        r"^\s*$"  # empty/whitespace
+        r"|^\W+$"  # only non-word chars ("- -", "---")
+        r"|^#\d+"  # ad anchors ("#100 FREE $20")
+        r"|\$\d+"  # dollar amounts
+        r"|FREE|Sign Up|PICKSWISE"  # ad keywords
+        r"|\[VIDEO\]"  # media tags
+        r"|^\d[\d\s.]+$"  # pure numbers/odds ("1.03 11.00 23.00")
+        r"|Bet \$"  # betting promos
+        r"|Get \$"  # promo text
+        r"|Bonus Bets",  # promo text
+        re.IGNORECASE,
     )
 
     def __init__(self, conn: sqlite3.Connection):
@@ -223,10 +272,19 @@ class TeamRepo:
         import unicodedata
         from bet.utils import normalize_team_name
 
-        normalized_input = unicodedata.normalize("NFKD", name).encode("ascii", "ignore").decode("ascii").lower().strip()
+        normalized_input = (
+            unicodedata.normalize("NFKD", name)
+            .encode("ascii", "ignore")
+            .decode("ascii")
+            .lower()
+            .strip()
+        )
         suffix_stripped_input = normalize_team_name(name)
         # Guard: don't suffix-match if name has identity markers (reserves/youth/women)
-        _identity_re = re.compile(r"\b(U2[0-9]|U1[7-9]|II|III|IV|B|W|Reserves?|Youth|Women|Juniors?)\b", re.IGNORECASE)
+        _identity_re = re.compile(
+            r"\b(U2[0-9]|U1[7-9]|II|III|IV|B|W|Reserves?|Youth|Women|Juniors?)\b",
+            re.IGNORECASE,
+        )
         has_identity_marker = bool(_identity_re.search(name))
 
         if not normalized_input or len(normalized_input) < 3:
@@ -237,7 +295,13 @@ class TeamRepo:
             (sport_id,),
         ).fetchall()
         for row in rows:
-            canonical_norm = unicodedata.normalize("NFKD", row["name"]).encode("ascii", "ignore").decode("ascii").lower().strip()
+            canonical_norm = (
+                unicodedata.normalize("NFKD", row["name"])
+                .encode("ascii", "ignore")
+                .decode("ascii")
+                .lower()
+                .strip()
+            )
             # Match on stripped diacritics
             if canonical_norm == normalized_input:
                 # Auto-add the ASCII variant as alias to prevent future misses
@@ -247,7 +311,11 @@ class TeamRepo:
                     self.update_aliases(team.id, updated_aliases)
                 return team
             # Match on fully normalized (suffix-stripped) — skip if identity markers differ
-            if suffix_stripped_input and len(suffix_stripped_input) >= 3 and not has_identity_marker:
+            if (
+                suffix_stripped_input
+                and len(suffix_stripped_input) >= 3
+                and not has_identity_marker
+            ):
                 candidate_has_marker = bool(_identity_re.search(row["name"]))
                 if not candidate_has_marker:
                     canonical_suffix_stripped = normalize_team_name(row["name"])
@@ -296,8 +364,14 @@ class TeamSourceAliasRepo:
         table_sql_row = self.conn.execute(
             "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'team_source_aliases'"
         ).fetchone()
-        table_sql = (table_sql_row["sql"] if table_sql_row and table_sql_row["sql"] else "")
-        if table_sql and "UNIQUE(team_id, source, provider_team_name, provider_competition_hint)" not in table_sql:
+        table_sql = (
+            table_sql_row["sql"] if table_sql_row and table_sql_row["sql"] else ""
+        )
+        if (
+            table_sql
+            and "UNIQUE(team_id, source, provider_team_name, provider_competition_hint)"
+            not in table_sql
+        ):
             self._migrate_table()
 
         self.conn.execute(
@@ -325,7 +399,9 @@ class TeamSourceAliasRepo:
         )
 
     def _migrate_table(self) -> None:
-        self.conn.execute("ALTER TABLE team_source_aliases RENAME TO team_source_aliases_legacy")
+        self.conn.execute(
+            "ALTER TABLE team_source_aliases RENAME TO team_source_aliases_legacy"
+        )
         self.conn.execute(
             """
             CREATE TABLE team_source_aliases (
@@ -381,7 +457,12 @@ class TeamSourceAliasRepo:
               COALESCE(last_used_at, verified_at, '') DESC
             LIMIT 1
             """,
-            (team_id, source, provider_competition_hint or "", provider_competition_hint or ""),
+            (
+                team_id,
+                source,
+                provider_competition_hint or "",
+                provider_competition_hint or "",
+            ),
         ).fetchone()
         if not row:
             return None
@@ -416,9 +497,16 @@ class TeamSourceAliasRepo:
               confidence DESC,
               COALESCE(last_used_at, verified_at, '') DESC
             """,
-            (team_id, source, provider_competition_hint or "", provider_competition_hint or ""),
+            (
+                team_id,
+                source,
+                provider_competition_hint or "",
+                provider_competition_hint or "",
+            ),
         ).fetchall()
-        return [str(row["provider_team_name"]) for row in rows if row["provider_team_name"]]
+        return [
+            str(row["provider_team_name"]) for row in rows if row["provider_team_name"]
+        ]
 
     def get_failed_provider_names(
         self,
@@ -438,7 +526,9 @@ class TeamSourceAliasRepo:
             """,
             (team_id, source, provider_competition_hint or ""),
         ).fetchall()
-        return {str(row["provider_team_name"]) for row in rows if row["provider_team_name"]}
+        return {
+            str(row["provider_team_name"]) for row in rows if row["provider_team_name"]
+        }
 
     def upsert_alias(
         self,
@@ -498,6 +588,7 @@ class TeamSourceAliasRepo:
 # CompetitionRepo
 # ---------------------------------------------------------------------------
 
+
 class CompetitionRepo:
     def __init__(self, conn: sqlite3.Connection):
         self.conn = conn
@@ -529,6 +620,7 @@ class CompetitionRepo:
 # ---------------------------------------------------------------------------
 # FixtureRepo
 # ---------------------------------------------------------------------------
+
 
 class FixtureRepo:
     """Repository for fixtures table operations."""
@@ -573,7 +665,12 @@ class FixtureRepo:
         row = self.conn.execute(
             "SELECT id FROM fixtures "
             "WHERE sport_id = ? AND home_team_id = ? AND away_team_id = ? AND kickoff = ?",
-            (fixture.sport_id, fixture.home_team_id, fixture.away_team_id, fixture.kickoff),
+            (
+                fixture.sport_id,
+                fixture.home_team_id,
+                fixture.away_team_id,
+                fixture.kickoff,
+            ),
         ).fetchone()
         return row["id"]
 
@@ -632,7 +729,9 @@ class FixtureRepo:
         ).fetchall()
         return [self._row_to_fixture(r) for r in rows]
 
-    def get_by_date_with_teams(self, date: str, sport_id: int | None = None) -> list[dict]:
+    def get_by_date_with_teams(
+        self, date: str, sport_id: int | None = None
+    ) -> list[dict]:
         """JOIN fixtures + teams + competitions to return dicts with team names.
 
         Returns: [{fixture_id, sport_id, competition, home_team, away_team,
@@ -804,6 +903,7 @@ class FixtureRepo:
 # StatsRepo
 # ---------------------------------------------------------------------------
 
+
 class StatsRepo:
     def __init__(self, conn: sqlite3.Connection):
         self.conn = conn
@@ -942,8 +1042,10 @@ class StatsRepo:
                     form.trend,
                     observed_at,
                     form.source,
-                    json.dumps(form.source_event_ids) if hasattr(form, 'source_event_ids') else "[]",
-                    form.evidence_hash if hasattr(form, 'evidence_hash') else "",
+                    json.dumps(form.source_event_ids)
+                    if hasattr(form, "source_event_ids")
+                    else "[]",
+                    form.evidence_hash if hasattr(form, "evidence_hash") else "",
                 ),
             )
             self.conn.execute("RELEASE save_form")
@@ -991,7 +1093,12 @@ class StatsRepo:
             if rejected:
                 self._logger.warning(
                     "Rejected %d/%d values for %s/%s (range %.1f-%.1f): %s",
-                    rejected, len(values), sport_name, form.stat_key, lo, hi,
+                    rejected,
+                    len(values),
+                    sport_name,
+                    form.stat_key,
+                    lo,
+                    hi,
                     [v for v in values if v < lo or v > hi][:5],
                 )
             return filtered
@@ -1007,7 +1114,8 @@ class StatsRepo:
         if form.l10_values and not l10:
             self._logger.warning(
                 "ALL l10 values out of range for sport=%s stat=%s — write SKIPPED",
-                sport_name, form.stat_key,
+                sport_name,
+                form.stat_key,
             )
             return None
 
@@ -1091,8 +1199,12 @@ class StatsRepo:
             trend=row["trend"] or "",
             updated_at=row["updated_at"] or "",
             source=row["source"] or "",
-            source_event_ids=json.loads(row["source_event_ids"]) if "source_event_ids" in row.keys() and row["source_event_ids"] else [],
-            evidence_hash=row["evidence_hash"] or "" if "evidence_hash" in row.keys() else "",
+            source_event_ids=json.loads(row["source_event_ids"])
+            if "source_event_ids" in row.keys() and row["source_event_ids"]
+            else [],
+            evidence_hash=row["evidence_hash"] or ""
+            if "evidence_hash" in row.keys()
+            else "",
         )
 
     @staticmethod
@@ -1115,8 +1227,10 @@ class StatsRepo:
 # FootballSnapshotReader
 # ---------------------------------------------------------------------------
 
+
 class FootballSnapshotReader:
     """Downstream repository/reader which returns only published COMPLETE snapshots and performs schema validation."""
+
     def __init__(self, conn: sqlite3.Connection):
         self.conn = conn
 
@@ -1130,13 +1244,18 @@ class FootballSnapshotReader:
         if not row:
             return None
         payload = json.loads(row["payload_json"])
-        from bet.enrichment.football_snapshot import FootballEnrichmentSnapshot, from_dict
+        from bet.enrichment.football_snapshot import (
+            FootballEnrichmentSnapshot,
+            from_dict,
+        )
+
         return from_dict(FootballEnrichmentSnapshot, payload)
 
 
 # ---------------------------------------------------------------------------
 # FixtureCapabilityRepo
 # ---------------------------------------------------------------------------
+
 
 class FixtureCapabilityRepo:
     """Repository for fixture-scoped observations and projections."""
@@ -1250,7 +1369,12 @@ class FixtureCapabilityRepo:
                 """DELETE FROM fixture_capability_projection
                    WHERE canonical_fixture_id = ? AND team_id = ?
                    AND capability = ? AND analysis_cutoff_at = ?""",
-                (proj.canonical_fixture_id, proj.team_id, proj.capability, proj.analysis_cutoff_at),
+                (
+                    proj.canonical_fixture_id,
+                    proj.team_id,
+                    proj.capability,
+                    proj.analysis_cutoff_at,
+                ),
             )
             # Insert new
             cursor = self.conn.execute(
@@ -1338,7 +1462,9 @@ class FixtureCapabilityRepo:
         - staleness: computed from observation timestamps
         - value: normalized payload or explicit UNKNOWN
         """
-        proj = self.get_projection(canonical_fixture_id, team_id, capability, analysis_cutoff_at)
+        proj = self.get_projection(
+            canonical_fixture_id, team_id, capability, analysis_cutoff_at
+        )
         if not proj:
             return {
                 "status": "NOT_FOUND",
@@ -1404,7 +1530,9 @@ class FixtureCapabilityRepo:
             payload_sha256=row["payload_sha256"] or "",
             payload_json=row["payload_json"] or "",
             dto_version=row["dto_version"] if "dto_version" in row.keys() else "1",
-            evidence_package_id=row["evidence_package_id"] if "evidence_package_id" in row.keys() else "",
+            evidence_package_id=row["evidence_package_id"]
+            if "evidence_package_id" in row.keys()
+            else "",
         )
 
     @staticmethod
@@ -1423,13 +1551,16 @@ class FixtureCapabilityRepo:
             fallback_reason=row["fallback_reason"] or "",
             created_at=row["created_at"],
             updated_at=row["updated_at"],
-            snapshot_run_id=row["snapshot_run_id"] if "snapshot_run_id" in row.keys() else None,
+            snapshot_run_id=row["snapshot_run_id"]
+            if "snapshot_run_id" in row.keys()
+            else None,
         )
 
 
 # ---------------------------------------------------------------------------
 # OddsRepo
 # ---------------------------------------------------------------------------
+
 
 class OddsRepo:
     def __init__(self, conn: sqlite3.Connection):
@@ -1507,7 +1638,9 @@ class OddsRepo:
             result.setdefault(rec.fixture_id, []).append(rec)
         return result
 
-    def get_all_for_fixtures(self, fixture_ids: list[int]) -> dict[int, list[OddsRecord]]:
+    def get_all_for_fixtures(
+        self, fixture_ids: list[int]
+    ) -> dict[int, list[OddsRecord]]:
         """Batch odds lookup for a set of fixture IDs.
 
         Batches queries to stay under SQLite's variable limit (999).
@@ -1517,7 +1650,7 @@ class OddsRepo:
         result: dict[int, list[OddsRecord]] = {}
         BATCH = 900
         for i in range(0, len(fixture_ids), BATCH):
-            batch = fixture_ids[i:i + BATCH]
+            batch = fixture_ids[i : i + BATCH]
             placeholders = ",".join("?" for _ in batch)
             rows = self.conn.execute(
                 f"SELECT * FROM odds_history WHERE fixture_id IN ({placeholders}) "
@@ -1547,6 +1680,7 @@ class OddsRepo:
 # ---------------------------------------------------------------------------
 # CouponRepo
 # ---------------------------------------------------------------------------
+
 
 class CouponRepo:
     def __init__(self, conn: sqlite3.Connection):
@@ -1669,10 +1803,14 @@ class CouponRepo:
             settled_at=row["settled_at"] or "",
             market_pl=row["market_pl"] or "",
             navigation_hint=row["navigation_hint"] or "",
-            stats_detail=json.loads(row["stats_detail"]) if row["stats_detail"] else None,
+            stats_detail=json.loads(row["stats_detail"])
+            if row["stats_detail"]
+            else None,
         )
 
-    def create_with_bets(self, coupon: Coupon, bets: list[Bet]) -> tuple[int, list[int]]:
+    def create_with_bets(
+        self, coupon: Coupon, bets: list[Bet]
+    ) -> tuple[int, list[int]]:
         """Atomic coupon + legs creation. Returns (coupon_db_id, [bet_db_ids])."""
         coupon_id = self.create_coupon(coupon)
         bet_ids = []
@@ -1717,6 +1855,7 @@ class CouponRepo:
 # ---------------------------------------------------------------------------
 # PipelineRepo
 # ---------------------------------------------------------------------------
+
 
 class PipelineRepo:
     PHASE_ORDER = ("PHASE_A", "PHASE_B", "PHASE_C", "PHASE_D", "PHASE_E")
@@ -1833,10 +1972,18 @@ class PipelineRepo:
             "VALUES (?, ?, 'completed', ?, ?, ?) "
             "ON CONFLICT(date, step) DO UPDATE SET "
             "status = 'completed', completed_at = excluded.completed_at, stats = excluded.stats, error_message = NULL",
-            (date, step, completed_at, completed_at, json.dumps(stats) if stats else None),
+            (
+                date,
+                step,
+                completed_at,
+                completed_at,
+                json.dumps(stats) if stats else None,
+            ),
         )
 
-    def complete_phase(self, date: str, phase_id: str, stats: dict | None = None) -> None:
+    def complete_phase(
+        self, date: str, phase_id: str, stats: dict | None = None
+    ) -> None:
         payload = self._base_phase_receipt(
             date,
             phase_id,
@@ -1863,7 +2010,9 @@ class PipelineRepo:
             (date, step, completed_at, completed_at, error),
         )
 
-    def fail_phase(self, date: str, phase_id: str, error: str, stats: dict | None = None) -> None:
+    def fail_phase(
+        self, date: str, phase_id: str, error: str, stats: dict | None = None
+    ) -> None:
         payload = self._base_phase_receipt(
             date,
             phase_id,
@@ -1968,6 +2117,7 @@ class PipelineRepo:
 # SourceHealthRepo
 # ---------------------------------------------------------------------------
 
+
 class SourceHealthRepo:
     def __init__(self, conn: sqlite3.Connection):
         self.conn = conn
@@ -2036,6 +2186,7 @@ class SourceHealthRepo:
 # LeagueProfileRepo
 # ---------------------------------------------------------------------------
 
+
 class LeagueProfileRepo:
     def __init__(self, conn: sqlite3.Connection):
         self.conn = conn
@@ -2051,28 +2202,43 @@ class LeagueProfileRepo:
             "std_dev = excluded.std_dev, "
             "sample_size = excluded.sample_size, "
             "updated_at = excluded.updated_at",
-            (profile.competition_id, profile.stat_key, profile.season,
-             profile.avg_value, profile.median_value, profile.std_dev,
-             profile.sample_size, profile.updated_at or _now()),
+            (
+                profile.competition_id,
+                profile.stat_key,
+                profile.season,
+                profile.avg_value,
+                profile.median_value,
+                profile.std_dev,
+                profile.sample_size,
+                profile.updated_at or _now(),
+            ),
         )
 
-    def get_for_competition(self, competition_id: int, season: str = "") -> list[LeagueProfile]:
+    def get_for_competition(
+        self, competition_id: int, season: str = ""
+    ) -> list[LeagueProfile]:
         rows = self.conn.execute(
             "SELECT * FROM league_profiles WHERE competition_id = ? AND season = ?",
             (competition_id, season),
         ).fetchall()
         return [
             LeagueProfile(
-                id=r["id"], competition_id=r["competition_id"],
-                stat_key=r["stat_key"], season=r["season"],
-                avg_value=r["avg_value"], median_value=r["median_value"],
-                std_dev=r["std_dev"], sample_size=r["sample_size"],
+                id=r["id"],
+                competition_id=r["competition_id"],
+                stat_key=r["stat_key"],
+                season=r["season"],
+                avg_value=r["avg_value"],
+                median_value=r["median_value"],
+                std_dev=r["std_dev"],
+                sample_size=r["sample_size"],
                 updated_at=r["updated_at"],
             )
             for r in rows
         ]
 
-    def get_stat_avg(self, competition_id: int, stat_key: str, season: str = "") -> float | None:
+    def get_stat_avg(
+        self, competition_id: int, stat_key: str, season: str = ""
+    ) -> float | None:
         row = self.conn.execute(
             "SELECT avg_value FROM league_profiles "
             "WHERE competition_id = ? AND stat_key = ? AND season = ?",
@@ -2084,6 +2250,7 @@ class LeagueProfileRepo:
 # ---------------------------------------------------------------------------
 # AnalysisResultRepo
 # ---------------------------------------------------------------------------
+
 
 class AnalysisResultRepo:
     def __init__(self, conn: sqlite3.Connection):
@@ -2107,9 +2274,13 @@ class AnalysisResultRepo:
                 result.best_safety_score,
                 result.markets_evaluated,
                 json.dumps(result.ranking_json),
-                json.dumps(result.three_way_check_json) if result.three_way_check_json else None,
+                json.dumps(result.three_way_check_json)
+                if result.three_way_check_json
+                else None,
                 json.dumps(result.warnings_json),
-                json.dumps(result.stats_summary_json) if result.stats_summary_json else None,
+                json.dumps(result.stats_summary_json)
+                if result.stats_summary_json
+                else None,
                 result.source,
                 result.created_at or _now(),
             ),
@@ -2137,7 +2308,9 @@ class AnalysisResultRepo:
                     r.best_safety_score,
                     r.markets_evaluated,
                     json.dumps(r.ranking_json),
-                    json.dumps(r.three_way_check_json) if r.three_way_check_json else None,
+                    json.dumps(r.three_way_check_json)
+                    if r.three_way_check_json
+                    else None,
                     json.dumps(r.warnings_json),
                     json.dumps(r.stats_summary_json) if r.stats_summary_json else None,
                     r.source,
@@ -2155,7 +2328,9 @@ class AnalysisResultRepo:
         ).fetchall()
         return [self._row_to_model(r) for r in rows]
 
-    def get_by_fixture(self, fixture_id: int, betting_date: str) -> AnalysisResult | None:
+    def get_by_fixture(
+        self, fixture_id: int, betting_date: str
+    ) -> AnalysisResult | None:
         """Get analysis result for a specific fixture on a date."""
         row = self.conn.execute(
             "SELECT * FROM analysis_results WHERE fixture_id = ? AND betting_date = ?",
@@ -2172,7 +2347,9 @@ class AnalysisResultRepo:
         ).fetchall()
         return [self._row_to_model(r) for r in rows]
 
-    def update_stats_summary(self, fixture_id: int, betting_date: str, stats_summary: dict) -> int:
+    def update_stats_summary(
+        self, fixture_id: int, betting_date: str, stats_summary: dict
+    ) -> int:
         """Update only the stats_summary_json field (for S4/S5/S6 enrichment).
 
         Uses UPDATE instead of INSERT OR REPLACE to preserve the row id.
@@ -2205,9 +2382,15 @@ class AnalysisResultRepo:
             best_safety_score=row["best_safety_score"],
             markets_evaluated=row["markets_evaluated"],
             ranking_json=json.loads(row["ranking_json"]) if row["ranking_json"] else [],
-            three_way_check_json=json.loads(row["three_way_check_json"]) if row["three_way_check_json"] else None,
-            warnings_json=json.loads(row["warnings_json"]) if row["warnings_json"] else [],
-            stats_summary_json=json.loads(row["stats_summary_json"]) if row["stats_summary_json"] else None,
+            three_way_check_json=json.loads(row["three_way_check_json"])
+            if row["three_way_check_json"]
+            else None,
+            warnings_json=json.loads(row["warnings_json"])
+            if row["warnings_json"]
+            else [],
+            stats_summary_json=json.loads(row["stats_summary_json"])
+            if row["stats_summary_json"]
+            else None,
             source=row["source"] or "",
             created_at=row["created_at"] or "",
         )
@@ -2216,6 +2399,7 @@ class AnalysisResultRepo:
 # ---------------------------------------------------------------------------
 # GateResultRepo
 # ---------------------------------------------------------------------------
+
 
 class GateResultRepo:
     _STATUS_TO_BUCKET = {
@@ -2335,15 +2519,27 @@ class GateResultRepo:
 
     def get_approved(self, betting_date: str) -> list[GateResult]:
         """Get approved gate results for coupon building."""
-        return [result for result in self.get_by_date(betting_date) if result.status == "APPROVED"]
+        return [
+            result
+            for result in self.get_by_date(betting_date)
+            if result.status == "APPROVED"
+        ]
 
     def get_extended(self, betting_date: str) -> list[GateResult]:
         """Get extended pool gate results."""
-        return [result for result in self.get_by_date(betting_date) if result.status == "EXTENDED"]
+        return [
+            result
+            for result in self.get_by_date(betting_date)
+            if result.status == "EXTENDED"
+        ]
 
     def get_rejected(self, betting_date: str) -> list[GateResult]:
         """Get rejected gate results."""
-        return [result for result in self.get_by_date(betting_date) if result.status == "REJECTED"]
+        return [
+            result
+            for result in self.get_by_date(betting_date)
+            if result.status == "REJECTED"
+        ]
 
     def delete_by_date(self, betting_date: str) -> int:
         """Delete all gate results for a date. Returns count deleted."""
@@ -2354,11 +2550,17 @@ class GateResultRepo:
 
     @classmethod
     def _row_to_model(cls, row: sqlite3.Row) -> GateResult:
-        gate_details = json.loads(row["gate_details_json"]) if row["gate_details_json"] else {}
+        gate_details = (
+            json.loads(row["gate_details_json"]) if row["gate_details_json"] else {}
+        )
         if not isinstance(gate_details, dict):
             gate_details = {}
 
-        rejection_reasons = json.loads(row["rejection_reasons_json"]) if row["rejection_reasons_json"] else []
+        rejection_reasons = (
+            json.loads(row["rejection_reasons_json"])
+            if row["rejection_reasons_json"]
+            else []
+        )
         if isinstance(rejection_reasons, str):
             rejection_reasons = [rejection_reasons]
         elif not isinstance(rejection_reasons, list):
@@ -2394,6 +2596,7 @@ class GateResultRepo:
 # AnalysisRawDataRepo
 # ---------------------------------------------------------------------------
 
+
 class AnalysisRawDataRepo:
     def __init__(self, conn: sqlite3.Connection):
         self.conn = conn
@@ -2412,12 +2615,16 @@ class AnalysisRawDataRepo:
                 json.dumps(raw.team_b_l10_json, ensure_ascii=False),
                 json.dumps(raw.h2h_meetings_json, ensure_ascii=False),
                 json.dumps(raw.per_market_details_json, ensure_ascii=False),
-                json.dumps(raw.safety_input_json, ensure_ascii=False) if raw.safety_input_json else None,
+                json.dumps(raw.safety_input_json, ensure_ascii=False)
+                if raw.safety_input_json
+                else None,
                 raw.created_at or _now(),
             ),
         )
 
-    def get_by_fixture(self, fixture_id: int, betting_date: str) -> AnalysisRawData | None:
+    def get_by_fixture(
+        self, fixture_id: int, betting_date: str
+    ) -> AnalysisRawData | None:
         """Get raw data for a specific fixture and date."""
         row = self.conn.execute(
             "SELECT * FROM analysis_raw_data WHERE fixture_id = ? AND betting_date = ?",
@@ -2441,11 +2648,21 @@ class AnalysisRawDataRepo:
             id=row["id"],
             fixture_id=row["fixture_id"],
             betting_date=row["betting_date"],
-            team_a_l10_json=json.loads(row["team_a_l10_json"]) if row["team_a_l10_json"] else {},
-            team_b_l10_json=json.loads(row["team_b_l10_json"]) if row["team_b_l10_json"] else {},
-            h2h_meetings_json=json.loads(row["h2h_meetings_json"]) if row["h2h_meetings_json"] else {},
-            per_market_details_json=json.loads(row["per_market_details_json"]) if row["per_market_details_json"] else [],
-            safety_input_json=json.loads(row["safety_input_json"]) if row["safety_input_json"] else None,
+            team_a_l10_json=json.loads(row["team_a_l10_json"])
+            if row["team_a_l10_json"]
+            else {},
+            team_b_l10_json=json.loads(row["team_b_l10_json"])
+            if row["team_b_l10_json"]
+            else {},
+            h2h_meetings_json=json.loads(row["h2h_meetings_json"])
+            if row["h2h_meetings_json"]
+            else {},
+            per_market_details_json=json.loads(row["per_market_details_json"])
+            if row["per_market_details_json"]
+            else [],
+            safety_input_json=json.loads(row["safety_input_json"])
+            if row["safety_input_json"]
+            else None,
             created_at=row["created_at"] or "",
         )
 
@@ -2453,6 +2670,7 @@ class AnalysisRawDataRepo:
 # ---------------------------------------------------------------------------
 # DecisionSnapshotRepo
 # ---------------------------------------------------------------------------
+
 
 class DecisionSnapshotRepo:
     def __init__(self, conn: sqlite3.Connection):
@@ -2483,7 +2701,9 @@ class DecisionSnapshotRepo:
                 json.dumps(snapshot.team_a_snapshot_json, ensure_ascii=False),
                 json.dumps(snapshot.team_b_snapshot_json, ensure_ascii=False),
                 json.dumps(snapshot.h2h_snapshot_json, ensure_ascii=False),
-                json.dumps(snapshot.three_way_check_json, ensure_ascii=False) if snapshot.three_way_check_json else None,
+                json.dumps(snapshot.three_way_check_json, ensure_ascii=False)
+                if snapshot.three_way_check_json
+                else None,
                 snapshot.created_at or _now(),
             ),
         )
@@ -2522,14 +2742,30 @@ class DecisionSnapshotRepo:
             chosen_line=row["chosen_line"],
             chosen_direction=row["chosen_direction"],
             safety_score=row["safety_score"],
-            all_markets_considered_json=json.loads(row["all_markets_considered_json"]) if row["all_markets_considered_json"] else [],
-            reasoning_json=json.loads(row["reasoning_json"]) if row["reasoning_json"] else {},
-            thresholds_json=json.loads(row["thresholds_json"]) if row["thresholds_json"] else {},
-            flip_conditions_json=json.loads(row["flip_conditions_json"]) if row["flip_conditions_json"] else {},
-            team_a_snapshot_json=json.loads(row["team_a_snapshot_json"]) if row["team_a_snapshot_json"] else {},
-            team_b_snapshot_json=json.loads(row["team_b_snapshot_json"]) if row["team_b_snapshot_json"] else {},
-            h2h_snapshot_json=json.loads(row["h2h_snapshot_json"]) if row["h2h_snapshot_json"] else {},
-            three_way_check_json=json.loads(row["three_way_check_json"]) if row["three_way_check_json"] else None,
+            all_markets_considered_json=json.loads(row["all_markets_considered_json"])
+            if row["all_markets_considered_json"]
+            else [],
+            reasoning_json=json.loads(row["reasoning_json"])
+            if row["reasoning_json"]
+            else {},
+            thresholds_json=json.loads(row["thresholds_json"])
+            if row["thresholds_json"]
+            else {},
+            flip_conditions_json=json.loads(row["flip_conditions_json"])
+            if row["flip_conditions_json"]
+            else {},
+            team_a_snapshot_json=json.loads(row["team_a_snapshot_json"])
+            if row["team_a_snapshot_json"]
+            else {},
+            team_b_snapshot_json=json.loads(row["team_b_snapshot_json"])
+            if row["team_b_snapshot_json"]
+            else {},
+            h2h_snapshot_json=json.loads(row["h2h_snapshot_json"])
+            if row["h2h_snapshot_json"]
+            else {},
+            three_way_check_json=json.loads(row["three_way_check_json"])
+            if row["three_way_check_json"]
+            else None,
             created_at=row["created_at"] or "",
         )
 
@@ -2537,6 +2773,7 @@ class DecisionSnapshotRepo:
 # ---------------------------------------------------------------------------
 # DecisionOutcomeRepo
 # ---------------------------------------------------------------------------
+
 
 class DecisionOutcomeRepo:
     def __init__(self, conn: sqlite3.Connection):
@@ -2595,14 +2832,18 @@ class DecisionOutcomeRepo:
         ).fetchall()
         return [self._row_to_model(r) for r in rows]
 
-    def get_by_sport_and_market(self, sport: str, market: str, limit: int = 100) -> list[DecisionOutcome]:
+    def get_by_sport_and_market(
+        self, sport: str, market: str, limit: int = 100
+    ) -> list[DecisionOutcome]:
         rows = self.conn.execute(
             "SELECT * FROM decision_outcomes WHERE sport = ? AND market = ? ORDER BY created_at DESC LIMIT ?",
             (sport, market, limit),
         ).fetchall()
         return [self._row_to_model(r) for r in rows]
 
-    def get_by_competition(self, competition: str, limit: int = 100) -> list[DecisionOutcome]:
+    def get_by_competition(
+        self, competition: str, limit: int = 100
+    ) -> list[DecisionOutcome]:
         rows = self.conn.execute(
             "SELECT * FROM decision_outcomes WHERE competition = ? ORDER BY created_at DESC LIMIT ?",
             (competition, limit),
@@ -2616,9 +2857,14 @@ class DecisionOutcomeRepo:
         ).fetchall()
         return [self._row_to_model(r) for r in rows]
 
-    def get_deviation_stats(self, sport: str | None = None, market: str | None = None) -> dict:
+    def get_deviation_stats(
+        self, sport: str | None = None, market: str | None = None
+    ) -> dict:
         """Get aggregate deviation statistics."""
-        conditions: list[str] = ["actual_value IS NOT NULL", "predicted_value IS NOT NULL"]
+        conditions: list[str] = [
+            "actual_value IS NOT NULL",
+            "predicted_value IS NOT NULL",
+        ]
         params: list = []
         if sport:
             conditions.append("sport = ?")
@@ -2643,8 +2889,12 @@ class DecisionOutcomeRepo:
 
         return {
             "count": row["count"] or 0,
-            "avg_deviation": round(row["avg_deviation"], 3) if row["avg_deviation"] else 0.0,
-            "avg_deviation_pct": round(row["avg_deviation_pct"], 1) if row["avg_deviation_pct"] else 0.0,
+            "avg_deviation": round(row["avg_deviation"], 3)
+            if row["avg_deviation"]
+            else 0.0,
+            "avg_deviation_pct": round(row["avg_deviation_pct"], 1)
+            if row["avg_deviation_pct"]
+            else 0.0,
             "overestimate_count": row["overestimate_count"] or 0,
             "underestimate_count": row["underestimate_count"] or 0,
             "won_count": row["won_count"] or 0,
@@ -2668,8 +2918,12 @@ class DecisionOutcomeRepo:
             deviation=row["deviation"],
             deviation_pct=row["deviation_pct"],
             result=row["result"],
-            prediction_accuracy_json=json.loads(row["prediction_accuracy_json"]) if row["prediction_accuracy_json"] else {},
-            pattern_tags_json=json.loads(row["pattern_tags_json"]) if row["pattern_tags_json"] else [],
+            prediction_accuracy_json=json.loads(row["prediction_accuracy_json"])
+            if row["prediction_accuracy_json"]
+            else {},
+            pattern_tags_json=json.loads(row["pattern_tags_json"])
+            if row["pattern_tags_json"]
+            else [],
             notes=row["notes"] or "",
             created_at=row["created_at"] or "",
         )
@@ -2678,6 +2932,7 @@ class DecisionOutcomeRepo:
 # ---------------------------------------------------------------------------
 # ScanResultRepo
 # ---------------------------------------------------------------------------
+
 
 class ScanResultRepo:
     def __init__(self, conn: sqlite3.Connection):
@@ -2818,7 +3073,9 @@ class ScanResultRepo:
             deep_links_found=row["deep_links_found"],
             duration_seconds=row["duration_seconds"] or 0.0,
             validation_passed=bool(row["validation_passed"]),
-            gaps_description=json.loads(row["gaps_description"]) if row["gaps_description"] else [],
+            gaps_description=json.loads(row["gaps_description"])
+            if row["gaps_description"]
+            else [],
             scan_timestamp=row["scan_timestamp"] or "",
         )
 
@@ -2826,6 +3083,7 @@ class ScanResultRepo:
 # ---------------------------------------------------------------------------
 # AthleteRepo
 # ---------------------------------------------------------------------------
+
 
 class AthleteRepo:
     def __init__(self, conn: sqlite3.Connection):
@@ -2841,9 +3099,18 @@ class AthleteRepo:
             "jersey=excluded.jersey, age=excluded.age, height=excluded.height, "
             "weight=excluded.weight, status=excluded.status, updated_at=excluded.updated_at",
             (
-                athlete.external_id, athlete.sport_id, athlete.team_id, athlete.name,
-                athlete.position, athlete.jersey, athlete.age, athlete.height,
-                athlete.weight, athlete.status, athlete.source, athlete.updated_at or _now(),
+                athlete.external_id,
+                athlete.sport_id,
+                athlete.team_id,
+                athlete.name,
+                athlete.position,
+                athlete.jersey,
+                athlete.age,
+                athlete.height,
+                athlete.weight,
+                athlete.status,
+                athlete.source,
+                athlete.updated_at or _now(),
             ),
         )
         row = self.conn.execute(
@@ -2894,6 +3161,7 @@ class AthleteRepo:
 # PlayerGamelogRepo
 # ---------------------------------------------------------------------------
 
+
 class PlayerGamelogRepo:
     def __init__(self, conn: sqlite3.Connection):
         self.conn = conn
@@ -2906,8 +3174,13 @@ class PlayerGamelogRepo:
             "fixture_id=excluded.fixture_id, opponent=excluded.opponent, "
             "result=excluded.result, stats_json=excluded.stats_json",
             (
-                entry.athlete_id, entry.fixture_id, entry.game_date,
-                entry.opponent, entry.result, entry.stats_json, entry.source,
+                entry.athlete_id,
+                entry.fixture_id,
+                entry.game_date,
+                entry.opponent,
+                entry.result,
+                entry.stats_json,
+                entry.source,
             ),
         )
 
@@ -2918,7 +3191,9 @@ class PlayerGamelogRepo:
         ).fetchall()
         return [self._row_to_model(r) for r in rows]
 
-    def get_by_date_range(self, athlete_id: int, start: str, end: str) -> list[PlayerGamelog]:
+    def get_by_date_range(
+        self, athlete_id: int, start: str, end: str
+    ) -> list[PlayerGamelog]:
         rows = self.conn.execute(
             "SELECT * FROM player_gamelogs WHERE athlete_id = ? AND game_date BETWEEN ? AND ? ORDER BY game_date",
             (athlete_id, start, end),
@@ -2943,6 +3218,7 @@ class PlayerGamelogRepo:
 # PlayerSplitRepo
 # ---------------------------------------------------------------------------
 
+
 class PlayerSplitRepo:
     def __init__(self, conn: sqlite3.Connection):
         self.conn = conn
@@ -2954,8 +3230,12 @@ class PlayerSplitRepo:
             "ON CONFLICT(athlete_id, split_type, season) DO UPDATE SET "
             "stats_json=excluded.stats_json, updated_at=excluded.updated_at",
             (
-                split.athlete_id, split.split_type, split.stats_json,
-                split.season, split.source, split.updated_at or _now(),
+                split.athlete_id,
+                split.split_type,
+                split.stats_json,
+                split.season,
+                split.source,
+                split.updated_at or _now(),
             ),
         )
 
@@ -2982,6 +3262,7 @@ class PlayerSplitRepo:
 # StandingRepo
 # ---------------------------------------------------------------------------
 
+
 class StandingRepo:
     def __init__(self, conn: sqlite3.Connection):
         self.conn = conn
@@ -3002,17 +3283,33 @@ class StandingRepo:
             "away_wins=excluded.away_wins, away_draws=excluded.away_draws, away_losses=excluded.away_losses, "
             "streak=excluded.streak, updated_at=excluded.updated_at",
             (
-                standing.competition_id, standing.team_id, standing.season, standing.rank,
-                standing.wins, standing.draws, standing.losses,
-                standing.goals_for, standing.goals_against, standing.goal_diff, standing.points,
+                standing.competition_id,
+                standing.team_id,
+                standing.season,
+                standing.rank,
+                standing.wins,
+                standing.draws,
+                standing.losses,
+                standing.goals_for,
+                standing.goals_against,
+                standing.goal_diff,
+                standing.points,
                 standing.form,
-                standing.home_wins, standing.home_draws, standing.home_losses,
-                standing.away_wins, standing.away_draws, standing.away_losses,
-                standing.streak, standing.source, standing.updated_at or _now(),
+                standing.home_wins,
+                standing.home_draws,
+                standing.home_losses,
+                standing.away_wins,
+                standing.away_draws,
+                standing.away_losses,
+                standing.streak,
+                standing.source,
+                standing.updated_at or _now(),
             ),
         )
 
-    def get_by_competition(self, competition_id: int, season: str = "") -> list[Standing]:
+    def get_by_competition(
+        self, competition_id: int, season: str = ""
+    ) -> list[Standing]:
         if season:
             rows = self.conn.execute(
                 "SELECT * FROM standings WHERE competition_id = ? AND season = ? ORDER BY rank",
@@ -3025,7 +3322,9 @@ class StandingRepo:
             ).fetchall()
         return [self._row_to_model(r) for r in rows]
 
-    def get_team_standing(self, team_id: int, competition_id: int, season: str = "") -> Standing | None:
+    def get_team_standing(
+        self, team_id: int, competition_id: int, season: str = ""
+    ) -> Standing | None:
         if season:
             row = self.conn.execute(
                 "SELECT * FROM standings WHERE team_id = ? AND competition_id = ? AND season = ?",
@@ -3070,6 +3369,7 @@ class StandingRepo:
 # TeamATSRepo
 # ---------------------------------------------------------------------------
 
+
 class TeamATSRepo:
     def __init__(self, conn: sqlite3.Connection):
         self.conn = conn
@@ -3087,11 +3387,21 @@ class TeamATSRepo:
             "away_wins=excluded.away_wins, away_losses=excluded.away_losses, away_pushes=excluded.away_pushes, "
             "updated_at=excluded.updated_at",
             (
-                record.team_id, record.sport_id, record.season, record.season_type,
-                record.wins, record.losses, record.pushes,
-                record.home_wins, record.home_losses, record.home_pushes,
-                record.away_wins, record.away_losses, record.away_pushes,
-                record.source, record.updated_at or _now(),
+                record.team_id,
+                record.sport_id,
+                record.season,
+                record.season_type,
+                record.wins,
+                record.losses,
+                record.pushes,
+                record.home_wins,
+                record.home_losses,
+                record.home_pushes,
+                record.away_wins,
+                record.away_losses,
+                record.away_pushes,
+                record.source,
+                record.updated_at or _now(),
             ),
         )
 
@@ -3134,6 +3444,7 @@ class TeamATSRepo:
 # TeamOURepo
 # ---------------------------------------------------------------------------
 
+
 class TeamOURepo:
     def __init__(self, conn: sqlite3.Connection):
         self.conn = conn
@@ -3151,11 +3462,21 @@ class TeamOURepo:
             "away_overs=excluded.away_overs, away_unders=excluded.away_unders, away_pushes=excluded.away_pushes, "
             "updated_at=excluded.updated_at",
             (
-                record.team_id, record.sport_id, record.season, record.season_type,
-                record.overs, record.unders, record.pushes,
-                record.home_overs, record.home_unders, record.home_pushes,
-                record.away_overs, record.away_unders, record.away_pushes,
-                record.source, record.updated_at or _now(),
+                record.team_id,
+                record.sport_id,
+                record.season,
+                record.season_type,
+                record.overs,
+                record.unders,
+                record.pushes,
+                record.home_overs,
+                record.home_unders,
+                record.home_pushes,
+                record.away_overs,
+                record.away_unders,
+                record.away_pushes,
+                record.source,
+                record.updated_at or _now(),
             ),
         )
 
@@ -3198,6 +3519,7 @@ class TeamOURepo:
 # ESPNPredictionRepo
 # ---------------------------------------------------------------------------
 
+
 class ESPNPredictionRepo:
     def __init__(self, conn: sqlite3.Connection):
         self.conn = conn
@@ -3214,9 +3536,15 @@ class ESPNPredictionRepo:
             "power_index_home=excluded.power_index_home, power_index_away=excluded.power_index_away, "
             "fetched_at=excluded.fetched_at",
             (
-                pred.fixture_id, pred.home_win_pct, pred.away_win_pct, pred.tie_pct,
-                pred.predictor_json, pred.power_index_home, pred.power_index_away,
-                pred.source, pred.fetched_at or _now(),
+                pred.fixture_id,
+                pred.home_win_pct,
+                pred.away_win_pct,
+                pred.tie_pct,
+                pred.predictor_json,
+                pred.power_index_home,
+                pred.power_index_away,
+                pred.source,
+                pred.fetched_at or _now(),
             ),
         )
 
@@ -3246,6 +3574,7 @@ class ESPNPredictionRepo:
 # TeamRosterRepo
 # ---------------------------------------------------------------------------
 
+
 class TeamRosterRepo:
     def __init__(self, conn: sqlite3.Connection):
         self.conn = conn
@@ -3259,8 +3588,14 @@ class TeamRosterRepo:
             "position=excluded.position, jersey=excluded.jersey, status=excluded.status, "
             "depth_rank=excluded.depth_rank, updated_at=excluded.updated_at",
             (
-                entry.team_id, entry.athlete_id, entry.position, entry.jersey,
-                entry.status, entry.depth_rank, entry.season, entry.updated_at or _now(),
+                entry.team_id,
+                entry.athlete_id,
+                entry.position,
+                entry.jersey,
+                entry.status,
+                entry.depth_rank,
+                entry.season,
+                entry.updated_at or _now(),
             ),
         )
 
@@ -3296,6 +3631,7 @@ class TeamRosterRepo:
 # TransactionRepo
 # ---------------------------------------------------------------------------
 
+
 class TransactionRepo:
     def __init__(self, conn: sqlite3.Connection):
         self.conn = conn
@@ -3306,8 +3642,13 @@ class TransactionRepo:
             "(team_id, athlete_id, transaction_type, description, transaction_date, source, fetched_at) "
             "VALUES (?, ?, ?, ?, ?, ?, ?)",
             (
-                txn.team_id, txn.athlete_id, txn.transaction_type,
-                txn.description, txn.transaction_date, txn.source, txn.fetched_at or _now(),
+                txn.team_id,
+                txn.athlete_id,
+                txn.transaction_type,
+                txn.description,
+                txn.transaction_date,
+                txn.source,
+                txn.fetched_at or _now(),
             ),
         )
 
@@ -3343,6 +3684,7 @@ class TransactionRepo:
 # PowerIndexRepo
 # ---------------------------------------------------------------------------
 
+
 class PowerIndexRepo:
     def __init__(self, conn: sqlite3.Connection):
         self.conn = conn
@@ -3357,9 +3699,15 @@ class PowerIndexRepo:
             "defensive_rating=excluded.defensive_rating, rank=excluded.rank, "
             "updated_at=excluded.updated_at",
             (
-                entry.team_id, entry.sport_id, entry.season, entry.rating,
-                entry.offensive_rating, entry.defensive_rating, entry.rank,
-                entry.source, entry.updated_at or _now(),
+                entry.team_id,
+                entry.sport_id,
+                entry.season,
+                entry.rating,
+                entry.offensive_rating,
+                entry.defensive_rating,
+                entry.rank,
+                entry.source,
+                entry.updated_at or _now(),
             ),
         )
 
@@ -3453,9 +3801,13 @@ class TeamNewsRepo:
             team_id=row["team_id"],
             sport_id=row["sport_id"],
             betting_date=row["betting_date"],
-            injuries_json=json.loads(row["injuries_json"]) if row["injuries_json"] else [],
+            injuries_json=json.loads(row["injuries_json"])
+            if row["injuries_json"]
+            else [],
             news_json=json.loads(row["news_json"]) if row["news_json"] else [],
-            coaching_json=json.loads(row["coaching_json"]) if row["coaching_json"] else [],
+            coaching_json=json.loads(row["coaching_json"])
+            if row["coaching_json"]
+            else [],
             morale_json=json.loads(row["morale_json"]) if row["morale_json"] else [],
             sources_json=json.loads(row["sources_json"]) if row["sources_json"] else [],
             confidence=row["confidence"],
@@ -3467,6 +3819,7 @@ class TeamNewsRepo:
 # ---------------------------------------------------------------------------
 # TipsterRepo
 # ---------------------------------------------------------------------------
+
 
 class TipsterRepo:
     """Repository for tipster picks and consensus data."""
@@ -3496,19 +3849,28 @@ class TipsterRepo:
                 p.get("reasoning", ""),
                 p.get("accuracy_pct"),
                 p.get("confidence", ""),
-                json.dumps(p.get("stats_cited") if isinstance(p.get("stats_cited"), list) else []),
+                json.dumps(
+                    p.get("stats_cited")
+                    if isinstance(p.get("stats_cited"), list)
+                    else []
+                ),
                 p.get("fetch_time", ""),
             )
             for p in picks
         ]
         with self.conn:
-            self.conn.execute("DELETE FROM tipster_picks WHERE betting_date = ?", (date,))
-            self.conn.executemany("""
+            self.conn.execute(
+                "DELETE FROM tipster_picks WHERE betting_date = ?", (date,)
+            )
+            self.conn.executemany(
+                """
                 INSERT INTO tipster_picks (betting_date, source_site, tipster_name, sport, event,
                     home_team, away_team, competition, market, market_type, direction, odds,
                     reasoning, accuracy_pct, confidence, stats_cited, fetch_time)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, rows)
+            """,
+                rows,
+            )
         return len(rows)
 
     def save_consensus(self, date: str, entries: list[dict]) -> int:
@@ -3537,14 +3899,19 @@ class TipsterRepo:
             for ce in entries
         ]
         with self.conn:
-            self.conn.execute("DELETE FROM tipster_consensus WHERE betting_date = ?", (date,))
-            self.conn.executemany("""
+            self.conn.execute(
+                "DELETE FROM tipster_consensus WHERE betting_date = ?", (date,)
+            )
+            self.conn.executemany(
+                """
                 INSERT INTO tipster_consensus (betting_date, event, sport, competition,
                     home_team, away_team, total_tipsters, consensus_market, consensus_direction,
                     agreement_pct, statistical_picks, outcome_picks, has_reasoning,
                     tipster_sources, confidence_adj)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, rows)
+            """,
+                rows,
+            )
         return len(rows)
 
     def get_picks_by_date(self, date: str) -> list:
@@ -3564,16 +3931,29 @@ class TipsterRepo:
                     stats_cited = json.loads(stats_cited)
                 except (json.JSONDecodeError, TypeError):
                     stats_cited = []
-            results.append(TipsterPick(
-                id=r["id"], betting_date=r["betting_date"], source_site=r["source_site"],
-                tipster_name=r["tipster_name"], sport=r["sport"], event=r["event"],
-                home_team=r["home_team"], away_team=r["away_team"],
-                competition=r["competition"], market=r["market"], market_type=r["market_type"],
-                direction=r["direction"], odds=r["odds"], reasoning=r["reasoning"],
-                accuracy_pct=r["accuracy_pct"], confidence=r["confidence"],
-                stats_cited=stats_cited if isinstance(stats_cited, list) else [],
-                fetch_time=r["fetch_time"], created_at=r["created_at"] or "",
-            ))
+            results.append(
+                TipsterPick(
+                    id=r["id"],
+                    betting_date=r["betting_date"],
+                    source_site=r["source_site"],
+                    tipster_name=r["tipster_name"],
+                    sport=r["sport"],
+                    event=r["event"],
+                    home_team=r["home_team"],
+                    away_team=r["away_team"],
+                    competition=r["competition"],
+                    market=r["market"],
+                    market_type=r["market_type"],
+                    direction=r["direction"],
+                    odds=r["odds"],
+                    reasoning=r["reasoning"],
+                    accuracy_pct=r["accuracy_pct"],
+                    confidence=r["confidence"],
+                    stats_cited=stats_cited if isinstance(stats_cited, list) else [],
+                    fetch_time=r["fetch_time"],
+                    created_at=r["created_at"] or "",
+                )
+            )
         return results
 
     def get_consensus_by_date(self, date: str) -> list:
@@ -3594,17 +3974,27 @@ class TipsterRepo:
                     sources = json.loads(sources)
                 except (json.JSONDecodeError, TypeError):
                     sources = []
-            results.append(TipsterConsensus(
-                id=r["id"], betting_date=r["betting_date"], event=r["event"],
-                sport=r["sport"], competition=r["competition"],
-                home_team=r["home_team"], away_team=r["away_team"],
-                total_tipsters=r["total_tipsters"], consensus_market=r["consensus_market"],
-                consensus_direction=r["consensus_direction"],
-                agreement_pct=r["agreement_pct"], statistical_picks=r["statistical_picks"],
-                outcome_picks=r["outcome_picks"], has_reasoning=bool(r["has_reasoning"]),
-                tipster_sources=sources if isinstance(sources, list) else [],
-                confidence_adj=r["confidence_adj"], created_at=r["created_at"] or "",
-            ))
+            results.append(
+                TipsterConsensus(
+                    id=r["id"],
+                    betting_date=r["betting_date"],
+                    event=r["event"],
+                    sport=r["sport"],
+                    competition=r["competition"],
+                    home_team=r["home_team"],
+                    away_team=r["away_team"],
+                    total_tipsters=r["total_tipsters"],
+                    consensus_market=r["consensus_market"],
+                    consensus_direction=r["consensus_direction"],
+                    agreement_pct=r["agreement_pct"],
+                    statistical_picks=r["statistical_picks"],
+                    outcome_picks=r["outcome_picks"],
+                    has_reasoning=bool(r["has_reasoning"]),
+                    tipster_sources=sources if isinstance(sources, list) else [],
+                    confidence_adj=r["confidence_adj"],
+                    created_at=r["created_at"] or "",
+                )
+            )
         return results
 
     def get_picks_for_event(self, date: str, home_team: str, away_team: str) -> list:
@@ -3625,22 +4015,36 @@ class TipsterRepo:
                     stats_cited = json.loads(stats_cited)
                 except (json.JSONDecodeError, TypeError):
                     stats_cited = []
-            results.append(TipsterPick(
-                id=r["id"], betting_date=r["betting_date"], source_site=r["source_site"],
-                tipster_name=r["tipster_name"], sport=r["sport"], event=r["event"],
-                home_team=r["home_team"], away_team=r["away_team"],
-                competition=r["competition"], market=r["market"], market_type=r["market_type"],
-                direction=r["direction"], odds=r["odds"], reasoning=r["reasoning"],
-                accuracy_pct=r["accuracy_pct"], confidence=r["confidence"],
-                stats_cited=stats_cited if isinstance(stats_cited, list) else [],
-                fetch_time=r["fetch_time"], created_at=r["created_at"] or "",
-            ))
+            results.append(
+                TipsterPick(
+                    id=r["id"],
+                    betting_date=r["betting_date"],
+                    source_site=r["source_site"],
+                    tipster_name=r["tipster_name"],
+                    sport=r["sport"],
+                    event=r["event"],
+                    home_team=r["home_team"],
+                    away_team=r["away_team"],
+                    competition=r["competition"],
+                    market=r["market"],
+                    market_type=r["market_type"],
+                    direction=r["direction"],
+                    odds=r["odds"],
+                    reasoning=r["reasoning"],
+                    accuracy_pct=r["accuracy_pct"],
+                    confidence=r["confidence"],
+                    stats_cited=stats_cited if isinstance(stats_cited, list) else [],
+                    fetch_time=r["fetch_time"],
+                    created_at=r["created_at"] or "",
+                )
+            )
         return results
 
 
 # ---------------------------------------------------------------------------
 # KnownMissingRepo — replaces JSON-based known_missing_teams cache
 # ---------------------------------------------------------------------------
+
 
 class KnownMissingRepo:
     """Repository for teams/players that consistently 404 across all enrichment sources."""
@@ -3672,6 +4076,7 @@ class KnownMissingRepo:
         if not row:
             return False
         from datetime import datetime, timezone
+
         try:
             marked = datetime.fromisoformat(row["marked_at"])
             if (datetime.now(timezone.utc) - marked).days > max_age_days:
@@ -3684,14 +4089,23 @@ class KnownMissingRepo:
         except (ValueError, TypeError):
             return False
 
-    def mark_missing(self, team_name: str, sport: str, reason: str = "", source: str = "") -> None:
+    def mark_missing(
+        self, team_name: str, sport: str, reason: str = "", source: str = ""
+    ) -> None:
         """Mark a team as known-missing."""
         self._ensure_table()
         from datetime import datetime, timezone
+
         self.conn.execute(
             """INSERT OR REPLACE INTO known_missing (team_name, sport, marked_at, reason, source)
                VALUES (?, ?, ?, ?, ?)""",
-            (team_name.lower().strip(), sport, datetime.now(timezone.utc).isoformat(), reason, source),
+            (
+                team_name.lower().strip(),
+                sport,
+                datetime.now(timezone.utc).isoformat(),
+                reason,
+                source,
+            ),
         )
 
     def clear_sport(self, sport: str) -> int:
@@ -3706,6 +4120,7 @@ class KnownMissingRepo:
         """Clear entries older than N days. Returns count deleted."""
         self._ensure_table()
         from datetime import datetime, timezone, timedelta
+
         cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
         cursor = self.conn.execute(
             "DELETE FROM known_missing WHERE marked_at < ?", (cutoff,)
@@ -3762,7 +4177,9 @@ class PipelineCandidateRepo:
                     1 if c.get("fixture_verified") else 0,
                     json.dumps(c.get("verification_sources", [])),
                     c.get("tipster_count", 0),
-                    json.dumps(c.get("tipster_support")) if c.get("tipster_support") else None,
+                    json.dumps(c.get("tipster_support"))
+                    if c.get("tipster_support")
+                    else None,
                     c.get("source", "build_shortlist"),
                     now,
                 ),
@@ -3825,7 +4242,13 @@ class PipelineCandidateRepo:
         ).fetchall()
         return [self._row_to_dict(r) for r in rows]
 
-    def enrich_tipster(self, fixture_id: int, date: str, tipster_count: int, tipster_support_json: dict | None) -> None:
+    def enrich_tipster(
+        self,
+        fixture_id: int,
+        date: str,
+        tipster_count: int,
+        tipster_support_json: dict | None,
+    ) -> None:
         """Update tipster enrichment fields for a candidate."""
         self.conn.execute(
             "UPDATE pipeline_candidates SET tipster_count = ?, tipster_support_json = ? "
@@ -3888,7 +4311,9 @@ class PipelineCandidateRepo:
             "fixture_verified": bool(row["fixture_verified"]),
             "verification_sources": json.loads(row["verification_sources_json"]),
             "tipster_count": row["tipster_count"] or 0,
-            "tipster_support": json.loads(row["tipster_support_json"]) if row["tipster_support_json"] else None,
+            "tipster_support": json.loads(row["tipster_support_json"])
+            if row["tipster_support_json"]
+            else None,
             "source": row["source"],
         }
 
@@ -3953,8 +4378,12 @@ class MarketMatrixRepo:
                     json.dumps(e.get("safety_markets", [])),
                     json.dumps(e.get("suggested")) if e.get("suggested") else None,
                     e.get("total_markets_available", 0),
-                    json.dumps(e.get("scores24_h2h")) if e.get("scores24_h2h") else None,
-                    json.dumps(e.get("scores24_form")) if e.get("scores24_form") else None,
+                    json.dumps(e.get("scores24_h2h"))
+                    if e.get("scores24_h2h")
+                    else None,
+                    json.dumps(e.get("scores24_form"))
+                    if e.get("scores24_form")
+                    else None,
                     now,
                 ),
             )
@@ -4029,16 +4458,23 @@ class MarketMatrixRepo:
             "fixture_source": row["fixture_source"],
             "odds_markets": json.loads(row["odds_markets_json"]),
             "safety_markets": json.loads(row["safety_markets_json"]),
-            "suggested": json.loads(row["suggested_json"]) if row["suggested_json"] else None,
+            "suggested": json.loads(row["suggested_json"])
+            if row["suggested_json"]
+            else None,
             "total_markets_available": row["total_markets_available"],
-            "scores24_h2h": json.loads(row["scores24_h2h_json"]) if row["scores24_h2h_json"] else None,
-            "scores24_form": json.loads(row["scores24_form_json"]) if row["scores24_form_json"] else None,
+            "scores24_h2h": json.loads(row["scores24_h2h_json"])
+            if row["scores24_h2h_json"]
+            else None,
+            "scores24_form": json.loads(row["scores24_form_json"])
+            if row["scores24_form_json"]
+            else None,
         }
 
 
 # ---------------------------------------------------------------------------
 # PipelineDatabaseAdapter (Phase 1 Database Contract Helper)
 # ---------------------------------------------------------------------------
+
 
 class PipelineDatabaseAdapter:
     """Repository-level adapter for checking analysis/gate status, completion, and validity."""
@@ -4054,7 +4490,10 @@ class PipelineDatabaseAdapter:
         return row is not None
 
     def check_analysis_complete(self, fixture_id: int, betting_date: str) -> bool:
-        cols = [c[1] for c in self.conn.execute("PRAGMA table_info(analysis_results)").fetchall()]
+        cols = [
+            c[1]
+            for c in self.conn.execute("PRAGMA table_info(analysis_results)").fetchall()
+        ]
         if "has_data" in cols:
             row = self.conn.execute(
                 "SELECT has_data, best_market_name FROM analysis_results WHERE fixture_id = ? AND betting_date = ?",
@@ -4075,7 +4514,10 @@ class PipelineDatabaseAdapter:
             return self.check_analysis_exists(fixture_id, betting_date)
 
     def check_gate_result_exists(self, fixture_id: int, betting_date: str) -> bool:
-        cols = [c[1] for c in self.conn.execute("PRAGMA table_info(gate_results)").fetchall()]
+        cols = [
+            c[1]
+            for c in self.conn.execute("PRAGMA table_info(gate_results)").fetchall()
+        ]
         if "status" in cols:
             row = self.conn.execute(
                 "SELECT status FROM gate_results WHERE fixture_id = ? AND betting_date = ?",
@@ -4084,14 +4526,328 @@ class PipelineDatabaseAdapter:
             if not row:
                 return False
             st = str(row[0]).strip().upper()
-            return st in ("APPROVED", "EXTENDED", "EXTENDED_POOL", "REJECTED", "COMPLETED")
-        return self.conn.execute(
-            "SELECT 1 FROM gate_results WHERE fixture_id = ? AND betting_date = ?",
-            (fixture_id, betting_date),
-        ).fetchone() is not None
+            return st in (
+                "APPROVED",
+                "EXTENDED",
+                "EXTENDED_POOL",
+                "REJECTED",
+                "COMPLETED",
+            )
+        return (
+            self.conn.execute(
+                "SELECT 1 FROM gate_results WHERE fixture_id = ? AND betting_date = ?",
+                (fixture_id, betting_date),
+            ).fetchone()
+            is not None
+        )
 
     def check_result_hash_valid(self, fixture_id: int, betting_date: str) -> bool:
-        return self.check_analysis_complete(fixture_id, betting_date) and self.check_gate_result_exists(fixture_id, betting_date)
+        return self.check_analysis_complete(
+            fixture_id, betting_date
+        ) and self.check_gate_result_exists(fixture_id, betting_date)
 
     def is_result_reusable_for_event(self, fixture_id: int, betting_date: str) -> bool:
         return self.check_result_hash_valid(fixture_id, betting_date)
+
+
+# ---------------------------------------------------------------------------
+# ProviderObservationAttemptRepository — Committed observation attempts (C3)
+# ---------------------------------------------------------------------------
+
+
+class ProviderObservationAttemptRepository:
+    """Repository for pipeline_provider_observation_attempts.
+
+    Accepts an existing sqlite3.Connection.
+    NO dynamic DDL: raises PROVIDER_OBSERVATION_SCHEMA_MISSING if table missing.
+    """
+
+    def __init__(self, conn: sqlite3.Connection):
+        self.conn = conn
+
+    def _check_schema(self) -> None:
+        try:
+            self.conn.execute(
+                "SELECT 1 FROM pipeline_provider_observation_attempts LIMIT 1"
+            )
+        except sqlite3.OperationalError as exc:
+            raise sqlite3.OperationalError(
+                "PROVIDER_OBSERVATION_SCHEMA_MISSING: Table pipeline_provider_observation_attempts does not exist in database"
+            ) from exc
+
+    def insert_attempt(
+        self,
+        *,
+        run_id: str,
+        phase: str,
+        attempt_number: int,
+        canonical_event_id: str,
+        provider: str,
+        attempted_at_utc: str,
+        request_status: str,
+        canonical_event_status: str,
+        fixture_id: int | None = None,
+        provider_event_id: str | None = None,
+        raw_provider_status: str | None = None,
+        raw_observed_kickoff: str | None = None,
+        observed_kickoff_utc: str | None = None,
+        observed_home_name: str | None = None,
+        observed_away_name: str | None = None,
+        participant_identity_sha256: str | None = None,
+        competition_identity_sha256: str | None = None,
+        upstream_evidence_bundle_id: str | None = None,
+        upstream_evidence_refs_json: str | None = None,
+        observation_envelope_sha256: str | None = None,
+        evidence_path: str | None = None,
+        error_code: str | None = None,
+        error_detail: str | None = None,
+        created_at: str | None = None,
+    ) -> int:
+        self._check_schema()
+        if created_at is None:
+            from datetime import datetime, UTC
+
+            created_at = datetime.now(UTC).isoformat()
+
+        req_status_str = str(
+            request_status.value if hasattr(request_status, "value") else request_status
+        )
+        canon_status_str = str(
+            canonical_event_status.value
+            if hasattr(canonical_event_status, "value")
+            else canonical_event_status
+        )
+
+        cur = self.conn.cursor()
+        cur.execute(
+            """
+            INSERT INTO pipeline_provider_observation_attempts (
+                run_id, phase, attempt_number, canonical_event_id, fixture_id,
+                provider, provider_event_id, attempted_at_utc, request_status,
+                raw_provider_status, canonical_event_status, raw_observed_kickoff,
+                observed_kickoff_utc, observed_home_name, observed_away_name,
+                participant_identity_sha256, competition_identity_sha256,
+                upstream_evidence_bundle_id, upstream_evidence_refs_json,
+                observation_envelope_sha256, evidence_path, error_code, error_detail, created_at
+            ) VALUES (
+                ?, ?, ?, ?, ?,
+                ?, ?, ?, ?,
+                ?, ?, ?,
+                ?, ?, ?,
+                ?, ?,
+                ?, ?,
+                ?, ?, ?, ?, ?
+            )
+            """,
+            (
+                run_id,
+                phase,
+                attempt_number,
+                canonical_event_id,
+                fixture_id,
+                provider,
+                provider_event_id,
+                attempted_at_utc,
+                req_status_str,
+                raw_provider_status,
+                canon_status_str,
+                raw_observed_kickoff,
+                observed_kickoff_utc,
+                observed_home_name,
+                observed_away_name,
+                participant_identity_sha256,
+                competition_identity_sha256,
+                upstream_evidence_bundle_id,
+                upstream_evidence_refs_json,
+                observation_envelope_sha256,
+                evidence_path,
+                error_code,
+                error_detail,
+                created_at,
+            ),
+        )
+        self.conn.commit()
+        return cur.lastrowid
+
+    def get_attempt_by_id(self, attempt_id: int) -> dict | None:
+        self._check_schema()
+        self.conn.row_factory = sqlite3.Row
+        cur = self.conn.cursor()
+        row = cur.execute(
+            "SELECT * FROM pipeline_provider_observation_attempts WHERE id = ?",
+            (attempt_id,),
+        ).fetchone()
+        return dict(row) if row else None
+
+    def list_attempts_for_event(self, canonical_event_id: str) -> list[dict]:
+        self._check_schema()
+        self.conn.row_factory = sqlite3.Row
+        cur = self.conn.cursor()
+        rows = cur.execute(
+            "SELECT * FROM pipeline_provider_observation_attempts WHERE canonical_event_id = ? ORDER BY id ASC",
+            (canonical_event_id,),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+    def list_attempts_for_run_phase(self, run_id: str, phase: str) -> list[dict]:
+        self._check_schema()
+        self.conn.row_factory = sqlite3.Row
+        cur = self.conn.cursor()
+        rows = cur.execute(
+            "SELECT * FROM pipeline_provider_observation_attempts WHERE run_id = ? AND phase = ? ORDER BY id ASC",
+            (run_id, phase),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+    def get_latest_attempt_for_provider(
+        self,
+        canonical_event_id: str,
+        provider: str,
+        phase: str | None = None,
+    ) -> dict | None:
+        self._check_schema()
+        self.conn.row_factory = sqlite3.Row
+        cur = self.conn.cursor()
+        if phase:
+            row = cur.execute(
+                "SELECT * FROM pipeline_provider_observation_attempts WHERE canonical_event_id = ? AND provider = ? AND phase = ? ORDER BY id DESC LIMIT 1",
+                (canonical_event_id, provider, phase),
+            ).fetchone()
+        else:
+            row = cur.execute(
+                "SELECT * FROM pipeline_provider_observation_attempts WHERE canonical_event_id = ? AND provider = ? ORDER BY id DESC LIMIT 1",
+                (canonical_event_id, provider),
+            ).fetchone()
+        return dict(row) if row else None
+
+    def get_latest_successful_attempt(
+        self,
+        canonical_event_id: str,
+        phase: str | None = None,
+    ) -> dict | None:
+        self._check_schema()
+        self.conn.row_factory = sqlite3.Row
+        cur = self.conn.cursor()
+        if phase:
+            row = cur.execute(
+                "SELECT * FROM pipeline_provider_observation_attempts WHERE canonical_event_id = ? AND request_status = 'SUCCESS' AND phase = ? ORDER BY id DESC LIMIT 1",
+                (canonical_event_id, phase),
+            ).fetchone()
+        else:
+            row = cur.execute(
+                "SELECT * FROM pipeline_provider_observation_attempts WHERE canonical_event_id = ? AND request_status = 'SUCCESS' ORDER BY id DESC LIMIT 1",
+                (canonical_event_id,),
+            ).fetchone()
+        return dict(row) if row else None
+
+    def count_distinct_successfully_observed_events(
+        self, run_id: str, phase: str
+    ) -> int:
+        self._check_schema()
+        cur = self.conn.cursor()
+        row = cur.execute(
+            "SELECT COUNT(DISTINCT canonical_event_id) FROM pipeline_provider_observation_attempts WHERE run_id = ? AND phase = ? AND request_status = 'SUCCESS'",
+            (run_id, phase),
+        ).fetchone()
+        return int(row[0]) if row else 0
+
+
+class EventStageCompletionRepository:
+    """Read and register event-stage state with artifact/receipt bindings."""
+
+    def __init__(self, conn: sqlite3.Connection):
+        self.conn = conn
+
+    def get_stage_state(self, canonical_event_id: str, stage_id: str) -> dict | None:
+        self.conn.row_factory = sqlite3.Row
+        row = self.conn.execute(
+            """SELECT s.*, a.stage_contract_version, a.policy_config_sha256,
+                      a.producer, a.dependency_output_hashes_json,
+                      a.dependency_status
+               FROM pipeline_event_stage_state s
+               LEFT JOIN pipeline_event_stage_artifacts a
+                 ON a.canonical_event_id = s.canonical_event_id
+                AND a.stage_id = s.stage_id
+               WHERE s.canonical_event_id = ? AND s.stage_id = ?""",
+            (canonical_event_id, stage_id),
+        ).fetchone()
+        return dict(row) if row else None
+
+    def get_artifact(self, canonical_event_id: str, stage_id: str) -> dict | None:
+        self.conn.row_factory = sqlite3.Row
+        row = self.conn.execute(
+            """SELECT output_path AS path, output_sha256 AS sha256, artifact_root,
+                      dependency_output_hashes_json
+               FROM pipeline_event_stage_artifacts
+               WHERE canonical_event_id = ? AND stage_id = ?""",
+            (canonical_event_id, stage_id),
+        ).fetchone()
+        return dict(row) if row else None
+
+    def get_receipt(self, canonical_event_id: str, stage_id: str) -> dict | None:
+        self.conn.row_factory = sqlite3.Row
+        row = self.conn.execute(
+            """SELECT receipt_path AS path, receipt_sha256 AS sha256
+               FROM pipeline_event_stage_artifacts
+               WHERE canonical_event_id = ? AND stage_id = ?""",
+            (canonical_event_id, stage_id),
+        ).fetchone()
+        return dict(row) if row else None
+
+    def register_completion(
+        self,
+        *,
+        state: dict,
+        artifact: dict,
+        commit: bool = True,
+    ) -> None:
+        """Register a completed stage atomically; intended for stage producers."""
+        self.conn.execute(
+            """INSERT OR REPLACE INTO pipeline_event_stage_state (
+                   canonical_event_id, stage_id, status, input_fingerprint,
+                   output_sha256, receipt_sha256, code_head,
+                   source_manifest_sha256, model_registry_sha256,
+                   provider_config_sha256, run_id, completed_at, updated_at
+               ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                state["canonical_event_id"],
+                state["stage_id"],
+                state["status"],
+                state["input_fingerprint"],
+                state["output_sha256"],
+                state["receipt_sha256"],
+                state["code_head"],
+                state["source_manifest_sha256"],
+                state.get("model_registry_sha256"),
+                state.get("provider_config_sha256"),
+                state["run_id"],
+                state["completed_at"],
+                state["updated_at"],
+            ),
+        )
+        self.conn.execute(
+            """INSERT OR REPLACE INTO pipeline_event_stage_artifacts (
+                   canonical_event_id, stage_id, run_id, output_path,
+                   output_sha256, receipt_path, receipt_sha256, artifact_root,
+                   stage_contract_version, policy_config_sha256, producer,
+                   dependency_output_hashes_json, dependency_status, registered_at
+               ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                state["canonical_event_id"],
+                state["stage_id"],
+                state["run_id"],
+                artifact["output_path"],
+                state["output_sha256"],
+                artifact["receipt_path"],
+                state["receipt_sha256"],
+                artifact["artifact_root"],
+                artifact["stage_contract_version"],
+                artifact.get("policy_config_sha256"),
+                artifact["producer"],
+                artifact.get("dependency_output_hashes_json", "{}"),
+                artifact.get("dependency_status", "CURRENT"),
+                artifact["registered_at"],
+            ),
+        )
+        if commit:
+            self.conn.commit()

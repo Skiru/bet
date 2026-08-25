@@ -87,6 +87,7 @@ def create_chunk_execution_plan(
     task_allowlist: Sequence[str] = (),
     acquisition_plan_refs: Sequence[str] = (),
     acquisition_plan: dict[str, Any] | None = None,
+    event_acquisition_plans: Sequence[Any] = (),
     hard_rules: Sequence[str] = (),
     forbidden_outputs: Sequence[str] = (),
     expected_artifact_path: str = "",
@@ -136,6 +137,11 @@ def create_chunk_execution_plan(
             for i in range(0, total_events, chunk_size)
         ]
         total_chunks = len(chunks_list)
+        plans_by_event = {
+            plan.canonical_event_id: plan
+            for plan in event_acquisition_plans
+            if hasattr(plan, "canonical_event_id")
+        }
 
         chunk_orders_list: list[ChunkWorkOrderV1] = []
         for idx, subset in enumerate(chunks_list):
@@ -163,6 +169,11 @@ def create_chunk_execution_plan(
                 task_allowlist=tuple(task_allowlist),
                 acquisition_plan_refs=tuple(acquisition_plan_refs),
                 acquisition_plan=acquisition_plan,
+                event_acquisition_plans=tuple(
+                    plans_by_event[event_id]
+                    for event_id in subset
+                    if event_id in plans_by_event
+                ),
                 hard_rules=tuple(hard_rules),
                 forbidden_outputs=tuple(forbidden_outputs),
                 expected_artifact_path=c_exp_path,
@@ -297,7 +308,7 @@ def aggregate_chunks(
     for idx, (wo, artifact) in enumerate(zip(plan.chunks, sorted_artifacts)):
         validate_chunk_against_work_order(artifact, wo)
 
-        if artifact.status != "PASS":
+        if artifact.status not in ("PASS", "BLOCK"):
             raise ChunkLifecycleError(f"CHUNK_STATUS_FAILED: Chunk {artifact.chunk_id} failed with status {artifact.status}")
 
         chunk_ids.append(artifact.chunk_id)

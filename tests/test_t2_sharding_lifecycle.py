@@ -85,6 +85,37 @@ def test_t2_aggregation_enforces_exact_event_union():
         aggregate_chunks(plan, [art_incomplete])
 
 
+def test_t2_chunk_payload_event_records_are_promoted_before_aggregation():
+    """Ensure chunk artifacts using the payload compatibility shape keep event coverage."""
+    event_ids = ["EVT_001"]
+    plan = create_chunk_execution_plan(
+        parent_work_order_id="WO_PAYLOAD_RECORDS",
+        step_id="S2.3",
+        betting_day="2026-07-27",
+        run_id="RUN_PAYLOAD_RECORDS",
+        event_ids=event_ids,
+        agent_name="bet-researcher",
+        budget=WorkOrderBudgetV1(max_events_per_chunk=10),
+    )
+    chunk = plan.chunks[0]
+    artifact_data = {
+        "chunk_id": chunk.chunk_id,
+        "parent_work_order_id": chunk.parent_work_order_id,
+        "parent_plan_sha256": chunk.parent_plan_sha256,
+        "chunk_index": chunk.chunk_index,
+        "status": "PASS",
+        "producer_agent_id": "bet-researcher",
+        "processed_event_ids": event_ids,
+        "payload": {"event_records": [{"canonical_event_id": "EVT_001"}]},
+    }
+    if not artifact_data.get("event_records") and isinstance(artifact_data.get("payload"), dict):
+        artifact_data["event_records"] = artifact_data["payload"]["event_records"]
+
+    receipt, records = aggregate_chunks(plan, [ChunkArtifactV1(**artifact_data)])
+    assert receipt.status == "PASS"
+    assert records == [{"canonical_event_id": "EVT_001"}]
+
+
 def test_t2_orchestrator_sharded_lifecycle_31_events(tmp_path: Path):
     """Verify 31-event universe sharded execution lifecycle across orchestrator instances."""
     import json

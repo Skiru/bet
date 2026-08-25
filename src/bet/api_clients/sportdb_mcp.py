@@ -20,6 +20,7 @@ from typing import Any
 
 from bet.integration.source_result import SourceOperationResult, SourceResultStatus
 from bet.integration.evidence import EvidenceRef
+from .env import get_env
 
 SPORTDB_MCP_ENDPOINT = "https://api.sportdb.dev/mcp/"
 SPORTDB_MCP_ACCEPT = "application/json, text/event-stream"
@@ -251,33 +252,10 @@ class SportDBMCPClient:
             self.mcp_session_calls_made += 1
 
     def _resolve_api_key(self, *, required: bool = True) -> str:
-        """Resolve API key from environment first, then .env file."""
-        for alias in ("SPORTDB_API_KEY", "SPORTDB_KEY"):
-            val = os.environ.get(alias, "").strip()
-            if val:
-                return val
-
-        # Parse .env if present
-        env_path = Path(".env")
-        if env_path.exists():
-            try:
-                for line in env_path.read_text(encoding="utf-8").splitlines():
-                    line = line.strip()
-                    if not line or line.startswith("#") or "=" not in line:
-                        continue
-                    k, v = line.split("=", 1)
-                    k = k.strip()
-                    v = v.strip()
-                    if k in ("SPORTDB_API_KEY", "SPORTDB_KEY"):
-                        if len(v) >= 2 and (
-                            (v[0] == '"' and v[-1] == '"')
-                            or (v[0] == "'" and v[-1] == "'")
-                        ):
-                            v = v[1:-1]
-                        if v.strip():
-                            return v.strip()
-            except Exception:
-                pass
+        """Resolve API key from process environment or project .env."""
+        val = get_env("SPORTDB_API_KEY", "SPORTDB_KEY")
+        if val:
+            return val
 
         if required:
             raise SportDBMCPAuthError("SPORTDB_API_KEY not found in environment or .env file.")

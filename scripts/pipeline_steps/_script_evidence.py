@@ -423,6 +423,11 @@ def run_wrapper_scripts_with_evidence(
                 raise SystemExit(1)
 
             universe_ids = s1e_data["canonical_event_ids"]
+            universe_events = {
+                str(event.get("canonical_event_id")): event
+                for event in (s1e_data.get("events") or [])
+                if isinstance(event, dict) and event.get("canonical_event_id")
+            }
 
             # Load S2 shortlist candidates
             try:
@@ -515,20 +520,28 @@ def run_wrapper_scripts_with_evidence(
 
             event_records = []
             for eid in universe_ids:
+                identity = universe_events.get(str(eid), {})
+                identity_fields = {
+                    key: identity[key]
+                    for key in ("sport", "home_team", "away_team", "competition", "kickoff")
+                    if identity.get(key) is not None
+                }
                 if eid in matched_event_ids:
-                    event_records.append({
+                    event_record = {
                         "canonical_event_id": eid,
                         "terminal_status": "CONTINUE",
                         "reason_codes": [],
-                        "candidate_ids": []
-                    })
+                        "candidate_ids": [],
+                    }
                 else:
-                    event_records.append({
+                    event_record = {
                         "canonical_event_id": eid,
                         "terminal_status": "DEGRADED_CONTINUE",
                         "reason_codes": ["DEGRADED_NO_TIPSTER_PICKS"],
-                        "candidate_ids": []
-                    })
+                        "candidate_ids": [],
+                    }
+                event_record.update(identity_fields)
+                event_records.append(event_record)
 
             extra_payload["event_records"] = event_records
             s2_data["event_records"] = event_records

@@ -9,6 +9,7 @@ from typing import Dict
 from typing import List
 from typing import Optional
 
+from bet.api_clients.env import get_env
 from bet.enrichment.football_data_foundation.live_shadow_canary.contracts import LiveShadowCanarySummary
 from bet.enrichment.football_data_foundation.live_shadow_canary.contracts import OfficialFixtureContext
 from bet.enrichment.football_data_foundation.live_shadow_canary.contracts import ProviderProbeResult
@@ -94,9 +95,9 @@ def run_bounded_live_shadow_canary(output_dir: Path) -> LiveShadowCanarySummary:
     all_claims = list(official_batch.claims)
 
     # 2. Check credentials presence
-    sportdb_key = os.getenv("SPORTDB_API_KEY")
-    fdorg_key = os.getenv("FOOTBALL_DATA_API_KEY")
-    highlightly_key = os.getenv("HIGHLIGHTLY_API_KEY")
+    sportdb_key = get_env("SPORTDB_API_KEY", "SPORTDB_KEY")
+    fdorg_key = get_env("FOOTBALL_DATA_API_KEY", "FOOTBALL_DATA_ORG_KEY")
+    highlightly_key = get_env("HIGHLIGHTLY_API_KEY", "RAPIDAPI_KEY")
 
     has_credentials = bool(sportdb_key or fdorg_key or highlightly_key)
 

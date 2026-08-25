@@ -395,7 +395,7 @@ def test_restart_01_safe_s2_fork():
     from bet.pipeline.receipts import get_git_commit_head, get_git_tree_sha, compute_source_manifest_sha256
 
     source_run_root = Path("/private/tmp/pipeline_runs/2026-07-29/v5_analysis_20260729_002")
-    if source_run_root.exists():
+    if (source_run_root / "run_summary.json").is_file():
         with tempfile.TemporaryDirectory() as tmp_dir:
             seed_tar, seed_manifest = export_s2_restart_seed(
                 source_run_root=source_run_root,
