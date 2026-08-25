@@ -39,13 +39,21 @@ STAT_NAME_MAP = {
     "Offsides": ("offsides", "count"),
     "Possession": ("possession", "ratio"),
     "Yellow cards": ("yellow_cards", "count"),
+    # "Red cards" is present in live /statistics payloads (verified 2026-08-25
+    # against soccer.highlightly.net) but was previously unmapped, so it fell
+    # through to unknown_metrics. Red cards are a real market and correlate
+    # with total cards, so they are mapped rather than discarded.
+    "Red cards": ("red_cards", "count"),
+    "Attacks": ("attacks", "count"),
     "Goalkeeper saves": ("goalkeeper_saves", "count"),
     "Total passes": ("total_passes", "count"),
     "Successful passes": ("successful_passes", "count"),
     "Failed passes": ("failed_passes", "count"),
 }
 
-MISSING_TARGET_METRICS = ["Red cards"]
+# Formerly ["Red cards"]; that metric is now mapped in STAT_NAME_MAP above,
+# so no target metric is knowingly dropped by this parser.
+MISSING_TARGET_METRICS: list[str] = []
 
 
 class HighlightlyClient(BaseAPIClient):

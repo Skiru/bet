@@ -126,18 +126,9 @@ class GoogleSportsClient(BaseAPIClient):
 
         Override base class to use 'serpapi' key name instead of 'google-sports'.
         """
-        env_key = get_env("SERPAPI_KEY")
-        if env_key:
-            return env_key
-
-        # Then config file (use 'serpapi' key, not 'google-sports')
-        try:
-            config_path = PROJECT_ROOT / "config" / "api_keys.json"
-            with open(config_path) as f:
-                keys = json.load(f)
-            return keys.get("serpapi", "")
-        except (FileNotFoundError, json.JSONDecodeError):
-            return ""
+        # .env only -- the config/api_keys.json fallback was removed so one
+        # secret lives in exactly one place (see bet.api_clients.env).
+        return get_env("SERPAPI_KEY")
 
     def _search(self, query: str) -> dict | None:
         """Execute SerpAPI search with budget protection."""

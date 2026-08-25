@@ -930,7 +930,10 @@ def test_highlightly_statistics_rejects_basic_match_metadata(monkeypatch, tmp_pa
             ]
         ),
     )
-    client = HighlightlyClient(rate_limiter=RateLimiter())
+    # Own usage dir: highlightly now has a real daily cap in API_DAILY_LIMITS,
+    # so a shared RateLimiter would answer RATE_LIMITED from whatever the
+    # machine spent today instead of exercising the parser under test.
+    client = HighlightlyClient(rate_limiter=RateLimiter(usage_dir=tmp_path / "usage"))
     client.api_key = "test-key"
 
     result = client.get_statistics_result(
@@ -942,7 +945,7 @@ def test_highlightly_statistics_rejects_basic_match_metadata(monkeypatch, tmp_pa
     assert result.error_code == "statistics_list_missing"
 
 
-def test_highlightly_statistics_preserves_raw_stat_names_and_missing_red_cards(
+def test_highlightly_statistics_preserves_raw_stat_names_and_maps_red_cards(
     monkeypatch, tmp_path
 ):
     monkeypatch.setenv("BET_EVIDENCE_ROOT", str(tmp_path))
@@ -972,7 +975,7 @@ def test_highlightly_statistics_preserves_raw_stat_names_and_missing_red_cards(
             },
         ),
     )
-    client = HighlightlyClient(rate_limiter=RateLimiter())
+    client = HighlightlyClient(rate_limiter=RateLimiter(usage_dir=tmp_path / "usage"))
     client.api_key = "test-key"
 
     result = client.get_statistics_result(
@@ -987,8 +990,11 @@ def test_highlightly_statistics_preserves_raw_stat_names_and_missing_red_cards(
         "Shots on target",
         "Yellow cards",
     ]
-    assert result.value["missing_target_metrics"] == ["Red cards"]
-    assert "red_cards" not in result.value["normalized_metric_names"]
+    # "Red cards" used to sit in missing_target_metrics; it is now mapped in
+    # STAT_NAME_MAP (docs/PIPELINE_SIMPLIFICATION_PLAN.md section 4.1 required
+    # this: the field is present in live payloads and red cards are a real
+    # market), so nothing is knowingly dropped any more.
+    assert result.value["missing_target_metrics"] == []
     assert result.value["statistics"][0]["normalized_metric_name"] == "expected_goals"
     assert result.quota_metadata == {"minute_limit": 100, "minute_remaining": 60}
 

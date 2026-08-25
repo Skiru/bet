@@ -14,6 +14,8 @@ import threading
 from datetime import datetime, timezone
 from pathlib import Path
 
+from bet.api_clients.env import get_limit_override, limit_env_var
+
 # Daily request limits per API (legacy — kept for backward compatibility)
 API_DAILY_LIMITS = {
     "api-football": 100,
@@ -34,6 +36,16 @@ API_DAILY_LIMITS = {
     # and no longer need a conservative daily backstop.  Removing them prevents
     # premature throttling while the window-aware limiter is in transition.
     "understat": 10000,  # unlimited, nominal cap
+    # Highlightly enforces a daily cap server-side (HTTP 429 "You have breached
+    # your daily request limits."). Without a local entry the limiter reported
+    # this provider as unlimited and only the remote 429 stopped a run, mid-way,
+    # after the quota was already spent. 100/day is a conservative BASIC-tier
+    # backstop -- calibrate after the first pilot day (PIPELINE_SIMPLIFICATION_PLAN
+    # section 11, Faza C).
+    "highlightly": 100,
+    # SportDB MCP publishes no rate limit; this is a self-imposed ceiling so a
+    # large slate cannot issue unbounded match-stats calls.
+    "sportdb": 300,
     "totalcorner-scraper": 50,
     "scores24-scraper": 100,
     # ESPN clients — free, unlimited, no cap needed but tracked
@@ -108,10 +120,16 @@ class RateLimiter:
     """
 
     def __init__(self, usage_dir: Path | None = None, limits: dict | None = None,
-                 rate_limits: dict | None = None):
+                 rate_limits: dict | None = None, honor_env_overrides: bool | None = None):
         self.usage_dir = usage_dir or USAGE_DIR
-        self.limits = limits or API_DAILY_LIMITS
-        self.rate_limits = rate_limits or API_RATE_LIMITS
+        self.limits = API_DAILY_LIMITS if limits is None else limits
+        self.rate_limits = API_RATE_LIMITS if rate_limits is None else rate_limits
+        # A caller that passes explicit limits is describing a closed world
+        # (tests, fixtures); letting the ambient .env override those would make
+        # such a test depend on the developer's machine.
+        if honor_env_overrides is None:
+            honor_env_overrides = limits is None and rate_limits is None
+        self.honor_env_overrides = honor_env_overrides
         self._locks: dict[str, threading.Lock] = {}
         self._global_lock = threading.Lock()
 
@@ -162,8 +180,27 @@ class RateLimiter:
     def _effective_limit(self, api_name: str) -> tuple[int | None, str]:
         """Return (limit, window_type) for an API.
 
-        Prefers API_RATE_LIMITS (window-aware) over API_DAILY_LIMITS.
+        Resolution order:
+
+        1. ``BET_LIMIT_<PROVIDER>`` in the project ``.env`` -- so a quota can be
+           corrected after a pilot day (PIPELINE_SIMPLIFICATION_PLAN section 11,
+           Faza C) without editing code. ``BET_LIMIT_HIGHLIGHTLY=0`` disables the
+           provider outright; a negative value means "no local cap".
+        2. ``API_RATE_LIMITS`` (window-aware).
+        3. ``API_DAILY_LIMITS``.
+
+        The code constants are conservative defaults, not measurements -- the
+        authoritative number lives in the provider's dashboard, so it has to be
+        overridable where the rest of this project's configuration lives.
         """
+        if self.honor_env_overrides:
+            override = get_limit_override(api_name)
+            if override is not None:
+                window = "daily"
+                if api_name in self.rate_limits:
+                    window = self.rate_limits[api_name].get("type", "daily")
+                return (None if override < 0 else override), window
+
         if api_name in self.rate_limits:
             cfg = self.rate_limits[api_name]
             return cfg.get("limit"), cfg.get("type", "daily")
@@ -200,6 +237,49 @@ class RateLimiter:
                 return False
 
         return True
+
+    def reset(self, api_name: str, *, window_type: str | None = None) -> int:
+        """Zero this API's usage counter for the current window.
+
+        The counter tracks *our* spending against a key, but the quota belongs
+        to the key -- so swapping in a fresh key leaves a stale count that keeps
+        preflight reporting the provider as exhausted when it is not. This is
+        the supported way to clear it. Returns the count that was discarded.
+        """
+        _validate_api_name(api_name)
+        if window_type is None:
+            _, window_type = self._effective_limit(api_name)
+
+        discarded = 0
+        with self._get_lock(api_name):
+            for window in {window_type, "daily"}:
+                usage = self._read_usage(api_name, window_type=window)
+                discarded = max(discarded, usage.get("count", 0))
+                path = self._usage_file(api_name, _window_str(window), window)
+                try:
+                    path.unlink()
+                except FileNotFoundError:
+                    pass
+        return discarded
+
+    def reset_all(self) -> dict[str, int]:
+        """Zero every known API's counter for the current window."""
+        names = sorted(set(self.limits) | set(self.rate_limits))
+        return {name: self.reset(name) for name in names if self.get_remaining(name) is not None}
+
+    def usage_snapshot(self, api_name: str) -> dict:
+        """Everything preflight needs to explain this provider's state."""
+        _validate_api_name(api_name)
+        limit, window = self._effective_limit(api_name)
+        usage = self._read_usage(api_name, window_type=window)
+        return {
+            "provider": api_name,
+            "limit": limit,
+            "used": usage.get("count", 0),
+            "window": window,
+            "limit_env_var": limit_env_var(api_name),
+            "usage_file": str(self._usage_file(api_name, _window_str(window), window)),
+        }
 
     def record_request(self, api_name: str, endpoint: str, cost: int = 1) -> None:
         """Record a completed API request."""

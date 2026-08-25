@@ -103,28 +103,30 @@ class BaseAPIClient(ABC):
         """Return True if the client can make requests (has key or doesn't need one)."""
         return bool(self.api_key)
 
+    #: Extra .env names accepted for a derived variable, because the
+    #: api_name -> ENV_VAR convention does not match what .env actually calls
+    #: them. Without these a provider whose key IS in .env would read as absent.
+    KEY_ENV_ALIASES = {
+        "THESPORTSDB_KEY": ("THESPORTSDB_API_KEY",),
+        "ODDS_API_IO_KEY": ("ODDS_API_IO_API_KEY",),
+        "BRAVE_SEARCH_KEY": ("BRAVE_SEARCH_API_KEY",),
+        "ODDS_PAPI_KEY": ("ODDSPAPI_API_KEY",),
+        "HIGHLIGHTLY_KEY": ("HIGHLIGHTLY_API_KEY", "RAPIDAPI_KEY"),
+        "SPORTDB_KEY": ("SPORTDB_API_KEY",),
+        "PANDASCORE_KEY": ("PANDASCORE_TOKEN",),
+    }
+
     def _load_api_key(self) -> str | None:
-        """Load API key from process env/.env, then legacy JSON fallback."""
+        """Load this provider's API key from the process env or the project .env.
+
+        Those are the only two sources. The former fallback to
+        config/api_keys.json was removed: a key stored in two places drifts, and
+        because the fallback was silent the drift showed up as odd provider
+        behaviour rather than as a config error. See bet.api_clients.env.
+        """
         env_var = self.api_name.upper().replace("-", "_") + "_KEY"
-        aliases = {
-            "THESPORTSDB_KEY": ("THESPORTSDB_API_KEY",),
-            "ODDS_API_IO_KEY": ("ODDS_API_IO_API_KEY",),
-        }.get(env_var, ())
-        key = get_env(env_var, *aliases)
-        if key:
-            return key
-
-        keys_file = CONFIG_DIR / "api_keys.json"
-        if keys_file.exists():
-            try:
-                keys = json.loads(keys_file.read_text(encoding="utf-8"))
-                key = keys.get(self.api_name, "")
-                if key and key.strip():
-                    return key.strip()
-            except (json.JSONDecodeError, OSError):
-                pass
-
-        return None
+        aliases = self.KEY_ENV_ALIASES.get(env_var, ())
+        return get_env(env_var, *aliases) or None
 
     def _check_api_key(self) -> bool:
         """Check if API key is available. Prints warning if not."""
@@ -261,29 +263,18 @@ class APISportsClient(BaseAPIClient):
     _SHARES_FOOTBALL_KEY = False
 
     def _load_api_key(self) -> str | None:
-        """Load API key — optionally falls back to the shared api-football key."""
+        """Load API key — optionally falls back to the shared api-football key.
+
+        The api-sports.io platform issues one key per sport endpoint, but they
+        are frequently the same key, so a sibling client may borrow
+        API_FOOTBALL_KEY when its own is unset.
+        """
         key = super()._load_api_key()
         if key:
             return key
-
         if not self._SHARES_FOOTBALL_KEY:
             return None
-
-        env_key = get_env("API_FOOTBALL_KEY")
-        if env_key:
-            return env_key
-
-        keys_file = CONFIG_DIR / "api_keys.json"
-        if keys_file.exists():
-            try:
-                keys = json.loads(keys_file.read_text(encoding="utf-8"))
-                key = keys.get("api-football", "")
-                if key and key.strip():
-                    return key.strip()
-            except (json.JSONDecodeError, OSError):
-                pass
-
-        return None
+        return get_env("API_FOOTBALL_KEY") or None
 
     def _build_headers(self) -> dict:
         """Use x-apisports-key header for authentication."""

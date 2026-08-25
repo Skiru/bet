@@ -270,3 +270,63 @@ Reużyć realne przechwycone odpowiedzi z `tests/fixtures/reports/football_data_
 - brak danych od providera kończy się jawnym `data_gap`, nie cichym zerem lub wyjątkiem przerywającym run;
 - dossier tenisowy zapisuje się do bazy bez błędu (test regresyjny na decyzję z sekcji 8);
 - raport końcowy da się szybko przeczytać i użyć do ręcznego budowania zakładu w Bet Builderze — to jedyny test akceptacyjny, który naprawdę się liczy, bo to jest cel tego narzędzia.
+
+---
+
+## 13. Weryfikacja wdrożenia na żywych danych (2026-08-25)
+
+Ta sekcja jest **dopisana po implementacji**, na podstawie realnych wywołań każdego providera w dniu 2026-08-25. Sekcje 1-12 opisują zamiar; ta sekcja opisuje, co faktycznie działa i które założenia planu okazały się nieaktualne. Wszystkie punkty niżej zostały naprawione w kodzie, chyba że jawnie napisano inaczej.
+
+### 13.1 Założenia planu obalone przez rzeczywistość
+
+| Założenie planu | Co jest naprawdę | Co zrobiono |
+|---|---|---|
+| §4.3 „The Odds API — **bez zmian w kliencie**" | Miesięczny limit konta wyczerpany (500/500). `/odds` odpowiada `401 OUT_OF_USAGE_CREDITS`, więc DISCOVER zwracał **zero eventów**. Endpoint `/events` jest darmowy (0 kredytów) i zwraca dokładnie pola potrzebne do `EVENT_LIST_V1`. | `OddsAPIEventsAdapter` czyta `/events`. Skoro pipeline i tak ignoruje kursy (§4.4), płacenie kredytu za payload bukmacherski było czystą stratą. |
+| §4.3 Highlightly discovery „per liga (league_id/season)" | Endpoint `/matches` przyjmuje zwykły filtr `date` i stronicuje przez `offset` — 167 meczów na 2026-08-25. Ręczna lista lig była niepotrzebna i gubiłaby „mecze spoza głównych lig", czyli jedyny powód istnienia tego źródła. | `HighlightlyDiscoveryAdapter` odpytuje `/matches?date=`. DISCOVER daje **182 eventy, 24 scalone z dwóch niezależnych źródeł** (`identity_confidence=CONFIRMED`) — kryterium gotowości #1 spełnione produkcyjnie. |
+| §4.2 sackmann „**Włączyć** — baza historyczna do hit rate" | Repozytorium `github.com/JeffSackmann/tennis_atp` zwraca **404** — zniknęło. Klient zawsze dostaje pustą listę. | Zostawiony w `PROVIDERS_BY_SPORT`; degraduje się do czystego `data_gap`. Traktować jak `api-tennis` z §4.2: martwy upstream, nie do odblokowania po naszej stronie. |
+| §4.1 understat „**Włączyć** jako sygnał pomocniczy" | Pakiet `understat` nie instaluje się w tym środowisku (`aiohttp` nie buduje wheela). | Zostawiony; degraduje się do `data_gap`. To sygnał pomocniczy (tylko xG), więc nie blokuje żadnego kryterium. |
+| §2 „ENRICH woła Highlightly/SportDB dla bieżącego meczu" | Bieżący mecz jeszcze się **nie odbył** — nie ma z niego statystyk. Wartość tych providerów leży w **historii** (L10 + H2H). | Highlightly: `/last-five-games` + `/head-2-head` → `/statistics/{id}` per mecz historyczny. SportDB: wyniki sezonu ligi → `flashscore_get_match_stats` per mecz. |
+
+### 13.2 Błędy implementacji wykryte tylko na żywych danych
+
+Każdy z poniższych przechodził testy jednostkowe i **jednocześnie** nie działał produkcyjnie. Wszystkie mają teraz test regresyjny (`tests/simple_stats/test_providers.py`, `test_discover.py`, `test_analyze.py`).
+
+1. **Highlightly nigdy nie zwracał danych.** `get_statistics_result` nie tylko *waliduje* `home_team_id`/`away_team_id` — porównuje je z `team.id` w payloadzie, żeby przypisać stronę, i zwraca `SCHEMA_ERROR: unexpected_team_id`, gdy nie pasują. Implementacja podawała placeholdery `"home"`/`"away"`, więc **każde** wywołanie kończyło się błędem. Naprawa: DISCOVER zapisuje natywne ID drużyn w nowym polu `EventRecord.provider_team_ids` (rozszerzenie schematu z §2 — bez niego ten provider jest nieosiągalny).
+2. **SportDB normalizer zwracał `{}` na produkcji.** Żywy payload MCP trzyma okresy pod kluczem `data`; tylko przechwyty REST w `tests/fixtures/.../live_response_corpus` używają `body`. Normalizer czytał wyłącznie `body`. Dodatkowo wartości są **stringami** i nie zawsze liczbami (`"48%"`, `"83% (372/450)"`), więc `float()` rzucał i cicho gubił metrykę.
+3. **Tenis nie produkował żadnych metryk.** `_combined_from_dict_stats` wymaga par `{"home": x, "away": y}`; tennis-abstract zwraca płaskie skalary jednego gracza. Osobno: `aces`/`double_faults` to liczby **jednego gracza**, więc mapowanie ich wprost na `aces_total` zaniżało sumę meczową o ~połowę i sprawiało, że każda linia UNDER wyglądała na 100% trafień. Naprawa: sumowanie z `oaces`/`odfs` (obecne w surowym wierszu, ale nieeksponowane przez klienta) oraz `total_games = service_games + return_games`.
+4. **`cross_provider_agreement` zawsze zwracało `SINGLE_SOURCE`.** Grupowanie po surowym `(opponent, match_date)` nigdy nie łączyło providerów, bo różnie zapisują nazwy („Ulsan HD" vs „Ulsan Hyundai FC") i formaty dat. To **wyłączało cichą** kontrolę, dla której ten pipeline istnieje. Naprawa: kubełkowanie po dniu + klastrowanie po rozmytym dopasowaniu nazw.
+5. **ESPN działał tylko dla Anglii.** `get_client("espn-football")` przypina ligę do `eng.1`, więc każdy mecz spoza Premier League padał na `resolve_team_id`. Naprawa: budowanie klienta przez istniejące `get_espn_league_for_competition()`.
+6. **SportDB wybierał złą ligę.** `flashscore_search` sortuje po własnej trafności: „La Liga - Spain" → Liga MX (Meksyk), „Brazil Série B" → Serie A (Włochy). Branie `result[0]` przypisałoby historię **cudzej ligi** do naszego meczu. Naprawa: gdy nazwa zawiera kraj, deterministyczne wyliczenie lig tego kraju; punktacja kandydatów; odrzucenie słabego dopasowania (brak danych jest lepszy niż złe dane). Dodatkowo dopasowanie nazw drużyn wewnątrz ligi działa jako druga bariera poprawności.
+7. **Zapis do bazy zawsze się wywracał.** `bet.db.connection` celowo nie zgaduje bazy operacyjnej, a `BET_DB_PATH`/`DATABASE_URL` nie są ustawione w `.env`. Naprawa: `default_db_path()` + flaga `--db-path` w każdym skrypcie; wynik zapisu jest teraz widoczny w `AGENT_SUMMARY` (`persisted`, `persist_error`), a nie tylko na stderr.
+8. **Cache wyników sezonu SportDB zatruwał się i ścigał.** Trzy sloty tego samego eventu (`team_a`/`team_b`/`h2h`) startowały równolegle, a pusty wynik jednej nieudanej próby był cache'owany, wyłączając SportDB dla całej ligi do końca runu.
+9. **Nieświeże mecze wchodziły do próbki.** api-football zwracał mecze z **2024** dla fixture'u z 2026; mieszanie dwuletniej formy z bieżącą daje hit rate, który nie opisuje żadnej z nich. Naprawa: okno 500 dni.
+10. **Brak `fixture_sources`.** §8 wskazuje `fixtures` **+** `fixture_sources`, ale zapisywano tylko `fixtures` — czyli gubiono lineage stojący za `identity_confidence`.
+11. **§4.1 „Uwaga do naprawienia": red cards.** Wykonane — `"Red cards"` jest teraz w `STAT_NAME_MAP`, a `MISSING_TARGET_METRICS` jest puste.
+
+### 13.3 Limity providerów — stan faktyczny
+
+`highlightly` i `sportdb` **nie miały żadnego wpisu** w `RateLimiter`, więc lokalny limiter uznawał je za nielimitowane, a run dowiadywał się o wyczerpaniu limitu dopiero z `HTTP 429` w połowie pracy. Dodano konserwatywne wpisy (`highlightly: 100/dzień`, `sportdb: 300/dzień`) — do skalibrowania po pierwszym dniu pilotażu (§11, Faza C).
+
+| Provider | Limit | Uwaga operacyjna |
+|---|---|---|
+| the-odds-api | 500/miesiąc, **wyczerpany** | Nieistotne: pipeline używa darmowego `/events`. |
+| highlightly | dzienny, reset UTC | Twardy 429 „You have breached your daily request limits". Najdroższy provider: 1 wywołanie `/statistics` na mecz historyczny. |
+| api-football | 100/dzień | Wyczerpuje się przy ~10 eventach. |
+| espn | brak | Darmowy i nielimitowany, ale rozpoznaje tylko drużyny z lig, które mapuje `COMPETITION_TO_ESPN_LEAGUE`. |
+| sportdb | brak publicznego | Najlepszy zasięg lig spoza Europy Zachodniej. |
+| serpapi | 8/dzień | Tylko kontekst H2H, nie zasila hit rate. |
+
+**Wniosek operacyjny:** pełny dzień to 150+ meczów, a każdy kosztuje kilkadziesiąt wywołań. Żaden limit tego nie przetrwa. `run_enrich.py` ma teraz `--max-events` (domyślnie 40) i sortuje eventy „najlepiej potwierdzone najpierw"; eventy poza limitem trafiają do artefaktu jako `BLOCKED` z jawnym powodem, nie znikają po cichu.
+
+### 13.4 Status kryteriów gotowości (§12)
+
+| Kryterium | Status |
+|---|---|
+| DISCOVER z 2+ niezależnych źródeł, poprawnie scalonych | ✅ 182 eventy, 24 `CONFIRMED` z odds-api + highlightly |
+| ENRICH: 3 providerów naraz na tej samej metryce, z jawnym `cross_provider_agreement` | ✅ zweryfikowane na żywo (`espn-football` + `api-football` + `highlightly`, oraz `+ sportdb`) — zależne od dostępnych limitów |
+| ENRICH przeżywa awarię providera | ✅ każda awaria to `data_gap`; run kończy się artefaktem |
+| ANALYZE pokazuje `hits/sample_size` dla każdej linii | ✅ wszystkie linie z `STANDARD_MARKET_LINES`, w obu kierunkach |
+| Brak danych = jawny `data_gap`, nie ciche zero | ✅ |
+| Dossier tenisowy zapisuje się do bazy | ✅ zweryfikowane produkcyjnie (`analysis_raw_data`, bez `team_id`) |
+
+**Zastrzeżenie do `readiness=READY` dla tenisa:** próg wymaga 2+ providerów na 3 metrykach priorytetowych, ale realnie dane daje tylko `tennis-abstract` (sackmann martwy, espn-tennis pokrywa jedynie `total_games`/`total_sets`). Tenis osiąga dziś maksymalnie `PARTIAL`. To ograniczenie danych, nie kodu — do decyzji przy kalibracji progów w Fazie C.

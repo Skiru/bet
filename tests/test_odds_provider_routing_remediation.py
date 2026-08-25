@@ -29,33 +29,45 @@ def test_secret_values_never_emitted_in_provider_reports():
 
 
 def test_the_odds_api_env_precedence_is_explicit(monkeypatch, tmp_path):
-    """Verify that ODDS_API_KEY env var explicitly overrides the config/api_keys.json."""
-    # Write a temporary api_keys.json
+    """The process environment takes precedence over the project .env."""
     config_dir = tmp_path / "config"
     config_dir.mkdir()
-    keys_file = config_dir / "api_keys.json"
-    keys_file.write_text('{"odds-api": "config-key"}', encoding="utf-8")
-
     monkeypatch.setattr("bet.discovery.sources.odds_api.CONFIG_DIR", config_dir)
 
-    # Case 1: Environment variable is set
     monkeypatch.setenv("ODDS_API_KEY", "env-key")
     adapter = OddsAPIAdapter()
     assert adapter._api_key == "env-key"
 
 
-def test_the_odds_api_config_key_can_be_selected_when_env_missing(monkeypatch, tmp_path):
-    """Verify that when ODDS_API_KEY is missing, the key from api_keys.json is correctly selected."""
+def test_the_odds_api_ignores_the_removed_config_key_file(monkeypatch, tmp_path):
+    """config/api_keys.json is no longer a fallback for ODDS_API_KEY.
+
+    Behaviour change, not a regression: the key used to live in .env, in
+    config/api_keys.json and in config/odds_api_key.txt, with each fallback
+    silent. Values drifted between them (TheSportsDB's demo key won over a real
+    one that way), and because nothing raised, the drift showed up as odd
+    provider behaviour rather than a config error. .env is now the only source.
+    """
+    import bet.api_clients.env as envmod
+
     config_dir = tmp_path / "config"
     config_dir.mkdir()
-    keys_file = config_dir / "api_keys.json"
-    keys_file.write_text('{"odds-api": "config-key"}', encoding="utf-8")
-
+    (config_dir / "api_keys.json").write_text('{"odds-api": "config-key"}', encoding="utf-8")
+    (config_dir / "odds_api_key.txt").write_text("txt-key\n", encoding="utf-8")
     monkeypatch.setattr("bet.discovery.sources.odds_api.CONFIG_DIR", config_dir)
+
+    env_path = tmp_path / ".env"
+    env_path.write_text("", encoding="utf-8")
+    monkeypatch.setattr(envmod, "ENV_PATH", env_path)
+    envmod.reload_env()
     monkeypatch.delenv("ODDS_API_KEY", raising=False)
 
-    adapter = OddsAPIAdapter()
-    assert adapter._api_key == "config-key"
+    assert OddsAPIAdapter()._api_key is None
+
+    env_path.write_text("ODDS_API_KEY=dotenv-key\n", encoding="utf-8")
+    envmod.reload_env()
+    assert OddsAPIAdapter()._api_key == "dotenv-key"
+    envmod.reload_env()
 
 
 def test_odds_provider_routing_marks_oddspapi_shadow_only(monkeypatch):

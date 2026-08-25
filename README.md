@@ -20,44 +20,64 @@ The complete, canonical, machine-readable pipeline definitions and agent-to-step
 
 | Step | Script / Wrapper | Manifest Agent | Purpose |
 |------|------------------|-------|---------|
-| S0 | `scripts/pipeline_steps/s0_settler.py` | bet-settler-postevent | Post-match settlement & historical learning |
-| S1 | `scripts/pipeline_steps/s1_discover.py` | bet-researcher | Event discovery & scan |
-| S1e | `scripts/pipeline_steps/s1e_event_ledger.py` | bet-researcher | Canonical materialized event-universe ledger |
-| S2 | `scripts/pipeline_steps/s2_tipsters.py` | bet-researcher | Tipster aggregation |
+| S0 | `legacy/pipeline_steps/s0_settler.py` | bet-settler-postevent | Post-match settlement & historical learning |
+| S1 | `legacy/pipeline_steps/s1_discover.py` | bet-researcher | Event discovery & scan |
+| S1e | `legacy/pipeline_steps/s1e_event_ledger.py` | bet-researcher | Canonical materialized event-universe ledger |
+| S2 | `legacy/pipeline_steps/s2_tipsters.py` | bet-researcher | Tipster aggregation |
 | S2.3 | *agent_artifact* | bet-researcher | Enrichment Gap Detection |
 | S2.5 | *agent_artifact* | bet-researcher | Provider Enrichment |
 | S2.7 | *agent_artifact* | bet-researcher | Source Reconciliation |
 | S2.9 | *agent_artifact* | bet-researcher | Data Readiness Gate |
-| S3 | `scripts/pipeline_steps/s3_stats.py` | bet-modeler | Stats & Probability |
-| S4 | `scripts/pipeline_steps/s4_valuator.py` | bet-modeler | Fair pricing, minimum quote, and quote-dependent EV |
+| S3 | `legacy/pipeline_steps/s3_stats.py` | bet-modeler | Stats & Probability |
+| S4 | `legacy/pipeline_steps/s4_valuator.py` | bet-modeler | Fair pricing, minimum quote, and quote-dependent EV |
 | S5 | *agent_artifact* | bet-risk-gatekeeper | Context/Motivation/Risk |
-| S6 | `scripts/pipeline_steps/s6_repeats.py` | bet-risk-gatekeeper | Portfolio/Repeat Guard |
-| S7 | `scripts/pipeline_steps/s5_gate.py` | bet-risk-gatekeeper | Hard Approval Gate |
-| S7b | `scripts/pipeline_steps/s7_validate.py` | bet-auditor | Manual Superbet market/line mapping |
-| S8 | `scripts/pipeline_steps/s8_build_coupons.py` | bet-builder | Manual Superbet quote pack |
+| S6 | `legacy/pipeline_steps/s6_repeats.py` | bet-risk-gatekeeper | Portfolio/Repeat Guard |
+| S7 | `legacy/pipeline_steps/s5_gate.py` | bet-risk-gatekeeper | Hard Approval Gate |
+| S7b | `legacy/pipeline_steps/s7_validate.py` | bet-auditor | Manual Superbet market/line mapping |
+| S8 | `legacy/pipeline_steps/s8_build_coupons.py` | bet-builder | Manual Superbet quote pack |
 | S9 | *human_gate* | bet-risk-gatekeeper | Human-only Superbet quote and execution gate |
 | S10 | *state_only* | bet-settler-postevent | Settlement Handoff |
 
 *Note: All script steps are executed by the canonical shell-capable `bet-executor`. Code/General with Bash is reserved for engineering repair or emergency fallback. Business domain specialists do not run shell.*
 
-## Running Pipeline via Canonical Runner
-
-The only canonical runner is `scripts/pipeline_steps/run_daily_pipeline.py`. To run the pipeline in a dry-run/sandboxed state:
+## Running a betting day (default path)
 
 ```fish
-# Start local model (if running locally)
-scripts/start-local-model.fish
-
-# Stop local model
-scripts/stop-local-model.fish
-
-# Health check
-scripts/healthcheck-local-model.fish
-
-# Run pipeline via canonical daily runner
-env PYTHONPATH=src:scripts .venv/bin/python3 scripts/pipeline_steps/run_daily_pipeline.py --date 2026-07-13 --run-id RUN_TEST_01 --runtime-mode DRY_RUN > /tmp/run.txt 2>&1
-tail -20 /tmp/run.txt
+python3 scripts/simple/run_pipeline.py --preflight           # 1. is today worth running? (0 calls)
+python3 scripts/simple/run_pipeline.py -v                    # 2. run it
 ```
+
+**Start here: [docs/MORNING.md](docs/MORNING.md)** — the four-step morning
+procedure and what to do about each thing preflight complains about.
+
+One command runs DISCOVER → ENRICH → ANALYZE under a single `run_id`, checks
+provider quota and credentials **before** spending any, and writes artifacts plus
+a run receipt to `runs/<date>/`. It emits exactly one `AGENT_SUMMARY:` line; exit
+codes are `0` OK, `1` PARTIAL, `2` FAILED/PRECONDITION_FAILED.
+
+The deliverable is `runs/<date>/<date>_event_dossiers_stats_sheet.json` — hit
+rates with sample sizes and cross-provider agreement, sorted by confidence. There
+is no price, no EV and no coupon: you pick lines by hand in Superbet.
+
+The default primary agent is `bet-simple`; `/run-day` runs the whole thing.
+Configuration is `.env` only (see `.env.example`). Operations, resume, quota
+resets and known limitations: **[docs/SIMPLE_STATS_RUNBOOK.md](docs/SIMPLE_STATS_RUNBOOK.md)**.
+
+```fish
+python3 scripts/simple/run_pipeline.py --start-at enrich --date 2026-08-25   # resume
+python3 scripts/simple/reset_provider_quota.py --status                      # quota
+```
+
+## The S0–S10 pipeline lives in `legacy/`
+
+It is reference material, not an execution path. It stopped being runnable before
+it was moved: `orchestrator.py`, `run_daily_pipeline.py` and 13 other files carry
+unresolved `<<<<<<< HEAD` merge markers committed to `main` and raise
+`SyntaxError` on import.
+
+**Provider clients did not move.** `src/bet/api_clients/**` is shared and live —
+the simple pipeline uses it. See [legacy/README.md](legacy/README.md) for the
+full map of what moved, what stayed, and why.
 
 ## Infrastructure Certification & Lifecycle
 

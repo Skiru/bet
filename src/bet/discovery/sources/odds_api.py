@@ -5,7 +5,6 @@ Conservative credit usage: top 10 football leagues + basketball/hockey/tennis.
 No volleyball coverage.
 """
 
-import json
 import logging
 from datetime import datetime, timezone
 from pathlib import Path
@@ -214,28 +213,11 @@ class OddsAPIAdapter(AbstractSourceAdapter):
 
     @staticmethod
     def _load_api_key() -> str | None:
-        """Load Odds API key from config."""
-        import os
+        """Load the Odds API key from the process env or the project .env.
 
-        key = get_env("ODDS_API_KEY")
-        if key and key.strip():
-            return key.strip()
-
-        keys_file = CONFIG_DIR / "api_keys.json"
-        if keys_file.exists():
-            try:
-                data = json.loads(keys_file.read_text(encoding="utf-8"))
-                k = data.get("odds-api", "")
-                if k and k.strip():
-                    return k.strip()
-            except (json.JSONDecodeError, OSError):
-                pass
-
-        key_file = CONFIG_DIR / "odds_api_key.txt"
-        if key_file.exists():
-            for line in key_file.read_text().splitlines():
-                line = line.strip()
-                if line and not line.startswith("#"):
-                    return line
-
-        return None
+        The former fallbacks to config/api_keys.json and config/odds_api_key.txt
+        were removed: three stores for one secret drift, and because each
+        fallback was silent the drift surfaced as provider behaviour rather than
+        a config error. See bet.api_clients.env.
+        """
+        return get_env("ODDS_API_KEY") or None

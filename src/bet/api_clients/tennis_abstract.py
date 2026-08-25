@@ -336,6 +336,12 @@ class TennisAbstractClient(BaseAPIClient):
         stats = {
             "aces": aces or 0,
             "double_faults": dfs or 0,
+            # The opponent's serve line is present in the raw row (oaces/odfs)
+            # but was not exposed, so a consumer could only ever see half of a
+            # match's aces -- which silently understates any "Total Aces"
+            # market built on top of it.
+            "opponent_aces": self._safe_int(match.get("oaces")) or 0,
+            "opponent_double_faults": self._safe_int(match.get("odfs")) or 0,
             "first_serve_pct": round(firsts / pts * 100, 1) if pts else 0,
             "first_serve_win_pct": round(fwon / firsts * 100, 1) if firsts else 0,
             "second_serve_win_pct": round(swon / second_serves * 100, 1) if second_serves else 0,

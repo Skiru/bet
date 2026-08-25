@@ -54,3 +54,7 @@ reports/pipeline_runs/**/*.sqlite-shm
 reports/pipeline_runs/**/*.sqlite-wal
 docs/pipeline/*local*.json
 .playwright-mcp/
+
+# simple_stats daily artifacts (scripts/run_pipeline.py default output dir).
+# Regenerable from the DB and the providers; the durable record is pipeline_runs.
+/runs/
