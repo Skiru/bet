@@ -4,18 +4,14 @@ from __future__ import annotations
 from enum import Enum
 from pathlib import Path
 from typing import Any, Mapping
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import Field
 
+# Re-exported, not redefined: the class lives in bet.strict_model so that
+# bet.models -- and through it every provider client -- can use it without
+# importing this package. Two definitions would drift; this one is an alias.
+from bet.strict_model import StrictBaseModel
 
-class StrictBaseModel(BaseModel):
-    """Base model enforcing strict validation, frozen immutability, and forbidding unknown extra fields."""
-    model_config = ConfigDict(
-        strict=True,
-        extra="forbid",
-        frozen=True,
-        populate_by_name=True,
-        str_strip_whitespace=True,
-    )
+__all_reexport__ = ["StrictBaseModel"]
 
 
 class CompletionEnvelopeType(str, Enum):

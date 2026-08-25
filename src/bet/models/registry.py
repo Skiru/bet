@@ -5,7 +5,7 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Any
 from pydantic import Field
-from bet.pipeline.contracts.base import StrictBaseModel
+from bet.strict_model import StrictBaseModel
 from bet.models.contracts import (
     TrainingDatasetReceiptV1,
     FeatureSnapshotV1,
@@ -59,10 +59,7 @@ class ModelCardV1(StrictBaseModel):
     """Immutable model card governing a trained statistical probability model."""
     model_id: str
     model_version: str
-<<<<<<< HEAD
-=======
     package_path: str = ""
->>>>>>> fix/bet-v5-final-one-pass-closure-v4
     code_sha256: str
     feature_schema_hash: str
     sport: str
@@ -86,43 +83,28 @@ class ModelCardV1(StrictBaseModel):
         if not is_valid_sha256_hex(self.feature_schema_hash) or self.feature_schema_hash == "0" * 64:
             return False
 
-<<<<<<< HEAD
         from pathlib import Path
-        import hashlib
-=======
-        from bet.pipeline.readiness_contracts import ModelPackageResolver
-        from pathlib import Path
-        if self.package_path:
+
+        # ModelPackageResolver belongs to the quarantined S0-S10 stack
+        # (legacy/bet_pipeline/readiness_contracts.py). Fail closed rather than
+        # raise: this is an eligibility check, and "cannot verify" must read as
+        # "not eligible", never as an error that aborts an unrelated caller.
+        try:
+            from legacy.bet_pipeline.readiness_contracts import ModelPackageResolver
+        except ImportError:
+            ModelPackageResolver = None  # noqa: N806 -- rebinding the imported name, not a new variable
+
+        if self.package_path and ModelPackageResolver is not None:
             pkg = ModelPackageResolver.resolve_package(self.package_path, approved_dirs=[Path(self.package_path)])
             if pkg and pkg.is_eligible and pkg.package and pkg.package.calibration_report_sha256 == self.calibration_report_sha256:
                 return True
 
->>>>>>> fix/bet-v5-final-one-pass-closure-v4
         root = Path(__file__).resolve().parent.parent.parent.parent
         artifact_dirs = search_dirs or [
             root / "models",
             root / ".kilo" / "artifacts" / "models",
             root / "data" / "models",
         ]
-<<<<<<< HEAD
-        found_dataset = False
-        found_calibration = False
-        for d in artifact_dirs:
-            if not d.exists():
-                continue
-            for p in d.rglob("*"):
-                if p.is_file():
-                    try:
-                        content = p.read_bytes()
-                        h = hashlib.sha256(content).hexdigest()
-                        if h == self.dataset_receipt_sha256:
-                            found_dataset = True
-                        if h == self.calibration_report_sha256:
-                            found_calibration = True
-                    except Exception:
-                        pass
-        return found_dataset and found_calibration
-=======
         for d in artifact_dirs:
             if d.exists() and d.is_dir():
                 pkg = ModelPackageResolver.resolve_package(d, approved_dirs=artifact_dirs)
@@ -138,7 +120,6 @@ class ModelCardV1(StrictBaseModel):
                 if hashlib.sha256((d / "dataset_receipt.json").read_bytes()).hexdigest() == self.dataset_receipt_sha256 and hashlib.sha256((d / "calibration_report.json").read_bytes()).hexdigest() == self.calibration_report_sha256:
                     return True
         return False
->>>>>>> fix/bet-v5-final-one-pass-closure-v4
 
 
 class ProbabilityEstimateV2(StrictBaseModel):

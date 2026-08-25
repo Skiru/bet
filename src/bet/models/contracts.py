@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from typing import Any
 from pydantic import Field
-from bet.pipeline.contracts.base import StrictBaseModel
+from bet.strict_model import StrictBaseModel
 
 
 class SettlementRuleV1(StrictBaseModel):

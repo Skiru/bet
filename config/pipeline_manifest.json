@@ -46,13 +46,8 @@
       "max_events_per_chunk": 15,
       "max_prompt_bytes": 32000,
       "max_estimated_tokens": 8000,
-<<<<<<< HEAD
-      "max_retrieval_queries_per_event": 5,
-      "max_total_retrievals_per_chunk": 25,
-=======
       "max_retrieval_queries_per_event": 4,
       "max_total_retrievals_per_chunk": 35,
->>>>>>> fix/bet-v5-final-one-pass-closure-v4
       "max_wall_time_seconds": 300,
       "max_retries": 1,
       "sequential_execution_required": true
@@ -62,7 +57,7 @@
   "steps": [
     {
       "agent": "bet-settler-postevent",
-      "canonical_script": "scripts/pipeline_steps/s0_settler.py",
+      "canonical_script": "legacy/pipeline_steps/s0_settler.py",
       "completion": {
         "allowed_statuses": [
           "PASS",
@@ -80,13 +75,10 @@
         "no_new_pick_generation"
       ],
       "id": "S0",
-<<<<<<< HEAD
-=======
       "stage_scope": "run",
       "completion_policy": "optional",
       "condition_id": null,
       "automated": true,
->>>>>>> fix/bet-v5-final-one-pass-closure-v4
       "name": "Settler",
       "next": [
         "S1"
@@ -102,11 +94,11 @@
         }
       ],
       "required_inputs": [],
-      "wrapper": "scripts/pipeline_steps/s0_settler.py"
+      "wrapper": "legacy/pipeline_steps/s0_settler.py"
     },
     {
       "agent": "bet-researcher",
-      "canonical_script": "scripts/pipeline_steps/s1_discover.py",
+      "canonical_script": "legacy/pipeline_steps/s1_discover.py",
       "completion": {
         "allowed_statuses": [
           "PASS",
@@ -135,13 +127,10 @@
         "multi_sport_event_discovery_allowed"
       ],
       "id": "S1",
-<<<<<<< HEAD
-=======
       "stage_scope": "run",
       "completion_policy": "required",
       "condition_id": null,
       "automated": true,
->>>>>>> fix/bet-v5-final-one-pass-closure-v4
       "name": "Discover",
       "next": [
         "S1e"
@@ -157,11 +146,11 @@
         }
       ],
       "required_inputs": [],
-      "wrapper": "scripts/pipeline_steps/s1_discover.py"
+      "wrapper": "legacy/pipeline_steps/s1_discover.py"
     },
     {
       "agent": "bet-researcher",
-      "canonical_script": "scripts/pipeline_steps/s1e_event_ledger.py",
+      "canonical_script": "legacy/pipeline_steps/s1e_event_ledger.py",
       "completion": {
         "allowed_statuses": [
           "PASS",
@@ -189,13 +178,10 @@
         "complete_identity_deduplicated_event_universe"
       ],
       "id": "S1e",
-<<<<<<< HEAD
-=======
       "stage_scope": "run",
       "completion_policy": "required",
       "condition_id": null,
       "automated": true,
->>>>>>> fix/bet-v5-final-one-pass-closure-v4
       "name": "Canonical Event Universe Ledger",
       "next": [
         "S2"
@@ -213,11 +199,11 @@
       "required_inputs": [
         "S1"
       ],
-      "wrapper": "scripts/pipeline_steps/s1e_event_ledger.py"
+      "wrapper": "legacy/pipeline_steps/s1e_event_ledger.py"
     },
     {
       "agent": "bet-researcher",
-      "canonical_script": "scripts/pipeline_steps/s2_tipsters.py",
+      "canonical_script": "legacy/pipeline_steps/s2_tipsters.py",
       "completion": {
         "allowed_statuses": [
           "PASS",
@@ -247,14 +233,11 @@
         "no_event_drop_due_only_to_tipster_absence"
       ],
       "id": "S2",
-<<<<<<< HEAD
-=======
       "stage_scope": "event",
       "completion_policy": "required",
       "condition_id": null,
       "automated": true,
       "uses_policy_config": true,
->>>>>>> fix/bet-v5-final-one-pass-closure-v4
       "name": "Tipsters Discovery",
       "next": [
         "S2.3"
@@ -268,37 +251,9 @@
           "required": true,
           "schema_version": 1
         }
-<<<<<<< HEAD
       ],
       "required_inputs": [],
-      "wrapper": "scripts/pipeline_steps/s2_tipsters.py"
-    },
-    {
-      "agent": "bet-researcher",
-      "completion": {
-        "allowed_statuses": [
-          "PASS",
-          "BLOCK"
-        ],
-        "envelope_type": "AGENT_ARTIFACT",
-        "schema_version": 1
-      },
-      "consumes": [
-        {
-          "artifact_role": "PRIMARY",
-          "contract_id": "S2_TIPSTER_CONSENSUS",
-          "producer_step": "S2",
-          "required": true,
-          "schema_version": 1
-        }
-      ],
-      "depends_on": [
-        "S2"
-      ],
-=======
-      ],
-      "required_inputs": [],
-      "wrapper": "scripts/pipeline_steps/s2_tipsters.py"
+      "wrapper": "legacy/pipeline_steps/s2_tipsters.py"
     },
     {
       "agent": "bet-researcher",
@@ -323,7 +278,6 @@
         "S2",
         "S1e"
       ],
->>>>>>> fix/bet-v5-final-one-pass-closure-v4
       "execution_mode": "agent_artifact",
       "hard_rules": [
         "no_pick",
@@ -339,14 +293,11 @@
         "source_gap_inventory_required"
       ],
       "id": "S2.3",
-<<<<<<< HEAD
-=======
       "stage_scope": "event",
       "completion_policy": "required",
       "condition_id": null,
       "automated": true,
       "uses_policy_config": true,
->>>>>>> fix/bet-v5-final-one-pass-closure-v4
       "name": "enrichment_gap_detection",
       "next": [
         "S2.5"
@@ -402,15 +353,12 @@
         "no_unverified_provider_claims"
       ],
       "id": "S2.5",
-<<<<<<< HEAD
-=======
       "stage_scope": "event",
       "completion_policy": "required",
       "condition_id": null,
       "automated": true,
       "uses_provider_config": true,
       "uses_policy_config": true,
->>>>>>> fix/bet-v5-final-one-pass-closure-v4
       "name": "provider_enrichment",
       "next": [
         "S2.7"
@@ -468,14 +416,11 @@
         "unknown_for_unresolved_data"
       ],
       "id": "S2.7",
-<<<<<<< HEAD
-=======
       "stage_scope": "event",
       "completion_policy": "required",
       "condition_id": null,
       "automated": true,
       "uses_policy_config": true,
->>>>>>> fix/bet-v5-final-one-pass-closure-v4
       "name": "source_reconciliation",
       "next": [
         "S2.9"
@@ -536,14 +481,11 @@
         "readiness_not_equal_bettable"
       ],
       "id": "S2.9",
-<<<<<<< HEAD
-=======
       "stage_scope": "event",
       "completion_policy": "required",
       "condition_id": null,
       "automated": true,
       "uses_policy_config": true,
->>>>>>> fix/bet-v5-final-one-pass-closure-v4
       "name": "data_readiness_gate",
       "next": [
         "S3"
@@ -564,7 +506,7 @@
     },
     {
       "agent": "bet-modeler",
-      "canonical_script": "scripts/pipeline_steps/s3_stats.py",
+      "canonical_script": "legacy/pipeline_steps/s3_stats.py",
       "completion": {
         "allowed_statuses": [
           "PASS",
@@ -593,15 +535,12 @@
         "unsupported_market_family_must_be_rejected_or_watch"
       ],
       "id": "S3",
-<<<<<<< HEAD
-=======
       "stage_scope": "event",
       "completion_policy": "required",
       "condition_id": null,
       "automated": true,
       "uses_model_registry": true,
       "uses_policy_config": true,
->>>>>>> fix/bet-v5-final-one-pass-closure-v4
       "name": "Stats & Probability",
       "next": [
         "S4"
@@ -619,11 +558,11 @@
       "required_inputs": [
         "S2.9"
       ],
-      "wrapper": "scripts/pipeline_steps/s3_stats.py"
+      "wrapper": "legacy/pipeline_steps/s3_stats.py"
     },
     {
       "agent": "bet-modeler",
-      "canonical_script": "scripts/pipeline_steps/s4_valuator.py",
+      "canonical_script": "legacy/pipeline_steps/s4_valuator.py",
       "completion": {
         "allowed_statuses": [
           "PASS",
@@ -653,15 +592,12 @@
         "no_kelly_or_stake_before_real_operator_odds"
       ],
       "id": "S4",
-<<<<<<< HEAD
-=======
       "stage_scope": "event",
       "completion_policy": "required",
       "condition_id": null,
       "automated": true,
       "uses_model_registry": true,
       "uses_policy_config": true,
->>>>>>> fix/bet-v5-final-one-pass-closure-v4
       "name": "Valuator & CLV",
       "next": [
         "S5"
@@ -677,7 +613,7 @@
         }
       ],
       "required_inputs": [],
-      "wrapper": "scripts/pipeline_steps/s4_valuator.py"
+      "wrapper": "legacy/pipeline_steps/s4_valuator.py"
     },
     {
       "agent": "bet-risk-gatekeeper",
@@ -716,14 +652,11 @@
         "tournament_and_motivation_review_required"
       ],
       "id": "S5",
-<<<<<<< HEAD
-=======
       "stage_scope": "event",
       "completion_policy": "required",
       "condition_id": null,
       "automated": true,
       "uses_policy_config": true,
->>>>>>> fix/bet-v5-final-one-pass-closure-v4
       "name": "context_motivation_risk",
       "next": [
         "S6"
@@ -742,7 +675,7 @@
     },
     {
       "agent": "bet-risk-gatekeeper",
-      "canonical_script": "scripts/pipeline_steps/s6_repeats.py",
+      "canonical_script": "legacy/pipeline_steps/s6_repeats.py",
       "completion": {
         "allowed_statuses": [
           "PASS",
@@ -771,13 +704,10 @@
         "same_event_leg_conflict_guard"
       ],
       "id": "S6",
-<<<<<<< HEAD
-=======
       "stage_scope": "run",
       "completion_policy": "required",
       "condition_id": null,
       "automated": true,
->>>>>>> fix/bet-v5-final-one-pass-closure-v4
       "name": "portfolio_repeat_guard",
       "next": [
         "S7"
@@ -795,11 +725,11 @@
       "required_inputs": [
         "S5"
       ],
-      "wrapper": "scripts/pipeline_steps/s6_repeats.py"
+      "wrapper": "legacy/pipeline_steps/s6_repeats.py"
     },
     {
       "agent": "bet-risk-gatekeeper",
-      "canonical_script": "scripts/pipeline_steps/s5_gate.py",
+      "canonical_script": "legacy/pipeline_steps/s5_gate.py",
       "completion": {
         "allowed_statuses": [
           "PASS",
@@ -829,13 +759,10 @@
         "counter_evidence_required"
       ],
       "id": "S7",
-<<<<<<< HEAD
-=======
       "stage_scope": "run",
       "completion_policy": "required",
       "condition_id": null,
       "automated": true,
->>>>>>> fix/bet-v5-final-one-pass-closure-v4
       "name": "Hard Approval Gate",
       "next": [
         "S7b"
@@ -851,11 +778,11 @@
         }
       ],
       "required_inputs": [],
-      "wrapper": "scripts/pipeline_steps/s5_gate.py"
+      "wrapper": "legacy/pipeline_steps/s5_gate.py"
     },
     {
       "agent": "bet-auditor",
-      "canonical_script": "scripts/pipeline_steps/s7_validate.py",
+      "canonical_script": "legacy/pipeline_steps/s7_validate.py",
       "completion": {
         "allowed_statuses": [
           "READY_FOR_MANUAL_MAPPING",
@@ -886,13 +813,10 @@
         "market_name_line_mapping_required"
       ],
       "id": "S7b",
-<<<<<<< HEAD
-=======
       "stage_scope": "run",
       "completion_policy": "required",
       "condition_id": null,
       "automated": true,
->>>>>>> fix/bet-v5-final-one-pass-closure-v4
       "name": "Superbet Manual Market Mapping",
       "next": [
         "S8"
@@ -908,11 +832,11 @@
         }
       ],
       "required_inputs": [],
-      "wrapper": "scripts/pipeline_steps/s7_validate.py"
+      "wrapper": "legacy/pipeline_steps/s7_validate.py"
     },
     {
       "agent": "bet-builder",
-      "canonical_script": "scripts/pipeline_steps/s8_build_coupons.py",
+      "canonical_script": "legacy/pipeline_steps/s8_build_coupons.py",
       "completion": {
         "allowed_statuses": [
           "READY_FOR_MANUAL_SUPERBET_QUOTE_REVIEW",
@@ -945,13 +869,10 @@
         "no_staking_without_real_operator_quote"
       ],
       "id": "S8",
-<<<<<<< HEAD
-=======
       "stage_scope": "run",
       "completion_policy": "required",
       "condition_id": null,
       "automated": true,
->>>>>>> fix/bet-v5-final-one-pass-closure-v4
       "name": "Superbet Manual Quote Pack",
       "next": [
         "S9"
@@ -970,7 +891,7 @@
         "S7",
         "S7b"
       ],
-      "wrapper": "scripts/pipeline_steps/s8_build_coupons.py"
+      "wrapper": "legacy/pipeline_steps/s8_build_coupons.py"
     },
     {
       "agent": "bet-risk-gatekeeper",
@@ -1005,13 +926,10 @@
         "agent_generated_human_approved_forbidden"
       ],
       "id": "S9",
-<<<<<<< HEAD
-=======
       "stage_scope": "human",
       "completion_policy": "human_only",
       "condition_id": null,
       "automated": false,
->>>>>>> fix/bet-v5-final-one-pass-closure-v4
       "name": "External Human-Only Validation Gate",
       "next": [
         "S10"
@@ -1058,13 +976,10 @@
         "post_session_learning_separate_from_pre_match_analysis"
       ],
       "id": "S10",
-<<<<<<< HEAD
-=======
       "stage_scope": "run",
       "completion_policy": "required",
       "condition_id": null,
       "automated": false,
->>>>>>> fix/bet-v5-final-one-pass-closure-v4
       "name": "settlement_handoff",
       "next": [],
       "output": "s10_settlement_handoff",
@@ -1083,8 +998,4 @@
     }
   ],
   "timezone": "Europe/Warsaw"
-<<<<<<< HEAD
 }
-=======
-}
->>>>>>> fix/bet-v5-final-one-pass-closure-v4

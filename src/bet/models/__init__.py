@@ -22,7 +22,12 @@ from bet.models.registry import (
     is_valid_sha256_hex,
 )
 from bet.models.dixon_coles import calculate_dixon_coles_outcomes
-from bet.pipeline.contracts.canonical_json import hash_canonical_json
+
+# bet.canonical_json, not bet.pipeline.contracts.canonical_json: this module is
+# imported by every provider client, and reaching into bet.pipeline made them
+# all load the S0-S10 package -- including its manifest validator, which raises
+# when the legacy manifest's script paths go stale.
+from bet.canonical_json import hash_canonical_json
 
 
 def _register_promoted_models() -> None:
