@@ -82,11 +82,7 @@ class SofascoreClient(BaseAPIClient):
 
     def _request_playwright(self, url: str, params: dict | None = None) -> dict:
         raise RuntimeError("BROWSER_AUTOMATION_DISABLED: Playwright browser automation is permanently disabled in production pipeline")
-<<<<<<< HEAD
-        
-=======
 
->>>>>>> fix/bet-v5-final-one-pass-closure-v4
         # Extract the API path to know what response to intercept
         # e.g. /sport/football/scheduled-events/2026-05-13
         api_path = full_url.replace(self.base_url, "").lstrip("/")

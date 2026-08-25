@@ -12,13 +12,8 @@ class WorkOrderBudgetV1(StrictBaseModel):
     max_events_per_chunk: int = Field(default=15, ge=1, le=100)
     max_prompt_bytes: int = Field(default=32000, ge=1000)
     max_estimated_tokens: int = Field(default=8000, ge=500)
-<<<<<<< HEAD
-    max_retrieval_queries_per_event: int = Field(default=5, ge=0)
-    max_total_retrievals_per_chunk: int = Field(default=25, ge=0)
-=======
     max_retrieval_queries_per_event: int = Field(default=4, ge=0)
     max_total_retrievals_per_chunk: int = Field(default=35, ge=0)
->>>>>>> fix/bet-v5-final-one-pass-closure-v4
     max_wall_time_seconds: int = Field(default=300, ge=10)
     max_retries: int = Field(default=1, ge=0)
     sequential_execution_required: bool = True
@@ -28,24 +23,14 @@ class ChunkWorkOrderV1(StrictBaseModel):
     """Work order for an individual event chunk."""
     chunk_id: str
     parent_work_order_id: str
-<<<<<<< HEAD
-    parent_work_order_sha256: str = ""
-=======
     parent_work_order_sha256: str = "1" * 64
->>>>>>> fix/bet-v5-final-one-pass-closure-v4
     step_id: str = ""
     betting_day: str = ""
     run_id: str = ""
     runtime_mode: str = "DRY_RUN"
-<<<<<<< HEAD
-    source_head: str = ""
-    source_tree: str = ""
-    manifest_sha256: str = ""
-=======
     source_head: str = "a" * 40
     source_tree: str = "b" * 40
     manifest_sha256: str = "c" * 64
->>>>>>> fix/bet-v5-final-one-pass-closure-v4
     parent_plan_id: str = ""
     parent_plan_sha256: str = ""
     chunk_index: int = Field(ge=0)
@@ -56,27 +41,17 @@ class ChunkWorkOrderV1(StrictBaseModel):
     input_refs: tuple[dict[str, Any], ...] = ()
     task_allowlist: tuple[str, ...] = ()
     acquisition_plan_refs: tuple[str, ...] = ()
-<<<<<<< HEAD
-    acquisition_plan: dict[str, Any] | None = None
-    hard_rules: tuple[str, ...] = ()
-    forbidden_outputs: tuple[str, ...] = ()
-    expected_artifact_path: str = ""
-    expected_artifact_type: str = ""
-=======
     acquisition_plan: FactAcquisitionPlanV1 | dict[str, Any] | None = None
     event_acquisition_plans: tuple[FactAcquisitionPlanV1, ...] = ()
     hard_rules: tuple[str, ...] = ()
     forbidden_outputs: tuple[str, ...] = ()
     expected_artifact_path: str = "/tmp/chunk_artifact_output.json"
     expected_artifact_type: str = "CHUNK_ARTIFACT"
->>>>>>> fix/bet-v5-final-one-pass-closure-v4
     allowed_artifact_statuses: tuple[str, ...] = ("PASS", "NO_ACTION_TERMINAL", "BLOCK")
     attempt_number: int = 1
     attempt_id: str = ""
     budget: WorkOrderBudgetV1 = Field(default_factory=WorkOrderBudgetV1)
 
-<<<<<<< HEAD
-=======
     @field_validator(
         "event_ids", "allowed_tools", "input_refs", "task_allowlist",
         "acquisition_plan_refs", "event_acquisition_plans", "hard_rules",
@@ -102,7 +77,6 @@ class ChunkWorkOrderV1(StrictBaseModel):
             )
         return ()
 
->>>>>>> fix/bet-v5-final-one-pass-closure-v4
     @model_validator(mode="after")
     def validate_chunk_bindings(self) -> ChunkWorkOrderV1:
         if not self.chunk_id or not self.parent_work_order_id:
@@ -111,8 +85,6 @@ class ChunkWorkOrderV1(StrictBaseModel):
             raise ValueError("CHUNK_WO_BINDING_EMPTY: event_ids tuple cannot be empty")
         if not self.agent_name:
             raise ValueError("CHUNK_WO_BINDING_EMPTY: agent_name is required")
-<<<<<<< HEAD
-=======
         if not self.parent_work_order_sha256 or self.parent_work_order_sha256 == "UNKNOWN" or len(self.parent_work_order_sha256) != 64 or not all(c in "0123456789abcdefABCDEF" for c in self.parent_work_order_sha256):
             raise ValueError("CHUNK_WO_BINDING_EMPTY: parent_work_order_sha256 must be a valid 64-char hex SHA256")
         if not self.source_head or self.source_head == "UNKNOWN" or len(self.source_head) != 40 or not all(c in "0123456789abcdefABCDEF" for c in self.source_head):
@@ -133,7 +105,6 @@ class ChunkWorkOrderV1(StrictBaseModel):
                 "CHUNK_WO_BINDING_MISMATCH: event acquisition plans must cover "
                 "exactly the chunk events"
             )
->>>>>>> fix/bet-v5-final-one-pass-closure-v4
         return self
 
 
@@ -151,12 +122,6 @@ class ChunkExecutionPlanV1(StrictBaseModel):
 
 class ChunkArtifactV1(StrictBaseModel):
     """Artifact emitted by a single completed chunk."""
-<<<<<<< HEAD
-    chunk_id: str
-    chunk_work_order_sha256: str = ""
-    parent_work_order_id: str
-    parent_work_order_sha256: str = ""
-=======
     schema_version: int = 1
     artifact_type: str = "CHUNK_ARTIFACT"
     chunk_id: str
@@ -164,7 +129,6 @@ class ChunkArtifactV1(StrictBaseModel):
     chunk_work_order_sha256: str = "1" * 64
     parent_work_order_id: str
     parent_work_order_sha256: str = "2" * 64
->>>>>>> fix/bet-v5-final-one-pass-closure-v4
     parent_plan_id: str = ""
     parent_plan_sha256: str = ""
     chunk_index: int = Field(ge=0)
@@ -173,11 +137,6 @@ class ChunkArtifactV1(StrictBaseModel):
     producer_agent_id: str
     betting_day: str = ""
     run_id: str = ""
-<<<<<<< HEAD
-    source_head: str = ""
-    source_tree: str = ""
-    manifest_sha256: str = ""
-=======
     agent_id: str | None = None
     source_head: str = "a" * 40
     source_tree: str = "b" * 40
@@ -191,15 +150,12 @@ class ChunkArtifactV1(StrictBaseModel):
     unknowns: list[str] = Field(default_factory=list)
     blocked_reasons: list[str] = Field(default_factory=list)
     evidence_refs: list[str] = Field(default_factory=list)
->>>>>>> fix/bet-v5-final-one-pass-closure-v4
     processed_event_ids: tuple[str, ...]
     event_records: list[dict[str, Any]] = Field(default_factory=list)
     payload: dict[str, Any] = Field(default_factory=dict)
     receipts: list[dict[str, Any]] = Field(default_factory=list)
     chunk_sha256: str = ""
 
-<<<<<<< HEAD
-=======
     @field_validator("processed_event_ids", mode="before")
     @classmethod
     def coerce_processed_event_ids(cls, v: Any) -> tuple[str, ...]:
@@ -231,7 +187,6 @@ class ChunkArtifactV1(StrictBaseModel):
             raise ValueError("CHUNK_ARTIFACT_BINDING_EMPTY: manifest_sha256 required")
         return self
 
->>>>>>> fix/bet-v5-final-one-pass-closure-v4
 
 class ChunkAggregationReceiptV1(StrictBaseModel):
     """Receipt emitted after aggregating all chunks into a complete step artifact."""
@@ -283,14 +238,9 @@ class FactAcquisitionPlanV1(StrictBaseModel):
     plan_id: str
     canonical_event_id: str
     sport: str
-<<<<<<< HEAD
-    requirements: tuple[FactRequirementV1, ...] = ()
-    max_queries: int = 10
-=======
     source_strategy: str = ""
     requirements: tuple[FactRequirementV1, ...] = ()
     max_queries: int = 4
->>>>>>> fix/bet-v5-final-one-pass-closure-v4
 
     @field_validator("requirements", mode="before")
     @classmethod
@@ -308,14 +258,9 @@ class FactAcquisitionPlanV1(StrictBaseModel):
     @field_validator("canonical_event_id")
     @classmethod
     def check_canonical_event_id(cls, v: str) -> str:
-<<<<<<< HEAD
-        if v == "ALL_SHORTLIST_EVENTS":
-            raise ValueError("FactAcquisitionPlanV1 requires event-specific canonical_event_id, ALL_SHORTLIST_EVENTS forbidden")
-=======
         forbidden = ("ALL_SHORTLIST_EVENTS", "consumed_eids[0]", "evt_default_shortlist", "DEFAULT_EVENT", "SHORTLIST_EVENTS")
         if v in forbidden or any(f in v for f in ("consumed_eids", "default_shortlist")):
             raise ValueError(f"FactAcquisitionPlanV1 requires event-specific canonical_event_id, shortcut/fallback '{v}' is forbidden")
->>>>>>> fix/bet-v5-final-one-pass-closure-v4
         return v
 
 

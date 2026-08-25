@@ -5,15 +5,9 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
-<<<<<<< HEAD
-from typing import Any, Mapping
-
-import bet.pipeline.contracts.steps  # Ensures GLOBAL_CONTRACT_REGISTRY is populated
-=======
 from typing import Any
 
 import bet.pipeline.contracts.steps  # noqa: F401 - populates contract registry
->>>>>>> fix/bet-v5-final-one-pass-closure-v4
 from bet.pipeline.contracts.registry import GLOBAL_CONTRACT_REGISTRY
 
 
@@ -71,11 +65,6 @@ class PipelineStep:
     deterministic_executor: bool | None = None
     semantic_owner: str | None = None
     agent_review_required: bool | None = None
-<<<<<<< HEAD
-
-    def primary_produces_contract_id(self) -> str | None:
-        if self.produces and len(self.produces) > 0 and isinstance(self.produces[0], dict):
-=======
     stage_scope: str | None = None
     completion_policy: str | None = None
     condition_id: str | None = None
@@ -90,7 +79,6 @@ class PipelineStep:
             and len(self.produces) > 0
             and isinstance(self.produces[0], dict)
         ):
->>>>>>> fix/bet-v5-final-one-pass-closure-v4
             return self.produces[0].get("contract_id")
         return None
 
@@ -107,13 +95,9 @@ class PipelineManifest:
 
     def get_step(self, step_id: str) -> PipelineStep | None:
         for s in self.steps:
-<<<<<<< HEAD
-            if s.id == step_id or (hasattr(s, "step_id") and getattr(s, "step_id") == step_id):
-=======
             if s.id == step_id or (
                 hasattr(s, "step_id") and getattr(s, "step_id") == step_id
             ):
->>>>>>> fix/bet-v5-final-one-pass-closure-v4
                 return s
         return None
 
@@ -187,14 +171,6 @@ def load_pipeline_manifest(path: Path | None = None) -> PipelineManifest:
             canonical_script=step_data.get("canonical_script"),
             depends_on=step_data.get("depends_on"),
             required_inputs=step_data.get("required_inputs"),
-<<<<<<< HEAD
-            completion=step_data.get("completion") if isinstance(step_data.get("completion"), dict) else None,
-            consumes=list(step_data.get("consumes", [])) if isinstance(step_data.get("consumes"), list) else None,
-            produces=list(step_data.get("produces", [])) if isinstance(step_data.get("produces"), list) else None,
-            deterministic_executor=step_data.get("deterministic_executor") if isinstance(step_data.get("deterministic_executor"), bool) else None,
-            semantic_owner=step_data.get("semantic_owner") if isinstance(step_data.get("semantic_owner"), str) else None,
-            agent_review_required=step_data.get("agent_review_required") if isinstance(step_data.get("agent_review_required"), bool) else None,
-=======
             completion=step_data.get("completion")
             if isinstance(step_data.get("completion"), dict)
             else None,
@@ -222,7 +198,6 @@ def load_pipeline_manifest(path: Path | None = None) -> PipelineManifest:
             uses_model_registry=step_data.get("uses_model_registry") is True,
             uses_provider_config=step_data.get("uses_provider_config") is True,
             uses_policy_config=step_data.get("uses_policy_config") is True,
->>>>>>> fix/bet-v5-final-one-pass-closure-v4
         )
         steps_list.append(step_obj)
 
@@ -453,10 +428,6 @@ def validate_pipeline_manifest(
         if step.phase is not None and step.phase not in allowed_phases:
             errors.append(f"Step {sid} has invalid phase: {step.phase}")
 
-<<<<<<< HEAD
-        if step.execution_mode is not None and step.execution_mode not in allowed_execution_modes:
-            errors.append(f"Step {sid} has invalid execution_mode: {step.execution_mode}")
-=======
         if (
             step.execution_mode is not None
             and step.execution_mode not in allowed_execution_modes
@@ -464,33 +435,19 @@ def validate_pipeline_manifest(
             errors.append(
                 f"Step {sid} has invalid execution_mode: {step.execution_mode}"
             )
->>>>>>> fix/bet-v5-final-one-pass-closure-v4
 
         # Validate contract registration for produces and consumes
         if step.produces:
             for p_dict in step.produces:
-<<<<<<< HEAD
-                cid = p_dict.get("contract_id") if isinstance(p_dict, dict) else str(p_dict)
-=======
                 cid = (
                     p_dict.get("contract_id")
                     if isinstance(p_dict, dict)
                     else str(p_dict)
                 )
->>>>>>> fix/bet-v5-final-one-pass-closure-v4
                 ver = p_dict.get("schema_version", 1) if isinstance(p_dict, dict) else 1
                 if cid:
                     desc = GLOBAL_CONTRACT_REGISTRY.get(cid, ver)
                     if desc is None:
-<<<<<<< HEAD
-                        errors.append(f"Step {sid} produces unknown contract: ({cid}, {ver})")
-                    elif desc.producer_step != sid:
-                        errors.append(f"Step {sid} produces contract {cid} registered to producer {desc.producer_step}")
-
-        if step.consumes:
-            for c_item in step.consumes:
-                cid = c_item.get("contract_id") if isinstance(c_item, dict) else str(c_item)
-=======
                         errors.append(
                             f"Step {sid} produces unknown contract: ({cid}, {ver})"
                         )
@@ -511,7 +468,6 @@ def validate_pipeline_manifest(
                     if isinstance(c_item, dict)
                     else str(c_item)
                 )
->>>>>>> fix/bet-v5-final-one-pass-closure-v4
                 ver = c_item.get("schema_version", 1) if isinstance(c_item, dict) else 1
                 desc = GLOBAL_CONTRACT_REGISTRY.get(cid, ver)
                 if desc is None:
@@ -523,12 +479,6 @@ def validate_pipeline_manifest(
                 if desc is None:
                     errors.append(f"Step {sid} consumes unknown contract: {cid}")
                 else:
-<<<<<<< HEAD
-                    producer_idx = step_ids.index(desc.producer_step) if desc.producer_step in step_ids else -1
-                    consumer_idx = step_ids.index(sid) if sid in step_ids else -1
-                    if producer_idx == -1 or producer_idx >= consumer_idx:
-                        errors.append(f"Step {sid} consumes contract {cid} from producer {desc.producer_step} which does not precede {sid}")
-=======
                     producer_idx = (
                         step_ids.index(desc.producer_step)
                         if desc.producer_step in step_ids
@@ -539,7 +489,6 @@ def validate_pipeline_manifest(
                         errors.append(
                             f"Step {sid} consumes contract {cid} from producer {desc.producer_step} which does not precede {sid}"
                         )
->>>>>>> fix/bet-v5-final-one-pass-closure-v4
 
         # Next transition validation
         expected_next = []
@@ -581,8 +530,6 @@ def validate_pipeline_manifest(
                     f"Step {sid} referenced agent file does not exist under .kilo/agents: {step.agent}.md"
                 )
 
-<<<<<<< HEAD
-=======
     graph = {step.id: list(step.depends_on or []) for step in manifest.steps if step.id}
     for step in manifest.steps:
         if not step.id:
@@ -620,5 +567,4 @@ def validate_pipeline_manifest(
     for stage_id in graph:
         visit(stage_id)
 
->>>>>>> fix/bet-v5-final-one-pass-closure-v4
     return errors
