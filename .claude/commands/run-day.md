@@ -67,9 +67,24 @@ describes were overwritten too.
 
 **Confidence % is `p_low` x 100** — the Wilson lower bound at 95% on
 `hits`/`sample_size`, never the raw `hit_rate`. It is the sort key for the whole
-file, descending. It penalises small samples on its own: 4/4 lands near 51%,
-below a 9/12 at 58%, which is the ordering you want and the reason not to sort on
-`hit_rate`.
+file, descending.
+
+Do not compute it yourself: it is a field on every `StatsSheetRow`, written by
+`wilson_lower_bound()` in `src/bet/simple_stats/analyze.py`, and it is already
+the order the artifact's rows arrive in. Read `row.p_low` and multiply by 100.
+
+It penalises thin samples on its own, which is why nothing is sorted on
+`hit_rate`: 4/4 is a hit rate of 1.00 but a `p_low` of 0.51, and 9/12 is 0.75
+but 0.47. Those are the real figures at z=1.96 — three misses cost the
+twelve-match sample more than eight extra observations earn it, so **4/4 ranks
+above 9/12**. An earlier version of this file claimed 9/12 landed at 58% and
+outranked 4/4; that was arithmetically wrong in both the number and the
+ordering. If the ranking ever looks wrong to you, check `p_low` against the
+function, not against this paragraph.
+
+`sample_size` counts only observations that settle: a value sitting exactly on
+the line is a push, reported in `row.pushes` and excluded from both `hits` and
+`sample_size`, because it resolves neither side of that line.
 
 ````markdown
 # Analiza <data>
@@ -86,8 +101,8 @@ below a 9/12 at 58%, which is the ordering you want and the reason not to sort o
 
 | # | Pewność | Mecz | Rynek | Strona | Surowo | n | a/b/h2h | Zgodność | Typerzy | Min. kurs | Tier |
 |--:|--------:|------|-------|--------|-------:|--:|---------|----------|---------|----------:|------|
-| 1 | 58.2% | Valencia – Betis | rożne 10.5 | UNDER | 9/12 | 12 | 6/6/0 | AGREE | 2/2 | 1.90 | CALL |
-| 2 | 51.0% | FC Seoul – Bucheon | kartki 3.5 | OVER | 4/4 | 4 | 0/4/0 | SINGLE_SOURCE | brak | — | WEAK |
+| 1 | 51.0% | FC Seoul – Bucheon | kartki 3.5 | OVER | 4/4 | 4 | 0/4/0 | SINGLE_SOURCE | brak | — | WEAK |
+| 2 | 46.8% | Valencia – Betis | rożne 10.5 | UNDER | 9/12 | 12 | 6/6/0 | AGREE | 2/2 | 1.90 | CALL |
 
 `WEAK` nie dostaje minimalnego kursu — próg policzony z czterech obserwacji
 udaje precyzję, której tam nie ma.

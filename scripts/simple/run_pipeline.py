@@ -195,6 +195,21 @@ def _preflight_only(sports: list[str], args) -> None:
         verdict, advice = "OK", f"GO: quota corroborates all {args.max_events} planned events."
 
     print(f"\n{advice}")
+    # This entrypoint runs before DISCOVER, so it has no slate and cannot know
+    # which competitions are on it. Every figure above is therefore a quota
+    # statement only. Capability is per competition and can veto a provider
+    # outright: on 2026-08-25 espn-football had 10000 requests free and served
+    # none of the Saudi and Korean leagues that made up the day, so a coverage
+    # of 3 delivered 0 corroborated rows. The ENRICH preflight inside the run
+    # applies the capability caps; this one must not be read as a promise.
+    capability_note = None
+    if "football" in sports:
+        capability_note = (
+            "coverage above counts quota only -- ESPN's league reach is unknown "
+            "until DISCOVER names the competitions, so corroboration may be lower"
+        )
+        out.warning(capability_note, pipeline_step="simple_stats:PREFLIGHT")
+
     out.summary(
         verdict=verdict,
         metrics={
@@ -202,6 +217,8 @@ def _preflight_only(sports: list[str], args) -> None:
             "usable_providers": usable,
             "blocked_providers": [b["provider"] for b in result["blocked"]],
             "coverage_by_sport": coverage,
+            "coverage_basis": "quota_only",
+            "capability_note": capability_note,
             "recommended_max_events": recommended,
             "planned_events": args.max_events,
             "advice": advice,
@@ -426,7 +443,13 @@ def main() -> None:
     receipt.write_text(
         json.dumps(
             {"run_id": run_id, "date": date, "verdict": worst, "steps": step_results,
-             "started_at": started_at, "elapsed_s": metrics["elapsed_s"]},
+             "started_at": started_at, "elapsed_s": metrics["elapsed_s"],
+             # The same block the AGENT_SUMMARY line carries. Omitting it left
+             # the receipt without the one field docs/MORNING.md and the
+             # run-day command both tell an operator to read
+             # (.metrics.analyze_metrics.total_rows), so the documented
+             # verification step answered null on every run ever made.
+             "metrics": metrics},
             indent=2, default=str,
         ),
         encoding="utf-8",

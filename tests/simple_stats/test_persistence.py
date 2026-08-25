@@ -85,6 +85,7 @@ def _stats_sheet(event_id="evt1"):
                 hits=1,
                 sample_size=1,
                 hit_rate=1.0,
+                p_low=0.2065,
                 mean=9.0,
                 median=9.0,
                 sources=["espn-football"],
@@ -170,7 +171,7 @@ def test_ranking_json_carries_the_tipster_column_when_present():
 
     row = StatsSheetRow(
         event_id="EV1", sport="football", market="corners_total", line=10.5,
-        direction="UNDER", hits=9, sample_size=12, hit_rate=0.75, mean=9.0, median=9.0,
+        direction="UNDER", hits=9, sample_size=12, hit_rate=0.75, p_low=0.4677, mean=9.0, median=9.0,
         sources=["espn-football"], cross_provider_agreement="AGREE", confidence="HIGH",
         data_quality="READY",
         tipster=TipsterColumn(verdict="CONFIRMS", agree=2, oppose=0, considered=5, sources=["zawodtyper"]),
@@ -188,7 +189,7 @@ def test_ranking_json_omits_the_key_entirely_when_no_tipster_ran():
 
     row = StatsSheetRow(
         event_id="EV1", sport="football", market="corners_total", line=10.5,
-        direction="UNDER", hits=9, sample_size=12, hit_rate=0.75, mean=9.0, median=9.0,
+        direction="UNDER", hits=9, sample_size=12, hit_rate=0.75, p_low=0.4677, mean=9.0, median=9.0,
         sources=["espn-football"], cross_provider_agreement="AGREE", confidence="HIGH",
         data_quality="READY",
     )

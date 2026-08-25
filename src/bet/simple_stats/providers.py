@@ -386,6 +386,61 @@ def normalize_sportdb_match_stats(raw_result: dict) -> dict[str, float]:
     return sums
 
 
+class ProviderLeagueUnsupported(RuntimeError):
+    """This provider has no data surface for this competition.
+
+    Raised instead of returning a differently-scoped client, because the
+    fallback was worse than the failure: ``get_client("espn-football")`` is
+    pinned to ``eng.1``, so an unmapped competition sent 'Abha Club' into a
+    Premier League team search. That either finds nothing (a data_gap blaming
+    the team name for a league problem) or, for a name close enough to an
+    English club, silently answers with the wrong club's season -- the same
+    defect class as sportdb serving FC Basel's results for Saudi fixtures.
+    """
+
+
+# league code -> does ESPN publish /teams for it. Populated by probing, never
+# hand-authored: the set of leagues ESPN gives a team directory to is ESPN's
+# business and changes without notice, so a literal list here would be a guess
+# that rots. One probe per league per process, memoised because ENRICH runs its
+# providers on a thread pool and would otherwise probe once per fixture.
+_ESPN_TEAM_DIRECTORY: dict[str, bool] = {}
+_ESPN_TEAM_DIRECTORY_LOCK = threading.Lock()
+
+
+def _espn_league_has_team_directory(
+    sport: str, league: str, rate_limiter: RateLimiter
+) -> bool:
+    """Whether ESPN answers ``/teams`` for this league.
+
+    ESPN serves a team directory for its headline leagues and returns HTTP 404
+    for the rest: verified live on 2026-08-25, ``esp.1`` returns 20 teams while
+    ``sau.1`` and ``kor.1`` both 404, and ``/scoreboard`` answers 400 for them
+    with and without a ``dates`` parameter. ``resolve_team_id`` swallows that
+    404 and returns None, so the whole failure previously surfaced as "could not
+    resolve team identity for 'Abha Club'" -- indistinguishable from a genuine
+    name mismatch, and the reason every row of the 2026-08-25 sheet came back
+    SINGLE_SOURCE off sportdb alone while ESPN sat on 10000 unspent requests.
+    """
+    with _ESPN_TEAM_DIRECTORY_LOCK:
+        cached = _ESPN_TEAM_DIRECTORY.get(league)
+    if cached is not None:
+        return cached
+
+    from bet.api_clients.espn import ESPNClient
+
+    try:
+        probe = ESPNClient(sport=sport, league=league, rate_limiter=rate_limiter)
+        probe._request("/teams")
+        supported = True
+    except Exception:  # noqa: BLE001 - a 404 and a transport error are both "no directory"
+        supported = False
+
+    with _ESPN_TEAM_DIRECTORY_LOCK:
+        _ESPN_TEAM_DIRECTORY[league] = supported
+    return supported
+
+
 def _provider_client(provider_key: str, competition: str, rate_limiter: RateLimiter) -> Any:
     """Build the client for a provider, scoped to the event's competition.
 
@@ -394,14 +449,41 @@ def _provider_client(provider_key: str, competition: str, rate_limiter: RateLimi
     resolve_team_id -- ESPN's team search only covers the league its base_url
     points at. ESPN already ships a competition-name -> league-code map, so
     reuse it and build a correctly scoped client instead.
+
+    Scoping alone was not enough: the map answers for most competitions, but
+    ESPN then 404s ``/teams`` for the smaller ones. Both failure modes now
+    raise ProviderLeagueUnsupported rather than silently falling back to the
+    ``eng.1`` client.
+
+    This strictness is football-only on purpose. ``espn-tennis`` resolves a
+    player through ESPN's global search API (_resolve_athlete_id), which is not
+    league-scoped, so its default client is already correct and refusing to
+    build one would break the only sport that currently corroborates.
     """
-    if provider_key in ("espn-football", "espn-tennis") and competition:
+    if provider_key == "espn-football":
+        from bet.api_clients.espn import ESPNClient, get_espn_league_for_competition
+
+        if not competition:
+            raise ProviderLeagueUnsupported(
+                "event carries no competition, cannot scope an ESPN league"
+            )
+        league = get_espn_league_for_competition(competition)
+        if not league:
+            raise ProviderLeagueUnsupported(
+                f"no ESPN league code for competition '{competition}'"
+            )
+        if not _espn_league_has_team_directory("football", league, rate_limiter):
+            raise ProviderLeagueUnsupported(
+                f"ESPN publishes no team directory for league "
+                f"'{league}' ('{competition}'), so no history can be fetched"
+            )
+        return ESPNClient(sport="football", league=league, rate_limiter=rate_limiter)
+    if provider_key == "espn-tennis" and competition:
         from bet.api_clients.espn import ESPNClient, get_espn_league_for_competition
 
         league = get_espn_league_for_competition(competition)
         if league:
-            sport = "tennis" if provider_key == "espn-tennis" else "football"
-            return ESPNClient(sport=sport, league=league, rate_limiter=rate_limiter)
+            return ESPNClient(sport="tennis", league=league, rate_limiter=rate_limiter)
     return get_client(provider_key, rate_limiter=rate_limiter)
 
 

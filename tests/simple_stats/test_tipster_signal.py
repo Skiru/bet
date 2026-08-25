@@ -85,6 +85,7 @@ def _row(market="corners_total", line=10.5, direction="UNDER", event_id="EV1") -
         hits=9,
         sample_size=12,
         hit_rate=0.75,
+        p_low=0.4677,
         mean=9.4,
         median=9.0,
         sources=["espn-football", "highlightly"],

@@ -148,11 +148,22 @@ def enrich_preflight(
             "coverage_by_sport": {},
             "recommended_max_events": 0,
         }
-    return preflight_for_sports(sports, rate_limiter, planned_events)
+    return preflight_for_sports(
+        sports,
+        rate_limiter,
+        planned_events,
+        # Only the event-list entrypoint knows which competitions are on the
+        # slate, and capability is per competition. preflight_for_sports is
+        # deliberately callable before discovery, so it cannot compute these.
+        capability_caps=_capability_caps(event_list, rate_limiter),
+    )
 
 
 def preflight_for_sports(
-    sports: list[str], rate_limiter: RateLimiter, planned_events: int | None = None
+    sports: list[str],
+    rate_limiter: RateLimiter,
+    planned_events: int | None = None,
+    capability_caps: dict[str, dict[str, int]] | None = None,
 ) -> dict:
     """The same check, addressed by sport rather than by event list.
 
@@ -235,8 +246,10 @@ def preflight_for_sports(
         }
 
     by_quota = {q["provider"]: q for q in quotas}
+    caps = capability_caps or {}
     coverage_by_sport = {
-        sport: _two_provider_coverage(sport, usable, by_quota) for sport in sports
+        sport: _two_provider_coverage(sport, usable, by_quota, caps.get(sport, {}))
+        for sport in sports
     }
     finite = [c for c in coverage_by_sport.values() if c is not None]
 
@@ -252,7 +265,51 @@ def preflight_for_sports(
     }
 
 
-def _two_provider_coverage(sport: str, usable: list[str], by_quota: dict[str, dict]) -> int | None:
+def _capability_caps(
+    event_list: EventListV1, rate_limiter: RateLimiter
+) -> dict[str, dict[str, int]]:
+    """``{sport: {provider: max events it can actually serve}}``.
+
+    Quota is not capability. Everything below this function reasoned purely
+    about how many calls a provider could still afford, which on 2026-08-25
+    advertised "football two-provider coverage: 3" off an unlimited ESPN quota
+    and then produced a sheet in which all 140 rows were SINGLE_SOURCE: ESPN
+    cannot serve the Saudi and Korean leagues that made up the slate at all, so
+    the second provider it was counting never existed.
+
+    Only espn-football is capped here, because it is the only provider whose
+    reach is decided per competition. The probe rides on ESPN's free, unlimited
+    quota and is memoised per league in providers.py, so this costs a handful of
+    unmetered requests for the distinct leagues of one day's slate.
+    """
+    from bet.api_clients.espn import get_espn_league_for_competition
+    from bet.simple_stats.providers import _espn_league_has_team_directory
+
+    servable = 0
+    football_events = [
+        event
+        for event in event_list.events
+        if event.status == "ACTIVE" and event.sport == "football"
+    ]
+    for event in football_events:
+        competition = getattr(event, "competition", "") or ""
+        if not competition:
+            continue
+        league = get_espn_league_for_competition(competition)
+        if league and _espn_league_has_team_directory("football", league, rate_limiter):
+            servable += 1
+
+    if not football_events:
+        return {}
+    return {"football": {"espn-football": servable}}
+
+
+def _two_provider_coverage(
+    sport: str,
+    usable: list[str],
+    by_quota: dict[str, dict],
+    capability_caps: dict[str, int] | None = None,
+) -> int | None:
     """How many events of ``sport`` can still be seen by *two* providers.
 
     Two is the number that matters: readiness=READY needs 2+ independent
@@ -261,8 +318,14 @@ def _two_provider_coverage(sport: str, usable: list[str], by_quota: dict[str, di
     instead would promise 400 events off an unlimited ESPN quota while the only
     provider that could corroborate it runs dry after 7.
 
-    Returns None when at least two of this sport's providers are unlimited.
+    ``capability_caps`` bounds a provider by what it can serve rather than what
+    it can afford; an unlimited provider that reaches none of today's leagues
+    contributes 0, not infinity.
+
+    Returns None when at least two of this sport's providers are unlimited *and*
+    uncapped.
     """
+    capability_caps = capability_caps or {}
     sport_providers = [
         p
         for p in (*PROVIDERS_BY_SPORT.get(sport, ()), *NATIVE_ID_PROVIDERS_BY_SPORT.get(sport, ()))
@@ -274,7 +337,9 @@ def _two_provider_coverage(sport: str, usable: list[str], by_quota: dict[str, di
     coverages = []
     for provider in sport_providers:
         covers = affordable_events(by_quota[provider])
-        coverages.append(float("inf") if covers is None else covers)
+        affordable = float("inf") if covers is None else covers
+        cap = capability_caps.get(provider)
+        coverages.append(affordable if cap is None else min(affordable, cap))
     coverages.sort(reverse=True)
     second = coverages[1]
     return None if second == float("inf") else int(second)

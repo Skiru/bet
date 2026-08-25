@@ -176,8 +176,19 @@ class StatsSheetRow(StrictBaseModel):
     line: float
     direction: Literal["OVER", "UNDER"]
     hits: int
+    # Observations that actually settle: values exactly on the line are pushes,
+    # which can never be a hit in either direction, so counting them here would
+    # deflate hit_rate on both sides while buying a _confidence tier with
+    # observations that resolve no bet.
     sample_size: int
+    pushes: int = 0
     hit_rate: float
+    # Wilson lower bound at 95% on hits/sample_size. The one number a row is
+    # ranked by, computed here rather than by whoever writes the summary: a
+    # sort key that lives only in prose cannot be audited or reproduced. It
+    # penalises thin samples on its own, which is why it -- and never
+    # hit_rate -- orders the sheet: 4/4 lands near 0.51, below a 9/12 at 0.58.
+    p_low: float
     mean: float
     median: float
     sources: list[str] = Field(default_factory=list)

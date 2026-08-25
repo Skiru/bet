@@ -13,11 +13,11 @@ from bet.simple_stats.preflight import (
 )
 
 
-def _event(sport="football", status="ACTIVE"):
+def _event(sport="football", status="ACTIVE", event_id=None, competition="Premier League"):
     kwargs = dict(
-        event_id=f"evt-{sport}-{status}",
+        event_id=event_id or f"evt-{sport}-{status}",
         sport=sport,
-        competition="Premier League",
+        competition=competition,
         start_time="2026-08-25T18:00:00+00:00",
         identity_confidence="CONFIRMED",
         status=status,
@@ -114,13 +114,40 @@ def test_coverage_reports_two_provider_reach_not_the_most_generous_one(tmp_path)
     limiter.record_request("api-football", "/x", 1)
     limiter.record_request("highlightly", "/x", 1)
 
-    result = enrich_preflight(_list(_event()), limiter, planned_events=40)
+    # Three fixtures, so quota is the binding constraint rather than the size
+    # of the slate: coverage can never exceed the events actually on it.
+    slate = _list(*(_event(event_id=f"evt-{i}") for i in range(3)))
+    result = enrich_preflight(slate, limiter, planned_events=40)
     assert sorted(result["usable_providers"]) == ["espn-football", "sportdb"]
 
     # ESPN alone covers 10000/25 = 400 events, but SportDB's 70/35 = 2 is what
     # bounds two-provider coverage, and 2 is what must be reported.
     assert result["coverage_by_sport"]["football"] == 2
     assert result["recommended_max_events"] == 2
+
+
+def test_coverage_is_bounded_by_what_a_provider_can_actually_serve(tmp_path):
+    """Quota is not capability. ESPN has no team directory for the Saudi league,
+    so an unlimited ESPN quota corroborates none of it -- which is how
+    2026-08-25 advertised three corroborable events and produced a sheet whose
+    140 rows were all SINGLE_SOURCE."""
+    # api-football and highlightly exhausted, exactly as they were that day, so
+    # ESPN and SportDB are the only candidates left to corroborate each other.
+    limiter = _limiter(
+        tmp_path,
+        {"espn-football": 10_000, "sportdb": 10_000, "api-football": 1, "highlightly": 1},
+    )
+    limiter.record_request("api-football", "/x", 1)
+    limiter.record_request("highlightly", "/x", 1)
+    slate = _list(
+        *(
+            _event(event_id=f"saudi-{i}", competition="Saudi Pro League")
+            for i in range(3)
+        )
+    )
+    result = enrich_preflight(slate, limiter, planned_events=3)
+    assert "espn-football" in result["usable_providers"]
+    assert result["coverage_by_sport"]["football"] == 0
 
 
 def test_thin_quota_is_warned_about_before_the_run(tmp_path):

@@ -86,7 +86,15 @@ def _stats_row_to_dict(row: StatsSheetRow) -> dict:
         "direction": row.direction,
         "hits": row.hits,
         "sample_size": row.sample_size,
+        "pushes": row.pushes,
         "hit_rate": row.hit_rate,
+        # The ranking key travels with the row. This dict is a whitelist, so a
+        # new field is dropped unless named here -- and a row reachable only
+        # through the DB (which the analyst is told to cross-check for other
+        # run_ids of the same day) would otherwise arrive without the one
+        # number it is sorted by, leaving hit_rate as the only available
+        # proxy: exactly the small-sample inversion p_low exists to prevent.
+        "p_low": row.p_low,
         "mean": row.mean,
         "median": row.median,
         "sources": row.sources,
