@@ -272,6 +272,29 @@ markets** than the totals here and cannot be converted into one — quote them o
 if the operator asks about the match result, and never as agreement with a
 totals row.
 
+## Bet Builder: draft the legs with the script, never price the slip
+
+When the operator asks for a Bet Builder / same-game multi, run:
+
+```bash
+python3 scripts/simple/bet_builder_draft.py \
+  --stats-sheet runs/<date>/<date>_event_dossiers_stats_sheet.json \
+  --event-id <event_id> [--max-legs 4]
+```
+
+Report its output verbatim — the legs, each leg's `min_acceptable_odds`, and the
+`correlation_note` in full. Do not re-derive any of it in prose: that arithmetic
+is tested, and free-handing it is exactly the failure `wilson_lower_bound` exists
+to prevent.
+
+**Never print a combined price, not even as an estimate.** There is no
+bet-builder endpoint in any provider here, and the product of the leg prices is
+wrong: corners, cards, fouls and shots in one match are strongly positively
+correlated, so the legs land together far more often than independence implies.
+The combined price is read off the operator's own Superbet screen and judged
+there. The script's contract types that field `None` so it cannot hold a value;
+do not reintroduce one in the report.
+
 ## Read the artifacts AND the DB
 
 ```
@@ -552,5 +575,6 @@ less unlikely than the product suggests, and is priced accordingly.
 - Never let tipster agreement change a tier, a `p_low`, or a minimum odds.
 - Never let `market_signal` change a `p_low` or a minimum odds. It may change a
   tier in exactly one case, spelled out above, and only when you say it did.
+- Never print a combined / Bet Builder / parlay price, however hedged.
 - Never read, echo or log `.env` values.
 - No stake sizing. No automated placement. Ever.
