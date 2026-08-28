@@ -1,4 +1,4 @@
-# Runbook: simple_stats pipeline (DISCOVER → ENRICH → ANALYZE)
+# Runbook: simple_stats pipeline (DISCOVER → ENRICH → MARKET_CONTEXT → TIPSTERS → ANALYZE)
 
 Implements `docs/PIPELINE_SIMPLIFICATION_PLAN.md`. Read section 13 of that
 document for what was verified live and which of its earlier assumptions no
@@ -155,6 +155,56 @@ Because the sort is by `p_low` across all three families, the low-line props
 carded in most matches, which is also why that side is priced at 1.05 and is not
 a bet. Group by family before reading.
 
+### The two optional columns
+
+Every field above is computed with no knowledge that either of these exists, and
+neither can reach `p_low`, `hit_rate`, `mean`, `median` or `confidence`.
+
+`row.tipster` — public-tipster agreement, from TIPSTERS.
+
+`row.market_signal` — a bookmaker price and an independent model probability,
+from MARKET_CONTEXT (`<date>_market_context.json`). It carries
+`model_probability`, `market_implied_probability` (de-vigged: the two legs of the
+line normalised against each other), `market_price`, `market_bookmaker` and a
+`verdict` of `CONFIRMS` / `CONTRADICTS` / `SPLIT` / `NO_MARKET_DATA`.
+
+Three things about it that read as bugs and are not:
+
+- **It exists only on `corners_total` rows.** bzzoiro's odds feed publishes
+  fourteen markets and none of them is cards, fouls or shots on target; the model
+  covers none of them either. `null` on those rows is the provider's coverage,
+  not a gap.
+- **An 11.5-corner row always reads `NO_MARKET_DATA`.** The model serves 8.5,
+  9.5 and 10.5 only. Nothing is interpolated — over 10.5 is evidence about a
+  different bet than over 11.5, not weak evidence about it.
+- **A verdict needs both numbers.** One agreeing figure is not triangulation, and
+  a line quoted on one side only yields a price but no probability, because there
+  is no second leg to remove the overround against.
+
+The prices come from ~88 bookmakers and **none of them is Superbet** (checked
+live 2026-08-28). Treat `market_price` as a market reference point; the operator
+still reads their own screen.
+
+## Bet Builder draft
+
+```bash
+python3 scripts/simple/bet_builder_draft.py \
+  --stats-sheet runs/$DATE/${DATE}_event_dossiers_stats_sheet.json \
+  --event-id <event_id> [--max-legs 4]
+```
+
+Stateless — reads one artifact, prints JSON, writes nothing, calls nothing. It
+selects `CALL`/`LEAN` rows only (never `WEAK`), one per market, ranked by
+`p_low`, and gives each leg `fair_odds = 1/p_low` and a `min_acceptable_odds`
+carrying the tier's margin.
+
+**It prints no combined price and its contract types that field `None` so it
+cannot hold one.** There is no bet-builder endpoint in any provider here, and the
+product of the legs would be wrong: corners, cards, fouls and shots in one match
+are strongly positively correlated, so they land together far more often than
+independence implies. `correlation_risk: HIGH` says so explicitly whenever two or
+more legs come from that family — which is almost any same-match multi.
+
 ## Flags that matter
 
 | Flag | Default | Why you would change it |
@@ -162,6 +212,8 @@ a bet. Group by family before reading.
 | `--preflight` (pipeline) | off | Check providers and stop. Zero calls. Run it first, every morning. |
 | `--max-events` (enrich) | 40 | A day is 150+ fixtures at several dozen provider calls each; no quota survives an uncapped run. Events beyond the cap appear in the artifact as `BLOCKED` with reason `not enriched: run capped at N events`. |
 | `--provider-call-budget` (enrich) | 100 | Per-provider ceiling **inside one run**, on top of the durable daily `RateLimiter`. `bzzoiro` is exempted up to 20000 (`RUN_BUDGET_OVERRIDES` in `providers.py`): at 100 it would run dry after three or four events, and since PRO removed its daily ceiling this per-run number is the only bound left — set where it cannot cap a real day, purely to terminate a runaway loop. Passing a larger value raises it further. |
+| `--max-events` (market_context) | 40 | Forwarded from the pipeline's own `--max-events`, so ENRICH and this step cap at the same number. Both rank the slate with `_enrichment_priority`, so the two budgets land on the same fixtures. Running them separately with different caps is how you pay for context on events that produce no row: on 2026-08-28 mismatched slices overlapped on 3 of 12 fixtures. ~4 calls per event. |
+| `--skip-market-context` (pipeline) | off | Do not fetch bookmaker odds or model predictions. The sheet is produced without `row.market_signal`. |
 | `--player-props` (enrich) | off | Collect per-player prop history: one call per outfield starter, ~20 extra per event. Needs a lineup, so it is only worth passing within a few hours of kickoff. Every prop row records whether the XI was `confirmed` or `predicted`. Not forwarded by `run_pipeline.py` — call `run_enrich.py` then `run_analyze.py` directly. |
 | `--backfill-from` (enrich) | off | Path to an earlier `EVENT_DOSSIER_V1` for the same date. Re-enriches only its `BLOCKED`/`PARTIAL` events, keeps that run's `run_id`, and merges back into the same file — replacing a dossier only when the retry reaches a better readiness, or the same readiness with more observations. Worth one pass per day now that bzzoiro has budget left for it. |
 | `--db-path` (all) | `betting/data/betting.db` | `bet.db.connection` refuses to guess an operational DB. Override, or set `BET_DB_PATH`. |
@@ -202,6 +254,23 @@ BET_LIMIT_SPORTDB=300       #   -1 = no local cap,  0 = disable the provider
 The limits in `src/bet/api_clients/rate_limiter.py` are conservative guesses,
 not measurements — the real number is in the provider's dashboard. Set
 `BET_LIMIT_<PROVIDER>` once you know it rather than editing code.
+
+### `BZZORIO_KEY` must also be **exported** for the MCP servers
+
+`.mcp.json` registers two bzzoiro MCP servers for the analyst agent and reads
+the key as `${BZZORIO_KEY}`. That expansion is done by the agent harness against
+the **process environment**, which is not the same thing as this repo's `.env`:
+the Python clients parse `.env` with `python-dotenv`, the harness does not. So a
+key that only lives in `.env` authenticates every pipeline call and none of the
+MCP calls, which surface as `-32001 Authentication required`.
+
+Export it in your shell profile as well:
+
+```bash
+export BZZORIO_KEY=...      # same value as the .env entry
+```
+
+The key is never written into `.mcp.json` itself — that file is committed.
 
 `bzzoiro` is the exception in the other direction: **it has no compiled default
 at all.** On the PRO plan the football product stops sending rate-limit headers

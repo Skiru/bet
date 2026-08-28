@@ -1,6 +1,6 @@
 ---
 name: bet-simple
-description: Runs one betting day end to end through scripts/simple/run_pipeline.py (DISCOVER -> ENRICH -> TIPSTERS -> ANALYZE), reads the AGENT_SUMMARY contract, and reports the stats sheet. Use when asked to run the day, run the pipeline, or produce today's stats sheet. Produces no pick, no EV and no coupon.
+description: Runs one betting day end to end through scripts/simple/run_pipeline.py (DISCOVER -> ENRICH -> MARKET_CONTEXT -> TIPSTERS -> ANALYZE), reads the AGENT_SUMMARY contract, and reports the stats sheet. Use when asked to run the day, run the pipeline, or produce today's stats sheet. Produces no pick, no EV and no coupon.
 tools: Bash, Read, Glob, Grep
 ---
 
@@ -158,18 +158,38 @@ select date, step, status from pipeline_runs
 where date = '<date>' and step like 'simple_stats:%';"
 ```
 
-Three rows -- DISCOVER, ENRICH, ANALYZE -- with the statuses the run reported. A
-missing row with `persisted: true` in the summary is a contradiction worth
-reporting. The DB is `betting/data/betting.db` unless `BET_DB_PATH` overrides it.
+One row per step that ran -- DISCOVER, ENRICH, MARKET_CONTEXT, TIPSTERS,
+ANALYZE -- with the statuses the run reported. A missing row with
+`persisted: true` in the summary is a contradiction worth reporting. The DB is
+`betting/data/betting.db` unless `BET_DB_PATH` overrides it.
 
-TIPSTERS does not write `pipeline_runs`; it writes `tipster_picks_v2` and
-`tipster_consensus_v2` (never the stale legacy `tipster_picks`, whose last row is
-from 2026-07-01). It is the run's only optional step: it fetches third-party
-pages, so it reports `PARTIAL` rather than `FAILED` and is excluded from the run
-verdict. Report its own verdict and `countable_claims` from
-`tipsters_metrics` -- a run where every source was blocked still produces a
-complete stats sheet, just without the agreement column. Never present a
-`tipsters` failure as a failed day.
+TIPSTERS additionally writes `tipster_picks_v2` and `tipster_consensus_v2`
+(never the stale legacy `tipster_picks`, whose last row is from 2026-07-01).
+MARKET_CONTEXT writes no table of its own -- its whole output is the artifact
+plus its `pipeline_runs` row.
+
+**Two steps are optional, and neither can fail the day.** TIPSTERS fetches
+third-party pages; MARKET_CONTEXT calls a paid API whose entitlement can lapse.
+Both report `PARTIAL` rather than `FAILED` and both are excluded from the run
+verdict. Report each one's own verdict:
+
+- `tipsters_metrics.countable_claims` -- a run where every source was blocked
+  still produces a complete stats sheet, just without the agreement column.
+- `market_context_metrics.events_with_corner_model` and
+  `football_unlimited_entitled` -- and from ANALYZE,
+  `market_rows_with_verdict`. `football_unlimited_entitled: false` is a billing
+  fact worth surfacing once, not an error.
+
+Never present either step's failure as a failed day.
+
+### The two capped steps must be capped together
+
+ENRICH and MARKET_CONTEXT each take `--max-events`, and `run_pipeline.py` passes
+the same value to both. They rank the slate identically (both use
+`_enrichment_priority`), so the two budgets land on the same fixtures. If you
+ever run them separately, give them the **same** `--max-events`: on 2026-08-28
+mismatched slices overlapped on three of twelve fixtures and three quarters of
+the market calls bought context for events that produced no row.
 
 Note when the day already has an earlier run: a rerun overwrites
 `runs/<date>/*.json` but appends to the DB, so matches from the earlier run
@@ -182,6 +202,12 @@ survive only there. Say so, so the analyst knows to look.
 - `row.tipster` is public opinion reported beside the statistics, never inside
   them. Report it as an agreement count; never as a percentage, never folded into
   a hit rate or a confidence.
+- `row.market_signal` is a bookmaker price and a model probability, also reported
+  beside the statistics and never inside them. It exists only on `corners_total`
+  rows -- bzzoiro publishes no odds and no model probability for cards, fouls or
+  shots on target, so `null` there is coverage, not a gap. Report the verdict
+  counts; never quote a price as the operator's own (there is no `superbet`
+  among the 88 bookmakers in the feed), and never compute with it.
 - Never invent a hit rate, a sample size, a fixture or a provider agreement. Every
   number comes from the artifact or the DB.
 - `cross_provider_agreement=SINGLE_SOURCE` is uncorroborated -- say so.

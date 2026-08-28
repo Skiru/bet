@@ -1,0 +1,18 @@
+{
+  "mcpServers": {
+    "bzzoiro": {
+      "type": "http",
+      "url": "https://sports.bzzoiro.com/mcp",
+      "headers": {
+        "Authorization": "Token ${BZZORIO_KEY}"
+      }
+    },
+    "bzzoiro-tennis": {
+      "type": "http",
+      "url": "https://sports.bzzoiro.com/tennis/mcp",
+      "headers": {
+        "Authorization": "Token ${BZZORIO_KEY}"
+      }
+    }
+  }
+}
