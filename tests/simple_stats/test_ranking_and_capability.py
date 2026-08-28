@@ -146,18 +146,76 @@ class TestEspnLeagueCapability:
             _provider_client("espn-football", "", RateLimiter())
 
     def test_a_league_without_a_team_directory_is_refused(self, monkeypatch):
+        # Saudi Arabia used to be the example here, on a sau.1 pin. ESPN does
+        # serve the Saudi league -- as ksa.1, with an 18-team directory -- so
+        # the refusal is now provoked by seeding the probe cache instead of by
+        # a code that was dead all along.
         from bet.api_clients.rate_limiter import RateLimiter
         from bet.simple_stats import providers
 
-        monkeypatch.setattr(providers, "_ESPN_TEAM_DIRECTORY", {"sau.1": False})
+        monkeypatch.setattr(
+            providers,
+            "_ESPN_TEAM_DIRECTORY",
+            {"ksa.1": providers._ESPNDirectory(served=False)},
+        )
         with pytest.raises(providers.ProviderLeagueUnsupported, match="no team directory"):
             providers._provider_client("espn-football", "Saudi Pro League", RateLimiter())
+
+    def test_a_two_hundred_with_an_empty_directory_is_also_refused(self, monkeypatch):
+        """ESPN answers 200 with no teams for retired codes (cze.1, fin.1,
+        usa.w.1, irl.1 -- verified 2026-08-28). Treating any 200 as success let
+        those past this gate, and resolve_team_id then failed as a team-name
+        problem."""
+        from bet.api_clients.rate_limiter import RateLimiter
+        from bet.simple_stats import providers
+
+        monkeypatch.setattr(
+            providers,
+            "_ESPN_TEAM_DIRECTORY",
+            {
+                "esp.1": providers._ESPNDirectory(
+                    served=True, league_name="Spanish LALIGA", team_count=0
+                )
+            },
+        )
+        with pytest.raises(providers.ProviderLeagueUnsupported, match="no team directory"):
+            providers._provider_client("espn-football", "La Liga - Spain", RateLimiter())
+
+    def test_a_pin_espns_own_league_name_contradicts_is_refused(self, monkeypatch):
+        """The check that catches a wrong division or gender inside the right
+        country -- the pin that otherwise answers with a real team and a real
+        season and feeds cross_provider_agreement without ever raising."""
+        from bet.api_clients.rate_limiter import RateLimiter
+        from bet.simple_stats import providers
+
+        monkeypatch.setattr(
+            providers,
+            "_ESPN_TEAM_DIRECTORY",
+            {
+                "esp.1": providers._ESPNDirectory(
+                    served=True, league_name="Spanish LALIGA", team_count=20
+                )
+            },
+        )
+        monkeypatch.setattr(
+            "bet.api_clients.espn.get_espn_league_for_competition", lambda _c: "esp.1"
+        )
+        with pytest.raises(providers.ProviderLeagueUnsupported, match="not trustworthy"):
+            providers._provider_client("espn-football", "Serie A - Italy", RateLimiter())
 
     def test_a_league_with_a_team_directory_is_built_and_scoped(self, monkeypatch):
         from bet.api_clients.rate_limiter import RateLimiter
         from bet.simple_stats import providers
 
-        monkeypatch.setattr(providers, "_ESPN_TEAM_DIRECTORY", {"esp.1": True})
+        monkeypatch.setattr(
+            providers,
+            "_ESPN_TEAM_DIRECTORY",
+            {
+                "esp.1": providers._ESPNDirectory(
+                    served=True, league_name="Spanish LALIGA", team_count=20
+                )
+            },
+        )
         client = providers._provider_client("espn-football", "La Liga - Spain", RateLimiter())
         assert client.league == "esp.1"
 

@@ -19,10 +19,11 @@ import logging
 import re
 import threading
 import unicodedata
-from pathlib import Path
-from difflib import SequenceMatcher
+from collections.abc import Iterable
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
+from difflib import SequenceMatcher
+from pathlib import Path
 from typing import Any
 
 from bet.api_clients import get_client
@@ -30,10 +31,13 @@ from bet.api_clients.bzzoiro import FINISHED_STATUSES as BZZOIRO_FINISHED_STATUS
 from bet.api_clients.bzzoiro_tennis import (
     FINISHED_STATUSES as BZZOIRO_TENNIS_FINISHED_STATUSES,
 )
+from bet.api_clients.espn import (
+    espn_country_pin_words,
+    get_espn_league_for_competition,
+)
 from bet.api_clients.rate_limiter import RateLimiter
 from bet.api_clients.sportdb_mcp import SportDBMCPShadowAdapter
 from bet.integration.source_result import SourceResultStatus
-
 from bet.simple_stats.contracts import ProviderValue
 
 logger = logging.getLogger(__name__)
@@ -243,7 +247,7 @@ _H2H_SUPPORTED_PROVIDERS = frozenset({"espn-football", "espn-tennis", "tennis-ab
 
 
 def _now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 # Per-provider run ceilings that override RunBudget's shared default.
@@ -308,7 +312,7 @@ class FetchOutcome:
     def add(self, canonical_name: str, value: ProviderValue) -> None:
         self.metrics.setdefault(canonical_name, []).append(value)
 
-    def merge(self, other: "FetchOutcome") -> None:
+    def merge(self, other: FetchOutcome) -> None:
         for name, values in other.metrics.items():
             self.metrics.setdefault(name, []).extend(values)
         self.data_gaps.extend(other.data_gaps)
@@ -516,28 +520,273 @@ class ProviderLeagueUnsupported(RuntimeError):
     """
 
 
-# league code -> does ESPN publish /teams for it. Populated by probing, never
-# hand-authored: the set of leagues ESPN gives a team directory to is ESPN's
-# business and changes without notice, so a literal list here would be a guess
-# that rots. One probe per league per process, memoised because ENRICH runs its
-# providers on a thread pool and would otherwise probe once per fixture.
-_ESPN_TEAM_DIRECTORY: dict[str, bool] = {}
+# league code -> what ESPN's /teams actually returned for it. Populated by
+# probing, never hand-authored: the set of leagues ESPN gives a team directory
+# to is ESPN's business and changes without notice, so a literal list here
+# would be a guess that rots. One probe per league per process, memoised
+# because ENRICH runs its providers on a thread pool and would otherwise probe
+# once per fixture.
+_ESPN_TEAM_DIRECTORY: dict[str, _ESPNDirectory] = {}
 _ESPN_TEAM_DIRECTORY_LOCK = threading.Lock()
 
 
-def _espn_league_has_team_directory(
+@dataclass(frozen=True)
+class _ESPNDirectory:
+    """What ESPN's /teams says about a league code.
+
+    ``league_name`` is ESPN's own name for the code and is the only
+    provider-side evidence available about *which* league a pin actually
+    points at, which is what makes _espn_pin_contradicted possible.
+    """
+
+    served: bool
+    league_name: str = ""
+    team_count: int = 0
+
+    @property
+    def usable(self) -> bool:
+        # A 200 with an empty team list is not a directory. ESPN answers that
+        # way for retired and never-populated codes -- verified 2026-08-28:
+        # cze.1 ("Gambrinus Liga"), fin.1 ("Finnish Veikkausliga"), usa.w.1
+        # ("USA Women's United Soccer Association") and irl.1 ("Irish Premier
+        # Division") all return 200 with zero teams. Treating 200 as success
+        # let all four past this gate, and resolve_team_id then failed with
+        # "could not resolve team identity for '<club>'" -- the team-name
+        # blame this gate exists to prevent.
+        return self.served and self.team_count > 0
+
+
+# The words that make a pin checkable against ESPN's own league name are the
+# resolver's words, composed onto the country -> code-prefix map next to them
+# (ESPN_COUNTRY_CODE_PREFIXES in api_clients/espn.py). This used to be a second
+# hand-kept list, and it had drifted: 24 spellings the resolver folds --
+# "osterreich", "ecuadorian", "italiana", "danmark", "brasil" and the rest --
+# were words this gate did not know. That is not a wrong answer, it is silence,
+# and silence here reads as a pass. Deriving the list means the safety net can
+# no longer be thinner than the resolver that feeds it.
+#
+# Still deliberately not a full language: the gate's job is to catch a
+# *contradiction*, so a token it does not know contributes nothing and the pin
+# is left alone.
+_ESPN_PIN_COUNTRY_WORDS = espn_country_pin_words()
+
+# Code prefixes that name a confederation or a competition family rather than a
+# country, so they carry no country evidence.
+_ESPN_NON_COUNTRY_PREFIXES = frozenset({
+    "uefa", "fifa", "conmebol", "concacaf", "afc", "caf", "club", "global",
+    "friendly", "nonfifa", "campeones",
+})
+
+_ESPN_PIN_WOMEN_WORDS = frozenset({
+    "women", "womens", "woman", "w", "frauen", "feminine", "feminin",
+    "femenina", "feminina", "femminile", "vrouwen", "damer", "ladies",
+})
+
+
+# Division markers, read as a tier *rank* so that a digit and a letter naming
+# the same tier compare equal.
+#
+# The digits were the whole check, and that is bug-shaped rather than
+# incomplete-shaped: measured against the 2026-08-28 table, "Bundesliga 2 -
+# Germany" mispinned to ger.1 was CAUGHT, while "Brasileirao Serie B" -> bra.1,
+# "Serie B - Italy" -> ita.1 and "Primera B Nacional" -> arg.1 were all MISSED,
+# purely because one names its tier with a digit and the others with a letter.
+# Those are the expensive misses: right country, real clubs, nothing raises,
+# and the phantom second provider goes on to feed cross_provider_agreement,
+# which is what promotes a row from LEAN to CALL.
+#
+# A letter only counts when the word before it names a league family. A bare
+# letter loose in a name means nothing -- "A-League" is aus.1, and a feed
+# spelling "UEFA Nations League - League B" names a seeding pot, not a tier --
+# so "league" is not a family word and neither is nothing at all.
+_ESPN_TIER_FAMILY_WORDS = frozenset({
+    "serie", "seria", "primera", "primeira", "segunda", "liga", "ligue",
+    "division", "divisione", "divisao", "divisie", "categoria", "nacional",
+    "klasse",
+})
+_ESPN_TIER_LETTERS = {"a": 1, "b": 2, "c": 3, "d": 4}
+# Ordinal words that name a tier on their own, in the languages where the word
+# is unambiguous. "primera"/"primeira"/"prima" are pointedly absent: Argentina's
+# Primera Nacional is the *second* tier, so the word does not carry the rank.
+_ESPN_TIER_WORDS = {
+    "segunda": 2, "seconda": 2, "zweite": 2, "deuxieme": 2,
+    "tercera": 3, "terza": 3, "dritte": 3,
+}
+# Single digits only: "2025" and "24" are season markers, not tiers. Word
+# numbers are deliberately never read -- English "League One" is the *third*
+# tier, so "one" does not mean 1 anywhere it appears.
+_ESPN_TIER_DIGITS = {"1", "2", "3", "4", "5"}
+
+
+def _espn_pin_tokens(text: str) -> list[str]:
+    """The words of a name, in order. Order matters only for tier letters."""
+    folded = unicodedata.normalize("NFKD", text.casefold())
+    folded = "".join(ch for ch in folded if not unicodedata.combining(ch))
+    return re.findall(r"[a-z0-9]+", folded)
+
+
+def _espn_pin_words(text: str) -> set[str]:
+    return set(_espn_pin_tokens(text))
+
+
+def _espn_division_ranks(tokens: list[str]) -> set[int]:
+    """Which tiers this name claims, as ranks. Empty means it claims none."""
+    ranks: set[int] = set()
+    previous = ""
+    for token in tokens:
+        if token in _ESPN_TIER_DIGITS:
+            ranks.add(int(token))
+        elif token in _ESPN_TIER_WORDS:
+            ranks.add(_ESPN_TIER_WORDS[token])
+        elif token in _ESPN_TIER_LETTERS and previous in _ESPN_TIER_FAMILY_WORDS:
+            ranks.add(_ESPN_TIER_LETTERS[token])
+        previous = token
+    return ranks
+
+
+def _espn_pin_contradicted(competition: str, league: str, league_name: str) -> str:
+    """Why ESPN's own league name disagrees with the competition, or "".
+
+    Defence in depth behind the competition table, not a substitute for it.
+    The table is exact-match and cannot guess, but a *typo* in it -- one code
+    pasted onto the wrong row -- produces exactly the failure that never
+    raises: a women's or second-division pin inside the right country answers
+    with a real team and a real season, so no data_gap is ever raised and the
+    phantom provider feeds cross_provider_agreement. Comparing the competition
+    name against the name ESPN files the code under is the only check that
+    sees that.
+
+    Only contradictions reject. An unrecognised word proves nothing and is
+    ignored, so this gate can never be the reason a correct pin is dropped.
+    """
+    if not league_name:
+        return ""
+    comp_tokens = _espn_pin_tokens(competition)
+    espn_tokens = _espn_pin_tokens(league_name)
+    comp_words = set(comp_tokens)
+    espn_words = set(espn_tokens)
+
+    comp_countries = {
+        _ESPN_PIN_COUNTRY_WORDS[w] for w in comp_words if w in _ESPN_PIN_COUNTRY_WORDS
+    }
+    espn_countries = {
+        _ESPN_PIN_COUNTRY_WORDS[w] for w in espn_words if w in _ESPN_PIN_COUNTRY_WORDS
+    }
+    # The code's own prefix is evidence too: ESPN names "ksa.1" the "Saudi Pro
+    # League", but names "rsa.1" the "South African Premiership", and only the
+    # code says which country a bare name belongs to.
+    code_country = league.split(".")[0]
+    if code_country.isalpha() and code_country not in _ESPN_NON_COUNTRY_PREFIXES:
+        espn_countries.add(code_country)
+    if comp_countries and espn_countries and not (comp_countries & espn_countries):
+        return (
+            f"competition names {sorted(comp_countries)} but ESPN files "
+            f"'{league}' as '{league_name}'"
+        )
+
+    # One-directional, and this is the limit of the check rather than an
+    # oversight: a competition that says "women" pinned to a men's league is the
+    # measured failure ("Frauen-Bundesliga" -> ger.1), and it is catchable. The
+    # reverse -- a men's competition pinned to a women's league -- is not, because
+    # a correct women's pin routinely has no gender word to compare: "WSL" and
+    # "NWSL" are the real feed names for eng.w.1 and usa.nwsl. Rejecting on the
+    # absence of a word would drop those two correct pins to catch a hypothetical
+    # one, and this gate must never be the reason a correct pin is dropped.
+    comp_women = bool(comp_words & _ESPN_PIN_WOMEN_WORDS)
+    espn_women = bool(espn_words & _ESPN_PIN_WOMEN_WORDS) or ".w." in f".{league}."
+    if comp_women and not espn_women:
+        return (
+            f"competition is women's but ESPN files '{league}' as '{league_name}'"
+        )
+
+    comp_div = _espn_division_ranks(comp_tokens)
+    espn_div = _espn_division_ranks(espn_tokens)
+    # The code's tail is the third witness, and the only one that reads "1":
+    # ESPN's name for a top flight rarely says which tier it is ("Argentine
+    # Liga Profesional"), so without the tail a competition claiming a second
+    # tier and a code pinned at a first tier had nothing to disagree about.
+    code_div = league.rsplit(".", 1)[-1]
+    if code_div in _ESPN_TIER_DIGITS:
+        espn_div.add(int(code_div))
+    if comp_div and espn_div and not (comp_div & espn_div):
+        return (
+            f"competition names division {sorted(comp_div)} but ESPN files "
+            f"'{league}' as '{league_name}'"
+        )
+    # Only a claim of a *lower* tier survives a code that names no tier at all.
+    # A cup code carries no rank in its tail, and "names division [1] but ESPN
+    # files it as a cup" is not a contradiction worth dropping a pin over.
+    if comp_div and not espn_div and max(comp_div) > 1:
+        return (
+            f"competition names division {sorted(comp_div)} but ESPN files "
+            f"'{league}' as top-flight '{league_name}'"
+        )
+    return ""
+
+
+def espn_competition_coverage(events: Iterable[Any]) -> dict[str, Any]:
+    """How much of a slate the ESPN competition table can name, and what it cannot.
+
+    The table is exact-match by design: an unenumerated feed spelling is a lost
+    provider rather than a wrong pin, which is the trade this whole module
+    makes on purpose. The cost of that trade is measurable on the day it is
+    paid and invisible afterwards -- coverage was measured once, on the
+    2026-08-28 slate, and nothing in a later run said whether it had held.
+
+    So the run says it. Fixture-weighted as well as name-weighted, because the
+    two disagree in exactly the case that matters: on 2026-08-28 "National
+    League" was one unresolved *name* and eleven unresolved *fixtures*, the
+    largest block in the slate.
+
+    Pure, and free: no network, no provider quota. Football only -- tennis
+    resolves through a tour marker, not a league table.
+    """
+    total = 0
+    resolved = 0
+    unresolved: dict[str, int] = {}
+    for event in events:
+        if getattr(event, "sport", None) != "football":
+            continue
+        competition = str(getattr(event, "competition", "") or "")
+        total += 1
+        if competition and get_espn_league_for_competition(competition):
+            resolved += 1
+        else:
+            unresolved[competition or "(no competition)"] = (
+                unresolved.get(competition or "(no competition)", 0) + 1
+            )
+    names = {str(getattr(e, "competition", "") or "") for e in events
+             if getattr(e, "sport", None) == "football"}
+    return {
+        "football_fixtures": total,
+        "fixtures_resolved": resolved,
+        "fixtures_unresolved_pct": (
+            round(100.0 * (total - resolved) / total, 1) if total else 0.0
+        ),
+        "competition_names": len(names),
+        "names_unresolved": len(unresolved),
+        # Named, not counted: every entry here is one authored table row away
+        # from being a second provider, and the name is the whole fix.
+        "unresolved_by_fixtures": dict(
+            sorted(unresolved.items(), key=lambda kv: (-kv[1], kv[0]))
+        ),
+    }
+
+
+def _espn_league_directory(
     sport: str, league: str, rate_limiter: RateLimiter
-) -> bool:
-    """Whether ESPN answers ``/teams`` for this league.
+) -> _ESPNDirectory:
+    """Ask ESPN what it serves for this league code, once per process.
 
     ESPN serves a team directory for its headline leagues and returns HTTP 404
     for the rest: verified live on 2026-08-25, ``esp.1`` returns 20 teams while
     ``sau.1`` and ``kor.1`` both 404, and ``/scoreboard`` answers 400 for them
     with and without a ``dates`` parameter. ``resolve_team_id`` swallows that
-    404 and returns None, so the whole failure previously surfaced as "could not
-    resolve team identity for 'Abha Club'" -- indistinguishable from a genuine
-    name mismatch, and the reason every row of the 2026-08-25 sheet came back
-    SINGLE_SOURCE off sportdb alone while ESPN sat on 10000 unspent requests.
+    404 and returns None, so the whole failure previously surfaced as "could
+    not resolve team identity for 'Abha Club'" -- indistinguishable from a
+    genuine name mismatch, and the reason every row of the 2026-08-25 sheet
+    came back SINGLE_SOURCE off sportdb alone while ESPN sat on 10000 unspent
+    requests.
     """
     with _ESPN_TEAM_DIRECTORY_LOCK:
         cached = _ESPN_TEAM_DIRECTORY.get(league)
@@ -548,14 +797,31 @@ def _espn_league_has_team_directory(
 
     try:
         probe = ESPNClient(sport=sport, league=league, rate_limiter=rate_limiter)
-        probe._request("/teams")
-        supported = True
+        payload = probe._request("/teams")
+        teams: list[Any] = []
+        name = ""
+        for sport_block in (payload or {}).get("sports", []):
+            for league_block in sport_block.get("leagues", []):
+                name = name or str(league_block.get("name") or "")
+                teams.extend(league_block.get("teams") or [])
+        result = _ESPNDirectory(served=True, league_name=name, team_count=len(teams))
     except Exception:  # noqa: BLE001 - a 404 and a transport error are both "no directory"
-        supported = False
+        result = _ESPNDirectory(served=False)
 
     with _ESPN_TEAM_DIRECTORY_LOCK:
-        _ESPN_TEAM_DIRECTORY[league] = supported
-    return supported
+        _ESPN_TEAM_DIRECTORY[league] = result
+    return result
+
+
+def _espn_league_has_team_directory(
+    sport: str, league: str, rate_limiter: RateLimiter
+) -> bool:
+    """Whether ESPN answers ``/teams`` for this league with actual teams.
+
+    Kept as the boolean face of _espn_league_directory for preflight, which
+    only needs to know whether the league is worth counting.
+    """
+    return _espn_league_directory(sport, league, rate_limiter).usable
 
 
 def _provider_client(provider_key: str, competition: str, rate_limiter: RateLimiter) -> Any:
@@ -578,7 +844,11 @@ def _provider_client(provider_key: str, competition: str, rate_limiter: RateLimi
     build one would break the only sport that currently corroborates.
     """
     if provider_key == "espn-football":
-        from bet.api_clients.espn import ESPNClient, get_espn_league_for_competition
+        from bet.api_clients.espn import (
+            ESPN_FOOTBALL_LEAGUE_CODES,
+            ESPNClient,
+            get_espn_league_for_competition,
+        )
 
         if not competition:
             raise ProviderLeagueUnsupported(
@@ -589,18 +859,42 @@ def _provider_client(provider_key: str, competition: str, rate_limiter: RateLimi
             raise ProviderLeagueUnsupported(
                 f"no ESPN league code for competition '{competition}'"
             )
-        if not _espn_league_has_team_directory("football", league, rate_limiter):
+        # The competition table serves every sport, so a football request must
+        # refuse a code that is not a football code. Without this, one mistyped
+        # table row pins an ESPNClient(sport="football") to "atp" and the
+        # failure surfaces as an unresolvable team name.
+        if league not in ESPN_FOOTBALL_LEAGUE_CODES:
+            raise ProviderLeagueUnsupported(
+                f"'{league}' ('{competition}') is not an ESPN football league code"
+            )
+        directory = _espn_league_directory("football", league, rate_limiter)
+        if not directory.usable:
             raise ProviderLeagueUnsupported(
                 f"ESPN publishes no team directory for league "
                 f"'{league}' ('{competition}'), so no history can be fetched"
             )
+        contradiction = _espn_pin_contradicted(
+            competition, league, directory.league_name
+        )
+        if contradiction:
+            raise ProviderLeagueUnsupported(
+                f"ESPN league pin for '{competition}' is not trustworthy: "
+                f"{contradiction}"
+            )
         return ESPNClient(sport="football", league=league, rate_limiter=rate_limiter)
-    if provider_key == "espn-tennis" and competition:
+    if provider_key == "espn-tennis":
         from bet.api_clients.espn import ESPNClient, get_espn_league_for_competition
 
-        league = get_espn_league_for_competition(competition)
-        if league:
+        # ESPN's tennis endpoints are tour-scoped, so an ATP-pinned client
+        # scanning for a WTA player gets a real scoreboard that simply never
+        # contains her. Only "atp"/"wta" may be pinned here; a football code
+        # arriving from the shared table is a table bug, not a tennis league.
+        league = get_espn_league_for_competition(competition) if competition else None
+        if league in {"atp", "wta"}:
             return ESPNClient(sport="tennis", league=league, rate_limiter=rate_limiter)
+        # No tour marker in the name: keep the default client, whose
+        # _resolve_athlete_id re-scopes to the tour ESPN files the player under.
+        return get_client(provider_key, rate_limiter=rate_limiter)
     return get_client(provider_key, rate_limiter=rate_limiter)
 
 
@@ -1038,7 +1332,7 @@ def _bzzoiro_window(as_of_date: str) -> tuple[str, str]:
     try:
         anchor = datetime.strptime(as_of_date[:10], "%Y-%m-%d")
     except (TypeError, ValueError):
-        anchor = datetime.now(timezone.utc).replace(tzinfo=None)
+        anchor = datetime.now(UTC).replace(tzinfo=None)
     start = anchor - timedelta(days=_BZZOIRO_HISTORY_WINDOW_DAYS)
     return start.strftime("%Y-%m-%d"), anchor.strftime("%Y-%m-%d")
 
@@ -1838,7 +2132,7 @@ def _is_recent(match_date: str) -> bool:
             parsed = datetime.strptime(match_date[:10], "%Y-%m-%d")
         except ValueError:
             return True
-    age = (datetime.now(timezone.utc).replace(tzinfo=None) - parsed).days
+    age = (datetime.now(UTC).replace(tzinfo=None) - parsed).days
     return age <= _MAX_OBSERVATION_AGE_DAYS
 
 # Minimum score for _sportdb_competition_refs to accept a search hit. A

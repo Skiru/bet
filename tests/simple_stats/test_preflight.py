@@ -137,10 +137,16 @@ def test_coverage_reports_two_provider_reach_not_the_most_generous_one(tmp_path)
 
 
 def test_coverage_is_bounded_by_what_a_provider_can_actually_serve(tmp_path):
-    """Quota is not capability. ESPN has no team directory for the Saudi league,
-    so an unlimited ESPN quota corroborates none of it -- which is how
-    2026-08-25 advertised three corroborable events and produced a sheet whose
-    140 rows were all SINGLE_SOURCE."""
+    """Quota is not capability: an unlimited ESPN quota corroborates nothing in
+    a competition ESPN has no surface for, which is how 2026-08-25 advertised
+    three corroborable events and produced a sheet whose 140 rows were all
+    SINGLE_SOURCE.
+
+    The Saudi league was the original example, on the assumption that ESPN could
+    not serve it. It can -- as ksa.1, with an 18-team directory; the old sau.1
+    pin was simply a dead code. Poland is the honest example now: pol.1 404s, so
+    the Ekstraklasa has no ESPN surface under any code, and resolving it returns
+    no code at all rather than a pin that fails later."""
     # api-football and highlightly exhausted, exactly as they were that day, so
     # ESPN and SportDB are the only candidates left to corroborate each other.
     # bzzoiro is exhausted alongside them: this test is about ESPN's *reach*, and
@@ -161,7 +167,7 @@ def test_coverage_is_bounded_by_what_a_provider_can_actually_serve(tmp_path):
     limiter.record_request("bzzoiro", "/x", 1)
     slate = _list(
         *(
-            _event(event_id=f"saudi-{i}", competition="Saudi Pro League")
+            _event(event_id=f"polish-{i}", competition="Ekstraklasa - Poland")
             for i in range(3)
         )
     )

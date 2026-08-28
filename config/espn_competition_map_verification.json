@@ -1,0 +1,1165 @@
+{
+  "codes": {
+    "afc.asian.cup": {
+      "espn_name": "AFC Asian Cup",
+      "pinned_by": [
+        "AFC Asian Cup"
+      ],
+      "swept": false,
+      "team_count": 24,
+      "verified_on": "2026-08-28"
+    },
+    "afc.champions": {
+      "espn_name": "AFC Champions League Elite",
+      "pinned_by": [
+        "AFC Champions League",
+        "AFC Champions League Elite"
+      ],
+      "swept": true,
+      "team_count": 32,
+      "verified_on": "2026-08-28"
+    },
+    "afc.cup": {
+      "espn_name": "AFC Champions League Two",
+      "pinned_by": [
+        "AFC Champions League Two"
+      ],
+      "swept": false,
+      "team_count": 33,
+      "verified_on": "2026-08-28"
+    },
+    "arg.1": {
+      "espn_name": "Argentine Liga Profesional de Fútbol",
+      "pinned_by": [
+        "Argentina Liga Profesional",
+        "Argentina Primera Division",
+        "Liga Profesional",
+        "Torneo Betano"
+      ],
+      "swept": true,
+      "team_count": 30,
+      "verified_on": "2026-08-28"
+    },
+    "arg.2": {
+      "espn_name": "Argentine Nacional B",
+      "pinned_by": [
+        "Argentina Nacional B",
+        "Primera Nacional"
+      ],
+      "swept": false,
+      "team_count": 36,
+      "verified_on": "2026-08-28"
+    },
+    "arg.copa": {
+      "espn_name": "Copa Argentina",
+      "pinned_by": [
+        "Copa Argentina"
+      ],
+      "swept": true,
+      "team_count": 64,
+      "verified_on": "2026-08-28"
+    },
+    "aus.1": {
+      "espn_name": "Australian A-League Men",
+      "pinned_by": [
+        "A-League",
+        "A-League Men",
+        "Australia A-League Men"
+      ],
+      "swept": true,
+      "team_count": 12,
+      "verified_on": "2026-08-28"
+    },
+    "aus.w.1": {
+      "espn_name": "Australian A-League Women",
+      "pinned_by": [
+        "A-League Women"
+      ],
+      "swept": false,
+      "team_count": 11,
+      "verified_on": "2026-08-28"
+    },
+    "aut.1": {
+      "espn_name": "Austrian Bundesliga",
+      "pinned_by": [
+        "Austria Bundesliga"
+      ],
+      "swept": true,
+      "team_count": 12,
+      "verified_on": "2026-08-28"
+    },
+    "bel.1": {
+      "espn_name": "Belgian Pro League",
+      "pinned_by": [
+        "Belgium First Division",
+        "Belgium First Division A",
+        "Belgium Jupiler Pro League",
+        "Belgium Pro League",
+        "Jupiler Pro League",
+        "Pro League"
+      ],
+      "swept": true,
+      "team_count": 18,
+      "verified_on": "2026-08-28"
+    },
+    "bol.1": {
+      "espn_name": "Bolivian Liga Profesional",
+      "pinned_by": [
+        "Bolivia Primera Division"
+      ],
+      "swept": true,
+      "team_count": 16,
+      "verified_on": "2026-08-28"
+    },
+    "bra.1": {
+      "espn_name": "Brazilian Serie A",
+      "pinned_by": [
+        "Brasileirao",
+        "Brasileiro",
+        "Brazil Serie A",
+        "Campeonato Brasileiro"
+      ],
+      "swept": true,
+      "team_count": 20,
+      "verified_on": "2026-08-28"
+    },
+    "bra.2": {
+      "espn_name": "Brazilian Serie B",
+      "pinned_by": [
+        "Brasileirao Serie B",
+        "Brazil Serie B"
+      ],
+      "swept": true,
+      "team_count": 22,
+      "verified_on": "2026-08-28"
+    },
+    "bra.copa_do_brazil": {
+      "espn_name": "Copa do Brasil",
+      "pinned_by": [
+        "Copa do Brasil"
+      ],
+      "swept": true,
+      "team_count": 126,
+      "verified_on": "2026-08-28"
+    },
+    "caf.champions": {
+      "espn_name": "CAF Champions League",
+      "pinned_by": [
+        "CAF Champions League"
+      ],
+      "swept": true,
+      "team_count": 58,
+      "verified_on": "2026-08-28"
+    },
+    "caf.confed": {
+      "espn_name": "CAF Confederation Cup",
+      "pinned_by": [
+        "CAF Confederation Cup"
+      ],
+      "swept": false,
+      "team_count": 48,
+      "verified_on": "2026-08-28"
+    },
+    "caf.nations": {
+      "espn_name": "Africa Cup of Nations",
+      "pinned_by": [
+        "AFCON",
+        "Africa Cup of Nations"
+      ],
+      "swept": true,
+      "team_count": 24,
+      "verified_on": "2026-08-28"
+    },
+    "chi.1": {
+      "espn_name": "Chilean Primera División",
+      "pinned_by": [
+        "Chile Primera Division"
+      ],
+      "swept": true,
+      "team_count": 16,
+      "verified_on": "2026-08-28"
+    },
+    "chn.1": {
+      "espn_name": "Chinese Super League",
+      "pinned_by": [
+        "China Super League"
+      ],
+      "swept": true,
+      "team_count": 16,
+      "verified_on": "2026-08-28"
+    },
+    "col.1": {
+      "espn_name": "Colombian Primera A",
+      "pinned_by": [
+        "Categoria Primera A",
+        "Colombia Primera A",
+        "Primera A"
+      ],
+      "swept": true,
+      "team_count": 20,
+      "verified_on": "2026-08-28"
+    },
+    "concacaf.champions": {
+      "espn_name": "Concacaf Champions Cup",
+      "pinned_by": [
+        "CONCACAF Champions Cup"
+      ],
+      "swept": true,
+      "team_count": 27,
+      "verified_on": "2026-08-28"
+    },
+    "concacaf.gold": {
+      "espn_name": "Concacaf Gold Cup",
+      "pinned_by": [
+        "CONCACAF Gold Cup",
+        "Gold Cup"
+      ],
+      "swept": true,
+      "team_count": 16,
+      "verified_on": "2026-08-28"
+    },
+    "concacaf.leagues.cup": {
+      "espn_name": "Leagues Cup",
+      "pinned_by": [
+        "Leagues Cup"
+      ],
+      "swept": true,
+      "team_count": 36,
+      "verified_on": "2026-08-28"
+    },
+    "concacaf.nations.league": {
+      "espn_name": "Concacaf Nations League",
+      "pinned_by": [
+        "CONCACAF Nations League"
+      ],
+      "swept": true,
+      "team_count": 37,
+      "verified_on": "2026-08-28"
+    },
+    "conmebol.america": {
+      "espn_name": "Copa América",
+      "pinned_by": [
+        "CONMEBOL Copa America",
+        "Copa America"
+      ],
+      "swept": true,
+      "team_count": 16,
+      "verified_on": "2026-08-28"
+    },
+    "conmebol.libertadores": {
+      "espn_name": "CONMEBOL Libertadores",
+      "pinned_by": [
+        "CONMEBOL Libertadores",
+        "Copa Libertadores",
+        "Libertadores"
+      ],
+      "swept": true,
+      "team_count": 46,
+      "verified_on": "2026-08-28"
+    },
+    "conmebol.recopa": {
+      "espn_name": "CONMEBOL Recopa",
+      "pinned_by": [
+        "Recopa Sudamericana"
+      ],
+      "swept": true,
+      "team_count": 2,
+      "verified_on": "2026-08-28"
+    },
+    "conmebol.sudamericana": {
+      "espn_name": "CONMEBOL Sudamericana",
+      "pinned_by": [
+        "CONMEBOL Sudamericana",
+        "Copa Sudamericana",
+        "Sudamericana"
+      ],
+      "swept": true,
+      "team_count": 56,
+      "verified_on": "2026-08-28"
+    },
+    "crc.1": {
+      "espn_name": "Costa Rican Primera Division",
+      "pinned_by": [
+        "Costa Rica Primera Division"
+      ],
+      "swept": false,
+      "team_count": 10,
+      "verified_on": "2026-08-28"
+    },
+    "cyp.1": {
+      "espn_name": "Cypriot First Division",
+      "pinned_by": [
+        "Cyprus First Division"
+      ],
+      "swept": true,
+      "team_count": 14,
+      "verified_on": "2026-08-28"
+    },
+    "den.1": {
+      "espn_name": "Danish Superliga",
+      "pinned_by": [
+        "Denmark Superliga"
+      ],
+      "swept": true,
+      "team_count": 12,
+      "verified_on": "2026-08-28"
+    },
+    "ecu.1": {
+      "espn_name": "LigaPro Ecuador",
+      "pinned_by": [
+        "Ecuador Serie A",
+        "LigaPro"
+      ],
+      "swept": true,
+      "team_count": 16,
+      "verified_on": "2026-08-28"
+    },
+    "eng.1": {
+      "espn_name": "English Premier League",
+      "pinned_by": [
+        "EPL",
+        "England Premier League",
+        "Premier League"
+      ],
+      "swept": true,
+      "team_count": 20,
+      "verified_on": "2026-08-28"
+    },
+    "eng.2": {
+      "espn_name": "English League Championship",
+      "pinned_by": [
+        "Championship",
+        "EFL Championship",
+        "England Championship"
+      ],
+      "swept": true,
+      "team_count": 24,
+      "verified_on": "2026-08-28"
+    },
+    "eng.3": {
+      "espn_name": "English League One",
+      "pinned_by": [
+        "EFL League One",
+        "England League One",
+        "League One"
+      ],
+      "swept": true,
+      "team_count": 24,
+      "verified_on": "2026-08-28"
+    },
+    "eng.4": {
+      "espn_name": "English League Two",
+      "pinned_by": [
+        "EFL League Two",
+        "England League Two",
+        "League Two"
+      ],
+      "swept": true,
+      "team_count": 24,
+      "verified_on": "2026-08-28"
+    },
+    "eng.5": {
+      "espn_name": "English National League",
+      "pinned_by": [
+        "England National League",
+        "National League",
+        "Vanarama National League"
+      ],
+      "swept": true,
+      "team_count": 24,
+      "verified_on": "2026-08-28"
+    },
+    "eng.fa": {
+      "espn_name": "English FA Cup",
+      "pinned_by": [
+        "FA Cup"
+      ],
+      "swept": true,
+      "team_count": 124,
+      "verified_on": "2026-08-28"
+    },
+    "eng.league_cup": {
+      "espn_name": "English Carabao Cup",
+      "pinned_by": [
+        "Carabao Cup",
+        "EFL Cup"
+      ],
+      "swept": false,
+      "team_count": 92,
+      "verified_on": "2026-08-28"
+    },
+    "eng.w.1": {
+      "espn_name": "English Women's Super League",
+      "pinned_by": [
+        "England Women's Super League",
+        "WSL",
+        "Women's Super League"
+      ],
+      "swept": true,
+      "team_count": 14,
+      "verified_on": "2026-08-28"
+    },
+    "esp.1": {
+      "espn_name": "Spanish LALIGA",
+      "pinned_by": [
+        "La Liga",
+        "LaLiga",
+        "LaLiga EA Sports",
+        "Spain La Liga"
+      ],
+      "swept": true,
+      "team_count": 20,
+      "verified_on": "2026-08-28"
+    },
+    "esp.2": {
+      "espn_name": "Spanish LALIGA 2",
+      "pinned_by": [
+        "La Liga 2",
+        "LaLiga 2",
+        "LaLiga Hypermotion",
+        "Segunda Division",
+        "Spain La Liga 2"
+      ],
+      "swept": true,
+      "team_count": 22,
+      "verified_on": "2026-08-28"
+    },
+    "esp.copa_del_rey": {
+      "espn_name": "Spanish Copa del Rey",
+      "pinned_by": [
+        "Copa del Rey"
+      ],
+      "swept": true,
+      "team_count": 126,
+      "verified_on": "2026-08-28"
+    },
+    "esp.super_cup": {
+      "espn_name": "Spanish Supercopa",
+      "pinned_by": [
+        "Supercopa de Espana"
+      ],
+      "swept": false,
+      "team_count": 4,
+      "verified_on": "2026-08-28"
+    },
+    "esp.w.1": {
+      "espn_name": "Spanish Liga F",
+      "pinned_by": [
+        "Liga F"
+      ],
+      "swept": false,
+      "team_count": 16,
+      "verified_on": "2026-08-28"
+    },
+    "fifa.cwc": {
+      "espn_name": "FIFA Club World Cup",
+      "pinned_by": [
+        "Club World Cup",
+        "FIFA Club World Cup"
+      ],
+      "swept": false,
+      "team_count": 32,
+      "verified_on": "2026-08-28"
+    },
+    "fifa.world": {
+      "espn_name": "FIFA World Cup",
+      "pinned_by": [
+        "FIFA World Cup",
+        "World Cup"
+      ],
+      "swept": true,
+      "team_count": 48,
+      "verified_on": "2026-08-28"
+    },
+    "fifa.worldq.afc": {
+      "espn_name": "FIFA World Cup Qualifying - AFC",
+      "pinned_by": [
+        "World Cup Qualifying AFC"
+      ],
+      "swept": true,
+      "team_count": 46,
+      "verified_on": "2026-08-28"
+    },
+    "fifa.worldq.caf": {
+      "espn_name": "FIFA World Cup Qualifying - CAF",
+      "pinned_by": [
+        "World Cup Qualifying CAF"
+      ],
+      "swept": true,
+      "team_count": 54,
+      "verified_on": "2026-08-28"
+    },
+    "fifa.worldq.concacaf": {
+      "espn_name": "FIFA World Cup Qualifying - Concacaf",
+      "pinned_by": [
+        "World Cup Qualifying CONCACAF"
+      ],
+      "swept": true,
+      "team_count": 32,
+      "verified_on": "2026-08-28"
+    },
+    "fifa.worldq.conmebol": {
+      "espn_name": "FIFA World Cup Qualifying - CONMEBOL",
+      "pinned_by": [
+        "World Cup Qualifying CONMEBOL"
+      ],
+      "swept": true,
+      "team_count": 10,
+      "verified_on": "2026-08-28"
+    },
+    "fifa.worldq.uefa": {
+      "espn_name": "FIFA World Cup Qualifying - UEFA",
+      "pinned_by": [
+        "World Cup Qualifying UEFA"
+      ],
+      "swept": true,
+      "team_count": 54,
+      "verified_on": "2026-08-28"
+    },
+    "fifa.wwc": {
+      "espn_name": "FIFA Women's World Cup",
+      "pinned_by": [
+        "FIFA Women's World Cup",
+        "Women's World Cup"
+      ],
+      "swept": false,
+      "team_count": 32,
+      "verified_on": "2026-08-28"
+    },
+    "fra.1": {
+      "espn_name": "French Ligue 1",
+      "pinned_by": [
+        "France Ligue 1",
+        "Ligue 1"
+      ],
+      "swept": true,
+      "team_count": 18,
+      "verified_on": "2026-08-28"
+    },
+    "fra.2": {
+      "espn_name": "French Ligue 2",
+      "pinned_by": [
+        "France Ligue 2",
+        "Ligue 2"
+      ],
+      "swept": true,
+      "team_count": 18,
+      "verified_on": "2026-08-28"
+    },
+    "fra.coupe_de_france": {
+      "espn_name": "Coupe de France",
+      "pinned_by": [
+        "Coupe de France"
+      ],
+      "swept": true,
+      "team_count": 64,
+      "verified_on": "2026-08-28"
+    },
+    "fra.super_cup": {
+      "espn_name": "French Trophee des Champions",
+      "pinned_by": [
+        "Trophee des Champions"
+      ],
+      "swept": false,
+      "team_count": 2,
+      "verified_on": "2026-08-28"
+    },
+    "fra.w.1": {
+      "espn_name": "French Première Ligue",
+      "pinned_by": [
+        "D1 Arkema",
+        "Division 1 Feminine",
+        "Premiere Ligue"
+      ],
+      "swept": true,
+      "team_count": 12,
+      "verified_on": "2026-08-28"
+    },
+    "ger.1": {
+      "espn_name": "German Bundesliga",
+      "pinned_by": [
+        "Bundesliga",
+        "Germany Bundesliga"
+      ],
+      "swept": true,
+      "team_count": 18,
+      "verified_on": "2026-08-28"
+    },
+    "ger.2": {
+      "espn_name": "German 2. Bundesliga",
+      "pinned_by": [
+        "2. Bundesliga",
+        "Bundesliga 2",
+        "Germany Bundesliga 2"
+      ],
+      "swept": true,
+      "team_count": 18,
+      "verified_on": "2026-08-28"
+    },
+    "ger.dfb_pokal": {
+      "espn_name": "German Cup",
+      "pinned_by": [
+        "DFB Pokal",
+        "German Cup"
+      ],
+      "swept": true,
+      "team_count": 64,
+      "verified_on": "2026-08-28"
+    },
+    "ger.super_cup": {
+      "espn_name": "German Supercup",
+      "pinned_by": [
+        "DFL Supercup"
+      ],
+      "swept": false,
+      "team_count": 2,
+      "verified_on": "2026-08-28"
+    },
+    "gre.1": {
+      "espn_name": "Greek Super League",
+      "pinned_by": [
+        "Greece Super League"
+      ],
+      "swept": true,
+      "team_count": 14,
+      "verified_on": "2026-08-28"
+    },
+    "gua.1": {
+      "espn_name": "Guatemalan Liga Nacional",
+      "pinned_by": [
+        "Guatemala Liga Nacional"
+      ],
+      "swept": false,
+      "team_count": 12,
+      "verified_on": "2026-08-28"
+    },
+    "hon.1": {
+      "espn_name": "Honduran Liga Nacional",
+      "pinned_by": [
+        "Honduras Liga Nacional"
+      ],
+      "swept": false,
+      "team_count": 12,
+      "verified_on": "2026-08-28"
+    },
+    "idn.1": {
+      "espn_name": "Indonesian Super League",
+      "pinned_by": [
+        "Indonesia Super League",
+        "Liga 1 Indonesia"
+      ],
+      "swept": true,
+      "team_count": 18,
+      "verified_on": "2026-08-28"
+    },
+    "ind.1": {
+      "espn_name": "Indian Super League",
+      "pinned_by": [
+        "ISL",
+        "India Super League"
+      ],
+      "swept": true,
+      "team_count": 14,
+      "verified_on": "2026-08-28"
+    },
+    "isr.1": {
+      "espn_name": "Israeli Premier League",
+      "pinned_by": [
+        "Israel Premier League",
+        "Ligat haAl"
+      ],
+      "swept": true,
+      "team_count": 14,
+      "verified_on": "2026-08-28"
+    },
+    "ita.1": {
+      "espn_name": "Italian Serie A",
+      "pinned_by": [
+        "Italy Serie A",
+        "Serie A"
+      ],
+      "swept": true,
+      "team_count": 20,
+      "verified_on": "2026-08-28"
+    },
+    "ita.2": {
+      "espn_name": "Italian Serie B",
+      "pinned_by": [
+        "Italy Serie B",
+        "Serie B"
+      ],
+      "swept": true,
+      "team_count": 20,
+      "verified_on": "2026-08-28"
+    },
+    "ita.coppa_italia": {
+      "espn_name": "Coppa Italia",
+      "pinned_by": [
+        "Coppa Italia"
+      ],
+      "swept": true,
+      "team_count": 46,
+      "verified_on": "2026-08-28"
+    },
+    "ita.super_cup": {
+      "espn_name": "Italian Supercoppa",
+      "pinned_by": [
+        "Supercoppa Italiana"
+      ],
+      "swept": false,
+      "team_count": 4,
+      "verified_on": "2026-08-28"
+    },
+    "jpn.1": {
+      "espn_name": "Japanese J.League",
+      "pinned_by": [
+        "J.League",
+        "J1 League",
+        "Japan J.League",
+        "Japan J1 League"
+      ],
+      "swept": true,
+      "team_count": 20,
+      "verified_on": "2026-08-28"
+    },
+    "ksa.1": {
+      "espn_name": "Saudi Pro League",
+      "pinned_by": [
+        "Roshn Saudi League",
+        "Saudi Arabia Pro League",
+        "Saudi Pro League",
+        "Saudi Professional League"
+      ],
+      "swept": true,
+      "team_count": 18,
+      "verified_on": "2026-08-28"
+    },
+    "ksa.kings.cup": {
+      "espn_name": "Saudi King's Cup",
+      "pinned_by": [
+        "Saudi King's Cup"
+      ],
+      "swept": false,
+      "team_count": 32,
+      "verified_on": "2026-08-28"
+    },
+    "mex.1": {
+      "espn_name": "Mexican Liga BBVA MX",
+      "pinned_by": [
+        "Liga MX",
+        "Mexico Liga MX"
+      ],
+      "swept": true,
+      "team_count": 18,
+      "verified_on": "2026-08-28"
+    },
+    "mex.2": {
+      "espn_name": "Mexican Liga de Expansión MX",
+      "pinned_by": [
+        "Liga de Expansion MX"
+      ],
+      "swept": false,
+      "team_count": 16,
+      "verified_on": "2026-08-28"
+    },
+    "ned.1": {
+      "espn_name": "Dutch Eredivisie",
+      "pinned_by": [
+        "Eredivisie",
+        "Netherlands Eredivisie"
+      ],
+      "swept": true,
+      "team_count": 18,
+      "verified_on": "2026-08-28"
+    },
+    "ned.2": {
+      "espn_name": "Dutch Keuken Kampioen Divisie",
+      "pinned_by": [
+        "Eerste Divisie",
+        "Keuken Kampioen Divisie"
+      ],
+      "swept": true,
+      "team_count": 20,
+      "verified_on": "2026-08-28"
+    },
+    "ned.cup": {
+      "espn_name": "Dutch KNVB Beker",
+      "pinned_by": [
+        "Dutch Cup",
+        "KNVB Beker"
+      ],
+      "swept": true,
+      "team_count": 64,
+      "verified_on": "2026-08-28"
+    },
+    "ned.supercup": {
+      "espn_name": "Dutch Johan Cruyff Shield",
+      "pinned_by": [
+        "Johan Cruyff Shield"
+      ],
+      "swept": false,
+      "team_count": 2,
+      "verified_on": "2026-08-28"
+    },
+    "ned.w.1": {
+      "espn_name": "Dutch Vrouwen Eredivisie",
+      "pinned_by": [
+        "Vrouwen Eredivisie"
+      ],
+      "swept": false,
+      "team_count": 10,
+      "verified_on": "2026-08-28"
+    },
+    "nga.1": {
+      "espn_name": "Nigerian Professional League",
+      "pinned_by": [
+        "NPFL",
+        "Nigeria NPFL",
+        "Nigeria Premier League",
+        "Nigeria Professional League"
+      ],
+      "swept": true,
+      "team_count": 20,
+      "verified_on": "2026-08-28"
+    },
+    "nor.1": {
+      "espn_name": "Norwegian Eliteserien",
+      "pinned_by": [
+        "Eliteserien"
+      ],
+      "swept": true,
+      "team_count": 16,
+      "verified_on": "2026-08-28"
+    },
+    "par.1": {
+      "espn_name": "Paraguayan Primera División",
+      "pinned_by": [
+        "Paraguay Primera Division"
+      ],
+      "swept": true,
+      "team_count": 12,
+      "verified_on": "2026-08-28"
+    },
+    "per.1": {
+      "espn_name": "Peruvian Liga 1",
+      "pinned_by": [
+        "Peru Liga 1"
+      ],
+      "swept": true,
+      "team_count": 18,
+      "verified_on": "2026-08-28"
+    },
+    "por.1": {
+      "espn_name": "Portuguese Primeira Liga",
+      "pinned_by": [
+        "Liga Portugal",
+        "Liga Portugal Betclic",
+        "Portugal Primeira Liga",
+        "Primeira Liga"
+      ],
+      "swept": true,
+      "team_count": 18,
+      "verified_on": "2026-08-28"
+    },
+    "por.taca.portugal": {
+      "espn_name": "Taca de Portugal",
+      "pinned_by": [
+        "Taca de Portugal"
+      ],
+      "swept": true,
+      "team_count": 94,
+      "verified_on": "2026-08-28"
+    },
+    "rou.1": {
+      "espn_name": "Romanian Liga 1",
+      "pinned_by": [
+        "Liga 1 Romania",
+        "Romania Liga 1",
+        "Romania Superliga"
+      ],
+      "swept": true,
+      "team_count": 16,
+      "verified_on": "2026-08-28"
+    },
+    "rsa.1": {
+      "espn_name": "South African Premiership",
+      "pinned_by": [
+        "PSL",
+        "South Africa Premiership"
+      ],
+      "swept": true,
+      "team_count": 16,
+      "verified_on": "2026-08-28"
+    },
+    "rus.1": {
+      "espn_name": "Russian Premier League",
+      "pinned_by": [
+        "Russia Premier League",
+        "Russian Premier Liga"
+      ],
+      "swept": true,
+      "team_count": 16,
+      "verified_on": "2026-08-28"
+    },
+    "sco.1": {
+      "espn_name": "Scottish Premiership",
+      "pinned_by": [
+        "Premiership",
+        "Scotland Premiership"
+      ],
+      "swept": true,
+      "team_count": 12,
+      "verified_on": "2026-08-28"
+    },
+    "sco.2": {
+      "espn_name": "Scottish Championship",
+      "pinned_by": [
+        "Scotland Championship"
+      ],
+      "swept": false,
+      "team_count": 10,
+      "verified_on": "2026-08-28"
+    },
+    "sco.cis": {
+      "espn_name": "Scottish League Cup",
+      "pinned_by": [
+        "Scottish League Cup"
+      ],
+      "swept": false,
+      "team_count": 45,
+      "verified_on": "2026-08-28"
+    },
+    "sco.tennents": {
+      "espn_name": "Scottish Cup",
+      "pinned_by": [
+        "Scottish Cup"
+      ],
+      "swept": false,
+      "team_count": 102,
+      "verified_on": "2026-08-28"
+    },
+    "slv.1": {
+      "espn_name": "Salvadoran Primera Division",
+      "pinned_by": [
+        "El Salvador Primera Division"
+      ],
+      "swept": false,
+      "team_count": 12,
+      "verified_on": "2026-08-28"
+    },
+    "sui.1": {
+      "espn_name": "Swiss Super League",
+      "pinned_by": [
+        "Switzerland Super League"
+      ],
+      "swept": true,
+      "team_count": 12,
+      "verified_on": "2026-08-28"
+    },
+    "swe.1": {
+      "espn_name": "Swedish Allsvenskan",
+      "pinned_by": [
+        "Allsvenskan"
+      ],
+      "swept": true,
+      "team_count": 16,
+      "verified_on": "2026-08-28"
+    },
+    "tha.1": {
+      "espn_name": "Thai League 1",
+      "pinned_by": [
+        "Thai League",
+        "Thailand League 1"
+      ],
+      "swept": true,
+      "team_count": 16,
+      "verified_on": "2026-08-28"
+    },
+    "tur.1": {
+      "espn_name": "Turkish Super Lig",
+      "pinned_by": [
+        "Super Lig",
+        "Trendyol Super Lig",
+        "Turkey Super League",
+        "Turkey Super Lig"
+      ],
+      "swept": true,
+      "team_count": 18,
+      "verified_on": "2026-08-28"
+    },
+    "uefa.champions": {
+      "espn_name": "UEFA Champions League",
+      "pinned_by": [
+        "Champions League",
+        "UCL",
+        "UEFA Champions League"
+      ],
+      "swept": true,
+      "team_count": 36,
+      "verified_on": "2026-08-28"
+    },
+    "uefa.champions_qual": {
+      "espn_name": "UEFA Champions League Qualifying",
+      "pinned_by": [],
+      "swept": true,
+      "team_count": 52,
+      "verified_on": "2026-08-28"
+    },
+    "uefa.euro": {
+      "espn_name": "UEFA European Championship",
+      "pinned_by": [
+        "Euro",
+        "European Championship"
+      ],
+      "swept": true,
+      "team_count": 24,
+      "verified_on": "2026-08-28"
+    },
+    "uefa.europa": {
+      "espn_name": "UEFA Europa League",
+      "pinned_by": [
+        "Europa League",
+        "UEFA Europa League",
+        "UEL"
+      ],
+      "swept": true,
+      "team_count": 36,
+      "verified_on": "2026-08-28"
+    },
+    "uefa.europa.conf": {
+      "espn_name": "UEFA Conference League",
+      "pinned_by": [
+        "Conference League",
+        "UEFA Conference League",
+        "UEFA Europa Conference League"
+      ],
+      "swept": true,
+      "team_count": 36,
+      "verified_on": "2026-08-28"
+    },
+    "uefa.europa.conf_qual": {
+      "espn_name": "UEFA Conference League Qualifying",
+      "pinned_by": [],
+      "swept": true,
+      "team_count": 153,
+      "verified_on": "2026-08-28"
+    },
+    "uefa.europa_qual": {
+      "espn_name": "UEFA Europa League Qualifying",
+      "pinned_by": [],
+      "swept": true,
+      "team_count": 52,
+      "verified_on": "2026-08-28"
+    },
+    "uefa.nations": {
+      "espn_name": "UEFA Nations League",
+      "pinned_by": [
+        "Nations League",
+        "UEFA Nations League"
+      ],
+      "swept": true,
+      "team_count": 54,
+      "verified_on": "2026-08-28"
+    },
+    "uefa.super_cup": {
+      "espn_name": "UEFA Super Cup",
+      "pinned_by": [
+        "UEFA Super Cup"
+      ],
+      "swept": false,
+      "team_count": 2,
+      "verified_on": "2026-08-28"
+    },
+    "uefa.w.nations": {
+      "espn_name": "UEFA Women's Nations League",
+      "pinned_by": [
+        "UEFA Women's Nations League",
+        "Women's Nations League"
+      ],
+      "swept": false,
+      "team_count": 53,
+      "verified_on": "2026-08-28"
+    },
+    "uefa.wchampions": {
+      "espn_name": "UEFA Women's Champions League",
+      "pinned_by": [
+        "UEFA Women's Champions League",
+        "Women's Champions League"
+      ],
+      "swept": false,
+      "team_count": 18,
+      "verified_on": "2026-08-28"
+    },
+    "uefa.weuro": {
+      "espn_name": "UEFA Women's European Championship",
+      "pinned_by": [
+        "UEFA Women's Euro",
+        "Women's Euro"
+      ],
+      "swept": false,
+      "team_count": 16,
+      "verified_on": "2026-08-28"
+    },
+    "uru.1": {
+      "espn_name": "Liga AUF Uruguaya",
+      "pinned_by": [
+        "Liga AUF Uruguaya",
+        "Uruguay Primera Division"
+      ],
+      "swept": true,
+      "team_count": 16,
+      "verified_on": "2026-08-28"
+    },
+    "usa.1": {
+      "espn_name": "MLS",
+      "pinned_by": [
+        "MLS",
+        "MLS Cup",
+        "Major League Soccer"
+      ],
+      "swept": true,
+      "team_count": 30,
+      "verified_on": "2026-08-28"
+    },
+    "usa.nwsl": {
+      "espn_name": "NWSL",
+      "pinned_by": [
+        "NWSL"
+      ],
+      "swept": true,
+      "team_count": 16,
+      "verified_on": "2026-08-28"
+    },
+    "usa.open": {
+      "espn_name": "U.S. Open Cup",
+      "pinned_by": [
+        "US Open Cup"
+      ],
+      "swept": false,
+      "team_count": 80,
+      "verified_on": "2026-08-28"
+    },
+    "usa.usl.1": {
+      "espn_name": "USL Championship",
+      "pinned_by": [
+        "USL Championship"
+      ],
+      "swept": false,
+      "team_count": 25,
+      "verified_on": "2026-08-28"
+    },
+    "ven.1": {
+      "espn_name": "Venezuelan Primera División",
+      "pinned_by": [
+        "Venezuela Primera Division"
+      ],
+      "swept": true,
+      "team_count": 14,
+      "verified_on": "2026-08-28"
+    }
+  },
+  "last_run": "2026-08-28",
+  "probe": "GET http://site.api.espn.com/apis/site/v2/sports/soccer/<code>/teams; a code counts as live only with a non-empty team directory",
+  "refuted": {},
+  "verified_by": "scripts/simple/verify_espn_competition_map.py"
+}

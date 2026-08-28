@@ -36,6 +36,7 @@ from bet.simple_stats.contracts import EventDossierListV1, EventListV1  # noqa: 
 from bet.simple_stats.enrich import enrich_events  # noqa: E402
 from bet.simple_stats.persistence import default_db_path, persist_pipeline_run  # noqa: E402
 from bet.simple_stats.preflight import enrich_preflight  # noqa: E402
+from bet.simple_stats.providers import espn_competition_coverage  # noqa: E402
 from bet.simple_stats.run_context import record_run  # noqa: E402
 
 STEP = "simple_stats:ENRICH"
@@ -250,6 +251,12 @@ def main() -> None:
         "planned_events": planned,
         "recommended_max_events": preflight["recommended_max_events"],
         "two_provider_coverage_by_sport": preflight["coverage_by_sport"],
+        # Drift signal for the ESPN competition table. It is exact-match, so an
+        # unenumerated feed spelling costs a provider silently; measured once
+        # on 2026-08-28 and invisible in every run since. Named here, with the
+        # unresolved competitions listed, because each one is a single authored
+        # table row away from being a second provider.
+        "espn_competition_coverage": espn_competition_coverage(event_list.events),
         "quota_thin_providers": [t["provider"] for t in preflight["thin"]],
         "output_path": str(output_path),
         "output_sha256": digest,

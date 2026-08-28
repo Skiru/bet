@@ -11,6 +11,8 @@ Base URL: http://site.api.espn.com/apis/site/v2/sports/{sport}/{league}/
 """
 
 import json
+import re
+import unicodedata
 from dataclasses import asdict
 from datetime import UTC, datetime
 from typing import TypeVar
@@ -46,6 +48,9 @@ __all__ = [
     "APIMatchStats",
     "ESPN_PARSER_VERSION",
     "COMPETITION_TO_ESPN_LEAGUE",
+    "ESPN_FOOTBALL_LEAGUE_CODES",
+    "ESPN_COUNTRY_CODE_PREFIXES",
+    "espn_country_pin_words",
     "get_espn_league_for_competition",
 ]
 
@@ -71,46 +76,33 @@ ESPN_SPORT_MAP = {
 }
 
 ESPN_LEAGUES = {
+    # Every code /teams-verified against ESPN on 2026-08-28 and kept only if it
+    # returned a non-empty team directory. This list drives the discovery sweep
+    # (scrapers/espn.py, stats/enrichment.py), which requests each league in
+    # turn, so a dead code here is a guaranteed 404 on every sweep. 21 of the
+    # 104 entries were dead: bul.1, conmebol.copa_america, cro.1, cze.1, egy.1,
+    # fin.1, geo.1, hun.1, kaz.1, kor.1, mor.1, pol.1, qat.1, sau.1, ser.1,
+    # svk.1, tun.1, uae.1, ukr.1, usa.w.1, uzb.1 -- cze.1, fin.1 and usa.w.1
+    # answering 200 with zero teams rather than 404.
+    #
+    # ksa.1, usa.nwsl and conmebol.america replace the dead sau.1, usa.w.1 and
+    # conmebol.copa_america: ESPN serves all three leagues, just under other
+    # codes. eng.4 and eng.5 are added because the 2026-08-28 slate carried 11
+    # English National League fixtures and this list could not see them.
     "football": [
-        # Top 5 European + major leagues
-        "eng.1", "esp.1", "ger.1", "ita.1", "fra.1",
-        "bra.1", "arg.1", "mex.1", "usa.1", "col.1",
-        "por.1", "ned.1", "bel.1", "tur.1", "sco.1",
-        "pol.1", "cze.1", "aut.1", "gre.1", "den.1",
-        "nor.1", "swe.1", "sui.1", "aus.1", "jpn.1",
-        "idn.1", "tha.1", "ven.1", "per.1", "bol.1",
-        "par.1", "ecu.1", "uru.1",
-        # Second divisions
-        "eng.2", "eng.3", "esp.2", "ger.2", "ita.2", "fra.2", "ned.2",
-        # European cups
-        "uefa.champions", "uefa.europa", "uefa.europa.conf",
-        "uefa.champions_qual", "uefa.europa_qual", "uefa.europa.conf_qual",
-        "uefa.nations",
-        # International tournaments
-        "fifa.world", "fifa.worldq.uefa", "fifa.worldq.conmebol", "fifa.worldq.afc",
-        "fifa.worldq.concacaf", "fifa.worldq.caf",
-        "uefa.euro", "conmebol.copa_america", "concacaf.gold",
-        "concacaf.nations.league", "concacaf.leagues.cup",
-        "caf.nations", "caf.champions",
-        # Club tournaments
-        "conmebol.libertadores", "conmebol.sudamericana",
-        "conmebol.recopa", "afc.champions", "concacaf.champions",
-        # Cup competitions
-        "eng.fa", "esp.copa_del_rey", "ger.dfb_pokal", "ita.coppa_italia",
-        "fra.coupe_de_france", "ned.cup", "por.taca.portugal",
-        "arg.copa", "bra.copa_do_brazil",
-        # More European first divisions
-        "rou.1", "ukr.1", "ser.1", "cro.1", "hun.1", "bul.1",
-        "svk.1", "fin.1", "isr.1", "cyp.1", "geo.1",
-        "kaz.1", "uzb.1", "rus.1",
-        # African
-        "rsa.1", "egy.1", "mor.1", "tun.1", "nga.1",
-        # Asian
-        "chn.1", "ind.1", "sau.1", "uae.1", "qat.1", "kor.1",
-        # Additional domestic
-        "bra.2", "chi.1",
-        # Women's
-        "eng.w.1", "usa.w.1", "fra.w.1",
+        "eng.1", "esp.1", "ger.1", "ita.1", "fra.1", "bra.1", "arg.1",
+        "mex.1", "usa.1", "col.1", "por.1", "ned.1", "bel.1", "tur.1",
+        "sco.1", "aut.1", "gre.1", "den.1", "nor.1", "swe.1", "sui.1",
+        "aus.1", "jpn.1", "idn.1", "tha.1", "ven.1", "per.1", "bol.1",
+        "par.1", "ecu.1", "uru.1", "eng.2", "eng.3", "esp.2", "ger.2",
+        "ita.2", "fra.2", "ned.2", "uefa.champions", "uefa.europa", "uefa.europa.conf", "uefa.champions_qual",
+        "uefa.europa_qual", "uefa.europa.conf_qual", "uefa.nations", "fifa.world", "fifa.worldq.uefa", "fifa.worldq.conmebol", "fifa.worldq.afc",
+        "fifa.worldq.concacaf", "fifa.worldq.caf", "uefa.euro", "concacaf.gold", "concacaf.nations.league", "concacaf.leagues.cup", "caf.nations",
+        "caf.champions", "conmebol.libertadores", "conmebol.sudamericana", "conmebol.recopa", "afc.champions", "concacaf.champions", "eng.fa",
+        "esp.copa_del_rey", "ger.dfb_pokal", "ita.coppa_italia", "fra.coupe_de_france", "ned.cup", "por.taca.portugal", "arg.copa",
+        "bra.copa_do_brazil", "rou.1", "isr.1", "cyp.1", "rus.1", "rsa.1", "nga.1",
+        "chn.1", "ind.1", "bra.2", "chi.1", "eng.w.1", "fra.w.1", "ksa.1",
+        "usa.nwsl", "conmebol.america", "eng.4", "eng.5",
     ],
     "basketball": ["nba", "wnba"],
     "hockey": ["nhl"],
@@ -118,135 +110,523 @@ ESPN_LEAGUES = {
     "volleyball": ["fivb.m", "fivb.w", "ncaa.w", "ncaa.m"],
 }
 
-# Competition name → ESPN league code (for football enrichment)
-COMPETITION_TO_ESPN_LEAGUE = {
-    # "epl" is how the odds-api feed names England's top flight, and without it
-    # the best-corroborated league in the sheet resolved to None: measured
-    # 2026-08-28, Crystal Palace - Manchester City came back SINGLE_SOURCE with
-    # "no ESPN league code for competition 'EPL'". Same shape as "npfl" below.
-    "premier league": "eng.1", "epl": "eng.1",
-    "championship": "eng.2",
-    "la liga": "esp.1", "laliga": "esp.1",
-    "bundesliga": "ger.1",
-    "2. bundesliga": "ger.2",
-    "serie a": "ita.1",
-    "serie b": "ita.2",
-    "ligue 1": "fra.1",
-    "ligue 2": "fra.2",
-    "brasileirão": "bra.1", "serie a brazil": "bra.1", "brasileiro": "bra.1",
-    "mls": "usa.1", "major league soccer": "usa.1",
-    "liga mx": "mex.1",
-    "liga profesional": "arg.1",
-    "primera a": "col.1",
-    "ligapro": "ecu.1",
-    "primeira liga": "por.1", "liga portugal": "por.1",
-    "eredivisie": "ned.1",
-    "pro league": "bel.1", "jupiler pro league": "bel.1",
-    "super lig": "tur.1", "süper lig": "tur.1",
-    "premiership": "sco.1", "scottish premiership": "sco.1",
-    "ekstraklasa": "pol.1",
-    "superliga": "den.1", "danish superliga": "den.1",
-    "eliteserien": "nor.1",
-    "allsvenskan": "swe.1",
-    "super league": "sui.1", "swiss super league": "sui.1",
-    "j.league": "jpn.1", "j1 league": "jpn.1",
-    "a-league": "aus.1", "a-league men": "aus.1",
-    "k league 1": "kor.1", "k league": "kor.1",
-    "primera division": "uru.1",
-    "primera division paraguay": "par.1",
-    "primera division bolivia": "bol.1",
-    "primera division peru": "per.1", "liga 1": "per.1",
-    "primera division venezuela": "ven.1",
-    "austrian bundesliga": "aut.1",
-    "czech first league": "cze.1", "gambrinus liga": "cze.1",
-    "super league greece": "gre.1",
-    "thai league 1": "tha.1",
-    "indonesian super league": "idn.1", "liga 1 indonesia": "idn.1",
-    # Domestic Cups
-    "fa cup": "eng.fa",
-    "copa del rey": "esp.copa_del_rey",
-    "dfb pokal": "ger.dfb_pokal", "german cup": "ger.dfb_pokal",
-    "coppa italia": "ita.coppa_italia",
-    "coupe de france": "fra.coupe_de_france",
-    "knvb beker": "ned.cup", "dutch cup": "ned.cup",
-    "copa do brasil": "bra.copa_do_brazil",
-    "copa argentina": "arg.copa",
-    # European cups
-    "champions league": "uefa.champions", "ucl": "uefa.champions",
-    "europa league": "uefa.europa", "uel": "uefa.europa",
-    "conference league": "uefa.europa.conf",
-    "nations league": "uefa.nations", "uefa nations league": "uefa.nations",
-    # International
-    "world cup": "fifa.world",
-    "euro": "uefa.euro", "european championship": "uefa.euro",
-    "copa america": "conmebol.copa_america",
-    "gold cup": "concacaf.gold",
-    "africa cup of nations": "caf.nations", "afcon": "caf.nations",
-    "concacaf nations league": "concacaf.nations.league",
-    "leagues cup": "concacaf.leagues.cup",
-    # South American clubs
-    "copa libertadores": "conmebol.libertadores", "libertadores": "conmebol.libertadores",
-    "copa sudamericana": "conmebol.sudamericana", "sudamericana": "conmebol.sudamericana",
-    # Asian clubs
-    "afc champions league": "afc.champions",
-    "caf champions league": "caf.champions",
-    # More European first divisions
-    "romanian liga 1": "rou.1", "liga 1 romania": "rou.1",
-    "ukrainian premier league": "ukr.1",
-    "serbian superliga": "ser.1",
-    "croatian hnl": "cro.1", "hnl": "cro.1",
-    "hungarian nb i": "hun.1", "nb i": "hun.1",
-    "bulgarian first league": "bul.1",
-    "slovak super liga": "svk.1",
-    "finnish veikkausliiga": "fin.1", "veikkausliiga": "fin.1",
-    "israeli premier league": "isr.1",
-    "cypriot first division": "cyp.1",
-    # Middle East / Asia
-    "saudi pro league": "sau.1", "saudi professional league": "sau.1",
-    "uae pro league": "uae.1",
-    "qatar stars league": "qat.1",
-    "chinese super league": "chn.1",
-    "indian super league": "ind.1", "isl": "ind.1",
-    # Second divisions and others
-    "league one": "eng.3",
-    "segunda division": "esp.2", "la liga 2": "esp.2",
-    "eerste divisie": "ned.2",
-    "serie b brazil": "bra.2",
-    "primera division chile": "chi.1",
-    # African
-    "south african premier": "rsa.1", "psl": "rsa.1",
-    "egyptian premier league": "egy.1",
-    "botola pro": "mor.1",
-    "ligue 1 tunisie": "tun.1",
-    "npfl": "nga.1", "nigerian premier league": "nga.1",
-    # Women
-    "wsl": "eng.w.1", "women's super league": "eng.w.1",
-    "nwsl": "usa.w.1",
-    "d1 arkema": "fra.w.1", "division 1 feminine": "fra.w.1",
-    # Tennis tournaments
-    "australian open": "atp",
-    "roland garros": "atp", "french open": "atp",
-    "wimbledon": "atp",
-    "us open tennis": "atp",
-    "internazionali bnl d'italia": "atp", "rome": "atp", "italian open": "atp",
-    "madrid open": "atp",
-    "indian wells": "atp", "bnp paribas open": "atp",
-    "miami open": "atp",
-    "monte carlo": "atp", "monte-carlo masters": "atp",
-    "canadian open": "atp", "rogers cup": "atp",
-    "cincinnati masters": "atp", "western & southern open": "atp",
-    "shanghai masters": "atp",
-    "paris masters": "atp",
-    "atp finals": "atp",
-    "wta finals": "wta",
-    # MMA
-    # (removed — sport no longer supported)
-    # Volleyball
-    "fivb world championship": "fivb.m",
-    "fivb nations league": "fivb.m",
-    "fivb men": "fivb.m",
-    "fivb women": "fivb.w",
+# --- Competition name -> ESPN league code --------------------------------
+#
+# Resolution has exactly two rules, in this order, and nothing else:
+#
+#   1. An explicit tour marker ("ATP", "WTA") names the tennis tour.
+#   2. The name is reduced to an order-free token signature and looked up in
+#      the authored table below. Hit or miss. No third rule.
+#
+# There is no substring pass and no similarity score. The previous resolver
+# fell back to "longest matching key wins", which quietly turned ~15 category
+# keys ("premier league", "super league", "bundesliga", "serie a",
+# "superliga", "la liga", "pro league", "primera division", ...) into
+# catch-alls for their country. Measured against the 41 competition names in
+# runs/2026-08-28, 8 of the 31 names it resolved got the wrong code, and 11 of
+# 12 probed real unmapped leagues ("Nepal Premier League", "Malta Premier
+# League", "Bhutan Super League", ...) came back with a confident wrong pin.
+#
+# Why a wrong pin is worse than no pin. A wrong *country* usually dies in
+# resolve_team_id and surfaces as a data_gap blaming the team name, so the
+# league bug never gets named. A wrong *division or gender inside the right
+# country* does not die at all: women's and reserve sides carry the parent
+# club's name, so ESPN answers with a real team and a real season -- just not
+# the one that was asked for. Nothing raises, and that phantom second provider
+# then feeds cross_provider_agreement, which is exactly what promotes a row
+# from LEAN to CALL. Returning None costs one provider. A wrong pin corrupts
+# the column the operator trusts most. See ProviderLeagueUnsupported in
+# simple_stats/providers.py for the loud version of the same defect.
+#
+# Names are asserted from knowledge; codes are proved from provider data.
+# Every code below was verified live on 2026-08-28 by requesting
+# /apis/site/v2/sports/soccer/<code>/teams and requiring a non-empty team
+# directory. That probe deleted 18 codes this table used to assert which ESPN
+# does not serve at all:
+#
+#   sau.1 (404)     "saudi pro league"  -> the real code is ksa.1, and the
+#                   2026-08-28 slate carried five Saudi fixtures
+#   usa.w.1 (empty) "nwsl"              -> the real code is usa.nwsl
+#   conmebol.copa_america (404)         -> the real code is conmebol.america
+#   pol.1, ukr.1, egy.1, kor.1, cro.1, hun.1, bul.1, ser.1, svk.1, qat.1,
+#   uae.1, tun.1, mor.1 (404), cze.1, fin.1 (200 with zero teams)
+#
+# ger.w.1 and por.2 were requested as fixes for "Frauen-Bundesliga" and "Liga
+# Portugal 2" and are NOT here on purpose: both 404. ESPN has no German
+# women's league and no Portuguese second tier, so those two names must stay
+# unresolved. "Adding the missing code" is only a fix when the code exists.
+#
+# Nothing in this table was copied out of a fuzzy match. A table built from
+# fuzzy output freezes the fuzzy matcher's mistakes as ground truth.
+
+# Tokens that carry no competition identity, dropped before the signature is
+# built. This is what lets "Nigeria Premier Football League" and "Nigerian
+# Premier League" reduce to the same key without either one being a substring
+# of the other.
+_ESPN_NOISE_TOKENS = frozenset({"football", "soccer", "futbol", "fussball", "de", "the"})
+
+# Applied token by token to both the authored keys and the incoming name, so
+# the two sides cannot drift apart. Country adjectives fold onto the country
+# noun because feeds alternate between them freely: the 2026-08-28 slate alone
+# carried "Austrian Football Bundesliga", "Bundesliga - Germany",
+# "Turkey Super League" and "Chinese Super League".
+_ESPN_TOKEN_SYNONYMS = {
+    # England
+    "english": "england", "eng": "england",
+    # Germany
+    "german": "germany", "deutschland": "germany",
+    # Spain
+    "spanish": "spain", "espana": "spain", "espanola": "spain",
+    # Italy
+    "italian": "italy", "italia": "italy", "italiana": "italy",
+    # France
+    "french": "france",
+    # Low Countries
+    "dutch": "netherlands", "holland": "netherlands", "nederland": "netherlands",
+    "belgian": "belgium", "belgique": "belgium",
+    # Iberia
+    "portuguese": "portugal", "portuguesa": "portugal",
+    # Rest of Europe
+    "turkish": "turkey", "turkiye": "turkey",
+    "scottish": "scotland",
+    "swiss": "switzerland", "suisse": "switzerland",
+    "austrian": "austria", "osterreich": "austria",
+    "greek": "greece", "hellenic": "greece",
+    "danish": "denmark", "danmark": "denmark",
+    "norwegian": "norway", "norge": "norway",
+    "swedish": "sweden", "sverige": "sweden",
+    "russian": "russia",
+    "romanian": "romania", "romaniei": "romania",
+    "cypriot": "cyprus",
+    "israeli": "israel",
+    "irish": "ireland",
+    # South America
+    "brazilian": "brazil", "brasil": "brazil",
+    "argentine": "argentina", "argentinian": "argentina",
+    "chilean": "chile",
+    "colombian": "colombia",
+    "ecuadorian": "ecuador",
+    "peruvian": "peru",
+    "uruguayan": "uruguay",
+    "paraguayan": "paraguay",
+    "bolivian": "bolivia",
+    "venezuelan": "venezuela",
+    # North America
+    "mexican": "mexico",
+    "american": "usa", "us": "usa",
+    # Asia / Oceania / Africa
+    "japanese": "japan",
+    "australian": "australia",
+    "chinese": "china",
+    "indian": "india",
+    "indonesian": "indonesia",
+    "thai": "thailand",
+    "nigerian": "nigeria",
+    "african": "africa",
+    # Division and gender markers. "ii"/"iii" are Roman division numbers; a
+    # bare single digit is left alone because it already is one ("Liga 1",
+    # "2. Bundesliga"). The gender fold is load-bearing: it is what makes
+    # "Frauen-Bundesliga" fail to match "Bundesliga" instead of silently
+    # answering with the men's league.
+    "ii": "2", "iii": "3",
+    "div": "division",
+    "women": "women", "womens": "women", "woman": "women", "w": "women",
+    "frauen": "women", "feminine": "women", "feminin": "women",
+    "femenina": "women", "feminina": "women", "femminile": "women",
+    "vrouwen": "women", "damer": "women",
 }
+
+# --- one country vocabulary, shared with the runtime gate ----------------
+#
+# Country noun -> the ESPN code prefix that country's leagues are filed under.
+#
+# This is the only place the resolver's vocabulary and the runtime pin gate's
+# vocabulary meet, and it exists because they had already drifted. The resolver
+# folds country adjectives onto the noun above so that "Austrian Football
+# Bundesliga" and "Austria Bundesliga" are one key; _espn_pin_contradicted in
+# simple_stats/providers.py needs the same words to read a country off a
+# competition name and compare it with the country ESPN files the code under.
+# Those were two hand-kept lists, and 24 words the resolver knew the gate did
+# not -- "osterreich", "ecuadorian", "italiana", "danmark", "brasil" and the
+# rest. That is not a wrong answer, it is worse: the gate's silence reads as a
+# pass, so the safety net was thinnest exactly where the resolver was most
+# permissive, and no test would have noticed them diverging further.
+#
+# espn_country_pin_words() composes _ESPN_TOKEN_SYNONYMS onto this map, so
+# teaching the resolver a new spelling teaches the gate the same spelling in
+# the same commit. A prefix absent from this map is not a bug by itself -- an
+# unknown word contributes no evidence and the pin is left alone -- but every
+# prefix the football table actually pins is listed, because silence is the
+# expensive failure. test_the_gate_knows_every_country_the_table_pins holds
+# that line.
+ESPN_COUNTRY_CODE_PREFIXES = {
+    # Europe
+    "england": "eng", "spain": "esp", "germany": "ger", "italy": "ita",
+    "france": "fra", "netherlands": "ned", "belgium": "bel",
+    "portugal": "por", "turkey": "tur", "scotland": "sco",
+    "switzerland": "sui", "austria": "aut", "greece": "gre",
+    "denmark": "den", "norway": "nor", "sweden": "swe", "russia": "rus",
+    "romania": "rou", "cyprus": "cyp", "israel": "isr",
+    # pol.1, ukr.1 and irl.1 have no ESPN team directory, so the table pins
+    # nothing to them. The words stay: the gate's job is to contradict a pin,
+    # and a pin at one of these codes is exactly the kind that needs
+    # contradicting if one is ever added back.
+    "poland": "pol", "ukraine": "ukr", "ireland": "irl",
+    # South America
+    "brazil": "bra", "argentina": "arg", "chile": "chi", "colombia": "col",
+    "ecuador": "ecu", "peru": "per", "uruguay": "uru", "paraguay": "par",
+    "bolivia": "bol", "venezuela": "ven",
+    # North and Central America. "costa" and "rica" both answer for crc so
+    # that either half of the country name carries the evidence.
+    "mexico": "mex", "usa": "usa", "costa": "crc", "rica": "crc",
+    "guatemala": "gua", "honduras": "hon", "salvador": "slv",
+    # Asia, Oceania, Africa. "arabia" is here alongside "saudi" because the
+    # feed spells it both ways ("Saudi Pro League", "Saudi Arabia Pro
+    # League"); "africa" answers rsa rather than caf because ESPN's only
+    # African league directory is South Africa's.
+    "japan": "jpn", "australia": "aus", "china": "chn", "india": "ind",
+    "indonesia": "idn", "thailand": "tha", "saudi": "ksa", "arabia": "ksa",
+    "nigeria": "nga", "africa": "rsa",
+}
+
+
+def espn_country_pin_words() -> dict[str, str]:
+    """Every country spelling the resolver understands -> its ESPN code prefix.
+
+    Built rather than authored: the adjective folds in _ESPN_TOKEN_SYNONYMS are
+    composed onto ESPN_COUNTRY_CODE_PREFIXES, so "osterreich" answers "aut"
+    because the resolver already folds it to "austria". Synonym targets that
+    are not countries ("women", "2", "division") drop out on their own.
+    """
+    words = dict(ESPN_COUNTRY_CODE_PREFIXES)
+    for spelling, folded in _ESPN_TOKEN_SYNONYMS.items():
+        prefix = ESPN_COUNTRY_CODE_PREFIXES.get(folded)
+        if prefix is not None:
+            words[spelling] = prefix
+    return words
+
+
+# An explicit tour marker is the only thing that resolves a tennis league.
+#
+# What this does NOT fix, checked rather than assumed: ESPN's tennis
+# /scoreboard is not tour-scoped in content. Verified 2026-08-28, the atp and
+# wta scoreboards return byte-identical competition sets, and Iga Swiatek's
+# matches are present in both, so a mispinned tour never lost a player's
+# history. The `dates` parameter returns the whole tournament window around
+# that date rather than one day, which is why the 9-date scan in
+# _get_athlete_recent_matches covers real history.
+#
+# What it does fix is identity precision. _resolve_athlete_id's first pass
+# requires the search hit's league to equal self.league, and only falls through
+# to a league-blind pass when it does not. With the tour pinned from the
+# competition name, women's draws resolve on the strict pass; the table used to
+# assert "atp" for every grand slam and masters event, which forced every WTA
+# player onto the loose pass. Those unconditional "atp" entries are gone.
+_ESPN_TENNIS_TOURS = frozenset({"atp", "wta"})
+
+# Football competition name -> ESPN league code. Every code /teams-verified.
+_ESPN_FOOTBALL_COMPETITIONS = {
+    # --- England ---------------------------------------------------------
+    # "EPL" is how the odds-api feed names the top flight, and without it the
+    # best-corroborated league in the sheet resolved to None: measured
+    # 2026-08-28, Crystal Palace - Manchester City came back SINGLE_SOURCE
+    # with "no ESPN league code for competition 'EPL'".
+    "Premier League": "eng.1",
+    "EPL": "eng.1",
+    "England Premier League": "eng.1",
+    "Championship": "eng.2",
+    "England Championship": "eng.2", "EFL Championship": "eng.2",
+    "League One": "eng.3", "England League One": "eng.3",
+    "EFL League One": "eng.3",
+    "League Two": "eng.4", "England League Two": "eng.4",
+    "EFL League Two": "eng.4",
+    # 11 of the 80 fixtures on 2026-08-28 were "National League" -- the single
+    # largest block in the slate -- and the old table left every one of them
+    # unresolved. Confirmed as England's fifth tier from the fixtures
+    # themselves (Wealdstone, Carlisle United, Tamworth, Woking, Gateshead);
+    # eng.5 serves a 24-team directory.
+    "National League": "eng.5",
+    "England National League": "eng.5", "Vanarama National League": "eng.5",
+    "FA Cup": "eng.fa",
+    "EFL Cup": "eng.league_cup", "Carabao Cup": "eng.league_cup",
+    "WSL": "eng.w.1",
+    "Women's Super League": "eng.w.1",
+    "England Women's Super League": "eng.w.1",
+    # --- Spain -----------------------------------------------------------
+    "La Liga": "esp.1", "LaLiga": "esp.1", "Spain La Liga": "esp.1",
+    "LaLiga EA Sports": "esp.1",
+    "La Liga 2": "esp.2", "LaLiga 2": "esp.2", "Spain La Liga 2": "esp.2",
+    "LaLiga Hypermotion": "esp.2",
+    "Segunda Division": "esp.2",
+    "Copa del Rey": "esp.copa_del_rey",
+    "Supercopa de Espana": "esp.super_cup",
+    "Liga F": "esp.w.1",
+    # --- Germany ---------------------------------------------------------
+    "Bundesliga": "ger.1", "Germany Bundesliga": "ger.1",
+    # "Bundesliga 2 - Germany" and "Austrian Football Bundesliga" both used to
+    # land on ger.1: the bare key "bundesliga" was the longest substring in
+    # each. Both now need their own signature, and get one.
+    "Bundesliga 2": "ger.2", "2. Bundesliga": "ger.2",
+    "Germany Bundesliga 2": "ger.2",
+    "DFB Pokal": "ger.dfb_pokal", "German Cup": "ger.dfb_pokal",
+    "DFL Supercup": "ger.super_cup",
+    # --- Italy -----------------------------------------------------------
+    "Serie A": "ita.1", "Italy Serie A": "ita.1",
+    "Serie B": "ita.2", "Italy Serie B": "ita.2",
+    "Coppa Italia": "ita.coppa_italia",
+    "Supercoppa Italiana": "ita.super_cup",
+    # --- France ----------------------------------------------------------
+    "Ligue 1": "fra.1", "France Ligue 1": "fra.1",
+    "Ligue 2": "fra.2", "France Ligue 2": "fra.2",
+    "Coupe de France": "fra.coupe_de_france",
+    "Trophee des Champions": "fra.super_cup",
+    "Premiere Ligue": "fra.w.1", "D1 Arkema": "fra.w.1",
+    "Division 1 Feminine": "fra.w.1",
+    # --- Netherlands -----------------------------------------------------
+    "Eredivisie": "ned.1", "Netherlands Eredivisie": "ned.1",
+    "Eerste Divisie": "ned.2", "Keuken Kampioen Divisie": "ned.2",
+    "KNVB Beker": "ned.cup", "Dutch Cup": "ned.cup",
+    "Johan Cruyff Shield": "ned.supercup",
+    "Vrouwen Eredivisie": "ned.w.1",
+    # --- Portugal --------------------------------------------------------
+    # "Liga Portugal 2" is deliberately absent: por.2 404s, so Portugal's
+    # second tier has no ESPN surface and must stay unresolved rather than
+    # borrow por.1 the way it used to.
+    "Primeira Liga": "por.1", "Liga Portugal": "por.1",
+    "Liga Portugal Betclic": "por.1", "Portugal Primeira Liga": "por.1",
+    "Taca de Portugal": "por.taca.portugal",
+    # --- Belgium ---------------------------------------------------------
+    "Pro League": "bel.1", "Jupiler Pro League": "bel.1",
+    "Belgium Jupiler Pro League": "bel.1",
+    "Belgium Pro League": "bel.1", "Belgium First Division": "bel.1",
+    "Belgium First Division A": "bel.1",
+    # --- Turkey ----------------------------------------------------------
+    # tur.1's ESPN name is "Turkish Super Lig". Both the Turkish and the
+    # English rendering appear in feeds, and "Turkey Super League" used to
+    # resolve to sui.1 because "super league" was the longest substring.
+    "Super Lig": "tur.1", "Turkey Super Lig": "tur.1",
+    "Trendyol Super Lig": "tur.1", "Turkey Super League": "tur.1",
+    # --- Rest of Europe --------------------------------------------------
+    "Premiership": "sco.1", "Scotland Premiership": "sco.1",
+    "Scotland Championship": "sco.2",
+    "Scottish Cup": "sco.tennents",
+    "Scottish League Cup": "sco.cis",
+    # Bare "Super League" is NOT here. It is the name of the top flight in
+    # Switzerland, Greece, China, India and Turkey among others, so the name on
+    # its own does not carry the answer; only the qualified forms do.
+    "Switzerland Super League": "sui.1",
+    "Austria Bundesliga": "aut.1",
+    "Greece Super League": "gre.1",
+    # Bare "Superliga" is NOT here either. The 2026-08-28 slate proves why:
+    # two fixtures came in as plain "Superliga" and resolved to den.1, but the
+    # teams were Universitatea Cluj, Petrolul Ploiesti, Voluntari and Otelul
+    # Galati -- Romania's Superliga, not Denmark's. Both countries call their
+    # top flight that. Denmark's own fixture that day arrived correctly
+    # qualified as "Denmark Superliga".
+    "Denmark Superliga": "den.1",
+    "Romania Superliga": "rou.1", "Liga 1 Romania": "rou.1",
+    "Romania Liga 1": "rou.1",
+    "Eliteserien": "nor.1",
+    "Allsvenskan": "swe.1",
+    # rus.1 serves a 16-team directory. "Premier League - Russia" used to
+    # resolve to eng.1.
+    "Russia Premier League": "rus.1", "Russian Premier Liga": "rus.1",
+    "Cyprus First Division": "cyp.1",
+    "Israel Premier League": "isr.1", "Ligat haAl": "isr.1",
+    # --- South America ---------------------------------------------------
+    "Brasileirao": "bra.1", "Brasileiro": "bra.1",
+    "Brazil Serie A": "bra.1", "Campeonato Brasileiro": "bra.1",
+    # "Brasileirao Serie B" used to resolve to bra.1: "brasileirao" is longer
+    # than "serie b", so the division marker lost the longest-match contest.
+    "Brasileirao Serie B": "bra.2", "Brazil Serie B": "bra.2",
+    "Copa do Brasil": "bra.copa_do_brazil",
+    "Liga Profesional": "arg.1", "Argentina Primera Division": "arg.1",
+    "Argentina Liga Profesional": "arg.1", "Torneo Betano": "arg.1",
+    "Primera Nacional": "arg.2", "Argentina Nacional B": "arg.2",
+    "Copa Argentina": "arg.copa",
+    "Chile Primera Division": "chi.1",
+    "Primera A": "col.1", "Categoria Primera A": "col.1",
+    "Colombia Primera A": "col.1",
+    "LigaPro": "ecu.1", "Ecuador Serie A": "ecu.1",
+    "Peru Liga 1": "per.1",
+    "Liga AUF Uruguaya": "uru.1", "Uruguay Primera Division": "uru.1",
+    "Paraguay Primera Division": "par.1",
+    "Bolivia Primera Division": "bol.1",
+    "Venezuela Primera Division": "ven.1",
+    # Bare "Primera Division" is NOT here. Argentina, Chile, Uruguay,
+    # Paraguay, Venezuela, Costa Rica and El Salvador all use it; it used to
+    # resolve to uru.1 for all of them.
+    # --- North and Central America ---------------------------------------
+    # ESPN files the MLS postseason under usa.1 with the regular season, so
+    # the playoff name resolves to the same code rather than to nothing.
+    "MLS": "usa.1", "Major League Soccer": "usa.1", "MLS Cup": "usa.1",
+    "US Open Cup": "usa.open",
+    "USL Championship": "usa.usl.1",
+    "NWSL": "usa.nwsl",
+    "Liga MX": "mex.1", "Mexico Liga MX": "mex.1",
+    "Liga de Expansion MX": "mex.2",
+    "Costa Rica Primera Division": "crc.1",
+    "Guatemala Liga Nacional": "gua.1",
+    "Honduras Liga Nacional": "hon.1",
+    "El Salvador Primera Division": "slv.1",
+    # --- Asia and Oceania ------------------------------------------------
+    "J.League": "jpn.1", "J1 League": "jpn.1", "Japan J.League": "jpn.1",
+    "Japan J1 League": "jpn.1",
+    "A-League": "aus.1", "A-League Men": "aus.1",
+    "Australia A-League Men": "aus.1",
+    "A-League Women": "aus.w.1",
+    "China Super League": "chn.1",
+    "India Super League": "ind.1", "ISL": "ind.1",
+    "Indonesia Super League": "idn.1", "Liga 1 Indonesia": "idn.1",
+    "Thailand League 1": "tha.1", "Thai League": "tha.1",
+    # Saudi Arabia's real code is ksa.1. sau.1, which this table asserted for
+    # both Saudi spellings, 404s -- and 5 of the 80 fixtures on 2026-08-28
+    # were Saudi Pro League, every one of them lost to a dead pin.
+    "Saudi Pro League": "ksa.1", "Saudi Professional League": "ksa.1",
+    "Saudi Arabia Pro League": "ksa.1", "Roshn Saudi League": "ksa.1",
+    "Saudi King's Cup": "ksa.kings.cup",
+    # --- Africa ----------------------------------------------------------
+    "South Africa Premiership": "rsa.1", "PSL": "rsa.1",
+    "Nigeria Premier League": "nga.1", "NPFL": "nga.1",
+    "Nigeria NPFL": "nga.1", "Nigeria Professional League": "nga.1",
+    # --- UEFA club and national ------------------------------------------
+    "Champions League": "uefa.champions", "UCL": "uefa.champions",
+    "UEFA Champions League": "uefa.champions",
+    "Europa League": "uefa.europa", "UEL": "uefa.europa",
+    "UEFA Europa League": "uefa.europa",
+    "Conference League": "uefa.europa.conf",
+    "UEFA Conference League": "uefa.europa.conf",
+    "UEFA Europa Conference League": "uefa.europa.conf",
+    "UEFA Super Cup": "uefa.super_cup",
+    "Nations League": "uefa.nations", "UEFA Nations League": "uefa.nations",
+    "Euro": "uefa.euro", "European Championship": "uefa.euro",
+    "Women's Champions League": "uefa.wchampions",
+    "UEFA Women's Champions League": "uefa.wchampions",
+    "Women's Euro": "uefa.weuro", "UEFA Women's Euro": "uefa.weuro",
+    "Women's Nations League": "uefa.w.nations",
+    "UEFA Women's Nations League": "uefa.w.nations",
+    # --- FIFA ------------------------------------------------------------
+    "World Cup": "fifa.world", "FIFA World Cup": "fifa.world",
+    "Women's World Cup": "fifa.wwc", "FIFA Women's World Cup": "fifa.wwc",
+    "Club World Cup": "fifa.cwc", "FIFA Club World Cup": "fifa.cwc",
+    "World Cup Qualifying UEFA": "fifa.worldq.uefa",
+    "World Cup Qualifying CONMEBOL": "fifa.worldq.conmebol",
+    "World Cup Qualifying AFC": "fifa.worldq.afc",
+    "World Cup Qualifying CAF": "fifa.worldq.caf",
+    "World Cup Qualifying CONCACAF": "fifa.worldq.concacaf",
+    # "Club Friendlies" is NOT here, though club.friendly serves a 610-team
+    # directory. A club.friendly-scoped client can only return friendlies, so
+    # the L10 it produces is not comparable to a league L10, and the 2026-08-28
+    # friendlies fixtures included reserve sides ("Leganes B") -- the exact
+    # shape that resolves to a real-but-wrong team. Weak evidence dressed as a
+    # second provider is what this table exists to prevent.
+    # --- CONMEBOL / CONCACAF / AFC / CAF ---------------------------------
+    "Copa Libertadores": "conmebol.libertadores",
+    "Libertadores": "conmebol.libertadores",
+    "Copa Sudamericana": "conmebol.sudamericana",
+    "Sudamericana": "conmebol.sudamericana",
+    "Recopa Sudamericana": "conmebol.recopa",
+    "Copa America": "conmebol.america",
+    "CONMEBOL Copa America": "conmebol.america",
+    "CONMEBOL Libertadores": "conmebol.libertadores",
+    "CONMEBOL Sudamericana": "conmebol.sudamericana",
+    "Gold Cup": "concacaf.gold", "CONCACAF Gold Cup": "concacaf.gold",
+    "CONCACAF Champions Cup": "concacaf.champions",
+    "CONCACAF Nations League": "concacaf.nations.league",
+    "Leagues Cup": "concacaf.leagues.cup",
+    "AFC Champions League": "afc.champions",
+    "AFC Champions League Elite": "afc.champions",
+    "AFC Champions League Two": "afc.cup",
+    "AFC Asian Cup": "afc.asian.cup",
+    "CAF Champions League": "caf.champions",
+    "CAF Confederation Cup": "caf.confed",
+    "Africa Cup of Nations": "caf.nations", "AFCON": "caf.nations",
+}
+
+# Non-football entries. These are NOT /teams-verified -- ESPN's volleyball
+# surface was never probed -- so they are kept out of the football code set
+# and out of the football provider's accept-list.
+_ESPN_OTHER_COMPETITIONS = {
+    "FIVB World Championship": "fivb.m",
+    "FIVB Nations League": "fivb.m",
+    "FIVB Men": "fivb.m",
+    "FIVB Women": "fivb.w",
+}
+
+# Kept as a name -> code mapping for readability and for callers that import
+# it; lookups go through _ESPN_SIGNATURE_TO_LEAGUE, derived below.
+COMPETITION_TO_ESPN_LEAGUE = {
+    **{k.lower(): v for k, v in _ESPN_FOOTBALL_COMPETITIONS.items()},
+    **{k.lower(): v for k, v in _ESPN_OTHER_COMPETITIONS.items()},
+}
+
+# The set _provider_client is allowed to pin an ESPN football client to. A
+# football request must never be handed "atp", and a tennis request must never
+# be handed "eng.1"; without an explicit accept-list a single mistyped table
+# entry crosses the sports silently.
+ESPN_FOOTBALL_LEAGUE_CODES = frozenset(_ESPN_FOOTBALL_COMPETITIONS.values())
+
+
+# League names that are one word in some feeds and two in others, folded to a
+# single token so both spellings produce the same signature. Without this,
+# "LaLiga EA Sports" and "La Liga - Spain" are unrelated keys, and "A-League"
+# tokenises to {a, league} -- a one-letter token loose in the signature space.
+_ESPN_PHRASE_ALIASES = (
+    ("la liga", "laliga"),
+    ("a league", "aleague"),
+)
+
+
+def _espn_name_signature(name: str) -> frozenset[str]:
+    """Reduce a competition name to the order-free token set used for lookup.
+
+    Order-free on purpose: feeds render the same league as "Super League -
+    China", "Chinese Super League" and "China Super League", and a signature
+    makes those one key instead of three substring hazards.
+    """
+    folded = unicodedata.normalize("NFKD", name.casefold())
+    folded = "".join(ch for ch in folded if not unicodedata.combining(ch))
+    spaced = " " + re.sub(r"[^a-z0-9]+", " ", folded).strip() + " "
+    for phrase, atom in _ESPN_PHRASE_ALIASES:
+        spaced = spaced.replace(f" {phrase} ", f" {atom} ")
+    tokens: set[str] = set()
+    for raw in spaced.split():
+        # Season markers: "2025", "2025/26", "24-25". A *single* digit is a
+        # division number ("Liga 1", "2. Bundesliga") and is always kept.
+        if raw.isdigit() and len(raw) >= 2:
+            continue
+        token = _ESPN_TOKEN_SYNONYMS.get(raw, raw)
+        if token in _ESPN_NOISE_TOKENS:
+            continue
+        tokens.add(token)
+    return frozenset(tokens)
+
+
+def _build_espn_signature_index() -> dict[frozenset[str], str]:
+    """Index the authored table by signature, refusing to hide a collision.
+
+    Two authored names that reduce to the same signature but different codes
+    mean the signature cannot decide between them, and silently keeping one is
+    how a table starts guessing. Raise instead: it is a table bug, and it
+    surfaces at import, in the first test that runs.
+    """
+    index: dict[frozenset[str], str] = {}
+    for name, code in {**_ESPN_FOOTBALL_COMPETITIONS, **_ESPN_OTHER_COMPETITIONS}.items():
+        signature = _espn_name_signature(name)
+        if not signature:
+            raise ValueError(f"competition name reduces to an empty signature: {name!r}")
+        existing = index.get(signature)
+        if existing is not None and existing != code:
+            raise ValueError(
+                f"ambiguous ESPN competition signature {sorted(signature)}: "
+                f"{name!r} wants {code!r} but the same signature already maps "
+                f"to {existing!r}"
+            )
+        index[signature] = code
+    return index
+
+
+_ESPN_SIGNATURE_TO_LEAGUE = _build_espn_signature_index()
 
 # --- Stat Mappings: ESPN name → normalized key ---
 
@@ -1404,17 +1784,19 @@ class ESPNClient(BaseAPIClient):
                 teams_list.append(t)
 
         # Fail-closed matching: exact/abbr first, then constrained contains/location.
-        name_lower = team_name.lower()
+        name_lower = _fold_espn_participant_name(team_name)
+        if not name_lower:
+            return None
         exact_matches = []
         abbreviation_matches = []
         contains_matches = []
         location_matches = []
 
         for t in teams_list:
-            display = t.get("displayName", "").lower()
-            short = t.get("shortDisplayName", "").lower()
-            abbr = t.get("abbreviation", "").lower()
-            location = t.get("location", "").lower()
+            display = _fold_espn_participant_name(t.get("displayName", ""))
+            short = _fold_espn_participant_name(t.get("shortDisplayName", ""))
+            abbr = _fold_espn_participant_name(t.get("abbreviation", ""))
+            location = _fold_espn_participant_name(t.get("location", ""))
 
             if display == name_lower or short == name_lower:
                 exact_matches.append(t)
@@ -1466,7 +1848,9 @@ class ESPNClient(BaseAPIClient):
         if cached:
             return cached.get("team_id")
 
-        name_lower = athlete_name.lower().strip()
+        name_lower = _fold_espn_participant_name(athlete_name)
+        if not name_lower:
+            return None
 
         # Method 1: ESPN Web Search API (works for ALL players, not just today's matches)
         try:
@@ -1480,7 +1864,7 @@ class ESPNClient(BaseAPIClient):
                 search_data = resp.json()
                 items = search_data.get("items", [])
                 for item in items:
-                    item_name = item.get("displayName", "").lower()
+                    item_name = _fold_espn_participant_name(item.get("displayName", ""))
                     item_sport = item.get("sport", "").lower()
                     item_league = item.get("league", "").lower()
                     # Match by name AND league (atp/wta)
@@ -1489,18 +1873,47 @@ class ESPNClient(BaseAPIClient):
                             and item_league == self.league:
                         aid = item.get("id", "")
                         if aid:
-                            self._save_cache(cache_key, {"team_id": aid})
+                            self._save_cache(cache_key, {"team_id": aid, "league": item_league})
                             return aid
-                # Try less strict match (just sport, ignore league for doubles etc.)
-                for item in items:
-                    item_name = item.get("displayName", "").lower()
-                    item_sport = item.get("sport", "").lower()
-                    if (item_name == name_lower or name_lower in item_name) \
-                            and item_sport == self.sport:
-                        aid = item.get("id", "")
-                        if aid:
-                            self._save_cache(cache_key, {"team_id": aid})
-                            return aid
+                # Fallback pass: right sport, any tour. This is the pass that
+                # can answer with a different person, because it drops the
+                # league check and matches on a substring -- ESPN's search for
+                # "Zverev" returns both Alexander Zverev (atp) and Vlada
+                # Zvereva (wta), verified 2026-08-28. An exact display-name hit
+                # is therefore preferred, and an ambiguous surname resolves to
+                # nothing rather than to whichever player ESPN ranked first: a
+                # data_gap costs one provider, the wrong player's L10 corrupts
+                # the row while looking like evidence.
+                exact = [
+                    item for item in items
+                    if _fold_espn_participant_name(item.get("displayName", "")) == name_lower
+                    and item.get("sport", "").lower() == self.sport
+                    and item.get("id")
+                ]
+                loose = [
+                    item for item in items
+                    if name_lower in _fold_espn_participant_name(item.get("displayName", ""))
+                    and item.get("sport", "").lower() == self.sport
+                    and item.get("id")
+                ]
+                candidates = exact or loose
+                distinct_ids = {str(item["id"]) for item in candidates}
+                if len(distinct_ids) == 1:
+                    aid = str(candidates[0]["id"])
+                    self._save_cache(cache_key, {
+                        "team_id": aid,
+                        "league": candidates[0].get("league", "").lower(),
+                    })
+                    return aid
+                if len(distinct_ids) > 1:
+                    names = ", ".join(
+                        sorted({item.get("displayName", "") for item in candidates})
+                    )
+                    print(
+                        f"[{self.api_name}] '{athlete_name}' matches more than one "
+                        f"ESPN athlete ({names}); refusing to guess"
+                    )
+                    return None
         except Exception as e:
             print(f"[{self.api_name}] ESPN search API failed for '{athlete_name}': {e}")
 
@@ -2354,41 +2767,54 @@ class ESPNClient(BaseAPIClient):
         return {}
 
 
-def get_espn_league_for_competition(competition_name: str) -> str | None:
-    """Determine ESPN league code from a competition name.
+def _fold_espn_participant_name(name: str) -> str:
+    """Case-, accent- and separator-insensitive form of a team or player name.
 
-    Returns None if competition is not in ESPN's coverage.
+    Both sides of every name comparison go through this, because the feed and
+    ESPN disagree on all three routinely. Measured against the 2026-08-28 slate
+    with the leagues correctly pinned, bare ``.lower()`` matching lost:
+
+      Al-Hilal / Al-Nassr / Al-Riyadh / Al-Fayha / Al-Khaleej / Al-Taawoun
+                              ESPN writes these with a space, not a hyphen --
+                              five Saudi fixtures, no team resolved
+      Paris Saint Germain     ESPN writes "Paris Saint-Germain"
+      VfL Osnabrück           ESPN writes "VfL Osnabruck"
+      Gençlerbirliği          ESPN writes "Genclerbirligi"
+      Anna Bondár             ESPN writes "Anna Bondar" -- ESPN's own search
+                              returns the right player for the accented query
+                              and the comparison then threw the answer away
+
+    Every one of those surfaced as "could not resolve team identity for
+    '<name>'", i.e. as a fuzzy-matching problem with the name, which is the
+    same misdirection a wrong league pin produces.
+    """
+    folded = unicodedata.normalize("NFKD", name.casefold())
+    folded = "".join(ch for ch in folded if not unicodedata.combining(ch))
+    return re.sub(r"[^a-z0-9]+", " ", folded).strip()
+
+
+def get_espn_league_for_competition(competition_name: str) -> str | None:
+    """Resolve a competition name to an ESPN league code, or None.
+
+    None is a valid, common and *safe* answer. Callers must treat it as "ESPN
+    cannot cover this competition" and drop the provider, never as "try the
+    default league": see ProviderLeagueUnsupported in simple_stats/providers.py
+    for what the default-league fallback used to cost.
     """
     if not competition_name:
         return None
-    import re
 
-    name_lower = competition_name.lower().strip().replace("_", " ").replace("-", " ")
-    name_lower = re.sub(r"\b\d{4}\s+\d{2}\b\s*", "", name_lower).strip()
-    name_lower = re.sub(r"\s+", " ", name_lower)
+    signature = _espn_name_signature(competition_name)
+    if not signature:
+        return None
 
-    # 1. Exact match
-    if name_lower in COMPETITION_TO_ESPN_LEAGUE:
-        return COMPETITION_TO_ESPN_LEAGUE[name_lower]
+    # An explicit tour marker outranks the table, because it is the one piece
+    # of tennis information the feed states outright. Both markers at once
+    # ("ATP/WTA Mixed") names no single tour, so it resolves to nothing.
+    tours = signature & _ESPN_TENNIS_TOURS
+    if len(tours) == 1:
+        return next(iter(tours))
+    if tours:
+        return None
 
-    # 2 & 3. Substring match. Short keys are abbreviations ("epl", "ucl",
-    # "mls") and match on a word boundary instead, because a bare substring
-    # test on three letters stops asserting and starts guessing: "epl" is
-    # inside "nepal premier league" and "kepler cup", and longest-match would
-    # hand both to eng.1. A word test still resolves "euro 2028" and "mls cup",
-    # which an exact-only rule would drop.
-    matches = []
-    for key, code in COMPETITION_TO_ESPN_LEAGUE.items():
-        if len(key) < 5:
-            if re.search(rf"\b{re.escape(key)}\b", name_lower):
-                matches.append((key, code))
-            continue
-        if key in name_lower or name_lower in key:
-            matches.append((key, code))
-
-    if matches:
-        # Sort by length descending, pick the longest match
-        matches.sort(key=lambda x: len(x[0]), reverse=True)
-        return matches[0][1]
-
-    return None
+    return _ESPN_SIGNATURE_TO_LEAGUE.get(signature)
