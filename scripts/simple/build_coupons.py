@@ -22,6 +22,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -163,6 +164,18 @@ def main() -> None:
     parser.add_argument("--max-slips", type=int, default=8)
     parser.add_argument("--max-legs", type=int, default=4)
     parser.add_argument("--min-p-low", type=float, default=None)
+    parser.add_argument(
+        "--not-before",
+        default=None,
+        help="Drop fixtures kicking off at or before this UTC time (ISO, e.g. "
+        "2026-08-28T18:00). Default: now. A started match is not a bet.",
+    )
+    parser.add_argument(
+        "--include-started",
+        action="store_true",
+        help="Keep fixtures that already kicked off. For reviewing a past day, "
+        "not for betting one.",
+    )
     args = parser.parse_args()
 
     if not args.date and not args.stats_sheet:
@@ -196,6 +209,17 @@ def main() -> None:
     )
     if args.min_p_low is not None:
         kwargs["min_p_low"] = args.min_p_low
+    if args.include_started:
+        if args.not_before:
+            parser.error("--include-started and --not-before contradict each other")
+        kwargs["not_before"] = None
+    elif args.not_before:
+        cutoff = datetime.fromisoformat(args.not_before)
+        kwargs["not_before"] = (
+            cutoff.replace(tzinfo=timezone.utc) if cutoff.tzinfo is None else cutoff
+        ).astimezone(timezone.utc)
+    else:
+        kwargs["not_before"] = datetime.now(timezone.utc)
     coupons = build_coupons(sheet, event_list, **kwargs)
 
     date = coupons.date or args.date or "unknown"
@@ -215,12 +239,22 @@ def main() -> None:
                 "slips": len(coupons.slips),
                 "rows_considered": coupons.rows_considered,
                 "events_considered": coupons.events_considered,
+                "not_before": coupons.not_before,
                 "excluded": coupons.excluded,
             },
             indent=2,
             ensure_ascii=False,
         )
     )
+    if not (coupons.singles or coupons.slips) and coupons.excluded.get("kickoff_passed"):
+        # Otherwise this reads as "thin day, nothing cleared the bar" when the
+        # real answer is "you are building yesterday against today's clock".
+        print(
+            f"Pusto, bo wszystkie {coupons.excluded['kickoff_passed']} pozycji "
+            f"odpadły na filtrze kick-offu (odcięcie {coupons.not_before}). "
+            "Do przeglądu dnia, który już się rozegrał, użyj --include-started.",
+            file=sys.stderr,
+        )
     sys.exit(0 if (coupons.singles or coupons.slips) else 1)
 
 

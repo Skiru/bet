@@ -146,6 +146,10 @@ class CouponSet(StrictBaseModel):
     combined_price: None = None
     rows_considered: int = 0
     events_considered: int = 0
+    # The kickoff cutoff this set was built against, or None when the caller
+    # asked for every fixture regardless of clock. Recorded so a file can still
+    # be audited after the fact: "why is that match missing" has an answer here.
+    not_before: str | None = None
     excluded: dict[str, int] = Field(default_factory=dict)
     notes: list[str] = Field(default_factory=list)
 
@@ -186,6 +190,24 @@ def _caveats(row: StatsSheetRow) -> list[str]:
     return notes
 
 
+def _kickoff_passed(kickoff: str, not_before: datetime | None) -> bool:
+    """True when this fixture has already started and is no longer bettable.
+
+    An unparseable or missing kickoff returns False. Not knowing when a match
+    starts is not evidence that it started -- dropping it would silently hide a
+    live fixture, which is the failure this check exists to prevent.
+    """
+    if not_before is None or not kickoff:
+        return False
+    try:
+        start = datetime.fromisoformat(kickoff)
+    except ValueError:
+        return False
+    if start.tzinfo is None:
+        start = start.replace(tzinfo=timezone.utc)
+    return start <= not_before
+
+
 def _tipster_summary(row: StatsSheetRow) -> str | None:
     if row.tipster is None or row.tipster.verdict == "NO_COVERAGE":
         return None
@@ -200,12 +222,19 @@ def build_coupons(
     max_slips: int = 8,
     max_legs: int = 4,
     min_p_low: float = MIN_SINGLE_P_LOW,
+    not_before: datetime | None = None,
 ) -> CouponSet:
     """Turn a finished stats sheet into the day's singles and slips.
 
-    Pure: no network, no DB, no clock beyond the generation stamp. Given the
-    same artifact it returns the same coupons, which is what makes a bad call
-    reviewable after the fact.
+    Pure: no network, no DB, no clock. Given the same artifact *and the same*
+    ``not_before`` it returns the same coupons, which is what makes a bad call
+    reviewable after the fact -- the cutoff is an argument, never a call to
+    ``now()`` inside, precisely so that property survives.
+
+    ``not_before`` drops fixtures that have already kicked off. A coupon file
+    is read hours after it is written, and a match in the past is not a bet at
+    any price, however good its ``p_low`` looks. Pass ``None`` to keep the
+    whole day, which is what a post-hoc review of yesterday wants.
     """
     events = {e.event_id: e for e in (event_list.events if event_list else [])}
 
@@ -253,10 +282,15 @@ def build_coupons(
             exclude("duplicate_market_for_event")
             continue
         seen.add(key)
+        match, competition, kickoff = identity(row.event_id)
+        # Checked before the max_singles slot is spent: a started match must not
+        # push a bettable one off the end of the list.
+        if _kickoff_passed(kickoff, not_before):
+            exclude("kickoff_passed")
+            continue
         if len(singles) >= max_singles:
             exclude("over_max_singles")
             continue
-        match, competition, kickoff = identity(row.event_id)
         fair = 1.0 / row.p_low
         margin = {"CALL": 1.05, "LEAN": 1.10}[tier]
         singles.append(
@@ -299,6 +333,9 @@ def build_coupons(
         if len(draft.legs) < 2:
             continue
         match, competition, kickoff = identity(event_id)
+        if _kickoff_passed(kickoff, not_before):
+            exclude("kickoff_passed")
+            continue
         slips.append(
             CouponSlip(
                 rank=0,
@@ -323,6 +360,12 @@ def build_coupons(
         "— to optymistyczna podłoga, nie gwarancja.",
         "Brak stawek i brak EV — celowo. Typ poniżej minimalnego kursu nie jest typem.",
     ]
+    if excluded.get("kickoff_passed"):
+        notes.append(
+            f"Odrzucono {excluded['kickoff_passed']} pozycji, których mecz już "
+            f"się rozpoczął (odcięcie {not_before:%H:%M} UTC). Mecz w przeszłości "
+            "nie jest typem, choćby jego p_low wyglądało najlepiej w pliku."
+        )
     if any(_is_trivial_under(r) for r, _ in candidates):
         notes.append(
             "Niskie linie UNDER (≤1.5) zepchnięto na koniec listy singli: przy "
@@ -337,6 +380,7 @@ def build_coupons(
         slips=slips,
         rows_considered=len(stats_sheet.rows),
         events_considered=len({row.event_id for row in stats_sheet.rows}),
+        not_before=not_before.isoformat() if not_before else None,
         excluded=dict(sorted(excluded.items())),
         notes=notes,
     )

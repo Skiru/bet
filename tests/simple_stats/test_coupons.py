@@ -5,6 +5,8 @@ anywhere in the output. Everything else protects a threshold the operator bets
 real money against, which is why this is tested code rather than an agent
 writing arithmetic into a report each morning.
 """
+from datetime import datetime
+
 import pytest
 from pydantic import ValidationError
 
@@ -281,3 +283,85 @@ def test_a_tennis_fixture_is_named_by_its_players():
 def test_market_labels_are_human_readable_and_fall_back_safely():
     assert market_label("corners_total") == "rożne (mecz)"
     assert market_label("some_new_market") == "some new market"
+
+
+# --- the clock: a started match is not a bet ------------------------------
+
+
+def _at(iso):
+    return datetime.fromisoformat(iso)
+
+
+def test_a_fixture_that_already_kicked_off_is_dropped_from_singles():
+    """The file is read hours after it is written. A match in the past is not a
+    bet at any price, however good its p_low looks sitting at the top."""
+    sheet = _sheet(
+        _row(event_id="past", p_low=0.95),
+        _row(event_id="ahead", p_low=0.70),
+    )
+    events = _events(
+        _event("past").model_copy(update={"start_time": "2026-08-29T12:00:00+00:00"}),
+        _event("ahead").model_copy(update={"start_time": "2026-08-29T21:00:00+00:00"}),
+    )
+    coupons = build_coupons(sheet, events, not_before=_at("2026-08-29T18:00:00+00:00"))
+
+    assert [s.event_id for s in coupons.singles] == ["ahead"]
+    assert coupons.excluded["kickoff_passed"] == 1
+    assert coupons.not_before == "2026-08-29T18:00:00+00:00"
+
+
+def test_a_started_fixture_does_not_consume_a_singles_slot():
+    """Filtered before the max_singles cap, not after. Otherwise a morning
+    match with a high p_low silently pushes a bettable evening one off the end
+    of the list -- the row disappears and nothing says why."""
+    rows = [_row(event_id="past", p_low=0.95, market=m) for m in ("corners_total", "cards_total")]
+    rows += [_row(event_id="ahead", p_low=0.70, market=m) for m in ("corners_total", "cards_total")]
+    events = _events(
+        _event("past").model_copy(update={"start_time": "2026-08-29T12:00:00+00:00"}),
+        _event("ahead").model_copy(update={"start_time": "2026-08-29T21:00:00+00:00"}),
+    )
+    coupons = build_coupons(
+        _sheet(*rows), events, max_singles=2, not_before=_at("2026-08-29T18:00:00+00:00")
+    )
+
+    assert len(coupons.singles) == 2
+    assert {s.event_id for s in coupons.singles} == {"ahead"}
+
+
+def test_no_cutoff_keeps_the_whole_day_for_review():
+    """Reviewing yesterday needs every fixture, including the played ones."""
+    sheet = _sheet(_row(event_id="past", p_low=0.95))
+    events = _events(
+        _event("past").model_copy(update={"start_time": "2026-08-29T12:00:00+00:00"})
+    )
+    coupons = build_coupons(sheet, events, not_before=None)
+
+    assert len(coupons.singles) == 1
+    assert coupons.not_before is None
+    assert "kickoff_passed" not in coupons.excluded
+
+
+def test_an_unknown_kickoff_is_kept_not_dropped():
+    """Not knowing when a match starts is not evidence that it started.
+    Dropping it would silently hide a live fixture from the operator."""
+    sheet = _sheet(_row(event_id="orphan", p_low=0.95))
+    coupons = build_coupons(sheet, None, not_before=_at("2026-08-29T18:00:00+00:00"))
+
+    assert len(coupons.singles) == 1
+    assert "kickoff_passed" not in coupons.excluded
+
+
+def test_the_cutoff_is_an_argument_so_the_build_stays_reproducible():
+    """Same artifact plus same cutoff must give the same file. If the clock
+    were read inside, a coupon set could never be re-derived from its inputs."""
+    sheet = _sheet(_row(event_id="ahead", p_low=0.70))
+    events = _events(
+        _event("ahead").model_copy(update={"start_time": "2026-08-29T21:00:00+00:00"})
+    )
+    cutoff = _at("2026-08-29T18:00:00+00:00")
+    first = build_coupons(sheet, events, not_before=cutoff)
+    second = build_coupons(sheet, events, not_before=cutoff)
+
+    assert first.model_dump(exclude={"generated_at"}) == second.model_dump(
+        exclude={"generated_at"}
+    )
