@@ -427,6 +427,73 @@ def _enrichment_priority(event: EventRecord, now: datetime) -> tuple[int, int, s
     )
 
 
+def _apportion_cap(
+    active_events: list[EventRecord], max_events: int, now: datetime
+) -> tuple[list[EventRecord], list[EventRecord]]:
+    """Split the cap between sports before ranking inside each one.
+
+    One global ``_enrichment_priority`` sort looks fair and is not, because its
+    tie-break rewards corroboration and corroboration is a property of the
+    *sport*, not of the fixture. Football is discovered by three sources that
+    routinely agree; tennis, on 2026-08-28, had 39 of 40 fixtures found by
+    ``bzzoiro-tennis`` alone. So every tennis event scored worse than every
+    football event, the single corroborated tennis fixture landed at position
+    41 under ``--max-events 40``, and the sport vanished from the sheet -- while
+    ``bzzoiro-tennis`` still held 72 unspent requests. Nothing reported this:
+    the events came back BLOCKED with "run capped at 40 events", which reads
+    like a quota problem rather than like a whole sport being sorted last.
+
+    Each sport therefore gets a share of the cap proportional to how much of the
+    slate it is, with at least one event whenever the cap has room, and ranks
+    its own fixtures inside that share. A sport that cannot fill its share hands
+    the remainder back, so a thin tennis day still spends its slots on football.
+    """
+    by_sport: dict[str, list[EventRecord]] = {}
+    for event in active_events:
+        by_sport.setdefault(event.sport, []).append(event)
+    for events in by_sport.values():
+        events.sort(key=lambda e: _enrichment_priority(e, now))
+
+    # Largest-remainder apportionment, floor of one per sport that has events.
+    total = len(active_events)
+    quotas: dict[str, float] = {
+        sport: len(events) * max_events / total for sport, events in by_sport.items()
+    }
+    shares = {sport: min(len(by_sport[sport]), int(quota)) for sport, quota in quotas.items()}
+    if max_events >= len(by_sport):
+        for sport in by_sport:
+            shares[sport] = max(shares[sport], 1)
+    # Hand out what rounding and the floor left over, largest remainder first,
+    # then any slack a sport could not fill.
+    for _ in range(2):
+        remaining = max_events - sum(shares.values())
+        if remaining <= 0:
+            break
+        for sport in sorted(by_sport, key=lambda s: quotas[s] - shares[s], reverse=True):
+            if remaining <= 0:
+                break
+            room = len(by_sport[sport]) - shares[sport]
+            take = min(room, remaining)
+            shares[sport] += take
+            remaining -= take
+    # Trim if the floor pushed the total over the cap: give back from the sport
+    # holding the most slots relative to its quota, never below one.
+    while sum(shares.values()) > max_events:
+        sport = max(shares, key=lambda s: shares[s] - quotas[s])
+        if shares[sport] <= 1:
+            break
+        shares[sport] -= 1
+
+    kept: list[EventRecord] = []
+    skipped: list[EventRecord] = []
+    for sport, events in by_sport.items():
+        share = shares[sport]
+        kept.extend(events[:share])
+        skipped.extend(events[share:])
+    kept.sort(key=lambda e: _enrichment_priority(e, now))
+    return kept, skipped
+
+
 def enrich_events(
     event_list: EventListV1,
     rate_limiter: RateLimiter | None = None,
@@ -457,8 +524,7 @@ def enrich_events(
 
     skipped: list[EventRecord] = []
     if max_events is not None and len(active_events) > max_events:
-        active_events.sort(key=lambda e: _enrichment_priority(e, now))
-        active_events, skipped = active_events[:max_events], active_events[max_events:]
+        active_events, skipped = _apportion_cap(active_events, max_events, now)
 
     per_event: dict[str, dict[str, FetchOutcome]] = {
         e.event_id: {"team_a": FetchOutcome(), "team_b": FetchOutcome(), "h2h": FetchOutcome()}

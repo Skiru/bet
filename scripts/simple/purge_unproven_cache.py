@@ -112,6 +112,27 @@ def _scan_espn_v1() -> list[Path]:
     )
 
 
+def _scan_espn_athlete_search() -> list[Path]:
+    """Resolutions made by the matcher that could not fail.
+
+    ``athlete_search`` entries are the *name to id* answer, cached for 168
+    hours, and a fix to the resolver does not fix what the broken one already
+    wrote. Measured on 2026-08-28: of 441 entries under the atp directory, 372
+    were produced by a scoreboard fallback whose last rule was "the query's
+    surname appears in the display name", 23 resolved to a player ESPN files
+    under the other tour, and 50 ids each answered to more than one queried
+    name. One entry maps the literal string "TBD" to athlete id -4.
+
+    All of them are dropped rather than the ones that look wrong: an entry
+    written by a matcher that accepted a shared forename carries no evidence
+    about itself, and re-resolving costs one free ESPN search per player.
+    """
+    root = CACHE_ROOT / "espn" / "tennis"
+    if not root.is_dir():
+        return []
+    return sorted(path for path in root.glob("*/athlete_search") if path.is_dir())
+
+
 def _scan_sackmann() -> list[Path]:
     root = CACHE_ROOT / "sackmann"
     return [root] if root.is_dir() else []
@@ -129,6 +150,7 @@ def main() -> int:
 
     ta_files, ta_notes = _scan_tennis_abstract()
     espn_dirs = _scan_espn_v1()
+    search_dirs = _scan_espn_athlete_search()
     sackmann_dirs = _scan_sackmann()
 
     print("Cache entries written before the checks that would have caught them:\n")
@@ -138,10 +160,13 @@ def main() -> int:
     espn_count = sum(len(list(d.glob('*.json'))) for d in espn_dirs)
     print(f"  espn tennis athlete_fixtures (v1, no participant ids): "
           f"{espn_count} in {len(espn_dirs)} directories")
+    search_count = sum(len(list(d.glob("*.json"))) for d in search_dirs)
+    print(f"  espn tennis athlete_search (name -> id, unproven)  : "
+          f"{search_count} in {len(search_dirs)} directories")
     sack_count = sum(1 for d in sackmann_dirs for _ in d.rglob("*") if _.is_file())
     print(f"  sackmann (upstream repositories no longer exist)   : {sack_count}")
 
-    total = len(ta_files) + espn_count + sack_count
+    total = len(ta_files) + espn_count + search_count + sack_count
     if not total:
         print("\nnothing to purge -- the cache is all post-fix.")
         return 0
@@ -157,7 +182,7 @@ def main() -> int:
     for path in ta_files:
         path.unlink(missing_ok=True)
         removed += 1
-    for directory in (*espn_dirs, *sackmann_dirs):
+    for directory in (*espn_dirs, *search_dirs, *sackmann_dirs):
         removed += sum(1 for _ in directory.rglob("*") if _.is_file())
         shutil.rmtree(directory, ignore_errors=True)
 

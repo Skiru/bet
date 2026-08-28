@@ -107,7 +107,7 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def eligible_events(event_list: EventListV1) -> list[EventRecord]:
+def eligible_events(event_list: EventListV1, now: datetime | None = None) -> list[EventRecord]:
     """Events this stage can and should spend calls on, in ENRICH's own order.
 
     Football only, and that is a quota decision rather than a coverage one:
@@ -130,10 +130,17 @@ def eligible_events(event_list: EventListV1) -> list[EventRecord]:
     quarters of the rows that could have carried a signal got
     ``NO_MARKET_DATA``. Sharing the ranking is what makes a capped run's two
     budgets land on the same matches.
+
+    ``now`` is injectable only so a test can pin the clock. ``_enrichment_priority``
+    demotes started fixtures, so a test that hardcodes a kickoff date is a time
+    bomb: this stage's ordering test held all morning on 2026-08-28 and began
+    failing at 18:00 UTC that day, when its "early" fixture kicked off and sorted
+    behind its "late" one. A suite whose answer changes with the wall clock
+    cannot tell tomorrow's regression from tomorrow's afternoon.
     """
     from bet.simple_stats.enrich import _enrichment_priority
 
-    now = datetime.now(timezone.utc)
+    now = now or datetime.now(timezone.utc)
     candidates = [
         event
         for event in event_list.events

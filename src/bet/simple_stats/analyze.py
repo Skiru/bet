@@ -292,7 +292,70 @@ def _representative(group: list[ProviderValue]) -> ProviderValue:
     return next(pv for pv in group if pv.value == consensus)
 
 
-def _one_per_day(values: list[ProviderValue]) -> list[ProviderValue]:
+def _tennis_match_key(pv: ProviderValue) -> str:
+    """Which match a tennis observation is, within one player's bucket.
+
+    The opponent, not the day -- because for tennis the day is not reliable and
+    the opponent is. ``tennis-abstract`` stamps every match of a tournament with
+    the tournament's *start* date: measured on 2026-08-28, 1945 of its 2550
+    observations fell on a Monday, while ``espn-tennis`` spread its 510 evenly
+    across the week. That single fact broke the day key in both directions at
+    once, and the two failures do not cancel:
+
+    * **Across providers, too little collapsing.** One match carries a Monday
+      from tennis-abstract and its real Wednesday from espn-tennis, so the day
+      key sees two days and counts one match as two independent trials. 44 such
+      matches across 15 events.
+    * **Within tennis-abstract, too much.** Every match of one tournament week
+      shares a date, so the day key treats a whole run as one match and keeps a
+      single representative. 140 such collisions -- and because
+      ``_representative`` takes the median, the one it keeps can be the win and
+      the one it drops the loss. Single #34 of that day (Semenistaja - Hunter,
+      aces UNDER 8.5) reported 10/10 while Storm Hunter's 9-ace match, a loss at
+      that line, shared a Monday with a 5-ace match and vanished.
+
+    Opponent names are why this is defensible here and was not for football.
+    ``_one_per_day`` replaced opponent clustering precisely because club names
+    are spelled 72 different ways across feeds ("mk dons" / "milton keynes
+    dons"). Player names are not: measured on the same slate, across every
+    tennis bucket carrying two providers, the two providers' opponent sets were
+    *identical* wherever both described the same player -- "Clara Tauson",
+    "Elise Mertens", "Kayla Day" character for character, with "Shuai Zhang" /
+    "Zhang Shuai" the only variation, which ``_team_matches`` already handles.
+
+    A repeat pairing is not lost to this. The key carries how many times *this
+    provider* has already named that opponent in this bucket, so a provider
+    listing six meetings with Terence Atmane yields six keys, while the same
+    single meeting reported by two providers yields one. The provider's own row
+    count is the only evidence available about how often two players met, so it
+    is what decides -- rather than a date the provider does not really have.
+    """
+    return _normalize_team_name(pv.opponent) or ""
+
+
+def _tennis_match_keys(values: list[ProviderValue]) -> list[str]:
+    """``_tennis_match_key`` for a whole bucket, with repeat meetings numbered.
+
+    Numbering is per (provider, opponent): the first Tauson match tennis-abstract
+    reports keys to the same slot as the first Tauson match espn-tennis reports,
+    so the pair collapses, while a second Tauson match from either provider gets
+    its own slot and survives.
+    """
+    seen: dict[tuple[str, str], int] = {}
+    keys: list[str] = []
+    for pv in values:
+        opponent = _tennis_match_key(pv)
+        if not opponent:
+            keys.append("")
+            continue
+        slot = (pv.provider, opponent)
+        occurrence = seen.get(slot, 0)
+        seen[slot] = occurrence + 1
+        keys.append(f"{opponent}#{occurrence}")
+    return keys
+
+
+def _one_per_day(values: list[ProviderValue], sport: str = "football") -> list[ProviderValue]:
     """One observation per calendar day within a *single* bucket.
 
     A team plays at most one match on a given day. So two observations in the
@@ -318,22 +381,28 @@ def _one_per_day(values: list[ProviderValue]) -> list[ProviderValue]:
     the one residual path by which a sample can still be overstated, and it did
     not occur in either measured run.
     """
-    by_day: dict[str, list[ProviderValue]] = {}
+    keys = (
+        _tennis_match_keys(values)
+        if sport == "tennis"
+        else [_day_key(pv.match_date) for pv in values]
+    )
+    grouped: dict[str, list[ProviderValue]] = {}
     order: list[str] = []
-    undated: list[ProviderValue] = []
-    for pv in values:
-        day = _day_key(pv.match_date)
-        if not day:
-            undated.append(pv)
+    unkeyed: list[ProviderValue] = []
+    for pv, key in zip(values, keys):
+        if not key:
+            unkeyed.append(pv)
             continue
-        if day not in by_day:
-            by_day[day] = []
-            order.append(day)
-        by_day[day].append(pv)
-    return [_representative(by_day[day]) for day in order] + undated
+        if key not in grouped:
+            grouped[key] = []
+            order.append(key)
+        grouped[key].append(pv)
+    return [_representative(grouped[key]) for key in order] + unkeyed
 
 
-def _head_to_head_days(obs, team_a_name: str | None, team_b_name: str | None) -> set[str]:
+def _head_to_head_days(
+    obs, team_a_name: str | None, team_b_name: str | None, sport: str = "football"
+) -> set[str]:
     """Days on which the two sides of *this* fixture played each other.
 
     Such a match is in team A's last-10, in team B's last-10 **and** in h2h, and
@@ -347,6 +416,19 @@ def _head_to_head_days(obs, team_a_name: str | None, team_b_name: str | None) ->
     opponents to each other -- the two are *supposed* to differ here, so their
     disagreement carries no information.
     """
+    if sport == "tennis":
+        # Keyed the same way _one_per_day keys tennis: by opponent. Every row in
+        # a tennis h2h bucket names one of these two players by construction, so
+        # the pair *is* the key, and the shared match is whichever row in either
+        # l10 bucket names the other side.
+        keys = {
+            _normalize_team_name(name)
+            for name in (team_a_name, team_b_name)
+            if name
+        }
+        keys |= {_tennis_match_key(pv) for pv in obs.h2h}
+        keys.discard("")
+        return keys
     days: set[str] = {_day_key(pv.match_date) for pv in obs.h2h}
     for bucket, other_side in ((obs.team_a_l10, team_b_name), (obs.team_b_l10, team_a_name)):
         if not other_side:
@@ -359,27 +441,34 @@ def _head_to_head_days(obs, team_a_name: str | None, team_b_name: str | None) ->
     return days
 
 
-def _independent_match_sample(obs, team_a_name: str | None, team_b_name: str | None) -> list[ProviderValue]:
+def _independent_match_sample(
+    obs, team_a_name: str | None, team_b_name: str | None, sport: str = "football"
+) -> list[ProviderValue]:
     """One observation per real-world match, for a pooled match-total sample.
 
     Collapses each bucket by day, then folds the head-to-head day -- the one
     match that legitimately appears in all three buckets -- back to a single
     observation.
     """
-    h2h_days = _head_to_head_days(obs, team_a_name, team_b_name)
+    h2h_keys = _head_to_head_days(obs, team_a_name, team_b_name, sport)
+    key_of = _tennis_match_key if sport == "tennis" else (lambda pv: _day_key(pv.match_date))
     independent: list[ProviderValue] = []
     shared: list[ProviderValue] = []
     for bucket in (obs.team_a_l10, obs.team_b_l10, obs.h2h):
-        for pv in _one_per_day(bucket):
-            if _day_key(pv.match_date) in h2h_days:
+        for pv in _one_per_day(bucket, sport):
+            if key_of(pv) in h2h_keys:
                 shared.append(pv)
             else:
                 independent.append(pv)
 
-    by_day: dict[str, list[ProviderValue]] = {}
+    # Football folds the shared match per day; tennis folds every meeting
+    # between these two players into one, because its day is a tournament week
+    # and cannot separate two meetings anyway. That understates a repeat
+    # pairing, which is the safe direction for a lower bound.
+    grouped: dict[str, list[ProviderValue]] = {}
     for pv in shared:
-        by_day.setdefault(_day_key(pv.match_date), []).append(pv)
-    independent.extend(_representative(group) for group in by_day.values())
+        grouped.setdefault("h2h" if sport == "tennis" else _day_key(pv.match_date), []).append(pv)
+    independent.extend(_representative(group) for group in grouped.values())
     return independent
 
 
@@ -482,7 +571,7 @@ def _match_total_rows(dossier: EventDossierV1) -> list[StatsSheetRow]:
                 lines=market_def["lines"],
                 observations=_all_values(obs),
                 independent=_independent_match_sample(
-                    obs, dossier.team_a_name, dossier.team_b_name
+                    obs, dossier.team_a_name, dossier.team_b_name, dossier.sport
                 ),
             )
         )
@@ -528,7 +617,7 @@ def _team_total_rows(dossier: EventDossierV1) -> list[StatsSheetRow]:
                     canonical=canonical,
                     lines=market_def["lines"],
                     observations=_dedup(bucket),
-                    independent=_one_per_day(bucket),
+                    independent=_one_per_day(bucket, dossier.sport),
                     team_name=team_name,
                 )
             )
@@ -560,7 +649,7 @@ def _player_prop_rows(dossier: EventDossierV1) -> list[StatsSheetRow]:
                     canonical=canonical,
                     lines=market_def["lines"],
                     observations=_dedup(observation.l10),
-                    independent=_one_per_day(observation.l10),
+                    independent=_one_per_day(observation.l10, dossier.sport),
                     team_name=side_names.get(observation.team_side),
                     player_id=observation.player_id,
                     player_name=observation.player_name,

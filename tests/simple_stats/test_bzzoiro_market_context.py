@@ -796,9 +796,18 @@ def test_this_stage_slices_the_slate_in_enrichs_own_order():
         start_time="2026-08-28T18:00:00+00:00",
         provider_team_ids={"bzzoiro": {"home": "100", "away": "134"}},
     )
-    ordered = market_context.eligible_events(_event_list(fuzzy_late, confirmed_early))
+    # Clock pinned before both kickoffs -- the same instant the second assertion
+    # below already used. Unpinned, this first assertion held all morning on
+    # 2026-08-28 and began failing at 18:00 UTC that day, when "evt-confirmed"
+    # kicked off and _enrichment_priority correctly demoted it behind the later
+    # "evt-fuzzy". What is under test is the corroboration tie-break, not the
+    # started-fixture demotion, and a suite whose answer changes with the wall
+    # clock cannot tell a regression from an afternoon.
+    now = datetime(2026, 8, 28, 12, tzinfo=timezone.utc)
+    ordered = market_context.eligible_events(
+        _event_list(fuzzy_late, confirmed_early), now=now
+    )
     assert [e.event_id for e in ordered] == ["evt-confirmed", "evt-fuzzy"]
 
     # And it is ENRICH's ranking, not a second one that happens to agree today.
-    now = datetime(2026, 8, 28, 12, tzinfo=timezone.utc)
     assert ordered == sorted(ordered, key=lambda e: _enrichment_priority(e, now))

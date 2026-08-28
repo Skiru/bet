@@ -325,6 +325,27 @@ def espn_country_pin_words() -> dict[str, str]:
 # player onto the loose pass. Those unconditional "atp" entries are gone.
 _ESPN_TENNIS_TOURS = frozenset({"atp", "wta"})
 
+# A draw that names its gender pins the tour just as firmly as the word "WTA"
+# does, and until 2026-08-28 nothing read it. Removing the table's blanket
+# "atp" for grand slams stopped asserting the *wrong* tour but left the right
+# one unstated, so every US Open fixture -- men's and women's, the largest
+# tennis block of that slate -- resolved to None and fell to the default ATP
+# client. Measured consequence in that run: 372 of 441 cached ESPN tennis
+# resolutions came from the ATP scoreboard fallback, 23 more resolved across
+# tours, and 50 ESPN athlete ids each answered to more than one queried name --
+# 'eala, alexandra' and 'wolf, alexandra' sharing id 7759, 'geun jun kim' and
+# 'kimberly birrell' sharing 2588. Qinwen Zheng's stats sheet carried Lorenzo
+# Musetti's and Kei Nishikori's matches.
+#
+# The gender marker only counts alongside a tennis tier token, so football's
+# "Women's Super League" cannot reach it -- that name is answered by the
+# football table, which is consulted first.
+_ESPN_TENNIS_TIER_TOKENS = frozenset({"atp", "wta", "itf", "challenger", "slam"})
+_ESPN_TENNIS_GENDER_TOURS = {
+    "men": "atp", "mens": "atp",
+    "women": "wta", "womens": "wta", "ladies": "wta",
+}
+
 # Football competition name -> ESPN league code. Every code /teams-verified.
 _ESPN_FOOTBALL_COMPETITIONS = {
     # --- England ---------------------------------------------------------
@@ -1878,46 +1899,39 @@ class ESPNClient(BaseAPIClient):
                 search_data = resp.json()
                 items = search_data.get("items", [])
                 for item in items:
-                    item_name = _fold_espn_participant_name(item.get("displayName", ""))
                     item_sport = item.get("sport", "").lower()
                     item_league = item.get("league", "").lower()
-                    # Match by name AND league (atp/wta)
-                    if (item_name == name_lower or name_lower in item_name or item_name in name_lower) \
-                            and item_sport == self.sport \
-                            and item_league == self.league:
+                    # Match by name AND league (atp/wta). The name test is
+                    # identity_matches, not a substring test: "henri" is a
+                    # substring of "henrique", and on 2026-08-28 that is how one
+                    # ESPN id came to answer for 'squire, henri', 'rocha,
+                    # henrique' and 'lazarte, gonzalo enrique' alike.
+                    if (
+                        _espn_athlete_name_matches(athlete_name, item.get("displayName", ""))
+                        and item_sport == self.sport
+                        and item_league == self.league
+                    ):
                         aid = item.get("id", "")
                         if aid:
                             self._save_cache(cache_key, {"team_id": aid, "league": item_league})
                             return aid
-                # Fallback pass: right sport, any tour. This is the pass that
-                # can answer with a different person, because it drops the
-                # league check and matches on a substring -- ESPN's search for
-                # "Zverev" returns both Alexander Zverev (atp) and Vlada
-                # Zvereva (wta), verified 2026-08-28. An exact display-name hit
-                # is therefore preferred, and an ambiguous surname resolves to
-                # nothing rather than to whichever player ESPN ranked first: a
-                # data_gap costs one provider, the wrong player's L10 corrupts
-                # the row while looking like evidence.
-                exact = [
+                # Second pass, for hits whose league ESPN leaves blank. It does
+                # NOT drop the tour check: a hit that *states* the other tour is
+                # a crossing, and accepting it is what filed 23 of the
+                # 2026-08-28 slate's players under the wrong tour's id. Name
+                # equality is required here too, so an unlabelled hit still has
+                # to be the same person by name before it is believed.
+                candidates = [
                     item for item in items
-                    if _fold_espn_participant_name(item.get("displayName", "")) == name_lower
+                    if _espn_athlete_name_matches(athlete_name, item.get("displayName", ""))
                     and item.get("sport", "").lower() == self.sport
+                    and not item.get("league", "").strip()
                     and item.get("id")
                 ]
-                loose = [
-                    item for item in items
-                    if name_lower in _fold_espn_participant_name(item.get("displayName", ""))
-                    and item.get("sport", "").lower() == self.sport
-                    and item.get("id")
-                ]
-                candidates = exact or loose
                 distinct_ids = {str(item["id"]) for item in candidates}
                 if len(distinct_ids) == 1:
                     aid = str(candidates[0]["id"])
-                    self._save_cache(cache_key, {
-                        "team_id": aid,
-                        "league": candidates[0].get("league", "").lower(),
-                    })
+                    self._save_cache(cache_key, {"team_id": aid, "league": ""})
                     return aid
                 if len(distinct_ids) > 1:
                     names = ", ".join(
@@ -1946,26 +1960,31 @@ class ESPNClient(BaseAPIClient):
                         if ath:
                             athletes.append({"id": str(c.get("id", "")), **ath})
 
-        best_match = None
-        for a in athletes:
-            display = a.get("displayName", "").lower()
-            full = a.get("fullName", "").lower()
-
-            if display == name_lower or full == name_lower:
-                best_match = a
-                break
-            if name_lower in display or display in name_lower:
-                best_match = a
-                break
-            if name_lower in full or name_lower.split()[-1] in display:
-                if not best_match:
-                    best_match = a
-
-        if best_match:
-            aid = best_match.get("id", "")
-            self._save_cache(cache_key, {"team_id": aid})
+        # Name equality only. The rules that used to live here -- "the query
+        # contains the display name", "the query's last token appears in the
+        # display name" -- are surname and forename substring tests, and they
+        # cannot fail: on 2026-08-28 this pass answered 372 of 441 resolutions
+        # and returned an id for the literal string "TBD". Fifty ESPN ids ended
+        # up serving more than one queried player through it.
+        matches = [
+            a for a in athletes
+            if a.get("id")
+            and (
+                _espn_athlete_name_matches(athlete_name, a.get("displayName", ""))
+                or _espn_athlete_name_matches(athlete_name, a.get("fullName", ""))
+            )
+        ]
+        distinct_ids = {str(a["id"]) for a in matches}
+        if len(distinct_ids) == 1:
+            aid = str(matches[0]["id"])
+            self._save_cache(cache_key, {"team_id": aid, "league": self.league})
             return aid
-
+        if len(distinct_ids) > 1:
+            names = ", ".join(sorted({a.get("displayName", "") for a in matches}))
+            print(
+                f"[{self.api_name}] '{athlete_name}' matches more than one athlete "
+                f"on the {self.league} scoreboard ({names}); refusing to guess"
+            )
         return None
 
     def get_team_last_fixtures(
@@ -2850,6 +2869,25 @@ def _fold_espn_participant_name(name: str) -> str:
     return re.sub(r"[^a-z0-9]+", " ", folded).strip()
 
 
+def _espn_athlete_name_matches(requested: str, claimed: str) -> bool:
+    """Is ESPN's ``claimed`` athlete name the player we asked for?
+
+    Delegates to tennis_abstract.identity_matches so both tennis providers
+    judge identity by one rule: ASCII-folded token *equality*, order-free
+    ("Qinwen Zheng" / ESPN's "Zheng Qinwen"), plus the forename-initial rule.
+
+    Deliberately not a substring or similarity test. Every crossing measured on
+    the 2026-08-28 slate came from one: 'henri' inside 'henrique',
+    'alexandra' shared by Eala and Wolf, 'anna' shared by Kalinskaya and
+    Grigoreva. A name test that accepts a shared forename is not a name test.
+    """
+    if not requested or not claimed:
+        return False
+    from bet.api_clients.tennis_abstract import identity_matches
+
+    return identity_matches(requested, claimed)
+
+
 def get_espn_league_for_competition(competition_name: str) -> str | None:
     """Resolve a competition name to an ESPN league code, or None.
 
@@ -2874,4 +2912,21 @@ def get_espn_league_for_competition(competition_name: str) -> str | None:
     if tours:
         return None
 
-    return _ESPN_SIGNATURE_TO_LEAGUE.get(signature)
+    authored = _ESPN_SIGNATURE_TO_LEAGUE.get(signature)
+    if authored is not None:
+        return authored
+
+    # Last: a gendered tennis draw. Checked after the authored table so that
+    # "Women's Super League" is answered as football before the word "women"
+    # can be read as a tour, and gated on a tennis tier token so that only a
+    # name already saying "grand slam" / "challenger" / "ITF" is eligible.
+    # A draw that names neither tour nor gender ("Kingston 2, Jamaica
+    # (challenger)") stays None on purpose: None drops the provider, and
+    # dropping it costs one source where guessing costs another player's
+    # history filed under this one's name.
+    if signature & _ESPN_TENNIS_TIER_TOKENS:
+        genders = {_ESPN_TENNIS_GENDER_TOURS[t] for t in signature if t in _ESPN_TENNIS_GENDER_TOURS}
+        if len(genders) == 1:
+            return next(iter(genders))
+
+    return None

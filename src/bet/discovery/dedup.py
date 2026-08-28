@@ -13,9 +13,24 @@ from rapidfuzz import fuzz
 from bet.utils import normalize_team_name
 
 from .esports_aliases import resolve_alias
+from .team_aliases import resolve_team_alias
 from .models import DiscoveredEvent, MergedFixture, SourceRef
 
 logger = logging.getLogger(__name__)
+
+
+def _tokens_contained(a: str, b: str) -> bool:
+    """Is one name's token set the other's, plus qualifiers only?
+
+    True for ("genk", "krc genk") and ("alaves", "deportivo alaves"); false for
+    ("stade lavallois", "laval") and ("sporting lisbon", "sporting cp"), which
+    need an alias table rather than a matcher. Requires the shorter side to be
+    non-empty, so a name that normalizes away entirely matches nothing.
+    """
+    ta, tb = set(a.split()), set(b.split())
+    if not ta or not tb:
+        return False
+    return ta <= tb or tb <= ta
 
 
 class DeduplicationEngine:
@@ -120,8 +135,8 @@ class DeduplicationEngine:
 
     def _match_key(self, event: DiscoveredEvent) -> str:
         """Exact dedup key with 2-hour kickoff bucket to avoid same-day false merges."""
-        norm_home = normalize_team_name(event.home_team)
-        norm_away = normalize_team_name(event.away_team)
+        norm_home = normalize_team_name(resolve_team_alias(event.home_team))
+        norm_away = normalize_team_name(resolve_team_alias(event.away_team))
         # For esports, also resolve aliases (NaVi → natus vincere)
         if event.sport in self.ESPORTS_SPORTS:
             norm_home = resolve_alias(norm_home)
@@ -137,8 +152,8 @@ class DeduplicationEngine:
         if not candidates:
             return None, 0.0
 
-        ev_home = normalize_team_name(event.home_team)
-        ev_away = normalize_team_name(event.away_team)
+        ev_home = normalize_team_name(resolve_team_alias(event.home_team))
+        ev_away = normalize_team_name(resolve_team_alias(event.away_team))
         # For esports, resolve aliases before fuzzy comparison
         if event.sport in self.ESPORTS_SPORTS:
             ev_home = resolve_alias(ev_home)
@@ -155,8 +170,8 @@ class DeduplicationEngine:
             if not self._kickoff_within_window(event.kickoff, fixture.kickoff):
                 continue
 
-            cand_home = normalize_team_name(fixture.home_team)
-            cand_away = normalize_team_name(fixture.away_team)
+            cand_home = normalize_team_name(resolve_team_alias(fixture.home_team))
+            cand_away = normalize_team_name(resolve_team_alias(fixture.away_team))
             if event.sport in self.ESPORTS_SPORTS:
                 cand_home = resolve_alias(cand_home)
                 cand_away = resolve_alias(cand_away)
@@ -168,6 +183,32 @@ class DeduplicationEngine:
             if combined >= self.fuzzy_threshold and combined > best_score:
                 best_score = combined
                 best_match = fixture
+                continue
+
+            # Second chance: one feed spells the club with a qualifier the other
+            # omits. token_sort_ratio scores that pair on *length*, so the more
+            # a source elaborates the lower it scores -- "Genk"/"KRC Genk" is 67,
+            # "Alaves"/"Deportivo Alaves" 55, "Boulogne"/"US Boulogne Cote
+            # dOpale" 55 -- and all three land below any threshold loose enough
+            # to be safe. Measured on the 2026-08-28 slate: 19 groups, 23
+            # surplus fixtures, one of which reached the coupon twice as the
+            # same market at the same line, so an operator working down the list
+            # would have staked it twice believing he was diversifying.
+            #
+            # Token *containment* is the right question for that shape, and it
+            # is paired with an exact-kickoff requirement rather than the ±2h
+            # window: containment alone would merge a first team with a reserve
+            # or B side, and two genuinely different fixtures starting on the
+            # same second in the same sport are rare where two spellings of one
+            # fixture are routine. Every one of the 23 shared an exact kickoff.
+            if event.kickoff == fixture.kickoff and (
+                _tokens_contained(ev_home, cand_home)
+                and _tokens_contained(ev_away, cand_away)
+            ):
+                score = float(self.fuzzy_threshold)
+                if score > best_score:
+                    best_score = score
+                    best_match = fixture
 
         if best_match is not None:
             return best_match, best_score / 100.0

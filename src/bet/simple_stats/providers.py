@@ -444,6 +444,51 @@ def _combine_stats(provider_key: str, stats: dict, aliases: dict[str, str]) -> d
     return _combined_from_dict_stats(stats, aliases)
 
 
+# A finished football match cannot have zero fouls, and cannot have zero of
+# every counted stat at once. Some providers -- espn-football in the lower
+# English leagues, measured 2026-08-28 -- publish a fixture they hold no stats
+# for as an explicit 0.0 instead of omitting the metric. A zero that means
+# "unknown" is worse than no observation at all: it collapses onto the same
+# (bucket, day) as a real value from another provider and wins, dragging the
+# whole sample toward zero. One day's measurement: 35 such zeros in each of
+# corners_total, fouls_total and shots_on_target_total, from 19 fixtures, which
+# put median 0.0 on rows the market priced around 10.
+_ZERO_IMPOSSIBLE_MARKETS = frozenset({"fouls_total", "fouls_for"})
+
+# Every provider that serves tennis, including the id-addressed one -- the
+# retirement test is about the sport, not about how the fixture was looked up.
+_TENNIS_PROVIDERS = frozenset(
+    {*PROVIDERS_BY_SPORT["tennis"], *NATIVE_ID_PROVIDERS_BY_SPORT.get("tennis", ()), "sackmann"}
+)
+
+# A completed singles match cannot be shorter than 6-0 6-0, which is twelve
+# games and two sets. Anything under that is a retirement, a walkover or a
+# match still in progress -- and a retirement is exactly the shape that flatters
+# an UNDER: a player who quits at 2-1 down contributes three games and one ace
+# to a "total games UNDER 21.5" sample as though he had played a whole match.
+# tennis-abstract already drops rows scored "W/O", but a mid-match retirement
+# carries a real score line and passes that filter.
+_TENNIS_MIN_COMPLETED_GAMES = 12.0
+_TENNIS_MIN_COMPLETED_SETS = 2.0
+
+
+def _is_absent_not_zero(combined: dict[str, float], provider_key: str = "") -> bool:
+    """Whether a stats payload describes something no completed match can be."""
+    if not combined:
+        return False
+    if provider_key in _TENNIS_PROVIDERS:
+        sets_played = combined.get("total_sets")
+        if sets_played is not None and sets_played < _TENNIS_MIN_COMPLETED_SETS:
+            return True
+        games = combined.get("total_games")
+        if games is not None and games < _TENNIS_MIN_COMPLETED_GAMES:
+            return True
+        return len(combined) >= 2 and all(value == 0.0 for value in combined.values())
+    if any(combined.get(market) == 0.0 for market in _ZERO_IMPOSSIBLE_MARKETS):
+        return True
+    return len(combined) >= 2 and all(value == 0.0 for value in combined.values())
+
+
 def _make_values(
     provider: str, match_id: Any, match_date: str, opponent: str, combined: dict[str, float]
 ) -> dict[str, ProviderValue]:
@@ -938,9 +983,19 @@ def _provider_client(provider_key: str, competition: str, rate_limiter: RateLimi
         league = get_espn_league_for_competition(competition) if competition else None
         if league in {"atp", "wta"}:
             return ESPNClient(sport="tennis", league=league, rate_limiter=rate_limiter)
-        # No tour marker in the name: keep the default client, whose
-        # _resolve_athlete_id re-scopes to the tour ESPN files the player under.
-        return get_client(provider_key, rate_limiter=rate_limiter)
+        # Nothing else may be pinned. get_espn_league_for_competition's contract
+        # says None means "ESPN cannot cover this competition", never "try the
+        # default league" -- and this branch used to do exactly the forbidden
+        # thing, handing back the registry client, which is pinned to "atp".
+        # Every US Open women's fixture on 2026-08-28 therefore asked an
+        # ATP-scoped client for a WTA player and was answered by the scoreboard
+        # fallback with a man: Qinwen Zheng's L10 came back as Musetti, Humbert,
+        # Marozsan, Nishikori. Refusing costs espn-tennis on unlabelled draws
+        # (challengers, mostly). That is the cheaper error by a wide margin.
+        raise ProviderLeagueUnsupported(
+            f"no ESPN tennis tour for competition '{competition}': refusing to "
+            f"fall back to the default tour, which serves the wrong player"
+        )
     return get_client(provider_key, rate_limiter=rate_limiter)
 
 
@@ -1109,6 +1164,59 @@ def probe_tennis_identity(
     return evidence
 
 
+# Providers whose rows are one *person's*, so a row naming somebody else is a
+# crossing rather than a data gap. Football is excluded: a club's fixture rows
+# name two clubs and the l10 loop already proves which side by team id.
+_NAME_ADDRESSED_TENNIS_PROVIDERS = frozenset({"tennis-abstract", "espn-tennis", "sackmann"})
+
+
+def _misidentified_reason(
+    provider_key: str, requested_name: str, resolved_id: str, fixtures: list
+) -> str | None:
+    """Whose matches are these, according to the provider? None if they are his.
+
+    This is ``probe_tennis_identity``'s check, moved onto the path that actually
+    builds the stats sheet. Until now the proof existed only in
+    ``verify_tennis_providers.py``, which probes a fixed list of canary names
+    before a run -- so a crossing on one of the day's *actual* players passed
+    the morning check untouched and reached the coupon looking measured. That is
+    what happened on 2026-08-28: the script exited 0 and Qinwen Zheng's sheet
+    carried Lorenzo Musetti's matches.
+
+    Costs no extra call: the rows are already in hand, and every one of them
+    states the two names. A row that cannot say which side the player was on is
+    a failure, not an abstention -- an unattributable row is how a wrong
+    opponent got in before.
+    """
+    if provider_key not in _NAME_ADDRESSED_TENNIS_PROVIDERS or not requested_name:
+        return None
+    from bet.api_clients.tennis_abstract import identity_matches
+
+    wrong: set[str] = set()
+    unattributable = 0
+    for fixture in fixtures:
+        opponent = _opponent_of(fixture, str(resolved_id))
+        if opponent is None:
+            unattributable += 1
+            continue
+        home = _field(fixture, "home_team", default="")
+        away = _field(fixture, "away_team", default="")
+        stated = str(away if str(home) == str(opponent) else home)
+        if stated and not identity_matches(requested_name, stated):
+            wrong.add(stated)
+    if unattributable:
+        return (
+            f"{unattributable} of {len(fixtures)} rows do not say which side "
+            f"'{requested_name}' played"
+        )
+    if wrong:
+        return (
+            f"rows belong to {', '.join(repr(n) for n in sorted(wrong))}, "
+            f"not to '{requested_name}'"
+        )
+    return None
+
+
 def _fetch_l10_generic(
     provider_key: str, team_name: str, rate_limiter: RateLimiter, last_n: int = 10, competition: str = ""
 ) -> FetchOutcome:
@@ -1139,6 +1247,14 @@ def _fetch_l10_generic(
     if not fixtures:
         outcome.data_gaps.append(f"{provider_key}: no recent matches for '{team_name}'")
         return outcome
+    crossed = _misidentified_reason(provider_key, team_name, str(team_id), fixtures)
+    if crossed:
+        # The whole payload is dropped, not the offending rows. A provider that
+        # served one wrong player's match has not proved which of the others are
+        # right, and a half-believed L10 is the shape the Benoit Paire
+        # fabrication took: real numbers, real table, wrong human.
+        outcome.data_gaps.append(f"{provider_key}: MISIDENTIFIED for '{team_name}': {crossed}")
+        return outcome
     for fx in fixtures:
         fixture_id = _field(fx, "id", "fixture_id")
         if not fixture_id:
@@ -1161,8 +1277,14 @@ def _fetch_l10_generic(
             )
             continue
         combined = _combine_stats(provider_key, stats_dict, aliases)
+        if _is_absent_not_zero(combined, provider_key):
+            outcome.data_gaps.append(
+                f"{provider_key}: fixture {fixture_id} is not a completed match "
+                f"(retirement, walkover, or every stat 0); recorded as absent"
+            )
+            continue
         for name, value in _make_values(
-            provider_key, fixture_id, _field(fx, "date", default=""), str(opponent or "unknown"), combined
+            provider_key, fixture_id, _field(fx, "date", "kickoff", default=""), str(opponent or "unknown"), combined
         ).items():
             outcome.add(name, value)
     return outcome
@@ -1207,8 +1329,14 @@ def _fetch_h2h_generic(
             continue
         stats_dict = getattr(raw_stats, "stats", None) or {}
         combined = _combine_stats(provider_key, stats_dict, aliases)
+        if _is_absent_not_zero(combined, provider_key):
+            outcome.data_gaps.append(
+                f"{provider_key}: h2h fixture {fixture_id} is not a completed match "
+                f"(retirement, walkover, or every stat 0); recorded as absent"
+            )
+            continue
         for name, value in _make_values(
-            provider_key, fixture_id, _field(meeting, "date", default=""), team_two, combined
+            provider_key, fixture_id, _field(meeting, "date", "kickoff", default=""), team_two, combined
         ).items():
             outcome.add(name, value)
     return outcome

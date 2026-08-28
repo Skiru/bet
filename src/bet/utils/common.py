@@ -45,6 +45,21 @@ def strip_emoji(text: str) -> str:
     return _EMOJI_RE.sub("", text)
 
 
+# Words that name a *kind* of club rather than a club. A name reduced to these
+# alone has been over-normalized, not normalized.
+_GENERIC_CLUB_TOKENS = frozenset({
+    "club", "clube", "cd", "ca", "ac", "sc", "fc", "cf", "sk", "fk", "as",
+    "athletic", "atletico", "sporting", "united", "utd", "city", "town",
+    "rovers", "wanderers", "real", "deportivo", "deportivo",
+})
+
+
+def _is_only_generic(text: str) -> bool:
+    """Has normalization left nothing that names a particular club?"""
+    tokens = [t for t in re.split(r"[^a-z0-9]+", text.lower()) if t]
+    return not tokens or all(t in _GENERIC_CLUB_TOKENS for t in tokens)
+
+
 def normalize_team_name(name: str) -> str:
     """Normalize team/player name for fuzzy matching across sources.
 
@@ -63,8 +78,11 @@ def normalize_team_name(name: str) -> str:
     s = re.sub(r"\s*\([^)]*\)\s*", " ", s)
     # Remove age/gender/reserve suffixes
     s = re.sub(r"\b(U21|U19|U20|U23|U18|U17|W|II|III|B|Reserves?|Youth|Women|Juniors?)\b", "", s, flags=re.IGNORECASE)
-    s = re.sub(
-        r"\b(FC|SC|CF|CD|SK|FK|AS|AC|US|SS|SV|TSV|VfB|VfL|BSC|"
+    # Club-form words. TSG belongs here beside TSV for the same reason -- it is
+    # a German club form, and without it "TSG Hoffenheim" and "1899 Hoffenheim"
+    # stayed two fixtures on 2026-08-28.
+    stripped = re.sub(
+        r"\b(FC|SC|CF|CD|SK|FK|AS|AC|US|SS|SV|TSV|TSG|VfB|VfL|BSC|"
         r"IF|BK|IFK|AIK|FF|GIF|AFC|RFC|SFC|CFC|United|Utd|City|"
         r"Town|Rovers|Wanderers|Athletic|Athletico|Sporting|"
         r"SP|SE|CE|EC|AA|CR|CA|AP|RB)\b",
@@ -72,9 +90,26 @@ def normalize_team_name(name: str) -> str:
         s,
         flags=re.IGNORECASE,
     )
+    # Never let the strip consume the whole name. "Athletic Club" reduces to
+    # "club", and so does "Athletic Club (MG)" once the parenthetical goes --
+    # which makes Bilbao and the Brazilian Série B side one team to every
+    # caller of this function, including team-identity resolution, where a
+    # false positive files another club's history. When nothing distinguishing
+    # survives, the unstripped name is the safer answer: it can fail to match,
+    # which costs a source, instead of matching the wrong club, which costs the
+    # row its meaning.
+    if _is_only_generic(stripped):
+        stripped = s
+    s = stripped
     # Remove esports org suffixes
     s = re.sub(r"\b(Gaming|Esports|eSports|e-Sports|Clan|Organization)\b", "", s, flags=re.IGNORECASE)
     s = s.replace("-", " ")
+    # Apostrophes, not just hyphens. Feeds disagree about them constantly and
+    # the difference is never meaningful: "St Patricks Athletic" (odds-api) and
+    # "St Patrick's Athl." (highlightly) are one club, and on 2026-08-28 they
+    # reached the stats sheet as two fixtures because "patricks" and "patrick's"
+    # are different tokens. Same for "Cote d'Opale" / "Cote dOpale".
+    s = s.replace("'", "").replace("\u2019", "")
     s = re.sub(r"\s+", " ", s).strip()
     return s.lower()
 

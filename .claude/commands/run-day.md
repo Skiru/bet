@@ -40,7 +40,7 @@ Quote the advice line, then act on it:
 
 | Advice | Action |
 |---|---|
-| `GO: quota corroborates all N` | Run with `--max-events 40` |
+| `GO: quota corroborates all N` | Run with `--max-events 250` |
 | `GO with --max-events N` | Run with **exactly** that N |
 | `GO, but nothing will be corroborated` | Run, and say up front every row will be `SINGLE_SOURCE` |
 | `NO-GO: no usable provider` | **STOP.** Report each blocked provider's `kind`. Write no file |
@@ -103,11 +103,48 @@ once — it is a dry run unless you pass `--apply`:
 .venv/bin/python scripts/simple/purge_unproven_cache.py
 ```
 
+It now also clears `espn/tennis/*/athlete_search/`, the cached name→id answers.
+That matters because those have a seven-day TTL and a fix to a resolver does not
+fix what the broken one already wrote: on 2026-08-28, 466 of them had been
+produced by a matcher that accepted a shared forename or a surname substring,
+including one mapping the literal string `TBD` to athlete id `-4`. They were
+purged on 2026-08-28; if the report ever shows them again, purge before running.
+
+**`verify_tennis_providers.py` cannot catch a crossing on today's players.** It
+probes a fixed list of canary names, and it exited 0 on the day Qinwen Zheng's
+sheet carried Lorenzo Musetti's matches. The real guard is now inside ENRICH:
+every tennis payload is checked against the name the provider itself put on the
+rows, and a payload naming somebody else is dropped whole with a
+`MISIDENTIFIED` data gap. Read those gaps in the run report — one appearing is
+the check working, not a new outage.
+
 ## Step 2 — Run the pipeline
 
 ```bash
 python3 scripts/simple/run_pipeline.py --date <resolved> -v --max-events <N>
 ```
+
+**`--max-events 40` is too small and was the single biggest cost of the
+2026-08-28 run.** 277 of 387 discovered fixtures came back BLOCKED reading "run
+capped at 40 events", which looks like a quota problem and is not one: football
+is uncapped on the PRO plan, and ESPN is free. 250 is the number to use unless
+preflight says otherwise. Measured on that slate, going from 40 to 250 took the
+sheet from 37 to 92 events and 2954 to 5218 rows.
+
+The cap is now **split between sports** before ranking inside each one. It used
+to be one global sort whose tie-break rewards corroboration -- and corroboration
+is a property of the sport, not of the fixture. With 39 of 40 tennis fixtures
+single-source, every tennis event ranked below every football event, the one
+corroborated tennis match landed at position 41 under `--max-events 40`, and the
+whole sport vanished while `bzzoiro-tennis` still held 72 unspent requests.
+Under apportionment a cap of 40 gives tennis 4 slots and football 36; a sport
+that cannot fill its share hands the slots back.
+
+`--provider-call-budget` is **not** what throttled football, despite reading that
+way. Only the native-id providers are metered by it, `bzzoiro` is already
+overridden to 20000 in `RUN_BUDGET_OVERRIDES`, and the one provider it binds --
+`highlightly` -- has a real daily ceiling of exactly 100. Raising the flag buys
+nothing there; the daily quota binds first. Leave it alone.
 
 DISCOVER → ENRICH → MARKET_CONTEXT → TIPSTERS → ANALYZE, one `run_id`.
 

@@ -38,8 +38,10 @@ from bet.simple_stats.bet_builder_draft import (
     draft_legs,
     tier_for_row,
 )
+from bet.discovery.team_aliases import resolve_team_alias
 from bet.simple_stats.contracts import EventListV1, StatsSheetRow, StatsSheetV1
 from bet.strict_model import StrictBaseModel
+from bet.utils import normalize_team_name
 
 # Human-readable market labels. Sourced from the row's own ``market`` field
 # rather than from STANDARD_MARKET_LINES, because that table is keyed by display
@@ -250,6 +252,35 @@ def build_coupons(
             match = f"{event.home_team or '?'} – {event.away_team or '?'}"
         return match, event.competition, event.start_time
 
+    def fixture_key(event_id: str) -> tuple:
+        """What real-world match this row is about, independent of event_id.
+
+        Two dossiers can describe one fixture: discovery merges on names, and
+        two feeds that spell a club differently produce two events. DISCOVER
+        now merges far more of them, but the coupon is the artifact somebody
+        *bets from*, so it does not rely on that. On 2026-08-28 a surviving
+        pair put Nautico - Athletic Club on the list twice, same market, same
+        line, same direction, at two different ranks -- an operator working
+        down the file would have staked one bet twice while believing he was
+        diversifying.
+
+        Keyed on kickoff plus the two participants, order-insensitive and
+        alias-resolved, because that is what identifies a match when the ids
+        disagree. An event the sheet cannot name falls back to its event_id,
+        which is no worse than today.
+        """
+        event = events.get(event_id)
+        if event is None:
+            return ("unknown", event_id)
+        if event.sport == "tennis":
+            sides = (event.player_one or "", event.player_two or "")
+        else:
+            sides = (event.home_team or "", event.away_team or "")
+        names = tuple(sorted(
+            normalize_team_name(resolve_team_alias(name)) for name in sides
+        ))
+        return (event.sport, event.start_time, names)
+
     excluded: dict[str, int] = {}
 
     def exclude(reason: str) -> None:
@@ -271,13 +302,13 @@ def build_coupons(
     # with a strong corners read cannot occupy six rows of the file at four
     # different lines -- they are the same read, and only the best line of it is
     # a distinct bet.
-    seen: set[tuple[str, str, str | None]] = set()
+    seen: set[tuple[tuple, str, str | None]] = set()
     singles: list[CouponSingle] = []
     for row, tier in sorted(
         candidates,
         key=lambda pair: (_is_trivial_under(pair[0]), -pair[0].p_low, pair[0].event_id),
     ):
-        key = (row.event_id, row.market, _subject(row))
+        key = (fixture_key(row.event_id), row.market, _subject(row))
         if key in seen:
             exclude("duplicate_market_for_event")
             continue

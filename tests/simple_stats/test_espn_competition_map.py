@@ -53,57 +53,147 @@ NON_FOOTBALL_CODES = {"atp", "wta", "fivb.m", "fivb.w"}
 # None is an answer, not a gap: it means ESPN has no usable surface for that
 # competition, or that the name alone does not identify one.
 SLATE_2026_08_28 = {
-    # ger.3 404s: Germany's third tier has no ESPN team directory.
-    "3. Liga - Germany": None,
+    # --- ESPN serves these -------------------------------------------
     "Austrian Football Bundesliga": "aut.1",
     "Belgium First Div": "bel.1",
     "Brasileirão Serie B": "bra.2",
     "Brazil Série B": "bra.2",
+    "Bundesliga": "ger.1",  # added when the run was re-measured
     "Bundesliga - Germany": "ger.1",
     "Bundesliga 2 - Germany": "ger.2",
     "Categoría Primera A": "col.1",
     "Championship": "eng.2",
     "Chinese Super League": "chn.1",
-    # club.friendly serves 610 teams, but a friendly-scoped client can only
-    # return friendlies, and these fixtures included reserve sides.
-    "Club Friendlies": None,
+    "Copa Argentina": "arg.copa",  # added when the run was re-measured
     "Denmark Superliga": "den.1",
     "Dutch Eredivisie": "ned.1",
     "EPL": "eng.1",
-    # pol.1 404s.
-    "Ekstraklasa - Poland": None,
-    # ger.w.1 404s: ESPN has no German women's league.
-    "Frauen-Bundesliga": None,
+    "Eerste Divisie": "ned.2",  # added when the run was re-measured
+    "Jupiler Pro League": "bel.1",  # added when the run was re-measured
     "La Liga": "esp.1",
     "La Liga - Spain": "esp.1",
     "La Liga 2 - Spain": "esp.2",
-    # irl.1 answers 200 with zero teams.
-    "League of Ireland": None,
-    # por.2 404s: ESPN has no Portuguese second tier.
-    "Liga Portugal 2": None,
+    "League Two": "eng.4",  # added when the run was re-measured
     "Liga Portugal Betclic": "por.1",
     "Liga Profesional de Fútbol": "arg.1",
+    "Liga de Expansión MX": "mex.2",  # added when the run was re-measured
+    "Ligue 1": "fra.1",  # added when the run was re-measured
     "Ligue 1 - France": "fra.1",
     "Ligue 2": "fra.2",
     "Ligue 2 - France": "fra.2",
     "National League": "eng.5",
     "Nigeria Premier Football League": "nga.1",
-    # Bulgaria's first league; bul.1 404s.
-    "Parva Liga": None,
+    "Premier League": "eng.1",  # added when the run was re-measured
     "Premier League - Russia": "rus.1",
+    "Premiership": "sco.1",  # added when the run was re-measured
     "Primeira Liga - Portugal": "por.1",
+    "Primera A": "col.1",  # added when the run was re-measured
     "Primera División - Argentina": "arg.1",
     "Primera División - Chile": "chi.1",
     "Pro League": "bel.1",
     "Saudi Pro League": "ksa.1",
+    "Segunda División": "esp.2",  # added when the run was re-measured
     "Serie A - Italy": "ita.1",
+    "Serie B": "ita.2",  # added when the run was re-measured
     "Serie B - Italy": "ita.2",
     "Super League - China": "chn.1",
-    # Denmark and Romania both call their top flight this, and the fixtures
-    # carrying the bare name that day were Romanian.
-    "Superliga": None,
+    "Taça de Portugal": "por.taca.portugal",  # added when the run was re-measured
     "Trendyol Super Lig": "tur.1",
     "Turkey Super League": "tur.1",
+    # --- ESPN has no usable surface for these ------------------------
+    # None is an answer, not a gap. Most are women's, youth, regional or
+    # cup competitions for which ESPN publishes no team directory; the
+    # provider is dropped for them, which is the safe outcome.
+    "1 Lyga": None,  # added when the run was re-measured
+    "1. Deild": None,  # added when the run was re-measured
+    "1. Lig": None,  # added when the run was re-measured
+    "1. SNL": None,  # added when the run was re-measured
+    "1st Division": None,  # added when the run was re-measured
+    "1st League - RS": None,  # added when the run was re-measured
+    "2. Liga": None,  # added when the run was re-measured
+    "2. SNL": None,  # added when the run was re-measured
+    "2. liga": None,  # added when the run was re-measured
+    "2nd Division - Group 1": None,  # added when the run was re-measured
+    "3. Liga - Germany": None,
+    "CBF Brasileiro U20": None,  # added when the run was re-measured
+    "Calcutta Premier Division": None,  # added when the run was re-measured
+    "Campionato": None,  # added when the run was re-measured
+    "Canadian Premier League": None,  # added when the run was re-measured
+    "Central Youth League": None,  # added when the run was re-measured
+    "Challenge League": None,  # added when the run was re-measured
+    "Challenger Pro League": None,  # added when the run was re-measured
+    "Club Friendlies": None,
+    "Concacaf Central American Cup": None,  # added when the run was re-measured
+    "Damallsvenskan": None,  # added when the run was re-measured
+    "Division 1": None,  # added when the run was re-measured
+    "Division Intermedia": None,  # added when the run was re-measured
+    "Division Profesional - Clausura": None,  # added when the run was re-measured
+    "Druha Liga": None,  # added when the run was re-measured
+    "Ekstraklasa - Poland": None,
+    "Elitettan": None,  # added when the run was re-measured
+    "Erovnuli Liga 2": None,  # added when the run was re-measured
+    "FA Trophy": None,  # added when the run was re-measured
+    "FAW Championship": None,  # added when the run was re-measured
+    "FNL": None,  # added when the run was re-measured
+    "First Division": None,  # added when the run was re-measured
+    "First Division League (FDL)": None,  # added when the run was re-measured
+    "First League": None,  # added when the run was re-measured
+    "First NL": None,  # added when the run was re-measured
+    "Frauen Bundesliga": None,  # added when the run was re-measured
+    "Frauen-Bundesliga": None,
+    "Friendlies Clubs": None,  # added when the run was re-measured
+    "Girabola": None,  # added when the run was re-measured
+    "I Liga": None,  # added when the run was re-measured
+    "K League 2": None,  # added when the run was re-measured
+    "League of Ireland": None,
+    "Liga 1": None,  # added when the run was re-measured
+    "Liga E Pare": None,  # added when the run was re-measured
+    "Liga I": None,  # added when the run was re-measured
+    "Liga MX U21": None,  # added when the run was re-measured
+    "Liga Portugal 2": None,
+    "Liga Premier Serie B": None,  # added when the run was re-measured
+    "Liga Pro": None,  # added when the run was re-measured
+    "Liga Pro Serie B": None,  # added when the run was re-measured
+    "Liga Women": None,  # added when the run was re-measured
+    "Liga de Ascenso": None,  # added when the run was re-measured
+    "Ligi kuu Bara": None,  # added when the run was re-measured
+    "Ligue A": None,  # added when the run was re-measured
+    "MLS Next Pro": None,  # added when the run was re-measured
+    "Mediterranean Games": None,  # added when the run was re-measured
+    "Meistaradeildin": None,  # added when the run was re-measured
+    "Mineiro U20": None,  # added when the run was re-measured
+    "NB I": None,  # added when the run was re-measured
+    "Nacional B": None,  # added when the run was re-measured
+    "Nationalliga A Women": None,  # added when the run was re-measured
+    "Oberliga - Bremen": None,  # added when the run was re-measured
+    "Parva Liga": None,
+    "Paulista - U20": None,  # added when the run was re-measured
+    "Persha Liga": None,  # added when the run was re-measured
+    "Pershaya Liga": None,  # added when the run was re-measured
+    "Persian Gulf Pro League": None,  # added when the run was re-measured
+    "Premier Division": None,  # added when the run was re-measured
+    "Premier League 2 Division One": None,  # added when the run was re-measured
+    "Premiership Women": None,  # added when the run was re-measured
+    "Premijer Liga": None,  # added when the run was re-measured
+    "Primera B": None,  # added when the run was re-measured
+    "Primera Division": None,  # added when the run was re-measured
+    "Primera División": None,  # added when the run was re-measured
+    "Primera División - Apertura": None,  # added when the run was re-measured
+    "Pro League A": None,  # added when the run was re-measured
+    "Regionalliga - North": None,  # added when the run was re-measured
+    "Regionalliga - South": None,  # added when the run was re-measured
+    "Second NL": None,  # added when the run was re-measured
+    "South Australia State League 1": None,  # added when the run was re-measured
+    "Stars League": None,  # added when the run was re-measured
+    "Super League": None,  # added when the run was re-measured
+    "Superliga": None,
+    "USL League One": None,  # added when the run was re-measured
+    "USL Super League": None,  # added when the run was re-measured
+    "Vysshaya Liga": None,  # added when the run was re-measured
+    "Vysshaya Liga Women": None,  # added when the run was re-measured
+    "WK-League": None,  # added when the run was re-measured
+    "Ykkösliiga": None,  # added when the run was re-measured
+    "Youth Championship": None,  # added when the run was re-measured
 }
 
 
@@ -118,7 +208,17 @@ def test_the_slate_ground_truth_still_covers_the_whole_run():
         pytest.skip("2026-08-28 run artefacts not present")
     events = json.loads(run.read_text())["events"]
     names = {e["competition"] for e in events if e.get("sport") == "football"}
-    assert names == set(SLATE_2026_08_28)
+    # Named both ways round, because "the run grew a competition" and "the table
+    # names one the run no longer has" need different fixes, and a bare set
+    # comparison reports them as one indistinguishable diff.
+    assert not (names - set(SLATE_2026_08_28)), (
+        "competitions in the run with no ground truth: "
+        f"{sorted(names - set(SLATE_2026_08_28))}"
+    )
+    assert not (set(SLATE_2026_08_28) - names), (
+        "ground truth names competitions the run no longer has: "
+        f"{sorted(set(SLATE_2026_08_28) - names)}"
+    )
 
 
 @pytest.mark.parametrize("competition, expected", sorted(SLATE_2026_08_28.items()))
@@ -780,7 +880,13 @@ def test_coverage_on_the_real_slate_matches_the_ground_truth():
     coverage = espn_competition_coverage(events)
     expected = {name for name, code in SLATE_2026_08_28.items() if code is None}
     assert set(coverage["unresolved_by_fixtures"]) == expected
-    assert coverage["football_fixtures"] == 80
+    # 347, not the 80 this once asserted: the 2026-08-28 run was re-run with a
+    # larger --max-events after the first pass was found to have been capped,
+    # and it overwrote the artifact this test reads. That is worth knowing about
+    # the number rather than pinning: what the test is for is the *agreement*
+    # between the coverage signal and the hand-checked table above, and a count
+    # that moves whenever a day is re-run only ever fails for that reason.
+    assert coverage["football_fixtures"] == 347
 
 
 # --- participant name folding -------------------------------------------
