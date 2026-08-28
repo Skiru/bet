@@ -243,6 +243,56 @@ class TipsterColumn(StrictBaseModel):
     excluded: dict[str, int] = Field(default_factory=dict)
 
 
+class MarketSignalColumn(StrictBaseModel):
+    """A price and a model read for one stats-sheet row. Never a probability we computed.
+
+    Same structural boundary as ``TipsterColumn``, drawn against a different
+    temptation. Tipster opinion is obviously not a sample and the danger is that
+    it *looks* like corroboration. These numbers are the opposite: a
+    market-implied probability is genuinely well-calibrated -- better calibrated
+    than anything in this sheet -- which makes averaging it into ``p_low`` feel
+    like an improvement. It would end the one property ``p_low`` has, which is
+    that you can ask which matches produced it. A price has none behind it.
+
+    So this is a nested object rather than loose fields, and every number a row
+    uses to make its claim (``hits``, ``sample_size``, ``hit_rate``, ``p_low``,
+    ``confidence``) is computed with no knowledge that this object exists.
+
+    Named generically rather than for corners because a later goals or BTTS
+    activation should need no new contract field -- only a wider activation list
+    in the pure function that fills it. Today that function refuses every market
+    except ``corners_total``: bzzoiro publishes no odds and no model probability
+    for cards, fouls or shots on target, so those rows can never get a real
+    signal and must never be handed a fabricated one.
+
+    ``model_probability`` and ``market_implied_probability`` are both the
+    probability of **this row's own direction at this row's own line**, on a 0-1
+    scale, and are populated only when the source covers that exact line. Nothing
+    is ever interpolated across lines: over 9.5 corners and over 10.5 corners
+    settle differently, and a probability moved between them is a fabrication
+    wearing a real number's clothes.
+    """
+
+    verdict: Literal["CONFIRMS", "CONTRADICTS", "SPLIT", "NO_MARKET_DATA"]
+    model_probability: float | None = None
+    # De-vigged: the two legs of a line are normalized against each other, so
+    # this is a probability rather than the bookmaker's 1/odds, which carries the
+    # overround and would systematically overstate whichever side is being read.
+    market_implied_probability: float | None = None
+    # The best decimal price available for this row's direction and line across
+    # every bookmaker bzzoiro tracks. **Not necessarily the operator's own
+    # bookmaker's price** -- there is no Superbet among the 88 books in the feed
+    # (checked live 2026-08-28), so this is a market reference point and never a
+    # quote to bet off.
+    market_price: float | None = None
+    market_bookmaker: str | None = None
+    sources: list[str] = Field(default_factory=list)
+    # Why the column is empty, when it is: "no model probability at line 11.5",
+    # "market quotes exist only at other lines", "market not covered by provider".
+    # Present so an absent signal is auditable rather than merely absent.
+    reason: str = ""
+
+
 class StatsSheetRow(StrictBaseModel):
     """One row of STATS_SHEET_V1: event x market x line x direction."""
 
@@ -284,6 +334,9 @@ class StatsSheetRow(StrictBaseModel):
     # valid sheet, and every field above it is computed with no knowledge that
     # this one exists.
     tipster: TipsterColumn | None = None
+    # The same contract, one stage later: a sheet produced without a
+    # MARKET_CONTEXT run is a valid sheet, and nothing above reads this either.
+    market_signal: MarketSignalColumn | None = None
 
 
 class StatsSheetV1(StrictBaseModel):
@@ -317,6 +370,170 @@ class TipsterPickRef(StrictBaseModel):
     tipster_bet_count: int | None = None
     match_date: str | None = None
     source_url: str | None = None
+
+
+# Every market code bzzoiro's odds feed can emit, closed to the provider's own
+# enum (verified live 2026-08-28 against sports.bzzoiro.com/api/schema/, which
+# publishes it as an OpenAPI enum on both /api/v2/odds/ and OddsItemV2Schema),
+# plus tennis's "match_winner".
+#
+# Unlike PROVIDER_NAMES -- a human's config-time decision, so an unlisted value
+# is genuinely a mistake -- this list belongs to the live API, which may add to
+# it at any time. So it is never validated against directly: MARKET_NAME_MAP in
+# api_clients/bzzoiro.py filters raw codes *before* a MarketOddsLine is
+# constructed, and anything unmapped is reported in ``unknown_markets`` rather
+# than raising. A provider adding a market must never fail a betting day.
+#
+# Note what is absent: there is no cards, fouls or shots-on-target market
+# anywhere in this list. Three of the five markets this pipeline prices can
+# therefore never receive a real price or a real model probability, which is why
+# market_signal_for_row refuses to attach a signal to them.
+MARKET_CODES = Literal[
+    "1x2",
+    "btts",
+    "over_under_05",
+    "over_under_15",
+    "over_under_25",
+    "over_under_35",
+    "double_chance",
+    "draw_no_bet",
+    "european_handicap",
+    "asian_handicap",
+    "total_corners",
+    "corners_1x2",
+    "total_red_cards",
+    "red_card",
+    # Tennis (sports.bzzoiro.com/tennis/api/v2). Listed so the contract can
+    # express a tennis quote at all; no tennis market context is collected in
+    # this pipeline yet, because those calls would spend the same 95/day bucket
+    # ENRICH already spends.
+    "match_winner",
+]
+
+OUTCOME_CODES = Literal["HOME", "DRAW", "AWAY", "over", "under", "yes", "no", "1X", "12", "X2"]
+
+
+class MarketOddsLine(StrictBaseModel):
+    """One bookmaker's price for one (market, outcome, line) at one moment.
+
+    A price, and never a probability this pipeline computed. ``implied_probability``
+    is the provider's own 1/decimal_odds and therefore carries the bookmaker's
+    overround: the over and under legs of the same line sum to more than 1. It is
+    stored raw rather than de-vigged here so the artifact records what the market
+    actually quoted; removing the overround is a modelling decision and is made
+    where the comparison happens, not in the parser.
+
+    ``line`` is None for every market that has no line (1x2, btts, double_chance,
+    draw_no_bet, red_card) -- not 0.0, which would read as a real line of zero.
+    """
+
+    market: MARKET_CODES
+    outcome: OUTCOME_CODES
+    line: float | None = None
+    price: float
+    implied_probability: float | None = None
+    bookmaker_slug: str | None = None
+    bookmaker_name: str | None = None
+    # Best price across every bookmaker quoting this exact (market, outcome,
+    # line), computed by this pipeline rather than read from the provider's
+    # ``is_max_quote`` flag -- that flag came back unset on every event-scoped
+    # corners quote surveyed live on 2026-08-28, so trusting it would have
+    # silently reported no best price at all.
+    is_best: bool = False
+    updated_at: str | None = None
+
+
+class ModelPrediction(StrictBaseModel):
+    """Bzzoiro's CatBoost forecast for one event: a second opinion, not a price.
+
+    Every probability field is independently ``| None``. The model publishes
+    nulls where it has too little history, and the whole ``corners`` block is
+    null when neither team history nor a market line exists. A null defaulted to
+    0.5 would be indistinguishable from a genuine coin-flip read, so nothing is
+    ever filled in.
+
+    **Probabilities are stored 0-1 here, and the provider serves them 0-100.**
+    The conversion happens once, in the client parser. This matters because the
+    only thing these numbers are ever compared against is a market-implied
+    probability, which the same API serves as a 0-1 fraction -- so leaving the
+    two on different scales would make a 58.9% model read look like a 5890%
+    disagreement with a 0.625 price.
+    """
+
+    prob_home: float | None = None
+    prob_draw: float | None = None
+    prob_away: float | None = None
+    predicted: Literal["H", "D", "A"] | None = None
+    xg_home: float | None = None
+    xg_away: float | None = None
+    prob_goals_over_15: float | None = None
+    prob_goals_over_25: float | None = None
+    prob_goals_over_35: float | None = None
+    prob_btts_yes: float | None = None
+    prob_dnb_home: float | None = None
+    most_likely_score: str | None = None
+    # The one model block that overlaps a market this pipeline actually prices.
+    # Exactly three lines, and no others: a row on 6.5 or 11.5 corners has no
+    # model probability and must be told so rather than handed an interpolation.
+    prob_corners_over_85: float | None = None
+    prob_corners_over_95: float | None = None
+    prob_corners_over_105: float | None = None
+    model_version: str | None = None
+    # The provider's own confidence in its top 1X2 outcome, served 0-1.
+    model_confidence: float | None = None
+    created_at: str | None = None
+
+
+class EventMarketContext(StrictBaseModel):
+    """Everything MARKET_CONTEXT learned about one event's prices and model."""
+
+    event_id: str
+    provider_event_id: str
+    # Per-bookmaker quotes for the markets this pipeline can use, from
+    # /api/v2/odds/?event_id=. The uniform corners price path: it answers
+    # identically whether or not the account holds Football Unlimited, so the
+    # one signal that can promote a row never changes provenance with a billing
+    # state.
+    odds: list[MarketOddsLine] = Field(default_factory=list)
+    # /api/v2/events/{id}/odds/ -- the provider's own consensus block. Carries
+    # 1x2, goals over/under and BTTS only; it has no corners market at all
+    # (verified live 2026-08-28), which is why it is context and never the
+    # corners signal source.
+    consensus_odds: dict[str, float] = Field(default_factory=dict)
+    # Full per-bookmaker grid from /odds/comparison/, which requires the
+    # "Football Unlimited" entitlement. NOT_ENTITLED is a recorded fact about
+    # the account, not a failure of the run and not a data gap.
+    bookmaker_comparison: list[MarketOddsLine] = Field(default_factory=list)
+    comparison_entitlement: Literal["ENTITLED", "NOT_ENTITLED", "NOT_ATTEMPTED", "ERROR"] = "NOT_ATTEMPTED"
+    bookmakers_count: int = 0
+    predictions: ModelPrediction | None = None
+    # Market codes the live API returned that this pipeline does not map. Present
+    # so a provider adding a market surfaces as a diagnostic instead of vanishing.
+    unknown_markets: list[str] = Field(default_factory=list)
+    data_gaps: list[str] = Field(default_factory=list)
+
+
+class MarketContextV1(StrictBaseModel):
+    """MARKET_CONTEXT artifact: point-in-time prices and model reads for a day.
+
+    Deliberately not folded into EVENT_DOSSIER_V1. A dossier is sample
+    arithmetic over historical matches -- ``ProviderValue`` after
+    ``ProviderValue``, each traceable to a specific played fixture. These are a
+    single snapshot of what a market and a model currently think, which is a
+    structurally different claim. Mixing them would let a price be counted as an
+    observation, and there would then be no way to ask which matches a
+    probability came from.
+    """
+
+    run_id: str = ""
+    date: str = ""
+    generated_at: str
+    # Probed once per run against a real discovered event, never assumed from
+    # the plan the account is believed to be on.
+    football_unlimited_entitled: bool | None = None
+    events_considered: int = 0
+    provider_calls: int = 0
+    events: list[EventMarketContext] = Field(default_factory=list)
 
 
 class TipsterEventSignal(StrictBaseModel):

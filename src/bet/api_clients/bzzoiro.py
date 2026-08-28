@@ -48,6 +48,78 @@ TEAM_FIXTURES_PARSER_VERSION = "bzzoiro-team-fixtures-v1"
 STATISTICS_PARSER_VERSION = "bzzoiro-statistics-v1"
 PLAYER_STATS_PARSER_VERSION = "bzzoiro-player-stats-v1"
 LINEUPS_PARSER_VERSION = "bzzoiro-lineups-v1"
+ODDS_PARSER_VERSION = "bzzoiro-odds-v1"
+CONSENSUS_ODDS_PARSER_VERSION = "bzzoiro-consensus-odds-v1"
+ODDS_COMPARISON_PARSER_VERSION = "bzzoiro-odds-comparison-v1"
+PREDICTION_PARSER_VERSION = "bzzoiro-prediction-v1"
+
+# Raw ``market`` code -> canonical code, and the same for ``outcome``.
+#
+# The values are identical to the keys because this provider's codes are already
+# the canonical ones. The map exists anyway, and is not replaced by a frozenset,
+# for the same reason STAT_NAME_MAP is a map: it is the single place a raw code
+# is *filtered*, so a market the provider adds tomorrow lands in
+# ``unknown_markets`` as a diagnostic rather than reaching a Literal-typed
+# contract field and raising a ValidationError mid-run.
+#
+# Contrast PROVIDER_NAMES, which is a closed Literal validated against directly:
+# a provider name is a human's config-time decision, so an unlisted one is a
+# mistake worth failing on. A market code belongs to the live API.
+MARKET_NAME_MAP: dict[str, str] = {
+    "1x2": "1x2",
+    "btts": "btts",
+    "over_under_05": "over_under_05",
+    "over_under_15": "over_under_15",
+    "over_under_25": "over_under_25",
+    "over_under_35": "over_under_35",
+    "double_chance": "double_chance",
+    "draw_no_bet": "draw_no_bet",
+    "european_handicap": "european_handicap",
+    "asian_handicap": "asian_handicap",
+    "total_corners": "total_corners",
+    "corners_1x2": "corners_1x2",
+    "total_red_cards": "total_red_cards",
+    "red_card": "red_card",
+    "match_winner": "match_winner",
+}
+
+OUTCOME_NAME_MAP: dict[str, str] = {
+    "HOME": "HOME",
+    "DRAW": "DRAW",
+    "AWAY": "AWAY",
+    "over": "over",
+    "under": "under",
+    "yes": "yes",
+    "no": "no",
+    "1X": "1X",
+    "12": "12",
+    "X2": "X2",
+}
+
+# ``/events/{id}/odds/`` answers a flat block of named prices rather than the
+# (market, outcome, line) tuples ``/odds/`` returns, so its keys are carried
+# through verbatim into ``consensus_odds``. Surveyed live 2026-08-28: the block
+# holds 1x2, goals over/under and BTTS, and **no corners market of any kind** --
+# which is why the corners signal is never sourced from here.
+CONSENSUS_ODDS_KEYS = frozenset(
+    {
+        "home_win",
+        "draw",
+        "away_win",
+        "over_15_goals",
+        "over_25_goals",
+        "over_35_goals",
+        "under_15_goals",
+        "under_25_goals",
+        "under_35_goals",
+        "btts_yes",
+        "btts_no",
+    }
+)
+
+# The model serves probabilities 0-100; every consumer compares them against a
+# 1/decimal_odds figure, which the same API serves 0-1. Converted once, here.
+_PERCENT_TO_FRACTION = 100.0
 
 # Raw ``stats.home`` / ``stats.away`` key -> (normalized name, unit).
 # Deliberately partial: the payload carries ~50 keys per side (ball carries,
@@ -731,6 +803,428 @@ class BzzoiroClient(EvidenceRequestMixin, BaseAPIClient):
                 "away_players": len(sides.get("away", {}).get("players") or []),
             },
         )
+
+
+    # -------------------------------------------------- odds and predictions
+    #
+    # Everything below is a *point-in-time snapshot*, not a sample. Nothing here
+    # ever produces a ``ProviderValue``: those are observations of played
+    # matches and carry a match id and a date you can go and check. A price is
+    # what a bookmaker currently thinks, and a prediction is what a model
+    # currently thinks. Coercing either into the sample arithmetic upstream --
+    # the obvious way to reuse the Wilson bound already written -- would put a
+    # number with no matches behind it into a figure whose whole value is that
+    # you can ask which matches it came from.
+
+    def get_odds_result(
+        self,
+        event_id: str | int,
+        *,
+        market: str | None = None,
+        limit: int = MAX_PAGE_SIZE,
+    ) -> SourceOperationResult[dict[str, Any]]:
+        """Every tracked bookmaker's quotes for one event, from ``/odds/``.
+
+        This is the corners price path, and it is deliberately *not*
+        ``/events/{id}/odds/`` or ``/odds/best/``, both of which look like the
+        obvious choice and cannot do the job (verified live 2026-08-28):
+
+        * ``/events/{id}/odds/`` returns a consensus block covering 1x2, goals
+          over/under and BTTS, with **no corners market at all**;
+        * ``/odds/best/`` is scoped by date range and league, not by event -- one
+          response carried 313 unrelated fixtures -- so reaching one event's
+          corners through it means paging a day's slate to find it.
+
+        ``is_best`` is therefore computed here rather than read from the
+        provider's own ``is_max_quote`` flag: filtering an event's corners
+        quotes by ``is_max_quote=true`` returned zero rows against an event that
+        demonstrably had twelve, so the flag is not maintained on this feed and
+        trusting it would report no best price rather than the wrong one.
+        """
+        params: dict[str, Any] = {
+            "event_id": int(event_id),
+            "limit": min(int(limit), MAX_PAGE_SIZE),
+        }
+        if market is not None:
+            params["market"] = market
+        result = self._request_with_evidence(
+            endpoint="/odds/",
+            params=params,
+            operation="market_odds",
+            source_event_id=str(event_id),
+        )
+        if result.status is not SourceResultStatus.SUCCESS:
+            return result
+        payload = result.value
+        if not isinstance(payload, dict):
+            return self._schema_error(result, "payload_not_object")
+        rows = payload.get("results")
+        if not isinstance(rows, list):
+            return self._schema_error(result, "results_not_list")
+
+        quotes: list[dict[str, Any]] = []
+        unknown_markets: list[str] = []
+        rejected_count = 0
+        unlinked_count = 0
+
+        for row in rows:
+            if not isinstance(row, dict):
+                rejected_count += 1
+                continue
+            # ``event_id`` is documented nullable: a quote the provider could not
+            # link to a fixture in its own catalogue. Attaching one of those to
+            # the event we happened to be asking about would invent a price for a
+            # match it was never quoted on.
+            row_event_id = row.get("event_id")
+            if row_event_id is None or str(row_event_id) != str(event_id):
+                unlinked_count += 1
+                continue
+            raw_market = str(row.get("market") or "")
+            canonical_market = MARKET_NAME_MAP.get(raw_market)
+            if canonical_market is None:
+                if raw_market and raw_market not in unknown_markets:
+                    unknown_markets.append(raw_market)
+                continue
+            canonical_outcome = OUTCOME_NAME_MAP.get(str(row.get("outcome") or ""))
+            if canonical_outcome is None:
+                rejected_count += 1
+                continue
+            price = _scalar(row.get("decimal_odds"))
+            if price is None or price <= 0:
+                rejected_count += 1
+                continue
+            quotes.append(
+                {
+                    "market": canonical_market,
+                    "outcome": canonical_outcome,
+                    "line": _scalar(row.get("line")),
+                    "price": price,
+                    "implied_probability": _scalar(row.get("implied_probability")),
+                    "bookmaker_slug": str(row.get("bookmaker_slug") or "") or None,
+                    "bookmaker_name": str(row.get("bookmaker_name") or "") or None,
+                    "is_best": False,
+                    "updated_at": str(row.get("updated_at") or "") or None,
+                }
+            )
+
+        _mark_best_quotes(quotes)
+
+        return self._bundle_result(
+            result=result,
+            parser_version=ODDS_PARSER_VERSION,
+            operation_name="market_odds",
+            source_event_refs=namespaced_source_refs(self.api_name, [str(event_id)]),
+            value={
+                "provider_match_id": str(event_id),
+                "quotes": quotes,
+                "accepted_count": len(quotes),
+                "rejected_count": rejected_count,
+                "unlinked_count": unlinked_count,
+                "unknown_markets": unknown_markets,
+            },
+            parser_diagnostics={
+                "raw_count": len(rows),
+                "accepted_count": len(quotes),
+                "rejected_count": rejected_count,
+                "unlinked_count": unlinked_count,
+                "unknown_markets": unknown_markets,
+            },
+            forced_status=None if quotes else SourceResultStatus.VALID_EMPTY,
+        )
+
+    def get_consensus_odds_result(
+        self, event_id: str | int
+    ) -> SourceOperationResult[dict[str, Any]]:
+        """``/events/{id}/odds/`` -- the provider's own consensus block.
+
+        Context only. It covers 1x2, goals over/under and BTTS, none of which
+        this pipeline currently prices, and it carries no corners market, which
+        is the one it does. Collected because it costs one call on an uncapped
+        product and is the natural price source on the day goals/BTTS are
+        unlocked; read by nothing that can promote a row today.
+        """
+        result = self._request_with_evidence(
+            endpoint=f"/events/{event_id}/odds/",
+            params={},
+            operation="consensus_odds",
+            source_event_id=str(event_id),
+        )
+        if result.status is not SourceResultStatus.SUCCESS:
+            return result
+        payload = result.value
+        if not isinstance(payload, dict):
+            return self._schema_error(result, "payload_not_object")
+        odds = payload.get("odds")
+        if not isinstance(odds, dict):
+            return self._schema_error(result, "odds_not_object")
+
+        prices: dict[str, float] = {}
+        unknown_keys: list[str] = []
+        for key, raw_value in odds.items():
+            if key not in CONSENSUS_ODDS_KEYS:
+                unknown_keys.append(str(key))
+                continue
+            value = _scalar(raw_value)
+            if value is not None and value > 0:
+                prices[str(key)] = value
+
+        return self._bundle_result(
+            result=result,
+            parser_version=CONSENSUS_ODDS_PARSER_VERSION,
+            operation_name="consensus_odds",
+            source_event_refs=namespaced_source_refs(self.api_name, [str(event_id)]),
+            value={
+                "provider_match_id": str(event_id),
+                "consensus_odds": prices,
+                "last_update_at": payload.get("last_update_at"),
+                "unknown_keys": unknown_keys,
+            },
+            parser_diagnostics={
+                "accepted_count": len(prices),
+                "unknown_keys": unknown_keys,
+            },
+            forced_status=None if prices else SourceResultStatus.VALID_EMPTY,
+        )
+
+    def get_odds_comparison_result(
+        self, event_id: str | int
+    ) -> SourceOperationResult[dict[str, Any]]:
+        """The full per-bookmaker grid -- or the recorded fact that we cannot see it.
+
+        ``/odds/comparison/`` requires the "Football Unlimited" entitlement and
+        answers 403 ``bookmakers_not_entitled`` without it. That 403 is a
+        **successful, informative** answer: it says something true and stable
+        about the account, it will not resolve on a retry, and it is not a gap in
+        the provider's data. Returning it as an error would put a permanent
+        billing state into every event's ``data_gaps`` and would make the
+        retry-eligible failures around it unreadable.
+
+        ``EvidenceRequestMixin`` turns a 403 into ``BLOCKED``/``http_status=403``
+        before any payload-parsing runs, so that is what is caught here.
+        """
+        result = self._request_with_evidence(
+            endpoint=f"/events/{event_id}/odds/comparison/",
+            params={},
+            operation="odds_comparison",
+            source_event_id=str(event_id),
+        )
+        if result.status is SourceResultStatus.BLOCKED and result.http_status == 403:
+            return self._bundle_result(
+                result=result,
+                parser_version=ODDS_COMPARISON_PARSER_VERSION,
+                operation_name="odds_comparison",
+                source_event_refs=namespaced_source_refs(self.api_name, [str(event_id)]),
+                value={
+                    "provider_match_id": str(event_id),
+                    "entitlement": "NOT_ENTITLED",
+                    "quotes": [],
+                    "bookmakers_count": 0,
+                    "unknown_markets": [],
+                },
+                parser_diagnostics={"entitlement": "NOT_ENTITLED", "http_status": 403},
+                forced_status=SourceResultStatus.SUCCESS,
+            )
+        if result.status is not SourceResultStatus.SUCCESS:
+            return result
+        payload = result.value
+        if not isinstance(payload, dict):
+            return self._schema_error(result, "payload_not_object")
+        markets = payload.get("markets")
+        if not isinstance(markets, dict):
+            return self._schema_error(result, "markets_not_object")
+
+        quotes: list[dict[str, Any]] = []
+        unknown_markets: list[str] = []
+        for raw_market, selections in markets.items():
+            canonical_market = MARKET_NAME_MAP.get(str(raw_market))
+            if canonical_market is None:
+                if str(raw_market) not in unknown_markets:
+                    unknown_markets.append(str(raw_market))
+                continue
+            if not isinstance(selections, dict):
+                continue
+            for selection in selections.values():
+                if not isinstance(selection, dict):
+                    continue
+                canonical_outcome = OUTCOME_NAME_MAP.get(str(selection.get("outcome") or ""))
+                if canonical_outcome is None:
+                    continue
+                line = _scalar(selection.get("line"))
+                best_slug = str(selection.get("best_bookmaker_slug") or "") or None
+                best_name = str(selection.get("best_bookmaker_name") or "") or None
+                books = selection.get("bookmakers")
+                if not isinstance(books, dict):
+                    continue
+                for slug, book in books.items():
+                    if not isinstance(book, dict):
+                        continue
+                    price = _scalar(book.get("decimal_odds"))
+                    if price is None or price <= 0:
+                        continue
+                    quotes.append(
+                        {
+                            "market": canonical_market,
+                            "outcome": canonical_outcome,
+                            "line": line,
+                            "price": price,
+                            # The grid publishes no per-bookmaker implied
+                            # probability, and deriving one here would put a
+                            # computed number in a field the other path fills
+                            # from the provider.
+                            "implied_probability": None,
+                            "bookmaker_slug": str(slug),
+                            # The grid keys each bookmaker by slug and carries a
+                            # display name only for the best-priced one, so every
+                            # other quote is honestly nameless rather than given
+                            # a title-cased guess at its slug.
+                            "bookmaker_name": best_name if str(slug) == best_slug else None,
+                            "is_best": str(slug) == best_slug,
+                            "updated_at": str(book.get("updated_at") or "") or None,
+                        }
+                    )
+
+        bookmakers_count = payload.get("bookmakers_count")
+        return self._bundle_result(
+            result=result,
+            parser_version=ODDS_COMPARISON_PARSER_VERSION,
+            operation_name="odds_comparison",
+            source_event_refs=namespaced_source_refs(self.api_name, [str(event_id)]),
+            value={
+                "provider_match_id": str(event_id),
+                "entitlement": "ENTITLED",
+                "quotes": quotes,
+                "bookmakers_count": int(bookmakers_count)
+                if isinstance(bookmakers_count, int)
+                else 0,
+                "unknown_markets": unknown_markets,
+            },
+            parser_diagnostics={
+                "entitlement": "ENTITLED",
+                "accepted_count": len(quotes),
+                "markets_count": len(markets),
+                "unknown_markets": unknown_markets,
+            },
+            # An event with no odds answers ``{"markets": {}}`` (documented, and
+            # seen live). That is a real, entitled answer meaning "nobody has
+            # priced this yet" -- not an error, and the entitlement it proves
+            # must survive into the caller.
+            forced_status=None if quotes else SourceResultStatus.VALID_EMPTY,
+        )
+
+    def get_prediction_result(
+        self, event_id: str | int
+    ) -> SourceOperationResult[dict[str, Any]]:
+        """The CatBoost forecast for one event, rescaled to 0-1 probabilities.
+
+        Only the ``corners`` block overlaps a market this pipeline prices, and it
+        is the reason this endpoint is called at all: it is a methodologically
+        independent second opinion on the one market where our own historical
+        hit-rate can be checked against both a real price and a real model.
+
+        Nulls are preserved as nulls the whole way down. The model publishes them
+        where it lacks history -- the entire ``corners`` block is documented null
+        when neither team history nor a market line exists -- and a null quietly
+        defaulted to 0.5 would be indistinguishable from a genuine coin flip.
+        """
+        result = self._request_with_evidence(
+            endpoint=f"/events/{event_id}/prediction/",
+            params={},
+            operation="model_prediction",
+            source_event_id=str(event_id),
+        )
+        if result.status is not SourceResultStatus.SUCCESS:
+            return result
+        payload = result.value
+        if not isinstance(payload, dict):
+            return self._schema_error(result, "payload_not_object")
+        markets = payload.get("markets")
+        if not isinstance(markets, dict):
+            return self._schema_error(result, "markets_not_object")
+
+        def block(name: str) -> dict[str, Any]:
+            value = markets.get(name)
+            return value if isinstance(value, dict) else {}
+
+        match_result = block("match_result")
+        over_under = block("over_under")
+        corners = block("corners")
+        model = payload.get("model")
+        model = model if isinstance(model, dict) else {}
+
+        predicted = match_result.get("predicted")
+        prediction = {
+            "prob_home": _percent(match_result.get("prob_home")),
+            "prob_draw": _percent(match_result.get("prob_draw")),
+            "prob_away": _percent(match_result.get("prob_away")),
+            "predicted": predicted if predicted in ("H", "D", "A") else None,
+            "xg_home": _scalar(block("expected_goals").get("home")),
+            "xg_away": _scalar(block("expected_goals").get("away")),
+            "prob_goals_over_15": _percent(over_under.get("prob_over_15")),
+            "prob_goals_over_25": _percent(over_under.get("prob_over_25")),
+            "prob_goals_over_35": _percent(over_under.get("prob_over_35")),
+            "prob_btts_yes": _percent(block("btts").get("prob_yes")),
+            "prob_dnb_home": _percent(block("draw_no_bet").get("prob_home")),
+            "most_likely_score": block("score").get("most_likely") or None,
+            "prob_corners_over_85": _percent(corners.get("prob_over_85")),
+            "prob_corners_over_95": _percent(corners.get("prob_over_95")),
+            "prob_corners_over_105": _percent(corners.get("prob_over_105")),
+            "model_version": str(model.get("version") or "") or None,
+            # Already 0-1 in the payload, unlike every probability above it.
+            "model_confidence": _scalar(model.get("confidence")),
+            "created_at": str(payload.get("created_at") or "") or None,
+        }
+
+        has_corners = any(
+            prediction[key] is not None
+            for key in ("prob_corners_over_85", "prob_corners_over_95", "prob_corners_over_105")
+        )
+        return self._bundle_result(
+            result=result,
+            parser_version=PREDICTION_PARSER_VERSION,
+            operation_name="model_prediction",
+            source_event_refs=namespaced_source_refs(self.api_name, [str(event_id)]),
+            value={
+                "provider_match_id": str(event_id),
+                "prediction": prediction,
+                "has_corners": has_corners,
+            },
+            parser_diagnostics={
+                "has_corners": has_corners,
+                "model_version": prediction["model_version"],
+            },
+        )
+
+
+def _percent(raw: Any) -> float | None:
+    """A 0-100 model probability as a 0-1 fraction, or None.
+
+    None in means None out, always. The provider publishes nulls where the model
+    has too little history, and every one of them has to survive to the contract:
+    the only alternative anyone reaches for is 0.5, which reads exactly like a
+    model that looked at the match and called it even.
+    """
+    value = _scalar(raw)
+    if value is None:
+        return None
+    return value / _PERCENT_TO_FRACTION
+
+
+def _mark_best_quotes(quotes: list[dict[str, Any]]) -> None:
+    """Flag the highest price in each (market, outcome, line) group, in place.
+
+    Grouping includes the line, so the best price for over 8.5 corners is never
+    compared against a quote on over 9.5. Ties leave the first-seen quote
+    flagged; which of two identical prices is called best changes nothing about
+    the price itself.
+    """
+    best_index: dict[tuple[str, str, float | None], int] = {}
+    for index, quote in enumerate(quotes):
+        key = (quote["market"], quote["outcome"], quote["line"])
+        incumbent = best_index.get(key)
+        if incumbent is None or quote["price"] > quotes[incumbent]["price"]:
+            best_index[key] = index
+    for index in best_index.values():
+        quotes[index]["is_best"] = True
 
 
 def _scalar(raw: Any) -> float | None:
