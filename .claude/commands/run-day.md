@@ -1,88 +1,157 @@
 ---
-description: Run a betting day end to end and write the per-match analysis to runs/<date>/<date>_analiza.md, sorted by confidence.
+description: Run a betting day end to end, unattended, and produce the coupons file (singles + Bet Builder slips) plus the per-match analysis.
 argument-hint: dzisiaj | jutro | YYYY-MM-DD
 ---
 
-Run one betting day and write the analysis to a file. The user passes only the
-day.
+Run one betting day from nothing to a finished coupons file. The operator passes
+only the day and walks away. **Do not stop to ask permission between steps** —
+the whole point of this command is that it completes unattended. Stop only for
+the three hard blocks named below.
+
+Deliverables, in this order of importance:
+
+1. `runs/<date>/<date>_kupony.md` — the coupons file. This is what the operator opens.
+2. `runs/<date>/<date>_analiza.md` — the per-match reasoning behind it.
 
 ## Resolve the day first
 
-`$ARGUMENTS` is one of `dzisiaj` / `today`, `jutro` / `tomorrow`, or an explicit
-`YYYY-MM-DD`. Empty means today. Resolve it in **UTC**, because the pipeline's
-betting day is UTC:
+`$ARGUMENTS` is one of `dzisiaj`/`today`, `jutro`/`tomorrow`, or `YYYY-MM-DD`.
+Empty means today. Resolve in **UTC** — the pipeline's betting day is UTC:
 
 ```bash
 date -u +%F                        # dzisiaj
 date -u -v+1d +%F                  # jutro (macOS)
 ```
 
-State the resolved date before doing anything else. If the user passed something
-you cannot parse, ask — do not guess a day and spend quota on it.
+State the resolved date before anything else. If you cannot parse what was
+passed, ask — do not guess a day and spend quota on it.
 
-Two things to say out loud when the day is tomorrow: provider quotas reset at
-midnight UTC, so a tomorrow-run spends **today's** remaining budget; and
-discovery for tomorrow is usually thinner than for today, because fewer fixtures
-are published.
+For a tomorrow-run say two things out loud: provider quotas reset at midnight
+UTC so it spends **today's** budget, and tomorrow's fixture list is usually
+thinner because fewer matches are published.
 
-## 1. Run it — agent `bet-simple`
-
-Preflight first, quote the advice line, then the run. Never `--skip-preflight`.
+## Step 1 — Preflight (spends nothing)
 
 ```bash
 python3 scripts/simple/run_pipeline.py --preflight
-python3 scripts/simple/run_pipeline.py --date <resolved> -v [--max-events N]
 ```
 
-The run is DISCOVER → ENRICH → MARKET_CONTEXT → TIPSTERS → ANALYZE.
+Quote the advice line, then act on it:
 
-**Two steps are optional and neither can fail the day.** `MARKET_CONTEXT` fills
-the *Rynek* column (bookmaker price + model probability); `TIPSTERS` fills
-*Typerzy*. Both are excluded from the run verdict, so `market_context: FAILED`
-or `tipsters: PARTIAL` in `step_verdicts` is not a reason to stop — report it in
-*Czego zabrakło* and carry on. `--skip-market-context` / `--skip-tipsters` omit
-either column.
+| Advice | Action |
+|---|---|
+| `GO: quota corroborates all N` | Run with `--max-events 40` |
+| `GO with --max-events N` | Run with **exactly** that N |
+| `GO, but nothing will be corroborated` | Run, and say up front every row will be `SINGLE_SOURCE` |
+| `NO-GO: no usable provider` | **STOP.** Report each blocked provider's `kind`. Write no file |
 
-`MARKET_CONTEXT` is the only optional step that spends provider quota (~4
-bzzoiro calls a fixture, football only). It is capped by the same
-`--max-events` as ENRICH and ranks the slate identically, so the two budgets
-land on the same matches — never give them different caps by hand.
+`understat` and `sackmann` are permanently dead upstreams. Never report them as
+today's problem.
 
-Take `--max-events` from preflight's `recommended_max_events`. Raise it above
-that only with a stated reason — and say plainly that events beyond the
-recommendation cannot be corroborated, so they will come back `SINGLE_SOURCE`.
-One reason that recurs: when `confirmed_identity_events` is 0 the cap sorts by
-kickoff, so fixtures that have already started can eat the budget.
+**If `highlightly` shows `quota_exhausted`, say so before quoting any coverage
+number.** It is the dominant *discovery* source, so exhausting it shrinks the
+slate itself rather than just the corroboration: measured 2026-08-28, the same
+date gave 348 events with it available and 80 without — a 77% smaller day. Those
+fixtures are missing from DISCOVER, not capped out of ENRICH, so they appear
+nowhere in `by_readiness` and look like they were never scheduled.
 
-If the verdict is `PRECONDITION_FAILED` or `FAILED`, stop. Report what a human
-must change and write no file — an analysis file with no analysis in it is worse
-than its absence.
+## Step 2 — Run the pipeline
 
-## 2. Analyse it — agent `bet-analyst`
+```bash
+python3 scripts/simple/run_pipeline.py --date <resolved> -v --max-events <N>
+```
 
-Standard obligations from the agent definition: cross-check the DB for other
-`run_id`s on that date, print the per-side `a/b/h2h` split for every row, probe
-before claiming DB depth, verify that each fixture is still on.
+DISCOVER → ENRICH → MARKET_CONTEXT → TIPSTERS → ANALYZE, one `run_id`.
 
-For that last check prefer the **bzzoiro MCP tools** (`search_matches`,
-`get_match_detail`) over WebFetch — same paid provider the pipeline uses, typed
-instead of scraped. They carry WebFetch's evidence ceiling all the same: veto or
-downgrade only, never a promotion, never into `p_low`, and tagged
-`[BZZOIRO-MCP: ...]`. The one promotion in this system belongs to
-`row.market_signal` from the artifact, because that number is quota-tracked and
-evidence-bundled; an ad hoc MCP call is not.
+**Never** pass `--skip-preflight`. Do not pass `--skip-market-context` or
+`--skip-tipsters` unless the operator asked — both are optional columns and both
+are excluded from the run verdict, so `market_context: FAILED` or
+`tipsters: PARTIAL` in `step_verdicts` is **not** a reason to stop. Note it and
+carry on.
 
-## 3. Write `runs/<date>/<date>_analiza.md`
+Stop only on `FAILED` or `PRECONDITION_FAILED` from a non-optional step. Report
+what a human must change and write no files — a coupons file with no coupons in
+it is worse than its absence.
 
-**You write this file, not the analyst.** `bet-analyst` is read-only by
-construction -- it has no Write tool, because an agent that can rewrite the
-artifacts it is judging can quietly launder a bad day into a good one. It returns
-the markdown body; you save it.
+## Step 3 — Backfill once, then re-analyse
+
+Read `enrich_metrics.by_readiness`. If any event is `BLOCKED` or `PARTIAL`, run
+**exactly one** backfill pass:
+
+```bash
+python3 scripts/simple/run_enrich.py \
+  --event-list runs/<date>/<date>_event_list.json \
+  --output-dir runs/<date> \
+  --backfill-from runs/<date>/<date>_event_dossiers.json \
+  --max-events <BLOCKED+PARTIAL count> -v
+```
+
+Report `backfill_improved_dossiers`. **Once only** — a third pass spends quota
+to re-learn that the provider has nothing for those fixtures. A backfill is not
+a retry of a failed run: if the first verdict was `FAILED`, stop instead.
+
+Then re-run ANALYZE so the sheet reflects the merge. **Pass every optional
+artifact that exists and none that does not** — ANALYZE rebuilds the sheet from
+scratch, so an omitted flag silently drops that column and the backfill looks
+like it *lost* data it never touched:
+
+```bash
+ls runs/<date>/<date>_market_context.json runs/<date>/<date>_tipster_signal.json
+
+python3 scripts/simple/run_analyze.py \
+  --dossier runs/<date>/<date>_event_dossiers.json \
+  --output-dir runs/<date> \
+  --market-context runs/<date>/<date>_market_context.json \
+  --tipster-signal runs/<date>/<date>_tipster_signal.json -v
+```
+
+## Step 4 — Build the coupons file
+
+```bash
+python3 scripts/simple/build_coupons.py --date <resolved>
+```
+
+No network, no DB, no quota — safe to re-run. It writes `<date>_kupony.md` and
+`<date>_coupons.json` and prints a JSON receipt.
+
+**Report its numbers verbatim and never recompute them.** Every threshold in
+that file comes from tested code (`src/bet/simple_stats/coupons.py`); a minimum
+odds re-derived in prose is exactly the failure `wilson_lower_bound` exists to
+prevent. If a figure looks wrong, check the function, not your arithmetic.
+
+Exit code 1 means nothing cleared the bar. That is a real answer about a thin
+day, not an error — say so plainly and still write the analysis.
+
+**Never add a combined/parlay price to that file, in any form, however hedged.**
+Corners, cards, fouls and shots in one match are strongly positively correlated,
+so the product of the legs understates the slip's true probability in the
+direction that flatters the bet. The contract types that field `None` so it
+cannot hold a value; do not reintroduce one in prose.
+
+## Step 5 — Analysis — agent `bet-analyst`
+
+Hand it the date and ask for the per-match read. Its standing obligations:
+cross-check the DB for other `run_id`s on that date, print the per-side
+`a/b/h2h` split for every row, probe before claiming DB depth, and verify each
+fixture is still on — preferring the **bzzoiro MCP tools** (`search_matches`,
+`get_match_detail`) over WebFetch, since they hit the same paid provider the
+pipeline uses.
+
+That verification carries WebFetch's ceiling: it may veto or downgrade a row,
+never promote one, never enter `p_low`. The one promotion in this system belongs
+to `row.market_signal` from the artifact, because that number is quota-tracked
+and evidence-bundled.
+
+## Step 6 — Write `runs/<date>/<date>_analiza.md`
+
+**You write this file, not the analyst.** `bet-analyst` has no Write tool by
+construction — an agent that can rewrite the artifacts it is judging can quietly
+launder a bad day into a good one. It returns the markdown body; you save it.
 
 Polish, because the operator reads it. Overwrite if it exists; the artifacts it
 describes were overwritten too.
 
-**Confidence % is `p_low` x 100** — the Wilson lower bound at 95% on
+**Confidence % is `p_low` × 100** — the Wilson lower bound at 95% on
 `hits`/`sample_size`, never the raw `hit_rate`. It is the sort key for the whole
 file, descending.
 
@@ -91,12 +160,9 @@ Do not compute it yourself: it is a field on every `StatsSheetRow`, written by
 the order the artifact's rows arrive in. Read `row.p_low` and multiply by 100.
 
 It penalises thin samples on its own, which is why nothing is sorted on
-`hit_rate`: 4/4 is a hit rate of 1.00 but a `p_low` of 0.51, and 9/12 is 0.75
-but 0.47. Those are the real figures at z=1.96 — three misses cost the
-twelve-match sample more than eight extra observations earn it, so **4/4 ranks
-above 9/12**. An earlier version of this file claimed 9/12 landed at 58% and
-outranked 4/4; that was arithmetically wrong in both the number and the
-ordering. If the ranking ever looks wrong to you, check `p_low` against the
+`hit_rate`: 6/6 is a hit rate of 1.000 but a `p_low` of 0.610, and 19/21 is
+0.905 but 0.711 — so **19/21 ranks above 6/6** even though it has a worse raw
+rate. If the ranking ever looks wrong to you, check `p_low` against the
 function, not against this paragraph.
 
 `sample_size` counts only observations that settle: a value sitting exactly on
@@ -110,79 +176,58 @@ the line is a push, reported in `row.pushes` and excluded from both `hits` and
 **Pokrycie:** <n> odkrytych → <n> wzbogaconych → <n> odciętych limitem
 **Providerzy:** <ci, którzy realnie dali dane> · **Niedostępni:** <nazwa (kind)>
 **Rynek:** <n> meczów z kursami, <n> z modelem rożnych · **Typerzy:** <n> meczów
-<pomiń wiersz *Rynek*, gdy krok MARKET_CONTEXT nie działał lub był pominięty>
+**Kupony:** `<date>_kupony.md` — <n> singli, <n> kuponów BB
 
 > Sortowanie po kolumnie *Pewność* — to dolna granica Wilsona 95%, nie surowy
 > hit rate. `sample_size` łączy obie drużyny i h2h, więc obserwacje nie są
 > niezależne i ta liczba jest optymistyczną podłogą, nie gwarancją.
 
-## Ranking
-
-| # | Pewność | Mecz | Rynek | Strona | Surowo | n | a/b/h2h | Zgodność | Typerzy | Rynek (kurs/model) | Min. kurs | Tier |
-|--:|--------:|------|-------|--------|-------:|--:|---------|----------|---------|--------------------|----------:|------|
-| 1 | 51.0% | FC Seoul – Bucheon | kartki 3.5 | OVER | 4/4 | 4 | 0/4/0 | SINGLE_SOURCE | brak | — | — | WEAK |
-| 2 | 46.8% | Valencia – Betis | rożne 10.5 | UNDER | 9/12 | 12 | 6/6/0 | AGREE | 2/2 | POTWIERDZA · model 0.64 / rynek 0.58 · 1.65 @pinnacle | 1.90 | CALL |
-
-`WEAK` nie dostaje minimalnego kursu — próg policzony z czterech obserwacji
-udaje precyzję, której tam nie ma.
-
-Kolumna *Rynek* to `row.market_signal` — **tylko dla `corners_total`**. bzzoiro
-nie notuje kursów ani predykcji na kartki, faule i strzały celne, więc `—` przy
-tych rynkach to zasięg dostawcy, nie brak danych; nie zgłaszaj tego jako luki.
-Linia 11.5 zawsze wychodzi `—`, bo model podaje wyłącznie 8.5/9.5/10.5, a między
-liniami nic się nie interpoluje.
-
-Podany kurs jest **najlepszy z ~88 bukmacherów, wśród których nie ma Superbetu** —
-to punkt odniesienia rynku, nie Twoja cena. Oznacz go `[BZZOIRO-ODDS: <ts>]` i
-nigdy nie licz z niego *Min. kursu*: ten pochodzi wyłącznie z `p_low`.
-
-Werdykt `POTWIERDZA` może podnieść tier `LEAN → CALL` o jeden stopień i tylko
-przy `corners_total`, `n >= 5` oraz obu prawdopodobieństwach obecnych. Gdy
-podniesiesz — napisz to wprost: `[CALL, podniesiony przez sygnał rynkowy]`.
-
-Kolumna *Typerzy* to `row.tipster` — ilu publicznych typerów obstawiło **ten sam
-rynek, tę samą linię i tę samą stronę** (`agree/agree+oppose`), albo `brak`, gdy
-żaden. Nie wchodzi do *Pewności* i nie zmienia tieru: typ to opinia, nie próbka,
-często wyliczona z tych samych publicznych danych, czasem z afiliacją do
-bukmachera. Stoi obok, żebyś sam zdecydował, czy zgodność Cię cieszy, czy
-niepokoi. Nigdy nie podawaj jej jako procentu — procent czyta się jak
-prawdopodobieństwo.
-
 ## Mecze
 
 ### <Gospodarz> – <Gość> · <liga> · <HH:MM UTC>
 <wiersze tego meczu, mean/median, co mówią surowe obserwacje, luki z data_gaps,
-weryfikacja z sieci z tagiem [WEB: domena, data]>
+sygnał rynkowy z tagiem [BZZOIRO-ODDS: <ts>], weryfikacja z tagiem
+[WEB: domena, data] lub [BZZOIRO-MCP: <ts>]>
 
 ## Sprzeczne (DISAGREE)
 <obie wartości, obaj providerzy, bez rozstrzygania>
 
 ## Zdanie publiczności (inny rynek)
-<tylko gdy typerzy pokryli mecze z rankingu: `public_lean` z
-`<data>_tipster_signal.json`, czyli 1X2/BTTS. Zaznacz wyraźnie, że to inny rynek
-niż totale powyżej i że jednego nie przelicza się na drugie. Pomiń sekcję, gdy
-krok TIPSTERS nie działał.>
-
-## Bet Builder — szkic nóg (bez ceny łącznej)
-<tylko gdy operator pytał o kupon. Wklej wynik
-`scripts/simple/bet_builder_draft.py` dla wskazanego meczu: nogi, `min_acceptable_odds`
-każdej z nich i `correlation_note` w całości. **Nigdy nie podawaj kursu łącznego
-— nawet szacunkowo.** Rożne, kartki, faule i strzały w jednym meczu są mocno
-skorelowane dodatnio, więc iloczyn nóg jest zaniżony; cenę łączną odczytujesz z
-ekranu Superbetu.>
+<tylko gdy typerzy pokryli mecze: `public_lean` z `<data>_tipster_signal.json`,
+czyli 1X2/BTTS. Zaznacz, że to inny rynek niż totale i że jednego nie przelicza
+się na drugie. Pomiń sekcję, gdy krok TIPSTERS nie działał.>
 
 ## Czego zabrakło
 <jeden konkret, który najbardziej osłabił dzień, i akcja, która to naprawia>
 
 ---
-Bez kursu, EV i stawki — celowo. Kurs sprawdzasz sam; typ poniżej minimalnego
-kursu nie jest typem.
+Bez kursu łącznego, EV i stawki — celowo. Kurs sprawdzasz sam; typ poniżej
+minimalnego kursu nie jest typem.
 ````
 
-## 4. Report back
+The *Rynek* signal exists **only on `corners_total`** — bzzoiro publishes no
+odds and no model probability for cards, fouls or shots on target, so `—` there
+is the provider's coverage, not a gap. Line 11.5 always reads `—` because the
+model serves only 8.5/9.5/10.5 and nothing is interpolated between lines.
 
-The file path, the verdict, how many rows landed in each tier, and the single
-biggest weakness of the day. Do not paste the whole table into the chat — the
-file is the deliverable.
+## Step 7 — Report back
 
-Never invent a number, a fixture or an odds quote. No stake sizing, no placement.
+Short. The operator opens the file, not the chat:
+
+```
+KUPONY:  runs/<date>/<date>_kupony.md  — <n> singli, <n> kuponów BB
+ANALIZA: runs/<date>/<date>_analiza.md
+RUN:     <run_id> · <verdict> · <n> odkrytych → <n> wzbogaconych
+UWAGA:   <the single biggest weakness of the day, one line>
+```
+
+Do not paste either file's tables into the chat.
+
+## Hard rules
+
+- Never invent a number, a fixture, or an odds quote.
+- Never print a combined / Bet Builder / parlay price, however hedged.
+- No stake sizing. No EV. No automated placement. Ever.
+- Never read, echo or log `.env` values, keys or tokens.
+- Quoted `market_price` is the best of ~88 bookmakers and **there is no Superbet
+  among them** — always label it as a market reference, never the operator's price.

@@ -185,6 +185,33 @@ The prices come from ~88 bookmakers and **none of them is Superbet** (checked
 live 2026-08-28). Treat `market_price` as a market reference point; the operator
 still reads their own screen.
 
+## Coupons — the operator's deliverable
+
+```bash
+python3 scripts/simple/build_coupons.py --date $DATE
+```
+
+Writes `runs/$DATE/${DATE}_kupony.md` (the file you open) and
+`${DATE}_coupons.json`. No network, no DB, no quota — re-run it as often as you
+like. `/run-day` calls it automatically; this is the manual form.
+
+Two sections. **Singles** are the day's best standalone bets, one per
+market-per-fixture (four lines of one market are one read, not four bets),
+ranked by `p_low` and filtered to `CALL`/`LEAN` rows at `p_low >= 0.50`. Below
+that threshold the fair odds pass 2.00 and the required price exceeds what these
+markets realistically pay, so the row is unplaceable rather than merely weak.
+**Bet Builder** slips are the per-match drafts, 2–4 legs, ranked by their
+**weakest** leg — a slip settles on every leg, so averaging would let three
+strong legs carry a fourth nobody should be betting.
+
+Low-line UNDERs (`<= 1.5`) are pushed to the bottom rather than dropped: a
+`player_cards UNDER 0.5` at 10/10 lands near `p_low` 0.72, above almost every
+corners row, because most players are not carded in most matches — which is also
+exactly why that side is priced near 1.05 and is not a bet.
+
+**No combined price, no EV, no stake.** `CouponSet.combined_price` is typed
+`None`, so it cannot hold a value; the correlated-legs argument below is why.
+
 ## Bet Builder draft
 
 ```bash
