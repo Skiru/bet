@@ -90,6 +90,12 @@ Report `backfill_improved_dossiers`. **Once only** — a third pass spends quota
 to re-learn that the provider has nothing for those fixtures. A backfill is not
 a retry of a failed run: if the first verdict was `FAILED`, stop instead.
 
+**`<date>_run_summary.json` is not rewritten by these follow-up steps.** After a
+backfill it still describes the first pass — its `by_readiness`, `total_rows`
+and `steps_run` are stale, and it is the one artifact on disk not to quote from.
+Take those numbers from each step's own `AGENT_SUMMARY` instead, and say in the
+report that the summary lags.
+
 Then re-run ANALYZE so the sheet reflects the merge. **Pass every optional
 artifact that exists and none that does not** — ANALYZE rebuilds the sheet from
 scratch, so an omitted flag silently drops that column and the backfill looks
@@ -114,6 +120,19 @@ python3 scripts/simple/build_coupons.py --date <resolved>
 No network, no DB, no quota — safe to re-run. It writes `<date>_kupony.md` and
 `<date>_coupons.json` and prints a JSON receipt.
 
+**It drops fixtures that have already kicked off**, and reports how many under
+`excluded.kickoff_passed`. The cutoff defaults to now and is recorded in the
+artifact as `not_before`; pass `--not-before <ISO>` to set it explicitly. This
+matters most on a same-day run started late: without it a match that finished
+overnight sits at the top of the file with 84% confidence beside it, looking
+like the best bet of the day. The freed slots refill from the sheet, so the
+number of singles does not drop.
+
+For a day that has already been played — a post-hoc review, a settle pass —
+pass `--include-started`, or every row is filtered and exit code 1 reads as
+"thin day" when the day was full. The script prints a hint to stderr when that
+is what happened, but do not rely on noticing it.
+
 **Report its numbers verbatim and never recompute them.** Every threshold in
 that file comes from tested code (`src/bet/simple_stats/coupons.py`); a minimum
 odds re-derived in prose is exactly the failure `wilson_lower_bound` exists to
@@ -136,6 +155,21 @@ cross-check the DB for other `run_id`s on that date, print the per-side
 fixture is still on — preferring the **bzzoiro MCP tools** (`search_matches`,
 `get_match_detail`) over WebFetch, since they hit the same paid provider the
 pipeline uses.
+
+Two things about those MCP tools, both learned the hard way on 2026-08-28:
+
+* **A refreshed token does not reach a running session.** The MCP client binds
+  its credential at session start, so a `${BZZORIO_KEY}` updated mid-session
+  keeps returning `requires re-authorization (token expired)` while
+  `run_pipeline.py` works fine off the same `.env`. The session must be
+  restarted. If the analyst reports that error, put it in the run report rather
+  than treating its thinner verification as a judgement it made.
+* **Do not verify a fixture by team name.** `search_matches`' `team` filter is
+  ignored server-side — a query for "Bayern" comes back with unrelated fixtures,
+  and matching on the returned names then silently finds nothing. Every event in
+  `EVENT_LIST` already carries `source_ids.bzzoiro`; pass that to
+  `get_match_detail` and read `status` and `event_date`. That is exact, and it
+  catches a postponement or a moved kickoff, which a clock filter cannot.
 
 That verification carries WebFetch's ceiling: it may veto or downgrade a row,
 never promote one, never enter `p_low`. The one promotion in this system belongs

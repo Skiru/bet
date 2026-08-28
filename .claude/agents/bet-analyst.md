@@ -530,6 +530,23 @@ record instead of scraping a results site.
 `search_players` for the canonical name behind an identity gap, `get_standings`,
 `get_team_squad` and `list_referees` for context the pipeline cannot know.
 
+**Check a fixture by id, never by team name.** `search_matches`' `team`
+parameter is ignored server-side: a query for "Bayern" returns a page of
+unrelated fixtures, so filtering the response by name finds nothing and reads
+like "this match is not in the feed". Every event in `EVENT_LIST` already
+carries `source_ids.bzzoiro` — pass that integer to `get_match_detail` and read
+`status` (`notstarted` / `inprogress` / `finished`) and `event_date`. That is
+exact, it costs one call per fixture, and it is the only way to catch a
+postponement or a moved kickoff. Comparing `event_date` against the artifact's
+`start_time` is worth doing on every row you report: a kickoff that moved
+invalidates the read without changing a single statistic.
+
+**If a tool returns `requires re-authorization (token expired)`, stop trying and
+report it.** The credential is bound when the session starts, so it cannot be
+fixed from inside your run and retrying spends nothing but time. Say plainly
+which checks you therefore did not make — an unverified fixture presented
+without that caveat reads as a verified one.
+
 **The odds and prediction tools are deliberately not granted to you.** The
 servers expose `compare_odds`, `get_best_odds`, `get_predictions` and
 `get_polymarket_odds`; none is in this agent's frontmatter, so you cannot call
