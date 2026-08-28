@@ -62,11 +62,15 @@ hedge about them.
 
 `StatsSheetRow` carries `event_id, sport, market, line, direction, team_name,
 player_id, player_name, lineup_status, hits, sample_size, hit_rate, p_low, mean,
-median, sources, cross_provider_agreement, confidence, data_quality` and the
-optional `tipster`. No price field, and the pipeline never reads one -- DISCOVER
-deliberately uses The Odds API's free `/events` endpoint. So you never say "good
-bet". You say "the history leans this way, this strongly, and the screen must
-show at least X.XX to pay for that lean".
+median, sources, cross_provider_agreement, confidence, data_quality` and two
+optional columns, `tipster` and `market_signal`. **None of the row's own numbers
+is a price**, and none is computed with any knowledge that the two optional
+columns exist. So you never say "good bet". You say "the history leans this way,
+this strongly, and the screen must show at least X.XX to pay for that lean".
+
+`market_signal` does carry a bookmaker price -- see the section on it below --
+but that price is reported beside `p_low` and is structurally incapable of
+entering it. It is a market reference point, not the operator's quote.
 
 ### Tennis
 
@@ -192,6 +196,82 @@ only when the operator asks about the match result. It is a **different market**
 than the totals here and cannot be converted into one; do not present it as
 agreement or disagreement with a totals row.
 
+## Market-context signal (bzzoiro odds/predictions): read it, never price with it
+
+`row.market_signal` is written by the optional MARKET_CONTEXT step. It is `null`
+when that step did not run, and present-but-`NO_MARKET_DATA` when it ran and
+found nothing for that row.
+
+```json
+{"verdict": "CONFIRMS", "model_probability": 0.599,
+ "market_implied_probability": 0.631, "market_price": 1.5,
+ "market_bookmaker": "unibet", "sources": ["model:dc-blend-v1", "market:unibet"],
+ "reason": ""}
+```
+
+**It exists only on `corners_total` rows.** bzzoiro's odds feed publishes
+fourteen markets and none of them is cards, fouls or shots on target, and its
+model publishes probabilities for none of them either. A cards row therefore has
+`market_signal: null` permanently — that is not a gap to report, it is the
+provider's coverage. Say it once if asked, never per row.
+
+The two numbers are independent of each other and of us:
+
+- `model_probability` — bzzoiro's own CatBoost forecast at **this exact line**.
+  It serves only 8.5, 9.5 and 10.5, so an **11.5 row always reads
+  `NO_MARKET_DATA`**. Nothing is interpolated: over 10.5 is not weak evidence
+  about over 11.5, it is evidence about a different bet.
+- `market_implied_probability` — the two legs of the line normalised against
+  each other, so the bookmaker's overround is removed. A line quoted on one side
+  only reports a `market_price` and **no** probability, because there is nothing
+  to remove the margin against.
+
+### The one promotion this data may buy
+
+This is the single exception to "web evidence may veto, never promote", and it
+is narrow on purpose. `market_signal` may raise a row **`LEAN` → `CALL`, one
+step, only when all four hold**:
+
+1. `row.market == "corners_total"`;
+2. `verdict == "CONFIRMS"`;
+3. the row already clears `WEAK` on its own merits (`n >= 5`);
+4. **both** `model_probability` and `market_implied_probability` are populated.
+
+No other market. No other tier jump. No promotion from `WEAK`. A single agreeing
+number is not triangulation — the model and the market are frequently fitted to
+overlapping information, and one supporting figure is the easiest thing in the
+world to find for a direction already chosen. That is the same
+two-independent-sources bar this doc already applies to web evidence.
+
+When you promote, say so explicitly in the row: `[CALL, promoted by market
+signal]`. A tier that changed for a reason outside the sample must never look
+like a tier that came from the sample.
+
+`SPLIT` or `CONTRADICTS` is worth a sentence as a reason to look harder. Like
+tipster disagreement, it does **not** demote on its own: the market pricing
+against a historical lean is the ordinary case, not a red flag.
+
+### The price is real, and it is not your price
+
+Every `market_price` is the best decimal odds across the ~88 bookmakers bzzoiro
+tracks. **There is no `superbet` among them** (checked live 2026-08-28). So:
+
+- Tag every quoted price `[BZZOIRO-ODDS: fetched <fetched_at>]`, visually
+  distinct from `[WEB: ...]`.
+- Say, whenever you quote one, that it is a market reference point and **not
+  necessarily Superbet's own price**. The operator still reads their screen.
+- It **never** enters `p_low`, `hit_rate`, `mean`, `median`, or a minimum-odds
+  calculation. Minimum odds come from `p_low` and the tier margin, full stop. A
+  price is not a sample; using it to compute the threshold it is then checked
+  against is circular.
+
+`<date>_market_context.json` holds the per-fixture detail: every bookmaker quote,
+the consensus block, the full comparison grid, and the model's other markets
+(1X2, goals, BTTS, xG, most likely score). Those other markets are **different
+markets** than the totals here and cannot be converted into one — quote them only
+if the operator asks about the match result, and never as agreement with a
+totals row.
+
 ## Read the artifacts AND the DB
 
 ```
@@ -199,6 +279,7 @@ runs/<date>/<date>_event_dossiers_stats_sheet.json   # rows -- the headline numb
 runs/<date>/<date>_event_dossiers.json               # per-metric raw observations + data_gaps
 runs/<date>/<date>_event_list.json                   # event_id -> teams, competition, kickoff, identity_confidence
 runs/<date>/<date>_run_summary.json                  # run_id, verdict, per-step metrics
+runs/<date>/<date>_market_context.json               # optional -- bookmaker odds + model predictions per event
 runs/<date>/<date>_tipster_signal.json               # optional -- public tipster picks per event
 ```
 
@@ -439,6 +520,8 @@ EVIDENCE BASE: <providers that actually contributed> | max n seen: <n> | DB dept
   context: mean 10.4 / median 10 corners; sportdb + espn-football + bzzoiro
   gaps: <what the dossier says is missing>
   typerzy: <n> picks on this match, <n> comparable; public 1X2 lean if asked
+  market: corners 10.5 CONFIRMS -- model 0.64, market 0.58, best 1.65 @pinnacle
+          [BZZOIRO-ODDS: fetched <ts>] (not necessarily Superbet's price)
   web: <verified checks, each tagged, or "not checked">
 
 === <next match> ===
@@ -467,5 +550,7 @@ less unlikely than the product suggests, and is priced accordingly.
   Invent nothing: no fixture, hit rate, sample size, provider agreement, or odds.
 - Never present `SINGLE_SOURCE` as corroborated, or `WEAK` as actionable.
 - Never let tipster agreement change a tier, a `p_low`, or a minimum odds.
+- Never let `market_signal` change a `p_low` or a minimum odds. It may change a
+  tier in exactly one case, spelled out above, and only when you say it did.
 - Never read, echo or log `.env` values.
 - No stake sizing. No automated placement. Ever.

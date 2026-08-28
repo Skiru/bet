@@ -568,3 +568,237 @@ def test_a_fixture_nobody_priced_is_a_gap_not_a_crash(monkeypatch, tmp_path):
     )
     assert context.events[0].odds == []
     assert any("no total_corners quotes" in gap for gap in context.events[0].data_gaps)
+
+
+# --- triangulation --------------------------------------------------------
+
+
+def _row(market="corners_total", line=8.5, direction="OVER", event_id="evt-1", **overrides):
+    kwargs = dict(
+        event_id=event_id, sport="football", market=market, line=line,
+        direction=direction, hits=7, sample_size=10, hit_rate=0.7,
+        p_low=0.42, mean=9.8, median=10.0, sources=["bzzoiro"],
+        cross_provider_agreement="SINGLE_SOURCE", confidence="MEDIUM",
+        data_quality="PARTIAL",
+    )
+    kwargs.update(overrides)
+    return StatsSheetRow(**kwargs)
+
+
+def _context_for_tests(**overrides):
+    kwargs = dict(
+        event_id="evt-1",
+        provider_event_id="587902",
+        odds=[
+            MarketOddsLine(market="total_corners", outcome="over", line=8.5,
+                           price=1.44, bookmaker_slug="10bet"),
+            MarketOddsLine(market="total_corners", outcome="under", line=8.5,
+                           price=2.75, bookmaker_slug="unibet"),
+        ],
+        predictions=ModelPrediction(
+            prob_corners_over_85=0.575, prob_corners_over_95=0.457,
+            prob_corners_over_105=0.339, model_version="dc-blend-v1",
+        ),
+        comparison_entitlement="ENTITLED",
+    )
+    kwargs.update(overrides)
+    return EventMarketContext(**kwargs)
+
+
+def test_no_signal_is_ever_attached_to_a_market_bzzoiro_cannot_price(monkeypatch):
+    """The feed publishes fourteen markets and none of them is cards, fouls or
+    shots on target, and the model publishes probabilities for none of them
+    either. Those rows can never get a real signal, so they must never get a
+    fabricated one -- the field stays unset, exactly as on a run without this
+    stage."""
+    context = _context_for_tests()
+    for market in ("cards_total", "fouls_total", "shots_on_target_total", "corners_for"):
+        assert market_context.market_signal_for_row(_row(market=market), context) is None
+
+
+def test_a_line_the_model_never_published_gets_no_interpolated_probability():
+    """The model serves 8.5, 9.5 and 10.5. STANDARD_MARKET_LINES also prices
+    11.5, and over 10.5 is not weak evidence about over 11.5 -- it is evidence
+    about a different bet."""
+    context = _context_for_tests(
+        odds=[
+            MarketOddsLine(market="total_corners", outcome="over", line=11.5, price=3.1),
+            MarketOddsLine(market="total_corners", outcome="under", line=11.5, price=1.35),
+        ]
+    )
+    signal = market_context.market_signal_for_row(_row(line=11.5), context)
+    assert signal.verdict == "NO_MARKET_DATA"
+    assert signal.model_probability is None
+    assert "no model probability at line 11.5" in signal.reason
+
+
+def test_quotes_at_another_line_do_not_answer_this_rows_line():
+    """The market has 8.5 and the row is 9.5. Reaching one line over is the
+    single easiest way to manufacture agreement, and the two settle differently."""
+    context = _context_for_tests()
+    signal = market_context.market_signal_for_row(_row(line=9.5), context)
+    assert signal.verdict == "NO_MARKET_DATA"
+    assert signal.market_implied_probability is None
+    assert signal.market_price is None
+    assert "no market quote at line 9.5" in signal.reason
+
+
+def test_the_implied_probability_has_the_overround_removed():
+    """1/1.44 is 0.694 and 1/2.75 is 0.364 -- they sum to 1.058, and that 5.8%
+    is the bookmaker's margin, not probability. Reporting the raw figure would
+    turn the margin itself into agreement, always in the direction of confirming
+    whatever the row already says."""
+    context = _context_for_tests()
+    signal = market_context.market_signal_for_row(_row(line=8.5, direction="OVER"), context)
+    raw = 1 / 1.44
+    assert signal.market_implied_probability == pytest.approx(raw / (raw + 1 / 2.75))
+    assert signal.market_implied_probability < raw
+    # The two directions of one line are complementary once de-vigged.
+    under = market_context.market_signal_for_row(_row(line=8.5, direction="UNDER"), context)
+    assert signal.market_implied_probability + under.market_implied_probability == pytest.approx(1.0)
+
+
+def test_a_one_sided_line_yields_a_price_but_no_probability():
+    """The price is real and worth reporting. A probability derived from it is
+    not: with only one leg there is nothing to normalize the margin against."""
+    context = _context_for_tests(
+        odds=[MarketOddsLine(market="total_corners", outcome="over", line=8.5, price=1.44)]
+    )
+    signal = market_context.market_signal_for_row(_row(line=8.5), context)
+    assert signal.verdict == "NO_MARKET_DATA"
+    assert signal.market_price == 1.44
+    assert signal.market_implied_probability is None
+    assert "one side only" in signal.reason
+
+
+def test_both_signals_are_required_before_any_verdict():
+    """One agreeing number is not triangulation. The model and the market are
+    frequently fitted to overlapping information, so a single supporting figure
+    is the easiest thing in the world to find for a direction already chosen."""
+    no_model = _context_for_tests(predictions=None)
+    assert market_context.market_signal_for_row(_row(), no_model).verdict == "NO_MARKET_DATA"
+    no_market = _context_for_tests(odds=[])
+    assert market_context.market_signal_for_row(_row(), no_market).verdict == "NO_MARKET_DATA"
+
+
+def test_the_verdict_reads_both_sources_against_this_rows_direction():
+    context = _context_for_tests()
+    # Model 0.575 over, market ~0.656 over: both back OVER 8.5.
+    assert market_context.market_signal_for_row(_row(direction="OVER"), context).verdict == "CONFIRMS"
+    # The same two numbers, read for the opposite side, must contradict it.
+    assert market_context.market_signal_for_row(_row(direction="UNDER"), context).verdict == "CONTRADICTS"
+
+
+def test_a_disagreement_between_model_and_market_is_split_not_a_lean():
+    """The model says under, the market says over. Picking whichever agrees with
+    the row is the whole failure mode this column exists to prevent."""
+    context = _context_for_tests(
+        predictions=ModelPrediction(prob_corners_over_85=0.40, model_version="dc-blend-v1")
+    )
+    signal = market_context.market_signal_for_row(_row(direction="OVER"), context)
+    assert signal.verdict == "SPLIT"
+    assert signal.model_probability == pytest.approx(0.40)
+    assert signal.market_implied_probability > 0.5
+
+
+def test_the_column_names_both_sources_it_used():
+    """Which model version and which bookmaker, so a reader can check the claim
+    rather than take the verdict's word for it."""
+    context = _context_for_tests()
+    signal = market_context.market_signal_for_row(_row(), context)
+    assert signal.sources == ["model:dc-blend-v1", "market:10bet"]
+    # The quoted price is the best available across the feed, and the column
+    # names whose it is -- there is no superbet among the 88 books bzzoiro
+    # tracks, so it is never the operator's own screen price.
+    assert signal.market_price == 1.44
+    assert signal.market_bookmaker == "10bet"
+
+
+def test_an_event_with_no_market_context_is_told_so_rather_than_left_blank():
+    signal = market_context.market_signal_for_row(_row(event_id="evt-missing"), None)
+    assert signal.verdict == "NO_MARKET_DATA"
+    assert signal.reason == "no market context for this event"
+
+
+# --- attachment -----------------------------------------------------------
+
+
+def _sheet(*rows):
+    return StatsSheetV1(
+        run_id="RID-1", date="2026-08-28",
+        generated_at="2026-08-28T00:00:00+00:00", rows=list(rows),
+    )
+
+
+def _context_artifact(*events):
+    return MarketContextV1(
+        run_id="RID-1", date="2026-08-28",
+        generated_at="2026-08-28T00:00:00+00:00",
+        football_unlimited_entitled=True, events=list(events),
+    )
+
+
+def test_attaching_the_column_changes_exactly_one_field():
+    """The invariant this whole design rests on, asserted field by field: a rule
+    that is only written down is a rule that erodes. Every number a row uses to
+    make its claim is computed with no knowledge that this column exists, and
+    attaching it must not be able to touch one of them."""
+    rows = [_row(), _row(market="cards_total", line=4.5), _row(line=9.5, direction="UNDER")]
+    before = _sheet(*rows)
+    after = market_context.attach_market_context_column(
+        before, _context_artifact(_context_for_tests())
+    )
+
+    assert len(after.rows) == len(before.rows)
+    for original, updated in zip(before.rows, after.rows):
+        for field in StatsSheetRow.model_fields:
+            if field == "market_signal":
+                continue
+            assert getattr(updated, field) == getattr(original, field), field
+
+
+def test_row_order_is_preserved_because_the_ranking_is_statistical():
+    """A bookmaker does not get a vote in how the sheet is sorted. A reader who
+    wants to order by market agreement does it on screen, where the reordering is
+    visible."""
+    rows = [_row(event_id=f"evt-{i}", p_low=0.4 + i / 100) for i in range(4)]
+    before = _sheet(*rows)
+    after = market_context.attach_market_context_column(
+        before, _context_artifact(_context_for_tests())
+    )
+    assert [r.event_id for r in after.rows] == [r.event_id for r in before.rows]
+
+
+def test_a_sheet_with_no_market_context_is_still_a_complete_sheet():
+    before = _sheet(_row())
+    after = market_context.attach_market_context_column(before, _context_artifact())
+    assert after.rows[0].market_signal.verdict == "NO_MARKET_DATA"
+    assert after.rows[0].p_low == before.rows[0].p_low
+
+
+def test_this_stage_slices_the_slate_in_enrichs_own_order():
+    """Both stages take a --max-events slice, and taking them in different orders
+    wastes both budgets. On the first live run of this stage (2026-08-28,
+    --max-events 12) ENRICH ranked by identity confidence then kickoff while this
+    stage took event-list order: the slices overlapped on three of twelve
+    fixtures, so three quarters of the calls bought context for events that
+    produced no row, and three quarters of the rows that could have carried a
+    signal read NO_MARKET_DATA."""
+    from bet.simple_stats.enrich import _enrichment_priority
+
+    # Listed worst-first, so event-list order and priority order disagree.
+    fuzzy_late = _football_event(
+        "evt-fuzzy", "1", identity_confidence="FUZZY_MATCHED",
+        start_time="2026-08-28T21:00:00+00:00", provider_team_ids={},
+    )
+    confirmed_early = _football_event(
+        "evt-confirmed", "2", identity_confidence="CONFIRMED",
+        start_time="2026-08-28T18:00:00+00:00",
+        provider_team_ids={"bzzoiro": {"home": "100", "away": "134"}},
+    )
+    ordered = market_context.eligible_events(_event_list(fuzzy_late, confirmed_early))
+    assert [e.event_id for e in ordered] == ["evt-confirmed", "evt-fuzzy"]
+
+    # And it is ENRICH's ranking, not a second one that happens to agree today.
+    now = datetime(2026, 8, 28, 12, tzinfo=timezone.utc)
+    assert ordered == sorted(ordered, key=lambda e: _enrichment_priority(e, now))

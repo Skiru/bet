@@ -32,7 +32,12 @@ from agent_output import AgentOutput, add_agent_args  # noqa: E402
 from bet.db.connection import get_db  # noqa: E402
 from bet.simple_stats.analyze import analyze_dossiers  # noqa: E402
 from bet.simple_stats.artifact_io import sha256_file, write_json_atomic  # noqa: E402
-from bet.simple_stats.contracts import EventDossierListV1, TipsterSignalV1  # noqa: E402
+from bet.simple_stats.contracts import (  # noqa: E402
+    EventDossierListV1,
+    MarketContextV1,
+    TipsterSignalV1,
+)
+from bet.simple_stats.market_context import attach_market_context_column  # noqa: E402
 from bet.simple_stats.persistence import (  # noqa: E402
     default_db_path,
     fixture_ids_by_event_id,
@@ -50,6 +55,14 @@ def main() -> None:
     parser.add_argument("--output-dir", required=True)
     parser.add_argument(
         "--db-path", default=None, help=f"SQLite DB to persist into (default: {default_db_path()})"
+    )
+    parser.add_argument(
+        "--market-context",
+        default=None,
+        help="Optional MARKET_CONTEXT_V1 from run_market_context.py. Fills "
+             "row.market_signal and nothing else -- a bookmaker price and a "
+             "model probability are reported beside the statistics, never mixed "
+             "into them.",
     )
     parser.add_argument(
         "--tipster-signal",
@@ -81,9 +94,57 @@ def main() -> None:
         out.summary(verdict="FAILED", metrics={"total_rows": 0, "run_id": run_id})
         sys.exit(2)
 
-    # Attached after every statistic is computed, so the numbers above cannot
-    # depend on it even by accident. A missing or unreadable signal file leaves
-    # every row.tipster at None; the sheet is still a complete sheet.
+    # Both optional columns are attached after every statistic is computed, so
+    # the numbers above cannot depend on either even by accident. A missing or
+    # unreadable file leaves that column at None on every row; the sheet is
+    # still a complete sheet.
+    market_metrics: dict = {"market_context": None}
+    if args.market_context:
+        context_path = Path(args.market_context)
+        context = None
+        try:
+            context = MarketContextV1.model_validate_json(context_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError) as exc:
+            out.warning(
+                f"market context unusable, continuing without the column: {exc}",
+                path=str(context_path),
+            )
+            market_metrics["market_context_error"] = str(exc)
+
+        # Yesterday's prices attached to today's rows is the worst failure this
+        # column has available: a stale quote looks exactly like a live one, and
+        # a model read for a match already played is not a forecast. Same guard
+        # the tipster column carries, and for the same reason -- --start-at
+        # analyze with a hand-passed path is precisely how it would happen.
+        if context is not None and context.date and context.date != betting_date:
+            out.error(
+                f"market context is for {context.date}, not {betting_date} -- refusing to attach it",
+                recoverable=True,
+                path=str(context_path),
+            )
+            market_metrics["market_context_error"] = f"date_mismatch:{context.date}!={betting_date}"
+            context = None
+
+        if context is not None:
+            stats_sheet = attach_market_context_column(stats_sheet, context)
+            signalled = [r for r in stats_sheet.rows if r.market_signal]
+            with_verdict = [r for r in signalled if r.market_signal.verdict != "NO_MARKET_DATA"]
+            market_metrics = {
+                "market_context": str(context_path),
+                "market_rows_in_scope": len(signalled),
+                "market_rows_with_verdict": len(with_verdict),
+                "market_confirms": sum(1 for r in with_verdict if r.market_signal.verdict == "CONFIRMS"),
+                "market_contradicts": sum(1 for r in with_verdict if r.market_signal.verdict == "CONTRADICTS"),
+                "market_split": sum(1 for r in with_verdict if r.market_signal.verdict == "SPLIT"),
+                "football_unlimited_entitled": context.football_unlimited_entitled,
+            }
+            out.event(
+                "market_signal_column_attached",
+                rows_in_scope=len(signalled),
+                rows_with_verdict=len(with_verdict),
+                events_covered=len(context.events),
+            )
+
     tipster_metrics: dict = {"tipster_signal": None}
     if args.tipster_signal:
         signal_path = Path(args.tipster_signal)
@@ -164,6 +225,7 @@ def main() -> None:
         "output_sha256": digest,
         "persisted": persisted,
         "persist_error": persist_error,
+        **market_metrics,
         **tipster_metrics,
     }
 
