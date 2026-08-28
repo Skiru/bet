@@ -604,6 +604,14 @@ def test_dossier_carries_team_names_for_the_per_team_rows():
 # --- analyze --------------------------------------------------------------
 
 
+def _day(i: int) -> str:
+    """A distinct calendar day per observation. The collapse in analyze.py keys
+    on (bucket, day) because a side plays at most one match a day, so a fixture
+    that stamps one date on six matches describes something impossible and
+    collapses to a single observation."""
+    return f"2026-08-{i + 1:02d}"
+
+
 def _pv(value, match_id, provider="bzzoiro", date="2026-08-01"):
     return ProviderValue(
         provider=provider, match_id=match_id, match_date=date,
@@ -621,8 +629,8 @@ def _team_dossier():
             "corners_for": MetricObservation(
                 canonical_name="corners_for",
                 # Team A always well over 4.5, team B always well under it.
-                team_a_l10=[_pv(9.0, f"a{i}") for i in range(6)],
-                team_b_l10=[_pv(1.0, f"b{i}") for i in range(6)],
+                team_a_l10=[_pv(9.0, f"a{i}", date=_day(i)) for i in range(6)],
+                team_b_l10=[_pv(1.0, f"b{i}", date=_day(i)) for i in range(6)],
             )
         },
         readiness="PARTIAL",
@@ -675,7 +683,10 @@ def test_player_rows_carry_the_player_and_which_xi_they_came_from():
                 player_name="Loïs Openda",
                 team_side="home",
                 canonical_name="player_total_shots",
-                l10=[_pv(float(v), f"p{i}") for i, v in enumerate([3, 2, 4, 1, 2, 3])],
+                l10=[
+                    _pv(float(v), f"p{i}", date=_day(i))
+                    for i, v in enumerate([3, 2, 4, 1, 2, 3])
+                ],
             )
         ],
         readiness="PARTIAL",
@@ -702,7 +713,7 @@ def test_a_match_total_row_names_neither_a_team_nor_a_player():
             "corners_total": MetricObservation(
                 canonical_name="corners_total",
                 team_a_l10=[
-                    _pv(float(v), f"m{i}")
+                    _pv(float(v), f"m{i}", date=_day(i))
                     for i, v in enumerate([8, 9, 10, 11, 12, 9])
                 ],
             )

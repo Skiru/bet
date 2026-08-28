@@ -435,15 +435,64 @@ def test_disagreeing_providers_contribute_one_reported_value():
     assert row.mean in (9.0, 10.0)
 
 
-def test_two_real_matches_on_one_day_are_still_two_matches():
-    """A provider reporting two distinct match_ids on the same day saw two
-    matches; the collapse must not read its own account of them as one."""
+def test_same_day_in_one_bucket_is_one_match_however_the_opponent_is_spelled():
+    """The overstatement a name-based collapse could not see.
+
+    A team plays at most one match per day, so two observations in the *same*
+    bucket stamped the same day are the same match -- even though the fuzzy
+    matcher rejects the pair (`_team_matches('milton keynes dons', 'mk dons')`
+    is False, verified). Collapsing on names left this as two independent
+    trials and inflated p_low; 72 such pairs were measured across the
+    2026-08-25 and 2026-08-28 runs.
+    """
+    observations = [
+        _pv("bzzoiro", 12.0, "2026-08-08", opponent="Milton Keynes Dons", match_id="bz1"),
+        _pv("espn-football", 12.0, "2026-08-08", opponent="MK Dons", match_id="es1"),
+    ]
+    row = _corners_row(_corners_dossier(observations))
+    assert row.sample_size == 1
+
+
+def test_different_days_in_one_bucket_stay_separate_matches():
+    """The day is the identity, so distinct days are distinct matches and the
+    collapse must not reach across them."""
     observations = [
         _pv("bzzoiro", 12.0, "2026-02-01", opponent="Real Betis", match_id="bz1"),
-        _pv("bzzoiro", 11.0, "2026-02-01", opponent="Sevilla", match_id="bz2"),
+        _pv("bzzoiro", 11.0, "2026-02-08", opponent="Sevilla", match_id="bz2"),
     ]
     row = _corners_row(_corners_dossier(observations))
     assert row.sample_size == 2
+
+
+def test_head_to_head_fixture_counts_once_across_all_three_buckets():
+    """The one match that legitimately sits in all three buckets.
+
+    A and B played each other on 2026-02-01, so it is in A's last-10 (opponent
+    "B"), B's last-10 (opponent "A") and h2h. `_one_per_day` works one bucket at
+    a time and cannot see that, and the buckets name *different* opponents for
+    it, so no opponent-name rule could either. Across providers the match_ids
+    differ too, so without the head-to-head fold this one match would land three
+    independent trials in the sample.
+    """
+    obs = MetricObservation(
+        canonical_name="corners_total",
+        team_a_l10=[
+            _pv("bzzoiro", 12.0, "2026-02-01", opponent="Team B", match_id="bz-a"),
+            _pv("espn-football", 12.0, "2026-02-01", opponent="Team B FC", match_id="es-a"),
+        ],
+        team_b_l10=[_pv("bzzoiro", 12.0, "2026-02-01", opponent="Team A", match_id="bz-b")],
+        h2h=[_pv("espn-football", 12.0, "2026-02-01", opponent="Team A", match_id="es-h")],
+    )
+    dossier = EventDossierV1(
+        event_id="evt-h2h",
+        sport="football",
+        metrics={"corners_total": obs},
+        team_a_name="Team A",
+        team_b_name="Team B",
+        readiness="READY",
+        data_gaps=[],
+    )
+    assert _corners_row(dossier).sample_size == 1
 
 
 def test_undated_observations_are_not_collapsed():

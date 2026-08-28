@@ -356,11 +356,13 @@ def build_coupons(
         "skorelowane dodatnio, więc iloczyn zaniża prawdopodobieństwo kuponu. "
         "Kurs łączny odczytujesz z ekranu Superbetu.",
         "Pewność to dolna granica Wilsona 95% (p_low), nie surowy hit rate. "
-        "sample_size liczy mecze, nie obserwacje: powtórzenia między obiema "
-        "drużynami, h2h i dostawcami są zwijane do jednego meczu, więc "
-        "potwierdzenie przez drugiego dostawcę nie podnosi już pewności. "
-        "Mecze z tego samego dnia o podobnej nazwie przeciwnika mogą się zliczyć "
-        "jako jeden — próba bywa zaniżona, nigdy zawyżona. To podłoga, nie gwarancja.",
+        "sample_size liczy mecze, nie obserwacje: drużyna gra najwyżej jeden "
+        "mecz dziennie, więc powtórzenia między obiema drużynami, h2h i "
+        "dostawcami są zwijane do jednego meczu. Potwierdzenie przez drugiego "
+        "dostawcę nie podnosi już pewności — mówi tylko, że wartość jest "
+        "wiarygodna. Obserwacje bez czytelnej daty nie dają się przypisać do "
+        "meczu i zostają osobno, więc próba może być w rzadkich przypadkach "
+        "zawyżona. To podłoga na dowody, nie gwarancja.",
         "Brak stawek i brak EV — celowo. Typ poniżej minimalnego kursu nie jest typem.",
     ]
     if excluded.get("kickoff_passed"):

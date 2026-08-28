@@ -379,13 +379,31 @@ preflight reports the same numbers as `provider_quota` events before it starts.
   error, but nothing corroborates it.
 - `sample_size` counts matches, not observations. Both sides' last-10 and the
   H2H bucket overlap, and two providers usually report the same match, so the
-  raw observation list double-counts; `_independent_values` collapses it to one
-  value per real-world match (matched on calendar day + fuzzy opponent, the only
-  cross-provider match identity there is -- provider `match_id`s are native and
-  never coincide) before the hit rate or Wilson bound reads it. Until
-  2026-08-28 they read the raw list, which inflated `p_low` by up to 19pp on
-  well-corroborated rows. Two same-day matches whose opponent names fuzzy-match
-  still collapse into one, which understates the sample -- the safe direction.
+  raw observation list double-counts. Until 2026-08-28 the hit rate and Wilson
+  bound read that raw list, which inflated `p_low` by up to 19pp on
+  well-corroborated rows.
+- **The collapse keys on (bucket, calendar day), not on names.** A team plays at
+  most one match per day, so two observations in the same bucket stamped the
+  same day are the same match — whatever each provider called the opponent, and
+  whatever native `match_id` it stamped. `_one_per_day` does this per bucket;
+  `_independent_match_sample` then folds the head-to-head day, the one match
+  that legitimately sits in all three buckets.
+- An earlier attempt keyed the collapse on (day + fuzzy opponent name). **Do not
+  reintroduce that.** Measured over the 2026-08-25 and 2026-08-28 runs, 72
+  same-bucket same-day pairs failed to cluster because two providers spelled one
+  club differently (`mk dons` / `milton keynes dons`, `atletico junior` /
+  `junior barranquilla`, `shenzhen peng city` / `shenzhen xinpengcheng`), so one
+  match counted as two trials and *inflated* `p_low`. Loosening `_team_matches`
+  is not the fix: `real madrid` and `real sociedad` share a substantive token
+  too, and that same predicate is what team-identity resolution depends on,
+  where a false positive files another team's data.
+- Residual, and narrow: an observation with **no parseable date** cannot be
+  placed, so it is kept whole and could still overstate a sample. Zero such
+  observations in either measured run. Misreading the head-to-head day can err
+  either way. `sample_size` is a floor on evidence, not a guarantee.
+- A provider that stamps one constant date on a whole history would collapse to
+  a single observation. That fails safe (the row drops to `LOW`) and is visible
+  in `sample_size`, but it is worth recognising rather than debugging blind.
 - `mean`/`median` are reported alongside, never instead of, the hit rate.
 
 ## Known limitations (2026-08-25)

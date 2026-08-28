@@ -561,11 +561,19 @@ def test_no_tennis_tasks_without_both_native_ids(overrides):
 # --- analyze --------------------------------------------------------------
 
 
-def _pv(value, match_id):
+def _day(i: int) -> str:
+    """A distinct calendar day per observation. The collapse in analyze.py keys
+    on (bucket, day) because a player plays at most one match a day, so a fixture
+    that stamps one date on six matches describes something impossible and
+    collapses to a single observation."""
+    return f"2026-07-{i + 1:02d}"
+
+
+def _pv(value, match_id, date="2026-07-30"):
     return ProviderValue(
         provider="bzzoiro-tennis",
         match_id=match_id,
-        match_date="2026-07-30",
+        match_date=date,
         opponent="Terence Atmane",
         value=value,
         observed_at="2026-08-01T00:00:00+00:00",
@@ -583,7 +591,10 @@ def test_new_tennis_totals_produce_rows():
         metrics={
             name: MetricObservation(
                 canonical_name=name,
-                team_a_l10=[_pv(float(v), f"{name}{i}") for i, v in enumerate(values)],
+                team_a_l10=[
+                    _pv(float(v), f"{name}{i}", date=_day(i))
+                    for i, v in enumerate(values)
+                ],
             )
             for name, values in {
                 "double_faults_total": [7, 6, 8, 5, 9, 7],
@@ -607,8 +618,8 @@ def test_per_player_tennis_rows_name_their_player():
         metrics={
             "aces_for": MetricObservation(
                 canonical_name="aces_for",
-                team_a_l10=[_pv(9.0, f"a{i}") for i in range(6)],
-                team_b_l10=[_pv(2.0, f"b{i}") for i in range(6)],
+                team_a_l10=[_pv(9.0, f"a{i}", date=_day(i)) for i in range(6)],
+                team_b_l10=[_pv(2.0, f"b{i}", date=_day(i)) for i in range(6)],
             )
         },
         readiness="PARTIAL",
