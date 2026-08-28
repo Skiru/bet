@@ -46,7 +46,17 @@ logger = logging.getLogger(__name__)
 # get_team_last_fixtures/get_h2h, so one generic loop covers them all.
 PROVIDERS_BY_SPORT: dict[str, tuple[str, ...]] = {
     "football": ("espn-football", "api-football", "understat"),
-    "tennis": ("tennis-abstract", "sackmann", "espn-tennis"),
+    # sackmann was removed on 2026-08-28. It reads two GitHub repositories,
+    # JeffSackmann/tennis_atp and tennis_wta, and both now 404 -- not the CSVs,
+    # the repositories: the GitHub API answers "Not Found" for each, while the
+    # account itself is alive and still publishes tennis_MatchChartingProject.
+    # The data moved or was withdrawn; where to is not known, and asserting a
+    # provider that serves nothing is exactly the mistake the 18 dead ESPN
+    # league codes were. It stays in KNOWN_DEAD_PROVIDERS (preflight.py) so the
+    # morning check keeps reporting it as dead rather than quietly forgetting
+    # it, and its alias table below is kept so restoring it is a one-line
+    # change once someone finds where the CSVs went.
+    "tennis": ("tennis-abstract", "espn-tennis"),
 }
 
 # Providers that cannot be driven by team *name* and are therefore fetched
@@ -243,7 +253,7 @@ _DEFAULT_LAST_FIXTURES_METHOD = ("get_team_last_fixtures", False)
 # returns raw provider payload items nested under "fixture", which this
 # generic path does not attempt to parse (section 4.1: api-football is a
 # supplementary cross-check, not a primary H2H source).
-_H2H_SUPPORTED_PROVIDERS = frozenset({"espn-football", "espn-tennis", "tennis-abstract", "sackmann"})
+_H2H_SUPPORTED_PROVIDERS = frozenset({"espn-football", "espn-tennis", "tennis-abstract"})
 
 
 def _now_iso() -> str:
@@ -326,6 +336,42 @@ def _field(fx: Any, *names: str, default: Any = None) -> Any:
         elif hasattr(fx, name) and getattr(fx, name) is not None:
             return getattr(fx, name)
     return default
+
+
+def _opponent_of(fixture: Any, team_id: str) -> str | None:
+    """Whichever side of ``fixture`` is not ``team_id``, or None if unknowable.
+
+    Returning None rather than guessing is the point. The previous shape --
+    "if the home id matches, the opponent is away; otherwise the opponent is
+    home" -- has no failure case: a row that identifies neither side still
+    yields a confident answer, and that answer is the player himself whenever
+    he was listed first.
+
+    espn-tennis hit exactly that. Its ``team_id`` is a numeric ESPN athlete id
+    while its history rows carried only two display names, so the id comparison
+    could never be true, the name comparison could never be true, and every
+    match in which ESPN listed the player as competitor[0] was recorded with
+    the player as his own opponent. Half of every tennis L10, silently.
+
+    Both halves are now fixed: espn.py emits the participant ids (they were
+    always in the payload, just dropped on the floor), and a row that still
+    cannot say which side the player was on is refused rather than assumed.
+    """
+    wanted = str(team_id)
+    home_id = _field(fixture, "home_participant_id", "home_team_id")
+    away_id = _field(fixture, "away_participant_id", "away_team_id")
+    home_team = _field(fixture, "home_team")
+    away_team = _field(fixture, "away_team")
+    # Ids first: a name can be spelled several ways, an id cannot. Empty
+    # strings are "not stated" -- NormalizedFixture defaults both id fields to
+    # "" -- and must not be allowed to match an empty team_id.
+    for mine, theirs in ((home_id, away_team), (away_id, home_team)):
+        if mine not in (None, "") and str(mine) == wanted:
+            return theirs
+    for mine, theirs in ((home_team, away_team), (away_team, home_team)):
+        if mine not in (None, "") and str(mine) == wanted:
+            return theirs
+    return None
 
 
 def _combined_from_dict_stats(stats: dict, aliases: dict[str, str]) -> dict[str, float]:
@@ -898,6 +944,171 @@ def _provider_client(provider_key: str, competition: str, rate_limiter: RateLimi
     return get_client(provider_key, rate_limiter=rate_limiter)
 
 
+# Identity is asked once per (provider, player, competition) per process. Both
+# callers -- preflight's capability cap and the verification script -- ask the
+# same question about the same handful of names, and for tennis-abstract the
+# answer costs a page fetch.
+_TENNIS_IDENTITY_MEMO: dict[tuple[str, str, str], str | None] = {}
+_TENNIS_IDENTITY_LOCK = threading.Lock()
+
+
+def resolve_tennis_player(
+    provider: str, player_name: str, competition: str, rate_limiter: RateLimiter
+) -> str | None:
+    """The provider's own identifier for this player, or None if it has no such player.
+
+    Resolution is the step that decides whether a tennis provider contributes
+    anything, and until 2026-08-28 it was the step that could not fail:
+    tennis-abstract's resolve_team_id handed the caller's own string back, so
+    every player "resolved" -- including players the site had never heard of,
+    and including every WTA player, whose page request the site answers with
+    Benoit Paire's. Now both tennis providers answer with a name or an id they
+    have actually proved, which is what makes a capability count meaningful and
+    what lets a verification script check identity against the provider's own
+    name field instead of a similarity score.
+    """
+    if not player_name:
+        return None
+    key = (provider, player_name, competition)
+    with _TENNIS_IDENTITY_LOCK:
+        if key in _TENNIS_IDENTITY_MEMO:
+            return _TENNIS_IDENTITY_MEMO[key]
+    try:
+        client = _provider_client(provider, competition, rate_limiter)
+        resolved = client.resolve_team_id(player_name)
+    except Exception as exc:  # noqa: BLE001 - an unresolvable player is a gap
+        logger.debug("[%s] could not resolve '%s': %s", provider, player_name, exc)
+        resolved = None
+    with _TENNIS_IDENTITY_LOCK:
+        _TENNIS_IDENTITY_MEMO[key] = resolved
+    return resolved
+
+
+@dataclass
+class TennisIdentityEvidence:
+    """What one tennis provider could actually prove about one player.
+
+    Deliberately not a score. Each field is something the provider stated:
+    the id or name it resolved to, the name *it* attached to the rows it
+    returned, how many rows there were and how recent the newest one is.
+    """
+
+    provider: str
+    requested: str
+    resolved: str | None = None
+    # The provider's own name field for the matches it returned -- tennis
+    # abstract's ``var fullname``, ESPN's scoreboard ``displayName`` for the
+    # competitor carrying the resolved athlete id. This is the field identity
+    # is judged against, because it is the provider's claim rather than ours.
+    provider_name: str | None = None
+    match_count: int = 0
+    newest_match: str = ""
+    verdict: str = "UNRESOLVED"
+    detail: str = ""
+
+
+def probe_tennis_identity(
+    provider: str,
+    player_name: str,
+    competition: str,
+    rate_limiter: RateLimiter,
+    last_n: int = 10,
+) -> TennisIdentityEvidence:
+    """Ask a tennis provider to prove it can serve *this* player's matches.
+
+    Verdicts, each one a failure the tennis roster has actually shipped:
+
+      PROVED         resolved, returned matches, and every row it returned is
+                     named for the player we asked about.
+      UNRESOLVED     the provider has nobody by that name. Normal and useful:
+                     it is what a capability cap counts.
+      MISIDENTIFIED  the provider returned matches belonging to someone else.
+                     This is the one that matters. It is not hypothetical:
+                     before 2026-08-28 every WTA request to tennis-abstract
+                     came back with Benoit Paire's page, at HTTP 200, with a
+                     real match table, and the pipeline filed his serve line
+                     under her name.
+      NO_MATCHES     resolves but has no history to give -- the shape ESPN was
+                     in for most ATP players while its scan sampled every third
+                     day and landed either side of all of them.
+
+    Reusing the production client and the production resolve/fetch path is the
+    point, exactly as verify_espn_competition_map.py runs the runtime pin gate:
+    a check that re-implements what it is checking proves only itself.
+    """
+    from bet.api_clients.tennis_abstract import identity_matches
+
+    evidence = TennisIdentityEvidence(provider=provider, requested=player_name)
+    try:
+        client = _provider_client(provider, competition, rate_limiter)
+    except Exception as exc:  # noqa: BLE001
+        evidence.detail = f"client unavailable: {exc}"
+        return evidence
+
+    resolved = resolve_tennis_player(provider, player_name, competition, rate_limiter)
+    if not resolved:
+        evidence.detail = "provider has no player by that name"
+        return evidence
+    evidence.resolved = str(resolved)
+
+    method_name, unwrap = _LAST_FIXTURES_METHOD.get(provider, _DEFAULT_LAST_FIXTURES_METHOD)
+    try:
+        raw = getattr(client, method_name)(resolved, last_n=last_n)
+        if unwrap:
+            raw = raw.value if raw.status == SourceResultStatus.SUCCESS else []
+        fixtures = list(raw or [])
+    except Exception as exc:  # noqa: BLE001
+        evidence.verdict = "NO_MATCHES"
+        evidence.detail = f"last-fixtures error: {exc}"
+        return evidence
+
+    if not fixtures:
+        evidence.verdict = "NO_MATCHES"
+        evidence.detail = "resolved, but the provider returned no finished matches"
+        return evidence
+
+    # Whose matches are these, according to the provider? For every row, take
+    # the side that is *not* the opponent and read the name the provider put
+    # on it. A row that cannot say which side the player was on is counted
+    # rather than excused: unattributable rows are how a wrong opponent used
+    # to get in.
+    self_names: list[str] = []
+    unattributable = 0
+    dates: list[str] = []
+    for fixture in fixtures:
+        dates.append(str(_field(fixture, "date", "kickoff", default="") or "")[:10])
+        opponent = _opponent_of(fixture, str(resolved))
+        if opponent is None:
+            unattributable += 1
+            continue
+        home = _field(fixture, "home_team", default="")
+        away = _field(fixture, "away_team", default="")
+        self_names.append(str(away if str(home) == str(opponent) else home))
+
+    evidence.match_count = len(fixtures)
+    evidence.newest_match = max((d for d in dates if d), default="")
+    stated = next((n for n in self_names if n), None)
+    evidence.provider_name = stated or (str(resolved) if provider == "tennis-abstract" else None)
+
+    if unattributable:
+        evidence.verdict = "MISIDENTIFIED"
+        evidence.detail = (
+            f"{unattributable} of {len(fixtures)} rows do not say which side "
+            f"the player was on"
+        )
+        return evidence
+
+    wrong = sorted({n for n in self_names if n and not identity_matches(player_name, n)})
+    if wrong:
+        evidence.verdict = "MISIDENTIFIED"
+        evidence.detail = f"provider named the player {', '.join(repr(n) for n in wrong)}"
+        return evidence
+
+    evidence.verdict = "PROVED"
+    evidence.detail = f"{len(fixtures)} matches, newest {evidence.newest_match or 'unknown'}"
+    return evidence
+
+
 def _fetch_l10_generic(
     provider_key: str, team_name: str, rate_limiter: RateLimiter, last_n: int = 10, competition: str = ""
 ) -> FetchOutcome:
@@ -942,15 +1153,13 @@ def _fetch_l10_generic(
         if raw_stats is None:
             continue
         stats_dict = getattr(raw_stats, "stats", None) or {}
-        home_id = _field(fx, "home_participant_id", "home_team_id")
-        home_team = _field(fx, "home_team")
-        away_team = _field(fx, "away_team")
-        if home_id is not None and str(home_id) == str(team_id):
-            opponent = away_team
-        elif str(home_team or "") == str(team_id):
-            opponent = away_team
-        else:
-            opponent = home_team
+        opponent = _opponent_of(fx, team_id)
+        if opponent is None:
+            outcome.data_gaps.append(
+                f"{provider_key}: fixture {fixture_id} does not identify which "
+                f"side '{team_name}' played; refusing to guess an opponent"
+            )
+            continue
         combined = _combine_stats(provider_key, stats_dict, aliases)
         for name, value in _make_values(
             provider_key, fixture_id, _field(fx, "date", default=""), str(opponent or "unknown"), combined
@@ -1059,15 +1268,29 @@ def fetch_team_metrics(sport: str, team_name: str, competition: str, rate_limite
     return combined
 
 
-def fetch_h2h_metrics(sport: str, team_one: str, team_two: str, rate_limiter: RateLimiter) -> FetchOutcome:
+def fetch_h2h_metrics(
+    sport: str, team_one: str, team_two: str, rate_limiter: RateLimiter, competition: str = ""
+) -> FetchOutcome:
     """Fetch head-to-head metric observations between two teams/players,
-    combining across every provider that supports name-based H2H lookup."""
+    combining across every provider that supports name-based H2H lookup.
+
+    ``competition`` is what scopes the provider client -- an espn-football H2H
+    without it cannot be built at all, and an espn-tennis one silently searches
+    the wrong tour. It was accepted by the per-provider entry point
+    (fetch_provider_h2h_metrics) and by _fetch_h2h_generic, but this function
+    dropped it on the floor, so every caller that came through here asked for
+    H2H with no competition and got the default-scoped client.
+    """
     combined = FetchOutcome()
     for provider in PROVIDERS_BY_SPORT[sport]:
         if provider not in _H2H_SUPPORTED_PROVIDERS:
             combined.data_gaps.append(f"{provider}: h2h fetch not supported")
             continue
-        combined.merge(_fetch_h2h_generic(provider, team_one, team_two, rate_limiter))
+        combined.merge(
+            _fetch_h2h_generic(
+                provider, team_one, team_two, rate_limiter, competition=competition
+            )
+        )
     return combined
 
 

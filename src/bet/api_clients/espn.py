@@ -12,6 +12,7 @@ Base URL: http://site.api.espn.com/apis/site/v2/sports/{sport}/{league}/
 
 import json
 import re
+import threading
 import unicodedata
 from dataclasses import asdict
 from datetime import UTC, datetime
@@ -721,6 +722,19 @@ _SPORT_STAT_MAPS = {
     "hockey": NHL_STAT_MAP,
     "volleyball": VOLLEYBALL_STAT_MAP,
 }
+
+
+# A scoreboard is per *date*, not per player: one Cincinnati payload answers
+# for everybody in the draw. Memoising it for the life of the process turns the
+# athlete scan from "N requests per player" into "one request per date for the
+# whole slate", which is what makes a hole-free scan affordable at all. Keyed by
+# (sport, league, date) because those are what change the payload; bounded by
+# the scan window, so it holds tens of entries, not thousands.
+_SCOREBOARD_MEMO: dict[tuple[str, str, str], dict] = {}
+_SCOREBOARD_MEMO_LOCK = threading.Lock()
+
+# How far back the athlete scan will look, in consecutive days.
+_TENNIS_SCAN_DAYS = 60
 
 
 def _get_stat_map(sport: str) -> dict[str, str]:
@@ -2206,7 +2220,12 @@ class ESPNClient(BaseAPIClient):
         For tennis/MMA, ESPN only exposes match data via the scoreboard endpoint.
         We scan up to 45 days back (sampling every 3 days) to build proper L10 history.
         """
-        cache_key = f"espn/{self.sport}/{self.league}/athlete_fixtures/{athlete_id}"
+        # The "v2" is the row *shape*, not the data: v1 rows carried two display
+        # names and no participant ids, so a cache written before that fix would
+        # keep feeding unattributable rows for another twelve hours, and the
+        # consumer would (correctly, now) refuse every one of them. Versioning
+        # the key retires them instead of waiting them out.
+        cache_key = f"espn/{self.sport}/{self.league}/athlete_fixtures_v2/{athlete_id}"
         cached = self._check_cache(cache_key, ttl_hours=12)
         if cached and len(cached.get("fixtures", [])) >= last_n:
             return cached.get("fixtures", [])
@@ -2217,18 +2236,23 @@ class ESPNClient(BaseAPIClient):
         seen_ids: set[str] = set()
         today = datetime.now(UTC).date()
 
-        # Scan recent 4 days daily + past 21 days every 4 days for history
-        # Reduced from 20->9 dates per player to avoid ESPN budget bleed
-        days = list(range(0, 4)) + list(range(6, 22, 4))
-        dates_to_scan = [today - timedelta(days=d) for d in days]
+        # Consecutive days, not a sample. Sampling every third or fourth day
+        # does not lose precision, it loses players: a tournament run is a
+        # block of consecutive days, so a three-day hole can hide a player's
+        # entire week. On 2026-08-28 that is exactly why Carlos Alcaraz's ESPN
+        # L10 came back empty while ESPN had his matches all along -- the nine
+        # sampled dates landed either side of every one of them, and the
+        # provider looked like it had no data when it had no *sampled* data.
+        # With the scoreboard memoised per date across the whole slate, a
+        # hole-free scan costs the run less than the sampled one did.
+        dates_to_scan = [today - timedelta(days=d) for d in range(_TENNIS_SCAN_DAYS)]
 
         for scan_date in dates_to_scan:
             if len(matches) >= last_n:
                 break
             date_str = scan_date.strftime("%Y%m%d")
-            try:
-                data = self._request("/scoreboard", params={"dates": date_str})
-            except Exception:
+            data = self._scoreboard_for_date(date_str)
+            if data is None:
                 continue
 
             for event in data.get("events", []):
@@ -2258,21 +2282,54 @@ class ESPNClient(BaseAPIClient):
 
                     seen_ids.add(comp_id)
                     names = []
+                    ids = []
                     for c in competitors:
                         ath = c.get("athlete", {})
                         names.append(ath.get("displayName", ""))
+                        ids.append(str(c.get("id", "")))
 
+                    # The participant ids are what let a caller tell which side
+                    # of the match this athlete was on. Without them the only
+                    # handle on a row is two display names, and the consumer
+                    # (providers._fetch_l10_generic) compares its team_id --
+                    # here a numeric ESPN athlete id -- against a name, which
+                    # never matches, so it fell through to "the player is the
+                    # away side" and recorded him as his own opponent in every
+                    # match where ESPN happened to list him first. Football rows
+                    # have carried these keys all along; tennis rows did not.
                     matches.append({
                         "id": comp_id,
                         "date": comp.get("date", comp.get("startDate", "")),
                         "home_team": names[0] if names else "",
                         "away_team": names[1] if len(names) > 1 else "",
+                        "home_participant_id": ids[0] if ids else "",
+                        "away_participant_id": ids[1] if len(ids) > 1 else "",
                     })
 
         matches.sort(key=lambda m: m.get("date", ""), reverse=True)
         result = matches[:last_n]
         self._save_cache(cache_key, {"fixtures": result})
         return result
+
+    def _scoreboard_for_date(self, date_str: str) -> dict | None:
+        """One day's scoreboard, fetched at most once per process.
+
+        Returns None when the day cannot be fetched. A failed day is memoised
+        as well: a date ESPN will not serve is not going to start serving it
+        because a second player asked, and retrying it once per player is how a
+        slate of twenty players turns one bad day into twenty stalled requests.
+        """
+        key = (self.sport, self.league, date_str)
+        with _SCOREBOARD_MEMO_LOCK:
+            if key in _SCOREBOARD_MEMO:
+                return _SCOREBOARD_MEMO[key]
+        try:
+            data = self._request("/scoreboard", params={"dates": date_str})
+        except Exception:  # noqa: BLE001 - a missing day is a gap, never fatal
+            data = None
+        with _SCOREBOARD_MEMO_LOCK:
+            _SCOREBOARD_MEMO[key] = data
+        return data
 
     def get_standings(self) -> list[dict]:
         """Get league standings/table."""

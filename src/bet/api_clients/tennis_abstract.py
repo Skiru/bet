@@ -5,6 +5,18 @@ Provides per-match serve/return statistics: aces, double faults, 1st serve %,
 
 Data source: https://www.tennisabstract.com (no API key required, rate-limited).
 Inspired by TheCommishDeuce/tennisabstract scraping approach.
+
+Every page this module reads is identity-checked before a single row of it is
+parsed, because tennisabstract answers 200 for players it does not have on the
+route being asked. ``/cgi-bin/player-classic.cgi?p=<any WTA player>`` returns
+Benoit Paire's page -- the same 605 KB, byte for byte, for Sabalenka, Swiatek,
+Gauff, Kostyuk and Shnaider alike -- complete with a real ``var matchmx``.
+Nothing in that response says "wrong player": the status is 200, the table is
+real, and the numbers are somebody's. Parsing it puts one player's serve line
+in another player's dossier, which is the worst thing this pipeline can do:
+fabricate a number that looks measured. So the page's own ``var fullname``
+decides whose page it is, and a page that does not name the player we asked for
+is discarded rather than scored.
 """
 
 import ast
@@ -12,6 +24,8 @@ import io
 import logging
 import re
 import time
+import unicodedata
+from datetime import datetime, timezone
 
 import requests
 from bs4 import BeautifulSoup
@@ -24,6 +38,93 @@ logger = logging.getLogger(__name__)
 
 BASE_URL = "https://www.tennisabstract.com"
 REQUEST_DELAY = 0.6  # polite scraping delay
+
+# tennisabstract's own claim about whose page this is. Present on every route
+# that carries a match table, which is what makes the check below possible.
+_FULLNAME_RE = re.compile(r"var\s+fullname\s*=\s*'([^']*)'")
+
+# How stale a route's freshest match may be before it stops counting as this
+# player's *recent* form. Identity is necessary but not sufficient: the site
+# still serves /jsmatches/JannikSinner.js, and its last row is from November
+# 2018, so a route can be the right player and still be the wrong era. Anyone
+# we are pricing a fixture for played this season, so a route whose newest
+# match predates that is kept only as a fallback.
+STALE_ROUTE_DAYS = 400
+
+# (label, url template), in the order they are tried. Order is about coverage
+# and cost only -- never about trust, since all three are identity-checked.
+#
+#   player-classic   ATP's live table, inline in the HTML (~400-600 KB). Also
+#                    the route that serves Benoit Paire to every WTA request.
+#   jsmatches        WTA's live table. The WTA shell page
+#                    (/cgi-bin/wplayer-classic.cgi) carries no ``matchmx`` of
+#                    its own -- it loads exactly this file -- so this *is* the
+#                    WTA route, and asking for it directly saves a request.
+#                    For ATP names the same path exists but is abandoned 2018
+#                    data, which is what STALE_ROUTE_DAYS is for.
+#   jsmatchesCareer  Pre-current-season career file. Identity-provable but
+#                    stale by construction, so it only wins when nothing
+#                    fresher does.
+_ROUTES: tuple[tuple[str, str], ...] = (
+    ("player-classic", "{base}/cgi-bin/player-classic.cgi?p={name}"),
+    ("jsmatches", "{base}/jsmatches/{name}.js"),
+    ("jsmatches-career", "{base}/jsmatches/{name}Career.js"),
+)
+
+
+def _fold_player_name(name: str) -> frozenset[str]:
+    """Player name -> comparable token set (ASCII-folded, punctuation-free)."""
+    nfkd = unicodedata.normalize("NFKD", name or "")
+    ascii_name = nfkd.encode("ascii", "ignore").decode("ascii").lower()
+    return frozenset(token for token in re.split(r"[^a-z0-9]+", ascii_name) if token)
+
+
+def _abbreviates(short: frozenset[str], full: frozenset[str]) -> bool:
+    """Is every token of ``short`` a token of ``full``, or a first initial of one?"""
+    if len(short) != len(full) or not short:
+        return False
+    remaining = set(full)
+    for token in sorted(short):  # sorted: frozenset order is arbitrary
+        match = token if token in remaining else None
+        if match is None and len(token) == 1:
+            match = next(
+                (other for other in sorted(remaining) if other.startswith(token)), None
+            )
+        if match is None:
+            return False
+        remaining.discard(match)
+    return not remaining
+
+
+def identity_matches(requested: str, claimed: str) -> bool:
+    """Is ``claimed`` (the page's ``var fullname``) the player we asked for?
+
+    Deliberately not a similarity score. What this rejects is a page for an
+    entirely different person -- 'Benoit Paire' served for 'Iga Swiatek' --
+    which needs no threshold to catch, and which a threshold loose enough to
+    accept 'Jiri Lehecka' for 'Jiří Lehečka' would eventually wave through.
+    Fuzzy matching is how the fabrication survived this long; the site states
+    the name outright, so the name is compared, not scored.
+
+    This replaced ``_fuzzy_opponent_match`` (rapidfuzz ratio >= 85, plus a
+    "same surname over three characters" fallback that matched Alexander Zverev
+    to Mischa Zverev). It was deleted rather than left unused: an unused fuzzy
+    name matcher in this file is a loaded gun, and the next reader looking for
+    "how do we compare player names here" must find only this.
+
+    Accepted: the same tokens in any order once both sides are ASCII-folded
+    ('Jiří Lehečka' / 'Jiri Lehecka', 'Sabalenka Aryna' / 'Aryna Sabalenka'),
+    and the same tokens with one side's forename abbreviated to its initial
+    ('C. Alcaraz' / 'Carlos Alcaraz'). The initials rule cannot separate two
+    players who share a surname and a first initial; a feed that supplies only
+    initials is ambiguous at the source, and no page-side check can fix that.
+    """
+    want, got = _fold_player_name(requested), _fold_player_name(claimed)
+    if not want or not got:
+        return False
+    if want == got:
+        return True
+    return _abbreviates(want, got) or _abbreviates(got, want)
 
 
 class TennisAbstractClient(BaseAPIClient):
@@ -42,6 +143,10 @@ class TennisAbstractClient(BaseAPIClient):
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         })
         self._last_matches_cache: dict[str, tuple[dict, str]] = {}
+        # url-name -> the ``var fullname`` of the page that was accepted for it.
+        # Populated by _fetch_player_matches so resolve_team_id can answer with
+        # the site's own name for the player without paying a second request.
+        self._proved_names: dict[str, str] = {}
 
     # ─── BaseAPIClient overrides ─────────────────────────────────────
 
@@ -68,54 +173,83 @@ class TennisAbstractClient(BaseAPIClient):
         return self._match_to_normalized(match, player_name)
 
     def get_h2h(self, team1_id: str, team2_id: str, last_n: int = 10) -> list[dict]:
-        """Get H2H match history between two players."""
+        """H2H meetings between two players, in the shape the caller can read.
+
+        Two things were wrong here and they cancelled out into silence.
+
+        The rows returned were the raw ``matchmx`` dicts, which carry
+        ``date``/``opp``/``aces`` but no id of any kind. The generic H2H loop
+        (providers._fetch_h2h_generic) reads ``id``/``fixture_id`` off each
+        meeting and skips the ones without -- so it skipped all of them, every
+        time, and emitted no data_gap either, because from its point of view
+        nothing had gone wrong. tennis-abstract H2H therefore returned exactly
+        nothing for its entire existence, and returned it *quietly*, which left
+        ANALYZE unable to tell "these two have never met" from "this provider
+        was never really called".
+
+        And the opponent was matched fuzzily, at a rapidfuzz ratio of 85, which
+        is the same mistake that let another player's whole page through
+        upstream. It does not need to be fuzzy: ``team2_id`` is now the *proved*
+        name tennisabstract itself gave for player two, and ``opp`` is how
+        tennisabstract spells the opponent in player one's own row. Both strings
+        come from the same source, so they are compared, not scored.
+        """
         matches = self._fetch_player_matches(team1_id)
         if matches is None:
             return []
 
-        # Filter for matches against opponent — FUZZY MATCHING
-        h2h_matches = []
-        for m in matches:
-            opp = m.get("opp", "")
-            if self._fuzzy_opponent_match(opp, team2_id):
-                h2h_matches.append(m)
-            if len(h2h_matches) >= last_n:
+        meetings = []
+        for match in matches:
+            if not identity_matches(team2_id, match.get("opp", "") or ""):
+                continue
+            fixture_id = self._fixture_id(team1_id, match)
+            # The stats live behind get_fixture_stats(fixture_id), so the row
+            # has to be reachable by that id or the caller gets an id it cannot
+            # redeem.
+            self._last_matches_cache[fixture_id] = (match, team1_id)
+            meetings.append({**match, "id": fixture_id, "fixture_id": fixture_id})
+            if len(meetings) >= last_n:
                 break
 
-        return h2h_matches
-
-    def _fuzzy_opponent_match(self, opp_name: str, target_name: str) -> bool:
-        """Fuzzy match opponent name (handles abbreviations, diacritics)."""
-        opp_norm = self._normalize_name(opp_name)
-        target_norm = self._normalize_name(target_name)
-
-        if opp_norm == target_norm:
-            return True
-
-        # Try rapidfuzz
-        try:
-            from rapidfuzz import fuzz
-            if fuzz.ratio(opp_norm, target_norm) >= 85:
-                return True
-            if fuzz.token_sort_ratio(opp_norm, target_norm) >= 85:
-                return True
-        except ImportError:
-            pass
-
-        # Last-name fallback
-        opp_parts = opp_name.strip().split()
-        target_parts = target_name.strip().split()
-        if opp_parts and target_parts:
-            opp_last = self._normalize_name(opp_parts[-1])
-            target_last = self._normalize_name(target_parts[-1])
-            if len(opp_last) > 3 and opp_last == target_last:
-                return True
-
-        return False
+        return meetings
 
     def resolve_team_id(self, team_name: str, **kwargs) -> str | None:
-        """For tennis, team_name IS the player name — return as-is."""
-        return team_name if team_name else None
+        """Prove the site has *this* player, and answer with its own name for him.
+
+        For tennis the "team id" is a name, so this used to hand the caller's
+        string straight back. That made resolution unfailable: every player
+        resolved, including players tennisabstract has never heard of, and the
+        question of whose page had actually been served was pushed down into
+        the parser where nobody asked it. Resolution now costs what it should
+        -- one fetch, cached, so the history call that follows is free -- and a
+        player the site cannot prove is simply unresolved, which the enrichment
+        loop already knows how to report.
+        """
+        if not team_name:
+            return None
+        return self.resolve_player_identity(team_name)
+
+    def resolve_player_identity(self, player_name: str) -> str | None:
+        """tennisabstract's own ``var fullname`` for this player, or None.
+
+        The single question the verification script asks per player: not "is
+        there a page" (there always is) but "does the page name him".
+        """
+        url_name = self._url_name(player_name)
+        if url_name in self._proved_names:
+            return self._proved_names[url_name]
+        self._fetch_player_matches(player_name)
+        return self._proved_names.get(url_name)
+
+    @staticmethod
+    def _fixture_id(player_name: str, match: dict) -> str:
+        """One spelling of a match's id, shared by every path that mints one.
+
+        get_team_last_fixtures, get_h2h and _match_to_normalized each used to
+        build this string themselves; three copies of a format is three chances
+        for get_fixture_stats to be handed an id nothing is filed under.
+        """
+        return f"ta_{player_name}_{match.get('date', '')}_{match.get('opp', '')}"
 
     def get_team_last_fixtures(self, team_id: str, last_n: int = 10) -> list[NormalizedFixture]:
         """Fetch last N matches for a player from Tennis Abstract."""
@@ -125,7 +259,7 @@ class TennisAbstractClient(BaseAPIClient):
 
         fixtures = []
         for m in matches[:last_n]:
-            fixture_id = f"ta_{team_id}_{m.get('date', '')}_{m.get('opp', '')}"
+            fixture_id = self._fixture_id(team_id, m)
             # Store raw stats in a stash for get_fixture_stats_from_match
             nf = NormalizedFixture(
                 fixture_id=fixture_id,
@@ -139,11 +273,12 @@ class TennisAbstractClient(BaseAPIClient):
             )
             fixtures.append(nf)
 
-        # Cache match data for fixture_stats lookup
-        self._last_matches_cache = {
-            f"ta_{team_id}_{m.get('date', '')}_{m.get('opp', '')}": (m, team_id)
-            for m in matches[:last_n]
-        }
+        # Cache match data for fixture_stats lookup. Updated rather than
+        # replaced: get_h2h files its meetings in the same dict, and this used
+        # to wipe them whenever the two ran against one client.
+        self._last_matches_cache.update(
+            {self._fixture_id(team_id, m): (m, team_id) for m in matches[:last_n]}
+        )
         return fixtures
 
     def get_fixture_stats_for_player(self, player_name: str, last_n: int = 10) -> list[NormalizedMatchStats]:
@@ -165,54 +300,133 @@ class TennisAbstractClient(BaseAPIClient):
     # ─── Scraping logic ──────────────────────────────────────────────
 
     def _fetch_player_matches(self, player_name: str) -> list[dict] | None:
-        """Fetch all match data for a player from Tennis Abstract."""
-        # Check cache first
-        cache_key = f"tennis-abstract/player/{self._url_name(player_name)}"
+        """This player's match rows, or None when no route proved to be his.
+
+        Never returns another player's matches. Each route in _ROUTES answers
+        200 whether or not the site has the player *on that route*, so the
+        response body's ``var fullname`` is what decides, and a body that names
+        someone else is dropped with a warning rather than parsed.
+
+        Routes are tried in order and the first *fresh* proven one wins. A
+        proven-but-stale route (the abandoned 2018 ATP ``/jsmatches`` files,
+        the pre-season ``Career`` files) is held as a fallback instead of being
+        accepted, because being the right player is not the same as being this
+        player's recent form -- and a 2018 L10 labelled "last 10" is the same
+        class of lie as another player's, just quieter.
+        """
+        url_name = self._url_name(player_name)
+        cache_key = f"tennis-abstract/player/{url_name}"
         cached = self._check_cache(cache_key, ttl_hours=6)
-        if cached:
+        # Entries without ``proved_name`` predate the identity check and may
+        # hold whoever's page happened to answer, so they are re-fetched rather
+        # than trusted.
+        if cached and cached.get("proved_name"):
+            self._proved_names[url_name] = cached["proved_name"]
             return cached.get("matches")
 
-        player_url_name = self._url_name(player_name)
-        all_matches = []
+        best: dict | None = None
+        refused: list[str] = []
+        for label, template in _ROUTES:
+            route = self._fetch_route(
+                template.format(base=BASE_URL, name=url_name), label, player_name
+            )
+            if route is None:
+                continue
+            if route.get("refused"):
+                refused.append(route["refused"])
+                continue
+            if best is None or route["newest"] > best["newest"]:
+                best = route
+            if self._is_fresh(route["newest"]):
+                break
 
-        # Try HTML page first (classic player page)
-        try:
-            url = f"{BASE_URL}/cgi-bin/player-classic.cgi?p={player_url_name}"
-            response = self._make_scrape_request(url)
-            if response and response.status_code == 200:
-                matches = self._parse_matches_from_html(response.text)
-                if matches:
-                    all_matches.extend(matches)
-                    logger.info(f"[tennis-abstract] Found {len(matches)} matches in HTML for {player_name}")
-        except Exception as e:
-            logger.debug(f"[tennis-abstract] HTML page failed for {player_name}: {e}")
-
-        # Fallback: try JS files
-        if not all_matches:
-            for suffix in ["", "Career"]:
-                try:
-                    url = f"{BASE_URL}/jsmatches/{player_url_name}{suffix}.js"
-                    response = self._make_scrape_request(url)
-                    if response and response.status_code == 200:
-                        matches = self._parse_matches_from_js(response.text)
-                        if matches:
-                            all_matches.extend(matches)
-                            logger.info(f"[tennis-abstract] Found {len(matches)} matches in JS for {player_name}")
-                            break
-                except Exception as e:
-                    logger.debug(f"[tennis-abstract] JS file failed for {player_name}: {e}")
-
-        if not all_matches:
-            logger.info(f"[tennis-abstract] No matches found for {player_name}")
+        if best is None:
+            logger.info(
+                "[tennis-abstract] no page proved to be '%s'%s",
+                player_name,
+                f" (refused: {'; '.join(refused)})" if refused else "",
+            )
             return None
 
-        # Parse into structured dicts
-        parsed = self._create_match_dicts(all_matches)
+        if not self._is_fresh(best["newest"]):
+            logger.warning(
+                "[tennis-abstract] '%s' resolved only via %s, whose newest match "
+                "is %s -- this is the player but not his current form",
+                player_name, best["label"], best["newest"] or "unknown",
+            )
 
-        # Cache result
-        self._save_to_cache(cache_key, {"matches": parsed})
+        logger.info(
+            "[tennis-abstract] %d matches for '%s' via %s (page names '%s')",
+            len(best["matches"]), player_name, best["label"], best["proved_name"],
+        )
+        self._proved_names[url_name] = best["proved_name"]
+        self._save_to_cache(
+            cache_key,
+            {
+                "matches": best["matches"],
+                # The evidence, kept with the data: which page was accepted,
+                # what it called the player, and how fresh it was.
+                "proved_name": best["proved_name"],
+                "route": best["label"],
+                "newest_match": best["newest"],
+            },
+        )
+        return best["matches"]
 
-        return parsed
+    def _fetch_route(self, url: str, label: str, player_name: str) -> dict | None:
+        """Fetch one route and return its rows only if the page names the player.
+
+        Returns None when the route has nothing (404, network error, no match
+        table), ``{"refused": ...}`` when it served a page for someone else,
+        and the parsed rows otherwise.
+        """
+        try:
+            response = self._make_scrape_request(url)
+        except Exception as exc:  # noqa: BLE001 - a dead route is not an error
+            logger.debug("[tennis-abstract] %s failed for %s: %s", label, player_name, exc)
+            return None
+        if not response or response.status_code != 200:
+            return None
+
+        body = response.text
+        claimed = _FULLNAME_RE.search(body)
+        if not claimed:
+            # No identity claim at all: a soft 404, or a shell page that loads
+            # its table from somewhere else. Either way there is nothing here
+            # we are entitled to attribute to anybody.
+            logger.debug("[tennis-abstract] %s: no fullname at %s", label, url)
+            return None
+        proved_name = claimed.group(1)
+        if not identity_matches(player_name, proved_name):
+            logger.warning(
+                "[tennis-abstract] %s served '%s' for '%s' -- refusing the page "
+                "rather than filing another player's matches under his name (%s)",
+                label, proved_name, player_name, url,
+            )
+            return {"refused": f"{label} named '{proved_name}'"}
+
+        raw = self._parse_matches_from_html(body) or self._parse_matches_from_js(body)
+        if not raw:
+            return None
+        matches = self._create_match_dicts(raw)
+        if not matches:
+            return None
+        return {
+            "label": label,
+            "proved_name": proved_name,
+            "matches": matches,
+            # _create_match_dicts sorts newest-first.
+            "newest": str(matches[0].get("date") or ""),
+        }
+
+    @staticmethod
+    def _is_fresh(newest_date: str) -> bool:
+        """Is this route's newest match recent enough to be called recent form?"""
+        try:
+            then = datetime.strptime(newest_date, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+        except (TypeError, ValueError):
+            return False
+        return (datetime.now(timezone.utc) - then).days <= STALE_ROUTE_DAYS
 
     def _make_scrape_request(self, url: str, retries: int = 2) -> requests.Response | None:
         """Make HTTP request with rate limiting and retry."""
@@ -359,7 +573,7 @@ class TennisAbstractClient(BaseAPIClient):
         }
 
         return NormalizedMatchStats(
-            fixture_id=f"ta_{player_name}_{match.get('date', '')}_{match.get('opp', '')}",
+            fixture_id=self._fixture_id(player_name, match),
             source="tennis-abstract",
             sport="tennis",
             home_team=player_name,
@@ -385,11 +599,6 @@ class TennisAbstractClient(BaseAPIClient):
         ascii_name = nfkd.encode("ascii", "ignore").decode("ascii")
         # Remove spaces, hyphens, apostrophes
         return ascii_name.replace(" ", "").replace("-", "").replace("'", "")
-
-    @staticmethod
-    def _normalize_name(name: str) -> str:
-        """Normalize player name for comparison."""
-        return name.lower().replace(" ", "").replace("-", "").replace("'", "")
 
     @staticmethod
     def _safe_int(val) -> int | None:

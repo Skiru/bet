@@ -20,7 +20,13 @@ from bet.simple_stats.providers import NATIVE_ID_PROVIDERS_BY_SPORT, PROVIDERS_B
 # They are reported separately from "exhausted" so an agent does not read a
 # permanent upstream outage as a quota problem that will clear tomorrow.
 KNOWN_DEAD_PROVIDERS = {
-    "sackmann": "upstream repository returns HTTP 404",
+    # Not the CSVs -- the repositories. github.com/JeffSackmann/tennis_atp and
+    # tennis_wta both answer "Not Found" from the GitHub API (checked
+    # 2026-08-28) while the account itself is alive and still publishes
+    # tennis_MatchChartingProject, so the data was moved or withdrawn rather
+    # than the network being at fault. Removed from PROVIDERS_BY_SPORT the same
+    # day; kept here so the morning check keeps saying so out loud.
+    "sackmann": "upstream repositories tennis_atp/tennis_wta return HTTP 404",
     "understat": "python package not installed (aiohttp fails to build)",
 }
 
@@ -296,20 +302,43 @@ def _capability_caps(
     cannot serve the Saudi and Korean leagues that made up the slate at all, so
     the second provider it was counting never existed.
 
-    Only espn-football is capped here, because it is the only provider whose
-    reach is decided per competition. The probe rides on ESPN's free, unlimited
-    quota and is memoised per league in providers.py, so this costs a handful of
-    unmetered requests for the distinct leagues of one day's slate.
+    Football capability is decided per *competition* (espn-football reaches the
+    headline leagues and 404s the rest). Tennis capability is decided per
+    *player*, which is the same problem wearing a different key: tennis-abstract
+    answers 200 for a player it does not have on the route asked -- serving
+    Benoit Paire's page for every WTA request -- so "the provider is up" says
+    nothing about whether it can serve tonight's names. A tennis slate the
+    provider cannot identify is a slate it contributes nothing to, and preflight
+    should say that in the morning rather than let ANALYZE discover it.
+
+    Both probes ride on free, unlimited providers and are memoised, so this
+    costs unmetered requests only for the distinct leagues and players of one
+    day's slate.
     """
+    caps: dict[str, dict[str, int]] = {}
+    football = _football_capability(event_list, rate_limiter)
+    if football is not None:
+        caps["football"] = football
+    tennis = _tennis_capability(event_list, rate_limiter)
+    if tennis is not None:
+        caps["tennis"] = tennis
+    return caps
+
+
+def _active(event_list: EventListV1, sport: str) -> list:
+    return [e for e in event_list.events if e.status == "ACTIVE" and e.sport == sport]
+
+
+def _football_capability(
+    event_list: EventListV1, rate_limiter: RateLimiter
+) -> dict[str, int] | None:
     from bet.api_clients.espn import get_espn_league_for_competition
     from bet.simple_stats.providers import _espn_league_has_team_directory
 
+    football_events = _active(event_list, "football")
+    if not football_events:
+        return None
     servable = 0
-    football_events = [
-        event
-        for event in event_list.events
-        if event.status == "ACTIVE" and event.sport == "football"
-    ]
     for event in football_events:
         competition = getattr(event, "competition", "") or ""
         if not competition:
@@ -317,10 +346,44 @@ def _capability_caps(
         league = get_espn_league_for_competition(competition)
         if league and _espn_league_has_team_directory("football", league, rate_limiter):
             servable += 1
+    return {"espn-football": servable}
 
-    if not football_events:
-        return {}
-    return {"football": {"espn-football": servable}}
+
+def _tennis_capability(
+    event_list: EventListV1, rate_limiter: RateLimiter
+) -> dict[str, int] | None:
+    """How many of today's tennis fixtures each name-driven provider can identify.
+
+    An event counts only when the provider resolves *both* players: a fixture
+    with one side identified yields no comparison, no H2H and no per-side line,
+    so counting it would overstate coverage in exactly the direction that
+    already burned football.
+
+    Identity is asked for, history is not. Resolution is the step that fails --
+    and the step whose failure used to be invisible, because tennis-abstract's
+    resolve_team_id echoed the caller's string back and espn-tennis's athlete
+    search is the only thing standing between a name and the wrong tour.
+    """
+    from bet.simple_stats.providers import resolve_tennis_player
+
+    tennis_events = _active(event_list, "tennis")
+    if not tennis_events:
+        return None
+
+    providers = ("tennis-abstract", "espn-tennis")
+    counts = dict.fromkeys(providers, 0)
+    for event in tennis_events:
+        competition = getattr(event, "competition", "") or ""
+        for provider in providers:
+            # Tennis carries its sides as player_one/player_two; home/away are
+            # the football spelling and are None here (contracts.EventRecord).
+            both = all(
+                name and resolve_tennis_player(provider, name, competition, rate_limiter)
+                for name in (event.player_one, event.player_two)
+            )
+            if both:
+                counts[provider] += 1
+    return counts
 
 
 def _two_provider_coverage(
