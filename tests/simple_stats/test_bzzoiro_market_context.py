@@ -21,13 +21,25 @@ names suggest:
 No test here touches the network.
 """
 import json as _json
+from datetime import datetime, timezone
 
 import pytest
 
 from bet.api_clients.bzzoiro import BzzoiroClient
 from bet.api_clients.rate_limiter import RateLimiter
 from bet.integration.source_result import SourceOperationResult, SourceResultStatus
-from bet.simple_stats.contracts import MarketOddsLine, ModelPrediction
+from bet.simple_stats import market_context
+from bet.simple_stats.contracts import (
+    EventListV1,
+    EventMarketContext,
+    EventRecord,
+    MarketContextV1,
+    MarketOddsLine,
+    ModelPrediction,
+    StatsSheetRow,
+    StatsSheetV1,
+)
+from bet.simple_stats.providers import RunBudget
 
 # --- live-shaped payloads -------------------------------------------------
 
@@ -406,3 +418,153 @@ def test_the_model_serves_exactly_three_corner_lines(monkeypatch, tmp_path):
         "prob_corners_over_85",
         "prob_corners_over_95",
     ]
+
+
+# --- collection: budget, entitlement caching, sport scope ------------------
+
+
+def _event_list(*events):
+    return EventListV1(
+        run_id="RID-1", generated_at="2026-08-28T00:00:00+00:00",
+        date="2026-08-28", sports=["football", "tennis"], events=list(events),
+    )
+
+
+def _football_event(event_id="evt-1", provider_id="587902", **overrides):
+    kwargs = dict(
+        event_id=event_id, sport="football", competition="Conference League",
+        home_team="SK Rapid Wien", away_team="Heart of Midlothian",
+        start_time="2026-08-28T16:45:00+00:00",
+        source_ids={"bzzoiro": provider_id},
+        identity_confidence="CONFIRMED", status="ACTIVE",
+    )
+    kwargs.update(overrides)
+    return EventRecord(**kwargs)
+
+
+@pytest.fixture(autouse=True)
+def _clear_entitlement_cache():
+    """Process-wide and account-wide by design, which means one test's probe
+    would otherwise answer the next test's run -- and that test would pass while
+    asserting nothing."""
+    market_context.reset_entitlement_cache()
+    yield
+    market_context.reset_entitlement_cache()
+
+
+def _collecting_client(monkeypatch, tmp_path, *, comparison=COMPARISON_PAYLOAD):
+    payloads = {
+        "/odds/": ODDS_PAYLOAD,
+        "/events/587902/odds/": CONSENSUS_PAYLOAD,
+        "/events/587902/prediction/": PREDICTION_PAYLOAD,
+        "/events/587903/odds/": CONSENSUS_PAYLOAD,
+        "/events/587903/prediction/": PREDICTION_PAYLOAD,
+    }
+    statuses = {}
+    if comparison is None:
+        statuses["/events/587902/odds/comparison/"] = _blocked_403()
+        statuses["/events/587903/odds/comparison/"] = _blocked_403()
+    else:
+        payloads["/events/587902/odds/comparison/"] = comparison
+        payloads["/events/587903/odds/comparison/"] = comparison
+    client, calls = _client(monkeypatch, tmp_path, payloads, statuses=statuses)
+    monkeypatch.setattr(market_context, "get_client", lambda *a, **k: client)
+    return client, calls
+
+
+def test_tennis_is_out_of_scope_because_it_shares_a_95_a_day_bucket(monkeypatch, tmp_path):
+    """Not a coverage decision. bzzoiro-tennis is a separate quota bucket that
+    ENRICH already spends against, and roughly six enriched fixtures exhausts it,
+    so market context for tennis would come out of the allowance that produces
+    tennis's actual statistics."""
+    tennis = _football_event(
+        event_id="evt-tennis", sport="tennis", competition="Cincinnati (atp_1000)",
+        home_team=None, away_team=None, player_one="A", player_two="B",
+        source_ids={"bzzoiro-tennis": "9001"},
+    )
+    assert market_context.eligible_events(_event_list(tennis)) == []
+
+
+def test_an_event_without_bzzoiros_own_id_is_skipped(monkeypatch, tmp_path):
+    """Every endpoint here is keyed by that id. An event some other source found
+    alone has nothing to look up, and building calls anyway spends quota to
+    receive a 404."""
+    foreign = _football_event(event_id="evt-espn", source_ids={"espn-football": "77"})
+    assert market_context.eligible_events(_event_list(foreign)) == []
+
+
+def test_the_entitlement_is_probed_exactly_once_per_run(monkeypatch, tmp_path):
+    """It belongs to the subscription, not to a league or a fixture, so one probe
+    answers for every event. Re-probing per event would spend a call per fixture
+    to be told the same thing."""
+    client, calls = _collecting_client(monkeypatch, tmp_path)
+    context = market_context.collect_market_context(
+        _event_list(_football_event(), _football_event("evt-2", "587903")),
+        RateLimiter(usage_dir=tmp_path / "u"),
+    )
+    assert context.football_unlimited_entitled is True
+    # Two events, one comparison call each -- but only one of them was a probe:
+    # the second event fetched its own grid without re-establishing entitlement.
+    comparison_calls = [c for c in calls if c[0].endswith("/odds/comparison/")]
+    assert len(comparison_calls) == 2
+    assert all(e.comparison_entitlement == "ENTITLED" for e in context.events)
+
+
+def test_a_not_entitled_account_stops_calling_the_grid_entirely(monkeypatch, tmp_path):
+    """A 403 will not resolve on the next fixture. Asking again, per event, all
+    day, spends a call each time to be told the same permanent fact."""
+    client, calls = _collecting_client(monkeypatch, tmp_path, comparison=None)
+    context = market_context.collect_market_context(
+        _event_list(_football_event(), _football_event("evt-2", "587903")),
+        RateLimiter(usage_dir=tmp_path / "u"),
+    )
+    assert context.football_unlimited_entitled is False
+    comparison_calls = [c for c in calls if c[0].endswith("/odds/comparison/")]
+    assert len(comparison_calls) == 1
+    assert all(e.comparison_entitlement == "NOT_ENTITLED" for e in context.events)
+
+
+def test_losing_the_grid_never_blanks_the_corners_quotes(monkeypatch, tmp_path):
+    """The entitlement gates depth, not the signal. If a lapsed subscription also
+    emptied the corners quotes, a billing change would silently switch off the
+    one column that can move a row."""
+    _collecting_client(monkeypatch, tmp_path, comparison=None)
+    context = market_context.collect_market_context(
+        _event_list(_football_event()), RateLimiter(usage_dir=tmp_path / "u")
+    )
+    event = context.events[0]
+    assert event.comparison_entitlement == "NOT_ENTITLED"
+    assert [q for q in event.odds if q.market == "total_corners"]
+    assert event.predictions is not None
+
+
+def test_the_run_budget_stops_the_loop_and_says_so(monkeypatch, tmp_path):
+    """Football is uncapped, so this is a runaway guard rather than rationing --
+    but when it binds, the artifact must say the data is missing because we
+    stopped asking, not because the provider had nothing."""
+    _collecting_client(monkeypatch, tmp_path)
+    context = market_context.collect_market_context(
+        _event_list(_football_event(), _football_event("evt-2", "587903")),
+        RateLimiter(usage_dir=tmp_path / "u"),
+        budget=RunBudget(limit=2, overrides={}),
+    )
+    gaps = [gap for event in context.events for gap in event.data_gaps]
+    assert any("run call budget exhausted" in gap for gap in gaps)
+
+
+def test_a_fixture_nobody_priced_is_a_gap_not_a_crash(monkeypatch, tmp_path):
+    client, _ = _client(
+        monkeypatch, tmp_path,
+        {
+            "/odds/": {"count": 0, "results": []},
+            "/events/587902/odds/": CONSENSUS_PAYLOAD,
+            "/events/587902/odds/comparison/": COMPARISON_PAYLOAD,
+            "/events/587902/prediction/": PREDICTION_PAYLOAD,
+        },
+    )
+    monkeypatch.setattr(market_context, "get_client", lambda *a, **k: client)
+    context = market_context.collect_market_context(
+        _event_list(_football_event()), RateLimiter(usage_dir=tmp_path / "u")
+    )
+    assert context.events[0].odds == []
+    assert any("no total_corners quotes" in gap for gap in context.events[0].data_gaps)

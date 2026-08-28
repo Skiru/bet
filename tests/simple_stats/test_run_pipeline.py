@@ -83,10 +83,14 @@ def out_dir(tmp_path):
     return d
 
 
+ALL_STEPS = ["discover", "enrich", "market_context", "tipsters", "analyze"]
+
+
 def _all_ok_stubs(tmp_path, out_dir, date="2026-08-25", run_id="RID-1"):
     event_list = out_dir / f"{date}_event_list.json"
     dossier = out_dir / f"{date}_event_dossiers.json"
     sheet = out_dir / f"{date}_event_dossiers_stats_sheet.json"
+    context = out_dir / f"{date}_market_context.json"
     signal = out_dir / f"{date}_tipster_signal.json"
     return {
         "discover": _stub(
@@ -98,6 +102,11 @@ def _all_ok_stubs(tmp_path, out_dir, date="2026-08-25", run_id="RID-1"):
             tmp_path / "e.py", verdict="OK",
             metrics={"run_id": run_id, "output_path": str(dossier), "persisted": True},
             exit_code=0, writes=str(dossier),
+        ),
+        "market_context": _stub(
+            tmp_path / "m.py", verdict="OK",
+            metrics={"run_id": run_id, "output_path": str(context), "persisted": None},
+            exit_code=0, writes=str(context),
         ),
         "tipsters": _stub(
             tmp_path / "t.py", verdict="OK",
@@ -117,7 +126,7 @@ def test_clean_run_is_ok_and_exits_zero(tmp_path, out_dir):
     code, summary, _ = _run(tmp_path, stubs, "--date", "2026-08-25", "--output-dir", str(out_dir))
     assert code == 0
     assert summary["verdict"] == "OK"
-    assert summary["metrics"]["steps_run"] == ["discover", "enrich", "tipsters", "analyze"]
+    assert summary["metrics"]["steps_run"] == ALL_STEPS
 
 
 def test_exactly_one_agent_summary_is_emitted(tmp_path, out_dir):
@@ -140,6 +149,7 @@ def test_verdict_is_the_worst_step_not_the_last(tmp_path, out_dir):
     assert summary["metrics"]["step_verdicts"] == {
         "discover": "OK",
         "enrich": "PARTIAL",
+        "market_context": "OK",
         "tipsters": "OK",
         "analyze": "OK",
     }
@@ -243,7 +253,7 @@ def test_a_receipt_is_written_next_to_the_artifacts(tmp_path, out_dir):
     receipt = json.loads((out_dir / "2026-08-25_run_summary.json").read_text())
     assert receipt["verdict"] == "OK"
     assert receipt["run_id"] == "RID-1"
-    assert set(receipt["steps"]) == {"discover", "enrich", "tipsters", "analyze"}
+    assert set(receipt["steps"]) == set(ALL_STEPS)
     assert receipt["steps"]["analyze"]["persisted"] is True
 
 
@@ -261,11 +271,12 @@ def test_severity_ordering_puts_failed_above_partial(module):
     assert sev["OK"] < sev["PARTIAL"] < sev["PRECONDITION_FAILED"] <= sev["FAILED"]
 
 
-# --- TIPSTERS: the one optional step ---------------------------------------
+# --- the two optional steps ------------------------------------------------
 #
-# It reaches third-party web pages, so it will fail sometimes for reasons that
-# have nothing to do with the betting day. These pin down that a bad tipster
-# fetch costs the run its agreement column and nothing else.
+# TIPSTERS reaches third-party web pages and MARKET_CONTEXT reaches a paid API
+# whose entitlement can lapse, so each will fail sometimes for reasons that have
+# nothing to do with the betting day. These pin down that such a failure costs
+# the run one column and nothing else.
 
 
 def test_a_failed_tipster_step_does_not_fail_the_run(tmp_path, out_dir):
@@ -289,7 +300,7 @@ def test_a_failed_tipster_step_does_not_halt_the_pipeline(tmp_path, out_dir):
         tmp_path / "t_pf.py", verdict="PRECONDITION_FAILED", metrics={"run_id": "RID-1"}, exit_code=2
     )
     _, summary, _ = _run(tmp_path, stubs, "--date", "2026-08-25", "--output-dir", str(out_dir))
-    assert summary["metrics"]["steps_run"] == ["discover", "enrich", "tipsters", "analyze"]
+    assert summary["metrics"]["steps_run"] == ALL_STEPS
 
 
 def test_skip_tipsters_omits_the_step_entirely(tmp_path, out_dir):
@@ -298,8 +309,59 @@ def test_skip_tipsters_omits_the_step_entirely(tmp_path, out_dir):
         tmp_path, stubs, "--date", "2026-08-25", "--output-dir", str(out_dir), "--skip-tipsters"
     )
     assert code == 0
-    assert summary["metrics"]["steps_run"] == ["discover", "enrich", "analyze"]
+    assert summary["metrics"]["steps_run"] == ["discover", "enrich", "market_context", "analyze"]
     assert summary["metrics"]["tipster_signal"] is None
+
+
+def test_a_failed_market_context_step_does_not_fail_the_run(tmp_path, out_dir):
+    """An entitlement that lapsed overnight, or a provider outage, costs the run
+    its market column. It is not a bad betting day, and reporting it as one would
+    train the operator to ignore the field that matters."""
+    stubs = _all_ok_stubs(tmp_path, out_dir)
+    stubs["market_context"] = _stub(
+        tmp_path / "m_fail.py", verdict="FAILED", metrics={"run_id": "RID-1"}, exit_code=2
+    )
+    code, summary, _ = _run(tmp_path, stubs, "--date", "2026-08-25", "--output-dir", str(out_dir))
+    assert code == 0
+    assert summary["verdict"] == "OK"
+    # Visible per step rather than swallowed...
+    assert summary["metrics"]["step_verdicts"]["market_context"] == "FAILED"
+    # ...and the run reached ANALYZE, which is the whole point of it being optional.
+    assert summary["metrics"]["step_verdicts"]["analyze"] == "OK"
+
+
+def test_skip_market_context_omits_the_step_entirely(tmp_path, out_dir):
+    stubs = _all_ok_stubs(tmp_path, out_dir)
+    code, summary, _ = _run(
+        tmp_path, stubs, "--date", "2026-08-25", "--output-dir", str(out_dir),
+        "--skip-market-context",
+    )
+    assert code == 0
+    assert summary["metrics"]["steps_run"] == ["discover", "enrich", "tipsters", "analyze"]
+    assert summary["metrics"]["market_context"] is None
+
+
+def test_analyze_is_handed_the_market_context_only_when_it_exists(tmp_path, out_dir):
+    """Passing a path that was never written would make ANALYZE warn on every run
+    in which this optional step was skipped -- the same trap the tipster flag
+    already avoids."""
+    stubs = _all_ok_stubs(tmp_path, out_dir)
+    # A market-context step that reports a verdict but writes no artifact.
+    stubs["market_context"] = _stub(
+        tmp_path / "m_empty.py", verdict="PARTIAL", metrics={"run_id": "RID-1"}, exit_code=1
+    )
+    echo = tmp_path / "a_echo_market.py"
+    echo.write_text(
+        "import json, sys\n"
+        "print('ARGV:' + json.dumps(sys.argv[1:]))\n"
+        "print('AGENT_SUMMARY:' + json.dumps({'step': 'stub', 'verdict': 'OK',"
+        " 'metrics': {'run_id': 'RID-1'}, 'issues': [], 'counts': {'errors': 0, 'warnings': 0}}))\n",
+        encoding="utf-8",
+    )
+    stubs["analyze"] = str(echo)
+    _, _, stdout = _run(tmp_path, stubs, "--date", "2026-08-25", "--output-dir", str(out_dir))
+    argv_line = next(line for line in stdout.splitlines() if line.startswith("ARGV:"))
+    assert "--market-context" not in argv_line
 
 
 def test_analyze_is_handed_the_signal_only_when_it_exists(tmp_path, out_dir):

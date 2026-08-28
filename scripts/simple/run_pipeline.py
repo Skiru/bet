@@ -42,13 +42,17 @@ from agent_output import AgentOutput, add_agent_args  # noqa: E402
 
 from bet.simple_stats.run_context import new_run_id  # noqa: E402
 
-# TIPSTERS sits between ENRICH and ANALYZE because it needs DISCOVER's event
-# list and ANALYZE consumes its output, and it is listed as a full step so
-# --start-at / --stop-after can address it. It is the only optional step: its
-# inputs are third-party web pages, so it reports PARTIAL rather than FAILED and
-# the run continues without the column.
-STEPS = ("discover", "enrich", "tipsters", "analyze")
-OPTIONAL_STEPS = frozenset({"tipsters"})
+# MARKET_CONTEXT and TIPSTERS both sit between ENRICH and ANALYZE: each needs
+# DISCOVER's event list, ANALYZE consumes both outputs, and each is listed as a
+# full step so --start-at / --stop-after can address it.
+#
+# Both are optional, for the same structural reason and with different failure
+# modes. TIPSTERS reads third-party web pages that can move overnight;
+# MARKET_CONTEXT reads a paid API whose entitlement can lapse. Neither produces
+# anything the stats sheet depends on -- they fill columns beside p_low, never
+# inside it -- so both report PARTIAL rather than FAILED and the run continues.
+STEPS = ("discover", "enrich", "market_context", "tipsters", "analyze")
+OPTIONAL_STEPS = frozenset({"market_context", "tipsters"})
 
 # Indirection so tests can substitute stub steps: the wrapper's job is
 # sequencing, artifact threading and verdict aggregation, and none of that
@@ -56,6 +60,7 @@ OPTIONAL_STEPS = frozenset({"tipsters"})
 STEP_SCRIPTS = {
     "discover": "scripts/simple/run_discover.py",
     "enrich": "scripts/simple/run_enrich.py",
+    "market_context": "scripts/simple/run_market_context.py",
     "tipsters": "scripts/simple/run_tipsters.py",
     "analyze": "scripts/simple/run_analyze.py",
 }
@@ -255,6 +260,11 @@ def main() -> None:
     )
     parser.add_argument("--stop-after", choices=STEPS, default="analyze")
     parser.add_argument(
+        "--skip-market-context", action="store_true",
+        help="Do not fetch bookmaker odds or model predictions. The stats sheet "
+             "is produced without the market column.",
+    )
+    parser.add_argument(
         "--skip-tipsters", action="store_true",
         help="Do not fetch public tipster pages. The stats sheet is produced "
              "without the agreement column.",
@@ -306,6 +316,7 @@ def main() -> None:
     # fallbacks used only when that step did not run in this process.
     event_list = output_dir / f"{date}_event_list.json"
     dossier = output_dir / f"{date}_event_dossiers.json"
+    market_context = output_dir / f"{date}_market_context.json"
     tipster_signal = output_dir / f"{date}_tipster_signal.json"
 
     first = STEPS.index(args.start_at)
@@ -339,6 +350,24 @@ def main() -> None:
             ]
             if args.skip_preflight:
                 argv.append("--skip-preflight")
+        elif name == "market_context":
+            if args.skip_market_context:
+                out.event("step_skipped", pipeline_step=name, reason="--skip-market-context")
+                continue
+            if not event_list.exists():
+                out.warning(
+                    f"skipping MARKET_CONTEXT: {event_list} is missing, so no price "
+                    "can be attributed to a fixture",
+                    pipeline_step=name,
+                )
+                continue
+            argv = [
+                STEP_SCRIPTS["market_context"],
+                "--event-list", str(event_list),
+                "--max-events", str(args.max_events),
+                "--provider-call-budget", str(args.provider_call_budget),
+                *common,
+            ]
         elif name == "tipsters":
             if args.skip_tipsters:
                 out.event("step_skipped", pipeline_step=name, reason="--skip-tipsters")
@@ -366,9 +395,11 @@ def main() -> None:
                 out.summary(verdict="PRECONDITION_FAILED", metrics={"run_id": run_id, "date": date})
                 sys.exit(2)
             argv = [STEP_SCRIPTS["analyze"], "--dossier", str(dossier), *common]
-            # Absent unless TIPSTERS actually wrote it, so a skipped or failed
-            # tipster step leaves ANALYZE exactly as it was before this stage
-            # existed.
+            # Each absent unless its step actually wrote it, so a skipped or
+            # failed optional step leaves ANALYZE exactly as it was before that
+            # stage existed.
+            if market_context.exists():
+                argv += ["--market-context", str(market_context)]
             if tipster_signal.exists():
                 argv += ["--tipster-signal", str(tipster_signal)]
 
@@ -403,6 +434,8 @@ def main() -> None:
                 event_list = Path(produced)
             elif name == "enrich":
                 dossier = Path(produced)
+            elif name == "market_context":
+                market_context = Path(produced)
             elif name == "tipsters":
                 tipster_signal = Path(produced)
             else:
@@ -429,6 +462,7 @@ def main() -> None:
         "steps_run": list(step_results),
         "step_verdicts": {name: r["verdict"] for name, r in step_results.items()},
         "stats_sheet": stats_sheet,
+        "market_context": str(market_context) if market_context.exists() else None,
         "tipster_signal": str(tipster_signal) if tipster_signal.exists() else None,
         "elapsed_s": round(time.monotonic() - wall_start, 1),
         "started_at": started_at,

@@ -17,7 +17,7 @@ from pathlib import Path
 
 from bet.db.connection import get_db
 
-STEPS = ("DISCOVER", "ENRICH", "ANALYZE")
+STEPS = ("DISCOVER", "ENRICH", "MARKET_CONTEXT", "TIPSTERS", "ANALYZE")
 
 
 def new_run_id(date: str) -> str:
