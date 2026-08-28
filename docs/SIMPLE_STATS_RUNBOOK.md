@@ -255,22 +255,24 @@ The limits in `src/bet/api_clients/rate_limiter.py` are conservative guesses,
 not measurements — the real number is in the provider's dashboard. Set
 `BET_LIMIT_<PROVIDER>` once you know it rather than editing code.
 
-### `BZZORIO_KEY` must also be **exported** for the MCP servers
+### `BZZORIO_KEY` and the MCP servers
 
-`.mcp.json` registers two bzzoiro MCP servers for the analyst agent and reads
-the key as `${BZZORIO_KEY}`. That expansion is done by the agent harness against
-the **process environment**, which is not the same thing as this repo's `.env`:
-the Python clients parse `.env` with `python-dotenv`, the harness does not. So a
-key that only lives in `.env` authenticates every pipeline call and none of the
-MCP calls, which surface as `-32001 Authentication required`.
+`.mcp.json` registers two bzzoiro MCP servers for the analyst agent and reads the
+credential as `${BZZORIO_KEY}`. Claude Code resolves that from the process
+environment and from a project-root `.env`, so the existing entry should be
+enough — the key is never written into `.mcp.json` itself, which is committed.
 
-Export it in your shell profile as well:
+If MCP tools answer `-32001 Authentication required` while `run_pipeline.py`
+works fine, the variable did not resolve: Claude Code leaves an unresolved
+`${VAR}` as the literal string rather than erroring, so the header is sent as
+`Token ${BZZORIO_KEY}`. Export it explicitly and restart the session:
 
 ```bash
 export BZZORIO_KEY=...      # same value as the .env entry
 ```
 
-The key is never written into `.mcp.json` itself — that file is committed.
+The auth shape itself is verified: `Authorization: Token <key>`, and tool calls
+return `-32001` without it (probed live 2026-08-28).
 
 `bzzoiro` is the exception in the other direction: **it has no compiled default
 at all.** On the PRO plan the football product stops sending rate-limit headers

@@ -35,11 +35,33 @@ Advice line -> action:
 | `GO, but nothing will be corroborated` | Run, and say up front every row will be `SINGLE_SOURCE` |
 | `NO-GO: no usable provider` | Stop. Report each blocked provider's `kind`. Do not run |
 
-That is the whole run. It mints one `run_id`, threads each step's artifact into
-the next, writes `runs/<date>/<date>_run_summary.json`, and emits exactly one
-`AGENT_SUMMARY:` line. Do not invoke `run_discover.py` / `run_enrich.py` /
-`run_analyze.py` individually except to re-run one step against a saved artifact
-while diagnosing a failure.
+That is the whole run: DISCOVER → ENRICH → MARKET_CONTEXT → TIPSTERS → ANALYZE.
+It mints one `run_id`, threads each step's artifact into the next, writes
+`runs/<date>/<date>_run_summary.json`, and emits exactly one `AGENT_SUMMARY:`
+line. Do not invoke `run_discover.py` / `run_enrich.py` /
+`run_market_context.py` / `run_tipsters.py` / `run_analyze.py` individually
+except to re-run one step against a saved artifact while diagnosing a failure.
+
+### What MARKET_CONTEXT costs, and what it cannot cover
+
+It spends **~4 bzzoiro calls per fixture** — the only optional step that spends
+provider quota at all. That is affordable because bzzoiro's football product is
+uncapped on PRO; it is not free, so `--max-events` binds it exactly as it binds
+ENRICH.
+
+Two limits to state rather than report as failures:
+
+- **Football only.** Tennis fixtures are skipped by construction —
+  `bzzoiro-tennis` is a separate 95/day bucket that ENRICH already spends
+  against, and roughly six enriched fixtures exhausts it. A tennis slate with no
+  market context is the design, not a gap.
+- **Only fixtures bzzoiro itself discovered.** The stage is keyed by bzzoiro's
+  own event id, so an event only `highlightly` or `odds-api` found is skipped.
+  Compare `market_context_metrics.events_considered` against DISCOVER's
+  `events_by_source.bzzoiro` before calling coverage thin.
+
+Pass `--skip-market-context` when the operator wants the sheet without the
+market column, or when bzzoiro is the blocked provider anyway.
 
 Never pass `--skip-preflight`. It exists to test downstream steps and produces an
 all-gaps artifact that looks like a result.
@@ -74,7 +96,18 @@ Then re-run ANALYZE against the merged artifact so the sheet reflects it:
 python3 scripts/simple/run_analyze.py \
   --dossier runs/<date>/<date>_event_dossiers.json \
   --output-dir runs/<date> \
+  --market-context runs/<date>/<date>_market_context.json \
   --tipster-signal runs/<date>/<date>_tipster_signal.json -v
+```
+
+**Pass every optional artifact that exists, and none that does not.** ANALYZE
+rebuilds the sheet from scratch, so an omitted `--market-context` or
+`--tipster-signal` silently drops that column from the re-analysed sheet —
+the backfill would then read as having *lost* data it never touched. A path
+that was never written makes ANALYZE warn on every run, so check first:
+
+```bash
+ls runs/<date>/<date>_market_context.json runs/<date>/<date>_tipster_signal.json
 ```
 
 This is worth doing now and was not before: the `bzzoiro` football product is
@@ -134,6 +167,18 @@ helps:
   `BET_LIMIT_<PROVIDER>` and the reset command. After a key rotation the counter
   is stale and `scripts/simple/reset_provider_quota.py --provider <name>` is the
   fix; it clears our bookkeeping only, nothing at the provider.
+
+  **`highlightly` exhaustion shrinks the *slate*, not just the corroboration** --
+  this is the one quota failure that is easy to misread. It is the dominant
+  *discovery* source, so running dry cuts how many fixtures exist to analyse at
+  all. Measured on 2026-08-28: the same date discovered **348 events** with
+  highlightly available (`{highlightly: 310, bzzoiro: 54, odds-api: 43}`) and
+  **80 events** an hour later at `highlightly: 0`
+  (`{bzzoiro: 54, odds-api: 43}`) -- a 77% smaller day from one exhausted
+  counter. So when preflight reports it at 0, say up front that today's slate is
+  a fraction of the real fixture list, and that the missing events are absent
+  from DISCOVER rather than capped out of ENRICH. Do not report the shrunken
+  count as the day's coverage without that sentence.
 - `upstream_unavailable` -- `sackmann` (404) and `understat` (build failure).
   Known, permanent. Report and continue.
 

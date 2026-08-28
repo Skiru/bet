@@ -34,10 +34,19 @@ python3 scripts/simple/run_pipeline.py --preflight
 python3 scripts/simple/run_pipeline.py --date <resolved> -v [--max-events N]
 ```
 
-`TIPSTERS` runs between ENRICH and ANALYZE and fills the *Typerzy* column. It is
-optional and excluded from the run verdict, so a `tipsters: FAILED` or `PARTIAL`
-in `step_verdicts` is not a reason to stop — report it in *Czego zabrakło* and
-carry on. Pass `--skip-tipsters` to omit the column entirely.
+The run is DISCOVER → ENRICH → MARKET_CONTEXT → TIPSTERS → ANALYZE.
+
+**Two steps are optional and neither can fail the day.** `MARKET_CONTEXT` fills
+the *Rynek* column (bookmaker price + model probability); `TIPSTERS` fills
+*Typerzy*. Both are excluded from the run verdict, so `market_context: FAILED`
+or `tipsters: PARTIAL` in `step_verdicts` is not a reason to stop — report it in
+*Czego zabrakło* and carry on. `--skip-market-context` / `--skip-tipsters` omit
+either column.
+
+`MARKET_CONTEXT` is the only optional step that spends provider quota (~4
+bzzoiro calls a fixture, football only). It is capped by the same
+`--max-events` as ENRICH and ranks the slate identically, so the two budgets
+land on the same matches — never give them different caps by hand.
 
 Take `--max-events` from preflight's `recommended_max_events`. Raise it above
 that only with a stated reason — and say plainly that events beyond the
@@ -53,7 +62,15 @@ than its absence.
 
 Standard obligations from the agent definition: cross-check the DB for other
 `run_id`s on that date, print the per-side `a/b/h2h` split for every row, probe
-before claiming DB depth, verify with WebFetch that each fixture is still on.
+before claiming DB depth, verify that each fixture is still on.
+
+For that last check prefer the **bzzoiro MCP tools** (`search_matches`,
+`get_match_detail`) over WebFetch — same paid provider the pipeline uses, typed
+instead of scraped. They carry WebFetch's evidence ceiling all the same: veto or
+downgrade only, never a promotion, never into `p_low`, and tagged
+`[BZZOIRO-MCP: ...]`. The one promotion in this system belongs to
+`row.market_signal` from the artifact, because that number is quota-tracked and
+evidence-bundled; an ad hoc MCP call is not.
 
 ## 3. Write `runs/<date>/<date>_analiza.md`
 
@@ -92,6 +109,8 @@ the line is a push, reported in `row.pushes` and excluded from both `hits` and
 **Run:** `<run_id>` · **Werdykt:** `<OK|PARTIAL>` · **Wygenerowano:** <UTC>
 **Pokrycie:** <n> odkrytych → <n> wzbogaconych → <n> odciętych limitem
 **Providerzy:** <ci, którzy realnie dali dane> · **Niedostępni:** <nazwa (kind)>
+**Rynek:** <n> meczów z kursami, <n> z modelem rożnych · **Typerzy:** <n> meczów
+<pomiń wiersz *Rynek*, gdy krok MARKET_CONTEXT nie działał lub był pominięty>
 
 > Sortowanie po kolumnie *Pewność* — to dolna granica Wilsona 95%, nie surowy
 > hit rate. `sample_size` łączy obie drużyny i h2h, więc obserwacje nie są
@@ -99,13 +118,27 @@ the line is a push, reported in `row.pushes` and excluded from both `hits` and
 
 ## Ranking
 
-| # | Pewność | Mecz | Rynek | Strona | Surowo | n | a/b/h2h | Zgodność | Typerzy | Min. kurs | Tier |
-|--:|--------:|------|-------|--------|-------:|--:|---------|----------|---------|----------:|------|
-| 1 | 51.0% | FC Seoul – Bucheon | kartki 3.5 | OVER | 4/4 | 4 | 0/4/0 | SINGLE_SOURCE | brak | — | WEAK |
-| 2 | 46.8% | Valencia – Betis | rożne 10.5 | UNDER | 9/12 | 12 | 6/6/0 | AGREE | 2/2 | 1.90 | CALL |
+| # | Pewność | Mecz | Rynek | Strona | Surowo | n | a/b/h2h | Zgodność | Typerzy | Rynek (kurs/model) | Min. kurs | Tier |
+|--:|--------:|------|-------|--------|-------:|--:|---------|----------|---------|--------------------|----------:|------|
+| 1 | 51.0% | FC Seoul – Bucheon | kartki 3.5 | OVER | 4/4 | 4 | 0/4/0 | SINGLE_SOURCE | brak | — | — | WEAK |
+| 2 | 46.8% | Valencia – Betis | rożne 10.5 | UNDER | 9/12 | 12 | 6/6/0 | AGREE | 2/2 | POTWIERDZA · model 0.64 / rynek 0.58 · 1.65 @pinnacle | 1.90 | CALL |
 
 `WEAK` nie dostaje minimalnego kursu — próg policzony z czterech obserwacji
 udaje precyzję, której tam nie ma.
+
+Kolumna *Rynek* to `row.market_signal` — **tylko dla `corners_total`**. bzzoiro
+nie notuje kursów ani predykcji na kartki, faule i strzały celne, więc `—` przy
+tych rynkach to zasięg dostawcy, nie brak danych; nie zgłaszaj tego jako luki.
+Linia 11.5 zawsze wychodzi `—`, bo model podaje wyłącznie 8.5/9.5/10.5, a między
+liniami nic się nie interpoluje.
+
+Podany kurs jest **najlepszy z ~88 bukmacherów, wśród których nie ma Superbetu** —
+to punkt odniesienia rynku, nie Twoja cena. Oznacz go `[BZZOIRO-ODDS: <ts>]` i
+nigdy nie licz z niego *Min. kursu*: ten pochodzi wyłącznie z `p_low`.
+
+Werdykt `POTWIERDZA` może podnieść tier `LEAN → CALL` o jeden stopień i tylko
+przy `corners_total`, `n >= 5` oraz obu prawdopodobieństwach obecnych. Gdy
+podniesiesz — napisz to wprost: `[CALL, podniesiony przez sygnał rynkowy]`.
 
 Kolumna *Typerzy* to `row.tipster` — ilu publicznych typerów obstawiło **ten sam
 rynek, tę samą linię i tę samą stronę** (`agree/agree+oppose`), albo `brak`, gdy
@@ -129,6 +162,14 @@ weryfikacja z sieci z tagiem [WEB: domena, data]>
 `<data>_tipster_signal.json`, czyli 1X2/BTTS. Zaznacz wyraźnie, że to inny rynek
 niż totale powyżej i że jednego nie przelicza się na drugie. Pomiń sekcję, gdy
 krok TIPSTERS nie działał.>
+
+## Bet Builder — szkic nóg (bez ceny łącznej)
+<tylko gdy operator pytał o kupon. Wklej wynik
+`scripts/simple/bet_builder_draft.py` dla wskazanego meczu: nogi, `min_acceptable_odds`
+każdej z nich i `correlation_note` w całości. **Nigdy nie podawaj kursu łącznego
+— nawet szacunkowo.** Rożne, kartki, faule i strzały w jednym meczu są mocno
+skorelowane dodatnio, więc iloczyn nóg jest zaniżony; cenę łączną odczytujesz z
+ekranu Superbetu.>
 
 ## Czego zabrakło
 <jeden konkret, który najbardziej osłabił dzień, i akcja, która to naprawia>
