@@ -340,3 +340,117 @@ def test_observations_without_a_match_id_are_never_collapsed():
         team_a_l10=[pv(8.0), pv(8.0)], team_b_l10=[pv(8.0)], h2h=[],
     )
     assert len(_all_values(obs)) == 3
+
+
+# --- Corroboration is not a second trial -------------------------------------
+#
+# _all_values keeps two providers on one match, on purpose: that is the
+# corroboration _cross_provider_agreement checks. Everything past that check
+# reads one value per match, because sample_size feeds wilson_lower_bound and a
+# duplicate there buys confidence no extra match earned.
+
+
+def _corners_dossier(observations, event_id="evt-indep"):
+    return EventDossierV1(
+        event_id=event_id,
+        sport="football",
+        metrics={
+            "corners_total": MetricObservation(
+                canonical_name="corners_total", team_a_l10=list(observations)
+            )
+        },
+        team_a_name="Team A",
+        team_b_name="Team B",
+        readiness="READY",
+        data_gaps=[],
+    )
+
+
+def _corners_row(dossier, line=9.5, direction="OVER"):
+    return next(
+        r
+        for r in analyze_dossier(dossier)
+        if r.market == "corners_total" and r.line == line and r.direction == direction
+    )
+
+
+def test_corroborated_match_is_one_trial_not_two():
+    """The inflation this split exists to remove.
+
+    Eight matches, six over 9.5. Reported by one provider that is 6/8 and
+    p_low 0.409; reported by two it was read as 12/16 and p_low 0.505 -- the
+    same evidence, +9.6pp of "Pewnosc", and p_low is the sort key of the whole
+    coupons file.
+
+    Note the two providers stamp *different* match_ids for the same match, as
+    they do in production: each stamps its own native id, so match_id alone
+    would collapse nothing here.
+    """
+    values = [12.0, 11.0, 10.0, 10.0, 11.0, 10.0, 8.0, 7.0]  # 6 over 9.5
+    solo = [
+        _pv("bzzoiro", v, f"2026-02-{i + 1:02d}", opponent=f"Opp {i}", match_id=f"bz{i}")
+        for i, v in enumerate(values)
+    ]
+    corroborated = solo + [
+        _pv("espn-football", v, f"2026-02-{i + 1:02d}", opponent=f"Opp {i}", match_id=f"es{i}")
+        for i, v in enumerate(values)
+    ]
+
+    solo_row = _corners_row(_corners_dossier(solo))
+    both_row = _corners_row(_corners_dossier(corroborated))
+
+    assert (solo_row.hits, solo_row.sample_size) == (6, 8)
+    assert (both_row.hits, both_row.sample_size) == (6, 8)
+    assert both_row.p_low == solo_row.p_low
+    assert round(solo_row.p_low, 3) == 0.409  # not 0.505
+
+
+def test_corroboration_still_reaches_the_agreement_check_and_sources():
+    """Collapsing the statistical sample must not cost the pipeline the very
+    signal the duplicates carry: two providers agreeing on a match."""
+    observations = [
+        _pv("bzzoiro", 11.0, "2026-02-01", opponent="Real Betis", match_id="bz1"),
+        _pv("espn-football", 11.0, "01/02/2026", opponent="Betis", match_id="es1"),
+        _pv("bzzoiro", 12.0, "2026-02-08", opponent="Sevilla", match_id="bz2"),
+        _pv("espn-football", 12.0, "08/02/2026", opponent="Sevilla FC", match_id="es2"),
+    ]
+    row = _corners_row(_corners_dossier(observations))
+
+    assert row.sample_size == 2  # two matches, not four observations
+    assert row.cross_provider_agreement == "AGREE"
+    assert row.sources == ["bzzoiro", "espn-football"]
+
+
+def test_disagreeing_providers_contribute_one_reported_value():
+    """When providers disagree the representative is one of the values they
+    actually reported -- never their average, which would invent a figure no
+    provider stands behind and could land a synthetic push on a whole line."""
+    observations = [
+        _pv("bzzoiro", 9.0, "2026-02-01", opponent="Real Betis", match_id="bz1"),
+        _pv("espn-football", 10.0, "2026-02-01", opponent="Betis", match_id="es1"),
+    ]
+    row = _corners_row(_corners_dossier(observations))
+
+    assert row.sample_size == 1
+    assert row.mean in (9.0, 10.0)
+
+
+def test_two_real_matches_on_one_day_are_still_two_matches():
+    """A provider reporting two distinct match_ids on the same day saw two
+    matches; the collapse must not read its own account of them as one."""
+    observations = [
+        _pv("bzzoiro", 12.0, "2026-02-01", opponent="Real Betis", match_id="bz1"),
+        _pv("bzzoiro", 11.0, "2026-02-01", opponent="Sevilla", match_id="bz2"),
+    ]
+    row = _corners_row(_corners_dossier(observations))
+    assert row.sample_size == 2
+
+
+def test_undated_observations_are_not_collapsed():
+    """No usable date is no proof of which match an observation belongs to, so
+    it stands alone -- the same reading the agreement check takes."""
+    observations = [
+        _pv("bzzoiro", 12.0, "", opponent="Real Betis", match_id=f"bz{i}") for i in range(4)
+    ]
+    row = _corners_row(_corners_dossier(observations))
+    assert row.sample_size == 4

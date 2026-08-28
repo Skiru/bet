@@ -141,6 +141,11 @@ def _all_values(obs) -> list[ProviderValue]:
     same match is the corroboration that _cross_provider_agreement exists to
     check, and must survive. Observations with no match_id are all kept, since
     without an id there is nothing to prove they are the same match.
+
+    That makes this list the *agreement* sample, not the statistical one. The
+    hit rate and Wilson bound read ``_independent_values`` of it, which collapses
+    a corroborated match back to one observation; see that function for why a
+    surviving duplicate would otherwise buy confidence it did not earn.
     """
     return _dedup((*obs.team_a_l10, *obs.team_b_l10, *obs.h2h))
 
@@ -273,6 +278,74 @@ def _cluster_by_opponent(observations: list[ProviderValue]) -> list[list[Provide
     return clusters
 
 
+def _independent_values(observations: list[ProviderValue]) -> list[ProviderValue]:
+    """One observation per real-world match -- the sample the statistics may read.
+
+    ``_all_values``/``_dedup`` key on (provider, match_id) so that two providers
+    reporting one match both survive, because that is the corroboration
+    ``_cross_provider_agreement`` exists to check. Correct for that consumer, and
+    wrong for every consumer past it: ``compute_hit_rate`` -> ``sample_size`` ->
+    ``wilson_lower_bound`` treats each surviving observation as an independent
+    trial, so a corroborated match was counted as two matches of evidence. That
+    inflates p_low -- 6/8 reads 40.9% on one provider and 50.5% on two -- and
+    p_low is the sort key of the whole coupons file and the "Pewnosc %" the
+    operator reads. The perverse part is the direction: the better corroborated a
+    row was, the more its confidence was overstated.
+
+    Note that match_id alone is *not* the key that identifies a match across
+    providers -- each provider stamps its own native id (``_make_values`` takes
+    whatever the payload said), and across the 2026-08-25 and 2026-08-28 runs not
+    one multi-provider sample shared a match_id, while all 159 of them shared a
+    calendar day. So this collapses on the same (day, fuzzy opponent) clustering
+    the agreement check already trusts, which is the only cross-provider match
+    identity this pipeline has.
+
+    A cluster stands for as many matches as the single provider that reported the
+    most distinct ones in it: that provider's own tally of match_ids is its
+    account of how many matches happened, and corroboration cannot raise it.
+    Where providers tie -- the ordinary 1-vs-1 case -- the representative is
+    ``median_low`` of the cluster, an actually reported value rather than an
+    average, so no synthetic figure enters the sample and no value is invented
+    onto a whole-number line where it would push.
+
+    Two same-day matches against opponents whose names fuzzy-match (team A vs
+    "Betis", team B vs "Real Betis") collapse into one. That understates the
+    sample, which is the safe direction, and it is the same false-cluster the
+    agreement check already makes.
+    """
+    by_day: dict[str, list[ProviderValue]] = {}
+    for pv in observations:
+        by_day.setdefault(_day_key(pv.match_date), []).append(pv)
+
+    independent: list[ProviderValue] = []
+    for day, day_observations in by_day.items():
+        if not day:
+            # No usable date: nothing proves these are the same match, so each
+            # one stands on its own -- the same reading the agreement check takes.
+            independent.extend(day_observations)
+            continue
+        for cluster in _cluster_by_opponent(day_observations):
+            independent.extend(_cluster_representatives(cluster))
+    return independent
+
+
+def _cluster_representatives(cluster: list[ProviderValue]) -> list[ProviderValue]:
+    """The observations one (day, opponent) cluster is worth as evidence."""
+    by_provider: dict[str, list[ProviderValue]] = {}
+    for pv in cluster:
+        by_provider.setdefault(pv.provider, []).append(pv)
+
+    busiest = max(len(group) for group in by_provider.values())
+    if busiest > 1:
+        # One provider saw several distinct matches here, so the cluster is
+        # several matches; take that provider's own account of them whole.
+        provider = min(p for p, group in by_provider.items() if len(group) == busiest)
+        return by_provider[provider]
+
+    consensus = statistics.median_low([pv.value for pv in cluster])
+    return [next(pv for pv in cluster if pv.value == consensus)]
+
+
 def _confidence(agreement: str, sample_size: int) -> str:
     """Explicit 1->2->3 evaluation order (section 2): DISAGREE or a thin
     sample is LOW regardless of anything else; AGREE/SINGLE_SOURCE/
@@ -304,11 +377,17 @@ def _rows_for_sample(
     a per-player copy of them that drifted by one threshold would be undetectable
     from the artifact.
     """
-    values = [pv.value for pv in observations]
-    if not values:
+    if not observations:
         return []
     sources = sorted({pv.provider for pv in observations})
+    # The agreement check reads every observation; everything after it reads one
+    # value per match. Corroboration is evidence that the value is right, not a
+    # second trial, and only the first of those two consumers can tell the
+    # difference. See ``_independent_values``.
     agreement = _cross_provider_agreement(canonical, observations)
+    values = [pv.value for pv in _independent_values(observations)]
+    if not values:
+        return []
     mean = statistics.fmean(values)
     median = statistics.median(values)
 

@@ -377,8 +377,15 @@ preflight reports the same numbers as `provider_quota` events before it starts.
   the row.
 - `SINGLE_SOURCE` — only one provider covered those matches. Common and not an
   error, but nothing corroborates it.
-- `sample_size` counts every observation pooled into the hit rate across both
-  sides and all providers, so it is not a count of independent matches.
+- `sample_size` counts matches, not observations. Both sides' last-10 and the
+  H2H bucket overlap, and two providers usually report the same match, so the
+  raw observation list double-counts; `_independent_values` collapses it to one
+  value per real-world match (matched on calendar day + fuzzy opponent, the only
+  cross-provider match identity there is -- provider `match_id`s are native and
+  never coincide) before the hit rate or Wilson bound reads it. Until
+  2026-08-28 they read the raw list, which inflated `p_low` by up to 19pp on
+  well-corroborated rows. Two same-day matches whose opponent names fuzzy-match
+  still collapse into one, which understates the sample -- the safe direction.
 - `mean`/`median` are reported alongside, never instead of, the hit rate.
 
 ## Known limitations (2026-08-25)
