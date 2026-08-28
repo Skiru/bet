@@ -110,9 +110,19 @@ def test_coverage_reports_two_provider_reach_not_the_most_generous_one(tmp_path)
     """
     # Exactly one generous provider (ESPN) and one thin one (SportDB); the
     # rest exhausted, so SportDB is the only thing that can corroborate ESPN.
-    limiter = _limiter(tmp_path, {"espn-football": 10_000, "sportdb": 70, "api-football": 1, "highlightly": 1})
+    limiter = _limiter(
+        tmp_path,
+        {
+            "espn-football": 10_000,
+            "sportdb": 70,
+            "api-football": 1,
+            "highlightly": 1,
+            "bzzoiro": 1,
+        },
+    )
     limiter.record_request("api-football", "/x", 1)
     limiter.record_request("highlightly", "/x", 1)
+    limiter.record_request("bzzoiro", "/x", 1)
 
     # Three fixtures, so quota is the binding constraint rather than the size
     # of the slate: coverage can never exceed the events actually on it.
@@ -133,12 +143,22 @@ def test_coverage_is_bounded_by_what_a_provider_can_actually_serve(tmp_path):
     140 rows were all SINGLE_SOURCE."""
     # api-football and highlightly exhausted, exactly as they were that day, so
     # ESPN and SportDB are the only candidates left to corroborate each other.
+    # bzzoiro is exhausted alongside them: this test is about ESPN's *reach*, and
+    # a second provider with quota to spare would answer the question with its
+    # own coverage instead.
     limiter = _limiter(
         tmp_path,
-        {"espn-football": 10_000, "sportdb": 10_000, "api-football": 1, "highlightly": 1},
+        {
+            "espn-football": 10_000,
+            "sportdb": 10_000,
+            "api-football": 1,
+            "highlightly": 1,
+            "bzzoiro": 1,
+        },
     )
     limiter.record_request("api-football", "/x", 1)
     limiter.record_request("highlightly", "/x", 1)
+    limiter.record_request("bzzoiro", "/x", 1)
     slate = _list(
         *(
             _event(event_id=f"saudi-{i}", competition="Saudi Pro League")

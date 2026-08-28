@@ -145,3 +145,105 @@ def test_odds_api_events_adapter_reads_the_free_events_endpoint():
     assert captured["url"].endswith("/sports/soccer_epl/events")
     assert "markets" not in captured["params"]  # no odds requested, no credits spent
     assert [e.external_id for e in events] == ["evt-1"]
+
+
+def _bzzoiro_events_payload():
+    return {
+        "count": 2,
+        "results": [
+            {
+                "id": 587706,
+                "league_id": 7,
+                "season_id": 1,
+                "home_team_id": 100,
+                "away_team_id": 134,
+                "home_team": "Olympique Lyonnais",
+                "away_team": "Fenerbahçe",
+                "home_score": None,
+                "away_score": None,
+                "event_date": "2026-08-26T19:00:00+00:00",
+                "status": "notstarted",
+            },
+            {  # unusable: both sides are the same team id
+                "id": 999,
+                "league_id": 7,
+                "season_id": 1,
+                "home_team_id": 5,
+                "away_team_id": 5,
+                "home_team": "X",
+                "away_team": "X",
+                "event_date": "2026-08-26T19:00:00+00:00",
+                "status": "notstarted",
+            },
+        ],
+    }
+
+
+def _stub_bzzoiro_adapter(monkeypatch, events_payload, leagues_payload):
+    """A BzzoiroDiscoveryAdapter whose client replays two canned responses."""
+    from bet.api_clients.rate_limiter import RateLimiter
+    from bet.integration.source_result import SourceOperationResult, SourceResultStatus
+
+    from bet.simple_stats.discover import BzzoiroDiscoveryAdapter
+
+    adapter = BzzoiroDiscoveryAdapter(RateLimiter())
+    adapter._client.api_key = "test-key"
+
+    def _fake(*, endpoint, params, operation, source_event_id=None):
+        payload = {"/events/": events_payload, "/leagues/": leagues_payload}.get(endpoint)
+        if payload is None:
+            return SourceOperationResult(
+                status=SourceResultStatus.NOT_FOUND, provider="bzzoiro", operation=operation
+            )
+        return SourceOperationResult(
+            status=SourceResultStatus.SUCCESS,
+            value=payload,
+            provider="bzzoiro",
+            operation=operation,
+            http_status=200,
+        )
+
+    monkeypatch.setattr(adapter._client, "_request_with_evidence", _fake)
+    return adapter
+
+
+def test_bzzoiro_adapter_names_the_competition_from_the_league_catalogue(monkeypatch):
+    """``/events/`` gives only ``league_id``, and EventRecord.competition feeds
+    the event id, the dedup key and every downstream competition lookup. One
+    cached catalogue call resolves all of a day's leagues."""
+    leagues = {
+        "count": 1,
+        "results": [{"id": 7, "name": "Champions League", "country": "Europe"}],
+    }
+    adapter = _stub_bzzoiro_adapter(monkeypatch, _bzzoiro_events_payload(), leagues)
+
+    events = adapter._fetch_events_impl("2026-08-26", "football")
+    assert len(events) == 1  # the same-team-id row is rejected
+    assert events[0].competition == "Champions League"
+    assert events[0].raw_data["home_team_id"] == "100"
+    assert events[0].raw_data["away_team_id"] == "134"
+
+    # Second call must not re-fetch the catalogue.
+    assert adapter._league_name("7") == "Champions League"
+
+
+def test_bzzoiro_competition_stays_unique_when_the_catalogue_is_unavailable(monkeypatch):
+    """An empty competition name would collapse every fixture of the day into
+    one competition -- and the dedup key and event id are built from it."""
+    adapter = _stub_bzzoiro_adapter(monkeypatch, _bzzoiro_events_payload(), None)
+    events = adapter._fetch_events_impl("2026-08-26", "football")
+    assert events[0].competition == "bzzoiro-league-7"
+    assert adapter.last_errors
+
+
+def test_bzzoiro_native_ids_reach_the_event_record(monkeypatch):
+    """Same generic lift as Highlightly's, with no provider-specific code in
+    ``_to_event_record``: without these ids ENRICH builds no bzzoiro task."""
+    leagues = {"count": 1, "results": [{"id": 7, "name": "Champions League", "country": "Europe"}]}
+    adapter = _stub_bzzoiro_adapter(monkeypatch, _bzzoiro_events_payload(), leagues)
+    discovered = adapter._fetch_events_impl("2026-08-26", "football")
+
+    merged = DeduplicationEngine().merge({"bzzoiro": discovered})
+    record = _to_event_record(merged[0])
+    assert record.provider_team_ids["bzzoiro"] == {"home": "100", "away": "134"}
+    assert record.source_ids["bzzoiro"] == "587706"

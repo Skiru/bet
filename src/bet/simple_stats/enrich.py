@@ -10,7 +10,7 @@ subclasses) becomes a data_gaps entry, never an aborted run.
 from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 
 from bet.api_clients.rate_limiter import RateLimiter
@@ -22,6 +22,7 @@ from bet.simple_stats.contracts import (
     EventListV1,
     EventRecord,
     MetricObservation,
+    PlayerMetricObservation,
     Sport,
 )
 from bet.simple_stats.providers import (
@@ -29,6 +30,11 @@ from bet.simple_stats.providers import (
     PROVIDERS_BY_SPORT,
     FetchOutcome,
     RunBudget,
+    fetch_bzzoiro_history,
+    fetch_bzzoiro_lineup,
+    fetch_bzzoiro_match_context,
+    fetch_bzzoiro_player_history,
+    fetch_bzzoiro_tennis_history,
     fetch_highlightly_history,
     fetch_provider_h2h_metrics,
     fetch_provider_team_metrics,
@@ -36,6 +42,11 @@ from bet.simple_stats.providers import (
 )
 
 MAX_WORKERS = 4
+
+# Goalkeepers are skipped when collecting player props: none of the five prop
+# markets in PLAYER_PROP_LINES is offered on a keeper, so asking for their
+# history spends two calls an event to produce rows no coupon can use.
+_SKIPPED_PROP_POSITIONS = frozenset({"G"})
 
 
 def _now_iso() -> str:
@@ -77,6 +88,49 @@ def _run_task(task: _Task, rate_limiter: RateLimiter, run_budget: RunBudget) -> 
             return fetch_highlightly_history(away_id, home_id, rate_limiter, run_budget, mode="l10")
         return fetch_highlightly_history(home_id, away_id, rate_limiter, run_budget, mode="h2h")
 
+    if task.provider == "bzzoiro":
+        ids = task.event.provider_team_ids.get("bzzoiro", {})
+        home_id, away_id = ids.get("home", ""), ids.get("away", "")
+        # H2H needs the fixture's own provider id, not a team pair: the meeting
+        # history is embedded in /events/{id}/ and costs no listing call.
+        bzz_event_id = task.event.source_ids.get("bzzoiro", "")
+        as_of = task.event.start_time[:10]
+        if task.slot == "team_a":
+            return fetch_bzzoiro_history(
+                home_id, away_id, rate_limiter, run_budget,
+                mode="l10", as_of_date=as_of, event_id=bzz_event_id,
+            )
+        if task.slot == "team_b":
+            return fetch_bzzoiro_history(
+                away_id, home_id, rate_limiter, run_budget,
+                mode="l10", as_of_date=as_of, event_id=bzz_event_id,
+            )
+        return fetch_bzzoiro_history(
+            home_id, away_id, rate_limiter, run_budget,
+            mode="h2h", as_of_date=as_of, event_id=bzz_event_id,
+        )
+
+    if task.provider == "bzzoiro-tennis":
+        # Addressed by the fixture's own id, not by a player pair: one
+        # /matches/{id}/h2h/ request serves all three slots, and at 95 calls a
+        # day that is what makes the provider usable at all.
+        bzz_match_id = task.event.source_ids.get("bzzoiro-tennis", "")
+        ids = task.event.provider_team_ids.get("bzzoiro-tennis", {})
+        as_of = task.event.start_time[:10]
+        if task.slot == "team_a":
+            return fetch_bzzoiro_tennis_history(
+                bzz_match_id, ids.get("home", ""), rate_limiter, run_budget,
+                mode="l10", as_of_date=as_of,
+            )
+        if task.slot == "team_b":
+            return fetch_bzzoiro_tennis_history(
+                bzz_match_id, ids.get("away", ""), rate_limiter, run_budget,
+                mode="l10", as_of_date=as_of,
+            )
+        return fetch_bzzoiro_tennis_history(
+            bzz_match_id, "", rate_limiter, run_budget, mode="h2h", as_of_date=as_of,
+        )
+
     if task.provider == "sportdb":
         season = _season_label(task.event)
         args = (task.event.competition, season, run_budget)
@@ -111,15 +165,39 @@ def _build_tasks(event: EventRecord) -> list[_Task]:
             continue
         if provider == "sportdb" and not event.competition:
             continue
+        # Same gate as highlightly, one field wider: the l10 slots need the
+        # native team ids and the h2h slot needs the native fixture id, and an
+        # event discovered only by another source has neither.
+        if provider == "bzzoiro" and not (
+            event.provider_team_ids.get("bzzoiro") and event.source_ids.get("bzzoiro")
+        ):
+            continue
+        # Tennis, same gate: the l10 slots need the native player ids and every
+        # slot needs the native match id, because the listing hangs off the
+        # fixture rather than off a player.
+        if provider == "bzzoiro-tennis" and not (
+            event.provider_team_ids.get("bzzoiro-tennis")
+            and event.source_ids.get("bzzoiro-tennis")
+        ):
+            continue
         tasks.append(_Task(event, "team_a", provider))
         tasks.append(_Task(event, "team_b", provider))
         tasks.append(_Task(event, "h2h", provider))
     return tasks
 
 
-def _compute_readiness(sport: Sport, metrics: dict[str, MetricObservation]) -> str:
+def _compute_readiness(
+    sport: Sport,
+    metrics: dict[str, MetricObservation],
+    has_player_metrics: bool = False,
+) -> str:
     if not metrics:
-        return "BLOCKED"
+        # Props alone are PARTIAL, not BLOCKED. BLOCKED means "no provider
+        # returned any data", and ANALYZE drops a BLOCKED dossier whole -- so
+        # calling this BLOCKED would silently discard the twenty calls' worth of
+        # per-player history the run just paid for, on exactly the events where
+        # the team metrics failed and a prop is the only read left.
+        return "PARTIAL" if has_player_metrics else "BLOCKED"
     priority = PRIORITY_METRICS[sport]
     with_two_or_more = 0
     with_one_or_more = 0
@@ -166,7 +244,10 @@ def _has_started(event: EventRecord, now: datetime) -> bool:
 
 
 def _dossier_for_event(
-    event: EventRecord, buckets: dict[str, FetchOutcome], now: datetime | None = None
+    event: EventRecord,
+    buckets: dict[str, FetchOutcome],
+    now: datetime | None = None,
+    props: "_PlayerProps | None" = None,
 ) -> EventDossierV1:
     data_gaps: list[str] = []
     # Deprioritizing started events only helps when a cap is in force. Under a
@@ -190,16 +271,133 @@ def _dossier_for_event(
         )
         for name in all_names
     }
-    readiness = _compute_readiness(event.sport, metrics)
+    team_a_name, team_b_name = _side_names(event)
+    if props is not None:
+        data_gaps.extend(f"player_props: {g}" for g in props.data_gaps)
+    # Props can lift BLOCKED to PARTIAL (there *is* data) but never reach
+    # READY: that tier means two independent providers agree on three priority
+    # metrics, and one striker's shot history is neither.
+    readiness = _compute_readiness(
+        event.sport, metrics, bool(props is not None and props.observations)
+    )
     if readiness == "BLOCKED":
         data_gaps.append("no provider returned any data for this event")
     return EventDossierV1(
         event_id=event.event_id,
         sport=event.sport,
         metrics=metrics,
+        team_a_name=team_a_name or None,
+        team_b_name=team_b_name or None,
+        player_metrics=list(props.observations) if props is not None else [],
+        lineup_status=props.lineup_status if props is not None else "",
         readiness=readiness,
         data_gaps=data_gaps,
     )
+
+
+
+@dataclass
+class _PlayerProps:
+    """One event's player-prop observations, plus how they were obtained."""
+
+    lineup_status: str = ""
+    observations: list[PlayerMetricObservation] = field(default_factory=list)
+    data_gaps: list[str] = field(default_factory=list)
+
+
+def _player_props_for_event(
+    event: EventRecord, rate_limiter: RateLimiter, run_budget: RunBudget, last_n: int = 10
+) -> _PlayerProps:
+    """Collect per-player prop history for one event.
+
+    Three steps, in this order because each depends on the last: read the XI (so
+    we know whom to ask about), resolve each side's fixture dates (so a box score
+    can be dated), then one call per outfield starter.
+
+    Both a confirmed and a predicted XI are used -- ``lineup_status`` records
+    which, and travels onto every row. Waiting for confirmation would mean no
+    props until roughly an hour before kickoff, by which point the prices worth
+    taking have moved; discarding the distinction instead would let a prop built
+    on a guessed XI read exactly like one built on the announced XI. So the
+    weaker premise is kept and labelled.
+
+    Every failure is a data_gap. A missing lineup is the normal case for a
+    fixture days out, not an error.
+    """
+    props = _PlayerProps()
+    bzz_event_id = event.source_ids.get("bzzoiro", "")
+    ids = event.provider_team_ids.get("bzzoiro", {})
+    if not bzz_event_id:
+        props.data_gaps.append("bzzoiro did not discover this event: no lineup to read")
+        return props
+
+    lineup_status, players_by_side, gaps = fetch_bzzoiro_lineup(
+        bzz_event_id, rate_limiter, run_budget
+    )
+    props.lineup_status = lineup_status
+    props.data_gaps.extend(gaps)
+    if not players_by_side:
+        return props
+
+    as_of = event.start_time[:10]
+    context: dict[str, tuple[str, str]] = {}
+    for side in ("home", "away"):
+        team_id = ids.get(side, "")
+        if not team_id:
+            continue
+        side_context, context_gaps = fetch_bzzoiro_match_context(
+            team_id, rate_limiter, run_budget, last_n=last_n, as_of_date=as_of
+        )
+        context.update(side_context)
+        props.data_gaps.extend(context_gaps)
+
+    tasks = [
+        (side, player)
+        for side in ("home", "away")
+        for player in players_by_side.get(side, [])
+        if str(player.get("position") or "") not in _SKIPPED_PROP_POSITIONS
+    ]
+    if not tasks:
+        return props
+
+    def _one(entry: tuple[str, dict]) -> tuple[str, dict, FetchOutcome]:
+        side, player = entry
+        return (
+            side,
+            player,
+            fetch_bzzoiro_player_history(
+                str(player["player_id"]),
+                rate_limiter,
+                run_budget,
+                last_n=last_n,
+                as_of_date=as_of,
+                exclude_event_id=bzz_event_id,
+                match_context=context,
+            ),
+        )
+
+    with ThreadPoolExecutor(max_workers=MAX_WORKERS) as pool:
+        futures = [pool.submit(_one, entry) for entry in tasks]
+        for future in as_completed(futures):
+            try:
+                side, player, outcome = future.result()
+            except Exception as exc:  # noqa: BLE001 - one player must not abort the event
+                props.data_gaps.append(f"player history unhandled error: {exc}")
+                continue
+            props.data_gaps.extend(outcome.data_gaps)
+            for canonical_name, values in outcome.metrics.items():
+                if not values:
+                    continue
+                props.observations.append(
+                    PlayerMetricObservation(
+                        player_id=str(player["player_id"]),
+                        player_name=str(player["player_name"]),
+                        team_side=side,
+                        canonical_name=canonical_name,
+                        l10=values,
+                    )
+                )
+    return props
 
 
 def _enrichment_priority(event: EventRecord, now: datetime) -> tuple[int, int, str]:
@@ -234,6 +432,7 @@ def enrich_events(
     rate_limiter: RateLimiter | None = None,
     max_events: int | None = None,
     provider_call_budget: int = 100,
+    player_props: bool = False,
 ) -> EventDossierListV1:
     """Enrich every ACTIVE event in ``event_list`` with raw statistics from
     every applicable provider. BLOCKED_IDENTITY events are carried through as
@@ -244,6 +443,12 @@ def enrich_events(
     provider calls, which no provider quota survives; capping is what makes a
     real run finish inside budget. Events not enriched are reported as BLOCKED
     with an explicit reason rather than silently dropped.
+
+    ``player_props`` adds one call per outfield starter (roughly 20 an event, on
+    top of the ~30 the team metrics cost) and is off by default. It is opt-in
+    rather than automatic because it roughly doubles a run's cost for a market
+    surface that is only worth reading once a lineup exists -- which, for a
+    fixture more than a few hours out, it does not.
     """
     rate_limiter = rate_limiter or RateLimiter()
     run_budget = RunBudget(limit=provider_call_budget)
@@ -271,8 +476,30 @@ def enrich_events(
                 outcome = FetchOutcome(data_gaps=[f"{task.provider}: unhandled error: {exc}"])
             per_event[task.event.event_id][task.slot].merge(outcome)
 
+    # A second pass, not more tasks in the first: props need the fixture's XI
+    # before they know which players to ask about, so they cannot be enumerated
+    # up front alongside the team slots.
+    props_by_event: dict[str, _PlayerProps] = {}
+    if player_props and active_events:
+        with ThreadPoolExecutor(max_workers=MAX_WORKERS) as pool:
+            futures = {
+                pool.submit(_player_props_for_event, event, rate_limiter, run_budget): event
+                for event in active_events
+            }
+            for future in as_completed(futures):
+                event = futures[future]
+                try:
+                    props_by_event[event.event_id] = future.result()
+                except Exception as exc:  # noqa: BLE001 - one event's props must not abort the run
+                    props_by_event[event.event_id] = _PlayerProps(
+                        data_gaps=[f"unhandled error collecting player props: {exc}"]
+                    )
+
     dossiers = [
-        _dossier_for_event(event, per_event[event.event_id], now) for event in active_events
+        _dossier_for_event(
+            event, per_event[event.event_id], now, props_by_event.get(event.event_id)
+        )
+        for event in active_events
     ]
 
     for event in event_list.events:

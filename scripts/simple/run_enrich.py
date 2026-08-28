@@ -32,7 +32,7 @@ from agent_output import AgentOutput, add_agent_args  # noqa: E402
 
 from bet.api_clients.rate_limiter import RateLimiter  # noqa: E402
 from bet.simple_stats.artifact_io import sha256_file, write_json_atomic  # noqa: E402
-from bet.simple_stats.contracts import EventListV1  # noqa: E402
+from bet.simple_stats.contracts import EventDossierListV1, EventListV1  # noqa: E402
 from bet.simple_stats.enrich import enrich_events  # noqa: E402
 from bet.simple_stats.persistence import default_db_path, persist_pipeline_run  # noqa: E402
 from bet.simple_stats.preflight import enrich_preflight  # noqa: E402
@@ -59,6 +59,23 @@ def main() -> None:
         help="Per-provider call ceiling for this run (default: 100)",
     )
     parser.add_argument(
+        "--player-props",
+        action="store_true",
+        help="Also collect per-player prop history (one call per outfield starter, "
+             "~20 extra calls per event). Off by default: it roughly doubles a "
+             "run's cost and needs a lineup, which a fixture days out has not got. "
+             "Every prop row records whether the XI was confirmed or predicted.",
+    )
+    parser.add_argument(
+        "--backfill-from",
+        default=None,
+        help="Path to an EVENT_DOSSIER_V1 artifact from an earlier run of the same "
+             "day. Re-enriches only its BLOCKED and PARTIAL events and merges the "
+             "result back into that same file, keeping its run_id. Worth doing now "
+             "that bzzoiro's 7000/day makes a second pass able to add something: "
+             "under highlightly's 100 it could not.",
+    )
+    parser.add_argument(
         "--skip-preflight",
         action="store_true",
         help="Run even if no provider has quota left (produces an all-gaps artifact)",
@@ -75,6 +92,48 @@ def main() -> None:
     event_list_path = Path(args.event_list)
     event_list = EventListV1.model_validate_json(event_list_path.read_text(encoding="utf-8"))
     run_id = event_list.run_id or "unknown"
+
+    prior: EventDossierListV1 | None = None
+    if args.backfill_from:
+        prior = EventDossierListV1.model_validate_json(
+            Path(args.backfill_from).read_text(encoding="utf-8")
+        )
+        if prior.date and event_list.date and prior.date != event_list.date:
+            out.error(
+                f"--backfill-from is for {prior.date}, not {event_list.date}: refusing to merge",
+                recoverable=False,
+            )
+            out.summary(verdict="FAILED", metrics={"total_dossiers": 0, "run_id": run_id})
+            sys.exit(2)
+        incomplete = {
+            dossier.event_id
+            for dossier in prior.dossiers
+            if dossier.readiness in ("BLOCKED", "PARTIAL")
+        }
+        # BLOCKED_IDENTITY events are dropped rather than retried: their problem
+        # is that two sources disagree about what fixture this is, which no
+        # amount of provider quota resolves.
+        event_list = event_list.model_copy(
+            update={
+                "events": [
+                    event
+                    for event in event_list.events
+                    if event.status == "ACTIVE" and event.event_id in incomplete
+                ]
+            }
+        )
+        # The prior run's own run_id, so the backfill lands in the same run
+        # rather than inventing a second one for the same day.
+        run_id = prior.run_id or run_id
+        event_list = event_list.model_copy(update={"run_id": run_id})
+        out.event(
+            "backfill_scope",
+            run_id=run_id,
+            prior_artifact=str(args.backfill_from),
+            incomplete_before=len(incomplete),
+            retryable_events=len(event_list.events),
+        )
+
     out.event("run_start", run_id=run_id, date=event_list.date, events=len(event_list.events))
 
     # ── Preflight ────────────────────────────────────────────────────
@@ -130,6 +189,7 @@ def main() -> None:
             rate_limiter=rate_limiter,
             max_events=args.max_events,
             provider_call_budget=args.provider_call_budget,
+            player_props=args.player_props,
         )
     except Exception as exc:
         traceback.print_exc(file=sys.stderr)
@@ -138,7 +198,16 @@ def main() -> None:
         out.summary(verdict="FAILED", metrics={"total_dossiers": 0, "run_id": run_id})
         sys.exit(2)
 
-    output_path = Path(args.output_dir) / f"{event_list.date}_event_dossiers.json"
+    merged_count = 0
+    if prior is not None:
+        dossier_list, merged_count = _merge_dossiers(prior, dossier_list)
+        # Rewritten in place: Filar F is explicit that a backfill joins the
+        # existing run rather than producing a second artifact for the same day
+        # that a reader then has to choose between.
+        output_path = Path(args.backfill_from)
+        out.event("backfill_merged", improved_dossiers=merged_count, path=str(output_path))
+    else:
+        output_path = Path(args.output_dir) / f"{event_list.date}_event_dossiers.json"
     write_json_atomic(output_path, dossier_list.model_dump(mode="json"))
     digest = sha256_file(output_path)
     out.event("artifact_written", path=str(output_path), sha256=digest, dossiers=len(dossier_list.dossiers))
@@ -172,6 +241,12 @@ def main() -> None:
         "usable_providers": preflight["usable_providers"],
         "blocked_providers": [b["provider"] for b in preflight["blocked"]],
         "max_events": args.max_events,
+        "player_props": args.player_props,
+        "player_prop_observations": sum(
+            len(d.player_metrics) for d in dossier_list.dossiers
+        ),
+        "backfill_from": args.backfill_from,
+        "backfill_improved_dossiers": merged_count if prior is not None else None,
         "planned_events": planned,
         "recommended_max_events": preflight["recommended_max_events"],
         "two_provider_coverage_by_sport": preflight["coverage_by_sport"],
@@ -193,6 +268,55 @@ def main() -> None:
     _record(args, run_id, event_list.date, verdict, metrics, started_at, persist_error)
     out.summary(verdict=verdict, metrics=metrics)
     sys.exit(0 if verdict == "OK" else (1 if verdict == "PARTIAL" else 2))
+
+
+_READINESS_RANK = {"BLOCKED": 0, "PARTIAL": 1, "READY": 2}
+
+
+def _observation_count(dossier) -> int:
+    return sum(
+        len(o.team_a_l10) + len(o.team_b_l10) + len(o.h2h) for o in dossier.metrics.values()
+    ) + sum(len(o.l10) for o in dossier.player_metrics)
+
+
+def _merge_dossiers(prior, fresh) -> tuple[EventDossierListV1, int]:
+    """Fold a backfill pass back into the artifact it was derived from.
+
+    A re-run is not automatically an improvement: quota may have run out
+    between the two passes, or a provider may have gone down, in which case the
+    second attempt returns *less*. Replacing unconditionally would let a
+    backfill destroy the data the first run paid for -- so a fresh dossier
+    replaces the old one only when it reaches a better readiness, or the same
+    readiness with strictly more observations behind it.
+
+    Every event of the original artifact survives, in its original order: this
+    file is the complete account of the day's slate, and an event that a
+    backfill could not improve must still be in it.
+    """
+    fresh_by_id = {dossier.event_id: dossier for dossier in fresh.dossiers}
+    merged = []
+    improved = 0
+    for old in prior.dossiers:
+        new = fresh_by_id.get(old.event_id)
+        if new is None:
+            merged.append(old)
+            continue
+        old_key = (_READINESS_RANK.get(old.readiness, 0), _observation_count(old))
+        new_key = (_READINESS_RANK.get(new.readiness, 0), _observation_count(new))
+        if new_key > old_key:
+            merged.append(new)
+            improved += 1
+        else:
+            merged.append(old)
+    return (
+        EventDossierListV1(
+            run_id=prior.run_id or fresh.run_id,
+            date=prior.date or fresh.date,
+            generated_at=fresh.generated_at,
+            dossiers=merged,
+        ),
+        improved,
+    )
 
 
 def _persist(out: AgentOutput, args, event_list, dossier_list) -> tuple[bool, str | None]:

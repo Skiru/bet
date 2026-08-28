@@ -49,6 +49,51 @@ If a run dies mid-way, resume once with `--start-at <step>`; it adopts the
 identity in the DB. Retry the same operation at most twice, then change strategy.
 **A quota error is never a retry candidate** -- retrying spends what is left.
 
+### Backfill the events that came back thin
+
+After the run, read `by_readiness` from the ENRICH metrics. If it reports any
+`BLOCKED` or `PARTIAL` events, run **one** backfill pass over exactly those:
+
+```bash
+python3 scripts/simple/run_enrich.py \
+  --event-list runs/<date>/<date>_event_list.json \
+  --output-dir runs/<date> \
+  --backfill-from runs/<date>/<date>_event_dossiers.json \
+  --max-events <the BLOCKED+PARTIAL count> -v
+```
+
+This selects only the incomplete events, keeps the original `run_id`, and merges
+back into the same artifact -- a fresh dossier replaces the old one only when it
+reaches a better readiness, or the same readiness with more observations, so a
+retry that comes back thinner cannot delete what the first pass paid for. Read
+`backfill_improved_dossiers` from its summary and report it.
+
+Then re-run ANALYZE against the merged artifact so the sheet reflects it:
+
+```bash
+python3 scripts/simple/run_analyze.py \
+  --dossier runs/<date>/<date>_event_dossiers.json \
+  --output-dir runs/<date> \
+  --tipster-signal runs/<date>/<date>_tipster_signal.json -v
+```
+
+This is worth doing now and was not before: the `bzzoiro` football product is
+uncapped on the PRO plan against `highlightly`'s 100 a day, so a second pass has
+budget left to actually add something. `bzzoiro-tennis` is the exception — still
+100 a day — so on a tennis-heavy day check its remaining quota before backfilling
+rather than spending the rest of it on a retry. **Once only.** A third pass on the same day spends quota to re-learn
+that the provider has no data for those fixtures. And a backfill is not a retry
+of a *failed* run -- if the first run's verdict was `FAILED`, report it and stop.
+
+### Player props are opt-in and you do not add them unasked
+
+`run_enrich.py --player-props` costs roughly one extra call per outfield starter
+(~20 an event) and needs a lineup, which a fixture more than a few hours out has
+not got. Pass it only when the operator asks for player props, and when you do,
+report `lineup_status` coverage: how many events came back `confirmed` versus
+`predicted`. `run_pipeline.py` does not forward this flag, so props mean a direct
+`run_enrich.py` call followed by `run_analyze.py`, as above.
+
 ## Reading the result
 
 The run's verdict is the worst any step reached.
@@ -91,6 +136,16 @@ helps:
   fix; it clears our bookkeeping only, nothing at the provider.
 - `upstream_unavailable` -- `sackmann` (404) and `understat` (build failure).
   Known, permanent. Report and continue.
+
+`bzzoiro` is the provider whose absence hurts most: it is the only source of
+per-team totals and player props, and (uncapped on PRO) the only one able to
+enrich a whole slate. If it appears in `blocked`, say so first and name the
+`kind` -- a day without it is a day of match totals only.
+
+`bzzoiro-tennis` is a separate provider with a separate counter and, unlike
+football, a real ceiling of 100 calls a day -- roughly six enriched fixtures. A
+thin tennis slate is usually that ceiling rather than a coverage failure, so
+report the tennis quota alongside the count instead of calling it a gap.
 
 ## Confirm the run landed in the DB
 
@@ -144,7 +199,7 @@ Return exactly:
 STATUS: PASS | FAIL | BLOCKED | NO_DATA
 DECISION: <run verdict and why>
 EVIDENCE: <run_id, stats sheet path, run summary path>
-CALCULATIONS: <rows, events covered, readiness split, elapsed>
+CALCULATIONS: <rows, events covered, readiness split, backfill improvements, elapsed>
 UNCERTAINTY: <unavailable providers, single-source rows, unpersisted writes>
 RISKS: <quota about to run out, stale counters, dead upstreams>
 NEXT_ACTION: <exactly one action>

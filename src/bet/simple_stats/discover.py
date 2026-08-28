@@ -13,6 +13,11 @@ from datetime import datetime, timezone
 
 import requests
 
+from bet.api_clients.bzzoiro import BzzoiroClient
+from bet.api_clients.bzzoiro_tennis import (
+    EXCLUDED_CATEGORIES as _BZZOIRO_TENNIS_EXCLUDED_CATEGORIES,
+)
+from bet.api_clients.bzzoiro_tennis import BzzoiroTennisClient
 from bet.api_clients.highlightly import HighlightlyClient
 from bet.api_clients.rate_limiter import RateLimiter
 from bet.discovery.dedup import DeduplicationEngine
@@ -20,6 +25,7 @@ from bet.discovery.models import DiscoveredEvent, MergedFixture
 from bet.discovery.sources.base import AbstractSourceAdapter
 from bet.discovery.sources.odds_api import BASE_URL as ODDS_API_BASE_URL
 from bet.discovery.sources.odds_api import OddsAPIAdapter
+from bet.integration.source_result import SourceResultStatus
 
 from bet.simple_stats.contracts import EventListV1, EventRecord
 
@@ -30,6 +36,12 @@ _AMBIGUOUS_WINDOW_SECONDS = 6 * 3600
 # Highlightly's per-page cap on /matches; the endpoint pages via `offset`.
 _HIGHLIGHTLY_PAGE_SIZE = 100
 _HIGHLIGHTLY_MAX_PAGES = 5
+
+# Bzzoiro caps `limit` at 200 server-side (a request for 500 answered with 200).
+# A day's whole football slate is well under one page -- 54 fixtures on
+# 2026-08-28 -- so the page loop exists for the outlier, not the normal case.
+_BZZOIRO_PAGE_SIZE = 200
+_BZZOIRO_MAX_PAGES = 5
 
 
 def _now_iso() -> str:
@@ -199,6 +211,254 @@ class HighlightlyDiscoveryAdapter(AbstractSourceAdapter):
         return events
 
 
+class BzzoiroDiscoveryAdapter(AbstractSourceAdapter):
+    """Discovery source reading Bzzoiro's ``/events/?date_from=&date_to=`` page.
+
+    Exists for two reasons beyond volume. First, the quota: Highlightly's 100
+    calls a day is what left 175 of 181 events BLOCKED on 2026-08-25, and this
+    provider publishes 7500. Second, and the reason it changes which bets are
+    reachable at all: Champions League, Europa League and Conference League are
+    first-class leagues here with their own ids, so the qualifying fixtures that
+    produced the winning coupons are discovered directly -- with no entry in
+    ``config/sportdb_competition_map.json`` and no fuzzy name pin, because the
+    provider names the competition itself.
+
+    Each event's ``raw_data`` carries the native match id and both native team
+    ids. ``_to_event_record``'s generic loop lifts those into
+    ``EventRecord.provider_team_ids["bzzoiro"]`` with no provider-specific code,
+    which is what lets ENRICH address this provider by id.
+    """
+
+    name = "bzzoiro"
+    priority = 4
+    supported_sports = ["football"]
+
+    def __init__(self, rate_limiter: RateLimiter):
+        self._client = BzzoiroClient(rate_limiter=rate_limiter)
+        self._league_names: dict[str, str] | None = None
+        super().__init__()
+
+    def is_available(self) -> bool:
+        return bool(self._client.api_key)
+
+    def _league_name(self, league_id: str) -> str:
+        """Competition name for a ``league_id``, from one cached catalogue call.
+
+        ``/events/`` names a fixture's competition only by id, and
+        ``EventRecord.competition`` feeds the event id, the dedup key and every
+        downstream competition lookup. The whole catalogue is 83 rows and fits in
+        a single request, so this costs one call per adapter instance -- as
+        against one per fixture, or a hand-maintained id->name table that would
+        silently rot the first time the provider adds a league.
+        """
+        if self._league_names is None:
+            self._league_names = {}
+            result = self._client.get_leagues_result()
+            if result.status is SourceResultStatus.SUCCESS and result.value:
+                self._league_names = {
+                    row["provider_league_id"]: row["league_name"]
+                    for row in result.value.get("leagues", [])
+                }
+            else:
+                self._record_error(
+                    f"league catalogue unavailable ({getattr(result.status, 'value', result.status)}): "
+                    "events will carry their numeric league id as competition"
+                )
+        return self._league_names.get(league_id, "")
+
+    def _fetch_events_impl(self, date: str, sport: str) -> list[DiscoveredEvent]:
+        if sport != "football":
+            return []
+
+        events: list[DiscoveredEvent] = []
+        for page in range(_BZZOIRO_MAX_PAGES):
+            result = self._client.get_events_result(
+                date_from=date,
+                date_to=date,
+                limit=_BZZOIRO_PAGE_SIZE,
+                offset=page * _BZZOIRO_PAGE_SIZE,
+            )
+            if result.status not in (SourceResultStatus.SUCCESS, SourceResultStatus.VALID_EMPTY):
+                self._record_error(
+                    f"page {page}: {getattr(result.status, 'value', result.status)}"
+                    f" ({result.error_code})"
+                )
+                break
+            matches = (result.value or {}).get("matches") or []
+            for row in matches:
+                try:
+                    kickoff = datetime.fromisoformat(
+                        str(row.get("date") or "").replace("Z", "+00:00")
+                    )
+                except ValueError:
+                    continue
+                home = row["home_team"]
+                away = row["away_team"]
+                if not home.get("team_name") or not away.get("team_name"):
+                    continue
+                league_id = str(row.get("competition_provider_id") or "")
+                events.append(
+                    DiscoveredEvent(
+                        source=self.name,
+                        external_id=row["provider_match_id"],
+                        sport="football",
+                        # Falling back to "bzzoiro-league-<id>" rather than "" so
+                        # a catalogue outage degrades to an ugly-but-unique
+                        # competition name instead of collapsing every fixture
+                        # of the day into one empty-named competition, which is
+                        # what the dedup key and the event id are built from.
+                        competition=self._league_name(league_id)
+                        or (f"bzzoiro-league-{league_id}" if league_id else ""),
+                        home_team=home["team_name"],
+                        away_team=away["team_name"],
+                        kickoff=kickoff,
+                        status=str(row.get("match_status") or "scheduled"),
+                        raw_data={
+                            "provider_match_id": row["provider_match_id"],
+                            "home_team_id": home["provider_team_id"],
+                            "away_team_id": away["provider_team_id"],
+                            "league_id": league_id,
+                            "season": row.get("season"),
+                        },
+                    )
+                )
+
+            total = (result.value or {}).get("total_count") or 0
+            if len(matches) < _BZZOIRO_PAGE_SIZE or (page + 1) * _BZZOIRO_PAGE_SIZE >= total:
+                break
+        return events
+
+
+class BzzoiroTennisDiscoveryAdapter(AbstractSourceAdapter):
+    """Discovery source reading Bzzoiro's tennis ``/matches/`` page.
+
+    The first tennis source that hands over **native player ids**. Until now the
+    only tennis schedule was The Odds API, whose ``raw_data`` carries just a
+    sport key (nothing analogous to football's
+    ``provider_team_ids["highlightly"]``), so every tennis provider had to
+    re-find both players by name through a search endpoint.
+
+    Two filters, both load-bearing:
+
+    * **Doubles are dropped.** Every row carries ``is_doubles``, and nothing in
+      the pipeline models a pair -- ``DiscoveredEvent`` and ``EventRecord`` both
+      have exactly two participants. A doubles match let through would dedup
+      against a singles fixture between two of the same four players and pollute
+      the sample.
+    * **Amateur tiers are dropped** (``EXCLUDED_CATEGORIES``: utr, itf,
+      exhibition). This is a discovery filter rather than a display preference
+      because the tennis quota is 95 calls a day, about six enriched fixtures,
+      and UTR was 47% of one four-week sample -- discovering it would spend the
+      budget on tennis nobody prices. Challenger and above are kept, and an
+      unknown new tier is kept too.
+    """
+
+    name = "bzzoiro-tennis"
+    priority = 4
+    supported_sports = ["tennis"]
+
+    def __init__(self, rate_limiter: RateLimiter):
+        self._client = BzzoiroTennisClient(rate_limiter=rate_limiter)
+        super().__init__()
+
+    def is_available(self) -> bool:
+        return bool(self._client.api_key)
+
+    def _fetch_events_impl(self, date: str, sport: str) -> list[DiscoveredEvent]:
+        if sport != "tennis":
+            return []
+
+        events: list[DiscoveredEvent] = []
+        excluded_doubles = 0
+        excluded_category = 0
+        for page in range(_BZZOIRO_MAX_PAGES):
+            result = self._client.get_matches_result(
+                date_from=date,
+                date_to=date,
+                limit=_BZZOIRO_PAGE_SIZE,
+                offset=page * _BZZOIRO_PAGE_SIZE,
+            )
+            if result.status not in (
+                SourceResultStatus.SUCCESS,
+                SourceResultStatus.VALID_EMPTY,
+            ):
+                self._record_error(
+                    f"page {page}: {getattr(result.status, 'value', result.status)}"
+                    f" ({result.error_code})"
+                )
+                break
+            matches = (result.value or {}).get("matches") or []
+            for row in matches:
+                if row["is_doubles"]:
+                    excluded_doubles += 1
+                    continue
+                tournament = row["tournament"]
+                if tournament["category"] in _BZZOIRO_TENNIS_EXCLUDED_CATEGORIES:
+                    excluded_category += 1
+                    continue
+                try:
+                    kickoff = datetime.fromisoformat(
+                        str(row.get("date") or "").replace("Z", "+00:00")
+                    )
+                except ValueError:
+                    continue
+                one, two = row["player_one"], row["player_two"]
+                events.append(
+                    DiscoveredEvent(
+                        source=self.name,
+                        external_id=row["provider_match_id"],
+                        sport="tennis",
+                        # Tournament name plus tier, because "Washington" alone
+                        # collides across circuits and the tier is what tells a
+                        # reader whether the fixture is worth a line at all.
+                        competition=_tennis_competition_name(tournament),
+                        home_team=one["player_name"],
+                        away_team=two["player_name"],
+                        kickoff=kickoff,
+                        status=row["match_status"] or "scheduled",
+                        # home_team_id / away_team_id, not player ids: these are
+                        # the exact keys _to_event_record already reads, so the
+                        # generic lift into provider_team_ids["bzzoiro-tennis"]
+                        # needs no change there. The names are about the slot,
+                        # not about the sport.
+                        raw_data={
+                            "provider_match_id": row["provider_match_id"],
+                            "home_team_id": one["provider_player_id"],
+                            "away_team_id": two["provider_player_id"],
+                            "tournament_id": tournament["provider_tournament_id"],
+                            "category": tournament["category"],
+                            "surface": tournament["surface"],
+                            "circuit": tournament["circuit"],
+                        },
+                    )
+                )
+
+            total = (result.value or {}).get("total_count") or 0
+            if len(matches) < _BZZOIRO_PAGE_SIZE or (page + 1) * _BZZOIRO_PAGE_SIZE >= total:
+                break
+
+        if excluded_doubles or excluded_category:
+            # Recorded rather than silent: "12 tennis events today" versus "124
+            # rows, 94 of them UTR" are different facts about the day, and only
+            # one of them explains a thin slate.
+            self._record_error(
+                f"filtered out {excluded_doubles} doubles and "
+                f"{excluded_category} non-tour-level matches"
+            )
+        return events
+
+
+def _tennis_competition_name(tournament: dict) -> str:
+    """``"Washington (atp_500)"``. The tier is part of the name because
+    EventRecord has nowhere else to put it, and it is what separates a tour
+    event from a same-named challenger in the dedup key and the event id."""
+    name = tournament.get("name") or ""
+    category = tournament.get("category") or ""
+    if name and category:
+        return f"{name} ({category})"
+    return name or (f"bzzoiro-tennis-{category}" if category else "")
+
+
 def _fetch_source_events(source: AbstractSourceAdapter, date: str, sports: list[str]) -> list[DiscoveredEvent]:
     events: list[DiscoveredEvent] = []
     for sport in sports:
@@ -338,9 +598,10 @@ def discover_events(
     rate_limiter: RateLimiter | None = None,
     run_id: str = "",
 ) -> EventListV1:
-    """Discover football/tennis events for ``date`` from The Odds API and
-    Highlightly, dedup them, and classify each merged fixture's identity
-    confidence.
+    """Discover football/tennis events for ``date`` from The Odds API, Highlightly
+    and Bzzoiro (football and tennis are separate Bzzoiro products with separate
+    quotas, hence two adapters), dedup them, and classify each merged fixture's
+    identity confidence.
 
     SportDB is not a discovery source: its only schedule-shaped method,
     ``get_competition_results_with_evidence``, returns rows
@@ -355,6 +616,8 @@ def discover_events(
     sources: list[AbstractSourceAdapter] = [
         OddsAPIEventsAdapter(),
         HighlightlyDiscoveryAdapter(rate_limiter),
+        BzzoiroDiscoveryAdapter(rate_limiter),
+        BzzoiroTennisDiscoveryAdapter(rate_limiter),
     ]
     events_by_source = _fetch_all_sources(sources, date, sports)
     blocked_records, filtered = _detect_ambiguous(events_by_source)

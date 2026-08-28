@@ -15,7 +15,9 @@
     "provider's own data. Name similarity is used only to decide which",
     "candidates to try first; it never decides which one is written. An entry",
     "with no 'verification' block is a to-do, not a pin, and the runtime",
-    "ignores it."
+    "ignores it.",
+    "",
+    "The three UEFA club competitions are seeded here as a *complement*, not a precondition: bzzoiro discovers them directly by league id and needs no pin (src/bet/simple_stats/discover.py:BzzoiroDiscoveryAdapter), so this entry exists only so sportdb and highlightly can corroborate those fixtures too. They are unverified until build_sportdb_competition_map.py can reach SportDB -- which answered HTTP 402 on 2026-08-28 -- and an unverified entry is a to-do the runtime ignores, so nothing depends on it in the meantime. 'Europe' is asserted as the country because that is where Flashscore files them; the qualification rounds may be a separate Flashscore competition, so both name forms are asserted and the verifier decides which exists."
   ],
   "competitions": {
     "saudi pro league": {
@@ -1048,6 +1050,64 @@
         ],
         "verified_on": "2026-08-25"
       }
+    },
+    "champions league": {
+      "display_name": "Champions League",
+      "country": "Europe",
+      "kind": "cup",
+      "flashscore_names": [
+        "Champions League",
+        "Champions League - Qualification"
+      ],
+      "expect_teams": [
+        "Olympique Lyonnais",
+        "Fenerbahce",
+        "Dinamo Zagreb",
+        "Slovan Bratislava",
+        "Sturm Graz",
+        "Bodo/Glimt",
+        "Celje",
+        "Levski Sofia"
+      ]
+    },
+    "europa league": {
+      "display_name": "Europa League",
+      "country": "Europe",
+      "kind": "cup",
+      "flashscore_names": [
+        "Europa League",
+        "Europa League - Qualification"
+      ],
+      "expect_teams": [
+        "Benfica",
+        "Anderlecht",
+        "Besiktas",
+        "Red Bull Salzburg",
+        "Ferencvaros",
+        "Viktoria Plzen",
+        "Lech Poznan",
+        "CSKA Sofia"
+      ]
+    },
+    "conference league": {
+      "display_name": "Conference League",
+      "country": "Europe",
+      "kind": "cup",
+      "flashscore_names": [
+        "Conference League",
+        "Conference League - Qualification",
+        "Europa Conference League"
+      ],
+      "expect_teams": [
+        "Ajax",
+        "Gent",
+        "Sporting Braga",
+        "Partizan",
+        "Rijeka",
+        "Nordsjaelland",
+        "Austria Wien",
+        "Hibernian"
+      ]
     }
   }
 }

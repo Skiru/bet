@@ -40,6 +40,19 @@ ESTIMATED_CALLS_PER_EVENT = {
     "understat": 3,
     "highlightly": 35,
     "sportdb": 35,
+    # Match stats + both sides' last-ten (a listing call plus one /stats per
+    # historical match) + the H2H slot. Player props are *not* counted here:
+    # they are opt-in per run (run_enrich.py --player-props) and priced
+    # separately, so folding them in would understate how many events a
+    # props-free run can afford.
+    "bzzoiro": 30,
+    # Cheaper per event than football despite being the same provider, because
+    # one /h2h/ call serves all three slots (it returns both players' recent
+    # form alongside the meetings) and /matches/{id}/ returns the box score
+    # without a second stats call: 1 listing + 5 box scores per side + up to 5
+    # h2h box scores. Against a 95/day ceiling that is about six fixtures, and
+    # preflight saying "six" is the point of this number existing.
+    "bzzoiro-tennis": 16,
 }
 _DEFAULT_CALLS_PER_EVENT = 20
 
@@ -49,6 +62,12 @@ _DEFAULT_CALLS_PER_EVENT = 20
 CREDENTIAL_ENV_VARS = {
     "api-football": ("API_FOOTBALL_KEY",),
     "highlightly": ("HIGHLIGHTLY_API_KEY", "RAPIDAPI_KEY"),
+    # Provider name is "bzzoiro" (the site's spelling); the key the provider
+    # issues is BZZORIO_KEY. The mismatch is theirs, not a typo here.
+    "bzzoiro": ("BZZORIO_KEY",),
+    # Same credential, separate provider key: the two products have separate
+    # quota buckets, so they need separate daily counters.
+    "bzzoiro-tennis": ("BZZORIO_KEY",),
     "sportdb": ("SPORTDB_API_KEY", "SPORTDB_KEY"),
     "google-sports": ("SERPAPI_KEY",),
 }

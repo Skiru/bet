@@ -1,0 +1,815 @@
+"""Bzzoiro Sports Data client (``sports.bzzoiro.com/api/v2``).
+
+Why this provider exists in the roster at all: the pipeline's binding constraint
+was never the fixtures, it was Highlightly's 100-calls-a-day cap, which on
+2026-08-25 left 175 of 181 events BLOCKED. Bzzoiro removes that constraint --
+on the PRO plan this product sends no rate-limit header at all (verified live
+2026-08-28 across /leagues/, /events/, /events/{id}/stats/ and /coverage/;
+the free plan had answered ``ratelimit-policy: "football";q=7500;w=86400``) --
+and serves three things Highlightly does not:
+
+* ``/events/{id}/stats/`` returns **home and away separately**, so a per-team
+  total is a real observation rather than a match total halved;
+* ``/players/{id}/stats/`` returns a player's per-match history *inline*, so a
+  player prop costs one call rather than one-plus-N;
+* Champions/Europa/Conference League are first-class leagues with their own ids,
+  which is where the winning coupons actually came from.
+
+Two shapes of this API drive decisions below and are easy to get wrong:
+
+1. **Listings page ascending and ignore ``ordering``.** ``?ordering=-event_date``
+   is silently accepted and has no effect (verified live). So "this team's last
+   ten matches" cannot be read off page one -- page one is the *oldest* ten. The
+   listing methods therefore take explicit ``limit``/``offset`` and report
+   ``total_count``, and the caller pages to the end. Sorting a truncated first
+   page descending would have produced a "last ten" from 2024.
+2. **``/players/{id}/stats/`` rows carry no date and no opponent**, only
+   ``event_id``. They are ordered newest-first (unlike the listings), which is
+   what makes ``limit=N`` correct there. Attaching a date is the caller's job,
+   from the team-fixtures history it already holds.
+"""
+from __future__ import annotations
+
+import re
+from typing import Any
+
+from bet.integration.evidence import namespaced_source_refs
+from bet.integration.source_result import SourceOperationResult, SourceResultStatus
+
+from .base_client import BaseAPIClient
+from .env import get_env
+from .evidence_request import EvidenceRequestMixin
+from .rate_limiter import RateLimiter
+
+LEAGUES_PARSER_VERSION = "bzzoiro-leagues-v1"
+EVENTS_PARSER_VERSION = "bzzoiro-events-v1"
+EVENT_PARSER_VERSION = "bzzoiro-event-v1"
+TEAM_FIXTURES_PARSER_VERSION = "bzzoiro-team-fixtures-v1"
+STATISTICS_PARSER_VERSION = "bzzoiro-statistics-v1"
+PLAYER_STATS_PARSER_VERSION = "bzzoiro-player-stats-v1"
+LINEUPS_PARSER_VERSION = "bzzoiro-lineups-v1"
+
+# Raw ``stats.home`` / ``stats.away`` key -> (normalized name, unit).
+# Deliberately partial: the payload carries ~50 keys per side (ball carries,
+# normalized value models, phase-of-play splits) and this pipeline analyses
+# count markets. Unmapped keys are reported in ``unknown_metrics`` rather than
+# dropped silently, so a renamed field surfaces as a diagnostic.
+STAT_NAME_MAP: dict[str, tuple[str, str]] = {
+    "corner_kicks": ("corners", "count"),
+    "yellow_cards": ("yellow_cards", "count"),
+    "red_cards": ("red_cards", "count"),
+    "total_shots": ("shots", "count"),
+    "shots_on_target": ("shots_on_target", "count"),
+    "shots_off_target": ("shots_off_target", "count"),
+    "blocked_shots": ("blocked_shots", "count"),
+    "fouls": ("fouls", "count"),
+    "offsides": ("offsides", "count"),
+    "ball_possession": ("possession", "ratio"),
+}
+
+# Per-match player fields this pipeline can price. ``was_fouled`` is kept
+# alongside ``fouls`` because they are opposite sides of the same market and a
+# provider that reports only one of them cannot serve "fouls committed" props.
+PLAYER_STAT_MAP: dict[str, tuple[str, str]] = {
+    "total_shots": ("player_total_shots", "count"),
+    "shots_on_target": ("player_shots_on_target", "count"),
+    "fouls": ("player_fouls", "count"),
+    "was_fouled": ("player_was_fouled", "count"),
+    "yellow_card": ("player_yellow_cards", "count"),
+    "red_card": ("player_red_cards", "count"),
+}
+
+# ``status`` values that mean the match was played to a result, so
+# ``/events/{id}/stats/`` has something to return. Surveyed live over a
+# four-week window: the only other values are ``notstarted`` and ``postponed``.
+FINISHED_STATUSES = frozenset({"finished", "ft", "aet", "pen"})
+
+# ``limit`` is capped server-side: a request for 500 answered with 200 rows.
+MAX_PAGE_SIZE = 200
+
+
+def extract_quota_metadata(
+    headers: dict[str, Any] | None,
+) -> dict[str, int | str | None]:
+    """Daily quota from Bzzoiro's RFC-draft rate-limit headers.
+
+        ratelimit:        "tennis";r=85;t=56393
+        ratelimit-policy: "tennis";q=100;w=86400
+
+    ``r`` is requests remaining, ``t`` seconds until the window resets, ``q`` the
+    quota and ``w`` the window in seconds. Read rather than assumed because this
+    is the one provider whose real ceiling the pipeline can see, and ``preflight``
+    reports it back to the operator.
+
+    ``{}`` when the headers are absent, which is not a parse failure but the
+    answer: on the PRO plan the *football* product stops sending them entirely
+    while tennis keeps reporting 100 a day on the same account and the same key.
+    Reporting nothing is what lets the football product read as unlimited instead
+    of inheriting a number from its sibling.
+
+    Shared with the tennis client (``bzzoiro_tennis.py``): the header syntax is
+    identical and only the policy *name* differs. The name is deliberately not
+    parsed -- the bucket a response describes is the bucket the request went to.
+    """
+    if not headers:
+        return {}
+    normalized = {str(key).lower(): str(value) for key, value in headers.items()}
+    metadata: dict[str, int | str | None] = {}
+    field_map = {
+        ("ratelimit", "r"): "daily_remaining",
+        ("ratelimit", "t"): "reset_seconds",
+        ("ratelimit-policy", "q"): "daily_limit",
+        ("ratelimit-policy", "w"): "window_seconds",
+    }
+    for (header_name, key), field_name in field_map.items():
+        raw = normalized.get(header_name)
+        if raw is None:
+            continue
+        match = re.search(rf"(?:^|[;,\s]){re.escape(key)}=(\d+)", raw)
+        if match is None:
+            continue
+        metadata[field_name] = int(match.group(1))
+    return metadata
+
+
+class BzzoiroClient(EvidenceRequestMixin, BaseAPIClient):
+    """Football-only client for Bzzoiro's v2 REST API."""
+
+    def __init__(self, rate_limiter: RateLimiter):
+        super().__init__(
+            api_name="bzzoiro",
+            base_url="https://sports.bzzoiro.com/api/v2",
+            rate_limiter=rate_limiter,
+        )
+
+    def _load_api_key(self) -> str | None:
+        # BZZORIO_KEY, not BZZOIRO_KEY: that is the spelling the provider's own
+        # dashboard issues and the one already in .env / .env.example. The
+        # provider *name* keeps the site's spelling (bzzoiro), so the quota
+        # override derived from it is BET_LIMIT_BZZOIRO -- the two differ, which
+        # is why both are spelled out here instead of being derived.
+        return get_env("BZZORIO_KEY") or super()._load_api_key()
+
+    def _build_headers(self) -> dict[str, str]:
+        headers = {"Accept": "application/json"}
+        if self.api_key:
+            headers["Authorization"] = f"Token {self.api_key}"
+        return headers
+
+    @staticmethod
+    def _extract_quota_metadata(
+        headers: dict[str, Any] | None,
+    ) -> dict[str, int | str | None]:
+        return extract_quota_metadata(headers)
+
+    @staticmethod
+    def _classify_provider_payload_error(
+        payload: dict[str, Any],
+    ) -> dict[str, Any] | None:
+        """Bzzoiro answers ``{"error": true, "status": 404, "detail": "Not found"}``
+        with the matching HTTP status, so the transport branches already cover it.
+        Only a 200 carrying ``error`` needs handling here."""
+        if not payload.get("error"):
+            return None
+        detail = str(payload.get("detail") or "").lower()
+        if "limit" in detail or "throttl" in detail:
+            return {
+                "status": SourceResultStatus.RATE_LIMITED,
+                "error_code": "provider_rate_limited",
+            }
+        return {
+            "status": SourceResultStatus.UPSTREAM_ERROR,
+            "error_code": "provider_error_payload",
+        }
+
+    # BaseAPIClient's abstract surface. Bzzoiro is reached through the *_result
+    # methods below; these exist so the class is instantiable and so nothing
+    # silently receives a half-typed legacy shape.
+    def get_fixtures(self, date: str) -> list:
+        return []
+
+    def get_fixture_stats(self, fixture_id: str) -> list:
+        return []
+
+    def get_h2h(self, team1_id: str, team2_id: str, last_n: int = 10) -> list[dict]:
+        """Not served by a two-team endpoint, and deliberately not faked with one.
+
+        Bzzoiro embeds the pair's meeting history in the fixture itself, under
+        ``head_to_head.recent_matches`` (see ``get_event_result``), so H2H costs
+        no listing call at all. Synthesising it from two ``/teams`` histories
+        here would spend two calls to reconstruct something already in hand.
+        """
+        return []
+
+    # ----------------------------------------------------------------- leagues
+
+    def get_leagues_result(
+        self, *, limit: int = MAX_PAGE_SIZE
+    ) -> SourceOperationResult[dict[str, Any]]:
+        """The whole league catalogue in one request (83 rows as of 2026-08-28).
+
+        Needed because ``/events/`` names a fixture's competition only by
+        ``league_id``, and ``EventRecord.competition`` is part of the event id and
+        of every downstream competition lookup. One call per run resolves all of
+        them, so this is cheaper than it looks.
+        """
+        result = self._request_with_evidence(
+            endpoint="/leagues/",
+            params={"limit": min(int(limit), MAX_PAGE_SIZE)},
+            operation="league_discovery",
+        )
+        if result.status is not SourceResultStatus.SUCCESS:
+            return result
+        payload = result.value
+        if not isinstance(payload, dict):
+            return self._schema_error(result, "payload_not_object")
+        rows = payload.get("results")
+        if not isinstance(rows, list):
+            return self._schema_error(result, "results_not_list")
+
+        leagues = []
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            league_id = str(row.get("id") or "").strip()
+            name = str(row.get("name") or "").strip()
+            if not league_id or not name:
+                continue
+            leagues.append(
+                {
+                    "provider_league_id": league_id,
+                    "league_name": name,
+                    "country_name": row.get("country"),
+                    "is_women": bool(row.get("is_women")),
+                    "is_active": bool(row.get("is_active")),
+                }
+            )
+
+        return self._bundle_result(
+            result=result,
+            parser_version=LEAGUES_PARSER_VERSION,
+            operation_name="league_discovery",
+            source_event_refs=[],
+            value={"leagues": leagues, "accepted_count": len(leagues)},
+            parser_diagnostics={"raw_count": len(rows), "accepted_count": len(leagues)},
+            forced_status=None if leagues else SourceResultStatus.VALID_EMPTY,
+        )
+
+    # ------------------------------------------------------------------ events
+
+    def get_event_result(
+        self, event_id: str | int
+    ) -> SourceOperationResult[dict[str, Any]]:
+        """One fixture, plus the pair's meeting history embedded in it.
+
+        ``head_to_head.recent_matches`` carries each past meeting's ``event_id``,
+        date, both team ids and both names -- everything the H2H slot needs to go
+        straight to ``/events/{id}/stats/``, without a listing call.
+        """
+        result = self._request_with_evidence(
+            endpoint=f"/events/{event_id}/",
+            params={},
+            operation="historical_form_h2h",
+            source_event_id=str(event_id),
+        )
+        if result.status is not SourceResultStatus.SUCCESS:
+            return result
+        payload = result.value
+        if not isinstance(payload, dict):
+            return self._schema_error(result, "payload_not_object")
+
+        event = _normalize_event_row(payload, requested_team_id=None, source_order=1)
+        if event is None:
+            return self._schema_error(result, "event_row_unusable")
+
+        h2h_raw = payload.get("head_to_head")
+        h2h_raw = h2h_raw if isinstance(h2h_raw, dict) else {}
+        h2h_matches = []
+        for index, row in enumerate(h2h_raw.get("recent_matches") or [], start=1):
+            if not isinstance(row, dict):
+                continue
+            # The listing includes *this* fixture. Keeping it would let the match
+            # being priced into its own evidence sample.
+            if str(row.get("event_id") or "") == str(event_id):
+                continue
+            normalized = _normalize_event_row(
+                {
+                    "id": row.get("event_id"),
+                    "home_team_id": row.get("home_team_id"),
+                    "away_team_id": row.get("away_team_id"),
+                    "home_team": row.get("home"),
+                    "away_team": row.get("away"),
+                    "home_score": row.get("home_score"),
+                    "away_score": row.get("away_score"),
+                    "event_date": row.get("date"),
+                    # A meeting listed with a final score was played; the H2H
+                    # block carries no status field of its own.
+                    "status": "finished" if row.get("score") else None,
+                    "league_id": None,
+                },
+                requested_team_id=None,
+                source_order=index,
+            )
+            if normalized is not None:
+                h2h_matches.append(normalized)
+
+        return self._bundle_result(
+            result=result,
+            parser_version=EVENT_PARSER_VERSION,
+            operation_name="historical_form_h2h",
+            source_event_refs=namespaced_source_refs(self.api_name, [str(event_id)]),
+            value={
+                "event": event,
+                "matches": h2h_matches,
+                "accepted_count": len(h2h_matches),
+                "h2h_summary": {
+                    key: h2h_raw.get(key)
+                    for key in ("total_matches", "home_wins", "draws", "away_wins")
+                },
+            },
+            parser_diagnostics={"accepted_count": len(h2h_matches)},
+            forced_status=None if h2h_matches else SourceResultStatus.VALID_EMPTY,
+        )
+
+    def get_events_result(
+        self,
+        *,
+        date_from: str,
+        date_to: str,
+        league_id: str | int | None = None,
+        team_id: str | int | None = None,
+        status: str | None = None,
+        limit: int = MAX_PAGE_SIZE,
+        offset: int = 0,
+    ) -> SourceOperationResult[dict[str, Any]]:
+        """One page of ``/events/``, normalized. ``total_count`` is the unpaged
+        total, which is how a caller reaches the newest rows of an ascending
+        listing."""
+        params: dict[str, Any] = {
+            "date_from": date_from,
+            "date_to": date_to,
+            "limit": min(int(limit), MAX_PAGE_SIZE),
+            "offset": int(offset),
+        }
+        if league_id is not None:
+            params["league"] = str(league_id)
+        if team_id is not None:
+            params["team"] = str(team_id)
+        if status is not None:
+            params["status"] = status
+        return self._listing_result(
+            endpoint="/events/",
+            params=params,
+            operation="match_discovery",
+            parser_version=EVENTS_PARSER_VERSION,
+            requested_team_id=str(team_id) if team_id is not None else None,
+        )
+
+    def get_team_fixtures_result(
+        self,
+        team_id: str | int,
+        *,
+        date_from: str,
+        date_to: str,
+        limit: int = 10,
+        offset: int = 0,
+        status: str | None = "finished",
+    ) -> SourceOperationResult[dict[str, Any]]:
+        """One page of ``/teams/{id}/fixtures/``, oldest first.
+
+        ``date_from`` is required by the caller, not optional: without it the
+        endpoint reaches back to rows stamped 1970 (verified live), and with no
+        ``date_to`` at all it returns only *upcoming* fixtures -- one row for a
+        team mid-season, which reads exactly like a provider with no history.
+        """
+        params: dict[str, Any] = {
+            "date_from": date_from,
+            "date_to": date_to,
+            "limit": min(int(limit), MAX_PAGE_SIZE),
+            "offset": int(offset),
+        }
+        if status is not None:
+            params["status"] = status
+        return self._listing_result(
+            endpoint=f"/teams/{team_id}/fixtures/",
+            params=params,
+            operation="current_form",
+            parser_version=TEAM_FIXTURES_PARSER_VERSION,
+            requested_team_id=str(team_id),
+        )
+
+    def _listing_result(
+        self,
+        *,
+        endpoint: str,
+        params: dict[str, Any],
+        operation: str,
+        parser_version: str,
+        requested_team_id: str | None,
+    ) -> SourceOperationResult[dict[str, Any]]:
+        result = self._request_with_evidence(
+            endpoint=endpoint, params=params, operation=operation
+        )
+        if result.status is not SourceResultStatus.SUCCESS:
+            return result
+        payload = result.value
+        if not isinstance(payload, dict):
+            return self._schema_error(result, "payload_not_object")
+        rows = payload.get("results")
+        if not isinstance(rows, list):
+            return self._schema_error(result, "results_not_list")
+
+        matches = []
+        rejected_count = 0
+        for index, row in enumerate(rows, start=1):
+            normalized = _normalize_event_row(
+                row, requested_team_id=requested_team_id, source_order=index
+            )
+            if normalized is None:
+                rejected_count += 1
+                continue
+            matches.append(normalized)
+
+        total_count = payload.get("count")
+        return self._bundle_result(
+            result=result,
+            parser_version=parser_version,
+            operation_name=operation,
+            source_event_refs=namespaced_source_refs(
+                self.api_name, [item["provider_match_id"] for item in matches]
+            ),
+            value={
+                "provider_team_id": requested_team_id,
+                "total_count": int(total_count)
+                if isinstance(total_count, int)
+                else len(matches),
+                "offset": int(params.get("offset") or 0),
+                "accepted_count": len(matches),
+                "rejected_count": rejected_count,
+                "matches": matches,
+            },
+            parser_diagnostics={
+                "raw_count": len(rows),
+                "accepted_count": len(matches),
+                "rejected_count": rejected_count,
+            },
+            forced_status=None if matches else SourceResultStatus.VALID_EMPTY,
+        )
+
+    # -------------------------------------------------------------- statistics
+
+    def get_statistics_result(
+        self, event_id: str | int
+    ) -> SourceOperationResult[dict[str, Any]]:
+        """``/events/{id}/stats/`` with the home/away split **preserved**.
+
+        Every other provider in this pipeline collapses a match to one combined
+        total in its client, which is why no per-team market could be priced from
+        any of them. Summing is a decision, and it is made in
+        ``simple_stats/providers.py`` where both readings are wanted at once:
+        ``corners_total`` for the match market and ``corners_for`` for the team
+        one. Collapsing here would throw away the reason this provider was added.
+        """
+        result = self._request_with_evidence(
+            endpoint=f"/events/{event_id}/stats/",
+            params={},
+            operation="detailed_metrics",
+            source_event_id=str(event_id),
+        )
+        if result.status is not SourceResultStatus.SUCCESS:
+            return result
+        payload = result.value
+        if not isinstance(payload, dict):
+            return self._schema_error(result, "payload_not_object")
+        stats = payload.get("stats")
+        if not isinstance(stats, dict):
+            return self._schema_error(result, "stats_not_object")
+
+        stats_rows: list[dict[str, Any]] = []
+        raw_stat_field_names: list[str] = []
+        raw_stat_name_set: set[str] = set()
+        unknown_metrics: list[str] = []
+        rejected_count = 0
+
+        for side in ("home", "away"):
+            # first_half / second_half live alongside home/away in the same
+            # object; only the full-match figures are read, matching how
+            # STANDARD_MARKET_LINES phrases its markets.
+            side_stats = stats.get(side)
+            if not isinstance(side_stats, dict):
+                rejected_count += 1
+                continue
+            for raw_name, raw_value in side_stats.items():
+                if raw_name not in raw_stat_name_set:
+                    raw_stat_name_set.add(raw_name)
+                    raw_stat_field_names.append(raw_name)
+                mapping = STAT_NAME_MAP.get(raw_name)
+                if mapping is None:
+                    if raw_name not in unknown_metrics:
+                        unknown_metrics.append(raw_name)
+                    continue
+                value = _scalar(raw_value)
+                if value is None:
+                    # Includes ``"red_cards": null`` on a match with no red
+                    # card. Absent is not zero: a null recorded as 0 would let
+                    # an UNDER line bank an observation the provider never made.
+                    rejected_count += 1
+                    continue
+                stats_rows.append(
+                    {
+                        "provider_match_id": str(event_id),
+                        "side": side,
+                        "raw_stat_name": raw_name,
+                        "normalized_metric_name": mapping[0],
+                        "value": value,
+                        "unit": mapping[1],
+                        "parser_version": STATISTICS_PARSER_VERSION,
+                    }
+                )
+
+        if not stats_rows:
+            return self._schema_error(result, "statistics_empty")
+
+        return self._bundle_result(
+            result=result,
+            parser_version=STATISTICS_PARSER_VERSION,
+            operation_name="detailed_metrics",
+            source_event_refs=namespaced_source_refs(self.api_name, [str(event_id)]),
+            value={
+                "provider_match_id": str(event_id),
+                "statistics": stats_rows,
+                "raw_stat_field_names": raw_stat_field_names,
+                "normalized_metric_names": [
+                    row["normalized_metric_name"] for row in stats_rows
+                ],
+                "accepted_count": len(stats_rows),
+                "rejected_count": rejected_count,
+                "unknown_metrics": unknown_metrics,
+            },
+            parser_diagnostics={
+                "accepted_count": len(stats_rows),
+                "rejected_count": rejected_count,
+                "raw_stat_fields_count": len(raw_stat_field_names),
+                "unknown_metrics": unknown_metrics,
+            },
+        )
+
+    # ------------------------------------------------------------ player props
+
+    def get_player_stats_result(
+        self,
+        player_id: str | int,
+        *,
+        date_from: str | None = None,
+        date_to: str | None = None,
+        limit: int = 10,
+    ) -> SourceOperationResult[dict[str, Any]]:
+        """A player's per-match box scores, **newest first**, in one request.
+
+        This listing is ordered the opposite way from ``/events/`` and
+        ``/teams/{id}/fixtures/`` (verified live: row one is the player's most
+        recent appearance), which is the only reason ``limit=N`` gives the last N
+        here without paging to the end.
+
+        Rows carry ``event_id`` but no date and no opponent, so each is returned
+        with ``match_date``/``opponent`` unset for the caller to fill from the
+        team history it already fetched.
+
+        Both ``date_from`` and ``date_to`` are honoured server-side (verified
+        live). ``date_to`` matters for a backfill: without it the fixture being
+        priced is in its own evidence sample.
+        """
+        params: dict[str, Any] = {"limit": min(int(limit), MAX_PAGE_SIZE)}
+        if date_from:
+            params["date_from"] = date_from
+        if date_to:
+            params["date_to"] = date_to
+        result = self._request_with_evidence(
+            endpoint=f"/players/{player_id}/stats/",
+            params=params,
+            operation="player_form",
+        )
+        if result.status is not SourceResultStatus.SUCCESS:
+            return result
+        payload = result.value
+        if not isinstance(payload, dict):
+            return self._schema_error(result, "payload_not_object")
+        rows = payload.get("results")
+        if not isinstance(rows, list):
+            return self._schema_error(result, "results_not_list")
+
+        appearances = []
+        rejected_count = 0
+        for row in rows:
+            if not isinstance(row, dict):
+                rejected_count += 1
+                continue
+            event_id = str(row.get("event_id") or "").strip()
+            if not event_id:
+                rejected_count += 1
+                continue
+            metrics: dict[str, float] = {}
+            for raw_name, (normalized_name, _unit) in PLAYER_STAT_MAP.items():
+                value = _scalar(row.get(raw_name))
+                if value is not None:
+                    metrics[normalized_name] = value
+            appearances.append(
+                {
+                    "provider_match_id": event_id,
+                    "provider_team_id": str(row.get("team_id") or ""),
+                    "minutes_played": _scalar(row.get("minutes_played")) or 0.0,
+                    "rating": _scalar(row.get("rating")),
+                    "metrics": metrics,
+                }
+            )
+
+        total_count = payload.get("count")
+        return self._bundle_result(
+            result=result,
+            parser_version=PLAYER_STATS_PARSER_VERSION,
+            operation_name="player_form",
+            source_event_refs=namespaced_source_refs(
+                self.api_name, [item["provider_match_id"] for item in appearances]
+            ),
+            value={
+                "provider_player_id": str(player_id),
+                "total_count": int(total_count)
+                if isinstance(total_count, int)
+                else len(appearances),
+                "accepted_count": len(appearances),
+                "rejected_count": rejected_count,
+                "appearances": appearances,
+            },
+            parser_diagnostics={
+                "raw_count": len(rows),
+                "accepted_count": len(appearances),
+                "rejected_count": rejected_count,
+            },
+            forced_status=None if appearances else SourceResultStatus.VALID_EMPTY,
+        )
+
+    def get_lineups_result(
+        self, event_id: str | int
+    ) -> SourceOperationResult[dict[str, Any]]:
+        """``/events/{id}/lineups/`` -- who to ask about, and how sure we are.
+
+        One endpoint serves both cases: ``lineup_status`` is ``"confirmed"`` once
+        the teams announce, and ``"predicted"`` before that (with ``beta: true``,
+        a per-team ``confidence`` and a per-player ``ai_score``). The separate
+        ``/predicted-lineup/{id}/`` path in the API docs answers 404 and is not
+        used.
+
+        The status travels with the value rather than being resolved here,
+        because a prop off a predicted XI is a weaker claim than one off a
+        confirmed XI and the artifact has to say which it is.
+        """
+        result = self._request_with_evidence(
+            endpoint=f"/events/{event_id}/lineups/",
+            params={},
+            operation="lineups",
+            source_event_id=str(event_id),
+        )
+        if result.status is not SourceResultStatus.SUCCESS:
+            return result
+        payload = result.value
+        if not isinstance(payload, dict):
+            return self._schema_error(result, "payload_not_object")
+        lineups = payload.get("lineups")
+        if not isinstance(lineups, dict):
+            return self._schema_error(result, "lineups_not_object")
+
+        lineup_status = str(payload.get("lineup_status") or "").lower()
+        sides: dict[str, dict[str, Any]] = {}
+        for side in ("home", "away"):
+            block = lineups.get(side)
+            if not isinstance(block, dict):
+                continue
+            players = []
+            for entry in block.get("players") or []:
+                if not isinstance(entry, dict):
+                    continue
+                player_id = str(entry.get("id") or "").strip()
+                name = str(entry.get("name") or "").strip()
+                if not player_id or not name:
+                    continue
+                players.append(
+                    {
+                        "player_id": player_id,
+                        "player_name": name,
+                        "position": entry.get("position"),
+                        "captain": bool(entry.get("captain")),
+                        "ai_score": _scalar(entry.get("ai_score")),
+                    }
+                )
+            sides[side] = {
+                "provider_team_id": str(block.get("team_id") or ""),
+                "team_name": block.get("team_name"),
+                "formation": block.get("formation"),
+                "confidence": _scalar(block.get("confidence")),
+                # Starters only. A substitute's minutes are decided during the
+                # match, so his last-ten is a sample of a different thing than
+                # the prop being priced.
+                "players": players,
+            }
+
+        if not any(side.get("players") for side in sides.values()):
+            return self._schema_error(result, "lineups_empty")
+
+        return self._bundle_result(
+            result=result,
+            parser_version=LINEUPS_PARSER_VERSION,
+            operation_name="lineups",
+            source_event_refs=namespaced_source_refs(self.api_name, [str(event_id)]),
+            value={
+                "provider_match_id": str(event_id),
+                "lineup_status": lineup_status,
+                "sides": sides,
+            },
+            parser_diagnostics={
+                "lineup_status": lineup_status,
+                "home_players": len(sides.get("home", {}).get("players") or []),
+                "away_players": len(sides.get("away", {}).get("players") or []),
+            },
+        )
+
+
+def _scalar(raw: Any) -> float | None:
+    """A plain number, or None.
+
+    Several ``stats`` fields are objects rather than scalars
+    (``{"value": 7, "total": 13, "pct": 54}`` for dribbles, ``{"actual": 1.39,
+    "estimated": true}`` for xg), so ``float()`` alone would raise on them. None
+    of the mapped count metrics uses that shape, so an object is treated as
+    absent rather than being guessed at.
+    """
+    if raw is None or isinstance(raw, bool):
+        return None
+    if isinstance(raw, (int, float)):
+        return float(raw)
+    if isinstance(raw, str):
+        try:
+            return float(raw.strip())
+        except ValueError:
+            return None
+    return None
+
+
+def _normalize_event_row(
+    row: Any, *, requested_team_id: str | None, source_order: int
+) -> dict[str, Any] | None:
+    """One ``/events/`` or ``/teams/{id}/fixtures/`` row in a shape the rest of
+    the pipeline already reads (mirrors Highlightly's normalized match row)."""
+    if not isinstance(row, dict):
+        return None
+    match_id = str(row.get("id") or "").strip()
+    home_id = str(row.get("home_team_id") or "").strip()
+    away_id = str(row.get("away_team_id") or "").strip()
+    if not match_id or not home_id or not away_id or home_id == away_id:
+        return None
+
+    home_name = str(row.get("home_team") or "")
+    away_name = str(row.get("away_team") or "")
+    home_goals = row.get("home_score")
+    away_goals = row.get("away_score")
+
+    side = None
+    opponent: dict[str, Any] = {"provider_team_id": None, "team_name": None}
+    result_code = None
+    if requested_team_id == home_id:
+        side = "home"
+        opponent = {"provider_team_id": away_id, "team_name": away_name}
+        result_code = _infer_result(home_goals, away_goals)
+    elif requested_team_id == away_id:
+        side = "away"
+        opponent = {"provider_team_id": home_id, "team_name": home_name}
+        result_code = _infer_result(away_goals, home_goals)
+
+    return {
+        "provider_match_id": match_id,
+        "kickoff": row.get("event_date"),
+        "date": row.get("event_date"),
+        "home_team": {"provider_team_id": home_id, "team_name": home_name},
+        "away_team": {"provider_team_id": away_id, "team_name": away_name},
+        "opponent": opponent,
+        "home_away": side,
+        "score": {"home": home_goals, "away": away_goals}
+        if home_goals is not None and away_goals is not None
+        else None,
+        "result": result_code,
+        "match_status": row.get("status"),
+        "competition_provider_id": str(row.get("league_id"))
+        if row.get("league_id") is not None
+        else None,
+        "season": row.get("season_id"),
+        "source_order": source_order,
+    }
+
+
+def _infer_result(goals_for: Any, goals_against: Any) -> str | None:
+    if goals_for is None or goals_against is None:
+        return None
+    if goals_for > goals_against:
+        return "W"
+    if goals_for < goals_against:
+        return "L"
+    return "D"

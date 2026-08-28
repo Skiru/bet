@@ -22,10 +22,14 @@ import unicodedata
 from pathlib import Path
 from difflib import SequenceMatcher
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from bet.api_clients import get_client
+from bet.api_clients.bzzoiro import FINISHED_STATUSES as BZZOIRO_FINISHED_STATUSES
+from bet.api_clients.bzzoiro_tennis import (
+    FINISHED_STATUSES as BZZOIRO_TENNIS_FINISHED_STATUSES,
+)
 from bet.api_clients.rate_limiter import RateLimiter
 from bet.api_clients.sportdb_mcp import SportDBMCPShadowAdapter
 from bet.integration.source_result import SourceResultStatus
@@ -46,9 +50,14 @@ PROVIDERS_BY_SPORT: dict[str, tuple[str, ...]] = {
 # discovery captured (EventRecord.source_ids / .provider_team_ids):
 #   highlightly -> /last-five-games, /head-2-head, /statistics/{match_id}
 #   sportdb     -> flashscore competition results -> flashscore_get_match_stats
+#   bzzoiro     -> /teams/{id}/fixtures, /events/{id}/, /events/{id}/stats/
+#   bzzoiro-tennis -> /tennis/api/v2/matches/{id}/h2h/, /matches/{id}/
 NATIVE_ID_PROVIDERS_BY_SPORT: dict[str, tuple[str, ...]] = {
-    "football": ("highlightly", "sportdb"),
-    "tennis": (),
+    "football": ("highlightly", "sportdb", "bzzoiro"),
+    # Was empty. Tennis had no native identification at all -- every provider
+    # re-found both players by name through a search endpoint -- which is half
+    # the reason the sport contributed almost nothing.
+    "tennis": ("bzzoiro-tennis",),
 }
 
 # google-sports is intentionally not part of PROVIDERS_BY_SPORT: it only
@@ -92,6 +101,83 @@ _HIGHLIGHTLY_DISPLAY_NAME_ALIASES = {
     "Possession": "possession",
     "Expected Goals": "expected_goals_total",
 }
+# Bzzoiro is the only provider whose stats survive into the dossier *unsummed*,
+# so it needs two tables rather than one.
+#
+# The match-total table mirrors every other provider: both sides added up, one
+# value per historical match, which is how STANDARD_MARKET_LINES phrases
+# "Corners Total".
+_BZZOIRO_TOTAL_ALIASES = {
+    "corners": "corners_total",
+    "yellow_cards": "cards_total",
+    "red_cards": "red_cards_total",
+    "shots": "shots_total",
+    "shots_on_target": "shots_on_target_total",
+    "shots_off_target": "shots_off_target_total",
+    "blocked_shots": "blocked_shots_total",
+    "fouls": "fouls_total",
+    "offsides": "offsides_total",
+    "possession": "possession",
+}
+# The per-team table is deliberately shorter: it covers exactly the five stats
+# that have a team market in STANDARD_MARKET_LINES. A "_for" metric nobody can
+# price is a column in every artifact that no row ever reads.
+#
+# "_for", not "_total", because these must not collide. The match total and the
+# team's own contribution are different numbers about the same match, every
+# other provider can only supply the first, and a run where Bzzoiro quietly
+# overwrote corners_total with one side's five corners would report the whole
+# slate as DISAGREE while looking like an improvement.
+_BZZOIRO_FOR_ALIASES = {
+    "corners": "corners_for",
+    "yellow_cards": "cards_for",
+    "shots": "shots_for",
+    "shots_on_target": "shots_on_target_for",
+    "fouls": "fouls_for",
+}
+# Canonical player-prop metrics, keyed by the client's normalized names. The
+# client already emits this vocabulary, so this table exists to state which of
+# its fields the pipeline prices, not to rename them.
+_BZZOIRO_PLAYER_ALIASES = {
+    "player_total_shots": "player_total_shots",
+    "player_shots_on_target": "player_shots_on_target",
+    "player_fouls": "player_fouls",
+    "player_was_fouled": "player_was_fouled",
+}
+# "Player to be Carded" is a bet on *any* card, so a straight red settles it
+# yes. Pricing it off yellows alone would report a carded player as not carded
+# in exactly the matches where the card was most obvious, so the two are summed
+# into one canonical metric rather than aliased separately. Cards are mutually
+# exclusive per shown card, so the sum is the count of cards, never a
+# double-count of one.
+_BZZOIRO_PLAYER_CARD_KEYS = ("player_yellow_cards", "player_red_cards")
+_BZZOIRO_PLAYER_CARDS_METRIC = "player_cards"
+
+# Bzzoiro's tennis box score is already ``p1_*``/``p2_*``, so unlike football
+# corners this provider arrives with the per-player split in the same wave.
+#
+# Match totals: both players summed, matching how STANDARD_MARKET_LINES phrases
+# "Total Aces". ``total_sets`` and ``breaks_total`` are derived rather than
+# aliased and are handled in _bzzoiro_tennis_match_metrics.
+_BZZOIRO_TENNIS_TOTAL_ALIASES = {
+    "aces": "aces_total",
+    "double_faults": "double_faults_total",
+    "games_won": "total_games",
+}
+# One player's own line. These reuse the canonical names tennis already had --
+# ``first_serve_pct`` is a property of a server, never of a match, and
+# tennis-abstract already reports it for the player it was asked about, so the
+# same name in the same slot means the same thing and the two can corroborate.
+_BZZOIRO_TENNIS_PLAYER_ALIASES = {
+    "aces": "aces_for",
+    "double_faults": "double_faults_for",
+    "games_won": "games_won",
+    "first_serve_pct": "first_serve_pct",
+    "first_serve_won_pct": "first_serve_won_pct",
+    "break_points_saved_pct": "break_points_saved_pct",
+    "break_points_converted_pct": "break_points_converted_pct",
+}
+
 _SPORTDB_STATNAME_ALIASES = {
     "Corner Kicks": "corners_total",
     "Corners": "corners_total",
@@ -160,22 +246,53 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+# Per-provider run ceilings that override RunBudget's shared default.
+#
+# One number for every provider was fine while they all had roughly the same
+# quota. It stops being fine with bzzoiro in the roster: at the shared default of
+# 100 it would run dry after three or four events -- the exact 6-events-of-181
+# outcome this provider was added to fix.
+#
+# Since the PRO upgrade the football product publishes no daily ceiling at all
+# (see API_DAILY_LIMITS), so this is the *only* remaining bound on it, and its
+# purpose has changed: it is no longer rationing a scarce allowance, it is
+# stopping a bug that loops from spending an afternoon on it. 20000 is therefore
+# set where it cannot bind a real day -- at ~30 calls an event that is over 600
+# fixtures, against 150-180 discovered -- while still terminating a runaway.
+#
+# bzzoiro-tennis is deliberately absent: its daily ceiling is 95, below the
+# shared 100 default, so a run-level override could only ever raise a limit the
+# daily counter already enforces more tightly.
+RUN_BUDGET_OVERRIDES: dict[str, int] = {"bzzoiro": 20000}
+
+
 class RunBudget:
     """In-memory per-run call counter, shared across one ENRICH run's
     ThreadPoolExecutor workers (section 7): SerpAPI's GoogleSportsClient
     already bakes in its own MAX_QUERIES_PER_RUN=15; Highlightly and SportDB
     have no such limiter, so the same "counter per-run + RateLimiter
-    underneath" pattern is applied here, default 100 calls/run/provider."""
+    underneath" pattern is applied here, default 100 calls/run/provider.
 
-    def __init__(self, limit: int = 100):
+    ``RUN_BUDGET_OVERRIDES`` raises that default for providers whose real
+    allowance is orders of magnitude larger. The shared default still applies to
+    everything not named there, so adding a provider does not silently uncap it.
+    """
+
+    def __init__(self, limit: int = 100, overrides: dict[str, int] | None = None):
         self.limit = limit
+        self._overrides = dict(RUN_BUDGET_OVERRIDES if overrides is None else overrides)
         self._counts: dict[str, int] = {}
         self._lock = threading.Lock()
+
+    def limit_for(self, provider: str) -> int:
+        # max(), not a plain lookup: an operator who passes a budget above the
+        # override meant to raise the ceiling, not to lower this provider's.
+        return max(self.limit, self._overrides.get(provider, 0))
 
     def try_consume(self, provider: str) -> bool:
         with self._lock:
             used = self._counts.get(provider, 0)
-            if used >= self.limit:
+            if used >= self.limit_for(provider):
                 return False
             self._counts[provider] = used + 1
             return True
@@ -820,6 +937,791 @@ def fetch_highlightly_history(
         ).items():
             outcome.add(name, value)
     return outcome
+
+
+# --------------------------------------------------------------------- bzzoiro
+
+# How far back a "last ten" may reach. Matches _MAX_OBSERVATION_AGE_DAYS, the
+# window _is_recent enforces on the way out: asking the provider for anything
+# older would spend a call per match on observations that are then discarded.
+_BZZOIRO_HISTORY_WINDOW_DAYS = 500
+
+# event_id -> ({"home": {canonical_for: value}, "away": {...},
+#               "total": {canonical_total: value}}, gap)
+_BZZOIRO_STATS_CACHE: dict[str, tuple[dict[str, dict[str, float]], str | None]] = {}
+_BZZOIRO_STATS_LOCK = threading.Lock()
+
+# (team_id, date_from, date_to, last_n) -> the team's newest finished fixtures.
+# Separate from the stats cache because it caches the *listing*, and the listing
+# is what the player-prop path needs to put a date and an opponent on a box
+# score: /players/{id}/stats/ rows carry neither. Without this cache, collecting
+# props would re-pay the one-or-two-call ascending-offset dance that the "_for"
+# metrics already paid for the same team, in the same window, in the same run.
+_BZZOIRO_FIXTURES_CACHE: dict[tuple[str, str, str, int], list[dict]] = {}
+_BZZOIRO_FIXTURES_LOCK = threading.Lock()
+
+# Sentinel gap meaning "the provider covers this fixture but published no stats
+# for it". Counted rather than listed; see _bzzoiro_match_stats.
+_BZZOIRO_NO_STATS = "__bzzoiro_no_published_stats__"
+
+
+def _bzzoiro_match_stats(
+    client: Any, event_id: str
+) -> tuple[dict[str, dict[str, float]], str | None]:
+    """One historical match's stats, per side *and* summed.
+
+    Returns ``({"home": ..., "away": ..., "total": ...}, gap)``. Both readings
+    come out of one request because they come out of one payload: this provider
+    reports the two sides separately, so the match total is a sum this function
+    performs rather than the only figure available.
+
+    Cached per event_id for the same reason Highlightly's is: a league fixture
+    the two sides already played appears in team A's last ten, in team B's last
+    ten, and again in their H2H, so an uncached fetch pays for it three times.
+    """
+    with _BZZOIRO_STATS_LOCK:
+        cached = _BZZOIRO_STATS_CACHE.get(event_id)
+    if cached is not None:
+        return cached
+
+    result = client.get_statistics_result(event_id)
+    if result.status != SourceResultStatus.SUCCESS or not result.value:
+        # "statistics_empty" is coverage, not failure: the provider knows the
+        # fixture and published no stats for it. In practice that is pre-season
+        # friendlies -- four of Lyon's newest ten on 2026-08-26 -- and reporting
+        # each one as its own data_gap buried the real gaps under noise from
+        # matches nobody would have used as evidence anyway. The caller counts
+        # these and reports one line per team instead.
+        gap = (
+            _BZZOIRO_NO_STATS
+            if result.error_code == "statistics_empty"
+            else f"bzzoiro: {getattr(result.status, 'value', result.status)} for event {event_id}"
+        )
+        with _BZZOIRO_STATS_LOCK:
+            _BZZOIRO_STATS_CACHE[event_id] = ({}, gap)
+        return {}, gap
+
+    per_side: dict[str, dict[str, float]] = {"home": {}, "away": {}}
+    totals: dict[str, float] = {}
+    for row in result.value.get("statistics", []):
+        normalized = row.get("normalized_metric_name") or ""
+        side = row.get("side")
+        try:
+            value = float(row.get("value"))
+        except (TypeError, ValueError):
+            continue
+
+        total_name = _BZZOIRO_TOTAL_ALIASES.get(normalized)
+        if total_name is not None:
+            totals[total_name] = totals.get(total_name, 0.0) + value
+        for_name = _BZZOIRO_FOR_ALIASES.get(normalized)
+        if for_name is not None and side in per_side:
+            per_side[side][for_name] = per_side[side].get(for_name, 0.0) + value
+
+    stats = {"home": per_side["home"], "away": per_side["away"], "total": totals}
+    with _BZZOIRO_STATS_LOCK:
+        _BZZOIRO_STATS_CACHE[event_id] = (stats, None)
+    return stats, None
+
+
+def _bzzoiro_window(as_of_date: str) -> tuple[str, str]:
+    """(date_from, date_to) for history read as of ``as_of_date`` (YYYY-MM-DD).
+
+    ``date_to`` is the *event's* date, not today's. Both are required by the
+    provider: with no ``date_to`` ``/teams/{id}/fixtures/`` returns only upcoming
+    fixtures, and with no ``date_from`` it reaches back to rows stamped 1970.
+
+    Anchoring on the event rather than on now is what keeps a backfill honest --
+    re-running an old date must not build a "last ten" out of matches played
+    after the fixture being priced.
+    """
+    try:
+        anchor = datetime.strptime(as_of_date[:10], "%Y-%m-%d")
+    except (TypeError, ValueError):
+        anchor = datetime.now(timezone.utc).replace(tzinfo=None)
+    start = anchor - timedelta(days=_BZZOIRO_HISTORY_WINDOW_DAYS)
+    return start.strftime("%Y-%m-%d"), anchor.strftime("%Y-%m-%d")
+
+
+def _bzzoiro_recent_fixtures(
+    client: Any,
+    team_id: str,
+    date_from: str,
+    date_to: str,
+    last_n: int,
+    run_budget: RunBudget | None,
+    gaps: list[str],
+) -> list[dict]:
+    """The team's ``last_n`` most recent finished fixtures, newest first.
+
+    This listing pages *ascending* and ignores ``ordering`` (verified live), so
+    page one is the team's oldest matches in the window -- for a club with two
+    seasons of history, matches from 2024. The newest rows are at the end, which
+    is why the total is read first and used as an offset.
+
+    Costs one call when the window holds ``last_n`` or fewer matches, two
+    otherwise, and nothing at all on a repeat for the same team and window --
+    the H2H and player-prop paths both land here for a team the "_for" path has
+    already read.
+    """
+    cache_key = (str(team_id), date_from, date_to, last_n)
+    with _BZZOIRO_FIXTURES_LOCK:
+        cached = _BZZOIRO_FIXTURES_CACHE.get(cache_key)
+    if cached is not None:
+        return list(cached)
+
+    if run_budget is not None and not run_budget.try_consume("bzzoiro"):
+        gaps.append("bzzoiro: run budget exhausted before team history")
+        return []
+    first = client.get_team_fixtures_result(
+        team_id, date_from=date_from, date_to=date_to, limit=last_n
+    )
+    if first.status not in (SourceResultStatus.SUCCESS, SourceResultStatus.VALID_EMPTY):
+        status_label = getattr(first.status, "value", str(first.status))
+        gaps.append(f"bzzoiro: {status_label} listing history for team {team_id}")
+        return []
+
+    value = first.value or {}
+    total = int(value.get("total_count") or 0)
+    matches = list(value.get("matches") or [])
+    if total > last_n:
+        if run_budget is not None and not run_budget.try_consume("bzzoiro"):
+            gaps.append("bzzoiro: run budget exhausted before newest history page")
+        else:
+            tail = client.get_team_fixtures_result(
+                team_id,
+                date_from=date_from,
+                date_to=date_to,
+                limit=last_n,
+                offset=max(0, total - last_n),
+            )
+            if tail.status in (SourceResultStatus.SUCCESS, SourceResultStatus.VALID_EMPTY):
+                matches = list((tail.value or {}).get("matches") or [])
+            else:
+                status_label = getattr(tail.status, "value", str(tail.status))
+                gaps.append(
+                    f"bzzoiro: {status_label} paging to newest history for team {team_id}"
+                )
+
+    matches.sort(key=lambda row: str(row.get("date") or ""), reverse=True)
+    newest = matches[:last_n]
+    with _BZZOIRO_FIXTURES_LOCK:
+        _BZZOIRO_FIXTURES_CACHE[cache_key] = list(newest)
+    return newest
+
+
+def fetch_bzzoiro_history(
+    team_id: str,
+    opposite_team_id: str,
+    rate_limiter: RateLimiter,
+    run_budget: RunBudget | None = None,
+    last_n: int = 10,
+    mode: str = "l10",
+    as_of_date: str = "",
+    event_id: str = "",
+) -> FetchOutcome:
+    """Historical canonical metrics from Bzzoiro for one side (``mode="l10"``)
+    or for the pair's head-to-head (``mode="h2h"``).
+
+    In ``l10`` mode this emits **two** families per historical match: the
+    combined ``*_total`` every other provider also reports, so Bzzoiro
+    corroborates them, and the ``*_for`` figures for *this* team's own side,
+    which no other provider in the roster can supply.
+
+    In ``h2h`` mode only ``*_total`` is emitted. An H2H sample is a property of
+    the meeting, not of one side, and the slot carries no marker for which team
+    a "for" value would belong to -- so labelling one side's corners as the
+    event's ``corners_for`` would silently mix the two teams' samples in the one
+    place where that is impossible to notice.
+
+    H2H costs no listing call: the meeting history is embedded in the fixture
+    itself (``/events/{id}/`` -> ``head_to_head.recent_matches``), which is why
+    ``event_id`` -- this provider's id for the fixture being priced, from
+    ``EventRecord.source_ids["bzzoiro"]`` -- is what that mode needs rather than
+    a pair of team ids.
+    """
+    outcome = FetchOutcome()
+    if mode == "h2h":
+        if not event_id:
+            outcome.data_gaps.append("bzzoiro: missing native event id for h2h")
+            return outcome
+    elif not team_id:
+        outcome.data_gaps.append("bzzoiro: missing native team id for l10")
+        return outcome
+
+    date_from, date_to = _bzzoiro_window(as_of_date)
+    try:
+        client = get_client("bzzoiro", rate_limiter=rate_limiter)
+        if mode == "h2h":
+            if run_budget is not None and not run_budget.try_consume("bzzoiro"):
+                outcome.data_gaps.append("bzzoiro: run budget exhausted before h2h")
+                return outcome
+            listing = client.get_event_result(event_id)
+            if listing.status not in (
+                SourceResultStatus.SUCCESS,
+                SourceResultStatus.VALID_EMPTY,
+            ):
+                status_label = getattr(listing.status, "value", str(listing.status))
+                outcome.data_gaps.append(
+                    f"bzzoiro: {status_label} reading h2h for event {event_id}"
+                )
+                return outcome
+            matches = list((listing.value or {}).get("matches") or [])[:last_n]
+        else:
+            matches = _bzzoiro_recent_fixtures(
+                client,
+                str(team_id),
+                date_from,
+                date_to,
+                last_n,
+                run_budget,
+                outcome.data_gaps,
+            )
+    except Exception as exc:  # noqa: BLE001 - any provider failure is a data_gap, never a crash
+        outcome.data_gaps.append(f"bzzoiro: {mode} error: {exc}")
+        return outcome
+
+    if not matches:
+        outcome.data_gaps.append(f"bzzoiro: no {mode} matches for team {team_id}")
+        return outcome
+
+    considered = 0
+    without_stats = 0
+    for match in matches:
+        match_id = str(match.get("provider_match_id") or "")
+        if not match_id or match_id == str(event_id):
+            continue
+        status = str(match.get("match_status") or "").lower()
+        # A postponed or not-yet-played fixture has no /stats payload; calling
+        # for it spends a request to receive an expected SCHEMA_ERROR, and
+        # recording that as a data_gap buries the real coverage problems.
+        if status and status not in BZZOIRO_FINISHED_STATUSES:
+            continue
+
+        home = match.get("home_team") or {}
+        away = match.get("away_team") or {}
+        home_id = str(home.get("provider_team_id") or "")
+        away_id = str(away.get("provider_team_id") or "")
+        if not home_id or not away_id:
+            continue
+
+        if run_budget is not None and not run_budget.try_consume("bzzoiro"):
+            outcome.data_gaps.append("bzzoiro: run budget exhausted mid-history")
+            break
+        try:
+            stats, gap = _bzzoiro_match_stats(client, match_id)
+        except Exception as exc:  # noqa: BLE001
+            outcome.data_gaps.append(f"bzzoiro: event {match_id} stats error: {exc}")
+            continue
+        considered += 1
+        if gap == _BZZOIRO_NO_STATS:
+            without_stats += 1
+            continue
+        if gap:
+            outcome.data_gaps.append(gap)
+            continue
+
+        combined = dict(stats.get("total") or {})
+        if mode != "h2h":
+            side = "home" if home_id == str(team_id) else "away" if away_id == str(team_id) else None
+            if side is not None:
+                combined.update(stats.get(side) or {})
+        opponent = away.get("team_name") if home_id == str(team_id) else home.get("team_name")
+        match_date = str(match.get("date") or match.get("kickoff") or "")
+        for name, value in _make_values(
+            "bzzoiro", match_id, match_date, opponent or "unknown", combined
+        ).items():
+            outcome.add(name, value)
+
+    if without_stats:
+        outcome.data_gaps.append(
+            f"bzzoiro: {without_stats} of {considered} {mode} matches have no published "
+            f"stats (typically pre-season friendlies)"
+        )
+    return outcome
+
+
+def fetch_bzzoiro_match_context(
+    team_id: str,
+    rate_limiter: RateLimiter,
+    run_budget: RunBudget | None = None,
+    last_n: int = 10,
+    as_of_date: str = "",
+) -> tuple[dict[str, tuple[str, str]], list[str]]:
+    """``({provider_event_id: (match_date, opponent_name)}, data_gaps)`` for one
+    team's recent fixtures.
+
+    Exists because ``/players/{id}/stats/`` identifies each appearance only by
+    ``event_id``: no date, no opponent. Resolving those per appearance would
+    cost a request each; the team's fixture listing has all of them and is
+    already cached from the ``*_for`` pass, so in a normal run this is free.
+    """
+    gaps: list[str] = []
+    if not team_id:
+        return {}, ["bzzoiro: missing native team id for match context"]
+    date_from, date_to = _bzzoiro_window(as_of_date)
+    try:
+        client = get_client("bzzoiro", rate_limiter=rate_limiter)
+        matches = _bzzoiro_recent_fixtures(
+            client, str(team_id), date_from, date_to, last_n, run_budget, gaps
+        )
+    except Exception as exc:  # noqa: BLE001
+        return {}, [f"bzzoiro: match context error for team {team_id}: {exc}"]
+
+    context: dict[str, tuple[str, str]] = {}
+    for match in matches:
+        match_id = str(match.get("provider_match_id") or "")
+        if not match_id:
+            continue
+        home = match.get("home_team") or {}
+        away = match.get("away_team") or {}
+        opponent = (
+            away.get("team_name")
+            if str(home.get("provider_team_id") or "") == str(team_id)
+            else home.get("team_name")
+        )
+        context[match_id] = (
+            str(match.get("date") or ""),
+            str(opponent or "unknown"),
+        )
+    return context, gaps
+
+
+def fetch_bzzoiro_player_history(
+    player_id: str,
+    rate_limiter: RateLimiter,
+    run_budget: RunBudget | None = None,
+    last_n: int = 10,
+    as_of_date: str = "",
+    exclude_event_id: str = "",
+    match_context: dict[str, tuple[str, str]] | None = None,
+) -> FetchOutcome:
+    """One player's per-match prop history, in a single provider call.
+
+    ``/players/{id}/stats/`` returns the box scores inline and newest-first, so
+    unlike the team path there is no listing-then-fetch fan-out and no ascending
+    -order offset dance: ``limit=last_n`` is the last ``last_n`` appearances.
+    This is the cheapest data in the whole pipeline per row it produces.
+
+    ``match_context`` maps this provider's event id to ``(match_date,
+    opponent)``. The box-score rows carry neither -- only ``event_id`` -- and
+    resolving each one would cost a request per appearance, so the caller passes
+    the map it already built from the team's fixture history. An appearance
+    outside that map is still kept, with an empty date: a prop's whole value is
+    its sample, and the observation is real whether or not we can name the
+    opponent.
+
+    Appearances with no minutes are dropped. A substitute who did not come on
+    has a box score of zeroes, and counting those would make every UNDER prop
+    look like a lock -- the same defect that mapping one player's aces onto
+    ``aces_total`` produced for tennis.
+    """
+    outcome = FetchOutcome()
+    if not player_id:
+        outcome.data_gaps.append("bzzoiro: missing native player id")
+        return outcome
+    if run_budget is not None and not run_budget.try_consume("bzzoiro"):
+        outcome.data_gaps.append("bzzoiro: run budget exhausted before player history")
+        return outcome
+
+    date_from, date_to = _bzzoiro_window(as_of_date)
+    try:
+        client = get_client("bzzoiro", rate_limiter=rate_limiter)
+        result = client.get_player_stats_result(
+            player_id, date_from=date_from, date_to=date_to, limit=last_n
+        )
+    except Exception as exc:  # noqa: BLE001
+        outcome.data_gaps.append(f"bzzoiro: player {player_id} history error: {exc}")
+        return outcome
+
+    if result.status not in (SourceResultStatus.SUCCESS, SourceResultStatus.VALID_EMPTY):
+        status_label = getattr(result.status, "value", str(result.status))
+        outcome.data_gaps.append(
+            f"bzzoiro: {status_label} history for player {player_id}"
+        )
+        return outcome
+
+    context = match_context or {}
+    appearances = (result.value or {}).get("appearances") or []
+    played = 0
+    for appearance in appearances:
+        match_id = str(appearance.get("provider_match_id") or "")
+        if not match_id or match_id == str(exclude_event_id):
+            continue
+        if not (appearance.get("minutes_played") or 0):
+            continue
+        played += 1
+        match_date, opponent = context.get(match_id, ("", "unknown"))
+        raw_metrics = appearance.get("metrics") or {}
+        metrics = {
+            _BZZOIRO_PLAYER_ALIASES[name]: value
+            for name, value in raw_metrics.items()
+            if name in _BZZOIRO_PLAYER_ALIASES
+        }
+        card_parts = [raw_metrics[key] for key in _BZZOIRO_PLAYER_CARD_KEYS if key in raw_metrics]
+        if card_parts:
+            metrics[_BZZOIRO_PLAYER_CARDS_METRIC] = float(sum(card_parts))
+        for name, value in _make_values(
+            "bzzoiro", match_id, match_date, opponent or "unknown", metrics
+        ).items():
+            outcome.add(name, value)
+
+    if not played:
+        outcome.data_gaps.append(
+            f"bzzoiro: player {player_id} has no appearance with minutes in the window"
+        )
+    return outcome
+
+
+def fetch_bzzoiro_lineup(
+    event_id: str,
+    rate_limiter: RateLimiter,
+    run_budget: RunBudget | None = None,
+) -> tuple[str, dict[str, list[dict]], list[str]]:
+    """``(lineup_status, {"home": [...], "away": [...]}, data_gaps)``.
+
+    ``lineup_status`` is ``"confirmed"`` once the teams announce and
+    ``"predicted"`` before that. Both are returned, and the status is passed on
+    rather than used to filter here: a prop off a predicted XI is a real read
+    with a weaker premise, and dropping it would mean no props at all until an
+    hour before kickoff -- which is after the lines worth betting have moved.
+    Which one it was is recorded on every row it produces.
+    """
+    gaps: list[str] = []
+    if not event_id:
+        return "", {}, ["bzzoiro: missing native event id for lineups"]
+    if run_budget is not None and not run_budget.try_consume("bzzoiro"):
+        return "", {}, ["bzzoiro: run budget exhausted before lineups"]
+    try:
+        client = get_client("bzzoiro", rate_limiter=rate_limiter)
+        result = client.get_lineups_result(event_id)
+    except Exception as exc:  # noqa: BLE001
+        return "", {}, [f"bzzoiro: lineup error for event {event_id}: {exc}"]
+
+    if result.status is not SourceResultStatus.SUCCESS or not result.value:
+        status_label = getattr(result.status, "value", str(result.status))
+        return "", {}, [f"bzzoiro: {status_label} lineups for event {event_id}"]
+
+    sides = result.value.get("sides") or {}
+    players = {
+        side: list((sides.get(side) or {}).get("players") or [])
+        for side in ("home", "away")
+    }
+    return str(result.value.get("lineup_status") or ""), players, gaps
+
+
+# ------------------------------------------------------------- bzzoiro-tennis
+
+# match_id -> ({canonical_total: value}, {"p1": {...}, "p2": {...}}, gap).
+# Same reason the football cache exists: a historical match shows up in one
+# player's form list, possibly the other's, and again in their H2H, and the
+# tennis quota is 95 calls a *day*, so paying for it three times is not an
+# inefficiency but a third of the budget.
+_BZZOIRO_TENNIS_CACHE: dict[
+    str, tuple[dict[str, float], dict[str, dict[str, float]], str | None]
+] = {}
+# match_id -> the listing payload from /matches/{id}/h2h/. One request serves
+# team_a, team_b and h2h, and those three run as separate tasks on the thread
+# pool, so without this they would each pay for it.
+_BZZOIRO_TENNIS_LISTING_CACHE: dict[str, dict | None] = {}
+# match_id -> the normalized header of a fetched box score, so a form-list row
+# (which names only the opponent) can be told which side its player was on.
+_BZZOIRO_TENNIS_HEADERS: dict[str, dict] = {}
+_BZZOIRO_TENNIS_LOCK = threading.Lock()
+
+
+def _bzzoiro_tennis_match_metrics(
+    client: Any, match_id: str
+) -> tuple[dict[str, float], dict[str, dict[str, float]], str | None]:
+    """One historical match's canonical metrics: (totals, per-side, gap).
+
+    Totals are both players summed, matching how STANDARD_MARKET_LINES phrases
+    "Total Aces". Per-side is that player's own line, which tennis has always
+    wanted -- ``first_serve_pct`` is a property of one server, not of a match --
+    and which tennis-abstract already supplies for the player it was asked about.
+
+    ``breaks_total`` is derived rather than read, and derived from *integers*
+    rather than from the percentages next to them. A break of serve is a service
+    game its server lost, so ``service_games - service_games_won`` per side, summed,
+    is the number of breaks in the match. The payload also carries
+    ``break_points_saved_pct`` / ``break_points_converted_pct``, but those are
+    floats like 57.14285714285714, and recovering "4 of 7" from one means guessing
+    a denominator -- a market priced off a reverse-engineered float is a fabricated
+    market, so the count comes from the two integers that mean exactly what they say.
+    """
+    with _BZZOIRO_TENNIS_LOCK:
+        cached = _BZZOIRO_TENNIS_CACHE.get(match_id)
+    if cached is not None:
+        return cached
+
+    result = client.get_match_result(match_id)
+    if result.status != SourceResultStatus.SUCCESS or not result.value:
+        gap = (
+            _BZZOIRO_NO_STATS
+            if result.error_code == "statistics_empty"
+            else f"bzzoiro-tennis: {getattr(result.status, 'value', result.status)}"
+            f" for match {match_id}"
+        )
+        with _BZZOIRO_TENNIS_LOCK:
+            _BZZOIRO_TENNIS_CACHE[match_id] = ({}, {}, gap)
+        return {}, {}, gap
+
+    sides_raw = result.value.get("sides") or {}
+    sets_raw = result.value.get("sets") or {}
+    header = result.value.get("match")
+
+    # A retired or abandoned match can carry a partial box score -- aces and
+    # service games up to the point somebody stopped -- which is a real number
+    # describing a match that was not played. It reads as an unusually short
+    # match and drags every UNDER line, so it is dropped here rather than
+    # sampled. This is the first place the status is knowable: the form lists
+    # these rows come from carry no status field.
+    status = str((header or {}).get("match_status") or "").lower()
+    if status and status not in BZZOIRO_TENNIS_FINISHED_STATUSES:
+        with _BZZOIRO_TENNIS_LOCK:
+            _BZZOIRO_TENNIS_CACHE[match_id] = ({}, {}, _BZZOIRO_NO_STATS)
+        return {}, {}, _BZZOIRO_NO_STATS
+
+    if isinstance(header, dict):
+        # Kept so a form-list row -- which names only the opponent -- can be told
+        # which side its player was on. The box score's own header is the only
+        # place that says so.
+        with _BZZOIRO_TENNIS_LOCK:
+            _BZZOIRO_TENNIS_HEADERS[match_id] = header
+
+    per_side: dict[str, dict[str, float]] = {}
+    for side in ("p1", "p2"):
+        stats = sides_raw.get(side) or {}
+        per_side[side] = {
+            canonical: float(stats[raw_name])
+            for raw_name, canonical in _BZZOIRO_TENNIS_PLAYER_ALIASES.items()
+            if stats.get(raw_name) is not None
+        }
+
+    totals: dict[str, float] = {}
+    for raw_name, canonical in _BZZOIRO_TENNIS_TOTAL_ALIASES.items():
+        one = (sides_raw.get("p1") or {}).get(raw_name)
+        two = (sides_raw.get("p2") or {}).get(raw_name)
+        # Both halves or neither: half a total is not a smaller total, it is the
+        # wrong number, and it is the number an UNDER line would bank on.
+        if one is None or two is None:
+            continue
+        totals[canonical] = float(one) + float(two)
+
+    p1_sets, p2_sets = sets_raw.get("p1"), sets_raw.get("p2")
+    if p1_sets is not None and p2_sets is not None:
+        totals["total_sets"] = float(p1_sets) + float(p2_sets)
+
+    breaks = 0.0
+    saw_service_games = False
+    for side in ("p1", "p2"):
+        stats = sides_raw.get(side) or {}
+        played, won = stats.get("service_games"), stats.get("service_games_won")
+        if played is None or won is None or won > played:
+            continue
+        saw_service_games = True
+        breaks += float(played) - float(won)
+    if saw_service_games:
+        totals["breaks_total"] = breaks
+
+    with _BZZOIRO_TENNIS_LOCK:
+        _BZZOIRO_TENNIS_CACHE[match_id] = (totals, per_side, None)
+    return totals, per_side, None
+
+
+def _bzzoiro_tennis_side_of(match_row: dict, player_id: str) -> str | None:
+    """Which of ``p1``/``p2`` a player was in a historical match.
+
+    A form-list row names only the *opponent*, so the player whose list it is
+    cannot be read off it directly -- the box score's own header is what says
+    which side they were.
+    """
+    one = (match_row.get("player_one") or {}).get("provider_player_id")
+    two = (match_row.get("player_two") or {}).get("provider_player_id")
+    if str(one or "") == str(player_id):
+        return "p1"
+    if str(two or "") == str(player_id):
+        return "p2"
+    return None
+
+
+def _bzzoiro_tennis_is_before(match_date: str, as_of_date: str) -> bool:
+    """Whether a form-list row predates the fixture being priced.
+
+    Required, not defensive. ``/matches/{id}/h2h/`` returns each player's last
+    five matches relative to **now**, not to the match: asked about fixture 44426
+    (2026-08-01) it answered with matches from 2026-08-15 and 2026-08-17. Pricing
+    a past date off that would put the result of the future in the evidence for
+    the past, and would do it invisibly -- the numbers all look ordinary.
+
+    A row with no date is kept: dropping it would discard a real observation over
+    a formatting problem, and a future run's own date filter is applied
+    server-side too.
+    """
+    day = (match_date or "")[:10]
+    if not day or not as_of_date:
+        return True
+    return day < as_of_date[:10]
+
+
+def fetch_bzzoiro_tennis_history(
+    match_id: str,
+    player_id: str,
+    rate_limiter: RateLimiter,
+    run_budget: RunBudget | None = None,
+    last_n: int = 5,
+    mode: str = "l10",
+    as_of_date: str = "",
+) -> FetchOutcome:
+    """Historical canonical metrics from Bzzoiro's tennis product.
+
+    ``mode="l10"`` reads one player's recent form; ``mode="h2h"`` reads the pair's
+    meetings. Both are served by the **same single request** --
+    ``/matches/{id}/h2h/`` returns ``player1_last5``, ``player2_last5`` and the
+    meeting list together -- so the three enrichment slots cost one listing call
+    between them rather than three. At 95 calls a day that is the difference
+    between six enriched fixtures and two.
+
+    ``match_id`` is this provider's id for the fixture being priced
+    (``EventRecord.source_ids["bzzoiro-tennis"]``); ``player_id`` selects whose
+    form to read in ``l10`` mode and is ignored for ``h2h``.
+
+    In ``l10`` mode both families are emitted: the match totals (``aces_total``,
+    ``double_faults_total``, ``total_games``, ``total_sets``, ``breaks_total``),
+    so this provider corroborates espn-tennis where it can, and this player's own
+    serve figures (``first_serve_pct`` and friends), which are the numbers tennis
+    has always been missing -- espn-tennis aliases neither aces nor serve at all.
+
+    In ``h2h`` mode only the totals are emitted: the slot carries no marker for
+    which of the two a per-player value belongs to, so attributing one would mix
+    the two players' samples where nobody could see it.
+    """
+    outcome = FetchOutcome()
+    if not match_id:
+        outcome.data_gaps.append("bzzoiro-tennis: missing native match id")
+        return outcome
+    if mode != "h2h" and not player_id:
+        outcome.data_gaps.append("bzzoiro-tennis: missing native player id for l10")
+        return outcome
+
+    try:
+        client = get_client("bzzoiro-tennis", rate_limiter=rate_limiter)
+        listing = _bzzoiro_tennis_listing(
+            client, str(match_id), run_budget, outcome.data_gaps
+        )
+    except Exception as exc:  # noqa: BLE001 - any provider failure is a data_gap
+        outcome.data_gaps.append(f"bzzoiro-tennis: {mode} error: {exc}")
+        return outcome
+
+    if listing is None:
+        return outcome
+
+    if mode == "h2h":
+        rows = listing.get("h2h") or []
+    else:
+        side = next(
+            (
+                key
+                for key in ("p1", "p2")
+                if str(((listing.get("players") or {}).get(key) or {}).get(
+                    "provider_player_id"
+                ) or "") == str(player_id)
+            ),
+            None,
+        )
+        if side is None:
+            outcome.data_gaps.append(
+                f"bzzoiro-tennis: player {player_id} is not in match {match_id}"
+            )
+            return outcome
+        rows = (listing.get("form") or {}).get(side) or []
+
+    rows = [
+        row
+        for row in rows
+        if row["provider_match_id"] != str(match_id)
+        and _bzzoiro_tennis_is_before(str(row.get("date") or ""), as_of_date)
+    ][:last_n]
+
+    if not rows:
+        outcome.data_gaps.append(
+            f"bzzoiro-tennis: no {mode} history before {as_of_date or 'the fixture'}"
+        )
+        return outcome
+
+    without_stats = 0
+    for row in rows:
+        historical_id = row["provider_match_id"]
+        if run_budget is not None and not run_budget.try_consume("bzzoiro-tennis"):
+            outcome.data_gaps.append("bzzoiro-tennis: run budget exhausted mid-history")
+            break
+        try:
+            totals, per_side, gap = _bzzoiro_tennis_match_metrics(client, historical_id)
+        except Exception as exc:  # noqa: BLE001
+            outcome.data_gaps.append(
+                f"bzzoiro-tennis: match {historical_id} stats error: {exc}"
+            )
+            continue
+        if gap == _BZZOIRO_NO_STATS:
+            # A walkover or retirement: the row exists, the box score does not.
+            without_stats += 1
+            continue
+        if gap:
+            outcome.data_gaps.append(gap)
+            continue
+
+        combined = dict(totals)
+        if mode != "h2h":
+            with _BZZOIRO_TENNIS_LOCK:
+                header = _BZZOIRO_TENNIS_HEADERS.get(historical_id)
+            historical_side = (
+                _bzzoiro_tennis_side_of(header, str(player_id)) if header else None
+            )
+            if historical_side is not None:
+                combined.update(per_side.get(historical_side) or {})
+
+        opponent = (row.get("opponent") or {}).get("player_name")
+        for name, value in _make_values(
+            "bzzoiro-tennis",
+            historical_id,
+            str(row.get("date") or ""),
+            opponent or "unknown",
+            combined,
+        ).items():
+            outcome.add(name, value)
+
+    if without_stats:
+        outcome.data_gaps.append(
+            f"bzzoiro-tennis: {without_stats} of {len(rows)} {mode} matches were "
+            f"walkovers or carry no box score"
+        )
+    return outcome
+
+
+
+def _bzzoiro_tennis_listing(
+    client: Any, match_id: str, run_budget: RunBudget | None, gaps: list[str]
+) -> dict | None:
+    with _BZZOIRO_TENNIS_LOCK:
+        if match_id in _BZZOIRO_TENNIS_LISTING_CACHE:
+            return _BZZOIRO_TENNIS_LISTING_CACHE[match_id]
+
+    if run_budget is not None and not run_budget.try_consume("bzzoiro-tennis"):
+        gaps.append("bzzoiro-tennis: run budget exhausted before listing")
+        return None
+
+    result = client.get_h2h_result(match_id)
+    if result.status not in (SourceResultStatus.SUCCESS, SourceResultStatus.VALID_EMPTY):
+        status_label = getattr(result.status, "value", str(result.status))
+        gaps.append(f"bzzoiro-tennis: {status_label} listing for match {match_id}")
+        with _BZZOIRO_TENNIS_LOCK:
+            _BZZOIRO_TENNIS_LISTING_CACHE[match_id] = None
+        return None
+
+    value = result.value or {}
+    with _BZZOIRO_TENNIS_LOCK:
+        _BZZOIRO_TENNIS_LISTING_CACHE[match_id] = value
+    return value
 
 
 # Shortest token pairing that can anchor a team match on its own. Three, not

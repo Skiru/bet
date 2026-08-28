@@ -140,15 +140,35 @@ _COHORT_WORDS = {"women", "womens", "u19", "u20", "u21", "u23", "youth",
                  "reserve", "reserves", "futsal", "friendly"}
 
 
-def test_every_shipped_entry_is_verified_and_self_consistent():
+def test_every_shipped_pin_is_verified_and_self_consistent():
+    """A *pin* must carry proof. A *seed* -- an entry with neither refs nor a
+    verification block -- is the file's own documented to-do state, written by
+    hand and filled in later by build_sportdb_competition_map.py against the
+    provider's data. The three UEFA club competitions ship as seeds because
+    SportDB answered HTTP 402 on 2026-08-28, and bzzoiro discovers those fixtures
+    by league id without needing a pin at all.
+
+    What must never exist is a half-written entry: refs without proof would be
+    read by the runtime as a pin.
+    """
     document = json.loads(MAP_PATH.read_text(encoding="utf-8"))
     entries = document["competitions"]
     assert entries, "the shipped map must not be empty"
 
+    verified = 0
     for key, entry in entries.items():
         assert _fold(key) == key, f"{key}: map keys must already be folded"
+        # Asserted knowledge is required of every entry, pin or seed: it is the
+        # input the verifier works from.
+        for field in ("display_name", "country", "kind", "flashscore_names"):
+            assert entry.get(field), f"{key}: seed is missing {field}"
+        assert len(entry.get("expect_teams") or []) >= 2, f"{key}: too few asserted clubs"
+
         verification = entry.get("verification")
-        assert verification, f"{key}: shipped without verification"
+        if verification is None:
+            assert "refs" not in entry, f"{key}: refs written without verification"
+            continue
+        verified += 1
         refs = entry["refs"]
         assert set(refs) == {"sport", "country_slug", "country_id",
                              "competition_slug", "competition_id"}, key
@@ -162,6 +182,21 @@ def test_every_shipped_entry_is_verified_and_self_consistent():
         # proof, not assertion: real clubs found in real season results
         assert len(verification["matched_teams"]) >= 2, key
         assert set(verification["matched_teams"]) <= set(entry["expect_teams"]), key
+
+    assert verified >= 28, "the leagues that already broke must stay pinned"
+
+
+def test_the_runtime_ignores_an_unverified_seed():
+    """The map's own contract: an entry with no verification is a to-do, not a
+    pin. If the runtime read one it would resolve a league off hand-asserted
+    names -- exactly the guess the pinned map exists to remove."""
+    document = json.loads(MAP_PATH.read_text(encoding="utf-8"))
+    seeds = {
+        key for key, entry in document["competitions"].items()
+        if entry.get("verification") is None
+    }
+    runtime = _pinned_competition_map()
+    assert not (seeds & set(runtime))
 
 
 def test_shipped_map_pins_the_leagues_that_actually_broke():

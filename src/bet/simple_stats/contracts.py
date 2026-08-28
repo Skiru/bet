@@ -15,6 +15,18 @@ Sport = Literal["football", "tennis"]
 PROVIDER_NAMES = Literal[
     "espn-football",
     "highlightly",
+    # sports.bzzoiro.com. The only provider that keeps the home/away split all
+    # the way to the dossier (hence the "_for" metrics) and the only one that
+    # serves per-player history, so both of those data paths exist because this
+    # name does. Adding it here is what makes ProviderValue(provider="bzzoiro")
+    # constructible at all: PROVIDER_NAMES is a Literal under pydantic strict
+    # mode, so an unlisted provider is a ValidationError, not a warning.
+    "bzzoiro",
+    # The same account as bzzoiro behind a different product
+    # (sports.bzzoiro.com/tennis/api/v2), with its own resource model and its own
+    # 100-a-day quota bucket, so it is its own provider and its own counter.
+    # The first tennis source with native player ids rather than name matching.
+    "bzzoiro-tennis",
     "sportdb",
     "api-football",
     "understat",
@@ -42,17 +54,49 @@ COUNT_METRICS = frozenset(
         "shots_total",
         "shots_on_target_total",
         "fouls_total",
+        # One team's own contribution to a match, rather than both sides summed.
+        # Same tolerance as a match total: these are counts of the same events.
+        "corners_for",
+        "cards_for",
+        "shots_for",
+        "shots_on_target_for",
+        "fouls_for",
+        # One player's line in a match.
+        "player_total_shots",
+        "player_shots_on_target",
+        "player_fouls",
+        "player_was_fouled",
+        # Yellows and reds summed: the prop settles on any card.
+        "player_cards",
         "aces_total",
         "double_faults_total",
         "total_games",
         "total_sets",
+        # Breaks of serve in a match: each side's lost service games, summed.
+        "breaks_total",
+        # One player's own line, where the match total is both players summed.
+        "aces_for",
+        "double_faults_for",
+        "games_won",
     }
 )
 
 # Canonical metric names that represent a percentage (0-100) statistic (used
 # by the cross_provider_agreement rule: a difference <= 5 points counts as
 # agreement for these metrics).
-PERCENTAGE_METRICS = frozenset({"possession", "first_serve_pct", "second_serve_pct"})
+PERCENTAGE_METRICS = frozenset(
+    {
+        "possession",
+        "first_serve_pct",
+        "second_serve_pct",
+        # Serve and break-point rates, all reported 0-100 by bzzoiro-tennis.
+        # Listed here so cross_provider_agreement compares them on the +/-5
+        # point tolerance a percentage needs rather than the +/-1 a count needs.
+        "first_serve_won_pct",
+        "break_points_saved_pct",
+        "break_points_converted_pct",
+    }
+)
 
 
 class EventRecord(StrictBaseModel):
@@ -110,12 +154,44 @@ class MetricObservation(StrictBaseModel):
     h2h: list[ProviderValue] = Field(default_factory=list)
 
 
+class PlayerMetricObservation(StrictBaseModel):
+    """One player's history of one metric, for a player prop.
+
+    Parallel to ``MetricObservation`` rather than folded into it, because the two
+    answer different questions and are sampled differently. A team metric has
+    three buckets that overlap (team A's last ten, team B's last ten, their H2H)
+    and must be deduplicated across them; a player has exactly one history, and
+    the thing that thins it is not duplication but bench time -- which is why
+    ``l10`` here holds only appearances with minutes on the pitch.
+    """
+
+    player_id: str
+    player_name: str
+    team_side: Literal["home", "away"]
+    canonical_name: str
+    l10: list[ProviderValue] = Field(default_factory=list)
+
+
 class EventDossierV1(StrictBaseModel):
     """ENRICH artifact for a single event."""
 
     event_id: str
     sport: Sport
     metrics: dict[str, MetricObservation] = Field(default_factory=dict)
+    # Carried here, not looked up later, because ANALYZE's only input is this
+    # file (scripts/simple/run_analyze.py takes --dossier and nothing else). A
+    # per-team row that cannot name its team is not a row anyone can bet, so the
+    # names have to travel with the observations that need them.
+    team_a_name: str | None = None
+    team_b_name: str | None = None
+    # Empty on a run without --player-props, and on any event whose lineup the
+    # provider would not give up.
+    player_metrics: list[PlayerMetricObservation] = Field(default_factory=list)
+    # "confirmed" | "predicted" | "" -- which XI the player props were built
+    # from. A prop off a predicted XI is a weaker claim than the same prop off a
+    # confirmed one, and the difference is invisible in the numbers themselves,
+    # so it is recorded rather than inferred.
+    lineup_status: str = ""
     readiness: Literal["READY", "PARTIAL", "BLOCKED"]
     data_gaps: list[str] = Field(default_factory=list)
 
@@ -175,6 +251,15 @@ class StatsSheetRow(StrictBaseModel):
     market: str
     line: float
     direction: Literal["OVER", "UNDER"]
+    # Set on a per-team row (market ending in "_for"), None on a match total.
+    # Without it a "corners_for OVER 4.5" row names no subject and two rows of
+    # the same event are indistinguishable.
+    team_name: str | None = None
+    # Set on a player-prop row. ``lineup_status`` says whether the XI this
+    # player was drawn from was confirmed or predicted.
+    player_id: str | None = None
+    player_name: str | None = None
+    lineup_status: str | None = None
     hits: int
     # Observations that actually settle: values exactly on the line are pushes,
     # which can never be a hit in either direction, so counting them here would

@@ -129,11 +129,31 @@ is also stamped into `analysis_raw_data.safety_input_json` and
 `analysis_results.stats_summary_json`.
 
 The output artifact is the readable deliverable:
-`${DATE}_event_dossiers_stats_sheet.json`, sorted `confidence` desc then
-`hit_rate` desc. Rows carry `hits/sample_size`, `mean`, `median`, `sources`,
-`cross_provider_agreement`, `confidence` and `data_quality`. There is no price,
-no EV and no `bettable` field — by design (plan §1). Pick a line by hand in
-Superbet Bet Builder.
+`${DATE}_event_dossiers_stats_sheet.json`, sorted by `p_low` desc. Rows carry
+`hits/sample_size`, `mean`, `median`, `sources`, `cross_provider_agreement`,
+`confidence` and `data_quality`. There is no price, no EV and no `bettable`
+field — by design (plan §1). Pick a line by hand in Superbet Bet Builder.
+
+It holds three families of row, told apart by the row's own fields rather than by
+a type tag:
+
+| Family | `team_name` | `player_id` | Markets |
+|---|---|---|---|
+| match total | null | null | `corners_total`, `cards_total`, `fouls_total`, `shots_on_target_total`, … |
+| per team | set | null | `corners_for`, `cards_for`, `fouls_for`, `shots_on_target_for`, `shots_for` |
+| player prop | set (his side) | set | `player_total_shots`, `player_shots_on_target`, `player_fouls`, `player_was_fouled`, `player_cards` |
+
+A per-team row is **one** team's own contribution, and the two sides of a fixture
+produce two rows of the same market and line that differ only in `team_name` and
+in their numbers. Their samples are never pooled: pooling would build one
+twenty-match sample out of two different teams. Neither family reads the H2H
+bucket, because an H2H observation carries no marker for which side it belongs
+to.
+
+Because the sort is by `p_low` across all three families, the low-line props
+(`player_cards` UNDER 0.5 and friends) land at the top: most players are not
+carded in most matches, which is also why that side is priced at 1.05 and is not
+a bet. Group by family before reading.
 
 ## Flags that matter
 
@@ -141,7 +161,9 @@ Superbet Bet Builder.
 |---|---|---|
 | `--preflight` (pipeline) | off | Check providers and stop. Zero calls. Run it first, every morning. |
 | `--max-events` (enrich) | 40 | A day is 150+ fixtures at several dozen provider calls each; no quota survives an uncapped run. Events beyond the cap appear in the artifact as `BLOCKED` with reason `not enriched: run capped at N events`. |
-| `--provider-call-budget` (enrich) | 100 | Per-provider ceiling **inside one run**, on top of the durable daily `RateLimiter`. |
+| `--provider-call-budget` (enrich) | 100 | Per-provider ceiling **inside one run**, on top of the durable daily `RateLimiter`. `bzzoiro` is exempted up to 20000 (`RUN_BUDGET_OVERRIDES` in `providers.py`): at 100 it would run dry after three or four events, and since PRO removed its daily ceiling this per-run number is the only bound left — set where it cannot cap a real day, purely to terminate a runaway loop. Passing a larger value raises it further. |
+| `--player-props` (enrich) | off | Collect per-player prop history: one call per outfield starter, ~20 extra per event. Needs a lineup, so it is only worth passing within a few hours of kickoff. Every prop row records whether the XI was `confirmed` or `predicted`. Not forwarded by `run_pipeline.py` — call `run_enrich.py` then `run_analyze.py` directly. |
+| `--backfill-from` (enrich) | off | Path to an earlier `EVENT_DOSSIER_V1` for the same date. Re-enriches only its `BLOCKED`/`PARTIAL` events, keeps that run's `run_id`, and merges back into the same file — replacing a dossier only when the retry reaches a better readiness, or the same readiness with more observations. Worth one pass per day now that bzzoiro has budget left for it. |
 | `--db-path` (all) | `betting/data/betting.db` | `bet.db.connection` refuses to guess an operational DB. Override, or set `BET_DB_PATH`. |
 | `--sports` (discover) | `football,tennis` | |
 | `--skip-preflight` (enrich) | off | Run even with every provider exhausted. Produces an all-gaps artifact — only useful for testing the downstream steps. |
@@ -164,6 +186,7 @@ quoting and `export` behave normally. See [.env.example](.env.example).
 
 ```bash
 HIGHLIGHTLY_API_KEY=...     # also accepts RAPIDAPI_KEY
+BZZORIO_KEY=...             # sports.bzzoiro.com — note the 'ri', see below
 SPORTDB_API_KEY=...         # also accepts SPORTDB_KEY
 API_FOOTBALL_KEY=...
 SERPAPI_KEY=...
@@ -171,12 +194,40 @@ ODDS_API_KEY=...
 # ESPN, tennis-abstract and sackmann need no credential.
 
 BET_LIMIT_HIGHLIGHTLY=100   # override the default compiled into rate_limiter.py
+BET_LIMIT_BZZOIRO=-1        # football: uncapped on PRO — see below
+BET_LIMIT_BZZOIRO_TENNIS=95 # tennis: same account, still 100/day
 BET_LIMIT_SPORTDB=300       #   -1 = no local cap,  0 = disable the provider
 ```
 
 The limits in `src/bet/api_clients/rate_limiter.py` are conservative guesses,
 not measurements — the real number is in the provider's dashboard. Set
 `BET_LIMIT_<PROVIDER>` once you know it rather than editing code.
+
+`bzzoiro` is the exception in the other direction: **it has no compiled default
+at all.** On the PRO plan the football product stops sending rate-limit headers
+entirely — verified live 2026-08-28 across `/leagues/`, `/events/`,
+`/events/{id}/stats/` and `/coverage/`, where the free plan had answered
+`ratelimit-policy: "football";q=7500;w=86400`. An absent entry is how this
+limiter spells "unlimited" (ESPN is the same), so preflight reports it as
+unlimited rather than inventing a ceiling. The only remaining bound is per-run:
+`RUN_BUDGET_OVERRIDES["bzzoiro"]` in `simple_stats/providers.py`, set where it
+cannot bind a real day (~600 fixtures) and exists purely to terminate a loop.
+Set `BET_LIMIT_BZZOIRO` in `.env` to reimpose a daily ceiling.
+
+Its credential is `BZZORIO_KEY` while its quota override is `BET_LIMIT_BZZOIRO` —
+the provider spells its key differently from its own domain, and both spellings
+are load-bearing.
+
+**`bzzoiro-tennis` is the same account, the same key, and still capped.** The
+tennis product answers `ratelimit-policy: "tennis";q=100;w=86400` — checked again
+*after* the PRO upgrade, which changed nothing there. Separate bucket
+server-side, so a tennis call costs nothing against football and vice versa. At
+~16 calls per fixture that is about six enriched tennis matches a day, which is
+why the tennis discovery adapter drops UTR and ITF outright rather than letting
+them compete for the budget. The two products are separate provider keys
+precisely so their counters stay separate: one key would have let football's
+uncapped traffic mask the tennis ceiling until a run hit HTTP 429 with the
+budget already spent.
 
 ## Provider quotas — check and reset
 
@@ -203,8 +254,17 @@ python3 scripts/simple/reset_provider_quota.py --all --yes
 This only forgets our own count — it changes nothing at the provider. To raise
 the ceiling instead, set `BET_LIMIT_<PROVIDER>` in `.env`.
 
-`highlightly` is the binding constraint (one `/statistics` call per historical
-match) and its counter rolls over daily. At `remaining=0` the provider answers
+`bzzoiro` is what removed the old binding constraint. On 2026-08-25, with
+highlightly's 100 calls a day, 175 of 181 events came back `BLOCKED`; the
+football product is uncapped on PRO, so a full slate is now affordable. It is also the only
+provider that serves the per-team and per-player markets at all, because it is
+the only one whose client keeps the home/away split (`/events/{id}/stats/`) and
+the only one with per-player history (`/players/{id}/stats/`, box scores inline,
+one call). Rows from those markets are therefore always `SINGLE_SOURCE`, which is
+a property of the roster and not a defect in the day.
+
+`highlightly` is the other daily-capped provider (one `/statistics` call per
+historical match) and its counter rolls over daily. At `remaining=0` the provider answers
 `HTTP 429` and every Highlightly observation becomes a `data_gap` — the run
 still completes, with fewer providers corroborating each metric. ENRICH's
 preflight reports the same numbers as `provider_quota` events before it starts.

@@ -159,11 +159,25 @@ SPORT_MARKETS: dict[str, list[dict]] = {
 STANDARD_MARKET_LINES: dict[str, list[dict]] = {
     "football": [
         {"market": "Corners Total", "lines": [8.5, 9.5, 10.5, 11.5], "stat": "corners", "is_combined": True},
-        {"market": "Team Corners", "lines": [3.5, 4.5, 5.5], "stat": "corners", "is_combined": False},
         {"market": "Cards Total", "lines": [3.5, 4.5, 5.5], "stat": "yellow_cards", "is_combined": True},
         {"market": "Fouls Total", "lines": [20.5, 22.5, 24.5], "stat": "fouls", "is_combined": True},
         {"market": "Shots on Target", "lines": [4.5, 5.5, 6.5, 7.5], "stat": "shots_on_target", "is_combined": True},
         {"market": "Goals Total", "lines": [1.5, 2.5, 3.5], "stat": "goals", "is_combined": True},
+        # Per-team totals. "Team Corners" was here alone and unreachable: no
+        # provider kept a home/away split past its own client, so ANALYZE
+        # skipped every is_combined=False market. Bzzoiro's
+        # /events/{id}/stats/ does keep it, which is what makes these four
+        # priceable -- and per-team is where the winning coupons actually sat.
+        #
+        # Lines are roughly half the corresponding match total, which is where
+        # a book puts them: a match priced at 9.5 corners is two teams at ~4.5
+        # each. The three-line spread per market is the same shape as the
+        # combined ones, so a lopsided fixture still has a line near its mean.
+        {"market": "Team Corners", "lines": [3.5, 4.5, 5.5], "stat": "corners", "is_combined": False},
+        {"market": "Team Fouls", "lines": [8.5, 10.5, 12.5], "stat": "fouls", "is_combined": False},
+        {"market": "Team Cards", "lines": [1.5, 2.5, 3.5], "stat": "yellow_cards", "is_combined": False},
+        {"market": "Team Shots on Target", "lines": [2.5, 3.5, 4.5, 5.5], "stat": "shots_on_target", "is_combined": False},
+        {"market": "Team Shots", "lines": [9.5, 11.5, 13.5], "stat": "shots", "is_combined": False},
     ],
     "basketball": [
         {"market": "Total Points", "lines": [195.5, 205.5, 215.5, 225.5], "stat": "points", "is_combined": True},
@@ -179,6 +193,22 @@ STANDARD_MARKET_LINES: dict[str, list[dict]] = {
         {"market": "Total Games", "lines": [19.5, 21.5, 22.5, 23.5], "stat": "total_games", "is_combined": True},
         {"market": "Total Aces", "lines": [8.5, 10.5, 12.5], "stat": "aces", "is_combined": True},
         {"market": "Total Sets", "lines": [2.5], "stat": "sets_won", "is_combined": True},
+        # double_faults_total and the break markets were canonical names with no
+        # line, so ANALYZE emitted no row for them however good the data was.
+        # They get lines now because bzzoiro-tennis is the first provider that
+        # actually reports them: espn-tennis aliases only games and sets, and
+        # tennis-abstract covers a fraction of the tour.
+        {"market": "Total Double Faults", "lines": [3.5, 5.5, 7.5], "stat": "double_faults", "is_combined": True},
+        # Breaks of serve, not break *points*: the payload gives break-point
+        # rates as floats (57.14285714285714) and recovering "4 of 7" from one
+        # means guessing a denominator. Service games lost are integers that mean
+        # what they say, so that is what this market is priced on.
+        {"market": "Total Breaks of Serve", "lines": [3.5, 4.5, 5.5, 6.5], "stat": "breaks", "is_combined": True},
+        # Per player, from the same box score. Two rows per fixture, one each
+        # side, distinguished by StatsSheetRow.team_name.
+        {"market": "Player Aces", "lines": [3.5, 4.5, 5.5, 6.5], "stat": "aces", "is_combined": False},
+        {"market": "Player Double Faults", "lines": [1.5, 2.5, 3.5], "stat": "double_faults", "is_combined": False},
+        {"market": "Player Games Won", "lines": [8.5, 10.5, 12.5], "stat": "games_won", "is_combined": False},
     ],
     "volleyball": [
         {"market": "Total Sets", "lines": [3.5, 4.5], "stat": "sets_won", "is_combined": True},
@@ -399,6 +429,34 @@ def attach_historical_results(candidates: list, historical_data) -> None:
                 c.historical_hit_rate = history.get(key)
         except Exception:
             pass
+
+# ---------------------------------------------------------------------------
+# Player prop lines
+# ---------------------------------------------------------------------------
+
+# Kept out of STANDARD_MARKET_LINES rather than folded in behind an
+# ``is_player`` flag. Four other modules iterate that dict
+# (scripts/generate_market_matrix.py, scripts/build_shortlist.py,
+# scripts/normalize_stats.py, is_standard_line below) and every one of them
+# assumes a row describes a *fixture*. Adding a differently-shaped row there
+# would silently produce "Player Shots" candidates with no player attached in
+# each of them; the flag they would all need to check is the flag none of them
+# has today.
+#
+# Lines sit low because that is where these markets are actually offered: a
+# forward's shots prop is priced around 1.5-2.5, a midfielder's fouls around
+# 0.5-1.5, and a card prop is a 0.5 line by construction.
+PLAYER_PROP_LINES: dict[str, list[dict]] = {
+    "football": [
+        {"market": "Player Shots", "lines": [0.5, 1.5, 2.5], "stat": "player_total_shots"},
+        {"market": "Player Shots on Target", "lines": [0.5, 1.5], "stat": "player_shots_on_target"},
+        {"market": "Player Fouls Committed", "lines": [0.5, 1.5, 2.5], "stat": "player_fouls"},
+        {"market": "Player Fouls Won", "lines": [0.5, 1.5, 2.5], "stat": "player_was_fouled"},
+        # player_cards, not player_yellow_cards: the market settles on any card.
+        {"market": "Player to be Carded", "lines": [0.5], "stat": "player_cards"},
+    ],
+}
+
 
 # ---------------------------------------------------------------------------
 # Standard line detection helper (ERROR 8 fix — 2026-05-19)

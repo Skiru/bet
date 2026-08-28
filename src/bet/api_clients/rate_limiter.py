@@ -43,6 +43,25 @@ API_DAILY_LIMITS = {
     # backstop -- calibrate after the first pilot day (PIPELINE_SIMPLIFICATION_PLAN
     # section 11, Faza C).
     "highlightly": 100,
+    # "bzzoiro" is deliberately absent, which this limiter reads as unlimited
+    # (the same treatment ESPN gets): on the PRO plan the football product stops
+    # sending rate-limit headers altogether -- verified live 2026-08-28 across
+    # /leagues/, /events/, /events/{id}/stats/ and /coverage/, where the free
+    # plan had answered `ratelimit-policy: "football";q=7500;w=86400`. A local
+    # 7000 backstop was measured against a ceiling that no longer exists, and
+    # kept only as an artificial brake: at ~30 calls an event it capped a run at
+    # roughly 230 fixtures for no reason the provider was asking for.
+    #
+    # The remaining guard against a runaway loop is per-run, not per-day:
+    # RUN_BUDGET_OVERRIDES["bzzoiro"] in simple_stats/providers.py. Set
+    # BET_LIMIT_BZZOIRO in .env to reimpose a daily ceiling.
+    #
+    # The tennis product is a different story and a different bucket: it still
+    # answers `ratelimit-policy: "tennis";q=100;w=86400` on the same account and
+    # the same key (verified live 2026-08-28, after the PRO upgrade). 95 a day is
+    # roughly six fully enriched fixtures, and it must not inherit football's
+    # absence of a limit. Override with BET_LIMIT_BZZOIRO_TENNIS.
+    "bzzoiro-tennis": 95,
     # SportDB MCP publishes no rate limit; this is a self-imposed ceiling so a
     # large slate cannot issue unbounded match-stats calls.
     "sportdb": 300,

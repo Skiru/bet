@@ -6,13 +6,11 @@ from typing import Any
 
 import requests
 
-from bet.integration.evidence import (
-    namespaced_source_refs,
-    write_source_operation_bundle,
-)
+from bet.integration.evidence import namespaced_source_refs
 from bet.integration.source_result import SourceOperationResult, SourceResultStatus
 
 from .base_client import BaseAPIClient
+from .evidence_request import EvidenceRequestMixin
 from .env import get_env
 from .rate_limiter import RateLimiter
 
@@ -56,7 +54,7 @@ STAT_NAME_MAP = {
 MISSING_TARGET_METRICS: list[str] = []
 
 
-class HighlightlyClient(BaseAPIClient):
+class HighlightlyClient(EvidenceRequestMixin, BaseAPIClient):
     """Highlightly client limited to the proven eng.1 completed-season scope."""
 
     def __init__(self, rate_limiter: RateLimiter):
@@ -161,174 +159,6 @@ class HighlightlyClient(BaseAPIClient):
             return []
         payload = result.value or {}
         return list(payload.get("matches") or [])[:last_n]
-
-    def _check_api_key(self) -> bool:
-        return bool(self.api_key)
-
-    def _request_with_evidence(
-        self,
-        *,
-        endpoint: str,
-        params: dict[str, Any] | None,
-        operation: str,
-        source_event_id: str | None = None,
-    ) -> SourceOperationResult[Any]:
-        from bet.integration.evidence import persist_response_evidence
-        from bet.integration.telemetry_wrapper import wrap_request
-
-        if not self._check_api_key():
-            return SourceOperationResult(
-                status=SourceResultStatus.AUTHENTICATION_ERROR,
-                provider=self.api_name,
-                operation=operation,
-                error_code="missing_api_key",
-            )
-
-        if not self.rate_limiter.can_request(self.api_name, 1):
-            return SourceOperationResult(
-                status=SourceResultStatus.RATE_LIMITED,
-                provider=self.api_name,
-                operation=operation,
-                error_code="quota_exhausted",
-                retryable=True,
-            )
-
-        url = f"{self.base_url}{endpoint}"
-        result = wrap_request(
-            provider=self.api_name,
-            request_fn=requests.get,
-            url=url,
-            params=params,
-            headers=self._build_headers(),
-            timeout=self.TIMEOUT,
-            scope_id=endpoint,
-        )
-        self.rate_limiter.record_request(self.api_name, endpoint, 1)
-        quota_metadata = self._extract_quota_metadata(result.headers)
-
-        evidence_refs = []
-        if result.status_code is not None:
-            try:
-                evidence_ref = persist_response_evidence(
-                    operation=operation,
-                    url=url,
-                    params=params,
-                    response=result,
-                    source_event_id=source_event_id,
-                )
-                evidence_refs.append(evidence_ref)
-            except Exception:
-                return SourceOperationResult(
-                    status=SourceResultStatus.EVIDENCE_ERROR,
-                    provider=self.api_name,
-                    operation=operation,
-                    http_status=result.status_code,
-                    error_code="evidence_persist_failed",
-                    quota_metadata=quota_metadata,
-                )
-
-        if result.error and result.status_code is None:
-            return SourceOperationResult(
-                status=SourceResultStatus.TRANSPORT_ERROR,
-                provider=self.api_name,
-                operation=operation,
-                error_code=result.error.type or "transport_error",
-                retryable=bool(result.error.retryable),
-                evidence_refs=tuple(evidence_refs),
-                retry_count=result.retry_count,
-                quota_metadata=quota_metadata,
-            )
-
-        status_code = result.status_code or 0
-        if status_code == 401:
-            return SourceOperationResult(
-                status=SourceResultStatus.AUTHENTICATION_ERROR,
-                provider=self.api_name,
-                operation=operation,
-                http_status=401,
-                error_code="http_401",
-                evidence_refs=tuple(evidence_refs),
-                quota_metadata=quota_metadata,
-            )
-        if status_code == 403:
-            return SourceOperationResult(
-                status=SourceResultStatus.BLOCKED,
-                provider=self.api_name,
-                operation=operation,
-                http_status=403,
-                error_code="http_403",
-                evidence_refs=tuple(evidence_refs),
-                quota_metadata=quota_metadata,
-            )
-        if status_code == 404:
-            return SourceOperationResult(
-                status=SourceResultStatus.NOT_FOUND,
-                provider=self.api_name,
-                operation=operation,
-                http_status=404,
-                error_code="http_404",
-                evidence_refs=tuple(evidence_refs),
-                quota_metadata=quota_metadata,
-            )
-        if status_code == 429:
-            return SourceOperationResult(
-                status=SourceResultStatus.RATE_LIMITED,
-                provider=self.api_name,
-                operation=operation,
-                http_status=429,
-                error_code="http_429",
-                retryable=True,
-                evidence_refs=tuple(evidence_refs),
-                quota_metadata=quota_metadata,
-            )
-        if status_code >= 400:
-            return SourceOperationResult(
-                status=SourceResultStatus.UPSTREAM_ERROR,
-                provider=self.api_name,
-                operation=operation,
-                http_status=status_code,
-                error_code=f"http_{status_code}",
-                evidence_refs=tuple(evidence_refs),
-                quota_metadata=quota_metadata,
-            )
-
-        try:
-            payload = json.loads(result.body.decode("utf-8"))
-        except (UnicodeDecodeError, json.JSONDecodeError):
-            return SourceOperationResult(
-                status=SourceResultStatus.PARSE_ERROR,
-                provider=self.api_name,
-                operation=operation,
-                http_status=status_code,
-                error_code="json_decode_error",
-                evidence_refs=tuple(evidence_refs),
-                quota_metadata=quota_metadata,
-            )
-
-        if isinstance(payload, dict):
-            provider_error = self._classify_provider_payload_error(payload)
-            if provider_error is not None:
-                return SourceOperationResult(
-                    status=provider_error["status"],
-                    provider=self.api_name,
-                    operation=operation,
-                    http_status=status_code,
-                    error_code=provider_error["error_code"],
-                    evidence_refs=tuple(evidence_refs),
-                    quota_metadata=quota_metadata,
-                )
-
-        return SourceOperationResult(
-            status=SourceResultStatus.SUCCESS,
-            value=payload,
-            provider=self.api_name,
-            operation=operation,
-            request_identity=evidence_refs[0].request_identity if evidence_refs else "",
-            evidence_refs=tuple(evidence_refs),
-            http_status=status_code,
-            retry_count=result.retry_count,
-            quota_metadata=quota_metadata,
-        )
 
     def discover_league_result(
         self,
@@ -683,71 +513,6 @@ class HighlightlyClient(BaseAPIClient):
                 "missing_target_metrics": list(MISSING_TARGET_METRICS),
                 "unknown_metrics": unknown_metrics,
             },
-        )
-
-    def _bundle_result(
-        self,
-        *,
-        result: SourceOperationResult[Any],
-        parser_version: str,
-        operation_name: str,
-        source_event_refs: list[str],
-        value: dict[str, Any],
-        parser_diagnostics: dict[str, Any],
-        forced_status: SourceResultStatus | None = None,
-    ) -> SourceOperationResult[dict[str, Any]]:
-        bundle_id = ""
-        if result.evidence_refs:
-            try:
-                bundle_id, _ = write_source_operation_bundle(
-                    registered_source_key=self.api_name,
-                    operation_name=operation_name,
-                    request_identity=result.request_identity,
-                    parser_version=parser_version,
-                    source_event_refs=source_event_refs,
-                    evidence_refs=list(result.evidence_refs),
-                )
-            except Exception:
-                return SourceOperationResult(
-                    status=SourceResultStatus.EVIDENCE_ERROR,
-                    provider=self.api_name,
-                    operation=operation_name,
-                    request_identity=result.request_identity,
-                    evidence_refs=result.evidence_refs,
-                    http_status=result.http_status,
-                    error_code="bundle_manifest_failed",
-                    quota_metadata=result.quota_metadata,
-                )
-
-        return SourceOperationResult(
-            status=forced_status or SourceResultStatus.SUCCESS,
-            value=value,
-            provider=self.api_name,
-            operation=operation_name,
-            request_identity=result.request_identity,
-            evidence_refs=result.evidence_refs,
-            bundle_id=bundle_id,
-            http_status=result.http_status,
-            quota_metadata=result.quota_metadata,
-            parser_diagnostics=parser_diagnostics,
-            parser_version=parser_version,
-            normalization_version=parser_version,
-        )
-
-    def _schema_error(
-        self,
-        result: SourceOperationResult[Any],
-        error_code: str,
-    ) -> SourceOperationResult[Any]:
-        return SourceOperationResult(
-            status=SourceResultStatus.SCHEMA_ERROR,
-            provider=self.api_name,
-            operation=result.operation,
-            request_identity=result.request_identity,
-            evidence_refs=result.evidence_refs,
-            http_status=result.http_status,
-            error_code=error_code,
-            quota_metadata=result.quota_metadata,
         )
 
     def _normalize_match_row(

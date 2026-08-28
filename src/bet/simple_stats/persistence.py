@@ -84,6 +84,15 @@ def _stats_row_to_dict(row: StatsSheetRow) -> dict:
         "market": row.market,
         "line": row.line,
         "direction": row.direction,
+        # Whitelisted for the same reason p_low below is: the analyst is told to
+        # cross-check the DB for other run_ids of the same day, and a "corners_for
+        # OVER 4.5" row that arrives there without a team -- or a prop without a
+        # player -- names no bet at all. Omitted when absent, so a match-total row
+        # is unchanged rather than gaining three nulls.
+        **({"team_name": row.team_name} if row.team_name else {}),
+        **({"player_id": row.player_id} if row.player_id else {}),
+        **({"player_name": row.player_name} if row.player_name else {}),
+        **({"lineup_status": row.lineup_status} if row.lineup_status else {}),
         "hits": row.hits,
         "sample_size": row.sample_size,
         "pushes": row.pushes,
