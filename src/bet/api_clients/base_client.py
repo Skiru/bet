@@ -27,6 +27,12 @@ PROJECT_ROOT = Path(__file__).parent.parent.parent.parent
 CONFIG_DIR = PROJECT_ROOT / "config"
 CACHE_DIR = PROJECT_ROOT / "betting" / "data" / "stats_cache"
 
+# A 429 whose Retry-After is further away than this is treated as "spent for
+# this run" rather than "wait and try again". Ten minutes is comfortably longer
+# than any transient burst limit and far shorter than a daily window, so a
+# short-fuse throttle still retries while a rolling 86400s bucket does not.
+_EXHAUSTION_HORIZON_SECONDS = 600
+
 
 def _record_source_health(source_name: str, success: bool) -> None:
     """Record API source health to DB (best-effort, non-blocking)."""
@@ -326,6 +332,18 @@ class APISportsClient(BaseAPIClient):
             )
             self.rate_limiter.record_request(self.api_name, endpoint, cost)
             quota_metadata = self._extract_quota_metadata(result.headers)
+            # The provider just stated how much of its quota is left. Believe it
+            # over our own tally: the tally counts what *this* process spent,
+            # while the quota belongs to the key, and any second user of that
+            # key is invisible here. Providers that send nothing (bzzoiro's
+            # football product on PRO) reconcile to nothing and are unaffected.
+            self.rate_limiter.reconcile_from_provider(self.api_name, quota_metadata)
+            if quota_metadata.get("daily_remaining") == 0:
+                self.rate_limiter.note_provider_exhausted(
+                    self.api_name,
+                    f"ratelimit header reports 0 of "
+                    f"{quota_metadata.get('daily_limit')} remaining",
+                )
 
             if result.status_code is not None:
                 try:
@@ -420,6 +438,19 @@ class APISportsClient(BaseAPIClient):
                             retry_after = float(val)
                         except (TypeError, ValueError):
                             pass
+                # A 429 that will not clear inside this run is exhaustion, not
+                # back-pressure, and the difference decides whether the rest of
+                # the slate is worth attempting. Bzzoiro's tennis window is
+                # 86400s, so its Retry-After is measured in hours: retrying
+                # into that spends the remaining events discovering the same
+                # wall one call at a time and leaves exactly the lopsided
+                # artifact preflight is meant to prevent.
+                if retry_after is None or retry_after > _EXHAUSTION_HORIZON_SECONDS:
+                    self.rate_limiter.note_provider_exhausted(
+                        self.api_name,
+                        f"HTTP 429"
+                        + (f", retry after {retry_after:.0f}s" if retry_after else ""),
+                    )
                 return SourceOperationResult(
                     SourceResultStatus.RATE_LIMITED,
                     http_status=429,

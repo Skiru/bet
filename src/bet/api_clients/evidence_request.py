@@ -28,6 +28,19 @@ import requests
 from bet.integration.evidence import write_source_operation_bundle
 from bet.integration.source_result import SourceOperationResult, SourceResultStatus
 
+from .base_client import _EXHAUSTION_HORIZON_SECONDS
+
+
+def _retry_after_seconds(headers: dict | None) -> float | None:
+    """``Retry-After`` in seconds, or None when the provider did not say."""
+    if not headers:
+        return None
+    raw = headers.get("Retry-After") or headers.get("retry-after")
+    try:
+        return float(raw)
+    except (TypeError, ValueError):
+        return None
+
 
 class EvidenceRequestMixin:
     """``_request_with_evidence`` plus the two result-shaping helpers.
@@ -96,6 +109,20 @@ class EvidenceRequestMixin:
         )
         self.rate_limiter.record_request(self.api_name, endpoint, 1)
         quota_metadata = self._extract_quota_metadata(result.headers)
+        # The provider just stated how much of its quota is left; believe that
+        # over our own tally. record_request above counts what *this* process
+        # spent, but the quota belongs to the key, and a second user of the key
+        # -- another run, another machine, the MCP server -- is invisible to it.
+        # Bzzoiro's tennis product is the case that matters: 100 a day at ~16
+        # calls an event, where being a few events out of step is the difference
+        # between a clean run and a lopsided one.
+        self.rate_limiter.reconcile_from_provider(self.api_name, quota_metadata)
+        if quota_metadata.get("daily_remaining") == 0:
+            self.rate_limiter.note_provider_exhausted(
+                self.api_name,
+                f"ratelimit header reports 0 of "
+                f"{quota_metadata.get('daily_limit')} remaining",
+            )
 
         evidence_refs = []
         if result.status_code is not None:
@@ -162,6 +189,19 @@ class EvidenceRequestMixin:
                 quota_metadata=quota_metadata,
             )
         if status_code == 429:
+            retry_after = _retry_after_seconds(result.headers)
+            # Back-pressure clears inside a run; a daily window does not.
+            # Bzzoiro's tennis bucket is 86400s wide, so retrying into it burns
+            # the rest of the slate rediscovering the same wall one call at a
+            # time -- and leaves exactly the half-enriched artifact preflight
+            # exists to prevent. A missing Retry-After is treated the same way:
+            # a provider that will not say when is not promising it is soon.
+            if retry_after is None or retry_after > _EXHAUSTION_HORIZON_SECONDS:
+                self.rate_limiter.note_provider_exhausted(
+                    self.api_name,
+                    "HTTP 429"
+                    + (f", retry after {retry_after:.0f}s" if retry_after else ""),
+                )
             return SourceOperationResult(
                 status=SourceResultStatus.RATE_LIMITED,
                 provider=self.api_name,
@@ -169,6 +209,7 @@ class EvidenceRequestMixin:
                 http_status=429,
                 error_code="http_429",
                 retryable=True,
+                retry_after_seconds=retry_after,
                 evidence_refs=tuple(evidence_refs),
                 quota_metadata=quota_metadata,
             )

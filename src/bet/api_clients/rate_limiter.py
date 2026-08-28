@@ -7,14 +7,27 @@ Copied from scripts/api_clients/rate_limiter.py — paths adapted for src/bet/ l
 """
 
 import json
+import logging
 import os
 import re
 import tempfile
 import threading
+from collections.abc import Mapping
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any
 
 from bet.api_clients.env import get_limit_override, limit_env_var
+
+logger = logging.getLogger(__name__)
+
+# Providers that have told us, in this process, that their quota is spent.
+# Process-wide rather than per-instance because a RateLimiter is constructed
+# freely (get_client makes one per call when none is passed) while the quota it
+# describes belongs to the *key*, which every one of those instances shares. A
+# per-instance flag would be forgotten by the very next request.
+_PROVIDER_EXHAUSTED: dict[str, str] = {}
+_EXHAUSTED_LOCK = threading.Lock()
 
 # Daily request limits per API (legacy — kept for backward compatibility)
 API_DAILY_LIMITS = {
@@ -159,6 +172,27 @@ class RateLimiter:
                 self._locks[api_name] = threading.Lock()
             return self._locks[api_name]
 
+    def note_provider_exhausted(self, api_name: str, reason: str = "") -> None:
+        """Record that the provider refused us for quota, for the rest of the run."""
+        _validate_api_name(api_name)
+        with _EXHAUSTED_LOCK:
+            if api_name in _PROVIDER_EXHAUSTED:
+                return
+            _PROVIDER_EXHAUSTED[api_name] = reason or "provider reported no quota left"
+        logger.warning(
+            "[%s] provider reports its quota is spent (%s); it will not be "
+            "called again this run",
+            api_name, _PROVIDER_EXHAUSTED[api_name],
+        )
+
+    def clear_provider_exhausted(self, api_name: str | None = None) -> None:
+        """Forget the in-process exhaustion flags (key rotation, tests)."""
+        with _EXHAUSTED_LOCK:
+            if api_name is None:
+                _PROVIDER_EXHAUSTED.clear()
+            else:
+                _PROVIDER_EXHAUSTED.pop(api_name, None)
+
     def _usage_file(self, api_name: str, date: str | None = None,
                     window_type: str = "daily") -> Path:
         """Get path to usage file for an API on a given window."""
@@ -231,6 +265,11 @@ class RateLimiter:
         Checks both window-aware limit (if defined) AND legacy daily limit.
         """
         _validate_api_name(api_name)
+        # The provider's own "you are out" outranks every local calculation,
+        # including "this provider has no configured limit". An unlimited
+        # provider that just answered r=0 is not unlimited today.
+        if self.provider_says_exhausted(api_name):
+            return False
         limit, window_type = self._effective_limit(api_name)
         if limit is None:
             return True
@@ -332,6 +371,87 @@ class RateLimiter:
                     "timestamp": datetime.now(timezone.utc).isoformat(),
                 })
                 self._write_usage(api_name, daily_usage, "daily")
+
+    def reconcile_from_provider(
+        self, api_name: str, quota_metadata: Mapping[str, Any] | None
+    ) -> int | None:
+        """Correct our counter from what the provider says it has left.
+
+        Everything above counts *our* requests against a limit *we* configured,
+        which is a proxy for the only number that matters -- what the provider
+        will still serve this key. The two drift, and they drift in the
+        direction that hurts:
+
+          * the key is used from more than one place (a second run, another
+            machine, a manual probe, the MCP server), so the provider has spent
+            budget this counter never saw;
+          * the counter was reset after a key rotation that did not happen, or
+            the usage file was cleared;
+          * our configured limit is simply wrong, because it was written down
+            rather than measured.
+
+        Bzzoiro states the truth on every response --
+        ``ratelimit: "tennis";r=81;t=41561`` against
+        ``ratelimit-policy: "tennis";q=100;w=86400`` -- and until now the
+        pipeline parsed it, reported it to preflight, and then went on deciding
+        from its own count anyway. On the tennis product that is a 100-a-day
+        bucket at roughly sixteen calls an event: being six events out of step
+        is the difference between a clean run and one that 429s halfway through
+        and leaves the artifact lopsided, which is precisely the outcome
+        preflight exists to prevent.
+
+        The correction is deliberately one-way -- it can only ever *raise* our
+        count. Lowering it would let a shared key's spending disappear from the
+        record, and the provider's window is a rolling 86400s from its own
+        first request while ours is a calendar day, so a lower ``r`` than
+        expected is information and a higher one is usually just the two
+        windows disagreeing about when the day started.
+
+        Returns the count now recorded, or None when the provider said nothing
+        (the football product stops sending these headers on the PRO plan,
+        which is an answer, not a gap).
+        """
+        if not quota_metadata:
+            return None
+        _validate_api_name(api_name)
+        limit = quota_metadata.get("daily_limit")
+        remaining = quota_metadata.get("daily_remaining")
+        if not isinstance(limit, int) or not isinstance(remaining, int):
+            return None
+        if limit <= 0 or remaining < 0:
+            return None
+
+        observed_used = max(0, limit - remaining)
+        _, window_type = self._effective_limit(api_name)
+        with self._get_lock(api_name):
+            bucket = _window_str(window_type)
+            usage = self._read_usage(api_name, bucket, window_type)
+            if usage.get("count", 0) >= observed_used:
+                return usage.get("count", 0)
+            usage["count"] = observed_used
+            usage["date"] = bucket
+            usage["api_name"] = api_name
+            # Kept so an operator reading the usage file can tell a corrected
+            # count from a counted one, and see who corrected it.
+            usage["provider_reported"] = {
+                "limit": limit,
+                "remaining": remaining,
+                "observed_at": datetime.now(timezone.utc).isoformat(),
+            }
+            self._write_usage(api_name, usage, window_type)
+            return observed_used
+
+    def provider_says_exhausted(self, api_name: str) -> bool:
+        """Has this provider itself told us, this process, that it is out?
+
+        Separate from the counter because it must survive a counter that
+        disagrees: when the provider says ``r=0`` there is no argument to be
+        had, and every remaining request for this key is going to be a 429. The
+        run should stop asking rather than spend the rest of the slate
+        discovering it one call at a time.
+        """
+        with _EXHAUSTED_LOCK:
+            return api_name in _PROVIDER_EXHAUSTED
 
     def get_remaining(self, api_name: str) -> int:
         """Get remaining requests for this API in the current window.
