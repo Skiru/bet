@@ -19,7 +19,8 @@ api-football                0     100  quota_exhausted
 highlightly                 0     100  quota_exhausted
 sportdb                   210     300  usable
 tennis-abstract           inf     inf  usable
-sackmann                  inf     inf  upstream_unavailable
+espn-tennis             10000   10000  usable
+bzzoiro-tennis             89      95  usable
 
   football   two-provider coverage: 7 events
   tennis     two-provider coverage: 400 events
@@ -76,8 +77,27 @@ HIGHLIGHTLY_API_KEY=...
 Nie trzeba restartować niczego; `.env` jest przeładowywany po zmianie pliku.
 
 ### `upstream_unavailable`
-`sackmann` (repo GitHub zwraca 404) i `understat` (pakiet się nie buduje).
-**Nie naprawisz tego dziś rano.** Ignoruj — to znany, stały stan.
+`understat` (pakiet się nie buduje). **Nie naprawisz tego dziś rano.** Ignoruj
+— to znany, stały stan.
+
+`sackmann` zniknął z listy 2026-08-28: repozytoria `JeffSackmann/tennis_atp`
+i `tennis_wta` zwracają 404 (nie same CSV — całe repozytoria), więc provider
+nie jest już w ogóle deklarowany dla tenisa. Jeśli zobaczysz go w preflight,
+ktoś dopisał go z powrotem — to błąd, nie stan przejściowy.
+
+### Tenis: co znaczą linie o „Benoit Paire"
+`tennis-abstract` trzyma ATP i WTA na **różnych trasach**, a trasa ATP odpowiada
+kodem 200 cudzą stroną, gdy pytasz o zawodniczkę. Taka para linii jest
+normalna i znaczy, że zabezpieczenie działa:
+
+```
+[tennis-abstract] player-classic served 'Benoit Paire' for 'Iga Swiatek' -- refusing the page
+[tennis-abstract] 125 matches for 'Iga Swiatek' via jsmatches (page names 'Iga Swiatek')
+```
+
+Pierwsza linia to odrzucenie trasy ATP, druga to trasa WTA. Odrzucenie **bez**
+kolejnej udanej linii znaczy, że serwis nie ma strony, którą potrafi
+udowodnić — zawodnik jest wtedy nierozpoznany i to jest poprawny wynik.
 
 ---
 

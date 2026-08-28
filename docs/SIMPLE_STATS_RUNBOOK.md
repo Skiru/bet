@@ -103,7 +103,8 @@ ENRICH checks provider quotas **before** the first network call:
   - `missing_credentials` — names the `.env` variable to set;
   - `quota_exhausted` — clears daily; the message names both
     `BET_LIMIT_<PROVIDER>` and the `reset_provider_quota.py` command;
-  - `upstream_unavailable` — will not clear on its own (sackmann, understat).
+  - `upstream_unavailable` — will not clear on its own (understat; and
+    `sackmann`, which is no longer asserted for tennis at all — see below).
 - **Quota too thin for the planned event count** → warning naming the provider,
   plus `recommended_max_events` in `metrics`.
 
@@ -270,7 +271,7 @@ SPORTDB_API_KEY=...         # also accepts SPORTDB_KEY
 API_FOOTBALL_KEY=...
 SERPAPI_KEY=...
 ODDS_API_KEY=...
-# ESPN, tennis-abstract and sackmann need no credential.
+# ESPN and tennis-abstract need no credential.
 
 BET_LIMIT_HIGHLIGHTLY=100   # override the default compiled into rate_limiter.py
 BET_LIMIT_BZZOIRO=-1        # football: uncapped on PRO — see below
@@ -401,18 +402,45 @@ preflight reports the same numbers as `provider_quota` events before it starts.
   placed, so it is kept whole and could still overstate a sample. Zero such
   observations in either measured run. Misreading the head-to-head day can err
   either way. `sample_size` is a floor on evidence, not a guarantee.
-- A provider that stamps one constant date on a whole history would collapse to
-  a single observation. That fails safe (the row drops to `LOW`) and is visible
-  in `sample_size`, but it is worth recognising rather than debugging blind.
 - `mean`/`median` are reported alongside, never instead of, the hit rate.
 
-## Known limitations (2026-08-25)
+## Known limitations (2026-08-25, tennis section revised 2026-08-28)
 
 - **Tennis tops out at `PARTIAL`.** `READY` needs 2+ providers on 3 priority
-  metrics; only `tennis-abstract` supplies them (`sackmann`'s GitHub repo is
-  404, `espn-tennis` covers only `total_games`/`total_sets`).
-- **`sackmann` and `understat` always produce a `data_gap`** — dead upstream
-  and unbuildable dependency respectively. Expected, not a failure.
+  metrics; only `tennis-abstract` supplies all three (`espn-tennis` covers only
+  `total_games`/`total_sets`). This is a data limit, not a code one.
+- **`understat` always produces a `data_gap`** — unbuildable dependency.
+  Expected, not a failure.
+- **`sackmann` is gone and is no longer asserted.** Removed from
+  `PROVIDERS_BY_SPORT["tennis"]` on 2026-08-28: `JeffSackmann/tennis_atp` and
+  `tennis_wta` both return 404 from the GitHub API — the *repositories*, not
+  merely the CSVs, while the account is alive and still publishes
+  `tennis_MatchChartingProject`. It stays in `KNOWN_DEAD_PROVIDERS` so preflight
+  keeps naming it rather than letting it vanish from the record.
+
+### Tennis identity: what to expect in the log
+
+`tennis-abstract` serves ATP and WTA from **different routes**, and the ATP
+route answers 200 for a WTA player with somebody else's page. Two lines in a
+tennis run are therefore normal and mean the guard is working:
+
+```
+[tennis-abstract] player-classic served 'Benoit Paire' for 'Iga Swiatek' --
+    refusing the page rather than filing another player's matches under his name
+[tennis-abstract] 125 matches for 'Iga Swiatek' via jsmatches (page names 'Iga Swiatek')
+```
+
+The first is the ATP route being rejected; the second is the WTA route
+answering. A refusal with **no** following success means the site has no page it
+can prove is that player's, and the player is reported unresolved — which is
+the correct outcome, not a regression.
+
+Re-prove the whole tennis roster whenever it looks wrong, and on a routine:
+
+```bash
+.venv/bin/python scripts/simple/verify_tennis_providers.py
+.venv/bin/python scripts/simple/verify_tennis_providers.py --from-events runs/<date>/<date>_event_list.json
+```
 - **ESPN only resolves teams in leagues** that `COMPETITION_TO_ESPN_LEAGUE`
   maps. Unmapped competitions produce `could not resolve team identity`.
 - **SportDB rejects a competition it cannot confidently match.** That yields

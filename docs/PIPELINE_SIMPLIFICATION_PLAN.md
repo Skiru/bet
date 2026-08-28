@@ -283,8 +283,9 @@ Ta sekcja jest **dopisana po implementacji**, na podstawie realnych wywołań ka
 |---|---|---|
 | §4.3 „The Odds API — **bez zmian w kliencie**" | Miesięczny limit konta wyczerpany (500/500). `/odds` odpowiada `401 OUT_OF_USAGE_CREDITS`, więc DISCOVER zwracał **zero eventów**. Endpoint `/events` jest darmowy (0 kredytów) i zwraca dokładnie pola potrzebne do `EVENT_LIST_V1`. | `OddsAPIEventsAdapter` czyta `/events`. Skoro pipeline i tak ignoruje kursy (§4.4), płacenie kredytu za payload bukmacherski było czystą stratą. |
 | §4.3 Highlightly discovery „per liga (league_id/season)" | Endpoint `/matches` przyjmuje zwykły filtr `date` i stronicuje przez `offset` — 167 meczów na 2026-08-25. Ręczna lista lig była niepotrzebna i gubiłaby „mecze spoza głównych lig", czyli jedyny powód istnienia tego źródła. | `HighlightlyDiscoveryAdapter` odpytuje `/matches?date=`. DISCOVER daje **182 eventy, 24 scalone z dwóch niezależnych źródeł** (`identity_confidence=CONFIRMED`) — kryterium gotowości #1 spełnione produkcyjnie. |
-| §4.2 sackmann „**Włączyć** — baza historyczna do hit rate" | Repozytorium `github.com/JeffSackmann/tennis_atp` zwraca **404** — zniknęło. Klient zawsze dostaje pustą listę. | Zostawiony w `PROVIDERS_BY_SPORT`; degraduje się do czystego `data_gap`. Traktować jak `api-tennis` z §4.2: martwy upstream, nie do odblokowania po naszej stronie. |
+| §4.2 sackmann „**Włączyć** — baza historyczna do hit rate" | Nie tylko CSV — **całe repozytoria** `JeffSackmann/tennis_atp` i `tennis_wta` zwracają 404 z API GitHuba (2026-08-28), przy żywym koncie publikującym `tennis_MatchChartingProject`. Dane zniknęły lub zostały wycofane. | **Usunięty z `PROVIDERS_BY_SPORT` 2026-08-28.** Zostawienie go tam kosztowało wywołanie na każdy mecz i produkowało `data_gap` udający provider — dokładnie ten sam błąd co 18 martwych kodów lig ESPN. Pozostaje w `KNOWN_DEAD_PROVIDERS`, żeby preflight nadal go nazywał. |
 | §4.1 understat „**Włączyć** jako sygnał pomocniczy" | Pakiet `understat` nie instaluje się w tym środowisku (`aiohttp` nie buduje wheela). | Zostawiony; degraduje się do `data_gap`. To sygnał pomocniczy (tylko xG), więc nie blokuje żadnego kryterium. |
+| §4.2 tennis-abstract „**Włączyć jako pierwsze źródło** — canonical source" | Serwis odpowiada **200 z cudzą stroną**, gdy nie ma zawodnika na pytanej trasie: `player-classic.cgi` dla *każdej* zawodniczki WTA zwraca stronę Benoit Paire'a, co do bajtu. Klient parsował ją i zapisywał jego statystyki pod jej nazwiskiem. W cache tego repo: **72 zawodniczki dzieliły jedną identyczną tabelę 1073 meczów**. | Tożsamość strony sprawdzana przez jej własne `var fullname`, nie przez podobieństwo nazw; trasa WTA (`/jsmatches/`) dodana; `scripts/simple/verify_tennis_providers.py` udowadnia to na żywo. Szczegóły w §13.3. |
 | §2 „ENRICH woła Highlightly/SportDB dla bieżącego meczu" | Bieżący mecz jeszcze się **nie odbył** — nie ma z niego statystyk. Wartość tych providerów leży w **historii** (L10 + H2H). | Highlightly: `/last-five-games` + `/head-2-head` → `/statistics/{id}` per mecz historyczny. SportDB: wyniki sezonu ligi → `flashscore_get_match_stats` per mecz. |
 
 ### 13.2 Błędy implementacji wykryte tylko na żywych danych
@@ -302,6 +303,38 @@ Każdy z poniższych przechodził testy jednostkowe i **jednocześnie** nie dzia
 9. **Nieświeże mecze wchodziły do próbki.** api-football zwracał mecze z **2024** dla fixture'u z 2026; mieszanie dwuletniej formy z bieżącą daje hit rate, który nie opisuje żadnej z nich. Naprawa: okno 500 dni.
 10. **Brak `fixture_sources`.** §8 wskazuje `fixtures` **+** `fixture_sources`, ale zapisywano tylko `fixtures` — czyli gubiono lineage stojący za `identity_confidence`.
 11. **§4.1 „Uwaga do naprawienia": red cards.** Wykonane — `"Red cards"` jest teraz w `STAT_NAME_MAP`, a `MISSING_TARGET_METRICS` jest puste.
+
+### 13.3 Fabrykacja: klasa błędu, której plan nie przewidywał (2026-08-28)
+
+§13.2 zbiera błędy, które **nic nie zwracały**. Ta sekcja dotyczy czegoś
+gorszego: kodu, który zwracał **wiarygodne liczby należące do kogoś innego**.
+Żaden z poniższych nie rzucał wyjątku, nie dawał 404 i nie produkował pustego
+artefaktu — wszystkie trzy dawały wynik wyglądający na zmierzony.
+
+1. **tennis-abstract podstawiał innego zawodnika.** `player-classic.cgi?p=<WTA>`
+   zwraca 200 i identyczne 605 251 bajtów strony Benoit Paire'a dla Sabalenki,
+   Świątek, Gauff, Kostyuk i Shnaider — z prawdziwym `var matchmx`. Naprawa:
+   każda strona jest weryfikowana własnym `var fullname` (porównanie, nie
+   scoring — rozmyte dopasowanie jest tym, co pozwoliło temu przetrwać), a
+   trasa WTA to `/jsmatches/<Name>.js`. Pułapka: ta sama trasa istnieje dla ATP,
+   ale trzyma porzucone dane z 2018 (`JannikSinner.js`: ostatni mecz
+   2018-11-19), więc kolejność tras jest ATP-first plus kontrola świeżości.
+2. **espn-tennis zapisywał zawodnika jako jego własnego przeciwnika.** Wiersze
+   ESPN nie niosły identyfikatorów uczestników, więc konsument porównywał
+   liczbowe `athlete_id` z nazwą wyświetlaną, nigdy nie trafiał i wpadał w
+   `else`, które zakładało stronę wyjazdową. Połowa każdego L10. Naprawa: ESPN
+   emituje identyfikatory (były w payloadzie, ignorowane), a wiersz, który nie
+   potrafi wskazać strony, jest **odrzucany zamiast zgadywany**.
+3. **Skan ESPN próbkował co 3–4 dzień**, a turnieje tenisowe to bloki dni
+   **następujących po sobie** — czołowi zawodnicy wracali z zerem, choć ESPN
+   miał ich mecze (Sinner 0→7, Lehecka 0→10). Naprawa: skan ciągły, z
+   `scoreboard` memoizowanym per (sport, liga, data), więc jest tańszy niż
+   próbkowany.
+
+Wniosek do dalszych integracji: **status 200 nie jest dowodem tożsamości.**
+Provider musi podać własną nazwę encji, którą zwraca, a my musimy ją porównać.
+Regresje: `tests/simple_stats/test_tennis_providers.py`. Weryfikacja na żywo:
+`scripts/simple/verify_tennis_providers.py`.
 
 ### 13.3 Limity providerów — stan faktyczny
 

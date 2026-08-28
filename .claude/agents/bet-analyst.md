@@ -80,6 +80,15 @@ and sets — no aces, no double faults, no serve figures at all — and no nativ
 player identification anywhere, so most tennis rows were empty or single-source
 on a two-metric vocabulary.
 
+**Do not compare a tennis row against tennis numbers from before 2026-08-28.**
+`tennis-abstract` was serving another player's page for every WTA request —
+Benoit Paire's, the same 1073-row table under 72 different women's names in this
+repo's own cache — and `espn-tennis` was recording players as their own
+opponents. Nothing from that period reached the database (checked: zero
+`analysis_raw_data` rows are sourced from `tennis-abstract`), but any tennis
+figure quoted from an older artifact, run report or note is unsafe. Say so
+rather than reconciling today's number against it.
+
 **Match totals** — both players summed. `team_name` null.
 
 | Market | Lines |

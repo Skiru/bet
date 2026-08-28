@@ -68,6 +68,26 @@ python3 scripts/simple/run_pipeline.py --start-at enrich --date 2026-08-25   # r
 python3 scripts/simple/reset_provider_quota.py --status                      # quota
 ```
 
+### Keeping provider claims checkable
+
+Three tables in this repo are claims about providers we do not control, and each
+ships a script that re-derives its evidence and fails loudly on drift. None runs
+as part of a betting day; all are free.
+
+```fish
+python3 scripts/simple/verify_espn_competition_map.py    # ESPN league codes still live
+python3 scripts/simple/verify_tennis_providers.py        # tennis providers serve the right player
+python3 scripts/simple/purge_unproven_cache.py           # dry run; --apply to clear pre-fix cache
+```
+
+`verify_tennis_providers.py` exists because of a failure the others cannot have:
+tennisabstract answers **HTTP 200 with somebody else's page** when it has no
+player on the route asked — `player-classic.cgi` returned Benoit Paire's table,
+byte for byte, for every WTA player. The status is fine, the table is real, and
+the numbers are somebody's, so the only thing that catches it is comparing the
+page's own `var fullname` against the player we asked for. Details:
+`docs/PIPELINE_SIMPLIFICATION_PLAN.md` §13.3.
+
 ## The S0–S10 pipeline lives in `legacy/`
 
 It is reference material, not an execution path. It stopped being runnable before

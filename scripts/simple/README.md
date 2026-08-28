@@ -16,6 +16,7 @@ python3 scripts/simple/run_pipeline.py -v            # run it
 | `run_tipsters.py` | Optional step — public tipster picks per event (`--skip-tipsters` to omit) |
 | `run_analyze.py` | Step 3 alone — hit rates and the stats sheet |
 | `reset_provider_quota.py` | Clear a local usage counter after rotating a key |
+| `purge_unproven_cache.py` | Delete cached provider data written before the checks that would have caught it. Dry run by default. |
 
 The step scripts stay runnable on their own because re-running one against a
 saved artifact is how you debug a bad day. For a normal run, use
@@ -33,18 +34,34 @@ Operator procedure: [docs/MORNING.md](../../docs/MORNING.md).
 Reference: [docs/SIMPLE_STATS_RUNBOOK.md](../../docs/SIMPLE_STATS_RUNBOOK.md).
 Library code: `src/bet/simple_stats/`. Tests: `tests/simple_stats/`.
 
-## Keeping the league maps honest
+## Keeping the provider claims honest
 
-Two of the pipeline's tables are claims about providers we do not control, so
+Three of the pipeline's tables are claims about providers we do not control, so
 each one ships with a script that re-derives its evidence and fails loudly when
-the evidence stops agreeing. Neither runs as part of a betting day; both are
-cheap and should be re-run whenever a league resolves to nothing it should
-resolve to, and on a routine every month or so.
+the evidence stops agreeing. None runs as part of a betting day; all are cheap
+and should be re-run whenever something resolves to nothing it should resolve
+to, and on a routine every month or so.
 
 | Script | Proves |
 |---|---|
 | `build_sportdb_competition_map.py` | Every seeded competition in `config/sportdb_competition_map.json` still exists on Flashscore under the asserted name, with the asserted clubs in its real season results. |
 | `verify_espn_competition_map.py` | Every ESPN league code the competition table pins still answers `/teams` with a non-empty directory, and ESPN's own name for it contradicts none of the names pinned to it. Writes `config/espn_competition_map_verification.json`, which the test suite treats as an allowlist. |
+| `verify_tennis_providers.py` | Every provider in `PROVIDERS_BY_SPORT["tennis"]` resolves a rostered player, returns his matches, and names him as the player in every row it returns — judged against the provider's *own* name field. Writes `config/tennis_provider_verification.json`, also an allowlist. |
+
+The tennis script exists because of a failure the other two cannot have:
+tennisabstract answers **200 with somebody else's page** when it has no player
+on the route asked. `player-classic.cgi` returns Benoit Paire's table, byte for
+byte, for every WTA player. Nothing about that response is an error — the
+status is fine, the table is real, and the numbers are somebody's — so the only
+thing that catches it is comparing the page's own `var fullname` against the
+player we asked for. Run it per tour, per player, or against tonight's actual
+slate:
+
+```bash
+.venv/bin/python scripts/simple/verify_tennis_providers.py
+.venv/bin/python scripts/simple/verify_tennis_providers.py --tour wta
+.venv/bin/python scripts/simple/verify_tennis_providers.py --from-events runs/<date>/<date>_event_list.json
+```
 
 ```bash
 .venv/bin/python scripts/simple/verify_espn_competition_map.py            # probe what is new

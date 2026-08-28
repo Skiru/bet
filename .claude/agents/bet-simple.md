@@ -179,8 +179,14 @@ helps:
   a fraction of the real fixture list, and that the missing events are absent
   from DISCOVER rather than capped out of ENRICH. Do not report the shrunken
   count as the day's coverage without that sentence.
-- `upstream_unavailable` -- `sackmann` (404) and `understat` (build failure).
-  Known, permanent. Report and continue.
+- `upstream_unavailable` -- `understat` (build failure). Known, permanent.
+  Report and continue.
+
+  **`sackmann` should not appear at all.** It was removed from
+  `PROVIDERS_BY_SPORT["tennis"]` on 2026-08-28: both source repositories
+  (`JeffSackmann/tennis_atp`, `tennis_wta`) return 404 from the GitHub API, so
+  it could not have served a row since they went. If preflight lists it, someone
+  re-added it -- report that as a repo problem, not as today's provider outage.
 
 `bzzoiro` is the provider whose absence hurts most: it is the only source of
 per-team totals and player props, and (uncapped on PRO) the only one able to
@@ -191,6 +197,33 @@ enrich a whole slate. If it appears in `blocked`, say so first and name the
 football, a real ceiling of 100 calls a day -- roughly six enriched fixtures. A
 thin tennis slate is usually that ceiling rather than a coverage failure, so
 report the tennis quota alongside the count instead of calling it a gap.
+
+### Tennis log lines that look like failures and are not
+
+`tennis-abstract` serves ATP and WTA from **different routes**, and the ATP
+route answers HTTP 200 for a WTA player with somebody else's page -- Benoit
+Paire's, byte for byte, for every woman on the tour. The client now checks each
+page against its own `var fullname`, so a tennis run normally logs pairs like:
+
+```
+[tennis-abstract] player-classic served 'Benoit Paire' for 'Iga Swiatek' -- refusing the page
+[tennis-abstract] 125 matches for 'Iga Swiatek' via jsmatches (page names 'Iga Swiatek')
+```
+
+That is the guard working, and it belongs in the report as a *count* at most,
+never as an incident. Two genuine outcomes to distinguish:
+
+- a refusal with **no** following success -- the site has no page it can prove
+  is that player's, so the player is unresolved. Correct behaviour, and the
+  reason a tennis event can be enriched on one side only.
+- `refusing to guess an opponent` from `espn-tennis` -- a history row that
+  cannot say which side the player was on. Also correct: the alternative was
+  recording the player as his own opponent, which is what it used to do.
+
+Neither is a provider outage and neither should be reported as quota. If tennis
+coverage looks wrong, the check is
+`.venv/bin/python scripts/simple/verify_tennis_providers.py --from-events <event_list.json>`,
+which proves per player and per provider whose matches came back.
 
 ## Confirm the run landed in the DB
 

@@ -45,8 +45,33 @@ Quote the advice line, then act on it:
 | `GO, but nothing will be corroborated` | Run, and say up front every row will be `SINGLE_SOURCE` |
 | `NO-GO: no usable provider` | **STOP.** Report each blocked provider's `kind`. Write no file |
 
-`understat` and `sackmann` are permanently dead upstreams. Never report them as
-today's problem.
+### The local counter can be wrong — check it before believing a low `--max-events`
+
+Preflight reads a **local** usage counter, not the provider's dashboard, and the
+two drift. Measured 2026-08-28: the counter said `highlightly 72/100 used, 28
+left` while highlightly's own dashboard showed **30% used**, and it said
+`api-football 0 left` when that account was in fact `SUSPENDED` with **0
+requests used** — failed calls had been counted as usage.
+
+This matters because highlightly is the dominant discovery source, so a
+pessimistic counter hands you a smaller `--max-events` and a smaller day for no
+reason.
+
+```bash
+python3 scripts/simple/reset_provider_quota.py --status          # spends nothing
+python3 scripts/simple/reset_provider_quota.py --provider highlightly --yes
+```
+
+Reset only what you can see is wrong, and say in the run report that you did.
+Resetting a counter whose provider really *is* part-used risks 429s late in
+ENRICH — those land as data gaps, not a crash, but they cost coverage. A
+`SUSPENDED` provider is unusable whatever the counter says: report it as
+`kind=suspended`, not as quota.
+
+`understat` is a permanently dead upstream. Never report it as today's problem.
+`sackmann` was removed from the tennis roster on 2026-08-28 (both source
+repositories 404) and should not appear at all; if it does, that is a repo
+regression, not a provider outage.
 
 **If `highlightly` shows `quota_exhausted`, say so before quoting any coverage
 number.** It is the dominant *discovery* source, so exhausting it shrinks the
@@ -54,6 +79,29 @@ slate itself rather than just the corroboration: measured 2026-08-28, the same
 date gave 348 events with it available and 80 without — a 77% smaller day. Those
 fixtures are missing from DISCOVER, not capped out of ENRICH, so they appear
 nowhere in `by_readiness` and look like they were never scheduled.
+
+### If the slate has tennis on it
+
+Tennis providers are the ones that fail *quietly*, so they get one extra check
+before the run — free, no quota, ~30 seconds:
+
+```bash
+.venv/bin/python scripts/simple/verify_tennis_providers.py
+```
+
+Exit 0 means each asserted provider resolved a real player on both tours and
+named him correctly in every row it returned. Exit 1 is drift: a provider
+stopped resolving, went stale, or started serving somebody else's matches.
+**`MISIDENTIFIED` is the one verdict that must stop a tennis run** — it means
+numbers belonging to another player would land on the sheet looking measured.
+Report it and run football only.
+
+If a previous run's cache may predate the 2026-08-28 tennis fixes, clear it
+once — it is a dry run unless you pass `--apply`:
+
+```bash
+.venv/bin/python scripts/simple/purge_unproven_cache.py
+```
 
 ## Step 2 — Run the pipeline
 
