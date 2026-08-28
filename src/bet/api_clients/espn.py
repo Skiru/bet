@@ -120,7 +120,11 @@ ESPN_LEAGUES = {
 
 # Competition name → ESPN league code (for football enrichment)
 COMPETITION_TO_ESPN_LEAGUE = {
-    "premier league": "eng.1",
+    # "epl" is how the odds-api feed names England's top flight, and without it
+    # the best-corroborated league in the sheet resolved to None: measured
+    # 2026-08-28, Crystal Palace - Manchester City came back SINGLE_SOURCE with
+    # "no ESPN league code for competition 'EPL'". Same shape as "npfl" below.
+    "premier league": "eng.1", "epl": "eng.1",
     "championship": "eng.2",
     "la liga": "esp.1", "laliga": "esp.1",
     "bundesliga": "ger.1",
@@ -2367,9 +2371,18 @@ def get_espn_league_for_competition(competition_name: str) -> str | None:
     if name_lower in COMPETITION_TO_ESPN_LEAGUE:
         return COMPETITION_TO_ESPN_LEAGUE[name_lower]
 
-    # 2 & 3. Substring match
+    # 2 & 3. Substring match. Short keys are abbreviations ("epl", "ucl",
+    # "mls") and match on a word boundary instead, because a bare substring
+    # test on three letters stops asserting and starts guessing: "epl" is
+    # inside "nepal premier league" and "kepler cup", and longest-match would
+    # hand both to eng.1. A word test still resolves "euro 2028" and "mls cup",
+    # which an exact-only rule would drop.
     matches = []
     for key, code in COMPETITION_TO_ESPN_LEAGUE.items():
+        if len(key) < 5:
+            if re.search(rf"\b{re.escape(key)}\b", name_lower):
+                matches.append((key, code))
+            continue
         if key in name_lower or name_lower in key:
             matches.append((key, code))
 
