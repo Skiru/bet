@@ -44,7 +44,7 @@ from bet.integration.evidence import namespaced_source_refs
 from bet.integration.source_result import SourceOperationResult, SourceResultStatus
 
 from .base_client import BaseAPIClient
-from .bzzoiro import _scalar, extract_quota_metadata
+from .bzzoiro import _next_day, _scalar, extract_quota_metadata
 from .env import get_env
 from .evidence_request import EvidenceRequestMixin
 from .rate_limiter import RateLimiter
@@ -52,6 +52,7 @@ from .rate_limiter import RateLimiter
 MATCHES_PARSER_VERSION = "bzzoiro-tennis-matches-v1"
 MATCH_PARSER_VERSION = "bzzoiro-tennis-match-v1"
 H2H_PARSER_VERSION = "bzzoiro-tennis-h2h-v1"
+PREDICTIONS_PARSER_VERSION = "bzzoiro-tennis-predictions-v1"
 
 # Per-player box-score fields, without the ``p1_``/``p2_`` prefix the payload
 # carries. Deliberately partial: the payload has ~20 fields a side (points in a
@@ -361,6 +362,114 @@ class BzzoiroTennisClient(EvidenceRequestMixin, BaseAPIClient):
                 "h2h": len(h2h),
             },
         )
+
+    # ------------------------------------------------------------ predictions
+
+    def get_predictions_list_result(
+        self, *, date: str, limit: int = MAX_PAGE_SIZE, offset: int = 0
+    ) -> SourceOperationResult[dict[str, Any]]:
+        """The model's forecasts for one day's tennis, keyed by native match id.
+
+        **The first market signal tennis has ever had in this pipeline**, and it
+        lands on lines the sheet actually prices: ``prob_over_21_5_games`` and
+        ``prob_over_22_5_games`` are two of the four ``total_games`` lines, and
+        ``prob_over_2_5_sets`` is the whole ``total_sets`` market. Nothing is
+        interpolated -- ``total_games`` 19.5 and 23.5 get no signal, because a
+        probability about 21.5 is evidence about a different bet.
+
+        Cost is what makes it usable at all: **one call for the entire day**
+        against a 100-a-day bucket that ENRICH has usually already drawn down to
+        single figures. A per-match endpoint exists and is deliberately not used
+        here.
+
+        Same window trap as the football list: ``date_to`` is compared against a
+        datetime, so it means midnight starting that day, and the correct window
+        for day D is ``[D, D+1]``. Computed here; callers pass a betting day.
+        """
+        result = self._request_with_evidence(
+            endpoint="/predictions/",
+            params={
+                "date_from": date,
+                "date_to": _next_day(date),
+                "limit": min(int(limit), MAX_PAGE_SIZE),
+                "offset": max(int(offset), 0),
+            },
+            operation="model_prediction_listing",
+        )
+        if result.status is not SourceResultStatus.SUCCESS:
+            return result
+        payload = result.value
+        if not isinstance(payload, dict):
+            return self._schema_error(result, "payload_not_object")
+        rows = payload.get("results")
+        if not isinstance(rows, list):
+            return self._schema_error(result, "results_not_list")
+
+        predictions: dict[str, dict[str, Any]] = {}
+        with_games = 0
+        off_day = 0
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            match = row.get("match")
+            match = match if isinstance(match, dict) else {}
+            match_id = str(match.get("id") or "").strip()
+            if not match_id:
+                continue
+            if not str(match.get("match_date") or "").startswith(date):
+                off_day += 1
+                continue
+            # Keyed to ``ModelPrediction``'s own field names, not the wire's, so
+            # the caller can construct that contract directly. It is a strict
+            # model: an unmapped key here is a ValidationError mid-run, which is
+            # why ``predicted_winner``, ``confidence`` and the first-set
+            # probability are deliberately dropped -- no row prices them.
+            parsed = {
+                "prob_player_one_wins": _percent(row.get("prob_player1_wins")),
+                "prob_player_two_wins": _percent(row.get("prob_player2_wins")),
+                "expected_total_games": _scalar(row.get("expected_total_games")),
+                "expected_total_sets": _scalar(row.get("expected_total_sets")),
+                "prob_games_over_205": _percent(row.get("prob_over_20_5_games")),
+                "prob_games_over_215": _percent(row.get("prob_over_21_5_games")),
+                "prob_games_over_225": _percent(row.get("prob_over_22_5_games")),
+                "prob_sets_over_25": _percent(row.get("prob_over_2_5_sets")),
+                "model_version": PREDICTIONS_PARSER_VERSION,
+            }
+            predictions[match_id] = parsed
+            if (
+                parsed["prob_games_over_215"] is not None
+                or parsed["prob_games_over_225"] is not None
+            ):
+                with_games += 1
+
+        return self._bundle_result(
+            result=result,
+            parser_version=PREDICTIONS_PARSER_VERSION,
+            operation_name="model_prediction_listing",
+            source_event_refs=namespaced_source_refs(self.api_name, sorted(predictions)),
+            value={
+                "predictions": predictions,
+                "total_count": payload.get("count") or 0,
+                "returned_count": len(predictions),
+            },
+            parser_diagnostics={
+                "raw_count": len(rows),
+                "accepted_count": len(predictions),
+                "with_games_lines": with_games,
+                "off_day_dropped": off_day,
+            },
+            forced_status=None if predictions else SourceResultStatus.VALID_EMPTY,
+        )
+
+
+def _percent(raw: Any) -> float | None:
+    """A 0-100 model probability as a 0-1 fraction. None in, None out.
+
+    Same convention as the football client: the model publishes nulls where it
+    lacks history, and defaulting one to 0.5 would read as a genuine coin flip.
+    """
+    value = _scalar(raw)
+    return None if value is None else value / 100.0
 
 
 def _normalize_player(raw: Any) -> dict[str, Any] | None:

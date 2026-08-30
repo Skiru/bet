@@ -23,7 +23,10 @@ from bet.simple_stats.contracts import (
     EventRecord,
     MetricObservation,
     PlayerMetricObservation,
+    RefereeProfile,
     Sport,
+    SquadAvailability,
+    TeamSeasonForm,
 )
 from bet.simple_stats.providers import (
     NATIVE_ID_PROVIDERS_BY_SPORT,
@@ -31,9 +34,12 @@ from bet.simple_stats.providers import (
     FetchOutcome,
     RunBudget,
     fetch_bzzoiro_history,
+    fetch_bzzoiro_league_table,
     fetch_bzzoiro_lineup,
     fetch_bzzoiro_match_context,
     fetch_bzzoiro_player_history,
+    fetch_bzzoiro_referee,
+    fetch_bzzoiro_squad_availability,
     fetch_bzzoiro_tennis_history,
     fetch_highlightly_history,
     fetch_provider_h2h_metrics,
@@ -248,6 +254,7 @@ def _dossier_for_event(
     buckets: dict[str, FetchOutcome],
     now: datetime | None = None,
     props: "_PlayerProps | None" = None,
+    extras: "_FixtureExtras | None" = None,
 ) -> EventDossierV1:
     data_gaps: list[str] = []
     # Deprioritizing started events only helps when a cap is in force. Under a
@@ -282,6 +289,9 @@ def _dossier_for_event(
     )
     if readiness == "BLOCKED":
         data_gaps.append("no provider returned any data for this event")
+    if extras is not None:
+        data_gaps.extend(f"fixture_context: {g}" for g in extras.data_gaps)
+
     return EventDossierV1(
         event_id=event.event_id,
         sport=event.sport,
@@ -292,8 +302,101 @@ def _dossier_for_event(
         lineup_status=props.lineup_status if props is not None else "",
         readiness=readiness,
         data_gaps=data_gaps,
+        # Carried straight from EVENT_LIST at no request cost, so it is attached
+        # even when every provider failed: knowing a BLOCKED fixture is a derby
+        # on neutral ground is still worth more than knowing nothing about it.
+        fixture_context=event.fixture_context,
+        referee=extras.referee if extras is not None else None,
+        squad_availability=list(extras.squad_availability) if extras is not None else [],
     )
 
+
+@dataclass
+class _FixtureExtras:
+    """One event's circumstances: who referees it and who cannot play.
+
+    Kept apart from ``_PlayerProps`` because the two answer different questions
+    and fail independently. Props need a lineup and are opt-in; this needs only
+    ids the event already carries, and is worth collecting on every football
+    fixture -- ``readiness`` does not depend on it, so a failure here degrades
+    the report rather than the run.
+
+    **None of it is an observation.** These fields reach the dossier's context
+    slots, never ``metrics``, so no hit rate can be counted from them.
+    """
+
+    referee: RefereeProfile | None = None
+    squad_availability: list[SquadAvailability] = field(default_factory=list)
+    season_form: list[TeamSeasonForm] = field(default_factory=list)
+    data_gaps: list[str] = field(default_factory=list)
+
+
+def _fixture_extras_for_event(
+    event: EventRecord,
+    rate_limiter: RateLimiter,
+    run_budget: RunBudget | None,
+) -> _FixtureExtras:
+    """Referee profile and both squads' absences for one football fixture.
+
+    Roughly three requests an event, against a football product that is uncapped
+    on this account -- and the referee half is usually free, since one official
+    works several of a slate's fixtures and the profile cache is process-wide.
+
+    Tennis is skipped outright: there is no referee endpoint on that product and
+    its 100-a-day bucket is already the pipeline's one real quota constraint.
+    """
+    extras = _FixtureExtras()
+    if event.sport != "football":
+        return extras
+
+    context = event.fixture_context
+    if context is not None and context.referee_id:
+        profile, gaps = fetch_bzzoiro_referee(context.referee_id, rate_limiter, run_budget)
+        extras.data_gaps.extend(gaps)
+        if profile:
+            extras.referee = RefereeProfile(**profile)
+
+    ids = event.provider_team_ids.get("bzzoiro", {})
+    for side in ("home", "away"):
+        team_id = ids.get(side, "")
+        if not team_id:
+            continue
+        block, gaps = fetch_bzzoiro_squad_availability(
+            team_id, side, rate_limiter, run_budget
+        )
+        extras.data_gaps.extend(gaps)
+        if block:
+            extras.squad_availability.append(SquadAvailability(**block))
+
+    # One call per competition, not per fixture: a slate is dozens of matches
+    # drawn from a handful of leagues, and the table is the same for all of
+    # them. Both sides are read out of the one response.
+    if context is not None and context.league_id and ids:
+        table, gaps = fetch_bzzoiro_league_table(
+            context.league_id, rate_limiter, run_budget
+        )
+        extras.data_gaps.extend(gaps)
+        for side in ("home", "away"):
+            row = (table or {}).get(ids.get(side, ""))
+            if not row:
+                continue
+            extras.season_form.append(
+                TeamSeasonForm(
+                    provider_team_id=row["provider_team_id"],
+                    side=side,
+                    team_name=row.get("team_name") or "",
+                    group=row.get("group"),
+                    position=row.get("position"),
+                    played=row.get("played"),
+                    points=row.get("points"),
+                    xgf=row.get("xgf"),
+                    xga=row.get("xga"),
+                    xgd=row.get("xgd"),
+                    xg_games=row.get("xg_games"),
+                    form=row.get("form"),
+                )
+            )
+    return extras
 
 
 @dataclass
@@ -561,9 +664,33 @@ def enrich_events(
                         data_gaps=[f"unhandled error collecting player props: {exc}"]
                     )
 
+    # Always collected, never opt-in. Unlike player props this needs no lineup
+    # and no extra identity: the referee id arrived free with discovery and the
+    # team ids are the same ones the metric fetches already used. Its failures
+    # are data gaps, so a provider outage here costs a context line, not a run.
+    extras_by_event: dict[str, _FixtureExtras] = {}
+    if active_events:
+        with ThreadPoolExecutor(max_workers=MAX_WORKERS) as pool:
+            futures = {
+                pool.submit(_fixture_extras_for_event, event, rate_limiter, run_budget): event
+                for event in active_events
+            }
+            for future in as_completed(futures):
+                event = futures[future]
+                try:
+                    extras_by_event[event.event_id] = future.result()
+                except Exception as exc:  # noqa: BLE001 - one event must not abort the run
+                    extras_by_event[event.event_id] = _FixtureExtras(
+                        data_gaps=[f"unhandled error collecting fixture context: {exc}"]
+                    )
+
     dossiers = [
         _dossier_for_event(
-            event, per_event[event.event_id], now, props_by_event.get(event.event_id)
+            event,
+            per_event[event.event_id],
+            now,
+            props_by_event.get(event.event_id),
+            extras_by_event.get(event.event_id),
         )
         for event in active_events
     ]

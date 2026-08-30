@@ -31,6 +31,7 @@ Two shapes of this API drive decisions below and are easy to get wrong:
 from __future__ import annotations
 
 import re
+from datetime import datetime, timedelta
 from typing import Any
 
 from bet.integration.evidence import namespaced_source_refs
@@ -52,6 +53,16 @@ ODDS_PARSER_VERSION = "bzzoiro-odds-v1"
 CONSENSUS_ODDS_PARSER_VERSION = "bzzoiro-consensus-odds-v1"
 ODDS_COMPARISON_PARSER_VERSION = "bzzoiro-odds-comparison-v1"
 PREDICTION_PARSER_VERSION = "bzzoiro-prediction-v1"
+REFEREE_PARSER_VERSION = "bzzoiro-referee-v1"
+TEAM_SQUAD_PARSER_VERSION = "bzzoiro-team-squad-v1"
+STANDINGS_PARSER_VERSION = "bzzoiro-standings-v1"
+EVENT_PLAYER_STATS_PARSER_VERSION = "bzzoiro-event-player-stats-v1"
+
+# ``availability`` values that mean the player cannot be picked. The provider
+# also emits "available", and an empty string on players it has no report for --
+# neither is an absence, and treating "" as one would invent injuries for every
+# squad the provider covers thinly.
+UNAVAILABLE_STATUSES = frozenset({"injured", "suspended", "doubtful"})
 
 # Raw ``market`` code -> canonical code, and the same for ``outcome``.
 #
@@ -1137,47 +1148,11 @@ class BzzoiroClient(EvidenceRequestMixin, BaseAPIClient):
         payload = result.value
         if not isinstance(payload, dict):
             return self._schema_error(result, "payload_not_object")
-        markets = payload.get("markets")
-        if not isinstance(markets, dict):
+        if not isinstance(payload.get("markets"), dict):
             return self._schema_error(result, "markets_not_object")
 
-        def block(name: str) -> dict[str, Any]:
-            value = markets.get(name)
-            return value if isinstance(value, dict) else {}
-
-        match_result = block("match_result")
-        over_under = block("over_under")
-        corners = block("corners")
-        model = payload.get("model")
-        model = model if isinstance(model, dict) else {}
-
-        predicted = match_result.get("predicted")
-        prediction = {
-            "prob_home": _percent(match_result.get("prob_home")),
-            "prob_draw": _percent(match_result.get("prob_draw")),
-            "prob_away": _percent(match_result.get("prob_away")),
-            "predicted": predicted if predicted in ("H", "D", "A") else None,
-            "xg_home": _scalar(block("expected_goals").get("home")),
-            "xg_away": _scalar(block("expected_goals").get("away")),
-            "prob_goals_over_15": _percent(over_under.get("prob_over_15")),
-            "prob_goals_over_25": _percent(over_under.get("prob_over_25")),
-            "prob_goals_over_35": _percent(over_under.get("prob_over_35")),
-            "prob_btts_yes": _percent(block("btts").get("prob_yes")),
-            "prob_dnb_home": _percent(block("draw_no_bet").get("prob_home")),
-            "most_likely_score": block("score").get("most_likely") or None,
-            "prob_corners_over_85": _percent(corners.get("prob_over_85")),
-            "prob_corners_over_95": _percent(corners.get("prob_over_95")),
-            "prob_corners_over_105": _percent(corners.get("prob_over_105")),
-            "model_version": str(model.get("version") or "") or None,
-            # Already 0-1 in the payload, unlike every probability above it.
-            "model_confidence": _scalar(model.get("confidence")),
-            "created_at": str(payload.get("created_at") or "") or None,
-        }
-
-        has_corners = any(
-            prediction[key] is not None
-            for key in ("prob_corners_over_85", "prob_corners_over_95", "prob_corners_over_105")
-        )
+        prediction = _parse_prediction_row(payload)
+        has_corners = _has_corners(prediction)
         return self._bundle_result(
             result=result,
             parser_version=PREDICTION_PARSER_VERSION,
@@ -1193,6 +1168,498 @@ class BzzoiroClient(EvidenceRequestMixin, BaseAPIClient):
                 "model_version": prediction["model_version"],
             },
         )
+
+    def get_predictions_list_result(
+        self,
+        *,
+        date: str,
+        limit: int = MAX_PAGE_SIZE,
+        offset: int = 0,
+    ) -> SourceOperationResult[dict[str, Any]]:
+        """Every published forecast for one betting day, keyed by native event id.
+
+        The same content ``/events/{id}/prediction/`` serves one fixture at a
+        time: measured live 2026-08-30, **146 predictions for a single date in
+        one request**. MARKET_CONTEXT prefetches this once and falls back to the
+        per-event endpoint only for fixtures the list did not cover, which turns
+        the stage's per-event cost from four calls into three.
+
+        **This takes a betting day, not a range, and that is a guard rather than
+        a convenience.** ``date_to`` is compared against a *datetime*, so the
+        provider reads it as midnight at the **start** of that day: asking for
+        ``date_from=date_to=2026-08-31`` returns the fixtures kicking off at
+        exactly 00:00 -- one row -- and looks precisely like a day the model has
+        not got round to forecasting yet. The correct window for day D is
+        ``[D, D+1]``, and it is computed here so no caller can get it wrong.
+        Measured on 2026-08-31: 1 row the naive way, 46 the correct way.
+
+        Rows whose event id cannot be read are skipped rather than guessed at --
+        an unkeyed prediction cannot be attached to a fixture, and attaching it
+        to the wrong one is the only outcome worse than not having it.
+        """
+        result = self._request_with_evidence(
+            endpoint="/predictions/",
+            params={
+                "date_from": date,
+                "date_to": _next_day(date),
+                "limit": min(int(limit), MAX_PAGE_SIZE),
+                "offset": max(int(offset), 0),
+            },
+            operation="model_prediction_listing",
+        )
+        if result.status is not SourceResultStatus.SUCCESS:
+            return result
+        payload = result.value
+        if not isinstance(payload, dict):
+            return self._schema_error(result, "payload_not_object")
+        rows = payload.get("results")
+        if not isinstance(rows, list):
+            return self._schema_error(result, "results_not_list")
+
+        predictions: dict[str, dict[str, Any]] = {}
+        with_corners = 0
+        off_day = 0
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            event = row.get("event")
+            event = event if isinstance(event, dict) else {}
+            event_id = str(event.get("id") or "").strip()
+            if not event_id:
+                continue
+            # The inclusive upper bound admits fixtures kicking off at exactly
+            # 00:00 on the following day. One row, every time, and it would
+            # otherwise be silently attributed to this betting day.
+            if not str(event.get("event_date") or "").startswith(date):
+                off_day += 1
+                continue
+            parsed = _parse_prediction_row(row)
+            predictions[event_id] = parsed
+            if _has_corners(parsed):
+                with_corners += 1
+
+        return self._bundle_result(
+            result=result,
+            parser_version=PREDICTION_PARSER_VERSION,
+            operation_name="model_prediction_listing",
+            source_event_refs=namespaced_source_refs(self.api_name, sorted(predictions)),
+            value={
+                "predictions": predictions,
+                "total_count": payload.get("count") or 0,
+                "returned_count": len(predictions),
+            },
+            parser_diagnostics={
+                "raw_count": len(rows),
+                "accepted_count": len(predictions),
+                "with_corners": with_corners,
+                "off_day_dropped": off_day,
+            },
+            forced_status=None if predictions else SourceResultStatus.VALID_EMPTY,
+        )
+
+    # --------------------------------------------------------------- standings
+
+    def get_standings_result(
+        self, league_id: str | int, *, season_id: str | int | None = None
+    ) -> SourceOperationResult[dict[str, Any]]:
+        """A league table, carrying season **expected goals** and recent form.
+
+        Worth one call per *league* — not per fixture — because it is the only
+        place this API states a team's season-level xG. Everything else the
+        pipeline holds is per finished match, so a side's underlying quality has
+        to be re-derived from the same ten observations a hit rate already uses.
+
+        ``xg_games`` is the sample behind ``xgf``/``xga`` and is carried for the
+        same reason a referee's ``matches`` is: early in a season these are two-
+        or three-match figures wearing a decimal point.
+
+        ``form`` is the provider's own recent-results string (``"WWLDW"``),
+        newest first.
+
+        **Two payload shapes, and the second one is not rare.** A flat league
+        answers ``{"grouped": false, "standings": [...]}``; a league played in
+        groups answers ``{"grouped": true, "groups": {"Group A": [...], ...}}``
+        and carries **no ``standings`` key at all**. Argentina's Primera is the
+        second kind, and treating its absent ``standings`` as a schema error --
+        which is what happened on 2026-08-30 -- silently drops season xG for
+        every fixture in every grouped competition. Both are parsed here into
+        one flat ``{team_id: row}`` map; the group name travels on the row.
+        """
+        params: dict[str, Any] = {}
+        if season_id is not None:
+            params["season_id"] = season_id
+        result = self._request_with_evidence(
+            endpoint=f"/leagues/{league_id}/standings/",
+            params=params or None,
+            operation="league_standings",
+        )
+        if result.status is not SourceResultStatus.SUCCESS:
+            return result
+        payload = result.value
+        if not isinstance(payload, dict):
+            return self._schema_error(result, "payload_not_object")
+        # (group_name_or_empty, rows) pairs, covering both payload shapes.
+        sections: list[tuple[str, list[Any]]] = []
+        flat = payload.get("standings")
+        groups = payload.get("groups")
+        if isinstance(flat, list):
+            sections.append(("", flat))
+        elif isinstance(groups, dict):
+            sections.extend(
+                (str(name), rows) for name, rows in groups.items() if isinstance(rows, list)
+            )
+        elif isinstance(groups, list):
+            # Not seen live, but the key is documented as a container and a list
+            # of {name, standings} objects is the other obvious encoding.
+            for entry in groups:
+                if isinstance(entry, dict) and isinstance(entry.get("standings"), list):
+                    sections.append((str(entry.get("name") or ""), entry["standings"]))
+        else:
+            return self._schema_error(result, "standings_not_list")
+
+        table: dict[str, dict[str, Any]] = {}
+        raw_count = 0
+        for group_name, rows in sections:
+            raw_count += len(rows)
+            for row in rows:
+                if not isinstance(row, dict):
+                    continue
+                team_id = str(row.get("team_id") or "").strip()
+                if not team_id:
+                    continue
+                table[team_id] = {
+                    "provider_team_id": team_id,
+                    "group": group_name or None,
+                    "team_name": str(row.get("team_name") or ""),
+                    "position": _count(row.get("position")),
+                    "played": _count(row.get("played")),
+                    "points": _count(row.get("pts")),
+                    "goals_for": _count(row.get("gf")),
+                    "goals_against": _count(row.get("ga")),
+                    "xgf": _scalar(row.get("xgf")),
+                    "xga": _scalar(row.get("xga")),
+                    "xgd": _scalar(row.get("xgd")),
+                    "xg_games": _count(row.get("xg_games")),
+                    "form": str(row.get("form") or "") or None,
+                }
+
+        season = payload.get("season")
+        season = season if isinstance(season, dict) else {}
+        return self._bundle_result(
+            result=result,
+            parser_version=STANDINGS_PARSER_VERSION,
+            operation_name="league_standings",
+            source_event_refs=[],
+            value={
+                "provider_league_id": str(league_id),
+                "season_id": str(season.get("id") or "") or None,
+                "table": table,
+            },
+            parser_diagnostics={
+                "raw_count": raw_count,
+                "accepted_count": len(table),
+                "grouped": bool(payload.get("grouped")),
+                "group_count": len(sections) if payload.get("grouped") else 0,
+            },
+            forced_status=None if table else SourceResultStatus.VALID_EMPTY,
+        )
+
+    # ----------------------------------------------------- event player stats
+
+    def get_event_player_stats_result(
+        self, event_id: str | int
+    ) -> SourceOperationResult[dict[str, Any]]:
+        """Every player's box score for **one** match, in one request.
+
+        Deliberately **not** wired into the player-prop path, and the reason is
+        worth stating so it is not "optimised" in later: building a prop sample
+        needs one player across N past matches, and
+        ``/players/{id}/stats/`` already returns that whole history inline for a
+        single call. This endpoint is the opposite cut -- N players across one
+        match -- so swapping it in would turn one call per player into one call
+        per historical fixture, and would still miss any player who did not
+        feature in the matches sampled.
+
+        It is here for the cuts the other endpoint cannot make: a whole match's
+        box scores including substitutes and the opposition, with ``rating``,
+        ``expected_goals`` and ``expected_assists`` alongside the countable
+        fields. Prop-relevant keys are normalised through ``PLAYER_STAT_MAP`` so
+        a consumer reads the same names as the rest of the pipeline.
+        """
+        result = self._request_with_evidence(
+            endpoint=f"/events/{event_id}/player-stats/",
+            params=None,
+            operation="event_player_stats",
+            source_event_id=str(event_id),
+        )
+        if result.status is not SourceResultStatus.SUCCESS:
+            return result
+        payload = result.value
+        if not isinstance(payload, dict):
+            return self._schema_error(result, "payload_not_object")
+        rows = payload.get("player_stats")
+        if not isinstance(rows, list):
+            return self._schema_error(result, "player_stats_not_list")
+
+        players: list[dict[str, Any]] = []
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            player_id = str(row.get("player_id") or "").strip()
+            if not player_id:
+                continue
+            minutes = _count(row.get("minutes_played"))
+            entry: dict[str, Any] = {
+                "provider_player_id": player_id,
+                "provider_team_id": str(row.get("team_id") or "") or None,
+                "minutes_played": minutes,
+                "rating": _scalar(row.get("rating")),
+                "expected_goals": _scalar(row.get("expected_goals")),
+                "expected_assists": _scalar(row.get("expected_assists")),
+            }
+            for raw_key, (canonical, _unit) in PLAYER_STAT_MAP.items():
+                entry[canonical] = _scalar(row.get(raw_key))
+            players.append(entry)
+
+        # Same rule the prop path applies: an unused substitute's box score is
+        # all zeroes, and counting those makes every UNDER look like a lock.
+        played = [p for p in players if (p["minutes_played"] or 0) > 0]
+        return self._bundle_result(
+            result=result,
+            parser_version=EVENT_PLAYER_STATS_PARSER_VERSION,
+            operation_name="event_player_stats",
+            source_event_refs=namespaced_source_refs(self.api_name, [str(event_id)]),
+            value={
+                "provider_match_id": str(event_id),
+                "players": players,
+                "played_count": len(played),
+            },
+            parser_diagnostics={"raw_count": len(rows), "accepted_count": len(players)},
+            forced_status=None if players else SourceResultStatus.VALID_EMPTY,
+        )
+
+    # ---------------------------------------------------------------- referees
+
+    def get_referee_result(
+        self, referee_id: str | int
+    ) -> SourceOperationResult[dict[str, Any]]:
+        """One referee's season and career discipline averages.
+
+        This is the only endpoint here that speaks directly to ``cards_total``
+        and ``fouls_total``, the two markets where no provider gives the pipeline
+        anything but the two clubs' own histories. Measured live 2026-08-30 on
+        the same league: Peter Bankes averages 4.15 yellows and 22.1 fouls a
+        match, Michael Oliver 3.10 and 23.2 -- a third of the spread in a cards
+        line, decided by a man neither team's last ten says anything about.
+
+        Free to address: every ``/events/`` row already carries ``referee_id``,
+        so this costs one call per *referee*, not per fixture, and a referee
+        works many fixtures a season.
+
+        ``matches`` is the season sample and is the number to judge the averages
+        by; a referee two games into a season has averages built on two games.
+        The career totals are carried alongside precisely so that thinness is
+        visible rather than hidden behind a confident-looking float.
+        """
+        result = self._request_with_evidence(
+            endpoint=f"/referees/{referee_id}/",
+            params=None,
+            operation="referee_profile",
+        )
+        if result.status is not SourceResultStatus.SUCCESS:
+            return result
+        payload = result.value
+        if not isinstance(payload, dict):
+            return self._schema_error(result, "payload_not_object")
+        if not str(payload.get("id") or "").strip():
+            return self._schema_error(result, "referee_id_missing")
+
+        profile = {
+            "provider_referee_id": str(payload.get("id")),
+            "name": str(payload.get("name") or ""),
+            "country": payload.get("country") or None,
+            "matches": _count(payload.get("matches")),
+            "avg_yellow_per_match": _scalar(payload.get("avg_yellow_per_match")),
+            "avg_red_per_match": _scalar(payload.get("avg_red_per_match")),
+            "avg_fouls_per_match": _scalar(payload.get("avg_fouls_per_match")),
+            "avg_goals_per_match": _scalar(payload.get("avg_goals_per_match")),
+            "career_games": _count(payload.get("career_games")),
+            "career_yellow_cards": _count(payload.get("career_yellow_cards")),
+            "career_red_cards": _count(payload.get("career_red_cards")),
+        }
+        # A profile with a name but no averages is a real provider state (a
+        # referee below the five-match floor), and it is VALID_EMPTY rather than
+        # a schema error: nothing is malformed, there is simply nothing to read.
+        has_averages = any(
+            profile[key] is not None
+            for key in ("avg_yellow_per_match", "avg_fouls_per_match", "avg_red_per_match")
+        )
+        return self._bundle_result(
+            result=result,
+            parser_version=REFEREE_PARSER_VERSION,
+            operation_name="referee_profile",
+            source_event_refs=[],
+            value={"referee": profile},
+            parser_diagnostics={
+                "has_averages": has_averages,
+                "season_matches": profile["matches"],
+            },
+            forced_status=None if has_averages else SourceResultStatus.VALID_EMPTY,
+        )
+
+    # ------------------------------------------------------------------ squads
+
+    def get_team_squad_result(
+        self, team_id: str | int
+    ) -> SourceOperationResult[dict[str, Any]]:
+        """A team's squad, and the only structured absence feed in this API.
+
+        ``availability`` / ``injury_type`` / ``injury_expected_return`` are what
+        make this worth a call: the pipeline currently prices a fixture with no
+        idea that four of the eleven are out. That matters most to the player
+        props, where an absent player's prop is void rather than losing, and it
+        matters to team totals through who actually takes the corners.
+
+        Only genuinely unavailable players are counted (see
+        ``UNAVAILABLE_STATUSES``). An empty ``availability`` means the provider
+        published no report for that player and is **not** read as fit -- it is
+        counted separately as ``unknown`` so a squad the provider covers thinly
+        cannot masquerade as a fully fit one.
+        """
+        result = self._request_with_evidence(
+            endpoint=f"/teams/{team_id}/squad/",
+            params=None,
+            operation="team_squad",
+        )
+        if result.status is not SourceResultStatus.SUCCESS:
+            return result
+        payload = result.value
+        if not isinstance(payload, dict):
+            return self._schema_error(result, "payload_not_object")
+        rows = payload.get("players")
+        if not isinstance(rows, list):
+            return self._schema_error(result, "players_not_list")
+
+        players: list[dict[str, Any]] = []
+        unavailable: list[dict[str, Any]] = []
+        unknown = 0
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            player_id = str(row.get("id") or "").strip()
+            name = str(row.get("name") or "").strip()
+            if not player_id or not name:
+                continue
+            availability = str(row.get("availability") or "").strip().lower()
+            entry = {
+                "provider_player_id": player_id,
+                "player_name": name,
+                "position": str(row.get("position") or ""),
+                "availability": availability,
+                "injury_type": str(row.get("injury_type") or "") or None,
+                "injury_expected_return": row.get("injury_expected_return") or None,
+            }
+            players.append(entry)
+            if availability in UNAVAILABLE_STATUSES:
+                unavailable.append(entry)
+            elif not availability:
+                unknown += 1
+
+        return self._bundle_result(
+            result=result,
+            parser_version=TEAM_SQUAD_PARSER_VERSION,
+            operation_name="team_squad",
+            source_event_refs=[],
+            value={
+                "provider_team_id": str(team_id),
+                "players": players,
+                "unavailable": unavailable,
+                "squad_size": len(players),
+                "unavailable_count": len(unavailable),
+                "availability_unknown_count": unknown,
+            },
+            parser_diagnostics={
+                "raw_count": len(rows),
+                "accepted_count": len(players),
+                "unavailable_count": len(unavailable),
+                "availability_unknown_count": unknown,
+            },
+            forced_status=None if players else SourceResultStatus.VALID_EMPTY,
+        )
+
+
+def _next_day(date: str) -> str:
+    """``YYYY-MM-DD`` one day later, or the input unchanged if it is not a date.
+
+    Exists for ``/predictions/``, whose ``date_to`` is compared against a
+    datetime and therefore means "midnight starting that day". Returning the
+    input unparsed rather than raising keeps a malformed date a provider-side
+    404 instead of a crash mid-run.
+    """
+    try:
+        parsed = datetime.strptime(date, "%Y-%m-%d")
+    except (ValueError, TypeError):
+        return date
+    return (parsed + timedelta(days=1)).strftime("%Y-%m-%d")
+
+
+def _parse_prediction_row(payload: dict[str, Any]) -> dict[str, Any]:
+    """One CatBoost forecast, rescaled to 0-1, from either prediction endpoint.
+
+    ``/events/{id}/prediction/`` and a row of ``/predictions/`` carry an
+    identical ``markets`` block, so the parsing lives here rather than in either
+    method. That is not tidiness: the list endpoint exists to replace N per-event
+    calls, and it can only do that safely if both paths produce a
+    byte-identical prediction. Two parsers would drift, and the drift would show
+    up as a corners signal that changed depending on how many fixtures the day
+    happened to have.
+
+    Nulls are preserved as nulls throughout. The model publishes them where it
+    lacks history, and a null quietly defaulted to 0.5 would be
+    indistinguishable from a model that looked at the match and called it even.
+    """
+    markets = payload.get("markets")
+    markets = markets if isinstance(markets, dict) else {}
+
+    def block(name: str) -> dict[str, Any]:
+        value = markets.get(name)
+        return value if isinstance(value, dict) else {}
+
+    match_result = block("match_result")
+    over_under = block("over_under")
+    corners = block("corners")
+    model = payload.get("model")
+    model = model if isinstance(model, dict) else {}
+
+    predicted = match_result.get("predicted")
+    return {
+        "prob_home": _percent(match_result.get("prob_home")),
+        "prob_draw": _percent(match_result.get("prob_draw")),
+        "prob_away": _percent(match_result.get("prob_away")),
+        "predicted": predicted if predicted in ("H", "D", "A") else None,
+        "xg_home": _scalar(block("expected_goals").get("home")),
+        "xg_away": _scalar(block("expected_goals").get("away")),
+        "prob_goals_over_15": _percent(over_under.get("prob_over_15")),
+        "prob_goals_over_25": _percent(over_under.get("prob_over_25")),
+        "prob_goals_over_35": _percent(over_under.get("prob_over_35")),
+        "prob_btts_yes": _percent(block("btts").get("prob_yes")),
+        "prob_dnb_home": _percent(block("draw_no_bet").get("prob_home")),
+        "most_likely_score": block("score").get("most_likely") or None,
+        "prob_corners_over_85": _percent(corners.get("prob_over_85")),
+        "prob_corners_over_95": _percent(corners.get("prob_over_95")),
+        "prob_corners_over_105": _percent(corners.get("prob_over_105")),
+        "model_version": str(model.get("version") or "") or None,
+        # Already 0-1 in the payload, unlike every probability above it.
+        "model_confidence": _scalar(model.get("confidence")),
+        "created_at": str(payload.get("created_at") or "") or None,
+    }
+
+
+def _has_corners(prediction: dict[str, Any]) -> bool:
+    return any(
+        prediction.get(key) is not None
+        for key in ("prob_corners_over_85", "prob_corners_over_95", "prob_corners_over_105")
+    )
 
 
 def _percent(raw: Any) -> float | None:
@@ -1248,6 +1715,19 @@ def _scalar(raw: Any) -> float | None:
     return None
 
 
+def _count(raw: Any) -> int | None:
+    """A whole-number count, or None.
+
+    Distinct from ``_scalar`` because the referee profile mixes the two: 4.15
+    yellows a match is genuinely fractional, 27 matches is not. Rendering the
+    sample size as ``27.0`` invites it to be read as an average like the field
+    above it, which is the one confusion this data must not cause -- the sample
+    size is what tells you whether to believe the averages at all.
+    """
+    value = _scalar(raw)
+    return None if value is None else int(value)
+
+
 def _normalize_event_row(
     row: Any, *, requested_team_id: str | None, source_order: int
 ) -> dict[str, Any] | None:
@@ -1295,6 +1775,20 @@ def _normalize_event_row(
         if row.get("league_id") is not None
         else None,
         "season": row.get("season_id"),
+        # Fixture context the provider already put in this row and that used to
+        # be dropped on the floor here. None of it costs a request: it arrives
+        # with every /events/ and /teams/{id}/fixtures/ page whether it is read
+        # or not.
+        #
+        # referee_id is the reason this block exists -- it is the address for
+        # /referees/{id}/, the only feed that says anything about cards or fouls
+        # which is not one of the two clubs' own histories.
+        "referee_id": str(row.get("referee_id")) if row.get("referee_id") is not None else None,
+        "venue_id": str(row.get("venue_id")) if row.get("venue_id") is not None else None,
+        "is_local_derby": bool(row.get("is_local_derby")),
+        "is_neutral_ground": bool(row.get("is_neutral_ground")),
+        "travel_distance_km": _scalar(row.get("travel_distance_km")),
+        "weather": row.get("weather") if isinstance(row.get("weather"), dict) else None,
         "source_order": source_order,
     }
 

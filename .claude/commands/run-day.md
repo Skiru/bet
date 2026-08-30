@@ -226,6 +226,33 @@ prevent. If a figure looks wrong, check the function, not your arithmetic.
 Exit code 1 means nothing cleared the bar. That is a real answer about a thin
 day, not an error — say so plainly and still write the analysis.
 
+### Verify every fixture that reached the coupon, through bzzoiro MCP
+
+The script filters on the **clock** — `not_before` versus kickoff. A clock
+cannot see a postponement, a venue switch or an abandoned match, so a fixture
+called off an hour ago still sits in `<date>_coupons.json` looking bettable.
+
+So after the file is written, for each fixture in it:
+
+```
+mcp__bzzoiro__get_match_detail(match_id = <event's source_ids.bzzoiro>)
+```
+
+Read `status` (`notstarted` / `inprogress` / `finished`) and `event_date`.
+Football is uncapped — a coupon of a dozen fixtures costs a dozen calls and
+those are free. Then:
+
+* `status` is anything but `notstarted`, or `event_date` no longer matches the
+  artifact's `start_time` → **strike that fixture from the coupons file** and
+  say why in the report. A moved kickoff invalidates the bet without changing a
+  single statistic.
+* the event carries no `source_ids.bzzoiro` (some other source found it alone)
+  → say it could not be verified, rather than implying it was.
+
+Report the count checked and the count struck. **Never present an unverified
+coupon as verified** — silence about a check you skipped reads exactly like a
+check that passed.
+
 **Never add a combined/parlay price to that file, in any form, however hedged.**
 Corners, cards, fouls and shots in one match are strongly positively correlated,
 so the product of the legs understates the slip's true probability in the
@@ -237,9 +264,27 @@ cannot hold a value; do not reintroduce one in prose.
 Hand it the date and ask for the per-match read. Its standing obligations:
 cross-check the DB for other `run_id`s on that date, print the per-side
 `a/b/h2h` split for every row, probe before claiming DB depth, and verify each
-fixture is still on — preferring the **bzzoiro MCP tools** (`search_matches`,
-`get_match_detail`) over WebFetch, since they hit the same paid provider the
-pipeline uses.
+fixture is still on.
+
+**Say in the prompt that bzzoiro MCP is the source of record and that every
+fixture on the coupon must be checked through it.** The servers were re-verified
+live on 2026-08-30 and answer normally; football is uncapped on the PRO plan, so
+there is no budget reason to skip a call. WebFetch is for the residue only —
+what bzzoiro genuinely does not carry. An analysis that leans on the open web
+for something `get_match_detail` or `list_referees` would have answered is a
+defect, not a style choice.
+
+The tools it now holds, and what they are for:
+
+| Purpose | Tools |
+|---|---|
+| Fixture still on, at that time | `get_match_detail`, `search_matches` |
+| Who plays | `get_match_lineups`, `get_team_squad`, `get_player_stats` |
+| Card context | `list_referees` |
+| Table / form context | `get_standings`, `get_team_fixtures`, `get_match_h2h` |
+| Venue, manager | `get_venue`, `get_manager_detail` |
+| Live prices + model | `compare_odds`, `get_best_odds`, `get_predictions` |
+| Tennis | `list_matches`, `get_match`, `get_match_h2h`, `get_rankings` |
 
 Two things about those MCP tools, both learned the hard way on 2026-08-28:
 
@@ -247,8 +292,9 @@ Two things about those MCP tools, both learned the hard way on 2026-08-28:
   its credential at session start, so a `${BZZORIO_KEY}` updated mid-session
   keeps returning `requires re-authorization (token expired)` while
   `run_pipeline.py` works fine off the same `.env`. The session must be
-  restarted. If the analyst reports that error, put it in the run report rather
-  than treating its thinner verification as a judgement it made.
+  restarted. This is no longer the expected state — if the analyst reports it
+  now, treat it as a new fault and put it in the run report rather than
+  presenting the thinner verification as a judgement it made.
 * **Do not verify a fixture by team name.** `search_matches`' `team` filter is
   ignored server-side — a query for "Bayern" comes back with unrelated fixtures,
   and matching on the returned names then silently finds nothing. Every event in
@@ -256,10 +302,21 @@ Two things about those MCP tools, both learned the hard way on 2026-08-28:
   `get_match_detail` and read `status` and `event_date`. That is exact, and it
   catches a postponement or a moved kickoff, which a clock filter cannot.
 
-That verification carries WebFetch's ceiling: it may veto or downgrade a row,
-never promote one, never enter `p_low`. The one promotion in this system belongs
-to `row.market_signal` from the artifact, because that number is quota-tracked
-and evidence-bundled.
+**The odds tools are granted as of 2026-08-30** (operator's decision; they were
+withheld before so that prices reached the analyst only through the
+quota-tracked artifact). Consequences to hold onto:
+
+* A price from `compare_odds` is still **not Superbet's price** — no `superbet`
+  exists among bzzoiro's ~88 bookmakers. It is a reference point, always
+  labelled as one.
+* Their best use is **catching a stale artifact**: MARKET_CONTEXT is fetched
+  once, early, and a line can move afterwards.
+* A `LEAN → CALL` promotion resting on a live call rather than on
+  `row.market_signal` must be written
+  `[CALL, promoted by live MCP signal — not in this run's artifact]`, so you can
+  tell at a glance which promotions are reproducible from `runs/<date>/`.
+* Verification still may veto or downgrade freely, and still never enters
+  `p_low`.
 
 ## Step 6 — Write `runs/<date>/<date>_analiza.md`
 
@@ -308,6 +365,20 @@ the line is a push, reported in `row.pushes` and excluded from both `hits` and
 sygnał rynkowy z tagiem [BZZOIRO-ODDS: <ts>], weryfikacja z tagiem
 [WEB: domena, data] lub [BZZOIRO-MCP: <ts>]>
 
+*Sędzia:* <nazwisko, `avg_yellow_per_match` i `avg_fouls_per_match` ZAWSZE z
+liczbą meczów, np. „5.8 żółtej/mecz przy n=15”. Gdy `referee` jest `null` —
+„sędzia jeszcze nieznany”. To kontekst przy wierszu kartek i fauli, nie liczba
+w nim: nie wchodzi do `p_low` i nie podnosi tieru.>
+*Braki:* <z `squad_availability`: ilu wypada po każdej stronie i kto, gdy to
+zmienia typ. Prop na zawodnika z listy `unavailable` to zakład VOID, nie
+przegrany — usuń go i napisz dlaczego. Gdy `availability_unknown_count` jest
+wysokie, zaznacz, że obraz kontuzji jest niepełny.>
+*Forma sezonowa:* <z `season_form`: `xgf`/`xga` obu stron ZAWSZE z `xg_games`.
+To jedyne sezonowe xG w systemie. Gdy `group` jest ustawione, zaznacz, że
+`position` to miejsce w grupie, nie w lidze.>
+*Okoliczności:* <tylko gdy realnie ważą: derby, neutralny teren, długi przejazd
+`travel_distance_km`, pogoda. Jedno zdanie, nie tabela.>
+
 ## Sprzeczne (DISAGREE)
 <obie wartości, obaj providerzy, bez rozstrzygania>
 
@@ -324,10 +395,18 @@ Bez kursu łącznego, EV i stawki — celowo. Kurs sprawdzasz sam; typ poniżej
 minimalnego kursu nie jest typem.
 ````
 
-The *Rynek* signal exists **only on `corners_total`** — bzzoiro publishes no
-odds and no model probability for cards, fouls or shots on target, so `—` there
-is the provider's coverage, not a gap. Line 11.5 always reads `—` because the
-model serves only 8.5/9.5/10.5 and nothing is interpolated between lines.
+In football the *Rynek* signal exists **only on `corners_total`** — bzzoiro
+publishes no odds and no model probability for cards, fouls or shots on target,
+so `—` there is the provider's coverage, not a gap. Line 11.5 always reads `—`
+because the model serves only 8.5/9.5/10.5 and nothing is interpolated between
+lines.
+
+**Tennis has a signal since 2026-08-30, and it never promotes.** `total_games`
+at 21.5/22.5 and `total_sets` at 2.5 carry a real `model_probability`, but the
+verdict always reads `NO_MARKET_DATA` because no tennis price is fetched — that
+would cost one call per match out of a 100-a-day bucket ENRICH has usually
+already drained. Report the model number, say no price was fetched for it, and
+never write `[CALL, promoted by market signal]` on a tennis row.
 
 ## Step 7 — Report back
 

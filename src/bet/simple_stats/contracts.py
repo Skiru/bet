@@ -4,7 +4,7 @@ Field definitions and enums follow docs/PIPELINE_SIMPLIFICATION_PLAN.md section 
 """
 from __future__ import annotations
 
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import Field
 
@@ -99,6 +99,124 @@ PERCENTAGE_METRICS = frozenset(
 )
 
 
+class FixtureContext(StrictBaseModel):
+    """Circumstances of one fixture, as bzzoiro's own ``/events/`` row states them.
+
+    Every field here arrives inside a page the discovery adapter already fetches,
+    so this block costs **no request at all** -- it used to be parsed and thrown
+    away in ``_normalize_event_row``.
+
+    ``referee_id`` is the field that earns the block. It is the address for
+    ``/referees/{id}/``, and cards and fouls are the two markets where the
+    pipeline has no corroborating provider and nothing but the two clubs' own
+    histories to go on -- while the man who actually shows the cards varies by
+    roughly a third of a cards line between officials in the same competition.
+
+    The rest is context a human would ask for and the pipeline could not
+    previously answer: a derby is a cards fixture, a neutral ground removes the
+    home crowd a referee responds to, and rain suppresses shot counts. **None of
+    it is a sample and none of it may enter ``p_low``** -- it is read beside the
+    numbers, exactly like ``tipster`` and ``market_signal``.
+    """
+
+    referee_id: str | None = None
+    venue_id: str | None = None
+    # The competition's native id, kept so ENRICH can address
+    # ``/leagues/{id}/standings/`` without re-resolving a name it already had.
+    league_id: str | None = None
+    is_local_derby: bool = False
+    is_neutral_ground: bool = False
+    travel_distance_km: float | None = None
+    # {"code": 51, "description": null, "wind_speed": 8.2, "temperature_c": 13}
+    # Kept as the provider's own object: it is reported verbatim, never computed
+    # with, so imposing a schema on it would only create a second thing to keep
+    # in step with an upstream that owes us no stability here.
+    weather: dict[str, Any] | None = None
+
+
+class RefereeProfile(StrictBaseModel):
+    """One referee's discipline averages, resolved at ENRICH from ``referee_id``.
+
+    Costs one call per *referee*, not per fixture -- an official works many
+    matches in a season, so a day's slate resolves from a handful of requests
+    against an uncapped football product.
+
+    **Read ``matches`` before believing any average.** It is the season sample,
+    and a referee two games in has averages built on two games; the career
+    totals are carried alongside so that thinness is visible rather than hidden
+    behind a confident-looking float. This is context, never a sample: it
+    describes the official, not this fixture, and must not reach ``p_low``.
+    """
+
+    provider_referee_id: str
+    name: str = ""
+    country: str | None = None
+    matches: int | None = None
+    avg_yellow_per_match: float | None = None
+    avg_red_per_match: float | None = None
+    avg_fouls_per_match: float | None = None
+    avg_goals_per_match: float | None = None
+    career_games: int | None = None
+    career_yellow_cards: int | None = None
+    career_red_cards: int | None = None
+
+
+class SquadAvailability(StrictBaseModel):
+    """Who cannot play for one side, from ``/teams/{id}/squad/``.
+
+    The only structured absence feed in this API. It matters twice: a player
+    prop on somebody who is injured is **void, not losing**, and a side missing
+    its usual takers is a different team than its last ten matches describe.
+
+    ``availability_unknown`` counts players the provider published no report
+    for. It is kept separate from ``unavailable`` on purpose -- an empty
+    ``availability`` string is not evidence of fitness, and collapsing the two
+    would let a thinly-covered squad read as a fully fit one.
+    """
+
+    provider_team_id: str
+    side: Literal["home", "away"]
+    squad_size: int = 0
+    unavailable_count: int = 0
+    availability_unknown_count: int = 0
+    # [{"provider_player_id", "player_name", "position", "availability",
+    #   "injury_type", "injury_expected_return"}]
+    unavailable: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class TeamSeasonForm(StrictBaseModel):
+    """One side's league-table row: season expected goals and recent results.
+
+    The only season-level xG in this API. Every other number the pipeline holds
+    is per finished match, so without this a team's underlying quality can only
+    be re-derived from the same ten observations the hit rate already counts --
+    the same opinion twice, not a second one.
+
+    **Read ``xg_games`` before believing ``xgf``/``xga``.** Two matches into a
+    season these are two-match figures wearing a decimal point, exactly like a
+    referee's averages at ``matches: 2``.
+
+    ``form`` is the provider's own recent-results string (``"WWLDW"``), newest
+    first. Context throughout: none of it is an observation of a market this
+    pipeline prices, and none of it may reach ``p_low``.
+    """
+
+    provider_team_id: str
+    side: Literal["home", "away"]
+    team_name: str = ""
+    # Set only in competitions played in groups, where ``position`` is a rank
+    # within this group and not within the competition.
+    group: str | None = None
+    position: int | None = None
+    played: int | None = None
+    points: int | None = None
+    xgf: float | None = None
+    xga: float | None = None
+    xgd: float | None = None
+    xg_games: int | None = None
+    form: str | None = None
+
+
 class EventRecord(StrictBaseModel):
     """One row of EVENT_LIST_V1."""
 
@@ -122,6 +240,10 @@ class EventRecord(StrictBaseModel):
     identity_confidence: Literal["CONFIRMED", "FUZZY_MATCHED", "AMBIGUOUS"]
     status: Literal["ACTIVE", "BLOCKED_IDENTITY"]
     terminal_reason: str | None = None
+    # Only bzzoiro publishes this, and only for events it discovered itself, so
+    # it is None on any fixture another source found alone. Defaulted rather
+    # than required because every EVENT_LIST written before 2026-08-30 lacks it.
+    fixture_context: FixtureContext | None = None
 
 
 class EventListV1(StrictBaseModel):
@@ -194,6 +316,15 @@ class EventDossierV1(StrictBaseModel):
     lineup_status: str = ""
     readiness: Literal["READY", "PARTIAL", "BLOCKED"]
     data_gaps: list[str] = Field(default_factory=list)
+    # Context, deliberately kept out of `metrics`. Everything in `metrics` is an
+    # observation of a past match that a hit rate is counted from; these two
+    # describe the fixture's circumstances instead. Mixing them would let a
+    # referee's season average be counted as if it were a match this pipeline
+    # watched, which is exactly the error `p_low` exists to make impossible.
+    fixture_context: FixtureContext | None = None
+    referee: RefereeProfile | None = None
+    squad_availability: list[SquadAvailability] = Field(default_factory=list)
+    season_form: list[TeamSeasonForm] = Field(default_factory=list)
 
 
 class EventDossierListV1(StrictBaseModel):
@@ -482,6 +613,28 @@ class ModelPrediction(StrictBaseModel):
     # The provider's own confidence in its top 1X2 outcome, served 0-1.
     model_confidence: float | None = None
     created_at: str | None = None
+
+    # --- tennis (bzzoiro-tennis /predictions/), added 2026-08-30 -------------
+    #
+    # One contract for both sports rather than two, because every consumer of
+    # this object -- the artifact, the signal function, the analyst -- would
+    # otherwise need a branch on sport to read a field that means the same
+    # thing. Football fixtures leave these null and tennis leaves the block
+    # above null; nothing is ever populated for the wrong sport.
+    #
+    # ``prob_games_over_215`` and ``prob_games_over_225`` land on two of the
+    # four ``total_games`` lines this pipeline prices, and ``prob_sets_over_25``
+    # is the whole ``total_sets`` market. 19.5 and 23.5 get nothing: the model
+    # does not publish them, and 20.5 is carried only because it arrives free --
+    # no row is priced at that line, and it is never interpolated onto one.
+    prob_games_over_205: float | None = None
+    prob_games_over_215: float | None = None
+    prob_games_over_225: float | None = None
+    prob_sets_over_25: float | None = None
+    expected_total_games: float | None = None
+    expected_total_sets: float | None = None
+    prob_player_one_wins: float | None = None
+    prob_player_two_wins: float | None = None
 
 
 class EventMarketContext(StrictBaseModel):
