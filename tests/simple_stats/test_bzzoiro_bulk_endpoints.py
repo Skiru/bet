@@ -340,6 +340,57 @@ def test_tennis_model_never_interpolates_onto_an_unpublished_line(monkeypatch, t
     assert _model_probability(prediction, 22.5, "UNDER", "total_games") == pytest.approx(0.56)
 
 
+@pytest.mark.parametrize(
+    "stub_status",
+    ["raises", "garbage_payload", "rate_limited"],
+)
+def test_a_broken_tennis_product_costs_a_column_not_the_run(monkeypatch, stub_status):
+    """The guard for the one path that could not be verified against the live
+    API before it shipped.
+
+    ``bzzoiro-tennis`` was at 0/100 on the day this landed, so the parser was
+    written against the published OpenAPI schema rather than a captured
+    response. If the wire shape differs from that schema tomorrow, the failure
+    must be a data gap on the tennis rows and nothing else -- MARKET_CONTEXT is
+    excluded from the run verdict, and the football half of the same artifact is
+    built by a different code path.
+    """
+    from bet.simple_stats import market_context as mc
+    from bet.simple_stats.contracts import EventListV1, EventRecord
+
+    event = EventRecord(
+        event_id="t1", sport="tennis", competition="Test (atp_250)",
+        player_one="A", player_two="B", start_time="2026-08-31T10:00:00+00:00",
+        source_ids={"bzzoiro-tennis": "44426"},
+        identity_confidence="FUZZY_MATCHED", status="ACTIVE",
+    )
+    event_list = EventListV1(
+        run_id="r", generated_at="x", date="2026-08-31",
+        sports=["tennis"], events=[event],
+    )
+
+    class _Stub:
+        def get_predictions_list_result(self, **_kwargs):
+            if stub_status == "raises":
+                raise RuntimeError("provider exploded")
+            if stub_status == "rate_limited":
+                return SourceOperationResult(
+                    status=SourceResultStatus.RATE_LIMITED,
+                    provider="bzzoiro-tennis", operation="x", error_code="quota",
+                )
+            return SourceOperationResult(
+                status=SourceResultStatus.SUCCESS, value={"nonsense": True},
+                provider="bzzoiro-tennis", operation="x",
+            )
+
+    monkeypatch.setattr(mc, "get_client", lambda *a, **k: _Stub())
+    contexts, _calls = mc._collect_tennis_predictions(event_list, RateLimiter())
+
+    assert len(contexts) == 1
+    assert contexts[0].predictions is None
+    assert contexts[0].data_gaps, "a failure must be reported, not swallowed silently"
+
+
 def test_tennis_markets_are_in_scope_but_cannot_reach_a_verdict():
     """The safety property behind giving tennis a model and no prices.
 
