@@ -2055,6 +2055,152 @@ def fetch_bzzoiro_lineup(
     return str(result.value.get("lineup_status") or ""), players, gaps
 
 
+# referee_id -> parsed profile, or None when the provider had nothing usable.
+#
+# Process-wide, and the reason this is worth caching at all: an official works
+# many fixtures across a season, so a slate that spans two rounds of the same
+# league hits the same referee repeatedly. A negative answer is cached too --
+# re-asking about a referee below the provider's five-match publication floor
+# spends a request to be told "nothing" a second time.
+_BZZOIRO_REFEREE_CACHE: dict[str, dict[str, Any] | None] = {}
+
+
+def reset_bzzoiro_referee_cache() -> None:
+    """Forget resolved referee profiles. For tests, and for a long-lived process
+    that should not carry one betting day's officials into the next."""
+    _BZZOIRO_REFEREE_CACHE.clear()
+
+
+def fetch_bzzoiro_referee(
+    referee_id: str,
+    rate_limiter: RateLimiter,
+    run_budget: RunBudget | None = None,
+) -> tuple[dict[str, Any] | None, list[str]]:
+    """``(referee_profile | None, data_gaps)`` for one official.
+
+    Context, not a sample. The averages describe the referee's season, not this
+    fixture, so nothing here may reach ``p_low`` -- it is read beside the cards
+    and fouls rows the way ``tipster`` and ``market_signal`` are.
+
+    That said it is the only thing in the pipeline that speaks to those two
+    markets from outside the two clubs' own histories, which is why it is worth
+    a call: officials in one competition differ by roughly a third of a cards
+    line, and the fixture's ``referee_id`` is already in hand for free.
+    """
+    if not referee_id:
+        return None, []
+    if referee_id in _BZZOIRO_REFEREE_CACHE:
+        return _BZZOIRO_REFEREE_CACHE[referee_id], []
+    if run_budget is not None and not run_budget.try_consume("bzzoiro"):
+        return None, ["bzzoiro: run budget exhausted before referee profile"]
+    try:
+        client = get_client("bzzoiro", rate_limiter=rate_limiter)
+        result = client.get_referee_result(referee_id)
+    except Exception as exc:  # noqa: BLE001 - one referee must not abort the event
+        return None, [f"bzzoiro: referee error for {referee_id}: {exc}"]
+
+    if result.status is not SourceResultStatus.SUCCESS or not result.value:
+        status_label = getattr(result.status, "value", str(result.status))
+        _BZZOIRO_REFEREE_CACHE[referee_id] = None
+        return None, [f"bzzoiro: {status_label} referee profile for {referee_id}"]
+
+    profile = result.value.get("referee")
+    profile = profile if isinstance(profile, dict) else None
+    _BZZOIRO_REFEREE_CACHE[referee_id] = profile
+    return profile, []
+
+
+# league_id -> {team_id: standings row}, or None when the provider had nothing.
+#
+# Cached hard, because the win is the ratio: a slate is dozens of fixtures drawn
+# from a handful of competitions, and a league table is identical for every
+# fixture in it. One call per league, not per team and not per event.
+_BZZOIRO_STANDINGS_CACHE: dict[str, dict[str, Any] | None] = {}
+
+
+def reset_bzzoiro_standings_cache() -> None:
+    """Forget resolved league tables. For tests, and for a long-lived process
+    that should not serve yesterday's table to today's fixtures."""
+    _BZZOIRO_STANDINGS_CACHE.clear()
+
+
+def fetch_bzzoiro_league_table(
+    league_id: str,
+    rate_limiter: RateLimiter,
+    run_budget: RunBudget | None = None,
+) -> tuple[dict[str, Any] | None, list[str]]:
+    """``({team_id: row}, data_gaps)`` for one competition's table.
+
+    Worth the call for one field the pipeline has nowhere else: **season xG**.
+    Everything else it holds is per finished match, so a side's underlying
+    quality has to be re-derived from the same ten observations a hit rate is
+    already counted from -- which is not a second opinion, it is the same
+    opinion twice.
+
+    Context, not a sample. ``xgf``/``xga`` describe a season; they never enter
+    ``p_low``. ``xg_games`` travels with them so a two-match figure cannot pass
+    for a settled one.
+    """
+    if not league_id:
+        return None, []
+    if league_id in _BZZOIRO_STANDINGS_CACHE:
+        return _BZZOIRO_STANDINGS_CACHE[league_id], []
+    if run_budget is not None and not run_budget.try_consume("bzzoiro"):
+        return None, ["bzzoiro: run budget exhausted before league table"]
+    try:
+        client = get_client("bzzoiro", rate_limiter=rate_limiter)
+        result = client.get_standings_result(league_id)
+    except Exception as exc:  # noqa: BLE001 - one league must not abort the run
+        return None, [f"bzzoiro: standings error for league {league_id}: {exc}"]
+
+    if result.status is not SourceResultStatus.SUCCESS or not result.value:
+        status_label = getattr(result.status, "value", str(result.status))
+        _BZZOIRO_STANDINGS_CACHE[league_id] = None
+        return None, [f"bzzoiro: {status_label} standings for league {league_id}"]
+
+    table = result.value.get("table")
+    table = table if isinstance(table, dict) else None
+    _BZZOIRO_STANDINGS_CACHE[league_id] = table
+    return table, []
+
+
+def fetch_bzzoiro_squad_availability(
+    team_id: str,
+    side: str,
+    rate_limiter: RateLimiter,
+    run_budget: RunBudget | None = None,
+) -> tuple[dict[str, Any] | None, list[str]]:
+    """``(availability_block | None, data_gaps)`` for one side's squad.
+
+    Deliberately **not** cached across the run. A squad's injury list is the one
+    thing here that moves during a betting day, and two fixtures for the same
+    club on one date is not a case worth trading freshness for.
+    """
+    if not team_id:
+        return None, []
+    if run_budget is not None and not run_budget.try_consume("bzzoiro"):
+        return None, [f"bzzoiro: run budget exhausted before {side} squad"]
+    try:
+        client = get_client("bzzoiro", rate_limiter=rate_limiter)
+        result = client.get_team_squad_result(team_id)
+    except Exception as exc:  # noqa: BLE001 - one squad must not abort the event
+        return None, [f"bzzoiro: squad error for team {team_id}: {exc}"]
+
+    if result.status is not SourceResultStatus.SUCCESS or not result.value:
+        status_label = getattr(result.status, "value", str(result.status))
+        return None, [f"bzzoiro: {status_label} squad for team {team_id}"]
+
+    value = result.value
+    return {
+        "provider_team_id": str(value.get("provider_team_id") or team_id),
+        "side": side,
+        "squad_size": int(value.get("squad_size") or 0),
+        "unavailable_count": int(value.get("unavailable_count") or 0),
+        "availability_unknown_count": int(value.get("availability_unknown_count") or 0),
+        "unavailable": list(value.get("unavailable") or []),
+    }, []
+
+
 # ------------------------------------------------------------- bzzoiro-tennis
 
 # match_id -> ({canonical_total: value}, {"p1": {...}, "p2": {...}}, gap).

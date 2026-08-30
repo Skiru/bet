@@ -44,17 +44,22 @@ except to re-run one step against a saved artifact while diagnosing a failure.
 
 ### What MARKET_CONTEXT costs, and what it cannot cover
 
-It spends **~4 bzzoiro calls per fixture** — the only optional step that spends
-provider quota at all. That is affordable because bzzoiro's football product is
-uncapped on PRO; it is not free, so `--max-events` binds it exactly as it binds
-ENRICH.
+It spends **~3 bzzoiro calls per fixture plus one for the day** since
+2026-08-30, down from four per fixture. `/predictions/` returns the whole
+slate's forecasts in a single request (146 for one date, measured live), so the
+per-event prediction endpoint is now only the fallback for fixtures the model
+has not published yet. Affordable because bzzoiro's football product is uncapped
+on PRO; not free, so `--max-events` binds it exactly as it binds ENRICH.
 
 Two limits to state rather than report as failures:
 
-- **Football only.** Tennis fixtures are skipped by construction —
-  `bzzoiro-tennis` is a separate 95/day bucket that ENRICH already spends
-  against, and roughly six enriched fixtures exhausts it. A tennis slate with no
-  market context is the design, not a gap.
+- **Tennis gets a model and no prices.** One extra call fetches the whole day's
+  tennis forecasts, which give `total_games` at 21.5/22.5 and `total_sets` at
+  2.5. Per-match tennis *odds* are still not fetched: `bzzoiro-tennis` is a
+  separate 95/day bucket that ENRICH already spends against, and roughly six
+  enriched fixtures exhausts it. So every tennis row reads `NO_MARKET_DATA` with
+  a real `model_probability` beside it and can never promote a tier. That is the
+  design, not a gap.
 - **Only fixtures bzzoiro itself discovered.** The stage is keyed by bzzoiro's
   own event id, so an event only `highlightly` or `odds-api` found is skipped.
   Compare `market_context_metrics.events_considered` against DISCOVER's
@@ -117,6 +122,35 @@ budget left to actually add something. `bzzoiro-tennis` is the exception — sti
 rather than spending the rest of it on a retry. **Once only.** A third pass on the same day spends quota to re-learn
 that the provider has no data for those fixtures. And a backfill is not a retry
 of a *failed* run -- if the first run's verdict was `FAILED`, report it and stop.
+
+### Fixture context is collected on every football event (added 2026-08-30)
+
+ENRICH now also resolves, per football fixture, the **referee's discipline
+averages** and **both squads' absences** from bzzoiro — roughly three calls an
+event, against a product that is uncapped on this plan. The referee half is
+usually cheaper than that: one official works several of a slate's fixtures and
+the profile is cached process-wide.
+
+It is not opt-in and has no flag, because unlike player props it needs no lineup
+and no new identity — `referee_id` arrives free inside the `/events/` page
+DISCOVER already fetched, and the team ids are the ones the metric fetches
+already used. It cannot change `readiness` either: every failure is a
+`fixture_context:` data gap, so a provider wobble here costs a context line, not
+a run.
+
+It also resolves the **league table** — one call per competition, not per
+fixture, cached process-wide — for season `xgf`/`xga` and a form string. That is
+the only season-level xG in this system; everything else is per finished match.
+
+It lands in four new dossier fields — `fixture_context`, `referee`,
+`squad_availability`, `season_form` — and deliberately **not** in `metrics`. A
+referee's season average describes the official, not this fixture; if it reached
+`metrics` it would be counted into a hit rate and `p_low` would stop meaning
+what it says.
+
+Report `referee` coverage when it is thin: measured live on 2026-08-31, **23 of
+46** fixtures carried a `referee_id` at all, and profiles below the provider's
+five-match publication floor come back empty. That is coverage, not a failure.
 
 ### Player props are opt-in and you do not add them unasked
 

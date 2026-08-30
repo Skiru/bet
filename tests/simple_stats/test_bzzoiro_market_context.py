@@ -25,7 +25,7 @@ from datetime import datetime, timezone
 
 import pytest
 
-from bet.api_clients.bzzoiro import BzzoiroClient
+from bet.api_clients.bzzoiro import BzzoiroClient, _parse_prediction_row
 from bet.api_clients.rate_limiter import RateLimiter
 from bet.integration.source_result import SourceOperationResult, SourceResultStatus
 from bet.simple_stats import market_context
@@ -472,11 +472,82 @@ def _collecting_client(monkeypatch, tmp_path, *, comparison=COMPARISON_PAYLOAD):
     return client, calls
 
 
-def test_tennis_is_out_of_scope_because_it_shares_a_95_a_day_bucket(monkeypatch, tmp_path):
-    """Not a coverage decision. bzzoiro-tennis is a separate quota bucket that
-    ENRICH already spends against, and roughly six enriched fixtures exhausts it,
-    so market context for tennis would come out of the allowance that produces
-    tennis's actual statistics."""
+def test_the_day_listing_replaces_the_per_event_prediction_call(monkeypatch, tmp_path):
+    """One call for the slate's forecasts instead of one per fixture.
+
+    The saving is the point, but the *substitution* is what has to be safe: the
+    prefetched prediction must be the same object the per-event endpoint would
+    have produced, which is why both go through ``_parse_prediction_row``.
+    """
+    listing = {
+        "count": 2,
+        "results": [
+            {"event": {"id": 587902, "event_date": "2026-08-28T18:00:00Z"},
+             "markets": PREDICTION_PAYLOAD["markets"],
+             "model": PREDICTION_PAYLOAD.get("model", {})},
+            {"event": {"id": 587903, "event_date": "2026-08-28T20:00:00Z"},
+             "markets": PREDICTION_PAYLOAD["markets"],
+             "model": PREDICTION_PAYLOAD.get("model", {})},
+        ],
+    }
+    client, calls = _collecting_client(monkeypatch, tmp_path)
+    monkeypatch.setattr(
+        client, "get_predictions_list_result",
+        lambda *, date, limit=200, offset=0: SourceOperationResult(
+            status=SourceResultStatus.SUCCESS,
+            value={"predictions": {
+                str(r["event"]["id"]): _parse_prediction_row(r) for r in listing["results"]
+            }},
+            provider="bzzoiro", operation="model_prediction_listing", http_status=200,
+        ),
+    )
+
+    context = market_context.collect_market_context(
+        _event_list(_football_event(), _football_event("evt-2", "587903")),
+        RateLimiter(usage_dir=tmp_path / "u"),
+    )
+
+    assert all(event.predictions is not None for event in context.events)
+    per_event_calls = [c for c in calls if c[0].endswith("/prediction/")]
+    assert per_event_calls == [], "the listing was fetched and the per-event endpoint called anyway"
+
+
+def test_a_fixture_the_listing_missed_still_falls_back_to_its_own_call(monkeypatch, tmp_path):
+    """The listing is an optimisation, not a replacement.
+
+    The model publishes closer to kickoff, so a slate is routinely part-covered.
+    A fixture the listing does not carry must still get its forecast.
+    """
+    client, calls = _collecting_client(monkeypatch, tmp_path)
+    monkeypatch.setattr(
+        client, "get_predictions_list_result",
+        lambda *, date, limit=200, offset=0: SourceOperationResult(
+            status=SourceResultStatus.VALID_EMPTY, value={"predictions": {}},
+            provider="bzzoiro", operation="model_prediction_listing", http_status=200,
+        ),
+    )
+
+    context = market_context.collect_market_context(
+        _event_list(_football_event()), RateLimiter(usage_dir=tmp_path / "u")
+    )
+
+    assert context.events[0].predictions is not None
+    assert any(c[0].endswith("/prediction/") for c in calls)
+
+
+def test_tennis_never_enters_the_per_event_price_loop(monkeypatch, tmp_path):
+    """Tennis gets a model and no prices, and this is the half that says "no
+    prices".
+
+    ``bzzoiro-tennis`` is a separate quota bucket that ENRICH already spends
+    against, and roughly six enriched fixtures exhausts it. Per-event odds would
+    cost one call each out of that allowance, so ``eligible_events`` -- which
+    gates the four-call-per-fixture loop -- stays football-only.
+
+    Since 2026-08-30 tennis *is* reached, but by exactly one call for the whole
+    slate (``_collect_tennis_predictions``), which is a different path and is
+    tested in ``test_bzzoiro_bulk_endpoints``.
+    """
     tennis = _football_event(
         event_id="evt-tennis", sport="tennis", competition="Cincinnati (atp_1000)",
         home_team=None, away_team=None, player_one="A", player_two="B",

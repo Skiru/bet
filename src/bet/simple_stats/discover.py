@@ -27,7 +27,7 @@ from bet.discovery.sources.odds_api import BASE_URL as ODDS_API_BASE_URL
 from bet.discovery.sources.odds_api import OddsAPIAdapter
 from bet.integration.source_result import SourceResultStatus
 
-from bet.simple_stats.contracts import EventListV1, EventRecord
+from bet.simple_stats.contracts import EventListV1, EventRecord, FixtureContext
 
 logger = logging.getLogger(__name__)
 
@@ -319,6 +319,17 @@ class BzzoiroDiscoveryAdapter(AbstractSourceAdapter):
                             "away_team_id": away["provider_team_id"],
                             "league_id": league_id,
                             "season": row.get("season"),
+                            # Carried from the same /events/ row, at no extra
+                            # request. referee_id is the one that changes a
+                            # betting read: it is the address for
+                            # /referees/{id}/, and cards and fouls are the two
+                            # markets with no corroborating provider at all.
+                            "referee_id": row.get("referee_id"),
+                            "venue_id": row.get("venue_id"),
+                            "is_local_derby": row.get("is_local_derby"),
+                            "is_neutral_ground": row.get("is_neutral_ground"),
+                            "travel_distance_km": row.get("travel_distance_km"),
+                            "weather": row.get("weather"),
                         },
                     )
                 )
@@ -565,12 +576,26 @@ def _to_event_record(fixture: MergedFixture) -> EventRecord:
     # (see EventRecord.provider_team_ids), so lift them out of the SourceRef
     # raw_data the discovery adapter attached.
     provider_team_ids: dict[str, dict[str, str]] = {}
+    fixture_context: FixtureContext | None = None
     for src in fixture.sources:
         raw = src.raw_data if isinstance(src.raw_data, dict) else {}
         home_id = str(raw.get("home_team_id") or "")
         away_id = str(raw.get("away_team_id") or "")
         if home_id and away_id and home_id != away_id:
             provider_team_ids[src.source] = {"home": home_id, "away": away_id}
+        # Only bzzoiro publishes these, so there is no cross-source merge to do
+        # and no precedence to decide: the fixture either was discovered there
+        # or has no context block at all.
+        if src.source == "bzzoiro" and raw.get("referee_id") is not None:
+            fixture_context = FixtureContext(
+                referee_id=raw.get("referee_id"),
+                venue_id=raw.get("venue_id"),
+                league_id=str(raw.get("league_id") or "") or None,
+                is_local_derby=bool(raw.get("is_local_derby")),
+                is_neutral_ground=bool(raw.get("is_neutral_ground")),
+                travel_distance_km=raw.get("travel_distance_km"),
+                weather=raw.get("weather"),
+            )
 
     record_kwargs = dict(
         event_id=event_id,
@@ -582,6 +607,7 @@ def _to_event_record(fixture: MergedFixture) -> EventRecord:
         identity_confidence=identity_confidence,
         status="ACTIVE",
         terminal_reason=None,
+        fixture_context=fixture_context,
     )
     if sport == "tennis":
         record_kwargs["player_one"] = fixture.home_team

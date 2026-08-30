@@ -69,6 +69,10 @@ from bet.simple_stats.contracts import (
 from bet.simple_stats.providers import RunBudget
 
 PROVIDER = "bzzoiro"
+# The same account behind a different product and, critically, a different quota
+# bucket: 100 a day against football's uncapped. Everything this stage does for
+# tennis is sized around that one number.
+TENNIS_PROVIDER = "bzzoiro-tennis"
 
 # The only market this stage fetches quotes for.
 #
@@ -87,7 +91,14 @@ PROVIDER = "bzzoiro"
 SIGNAL_MARKET = "total_corners"
 
 # Per-event call cost, so a caller can size a run before spending anything:
-# quotes, consensus block, comparison grid, prediction.
+# quotes, consensus block, comparison grid -- and the prediction only for the
+# fixtures the day's ``/predictions/`` listing did not already cover.
+#
+# Three, not four, since 2026-08-30. The listing costs one call for the whole
+# slate (146 forecasts for one date, measured live) and the per-event endpoint
+# survives as the fallback, so the true cost is ``3N + 1`` plus one call for
+# each fixture the model has not published yet. Kept as the pessimistic 4 for
+# sizing: a day the model has not forecast at all still has to fit.
 CALLS_PER_EVENT = 4
 
 # Account-wide and process-wide, mirroring how ``providers.py`` memoizes ESPN's
@@ -209,6 +220,29 @@ def collect_market_context(
     calls = 0
     entitlement_seen: str | None = None
 
+    # --- one call that answers the model for the whole slate ---------------
+    #
+    # ``/predictions/`` carries the same forecast ``/events/{id}/prediction/``
+    # serves one fixture at a time: 146 of them for a single date, measured
+    # live 2026-08-30. Prefetching turns the per-event cost from four calls
+    # into three, and the per-event endpoint stays as the fallback for
+    # fixtures the list did not cover rather than being replaced by it.
+    #
+    # A failure here is not a gap on any event: nothing was promised and the
+    # fallback path is unchanged, so the run simply pays the old price.
+    prefetched: dict[str, dict[str, Any]] = {}
+    prefetch_note = ""
+    if candidates and budget.try_consume(PROVIDER):
+        calls += 1
+        listing = client.get_predictions_list_result(date=event_list.date)
+        if listing.status in (SourceResultStatus.SUCCESS, SourceResultStatus.VALID_EMPTY):
+            prefetched = dict((listing.value or {}).get("predictions") or {})
+        else:
+            prefetch_note = (
+                f"model prediction listing unavailable: {listing.status} "
+                f"{listing.error_code}; fell back to one call per fixture"
+            )
+
     for event in candidates:
         provider_event_id = event.source_ids[PROVIDER]
         gaps: list[str] = []
@@ -284,7 +318,14 @@ def collect_market_context(
 
         # --- the independent second opinion -------------------------------
         prediction: ModelPrediction | None = None
-        if budget.try_consume(PROVIDER):
+        if prefetch_note:
+            gaps.append(prefetch_note)
+        if provider_event_id in prefetched:
+            # Same parser, same fields, no request. The list and the per-event
+            # endpoint share ``_parse_prediction_row`` precisely so that this
+            # branch cannot produce a different number from the one below.
+            prediction = ModelPrediction(**prefetched[provider_event_id])
+        elif budget.try_consume(PROVIDER):
             calls += 1
             result = client.get_prediction_result(provider_event_id)
             if result.status is SourceResultStatus.SUCCESS:
@@ -311,15 +352,92 @@ def collect_market_context(
             )
         )
 
+    tennis_contexts, tennis_calls = _collect_tennis_predictions(event_list, rate_limiter)
+    contexts.extend(tennis_contexts)
+
     return MarketContextV1(
         run_id=event_list.run_id,
         date=event_list.date,
         generated_at=_now_iso(),
         football_unlimited_entitled=_entitlement_cache_as_bool(),
-        events_considered=len(candidates),
-        provider_calls=calls,
+        events_considered=len(candidates) + len(tennis_contexts),
+        provider_calls=calls + tennis_calls,
         events=contexts,
     )
+
+
+def _collect_tennis_predictions(
+    event_list: EventListV1, rate_limiter: RateLimiter
+) -> tuple[list[EventMarketContext], int]:
+    """The tennis model's read on the day's slate, for **one** provider call.
+
+    Tennis gets a model and no prices, and that asymmetry is deliberate. The
+    forecast listing covers the whole day in a single request; per-match odds
+    would cost one call each out of a 100-a-day bucket that ENRICH has usually
+    already spent down to single figures, and ENRICH's statistics are worth more
+    per call than a price the operator reads off their own screen anyway.
+
+    The consequence is carried by ``market_signal_for_row`` rather than
+    re-stated here: with no market probability a tennis row can never reach a
+    verdict, so it reports the model number under ``NO_MARKET_DATA`` and cannot
+    promote a tier. Tennis gains a second opinion without inheriting football's
+    promotion rule.
+
+    Never raises. A dead tennis product costs this artifact a column, and the
+    football half of the same artifact is untouched.
+    """
+    events = [
+        event
+        for event in event_list.events
+        if event.sport == "tennis"
+        and event.status == "ACTIVE"
+        and event.source_ids.get(TENNIS_PROVIDER)
+    ]
+    if not events:
+        return [], 0
+
+    try:
+        client = get_client(TENNIS_PROVIDER, rate_limiter=rate_limiter)
+        listing = client.get_predictions_list_result(date=event_list.date)
+    except Exception as exc:  # noqa: BLE001 - tennis must not abort the football half
+        return [
+            EventMarketContext(
+                event_id=event.event_id,
+                provider_event_id=event.source_ids[TENNIS_PROVIDER],
+                data_gaps=[f"tennis model predictions unavailable: {exc}"],
+            )
+            for event in events
+        ], 0
+
+    if listing.status not in (SourceResultStatus.SUCCESS, SourceResultStatus.VALID_EMPTY):
+        gap = (
+            f"tennis model predictions unavailable: {listing.status} {listing.error_code}"
+        )
+        return [
+            EventMarketContext(
+                event_id=event.event_id,
+                provider_event_id=event.source_ids[TENNIS_PROVIDER],
+                data_gaps=[gap],
+            )
+            for event in events
+        ], 1
+
+    published = dict((listing.value or {}).get("predictions") or {})
+    contexts: list[EventMarketContext] = []
+    for event in events:
+        match_id = event.source_ids[TENNIS_PROVIDER]
+        raw = published.get(match_id)
+        contexts.append(
+            EventMarketContext(
+                event_id=event.event_id,
+                provider_event_id=match_id,
+                predictions=ModelPrediction(**raw) if raw else None,
+                data_gaps=[]
+                if raw
+                else ["no model prediction published for this fixture"],
+            )
+        )
+    return contexts, 1
 
 
 def _entitlement_cache_as_bool() -> bool | None:
@@ -354,7 +472,22 @@ def _entitlement_cache_as_bool() -> bool | None:
 # ``corners_for`` is absent for a different reason: the feed's ``total_corners``
 # is a match total, so pointing a per-team row at it would compare one team's
 # corners against a price for both teams' corners.
-SIGNAL_MARKETS: dict[str, str] = {"corners_total": SIGNAL_MARKET}
+SIGNAL_MARKETS: dict[str, str] = {
+    "corners_total": SIGNAL_MARKET,
+    # Tennis, added 2026-08-30. Mapped to feed markets this stage does **not**
+    # fetch, and that is the intended design rather than an oversight: the
+    # tennis model publishes probabilities but tennis odds would cost one call
+    # per match out of a 100-a-day bucket ENRICH has usually already drained.
+    #
+    # The consequence is exact and safe. ``market_signal_for_row`` requires
+    # both a model and a market probability to reach a verdict, so a tennis row
+    # lands on ``NO_MARKET_DATA`` **carrying the model probability** -- readable
+    # by the analyst, and structurally incapable of promoting a tier, because
+    # promotion needs both numbers. Tennis gets a second opinion without
+    # inheriting football's promotion rule.
+    "total_games": "total_games",
+    "total_sets": "total_sets",
+}
 
 # Stats-sheet line -> the model's field for P(over) at that exact line.
 #
@@ -369,11 +502,33 @@ MODEL_CORNERS_FIELDS: dict[float, str] = {
 }
 
 
-def _model_probability(prediction: ModelPrediction | None, line: float, direction: str) -> float | None:
-    """P(this direction at this exact line) from the model, or None."""
+# Tennis, same contract as the corners map and the same refusal to interpolate.
+# ``total_games`` is priced at 19.5/21.5/22.5/23.5 and the model publishes only
+# the middle two, so the outer rows correctly get nothing.
+MODEL_TENNIS_FIELDS: dict[str, dict[float, str]] = {
+    "total_games": {21.5: "prob_games_over_215", 22.5: "prob_games_over_225"},
+    "total_sets": {2.5: "prob_sets_over_25"},
+}
+
+
+def _model_probability(
+    prediction: ModelPrediction | None,
+    line: float,
+    direction: str,
+    market: str = "corners_total",
+) -> float | None:
+    """P(this direction at this exact line) from the model, or None.
+
+    Never interpolates between lines, in either sport. Over 10.5 corners is not
+    weak evidence about over 11.5 -- it is evidence about a different bet -- and
+    the same holds for 21.5 against 23.5 games.
+    """
     if prediction is None:
         return None
-    field = MODEL_CORNERS_FIELDS.get(line)
+    if market == "corners_total":
+        field = MODEL_CORNERS_FIELDS.get(line)
+    else:
+        field = MODEL_TENNIS_FIELDS.get(market, {}).get(line)
     if field is None:
         return None
     prob_over = getattr(prediction, field)
@@ -459,7 +614,9 @@ def market_signal_for_row(
     if context is None:
         return MarketSignalColumn(verdict="NO_MARKET_DATA", reason="no market context for this event")
 
-    model_probability = _model_probability(context.predictions, row.line, row.direction)
+    model_probability = _model_probability(
+        context.predictions, row.line, row.direction, row.market
+    )
     quotes = context.odds or context.bookmaker_comparison
     market_probability, quote, market_reason = _market_probability(
         quotes, feed_market, row.line, row.direction
@@ -473,11 +630,16 @@ def market_signal_for_row(
 
     if model_probability is None or market_probability is None:
         reasons = []
+        known_lines = (
+            MODEL_CORNERS_FIELDS
+            if row.market == "corners_total"
+            else MODEL_TENNIS_FIELDS.get(row.market, {})
+        )
         if model_probability is None:
             reasons.append(
                 f"no model probability at line {row.line}"
-                if row.line not in MODEL_CORNERS_FIELDS
-                else "model published no corners probabilities for this fixture"
+                if row.line not in known_lines
+                else f"model published no {row.market} probability for this fixture"
             )
         if market_probability is None:
             reasons.append(market_reason or "no market probability")
