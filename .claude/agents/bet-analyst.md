@@ -74,6 +74,14 @@ below.)
 | `goals_for` | 0.5, 1.5, 2.5 |
 | `offsides_for` | 0.5, 1.5, 2.5 |
 
+**`red_cards_for` is on the book but not on the sheet.** Superbet posts it
+("Liczba czerwonych kartek <team>", 82 priced lines on 2026-09-01) and SUPERBET
+now maps and collects it, so it no longer shows up as an unmapped market. But
+ENRICH has no per-team red-card metric, so ANALYZE emits no `red_cards_for`
+rows and nothing joins to those lines. Same status as `goals_1h_for` above:
+real lines, no market, until there is evidence to price them from. Do not
+invent a row for it.
+
 **"Each team over X" (Superbet's `both_teams_over`) has no row and never
 will in this design (Faza 4a).** `team_a_l10` and `team_b_l10` are disjoint
 sets of matches — there is no sample to compute the *conjunction* "both teams
@@ -521,9 +529,32 @@ things and must never be reported as the same thing.
 | `LINE_NOT_OFFERED` | market exists, **our line does not** | say so, and name `nearest_offered_line` |
 | `MARKET_NOT_OFFERED` | Superbet has the fixture, not this market | say the book does not price it |
 | `OFFER_EMPTY` | fixture on the book, nothing priced (kicked off / pulled) | not a coverage gap, a clock |
-| `SCOPE_NOT_SUPPORTED` | player props -- **our** limitation, not the book's | never blame Superbet for it |
+| `SCOPE_NOT_SUPPORTED` | **our** limitation, not the book's | never blame Superbet for it |
+| `PLAYER_NOT_MATCHED` | the prop is priced, but Superbet's spelling could not be tied to one of our players | our join refused rather than guessed -- never a price |
 | `EVENT_NOT_MATCHED` | no Superbet fixture matched | our matcher, or the fixture is live already |
 | `SUSPENDED` | line on the screen, outcome blocked | a price nobody can take |
+
+### How the fixture was identified, and why it is on the artifact
+
+Each event in `<date>_superbet_offer.json` carries `match_quality`:
+
+| Value | How the fixture was named |
+|---|---|
+| `ID_MATCHED` | exact Betradar id shared by OddsPapi and Superbet -- no name, no clock |
+| `EXACT` | participant names agreed **and** the two kickoffs agreed to the minute |
+| `FUZZY` | same fixture, published times disagree (normal for tennis) |
+| `UNMATCHED` | a Superbet fixture our DISCOVER never found |
+
+`ID_MATCHED` outranks `EXACT` and arrived 2026-09-01. On an `ID_MATCHED` row a
+large `kickoff_delta_minutes` is a fact about the two feeds' clocks and **not**
+a reason to doubt the pairing -- one fixture that day was published three hours
+apart and was still the same tie. On an `EXACT` or `FUZZY` row the clock is part
+of the evidence, so a big delta there is worth a sentence.
+
+`events_matched_by_id` in the step summary says how many were named this way.
+If it is 0 on a football day, the OddsPapi bridge did not run -- check
+`identity_bridge.oddspapi_bridge_notes` on the artifact. That is a missed
+optimisation, not a degraded day, and it must not be reported as a data gap.
 
 ### Why this column exists, and what it replaced
 
@@ -556,11 +587,22 @@ up, three cleared the bar.
 - A Superbet price is a **snapshot**, taken once when the step ran. Late in the
   day it can be stale, and the fixture can have gone live and left the prematch
   offer entirely. Quote the artifact's `generated_at` beside the price.
-- `SCOPE_NOT_SUPPORTED` is ours. Superbet prices player props heavily, under
-  free-text names carrying the player inside the market string
-  ("Carrillo, Guido powyżej 0.5 celnych strzałów"). We do not read them because
-  matching "Surname, Forename" to our player ids would be a guess. Never report
-  it as the book lacking the market.
+- **Player props are read. That changed on 2026-09-01 and the old note here was
+  the opposite.** Superbet prices them under free-text names carrying the player
+  inside the outcome string ("Lodi, Renan - powyżej 0.5"), and
+  `offered_lines.resolve_player_names` now ties those to our squads per fixture.
+  Measured on the 2026-09-01 offer: **10,387 priced player lines** across
+  `player_total_shots`, `player_fouls`, `player_was_fouled`,
+  `player_shots_on_target`, `player_assists`, `player_cards`,
+  `player_offsides`. Treating them as unavailable would discard the largest
+  part of the sheet.
+- `PLAYER_NOT_MATCHED` is the refusal, and it is the one to respect. The join
+  runs three passes -- exact token bag, unique containment, fuzzy >=88 -- each
+  requiring uniqueness in **both** directions, and gives up otherwise. A prop
+  tied to the wrong human is not an empty column; it is a plausible row wearing
+  somebody else's price. Never fill one in by eye.
+- `SCOPE_NOT_SUPPORTED` still means ours, not the book's, for whatever the
+  mapping does not cover. Never report it as the book lacking the market.
 
 ### `<date>_superbet_comparison.json`, when it exists
 

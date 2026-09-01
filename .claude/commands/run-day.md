@@ -68,6 +68,15 @@ ENRICH — those land as data gaps, not a crash, but they cost coverage. A
 `SUSPENDED` provider is unusable whatever the counter says: report it as
 `kind=suspended`, not as quota.
 
+**`entitlement_required` is not `quota_exhausted` and the reset script cannot
+touch it.** The provider answered HTTP 402: it wants a plan or an addon bought.
+Do not reset its counter, do not raise its `BET_LIMIT_*`, and do not tell the
+operator to wait for midnight. Report it once, as a purchase decision, and run
+without it. `bzzoiro-tennis` is the live case (a $5/mo Sports Addon) -- and it
+sends `ratelimit: r=0` on that 402, so if a provider goes from full to empty
+without a run that could have spent it, suspect billing rather than repeating
+the reset advice.
+
 `understat` is a permanently dead upstream. Never report it as today's problem.
 `sackmann` was removed from the tennis roster on 2026-08-28 (both source
 repositories 404) and should not appear at all; if it does, that is a repo

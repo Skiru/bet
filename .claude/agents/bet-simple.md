@@ -242,6 +242,19 @@ helps:
   `BET_LIMIT_<PROVIDER>` and the reset command. After a key rotation the counter
   is stale and `scripts/simple/reset_provider_quota.py --provider <name>` is the
   fix; it clears our bookkeeping only, nothing at the provider.
+- `entitlement_required` -- **waiting does not help and neither does either of
+  the above.** The provider answered HTTP 402: this is a plan or an addon that
+  has to be bought, not a count that resets. Report it as a purchase decision
+  for the operator and never suggest raising `BET_LIMIT_<PROVIDER>` or running
+  the reset script against it -- both do nothing.
+
+  Live on 2026-09-01, `bzzoiro-tennis` returns
+  `402 {"code":"addon_required", ...$5/mo Sports Addon}` **while still sending
+  `ratelimit: "tennis";r=0`**, so before the fix it read as an exhausted quota
+  and the advice was impossible. If you see `quota_exhausted` on a provider that
+  cannot have spent anything -- full at the start of the run, empty after one
+  call -- suspect a billing refusal and say so rather than repeating the reset
+  advice.
 
   **`highlightly` exhaustion shrinks the *slate*, not just the corroboration** --
   this is the one quota failure that is easy to misread. It is the dominant
