@@ -63,14 +63,16 @@ STATS_PAYLOAD = {
         # Half splits sit alongside home/away in the same object and must not
         # be read as a third team.
         "first_half": {"home": {"corner_kicks": 3}, "away": {"corner_kicks": 4}},
+        "second_half": {"home": {"corner_kicks": 2}, "away": {"corner_kicks": 3}},
     },
 }
 
 
 def _fixture_row(
-    event_id, date, home_id, away_id, home="H", away="A", status="finished"
+    event_id, date, home_id, away_id, home="H", away="A", status="finished",
+    home_score_ht=None, away_score_ht=None,
 ):
-    return {
+    row = {
         "id": event_id,
         "league_id": 7,
         "season_id": 1,
@@ -83,6 +85,10 @@ def _fixture_row(
         "event_date": date,
         "status": status,
     }
+    if home_score_ht is not None and away_score_ht is not None:
+        row["home_score_ht"] = home_score_ht
+        row["away_score_ht"] = away_score_ht
+    return row
 
 
 def _client(monkeypatch, tmp_path, payloads):
@@ -175,6 +181,28 @@ def test_statistics_keeps_the_home_away_split(monkeypatch, tmp_path):
     assert set(by_side) == {"home", "away"}
     assert by_side["home"]["corners"] == 5
     assert by_side["away"]["corners"] == 7
+
+
+def test_statistics_half_splits_get_their_own_metric_name(monkeypatch, tmp_path):
+    """docs/PLAN_BOGATE_STATYSTYKI.md Faza 3: first_half/second_half sit
+    alongside home/away in the same /stats/ object. A half-split value must
+    not collide with (or silently overwrite) the full-match figure -- so it
+    gets a distinct normalized_metric_name, "corners_1h"/"corners_2h", never
+    plain "corners"."""
+    client, _ = _client(monkeypatch, tmp_path, {"/events/587706/stats/": STATS_PAYLOAD})
+    result = client.get_statistics_result("587706")
+    assert result.status is SourceResultStatus.SUCCESS
+
+    by_side_metric = {}
+    for row in result.value["statistics"]:
+        by_side_metric[(row["side"], row["normalized_metric_name"])] = row["value"]
+
+    assert by_side_metric[("home", "corners")] == 5
+    assert by_side_metric[("away", "corners")] == 7
+    assert by_side_metric[("home", "corners_1h")] == 3
+    assert by_side_metric[("away", "corners_1h")] == 4
+    assert by_side_metric[("home", "corners_2h")] == 2
+    assert by_side_metric[("away", "corners_2h")] == 3
 
 
 def test_null_and_object_valued_stats_are_absent_not_zero(monkeypatch, tmp_path):
@@ -295,6 +323,70 @@ def test_l10_emits_both_the_match_total_and_this_teams_own_side(monkeypatch, tmp
     assert home.metrics["corners_for"][0].value == 5  # team 100 was home
     assert home.metrics["cards_for"][0].value == 1
     assert home.metrics["fouls_for"][0].value == 12
+    # _fixture_row's default score is home 1, away 0.
+    assert home.metrics["goals_total"][0].value == 1
+    assert home.metrics["goals_for"][0].value == 1
+    assert home.metrics["goals_against"][0].value == 0
+
+
+def test_l10_emits_half_goals_and_half_corners_when_the_fixture_has_them(monkeypatch, tmp_path):
+    """docs/PLAN_BOGATE_STATYSTYKI.md Faza 3: half-time goals ride on the
+    fixture's own home_score_ht/away_score_ht (no /stats/ involved), while
+    half corners/cards/shots come out of the same /stats/ payload the
+    full-match figures already use -- both for zero extra calls."""
+    rows = [
+        _fixture_row(
+            587701, "2026-08-18T19:00:00+00:00", 100, 134,
+            home_score_ht=1, away_score_ht=0,
+        )
+    ]
+    client, _ = _client(
+        monkeypatch,
+        tmp_path,
+        {
+            "/teams/100/fixtures/": lambda p: {"count": 1, "results": rows},
+            "/events/587701/stats/": STATS_PAYLOAD,
+        },
+    )
+    monkeypatch.setattr(providers, "get_client", lambda *a, **k: client)
+
+    home = fetch_bzzoiro_history(
+        "100", "134", RateLimiter(usage_dir=tmp_path / "u"), RunBudget(500),
+        last_n=5, mode="l10", as_of_date="2026-08-26", event_id="587706",
+    )
+    # _fixture_row's final score is home 1, away 0; HT is also home 1, away 0
+    # here, so the second half is scoreless.
+    assert home.metrics["goals_1h_total"][0].value == 1
+    assert home.metrics["goals_2h_total"][0].value == 0
+    assert home.metrics["goals_1h_for"][0].value == 1
+    assert home.metrics["goals_2h_for"][0].value == 0
+    # Straight from STATS_PAYLOAD's first_half/second_half corner_kicks.
+    assert home.metrics["corners_1h_total"][0].value == 7  # 3 + 4
+    assert home.metrics["corners_1h_for"][0].value == 3  # team 100 was home
+    assert home.metrics["corners_2h_total"][0].value == 5  # 2 + 3
+    assert home.metrics["corners_2h_for"][0].value == 2
+
+
+def test_l10_without_a_half_time_score_emits_no_half_goals(monkeypatch, tmp_path):
+    """Most of the roster never carries home_score_ht/away_score_ht -- absent
+    is absent, not a half assumed to be 0-0."""
+    rows = [_fixture_row(587701, "2026-08-18T19:00:00+00:00", 100, 134)]
+    client, _ = _client(
+        monkeypatch,
+        tmp_path,
+        {
+            "/teams/100/fixtures/": lambda p: {"count": 1, "results": rows},
+            "/events/587701/stats/": STATS_PAYLOAD,
+        },
+    )
+    monkeypatch.setattr(providers, "get_client", lambda *a, **k: client)
+
+    home = fetch_bzzoiro_history(
+        "100", "134", RateLimiter(usage_dir=tmp_path / "u"), RunBudget(500),
+        last_n=5, mode="l10", as_of_date="2026-08-26", event_id="587706",
+    )
+    assert "goals_1h_total" not in home.metrics
+    assert "goals_2h_total" not in home.metrics
 
 
 def test_the_away_side_gets_its_own_figures_not_the_home_ones(monkeypatch, tmp_path):
@@ -317,6 +409,10 @@ def test_the_away_side_gets_its_own_figures_not_the_home_ones(monkeypatch, tmp_p
     )
     assert away.metrics["corners_for"][0].value == 7
     assert away.metrics["corners_total"][0].value == 12
+    # The same 1-0 match, read for the away side: goals_for is the away
+    # score, not the home one.
+    assert away.metrics["goals_for"][0].value == 0
+    assert away.metrics["goals_against"][0].value == 1
 
 
 def test_h2h_never_emits_a_per_team_metric(monkeypatch, tmp_path):
@@ -352,6 +448,14 @@ def test_h2h_never_emits_a_per_team_metric(monkeypatch, tmp_path):
     )
     assert "corners_total" in outcome.metrics
     assert not [name for name in outcome.metrics if name.endswith("_for")]
+    assert "goals_against" not in outcome.metrics
+    # The h2h meeting itself: 1-1.
+    assert outcome.metrics["goals_total"][0].value == 2
+    # head_to_head.recent_matches carries no home_score_ht/away_score_ht
+    # (unlike /teams/{id}/fixtures/), so h2h never gets half-time goals --
+    # same limitation as goals_for/goals_against above.
+    assert "goals_1h_total" not in outcome.metrics
+    assert "goals_2h_total" not in outcome.metrics
 
 
 def test_unplayed_history_is_one_counted_line_not_a_gap_each(monkeypatch, tmp_path):
@@ -383,7 +487,14 @@ def test_unplayed_history_is_one_counted_line_not_a_gap_each(monkeypatch, tmp_pa
         "100", "134", RateLimiter(usage_dir=tmp_path / "u"), RunBudget(500),
         last_n=3, mode="l10", as_of_date="2026-08-26", event_id="587706",
     )
-    assert outcome.metrics == {}
+    # Goals ride on the fixture listing's own score (here 1-0 on all three),
+    # never on the /stats/ payload that came back empty -- so a match with a
+    # result but no published stats is coverage for goals even though it is
+    # still a gap for every metric that lives in /stats/.
+    assert set(outcome.metrics) == {"goals_total", "goals_for", "goals_against"}
+    assert all(v.value == 1.0 for v in outcome.metrics["goals_total"])
+    assert all(v.value == 1.0 for v in outcome.metrics["goals_for"])
+    assert all(v.value == 0.0 for v in outcome.metrics["goals_against"])
     assert len(outcome.data_gaps) == 1
     assert "3 of 3" in outcome.data_gaps[0]
 
@@ -701,6 +812,50 @@ def test_player_rows_carry_the_player_and_which_xi_they_came_from():
 
     over_15 = next(r for r in rows if r.line == 1.5 and r.direction == "OVER")
     assert (over_15.hits, over_15.sample_size) == (5, 6)
+
+
+def test_a_prop_on_an_unavailable_player_never_reaches_a_row():
+    """docs/PLAN_BOGATE_STATYSTYKI.md Faza 4b: a prop on somebody injured is
+    void, not losing, and the filter must be in code -- not left to whoever
+    reads the sheet to cross-check against squad_availability by hand."""
+    from bet.simple_stats.contracts import SquadAvailability
+
+    dossier = EventDossierV1(
+        event_id="evt",
+        sport="football",
+        team_a_name="Olympique Lyonnais",
+        team_b_name="Fenerbahçe",
+        lineup_status="confirmed",
+        squad_availability=[
+            SquadAvailability(
+                provider_team_id="100",
+                side="home",
+                unavailable_count=1,
+                unavailable=[{"provider_player_id": "2190", "player_name": "Loïs Openda"}],
+            )
+        ],
+        player_metrics=[
+            PlayerMetricObservation(
+                player_id="2190",
+                player_name="Loïs Openda",
+                team_side="home",
+                canonical_name="player_total_shots",
+                l10=[_pv(float(v), f"p{i}", date=_day(i)) for i, v in enumerate([3, 2, 4, 1, 2, 3])],
+            ),
+            PlayerMetricObservation(
+                player_id="9999",
+                player_name="Someone Else",
+                team_side="home",
+                canonical_name="player_total_shots",
+                l10=[_pv(float(v), f"q{i}", date=_day(i)) for i, v in enumerate([3, 2, 4, 1, 2, 3])],
+            ),
+        ],
+        readiness="PARTIAL",
+    )
+    rows = [r for r in analyze_dossier(dossier) if r.market == "player_total_shots"]
+    assert rows
+    assert all(r.player_id != "2190" for r in rows)
+    assert any(r.player_id == "9999" for r in rows)
 
 
 def test_a_match_total_row_names_neither_a_team_nor_a_player():

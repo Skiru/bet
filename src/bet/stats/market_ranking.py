@@ -8,6 +8,8 @@ SINGLE SOURCE OF TRUTH for:
 - DIRECTION_PL — dict mapping direction keywords → Polish translations
 """
 
+import os
+
 # ---------------------------------------------------------------------------
 # Per-sport stat key definitions (5 sports)
 # ---------------------------------------------------------------------------
@@ -158,11 +160,29 @@ SPORT_MARKETS: dict[str, list[dict]] = {
 
 STANDARD_MARKET_LINES: dict[str, list[dict]] = {
     "football": [
-        {"market": "Corners Total", "lines": [8.5, 9.5, 10.5, 11.5], "stat": "corners", "is_combined": True},
+        # Faza 2 (docs/PLAN_BOGATE_STATYSTYKI.md): lines widened to reach what
+        # Superbet's own screenshots showed on 2026-08-30 (7.5 total corners,
+        # 6.5 team corners/shots-on-target were all outside the old grid).
+        {"market": "Corners Total", "lines": [6.5, 7.5, 8.5, 9.5, 10.5, 11.5, 12.5], "stat": "corners", "is_combined": True},
         {"market": "Cards Total", "lines": [3.5, 4.5, 5.5], "stat": "yellow_cards", "is_combined": True},
         {"market": "Fouls Total", "lines": [20.5, 22.5, 24.5], "stat": "fouls", "is_combined": True},
         {"market": "Shots on Target", "lines": [4.5, 5.5, 6.5, 7.5], "stat": "shots_on_target", "is_combined": True},
-        {"market": "Goals Total", "lines": [1.5, 2.5, 3.5], "stat": "goals", "is_combined": True},
+        # shots_total is already collected (PRIORITY_METRICS["football"]) and
+        # priced per-team as "Team Shots" below, but had no match-total market.
+        {"market": "Shots Total", "lines": [19.5, 22.5, 25.5, 28.5], "stat": "shots", "is_combined": True},
+        {"market": "Goals Total", "lines": [0.5, 1.5, 2.5, 3.5, 4.5], "stat": "goals", "is_combined": True},
+        # Faza 3: half-time goals. Only the match-total halves get a market --
+        # Superbet's own screenshot (2026-08-30) showed "2. połowa - liczba
+        # goli powyżej 0.5", and there is no equivalent evidence for a
+        # per-team half line or for half corners/cards/shots, so those stay
+        # dossier-only metrics (goals_1h_for/2h_for, corners_1h/2h_total/for,
+        # etc.) rather than invented markets.
+        {"market": "Goals 1H Total", "lines": [0.5], "stat": "goals_1h", "is_combined": True},
+        {"market": "Goals 2H Total", "lines": [0.5], "stat": "goals_2h", "is_combined": True},
+        # New markets on metrics already collected (offsides_total/red_cards_total
+        # via highlightly + bzzoiro) but never priced -- Superbet wystawia oba.
+        {"market": "Total Offsides", "lines": [1.5, 2.5, 3.5, 4.5], "stat": "offsides", "is_combined": True},
+        {"market": "Total Red Cards", "lines": [0.5], "stat": "red_cards", "is_combined": True},
         # Per-team totals. "Team Corners" was here alone and unreachable: no
         # provider kept a home/away split past its own client, so ANALYZE
         # skipped every is_combined=False market. Bzzoiro's
@@ -173,11 +193,16 @@ STANDARD_MARKET_LINES: dict[str, list[dict]] = {
         # a book puts them: a match priced at 9.5 corners is two teams at ~4.5
         # each. The three-line spread per market is the same shape as the
         # combined ones, so a lopsided fixture still has a line near its mean.
-        {"market": "Team Corners", "lines": [3.5, 4.5, 5.5], "stat": "corners", "is_combined": False},
+        {"market": "Team Corners", "lines": [2.5, 3.5, 4.5, 5.5, 6.5, 7.5], "stat": "corners", "is_combined": False},
         {"market": "Team Fouls", "lines": [8.5, 10.5, 12.5], "stat": "fouls", "is_combined": False},
         {"market": "Team Cards", "lines": [1.5, 2.5, 3.5], "stat": "yellow_cards", "is_combined": False},
-        {"market": "Team Shots on Target", "lines": [2.5, 3.5, 4.5, 5.5], "stat": "shots_on_target", "is_combined": False},
+        {"market": "Team Shots on Target", "lines": [1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5], "stat": "shots_on_target", "is_combined": False},
         {"market": "Team Shots", "lines": [9.5, 11.5, 13.5], "stat": "shots", "is_combined": False},
+        {"market": "Team Goals", "lines": [0.5, 1.5, 2.5], "stat": "goals", "is_combined": False},
+        # Offsides per team: bzzoiro's /events/{id}/stats/ already carries the
+        # home/away split (offsides_total is summed from it) -- this market
+        # only needed providers.py to alias that side onto offsides_for.
+        {"market": "Team Offsides", "lines": [0.5, 1.5, 2.5], "stat": "offsides", "is_combined": False},
     ],
     "basketball": [
         {"market": "Total Points", "lines": [195.5, 205.5, 215.5, 225.5], "stat": "points", "is_combined": True},
@@ -250,6 +275,8 @@ MARKET_PL: dict[str, str] = {
     "Shots Total O/U": "Strzały łącznie",
     "Shots on Target Total O/U": "Strzały celne łącznie",
     "Goals Total O/U": "Bramki łącznie",
+    "Goals 1H Total O/U": "Bramki - 1. połowa",
+    "Goals 2H Total O/U": "Bramki - 2. połowa",
     "Total Games O/U": "Gemy łącznie",
     "Total Sets O/U": "Sety łącznie",
     "Total Points O/U": "Punkty łącznie",
@@ -286,6 +313,7 @@ MARKET_PL: dict[str, str] = {
     "Team B Assists O/U": "Asysty drużyny",
     "Team A Goals O/U": "Bramki drużyny",
     "Team B Goals O/U": "Bramki drużyny",
+    "Team Goals O/U": "Bramki drużyny",
     "Player A Games O/U": "Gemy zawodnika",
     "Player B Games O/U": "Gemy zawodnika",
     "Player A Aces O/U": "Asy zawodnika",
@@ -449,13 +477,103 @@ def attach_historical_results(candidates: list, historical_data) -> None:
 PLAYER_PROP_LINES: dict[str, list[dict]] = {
     "football": [
         {"market": "Player Shots", "lines": [0.5, 1.5, 2.5], "stat": "player_total_shots"},
-        {"market": "Player Shots on Target", "lines": [0.5, 1.5], "stat": "player_shots_on_target"},
+        {"market": "Player Shots on Target", "lines": [0.5, 1.5, 2.5], "stat": "player_shots_on_target"},
         {"market": "Player Fouls Committed", "lines": [0.5, 1.5, 2.5], "stat": "player_fouls"},
         {"market": "Player Fouls Won", "lines": [0.5, 1.5, 2.5], "stat": "player_was_fouled"},
         # player_cards, not player_yellow_cards: the market settles on any card.
         {"market": "Player to be Carded", "lines": [0.5], "stat": "player_cards"},
     ],
 }
+
+
+# ---------------------------------------------------------------------------
+# Market/line profile switch (docs/PLAN_BOGATE_STATYSTYKI.md 3bis.1)
+# ---------------------------------------------------------------------------
+#
+# Every phase of that plan changes the football market/line grid above. This
+# is the emergency rollback: BET_MARKETS_PROFILE=legacy reproduces exactly
+# the grid that shipped before the plan, without a git revert, for a betting
+# day where the new markets need to come back out fast. Read fresh on every
+# call (not cached at import time) so the switch takes effect the moment the
+# env var is set -- ANALYZE runs as its own subprocess per betting day
+# (scripts/simple/run_pipeline.py), so there is no long-lived process where
+# staleness would matter, and tests can flip it with monkeypatch.setenv
+# without reimporting the module.
+#
+# Scope: only "football" differs -- 3bis.5 documents that every phase's line
+# change touched exclusively that key, and PLAYER_PROP_LINES only has a
+# football entry to begin with. Every other sport is identical in both
+# profiles, so both legacy dicts alias the current one and override just
+# "football".
+
+# The exact football STANDARD_MARKET_LINES entry before Faza 1-2 widened the
+# corners/shots-on-target grids and added Shots Total, Goals Total's 0.5/4.5
+# ends, the half-time goals markets, and Total/Team Offsides and Red Cards.
+_STANDARD_MARKET_LINES_LEGACY_FOOTBALL: list[dict] = [
+    {"market": "Corners Total", "lines": [8.5, 9.5, 10.5, 11.5], "stat": "corners", "is_combined": True},
+    {"market": "Cards Total", "lines": [3.5, 4.5, 5.5], "stat": "yellow_cards", "is_combined": True},
+    {"market": "Fouls Total", "lines": [20.5, 22.5, 24.5], "stat": "fouls", "is_combined": True},
+    {"market": "Shots on Target", "lines": [4.5, 5.5, 6.5, 7.5], "stat": "shots_on_target", "is_combined": True},
+    {"market": "Goals Total", "lines": [1.5, 2.5, 3.5], "stat": "goals", "is_combined": True},
+    {"market": "Team Corners", "lines": [3.5, 4.5, 5.5], "stat": "corners", "is_combined": False},
+    {"market": "Team Fouls", "lines": [8.5, 10.5, 12.5], "stat": "fouls", "is_combined": False},
+    {"market": "Team Cards", "lines": [1.5, 2.5, 3.5], "stat": "yellow_cards", "is_combined": False},
+    {"market": "Team Shots on Target", "lines": [2.5, 3.5, 4.5, 5.5], "stat": "shots_on_target", "is_combined": False},
+    {"market": "Team Shots", "lines": [9.5, 11.5, 13.5], "stat": "shots", "is_combined": False},
+]
+
+_STANDARD_MARKET_LINES_LEGACY: dict[str, list[dict]] = {
+    **STANDARD_MARKET_LINES,
+    "football": _STANDARD_MARKET_LINES_LEGACY_FOOTBALL,
+}
+
+# The exact football PLAYER_PROP_LINES entry before Faza 4b widened "Player
+# Shots on Target" from two lines to three.
+_PLAYER_PROP_LINES_LEGACY_FOOTBALL: list[dict] = [
+    {"market": "Player Shots", "lines": [0.5, 1.5, 2.5], "stat": "player_total_shots"},
+    {"market": "Player Shots on Target", "lines": [0.5, 1.5], "stat": "player_shots_on_target"},
+    {"market": "Player Fouls Committed", "lines": [0.5, 1.5, 2.5], "stat": "player_fouls"},
+    {"market": "Player Fouls Won", "lines": [0.5, 1.5, 2.5],
+     "stat": "player_was_fouled"},
+    {"market": "Player to be Carded", "lines": [0.5], "stat": "player_cards"},
+]
+
+_PLAYER_PROP_LINES_LEGACY: dict[str, list[dict]] = {
+    **PLAYER_PROP_LINES,
+    "football": _PLAYER_PROP_LINES_LEGACY_FOOTBALL,
+}
+
+
+def markets_profile() -> str:
+    """"legacy" or "v2" (default) from the BET_MARKETS_PROFILE env var.
+
+    Anything other than exactly "legacy" (case-insensitive) is "v2" -- an
+    unset or misspelled value must fail safe onto the current grid, not
+    silently roll it back.
+    """
+    value = os.environ.get("BET_MARKETS_PROFILE", "v2").strip().lower()
+    return "legacy" if value == "legacy" else "v2"
+
+
+def standard_market_lines() -> dict[str, list[dict]]:
+    """STANDARD_MARKET_LINES for the active BET_MARKETS_PROFILE.
+
+    ANALYZE (simple_stats) calls this instead of reading STANDARD_MARKET_LINES
+    directly, so the rollback switch actually reaches the pipeline that emits
+    stats-sheet rows. Everything outside simple_stats keeps importing
+    STANDARD_MARKET_LINES itself -- that module-level dict still holds the
+    current grid unchanged, so no other caller's behavior moves.
+    """
+    if markets_profile() == "legacy":
+        return _STANDARD_MARKET_LINES_LEGACY
+    return STANDARD_MARKET_LINES
+
+
+def player_prop_lines() -> dict[str, list[dict]]:
+    """PLAYER_PROP_LINES for the active profile. See standard_market_lines()."""
+    if markets_profile() == "legacy":
+        return _PLAYER_PROP_LINES_LEGACY
+    return PLAYER_PROP_LINES
 
 
 # ---------------------------------------------------------------------------

@@ -157,6 +157,35 @@ ESPN_LEAGUES = {
 # women's league and no Portuguese second tier, so those two names must stay
 # unresolved. "Adding the missing code" is only a fix when the code exists.
 #
+# docs/PLAN_BOGATE_STATYSTYKI.md Faza 6 re-probed live on 2026-08-31 for the
+# largest still-unresolved names on the 2026-08-31 slate
+# (espn_competition_coverage's unresolved-by-fixtures list). Findings, so a
+# future session does not re-probe the same names and reach for a table entry
+# that cannot exist:
+#   fin.1 (200, zero teams)  -> "Veikkausliiga" / "Veikkausliiga - Finland"
+#                                (6+3 fixtures) have no ESPN code. Finland's
+#                                whole soccer tree is absent from ESPN's own
+#                                /v2/sports/soccer/leagues directory, not just
+#                                this one code -- confirmed structural, not a
+#                                missed spelling.
+#   swe.2 (200, zero teams)  -> "Superettan - Sweden" (1 fixture), Sweden's
+#                                second tier. Same pattern as por.2.
+#   arg.4 (200, zero teams)  -> "Primera C" (6 fixtures). ESPN's own directory
+#                                names this code "Argentine Primera C" -- it
+#                                knows the league exists and still serves no
+#                                team data for it.
+#   isr.2 (200, zero teams)  -> "Liga Leumit" (3 fixtures), Israel's second
+#                                tier.
+#   aze.1 (200, zero teams)  -> "Azerbaijan Premier League" (2 fixtures).
+#   geo.1, cro.1, bul.1 (200, zero teams) -- reconfirmed dead, matching the
+#                                2026-08-28 list above ("Erovnuli Liga", "HNL",
+#                                "Parva Liga").
+# Every other unresolved name on that slate ("FAW Championship", "Second
+# Division", "Professional League", ...) is either a generic label ESPN has no
+# single code for (same doctrine as bare "Super League"/"Superliga" above) or
+# a country/league this table has not yet probed live -- left alone rather
+# than guessed.
+#
 # Nothing in this table was copied out of a fuzzy match. A table built from
 # fuzzy output freezes the fuzzy matcher's mistakes as ground truth.
 
@@ -449,6 +478,11 @@ _ESPN_FOOTBALL_COMPETITIONS = {
     "Romania Superliga": "rou.1", "Liga 1 Romania": "rou.1",
     "Romania Liga 1": "rou.1",
     "Eliteserien": "nor.1",
+    # "Allsvenskan - Sweden" is NOT a separate key here. It folds onto bare
+    # "Allsvenskan" in config/competition_name_canonical_map.json (Faza 6)
+    # before this table is ever consulted, because the two names reduce to
+    # different token signatures ({allsvenskan} vs {allsvenskan, sweden}) and
+    # would otherwise need two entries pointing at the same code.
     "Allsvenskan": "swe.1",
     # rus.1 serves a 16-team directory. "Premier League - Russia" used to
     # resolve to eng.1.

@@ -54,6 +54,7 @@ COUNT_METRICS = frozenset(
         "shots_total",
         "shots_on_target_total",
         "fouls_total",
+        "goals_total",
         # One team's own contribution to a match, rather than both sides summed.
         # Same tolerance as a match total: these are counts of the same events.
         "corners_for",
@@ -61,6 +62,19 @@ COUNT_METRICS = frozenset(
         "shots_for",
         "shots_on_target_for",
         "fouls_for",
+        "goals_for",
+        "goals_against",
+        # Faza 2: offsides and red cards priced for the first time, same
+        # counting-events tolerance as everything else in this set.
+        "offsides_total",
+        "offsides_for",
+        "red_cards_total",
+        # Faza 3: half-time splits, derived from the fixture's own
+        # home_score_ht/away_score_ht rather than /stats/.
+        "goals_1h_total",
+        "goals_2h_total",
+        "goals_1h_for",
+        "goals_2h_for",
         # One player's line in a match.
         "player_total_shots",
         "player_shots_on_target",
@@ -132,6 +146,17 @@ class FixtureContext(StrictBaseModel):
     # with, so imposing a schema on it would only create a second thing to keep
     # in step with an upstream that owes us no stability here.
     weather: dict[str, Any] | None = None
+    # Stakes context. round_name/group_name are bzzoiro's own free-text label
+    # (empty on every plain league fixture verified live 2026-08-31 -- no
+    # cup/knockout fixture has been observed yet, so no automatic tier flag
+    # is built on this string until one has: see context_flags.py's own
+    # comment on why). previous_leg_event_id names the first leg of a
+    # two-legged tie; this pipeline does not resolve it (that needs a
+    # follow-up call to see who is trailing on aggregate), it only carries
+    # the pointer so bet-analyst can.
+    round_name: str | None = None
+    group_name: str | None = None
+    previous_leg_event_id: str | None = None
 
 
 class RefereeProfile(StrictBaseModel):
@@ -424,6 +449,62 @@ class MarketSignalColumn(StrictBaseModel):
     reason: str = ""
 
 
+class ContextFlag(StrictBaseModel):
+    """One circumstance's opinion of a row, from ``context_flags.py``.
+
+    Same structural boundary as ``TipsterColumn`` and ``MarketSignalColumn``: a
+    referee's discipline average, an injury count, a form/xG gap, a derby, or
+    wind speed are all circumstances a human would weigh, and previously lived
+    only in the analyst's prose -- invisible to anything downstream that reads
+    the sheet, and not reliably re-checked before a coupon was built from it.
+
+    ``direction`` is deliberately one-way in practice, not just in name:
+    ``tier_for_row`` only ever acts on ``ARGUES_AGAINST`` (stepping a tier down
+    once, never past WEAK) and never on ``SUPPORTS`` -- the same "context may
+    downgrade, never promote" rule this pipeline already enforces for evidence
+    a human writes in prose, now enforced in code for evidence attached here.
+    ``magnitude`` is carried for the reader (a note); it plays no role in the
+    one-step-regardless-of-magnitude rule ``tier_for_row`` applies.
+    """
+
+    source: str
+    direction: Literal["SUPPORTS", "ARGUES_AGAINST"]
+    magnitude: float
+    note: str
+
+
+
+class SuperbetColumn(StrictBaseModel):
+    """What the operator's own book says about this exact row.
+
+    Attached by ANALYZE when a SUPERBET offer artifact is passed, and by
+    ``build_coupons`` when one is passed there. Optional and always last, for
+    the same reason ``tipster`` and ``market_signal`` are: a sheet produced
+    without a Superbet run is a valid sheet, and nothing that computes
+    ``p_low`` reads this.
+
+    The field that earns this column's existence is ``availability``, not
+    ``price``. A row whose line is absent from the book is not a cheap bet or
+    an expensive one -- it is not a bet, and before this column existed there
+    was no way to say so.
+    """
+
+    # Mirrors SUPERBET_VERDICTS minus the two that are properties of the
+    # comparison run rather than of the row (VALUE / PRICED_BELOW_THRESHOLD are
+    # recomputed wherever a threshold is known, since the threshold depends on
+    # the tier and the tier can be downgraded after this column is written).
+    availability: Literal[
+        "OFFERED", "LINE_NOT_OFFERED", "MARKET_NOT_OFFERED", "SUSPENDED",
+        "EVENT_NOT_MATCHED", "OFFER_EMPTY", "SCOPE_NOT_SUPPORTED",
+    ]
+    price: float | None = None
+    status: str | None = None
+    source_market_name: str | None = None
+    nearest_offered_line: float | None = None
+    nearest_offered_price: float | None = None
+    # Superbet's own fixture id, so a disputed price can be re-fetched.
+    superbet_event_id: str | None = None
+
 class StatsSheetRow(StrictBaseModel):
     """One row of STATS_SHEET_V1: event x market x line x direction."""
 
@@ -468,6 +549,15 @@ class StatsSheetRow(StrictBaseModel):
     # The same contract, one stage later: a sheet produced without a
     # MARKET_CONTEXT run is a valid sheet, and nothing above reads this either.
     market_signal: MarketSignalColumn | None = None
+    # Populated by context_flags.py from the same dossier this row was already
+    # built from -- no new provider call. Empty is the common case and a valid
+    # sheet. Read by tier_for_row (ARGUES_AGAINST only, one step down); never
+    # read by anything that computes p_low.
+    context_flags: list[ContextFlag] = Field(default_factory=list)
+    # The operator's own book, attached last of all (SUPERBET, 2026-08-31).
+    # A price here is the price on the screen; every other price in this
+    # pipeline is a reference from a bookmaker the operator does not use.
+    superbet: SuperbetColumn | None = None
 
 
 class StatsSheetV1(StrictBaseModel):
@@ -732,3 +822,180 @@ class TipsterSignalV1(StrictBaseModel):
     # that our own discovery never found.
     unmatched_events: list[str] = Field(default_factory=list)
     events: list[TipsterEventSignal] = Field(default_factory=list)
+
+
+# --- Superbet offer (SUPERBET step, added 2026-08-31) ----------------------
+#
+# Every other price in this pipeline is a *reference*: bzzoiro's grid holds
+# ~88 bookmakers and Superbet is not one of them. These contracts hold the
+# book the operator actually bets into, which answers a question a reference
+# price structurally cannot -- **is this line on the screen at all**.
+#
+# That turned out to be the dominant failure mode rather than a footnote. On
+# the 2026-08-31 night slate, eight of fifteen singles were on lines Superbet
+# does not list, and every ATP fixture was quoted best-of-five against a stats
+# sheet that only emits best-of-three lines.
+
+
+SUPERBET_VERDICTS = Literal[
+    # Price is at or above the row's min_acceptable_odds. The only verdict that
+    # says "this is a bet at the operator's book".
+    "VALUE",
+    # The line is on the screen and priced below the bar. A real answer about a
+    # real market, not a gap.
+    "PRICED_BELOW_THRESHOLD",
+    # Superbet lists this market for this fixture but not at our line. Carries
+    # nearest_offered_line so the operator can see how far off the ladder is.
+    "LINE_NOT_OFFERED",
+    # Superbet lists the fixture but not this market family at all.
+    "MARKET_NOT_OFFERED",
+    # Matched fixture, matched line, outcome suspended/blocked at fetch time.
+    "OUTCOME_SUSPENDED",
+    # No Superbet fixture could be matched to this event. Never silently the
+    # same as "no market": one is our matcher's failure, the other is the book.
+    "EVENT_NOT_MATCHED",
+    # The fixture is on the book and the book is pricing nothing on it -- it
+    # has kicked off, or the offer has been pulled. Distinct from
+    # MARKET_NOT_OFFERED because "no market on this fixture at all" is a fact
+    # about the clock, and reading it as a market-coverage gap made 52 finished
+    # fixtures look like 12,000 missing markets on the first live run.
+    "OFFER_EMPTY",
+    # A market family this pipeline knowingly does not read from Superbet.
+    # Player props are the whole of it: Superbet prices them under free-text
+    # names like "Carrillo, Guido powyzej 0.5 celnych strzalow", and matching
+    # "Surname, Forename" onto our player ids would be a guess. This is our
+    # limitation, not the book's, and conflating the two overstated the book's
+    # coverage gap by a factor of three.
+    "SCOPE_NOT_SUPPORTED",
+]
+
+
+class SuperbetLine(StrictBaseModel):
+    """One priced outcome on Superbet, normalised into this pipeline's terms.
+
+    ``price`` is decimal and verbatim. ``status`` is Superbet's own
+    (``active`` / ``block`` / ...): a blocked outcome still has a price
+    attached and quoting it as bettable is how a coupon acquires a number
+    nobody can take.
+    """
+
+    market: str
+    line: float
+    direction: Literal["OVER", "UNDER"]
+    # Set when this is a per-team line ("Remo - liczba kartek"), None on a
+    # match total. Player-scope lines are not collected: Superbet names players
+    # "Surname, Forename" inside free-text market names and matching those to
+    # our player ids would be a guess, not a lookup.
+    team_name: str | None = None
+    price: float
+    status: str = "active"
+    # Superbet's own market name, kept verbatim. The mapping from Polish prose
+    # to a market code is the part most likely to be wrong, and it cannot be
+    # audited if the source string is thrown away.
+    source_market_name: str
+    source_outcome_name: str
+
+
+class SuperbetEventOffer(StrictBaseModel):
+    """One Superbet fixture, matched to one of our events (or to none)."""
+
+    superbet_event_id: str
+    superbet_match_name: str
+    sport: Sport
+    kickoff: str
+    # None when this Superbet fixture matched nothing we discovered. Kept
+    # anyway: a fixture on the book that our DISCOVER never found is the single
+    # most actionable coverage gap there is.
+    event_id: str | None = None
+    match_quality: Literal["EXACT", "FUZZY", "UNMATCHED"] = "UNMATCHED"
+    # Superbet's kickoff minus ours, in minutes. Tennis is scheduled by court
+    # order, so its published time is an estimate and drifts by an hour or more
+    # without the fixture being a different match.
+    kickoff_delta_minutes: float | None = None
+    market_count: int = 0
+    status: str | None = None
+    lines: list[SuperbetLine] = Field(default_factory=list)
+    # Market names the feed returned that this pipeline does not map, deduped.
+    # Present so Superbet adding a market surfaces as a diagnostic rather than
+    # vanishing -- and so the reverse, a mapping that stops matching, does too.
+    unmapped_markets: list[str] = Field(default_factory=list)
+
+
+class SuperbetOfferV1(StrictBaseModel):
+    """SUPERBET artifact: what the operator's book is actually offering."""
+
+    run_id: str = ""
+    date: str = ""
+    generated_at: str
+    source: str = "superbet.pl public prematch offer"
+    window_start: str = ""
+    window_end: str = ""
+    requests_made: int = 0
+    events_on_offer: int = 0
+    events_matched: int = 0
+    events_unmatched: int = 0
+    # Our events that Superbet does not carry at all. The other half of the
+    # coverage picture from ``events_unmatched``.
+    our_events_without_offer: list[str] = Field(default_factory=list)
+    # The subset of the above whose kickoff had already passed when the offer
+    # was fetched. ``offerState=prematch`` stops carrying a fixture the moment
+    # it goes live, so a late run legitimately reports Barcelona-Rayo as absent
+    # from the book. Separated because "the book dropped it because it started"
+    # and "our matcher failed" are different problems and only one is ours.
+    our_events_kicked_off: list[str] = Field(default_factory=list)
+    events: list[SuperbetEventOffer] = Field(default_factory=list)
+    data_gaps: list[str] = Field(default_factory=list)
+
+
+class SuperbetComparisonRow(StrictBaseModel):
+    """One stats-sheet row judged against the operator's own book.
+
+    ``min_acceptable_odds`` is copied from the same formula the coupon uses
+    (1/p_low x tier margin) rather than recomputed with a different constant --
+    a threshold that disagrees with the coupon's is worse than no threshold.
+    """
+
+    event_id: str
+    match: str
+    kickoff: str
+    sport: Sport
+    market: str
+    line: float
+    direction: Literal["OVER", "UNDER"]
+    team_name: str | None = None
+    p_low: float
+    hits: int
+    sample_size: int
+    median: float
+    tier: str
+    min_acceptable_odds: float
+    verdict: SUPERBET_VERDICTS
+    superbet_price: float | None = None
+    superbet_status: str | None = None
+    superbet_market_name: str | None = None
+    # Set on LINE_NOT_OFFERED: the closest line Superbet does quote for this
+    # market and direction, and how far it is. This is the field that turns
+    # "no bet" into "your line generator is off by four goals-worth of shots".
+    nearest_offered_line: float | None = None
+    nearest_offered_price: float | None = None
+    # price - min_acceptable_odds. Positive is value, and it is stated in odds
+    # rather than probability because that is what the operator compares
+    # against on the screen.
+    odds_surplus: float | None = None
+
+
+class SuperbetComparisonV1(StrictBaseModel):
+    """SUPERBET comparison artifact: our sheet vs the book, row by row."""
+
+    run_id: str = ""
+    date: str = ""
+    generated_at: str
+    rows_considered: int = 0
+    rows_compared: int = 0
+    verdict_counts: dict[str, int] = Field(default_factory=dict)
+    # Aggregated diagnosis of the line-ladder mismatch, keyed
+    # "<sport>:<market>". This is the artifact's most useful output when
+    # nothing clears the bar: it names the markets whose generated lines never
+    # appear on the book at all.
+    line_coverage: dict[str, dict[str, Any]] = Field(default_factory=dict)
+    rows: list[SuperbetComparisonRow] = Field(default_factory=list)

@@ -325,6 +325,25 @@ zakończonym meczu sprawdzić, czy istnieje `period_scores` / `scores.period_1`.
 Jeśli nie — gole półmeczowe wymagają `get_match_incidents` (minuty goli), co jest
 **+1 wywołanie na mecz historyczny** i wywraca budżet fazy.
 
+**Sonda wykonana 2026-08-31.** `search_matches(status=finished)` na 50 meczach
+zakończonych 2026-08-30 pokazuje `home_score_ht` / `away_score_ht` jako pola
+**top-level** na każdym wierszu, obok `home_score`/`away_score` — dokładnie tam,
+gdzie leży wynik meczu, nie w `/stats/`. Wartości są realne i zróżnicowane (np.
+Napoli–Como `HT 1-2`, Real Madrid–Atlético `HT 3-2`), nie stały placeholder.
+`/teams/{id}/fixtures/` i `/events/{id}/` zwracają ten sam kształt wiersza
+(oba przechodzą przez `_normalize_event_row`), więc pole jest dostępne dla ścieżki
+l10 za darmo. Jedyny wyjątek: `head_to_head.recent_matches` (ścieżka h2h,
+[bzzoiro.py:371](../src/bet/api_clients/bzzoiro.py#L371)) niesie tylko
+`home_score`/`away_score`, bez wersji `_ht` — h2h nie dostanie połówek, tak jak
+już nie dostaje `goals_for`/`goals_against` (Faza 1).
+
+**Wynik: Wariant A.** Zero nowych wywołań. Implementacja mirroruje Fazę 1: dodać
+`home_score_ht`/`away_score_ht` do słownika `score` w `_normalize_event_row`
+([bzzoiro.py:1769](../src/bet/api_clients/bzzoiro.py#L1769)), potem w obu
+miejscach `providers.py` (highlightly l10 nie ma tego pola — pomijane; bzzoiro
+l10 [linia ok. 1935] emituje `goals_1h_total`/`goals_2h_total` obok
+`goals_total`, tylko gdy oba `_ht` są nie-`None`).
+
 * **Wariant A** (są wyniki połów w payloadzie fixture'a): koszt jak Faza 1 — zero
   nowych wywołań. 1 dzień.
 * **Wariant B** (trzeba `incidents`): +1 wywołanie × ~25 meczów historycznych ×
@@ -435,6 +454,34 @@ stopień (`CALL→LEAN`, `LEAN→WEAK`). Nigdy nie podnosi i nigdy nie dotyka `p
 To jest ten sam sufit, który `bet-analyst.md` już nakłada na dowody z sieci —
 teraz egzekwowany przez `tier_for_row`, a nie przez dobrą wolę agenta.
 
+**Rozszerzenie post-planowe, 2026-08-31** (poza oryginalnym zakresem planu,
+ta sama dyscyplina): operator zapytał, czy system widzi *stawkę* meczu —
+klasyfikacja, faza grupowa, rewanż w dwumeczu. Odpowiedź na dzień zapytania:
+nie, nic tego nie liczyło. `fixture_context` dostał trzy nowe pola —
+`round_name`, `group_name`, `previous_leg_event_id` — z tego samego wiersza
+bzzoiro, zero nowych zapytań (`bzzoiro.py:_normalize_event_row`,
+`discover.py:_to_event_record`). **Żadna nowa reguła w `_FLAG_RULES` nie
+powstała**: każdy sprawdzony live 2026-08-31 mecz (10 rozgrywek ligowych) miał
+`round_name=""`/`group_name=None` — bez choćby jednego realnego meczu
+pucharowego nie ma z czego zbudować dopasowania stringa, a ta dyscyplina
+("widziane na realnym slate'ie, nigdy zgadywane") jest tym samym powodem, dla
+którego tabela ESPN odmawia wpisów bez weryfikacji. `previous_leg_event_id`
+też nie dostał reguły — o tym, która strona musi gonić wynik, decyduje wynik
+pierwszego meczu, którego nie ma na tym wierszu; to wymaga drugiego,
+żywego wywołania, więc trafiło do `bet-analyst.md` jako instrukcja dla
+analityka (ma narzędzia MCP, sam sprawdzi), nie do kodu.
+
+**Skutek uboczny znaleziony po drodze, naprawiony w tym samym commicie:**
+`discover.py`'s `_to_event_record` budował cały blok `fixture_context`
+**tylko gdy `referee_id` nie było `None`** — czyli mecz bez przypisanego
+jeszcze sędziego tracił też `is_local_derby`, `weather` i (nowe) `round_name`
+w całości, mimo że żadne z nich nie zależy od sędziego. Zmierzone live
+2026-08-31: Sutton United – Wealdstone miało `referee_id: null` i
+`is_local_derby: true` naraz. Brama teraz zależy od źródła
+(`src.source == "bzzoiro"`), nie od `referee_id`; `enrich.py`'s komunikat
+"referee: no referee_id" i tak czyta `context.referee_id` samo, więc
+pokrycie sędziów w raportach nie zmienia się ani o jeden fixture.
+
 #### 5c. Ranking po przewadze, nie po `p_low`
 Tam, gdzie wiersz ma `market_signal` z obiema liczbami (po Fazie 1: rożne **i**
 gole), policzyć `edge = p_low − market_implied_probability` i sortować kupon po
@@ -503,6 +550,46 @@ analityka jest widoczne w pliku z powodem.
   Decyzja operatora: opłacić albo wyłączyć z rosteru, żeby przestał produkować
   340 fałszywych `data_gaps` na run.
 
+**Wykonano 2026-08-31.** `sportdb` był już usunięty z rosteru wcześniej w tej
+samej sesji (Faza 5) — ta część jest nieaktualna. Reszta:
+
+* **ESPN, live re-probe czterech nazwanych kandydatów** (`/apis/site/v2/sports/soccer/<code>/teams`,
+  ta sama metoda co reszta tabeli): **Allsvenskan** i **National League**
+  okazały się już przypięte (`swe.1`, `eng.5`) — tekst planu był nieaktualny.
+  **Veikkausliiga** (`fin.1`) i **Primera C** (`arg.4`) odpowiadają 200 z pustym
+  katalogiem drużyn — dokładnie ten sam wzorzec co `por.2`/`ger.w.1` udokumentowany
+  wyżej w `espn.py`. Rozszerzone sondowanie (Superettan/`swe.2`, Liga Leumit/`isr.2`,
+  Azerbaijan Premier League/`aze.1`, ponowne `geo.1`/`cro.1`/`bul.1`) — wszystkie
+  martwe. Wniosek: tabela ESPN jest już bliska nasycenia tym, co ESPN faktycznie
+  serwuje; większość z 58 nierozwiązanych nazw to fakt strukturalny (martwy kod
+  albo celowo niejednoznaczna nazwa jak bare `Superliga`), nie luka w tabeli.
+  Pełne uzasadnienie i lista martwych kodów: komentarz nad
+  `_ESPN_FOOTBALL_COMPETITIONS` w `src/bet/api_clients/espn.py`.
+* **Kanonizacja nazw w DISCOVER — zaimplementowana.** Nowa
+  `config/competition_name_canonical_map.json` (dyscyplina identyczna jak
+  pozostałe mapy: dokładny pin, zero fuzzy; bare `Superliga` świadomie
+  nieobecna). Zastosowana w `discover_events()`
+  (`src/bet/simple_stats/discover.py`) zaraz po `_fetch_all_sources`, przed
+  `_detect_ambiguous` — więc zarówno dedup, jak i późniejsze wyszukanie w
+  tabeli ESPN widzą już jedną nazwę. `Allsvenskan - Sweden` → `Allsvenskan`
+  wchodzi tą samą ścieżką, więc nie potrzebuje osobnego wpisu w tabeli ESPN.
+  Testy: `tests/simple_stats/test_discover.py` (nowe: mapa jest dokładnym
+  pinem, `EPL`/`Premier League` scalają się w jeden `event_id`, nieznana nazwa
+  przechodzi bez zmian, bare `Superliga` nigdy nie jest zgadywana).
+* **Skutek uboczny znaleziony po drodze:** `config/competition_tier_map.json`
+  (Faza 5d) miał `"Premier League 2"` ale nie `"Premier League 2 Division
+  One"` — dokładny pin nie łapie tej drugiej nazwy mimo że to ta sama liga
+  młodzieżowa (8 fixture'ów na slate'u 2026-08-31). Dopisano jako osobny wpis
+  YOUTH, zgodnie z tą samą dyscypliną "widziane na realnym slate'ie".
+* **Nie zrobione:** highlightly quota exhaustion — pozostaje decyzją
+  operatora (przenieść odkrywanie dużych lig na bzzoiro albo zaakceptować), nie
+  ma tu kodu do napisania bez tej decyzji.
+* Weryfikacja: `tests/simple_stats` 931/931 (było 927, +4 nowe testy).
+  Skurowany zbiór 69 nazw (patrz `test-suite-baseline`) zweryfikowany jako
+  identyczny zbiór nazw przed/po (nie tylko liczba) prawdziwym diffem.
+  `diff_stats_sheet.py` wobec zamrożonego fixture'a z Fazy 0: "no diff, 906
+  rows match" — oczekiwane, ta faza dotyka wyłącznie DISCOVER, nie ANALYZE.
+
 ---
 
 ## 3bis. Rzeczy przekrojowe, które muszą iść z każdą fazą (review 2)
@@ -520,6 +607,30 @@ Musi istnieć wyjście awaryjne, którego nie trzeba szukać w gicie o 6 rano:
 * Test, który wymusza, że pod `legacy` `diff_stats_sheet.py` daje pusty diff
   wobec zamrożonego arkusza z Fazy 0. To jedyny sposób, żeby przełącznik nie
   zgnił po dwóch tygodniach.
+
+**Wykonano 2026-08-31.** `markets_profile()`/`standard_market_lines()`/
+`player_prop_lines()` w `src/bet/stats/market_ranking.py` czytają
+`BET_MARKETS_PROFILE` **świeżo przy każdym wywołaniu** (nie cache'owane przy
+imporcie) — ANALYZE i tak działa jako osobny subproces na dzień zakładowy, więc
+nie ma długo żyjącego procesu, w którym cache mógłby się zestarzeć, a testy
+mogą przełączać profil przez `monkeypatch`/`os.environ` bez re-importu.
+`STANDARD_MARKET_LINES`/`PLAYER_PROP_LINES` jako gołe słowniki **zostają bez
+zmian** (nadal trzymają siatkę v2) — każdy odbiorca spoza `simple_stats`
+(`scripts/generate_market_matrix.py`, `scripts/build_shortlist.py`,
+`scripts/normalize_stats.py`) nadal je importuje wprost i nie widzi żadnej
+zmiany zachowania; tylko `analyze.py` (jedyny realny konsument w zakresie
+planu) przeszedł na wywołanie funkcji. Domyślne `v2` przy braku/nieznanej
+wartości env — literówka w zmiennej środowiskowej nie może po cichu cofnąć
+siatki rynków. `scripts/simple/diff_stats_sheet.py` dostał `--profile
+{v2,legacy}` i nowy dedykowany fixture
+`tests/fixtures/simple_stats/stats_sheet_baseline_legacy_2026-08-31.json`
+(618 wierszy — dokładnie 906 minus 288 wierszy, które Faza 2 dodała na tym
+samym zamrożonym fixture'ie, co potwierdza spójność wewnętrzną). Testy
+wymuszające pusty diff pod `legacy`:
+`tests/simple_stats/test_diff_stats_sheet.py` (replay + CLI) i
+`tests/simple_stats/test_market_ranking_profile.py` (jednostkowe: domyślny
+profil, wielkość liter, nieznana wartość failuje bezpiecznie na `v2`, siatka
+legacy, pozostałe dyscypliny nietknięte — 3bis.5).
 
 ### 3bis.2 Dokumenty są tu kontraktami, nie opisem
 Trzy pliki opisują to, czego kod nie egzekwuje. Rozjazd między nimi a kodem jest
@@ -567,6 +678,28 @@ cenę i model naraz, a wraz z nimi cała Faza 5c.
 **w nagłówku pliku kuponowego**, nie tylko w `data_gaps`. Operator ma zobaczyć,
 że dzisiejszy kupon powstał bez odniesienia do rynku, zanim przeczyta pierwszy
 wiersz.
+
+**Wykonano 2026-08-31.** `build_coupons()` (`src/bet/simple_stats/coupons.py`)
+dostał nowy opcjonalny argument `market_context: MarketContextV1 | None` i
+funkcję `_entitlement_note()`, która czyta **per-event**
+`EventMarketContext.comparison_entitlement` z całego runu, nie tylko
+zgrubny bool `football_unlimited_entitled` — ten bool cache'uje wyłącznie
+`ENTITLED`/`NOT_ENTITLED` (`_ENTITLEMENT_CACHE` w `market_context.py` nigdy
+nie zapisuje `ERROR`), więc sam by nie złapał runu, w którym sonda zwróciła
+błąd zamiast jasnej odpowiedzi. Note pojawia się tylko, gdy zbiór
+zaobserwowanych wartości wykracza poza `{ENTITLED, NOT_ATTEMPTED}` — samo
+`NOT_ATTEMPTED` (sonda nigdy nie wystrzelona, albo budżet wywołań się
+skończył wcześniej) to już osobny, istniejący `data_gap` per event, nie dowód
+utraty uprawnienia. Note trafia jako **pierwszy** wpis w `CouponSet.notes`,
+więc renderowany jest przed pierwszym singlem w pliku markdown. `scripts/
+simple/build_coupons.py` dostał `--market-context PATH` (domyślnie
+`<date>_market_context.json` pod `--date`, dokładnie ten sam wzorzec co
+istniejące `--vetoes`) — brak pliku to zdrowy, milczący stan domyślny, tak
+samo jak brak weta. Testy: `tests/simple_stats/test_coupons.py` (zdrowy run,
+brak sondy, potwierdzony brak uprawnienia, błąd sondy niewidoczny dla samego
+bool'a, dryf w trakcie runu z obiema wartościami w komunikacie) i
+`tests/simple_stats/test_build_coupons_cli.py` (owinięcie CLI: brakujący
+plik, plik z potwierdzonym `NOT_ENTITLED` renderuje się przed `## Single`).
 
 ### 3bis.7 Jak poznamy, że jest lepiej
 Bez tego cały plan jest niesprawdzalny. Kryterium akceptacji dla całości:

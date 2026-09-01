@@ -77,6 +77,30 @@ def test_a_single_leg_has_no_correlation_risk_to_report():
     assert draft.correlation_risk == "NOT_APPLICABLE"
 
 
+def test_every_football_market_is_in_the_correlated_family():
+    """A market outside `_CORRELATED_FOOTBALL_FAMILY` gets no correlation
+    warning at all, silently -- and goals correlates with shots and corners
+    at least as strongly as anything already in the set (a goal-heavy match
+    is a shot-heavy match). docs/PLAN_BOGATE_STATYSTYKI.md 3bis.4: this must
+    fail the moment a market is added to STANDARD_MARKET_LINES/
+    PLAYER_PROP_LINES without a matching addition here."""
+    from bet.simple_stats.analyze import _MARKET_STAT_TO_CANONICAL, _TEAM_MARKET_STAT_TO_CANONICAL
+    from bet.simple_stats.bet_builder_draft import _CORRELATED_FOOTBALL_FAMILY
+    from bet.stats.market_ranking import PLAYER_PROP_LINES, STANDARD_MARKET_LINES
+
+    markets: set[str] = set()
+    for market_def in STANDARD_MARKET_LINES["football"]:
+        table = _MARKET_STAT_TO_CANONICAL if market_def["is_combined"] else _TEAM_MARKET_STAT_TO_CANONICAL
+        canonical = table.get(market_def["stat"])
+        if canonical is not None:
+            markets.add(canonical)
+    for market_def in PLAYER_PROP_LINES["football"]:
+        markets.add(market_def["stat"])
+
+    outside = markets - _CORRELATED_FOOTBALL_FAMILY
+    assert not outside, f"{outside} would get no correlation warning at all"
+
+
 # --- tiers: bet-analyst.md's own table, implemented ------------------------
 
 
@@ -118,6 +142,51 @@ def test_a_predicted_xi_prop_is_capped_at_lean():
 
 def test_a_blocked_row_is_dropped_however_large_its_sample():
     assert tier_for_row(_row(sample_size=40, data_quality="BLOCKED")) == "DROP"
+
+
+# --- context flags: may downgrade once, never promote (Faza 5b) -----------
+
+
+def _flag(direction="ARGUES_AGAINST", source="referee"):
+    from bet.simple_stats.contracts import ContextFlag
+
+    return ContextFlag(source=source, direction=direction, magnitude=1.0, note="test flag")
+
+
+def test_an_arguing_flag_steps_a_call_down_to_lean():
+    row = _row(sample_size=12, cross_provider_agreement="AGREE")
+    assert tier_for_row(row) == "CALL"
+    flagged = row.model_copy(update={"context_flags": [_flag()]})
+    assert tier_for_row(flagged) == "LEAN"
+
+
+def test_an_arguing_flag_steps_a_lean_down_to_weak():
+    row = _row(sample_size=6, cross_provider_agreement="AGREE")
+    assert tier_for_row(row) == "LEAN"
+    flagged = row.model_copy(update={"context_flags": [_flag()]})
+    assert tier_for_row(flagged) == "WEAK"
+
+
+def test_an_arguing_flag_never_pushes_weak_to_drop():
+    row = _row(sample_size=4, cross_provider_agreement="AGREE")
+    assert tier_for_row(row) == "WEAK"
+    flagged = row.model_copy(update={"context_flags": [_flag()]})
+    assert tier_for_row(flagged) == "WEAK"
+
+
+def test_multiple_arguing_flags_still_step_down_only_once():
+    row = _row(sample_size=12, cross_provider_agreement="AGREE")
+    flagged = row.model_copy(
+        update={"context_flags": [_flag(source="referee"), _flag(source="weather")]}
+    )
+    assert tier_for_row(flagged) == "LEAN"
+
+
+def test_a_supporting_flag_never_promotes_and_never_downgrades():
+    row = _row(sample_size=6, cross_provider_agreement="SINGLE_SOURCE")
+    assert tier_for_row(row) == "LEAN"
+    flagged = row.model_copy(update={"context_flags": [_flag(direction="SUPPORTS")]})
+    assert tier_for_row(flagged) == "LEAN"
 
 
 # --- thresholds -----------------------------------------------------------

@@ -108,30 +108,30 @@ def test_coverage_reports_two_provider_reach_not_the_most_generous_one(tmp_path)
     would promise hundreds of events off an unlimited ESPN while the only
     provider that could corroborate it runs dry after a handful.
     """
-    # Exactly one generous provider (ESPN) and one thin one (SportDB); the
-    # rest exhausted, so SportDB is the only thing that can corroborate ESPN.
+    # Exactly one generous provider (ESPN) and one thin one (Highlightly); the
+    # rest exhausted, so Highlightly is the only thing that can corroborate ESPN.
     limiter = _limiter(
         tmp_path,
         {
             "espn-football": 10_000,
-            "sportdb": 70,
+            "highlightly": 70,
             "api-football": 1,
-            "highlightly": 1,
+            "understat": 1,
             "bzzoiro": 1,
         },
     )
     limiter.record_request("api-football", "/x", 1)
-    limiter.record_request("highlightly", "/x", 1)
+    limiter.record_request("understat", "/x", 1)
     limiter.record_request("bzzoiro", "/x", 1)
 
     # Three fixtures, so quota is the binding constraint rather than the size
     # of the slate: coverage can never exceed the events actually on it.
     slate = _list(*(_event(event_id=f"evt-{i}") for i in range(3)))
     result = enrich_preflight(slate, limiter, planned_events=40)
-    assert sorted(result["usable_providers"]) == ["espn-football", "sportdb"]
+    assert sorted(result["usable_providers"]) == ["espn-football", "highlightly"]
 
-    # ESPN alone covers 10000/25 = 400 events, but SportDB's 70/35 = 2 is what
-    # bounds two-provider coverage, and 2 is what must be reported.
+    # ESPN alone covers 10000/25 = 400 events, but Highlightly's 70/35 = 2 is
+    # what bounds two-provider coverage, and 2 is what must be reported.
     assert result["coverage_by_sport"]["football"] == 2
     assert result["recommended_max_events"] == 2
 
@@ -177,11 +177,11 @@ def test_coverage_is_bounded_by_what_a_provider_can_actually_serve(tmp_path):
 
 
 def test_thin_quota_is_warned_about_before_the_run(tmp_path):
-    limiter = _limiter(tmp_path, {"espn-football": 10_000, "sportdb": 70, "api-football": 10_000})
+    limiter = _limiter(tmp_path, {"espn-football": 10_000, "highlightly": 70, "api-football": 10_000})
     result = enrich_preflight(_list(_event()), limiter, planned_events=40)
     thin = {t["provider"]: t for t in result["thin"]}
-    assert "sportdb" in thin
-    assert thin["sportdb"]["covers_events"] < 40
+    assert "highlightly" in thin
+    assert thin["highlightly"]["covers_events"] < 40
 
 
 @pytest.mark.parametrize("sport,expected", [("football", "highlightly"), ("tennis", "tennis-abstract")])
@@ -198,7 +198,7 @@ def _blank_env(tmp_path, monkeypatch, contents=""):
     monkeypatch.setattr(envmod, "ENV_PATH", path)
     envmod.reload_env()
     for var in ("HIGHLIGHTLY_API_KEY", "RAPIDAPI_KEY", "SPORTDB_API_KEY",
-                "SPORTDB_KEY", "API_FOOTBALL_KEY", "SERPAPI_KEY"):
+                "SPORTDB_KEY", "API_FOOTBALL_KEY", "SERPAPI_KEY", "BZZORIO_KEY"):
         monkeypatch.delenv(var, raising=False)
 
 
@@ -229,7 +229,7 @@ def test_preflight_reports_missing_credentials_separately_from_exhausted_quota(t
 
     kinds = {b["provider"]: b["kind"] for b in result["blocked"]}
     assert kinds.get("highlightly") == "missing_credentials"
-    assert kinds.get("sportdb") == "missing_credentials"
+    assert kinds.get("bzzoiro") == "missing_credentials"
     assert "api-football" in result["usable_providers"]
 
 

@@ -31,15 +31,82 @@ for entry in (str(ROOT), str(ROOT / "src"), str(ROOT / "scripts")):
         sys.path.insert(0, entry)
 
 from bet.simple_stats.artifact_io import write_json_atomic  # noqa: E402
-from bet.simple_stats.contracts import EventListV1, StatsSheetV1  # noqa: E402
+from bet.simple_stats.contracts import (  # noqa: E402
+    EventListV1,
+    MarketContextV1,
+    StatsSheetV1,
+    SuperbetOfferV1,
+)
 from bet.simple_stats.bet_builder_draft import (  # noqa: E402
     _CORRELATED_FOOTBALL_FAMILY as _CORRELATED_MARKETS,
 )
-from bet.simple_stats.coupons import CouponSet, build_coupons, market_label  # noqa: E402
+from bet.simple_stats.coupons import (  # noqa: E402
+    AnalystVeto,
+    CouponSet,
+    build_coupons,
+    market_label,
+)
 
 
 def _kickoff(iso: str) -> str:
     return iso[11:16] if len(iso) >= 16 else ""
+
+
+def _singles_row(s, *, edge: str | None = None) -> str:
+    """One markdown table row for a single. ``edge`` prepends an extra column
+    when given, so the two singles sections (Faza 5c) share one row format."""
+    subject = f" · {s.subject}" if s.subject else ""
+    market = f"{s.market_label} {s.line}{subject}"
+    mkt = "—"
+    if s.market_verdict and s.market_verdict != "NO_MARKET_DATA":
+        verdict = {
+            "CONFIRMS": "POTWIERDZA",
+            "CONTRADICTS": "PRZECZY",
+            "SPLIT": "PODZIELONY",
+        }.get(s.market_verdict, s.market_verdict)
+        mkt = verdict
+        if s.market_price:
+            mkt += f" · {s.market_price} @{s.market_bookmaker}"
+    edge_cell = f"| {edge} " if edge is not None else ""
+    return (
+        f"| {s.rank} {edge_cell}| {s.p_low * 100:.1f}% | {s.match} | {market} | {s.direction} "
+        f"| {s.hits}/{s.sample_size} | {s.sample_size} | {s.cross_provider_agreement} "
+        f"| {mkt} | {s.tipster or 'brak'} | **{s.min_acceptable_odds:.2f}** "
+        f"| {superbet_cell(s)} | {s.tier} |"
+    )
+
+
+# What the operator's own screen says, in one cell. The distinction the cell
+# exists to draw is not cheap-versus-dear but **on the screen versus not**:
+# "brak linii" and a low price look nothing alike to a human and looked
+# identical to this file until 2026-08-31.
+_SUPERBET_CELL = {
+    "MARKET_NOT_OFFERED": "brak rynku",
+    "EVENT_NOT_MATCHED": "brak meczu",
+    "SUSPENDED": "zablokowany",
+    # The book has the fixture and prices nothing on it -- it kicked off, or the
+    # offer was pulled. Rendering the raw enum here read as an error; it is the
+    # clock.
+    "OFFER_EMPTY": "mecz już trwa",
+    # Ours, not the book's: Superbet prices player props, we do not read them.
+    "SCOPE_NOT_SUPPORTED": "nie czytamy",
+}
+
+
+def superbet_cell(s) -> str:
+    if s.superbet_availability is None:
+        return "—"
+    if s.superbet_availability == "LINE_NOT_OFFERED":
+        if s.superbet_nearest_line is not None:
+            return f"brak linii (ma {s.superbet_nearest_line})"
+        return "brak linii"
+    if s.superbet_availability != "OFFERED":
+        return _SUPERBET_CELL.get(s.superbet_availability, s.superbet_availability)
+    if s.superbet_price is None:
+        return "—"
+    if s.superbet_verdict == "VALUE":
+        return f"**{s.superbet_price:.2f} ✓**"
+    return f"{s.superbet_price:.2f}"
 
 
 def render_markdown(coupons: CouponSet) -> str:
@@ -62,31 +129,42 @@ def render_markdown(coupons: CouponSet) -> str:
     a("")
 
     # --- singles ---------------------------------------------------------
+    # Two sections, never merged (docs/PLAN_BOGATE_STATYSTYKI.md Faza 5c): a
+    # row ranked against the market's own price is a different claim from one
+    # ranked on p_low alone, and printing them in one list would let a boring
+    # high-p_low row outrank a real edge just by sorting above it.
     a("## Single")
     a("")
+    with_edge = [s for s in coupons.singles if s.edge is not None]
+    without_edge = [s for s in coupons.singles if s.edge is None]
     if not coupons.singles:
         a("_Żaden wiersz nie przeszedł progu — dzień bez typów singlowych._")
     else:
-        a("| # | Pewność | Mecz | Rynek | Strona | Surowo | n | Zgodność | Rynek | Typerzy | Min. kurs | Tier |")
-        a("|--:|--------:|------|-------|--------|-------:|--:|----------|-------|---------|----------:|------|")
-        for s in coupons.singles:
-            subject = f" · {s.subject}" if s.subject else ""
-            market = f"{s.market_label} {s.line}{subject}"
-            mkt = "—"
-            if s.market_verdict and s.market_verdict != "NO_MARKET_DATA":
-                verdict = {
-                    "CONFIRMS": "POTWIERDZA",
-                    "CONTRADICTS": "PRZECZY",
-                    "SPLIT": "PODZIELONY",
-                }.get(s.market_verdict, s.market_verdict)
-                mkt = verdict
-                if s.market_price:
-                    mkt += f" · {s.market_price} @{s.market_bookmaker}"
+        a("### Single z odniesieniem do rynku")
+        a("")
+        if not with_edge:
+            a("_Żaden wiersz nie ma dziś ceny z rynku (dziś: tylko rożne i gole)._")
+        else:
             a(
-                f"| {s.rank} | {s.p_low * 100:.1f}% | {s.match} | {market} | {s.direction} "
-                f"| {s.hits}/{s.sample_size} | {s.sample_size} | {s.cross_provider_agreement} "
-                f"| {mkt} | {s.tipster or 'brak'} | **{s.min_acceptable_odds:.2f}** | {s.tier} |"
+                "| # | Przewaga | Pewność | Mecz | Rynek | Strona | Surowo | n | "
+                "Zgodność | Rynek | Typerzy | Min. kurs | Superbet | Tier |"
             )
+            a(
+                "|--:|--------:|--------:|------|-------|--------|-------:|--:|"
+                "----------|-------|---------|----------:|---------|------|"
+            )
+            for s in with_edge:
+                a(_singles_row(s, edge=f"{s.edge * 100:+.1f}pp"))
+        a("")
+        a("### Single bez odniesienia do rynku")
+        a("")
+        if not without_edge:
+            a("_Każdy wiersz powyżej progu ma dziś odniesienie do rynku._")
+        else:
+            a("| # | Pewność | Mecz | Rynek | Strona | Surowo | n | Zgodność | Rynek | Typerzy | Min. kurs | Superbet | Tier |")
+            a("|--:|--------:|------|-------|--------|-------:|--:|----------|-------|---------|----------:|---------|------|")
+            for s in without_edge:
+                a(_singles_row(s))
         a("")
         a("Zastrzeżenia do poszczególnych typów:")
         a("")
@@ -107,17 +185,31 @@ def render_markdown(coupons: CouponSet) -> str:
                 f"{_kickoff(slip.kickoff)} UTC"
             )
             a("")
-            a("| Noga | Strona | Pewność | Surowo | Min. kurs | Tier |")
-            a("|------|--------|--------:|-------:|----------:|------|")
+            a("| Noga | Strona | Pewność | Surowo | Min. kurs | Superbet | Tier |")
+            a("|------|--------|--------:|-------:|----------:|---------|------|")
             for leg in slip.draft.legs:
                 who = leg.player_name or leg.team_name
                 subject = f" · {who}" if who else ""
                 # BetBuilderLeg carries hit_rate and sample_size, not hits.
                 hits = int(round(leg.hit_rate * leg.sample_size))
+                if leg.superbet_availability is None:
+                    sb = "—"
+                elif leg.superbet_availability == "OFFERED" and leg.superbet_price:
+                    sb = f"{leg.superbet_price:.2f}"
+                elif leg.superbet_availability == "LINE_NOT_OFFERED":
+                    sb = (
+                        f"brak linii (ma {leg.superbet_nearest_line})"
+                        if leg.superbet_nearest_line is not None
+                        else "brak linii"
+                    )
+                else:
+                    sb = _SUPERBET_CELL.get(
+                        leg.superbet_availability, leg.superbet_availability
+                    )
                 a(
                     f"| {market_label(leg.market)} {leg.line}{subject} | {leg.direction} "
                     f"| {leg.p_low * 100:.1f}% | {hits}/{leg.sample_size} "
-                    f"| **{leg.min_acceptable_odds:.2f}** | {leg.tier} |"
+                    f"| **{leg.min_acceptable_odds:.2f}** | {sb} | {leg.tier} |"
                 )
             a("")
             # The contract's own note is English, because bet-analyst reads it.
@@ -176,6 +268,42 @@ def main() -> None:
         help="Keep fixtures that already kicked off. For reviewing a past day, "
         "not for betting one.",
     )
+    parser.add_argument(
+        "--vetoes",
+        default=None,
+        help="Path to <date>_analyst_vetoes.json (a JSON array of "
+        "{event_id, market, line, direction, action, reason}) written by the "
+        "orchestrator from bet-analyst's output. Missing file or empty list is "
+        "the default healthy state, not an error.",
+    )
+    parser.add_argument(
+        "--market-context",
+        default=None,
+        help="Path to <date>_market_context.json from run_market_context.py. "
+        "Read for exactly one thing: whether the \"Football Unlimited\" "
+        "entitlement was confirmed missing or erroring anywhere in the run "
+        "(docs/PLAN_BOGATE_STATYSTYKI.md 3bis.6) -- if so, a warning goes in "
+        "the coupon file's header, since a lapsed entitlement removes market "
+        "price and model reference from goals/corners at once. Missing file is "
+        "the default healthy (unknown) state, not an error.",
+    )
+    parser.add_argument(
+        "--superbet-offer",
+        default=None,
+        help="Path to <date>_superbet_offer.json from run_superbet.py. Adds the "
+        "one column no other source can fill: whether each line is on the "
+        "operator's own screen, and at what price. Rows Superbet prices at or "
+        "above their minimum acceptable odds are ranked first; rows it does not "
+        "carry are kept and labelled, never dropped. Missing file is the "
+        "pre-Superbet behaviour exactly, not an error.",
+    )
+    parser.add_argument(
+        "--require-superbet-value", action="store_true",
+        help="Keep only singles Superbet actually prices at or above their "
+        "minimum acceptable odds. Off by default: on a normal day it empties "
+        "the file, and an empty file is not the same information as a full one "
+        "with every row honestly labelled unbettable.",
+    )
     args = parser.parse_args()
 
     if not args.date and not args.stats_sheet:
@@ -203,9 +331,43 @@ def main() -> None:
             file=sys.stderr,
         )
 
+    vetoes_path = Path(args.vetoes) if args.vetoes else (
+        run_dir / f"{args.date}_analyst_vetoes.json" if run_dir else None
+    )
+    vetoes: list[AnalystVeto] = []
+    if vetoes_path and vetoes_path.exists():
+        raw = json.loads(vetoes_path.read_text(encoding="utf-8"))
+        vetoes = [AnalystVeto.model_validate(entry) for entry in raw]
+
+    market_context_path = Path(args.market_context) if args.market_context else (
+        run_dir / f"{args.date}_market_context.json" if run_dir else None
+    )
+    market_context = None
+    if market_context_path and market_context_path.exists():
+        market_context = MarketContextV1.model_validate_json(
+            market_context_path.read_text(encoding="utf-8")
+        )
+
+    superbet_path = Path(args.superbet_offer) if args.superbet_offer else (
+        run_dir / f"{args.date}_superbet_offer.json" if run_dir else None
+    )
+    superbet_offer = None
+    if superbet_path and superbet_path.exists():
+        superbet_offer = SuperbetOfferV1.model_validate_json(
+            superbet_path.read_text(encoding="utf-8")
+        )
+    elif args.superbet_offer:
+        # An explicitly named file that is not there is an operator error, not
+        # a missing optional input: silently falling back would print a coupon
+        # with no Superbet column beside a command that asked for one.
+        print(json.dumps({"error": f"superbet offer not found: {superbet_path}"}), file=sys.stderr)
+        sys.exit(2)
+
     sheet = StatsSheetV1.model_validate_json(sheet_path.read_text(encoding="utf-8"))
     kwargs = dict(
-        max_singles=args.max_singles, max_slips=args.max_slips, max_legs=args.max_legs
+        max_singles=args.max_singles, max_slips=args.max_slips, max_legs=args.max_legs,
+        vetoes=vetoes, market_context=market_context, superbet_offer=superbet_offer,
+        require_superbet_value=args.require_superbet_value,
     )
     if args.min_p_low is not None:
         kwargs["min_p_low"] = args.min_p_low

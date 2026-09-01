@@ -121,8 +121,24 @@ the check working, not a new outage.
 ## Step 2 — Run the pipeline
 
 ```bash
-python3 scripts/simple/run_pipeline.py --date <resolved> -v --max-events <N>
+python3 scripts/simple/run_pipeline.py --date <resolved> -v --max-events <N> --player-props
 ```
+
+**`--player-props` costs ~20 extra bzzoiro calls per event** (one per outfield
+starter) to fill player prop rows (shots, shots on target, fouls, cards). It
+roughly doubles ENRICH's call volume, which is why it stays an explicit flag
+rather than the default — but bzzoiro football is uncapped on PRO, so the cost
+is time, not quota. **Timing:** a confirmed XI is usually available only
+~1 hour before kickoff. For a morning run, most props will come off a
+*predicted* XI (`lineup_status: predicted`), which caps every one of those rows
+at tier `LEAN` (`bet_builder_draft.tier_for_row`) — do not expect `CALL` props
+on a morning slate and do not wait for one that will not arrive. Every prop row
+records which kind of XI it was built on.
+
+Player props on a player either squad's `squad_availability` marks
+`unavailable` are dropped before ANALYZE ever sees them
+(`analyze.py:_unavailable_player_ids`) — a prop on an injured player is void,
+not losing, and that filter is enforced in code now, not left to manual review.
 
 **`--max-events 40` is too small and was the single biggest cost of the
 2026-08-28 run.** 277 of 387 discovered fixtures came back BLOCKED reading "run
@@ -146,7 +162,38 @@ overridden to 20000 in `RUN_BUDGET_OVERRIDES`, and the one provider it binds --
 `highlightly` -- has a real daily ceiling of exactly 100. Raising the flag buys
 nothing there; the daily quota binds first. Leave it alone.
 
-DISCOVER → ENRICH → MARKET_CONTEXT → TIPSTERS → ANALYZE, one `run_id`.
+DISCOVER → ENRICH → MARKET_CONTEXT → TIPSTERS → SUPERBET → ANALYZE, one `run_id`.
+
+**SUPERBET (added 2026-08-31) is the step that decides whether any of this is
+bettable.** One public HTTP request for the day plus one per matched fixture,
+no credential and no quota, against superbet.pl's own prematch offer. It exists
+because bzzoiro's grid of ~88 bookmakers **does not contain Superbet**, so every
+price this pipeline had before it was a reference to a book the operator does
+not use.
+
+What it buys, in one number: on the 2026-08-31 night slate, **eight of fifteen
+singles were on lines Superbet does not list at all**. Not priced too short --
+absent. The sheet prices `shots_on_target_total` at 4.5 and Superbet's ladder
+begins at 7.5; `shots_total` 19.5 against a ladder from 24.5; `offsides_total`
+1.5 against 2.5. Every ATP US Open tie was quoted best-of-five (sets 3.5/4.5,
+games 24.5-46.5) against a sheet that only emits best-of-three lines, so not one
+ATP row was placeable. None of that was visible from a reference price.
+
+Read three fields off its `AGENT_SUMMARY` and lead with the first:
+
+* `markets_with_no_line_overlap` -- market families Superbet lists but never at
+  a line we generate. Non-empty means a **line-generator defect**, not a thin
+  day; say so in the analysis under *Czego zabrakło*, with the market named.
+* `our_events_kicked_off` -- check it before reading `our_events_without_offer`
+  as a matching failure. `offerState=prematch` drops a fixture the moment it
+  goes live, so a run started after the first kickoff always finds some of its
+  own fixtures missing from the book.
+* `unmapped_market_names` -- a market Superbet added that we do not read.
+  Report it; do not act on it.
+
+`--skip-superbet` exists and should not be used casually. Skipping it does not
+lose a column so much as return every `min_acceptable_odds` in the coupon to
+being a target nobody checked.
 
 **Never** pass `--skip-preflight`. Do not pass `--skip-market-context` or
 `--skip-tipsters` unless the operator asked — both are optional columns and both
@@ -168,8 +215,11 @@ python3 scripts/simple/run_enrich.py \
   --event-list runs/<date>/<date>_event_list.json \
   --output-dir runs/<date> \
   --backfill-from runs/<date>/<date>_event_dossiers.json \
-  --max-events <BLOCKED+PARTIAL count> -v
+  --max-events <BLOCKED+PARTIAL count> --player-props -v
 ```
+
+Pass `--player-props` here too if Step 2 did — a backfill pass that drops it
+would silently overwrite props ENRICH already collected for the merged events.
 
 Report `backfill_improved_dossiers`. **Once only** — a third pass spends quota
 to re-learn that the provider has nothing for those fixtures. A backfill is not
@@ -187,79 +237,40 @@ scratch, so an omitted flag silently drops that column and the backfill looks
 like it *lost* data it never touched:
 
 ```bash
-ls runs/<date>/<date>_market_context.json runs/<date>/<date>_tipster_signal.json
+ls runs/<date>/<date>_market_context.json runs/<date>/<date>_tipster_signal.json \
+   runs/<date>/<date>_superbet_offer.json
 
 python3 scripts/simple/run_analyze.py \
   --dossier runs/<date>/<date>_event_dossiers.json \
   --output-dir runs/<date> \
   --market-context runs/<date>/<date>_market_context.json \
-  --tipster-signal runs/<date>/<date>_tipster_signal.json -v
+  --tipster-signal runs/<date>/<date>_tipster_signal.json \
+  --superbet-offer runs/<date>/<date>_superbet_offer.json -v
 ```
 
-## Step 4 — Build the coupons file
+**Re-run SUPERBET before this, not after.** Its prices are a snapshot, and by
+the time a backfill has finished they are an hour old. It is one cheap public
+request per fixture, so re-taking them costs nothing but time:
 
 ```bash
-python3 scripts/simple/build_coupons.py --date <resolved>
+python3 scripts/simple/run_superbet.py \
+  --event-list runs/<date>/<date>_event_list.json \
+  --output-dir runs/<date> -v
 ```
 
-No network, no DB, no quota — safe to re-run. It writes `<date>_kupony.md` and
-`<date>_coupons.json` and prints a JSON receipt.
+This writes two sheets: `<date>_event_dossiers_stats_sheet.json` (every row)
+and `<date>_event_dossiers_stats_sheet_top.json` (the same rows filtered to
+`p_low >= 0.50`, the coupon's own floor). Hand the analyst the **top** file —
+the full one is for audit and for chasing a row that never reached the floor.
 
-**It drops fixtures that have already kicked off**, and reports how many under
-`excluded.kickoff_passed`. The cutoff defaults to now and is recorded in the
-artifact as `not_before`; pass `--not-before <ISO>` to set it explicitly. This
-matters most on a same-day run started late: without it a match that finished
-overnight sits at the top of the file with 84% confidence beside it, looking
-like the best bet of the day. The freed slots refill from the sheet, so the
-number of singles does not drop.
+## Step 4 — Analysis — agent `bet-analyst`
 
-For a day that has already been played — a post-hoc review, a settle pass —
-pass `--include-started`, or every row is filtered and exit code 1 reads as
-"thin day" when the day was full. The script prints a hint to stderr when that
-is what happened, but do not rely on noticing it.
-
-**Report its numbers verbatim and never recompute them.** Every threshold in
-that file comes from tested code (`src/bet/simple_stats/coupons.py`); a minimum
-odds re-derived in prose is exactly the failure `wilson_lower_bound` exists to
-prevent. If a figure looks wrong, check the function, not your arithmetic.
-
-Exit code 1 means nothing cleared the bar. That is a real answer about a thin
-day, not an error — say so plainly and still write the analysis.
-
-### Verify every fixture that reached the coupon, through bzzoiro MCP
-
-The script filters on the **clock** — `not_before` versus kickoff. A clock
-cannot see a postponement, a venue switch or an abandoned match, so a fixture
-called off an hour ago still sits in `<date>_coupons.json` looking bettable.
-
-So after the file is written, for each fixture in it:
-
-```
-mcp__bzzoiro__get_match_detail(match_id = <event's source_ids.bzzoiro>)
-```
-
-Read `status` (`notstarted` / `inprogress` / `finished`) and `event_date`.
-Football is uncapped — a coupon of a dozen fixtures costs a dozen calls and
-those are free. Then:
-
-* `status` is anything but `notstarted`, or `event_date` no longer matches the
-  artifact's `start_time` → **strike that fixture from the coupons file** and
-  say why in the report. A moved kickoff invalidates the bet without changing a
-  single statistic.
-* the event carries no `source_ids.bzzoiro` (some other source found it alone)
-  → say it could not be verified, rather than implying it was.
-
-Report the count checked and the count struck. **Never present an unverified
-coupon as verified** — silence about a check you skipped reads exactly like a
-check that passed.
-
-**Never add a combined/parlay price to that file, in any form, however hedged.**
-Corners, cards, fouls and shots in one match are strongly positively correlated,
-so the product of the legs understates the slip's true probability in the
-direction that flatters the bet. The contract types that field `None` so it
-cannot hold a value; do not reintroduce one in prose.
-
-## Step 5 — Analysis — agent `bet-analyst`
+**Runs before the coupon exists** (docs/PLAN_BOGATE_STATYSTYKI.md Faza 5e,
+Wariant A). This used to be Step 5, after the coupon was already built, which
+meant the analyst's read — a suspended fixture, six injured players, a
+worthless three-match referee sample — never reached the file a human actually
+bets from. Now it runs against the stats-sheet **top** file from Step 3 and
+its output feeds the coupon build in the next step.
 
 Hand it the date and ask for the per-match read. Its standing obligations:
 cross-check the DB for other `run_id`s on that date, print the per-side
@@ -267,12 +278,12 @@ cross-check the DB for other `run_id`s on that date, print the per-side
 fixture is still on.
 
 **Say in the prompt that bzzoiro MCP is the source of record and that every
-fixture on the coupon must be checked through it.** The servers were re-verified
-live on 2026-08-30 and answer normally; football is uncapped on the PRO plan, so
-there is no budget reason to skip a call. WebFetch is for the residue only —
-what bzzoiro genuinely does not carry. An analysis that leans on the open web
-for something `get_match_detail` or `list_referees` would have answered is a
-defect, not a style choice.
+fixture on the stats sheet must be checked through it.** The servers were
+re-verified live on 2026-08-30 and answer normally; football is uncapped on the
+PRO plan, so there is no budget reason to skip a call. WebFetch is for the
+residue only — what bzzoiro genuinely does not carry. An analysis that leans on
+the open web for something `get_match_detail` or `list_referees` would have
+answered is a defect, not a style choice.
 
 The tools it now holds, and what they are for:
 
@@ -318,11 +329,25 @@ quota-tracked artifact). Consequences to hold onto:
 * Verification still may veto or downgrade freely, and still never enters
   `p_low`.
 
-## Step 6 — Write `runs/<date>/<date>_analiza.md`
+**Also ask it for the structured veto list** (Faza 5e). Alongside its usual
+markdown report, the analyst returns a fenced JSON block:
+`[{event_id, market, line, direction, action: "VETO"|"DOWNGRADE", reason}]` —
+see `.claude/agents/bet-analyst.md`'s Output section for the exact contract.
+Only rows it actually disagrees with belong in it; `[]` is the common case, not
+an omission to chase. A `VETO` removes the row from the coupon outright; a
+`DOWNGRADE` steps its tier down once, the same one-step ceiling
+`context_flags` already applies, and never touches `p_low` either way.
 
-**You write this file, not the analyst.** `bet-analyst` has no Write tool by
+## Step 5 — Write `runs/<date>/<date>_analiza.md` and `<date>_analyst_vetoes.json`
+
+**You write these files, not the analyst.** `bet-analyst` has no Write tool by
 construction — an agent that can rewrite the artifacts it is judging can quietly
-launder a bad day into a good one. It returns the markdown body; you save it.
+launder a bad day into a good one. It returns the markdown body and the vetoes
+JSON as text; you save both.
+
+`<date>_analyst_vetoes.json` is a bare JSON array — write `[]` if the analyst
+returned no vetoes, not a missing file, so the next step can tell "checked,
+nothing to veto" apart from "the file never got written".
 
 Polish, because the operator reads it. Overwrite if it exists; the artifacts it
 describes were overwritten too.
@@ -352,7 +377,9 @@ the line is a push, reported in `row.pushes` and excluded from both `hits` and
 **Pokrycie:** <n> odkrytych → <n> wzbogaconych → <n> odciętych limitem
 **Providerzy:** <ci, którzy realnie dali dane> · **Niedostępni:** <nazwa (kind)>
 **Rynek:** <n> meczów z kursami, <n> z modelem rożnych · **Typerzy:** <n> meczów
-**Kupony:** `<date>_kupony.md` — <n> singli, <n> kuponów BB
+**Superbet:** <n> wierszy z ceną na ekranie · <n> z rynkiem bez naszej linii ·
+<rodziny rynków z `markets_with_no_line_overlap`, gdy niepuste>
+**Kupony:** patrz `<date>_kupony.md` (Krok 6 — powstaje z tej analizy, nie odwrotnie)
 
 > Sortowanie po kolumnie *Pewność* — to dolna granica Wilsona 95%, nie surowy
 > hit rate. `sample_size` łączy obie drużyny i h2h, więc obserwacje nie są
@@ -378,6 +405,12 @@ To jedyne sezonowe xG w systemie. Gdy `group` jest ustawione, zaznacz, że
 `position` to miejsce w grupie, nie w lidze.>
 *Okoliczności:* <tylko gdy realnie ważą: derby, neutralny teren, długi przejazd
 `travel_distance_km`, pogoda. Jedno zdanie, nie tabela.>
+*Superbet:* <z `row.superbet`: cena przy linii, którą realnie wystawia, i
+`min_acceptable_odds` obok niej. Gdy `availability` to `LINE_NOT_OFFERED` —
+napisz, jaką linię ma zamiast naszej; to nie jest zły kurs, to brak zakładu.
+`SCOPE_NOT_SUPPORTED` (propy zawodników) to nasze ograniczenie, nie brak u
+bukmachera — nie pisz, że Superbet tego nie wystawia. Cena jest zdjęta raz, o
+godzinie z `generated_at` — podaj ją.>
 
 ## Sprzeczne (DISAGREE)
 <obie wartości, obaj providerzy, bez rozstrzygania>
@@ -395,11 +428,13 @@ Bez kursu łącznego, EV i stawki — celowo. Kurs sprawdzasz sam; typ poniżej
 minimalnego kursu nie jest typem.
 ````
 
-In football the *Rynek* signal exists **only on `corners_total`** — bzzoiro
-publishes no odds and no model probability for cards, fouls or shots on target,
-so `—` there is the provider's coverage, not a gap. Line 11.5 always reads `—`
-because the model serves only 8.5/9.5/10.5 and nothing is interpolated between
-lines.
+In football the *Rynek* signal exists **only on `corners_total` and
+`goals_total`** (docs/PLAN_BOGATE_STATYSTYKI.md Faza 1 added goals) — bzzoiro
+publishes no odds and no model probability for cards, fouls, shots on target or
+any of the other collected-but-unpriced families, so `—` there is the
+provider's coverage, not a gap. Corners' line 11.5 always reads `—` because the
+model serves only 8.5/9.5/10.5 and nothing is interpolated between lines; goals'
+0.5 and 4.5 read `—` the same way against a model that serves only 1.5/2.5/3.5.
 
 **Tennis has a signal since 2026-08-30, and it never promotes.** `total_games`
 at 21.5/22.5 and `total_sets` at 2.5 carry a real `model_probability`, but the
@@ -407,6 +442,105 @@ verdict always reads `NO_MARKET_DATA` because no tennis price is fetched — tha
 would cost one call per match out of a 100-a-day bucket ENRICH has usually
 already drained. Report the model number, say no price was fetched for it, and
 never write `[CALL, promoted by market signal]` on a tennis row.
+
+## Step 6 — Build the coupons file
+
+```bash
+python3 scripts/simple/build_coupons.py --date <resolved> \
+  --vetoes runs/<date>/<date>_analyst_vetoes.json \
+  --market-context runs/<date>/<date>_market_context.json \
+  --superbet-offer runs/<date>/<date>_superbet_offer.json
+```
+
+`--superbet-offer` adds the **Superbet** column to both tables and re-ranks the
+singles: a row the operator's own book prices at or above its
+`min_acceptable_odds` sorts above one it does not, however high the second row's
+`p_low`. It never changes `p_low`, `fair_odds` or `min_acceptable_odds` — a book
+shortening a line must not lower our own bar.
+
+Rows Superbet does not carry stay in the file and say why. The cell reads
+`brak linii (ma 7.5)` when the market exists at another rung, `brak rynku` when
+it does not exist, `brak meczu` when no Superbet fixture matched. **Do not treat
+those as low prices and do not drop them** — "Superbet has no 4.5 line for shots
+on target" is the most useful sentence the file can carry on a day like
+2026-08-31, and dropping the row deletes it.
+
+`--require-superbet-value` exists and is off by default. On a normal day it
+empties the file, and an empty file is strictly less information than a full one
+in which every row is honestly labelled unbettable.
+
+No network, no DB, no quota — safe to re-run. It writes `<date>_kupony.md` and
+`<date>_coupons.json` and prints a JSON receipt. A missing or empty vetoes file
+is the default healthy state, not an error — pass the flag regardless of
+whether Step 5 found anything to veto. `--market-context` is the same: both
+flags also resolve on their own from `--date` if omitted, but pass them
+explicitly so a reader of this command sees every input the coupon depends on.
+If `comparison_entitlement` was ever anything but `ENTITLED`/`NOT_ATTEMPTED`
+anywhere in the run, the coupon file's first line warns about it
+(docs/PLAN_BOGATE_STATYSTYKI.md 3bis.6) — a lapsed "Football Unlimited"
+entitlement removes goals' and corners' market price and model at once, which
+is also what the edge ranking in Step 6's output depends on.
+
+**It drops fixtures that have already kicked off**, and reports how many under
+`excluded.kickoff_passed`. The cutoff defaults to now and is recorded in the
+artifact as `not_before`; pass `--not-before <ISO>` to set it explicitly. This
+matters most on a same-day run started late: without it a match that finished
+overnight sits at the top of the file with 84% confidence beside it, looking
+like the best bet of the day. The freed slots refill from the sheet, so the
+number of singles does not drop.
+
+For a day that has already been played — a post-hoc review, a settle pass —
+pass `--include-started`, or every row is filtered and exit code 1 reads as
+"thin day" when the day was full. The script prints a hint to stderr when that
+is what happened, but do not rely on noticing it.
+
+**Report its numbers verbatim and never recompute them.** Every threshold in
+that file comes from tested code (`src/bet/simple_stats/coupons.py`); a minimum
+odds re-derived in prose is exactly the failure `wilson_lower_bound` exists to
+prevent. If a figure looks wrong, check the function, not your arithmetic.
+
+**Every applied veto/downgrade is in the file's header notes, with its
+reason** (Faza 5e) — read them off `coupons.notes` rather than cross-checking
+Step 4's report by hand; the two must agree by construction, and if they do
+not that is a bug in `build_coupons`, not a reason to trust the report instead.
+
+Exit code 1 means nothing cleared the bar. That is a real answer about a thin
+day, not an error — say so plainly and still write the analysis.
+
+### Verify every fixture that reached the coupon, through bzzoiro MCP
+
+The script filters on the **clock** — `not_before` versus kickoff. A clock
+cannot see a postponement, a venue switch or an abandoned match, so a fixture
+called off an hour ago still sits in `<date>_coupons.json` looking bettable.
+This is a **second, later** check than Step 4's — it exists precisely to catch
+anything that changed between the analyst's read and this file being written.
+
+So after the file is written, for each fixture in it:
+
+```
+mcp__bzzoiro__get_match_detail(match_id = <event's source_ids.bzzoiro>)
+```
+
+Read `status` (`notstarted` / `inprogress` / `finished`) and `event_date`.
+Football is uncapped — a coupon of a dozen fixtures costs a dozen calls and
+those are free. Then:
+
+* `status` is anything but `notstarted`, or `event_date` no longer matches the
+  artifact's `start_time` → **strike that fixture from the coupons file** and
+  say why in the report. A moved kickoff invalidates the bet without changing a
+  single statistic.
+* the event carries no `source_ids.bzzoiro` (some other source found it alone)
+  → say it could not be verified, rather than implying it was.
+
+Report the count checked and the count struck. **Never present an unverified
+coupon as verified** — silence about a check you skipped reads exactly like a
+check that passed.
+
+**Never add a combined/parlay price to that file, in any form, however hedged.**
+Corners, cards, fouls and shots in one match are strongly positively correlated,
+so the product of the legs understates the slip's true probability in the
+direction that flatters the bet. The contract types that field `None` so it
+cannot hold a value; do not reintroduce one in prose.
 
 ## Step 7 — Report back
 
@@ -416,6 +550,8 @@ Short. The operator opens the file, not the chat:
 KUPONY:  runs/<date>/<date>_kupony.md  — <n> singli, <n> kuponów BB
 ANALIZA: runs/<date>/<date>_analiza.md
 RUN:     <run_id> · <verdict> · <n> odkrytych → <n> wzbogaconych
+WETA:    <n> vetoed, <n> downgraded (0/0 if the analyst found nothing to flag)
+SUPERBET: <n> z <n> singli osiąga minimalny kurs · <n> bez linii na ekranie
 UWAGA:   <the single biggest weakness of the day, one line>
 ```
 

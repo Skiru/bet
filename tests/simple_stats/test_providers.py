@@ -6,6 +6,7 @@ APIs, verified live on 2026-08-25.
 """
 import pytest
 
+from bet.integration.source_result import SourceOperationResult, SourceResultStatus
 from bet.simple_stats import providers
 from bet.simple_stats.providers import (
     _combine_stats,
@@ -115,6 +116,177 @@ def test_football_paired_stats_still_use_the_paired_combiner():
 
 def test_flat_combiner_without_game_counts_emits_no_total_games():
     assert "total_games" not in _flat_from_dict_stats({"aces": 4}, {})
+
+
+# --- Faza 1f: goals from the L10/H2H listing row itself, zero extra calls ---
+
+
+class _FakeFixtureStats:
+    def __init__(self, stats):
+        self.stats = stats
+
+
+class _FakeEspnFootballClient:
+    def __init__(self, team_id, fixtures, stats_by_fixture):
+        self._team_id = team_id
+        self._fixtures = fixtures
+        self._stats_by_fixture = stats_by_fixture
+
+    def resolve_team_id(self, name):
+        return self._team_id
+
+    def get_team_last_fixtures(self, team_id, last_n=10):
+        return self._fixtures
+
+    def get_fixture_stats(self, fixture_id):
+        return self._stats_by_fixture[fixture_id]
+
+
+def test_espn_football_goals_ride_on_the_fixture_score_no_extra_call(monkeypatch):
+    """espn.py's own fixture-listing row already carries the final score
+    (verified live), so goals cost zero extra requests: they are read from
+    the same ``fx`` the corners combiner already has in hand."""
+    fixtures = [{
+        "id": "400001",
+        "date": "2026-08-18T19:00:00Z",
+        "home_team": "Team A",
+        "away_team": "Team B",
+        "score": "2-1",
+        "home_participant_id": "10",
+        "away_participant_id": "20",
+    }]
+    stats = {"400001": _FakeFixtureStats({"corners": {"home": 5, "away": 4}})}
+    client = _FakeEspnFootballClient("10", fixtures, stats)
+    monkeypatch.setattr(providers, "_provider_client", lambda *a, **k: client)
+
+    outcome = providers._fetch_l10_generic("espn-football", "Team A", rate_limiter=None)
+
+    assert outcome.metrics["corners_total"][0].value == 9
+    assert outcome.metrics["goals_total"][0].value == 3
+    assert outcome.metrics["goals_for"][0].value == 2  # team_id "10" was home
+    assert outcome.metrics["goals_against"][0].value == 1
+
+
+def test_espn_football_missing_score_yields_no_goals_but_keeps_the_rest(monkeypatch):
+    """A fixture with no reported score (score == "") must not block the other
+    metrics the same row already produces."""
+    fixtures = [{
+        "id": "400002",
+        "date": "2026-08-18T19:00:00Z",
+        "home_team": "Team A",
+        "away_team": "Team B",
+        "score": "",
+        "home_participant_id": "10",
+        "away_participant_id": "20",
+    }]
+    stats = {"400002": _FakeFixtureStats({"corners": {"home": 5, "away": 4}})}
+    client = _FakeEspnFootballClient("10", fixtures, stats)
+    monkeypatch.setattr(providers, "_provider_client", lambda *a, **k: client)
+
+    outcome = providers._fetch_l10_generic("espn-football", "Team A", rate_limiter=None)
+
+    assert "corners_total" in outcome.metrics
+    assert "goals_total" not in outcome.metrics
+
+
+class _FakeHighlightlyClient:
+    def __init__(self, l10_matches=None, h2h_matches=None, stats_by_match_id=None):
+        self._l10_matches = l10_matches or []
+        self._h2h_matches = h2h_matches or []
+        self._stats = stats_by_match_id or {}
+
+    def get_last_five_games_result(self, team_id, requested_sample_size=5):
+        return SourceOperationResult(SourceResultStatus.SUCCESS, value={"matches": self._l10_matches})
+
+    def get_head_to_head_result(self, team_id_one, team_id_two):
+        return SourceOperationResult(SourceResultStatus.SUCCESS, value={"matches": self._h2h_matches})
+
+    def get_statistics_result(self, match_id, *, home_team_id, away_team_id):
+        return self._stats.get(
+            str(match_id), SourceOperationResult(SourceResultStatus.SCHEMA_ERROR, value=None)
+        )
+
+
+def test_highlightly_l10_goals_ride_on_the_listing_score(monkeypatch):
+    """``_normalize_match_row`` already parses ``score`` into ``{"home":
+    int, "away": int}`` and computes this team's own ``home_away`` side, so
+    l10 goals cost zero extra requests beyond the /statistics call the other
+    metrics already make."""
+    match = {
+        "provider_match_id": "9001",
+        "date": "2026-08-18T19:00:00Z",
+        "home_team": {"provider_team_id": "10", "team_name": "Team A"},
+        "away_team": {"provider_team_id": "20", "team_name": "Team B"},
+        "home_away": "home",
+        "score": {"display": "2-1", "home": 2, "away": 1},
+        "match_status": "finished",
+    }
+    stats = {"9001": SourceOperationResult(SourceResultStatus.SUCCESS, value={"statistics": []})}
+    monkeypatch.setattr(
+        providers, "get_client",
+        lambda *a, **k: _FakeHighlightlyClient(l10_matches=[match], stats_by_match_id=stats),
+    )
+
+    outcome = providers.fetch_highlightly_history("10", "20", rate_limiter=None, mode="l10")
+
+    assert outcome.metrics["goals_total"][0].value == 3
+    assert outcome.metrics["goals_for"][0].value == 2
+    assert outcome.metrics["goals_against"][0].value == 1
+
+
+def test_highlightly_h2h_never_emits_a_per_team_goal(monkeypatch):
+    """``_normalize_h2h_row`` never sets ``home_away`` (the meeting is not
+    read for one side), so an h2h match must yield ``goals_total`` only --
+    the same split bzzoiro's own h2h path applies."""
+    match = {
+        "provider_match_id": "9002",
+        "date": "2026-08-18T19:00:00Z",
+        "home_team_id": "10",
+        "home_team_name": "Team A",
+        "away_team_id": "20",
+        "away_team_name": "Team B",
+        "score": {"display": "1-1", "home": 1, "away": 1},
+        "status": "finished",
+    }
+    stats = {"9002": SourceOperationResult(SourceResultStatus.SUCCESS, value={"statistics": []})}
+    monkeypatch.setattr(
+        providers, "get_client",
+        lambda *a, **k: _FakeHighlightlyClient(h2h_matches=[match], stats_by_match_id=stats),
+    )
+
+    outcome = providers.fetch_highlightly_history("10", "20", rate_limiter=None, mode="h2h")
+
+    assert outcome.metrics["goals_total"][0].value == 2
+    assert "goals_for" not in outcome.metrics
+    assert "goals_against" not in outcome.metrics
+
+
+def test_highlightly_goals_survive_a_statistics_call_that_fails(monkeypatch):
+    """A match with a result but no published /statistics (the highlightly
+    analogue of bzzoiro's "8 of 10 h2h meetings have no box score") must
+    still contribute its goals -- goals are read from the listing row before
+    the /statistics call, and never depend on it succeeding."""
+    match = {
+        "provider_match_id": "9003",
+        "date": "2026-08-18T19:00:00Z",
+        "home_team": {"provider_team_id": "10", "team_name": "Team A"},
+        "away_team": {"provider_team_id": "20", "team_name": "Team B"},
+        "home_away": "home",
+        "score": {"display": "0-0", "home": 0, "away": 0},
+        "match_status": "finished",
+    }
+    stats = {"9003": SourceOperationResult(SourceResultStatus.SCHEMA_ERROR, value=None)}
+    monkeypatch.setattr(
+        providers, "get_client",
+        lambda *a, **k: _FakeHighlightlyClient(l10_matches=[match], stats_by_match_id=stats),
+    )
+
+    outcome = providers.fetch_highlightly_history("10", "20", rate_limiter=None, mode="l10")
+
+    assert outcome.metrics["goals_total"][0].value == 0
+    assert outcome.metrics["goals_for"][0].value == 0
+    assert outcome.metrics["goals_against"][0].value == 0
+    assert "corners_total" not in outcome.metrics
 
 
 @pytest.mark.parametrize(

@@ -1,6 +1,6 @@
 ---
 name: bet-simple
-description: Runs one betting day end to end through scripts/simple/run_pipeline.py (DISCOVER -> ENRICH -> MARKET_CONTEXT -> TIPSTERS -> ANALYZE), reads the AGENT_SUMMARY contract, and reports the stats sheet. Use when asked to run the day, run the pipeline, or produce today's stats sheet. Produces no pick, no EV and no coupon.
+description: Runs one betting day end to end through scripts/simple/run_pipeline.py (DISCOVER -> ENRICH -> MARKET_CONTEXT -> TIPSTERS -> SUPERBET -> ANALYZE), reads the AGENT_SUMMARY contract, and reports the stats sheet. Use when asked to run the day, run the pipeline, or produce today's stats sheet. Produces no pick, no EV and no coupon.
 tools: Bash, Read, Glob, Grep
 ---
 
@@ -35,11 +35,13 @@ Advice line -> action:
 | `GO, but nothing will be corroborated` | Run, and say up front every row will be `SINGLE_SOURCE` |
 | `NO-GO: no usable provider` | Stop. Report each blocked provider's `kind`. Do not run |
 
-That is the whole run: DISCOVER → ENRICH → MARKET_CONTEXT → TIPSTERS → ANALYZE.
+That is the whole run: DISCOVER → ENRICH → MARKET_CONTEXT → TIPSTERS → SUPERBET
+→ ANALYZE.
 It mints one `run_id`, threads each step's artifact into the next, writes
 `runs/<date>/<date>_run_summary.json`, and emits exactly one `AGENT_SUMMARY:`
 line. Do not invoke `run_discover.py` / `run_enrich.py` /
-`run_market_context.py` / `run_tipsters.py` / `run_analyze.py` individually
+`run_market_context.py` / `run_tipsters.py` / `run_superbet.py` /
+`run_analyze.py` individually
 except to re-run one step against a saved artifact while diagnosing a failure.
 
 ### What MARKET_CONTEXT costs, and what it cannot cover
@@ -64,6 +66,45 @@ Two limits to state rather than report as failures:
   own event id, so an event only `highlightly` or `odds-api` found is skipped.
   Compare `market_context_metrics.events_considered` against DISCOVER's
   `events_by_source.bzzoiro` before calling coverage thin.
+
+### What SUPERBET costs, and the one thing only it can tell you
+
+Added 2026-08-31. **One HTTP request for the whole day plus one per matched
+fixture**, against superbet.pl's public prematch offer. No credential, no
+quota, no account -- it reads exactly what a visitor's browser reads, and it
+cannot place a bet.
+
+It exists because every other price in this pipeline is a *reference*.
+MARKET_CONTEXT collects bzzoiro's grid of ~88 bookmakers and **Superbet is not
+one of them**. So the sheet could report a price that was right and still be
+describing a bet the operator cannot place, at a line his book does not list.
+
+On the 2026-08-31 night slate, measured before this step existed: eight of
+fifteen singles were on lines Superbet does not offer -- `shots_on_target_total`
+4.5 against a ladder starting at 7.5, `shots_total` 19.5 against 24.5,
+`offsides_total` 1.5 against 2.5 -- and every ATP US Open tie was quoted
+best-of-five against a sheet that only emits best-of-three lines.
+
+Three numbers to report from `superbet_metrics`, and one to lead with:
+
+- **`markets_with_no_line_overlap`** -- market families where Superbet lists the
+  market and *never at a line this pipeline generates*. Lead with this when it
+  is non-empty: it is a defect in our line generation, not a thin day, and
+  every row in those families is unbettable whatever its `p_low`.
+- `events_matched` against `our_events_without_offer` -- and check
+  `our_events_kicked_off` before calling the difference a matching failure.
+  `offerState=prematch` drops a fixture the moment it goes live, so a run
+  started after the first kickoff will always find some of its own fixtures
+  absent from the book.
+- `value_rows` from the comparison, when a stats sheet was passed. A
+  single-digit count is the normal, honest answer for a day.
+
+`unmapped_market_names` is the diagnostic for the reverse problem: a market
+Superbet added that we do not read yet. Report it, do not act on it.
+
+Pass `--skip-superbet` when the operator wants the sheet without the column.
+The cost of skipping it is not a missing column -- it is that every
+`min_acceptable_odds` in the coupon goes back to being a target nobody checked.
 
 Pass `--skip-market-context` when the operator wants the sheet without the
 market column, or when bzzoiro is the blocked provider anyway.
@@ -271,7 +312,7 @@ where date = '<date>' and step like 'simple_stats:%';"
 ```
 
 One row per step that ran -- DISCOVER, ENRICH, MARKET_CONTEXT, TIPSTERS,
-ANALYZE -- with the statuses the run reported. A missing row with
+SUPERBET, ANALYZE -- with the statuses the run reported. A missing row with
 `persisted: true` in the summary is a contradiction worth reporting. The DB is
 `betting/data/betting.db` unless `BET_DB_PATH` overrides it.
 
@@ -280,10 +321,11 @@ TIPSTERS additionally writes `tipster_picks_v2` and `tipster_consensus_v2`
 MARKET_CONTEXT writes no table of its own -- its whole output is the artifact
 plus its `pipeline_runs` row.
 
-**Two steps are optional, and neither can fail the day.** TIPSTERS fetches
-third-party pages; MARKET_CONTEXT calls a paid API whose entitlement can lapse.
-Both report `PARTIAL` rather than `FAILED` and both are excluded from the run
-verdict. Report each one's own verdict:
+**Three steps are optional, and none can fail the day.** TIPSTERS fetches
+third-party pages; MARKET_CONTEXT calls a paid API whose entitlement can lapse;
+SUPERBET reads a public offer host that can move. All three report `PARTIAL`
+rather than `FAILED` and all three are excluded from the run verdict. Report
+each one's own verdict:
 
 - `tipsters_metrics.countable_claims` -- a run where every source was blocked
   still produces a complete stats sheet, just without the agreement column.
@@ -291,8 +333,13 @@ verdict. Report each one's own verdict:
   `football_unlimited_entitled` -- and from ANALYZE,
   `market_rows_with_verdict`. `football_unlimited_entitled: false` is a billing
   fact worth surfacing once, not an error.
+- `superbet_metrics.events_matched`, `value_rows` and
+  `markets_with_no_line_overlap` -- and from ANALYZE,
+  `superbet_rows_offered` against `superbet_rows_line_not_offered`. A run where
+  every row reads `LINE_NOT_OFFERED` produced a complete stats sheet describing
+  bets nobody can place, which is worth saying out loud.
 
-Never present either step's failure as a failed day.
+Never present any of the three steps' failures as a failed day.
 
 ### The two capped steps must be capped together
 

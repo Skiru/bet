@@ -7,9 +7,10 @@ from __future__ import annotations
 import statistics
 from datetime import datetime, timezone
 
-from bet.stats.market_ranking import PLAYER_PROP_LINES, STANDARD_MARKET_LINES
+from bet.stats.market_ranking import player_prop_lines, standard_market_lines
 
 from bet.simple_stats.providers import _normalize_team_name, _team_matches
+from bet.simple_stats.context_flags import context_flags_for_row
 
 from bet.simple_stats.contracts import (
     PERCENTAGE_METRICS,
@@ -31,6 +32,10 @@ _MARKET_STAT_TO_CANONICAL = {
     "shots_on_target": "shots_on_target_total",
     "shots": "shots_total",
     "goals": "goals_total",
+    "goals_1h": "goals_1h_total",
+    "goals_2h": "goals_2h_total",
+    "offsides": "offsides_total",
+    "red_cards": "red_cards_total",
     "total_games": "total_games",
     "aces": "aces_total",
     "sets_won": "total_sets",
@@ -47,6 +52,8 @@ _TEAM_MARKET_STAT_TO_CANONICAL = {
     "fouls": "fouls_for",
     "shots_on_target": "shots_on_target_for",
     "shots": "shots_for",
+    "goals": "goals_for",
+    "offsides": "offsides_for",
     # Tennis. "Per team" is "per player" here, and it is the same mechanism:
     # one side's own line, one row per side, told apart by team_name. Tennis got
     # this in one wave because bzzoiro's box score is already p1_*/p2_*.
@@ -526,36 +533,41 @@ def _rows_for_sample(
             hits, sample_size, pushes = compute_hit_rate(values, float(line), direction)
             if sample_size == 0:
                 continue
-            rows.append(
-                StatsSheetRow(
-                    event_id=dossier.event_id,
-                    sport=dossier.sport,
-                    market=canonical,
-                    line=float(line),
-                    direction=direction,
-                    team_name=team_name,
-                    player_id=player_id,
-                    player_name=player_name,
-                    lineup_status=lineup_status,
-                    hits=hits,
-                    sample_size=sample_size,
-                    pushes=pushes,
-                    hit_rate=hits / sample_size,
-                    p_low=wilson_lower_bound(hits, sample_size),
-                    mean=mean,
-                    median=median,
-                    sources=sources,
-                    cross_provider_agreement=agreement,
-                    confidence=_confidence(agreement, sample_size),
-                    data_quality=dossier.readiness,
-                )
+            row = StatsSheetRow(
+                event_id=dossier.event_id,
+                sport=dossier.sport,
+                market=canonical,
+                line=float(line),
+                direction=direction,
+                team_name=team_name,
+                player_id=player_id,
+                player_name=player_name,
+                lineup_status=lineup_status,
+                hits=hits,
+                sample_size=sample_size,
+                pushes=pushes,
+                hit_rate=hits / sample_size,
+                p_low=wilson_lower_bound(hits, sample_size),
+                mean=mean,
+                median=median,
+                sources=sources,
+                cross_provider_agreement=agreement,
+                confidence=_confidence(agreement, sample_size),
+                data_quality=dossier.readiness,
             )
+            # Context flags read the row's own market/line/direction, so they
+            # can only be computed once the row exists; StatsSheetRow is
+            # frozen, so the flagged version is a copy, not a mutation.
+            flags = context_flags_for_row(row, dossier)
+            if flags:
+                row = row.model_copy(update={"context_flags": flags})
+            rows.append(row)
     return rows
 
 
 def _match_total_rows(dossier: EventDossierV1) -> list[StatsSheetRow]:
     rows: list[StatsSheetRow] = []
-    for market_def in STANDARD_MARKET_LINES.get(dossier.sport, []):
+    for market_def in standard_market_lines().get(dossier.sport, []):
         if not market_def.get("is_combined", False):
             continue
         canonical = _MARKET_STAT_TO_CANONICAL.get(market_def["stat"])
@@ -596,7 +608,7 @@ def _team_total_rows(dossier: EventDossierV1) -> list[StatsSheetRow]:
     is not a bet, and two such rows for the same event are indistinguishable.
     """
     rows: list[StatsSheetRow] = []
-    for market_def in STANDARD_MARKET_LINES.get(dossier.sport, []):
+    for market_def in standard_market_lines().get(dossier.sport, []):
         if market_def.get("is_combined", True):
             continue
         canonical = _TEAM_MARKET_STAT_TO_CANONICAL.get(market_def["stat"])
@@ -624,6 +636,23 @@ def _team_total_rows(dossier: EventDossierV1) -> list[StatsSheetRow]:
     return rows
 
 
+def _unavailable_player_ids(dossier: EventDossierV1) -> set[str]:
+    """Every player id either side's squad reports as unavailable.
+
+    docs/PLAN_BOGATE_STATYSTYKI.md Faza 4b: a prop on somebody injured is void,
+    not losing, and ``squad_availability`` is already in the dossier -- so the
+    filter belongs here, in code, rather than in ``bet-analyst.md`` prose that
+    depends on someone remembering to check.
+    """
+    ids: set[str] = set()
+    for squad in dossier.squad_availability:
+        for entry in squad.unavailable:
+            player_id = str(entry.get("provider_player_id") or "").strip()
+            if player_id:
+                ids.add(player_id)
+    return ids
+
+
 def _player_prop_rows(dossier: EventDossierV1) -> list[StatsSheetRow]:
     """Per-player rows from ``dossier.player_metrics``.
 
@@ -635,12 +664,15 @@ def _player_prop_rows(dossier: EventDossierV1) -> list[StatsSheetRow]:
     rows: list[StatsSheetRow] = []
     if not dossier.player_metrics:
         return rows
+    unavailable_ids = _unavailable_player_ids(dossier)
     by_stat: dict[str, list] = {}
     for observation in dossier.player_metrics:
+        if observation.player_id in unavailable_ids:
+            continue
         by_stat.setdefault(observation.canonical_name, []).append(observation)
 
     side_names = {"home": dossier.team_a_name, "away": dossier.team_b_name}
-    for market_def in PLAYER_PROP_LINES.get(dossier.sport, []):
+    for market_def in player_prop_lines().get(dossier.sport, []):
         canonical = market_def["stat"]
         for observation in by_stat.get(canonical, []):
             rows.extend(
@@ -694,3 +726,25 @@ def analyze_dossiers(dossier_list: EventDossierListV1) -> StatsSheetV1:
         generated_at=_now_iso(),
         rows=rows,
     )
+
+
+def limit_rows_per_event(rows: list[StatsSheetRow], max_per_event: int | None) -> list[StatsSheetRow]:
+    """Cap how many rows one event contributes to the sheet (Faza 2 sizing).
+
+    ``rows`` is expected pre-sorted strongest-first (as ``analyze_dossiers``
+    leaves it), so keeping the first ``max_per_event`` rows seen per
+    ``event_id`` keeps each event's *best* rows and preserves the overall
+    order. ``None`` means unlimited -- the default, so nothing changes unless
+    a caller opts in.
+    """
+    if max_per_event is None:
+        return rows
+    seen: dict[str, int] = {}
+    kept: list[StatsSheetRow] = []
+    for row in rows:
+        count = seen.get(row.event_id, 0)
+        if count >= max_per_event:
+            continue
+        seen[row.event_id] = count + 1
+        kept.append(row)
+    return kept

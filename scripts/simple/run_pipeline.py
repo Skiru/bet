@@ -51,8 +51,16 @@ from bet.simple_stats.run_context import new_run_id  # noqa: E402
 # MARKET_CONTEXT reads a paid API whose entitlement can lapse. Neither produces
 # anything the stats sheet depends on -- they fill columns beside p_low, never
 # inside it -- so both report PARTIAL rather than FAILED and the run continues.
-STEPS = ("discover", "enrich", "market_context", "tipsters", "analyze")
-OPTIONAL_STEPS = frozenset({"market_context", "tipsters"})
+# SUPERBET joins them (2026-08-31) for the same structural reason and one
+# extra one. Structurally: it needs DISCOVER's event list, ANALYZE consumes
+# its output, and it fills a column beside p_low rather than inside it. The
+# extra one: it is the only stage that reads the book the operator actually
+# bets into. bzzoiro's grid of ~88 bookmakers does not contain Superbet, so
+# until this step existed the pipeline could not tell "priced too short"
+# from "not on the screen at all" -- and on the 2026-08-31 night slate the
+# second was true of eight of fifteen singles.
+STEPS = ("discover", "enrich", "market_context", "tipsters", "superbet", "analyze")
+OPTIONAL_STEPS = frozenset({"market_context", "tipsters", "superbet"})
 
 # Indirection so tests can substitute stub steps: the wrapper's job is
 # sequencing, artifact threading and verdict aggregation, and none of that
@@ -62,6 +70,7 @@ STEP_SCRIPTS = {
     "enrich": "scripts/simple/run_enrich.py",
     "market_context": "scripts/simple/run_market_context.py",
     "tipsters": "scripts/simple/run_tipsters.py",
+    "superbet": "scripts/simple/run_superbet.py",
     "analyze": "scripts/simple/run_analyze.py",
 }
 
@@ -255,6 +264,11 @@ def main() -> None:
         help="Run ENRICH even when every provider is exhausted (produces an all-gaps artifact)",
     )
     parser.add_argument(
+        "--player-props", action="store_true",
+        help="Pass through to ENRICH: also collect per-player prop history "
+             "(~20 extra bzzoiro calls per event). Off by default.",
+    )
+    parser.add_argument(
         "--start-at", choices=STEPS, default="discover",
         help="Resume from a step, reusing artifacts already in --output-dir",
     )
@@ -268,6 +282,13 @@ def main() -> None:
         "--skip-tipsters", action="store_true",
         help="Do not fetch public tipster pages. The stats sheet is produced "
              "without the agreement column.",
+    )
+    parser.add_argument(
+        "--skip-superbet", action="store_true",
+        help="Do not read Superbet's public offer. The stats sheet is produced "
+             "without the column that says whether a line is on the operator's "
+             "screen at all -- so every min-odds figure in the coupon becomes a "
+             "target rather than a comparison.",
     )
     parser.add_argument(
         "--tipster-source", action="append", default=None,
@@ -318,6 +339,7 @@ def main() -> None:
     dossier = output_dir / f"{date}_event_dossiers.json"
     market_context = output_dir / f"{date}_market_context.json"
     tipster_signal = output_dir / f"{date}_tipster_signal.json"
+    superbet_offer = output_dir / f"{date}_superbet_offer.json"
 
     first = STEPS.index(args.start_at)
     last = STEPS.index(args.stop_after)
@@ -350,6 +372,8 @@ def main() -> None:
             ]
             if args.skip_preflight:
                 argv.append("--skip-preflight")
+            if args.player_props:
+                argv.append("--player-props")
         elif name == "market_context":
             if args.skip_market_context:
                 out.event("step_skipped", pipeline_step=name, reason="--skip-market-context")
@@ -386,6 +410,23 @@ def main() -> None:
             ]
             for source in args.tipster_source or []:
                 argv += ["--source", source]
+        elif name == "superbet":
+            if args.skip_superbet:
+                out.event("step_skipped", pipeline_step=name, reason="--skip-superbet")
+                continue
+            if not event_list.exists():
+                out.warning(
+                    f"skipping SUPERBET: {event_list} is missing, so no offer can be "
+                    "matched to a fixture",
+                    pipeline_step=name,
+                )
+                continue
+            argv = [
+                STEP_SCRIPTS["superbet"],
+                "--event-list", str(event_list),
+                "--max-events", str(args.max_events),
+                *common,
+            ]
         else:
             if not dossier.exists():
                 out.error(
@@ -402,6 +443,8 @@ def main() -> None:
                 argv += ["--market-context", str(market_context)]
             if tipster_signal.exists():
                 argv += ["--tipster-signal", str(tipster_signal)]
+            if superbet_offer.exists():
+                argv += ["--superbet-offer", str(superbet_offer)]
 
         verdict, metrics, code = _run_step(out, name, argv, verbose=args.verbose)
         # An optional step's verdict is recorded per step but kept out of the

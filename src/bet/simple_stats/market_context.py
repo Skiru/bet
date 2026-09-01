@@ -84,10 +84,11 @@ TENNIS_PROVIDER = "bzzoiro-tennis"
 # model probability all exist at the same line -- which is the whole premise of
 # the signal built on top of this.
 #
-# Goals and BTTS are the obvious next candidates and are deliberately not here:
-# unlocking them is an ENRICH-side change (extracting home_score/away_score into
-# a canonical metric), and fetching prices for markets no row exists for would
-# put unreadable data in the artifact.
+# Goals is the other one: ENRICH now extracts home_score/away_score into
+# goals_total/goals_for (docs/PLAN_BOGATE_STATYSTYKI.md Faza 1), and the feed
+# already carries both the price (``over_under_05/15/25/35``) and the model
+# probability (``prob_goals_over_15/25/35``) for it. BTTS is still not here:
+# the feed has a price for it, but no row exists for it yet.
 SIGNAL_MARKET = "total_corners"
 
 # Per-event call cost, so a caller can size a run before spending anything:
@@ -461,19 +462,29 @@ def _entitlement_cache_as_bool() -> bool | None:
 # Stats-sheet markets this signal may ever be computed for, mapped to the odds
 # feed's own market code.
 #
-# One entry, and that is the finding rather than a starting point. Of the five
-# football markets this pipeline prices, bzzoiro's odds feed covers exactly one:
-# there is no cards market, no fouls market and no shots-on-target market
-# anywhere in its fourteen codes, and the CatBoost model publishes probabilities
-# for none of them either. A row on ``cards_total`` therefore cannot be handed a
-# signal -- not a weak one, not a partial one -- and the restriction lives here,
-# in the one function that could otherwise invent it.
+# ``goals_total``'s value here is a placeholder, never read as the actual feed
+# code: unlike every other entry, the feed has one market *per line*
+# (``over_under_05/15/25/35``, see ``GOALS_FEED_MARKETS`` below), so
+# ``market_signal_for_row`` resolves its real feed market from the row's line
+# rather than from this table. The entry still has to exist here, because this
+# table is also the gate that decides whether a market is in scope at all --
+# without it a goals row would return ``None`` (out of scope) instead of
+# ``NO_MARKET_DATA`` on 4.5, the one line the feed has no code for at all.
 #
-# ``corners_for`` is absent for a different reason: the feed's ``total_corners``
-# is a match total, so pointing a per-team row at it would compare one team's
-# corners against a price for both teams' corners.
+# Of the five football markets this pipeline prices, bzzoiro's odds feed covers
+# exactly two: there is no cards market, no fouls market and no
+# shots-on-target market anywhere in its fourteen codes, and the CatBoost
+# model publishes probabilities for none of them either. A row on
+# ``cards_total`` therefore cannot be handed a signal -- not a weak one, not a
+# partial one -- and the restriction lives here, in the one function that
+# could otherwise invent it.
+#
+# ``corners_for`` and ``goals_for`` are absent for the same reason: the feed's
+# markets are match totals, so pointing a per-team row at one would compare a
+# single team's total against a price for both teams'.
 SIGNAL_MARKETS: dict[str, str] = {
     "corners_total": SIGNAL_MARKET,
+    "goals_total": "over_under_by_line",
     # Tennis, added 2026-08-30. Mapped to feed markets this stage does **not**
     # fetch, and that is the intended design rather than an oversight: the
     # tennis model publishes probabilities but tennis odds would cost one call
@@ -489,6 +500,16 @@ SIGNAL_MARKETS: dict[str, str] = {
     "total_sets": "total_sets",
 }
 
+# goals_total's feed code depends on the line, unlike every other market this
+# stage handles. 4.5 has no code in the feed at all (bzzoiro publishes exactly
+# four over/under lines) and is never interpolated from 3.5's.
+GOALS_FEED_MARKETS: dict[float, str] = {
+    0.5: "over_under_05",
+    1.5: "over_under_15",
+    2.5: "over_under_25",
+    3.5: "over_under_35",
+}
+
 # Stats-sheet line -> the model's field for P(over) at that exact line.
 #
 # The model publishes three corner lines. ``STANDARD_MARKET_LINES`` prices four
@@ -499,6 +520,15 @@ MODEL_CORNERS_FIELDS: dict[float, str] = {
     8.5: "prob_corners_over_85",
     9.5: "prob_corners_over_95",
     10.5: "prob_corners_over_105",
+}
+
+# The model publishes 1.5/2.5/3.5. ``STANDARD_MARKET_LINES`` also prices 0.5
+# and 4.5 -- neither has a model field, so both are told so rather than
+# interpolated from a neighbour.
+MODEL_GOALS_FIELDS: dict[float, str] = {
+    1.5: "prob_goals_over_15",
+    2.5: "prob_goals_over_25",
+    3.5: "prob_goals_over_35",
 }
 
 
@@ -527,6 +557,8 @@ def _model_probability(
         return None
     if market == "corners_total":
         field = MODEL_CORNERS_FIELDS.get(line)
+    elif market == "goals_total":
+        field = MODEL_GOALS_FIELDS.get(line)
     else:
         field = MODEL_TENNIS_FIELDS.get(market, {}).get(line)
     if field is None:
@@ -554,10 +586,82 @@ def _best_quote(quotes: list[MarketOddsLine], market: str, line: float, outcome:
     return max(candidates, key=lambda quote: quote.price)
 
 
+# Preferred for the de-vig because it is the lowest-margin book in the feed
+# (verified live 2026-08-28) -- when it quotes both sides of a line, that pair
+# has the least overround of any available, so removing it distorts the
+# probability the least.
+PREFERRED_DEVIG_BOOKMAKER = "pinnacle"
+
+
+def _same_bookmaker_probability(
+    quotes: list[MarketOddsLine], market: str, line: float, direction: str
+) -> tuple[float | None, str]:
+    """De-vigged P(direction) at this line, from **one** bookmaker's own over
+    and under prices, or None and why not.
+
+    Never pairs an over from one book with an under from another. The two
+    legs of one book's own line are guaranteed to sum to roughly that book's
+    margin (~1.02-1.08); the best over across ~26 books and the best under
+    across the same ~26 can come from different books entirely, and their
+    sum can land anywhere -- below 1.00 (a synthetic arbitrage that exists only
+    on paper) or comfortably above it, and the ratio the probability is read
+    from tilts toward whichever side more books are pricing aggressively. At
+    corners' ~12 quotes a match that distortion is small; at goals' ~624
+    quotes across ~26 books (verified live 2026-08-30) it is not.
+
+    Pinnacle is tried first when it quotes both sides of this exact line;
+    otherwise the first bookmaker, in quote order, that quotes both sides is
+    used. A bookmaker that quotes only one side of a line never contributes
+    a pairing here, which is a difference from ``_best_quote``: that function
+    is allowed to answer from one side, this one is not.
+    """
+    by_book: dict[str | None, dict[str, MarketOddsLine]] = {}
+    book_order: list[str | None] = []
+    for quote in quotes:
+        if quote.market != market or quote.line != line or quote.outcome not in ("over", "under"):
+            continue
+        book = quote.bookmaker_slug
+        if book not in by_book:
+            by_book[book] = {}
+            book_order.append(book)
+        sides = by_book[book]
+        existing = sides.get(quote.outcome)
+        if existing is None or quote.price > existing.price:
+            sides[quote.outcome] = quote
+
+    ordered_books = book_order
+    if PREFERRED_DEVIG_BOOKMAKER in by_book:
+        ordered_books = [PREFERRED_DEVIG_BOOKMAKER] + [b for b in book_order if b != PREFERRED_DEVIG_BOOKMAKER]
+
+    for book in ordered_books:
+        sides = by_book.get(book, {})
+        over = sides.get("over")
+        under = sides.get("under")
+        if over is None or under is None:
+            continue
+        implied_over = 1.0 / over.price
+        implied_under = 1.0 / under.price
+        total = implied_over + implied_under
+        if total <= 0:
+            continue
+        probability = (implied_over if direction == "OVER" else implied_under) / total
+        return probability, ""
+
+    return None, f"no single bookmaker quotes both sides of line {line}"
+
+
 def _market_probability(
     quotes: list[MarketOddsLine], market: str, line: float, direction: str
 ) -> tuple[float | None, MarketOddsLine | None, str]:
-    """De-vigged P(direction) at this line, the quote it came from, and why not.
+    """De-vigged P(direction) at this line, the best price for this leg, and
+    why not if there is no probability.
+
+    The price and the probability are allowed to come from different places
+    on purpose: the reported price is the best available across every
+    bookmaker (what an operator would actually be offered), while the
+    probability is computed from a single bookmaker's own paired quotes (see
+    ``_same_bookmaker_probability``) so the overround being removed is a real
+    one, not an artefact of mixing books.
 
     **Both legs are required.** A single leg's 1/decimal_odds is not a
     probability: it carries the bookmaker's whole margin, so an over quoted at
@@ -580,12 +684,9 @@ def _market_probability(
             f"line {line} is quoted on one side only, so the overround cannot be "
             "removed and no implied probability is reported"
         )
-    implied_over = 1.0 / over.price
-    implied_under = 1.0 / under.price
-    total = implied_over + implied_under
-    if total <= 0:
-        return None, wanted, f"unusable prices at line {line}"
-    probability = (implied_over if direction == "OVER" else implied_under) / total
+    probability, reason = _same_bookmaker_probability(quotes, market, line, direction)
+    if probability is None:
+        return None, wanted, reason
     return probability, wanted, ""
 
 
@@ -614,10 +715,21 @@ def market_signal_for_row(
     if context is None:
         return MarketSignalColumn(verdict="NO_MARKET_DATA", reason="no market context for this event")
 
+    # goals_total is one feed code *per line* (SIGNAL_MARKETS' entry for it is
+    # a placeholder, not a real code -- see the comment there), unlike every
+    # other market handled here, which is one code for every line it prices.
+    if row.market == "goals_total":
+        feed_market = GOALS_FEED_MARKETS.get(row.line)
+
     model_probability = _model_probability(
         context.predictions, row.line, row.direction, row.market
     )
-    quotes = context.odds or context.bookmaker_comparison
+    # Concatenated, never `or`: `context.odds` carries only `total_corners`, so
+    # whenever any corners quote exists the `or` short-circuits and every quote
+    # in `bookmaker_comparison` -- where goals and BTTS actually live -- is
+    # silently dropped. `_best_quote` already filters by (market, line,
+    # outcome), so combining the two lists cannot introduce a wrong match.
+    quotes = [*context.odds, *context.bookmaker_comparison]
     market_probability, quote, market_reason = _market_probability(
         quotes, feed_market, row.line, row.direction
     )
@@ -630,11 +742,12 @@ def market_signal_for_row(
 
     if model_probability is None or market_probability is None:
         reasons = []
-        known_lines = (
-            MODEL_CORNERS_FIELDS
-            if row.market == "corners_total"
-            else MODEL_TENNIS_FIELDS.get(row.market, {})
-        )
+        if row.market == "corners_total":
+            known_lines = MODEL_CORNERS_FIELDS
+        elif row.market == "goals_total":
+            known_lines = MODEL_GOALS_FIELDS
+        else:
+            known_lines = MODEL_TENNIS_FIELDS.get(row.market, {})
         if model_probability is None:
             reasons.append(
                 f"no model probability at line {row.line}"

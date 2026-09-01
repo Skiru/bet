@@ -40,6 +40,7 @@ from bet.simple_stats.providers import (
     fetch_bzzoiro_player_history,
     fetch_bzzoiro_referee,
     fetch_bzzoiro_squad_availability,
+    fetch_bzzoiro_team_league_id,
     fetch_bzzoiro_tennis_history,
     fetch_highlightly_history,
     fetch_provider_h2h_metrics,
@@ -308,6 +309,7 @@ def _dossier_for_event(
         fixture_context=event.fixture_context,
         referee=extras.referee if extras is not None else None,
         squad_availability=list(extras.squad_availability) if extras is not None else [],
+        season_form=list(extras.season_form) if extras is not None else [],
     )
 
 
@@ -355,6 +357,14 @@ def _fixture_extras_for_event(
         extras.data_gaps.extend(gaps)
         if profile:
             extras.referee = RefereeProfile(**profile)
+    else:
+        # Distinct from a failed/empty profile fetch above (that gap says
+        # "referee profile for <id>"): this fixture never had a referee_id to
+        # look up at all. Plan section 5a requires the two be told apart, not
+        # folded into one 24/192-style number that could mean either "the
+        # provider never names officials this early" or "the profile lookups
+        # keep failing" -- they call for different fixes.
+        extras.data_gaps.append("referee: no referee_id on this fixture")
 
     ids = event.provider_team_ids.get("bzzoiro", {})
     for side in ("home", "away"):
@@ -368,12 +378,32 @@ def _fixture_extras_for_event(
         if block:
             extras.squad_availability.append(SquadAvailability(**block))
 
+    # league_id is bzzoiro-discovery-only (EventRecord.fixture_context is set
+    # only when bzzoiro itself found the fixture, discover.py's
+    # `_to_event_record`). Every other fixture with bzzoiro team ids -- most of
+    # them, once name-matching has run -- still has a resolvable league: read
+    # it off each side's own fixtures listing rather than leaving season_form
+    # at 0 coverage for anything discover.py didn't source from bzzoiro.
+    league_id = context.league_id if context is not None else None
+    if not league_id and ids:
+        as_of = event.start_time[:10]
+        for team_id in (ids.get("home", ""), ids.get("away", "")):
+            if not team_id:
+                continue
+            resolved, gaps = fetch_bzzoiro_team_league_id(
+                team_id, as_of, rate_limiter, run_budget
+            )
+            extras.data_gaps.extend(gaps)
+            if resolved:
+                league_id = resolved
+                break
+
     # One call per competition, not per fixture: a slate is dozens of matches
     # drawn from a handful of leagues, and the table is the same for all of
     # them. Both sides are read out of the one response.
-    if context is not None and context.league_id and ids:
+    if league_id and ids:
         table, gaps = fetch_bzzoiro_league_table(
-            context.league_id, rate_limiter, run_budget
+            league_id, rate_limiter, run_budget
         )
         extras.data_gaps.extend(gaps)
         for side in ("home", "away"):

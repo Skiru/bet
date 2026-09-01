@@ -30,14 +30,18 @@ if scripts_path not in sys.path:
 from agent_output import AgentOutput, add_agent_args  # noqa: E402
 
 from bet.db.connection import get_db  # noqa: E402
-from bet.simple_stats.analyze import analyze_dossiers  # noqa: E402
+from bet.simple_stats.analyze import analyze_dossiers, limit_rows_per_event  # noqa: E402
 from bet.simple_stats.artifact_io import sha256_file, write_json_atomic  # noqa: E402
 from bet.simple_stats.contracts import (  # noqa: E402
     EventDossierListV1,
     MarketContextV1,
+    StatsSheetV1,
+    SuperbetOfferV1,
     TipsterSignalV1,
 )
+from bet.simple_stats.coupons import MIN_SINGLE_P_LOW  # noqa: E402
 from bet.simple_stats.market_context import attach_market_context_column  # noqa: E402
+from bet.simple_stats.superbet_offer import attach_superbet_column  # noqa: E402
 from bet.simple_stats.persistence import (  # noqa: E402
     default_db_path,
     fixture_ids_by_event_id,
@@ -65,11 +69,27 @@ def main() -> None:
              "into them.",
     )
     parser.add_argument(
+        "--superbet-offer",
+        default=None,
+        help="Optional SUPERBET_OFFER_V1 from run_superbet.py. Fills the "
+             "`superbet` column: the price on the operator's own book, and -- "
+             "more importantly -- whether the line is on it at all. Absent, "
+             "every row's column stays None and the sheet is unchanged.",
+    )
+    parser.add_argument(
         "--tipster-signal",
         default=None,
         help="Optional TIPSTER_SIGNAL_V1 from run_tipsters.py. Fills row.tipster "
              "and nothing else -- public agreement is reported beside the "
              "statistics, never mixed into them.",
+    )
+    parser.add_argument(
+        "--max-rows-per-event",
+        type=int,
+        default=None,
+        help="Cap stats-sheet rows kept per event, strongest p_low first "
+             "(default: unlimited). Faza 2 sizing guard against the sheet "
+             "outgrowing the analyst's context window as market coverage grows.",
     )
     add_agent_args(parser)
     args = parser.parse_args()
@@ -93,6 +113,22 @@ def main() -> None:
         _record(args, run_id, betting_date, "FAILED", {"error": str(exc)}, started_at, str(exc))
         out.summary(verdict="FAILED", metrics={"total_rows": 0, "run_id": run_id})
         sys.exit(2)
+
+    if args.max_rows_per_event is not None:
+        pre_cap = len(stats_sheet.rows)
+        capped_rows = limit_rows_per_event(stats_sheet.rows, args.max_rows_per_event)
+        stats_sheet = StatsSheetV1(
+            run_id=stats_sheet.run_id,
+            date=stats_sheet.date,
+            generated_at=stats_sheet.generated_at,
+            rows=capped_rows,
+        )
+        out.event(
+            "rows_capped_per_event",
+            max_rows_per_event=args.max_rows_per_event,
+            rows_before=pre_cap,
+            rows_after=len(stats_sheet.rows),
+        )
 
     # Both optional columns are attached after every statistic is computed, so
     # the numbers above cannot depend on either even by accident. A missing or
@@ -185,10 +221,80 @@ def main() -> None:
                 countable_claims=signal.countable_claims,
             )
 
+    # The operator's own book. Third and last of the optional columns, and the
+    # only one that can say "this line is not on the screen" -- the other two
+    # can only ever disagree about a price for a bet that exists.
+    superbet_metrics: dict = {"superbet_offer": None}
+    if args.superbet_offer:
+        offer_path = Path(args.superbet_offer)
+        offer = None
+        try:
+            offer = SuperbetOfferV1.model_validate_json(offer_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError) as exc:
+            out.warning(
+                f"superbet offer unusable, continuing without the column: {exc}",
+                path=str(offer_path),
+            )
+            superbet_metrics["superbet_offer_error"] = str(exc)
+
+        # Same date guard the other two columns carry, and it matters more here:
+        # yesterday's price for a market that has since been re-laddered looks
+        # exactly like today's, and the operator bets from it.
+        if offer is not None and offer.date and offer.date != betting_date:
+            out.error(
+                f"superbet offer is for {offer.date}, not {betting_date} -- refusing to attach it",
+                recoverable=True,
+                path=str(offer_path),
+            )
+            superbet_metrics["superbet_offer_error"] = f"date_mismatch:{offer.date}!={betting_date}"
+            offer = None
+
+        if offer is not None:
+            stats_sheet = attach_superbet_column(stats_sheet, offer)
+            availability: dict[str, int] = {}
+            for row in stats_sheet.rows:
+                if row.superbet is None:
+                    continue
+                availability[row.superbet.availability] = (
+                    availability.get(row.superbet.availability, 0) + 1
+                )
+            superbet_metrics = {
+                "superbet_offer": str(offer_path),
+                "superbet_events_matched": offer.events_matched,
+                "superbet_rows_offered": availability.get("OFFERED", 0),
+                "superbet_rows_line_not_offered": availability.get("LINE_NOT_OFFERED", 0),
+                "superbet_rows_market_not_offered": availability.get("MARKET_NOT_OFFERED", 0),
+                "superbet_rows_event_not_matched": availability.get("EVENT_NOT_MATCHED", 0),
+                "superbet_rows_suspended": availability.get("SUSPENDED", 0),
+            }
+            out.event("superbet_column_attached", **{
+                key: value for key, value in superbet_metrics.items() if key != "superbet_offer"
+            })
+            if not availability.get("OFFERED"):
+                out.warning(
+                    "not one row on this sheet is on Superbet at its own line. Check "
+                    "the offer artifact's line_coverage before reading any p_low as a bet."
+                )
+
     output_path = Path(args.output_dir) / f"{dossier_path.stem}_stats_sheet.json"
     write_json_atomic(output_path, stats_sheet.model_dump(mode="json"))
     digest = sha256_file(output_path)
     out.event("artifact_written", path=str(output_path), sha256=digest, rows=len(stats_sheet.rows))
+
+    # Faza 2 sizing guard: the full sheet stays on disk for audit, but the
+    # analyst reads this slim companion -- same rows minus everything below
+    # the coupon's own p_low floor, which build_coupons.py would drop anyway.
+    top_rows = [row for row in stats_sheet.rows if row.p_low >= MIN_SINGLE_P_LOW]
+    top_sheet = StatsSheetV1(
+        run_id=stats_sheet.run_id,
+        date=stats_sheet.date,
+        generated_at=stats_sheet.generated_at,
+        rows=top_rows,
+    )
+    top_path = Path(args.output_dir) / f"{dossier_path.stem}_stats_sheet_top.json"
+    write_json_atomic(top_path, top_sheet.model_dump(mode="json"))
+    top_digest = sha256_file(top_path)
+    out.event("top_artifact_written", path=str(top_path), sha256=top_digest, rows=len(top_rows))
 
     rows = stats_sheet.rows
     by_confidence = dict(Counter(row.confidence for row in rows))
@@ -223,10 +329,14 @@ def main() -> None:
         "multi_source_rows": corroborated,
         "output_path": str(output_path),
         "output_sha256": digest,
+        "top_output_path": str(top_path),
+        "top_output_sha256": top_digest,
+        "top_rows": len(top_rows),
         "persisted": persisted,
         "persist_error": persist_error,
         **market_metrics,
         **tipster_metrics,
+        **superbet_metrics,
     }
 
     if not rows:

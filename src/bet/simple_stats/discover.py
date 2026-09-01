@@ -8,8 +8,10 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
+from pathlib import Path
 
 import requests
 
@@ -55,6 +57,67 @@ def _event_id(sport: str, competition: str, participants: str, start_time: str) 
 
 def _normalize_name(name: str | None) -> str:
     return " ".join((name or "").strip().lower().split())
+
+
+# docs/PLAN_BOGATE_STATYSTYKI.md Faza 6.
+_COMPETITION_CANONICAL_MAP_PATH = (
+    Path(__file__).resolve().parents[3]
+    / "config"
+    / "competition_name_canonical_map.json"
+)
+_COMPETITION_CANONICAL_CACHE: dict[str, str] | None = None
+_COMPETITION_CANONICAL_LOCK = threading.Lock()
+
+
+def _competition_canonical_map() -> dict[str, str]:
+    """``{raw name: canonical name}`` from config/competition_name_canonical_map.json,
+    read once. Exact-name pin only, matching the same rule the ESPN and SportDB
+    competition maps already follow. A missing or malformed file yields an
+    empty map rather than raising -- a config problem must not block discovery.
+    """
+    global _COMPETITION_CANONICAL_CACHE
+    with _COMPETITION_CANONICAL_LOCK:
+        if _COMPETITION_CANONICAL_CACHE is not None:
+            return _COMPETITION_CANONICAL_CACHE
+    canonical: dict[str, str] = {}
+    try:
+        raw = _COMPETITION_CANONICAL_MAP_PATH.read_text(encoding="utf-8")
+        document = json.loads(raw)
+        canonical = {
+            str(name): str(target)
+            for name, target in (document.get("canonical") or {}).items()
+        }
+    except (OSError, ValueError, AttributeError):
+        canonical = {}
+    with _COMPETITION_CANONICAL_LOCK:
+        if _COMPETITION_CANONICAL_CACHE is None:
+            _COMPETITION_CANONICAL_CACHE = canonical
+        return _COMPETITION_CANONICAL_CACHE
+
+
+def reset_competition_canonical_cache() -> None:
+    """Forget the cached competition-name canonical map. For tests only."""
+    global _COMPETITION_CANONICAL_CACHE
+    with _COMPETITION_CANONICAL_LOCK:
+        _COMPETITION_CANONICAL_CACHE = None
+
+
+def _canonicalize_competition_names(
+    events_by_source: dict[str, list[DiscoveredEvent]],
+) -> None:
+    """Rewrite every DiscoveredEvent.competition through the exact-name pin map,
+    in place, across all sources. Run before dedup and ESPN resolution both
+    read it, so a league that arrives as "EPL" from one provider and
+    "Premier League" from another gets one event_id and one competition-map
+    lookup instead of two."""
+    canonical = _competition_canonical_map()
+    if not canonical:
+        return
+    for events in events_by_source.values():
+        for ev in events:
+            target = canonical.get(ev.competition)
+            if target is not None:
+                ev.competition = target
 
 
 class OddsAPIEventsAdapter(OddsAPIAdapter):
@@ -586,7 +649,18 @@ def _to_event_record(fixture: MergedFixture) -> EventRecord:
         # Only bzzoiro publishes these, so there is no cross-source merge to do
         # and no precedence to decide: the fixture either was discovered there
         # or has no context block at all.
-        if src.source == "bzzoiro" and raw.get("referee_id") is not None:
+        #
+        # Gated on the source, not on referee_id being set: a fixture whose
+        # referee has not been assigned yet used to lose the *whole* block --
+        # including is_local_derby, weather and now round_name/group_name/
+        # previous_leg_event_id -- even though none of those depend on a
+        # referee at all. Verified live 2026-08-31: Sutton United - Wealdstone
+        # carries "is_local_derby": true with "referee_id": null, and the old
+        # gate would have silently dropped the derby flag along with it.
+        # enrich.py's "referee: no referee_id" data_gap already reads
+        # context.referee_id itself, not whether a context object exists, so
+        # this does not change referee-coverage reporting at all.
+        if src.source == "bzzoiro":
             fixture_context = FixtureContext(
                 referee_id=raw.get("referee_id"),
                 venue_id=raw.get("venue_id"),
@@ -595,6 +669,9 @@ def _to_event_record(fixture: MergedFixture) -> EventRecord:
                 is_neutral_ground=bool(raw.get("is_neutral_ground")),
                 travel_distance_km=raw.get("travel_distance_km"),
                 weather=raw.get("weather"),
+                round_name=raw.get("round_name"),
+                group_name=raw.get("group_name"),
+                previous_leg_event_id=raw.get("previous_leg_event_id"),
             )
 
     record_kwargs = dict(
@@ -646,6 +723,7 @@ def discover_events(
         BzzoiroTennisDiscoveryAdapter(rate_limiter),
     ]
     events_by_source = _fetch_all_sources(sources, date, sports)
+    _canonicalize_competition_names(events_by_source)
     blocked_records, filtered = _detect_ambiguous(events_by_source)
 
     engine = DeduplicationEngine()

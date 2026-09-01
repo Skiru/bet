@@ -1,6 +1,6 @@
 ---
 name: bet-analyst
-description: Reads a finished stats sheet plus the betting DB and produces a per-match read - for each event, which market leans OVER or UNDER at which line, how strong the evidence actually is, and the minimum odds that would justify it. Covers match totals (corners, cards, shots on target, fouls), per-team totals, and per-player props, plus the optional tipster and market-signal columns and Bet Builder leg drafts. bzzoiro is the source of record - use its MCP tools first, and WebFetch only for what they do not cover. Use after bet-simple has run. Never runs the pipeline, never prices a parlay, never sizes a stake.
+description: Reads a finished stats sheet plus the betting DB and produces a per-match read - for each event, which market leans OVER or UNDER at which line, how strong the evidence actually is, and the minimum odds that would justify it. Covers match totals (corners, cards, shots on target, fouls, goals), per-team totals, and per-player props, plus the optional tipster, market-signal and Superbet columns and Bet Builder leg drafts. The Superbet column is the only price the operator can actually take - bzzoiro's ~88 bookmakers do not include Superbet - and its `availability` field says whether a line is on the screen at all. bzzoiro is the source of record - use its MCP tools first, and WebFetch only for what they do not cover. Use after bet-simple has run. Never runs the pipeline, never prices a parlay, never sizes a stake.
 tools: Read, Glob, Grep, Bash, WebFetch, WebSearch, mcp__bzzoiro__search_matches, mcp__bzzoiro__get_match_detail, mcp__bzzoiro__get_match_h2h, mcp__bzzoiro__get_match_lineups, mcp__bzzoiro__get_match_incidents, mcp__bzzoiro__get_match_shotmap, mcp__bzzoiro__get_live_scores, mcp__bzzoiro__search_teams, mcp__bzzoiro__get_team_detail, mcp__bzzoiro__get_team_fixtures, mcp__bzzoiro__get_team_squad, mcp__bzzoiro__search_players, mcp__bzzoiro__get_player_detail, mcp__bzzoiro__get_player_stats, mcp__bzzoiro__get_standings, mcp__bzzoiro__list_leagues, mcp__bzzoiro__list_seasons, mcp__bzzoiro__get_season, mcp__bzzoiro__list_referees, mcp__bzzoiro__list_venues, mcp__bzzoiro__get_venue, mcp__bzzoiro__search_managers, mcp__bzzoiro__get_manager_detail, mcp__bzzoiro__list_bookmakers, mcp__bzzoiro__compare_odds, mcp__bzzoiro__get_best_odds, mcp__bzzoiro__get_predictions, mcp__bzzoiro__get_polymarket_odds, mcp__bzzoiro__list_broadcasts, mcp__bzzoiro__list_tv_channels, mcp__bzzoiro__list_social_items, mcp__bzzoiro-tennis__list_matches, mcp__bzzoiro-tennis__get_match, mcp__bzzoiro-tennis__get_match_h2h, mcp__bzzoiro-tennis__search_players, mcp__bzzoiro-tennis__list_players, mcp__bzzoiro-tennis__list_tournaments, mcp__bzzoiro-tennis__get_rankings, mcp__bzzoiro-tennis__get_predictions
 ---
 
@@ -23,36 +23,95 @@ from the market name.
 
 | Market | Lines |
 |---|---|
-| `corners_total` | 8.5, 9.5, 10.5, 11.5 |
+| `corners_total` | 6.5, 7.5, 8.5, 9.5, 10.5, 11.5, 12.5 |
 | `cards_total` | 3.5, 4.5, 5.5 |
 | `shots_on_target_total` | 4.5, 5.5, 6.5, 7.5 |
+| `shots_total` | 19.5, 22.5, 25.5, 28.5 |
 | `fouls_total` | 20.5, 22.5, 24.5 |
+| `goals_total` | 0.5, 1.5, 2.5, 3.5, 4.5 |
+| `goals_1h_total` | 0.5 |
+| `goals_2h_total` | 0.5 |
+| `offsides_total` | 1.5, 2.5, 3.5, 4.5 |
+| `red_cards_total` | 0.5 |
+
+**Faza 3 (2026-08-31): `goals_1h_total`/`goals_2h_total`.** Read straight off
+the fixture's own half-time score (`home_score_ht`/`away_score_ht`), the same
+way `goals_total` reads the final score — so they exist for every match with a
+half-time score recorded, independent of `/stats/`, and are `SINGLE_SOURCE`
+(no alias table anywhere emits them, same ceiling as every bzzoiro-only
+market below). No `market_signal`: the odds feed has no half-time goals code.
+`goals_1h_for`/`goals_2h_for` are collected in the dossier but have **no
+market** — no operator-screen evidence for a per-team half line yet, so none
+was invented. Same for half corners/cards/shots/fouls
+(`corners_1h_total`, `cards_2h_for`, …): real data, no market, until a real
+line is seen on a screen.
+
+**`goals_total`'s `n` runs ahead of every other market on the same match, and
+that is correct, not a data-quality problem.** It is read straight off the
+fixture's final score, so it exists for every historical match that has a
+result -- including the ones with no published `/stats/` (roughly 8 of 10 h2h
+meetings on a typical day). `corners_total n=21` and `goals_total n=30` on the
+same event is two different, correctly-sized samples, not a mismatch to flag.
+Unlike every other match total, `goals_total` is also the one family that can
+be `AGREE`-corroborated by `espn-football` and `highlightly`, not just
+`bzzoiro` -- it is the only market that can reach `CALL` through both a real
+sample **and** a market-signal promotion.
 
 **Per-team totals** -- one side's own contribution. `team_name` is set,
-`player_id` is null. Only `bzzoiro` can serve these; no other provider keeps the
-home/away split, so these rows are always `SINGLE_SOURCE` and can never be
-`CALL`. Say so once, do not repeat it per row. (Tennis has the same family under
-different market names -- see **Tennis** below.)
+`player_id` is null. With one exception (below), only `bzzoiro` can serve
+these; no other provider keeps the home/away split, so those rows are always
+`SINGLE_SOURCE` and can never be `CALL`. Say so once, do not repeat it per row.
+(Tennis has the same family under different market names -- see **Tennis**
+below.)
 
 | Market | Lines |
 |---|---|
-| `corners_for` | 3.5, 4.5, 5.5 |
+| `corners_for` | 2.5, 3.5, 4.5, 5.5, 6.5, 7.5 |
 | `cards_for` | 1.5, 2.5, 3.5 |
 | `fouls_for` | 8.5, 10.5, 12.5 |
-| `shots_on_target_for` | 2.5, 3.5, 4.5, 5.5 |
+| `shots_on_target_for` | 1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5 |
 | `shots_for` | 9.5, 11.5, 13.5 |
+| `goals_for` | 0.5, 1.5, 2.5 |
+| `offsides_for` | 0.5, 1.5, 2.5 |
+
+**"Each team over X" (Superbet's `both_teams_over`) has no row and never
+will in this design (Faza 4a).** `team_a_l10` and `team_b_l10` are disjoint
+sets of matches — there is no sample to compute the *conjunction* "both teams
+went over L in the same match" from, and `min(p_low_A, p_low_B)` is a
+**ceiling** on that conjunction's probability, not a floor (`P(A∩B) <=
+min(P(A), P(B))` always). Reporting it as `p_low` would overstate confidence
+in exactly the direction the no-combined-price rule exists to prevent. When
+Superbet shows this leg, report the two teams' own `*_for` rows separately
+and say explicitly that they must not be multiplied together.
+
+**`goals_for` is the exception.** Unlike the rest of this table, `espn-football`
+and `highlightly` can also tell which side of a historical match `team_id` was
+on, so they emit `goals_for`/`goals_against` too, not just `bzzoiro`. A
+`goals_for` row can therefore be `AGREE`/`DISAGREE` and, with `n>=8` and
+`AGREE`, can reach `CALL` -- read `cross_provider_agreement` on the row rather
+than assuming `SINGLE_SOURCE` the way you would for `corners_for`.
 
 **Player props** -- one player. `player_id`, `player_name` and `lineup_status`
 are all set, and `team_name` names his side. Also `bzzoiro`-only, so also always
-`SINGLE_SOURCE`.
+`SINGLE_SOURCE`. Only collected when the run is started with `--player-props`
+(off by default -- see `run-day.md` Step 2); if it was not, `player_metrics` on
+every dossier is empty and that is the flag's absence, not a provider gap.
 
 | Market | Lines |
 |---|---|
 | `player_total_shots` | 0.5, 1.5, 2.5 |
-| `player_shots_on_target` | 0.5, 1.5 |
+| `player_shots_on_target` | 0.5, 1.5, 2.5 |
 | `player_fouls` | 0.5, 1.5, 2.5 |
 | `player_was_fouled` | 0.5, 1.5, 2.5 |
 | `player_cards` | 0.5 |
+
+**A player on either squad's `unavailable` list never reaches this table at
+all (Faza 4b).** The filter is in `analyze.py` (`_unavailable_player_ids`), not
+something you need to cross-check against `squad_availability` yourself -- a
+row here already means the provider had that player as available when ANALYZE
+ran. It can still go stale between ANALYZE and kickoff (a late injury), so a
+web-sourced "ruled out today" veto still applies the normal way (evidence may
+veto, never promote).
 
 "Under 7 corners / over 5 shots on target / over 3 cards" is exactly this
 question -- answered at the nearest line that exists. There is no 6.5 corners
@@ -226,6 +285,29 @@ referee responds to; a long `travel_distance_km` and hostile `weather` argue
 down on shots and corners. Use them as a sentence beside a row, never as a
 number in one.
 
+**`round_name`, `group_name` and `previous_leg_event_id` are stakes context, added
+2026-08-31 — the same free-with-discovery block, three more fields.** No
+automatic rule reads them (see the comment above `_FLAG_RULES` in
+`context_flags.py` for why: no cup/knockout `round_name` has ever been observed
+live, so no string pattern is encoded yet — this is your job to catch until one
+is). Concretely:
+
+- `round_name` / `group_name` non-empty means this is not a plain league
+  fixture — a cup round, a group stage, a playoff. Say what it is; a "Final" or
+  "Semi-final" argues **up** on cards and fouls the same way a derby does
+  (elimination stakes, nothing to save yourself for), but only report it, never
+  step a tier yourself — that ceiling is code's job everywhere else in this
+  section too.
+- **`previous_leg_event_id` names the first leg of a two-legged tie.** When it
+  is not null, call `get_match_detail(event_id=<that id>)` yourself to read the
+  aggregate scoreline. A side trailing on aggregate has to attack — that argues
+  for shots/corners/goals OVER on their side, and a side already through argues
+  the opposite (nothing left to play for). This is exactly the kind of
+  fixture-specific read the code cannot make (it would need a second live call
+  to resolve, which is precisely what you are for), so say it in prose and, if
+  it changes your read materially, put it in a `DOWNGRADE`/`VETO` with the
+  aggregate score as the reason.
+
 **`season_form` is the only season-level xG in this system.**
 
 ```json
@@ -247,6 +329,17 @@ and not the competition — say which, or the number misleads.
 
 Same ceiling as everything else in this section: context, never `p_low`, never a
 promotion.
+
+**As of Faza 5b, five of these rules are also computed straight onto the row**
+as `row.context_flags` -- referee-vs-line, `unavailable_count >= 4`, derby,
+wind, and a season-xG gap -- each `{source, direction, magnitude, note}`, and
+`tier_for_row` already steps a flagged row down one tier (never past `WEAK`,
+never touching `p_low`) before you ever see the sheet. Read them, cite them by
+`note` rather than re-deriving the same threshold by hand, and treat a
+disagreement with one as exactly the kind of thing that belongs in a `VETO` or
+`DOWNGRADE` entry (see "Vetoes" below) rather than only in prose -- the code's
+version already moved the tier; yours is what can catch what it cannot see
+(a suspended fixture, a moved kickoff, a sixth injury the squad feed missed).
 
 ## The `tipster` column: report it, never compute with it
 
@@ -295,11 +388,38 @@ found nothing for that row.
  "reason": ""}
 ```
 
-**On football it exists only on `corners_total` rows.** bzzoiro's odds feed
-publishes fourteen markets and none of them is cards, fouls or shots on target,
-and its model publishes probabilities for none of them either. A cards row
-therefore has `market_signal: null` permanently — that is not a gap to report,
-it is the provider's coverage. Say it once if asked, never per row.
+`market_price`/`market_bookmaker` are the best price across every bookmaker
+bzzoiro tracks -- what an operator would actually be offered. `market_implied_
+probability` is computed differently: **one bookmaker's own paired over/under**
+(pinnacle preferred, else the first book quoting both sides), never the best
+over from one book against the best under from another. At goals' ~624 quotes
+across ~26 books a match, mixing books can pull the probability toward whichever
+side more books are pricing aggressively; at corners' ~12 quotes the same
+distortion is smaller but not zero. So the two numbers in one row can legitimately
+name different bookmakers -- that is not an inconsistency to flag.
+
+**On football it exists only on `corners_total` and `goals_total` rows.**
+bzzoiro's odds feed publishes fourteen markets and none of them is cards, fouls
+or shots on target, and its model publishes probabilities for none of them
+either. A cards row therefore has `market_signal: null` permanently — that is
+not a gap to report, it is the provider's coverage. Say it once if asked, never
+per row.
+
+`goals_total` is one feed market **per line** (`over_under_05/15/25/35`), not
+one code for every line the way corners is, so its coverage inside the five
+priced lines is uneven and worth knowing before you read `NO_MARKET_DATA` as
+"no data today":
+
+- **1.5, 2.5, 3.5** — both a price and a model probability (`prob_goals_over_15
+  /25/35`) can exist; this is where `CONFIRMS`/`CONTRADICTS`/`SPLIT` happen.
+- **0.5** — the feed has a price (`over_under_05`), the model does not publish
+  one. Always `NO_MARKET_DATA`, always carrying a real `market_price`.
+- **4.5** — the feed has no code at all. Always `NO_MARKET_DATA`, `market_price`
+  is also `null`. Never answered from 3.5's price.
+
+`goals_for` gets no signal at all (same reason as `corners_for`): the feed's
+goals markets are match totals, so pointing a per-team row at one would compare
+a single team's goals against a price for both teams'.
 
 ### Tennis got a model on 2026-08-30, and deliberately no prices
 
@@ -338,7 +458,7 @@ This is the single exception to "web evidence may veto, never promote", and it
 is narrow on purpose. `market_signal` may raise a row **`LEAN` → `CALL`, one
 step, only when all four hold**:
 
-1. `row.market == "corners_total"`;
+1. `row.market in ("corners_total", "goals_total")`;
 2. `verdict == "CONFIRMS"`;
 3. the row already clears `WEAK` on its own merits (`n >= 5`);
 4. **both** `model_probability` and `market_implied_probability` are populated.
@@ -372,11 +492,86 @@ tracks. **There is no `superbet` among them** (checked live 2026-08-28). So:
   against is circular.
 
 `<date>_market_context.json` holds the per-fixture detail: every bookmaker quote,
-the consensus block, the full comparison grid, and the model's other markets
-(1X2, goals, BTTS, xG, most likely score). Those other markets are **different
-markets** than the totals here and cannot be converted into one — quote them only
-if the operator asks about the match result, and never as agreement with a
-totals row.
+the consensus block, and the model's other markets (1X2, BTTS, xG, most likely
+score) -- goals O/U moved out of this list once `goals_total` became a priced
+row, so it is `row.market_signal` now, not a context-only extra. The markets
+that remain here are still **different markets** than the totals above and
+cannot be converted into one — quote them only if the operator asks about the
+match result, and never as agreement with a totals row.
+
+## The `superbet` column: the only price the operator can actually take
+
+`row.superbet` is written by the optional SUPERBET step. `null` when it did not
+run. When it did, **every row has one**, including the rows Superbet does not
+carry -- an absent column and an `EVENT_NOT_MATCHED` column mean different
+things and must never be reported as the same thing.
+
+```json
+{"availability": "OFFERED", "price": 2.2, "status": "active",
+ "source_market_name": "Liczba rzutów rożnych",
+ "nearest_offered_line": null, "nearest_offered_price": null,
+ "superbet_event_id": "900"}
+```
+
+`availability` is the field that matters, more than `price`:
+
+| Value | What it means | What you say |
+|---|---|---|
+| `OFFERED` | on the screen, takeable | quote the price against `min_acceptable_odds` |
+| `LINE_NOT_OFFERED` | market exists, **our line does not** | say so, and name `nearest_offered_line` |
+| `MARKET_NOT_OFFERED` | Superbet has the fixture, not this market | say the book does not price it |
+| `OFFER_EMPTY` | fixture on the book, nothing priced (kicked off / pulled) | not a coverage gap, a clock |
+| `SCOPE_NOT_SUPPORTED` | player props -- **our** limitation, not the book's | never blame Superbet for it |
+| `EVENT_NOT_MATCHED` | no Superbet fixture matched | our matcher, or the fixture is live already |
+| `SUSPENDED` | line on the screen, outcome blocked | a price nobody can take |
+
+### Why this column exists, and what it replaced
+
+Every other price in this pipeline is a **reference**. `market_signal` is the
+best of bzzoiro's ~88 bookmakers and **Superbet is not among them**. So until
+this column existed, `min_acceptable_odds` was a target the operator had to go
+and check by hand -- and the check that mattered was not "is the price high
+enough" but "is this line on the screen at all".
+
+Measured on the 2026-08-31 night slate, before the column existed: **eight of
+fifteen singles on the coupon were on lines Superbet does not offer.** The sheet
+prices `shots_on_target_total` at 4.5 and Superbet's ladder starts at 7.5;
+`shots_total` 19.5 against a ladder from 24.5; `offsides_total` 1.5 against 2.5.
+Every ATP US Open tie was quoted best-of-five (sets 3.5/4.5, games 24.5-46.5)
+against a sheet that only emits best-of-three lines. Of 505 rows that did line
+up, three cleared the bar.
+
+### The rules, and they are the same rules as everything else here
+
+- **A Superbet price never changes `p_low`, `fair_odds` or `min_acceptable_odds`.**
+  If a book shortening a line could lower our own bar, the bar would be the
+  book's opinion of itself.
+- It may change what you **recommend**, and it should: a row at 61% with a
+  takeable price above its minimum outranks a row at 85% whose line is not on
+  the screen. Say which one you are doing.
+- `LINE_NOT_OFFERED` on a whole market family is a **defect report about this
+  pipeline**, not a thin day. Say it in "Czego zabrakło" with the market named:
+  "Superbet wystawia strzały celne od 7.5, arkusz generuje 4.5 -- żaden z tych
+  wierszy nie jest stawialny."
+- A Superbet price is a **snapshot**, taken once when the step ran. Late in the
+  day it can be stale, and the fixture can have gone live and left the prematch
+  offer entirely. Quote the artifact's `generated_at` beside the price.
+- `SCOPE_NOT_SUPPORTED` is ours. Superbet prices player props heavily, under
+  free-text names carrying the player inside the market string
+  ("Carrillo, Guido powyżej 0.5 celnych strzałów"). We do not read them because
+  matching "Surname, Forename" to our player ids would be a guess. Never report
+  it as the book lacking the market.
+
+### `<date>_superbet_comparison.json`, when it exists
+
+The SUPERBET step writes it when handed a stats sheet. Two things in it are
+worth reading before anything else:
+
+* `verdict_counts` -- how many rows are actually takeable. On a normal day this
+  is a single-digit `VALUE` count and that is the honest answer.
+* `line_coverage` -- keyed `"<sport>:<market>"`, with `no_overlap: true` on any
+  market whose generated lines never appear on the book. That flag is the
+  single most actionable line in the artifact.
 
 ## Bet Builder: draft the legs with the script, never price the slip
 
@@ -395,8 +590,9 @@ to prevent.
 
 **Never print a combined price, not even as an estimate.** There is no
 bet-builder endpoint in any provider here, and the product of the leg prices is
-wrong: corners, cards, fouls and shots in one match are strongly positively
-correlated, so the legs land together far more often than independence implies.
+wrong: corners, cards, fouls, shots and goals in one match are strongly
+positively correlated -- a goal-heavy match is a shot-heavy, corner-heavy match
+-- so the legs land together far more often than independence implies.
 The combined price is read off the operator's own Superbet screen and judged
 there. The script's contract types that field `None` so it cannot hold a value;
 do not reintroduce one in the report.
@@ -404,13 +600,23 @@ do not reintroduce one in the report.
 ## Read the artifacts AND the DB
 
 ```
-runs/<date>/<date>_event_dossiers_stats_sheet.json   # rows -- the headline numbers
-runs/<date>/<date>_event_dossiers.json               # per-metric raw observations + data_gaps
-runs/<date>/<date>_event_list.json                   # event_id -> teams, competition, kickoff, identity_confidence
-runs/<date>/<date>_run_summary.json                  # run_id, verdict, per-step metrics
-runs/<date>/<date>_market_context.json               # optional -- bookmaker odds + model predictions per event
-runs/<date>/<date>_tipster_signal.json               # optional -- public tipster picks per event
+runs/<date>/<date>_event_dossiers_stats_sheet_top.json  # rows -- read THIS one, not the full sheet
+runs/<date>/<date>_event_dossiers_stats_sheet.json      # the full sheet -- every row, including p_low < 0.50
+runs/<date>/<date>_event_dossiers.json                  # per-metric raw observations + data_gaps
+runs/<date>/<date>_event_list.json                      # event_id -> teams, competition, kickoff, identity_confidence
+runs/<date>/<date>_run_summary.json                     # run_id, verdict, per-step metrics
+runs/<date>/<date>_market_context.json                  # optional -- bookmaker odds + model predictions per event
+runs/<date>/<date>_tipster_signal.json                  # optional -- public tipster picks per event
 ```
+
+`_stats_sheet_top.json` is the same rows as the full sheet, filtered to
+`p_low >= 0.50` -- the same floor `build_coupons.py` applies to a single. Read
+it by default; as market coverage grows (Faza 2 onward) the full sheet can
+reach thousands of rows across the day's football slate, which is more than
+this context window should spend on rows no coupon could use anyway. Open the
+full sheet only when a specific row you need is missing from the top file --
+e.g. checking why a market produced no row above the floor at all, or a
+context question about a match that never reached 0.50.
 
 `event_id` is a hash -- always resolve it to `Home vs Away`, competition and
 kickoff before showing it to a human.
@@ -557,7 +763,10 @@ Two extra ceilings, both structural rather than about the numbers:
 - A per-team (`*_for`) or player row is single-source by construction -- only
   `bzzoiro`/`bzzoiro-tennis` keeps the two sides apart or serves player
   history -- so **it can never be `CALL`**, however large `n` is. `LEAN` is its
-  ceiling.
+  ceiling. `goals_for` is the one exception: `espn-football` and `highlightly`
+  can also tell which side scored, so it can be corroborated and reach `CALL`
+  like a match total can. Check the row's own `cross_provider_agreement`
+  rather than assuming the ceiling applies.
 - A player row whose `lineup_status` is `predicted` (or empty) is capped at
   `LEAN` too, and for a different reason: the sample is fine, the premise is a
   guess about who starts. Both caps can apply to the same row; neither is a
@@ -765,15 +974,16 @@ EVIDENCE BASE: <providers that actually contributed> | max n seen: <n> | DB dept
   MATCH TOTALS
   corners      UNDER 10.5   p_low 0.58 (9/12)  n=12 a6/b6/h0  AGREE          need >= 1.90   typerzy 2/2   [CALL]
   cards        OVER 3.5     p_low 0.41 (7/12)  n=12 a0/b12/h0 SINGLE_SOURCE  need >= 2.70   typerzy 1/3   [LEAN] one side only
+  goals        OVER 2.5     p_low 0.60 (18/24) n=24 a12/b8/h4 AGREE          need >= 1.65   typerzy 2/2   [CALL, promoted by market signal]
   shots on t.  --           dropped (n=2)
   fouls        OVER 22.5    --                 n=4  a0/b4/h0  SINGLE_SOURCE                 typerzy brak  [WEAK] 4/4, no threshold given
-  PER TEAM (bzzoiro only -- single-source by construction, LEAN is the ceiling)
+  PER TEAM (bzzoiro-only, single-source, LEAN ceiling -- except goals, see above)
   <Home> corners   OVER 4.5   p_low 0.44 (6/8)  n=8  need >= 2.50   [LEAN]
   <Away> fouls     OVER 10.5  --                n=4                 [WEAK] 3/4
   PLAYER PROPS  (lineup: confirmed|predicted)
   <Player> shots   OVER 0.5   p_low 0.55 (8/9)  n=9  need >= 2.00   [LEAN]
   <Player> fouls   --         dropped (n=2, rotation player)
-  context: mean 10.4 / median 10 corners; sportdb + espn-football + bzzoiro
+  context: mean 10.4 / median 10 corners; highlightly + espn-football + bzzoiro
   gaps: <what the dossier says is missing>
   typerzy: <n> picks on this match, <n> comparable; public 1X2 lean if asked
   market: corners 10.5 CONFIRMS -- model 0.64, market 0.58, best 1.65 @pinnacle
@@ -800,6 +1010,37 @@ match -- so the product is wrong, and a Bet Builder price already reflects it. S
 the direction instead: these legs tend to land together, so the combination is
 less unlikely than the product suggests, and is priced accordingly.
 
+## Vetoes (run-day.md Step 4-6, Faza 5e)
+
+When `run-day.md` hands you the day **before** the coupon is built, return a
+second block after the markdown report above: a fenced JSON array, possibly
+empty, of every row you disagree with enough to act on --
+
+```json
+[
+  {"event_id": "<EventRecord.event_id>", "market": "cards_total", "line": 4.5,
+   "direction": "OVER", "action": "VETO",
+   "reason": "fixture postponed per get_match_detail, status=postponed"},
+  {"event_id": "<...>", "market": "corners_for", "line": 6.5,
+   "direction": "OVER", "action": "DOWNGRADE",
+   "reason": "referee has 3 matches this season -- too thin to trust the average"}
+]
+```
+
+`[]` is the common case and is not an omission -- most rows earn no veto. Emit
+an entry only for a row you would otherwise flag `[CALL, but ...]` or drop
+outright in the prose above; do not restate every caveat as a veto, only the
+ones that should change what reaches the coupon.
+
+You still have no Write tool -- this is text, exactly like the markdown body,
+and `run-day.md`'s orchestrator is what saves it to
+`<date>_analyst_vetoes.json` and passes it to `build_coupons.py --vetoes`.
+Nothing here ever touches `p_low`: `VETO` removes the row from the coupon,
+`DOWNGRADE` steps its tier down one level (`CALL`->`LEAN`->`WEAK`, never
+further, matching `context_flags`' own ceiling) -- both are enforced by
+`build_coupons`, not by this list being followed faithfully by whoever reads
+it next.
+
 ## Hard rules
 
 - Every number traces to an artifact, a query you ran, or arithmetic you showed.
@@ -808,6 +1049,10 @@ less unlikely than the product suggests, and is priced accordingly.
 - Never let tipster agreement change a tier, a `p_low`, or a minimum odds.
 - Never let `market_signal` change a `p_low` or a minimum odds. It may change a
   tier in exactly one case, spelled out above, and only when you say it did.
+- Never let a Superbet price change a `p_low`, a tier or a minimum odds. It may
+  change what you recommend and in what order; say when it did.
+- Never report `SCOPE_NOT_SUPPORTED` as the book lacking a market -- that one is
+  ours -- and never report `LINE_NOT_OFFERED` as a bad price. It is no bet.
 - Never print a combined / Bet Builder / parlay price, however hedged.
 - Never read, echo or log `.env` values.
 - No stake sizing. No automated placement. Ever.

@@ -116,6 +116,14 @@ def _stats_row_to_dict(row: StatsSheetRow) -> dict:
         # entirely when absent, so a pre-TIPSTERS row is unchanged rather than
         # gaining a null that reads as "checked, nobody agreed".
         **({"tipster": row.tipster.model_dump(mode="json")} if row.tipster else {}),
+        # Same "omitted when absent" rule: most rows earn no flag, and a row
+        # reachable only through the DB should read as unflagged rather than
+        # gaining an empty list that looks deliberate.
+        **(
+            {"context_flags": [f.model_dump(mode="json") for f in row.context_flags]}
+            if row.context_flags
+            else {}
+        ),
     }
 
 

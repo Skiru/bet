@@ -18,12 +18,22 @@ from bet.simple_stats.contracts import (
     StatsSheetV1,
     TipsterColumn,
 )
+from bet.simple_stats import coupons as coupons_module
 from bet.simple_stats.coupons import (
+    MARKET_LABELS,
     MIN_SINGLE_P_LOW,
     CouponSet,
     build_coupons,
+    competition_tier,
     market_label,
 )
+
+
+@pytest.fixture(autouse=True)
+def _clear_competition_tier_cache():
+    coupons_module.reset_competition_tier_cache()
+    yield
+    coupons_module.reset_competition_tier_cache()
 
 
 def _row(**overrides):
@@ -146,6 +156,264 @@ def test_singles_are_ranked_by_p_low_not_hit_rate():
     assert [s.market for s in coupons.singles] == ["corners_total", "cards_total"]
     # The higher hit_rate genuinely is the lower-ranked one.
     assert coupons.singles[0].hit_rate < coupons.singles[1].hit_rate
+
+
+# --- edge ranking: priced rows outrank unpriced ones (Faza 5c) ------------
+
+
+def _signal(**overrides):
+    kwargs = dict(
+        verdict="CONFIRMS", model_probability=0.64,
+        market_implied_probability=0.58, market_price=1.74, market_bookmaker="unibet",
+    )
+    kwargs.update(overrides)
+    return MarketSignalColumn(**kwargs)
+
+
+def test_a_priced_row_outranks_an_unpriced_row_with_higher_p_low():
+    """The whole point of Faza 5c: p_low alone cannot tell a row with a real
+    edge over the market apart from one that merely has no price to compare
+    against. A lower-p_low goals row with a real edge must lead a higher-p_low
+    cards row that has no market reference at all."""
+    priced = _row(
+        market="goals_total", line=2.5, p_low=0.55,
+        market_signal=_signal(market_implied_probability=0.45),
+    )
+    unpriced = _row(market="cards_total", line=4.5, p_low=0.80)
+    coupons = build_coupons(_sheet(priced, unpriced), _events(_event()))
+    assert [s.market for s in coupons.singles] == ["goals_total", "cards_total"]
+    assert coupons.singles[0].edge == pytest.approx(0.10)
+    assert coupons.singles[1].edge is None
+
+
+def test_priced_rows_are_ranked_by_edge_not_p_low():
+    bigger_edge_lower_p_low = _row(
+        market="goals_total", line=2.5, p_low=0.55,
+        market_signal=_signal(market_implied_probability=0.40),
+    )
+    smaller_edge_higher_p_low = _row(
+        market="corners_total", line=9.5, p_low=0.70,
+        market_signal=_signal(market_implied_probability=0.68),
+    )
+    coupons = build_coupons(
+        _sheet(smaller_edge_higher_p_low, bigger_edge_lower_p_low), _events(_event())
+    )
+    assert [s.market for s in coupons.singles] == ["goals_total", "corners_total"]
+
+
+def test_no_market_data_verdict_is_not_treated_as_a_market_reference():
+    """A NO_MARKET_DATA verdict still carries a MarketSignalColumn -- checking
+    for the object rather than for market_implied_probability would put this
+    row in the wrong section and crash computing its edge against None."""
+    row = _row(p_low=0.60, market_signal=MarketSignalColumn(
+        verdict="NO_MARKET_DATA", reason="market not covered by provider",
+    ))
+    coupons = build_coupons(_sheet(row), _events(_event()))
+    assert coupons.singles[0].edge is None
+
+
+# --- competition tier: youth/friendly stay off the coupon (Faza 5d) -------
+
+
+def _use_tier_map(monkeypatch, tmp_path, tiers):
+    import json
+
+    path = tmp_path / "competition_tier_map.json"
+    path.write_text(json.dumps({"tiers": tiers}), encoding="utf-8")
+    monkeypatch.setattr(coupons_module, "_COMPETITION_TIER_MAP_PATH", path)
+    coupons_module.reset_competition_tier_cache()
+
+
+def test_a_youth_competition_is_excluded_even_above_the_p_low_floor(monkeypatch, tmp_path):
+    _use_tier_map(monkeypatch, tmp_path, {"Premier League 2": "YOUTH"})
+    row = _row(p_low=0.90)
+    events = _events(EventRecord(
+        event_id="evt-1", sport="football", competition="Premier League 2",
+        home_team="A", away_team="B", start_time="2026-08-29T19:00:00+00:00",
+        identity_confidence="CONFIRMED", status="ACTIVE",
+    ))
+    coupons = build_coupons(_sheet(row), events)
+    assert coupons.singles == []
+    assert coupons.excluded.get("competition_youth_or_friendly") == 1
+
+
+def test_a_friendly_competition_is_excluded_from_slips_too(monkeypatch, tmp_path):
+    _use_tier_map(monkeypatch, tmp_path, {"Friendlies Clubs": "FRIENDLY"})
+    row_a = _row(market="corners_total", line=9.5, p_low=0.65)
+    row_b = _row(market="cards_total", line=4.5, p_low=0.60)
+    events = _events(EventRecord(
+        event_id="evt-1", sport="football", competition="Friendlies Clubs",
+        home_team="A", away_team="B", start_time="2026-08-29T19:00:00+00:00",
+        identity_confidence="CONFIRMED", status="ACTIVE",
+    ))
+    coupons = build_coupons(_sheet(row_a, row_b), events)
+    assert coupons.singles == []
+    assert coupons.slips == []
+
+
+def test_an_unmapped_competition_is_not_guessed_at():
+    """No entry in the map is not TIER_3 by default -- guessing would be the
+    same overconfident mapping mistake the pinned ESPN map was fixed for."""
+    assert competition_tier("Some League Nobody Has Classified Yet") is None
+    coupons = build_coupons(_sheet(_row(p_low=0.90)), _events(_event()))
+    assert len(coupons.singles) == 1
+
+
+def test_a_broken_tier_map_file_degrades_to_excluding_nothing(monkeypatch, tmp_path):
+    path = tmp_path / "broken.json"
+    path.write_text("{not json", encoding="utf-8")
+    monkeypatch.setattr(coupons_module, "_COMPETITION_TIER_MAP_PATH", path)
+    coupons_module.reset_competition_tier_cache()
+
+    coupons = build_coupons(_sheet(_row(p_low=0.90)), _events(_event()))
+    assert len(coupons.singles) == 1
+
+
+# --- analyst vetoes: the closed loop from bet-analyst to the coupon (Faza 5e) --
+
+
+def _veto(**overrides):
+    from bet.simple_stats.coupons import AnalystVeto
+
+    kwargs = dict(
+        event_id="evt-1", market="corners_total", line=9.5, direction="UNDER",
+        action="VETO", reason="test reason",
+    )
+    kwargs.update(overrides)
+    return AnalystVeto(**kwargs)
+
+
+def test_a_veto_removes_the_row_and_reports_why():
+    coupons = build_coupons(
+        _sheet(_row(p_low=0.90)), _events(_event()),
+        vetoes=[_veto(reason="suspended fixture")],
+    )
+    assert coupons.singles == []
+    assert coupons.excluded.get("analyst_veto") == 1
+    assert any("suspended fixture" in n for n in coupons.notes)
+
+
+def test_a_downgrade_steps_the_tier_down_once_without_touching_p_low():
+    row = _row(p_low=0.90, cross_provider_agreement="AGREE", sample_size=12)
+    assert build_coupons(_sheet(row), _events(_event())).singles[0].tier == "CALL"
+
+    coupons = build_coupons(
+        _sheet(row), _events(_event()),
+        vetoes=[_veto(action="DOWNGRADE", reason="thin referee sample")],
+    )
+    single = coupons.singles[0]
+    assert single.tier == "LEAN"
+    assert single.p_low == 0.90
+    assert any("thin referee sample" in n for n in coupons.notes)
+
+
+def test_a_downgrade_that_reaches_weak_is_excluded_like_any_other_weak_row():
+    row = _row(p_low=0.90, cross_provider_agreement="SINGLE_SOURCE", sample_size=6)
+    assert build_coupons(_sheet(row), _events(_event())).singles[0].tier == "LEAN"
+
+    coupons = build_coupons(
+        _sheet(row), _events(_event()),
+        vetoes=[_veto(action="DOWNGRADE")],
+    )
+    assert coupons.singles == []
+    assert coupons.excluded.get("tier_weak") == 1
+
+
+def test_a_veto_for_a_different_row_is_a_no_op():
+    coupons = build_coupons(
+        _sheet(_row(p_low=0.90)), _events(_event()),
+        vetoes=[_veto(event_id="evt-does-not-exist")],
+    )
+    assert len(coupons.singles) == 1
+
+
+def test_no_vetoes_is_the_default_and_changes_nothing():
+    with_none = build_coupons(_sheet(_row(p_low=0.90)), _events(_event()))
+    with_empty = build_coupons(_sheet(_row(p_low=0.90)), _events(_event()), vetoes=[])
+    assert with_none.singles == with_empty.singles
+    assert with_none.excluded == with_empty.excluded
+    assert with_none.notes == with_empty.notes
+
+
+def _market_context(*, football_unlimited_entitled=None, entitlements=()):
+    from bet.simple_stats.contracts import EventMarketContext, MarketContextV1
+
+    return MarketContextV1(
+        generated_at="2026-08-29T00:00:00+00:00",
+        football_unlimited_entitled=football_unlimited_entitled,
+        events=[
+            EventMarketContext(
+                event_id=f"evt-{i}", provider_event_id=f"p{i}", comparison_entitlement=e,
+            )
+            for i, e in enumerate(entitlements)
+        ],
+    )
+
+
+def test_no_market_context_is_the_default_and_adds_no_note():
+    with_none = build_coupons(_sheet(_row(p_low=0.90)), _events(_event()))
+    with_explicit_none = build_coupons(
+        _sheet(_row(p_low=0.90)), _events(_event()), market_context=None,
+    )
+    assert with_none.notes == with_explicit_none.notes
+    assert not any("Football Unlimited" in n for n in with_none.notes)
+
+
+def test_a_fully_entitled_run_adds_no_entitlement_note():
+    coupons = build_coupons(
+        _sheet(_row(p_low=0.90)), _events(_event()),
+        market_context=_market_context(
+            football_unlimited_entitled=True, entitlements=["ENTITLED", "ENTITLED"],
+        ),
+    )
+    assert not any("Football Unlimited" in n for n in coupons.notes)
+
+
+def test_a_run_that_never_attempted_the_probe_adds_no_note():
+    """NOT_ATTEMPTED alone is not evidence the entitlement is gone -- it is
+    already surfaced per-event as its own data_gap message."""
+    coupons = build_coupons(
+        _sheet(_row(p_low=0.90)), _events(_event()),
+        market_context=_market_context(entitlements=["NOT_ATTEMPTED"]),
+    )
+    assert not any("Football Unlimited" in n for n in coupons.notes)
+
+
+def test_a_confirmed_not_entitled_run_warns_first_in_the_notes():
+    coupons = build_coupons(
+        _sheet(_row(p_low=0.90)), _events(_event()),
+        market_context=_market_context(
+            football_unlimited_entitled=False, entitlements=["NOT_ENTITLED"],
+        ),
+    )
+    assert coupons.notes
+    assert "Football Unlimited" in coupons.notes[0]
+    assert "NOT_ENTITLED" in coupons.notes[0]
+
+
+def test_an_entitlement_probe_error_also_warns_even_though_the_bool_cannot_see_it():
+    """The run-level bool only ever caches ENTITLED/NOT_ENTITLED (never
+    ERROR), so the note must read the per-event field directly or an errored
+    probe would pass through silently."""
+    coupons = build_coupons(
+        _sheet(_row(p_low=0.90)), _events(_event()),
+        market_context=_market_context(
+            football_unlimited_entitled=None, entitlements=["ERROR"],
+        ),
+    )
+    assert any("Football Unlimited" in n for n in coupons.notes)
+
+
+def test_mid_run_entitlement_drift_is_reported_with_both_values_seen():
+    coupons = build_coupons(
+        _sheet(_row(p_low=0.90)), _events(_event()),
+        market_context=_market_context(
+            football_unlimited_entitled=False,
+            entitlements=["ENTITLED", "NOT_ENTITLED"],
+        ),
+    )
+    note = next(n for n in coupons.notes if "Football Unlimited" in n)
+    assert "ENTITLED" in note and "NOT_ENTITLED" in note
 
 
 def test_a_trivial_low_line_under_never_leads_the_file():
@@ -283,6 +551,32 @@ def test_a_tennis_fixture_is_named_by_its_players():
 def test_market_labels_are_human_readable_and_fall_back_safely():
     assert market_label("corners_total") == "rożne (mecz)"
     assert market_label("some_new_market") == "some new market"
+
+
+def _football_canonical_markets():
+    """Every canonical row.market a football STATS_SHEET_V1 row can carry,
+    derived the same way analyze.py derives them -- so a market added to
+    STANDARD_MARKET_LINES/PLAYER_PROP_LINES without a label lights this up
+    immediately (docs/PLAN_BOGATE_STATYSTYKI.md 3bis.3) instead of silently
+    falling back to `market.replace("_", " ")` -- an English name in a Polish
+    coupon file, silently."""
+    from bet.simple_stats.analyze import _MARKET_STAT_TO_CANONICAL, _TEAM_MARKET_STAT_TO_CANONICAL
+    from bet.stats.market_ranking import PLAYER_PROP_LINES, STANDARD_MARKET_LINES
+
+    markets: set[str] = set()
+    for market_def in STANDARD_MARKET_LINES["football"]:
+        table = _MARKET_STAT_TO_CANONICAL if market_def["is_combined"] else _TEAM_MARKET_STAT_TO_CANONICAL
+        canonical = table.get(market_def["stat"])
+        if canonical is not None:
+            markets.add(canonical)
+    for market_def in PLAYER_PROP_LINES["football"]:
+        markets.add(market_def["stat"])
+    return sorted(markets)
+
+
+@pytest.mark.parametrize("market", _football_canonical_markets())
+def test_every_football_market_has_a_polish_label(market):
+    assert market in MARKET_LABELS, f"{market!r} falls back to market_label()'s English default"
 
 
 # --- the clock: a started match is not a bet ------------------------------

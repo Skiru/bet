@@ -83,7 +83,7 @@ def out_dir(tmp_path):
     return d
 
 
-ALL_STEPS = ["discover", "enrich", "market_context", "tipsters", "analyze"]
+ALL_STEPS = ["discover", "enrich", "market_context", "tipsters", "superbet", "analyze"]
 
 
 def _all_ok_stubs(tmp_path, out_dir, date="2026-08-25", run_id="RID-1"):
@@ -92,6 +92,7 @@ def _all_ok_stubs(tmp_path, out_dir, date="2026-08-25", run_id="RID-1"):
     sheet = out_dir / f"{date}_event_dossiers_stats_sheet.json"
     context = out_dir / f"{date}_market_context.json"
     signal = out_dir / f"{date}_tipster_signal.json"
+    superbet = out_dir / f"{date}_superbet_offer.json"
     return {
         "discover": _stub(
             tmp_path / "d.py", verdict="OK",
@@ -112,6 +113,11 @@ def _all_ok_stubs(tmp_path, out_dir, date="2026-08-25", run_id="RID-1"):
             tmp_path / "t.py", verdict="OK",
             metrics={"run_id": run_id, "output_path": str(signal), "persisted": None},
             exit_code=0, writes=str(signal),
+        ),
+        "superbet": _stub(
+            tmp_path / "s.py", verdict="OK",
+            metrics={"run_id": run_id, "offer_path": str(superbet), "persisted": None},
+            exit_code=0, writes=str(superbet),
         ),
         "analyze": _stub(
             tmp_path / "a.py", verdict="OK",
@@ -151,6 +157,7 @@ def test_verdict_is_the_worst_step_not_the_last(tmp_path, out_dir):
         "enrich": "PARTIAL",
         "market_context": "OK",
         "tipsters": "OK",
+        "superbet": "OK",
         "analyze": "OK",
     }
     assert summary["verdict"] == "PARTIAL"
@@ -309,7 +316,9 @@ def test_skip_tipsters_omits_the_step_entirely(tmp_path, out_dir):
         tmp_path, stubs, "--date", "2026-08-25", "--output-dir", str(out_dir), "--skip-tipsters"
     )
     assert code == 0
-    assert summary["metrics"]["steps_run"] == ["discover", "enrich", "market_context", "analyze"]
+    assert summary["metrics"]["steps_run"] == [
+        "discover", "enrich", "market_context", "superbet", "analyze"
+    ]
     assert summary["metrics"]["tipster_signal"] is None
 
 
@@ -337,8 +346,38 @@ def test_skip_market_context_omits_the_step_entirely(tmp_path, out_dir):
         "--skip-market-context",
     )
     assert code == 0
-    assert summary["metrics"]["steps_run"] == ["discover", "enrich", "tipsters", "analyze"]
+    assert summary["metrics"]["steps_run"] == [
+        "discover", "enrich", "tipsters", "superbet", "analyze"
+    ]
     assert summary["metrics"]["market_context"] is None
+
+
+def test_player_props_is_forwarded_to_enrich_only_when_passed(tmp_path, out_dir):
+    """docs/PLAN_BOGATE_STATYSTYKI.md Faza 4b: --player-props must reach ENRICH
+    when the operator asks for it, and must not appear (and so must not spend
+    the extra bzzoiro calls) on an ordinary run that never mentioned it."""
+    stubs = _all_ok_stubs(tmp_path, out_dir)
+    echo = tmp_path / "e_echo.py"
+    echo.write_text(
+        "import json, sys\n"
+        "print('ARGV:' + json.dumps(sys.argv[1:]))\n"
+        "from pathlib import Path\n"
+        f"Path({str(out_dir / '2026-08-25_event_dossiers.json')!r}).write_text('{{}}')\n"
+        "print('AGENT_SUMMARY:' + json.dumps({'step': 'stub', 'verdict': 'OK',"
+        " 'metrics': {'run_id': 'RID-1'}, 'issues': [], 'counts': {'errors': 0, 'warnings': 0}}))\n",
+        encoding="utf-8",
+    )
+    stubs["enrich"] = str(echo)
+
+    _, _, stdout_without = _run(tmp_path, stubs, "--date", "2026-08-25", "--output-dir", str(out_dir))
+    argv_without = next(line for line in stdout_without.splitlines() if line.startswith("ARGV:"))
+    assert "--player-props" not in argv_without
+
+    _, _, stdout_with = _run(
+        tmp_path, stubs, "--date", "2026-08-25", "--output-dir", str(out_dir), "--player-props",
+    )
+    argv_with = next(line for line in stdout_with.splitlines() if line.startswith("ARGV:"))
+    assert "--player-props" in argv_with
 
 
 def test_analyze_is_handed_the_market_context_only_when_it_exists(tmp_path, out_dir):
@@ -388,3 +427,67 @@ def test_analyze_is_handed_the_signal_only_when_it_exists(tmp_path, out_dir):
     _, _, stdout = _run(tmp_path, stubs, "--date", date, "--output-dir", str(out_dir))
     argv_line = next(line for line in stdout.splitlines() if line.startswith("ARGV:"))
     assert "--tipster-signal" not in argv_line
+
+
+def _echo_stub(tmp_path, name="a_echo.py"):
+    """An ANALYZE stub that prints the argv it was handed."""
+    echo = tmp_path / name
+    echo.write_text(
+        "import json, sys\n"
+        "print('ARGV:' + json.dumps(sys.argv[1:]))\n"
+        "print('AGENT_SUMMARY:' + json.dumps({'step': 'stub', 'verdict': 'OK',"
+        " 'metrics': {'run_id': 'RID-1'}, 'issues': [], 'counts': {'errors': 0, 'warnings': 0}}))\n",
+        encoding="utf-8",
+    )
+    return str(echo)
+
+
+def test_analyze_is_handed_the_superbet_offer_when_the_step_wrote_one(tmp_path, out_dir):
+    """The wiring, end to end: SUPERBET writes it, ANALYZE is told where.
+
+    A flag declared on both sides but never threaded between them is how a
+    column silently stays empty on every real run while every unit test passes.
+    """
+    stubs = _all_ok_stubs(tmp_path, out_dir)
+    stubs["analyze"] = _echo_stub(tmp_path)
+    _, _, stdout = _run(tmp_path, stubs, "--date", "2026-08-25", "--output-dir", str(out_dir))
+    argv_line = next(line for line in stdout.splitlines() if line.startswith("ARGV:"))
+    assert "--superbet-offer" in argv_line
+    assert "2026-08-25_superbet_offer.json" in argv_line
+
+
+def test_analyze_is_not_handed_a_superbet_offer_that_was_never_written(tmp_path, out_dir):
+    """Passing a path that does not exist would make ANALYZE warn on every run
+    where SUPERBET was skipped, which trains the operator to ignore warnings."""
+    stubs = _all_ok_stubs(tmp_path, out_dir)
+    stubs["analyze"] = _echo_stub(tmp_path)
+    _, _, stdout = _run(
+        tmp_path, stubs, "--date", "2026-08-25", "--output-dir", str(out_dir),
+        "--skip-superbet",
+    )
+    argv_line = next(line for line in stdout.splitlines() if line.startswith("ARGV:"))
+    assert "--superbet-offer" not in argv_line
+
+
+def test_skip_superbet_omits_the_step_entirely(tmp_path, out_dir):
+    stubs = _all_ok_stubs(tmp_path, out_dir)
+    code, summary, _ = _run(
+        tmp_path, stubs, "--date", "2026-08-25", "--output-dir", str(out_dir),
+        "--skip-superbet",
+    )
+    assert code == 0
+    assert "superbet" not in summary["metrics"]["steps_run"]
+
+
+def test_a_failed_superbet_step_does_not_fail_the_run(tmp_path, out_dir):
+    """A public offer host that moved costs the run its Superbet column. The
+    stats sheet is unaffected, so the day is not a failure."""
+    stubs = _all_ok_stubs(tmp_path, out_dir)
+    stubs["superbet"] = _stub(
+        tmp_path / "s_fail.py", verdict="FAILED", metrics={"run_id": "RID-1"}, exit_code=2
+    )
+    code, summary, _ = _run(tmp_path, stubs, "--date", "2026-08-25", "--output-dir", str(out_dir))
+    assert code == 0
+    assert summary["verdict"] == "OK"
+    assert summary["metrics"]["step_verdicts"]["superbet"] == "FAILED"
+    assert summary["metrics"]["step_verdicts"]["analyze"] == "OK"

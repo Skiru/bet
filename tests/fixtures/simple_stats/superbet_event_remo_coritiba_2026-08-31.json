@@ -1,0 +1,978 @@
+{
+ "eventId": 13425932,
+ "matchName": "Remo·Coritiba",
+ "utcDate": "2026-08-31T23:00:00Z",
+ "sportId": 5,
+ "marketCount": 333,
+ "metadata": {
+  "status": null
+ },
+ "odds": [
+  {
+   "marketName": "Powyżej 2.5 gola w meczu; Powyżej 27.5 strzałów w meczu",
+   "name": "Powyżej 2.5 gola w meczu; Powyżej 27.5 strzałów w meczu",
+   "price": 3.75,
+   "status": "active"
+  },
+  {
+   "marketName": "Liczba goli",
+   "name": "poniżej 0.5",
+   "price": 7.1,
+   "status": "active"
+  },
+  {
+   "marketName": "Liczba goli",
+   "name": "powyżej 0.5",
+   "price": 1.06,
+   "status": "active"
+  },
+  {
+   "marketName": "Liczba goli",
+   "name": "poniżej 1.5",
+   "price": 2.85,
+   "status": "active"
+  },
+  {
+   "marketName": "Liczba goli",
+   "name": "powyżej 1.5",
+   "price": 1.36,
+   "status": "active"
+  },
+  {
+   "marketName": "Liczba goli",
+   "name": "poniżej 2.5",
+   "price": 1.61,
+   "status": "active"
+  },
+  {
+   "marketName": "Liczba goli",
+   "name": "powyżej 2.5",
+   "price": 2.15,
+   "status": "active"
+  },
+  {
+   "marketName": "Liczba goli",
+   "name": "poniżej 3.5",
+   "price": 1.21,
+   "status": "active"
+  },
+  {
+   "marketName": "Liczba goli",
+   "name": "powyżej 3.5",
+   "price": 3.8,
+   "status": "active"
+  },
+  {
+   "marketName": "Liczba goli",
+   "name": "poniżej 4.5",
+   "price": 1.05,
+   "status": "active"
+  },
+  {
+   "marketName": "Liczba goli",
+   "name": "powyżej 4.5",
+   "price": 7.3,
+   "status": "active"
+  },
+  {
+   "marketName": "Liczba goli",
+   "name": "poniżej 5.5",
+   "price": 1.008,
+   "status": "active"
+  },
+  {
+   "marketName": "Liczba goli",
+   "name": "powyżej 5.5",
+   "price": 15,
+   "status": "active"
+  },
+  {
+   "marketName": "Remo - liczba goli",
+   "name": "poniżej 0.5",
+   "price": 3.6,
+   "status": "active"
+  },
+  {
+   "marketName": "Remo - liczba goli",
+   "name": "powyżej 0.5",
+   "price": 1.26,
+   "status": "active"
+  },
+  {
+   "marketName": "Remo - liczba goli",
+   "name": "poniżej 1.5",
+   "price": 1.59,
+   "status": "active"
+  },
+  {
+   "marketName": "Remo - liczba goli",
+   "name": "powyżej 1.5",
+   "price": 2.22,
+   "status": "active"
+  },
+  {
+   "marketName": "Remo - liczba goli",
+   "name": "poniżej 2.5",
+   "price": 1.15,
+   "status": "active"
+  },
+  {
+   "marketName": "Remo - liczba goli",
+   "name": "powyżej 2.5",
+   "price": 4.9,
+   "status": "active"
+  },
+  {
+   "marketName": "Remo - liczba goli",
+   "name": "poniżej 3.5",
+   "price": 1.02,
+   "status": "active"
+  },
+  {
+   "marketName": "Remo - liczba goli",
+   "name": "powyżej 3.5",
+   "price": 12,
+   "status": "active"
+  },
+  {
+   "marketName": "Remo - liczba goli",
+   "name": "poniżej 4.5",
+   "price": 1.002,
+   "status": "active"
+  },
+  {
+   "marketName": "Remo - liczba goli",
+   "name": "powyżej 4.5",
+   "price": 31,
+   "status": "active"
+  },
+  {
+   "marketName": "Coritiba - liczba goli",
+   "name": "poniżej 0.5",
+   "price": 2.4,
+   "status": "active"
+  },
+  {
+   "marketName": "Coritiba - liczba goli",
+   "name": "powyżej 0.5",
+   "price": 1.51,
+   "status": "active"
+  },
+  {
+   "marketName": "Coritiba - liczba goli",
+   "name": "poniżej 1.5",
+   "price": 1.27,
+   "status": "active"
+  },
+  {
+   "marketName": "Coritiba - liczba goli",
+   "name": "powyżej 1.5",
+   "price": 3.45,
+   "status": "active"
+  },
+  {
+   "marketName": "Coritiba - liczba goli",
+   "name": "poniżej 2.5",
+   "price": 1.04,
+   "status": "active"
+  },
+  {
+   "marketName": "Coritiba - liczba goli",
+   "name": "powyżej 2.5",
+   "price": 8.9,
+   "status": "active"
+  },
+  {
+   "marketName": "Coritiba - liczba goli",
+   "name": "poniżej 3.5",
+   "price": 1.003,
+   "status": "active"
+  },
+  {
+   "marketName": "Coritiba - liczba goli",
+   "name": "powyżej 3.5",
+   "price": 26,
+   "status": "active"
+  },
+  {
+   "marketName": "Coritiba - liczba goli",
+   "name": "poniżej 4.5",
+   "price": 1,
+   "status": "block"
+  },
+  {
+   "marketName": "Coritiba - liczba goli",
+   "name": "powyżej 4.5",
+   "price": 75,
+   "status": "active"
+  },
+  {
+   "marketName": "Zawodnik - liczba strzałów",
+   "name": "Ze Ivaldo - powyżej 0.5",
+   "price": 1.49,
+   "status": "active"
+  },
+  {
+   "marketName": "Zawodnik - liczba strzałów",
+   "name": "Ze Ivaldo - powyżej 1.5",
+   "price": 3.2,
+   "status": "active"
+  },
+  {
+   "marketName": "Liczba rzutów rożnych",
+   "name": "poniżej 2.5",
+   "price": 50,
+   "status": "active"
+  },
+  {
+   "marketName": "Liczba rzutów rożnych",
+   "name": "powyżej 2.5",
+   "price": 1,
+   "status": "block"
+  },
+  {
+   "marketName": "Liczba rzutów rożnych",
+   "name": "poniżej 3.5",
+   "price": 23,
+   "status": "active"
+  },
+  {
+   "marketName": "Liczba rzutów rożnych",
+   "name": "powyżej 3.5",
+   "price": 1,
+   "status": "block"
+  },
+  {
+   "marketName": "Liczba rzutów rożnych",
+   "name": "poniżej 4.5",
+   "price": 13,
+   "status": "active"
+  },
+  {
+   "marketName": "Liczba rzutów rożnych",
+   "name": "powyżej 4.5",
+   "price": 1.01,
+   "status": "active"
+  },
+  {
+   "marketName": "Liczba rzutów rożnych",
+   "name": "poniżej 5.5",
+   "price": 7.6,
+   "status": "active"
+  },
+  {
+   "marketName": "Liczba rzutów rożnych",
+   "name": "powyżej 5.5",
+   "price": 1.05,
+   "status": "active"
+  },
+  {
+   "marketName": "Liczba rzutów rożnych",
+   "name": "poniżej 6.5",
+   "price": 5.15,
+   "status": "active"
+  },
+  {
+   "marketName": "Liczba rzutów rożnych",
+   "name": "powyżej 6.5",
+   "price": 1.12,
+   "status": "active"
+  },
+  {
+   "marketName": "Liczba rzutów rożnych",
+   "name": "poniżej 7.5",
+   "price": 3.6,
+   "status": "active"
+  },
+  {
+   "marketName": "Liczba rzutów rożnych",
+   "name": "powyżej 7.5",
+   "price": 1.23,
+   "status": "active"
+  },
+  {
+   "marketName": "Remo - liczba rzutów rożnych",
+   "name": "poniżej 0.5",
+   "price": 40,
+   "status": "active"
+  },
+  {
+   "marketName": "Remo - liczba rzutów rożnych",
+   "name": "powyżej 0.5",
+   "price": 1,
+   "status": "block"
+  },
+  {
+   "marketName": "Remo - liczba rzutów rożnych",
+   "name": "poniżej 1.5",
+   "price": 13,
+   "status": "active"
+  },
+  {
+   "marketName": "Remo - liczba rzutów rożnych",
+   "name": "powyżej 1.5",
+   "price": 1.01,
+   "status": "active"
+  },
+  {
+   "marketName": "Remo - liczba rzutów rożnych",
+   "name": "poniżej 2.5",
+   "price": 6.4,
+   "status": "active"
+  },
+  {
+   "marketName": "Remo - liczba rzutów rożnych",
+   "name": "powyżej 2.5",
+   "price": 1.08,
+   "status": "active"
+  },
+  {
+   "marketName": "Remo - liczba rzutów rożnych",
+   "name": "poniżej 3.5",
+   "price": 3.75,
+   "status": "active"
+  },
+  {
+   "marketName": "Remo - liczba rzutów rożnych",
+   "name": "powyżej 3.5",
+   "price": 1.22,
+   "status": "active"
+  },
+  {
+   "marketName": "Remo - liczba rzutów rożnych",
+   "name": "poniżej 4.5",
+   "price": 2.5,
+   "status": "active"
+  },
+  {
+   "marketName": "Remo - liczba rzutów rożnych",
+   "name": "powyżej 4.5",
+   "price": 1.46,
+   "status": "active"
+  },
+  {
+   "marketName": "Remo - liczba rzutów rożnych",
+   "name": "poniżej 5.5",
+   "price": 1.83,
+   "status": "active"
+  },
+  {
+   "marketName": "Remo - liczba rzutów rożnych",
+   "name": "powyżej 5.5",
+   "price": 1.85,
+   "status": "active"
+  },
+  {
+   "marketName": "Coritiba - liczba rzutów rożnych",
+   "name": "poniżej 0.5",
+   "price": 21,
+   "status": "active"
+  },
+  {
+   "marketName": "Coritiba - liczba rzutów rożnych",
+   "name": "powyżej 0.5",
+   "price": 1.002,
+   "status": "active"
+  },
+  {
+   "marketName": "Coritiba - liczba rzutów rożnych",
+   "name": "poniżej 1.5",
+   "price": 7.4,
+   "status": "active"
+  },
+  {
+   "marketName": "Coritiba - liczba rzutów rożnych",
+   "name": "powyżej 1.5",
+   "price": 1.05,
+   "status": "active"
+  },
+  {
+   "marketName": "Coritiba - liczba rzutów rożnych",
+   "name": "poniżej 2.5",
+   "price": 3.9,
+   "status": "active"
+  },
+  {
+   "marketName": "Coritiba - liczba rzutów rożnych",
+   "name": "powyżej 2.5",
+   "price": 1.2,
+   "status": "active"
+  },
+  {
+   "marketName": "Coritiba - liczba rzutów rożnych",
+   "name": "poniżej 3.5",
+   "price": 2.45,
+   "status": "active"
+  },
+  {
+   "marketName": "Coritiba - liczba rzutów rożnych",
+   "name": "powyżej 3.5",
+   "price": 1.48,
+   "status": "active"
+  },
+  {
+   "marketName": "Coritiba - liczba rzutów rożnych",
+   "name": "poniżej 4.5",
+   "price": 1.76,
+   "status": "active"
+  },
+  {
+   "marketName": "Coritiba - liczba rzutów rożnych",
+   "name": "powyżej 4.5",
+   "price": 1.92,
+   "status": "active"
+  },
+  {
+   "marketName": "Coritiba - liczba rzutów rożnych",
+   "name": "poniżej 5.5",
+   "price": 1.41,
+   "status": "active"
+  },
+  {
+   "marketName": "Coritiba - liczba rzutów rożnych",
+   "name": "powyżej 5.5",
+   "price": 2.67,
+   "status": "active"
+  },
+  {
+   "marketName": "Liczba rzutów rożnych - H2H",
+   "name": "Remo",
+   "price": 1.64,
+   "status": "active"
+  },
+  {
+   "marketName": "Liczba rzutów rożnych - H2H",
+   "name": "remis",
+   "price": 6.9,
+   "status": "active"
+  },
+  {
+   "marketName": "Nieparzysta/parzysta liczba rzutów rożnych",
+   "name": "nieparzysta",
+   "price": 1.85,
+   "status": "active"
+  },
+  {
+   "marketName": "Nieparzysta/parzysta liczba rzutów rożnych",
+   "name": "parzysta",
+   "price": 1.85,
+   "status": "active"
+  },
+  {
+   "marketName": "Liczba kartek",
+   "name": "poniżej 2.5",
+   "price": 3.5,
+   "status": "active"
+  },
+  {
+   "marketName": "Liczba kartek",
+   "name": "powyżej 2.5",
+   "price": 1.22,
+   "status": "active"
+  },
+  {
+   "marketName": "Liczba kartek",
+   "name": "poniżej 3.5",
+   "price": 2.22,
+   "status": "active"
+  },
+  {
+   "marketName": "Liczba kartek",
+   "name": "powyżej 3.5",
+   "price": 1.57,
+   "status": "active"
+  },
+  {
+   "marketName": "Liczba kartek",
+   "name": "poniżej 4.5",
+   "price": 1.61,
+   "status": "active"
+  },
+  {
+   "marketName": "Liczba kartek",
+   "name": "powyżej 4.5",
+   "price": 2.17,
+   "status": "active"
+  },
+  {
+   "marketName": "Liczba kartek",
+   "name": "poniżej 5.5",
+   "price": 1.29,
+   "status": "active"
+  },
+  {
+   "marketName": "Liczba kartek",
+   "name": "powyżej 5.5",
+   "price": 3.1,
+   "status": "active"
+  },
+  {
+   "marketName": "Liczba kartek",
+   "name": "poniżej 6.5",
+   "price": 1.13,
+   "status": "active"
+  },
+  {
+   "marketName": "Liczba kartek",
+   "name": "powyżej 6.5",
+   "price": 4.6,
+   "status": "active"
+  },
+  {
+   "marketName": "Remo - liczba kartek",
+   "name": "poniżej 1.5",
+   "price": 2.52,
+   "status": "active"
+  },
+  {
+   "marketName": "Remo - liczba kartek",
+   "name": "powyżej 1.5",
+   "price": 1.44,
+   "status": "active"
+  },
+  {
+   "marketName": "Remo - liczba kartek",
+   "name": "poniżej 2.5",
+   "price": 1.52,
+   "status": "active"
+  },
+  {
+   "marketName": "Remo - liczba kartek",
+   "name": "powyżej 2.5",
+   "price": 2.32,
+   "status": "active"
+  },
+  {
+   "marketName": "Remo - liczba kartek",
+   "name": "poniżej 3.5",
+   "price": 1.16,
+   "status": "active"
+  },
+  {
+   "marketName": "Remo - liczba kartek",
+   "name": "powyżej 3.5",
+   "price": 4.1,
+   "status": "active"
+  },
+  {
+   "marketName": "Coritiba - liczba kartek",
+   "name": "poniżej 0.5",
+   "price": 5.25,
+   "status": "active"
+  },
+  {
+   "marketName": "Coritiba - liczba kartek",
+   "name": "powyżej 0.5",
+   "price": 1.09,
+   "status": "active"
+  },
+  {
+   "marketName": "Coritiba - liczba kartek",
+   "name": "poniżej 1.5",
+   "price": 2.22,
+   "status": "active"
+  },
+  {
+   "marketName": "Coritiba - liczba kartek",
+   "name": "powyżej 1.5",
+   "price": 1.58,
+   "status": "active"
+  },
+  {
+   "marketName": "Coritiba - liczba kartek",
+   "name": "poniżej 2.5",
+   "price": 1.38,
+   "status": "active"
+  },
+  {
+   "marketName": "Coritiba - liczba kartek",
+   "name": "powyżej 2.5",
+   "price": 2.67,
+   "status": "active"
+  },
+  {
+   "marketName": "Liczba celnych strzałów",
+   "name": "poniżej 7.5",
+   "price": 2.27,
+   "status": "active"
+  },
+  {
+   "marketName": "Liczba celnych strzałów",
+   "name": "powyżej 7.5",
+   "price": 1.53,
+   "status": "active"
+  },
+  {
+   "marketName": "Liczba celnych strzałów",
+   "name": "poniżej 8.5",
+   "price": 1.74,
+   "status": "active"
+  },
+  {
+   "marketName": "Liczba celnych strzałów",
+   "name": "powyżej 8.5",
+   "price": 1.95,
+   "status": "active"
+  },
+  {
+   "marketName": "Liczba celnych strzałów",
+   "name": "poniżej 9.5",
+   "price": 1.41,
+   "status": "active"
+  },
+  {
+   "marketName": "Liczba celnych strzałów",
+   "name": "powyżej 9.5",
+   "price": 2.52,
+   "status": "active"
+  },
+  {
+   "marketName": "Liczba celnych strzałów - Remo",
+   "name": "poniżej 4.5",
+   "price": 1.92,
+   "status": "active"
+  },
+  {
+   "marketName": "Liczba celnych strzałów - Remo",
+   "name": "powyżej 4.5",
+   "price": 1.75,
+   "status": "active"
+  },
+  {
+   "marketName": "Liczba celnych strzałów - Coritiba",
+   "name": "poniżej 3.5",
+   "price": 1.75,
+   "status": "active"
+  },
+  {
+   "marketName": "Liczba celnych strzałów - Coritiba",
+   "name": "powyżej 3.5",
+   "price": 1.92,
+   "status": "active"
+  },
+  {
+   "marketName": "Najwięcej celnych strzałów",
+   "name": "Remo",
+   "price": 1.58,
+   "status": "active"
+  },
+  {
+   "marketName": "Najwięcej celnych strzałów",
+   "name": "remis",
+   "price": 6.5,
+   "status": "active"
+  },
+  {
+   "marketName": "1. połowa - liczba celnych strzałów",
+   "name": "poniżej 3.5",
+   "price": 1.95,
+   "status": "active"
+  },
+  {
+   "marketName": "1. połowa - liczba celnych strzałów",
+   "name": "powyżej 3.5",
+   "price": 1.74,
+   "status": "active"
+  },
+  {
+   "marketName": "Liczba strzałów",
+   "name": "Poniżej 24.5",
+   "price": 2.42,
+   "status": "active"
+  },
+  {
+   "marketName": "Liczba strzałów",
+   "name": "Powyżej 24.5",
+   "price": 1.46,
+   "status": "active"
+  },
+  {
+   "marketName": "Liczba strzałów",
+   "name": "Poniżej 25.5",
+   "price": 2.07,
+   "status": "active"
+  },
+  {
+   "marketName": "Liczba strzałów",
+   "name": "Powyżej 25.5",
+   "price": 1.64,
+   "status": "active"
+  },
+  {
+   "marketName": "Liczba strzałów",
+   "name": "Poniżej 26.5",
+   "price": 1.8,
+   "status": "active"
+  },
+  {
+   "marketName": "Liczba strzałów",
+   "name": "Powyżej 26.5",
+   "price": 1.88,
+   "status": "active"
+  },
+  {
+   "marketName": "Liczba strzałów",
+   "name": "Poniżej 27.5",
+   "price": 1.58,
+   "status": "active"
+  },
+  {
+   "marketName": "Liczba strzałów",
+   "name": "Powyżej 27.5",
+   "price": 2.15,
+   "status": "active"
+  },
+  {
+   "marketName": "Liczba strzałów",
+   "name": "Poniżej 28.5",
+   "price": 1.42,
+   "status": "active"
+  },
+  {
+   "marketName": "Liczba strzałów",
+   "name": "Powyżej 28.5",
+   "price": 2.5,
+   "status": "active"
+  },
+  {
+   "marketName": "Liczba strzałów Remo",
+   "name": "Poniżej 13.5",
+   "price": 2.47,
+   "status": "active"
+  },
+  {
+   "marketName": "Liczba strzałów Remo",
+   "name": "Powyżej 13.5",
+   "price": 1.47,
+   "status": "active"
+  },
+  {
+   "marketName": "Liczba strzałów Remo",
+   "name": "Poniżej 14.5",
+   "price": 2.07,
+   "status": "active"
+  },
+  {
+   "marketName": "Liczba strzałów Remo",
+   "name": "Powyżej 14.5",
+   "price": 1.66,
+   "status": "active"
+  },
+  {
+   "marketName": "Liczba strzałów Remo",
+   "name": "Poniżej 15.5",
+   "price": 1.77,
+   "status": "active"
+  },
+  {
+   "marketName": "Liczba strzałów Remo",
+   "name": "Powyżej 15.5",
+   "price": 1.92,
+   "status": "active"
+  },
+  {
+   "marketName": "Liczba strzałów Remo",
+   "name": "Poniżej 16.5",
+   "price": 1.55,
+   "status": "active"
+  },
+  {
+   "marketName": "Liczba strzałów Remo",
+   "name": "Powyżej 16.5",
+   "price": 2.27,
+   "status": "active"
+  },
+  {
+   "marketName": "Liczba strzałów Remo",
+   "name": "Poniżej 17.5",
+   "price": 1.4,
+   "status": "active"
+  },
+  {
+   "marketName": "Liczba strzałów Remo",
+   "name": "Powyżej 17.5",
+   "price": 2.7,
+   "status": "active"
+  },
+  {
+   "marketName": "Liczba strzałów Coritiba",
+   "name": "Poniżej 8.5",
+   "price": 3,
+   "status": "active"
+  },
+  {
+   "marketName": "Liczba strzałów Coritiba",
+   "name": "Powyżej 8.5",
+   "price": 1.32,
+   "status": "active"
+  },
+  {
+   "marketName": "Liczba strzałów Coritiba",
+   "name": "Poniżej 9.5",
+   "price": 2.35,
+   "status": "active"
+  },
+  {
+   "marketName": "Liczba strzałów Coritiba",
+   "name": "Powyżej 9.5",
+   "price": 1.51,
+   "status": "active"
+  },
+  {
+   "marketName": "Liczba strzałów Coritiba",
+   "name": "Poniżej 10.5",
+   "price": 1.92,
+   "status": "active"
+  },
+  {
+   "marketName": "Liczba strzałów Coritiba",
+   "name": "Powyżej 10.5",
+   "price": 1.78,
+   "status": "active"
+  },
+  {
+   "marketName": "Liczba strzałów Coritiba",
+   "name": "Poniżej 11.5",
+   "price": 1.62,
+   "status": "active"
+  },
+  {
+   "marketName": "Liczba strzałów Coritiba",
+   "name": "Powyżej 11.5",
+   "price": 2.15,
+   "status": "active"
+  },
+  {
+   "marketName": "Liczba strzałów Coritiba",
+   "name": "Poniżej 12.5",
+   "price": 1.42,
+   "status": "active"
+  },
+  {
+   "marketName": "Liczba strzałów Coritiba",
+   "name": "Powyżej 12.5",
+   "price": 2.62,
+   "status": "active"
+  },
+  {
+   "marketName": "Liczba fauli",
+   "name": "poniżej 22.5",
+   "price": 2.12,
+   "status": "active"
+  },
+  {
+   "marketName": "Liczba fauli",
+   "name": "powyżej 22.5",
+   "price": 1.61,
+   "status": "active"
+  },
+  {
+   "marketName": "Liczba fauli",
+   "name": "poniżej 23.5",
+   "price": 1.85,
+   "status": "active"
+  },
+  {
+   "marketName": "Liczba fauli",
+   "name": "powyżej 23.5",
+   "price": 1.85,
+   "status": "active"
+  },
+  {
+   "marketName": "Liczba fauli",
+   "name": "poniżej 24.5",
+   "price": 1.61,
+   "status": "active"
+  },
+  {
+   "marketName": "Liczba fauli",
+   "name": "powyżej 24.5",
+   "price": 2.12,
+   "status": "active"
+  },
+  {
+   "marketName": "Liczba fauli - Remo",
+   "name": "poniżej 11.5",
+   "price": 2,
+   "status": "active"
+  },
+  {
+   "marketName": "Liczba fauli - Remo",
+   "name": "powyżej 11.5",
+   "price": 1.69,
+   "status": "active"
+  },
+  {
+   "marketName": "Liczba odbiorów",
+   "name": "Poniżej 27.5",
+   "price": 1.87,
+   "status": "active"
+  },
+  {
+   "marketName": "Liczba odbiorów",
+   "name": "Powyżej 27.5",
+   "price": 1.82,
+   "status": "active"
+  },
+  {
+   "marketName": "Liczba obronionych strzałów przez bramkarza",
+   "name": "Poniżej 3.5",
+   "price": 4.5,
+   "status": "active"
+  },
+  {
+   "marketName": "Liczba obronionych strzałów przez bramkarza",
+   "name": "Powyżej 3.5",
+   "price": 1.08,
+   "status": "active"
+  },
+  {
+   "marketName": "Liczba spalonych",
+   "name": "poniżej 3.5",
+   "price": 1.92,
+   "status": "active"
+  },
+  {
+   "marketName": "Liczba spalonych",
+   "name": "powyżej 3.5",
+   "price": 1.76,
+   "status": "active"
+  },
+  {
+   "marketName": "Spalone - Remo",
+   "name": "poniżej 0.5",
+   "price": 2.6,
+   "status": "active"
+  },
+  {
+   "marketName": "Spalone - Remo",
+   "name": "powyżej 0.5",
+   "price": 1.38,
+   "status": "active"
+  },
+  {
+   "marketName": "Liczba strzałów w obramowanie bramki",
+   "name": "Poniżej 0.5",
+   "price": 1.71,
+   "status": "active"
+  },
+  {
+   "marketName": "Liczba strzałów w obramowanie bramki",
+   "name": "Powyżej 0.5",
+   "price": 2.02,
+   "status": "active"
+  },
+  {
+   "marketName": "Remo - Liczba strzałów w obramowanie bramki",
+   "name": "Poniżej 0.5",
+   "price": 1.32,
+   "status": "active"
+  },
+  {
+   "marketName": "Remo - Liczba strzałów w obramowanie bramki",
+   "name": "Powyżej 0.5",
+   "price": 2.8,
+   "status": "active"
+  }
+ ]
+}

@@ -1,0 +1,11 @@
+{
+  "_purpose": "docs/PLAN_BOGATE_STATYSTYKI.md Faza 6. Maps a raw DiscoveredEvent.competition string a provider actually emitted to the one canonical spelling every provider's fixtures for that league should share. Applied in discover.py:discover_events() before dedup, so the same real-world league never splits into two competition strings that (a) hash into two different EventRecord.event_id values and (b) need two separate entries in every other competition-keyed map (ESPN, SportDB, competition_tier_map).",
+  "_discipline": "Exact-name pin only, no fuzzy match -- the same rule config/sportdb_competition_map.json, config/espn_competition_map_verification.json and config/competition_tier_map.json already follow. A name absent from this map passes through unchanged. Never add an entry that collapses two spellings which name genuinely different leagues just because they look similar: bare 'Superliga' is deliberately absent (Denmark and Romania both use it -- see the 2026-08-28 incident referenced throughout src/bet/api_clients/espn.py) and must stay two separate, ambiguous, unresolved strings rather than being guessed into one.",
+  "_seeded_from": "runs/2026-08-31/2026-08-31_event_list.json and runs/2026-08-31/2026-08-31_run_summary.json's espn_competition_coverage unresolved-name list -- every key below is a spelling actually observed on a real slate, paired with a target spelling also actually observed (or, for the two Sweden entries, already pinned in ESPN's own table) on the same slate. Extending this list requires the same evidence, not a guessed pattern.",
+  "canonical": {
+    "EPL": "Premier League",
+    "Veikkausliiga - Finland": "Veikkausliiga",
+    "Danish Superliga": "Denmark Superliga",
+    "Allsvenskan - Sweden": "Allsvenskan"
+  }
+}

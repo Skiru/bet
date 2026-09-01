@@ -194,3 +194,37 @@ def test_ranking_json_omits_the_key_entirely_when_no_tipster_ran():
         data_quality="READY",
     )
     assert "tipster" not in _stats_row_to_dict(row)
+
+
+# --- context_flags has to survive the same trip (Faza 5b) ---------------------
+
+
+def test_ranking_json_carries_context_flags_when_present():
+    from bet.simple_stats.contracts import ContextFlag, StatsSheetRow
+    from bet.simple_stats.persistence import _stats_row_to_dict
+
+    row = StatsSheetRow(
+        event_id="EV1", sport="football", market="cards_total", line=4.5,
+        direction="OVER", hits=9, sample_size=12, hit_rate=0.75, p_low=0.4677, mean=9.0, median=9.0,
+        sources=["espn-football"], cross_provider_agreement="AGREE", confidence="HIGH",
+        data_quality="READY",
+        context_flags=[
+            ContextFlag(source="referee", direction="ARGUES_AGAINST", magnitude=1.2, note="thin ref sample"),
+        ],
+    )
+    payload = _stats_row_to_dict(row)
+    assert payload["context_flags"][0]["source"] == "referee"
+    assert payload["context_flags"][0]["direction"] == "ARGUES_AGAINST"
+
+
+def test_ranking_json_omits_context_flags_when_none_fired():
+    from bet.simple_stats.contracts import StatsSheetRow
+    from bet.simple_stats.persistence import _stats_row_to_dict
+
+    row = StatsSheetRow(
+        event_id="EV1", sport="football", market="corners_total", line=10.5,
+        direction="UNDER", hits=9, sample_size=12, hit_rate=0.75, p_low=0.4677, mean=9.0, median=9.0,
+        sources=["espn-football"], cross_provider_agreement="AGREE", confidence="HIGH",
+        data_quality="READY",
+    )
+    assert "context_flags" not in _stats_row_to_dict(row)

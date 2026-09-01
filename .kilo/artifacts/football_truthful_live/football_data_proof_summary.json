@@ -1,0 +1,47 @@
+{
+  "discovery_proof": {
+    "accepted_count": 10,
+    "bundle_id": "3bd557596d5ef0bf750de9c0bba63e4aef19dc8c76b90e112603efe8be9899b3",
+    "capability": "current_discovery",
+    "competition_scope": "football:eng.1",
+    "env_key_name": "FOOTBALL_DATA_ORG_KEY",
+    "env_key_sha256_prefix": "1dc511be",
+    "env_key_source": ".env",
+    "mode": "shadow",
+    "normalized_payload_sha256": "56053cffb61581ea39a67e52471cc3c825ca3bead88a2c840414a6fc4bb41736",
+    "params": {
+      "dateFrom": "2026-05-24",
+      "dateTo": "2026-05-24"
+    },
+    "parser_version": "football-data-org-fixtures-v1",
+    "provider": "football-data",
+    "raw_response_sha256": "be8f2f0178cb5118681c26bb31b08771d13ab28b81538148c4657a44b5ac438c",
+    "rejected_count": 0,
+    "request_path_without_secrets": "/competitions/PL/matches",
+    "response_status": 200,
+    "season_scope": "current",
+    "source_operation_status": "SUCCESS"
+  },
+  "proof_id": "0574b85680cb3f9826f4c3ac1194bf8a055165ecbfaa23dd7da586a5612ba8f6",
+  "replay_verification": "PASS",
+  "standings_proof": {
+    "accepted_count": 20,
+    "bundle_id": "56f7ede5f9c73b0bc89776c492ac4d8687a59909b5d1b70baa7c9fffdd460a8a",
+    "capability": "standings",
+    "competition_scope": "football:eng.1",
+    "env_key_name": "FOOTBALL_DATA_ORG_KEY",
+    "env_key_sha256_prefix": "1dc511be",
+    "env_key_source": ".env",
+    "mode": "shadow",
+    "normalized_payload_sha256": "35997d5fdb5c081633286f9ad9fd5781d0a3f66f0f3f40f0c193871f83072311",
+    "params": null,
+    "parser_version": "football-data-org-standings-v1",
+    "provider": "football-data",
+    "raw_response_sha256": "4ea7f26f4b433674289784c2c540bbd76089a27412386ca101684016bf42112a",
+    "rejected_count": 0,
+    "request_path_without_secrets": "/competitions/PL/standings",
+    "response_status": null,
+    "season_scope": "current",
+    "source_operation_status": "SUCCESS"
+  }
+}

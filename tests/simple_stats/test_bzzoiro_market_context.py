@@ -660,11 +660,14 @@ def _context_for_tests(**overrides):
     kwargs = dict(
         event_id="evt-1",
         provider_event_id="587902",
+        # Both legs from the same bookmaker: the de-vig only ever pairs one
+        # book's own over and under (test_bookmaker_mixing_never_feeds_the_devig
+        # below covers what happens when they differ).
         odds=[
             MarketOddsLine(market="total_corners", outcome="over", line=8.5,
                            price=1.44, bookmaker_slug="10bet"),
             MarketOddsLine(market="total_corners", outcome="under", line=8.5,
-                           price=2.75, bookmaker_slug="unibet"),
+                           price=2.75, bookmaker_slug="10bet"),
         ],
         predictions=ModelPrediction(
             prob_corners_over_85=0.575, prob_corners_over_95=0.457,
@@ -683,7 +686,7 @@ def test_no_signal_is_ever_attached_to_a_market_bzzoiro_cannot_price(monkeypatch
     fabricated one -- the field stays unset, exactly as on a run without this
     stage."""
     context = _context_for_tests()
-    for market in ("cards_total", "fouls_total", "shots_on_target_total", "corners_for"):
+    for market in ("cards_total", "fouls_total", "shots_on_target_total", "corners_for", "goals_for"):
         assert market_context.market_signal_for_row(_row(market=market), context) is None
 
 
@@ -714,6 +717,31 @@ def test_quotes_at_another_line_do_not_answer_this_rows_line():
     assert "no market quote at line 9.5" in signal.reason
 
 
+def test_bookmaker_comparison_quotes_are_used_even_when_odds_is_nonempty():
+    """`context.odds` carries only whatever line the odds feed happened to
+    return; `context.odds or context.bookmaker_comparison` short-circuits on
+    ANY non-empty `context.odds`, silently dropping every quote that lives
+    only in `bookmaker_comparison` -- which is where goals, BTTS and every
+    other line beyond the odds feed's own actually live. Regression for that
+    `or`: a line quoted only in the comparison grid must still be found."""
+    context = _context_for_tests(
+        odds=[
+            MarketOddsLine(market="total_corners", outcome="over", line=8.5, price=1.44),
+            MarketOddsLine(market="total_corners", outcome="under", line=8.5, price=2.75),
+        ],
+        bookmaker_comparison=[
+            MarketOddsLine(market="total_corners", outcome="over", line=9.5,
+                           price=1.90, bookmaker_slug="pinnacle"),
+            MarketOddsLine(market="total_corners", outcome="under", line=9.5,
+                           price=1.95, bookmaker_slug="pinnacle"),
+        ],
+    )
+    signal = market_context.market_signal_for_row(_row(line=9.5, direction="OVER"), context)
+    assert signal.verdict != "NO_MARKET_DATA"
+    assert signal.market_implied_probability is not None
+    assert signal.market_bookmaker == "pinnacle"
+
+
 def test_the_implied_probability_has_the_overround_removed():
     """1/1.44 is 0.694 and 1/2.75 is 0.364 -- they sum to 1.058, and that 5.8%
     is the bookmaker's margin, not probability. Reporting the raw figure would
@@ -740,6 +768,80 @@ def test_a_one_sided_line_yields_a_price_but_no_probability():
     assert signal.market_price == 1.44
     assert signal.market_implied_probability is None
     assert "one side only" in signal.reason
+
+
+def test_bookmaker_mixing_never_feeds_the_devig():
+    """The best over across every book and the best under across every book can
+    come from two different bookmakers -- at goals' ~624 quotes across ~26
+    books that is the common case, not the exception. Pairing them anyway
+    would remove a margin that was never on the same ticket. Here 10bet's
+    over (1.44) paired with unibet's under (2.90) would sum to ~1.038, close
+    enough to a real book's own margin to look legitimate, but no bookmaker
+    ever offered that combination -- so the row must fall back to whichever
+    single book quotes both sides, not synthesize one that does not exist."""
+    context = _context_for_tests(
+        odds=[
+            MarketOddsLine(market="total_corners", outcome="over", line=8.5,
+                           price=1.60, bookmaker_slug="unibet"),
+            MarketOddsLine(market="total_corners", outcome="under", line=8.5,
+                           price=2.90, bookmaker_slug="unibet"),
+            # A better over than unibet's, but from a book with no under quote
+            # at this line at all -- must never be pulled into the pairing
+            # just because it is the best single leg.
+            MarketOddsLine(market="total_corners", outcome="over", line=8.5,
+                           price=1.90, bookmaker_slug="onexbet"),
+        ],
+    )
+    signal = market_context.market_signal_for_row(_row(line=8.5, direction="OVER"), context)
+    # The reported price is still the best across the whole grid...
+    assert signal.market_price == 1.90
+    assert signal.market_bookmaker == "onexbet"
+    # ...but the probability is unibet's own pair, never onexbet's over mixed
+    # with unibet's under.
+    raw_over = 1 / 1.60
+    raw_under = 1 / 2.90
+    assert signal.market_implied_probability == pytest.approx(raw_over / (raw_over + raw_under))
+
+
+def test_pinnacle_is_preferred_for_the_devig_when_it_quotes_both_sides():
+    """Pinnacle carries the lowest margin in the feed, so when it quotes both
+    sides of a line its pair is used even if another book also quotes both
+    sides."""
+    context = _context_for_tests(
+        odds=[
+            MarketOddsLine(market="total_corners", outcome="over", line=8.5,
+                           price=1.50, bookmaker_slug="unibet"),
+            MarketOddsLine(market="total_corners", outcome="under", line=8.5,
+                           price=2.60, bookmaker_slug="unibet"),
+            MarketOddsLine(market="total_corners", outcome="over", line=8.5,
+                           price=1.48, bookmaker_slug="pinnacle"),
+            MarketOddsLine(market="total_corners", outcome="under", line=8.5,
+                           price=2.70, bookmaker_slug="pinnacle"),
+        ],
+    )
+    signal = market_context.market_signal_for_row(_row(line=8.5, direction="OVER"), context)
+    raw_over = 1 / 1.48
+    raw_under = 1 / 2.70
+    assert signal.market_implied_probability == pytest.approx(raw_over / (raw_over + raw_under))
+
+
+def test_no_bookmaker_quoting_both_sides_is_no_probability_not_a_guess():
+    """Every side of the line has a price, but no single book quotes both --
+    the de-vig has nothing to remove a margin from and must say so, not fall
+    back to mixing books."""
+    context = _context_for_tests(
+        odds=[
+            MarketOddsLine(market="total_corners", outcome="over", line=8.5,
+                           price=1.60, bookmaker_slug="unibet"),
+            MarketOddsLine(market="total_corners", outcome="under", line=8.5,
+                           price=2.90, bookmaker_slug="onexbet"),
+        ],
+    )
+    signal = market_context.market_signal_for_row(_row(line=8.5, direction="OVER"), context)
+    assert signal.verdict == "NO_MARKET_DATA"
+    assert signal.market_implied_probability is None
+    assert signal.market_price == 1.60
+    assert "no single bookmaker quotes both sides" in signal.reason
 
 
 def test_both_signals_are_required_before_any_verdict():
@@ -783,6 +885,93 @@ def test_the_column_names_both_sources_it_used():
     # tracks, so it is never the operator's own screen price.
     assert signal.market_price == 1.44
     assert signal.market_bookmaker == "10bet"
+
+
+def test_goals_signal_reads_bookmaker_comparison_even_with_corners_odds_present():
+    """Regression for the `context.odds or context.bookmaker_comparison` bug
+    (Faza 1, pulapka 2): `context.odds` only ever carries `total_corners`, so
+    a goals row's price and probability live only in `bookmaker_comparison`.
+    A non-empty `context.odds` (from the corners quotes every one of these
+    tests already sets up) must not make the goals price disappear."""
+    context = _context_for_tests(
+        bookmaker_comparison=[
+            MarketOddsLine(market="over_under_25", outcome="over", line=2.5,
+                           price=1.95, bookmaker_slug="pinnacle"),
+            MarketOddsLine(market="over_under_25", outcome="under", line=2.5,
+                           price=1.90, bookmaker_slug="pinnacle"),
+        ],
+        predictions=ModelPrediction(prob_goals_over_25=0.55, model_version="dc-blend-v1"),
+    )
+    signal = market_context.market_signal_for_row(
+        _row(market="goals_total", line=2.5, direction="OVER"), context
+    )
+    assert signal.verdict != "NO_MARKET_DATA"
+    assert signal.market_implied_probability is not None
+    assert signal.model_probability == pytest.approx(0.55)
+
+
+def test_goals_feed_market_is_chosen_per_line_not_per_market():
+    """Unlike corners, goals is one feed code *per line*
+    (over_under_05/15/25/35). A quote sitting at 1.5's code must never answer
+    a 2.5 row -- that would be interpolation with extra steps."""
+    context = _context_for_tests(
+        bookmaker_comparison=[
+            MarketOddsLine(market="over_under_15", outcome="over", line=1.5,
+                           price=1.30, bookmaker_slug="pinnacle"),
+            MarketOddsLine(market="over_under_15", outcome="under", line=1.5,
+                           price=3.40, bookmaker_slug="pinnacle"),
+        ],
+        predictions=ModelPrediction(prob_goals_over_25=0.55, model_version="dc-blend-v1"),
+    )
+    signal = market_context.market_signal_for_row(
+        _row(market="goals_total", line=2.5, direction="OVER"), context
+    )
+    assert signal.verdict == "NO_MARKET_DATA"
+    assert signal.market_implied_probability is None
+    assert "no market quote at line 2.5" in signal.reason
+
+
+def test_goals_line_with_no_feed_code_never_interpolates():
+    """bzzoiro publishes exactly four over/under lines (0.5/1.5/2.5/3.5).
+    STANDARD_MARKET_LINES also prices 4.5, which has no code in the feed at
+    all -- not "no quote today", no code, ever -- and must be told so rather
+    than answered from 3.5's price."""
+    context = _context_for_tests(
+        bookmaker_comparison=[
+            MarketOddsLine(market="over_under_35", outcome="over", line=3.5,
+                           price=2.80, bookmaker_slug="pinnacle"),
+            MarketOddsLine(market="over_under_35", outcome="under", line=3.5,
+                           price=1.45, bookmaker_slug="pinnacle"),
+        ],
+    )
+    signal = market_context.market_signal_for_row(
+        _row(market="goals_total", line=4.5, direction="OVER"), context
+    )
+    assert signal.verdict == "NO_MARKET_DATA"
+    assert signal.market_implied_probability is None
+    assert signal.model_probability is None
+
+
+def test_goals_line_05_has_a_price_but_no_model_reads_it():
+    """0.5 is the other line STANDARD_MARKET_LINES prices that the model does
+    not: unlike 4.5, the feed *does* have a code for it
+    (``over_under_05``), so this is a different reason than the 4.5 case --
+    a real price with nothing to compare it against, not a missing feed code."""
+    context = _context_for_tests(
+        bookmaker_comparison=[
+            MarketOddsLine(market="over_under_05", outcome="over", line=0.5,
+                           price=1.10, bookmaker_slug="pinnacle"),
+            MarketOddsLine(market="over_under_05", outcome="under", line=0.5,
+                           price=6.50, bookmaker_slug="pinnacle"),
+        ],
+    )
+    signal = market_context.market_signal_for_row(
+        _row(market="goals_total", line=0.5, direction="OVER"), context
+    )
+    assert signal.verdict == "NO_MARKET_DATA"
+    assert signal.market_implied_probability is not None
+    assert signal.model_probability is None
+    assert "no model probability at line 0.5" in signal.reason
 
 
 def test_an_event_with_no_market_context_is_told_so_rather_than_left_blank():

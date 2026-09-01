@@ -1,0 +1,13 @@
+{
+  "_purpose": "docs/PLAN_BOGATE_STATYSTYKI.md Faza 5d. Maps a raw EventRecord.competition string to TIER_1|TIER_2|TIER_3|YOUTH|FRIENDLY. Read by src/bet/simple_stats/coupons.py to keep youth and friendly fixtures off the coupon (their stats do not describe a market anyone prices) while leaving them on the full stats sheet.",
+  "_discipline": "Exact-name pin only, no fuzzy match -- the same rule config/sportdb_competition_map.json and config/espn_competition_map_verification.json already follow (see discover.py's own comment on that rule). A competition absent from this map is UNCLASSIFIED, not TIER_3 by default: guessing a tier would be the same overconfident-mapping mistake the 2026-08-28 ESPN competition map review fixed. Only exclude what is actually named here.",
+  "_seeded_from": "docs/PLAN_BOGATE_STATYSTYKI.md section 5d, the five names its own 2026-08-31 slate audit named as YOUTH/FRIENDLY. Extending this list requires seeing the name on a real slate, not guessing from a pattern like \"contains U19\".",
+  "tiers": {
+    "U19 league": "YOUTH",
+    "Pro League U23": "YOUTH",
+    "Brasileiro U17": "YOUTH",
+    "Friendlies Clubs": "FRIENDLY",
+    "Premier League 2": "YOUTH",
+    "Premier League 2 Division One": "YOUTH"
+  }
+}

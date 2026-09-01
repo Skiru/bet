@@ -26,7 +26,11 @@ from bet.simple_stats.providers import (
     RunBudget,
     fetch_bzzoiro_referee,
     fetch_bzzoiro_squad_availability,
+    fetch_bzzoiro_team_league_id,
+    reset_bzzoiro_fixtures_cache,
     reset_bzzoiro_referee_cache,
+    reset_bzzoiro_standings_cache,
+    reset_bzzoiro_team_league_cache,
 )
 
 # --- live-shaped payloads -------------------------------------------------
@@ -114,6 +118,9 @@ EVENTS_PAYLOAD = {
                 "wind_speed": 8.2,
                 "temperature_c": 13,
             },
+            "round_name": "Semi-final",
+            "group_name": "Group A",
+            "previous_leg_event_id": 220050,
         }
     ],
 }
@@ -152,8 +159,14 @@ def _client(monkeypatch, tmp_path, payloads):
 @pytest.fixture(autouse=True)
 def _clear_referee_cache():
     reset_bzzoiro_referee_cache()
+    reset_bzzoiro_standings_cache()
+    reset_bzzoiro_team_league_cache()
+    reset_bzzoiro_fixtures_cache()
     yield
     reset_bzzoiro_referee_cache()
+    reset_bzzoiro_standings_cache()
+    reset_bzzoiro_team_league_cache()
+    reset_bzzoiro_fixtures_cache()
 
 
 # --- client parsing -------------------------------------------------------
@@ -231,6 +244,25 @@ def test_events_row_keeps_the_context_it_used_to_discard(monkeypatch, tmp_path):
     assert row["is_neutral_ground"] is False
     assert row["travel_distance_km"] == 436.0
     assert row["weather"]["temperature_c"] == 13
+    assert row["round_name"] == "Semi-final"
+    assert row["group_name"] == "Group A"
+    assert row["previous_leg_event_id"] == "220050"
+
+
+def test_a_plain_league_row_has_no_stakes_context(monkeypatch, tmp_path):
+    """Empty/absent round_name, group_name and previous_leg_event_id must
+    become None, not "" or "None" -- every plain league fixture verified live
+    2026-08-31 sends round_name/group_name back empty, and a falsy-but-truthy
+    string would make every league match look like it has a stakes label."""
+    plain = {**EVENTS_PAYLOAD["results"][0], "round_name": "", "group_name": None}
+    del plain["previous_leg_event_id"]
+    client, _ = _client(monkeypatch, tmp_path, {"/events/": {"count": 1, "results": [plain]}})
+    result = client.get_events_result(date_from="2026-08-31", date_to="2026-08-31")
+
+    row = result.value["matches"][0]
+    assert row["round_name"] is None
+    assert row["group_name"] is None
+    assert row["previous_leg_event_id"] is None
 
 
 # --- provider layer -------------------------------------------------------
@@ -340,6 +372,107 @@ def _event(**overrides):
     return EventRecord(**kwargs)
 
 
+TEAM_FIXTURE_ROW = {
+    "id": 990011,
+    "league_id": 80,
+    "season_id": 1570,
+    "home_team_id": 17,
+    "home_team": "Manchester United",
+    "away_team_id": 99,
+    "away_team": "Fulham",
+    "home_score": 2,
+    "away_score": 1,
+    "event_date": "2026-08-20T15:00:00+00:00",
+    "status": "finished",
+}
+
+STANDINGS_PAYLOAD = {
+    "standings": [
+        {
+            "team_id": 17, "team_name": "Manchester United", "position": 3,
+            "played": 5, "pts": 10, "gf": 12, "ga": 5,
+            "xgf": 9.4, "xga": 6.1, "xgd": 3.3, "xg_games": 5, "form": "WWDLW",
+        },
+        {
+            "team_id": 42, "team_name": "Arsenal", "position": 1,
+            "played": 5, "pts": 13, "gf": 14, "ga": 3,
+            "xgf": 11.1, "xga": 4.0, "xgd": 7.1, "xg_games": 5, "form": "WWWDW",
+        },
+    ],
+}
+
+
+def test_season_form_backfills_league_id_from_team_fixtures_when_missing(monkeypatch, tmp_path):
+    """Faza 5a: most football fixtures never get a discovery-time league_id --
+    only the ones bzzoiro itself discovered do. Resolving it from the home
+    team's own fixtures listing (the same endpoint the l10 metrics fetch
+    already pages) is what lets season_form reach the rest of them.
+    """
+    client, calls = _client(
+        monkeypatch,
+        tmp_path,
+        {
+            "/referees/1897/": REFEREE_PAYLOAD,
+            "/teams/17/squad/": SQUAD_PAYLOAD,
+            "/teams/42/squad/": SQUAD_PAYLOAD,
+            "/teams/17/fixtures/": {"count": 1, "results": [TEAM_FIXTURE_ROW]},
+            "/leagues/80/standings/": STANDINGS_PAYLOAD,
+        },
+    )
+    monkeypatch.setattr(providers, "get_client", lambda *a, **k: client)
+
+    extras = _fixture_extras_for_event(_event(), RateLimiter(usage_dir=tmp_path / "u"), None)
+
+    assert extras.data_gaps == []
+    # Home team's own fixtures resolved the league; away team's fixtures were
+    # never fetched because the loop stops at the first side that resolves.
+    assert "/teams/42/fixtures/" not in {endpoint for endpoint, _ in calls}
+    by_side = {row.side: row for row in extras.season_form}
+    assert set(by_side) == {"home", "away"}
+    assert by_side["home"].xgf == 9.4
+    assert by_side["away"].xgf == 11.1
+
+
+def test_team_league_id_is_cached_across_fixtures(monkeypatch, tmp_path):
+    """A slate reuses the same handful of clubs across their fixtures; pay once."""
+    client, calls = _client(
+        monkeypatch, tmp_path, {"/teams/17/fixtures/": {"count": 1, "results": [TEAM_FIXTURE_ROW]}}
+    )
+    monkeypatch.setattr(providers, "get_client", lambda *a, **k: client)
+    limiter = RateLimiter(usage_dir=tmp_path / "u")
+
+    first, gaps_a = fetch_bzzoiro_team_league_id("17", "2026-08-31", limiter)
+    second, gaps_b = fetch_bzzoiro_team_league_id("17", "2026-08-31", limiter)
+
+    assert first == second == "80"
+    assert gaps_a == [] and gaps_b == []
+    assert len(calls) == 1, "second lookup for the same team re-paid for the listing"
+
+
+def test_no_referee_id_is_measured_separately_from_a_failed_profile_fetch(monkeypatch, tmp_path):
+    """Plan section 5a: 24/192 referee coverage must be split into "has an id,
+    profile lookup failed" (already its own gap, above) vs "never had an id to
+    look up" -- they call for different fixes and must not collapse into one
+    number.
+    """
+    client, _ = _client(
+        monkeypatch,
+        tmp_path,
+        {
+            "/teams/17/fixtures/": {"count": 0, "results": []},
+            "/teams/42/fixtures/": {"count": 0, "results": []},
+        },
+    )
+    monkeypatch.setattr(providers, "get_client", lambda *a, **k: client)
+    event = _event(fixture_context=FixtureContext(venue_id="1654", is_local_derby=True))
+
+    extras = _fixture_extras_for_event(event, RateLimiter(usage_dir=tmp_path / "u"), None)
+
+    assert extras.referee is None
+    assert "referee: no referee_id on this fixture" in extras.data_gaps
+    assert not any("referee profile for" in g for g in extras.data_gaps)
+
+
 def test_extras_resolve_referee_and_both_squads(monkeypatch, tmp_path):
     client, calls = _client(
         monkeypatch,
@@ -348,6 +481,14 @@ def test_extras_resolve_referee_and_both_squads(monkeypatch, tmp_path):
             "/referees/1897/": REFEREE_PAYLOAD,
             "/teams/17/squad/": SQUAD_PAYLOAD,
             "/teams/42/squad/": SQUAD_PAYLOAD,
+            # This fixture's own FixtureContext carries no league_id (only
+            # bzzoiro-discovered fixtures get one straight from discovery), so
+            # extras now also tries to backfill it from each side's own
+            # fixtures listing (Faza 5a) -- home first, then away since home
+            # comes back empty. A valid, empty listing is a real provider
+            # state, not a fetch failure, so it must not produce a gap.
+            "/teams/17/fixtures/": {"count": 0, "results": []},
+            "/teams/42/fixtures/": {"count": 0, "results": []},
         },
     )
     monkeypatch.setattr(providers, "get_client", lambda *a, **k: client)
@@ -357,8 +498,9 @@ def test_extras_resolve_referee_and_both_squads(monkeypatch, tmp_path):
     assert extras.referee.name == "Peter Bankes"
     assert extras.referee.avg_fouls_per_match == 22.1
     assert {s.side for s in extras.squad_availability} == {"home", "away"}
+    assert extras.season_form == []
     assert extras.data_gaps == []
-    assert len(calls) == 3
+    assert len(calls) == 5
 
 
 def test_tennis_never_spends_its_quota_here(monkeypatch, tmp_path):

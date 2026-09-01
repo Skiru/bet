@@ -63,11 +63,17 @@ PROVIDERS_BY_SPORT: dict[str, tuple[str, ...]] = {
 # through their own dedicated path in enrich.py, keyed off the native ids
 # discovery captured (EventRecord.source_ids / .provider_team_ids):
 #   highlightly -> /last-five-games, /head-2-head, /statistics/{match_id}
-#   sportdb     -> flashscore competition results -> flashscore_get_match_stats
 #   bzzoiro     -> /teams/{id}/fixtures, /events/{id}/, /events/{id}/stats/
 #   bzzoiro-tennis -> /tennis/api/v2/matches/{id}/h2h/, /matches/{id}/
+#
+# sportdb (flashscore competition results -> flashscore_get_match_stats) was
+# removed from this roster on 2026-08-31: it answered HTTP 402 on 159/159
+# requests that day, contributing nothing but ~340 false data_gap entries per
+# run. Its client (api_clients/sportdb_mcp.py) and fetch functions below are
+# kept, unused, in case the entitlement is restored -- only the active roster
+# entry is gone.
 NATIVE_ID_PROVIDERS_BY_SPORT: dict[str, tuple[str, ...]] = {
-    "football": ("highlightly", "sportdb", "bzzoiro"),
+    "football": ("highlightly", "bzzoiro"),
     # Was empty. Tennis had no native identification at all -- every provider
     # re-found both players by name through a search endpoint -- which is half
     # the reason the sport contributed almost nothing.
@@ -133,8 +139,8 @@ _BZZOIRO_TOTAL_ALIASES = {
     "offsides": "offsides_total",
     "possession": "possession",
 }
-# The per-team table is deliberately shorter: it covers exactly the five stats
-# that have a team market in STANDARD_MARKET_LINES. A "_for" metric nobody can
+# The per-team table is deliberately shorter: it covers exactly the stats that
+# have a team market in STANDARD_MARKET_LINES. A "_for" metric nobody can
 # price is a column in every artifact that no row ever reads.
 #
 # "_for", not "_total", because these must not collide. The match total and the
@@ -148,6 +154,41 @@ _BZZOIRO_FOR_ALIASES = {
     "shots": "shots_for",
     "shots_on_target": "shots_on_target_for",
     "fouls": "fouls_for",
+    "offsides": "offsides_for",
+}
+
+
+def _bzzoiro_half_alias(full_match_name: str, period: str) -> str:
+    """Insert a half-period tag before the trailing ``_total``/``_for``.
+
+    ``"corners_total"`` + ``"1h"`` -> ``"corners_1h_total"`` -- the suffix stays
+    last (docs/PLAN_BOGATE_STATYSTYKI.md Faza 3 naming rule) so it is not read
+    as a percentage by ``PERCENTAGE_METRICS`` membership.
+    """
+    for suffix in ("_total", "_for"):
+        if full_match_name.endswith(suffix):
+            return f"{full_match_name[: -len(suffix)]}_{period}{suffix}"
+    return f"{full_match_name}_{period}"
+
+
+# The bzzoiro client tags a half-split row's normalized_metric_name "<name>_1h"
+# / "<name>_2h" (e.g. "corners_1h") -- these route each such row to the same
+# canonical half metric ("corners_1h_total" / "corners_1h_for") the full-match
+# aliases above build for the whole match.
+_BZZOIRO_HALF_PERIODS = ("1h", "2h")
+_BZZOIRO_TOTAL_ALIASES_BY_PERIOD = {
+    period: {
+        f"{raw}_{period}": _bzzoiro_half_alias(total_name, period)
+        for raw, total_name in _BZZOIRO_TOTAL_ALIASES.items()
+    }
+    for period in _BZZOIRO_HALF_PERIODS
+}
+_BZZOIRO_FOR_ALIASES_BY_PERIOD = {
+    period: {
+        f"{raw}_{period}": _bzzoiro_half_alias(for_name, period)
+        for raw, for_name in _BZZOIRO_FOR_ALIASES.items()
+    }
+    for period in _BZZOIRO_HALF_PERIODS
 }
 # Canonical player-prop metrics, keyed by the client's normalized names. The
 # client already emits this vocabulary, so this table exists to state which of
@@ -372,6 +413,37 @@ def _opponent_of(fixture: Any, team_id: str) -> str | None:
         if mine not in (None, "") and str(mine) == wanted:
             return theirs
     return None
+
+
+def _side_of(fixture: Any, team_id: str) -> str | None:
+    """"home"/"away"/None for whichever side of ``fixture`` is ``team_id``.
+
+    Same id fields ``_opponent_of`` reads, kept as a separate lookup because a
+    goals row needs to know *which* side it was, not just who the other side
+    was.
+    """
+    wanted = str(team_id)
+    home_id = _field(fixture, "home_participant_id", "home_team_id")
+    away_id = _field(fixture, "away_participant_id", "away_team_id")
+    if home_id not in (None, "") and str(home_id) == wanted:
+        return "home"
+    if away_id not in (None, "") and str(away_id) == wanted:
+        return "away"
+    return None
+
+
+def _parse_espn_score(score: Any) -> tuple[float, float] | tuple[None, None]:
+    """espn.py's ``get_team_last_fixtures_result`` emits ``score`` as the
+    literal string ``"{home_score}-{away_score}"`` (or ``""`` if neither side
+    reported), never as two separate fields -- so this splits rather than
+    reads a shape that does not exist."""
+    if not isinstance(score, str) or "-" not in score:
+        return None, None
+    home_str, _, away_str = score.partition("-")
+    try:
+        return float(home_str), float(away_str)
+    except ValueError:
+        return None, None
 
 
 def _combined_from_dict_stats(stats: dict, aliases: dict[str, str]) -> dict[str, float]:
@@ -1283,6 +1355,22 @@ def _fetch_l10_generic(
                 f"(retirement, walkover, or every stat 0); recorded as absent"
             )
             continue
+        # Added *after* the absent-payload check above, never before: a real
+        # 0-0 draw's goals are a correct observation, but merging them into
+        # `combined` earlier would let a goals row rescue a payload that
+        # should have been rejected as absent (a-zero-that-means-unknown).
+        # espn-football is the only provider in this generic path whose
+        # fixture row carries a final score at all -- api-football's does
+        # not, and the two tennis providers' "score" means games/sets, not
+        # goals.
+        if provider_key == "espn-football":
+            home_goals, away_goals = _parse_espn_score(_field(fx, "score"))
+            if home_goals is not None and away_goals is not None:
+                combined["goals_total"] = home_goals + away_goals
+                side = _side_of(fx, team_id)
+                if side is not None:
+                    combined["goals_for"] = home_goals if side == "home" else away_goals
+                    combined["goals_against"] = away_goals if side == "home" else home_goals
         for name, value in _make_values(
             provider_key, fixture_id, _field(fx, "date", "kickoff", default=""), str(opponent or "unknown"), combined
         ).items():
@@ -1563,6 +1651,28 @@ def fetch_highlightly_history(
         if status and status not in ("finished", "ft", "match finished", "aet", "after et", "pen"):
             continue
 
+        opponent = away_name if home_id == str(team_id) else home_name
+        match_date = str(match.get("date") or match.get("kickoff") or "")
+
+        # Goals ride on the listing row itself -- `_normalize_match_row` already
+        # parses `score` -- so they are emitted before the run-budget check and
+        # the /statistics call below, and never depend on either succeeding.
+        # `home_away` is only ever set for the l10 shape (`_normalize_h2h_row`
+        # does not carry it), so h2h matches fall through to `goals_total` only,
+        # the same split bzzoiro's history path applies.
+        score = match.get("score") or {}
+        home_goals, away_goals = score.get("home"), score.get("away")
+        if home_goals is not None and away_goals is not None:
+            goal_values = {"goals_total": float(home_goals) + float(away_goals)}
+            side = match.get("home_away")
+            if side is not None:
+                goal_values["goals_for"] = float(home_goals if side == "home" else away_goals)
+                goal_values["goals_against"] = float(away_goals if side == "home" else home_goals)
+            for name, value in _make_values(
+                "highlightly", match_id, match_date, opponent or "unknown", goal_values
+            ).items():
+                outcome.add(name, value)
+
         if run_budget is not None and not run_budget.try_consume("highlightly"):
             outcome.data_gaps.append("highlightly: run budget exhausted mid-history")
             break
@@ -1575,8 +1685,6 @@ def fetch_highlightly_history(
             outcome.data_gaps.append(gap)
             continue
 
-        opponent = away_name if home_id == str(team_id) else home_name
-        match_date = str(match.get("date") or match.get("kickoff") or "")
         for name, value in _make_values(
             "highlightly", match_id, match_date, opponent or "unknown", combined
         ).items():
@@ -1604,6 +1712,13 @@ _BZZOIRO_STATS_LOCK = threading.Lock()
 # metrics already paid for the same team, in the same window, in the same run.
 _BZZOIRO_FIXTURES_CACHE: dict[tuple[str, str, str, int], list[dict]] = {}
 _BZZOIRO_FIXTURES_LOCK = threading.Lock()
+
+
+def reset_bzzoiro_fixtures_cache() -> None:
+    """Forget cached team-fixtures listings. For tests, and for a long-lived
+    process that should not serve one betting day's fixtures to the next."""
+    with _BZZOIRO_FIXTURES_LOCK:
+        _BZZOIRO_FIXTURES_CACHE.clear()
 
 # Sentinel gap meaning "the provider covers this fixture but published no stats
 # for it". Counted rather than listed; see _bzzoiro_match_stats.
@@ -1662,6 +1777,14 @@ def _bzzoiro_match_stats(
         for_name = _BZZOIRO_FOR_ALIASES.get(normalized)
         if for_name is not None and side in per_side:
             per_side[side][for_name] = per_side[side].get(for_name, 0.0) + value
+
+        for period in _BZZOIRO_HALF_PERIODS:
+            half_total_name = _BZZOIRO_TOTAL_ALIASES_BY_PERIOD[period].get(normalized)
+            if half_total_name is not None:
+                totals[half_total_name] = totals.get(half_total_name, 0.0) + value
+            half_for_name = _BZZOIRO_FOR_ALIASES_BY_PERIOD[period].get(normalized)
+            if half_for_name is not None and side in per_side:
+                per_side[side][half_for_name] = per_side[side].get(half_for_name, 0.0) + value
 
     stats = {"home": per_side["home"], "away": per_side["away"], "total": totals}
     with _BZZOIRO_STATS_LOCK:
@@ -1850,6 +1973,46 @@ def fetch_bzzoiro_history(
         if not home_id or not away_id:
             continue
 
+        side = None
+        if mode != "h2h":
+            side = "home" if home_id == str(team_id) else "away" if away_id == str(team_id) else None
+        opponent = away.get("team_name") if home_id == str(team_id) else home.get("team_name")
+        match_date = str(match.get("date") or match.get("kickoff") or "")
+
+        # Goals ride on the fixture listing itself (`score`, already fetched
+        # above with the match), so they are emitted here -- before the budget
+        # check and the /stats/ call below -- and never depend on either. A
+        # match with a result but no published stats (common in h2h, where
+        # roughly 8 of 10 meetings carry no box score) still gives goals a
+        # real sample; `n` for goals will therefore run ahead of `n` for
+        # corners/cards on the same match, same as sample_size already varies
+        # market to market on one dossier.
+        score = match.get("score") or {}
+        home_goals, away_goals = score.get("home"), score.get("away")
+        if home_goals is not None and away_goals is not None:
+            goal_values = {"goals_total": float(home_goals) + float(away_goals)}
+            if side is not None:
+                goal_values["goals_for"] = float(home_goals if side == "home" else away_goals)
+                goal_values["goals_against"] = float(away_goals if side == "home" else home_goals)
+            # Half-time score is a fixture field (`score["home_ht"]`/["away_ht"]),
+            # present on l10 listings but not on h2h's recent_matches -- see
+            # _normalize_event_row. Absent there, this simply adds nothing.
+            home_ht, away_ht = score.get("home_ht"), score.get("away_ht")
+            if home_ht is not None and away_ht is not None:
+                goal_values["goals_1h_total"] = float(home_ht) + float(away_ht)
+                goal_values["goals_2h_total"] = (
+                    float(home_goals) - float(home_ht)
+                ) + (float(away_goals) - float(away_ht))
+                if side is not None:
+                    side_ht = float(home_ht if side == "home" else away_ht)
+                    side_ft = float(home_goals if side == "home" else away_goals)
+                    goal_values["goals_1h_for"] = side_ht
+                    goal_values["goals_2h_for"] = side_ft - side_ht
+            for name, value in _make_values(
+                "bzzoiro", match_id, match_date, opponent or "unknown", goal_values
+            ).items():
+                outcome.add(name, value)
+
         if run_budget is not None and not run_budget.try_consume("bzzoiro"):
             outcome.data_gaps.append("bzzoiro: run budget exhausted mid-history")
             break
@@ -1867,12 +2030,8 @@ def fetch_bzzoiro_history(
             continue
 
         combined = dict(stats.get("total") or {})
-        if mode != "h2h":
-            side = "home" if home_id == str(team_id) else "away" if away_id == str(team_id) else None
-            if side is not None:
-                combined.update(stats.get(side) or {})
-        opponent = away.get("team_name") if home_id == str(team_id) else home.get("team_name")
-        match_date = str(match.get("date") or match.get("kickoff") or "")
+        if side is not None:
+            combined.update(stats.get(side) or {})
         for name, value in _make_values(
             "bzzoiro", match_id, match_date, opponent or "unknown", combined
         ).items():
@@ -2199,6 +2358,70 @@ def fetch_bzzoiro_squad_availability(
         "availability_unknown_count": int(value.get("availability_unknown_count") or 0),
         "unavailable": list(value.get("unavailable") or []),
     }, []
+
+
+# team_id -> its current competition's native id, or None when the provider had
+# nothing usable. Cached hard, like the referee and standings tables: a club's
+# competition does not change intra-day.
+#
+# There is no team-detail endpoint that carries this (verified live,
+# 2026-08-31: ``get_team_detail`` returns only id/name/short_name/country/
+# venue_id -- no league field, despite its own description promising a coach
+# and social items it also does not return). The only place a team's current
+# league id appears is its own fixtures listing (``competition_provider_id`` on
+# each normalized row, bzzoiro.py's ``_normalize_event_row``), so this reads
+# that -- the same listing and the same process-wide ``_BZZOIRO_FIXTURES_CACHE``
+# ``fetch_bzzoiro_history`` already populates for the l10 metrics fetch. A team
+# whose bzzoiro fixtures were already pulled for its own metrics resolves its
+# league for free; only a team reached solely through another provider's
+# discovery (the actual Faza 5a gap) pays a fresh listing call.
+_BZZOIRO_TEAM_LEAGUE_CACHE: dict[str, str | None] = {}
+
+
+def reset_bzzoiro_team_league_cache() -> None:
+    """Forget resolved team->league ids. For tests, and for a long-lived
+    process that should not carry one betting day's season into the next."""
+    _BZZOIRO_TEAM_LEAGUE_CACHE.clear()
+
+
+def fetch_bzzoiro_team_league_id(
+    team_id: str,
+    as_of_date: str,
+    rate_limiter: RateLimiter,
+    run_budget: RunBudget | None = None,
+) -> tuple[str | None, list[str]]:
+    """``(league_id | None, data_gaps)`` for one team, from its own fixtures.
+
+    Backfill path for ``FixtureContext.league_id``, which discovery only sets
+    for fixtures bzzoiro itself found (docs/PLAN_BOGATE_STATYSTYKI.md Faza 5a:
+    25/192 football matches on the 2026-08-31 run). Every other fixture still
+    has a resolvable bzzoiro team id once name-matching has run, just no
+    league -- this is what lets ``season_form`` reach the rest of them.
+    """
+    if not team_id:
+        return None, []
+    if team_id in _BZZOIRO_TEAM_LEAGUE_CACHE:
+        return _BZZOIRO_TEAM_LEAGUE_CACHE[team_id], []
+    date_from, date_to = _bzzoiro_window(as_of_date)
+    gaps: list[str] = []
+    try:
+        client = get_client("bzzoiro", rate_limiter=rate_limiter)
+        matches = _bzzoiro_recent_fixtures(
+            client, str(team_id), date_from, date_to, 10, run_budget, gaps
+        )
+    except Exception as exc:  # noqa: BLE001 - one team must not abort the event
+        return None, [f"bzzoiro: team league lookup error for team {team_id}: {exc}"]
+
+    # A team with no resolvable competition id in its recent fixtures (as
+    # opposed to a fetch failure, which already added its own gap above) is a
+    # real, silent provider state -- same convention `fetch_bzzoiro_league_table`
+    # follows for an empty-but-successful table.
+    league_id = next(
+        (str(m["competition_provider_id"]) for m in matches if m.get("competition_provider_id")),
+        None,
+    )
+    _BZZOIRO_TEAM_LEAGUE_CACHE[team_id] = league_id
+    return league_id, gaps
 
 
 # ------------------------------------------------------------- bzzoiro-tennis

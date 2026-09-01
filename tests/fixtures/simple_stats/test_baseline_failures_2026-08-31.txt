@@ -1,0 +1,94 @@
+# Faza 0 baseline (docs/PLAN_BOGATE_STATYSTYKI.md) -- measured 2026-08-31 at
+# commit b49258b4, on top of the pulapka-2 fix
+# (src/bet/simple_stats/market_context.py: `context.odds or
+# context.bookmaker_comparison` -> concatenation) and the Faza 0 fixtures.
+#
+# Command:
+#   python3 -m pytest tests/simple_stats tests/test_name_matching.py \
+#     tests/test_pipeline_modules.py tests/test_generate_market_matrix.py \
+#     tests/test_discovery_fixture_source_duplicates.py tests/enrichment \
+#     tests/phase0 --continue-on-collection-errors --tb=no -rf -q
+#
+# 69 failed, 1669 passed, 84 skipped, 1 collection error (below).
+#
+# Compare the *set* of names below against a fresh run, never the count --
+# see the `test-suite-baseline` memory for why (legacy/ carries pre-existing
+# failures unrelated to this plan). A phase is clean when the new failing set
+# is a subset of this one, or every addition is explained by that phase's own
+# "Gotowe, gdy" note.
+
+## collection error (not a failed test -- pytest cannot even import the module)
+tests/test_generate_market_matrix.py -- PipelineManifestError: manifest references
+  .kilo/agents/*.md files that do not exist (removed by commit b49258b4
+  "remove kilo"). Pre-existing as of this baseline, unrelated to this plan.
+
+## failed tests
+tests/enrichment/football_data_foundation/test_live_shadow_canary_guardrails.py::test_guardrails_no_forbidden_imports_in_source
+tests/enrichment/football_data_foundation/test_live_shadow_canary_provider_probe.py::test_provider_probes_all_missing_credentials
+tests/enrichment/football_data_foundation/test_live_shadow_canary_runner.py::test_runner_no_credentials
+tests/enrichment/football_data_foundation/test_live_shadow_canary_runner.py::test_runner_with_clean_provider_claims
+tests/enrichment/football_data_foundation/test_pass2_current_clients.py::test_football_data_org_client
+tests/enrichment/football_data_foundation/test_pass2_current_clients.py::test_highlightly_client
+tests/enrichment/football_data_foundation/test_pass2_current_clients.py::test_sportdb_client
+tests/enrichment/multisport_foundation/test_ms_b_import_isolation.py::test_multisport_import_does_not_eagerly_require_pandas
+tests/test_name_matching.py::TestTipsterXrefMatching::test_tipster_cleaners_strip_embedded_odds_fragments
+tests/test_pipeline_modules.py::TestCouponBuilder::test_assign_picks_min_2_legs
+tests/test_pipeline_modules.py::TestCouponBuilder::test_assign_picks_to_core_unique_events
+tests/test_pipeline_modules.py::TestCouponBuilder::test_build_coupons_full
+tests/test_pipeline_modules.py::TestCouponBuilder::test_build_coupons_no_bet
+tests/test_pipeline_modules.py::TestCouponBuilder::test_build_coupons_singles_only
+tests/test_pipeline_modules.py::TestCouponBuilder::test_compute_stake_caps
+tests/test_pipeline_modules.py::TestCouponBuilder::test_compute_stake_kelly
+tests/test_pipeline_modules.py::TestCouponBuilder::test_compute_stake_minimum
+tests/test_pipeline_modules.py::TestCouponBuilder::test_format_market_polish
+tests/test_pipeline_modules.py::TestCouponBuilder::test_generate_combos
+tests/test_pipeline_modules.py::TestCouponBuilder::test_max_same_sport_per_coupon
+tests/test_pipeline_modules.py::TestCouponBuilder::test_night_detection
+tests/test_pipeline_modules.py::TestCouponBuilder::test_stress_test_coupon
+tests/test_pipeline_modules.py::TestCouponEdgeCases::test_all_same_sport_respects_max_constraint
+tests/test_pipeline_modules.py::TestCouponEdgeCases::test_assign_picks_1_pick_no_coupon
+tests/test_pipeline_modules.py::TestCouponEdgeCases::test_assign_picks_3_picks_builds_coupon
+tests/test_pipeline_modules.py::TestCouponEdgeCases::test_assign_picks_empty_list
+tests/test_pipeline_modules.py::TestCouponEdgeCases::test_build_coupons_sets_approved_key
+tests/test_pipeline_modules.py::TestCouponEdgeCases::test_compute_stake_negative_kelly
+tests/test_pipeline_modules.py::TestCouponEdgeCases::test_compute_stake_zero_odds
+tests/test_pipeline_modules.py::TestCouponEdgeCases::test_pick_description_pl_none_odds
+tests/test_pipeline_modules.py::TestCouponEdgeCases::test_stress_test_empty_legs
+tests/test_pipeline_modules.py::TestCouponEdgeCases::test_write_coupon_json_creates_file
+tests/test_pipeline_modules.py::TestCouponEdgeCases::test_write_coupon_markdown_creates_file
+tests/test_pipeline_modules.py::TestDedupNormalization::test_manchester_not_corrupted
+tests/test_pipeline_modules.py::TestDeepStatsReport::test_analyze_candidate_has_data_from_safety_input
+tests/test_pipeline_modules.py::TestDeepStatsReport::test_analyze_candidate_no_cache
+tests/test_pipeline_modules.py::TestDeepStatsReport::test_analyze_candidate_with_data
+tests/test_pipeline_modules.py::TestDeepStatsReport::test_deep_stats_main_summary_includes_persistence_metrics
+tests/test_pipeline_modules.py::TestDeepStatsReport::test_extract_h2h_stats
+tests/test_pipeline_modules.py::TestDeepStatsReport::test_extract_team_stats_missing_cache
+tests/test_pipeline_modules.py::TestDeepStatsReport::test_extract_team_stats_percentage_keeps_home_only
+tests/test_pipeline_modules.py::TestDeepStatsReport::test_extract_team_stats_split_keys
+tests/test_pipeline_modules.py::TestDeepStatsReport::test_extract_team_stats_with_cache
+tests/test_pipeline_modules.py::TestDeepStatsReport::test_generate_deep_stats_from_pool
+tests/test_pipeline_modules.py::TestDeepStatsReport::test_markdown_sections_complete
+tests/test_pipeline_modules.py::TestDeepStatsReport::test_removed_gemini_backend_fails_closed_before_processing
+tests/test_pipeline_modules.py::TestDeepStatsReport::test_slugify
+tests/test_pipeline_modules.py::TestEVInjection::test_inject_ev_from_odds
+tests/test_pipeline_modules.py::TestEVInjection::test_inject_ev_no_snapshot
+tests/test_pipeline_modules.py::TestEVInjection::test_inject_ev_totals_market
+tests/test_pipeline_modules.py::TestGateChecker::test_20_point_gate_all_pass
+tests/test_pipeline_modules.py::TestGateChecker::test_confidence_scoring
+tests/test_pipeline_modules.py::TestGateChecker::test_gate_48h_repeat
+tests/test_pipeline_modules.py::TestGateChecker::test_gate_ev_zero_or_negative
+tests/test_pipeline_modules.py::TestGateChecker::test_gate_h2h_less_than_5
+tests/test_pipeline_modules.py::TestGateChecker::test_gate_identity_slash_rejects
+tests/test_pipeline_modules.py::TestGateChecker::test_gate_multi_market_less_than_3
+tests/test_pipeline_modules.py::TestGateChecker::test_gate_tennis_wc_warning
+tests/test_pipeline_modules.py::TestGateChecker::test_gate_three_way_conflict
+tests/test_pipeline_modules.py::TestGateChecker::test_risk_tier_assignment
+tests/test_pipeline_modules.py::TestGateChecker::test_run_gate_classification
+tests/test_pipeline_modules.py::TestGateChecker::test_sport_diversity_check
+tests/test_pipeline_modules.py::TestNormaliseBridge::test_normalise_empty_stats_summaries
+tests/test_pipeline_modules.py::TestNormaliseBridge::test_normalise_missing_ranking_result
+tests/test_pipeline_modules.py::TestNormaliseBridge::test_normalise_with_best_market_and_h2h
+tests/test_pipeline_modules.py::TestPipelineIntegration::test_full_s3_s7_s8_pipeline
+tests/test_pipeline_modules.py::TestPipelineIntegration::test_full_s3_s7_s8_pipeline_no_odds
+tests/test_pipeline_modules.py::TestPipelineIntegration::test_s3_to_s7_pipeline
+tests/test_pipeline_modules.py::TestPipelineIntegration::test_s7_to_s8_pipeline

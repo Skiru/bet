@@ -1,10 +1,19 @@
 """Tests for bet.simple_stats.discover: dedup merging and identity classification."""
 from datetime import datetime, timezone
 
+import pytest
+
 from bet.discovery.dedup import DeduplicationEngine
 from bet.discovery.models import DiscoveredEvent
 
-from bet.simple_stats.discover import _detect_ambiguous, _to_event_record
+from bet.simple_stats.discover import (
+    _canonicalize_competition_names,
+    _competition_canonical_map,
+    _detect_ambiguous,
+    _event_id,
+    _to_event_record,
+    reset_competition_canonical_cache,
+)
 
 _KICKOFF = datetime(2026, 6, 23, 15, 0, tzinfo=timezone.utc)
 
@@ -247,3 +256,111 @@ def test_bzzoiro_native_ids_reach_the_event_record(monkeypatch):
     record = _to_event_record(merged[0])
     assert record.provider_team_ids["bzzoiro"] == {"home": "100", "away": "134"}
     assert record.source_ids["bzzoiro"] == "587706"
+
+
+# docs/PLAN_BOGATE_STATYSTYKI.md Faza 6: competition-name canonicalization.
+
+
+@pytest.fixture(autouse=True)
+def _clear_competition_canonical_cache():
+    reset_competition_canonical_cache()
+    yield
+    reset_competition_canonical_cache()
+
+
+def test_competition_canonical_map_is_exact_pin_only():
+    """The real config file: known duplicate spellings are pinned, and bare
+    ambiguous names (which the ESPN table also refuses to pin, for the same
+    reason) are NOT silently folded into a guessed country."""
+    canonical = _competition_canonical_map()
+    assert canonical["EPL"] == "Premier League"
+    assert canonical["Veikkausliiga - Finland"] == "Veikkausliiga"
+    assert canonical["Danish Superliga"] == "Denmark Superliga"
+    assert canonical["Allsvenskan - Sweden"] == "Allsvenskan"
+    # Romania and Denmark both call their top flight "Superliga" -- folding
+    # the bare name to either country would repeat the 2026-08-28 incident.
+    assert "Superliga" not in canonical
+
+
+def test_canonicalize_competition_names_unifies_a_known_duplicate_pair():
+    """Two providers naming the same real match "EPL" and "Premier League"
+    must produce the same event_id once canonicalized, or the merge/ESPN
+    layers downstream see two fixtures instead of one."""
+    epl = _event("odds-api", "1", home="Aston Villa", away="Arsenal")
+    epl.competition = "EPL"
+    prem = _event("highlightly", "2", home="Aston Villa", away="Arsenal")
+    prem.competition = "Premier League"
+    events_by_source = {"odds-api": [epl], "highlightly": [prem]}
+
+    _canonicalize_competition_names(events_by_source)
+
+    assert epl.competition == "Premier League"
+    assert prem.competition == "Premier League"
+    participants = "aston villa|arsenal"
+    epl_id = _event_id(
+        "football", epl.competition, participants, epl.kickoff.isoformat()
+    )
+    prem_id = _event_id(
+        "football", prem.competition, participants, prem.kickoff.isoformat()
+    )
+    assert epl_id == prem_id
+
+
+def test_canonicalize_competition_names_leaves_unknown_names_untouched():
+    ev = _event("odds-api", "1")
+    ev.competition = "Some League Nobody Has Pinned Yet"
+    events_by_source = {"odds-api": [ev]}
+
+    _canonicalize_competition_names(events_by_source)
+
+    assert ev.competition == "Some League Nobody Has Pinned Yet"
+
+
+def test_canonicalize_competition_names_never_guesses_bare_superliga():
+    """Regression guard for the 2026-08-28 incident: bare "Superliga" must
+    reach ESPN resolution unresolved, not silently become Denmark's or
+    Romania's."""
+    ev = _event("odds-api", "1")
+    ev.competition = "Superliga"
+    events_by_source = {"odds-api": [ev]}
+
+    _canonicalize_competition_names(events_by_source)
+
+    assert ev.competition == "Superliga"
+
+
+# Stakes context (round_name/group_name/previous_leg_event_id) carried
+# through from bzzoiro's raw fixture row, at zero extra request cost.
+
+
+def test_fixture_context_survives_a_missing_referee_id():
+    """A fixture context field earns the whole block by source, not by
+    referee_id being set: a fixture whose referee is not yet assigned must
+    not lose is_local_derby/weather/stakes context along with it. Verified
+    live 2026-08-31: Sutton United - Wealdstone had referee_id=None and
+    is_local_derby=True at the same time."""
+    ev = _event("bzzoiro", "1")
+    ev.raw_data = {
+        "referee_id": None,
+        "is_local_derby": True,
+        "round_name": "Final",
+        "group_name": None,
+        "previous_leg_event_id": "999",
+    }
+    merged = DeduplicationEngine().merge({"bzzoiro": [ev]})
+    record = _to_event_record(merged[0])
+
+    assert record.fixture_context is not None
+    assert record.fixture_context.referee_id is None
+    assert record.fixture_context.is_local_derby is True
+    assert record.fixture_context.round_name == "Final"
+    assert record.fixture_context.previous_leg_event_id == "999"
+
+
+def test_fixture_context_is_absent_for_a_non_bzzoiro_source():
+    ev = _event("highlightly", "1")
+    ev.raw_data = {"round_name": "Final"}
+    merged = DeduplicationEngine().merge({"highlightly": [ev]})
+    record = _to_event_record(merged[0])
+
+    assert record.fixture_context is None

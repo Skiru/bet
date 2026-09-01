@@ -576,8 +576,7 @@ class BzzoiroClient(EvidenceRequestMixin, BaseAPIClient):
 
         for side in ("home", "away"):
             # first_half / second_half live alongside home/away in the same
-            # object; only the full-match figures are read, matching how
-            # STANDARD_MARKET_LINES phrases its markets.
+            # object -- read below, after the full-match figures.
             side_stats = stats.get(side)
             if not isinstance(side_stats, dict):
                 rejected_count += 1
@@ -609,6 +608,38 @@ class BzzoiroClient(EvidenceRequestMixin, BaseAPIClient):
                         "parser_version": STATISTICS_PARSER_VERSION,
                     }
                 )
+
+        # Half splits (docs/PLAN_BOGATE_STATYSTYKI.md Faza 3, sonda 2026-08-31:
+        # verified live on Lyon 1-2 Fenerbahçe, event 587706). Normalized names
+        # get a "_1h"/"_2h" tag rather than reusing the full-match name, so a
+        # half-split value can never collide with (or silently overwrite) the
+        # full-match figure the block above already produced.
+        for half_key, period in (("first_half", "1h"), ("second_half", "2h")):
+            half_block = stats.get(half_key)
+            if not isinstance(half_block, dict):
+                continue
+            for side in ("home", "away"):
+                side_stats = half_block.get(side)
+                if not isinstance(side_stats, dict):
+                    continue
+                for raw_name, raw_value in side_stats.items():
+                    mapping = STAT_NAME_MAP.get(raw_name)
+                    if mapping is None:
+                        continue
+                    value = _scalar(raw_value)
+                    if value is None:
+                        continue
+                    stats_rows.append(
+                        {
+                            "provider_match_id": str(event_id),
+                            "side": side,
+                            "raw_stat_name": raw_name,
+                            "normalized_metric_name": f"{mapping[0]}_{period}",
+                            "value": value,
+                            "unit": mapping[1],
+                            "parser_version": STATISTICS_PARSER_VERSION,
+                        }
+                    )
 
         if not stats_rows:
             return self._schema_error(result, "statistics_empty")
@@ -1745,6 +1776,20 @@ def _normalize_event_row(
     away_name = str(row.get("away_team") or "")
     home_goals = row.get("home_score")
     away_goals = row.get("away_score")
+    # Half-time score: a fixture field alongside home_score/away_score on
+    # /events/ and /teams/{id}/fixtures/ rows (verified live, 2026-08-31,
+    # docs/PLAN_BOGATE_STATYSTYKI.md Faza 3 sonda) -- but absent from
+    # head_to_head.recent_matches, so h2h-mode callers never see it, the same
+    # way h2h never gets goals_for/goals_against.
+    home_goals_ht = row.get("home_score_ht")
+    away_goals_ht = row.get("away_score_ht")
+
+    score: dict[str, Any] | None = None
+    if home_goals is not None and away_goals is not None:
+        score = {"home": home_goals, "away": away_goals}
+        if home_goals_ht is not None and away_goals_ht is not None:
+            score["home_ht"] = home_goals_ht
+            score["away_ht"] = away_goals_ht
 
     side = None
     opponent: dict[str, Any] = {"provider_team_id": None, "team_name": None}
@@ -1766,9 +1811,7 @@ def _normalize_event_row(
         "away_team": {"provider_team_id": away_id, "team_name": away_name},
         "opponent": opponent,
         "home_away": side,
-        "score": {"home": home_goals, "away": away_goals}
-        if home_goals is not None and away_goals is not None
-        else None,
+        "score": score,
         "result": result_code,
         "match_status": row.get("status"),
         "competition_provider_id": str(row.get("league_id"))
@@ -1789,6 +1832,20 @@ def _normalize_event_row(
         "is_neutral_ground": bool(row.get("is_neutral_ground")),
         "travel_distance_km": _scalar(row.get("travel_distance_km")),
         "weather": row.get("weather") if isinstance(row.get("weather"), dict) else None,
+        # Stakes context, same "already in the row, costs nothing" reasoning
+        # as the block above. round_name/group_name are the provider's own
+        # free-text label ("" on every plain league fixture verified live
+        # 2026-08-31) and previous_leg_event_id points at the first leg of a
+        # two-legged tie -- reading which side trails needs a follow-up call
+        # to that event, so this is plumbing for the analyst to act on live,
+        # not a value this pipeline resolves itself.
+        "round_name": str(row.get("round_name")) if row.get("round_name") else None,
+        "group_name": str(row.get("group_name")) if row.get("group_name") else None,
+        "previous_leg_event_id": (
+            str(row.get("previous_leg_event_id"))
+            if row.get("previous_leg_event_id") is not None
+            else None
+        ),
         "source_order": source_order,
     }
 

@@ -6,8 +6,9 @@ from bet.simple_stats.analyze import (
     _cross_provider_agreement,
     analyze_dossier,
     compute_hit_rate,
+    limit_rows_per_event,
 )
-from bet.simple_stats.contracts import EventDossierV1, MetricObservation, ProviderValue
+from bet.simple_stats.contracts import EventDossierV1, MetricObservation, ProviderValue, StatsSheetRow
 
 
 def _pv(provider, value, match_date, opponent="Opponent FC", match_id="m"):
@@ -54,6 +55,162 @@ def test_all_standard_lines_tested():
     for line in corners_market["lines"]:
         assert (line, "OVER") in seen
         assert (line, "UNDER") in seen
+
+
+def test_goals_total_rows_cover_every_standard_line():
+    """docs/PLAN_BOGATE_STATYSTYKI.md Faza 1: goals_total is a match-total
+    metric exactly like corners_total, so it must produce a row on every line
+    STANDARD_MARKET_LINES prices for it -- 0.5 and 4.5 included, the two
+    lines this family did not have before Faza 1 extended the grid."""
+    values = [0.0, 1.0, 2.0, 2.0, 3.0, 3.0, 4.0, 5.0]
+    obs = MetricObservation(
+        canonical_name="goals_total",
+        team_a_l10=[_pv("bzzoiro", v, f"2026-01-{i + 1:02d}", match_id=f"g{i}") for i, v in enumerate(values)],
+    )
+    dossier = EventDossierV1(
+        event_id="evt-goals", sport="football", metrics={"goals_total": obs},
+        readiness="READY", data_gaps=[],
+    )
+
+    rows = analyze_dossier(dossier)
+    goals_market = next(m for m in STANDARD_MARKET_LINES["football"] if m["market"] == "Goals Total")
+    assert goals_market["lines"] == [0.5, 1.5, 2.5, 3.5, 4.5]
+
+    seen = {(r.line, r.direction) for r in rows if r.market == "goals_total"}
+    for line in goals_market["lines"]:
+        assert (line, "OVER") in seen
+        assert (line, "UNDER") in seen
+
+
+def test_half_goals_rows_are_their_own_match_total_markets():
+    """docs/PLAN_BOGATE_STATYSTYKI.md Faza 3: goals_1h_total/goals_2h_total
+    are ordinary match-total metrics once collected, exactly like
+    goals_total -- ANALYZE needs no special case for them."""
+    values = [0.0, 0.0, 1.0, 1.0, 2.0]
+    obs = MetricObservation(
+        canonical_name="goals_2h_total",
+        team_a_l10=[_pv("bzzoiro", v, f"2026-01-{i + 1:02d}", match_id=f"h{i}") for i, v in enumerate(values)],
+    )
+    dossier = EventDossierV1(
+        event_id="evt-half-goals", sport="football", metrics={"goals_2h_total": obs},
+        readiness="READY", data_gaps=[],
+    )
+
+    rows = analyze_dossier(dossier)
+    market = next(m for m in STANDARD_MARKET_LINES["football"] if m["market"] == "Goals 2H Total")
+    assert market["lines"] == [0.5]
+
+    over_05 = next(r for r in rows if r.market == "goals_2h_total" and r.line == 0.5 and r.direction == "OVER")
+    assert (over_05.hits, over_05.sample_size) == (3, 5)
+    assert not [r for r in rows if r.market == "goals_1h_total"]
+
+
+def test_team_goals_rows_are_two_separate_samples_per_side():
+    """Team Goals reads goals_for exactly the way Team Corners reads
+    corners_for: two independent per-team samples, told apart by team_name,
+    never pooled into one match-level number."""
+    team_a_values = [1.0, 1.0, 2.0, 0.0, 3.0]
+    team_b_values = [0.0, 0.0, 1.0, 1.0, 2.0]
+    obs = MetricObservation(
+        canonical_name="goals_for",
+        team_a_l10=[_pv("bzzoiro", v, f"2026-02-{i + 1:02d}", match_id=f"a{i}") for i, v in enumerate(team_a_values)],
+        team_b_l10=[_pv("bzzoiro", v, f"2026-03-{i + 1:02d}", match_id=f"b{i}") for i, v in enumerate(team_b_values)],
+    )
+    dossier = EventDossierV1(
+        event_id="evt-team-goals", sport="football", metrics={"goals_for": obs},
+        team_a_name="Team A", team_b_name="Team B",
+        readiness="READY", data_gaps=[],
+    )
+
+    rows = analyze_dossier(dossier)
+    team_goals_rows = [r for r in rows if r.market == "goals_for"]
+    assert team_goals_rows
+    assert {r.team_name for r in team_goals_rows} == {"Team A", "Team B"}
+    over_05_a = next(r for r in team_goals_rows if r.team_name == "Team A" and r.line == 0.5 and r.direction == "OVER")
+    assert over_05_a.sample_size == 5
+    assert over_05_a.hits == 4  # everything but the 0.0
+
+
+def test_shots_total_rows_cover_every_standard_line():
+    """docs/PLAN_BOGATE_STATYSTYKI.md Faza 2: shots_total was already collected
+    (PRIORITY_METRICS) and priced per-team as Team Shots, but had no
+    match-total market -- Superbet's own screenshots showed one."""
+    values = [18.0, 20.0, 22.0, 24.0, 26.0, 28.0, 30.0, 21.0]
+    obs = MetricObservation(
+        canonical_name="shots_total",
+        team_a_l10=[_pv("bzzoiro", v, f"2026-01-{i + 1:02d}", match_id=f"s{i}") for i, v in enumerate(values)],
+    )
+    dossier = EventDossierV1(
+        event_id="evt-shots", sport="football", metrics={"shots_total": obs},
+        readiness="READY", data_gaps=[],
+    )
+
+    rows = analyze_dossier(dossier)
+    shots_market = next(m for m in STANDARD_MARKET_LINES["football"] if m["market"] == "Shots Total")
+    assert shots_market["lines"] == [19.5, 22.5, 25.5, 28.5]
+
+    seen = {(r.line, r.direction) for r in rows if r.market == "shots_total"}
+    for line in shots_market["lines"]:
+        assert (line, "OVER") in seen
+        assert (line, "UNDER") in seen
+
+
+def test_offsides_and_red_cards_rows_are_priced():
+    """Faza 2: offsides_total and red_cards_total were collected (highlightly,
+    bzzoiro) but never had a STANDARD_MARKET_LINES entry, so no row was ever
+    emitted for either. Both are match totals like corners_total."""
+    offsides_values = [1.0, 2.0, 3.0, 2.0, 4.0, 1.0]
+    red_card_values = [0.0, 0.0, 1.0, 0.0, 0.0, 0.0]
+    offsides_obs = MetricObservation(
+        canonical_name="offsides_total",
+        team_a_l10=[_pv("highlightly", v, f"2026-01-{i + 1:02d}", match_id=f"o{i}") for i, v in enumerate(offsides_values)],
+    )
+    red_cards_obs = MetricObservation(
+        canonical_name="red_cards_total",
+        team_a_l10=[_pv("bzzoiro", v, f"2026-01-{i + 1:02d}", match_id=f"r{i}") for i, v in enumerate(red_card_values)],
+    )
+    dossier = EventDossierV1(
+        event_id="evt-offsides-reds",
+        sport="football",
+        metrics={"offsides_total": offsides_obs, "red_cards_total": red_cards_obs},
+        readiness="READY", data_gaps=[],
+    )
+
+    rows = analyze_dossier(dossier)
+
+    offsides_market = next(m for m in STANDARD_MARKET_LINES["football"] if m["market"] == "Total Offsides")
+    seen_offsides = {(r.line, r.direction) for r in rows if r.market == "offsides_total"}
+    for line in offsides_market["lines"]:
+        assert (line, "OVER") in seen_offsides
+        assert (line, "UNDER") in seen_offsides
+
+    red_cards_market = next(m for m in STANDARD_MARKET_LINES["football"] if m["market"] == "Total Red Cards")
+    assert red_cards_market["lines"] == [0.5]
+    red_card_row = next(r for r in rows if r.market == "red_cards_total" and r.direction == "UNDER")
+    assert red_card_row.hits == 5  # everything but the one red card
+
+
+def test_team_offsides_rows_are_two_separate_samples_per_side():
+    """Team Offsides reads offsides_for the way Team Corners reads
+    corners_for -- bzzoiro's /events/{id}/stats/ already carries the
+    home/away split that offsides_total is summed from."""
+    team_a_values = [1.0, 2.0, 1.0, 3.0, 0.0]
+    team_b_values = [2.0, 1.0, 2.0, 1.0, 3.0]
+    obs = MetricObservation(
+        canonical_name="offsides_for",
+        team_a_l10=[_pv("bzzoiro", v, f"2026-02-{i + 1:02d}", match_id=f"a{i}") for i, v in enumerate(team_a_values)],
+        team_b_l10=[_pv("bzzoiro", v, f"2026-03-{i + 1:02d}", match_id=f"b{i}") for i, v in enumerate(team_b_values)],
+    )
+    dossier = EventDossierV1(
+        event_id="evt-team-offsides", sport="football", metrics={"offsides_for": obs},
+        team_a_name="Team A", team_b_name="Team B",
+        readiness="READY", data_gaps=[],
+    )
+
+    rows = analyze_dossier(dossier)
+    team_offsides_rows = [r for r in rows if r.market == "offsides_for"]
+    assert team_offsides_rows
+    assert {r.team_name for r in team_offsides_rows} == {"Team A", "Team B"}
 
 
 def test_blocked_dossier_never_reaches_analyze():
@@ -503,3 +660,31 @@ def test_undated_observations_are_not_collapsed():
     ]
     row = _corners_row(_corners_dossier(observations))
     assert row.sample_size == 4
+
+
+def _row(event_id: str, p_low: float, market: str = "corners_total") -> StatsSheetRow:
+    return StatsSheetRow(
+        event_id=event_id, sport="football", market=market, line=9.5, direction="OVER",
+        hits=8, sample_size=10, hit_rate=0.8, p_low=p_low, mean=10.0, median=10.0,
+        cross_provider_agreement="AGREE", confidence="HIGH", data_quality="READY",
+    )
+
+
+def test_limit_rows_per_event_keeps_the_strongest_rows_seen_first():
+    """docs/PLAN_BOGATE_STATYSTYKI.md Faza 2 sizing guard: rows arrive
+    strongest-p_low-first (as analyze_dossiers leaves them), so capping per
+    event must keep the first N seen for that event_id and drop the rest,
+    regardless of any other event's rows interleaved between them."""
+    rows = [
+        _row("evt-a", 0.90), _row("evt-b", 0.85), _row("evt-a", 0.80),
+        _row("evt-a", 0.70), _row("evt-b", 0.65), _row("evt-a", 0.60),
+    ]
+    kept = limit_rows_per_event(rows, max_per_event=2)
+    assert [(r.event_id, r.p_low) for r in kept] == [
+        ("evt-a", 0.90), ("evt-b", 0.85), ("evt-a", 0.80), ("evt-b", 0.65),
+    ]
+
+
+def test_limit_rows_per_event_unlimited_by_default():
+    rows = [_row("evt-a", 0.90), _row("evt-a", 0.80), _row("evt-a", 0.70)]
+    assert limit_rows_per_event(rows, max_per_event=None) == rows

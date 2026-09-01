@@ -43,6 +43,21 @@ from pydantic import Field
 
 Tier = Literal["CALL", "LEAN", "WEAK", "DROP"]
 
+# One step down, both directions structural rather than about the numbers --
+# same shape as the SINGLE_SOURCE/DISAGREE and predicted-lineup ceilings below.
+# A row already at WEAK stays WEAK: context can argue a real read down to
+# marginal, never all the way to DROP, which is reserved for a sample too thin
+# to mean anything at all.
+_STEP_DOWN: dict[Tier, Tier] = {"CALL": "LEAN", "LEAN": "WEAK"}
+
+
+def step_tier_down(tier: Tier) -> Tier:
+    """One tier step down, never past WEAK. Shared by ``tier_for_row``'s own
+    ``context_flags`` ceiling and ``coupons.build_coupons``'s analyst-veto
+    DOWNGRADE action (docs/PLAN_BOGATE_STATYSTYKI.md Faza 5e) -- one rule,
+    reused, rather than the same mapping written twice."""
+    return _STEP_DOWN.get(tier, tier)
+
 # Margin over fair odds, by tier. A CALL is corroborated and reasonably sampled,
 # so it needs less headroom than a LEAN carrying a structural caveat. Both are
 # above 1.0 because ``p_low`` is already an optimistic floor: its trials are not
@@ -60,6 +75,9 @@ _CORRELATED_FOOTBALL_FAMILY = frozenset(
         "fouls_total", "fouls_for",
         "shots_total", "shots_for",
         "shots_on_target_total", "shots_on_target_for",
+        "goals_total", "goals_for",
+        "goals_1h_total", "goals_2h_total",
+        "offsides_total", "offsides_for", "red_cards_total",
         "player_total_shots", "player_shots_on_target",
         "player_fouls", "player_was_fouled", "player_cards",
     }
@@ -86,6 +104,13 @@ class BetBuilderLeg(StrictBaseModel):
     # not enter fair_odds or min_acceptable_odds, both of which come from p_low
     # and nothing else.
     market_verdict: str | None = None
+    # The operator's own book (SUPERBET, 2026-08-31). ``superbet_availability``
+    # is the field that matters: a leg whose line is not on Superbet's ladder
+    # cannot go in the slip at any price, and before this existed it went in
+    # looking exactly like a leg that could.
+    superbet_availability: str | None = None
+    superbet_price: float | None = None
+    superbet_nearest_line: float | None = None
     caveats: list[str] = Field(default_factory=list)
 
 
@@ -134,6 +159,12 @@ def tier_for_row(row: StatsSheetRow) -> Tier:
         tier = "LEAN" if tier == "CALL" else tier
     if row.player_id and (row.lineup_status or "") != "confirmed":
         tier = "LEAN" if tier == "CALL" else tier
+    # Context (referee, injuries, form, derby, weather) may argue a row down,
+    # never up and never into p_low itself -- see contracts.ContextFlag. One
+    # step regardless of how many flags fired: a fixture is not worse for
+    # having two reasons to doubt it than for having one.
+    if any(flag.direction == "ARGUES_AGAINST" for flag in row.context_flags):
+        tier = step_tier_down(tier)
     return tier
 
 
@@ -228,7 +259,7 @@ def draft_legs(
         risk = "HIGH"
         note = (
             f"{len(correlated)} of {len(legs)} legs are from the correlated "
-            "football family (corners/cards/fouls/shots in one match): a "
+            "football family (corners/cards/fouls/shots/goals in one match): a "
             "foul-heavy match is a card-heavy match, so these land together far "
             "more often than independence implies. The combination is therefore "
             "less unlikely than the legs suggest -- and Superbet's own Bet "
