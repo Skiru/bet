@@ -33,6 +33,7 @@ from bet.simple_stats.superbet_offer import (
     attach_superbet_column,
     build_event_offer,
     classify_market,
+    classify_player_market,
     collect_superbet_offer,
     compare_sheet_to_offer,
     default_window,
@@ -731,22 +732,30 @@ def test_a_matched_fixture_pricing_nothing_is_not_a_market_gap():
     assert result.rows[0].verdict == "OFFER_EMPTY"
 
 
-def test_player_props_are_our_limitation_not_the_books():
-    """Superbet prices player props heavily; we do not read them.
+def test_a_prop_the_book_does_not_price_for_this_player_is_ours_to_report():
+    """Superbet prices player props heavily and this pipeline reads them now.
 
-    Reporting that as MARKET_NOT_OFFERED overstated the book's coverage gap by
-    a factor of three and pointed the operator at the wrong party.
+    The row below has no matching Superbet player string, so the answer is
+    PLAYER_NOT_MATCHED -- our join failing -- and never MARKET_NOT_OFFERED,
+    which would blame the book for a gap that is ours.
     """
     row = make_row(market="player_total_shots", line=1.5, player_name="Alef Manga",
                    player_id="p1", lineup_status="predicted")
     result = _compare([row], [sb_line()])
-    assert result.rows[0].verdict == "SCOPE_NOT_SUPPORTED"
+    assert result.rows[0].verdict == "PLAYER_NOT_MATCHED"
 
 
-def test_scope_not_supported_wins_even_with_no_fixture_matched():
-    """The reason is ours whether or not the book has the fixture."""
+def test_a_caller_that_passes_no_alias_map_still_gets_the_old_answer():
+    """``lookup_line`` must not start blaming the book just because a caller
+    has not been taught to resolve players yet."""
     assert lookup_line(None, market="player_fouls", line=1.5, direction="UNDER",
                        team_name=None)[0] == "SCOPE_NOT_SUPPORTED"
+
+
+def test_player_market_with_an_alias_map_but_no_fixture_is_not_matched():
+    assert lookup_line(None, market="player_fouls", line=1.5, direction="UNDER",
+                       team_name=None, player_name="X",
+                       player_aliases={})[0] == "EVENT_NOT_MATCHED"
 
 
 @pytest.mark.parametrize(
@@ -881,8 +890,34 @@ def test_real_payload_maps_the_markets_the_sheet_prices():
     # And the traps stay out.
     assert not any("obramowanie" in line.source_market_name.lower() for line in lines)
     assert not any(";" in line.source_market_name for line in lines)
-    assert not any("Zawodnik" in line.source_market_name for line in lines)
     assert unmapped == [] or all("liczba" in name.lower() for name in unmapped)
+
+
+def test_real_payload_reads_the_player_market_it_carries():
+    """The same captured fixture carries "Zawodnik - liczba strzałów", which
+    this stage refused to read until 2026-09-01. Superbet's own spelling is
+    kept verbatim; resolving it to one of our players happens elsewhere."""
+    raw = json.loads(REAL_PAYLOAD.read_text(encoding="utf-8"))
+    lines, _ = normalize_lines(raw, team_names=("Remo", "Coritiba"))
+    props = [line for line in lines if line.market == "player_total_shots"]
+    assert props, "the captured payload has player shot lines"
+    assert {line.player_name for line in props} == {"Ze Ivaldo"}
+    assert {line.line for line in props} == {0.5, 1.5}
+    # A prop names a player, never a side.
+    assert all(line.team_name is None for line in props)
+
+
+def test_shot_sub_populations_never_become_a_plain_shot_prop():
+    """Superbet splits player shots by body part; bzzoiro does not. Pricing
+    "shots with the head" off a total-shots sample is the woodwork trap wearing
+    a different name."""
+    for market_name in (
+        "Zawodnik - liczba strzałów głową",
+        "Zawodnik - liczba celnych strzałów lewą nogą",
+        "Zawodnik - liczba strzałów spoza pola karnego",
+    ):
+        assert classify_player_market(market_name) is None
+        assert classify_market(market_name) is None
 
 
 def test_real_payload_prices_are_verbatim_decimals():

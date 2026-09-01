@@ -11,6 +11,11 @@ from bet.stats.market_ranking import player_prop_lines, standard_market_lines
 
 from bet.simple_stats.providers import _normalize_team_name, _team_matches
 from bet.simple_stats.context_flags import context_flags_for_row
+from bet.simple_stats.offered_lines import (
+    MAX_OFFERED_LINES_PER_SAMPLE,
+    OfferedLines,
+    select_lines,
+)
 
 from bet.simple_stats.contracts import (
     PERCENTAGE_METRICS,
@@ -502,6 +507,7 @@ def _rows_for_sample(
     player_id: str | None = None,
     player_name: str | None = None,
     lineup_status: str | None = None,
+    line_limit: int | None = None,
 ) -> list[StatsSheetRow]:
     """Every (line x direction) row for one sample of one metric.
 
@@ -528,7 +534,13 @@ def _rows_for_sample(
     median = statistics.median(values)
 
     rows: list[StatsSheetRow] = []
-    for line in lines:
+    # Trimming happens here, not at the call site, because it is measured
+    # against this sample's own median and nothing upstream has computed one.
+    # ``line_limit`` is set only for offer-driven ladders: Superbet posts up to
+    # sixteen corner lines where the static grid had seven, and the ones four
+    # goals clear of anything the sample ever produced yield 22/22 and a p_low
+    # that means nothing.
+    for line in select_lines(lines, median=median, limit=line_limit):
         for direction in ("OVER", "UNDER"):
             hits, sample_size, pushes = compute_hit_rate(values, float(line), direction)
             if sample_size == 0:
@@ -565,7 +577,36 @@ def _rows_for_sample(
     return rows
 
 
-def _match_total_rows(dossier: EventDossierV1) -> list[StatsSheetRow]:
+def _resolve_lines(
+    offered: OfferedLines | None,
+    *,
+    event_id: str,
+    market: str,
+    static: list[float],
+    team_name: str | None = None,
+    player_name: str | None = None,
+) -> tuple[list[float], int | None]:
+    """``(lines, limit)`` for one sample: the book's ladder, or the static grid.
+
+    The whole inversion described in ``offered_lines`` lands here. When a
+    SUPERBET offer is loaded and carries this exact (event, market, side,
+    player), those are the lines that get priced -- because they are the only
+    lines the operator can take. Otherwise the static grid, unchanged and
+    untrimmed, so a run with no SUPERBET step produces the sheet it always did.
+    """
+    if offered is not None:
+        posted = offered.lines_for(
+            event_id=event_id, market=market,
+            team_name=team_name, player_name=player_name,
+        )
+        if posted:
+            return (list(posted), MAX_OFFERED_LINES_PER_SAMPLE)
+    return (list(static), None)
+
+
+def _match_total_rows(
+    dossier: EventDossierV1, offered: OfferedLines | None = None
+) -> list[StatsSheetRow]:
     rows: list[StatsSheetRow] = []
     for market_def in standard_market_lines().get(dossier.sport, []):
         if not market_def.get("is_combined", False):
@@ -576,11 +617,16 @@ def _match_total_rows(dossier: EventDossierV1) -> list[StatsSheetRow]:
         obs = dossier.metrics.get(canonical)
         if obs is None:
             continue
+        lines, limit = _resolve_lines(
+            offered, event_id=dossier.event_id, market=canonical,
+            static=market_def["lines"],
+        )
         rows.extend(
             _rows_for_sample(
                 dossier=dossier,
                 canonical=canonical,
-                lines=market_def["lines"],
+                lines=lines,
+                line_limit=limit,
                 observations=_all_values(obs),
                 independent=_independent_match_sample(
                     obs, dossier.team_a_name, dossier.team_b_name, dossier.sport
@@ -590,7 +636,9 @@ def _match_total_rows(dossier: EventDossierV1) -> list[StatsSheetRow]:
     return rows
 
 
-def _team_total_rows(dossier: EventDossierV1) -> list[StatsSheetRow]:
+def _team_total_rows(
+    dossier: EventDossierV1, offered: OfferedLines | None = None
+) -> list[StatsSheetRow]:
     """Per-team rows: one team's own contribution, not the match total.
 
     The two sides are analysed as **two separate samples**, never merged. The
@@ -623,11 +671,16 @@ def _team_total_rows(dossier: EventDossierV1) -> list[StatsSheetRow]:
         ):
             if not bucket or not team_name:
                 continue
+            lines, limit = _resolve_lines(
+                offered, event_id=dossier.event_id, market=canonical,
+                static=market_def["lines"], team_name=team_name,
+            )
             rows.extend(
                 _rows_for_sample(
                     dossier=dossier,
                     canonical=canonical,
-                    lines=market_def["lines"],
+                    lines=lines,
+                    line_limit=limit,
                     observations=_dedup(bucket),
                     independent=_one_per_day(bucket, dossier.sport),
                     team_name=team_name,
@@ -653,7 +706,9 @@ def _unavailable_player_ids(dossier: EventDossierV1) -> set[str]:
     return ids
 
 
-def _player_prop_rows(dossier: EventDossierV1) -> list[StatsSheetRow]:
+def _player_prop_rows(
+    dossier: EventDossierV1, offered: OfferedLines | None = None
+) -> list[StatsSheetRow]:
     """Per-player rows from ``dossier.player_metrics``.
 
     Every row carries ``lineup_status`` from the dossier, because the sample says
@@ -675,11 +730,16 @@ def _player_prop_rows(dossier: EventDossierV1) -> list[StatsSheetRow]:
     for market_def in player_prop_lines().get(dossier.sport, []):
         canonical = market_def["stat"]
         for observation in by_stat.get(canonical, []):
+            lines, limit = _resolve_lines(
+                offered, event_id=dossier.event_id, market=canonical,
+                static=market_def["lines"], player_name=observation.player_name,
+            )
             rows.extend(
                 _rows_for_sample(
                     dossier=dossier,
                     canonical=canonical,
-                    lines=market_def["lines"],
+                    lines=lines,
+                    line_limit=limit,
                     observations=_dedup(observation.l10),
                     independent=_one_per_day(observation.l10, dossier.sport),
                     team_name=side_names.get(observation.team_side),
@@ -691,7 +751,9 @@ def _player_prop_rows(dossier: EventDossierV1) -> list[StatsSheetRow]:
     return rows
 
 
-def analyze_dossier(dossier: EventDossierV1) -> list[StatsSheetRow]:
+def analyze_dossier(
+    dossier: EventDossierV1, offered: OfferedLines | None = None
+) -> list[StatsSheetRow]:
     """STATS_SHEET_V1 rows for one event. BLOCKED dossiers never enter
     ANALYZE (section 2).
 
@@ -700,20 +762,28 @@ def analyze_dossier(dossier: EventDossierV1) -> list[StatsSheetRow]:
     row has ``team_name`` only, a prop has both. They share one event_id and one
     ranking key, so a consumer that wants them separately can group on those
     fields and one that wants the day's strongest read can just sort.
+
+    ``offered`` is the SUPERBET ladder for the day, when one was loaded. Where it
+    covers a sample, its lines replace the static grid -- a line the operator
+    cannot take is not a bet, however well evidenced. Omitting it is not a
+    degraded mode: it is the sheet this function produced before the book was
+    ever read, byte for byte.
     """
     if dossier.readiness == "BLOCKED":
         return []
     return [
-        *_match_total_rows(dossier),
-        *_team_total_rows(dossier),
-        *_player_prop_rows(dossier),
+        *_match_total_rows(dossier, offered),
+        *_team_total_rows(dossier, offered),
+        *_player_prop_rows(dossier, offered),
     ]
 
 
-def analyze_dossiers(dossier_list: EventDossierListV1) -> StatsSheetV1:
+def analyze_dossiers(
+    dossier_list: EventDossierListV1, offered: OfferedLines | None = None
+) -> StatsSheetV1:
     rows: list[StatsSheetRow] = []
     for dossier in dossier_list.dossiers:
-        rows.extend(analyze_dossier(dossier))
+        rows.extend(analyze_dossier(dossier, offered))
     # p_low first, tier second. Sorting on -hit_rate inside a confidence tier
     # reproduced the very inversion p_low exists to prevent: a 4/4 row (hit_rate
     # 1.00, p_low 0.51) outranked a 9/12 row (0.75, 0.58) whenever both landed

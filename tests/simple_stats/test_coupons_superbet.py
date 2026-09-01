@@ -378,7 +378,9 @@ def test_a_kicked_off_fixture_is_labelled_as_the_clock_not_a_missing_market():
     assert coupons.singles[0].superbet_availability == "OFFER_EMPTY"
 
 
-def test_player_props_are_labelled_as_our_limitation():
+def test_a_prop_whose_player_the_book_does_not_price_is_labelled_as_ours():
+    """The coupon reads props now. When Superbet has the fixture but not this
+    player, the label is PLAYER_NOT_MATCHED -- our join, not the book's gap."""
     coupons = build_coupons(
         _sheet(_row(market="player_total_shots", line=1.5, direction="UNDER",
                     player_name="Alef Manga", player_id="p1",
@@ -386,4 +388,24 @@ def test_player_props_are_labelled_as_our_limitation():
         _events(_event()),
         superbet_offer=_offer(_line()),
     )
-    assert coupons.singles[0].superbet_availability == "SCOPE_NOT_SUPPORTED"
+    assert coupons.singles[0].superbet_availability == "PLAYER_NOT_MATCHED"
+
+
+def test_a_prop_the_book_prices_reaches_the_coupon_with_that_price():
+    """The whole point of Faza 2: before this, no player prop could carry a
+    price on the coupon at any line, because the lookup refused to try."""
+    prop_line = SuperbetLine(
+        market="player_total_shots", line=1.5, direction="UNDER",
+        player_name="Manga, Alef", price=2.10,
+        source_market_name="Zawodnik - liczba strzałów",
+        source_outcome_name="Manga, Alef - poniżej 1.5",
+    )
+    coupons = build_coupons(
+        _sheet(_row(market="player_total_shots", line=1.5, direction="UNDER",
+                    player_name="Alef Manga", player_id="p1",
+                    lineup_status="confirmed")),
+        _events(_event()),
+        superbet_offer=_offer(prop_line),
+    )
+    assert coupons.singles[0].superbet_availability == "OFFERED"
+    assert coupons.singles[0].superbet_price == 2.10

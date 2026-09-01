@@ -31,6 +31,7 @@ from agent_output import AgentOutput, add_agent_args  # noqa: E402
 
 from bet.db.connection import get_db  # noqa: E402
 from bet.simple_stats.analyze import analyze_dossiers, limit_rows_per_event  # noqa: E402
+from bet.simple_stats.offered_lines import OfferedLines  # noqa: E402
 from bet.simple_stats.artifact_io import sha256_file, write_json_atomic  # noqa: E402
 from bet.simple_stats.contracts import (  # noqa: E402
     EventDossierListV1,
@@ -51,6 +52,38 @@ from bet.simple_stats.run_context import record_run  # noqa: E402
 from bet.simple_stats.tipster_signal import attach_tipster_column  # noqa: E402
 
 STEP = "simple_stats:ANALYZE"
+
+
+def _load_superbet_offer(args, out, betting_date: str):
+    """``(offer, error)`` for the SUPERBET artifact, or ``(None, None)``.
+
+    Loaded once and early. Two consumers need the same object: the line grid
+    ANALYZE prices against, and the ``superbet`` column attached afterwards.
+    Reading the file twice would let a line and its price come from two
+    different fetches of a ladder that moves.
+    """
+    if not args.superbet_offer:
+        return (None, None)
+    offer_path = Path(args.superbet_offer)
+    try:
+        offer = SuperbetOfferV1.model_validate_json(offer_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        out.warning(
+            f"superbet offer unusable, continuing without the column: {exc}",
+            path=str(offer_path),
+        )
+        return (None, str(exc))
+    # Same date guard the other two columns carry, and it matters more here:
+    # yesterday's price for a market that has since been re-laddered looks
+    # exactly like today's, and the operator bets from it.
+    if offer.date and offer.date != betting_date:
+        out.error(
+            f"superbet offer is for {offer.date}, not {betting_date} -- refusing to attach it",
+            recoverable=True,
+            path=str(offer_path),
+        )
+        return (None, f"date_mismatch:{offer.date}!={betting_date}")
+    return (offer, None)
 
 
 def main() -> None:
@@ -105,8 +138,32 @@ def main() -> None:
     betting_date = dossier_list.date or dossier_path.stem.replace("_event_dossiers", "")
     out.event("run_start", run_id=run_id, date=betting_date, dossiers=len(dossier_list.dossiers))
 
+    # The offer is loaded *before* the sheet is built, not after, because it now
+    # decides which lines the sheet has rows for at all -- see
+    # bet.simple_stats.offered_lines. The same object is reused further down to
+    # fill the `superbet` column, so a row's line and its price can never come
+    # from two different fetches.
+    offer, superbet_load_error = _load_superbet_offer(args, out, betting_date)
+    offered = OfferedLines.from_offer(
+        offer,
+        player_names_by_event={
+            dossier.event_id: [
+                observation.player_name
+                for observation in dossier.player_metrics
+                if observation.player_name
+            ]
+            for dossier in dossier_list.dossiers
+        },
+    )
+    if offer is not None:
+        out.event(
+            "superbet_lines_loaded",
+            keys=len(offered.by_key),
+            unresolved_players=len(offered.unresolved_players),
+        )
+
     try:
-        stats_sheet = analyze_dossiers(dossier_list)
+        stats_sheet = analyze_dossiers(dossier_list, offered)
     except Exception as exc:
         traceback.print_exc(file=sys.stderr)
         out.error(f"analysis crashed: {exc}", recoverable=False, run_id=run_id)
@@ -227,29 +284,9 @@ def main() -> None:
     superbet_metrics: dict = {"superbet_offer": None}
     if args.superbet_offer:
         offer_path = Path(args.superbet_offer)
-        offer = None
-        try:
-            offer = SuperbetOfferV1.model_validate_json(offer_path.read_text(encoding="utf-8"))
-        except (OSError, ValueError) as exc:
-            out.warning(
-                f"superbet offer unusable, continuing without the column: {exc}",
-                path=str(offer_path),
-            )
-            superbet_metrics["superbet_offer_error"] = str(exc)
-
-        # Same date guard the other two columns carry, and it matters more here:
-        # yesterday's price for a market that has since been re-laddered looks
-        # exactly like today's, and the operator bets from it.
-        if offer is not None and offer.date and offer.date != betting_date:
-            out.error(
-                f"superbet offer is for {offer.date}, not {betting_date} -- refusing to attach it",
-                recoverable=True,
-                path=str(offer_path),
-            )
-            superbet_metrics["superbet_offer_error"] = f"date_mismatch:{offer.date}!={betting_date}"
-            offer = None
-
-        if offer is not None:
+        if offer is None:
+            superbet_metrics["superbet_offer_error"] = superbet_load_error or "unusable"
+        else:
             stats_sheet = attach_superbet_column(stats_sheet, offer)
             availability: dict[str, int] = {}
             for row in stats_sheet.rows:

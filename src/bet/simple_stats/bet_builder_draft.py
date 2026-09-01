@@ -80,6 +80,7 @@ _CORRELATED_FOOTBALL_FAMILY = frozenset(
         "offsides_total", "offsides_for", "red_cards_total",
         "player_total_shots", "player_shots_on_target",
         "player_fouls", "player_was_fouled", "player_cards",
+        "player_tackles", "player_assists", "player_offsides",
     }
 )
 

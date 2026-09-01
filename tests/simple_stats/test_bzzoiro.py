@@ -904,7 +904,9 @@ def test_props_alone_are_partial_so_they_are_not_discarded_at_analyze():
     dossier = _dossier_for_event(_event(), buckets, None, props)
     assert dossier.readiness == "PARTIAL"
     assert dossier.player_metrics
-    assert [r.market for r in analyze_dossier(dossier)] == ["player_total_shots"] * 6
+    # Four lines x two directions: PLAYER_PROP_LINES' fallback grid for shots
+    # widened to 3.5 when Superbet was found to quote that ladder out to 7.5.
+    assert [r.market for r in analyze_dossier(dossier)] == ["player_total_shots"] * 8
 
     # Without props the same empty dossier is still BLOCKED.
     assert _dossier_for_event(_event(), buckets).readiness == "BLOCKED"

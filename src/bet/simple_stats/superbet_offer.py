@@ -61,7 +61,7 @@ from __future__ import annotations
 
 import re
 import unicodedata
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -79,6 +79,7 @@ from bet.simple_stats.contracts import (
     SuperbetLine,
     SuperbetOfferV1,
 )
+from bet.simple_stats.offered_lines import resolve_player_names
 from bet.utils import normalize_team_name
 
 # Same constants the coupon uses. Imported rather than restated so a threshold
@@ -91,18 +92,28 @@ UNBETTABLE_TIERS = frozenset({"WEAK", "DROP"})
 # order and its published time is an estimate. See the module docstring.
 KICKOFF_TOLERANCE_MINUTES = {"football": 45.0, "tennis": 240.0}
 
-# Market families this pipeline knowingly does not read from Superbet, so that
-# "we do not look" is never reported as "the book does not have it". Superbet
-# prices player props heavily -- and under free-text names carrying the player
-# inside the market string ("Carrillo, Guido powyzej 0.5 celnych strzalow"), so
-# joining them to our player ids would be a guess rather than a lookup. On the
-# first live run these were 7,891 of 12,193 supposedly-missing markets.
+# Player-scope markets. These are now **read**, which they were not before
+# 2026-09-01: the original note here said joining Superbet's player strings to
+# our ids "would be a guess rather than a lookup", and on the first live run
+# these were 7,891 of 12,193 supposedly-missing markets. That was true of a
+# day-wide join and false of a per-fixture one -- inside a matched event the
+# candidate set is one squad, and the join refuses rather than guesses when two
+# names fit (``offered_lines.resolve_player_names``).
+#
+# The measured cost of not reading them: 20,852 of the 30,054 rows on the
+# 2026-08-31 sheet were player props, and every one carried
+# ``SCOPE_NOT_SUPPORTED`` -- 69% of the sheet could not reach a coupon at any
+# price. The set is kept as the list of markets whose lines are player-scoped,
+# because ``lookup_line`` still has to key them differently.
 PLAYER_SCOPE_MARKETS = frozenset({
     "player_total_shots",
     "player_shots_on_target",
     "player_fouls",
     "player_was_fouled",
     "player_cards",
+    "player_tackles",
+    "player_assists",
+    "player_offsides",
 })
 
 # --- market-name mapping ---------------------------------------------------
@@ -130,6 +141,38 @@ MATCH_MARKET_NAMES: dict[str, str] = {
     "liczba podwojnych bledow": "double_faults_total",
     "liczba gemow": "total_games",
     "liczba setow": "total_sets",
+}
+
+# Player-scope markets, matched on the *exact* normalised name for the same
+# reason the match table is exact: Superbet ships five sub-population variants
+# of every shot market ("... glowa", "... lewa noga", "... spoza pola karnego")
+# and bzzoiro does not split a player's shots by body part, so a substring rule
+# would price a header prop off a total-shots sample. They are absent from this
+# table and stay banned.
+#
+# "liczba odbiorow na zawodniku" is deliberately **not** here: it is 212
+# outcomes on a big fixture and it is not clear whether it settles on
+# ``challenge_lost``, ``total_contest`` or something else. One settled fixture
+# would decide it; until then it is an unmapped market, which is a diagnostic,
+# rather than a wrong one, which is a bet.
+PLAYER_MARKET_NAMES: dict[str, str] = {
+    "zawodnik - liczba strzalow": "player_total_shots",
+    "zawodnik - liczba celnych strzalow": "player_shots_on_target",
+    "zawodnik - liczba popelnionych fauli": "player_fouls",
+    "zawodnik - liczba fauli na zawodniku": "player_was_fouled",
+    "zawodnik - liczba odbiorow": "player_tackles",
+    "zawodnik - liczba asyst": "player_assists",
+    "zawodnik - liczba spalonych": "player_offsides",
+}
+
+# Player markets Superbet writes as a yes/no rather than an over/under: the
+# outcome name is the player and nothing else. They are the same bet as an
+# "over 0.5" and are normalised to one so the sheet has a single shape.
+# "otrzyma czerwona kartke" is not here -- a straight red is rare enough that a
+# ten-match sample is almost always 0/10, and a p_low off that is noise wearing
+# a number.
+PLAYER_YES_NO_MARKETS: dict[str, tuple[str, float]] = {
+    "zawodnik - otrzyma kartke": ("player_cards", 0.5),
 }
 
 # Team-scope markets. Each entry is (regex over the normalised name, market),
@@ -281,6 +324,59 @@ def classify_market(market_name: str | None) -> tuple[str, str | None] | None:
     return None
 
 
+def classify_player_market(market_name: str | None) -> tuple[str, float | None] | None:
+    """``"Zawodnik - liczba odbiorów"`` -> ``("player_tackles", None)``.
+
+    The second element is a line Superbet does not write into the outcome: it is
+    ``0.5`` for the yes/no markets and None for the over/under ones, where the
+    line comes from the outcome string instead. Consulted before the banned list,
+    like the match table, because every one of these names contains "zawodnik".
+    """
+    folded = fold(market_name)
+    if not folded:
+        return None
+    mapped = PLAYER_MARKET_NAMES.get(folded)
+    if mapped is not None:
+        return (mapped, None)
+    yes_no = PLAYER_YES_NO_MARKETS.get(folded)
+    if yes_no is not None:
+        return yes_no
+    return None
+
+
+def parse_player_outcome(
+    name: str | None, *, forced_line: float | None = None
+) -> tuple[str, str, float] | None:
+    """``"Lodi, Renan - powyżej 0.5"`` -> ``("Lodi, Renan", "OVER", 0.5)``.
+
+    Split on the **last** ``" - "``, not the first: Superbet writes surnames
+    with commas and occasionally with hyphens ("Alves - Santos, Joao"), and the
+    over/under clause is always the tail. The head is returned verbatim, in
+    Superbet's own spelling -- resolving it to one of our players is
+    ``offered_lines``' job and needs the whole squad to do safely.
+
+    With ``forced_line`` set, the entire name is the player and the market is a
+    yes/no ("Zawodnik - otrzyma kartkę"), normalised to OVER at that line.
+    """
+    text = (name or "").strip()
+    if not text:
+        return None
+    if forced_line is not None:
+        # A yes/no outcome carrying an over/under clause would mean Superbet
+        # changed the market's shape; refuse rather than mis-file it.
+        if parse_outcome(text.rsplit(" - ", 1)[-1]) is not None:
+            return None
+        return (text, "OVER", float(forced_line))
+    if " - " not in text:
+        return None
+    head, tail = text.rsplit(" - ", 1)
+    outcome = parse_outcome(tail)
+    if outcome is None or not head.strip():
+        return None
+    direction, line = outcome
+    return (head.strip(), direction, line)
+
+
 # --- normalisation ---------------------------------------------------------
 
 
@@ -347,11 +443,68 @@ def normalize_lines(
     """
     ours = {normalize_team_name(resolve_team_alias(name)): name for name in team_names if name}
     resolve_team = _team_resolver(ours)
-    best: dict[tuple[str, float, str, str | None], SuperbetLine] = {}
+    best: dict[tuple[str, float, str, str | None, str | None], SuperbetLine] = {}
     unmapped: dict[str, None] = {}
+
+    def offer(
+        *,
+        market: str,
+        line: float,
+        direction: str,
+        team_name: str | None,
+        player_name: str | None,
+        price: float,
+        raw: dict[str, Any],
+    ) -> None:
+        slot = (market, line, direction, team_name, player_name)
+        candidate = SuperbetLine(
+            market=market,
+            line=line,
+            direction=direction,
+            team_name=team_name,
+            player_name=player_name,
+            price=price,
+            status=str(raw.get("status") or "active"),
+            source_market_name=str(raw.get("marketName") or ""),
+            source_outcome_name=str(raw.get("name") or ""),
+        )
+        current = best.get(slot)
+        # An active quote always beats a blocked one, whatever the price says.
+        if current is None:
+            best[slot] = candidate
+        elif current.status != "active" and candidate.status == "active":
+            best[slot] = candidate
+        elif current.status == candidate.status and candidate.price > current.price:
+            best[slot] = candidate
+
     for raw in raw_event.get("odds") or []:
         if not isinstance(raw, dict):
             continue
+        try:
+            price = float(raw.get("price"))
+        except (TypeError, ValueError):
+            continue
+        if price <= 1.0:
+            # A price of 1.0 or below cannot be taken and is how Superbet
+            # renders a shut market on lines like "poniżej 6.5 goli".
+            continue
+
+        # Player scope first: its outcome string carries the player *and* the
+        # line ("Lodi, Renan - powyżej 0.5"), so ``parse_outcome`` alone -- which
+        # anchors at the start of the string -- rejects every one of them.
+        player_market = classify_player_market(raw.get("marketName"))
+        if player_market is not None:
+            market, forced_line = player_market
+            parsed = parse_player_outcome(raw.get("name"), forced_line=forced_line)
+            if parsed is None:
+                continue
+            player_text, direction, line = parsed
+            offer(
+                market=market, line=line, direction=direction,
+                team_name=None, player_name=player_text, price=price, raw=raw,
+            )
+            continue
+
         outcome = parse_outcome(raw.get("name"))
         if outcome is None:
             continue
@@ -369,34 +522,11 @@ def normalize_lines(
             team_name = resolve_team(superbet_team)
             if team_name is None:
                 continue
-        try:
-            price = float(raw.get("price"))
-        except (TypeError, ValueError):
-            continue
-        if price <= 1.0:
-            # A price of 1.0 or below cannot be taken and is how Superbet
-            # renders a shut market on lines like "poniżej 6.5 goli".
-            continue
         direction, line = outcome
-        slot = (market, line, direction, team_name)
-        candidate = SuperbetLine(
-            market=market,
-            line=line,
-            direction=direction,
-            team_name=team_name,
-            price=price,
-            status=str(raw.get("status") or "active"),
-            source_market_name=str(raw.get("marketName") or ""),
-            source_outcome_name=str(raw.get("name") or ""),
+        offer(
+            market=market, line=line, direction=direction,
+            team_name=team_name, player_name=None, price=price, raw=raw,
         )
-        current = best.get(slot)
-        # An active quote always beats a blocked one, whatever the price says.
-        if current is None:
-            best[slot] = candidate
-        elif current.status != "active" and candidate.status == "active":
-            best[slot] = candidate
-        elif current.status == candidate.status and candidate.price > current.price:
-            best[slot] = candidate
     return (list(best.values()), sorted(unmapped))
 
 
@@ -673,6 +803,11 @@ def compare_sheet_to_offer(
     """
     events = {e.event_id: e for e in (event_list.events if event_list else [])}
     offers = {o.event_id: o for o in offer.events if o.event_id}
+    our_players: dict[str, set[str]] = {}
+    for sheet_row in stats_sheet.rows:
+        if sheet_row.player_name:
+            our_players.setdefault(sheet_row.event_id, set()).add(sheet_row.player_name)
+    aliases = player_alias_index(offer, our_players)
 
     def identity(event_id: str) -> tuple[str, str]:
         event = events.get(event_id)
@@ -731,13 +866,17 @@ def compare_sheet_to_offer(
             line=row.line,
             direction=row.direction,
             team_name=row.team_name,
+            player_name=row.player_name,
+            player_aliases=aliases.get(row.event_id, {}),
         )
         if event_offer is not None:
+            their_player = aliases.get(row.event_id, {}).get(row.player_name or "")
             for line in event_offer.lines:
                 if (
                     line.market == row.market
                     and line.direction == row.direction
-                    and line.team_name == row.team_name
+                    and line.team_name == (None if row.player_name else row.team_name)
+                    and line.player_name == their_player
                 ):
                     cov["offered_lines"].add(line.line)
 
@@ -966,6 +1105,32 @@ def collect_superbet_offer(
     )
 
 
+def player_alias_index(
+    offer: SuperbetOfferV1,
+    our_names_by_event: Mapping[str, Iterable[str]],
+) -> dict[str, dict[str, str]]:
+    """``{event_id: {our_player_name: superbet_player_name}}``.
+
+    Built once per offer and handed to every ``lookup_line`` call, so a prop
+    resolved for the sheet and the same prop resolved for a coupon leg can never
+    disagree about which human they mean. The direction is ours-to-theirs
+    because that is the direction every caller looks it up in: rows carry our
+    spelling.
+    """
+    index: dict[str, dict[str, str]] = {}
+    for event in offer.events:
+        if not event.event_id:
+            continue
+        theirs = {line.player_name for line in event.lines if line.player_name}
+        if not theirs:
+            continue
+        resolved = resolve_player_names(
+            our_names_by_event.get(event.event_id, ()), theirs
+        )
+        index[event.event_id] = {ours: their for their, ours in resolved.items()}
+    return index
+
+
 def lookup_line(
     event_offer: SuperbetEventOffer | None,
     *,
@@ -973,6 +1138,8 @@ def lookup_line(
     line: float,
     direction: str,
     team_name: str | None,
+    player_name: str | None = None,
+    player_aliases: Mapping[str, str] | None = None,
 ) -> tuple[str, SuperbetLine | None, float | None, float | None]:
     """Resolve one row against one fixture's offer.
 
@@ -980,9 +1147,27 @@ def lookup_line(
     out of the comparison so ANALYZE, ``build_coupons`` and the comparison
     artifact all answer this question with the same code -- three
     implementations of "is this on the screen" would drift within a week.
+
+    ``player_name`` is **our** spelling and ``player_aliases`` is this fixture's
+    ours-to-theirs map from ``player_alias_index``. A player-scope market with no
+    alias map is ``SCOPE_NOT_SUPPORTED``, exactly as before this stage learned to
+    read props -- a caller that has not been taught to pass the map must not
+    start reporting props as missing from the book.
     """
+    superbet_player: str | None = None
     if market in PLAYER_SCOPE_MARKETS:
-        return ("SCOPE_NOT_SUPPORTED", None, None, None)
+        if player_aliases is None:
+            return ("SCOPE_NOT_SUPPORTED", None, None, None)
+        if event_offer is None:
+            return ("EVENT_NOT_MATCHED", None, None, None)
+        superbet_player = player_aliases.get(player_name or "")
+        if superbet_player is None:
+            # Either Superbet does not price this player, or two of our players
+            # fit its string equally well and the join refused. Both are ours.
+            return ("PLAYER_NOT_MATCHED", None, None, None)
+        # A prop names a player, not a side; the side lives on the row for
+        # reporting and must not narrow the ladder.
+        team_name = None
     if event_offer is None:
         return ("EVENT_NOT_MATCHED", None, None, None)
     if not event_offer.lines:
@@ -995,6 +1180,7 @@ def lookup_line(
         if candidate.market == market
         and candidate.direction == direction
         and candidate.team_name == team_name
+        and candidate.player_name == superbet_player
     ]
     if not family:
         return ("MARKET_NOT_OFFERED", None, None, None)
@@ -1020,6 +1206,15 @@ def attach_superbet_column(
     read as a betting decision.
     """
     offers = {event.event_id: event for event in offer.events if event.event_id}
+    # Our spelling of every player the sheet has a row for, per fixture. The
+    # sheet is the right source for this: it is exactly the set of players a
+    # column will be asked about, so a squad member with no prop row cannot
+    # crowd out the join.
+    our_players: dict[str, set[str]] = {}
+    for row in stats_sheet.rows:
+        if row.player_name:
+            our_players.setdefault(row.event_id, set()).add(row.player_name)
+    aliases = player_alias_index(offer, our_players)
     rows: list[StatsSheetRow] = []
     for row in stats_sheet.rows:
         event_offer = offers.get(row.event_id)
@@ -1029,6 +1224,8 @@ def attach_superbet_column(
             line=row.line,
             direction=row.direction,
             team_name=row.team_name,
+            player_name=row.player_name,
+            player_aliases=aliases.get(row.event_id, {}),
         )
         rows.append(
             row.model_copy(

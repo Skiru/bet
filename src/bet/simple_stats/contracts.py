@@ -82,6 +82,11 @@ COUNT_METRICS = frozenset(
         "player_was_fouled",
         # Yellows and reds summed: the prop settles on any card.
         "player_cards",
+        # Faza 2 (docs/PLAN_RYNKI_SUPERBET.md): props Superbet prices and this
+        # pipeline did not, all three counts of discrete events like the rest.
+        "player_tackles",
+        "player_assists",
+        "player_offsides",
         "aces_total",
         "double_faults_total",
         "total_games",
@@ -496,6 +501,7 @@ class SuperbetColumn(StrictBaseModel):
     availability: Literal[
         "OFFERED", "LINE_NOT_OFFERED", "MARKET_NOT_OFFERED", "SUSPENDED",
         "EVENT_NOT_MATCHED", "OFFER_EMPTY", "SCOPE_NOT_SUPPORTED",
+        "PLAYER_NOT_MATCHED",
     ]
     price: float | None = None
     status: str | None = None
@@ -861,12 +867,16 @@ SUPERBET_VERDICTS = Literal[
     # fixtures look like 12,000 missing markets on the first live run.
     "OFFER_EMPTY",
     # A market family this pipeline knowingly does not read from Superbet.
-    # Player props are the whole of it: Superbet prices them under free-text
-    # names like "Carrillo, Guido powyzej 0.5 celnych strzalow", and matching
-    # "Surname, Forename" onto our player ids would be a guess. This is our
-    # limitation, not the book's, and conflating the two overstated the book's
-    # coverage gap by a factor of three.
+    # Until 2026-09-01 player props were the whole of it, which overstated the
+    # book's coverage gap by a factor of three; they are read now. What is left
+    # is the genuinely unreadable: shot sub-populations Superbet splits by body
+    # part and bzzoiro does not, and markets whose settlement rule is unknown.
     "SCOPE_NOT_SUPPORTED",
+    # Superbet prices this prop but its player string could not be joined to one
+    # of ours, or joined to two of ours equally well. Our failure, not the
+    # book's, and separated from SCOPE_NOT_SUPPORTED because this one is fixable
+    # per fixture and shows up as a name in the artifact.
+    "PLAYER_NOT_MATCHED",
 ]
 
 
@@ -883,10 +893,14 @@ class SuperbetLine(StrictBaseModel):
     line: float
     direction: Literal["OVER", "UNDER"]
     # Set when this is a per-team line ("Remo - liczba kartek"), None on a
-    # match total. Player-scope lines are not collected: Superbet names players
-    # "Surname, Forename" inside free-text market names and matching those to
-    # our player ids would be a guess, not a lookup.
+    # match total and on a player prop.
     team_name: str | None = None
+    # Set on a player prop, and holding **Superbet's own spelling** verbatim
+    # ("Lodi, Renan"), never ours. The join to our player ids is a fuzzy,
+    # refusable operation and it happens once, in ``offered_lines``, where both
+    # squads are in hand -- storing a resolved name here would bake one run's
+    # guess into the artifact with no way to audit it afterwards.
+    player_name: str | None = None
     price: float
     status: str = "active"
     # Superbet's own market name, kept verbatim. The mapping from Polish prose

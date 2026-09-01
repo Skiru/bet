@@ -160,6 +160,15 @@ PLAYER_STAT_MAP: dict[str, tuple[str, str]] = {
     "was_fouled": ("player_was_fouled", "count"),
     "yellow_card": ("player_yellow_cards", "count"),
     "red_card": ("player_red_cards", "count"),
+    # Added 2026-09-01, once Superbet was found to price all three per player
+    # ("Zawodnik - liczba odbiorow/asyst/spalonych", 222/76/58 outcomes on one
+    # fixture). Density checked before adding: every one of the last 30 matches
+    # carries a value for each of these fields, for every player sampled -- so
+    # unlike a field that is merely present in the payload, these can actually
+    # fill a ten-match prop sample.
+    "total_tackle": ("player_tackles", "count"),
+    "goal_assist": ("player_assists", "count"),
+    "total_offside": ("player_offsides", "count"),
 }
 
 # ``status`` values that mean the match was played to a result, so

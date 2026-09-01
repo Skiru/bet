@@ -749,6 +749,27 @@ trials are not independent, so `p_low` is an optimistic floor, not a guarantee.*
 OVER and UNDER at one line are complementary (`hits_over + hits_under = n`).
 Report the side the data leans to, once. Reporting both is padding.
 
+### `p_low` is not an edge until a price has been named
+
+`p_low` says how often this has happened. It does not say what the fixture is
+worth, because it conditions on nothing -- not the opponent, not the venue, not
+the day. On 2026-08-31 Brommapojkarna had scored in twelve straight matches and
+17 of 20; the ~88-bookmaker consensus still priced them at 64.3% to score, and
+Superbet was asking 69.9%. Every form signal said take it and it was a 5.6-point
+negative-expectation bet.
+
+So whenever the odds feed carries the market -- 1X2, goals over/under, BTTS --
+devig the consensus and compare, and say which of the two numbers you used.
+Where it does not carry the market (corners, fouls, shots, player props),
+`p_low` is all there is, and it is weaker evidence; say that too.
+
+**Load the `bet-slip-audit` skill before recommending anything with a price on
+it.** It carries the arithmetic (`src/bet/simple_stats/slip_audit.py`,
+`scripts/simple/audit_slip.py`), the market ceilings that let you refuse a slip
+before reading the fixture, and the full 2026-08-30/31 ledger those rules came
+from. Nothing in it overrides the hard rules at the bottom of this file: still
+no combined price, no stake sizing, no placement.
+
 ## Evidence tiers -- assign one to every row, never skip
 
 | Tier | Condition | Phrasing |

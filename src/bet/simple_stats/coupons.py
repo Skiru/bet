@@ -52,7 +52,7 @@ from bet.simple_stats.contracts import (
     StatsSheetV1,
     SuperbetOfferV1,
 )
-from bet.simple_stats.superbet_offer import lookup_line
+from bet.simple_stats.superbet_offer import lookup_line, player_alias_index
 from bet.strict_model import StrictBaseModel
 from bet.utils import normalize_team_name
 
@@ -136,6 +136,9 @@ MARKET_LABELS: dict[str, str] = {
     "player_fouls": "faule zawodnika",
     "player_was_fouled": "faulowany",
     "player_cards": "kartka zawodnika",
+    "player_tackles": "odbiory zawodnika",
+    "player_assists": "asysty zawodnika",
+    "player_offsides": "spalone zawodnika",
     "total_games": "gemy (mecz)",
     "aces_total": "asy (mecz)",
     "total_sets": "sety",
@@ -449,6 +452,17 @@ def build_coupons(
         for offer in (superbet_offer.events if superbet_offer else [])
         if offer.event_id
     }
+    # Superbet spells players its own way, so a prop row cannot find its price
+    # without this. Built from the sheet's own player names -- the exact set the
+    # lookups below will ask about -- and shared by singles and slip legs so the
+    # two can never resolve the same prop to different humans.
+    our_players: dict[str, set[str]] = {}
+    for sheet_row in stats_sheet.rows:
+        if sheet_row.player_name:
+            our_players.setdefault(sheet_row.event_id, set()).add(sheet_row.player_name)
+    player_aliases = (
+        player_alias_index(superbet_offer, our_players) if superbet_offer else {}
+    )
 
     def superbet_for(
         row: StatsSheetRow, minimum: float | None
@@ -466,6 +480,8 @@ def build_coupons(
             line=row.line,
             direction=row.direction,
             team_name=row.team_name,
+            player_name=row.player_name,
+            player_aliases=player_aliases.get(row.event_id, {}),
         )
         verdict: str | None = None
         surplus: float | None = None
@@ -699,6 +715,8 @@ def build_coupons(
                     line=leg.line,
                     direction=leg.direction,
                     team_name=leg.team_name,
+                    player_name=leg.player_name,
+                    player_aliases=player_aliases.get(event_id, {}),
                 )
                 annotated.append(
                     leg.model_copy(

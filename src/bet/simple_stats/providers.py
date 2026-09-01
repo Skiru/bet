@@ -198,6 +198,9 @@ _BZZOIRO_PLAYER_ALIASES = {
     "player_shots_on_target": "player_shots_on_target",
     "player_fouls": "player_fouls",
     "player_was_fouled": "player_was_fouled",
+    "player_tackles": "player_tackles",
+    "player_assists": "player_assists",
+    "player_offsides": "player_offsides",
 }
 # "Player to be Carded" is a bet on *any* card, so a straight red settles it
 # yes. Pricing it off yellows alone would report a carded player as not carded

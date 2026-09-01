@@ -474,14 +474,28 @@ def attach_historical_results(candidates: list, historical_data) -> None:
 # Lines sit low because that is where these markets are actually offered: a
 # forward's shots prop is priced around 1.5-2.5, a midfielder's fouls around
 # 0.5-1.5, and a card prop is a 0.5 line by construction.
+# Faza 2 (docs/PLAN_RYNKI_SUPERBET.md): these are the *fallback* grid now.
+# Where a SUPERBET offer is loaded, ANALYZE prices the lines Superbet actually
+# posts instead (bet.simple_stats.offered_lines) -- which matters here more than
+# anywhere else, because Superbet's player ladders run to 7.5 shots and 5.5
+# fouls-won while this table stopped at 2.5. The widening below is what a run
+# *without* an offer falls back to, so it stays modest: a line no player in the
+# sample ever reached yields 10/10 and a p_low that means nothing.
 PLAYER_PROP_LINES: dict[str, list[dict]] = {
     "football": [
-        {"market": "Player Shots", "lines": [0.5, 1.5, 2.5], "stat": "player_total_shots"},
+        {"market": "Player Shots", "lines": [0.5, 1.5, 2.5, 3.5], "stat": "player_total_shots"},
         {"market": "Player Shots on Target", "lines": [0.5, 1.5, 2.5], "stat": "player_shots_on_target"},
-        {"market": "Player Fouls Committed", "lines": [0.5, 1.5, 2.5], "stat": "player_fouls"},
-        {"market": "Player Fouls Won", "lines": [0.5, 1.5, 2.5], "stat": "player_was_fouled"},
+        {"market": "Player Fouls Committed", "lines": [0.5, 1.5, 2.5, 3.5], "stat": "player_fouls"},
+        {"market": "Player Fouls Won", "lines": [0.5, 1.5, 2.5, 3.5], "stat": "player_was_fouled"},
         # player_cards, not player_yellow_cards: the market settles on any card.
         {"market": "Player to be Carded", "lines": [0.5], "stat": "player_cards"},
+        # New markets, each one a Superbet market with a bzzoiro field behind
+        # it: "Zawodnik - liczba odbiorow" (tackles), "- liczba asyst"
+        # (assists), "- liczba spalonych" (offsides). Assists get one line
+        # because a second assist is rare enough that 0/10 is the usual sample.
+        {"market": "Player Tackles", "lines": [0.5, 1.5, 2.5, 3.5], "stat": "player_tackles"},
+        {"market": "Player Assists", "lines": [0.5], "stat": "player_assists"},
+        {"market": "Player Offsides", "lines": [0.5, 1.5], "stat": "player_offsides"},
     ],
 }
 
