@@ -161,3 +161,71 @@ na dopasowaniu, a 96% reszty na klasyfikacji. Najpierw naprawić lejek.
 5. Dopasowanie tenisa po nazwisku + inicjale
 6. `record()` na ścieżce awaryjnej + absolutna ścieżka atestacji
 7. Naprawa `sportsgambler` (lub jawne oznaczenie jako martwy) — dopiero potem nowe strony
+
+---
+
+# CZĘŚĆ II — Naprawa (commit `a89f058d`)
+
+Operator potwierdził: legacy S0-S10 jest martwy i nieinteresujący. Naprawa więc
+**wyprowadza domenę tipsterów z `bet.pipeline`**, zamiast reperować manifest.
+
+## Co zrobione
+
+**1. Ewakuacja z legacy.** `tipster_parsers`, `tipster_sources`, `tipster_contracts`,
+`tipster_artifacts`, `tipster_opinion_quality` → wszystkie pod `bet/tipsters/`.
+`bet.pipeline` nie zawiera już żadnego modułu tipsterów, a `import bet.tipsters.live`
+nie wciąga **ani jednego** modułu `bet.pipeline`. Sprawdzane testem, nie konwencją.
+
+**2. Test entrypointu** (`tests/tipsters/test_run_tipsters_entrypoint.py`) — uruchamia
+skrypt jako podproces. Zweryfikowane: przy przywróconym starym imporcie **4/4 padają**,
+po usunięciu **4/4 przechodzą**. Tego strażnika nigdy nie było.
+
+**3. Dopasowanie nazw** — nowy `bet/tipsters/matching.py`:
+- fold przez `fold_club_name` (ten sam, którego używa join Superbetu) zamiast NFKD,
+  który zamieniał „Łódź" → „odz"
+- zawieranie tokenów zamiast `SequenceMatcher` („Birmingham" / „Birmingham City")
+- twarde weto na markery rezerw/młodzieży/kobiet — „Barcelona" ≠ „Barcelona B"
+- tenis liczony jak osoby: „Sakkari M." = „Maria Sakkari"
+
+**4. Klasyfikacja roszczeń** — `scope` mapuje teraz na rodzinę wierszy, którą arkusz
+faktycznie drukuje (`corners_for`, `player_shots_on_target`, `goals_1h_total`) i niesie
+**podmiot**, więc roszczenie o faule jednej drużyny trafia w jej wiersz, a nie rywala.
+
+**5. Linie — implikacja zamiast równości.** Arkusz drukuje linie, które faworyzuje jego
+własna statystyka (faule Barracas na 8.5); typer bierze linię bukmachera (13.5). Przy
+równości co do linii kolumna **nigdy** nie mogła nic powiedzieć. Totale są monotoniczne,
+więc „OVER 13.5" **pociąga** „OVER 8.5" i **obala** „UNDER 8.5". To jest ścisłe, nie
+rozmyte — roszczenie albo rozstrzyga wiersz, albo jest odrzucane jako nieinformatywne.
+Pole `exact` mówi, ile poparcia dotyczyło własnej liczby wiersza.
+
+**6. Podział nazw** — `\s*[-–—]\s*` czyniło spacje opcjonalnymi, więc wygrywał pierwszy
+myślnik: „Al-Hilal - Al Ahli" → („Al", „Hilal - Al Ahli").
+
+**7. Drobne** — ścieżka atestacji zakotwiczona w repo (`run_pipeline` jej nie przekazuje,
+więc polegał na cwd); awaria emituje podsumowanie i PARTIAL, jak zawsze obiecywał docstring.
+
+## Wynik (te same picki, żywy slate 2026-09-01)
+
+| | przed | po |
+|---|---|---|
+| dopasowane | 25 / 87 | **59 / 87** |
+| zdarzenia pokryte | 21 | **39** |
+| policzalne roszczenia | 1 | **6** |
+| wiersze z opinią | 0 | **3** |
+| mecze z sentymentem 1X2/BTTS | — | **29 / 39** |
+
+Testy: **1437 przeszło**. Trzy porażki są zastane i niezwiązane (dwie asercje quoty
+w preflight; jeden legacy agregator S2 importujący `bet.pipeline.core_integration_contracts`).
+
+## Sufit, który został — i to nie jest błąd
+
+Oba polskie źródła publikują głównie 1X2/BTTS (42 z 87 picków), a arkusz liczy totale.
+To niedopasowanie **strukturalne**, nie usterka. Te picki nie giną — zasilają `public_lean`
+i 29 z 39 meczów ma teraz zbiorczy sentyment.
+
+Realny wzrost pokrycia wymaga źródeł publikujących **totale i propsy**. Dopiero teraz
+dokładanie stron ma sens — lejek jest naprawiony.
+
+`sportsgambler` jest zatwierdzony i pobiera się czysto, ale jego parser listingu produkuje
+rusztowanie strony zamiast nazw klubów; wyłączenie go z `DEFAULT_LIVE_SOURCE_IDS` jest
+świadome i udokumentowane w `live.py`.
