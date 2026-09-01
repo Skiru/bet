@@ -33,14 +33,15 @@ import json
 import threading
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Literal
-
 from pydantic import Field
 
 from bet.simple_stats.bet_builder_draft import (
+    AnalystVeto,
     BetBuilderDraft,
     Tier,
+    VetoIndex,
     draft_legs,
+    is_trivial_under,
     step_tier_down,
     tier_for_row,
 )
@@ -158,34 +159,23 @@ MARKET_LABELS: dict[str, str] = {
 # reporting something unplaceable.
 MIN_SINGLE_P_LOW = 0.50
 
-# Low-line UNDER props are trivially clearable and dominate a p_low sort:
-# "player carded UNDER 0.5" at 10/10 lands near 0.72, above almost every corners
-# row, because most players are not carded in most matches -- which is also
-# exactly why that side is priced near 1.05 and is not a bet. They are not
-# dropped (the read is real) but they never lead, and the file says why.
-TRIVIAL_UNDER_MAX_LINE = 1.5
-
-
-class AnalystVeto(StrictBaseModel):
-    """One row bet-analyst disagreed with, from ``<date>_analyst_vetoes.json``.
-
-    docs/PLAN_BOGATE_STATYSTYKI.md Faza 5e, Wariant A: the analyst has no
-    Write tool by design (it must not rewrite the artifacts it evaluates), so
-    this is text it returns alongside its usual markdown report; the
-    orchestrator running ``run-day.md`` is what persists it to a file.
-    ``build_coupons.py --vetoes`` is the only thing that reads it, and it never
-    touches ``p_low`` -- ``VETO`` removes a row from the coupon outright,
-    ``DOWNGRADE`` steps its tier down once via the same ceiling
-    ``context_flags`` uses, in both cases with the analyst's own reason
-    reported in the coupon file's header so nothing is struck silently.
-    """
-
-    event_id: str
-    market: str
-    line: float
-    direction: Literal["OVER", "UNDER"]
-    action: Literal["VETO", "DOWNGRADE"]
-    reason: str
+# How far above the operator's own book this sheet may claim to be before the
+# row stops being a lean and starts being a question about the sample.
+#
+# The gate it guards is not symmetric, and that asymmetry is the point. p_low is
+# a *lower* bound, so sitting below the market is expected and harmless. Sitting
+# far above it means one of two things: an edge the book has not priced, or a
+# sample that is not measuring this fixture -- and the 2026-09-01 file is a
+# clean experiment on which of those is more common. The one row where the gap
+# was largest (Superbet 2.27 against a min of 1.38) was the ATP best-of-five
+# tie priced off best-of-three data, and it was ranked first precisely because
+# it disagreed most.
+#
+# 0.15 is set where it separates that day's rows: the ten rows the "worth its
+# price" gate admitted ran from +0.04 to +0.19 against devigged Superbet, and
+# every one above +0.15 -- Sheffield United corners, Al-Ahli shots, the tennis
+# leg -- is a row this audit found an independent reason to doubt.
+MAX_MARKET_DISAGREEMENT = 0.15
 
 
 class CouponSingle(StrictBaseModel):
@@ -241,6 +231,21 @@ class CouponSingle(StrictBaseModel):
     # from a different line. None is what puts a row in the "no market
     # reference" section: not excluded, just not comparable to the market.
     edge: float | None = None
+    # p_low minus Superbet's own devigged probability for this exact outcome,
+    # set when both sides of the line are on the operator's screen. Different
+    # from ``edge`` on purpose: ``edge`` compares against a reference book out
+    # of bzzoiro's ~88 and exists for only two markets, this compares against
+    # the book the operator actually bets into and works on every market it
+    # prices both ways.
+    #
+    # Positive is not automatically good. Past MAX_MARKET_DISAGREEMENT it is
+    # the reason the row is *not* at the top of the file.
+    market_disagreement: float | None = None
+    # True when ``market_disagreement`` exceeded the threshold. Such a row is
+    # kept and ranked last rather than dropped: "we and the book are far apart
+    # here" is information the operator should have, and deleting it would hide
+    # the one class of row most worth a second look.
+    needs_review: bool = False
 
 
 class CouponSlip(StrictBaseModel):
@@ -296,10 +301,6 @@ def _subject(row: StatsSheetRow) -> str | None:
     return None
 
 
-def _is_trivial_under(row: StatsSheetRow) -> bool:
-    return row.direction == "UNDER" and row.line <= TRIVIAL_UNDER_MAX_LINE
-
-
 def _has_market_reference(row: StatsSheetRow) -> bool:
     """Whether this row can be ranked against a price rather than just p_low.
 
@@ -334,9 +335,21 @@ def _caveats(row: StatsSheetRow) -> list[str]:
         notes.append(f"skład {row.lineup_status or 'nieznany'} — premisa to zgadywanka")
     if row.sample_size < 8:
         notes.append(f"mała próba (n={row.sample_size})")
-    if _is_trivial_under(row):
+    if is_trivial_under(row):
         notes.append("niska linia UNDER — łatwa do trafienia i zwykle wyceniana ~1.05")
     return notes
+
+
+def _veto_scope(veto: AnalystVeto) -> str:
+    """How wide this veto is, in the coupon file's own words.
+
+    A market-wide veto printed as "cards_total 4.5 UNDER" would read as though
+    the analyst had struck one line, which is the misreading that let a second
+    line of the same broken market ship as a Bet Builder leg.
+    """
+    line = "wszystkie linie" if veto.line is None else f"{veto.line}"
+    direction = veto.direction or "OVER+UNDER"
+    return f"{veto.market} {line} {direction}"
 
 
 def _kickoff_passed(kickoff: str, not_before: datetime | None) -> bool:
@@ -521,9 +534,54 @@ def build_coupons(
             "superbet_nearest_price": near_price,
         }
 
-    veto_by_key: dict[tuple[str, str, float, str], AnalystVeto] = {
-        (v.event_id, v.market, v.line, v.direction): v for v in (vetoes or [])
-    }
+    def superbet_implied(row: StatsSheetRow) -> float | None:
+        """Superbet's own probability for this outcome, margin removed.
+
+        Both sides of the line, or nothing. ``1/price`` alone is not the book's
+        probability -- it carries the whole overround, which on these markets
+        runs 8-9% -- and using it would understate every disagreement by about
+        that much, in the direction that lets a bad row through the gate below.
+        Two prices give the pair's overround exactly, and dividing it out is
+        arithmetic rather than an assumption.
+
+        Returns None when the opposite side is not posted, which is common on
+        one-way markets. None disables the disagreement gate for that row: we
+        cannot say the book disagrees with us if we cannot read what it thinks.
+        """
+        if superbet_offer is None:
+            return None
+        event_offer = superbet_events.get(row.event_id)
+        aliases = player_aliases.get(row.event_id, {})
+        opposite = "UNDER" if row.direction == "OVER" else "OVER"
+        prices: list[float] = []
+        for direction in (row.direction, opposite):
+            availability, exact, _, _ = lookup_line(
+                event_offer,
+                market=row.market,
+                line=row.line,
+                direction=direction,
+                team_name=row.team_name,
+                player_name=row.player_name,
+                player_aliases=aliases,
+            )
+            if availability != "OFFERED" or exact is None or exact.price <= 1.0:
+                return None
+            prices.append(exact.price)
+        overround = sum(1.0 / price for price in prices)
+        if overround <= 0:
+            return None
+        return (1.0 / prices[0]) / overround
+
+    def disagreement(row: StatsSheetRow) -> float | None:
+        """How far this row's floor sits above the operator's own book."""
+        implied = superbet_implied(row)
+        return None if implied is None else round(row.p_low - implied, 4)
+
+    def over_disagreement(row: StatsSheetRow) -> bool:
+        gap = disagreement(row)
+        return gap is not None and gap > MAX_MARKET_DISAGREEMENT
+
+    veto_index = VetoIndex(vetoes)
     applied_vetoes: list[str] = []
 
     def identity(event_id: str) -> tuple[str, str, str]:
@@ -576,7 +634,7 @@ def build_coupons(
     candidates: list[tuple[StatsSheetRow, str]] = []
     for row in stats_sheet.rows:
         tier: Tier = tier_for_row(row)
-        veto = veto_by_key.get((row.event_id, row.market, row.line, row.direction))
+        veto = veto_index.for_row(row)
         # DOWNGRADE is applied before the tier gate below, not after: a CALL
         # the analyst steps to WEAK is excluded by that same check, exactly
         # like a context flag's downgrade would be -- no second exclusion path
@@ -584,7 +642,7 @@ def build_coupons(
         if veto is not None and veto.action == "DOWNGRADE":
             new_tier = step_tier_down(tier)
             applied_vetoes.append(
-                f"DOWNGRADE analityka: {row.market} {row.line} {row.direction} "
+                f"DOWNGRADE analityka: {_veto_scope(veto)} "
                 f"({row.event_id[:12]}) {tier}→{new_tier} — {veto.reason}"
             )
             tier = new_tier
@@ -594,7 +652,7 @@ def build_coupons(
         if veto is not None and veto.action == "VETO":
             exclude("analyst_veto")
             applied_vetoes.append(
-                f"WETO analityka: {row.market} {row.line} {row.direction} "
+                f"WETO analityka: {_veto_scope(veto)} "
                 f"({row.event_id[:12]}) — {veto.reason}"
             )
             continue
@@ -671,8 +729,15 @@ def build_coupons(
                         row.market_signal.market_bookmaker if row.market_signal else None
                     ),
                     tipster=_tipster_summary(row),
-                    caveats=_caveats(row),
+                    caveats=_caveats(row) + (
+                        [
+                            "rynek wycenia to znacznie niżej niż my — najpierw "
+                            "sprawdź próbkę, potem kurs"
+                        ] if over_disagreement(row) else []
+                    ),
                     edge=round(_edge(row), 4) if _has_market_reference(row) else None,
+                    market_disagreement=disagreement(row),
+                    needs_review=over_disagreement(row),
                     **superbet_for(row, minimum),
                 )
             )
@@ -695,9 +760,24 @@ def build_coupons(
         info = superbet_for(row, round((1.0 / row.p_low) * {"CALL": 1.05, "LEAN": 1.10}[tier], 4))
         return info.get("superbet_surplus") if info.get("superbet_verdict") == "VALUE" else None
 
-    superbet_value = [c for c in candidates if _superbet_surplus(c) is not None]
+    # The disagreement gate, and it is a *demotion*, not an exclusion.
+    #
+    # Group one used to be ranked by superbet_surplus descending, which reads
+    # as "best value first" and is arithmetically "where we disagree with the
+    # book most, first". Those are the same list. The gate below splits it: a
+    # row within MAX_MARKET_DISAGREEMENT of the book keeps its place at the
+    # top, one beyond it drops to the end of the file carrying the reason.
+    #
+    # Nothing is deleted, because the gate cannot tell an edge from a broken
+    # sample and must not pretend to. What it can do is stop the file
+    # presenting the second as the first, ranked number one.
+    flagged = [c for c in candidates if over_disagreement(c[0])]
+    flagged_ids = {id(c) for c in flagged}
+    trusted = [c for c in candidates if id(c) not in flagged_ids]
+
+    superbet_value = [c for c in trusted if _superbet_surplus(c) is not None]
     value_ids = {id(c) for c in superbet_value}
-    rest = [c for c in candidates if id(c) not in value_ids]
+    rest = [c for c in trusted if id(c) not in value_ids]
     with_reference = [c for c in rest if _has_market_reference(c[0])]
     without_reference = [c for c in rest if not _has_market_reference(c[0])]
     _append_singles(
@@ -712,51 +792,80 @@ def build_coupons(
     _append_singles(
         sorted(
             without_reference,
-            key=lambda pair: (_is_trivial_under(pair[0]), -pair[0].p_low, pair[0].event_id),
+            key=lambda pair: (is_trivial_under(pair[0]), -pair[0].p_low, pair[0].event_id),
+        )
+    )
+    # Last, and only if the budget above did not run out. Ranked by how far
+    # apart we are, widest first -- read as a to-check list, not a shortlist.
+    _append_singles(
+        sorted(
+            flagged,
+            key=lambda pair: (
+                -(disagreement(pair[0]) or 0.0), -pair[0].p_low, pair[0].event_id
+            ),
         )
     )
 
     # --- slips ------------------------------------------------------------
+    #
+    # Every gate the singles loop above applies, this loop applies too. Before
+    # 2026-09-01 it applied two of eight, and the file gave no sign of it: the
+    # analyst's vetoes, the ``min_p_low`` floor, the Superbet price check and
+    # the duplicate-fixture guard all stopped at the singles list, while the
+    # slips were drafted straight off the raw sheet. They are passed *into*
+    # ``draft_legs`` rather than re-checked afterwards, because a leg excluded
+    # after drafting would still have consumed one of ``max_legs``.
+    def leg_price(row: StatsSheetRow) -> tuple[str | None, float | None]:
+        if superbet_offer is None:
+            return (None, None)
+        # Same lookup as the singles, so a leg and a single on the same
+        # (market, line, direction) can never disagree about whether the book
+        # carries it.
+        availability, exact, _, _ = lookup_line(
+            superbet_events.get(row.event_id),
+            market=row.market,
+            line=row.line,
+            direction=row.direction,
+            team_name=row.team_name,
+            player_name=row.player_name,
+            player_aliases=player_aliases.get(row.event_id, {}),
+        )
+        return (availability, exact.price if exact else None)
+
     slips: list[CouponSlip] = []
-    for event_id in {row.event_id for row in stats_sheet.rows}:
-        draft = draft_legs(stats_sheet, event_id, max_legs=max_legs)
+    # Deduplicated by real-world fixture, not by event_id. Two dossiers can
+    # describe one match (two feeds spelling a club differently), and the
+    # singles list has resolved that since 2026-08-28 while this loop still
+    # keyed on the raw id -- so the same match could occupy two slips and an
+    # operator working down the file would have staked it twice believing he
+    # had diversified. ``fixture_key`` is the same resolver the singles use.
+    seen_fixtures: set[tuple] = set()
+    for event_id in sorted({row.event_id for row in stats_sheet.rows}):
+        fixture = fixture_key(event_id)
+        if fixture in seen_fixtures:
+            exclude("duplicate_fixture_for_slip")
+            continue
+        draft = draft_legs(
+            stats_sheet,
+            event_id,
+            max_legs=max_legs,
+            vetoes=veto_index,
+            min_p_low=min_p_low,
+            price_for=leg_price if superbet_offer is not None else None,
+            require_value=require_superbet_value,
+        )
         # A one-leg "slip" is a single wearing a different hat, and printing it
         # in both sections would double-count the same read.
         if len(draft.legs) < 2:
             continue
-        if superbet_offer is not None:
-            # Same lookup as the singles, so a leg and a single on the same
-            # (market, line, direction) can never disagree about whether the
-            # book carries it.
-            event_superbet = superbet_events.get(event_id)
-            annotated = []
-            for leg in draft.legs:
-                availability, exact, near_line, _ = lookup_line(
-                    event_superbet,
-                    market=leg.market,
-                    line=leg.line,
-                    direction=leg.direction,
-                    team_name=leg.team_name,
-                    player_name=leg.player_name,
-                    player_aliases=player_aliases.get(event_id, {}),
-                )
-                annotated.append(
-                    leg.model_copy(
-                        update={
-                            "superbet_availability": availability,
-                            "superbet_price": exact.price if exact else None,
-                            "superbet_nearest_line": near_line,
-                        }
-                    )
-                )
-            draft = draft.model_copy(update={"legs": annotated})
         match, competition, kickoff = identity(event_id)
         if _kickoff_passed(kickoff, not_before):
-            exclude("kickoff_passed")
+            exclude("kickoff_passed_slip")
             continue
         if competition_tier(competition) in ("YOUTH", "FRIENDLY"):
-            exclude("competition_youth_or_friendly")
+            exclude("competition_youth_or_friendly_slip")
             continue
+        seen_fixtures.add(fixture)
         slips.append(
             CouponSlip(
                 rank=0,
@@ -796,10 +905,67 @@ def build_coupons(
             f"się rozpoczął (odcięcie {not_before:%H:%M} UTC). Mecz w przeszłości "
             "nie jest typem, choćby jego p_low wyglądało najlepiej w pliku."
         )
-    if any(_is_trivial_under(r) for r, _ in candidates):
+    if any(is_trivial_under(r) for r, _ in candidates):
         notes.append(
-            "Niskie linie UNDER (≤1.5) zepchnięto na koniec listy singli: przy "
-            "10/10 wychodzą wysoko w p_low, ale rynek wycenia je ~1.05."
+            "Niskie linie UNDER (≤1.5) zepchnięto na koniec — i listy singli, "
+            "i kolejności nóg w Bet Builderach: przy 10/10 wychodzą wysoko w "
+            "p_low, ale rynek wycenia je ~1.05."
+        )
+    if flagged:
+        # Reported from the *candidates*, not from the rows that made the file.
+        # max_singles is 15 against thousands of candidates, so a demoted row is
+        # almost always pushed off the end -- and a row removed from the top of
+        # the coupon without a word is the same silent edit this gate exists to
+        # stop. One line per fixture+market: the same read at four lines is one
+        # thing to go and check, not four.
+        worst: dict[tuple, tuple[StatsSheetRow, float]] = {}
+        for row, _tier in flagged:
+            gap = disagreement(row) or 0.0
+            key = (fixture_key(row.event_id), row.market, _subject(row))
+            if key not in worst or gap > worst[key][1]:
+                worst[key] = (row, gap)
+        listed = sorted(worst.values(), key=lambda pair: -pair[1])
+        shown = listed[:8]
+        detail = "; ".join(
+            f"{identity(row.event_id)[0]} {market_label(row.market)} {row.line} "
+            f"{row.direction} (+{gap:.0%})"
+            for row, gap in shown
+        )
+        notes.append(
+            f"{len(listed)} czytań zepchnięto na koniec listy, bo nasza podłoga "
+            f"stoi ponad {MAX_MARKET_DISAGREEMENT:.0%} powyżej odmarżowionej ceny "
+            "Superbetu — przy limicie "
+            f"{max_singles} singli zwykle znaczy to, że w ogóle nie weszły. Duża "
+            "różnica z rynkiem to albo przewaga, albo próbka, która mierzy nie ten "
+            "mecz, i ten plik tego nie rozstrzyga. Najszersze rozjazdy: "
+            + detail
+            + (f" (+{len(listed) - len(shown)} więcej)" if len(listed) > len(shown) else "")
+            + ". Sprawdź próbkę, zanim sprawdzisz kurs."
+        )
+    scoped: dict[str, int] = {}
+    for row in stats_sheet.rows:
+        for reason, count in (row.sample_excluded or {}).items():
+            scoped[reason] = scoped.get(reason, 0) + count
+    if scoped:
+        notes.append(
+            "Obserwacje odrzucone z prób PRZED policzeniem p_low: "
+            + ", ".join(f"{count}× {reason}" for reason, count in sorted(scoped.items()))
+            + ". Sparing przedsezonowy i mecz z poprzedniego sezonu nie są próbą "
+            "dzisiejszych rozgrywek; do 2026-09-01 liczyły się na równi z meczem "
+            "ligowym i podnosiły p_low."
+        )
+    slip_legs = [leg for slip in slips for leg in slip.draft.legs]
+    if slip_legs:
+        below = [leg for leg in slip_legs if leg.superbet_price is not None
+                 and leg.superbet_price < leg.min_acceptable_odds]
+        notes.append(
+            f"Bet Builder: {len(slip_legs)} nóg, każda z linią realnie wystawioną "
+            f"na Superbecie"
+            + (
+                f"; {len(below)} z nich poniżej własnego progu — to nie są typy, "
+                "trzymane tylko jako kontekst dla reszty kuponu."
+                if below else " i każda powyżej swojego progu."
+            )
         )
     # Superbet coverage, said in the header rather than left to be inferred
     # from a column of dashes. The order is deliberate: what is takeable first,

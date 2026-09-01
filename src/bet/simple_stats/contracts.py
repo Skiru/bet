@@ -297,6 +297,23 @@ class ProviderValue(StrictBaseModel):
     opponent: str
     value: float
     observed_at: str
+    # Which competition and which season this historical match belongs to, in
+    # the *provider's* own ids -- never a name, because the name is the part
+    # that drifts and the id is what the provider actually keys on.
+    #
+    # Both were on bzzoiro's normalised fixture row all along (`league_id`,
+    # `season_id`) and were dropped on the floor here, which is what let the
+    # 2026-09-01 sheet count a July club friendly and a match from the previous
+    # season as equal trials to a league fixture tonight. ANALYZE reads them in
+    # ``scope_values``; nothing else does, and nothing computes a statistic
+    # from them.
+    #
+    # Optional on purpose. A provider that does not say which competition a
+    # match belonged to leaves these None, and an observation with None is
+    # never dropped -- the same "unknown is not degraded" rule the veto,
+    # entitlement and competition-tier paths already follow.
+    competition_id: str | None = None
+    season_id: str | None = None
 
 
 class MetricObservation(StrictBaseModel):
@@ -575,6 +592,17 @@ class StatsSheetRow(StrictBaseModel):
     # A price here is the price on the screen; every other price in this
     # pipeline is a reference from a bookmaker the operator does not use.
     superbet: SuperbetColumn | None = None
+    # ``{reason: count}`` for observations ``scope_values`` removed from this
+    # row's sample *before* hits, sample_size, mean, median and p_low were
+    # computed. Empty is the common case.
+    #
+    # It is reported rather than merely applied because the filter changes the
+    # number the operator bets against. On 2026-09-01 five of Bromley's nine
+    # "matches" were July friendlies; the row said 9/9 and p_low 0.701, the
+    # four competitive ones say 4/4 and 0.510, and only the second is a claim
+    # about tonight. A sample that was silently cut is not more auditable than
+    # one that was silently padded.
+    sample_excluded: dict[str, int] = Field(default_factory=dict)
 
 
 class StatsSheetV1(StrictBaseModel):

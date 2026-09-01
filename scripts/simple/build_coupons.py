@@ -38,7 +38,8 @@ from bet.simple_stats.contracts import (  # noqa: E402
     SuperbetOfferV1,
 )
 from bet.simple_stats.bet_builder_draft import (  # noqa: E402
-    _CORRELATED_FOOTBALL_FAMILY as _CORRELATED_MARKETS,
+    _CORRELATED_FOOTBALL_FAMILY,
+    _CORRELATED_TENNIS_FAMILY,
 )
 from bet.simple_stats.coupons import (  # noqa: E402
     AnalystVeto,
@@ -253,15 +254,27 @@ def render_markdown(coupons: CouponSet) -> str:
             # The contract's own note is English, because bet-analyst reads it.
             # The operator's file says the same thing in the file's language;
             # the risk level itself comes from the contract, never re-derived.
-            correlated = sum(
-                1 for leg in slip.draft.legs if leg.market in _CORRELATED_MARKETS
+            football = sum(
+                1 for leg in slip.draft.legs if leg.market in _CORRELATED_FOOTBALL_FAMILY
             )
-            if slip.draft.correlation_risk == "HIGH":
+            tennis = sum(
+                1 for leg in slip.draft.legs if leg.market in _CORRELATED_TENNIS_FAMILY
+            )
+            if slip.draft.correlation_risk == "HIGH" and tennis >= 2:
                 a(
-                    f"⚠️ **Korelacja HIGH** — {correlated} z {len(slip.draft.legs)} nóg "
+                    f"⚠️ **Korelacja HIGH** — {tennis} z {len(slip.draft.legs)} nóg mierzy "
+                    "to samo: jak długo trwa mecz. Sety, gemy, asy i podwójne błędy rosną "
+                    "razem, więc krótki mecz rozlicza wszystkie te UNDER-y naraz, a długi "
+                    "żaden. Kupon jest przez to **mniej nieprawdopodobny**, niż sugerują "
+                    "same nogi — i kurs Superbetu już to uwzględnia. Nigdy nie mnóż nóg."
+                )
+            elif slip.draft.correlation_risk == "HIGH":
+                a(
+                    f"⚠️ **Korelacja HIGH** — {football} z {len(slip.draft.legs)} nóg "
                     "pochodzi z tej samej skorelowanej rodziny (rożne / kartki / faule / "
-                    "strzały w jednym meczu). Mecz faulowy jest meczem kartkowym, więc te "
-                    "nogi wchodzą razem znacznie częściej, niż wynikałoby z niezależności. "
+                    "strzały / **gole** w jednym meczu). Mecz faulowy jest meczem "
+                    "kartkowym, a mecz otwarty meczem strzelanym, więc te nogi wchodzą "
+                    "razem znacznie częściej, niż wynikałoby z niezależności. "
                     "Kupon jest przez to **mniej nieprawdopodobny**, niż sugerują same nogi "
                     "— i kurs Superbetu już to uwzględnia. Nigdy nie mnóż nóg."
                 )

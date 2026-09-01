@@ -276,14 +276,40 @@ def test_slip_legs_carry_the_same_answer_as_the_singles():
             _row(market="cards_total", line=4.5, direction="UNDER"),
         ),
         _events(_event()),
-        superbet_offer=_offer(_line(market="corners_total", line=9.5,
-                                    direction="UNDER", price=2.20)),
+        superbet_offer=_offer(
+            _line(market="corners_total", line=9.5, direction="UNDER", price=2.20),
+            _line(market="cards_total", line=4.5, direction="UNDER", price=1.95),
+        ),
     )
     assert coupons.slips, "two qualifying rows on one fixture should make a slip"
     legs = {leg.market: leg for leg in coupons.slips[0].draft.legs}
     assert legs["corners_total"].superbet_availability == "OFFERED"
     assert legs["corners_total"].superbet_price == 2.20
-    assert legs["cards_total"].superbet_availability == "MARKET_NOT_OFFERED"
+    assert legs["cards_total"].superbet_price == 1.95
+
+
+def test_a_leg_the_book_does_not_carry_is_not_a_leg():
+    """A slip is placed as one unit, so an unavailable leg does not weaken it --
+    it makes the whole slip impossible. Five of the eight slips shipped on
+    2026-09-01 contained a line Superbet does not list and were still printed
+    as coupons to go and place."""
+    coupons = build_coupons(
+        _sheet(
+            _row(market="corners_total", line=9.5, direction="UNDER"),
+            _row(market="cards_total", line=4.5, direction="UNDER"),
+        ),
+        _events(_event()),
+        superbet_offer=_offer(_line(market="corners_total", line=9.5,
+                                    direction="UNDER", price=2.20)),
+    )
+    assert coupons.slips == [], "the second leg is not on the book, so there is no slip"
+
+    # The single is unaffected: it is placed alone, and "Superbet does not list
+    # this market" is exactly the sentence the singles section exists to print.
+    assert {s.market for s in coupons.singles} == {"corners_total", "cards_total"}
+    assert next(
+        s for s in coupons.singles if s.market == "cards_total"
+    ).superbet_availability == "MARKET_NOT_OFFERED"
 
 
 def test_slip_legs_have_no_superbet_fields_without_an_offer():

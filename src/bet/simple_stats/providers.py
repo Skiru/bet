@@ -564,12 +564,44 @@ def _is_absent_not_zero(combined: dict[str, float], provider_key: str = "") -> b
     return len(combined) >= 2 and all(value == 0.0 for value in combined.values())
 
 
+def _id_or_none(raw: Any) -> str | None:
+    """A provider id as a string, or None when the provider did not give one.
+
+    Empty string and ``"None"`` both collapse to None: ANALYZE's scope filter
+    treats None as "cannot tell, keep it", and a row carrying the literal text
+    ``"None"`` would instead group with every other row that failed the same
+    way -- an invented competition shared by unrelated matches.
+    """
+    if raw is None:
+        return None
+    text = str(raw).strip()
+    return text or None
+
+
 def _make_values(
-    provider: str, match_id: Any, match_date: str, opponent: str, combined: dict[str, float]
+    provider: str,
+    match_id: Any,
+    match_date: str,
+    opponent: str,
+    combined: dict[str, float],
+    *,
+    competition_id: Any = None,
+    season_id: Any = None,
 ) -> dict[str, ProviderValue]:
+    """One ProviderValue per canonical metric in ``combined``.
+
+    ``competition_id``/``season_id`` are the provider's own ids for the
+    historical match, passed by the call sites that have them and left None by
+    those that do not. They are carried, never interpreted here: deciding
+    whether a competition belongs in a sample is ANALYZE's job (see
+    ``scope_values``), and doing it at ingest would bake one run's judgement
+    into the dossier with no way to audit it afterwards.
+    """
     if not _is_recent(match_date):
         return {}
     observed_at = _now_iso()
+    competition = _id_or_none(competition_id)
+    season = _id_or_none(season_id)
     return {
         name: ProviderValue(
             provider=provider,
@@ -578,6 +610,8 @@ def _make_values(
             opponent=opponent or "unknown",
             value=float(val),
             observed_at=observed_at,
+            competition_id=competition,
+            season_id=season,
         )
         for name, val in combined.items()
     }
@@ -1375,7 +1409,9 @@ def _fetch_l10_generic(
                     combined["goals_for"] = home_goals if side == "home" else away_goals
                     combined["goals_against"] = away_goals if side == "home" else home_goals
         for name, value in _make_values(
-            provider_key, fixture_id, _field(fx, "date", "kickoff", default=""), str(opponent or "unknown"), combined
+            provider_key, fixture_id, _field(fx, "date", "kickoff", default=""), str(opponent or "unknown"), combined,
+            competition_id=_field(fx, "competition_provider_id", "league_id", "league"),
+            season_id=_field(fx, "season", "season_id"),
         ).items():
             outcome.add(name, value)
     return outcome
@@ -1427,7 +1463,9 @@ def _fetch_h2h_generic(
             )
             continue
         for name, value in _make_values(
-            provider_key, fixture_id, _field(meeting, "date", "kickoff", default=""), team_two, combined
+            provider_key, fixture_id, _field(meeting, "date", "kickoff", default=""), team_two, combined,
+            competition_id=_field(meeting, "competition_provider_id", "league_id", "league"),
+            season_id=_field(meeting, "season", "season_id"),
         ).items():
             outcome.add(name, value)
     return outcome
@@ -1672,7 +1710,9 @@ def fetch_highlightly_history(
                 goal_values["goals_for"] = float(home_goals if side == "home" else away_goals)
                 goal_values["goals_against"] = float(away_goals if side == "home" else home_goals)
             for name, value in _make_values(
-                "highlightly", match_id, match_date, opponent or "unknown", goal_values
+                "highlightly", match_id, match_date, opponent or "unknown", goal_values,
+                competition_id=match.get("competition_provider_id"),
+                season_id=match.get("season"),
             ).items():
                 outcome.add(name, value)
 
@@ -1689,7 +1729,9 @@ def fetch_highlightly_history(
             continue
 
         for name, value in _make_values(
-            "highlightly", match_id, match_date, opponent or "unknown", combined
+            "highlightly", match_id, match_date, opponent or "unknown", combined,
+            competition_id=match.get("competition_provider_id"),
+            season_id=match.get("season"),
         ).items():
             outcome.add(name, value)
     return outcome
@@ -2012,7 +2054,9 @@ def fetch_bzzoiro_history(
                     goal_values["goals_1h_for"] = side_ht
                     goal_values["goals_2h_for"] = side_ft - side_ht
             for name, value in _make_values(
-                "bzzoiro", match_id, match_date, opponent or "unknown", goal_values
+                "bzzoiro", match_id, match_date, opponent or "unknown", goal_values,
+                competition_id=match.get("competition_provider_id"),
+                season_id=match.get("season"),
             ).items():
                 outcome.add(name, value)
 
@@ -2036,7 +2080,9 @@ def fetch_bzzoiro_history(
         if side is not None:
             combined.update(stats.get(side) or {})
         for name, value in _make_values(
-            "bzzoiro", match_id, match_date, opponent or "unknown", combined
+            "bzzoiro", match_id, match_date, opponent or "unknown", combined,
+            competition_id=match.get("competition_provider_id"),
+            season_id=match.get("season"),
         ).items():
             outcome.add(name, value)
 
@@ -2704,6 +2750,8 @@ def fetch_bzzoiro_tennis_history(
             str(row.get("date") or ""),
             opponent or "unknown",
             combined,
+            competition_id=row.get("competition_provider_id") or row.get("tournament_id"),
+            season_id=row.get("season") or row.get("season_id"),
         ).items():
             outcome.add(name, value)
 

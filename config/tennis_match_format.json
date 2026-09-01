@@ -1,0 +1,18 @@
+{
+  "_purpose": "Which tennis competitions are played best-of-five. Read by src/bet/simple_stats/analyze.py, which refuses to emit a length-dependent row (total_sets, total_games, aces_total, double_faults_total) when the fixture is best-of-five and the sample contains no best-of-five match.",
+  "_why": "Known and written down in src/bet/simple_stats/contracts.py and src/bet/api_clients/superbet.py since 2026-08-31, still unfixed on 2026-09-01: 'every ATP fixture was quoted best-of-five against a stats sheet that only emits best-of-three lines'. That day the analyst wrote 154 vetoes, 137 of them patching this one hole row by row -- and one leak still reached the operator, because build_coupons applied vetoes to singles and not to Bet Builder legs. Molcan-Bonzi went out as a slip whose legs were 'total_games UNDER 34.5' and 'total_sets UNDER 3.5' at 15/15, off a sample whose maximum was 3.0 sets. Under 3.5 sets in a best-of-three match is not a bet, it is a tautology; Superbet priced the same leg at 2.40 because it was pricing a best-of-five event.",
+  "_rule": "Exact competition-name pin, matching EventRecord.competition as DISCOVER writes it. Unlisted means unknown, and unknown gates nothing -- the rows are emitted as before. Only BO5 is actionable; BO3 entries are recorded so that a competition which has been checked is distinguishable from one nobody has looked at.",
+  "_scope": "Men's Grand Slam main-draw singles is the whole of best-of-five in professional tennis today. Women's draws at the same tournaments are best-of-three, which is why ATP and WTA are separate entries here and must never be folded into one 'US Open'.",
+  "formats": {
+    "ATP US Open": "BO5",
+    "ATP Australian Open": "BO5",
+    "ATP Roland Garros": "BO5",
+    "ATP French Open": "BO5",
+    "ATP Wimbledon": "BO5",
+    "WTA US Open": "BO3",
+    "WTA Australian Open": "BO3",
+    "WTA Roland Garros": "BO3",
+    "WTA French Open": "BO3",
+    "WTA Wimbledon": "BO3"
+  }
+}

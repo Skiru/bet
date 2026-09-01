@@ -4,8 +4,12 @@ See docs/PIPELINE_SIMPLIFICATION_PLAN.md section 2 (Krok 2).
 """
 from __future__ import annotations
 
+import json
 import statistics
+import threading
+from collections.abc import Mapping
 from datetime import datetime, timezone
+from pathlib import Path
 
 from bet.stats.market_ranking import player_prop_lines, standard_market_lines
 
@@ -21,10 +25,93 @@ from bet.simple_stats.contracts import (
     PERCENTAGE_METRICS,
     EventDossierListV1,
     EventDossierV1,
+    MetricObservation,
     ProviderValue,
     StatsSheetRow,
     StatsSheetV1,
 )
+
+_CONFIG_DIR = Path(__file__).resolve().parents[3] / "config"
+_OBSERVATION_SCOPE_PATH = _CONFIG_DIR / "observation_scope.json"
+_TENNIS_FORMAT_PATH = _CONFIG_DIR / "tennis_match_format.json"
+_CONFIG_LOCK = threading.Lock()
+_OBSERVATION_SCOPE_CACHE: dict[str, dict[str, str]] | None = None
+_TENNIS_FORMAT_CACHE: dict[str, str] | None = None
+
+
+def _load_json(path: Path) -> dict:
+    """A config document, or ``{}`` when it is missing or malformed.
+
+    Never raises. A config problem must degrade this stage to the behaviour it
+    had before the config existed, not empty the sheet -- the same failure mode
+    ``coupons._competition_tier_map`` already chose.
+    """
+    try:
+        document = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    return document if isinstance(document, dict) else {}
+
+
+def observation_scope() -> dict[str, dict[str, str]]:
+    """``{provider: {competition_id: reason}}`` from config/observation_scope.json.
+
+    Read once. The reason string is what lands in ``StatsSheetRow.
+    sample_excluded``, so a dropped observation can always be traced back to
+    the pin that dropped it.
+    """
+    global _OBSERVATION_SCOPE_CACHE
+    with _CONFIG_LOCK:
+        if _OBSERVATION_SCOPE_CACHE is not None:
+            return _OBSERVATION_SCOPE_CACHE
+    document = _load_json(_OBSERVATION_SCOPE_PATH).get("excluded_competitions") or {}
+    scope: dict[str, dict[str, str]] = {}
+    if isinstance(document, dict):
+        for provider, entries in document.items():
+            if not isinstance(entries, dict):
+                continue
+            scope[str(provider)] = {
+                str(competition_id): str((entry or {}).get("reason") or "EXCLUDED_COMPETITION")
+                for competition_id, entry in entries.items()
+                if isinstance(entry, dict)
+            }
+    with _CONFIG_LOCK:
+        if _OBSERVATION_SCOPE_CACHE is None:
+            _OBSERVATION_SCOPE_CACHE = scope
+        return _OBSERVATION_SCOPE_CACHE
+
+
+def tennis_match_format(competition: str | None) -> str | None:
+    """``"BO5"``, ``"BO3"`` or None when this competition is not pinned.
+
+    None is deliberately not BO3. Guessing best-of-three from a name is how the
+    sheet came to price a men's Grand Slam off a best-of-three sample in the
+    first place; an unpinned competition gates nothing and is emitted exactly
+    as it was before this file existed.
+    """
+    global _TENNIS_FORMAT_CACHE
+    with _CONFIG_LOCK:
+        cache = _TENNIS_FORMAT_CACHE
+    if cache is None:
+        formats = _load_json(_TENNIS_FORMAT_PATH).get("formats") or {}
+        cache = {
+            str(name): str(value)
+            for name, value in formats.items()
+            if isinstance(formats, dict)
+        }
+        with _CONFIG_LOCK:
+            if _TENNIS_FORMAT_CACHE is None:
+                _TENNIS_FORMAT_CACHE = cache
+            cache = _TENNIS_FORMAT_CACHE
+    return cache.get(competition or "")
+
+
+def reset_scope_caches() -> None:
+    """Forget both cached config documents. For tests only."""
+    global _OBSERVATION_SCOPE_CACHE, _TENNIS_FORMAT_CACHE
+    with _CONFIG_LOCK:
+        _OBSERVATION_SCOPE_CACHE = None
+        _TENNIS_FORMAT_CACHE = None
 
 # STANDARD_MARKET_LINES' "stat" field uses the pre-existing (non-"_total")
 # taxonomy; MetricObservation keys use our canonical names (section 5). Two
@@ -230,6 +317,150 @@ def _day_key(match_date: str | None) -> str:
             except ValueError:
                 continue
     return ""
+
+
+def _season_sort_key(pv: ProviderValue) -> tuple[str, str]:
+    """Newest-first ordering key for picking a competition's current season.
+
+    ``_day_key`` rather than the raw string, so a provider stamping
+    ``22/08/2026`` sorts against one stamping ISO instead of landing before
+    every date in the sample. ``match_id`` breaks ties so the choice is stable
+    for two observations of the same day.
+    """
+    return (_day_key(pv.match_date), pv.match_id)
+
+
+def scope_values(values: list[ProviderValue]) -> tuple[list[ProviderValue], dict[str, int]]:
+    """The observations that may enter a sample, and what was removed.
+
+    Two rules, counted separately because they answer different objections and
+    a reader of the sheet needs to know which one fired.
+
+    **Out-of-scope competition** (``config/observation_scope.json``). A
+    pre-season friendly is not a trial of the competition being priced: the
+    opposition is drawn from other divisions, the sides are experimenting, and
+    the result settles nothing. The analyst doc's §67 already says so and the
+    analyst already applies it in prose; ``p_low`` kept counting them. Pinned
+    by exact provider competition id, never by name.
+
+    **Stale season**, per competition. For each competition present, only the
+    season of its newest observation survives. Doing it per competition and not
+    per sample is the whole point: Sheffield United's Championship 26/27 and
+    Carabao Cup 26/27 matches are both current and both stay, while a Serie A
+    25/26 observation sitting in a Serie A 26/27 sample goes -- on 2026-09-01
+    that was seven of Parma's fourteen shots observations, six of thirteen for
+    Al-Hilal's corners, and a Monza observation twelve and a half months old.
+
+    An observation missing either id is kept and counted against neither rule.
+    Not knowing which competition a match belonged to is not evidence that it
+    belonged to the wrong one, and dropping it would quietly delete every
+    provider that does not publish league ids.
+
+    Returns ``(kept, {reason: count})``. Order is preserved, so every caller
+    downstream -- ``_dedup``, ``_one_per_day``, ``_cross_provider_agreement`` --
+    sees the sample it would have seen had the removed matches never been
+    fetched.
+    """
+    scope = observation_scope()
+    kept: list[ProviderValue] = []
+    dropped: dict[str, int] = {}
+
+    def drop(reason: str) -> None:
+        dropped[reason] = dropped.get(reason, 0) + 1
+
+    after_pin: list[ProviderValue] = []
+    for pv in values:
+        reason = scope.get(pv.provider, {}).get(pv.competition_id or "")
+        if reason is not None:
+            drop(reason)
+            continue
+        after_pin.append(pv)
+
+    # Current season per competition, decided by the newest observation that
+    # names one. A competition whose observations carry no season_id at all
+    # yields no target and filters nothing.
+    newest_of: dict[str, ProviderValue] = {}
+    for pv in after_pin:
+        if not pv.competition_id or not pv.season_id:
+            continue
+        incumbent = newest_of.get(pv.competition_id)
+        if incumbent is None or _season_sort_key(pv) > _season_sort_key(incumbent):
+            newest_of[pv.competition_id] = pv
+    current_season = {
+        competition_id: pv.season_id
+        for competition_id, pv in newest_of.items()
+        if pv.season_id
+    }
+
+    for pv in after_pin:
+        target = current_season.get(pv.competition_id or "")
+        if target is not None and pv.season_id and pv.season_id != target:
+            drop("STALE_SEASON")
+            continue
+        kept.append(pv)
+    return kept, dropped
+
+
+def _scope_observation(obs: MetricObservation) -> tuple[MetricObservation, dict[str, int]]:
+    """``scope_values`` over all three buckets of one metric, as one decision.
+
+    The season target is computed across the buckets pooled, not per bucket:
+    an h2h meeting from last season must be measured against the *sample's*
+    current season, and a bucket holding only stale meetings would otherwise
+    declare its own oldest season current and keep everything.
+    """
+    pooled = [*obs.team_a_l10, *obs.team_b_l10, *obs.h2h]
+    kept, dropped = scope_values(pooled)
+    survivors = {(pv.provider, pv.match_id, pv.value) for pv in kept}
+
+    def surviving(bucket: list[ProviderValue]) -> list[ProviderValue]:
+        return [pv for pv in bucket if (pv.provider, pv.match_id, pv.value) in survivors]
+
+    return (
+        MetricObservation(
+            canonical_name=obs.canonical_name,
+            team_a_l10=surviving(obs.team_a_l10),
+            team_b_l10=surviving(obs.team_b_l10),
+            h2h=surviving(obs.h2h),
+        ),
+        dropped,
+    )
+
+
+# Tennis markets whose value scales with how long the match is allowed to run.
+# A best-of-three sample cannot describe any of them for a best-of-five tie:
+# "under 3.5 sets" is 100% of every best-of-three match ever played, and the
+# games, aces and double faults it produces are drawn from at most three sets.
+_TENNIS_LENGTH_DEPENDENT_MARKETS = frozenset(
+    {
+        "total_sets", "total_games", "games_won",
+        "aces_total", "aces_for",
+        "double_faults_total", "double_faults_for",
+        "breaks_total",
+    }
+)
+
+# A best-of-five match can run to four or five sets; a best-of-three cannot.
+# One observation at or above this proves the sample contains best-of-five
+# tennis, which is all the gate below needs to know.
+_BO5_MIN_SETS = 4.0
+
+
+def _sample_is_best_of_five(dossier: EventDossierV1) -> bool:
+    """Whether this fixture's own sample contains any best-of-five match.
+
+    Read off ``total_sets`` -- the one metric that states match length directly
+    -- rather than inferred from game counts, which a long best-of-three can
+    fake. No observation of it at all answers False: a sample that cannot show
+    a four-set match is not a sample of best-of-five tennis.
+    """
+    obs = dossier.metrics.get("total_sets")
+    if obs is None:
+        return False
+    return any(
+        pv.value >= _BO5_MIN_SETS
+        for pv in (*obs.team_a_l10, *obs.team_b_l10, *obs.h2h)
+    )
 
 
 def _cross_provider_agreement(metric: str, observations: list[ProviderValue]) -> str:
@@ -508,6 +739,7 @@ def _rows_for_sample(
     player_name: str | None = None,
     lineup_status: str | None = None,
     line_limit: int | None = None,
+    sample_excluded: dict[str, int] | None = None,
 ) -> list[StatsSheetRow]:
     """Every (line x direction) row for one sample of one metric.
 
@@ -566,6 +798,7 @@ def _rows_for_sample(
                 cross_provider_agreement=agreement,
                 confidence=_confidence(agreement, sample_size),
                 data_quality=dossier.readiness,
+                sample_excluded=dict(sorted((sample_excluded or {}).items())),
             )
             # Context flags read the row's own market/line/direction, so they
             # can only be computed once the row exists; StatsSheetRow is
@@ -605,18 +838,22 @@ def _resolve_lines(
 
 
 def _match_total_rows(
-    dossier: EventDossierV1, offered: OfferedLines | None = None
+    dossier: EventDossierV1,
+    offered: OfferedLines | None = None,
+    *,
+    suppressed_markets: frozenset[str] = frozenset(),
 ) -> list[StatsSheetRow]:
     rows: list[StatsSheetRow] = []
     for market_def in standard_market_lines().get(dossier.sport, []):
         if not market_def.get("is_combined", False):
             continue
         canonical = _MARKET_STAT_TO_CANONICAL.get(market_def["stat"])
-        if canonical is None:
+        if canonical is None or canonical in suppressed_markets:
             continue
         obs = dossier.metrics.get(canonical)
         if obs is None:
             continue
+        obs, sample_excluded = _scope_observation(obs)
         lines, limit = _resolve_lines(
             offered, event_id=dossier.event_id, market=canonical,
             static=market_def["lines"],
@@ -631,13 +868,17 @@ def _match_total_rows(
                 independent=_independent_match_sample(
                     obs, dossier.team_a_name, dossier.team_b_name, dossier.sport
                 ),
+                sample_excluded=sample_excluded,
             )
         )
     return rows
 
 
 def _team_total_rows(
-    dossier: EventDossierV1, offered: OfferedLines | None = None
+    dossier: EventDossierV1,
+    offered: OfferedLines | None = None,
+    *,
+    suppressed_markets: frozenset[str] = frozenset(),
 ) -> list[StatsSheetRow]:
     """Per-team rows: one team's own contribution, not the match total.
 
@@ -660,16 +901,24 @@ def _team_total_rows(
         if market_def.get("is_combined", True):
             continue
         canonical = _TEAM_MARKET_STAT_TO_CANONICAL.get(market_def["stat"])
-        if canonical is None:
+        if canonical is None or canonical in suppressed_markets:
             continue
         obs = dossier.metrics.get(canonical)
         if obs is None:
             continue
-        for bucket, team_name in (
+        for raw_bucket, team_name in (
             (obs.team_a_l10, dossier.team_a_name),
             (obs.team_b_l10, dossier.team_b_name),
         ):
-            if not bucket or not team_name:
+            if not raw_bucket or not team_name:
+                continue
+            # Scoped per bucket, not pooled: a per-team sample *is* one bucket,
+            # so this team's own newest season is the right target for it. The
+            # two sides are never merged here (see the docstring) and must not
+            # be merged by the scope filter either -- one side's cup run would
+            # otherwise decide what counts as current for the other.
+            bucket, sample_excluded = scope_values(raw_bucket)
+            if not bucket:
                 continue
             lines, limit = _resolve_lines(
                 offered, event_id=dossier.event_id, market=canonical,
@@ -684,6 +933,7 @@ def _team_total_rows(
                     observations=_dedup(bucket),
                     independent=_one_per_day(bucket, dossier.sport),
                     team_name=team_name,
+                    sample_excluded=sample_excluded,
                 )
             )
     return rows
@@ -707,7 +957,10 @@ def _unavailable_player_ids(dossier: EventDossierV1) -> set[str]:
 
 
 def _player_prop_rows(
-    dossier: EventDossierV1, offered: OfferedLines | None = None
+    dossier: EventDossierV1,
+    offered: OfferedLines | None = None,
+    *,
+    suppressed_markets: frozenset[str] = frozenset(),
 ) -> list[StatsSheetRow]:
     """Per-player rows from ``dossier.player_metrics``.
 
@@ -729,7 +982,12 @@ def _player_prop_rows(
     side_names = {"home": dossier.team_a_name, "away": dossier.team_b_name}
     for market_def in player_prop_lines().get(dossier.sport, []):
         canonical = market_def["stat"]
+        if canonical in suppressed_markets:
+            continue
         for observation in by_stat.get(canonical, []):
+            l10, sample_excluded = scope_values(observation.l10)
+            if not l10:
+                continue
             lines, limit = _resolve_lines(
                 offered, event_id=dossier.event_id, market=canonical,
                 static=market_def["lines"], player_name=observation.player_name,
@@ -740,19 +998,56 @@ def _player_prop_rows(
                     canonical=canonical,
                     lines=lines,
                     line_limit=limit,
-                    observations=_dedup(observation.l10),
-                    independent=_one_per_day(observation.l10, dossier.sport),
+                    observations=_dedup(l10),
+                    independent=_one_per_day(l10, dossier.sport),
                     team_name=side_names.get(observation.team_side),
                     player_id=observation.player_id,
                     player_name=observation.player_name,
                     lineup_status=dossier.lineup_status or None,
+                    sample_excluded=sample_excluded,
                 )
             )
     return rows
 
 
+def suppressed_markets_for(
+    dossier: EventDossierV1, competition: str | None
+) -> frozenset[str]:
+    """Markets this fixture's sample cannot speak to, so no row is emitted.
+
+    One rule today, and it is not a judgement call. A men's Grand Slam tie is
+    best-of-five; ``total_sets``, ``total_games``, aces, double faults and
+    breaks all scale with how long the match runs. If the sample contains no
+    best-of-five match, then every length-dependent line measured against it is
+    describing a different game -- "under 3.5 sets, 15 from 15" is not a read,
+    it is the definition of best-of-three.
+
+    This is deliberately a *suppression* and not a downgrade. A tier step still
+    leaves the row on the sheet at CALL-minus-one for an analyst to read as
+    evidence, and the 2026-09-01 file shows what that costs: 137 of the day's
+    154 vetoes were an analyst deleting these rows by hand, one line at a time,
+    and the one that slipped past reached the operator as a Bet Builder.
+    A measurement of a tautology is not weak evidence; it is not evidence.
+
+    Both halves must be known for the gate to fire. An unpinned competition
+    (``tennis_match_format`` returns None) suppresses nothing, and a sample that
+    does contain a four- or five-set match is a best-of-five sample and is left
+    entirely alone.
+    """
+    if dossier.sport != "tennis":
+        return frozenset()
+    if tennis_match_format(competition) != "BO5":
+        return frozenset()
+    if _sample_is_best_of_five(dossier):
+        return frozenset()
+    return _TENNIS_LENGTH_DEPENDENT_MARKETS
+
+
 def analyze_dossier(
-    dossier: EventDossierV1, offered: OfferedLines | None = None
+    dossier: EventDossierV1,
+    offered: OfferedLines | None = None,
+    *,
+    competition: str | None = None,
 ) -> list[StatsSheetRow]:
     """STATS_SHEET_V1 rows for one event. BLOCKED dossiers never enter
     ANALYZE (section 2).
@@ -768,22 +1063,44 @@ def analyze_dossier(
     cannot take is not a bet, however well evidenced. Omitting it is not a
     degraded mode: it is the sheet this function produced before the book was
     ever read, byte for byte.
+
+    ``competition`` is the fixture's own competition name from EVENT_LIST_V1.
+    The dossier does not carry it and cannot be made to answer for it, but two
+    fixtures with identical statistics are different bets when one is a
+    best-of-three and the other a best-of-five -- see ``suppressed_markets_for``.
+    Omitting it suppresses nothing, which is exactly the behaviour of every run
+    before this argument existed.
     """
     if dossier.readiness == "BLOCKED":
         return []
+    suppressed = suppressed_markets_for(dossier, competition)
     return [
-        *_match_total_rows(dossier, offered),
-        *_team_total_rows(dossier, offered),
-        *_player_prop_rows(dossier, offered),
+        *_match_total_rows(dossier, offered, suppressed_markets=suppressed),
+        *_team_total_rows(dossier, offered, suppressed_markets=suppressed),
+        *_player_prop_rows(dossier, offered, suppressed_markets=suppressed),
     ]
 
 
 def analyze_dossiers(
-    dossier_list: EventDossierListV1, offered: OfferedLines | None = None
+    dossier_list: EventDossierListV1,
+    offered: OfferedLines | None = None,
+    *,
+    competitions: Mapping[str, str] | None = None,
 ) -> StatsSheetV1:
+    """Every dossier's rows, strongest first.
+
+    ``competitions`` maps event_id to the competition name DISCOVER recorded.
+    Absent, every fixture is analysed with ``competition=None`` and the
+    format gate is inert -- an older caller keeps the sheet it always got.
+    """
     rows: list[StatsSheetRow] = []
+    lookup = competitions or {}
     for dossier in dossier_list.dossiers:
-        rows.extend(analyze_dossier(dossier, offered))
+        rows.extend(
+            analyze_dossier(
+                dossier, offered, competition=lookup.get(dossier.event_id)
+            )
+        )
     # p_low first, tier second. Sorting on -hit_rate inside a confidence tier
     # reproduced the very inversion p_low exists to prevent: a 4/4 row (hit_rate
     # 1.00, p_low 0.51) outranked a 9/12 row (0.75, 0.58) whenever both landed

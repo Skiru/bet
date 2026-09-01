@@ -1,0 +1,20 @@
+{
+  "_purpose": "Which historical competitions may enter a stats-sheet sample at all. Read by src/bet/simple_stats/analyze.py::scope_values, which drops a matching observation BEFORE hits, sample_size, mean, median and p_low are computed. This is the code form of the analyst doc's §67 opponent-quality rule for the one case where the correction is not a judgement call but a fact: a pre-season friendly is not a trial of the competition being priced.",
+  "_why": "On 2026-09-01 five of Bromley's nine corners observations were July friendlies (West Bromwich Albion, Crystal Palace, Millwall, Queens Park Rangers, Barnet). The row read 9/9, p_low 0.701, min odds 1.57, and Superbet's 1.70 made it the sixth-ranked single of the day. The four League One matches read 4/4, p_low 0.510, min odds 2.16 -- not a bet. Wycombe's corners row flipped the same way (6/6 -> 4/4). The analyst removed friendlies in prose while p_low kept counting them.",
+  "_rule": "Exact provider id pin only, never a name and never a pattern. Same discipline as config/competition_tier_map.json and the pinned ESPN/SportDB competition maps: an id that is not listed here is left alone, because 'unclassified' must not become 'excluded on a guess'. Extending this list requires seeing the id on real provider data, not inferring it from a league name.",
+  "_how_to_extend": "Find the competition id the provider stamps on the historical match, not the one it uses for today's fixture. For bzzoiro: mcp__bzzoiro__search_matches over a date range in the pre-season window and read league_id off the rows -- a bucket whose fixtures pair clubs from unrelated countries (Malaga-Fulham, Napoli-Aris, Manchester United-Leeds on one date) is the friendlies league. Record the verification date next to the entry.",
+  "excluded_competitions": {
+    "bzzoiro": {
+      "79": {
+        "label": "Club friendlies",
+        "reason": "PRE_SEASON_FRIENDLY",
+        "verified": "2026-09-01 via search_matches(team=Sheffield United, 2026-07-15..2026-08-12): league_id 79 / season_id 1552 carried Malaga-Fulham, Napoli-Aris, Arsenal-Como, Manchester United-Leeds, Everton-Newcastle and FSV Frankfurt-Eintracht Frankfurt on a single date"
+      },
+      "31": {
+        "label": "International Friendly Games",
+        "reason": "INTERNATIONAL_FRIENDLY",
+        "verified": "2026-09-01 via list_leagues: id 31, country International, name 'International Friendly Games'"
+      }
+    }
+  }
+}

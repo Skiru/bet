@@ -35,6 +35,7 @@ capped at LEAN however large its sample.
 """
 from __future__ import annotations
 
+from collections.abc import Callable, Iterable
 from typing import Literal
 
 from bet.simple_stats.contracts import StatsSheetRow, StatsSheetV1
@@ -42,6 +43,98 @@ from bet.strict_model import StrictBaseModel
 from pydantic import Field
 
 Tier = Literal["CALL", "LEAN", "WEAK", "DROP"]
+
+# Low-line UNDER props are trivially clearable and dominate a p_low sort:
+# "player carded UNDER 0.5" at 10/10 lands near 0.72, above almost every corners
+# row, because most players are not carded in most matches -- which is also
+# exactly why that side is priced near 1.05 and is not a bet.
+#
+# Lives here rather than in ``coupons`` because both consumers need it and they
+# disagreed. The singles list pushed these to the end and said so in the file's
+# own header; ``draft_legs`` sorted on ``-p_low`` alone, so the same rows *led*
+# every Bet Builder. On 2026-09-01 that produced eight slips whose leading legs
+# were "goals 1H UNDER 4.5" and "goals 2H UNDER 3.5" at Superbet prices of
+# 1.001 and 1.05 -- the header promised they had been demoted while the slips
+# below it were built out of nothing else.
+TRIVIAL_UNDER_MAX_LINE = 1.5
+
+
+def is_trivial_under(row: StatsSheetRow) -> bool:
+    """A low-line UNDER: real as a read, worthless as a price."""
+    return row.direction == "UNDER" and row.line <= TRIVIAL_UNDER_MAX_LINE
+
+
+class AnalystVeto(StrictBaseModel):
+    """One row bet-analyst disagreed with, from ``<date>_analyst_vetoes.json``.
+
+    docs/PLAN_BOGATE_STATYSTYKI.md Faza 5e, Wariant A: the analyst has no
+    Write tool by design (it must not rewrite the artifacts it evaluates), so
+    this is text it returns alongside its usual markdown report; the
+    orchestrator running ``run-day.md`` is what persists it to a file. It never
+    touches ``p_low`` -- ``VETO`` removes a row from the coupon outright,
+    ``DOWNGRADE`` steps its tier down once via the same ceiling
+    ``context_flags`` uses, in both cases with the analyst's own reason
+    reported in the coupon file's header so nothing is struck silently.
+
+    ``line`` and ``direction`` are both optional, and **None means "all of
+    them"**. A per-line veto could only ever describe a per-line fault, and the
+    faults the analyst actually finds are rarely that shape: when six of
+    eighteen ``cards_total`` observations are zeros in matches with twenty-plus
+    fouls, the sample is broken for every line of that market, not for 4.5 and
+    3.5 specifically. On 2026-09-01 exactly that happened -- 4.5 and 3.5 were
+    vetoed on Sheffield United - Bolton, 5.5 was not written down, and 5.5 went
+    out as a Bet Builder leg graded CALL off the same seven zeros.
+
+    Resolution is most-specific-first, so a file may carry a market-wide veto
+    and a per-line exception to it without ambiguity.
+    """
+
+    event_id: str
+    market: str
+    line: float | None = None
+    direction: Literal["OVER", "UNDER"] | None = None
+    action: Literal["VETO", "DOWNGRADE"]
+    reason: str
+
+
+class VetoIndex:
+    """The analyst's vetoes, resolved per row, most specific first.
+
+    Four lookups in a fixed order -- exact line and direction, then either one
+    widened, then the whole market. The first hit wins, which is what lets a
+    market-wide VETO coexist with a per-line DOWNGRADE on the same market
+    without either silently shadowing the other.
+
+    One index, shared by the singles loop and ``draft_legs``. That sharing is
+    the entire point of the class existing: on 2026-09-01 the two paths had
+    separate implementations of "is this row vetoed" -- one of them being no
+    implementation at all -- and the Bet Builder shipped a slip whose every leg
+    the analyst had struck.
+    """
+
+    __slots__ = ("_by_key",)
+
+    def __init__(self, vetoes: Iterable[AnalystVeto] | None = None) -> None:
+        self._by_key: dict[tuple[str, str, float | None, str | None], AnalystVeto] = {}
+        for veto in vetoes or ():
+            self._by_key.setdefault(
+                (veto.event_id, veto.market, veto.line, veto.direction), veto
+            )
+
+    def __bool__(self) -> bool:
+        return bool(self._by_key)
+
+    def for_row(self, row: StatsSheetRow) -> AnalystVeto | None:
+        for line, direction in (
+            (row.line, row.direction),
+            (None, row.direction),
+            (row.line, None),
+            (None, None),
+        ):
+            hit = self._by_key.get((row.event_id, row.market, line, direction))
+            if hit is not None:
+                return hit
+        return None
 
 # One step down, both directions structural rather than about the numbers --
 # same shape as the SINGLE_SOURCE/DISAGREE and predicted-lineup ceilings below.
@@ -81,6 +174,19 @@ _CORRELATED_FOOTBALL_FAMILY = frozenset(
         "player_total_shots", "player_shots_on_target",
         "player_fouls", "player_was_fouled", "player_cards",
         "player_tackles", "player_assists", "player_offsides",
+    }
+)
+
+# The tennis equivalent, and it had no equivalent until 2026-09-01. Every one of
+# these grows with match length, so two of them in one slip are close to the
+# same bet twice: a straight-sets win settles "under 3.5 sets", "under 34.5
+# games", "under 24.5 aces" and "under 12.5 double faults" together.
+_CORRELATED_TENNIS_FAMILY = frozenset(
+    {
+        "total_sets", "total_games", "games_won",
+        "aces_total", "aces_for",
+        "double_faults_total", "double_faults_for",
+        "breaks_total",
     }
 )
 
@@ -190,37 +296,80 @@ def draft_legs(
     event_id: str,
     *,
     max_legs: int = 4,
+    vetoes: VetoIndex | None = None,
+    min_p_low: float = 0.0,
+    price_for: Callable[[StatsSheetRow], tuple[str | None, float | None]] | None = None,
+    require_value: bool = False,
 ) -> BetBuilderDraft:
     """Draft up to ``max_legs`` legs for one fixture, best-evidenced first.
+
+    Every gate a single passes, a leg passes too. That sentence is the whole
+    change of 2026-09-01, and it is worth stating as an invariant because the
+    file it fixes looked correct: the singles list had vetoes, a ``min_p_low``
+    floor, a price check and a trivial-under demotion, the Bet Builder had none
+    of them, and nothing in the artifact said so. Thirty legs went out that day;
+    twenty-eight were priced below their own minimum or had no price at all, and
+    the two that cleared were rows the analyst had explicitly struck.
 
     Only CALL and LEAN rows are eligible. A WEAK row is three or four
     observations, and ``bet-analyst.md`` already refuses to put a minimum price
     on one -- a threshold computed off four matches reads as precision that is
     not there, and putting it in a multi compounds that against three other legs.
 
-    Ranked by ``p_low``, which is the sheet's own ranking and the only number
-    here that is a probability. ``min_acceptable_odds`` is per leg: this is what
-    each individual selection must pay, and the operator compares the combined
-    Superbet price against their own judgement of the slip, never against a
-    product computed from these.
+    ``vetoes`` is the same ``VetoIndex`` the singles loop resolves against, so
+    a struck row cannot reappear here wearing a different hat. ``min_p_low``
+    defaults to 0.0 rather than to the singles threshold: a caller that has not
+    been taught to pass one keeps the behaviour it had, and ``build_coupons``
+    passes its own.
+
+    ``price_for`` answers "what is this on the operator's screen", returning
+    ``(availability, price)``. With ``require_value`` it also decides
+    eligibility: a leg whose price is below ``min_acceptable_odds``, or which
+    has no price at all, is not a leg. Without it the price is annotated and
+    reported exactly as before -- the operator sees the number and judges it.
+
+    Ranked by ``p_low`` within a demotion class: a trivial low-line UNDER
+    (``is_trivial_under``) never leads a slip, because 20/20 on "under 4.5
+    first-half goals" is a fact about football rather than a read on this
+    fixture, and it is priced at 1.001 for that reason.
     """
     rows = [row for row in stats_sheet.rows if row.event_id == event_id]
     excluded: dict[str, int] = {}
     eligible: list[tuple[StatsSheetRow, Tier]] = []
 
+    def exclude(reason: str) -> None:
+        excluded[reason] = excluded.get(reason, 0) + 1
+
     for row in rows:
         tier = tier_for_row(row)
+        veto = vetoes.for_row(row) if vetoes is not None else None
+        # Before the tier gate, exactly as in the singles loop: a DOWNGRADE that
+        # reaches WEAK must exclude the leg, and one that only reaches LEAN must
+        # raise min_acceptable_odds from the CALL margin to the LEAN margin.
+        if veto is not None and veto.action == "DOWNGRADE":
+            tier = step_tier_down(tier)
         if tier in ("WEAK", "DROP"):
-            excluded[f"tier_{tier.lower()}"] = excluded.get(f"tier_{tier.lower()}", 0) + 1
+            exclude(f"tier_{tier.lower()}")
+            continue
+        if veto is not None and veto.action == "VETO":
+            exclude("analyst_veto")
             continue
         if row.p_low <= 0:
             # 1/0 is not a price, and a row whose lower bound is zero is making
             # no claim to put on a slip.
-            excluded["p_low_not_positive"] = excluded.get("p_low_not_positive", 0) + 1
+            exclude("p_low_not_positive")
+            continue
+        if row.p_low < min_p_low:
+            exclude("p_low_below_threshold")
             continue
         eligible.append((row, tier))
 
-    eligible.sort(key=lambda pair: (-pair[0].p_low, pair[0].market, pair[0].line))
+    # Trivial UNDERs sort last, never first. Same key the singles list uses.
+    eligible.sort(
+        key=lambda pair: (
+            is_trivial_under(pair[0]), -pair[0].p_low, pair[0].market, pair[0].line
+        )
+    )
 
     # One leg per market: two lines of the same market in one slip are the same
     # read twice, and Superbet will not accept both anyway.
@@ -228,14 +377,35 @@ def draft_legs(
     markets_used: set[str] = set()
     for row, tier in eligible:
         if len(legs) >= max_legs:
-            excluded["over_max_legs"] = excluded.get("over_max_legs", 0) + 1
+            exclude("over_max_legs")
             continue
         key = f"{row.market}:{row.team_name or ''}:{row.player_name or ''}"
         if key in markets_used:
-            excluded["duplicate_market"] = excluded.get("duplicate_market", 0) + 1
+            exclude("duplicate_market")
             continue
-        markets_used.add(key)
         fair_odds = 1.0 / row.p_low
+        minimum = round(fair_odds * TIER_MARGIN[tier], 4)
+
+        availability, price = (None, None)
+        if price_for is not None:
+            availability, price = price_for(row)
+            # Availability is not a value judgement and is not optional. A slip
+            # is placed as one unit, so a leg the book does not carry does not
+            # make the slip worse -- it makes the slip impossible. Five of the
+            # eight slips shipped on 2026-09-01 contained a leg on a line
+            # Superbet does not list, and each was presented as a coupon to go
+            # and place. Unlike a single, there is no honest way to print that.
+            if availability != "OFFERED":
+                exclude(f"superbet_{(availability or 'unknown').lower()}")
+                continue
+        if require_value and price is not None and price < minimum:
+            # Below the bar but on the screen: a real answer about a real
+            # market, and the operator may still want to see it. Only dropped
+            # when the caller asked for a file of nothing but takeable bets.
+            exclude("superbet_priced_below_threshold")
+            continue
+
+        markets_used.add(key)
         legs.append(
             BetBuilderLeg(
                 event_id=row.event_id,
@@ -249,13 +419,16 @@ def draft_legs(
                 hit_rate=row.hit_rate,
                 sample_size=row.sample_size,
                 fair_odds=round(fair_odds, 4),
-                min_acceptable_odds=round(fair_odds * TIER_MARGIN[tier], 4),
+                min_acceptable_odds=minimum,
                 market_verdict=row.market_signal.verdict if row.market_signal else None,
+                superbet_availability=availability,
+                superbet_price=price,
                 caveats=_caveats(row),
             )
         )
 
     correlated = [leg for leg in legs if leg.market in _CORRELATED_FOOTBALL_FAMILY]
+    tennis_length = [leg for leg in legs if leg.market in _CORRELATED_TENNIS_FAMILY]
     if len(correlated) >= 2:
         risk = "HIGH"
         note = (
@@ -265,6 +438,20 @@ def draft_legs(
             "more often than independence implies. The combination is therefore "
             "less unlikely than the legs suggest -- and Superbet's own Bet "
             "Builder price already reflects that. Never multiply the legs."
+        )
+    elif len(tennis_length) >= 2:
+        # Added 2026-09-01. "Under 34.5 games" and "under 3.5 sets" were shipped
+        # as a LOW-correlation pair, which is close to the most correlated pair
+        # tennis has: a match that ends in three sets is a short match almost by
+        # definition. There was no tennis family here at all, so every tennis
+        # slip fell through to the "not from the same correlated family" branch.
+        risk = "HIGH"
+        note = (
+            f"{len(tennis_length)} of {len(legs)} legs measure the same thing -- "
+            "how long the match runs. Sets, games, aces and double faults all "
+            "grow together, so a short match settles every one of these UNDERs "
+            "at once and a long one settles none. Superbet's own price reflects "
+            "that; the legs read as independent and are not. Never multiply them."
         )
     elif len(legs) >= 2:
         risk = "LOW"

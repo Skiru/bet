@@ -35,6 +35,7 @@ from bet.simple_stats.offered_lines import OfferedLines  # noqa: E402
 from bet.simple_stats.artifact_io import sha256_file, write_json_atomic  # noqa: E402
 from bet.simple_stats.contracts import (  # noqa: E402
     EventDossierListV1,
+    EventListV1,
     MarketContextV1,
     StatsSheetV1,
     SuperbetOfferV1,
@@ -117,6 +118,14 @@ def main() -> None:
              "statistics, never mixed into them.",
     )
     parser.add_argument(
+        "--event-list",
+        default=None,
+        help="Optional EVENT_LIST_V1 from run_discover.py. Read for one thing: "
+             "each fixture's competition name, which the dossier does not carry "
+             "and which decides whether a tennis tie is best-of-five. Absent, "
+             "the best-of-five gate is inert and the sheet is unchanged.",
+    )
+    parser.add_argument(
         "--max-rows-per-event",
         type=int,
         default=None,
@@ -162,8 +171,26 @@ def main() -> None:
             unresolved_players=len(offered.unresolved_players),
         )
 
+    # Competition names, for the best-of-five gate and nothing else. A missing
+    # or unreadable event list leaves them empty, which suppresses no market --
+    # never a crash, and never a guessed format.
+    competitions: dict[str, str] = {}
+    if args.event_list:
+        try:
+            event_list = EventListV1.model_validate_json(
+                Path(args.event_list).read_text(encoding="utf-8")
+            )
+            competitions = {
+                event.event_id: event.competition
+                for event in event_list.events
+                if event.competition
+            }
+            out.event("event_list_loaded", competitions=len(competitions))
+        except (OSError, ValueError) as exc:
+            out.warning(f"event list unreadable, best-of-five gate inert: {exc}")
+
     try:
-        stats_sheet = analyze_dossiers(dossier_list, offered)
+        stats_sheet = analyze_dossiers(dossier_list, offered, competitions=competitions)
     except Exception as exc:
         traceback.print_exc(file=sys.stderr)
         out.error(f"analysis crashed: {exc}", recoverable=False, run_id=run_id)

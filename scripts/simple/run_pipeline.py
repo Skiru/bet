@@ -449,6 +449,11 @@ def main() -> None:
             # Each absent unless its step actually wrote it, so a skipped or
             # failed optional step leaves ANALYZE exactly as it was before that
             # stage existed.
+            if event_list.exists():
+                # Competition names only, for the best-of-five gate. DISCOVER
+                # always writes this file, so on a full run the gate is live;
+                # a run starting at ANALYZE without it degrades to inert.
+                argv += ["--event-list", str(event_list)]
             if market_context.exists():
                 argv += ["--market-context", str(market_context)]
             if tipster_signal.exists():
