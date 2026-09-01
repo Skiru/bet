@@ -129,22 +129,29 @@ def render_markdown(coupons: CouponSet) -> str:
     a("")
 
     # --- singles ---------------------------------------------------------
-    # Two sections, never merged (docs/PLAN_BOGATE_STATYSTYKI.md Faza 5c): a
-    # row ranked against the market's own price is a different claim from one
+    # Two axes, and value is the outer one.
+    #
+    # The market-reference split (docs/PLAN_BOGATE_STATYSTYKI.md Faza 5c) stays:
+    # a row ranked against the market's own price is a different claim from one
     # ranked on p_low alone, and printing them in one list would let a boring
     # high-p_low row outrank a real edge just by sorting above it.
+    #
+    # But neither of those says whether the bet is worth taking, and that is the
+    # question the operator actually has. Measured on 2026-09-01: of 5,000
+    # eligible rows exactly 10 were priced above their own minimum acceptable
+    # odds, and they were ranks 1-10 -- every other single in the list, and
+    # every row below it, is offered at a price the pipeline itself says is
+    # against the bettor. Printing all fifteen in one table made those five look
+    # like the other ten.
     a("## Single")
     a("")
-    with_edge = [s for s in coupons.singles if s.edge is not None]
-    without_edge = [s for s in coupons.singles if s.edge is None]
-    if not coupons.singles:
-        a("_Żaden wiersz nie przeszedł progu — dzień bez typów singlowych._")
-    else:
-        a("### Single z odniesieniem do rynku")
-        a("")
-        if not with_edge:
-            a("_Żaden wiersz nie ma dziś ceny z rynku (dziś: tylko rożne i gole)._")
-        else:
+
+    def _render_singles(rows: list) -> None:
+        with_edge = [s for s in rows if s.edge is not None]
+        without_edge = [s for s in rows if s.edge is None]
+        if with_edge:
+            a("**Z odniesieniem do rynku**")
+            a("")
             a(
                 "| # | Przewaga | Pewność | Mecz | Rynek | Strona | Surowo | n | "
                 "Zgodność | Rynek | Typerzy | Min. kurs | Superbet | Tier |"
@@ -153,19 +160,50 @@ def render_markdown(coupons: CouponSet) -> str:
                 "|--:|--------:|--------:|------|-------|--------|-------:|--:|"
                 "----------|-------|---------|----------:|---------|------|"
             )
-            for s in with_edge:
-                a(_singles_row(s, edge=f"{s.edge * 100:+.1f}pp"))
-        a("")
-        a("### Single bez odniesienia do rynku")
-        a("")
-        if not without_edge:
-            a("_Każdy wiersz powyżej progu ma dziś odniesienie do rynku._")
-        else:
+            for row in with_edge:
+                a(_singles_row(row, edge=f"{row.edge * 100:+.1f}pp"))
+            a("")
+        if without_edge:
+            a("**Bez odniesienia do rynku**")
+            a("")
             a("| # | Pewność | Mecz | Rynek | Strona | Surowo | n | Zgodność | Rynek | Typerzy | Min. kurs | Superbet | Tier |")
             a("|--:|--------:|------|-------|--------|-------:|--:|----------|-------|---------|----------:|---------|------|")
-            for s in without_edge:
-                a(_singles_row(s))
+            for row in without_edge:
+                a(_singles_row(row))
+            a("")
+
+    worth_it = [s for s in coupons.singles if s.superbet_verdict == "VALUE"]
+    below = [s for s in coupons.singles if s.superbet_verdict != "VALUE"]
+    if not coupons.singles:
+        a("_Żaden wiersz nie przeszedł progu — dzień bez typów singlowych._")
+    else:
+        a(f"### Warte swojej ceny w Superbecie ({len(worth_it)})")
         a("")
+        if not worth_it:
+            a(
+                "_Żaden typ nie osiąga dziś swojego minimalnego kursu na ekranie "
+                "Superbetu. To jest wynik, nie usterka: dzień bez ceny wartej "
+                "wzięcia jest dniem bez zakładu._"
+            )
+            a("")
+        else:
+            _render_singles(worth_it)
+
+        a(f"### Poniżej progu — cena nie uzasadnia zakładu ({len(below)})")
+        a("")
+        if not below:
+            a("_Każdy typ powyżej osiąga swój minimalny kurs._")
+            a("")
+        else:
+            a(
+                "> Te typy przeszły filtry statystyczne, ale Superbet wystawia je "
+                "**taniej niż ich minimalny akceptowalny kurs**. Trzymane tu dla "
+                "kompletności rozumowania, nie do postawienia po tej cenie. Kurs "
+                "się rusza — jeśli podskoczy powyżej progu, typ staje się grywalny."
+            )
+            a("")
+            _render_singles(below)
+
         a("Zastrzeżenia do poszczególnych typów:")
         a("")
         for s in coupons.singles:

@@ -139,6 +139,52 @@ def test_an_empty_pool_joins_nothing(ours, theirs):
     assert resolve_player_names(ours, theirs) == {}
 
 
+class TestFullLegalNames:
+    """Superbet prints some players under the name on their birth certificate.
+
+    Measured on 2026-09-01: sixteen players across 564 sheet rows were unpriced
+    for this reason alone, while Superbet was pricing them all along. Containment
+    cannot see them -- "akin" is not "akinlolu" -- and the fuzzy pass scores them
+    far below its threshold because the legal name is two or three tokens longer.
+    """
+
+    def test_a_diminutive_joins_its_full_legal_name(self):
+        assert resolve_player_names(
+            ["Akin Famewo"], ["Akinlolu Richard Olamide Famewo"]
+        ) == {"Akinlolu Richard Olamide Famewo": "Akin Famewo"}
+
+    def test_a_hyphenated_surname_still_shares_a_token(self):
+        assert resolve_player_names(
+            ["Chris Forino"], ["Christian Kai John Forino-Joseph"]
+        ) == {"Christian Kai John Forino-Joseph": "Chris Forino"}
+
+    def test_a_shared_forename_is_not_a_shared_surname(self):
+        """"Sam Dalby" may not take "Curtis, Sam" just because both are Sams."""
+        assert resolve_player_names(["Sam Dalby"], ["Samuel George Curtis"]) == {}
+
+    def test_two_of_ours_fitting_one_of_theirs_is_refused(self):
+        assert resolve_player_names(
+            ["Max Kilman", "Maxi Kilman"], ["Maximilian William Kilman"]
+        ) == {}
+
+    def test_one_of_ours_fitting_two_of_theirs_is_refused(self):
+        assert resolve_player_names(
+            ["Max Kilman"], ["Maximilian William Kilman", "Maxwell John Kilman"]
+        ) == {}
+
+    def test_a_brazilian_nickname_is_left_alone(self):
+        """"Lucas Mineiro" and "Lucas da Silva Izidoro" share only a forename.
+
+        These are the residue this rule deliberately does not chase: a nickname
+        carries no token of the legal name, so any join would be a guess, and a
+        wrong prop is a priced row naming the wrong human.
+        """
+        assert resolve_player_names(
+            ["Lucas Mineiro", "Guilherme Portuga"],
+            ["Lucas da Silva Izidoro", "Guilherme Maciel Dantas"],
+        ) == {}
+
+
 def test_no_two_superbet_strings_ever_claim_the_same_player():
     ours = ["Lucas Silva", "Gerson Silva", "Renan Lodi"]
     theirs = ["Silva, Lucas", "Silva, Gerson", "Lodi, Renan"]

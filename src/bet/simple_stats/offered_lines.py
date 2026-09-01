@@ -85,6 +85,32 @@ def _fold_player(name: str) -> frozenset[str]:
     return frozenset(token for token in cleaned.split() if token)
 
 
+def _prefix_name_fits(ours: frozenset[str], theirs: frozenset[str]) -> bool:
+    """Same surname, and our given names are prefixes of theirs.
+
+    Written as a predicate rather than a score because there is nothing to rank:
+    either every token of our name is accounted for in theirs, or the pair is
+    not this rule's business and the fuzzy pass can have it.
+    """
+    if not ours or not theirs:
+        return False
+    shared = ours & theirs
+    # A surname, not an initial and not a particle: "de", "da" and "van" are
+    # shared by half a Brazilian squad and identify nobody.
+    if not any(len(token) >= 4 for token in shared):
+        return False
+    rest = ours - shared
+    if not rest:
+        # Fully contained; pass 2 already had its chance and declined, which
+        # means it was ambiguous there and must stay ambiguous here.
+        return False
+    pool = theirs - shared
+    return all(
+        len(token) >= 3 and any(candidate.startswith(token) for candidate in pool)
+        for token in rest
+    )
+
+
 def resolve_player_names(
     ours: Iterable[str],
     theirs: Iterable[str],
@@ -162,6 +188,42 @@ def resolve_player_names(
             if other != their_name
             and their_bags[other]
             and (our_bag <= their_bags[other] or their_bags[other] <= our_bag)
+        ]
+        if rivals:
+            continue
+        resolved[their_name] = our_name
+        remaining_ours.remove(our_name)
+        remaining_theirs.remove(their_name)
+
+    # Pass 3: a shared surname plus given names that are prefixes of theirs.
+    #
+    # Superbet prints some players under their full legal name: "Akinlolu
+    # Richard Olamide Famewo" where the dossier has "Akin Famewo", "Maximilian
+    # William Kilman" where it has "Max Kilman", "Christian Kai John
+    # Forino-Joseph" where it has "Chris Forino". Containment cannot see these --
+    # "akin" is not "akinlolu" -- and the fuzzy pass scores them far below 88
+    # because the legal name is two or three tokens longer. On 2026-09-01 that
+    # left 16 such players unpriced across 564 sheet rows.
+    #
+    # The rule is deliberately narrow. A surname of four characters or more must
+    # be shared *exactly*, and every remaining token of our name must be a
+    # prefix of one of theirs -- "Ben" of "Benjamin", "Sam" of "Samuel". It runs
+    # before the fuzzy pass because it is stricter than one, and it carries the
+    # same both-directions uniqueness rule: "Sam Dalby" may not take "Curtis,
+    # Sam", and two Silvas still cancel each other out.
+    for their_name in list(remaining_theirs):
+        their_bag = their_bags[their_name]
+        fitting = [
+            our_name for our_name in remaining_ours
+            if _prefix_name_fits(our_bags[our_name], their_bag)
+        ]
+        if len(fitting) != 1:
+            continue
+        our_name = fitting[0]
+        rivals = [
+            other for other in remaining_theirs
+            if other != their_name
+            and _prefix_name_fits(our_bags[our_name], their_bags[other])
         ]
         if rivals:
             continue
