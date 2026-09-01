@@ -185,6 +185,65 @@ class RateLimiter:
             api_name, _PROVIDER_EXHAUSTED[api_name],
         )
 
+    def note_entitlement_fault(self, api_name: str, reason: str) -> None:
+        """The provider refused us for *billing*, not for spend. Persist that.
+
+        Why this is not ``note_provider_exhausted``: bzzoiro's tennis product
+        answers ``402 addon_required`` **while still sending
+        ``ratelimit: "tennis";r=0``**. The header is real and the parser reads
+        it correctly, but "0 left because you have not bought the Sports Addon"
+        is a different fact from "0 left because you spent 100", and collapsing
+        them produced a preflight line that read
+
+            bzzoiro-tennis   0   95   quota_exhausted
+            -> Raise BET_LIMIT_BZZOIRO_TENNIS, or reset the counter
+
+        -- two pieces of advice that cannot work, because it is a $5/mo
+        purchase. Observed live 2026-09-01.
+
+        Persisted rather than kept in memory because preflight runs in its own
+        process, and an entitlement fault that vanishes between processes is
+        exactly the one that gets rediscovered every morning. The *count* is
+        deliberately left alone: buy the addon and the provider works again
+        with no counter to reset.
+        """
+        _validate_api_name(api_name)
+        _, window_type = self._effective_limit(api_name)
+        with self._get_lock(api_name):
+            bucket = _window_str(window_type)
+            usage = self._read_usage(api_name, bucket, window_type)
+            usage["api_name"] = api_name
+            usage["date"] = bucket
+            usage.setdefault("count", 0)
+            usage["entitlement_fault"] = {
+                "reason": reason,
+                "observed_at": datetime.now(timezone.utc).isoformat(),
+            }
+            self._write_usage(api_name, usage, window_type)
+        # Stop calling it for the rest of the run, exactly as an exhausted
+        # quota would. Without this the run keeps asking: a 402 consumes no
+        # quota, so nothing else stops it, and a 38-fixture tennis slate at
+        # ~16 calls an event is ~600 round-trips to be told the same thing.
+        # The *reason* travels with the flag so the run summary still says
+        # "entitlement" rather than inheriting the word "quota".
+        with _EXHAUSTED_LOCK:
+            _PROVIDER_EXHAUSTED.setdefault(api_name, f"entitlement required: {reason}")
+        logger.warning(
+            "[%s] provider refused on entitlement, not quota (%s). Raising the "
+            "local limit or resetting the counter cannot help; it will not be "
+            "called again this run.",
+            api_name, reason,
+        )
+
+    def entitlement_fault(self, api_name: str) -> str | None:
+        """The persisted reason this provider is refusing on billing, if any."""
+        _validate_api_name(api_name)
+        _, window_type = self._effective_limit(api_name)
+        fault = self._read_usage(api_name, window_type=window_type).get("entitlement_fault")
+        if isinstance(fault, dict) and fault.get("reason"):
+            return str(fault["reason"])
+        return None
+
     def clear_provider_exhausted(self, api_name: str | None = None) -> None:
         """Forget the in-process exhaustion flags (key rotation, tests)."""
         with _EXHAUSTED_LOCK:
@@ -337,6 +396,13 @@ class RateLimiter:
             "window": window,
             "limit_env_var": limit_env_var(api_name),
             "usage_file": str(self._usage_file(api_name, _window_str(window), window)),
+            # Present only when the provider refused on billing. Preflight has
+            # to be able to tell that apart from spend, or it prints advice
+            # that cannot work.
+            "entitlement_fault": (
+                usage.get("entitlement_fault", {}).get("reason")
+                if isinstance(usage.get("entitlement_fault"), dict) else None
+            ),
         }
 
     def record_request(self, api_name: str, endpoint: str, cost: int = 1) -> None:

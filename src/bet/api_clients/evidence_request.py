@@ -109,20 +109,35 @@ class EvidenceRequestMixin:
         )
         self.rate_limiter.record_request(self.api_name, endpoint, 1)
         quota_metadata = self._extract_quota_metadata(result.headers)
-        # The provider just stated how much of its quota is left; believe that
-        # over our own tally. record_request above counts what *this* process
-        # spent, but the quota belongs to the key, and a second user of the key
-        # -- another run, another machine, the MCP server -- is invisible to it.
-        # Bzzoiro's tennis product is the case that matters: 100 a day at ~16
-        # calls an event, where being a few events out of step is the difference
-        # between a clean run and a lopsided one.
-        self.rate_limiter.reconcile_from_provider(self.api_name, quota_metadata)
-        if quota_metadata.get("daily_remaining") == 0:
-            self.rate_limiter.note_provider_exhausted(
+        if result.status_code == 402:
+            # Payment Required. This response's quota headers are not a spend
+            # tally and must not touch the counter. Bzzoiro's tennis product is
+            # the case that matters here too, from the other direction: it
+            # answers 402 ``addon_required`` *while sending*
+            # ``ratelimit: "tennis";r=0;t=54274``. Believing that wrote
+            # "100/95 used" into the day's counter and made preflight advise
+            # raising BET_LIMIT_BZZOIRO_TENNIS or resetting the count, neither
+            # of which can buy a $5/mo addon. Observed live 2026-09-01.
+            self.rate_limiter.note_entitlement_fault(
                 self.api_name,
-                f"ratelimit header reports 0 of "
-                f"{quota_metadata.get('daily_limit')} remaining",
+                f"HTTP 402 from {endpoint}: provider requires a paid entitlement, "
+                f"not more quota",
             )
+        else:
+            # The provider just stated how much of its quota is left; believe that
+            # over our own tally. record_request above counts what *this* process
+            # spent, but the quota belongs to the key, and a second user of the key
+            # -- another run, another machine, the MCP server -- is invisible to it.
+            # Bzzoiro's tennis product is the case that matters: 100 a day at ~16
+            # calls an event, where being a few events out of step is the difference
+            # between a clean run and a lopsided one.
+            self.rate_limiter.reconcile_from_provider(self.api_name, quota_metadata)
+            if quota_metadata.get("daily_remaining") == 0:
+                self.rate_limiter.note_provider_exhausted(
+                    self.api_name,
+                    f"ratelimit header reports 0 of "
+                    f"{quota_metadata.get('daily_limit')} remaining",
+                )
 
         evidence_refs = []
         if result.status_code is not None:

@@ -109,6 +109,10 @@ def provider_quota(rate_limiter: RateLimiter, provider: str) -> dict:
         "has_credentials": credentials_ok,
         "credential_env": credential_vars,
         "limit_env": limit_env_var(provider),
+        # Persisted by the client boundary on an HTTP 402. Carried on every
+        # quota dict, including the unlimited branch: a provider with no local
+        # cap can still be refused for billing.
+        "entitlement_fault": rate_limiter.entitlement_fault(provider),
     }
     if limit is None:
         return {
@@ -116,7 +120,7 @@ def provider_quota(rate_limiter: RateLimiter, provider: str) -> dict:
             "limit": None,
             "remaining": None,
             "unlimited": True,
-            "available": credentials_ok,
+            "available": credentials_ok and not base["entitlement_fault"],
         }
     remaining = rate_limiter.get_remaining(provider)
     return {
@@ -125,7 +129,11 @@ def provider_quota(rate_limiter: RateLimiter, provider: str) -> dict:
         "remaining": remaining,
         "used_hint": max(0, limit - remaining),
         "unlimited": False,
-        "available": credentials_ok and rate_limiter.can_request(provider, 1),
+        "available": (
+            credentials_ok
+            and not base["entitlement_fault"]
+            and rate_limiter.can_request(provider, 1)
+        ),
     }
 
 
@@ -229,6 +237,25 @@ def preflight_for_sports(
             )
             continue
         if not quota["available"]:
+            # An entitlement fault outranks the quota story even when the
+            # counter also reads empty, because the two need opposite actions:
+            # a spent quota clears tomorrow or yields to a higher BET_LIMIT_*,
+            # a 402 yields only to a purchase. Reporting the second as the
+            # first is how an operator spends a morning resetting a counter.
+            entitlement = quota.get("entitlement_fault")
+            if entitlement:
+                blocked.append(
+                    {
+                        "provider": provider,
+                        "reason": (
+                            f"entitlement required, not quota: {entitlement}. "
+                            f"Raising {quota['limit_env']} and resetting the counter "
+                            f"will both do nothing -- this needs a plan change at the provider."
+                        ),
+                        "kind": "entitlement_required",
+                    }
+                )
+                continue
             blocked.append(
                 {
                     "provider": provider,

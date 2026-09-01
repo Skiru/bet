@@ -332,18 +332,32 @@ class APISportsClient(BaseAPIClient):
             )
             self.rate_limiter.record_request(self.api_name, endpoint, cost)
             quota_metadata = self._extract_quota_metadata(result.headers)
-            # The provider just stated how much of its quota is left. Believe it
-            # over our own tally: the tally counts what *this* process spent,
-            # while the quota belongs to the key, and any second user of that
-            # key is invisible here. Providers that send nothing (bzzoiro's
-            # football product on PRO) reconcile to nothing and are unaffected.
-            self.rate_limiter.reconcile_from_provider(self.api_name, quota_metadata)
-            if quota_metadata.get("daily_remaining") == 0:
-                self.rate_limiter.note_provider_exhausted(
+            if result.status_code == 402:
+                # Payment Required. The quota headers on this response are not
+                # a spend tally and must not touch the counter: bzzoiro's
+                # tennis product answers 402 ``addon_required`` *while sending*
+                # ``ratelimit: "tennis";r=0``, and believing that wrote
+                # "100/95 used" into the day's counter and made preflight
+                # advise raising a limit and resetting a count -- neither of
+                # which can buy a $5/mo addon. Observed live 2026-09-01.
+                self.rate_limiter.note_entitlement_fault(
                     self.api_name,
-                    f"ratelimit header reports 0 of "
-                    f"{quota_metadata.get('daily_limit')} remaining",
+                    f"HTTP 402 from {endpoint}: provider requires a paid entitlement, "
+                    f"not more quota",
                 )
+            else:
+                # The provider just stated how much of its quota is left. Believe it
+                # over our own tally: the tally counts what *this* process spent,
+                # while the quota belongs to the key, and any second user of that
+                # key is invisible here. Providers that send nothing (bzzoiro's
+                # football product on PRO) reconcile to nothing and are unaffected.
+                self.rate_limiter.reconcile_from_provider(self.api_name, quota_metadata)
+                if quota_metadata.get("daily_remaining") == 0:
+                    self.rate_limiter.note_provider_exhausted(
+                        self.api_name,
+                        f"ratelimit header reports 0 of "
+                        f"{quota_metadata.get('daily_limit')} remaining",
+                    )
 
             if result.status_code is not None:
                 try:

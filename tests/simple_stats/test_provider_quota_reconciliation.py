@@ -163,3 +163,131 @@ def test_reconciliation_leaves_a_trace_an_operator_can_read(limiter, tmp_path):
     assert usage["provider_reported"]["remaining"] == 60
     assert usage["provider_reported"]["limit"] == 100
     assert usage["provider_reported"]["observed_at"]
+
+
+# --- 402 is a purchase, not a spend -----------------------------------------
+#
+# Live on 2026-09-01, bzzoiro's tennis product answered
+#
+#     HTTP 402
+#     {"error":"Sports Addon required","code":"addon_required",
+#      "detail":"...require the Sports Addon ($5/mo)."}
+#     ratelimit-policy: "tennis";q=100;w=86400
+#     ratelimit:        "tennis";r=0;t=54274
+#
+# -- a billing refusal carrying a perfectly real ``r=0``. Believing that header
+# wrote "100/95 used" into the day's counter, and preflight then told the
+# operator to raise BET_LIMIT_BZZOIRO_TENNIS or reset the counter. Neither can
+# buy an addon. These tests keep the two facts apart.
+
+
+def test_an_entitlement_fault_does_not_move_the_counter(limiter):
+    """Buy the addon and the provider works again -- with nothing to reset."""
+    for _ in range(3):
+        limiter.record_request("bzzoiro-tennis", "/matches/")
+
+    limiter.note_entitlement_fault("bzzoiro-tennis", "HTTP 402: Sports Addon required")
+
+    assert limiter.usage_snapshot("bzzoiro-tennis")["used"] == 3
+
+
+def test_an_entitlement_fault_survives_the_process_that_saw_it(tmp_path):
+    """Preflight runs in its own process. An in-memory flag would never reach it."""
+    first = RateLimiter(usage_dir=tmp_path, limits={"bzzoiro-tennis": 100},
+                        rate_limits={}, honor_env_overrides=False)
+    first.note_entitlement_fault("bzzoiro-tennis", "HTTP 402: Sports Addon required")
+
+    second = RateLimiter(usage_dir=tmp_path, limits={"bzzoiro-tennis": 100},
+                         rate_limits={}, honor_env_overrides=False)
+
+    assert "Sports Addon" in (second.entitlement_fault("bzzoiro-tennis") or "")
+    assert second.usage_snapshot("bzzoiro-tennis")["entitlement_fault"]
+
+
+def test_a_provider_with_no_fault_reports_none(limiter):
+    assert limiter.entitlement_fault("bzzoiro-tennis") is None
+    assert limiter.usage_snapshot("bzzoiro-tennis")["entitlement_fault"] is None
+
+
+def test_preflight_names_the_purchase_instead_of_advising_a_reset(tmp_path, monkeypatch):
+    """The whole point: the advice has to be one that can work."""
+    from bet.simple_stats import preflight as pf
+
+    limiter = RateLimiter(usage_dir=tmp_path, limits={"bzzoiro-tennis": 100},
+                          rate_limits={}, honor_env_overrides=False)
+    limiter.note_entitlement_fault("bzzoiro-tennis", "HTTP 402: Sports Addon required")
+    monkeypatch.setattr(pf, "has_credentials", lambda _p: (True, "BZZORIO_KEY"))
+
+    quota = pf.provider_quota(limiter, "bzzoiro-tennis")
+
+    assert quota["available"] is False, "a 402'd provider must not read as usable"
+    assert quota["entitlement_fault"]
+    # And the counter is untouched, so nothing suggests spend.
+    assert quota["used_hint"] == 0
+
+
+def test_a_402_response_does_not_reconcile_the_counter_from_its_headers(tmp_path, monkeypatch):
+    """The boundary test, with the exact live payload that caused this.
+
+    Without the 402 branch, ``r=0`` on this response set ``count`` to 100 and
+    the day was over for a provider that had spent nothing.
+    """
+    from bet.api_clients.bzzoiro_tennis import BzzoiroTennisClient
+    from bet.integration import evidence as ev
+    from bet.integration import telemetry_wrapper as tw
+
+    limiter = RateLimiter(usage_dir=tmp_path, limits={"bzzoiro-tennis": 100},
+                          rate_limits={}, honor_env_overrides=False)
+    limiter.clear_provider_exhausted()
+
+    class _Result:
+        status_code = 402
+        headers = {
+            "ratelimit-policy": '"tennis";q=100;w=86400',
+            "ratelimit": '"tennis";r=0;t=54274',
+        }
+        content = b'{"error":"Sports Addon required","code":"addon_required"}'
+        text = content.decode()
+        error_code = "payment_required"
+        retryable = False
+        error = None
+        elapsed_ms = 1
+
+        @staticmethod
+        def json():
+            return {"error": "Sports Addon required", "code": "addon_required"}
+
+    # The imports are function-local, so the source modules are what must be
+    # patched -- and bzzoiro goes through EvidenceRequestMixin, not
+    # APISportsClient. Patching the wrong one is how a fix lands next to the
+    # code path it was written for.
+    monkeypatch.setattr(tw, "wrap_request", lambda **_kwargs: _Result())
+    monkeypatch.setattr(ev, "persist_response_evidence", lambda *a, **k: None)
+
+    client = BzzoiroTennisClient(limiter)
+    monkeypatch.setattr(client, "api_key", "test-key", raising=False)
+    # Keyword-only, and NOT wrapped in a bare except: a swallowed TypeError
+    # here made this test pass against a call that never happened.
+    result = client._request_with_evidence(
+        endpoint="/matches/", params={}, operation="fixtures"
+    )
+    assert result is not None
+
+    snapshot = limiter.usage_snapshot("bzzoiro-tennis")
+    assert snapshot["used"] < 100, (
+        "the 402's ratelimit header was believed as a spend tally: "
+        f"count is {snapshot['used']}"
+    )
+    assert snapshot["entitlement_fault"], "the billing refusal was not recorded"
+    limiter.clear_provider_exhausted()
+
+
+def test_an_entitlement_fault_stops_the_run_from_asking_again(limiter):
+    """A 402 consumes no quota, so nothing else would ever stop the loop."""
+    assert limiter.can_request("bzzoiro-tennis", 1) is True
+
+    limiter.note_entitlement_fault("bzzoiro-tennis", "HTTP 402: Sports Addon required")
+
+    assert limiter.provider_says_exhausted("bzzoiro-tennis") is True
+    assert limiter.can_request("bzzoiro-tennis", 1) is False
+    limiter.clear_provider_exhausted()
