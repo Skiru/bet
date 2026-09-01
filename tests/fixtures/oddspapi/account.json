@@ -1,0 +1,49 @@
+{
+  "api_key": "REDACTED",
+  "created_at": "2026-06-26T05:41:30.671327+00:00",
+  "language_code": "en",
+  "email": "redacted@example.invalid",
+  "current_subscription_id": "a29779bf-2afd-4e0c-ba9c-53c55228dfdf",
+  "customer_segment": "user",
+  "subscriptions": [
+    {
+      "subscription_id": "a29779bf-2afd-4e0c-ba9c-53c55228dfdf",
+      "is_active": true,
+      "bookmakers": {
+        "superbet": {
+          "has_live_odds": false,
+          "has_player_props": false
+        },
+        "superbet.ro": {
+          "has_live_odds": false,
+          "has_player_props": false
+        },
+        "superbet.rs": {
+          "has_live_odds": false,
+          "has_player_props": false
+        },
+        "betclic.pl": {
+          "has_live_odds": false,
+          "has_player_props": false
+        },
+        "pinnacle": {
+          "has_live_odds": false,
+          "has_player_props": false
+        },
+        "bet365": {
+          "has_live_odds": false,
+          "has_player_props": false
+        }
+      },
+      "sport_ids": [
+        10,
+        11,
+        12
+      ],
+      "websocket_access": 0,
+      "request_limit": 250,
+      "request_count": 21,
+      "plan": "free"
+    }
+  ]
+}

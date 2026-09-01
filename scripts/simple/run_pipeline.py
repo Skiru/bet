@@ -291,6 +291,15 @@ def main() -> None:
              "target rather than a comparison.",
     )
     parser.add_argument(
+        "--oddspapi-bridge", choices=("auto", "on", "off"), default="auto",
+        help="Passed to SUPERBET. Names Superbet fixtures by Betradar id via "
+             "OddsPapi rather than by spelling, which recovered eight fixtures "
+             "on the 2026-09-01 slate that no name rule could reach. Costs two "
+             "or three requests out of a 250-request lifetime allowance, so "
+             "'off' is the setting for a day when that allowance is needed "
+             "elsewhere.",
+    )
+    parser.add_argument(
         "--tipster-source", action="append", default=None,
         help="Repeatable. Overrides the default live tipster source set.",
     )
@@ -425,6 +434,7 @@ def main() -> None:
                 STEP_SCRIPTS["superbet"],
                 "--event-list", str(event_list),
                 "--max-events", str(args.max_events),
+                "--oddspapi-bridge", args.oddspapi_bridge,
                 *common,
             ]
         else:

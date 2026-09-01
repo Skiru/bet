@@ -45,6 +45,10 @@ from agent_output import AgentOutput, add_agent_args  # noqa: E402
 from bet.simple_stats.artifact_io import sha256_file, write_json_atomic  # noqa: E402
 from bet.simple_stats.contracts import EventListV1, StatsSheetV1  # noqa: E402
 from bet.simple_stats.run_context import record_run  # noqa: E402
+from bet.simple_stats.superbet_identity import (  # noqa: E402
+    build_identity_bridge,
+    disabled as bridge_disabled,
+)
 from bet.simple_stats.superbet_offer import (  # noqa: E402
     collect_superbet_offer,
     compare_sheet_to_offer,
@@ -76,6 +80,16 @@ def main() -> None:
              "the coupon at the default: it keeps every line and every per-team row, "
              "where the coupon takes one single per market family.",
     )
+    parser.add_argument(
+        "--oddspapi-bridge", choices=("auto", "on", "off"), default="auto",
+        help="Name Superbet fixtures by Betradar id via OddsPapi instead of by "
+             "spelling (default: auto -- on when ODDSPAPI_API_KEY is set and the "
+             "plan has quota to spare). Costs one /account probe, cached six "
+             "hours, plus one /fixtures call per sport. It can only *add* "
+             "matches: with it off, or on any failure, the fixture matcher "
+             "behaves exactly as it did before. 'on' still degrades rather than "
+             "failing the step -- it forces the attempt, not the outcome.",
+    )
     parser.add_argument("--db-path", default=None, help="SQLite path for the pipeline_runs row")
     parser.add_argument("--no-persist", action="store_true", help="Write only artifacts, no DB row")
     add_agent_args(parser)
@@ -104,8 +118,29 @@ def main() -> None:
     event_list = EventListV1.model_validate_json(event_list_path.read_text(encoding="utf-8"))
     out.event("run_start", run_id=event_list.run_id, date=event_list.date, events=len(event_list.events))
 
+    if args.oddspapi_bridge == "off":
+        bridge = bridge_disabled("disabled by --oddspapi-bridge=off")
+    else:
+        # Never lets an optional identity lookup take a betting day down: the
+        # builder already swallows its own failures, and this is the last rail.
+        try:
+            bridge = build_identity_bridge(event_list)
+        except Exception as exc:  # noqa: BLE001
+            bridge = bridge_disabled(f"identity bridge crashed: {exc}")
+    for note in bridge.notes:
+        out.event("oddspapi_bridge", note=note)
+    if bridge.enabled:
+        out.event(
+            "oddspapi_bridge_ready",
+            events=len(bridge.betradar_by_event_id),
+            requests=bridge.requests_made,
+            quota_remaining=bridge.quota_remaining,
+        )
+
     try:
-        offer = collect_superbet_offer(event_list, max_events=args.max_events)
+        offer = collect_superbet_offer(
+            event_list, max_events=args.max_events, identity_bridge=bridge
+        )
     except Exception as exc:
         traceback.print_exc(file=sys.stderr)
         out.error(f"superbet offer run crashed: {exc}", recoverable=True)
@@ -123,6 +158,8 @@ def main() -> None:
         "run_id": offer.run_id,
         "date": offer.date,
         **summarize_offer(offer),
+        "events_matched_by_id": offer.events_matched_by_id,
+        **bridge.as_metrics(),
         "offer_path": str(offer_path),
         "offer_sha256": offer_digest,
     }

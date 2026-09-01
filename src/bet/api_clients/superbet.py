@@ -27,12 +27,24 @@ the book the bet is placed into.
 The transport, and why it is this one
 -------------------------------------
 ``OddsPapi`` is in ``config/provider_registry.json`` precisely to serve Superbet
-PL odds, and on 2026-08-31 its account probe returned **200 with an active
-subscription and 0/250 requests used**, while ``/v4/fixtures`` and ``/v4/odds``
-both returned **403**. The plan covers the account endpoint and nothing else.
-That is a billing state, not an outage, so this module does not try to route
-around it -- it reads Superbet's own public offer API, the one superbet.pl's web
-client reads, and says so in every artifact it writes.
+PL odds, and on 2026-08-31 it was read as *"the plan covers ``/account`` and
+nothing else"* because ``/v4/fixtures`` and ``/v4/odds`` answered 403. **That
+reading was wrong**, and re-probing on 2026-09-01 with the error body in hand
+showed why: the 403 is ``RESTRICTED_ACCESS`` and it names a *bookmaker* --
+*"Restricted bookmakers: superbet.pl"*. Both endpoints work. What the free plan
+does not carry is the Polish storefront; it carries ``superbet``, a clone of
+``superbet.ro``.
+
+That does not change which feed is read here, and for a sharper reason than a
+billing state. Measured on West Ham-Wolves, OddsPapi's ``superbet`` posts the
+*same line ladder* as superbet.pl at prices 0.5-1.5% better -- corners over 9.5
+at 1.69 against the Polish book's 1.68. A price the operator cannot take,
+presented as one they can, is precisely the failure this whole step exists to
+prevent. So the price of record stays superbet.pl's own public offer, the one
+its web client reads, and OddsPapi is used for *identity only*
+(``bet.simple_stats.superbet_identity``): ``bookmakerFixtureId`` is literally
+this feed's ``eventId``, and ``externalProviders.betradarId`` joins the two
+without comparing a single name.
 
 The host is resolved from superbet.pl's published app config
 (``/static/js/fetchConfig/app``) rather than hardcoded folklore: the older

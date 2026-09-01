@@ -256,8 +256,23 @@ def _run_oddspapi_probe(window_start: str, window_end: str) -> tuple[dict[str, A
 
     account_summary = result["account_probe"]["redacted_summary"] or {}
     if account_summary.get("has_superbet_pl") is False:
+        # Still a FAIL for *this* probe's purpose -- it exists to answer "can
+        # OddsPapi serve the operator's own prices", and it cannot. What the
+        # reason must not do is imply the provider is unusable: the 403 that
+        # follows from asking for superbet.pl names a bookmaker, not an
+        # endpoint, and an entitled storefront shares Superbet's event ids and
+        # drives the SUPERBET step's identity bridge.
+        alternative = account_summary.get("usable_superbet_slug")
         result["status"] = "FAIL_PLAN_NO_SUPERBET_PL"
-        result["reason"] = "OddsPapi account response does not show Superbet PL access."
+        result["reason"] = (
+            "OddsPapi account response does not show Superbet PL access."
+            + (
+                f" An entitled Superbet storefront is available ({alternative}); it shares "
+                "Superbet's event ids, so /v4/fixtures and /v4/odds remain usable for "
+                "fixture identity even though this price source is not."
+                if alternative else ""
+            )
+        )
         return result, 0
     if account_summary.get("has_sport_10") is False:
         result["status"] = "FAIL_PLAN_NO_SPORT_10"

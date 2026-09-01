@@ -29,15 +29,29 @@ _EMOJI_RE = re.compile(
     flags=re.UNICODE,
 )
 
-# Characters that NFKD doesn't decompose but have obvious ASCII equivalents
-_SPECIAL_CHAR_MAP = str.maketrans({
+# Letters NFKD does not decompose, because they are letters in their own right
+# rather than an accented base -- there is no combining mark to strip, so
+# without this table they survive NFKD and are then deleted outright by the
+# ASCII encode (or, in ``fold_club_name``, replaced by a space, which splits a
+# club name in half). Every entry is a letter that appears in a league this
+# pipeline reads: Polish ł, Nordic ø/æ/þ/ð, Croatian and Vietnamese đ, German
+# ß, Turkish ı, Maltese ħ/ŧ, French œ.
+SPECIAL_CHAR_MAP = str.maketrans({
     "Ł": "L", "ł": "l",
     "Ø": "O", "ø": "o",
     "Đ": "D", "đ": "d",
     "ß": "ss",
     "Ħ": "H", "ħ": "h",
     "Ŧ": "T", "ŧ": "t",
+    "İ": "I", "ı": "i",
+    "Þ": "Th", "þ": "th",
+    "Ð": "D", "ð": "d",
+    "Æ": "Ae", "æ": "ae",
+    "Œ": "Oe", "œ": "oe",
 })
+
+# Kept as the old private name so nothing importing it breaks.
+_SPECIAL_CHAR_MAP = SPECIAL_CHAR_MAP
 
 
 def strip_emoji(text: str) -> str:

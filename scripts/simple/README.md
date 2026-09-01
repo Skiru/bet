@@ -16,6 +16,7 @@ python3 scripts/simple/run_pipeline.py -v            # run it
 | `run_tipsters.py` | Optional step — public tipster picks per event (`--skip-tipsters` to omit) |
 | `run_superbet.py` | Optional step — the operator's own book: is this line on the screen, and at what price (`--skip-superbet` to omit) |
 | `run_analyze.py` | Step 3 alone — hit rates and the stats sheet |
+| `review_oddspapi.py` | What OddsPapi can do for this account *today* — plan, quota, which Superbet storefront is entitled. 1 request, 3 with `--probe`. |
 | `reset_provider_quota.py` | Clear a local usage counter after rotating a key |
 | `purge_unproven_cache.py` | Delete cached provider data written before the checks that would have caught it. Dry run by default. |
 
@@ -38,6 +39,22 @@ short" from "not on the screen at all" — and on the slate it was built against
 the second was true of eight of fifteen singles. It costs one public HTTP
 request for the day plus one per matched fixture: no credential, no quota, no
 session, and nothing in it can place a bet.
+
+Since 2026-09-01 it names fixtures by **Betradar id** rather than by spelling
+wherever it can: `--oddspapi-bridge auto` (the default, also settable on
+`run_pipeline.py`) asks OddsPapi for one `/v4/fixtures` page per sport, joins it
+to our events, and hands `superbet_offer` an exact integer key. Measured on a
+real 179-fixture slate: 115 matched fixtures became 123, with zero
+disagreements on the 115 both matchers could name. It costs two or three
+requests out of a **250-request lifetime** free allowance, so it stops on its
+own below a reserve and `--oddspapi-bridge off` skips it outright. It only ever
+adds matches; every failure mode leaves the name matcher exactly as it was.
+
+OddsPapi supplies identity and never a price. Its free plan cannot serve
+`superbet.pl` (403 `RESTRICTED_ACCESS`, naming the bookmaker, not the endpoint)
+and the storefront it does serve prices 0.5-1.5% away from the Polish book. Run
+`review_oddspapi.py` to see the current state rather than trusting this
+paragraph.
 
 Operator procedure: [docs/MORNING.md](../../docs/MORNING.md).
 Reference: [docs/SIMPLE_STATS_RUNBOOK.md](../../docs/SIMPLE_STATS_RUNBOOK.md).

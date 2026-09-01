@@ -921,7 +921,10 @@ class SuperbetEventOffer(StrictBaseModel):
     # anyway: a fixture on the book that our DISCOVER never found is the single
     # most actionable coverage gap there is.
     event_id: str | None = None
-    match_quality: Literal["EXACT", "FUZZY", "UNMATCHED"] = "UNMATCHED"
+    # ID_MATCHED means the pairing came from a Betradar id shared by OddsPapi
+    # and Superbet, so it involved no name comparison and no kickoff window.
+    # It outranks EXACT: EXACT still means "two names and two clocks agreed".
+    match_quality: Literal["ID_MATCHED", "EXACT", "FUZZY", "UNMATCHED"] = "UNMATCHED"
     # Superbet's kickoff minus ours, in minutes. Tennis is scheduled by court
     # order, so its published time is an estimate and drifts by an hour or more
     # without the fixture being a different match.
@@ -959,6 +962,13 @@ class SuperbetOfferV1(StrictBaseModel):
     our_events_kicked_off: list[str] = Field(default_factory=list)
     events: list[SuperbetEventOffer] = Field(default_factory=list)
     data_gaps: list[str] = Field(default_factory=list)
+    # How many fixtures were named by a Betradar id rather than by comparing
+    # spellings, and what the OddsPapi bridge cost to find out. Separate from
+    # ``data_gaps`` on purpose: a bridge that did not run is a missed
+    # optimisation, not a degraded betting day, and must not make the step
+    # PARTIAL.
+    events_matched_by_id: int = 0
+    identity_bridge: dict[str, Any] = Field(default_factory=dict)
 
 
 class SuperbetComparisonRow(StrictBaseModel):

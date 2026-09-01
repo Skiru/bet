@@ -442,6 +442,35 @@ def _echo_stub(tmp_path, name="a_echo.py"):
     return str(echo)
 
 
+def _echoed_argv(stdout: str) -> list[str]:
+    line = next(line for line in stdout.splitlines() if line.startswith("ARGV:"))
+    return json.loads(line[len("ARGV:"):])
+
+
+def test_the_oddspapi_bridge_choice_reaches_the_superbet_step(tmp_path, out_dir):
+    """Declared on the pipeline, read by the step -- or it is decoration.
+
+    The default is ``auto`` and it must arrive as ``auto``: SUPERBET, not the
+    pipeline, is where "is there a key and is there quota" gets decided.
+    """
+    stubs = _all_ok_stubs(tmp_path, out_dir)
+    stubs["superbet"] = _echo_stub(tmp_path)
+    _, _, stdout = _run(tmp_path, stubs, "--date", "2026-08-25", "--output-dir", str(out_dir))
+    argv = _echoed_argv(stdout)
+    assert argv[argv.index("--oddspapi-bridge") + 1] == "auto"
+
+
+def test_the_operator_can_turn_the_bridge_off_from_the_pipeline(tmp_path, out_dir):
+    stubs = _all_ok_stubs(tmp_path, out_dir)
+    stubs["superbet"] = _echo_stub(tmp_path)
+    _, _, stdout = _run(
+        tmp_path, stubs, "--date", "2026-08-25", "--output-dir", str(out_dir),
+        "--oddspapi-bridge", "off",
+    )
+    argv = _echoed_argv(stdout)
+    assert argv[argv.index("--oddspapi-bridge") + 1] == "off"
+
+
 def test_analyze_is_handed_the_superbet_offer_when_the_step_wrote_one(tmp_path, out_dir):
     """The wiring, end to end: SUPERBET writes it, ANALYZE is told where.
 

@@ -39,6 +39,7 @@ from bet.simple_stats.superbet_offer import (
     default_window,
     fold,
     lookup_line,
+    build_event_offer,
     match_offer_events,
     normalize_lines,
     parse_outcome,
@@ -120,10 +121,22 @@ def test_fold_maps_l_with_stroke_rather_than_deleting_it():
         ("Liczba strzałów Remo", ("shots_for", "remo")),
         ("Spalone - Remo", ("offsides_for", "remo")),
         ("Liczba fauli - Remo", ("fouls_for", "remo")),
+        ("Liczba czerwonych kartek", ("red_cards_total", None)),
+        # A fourth shape: no separator at all. Live on 2026-09-01 and the only
+        # mapped market missing from a 4,172-outcome fixture.
+        ("Liczba czerwonych kartek Remo", ("red_cards_for", "remo")),
     ],
 )
 def test_classify_market_maps_the_markets_the_sheet_prices(name, expected):
     assert classify_market(name) == expected
+
+
+def test_a_red_card_market_is_not_filed_as_a_booking_market():
+    """Both names begin "Liczba ... kartek". Filing one as the other prices a
+    straight red at a yellow-card line, which is a bet nobody would take
+    knowingly."""
+    assert classify_market("Liczba czerwonych kartek Remo") == ("red_cards_for", "remo")
+    assert classify_market("Remo - liczba kartek") == ("cards_for", "remo")
 
 
 def test_woodwork_is_not_shots_on_target():
@@ -347,6 +360,126 @@ def test_duplicate_offer_rows_pick_the_closest_kickoff_then_the_richer_market():
     matched, unmatched, _ = match_offer_events(events, rows)
     assert matched["e1"]["raw"]["eventId"] == 2
     assert [row["eventId"] for row in unmatched] == [1]
+
+
+# --- pass zero: identity by Betradar id -------------------------------------
+#
+# Measured on the 2026-09-01 slate against a real 179-fixture DISCOVER run:
+# the name matcher found 103 of the 167 fixtures still prematch, the bridge
+# took it to 111, and the two never disagreed on a fixture both could name.
+
+
+def _offer_row_with_betradar(betradar: str, **kwargs):
+    row = _offer_row(**kwargs)
+    row["betradarId"] = betradar
+    return row
+
+
+def test_a_betradar_id_matches_a_fixture_no_name_rule_could_reach():
+    """Live case: our "Universitatea Cluj" against Superbet's "U Cluj"."""
+    events = EventListV1(
+        generated_at="x", date="2026-08-31",
+        events=[make_event(home="Universitatea Cluj", away="Petrolul Ploiesti")],
+    )
+    rows = [_offer_row_with_betradar(
+        "74019308", name="U Cluj\u00b7Petrolul", utc="2026-08-31T23:00:00Z"
+    )]
+
+    without = match_offer_events(events, rows)[0]
+    with_bridge, unmatched, missing = match_offer_events(
+        events, rows, betradar_by_event_id={"e1": "74019308"}
+    )
+
+    assert without == {}, "the name matcher is expected to miss this one"
+    assert list(with_bridge) == ["e1"]
+    assert with_bridge["e1"]["matched_by"] == "betradar_id"
+    assert unmatched == [] and missing == []
+
+
+def test_an_id_match_survives_a_kickoff_the_tolerance_would_reject():
+    """Superbet published Volos-Kalamata three hours from our clock, same tie.
+
+    The delta is still recorded -- it is a real fact about the two feeds -- but
+    it no longer decides the pairing, because the pairing was not made on it.
+    """
+    events = EventListV1(generated_at="x", date="2026-08-31", events=[make_event()])
+    rows = [_offer_row_with_betradar("55", name="Remo\u00b7Coritiba", utc="2026-09-01T02:00:00Z")]
+
+    matched, _, _ = match_offer_events(events, rows, betradar_by_event_id={"e1": "55"})
+
+    assert matched["e1"]["matched_by"] == "betradar_id"
+    assert matched["e1"]["delta_minutes"] == 180.0
+
+
+def test_an_id_match_is_reported_as_ID_MATCHED_not_as_EXACT():
+    events = EventListV1(generated_at="x", date="2026-08-31", events=[make_event()])
+    rows = [_offer_row_with_betradar("55", name="Remo\u00b7Coritiba", utc="2026-08-31T23:00:00Z")]
+    matched, _, _ = match_offer_events(events, rows, betradar_by_event_id={"e1": "55"})
+
+    offer = build_event_offer(
+        rows[0], event=make_event(), delta_minutes=matched["e1"]["delta_minutes"],
+        matched_by=matched["e1"]["matched_by"],
+    )
+
+    assert offer.match_quality == "ID_MATCHED"
+
+
+def test_a_betradar_id_two_superbet_rows_share_is_not_an_identity():
+    """The by-date feed carries the same tie under two groupings. Refuse both.
+
+    Falling through to the name passes is the right answer -- they know how to
+    break that tie on kickoff and market count; an id that names two rows does
+    not.
+    """
+    events = EventListV1(generated_at="x", date="2026-08-31", events=[make_event()])
+    rows = [
+        _offer_row_with_betradar("55", name="Remo\u00b7Coritiba", utc="2026-08-31T23:00:00Z", event_id=1),
+        _offer_row_with_betradar("55", name="Remo\u00b7Coritiba", utc="2026-08-31T23:00:00Z", event_id=2),
+    ]
+
+    matched, _, _ = match_offer_events(events, rows, betradar_by_event_id={"e1": "55"})
+
+    assert matched["e1"]["matched_by"] == "name_and_kickoff"
+
+
+def test_an_id_that_crosses_sports_is_a_feed_bug_not_a_match():
+    events = EventListV1(generated_at="x", date="2026-08-31", events=[make_event()])
+    rows = [_offer_row_with_betradar(
+        "55", name="Remo\u00b7Coritiba", utc="2026-08-31T23:00:00Z", sport_id=2,
+    )]
+
+    matched, _, missing = match_offer_events(events, rows, betradar_by_event_id={"e1": "55"})
+
+    assert matched == {}
+    assert missing == ["e1"]
+
+
+def test_an_empty_bridge_changes_nothing():
+    events = EventListV1(generated_at="x", date="2026-08-31", events=[make_event()])
+    rows = [_offer_row("Remo\u00b7Coritiba", "2026-08-31T23:00:00Z")]
+
+    plain = match_offer_events(events, rows)
+    bridged = match_offer_events(events, rows, betradar_by_event_id={})
+
+    assert plain[0].keys() == bridged[0].keys()
+    assert bridged[0]["e1"]["matched_by"] == "name_and_kickoff"
+
+
+def test_an_id_claim_is_not_re_offered_to_the_name_passes():
+    """One Superbet row cannot be spent twice, or an event steals another's."""
+    events = EventListV1(
+        generated_at="x", date="2026-08-31",
+        events=[make_event(event_id="e1"), make_event(event_id="e2")],
+    )
+    rows = [_offer_row_with_betradar("55", name="Remo\u00b7Coritiba", utc="2026-08-31T23:00:00Z")]
+
+    matched, unmatched, missing = match_offer_events(
+        events, rows, betradar_by_event_id={"e1": "55"}
+    )
+
+    assert list(matched) == ["e1"]
+    assert missing == ["e2"]
+    assert unmatched == []
 
 
 def test_our_event_absent_from_the_book_is_reported():

@@ -187,6 +187,12 @@ TEAM_MARKET_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"^liczba strzalow (?P<team>.+?)$"), "shots_for"),
     (re.compile(r"^liczba fauli - (?P<team>.+?)$"), "fouls_for"),
     (re.compile(r"^spalone - (?P<team>.+?)$"), "offsides_for"),
+    # Superbet writes this one with no separator at all -- "Liczba czerwonych
+    # kartek West Ham" -- which is a fourth shape on top of the three above.
+    # It was the only genuinely mapped market missing from a live 4,172-outcome
+    # fixture on 2026-09-01, and it must be matched *before* "liczba kartek"
+    # would be, or a red-card line gets filed as a booking line.
+    (re.compile(r"^liczba czerwonych kartek (?P<team>.+?)$"), "red_cards_for"),
 ]
 
 # A name containing any of these is never a plain match or team total, whatever
@@ -585,6 +591,20 @@ def sides_compatible(ours: str, theirs: str) -> bool:
     return shared * 2 >= min(len(left), len(right)) * 2 and shared >= 2
 
 
+def _minutes_between(ours: str, theirs: datetime | None) -> float:
+    """Kickoff gap with no tolerance gate. For a pass that already has an id.
+
+    Reported rather than judged: on an id match the delta is a *diagnostic*
+    about the two feeds' clocks, not a reason to reject the pairing, and a
+    fixture Superbet publishes three hours off is exactly the case the id pass
+    was added to keep.
+    """
+    mine = _parse_kickoff(ours)
+    if mine is None or theirs is None:
+        return 0.0
+    return abs((theirs - mine).total_seconds()) / 60.0
+
+
 def _kickoff_ok(sport: str, ours: str, theirs: datetime | None) -> float | None:
     """Minutes apart, or None when the two clocks are too far to be one match."""
     mine = _parse_kickoff(ours)
@@ -598,12 +618,30 @@ def _kickoff_ok(sport: str, ours: str, theirs: datetime | None) -> float | None:
 def match_offer_events(
     event_list: EventListV1,
     raw_events: Iterable[dict[str, Any]],
+    *,
+    betradar_by_event_id: Mapping[str, str] | None = None,
 ) -> tuple[dict[str, dict[str, Any]], list[dict[str, Any]], list[str]]:
     """Join Superbet's fixtures to ours.
 
     Returns ``(by_event_id, unmatched_superbet_rows, our_event_ids_without_offer)``.
 
-    Two passes, and the second one exists because the first is not enough.
+    Three passes. The first is exact identity and is optional; the other two
+    compare names, and the second of those exists because the first is not
+    enough.
+
+    **Pass zero** consumes ``betradar_by_event_id`` -- our event id to the
+    Betradar fixture id, built by ``superbet_identity`` from OddsPapi. Superbet
+    publishes ``betradarId`` on every real event it lists, so this pass is an
+    integer comparison and needs neither a name nor a clock. It runs first and
+    what it claims is never revisited: an id match outranks any name match. On
+    a real 179-fixture slate on 2026-09-01 it took the match count from 115 to
+    123 and disagreed with the name matcher on none of the 115 both could
+    name -- the eight it added were clubs the two feeds simply call different
+    things ("U Cluj" / "Universitatea Cluj", "Amsterdamsche" / "Afc \'34").
+
+    When the mapping is absent -- no OddsPapi key, no quota, provider down --
+    this pass simply matches nothing and the two below behave exactly as they
+    did before it existed.
 
     **Pass one** keys on the exact normalised, alias-resolved pair of
     participants plus a per-sport kickoff tolerance. Exact because two
@@ -640,13 +678,56 @@ def match_offer_events(
         offered.append((raw, sport, _side_key((home, away)), _parse_kickoff(raw.get("utcDate"))))
 
     scored: dict[str, list[tuple[float, int, dict[str, Any]]]] = {}
+    matched_by: dict[str, str] = {}
     consumed: set[int] = set()
+
+    # --- pass zero: exact identity via Betradar ----------------------------
+    # Indexed rather than scanned because the by-date feed carries ~3,200 rows
+    # and this runs once per event. A Betradar id claimed by two Superbet rows
+    # is not an identity, so it is dropped from the index rather than picked
+    # between -- the name passes below will handle those events instead.
+    if betradar_by_event_id:
+        by_betradar: dict[str, int] = {}
+        duplicated: set[str] = set()
+        for index, (raw, _sport, _key, _kickoff) in enumerate(offered):
+            key = str(raw.get("betradarId") or "").strip()
+            if not key:
+                continue
+            if key in by_betradar:
+                duplicated.add(key)
+                continue
+            by_betradar[key] = index
+        for key in duplicated:
+            by_betradar.pop(key, None)
+
+        for event in event_list.events:
+            betradar_id = str(betradar_by_event_id.get(event.event_id) or "").strip()
+            if not betradar_id:
+                continue
+            index = by_betradar.get(betradar_id)
+            if index is None or index in consumed:
+                continue
+            raw, sport, _key, kickoff = offered[index]
+            if sport != event.sport:
+                # The id says these are one fixture and the sports disagree.
+                # That is a bug in one of the two feeds, not a match.
+                continue
+            consumed.add(index)
+            delta = _minutes_between(event.start_time, kickoff)
+            scored.setdefault(event.event_id, []).append(
+                (delta, int(raw.get("marketCount") or 0), raw)
+            )
+            matched_by[event.event_id] = "betradar_id"
 
     # --- pass one: exact ---------------------------------------------------
     for index, (raw, sport, key, kickoff) in enumerate(offered):
+        if index in consumed:
+            continue
         candidates = exact_index.get((sport, key)) or []
         best: tuple[float, EventRecord] | None = None
         for event in candidates:
+            if event.event_id in matched_by:
+                continue
             delta = _kickoff_ok(sport, event.start_time, kickoff)
             if delta is None:
                 continue
@@ -715,7 +796,11 @@ def match_offer_events(
     unmatched: list[dict[str, Any]] = []
     for event_id, rows in scored.items():
         rows.sort(key=lambda row: (row[0], -row[1]))
-        by_event[event_id] = {"raw": rows[0][2], "delta_minutes": rows[0][0]}
+        by_event[event_id] = {
+            "raw": rows[0][2],
+            "delta_minutes": rows[0][0],
+            "matched_by": matched_by.get(event_id, "name_and_kickoff"),
+        }
         # Anything we did not choose is still a real Superbet fixture; report it
         # rather than dropping it, so a duplicate grouping is visible.
         unmatched.extend(row[2] for row in rows[1:])
@@ -730,6 +815,7 @@ def build_event_offer(
     *,
     event: EventRecord | None,
     delta_minutes: float | None,
+    matched_by: str = "name_and_kickoff",
 ) -> SuperbetEventOffer:
     from bet.api_clients.superbet import split_match_name
 
@@ -738,10 +824,17 @@ def build_event_offer(
     lines, unmapped = normalize_lines(raw_event, team_names=team_names)
     quality = "UNMATCHED"
     if event is not None:
-        # EXACT when the two clocks agree to the minute; FUZZY when the fixture
-        # is the same but the published time is not, which is the normal state
-        # for tennis and an anomaly worth seeing for football.
-        quality = "EXACT" if (delta_minutes or 0.0) <= 1.0 else "FUZZY"
+        if matched_by == "betradar_id":
+            # ID_MATCHED outranks both. The clock delta is still recorded --
+            # a three-hour gap on an id match is a real fact about one of the
+            # two feeds -- but it no longer downgrades the pairing, because the
+            # pairing was never made on the clock.
+            quality = "ID_MATCHED"
+        else:
+            # EXACT when the two clocks agree to the minute; FUZZY when the
+            # fixture is the same but the published time is not, which is the
+            # normal state for tennis and an anomaly worth seeing for football.
+            quality = "EXACT" if (delta_minutes or 0.0) <= 1.0 else "FUZZY"
     return SuperbetEventOffer(
         superbet_event_id=str(raw_event.get("eventId") or raw_event.get("offerId") or ""),
         superbet_match_name=str(raw_event.get("matchName") or ""),
@@ -1010,6 +1103,7 @@ def collect_superbet_offer(
     window: tuple[datetime, datetime] | None = None,
     generated_at: str | None = None,
     now: datetime | None = None,
+    identity_bridge: Any | None = None,
 ) -> SuperbetOfferV1:
     """Read the book for one betting day and join it to our fixtures.
 
@@ -1022,6 +1116,12 @@ def collect_superbet_offer(
     events, the overwhelming majority of them esports and simulated football,
     and fetching odds for a fixture our sheet has no row about would spend a
     request to learn nothing.
+
+    ``identity_bridge`` is an optional ``superbet_identity.IdentityBridge``. It
+    only ever *adds* matches -- passing None, or a bridge that found nothing,
+    leaves this function's behaviour exactly as it was before the bridge
+    existed. Its own cost and notes travel on the artifact rather than in
+    ``data_gaps``, because a bridge that could not run is not a degraded day.
     """
     from bet.api_clients.superbet import SuperbetClient
 
@@ -1043,7 +1143,11 @@ def collect_superbet_offer(
             data_gaps=[f"by-date: {exc}"],
         )
 
-    by_event, unmatched, without_offer = match_offer_events(event_list, raw_events)
+    by_event, unmatched, without_offer = match_offer_events(
+        event_list,
+        raw_events,
+        betradar_by_event_id=getattr(identity_bridge, "betradar_by_event_id", None),
+    )
     events_by_id = {e.event_id: e for e in event_list.events}
 
     ordered = sorted(by_event.items(), key=lambda item: events_by_id[item[0]].start_time)
@@ -1070,6 +1174,7 @@ def collect_superbet_offer(
                 detailed,
                 event=events_by_id.get(event_id),
                 delta_minutes=found["delta_minutes"],
+                matched_by=str(found.get("matched_by") or "name_and_kickoff"),
             )
         )
 
@@ -1102,6 +1207,10 @@ def collect_superbet_offer(
         our_events_kicked_off=kicked_off,
         events=offers,
         data_gaps=gaps,
+        events_matched_by_id=sum(1 for offer in offers if offer.match_quality == "ID_MATCHED"),
+        identity_bridge=(
+            identity_bridge.as_metrics() if hasattr(identity_bridge, "as_metrics") else {}
+        ),
     )
 
 

@@ -9,6 +9,17 @@ from __future__ import annotations
 import os
 
 
+# The literal is kept verbatim because reports and tests pin it, but the belief
+# it encodes was disproven on 2026-09-01: ``/v4/fixtures`` does not fail access.
+# The 403 that produced this name was ``RESTRICTED_ACCESS`` naming the
+# *bookmaker* ``superbet.pl``. The gate's *effect* is still right, for a better
+# reason -- this plan cannot serve superbet.pl at all, and the entitled
+# ``superbet`` storefront prices 0.5-1.5% away from the book the operator bets
+# into, so its quotes must never be selected as production odds.
+#
+# This gate governs OddsPapi as a **price source**. It deliberately does not
+# govern ``bet.simple_stats.superbet_identity``, which reads ``/v4/fixtures``
+# for Betradar ids and produces no price at all.
 ODDSPAPI_REASON = "disabled_by_access_gate_fail_access_fixtures"
 
 

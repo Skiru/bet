@@ -27,6 +27,8 @@ from __future__ import annotations
 import re
 import unicodedata
 
+from bet.utils.common import SPECIAL_CHAR_MAP
+
 
 def fold_club_name(name: str) -> str:
     """Lowercase, ASCII-folded, punctuation-free form. No club words removed.
@@ -36,8 +38,21 @@ def fold_club_name(name: str) -> str:
     a token the other feed's "Patricks" can never match -- and since this fold
     runs before ``normalize_team_name``, it would undo that function's own
     apostrophe handling.
+
+    ``SPECIAL_CHAR_MAP`` is applied *before* NFKD and is not optional. NFKD
+    decomposes ó and ę into a base letter plus a combining mark, which the next
+    line drops cleanly, but it does **not** decompose ł, ø, đ, ß or ħ -- those
+    are distinct letters, not accented ones. Without the map they survive NFKD,
+    fail the ``[a-z0-9]`` class, and are replaced by a *space*, so "Wisła Płock"
+    folds to "wis a p ock" and can never equal the "wisla plock" the English
+    feeds publish. Measured on the 2026-09-01 football slate: ten of the 104
+    fixtures Superbet was carrying had no price for exactly this reason --
+    Wisła Kraków, Zagłębie Lubin, Wigry Suwałki, Puszcza Niepołomice and the
+    rest of the Polish league. ``normalize_team_name`` already carried the
+    same table; this fold runs first and undid it.
     """
-    folded = unicodedata.normalize("NFKD", (name or "").casefold())
+    folded = (name or "").casefold().translate(SPECIAL_CHAR_MAP)
+    folded = unicodedata.normalize("NFKD", folded)
     folded = "".join(ch for ch in folded if not unicodedata.combining(ch))
     folded = folded.replace("'", "").replace("\u2019", "")
     return re.sub(r"[^a-z0-9]+", " ", folded).strip()

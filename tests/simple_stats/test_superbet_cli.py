@@ -146,6 +146,45 @@ def fake_client(monkeypatch):
     return superbet_client
 
 
+class _FakeBridge:
+    """Stands in for superbet_identity.IdentityBridge without a network call."""
+
+    def __init__(self, mapping=None, enabled=True):
+        self.betradar_by_event_id = dict(mapping or {})
+        self.enabled = enabled
+        self.notes = ("stubbed",)
+        self.requests_made = 0
+        self.quota_remaining = 999
+
+    def as_metrics(self):
+        return {
+            "oddspapi_bridge_enabled": self.enabled,
+            "oddspapi_bridge_events": len(self.betradar_by_event_id),
+            "oddspapi_bridge_requests": self.requests_made,
+            "oddspapi_quota_remaining": self.quota_remaining,
+            "oddspapi_bridge_notes": list(self.notes),
+        }
+
+
+@pytest.fixture(autouse=True)
+def no_live_oddspapi(monkeypatch, superbet_module):
+    """The bridge defaults to ``auto``, and ``auto`` reads the project ``.env``.
+
+    Without this, running the suite on a developer machine that has a real
+    ``ODDSPAPI_API_KEY`` spends live quota on unit tests -- which it did once,
+    before this fixture existed. Tests that want the bridge exercised replace
+    the stub explicitly.
+    """
+    calls: list[object] = []
+
+    def _stub(event_list, **kwargs):
+        calls.append(event_list)
+        return _FakeBridge()
+
+    monkeypatch.setattr(superbet_module, "build_identity_bridge", _stub)
+    return calls
+
+
 def test_run_superbet_writes_the_offer_artifact(
     superbet_module, monkeypatch, tmp_path, fake_client
 ):
@@ -234,6 +273,97 @@ DOSSIER = {
 
 def _write_dossier(path: Path) -> Path:
     return _write(path, DOSSIER)
+
+
+def test_the_bridge_runs_by_default_and_its_cost_reaches_the_summary(
+    superbet_module, monkeypatch, tmp_path, fake_client, no_live_oddspapi, capsys
+):
+    event_list = _write(tmp_path / "el.json", EVENT_LIST)
+    _run_main(
+        superbet_module, monkeypatch,
+        ["--event-list", str(event_list), "--output-dir", str(tmp_path), "--no-persist"],
+    )
+
+    assert len(no_live_oddspapi) == 1, "the bridge should be built exactly once"
+    summary = json.loads(capsys.readouterr().out.split("AGENT_SUMMARY:")[1].splitlines()[0])
+    assert summary["metrics"]["oddspapi_bridge_enabled"] is True
+    assert "oddspapi_quota_remaining" in summary["metrics"]
+    assert summary["metrics"]["events_matched_by_id"] == 0
+
+
+def test_the_bridge_can_be_turned_off_without_touching_the_provider(
+    superbet_module, monkeypatch, tmp_path, fake_client, no_live_oddspapi, capsys
+):
+    """An operator low on quota must be able to skip it, and still get a day."""
+    event_list = _write(tmp_path / "el.json", EVENT_LIST)
+    code = _run_main(
+        superbet_module, monkeypatch,
+        ["--event-list", str(event_list), "--output-dir", str(tmp_path),
+         "--no-persist", "--oddspapi-bridge", "off"],
+    )
+
+    assert code == 0
+    assert no_live_oddspapi == [], "off must not build a bridge at all"
+    offer = json.loads((tmp_path / "2026-08-29_superbet_offer.json").read_text())
+    assert offer["events_matched"] == 1, "the day still runs without the bridge"
+    assert offer["identity_bridge"]["oddspapi_bridge_enabled"] is False
+
+
+def test_a_crashing_bridge_never_takes_the_step_down(
+    superbet_module, monkeypatch, tmp_path, fake_client
+):
+    def _boom(_event_list, **_kwargs):
+        raise RuntimeError("oddspapi exploded")
+
+    monkeypatch.setattr(superbet_module, "build_identity_bridge", _boom)
+    event_list = _write(tmp_path / "el.json", EVENT_LIST)
+
+    code = _run_main(
+        superbet_module, monkeypatch,
+        ["--event-list", str(event_list), "--output-dir", str(tmp_path), "--no-persist"],
+    )
+
+    assert code == 0
+    offer = json.loads((tmp_path / "2026-08-29_superbet_offer.json").read_text())
+    assert offer["events_matched"] == 1
+    assert offer["identity_bridge"]["oddspapi_bridge_enabled"] is False
+    # A bridge that could not run is a missed optimisation, not a degraded day:
+    # it must not show up as a gap, because a gap makes the step PARTIAL.
+    assert offer["data_gaps"] == []
+
+
+def test_a_bridged_fixture_is_marked_ID_MATCHED_in_the_artifact(
+    superbet_module, monkeypatch, tmp_path, fake_client
+):
+    """End to end through the CLI: bridge -> matcher -> artifact."""
+    monkeypatch.setattr(
+        superbet_module, "build_identity_bridge",
+        lambda _el, **_kw: _FakeBridge({"evt-1": "12345"}),
+    )
+
+    class _BridgeClient(_FakeClient):
+        def events_by_date(self, start, end):
+            self.request_count += 1
+            # A name no fold could join to "Valencia" -- only the id can.
+            return [{
+                "eventId": 900, "matchName": "Los Che\u00b7Real Betis",
+                "utcDate": "2026-08-29T19:00:00Z", "sportId": 5, "marketCount": 120,
+                "betradarId": "12345", "odds": [],
+            }]
+
+    import bet.api_clients.superbet as superbet_client
+    monkeypatch.setattr(superbet_client, "SuperbetClient", lambda *a, **k: _BridgeClient())
+
+    event_list = _write(tmp_path / "el.json", EVENT_LIST)
+    _run_main(
+        superbet_module, monkeypatch,
+        ["--event-list", str(event_list), "--output-dir", str(tmp_path), "--no-persist"],
+    )
+
+    offer = json.loads((tmp_path / "2026-08-29_superbet_offer.json").read_text())
+    assert offer["events_matched"] == 1
+    assert offer["events"][0]["match_quality"] == "ID_MATCHED"
+    assert offer["events_matched_by_id"] == 1
 
 
 def test_analyze_attaches_the_superbet_column(analyze_module, monkeypatch, tmp_path):
