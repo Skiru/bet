@@ -59,7 +59,11 @@ def main() -> None:
         "--source", action="append", choices=sorted(SOURCES),
         help=f"Repeatable. Default: {','.join(DEFAULT_LIVE_SOURCE_IDS)}",
     )
-    parser.add_argument("--max-pages-per-source", type=int, default=3)
+    parser.add_argument(
+        "--max-pages-per-source", type=int, default=12,
+        help="Global ceiling on pages fetched per source. Each source is further "
+             "capped by its own max_pages_per_run, which is what normally governs.",
+    )
     parser.add_argument("--timeout-seconds", type=float, default=12.0)
     parser.add_argument(
         "--drop-undated", action="store_true",

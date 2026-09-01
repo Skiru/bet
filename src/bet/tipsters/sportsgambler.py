@@ -71,16 +71,32 @@ def is_allowed_sportsgambler_url(url: str) -> bool:
     return False
 
 
-def discover_sportsgambler_detail_links(html: str, base_url: str = "https://www.sportsgambler.com", max_links: int = 5) -> list[str]:
-    """Scan HTML for allowed Sportsgambler preview details pages."""
-    links = []
-    for link in link_candidates(html, base_url):
-        url = link.url
-        if not url.startswith(base_url):
+# One fixture's prediction page, as linked from the tips listing. The listing
+# itself publishes no tip at all -- only fixture, kickoff and a "Predictions"
+# button -- which is why the old link scan came back with nav entries like
+# /betting-tips/ and /betting-tips/football/premier-league-predictions/ and the
+# source produced zero picks while fetching cleanly. The anchors that matter
+# carry class "betlist-item" and nothing else on the page does.
+_DETAIL_LINK_SELECTOR = "a.betlist-item[href]"
+
+# ".../parma-vs-cremonese-prediction-lineups-odds-2026-09-01/" -- the fixture
+# date is in the slug, which is the only place the detail page states it in a
+# form that does not depend on the reader's timezone widget.
+_SLUG_DATE = re.compile(r"-(\d{4}-\d{2}-\d{2})/?$")
+
+
+def discover_sportsgambler_detail_links(
+    html: str, base_url: str = "https://www.sportsgambler.com", max_links: int = 5
+) -> list[str]:
+    """Fixture prediction pages linked from a tips listing."""
+    soup = BeautifulSoup(html, "html.parser")
+    links: list[str] = []
+    for anchor in soup.select(_DETAIL_LINK_SELECTOR):
+        url = urljoin(base_url, anchor["href"])
+        if not url.startswith(base_url) or not is_allowed_sportsgambler_url(url):
             continue
-        if is_allowed_sportsgambler_url(url):
-            if url not in links:
-                links.append(url)
+        if url not in links:
+            links.append(url)
     return links[:max_links]
 
 
@@ -147,150 +163,137 @@ def is_sportsgambler_index_url(url: str) -> bool:
     return False
 
 
+# "Parma vs Cremonese Prediction, Betting Tips, Lineups & Odds | 01 Sep 2026"
+_TITLE_FIXTURE = re.compile(r"^(?P<home>.+?)\s+vs\s+(?P<away>.+?)\s+Prediction\b", re.I)
+
+# The headline selection, rendered as its own heading: "Parma To Win @ 2.16".
+_MAIN_PICK = re.compile(r"^(?P<claim>.+?)\s*@\s*(?P<odds>\d+(?:\.\d+)?)\s*$")
+
+
+def _fixture_from_detail(soup: BeautifulSoup, url: str) -> tuple[str, str, str | None]:
+    """Home, away and the fixture date, or ("", "", None) if this is not a fixture page."""
+    heading = soup.find("h1")
+    match = _TITLE_FIXTURE.match(collapse_ws(heading.get_text(" ")) if heading else "")
+    if not match:
+        return "", "", None
+    home = clean_team_name(match.group("home"))
+    away = clean_team_name(match.group("away"))
+    slug_date = _SLUG_DATE.search(url)
+    return home, away, (slug_date.group(1) if slug_date else None)
+
+
+def _bet_builder_legs(soup: BeautifulSoup) -> list[tuple[str, float | None]]:
+    """One (claim_text, own_price) per leg of the site's bet builder.
+
+    Each leg is emitted as a *separate* claim rather than as one parlay, and the
+    distinction is not a liberty: every leg carries its own individual price in
+    its own ``a.odbtn``. ZawodTyper publishes "2X + powyżej 1.5 goli @ 2.94" --
+    one combined price for a ticket whose legs were never separately endorsed,
+    and which stays uncountable. Sportsgambler publishes "Total Goals / Under
+    2.5 / 1.62" beside "Full-Time Result / Parma / 2.16": three markets the site
+    prices and recommends one by one, then suggests combining them. Refusing
+    those would discard the only totals this source publishes, since its
+    headline pick is a 1X2 on every fixture observed.
+
+    The claim text is assembled as "<market> <selection>" so the existing
+    classifier reads it unchanged: "Total Goals Under 2.5" is a match total,
+    "Team Corners Wolfsberger Over 4.5" scopes to that team, and "Asian Handicap
+    Bolton +0.75" is still refused as a handicap.
+    """
+    legs: list[tuple[str, float | None]] = []
+    for item in soup.select("div.bb_list div.bb_list_item"):
+        spans = [collapse_ws(sp.get_text(" ")) for sp in item.find_all("span", recursive=False)]
+        parts = [sp for sp in spans if sp]
+        if len(parts) < 2:
+            continue
+        price_tag = item.select_one("a.odbtn")
+        price = None
+        if price_tag:
+            try:
+                price = float(collapse_ws(price_tag.get_text()).replace(",", "."))
+            except ValueError:
+                price = None
+        legs.append((collapse_ws(" ".join(parts)), price))
+    return legs
+
+
 def parse_sportsgambler_detail(html: str, url: str) -> list[TipsterPick]:
-    """Parse article detail page for robust injury, lineup and qualitative tips."""
-    # Check if this is an index/listing page. If it is an index page,
-    # we do NOT extract picks, we only extract SourceCandidates!
+    """Picks from one fixture's prediction page.
+
+    A listing page yields nothing here on purpose: it carries the fixture, the
+    kickoff and a button, and no tip whatsoever. The picks live one click away,
+    which is why this source fetched cleanly and produced zero picks for as long
+    as only the listing was parsed.
+    """
     if is_sportsgambler_index_url(url):
         return []
 
-    text = html_to_text(html)
     soup = BeautifulSoup(html, "html.parser")
-    # Clean up scripts, styles and unwanted elements
-    for s in soup(["script", "style", "noscript"]):
-        s.decompose()
-    # Extract structural blocks cleanly
-    blocks = []
-    for el in soup.find_all(["h1", "h2", "h3", "h4", "p", "li", "td"]):
-        txt = collapse_ws(el.get_text()).strip()
-        if len(txt) >= 3 and txt not in blocks:
-            blocks.append(txt)
-    if not blocks:
-        blocks = text_blocks(html)
+    for junk in soup(["script", "style", "noscript"]):
+        junk.decompose()
 
-    picks = []
-    seen = set()
-    EVENT_PATTERNS = [
-        re.compile(r"(?P<home>[A-ZÀ-Ž0-9][A-Za-zÀ-ž0-9.' &/-]{1,55}?)\s+(?:vs?\.?|v\.?|@)\s+(?P<away>[A-ZÀ-Ž0-9][A-Za-zÀ-ž0-9.' &/-]{1,55})", re.U),
-        re.compile(r"(?P<home>[A-ZÀ-Ž0-9][A-Za-zÀ-ž0-9.' &/-]{1,55}?)\s+[–—-]\s+(?P<away>[A-ZÀ-Ž0-9][A-Za-zÀ-ž0-9.' &/-]{1,55})", re.U),
-    ]
+    home, away, match_date = _fixture_from_detail(soup, url)
+    if not home or not away or not is_valid_sportsgambler_teams(home, away):
+        return []
 
-    # Find author if present
-    author = "Sportsgambler Analyst"
-    author_m = re.search(r"(?:napisane przez|by|author|autor)[:\s]*([A-Za-z0-9 .'-]+)", text, re.I)
-    if author_m:
-        author = author_m.group(1).strip()
+    # This source is registered with data_role "narrative_team_news_stats", and
+    # the detail page is where that narrative lives: absences, probable XI, xG
+    # and recent form. The picks are read structurally, but the surrounding
+    # prose is still the evidence the rest of the pipeline stores.
+    page_signals = valuable_signals(html_to_text(html))
 
-    for i, block in enumerate(blocks):
-        for pat in EVENT_PATTERNS:
-            m = pat.search(block)
-            if not m:
-                continue
-            home = clean_team_name(m.group("home"))
-            away = clean_team_name(m.group("away"))
-            if not is_valid_sportsgambler_teams(home, away):
-                continue
+    sport = detect_sport(f"{home} {away}", url) or "football"
+    event = f"{home} vs {away}"
+    claims: list[tuple[str, float | None, str]] = []
 
-            context = joined_context(blocks[i:i + 8], window=8)
-            market = extract_market_text(context)
-            fam = market_family(market + " " + context)
-            dirn = direction(market + " " + context)
-            reasoning = collapse_ws(context)[:1100]
+    legs = _bet_builder_legs(soup)
+    for text, price in legs:
+        claims.append((text, price, "bet_builder_leg"))
 
-            # Check length of reasoning to prevent empty claims
-            quality = len(reasoning) >= 40
-            warnings = []
-            if market == "N/A":
-                warnings.append("market_not_detected")
-            if not quality:
-                warnings.append("weak_or_empty_reasoning")
+    # The headline pick, but only when the builder gave us nothing. It is the
+    # same selection as one of the legs, written as prose instead of as a row --
+    # "LASK To Win @ 1.76" beside "Full-Time Result / LASK / 1.76", identical
+    # price on every fixture observed. Emitting both counted one opinion twice,
+    # which inflates ``considered`` and, for the 1X2 picks that dominate this
+    # source, would have doubled every entry in public_lean.
+    if not legs:
+        for heading in soup.find_all(["h2", "h3"]):
+            main = _MAIN_PICK.match(collapse_ws(heading.get_text(" ")))
+            if main:
+                claims.append((main.group("claim"), float(main.group("odds")), "main_prediction"))
+                break
 
-            signals = valuable_signals(context)
-
-            # Boost extraction quality if injuries/lineups are found
-            base_quality = 0.40
-            if market != "N/A":
-                base_quality += 0.20
-            if signals:
-                base_quality += min(0.20, len(signals) * 0.05)
-            if stats_cited(context):
-                base_quality += 0.10
-
-            key = (home.lower(), away.lower(), market.lower())
-            if key in seen:
-                continue
-            seen.add(key)
-
-            picks.append(TipsterPick(
-                source_id="sportsgambler",
-                source_name="Sportsgambler",
-                sport=detect_sport(context, url),
-                event=f"{home} vs {away}",
-                home_team=home,
-                away_team=away,
-                market=market,
-                market_family=fam,
-                direction=dirn,
-                line=parse_line(market if market != "N/A" else context),
-                odds_decimal=extract_odds(context),
-                reasoning=reasoning if len(reasoning) >= 30 else "",
-                stats_cited=stats_cited(context),
-                source_url=url,
-                extraction_quality=round(min(0.96, base_quality), 2),
-                warnings=warnings,
-                valuable_signals=signals,
-                tipster_name=author,
-                source_record_type="source_claim_evidence",
-            ))
-
-    if not picks:
-        for pat in EVENT_PATTERNS:
-            for m in pat.finditer(text):
-                home = clean_team_name(m.group("home"))
-                away = clean_team_name(m.group("away"))
-                if not is_valid_sportsgambler_teams(home, away):
-                    continue
-                start = max(0, m.start() - 300)
-                end = min(len(text), m.end() + 1050)
-                context = collapse_ws(text[start:end])
-                market = extract_market_text(context)
-                fam = market_family(market + " " + context)
-                dirn = direction(market + " " + context)
-                reasoning = collapse_ws(context)[:1100]
-
-                warnings = []
-                if market == "N/A":
-                    warnings.append("market_not_detected")
-                if len(reasoning) < 40:
-                    warnings.append("weak_or_empty_reasoning")
-                signals = valuable_signals(context)
-
-                key = (home.lower(), away.lower(), market.lower())
-                if key in seen:
-                    continue
-                seen.add(key)
-
-                picks.append(TipsterPick(
-                    source_id="sportsgambler",
-                    source_name="Sportsgambler",
-                    sport=detect_sport(context, url),
-                    event=f"{home} vs {away}",
-                    home_team=home,
-                    away_team=away,
-                    market=market,
-                    market_family=fam,
-                    direction=dirn,
-                    line=parse_line(market if market != "N/A" else context),
-                    odds_decimal=extract_odds(context),
-                    reasoning=reasoning if len(reasoning) >= 30 else "",
-                    stats_cited=stats_cited(context),
-                    source_url=url,
-                    extraction_quality=0.52 if reasoning else 0.42,
-                    warnings=warnings,
-                    valuable_signals=signals,
-                    tipster_name=author,
-                    source_record_type="source_claim_evidence",
-                ))
+    picks: list[TipsterPick] = []
+    seen: set[str] = set()
+    for text, price, origin in claims:
+        key = text.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        picks.append(TipsterPick(
+            source_id="sportsgambler",
+            source_name="Sportsgambler",
+            sport=sport,
+            event=event,
+            home_team=home,
+            away_team=away,
+            market=text,
+            market_family=market_family(text),
+            direction=direction(text),
+            line=parse_line(text),
+            odds_decimal=price,
+            confidence_label="source_claim",
+            reasoning=f"sportsgambler {origin}",
+            stats_cited=stats_cited(text),
+            valuable_signals=page_signals,
+            source_url=url,
+            match_date=match_date,
+            # Each leg is separately named and separately priced, so it is a
+            # standalone selection. See _bet_builder_legs.
+            is_combo=False,
+            warnings=[origin],
+            extraction_quality=0.9,
+        ))
     return picks
 
 

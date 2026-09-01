@@ -126,6 +126,8 @@ _MARKET_VOCABULARY = frozenset(
     awans awansuje wygrana zwyciestwo zwyciezca przewaga
     spalone spalonych offside offsides asysta asysty asyst
     odbiory odbiorow przechwyty tackles assists
+    team teams on target result full time anytime goalscorer scorer
+    asian hcp ah handicap both score to win draw double chance
     """.split()
 )
 
