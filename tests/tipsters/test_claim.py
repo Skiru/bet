@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import pytest
 
-from bet.tipsters.claim import claim_matches_row, claim_opposes_row, classify_claim
+from bet.tipsters.claim import classify_claim
 from bet.tipsters.market_parser import market_family, parse_line
 
 
@@ -166,34 +166,6 @@ class TestLineParsing:
     def test_empty_claim_is_refused(self):
         assert classify_claim("").reject_reason == "empty_claim"
         assert classify_claim("N/A").reject_reason == "empty_claim"
-
-
-class TestRowComparison:
-    """Line equality is exact, because over 9.5 and over 10.5 resolve differently."""
-
-    def test_exact_match_counts(self):
-        claim = classify_claim("Poniżej 10,5 rożnych")
-        assert claim_matches_row(claim, "corners_total", 10.5, "UNDER")
-
-    def test_neighbouring_line_does_not_count(self):
-        claim = classify_claim("Poniżej 10,5 rożnych")
-        assert not claim_matches_row(claim, "corners_total", 9.5, "UNDER")
-        assert not claim_opposes_row(claim, "corners_total", 9.5, "OVER")
-
-    def test_same_line_other_side_opposes(self):
-        claim = classify_claim("Poniżej 10,5 rożnych")
-        assert claim_opposes_row(claim, "corners_total", 10.5, "OVER")
-        assert not claim_matches_row(claim, "corners_total", 10.5, "OVER")
-
-    def test_other_market_neither_matches_nor_opposes(self):
-        claim = classify_claim("Poniżej 10,5 rożnych")
-        assert not claim_matches_row(claim, "cards_total", 10.5, "UNDER")
-        assert not claim_opposes_row(claim, "cards_total", 10.5, "OVER")
-
-    def test_uncountable_claims_never_count(self):
-        claim = classify_claim("Winner: 1")
-        assert not claim_matches_row(claim, "corners_total", 10.5, "UNDER")
-        assert not claim_opposes_row(claim, "corners_total", 10.5, "OVER")
 
 
 class TestReviewFixes:

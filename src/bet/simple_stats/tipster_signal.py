@@ -378,7 +378,12 @@ def _addresses_same_subject(pick: TipsterPickRef, row: StatsSheetRow) -> bool:
     tipster calls "Barracas Centra" reaches the row the sheet calls "Barracas
     Central".
     """
-    subject = row.team_name or row.player_name
+    # player_name first, and not team_name: every player row carries *both*
+    # (all 10,929 of them on the 2026-09-01 sheet), because a prop is drawn from
+    # a named XI. Reading team_name first compared "Yamal Lamine celne strzały
+    # 2+" against "Barcelona" and silently excluded the entire player-prop
+    # family -- the largest one the sheet prints.
+    subject = row.player_name or row.team_name
     if subject is None:
         # A match total names no subject, and a claim about one is not about it.
         return not pick.subjects

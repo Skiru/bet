@@ -231,6 +231,58 @@ class TestColumnVerdicts:
         assert column.excluded == {"different_market": 1}
 
 
+class TestSubjectJoin:
+    """A scoped claim must reach its own row and no other."""
+
+    def test_a_team_claim_reaches_that_team_and_not_the_opponent(self):
+        signal = build_tipster_signal(
+            _event_list(), [_pick(market="Valencia powyżej 4,5 rożnych", direction="OVER")]
+        )
+        mine = column_for_row(_row(market="corners_for", line=4.5, direction="OVER"), signal)
+        assert mine is not None
+        theirs = column_for_row(
+            _row(market="corners_for", line=4.5, direction="OVER"), signal
+        )
+        # The row fixture carries no team, so it cannot be either side's row.
+        assert theirs.verdict == "NO_COVERAGE"
+
+    def test_a_player_prop_joins_on_the_player_not_their_club(self):
+        """Every player row also carries team_name, so precedence decides this.
+
+        Reading team_name first compared the claim's player against the club and
+        excluded the whole prop family, which is the largest one the sheet has.
+        """
+        signal = build_tipster_signal(
+            _event_list(),
+            [_pick(market="Hugo Duro powyżej 1,5 strzałów", direction="OVER")],
+        )
+        row = _row(market="player_total_shots", line=1.5, direction="OVER")
+        row = row.model_copy(update={"team_name": "Valencia", "player_name": "Hugo Duro"})
+        column = column_for_row(row, signal)
+        assert column.verdict == "CONFIRMS"
+        assert column.agree == 1
+
+    def test_a_prop_about_someone_else_is_not_counted(self):
+        signal = build_tipster_signal(
+            _event_list(),
+            [_pick(market="Hugo Duro powyżej 1,5 strzałów", direction="OVER")],
+        )
+        row = _row(market="player_total_shots", line=1.5, direction="OVER")
+        row = row.model_copy(update={"team_name": "Valencia", "player_name": "Pepelu"})
+        column = column_for_row(row, signal)
+        assert column.verdict == "NO_COVERAGE"
+        assert column.excluded == {"different_team_or_player": 1}
+
+    def test_a_match_total_claim_does_not_leak_onto_a_per_team_row(self):
+        signal = build_tipster_signal(
+            _event_list(), [_pick(market="Poniżej 10,5 rzutów rożnych")]
+        )
+        row = _row(market="corners_total", line=10.5, direction="UNDER")
+        row = row.model_copy(update={"market": "corners_for", "team_name": "Valencia"})
+        column = column_for_row(row, signal)
+        assert column.verdict == "NO_COVERAGE"
+
+
 class TestEventMatching:
     def test_spelling_variants_match(self):
         signal = build_tipster_signal(

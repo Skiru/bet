@@ -521,21 +521,11 @@ def classify_claim(market_text: str, home_team: str = "", away_team: str = "") -
         notes=notes,
     )
 
-
-def claim_matches_row(claim: MarketClaim, market: str, line: float, direction: str) -> bool:
-    """Does a countable claim address exactly this stats-sheet row?
-
-    Line equality is exact. A tipster on over 9.5 corners is not evidence about
-    over 10.5: those are different bets that resolve differently, and treating
-    them as one is how a "3 of 5" turns into a number nobody can trace back.
-    """
-    if not claim.countable:
-        return False
-    return claim.market == market and claim.direction == direction and claim.line == line
-
-
-def claim_opposes_row(claim: MarketClaim, market: str, line: float, direction: str) -> bool:
-    """Same market and line, opposite side -- an active contradiction."""
-    if not claim.countable:
-        return False
-    return claim.market == market and claim.line == line and claim.direction != direction
+# ``claim_matches_row`` / ``claim_opposes_row`` used to live here and compared a
+# claim to a row by exact line equality. They were never called outside their own
+# tests, and the rule they stated is no longer the one the column applies:
+# bet.simple_stats.tipster_signal._stance settles a row by implication and joins
+# on the row's team or player, neither of which a (market, line, direction)
+# signature can express. Two functions with authoritative names and a superseded
+# rule are how that rule finds its way back in, so they are gone rather than
+# left to be discovered.
