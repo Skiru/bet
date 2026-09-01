@@ -335,6 +335,16 @@ def _caveats(row: StatsSheetRow) -> list[str]:
         notes.append(f"skład {row.lineup_status or 'nieznany'} — premisa to zgadywanka")
     if row.sample_size < 8:
         notes.append(f"mała próba (n={row.sample_size})")
+    if row.hits >= row.sample_size and row.sample_size > 0:
+        # No miss in the sample, so the Wilson bound is a function of n alone
+        # and is identical on every line above the sample's maximum. The sheet
+        # therefore cannot rank the rungs of this ladder against each other --
+        # only the price can, and the operator is the one holding it.
+        notes.append(
+            f"brak pudła w próbie ({row.hits}/{row.sample_size}) — p_low wynika "
+            "tu wyłącznie z n i jest identyczne na każdej wyższej linii tego "
+            "rynku; wybór szczebla rozstrzyga cena, nie ten arkusz"
+        )
     if is_trivial_under(row):
         notes.append("niska linia UNDER — łatwa do trafienia i zwykle wyceniana ~1.05")
     return notes
@@ -389,7 +399,30 @@ def _tipster_summary(row: StatsSheetRow) -> str | None:
     if column is None:
         return None
     if column.verdict != "NO_COVERAGE":
-        return f"{column.agree}/{column.agree + column.oppose}"
+        cell = f"{column.agree}/{column.agree + column.oppose}"
+        # A ratio says how many agreed. It does not say whether the ones who
+        # agreed have ever been right, and an unqualified "2/3" is exactly what
+        # lets a tipster on 25% from eight bets read as support. So when the
+        # backers published a record, the floor on it joins the cell as
+        # "2/3 · rek. 61%", and a record that does not clear a coin flip is
+        # named rather than quietly averaged in.
+        #
+        # The opposing side gets the same treatment under a "przeciw" label,
+        # and only when nobody agreed. A credible tipster arguing against the
+        # row is news of the same size as one arguing for it; on a split cell
+        # the agreement is what the row is claiming, so that is what the
+        # record qualifies.
+        parts = []
+        if column.agree_record_low is not None:
+            parts.append(f"rek. {column.agree_record_low * 100:.0f}%")
+        if column.agree_unproven:
+            parts.append(f"{column.agree_unproven} bez rekordu")
+        if not parts and column.agree == 0:
+            if column.oppose_record_low is not None:
+                parts.append(f"przeciw rek. {column.oppose_record_low * 100:.0f}%")
+            if column.oppose_unproven:
+                parts.append(f"przeciw: {column.oppose_unproven} bez rekordu")
+        return " · ".join([cell, *parts])
     if not column.considered:
         return None
     # Nobody addressed this bet. Say who was there and, if the fixture drew a
@@ -578,6 +611,29 @@ def build_coupons(
         return None if implied is None else round(row.p_low - implied, 4)
 
     def over_disagreement(row: StatsSheetRow) -> bool:
+        """Whether the gap is wide enough *and* means anything for this line.
+
+        The second half is not a refinement, it is a correction. When a row
+        has not missed once, the Wilson bound depends only on ``n`` -- so every
+        line above the sample's maximum carries the **same** ``p_low``, to the
+        last decimal place. Sheffield United's corners on 2026-09-01 read
+        0.565508505247919 at 4.5, 5.5, 6.5 and 7.5 alike, off a sample whose
+        highest value was 4.
+
+        For such a row ``p_low - market`` is not a disagreement about the line.
+        ``p_low`` is constant, so the difference tracks the price and nothing
+        else, and the gate would fire hardest on whichever rung pays best --
+        removing the most valuable line in the group for being valuable. That
+        is exactly backwards, and it is what happened: corners 4.5 at 2.70 was
+        demoted while 5.5 at 1.97, the same five observations one rung up, was
+        promoted in its place.
+
+        So a saturated row is not flagged. It is labelled instead (see
+        ``_caveats``), because what the operator needs there is not a demotion
+        but the fact that the sheet cannot tell these lines apart.
+        """
+        if row.hits >= row.sample_size:
+            return False
         gap = disagreement(row)
         return gap is not None and gap > MAX_MARKET_DISAGREEMENT
 

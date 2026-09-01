@@ -443,6 +443,32 @@ Report it as public interest in the match, not as support for the leg.
 about this bet -- almost always because they were betting 1X2. `excluded` says
 why each was left out.
 
+**`rated`, `agree_record_low`, `oppose_record_low`, `agree_unproven`,
+`oppose_unproven`: whether the tipsters counted here have ever been right.**
+ZawodTyper publishes each tipster's hit rate and bet count; sportsgambler and
+typersi publish neither, so `rated=0` is the normal case and an **absent record
+is not a bad record** -- never treat a missing one as a mark against a source.
+
+The `*_record_low` figures are the Wilson lower bound of that side's stated hits
+over its stated bets, pooled across the tipsters on that side. The raw
+percentage is deliberately not carried: it reads 80% from ten bets as better
+than 69% from fifty-three, the inversion `p_low` exists to prevent. The bound
+cuts across the headline number rather than along it -- on 2026-09-01, 80%/10
+floored at 49.0% while 84%/13 floored at 57.8%.
+
+`agree_unproven`/`oppose_unproven` count that side's rated picks whose bound
+falls below 0.50, i.e. whose own published record does not establish them as
+better than a coin flip -- thirteen of the nineteen who published one on
+2026-09-01. Those picks still count into `agree`/`oppose`, because what a
+tipster said is a fact about the fixture whatever their history.
+
+**This is a self-reported, unaudited record computed without the odds those bets
+were taken at.** 46% at 2.50 profits and 66% at 1.30 ruins, so the bound orders
+tipsters against each other and is never a probability about the row and never a
+reason to move a tier. In the coupon table it reads `2/3 · rek. 61%`, or
+`1/1 · rek. 25% · 1 bez rekordu` when the sole backer's record is worthless, or
+`0/1 · przeciw rek. 55%` when the only tipster on the row argued against it.
+
 **A tipster pick is an opinion, not a sample.** It has no observations behind it,
 it is often derived from the same public numbers the pipeline already read, and
 it sometimes carries a bookmaker affiliation. So:

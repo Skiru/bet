@@ -431,6 +431,41 @@ class TipsterColumn(StrictBaseModel):
     # Present so an empty column is auditable rather than merely empty.
     excluded: dict[str, int] = Field(default_factory=dict)
 
+    # The published track record of the picks counted into ``agree``/``oppose``,
+    # carried under the same rule as everything else here: read beside the
+    # confidence figure, never into it.
+    #
+    # ``rated`` is how many counted picks came with a record at all. Only
+    # ZawodTyper publishes one, so an unrated column is the normal case and not
+    # a fault -- and an absent record is not a bad record, which is why nothing
+    # is ever penalised for missing it.
+    #
+    # ``agree_record_low``/``oppose_record_low`` are the Wilson lower bound of
+    # each side's stated hits over its stated bet count, pooled across the
+    # tipsters on that side. The raw percentage is deliberately not carried: it
+    # reads 84% from thirteen bets as better than 69% from fifty-three, the same
+    # inversion ``p_low`` exists to prevent. The bound stays a floor on a
+    # *self-reported, unaudited* record computed without the odds those bets
+    # were taken at -- 46% at 2.50 profits and 66% at 1.30 ruins -- so it orders
+    # tipsters against each other and never becomes a probability about this row.
+    #
+    # ``agree_unproven``/``oppose_unproven`` count the rated picks on each side
+    # whose bound falls below 0.50, i.e. whose own published record does not
+    # establish them as better than a coin flip. They still count into
+    # ``agree``/``oppose``, because what a tipster said is a fact about the
+    # fixture regardless of their record; the counts are here so "2/3" cannot
+    # be read as support when both backers are 25%-from-eight-bets.
+    #
+    # They are split by side rather than pooled because a cell reading "0/1"
+    # with one pooled unproven count cannot say whether the weak record belongs
+    # to the tipster who backed the row or the one who opposed it -- and those
+    # are opposite pieces of news.
+    rated: int = 0
+    agree_record_low: float | None = None
+    oppose_record_low: float | None = None
+    agree_unproven: int = 0
+    oppose_unproven: int = 0
+
 
 class MarketSignalColumn(StrictBaseModel):
     """A price and a model read for one stats-sheet row. Never a probability we computed.

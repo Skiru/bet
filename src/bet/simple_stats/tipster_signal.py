@@ -38,6 +38,7 @@ from __future__ import annotations
 from collections import Counter
 from datetime import datetime, timedelta, timezone
 
+from bet.simple_stats.analyze import wilson_lower_bound
 from bet.simple_stats.contracts import (
     EventListV1,
     EventRecord,
@@ -269,6 +270,37 @@ def build_tipster_signal(
     )
 
 
+# A published record has to clear chance before it counts as a reason to
+# believe anybody. The bar is the Wilson lower bound of the tipster's own
+# stated hits over their own stated bets, against 0.50 -- deliberately the
+# weakest possible bar. It is not a profitability test and cannot be: nobody
+# publishes the odds those bets were taken at, and a 46% record at 2.50 makes
+# money while a 66% record at 1.30 loses it. All it rules out is a record too
+# short or too poor to distinguish its author from a coin, which on the
+# 2026-09-01 slate was true of thirteen of the nineteen tipsters who published
+# one at all. The bar cuts across the headline number rather than along it:
+# 80% from ten bets fails at 49.0% while 84% from thirteen clears at 57.8%,
+# and 62% from fifty-three fails at 48.8% -- which is the whole point of
+# reading a floor instead of a percentage.
+UNPROVEN_RECORD_BOUND = 0.50
+
+
+def _stated_record(pick: TipsterPickRef) -> tuple[int, int] | None:
+    """Hits and bets behind a tipster's published percentage, or None.
+
+    The source publishes a rounded percentage and a bet count, never a hit
+    count, so the hits are reconstructed from the two. Rounding costs at most
+    half a bet, which the Wilson bound absorbs comfortably. A percentage with
+    no bet count is dropped rather than assumed to be over some default,
+    because the count is the half of the pair that carries the weight.
+    """
+    pct = pick.tipster_accuracy_pct
+    bets = pick.tipster_bet_count
+    if pct is None or bets is None or bets <= 0:
+        return None
+    return round(pct / 100 * bets), bets
+
+
 def column_for_row(
     row: StatsSheetRow,
     signal: TipsterSignalV1,
@@ -292,6 +324,10 @@ def column_for_row(
     agree = 0
     oppose = 0
     exact = 0
+    rated = 0
+    agree_unproven = oppose_unproven = 0
+    agree_hits = agree_bets = 0
+    oppose_hits = oppose_bets = 0
     sources: set[str] = set()
     excluded: Counter[str] = Counter()
 
@@ -315,6 +351,22 @@ def column_for_row(
             agree += 1
         else:
             oppose += 1
+        # The record is tallied per side, never subtracted from the counts: a
+        # pick is what a tipster said about this row, and that stays true
+        # whatever their history. The history qualifies the cell, not the tally.
+        record = _stated_record(pick)
+        if record is not None:
+            hits, bets = record
+            rated += 1
+            weak = wilson_lower_bound(hits, bets) < UNPROVEN_RECORD_BOUND
+            if stance == "AGREE":
+                agree_hits += hits
+                agree_bets += bets
+                agree_unproven += weak
+            else:
+                oppose_hits += hits
+                oppose_bets += bets
+                oppose_unproven += weak
         sources.add(pick.source_id)
 
     if agree == 0 and oppose == 0:
@@ -335,6 +387,11 @@ def column_for_row(
         sources=sorted(sources),
         lean=dict(event.public_lean or {}),
         excluded=dict(sorted(excluded.items())),
+        rated=rated,
+        agree_record_low=wilson_lower_bound(agree_hits, agree_bets) if agree_bets else None,
+        oppose_record_low=wilson_lower_bound(oppose_hits, oppose_bets) if oppose_bets else None,
+        agree_unproven=agree_unproven,
+        oppose_unproven=oppose_unproven,
     )
 
 

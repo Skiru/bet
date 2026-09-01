@@ -251,6 +251,35 @@ def test_a_friendly_competition_is_excluded_from_slips_too(monkeypatch, tmp_path
     assert coupons.slips == []
 
 
+def test_the_shipped_tier_map_classifies_englands_u21_development_league():
+    """Added 2026-09-01, and it is the config that is under test, not the gate.
+
+    The gate worked; the map had a hole. Seven fixtures on that slate were
+    "Professional Development League" -- every one U21 v U21 -- and the name was
+    not pinned, so the YOUTH gate fired on nothing at all: not one
+    ``competition_youth_or_friendly`` exclusion appeared in the coupon that day.
+    "Premier League 2" was already pinned, and this is England's other U21
+    development league, so the omission was an oversight rather than a judgement.
+    """
+    assert competition_tier("Professional Development League") == "YOUTH"
+    assert competition_tier("Premier League 2") == "YOUTH"
+
+
+def test_a_u21_development_fixture_reaches_neither_singles_nor_slips():
+    row_a = _row(market="corners_total", line=9.5, p_low=0.90)
+    row_b = _row(market="cards_total", line=4.5, p_low=0.85)
+    events = _events(EventRecord(
+        event_id="evt-1", sport="football",
+        competition="Professional Development League",
+        home_team="Huddersfield Town U21", away_team="Queens Park Rangers U21",
+        start_time="2026-09-01T12:00:00+00:00",
+        identity_confidence="CONFIRMED", status="ACTIVE",
+    ))
+    coupons = build_coupons(_sheet(row_a, row_b), events)
+    assert coupons.singles == []
+    assert coupons.slips == []
+
+
 def test_an_unmapped_competition_is_not_guessed_at():
     """No entry in the map is not TIER_3 by default -- guessing would be the
     same overconfident mapping mistake the pinned ESPN map was fixed for."""
@@ -673,6 +702,51 @@ class TestTipsterCell:
 
     def test_agreement_on_this_row_is_a_ratio(self):
         row = _row(tipster=TipsterColumn(verdict="CONFIRMS", agree=2, oppose=1, considered=5))
+        assert coupons_module._tipster_summary(row) == "2/3"
+
+    def test_a_ratio_carries_the_backers_record_when_they_published_one(self):
+        """"2/3" alone cannot distinguish two proven tipsters from two unproven ones."""
+        row = _row(tipster=TipsterColumn(
+            verdict="CONFIRMS", agree=2, oppose=1, considered=5,
+            rated=2, agree_record_low=0.611,
+        ))
+        assert coupons_module._tipster_summary(row) == "2/3 · rek. 61%"
+
+    def test_a_record_that_does_not_clear_chance_is_named_in_the_cell(self):
+        row = _row(tipster=TipsterColumn(
+            verdict="CONFIRMS", agree=2, oppose=0, considered=4,
+            rated=2, agree_record_low=0.248, agree_unproven=2,
+        ))
+        cell = coupons_module._tipster_summary(row)
+        assert cell == "2/2 · rek. 25% · 2 bez rekordu"
+
+    def test_a_credible_opponent_is_named_when_nobody_backed_the_row(self):
+        """"0/1" alone hides whether the objection came from anyone worth hearing."""
+        row = _row(tipster=TipsterColumn(
+            verdict="CONTRADICTS", agree=0, oppose=1, considered=3,
+            rated=1, oppose_record_low=0.552,
+        ))
+        assert coupons_module._tipster_summary(row) == "0/1 · przeciw rek. 55%"
+
+    def test_a_weak_opponent_is_not_mistakable_for_weak_support(self):
+        row = _row(tipster=TipsterColumn(
+            verdict="CONTRADICTS", agree=0, oppose=1, considered=3,
+            rated=1, oppose_record_low=0.076, oppose_unproven=1,
+        ))
+        cell = coupons_module._tipster_summary(row)
+        assert cell == "0/1 · przeciw rek. 8% · przeciw: 1 bez rekordu"
+
+    def test_a_split_cell_qualifies_the_agreement_not_the_objection(self):
+        """The row claims what the backers claim; that is what needs a record."""
+        row = _row(tipster=TipsterColumn(
+            verdict="SPLIT", agree=1, oppose=1, considered=4,
+            rated=2, agree_record_low=0.571, oppose_record_low=0.076, oppose_unproven=1,
+        ))
+        assert coupons_module._tipster_summary(row) == "1/2 · rek. 57%"
+
+    def test_a_source_with_no_published_record_leaves_the_ratio_bare(self):
+        """sportsgambler and typersi publish none; the cell must not imply one."""
+        row = _row(tipster=TipsterColumn(verdict="CONFIRMS", agree=2, oppose=1, considered=5, rated=0))
         assert coupons_module._tipster_summary(row) == "2/3"
 
     def test_no_row_agreement_but_a_covered_fixture_reports_presence(self):

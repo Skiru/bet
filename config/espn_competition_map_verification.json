@@ -341,22 +341,24 @@
       "pinned_by": [
         "EFL League One",
         "England League One",
+        "League 1",
         "League One"
       ],
       "swept": true,
       "team_count": 24,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-01"
     },
     "eng.4": {
       "espn_name": "English League Two",
       "pinned_by": [
         "EFL League Two",
         "England League Two",
+        "League 2",
         "League Two"
       ],
       "swept": true,
       "team_count": 24,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-01"
     },
     "eng.5": {
       "espn_name": "English National League",
@@ -1158,7 +1160,7 @@
       "verified_on": "2026-08-28"
     }
   },
-  "last_run": "2026-08-28",
+  "last_run": "2026-09-01",
   "probe": "GET http://site.api.espn.com/apis/site/v2/sports/soccer/<code>/teams; a code counts as live only with a non-empty team directory",
   "refuted": {},
   "verified_by": "scripts/simple/verify_espn_competition_map.py"

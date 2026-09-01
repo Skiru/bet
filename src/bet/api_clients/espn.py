@@ -391,6 +391,25 @@ _ESPN_FOOTBALL_COMPETITIONS = {
     "EFL League One": "eng.3",
     "League Two": "eng.4", "England League Two": "eng.4",
     "EFL League Two": "eng.4",
+    # The digit spellings, added 2026-09-01. Same two codes, already
+    # /teams-verified; only the name was missing, and the name is what the
+    # feeds actually emit. On that day's slate "League 1" was 7 fixtures and
+    # "League 2" was 12 -- 19 of the 46 unresolved competition names, and the
+    # largest resolvable block in the file. Every one came back
+    # "no ESPN league code for competition 'League 1'", which left rows that
+    # bzzoiro alone could serve stuck at SINGLE_SOURCE: Leicester City -
+    # Plymouth Argyle reached the coupon uncorroborated for exactly this
+    # reason, on a market (goals_for) espn-football is able to serve.
+    #
+    # Read off the fixtures, not off the name: the "League 1" block was
+    # Bradford City, Bromley, Doncaster, Huddersfield, Leicester, Peterborough
+    # and Wycombe, and the "League 2" block was Accrington, Exeter, Bristol
+    # Rovers, Cheltenham, Chesterfield, Northampton, Crewe, Fleetwood,
+    # Salford, Swindon, Rochdale and Tranmere. Both are unambiguously the
+    # English third and fourth tiers, and neither collides with France's
+    # "Ligue 1"/"Ligue 2", which this table keys separately.
+    "League 1": "eng.3",
+    "League 2": "eng.4",
     # 11 of the 80 fixtures on 2026-08-28 were "National League" -- the single
     # largest block in the slate -- and the old table left every one of them
     # unresolved. Confirmed as England's fifth tier from the fixtures

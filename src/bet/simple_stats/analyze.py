@@ -572,6 +572,17 @@ def _tennis_match_key(pv: ProviderValue) -> str:
     single meeting reported by two providers yields one. The provider's own row
     count is the only evidence available about how often two players met, so it
     is what decides -- rather than a date the provider does not really have.
+
+    The "character for character" claim above was measured on 2026-08-28 and is
+    **false in general**; it was re-measured on 2026-09-01 and broke on ten
+    opponent pairs. The name orders and middle names it broke on are exactly
+    what ``_team_matches`` exists to absorb -- "juncheng shang" / "shang
+    juncheng", "coleman wong" / "chak lam coleman wong", "soon woo kwon" /
+    "soonwoo kwon" -- but this function used to return the bare normalized
+    string, so the matcher was named in the reasoning and never called. Every
+    such pair opened a second slot and counted one match as two independent
+    trials. ``_tennis_match_keys`` now canonicalizes through the matcher, which
+    is why this returns a *normalized* name to be clustered rather than a key.
     """
     return _normalize_team_name(pv.opponent) or ""
 
@@ -583,14 +594,37 @@ def _tennis_match_keys(values: list[ProviderValue]) -> list[str]:
     reports keys to the same slot as the first Tauson match espn-tennis reports,
     so the pair collapses, while a second Tauson match from either provider gets
     its own slot and survives.
+
+    Opponent names are canonicalized through ``_team_matches`` before they
+    become slots, the same matcher ``_cluster_by_opponent`` uses for football.
+    Without it "shang juncheng" and "juncheng shang" are two slots, and one
+    match enters the sample twice -- on 2026-09-01 that happened to nine
+    opponent pairs across the tennis slate. Canonicalization is greedy and so
+    order-dependent, exactly as ``_cluster_by_opponent`` is.
+
+    One class is still missed: a diminutive against its full given name, where
+    the surname matches and nothing else does -- "caty mcnally" against
+    "catherine mcnally", which counted Tatjana Maria's 29-game match as two.
+    ``_team_matches`` rejects it and so does ``bet.tipsters.matching``'s
+    ``_person_score``, which needs the unshared name covered by an *initial*.
+    Closing it needs either a nickname table or a fuzzy ratio on the given name,
+    and a ratio there would merge the sibling pairs tennis actually has
+    (Mirra/Erika Andreeva), so it is left open rather than guessed at.
     """
     seen: dict[tuple[str, str], int] = {}
+    canonical: list[str] = []
     keys: list[str] = []
     for pv in values:
         opponent = _tennis_match_key(pv)
         if not opponent:
             keys.append("")
             continue
+        for known in canonical:
+            if _team_matches(opponent, known):
+                opponent = known
+                break
+        else:
+            canonical.append(opponent)
         slot = (pv.provider, opponent)
         occurrence = seen.get(slot, 0)
         seen[slot] = occurrence + 1

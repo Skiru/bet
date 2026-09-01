@@ -844,6 +844,34 @@ def _espn_division_ranks(tokens: list[str]) -> set[int]:
     return ranks
 
 
+# Competition names whose digit is part of a proper noun, mapped to the tier the
+# competition actually is. Exact whole-string match only, and the list is
+# deliberately tiny.
+#
+# The general rule above is right and must not be softened: a name carrying "1"
+# pinned to a tier-3 code is the exact shape of a paste error, and teaching the
+# gate to read "One" as 1 would break the reason the digits rule exists --
+# English "League One" *is* the third tier, so the word must never mean 1.
+#
+# These two are the case where the rule and the truth genuinely diverge. The
+# feeds render England's third and fourth tiers as "League 1" and "League 2",
+# so the digit is the name and nothing else. Established from the fixtures
+# rather than the string, on the 2026-09-01 slate: "League 1" was Bradford
+# City, Bromley, Doncaster, Huddersfield, Leicester, Peterborough and Wycombe;
+# "League 2" was Accrington, Exeter, Bristol Rovers, Cheltenham, Chesterfield,
+# Northampton, Crewe, Fleetwood, Salford, Swindon, Rochdale and Tranmere.
+#
+# Mapped rather than merely exempted, so the tier check keeps working instead of
+# being switched off for these two names. Blanking the rank would let a 3-for-4
+# paste error through -- "League 1" pinned to eng.4 -- which is the very class of
+# typo this gate exists to catch. Translating it means "League 1" agrees with
+# eng.3 and still contradicts eng.4.
+#
+# Adding to this list means proving the same way: name the fixtures. It is not
+# a place to put a name that merely looks awkward.
+_ESPN_NAME_DIGIT_TIERS = {"League 1": 3, "League 2": 4}
+
+
 def _espn_pin_contradicted(competition: str, league: str, league_name: str) -> str:
     """Why ESPN's own league name disagrees with the competition, or "".
 
@@ -899,7 +927,11 @@ def _espn_pin_contradicted(competition: str, league: str, league_name: str) -> s
             f"competition is women's but ESPN files '{league}' as '{league_name}'"
         )
 
-    comp_div = _espn_division_ranks(comp_tokens)
+    named_tier = _ESPN_NAME_DIGIT_TIERS.get(competition.strip())
+    comp_div = (
+        {named_tier} if named_tier is not None
+        else _espn_division_ranks(comp_tokens)
+    )
     espn_div = _espn_division_ranks(espn_tokens)
     # The code's tail is the third witness, and the only one that reads "1":
     # ESPN's name for a top flight rarely says which tier it is ("Argentine

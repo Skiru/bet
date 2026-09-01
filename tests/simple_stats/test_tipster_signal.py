@@ -9,14 +9,19 @@ from __future__ import annotations
 
 from dataclasses import replace
 
+import pytest
+
 from bet.simple_stats.contracts import (
     EventListV1,
     EventRecord,
     StatsSheetRow,
     StatsSheetV1,
 )
+from bet.simple_stats.analyze import wilson_lower_bound
 from bet.simple_stats.tipster_signal import (
     MATCH_THRESHOLD,
+    UNPROVEN_RECORD_BOUND,
+    _stated_record,
     attach_tipster_column,
     build_tipster_signal,
     column_for_row,
@@ -58,6 +63,8 @@ def _pick(
     sport="football",
     is_combo=False,
     direction="UNDER",
+    accuracy=None,
+    bets=None,
 ) -> TipsterPick:
     return TipsterPick(
         source_id=source_id,
@@ -72,6 +79,8 @@ def _pick(
         tipster_name=tipster,
         match_date="2026-08-25",
         is_combo=is_combo,
+        tipster_accuracy_pct=accuracy,
+        tipster_bet_count=bets,
     )
 
 
@@ -425,3 +434,91 @@ class TestColumnIndexing:
         row = _row()
         index = {e.event_id: e for e in signal.events}
         assert column_for_row(row, signal) == column_for_row(row, signal, index)
+
+
+class TestPublishedTrackRecord:
+    """A tipster's own published record, read as a floor and never as a weight.
+
+    The column shipped for a slate on which "2/3" said nothing about whether
+    the two had ever been right. ZawodTyper is the only source that publishes a
+    record at all, so these are the cases where it is present, absent, and
+    present but worthless.
+    """
+
+    def test_percentage_without_a_bet_count_is_not_a_record(self):
+        signal = build_tipster_signal(_event_list(), [_pick(accuracy=72, bets=None)])
+        assert _stated_record(signal.events[0].picks[0]) is None
+
+    def test_bet_count_without_a_percentage_is_not_a_record(self):
+        signal = build_tipster_signal(_event_list(), [_pick(accuracy=None, bets=30)])
+        assert _stated_record(signal.events[0].picks[0]) is None
+
+    def test_hits_are_reconstructed_from_the_published_pair(self):
+        signal = build_tipster_signal(_event_list(), [_pick(accuracy=72, bets=50)])
+        assert _stated_record(signal.events[0].picks[0]) == (36, 50)
+
+    def test_the_floor_ranks_a_long_record_over_a_flashy_short_one(self):
+        """80% from ten bets must not outrank 69% from fifty-three."""
+        assert wilson_lower_bound(8, 10) < wilson_lower_bound(37, 53)
+
+    def test_an_unproven_record_still_counts_as_a_pick(self):
+        """What a tipster said is a fact about the row whatever their history.
+
+        The record qualifies the cell; it never silently removes the claim,
+        because a removed claim is indistinguishable from a fixture nobody
+        covered.
+        """
+        signal = build_tipster_signal(_event_list(), [_pick(accuracy=21, bets=14)])
+        column = column_for_row(_row(), signal)
+        assert column.agree == 1
+        assert column.rated == 1
+        assert column.agree_unproven == 1
+        assert column.oppose_unproven == 0
+        assert column.agree_record_low < UNPROVEN_RECORD_BOUND
+
+    def test_a_source_that_publishes_no_record_is_not_penalised(self):
+        """An absent record is not a bad record.
+
+        sportsgambler and typersi publish none, and marking their picks
+        unproven would read as a verdict on them that nobody has evidence for.
+        """
+        signal = build_tipster_signal(_event_list(), [_pick(source_id="sportsgambler")])
+        column = column_for_row(_row(), signal)
+        assert column.agree == 1
+        assert column.rated == 0
+        assert column.agree_unproven == 0
+        assert column.agree_record_low is None
+
+    def test_records_pool_across_the_tipsters_on_one_side(self):
+        signal = build_tipster_signal(_event_list(), [
+            _pick(tipster="A", accuracy=69, bets=53),
+            _pick(tipster="B", accuracy=72, bets=50),
+        ])
+        column = column_for_row(_row(), signal)
+        assert column.agree == 2
+        assert column.rated == 2
+        assert column.agree_unproven == 0
+        # 37+36 hits over 103 bets, not the mean of two percentages.
+        assert column.agree_record_low == pytest.approx(wilson_lower_bound(73, 103))
+
+    def test_the_record_never_reaches_a_statistic(self):
+        """The separation invariant, restated for the fields added here."""
+        sheet = _sheet(_row())
+        signal = build_tipster_signal(_event_list(), [_pick(accuracy=84, bets=13)])
+        after = attach_tipster_column(sheet, signal)
+        assert after.rows[0].p_low == sheet.rows[0].p_low
+        assert after.rows[0].hit_rate == sheet.rows[0].hit_rate
+        assert after.rows[0].sample_size == sheet.rows[0].sample_size
+        assert after.rows[0].tipster.agree_record_low is not None
+
+    def test_a_weak_record_is_attributed_to_the_side_that_holds_it(self):
+        """"0/1" with a pooled count could not say whose record was weak."""
+        signal = build_tipster_signal(_event_list(), [
+            _pick(market="Powyżej 10,5 rzutów rożnych", direction="OVER", accuracy=21, bets=14),
+        ])
+        column = column_for_row(_row(direction="UNDER"), signal)
+        assert (column.agree, column.oppose) == (0, 1)
+        assert column.agree_unproven == 0
+        assert column.oppose_unproven == 1
+        assert column.agree_record_low is None
+        assert column.oppose_record_low is not None

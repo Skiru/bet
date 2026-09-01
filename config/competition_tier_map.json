@@ -8,6 +8,10 @@
     "Brasileiro U17": "YOUTH",
     "Friendlies Clubs": "FRIENDLY",
     "Premier League 2": "YOUTH",
-    "Premier League 2 Division One": "YOUTH"
-  }
+    "Premier League 2 Division One": "YOUTH",
+    "Professional Development League": "YOUTH"
+  },
+  "_extended": [
+    "2026-09-01: 'Professional Development League' -> YOUTH. Seen on the real slate as 7 fixtures, every one U21 v U21 (Colchester United U21 - Barnsley U21, Cardiff City U21 - Sheffield Wednesday U21, Charlton Athletic U21 - Wigan Athletic U21, Fleetwood Town U21 - Millwall U21, Hull City U21 - Swansea City U21, Bristol City U21 - Sheffield United U21, Huddersfield Town U21 - Queens Park Rangers U21). Same class as the 'Premier League 2' entries already here -- it is England's other U21 development league -- and its absence meant the YOUTH gate fired on nothing at all that day: not one 'competition_youth_or_friendly' exclusion appeared in the coupon."
+  ]
 }

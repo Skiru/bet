@@ -106,12 +106,7 @@ def discover_repo_root() -> Path:
     """Robustly find the repository root without calling git."""
     current = Path(__file__).resolve().parent
     for parent in [current] + list(current.parents):
-        if (
-            (parent / "pyproject.toml").exists()
-            or (parent / ".git").exists()
-            or (parent / ".kilo").exists()
-            or (parent / "kilo.json").exists()
-        ):
+        if (parent / "pyproject.toml").exists() or (parent / ".git").exists():
             return parent
     cwd = Path.cwd().resolve()
     return cwd
@@ -522,13 +517,16 @@ def validate_pipeline_manifest(
                             f"Step {sid} referenced {field_name} path does not exist: {path_str}"
                         )
 
-        # Referenced agent file validation
-        if step.agent is not None:
-            agent_file = repo_root / ".kilo/agents" / f"{step.agent}.md"
-            if not agent_file.exists():
-                errors.append(
-                    f"Step {sid} referenced agent file does not exist under .kilo/agents: {step.agent}.md"
-                )
+        # Referenced agent files are deliberately NOT validated. The S0-S10
+        # stack this manifest describes is dead (see legacy/), and commit
+        # b49258b4 "remove kilo" deleted the .kilo/agents/*.md files it named
+        # while leaving the names in the manifest. The check therefore reported
+        # 17 errors for 17 files nobody intends to restore -- and because
+        # `bet/pipeline/state.py` calls get_step_order() at *module scope*, that
+        # turned into an import-time exception for every module in the
+        # bet.pipeline package. It took 80 test files out of collection and
+        # broke `bet.providers.result` for callers who never touched a step.
+        # An unsatisfiable check on a dead code path is worse than no check.
 
     graph = {step.id: list(step.depends_on or []) for step in manifest.steps if step.id}
     for step in manifest.steps:

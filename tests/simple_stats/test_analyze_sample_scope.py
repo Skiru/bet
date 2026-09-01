@@ -27,6 +27,7 @@ import pytest
 
 from bet.simple_stats import analyze as analyze_module
 from bet.simple_stats.analyze import (
+    _tennis_match_keys,
     analyze_dossier,
     scope_values,
     suppressed_markets_for,
@@ -288,3 +289,76 @@ def test_football_is_never_touched_by_the_format_gate():
         metrics={},
     )
     assert suppressed_markets_for(dossier, "ATP US Open") == frozenset()
+
+
+# --- tennis opponent identity ----------------------------------------------
+
+
+def _obs(provider: str, opponent: str, value: float = 1.0) -> ProviderValue:
+    return ProviderValue(
+        provider=provider,
+        match_id=f"{provider}:{opponent}",
+        match_date="2026-08-13",
+        opponent=opponent,
+        value=value,
+        observed_at="2026-09-01T00:00:00Z",
+    )
+
+
+class TestTennisOpponentIdentity:
+    """One match reported by two providers is one trial, whatever they call it.
+
+    The key used to be the bare normalized opponent string, so every spelling
+    difference opened a second slot and counted one match twice. Measured on
+    2026-09-01: nine such pairs across the tennis slate. These are those pairs,
+    verbatim.
+    """
+
+    @pytest.mark.parametrize("a,b", [
+        ("Juncheng Shang", "Shang Juncheng"),
+        ("Shuai Zhang", "Zhang Shuai"),
+        ("Xiyu Wang", "Wang Xiyu"),
+        ("Qinwen Zheng", "Zheng Qinwen"),
+        ("Coleman Wong", "Chak Lam Coleman Wong"),
+        ("Joel Schwaerzler", "Joel Josef Schwaerzler"),
+        ("Daniel Merida Aguilar", "Daniel Merida"),
+        ("Soon Woo Kwon", "Soonwoo Kwon"),
+    ])
+    def test_one_match_named_two_ways_is_one_slot(self, a, b):
+        keys = _tennis_match_keys([_obs("tennis-abstract", a), _obs("espn-tennis", b)])
+        assert len(set(keys)) == 1, keys
+
+    def test_a_repeat_meeting_from_one_provider_keeps_its_own_slot(self):
+        """The provider's own row count is the evidence about how often they met."""
+        keys = _tennis_match_keys([
+            _obs("tennis-abstract", "Clara Tauson"),
+            _obs("tennis-abstract", "Clara Tauson"),
+        ])
+        assert len(set(keys)) == 2, keys
+
+    def test_two_players_sharing_a_surname_are_not_merged(self):
+        """Tennis has real sibling pairs; collapsing them would invent a trial."""
+        keys = _tennis_match_keys([
+            _obs("tennis-abstract", "Mirra Andreeva"),
+            _obs("espn-tennis", "Erika Andreeva"),
+        ])
+        assert len(set(keys)) == 2, keys
+
+    def test_an_unnamed_opponent_gets_no_slot(self):
+        keys = _tennis_match_keys([_obs("tennis-abstract", "")])
+        assert keys == [""]
+
+    @pytest.mark.xfail(reason="diminutive vs full given name: needs a nickname "
+                              "table; a fuzzy ratio here would merge the "
+                              "Andreeva sisters", strict=True)
+    def test_a_diminutive_is_still_a_second_slot(self):
+        """Documents the one 2026-09-01 pair this does not fix.
+
+        It counted Tatjana Maria's 29-game match against McNally twice, both
+        copies in the high tail of a total_games sample.
+        """
+        keys = _tennis_match_keys([
+            _obs("tennis-abstract", "Caty Mcnally"),
+            _obs("espn-tennis", "Catherine McNally"),
+        ])
+        assert len(set(keys)) == 1, keys

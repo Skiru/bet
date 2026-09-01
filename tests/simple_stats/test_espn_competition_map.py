@@ -359,6 +359,74 @@ def test_englands_top_flight_resolves_under_every_name_a_feed_uses(competition, 
     assert resolve(competition) == expected
 
 
+# --- the digit spellings of England's third and fourth tiers ---------------
+#
+# Added 2026-09-01. "League 1" was 7 fixtures on that slate and "League 2" was
+# 12 -- 19 of 46 unresolved competition names, the largest resolvable block in
+# the file -- and every one came back "no ESPN league code for competition
+# 'League 1'". Rows only bzzoiro could serve were stuck at SINGLE_SOURCE for it;
+# Leicester City - Plymouth Argyle reached the coupon uncorroborated on
+# goals_for, a market espn-football serves.
+
+
+@pytest.mark.parametrize(
+    "competition, expected",
+    [
+        ("League 1", "eng.3"), ("League One", "eng.3"),
+        ("League 2", "eng.4"), ("League Two", "eng.4"),
+    ],
+)
+def test_englands_lower_tiers_resolve_under_the_digit_and_the_word(competition, expected):
+    assert resolve(competition) == expected
+
+
+@pytest.mark.parametrize(
+    "competition, expected",
+    [("Ligue 1", "fra.1"), ("Ligue 2", "fra.2")],
+)
+def test_the_digit_spellings_do_not_collide_with_france(competition, expected):
+    """"League 1" and "Ligue 1" are one character apart and three tiers apart."""
+    assert resolve(competition) == expected
+
+
+def test_the_tier_gate_accepts_the_digit_spelling_of_league_one():
+    """The gate reads the digit in a name as a tier claim, and it is right to:
+    a name carrying "1" pinned to a tier-3 code is the shape of a paste error.
+    England's third tier is the case where the rule and the truth diverge --
+    the digit there is the proper noun, not the tier."""
+    assert not _espn_pin_contradicted("League 1", "eng.3", "English League One")
+    assert not _espn_pin_contradicted("League 2", "eng.4", "English League Two")
+
+
+@pytest.mark.parametrize(
+    "competition, league, espn_name",
+    [
+        # The exception is a *translation*, not an exemption. Blanking the rank
+        # for these two names would have switched the tier check off for them
+        # and let exactly this swap through.
+        ("League 1", "eng.4", "English League Two"),
+        ("League 2", "eng.3", "English League One"),
+        ("League 1", "eng.1", "English Premier League"),
+        ("League 2", "eng.5", "English National League"),
+        # The original gate accepted this one, because "Ligue 1" carries a
+        # matching digit. Mapping "League 1" to tier 3 is what rejects it.
+        ("League 1", "fra.1", "French Ligue 1"),
+    ],
+)
+def test_the_tier_gate_still_rejects_every_wrong_pin_for_those_names(
+    competition, league, espn_name
+):
+    assert _espn_pin_contradicted(competition, league, espn_name)
+
+
+def test_a_word_number_is_still_never_read_as_a_tier():
+    """The general rule the exception must not soften: English "League One" is
+    the third tier, so "one" cannot be allowed to mean 1 anywhere."""
+    from bet.simple_stats.providers import _espn_division_ranks, _espn_pin_tokens
+    assert _espn_division_ranks(_espn_pin_tokens("League One")) == set()
+    assert _espn_division_ranks(_espn_pin_tokens("League 1")) == {1}
+
+
 @pytest.mark.parametrize(
     "competition, expected",
     [("Euro 2028", "uefa.euro"), ("MLS Cup", "usa.1"), ("UCL", "uefa.champions")],

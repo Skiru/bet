@@ -131,9 +131,12 @@ def test_every_step_required_fields_and_allowed_values():
                     path_obj = root / path_str
                     assert path_obj.exists(), f"Step {sid} referenced {field_name} path does not exist: {path_str}"
 
-        # Agent file existence
-        agent_file = root / ".kilo/agents" / f"{step.agent}.md"
-        assert agent_file.exists(), f"Step {sid} referenced agent file does not exist: {agent_file}"
+        # No agent-file existence check. `b49258b4 "remove kilo"` deleted every
+        # .kilo/agents/*.md this manifest names, deliberately -- the S0-S10
+        # stack is dead. This assertion outlived them and asserted against 17
+        # files nobody intends to restore. It never fired only because this file
+        # was itself uncollectable, through the same import-time manifest
+        # validation that is gone as of 2026-09-01.
 
 
 def test_enrichment_steps_cannot_emit_forbidden():
