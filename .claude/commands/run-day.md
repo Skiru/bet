@@ -193,6 +193,13 @@ Read three fields off its `AGENT_SUMMARY` and lead with the first:
 * `markets_with_no_line_overlap` -- market families Superbet lists but never at
   a line we generate. Non-empty means a **line-generator defect**, not a thin
   day; say so in the analysis under *Czego zabrakło*, with the market named.
+  **It is absent from this step's summary, always, and absent does not mean
+  empty.** It is computed only from the *comparison* artifact, which
+  `run_superbet.py` writes only when handed `--stats-sheet` -- and inside the
+  pipeline SUPERBET runs before ANALYZE, so no sheet exists yet. Do not report
+  it as empty off this step; get it from the Step 3 re-run below, which does
+  pass the sheet. Reading its absence as "no defect" is how the 2026-08-31
+  line-generator hole would ship unnoticed.
 * `our_events_kicked_off` -- check it before reading `our_events_without_offer`
   as a matching failure. `offerState=prematch` drops a fixture the moment it
   goes live, so a run started after the first kickoff always finds some of its
@@ -245,13 +252,32 @@ artifact that exists and none that does not** — ANALYZE rebuilds the sheet fro
 scratch, so an omitted flag silently drops that column and the backfill looks
 like it *lost* data it never touched:
 
+**`--event-list` is not one of the optional columns — pass it always.** It is read
+for exactly one thing: each fixture's **competition name**, which the dossier does
+not carry and which is the only input deciding whether a tennis tie is
+best-of-five. Omit it and `tennis_match_format(None)` returns `None`, so the
+best-of-five gate in `analyze.py:suppressed_markets_for` suppresses nothing and
+`total_sets` / `total_games` / `aces_total` / `double_faults_total` rows for men's
+Grand Slam ties come back onto the sheet. There is no error and no warning — the
+sheet just gets bigger, and those rows sort to the **top** (`p_low` 0.78–0.84),
+because "under 3.5 sets" is a tautology in best-of-three. Measured 2026-09-01:
+dropping the flag put 19 ATP US Open events and 137 rows back, disguised as the
+day's best bets, and the analyst spent its pass writing 113 vetoes by hand for
+rows the code already knew how to suppress.
+
+The tell is `events_covered` (93 without the flag vs 74 with it). Checking
+`rows_by_market` is **not** enough: WTA alone produces the same
+`total_games 228 / total_sets 38` counts, so the numbers look unchanged. Verify
+instead that `ATP US Open` events have zero rows on the sheet.
+
 ```bash
-ls runs/<date>/<date>_market_context.json runs/<date>/<date>_tipster_signal.json \
-   runs/<date>/<date>_superbet_offer.json
+ls runs/<date>/<date>_event_list.json runs/<date>/<date>_market_context.json \
+   runs/<date>/<date>_tipster_signal.json runs/<date>/<date>_superbet_offer.json
 
 python3 scripts/simple/run_analyze.py \
   --dossier runs/<date>/<date>_event_dossiers.json \
   --output-dir runs/<date> \
+  --event-list runs/<date>/<date>_event_list.json \
   --market-context runs/<date>/<date>_market_context.json \
   --tipster-signal runs/<date>/<date>_tipster_signal.json \
   --superbet-offer runs/<date>/<date>_superbet_offer.json -v
@@ -261,11 +287,28 @@ python3 scripts/simple/run_analyze.py \
 the time a backfill has finished they are an hour old. It is one cheap public
 request per fixture, so re-taking them costs nothing but time:
 
+Pass `--stats-sheet` here (the first pass could not — no sheet existed yet). It
+costs nothing extra and is the **only** way the run ever learns
+`markets_with_no_line_overlap`, `verdict_counts` and `value_rows`: those come
+from the comparison artifact, which is written only when the sheet is supplied.
+Use the sheet from the pass you are about to replace; ANALYZE re-runs right
+after and overwrites it anyway.
+
 ```bash
 python3 scripts/simple/run_superbet.py \
   --event-list runs/<date>/<date>_event_list.json \
+  --stats-sheet runs/<date>/<date>_event_dossiers_stats_sheet.json \
   --output-dir runs/<date> -v
 ```
+
+Then read off that summary, and quote the first two in the run report:
+
+* `markets_with_no_line_overlap` — `[]` is the healthy answer and now means it,
+  because the field was actually computed.
+* `verdict_counts` / `value_rows` — how many rows are `VALUE` versus
+  `PRICED_BELOW_THRESHOLD`. This is the day's real yield and the honest headline:
+  measured 2026-09-01, 10,917 rows considered → 508 compared → **14 `VALUE`**
+  against 494 priced below their own threshold.
 
 This writes two sheets: `<date>_event_dossiers_stats_sheet.json` (every row)
 and `<date>_event_dossiers_stats_sheet_top.json` (the same rows filtered to

@@ -639,6 +639,20 @@ def build_coupons(
 
     veto_index = VetoIndex(vetoes)
     applied_vetoes: list[str] = []
+    # One note per analyst *decision*, not per row it lands on. The sheet holds
+    # several rows with the same (event_id, market, line, direction) -- that is
+    # what ``duplicate_market_for_event`` counts -- so appending inside the row
+    # loop printed the same downgrade twice in the coupon header. On 2026-09-01
+    # Leicester's ``goals_for 1.5 UNDER`` appeared as two identical DOWNGRADE
+    # notes, which reads as two separate findings against one fixture.
+    reported_vetoes: set[tuple[str, str, float | None, str | None, str]] = set()
+
+    def note_veto_once(veto: AnalystVeto, note: str) -> None:
+        key = (veto.event_id, veto.market, veto.line, veto.direction, veto.action)
+        if key in reported_vetoes:
+            return
+        reported_vetoes.add(key)
+        applied_vetoes.append(note)
 
     def identity(event_id: str) -> tuple[str, str, str]:
         event = events.get(event_id)
@@ -697,9 +711,10 @@ def build_coupons(
         # needed for it.
         if veto is not None and veto.action == "DOWNGRADE":
             new_tier = step_tier_down(tier)
-            applied_vetoes.append(
+            note_veto_once(
+                veto,
                 f"DOWNGRADE analityka: {_veto_scope(veto)} "
-                f"({row.event_id[:12]}) {tier}→{new_tier} — {veto.reason}"
+                f"({row.event_id[:12]}) {tier}→{new_tier} — {veto.reason}",
             )
             tier = new_tier
         if tier in ("WEAK", "DROP"):
@@ -707,9 +722,10 @@ def build_coupons(
             continue
         if veto is not None and veto.action == "VETO":
             exclude("analyst_veto")
-            applied_vetoes.append(
+            note_veto_once(
+                veto,
                 f"WETO analityka: {_veto_scope(veto)} "
-                f"({row.event_id[:12]}) — {veto.reason}"
+                f"({row.event_id[:12]}) — {veto.reason}",
             )
             continue
         if row.p_low < min_p_low:
@@ -934,7 +950,28 @@ def build_coupons(
             )
         )
 
-    slips.sort(key=lambda s: (-s.weakest_leg_p_low, s.event_id))
+    def _slip_value_legs(slip: CouponSlip) -> int:
+        """How many of this slip's legs the operator's own book prices at or
+        above their own threshold."""
+        return sum(
+            1
+            for leg in slip.draft.legs
+            if leg.superbet_price is not None
+            and leg.superbet_price >= leg.min_acceptable_odds
+        )
+
+    # Value first, one level up from the legs and for the same reason. Ranking
+    # slips on ``weakest_leg_p_low`` alone actively undid the leg ranking below
+    # it: promoting the one leg worth its price *lowers* a slip's weakest
+    # ``p_low``, so the slip carrying it sank in this sort and was cut by
+    # ``max_slips``. Measured 2026-09-01: fixing the leg order alone dropped the
+    # Sheffield United and Preston slips out of the file entirely and replaced
+    # them with slips made of 1.01-priced near-certainties. A slip with a leg
+    # that can pay outranks one where nothing can, whatever its weakest leg's
+    # certainty; within each group the weakest leg still decides.
+    slips.sort(
+        key=lambda s: (-_slip_value_legs(s), -s.weakest_leg_p_low, s.event_id)
+    )
     slips = [s.model_copy(update={"rank": i + 1}) for i, s in enumerate(slips[:max_slips])]
 
     notes = []

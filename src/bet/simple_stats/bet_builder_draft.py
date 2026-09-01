@@ -364,12 +364,56 @@ def draft_legs(
             continue
         eligible.append((row, tier))
 
-    # Trivial UNDERs sort last, never first. Same key the singles list uses.
-    eligible.sort(
+    # Price every eligible row once, before ranking. Whether a leg beats its own
+    # threshold is a property of the leg, so it has to be known to rank it -- and
+    # pricing here rather than inside the loop below means ``price_for`` is
+    # called once per row instead of twice.
+    def _priced(row: StatsSheetRow, tier: Tier) -> tuple[float, str | None, float | None]:
+        minimum = round((1.0 / row.p_low) * TIER_MARGIN[tier], 4)
+        if price_for is None:
+            return minimum, None, None
+        availability, price = price_for(row)
+        return minimum, availability, price
+
+    priced: dict[int, tuple[float, str | None, float | None]] = {
+        id(row): _priced(row, tier) for row, tier in eligible
+    }
+
+    def _surplus(pair: tuple[StatsSheetRow, Tier]) -> float | None:
+        """How far this leg's price clears its own threshold, or None."""
+        minimum, availability, price = priced[id(pair[0])]
+        if availability != "OFFERED" or price is None or price < minimum:
+            return None
+        return round(price - minimum, 4)
+
+    # Value first, exactly as the singles list is ranked in ``coupons.py``: a leg
+    # the operator's own book prices at or above its ``min_acceptable_odds``
+    # outranks one it does not, however high the second leg's ``p_low``.
+    #
+    # Ranking on ``-p_low`` alone filled slips with near-tautologies and hid the
+    # legs worth taking. Measured 2026-09-01: all eight slips shipped 28 legs and
+    # **none** beat its threshold, because "under 3.5 first-half goals" at
+    # p_low 0.72 is priced 1.01 and therefore outranked
+    # ``corners_for 4.5 UNDER`` at p_low 0.57 priced 2.70 -- a +0.75 surplus,
+    # dropped as ``over_max_legs``. A leg that cannot be worth its price is not
+    # better evidence than one that is; it is a more certain way to be paid
+    # nothing.
+    value = [pair for pair in eligible if _surplus(pair) is not None]
+    value_ids = {id(pair[0]) for pair in value}
+    rest = [pair for pair in eligible if id(pair[0]) not in value_ids]
+    value.sort(
+        key=lambda pair: (
+            -(_surplus(pair) or 0.0), -pair[0].p_low, pair[0].market, pair[0].line
+        )
+    )
+    # Trivial UNDERs sort last, never first. Same key the singles list uses, and
+    # applied to the same group: the one with no Superbet value to rank on.
+    rest.sort(
         key=lambda pair: (
             is_trivial_under(pair[0]), -pair[0].p_low, pair[0].market, pair[0].line
         )
     )
+    eligible = value + rest
 
     # One leg per market: two lines of the same market in one slip are the same
     # read twice, and Superbet will not accept both anyway.
@@ -384,20 +428,16 @@ def draft_legs(
             exclude("duplicate_market")
             continue
         fair_odds = 1.0 / row.p_low
-        minimum = round(fair_odds * TIER_MARGIN[tier], 4)
-
-        availability, price = (None, None)
-        if price_for is not None:
-            availability, price = price_for(row)
-            # Availability is not a value judgement and is not optional. A slip
-            # is placed as one unit, so a leg the book does not carry does not
-            # make the slip worse -- it makes the slip impossible. Five of the
-            # eight slips shipped on 2026-09-01 contained a leg on a line
-            # Superbet does not list, and each was presented as a coupon to go
-            # and place. Unlike a single, there is no honest way to print that.
-            if availability != "OFFERED":
-                exclude(f"superbet_{(availability or 'unknown').lower()}")
-                continue
+        minimum, availability, price = priced[id(row)]
+        # Availability is not a value judgement and is not optional. A slip
+        # is placed as one unit, so a leg the book does not carry does not
+        # make the slip worse -- it makes the slip impossible. Five of the
+        # eight slips shipped on 2026-09-01 contained a leg on a line
+        # Superbet does not list, and each was presented as a coupon to go
+        # and place. Unlike a single, there is no honest way to print that.
+        if price_for is not None and availability != "OFFERED":
+            exclude(f"superbet_{(availability or 'unknown').lower()}")
+            continue
         if require_value and price is not None and price < minimum:
             # Below the bar but on the screen: a real answer about a real
             # market, and the operator may still want to see it. Only dropped

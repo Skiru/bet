@@ -348,6 +348,55 @@ def test_a_downgrade_that_reaches_weak_is_excluded_like_any_other_weak_row():
     assert coupons.excluded.get("tier_weak") == 1
 
 
+def test_one_veto_matching_several_rows_is_reported_once():
+    """One analyst decision is one note, however many rows it lands on.
+
+    The sheet legitimately carries several rows with the same
+    (event_id, market, line, direction) -- that is what
+    ``duplicate_market_for_event`` counts -- so a note appended inside the row
+    loop printed the same finding once per row. On 2026-09-01 Leicester's
+    ``goals_for 1.5 UNDER`` shipped as two identical DOWNGRADE notes, which
+    reads as two separate findings against one fixture.
+    """
+    twins = _sheet(
+        _row(p_low=0.90, sample_size=12),
+        _row(p_low=0.88, sample_size=11),
+        _row(p_low=0.86, sample_size=10),
+    )
+
+    downgraded = build_coupons(
+        twins, _events(_event()),
+        vetoes=[_veto(action="DOWNGRADE", reason="zerowa wariancja w próbie")],
+    )
+    assert sum("zerowa wariancja w próbie" in n for n in downgraded.notes) == 1
+
+    vetoed = build_coupons(
+        twins, _events(_event()),
+        vetoes=[_veto(action="VETO", reason="providerzy się nie zgadzają")],
+    )
+    assert sum("providerzy się nie zgadzają" in n for n in vetoed.notes) == 1
+    # Deduplicating the *note* must not deduplicate the *exclusion*: all three
+    # rows still have to leave the coupon.
+    assert vetoed.excluded.get("analyst_veto") == 3
+
+
+def test_two_distinct_vetoes_on_one_event_are_reported_separately():
+    """Dedup keys on the decision, not on the event."""
+    coupons = build_coupons(
+        _sheet(
+            _row(p_low=0.90, market="corners_total", line=9.5),
+            _row(p_low=0.90, market="cards_total", line=4.5),
+        ),
+        _events(_event()),
+        vetoes=[
+            _veto(market="corners_total", line=9.5, reason="powod pierwszy"),
+            _veto(market="cards_total", line=4.5, reason="powod drugi"),
+        ],
+    )
+    assert sum("powod pierwszy" in n for n in coupons.notes) == 1
+    assert sum("powod drugi" in n for n in coupons.notes) == 1
+
+
 def test_a_veto_for_a_different_row_is_a_no_op():
     coupons = build_coupons(
         _sheet(_row(p_low=0.90)), _events(_event()),

@@ -435,3 +435,85 @@ def test_a_prop_the_book_prices_reaches_the_coupon_with_that_price():
     )
     assert coupons.singles[0].superbet_availability == "OFFERED"
     assert coupons.singles[0].superbet_price == 2.10
+
+
+# --- slip ranking: value outranks the weakest leg's certainty ---------------
+
+
+def _two_event_offer(lines_a, lines_b) -> SuperbetOfferV1:
+    def one(event_id, sb_id, name, lines):
+        return SuperbetEventOffer(
+            superbet_event_id=sb_id, superbet_match_name=name,
+            sport="football", kickoff="2026-08-29T19:00:00Z", event_id=event_id,
+            match_quality="EXACT", lines=list(lines),
+        )
+    return SuperbetOfferV1(
+        run_id="RID-1", date="2026-08-29", generated_at="2026-08-29T18:00:00+00:00",
+        events=[
+            one("evt-1", "900", "Valencia·Real Betis", lines_a),
+            one("evt-2", "901", "Girona·Osasuna", lines_b),
+        ],
+    )
+
+
+def _slip_fixture_rows(event_id, corners_p_low, cards_p_low):
+    return (
+        _row(event_id=event_id, market="corners_total", line=9.5,
+             direction="UNDER", p_low=corners_p_low),
+        _row(event_id=event_id, market="cards_total", line=4.5,
+             direction="UNDER", p_low=cards_p_low),
+    )
+
+
+def test_a_slip_with_a_leg_worth_its_price_outranks_a_more_certain_one_without():
+    """Value first, one level up from the legs and for the same reason.
+
+    Ranking slips on ``weakest_leg_p_low`` alone actively undid the leg
+    ranking: promoting the one leg worth its price *lowers* the slip's weakest
+    ``p_low``, so the slip carrying it sank and was cut by ``max_slips``.
+    Measured 2026-09-01, fixing the legs alone dropped the Sheffield United and
+    Preston slips out of the file and replaced them with slips of 1.01-priced
+    near-certainties.
+    """
+    sheet = _sheet(
+        # evt-1 is less certain but its corners line is genuinely priced.
+        *_slip_fixture_rows("evt-1", 0.55, 0.60),
+        # evt-2 is more certain and priced at nothing.
+        *_slip_fixture_rows("evt-2", 0.75, 0.75),
+    )
+    events = _events(_event(), _event(event_id="evt-2", home="Girona", away="Osasuna"))
+    offer = _two_event_offer(
+        [_line(price=2.60), _line(market="cards_total", line=4.5, price=1.02)],
+        [_line(price=1.02), _line(market="cards_total", line=4.5, price=1.02)],
+    )
+
+    coupons = build_coupons(sheet, events, superbet_offer=offer, max_slips=1)
+
+    assert [s.event_id for s in coupons.slips] == ["evt-1"]
+    kept = coupons.slips[0]
+    # It won despite having the *lower* weakest leg -- that is the whole point.
+    assert kept.weakest_leg_p_low == 0.55
+    priced = [
+        leg for leg in kept.draft.legs
+        if leg.superbet_price is not None
+        and leg.superbet_price >= leg.min_acceptable_odds
+    ]
+    assert len(priced) == 1
+    assert priced[0].market == "corners_total"
+
+
+def test_between_two_slips_with_no_value_the_weakest_leg_still_decides():
+    """The old ordering is untouched inside a group -- only the groups are new."""
+    sheet = _sheet(
+        *_slip_fixture_rows("evt-1", 0.55, 0.60),
+        *_slip_fixture_rows("evt-2", 0.75, 0.75),
+    )
+    events = _events(_event(), _event(event_id="evt-2", home="Girona", away="Osasuna"))
+    nothing_priced = _two_event_offer(
+        [_line(price=1.02), _line(market="cards_total", line=4.5, price=1.02)],
+        [_line(price=1.02), _line(market="cards_total", line=4.5, price=1.02)],
+    )
+
+    coupons = build_coupons(sheet, events, superbet_offer=nothing_priced, max_slips=2)
+
+    assert [s.event_id for s in coupons.slips] == ["evt-2", "evt-1"]

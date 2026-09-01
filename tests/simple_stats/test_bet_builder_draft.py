@@ -243,6 +243,97 @@ def test_legs_are_ranked_by_the_sheets_own_ranking():
     ]
 
 
+def test_a_leg_that_beats_its_price_outranks_a_more_certain_one_that_does_not():
+    """Value first, exactly as the singles list ranks.
+
+    Ranking on ``-p_low`` alone filled slips with near-tautologies. Measured
+    2026-09-01: all eight slips shipped 28 legs and none beat its threshold,
+    because "under 3.5 first-half goals" at p_low 0.72 is priced 1.01 and so
+    outranked ``corners_for 4.5 UNDER`` at p_low 0.57 priced 2.70 -- the row
+    actually worth taking, dropped as ``over_max_legs``.
+    """
+    tautology = _row(market="goals_1h_total", line=3.5, direction="UNDER", p_low=0.72)
+    worth_it = _row(market="corners_for", line=4.5, direction="UNDER", p_low=0.57)
+
+    prices = {"goals_1h_total": 1.01, "corners_for": 2.70}
+
+    def price_for(row):
+        return "OFFERED", prices[row.market]
+
+    draft = draft_legs(
+        _sheet(tautology, worth_it), "evt-1", max_legs=1, price_for=price_for
+    )
+    assert [leg.market for leg in draft.legs] == ["corners_for"]
+    leg = draft.legs[0]
+    assert leg.superbet_price >= leg.min_acceptable_odds
+    assert draft.excluded["over_max_legs"] == 1
+
+
+def test_without_prices_the_ranking_is_still_the_sheets_own():
+    """No ``price_for`` means nothing to rank value on -- p_low order stands."""
+    draft = draft_legs(
+        _sheet(
+            _row(market="goals_1h_total", line=3.5, direction="UNDER", p_low=0.72),
+            _row(market="corners_for", line=4.5, direction="UNDER", p_low=0.57),
+        ),
+        "evt-1",
+    )
+    assert [leg.market for leg in draft.legs] == ["goals_1h_total", "corners_for"]
+
+
+def test_among_legs_that_all_beat_their_price_the_widest_surplus_leads():
+    def price_for(row):
+        return "OFFERED", {"corners_total": 2.60, "cards_total": 2.20}[row.market]
+
+    draft = draft_legs(
+        _sheet(
+            _row(market="cards_total", line=4.5, p_low=0.55),
+            _row(market="corners_total", line=9.5, p_low=0.55),
+        ),
+        "evt-1",
+        price_for=price_for,
+    )
+    assert [leg.market for leg in draft.legs] == ["corners_total", "cards_total"]
+
+
+def test_a_leg_the_book_does_not_offer_is_still_dropped_not_ranked():
+    """The availability gate must survive the reordering."""
+    def price_for(row):
+        if row.market == "corners_total":
+            return "LINE_NOT_OFFERED", None
+        return "OFFERED", 2.60
+
+    draft = draft_legs(
+        _sheet(
+            _row(market="corners_total", line=9.5, p_low=0.80),
+            _row(market="cards_total", line=4.5, p_low=0.55),
+        ),
+        "evt-1",
+        price_for=price_for,
+    )
+    assert [leg.market for leg in draft.legs] == ["cards_total"]
+    assert draft.excluded["superbet_line_not_offered"] == 1
+
+
+def test_price_for_is_called_once_per_eligible_row():
+    """Pricing moved above the loop; it must not double-charge the caller."""
+    calls: list[str] = []
+
+    def price_for(row):
+        calls.append(row.market)
+        return "OFFERED", 2.60
+
+    draft_legs(
+        _sheet(
+            _row(market="corners_total", line=9.5, p_low=0.55),
+            _row(market="cards_total", line=4.5, p_low=0.55),
+        ),
+        "evt-1",
+        price_for=price_for,
+    )
+    assert sorted(calls) == ["cards_total", "corners_total"]
+
+
 def test_only_this_fixtures_rows_are_drafted():
     draft = draft_legs(_sheet(_row(), _row(event_id="evt-2", market="cards_total")), "evt-1")
     assert len(draft.legs) == 1
