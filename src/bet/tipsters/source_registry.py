@@ -18,7 +18,10 @@ SOURCES: dict[str, SourcePolicy] = {
         sports=("football", "tennis", "basketball", "hockey", "volleyball"),
         entrypoints=("https://www.sportsgambler.com/betting-tips/football/",),
         allow_playwright=False,
-        max_pages_per_run=8,
+        # The listing publishes ten fixtures a day and every pick is on a
+        # detail page, so the budget is one listing plus all ten. At 8 the run
+        # reached seven of them and simply dropped the rest.
+        max_pages_per_run=11,
         min_delay_seconds=3.0,
         parser_strategy="article_narrative_html",
         data_role="narrative_team_news_stats",
