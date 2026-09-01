@@ -13,7 +13,7 @@ from .contracts import ExtractionResult, ExtractorVerdict, RawDocument, TipsterP
 from .legacy_bridge import convert_legacy_pick_to_v2
 from .market_parser import market_family, direction, stats_cited, extract_odds
 from .normalization import collapse_ws, clean_team_name, is_garbage_team
-from bet.pipeline.tipster_parsers import extract_zawodtyper_bets_payload, parse_zawodtyper_xhr_bets
+from bet.tipsters.parsers import extract_zawodtyper_bets_payload, parse_zawodtyper_xhr_bets
 
 POLISH_MONTHS = {
     1: "stycznia", 2: "lutego", 3: "marca", 4: "kwietnia",

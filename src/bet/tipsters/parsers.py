@@ -1,4 +1,10 @@
-"""Pure parsers for brittle S2 tipster sources."""
+"""Pure parsers for the brittle tipster sources.
+
+Lives under bet.tipsters, not bet.pipeline: the live TIPSTERS step must not
+import the legacy S0-S10 package, whose __init__ validates a manifest that
+references agent files deleted in b49258b4. That import chain is what took the
+step down every run from 2026-08-31 onward.
+"""
 from __future__ import annotations
 
 import re

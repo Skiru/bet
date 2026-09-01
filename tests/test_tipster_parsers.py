@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from bet.pipeline.tipster_parsers import extract_zawodtyper_bets_payload, parse_zawodtyper_xhr_bets
+from bet.tipsters.parsers import extract_zawodtyper_bets_payload, parse_zawodtyper_xhr_bets
 
 
 FIXTURE_PATH = Path(__file__).parent / "fixtures" / "tipsters" / "zawodtyper_np_ajax_success.json"

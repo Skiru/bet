@@ -12,7 +12,7 @@ from bs4 import BeautifulSoup
 
 from .contracts import ExtractionResult, ExtractorVerdict, RawDocument, TipsterPick
 from .normalization import clean_team_name, is_garbage_team, collapse_ws
-from bet.pipeline.tipster_parsers import DISCIPLINE_MAP
+from bet.tipsters.parsers import DISCIPLINE_MAP
 from .market_parser import market_family, direction, parse_line, extract_odds, stats_cited
 from .extractors import detect_sport, PARSER_VERSION
 
