@@ -1,4 +1,10 @@
-"""Pure parsers for brittle S2 tipster sources."""
+"""Pure parsers for the brittle tipster sources.
+
+Lives under bet.tipsters, not bet.pipeline: the live TIPSTERS step must not
+import the legacy S0-S10 package, whose __init__ validates a manifest that
+references agent files deleted in b49258b4. That import chain is what took the
+step down every run from 2026-08-31 onward.
+"""
 from __future__ import annotations
 
 import re
@@ -24,6 +30,38 @@ def strip_html_text(text: str) -> str:
     text = text.replace("&nbsp;", " ").replace("&amp;", "&")
     text = text.replace("&lt;", "<").replace("&gt;", ">")
     return re.sub(r"\s+", " ", text).strip()
+
+
+# Separator precedence, and why it is not one alternation.
+#
+# The old split was ``re.split(r"\s*[-–—]\s*", name, maxsplit=1)``. ``\s*``
+# makes the surrounding whitespace optional, so the first hyphen wins wherever
+# it sits -- including inside a club's own name. "Al-Hilal - Al Ahli" split into
+# ("Al", "Hilal - Al Ahli") and was re-emitted as "Al vs Hilal - Al Ahli", which
+# then matched no fixture at all. Every hyphenated club on the slate (Al-Hilal,
+# Al-Ahli, Al-Nassr, Bayer 04-Leverkusen) was lost the same way.
+#
+# So: try the unambiguous " vs " first, then a hyphen that is *spaced* on both
+# sides, and only then a bare hyphen -- and that last one only when there is
+# exactly one in the string, which is the single case where it cannot be part of
+# a name and a separator at the same time.
+_VS_SEP = re.compile(r"\s+vs?\.?\s+", re.IGNORECASE)
+_SPACED_DASH_SEP = re.compile(r"\s+[-–—]\s+")
+
+
+def _split_sides(match_name: str) -> tuple[str, str] | None:
+    """Home/away from a source's fixture title, or None if it is not a pair."""
+    for pattern in (_VS_SEP, _SPACED_DASH_SEP):
+        parts = pattern.split(match_name, maxsplit=1)
+        if len(parts) == 2:
+            home, away = parts[0].strip(), parts[1].strip()
+            if len(home) >= 2 and len(away) >= 2:
+                return home, away
+    if len(re.findall(r"[-–—]", match_name)) == 1:
+        home, away = (part.strip() for part in re.split(r"[-–—]", match_name, maxsplit=1))
+        if len(home) >= 2 and len(away) >= 2:
+            return home, away
+    return None
 
 
 def extract_zawodtyper_bets_payload(body: Mapping[str, Any]) -> list[Mapping[str, Any]]:
@@ -113,16 +151,11 @@ def parse_zawodtyper_xhr_bets(
                 continue
             seen_comment_ids.add(comment_id)
 
-        parts = re.split(r"\s*[-–—]\s*", match_name, maxsplit=1)
-        if len(parts) != 2:
-            parts = re.split(r"\s+vs\.?\s+", match_name, maxsplit=1, flags=re.IGNORECASE)
-        if len(parts) != 2:
+        parts = _split_sides(match_name)
+        if parts is None:
             continue
 
-        home = parts[0].strip()
-        away = parts[1].strip()
-        if len(home) < 2 or len(away) < 2:
-            continue
+        home, away = parts
 
         content = text_cleaner(str(bet.get("content") or ""))
         author_stats = bet.get("author_stats") or {}

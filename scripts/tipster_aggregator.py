@@ -48,8 +48,8 @@ except ImportError:
 
 import requests as _requests
 from bet.pipeline.core_integration_contracts import require_live_integrations
-from bet.pipeline.tipster_artifacts import build_tipster_consensus_artifact
-from bet.pipeline.tipster_sources import TIPSTER_SITES
+from bet.tipsters.consensus_artifact import build_tipster_consensus_artifact
+from bet.tipsters.source_contracts import TIPSTER_SITES
 from bet.resilience import resilient_request
 from bet.tipster_registry import TIPSTER_SOURCE_REGISTRY, get_tipster_source_status
 

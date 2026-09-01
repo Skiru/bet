@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from bet.pipeline.tipster_opinion_quality import (
+from bet.tipsters.opinion_quality import (
     TipsterContextState,
     determine_tipster_context_status,
     validate_tipster_opinion_alignment,

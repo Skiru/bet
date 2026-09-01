@@ -404,11 +404,27 @@ version already moved the tier; yours is what can catch what it cannot see
 It is `null` when that step did not run or no tipster covered the fixture.
 
 ```json
-{"verdict": "CONFIRMS", "agree": 3, "oppose": 0, "considered": 7,
+{"verdict": "CONFIRMS", "agree": 3, "oppose": 0, "exact": 1, "considered": 7,
  "sources": ["zawodtyper"], "excluded": {"outcome_market_not_a_total": 4}}
 ```
 
-`agree`/`oppose` count only claims on **this exact market, line and side**.
+`agree`/`oppose` count claims that **settle this row's bet**, on this market and
+this subject -- the row's `team_name` for a `*_for` row, its `player_name` for a
+prop, neither for a match total.
+
+They are not restricted to this row's own line, and that is deliberate. The
+sheet prints the one or two lines its statistics favour; a tipster takes
+whatever line the bookmaker hung, so on exact equality this column said nothing
+on any row. Totals are monotone, so the relation used is implication: a tipster
+on over 13.5 fouls is counted as agreeing with over 8.5 (they cannot be right
+about 13.5 and wrong about 8.5) and as opposing under 8.5. A claim that leaves
+the row genuinely open -- under 13.5 against over 8.5 -- is dropped as
+`line_too_weak_to_inform` rather than counted either way.
+
+`exact` is how many of those claims were about this row's own number. `agree=3,
+exact=0` is three tipsters whose bets this row's bet rides along with, not three
+tipsters who picked this line; say so if you quote it.
+
 `considered` is how many tipster picks existed for the fixture at all, so
 `agree=0, considered=7` means seven tipsters talked about the match and none
 about this bet -- almost always because they were betting 1X2. `excluded` says

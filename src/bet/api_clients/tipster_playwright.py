@@ -7,7 +7,7 @@ import time
 from datetime import datetime, timezone
 
 from bet.pipeline.core_integration_contracts import require_live_integrations
-from bet.pipeline.tipster_parsers import (
+from bet.tipsters.parsers import (
     extract_zawodtyper_bets_payload,
     parse_zawodtyper_xhr_bets,
     strip_html_text,

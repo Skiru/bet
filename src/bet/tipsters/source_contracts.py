@@ -1,7 +1,7 @@
 """Canonical S2 tipster source definitions."""
 from __future__ import annotations
 
-from bet.pipeline.tipster_contracts import TipsterSourceContract
+from bet.tipsters.source_contract_types import TipsterSourceContract
 
 
 TIPSTER_SOURCE_CONTRACTS: tuple[TipsterSourceContract, ...] = (

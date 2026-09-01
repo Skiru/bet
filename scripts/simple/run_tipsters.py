@@ -21,6 +21,7 @@ Exit codes: 0 = OK, 1 = PARTIAL (ran, thin or blocked), 2 = PRECONDITION_FAILED.
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 import traceback
 from datetime import datetime, timezone
@@ -223,4 +224,24 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except SystemExit:
+        raise
+    except Exception as exc:  # noqa: BLE001
+        # The docstring above promises that a failure here returns PARTIAL and
+        # never takes a betting day down. That promise only held for exceptions
+        # raised inside main(); anything raised on the way to it exited 1 with
+        # no summary and no pipeline_runs row, which is precisely how this step
+        # failed silently for two days. An operator asking "why is the tipster
+        # column empty" must always find an answer in the run output.
+        traceback.print_exc(file=sys.stderr)
+        print(
+            "AGENT_SUMMARY:" + json.dumps({
+                "step": STEP,
+                "verdict": "PARTIAL",
+                "metrics": {"error": str(exc), "picks_ingested": 0},
+                "issues": [{"level": "error", "message": f"TIPSTERS crashed: {exc}"}],
+            }),
+        )
+        sys.exit(1)
