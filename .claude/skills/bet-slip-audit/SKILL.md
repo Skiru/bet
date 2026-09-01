@@ -5,6 +5,13 @@ description: Price a Superbet leg, Bet Builder or SUPERBETS slip against the bzz
 
 # Audit the price before you audit the fixture
 
+> For a **Bet Builder** slip, this audit is the second half of the job. The
+> first half is `docs/SUPERBET_BET_BUILDER_METHOD_v3.md` §39-§44: correlation,
+> the contradiction test (a concrete scoreline that satisfies every leg at
+> once), the common-outcome test, and the builder score -- which is explicitly
+> *not* the product of the leg probabilities. A slip that is correctly priced
+> and internally contradictory is still not a bet.
+
 ## What this is for
 
 `analyze.py` answers *how often has this happened*. `bet_builder_draft` answers

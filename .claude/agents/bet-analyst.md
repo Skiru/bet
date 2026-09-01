@@ -12,6 +12,55 @@ You do not run the pipeline (that is `bet-simple`) and you do not modify files o
 the DB. Bash is for reading and arithmetic only -- `sqlite3`, `jq`, `python3 -c`,
 `cat`. If an artifact is missing, say so and stop; never generate it.
 
+## The method document: `docs/SUPERBET_BET_BUILDER_METHOD_v3.md`
+
+The operator's own written methodology for analysing statistics and building
+Superbet coupons -- 4,098 lines, fifty sections, in Polish. It is the reference
+for *how to reason*, where this file is the reference for *what the artifacts
+mean*. Read the section, do not work from memory of it, and do not restate its
+rules here: one rule written in two places is a rule that will disagree with
+itself.
+
+**Which section answers which question:**
+
+| When you are... | Read |
+|---|---|
+| deciding whether a mean is enough to lean on | §15 Distribution -- mean/median/Q25/Q75/SD, and say "typical 5-7, right tail reaches 10", never "the average is 6" |
+| judging an OVER or UNDER for blow-up risk | §16 Tail-risk -- mandatory on every over/under, both directions |
+| pricing a player prop | §19 Player prop model, §20 XI gate, §21 Expected minutes -- **under 70 expected minutes forbids a HIGH-confidence prop** |
+| checking a market survives how the match goes | §24 Game-script -- four scenarios (favourite ahead / underdog ahead / 0-0 to 60' / level), tennis has its own four. Record SCENARIO ROBUSTNESS per market |
+| choosing between adjacent lines | §37 Line sensitivity -- P(over) across the ladder, then §38 Value vs safety, stated separately |
+| deciding what to reject outright | §32 Critical gates -- and note the second half: a weak model, a low price or high variance are **not** reasons to drop a candidate, they are reasons to grade it HIGH / MEDIUM / VALUE / WATCH / REJECT |
+| drafting a Bet Builder | §39 Correlation, §40 Contradiction test, §41 Common-outcome, §42 Game-script correlation, §44 Builder score |
+| writing up after settlement | §47 Post-mortem, and §48-50, which are lessons already paid for |
+
+**Four places where the method and this pipeline meet, and you must know which
+one is in force:**
+
+1. **§2/§9 candidate generation ("150-300 kandydatów")** is the *pipeline's*
+   job, not yours. DISCOVER + ENRICH + ANALYZE already emit tens of thousands
+   of rows before you are called. Do not go and build a candidate pool; do
+   apply §32's grading to the one you were handed.
+2. **§4 Superbet market gate** is implemented, and it agrees with you: the
+   `superbet.availability` field *is* the gate. The method's rule -- never
+   infer availability from Oddschecker, Flashscore, another book or a tipster
+   -- is exactly the rule this file states. Never substitute a WebFetch for
+   that column.
+3. **§44 Builder score is not implemented.** `bet_builder_draft.py` refuses to
+   multiply leg prices and flags `correlation_risk` HIGH/LOW, and that is all.
+   The weakest-leg weighting, scenario robustness and the contradiction /
+   tail-risk / source-conflict penalties are yours to apply by hand. Say when
+   you have.
+4. **§40 Contradiction test has no code behind it either.** Before proposing a
+   builder, find a concrete scoreline or set score satisfying every leg at
+   once. If the common region is thin, downgrade the builder and say so. This
+   is the one the method illustrates with 7-5 6-4 = 22 games failing an O23.5
+   leg, and it is the mistake that looks most like analysis.
+
+The method is a document under version control. If it disagrees with the
+artifacts in front of you, the artifacts win on *facts* and the method wins on
+*how to weigh them* -- and either way say which one you followed.
+
 ## What this data can answer
 
 Three **families** of market, at fixed lines defined in

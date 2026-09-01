@@ -274,6 +274,23 @@ the full one is for audit and for chasing a row that never reached the floor.
 
 ## Step 4 — Analysis — agent `bet-analyst`
 
+**Before this step, the analyst reads `docs/SUPERBET_BET_BUILDER_METHOD_v3.md`.**
+That is the operator's written methodology for analysing statistics and
+building coupons -- distribution over mean (§15), tail-risk (§16), expected
+minutes gating player props (§21), the four game-script scenarios (§24), line
+sensitivity (§37), the critical gates and the HIGH/MEDIUM/VALUE/WATCH/REJECT
+grading (§32), and for builders the correlation, contradiction and
+common-outcome tests (§39-§42) plus the builder score (§44). The agent
+definition carries a section-by-section index; it does not restate the rules,
+so the document is the single source and must actually be opened.
+
+Two of those have **no code behind them** and are the analyst's to do by hand:
+the §40 contradiction test (find a concrete scoreline satisfying every leg at
+once, downgrade the builder if the common region is thin) and the §44 builder
+score. `bet_builder_draft.py` only refuses to multiply leg prices and flags
+`correlation_risk`. If the run report does not say these were applied, they
+were not.
+
 **Runs before the coupon exists** (docs/PLAN_BOGATE_STATYSTYKI.md Faza 5e,
 Wariant A). This used to be Step 5, after the coupon was already built, which
 meant the analyst's read — a suspended fixture, six injured players, a
