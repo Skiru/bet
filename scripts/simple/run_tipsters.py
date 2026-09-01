@@ -60,9 +60,10 @@ def main() -> None:
         help=f"Repeatable. Default: {','.join(DEFAULT_LIVE_SOURCE_IDS)}",
     )
     parser.add_argument(
-        "--max-pages-per-source", type=int, default=12,
-        help="Global ceiling on pages fetched per source. Each source is further "
-             "capped by its own max_pages_per_run, which is what normally governs.",
+        "--max-pages-per-source", type=int, default=None,
+        help="Hard ceiling on pages fetched per source. Unset means each source "
+             "uses its own max_pages_per_run, which is the number configured "
+             "next to its rate limit and is what should normally govern.",
     )
     parser.add_argument("--timeout-seconds", type=float, default=12.0)
     parser.add_argument(

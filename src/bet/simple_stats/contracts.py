@@ -404,6 +404,11 @@ class TipsterColumn(StrictBaseModel):
     exact: int = 0
     considered: int = 0
     sources: list[str] = Field(default_factory=list)
+    # The fixture's 1X2/BTTS tally, copied from the signal so a caller holding
+    # only the sheet can still say what the public thinks of the match. It is a
+    # *different market* from this row and can never be converted into one --
+    # it is carried here to be read beside the row, never counted into it.
+    lean: dict[str, int] = Field(default_factory=dict)
     # Why the fixture's other picks did not qualify, e.g.
     # {"outcome_market_not_a_total": 4, "team_total_not_a_match_total": 2}.
     # Present so an empty column is auditable rather than merely empty.

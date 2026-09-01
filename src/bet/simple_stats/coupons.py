@@ -358,9 +358,31 @@ def _kickoff_passed(kickoff: str, not_before: datetime | None) -> bool:
 
 
 def _tipster_summary(row: StatsSheetRow) -> str | None:
-    if row.tipster is None or row.tipster.verdict == "NO_COVERAGE":
+    """Agreement on this row, or -- failing that -- presence on this fixture.
+
+    The two are different claims and are written differently on purpose. "2/3"
+    means three tipsters addressed *this bet* and two took this side. Nothing
+    else in this cell ever reads as a ratio.
+
+    A ratio is also the rare case. Tipsters price goals, corners and games; the
+    rows that reach a coupon are per-team shots and corners, so the two land on
+    the same row only by coincidence -- zero of fifteen singles on 2026-09-01.
+    What is far from rare is a tipster having covered the fixture at all, which
+    on the same day was true of nine of those fifteen. That is worth showing,
+    and showing it as "mecz: 4" rather than as a fraction is what stops it being
+    mistaken for agreement the row does not have.
+    """
+    column = row.tipster
+    if column is None:
         return None
-    return f"{row.tipster.agree}/{row.tipster.agree + row.tipster.oppose}"
+    if column.verdict != "NO_COVERAGE":
+        return f"{column.agree}/{column.agree + column.oppose}"
+    if not column.considered:
+        return None
+    # Nobody addressed this bet. Say who was there and, if the fixture drew a
+    # 1X2 or BTTS lean, what it was -- a different market, never this one.
+    lean = " ".join(f"{side} {count}" for side, count in column.lean.items())
+    return f"mecz: {column.considered}" + (f" · {lean}" if lean else "")
 
 
 # Values that mean "nothing to report" for the entitlement header note below:
