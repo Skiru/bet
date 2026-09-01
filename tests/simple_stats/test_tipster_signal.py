@@ -196,11 +196,39 @@ class TestColumnVerdicts:
         signal = build_tipster_signal(_event_list(), [])
         assert column_for_row(_row(), signal) is None
 
-    def test_neighbouring_line_is_excluded_not_counted(self):
+    def test_a_stronger_claim_settles_this_row_and_is_counted(self):
+        """Under 9.5 corners cannot be right while under 10.5 is wrong."""
         signal = build_tipster_signal(_event_list(), [_pick(market="Poniżej 9,5 rzutów rożnych")])
-        column = column_for_row(_row(line=10.5), signal)
+        column = column_for_row(_row(line=10.5, direction="UNDER"), signal)
+        assert column.verdict == "CONFIRMS"
+        assert (column.agree, column.oppose) == (1, 0)
+        # Counted, but not a claim about this row's own number.
+        assert column.exact == 0
+
+    def test_a_weaker_claim_says_nothing_and_is_excluded(self):
+        """Under 10.5 leaves under 9.5 entirely open, so it is not evidence."""
+        signal = build_tipster_signal(_event_list(), [_pick(market="Poniżej 10,5 rzutów rożnych")])
+        column = column_for_row(_row(line=9.5, direction="UNDER"), signal)
         assert column.verdict == "NO_COVERAGE"
-        assert column.excluded == {"different_market_or_line": 1}
+        assert column.excluded == {"line_too_weak_to_inform": 1}
+
+    def test_a_claim_on_this_exact_line_is_marked_exact(self):
+        signal = build_tipster_signal(_event_list(), [_pick(market="Poniżej 10,5 rzutów rożnych")])
+        column = column_for_row(_row(line=10.5, direction="UNDER"), signal)
+        assert (column.agree, column.exact) == (1, 1)
+
+    def test_an_incompatible_claim_contradicts(self):
+        """Under 9.5 and over 10.5 cannot both land."""
+        signal = build_tipster_signal(_event_list(), [_pick(market="Poniżej 9,5 rzutów rożnych")])
+        column = column_for_row(_row(line=10.5, direction="OVER"), signal)
+        assert column.verdict == "CONTRADICTS"
+        assert (column.agree, column.oppose) == (0, 1)
+
+    def test_a_different_market_is_never_counted(self):
+        signal = build_tipster_signal(_event_list(), [_pick(market="Poniżej 9,5 rzutów rożnych")])
+        column = column_for_row(_row(market="cards_total", line=10.5), signal)
+        assert column.verdict == "NO_COVERAGE"
+        assert column.excluded == {"different_market": 1}
 
 
 class TestEventMatching:
@@ -210,7 +238,9 @@ class TestEventMatching:
             [_pick(home="Bodo/Glimt", away="NEC Nijmegen", market="Powyżej 9,5 rożnych", direction="OVER")],
         )
         assert signal.picks_matched == 1
-        assert signal.events[0].match_quality == "FUZZY"
+        # EXACT, not FUZZY: the matcher folds ø to o, so the two renderings are
+        # the same string rather than a near miss rescued by a ratio.
+        assert signal.events[0].match_quality == "EXACT"
         assert signal.events[0].match_score >= MATCH_THRESHOLD
 
     def test_reversed_sides_still_match_and_are_flagged_fuzzy(self):

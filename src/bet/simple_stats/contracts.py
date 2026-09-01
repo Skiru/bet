@@ -396,6 +396,12 @@ class TipsterColumn(StrictBaseModel):
     verdict: Literal["CONFIRMS", "CONTRADICTS", "SPLIT", "NO_COVERAGE"]
     agree: int = 0
     oppose: int = 0
+    # How many of ``agree``/``oppose`` were claims on this row's exact line
+    # rather than on a line that merely entails it. A tipster on over 13.5
+    # fouls does settle a bet on over 8.5, so it counts -- but it is a claim
+    # about a different number, and an operator comparing the column to
+    # ``p_low`` should be able to see which kind of support a row has.
+    exact: int = 0
     considered: int = 0
     sources: list[str] = Field(default_factory=list)
     # Why the fixture's other picks did not qualify, e.g.
@@ -590,6 +596,12 @@ class TipsterPickRef(StrictBaseModel):
     market: str | None = None
     line: float | None = None
     direction: str
+    # Which team or player the claim is about. Empty on a match total; one entry
+    # on a per-team or per-player claim; two when the tipster wrote "obie
+    # drużyny" and meant the same line for each side. A ``*_for`` or
+    # ``player_*`` claim only corroborates the row whose subject it names, so
+    # this is what the column joins on besides market and line.
+    subjects: list[str] = Field(default_factory=list)
     countable: bool
     reject_reason: str = ""
     odds: float | None = None

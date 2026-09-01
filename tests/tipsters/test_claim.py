@@ -73,30 +73,55 @@ class TestDirectionFromClaimOnly:
         assert claim.reject_reason == "direction_ambiguous_in_claim"
 
 
-class TestScopeIsNotMatchTotal:
-    """Four shapes that share a market family with a match total and are not one."""
+class TestScopeDecidesWhichRowAClaimCanCorroborate:
+    """Four shapes that share a market family with a match total and are not one.
 
-    def test_team_total_is_rejected(self):
+    They used to be refused outright. They are now mapped onto the row family
+    the stats sheet actually prints for them -- ``*_for`` per team, ``player_*``
+    per player, ``goals_1h_total`` per half -- because refusing them made the
+    column structurally blind to about 95% of the sheet. What must never happen
+    is a scoped claim being counted as a *match* total, and that is what each of
+    these asserts.
+    """
+
+    def test_team_total_becomes_a_per_team_row_not_a_match_total(self):
         claim = classify_claim("Sabah Baku Over 5,5 Rzutów rożnych", "Sabah Baku", "Hapoel Beer Sheva")
-        assert claim.market == "corners_total"  # the unit is read correctly...
-        assert claim.scope == "TEAM"  # ...but it is one side's corners
-        assert not claim.countable
-        assert claim.reject_reason == "team_total_not_a_match_total"
+        assert claim.scope == "TEAM"
+        assert claim.market == "corners_for"  # not corners_total
+        assert claim.subjects == ("Sabah Baku",)
+        assert claim.countable
 
-    def test_team_total_named_mid_claim_is_rejected(self):
+    def test_team_named_mid_claim_still_scopes_to_that_team(self):
         claim = classify_claim("(Kartki) Suma Hapoel Beer Sheva - powyżej 2", "Sabah FK", "Hapoel Beer Sheva")
         assert claim.scope == "TEAM"
-        assert not claim.countable
+        assert claim.market == "cards_for"
+        assert claim.subjects == ("Hapoel Beer Sheva",)
 
-    def test_player_prop_is_rejected(self):
+    def test_a_claim_with_no_unit_names_no_market(self):
+        """"powyżej 1.5" of what? Shots, goals and cards are all still open."""
         claim = classify_claim("Chery, Tjaronn - powyżej 1.5", "Bodo/Glimt", "NEC Nijmegen")
         assert claim.scope == "PLAYER"
-        assert claim.reject_reason == "player_prop_not_a_match_total"
+        assert not claim.countable
+        assert claim.reject_reason == "unit_not_recognised"
 
-    def test_half_total_is_rejected(self):
+    def test_a_player_prop_with_a_unit_becomes_a_player_row(self):
+        claim = classify_claim("Chery, Tjaronn - powyżej 1.5 strzałów", "Bodo/Glimt", "NEC Nijmegen")
+        assert claim.scope == "PLAYER"
+        assert claim.market == "player_total_shots"
+        assert claim.subjects == ("Chery Tjaronn",)
+        assert claim.countable
+
+    def test_first_half_goals_become_the_half_row(self):
         claim = classify_claim("Over 1.5 gola w pierwszej połowie", "Wigan u21", "Cardiff u21")
         assert claim.scope == "PERIOD"
-        assert claim.reject_reason == "period_total_not_a_match_total"
+        assert claim.market == "goals_1h_total"
+        assert claim.countable
+
+    def test_a_period_the_sheet_has_no_row_for_is_still_refused(self):
+        """Cards have no half row, so there is nothing to corroborate."""
+        claim = classify_claim("over 1,5 kartek 1 połowa", "Lech", "Legia")
+        assert not claim.countable
+        assert claim.reject_reason == "period_total_has_no_sheet_row"
 
     def test_combo_is_rejected(self):
         claim = classify_claim("X2 + Betis powyżej 0,5 gola", "Valencia", "Real Betis")
@@ -205,16 +230,18 @@ class TestReviewFixes:
     def test_a_rejected_claim_keeps_what_was_parsed(self):
         """The reject path used to mutate a frozen dataclass via
         object.__setattr__; it now returns a new one, and must not lose fields."""
-        claim = classify_claim("Sabah Baku Over 5,5 Rzutów rożnych", "Sabah Baku", "Hapoel")
-        assert claim.reject_reason == "team_total_not_a_match_total"
+        raw = "X2 + Sabah Baku Over 5,5 Rzutów rożnych"
+        claim = classify_claim(raw, "Sabah Baku", "Hapoel")
+        assert claim.reject_reason == "combo_bet_legs_not_separable"
         assert claim.market == "corners_total"
         assert claim.direction == "OVER"
         assert claim.line == 5.5
-        assert claim.raw == "Sabah Baku Over 5,5 Rzutów rożnych"
+        assert claim.raw == raw
 
     def test_a_slashed_club_name_is_recognised_as_one_side(self):
         """Punctuation is now a separator, so "Bodø/Glimt" stays two tokens and
         matches the side outright instead of relying on a fuzzy rescue."""
         claim = classify_claim("Bodø/Glimt powyżej 4,5 rożnych", "Bodø/Glimt", "NEC Nijmegen")
         assert claim.scope == "TEAM"
-        assert not claim.countable
+        assert claim.subjects == ("Bodø/Glimt",)
+        assert claim.market == "corners_for"

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from bet.pipeline.tipster_sources import TIPSTER_SITES, TIPSTER_SOURCE_CONTRACTS
+from bet.tipsters.source_contracts import TIPSTER_SITES, TIPSTER_SOURCE_CONTRACTS
 from bet.tipster_registry import TIPSTER_SOURCE_REGISTRY
 
 

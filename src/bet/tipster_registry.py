@@ -7,7 +7,7 @@ reported instead of silently treated as generic misses.
 
 from __future__ import annotations
 
-from bet.pipeline.tipster_sources import TIPSTER_SOURCE_CONTRACTS
+from bet.tipsters.source_contracts import TIPSTER_SOURCE_CONTRACTS
 
 
 def _active_sources_for_sport(sport: str) -> list[str]:

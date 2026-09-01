@@ -50,7 +50,13 @@ PLACEHOLDER_REVIEW_VALUES = {"", "REPLACE_WITH_OPERATOR", "REPLACE_WITH_UTC_TIME
 
 PARSER_VERSION = "tipster_parser_v2.3_final_source_specific"
 
-DEFAULT_REVIEW_PATH = Path("docs/pipeline/tipster_terms_review.local.json")
+# Anchored to the repo, not to the working directory. As a relative path this
+# resolved against wherever the process happened to start, so the step found the
+# operator's attestation when run from the repo root and refused to fetch
+# anything when run from anywhere else -- a PRECONDITION_FAILED that looked like
+# a missing file rather than a missing cwd.
+_REPO_ROOT = Path(__file__).resolve().parents[3]
+DEFAULT_REVIEW_PATH = _REPO_ROOT / "docs/pipeline/tipster_terms_review.local.json"
 
 # Sources whose live parser is verified against a live run. Everything else stays
 # out of the default set even when its attestation would allow a fetch: an

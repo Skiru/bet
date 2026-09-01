@@ -3,8 +3,8 @@ from __future__ import annotations
 
 from typing import Any, Mapping
 
-from bet.pipeline.tipster_contracts import validate_tipster_pick
-from bet.pipeline.tipster_sources import TIPSTER_SOURCE_CONTRACTS
+from bet.tipsters.source_contract_types import validate_tipster_pick
+from bet.tipsters.source_contracts import TIPSTER_SOURCE_CONTRACTS
 
 
 def build_tipster_consensus_artifact(

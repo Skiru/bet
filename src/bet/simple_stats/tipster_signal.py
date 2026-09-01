@@ -50,7 +50,8 @@ from bet.simple_stats.contracts import (
 )
 from bet.tipsters.claim import MarketClaim, classify_claim
 from bet.tipsters.contracts import TipsterPick
-from bet.tipsters.normalization import names_score, normalize_key
+from bet.tipsters.matching import pair_score, side_score
+from bet.tipsters.normalization import normalize_key
 
 # Both sides must clear this. 82 is what bet.tipsters.pipeline_adapter already
 # uses for cross-source event grouping, so a pick that two sources agree is the
@@ -76,18 +77,20 @@ def _event_sides(event: EventRecord) -> tuple[str, str]:
     return event.home_team or "", event.away_team or ""
 
 
-def _pair_score(pick: TipsterPick, home: str, away: str) -> tuple[int, bool]:
-    """Best of straight and swapped orientation.
+def _pair_score(pick: TipsterPick, home: str, away: str, sport: str) -> tuple[int, bool]:
+    """Best of straight and swapped orientation, via :mod:`bet.tipsters.matching`.
 
     Sources disagree about which side is listed first often enough that ignoring
     the swap loses genuine matches; ``swapped`` is returned so a caller can tell
     a reversed listing from an exact one.
+
+    Tennis is scored as people rather than clubs: the sides are players, and
+    "Sakkari M." is the same person as "Maria Sakkari" for a reason no club rule
+    describes.
     """
-    straight = min(names_score(pick.home_team, home), names_score(pick.away_team, away))
-    swapped = min(names_score(pick.home_team, away), names_score(pick.away_team, home))
-    if swapped > straight:
-        return swapped, True
-    return straight, False
+    return pair_score(
+        pick.home_team or "", pick.away_team or "", home, away, person=(sport == "tennis")
+    )
 
 
 # ``bet.tipsters.live`` keeps picks within a day of the betting date, because a
@@ -148,7 +151,7 @@ def _match_pick_to_event(pick: TipsterPick, events: list[EventRecord]) -> tuple[
             continue
         if not _date_is_plausible(pick, event):
             continue
-        score, swapped = _pair_score(pick, home, away)
+        score, swapped = _pair_score(pick, home, away, event.sport)
         if score > best[1]:
             best = (event, score, swapped)
     if best[1] < MATCH_THRESHOLD:
@@ -164,6 +167,7 @@ def _pick_ref(pick: TipsterPick, claim: MarketClaim) -> TipsterPickRef:
         claim=claim.raw or pick.market,
         market=claim.market if claim.countable else None,
         line=claim.line if claim.countable else None,
+        subjects=list(claim.subjects) if claim.countable else [],
         direction=claim.direction if claim.countable else pick.direction,
         countable=claim.countable,
         reject_reason=claim.reject_reason,
@@ -287,6 +291,7 @@ def column_for_row(
 
     agree = 0
     oppose = 0
+    exact = 0
     sources: set[str] = set()
     excluded: Counter[str] = Counter()
 
@@ -294,15 +299,23 @@ def column_for_row(
         if not pick.countable:
             excluded[pick.reject_reason or "unclassified"] += 1
             continue
-        if pick.market != row.market or pick.line != row.line:
-            excluded["different_market_or_line"] += 1
+        if pick.market != row.market:
+            excluded["different_market"] += 1
             continue
-        if pick.direction == row.direction:
+        if not _addresses_same_subject(pick, row):
+            excluded["different_team_or_player"] += 1
+            continue
+        stance = _stance(pick, row)
+        if stance is None:
+            excluded["line_too_weak_to_inform"] += 1
+            continue
+        if pick.line == row.line:
+            exact += 1
+        if stance == "AGREE":
             agree += 1
-            sources.add(pick.source_id)
         else:
             oppose += 1
-            sources.add(pick.source_id)
+        sources.add(pick.source_id)
 
     if agree == 0 and oppose == 0:
         verdict = "NO_COVERAGE"
@@ -317,10 +330,62 @@ def column_for_row(
         verdict=verdict,  # type: ignore[arg-type]
         agree=agree,
         oppose=oppose,
+        exact=exact,
         considered=len(event.picks),
         sources=sorted(sources),
         excluded=dict(sorted(excluded.items())),
     )
+
+
+def _stance(pick: TipsterPickRef, row: StatsSheetRow) -> str | None:
+    """"AGREE", "OPPOSE", or None when the claim says nothing about this row.
+
+    Exact line equality was the original rule, and it is why the column read
+    NO_COVERAGE on every row of the 2026-09-01 slate. The sheet prints only the
+    one or two lines its own statistics favour -- Barracas Central's fouls at
+    8.5 -- while a tipster takes whatever line the bookmaker hung, 13.5. Two
+    claims about the same team's fouls, and they could never meet.
+
+    The relation that does hold is implication, and it is exact rather than
+    fuzzy. A total is monotone: if a tipster is right that the count clears
+    13.5, then it also clears 8.5, so an OVER claim settles every OVER row at or
+    below its line and refutes every UNDER row at or below it. Nothing is
+    smoothed over and no line is treated as approximately another; a claim
+    either settles this row's bet or it is dropped as uninformative.
+    """
+    if pick.line is None or pick.direction not in ("OVER", "UNDER"):
+        return None
+    if pick.direction == row.direction:
+        stronger = pick.line >= row.line if row.direction == "OVER" else pick.line <= row.line
+        return "AGREE" if stronger else None
+    # Opposite sides. The claim refutes the row only when its own line leaves no
+    # room for the row to win: "under 8.5" kills "over 8.5" and "over 13.5",
+    # while "under 13.5" leaves "over 8.5" perfectly winnable.
+    refutes = pick.line <= row.line if row.direction == "OVER" else pick.line >= row.line
+    return "OPPOSE" if refutes else None
+
+
+def _addresses_same_subject(pick: TipsterPickRef, row: StatsSheetRow) -> bool:
+    """Is the claim about the same team or player this row is about?
+
+    Market and line alone are not enough once per-team and per-player rows are
+    countable. A sheet prints ``fouls_for OVER 13.5`` once per side, so a claim
+    about one team's fouls matches the market and line of *both* rows, and
+    joining on those two fields would report the tipster as corroborating the
+    opponent as well -- doubling the agreement count and half of it inverted.
+
+    Names are compared with the same matcher used for fixtures, so the club a
+    tipster calls "Barracas Centra" reaches the row the sheet calls "Barracas
+    Central".
+    """
+    subject = row.team_name or row.player_name
+    if subject is None:
+        # A match total names no subject, and a claim about one is not about it.
+        return not pick.subjects
+    if not pick.subjects:
+        return False
+    person = row.player_name is not None
+    return any(side_score(claimed, subject, person=person) >= 90 for claimed in pick.subjects)
 
 
 def attach_tipster_column(stats_sheet: StatsSheetV1, signal: TipsterSignalV1) -> StatsSheetV1:
