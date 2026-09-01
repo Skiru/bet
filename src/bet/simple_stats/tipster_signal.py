@@ -333,6 +333,7 @@ def column_for_row(
         exact=exact,
         considered=len(event.picks),
         sources=sorted(sources),
+        lean=dict(event.public_lean or {}),
         excluded=dict(sorted(excluded.items())),
     )
 

@@ -425,6 +425,19 @@ the row genuinely open -- under 13.5 against over 8.5 -- is dropped as
 exact=0` is three tipsters whose bets this row's bet rides along with, not three
 tipsters who picked this line; say so if you quote it.
 
+**`NO_COVERAGE` with `considered > 0` is the ordinary case, and it is not
+nothing.** Tipsters price goals, corners and games; the rows that survive to a
+coupon are per-team shots and corners. The two land on the same row only by
+coincidence -- on 2026-09-01 that was zero of fifteen singles, while nine of
+those fifteen sat on a fixture a tipster had covered. So when the column reports
+no agreement, check `considered` and `lean` before writing the fixture off as
+unwatched. `lean` is the fixture's 1X2/BTTS tally: a **different market** from
+the row, carried here to be read beside it and never converted into it.
+
+In the coupon table this shows as `mecz: 4 · BTTS_YES 2` -- deliberately not a
+fraction, because a fraction would read as agreement on a bet nobody addressed.
+Report it as public interest in the match, not as support for the leg.
+
 `considered` is how many tipster picks existed for the fixture at all, so
 `agree=0, considered=7` means seven tipsters talked about the match and none
 about this bet -- almost always because they were betting 1X2. `excluded` says

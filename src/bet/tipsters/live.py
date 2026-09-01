@@ -319,7 +319,7 @@ def fetch_extract_source(
     source_id: str,
     *,
     review_data: dict[str, Any],
-    max_pages: int,
+    max_pages: int | None,
     timeout: float = 12.0,
     max_bytes: int = 2_000_000,
     date_str: str | None = None,
@@ -337,6 +337,15 @@ def fetch_extract_source(
     deliberately; it is structurally unreachable from a betting-day run.
     """
     policy = SOURCES[source_id]
+
+    # ``max_pages`` counts entrypoints *and* detail pages together, and a single
+    # global number cannot fit sources this different: Typersi needs two pages,
+    # Sportsgambler needs one listing plus every fixture that listing previews.
+    # So ``max_pages_per_run`` -- the number configured next to each source's own
+    # rate limit -- governs, and the caller's value applies only when it is
+    # given, as a hard ceiling for a deliberately short run.
+    source_budget = policy.max_pages_per_run or max_pages or 1
+    page_budget = max(1, min(max_pages, source_budget) if max_pages else source_budget)
 
     def log(message: str) -> None:
         if verbose:
@@ -382,7 +391,7 @@ def fetch_extract_source(
             review_data=review_data,
             timeout_seconds=timeout,
             user_agent=FetchConfig().user_agent,
-            max_pages_per_source=max(1, max_pages),
+            max_pages_per_source=page_budget,
         )
         if transport_doc is None and fallback_homepage and page_url != fallback_homepage:
             # The daily URL is composed from Polish month/weekday names and
@@ -395,7 +404,7 @@ def fetch_extract_source(
                 review_data=review_data,
                 timeout_seconds=timeout,
                 user_agent=FetchConfig().user_agent,
-                max_pages_per_source=max(1, max_pages),
+                max_pages_per_source=page_budget,
             )
         if transport_doc is None:
             reason = str(transport_meta.get("reason", "public_xhr_failed_closed"))
@@ -425,18 +434,6 @@ def fetch_extract_source(
             parsed.coverage_ratio = round(parsed.pick_count / parsed.expected_visible_count, 3)
         log(f"PARSE verdict={parsed.verdict.value} picks={parsed.pick_count}")
         return [parsed]
-
-    # The page budget is the source's own, capped by the caller's global limit.
-    #
-    # ``max_pages`` counts entrypoints *and* detail pages together, and its
-    # default of 3 was set when every source was parsed from its listing. That
-    # starves a source whose listing carries no tip at all: Sportsgambler
-    # publishes fixture, kickoff and a button, and the picks are one click away,
-    # so a budget of 3 reached two fixtures out of ten. ``max_pages_per_run`` is
-    # the per-source number the operator configured next to that source's own
-    # rate limit, so it governs; the caller's value remains a hard ceiling, and
-    # a source that never set one falls back to it.
-    page_budget = max(1, min(max_pages, policy.max_pages_per_run or max_pages))
 
     robots = RobotsCache(user_agent=FetchConfig().user_agent.split("/")[0])
     limiter = DomainRateLimiter(min_delay_seconds=max(policy.min_delay_seconds, 2.0))
@@ -474,7 +471,7 @@ def fetch_extract_source(
         log(f"PARSE {entrypoint} verdict={parsed.verdict.value} picks={parsed.pick_count}")
         results.append(parsed)
 
-        for detail_url in discover_public_detail_links(outcome.document, source_id):
+        for detail_url in discover_public_detail_links(outcome.document, source_id, date=date_str):
             if len(urls_seen) >= page_budget:
                 break
             if detail_url in urls_seen:
@@ -514,7 +511,7 @@ def run_live(
     *,
     review_path: Path | str = DEFAULT_REVIEW_PATH,
     source_ids: tuple[str, ...] | list[str] = DEFAULT_LIVE_SOURCE_IDS,
-    max_pages_per_source: int = 3,
+    max_pages_per_source: int | None = None,
     timeout: float = 12.0,
     max_bytes: int = 2_000_000,
     drop_undated: bool = False,
@@ -537,7 +534,7 @@ def run_live(
             fetch_extract_source(
                 source_id,
                 review_data=review_data,
-                max_pages=max(1, max_pages_per_source),
+                max_pages=max(1, max_pages_per_source) if max_pages_per_source else None,
                 timeout=timeout,
                 max_bytes=max_bytes,
                 date_str=betting_date,

@@ -436,15 +436,26 @@ def extract_bettingclosed_index(doc: RawDocument) -> ExtractionResult:
     return extract_generic_public_html(doc, "bettingclosed")
 
 
-def discover_public_detail_links(doc: RawDocument, source_id: str) -> list[str]:
+def discover_public_detail_links(
+    doc: RawDocument, source_id: str, date: str | None = None
+) -> list[str]:
     """Source-safe internal detail discovery for agent fetchers.
 
     This returns URLs only; the fetcher must still pass robots/ToS/rate gates.
     Commercial redirect/login/premium paths are excluded.
+
+    ``date`` is the betting day. A listing that spans several days -- which
+    these all do -- otherwise spends the request budget on fixtures whose picks
+    are discarded the moment they are parsed.
     """
     if source_id == "sportsgambler":
         from .sportsgambler import discover_sportsgambler_detail_links
-        return discover_sportsgambler_detail_links(doc.html, base_url="https://www.sportsgambler.com", max_links=SOURCES[source_id].max_pages_per_run)
+        return discover_sportsgambler_detail_links(
+            doc.html,
+            base_url="https://www.sportsgambler.com",
+            max_links=SOURCES[source_id].max_pages_per_run,
+            date=date,
+        )
 
     policy = SOURCES[source_id]
     urls: list[str] = []

@@ -659,3 +659,39 @@ def test_the_cutoff_is_an_argument_so_the_build_stays_reproducible():
     assert first.model_dump(exclude={"generated_at"}) == second.model_dump(
         exclude={"generated_at"}
     )
+
+
+class TestTipsterCell:
+    """Row agreement and fixture presence are different claims, written differently.
+
+    Tipsters price goals, corners and games; the rows that reach a coupon are
+    per-team shots and corners. On 2026-09-01 the two met on zero of fifteen
+    singles while nine of those fifteen sat on fixtures a tipster had covered.
+    The cell has to be able to say the second thing without it reading as the
+    first.
+    """
+
+    def test_agreement_on_this_row_is_a_ratio(self):
+        row = _row(tipster=TipsterColumn(verdict="CONFIRMS", agree=2, oppose=1, considered=5))
+        assert coupons_module._tipster_summary(row) == "2/3"
+
+    def test_no_row_agreement_but_a_covered_fixture_reports_presence(self):
+        row = _row(tipster=TipsterColumn(
+            verdict="NO_COVERAGE", agree=0, oppose=0, considered=4,
+            lean={"BTTS_YES": 2, "HOME": 1},
+        ))
+        cell = coupons_module._tipster_summary(row)
+        assert cell == "mecz: 4 · BTTS_YES 2 HOME 1"
+        # Must not be mistakable for agreement on this bet.
+        assert "/" not in cell
+
+    def test_a_covered_fixture_with_no_lean_still_reports_the_count(self):
+        row = _row(tipster=TipsterColumn(verdict="NO_COVERAGE", agree=0, oppose=0, considered=3))
+        assert coupons_module._tipster_summary(row) == "mecz: 3"
+
+    def test_an_uncovered_fixture_says_nothing(self):
+        row = _row(tipster=TipsterColumn(verdict="NO_COVERAGE", agree=0, oppose=0, considered=0))
+        assert coupons_module._tipster_summary(row) is None
+
+    def test_no_tipster_run_says_nothing(self):
+        assert coupons_module._tipster_summary(_row()) is None

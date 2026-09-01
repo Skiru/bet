@@ -71,13 +71,20 @@ def is_allowed_sportsgambler_url(url: str) -> bool:
     return False
 
 
-# One fixture's prediction page, as linked from the tips listing. The listing
-# itself publishes no tip at all -- only fixture, kickoff and a "Predictions"
-# button -- which is why the old link scan came back with nav entries like
-# /betting-tips/ and /betting-tips/football/premier-league-predictions/ and the
-# source produced zero picks while fetching cleanly. The anchors that matter
-# carry class "betlist-item" and nothing else on the page does.
-_DETAIL_LINK_SELECTOR = "a.betlist-item[href]"
+# One fixture's prediction page. The listing publishes ten of these as featured
+# "betlist" cards, and links roughly seventy more in its fixture tables -- 69 on
+# the 2026-09-01 football page, 32 of them for that day and the rest for the
+# next. Selecting only the cards reached ten fixtures and left the other
+# twenty-two on the floor, which is the cheapest coverage in the whole tipster
+# path: same page, same request, same markets.
+#
+# So links are matched by their URL shape instead of by a CSS class, and the
+# date in the slug decides whether the page is worth a request at all. Fetching
+# tomorrow's fixtures to have their picks dropped by the date filter later is
+# thirty-seven wasted requests against a third party.
+_FIXTURE_PATH = re.compile(
+    r"/betting-tips/[a-z-]+/[a-z0-9-]+-prediction-lineups-odds-(?P<date>\d{4}-\d{2}-\d{2})/?$"
+)
 
 # ".../parma-vs-cremonese-prediction-lineups-odds-2026-09-01/" -- the fixture
 # date is in the slug, which is the only place the detail page states it in a
@@ -86,13 +93,26 @@ _SLUG_DATE = re.compile(r"-(\d{4}-\d{2}-\d{2})/?$")
 
 
 def discover_sportsgambler_detail_links(
-    html: str, base_url: str = "https://www.sportsgambler.com", max_links: int = 5
+    html: str,
+    base_url: str = "https://www.sportsgambler.com",
+    max_links: int = 5,
+    date: str | None = None,
 ) -> list[str]:
-    """Fixture prediction pages linked from a tips listing."""
+    """Fixture prediction pages linked from a tips listing.
+
+    ``date`` keeps the request budget on fixtures that can still contribute to
+    the betting day being built; without it the listing's next-day half is
+    fetched and then discarded downstream.
+    """
     soup = BeautifulSoup(html, "html.parser")
     links: list[str] = []
-    for anchor in soup.select(_DETAIL_LINK_SELECTOR):
+    for anchor in soup.find_all("a", href=True):
         url = urljoin(base_url, anchor["href"])
+        match = _FIXTURE_PATH.search(urlparse(url).path)
+        if not match:
+            continue
+        if date and match.group("date") != date:
+            continue
         if not url.startswith(base_url) or not is_allowed_sportsgambler_url(url):
             continue
         if url not in links:
