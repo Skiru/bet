@@ -61,10 +61,15 @@ DEFAULT_REVIEW_PATH = _REPO_ROOT / "docs/pipeline/tipster_terms_review.local.jso
 # Sources whose live parser is verified against a live run. Everything else stays
 # out of the default set even when its attestation would allow a fetch: an
 # attestation says the operator may look, not that the parser understands what
-# it sees. Sportsgambler is attested and fetches cleanly but its listing parser
-# produces fixture-list scaffolding rather than clubs (see
-# normalization._SCAFFOLDING_MARKERS), so it is excluded until that is rewritten.
-DEFAULT_LIVE_SOURCE_IDS: tuple[str, ...] = ("zawodtyper", "typersi")
+# it sees.
+#
+# Sportsgambler earns its place by publishing what the other two do not. The
+# Polish sources are overwhelmingly 1X2 and BTTS -- 40 of the 57 claims matched
+# on 2026-09-01 -- and the stats sheet is about totals, so most of what they say
+# can never corroborate a row. Sportsgambler prices Total Goals, Total Corners,
+# Team Corners and Shots On Target per fixture, which are markets the sheet
+# actually computes.
+DEFAULT_LIVE_SOURCE_IDS: tuple[str, ...] = ("zawodtyper", "typersi", "sportsgambler")
 
 
 def load_review_file(path: Path) -> dict[str, Any]:
@@ -421,6 +426,18 @@ def fetch_extract_source(
         log(f"PARSE verdict={parsed.verdict.value} picks={parsed.pick_count}")
         return [parsed]
 
+    # The page budget is the source's own, capped by the caller's global limit.
+    #
+    # ``max_pages`` counts entrypoints *and* detail pages together, and its
+    # default of 3 was set when every source was parsed from its listing. That
+    # starves a source whose listing carries no tip at all: Sportsgambler
+    # publishes fixture, kickoff and a button, and the picks are one click away,
+    # so a budget of 3 reached two fixtures out of ten. ``max_pages_per_run`` is
+    # the per-source number the operator configured next to that source's own
+    # rate limit, so it governs; the caller's value remains a hard ceiling, and
+    # a source that never set one falls back to it.
+    page_budget = max(1, min(max_pages, policy.max_pages_per_run or max_pages))
+
     robots = RobotsCache(user_agent=FetchConfig().user_agent.split("/")[0])
     limiter = DomainRateLimiter(min_delay_seconds=max(policy.min_delay_seconds, 2.0))
     config = FetchConfig(timeout_seconds=timeout, max_bytes=max_bytes)
@@ -428,7 +445,7 @@ def fetch_extract_source(
     urls_seen: list[str] = []
 
     for entrypoint in entrypoints:
-        if len(urls_seen) >= max_pages:
+        if len(urls_seen) >= page_budget:
             break
         outcome = fetch_public_html(
             policy, entrypoint, robots=robots, limiter=limiter, terms_reviewed=True, config=config,
@@ -458,7 +475,7 @@ def fetch_extract_source(
         results.append(parsed)
 
         for detail_url in discover_public_detail_links(outcome.document, source_id):
-            if len(urls_seen) >= max_pages:
+            if len(urls_seen) >= page_budget:
                 break
             if detail_url in urls_seen:
                 continue
