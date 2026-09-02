@@ -634,6 +634,19 @@ class StatsSheetRow(StrictBaseModel):
     # thirtieth of a shots total. Normalised here it fires on 3.1%, evenly
     # across markets. 0.0 on a percentage market, which has no count model.
     dispersion: float = 0.0
+    # ``mean`` pulled toward this market's pinned prior by n/(n+SHRINKAGE_K),
+    # and the centre ``p_low``/``p_central`` are actually computed from. Read
+    # it beside ``mean``: the gap between the two is how much of this row's
+    # price is the sample's own claim, and how much is the market-wide
+    # average standing in for observations the sample does not have.
+    #
+    # The 2026-09-01 file would have shown Sheffield United's corners at
+    # mean 2.80, shrunk_mean 4.09, against a devigged ladder median of 5.76.
+    # The match returned 5.
+    #
+    # None on a percentage market, which has no count model fitted. Equal to
+    # ``mean`` when the market has no pinned prior.
+    shrunk_mean: float | None = None
     sources: list[str] = Field(default_factory=list)
     cross_provider_agreement: Literal["AGREE", "DISAGREE", "SINGLE_SOURCE", "NOT_APPLICABLE"]
     # How many distinct matches in this sample a second provider also reported.

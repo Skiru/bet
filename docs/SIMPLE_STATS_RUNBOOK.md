@@ -160,6 +160,60 @@ equal terms. It is never a ranking key and never a floor. `dispersion` is the
 sample's floored standard deviation, carried so any check that compares this
 sample to something else has a scale to compare *in*.
 
+**The centre the model prices from is shrunk toward a pinned per-market prior**
+(2026-09-02), `config/market_priors.json`, by `n/(n + SHRINKAGE_K)` with
+`SHRINKAGE_K = 10`. This is the empirical-Bayes/James-Stein correction, fitted
+against the only independent yardstick available — Superbet's own devigged
+ladder median, over 373 samples of the 2026-09-01 slate:
+
+| estimator | median relative error |
+|---|---|
+| flat sample mean (what shipped) | 0.114 |
+| prior only, sample ignored | 0.094 |
+| shrunk, `n/(n+10)` | **0.069** |
+
+The middle row is the finding: the pipeline's own point estimate was a *worse*
+predictor of where a market sits than a constant. That there is an interior
+optimum says the sample carries real signal; that it sits at k=10 against a
+typical n of 6 says the sample was being given about three times the weight it
+had earned. It holds separately for per-team markets (0.235 → 0.134) and match
+totals (0.110 → 0.069).
+
+Effect on the 2026-09-01 file: five of the seven admitted singles fall below
+`MIN_SINGLE_P_LOW` once shrunk and never become candidates at all, rather than
+being demoted after the fact. Bettable supply drops 269 → 240 distinct reads
+against a 15-slot budget, so the file stays full.
+
+Three things deliberately **do not** move with it:
+
+* `hits`/`sample_size` and therefore `wilson_lower_bound` — those count what
+  happened, and an empirical count is not a quantity you shrink. `p_low` is the
+  `min` of the two, so it can now move in *either* direction (141 rows up and
+  214 down on the frozen fixture) but never above the trials the row ran.
+* `row.mean` and `row.median` — the evidence a reader checks the row against.
+* `row.dispersion`, and so `coupons.ladder_sigma`. That gate asks whether the
+  *sample* describes this fixture, which is a data-quality question, and
+  answering it from an estimate already pulled toward the market would be
+  circular — shrinking moves us closer to the book by construction. Measured on
+  the losers it does exactly that: Sheffield's sigma would go from −1.77 to
+  −1.00 and Preston's from −1.33 to −0.28, both inside the threshold. So the
+  diagnostic reads the raw mean and only the price moves.
+
+`row.shrunk_mean` carries the centre actually used, so the gap between it and
+`row.mean` shows how much of a row's price is its own sample and how much is
+the market-wide average standing in for observations it does not have.
+
+**What was measured and rejected**, so it is not re-proposed: the naive additive
+estimator for match totals (`mean(A_for) + mean(B_for)`) is *worse* than the
+pooled sample — median error 0.864 against 0.444, winning only 34% of the time,
+because it has fewer observations and no opponent adjustment. Exponential time
+decay is worse at every half-life tried and monotonically so (flat 0.365, 90d
+0.419, 7d 0.590): with 5–10 observations over six weeks, the effective sample
+size it throws away costs more than the recency it buys — Dixon-Coles-style
+decay is built for multi-season data, not last-10. Shin devigging moves a
+probability by a median of 1.5pp but flips the `MAX_MARKET_DISAGREEMENT` gate on
+only 0.64% of rows.
+
 ANALYZE also writes `${DATE}_event_dossiers_stats_sheet_top.json` — the same
 rows filtered to `p_low >= 0.50`, the coupon's own floor. It exists because
 Faza 2 roughly doubled the line grid: the full sheet stays on disk for audit,

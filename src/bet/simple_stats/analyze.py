@@ -35,9 +35,11 @@ from bet.simple_stats.contracts import (
 _CONFIG_DIR = Path(__file__).resolve().parents[3] / "config"
 _OBSERVATION_SCOPE_PATH = _CONFIG_DIR / "observation_scope.json"
 _TENNIS_FORMAT_PATH = _CONFIG_DIR / "tennis_match_format.json"
+_MARKET_PRIORS_PATH = _CONFIG_DIR / "market_priors.json"
 _CONFIG_LOCK = threading.Lock()
 _OBSERVATION_SCOPE_CACHE: dict[str, dict[str, str]] | None = None
 _TENNIS_FORMAT_CACHE: dict[str, str] | None = None
+_MARKET_PRIORS_CACHE: dict[str, float] | None = None
 
 
 def _load_json(path: Path) -> dict:
@@ -107,12 +109,99 @@ def tennis_match_format(competition: str | None) -> str | None:
     return cache.get(competition or "")
 
 
+def market_priors() -> dict[str, float]:
+    """``{canonical metric: prior mean}`` from ``config/market_priors.json``.
+
+    A metric absent from the file is absent from this dict, and
+    ``shrunk_centre`` then leaves its sample alone. That is the pre-2026-09-02
+    behaviour and never an error -- the same "unknown is not degraded" rule
+    ``scope_values`` and the entitlement paths already follow.
+    """
+    global _MARKET_PRIORS_CACHE
+    with _CONFIG_LOCK:
+        if _MARKET_PRIORS_CACHE is None:
+            raw = _load_json(_MARKET_PRIORS_PATH).get("priors", {})
+            priors: dict[str, float] = {}
+            for market, block in raw.items():
+                if market.startswith("_") or not isinstance(block, dict):
+                    continue
+                mean = block.get("mean")
+                if isinstance(mean, (int, float)) and mean > 0:
+                    priors[market] = float(mean)
+            _MARKET_PRIORS_CACHE = priors
+        return _MARKET_PRIORS_CACHE
+
+
+# How many notional prior observations a sample is weighed against, as
+# ``n / (n + SHRINKAGE_K)``.
+#
+# Fitted 2026-09-02 against Superbet's own devigged ladder median over 373
+# samples of the 2026-09-01 slate -- the only yardstick available that is
+# independent of our own sample and known to be calibrated. Median relative
+# error of the estimated centre:
+#
+#     flat sample mean (what shipped)   0.114
+#     prior only, sample ignored        0.094
+#     n/(n+10)                          0.069
+#
+# The middle line is the finding. The pipeline's own point estimate was a
+# *worse* predictor of where a market sits than a constant, which is the
+# textbook symptom of an unshrunk thin sample. That there is an interior
+# optimum at all is what says the sample carries real signal; that the optimum
+# sits at k=10 against a typical n of 6 says it carries about a third of the
+# weight it was being given.
+#
+# The curve is flat from 8 to 25 (0.095, 0.092, 0.091, 0.090, 0.088, 0.088), so
+# nothing here turns on the exact value and 10 is chosen as the round number at
+# the near edge -- the least shrinkage that reaches the plateau, because the
+# error of trusting the sample too much is the one this pipeline has already
+# paid for.
+#
+# Fitted on two slates, which is the honest limit. Re-fit over a longer window
+# before moving it.
+SHRINKAGE_K = 10.0
+
+
+def shrunk_centre(values: list[float], market: str) -> float:
+    """The sample's centre, pulled toward its market's prior by ``n/(n+k)``.
+
+    This is the number ``count_model_central`` and ``count_model_bound`` price
+    from. Three things deliberately do **not** use it:
+
+    * ``hits``/``sample_size`` and therefore ``wilson_lower_bound`` -- those
+      count what actually happened, and an empirical count is not a quantity
+      you shrink.
+    * ``row.mean`` and ``row.median``, which stay the raw sample's own, because
+      they are the evidence a reader checks the row against.
+    * ``row.dispersion``, and so ``coupons.ladder_sigma``. That gate asks
+      whether the *sample* is describing this fixture at all -- a data-quality
+      question about the evidence -- and answering it from an estimate already
+      pulled toward the market would be circular: shrinking moves us closer to
+      the book by construction, so the gate would quietly stop firing. Measured
+      on the 2026-09-01 losers it does exactly that: Sheffield's ladder sigma
+      goes from -1.77 to -1.00 and Preston's from -1.33 to -0.28. The diagnostic
+      stays on the raw mean; only the price moves.
+
+    Returns the raw mean unchanged when the market has no pinned prior.
+    """
+    if not values:
+        return 0.0
+    mean = statistics.fmean(values)
+    prior = market_priors().get(market)
+    if prior is None:
+        return mean
+    n = float(len(values))
+    weight = n / (n + SHRINKAGE_K)
+    return weight * mean + (1.0 - weight) * prior
+
+
 def reset_scope_caches() -> None:
     """Forget both cached config documents. For tests only."""
-    global _OBSERVATION_SCOPE_CACHE, _TENNIS_FORMAT_CACHE
+    global _OBSERVATION_SCOPE_CACHE, _TENNIS_FORMAT_CACHE, _MARKET_PRIORS_CACHE
     with _CONFIG_LOCK:
         _OBSERVATION_SCOPE_CACHE = None
         _TENNIS_FORMAT_CACHE = None
+        _MARKET_PRIORS_CACHE = None
 
 # STANDARD_MARKET_LINES' "stat" field uses the pre-existing (non-"_total")
 # taxonomy; MetricObservation keys use our canonical names (section 5). Two
@@ -271,7 +360,9 @@ def _winning_boundary(line: float, direction: str) -> float:
     return math.floor(line) + 0.5
 
 
-def count_model_central(values: list[float], line: float, direction: str) -> float:
+def count_model_central(
+    values: list[float], line: float, direction: str, centre: float | None = None
+) -> float:
     """P(bet wins) at the sample's own centre, with no conservatism added.
 
     The companion to ``count_model_bound`` and deliberately not a bound: this
@@ -294,7 +385,7 @@ def count_model_central(values: list[float], line: float, direction: str) -> flo
     """
     if not values:
         return 0.0
-    mean = statistics.fmean(values)
+    mean = statistics.fmean(values) if centre is None else centre
     spread = _sample_dispersion(values) ** 0.5
     boundary = _winning_boundary(line, direction)
     if spread <= 0:
@@ -306,7 +397,9 @@ def count_model_central(values: list[float], line: float, direction: str) -> flo
     return _standard_normal_cdf(z)
 
 
-def count_model_bound(values: list[float], line: float, direction: str) -> float:
+def count_model_bound(
+    values: list[float], line: float, direction: str, centre: float | None = None
+) -> float:
     """A line-aware lower bound on P(bet wins), fitted to the sample itself.
 
     This exists because ``wilson_lower_bound`` cannot see the line. For a
@@ -333,6 +426,12 @@ def count_model_bound(values: list[float], line: float, direction: str) -> float
     half-point continuity correction is unnecessary because every line this
     pipeline prices is already a half.
 
+    ``centre`` overrides the sample's own mean, and is how ``shrunk_centre``
+    reaches this function. Left None the behaviour is the plain sample, which
+    keeps the function readable on its own and every existing caller and test
+    unchanged. The spread is deliberately still the *sample's*: shrinkage is a
+    claim about where the distribution sits, not about how wide it is.
+
     Returns 1.0 for an empty sample so the caller's ``min`` is a no-op rather
     than a veto -- no observations is Wilson's problem to price, not this
     function's.
@@ -340,7 +439,7 @@ def count_model_bound(values: list[float], line: float, direction: str) -> float
     if not values:
         return 1.0
     n = len(values)
-    mean = statistics.fmean(values)
+    mean = statistics.fmean(values) if centre is None else centre
     variance = _sample_dispersion(values)
     # Standard error of the mean, from the floored variance.
     se = (variance / n) ** 0.5
@@ -1002,6 +1101,13 @@ def _rows_for_sample(
         0.0 if canonical in _COUNT_MARKETS_EXCLUDED
         else _sample_dispersion(values) ** 0.5
     )
+    # The centre the count model prices from, and the only place shrinkage
+    # enters. mean/median/dispersion above stay the sample's own; see
+    # ``shrunk_centre`` for why the diagnostic must not move with the price.
+    centre = (
+        None if canonical in _COUNT_MARKETS_EXCLUDED
+        else shrunk_centre(values, canonical)
+    )
 
     rows: list[StatsSheetRow] = []
     # Trimming happens here, not at the call site, because it is measured
@@ -1028,8 +1134,13 @@ def _rows_for_sample(
                 p_low = empirical
                 p_central = hits / sample_size
             else:
-                p_low = min(empirical, count_model_bound(values, float(line), direction))
-                p_central = count_model_central(values, float(line), direction)
+                p_low = min(
+                    empirical,
+                    count_model_bound(values, float(line), direction, centre),
+                )
+                p_central = count_model_central(
+                    values, float(line), direction, centre
+                )
             row = StatsSheetRow(
                 event_id=dossier.event_id,
                 sport=dossier.sport,
@@ -1047,6 +1158,7 @@ def _rows_for_sample(
                 p_low=p_low,
                 p_central=p_central,
                 dispersion=dispersion,
+                shrunk_mean=centre,
                 mean=mean,
                 median=median,
                 sources=sources,

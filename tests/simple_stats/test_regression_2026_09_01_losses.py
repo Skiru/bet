@@ -112,9 +112,15 @@ def test_the_count_model_rises_with_the_line_so_the_ladder_is_ordered_again():
 
 def test_the_model_is_a_cap_and_can_only_ever_lower_p_low():
     """The combination rule is ``min``, so no pairing of the two instruments
-    can manufacture a confidence neither of them holds alone. Replaying the
-    frozen 2026-08-31 fixture moved 251 rows and every one of them down; this
-    is that property stated directly rather than as a fixture."""
+    can manufacture a confidence neither of them holds alone.
+
+    Stated against Wilson rather than against the previous release, because
+    shrinkage (``shrunk_centre``) later made ``p_low`` move in *both*
+    directions -- 141 rows up and 214 down on the frozen fixture -- by moving
+    the centre the model prices from. What survives, and what actually matters,
+    is that the empirical count is always still a ceiling: a row can never be
+    more confident than the trials it ran.
+    """
     for values in (
         SHEFFIELD_CORNERS,
         PRESTON_SHOTS_ON_TARGET,

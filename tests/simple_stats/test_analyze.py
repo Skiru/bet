@@ -579,10 +579,11 @@ def test_corroborated_match_is_one_trial_not_two():
     assert round(wilson_lower_bound(12, 16), 3) == 0.505
     # The row itself lands lower than either, because ``p_low`` is also capped
     # by how close 9.5 sits to this sample -- mean 9.875, barely a third of a
-    # corner clear of the line. Both instruments are asserted rather than only
-    # the smaller: a regression that dropped the Wilson half would otherwise
-    # pass here unnoticed.
-    assert round(solo_row.p_low, 3) == 0.283
+    # corner clear of the line, and shrunk toward the corners_total prior of
+    # 9.556 from there. Both instruments are asserted rather than only the
+    # smaller: a regression that dropped the Wilson half would otherwise pass
+    # here unnoticed.
+    assert round(solo_row.p_low, 3) == 0.264
     assert solo_row.p_low < wilson_lower_bound(6, 8)
 
 

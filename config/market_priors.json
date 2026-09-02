@@ -1,0 +1,235 @@
+{
+  "_purpose": "Per-market prior means, used by src/bet/simple_stats/analyze.py::shrunk_centre to pull a thin sample's centre toward the market-wide average before count_model_central/count_model_bound read it. Wilson and hits/sample_size never see this file: the empirical count of what happened is not shrunk, only the distribution centre the model prices from.",
+  "_why": "Measured 2026-09-02 against Superbet's own devigged ladder median over 373 samples from the 2026-09-01 slate, the flat sample mean predicted the market's centre with a median relative error of 11.4%. Ignoring the sample entirely and using the market-wide mean for that metric scored 9.4% -- the pipeline's own point estimate was worse than a constant. Shrinking with weight n/(n+10) scored 6.9%, a 39% reduction, and the improvement holds separately for per-team markets (23.5% -> 13.4%) and match totals (11.0% -> 6.9%). This is the James-Stein/empirical-Bayes result: a thin sample's own mean is not its best estimate.",
+  "_effect_on_2026_09_01": "Five of the seven singles that day's file admitted -- Sheffield United corners, Preston shots on target, Birmingham shots, Torino/Monza corners, Lincoln shots on target -- fall below the coupon's own MIN_SINGLE_P_LOW of 0.50 once shrunk, so they never become candidates rather than being demoted after the fact. Six of the seven lost and the seventh was void. The two survivors are the tennis double-faults rows, whose sample means already sat near the prior; MAX_MARKET_DISAGREEMENT catches those.",
+  "_why_pinned_and_not_computed_per_run": "A prior computed from the day's own slate would make one fixture's p_low depend on which other fixtures happened to be in the run -- two runs over different slates would price the same fixture differently, and a row would stop being reproducible on its own. Measured across 2026-08-31 and 2026-09-01 the per-market means drift by a median of 3.9% day to day, and the markets that matter are far tighter (corners_for 0.1%, fouls_for 1.3%, corners_total 3.2%, goals_total 3.3%), so a pinned constant costs almost nothing and keeps every row independent. Same discipline as slip_audit.FIRST_HALF_GOAL_SHARE.",
+  "_limits": "Two slates, not a season. The markets with the widest day-to-day drift are the low-mean ones -- red_cards_total moved 31.9% on a 0.43 mean, offsides_total 15.5% -- so those priors are the least trustworthy and are the first thing to re-measure over a longer window. A market absent from this file is simply not shrunk (shrunk_centre returns the raw mean), which is the pre-2026-09-02 behaviour and never an error.",
+  "_how_to_extend": "Re-measure over as many runs/<date>/<date>_event_dossiers.json as exist, applying scope_values and the same per-day collapse the statistics use (_independent_match_sample for a total, _one_per_day per side for a '_for'), and pool the surviving observations per canonical metric. Drop any metric under 120 observations and every percentage metric -- a percentage has no count distribution for the model to fit. Record the window and the observation count, as below.",
+  "_measured_over": [
+    "2026-08-31",
+    "2026-09-01"
+  ],
+  "_measured_at": "2026-09-02",
+  "priors": {
+    "aces_total": {
+      "mean": 8.066,
+      "observations": 1262
+    },
+    "blocked_shots_1h_total": {
+      "mean": 3.28,
+      "observations": 844
+    },
+    "blocked_shots_2h_total": {
+      "mean": 3.815,
+      "observations": 844
+    },
+    "blocked_shots_total": {
+      "mean": 6.884,
+      "observations": 1141
+    },
+    "break_points_faced": {
+      "mean": 7.516,
+      "observations": 1262
+    },
+    "cards_1h_for": {
+      "mean": 0.707,
+      "observations": 728
+    },
+    "cards_1h_total": {
+      "mean": 1.432,
+      "observations": 812
+    },
+    "cards_2h_for": {
+      "mean": 1.294,
+      "observations": 731
+    },
+    "cards_2h_total": {
+      "mean": 2.626,
+      "observations": 813
+    },
+    "cards_for": {
+      "mean": 1.855,
+      "observations": 1110
+    },
+    "cards_total": {
+      "mean": 3.722,
+      "observations": 1326
+    },
+    "corners_1h_for": {
+      "mean": 2.259,
+      "observations": 762
+    },
+    "corners_1h_total": {
+      "mean": 4.594,
+      "observations": 844
+    },
+    "corners_2h_for": {
+      "mean": 2.513,
+      "observations": 762
+    },
+    "corners_2h_total": {
+      "mean": 5.058,
+      "observations": 844
+    },
+    "corners_for": {
+      "mean": 4.738,
+      "observations": 1132
+    },
+    "corners_total": {
+      "mean": 9.556,
+      "observations": 1335
+    },
+    "double_faults_total": {
+      "mean": 7.787,
+      "observations": 1262
+    },
+    "fouls_1h_for": {
+      "mean": 5.835,
+      "observations": 762
+    },
+    "fouls_1h_total": {
+      "mean": 11.757,
+      "observations": 830
+    },
+    "fouls_2h_for": {
+      "mean": 6.458,
+      "observations": 762
+    },
+    "fouls_2h_total": {
+      "mean": 12.9,
+      "observations": 830
+    },
+    "fouls_for": {
+      "mean": 12.147,
+      "observations": 1041
+    },
+    "fouls_total": {
+      "mean": 24.279,
+      "observations": 1242
+    },
+    "goals_1h_for": {
+      "mean": 0.631,
+      "observations": 1313
+    },
+    "goals_1h_total": {
+      "mean": 1.243,
+      "observations": 1312
+    },
+    "goals_2h_for": {
+      "mean": 0.777,
+      "observations": 1313
+    },
+    "goals_2h_total": {
+      "mean": 1.497,
+      "observations": 1312
+    },
+    "goals_against": {
+      "mean": 1.329,
+      "observations": 1344
+    },
+    "goals_for": {
+      "mean": 1.422,
+      "observations": 1345
+    },
+    "goals_total": {
+      "mean": 2.733,
+      "observations": 1478
+    },
+    "offsides_1h_for": {
+      "mean": 0.868,
+      "observations": 720
+    },
+    "offsides_1h_total": {
+      "mean": 1.754,
+      "observations": 800
+    },
+    "offsides_2h_for": {
+      "mean": 0.924,
+      "observations": 720
+    },
+    "offsides_2h_total": {
+      "mean": 1.855,
+      "observations": 800
+    },
+    "offsides_for": {
+      "mean": 1.669,
+      "observations": 1083
+    },
+    "offsides_total": {
+      "mean": 3.363,
+      "observations": 1183
+    },
+    "red_cards_total": {
+      "mean": 0.336,
+      "observations": 521
+    },
+    "shots_1h_for": {
+      "mean": 6.161,
+      "observations": 762
+    },
+    "shots_1h_total": {
+      "mean": 12.194,
+      "observations": 844
+    },
+    "shots_2h_for": {
+      "mean": 7.123,
+      "observations": 762
+    },
+    "shots_2h_total": {
+      "mean": 14.055,
+      "observations": 844
+    },
+    "shots_for": {
+      "mean": 12.89,
+      "observations": 1007
+    },
+    "shots_off_target_1h_total": {
+      "mean": 5.025,
+      "observations": 844
+    },
+    "shots_off_target_2h_total": {
+      "mean": 5.713,
+      "observations": 844
+    },
+    "shots_off_target_total": {
+      "mean": 10.019,
+      "observations": 1141
+    },
+    "shots_on_target_1h_for": {
+      "mean": 1.979,
+      "observations": 762
+    },
+    "shots_on_target_1h_total": {
+      "mean": 3.957,
+      "observations": 844
+    },
+    "shots_on_target_2h_for": {
+      "mean": 2.369,
+      "observations": 762
+    },
+    "shots_on_target_2h_total": {
+      "mean": 4.588,
+      "observations": 844
+    },
+    "shots_on_target_for": {
+      "mean": 4.373,
+      "observations": 1039
+    },
+    "shots_on_target_total": {
+      "mean": 8.657,
+      "observations": 1240
+    },
+    "shots_total": {
+      "mean": 25.688,
+      "observations": 1210
+    },
+    "total_games": {
+      "mean": 23.052,
+      "observations": 1504
+    },
+    "total_sets": {
+      "mean": 2.399,
+      "observations": 989
+    }
+  }
+}

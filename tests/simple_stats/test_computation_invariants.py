@@ -820,3 +820,150 @@ def test_provider_duplicates_do_not_move_the_xg_flags_average():
         flag for flag in context_flags_for_row(row, dossier)
         if flag.source == "season_form"
     ]
+
+
+# --- empirical-Bayes shrinkage ----------------------------------------------
+
+
+def test_shrinkage_pulls_a_thin_sample_toward_its_market_and_leaves_a_fat_one():
+    """``n/(n+k)``: the whole point is that the weight is a function of how much
+    evidence there is, so a five-match sample moves a long way and a
+    fifty-match sample barely moves at all."""
+    from bet.simple_stats.analyze import SHRINKAGE_K, market_priors, shrunk_centre
+
+    prior = market_priors()["corners_for"]
+    thin = shrunk_centre([2.0] * 5, "corners_for")
+    fat = shrunk_centre([2.0] * 50, "corners_for")
+    assert 2.0 < thin < prior
+    assert 2.0 < fat < thin
+    # The weight is exactly n/(n+k), asserted rather than approximated.
+    for n in (1, 5, 12, 40):
+        weight = n / (n + SHRINKAGE_K)
+        assert shrunk_centre([2.0] * n, "corners_for") == pytest.approx(
+            weight * 2.0 + (1 - weight) * prior, abs=1e-9
+        )
+
+
+def test_shrinkage_never_moves_a_sample_past_its_prior_or_the_wrong_way():
+    """It is a weighted average of two numbers, so the result has to lie
+    between them. A shrunk centre outside that interval would mean the sign of
+    the weight had gone wrong somewhere."""
+    from bet.simple_stats.analyze import market_priors, shrunk_centre
+
+    for market, prior in list(market_priors().items())[:12]:
+        for mean in (0.0, prior * 0.25, prior, prior * 3):
+            for n in (1, 3, 8, 30):
+                centre = shrunk_centre([mean] * n, market)
+                assert min(mean, prior) - 1e-9 <= centre <= max(mean, prior) + 1e-9
+
+
+def test_a_market_with_no_pinned_prior_is_left_exactly_alone():
+    """Absent is not degraded. A metric missing from config/market_priors.json
+    keeps the behaviour it had before priors existed, which is also what makes
+    the file safe to extend one market at a time."""
+    from bet.simple_stats.analyze import market_priors, shrunk_centre
+
+    assert "a_market_nobody_has_measured" not in market_priors()
+    assert shrunk_centre([1.0, 2.0, 3.0], "a_market_nobody_has_measured") == 2.0
+
+
+def test_shrinkage_reaches_p_low_but_not_the_empirical_count():
+    """Where the line is drawn, and it is the important part of the design.
+
+    ``count_model_bound`` prices from the shrunk centre; ``wilson_lower_bound``
+    and ``hits``/``sample_size`` do not move at all, because those count what
+    happened and an empirical count is not a quantity you shrink. ``p_low`` is
+    the ``min`` of the two, so it can move either way -- but never above the
+    trials it ran.
+    """
+    values = [2.0, 4.0, 3.0, 2.0, 3.0]          # Sheffield United's corners
+    from bet.simple_stats.analyze import shrunk_centre
+
+    centre = shrunk_centre(values, "corners_for")
+    hits, settled, _ = compute_hit_rate(values, 4.5, "UNDER")
+    empirical = wilson_lower_bound(hits, settled)
+    # The count is untouched by shrinkage: 5 of 5 either way.
+    assert (hits, settled) == (5, 5)
+    plain = min(empirical, count_model_bound(values, 4.5, "UNDER"))
+    shrunk = min(empirical, count_model_bound(values, 4.5, "UNDER", centre))
+    assert shrunk < plain          # 2.80 -> 4.09 against a 4.5 line
+    assert shrunk <= empirical     # and the count is still the ceiling
+
+
+def test_the_ladder_gate_reads_the_raw_mean_and_not_the_shrunk_one():
+    """The circularity this avoids, and the reason ``row.mean`` stays raw.
+
+    Shrinkage moves our estimate toward the market by construction, so a gate
+    that compared the *shrunk* centre to the book's ladder would quietly stop
+    firing on exactly the samples it exists to catch. Measured on the
+    2026-09-01 rows: Sheffield United's ladder sigma goes from -1.77 to -1.00
+    and Preston's from -1.33 to -0.28, both inside the 1.25 threshold.
+
+    So the two answer different questions and read different numbers.
+    ``p_low``/``p_central`` price from the shrunk centre; ``ladder_sigma`` asks
+    whether the *evidence* describes this fixture, and reads the sample's own.
+    """
+    from bet.simple_stats.analyze import shrunk_centre
+    from bet.simple_stats.contracts import EventDossierV1, MetricObservation
+
+    values = [2.0, 4.0, 3.0, 2.0, 3.0]
+    raw = statistics.fmean(values)
+    centre = shrunk_centre(values, "corners_for")
+    ladder_median, spread = 5.76, _sample_dispersion(values) ** 0.5
+    assert abs((raw - ladder_median) / spread) > 1.25       # the raw mean is caught
+    assert abs((centre - ladder_median) / spread) < 1.25    # the shrunk one is not
+
+    # And the row that ANALYZE writes carries both, so the artifact can be
+    # audited without re-deriving either.
+    dossier = EventDossierV1(
+        event_id="e", sport="football", readiness="READY",
+        team_a_name="Sheffield United", team_b_name="Bolton Wanderers",
+        metrics={
+            "corners_for": MetricObservation(
+                canonical_name="corners_for",
+                team_a_l10=[
+                    ProviderValue(
+                        provider="bzzoiro", match_id=f"m{i}",
+                        match_date=f"2026-08-{10 + i:02d}", opponent=f"Opp {i}",
+                        value=v, observed_at="2026-09-01T00:00:00+00:00",
+                    )
+                    for i, v in enumerate(values)
+                ],
+            )
+        },
+    )
+    from bet.simple_stats.analyze import analyze_dossier
+
+    rows = [
+        r for r in analyze_dossier(dossier)
+        if r.market == "corners_for" and r.team_name == "Sheffield United"
+    ]
+    assert rows, "no corners_for row was produced"
+    row = rows[0]
+    assert row.mean == pytest.approx(raw)                 # evidence, unshrunk
+    assert row.shrunk_mean == pytest.approx(centre)       # what the price used
+    assert row.shrunk_mean > row.mean
+
+
+def test_every_pinned_prior_is_a_positive_number_with_its_evidence_recorded():
+    """The config is policy, so it has to carry the same audit trail
+    observation_scope.json does: how many observations, over which window."""
+    import json
+    from pathlib import Path
+
+    doc = json.loads(
+        (Path(__file__).resolve().parents[2] / "config" / "market_priors.json")
+        .read_text(encoding="utf-8")
+    )
+    assert doc["_measured_over"] and doc["_measured_at"]
+    assert doc["priors"], "an empty priors block would silently disable shrinkage"
+    for market, block in doc["priors"].items():
+        assert not market.startswith("_")
+        assert block["mean"] > 0, market
+        # 120 is the floor the measurement script applies; below it the prior is
+        # itself a thin sample and shrinking toward it borrows nothing.
+        assert block["observations"] >= 120, market
+    # A percentage has no count distribution to fit, so it must never appear.
+    from bet.simple_stats.contracts import PERCENTAGE_METRICS
+
+    assert not (set(doc["priors"]) & PERCENTAGE_METRICS)
