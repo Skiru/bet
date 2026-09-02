@@ -657,6 +657,35 @@ def _venue_or_none(provider: str, side: str | None) -> str | None:
     return side if provider in _VENUE_BEARING_PROVIDERS else None
 
 
+# Providers whose historical rows state the surface. Only tennis has one:
+# tennis-abstract publishes it per match, and bzzoiro-tennis states it on
+# every form/h2h row it serves; espn-tennis' fixture row does not carry it,
+# so it records None and filters nothing.
+_SURFACE_BEARING_PROVIDERS = frozenset({"tennis-abstract", "sackmann", "bzzoiro-tennis"})
+
+# The three surfaces professional tennis is played on, normalised to the
+# spelling ``config/tennis_surface_map.json`` uses. Anything else -- "Carpet",
+# a blank, a stray code -- becomes None rather than a fourth category, on the
+# same rule as ``_venue_or_none``: a value we cannot place must read as "not
+# stated", never as a surface that happens to differ from tonight's.
+_KNOWN_SURFACES = {"hard": "Hard", "clay": "Clay", "grass": "Grass"}
+
+
+def _surface_or_none(provider: str, surface: Any) -> str | None:
+    """``ProviderValue.surface`` for one observation, or None.
+
+    Mirrors ``_venue_or_none``: the caller passes whatever its provider said
+    and this decides whether the field may be set at all. A football provider
+    passing something truthy still records None -- the field is tennis-only by
+    construction, and a football "surface" would be a fact nobody measured.
+    """
+    if provider not in _SURFACE_BEARING_PROVIDERS:
+        return None
+    if not isinstance(surface, str):
+        return None
+    return _KNOWN_SURFACES.get(surface.strip().lower())
+
+
 def _make_values(
     provider: str,
     match_id: Any,
@@ -667,6 +696,7 @@ def _make_values(
     competition_id: Any = None,
     season_id: Any = None,
     side: str | None = None,
+    surface: Any = None,
 ) -> dict[str, ProviderValue]:
     """One ProviderValue per canonical metric in ``combined``.
 
@@ -689,6 +719,7 @@ def _make_values(
     competition = _id_or_none(competition_id)
     season = _id_or_none(season_id)
     venue = _venue_or_none(provider, side)
+    surface_name = _surface_or_none(provider, surface)
     return {
         name: ProviderValue(
             provider=provider,
@@ -700,6 +731,7 @@ def _make_values(
             competition_id=competition,
             season_id=season,
             venue=venue,
+            surface=surface_name,
         )
         for name, val in combined.items()
     }
@@ -1459,6 +1491,16 @@ def _fetch_l10_generic(
         outcome.data_gaps.append(f"{provider_key}: {exc}")
         return outcome
     if not team_id:
+        # Named the way it is because the alternative was measured and was
+        # worse. On 2026-09-02 api-football's account was suspended; it answers
+        # that with HTTP 200, an empty ``response`` and one sentence in
+        # ``errors.access``, so every lookup came back None and this line fired
+        # 472 times against Flamengo, Celtic, Udinese, AGF, Motherwell and West
+        # Brom. Read off the artifact that is a missing-alias problem, and it
+        # is not: the provider contributed zero observations all day. The
+        # entitlement fault now raises out of ``resolve_team_id`` into the
+        # handler above, so this branch is once again what it claims to be --
+        # a provider that answered, and does not know this club.
         outcome.data_gaps.append(f"{provider_key}: could not resolve team identity for '{team_name}'")
         return outcome
     try:
@@ -1538,6 +1580,10 @@ def _fetch_l10_generic(
             competition_id=_field(fx, "competition_provider_id", "league_id", "league"),
             season_id=_field(fx, "season", "season_id"),
             side=side,
+            # tennis-abstract states the surface on the same stats row the
+            # counts come from; ``_surface_or_none`` discards it for the
+            # football providers that share this function.
+            surface=stats_dict.get("surface"),
         ).items():
             outcome.add(name, value)
     return outcome
@@ -1597,6 +1643,11 @@ def _fetch_h2h_generic(
             provider_key, fixture_id, _field(meeting, "date", "kickoff", default=""), team_two, combined,
             competition_id=_field(meeting, "competition_provider_id", "league_id", "league"),
             season_id=_field(meeting, "season", "season_id"),
+            # Surface is a property of the meeting, not of a side, so unlike
+            # ``venue`` above it is recorded for h2h too: a past meeting on
+            # clay is no more a trial of tonight's hard court than one of
+            # either player's own clay matches would be.
+            surface=stats_dict.get("surface"),
         ).items():
             outcome.add(name, value)
     return outcome
@@ -2910,6 +2961,7 @@ def fetch_bzzoiro_tennis_history(
             combined,
             competition_id=row.get("competition_provider_id") or row.get("tournament_id"),
             season_id=row.get("season") or row.get("season_id"),
+            surface=row.get("surface"),
         ).items():
             outcome.add(name, value)
 

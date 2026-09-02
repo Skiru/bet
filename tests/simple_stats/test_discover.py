@@ -364,3 +364,63 @@ def test_fixture_context_is_absent_for_a_non_bzzoiro_source():
     record = _to_event_record(merged[0])
 
     assert record.fixture_context is None
+
+
+# --- the country highlightly sends and the adapter used to drop -------------
+
+
+def test_a_bare_cup_is_qualified_by_the_country_beside_it():
+    """41 fixtures on 2026-09-02 arrived with the competition name "Cup" --
+    PAOK-OFI, J-League ties and the rest, all in one bucket. Highlightly puts
+    ``country`` beside ``league`` on the fixture row, not inside it, and the
+    adapter read only ``league.name``. A name that cannot tell a Greek cup tie
+    from a Japanese one can be pinned to nothing and scoped by nothing."""
+    from bet.simple_stats.discover import _highlightly_competition_name as name_of
+
+    assert name_of({"name": "Cup"}, {"name": "Greece"}) == "Greece Cup"
+    assert name_of({"name": "Superliga"}, {"name": "Denmark"}) == "Denmark Superliga"
+
+
+def test_a_name_that_already_identifies_a_competition_is_left_alone():
+    """The reason this is a closed list and not a rule. Prefixing every name
+    would rewrite "LaLiga" to "Spain LaLiga", a key the ESPN and canonical
+    tables do not hold -- breaking resolutions that work to fix ones that do
+    not."""
+    from bet.simple_stats.discover import _highlightly_competition_name as name_of
+
+    assert name_of({"name": "LaLiga"}, {"name": "Spain"}) == "LaLiga"
+    # "Serie A" left the left-alone set on 2026-09-02: bare on the wire it was
+    # Atletico-MG - Vitoria (Brazil), so the name alone identifies nothing and
+    # the Italian rows must carry their country to resolve.
+    assert name_of({"name": "Serie A"}, {"name": "Italy"}) == "Italy Serie A"
+    # Already carries its country; prefixing again would say it twice.
+    assert name_of({"name": "Danish Cup"}, {"name": "Denmark"}) == "Danish Cup"
+
+
+def test_no_country_means_the_bare_name_survives_unchanged():
+    """Inventing a country is worse than a vague name."""
+    from bet.simple_stats.discover import _highlightly_competition_name as name_of
+
+    assert name_of({"name": "Cup"}, {}) == "Cup"
+    assert name_of({"name": "Cup"}, {"name": ""}) == "Cup"
+    assert name_of({}, {"name": "Greece"}) == ""
+
+
+def test_qualifying_a_generic_name_can_only_help_the_espn_map():
+    """Each generic name either resolves the same as before, or better."""
+    from bet.api_clients.espn import get_espn_league_for_competition as resolve
+    from bet.simple_stats.discover import _highlightly_competition_name as name_of
+
+    for bare, country in (
+        ("Premier League", "England"),
+        ("Championship", "England"),
+        ("Premiership", "Scotland"),
+        ("Superliga", "Denmark"),
+        ("Super League", "Switzerland"),
+    ):
+        before = resolve(bare)
+        after = resolve(name_of({"name": bare}, {"name": country}))
+        assert after == before or (before is None and after is not None), (
+            f"{bare!r} + {country!r}: {before!r} -> {after!r}"
+        )
+

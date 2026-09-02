@@ -66,7 +66,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from bet.discovery.team_aliases import resolve_team_alias
-from bet.simple_stats.bet_builder_draft import TIER_MARGIN, tier_for_row
+from bet.simple_stats.bet_builder_draft import TIER_MARGIN, tier_for_row, required_odds
 from bet.simple_stats.contracts import (
     EventListV1,
     EventRecord,
@@ -200,6 +200,25 @@ TEAM_MARKET_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     # fixture on 2026-09-01, and it must be matched *before* "liczba kartek"
     # would be, or a red-card line gets filed as a booking line.
     (re.compile(r"^liczba czerwonych kartek (?P<team>.+?)$"), "red_cards_for"),
+    # Tennis, where "per team" is "per player" -- the same mechanism, told
+    # apart by ``team_name``, and the same three canonical metrics ANALYZE
+    # already emits per side (``_TEAM_MARKET_STAT_TO_CANONICAL``).
+    #
+    # Superbet writes these with the player's name and no separator: "Alex
+    # Michelsen liczba asow". Twenty of them went unmapped on 2026-09-02 across
+    # a slate whose *one* genuinely-priced row was a tennis ``aces_total``, so
+    # this is the second and less-glued view of exactly the market that
+    # survived the analyst -- per-player aces measured on that player's own
+    # serve rather than on both players summed.
+    #
+    # These sit after every football pattern and match a whole name against a
+    # phrase no football market uses, so they cannot capture a club. The
+    # combined "liczba asow + podwojnych bledow" is deliberately absent: there
+    # is no canonical metric that adds the two, and inventing one here would
+    # price a market nothing measured.
+    (re.compile(r"^(?P<team>.+?) liczba asow$"), "aces_for"),
+    (re.compile(r"^(?P<team>.+?) liczba podwojnych bledow$"), "double_faults_for"),
+    (re.compile(r"^(?P<team>.+?) liczba gemow$"), "games_won"),
 ]
 
 # A name containing any of these is never a plain match or team total, whatever
@@ -433,7 +452,27 @@ def _team_resolver(ours: dict[str, str]):
             return ours[key]
         hits = [value for candidate, value in ours.items()
                 if candidate and (candidate in key or key in candidate)]
-        return hits[0] if len(hits) == 1 else None
+        if len(hits) == 1:
+            return hits[0]
+        # Last: the same tokens in a different order, and still only when it
+        # is unique. Superbet writes Chinese names given-name-last -- it has
+        # "Yunchaokete Bu" and "Yibing Wu" where the draw has "Bu Yunchaokete"
+        # and "Wu Yibing" -- so neither string contains the other and the pass
+        # above declines. A bag of tokens has no order to disagree about, and
+        # two people in one fixture cannot share one bag without being the
+        # same person, so this cannot file a line against the wrong side.
+        # It took 6 of the 198 tennis per-player markets on 2026-09-02, and it
+        # is the systematic 6: every name written in that order fails without
+        # it.
+        bag = frozenset(key.split())
+        if bag:
+            same = [
+                value for candidate, value in ours.items()
+                if frozenset(candidate.split()) == bag
+            ]
+            if len(same) == 1:
+                return same[0]
+        return None
 
     return resolve
 
@@ -860,7 +899,7 @@ def build_event_offer(
 # --- comparison ------------------------------------------------------------
 
 
-def min_acceptable_odds(row: StatsSheetRow, tier: str) -> float | None:
+def min_acceptable_odds(row: StatsSheetRow, tier: str, *, basis: str = "p_low") -> float | None:
     """1/p_low x tier margin, or None when the row is not bettable at all.
 
     Returns None rather than a very large number for ``p_low == 0``: a row that
@@ -869,7 +908,7 @@ def min_acceptable_odds(row: StatsSheetRow, tier: str) -> float | None:
     """
     if tier in UNBETTABLE_TIERS or row.p_low <= 0:
         return None
-    return round((1.0 / row.p_low) * TIER_MARGINS.get(tier, 1.10), 4)
+    return required_odds(row, tier, basis=basis)
 
 
 def _nearest(
@@ -952,6 +991,8 @@ def compare_sheet_to_offer(
             line=row.line,
             direction=row.direction,
             team_name=row.team_name,
+            player_name=row.player_name,
+            player_id=row.player_id,
             p_low=row.p_low,
             hits=row.hits,
             sample_size=row.sample_size,
@@ -1047,7 +1088,22 @@ def compare_sheet_to_offer(
             "offered_lines": sorted(value["offered_lines"]),
             # The headline: a market whose generated lines never appear on the
             # book is a line-generator defect, not a thin day.
-            "no_overlap": bool(value["offered_lines"]) and value["matched"] == 0,
+            #
+            # An *intersection* test, and it used to be ``matched == 0``. That
+            # is a different question, and on 2026-09-02 the two gave different
+            # answers: ``football:red_cards_total`` reported ``no_overlap``
+            # while its own ``our_lines`` [0.5, 1.5] and ``offered_lines``
+            # [0.5] plainly overlap. Nothing matched because the two rows at
+            # 0.5 were on Japanese fixtures Superbet did not carry, and three
+            # more asked for 1.5 UNDER on a rung the book quotes OVER-only.
+            # Both are real findings and neither is a line generator that
+            # cannot hit the ladder -- which is the one thing this field is
+            # read as saying, and the thing an operator is told to report as a
+            # defect.
+            "no_overlap": (
+                bool(value["offered_lines"])
+                and not (value["our_lines"] & value["offered_lines"])
+            ),
         }
         for key, value in sorted(coverage.items())
     }
@@ -1278,8 +1334,19 @@ def lookup_line(
             return ("EVENT_NOT_MATCHED", None, None, None)
         superbet_player = player_aliases.get(player_name or "")
         if superbet_player is None:
-            # Either Superbet does not price this player, or two of our players
-            # fit its string equally well and the join refused. Both are ours.
+            # Whose gap is it? If the book prices this market for nobody on
+            # the fixture, no spelling of ours could have joined -- that is
+            # the book's coverage, and reporting it as a join failure sent
+            # the operator chasing name-matching on props that cannot be
+            # bought at any spelling (most of a day's PLAYER_NOT_MATCHED
+            # rows were exactly this). Only when the market exists for
+            # *other* players is the missing alias plausibly ours: Superbet
+            # not listing this player, or two of ours fitting its string
+            # equally well and the join refusing.
+            if not event_offer.lines:
+                return ("OFFER_EMPTY", None, None, None)
+            if not any(candidate.market == market for candidate in event_offer.lines):
+                return ("MARKET_NOT_OFFERED", None, None, None)
             return ("PLAYER_NOT_MATCHED", None, None, None)
         # A prop names a player, not a side; the side lives on the row for
         # reporting and must not narrow the ladder.

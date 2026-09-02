@@ -53,7 +53,17 @@ MAX_OFFERED_LINES_PER_SAMPLE = 6
 # naming the wrong human.
 PLAYER_MATCH_THRESHOLD = 88.0
 
-_OfferedKey = tuple[str, str, str | None, str | None]
+# (event_id, market, direction, team_name, player_name).
+#
+# ``direction`` joined the key on 2026-09-02. Without it the ladder was a set
+# of *rungs* and ANALYZE priced both sides of every one -- but Superbet quotes
+# rungs one-sided all the time. Measured on AGF Aarhus-Midtjylland that day it
+# posted ``red_cards_total`` 0.5 OVER, 0.5 UNDER and 1.5 **OVER only**, and the
+# sheet duly emitted 1.5 UNDER: a row that cannot be taken at any price, on a
+# ladder we had already read. It then became the day's only entry in
+# ``markets_with_no_line_overlap``, which is a diagnostic for a line-generator
+# defect -- correctly, as it turns out, just not the defect it named.
+_OfferedKey = tuple[str, str, str, str | None, str | None]
 
 
 # ł and Ø are letters in their own right, not accented bases, so NFKD leaves
@@ -324,7 +334,10 @@ class OfferedLines:
                     player = mapping.get(line.player_name)
                     if player is None:
                         continue
-                key = (event.event_id, line.market, line.team_name, player)
+                key = (
+                    event.event_id, line.market, line.direction,
+                    line.team_name, player,
+                )
                 grouped.setdefault(key, set()).add(float(line.line))
         return cls(
             by_key={key: tuple(sorted(values)) for key, values in grouped.items()},
@@ -338,14 +351,29 @@ class OfferedLines:
         market: str,
         team_name: str | None = None,
         player_name: str | None = None,
+        direction: str | None = None,
     ) -> tuple[float, ...] | None:
         """The offered lines for one sample, or None to use the static grid.
 
         ``None`` and ``()`` are different answers and both are possible: None is
         "the book was not read for this", and an empty tuple cannot occur because
         a key only exists once a line has been filed under it.
+
+        Omitting ``direction`` answers with the union of both sides, which is
+        the right ladder to *choose from* -- ``select_lines`` picks the rungs
+        nearest the sample's median and that choice should not depend on which
+        way the eventual row points. Naming a direction answers with the rungs
+        the book will actually take that side of, which is what decides whether
+        a row exists at all.
         """
-        return self.by_key.get((event_id, market, team_name, player_name))
+        if direction is not None:
+            return self.by_key.get((event_id, market, direction, team_name, player_name))
+        both = [
+            value
+            for side in ("OVER", "UNDER")
+            for value in self.by_key.get((event_id, market, side, team_name, player_name)) or ()
+        ]
+        return tuple(sorted(set(both))) if both else None
 
 
 def select_lines(

@@ -387,14 +387,60 @@ def _collect_tennis_predictions(
     Never raises. A dead tennis product costs this artifact a column, and the
     football half of the same artifact is untouched.
     """
-    events = [
+    active = [
         event
         for event in event_list.events
-        if event.sport == "tennis"
-        and event.status == "ACTIVE"
-        and event.source_ids.get(TENNIS_PROVIDER)
+        if event.sport == "tennis" and event.status == "ACTIVE"
     ]
+    events = [event for event in active if event.source_ids.get(TENNIS_PROVIDER)]
+
+    # The id-less fixtures on a *mixed* day. The all-or-nothing branch below
+    # broke the 2026-09-02 silence, but a day where 5 of 38 fixtures carry an
+    # id would have walked straight past it: the 33 without one got no
+    # context row, no gap, no warning -- the exact silence the branch exists
+    # to end, one partial-coverage day away from recurring.
+    uncovered = [
+        EventMarketContext(
+            event_id=event.event_id,
+            provider_event_id="",
+            data_gaps=[
+                f"this event carries no {TENNIS_PROVIDER} id, so the tennis "
+                "model was not consulted for it"
+            ],
+        )
+        for event in active
+        if not event.source_ids.get(TENNIS_PROVIDER)
+    ]
+
     if not events:
+        # Saying nothing here is what made this failure silent, and it is not a
+        # rare one. On 2026-09-02 all 38 tennis fixtures carried ``odds-api``
+        # ids and no ``bzzoiro-tennis`` id at all, so this returned ([], 0) and
+        # the artifact recorded no tennis row, no gap and no call -- exactly
+        # what a day with no tennis on the slate looks like. Downstream, 406
+        # tennis rows still got a ``market_signal`` and **none** of them a
+        # ``model_probability``, against 512 football rows that did, and there
+        # was nothing on disk saying why.
+        #
+        # The provider has been answering ``402 addon_required`` since
+        # 2026-09-01 (see RateLimiter.note_entitlement_fault), which is a $5/mo
+        # purchase and not a run fault -- but "the model is off because nobody
+        # bought it" and "there was no tennis today" must not look the same in
+        # the artifact.
+        if active:
+            reason = rate_limiter.entitlement_fault(TENNIS_PROVIDER)
+            gap = (
+                f"no tennis event carries a {TENNIS_PROVIDER} id, so the tennis "
+                "model was not consulted for any of them"
+            )
+            if reason:
+                gap += f" ({reason})"
+            return [
+                EventMarketContext(
+                    event_id=event.event_id, provider_event_id="", data_gaps=[gap],
+                )
+                for event in active
+            ], 0
         return [], 0
 
     try:
@@ -408,7 +454,7 @@ def _collect_tennis_predictions(
                 data_gaps=[f"tennis model predictions unavailable: {exc}"],
             )
             for event in events
-        ], 0
+        ] + uncovered, 0
 
     if listing.status not in (SourceResultStatus.SUCCESS, SourceResultStatus.VALID_EMPTY):
         gap = (
@@ -421,7 +467,7 @@ def _collect_tennis_predictions(
                 data_gaps=[gap],
             )
             for event in events
-        ], 1
+        ] + uncovered, 1
 
     published = dict((listing.value or {}).get("predictions") or {})
     contexts: list[EventMarketContext] = []
@@ -438,7 +484,7 @@ def _collect_tennis_predictions(
                 else ["no model prediction published for this fixture"],
             )
         )
-    return contexts, 1
+    return contexts + uncovered, 1
 
 
 def _entitlement_cache_as_bool() -> bool | None:
@@ -827,6 +873,19 @@ def summarize(context: MarketContextV1) -> dict[str, object]:
     unknown: set[str] = set()
     for event in context.events:
         unknown.update(event.unknown_markets)
+    # The tennis model's own coverage, said out loud. It is the only column
+    # that can be structurally empty rather than thin -- it needs a paid addon
+    # and an id the discovery sweep may never attach -- and until 2026-09-02
+    # its absence was reported as nothing at all.
+    tennis_unaddressable = sorted(
+        {
+            gap
+            for event in context.events
+            for gap in event.data_gaps
+            if gap.startswith("no tennis event carries")
+            or gap.startswith("tennis model predictions unavailable")
+        }
+    )
     return {
         "date": context.date,
         "events_considered": context.events_considered,
@@ -836,4 +895,5 @@ def summarize(context: MarketContextV1) -> dict[str, object]:
         "football_unlimited_entitled": context.football_unlimited_entitled,
         "provider_calls": context.provider_calls,
         "unknown_markets": sorted(unknown),
+        "tennis_model_unavailable": tennis_unaddressable,
     }

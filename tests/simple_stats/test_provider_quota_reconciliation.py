@@ -291,3 +291,125 @@ def test_an_entitlement_fault_stops_the_run_from_asking_again(limiter):
     assert limiter.provider_says_exhausted("bzzoiro-tennis") is True
     assert limiter.can_request("bzzoiro-tennis", 1) is False
     limiter.clear_provider_exhausted()
+
+
+# --- api-sports says it in the body, not the status line ---------------------
+#
+# The second shape of the same fault, found 2026-09-02. api-sports answers a
+# suspended account with **HTTP 200** and
+#
+#     {"errors": {"access": "Your account is suspended, ..."}, "response": []}
+#
+# -- a perfectly well-formed empty result. `resolve_team_id` reads `response`,
+# finds nothing, and returns None; the caller renders that as "could not
+# resolve team identity for 'Flamengo'". That happened 472 times on 2026-09-02
+# against Flamengo, Celtic, Udinese, AGF, Motherwell and West Brom, and
+# api-football contributed zero observations to the whole day's dossiers while
+# the artifact read as a missing-alias problem.
+
+
+@pytest.fixture
+def football_limiter(tmp_path):
+    rl = RateLimiter(
+        usage_dir=tmp_path,
+        limits={"api-football": 100},
+        rate_limits={},
+        honor_env_overrides=False,
+    )
+    rl.clear_provider_exhausted()
+    yield rl
+    rl.clear_provider_exhausted()
+
+
+def test_a_200_with_an_access_error_is_an_entitlement_fault_not_an_empty_result(
+    football_limiter, monkeypatch
+):
+    from bet.api_clients.base_client import APIEntitlementError, BaseAPIClient
+    from bet.api_clients.api_football import APIFootballClient
+
+    suspended = {
+        "get": "teams",
+        "errors": {"access": "Your account is suspended, check on https://dashboard.api-football.com."},
+        "results": 0,
+        "response": [],
+    }
+    # Patch the *base* request, so the APISportsClient override under test is
+    # the code actually exercised rather than bypassed.
+    monkeypatch.setattr(BaseAPIClient, "_request", lambda *a, **k: suspended)
+
+    client = APIFootballClient(football_limiter)
+    monkeypatch.setattr(client, "api_key", "test-key", raising=False)
+    monkeypatch.setattr(client, "_check_cache", lambda *a, **k: None, raising=False)
+
+    with pytest.raises(APIEntitlementError) as caught:
+        client.resolve_team_id("Flamengo")
+
+    assert "suspended" in str(caught.value)
+    assert football_limiter.entitlement_fault("api-football")
+
+
+def test_the_suspended_account_stops_the_run_after_one_call(football_limiter, monkeypatch):
+    """472 identical lookups, all doomed, is what the flag exists to prevent."""
+    from bet.api_clients import base_client
+    from bet.api_clients.base_client import APIEntitlementError
+    from bet.api_clients.api_football import APIFootballClient
+
+    calls = []
+
+    class _Response:
+        status_code = 200
+        text = ""
+
+        @staticmethod
+        def json():
+            return {"errors": {"access": "Your account is suspended."}, "response": []}
+
+    def _get(url, **_kwargs):
+        calls.append(url)
+        return _Response()
+
+    # Patched at the transport, not at ``_request``: the short-circuit under
+    # test *is* the ``can_request`` guard inside the real ``_request``, and
+    # replacing that method would remove the thing being asserted.
+    monkeypatch.setattr(base_client.requests, "get", _get)
+    client = APIFootballClient(football_limiter)
+    monkeypatch.setattr(client, "api_key", "test-key", raising=False)
+    monkeypatch.setattr(client, "_check_cache", lambda *a, **k: None, raising=False)
+
+    for club in ("Flamengo", "Celtic", "Udinese", "Motherwell"):
+        with pytest.raises(APIEntitlementError):
+            client.resolve_team_id(club)
+
+    assert len(calls) == 1, f"asked the wire {len(calls)} times for a settled answer"
+
+
+def test_a_normal_empty_result_is_still_just_an_empty_result(football_limiter, monkeypatch):
+    """The gate must not fire on a working account that has never heard of a club."""
+    from bet.api_clients.base_client import BaseAPIClient
+    from bet.api_clients.api_football import APIFootballClient
+
+    # api-sports sends `errors: []` on success, which is emphatically not a fault.
+    monkeypatch.setattr(
+        BaseAPIClient, "_request",
+        lambda *a, **k: {"errors": [], "results": 0, "response": []},
+    )
+    client = APIFootballClient(football_limiter)
+    monkeypatch.setattr(client, "api_key", "test-key", raising=False)
+    monkeypatch.setattr(client, "_check_cache", lambda *a, **k: None, raising=False)
+
+    assert client.resolve_team_id("Nowhere Athletic") is None
+    assert football_limiter.entitlement_fault("api-football") is None
+
+
+def test_a_stood_down_provider_says_billing_not_quota(football_limiter):
+    """The message the caller turns into a data_gap has to name the real cause."""
+    from bet.api_clients.base_client import APIEntitlementError
+    from bet.api_clients.api_football import APIFootballClient
+
+    football_limiter.note_entitlement_fault("api-football", "access: account suspended")
+    client = APIFootballClient(football_limiter)
+
+    with pytest.raises(APIEntitlementError) as caught:
+        client._request("/teams", params={"search": "Celtic"})
+    assert "suspended" in str(caught.value)
+    assert "quota" not in str(caught.value).lower()

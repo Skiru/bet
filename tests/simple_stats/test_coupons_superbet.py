@@ -405,8 +405,27 @@ def test_a_kicked_off_fixture_is_labelled_as_the_clock_not_a_missing_market():
 
 
 def test_a_prop_whose_player_the_book_does_not_price_is_labelled_as_ours():
-    """The coupon reads props now. When Superbet has the fixture but not this
-    player, the label is PLAYER_NOT_MATCHED -- our join, not the book's gap."""
+    """The coupon reads props now. When Superbet prices this market on the
+    fixture but not this player, the label is PLAYER_NOT_MATCHED -- our join,
+    not the book's gap. (A market the book prices for nobody is
+    MARKET_NOT_OFFERED instead; that gap is the book's.)"""
+    coupons = build_coupons(
+        _sheet(_row(market="player_total_shots", line=1.5, direction="UNDER",
+                    player_name="Alef Manga", player_id="p1",
+                    lineup_status="predicted")),
+        _events(_event()),
+        superbet_offer=_offer(_line(
+            market="player_total_shots", line=1.5, player_name="Somebody Else",
+            source_market_name="Zawodnik - liczba strzałów",
+            source_outcome_name="poniżej 1.5",
+        )),
+    )
+    assert coupons.singles[0].superbet_availability == "PLAYER_NOT_MATCHED"
+
+
+def test_a_prop_market_the_book_prices_for_nobody_is_the_books_gap():
+    """Most of a day's PLAYER_NOT_MATCHED wall was this case wearing the wrong
+    label, sending the operator to fix spellings on props no spelling buys."""
     coupons = build_coupons(
         _sheet(_row(market="player_total_shots", line=1.5, direction="UNDER",
                     player_name="Alef Manga", player_id="p1",
@@ -414,7 +433,7 @@ def test_a_prop_whose_player_the_book_does_not_price_is_labelled_as_ours():
         _events(_event()),
         superbet_offer=_offer(_line()),
     )
-    assert coupons.singles[0].superbet_availability == "PLAYER_NOT_MATCHED"
+    assert coupons.singles[0].superbet_availability == "MARKET_NOT_OFFERED"
 
 
 def test_a_prop_the_book_prices_reaches_the_coupon_with_that_price():

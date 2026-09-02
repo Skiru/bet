@@ -67,6 +67,20 @@ class APINotFoundError(APIError):
     """Resource not found (HTTP 404)."""
 
 
+class APIEntitlementError(APIError):
+    """The key is present and the endpoint answered, but the account may not use it.
+
+    Its own class because it is the one failure that must never be reported as
+    a data problem. api-sports answers a suspended account with **HTTP 200** and
+    ``{"errors": {"access": "Your account is suspended..."}, "response": []}``
+    -- an empty result set, indistinguishable at the call site from "no such
+    team". On 2026-09-02 that produced 472 ``could not resolve team identity``
+    gaps naming Flamengo, Celtic, Udinese, Motherwell and West Brom, none of
+    which is a name problem and all of which read as one; api-football
+    contributed zero observations to that day's dossiers.
+    """
+
+
 from bet.integration.source_result import SourceResultStatus, SourceOperationResult
 
 class BaseAPIClient(ABC):
@@ -146,6 +160,12 @@ class BaseAPIClient(ABC):
     ) -> dict:
         """Make API request with rate limiting, retry, and error handling."""
         if not self.rate_limiter.can_request(self.api_name, cost):
+            # "Daily quota exhausted" is the wrong sentence for a provider that
+            # stopped on billing, and it is the sentence the caller turns into
+            # a data_gap. Ask why before saying what.
+            billing = self.rate_limiter.entitlement_fault(self.api_name)
+            if billing:
+                raise APIEntitlementError(f"[{self.api_name}] {billing}")
             remaining = self.rate_limiter.get_remaining(self.api_name)
             raise APIRateLimitError(
                 f"[{self.api_name}] Daily quota exhausted. Remaining: {remaining}"
@@ -282,12 +302,59 @@ class APISportsClient(BaseAPIClient):
             return None
         return get_env("API_FOOTBALL_KEY") or None
 
+    # Keys api-sports uses in its 200-with-errors envelope that mean "this
+    # account may not do this", as opposed to "you asked wrongly". Suspension,
+    # a lapsed plan and a bad key all arrive here rather than as an HTTP status.
+    _ENTITLEMENT_ERROR_KEYS = frozenset({"access", "token", "plan", "subscription"})
+
     def _build_headers(self) -> dict:
         """Use x-apisports-key header for authentication."""
         headers = {"Accept": "application/json"}
         if self.api_key:
             headers["x-apisports-key"] = self.api_key
         return headers
+
+    @classmethod
+    def entitlement_fault(cls, payload: Any) -> str | None:
+        """The account-level reason this payload is empty, if that is why.
+
+        api-sports puts ``errors`` in the body of a 200. When it is a dict with
+        one of the entitlement keys, the empty ``response`` is not an answer
+        about the question asked -- it is the account being unable to ask. A
+        *list* (or an empty dict) is the normal success shape and means nothing.
+        """
+        if not isinstance(payload, dict):
+            return None
+        errors = payload.get("errors")
+        if not isinstance(errors, dict) or not errors:
+            return None
+        for key in cls._ENTITLEMENT_ERROR_KEYS:
+            if errors.get(key):
+                return f"{key}: {errors[key]}"
+        return None
+
+    def _request(
+        self, endpoint: str, params: dict | None = None, cost: int = 1
+    ) -> dict:
+        """As the base, but an api-sports entitlement envelope raises.
+
+        Overridden rather than folded into the base because only this family
+        answers 200 with an error body; every other client here says what it
+        means in the status line.
+        """
+        payload = super()._request(endpoint, params=params, cost=cost)
+        fault = self.entitlement_fault(payload)
+        if fault:
+            # Same rail bzzoiro's 402 already runs on: record it once, stop
+            # calling the provider for the rest of the run, and keep the word
+            # "entitlement" attached so preflight does not advise raising a
+            # limit that was never the constraint. Without this the run asks
+            # once per team and is told the same thing 472 times.
+            self.rate_limiter.note_entitlement_fault(
+                self.api_name, f"{endpoint} -> {fault}"
+            )
+            raise APIEntitlementError(f"[{self.api_name}] {fault}", status_code=200)
+        return payload
 
     def _request_with_evidence(
         self,
@@ -622,7 +689,12 @@ class APISportsClient(BaseAPIClient):
             }
         if any(
             token in lowered
-            for token in ("free plans", "subscription", "access denied", "plan")
+            # "suspend" is here because api-football answers a suspended
+            # account with exactly this envelope and nothing else -- HTTP 200,
+            # empty response, one sentence in `errors.access`. Without the
+            # token it fell through to `provider_error_payload`, which reads
+            # as an upstream hiccup worth retrying rather than a bill to pay.
+            for token in ("free plans", "subscription", "access denied", "plan", "suspend")
         ):
             return {
                 "status": SourceResultStatus.PLAN_RESTRICTED,

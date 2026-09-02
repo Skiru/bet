@@ -194,12 +194,13 @@ Read three fields off its `AGENT_SUMMARY` and lead with the first:
   a line we generate. Non-empty means a **line-generator defect**, not a thin
   day; say so in the analysis under *Czego zabrakło*, with the market named.
   **It is absent from this step's summary, always, and absent does not mean
-  empty.** It is computed only from the *comparison* artifact, which
-  `run_superbet.py` writes only when handed `--stats-sheet` -- and inside the
-  pipeline SUPERBET runs before ANALYZE, so no sheet exists yet. Do not report
-  it as empty off this step; get it from the Step 3 re-run below, which does
-  pass the sheet. Reading its absence as "no defect" is how the 2026-08-31
-  line-generator hole would ship unnoticed.
+  empty.** It is computed only from the *comparison* artifact, and SUPERBET
+  runs before ANALYZE, so no sheet exists yet at this point. Read it from the
+  pipeline's own `AGENT_SUMMARY` instead — `run_pipeline.py` runs a free
+  comparison-only pass after ANALYZE and hoists `markets_with_no_line_overlap`,
+  `verdict_counts` and `value_rows` to the top level of its summary. Reading
+  this step's silence as "no defect" is how the 2026-08-31 line-generator hole
+  would ship unnoticed.
 * `our_events_kicked_off` -- check it before reading `our_events_without_offer`
   as a matching failure. `offerState=prematch` drops a fixture the moment it
   goes live, so a run started after the first kickoff always finds some of its
@@ -283,32 +284,61 @@ python3 scripts/simple/run_analyze.py \
   --superbet-offer runs/<date>/<date>_superbet_offer.json -v
 ```
 
-**Re-run SUPERBET before this, not after.** Its prices are a snapshot, and by
-the time a backfill has finished they are an hour old. It is one cheap public
-request per fixture, so re-taking them costs nothing but time:
+**Re-run SUPERBET before ANALYZE, and compare after it.** Two passes, and they
+are not the same pass.
 
-Pass `--stats-sheet` here (the first pass could not — no sheet existed yet). It
-costs nothing extra and is the **only** way the run ever learns
-`markets_with_no_line_overlap`, `verdict_counts` and `value_rows`: those come
-from the comparison artifact, which is written only when the sheet is supplied.
-Use the sheet from the pass you are about to replace; ANALYZE re-runs right
-after and overwrites it anyway.
+*Before* — refresh the prices. They are a snapshot and by the time a backfill
+has finished they are an hour old. One cheap public request per fixture, so
+re-taking them costs nothing but time. **Do not pass `--stats-sheet` here.**
 
 ```bash
 python3 scripts/simple/run_superbet.py \
   --event-list runs/<date>/<date>_event_list.json \
+  --output-dir runs/<date> -v
+```
+
+*After* ANALYZE — compare, against the sheet that actually shipped:
+
+```bash
+python3 scripts/simple/run_superbet.py \
+  --event-list runs/<date>/<date>_event_list.json \
+  --offer runs/<date>/<date>_superbet_offer.json \
   --stats-sheet runs/<date>/<date>_event_dossiers_stats_sheet.json \
   --output-dir runs/<date> -v
 ```
 
+`--offer` reads the offer already on disk: **no HTTP, no OddsPapi probe, and
+the offer artifact is not rewritten.** It is free, and it is the only ordering
+that gives an honest answer.
+
+**Why the order matters, and it is not a nicety.** This used to be one pass
+handed the sheet ANALYZE was about to replace, and the comparison could
+therefore never describe the sheet that shipped. Measured 2026-09-02: the
+comparison covered 8,958 rows over 56 events; the final sheet had 12,300 over
+78. Twenty-two whole fixtures missing — Grasshopper–St Gallen (285 rows),
+FC Thun (294), Falkirk–Rangers (289), Widzew (247), Harris–Tsitsipas (13). The
+artifact said `verdict_counts.VALUE = 52`; the real answer was **82** (77 LEAN
++ 5 CALL), and 52 was reported to the operator as the day's yield.
+
+`run_pipeline.py` now does this second pass by itself after ANALYZE and hoists
+the three fields onto its own `AGENT_SUMMARY`, so on a full pipeline run you do
+not have to. Run it by hand only when you re-ran ANALYZE by hand, as above.
+
 Then read off that summary, and quote the first two in the run report:
 
 * `markets_with_no_line_overlap` — `[]` is the healthy answer and now means it,
-  because the field was actually computed.
+  because the field was actually computed. Non-empty means our generated lines
+  and Superbet's ladder **do not intersect at all** for that market; it is an
+  intersection test, not "nothing matched today", so an unmatched fixture no
+  longer triggers it.
 * `verdict_counts` / `value_rows` — how many rows are `VALUE` versus
   `PRICED_BELOW_THRESHOLD`. This is the day's real yield and the honest headline:
   measured 2026-09-01, 10,917 rows considered → 508 compared → **14 `VALUE`**
   against 494 priced below their own threshold.
+
+**Do not recount VALUE by hand off the sheet with a flat 1.10 margin** — that
+undercounts `CALL` rows, which use 1.05. See the `min_acceptable_odds` note in
+Step 5.
 
 This writes two sheets: `<date>_event_dossiers_stats_sheet.json` (every row)
 and `<date>_event_dossiers_stats_sheet_top.json` (the same rows filtered to
@@ -421,19 +451,43 @@ nothing to veto" apart from "the file never got written".
 Polish, because the operator reads it. Overwrite if it exists; the artifacts it
 describes were overwritten too.
 
-**Confidence % is `p_low` × 100** — the Wilson lower bound at 95% on
-`hits`/`sample_size`, never the raw `hit_rate`. It is the sort key for the whole
-file, descending.
+**Confidence % is `p_low` × 100**, never the raw `hit_rate`. It is the sort key
+for the whole file, descending.
 
-Do not compute it yourself: it is a field on every `StatsSheetRow`, written by
-`wilson_lower_bound()` in `src/bet/simple_stats/analyze.py`, and it is already
-the order the artifact's rows arrive in. Read `row.p_low` and multiply by 100.
+**Do not reconcile it by hand against a Wilson calculator — it is not Wilson
+alone, and has not been since `d1ef288f`.** `p_low` is the *lower* of two
+bounds:
 
-It penalises thin samples on its own, which is why nothing is sorted on
+```
+p_low = min( wilson_lower_bound(hits, sample_size),
+             count_model_bound(values, line, direction, shrunk_mean) )
+```
+
+Wilson prices how few trials there were; the count model prices how far the
+line sits from what those trials actually measured. Wilson alone cannot tell
+4.5 from 7.5 on a clean sweep — that is the saturation defect that lost
+2026-09-01, where one number rode the whole ladder and the coupon picked
+whichever rung paid best.
+
+The tell that both are live: **the same `hits`/`sample_size` gives different
+`p_low` at different lines.** Measured on the 2026-09-02 sheet, `n=24 h=24`
+reads 0.8436 at line 4.5 and 0.8620 at 5.5. On that sheet 44,477 rows are at
+the Wilson value and 8,049 are below it because the count model bound bit
+first. A row where the two disagree is not a broken sheet; it is the model
+working.
+
+The `_COUNT_MARKETS_EXCLUDED` families (percentages) have no count model
+fitted, and there `p_low` **is** plain Wilson.
+
+Do not compute either yourself: `p_low` is a field on every `StatsSheetRow`,
+and it is already the order the artifact's rows arrive in. Read `row.p_low` and
+multiply by 100. If the ranking ever looks wrong to you, check `p_low` against
+`analyze.py`, not against this paragraph.
+
+Wilson penalises thin samples on its own, which is why nothing is sorted on
 `hit_rate`: 6/6 is a hit rate of 1.000 but a `p_low` of 0.610, and 19/21 is
 0.905 but 0.711 — so **19/21 ranks above 6/6** even though it has a worse raw
-rate. If the ranking ever looks wrong to you, check `p_low` against the
-function, not against this paragraph.
+rate.
 
 `sample_size` counts only observations that settle: a value sitting exactly on
 the line is a push, reported in `row.pushes` and excluded from both `hits` and
@@ -475,7 +529,10 @@ To jedyne sezonowe xG w systemie. Gdy `group` jest ustawione, zaznacz, że
 *Okoliczności:* <tylko gdy realnie ważą: derby, neutralny teren, długi przejazd
 `travel_distance_km`, pogoda. Jedno zdanie, nie tabela.>
 *Superbet:* <z `row.superbet`: cena przy linii, którą realnie wystawia, i
-`min_acceptable_odds` obok niej. Gdy `availability` to `LINE_NOT_OFFERED` —
+`min_acceptable_odds` obok niej — **tej liczby nie ma na wierszu arkusza**,
+wylicza ją `coupons.required_price()` jako `round(1/p_low × TIER_MARGIN[tier], 4)`
+ze stałej `TIER_MARGIN = {"CALL": 1.05, "LEAN": 1.10}` (`bet_builder_draft.py`); `WEAK`/`DROP` nie mają marży,
+bo nie są zakładem. Płaskie 1.10 zaniża próg dla wierszy `CALL`. Gdy `availability` to `LINE_NOT_OFFERED` —
 napisz, jaką linię ma zamiast naszej; to nie jest zły kurs, to brak zakładu.
 `SCOPE_NOT_SUPPORTED` (propy zawodników) to nasze ograniczenie, nie brak u
 bukmachera — nie pisz, że Superbet tego nie wystawia. Cena jest zdjęta raz, o
@@ -505,12 +562,28 @@ provider's coverage, not a gap. Corners' line 11.5 always reads `—` because th
 model serves only 8.5/9.5/10.5 and nothing is interpolated between lines; goals'
 0.5 and 4.5 read `—` the same way against a model that serves only 1.5/2.5/3.5.
 
-**Tennis has a signal since 2026-08-30, and it never promotes.** `total_games`
-at 21.5/22.5 and `total_sets` at 2.5 carry a real `model_probability`, but the
-verdict always reads `NO_MARKET_DATA` because no tennis price is fetched — that
-would cost one call per match out of a 100-a-day bucket ENRICH has usually
-already drained. Report the model number, say no price was fetched for it, and
-never write `[CALL, promoted by market signal]` on a tennis row.
+**Tennis has a signal since 2026-08-30 — when it is paid for — and it never
+promotes.** `total_games` at 21.5/22.5 and `total_sets` at 2.5 can carry a real
+`model_probability`, but the verdict always reads `NO_MARKET_DATA` because no
+tennis price is fetched — that would cost one call per match out of a 100-a-day
+bucket ENRICH has usually already drained. Report the model number, say no price
+was fetched for it, and never write `[CALL, promoted by market signal]` on a
+tennis row.
+
+**Check that the column exists before reporting it as thin.** It has two
+prerequisites, and both have failed:
+
+* `bzzoiro-tennis` needs a paid **Sports Addon** ($5/mo). Without it the
+  provider answers `402 addon_required` and is stood down for the whole run —
+  observed 2026-09-01 and 2026-09-02.
+* Each tennis fixture needs a `source_ids["bzzoiro-tennis"]` from DISCOVER.
+  On 2026-09-02 all 38 carried `odds-api` ids and none carried that one, so the
+  model was never consulted for any fixture on the slate.
+
+Either way **zero** tennis rows carry a `model_probability`, and tennis
+verification falls back to the Superbet offer alone. MARKET_CONTEXT now says so
+— read `tennis_model_unavailable` off its `AGENT_SUMMARY` and quote it under
+*Czego zabrakło*. An empty list means the column was genuinely consulted.
 
 ## Step 6 — Build the coupons file
 

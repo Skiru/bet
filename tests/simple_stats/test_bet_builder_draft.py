@@ -77,6 +77,60 @@ def test_a_single_leg_has_no_correlation_risk_to_report():
     assert draft.correlation_risk == "NOT_APPLICABLE"
 
 
+# --- legs that cannot both win ---------------------------------------------
+
+
+def test_a_slip_never_contains_an_arithmetically_impossible_pair():
+    """"goals_total UNDER 2.5" and "Valencia goals_for OVER 2.5" were drafted
+    into one slip and labelled positively correlated -- but Valencia scoring
+    three forces the total to three, so the slip loses by arithmetic before
+    the match kicks off. The per-team and match samples come from different
+    histories and can each clear ``min_p_low`` while contradicting each other;
+    the draft has to notice, because Superbet will only notice at placement,
+    after the slip has burned one of the day's slots."""
+    draft = draft_legs(
+        _sheet(
+            _row(market="goals_total", line=2.5, direction="UNDER", p_low=0.60),
+            _row(market="goals_for", line=2.5, direction="OVER",
+                 team_name="Valencia", p_low=0.55),
+        ),
+        "evt-1",
+    )
+    assert len(draft.legs) == 1
+    assert draft.excluded.get("jointly_impossible") == 1
+
+
+def test_an_integer_pair_that_can_at_best_push_is_still_impossible():
+    """OVER 3 on the team and UNDER 3 on the match: at exactly three both legs
+    push, and a leg that can at best push has not won the slip."""
+    draft = draft_legs(
+        _sheet(
+            _row(market="goals_total", line=3.0, direction="UNDER", p_low=0.60),
+            _row(market="goals_for", line=3.0, direction="OVER",
+                 team_name="Valencia", p_low=0.55),
+        ),
+        "evt-1",
+    )
+    assert len(draft.legs) == 1
+    assert draft.excluded.get("jointly_impossible") == 1
+
+
+def test_a_compatible_component_pair_is_left_alone():
+    """The guard must not swallow the ordinary correlated slip: a team OVER
+    that fits under the match UNDER is bettable, and flagging it would turn
+    the conflict check into a ban on same-family legs."""
+    draft = draft_legs(
+        _sheet(
+            _row(market="goals_total", line=3.5, direction="UNDER", p_low=0.60),
+            _row(market="goals_for", line=1.5, direction="OVER",
+                 team_name="Valencia", p_low=0.55),
+        ),
+        "evt-1",
+    )
+    assert len(draft.legs) == 2
+    assert "jointly_impossible" not in draft.excluded
+
+
 def test_every_football_market_is_in_the_correlated_family():
     """A market outside `_CORRELATED_FOOTBALL_FAMILY` gets no correlation
     warning at all, silently -- and goals correlates with shots and corners

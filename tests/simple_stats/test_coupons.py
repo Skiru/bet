@@ -673,7 +673,10 @@ def test_a_fixture_that_already_kicked_off_is_dropped_from_singles():
     )
     events = _events(
         _event("past").model_copy(update={"start_time": "2026-08-29T12:00:00+00:00"}),
-        _event("ahead").model_copy(update={"start_time": "2026-08-29T21:00:00+00:00"}),
+        # A different pair of clubs: two fixtures are only two fixtures when
+        # (sport, day, participants) differ -- the same key DISCOVER matches by.
+        _event("ahead", home="Sevilla", away="Getafe").model_copy(
+            update={"start_time": "2026-08-29T21:00:00+00:00"}),
     )
     coupons = build_coupons(sheet, events, not_before=_at("2026-08-29T18:00:00+00:00"))
 
@@ -690,7 +693,10 @@ def test_a_started_fixture_does_not_consume_a_singles_slot():
     rows += [_row(event_id="ahead", p_low=0.70, market=m) for m in ("corners_total", "cards_total")]
     events = _events(
         _event("past").model_copy(update={"start_time": "2026-08-29T12:00:00+00:00"}),
-        _event("ahead").model_copy(update={"start_time": "2026-08-29T21:00:00+00:00"}),
+        # A different pair of clubs: two fixtures are only two fixtures when
+        # (sport, day, participants) differ -- the same key DISCOVER matches by.
+        _event("ahead", home="Sevilla", away="Getafe").model_copy(
+            update={"start_time": "2026-08-29T21:00:00+00:00"}),
     )
     coupons = build_coupons(
         _sheet(*rows), events, max_singles=2, not_before=_at("2026-08-29T18:00:00+00:00")

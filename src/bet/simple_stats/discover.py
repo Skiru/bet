@@ -189,6 +189,62 @@ class OddsAPIEventsAdapter(OddsAPIAdapter):
         return events
 
 
+# League names that name no competition on their own. Highlightly hands these
+# back bare, with the country sitting *beside* ``league`` on the fixture row
+# rather than inside it -- so "Cup" arrived as the competition name for 41
+# fixtures on 2026-09-02, from PAOK-OFI (Greece) to J-League Cup ties, all
+# collapsed into one bucket. A name that cannot tell those apart cannot be
+# pinned to a league code, cannot be scoped by ``observation_scope`` and cannot
+# be checked by the ESPN pin gate, because there is nothing in it to check.
+#
+# Deliberately a closed list of *generic* words rather than a rule applied to
+# every name. Qualifying unconditionally would rewrite "LaLiga" to "Spain
+# LaLiga" and "Premier League" to "England Premier League" -- keys the
+# competition tables already hold in their bare form, so a blanket prefix would
+# break resolutions that work today in order to fix ones that do not.
+#
+# Note what this does and does not buy. It makes the name specific, which the
+# scope and tier maps need; it does *not* by itself buy ESPN coverage, because
+# ESPN serves no team directory for most national cups (pol.cup, rou.cup,
+# swe.cup and a Japanese league cup code were all probed on 2026-09-02 and all
+# 404).
+_GENERIC_COMPETITION_NAMES = frozenset({
+    "cup", "super cup", "supercup", "league cup", "fa cup", "national cup",
+    "first league", "second league", "third league", "premier league",
+    "first division", "second division", "primera division", "super league",
+    "superliga", "premiership", "championship", "1st division", "2nd division",
+    # Added 2026-09-02 from the slates themselves: bare "Serie A" was
+    # Atletico-MG - Vitoria (Brazil, not Italy), bare "Ligue 1" was mostly
+    # Algeria and Tunisia (not France), bare "Pro League" alternated between
+    # Saudi Arabia, the UAE and Belgium. Each name resolved *confidently* to
+    # the European code in the ESPN table -- the exact wire shape of the
+    # "Cup" incident, but landing on a directory where a substring can cross
+    # team identity ("inter" is inside "internacional"). The bare ESPN keys
+    # are gone too; only the qualified forms resolve now.
+    "serie a", "serie b", "ligue 1", "ligue 2", "pro league",
+    "primera división",
+})
+
+
+def _highlightly_competition_name(league: dict, country: dict) -> str:
+    """``league.name``, qualified by country when the name alone names nothing.
+
+    Returns the bare name unchanged for everything else, so the exact-name pin
+    maps keep matching the keys they already hold.
+    """
+    name = str(league.get("name") or "").strip()
+    if not name:
+        return ""
+    country_name = str((country or {}).get("name") or "").strip()
+    if not country_name:
+        return name
+    if name.casefold() not in _GENERIC_COMPETITION_NAMES:
+        return name
+    if country_name.casefold() in name.casefold():
+        return name
+    return f"{country_name} {name}"
+
+
 class HighlightlyDiscoveryAdapter(AbstractSourceAdapter):
     """Discovery source reading Highlightly's ``/matches?date=`` page.
 
@@ -274,6 +330,7 @@ class HighlightlyDiscoveryAdapter(AbstractSourceAdapter):
                 home = row.get("homeTeam") or {}
                 away = row.get("awayTeam") or {}
                 league = row.get("league") or {}
+                country = row.get("country") or {}
                 try:
                     kickoff = datetime.fromisoformat(
                         str(row.get("date", "")).replace("Z", "+00:00")
@@ -287,7 +344,7 @@ class HighlightlyDiscoveryAdapter(AbstractSourceAdapter):
                         source=self.name,
                         external_id=str(row.get("id", "")),
                         sport="football",
-                        competition=league.get("name") or "",
+                        competition=_highlightly_competition_name(league, country),
                         home_team=home["name"],
                         away_team=away["name"],
                         kickoff=kickoff,
@@ -304,6 +361,16 @@ class HighlightlyDiscoveryAdapter(AbstractSourceAdapter):
 
             if len(rows) < _HIGHLIGHTLY_PAGE_SIZE:
                 break
+        else:
+            # Every page came back full, so the day continues past the cap.
+            # Said out loud rather than truncated silently: this provider
+            # drives discovery, and a >500-fixture Saturday quietly missing
+            # its tail would look exactly like a small slate.
+            self._record_error(
+                f"day has at least {_HIGHLIGHTLY_MAX_PAGES * _HIGHLIGHTLY_PAGE_SIZE} "
+                f"fixtures; discovery stopped at the {_HIGHLIGHTLY_MAX_PAGES}-page cap "
+                "and anything past it was never seen"
+            )
         return events
 
 

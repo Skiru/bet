@@ -15,7 +15,7 @@ from bet.integration.evidence import (
 
 from bet.integration.source_result import SourceOperationResult, SourceResultStatus
 
-from .base_client import APISportsClient
+from .base_client import APIEntitlementError, APISportsClient
 from .rate_limiter import RateLimiter
 
 # Map API-Football stat type names → normalized stat keys
@@ -352,6 +352,14 @@ class APIFootballClient(APISportsClient):
                 tid = str(results[0].get("team", {}).get("id", ""))
                 self._save_cache(cache_key, {"team_id": tid})
                 return tid
+        except APIEntitlementError:
+            # Never swallowed, unlike everything else here. An account that may
+            # not call /teams returns nothing for *every* name, and the caller
+            # renders that as "could not resolve team identity for 'Flamengo'"
+            # -- 472 times on 2026-09-02, blaming club names for an unpaid bill.
+            # The caller needs to be able to tell the two apart, so this one
+            # leaves as an exception.
+            raise
         except Exception:
             pass
         return None

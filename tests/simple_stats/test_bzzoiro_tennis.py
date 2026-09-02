@@ -343,6 +343,27 @@ def test_form_after_the_fixture_is_filtered_out(monkeypatch, tmp_path):
     assert dates == ["2026-07-30"]
 
 
+def test_history_rows_carry_the_surface_the_form_row_states(monkeypatch, tmp_path):
+    """bzzoiro-tennis states the surface on every form row it serves, and it is
+    the primary tennis provider -- if its observations record None here, the
+    surface rule in ``scope_values`` never touches them and a US Open sample
+    full of Wimbledon grass is priced as if decontaminated."""
+    payloads = {
+        "/matches/44426/h2h/": H2H_PAYLOAD,
+        "/matches/45001/": BOX_SCORE,
+        "/matches/46103/": BOX_SCORE,
+        "/matches/46532/": BOX_SCORE,
+    }
+    client, _ = _client(monkeypatch, tmp_path, payloads)
+    monkeypatch.setattr(providers, "get_client", lambda *a, **k: client)
+
+    outcome = fetch_bzzoiro_tennis_history(
+        "44426", "208", RateLimiter(usage_dir=tmp_path / "u"), RunBudget(200),
+        mode="l10", as_of_date="2026-09-01",
+    )
+    assert [pv.surface for pv in outcome.metrics["aces_total"]] == ["Hard"] * 3
+
+
 def test_a_later_fixture_sees_the_whole_form_list(monkeypatch, tmp_path):
     """The same filter must not be a blanket truncation: for a fixture after all
     three, all three count."""

@@ -35,6 +35,7 @@ capped at LEAN however large its sample.
 """
 from __future__ import annotations
 
+import math
 from collections.abc import Callable, Iterable
 from typing import Literal
 
@@ -158,6 +159,62 @@ def step_tier_down(tier: Tier) -> Tier:
 # fair odds is a losing bet at the true probability.
 TIER_MARGIN: dict[str, float] = {"CALL": 1.05, "LEAN": 1.10}
 
+# Which probability the price bar is derived from. ``p_low`` is the shipped
+# default and the only one this repo has ever staked money on.
+#
+# Measured 2026-09-02 by settling 5,036 candidate rows over 282 fixtures and
+# four slates: mean claimed ``p_low`` 0.613 against a realised win rate of
+# 0.848 -- a +23.5pp understatement, conservative in every market, tier,
+# direction and date, and never once optimistic. ``p_central`` on the same rows
+# claimed 0.849 against 0.848, an error of -0.000. Because the bar is
+# ``(1/p) x margin``, a 23.5pp understatement at p~0.6 inflates the demanded
+# price by 0.848/0.613 = 1.38 *before* the tier margin, so the effective demand
+# is 1.45-1.52 rather than the 1.05-1.10 the margin advertises. On the
+# 2026-09-02 slate that banned every one of 341 priced football rows.
+#
+# It is NOT the default, on purpose. The same measurement could not show that
+# betting the looser bar makes money: the whole settled-and-priced population
+# returned 0.980 per unit, and a ``p_central x 1.05`` arm returned 1.079 with a
+# 95% interval of [0.948, 1.227] that flips sign between the only two slates
+# with real prices (0.835 against 1.221). Worse, ``p_central`` is calibrated on
+# the population as a whole (-0.004) but overstates by 4.4pp on exactly the
+# subset a price gate selects -- the book's price is information about where our
+# sample is wrong -- which is the job the tier margin does and the reason not to
+# touch ``TIER_MARGIN`` itself.
+#
+# So this exists to be paper-traded, not staked: log what it would have
+# selected, settle it the next morning, and revisit when several slates of
+# ``superbet_offer.json`` have accumulated. 40 fixtures cannot tell 1.08 from
+# 1.00.
+BAR_BASES: tuple[str, ...] = ("p_low", "p_central")
+
+
+def bar_probability(row: StatsSheetRow, basis: str = "p_low") -> float:
+    """The probability ``required_odds`` divides into 1.
+
+    An unrecognised basis falls back to ``p_low`` rather than raising: the bar
+    must never fail open into a looser threshold because a caller passed a
+    typo. A row without ``p_central`` falls back the same way -- the field is
+    None on every sheet recorded before 2026-09-02, and those are exactly the
+    sheets the ``p_central`` arm exists to paper-trade over; ``p_low`` is the
+    tighter bar, so the fallback fails closed, not open.
+    """
+    if basis == "p_central" and row.p_central is not None:
+        return row.p_central
+    return row.p_low
+
+
+def required_odds(row: StatsSheetRow, tier: str, *, basis: str = "p_low") -> float:
+    """``min_acceptable_odds`` for one row -- the single implementation.
+
+    It had been written out three times even after the 2026-09-02 sweep that
+    was supposed to collapse it: here inside ``_priced``, in
+    ``coupons.required_price`` and in ``superbet_offer.min_acceptable_odds``.
+    All three agreed; nothing made them agree, and one of them decides the
+    ranking while another is the number printed for the operator to act on.
+    """
+    return round((1.0 / bar_probability(row, basis)) * TIER_MARGIN[tier], 4)
+
 # Markets whose outcomes in a single football match move together. Any two legs
 # drawn from here are positively correlated, which is most of what anyone would
 # want to put in a same-game multi.
@@ -176,6 +233,52 @@ _CORRELATED_FOOTBALL_FAMILY = frozenset(
         "player_tackles", "player_assists", "player_offsides",
     }
 )
+
+# Markets that count a *part* of what another market counts for the whole
+# match: a team's goals are inside the match's goals, a half's inside the full
+# ninety. Used by ``_legs_conflict`` -- an OVER on the part and an UNDER on
+# its whole can name a slip that cannot be won.
+_COMPONENT_OF_TOTAL = {
+    "goals_for": "goals_total",
+    "goals_1h_total": "goals_total",
+    "goals_2h_total": "goals_total",
+    "corners_for": "corners_total",
+    "cards_for": "cards_total",
+    "fouls_for": "fouls_total",
+    "shots_for": "shots_total",
+    "shots_on_target_for": "shots_on_target_total",
+    "offsides_for": "offsides_total",
+    "aces_for": "aces_total",
+    "double_faults_for": "double_faults_total",
+    "games_won": "total_games",
+}
+
+
+def _legs_conflict(
+    a: tuple[str, float, str], b: tuple[str, float, str]
+) -> bool:
+    """Whether two ``(market, line, direction)`` legs cannot both win.
+
+    One shape today: OVER on a component and UNDER on its whole. The part
+    cannot exceed the whole, so "Valencia goals OVER 2.5" and "goals_total
+    UNDER 2.5" is not a correlated pair, it is a slip that loses by
+    arithmetic -- and it was drafted, labelled positively correlated, because
+    the per-team and match samples are computed from different histories and
+    can clear ``min_p_low`` while contradicting each other. Integer lines
+    count the push as not-a-win: a slip leg that can at best push has not won.
+    """
+    for over, under in ((a, b), (b, a)):
+        o_market, o_line, o_direction = over
+        u_market, u_line, u_direction = under
+        if o_direction != "OVER" or u_direction != "UNDER":
+            continue
+        if _COMPONENT_OF_TOTAL.get(o_market) != u_market:
+            continue
+        # Smallest count that wins the OVER vs largest that wins the UNDER.
+        if math.floor(o_line) + 1 > math.ceil(u_line) - 1:
+            return True
+    return False
+
 
 # The tennis equivalent, and it had no equivalent until 2026-09-01. Every one of
 # these grows with match length, so two of them in one slip are close to the
@@ -333,6 +436,7 @@ def draft_legs(
     min_p_low: float = 0.0,
     price_for: Callable[[StatsSheetRow], tuple[str | None, float | None]] | None = None,
     require_value: bool = False,
+    bar_basis: str = "p_low",
 ) -> BetBuilderDraft:
     """Draft up to ``max_legs`` legs for one fixture, best-evidenced first.
 
@@ -402,7 +506,7 @@ def draft_legs(
     # pricing here rather than inside the loop below means ``price_for`` is
     # called once per row instead of twice.
     def _priced(row: StatsSheetRow, tier: Tier) -> tuple[float, str | None, float | None]:
-        minimum = round((1.0 / row.p_low) * TIER_MARGIN[tier], 4)
+        minimum = required_odds(row, tier, basis=bar_basis)
         if price_for is None:
             return minimum, None, None
         availability, price = price_for(row)
@@ -459,6 +563,15 @@ def draft_legs(
         key = f"{row.market}:{row.team_name or ''}:{row.player_name or ''}"
         if key in markets_used:
             exclude("duplicate_market")
+            continue
+        if any(
+            _legs_conflict(
+                (row.market, row.line, row.direction),
+                (leg.market, leg.line, leg.direction),
+            )
+            for leg in legs
+        ):
+            exclude("jointly_impossible")
             continue
         fair_odds = 1.0 / row.p_low
         minimum, availability, price = priced[id(row)]

@@ -83,7 +83,22 @@ def _score_actuals(event_payload: dict) -> dict[str, float]:
     gives the 1H/2H splits. Absent, nothing is invented.
     """
     out: dict[str, float] = {}
-    score = event_payload.get("score") or {}
+    # ``get_event_result`` returns a *bundle*: the fixture row is at
+    # ``value["event"]``, so the score is one level deeper than this function
+    # read for its entire existence. The cost was silent and total -- all 301
+    # fixtures in ``runs/_backtest_actuals.json`` carried zero goals keys, so
+    # ``goals_total``, ``goals_1h_total``, ``goals_2h_total`` and every
+    # ``goals_*_for`` had never settled for any row on any slate. Goals are the
+    # largest priced family (300 of 391 priced candidate rows on 2026-09-01),
+    # which means every backtest conclusion in this repo -- including the
+    # "77 settled bets" behind ``tier_for_row``'s tier revert -- was measured
+    # on corners and cards alone.
+    #
+    # The unwrapped shape is still accepted, so a caller that already reached
+    # into ``value["event"]`` keeps working and the cached actuals of either
+    # vintage settle.
+    inner = event_payload.get("event")
+    score = (inner.get("score") if isinstance(inner, dict) else None) or event_payload.get("score") or {}
     home, away = score.get("home"), score.get("away")
     if home is None or away is None:
         return out

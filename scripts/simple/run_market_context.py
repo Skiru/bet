@@ -186,6 +186,15 @@ def main() -> None:
     else:
         verdict = "OK"
 
+    # Said out loud rather than left in the artifact. A structurally empty
+    # tennis column reads identically to a slate with no tennis on it, and on
+    # 2026-09-02 that difference was invisible: 38 tennis fixtures, zero with a
+    # bzzoiro-tennis id, 406 tennis rows with a market signal and not one with
+    # a model probability. It does not change the verdict -- an unbought addon
+    # is not a bad run -- but it must not be inferred from silence.
+    for note in summary_metrics.get("tennis_model_unavailable", []):
+        out.warning(f"tennis model: {note}")
+
     record(context.date, context.run_id, verdict, metrics)
     out.summary(verdict=verdict, metrics=metrics)
     sys.exit(0 if verdict == "OK" else 1)

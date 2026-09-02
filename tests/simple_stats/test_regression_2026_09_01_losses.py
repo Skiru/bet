@@ -339,6 +339,46 @@ def test_a_sample_that_disagrees_with_the_whole_ladder_loses_the_top():
     assert any("drabinka" in c for c in single.caveats)
 
 
+def test_the_ladder_gate_still_demotes_after_the_price_gate_stopped():
+    """The split, pinned. 2026-09-02 turned the per-rung price gap into a
+    caveat that keeps its rank, and the temptation in that change was to take
+    the ladder gate with it -- which would put Sheffield's corners back at
+    rank one, where it lost."""
+    coupons = _sheffield_coupons()
+    ranked = [
+        s for s in coupons.singles
+        if s.ladder_sigma is not None and abs(s.ladder_sigma) > MAX_LADDER_SIGMA
+    ]
+    assert ranked, "the fixture no longer produces an off-ladder row to test"
+    assert all(
+        s.rank > min(other.rank for other in coupons.singles)
+        for s in ranked
+    ) or len(coupons.singles) == len(ranked), (
+        "an off-ladder sample kept the top of the file"
+    )
+    assert any("zepchnięto na koniec listy" in n for n in coupons.notes)
+
+
+def test_an_all_zeros_sample_cannot_hide_from_the_gate_behind_its_own_dispersion():
+    """The sigma denominator is the sample's dispersion, floored at
+    ``sqrt(mean)`` -- which is 0 exactly when the sample is all zeros, the
+    provider-fabrication class. Reading that as "cannot compute sigma" made
+    the most broken sample possible the only one the gate could not touch:
+    p_central 1.0, no demotion, rank one. It is not unreadable; it is
+    infinitely far from a book whose ladder is perfectly legible."""
+    coupons = build_coupons(
+        _sheet(_row(line=4.5, mean=0.0, median=0.0, dispersion=0.0,
+                    hits=5, sample_size=5, hit_rate=1.0, p_low=0.5655,
+                    p_central=1.0)),
+        _events(),
+        superbet_offer=_offer(*SHEFFIELD_LADDER),
+    )
+    single = coupons.singles[0]
+    assert single.ladder_sigma == -coupons_module._LADDER_SIGMA_SATURATED
+    assert abs(single.ladder_sigma) > MAX_LADDER_SIGMA
+    assert any("drabinka" in c for c in single.caveats)
+
+
 def test_the_ladder_gate_is_inert_when_the_book_posted_too_little():
     """One rung is a probability, not a location. Not being able to read the
     book is not evidence against the sample -- the same rule

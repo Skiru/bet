@@ -131,6 +131,34 @@ def test_classify_market_maps_the_markets_the_sheet_prices(name, expected):
     assert classify_market(name) == expected
 
 
+def test_tennis_per_player_totals_are_read_as_per_side_rows():
+    """Twenty of these went unmapped on 2026-09-02 -- on a slate whose single
+    genuinely-priced row was a tennis ``aces_total``. Per-player aces are the
+    same read measured on one player's own serve."""
+    assert classify_market("Alex Michelsen liczba asów") == ("aces_for", "alex michelsen")
+    assert classify_market("Alex Michelsen liczba gemów") == ("games_won", "alex michelsen")
+    assert classify_market("Alex Michelsen liczba podwójnych błędów") == (
+        "double_faults_for", "alex michelsen",
+    )
+
+
+def test_the_match_total_still_wins_over_the_per_player_pattern():
+    """"Liczba asów" with no name is both players summed, and the exact table
+    is consulted before any pattern -- otherwise the greedy ``.+?`` would have
+    to be trusted not to capture an empty subject."""
+    assert classify_market("Liczba asów") == ("aces_total", None)
+    assert classify_market("Liczba gemów") == ("total_games", None)
+    assert classify_market("Liczba setów") == ("total_sets", None)
+
+
+def test_the_tennis_markets_with_no_canonical_metric_stay_unmapped():
+    """Refusing is the answer here. Nothing in this pipeline measures aces and
+    double faults *added together*, and per-player sets won has no canonical
+    metric -- inventing either would price a market nothing measured."""
+    assert classify_market("Alex Michelsen liczba asów + podwójnych błędów") is None
+    assert classify_market("Alex Michelsen liczba setów") is None
+
+
 def test_a_red_card_market_is_not_filed_as_a_booking_market():
     """Both names begin "Liczba ... kartek". Filing one as the other prices a
     straight red at a yellow-card line, which is a bet nobody would take
@@ -865,17 +893,40 @@ def test_a_matched_fixture_pricing_nothing_is_not_a_market_gap():
     assert result.rows[0].verdict == "OFFER_EMPTY"
 
 
-def test_a_prop_the_book_does_not_price_for_this_player_is_ours_to_report():
-    """Superbet prices player props heavily and this pipeline reads them now.
-
-    The row below has no matching Superbet player string, so the answer is
-    PLAYER_NOT_MATCHED -- our join failing -- and never MARKET_NOT_OFFERED,
-    which would blame the book for a gap that is ours.
-    """
+def test_a_prop_market_the_book_prices_for_nobody_is_the_books_gap():
+    """The dominant case behind a day's PLAYER_NOT_MATCHED wall: the book
+    simply does not carry the market on this fixture. No spelling of ours
+    could have joined, so calling it a join failure sends the operator
+    chasing name-matching on props that cannot be bought at any spelling."""
     row = make_row(market="player_total_shots", line=1.5, player_name="Alef Manga",
                    player_id="p1", lineup_status="predicted")
     result = _compare([row], [sb_line()])
+    assert result.rows[0].verdict == "MARKET_NOT_OFFERED"
+
+
+def test_a_prop_the_book_prices_for_other_players_only_is_ours_to_report():
+    """Only when the market demonstrably exists on the fixture is a missing
+    player plausibly our join: Superbet not listing this player, or two of
+    our players fitting its string equally well and the join refusing."""
+    row = make_row(market="player_total_shots", line=1.5, player_name="Alef Manga",
+                   player_id="p1", lineup_status="predicted")
+    other = sb_line(market="player_total_shots", line=1.5, direction="OVER",
+                    player_name="Somebody Else",
+                    source_market_name="Zawodnik - liczba strzałów",
+                    source_outcome_name="powyżej 1.5")
+    result = _compare([row], [other])
     assert result.rows[0].verdict == "PLAYER_NOT_MATCHED"
+
+
+def test_a_prop_comparison_row_names_its_player():
+    """Two players' VALUE rows on the same market and line differ in nothing
+    but price without the subject -- the operator either cannot act on the
+    row or attaches it to the wrong human on the screen."""
+    row = make_row(market="player_total_shots", line=1.5, player_name="Alef Manga",
+                   player_id="p1", lineup_status="predicted")
+    result = _compare([row], [sb_line()])
+    assert result.rows[0].player_name == "Alef Manga"
+    assert result.rows[0].player_id == "p1"
 
 
 def test_a_caller_that_passes_no_alias_map_still_gets_the_old_answer():

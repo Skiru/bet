@@ -30,6 +30,7 @@ using it. Nothing in this module recomputes it; it is read from the artifact.
 from __future__ import annotations
 
 import json
+import math
 import threading
 from datetime import datetime, timezone
 from pathlib import Path
@@ -37,6 +38,7 @@ from typing import Literal
 from pydantic import Field
 
 from bet.simple_stats.bet_builder_draft import (
+    required_odds,
     TIER_MARGIN,
     AnalystVeto,
     BetBuilderDraft,
@@ -202,9 +204,15 @@ MIN_SINGLE_P_LOW = 0.50
 # ratio 1.135 it agreed with the book about where the market sat and was simply
 # priced too short.
 #
-# False positives here are cheap by design. The gate demotes and never deletes
-# (see ``over_disagreement``), so flagging a good row costs it its rank; missing
-# a bad one costs a stake.
+# **What this threshold does changed on 2026-09-02: it annotates, it no longer
+# demotes.** The sentence above -- flagging a good row costs it its rank -- was
+# true and the trade it described was not. A row whose floor sits far above the
+# book's devigged price at its own rung is not a broken sample; that gap *is*
+# what a bet worth taking looks like from the inside. Demoting on it, against a
+# 15-single cap, deletes value from the file in the name of caution: it took
+# the day's one real row (WTA aces_total 5.5 OVER at 2.07 vs a 1.8146 floor)
+# off the end. The *centre* disagreement -- MAX_LADDER_SIGMA below -- is the
+# one with settled evidence behind it and the one that still demotes.
 MAX_MARKET_DISAGREEMENT = 0.25
 
 # How far the sample's own centre may sit from the centre the book's ladder
@@ -251,6 +259,12 @@ MAX_LADDER_SIGMA = 1.25
 # location; a ladder entirely on one side of 0.5 puts the median outside the
 # range the book posted, where interpolating it would be invention.
 _LADDER_MIN_RUNGS = 2
+
+# What ``ladder_sigma`` reports for a zero-dispersion sample whose mean is not
+# the ladder's median: the true value is unbounded, but Infinity is not strict
+# JSON and every value past MAX_LADDER_SIGMA reads the same to the gate. Large
+# enough that no real sample reaches it (2026-09-01's worst was under 2σ).
+_LADDER_SIGMA_SATURATED = 99.0
 
 
 class CouponSingle(StrictBaseModel):
@@ -475,7 +489,7 @@ def _has_market_reference(row: StatsSheetRow) -> bool:
     )
 
 
-def required_price(row: StatsSheetRow, tier: str) -> float:
+def required_price(row: StatsSheetRow, tier: str, *, basis: str = "p_low") -> float:
     """``min_acceptable_odds`` for one row, in exactly one place.
 
     The arithmetic is ``1/p_low`` times the tier margin, rounded to four
@@ -486,7 +500,7 @@ def required_price(row: StatsSheetRow, tier: str) -> float:
     operator actually acts on, one of which decides the ordering and another of
     which is printed. They agreed; nothing made them agree.
     """
-    return round((1.0 / row.p_low) * TIER_MARGIN[tier], 4)
+    return required_odds(row, tier, basis=basis)
 
 
 def _edge(row: StatsSheetRow) -> float:
@@ -679,6 +693,7 @@ def build_coupons(
     market_context: MarketContextV1 | None = None,
     superbet_offer: SuperbetOfferV1 | None = None,
     require_superbet_value: bool = False,
+    bar_basis: str = "p_low",
 ) -> CouponSet:
     """Turn a finished stats sheet into the day's singles and slips.
 
@@ -927,10 +942,24 @@ def build_coupons(
         Signed rather than absolute because the direction is the diagnosis: a
         negative z is a sample that thinks this market runs colder than the
         book does, which is what every one of 2026-09-01's losing UNDERs was.
+
+        A zero dispersion does not disable the check. The floor is
+        ``sqrt(mean)``, so dispersion is 0 exactly when the sample is all
+        zeros -- the provider-fabrication class from 2026-09-01 -- and such a
+        sample sitting away from a readable ladder median is *infinitely* far
+        from the book in its own units, not unreadable. Returning None here
+        made the most broken sample possible the only one the gate could not
+        touch, and it shipped at rank 1. Saturated to a finite value so the
+        artifact stays strict JSON; anything past MAX_LADDER_SIGMA reads the
+        same to the gate.
         """
         centre = ladder_median(row)
-        if centre is None or row.mean is None or not row.dispersion:
+        if centre is None or row.mean is None:
             return None
+        if not row.dispersion:
+            if row.mean == centre:
+                return 0.0
+            return math.copysign(_LADDER_SIGMA_SATURATED, row.mean - centre)
         return round((row.mean - centre) / row.dispersion, 4)
 
     def off_ladder(row: StatsSheetRow) -> bool:
@@ -1038,7 +1067,12 @@ def build_coupons(
         names = tuple(sorted(
             normalize_team_name(resolve_team_alias(name)) for name in sides
         ))
-        return (event.sport, event.start_time, names)
+        # The *day*, not the timestamp: two feeds publish the same kickoff a
+        # minute or a timezone-spelling apart ("Z" vs "+00:00"), and a raw
+        # string here would give one match two keys and the coupon the same
+        # bet at two ranks. (bucket, day) is the identity rule the rest of
+        # simple_stats already matches fixtures by.
+        return (event.sport, (event.start_time or "")[:10], names)
 
     # Resolved once, before either the singles loop or draft_legs sees a row:
     # both paths must refuse the same rows, which is the invariant the whole
@@ -1120,7 +1154,7 @@ def build_coupons(
     def _append_singles(ordered: list[tuple[StatsSheetRow, str]]) -> None:
         for row, tier in ordered:
             if require_superbet_value:
-                probe = superbet_for(row, required_price(row, tier))
+                probe = superbet_for(row, required_price(row, tier, basis=bar_basis))
                 if probe.get("superbet_verdict") != "VALUE":
                     exclude("superbet_not_value")
                     continue
@@ -1138,8 +1172,13 @@ def build_coupons(
             if len(singles) >= max_singles:
                 exclude("over_max_singles")
                 continue
+            if row.p_low <= 0:
+                # Same refusal ``draft_legs`` makes: 1/0 is not a price, and a
+                # row whose lower bound is zero is making no claim to rank.
+                exclude("p_low_not_positive")
+                continue
             fair = 1.0 / row.p_low
-            minimum = required_price(row, tier)
+            minimum = required_price(row, tier, basis=bar_basis)
             singles.append(
                 CouponSingle(
                     rank=len(singles) + 1,
@@ -1207,21 +1246,36 @@ def build_coupons(
     # budget, spent in this order.
     def _superbet_surplus(pair: tuple[StatsSheetRow, str]) -> float | None:
         row, tier = pair
-        info = superbet_for(row, required_price(row, tier))
+        info = superbet_for(row, required_price(row, tier, basis=bar_basis))
         return info.get("superbet_surplus") if info.get("superbet_verdict") == "VALUE" else None
 
-    # The disagreement gate, and it is a *demotion*, not an exclusion.
-    #
-    # Group one used to be ranked by superbet_surplus descending, which reads
-    # as "best value first" and is arithmetically "where we disagree with the
-    # book most, first". Those are the same list. The gate below splits it: a
-    # row within MAX_MARKET_DISAGREEMENT of the book keeps its place at the
-    # top, one beyond it drops to the end of the file carrying the reason.
+    # The ladder gate, and it is a *demotion*, not an exclusion.
     #
     # Nothing is deleted, because the gate cannot tell an edge from a broken
     # sample and must not pretend to. What it can do is stop the file
     # presenting the second as the first, ranked number one.
-    flagged = [c for c in candidates if over_disagreement(c[0])]
+    #
+    # Only the *ladder* disagreement demotes. The per-rung one annotates.
+    #
+    # They were one gate and they are not one finding. ``off_ladder`` says the
+    # sample's centre is nowhere near the centre the book's whole devigged
+    # ladder implies -- four of 2026-09-01's six losers were exactly that, and
+    # a sample measuring another venue or another competition has a tail that
+    # is not evidence about anything. ``disagreement`` says our floor sits more
+    # than MAX_MARKET_DISAGREEMENT above the devigged price *at this row's own
+    # rung*, and that is not a defect at all: it is the definition of value. A
+    # gate that demotes on it demotes the thing the file exists to find.
+    #
+    # It cost exactly that on 2026-09-02. Of the day's 82 bettable rows, 78
+    # were the best-of-five artifact and one -- WTA ``aces_total`` 5.5 OVER at
+    # 2.07 against a 1.8146 floor -- was real. It disagreed with the book by
+    # more than 25%, which is why it was worth taking, was demoted to the tail
+    # for it, and fell off the far side of the 15-single cap. The file shipped
+    # with nothing.
+    #
+    # Both still carry their caveat onto the row, so nothing is quieter than
+    # before; what changed is which of the two moves a row's rank.
+    flagged = [c for c in candidates if off_ladder(c[0])]
     flagged_ids = {id(c) for c in flagged}
     trusted = [c for c in candidates if id(c) not in flagged_ids]
 
@@ -1245,13 +1299,15 @@ def build_coupons(
             key=lambda pair: (is_trivial_under(pair[0]), -pair[0].p_low, pair[0].event_id),
         )
     )
-    # Last, and only if the budget above did not run out. Ranked by how far
-    # apart we are, widest first -- read as a to-check list, not a shortlist.
+    # Last, and only if the budget above did not run out. Ranked by how far the
+    # sample's centre sits from the book's, widest first -- read as a to-check
+    # list, not a shortlist. On |sigma| rather than on the price gap, because
+    # the price gap no longer puts anything in this group.
     _append_singles(
         sorted(
             flagged,
             key=lambda pair: (
-                -(disagreement(pair[0]) or 0.0), -pair[0].p_low, pair[0].event_id
+                -abs(ladder_sigma(pair[0]) or 0.0), -pair[0].p_low, pair[0].event_id
             ),
         )
     )
@@ -1303,6 +1359,7 @@ def build_coupons(
             min_p_low=min_p_low,
             price_for=leg_price if superbet_offer is not None else None,
             require_value=require_superbet_value,
+            bar_basis=bar_basis,
         )
         # A one-leg "slip" is a single wearing a different hat, and printing it
         # in both sections would double-count the same read.
@@ -1391,7 +1448,7 @@ def build_coupons(
         # thing to go and check, not four.
         worst: dict[tuple, tuple[StatsSheetRow, float]] = {}
         for row, _tier in flagged:
-            gap = disagreement(row) or 0.0
+            gap = abs(ladder_sigma(row) or 0.0)
             key = (fixture_key(row.event_id), row.market, _subject_key(row))
             if key not in worst or gap > worst[key][1]:
                 worst[key] = (row, gap)
@@ -1399,16 +1456,17 @@ def build_coupons(
         shown = listed[:8]
         detail = "; ".join(
             f"{identity(row.event_id)[0]} {market_label(row.market)} {row.line} "
-            f"{row.direction} (+{gap:.0%})"
+            f"{row.direction} ({gap:.2f}σ)"
             for row, gap in shown
         )
         notes.append(
-            f"{len(listed)} czytań zepchnięto na koniec listy, bo nasza podłoga "
-            f"stoi ponad {MAX_MARKET_DISAGREEMENT:.0%} powyżej odmarżowionej ceny "
-            "Superbetu — przy limicie "
-            f"{max_singles} singli zwykle znaczy to, że w ogóle nie weszły. Duża "
-            "różnica z rynkiem to albo przewaga, albo próbka, która mierzy nie ten "
-            "mecz, i ten plik tego nie rozstrzyga. Najszersze rozjazdy: "
+            f"{len(listed)} czytań zepchnięto na koniec listy, bo środek próbki "
+            f"leży dalej niż {MAX_LADDER_SIGMA:.2f} jej własnego odchylenia od "
+            "środka, który implikuje cała odmarżowiona drabinka Superbetu — przy "
+            f"limicie {max_singles} singli zwykle znaczy to, że w ogóle nie "
+            "weszły. To nie jest spór o ogon rozkładu, tylko o to, gdzie ten "
+            "rynek leży, a taka próbka opisuje inny mecz, inny teren albo inne "
+            "rozgrywki. Najszersze rozjazdy: "
             + detail
             + (f" (+{len(listed) - len(shown)} więcej)" if len(listed) > len(shown) else "")
             + ". Sprawdź próbkę, zanim sprawdzisz kurs."

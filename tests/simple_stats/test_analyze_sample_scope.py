@@ -269,6 +269,52 @@ def test_a_sample_containing_a_five_set_match_is_left_alone():
     assert {r.market for r in rows} == {"total_sets", "total_games"}
 
 
+def test_one_long_match_in_ten_does_not_stand_the_gate_down():
+    """The 2026-09-02 artifact. Eleven of 21 ATP US Open ties stood the gate
+    down on samples like this one -- 1 four-set match in 10 -- and 78 of the
+    day's 82 bettable rows were the result: best-of-three statistics priced
+    against Superbet's best-of-five ladder."""
+    dossier = _tennis_dossier(2.0, 2.0, 2.0, 2.0, 2.0, 3.0, 3.0, 3.0, 3.0, 4.0)
+    assert suppressed_markets_for(dossier, "ATP US Open")
+    assert {r.market for r in analyze_dossier(dossier, competition="ATP US Open")} == set()
+
+
+def test_a_third_of_the_sample_running_long_is_a_best_of_five_sample():
+    """The other side of the same threshold: a player whose recent matches
+    really are best-of-five keeps every length-dependent market."""
+    dossier = _tennis_dossier(2.0, 3.0, 4.0, 3.0, 5.0, 2.0)
+    assert suppressed_markets_for(dossier, "ATP US Open") == frozenset()
+    assert {
+        r.market for r in analyze_dossier(dossier, competition="ATP US Open")
+    } == {"total_sets", "total_games"}
+
+
+def test_the_gate_judges_the_sample_the_rows_are_priced_from():
+    """Four Wimbledon matches stand the raw gate down, and then the surface
+    rule deletes exactly those four before pricing -- the typical men's profile
+    at US Open time, since Wimbledon is the only recent best-of-five. The gate
+    must measure the scoped sample, or the surviving hard-court best-of-three
+    sample meets the best-of-five ladder unguarded."""
+    dossier = _tennis_dossier(2.0, 2.0, 3.0, 2.0, 3.0, 2.0, 4.0, 5.0, 4.0, 4.0)
+    for obs in dossier.metrics.values():
+        bucket = obs.team_a_l10
+        bucket[6:] = [pv.model_copy(update={"surface": "Grass"}) for pv in bucket[6:]]
+        bucket[:6] = [pv.model_copy(update={"surface": "Hard"}) for pv in bucket[:6]]
+    assert suppressed_markets_for(dossier, "ATP US Open")
+    assert {r.market for r in analyze_dossier(dossier, competition="ATP US Open")} == set()
+
+
+def test_best_of_five_evidence_on_the_fixture_s_own_surface_still_stands_the_gate_down():
+    """The converse: when the long matches survive the surface rule, they are
+    the sample and the gate must leave it alone."""
+    dossier = _tennis_dossier(4.0, 5.0, 4.0, 4.0, 2.0, 2.0, 3.0, 2.0, 3.0, 2.0)
+    for obs in dossier.metrics.values():
+        bucket = obs.team_a_l10
+        bucket[:4] = [pv.model_copy(update={"surface": "Hard"}) for pv in bucket[:4]]
+        bucket[4:] = [pv.model_copy(update={"surface": "Grass"}) for pv in bucket[4:]]
+    assert suppressed_markets_for(dossier, "ATP US Open") == frozenset()
+
+
 def test_the_women_s_draw_at_the_same_tournament_is_untouched():
     """Same venue, same fortnight, different format. Folding ATP and WTA into
     one "US Open" entry would suppress every women's row on the slate."""

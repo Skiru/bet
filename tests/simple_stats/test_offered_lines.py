@@ -433,3 +433,76 @@ def test_a_real_payload_ends_up_as_a_priced_player_row():
     assert {row.superbet.source_market_name for row in offered_props} == {
         "Zawodnik - liczba strzałów"
     }
+
+
+# --- a rung is not a bet on both sides --------------------------------------
+
+
+def test_the_ladder_remembers_which_side_of_each_rung_is_posted():
+    """Measured on AGF Aarhus-Midtjylland, 2026-09-02: Superbet posted
+    ``red_cards_total`` 0.5 both ways and 1.5 **OVER only** -- "under 1.5 red
+    cards" is a 1.02 shot nobody quotes. The ladder was a set of rungs with no
+    side to it, so the sheet emitted 1.5 UNDER: a row that cannot be taken at
+    any price, on a ladder we had already read."""
+    offered = OfferedLines.from_offer(
+        _offer(
+            _line("red_cards_total", 0.5, "OVER"),
+            _line("red_cards_total", 0.5, "UNDER"),
+            _line("red_cards_total", 1.5, "OVER"),
+        )
+    )
+    key = dict(event_id="evt1", market="red_cards_total")
+
+    assert offered.lines_for(**key, direction="OVER") == (0.5, 1.5)
+    assert offered.lines_for(**key, direction="UNDER") == (0.5,)
+    # Unqualified is still the union: which rungs to *choose from* must not
+    # depend on which way the eventual row points.
+    assert offered.lines_for(**key) == (0.5, 1.5)
+
+
+def test_a_one_sided_rung_produces_no_row_on_the_missing_side():
+    from bet.simple_stats.analyze import analyze_dossier
+
+    dossier = EventDossierV1(
+        event_id="evt1", sport="football", readiness="READY", data_gaps=[],
+        team_a_name="A", team_b_name="B",
+        metrics={
+            "red_cards_total": MetricObservation(
+                canonical_name="red_cards_total",
+                team_a_l10=[_pv(float(v % 3), day) for day, v in enumerate(range(1, 13), 1)],
+            )
+        },
+    )
+    offered = OfferedLines.from_offer(
+        _offer(
+            _line("red_cards_total", 0.5, "OVER"),
+            _line("red_cards_total", 0.5, "UNDER"),
+            _line("red_cards_total", 1.5, "OVER"),
+        )
+    )
+    rows = [r for r in analyze_dossier(dossier, offered) if r.market == "red_cards_total"]
+    sides = {(r.line, r.direction) for r in rows}
+
+    assert (1.5, "OVER") in sides
+    assert (1.5, "UNDER") not in sides
+    assert {(0.5, "OVER"), (0.5, "UNDER")} <= sides
+
+
+def test_no_offer_still_prices_both_sides_of_the_static_grid():
+    """The static grid claims nothing about availability, so it must behave
+    exactly as it did before the ladder learned about direction."""
+    from bet.simple_stats.analyze import analyze_dossier
+
+    dossier = EventDossierV1(
+        event_id="evt1", sport="football", readiness="READY", data_gaps=[],
+        team_a_name="A", team_b_name="B",
+        metrics={
+            "red_cards_total": MetricObservation(
+                canonical_name="red_cards_total",
+                team_a_l10=[_pv(float(v % 3), day) for day, v in enumerate(range(1, 13), 1)],
+            )
+        },
+    )
+    rows = [r for r in analyze_dossier(dossier) if r.market == "red_cards_total"]
+    assert {r.direction for r in rows} == {"OVER", "UNDER"}
+

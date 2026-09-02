@@ -43,7 +43,11 @@ for entry in (str(ROOT), str(ROOT / "src"), str(ROOT / "scripts")):
 from agent_output import AgentOutput, add_agent_args  # noqa: E402
 
 from bet.simple_stats.artifact_io import sha256_file, write_json_atomic  # noqa: E402
-from bet.simple_stats.contracts import EventListV1, StatsSheetV1  # noqa: E402
+from bet.simple_stats.contracts import (  # noqa: E402
+    EventListV1,
+    StatsSheetV1,
+    SuperbetOfferV1,
+)
 from bet.simple_stats.run_context import record_run  # noqa: E402
 from bet.simple_stats.superbet_identity import (  # noqa: E402
     build_identity_bridge,
@@ -65,6 +69,15 @@ def main() -> None:
     parser.add_argument(
         "--stats-sheet", default=None,
         help="Path to STATS_SHEET_V1. When given, also writes the comparison artifact.",
+    )
+    parser.add_argument(
+        "--offer", default=None,
+        help="Path to a SUPERBET_OFFER_V1 already on disk. Reads it instead of "
+             "fetching, which makes this a comparison-only pass: no HTTP, no "
+             "OddsPapi probe, and the offer artifact is left untouched. Requires "
+             "--stats-sheet, because comparing is then the only thing left to do. "
+             "This is how the comparison gets to describe the sheet that shipped: "
+             "run it *after* ANALYZE against the offer SUPERBET already wrote.",
     )
     parser.add_argument(
         "--max-events", type=int, default=250,
@@ -98,12 +111,30 @@ def main() -> None:
     out = AgentOutput(STEP, verbose=args.verbose, stop_on_error=args.stop_on_error)
     started_at = datetime.now(UTC).isoformat()
 
+    if args.offer and not args.stats_sheet:
+        out.error(
+            "--offer without --stats-sheet has nothing to do: the offer is already "
+            "on disk and re-writing it unchanged is not a run",
+            recoverable=False,
+        )
+        out.summary(verdict="PRECONDITION_FAILED", metrics={"offer": args.offer})
+        sys.exit(2)
+
+    # The comparison-only pass records under its own step name. It shares this
+    # script, but it is not a rerun of SUPERBET: recording it as one would
+    # upsert over the collection pass's row seconds after it was written --
+    # its gaps, its unmatched fixtures, its OddsPapi spend -- with an "OK"
+    # that only says a comparison happened. The DB must stay as honest as the
+    # artifacts, because the analyst's cross-check and any later session
+    # reconstructing the day read the DB, not the JSONL that scrolled by.
+    db_step = "SUPERBET_COMPARE" if args.offer else "SUPERBET"
+
     def record(date: str, run_id: str, status: str, stats: dict, error: str | None = None) -> None:
         if args.no_persist:
             return
         try:
             record_run(
-                date=date, step="SUPERBET", status=status, run_id=run_id,
+                date=date, step=db_step, status=status, run_id=run_id,
                 db_path=args.db_path, stats=stats, error_message=error, started_at=started_at,
             )
         except Exception as exc:  # noqa: BLE001 - bookkeeping never masks the run's result
@@ -118,7 +149,9 @@ def main() -> None:
     event_list = EventListV1.model_validate_json(event_list_path.read_text(encoding="utf-8"))
     out.event("run_start", run_id=event_list.run_id, date=event_list.date, events=len(event_list.events))
 
-    if args.oddspapi_bridge == "off":
+    if args.offer:
+        bridge = bridge_disabled("comparison-only pass: the offer was already collected")
+    elif args.oddspapi_bridge == "off":
         bridge = bridge_disabled("disabled by --oddspapi-bridge=off")
     else:
         # Never lets an optional identity lookup take a betting day down: the
@@ -137,22 +170,59 @@ def main() -> None:
             quota_remaining=bridge.quota_remaining,
         )
 
-    try:
-        offer = collect_superbet_offer(
-            event_list, max_events=args.max_events, identity_bridge=bridge
-        )
-    except Exception as exc:
-        traceback.print_exc(file=sys.stderr)
-        out.error(f"superbet offer run crashed: {exc}", recoverable=True)
-        record(event_list.date, event_list.run_id, "PARTIAL", {"events_matched": 0}, str(exc))
-        out.summary(verdict="PARTIAL", metrics={"error": str(exc), "events_matched": 0})
-        sys.exit(1)
-
     output_dir = Path(args.output_dir)
-    offer_path = output_dir / f"{event_list.date}_superbet_offer.json"
-    write_json_atomic(offer_path, offer.model_dump(mode="json"))
+    if args.offer:
+        offer_path = Path(args.offer)
+        if not offer_path.exists():
+            out.error(f"offer artifact not found: {offer_path}", recoverable=False)
+            out.summary(verdict="PRECONDITION_FAILED", metrics={"offer": str(offer_path)})
+            sys.exit(2)
+        offer = SuperbetOfferV1.model_validate_json(offer_path.read_text(encoding="utf-8"))
+        # The same refusal ANALYZE already makes for the same file: yesterday's
+        # offer parses exactly like today's, and a hand-run comparison against
+        # it would overwrite today's comparison artifact with day-old prices
+        # under an OK verdict. The one pass that got this guard proved the
+        # mismatch is bettable-money dangerous; this pass writes the artifact
+        # the operator reads, so it cannot have less.
+        if offer.date and offer.date != event_list.date:
+            out.error(
+                f"offer is for {offer.date} but the event list is for "
+                f"{event_list.date} -- comparing across days writes a comparison "
+                "whose prices describe the wrong slate",
+                recoverable=False,
+            )
+            out.summary(
+                verdict="PRECONDITION_FAILED",
+                metrics={"offer": str(offer_path), "offer_date": offer.date, "date": event_list.date},
+            )
+            sys.exit(2)
+        out.event(
+            "offer_reused",
+            path=str(offer_path),
+            events=len(offer.events),
+            generated_at=offer.generated_at,
+            note="comparison-only pass; prices are as old as this artifact",
+        )
+    else:
+        try:
+            offer = collect_superbet_offer(
+                event_list, max_events=args.max_events, identity_bridge=bridge
+            )
+        except Exception as exc:
+            traceback.print_exc(file=sys.stderr)
+            out.error(f"superbet offer run crashed: {exc}", recoverable=True)
+            record(event_list.date, event_list.run_id, "PARTIAL", {"events_matched": 0}, str(exc))
+            out.summary(verdict="PARTIAL", metrics={"error": str(exc), "events_matched": 0})
+            sys.exit(1)
+
+        offer_path = output_dir / f"{event_list.date}_superbet_offer.json"
+        write_json_atomic(offer_path, offer.model_dump(mode="json"))
     offer_digest = sha256_file(offer_path)
-    out.event("artifact_written", path=str(offer_path), sha256=offer_digest, events=len(offer.events))
+    if not args.offer:
+        out.event(
+            "artifact_written", path=str(offer_path), sha256=offer_digest,
+            events=len(offer.events),
+        )
 
     metrics = {
         "run_id": offer.run_id,
@@ -219,7 +289,7 @@ def main() -> None:
                  "from the book by its clock, not by a matching failure",
         )
 
-    if offer.data_gaps:
+    if offer.data_gaps and not args.offer:
         for gap in offer.data_gaps[:10]:
             out.warning(f"superbet gap: {gap}")
 
@@ -234,7 +304,13 @@ def main() -> None:
                 unmapped=len(event.unmapped_markets),
             )
 
-    if not offer.events:
+    if args.offer:
+        # A comparison-only pass is judged on whether it compared, not on the
+        # collection gaps of an offer it did not collect. Re-reporting those
+        # would make every pipeline run end on a PARTIAL that names a fault
+        # already reported once, by the pass that actually hit them.
+        verdict = "OK" if comparison is not None else "PARTIAL"
+    elif not offer.events:
         verdict = "PARTIAL"
     elif offer.data_gaps:
         verdict = "PARTIAL"

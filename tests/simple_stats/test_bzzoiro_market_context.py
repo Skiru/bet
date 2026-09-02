@@ -1071,3 +1071,96 @@ def test_this_stage_slices_the_slate_in_enrichs_own_order():
 
     # And it is ENRICH's ranking, not a second one that happens to agree today.
     assert ordered == sorted(ordered, key=lambda e: _enrichment_priority(e, now))
+
+
+# --- a structurally empty tennis column must not look like an empty slate ---
+
+
+def _bare_tennis_event(event_id: str, source_ids: dict) -> EventRecord:
+    return EventRecord(
+        event_id=event_id,
+        sport="tennis",
+        competition="ATP US Open",
+        player_one="A Player",
+        player_two="B Player",
+        start_time="2026-09-02T18:00:00+00:00",
+        source_ids=source_ids,
+        identity_confidence="CONFIRMED",
+        status="ACTIVE",
+    )
+
+
+def test_tennis_fixtures_with_no_provider_id_are_recorded_not_skipped(tmp_path):
+    """2026-09-02: all 38 tennis fixtures carried only ``odds-api`` ids, so the
+    tennis half returned ``([], 0)`` -- no row, no gap, no call -- which is
+    exactly what a day with no tennis looks like. Downstream, 406 tennis rows
+    got a market signal and none a model probability, with nothing on disk
+    saying why."""
+    from bet.simple_stats.market_context import _collect_tennis_predictions
+
+    event_list = _event_list(
+        _bare_tennis_event("t1", {"odds-api": "1"}),
+        _bare_tennis_event("t2", {"odds-api": "2"}),
+    )
+    limiter = RateLimiter(usage_dir=tmp_path, limits={}, rate_limits={},
+                          honor_env_overrides=False)
+
+    contexts, calls = _collect_tennis_predictions(event_list, limiter)
+
+    assert calls == 0, "recording the gap must not cost a request"
+    assert len(contexts) == 2
+    assert all(
+        any("no tennis event carries" in gap for gap in c.data_gaps) for c in contexts
+    )
+
+
+def test_the_gap_names_the_billing_reason_when_one_is_on_record(tmp_path):
+    """"the addon was never bought" and "discovery never attached an id" are
+    different problems and only one of them costs $5."""
+    from bet.simple_stats.market_context import _collect_tennis_predictions, TENNIS_PROVIDER
+
+    event_list = _event_list(_bare_tennis_event("t1", {"odds-api": "1"}))
+    limiter = RateLimiter(usage_dir=tmp_path, limits={}, rate_limits={},
+                          honor_env_overrides=False)
+    limiter.note_entitlement_fault(TENNIS_PROVIDER, "HTTP 402: Sports Addon required")
+    try:
+        contexts, _ = _collect_tennis_predictions(event_list, limiter)
+        assert any("Sports Addon" in gap for gap in contexts[0].data_gaps)
+    finally:
+        limiter.clear_provider_exhausted()
+
+
+def test_a_mixed_day_still_records_the_id_less_fixtures(tmp_path, monkeypatch):
+    """The all-or-nothing branch above would have walked straight past a day
+    where 5 of 38 fixtures carry an id: the other 33 got no context row, no
+    gap, no warning -- the exact silence that branch exists to end."""
+    from bet.simple_stats import market_context as mc
+
+    event_list = _event_list(
+        _bare_tennis_event("t1", {"bzzoiro-tennis": "900"}),
+        _bare_tennis_event("t2", {"odds-api": "2"}),
+    )
+    limiter = RateLimiter(usage_dir=tmp_path, limits={}, rate_limits={},
+                          honor_env_overrides=False)
+
+    def _no_client(*a, **k):
+        raise RuntimeError("no network in tests")
+
+    monkeypatch.setattr(mc, "get_client", _no_client)
+    contexts, _ = mc._collect_tennis_predictions(event_list, limiter)
+
+    assert {c.event_id for c in contexts} == {"t1", "t2"}
+    t2 = next(c for c in contexts if c.event_id == "t2")
+    assert any("carries no" in gap for gap in t2.data_gaps)
+
+
+def test_a_slate_with_no_tennis_at_all_still_says_nothing(tmp_path):
+    """The other half of the same distinction: silence is correct here."""
+    from bet.simple_stats.market_context import _collect_tennis_predictions
+
+    event_list = _event_list()
+    limiter = RateLimiter(usage_dir=tmp_path, limits={}, rate_limits={},
+                          honor_env_overrides=False)
+
+    assert _collect_tennis_predictions(event_list, limiter) == ([], 0)
+

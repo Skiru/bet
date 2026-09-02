@@ -85,6 +85,15 @@ def out_dir(tmp_path):
 
 ALL_STEPS = ["discover", "enrich", "market_context", "tipsters", "superbet", "analyze"]
 
+# The comparison-only SUPERBET pass, which runs after ANALYZE and is not a
+# member of STEPS -- it takes no argument, is not addressable by --stop-after,
+# and exists so that verdict_counts / value_rows / markets_with_no_line_overlap
+# describe the sheet that shipped rather than the one ANALYZE replaced. It
+# appears in steps_run because it ran, so every "which steps ran" assertion has
+# to account for it.
+COMPARISON = "superbet_comparison"
+ALL_STEPS_WITH_COMPARISON = [*ALL_STEPS, COMPARISON]
+
 
 def _all_ok_stubs(tmp_path, out_dir, date="2026-08-25", run_id="RID-1"):
     event_list = out_dir / f"{date}_event_list.json"
@@ -132,7 +141,7 @@ def test_clean_run_is_ok_and_exits_zero(tmp_path, out_dir):
     code, summary, _ = _run(tmp_path, stubs, "--date", "2026-08-25", "--output-dir", str(out_dir))
     assert code == 0
     assert summary["verdict"] == "OK"
-    assert summary["metrics"]["steps_run"] == ALL_STEPS
+    assert summary["metrics"]["steps_run"] == ALL_STEPS_WITH_COMPARISON
 
 
 def test_exactly_one_agent_summary_is_emitted(tmp_path, out_dir):
@@ -159,6 +168,7 @@ def test_verdict_is_the_worst_step_not_the_last(tmp_path, out_dir):
         "tipsters": "OK",
         "superbet": "OK",
         "analyze": "OK",
+        COMPARISON: "OK",
     }
     assert summary["verdict"] == "PARTIAL"
     assert code == 1
@@ -219,6 +229,7 @@ def test_resume_adopts_the_run_id_stamped_in_the_artifact(tmp_path, out_dir):
     run_id no step and no DB row ever used."""
     date = "2026-08-25"
     (out_dir / f"{date}_event_dossiers.json").write_text("{}", encoding="utf-8")
+    (out_dir / f"{date}_event_list.json").write_text("{}", encoding="utf-8")
     stubs = _all_ok_stubs(tmp_path, out_dir, run_id="ORIGINAL-RUN")
     _, summary, _ = _run(
         tmp_path, stubs, "--date", date, "--output-dir", str(out_dir), "--start-at", "analyze"
@@ -230,10 +241,39 @@ def test_resume_adopts_the_run_id_stamped_in_the_artifact(tmp_path, out_dir):
 def test_resume_without_the_upstream_artifact_is_precondition_failed(tmp_path, out_dir):
     stubs = _all_ok_stubs(tmp_path, out_dir)
     code, summary, _ = _run(
-        tmp_path, stubs, "--date", "2026-08-25", "--output-dir", str(out_dir), "--start-at", "enrich"
+        tmp_path, stubs, "--date", "2026-08-25", "--output-dir", str(out_dir),
+        "--start-at", "enrich", "--max-events", "40",
     )
     assert code == 2
     assert summary["verdict"] == "PRECONDITION_FAILED"
+
+
+def test_resume_at_analyze_without_the_event_list_is_precondition_failed(tmp_path, out_dir):
+    """The event list is the only source of competition names; without it the
+    best-of-five gate is silently inert and ATP tautologies top the sheet
+    (2026-09-01). A resume that cannot find it must stop, not degrade."""
+    date = "2026-08-25"
+    (out_dir / f"{date}_event_dossiers.json").write_text("{}", encoding="utf-8")
+    stubs = _all_ok_stubs(tmp_path, out_dir)
+    code, summary, _ = _run(
+        tmp_path, stubs, "--date", date, "--output-dir", str(out_dir), "--start-at", "analyze"
+    )
+    assert code == 2
+    assert summary["verdict"] == "PRECONDITION_FAILED"
+
+
+def test_resume_at_a_capped_step_demands_an_explicit_max_events(tmp_path, out_dir):
+    """Resuming a 250-event day under the silent default of 40 rebuilds the
+    dossier at a sixth of its size. The breadth of the first pass is not
+    recoverable from a default, so the pipeline asks instead of guessing."""
+    date = "2026-08-25"
+    (out_dir / f"{date}_event_list.json").write_text("{}", encoding="utf-8")
+    stubs = _all_ok_stubs(tmp_path, out_dir)
+    for step in ("enrich", "market_context", "superbet"):
+        code, _, _ = _run(
+            tmp_path, stubs, "--date", date, "--output-dir", str(out_dir), "--start-at", step
+        )
+        assert code == 2, step
 
 
 def test_stop_after_runs_a_prefix_only(tmp_path, out_dir):
@@ -260,7 +300,7 @@ def test_a_receipt_is_written_next_to_the_artifacts(tmp_path, out_dir):
     receipt = json.loads((out_dir / "2026-08-25_run_summary.json").read_text())
     assert receipt["verdict"] == "OK"
     assert receipt["run_id"] == "RID-1"
-    assert set(receipt["steps"]) == set(ALL_STEPS)
+    assert set(receipt["steps"]) == set(ALL_STEPS_WITH_COMPARISON)
     assert receipt["steps"]["analyze"]["persisted"] is True
 
 
@@ -307,7 +347,7 @@ def test_a_failed_tipster_step_does_not_halt_the_pipeline(tmp_path, out_dir):
         tmp_path / "t_pf.py", verdict="PRECONDITION_FAILED", metrics={"run_id": "RID-1"}, exit_code=2
     )
     _, summary, _ = _run(tmp_path, stubs, "--date", "2026-08-25", "--output-dir", str(out_dir))
-    assert summary["metrics"]["steps_run"] == ALL_STEPS
+    assert summary["metrics"]["steps_run"] == ALL_STEPS_WITH_COMPARISON
 
 
 def test_skip_tipsters_omits_the_step_entirely(tmp_path, out_dir):
@@ -317,7 +357,7 @@ def test_skip_tipsters_omits_the_step_entirely(tmp_path, out_dir):
     )
     assert code == 0
     assert summary["metrics"]["steps_run"] == [
-        "discover", "enrich", "market_context", "superbet", "analyze"
+        "discover", "enrich", "market_context", "superbet", "analyze", COMPARISON
     ]
     assert summary["metrics"]["tipster_signal"] is None
 
@@ -347,7 +387,7 @@ def test_skip_market_context_omits_the_step_entirely(tmp_path, out_dir):
     )
     assert code == 0
     assert summary["metrics"]["steps_run"] == [
-        "discover", "enrich", "tipsters", "superbet", "analyze"
+        "discover", "enrich", "tipsters", "superbet", "analyze", COMPARISON
     ]
     assert summary["metrics"]["market_context"] is None
 
@@ -520,3 +560,68 @@ def test_a_failed_superbet_step_does_not_fail_the_run(tmp_path, out_dir):
     assert summary["verdict"] == "OK"
     assert summary["metrics"]["step_verdicts"]["superbet"] == "FAILED"
     assert summary["metrics"]["step_verdicts"]["analyze"] == "OK"
+
+
+# --- the comparison that describes the sheet that shipped -------------------
+#
+# Found 2026-09-02. SUPERBET has to run before ANALYZE (ANALYZE consumes its
+# offer), so the only sheet the one-pass arrangement could hand it was the one
+# about to be overwritten. The comparison covered 8,958 rows over 56 events;
+# the sheet that shipped had 12,300 over 78. It reported VALUE = 52 against 82
+# actually bettable, and 52 was quoted to the operator as the day's yield.
+
+
+def test_the_comparison_runs_after_analyze_and_reuses_the_offer(tmp_path, out_dir):
+    """Free by construction: --offer means no HTTP and no rewrite of the offer."""
+    stubs = _all_ok_stubs(tmp_path, out_dir)
+    _, summary, stdout = _run(
+        tmp_path, stubs, "--date", "2026-08-25", "--output-dir", str(out_dir)
+    )
+
+    steps = summary["metrics"]["steps_run"]
+    assert steps.index(COMPARISON) > steps.index("analyze")
+    argv = [
+        line for line in stdout.splitlines()
+        if "step_start" in line and COMPARISON in line
+    ]
+    assert argv, "the comparison pass did not start"
+    assert "--offer" in argv[0] and "--stats-sheet" in argv[0]
+
+
+def test_the_three_headline_fields_reach_the_pipeline_summary(tmp_path, out_dir):
+    """They were only ever reachable inside a nested step block, off a pass
+    whose numbers described the wrong sheet."""
+    date = "2026-08-25"
+    stubs = _all_ok_stubs(tmp_path, out_dir)
+    stubs["superbet"] = _stub(
+        tmp_path / "s2.py", verdict="OK",
+        metrics={
+            "run_id": "RID-1",
+            "offer_path": str(out_dir / f"{date}_superbet_offer.json"),
+            "verdict_counts": {"VALUE": 82, "PRICED_BELOW_THRESHOLD": 357},
+            "value_rows": 82,
+            "markets_with_no_line_overlap": ["football:red_cards_total"],
+        },
+        exit_code=0, writes=str(out_dir / f"{date}_superbet_offer.json"),
+    )
+    _, summary, _ = _run(tmp_path, stubs, "--date", date, "--output-dir", str(out_dir))
+
+    metrics = summary["metrics"]
+    assert metrics["value_rows"] == 82
+    assert metrics["verdict_counts"]["VALUE"] == 82
+    assert metrics["markets_with_no_line_overlap"] == ["football:red_cards_total"]
+
+
+def test_the_comparison_is_skipped_when_there_is_no_offer_to_compare_against(
+    tmp_path, out_dir
+):
+    """--skip-superbet leaves nothing to read, and inventing a pass that
+    compares against no book would report an empty day as a priced one."""
+    stubs = _all_ok_stubs(tmp_path, out_dir)
+    _, summary, _ = _run(
+        tmp_path, stubs, "--date", "2026-08-25", "--output-dir", str(out_dir),
+        "--skip-superbet",
+    )
+    assert COMPARISON not in summary["metrics"]["steps_run"]
+    assert "value_rows" not in summary["metrics"]
+

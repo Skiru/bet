@@ -341,6 +341,29 @@ class ProviderValue(StrictBaseModel):
     # dropped from neither sample; it is simply absent from the venue split,
     # which then fails its own minimum-size check and stays silent.
     venue: Literal["home", "away"] | None = None
+    # Which surface this historical match was played on, in the provider's own
+    # spelling ("Hard", "Clay", "Grass"). Tennis only; football providers do
+    # not report it and leave it None.
+    #
+    # Why it exists: on 2026-09-02 the only row on the whole sheet that beat
+    # its price was Boulter-Muchova `aces_total` OVER 5.5 at 2.07, off a
+    # sample whose median was 10.5. All eight of Muchova's observations were
+    # Wimbledon and Bad Homburg -- grass -- and she had *no* hard-court match
+    # in the sample at all; Boulter's was five-ninths grass. Median match-total
+    # aces by surface: Boulter hard 6.0 (n=41) against grass 9.0, Muchova hard
+    # 5.0 (n=60) against grass 11.0. The US Open is hard, so Superbet's 5.5 sat
+    # exactly between the two players' hard-court medians and our 10.5 was an
+    # artefact of a surface nobody was playing on.
+    #
+    # tennis_abstract.py had `surf` on every row all along and dropped it here,
+    # the same way `league_id`/`season_id` were dropped before `competition_id`
+    # existed. ANALYZE reads it in ``scope_values``; nothing computes a
+    # statistic from it.
+    #
+    # Optional on the same "unknown is not degraded" rule as the two fields
+    # above: an observation with None is never dropped, and a fixture whose own
+    # surface cannot be established filters nothing.
+    surface: str | None = None
 
 
 class MetricObservation(StrictBaseModel):
@@ -1150,6 +1173,11 @@ class SuperbetComparisonRow(StrictBaseModel):
     line: float
     direction: Literal["OVER", "UNDER"]
     team_name: str | None = None
+    # The prop's subject. Two players' VALUE rows on the same market and line
+    # differ in nothing but price without it, and a subject the operator
+    # cannot identify is not a bet.
+    player_name: str | None = None
+    player_id: str | None = None
     p_low: float
     hits: int
     sample_size: int

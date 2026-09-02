@@ -77,9 +77,12 @@ SLATE_2026_08_28 = {
     "Liga Portugal Betclic": "por.1",
     "Liga Profesional de Fútbol": "arg.1",
     "Liga de Expansión MX": "mex.2",  # added when the run was re-measured
-    "Ligue 1": "fra.1",  # added when the run was re-measured
+    # Bare "Ligue 1"/"Ligue 2" stopped resolving on 2026-09-02: on this very
+    # slate the bare rows were JS El Biar, US Biskra and company -- Algeria,
+    # not France -- and one name cannot be two countries' ground truth.
+    "Ligue 1": None,
     "Ligue 1 - France": "fra.1",
-    "Ligue 2": "fra.2",
+    "Ligue 2": None,
     "Ligue 2 - France": "fra.2",
     "National League": "eng.5",
     "Nigeria Premier Football League": "nga.1",
@@ -90,11 +93,16 @@ SLATE_2026_08_28 = {
     "Primera A": "col.1",  # added when the run was re-measured
     "Primera División - Argentina": "arg.1",
     "Primera División - Chile": "chi.1",
-    "Pro League": "bel.1",
+    # Four of this slate's five bare "Pro League" fixtures were Abha, Al Wasl,
+    # Al Riyadh and Dubai United -- Saudi Arabia and the UAE, not Belgium. The
+    # old bel.1 entry here was itself the wrong answer for most of them.
+    "Pro League": None,
     "Saudi Pro League": "ksa.1",
     "Segunda División": "esp.2",  # added when the run was re-measured
     "Serie A - Italy": "ita.1",
-    "Serie B": "ita.2",  # added when the run was re-measured
+    # Bare "Serie B" on this slate was Nautico Recife and Novorizontino:
+    # Brazil's second tier, which ita.2 is not.
+    "Serie B": None,
     "Serie B - Italy": "ita.2",
     "Super League - China": "chn.1",
     "Taça de Portugal": "por.taca.portugal",  # added when the run was re-measured
@@ -187,7 +195,9 @@ SLATE_2026_08_28 = {
     "Stars League": None,  # added when the run was re-measured
     "Super League": None,  # added when the run was re-measured
     "Superliga": None,
-    "USL League One": None,  # added when the run was re-measured
+    # Was None on 2026-08-28; pinned 2026-09-02 after usa.usl.l1 was probed
+    # live (17 teams). A separate, lower division from usa.usl.1.
+    "USL League One": "usa.usl.l1",
     "USL Super League": None,  # added when the run was re-measured
     "Vysshaya Liga": None,  # added when the run was re-measured
     "Vysshaya Liga Women": None,  # added when the run was re-measured
@@ -382,7 +392,12 @@ def test_englands_lower_tiers_resolve_under_the_digit_and_the_word(competition, 
 
 @pytest.mark.parametrize(
     "competition, expected",
-    [("Ligue 1", "fra.1"), ("Ligue 2", "fra.2")],
+    [
+        ("France Ligue 1", "fra.1"), ("France Ligue 2", "fra.2"),
+        # Bare, the names identify nothing: six of the eight bare "Ligue 1"
+        # fixtures on 2026-08-28/29 were Algeria and Tunisia, not France.
+        ("Ligue 1", None), ("Ligue 2", None),
+    ],
 )
 def test_the_digit_spellings_do_not_collide_with_france(competition, expected):
     """"League 1" and "Ligue 1" are one character apart and three tiers apart."""
@@ -446,9 +461,14 @@ def test_short_and_seasoned_names_still_resolve(competition, expected):
         ("premier league", "eng.1"),
         ("championship", "eng.2"),
         ("la liga", "esp.1"),
-        ("serie a", "ita.1"),
+        # Bare "serie a" and "ligue 1" answer None since 2026-09-02: on the
+        # wire the bare spellings were Brazil and Algeria as often as Italy
+        # and France, so only the country-qualified forms resolve.
+        ("serie a", None),
+        ("italy serie a", "ita.1"),
         ("bundesliga", "ger.1"),
-        ("ligue 1", "fra.1"),
+        ("ligue 1", None),
+        ("france ligue 1", "fra.1"),
         ("eredivisie", "ned.1"),
         ("primeira liga", "por.1"),
         ("super lig", "tur.1"),
@@ -1015,3 +1035,38 @@ def test_the_sweep_list_can_see_the_leagues_the_table_pins():
     football = set(ESPN_LEAGUES["football"])
     for code in ("ksa.1", "usa.nwsl", "eng.5", "rus.1", "bra.2", "ger.2"):
         assert code in football, f"{code} is pinned by the table but never swept"
+
+
+# --- a possessive is not a token -------------------------------------------
+
+
+def test_a_possessive_apostrophe_does_not_split_a_league_into_two_keys():
+    """Found 2026-09-02. ``re.sub`` on punctuation turned "Women's" into
+    "women s", so the pinned "UEFA Women's Champions League" carried a stray
+    "s" token the feed's own "UEFA Champions League Women" did not -- two keys
+    for one competition, and nine fixtures losing ESPN over one letter."""
+    assert _espn_name_signature("UEFA Women's Champions League") == _espn_name_signature(
+        "UEFA Champions League Women"
+    )
+    assert resolve("UEFA Champions League Women") == "uefa.wchampions"
+    assert "s" not in _espn_name_signature("Women's Super League")
+
+
+def test_the_possessive_fold_does_not_erase_a_real_trailing_s():
+    """"Chess" must not become "Che". Only ``'s`` goes."""
+    assert "champions" in _espn_name_signature("UEFA Champions League")
+    assert resolve("England Women's Super League") == "eng.w.1"
+    assert resolve("Women's Super League") == "eng.w.1"
+
+
+def test_the_codes_probed_on_2026_09_02_are_pinned():
+    """Three of 48 unmapped names had a live ESPN directory. The rest -- Puchar
+    Polski, Cupa Romaniei, Svenska Cupen, a Japanese league cup code -- were
+    probed the same day and 404, so they stay None on purpose."""
+    assert resolve("USL League One") == "usa.usl.l1"
+    assert resolve("Copa Colombia") == "col.copa"
+    assert resolve("EFL Trophy") == "eng.trophy"
+    # Right country, wrong tier: pinning League One to the Championship's code
+    # is the failure the division-marker gate exists for.
+    assert resolve("USL Championship") == "usa.usl.1"
+

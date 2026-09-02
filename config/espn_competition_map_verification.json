@@ -7,7 +7,7 @@
       ],
       "swept": false,
       "team_count": 24,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "afc.champions": {
       "espn_name": "AFC Champions League Elite",
@@ -17,7 +17,7 @@
       ],
       "swept": true,
       "team_count": 32,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "afc.cup": {
       "espn_name": "AFC Champions League Two",
@@ -25,8 +25,8 @@
         "AFC Champions League Two"
       ],
       "swept": false,
-      "team_count": 33,
-      "verified_on": "2026-08-28"
+      "team_count": 32,
+      "verified_on": "2026-09-02"
     },
     "arg.1": {
       "espn_name": "Argentine Liga Profesional de Fútbol",
@@ -38,7 +38,7 @@
       ],
       "swept": true,
       "team_count": 30,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "arg.2": {
       "espn_name": "Argentine Nacional B",
@@ -48,7 +48,7 @@
       ],
       "swept": false,
       "team_count": 36,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "arg.copa": {
       "espn_name": "Copa Argentina",
@@ -57,7 +57,7 @@
       ],
       "swept": true,
       "team_count": 64,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "aus.1": {
       "espn_name": "Australian A-League Men",
@@ -68,7 +68,7 @@
       ],
       "swept": true,
       "team_count": 12,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "aus.w.1": {
       "espn_name": "Australian A-League Women",
@@ -77,7 +77,7 @@
       ],
       "swept": false,
       "team_count": 11,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "aut.1": {
       "espn_name": "Austrian Bundesliga",
@@ -86,7 +86,7 @@
       ],
       "swept": true,
       "team_count": 12,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "bel.1": {
       "espn_name": "Belgian Pro League",
@@ -95,12 +95,11 @@
         "Belgium First Division A",
         "Belgium Jupiler Pro League",
         "Belgium Pro League",
-        "Jupiler Pro League",
-        "Pro League"
+        "Jupiler Pro League"
       ],
       "swept": true,
       "team_count": 18,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "bol.1": {
       "espn_name": "Bolivian Liga Profesional",
@@ -109,7 +108,7 @@
       ],
       "swept": true,
       "team_count": 16,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "bra.1": {
       "espn_name": "Brazilian Serie A",
@@ -121,7 +120,7 @@
       ],
       "swept": true,
       "team_count": 20,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "bra.2": {
       "espn_name": "Brazilian Serie B",
@@ -131,7 +130,7 @@
       ],
       "swept": true,
       "team_count": 22,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "bra.copa_do_brazil": {
       "espn_name": "Copa do Brasil",
@@ -140,7 +139,7 @@
       ],
       "swept": true,
       "team_count": 126,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "caf.champions": {
       "espn_name": "CAF Champions League",
@@ -149,7 +148,7 @@
       ],
       "swept": true,
       "team_count": 58,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "caf.confed": {
       "espn_name": "CAF Confederation Cup",
@@ -158,7 +157,7 @@
       ],
       "swept": false,
       "team_count": 48,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "caf.nations": {
       "espn_name": "Africa Cup of Nations",
@@ -168,7 +167,7 @@
       ],
       "swept": true,
       "team_count": 24,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "chi.1": {
       "espn_name": "Chilean Primera División",
@@ -177,7 +176,7 @@
       ],
       "swept": true,
       "team_count": 16,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "chn.1": {
       "espn_name": "Chinese Super League",
@@ -186,7 +185,7 @@
       ],
       "swept": true,
       "team_count": 16,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "col.1": {
       "espn_name": "Colombian Primera A",
@@ -197,7 +196,16 @@
       ],
       "swept": true,
       "team_count": 20,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
+    },
+    "col.copa": {
+      "espn_name": "Copa Colombia",
+      "pinned_by": [
+        "Copa Colombia"
+      ],
+      "swept": false,
+      "team_count": 36,
+      "verified_on": "2026-09-02"
     },
     "concacaf.champions": {
       "espn_name": "Concacaf Champions Cup",
@@ -206,7 +214,7 @@
       ],
       "swept": true,
       "team_count": 27,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "concacaf.gold": {
       "espn_name": "Concacaf Gold Cup",
@@ -216,7 +224,7 @@
       ],
       "swept": true,
       "team_count": 16,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "concacaf.leagues.cup": {
       "espn_name": "Leagues Cup",
@@ -225,7 +233,7 @@
       ],
       "swept": true,
       "team_count": 36,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "concacaf.nations.league": {
       "espn_name": "Concacaf Nations League",
@@ -234,7 +242,7 @@
       ],
       "swept": true,
       "team_count": 37,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "conmebol.america": {
       "espn_name": "Copa América",
@@ -244,7 +252,7 @@
       ],
       "swept": true,
       "team_count": 16,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "conmebol.libertadores": {
       "espn_name": "CONMEBOL Libertadores",
@@ -255,7 +263,7 @@
       ],
       "swept": true,
       "team_count": 46,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "conmebol.recopa": {
       "espn_name": "CONMEBOL Recopa",
@@ -264,7 +272,7 @@
       ],
       "swept": true,
       "team_count": 2,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "conmebol.sudamericana": {
       "espn_name": "CONMEBOL Sudamericana",
@@ -275,7 +283,7 @@
       ],
       "swept": true,
       "team_count": 56,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "crc.1": {
       "espn_name": "Costa Rican Primera Division",
@@ -284,7 +292,7 @@
       ],
       "swept": false,
       "team_count": 10,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "cyp.1": {
       "espn_name": "Cypriot First Division",
@@ -293,7 +301,7 @@
       ],
       "swept": true,
       "team_count": 14,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "den.1": {
       "espn_name": "Danish Superliga",
@@ -302,7 +310,7 @@
       ],
       "swept": true,
       "team_count": 12,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "ecu.1": {
       "espn_name": "LigaPro Ecuador",
@@ -312,7 +320,7 @@
       ],
       "swept": true,
       "team_count": 16,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "eng.1": {
       "espn_name": "English Premier League",
@@ -323,7 +331,7 @@
       ],
       "swept": true,
       "team_count": 20,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "eng.2": {
       "espn_name": "English League Championship",
@@ -334,7 +342,7 @@
       ],
       "swept": true,
       "team_count": 24,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "eng.3": {
       "espn_name": "English League One",
@@ -346,7 +354,7 @@
       ],
       "swept": true,
       "team_count": 24,
-      "verified_on": "2026-09-01"
+      "verified_on": "2026-09-02"
     },
     "eng.4": {
       "espn_name": "English League Two",
@@ -358,7 +366,7 @@
       ],
       "swept": true,
       "team_count": 24,
-      "verified_on": "2026-09-01"
+      "verified_on": "2026-09-02"
     },
     "eng.5": {
       "espn_name": "English National League",
@@ -369,7 +377,7 @@
       ],
       "swept": true,
       "team_count": 24,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "eng.fa": {
       "espn_name": "English FA Cup",
@@ -378,7 +386,7 @@
       ],
       "swept": true,
       "team_count": 124,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "eng.league_cup": {
       "espn_name": "English Carabao Cup",
@@ -388,7 +396,16 @@
       ],
       "swept": false,
       "team_count": 92,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
+    },
+    "eng.trophy": {
+      "espn_name": "English EFL Trophy",
+      "pinned_by": [
+        "EFL Trophy"
+      ],
+      "swept": false,
+      "team_count": 64,
+      "verified_on": "2026-09-02"
     },
     "eng.w.1": {
       "espn_name": "English Women's Super League",
@@ -399,7 +416,7 @@
       ],
       "swept": true,
       "team_count": 14,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "esp.1": {
       "espn_name": "Spanish LALIGA",
@@ -411,7 +428,7 @@
       ],
       "swept": true,
       "team_count": 20,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "esp.2": {
       "espn_name": "Spanish LALIGA 2",
@@ -424,7 +441,7 @@
       ],
       "swept": true,
       "team_count": 22,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "esp.copa_del_rey": {
       "espn_name": "Spanish Copa del Rey",
@@ -433,7 +450,7 @@
       ],
       "swept": true,
       "team_count": 126,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "esp.super_cup": {
       "espn_name": "Spanish Supercopa",
@@ -442,7 +459,7 @@
       ],
       "swept": false,
       "team_count": 4,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "esp.w.1": {
       "espn_name": "Spanish Liga F",
@@ -451,7 +468,7 @@
       ],
       "swept": false,
       "team_count": 16,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "fifa.cwc": {
       "espn_name": "FIFA Club World Cup",
@@ -461,7 +478,7 @@
       ],
       "swept": false,
       "team_count": 32,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "fifa.world": {
       "espn_name": "FIFA World Cup",
@@ -471,7 +488,7 @@
       ],
       "swept": true,
       "team_count": 48,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "fifa.worldq.afc": {
       "espn_name": "FIFA World Cup Qualifying - AFC",
@@ -480,7 +497,7 @@
       ],
       "swept": true,
       "team_count": 46,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "fifa.worldq.caf": {
       "espn_name": "FIFA World Cup Qualifying - CAF",
@@ -489,7 +506,7 @@
       ],
       "swept": true,
       "team_count": 54,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "fifa.worldq.concacaf": {
       "espn_name": "FIFA World Cup Qualifying - Concacaf",
@@ -498,7 +515,7 @@
       ],
       "swept": true,
       "team_count": 32,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "fifa.worldq.conmebol": {
       "espn_name": "FIFA World Cup Qualifying - CONMEBOL",
@@ -507,7 +524,7 @@
       ],
       "swept": true,
       "team_count": 10,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "fifa.worldq.uefa": {
       "espn_name": "FIFA World Cup Qualifying - UEFA",
@@ -516,7 +533,7 @@
       ],
       "swept": true,
       "team_count": 54,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "fifa.wwc": {
       "espn_name": "FIFA Women's World Cup",
@@ -526,27 +543,25 @@
       ],
       "swept": false,
       "team_count": 32,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "fra.1": {
       "espn_name": "French Ligue 1",
       "pinned_by": [
-        "France Ligue 1",
-        "Ligue 1"
+        "France Ligue 1"
       ],
       "swept": true,
       "team_count": 18,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "fra.2": {
       "espn_name": "French Ligue 2",
       "pinned_by": [
-        "France Ligue 2",
-        "Ligue 2"
+        "France Ligue 2"
       ],
       "swept": true,
       "team_count": 18,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "fra.coupe_de_france": {
       "espn_name": "Coupe de France",
@@ -555,7 +570,7 @@
       ],
       "swept": true,
       "team_count": 64,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "fra.super_cup": {
       "espn_name": "French Trophee des Champions",
@@ -564,7 +579,7 @@
       ],
       "swept": false,
       "team_count": 2,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "fra.w.1": {
       "espn_name": "French Première Ligue",
@@ -575,7 +590,7 @@
       ],
       "swept": true,
       "team_count": 12,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "ger.1": {
       "espn_name": "German Bundesliga",
@@ -585,7 +600,7 @@
       ],
       "swept": true,
       "team_count": 18,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "ger.2": {
       "espn_name": "German 2. Bundesliga",
@@ -596,7 +611,7 @@
       ],
       "swept": true,
       "team_count": 18,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "ger.dfb_pokal": {
       "espn_name": "German Cup",
@@ -606,7 +621,7 @@
       ],
       "swept": true,
       "team_count": 64,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "ger.super_cup": {
       "espn_name": "German Supercup",
@@ -615,7 +630,7 @@
       ],
       "swept": false,
       "team_count": 2,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "gre.1": {
       "espn_name": "Greek Super League",
@@ -624,7 +639,7 @@
       ],
       "swept": true,
       "team_count": 14,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "gua.1": {
       "espn_name": "Guatemalan Liga Nacional",
@@ -633,7 +648,7 @@
       ],
       "swept": false,
       "team_count": 12,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "hon.1": {
       "espn_name": "Honduran Liga Nacional",
@@ -642,7 +657,7 @@
       ],
       "swept": false,
       "team_count": 12,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "idn.1": {
       "espn_name": "Indonesian Super League",
@@ -652,7 +667,7 @@
       ],
       "swept": true,
       "team_count": 18,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "ind.1": {
       "espn_name": "Indian Super League",
@@ -662,7 +677,7 @@
       ],
       "swept": true,
       "team_count": 14,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "isr.1": {
       "espn_name": "Israeli Premier League",
@@ -672,27 +687,25 @@
       ],
       "swept": true,
       "team_count": 14,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "ita.1": {
       "espn_name": "Italian Serie A",
       "pinned_by": [
-        "Italy Serie A",
-        "Serie A"
+        "Italy Serie A"
       ],
       "swept": true,
       "team_count": 20,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "ita.2": {
       "espn_name": "Italian Serie B",
       "pinned_by": [
-        "Italy Serie B",
-        "Serie B"
+        "Italy Serie B"
       ],
       "swept": true,
       "team_count": 20,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "ita.coppa_italia": {
       "espn_name": "Coppa Italia",
@@ -701,7 +714,7 @@
       ],
       "swept": true,
       "team_count": 46,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "ita.super_cup": {
       "espn_name": "Italian Supercoppa",
@@ -710,7 +723,7 @@
       ],
       "swept": false,
       "team_count": 4,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "jpn.1": {
       "espn_name": "Japanese J.League",
@@ -722,7 +735,7 @@
       ],
       "swept": true,
       "team_count": 20,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "ksa.1": {
       "espn_name": "Saudi Pro League",
@@ -734,7 +747,7 @@
       ],
       "swept": true,
       "team_count": 18,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "ksa.kings.cup": {
       "espn_name": "Saudi King's Cup",
@@ -743,7 +756,7 @@
       ],
       "swept": false,
       "team_count": 32,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "mex.1": {
       "espn_name": "Mexican Liga BBVA MX",
@@ -753,7 +766,7 @@
       ],
       "swept": true,
       "team_count": 18,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "mex.2": {
       "espn_name": "Mexican Liga de Expansión MX",
@@ -762,7 +775,7 @@
       ],
       "swept": false,
       "team_count": 16,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "ned.1": {
       "espn_name": "Dutch Eredivisie",
@@ -772,7 +785,7 @@
       ],
       "swept": true,
       "team_count": 18,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "ned.2": {
       "espn_name": "Dutch Keuken Kampioen Divisie",
@@ -782,7 +795,7 @@
       ],
       "swept": true,
       "team_count": 20,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "ned.cup": {
       "espn_name": "Dutch KNVB Beker",
@@ -792,7 +805,7 @@
       ],
       "swept": true,
       "team_count": 64,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "ned.supercup": {
       "espn_name": "Dutch Johan Cruyff Shield",
@@ -801,7 +814,7 @@
       ],
       "swept": false,
       "team_count": 2,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "ned.w.1": {
       "espn_name": "Dutch Vrouwen Eredivisie",
@@ -810,7 +823,7 @@
       ],
       "swept": false,
       "team_count": 10,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "nga.1": {
       "espn_name": "Nigerian Professional League",
@@ -822,7 +835,7 @@
       ],
       "swept": true,
       "team_count": 20,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "nor.1": {
       "espn_name": "Norwegian Eliteserien",
@@ -831,7 +844,7 @@
       ],
       "swept": true,
       "team_count": 16,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "par.1": {
       "espn_name": "Paraguayan Primera División",
@@ -840,7 +853,7 @@
       ],
       "swept": true,
       "team_count": 12,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "per.1": {
       "espn_name": "Peruvian Liga 1",
@@ -849,7 +862,7 @@
       ],
       "swept": true,
       "team_count": 18,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "por.1": {
       "espn_name": "Portuguese Primeira Liga",
@@ -861,7 +874,7 @@
       ],
       "swept": true,
       "team_count": 18,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "por.taca.portugal": {
       "espn_name": "Taca de Portugal",
@@ -869,8 +882,8 @@
         "Taca de Portugal"
       ],
       "swept": true,
-      "team_count": 94,
-      "verified_on": "2026-08-28"
+      "team_count": 128,
+      "verified_on": "2026-09-02"
     },
     "rou.1": {
       "espn_name": "Romanian Liga 1",
@@ -881,7 +894,7 @@
       ],
       "swept": true,
       "team_count": 16,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "rsa.1": {
       "espn_name": "South African Premiership",
@@ -891,7 +904,7 @@
       ],
       "swept": true,
       "team_count": 16,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "rus.1": {
       "espn_name": "Russian Premier League",
@@ -901,7 +914,7 @@
       ],
       "swept": true,
       "team_count": 16,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "sco.1": {
       "espn_name": "Scottish Premiership",
@@ -911,7 +924,7 @@
       ],
       "swept": true,
       "team_count": 12,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "sco.2": {
       "espn_name": "Scottish Championship",
@@ -920,7 +933,7 @@
       ],
       "swept": false,
       "team_count": 10,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "sco.cis": {
       "espn_name": "Scottish League Cup",
@@ -929,7 +942,7 @@
       ],
       "swept": false,
       "team_count": 45,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "sco.tennents": {
       "espn_name": "Scottish Cup",
@@ -938,7 +951,7 @@
       ],
       "swept": false,
       "team_count": 102,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "slv.1": {
       "espn_name": "Salvadoran Primera Division",
@@ -947,7 +960,7 @@
       ],
       "swept": false,
       "team_count": 12,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "sui.1": {
       "espn_name": "Swiss Super League",
@@ -956,7 +969,7 @@
       ],
       "swept": true,
       "team_count": 12,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "swe.1": {
       "espn_name": "Swedish Allsvenskan",
@@ -965,7 +978,7 @@
       ],
       "swept": true,
       "team_count": 16,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "tha.1": {
       "espn_name": "Thai League 1",
@@ -975,7 +988,7 @@
       ],
       "swept": true,
       "team_count": 16,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "tur.1": {
       "espn_name": "Turkish Super Lig",
@@ -987,7 +1000,7 @@
       ],
       "swept": true,
       "team_count": 18,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "uefa.champions": {
       "espn_name": "UEFA Champions League",
@@ -998,14 +1011,14 @@
       ],
       "swept": true,
       "team_count": 36,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "uefa.champions_qual": {
       "espn_name": "UEFA Champions League Qualifying",
       "pinned_by": [],
       "swept": true,
       "team_count": 52,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "uefa.euro": {
       "espn_name": "UEFA European Championship",
@@ -1015,7 +1028,7 @@
       ],
       "swept": true,
       "team_count": 24,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "uefa.europa": {
       "espn_name": "UEFA Europa League",
@@ -1026,7 +1039,7 @@
       ],
       "swept": true,
       "team_count": 36,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "uefa.europa.conf": {
       "espn_name": "UEFA Conference League",
@@ -1037,21 +1050,21 @@
       ],
       "swept": true,
       "team_count": 36,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "uefa.europa.conf_qual": {
       "espn_name": "UEFA Conference League Qualifying",
       "pinned_by": [],
       "swept": true,
       "team_count": 153,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "uefa.europa_qual": {
       "espn_name": "UEFA Europa League Qualifying",
       "pinned_by": [],
       "swept": true,
       "team_count": 52,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "uefa.nations": {
       "espn_name": "UEFA Nations League",
@@ -1061,7 +1074,7 @@
       ],
       "swept": true,
       "team_count": 54,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "uefa.super_cup": {
       "espn_name": "UEFA Super Cup",
@@ -1070,7 +1083,7 @@
       ],
       "swept": false,
       "team_count": 2,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "uefa.w.nations": {
       "espn_name": "UEFA Women's Nations League",
@@ -1080,7 +1093,7 @@
       ],
       "swept": false,
       "team_count": 53,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "uefa.wchampions": {
       "espn_name": "UEFA Women's Champions League",
@@ -1090,7 +1103,7 @@
       ],
       "swept": false,
       "team_count": 18,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "uefa.weuro": {
       "espn_name": "UEFA Women's European Championship",
@@ -1100,7 +1113,7 @@
       ],
       "swept": false,
       "team_count": 16,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "uru.1": {
       "espn_name": "Liga AUF Uruguaya",
@@ -1110,7 +1123,7 @@
       ],
       "swept": true,
       "team_count": 16,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "usa.1": {
       "espn_name": "MLS",
@@ -1121,7 +1134,7 @@
       ],
       "swept": true,
       "team_count": 30,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "usa.nwsl": {
       "espn_name": "NWSL",
@@ -1130,7 +1143,7 @@
       ],
       "swept": true,
       "team_count": 16,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "usa.open": {
       "espn_name": "U.S. Open Cup",
@@ -1139,7 +1152,7 @@
       ],
       "swept": false,
       "team_count": 80,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     },
     "usa.usl.1": {
       "espn_name": "USL Championship",
@@ -1148,7 +1161,16 @@
       ],
       "swept": false,
       "team_count": 25,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
+    },
+    "usa.usl.l1": {
+      "espn_name": "USL League One",
+      "pinned_by": [
+        "USL League One"
+      ],
+      "swept": false,
+      "team_count": 17,
+      "verified_on": "2026-09-02"
     },
     "ven.1": {
       "espn_name": "Venezuelan Primera División",
@@ -1157,10 +1179,10 @@
       ],
       "swept": true,
       "team_count": 14,
-      "verified_on": "2026-08-28"
+      "verified_on": "2026-09-02"
     }
   },
-  "last_run": "2026-09-01",
+  "last_run": "2026-09-02",
   "probe": "GET http://site.api.espn.com/apis/site/v2/sports/soccer/<code>/teams; a code counts as live only with a non-empty team directory",
   "refuted": {},
   "verified_by": "scripts/simple/verify_espn_competition_map.py"

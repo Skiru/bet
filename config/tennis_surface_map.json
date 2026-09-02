@@ -1,0 +1,20 @@
+{
+  "_purpose": "Which surface each tennis competition is played on. Read by src/bet/simple_stats/analyze.py::tennis_surface, which drops a historical observation from a sample BEFORE hits, sample_size, mean, median and p_low are computed when that observation's surface differs from the surface of the fixture being priced. Sibling of config/tennis_match_format.json and read the same way.",
+  "_why": "On 2026-09-02 the only row on the entire 50,329-row sheet that beat its own price was Boulter-Muchova aces_total OVER 5.5 at 2.07 (p_low 0.6062, 15/18, sample median 10.5). All eight of Muchova's observations were Wimbledon and Bad Homburg -- grass -- and she had no hard-court match in the sample at all; Boulter's were five-ninths grass. Median match-total aces by surface from the tennis-abstract cache: Boulter hard 6.0 (n=41) against grass 9.0 (n=13); Muchova hard 5.0 (n=60) against grass 11.0 (n=16). The US Open is hard, so Superbet's 5.5 line sat exactly between the two players' hard-court medians -- its per-player ladder (Boulter O1.5 @ 2.40, Muchova O3.5 @ 1.65) devigs to centres of ~1.3 and ~3.8, summing to ~5.1 -- and our 10.5 was an artefact of a surface neither player was going to walk onto. A hard-court-only rebuild gave median 5.0, 10/20 over 5.5 and a minimum price of ~3.67 against the 2.07 on offer: a clearly negative bet presented as the day's best. It was caught by hand and removed with an analyst VETO, which fixed one row on one day and nothing else.",
+  "_rule": "Exact competition-name pin, matching EventRecord.competition as DISCOVER writes it -- never a name pattern and never an inference from the tournament city. An unlisted competition is unknown, and unknown filters nothing: the sample is scoped exactly as it was before this file existed. This is the same 'unknown is not degraded' rule scope_values already follows for competition_id and season_id.",
+  "_scope": "Surface is a property of the tournament, so ATP and WTA entries at the same venue share a surface and are still listed separately -- the same discipline tennis_match_format.json uses for best-of-five, and for the same reason: folding 'US Open' into one entry is how a men's draw comes to be priced off a women's sample. Only the three surfaces professional tennis is actually played on are recognised (Hard, Clay, Grass); providers.py::_KNOWN_SURFACES maps a provider's own spelling onto these and records anything else as None rather than inventing a fourth category.",
+  "_how_to_extend": "Read the surface off the provider's own historical rows for that competition rather than off a tournament's marketing. For tennis-abstract: the per-match `surf` field, which reaches ANALYZE as ProviderValue.surface. Record the verification date next to the entry. A competition played on more than one surface across seasons must be left unlisted rather than pinned to its most common one -- a wrong pin silently deletes real observations, which is worse than the leak this file closes.",
+  "surfaces": {
+    "ATP US Open": "Hard",
+    "WTA US Open": "Hard",
+    "ATP Australian Open": "Hard",
+    "WTA Australian Open": "Hard",
+    "ATP Roland Garros": "Clay",
+    "WTA Roland Garros": "Clay",
+    "ATP French Open": "Clay",
+    "WTA French Open": "Clay",
+    "ATP Wimbledon": "Grass",
+    "WTA Wimbledon": "Grass"
+  },
+  "_verified": "2026-09-02 -- the four Grand Slam surfaces are stable and are confirmed by the tennis-abstract cache itself: every 2026-06/07 Wimbledon row carries surf='Grass', every 2026-08 US Open series row surf='Hard', every 2026-05 Roland Garros row surf='Clay'."
+}

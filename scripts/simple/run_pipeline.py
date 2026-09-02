@@ -253,7 +253,11 @@ def main() -> None:
     )
     parser.add_argument("--run-id", default=None, help="Reuse an existing run id instead of minting one")
     parser.add_argument("--sports", default=None, help="Comma-separated (default: football,tennis)")
-    parser.add_argument("--max-events", type=int, default=40, help="Enrichment cap (default: 40)")
+    parser.add_argument(
+        "--max-events", type=int, default=None,
+        help="Enrichment cap (default: 40 on a fresh run; required explicitly "
+             "when resuming at a step that consumes it)",
+    )
     parser.add_argument(
         "--provider-call-budget", type=int, default=100,
         help="Per-provider ceiling inside this run (default: 100)",
@@ -312,6 +316,19 @@ def main() -> None:
 
     date = args.date or _utc_today()
     sports = [s.strip() for s in (args.sports or "football,tennis").split(",") if s.strip()]
+
+    # A resume must state its own breadth. ENRICH overwrites the dossier and
+    # SUPERBET/MARKET_CONTEXT cap how many fixtures they read, so resuming a
+    # 250-event day under a silent default of 40 rebuilds the dossier at a
+    # sixth of its size -- the sheet shrinks ~84% and nothing reports why.
+    # The first pass's breadth is not recoverable from a default, so ask.
+    if args.max_events is None:
+        if args.start_at in ("enrich", "market_context", "superbet"):
+            parser.error(
+                f"--start-at {args.start_at} requires an explicit --max-events: "
+                "the default of 40 would silently shrink a wider first pass"
+            )
+        args.max_events = 40
 
     if args.preflight:
         _preflight_only(sports, args)  # exits
@@ -445,15 +462,30 @@ def main() -> None:
                 )
                 out.summary(verdict="PRECONDITION_FAILED", metrics={"run_id": run_id, "date": date})
                 sys.exit(2)
-            argv = [STEP_SCRIPTS["analyze"], "--dossier", str(dossier), *common]
+            # The event list is the dossier's peer, not an optional column: it
+            # is the only source of competition names, and without them the
+            # best-of-five gate goes silently inert -- on 2026-09-01 that put
+            # ATP tautologies at the top of the sheet. DISCOVER always writes
+            # it, so the only way to get here without one is a resume in the
+            # wrong directory, which deserves the same hard stop as a missing
+            # dossier rather than a sheet that looks fine and is not.
+            if not event_list.exists():
+                out.error(
+                    f"cannot start at ANALYZE: {event_list} is missing -- without "
+                    "competition names the best-of-five gate is inert",
+                    recoverable=False,
+                )
+                out.summary(verdict="PRECONDITION_FAILED", metrics={"run_id": run_id, "date": date})
+                sys.exit(2)
+            argv = [
+                STEP_SCRIPTS["analyze"],
+                "--dossier", str(dossier),
+                "--event-list", str(event_list),
+                *common,
+            ]
             # Each absent unless its step actually wrote it, so a skipped or
             # failed optional step leaves ANALYZE exactly as it was before that
             # stage existed.
-            if event_list.exists():
-                # Competition names only, for the best-of-five gate. DISCOVER
-                # always writes this file, so on a full run the gate is live;
-                # a run starting at ANALYZE without it degrades to inert.
-                argv += ["--event-list", str(event_list)]
             if market_context.exists():
                 argv += ["--market-context", str(market_context)]
             if tipster_signal.exists():
@@ -496,8 +528,57 @@ def main() -> None:
                 market_context = Path(produced)
             elif name == "tipsters":
                 tipster_signal = Path(produced)
-            else:
+            elif name == "analyze":
+                # By name, not by elimination: SUPERBET sits between TIPSTERS
+                # and ANALYZE, and a catch-all here would adopt any
+                # ``output_path`` it ever grows as the day's stats sheet.
                 stats_sheet = produced
+
+        # SUPERBET's comparison, re-run against the sheet that actually shipped.
+        #
+        # Not a step in ``STEPS``, deliberately: it is the tail of ANALYZE, it
+        # takes no argument of its own, and it must never be addressable by
+        # ``--stop-after`` -- a run that stops before it produces a comparison
+        # describing a sheet nobody has.
+        #
+        # It exists because the first SUPERBET pass structurally cannot answer
+        # the question its own summary is read for. That pass runs *before*
+        # ANALYZE (it has to: ANALYZE consumes its offer), so the only sheet it
+        # can be handed is the one about to be overwritten. Measured on
+        # 2026-09-02: the comparison covered 8,958 rows over 56 events and the
+        # sheet that shipped had 12,300 over 78, so ``verdict_counts.VALUE``
+        # read 52 against 82 actually bettable -- 22 whole fixtures missing,
+        # and the number was quoted to the operator as the day's yield.
+        #
+        # ``--offer`` makes this free: no HTTP, no OddsPapi probe, no rewrite
+        # of the offer artifact. The prices are the ones ANALYZE priced against,
+        # which is the right vintage -- comparing the shipped sheet to a
+        # *newer* offer would reintroduce the same skew in the other direction.
+        if (
+            name == "analyze"
+            and stats_sheet
+            and superbet_offer.exists()
+            and verdict not in ("FAILED", "PRECONDITION_FAILED")
+        ):
+            compare_verdict, compare_metrics, compare_code = _run_step(
+                out,
+                "superbet_comparison",
+                [
+                    STEP_SCRIPTS["superbet"],
+                    "--event-list", str(event_list),
+                    "--offer", str(superbet_offer),
+                    "--stats-sheet", stats_sheet,
+                    *common,
+                ],
+                verbose=args.verbose,
+            )
+            step_results["superbet_comparison"] = {
+                "verdict": compare_verdict,
+                "exit_code": compare_code,
+                "output_path": compare_metrics.get("comparison_path"),
+                "persisted": compare_metrics.get("persisted"),
+                "metrics": compare_metrics,
+            }
 
         # DISCOVER/ENRICH failing means the next step has no input to read.
         # There is nothing to salvage by continuing, and continuing would spend
@@ -527,6 +608,17 @@ def main() -> None:
     }
     for name, result in step_results.items():
         metrics[f"{name}_metrics"] = result["metrics"]
+
+    # The three fields a reader is told to lead the run report with, hoisted to
+    # the top level of this summary. They were only ever reachable inside a
+    # nested step block, and only from a pass whose numbers described the wrong
+    # sheet -- so the operator either dug for them or quoted them stale. Absent
+    # here means SUPERBET did not run or ANALYZE produced no sheet; absent has
+    # never meant "empty" and still does not.
+    comparison_metrics = step_results.get("superbet_comparison", {}).get("metrics", {})
+    for field in ("markets_with_no_line_overlap", "verdict_counts", "value_rows"):
+        if field in comparison_metrics:
+            metrics[field] = comparison_metrics[field]
 
     # A machine-readable receipt for the whole run, next to the artifacts it
     # describes -- so a later session can reconstruct what happened without

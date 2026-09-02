@@ -168,9 +168,18 @@ def test_sitting_below_the_market_is_never_flagged():
 # --- what the gate does to the file ----------------------------------------
 
 
-def test_a_row_the_market_contradicts_loses_the_top_of_the_file():
-    """Both rows clear their minimum price, so before the gate the *wider*
-    disagreement led the file on surplus alone."""
+def test_a_wide_price_gap_keeps_its_rank_and_carries_the_warning():
+    """The per-rung gate annotates and no longer demotes, as of 2026-09-02.
+
+    It used to reorder these two, and that trade was the wrong way round: a
+    floor far above the book's devigged price at this row's own rung is what a
+    bet worth taking looks like from the inside, and against a 15-single cap
+    demoting it deletes it. On 2026-09-02 it took the day's one real row (WTA
+    aces_total 5.5 OVER at 2.07 vs a 1.8146 floor) off the end of the file.
+
+    Both rows still clear their minimum price, so surplus decides the order --
+    and the wider row still says ``needs_review`` and still carries its caveat.
+    """
     coupons = build_coupons(
         _sheet(
             _row(market="corners_total", line=9.5, p_low=0.60, p_central=0.80),
@@ -181,18 +190,18 @@ def test_a_row_the_market_contradicts_loses_the_top_of_the_file():
             # devigged 0.383 -- 0.417 under our own estimate, past the threshold
             _pair("corners_total", 9.5, under=2.50, over=1.55),
             # devigged 0.548 -- 0.152 under it, inside the threshold, and 1.90
-            # still clears the 1.833 this row's floor demands. Both rows are
-            # bettable on price; only one of them is a bet the book has not
-            # already priced against us.
+            # still clears the 1.833 this row's floor demands.
             _pair("cards_total", 4.5, under=1.90, over=2.30),
         ),
     )
-    assert [s.market for s in coupons.singles] == ["cards_total", "corners_total"]
-    assert coupons.singles[0].needs_review is False
-    assert coupons.singles[1].needs_review is True
+    assert [s.market for s in coupons.singles] == ["corners_total", "cards_total"]
+    assert coupons.singles[0].needs_review is True
+    assert coupons.singles[1].needs_review is False
+    assert any("rynek wycenia to znacznie niżej" in c
+               for c in coupons.singles[0].caveats)
 
 
-def test_a_flagged_row_is_demoted_and_never_dropped():
+def test_a_flagged_row_is_never_dropped():
     """Deleting it would hide the one class of row most worth a second look."""
     coupons = build_coupons(
         _sheet(_row(p_low=0.60)),
@@ -204,7 +213,10 @@ def test_a_flagged_row_is_demoted_and_never_dropped():
     assert coupons.singles[0].needs_review is True
 
 
-def test_a_flagged_row_says_so_in_its_own_caveats_and_in_the_header():
+def test_a_price_gap_says_so_in_the_row_but_not_in_the_header():
+    """The header note now belongs to the ladder gate alone, because that is
+    the only one that moves anything. A note claiming rows were pushed to the
+    end of the file, printed on a run where none were, is a false report."""
     coupons = build_coupons(
         _sheet(_row(p_low=0.60)),
         _events(_event()),
@@ -212,7 +224,7 @@ def test_a_flagged_row_says_so_in_its_own_caveats_and_in_the_header():
     )
     assert any("rynek wycenia to znacznie niżej" in c
                for c in coupons.singles[0].caveats)
-    assert any("sprawdź próbkę" in n.lower() for n in coupons.notes)
+    assert not any("zepchnięto na koniec listy" in n for n in coupons.notes)
 
 
 def test_the_threshold_is_the_published_constant():

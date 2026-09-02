@@ -419,6 +419,10 @@ _ESPN_FOOTBALL_COMPETITIONS = {
     "England National League": "eng.5", "Vanarama National League": "eng.5",
     "FA Cup": "eng.fa",
     "EFL Cup": "eng.league_cup", "Carabao Cup": "eng.league_cup",
+    # 64 teams, probed 2026-09-02. The cup for the third and fourth tiers plus
+    # Premier League under-21 sides, and it is not the FA Trophy (fifth tier
+    # and below), which ESPN does not serve at all.
+    "EFL Trophy": "eng.trophy",
     "WSL": "eng.w.1",
     "Women's Super League": "eng.w.1",
     "England Women's Super League": "eng.w.1",
@@ -441,13 +445,23 @@ _ESPN_FOOTBALL_COMPETITIONS = {
     "DFB Pokal": "ger.dfb_pokal", "German Cup": "ger.dfb_pokal",
     "DFL Supercup": "ger.super_cup",
     # --- Italy -----------------------------------------------------------
-    "Serie A": "ita.1", "Italy Serie A": "ita.1",
-    "Serie B": "ita.2", "Italy Serie B": "ita.2",
+    # Bare "Serie A"/"Serie B" are NOT here, same rule as "Super League" and
+    # "Superliga" below. Brazil's top two flights carry the same names, and on
+    # 2026-08-29 a bare "Serie A" fixture was Atletico-MG - Vitoria: Brazil,
+    # resolved to ita.1, where "inter" contains-matches "internacional" and a
+    # cross-country identity is one substring away. Italian fixtures arrive as
+    # "Serie A - Italy" or gain their country in DISCOVER's qualification.
+    "Italy Serie A": "ita.1",
+    "Italy Serie B": "ita.2",
     "Coppa Italia": "ita.coppa_italia",
     "Supercoppa Italiana": "ita.super_cup",
     # --- France ----------------------------------------------------------
-    "Ligue 1": "fra.1", "France Ligue 1": "fra.1",
-    "Ligue 2": "fra.2", "France Ligue 2": "fra.2",
+    # Bare "Ligue 1"/"Ligue 2" are NOT here: Algeria and Tunisia call their
+    # top flights the same, and the 2026-08-28/29 slates carried eight bare
+    # "Ligue 1" fixtures of which six were JS El Biar, US Biskra, US
+    # Monastirienne and company -- not France.
+    "France Ligue 1": "fra.1",
+    "France Ligue 2": "fra.2",
     "Coupe de France": "fra.coupe_de_france",
     "Trophee des Champions": "fra.super_cup",
     "Premiere Ligue": "fra.w.1", "D1 Arkema": "fra.w.1",
@@ -466,7 +480,10 @@ _ESPN_FOOTBALL_COMPETITIONS = {
     "Liga Portugal Betclic": "por.1", "Portugal Primeira Liga": "por.1",
     "Taca de Portugal": "por.taca.portugal",
     # --- Belgium ---------------------------------------------------------
-    "Pro League": "bel.1", "Jupiler Pro League": "bel.1",
+    # Bare "Pro League" is NOT here: Saudi Arabia, the UAE and Iran all name
+    # their top flight that, and the recent slates' bare "Pro League" rows
+    # were Abha, Al Wasl and Al Ain more often than Genk.
+    "Jupiler Pro League": "bel.1",
     "Belgium Jupiler Pro League": "bel.1",
     "Belgium Pro League": "bel.1", "Belgium First Division": "bel.1",
     "Belgium First Division A": "bel.1",
@@ -522,6 +539,8 @@ _ESPN_FOOTBALL_COMPETITIONS = {
     "Chile Primera Division": "chi.1",
     "Primera A": "col.1", "Categoria Primera A": "col.1",
     "Colombia Primera A": "col.1",
+    # 36 teams, probed 2026-09-02.
+    "Copa Colombia": "col.copa",
     "LigaPro": "ecu.1", "Ecuador Serie A": "ecu.1",
     "Peru Liga 1": "per.1",
     "Liga AUF Uruguaya": "uru.1", "Uruguay Primera Division": "uru.1",
@@ -537,6 +556,10 @@ _ESPN_FOOTBALL_COMPETITIONS = {
     "MLS": "usa.1", "Major League Soccer": "usa.1", "MLS Cup": "usa.1",
     "US Open Cup": "usa.open",
     "USL Championship": "usa.usl.1",
+    # A separate, lower division from the Championship above -- 17 teams,
+    # probed 2026-09-02. Pinning it to usa.usl.1 would have been the
+    # right-country-wrong-tier failure the division-marker gate exists for.
+    "USL League One": "usa.usl.l1",
     "NWSL": "usa.nwsl",
     "Liga MX": "mex.1", "Mexico Liga MX": "mex.1",
     "Liga de Expansion MX": "mex.2",
@@ -661,6 +684,14 @@ def _espn_name_signature(name: str) -> frozenset[str]:
     """
     folded = unicodedata.normalize("NFKD", name.casefold())
     folded = "".join(ch for ch in folded if not unicodedata.combining(ch))
+    # A possessive is not a token. Squashing punctuation first turns "Women's"
+    # into "women s", and that stray "s" is a token the same league written
+    # without the apostrophe does not have -- so "UEFA Women's Champions
+    # League" (pinned, signature {uefa, women, champions, league, s}) and the
+    # feed's "UEFA Champions League Women" ({uefa, women, champions, league})
+    # were two different keys for one competition. Nine fixtures on 2026-09-02
+    # lost ESPN over one letter.
+    folded = re.sub(r"['’]s\b", "", folded)
     spaced = " " + re.sub(r"[^a-z0-9]+", " ", folded).strip() + " "
     for phrase, atom in _ESPN_PHRASE_ALIASES:
         spaced = spaced.replace(f" {phrase} ", f" {atom} ")

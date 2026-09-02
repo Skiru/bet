@@ -15,6 +15,13 @@
         "reason": "INTERNATIONAL_FRIENDLY",
         "verified": "2026-09-01 via list_leagues: id 31, country International, name 'International Friendly Games'"
       }
+    },
+    "highlightly": {
+      "568401": {
+        "label": "Club friendlies",
+        "reason": "PRE_SEASON_FRIENDLY",
+        "verified": "2026-09-02 via runs/2026-09-02 dossiers: competition_id 568401 carried 124 observations over 25 unique (date, opponent) pairs, all in the pre-season and winter-break windows (2026-06..08, 2026-01..02). 2026-08-08 alone paired Sassuolo with Barcelona, FC Augsburg, Nottingham Forest and Stade Brestois 29 -- four countries on one date. Also Gornik Zabrze II vs Zbrojovka Brno II / Kromeriz II / Karvina II (Czech reserve winter friendlies), Hapoel Katamon Jerusalem, Petrolul Ploiesti, and Polish regional sides (Barycz Sulow, Carina Gubin, Hetman Zamosc). Zero league matches in the bucket. bzzoiro stamped the same fixtures as comp 79 and they were already dropped; highlightly's copies survived and entered samples for Gornik Zabrze II-Olimpia (38 observations) and Sassuolo-Frosinone (32)."
+      }
     }
   }
 }

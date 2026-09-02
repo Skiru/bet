@@ -14,7 +14,11 @@ from pathlib import Path
 
 from bet.stats.market_ranking import player_prop_lines, standard_market_lines
 
-from bet.simple_stats.providers import _normalize_team_name, _team_matches
+from bet.simple_stats.providers import (
+    _KNOWN_SURFACES,
+    _normalize_team_name,
+    _team_matches,
+)
 from bet.simple_stats.context_flags import context_flags_for_row
 from bet.simple_stats.offered_lines import (
     MAX_OFFERED_LINES_PER_SAMPLE,
@@ -35,10 +39,12 @@ from bet.simple_stats.contracts import (
 _CONFIG_DIR = Path(__file__).resolve().parents[3] / "config"
 _OBSERVATION_SCOPE_PATH = _CONFIG_DIR / "observation_scope.json"
 _TENNIS_FORMAT_PATH = _CONFIG_DIR / "tennis_match_format.json"
+_TENNIS_SURFACE_PATH = _CONFIG_DIR / "tennis_surface_map.json"
 _MARKET_PRIORS_PATH = _CONFIG_DIR / "market_priors.json"
 _CONFIG_LOCK = threading.Lock()
 _OBSERVATION_SCOPE_CACHE: dict[str, dict[str, str]] | None = None
 _TENNIS_FORMAT_CACHE: dict[str, str] | None = None
+_TENNIS_SURFACE_CACHE: dict[str, str] | None = None
 _MARKET_PRIORS_CACHE: dict[str, float] | None = None
 
 
@@ -110,6 +116,42 @@ def tennis_match_format(competition: str | None) -> str | None:
             if _TENNIS_FORMAT_CACHE is None:
                 _TENNIS_FORMAT_CACHE = cache
             cache = _TENNIS_FORMAT_CACHE
+    return cache.get(competition or "")
+
+
+def tennis_surface(competition: str | None) -> str | None:
+    """``"Hard"``, ``"Clay"``, ``"Grass"`` or None when unpinned.
+
+    None is deliberately not a guess. An unpinned competition filters nothing
+    and its samples are scoped exactly as they were before
+    ``config/tennis_surface_map.json`` existed -- the same rule
+    ``tennis_match_format`` above follows, and for the same reason: inferring a
+    surface from a tournament name is how a wrong pin would silently delete
+    real observations, which is worse than the leak the file closes.
+    """
+    global _TENNIS_SURFACE_CACHE
+    with _CONFIG_LOCK:
+        cache = _TENNIS_SURFACE_CACHE
+    if cache is None:
+        surfaces = _load_json(_TENNIS_SURFACE_PATH).get("surfaces") or {}
+        # Same guard, same reason as ``tennis_match_format``: a malformed
+        # config must leave this gate inert, not abort ANALYZE.
+        if not isinstance(surfaces, dict):
+            surfaces = {}
+        # Through the same table ``ProviderValue.surface`` is normalised by,
+        # because the two sides meet in an ``!=``: a config pin of "hard"
+        # taken verbatim would mismatch every correctly-surfaced observation
+        # and silently keep only the surface-unknown ones -- the opposite of
+        # the intent. An unknown spelling pins nothing, which is inert.
+        cache = {
+            str(name): canonical
+            for name, value in surfaces.items()
+            if (canonical := _KNOWN_SURFACES.get(str(value).strip().lower()))
+        }
+        with _CONFIG_LOCK:
+            if _TENNIS_SURFACE_CACHE is None:
+                _TENNIS_SURFACE_CACHE = cache
+            cache = _TENNIS_SURFACE_CACHE
     return cache.get(competition or "")
 
 
@@ -274,9 +316,11 @@ def shrunk_centre(values: list[float], market: str, venue: str | None = None) ->
 def reset_scope_caches() -> None:
     """Forget both cached config documents. For tests only."""
     global _OBSERVATION_SCOPE_CACHE, _TENNIS_FORMAT_CACHE, _MARKET_PRIORS_CACHE
+    global _TENNIS_SURFACE_CACHE
     with _CONFIG_LOCK:
         _OBSERVATION_SCOPE_CACHE = None
         _TENNIS_FORMAT_CACHE = None
+        _TENNIS_SURFACE_CACHE = None
         _MARKET_PRIORS_CACHE = None
 
 # STANDARD_MARKET_LINES' "stat" field uses the pre-existing (non-"_total")
@@ -645,11 +689,13 @@ def _season_sort_key(pv: ProviderValue) -> tuple[str, str]:
     return (_day_key(pv.match_date), pv.match_id)
 
 
-def scope_values(values: list[ProviderValue]) -> tuple[list[ProviderValue], dict[str, int]]:
+def scope_values(
+    values: list[ProviderValue], *, surface: str | None = None
+) -> tuple[list[ProviderValue], dict[str, int]]:
     """The observations that may enter a sample, and what was removed.
 
-    Two rules, counted separately because they answer different objections and
-    a reader of the sheet needs to know which one fired.
+    Three rules, counted separately because they answer different objections
+    and a reader of the sheet needs to know which one fired.
 
     **Out-of-scope competition** (``config/observation_scope.json``). A
     pre-season friendly is not a trial of the competition being priced: the
@@ -665,6 +711,16 @@ def scope_values(values: list[ProviderValue]) -> tuple[list[ProviderValue], dict
     25/26 observation sitting in a Serie A 26/27 sample goes -- on 2026-09-01
     that was seven of Parma's fourteen shots observations, six of thirteen for
     Al-Hilal's corners, and a Monza observation twelve and a half months old.
+
+    **Surface mismatch**, tennis only. A match on another surface is not a
+    trial of tonight's: on 2026-09-02 the sheet's only priced-through row was
+    Boulter-Muchova ``aces_total`` OVER 5.5 off a sample whose median was 10.5,
+    and every one of Muchova's eight observations was grass while the fixture
+    was hard. By surface those two players' hard-court median match total is
+    6.0 and 5.0 -- Superbet's 5.5 line -- against 9.0 and 11.0 on grass.
+    Requires both sides to be known: the fixture's surface comes from
+    ``tennis_surface(competition)`` and the observation's from
+    ``ProviderValue.surface``, and if either is None nothing is dropped.
 
     An observation missing either id is kept and counted against neither rule.
     Not knowing which competition a match belonged to is not evidence that it
@@ -712,20 +768,34 @@ def scope_values(values: list[ProviderValue]) -> tuple[list[ProviderValue], dict
         if target is not None and pv.season_id and pv.season_id != target:
             drop("STALE_SEASON")
             continue
+        # Surface last, so a row dropped for being last season is not also
+        # counted as a surface mismatch -- the counts are reported to the
+        # operator and must partition, not overlap.
+        if surface is not None and pv.surface is not None and pv.surface != surface:
+            drop("SURFACE_MISMATCH")
+            continue
         kept.append(pv)
     return kept, dropped
 
 
-def _scope_observation(obs: MetricObservation) -> tuple[MetricObservation, dict[str, int]]:
+def _scope_observation(
+    obs: MetricObservation, *, surface: str | None = None
+) -> tuple[MetricObservation, dict[str, int]]:
     """``scope_values`` over all three buckets of one metric, as one decision.
 
     The season target is computed across the buckets pooled, not per bucket:
     an h2h meeting from last season must be measured against the *sample's*
     current season, and a bucket holding only stale meetings would otherwise
     declare its own oldest season current and keep everything.
+
+    ``surface`` is the fixture's own surface, not the sample's. Unlike the
+    season target it cannot be inferred from the observations -- a sample that
+    is entirely grass would declare grass current and keep everything, which
+    is exactly the 2026-09-02 defect -- so it is passed in from
+    ``tennis_surface(competition)`` or left None.
     """
     pooled = [*obs.team_a_l10, *obs.team_b_l10, *obs.h2h]
-    kept, dropped = scope_values(pooled)
+    kept, dropped = scope_values(pooled, surface=surface)
     survivors = {(pv.provider, pv.match_id, pv.value) for pv in kept}
 
     def surviving(bucket: list[ProviderValue]) -> list[ProviderValue]:
@@ -756,26 +826,65 @@ _TENNIS_LENGTH_DEPENDENT_MARKETS = frozenset(
 )
 
 # A best-of-five match can run to four or five sets; a best-of-three cannot.
-# One observation at or above this proves the sample contains best-of-five
-# tennis, which is all the gate below needs to know.
 _BO5_MIN_SETS = 4.0
 
+# What share of a sample has to be four sets or longer before the sample is a
+# description of best-of-five tennis.
+#
+# This was ``any()`` -- one four-set match stood the gate down -- and that
+# inference is wrong at n=1. Measured on the 2026-09-02 ATP US Open slate: of
+# 21 ties, 10 were suppressed and 11 were not, and those 11 stood down on
+# samples of 1/10, 1/11, 1/13, 1/14, 2/10, 2/12, 2/16 and 2/19 long matches.
+# A sample that is 85-90% best-of-three still measures best-of-three, so
+# ``total_games`` / ``total_sets`` / ``aces_total`` / ``double_faults_total``
+# were measured over at most three sets and then priced against Superbet's
+# best-of-five ladder (games 30.5-39.5, sets 3.5/4.5). 78 of the day's 82
+# bettable rows were that one artifact, and the analyst removed them by hand
+# in 94 vetoes.
+#
+# A third, because that is roughly where the two populations separate rather
+# than a number picked for its roundness. A genuine best-of-five sample is
+# mostly best-of-five: a player whose last ten are Grand Slam matches runs
+# 40-70% four-or-five-set, while the observed false stand-downs above top out
+# at 2/10 = 20%. Every one of the 21 ties on that slate suppresses at this
+# threshold; a player who has actually been playing five-set tennis still
+# clears it comfortably.
+#
+# Deliberately *not* also requiring a minimum sample size. The share is the
+# claim, and a small sample that is entirely four-set matches is the best
+# evidence available that this is best-of-five tennis -- while a small sample
+# that is not gets suppressed, which is the safe direction.
+_BO5_MIN_LONG_MATCH_SHARE = 1.0 / 3.0
 
-def _sample_is_best_of_five(dossier: EventDossierV1) -> bool:
-    """Whether this fixture's own sample contains any best-of-five match.
+
+def _sample_is_best_of_five(
+    dossier: EventDossierV1, *, surface: str | None = None
+) -> bool:
+    """Whether this fixture's own sample is *drawn from* best-of-five tennis.
 
     Read off ``total_sets`` -- the one metric that states match length directly
     -- rather than inferred from game counts, which a long best-of-three can
     fake. No observation of it at all answers False: a sample that cannot show
     a four-set match is not a sample of best-of-five tennis.
+
+    The share is measured on the sample as ``scope_values`` admits it -- same
+    surface, same competition pins, same season rule -- because that is the
+    sample the rows are priced from. Judged on the raw sample instead, four
+    grass BO5 matches can stand the gate down while the surface rule deletes
+    exactly those four from pricing, and the surviving hard-court BO3 sample
+    meets the BO5 ladder unguarded -- the 2026-09-02 artifact reintroduced.
     """
     obs = dossier.metrics.get("total_sets")
     if obs is None:
         return False
-    return any(
-        pv.value >= _BO5_MIN_SETS
-        for pv in (*obs.team_a_l10, *obs.team_b_l10, *obs.h2h)
+    kept, _ = scope_values(
+        [*obs.team_a_l10, *obs.team_b_l10, *obs.h2h], surface=surface
     )
+    values = [pv.value for pv in kept]
+    if not values:
+        return False
+    long_matches = sum(1 for value in values if value >= _BO5_MIN_SETS)
+    return long_matches / len(values) >= _BO5_MIN_LONG_MATCH_SHARE
 
 
 # How many *matches* in a sample a second provider has to have reported before
@@ -1141,6 +1250,7 @@ def _rows_for_sample(
     player_name: str | None = None,
     lineup_status: str | None = None,
     line_limit: int | None = None,
+    offered_sides: dict[str, frozenset[float]] | None = None,
     sample_excluded: dict[str, int] | None = None,
     venue: str | None = None,
 ) -> list[StatsSheetRow]:
@@ -1195,6 +1305,11 @@ def _rows_for_sample(
     # that means nothing.
     for line in select_lines(lines, median=median, limit=line_limit):
         for direction in ("OVER", "UNDER"):
+            # A rung the book posts on one side only. ``offered_sides`` is None
+            # for the static grid, which claims nothing about availability and
+            # is priced both ways exactly as before.
+            if offered_sides is not None and float(line) not in offered_sides[direction]:
+                continue
             hits, sample_size, pushes = compute_hit_rate(values, float(line), direction)
             if sample_size == 0:
                 continue
@@ -1264,14 +1379,23 @@ def _resolve_lines(
     static: list[float],
     team_name: str | None = None,
     player_name: str | None = None,
-) -> tuple[list[float], int | None]:
-    """``(lines, limit)`` for one sample: the book's ladder, or the static grid.
+) -> tuple[list[float], int | None, dict[str, frozenset[float]] | None]:
+    """``(lines, limit, by_direction)`` for one sample: the book's ladder, or
+    the static grid.
 
     The whole inversion described in ``offered_lines`` lands here. When a
     SUPERBET offer is loaded and carries this exact (event, market, side,
     player), those are the lines that get priced -- because they are the only
     lines the operator can take. Otherwise the static grid, unchanged and
     untrimmed, so a run with no SUPERBET step produces the sheet it always did.
+
+    ``by_direction`` is which side of each rung the book will actually take,
+    and is None for the static grid (which makes no claim either way, so both
+    sides are priced exactly as they always were). A rung the book quotes
+    one-sided is a real thing and not rare -- ``red_cards_total`` 1.5 is
+    routinely OVER-only, because "under 1.5 red cards" is a 1.02 shot nobody
+    posts -- and pricing the missing side produces a row that cannot be taken
+    at any price.
     """
     if offered is not None:
         posted = offered.lines_for(
@@ -1279,8 +1403,17 @@ def _resolve_lines(
             team_name=team_name, player_name=player_name,
         )
         if posted:
-            return (list(posted), MAX_OFFERED_LINES_PER_SAMPLE)
-    return (list(static), None)
+            sides = {
+                direction: frozenset(
+                    offered.lines_for(
+                        event_id=event_id, market=market, team_name=team_name,
+                        player_name=player_name, direction=direction,
+                    ) or ()
+                )
+                for direction in ("OVER", "UNDER")
+            }
+            return (list(posted), MAX_OFFERED_LINES_PER_SAMPLE, sides)
+    return (list(static), None, None)
 
 
 def _match_total_rows(
@@ -1288,6 +1421,7 @@ def _match_total_rows(
     offered: OfferedLines | None = None,
     *,
     suppressed_markets: frozenset[str] = frozenset(),
+    surface: str | None = None,
 ) -> list[StatsSheetRow]:
     rows: list[StatsSheetRow] = []
     for market_def in standard_market_lines().get(dossier.sport, []):
@@ -1299,8 +1433,8 @@ def _match_total_rows(
         obs = dossier.metrics.get(canonical)
         if obs is None:
             continue
-        obs, sample_excluded = _scope_observation(obs)
-        lines, limit = _resolve_lines(
+        obs, sample_excluded = _scope_observation(obs, surface=surface)
+        lines, limit, offered_sides = _resolve_lines(
             offered, event_id=dossier.event_id, market=canonical,
             static=market_def["lines"],
         )
@@ -1310,6 +1444,7 @@ def _match_total_rows(
                 canonical=canonical,
                 lines=lines,
                 line_limit=limit,
+                offered_sides=offered_sides,
                 observations=_all_values(obs),
                 independent=_independent_match_sample(
                     obs, dossier.team_a_name, dossier.team_b_name, dossier.sport
@@ -1325,6 +1460,7 @@ def _team_total_rows(
     offered: OfferedLines | None = None,
     *,
     suppressed_markets: frozenset[str] = frozenset(),
+    surface: str | None = None,
 ) -> list[StatsSheetRow]:
     """Per-team rows: one team's own contribution, not the match total.
 
@@ -1370,10 +1506,10 @@ def _team_total_rows(
             # two sides are never merged here (see the docstring) and must not
             # be merged by the scope filter either -- one side's cup run would
             # otherwise decide what counts as current for the other.
-            bucket, sample_excluded = scope_values(raw_bucket)
+            bucket, sample_excluded = scope_values(raw_bucket, surface=surface)
             if not bucket:
                 continue
-            lines, limit = _resolve_lines(
+            lines, limit, offered_sides = _resolve_lines(
                 offered, event_id=dossier.event_id, market=canonical,
                 static=market_def["lines"], team_name=team_name,
             )
@@ -1383,6 +1519,7 @@ def _team_total_rows(
                     canonical=canonical,
                     lines=lines,
                     line_limit=limit,
+                    offered_sides=offered_sides,
                     observations=_dedup(bucket),
                     independent=_one_per_day(bucket, dossier.sport),
                     team_name=team_name,
@@ -1415,6 +1552,7 @@ def _player_prop_rows(
     offered: OfferedLines | None = None,
     *,
     suppressed_markets: frozenset[str] = frozenset(),
+    surface: str | None = None,
 ) -> list[StatsSheetRow]:
     """Per-player rows from ``dossier.player_metrics``.
 
@@ -1439,10 +1577,10 @@ def _player_prop_rows(
         if canonical in suppressed_markets:
             continue
         for observation in by_stat.get(canonical, []):
-            l10, sample_excluded = scope_values(observation.l10)
+            l10, sample_excluded = scope_values(observation.l10, surface=surface)
             if not l10:
                 continue
-            lines, limit = _resolve_lines(
+            lines, limit, offered_sides = _resolve_lines(
                 offered, event_id=dossier.event_id, market=canonical,
                 static=market_def["lines"], player_name=observation.player_name,
             )
@@ -1452,6 +1590,7 @@ def _player_prop_rows(
                     canonical=canonical,
                     lines=lines,
                     line_limit=limit,
+                    offered_sides=offered_sides,
                     observations=_dedup(l10),
                     independent=_one_per_day(l10, dossier.sport),
                     team_name=side_names.get(observation.team_side),
@@ -1484,15 +1623,16 @@ def suppressed_markets_for(
     A measurement of a tautology is not weak evidence; it is not evidence.
 
     Both halves must be known for the gate to fire. An unpinned competition
-    (``tennis_match_format`` returns None) suppresses nothing, and a sample that
-    does contain a four- or five-set match is a best-of-five sample and is left
-    entirely alone.
+    (``tennis_match_format`` returns None) suppresses nothing, and a sample a
+    third of which ran to four sets or longer is a best-of-five sample and is
+    left entirely alone -- see ``_BO5_MIN_LONG_MATCH_SHARE`` for why a *share*
+    and not a single observation.
     """
     if dossier.sport != "tennis":
         return frozenset()
     if tennis_match_format(competition) != "BO5":
         return frozenset()
-    if _sample_is_best_of_five(dossier):
+    if _sample_is_best_of_five(dossier, surface=tennis_surface(competition)):
         return frozenset()
     return _TENNIS_LENGTH_DEPENDENT_MARKETS
 
@@ -1528,10 +1668,13 @@ def analyze_dossier(
     if dossier.readiness == "BLOCKED":
         return []
     suppressed = suppressed_markets_for(dossier, competition)
+    # Football never pins a surface, so this is None for every football
+    # fixture and the surface rule inside ``scope_values`` stays inert there.
+    surface = tennis_surface(competition) if dossier.sport == "tennis" else None
     return [
-        *_match_total_rows(dossier, offered, suppressed_markets=suppressed),
-        *_team_total_rows(dossier, offered, suppressed_markets=suppressed),
-        *_player_prop_rows(dossier, offered, suppressed_markets=suppressed),
+        *_match_total_rows(dossier, offered, suppressed_markets=suppressed, surface=surface),
+        *_team_total_rows(dossier, offered, suppressed_markets=suppressed, surface=surface),
+        *_player_prop_rows(dossier, offered, suppressed_markets=suppressed, surface=surface),
     ]
 
 
