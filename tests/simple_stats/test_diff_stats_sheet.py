@@ -74,6 +74,64 @@ def test_added_removed_and_changed_rows_are_each_reported(diff_mod):
     assert diff["changed"] == [diff_mod._row_key(changed_in_current)]
 
 
+def test_the_net_catches_a_change_to_a_field_that_is_not_p_low(diff_mod):
+    """The hole this closes, 2026-09-02.
+
+    ``_index`` returned ``row.p_low`` alone, so the Faza 0 safety net was blind
+    to most of what it exists to protect. Two of the three numbers the coupon's
+    gates read are not ``p_low``: ``over_disagreement`` compares ``p_central``
+    and ``ladder_sigma`` divides by ``dispersion``. A release that moved either
+    while leaving ``p_low`` alone replayed "clean" -- and so did adding a
+    field: ``venue`` landed on 528 rows of the frozen fixture and the diff
+    reported no change at all.
+
+    Parametrised over the fields whose movement actually changes a coupon
+    decision, because pinning one of them would leave the others unguarded
+    again the moment somebody adds the next column.
+    """
+    from bet.simple_stats.contracts import StatsSheetRow, StatsSheetV1
+
+    base_row = dict(
+        event_id="evt-1", sport="football", market="corners_for", line=4.5,
+        direction="UNDER", team_name="Sheffield United", hits=5, sample_size=5,
+        hit_rate=1.0, p_low=0.5655, p_central=0.845, mean=2.8, median=3.0,
+        dispersion=2.8 ** 0.5, shrunk_mean=4.09, venue="home",
+        sources=["bzzoiro"], cross_provider_agreement="SINGLE_SOURCE",
+        confidence="MEDIUM", data_quality="READY",
+    )
+
+    def _sheet(**overrides):
+        return StatsSheetV1(
+            run_id="RID-1", date="2026-08-31",
+            generated_at="2026-08-31T00:00:00+00:00",
+            rows=[StatsSheetRow(**{**base_row, **overrides})],
+        )
+
+    baseline = _sheet()
+    for field, moved in (
+        ("p_central", 0.60),          # the disagreement gate's input
+        ("dispersion", 9.9),          # the ladder gate's divisor
+        ("shrunk_mean", 2.80),        # what the price was computed from
+        ("venue", "away"),            # which prior it shrank toward
+        ("mean", 3.9),                # the evidence a reader checks
+        ("hits", 4),                  # the trial count itself
+        ("corroborated_matches", 3),  # what buys CALL
+        ("confidence", "LOW"),
+    ):
+        diff = diff_mod.diff_sheets(baseline, _sheet(**{field: moved}))
+        assert diff["changed"], f"a change to {field} replayed clean"
+        assert diff_mod.changed_fields(baseline, _sheet(**{field: moved})) == {field: 1}
+
+
+def test_columns_attached_after_analyze_are_excluded_by_name(diff_mod):
+    """``superbet``/``tipster``/``market_signal`` come from artifacts this
+    script never loads, so they are None on both sides and comparing them
+    would only ever compare None to None. Excluded by an explicit list rather
+    than by the comparison happening to enumerate the other fields -- which is
+    what let ``venue`` slip through."""
+    assert diff_mod._NOT_PRODUCED_BY_ANALYZE == {"superbet", "tipster", "market_signal"}
+
+
 def test_a_duplicate_key_is_a_hard_error_not_a_silent_overwrite(diff_mod):
     """Two rows sharing (event_id, market, line, direction, team_name,
     player_name) would mean analyze_dossiers emitted two rows for the same

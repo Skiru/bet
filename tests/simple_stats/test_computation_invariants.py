@@ -620,6 +620,95 @@ def test_the_thin_uncorroborated_category_is_not_a_losing_one():
     assert tier_for_row(row(12, "DISAGREE")) == "LEAN"
 
 
+def test_p_low_never_exceeds_p_central():
+    """The bound must never sit above the estimate it bounds.
+
+    Both instruments make this true separately -- ``count_model_bound`` pushes
+    the centre 1.96 standard errors *against* the bet, and for the excluded
+    percentage markets ``p_low`` is the Wilson lower bound of a fraction whose
+    point estimate is ``hits/sample_size`` -- so the invariant holds by
+    construction on either path. It is asserted because the two paths are
+    chosen by a set membership test (``_COUNT_MARKETS_EXCLUDED``) and a market
+    added to the wrong side of it would break the ordering silently, which
+    ``over_disagreement`` reads: it compares ``p_central`` to the book, and a
+    ``p_central`` below ``p_low`` would understate every disagreement.
+
+    Probed over 116,968 rows of five real rebuilt slates with no violation;
+    kept here as a property so a synthetic edge case cannot reintroduce it.
+    """
+    from bet.simple_stats.analyze import count_model_bound, count_model_central
+
+    samples = (
+        [2.0, 4.0, 3.0, 2.0, 3.0],
+        [0.0, 0.0, 0.0],
+        [11.0, 13.0, 12.0],
+        [1.0],
+        [0.0, 25.0],
+    )
+    for values in samples:
+        for line in (0.5, 1.0, 2.5, 4.5, 9.0, 12.5, 30.5):
+            for direction in ("OVER", "UNDER"):
+                bound = count_model_bound(values, line, direction)
+                central = count_model_central(values, line, direction)
+                assert bound <= central + 1e-12, (values, line, direction)
+                assert 0.0 <= bound <= 1.0 and 0.0 <= central <= 1.0
+
+
+def test_the_venue_is_recorded_exactly_where_it_selects_a_prior():
+    """``row.venue`` exists so the price is auditable from the artifact alone,
+    which means it must be present whenever it changed the price and absent
+    whenever it did not.
+
+    Set on football per-team ``*_for`` rows and nowhere else: a match total has
+    no venue of its own (every match has one home side and one away side), no
+    tennis market has a measured split, and a player prop's history carries no
+    venue at all. A row carrying a venue that selected nothing would read as an
+    explanation for a number it did not touch.
+    """
+    from bet.simple_stats.analyze import analyze_dossier
+    from bet.simple_stats.contracts import (
+        EventDossierV1,
+        MetricObservation,
+        ProviderValue,
+    )
+
+    def observations(name):
+        return [
+            ProviderValue(
+                provider="bzzoiro", match_id=f"m{i}", match_date=f"2026-08-{10+i:02d}",
+                opponent=f"Opp {i}", value=float(3 + (i % 3)),
+                observed_at="2026-09-01T00:00:00+00:00",
+            )
+            for i in range(8)
+        ]
+
+    dossier = EventDossierV1(
+        event_id="e", sport="football", readiness="READY",
+        team_a_name="Sheffield United", team_b_name="Bolton Wanderers",
+        metrics={
+            name: MetricObservation(
+                canonical_name=name,
+                team_a_l10=observations(name), team_b_l10=observations(name),
+            )
+            for name in ("corners_for", "corners_total")
+        },
+    )
+    rows = analyze_dossier(dossier)
+    assert rows, "no rows produced"
+    for row in rows:
+        expected = (
+            row.sport == "football"
+            and row.team_name is not None
+            and row.player_id is None
+            and row.market.endswith("_for")
+        )
+        if expected:
+            assert row.venue in ("home", "away"), (row.market, row.team_name)
+            assert row.venue == ("home" if row.team_name == "Sheffield United" else "away")
+        else:
+            assert row.venue is None, (row.market, row.team_name)
+
+
 # --- one policy constant, not six copies ------------------------------------
 
 

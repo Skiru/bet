@@ -1,6 +1,6 @@
 {
   "date": "2026-08-31",
-  "generated_at": "2026-09-02T06:33:32.711816+00:00",
+  "generated_at": "2026-09-02T07:10:05.154116+00:00",
   "rows": [
     {
       "confidence": "HIGH",
@@ -33,7 +33,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -66,7 +67,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -99,7 +101,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -132,7 +135,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -165,7 +169,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -199,7 +204,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -232,7 +238,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -266,7 +273,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -299,7 +307,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "IFK Mariehamn",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -332,7 +341,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Jaro",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -365,7 +375,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "IFK Mariehamn",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -398,7 +409,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "IFK Mariehamn",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -432,7 +444,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -465,7 +478,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -498,7 +512,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -531,7 +546,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Aston Villa",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -564,7 +580,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "CA Osasuna",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -597,7 +614,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Djurgardens IF",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -630,7 +648,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Djurgardens IF",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -663,7 +682,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Djurgardens IF",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -697,7 +717,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -730,7 +751,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -763,7 +785,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -796,7 +819,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "AS Roma",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -829,7 +853,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Ilves Tampere",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -862,7 +887,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "HJK Helsinki",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -895,7 +921,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Ilves Tampere",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -928,7 +955,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Ilves Tampere",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -961,7 +989,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -994,7 +1023,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -1035,7 +1065,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -1068,7 +1099,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "CA Osasuna",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -1102,7 +1134,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -1135,7 +1168,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -1168,7 +1202,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Djurgardens IF",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "MEDIUM",
@@ -1201,7 +1236,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Mj\u00e4llby AIF",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -1235,7 +1271,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -1276,7 +1313,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -1310,7 +1348,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -1344,7 +1383,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -1377,7 +1417,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -1410,7 +1451,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -1443,7 +1485,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -1476,7 +1519,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -1510,7 +1554,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -1543,7 +1588,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -1583,7 +1629,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Arsenal",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -1616,7 +1663,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Arsenal",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -1649,7 +1697,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "AS Roma",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -1683,7 +1732,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -1717,7 +1767,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -1751,7 +1802,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -1784,7 +1836,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "IFK Mariehamn",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -1817,7 +1870,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Jaro",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -1850,7 +1904,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "IFK Mariehamn",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -1883,7 +1938,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "IFK Mariehamn",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -1916,7 +1972,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Jaro",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -1949,7 +2006,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Jaro",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -1982,7 +2040,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "MEDIUM",
@@ -2015,7 +2074,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Mj\u00e4llby AIF",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -2049,7 +2109,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -2082,7 +2143,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -2116,7 +2178,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -2150,7 +2213,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -2184,7 +2248,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -2218,7 +2283,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -2251,7 +2317,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -2284,7 +2351,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "MEDIUM",
@@ -2317,7 +2385,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Getafe",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "MEDIUM",
@@ -2350,7 +2419,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Getafe",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "MEDIUM",
@@ -2383,7 +2453,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Getafe",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "MEDIUM",
@@ -2416,7 +2487,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Getafe",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -2449,7 +2521,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Aston Villa",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -2482,7 +2555,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Aston Villa",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -2522,7 +2596,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "AS Roma",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -2555,7 +2630,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "AS Roma",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -2588,7 +2664,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "AS Roma",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -2621,7 +2698,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Djurgardens IF",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -2654,7 +2732,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Djurgardens IF",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -2687,7 +2766,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Djurgardens IF",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -2721,7 +2801,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -2755,7 +2836,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -2788,7 +2870,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -2821,7 +2904,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -2854,7 +2938,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -2888,7 +2973,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -2921,7 +3007,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -2954,7 +3041,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -2987,7 +3075,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -3020,7 +3109,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "LOW",
@@ -3061,7 +3151,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -3094,7 +3185,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Arsenal",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -3135,7 +3227,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -3168,7 +3261,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -3201,7 +3295,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "IFK Mariehamn",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -3234,7 +3329,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Ilves Tampere",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -3267,7 +3363,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "HJK Helsinki",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -3300,7 +3397,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Ilves Tampere",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -3333,7 +3431,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "HJK Helsinki",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -3366,7 +3465,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "HJK Helsinki",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -3399,7 +3499,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "HJK Helsinki",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -3432,7 +3533,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "HJK Helsinki",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -3465,7 +3567,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "IFK Mariehamn",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -3498,7 +3601,8 @@
       "sport": "tennis",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -3531,7 +3635,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -3564,7 +3669,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -3597,7 +3703,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "LOW",
@@ -3630,7 +3737,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Aston Villa",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "LOW",
@@ -3663,7 +3771,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Lecce",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "LOW",
@@ -3703,7 +3812,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Lecce",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "LOW",
@@ -3743,7 +3853,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Lecce",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "LOW",
@@ -3776,7 +3887,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Lecce",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "LOW",
@@ -3809,7 +3921,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "CA Osasuna",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "LOW",
@@ -3842,7 +3955,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "CA Osasuna",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -3876,7 +3990,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -3910,7 +4025,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -3951,7 +4067,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -3992,7 +4109,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -4026,7 +4144,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "LOW",
@@ -4059,7 +4178,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Aston Villa",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -4092,7 +4212,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -4125,7 +4246,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -4158,7 +4280,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -4191,7 +4314,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -4224,7 +4348,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Ilves Tampere",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "MEDIUM",
@@ -4257,7 +4382,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Getafe",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -4290,7 +4416,8 @@
       "sport": "tennis",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -4323,7 +4450,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Aston Villa",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -4356,7 +4484,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Arsenal",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -4389,7 +4518,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Arsenal",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -4422,7 +4552,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Arsenal",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -4455,7 +4586,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Arsenal",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -4495,7 +4627,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Arsenal",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -4535,7 +4668,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "AS Roma",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -4575,7 +4709,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "AS Roma",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -4609,7 +4744,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -4643,7 +4779,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "MEDIUM",
@@ -4683,7 +4820,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Lecce",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "MEDIUM",
@@ -4716,7 +4854,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Lecce",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "MEDIUM",
@@ -4749,7 +4888,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Mj\u00e4llby AIF",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "MEDIUM",
@@ -4782,7 +4922,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Mj\u00e4llby AIF",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "MEDIUM",
@@ -4815,7 +4956,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Mj\u00e4llby AIF",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "MEDIUM",
@@ -4848,7 +4990,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Mj\u00e4llby AIF",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -4882,7 +5025,8 @@
       "sport": "tennis",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -4915,7 +5059,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "IFK Mariehamn",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -4949,7 +5094,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -4982,7 +5128,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Jaro",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -5016,7 +5163,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -5049,7 +5197,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -5082,7 +5231,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -5115,7 +5265,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -5148,7 +5299,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -5181,7 +5333,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Ilves Tampere",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -5214,7 +5367,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -5247,7 +5401,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -5280,7 +5435,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Djurgardens IF",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -5314,7 +5470,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -5347,7 +5504,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "HJK Helsinki",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -5381,7 +5539,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -5414,7 +5573,8 @@
       "sport": "tennis",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -5447,7 +5607,8 @@
       "sport": "tennis",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -5480,7 +5641,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Aston Villa",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -5513,7 +5675,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Arsenal",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -5546,7 +5709,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "CA Osasuna",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -5579,7 +5743,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "CA Osasuna",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -5612,7 +5777,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "CA Osasuna",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -5645,7 +5811,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Djurgardens IF",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -5678,7 +5845,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Djurgardens IF",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -5711,7 +5879,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -5751,7 +5920,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "AS Roma",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -5792,7 +5962,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -5826,7 +5997,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -5860,7 +6032,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -5893,7 +6066,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -5926,7 +6100,8 @@
       "sport": "tennis",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -5959,7 +6134,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -5992,7 +6168,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -6025,7 +6202,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -6058,7 +6236,8 @@
       "sport": "tennis",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -6091,7 +6270,8 @@
       "sport": "tennis",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "MEDIUM",
@@ -6124,7 +6304,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Getafe",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "MEDIUM",
@@ -6157,7 +6338,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "HJK Helsinki",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -6190,7 +6372,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "HJK Helsinki",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -6223,7 +6406,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Arsenal",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "LOW",
@@ -6256,7 +6440,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "CA Osasuna",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -6296,7 +6481,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "AS Roma",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -6337,7 +6523,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -6378,7 +6565,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -6411,7 +6599,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Arsenal",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "LOW",
@@ -6444,7 +6633,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "CA Osasuna",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -6477,7 +6667,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -6511,7 +6702,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -6544,7 +6736,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -6577,7 +6770,8 @@
       "sport": "tennis",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -6610,7 +6804,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -6643,7 +6838,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -6676,7 +6872,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Jaro",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -6709,7 +6906,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Ilves Tampere",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -6742,7 +6940,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Ilves Tampere",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -6775,7 +6974,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Ilves Tampere",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -6808,7 +7008,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Ilves Tampere",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -6841,7 +7042,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "HJK Helsinki",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -6874,7 +7076,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -6907,7 +7110,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "LOW",
@@ -6940,7 +7144,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Lecce",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -6973,7 +7178,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Djurgardens IF",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "MEDIUM",
@@ -7006,7 +7212,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "MEDIUM",
@@ -7039,7 +7246,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Getafe",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -7072,7 +7280,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "LOW",
@@ -7105,7 +7314,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "CA Osasuna",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -7145,7 +7355,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Arsenal",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -7178,7 +7389,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Arsenal",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -7211,7 +7423,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "AS Roma",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -7245,7 +7458,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -7278,7 +7492,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "IFK Mariehamn",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -7311,7 +7526,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "IFK Mariehamn",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -7344,7 +7560,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Jaro",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -7377,7 +7594,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Jaro",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -7410,7 +7628,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Jaro",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -7443,7 +7662,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Jaro",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -7476,7 +7696,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Jaro",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -7509,7 +7730,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Jaro",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -7542,7 +7764,8 @@
       "sport": "tennis",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -7575,7 +7798,8 @@
       "sport": "tennis",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -7608,7 +7832,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -7642,7 +7867,8 @@
       "sport": "tennis",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -7675,7 +7901,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "AS Roma",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -7708,7 +7935,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "HJK Helsinki",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -7741,7 +7969,8 @@
       "sport": "tennis",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -7775,7 +8004,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -7809,7 +8039,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -7842,7 +8073,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "LOW",
@@ -7876,7 +8108,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -7917,7 +8150,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -7950,7 +8184,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -7983,7 +8218,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -8016,7 +8252,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -8056,7 +8293,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -8089,7 +8327,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -8123,7 +8362,8 @@
       "sport": "tennis",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -8156,7 +8396,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "IFK Mariehamn",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "LOW",
@@ -8197,7 +8438,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -8230,7 +8472,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Djurgardens IF",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -8263,7 +8506,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Djurgardens IF",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -8303,7 +8547,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "AS Roma",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "MEDIUM",
@@ -8336,7 +8581,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Getafe",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -8369,7 +8615,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -8409,7 +8656,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Arsenal",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -8442,7 +8690,8 @@
       "sport": "tennis",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -8475,7 +8724,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "HJK Helsinki",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -8508,7 +8758,8 @@
       "sport": "tennis",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -8542,7 +8793,8 @@
       "sport": "tennis",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -8575,7 +8827,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "HJK Helsinki",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -8608,7 +8861,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -8641,7 +8895,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "LOW",
@@ -8681,7 +8936,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Lecce",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -8715,7 +8971,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -8748,7 +9005,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -8781,7 +9039,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -8814,7 +9073,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "AS Roma",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "MEDIUM",
@@ -8854,7 +9114,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Lecce",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "MEDIUM",
@@ -8887,7 +9148,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Lecce",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "MEDIUM",
@@ -8920,7 +9182,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Mj\u00e4llby AIF",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "MEDIUM",
@@ -8953,7 +9216,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Mj\u00e4llby AIF",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "MEDIUM",
@@ -8986,7 +9250,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Mj\u00e4llby AIF",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "MEDIUM",
@@ -9019,7 +9284,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Mj\u00e4llby AIF",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -9053,7 +9319,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -9086,7 +9353,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -9119,7 +9387,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "IFK Mariehamn",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -9152,7 +9421,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "CA Osasuna",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -9185,7 +9455,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Djurgardens IF",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -9218,7 +9489,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Djurgardens IF",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -9251,7 +9523,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "MEDIUM",
@@ -9284,7 +9557,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Mj\u00e4llby AIF",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -9317,7 +9591,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "HJK Helsinki",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -9351,7 +9626,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "MEDIUM",
@@ -9391,7 +9667,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Lecce",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -9424,7 +9701,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Arsenal",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -9457,7 +9735,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -9490,7 +9769,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "IFK Mariehamn",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -9523,7 +9803,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "HJK Helsinki",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -9556,7 +9837,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -9589,7 +9871,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -9623,7 +9906,8 @@
       "sport": "tennis",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -9656,7 +9940,8 @@
       "sport": "tennis",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -9689,7 +9974,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -9723,7 +10009,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -9757,7 +10044,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -9790,7 +10078,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -9823,7 +10112,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Djurgardens IF",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -9857,7 +10147,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -9890,7 +10181,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "LOW",
@@ -9923,7 +10215,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Aston Villa",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -9956,7 +10249,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "IFK Mariehamn",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -9989,7 +10283,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -10022,7 +10317,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -10055,7 +10351,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -10089,7 +10386,8 @@
       "sport": "tennis",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -10122,7 +10420,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -10155,7 +10454,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Arsenal",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -10195,7 +10495,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Arsenal",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -10228,7 +10529,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "AS Roma",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -10261,7 +10563,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "AS Roma",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -10295,7 +10598,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -10328,7 +10632,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Jaro",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -10361,7 +10666,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "IFK Mariehamn",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -10394,7 +10700,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Jaro",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -10427,7 +10734,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Jaro",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -10460,7 +10768,8 @@
       "sport": "tennis",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "MEDIUM",
@@ -10493,7 +10802,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Mj\u00e4llby AIF",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -10526,7 +10836,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -10559,7 +10870,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "CA Osasuna",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -10599,7 +10911,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "AS Roma",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -10632,7 +10945,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Jaro",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -10665,7 +10979,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "HJK Helsinki",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -10698,7 +11013,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Ilves Tampere",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -10732,7 +11048,8 @@
       "sport": "tennis",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -10765,7 +11082,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "LOW",
@@ -10798,7 +11116,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Aston Villa",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "LOW",
@@ -10838,7 +11157,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Aston Villa",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "LOW",
@@ -10878,7 +11198,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Aston Villa",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "LOW",
@@ -10918,7 +11239,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Lecce",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "LOW",
@@ -10951,7 +11273,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "CA Osasuna",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "LOW",
@@ -10984,7 +11307,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "CA Osasuna",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "LOW",
@@ -11017,7 +11341,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Mj\u00e4llby AIF",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "MEDIUM",
@@ -11050,7 +11375,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Getafe",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "MEDIUM",
@@ -11083,7 +11409,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Getafe",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "MEDIUM",
@@ -11116,7 +11443,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Getafe",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "MEDIUM",
@@ -11149,7 +11477,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Getafe",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "MEDIUM",
@@ -11182,7 +11511,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Getafe",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -11215,7 +11545,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Djurgardens IF",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -11249,7 +11580,8 @@
       "sport": "tennis",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -11282,7 +11614,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Ilves Tampere",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -11315,7 +11648,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "IFK Mariehamn",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -11356,7 +11690,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -11389,7 +11724,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Aston Villa",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -11422,7 +11758,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Aston Villa",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -11455,7 +11792,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Ilves Tampere",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -11488,7 +11826,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -11521,7 +11860,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -11561,7 +11901,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -11594,7 +11935,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -11627,7 +11969,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -11660,7 +12003,8 @@
       "sport": "tennis",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -11693,7 +12037,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "HJK Helsinki",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -11726,7 +12071,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Arsenal",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "LOW",
@@ -11759,7 +12105,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Lecce",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -11793,7 +12140,8 @@
       "sport": "tennis",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -11826,7 +12174,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -11859,7 +12208,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -11892,7 +12242,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -11925,7 +12276,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -11958,7 +12310,8 @@
       "sport": "tennis",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -11999,7 +12352,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -12032,7 +12386,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -12065,7 +12420,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -12098,7 +12454,8 @@
       "sport": "tennis",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -12139,7 +12496,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "LOW",
@@ -12172,7 +12530,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -12205,7 +12564,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -12238,7 +12598,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -12271,7 +12632,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -12304,7 +12666,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -12345,7 +12708,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -12385,7 +12749,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "AS Roma",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -12418,7 +12783,8 @@
       "sport": "tennis",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -12451,7 +12817,8 @@
       "sport": "tennis",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -12484,7 +12851,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Aston Villa",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -12517,7 +12885,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "AS Roma",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -12550,7 +12919,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -12583,7 +12953,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "CA Osasuna",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -12616,7 +12987,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Djurgardens IF",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -12649,7 +13021,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Djurgardens IF",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -12682,7 +13055,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Djurgardens IF",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -12722,7 +13096,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -12756,7 +13131,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -12790,7 +13166,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -12823,7 +13200,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "MEDIUM",
@@ -12856,7 +13234,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Mj\u00e4llby AIF",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -12896,7 +13275,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "AS Roma",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "MEDIUM",
@@ -12929,7 +13309,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Getafe",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "LOW",
@@ -12962,7 +13343,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "CA Osasuna",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -12995,7 +13377,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Jaro",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -13029,7 +13412,8 @@
       "sport": "tennis",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "MEDIUM",
@@ -13062,7 +13446,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Lecce",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "MEDIUM",
@@ -13095,7 +13480,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Lecce",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "MEDIUM",
@@ -13128,7 +13514,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Lecce",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "MEDIUM",
@@ -13161,7 +13548,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Mj\u00e4llby AIF",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -13194,7 +13582,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -13227,7 +13616,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -13261,7 +13651,8 @@
       "sport": "tennis",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -13295,7 +13686,8 @@
       "sport": "tennis",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -13329,7 +13721,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -13362,7 +13755,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -13395,7 +13789,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "MEDIUM",
@@ -13428,7 +13823,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Ilves Tampere",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -13462,7 +13858,8 @@
       "sport": "tennis",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "LOW",
@@ -13495,7 +13892,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Lecce",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -13529,7 +13927,8 @@
       "sport": "tennis",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "MEDIUM",
@@ -13562,7 +13961,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "HJK Helsinki",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -13595,7 +13995,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "IFK Mariehamn",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -13628,7 +14029,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Arsenal",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -13661,7 +14063,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Arsenal",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -13694,7 +14097,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Arsenal",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -13727,7 +14131,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "AS Roma",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -13761,7 +14166,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -13795,7 +14201,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -13828,7 +14235,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Jaro",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -13861,7 +14269,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "IFK Mariehamn",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -13894,7 +14303,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Jaro",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -13927,7 +14337,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Jaro",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -13960,7 +14371,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Jaro",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -13993,7 +14405,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "IFK Mariehamn",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -14026,7 +14439,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Ilves Tampere",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "MEDIUM",
@@ -14066,7 +14480,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Lecce",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "LOW",
@@ -14099,7 +14514,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Aston Villa",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -14132,7 +14548,8 @@
       "sport": "tennis",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -14165,7 +14582,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -14199,7 +14617,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -14233,7 +14652,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -14266,7 +14686,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -14300,7 +14721,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "MEDIUM",
@@ -14340,7 +14762,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Getafe",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "MEDIUM",
@@ -14373,7 +14796,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Getafe",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -14406,7 +14830,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Jaro",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -14439,7 +14864,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -14472,7 +14898,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -14505,7 +14932,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -14546,7 +14974,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -14580,7 +15009,8 @@
       "sport": "tennis",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -14613,7 +15043,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Jaro",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -14647,7 +15078,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "MEDIUM",
@@ -14680,7 +15112,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Getafe",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -14713,7 +15146,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "IFK Mariehamn",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -14747,7 +15181,8 @@
       "sport": "tennis",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -14780,7 +15215,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Djurgardens IF",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -14820,7 +15256,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Arsenal",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "MEDIUM",
@@ -14853,7 +15290,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Mj\u00e4llby AIF",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -14886,7 +15324,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -14920,7 +15359,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -14953,7 +15393,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "HJK Helsinki",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -14986,7 +15427,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "HJK Helsinki",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -15019,7 +15461,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Ilves Tampere",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -15052,7 +15495,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "HJK Helsinki",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -15085,7 +15529,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Ilves Tampere",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -15118,7 +15563,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Ilves Tampere",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -15151,7 +15597,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Ilves Tampere",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -15184,7 +15631,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "HJK Helsinki",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -15217,7 +15665,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "LOW",
@@ -15250,7 +15699,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Lecce",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -15290,7 +15740,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -15324,7 +15775,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -15358,7 +15810,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -15391,7 +15844,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -15431,7 +15885,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Arsenal",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "MEDIUM",
@@ -15464,7 +15919,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Getafe",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -15498,7 +15954,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -15539,7 +15996,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -15572,7 +16030,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -15605,7 +16064,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -15639,7 +16099,8 @@
       "sport": "tennis",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -15673,7 +16134,8 @@
       "sport": "tennis",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -15707,7 +16169,8 @@
       "sport": "tennis",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -15740,7 +16203,8 @@
       "sport": "tennis",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -15773,7 +16237,8 @@
       "sport": "tennis",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -15807,7 +16272,8 @@
       "sport": "tennis",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -15840,7 +16306,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -15873,7 +16340,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -15906,7 +16374,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Arsenal",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -15939,7 +16408,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Djurgardens IF",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -15972,7 +16442,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -16012,7 +16483,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "AS Roma",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "LOW",
@@ -16045,7 +16517,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Aston Villa",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -16078,7 +16551,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Jaro",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -16111,7 +16585,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -16144,7 +16619,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -16177,7 +16653,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "CA Osasuna",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -16210,7 +16687,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Djurgardens IF",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -16243,7 +16721,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Djurgardens IF",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -16276,7 +16755,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Djurgardens IF",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -16309,7 +16789,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "MEDIUM",
@@ -16342,7 +16823,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "MEDIUM",
@@ -16375,7 +16857,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "MEDIUM",
@@ -16408,7 +16891,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Getafe",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "MEDIUM",
@@ -16441,7 +16925,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Ilves Tampere",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "MEDIUM",
@@ -16474,7 +16959,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "HJK Helsinki",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -16507,7 +16993,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Jaro",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -16540,7 +17027,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -16573,7 +17061,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -16606,7 +17095,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Jaro",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -16640,7 +17130,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -16674,7 +17165,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -16715,7 +17207,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -16749,7 +17242,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -16783,7 +17277,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -16816,7 +17311,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "LOW",
@@ -16850,7 +17346,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "LOW",
@@ -16891,7 +17388,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "MEDIUM",
@@ -16924,7 +17422,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Mj\u00e4llby AIF",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "MEDIUM",
@@ -16957,7 +17456,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Getafe",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -16991,7 +17491,8 @@
       "sport": "tennis",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -17024,7 +17525,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "CA Osasuna",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -17057,7 +17559,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Ilves Tampere",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -17090,7 +17593,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "LOW",
@@ -17123,7 +17627,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Aston Villa",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -17156,7 +17661,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Djurgardens IF",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -17189,7 +17695,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -17222,7 +17729,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -17256,7 +17764,8 @@
       "sport": "tennis",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -17289,7 +17798,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Arsenal",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -17322,7 +17832,8 @@
       "sport": "tennis",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -17355,7 +17866,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Arsenal",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -17388,7 +17900,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "AS Roma",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -17421,7 +17934,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "AS Roma",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -17454,7 +17968,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "AS Roma",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -17487,7 +18002,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "AS Roma",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -17520,7 +18036,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "AS Roma",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -17553,7 +18070,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "AS Roma",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -17594,7 +18112,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -17628,7 +18147,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -17661,7 +18181,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "IFK Mariehamn",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -17694,7 +18215,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Jaro",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -17727,7 +18249,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Jaro",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -17760,7 +18283,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "IFK Mariehamn",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -17793,7 +18317,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "IFK Mariehamn",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -17826,7 +18351,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "IFK Mariehamn",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -17859,7 +18385,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Jaro",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -17892,7 +18419,8 @@
       "sport": "tennis",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -17925,7 +18453,8 @@
       "sport": "tennis",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -17958,7 +18487,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "IFK Mariehamn",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -17992,7 +18522,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -18025,7 +18556,8 @@
       "sport": "tennis",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -18058,7 +18590,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -18091,7 +18624,8 @@
       "sport": "tennis",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -18131,7 +18665,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "MEDIUM",
@@ -18164,7 +18699,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Getafe",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -18204,7 +18740,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "AS Roma",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -18237,7 +18774,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Arsenal",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "MEDIUM",
@@ -18270,7 +18808,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Lecce",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "MEDIUM",
@@ -18303,7 +18842,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Mj\u00e4llby AIF",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "MEDIUM",
@@ -18336,7 +18876,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Mj\u00e4llby AIF",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "MEDIUM",
@@ -18369,7 +18910,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Mj\u00e4llby AIF",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "MEDIUM",
@@ -18402,7 +18944,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Mj\u00e4llby AIF",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -18435,7 +18978,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "IFK Mariehamn",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -18468,7 +19012,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -18501,7 +19046,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -18534,7 +19080,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -18567,7 +19114,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -18600,7 +19148,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -18633,7 +19182,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "HJK Helsinki",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "LOW",
@@ -18666,7 +19216,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Lecce",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "LOW",
@@ -18699,7 +19250,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Aston Villa",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "LOW",
@@ -18739,7 +19291,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Aston Villa",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "LOW",
@@ -18779,7 +19332,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Aston Villa",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "LOW",
@@ -18819,7 +19373,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Aston Villa",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "LOW",
@@ -18859,7 +19414,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Lecce",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "LOW",
@@ -18899,7 +19455,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Lecce",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "LOW",
@@ -18932,7 +19489,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "CA Osasuna",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "LOW",
@@ -18965,7 +19523,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "CA Osasuna",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "LOW",
@@ -18998,7 +19557,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "CA Osasuna",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "LOW",
@@ -19031,7 +19591,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "CA Osasuna",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "LOW",
@@ -19064,7 +19625,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "CA Osasuna",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "LOW",
@@ -19097,7 +19659,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Mj\u00e4llby AIF",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "LOW",
@@ -19130,7 +19693,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Mj\u00e4llby AIF",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "LOW",
@@ -19163,7 +19727,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Mj\u00e4llby AIF",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -19196,7 +19761,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "MEDIUM",
@@ -19236,7 +19802,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Lecce",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -19270,7 +19837,8 @@
       "sport": "tennis",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -19303,7 +19871,8 @@
       "sport": "tennis",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "LOW",
@@ -19336,7 +19905,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "CA Osasuna",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -19369,7 +19939,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Aston Villa",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -19409,7 +19980,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "AS Roma",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "LOW",
@@ -19442,7 +20014,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Aston Villa",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -19476,7 +20049,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -19510,7 +20084,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -19544,7 +20119,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -19585,7 +20161,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -19619,7 +20196,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -19652,7 +20230,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -19686,7 +20265,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -19719,7 +20299,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -19752,7 +20333,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -19785,7 +20367,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -19818,7 +20401,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Ilves Tampere",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -19851,7 +20435,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Ilves Tampere",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -19884,7 +20469,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "HJK Helsinki",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -19917,7 +20503,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Ilves Tampere",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -19950,7 +20537,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "HJK Helsinki",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "MEDIUM",
@@ -19983,7 +20571,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Mj\u00e4llby AIF",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -20016,7 +20605,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Ilves Tampere",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -20049,7 +20639,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -20082,7 +20673,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -20116,7 +20708,8 @@
       "sport": "tennis",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -20149,7 +20742,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Jaro",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -20182,7 +20776,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "IFK Mariehamn",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "LOW",
@@ -20215,7 +20810,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "CA Osasuna",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -20248,7 +20844,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Jaro",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -20281,7 +20878,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -20314,7 +20912,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -20355,7 +20954,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "LOW",
@@ -20388,7 +20988,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Lecce",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -20421,7 +21022,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Jaro",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "MEDIUM",
@@ -20454,7 +21056,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Ilves Tampere",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "MEDIUM",
@@ -20487,7 +21090,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Mj\u00e4llby AIF",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -20520,7 +21124,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Aston Villa",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -20553,7 +21158,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "AS Roma",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -20586,7 +21192,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "CA Osasuna",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -20619,7 +21226,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "CA Osasuna",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -20652,7 +21260,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Djurgardens IF",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -20685,7 +21294,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Djurgardens IF",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -20718,7 +21328,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Djurgardens IF",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -20751,7 +21362,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Djurgardens IF",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -20784,7 +21396,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "MEDIUM",
@@ -20824,7 +21437,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Getafe",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "MEDIUM",
@@ -20864,7 +21478,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Getafe",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "MEDIUM",
@@ -20904,7 +21519,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Getafe",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "MEDIUM",
@@ -20944,7 +21560,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Getafe",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -20977,7 +21594,8 @@
       "sport": "tennis",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -21010,7 +21628,8 @@
       "sport": "tennis",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -21043,7 +21662,8 @@
       "sport": "tennis",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -21077,7 +21697,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "MEDIUM",
@@ -21110,7 +21731,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Mj\u00e4llby AIF",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "MEDIUM",
@@ -21143,7 +21765,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Getafe",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -21176,7 +21799,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -21209,7 +21833,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -21242,7 +21867,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Arsenal",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -21275,7 +21901,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Arsenal",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -21315,7 +21942,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Arsenal",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -21348,7 +21976,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "AS Roma",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -21382,7 +22011,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -21415,7 +22045,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "IFK Mariehamn",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -21448,7 +22079,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "IFK Mariehamn",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -21481,7 +22113,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "IFK Mariehamn",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -21514,7 +22147,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "IFK Mariehamn",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -21547,7 +22181,8 @@
       "sport": "tennis",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -21580,7 +22215,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Jaro",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -21613,7 +22249,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -21646,7 +22283,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -21679,7 +22317,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -21712,7 +22351,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Arsenal",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "MEDIUM",
@@ -21745,7 +22385,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "HJK Helsinki",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -21778,7 +22419,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Jaro",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -21812,7 +22454,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -21846,7 +22489,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -21887,7 +22531,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -21921,7 +22566,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -21954,7 +22600,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Jaro",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -21987,7 +22634,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Jaro",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "MEDIUM",
@@ -22020,7 +22668,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Getafe",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "MEDIUM",
@@ -22053,7 +22702,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Getafe",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "MEDIUM",
@@ -22086,7 +22736,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Getafe",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "MEDIUM",
@@ -22119,7 +22770,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Ilves Tampere",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "MEDIUM",
@@ -22152,7 +22804,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Ilves Tampere",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "MEDIUM",
@@ -22185,7 +22838,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "HJK Helsinki",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "MEDIUM",
@@ -22218,7 +22872,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Getafe",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -22252,7 +22907,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -22285,7 +22941,8 @@
       "sport": "tennis",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -22318,7 +22975,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "CA Osasuna",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "MEDIUM",
@@ -22351,7 +23009,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Getafe",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -22385,7 +23044,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -22425,7 +23085,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "AS Roma",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -22459,7 +23120,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -22493,7 +23155,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -22534,7 +23197,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -22574,7 +23238,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -22607,7 +23272,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -22640,7 +23306,8 @@
       "sport": "tennis",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -22673,7 +23340,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Ilves Tampere",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "LOW",
@@ -22706,7 +23374,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Mj\u00e4llby AIF",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "MEDIUM",
@@ -22746,7 +23415,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Lecce",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "LOW",
@@ -22779,7 +23449,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Aston Villa",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -22812,7 +23483,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -22845,7 +23517,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -22878,7 +23551,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -22911,7 +23585,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -22944,7 +23619,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "MEDIUM",
@@ -22977,7 +23653,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Getafe",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "LOW",
@@ -23010,7 +23687,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "CA Osasuna",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -23043,7 +23721,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "LOW",
@@ -23076,7 +23755,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Aston Villa",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -23109,7 +23789,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "MEDIUM",
@@ -23142,7 +23823,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Lecce",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "MEDIUM",
@@ -23175,7 +23857,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Lecce",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "MEDIUM",
@@ -23208,7 +23891,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Lecce",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "MEDIUM",
@@ -23241,7 +23925,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Mj\u00e4llby AIF",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "MEDIUM",
@@ -23274,7 +23959,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Mj\u00e4llby AIF",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "MEDIUM",
@@ -23307,7 +23993,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Mj\u00e4llby AIF",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "MEDIUM",
@@ -23340,7 +24027,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Mj\u00e4llby AIF",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "MEDIUM",
@@ -23373,7 +24061,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Mj\u00e4llby AIF",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "MEDIUM",
@@ -23406,7 +24095,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Mj\u00e4llby AIF",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "MEDIUM",
@@ -23439,7 +24129,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Mj\u00e4llby AIF",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -23480,7 +24171,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "MEDIUM",
@@ -23513,7 +24205,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Lecce",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "LOW",
@@ -23546,7 +24239,8 @@
       "sport": "tennis",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -23579,7 +24273,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "LOW",
@@ -23612,7 +24307,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "CA Osasuna",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -23645,7 +24341,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "AS Roma",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -23678,7 +24375,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Ilves Tampere",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -23711,7 +24409,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Ilves Tampere",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -23744,7 +24443,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "HJK Helsinki",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -23777,7 +24477,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "HJK Helsinki",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -23810,7 +24511,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "HJK Helsinki",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -23843,7 +24545,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Ilves Tampere",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -23876,7 +24579,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "HJK Helsinki",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -23909,7 +24613,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Ilves Tampere",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -23942,7 +24647,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "HJK Helsinki",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -23975,7 +24681,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "HJK Helsinki",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -24008,7 +24715,8 @@
       "sport": "tennis",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -24041,7 +24749,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -24074,7 +24783,8 @@
       "sport": "tennis",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -24107,7 +24817,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -24140,7 +24851,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Jaro",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -24173,7 +24885,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "IFK Mariehamn",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -24207,7 +24920,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -24248,7 +24962,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "LOW",
@@ -24282,7 +24997,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -24315,7 +25031,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "MEDIUM",
@@ -24348,7 +25065,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Getafe",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -24381,7 +25099,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Aston Villa",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -24414,7 +25133,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Arsenal",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -24447,7 +25167,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Arsenal",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -24480,7 +25201,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "AS Roma",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -24513,7 +25235,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "CA Osasuna",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -24546,7 +25269,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "CA Osasuna",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -24579,7 +25303,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Djurgardens IF",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -24612,7 +25337,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Djurgardens IF",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -24645,7 +25371,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Djurgardens IF",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -24678,7 +25405,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Djurgardens IF",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -24711,7 +25439,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Djurgardens IF",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -24744,7 +25473,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Jaro",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -24777,7 +25507,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "IFK Mariehamn",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -24810,7 +25541,8 @@
       "sport": "tennis",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -24843,7 +25575,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Djurgardens IF",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -24876,7 +25609,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Aston Villa",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "LOW",
@@ -24909,7 +25643,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Lecce",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -24942,7 +25677,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "MEDIUM",
@@ -24975,7 +25711,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Mj\u00e4llby AIF",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -25008,7 +25745,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Arsenal",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -25041,7 +25779,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Arsenal",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -25081,7 +25820,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Arsenal",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -25114,7 +25854,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Arsenal",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -25147,7 +25888,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Arsenal",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -25180,7 +25922,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "AS Roma",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -25213,7 +25956,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "AS Roma",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -25246,7 +25990,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "AS Roma",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -25287,7 +26032,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -25321,7 +26067,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -25355,7 +26102,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -25388,7 +26136,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "IFK Mariehamn",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -25421,7 +26170,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "IFK Mariehamn",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -25454,7 +26204,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Jaro",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -25487,7 +26238,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Jaro",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -25520,7 +26272,8 @@
       "sport": "tennis",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -25553,7 +26306,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Aston Villa",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -25586,7 +26340,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Arsenal",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -25619,7 +26374,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -25652,7 +26408,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -25685,7 +26442,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -25718,7 +26476,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "AS Roma",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -25751,7 +26510,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Ilves Tampere",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "MEDIUM",
@@ -25784,7 +26544,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Getafe",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -25817,7 +26578,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "CA Osasuna",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -25850,7 +26612,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Ilves Tampere",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "MEDIUM",
@@ -25883,7 +26646,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Ilves Tampere",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -25917,7 +26681,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -25951,7 +26716,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -25984,7 +26750,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -26017,7 +26784,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -26050,7 +26818,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -26084,7 +26853,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "LOW",
@@ -26117,7 +26887,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Aston Villa",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "LOW",
@@ -26150,7 +26921,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Aston Villa",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "LOW",
@@ -26190,7 +26962,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Aston Villa",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "LOW",
@@ -26230,7 +27003,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Aston Villa",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "LOW",
@@ -26263,7 +27037,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Lecce",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "LOW",
@@ -26296,7 +27071,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Lecce",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "LOW",
@@ -26336,7 +27112,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Lecce",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "LOW",
@@ -26376,7 +27153,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Lecce",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "LOW",
@@ -26409,7 +27187,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "CA Osasuna",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "LOW",
@@ -26442,7 +27221,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "CA Osasuna",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "LOW",
@@ -26475,7 +27255,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "LOW",
@@ -26508,7 +27289,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Mj\u00e4llby AIF",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -26541,7 +27323,8 @@
       "sport": "tennis",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -26574,7 +27357,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Arsenal",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "MEDIUM",
@@ -26614,7 +27398,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Getafe",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -26648,7 +27433,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -26682,7 +27468,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -26723,7 +27510,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -26757,7 +27545,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -26791,7 +27580,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -26825,7 +27615,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -26866,7 +27657,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "LOW",
@@ -26899,7 +27691,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Aston Villa",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -26932,7 +27725,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Arsenal",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "LOW",
@@ -26965,7 +27759,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "CA Osasuna",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "LOW",
@@ -26998,7 +27793,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Aston Villa",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -27032,7 +27828,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -27065,7 +27862,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "MEDIUM",
@@ -27098,7 +27896,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "MEDIUM",
@@ -27131,7 +27930,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "HJK Helsinki",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -27164,7 +27964,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -27205,7 +28006,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "MEDIUM",
@@ -27238,7 +28040,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Getafe",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -27272,7 +28075,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -27305,7 +28109,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -27338,7 +28143,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "MEDIUM",
@@ -27371,7 +28177,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Getafe",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "MEDIUM",
@@ -27404,7 +28211,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Lecce",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "MEDIUM",
@@ -27437,7 +28245,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Mj\u00e4llby AIF",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "MEDIUM",
@@ -27470,7 +28279,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Mj\u00e4llby AIF",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "MEDIUM",
@@ -27503,7 +28313,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Mj\u00e4llby AIF",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "MEDIUM",
@@ -27536,7 +28347,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Mj\u00e4llby AIF",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "MEDIUM",
@@ -27569,7 +28381,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Lecce",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -27602,7 +28415,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "AS Roma",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -27635,7 +28449,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Ilves Tampere",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -27668,7 +28483,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "HJK Helsinki",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -27701,7 +28517,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "HJK Helsinki",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -27734,7 +28551,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Ilves Tampere",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -27767,7 +28585,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "HJK Helsinki",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -27800,7 +28619,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Ilves Tampere",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -27833,7 +28653,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "HJK Helsinki",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -27866,7 +28687,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "HJK Helsinki",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -27899,7 +28721,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "HJK Helsinki",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -27932,7 +28755,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "HJK Helsinki",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "MEDIUM",
@@ -27965,7 +28789,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Mj\u00e4llby AIF",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -27998,7 +28823,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Aston Villa",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -28031,7 +28857,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Aston Villa",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -28064,7 +28891,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Aston Villa",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -28097,7 +28925,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "AS Roma",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -28137,7 +28966,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "AS Roma",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -28177,7 +29007,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "AS Roma",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -28210,7 +29041,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Djurgardens IF",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -28243,7 +29075,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Djurgardens IF",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -28276,7 +29109,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Djurgardens IF",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -28309,7 +29143,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Djurgardens IF",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "LOW",
@@ -28342,7 +29177,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Lecce",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -28375,7 +29211,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Arsenal",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -28408,7 +29245,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Arsenal",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -28448,7 +29286,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Arsenal",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -28488,7 +29327,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "AS Roma",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -28529,7 +29369,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -28563,7 +29404,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -28597,7 +29439,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -28630,7 +29473,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "IFK Mariehamn",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -28663,7 +29507,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Jaro",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -28696,7 +29541,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "IFK Mariehamn",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -28729,7 +29575,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "IFK Mariehamn",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -28762,7 +29609,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "IFK Mariehamn",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -28795,7 +29643,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "IFK Mariehamn",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -28828,7 +29677,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Jaro",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -28861,7 +29711,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Jaro",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -28894,7 +29745,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "HJK Helsinki",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -28927,7 +29779,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Ilves Tampere",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -28960,7 +29813,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "LOW",
@@ -28993,7 +29847,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Aston Villa",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -29026,7 +29881,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Aston Villa",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -29059,7 +29915,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -29092,7 +29949,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -29125,7 +29983,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Aston Villa",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -29166,7 +30025,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -29207,7 +30067,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -29240,7 +30101,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "AS Roma",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -29273,7 +30135,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "CA Osasuna",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -29306,7 +30169,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "CA Osasuna",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -29339,7 +30203,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -29372,7 +30237,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -29405,7 +30271,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -29438,7 +30305,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "IFK Mariehamn",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -29471,7 +30339,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Jaro",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -29504,7 +30373,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "IFK Mariehamn",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -29537,7 +30407,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "IFK Mariehamn",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -29570,7 +30441,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -29603,7 +30475,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Djurgardens IF",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -29636,7 +30509,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Djurgardens IF",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -29669,7 +30543,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Djurgardens IF",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -29702,7 +30577,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Djurgardens IF",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -29735,7 +30611,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     },
     {
       "confidence": "HIGH",
@@ -29768,7 +30645,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Ilves Tampere",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -29801,7 +30679,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "HJK Helsinki",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "HIGH",
@@ -29834,7 +30713,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Ilves Tampere",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "HIGH",
@@ -29867,7 +30747,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Ilves Tampere",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "MEDIUM",
@@ -29900,7 +30781,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Getafe",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "MEDIUM",
@@ -29933,7 +30815,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Getafe",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "MEDIUM",
@@ -29966,7 +30849,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Getafe",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "MEDIUM",
@@ -30006,7 +30890,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Getafe",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "MEDIUM",
@@ -30046,7 +30931,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Getafe",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "MEDIUM",
@@ -30086,7 +30972,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Getafe",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "MEDIUM",
@@ -30126,7 +31013,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Getafe",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "MEDIUM",
@@ -30159,7 +31047,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Mj\u00e4llby AIF",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "MEDIUM",
@@ -30192,7 +31081,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Mj\u00e4llby AIF",
-      "tipster": null
+      "tipster": null,
+      "venue": "away"
     },
     {
       "confidence": "LOW",
@@ -30232,7 +31122,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Aston Villa",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "LOW",
@@ -30272,7 +31163,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Aston Villa",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "LOW",
@@ -30312,7 +31204,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Aston Villa",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "LOW",
@@ -30345,7 +31238,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Lecce",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "LOW",
@@ -30378,7 +31272,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Lecce",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "LOW",
@@ -30411,7 +31306,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Lecce",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "LOW",
@@ -30444,7 +31340,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Lecce",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "LOW",
@@ -30484,7 +31381,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Lecce",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "LOW",
@@ -30524,7 +31422,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "Lecce",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "LOW",
@@ -30557,7 +31456,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "CA Osasuna",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "LOW",
@@ -30590,7 +31490,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "CA Osasuna",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "LOW",
@@ -30623,7 +31524,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "CA Osasuna",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "LOW",
@@ -30656,7 +31558,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "CA Osasuna",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "LOW",
@@ -30689,7 +31592,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "CA Osasuna",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "LOW",
@@ -30722,7 +31626,8 @@
       "sport": "football",
       "superbet": null,
       "team_name": "CA Osasuna",
-      "tipster": null
+      "tipster": null,
+      "venue": "home"
     },
     {
       "confidence": "LOW",
@@ -30755,7 +31660,8 @@
       "sport": "tennis",
       "superbet": null,
       "team_name": null,
-      "tipster": null
+      "tipster": null,
+      "venue": null
     }
   ],
   "run_id": "simple_stats-2026-08-31-T042018Z-1489661a"

@@ -97,11 +97,15 @@ def tennis_match_format(competition: str | None) -> str | None:
         cache = _TENNIS_FORMAT_CACHE
     if cache is None:
         formats = _load_json(_TENNIS_FORMAT_PATH).get("formats") or {}
-        cache = {
-            str(name): str(value)
-            for name, value in formats.items()
-            if isinstance(formats, dict)
-        }
+        # The guard used to sit *inside* the comprehension, which evaluated
+        # ``formats.items()`` first and then tested a constant per item -- so a
+        # ``"formats"`` key holding anything but an object raised
+        # AttributeError and aborted ANALYZE. Same class as the market-priors
+        # loader above, and the same rule: a malformed config must leave this
+        # gate inert, not stop the run.
+        if not isinstance(formats, dict):
+            formats = {}
+        cache = {str(name): str(value) for name, value in formats.items()}
         with _CONFIG_LOCK:
             if _TENNIS_FORMAT_CACHE is None:
                 _TENNIS_FORMAT_CACHE = cache
@@ -125,16 +129,32 @@ def _load_market_priors() -> tuple[dict[str, float], dict[tuple[str, str], float
     raw = _load_json(_MARKET_PRIORS_PATH).get("priors", {})
     priors: dict[str, float] = {}
     by_venue: dict[tuple[str, str], float] = {}
+    # ``priors`` itself may be any JSON value. Checked here rather than trusted,
+    # because ``.items()`` on a string is an AttributeError that would abort
+    # ANALYZE outright -- and this module's whole contract for a config problem
+    # (see ``_load_json``) is to degrade to the behaviour it had before the
+    # config existed, never to empty the sheet.
+    if not isinstance(raw, dict):
+        return priors, by_venue
     for market, block in raw.items():
-        if market.startswith("_") or not isinstance(block, dict):
+        if str(market).startswith("_") or not isinstance(block, dict):
             continue
         mean = block.get("mean")
-        if isinstance(mean, (int, float)) and mean > 0:
-            priors[market] = float(mean)
+        if not (isinstance(mean, (int, float)) and not isinstance(mean, bool) and mean > 0):
+            # No usable pooled prior means no usable venue prior either. A
+            # market whose ``mean`` failed validation is a market this file
+            # cannot be trusted about, and accepting only its ``home`` value
+            # would leave a row shrinking toward a target with no fallback --
+            # the away rows of the same market would be unshrunk while the home
+            # ones were pulled hard. Measured on a corrupted config: with
+            # ``mean: 0`` and ``home: 5.2`` the home centre moved to 4.40 and
+            # the away centre stayed at the raw 2.80.
+            continue
+        priors[str(market)] = float(mean)
         for venue in ("home", "away"):
             value = block.get(venue)
-            if isinstance(value, (int, float)) and value > 0:
-                by_venue[(market, venue)] = float(value)
+            if isinstance(value, (int, float)) and not isinstance(value, bool) and value > 0:
+                by_venue[(str(market), venue)] = float(value)
     return priors, by_venue
 
 
@@ -1216,6 +1236,7 @@ def _rows_for_sample(
                 p_central=p_central,
                 dispersion=dispersion,
                 shrunk_mean=centre,
+                venue=venue,
                 mean=mean,
                 median=median,
                 sources=sources,

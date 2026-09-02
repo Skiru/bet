@@ -33,6 +33,7 @@ import json
 import threading
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Literal
 from pydantic import Field
 
 from bet.simple_stats.bet_builder_draft import (
@@ -266,6 +267,19 @@ class CouponSingle(StrictBaseModel):
     line: float
     direction: str
     subject: str | None = None
+    # Whether ``subject`` names a team or a person. ``_subject`` returns
+    # ``player_name or team_name`` and the two are indistinguishable in the
+    # artifact, so every machine consumer had to re-derive it from the market
+    # taxonomy -- ``*_for`` is a team, ``player_*`` is a person, everything
+    # else names nobody. ``settle.py`` needs exactly this distinction and
+    # getting it backwards settles a player's shots against his team's, so it
+    # is stated here rather than inferred there.
+    subject_kind: Literal["team", "player"] | None = None
+    # The provider's own id for a player subject, so the artifact names one
+    # human. ``subject`` is a display name and a squad can contain two of
+    # them -- see ``_ambiguous_player_names``. None for a team, whose name is
+    # its identity in this pipeline.
+    subject_id: str | None = None
     tier: str
     p_low: float
     # The sheet's own estimate with no bound and no margin in it, carried so
@@ -391,6 +405,59 @@ def _subject(row: StatsSheetRow) -> str | None:
         return row.player_name
     if row.team_name:
         return row.team_name
+    return None
+
+
+def _subject_key(row: StatsSheetRow) -> tuple[str | None, str | None]:
+    """Whose line this is, as an *identity* rather than as a display name.
+
+    The one-per-market-per-fixture rule dedupes on this, and it used to dedupe
+    on ``_subject`` -- the display name. Juventude fielded two players called
+    Marcos Paulo on 2026-09-01 (bzzoiro ids 187 and 17556, ten appearances
+    each, means of 1.3 and 0.8 shots), so their rows were indistinguishable:
+    the second was counted as ``duplicate_market_for_event`` and dropped, and
+    which of the two survived depended on the ranking order. 46 rows on that
+    slate collided this way.
+
+    Teams keep the name, because a team name *is* its identity here -- the
+    dossier has exactly two of them and ``_side_for_team`` matches on the name.
+    """
+    if row.player_id or row.player_name:
+        return (row.player_id, row.player_name)
+    return (None, row.team_name)
+
+
+def _ambiguous_player_names(rows: list[StatsSheetRow]) -> set[tuple[str, str]]:
+    """``{(event_id, player_name)}`` naming more than one person.
+
+    A bet the operator cannot identify is not a bet. Superbet's ladder is
+    keyed by *its* spelling of a player and ``player_alias_index`` resolves
+    ours to theirs by name, so with two Marcos Paulos in one squad both of our
+    rows join to whichever single line Superbet posted -- one of them is
+    certainly being priced against the other's market. That is the
+    Benoit-Paire failure shape: real numbers, real table, wrong human.
+
+    So the rows are kept on the sheet, where the analyst can see them, and
+    refused a place in the coupon.
+    """
+    by_name: dict[tuple[str, str], set[str]] = {}
+    for row in rows:
+        if not row.player_name:
+            continue
+        by_name.setdefault((row.event_id, row.player_name), set()).add(row.player_id or "")
+    return {key for key, ids in by_name.items() if len(ids) > 1}
+
+
+def _subject_kind(row: StatsSheetRow) -> str | None:
+    """Whether ``_subject`` returned a person or a team.
+
+    Read off the row's own identity fields, not off the market name: a market
+    taxonomy is a naming convention and this is a fact the row carries.
+    """
+    if row.player_name:
+        return "player"
+    if row.team_name:
+        return "team"
     return None
 
 
@@ -973,6 +1040,27 @@ def build_coupons(
         ))
         return (event.sport, event.start_time, names)
 
+    # Resolved once, before either the singles loop or draft_legs sees a row:
+    # both paths must refuse the same rows, which is the invariant the whole
+    # 2026-09-01 Bet Builder failure came from breaking.
+    ambiguous_players = _ambiguous_player_names(stats_sheet.rows)
+    # ``draft_legs`` takes a sheet, not a row, so the refusal has to be applied
+    # to the sheet it takes. "Every gate a single passes, a leg passes too" is
+    # the invariant, and it is the one the 2026-09-01 Bet Builder failure came
+    # from breaking -- thirty legs went out that day past gates the singles
+    # loop applied and the leg path did not.
+    buildable = stats_sheet
+    if ambiguous_players:
+        buildable = stats_sheet.model_copy(update={
+            "rows": [
+                row for row in stats_sheet.rows
+                if not (
+                    row.player_name
+                    and (row.event_id, row.player_name) in ambiguous_players
+                )
+            ]
+        })
+
     excluded: dict[str, int] = {}
 
     def exclude(reason: str) -> None:
@@ -1009,6 +1097,9 @@ def build_coupons(
         if row.p_low < min_p_low:
             exclude("p_low_below_threshold")
             continue
+        if row.player_name and (row.event_id, row.player_name) in ambiguous_players:
+            exclude("ambiguous_player_name")
+            continue
         # Faza 5d: youth and reserve/friendly fixtures stay on the full stats
         # sheet but never reach the coupon -- their stats describe a slate
         # nobody is pricing. An unmapped competition is left alone, never
@@ -1033,7 +1124,7 @@ def build_coupons(
                 if probe.get("superbet_verdict") != "VALUE":
                     exclude("superbet_not_value")
                     continue
-            key = (fixture_key(row.event_id), row.market, _subject(row))
+            key = (fixture_key(row.event_id), row.market, _subject_key(row))
             if key in seen:
                 exclude("duplicate_market_for_event")
                 continue
@@ -1062,6 +1153,8 @@ def build_coupons(
                     line=row.line,
                     direction=row.direction,
                     subject=_subject(row),
+                    subject_kind=_subject_kind(row),
+                    subject_id=row.player_id,
                     tier=tier,
                     p_low=row.p_low,
                     p_central=row.p_central,
@@ -1203,7 +1296,7 @@ def build_coupons(
             exclude("duplicate_fixture_for_slip")
             continue
         draft = draft_legs(
-            stats_sheet,
+            buildable,
             event_id,
             max_legs=max_legs,
             vetoes=veto_index,
@@ -1299,7 +1392,7 @@ def build_coupons(
         worst: dict[tuple, tuple[StatsSheetRow, float]] = {}
         for row, _tier in flagged:
             gap = disagreement(row) or 0.0
-            key = (fixture_key(row.event_id), row.market, _subject(row))
+            key = (fixture_key(row.event_id), row.market, _subject_key(row))
             if key not in worst or gap > worst[key][1]:
                 worst[key] = (row, gap)
         listed = sorted(worst.values(), key=lambda pair: -pair[1])

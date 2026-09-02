@@ -674,6 +674,16 @@ class StatsSheetRow(StrictBaseModel):
     # None on a percentage market, which has no count model fitted. Equal to
     # ``mean`` when the market has no pinned prior.
     shrunk_mean: float | None = None
+    # Which side of *tonight's* fixture this row's subject plays, when that
+    # selects the shrinkage target. Football per-team rows only: a match total
+    # has no venue of its own, and no tennis or player market has a measured
+    # split. See analyze.shrunk_centre.
+    #
+    # Carried so the price is auditable from the artifact alone. Without it a
+    # reader can see that ``shrunk_mean`` moved away from ``mean`` but not
+    # which of the two priors it moved toward, and the home and away targets
+    # differ by a full corner on ``corners_for``.
+    venue: Literal["home", "away"] | None = None
     sources: list[str] = Field(default_factory=list)
     cross_provider_agreement: Literal["AGREE", "DISAGREE", "SINGLE_SOURCE", "NOT_APPLICABLE"]
     # How many distinct matches in this sample a second provider also reported.

@@ -53,24 +53,76 @@ DEFAULT_LEGACY_BASELINE = (
     ROOT / "tests" / "fixtures" / "simple_stats" / "stats_sheet_baseline_legacy_2026-08-31.json"
 )
 
-RowKey = tuple[str, str, float, str, str | None, str | None]
+RowKey = tuple[str, str, float, str, str | None, str | None, str | None]
 
 
 def _row_key(row) -> RowKey:
-    return (row.event_id, row.market, row.line, row.direction, row.team_name, row.player_name)
+    """A row's identity. ``player_id`` is in it because a display name is not
+    an identity: Juventude fielded two players called Marcos Paulo on
+    2026-09-01, and without the id their rows collide -- 46 of them on that
+    slate -- which made ``_index`` raise "duplicate stats-sheet row" on a sheet
+    that had no duplicate bet in it at all."""
+    return (
+        row.event_id, row.market, row.line, row.direction,
+        row.team_name, row.player_name, row.player_id,
+    )
 
 
-def _index(sheet: StatsSheetV1) -> dict[RowKey, float]:
-    """Key -> p_low. A duplicate key would mean two rows describe the same
-    bet, which analyze_dossiers must never produce; fail loudly rather than
-    silently keeping one and hiding the other from the diff."""
-    index: dict[RowKey, float] = {}
+# Columns ANALYZE does not produce. ``superbet``, ``tipster`` and
+# ``market_signal`` are attached afterwards by run_analyze.py from artifacts
+# this script never loads, so they are absent from both sides here and
+# comparing them would only ever compare None to None.
+_NOT_PRODUCED_BY_ANALYZE = frozenset({"superbet", "tipster", "market_signal"})
+
+
+def _comparable(row) -> dict:
+    """Every field of a row that ANALYZE computes.
+
+    **This used to be ``row.p_low`` alone**, and that made the whole Faza 0
+    safety net blind to most of what it exists to protect. Two of the three
+    numbers the coupon's gates read are not ``p_low``: the disagreement gate
+    compares ``p_central`` and the ladder gate divides by ``dispersion``, and
+    a change that moved either while leaving ``p_low`` alone replayed "clean".
+    So did adding a field. ``venue`` was added on 2026-09-02, appeared on 168
+    rows of this very fixture, and the diff reported no change.
+
+    Compared as "everything except a named exclusion list" rather than as an
+    enumeration of what matters, so a field added later is guarded by default
+    and the decision to exclude one has to be written down here.
+    """
+    dumped = row.model_dump(mode="json")
+    return {k: v for k, v in dumped.items() if k not in _NOT_PRODUCED_BY_ANALYZE}
+
+
+def _index(sheet: StatsSheetV1) -> dict[RowKey, dict]:
+    """Key -> every computed field. A duplicate key would mean two rows
+    describe the same bet, which analyze_dossiers must never produce; fail
+    loudly rather than silently keeping one and hiding the other from the
+    diff."""
+    index: dict[RowKey, dict] = {}
     for row in sheet.rows:
         key = _row_key(row)
         if key in index:
             raise ValueError(f"duplicate stats-sheet row for key {key}")
-        index[key] = row.p_low
+        index[key] = _comparable(row)
     return index
+
+
+def changed_fields(baseline: StatsSheetV1, current: StatsSheetV1) -> dict[str, int]:
+    """``{field: rows changed}`` -- which columns moved, not just how many rows.
+
+    The number that makes a diff actionable. "168 rows changed" says nothing
+    about whether a release moved the price, the diagnostic or both; this says
+    it in one line.
+    """
+    base_index, curr_index = _index(baseline), _index(current)
+    counts: dict[str, int] = {}
+    for key in base_index.keys() & curr_index.keys():
+        before, after = base_index[key], curr_index[key]
+        for field in set(before) | set(after):
+            if before.get(field) != after.get(field):
+                counts[field] = counts.get(field, 0) + 1
+    return dict(sorted(counts.items(), key=lambda kv: -kv[1]))
 
 
 def diff_sheets(baseline: StatsSheetV1, current: StatsSheetV1) -> dict[str, list]:
@@ -86,8 +138,10 @@ def diff_sheets(baseline: StatsSheetV1, current: StatsSheetV1) -> dict[str, list
 
 
 def _format_key(key: RowKey) -> str:
-    event_id, market, line, direction, team_name, player_name = key
+    event_id, market, line, direction, team_name, player_name, player_id = key
     subject = player_name or team_name or "match"
+    if player_id:
+        subject = f"{subject}#{player_id}"
     return f"{event_id[:12]} {market} {line} {direction} [{subject}]"
 
 
@@ -132,6 +186,9 @@ def main() -> int:
         print(f"no diff: {len(current.rows)} rows match {baseline_path.name}")
         return 0
 
+    fields = changed_fields(baseline, current)
+    if fields:
+        print("FIELDS MOVED: " + ", ".join(f"{k}={v}" for k, v in fields.items()))
     if diff["added"]:
         print(f"ADDED ({len(diff['added'])}):")
         for key in diff["added"]:
@@ -143,9 +200,15 @@ def main() -> int:
     if diff["changed"]:
         base_index = _index(baseline)
         curr_index = _index(current)
-        print(f"CHANGED p_low ({len(diff['changed'])}):")
+        print(f"CHANGED ({len(diff['changed'])}):")
         for key in diff["changed"]:
-            print(f"  ~ {_format_key(key)}: {base_index[key]:.4f} -> {curr_index[key]:.4f}")
+            before, after = base_index[key], curr_index[key]
+            moved = ", ".join(
+                f"{field} {before.get(field)!r}->{after.get(field)!r}"
+                for field in sorted(set(before) | set(after))
+                if before.get(field) != after.get(field)
+            )
+            print(f"  ~ {_format_key(key)}: {moved}")
 
     return 1
 
