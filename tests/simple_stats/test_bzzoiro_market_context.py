@@ -536,22 +536,20 @@ def test_a_fixture_the_listing_missed_still_falls_back_to_its_own_call(monkeypat
 
 
 def test_tennis_never_enters_the_per_event_price_loop(monkeypatch, tmp_path):
-    """Tennis gets a model and no prices, and this is the half that says "no
-    prices".
+    """``eligible_events`` gates the four-call-per-fixture price loop, and it is
+    football-only.
 
-    ``bzzoiro-tennis`` is a separate quota bucket that ENRICH already spends
-    against, and roughly six enriched fixtures exhausts it. Per-event odds would
-    cost one call each out of that allowance, so ``eligible_events`` -- which
-    gates the four-call-per-fixture loop -- stays football-only.
-
-    Since 2026-08-30 tennis *is* reached, but by exactly one call for the whole
-    slate (``_collect_tennis_predictions``), which is a different path and is
-    tested in ``test_bzzoiro_bulk_endpoints``.
+    It was football-only when tennis had a model and no prices, because
+    per-event tennis odds would have cost one call each out of a 100-a-day
+    bucket. It is football-only now for a simpler reason: since 2026-09-02 this
+    stage has no tennis provider at all. A tennis fixture reaching the loop
+    would spend football's quota asking bzzoiro's football endpoints about a
+    match they have never heard of.
     """
     tennis = _football_event(
         event_id="evt-tennis", sport="tennis", competition="Cincinnati (atp_1000)",
         home_team=None, away_team=None, player_one="A", player_two="B",
-        source_ids={"bzzoiro-tennis": "9001"},
+        source_ids={"odds-api": "9001"},
     )
     assert market_context.eligible_events(_event_list(tennis)) == []
 
@@ -1076,91 +1074,27 @@ def test_this_stage_slices_the_slate_in_enrichs_own_order():
 # --- a structurally empty tennis column must not look like an empty slate ---
 
 
-def _bare_tennis_event(event_id: str, source_ids: dict) -> EventRecord:
-    return EventRecord(
-        event_id=event_id,
-        sport="tennis",
-        competition="ATP US Open",
-        player_one="A Player",
-        player_two="B Player",
-        start_time="2026-09-02T18:00:00+00:00",
-        source_ids=source_ids,
-        identity_confidence="CONFIRMED",
-        status="ACTIVE",
+def test_market_context_is_football_only_and_says_so_for_tennis():
+    """What replaced the four tests about the tennis model's silence.
+
+    Those tests policed a distinction that no longer exists: "discovery
+    attached no tennis-model id" against "the addon was never bought". The
+    provider is gone, MARKET_CONTEXT fetches nothing for tennis, and the honest
+    artifact is one that contains no tennis events at all rather than one that
+    contains a tennis row explaining what it did not do.
+
+    What must not come back is a *verdict* on a tennis row: a signal column
+    saying NO_MARKET_DATA reads as "the model and the market were compared and
+    did not agree", and nothing was compared.
+    """
+    assert set(market_context.SIGNAL_MARKETS) == {"corners_total", "goals_total"}
+
+    row = StatsSheetRow(
+        event_id="t1", sport="tennis", market="total_games", line=21.5,
+        direction="OVER", hits=6, sample_size=10, hit_rate=0.6,
+        p_low=0.4, mean=21.0, median=21.0, dispersion=3.0,
+        sources=["espn-tennis"], cross_provider_agreement="SINGLE_SOURCE",
+        confidence="LOW", data_quality="PARTIAL",
     )
-
-
-def test_tennis_fixtures_with_no_provider_id_are_recorded_not_skipped(tmp_path):
-    """2026-09-02: all 38 tennis fixtures carried only ``odds-api`` ids, so the
-    tennis half returned ``([], 0)`` -- no row, no gap, no call -- which is
-    exactly what a day with no tennis looks like. Downstream, 406 tennis rows
-    got a market signal and none a model probability, with nothing on disk
-    saying why."""
-    from bet.simple_stats.market_context import _collect_tennis_predictions
-
-    event_list = _event_list(
-        _bare_tennis_event("t1", {"odds-api": "1"}),
-        _bare_tennis_event("t2", {"odds-api": "2"}),
-    )
-    limiter = RateLimiter(usage_dir=tmp_path, limits={}, rate_limits={},
-                          honor_env_overrides=False)
-
-    contexts, calls = _collect_tennis_predictions(event_list, limiter)
-
-    assert calls == 0, "recording the gap must not cost a request"
-    assert len(contexts) == 2
-    assert all(
-        any("no tennis event carries" in gap for gap in c.data_gaps) for c in contexts
-    )
-
-
-def test_the_gap_names_the_billing_reason_when_one_is_on_record(tmp_path):
-    """"the addon was never bought" and "discovery never attached an id" are
-    different problems and only one of them costs $5."""
-    from bet.simple_stats.market_context import _collect_tennis_predictions, TENNIS_PROVIDER
-
-    event_list = _event_list(_bare_tennis_event("t1", {"odds-api": "1"}))
-    limiter = RateLimiter(usage_dir=tmp_path, limits={}, rate_limits={},
-                          honor_env_overrides=False)
-    limiter.note_entitlement_fault(TENNIS_PROVIDER, "HTTP 402: Sports Addon required")
-    try:
-        contexts, _ = _collect_tennis_predictions(event_list, limiter)
-        assert any("Sports Addon" in gap for gap in contexts[0].data_gaps)
-    finally:
-        limiter.clear_provider_exhausted()
-
-
-def test_a_mixed_day_still_records_the_id_less_fixtures(tmp_path, monkeypatch):
-    """The all-or-nothing branch above would have walked straight past a day
-    where 5 of 38 fixtures carry an id: the other 33 got no context row, no
-    gap, no warning -- the exact silence that branch exists to end."""
-    from bet.simple_stats import market_context as mc
-
-    event_list = _event_list(
-        _bare_tennis_event("t1", {"bzzoiro-tennis": "900"}),
-        _bare_tennis_event("t2", {"odds-api": "2"}),
-    )
-    limiter = RateLimiter(usage_dir=tmp_path, limits={}, rate_limits={},
-                          honor_env_overrides=False)
-
-    def _no_client(*a, **k):
-        raise RuntimeError("no network in tests")
-
-    monkeypatch.setattr(mc, "get_client", _no_client)
-    contexts, _ = mc._collect_tennis_predictions(event_list, limiter)
-
-    assert {c.event_id for c in contexts} == {"t1", "t2"}
-    t2 = next(c for c in contexts if c.event_id == "t2")
-    assert any("carries no" in gap for gap in t2.data_gaps)
-
-
-def test_a_slate_with_no_tennis_at_all_still_says_nothing(tmp_path):
-    """The other half of the same distinction: silence is correct here."""
-    from bet.simple_stats.market_context import _collect_tennis_predictions
-
-    event_list = _event_list()
-    limiter = RateLimiter(usage_dir=tmp_path, limits={}, rate_limits={},
-                          honor_env_overrides=False)
-
-    assert _collect_tennis_predictions(event_list, limiter) == ([], 0)
+    assert market_context.market_signal_for_row(row, None) is None
 

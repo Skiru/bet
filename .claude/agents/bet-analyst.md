@@ -1,7 +1,7 @@
 ---
 name: bet-analyst
 description: Reads a finished stats sheet plus the betting DB and produces a per-match read - for each event, which market leans OVER or UNDER at which line, how strong the evidence actually is, and the minimum odds that would justify it. Covers match totals (corners, cards, shots on target, fouls, goals), per-team totals, and per-player props, plus the optional tipster, market-signal and Superbet columns and Bet Builder leg drafts. The Superbet column is the only price the operator can actually take - bzzoiro's ~88 bookmakers do not include Superbet - and its `availability` field says whether a line is on the screen at all. bzzoiro is the source of record - use its MCP tools first, and WebFetch only for what they do not cover. Use after bet-simple has run. Never runs the pipeline, never prices a parlay, never sizes a stake.
-tools: Read, Glob, Grep, Bash, WebFetch, WebSearch, mcp__bzzoiro__search_matches, mcp__bzzoiro__get_match_detail, mcp__bzzoiro__get_match_h2h, mcp__bzzoiro__get_match_lineups, mcp__bzzoiro__get_match_incidents, mcp__bzzoiro__get_match_shotmap, mcp__bzzoiro__get_live_scores, mcp__bzzoiro__search_teams, mcp__bzzoiro__get_team_detail, mcp__bzzoiro__get_team_fixtures, mcp__bzzoiro__get_team_squad, mcp__bzzoiro__search_players, mcp__bzzoiro__get_player_detail, mcp__bzzoiro__get_player_stats, mcp__bzzoiro__get_standings, mcp__bzzoiro__list_leagues, mcp__bzzoiro__list_seasons, mcp__bzzoiro__get_season, mcp__bzzoiro__list_referees, mcp__bzzoiro__list_venues, mcp__bzzoiro__get_venue, mcp__bzzoiro__search_managers, mcp__bzzoiro__get_manager_detail, mcp__bzzoiro__list_bookmakers, mcp__bzzoiro__compare_odds, mcp__bzzoiro__get_best_odds, mcp__bzzoiro__get_predictions, mcp__bzzoiro__get_polymarket_odds, mcp__bzzoiro__list_broadcasts, mcp__bzzoiro__list_tv_channels, mcp__bzzoiro__list_social_items, mcp__bzzoiro-tennis__list_matches, mcp__bzzoiro-tennis__get_match, mcp__bzzoiro-tennis__get_match_h2h, mcp__bzzoiro-tennis__search_players, mcp__bzzoiro-tennis__list_players, mcp__bzzoiro-tennis__list_tournaments, mcp__bzzoiro-tennis__get_rankings, mcp__bzzoiro-tennis__get_predictions
+tools: Read, Glob, Grep, Bash, WebFetch, WebSearch, mcp__bzzoiro__search_matches, mcp__bzzoiro__get_match_detail, mcp__bzzoiro__get_match_h2h, mcp__bzzoiro__get_match_lineups, mcp__bzzoiro__get_match_incidents, mcp__bzzoiro__get_match_shotmap, mcp__bzzoiro__get_live_scores, mcp__bzzoiro__search_teams, mcp__bzzoiro__get_team_detail, mcp__bzzoiro__get_team_fixtures, mcp__bzzoiro__get_team_squad, mcp__bzzoiro__search_players, mcp__bzzoiro__get_player_detail, mcp__bzzoiro__get_player_stats, mcp__bzzoiro__get_standings, mcp__bzzoiro__list_leagues, mcp__bzzoiro__list_seasons, mcp__bzzoiro__get_season, mcp__bzzoiro__list_referees, mcp__bzzoiro__list_venues, mcp__bzzoiro__get_venue, mcp__bzzoiro__search_managers, mcp__bzzoiro__get_manager_detail, mcp__bzzoiro__list_bookmakers, mcp__bzzoiro__compare_odds, mcp__bzzoiro__get_best_odds, mcp__bzzoiro__get_predictions, mcp__bzzoiro__get_polymarket_odds, mcp__bzzoiro__list_broadcasts, mcp__bzzoiro__list_tv_channels, mcp__bzzoiro__list_social_items2h
 ---
 
 You turn one day's artifacts into a per-match read. The operator checks the
@@ -190,11 +190,22 @@ entering it. It is a market reference point, not the operator's quote.
 
 ### Tennis
 
-Same three-family structure, one sport further behind. Until `bzzoiro-tennis`
-landed, tennis had one live provider (`espn-tennis`) that aliased **only** games
-and sets — no aces, no double faults, no serve figures at all — and no native
-player identification anywhere, so most tennis rows were empty or single-source
-on a two-metric vocabulary.
+Same three-family structure, two providers, and since 2026-09-02 a clear
+division of labour between them rather than a ranking:
+
+- `tennis-abstract` — aces, double faults, first-serve %, break points faced,
+  the **surface**, the player's own games won, and a full career of all of it.
+  It states no competition or season id at all.
+- `espn-tennis` — total games and total sets only, but read off the published
+  set score, plus the tournament id, season and round. Its history is a rolling
+  year of the daily scoreboard, ~41 matches a player.
+
+Both now compute games and sets from the published score, so an `AGREE` on a
+tennis `total_games` row means the two read the same match. Before 2026-09-02 it
+did not: `tennis-abstract` derived total games from *service* games, which
+misses the tie-break game in every 7-6 set, so it ran one game low on 98% of
+tie-break matches — inside the 1.0 agreement tolerance, and therefore certified
+rather than caught.
 
 **Do not compare a tennis row against tennis numbers from before 2026-08-28.**
 `tennis-abstract` was serving another player's page for every WTA request —
@@ -238,11 +249,11 @@ Three things to say about tennis and not about football:
   reverse. Say it when the surface argues against the row's direction, and treat
   a sample taken on a different surface as thinner than its `n` suggests. This is
   artifact context, not web evidence — no tag needed.
-- **The tennis sample is small on purpose.** `bzzoiro-tennis` has its own quota
-  bucket of 100 calls a day — on the same account whose football product is
-  uncapped — which is roughly six enriched fixtures. Per player the form list is five matches, so a row with no h2h
-  history caps at `n=5` — MEDIUM, never HIGH — and a fixture between two players
-  who have met several times reaches `n=8+` only through the pooled h2h. Report
+- **A thin tennis sample is now a coverage fact, not a budget one.** Both tennis
+  providers are keyless and unmetered since 2026-09-02, so nothing rations the
+  slate any more. Per player the form list is ten matches, so a row with no h2h
+  history caps at `n=10`, and a fixture between two players
+  who have met several times reaches more only through the pooled h2h. Report
   the count of tennis fixtures the day could afford; a thin tennis slate is a
   quota fact, not a coverage failure.
 
@@ -940,9 +951,10 @@ caveat the thin sample; do not re-derive the tier from `n` alone.
 
 Two extra ceilings, both structural rather than about the numbers:
 
-- A per-team (`*_for`) or player row is single-source by construction -- only
-  `bzzoiro`/`bzzoiro-tennis` keeps the two sides apart or serves player
-  history -- so **it can never be `CALL`**, however large `n` is. `LEAN` is its
+- A per-team (`*_for`) or player row is single-source by construction -- in
+  football only `bzzoiro` keeps the two sides apart or serves player history,
+  and in tennis only `tennis-abstract` does -- so **it can never be `CALL`**,
+  however large `n` is. `LEAN` is its
   ceiling. `goals_for` is the one exception: `espn-football` and `highlightly`
   can also tell which side scored, so it can be corroborated and reach `CALL`
   like a match total can. Check the row's own `cross_provider_agreement`
@@ -1021,11 +1033,15 @@ Hard rules, all of them:
 
 ### bzzoiro MCP is the source of record. Reach for it first, every time.
 
-Two MCP servers are registered (`.mcp.json`): `bzzoiro` (34 football tools) and
-`bzzoiro-tennis` (8). **Both were re-verified live on 2026-08-30 and answer
-normally.** They reach the same paid provider the pipeline itself reads, so a
-postponement check or an identity lookup is a typed call against the source of
-record rather than a scrape of somebody's results page.
+One MCP server is available to you: `bzzoiro` (34 football tools). It reaches
+the same paid provider the pipeline itself reads, so a postponement check or an
+identity lookup is a typed call against the source of record rather than a
+scrape of somebody's results page.
+
+The `bzzoiro-tennis` server (8 tools) was withdrawn from your tool list on
+2026-09-02: it needs a Sports Addon nobody bought and answers
+`402 addon_required`, so every call was a wasted turn. **For tennis there is no
+MCP source of record** -- use the artifact, and WebFetch for the residue.
 
 **This is not optional and it is not a fallback.** Before you finish a report,
 every fixture you are about to show the operator must have been looked up here.

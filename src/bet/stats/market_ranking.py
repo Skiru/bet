@@ -218,19 +218,19 @@ STANDARD_MARKET_LINES: dict[str, list[dict]] = {
         {"market": "Total Games", "lines": [19.5, 21.5, 22.5, 23.5], "stat": "total_games", "is_combined": True},
         {"market": "Total Aces", "lines": [8.5, 10.5, 12.5], "stat": "aces", "is_combined": True},
         {"market": "Total Sets", "lines": [2.5], "stat": "sets_won", "is_combined": True},
-        # double_faults_total and the break markets were canonical names with no
-        # line, so ANALYZE emitted no row for them however good the data was.
-        # They get lines now because bzzoiro-tennis is the first provider that
-        # actually reports them: espn-tennis aliases only games and sets, and
-        # tennis-abstract covers a fraction of the tour.
         {"market": "Total Double Faults", "lines": [3.5, 5.5, 7.5], "stat": "double_faults", "is_combined": True},
-        # Breaks of serve, not break *points*: the payload gives break-point
-        # rates as floats (57.14285714285714) and recovering "4 of 7" from one
-        # means guessing a denominator. Service games lost are integers that mean
-        # what they say, so that is what this market is priced on.
-        {"market": "Total Breaks of Serve", "lines": [3.5, 4.5, 5.5, 6.5], "stat": "breaks", "is_combined": True},
-        # Per player, from the same box score. Two rows per fixture, one each
-        # side, distinguished by StatsSheetRow.team_name.
+        # "Total Breaks of Serve" was here until 2026-09-02 and was removed with
+        # bzzoiro-tennis, which was the only provider that ever reported a count
+        # of service games lost. What remains is break *points* -- tennis-abstract
+        # publishes them as rates (57.14285714285714) and recovering "4 of 7"
+        # from one means guessing a denominator -- so the market is gone rather
+        # than repriced off a number that does not mean the same thing. A market
+        # with a line and no provider is not a market, it is an empty row on
+        # every sheet.
+        #
+        # Per player, from the queried player's own tennis-abstract row: two
+        # rows per fixture, one each side, distinguished by
+        # StatsSheetRow.team_name.
         {"market": "Player Aces", "lines": [3.5, 4.5, 5.5, 6.5], "stat": "aces", "is_combined": False},
         {"market": "Player Double Faults", "lines": [1.5, 2.5, 3.5], "stat": "double_faults", "is_combined": False},
         {"market": "Player Games Won", "lines": [8.5, 10.5, 12.5], "stat": "games_won", "is_combined": False},

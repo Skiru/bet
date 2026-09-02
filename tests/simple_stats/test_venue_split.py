@@ -62,7 +62,12 @@ from bet.simple_stats.analyze import (
     shrunk_centre,
     venue_market_priors,
 )
-from bet.simple_stats.providers import _make_values, _venue_or_none
+from bet.simple_stats.providers import (
+    NATIVE_ID_PROVIDERS_BY_SPORT,
+    PROVIDERS_BY_SPORT,
+    _make_values,
+    _venue_or_none,
+)
 
 
 # --- 1. the field: recorded where it is known, refused where it is not ------
@@ -77,13 +82,12 @@ def test_a_football_provider_records_the_venue_it_already_knew():
 
 
 def test_a_tennis_provider_records_no_venue_because_a_draw_slot_is_not_one():
-    """``_side_of`` and ``_bzzoiro_tennis_side_of`` answer which participant
-    slot a player occupied, which is not a venue -- neither player is at home
-    at a neutral tournament. Recording slot one as "home" would be the same
-    class of invented fact as the impossible orderings
-    ``_is_absent_not_zero`` refuses."""
+    """``_side_of`` answers which participant slot a player occupied, which is
+    not a venue -- neither player is at home at a neutral tournament. Recording
+    slot one as "home" would be the same class of invented fact as the
+    impossible orderings ``_is_absent_not_zero`` refuses."""
     values = _make_values(
-        "bzzoiro-tennis", "9001", "2026-08-29", "Iga Świątek",
+        "espn-tennis", "9001", "2026-08-29", "Iga Świątek",
         {"double_faults_total": 4.0}, side="home",
     )
     assert values["double_faults_total"].venue is None
@@ -92,13 +96,29 @@ def test_a_tennis_provider_records_no_venue_because_a_draw_slot_is_not_one():
 def test_the_gate_is_one_function_and_not_a_check_at_each_call_site():
     """Six call sites have a side to hand. A provider added to the tennis list
     later must not start emitting venues because one of them forgot the
-    distinction."""
-    assert _venue_or_none("bzzoiro", "home") == "home"
-    assert _venue_or_none("espn-football", "away") == "away"
-    assert _venue_or_none("understat", "home") == "home"
-    assert _venue_or_none("highlightly", "away") == "away"
-    assert _venue_or_none("espn-tennis", "home") is None
-    assert _venue_or_none("bzzoiro-tennis", "away") is None
+    distinction.
+
+    Read off the rosters rather than spelled out, so that a provider joining or
+    leaving one cannot leave this test asserting something about a name nobody
+    fetches any more -- which is what happened when ``understat`` and
+    ``api-football`` left the football roster on 2026-09-02 and this test went
+    on demanding a venue from one of them.
+    """
+    football = (
+        *PROVIDERS_BY_SPORT["football"],
+        *NATIVE_ID_PROVIDERS_BY_SPORT["football"],
+    )
+    tennis = (
+        *PROVIDERS_BY_SPORT["tennis"],
+        *NATIVE_ID_PROVIDERS_BY_SPORT.get("tennis", ()),
+    )
+    assert football and tennis, "a roster emptied would make this vacuous"
+    for provider in football:
+        assert _venue_or_none(provider, "home") == "home", provider
+        assert _venue_or_none(provider, "away") == "away", provider
+    for provider in tennis:
+        assert _venue_or_none(provider, "home") is None, provider
+        assert _venue_or_none(provider, "away") is None, provider
     # Not a side at all: None, never coerced.
     assert _venue_or_none("bzzoiro", None) is None
     assert _venue_or_none("bzzoiro", "neutral") is None

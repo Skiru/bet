@@ -20,7 +20,6 @@ highlightly                 0     100  quota_exhausted
 sportdb                   210     300  usable
 tennis-abstract           inf     inf  usable
 espn-tennis             10000   10000  usable
-bzzoiro-tennis             89      95  usable
 
   football   two-provider coverage: 7 events
   tennis     two-provider coverage: 400 events

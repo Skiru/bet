@@ -230,7 +230,13 @@ def test_preflight_reports_missing_credentials_separately_from_exhausted_quota(t
     kinds = {b["provider"]: b["kind"] for b in result["blocked"]}
     assert kinds.get("highlightly") == "missing_credentials"
     assert kinds.get("bzzoiro") == "missing_credentials"
-    assert "api-football" in result["usable_providers"]
+    # espn-football rather than api-football: the latter left the football
+    # roster on 2026-09-02 (suspended account, 672 gaps and zero observations in
+    # one day), so it is no longer a provider preflight reports on at all. The
+    # separation under test is unaffected -- what matters is that a provider
+    # preflight *can* use is reported usable while the keyless-blocked ones are
+    # reported as missing_credentials, not which provider plays that part.
+    assert "espn-football" in result["usable_providers"]
 
 
 def test_quota_exhausted_message_says_how_to_clear_it(tmp_path, monkeypatch):

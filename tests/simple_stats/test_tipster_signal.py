@@ -383,6 +383,63 @@ class TestPublicLean:
         assert signal.events[0].public_lean == {}
 
 
+class TestLeanRecoveredFromTheClaim:
+    """Outcome and handicap picks whose pick-level direction is OTHER.
+
+    These are the markets tipsters publish most, and on the 2026-09-02 slate 116
+    of them carried direction OTHER and so contributed nothing at all. They must
+    not become countable -- a 1X2 says nothing about a total -- but dropping the
+    opinion entirely was a separate mistake.
+    """
+
+    @pytest.mark.parametrize(
+        "market,expected",
+        [
+            ("x", "DRAW"),
+            ("1", "HOME"),
+            ("2", "AWAY"),
+            ("X2", "DC"),
+            ("Full-Time Result Valencia", "HOME"),
+            ("Full-Time Result Real Betis", "AWAY"),
+            ("Asian Handicap Valencia +0.25", "HOME"),
+            ("Asian Handicap Real Betis -1.5", "AWAY"),
+            ("Both Team To Score Yes", "BTTS_YES"),
+            ("Both Team To Score No", "BTTS_NO"),
+        ],
+    )
+    def test_a_claim_the_source_left_undirected_still_reads(self, market, expected):
+        signal = build_tipster_signal(
+            _event_list(), [_pick(market=market, direction="OTHER")]
+        )
+        assert signal.events[0].public_lean == {expected: 1}
+
+    def test_a_recovered_lean_is_still_not_countable(self):
+        """The whole point of the separation: more lean, never more agreement."""
+        signal = build_tipster_signal(
+            _event_list(),
+            [_pick(market="Full-Time Result Valencia", direction="OTHER") for _ in range(5)],
+        )
+        assert signal.events[0].public_lean == {"HOME": 5}
+        assert signal.countable_claims == 0
+        column = column_for_row(_row(), signal)
+        assert column.agree == 0
+        assert column.oppose == 0
+        assert column.verdict == "NO_COVERAGE"
+
+    def test_a_claim_naming_no_side_yields_no_lean(self):
+        signal = build_tipster_signal(
+            _event_list(), [_pick(market="Anytime Goalscorer Lucas Akins", direction="OTHER")]
+        )
+        assert signal.events[0].public_lean == {}
+
+    def test_a_handicap_naming_neither_club_yields_no_lean(self):
+        """Better to report nothing than to guess which side was meant."""
+        signal = build_tipster_signal(
+            _event_list(), [_pick(market="Asian Handicap +0.25", direction="OTHER")]
+        )
+        assert signal.events[0].public_lean == {}
+
+
 class TestSummary:
     def test_summary_reports_exclusion_reasons(self):
         signal = build_tipster_signal(

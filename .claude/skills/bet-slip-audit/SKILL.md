@@ -220,8 +220,9 @@ those five lost.
 
 Coverage is also per-fixture, not just per-league: Inter Turku–KuPS is in a
 covered league and returned **no `/stats/` at all** — no shots, no corners, no
-possession. bzzoiro-tennis answers `addon_required`, so both tennis legs are
-unpriceable too.
+possession. There is no tennis odds source at all -- bzzoiro's tennis product
+answered `addon_required` and was removed on 2026-09-02 -- so tennis legs are
+priceable only against the Superbet offer.
 
 When there is no consensus and no stats, say **"no evidence"** and stop. Do not
 substitute a league-wide constant and present it as a read. See

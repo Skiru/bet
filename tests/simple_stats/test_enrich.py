@@ -88,7 +88,12 @@ def test_one_provider_failure_does_not_abort_run(monkeypatch):
         home_team="Team A",
         away_team="Team B",
         start_time="2026-08-25T18:00:00+00:00",
-        source_ids={},
+        # Carries bzzoiro identity because espn-football is a *corroborator*
+        # since 2026-09-02: _build_tasks does not schedule one for a fixture the
+        # primary provider never saw, so an event with empty source_ids would
+        # never reach the exploding provider and the test would pass vacuously.
+        source_ids={"bzzoiro": "m1"},
+        provider_team_ids={"bzzoiro": {"home": "1", "away": "2"}},
         identity_confidence="CONFIRMED",
         status="ACTIVE",
     )

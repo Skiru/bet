@@ -74,7 +74,6 @@ API_DAILY_LIMITS = {
     # the same key (verified live 2026-08-28, after the PRO upgrade). 95 a day is
     # roughly six fully enriched fixtures, and it must not inherit football's
     # absence of a limit. Override with BET_LIMIT_BZZOIRO_TENNIS.
-    "bzzoiro-tennis": 95,
     # SportDB MCP publishes no rate limit; this is a self-imposed ceiling so a
     # large slate cannot issue unbounded match-stats calls.
     "sportdb": 300,

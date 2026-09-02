@@ -30,9 +30,11 @@ from bet.simple_stats.contracts import (
 )
 from bet.simple_stats.providers import (
     NATIVE_ID_PROVIDERS_BY_SPORT,
+    PRIMARY_PROVIDER_BY_SPORT,
     PROVIDERS_BY_SPORT,
     FetchOutcome,
     RunBudget,
+    corroborators_for,
     fetch_bzzoiro_history,
     fetch_bzzoiro_league_table,
     fetch_bzzoiro_lineup,
@@ -41,7 +43,6 @@ from bet.simple_stats.providers import (
     fetch_bzzoiro_referee,
     fetch_bzzoiro_squad_availability,
     fetch_bzzoiro_team_league_id,
-    fetch_bzzoiro_tennis_history,
     fetch_highlightly_history,
     fetch_provider_h2h_metrics,
     fetch_provider_team_metrics,
@@ -117,27 +118,6 @@ def _run_task(task: _Task, rate_limiter: RateLimiter, run_budget: RunBudget) -> 
             mode="h2h", as_of_date=as_of, event_id=bzz_event_id,
         )
 
-    if task.provider == "bzzoiro-tennis":
-        # Addressed by the fixture's own id, not by a player pair: one
-        # /matches/{id}/h2h/ request serves all three slots, and at 95 calls a
-        # day that is what makes the provider usable at all.
-        bzz_match_id = task.event.source_ids.get("bzzoiro-tennis", "")
-        ids = task.event.provider_team_ids.get("bzzoiro-tennis", {})
-        as_of = task.event.start_time[:10]
-        if task.slot == "team_a":
-            return fetch_bzzoiro_tennis_history(
-                bzz_match_id, ids.get("home", ""), rate_limiter, run_budget,
-                mode="l10", as_of_date=as_of,
-            )
-        if task.slot == "team_b":
-            return fetch_bzzoiro_tennis_history(
-                bzz_match_id, ids.get("away", ""), rate_limiter, run_budget,
-                mode="l10", as_of_date=as_of,
-            )
-        return fetch_bzzoiro_tennis_history(
-            bzz_match_id, "", rate_limiter, run_budget, mode="h2h", as_of_date=as_of,
-        )
-
     if task.provider == "sportdb":
         season = _season_label(task.event)
         args = (task.event.competition, season, run_budget)
@@ -156,9 +136,38 @@ def _run_task(task: _Task, rate_limiter: RateLimiter, run_budget: RunBudget) -> 
     )
 
 
+def _has_primary_identity(event: EventRecord) -> bool:
+    """Whether the sport's primary provider can be addressed for this event.
+
+    The same two fields the primary's own slots are gated on below: the native
+    team ids for the l10 lookups and the native fixture id for H2H.
+    """
+    primary = PRIMARY_PROVIDER_BY_SPORT.get(event.sport)
+    if primary is None:
+        return False
+    return bool(event.provider_team_ids.get(primary) and event.source_ids.get(primary))
+
+
 def _build_tasks(event: EventRecord) -> list[_Task]:
+    # A corroborator is only scheduled where there is something to corroborate.
+    #
+    # Without this, espn-football was the *sole* source of 578 rows on
+    # 2026-09-02 (82 of them in the top sheet) -- rows carrying six metrics from
+    # a provider kept for its ability to check bzzoiro's fifty-five, on fixtures
+    # bzzoiro had never seen. That is not a second opinion; it is a first
+    # opinion from the weaker instrument, wearing the label of a second one.
+    #
+    # Belt and braces with the slate gate in ``enrich_events``: the gate stops
+    # such fixtures being enriched at all on a normal run, and this stops them
+    # producing single-source corroborator rows on a run where the gate is off
+    # (--no-slate-gate, a backfill, a test).
+    corroborators = set(corroborators_for(event.sport))
+    skip_corroborators = bool(corroborators) and not _has_primary_identity(event)
+
     tasks = []
     for provider in PROVIDERS_BY_SPORT[event.sport]:
+        if skip_corroborators and provider in corroborators:
+            continue
         tasks.append(_Task(event, "team_a", provider))
         tasks.append(_Task(event, "team_b", provider))
         tasks.append(_Task(event, "h2h", provider))
@@ -168,6 +177,8 @@ def _build_tasks(event: EventRecord) -> list[_Task]:
     # (without them /statistics hard-fails, see providers.py); SportDB only
     # needs a competition name to page that league's season results.
     for provider in NATIVE_ID_PROVIDERS_BY_SPORT.get(event.sport, ()):
+        if skip_corroborators and provider in corroborators:
+            continue
         if provider == "highlightly" and not event.provider_team_ids.get("highlightly"):
             continue
         if provider == "sportdb" and not event.competition:
@@ -179,18 +190,41 @@ def _build_tasks(event: EventRecord) -> list[_Task]:
             event.provider_team_ids.get("bzzoiro") and event.source_ids.get("bzzoiro")
         ):
             continue
-        # Tennis, same gate: the l10 slots need the native player ids and every
-        # slot needs the native match id, because the listing hangs off the
-        # fixture rather than off a player.
-        if provider == "bzzoiro-tennis" and not (
-            event.provider_team_ids.get("bzzoiro-tennis")
-            and event.source_ids.get("bzzoiro-tennis")
-        ):
-            continue
         tasks.append(_Task(event, "team_a", provider))
         tasks.append(_Task(event, "team_b", provider))
         tasks.append(_Task(event, "h2h", provider))
     return tasks
+
+
+# How many distinct matches the primary provider must have served, on each
+# side, for a priority metric to count as complete.
+#
+# Five, because five is the number ``bet_builder_draft.tier_for_row`` already
+# treats as the floor of a usable sample (n<5 is WEAK, n<3 is DROP). Readiness
+# that meant anything other than "this dossier can produce a row the tier
+# system will accept" would be a second, quieter opinion about sample size.
+#
+# Measured against 2026-09-02: of the 52 football fixtures bzzoiro identified,
+# 34 clear this bar on all three priority metrics. At six it is 20 and at eight
+# it is 8 -- bzzoiro's scoped ``as_of_date`` window commonly returns five or six
+# matches a side, so a higher bar would report a full sample as an incomplete
+# one.
+_READY_MIN_PRIMARY_MATCHES = 5
+
+
+def _primary_side_counts(
+    primary: str, obs: MetricObservation
+) -> tuple[int, int]:
+    """Distinct matches the primary served for each team, for one metric.
+
+    Distinct *matches*, not observations: bzzoiro reports a full-match total, a
+    per-team total and both half-splits off the same fixture, so counting rows
+    would report one match as four.
+    """
+    return tuple(  # type: ignore[return-value]
+        len({pv.match_id for pv in bucket if pv.provider == primary and pv.match_id})
+        for bucket in (obs.team_a_l10, obs.team_b_l10)
+    )
 
 
 def _compute_readiness(
@@ -198,6 +232,27 @@ def _compute_readiness(
     metrics: dict[str, MetricObservation],
     has_player_metrics: bool = False,
 ) -> str:
+    """READY means the sport's primary provider covered this fixture.
+
+    It used to mean "two providers covered it", which for football was a
+    measurement of somebody else's league map. espn-football is the only
+    provider that can be a second opinion on the majors, so 35 of the 36 READY
+    dossiers of 2026-09-02 were READY because ESPN happened to know the
+    competition -- and bzzoiro, which had served 55 metrics per match on every
+    one of them, could not make a single fixture READY on its own. A quality
+    label that a richer provider cannot earn is not measuring quality.
+
+    So for a sport with a primary (PRIMARY_PROVIDER_BY_SPORT), READY asks the
+    question the operator actually needs answered: did the source of record
+    return a usable sample, on both sides, for all three priority metrics.
+    Corroboration is still recorded -- per row, by ``cross_provider_agreement``,
+    which is where a second opinion belongs -- and still raises the tier
+    ceiling. It is no longer what makes a fixture readable.
+
+    Sports with no primary (tennis: bzzoiro-tennis answers 402) keep the old
+    two-provider rule, because there the second provider genuinely is the only
+    check there is.
+    """
     if not metrics:
         # Props alone are PARTIAL, not BLOCKED. BLOCKED means "no provider
         # returned any data", and ANALYZE drops a BLOCKED dossier whole -- so
@@ -206,8 +261,10 @@ def _compute_readiness(
         # the team metrics failed and a prop is the only read left.
         return "PARTIAL" if has_player_metrics else "BLOCKED"
     priority = PRIORITY_METRICS[sport]
+    primary = PRIMARY_PROVIDER_BY_SPORT.get(sport)
     with_two_or_more = 0
     with_one_or_more = 0
+    complete_for_primary = 0
     for name in priority:
         obs = metrics.get(name)
         if obs is None:
@@ -217,7 +274,14 @@ def _compute_readiness(
             with_two_or_more += 1
         if len(providers) >= 1:
             with_one_or_more += 1
-    if with_two_or_more >= 3:
+        if primary:
+            side_a, side_b = _primary_side_counts(primary, obs)
+            if min(side_a, side_b) >= _READY_MIN_PRIMARY_MATCHES:
+                complete_for_primary += 1
+    if primary:
+        if complete_for_primary >= len(priority):
+            return "READY"
+    elif with_two_or_more >= 3:
         return "READY"
     if with_one_or_more >= 1:
         return "PARTIAL"

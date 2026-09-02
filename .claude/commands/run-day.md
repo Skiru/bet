@@ -72,10 +72,10 @@ ENRICH — those land as data gaps, not a crash, but they cost coverage. A
 touch it.** The provider answered HTTP 402: it wants a plan or an addon bought.
 Do not reset its counter, do not raise its `BET_LIMIT_*`, and do not tell the
 operator to wait for midnight. Report it once, as a purchase decision, and run
-without it. `bzzoiro-tennis` is the live case (a $5/mo Sports Addon) -- and it
-sends `ratelimit: r=0` on that 402, so if a provider goes from full to empty
-without a run that could have spent it, suspect billing rather than repeating
-the reset advice.
+without it. `bzzoiro-tennis` was the live case (a $5/mo Sports Addon) until it
+was removed from the pipeline on 2026-09-02 -- and it sent `ratelimit: r=0` on
+that 402, so if any provider goes from full to empty without a run that could
+have spent it, suspect billing rather than repeating the reset advice.
 
 `understat` is a permanently dead upstream. Never report it as today's problem.
 `sackmann` was removed from the tennis roster on 2026-08-28 (both source
@@ -161,9 +161,9 @@ to be one global sort whose tie-break rewards corroboration -- and corroboration
 is a property of the sport, not of the fixture. With 39 of 40 tennis fixtures
 single-source, every tennis event ranked below every football event, the one
 corroborated tennis match landed at position 41 under `--max-events 40`, and the
-whole sport vanished while `bzzoiro-tennis` still held 72 unspent requests.
-Under apportionment a cap of 40 gives tennis 4 slots and football 36; a sport
-that cannot fill its share hands the slots back.
+whole sport vanished while its own tennis quota sat unspent. Under
+apportionment a cap of 40 gives tennis 4 slots and football 36; a sport that
+cannot fill its share hands the slots back.
 
 `--provider-call-budget` is **not** what throttled football, despite reading that
 way. Only the native-id providers are metered by it, `bzzoiro` is already
@@ -570,18 +570,16 @@ bucket ENRICH has usually already drained. Report the model number, say no price
 was fetched for it, and never write `[CALL, promoted by market signal]` on a
 tennis row.
 
-**Check that the column exists before reporting it as thin.** It has two
-prerequisites, and both have failed:
+**There is no tennis column, and that is now stated rather than discovered.**
+MARKET_CONTEXT has been football-only since 2026-09-02. Its one tennis input
+was bzzoiro's tennis model, which needed a paid Sports Addon ($5/mo), answered
+`402 addon_required` on 2026-09-01 and 2026-09-02, and was removed with the
+rest of that provider.
 
-* `bzzoiro-tennis` needs a paid **Sports Addon** ($5/mo). Without it the
-  provider answers `402 addon_required` and is stood down for the whole run —
-  observed 2026-09-01 and 2026-09-02.
-* Each tennis fixture needs a `source_ids["bzzoiro-tennis"]` from DISCOVER.
-  On 2026-09-02 all 38 carried `odds-api` ids and none carried that one, so the
-  model was never consulted for any fixture on the slate.
-
-Either way **zero** tennis rows carry a `model_probability`, and tennis
-verification falls back to the Superbet offer alone. MARKET_CONTEXT now says so
+So tennis rows carry **no** `market_signal` at all -- not a `NO_MARKET_DATA`
+verdict, which would read as "the model and the market were compared and did
+not agree" when nothing was compared. Tennis verification rests on the Superbet
+offer alone. MARKET_CONTEXT now says so
 — read `tennis_model_unavailable` off its `AGENT_SUMMARY` and quote it under
 *Czego zabrakło*. An empty list means the column was genuinely consulted.
 

@@ -39,7 +39,17 @@ KNOWN_DEAD_PROVIDERS = {
 # through, which is how a lopsided artifact gets produced.
 ESTIMATED_CALLS_PER_EVENT = {
     "espn-football": 25,
-    "espn-tennis": 25,
+    # Tennis is the one entry whose cost is not really per event. ESPN publishes
+    # tennis only through the daily scoreboard, one request covers every player
+    # in every tournament running that day, and the scan memoises each date for
+    # the life of the process -- so the whole slate costs at most one scan per
+    # tour (102 requests, see _tennis_scan_offsets) however many fixtures it
+    # holds, and each additional event costs the athlete-id lookup and nothing
+    # else. Three is that marginal cost. It used to read 25, which was the old
+    # design's genuine per-event price: a scan, and then up to twenty more
+    # scoreboard fetches for every fixture whose set scores that scan had
+    # already parsed and thrown away.
+    "espn-tennis": 3,
     "api-football": 25,
     "tennis-abstract": 5,
     "sackmann": 5,
@@ -58,7 +68,6 @@ ESTIMATED_CALLS_PER_EVENT = {
     # without a second stats call: 1 listing + 5 box scores per side + up to 5
     # h2h box scores. Against a 95/day ceiling that is about six fixtures, and
     # preflight saying "six" is the point of this number existing.
-    "bzzoiro-tennis": 16,
 }
 _DEFAULT_CALLS_PER_EVENT = 20
 
@@ -73,7 +82,6 @@ CREDENTIAL_ENV_VARS = {
     "bzzoiro": ("BZZORIO_KEY",),
     # Same credential, separate provider key: the two products have separate
     # quota buckets, so they need separate daily counters.
-    "bzzoiro-tennis": ("BZZORIO_KEY",),
     "sportdb": ("SPORTDB_API_KEY", "SPORTDB_KEY"),
     "google-sports": ("SERPAPI_KEY",),
 }

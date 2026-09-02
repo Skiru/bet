@@ -55,13 +55,14 @@ on PRO; not free, so `--max-events` binds it exactly as it binds ENRICH.
 
 Two limits to state rather than report as failures:
 
-- **Tennis gets a model and no prices.** One extra call fetches the whole day's
-  tennis forecasts, which give `total_games` at 21.5/22.5 and `total_sets` at
-  2.5. Per-match tennis *odds* are still not fetched: `bzzoiro-tennis` is a
-  separate 95/day bucket that ENRICH already spends against, and roughly six
-  enriched fixtures exhausts it. So every tennis row reads `NO_MARKET_DATA` with
-  a real `model_probability` beside it and can never promote a tier. That is the
-  design, not a gap.
+- **Tennis is out of this stage entirely, since 2026-09-02.** MARKET_CONTEXT is
+  football-only. Its one tennis input was bzzoiro's tennis model, which needed a
+  paid Sports Addon, answered `402 addon_required` on 2026-09-01 and 2026-09-02,
+  and was removed with the rest of that provider. Tennis rows therefore carry
+  **no** `market_signal` at all -- not `NO_MARKET_DATA`, which would read as
+  "the model and the market were compared", when nothing was. Report it from
+  `tennis_model_unavailable` in the `AGENT_SUMMARY`; do not report it as thin
+  coverage.
 - **Only fixtures bzzoiro itself discovered.** The stage is keyed by bzzoiro's
   own event id, so an event only `highlightly` or `odds-api` found is skipped.
   Compare `market_context_metrics.events_considered` against DISCOVER's
@@ -158,9 +159,10 @@ ls runs/<date>/<date>_market_context.json runs/<date>/<date>_tipster_signal.json
 
 This is worth doing now and was not before: the `bzzoiro` football product is
 uncapped on the PRO plan against `highlightly`'s 100 a day, so a second pass has
-budget left to actually add something. `bzzoiro-tennis` is the exception — still
-100 a day — so on a tennis-heavy day check its remaining quota before backfilling
-rather than spending the rest of it on a retry. **Once only.** A third pass on the same day spends quota to re-learn
+budget left to actually add something. Tennis costs nothing to backfill: both
+its providers are keyless, and `espn-tennis` reads one memoised scoreboard per
+date for the whole slate rather than a quota-metered call per fixture.
+**Once only.** A third pass on the same day spends quota to re-learn
 that the provider has no data for those fixtures. And a backfill is not a retry
 of a *failed* run -- if the first run's verdict was `FAILED`, report it and stop.
 
@@ -248,7 +250,7 @@ helps:
   for the operator and never suggest raising `BET_LIMIT_<PROVIDER>` or running
   the reset script against it -- both do nothing.
 
-  Live on 2026-09-01, `bzzoiro-tennis` returns
+  Observed live on 2026-09-01 with bzzoiro's tennis product (since removed): it returned
   `402 {"code":"addon_required", ...$5/mo Sports Addon}` **while still sending
   `ratelimit: "tennis";r=0`**, so before the fix it read as an exhausted quota
   and the advice was impossible. If you see `quota_exhausted` on a provider that
@@ -281,10 +283,10 @@ per-team totals and player props, and (uncapped on PRO) the only one able to
 enrich a whole slate. If it appears in `blocked`, say so first and name the
 `kind` -- a day without it is a day of match totals only.
 
-`bzzoiro-tennis` is a separate provider with a separate counter and, unlike
-football, a real ceiling of 100 calls a day -- roughly six enriched fixtures. A
-thin tennis slate is usually that ceiling rather than a coverage failure, so
-report the tennis quota alongside the count instead of calling it a gap.
+Tennis has no quota to report since 2026-09-02: `tennis-abstract` and
+`espn-tennis` are both keyless, and they are the whole roster. A thin tennis
+slate is now a discovery or identity problem -- check `espn_competition_coverage`
+and the preflight tennis capability block, not a counter.
 
 ### Tennis log lines that look like failures and are not
 

@@ -399,7 +399,7 @@ def test_an_observation_with_no_opponent_is_kept_whole():
 # _enrichment_priority's tie-break rewards corroboration, and corroboration is
 # a property of the sport: 39 of 40 tennis fixtures were single-source, so every
 # tennis event scored worse than every football event and the sport fell off the
-# bottom of --max-events 40. bzzoiro-tennis still held 72 unspent requests.
+# bottom of --max-events 40, while the tennis quota of the day sat unspent.
 
 
 def _event(event_id, sport, start_time="2026-08-28T20:00:00+00:00", confirmed=False):

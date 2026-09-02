@@ -56,6 +56,7 @@ from bet.simple_stats.contracts import (  # noqa: E402
     SuperbetOfferV1,
     TipsterSignalV1,
 )
+from bet.simple_stats.bet_builder_draft import BAR_BASES  # noqa: E402
 from bet.simple_stats.coupons import (  # noqa: E402
     AnalystVeto,
     CouponSet,
@@ -116,9 +117,50 @@ def _score_actuals(event_payload: dict) -> dict[str, float]:
     return out
 
 
+FINISHED_STATUSES = frozenset({"finished", "ft", "aet", "after_penalties", "awarded"})
+
+
+def _is_finished(event_payload: dict) -> tuple[bool, str | None]:
+    """``(finished?, status)`` for the fixture row bzzoiro returns.
+
+    ``/events/{id}/stats/`` answers for a match in play exactly as it answers
+    for a finished one -- there is no marker on the stats block itself, so a
+    partial count is indistinguishable from a full-time one. The 2026-09-02
+    slate settled that way: every one of its twelve fixtures was in
+    ``2nd_half`` when the backtest ran, eleven rows were graded against
+    ~70-minute counts, and the run reported hit 36.4% against a claimed 56.3%.
+    The corners rows were the worst of it -- Burnley "lost" corners over 7.5 on
+    3 corners with half an hour still to play.
+
+    ``match_status`` was in the payload the whole time, one level in at
+    ``value["event"]``, next to the score this function already reads.
+    """
+    inner = event_payload.get("event")
+    inner = inner if isinstance(inner, dict) else event_payload
+    status = inner.get("match_status")
+    if not isinstance(status, str) or not status:
+        return False, None
+    return status.strip().lower() in FINISHED_STATUSES, status
+
+
 def _fetch_one(client, bzz_id: str) -> tuple[dict, list[str]]:
-    """``({"home":…, "away":…, "total":…}, gaps)`` for one finished fixture."""
+    """``({"home":…, "away":…, "total":…}, gaps)`` for one finished fixture.
+
+    Refuses anything not full-time. An unfinished fixture returns no actuals at
+    all, so the caller neither settles nor caches it -- the cache is on disk
+    forever and a mid-match snapshot in it would poison every later run of
+    every later day.
+    """
     gaps: list[str] = []
+    try:
+        event = client.get_event_result(bzz_id)
+        payload = event.value if getattr(event, "value", None) else {}
+    except Exception as exc:  # noqa: BLE001
+        return {}, [f"{bzz_id}: event error: {exc}"]
+    payload = payload if isinstance(payload, dict) else {}
+    finished, status = _is_finished(payload)
+    if not finished:
+        return {}, [f"{bzz_id}: not full-time (match_status={status or 'unknown'})"]
     try:
         stats, gap = _bzzoiro_match_stats(client, bzz_id)
     except Exception as exc:  # noqa: BLE001 - one fixture must not abort a slate
@@ -130,13 +172,7 @@ def _fetch_one(client, bzz_id: str) -> tuple[dict, list[str]]:
         "away": dict(stats.get("away") or {}),
         "total": dict(stats.get("total") or {}),
     }
-    try:
-        event = client.get_event_result(bzz_id)
-        payload = event.value if getattr(event, "value", None) else {}
-    except Exception as exc:  # noqa: BLE001
-        gaps.append(f"{bzz_id}: event error: {exc}")
-        payload = {}
-    goals = _score_actuals(payload if isinstance(payload, dict) else {})
+    goals = _score_actuals(payload)
     for name, value in goals.items():
         if name.startswith("__"):
             continue
@@ -299,7 +335,12 @@ def _offer_for(date: str) -> SuperbetOfferV1 | None:
 
 
 def coupons_from_sheet(
-    date: str, sheet: StatsSheetV1, events: EventListV1, *, max_singles: int = 15
+    date: str,
+    sheet: StatsSheetV1,
+    events: EventListV1,
+    *,
+    max_singles: int = 15,
+    bar_basis: str = "p_low",
 ) -> CouponSet:
     """``build_coupons`` over a sheet, with the day's own offer and vetoes.
 
@@ -318,19 +359,26 @@ def coupons_from_sheet(
         vetoes=_vetoes_for(date),
         max_singles=max_singles,
         not_before=None,
+        bar_basis=bar_basis,
     )
 
 
-def rebuilt_coupons(date: str, *, max_singles: int = 15) -> CouponSet | None:
+def rebuilt_coupons(
+    date: str, *, max_singles: int = 15, bar_basis: str = "p_low"
+) -> CouponSet | None:
     sheet = rebuild(date)
     if sheet is None:
         return None
     paths = _run_paths(date)
     events = EventListV1.model_validate_json(paths["events"].read_text(encoding="utf-8"))
-    return coupons_from_sheet(date, sheet, events, max_singles=max_singles)
+    return coupons_from_sheet(
+        date, sheet, events, max_singles=max_singles, bar_basis=bar_basis
+    )
 
 
-def recorded_sheet_coupons(date: str, *, max_singles: int = 15) -> CouponSet | None:
+def recorded_sheet_coupons(
+    date: str, *, max_singles: int = 15, bar_basis: str = "p_low"
+) -> CouponSet | None:
     """Today's selection over the sheet the pipeline wrote that day.
 
     This is the controlled half of the experiment: selection held constant,
@@ -343,7 +391,9 @@ def recorded_sheet_coupons(date: str, *, max_singles: int = 15) -> CouponSet | N
         return None
     sheet = StatsSheetV1.model_validate_json(paths["sheet"].read_text(encoding="utf-8"))
     events = EventListV1.model_validate_json(paths["events"].read_text(encoding="utf-8"))
-    return coupons_from_sheet(date, sheet, events, max_singles=max_singles)
+    return coupons_from_sheet(
+        date, sheet, events, max_singles=max_singles, bar_basis=bar_basis
+    )
 
 
 # --------------------------------------------------------------- settling
@@ -402,6 +452,59 @@ def settle_singles(
                 "outcome": outcome, "actual": actual,
             }
         )
+    return out
+
+
+def settle_slip_legs(
+    coupons: CouponSet, events: EventListV1, actuals_by_event: dict[str, dict]
+) -> list[dict]:
+    """One record per Bet Builder leg -- the two thirds of the file nothing measured.
+
+    ``settle_singles`` covers the singles table, which was 15 rows of the
+    2026-09-02 coupon against 32 legs across 8 slips. The legs were never
+    settled, so the drafter's own claims had never been checked even once, and
+    a Bet Builder is where a bad leg does the most damage: the slip pays
+    nothing unless every leg lands.
+
+    Records are shaped exactly like ``settle_singles``' so ``summarise``,
+    ``calibration`` and ``profit`` all work on them unchanged. ``price`` is the
+    leg's own Superbet price and NOT a slip price -- a leg is settled as the
+    independent claim the drafter makes about it, because the combined price is
+    deliberately never computed anywhere in this repo (positively correlated
+    legs make the product a lie). The ``slip``/``slip_rank`` keys are what lets
+    a caller regroup the legs and ask whether a whole slip survived.
+    """
+    by_id = {e.event_id: e for e in events.events}
+    out: list[dict] = []
+    for slip in coupons.slips:
+        event = by_id.get(slip.event_id)
+        actuals = actuals_by_event.get(slip.event_id)
+        for leg in slip.draft.legs:
+            base = {
+                "slip": slip.match, "slip_rank": slip.rank,
+                "market": leg.market, "line": leg.line,
+                "direction": leg.direction,
+                "subject": leg.player_name or leg.team_name,
+                "p_low": leg.p_low, "tier": leg.tier,
+                "price": leg.superbet_price,
+                "verdict": leg.market_verdict,
+            }
+            if event is None or actuals is None:
+                out.append({**base, "outcome": "NO_DATA", "actual": None,
+                            "reason": "no actuals for this fixture"})
+                continue
+            # ``team_name`` is already separate from ``player_name`` on a leg,
+            # so unlike a single there is nothing to disambiguate: a player
+            # leg settles against the player family, which bzzoiro's match
+            # ``/stats/`` does not carry, and reports NO_DATA rather than
+            # being scored against his team's figure.
+            outcome, actual = settle_row(
+                market=leg.market, line=leg.line, direction=leg.direction,
+                actuals=actuals, team_name=leg.team_name,
+                home_team=event.home_team, away_team=event.away_team,
+            )
+            out.append({**base, "match": f"{event.home_team} v {event.away_team}",
+                        "outcome": outcome, "actual": actual})
     return out
 
 
@@ -509,9 +612,21 @@ def main() -> int:
         "--calibrate", action="store_true",
         help="Report claimed p_low against realised hit rate in buckets.",
     )
+    parser.add_argument(
+        "--bar-basis", dest="bar_basis", default="p_low", choices=list(BAR_BASES),
+        help="Which probability min_acceptable_odds is derived from, for the "
+             "rebuilt/recorded-sheet passes. p_low is what the pipeline ships; "
+             "p_central is the arm bet_builder_draft.BAR_BASES exists to "
+             "paper-trade and, until this flag, could not be settled at all.",
+    )
     parser.add_argument("--cache", default=str(DEFAULT_CACHE), help="Actuals cache (JSON)")
     parser.add_argument("--output", default=None, help="Write the full record set here")
     parser.add_argument("--show-rows", action="store_true", help="Print every settled row")
+    parser.add_argument(
+        "--legs", action="store_true",
+        help="Also settle every Bet Builder leg. 32 of the 47 predictions in "
+             "the 2026-09-02 coupon were legs and none had ever been settled.",
+    )
     args = parser.parse_args()
 
     both = not (args.recorded or args.rebuilt)
@@ -529,12 +644,25 @@ def main() -> int:
         events = EventListV1.model_validate_json(paths["events"].read_text(encoding="utf-8"))
         actuals, gaps = fetch_actuals(events, cache)
         all_gaps.extend(gaps)
+        # Called out on its own line, not left to be found among a few hundred
+        # "no bzzoiro id" gaps: a slate that is still being played reads as a
+        # coverage problem but is a *timing* one, and the fix is to wait.
+        unfinished = [g for g in gaps if "not full-time" in g]
         print(f"{date}: actuals for {len(actuals)} of {len(events.events)} fixtures")
+        if unfinished:
+            print(
+                f"  {len(unfinished)} fixture(s) not full-time yet -- "
+                "not settled, not cached; re-run after they finish"
+            )
         budget = args.max_singles
         loaders = {
             "recorded": lambda d: load_recorded(d),
-            "rebuilt": lambda d: rebuilt_coupons(d, max_singles=budget),
-            "recorded_sheet": lambda d: recorded_sheet_coupons(d, max_singles=budget),
+            "rebuilt": lambda d: rebuilt_coupons(
+                d, max_singles=budget, bar_basis=args.bar_basis
+            ),
+            "recorded_sheet": lambda d: recorded_sheet_coupons(
+                d, max_singles=budget, bar_basis=args.bar_basis
+            ),
         }
         wanted = [w for w in ("recorded", "rebuilt", "recorded_sheet")
                   if (both and w != "recorded_sheet") or getattr(args, w, False)]
@@ -550,6 +678,14 @@ def main() -> int:
             summary = summarise(f"{date} {which}", records)
             per_slate.append(summary)
             print("  " + _format(summary))
+            if args.legs:
+                legs = settle_slip_legs(coupons, events, actuals)
+                for record in legs:
+                    record["date"] = date
+                all_records.setdefault(f"{which}_legs", []).extend(legs)
+                leg_summary = summarise(f"{date} {which} legs", legs)
+                per_slate.append(leg_summary)
+                print("  " + _format(leg_summary))
             if args.show_rows:
                 for r in sorted(records, key=lambda x: -x["p_low"]):
                     price = "   --" if r.get("price") is None else f"{r['price']:5.2f}"
@@ -565,14 +701,16 @@ def main() -> int:
 
     print("\npooled")
     pooled = []
-    for which in ("recorded", "recorded_sheet", "rebuilt"):
+    for which in ("recorded", "recorded_sheet", "rebuilt",
+                  "recorded_legs", "recorded_sheet_legs", "rebuilt_legs"):
         if all_records.get(which):
             summary = summarise(f"ALL {which}", all_records[which])
             pooled.append(summary)
             print("  " + _format(summary))
     if args.calibrate:
         print("\ncalibration -- p_low is a lower bound, so realised should be >= claimed")
-        for which in ("recorded", "recorded_sheet", "rebuilt"):
+        for which in ("recorded", "recorded_sheet", "rebuilt",
+                      "recorded_legs", "recorded_sheet_legs", "rebuilt_legs"):
             if all_records.get(which):
                 print(_format_calibration(f"ALL {which}", calibration(all_records[which])))
 

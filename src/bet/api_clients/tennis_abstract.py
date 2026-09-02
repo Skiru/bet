@@ -32,6 +32,7 @@ from bs4 import BeautifulSoup
 
 from .base_client import BaseAPIClient, APIError, APINotFoundError, CACHE_DIR
 from .rate_limiter import RateLimiter
+from .tennis_score import parse_tennis_score
 from bet.models.normalized import NormalizedFixture, NormalizedMatchStats
 
 logger = logging.getLogger(__name__)
@@ -572,6 +573,36 @@ class TennisAbstractClient(BaseAPIClient):
             "opponent_rank": self._safe_int(match.get("orank")) or 0,
         }
 
+        # The set score, and the two figures the pipeline used to derive from
+        # the wrong columns.
+        #
+        # ``games``/``ogames`` are **service** games. A tie-break game has no
+        # server and appears in neither, so ``service_games + return_games`` --
+        # which is how ``providers.py`` built ``total_games`` -- is short by
+        # exactly one game per tie-break set. Measured on this client's own
+        # cache, 56,280 completed rows carrying serve data: the shortfall
+        # equalled the number of tie-break sets on **98.37%** of them (0 short
+        # on 38,036 tie-break-free rows; 1 short on 14,733 one-tie-break rows;
+        # 2 on 2,387; 3 on 200).
+        #
+        # It is not a rounding error, it is one-directional: every affected row
+        # understated the Total Games market's own quantity, and the shift sat
+        # inside ANALYZE's 1.0 agreement tolerance, so espn-tennis -- which
+        # transcribes the published score exactly -- kept certifying it AGREE.
+        #
+        # The score column has been on every row all along (column 9, present
+        # on 78,750 of 78,750 cached rows) and was parsed only far enough to
+        # skip walkovers.
+        parsed = parse_tennis_score(match.get("score"))
+        stats["score"] = str(match.get("score") or "")
+        stats["completed"] = bool(parsed.completed) if parsed is not None else False
+        if parsed is not None:
+            stats["total_games"] = parsed.games
+            stats["total_sets"] = float(parsed.sets)
+            own_games = self._player_games_won(parsed, match.get("wl"))
+            if own_games is not None:
+                stats["games_won"] = own_games
+
         return NormalizedMatchStats(
             fixture_id=self._fixture_id(player_name, match),
             source="tennis-abstract",
@@ -583,6 +614,37 @@ class TennisAbstractClient(BaseAPIClient):
         )
 
     # ─── Helpers ─────────────────────────────────────────────────────
+
+    @staticmethod
+    def _player_games_won(parsed, result: object) -> float | None:
+        """The games *this* player won, or None when the row cannot say.
+
+        The score is written **winner-first**, not player-first. Measured on
+        the whole cache: on 31,141 rows marked ``L`` the first-listed side had
+        won more sets 31,109 times, and on 45,261 rows marked ``W`` it had
+        45,218 times. So the side is recoverable -- from ``wl`` -- but only
+        because ``wl`` and the score agree, and roughly one row in six hundred
+        they do not.
+
+        Those rows return None rather than a coin flip. A per-player games
+        figure attributed to the wrong player is not a small error: it is the
+        opponent's line filed under this player's name, which is the Benoit
+        Paire class of fabrication in miniature.
+        """
+        wl = str(result or "").strip().upper()
+        if wl not in ("W", "L") or not parsed.set_scores:
+            return None
+        first = sum(1 for a, b in parsed.set_scores if a > b)
+        second = len(parsed.set_scores) - first
+        # The first-listed side must be the one that won, because that is what
+        # the spelling means. Where it is not -- 32 of 31,141 ``L`` rows and 43
+        # of 45,261 ``W`` rows -- the row cannot say which side is which, and
+        # the answer is no answer.
+        if first <= second:
+            return None
+        index = 0 if wl == "W" else 1
+        return float(sum(pair[index] for pair in parsed.set_scores))
+
 
     @staticmethod
     def _url_name(player_name: str) -> str:

@@ -15,9 +15,10 @@ from pathlib import Path
 from bet.stats.market_ranking import player_prop_lines, standard_market_lines
 
 from bet.simple_stats.providers import (
-    _KNOWN_SURFACES,
     _normalize_team_name,
     _team_matches,
+    reset_tennis_surface_cache,
+    tennis_surface_for_competition,
 )
 from bet.simple_stats.context_flags import context_flags_for_row
 from bet.simple_stats.offered_lines import (
@@ -39,12 +40,10 @@ from bet.simple_stats.contracts import (
 _CONFIG_DIR = Path(__file__).resolve().parents[3] / "config"
 _OBSERVATION_SCOPE_PATH = _CONFIG_DIR / "observation_scope.json"
 _TENNIS_FORMAT_PATH = _CONFIG_DIR / "tennis_match_format.json"
-_TENNIS_SURFACE_PATH = _CONFIG_DIR / "tennis_surface_map.json"
 _MARKET_PRIORS_PATH = _CONFIG_DIR / "market_priors.json"
 _CONFIG_LOCK = threading.Lock()
 _OBSERVATION_SCOPE_CACHE: dict[str, dict[str, str]] | None = None
 _TENNIS_FORMAT_CACHE: dict[str, str] | None = None
-_TENNIS_SURFACE_CACHE: dict[str, str] | None = None
 _MARKET_PRIORS_CACHE: dict[str, float] | None = None
 
 
@@ -122,6 +121,13 @@ def tennis_match_format(competition: str | None) -> str | None:
 def tennis_surface(competition: str | None) -> str | None:
     """``"Hard"``, ``"Clay"``, ``"Grass"`` or None when unpinned.
 
+    Delegates to ``providers.tennis_surface_for_competition`` rather than
+    reading the config a second time. The two sides of the surface rule -- the
+    fixture's surface, resolved here, and a historical ESPN row's, resolved in
+    ``providers.py`` -- meet in an ``!=`` inside ``scope_values``, so they have
+    to come from one table read one way. Two loaders is how "Hard" comes to be
+    compared with "hard" and every correctly surfaced observation is dropped.
+
     None is deliberately not a guess. An unpinned competition filters nothing
     and its samples are scoped exactly as they were before
     ``config/tennis_surface_map.json`` existed -- the same rule
@@ -129,30 +135,7 @@ def tennis_surface(competition: str | None) -> str | None:
     surface from a tournament name is how a wrong pin would silently delete
     real observations, which is worse than the leak the file closes.
     """
-    global _TENNIS_SURFACE_CACHE
-    with _CONFIG_LOCK:
-        cache = _TENNIS_SURFACE_CACHE
-    if cache is None:
-        surfaces = _load_json(_TENNIS_SURFACE_PATH).get("surfaces") or {}
-        # Same guard, same reason as ``tennis_match_format``: a malformed
-        # config must leave this gate inert, not abort ANALYZE.
-        if not isinstance(surfaces, dict):
-            surfaces = {}
-        # Through the same table ``ProviderValue.surface`` is normalised by,
-        # because the two sides meet in an ``!=``: a config pin of "hard"
-        # taken verbatim would mismatch every correctly-surfaced observation
-        # and silently keep only the surface-unknown ones -- the opposite of
-        # the intent. An unknown spelling pins nothing, which is inert.
-        cache = {
-            str(name): canonical
-            for name, value in surfaces.items()
-            if (canonical := _KNOWN_SURFACES.get(str(value).strip().lower()))
-        }
-        with _CONFIG_LOCK:
-            if _TENNIS_SURFACE_CACHE is None:
-                _TENNIS_SURFACE_CACHE = cache
-            cache = _TENNIS_SURFACE_CACHE
-    return cache.get(competition or "")
+    return tennis_surface_for_competition(competition)
 
 
 def _load_market_priors() -> tuple[dict[str, float], dict[tuple[str, str], float]]:
@@ -314,14 +297,17 @@ def shrunk_centre(values: list[float], market: str, venue: str | None = None) ->
 
 
 def reset_scope_caches() -> None:
-    """Forget both cached config documents. For tests only."""
+    """Forget every cached config document. For tests only.
+
+    The surface table now lives in ``providers.py`` -- one table for both sides
+    of the surface comparison -- so its cache is reset there.
+    """
     global _OBSERVATION_SCOPE_CACHE, _TENNIS_FORMAT_CACHE, _MARKET_PRIORS_CACHE
-    global _TENNIS_SURFACE_CACHE
     with _CONFIG_LOCK:
         _OBSERVATION_SCOPE_CACHE = None
         _TENNIS_FORMAT_CACHE = None
-        _TENNIS_SURFACE_CACHE = None
         _MARKET_PRIORS_CACHE = None
+    reset_tennis_surface_cache()
 
 # STANDARD_MARKET_LINES' "stat" field uses the pre-existing (non-"_total")
 # taxonomy; MetricObservation keys use our canonical names (section 5). Two
@@ -732,6 +718,7 @@ def scope_values(
     sees the sample it would have seen had the removed matches never been
     fetched.
     """
+    values = _share_surface_within_a_match(values)
     scope = observation_scope()
     kept: list[ProviderValue] = []
     dropped: dict[str, int] = {}
@@ -776,6 +763,75 @@ def scope_values(
             continue
         kept.append(pv)
     return kept, dropped
+
+
+def _share_surface_within_a_match(values: list[ProviderValue]) -> list[ProviderValue]:
+    """Let a match's surface reach the rows of that match that do not state it.
+
+    The surface rule needs both sides known, so a provider that never states one
+    is not merely uninformative -- it is **immune**. Until 2026-09-02
+    espn-tennis was exactly that, and the filter that removed 145 of
+    tennis-abstract's 522 ``total_games`` observations removed 0 of ESPN's 478,
+    quietly reweighting the sample toward one provider.
+
+    Giving ESPN rows a surface from their tournament closed most of that and not
+    all of it: the surface table pins ten Grand Slam names, and on the deeper
+    365-day history that is **16%** of ESPN's cached rows. The rest are events
+    like "ATP Rolex Monte-Carlo Masters".
+
+    Pinning those by name is the one thing not to do. tennis-abstract calls it
+    "Monte Carlo Masters" and tennis-abstract is the only place a surface can be
+    proved from, so a name join would have to be fuzzy -- and its own cache
+    contains ``Ostrava`` (Hard, n=36) alongside ``Ostrava CH`` (Clay, n=120).
+    A city-level match there pins the wrong surface, and a wrong pin does not
+    leak observations in, it silently deletes real ones.
+
+    So nothing is joined by name. Both providers describe the *same matches*,
+    identified the way tennis is already identified everywhere else in this
+    module -- by opponent, through ``_team_matches`` -- and a surface is a
+    property of a match, not of a row. A group where the rows that do state a
+    surface all state the same one hands it to the rows that state none.
+
+    Unanimity is required, and it is what makes repeat meetings safe: two
+    matches against one opponent on different surfaces put both into one group,
+    the group disagrees, and every row in it keeps whatever it already had.
+    Nothing is ever overwritten and no surface is ever invented -- the only
+    values that move are ones a provider observed about a match in this sample.
+    """
+    unknown = [pv for pv in values if pv.surface is None]
+    if not unknown or all(pv.surface is None for pv in values):
+        return values
+
+    groups: list[tuple[str, list[ProviderValue]]] = []
+    for pv in values:
+        name = _normalize_team_name(pv.opponent)
+        if not name:
+            continue
+        for index, (key, members) in enumerate(groups):
+            if _team_matches(name, key):
+                members.append(pv)
+                break
+        else:
+            groups.append((name, [pv]))
+
+    resolved: dict[int, str] = {}
+    for _key, members in groups:
+        stated = {pv.surface for pv in members if pv.surface is not None}
+        if len(stated) != 1:
+            continue
+        only = stated.pop()
+        for pv in members:
+            if pv.surface is None:
+                resolved[id(pv)] = only
+    if not resolved:
+        return values
+
+    return [
+        pv.model_copy(update={"surface": resolved[id(pv)]})
+        if id(pv) in resolved
+        else pv
+        for pv in values
+    ]
 
 
 def _scope_observation(

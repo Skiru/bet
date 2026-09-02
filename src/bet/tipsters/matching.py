@@ -38,13 +38,71 @@ from bet.discovery.team_aliases import fold_club_name, resolve_team_alias
 # and the women's team, nor a club and its qualifier entry. Containment is only
 # allowed to conclude "same team" when the surplus tokens are ordinary name
 # words, so these are checked before it can fire.
-_DISTINCT_TEAM_MARKERS = frozenset(
-    """
-    b c ii iii 2 3 res reserve reserves am amateurs akademia academy
-    u17 u18 u19 u20 u21 u23 juniors junior youth
-    w women womens ladies feminin femenino frauen kobiet kobiety
-    """.split()
-)
+#
+# Grouped into classes rather than compared as bare tokens, because sources
+# render the same distinction differently: ZawodTyper writes the women's side as
+# "Servette K" where the event list writes "Servette Women". Comparing tokens
+# made those two disagree (a false veto) while "Servette K" against the *men's*
+# "Servette FC" saw no marker at all and scored 86 -- one point under threshold
+# on the 2026-09-02 slate, so a women's pick reaching the men's fixture was luck
+# rather than design. Classes fix both directions at once.
+#
+# The age groups are deliberately one class each: a U19 side and a U21 side are
+# not two renderings of one team.
+_MARKER_CLASSES: dict[str, str] = {
+    **{token: "reserve2" for token in "b ii 2 res reserve reserves am amateurs".split()},
+    **{token: "reserve3" for token in "c iii 3".split()},
+    **{token: "youth" for token in "juniors junior youth academy akademia".split()},
+    **{token: token for token in "u17 u18 u19 u20 u21 u23".split()},
+    **{
+        token: "women"
+        for token in "w women womens ladies feminin femenino frauen kobiet kobiety dames".split()
+    },
+}
+
+# Polish sources mark a women's fixture with a trailing "K" -- "Servette K",
+# "Sparta Praga [K]". Rewritten before tokenizing rather than added to the class
+# table above, because position is what makes it a marker: Belgian clubs carry a
+# *leading* "K" (Koninklijke) that means nothing of the sort.
+_TRAILING_WOMEN_MARKER = re.compile(r"\s+k$", re.I)
+
+# Two or more single letters each closed by a dot: "F.C.", "A.C.", "S.S.".
+_DOTTED_ABBREVIATION = re.compile(r"\b(?:[A-Za-z]\.){2,}")
+
+# How *tipster sources* render clubs the event list carries under another name.
+#
+# Separate from ``bet.discovery.team_aliases`` on purpose. That table is the
+# feed-to-feed one and is keyed to fixtures a slate proved; this one exists
+# because two of the three sources publish in Polish, so they translate the city
+# ("Bayern Monachium", "Sparta Praga") where every provider feed keeps it. Those
+# are deterministic translations rather than the club renames that table holds,
+# and confining them here keeps the fix off the Superbet join, which never sees
+# a Polish rendering.
+#
+# Every entry below was confirmed against the 2026-09-02 slate: same kickoff,
+# same competition, same two clubs. Keys are folded at lookup, so both sides are
+# written here as ordinary names.
+_TIPSTER_RENDERINGS: dict[str, str] = {
+    fold_club_name(source): canonical
+    for source, canonical in {
+        "Bayern Monachium": "Bayern Munich",
+        "Red Bull Salzburg": "RB Salzburg",
+        "Rapid Vienna": "Rapid Wien",
+        "SK Rapid": "Rapid Wien",
+        "MK Dons": "Milton Keynes Dons",
+        "AEL Larissa": "Larisa",
+        "Larissa": "Larisa",
+        "Mardin 1969": "Mardin BB",
+        # The slate carries this fixture twice, once per spelling, so the
+        # canonical form has to be the one containment can reach from both.
+        "Royale Union SG": "Royale Union Saint-Gilloise",
+        "Union SG": "Royale Union Saint-Gilloise",
+        "St Truiden": "Sint Truiden",
+        "Sint-Truidense VV": "Sint Truiden",
+        # The Egyptian club's English name against the Arabic one the feed uses.
+        "Arab Contractors": "El Mokawloon",
+    }.items()
+}
 
 # Ordinary club-structure words. They carry no identity on their own -- every
 # league has dozens of each -- so a lone shared token of this kind is not
@@ -58,13 +116,27 @@ _GENERIC_CLUB_TOKENS = frozenset(
 )
 
 
-def _fold(name: str) -> str:
+def _fold(name: str, *, person: bool = False) -> str:
     """Alias-resolved, Polish-safe fold. Empty for anything unusable."""
-    return resolve_team_alias(name or "")
+    raw = name or ""
+    if not person:
+        # "F.C." survives the fold as the two tokens "f" and "c", and "c" is how
+        # a third team is written -- so "Falkirk F.C." was marker-vetoed against
+        # "Falkirk" and scored 0. Rejoining the letters restores the single "fc"
+        # token, which the generic-club set already knows carries no identity.
+        # Person mode is excluded: the same collapse turns "Cirstea J. C." into
+        # "cirstea jc" and destroys the initials _person_score reads.
+        raw = _DOTTED_ABBREVIATION.sub(lambda m: m.group(0).replace(".", ""), raw)
+    resolved = resolve_team_alias(_TIPSTER_RENDERINGS.get(fold_club_name(raw), raw))
+    return _TRAILING_WOMEN_MARKER.sub(" women", resolved)
 
 
 def _tokens(folded: str) -> set[str]:
     return {token for token in folded.split() if token}
+
+
+def _markers(tokens: set[str]) -> set[str]:
+    return {_MARKER_CLASSES[token] for token in tokens if token in _MARKER_CLASSES}
 
 
 def _marker_mismatch(a_tokens: set[str], b_tokens: set[str]) -> bool:
@@ -76,7 +148,7 @@ def _marker_mismatch(a_tokens: set[str], b_tokens: set[str]) -> bool:
     pick to the senior fixture, which is precisely the attribution error the
     high threshold exists to prevent.
     """
-    return (a_tokens & _DISTINCT_TEAM_MARKERS) != (b_tokens & _DISTINCT_TEAM_MARKERS)
+    return _markers(a_tokens) != _markers(b_tokens)
 
 
 def _containment_score(a_tokens: set[str], b_tokens: set[str]) -> int | None:
@@ -98,6 +170,12 @@ def _containment_score(a_tokens: set[str], b_tokens: set[str]) -> int | None:
 
 _INITIAL = re.compile(r"^[a-z]$")
 
+# Tokens that attach to a surname without being one. Two players sharing only
+# these share nothing.
+_NAME_PARTICLES = frozenset(
+    "de del della di da das dos do du la le el al bin ben van von der den ter st mc mac".split()
+)
+
 
 def _person_score(a_tokens: set[str], b_tokens: set[str]) -> int | None:
     """Score for two renderings of one player's name, else None.
@@ -113,9 +191,12 @@ def _person_score(a_tokens: set[str], b_tokens: set[str]) -> int | None:
     a_full = {t for t in a_tokens if not _INITIAL.match(t)}
     b_full = {t for t in b_tokens if not _INITIAL.match(t)}
     shared_full = a_full & b_full
-    # A shared surname is a token of real length. Sharing only something like
-    # "de" or "van" is not an identification.
-    if not any(len(token) >= 4 for token in shared_full):
+    # Sharing only something like "de" or "van" is not an identification. The
+    # rule used to be a four-character floor, which reads as a proxy for the
+    # same thing and is not one: it also threw out every short surname, so
+    # "Y. Wu" could not reach "Wu Yibing". Naming the particles says what was
+    # actually meant and stops discarding people whose names are simply short.
+    if not (shared_full - _NAME_PARTICLES):
         return None
     a_rest, b_rest = a_full - shared_full, b_full - shared_full
     a_initials = {t for t in a_tokens if _INITIAL.match(t)}
@@ -132,24 +213,51 @@ def _person_score(a_tokens: set[str], b_tokens: set[str]) -> int | None:
     return 95 if (a_rest or b_rest or a_initials or b_initials) else 100
 
 
+def _identifying(folded: str) -> str:
+    """The folded name with club-structure words removed, if any remain.
+
+    The sequence-ratio fallback measures the whole string, so shared or unshared
+    structure words move a score that should turn on the club's actual name.
+    "Midtyland" against "FC Midtjylland" scored 78 -- under threshold -- because
+    the "fc" the source omitted counted against a spelling that is otherwise a
+    two-letter slip. Scoring "midtyland" against "midtjylland" reads 90.
+
+    It also cuts the other way, which is the reason to prefer it over a bare
+    ratio rather than merely tolerate it: "Real Madrid" against "Real Sociedad"
+    loses the "real" that was inflating it.
+
+    Returns the original when stripping would leave nothing, since a name made
+    entirely of structure words is all the identity there is.
+    """
+    remainder = " ".join(t for t in folded.split() if t not in _GENERIC_CLUB_TOKENS)
+    return remainder or folded
+
+
 def side_score(pick_side: str, event_side: str, *, person: bool = False) -> int:
     """How strongly two renderings name the same team or player, 0-100."""
-    a, b = _fold(pick_side), _fold(event_side)
+    a, b = _fold(pick_side, person=person), _fold(event_side, person=person)
     if not a or not b:
         return 0
     if a == b:
         return 100
     a_tokens, b_tokens = _tokens(a), _tokens(b)
-    if _marker_mismatch(a_tokens, b_tokens):
-        return 0
     if person:
+        # No marker veto here. The markers are club vocabulary, and against a
+        # person's name they read the wrong thing entirely: "Shelton B." is a
+        # surname and an initial, but "b" is also how a reserve side is written,
+        # so every player whose given name starts with b, c or w was vetoed to 0
+        # and lost -- Ben Shelton, Brandon Nakashima and Sorana Cirstea on the
+        # 2026-09-02 slate alone. _person_score does the discriminating instead,
+        # and it is strict: it requires the surnames to agree outright.
         scored = _person_score(a_tokens, b_tokens)
         if scored is not None:
             return scored
+    elif _marker_mismatch(a_tokens, b_tokens):
+        return 0
     contained = _containment_score(a_tokens, b_tokens)
     if contained is not None:
         return contained
-    return round(SequenceMatcher(None, a, b).ratio() * 100)
+    return round(SequenceMatcher(None, _identifying(a), _identifying(b)).ratio() * 100)
 
 
 def pair_score(

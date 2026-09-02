@@ -9,6 +9,7 @@ import pytest
 from bet.integration.source_result import SourceOperationResult, SourceResultStatus
 from bet.simple_stats import providers
 from bet.simple_stats.providers import (
+    _ALIASES_BY_PROVIDER,
     _combine_stats,
     _league_fields_either_team,
     _flat_from_dict_stats,
@@ -78,25 +79,51 @@ def test_sportdb_values_are_strings_not_numbers(raw, expected):
     assert _parse_sportdb_number(raw) == expected
 
 
-def test_tennis_flat_stats_derive_match_totals():
+def test_tennis_flat_stats_carry_match_totals():
     """tennis-abstract reports one player's line as flat scalars, not
-    {"home": x, "away": y}, so the football combiner returned {} for tennis and
-    total_games -- a PRIORITY_METRIC -- was never populated. Aces and double
-    faults must additionally be summed with the opponent's, since a "_total"
+    {"home": x, "away": y}, so the football combiner returned {} for tennis.
+    Aces and double faults are summed with the opponent's, since a "_total"
     metric feeds the combined "Total Aces" market."""
     stats = {
         "aces": 4,
         "opponent_aces": 7,
         "double_faults": 3,
         "opponent_double_faults": 2,
-        "service_games": 9,
-        "return_games": 9,
+        "total_games": 19.0,
+        "total_sets": 2.0,
+        "games_won": 13.0,
         "surface": "Clay",  # non-numeric, must not raise
+        "score": "7-6(2) 6-3",  # ditto
     }
-    combined = _combine_stats("tennis-abstract", stats, {})
+    combined = _combine_stats(
+        "tennis-abstract", stats, _ALIASES_BY_PROVIDER["tennis-abstract"]
+    )
     assert combined["aces_total"] == 11
     assert combined["double_faults_total"] == 5
-    assert combined["total_games"] == 18
+    assert combined["total_games"] == 19
+    assert combined["total_sets"] == 2
+    # The queried player's own line, for the per-player markets.
+    assert combined["aces_for"] == 4
+    assert combined["double_faults_for"] == 3
+    assert combined["games_won"] == 13
+
+
+def test_tennis_total_games_is_never_rebuilt_from_service_games():
+    """The defect this replaced, guarded so it cannot come back.
+
+    ``service_games + return_games`` counts every game that had a server, and a
+    tie-break game has none, so the sum is one short per 7-6 set -- on 98.37% of
+    the tie-break rows in tennis-abstract's own cache. A row whose score could
+    not be parsed must therefore contribute **no** total_games at all, rather
+    than a figure that is reliably low.
+    """
+    combined = _combine_stats(
+        "tennis-abstract",
+        {"aces": 4, "opponent_aces": 7, "service_games": 9, "return_games": 9},
+        _ALIASES_BY_PROVIDER["tennis-abstract"],
+    )
+    assert "total_games" not in combined
+    assert combined["aces_total"] == 11, "the rest of the row still counts"
 
 
 def test_tennis_totals_are_not_emitted_from_one_side_alone():

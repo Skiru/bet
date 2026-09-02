@@ -128,12 +128,6 @@ except ImportError:
     pass
 
 try:
-    from bet.api_clients.bzzoiro_tennis import BzzoiroTennisClient
-    CLIENT_REGISTRY["bzzoiro-tennis"] = BzzoiroTennisClient
-except ImportError:
-    pass
-
-try:
     from bet.api_clients.understat_client import UnderstatClient
     CLIENT_REGISTRY["understat"] = UnderstatClient
 except ImportError:

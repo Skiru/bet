@@ -30,12 +30,13 @@ def _pv(
     match_id: str = "m1",
     competition_id: str | None = None,
     season_id: str | None = None,
+    opponent: str = "someone",
 ) -> ProviderValue:
     return ProviderValue(
         provider=provider,
         match_id=match_id,
         match_date="2026-06-29",
-        opponent="someone",
+        opponent=opponent,
         value=value,
         observed_at="2026-09-02T12:00:00+00:00",
         competition_id=competition_id,
@@ -64,12 +65,69 @@ class TestSurfaceRule:
         assert len(kept) == 2
         assert "SURFACE_MISMATCH" not in dropped
 
-    def test_an_observation_without_a_surface_is_never_dropped(self) -> None:
-        """'Unknown is not degraded' -- the rule the whole config family follows."""
-        values = [_pv(9.0, surface=None), _pv(11.0, surface="Grass", match_id="g1")]
+    def test_an_observation_nobody_can_place_is_never_dropped(self) -> None:
+        """'Unknown is not degraded' -- the rule the whole config family follows.
+
+        Narrowed on 2026-09-02 from "an observation without a surface is never
+        dropped". It still holds for a row nothing in the sample can place; what
+        changed is that a row describing a match another row *does* place is no
+        longer unknown. See ``_share_surface_within_a_match``: a provider that
+        never states a surface was not uninformative under the old rule, it was
+        immune to the filter, and on that day's slate the filter removed 145 of
+        tennis-abstract's 522 observations and 0 of espn-tennis's 478.
+        """
+        values = [
+            _pv(9.0, surface=None, opponent="nobody else played them"),
+            _pv(11.0, surface="Grass", match_id="g1"),
+        ]
         kept, dropped = scope_values(values, surface="Hard")
         assert [pv.value for pv in kept] == [9.0]
         assert dropped == {"SURFACE_MISMATCH": 1}
+
+    def test_a_surface_reaches_the_other_providers_row_for_the_same_match(self) -> None:
+        """Both providers describe the same match; only one of them says where.
+
+        This is the espn-tennis case exactly: its rows carry the tournament and
+        no surface, and the surface table pins only ten Grand Slam names -- 16%
+        of its cached rows. The other 84% are placed here instead, by the match
+        rather than by the tournament's name.
+        """
+        values = [
+            _pv(11.0, surface="Grass", match_id="ta1"),
+            _pv(11.0, surface=None, provider="espn-tennis", match_id="espn1"),
+        ]
+        kept, dropped = scope_values(values, surface="Hard")
+        assert kept == []
+        assert dropped == {"SURFACE_MISMATCH": 2}
+
+    def test_a_repeat_meeting_on_two_surfaces_places_neither(self) -> None:
+        """Unanimity, which is what makes the propagation safe.
+
+        Two matches against one opponent on different surfaces land in one
+        group. The group disagrees about where it was played, so it hands
+        nothing over and the unplaced row keeps its None -- the conservative
+        answer, and the reason a wrong surface cannot be manufactured here.
+        """
+        values = [
+            _pv(11.0, surface="Grass", match_id="ta1"),
+            _pv(6.0, surface="Hard", match_id="ta2"),
+            _pv(9.0, surface=None, provider="espn-tennis", match_id="espn1"),
+        ]
+        kept, dropped = scope_values(values, surface="Hard")
+        assert sorted(pv.value for pv in kept) == [6.0, 9.0]
+        assert dropped == {"SURFACE_MISMATCH": 1}
+
+    def test_football_never_enters_the_surface_propagation(self) -> None:
+        """Football rows all carry surface None, so the pass must be a no-op
+        rather than something that groups clubs by opponent name."""
+        values = [
+            _pv(9.0, surface=None, provider="espn-football", opponent="Betis"),
+            _pv(11.0, surface=None, provider="bzzoiro", opponent="Betis"),
+        ]
+        kept, dropped = scope_values(values, surface=None)
+        assert len(kept) == 2
+        assert all(pv.surface is None for pv in kept)
+        assert dropped == {}
 
     def test_dropping_every_observation_is_allowed(self) -> None:
         """A sample entirely on the wrong surface must collapse, not survive.

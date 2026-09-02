@@ -36,6 +36,7 @@ from .base_client import (
     SourceResultStatus,
 )
 from .rate_limiter import RateLimiter
+from .tennis_score import parse_tennis_score
 
 ESPN_PARSER_VERSION = "espn-client-rem002a-v1"
 T = TypeVar("T")
@@ -838,8 +839,62 @@ _SPORT_STAT_MAPS = {
 _SCOREBOARD_MEMO: dict[tuple[str, str, str], dict] = {}
 _SCOREBOARD_MEMO_LOCK = threading.Lock()
 
-# How far back the athlete scan will look, in consecutive days.
-_TENNIS_SCAN_DAYS = 60
+# How far back the athlete scan looks, and how it steps.
+#
+# ONE window, used by every tennis path. It used to be two: the athlete scan
+# read 60 consecutive days while the per-fixture stats lookup read 45 days
+# sampled every third day. The 2026-08-28 fix that replaced sampling with a
+# contiguous scan was applied to the first function and not the second, so a
+# match the scan had already found could not have its stats read -- silently,
+# because an empty result is not an error. Measured on the cache 2026-09-02: of
+# 1,843 fixtures ESPN had listed for the slate's players, 348 never got stats,
+# and 346 of those 348 were simply older than 45 days.
+#
+# The stride is not the sampling that was removed in August, and the difference
+# is a property of the endpoint rather than a judgement about tennis. **A
+# tennis scoreboard date returns the whole draw of every tournament running
+# that day, not that day's matches**: probed 2026-09-02, `dates=20260902`
+# returned 625 competitions dated 2026-08-24 to 2026-09-13, and `dates=20260210`
+# returned a February tournament's full draw the same way. So a date inside a
+# tournament yields all of it, and the only thing a stride can miss is a
+# tournament no sampled date falls inside.
+#
+# Measured against ground truth -- 365 consecutive days of the ATP scoreboard,
+# 6,546 unique finished singles matches:
+#
+#   365 daily          365 requests   6,546 matches
+#   14 daily + every 4th 102 requests   6,546 matches, none missing
+#   60 daily (previous)  60 requests   1,737 matches (26.5%)
+#
+# The shortest run of consecutive days on which any of the year's 62 events was
+# visible was five (Next Gen ATP Finals), so a stride of four clears the
+# shortest real tournament with a day to spare, while a stride of seven would
+# not. The most recent fortnight is walked day by day regardless: an event
+# still in progress has had fewer days to become visible, and recent form is
+# the part of the sample it would hurt most to thin.
+#
+# What it bought, on the 108 slate players resolvable from the ESPN id cache:
+# mean history per player 9.58 -> 41.44 matches, players reaching a full L10
+# 59/108 -> 104/108, players with no history at all 1 -> 0.
+_TENNIS_SCAN_DAYS = 365
+_TENNIS_SCAN_CONTIGUOUS_DAYS = 14
+_TENNIS_SCAN_STRIDE = 4
+
+
+def _tennis_scan_offsets() -> list[int]:
+    """Day offsets the tennis scan walks, most recent first."""
+    contiguous = list(range(min(_TENNIS_SCAN_CONTIGUOUS_DAYS, _TENNIS_SCAN_DAYS)))
+    strided = list(range(_TENNIS_SCAN_CONTIGUOUS_DAYS, _TENNIS_SCAN_DAYS, _TENNIS_SCAN_STRIDE))
+    return contiguous + strided
+
+
+_TENNIS_TOUR_BY_SLUG = {"mens-singles": "ATP", "womens-singles": "WTA"}
+
+# How many of a player's own rows an H2H search reads. Larger than the ten an
+# L10 needs, because a meeting between two specific players is rare inside one
+# scan window and the rows are already in hand; it costs nothing but a longer
+# slice of the same memoised scan.
+_TENNIS_SCAN_MEETING_ROWS = 40
 
 
 def _get_stat_map(sport: str) -> dict[str, str]:
@@ -952,6 +1007,171 @@ def _is_game_finished(event: dict) -> bool:
     competitors = competitions[0].get("competitors", [])
     has_score = any(c.get("score") is not None for c in competitors)
     return has_score
+
+
+def _tennis_tour_of(grouping: dict, comp: dict) -> str:
+    """ATP or WTA for one match, read off the draw it was played in.
+
+    Not off ``self.league``. Probed live 2026-09-02: the ATP scoreboard and the
+    WTA scoreboard return the *same* events, each carrying both a "Men's
+    Singles" and a "Women's Singles" grouping, so the tour in the URL says
+    nothing about the tour of any individual match. The draw does, twice over
+    -- ``competition.type.slug`` and the grouping's own slug -- and they agree.
+    """
+    for slug in (
+        comp.get("type", {}).get("slug", ""),
+        grouping.get("grouping", {}).get("slug", ""),
+    ):
+        tour = _TENNIS_TOUR_BY_SLUG.get(str(slug).strip().lower())
+        if tour:
+            return tour
+    return ""
+
+
+def _parse_tennis_competition(event: dict, grouping: dict, comp: dict) -> dict | None:
+    """One finished singles match, with everything the scoreboard states about it.
+
+    This is the whole tennis payload in one place, and it is built once. The
+    scan used to keep four fields per match (id, date, two display names) and
+    then re-fetch up to twenty scoreboards *per fixture* to read the set scores
+    it had already had in hand -- while the tournament, the season, the round,
+    the format and the published score line went in the bin every time.
+
+    What is kept and why:
+
+    * ``competition_provider_id`` / ``season`` -- ESPN's ``tournamentId`` and
+      season year. Every ESPN tennis observation used to reach ANALYZE with
+      ``competition_id=None, season_id=None``, which is precisely what
+      ``scope_values`` needs to drop a stale season or an out-of-scope event,
+      so nothing could ever be scoped out of an ESPN sample.
+    * ``competition_name`` -- the tour prefixed to ESPN's event name, spelled
+      the way DISCOVER spells a competition ("ATP US Open"), so one table maps
+      both to a surface.
+    * ``score`` -- the published set score from ``notes``. It is what
+      ``tennis_score.parse_tennis_score`` reads to tell a retirement from a
+      completed match; a threshold on games cannot, because a retirement at
+      7-6 6-7 1-0 is twenty-seven games long.
+    * ``best_of`` -- ``format.regulation.periods``, stated by the provider.
+    * ``round`` -- qualifying rounds are in the same draw as the main one.
+
+    Returns None for anything that is not a two-player singles match that has
+    finished.
+    """
+    if "double" in str(grouping.get("grouping", {}).get("displayName", "")).lower():
+        return None
+    # STATUS_FINAL, not state == "post". "post" is every match that has stopped
+    # happening, and ESPN says which kind: over a year of ATP scoreboards it
+    # returned 6,327 STATUS_FINAL, 174 STATUS_RETIRED, 37 STATUS_WALKOVER and 8
+    # STATUS_SUSPENDED. A retirement carries a real, short score line and is
+    # exactly the shape that flatters an UNDER; a walkover carries no
+    # linescores at all and used to arrive here as a match in which both
+    # players won zero games. The provider states the distinction, so it is
+    # read rather than inferred from a threshold on games.
+    if comp.get("status", {}).get("type", {}).get("name") != "STATUS_FINAL":
+        return None
+    competitors = comp.get("competitors", [])
+    if len(competitors) != 2:
+        return None
+
+    # Ordered by ESPN's own ``homeAway``, not by position. Position is not the
+    # order: across all 6,546 finished singles matches in a year of ATP
+    # scoreboards, ``homeAway`` read ("away", "home") -- every single row --
+    # so indexing by list position labelled every ESPN tennis observation
+    # backwards. Totals survived that (a sum does not care), a per-side figure
+    # such as ``ranking`` did not.
+    ordered = sorted(
+        competitors,
+        key=lambda c: 0 if str(c.get("homeAway", "")).lower() == "home" else 1,
+    )
+
+    names: list[str] = []
+    ids: list[str] = []
+    stats: dict[str, dict[str, float]] = {}
+    linescore_games = 0.0
+    linescore_sets = 0
+    for index, competitor in enumerate(ordered):
+        side = "home" if index == 0 else "away"
+        athlete = competitor.get("athlete", {}) or {}
+        names.append(str(athlete.get("displayName", "")))
+        ids.append(str(competitor.get("id", "")))
+
+        linescores = competitor.get("linescores", []) or []
+        games_won = float(sum(int(ls.get("value", 0) or 0) for ls in linescores))
+        sets_won = float(sum(1 for ls in linescores if ls.get("winner", False)))
+        linescore_games += games_won
+        linescore_sets = max(linescore_sets, len(linescores))
+
+        stats.setdefault("sets_won", {})[side] = sets_won
+        stats.setdefault("games_won", {})[side] = games_won
+        stats.setdefault("total_sets", {})[side] = float(len(linescores))
+        rank = competitor.get("curatedRank", {}).get("current", 0)
+        try:
+            if rank and rank != "NR":
+                stats.setdefault("ranking", {})[side] = float(rank)
+        except (ValueError, TypeError):
+            pass
+
+    if not names[0] or not names[1] or not ids[0] or not ids[1]:
+        return None
+
+    notes = comp.get("notes") or []
+    score_text = ""
+    for note in notes:
+        text = str(note.get("text", "")).strip()
+        if text:
+            score_text = text
+            break
+    parsed = parse_tennis_score(score_text)
+
+    # The provider stating the same match twice is the one disagreement this
+    # module can adjudicate, so it does: the per-set linescores and the
+    # published score line are two transcriptions of one result, and a match
+    # where they differ is not a match to price off. Measured 2026-09-02 on 310
+    # finished matches, they agreed on 309; the one exception was a retirement,
+    # which is dropped on its own account below.
+    if parsed is not None and parsed.completed and parsed.games != linescore_games:
+        return None
+
+    tour = _tennis_tour_of(grouping, comp)
+    event_name = str(event.get("name", "")).strip()
+    season = event.get("season", {})
+    tournament_id = comp.get("tournamentId") or event.get("id")
+
+    # ``format.regulation.periods`` is deliberately NOT read as the match
+    # format, though it is the obvious candidate and the name invites it. It is
+    # a constant of the scoreboard being queried, not a fact about the match:
+    # probed 2026-09-02, the ATP scoreboard reported periods=5 for every
+    # competition it served -- including the US Open *women's* singles and
+    # mixed doubles, and including Monte-Carlo, where a men's final is
+    # best-of-three -- while the WTA scoreboard reported 3 for everything,
+    # including men's singles at combined events. Best-of-five is decided by
+    # ``config/tennis_match_format.json`` and by the sample, and a confidently
+    # wrong pin from here would override both.
+
+    return {
+        "id": str(comp.get("id", "")),
+        "date": comp.get("date", comp.get("startDate", "")),
+        "home_team": names[0],
+        "away_team": names[1],
+        "home_participant_id": ids[0],
+        "away_participant_id": ids[1],
+        "competition_provider_id": str(tournament_id) if tournament_id else "",
+        "competition_name": f"{tour} {event_name}".strip() if event_name else "",
+        "season": str(season.get("year", "")) if isinstance(season, dict) else "",
+        "tour": tour,
+        "round": str(comp.get("round", {}).get("displayName", "")),
+        "score": score_text,
+        "completed": bool(parsed.completed) if parsed is not None else True,
+        "stats": stats,
+    }
+
+
+def _iter_tennis_competitions(payload: dict):
+    """Every (event, grouping, competition) triple in one day's scoreboard."""
+    for event in payload.get("events", []):
+        for grouping in event.get("groupings", []):
+            for comp in grouping.get("competitions", []):
+                yield event, grouping, comp
 
 
 class ESPNClient(BaseAPIClient):
@@ -1608,91 +1828,97 @@ class ESPNClient(BaseAPIClient):
                 stats[normalized_key] = {}
             stats[normalized_key][side] = value
 
-    def _get_tennis_match_stats(self, fixture_id: str) -> list[APIMatchStats]:
-        """Get tennis match stats from scoreboard linescores.
+    # Row shape v3: v2 rows carried four fields and no metadata, so a cache
+    # written before this change would keep feeding ANALYZE observations with
+    # no competition, no season, no surface and a games figure that had never
+    # been checked against the published score. Versioning the key retires them
+    # rather than waiting twelve hours for each one.
+    _TENNIS_FIXTURES_KEY = "athlete_fixtures_v3"
+    _TENNIS_STATS_KEY = "fixture_stats_v2"
 
-        Derives: sets_won, games_won, total_sets from set-by-set scores.
-        Searches multiple days if not found on current scoreboard.
+    def _tennis_stats_cache_key(self, fixture_id: str) -> str:
+        return f"espn/{self.sport}/{self.league}/{self._TENNIS_STATS_KEY}/{fixture_id}"
+
+    def _get_tennis_match_stats(self, fixture_id: str) -> list[APIMatchStats]:
+        """One tennis match's stats, normally without a request.
+
+        The athlete scan writes this cache for every match it parses, so by the
+        time the enrichment loop asks for a fixture's stats the answer is
+        already on disk. The scan below is the fallback for a fixture that
+        arrived from somewhere else, and it uses the same memoised, hole-free
+        window as the scan itself -- it used to use a different, shorter,
+        sampled one, which is how 346 fixtures came to be found and then never
+        read.
+
+        A miss is cached too. It used to not be, so each of those 346 fixtures
+        re-spent its whole scan on every run, for ever, to conclude nothing.
         """
-        cache_key = f"espn/{self.sport}/{self.league}/fixture_stats/{fixture_id}"
+        cache_key = self._tennis_stats_cache_key(fixture_id)
         cached = self._check_cache(cache_key, ttl_hours=168)
-        if cached:
-            return [APIMatchStats(**ms) for ms in cached.get("stats", [])]
+        if cached is not None:
+            stats = cached.get("stats", [])
+            if stats:
+                return [APIMatchStats(**ms) for ms in stats]
+            # A miss is kept for a day, a hit for a week. The scan window moves
+            # with the calendar and a result ESPN had not published when we
+            # asked may be there tomorrow, so a negative that lasted as long as
+            # a positive would be its own kind of stale.
+            if self._check_cache(cache_key, ttl_hours=24) is not None:
+                return []
 
         from datetime import timedelta
 
-        # Search across recent days to find this specific match
-        # Daily resolution for recent week, then every 3 days for history
         today = datetime.now(UTC).date()
-        days = list(range(0, 7)) + list(range(9, 46, 3))
-        dates_to_search = [today - timedelta(days=d) for d in days]
-
-        for search_date in dates_to_search:
-            date_str = search_date.strftime("%Y%m%d")
-            try:
-                data = self._request("/scoreboard", params={"dates": date_str})
-            except Exception:
+        for offset in _tennis_scan_offsets():
+            date_str = (today - timedelta(days=offset)).strftime("%Y%m%d")
+            payload = self._scoreboard_for_date(date_str)
+            if payload is None:
                 continue
+            for event, grouping, comp in _iter_tennis_competitions(payload):
+                if str(comp.get("id", "")) != str(fixture_id):
+                    continue
+                row = _parse_tennis_competition(event, grouping, comp)
+                if row is None:
+                    break
+                return self._store_tennis_stats(row)
 
-            for event in data.get("events", []):
-                for grouping in event.get("groupings", []):
-                    for comp in grouping.get("competitions", []):
-                        if str(comp.get("id", "")) == str(fixture_id):
-                            return self._extract_tennis_stats(comp, fixture_id, cache_key)
+        self._save_cache(cache_key, {"stats": []})
         return []
 
-    def _extract_tennis_stats(
-        self, comp: dict, fixture_id: str, cache_key: str
-    ) -> list[APIMatchStats]:
-        """Extract tennis statistics from a competition's linescores."""
-        competitors = comp.get("competitors", [])
-        if len(competitors) < 2:
-            return []
+    def _store_tennis_stats(self, row: dict) -> list[APIMatchStats]:
+        """Turn a parsed competition into APIMatchStats and cache it under its id.
 
-        stats: dict[str, dict[str, float]] = {}
-        names = {"home": "", "away": ""}
+        ``stats`` carries the scoreboard's per-side counts plus the flat
+        metadata fields ``providers.py`` reads off a stats dict (``surface`` is
+        the established one). ``_combined_from_dict_stats`` only ever looks at
+        aliased keys whose value is a two-sided dict, so the flat entries pass
+        through it untouched and reach the consumer that wants them.
+        """
+        stats = dict(row.get("stats") or {})
+        stats["score"] = row.get("score", "")
+        stats["completed"] = row.get("completed", True)
+        stats["round"] = row.get("round", "")
 
-        for i, c in enumerate(competitors):
-            side = "home" if i == 0 else "away"
-            athlete = c.get("athlete", {})
-            names[side] = athlete.get("displayName", "")
-
-            linescores = c.get("linescores", [])
-            sets_won = sum(1 for ls in linescores if ls.get("winner", False))
-            games_won = sum(int(ls.get("value", 0)) for ls in linescores)
-            total_sets = len(linescores)
-
-            # Seeding/ranking
-            rank = c.get("curatedRank", {}).get("current", 0)
-
-            stats.setdefault("sets_won", {})[side] = float(sets_won)
-            stats.setdefault("games_won", {})[side] = float(games_won)
-            stats.setdefault("total_sets", {})[side] = float(total_sets)
-            # total_games = per-player games won; consumer sums home+away for Total Games O/U market
-            stats.setdefault("total_games", {})[side] = float(games_won)
-            if rank and rank != "NR":
-                try:
-                    stats.setdefault("ranking", {})[side] = float(rank)
-                except (ValueError, TypeError):
-                    pass
-
-        if not names["home"] or not names["away"]:
-            return []
-
-        result = [APIMatchStats(
-            external_id=fixture_id,
-            source=self.api_name,
-            sport=self.sport,
-            home_team_name=names["home"],
-            away_team_name=names["away"],
-            stats=stats,
-        )]
-
-        self._save_cache(cache_key, {"stats": [asdict(ms) for ms in result]})
+        result = [
+            APIMatchStats(
+                external_id=str(row.get("id", "")),
+                source=self.api_name,
+                sport=self.sport,
+                home_team_name=row.get("home_team", ""),
+                away_team_name=row.get("away_team", ""),
+                stats=stats,
+            )
+        ]
+        self._save_cache(
+            self._tennis_stats_cache_key(str(row.get("id", ""))),
+            {"stats": [asdict(ms) for ms in result]},
+        )
         return result
 
     def get_h2h(self, team1_id: str, team2_id: str, last_n: int = 10) -> list[dict]:
         """Get H2H data — uses team schedule filtered by opponent."""
+        if self.sport == "tennis":
+            return self._get_athlete_h2h(team1_id, team2_id, last_n)
         cache_key = f"espn/{self.sport}/{self.league}/h2h/{team1_id}_{team2_id}"
         cached = self._check_cache(cache_key, ttl_hours=168)
         if cached:
@@ -1730,6 +1956,30 @@ class ESPNClient(BaseAPIClient):
 
         self._save_cache(cache_key, {"games": result})
         return result
+
+    def _get_athlete_h2h(self, athlete_id: str, opponent_id: str, last_n: int = 10) -> list[dict]:
+        """Meetings between two players, taken from the scan that already ran.
+
+        The generic path sent tennis to ``/teams/{id}/schedule``, an endpoint
+        ESPN publishes for clubs and not for players. It answered nothing, and
+        on the 2026-09-02 slate that produced a ``no h2h meetings`` data_gap on
+        36 of 38 fixtures -- a sentence that reads like a fact about the two
+        players and was really a fact about the URL.
+
+        This says what ESPN can actually support: meetings inside the scan
+        window, found in the rows already fetched and memoised for each
+        player's own history, at no additional request. Outside that window it
+        returns nothing and means it -- ``tennis-abstract`` carries the full
+        career and is the provider for a deep H2H.
+        """
+        meetings = [
+            row
+            for row in self._get_athlete_recent_matches(athlete_id, last_n=_TENNIS_SCAN_MEETING_ROWS)
+            if str(opponent_id)
+            in (str(row.get("home_participant_id")), str(row.get("away_participant_id")))
+        ]
+        meetings.sort(key=lambda m: m.get("date", ""), reverse=True)
+        return meetings[:last_n]
 
     def get_h2h_result(
         self,
@@ -2318,96 +2568,66 @@ class ESPNClient(BaseAPIClient):
         return transactions
 
     def _get_athlete_recent_matches(self, athlete_id: str, last_n: int = 10) -> list[dict]:
-        """Get recent matches for an athlete by scanning multiple days of scoreboard.
+        """This athlete's last ``last_n`` finished matches, with their stats.
 
-        For tennis/MMA, ESPN only exposes match data via the scoreboard endpoint.
-        We scan up to 45 days back (sampling every 3 days) to build proper L10 history.
+        ESPN exposes tennis only through the daily scoreboard, so finding a
+        player's history means walking dates. Two properties make that
+        affordable and make it correct:
+
+        * **Consecutive days, not a sample.** A tournament run is a block of
+          consecutive days, so a three-day hole does not lose precision, it
+          loses players: on 2026-08-28 the nine sampled dates landed either
+          side of every one of Carlos Alcaraz's matches and he came back with
+          an empty history ESPN had all along.
+        * **The scoreboard is per date, not per player**, so it is memoised for
+          the life of the process and one Cincinnati payload answers for
+          everybody in the draw.
+
+        Every match is parsed in full here and its stats cached under its own
+        id, so the enrichment loop's later ``get_fixture_stats`` calls cost
+        nothing. That replaces a second, shorter, sampled scan that re-fetched
+        up to twenty scoreboards per fixture to read set scores this pass had
+        already parsed.
         """
-        # The "v2" is the row *shape*, not the data: v1 rows carried two display
-        # names and no participant ids, so a cache written before that fix would
-        # keep feeding unattributable rows for another twelve hours, and the
-        # consumer would (correctly, now) refuse every one of them. Versioning
-        # the key retires them instead of waiting them out.
-        cache_key = f"espn/{self.sport}/{self.league}/athlete_fixtures_v2/{athlete_id}"
+        cache_key = f"espn/{self.sport}/{self.league}/{self._TENNIS_FIXTURES_KEY}/{athlete_id}"
         cached = self._check_cache(cache_key, ttl_hours=12)
         if cached and len(cached.get("fixtures", [])) >= last_n:
-            return cached.get("fixtures", [])
+            # Sliced, not returned whole. The H2H search below asks this same
+            # function for a deeper slice of the same player and writes the
+            # longer list back under the same key, so an unsliced return would
+            # hand the next L10 caller forty observations where it asked for
+            # ten -- four times the sample, from one call order.
+            return cached.get("fixtures", [])[:last_n]
 
         from datetime import timedelta
 
-        matches = []
+        matches: list[dict] = []
         seen_ids: set[str] = set()
         today = datetime.now(UTC).date()
 
-        # Consecutive days, not a sample. Sampling every third or fourth day
-        # does not lose precision, it loses players: a tournament run is a
-        # block of consecutive days, so a three-day hole can hide a player's
-        # entire week. On 2026-08-28 that is exactly why Carlos Alcaraz's ESPN
-        # L10 came back empty while ESPN had his matches all along -- the nine
-        # sampled dates landed either side of every one of them, and the
-        # provider looked like it had no data when it had no *sampled* data.
-        # With the scoreboard memoised per date across the whole slate, a
-        # hole-free scan costs the run less than the sampled one did.
-        dates_to_scan = [today - timedelta(days=d) for d in range(_TENNIS_SCAN_DAYS)]
-
-        for scan_date in dates_to_scan:
+        for offset in _tennis_scan_offsets():
             if len(matches) >= last_n:
                 break
-            date_str = scan_date.strftime("%Y%m%d")
-            data = self._scoreboard_for_date(date_str)
-            if data is None:
+            date_str = (today - timedelta(days=offset)).strftime("%Y%m%d")
+            payload = self._scoreboard_for_date(date_str)
+            if payload is None:
                 continue
 
-            for event in data.get("events", []):
-                comps_to_check = []
-                # MMA: competitions at event level
-                comps_to_check.extend(event.get("competitions", []))
-                # Tennis: competitions inside groupings
-                for g in event.get("groupings", []):
-                    comps_to_check.extend(g.get("competitions", []))
-
-                for comp in comps_to_check:
-                    comp_id = str(comp.get("id", ""))
-                    if comp_id in seen_ids:
-                        continue
-
-                    competitors = comp.get("competitors", [])
-                    athlete_in_match = any(
-                        str(c.get("id", "")) == str(athlete_id)
-                        for c in competitors
-                    )
-                    if not athlete_in_match:
-                        continue
-
-                    status = comp.get("status", {}).get("type", {})
-                    if status.get("state") != "post":
-                        continue
-
-                    seen_ids.add(comp_id)
-                    names = []
-                    ids = []
-                    for c in competitors:
-                        ath = c.get("athlete", {})
-                        names.append(ath.get("displayName", ""))
-                        ids.append(str(c.get("id", "")))
-
-                    # The participant ids are what let a caller tell which side
-                    # of the match this athlete was on. Without them the only
-                    # handle on a row is two display names, and the consumer
-                    # (providers._fetch_l10_generic) compares its team_id --
-                    # here a numeric ESPN athlete id -- against a name, which
-                    # never matches, so it fell through to "the player is the
-                    # away side" and recorded him as his own opponent in every
-                    # match where ESPN happened to list him first. Football rows
-                    # have carried these keys all along; tennis rows did not.
-                    matches.append({
-                        "id": comp_id,
-                        "date": comp.get("date", comp.get("startDate", "")),
-                        "home_team": names[0] if names else "",
-                        "away_team": names[1] if len(names) > 1 else "",
-                        "home_participant_id": ids[0] if ids else "",
-                        "away_participant_id": ids[1] if len(ids) > 1 else "",
-                    })
+            for event, grouping, comp in _iter_tennis_competitions(payload):
+                comp_id = str(comp.get("id", ""))
+                if comp_id in seen_ids:
+                    continue
+                if not any(
+                    str(c.get("id", "")) == str(athlete_id)
+                    for c in comp.get("competitors", [])
+                ):
+                    continue
+                row = _parse_tennis_competition(event, grouping, comp)
+                if row is None:
+                    continue
+                seen_ids.add(comp_id)
+                self._store_tennis_stats(row)
+                matches.append(row)
 
         matches.sort(key=lambda m: m.get("date", ""), reverse=True)
         result = matches[:last_n]

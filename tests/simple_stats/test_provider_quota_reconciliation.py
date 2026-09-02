@@ -23,10 +23,17 @@ from bet.api_clients.rate_limiter import RateLimiter
 
 @pytest.fixture
 def limiter(tmp_path):
-    """A limiter with a closed world: 100/day for tennis, nothing ambient."""
+    """A limiter with a closed world: 100/day for one provider, nothing ambient.
+
+    The provider name is arbitrary -- the limit is supplied explicitly, so the
+    reconciliation rules under test are the same whichever name wears it. It
+    used to be ``bzzoiro``, which was removed from the pipeline on
+    2026-09-02; naming a provider that no longer exists would make these read
+    as tests of that provider rather than of the counter.
+    """
     rl = RateLimiter(
         usage_dir=tmp_path,
-        limits={"bzzoiro-tennis": 100},
+        limits={"bzzoiro": 100},
         rate_limits={},
         honor_env_overrides=False,
     )
@@ -42,14 +49,14 @@ def test_provider_report_raises_a_counter_that_is_behind(limiter):
     plan against 95 remaining is how a run commits to a slate it cannot finish.
     """
     for _ in range(5):
-        limiter.record_request("bzzoiro-tennis", "/matches/")
-    assert limiter.get_remaining("bzzoiro-tennis") == 95
+        limiter.record_request("bzzoiro", "/matches/")
+    assert limiter.get_remaining("bzzoiro") == 95
 
     limiter.reconcile_from_provider(
-        "bzzoiro-tennis", {"daily_limit": 100, "daily_remaining": 60}
+        "bzzoiro", {"daily_limit": 100, "daily_remaining": 60}
     )
 
-    assert limiter.get_remaining("bzzoiro-tennis") == 60
+    assert limiter.get_remaining("bzzoiro") == 60
 
 
 def test_provider_report_never_lowers_a_counter(limiter):
@@ -61,13 +68,13 @@ def test_provider_report_never_lowers_a_counter(limiter):
     it would let a shared key's spending vanish from the record.
     """
     for _ in range(40):
-        limiter.record_request("bzzoiro-tennis", "/matches/")
+        limiter.record_request("bzzoiro", "/matches/")
 
     limiter.reconcile_from_provider(
-        "bzzoiro-tennis", {"daily_limit": 100, "daily_remaining": 95}
+        "bzzoiro", {"daily_limit": 100, "daily_remaining": 95}
     )
 
-    assert limiter.get_remaining("bzzoiro-tennis") == 60
+    assert limiter.get_remaining("bzzoiro") == 60
 
 
 def test_silence_is_an_answer_not_a_gap(limiter):
@@ -78,21 +85,21 @@ def test_silence_is_an_answer_not_a_gap(limiter):
     inherit a 100-a-day ceiling it does not have.
     """
     for _ in range(5):
-        limiter.record_request("bzzoiro-tennis", "/matches/")
+        limiter.record_request("bzzoiro", "/matches/")
 
-    assert limiter.reconcile_from_provider("bzzoiro-tennis", {}) is None
-    assert limiter.reconcile_from_provider("bzzoiro-tennis", None) is None
+    assert limiter.reconcile_from_provider("bzzoiro", {}) is None
+    assert limiter.reconcile_from_provider("bzzoiro", None) is None
     assert limiter.reconcile_from_provider(
-        "bzzoiro-tennis", {"daily_limit": None, "daily_remaining": None}
+        "bzzoiro", {"daily_limit": None, "daily_remaining": None}
     ) is None
-    assert limiter.get_remaining("bzzoiro-tennis") == 95
+    assert limiter.get_remaining("bzzoiro") == 95
 
 
 def test_provider_reporting_zero_stops_the_run_asking(limiter):
-    limiter.note_provider_exhausted("bzzoiro-tennis", "ratelimit header reports 0")
+    limiter.note_provider_exhausted("bzzoiro", "ratelimit header reports 0")
 
-    assert limiter.provider_says_exhausted("bzzoiro-tennis")
-    assert not limiter.can_request("bzzoiro-tennis")
+    assert limiter.provider_says_exhausted("bzzoiro")
+    assert not limiter.can_request("bzzoiro")
 
 
 def test_exhaustion_outranks_having_no_configured_limit(tmp_path):
@@ -120,9 +127,9 @@ def test_exhaustion_is_shared_across_limiter_instances(tmp_path):
     second = RateLimiter(usage_dir=tmp_path, limits={}, rate_limits={}, honor_env_overrides=False)
     first.clear_provider_exhausted()
     try:
-        first.note_provider_exhausted("bzzoiro-tennis", "HTTP 429")
-        assert second.provider_says_exhausted("bzzoiro-tennis")
-        assert not second.can_request("bzzoiro-tennis")
+        first.note_provider_exhausted("bzzoiro", "HTTP 429")
+        assert second.provider_says_exhausted("bzzoiro")
+        assert not second.can_request("bzzoiro")
     finally:
         first.clear_provider_exhausted()
 
@@ -140,25 +147,25 @@ def test_horizon_separates_back_pressure_from_exhaustion():
 def test_a_nonsense_quota_report_is_ignored(limiter):
     """A malformed or absurd header must not be able to zero the budget."""
     for _ in range(5):
-        limiter.record_request("bzzoiro-tennis", "/matches/")
+        limiter.record_request("bzzoiro", "/matches/")
     for bad in (
         {"daily_limit": 0, "daily_remaining": 0},
         {"daily_limit": -1, "daily_remaining": 5},
         {"daily_limit": 100, "daily_remaining": -3},
         {"daily_limit": "100", "daily_remaining": "60"},
     ):
-        assert limiter.reconcile_from_provider("bzzoiro-tennis", bad) is None
-    assert limiter.get_remaining("bzzoiro-tennis") == 95
+        assert limiter.reconcile_from_provider("bzzoiro", bad) is None
+    assert limiter.get_remaining("bzzoiro") == 95
 
 
 def test_reconciliation_leaves_a_trace_an_operator_can_read(limiter, tmp_path):
     """A corrected count must be distinguishable from a counted one, or the
     next person to read the usage file cannot tell why it jumped."""
-    limiter.record_request("bzzoiro-tennis", "/matches/")
+    limiter.record_request("bzzoiro", "/matches/")
     limiter.reconcile_from_provider(
-        "bzzoiro-tennis", {"daily_limit": 100, "daily_remaining": 60}
+        "bzzoiro", {"daily_limit": 100, "daily_remaining": 60}
     )
-    usage = limiter._read_usage("bzzoiro-tennis", window_type="daily")
+    usage = limiter._read_usage("bzzoiro", window_type="daily")
     assert usage["count"] == 40
     assert usage["provider_reported"]["remaining"] == 60
     assert usage["provider_reported"]["limit"] == 100
@@ -184,41 +191,41 @@ def test_reconciliation_leaves_a_trace_an_operator_can_read(limiter, tmp_path):
 def test_an_entitlement_fault_does_not_move_the_counter(limiter):
     """Buy the addon and the provider works again -- with nothing to reset."""
     for _ in range(3):
-        limiter.record_request("bzzoiro-tennis", "/matches/")
+        limiter.record_request("bzzoiro", "/matches/")
 
-    limiter.note_entitlement_fault("bzzoiro-tennis", "HTTP 402: Sports Addon required")
+    limiter.note_entitlement_fault("bzzoiro", "HTTP 402: Sports Addon required")
 
-    assert limiter.usage_snapshot("bzzoiro-tennis")["used"] == 3
+    assert limiter.usage_snapshot("bzzoiro")["used"] == 3
 
 
 def test_an_entitlement_fault_survives_the_process_that_saw_it(tmp_path):
     """Preflight runs in its own process. An in-memory flag would never reach it."""
-    first = RateLimiter(usage_dir=tmp_path, limits={"bzzoiro-tennis": 100},
+    first = RateLimiter(usage_dir=tmp_path, limits={"bzzoiro": 100},
                         rate_limits={}, honor_env_overrides=False)
-    first.note_entitlement_fault("bzzoiro-tennis", "HTTP 402: Sports Addon required")
+    first.note_entitlement_fault("bzzoiro", "HTTP 402: Sports Addon required")
 
-    second = RateLimiter(usage_dir=tmp_path, limits={"bzzoiro-tennis": 100},
+    second = RateLimiter(usage_dir=tmp_path, limits={"bzzoiro": 100},
                          rate_limits={}, honor_env_overrides=False)
 
-    assert "Sports Addon" in (second.entitlement_fault("bzzoiro-tennis") or "")
-    assert second.usage_snapshot("bzzoiro-tennis")["entitlement_fault"]
+    assert "Sports Addon" in (second.entitlement_fault("bzzoiro") or "")
+    assert second.usage_snapshot("bzzoiro")["entitlement_fault"]
 
 
 def test_a_provider_with_no_fault_reports_none(limiter):
-    assert limiter.entitlement_fault("bzzoiro-tennis") is None
-    assert limiter.usage_snapshot("bzzoiro-tennis")["entitlement_fault"] is None
+    assert limiter.entitlement_fault("bzzoiro") is None
+    assert limiter.usage_snapshot("bzzoiro")["entitlement_fault"] is None
 
 
 def test_preflight_names_the_purchase_instead_of_advising_a_reset(tmp_path, monkeypatch):
     """The whole point: the advice has to be one that can work."""
     from bet.simple_stats import preflight as pf
 
-    limiter = RateLimiter(usage_dir=tmp_path, limits={"bzzoiro-tennis": 100},
+    limiter = RateLimiter(usage_dir=tmp_path, limits={"bzzoiro": 100},
                           rate_limits={}, honor_env_overrides=False)
-    limiter.note_entitlement_fault("bzzoiro-tennis", "HTTP 402: Sports Addon required")
+    limiter.note_entitlement_fault("bzzoiro", "HTTP 402: Sports Addon required")
     monkeypatch.setattr(pf, "has_credentials", lambda _p: (True, "BZZORIO_KEY"))
 
-    quota = pf.provider_quota(limiter, "bzzoiro-tennis")
+    quota = pf.provider_quota(limiter, "bzzoiro")
 
     assert quota["available"] is False, "a 402'd provider must not read as usable"
     assert quota["entitlement_fault"]
@@ -232,11 +239,11 @@ def test_a_402_response_does_not_reconcile_the_counter_from_its_headers(tmp_path
     Without the 402 branch, ``r=0`` on this response set ``count`` to 100 and
     the day was over for a provider that had spent nothing.
     """
-    from bet.api_clients.bzzoiro_tennis import BzzoiroTennisClient
+    from bet.api_clients.bzzoiro import BzzoiroClient
     from bet.integration import evidence as ev
     from bet.integration import telemetry_wrapper as tw
 
-    limiter = RateLimiter(usage_dir=tmp_path, limits={"bzzoiro-tennis": 100},
+    limiter = RateLimiter(usage_dir=tmp_path, limits={"bzzoiro": 100},
                           rate_limits={}, honor_env_overrides=False)
     limiter.clear_provider_exhausted()
 
@@ -264,7 +271,7 @@ def test_a_402_response_does_not_reconcile_the_counter_from_its_headers(tmp_path
     monkeypatch.setattr(tw, "wrap_request", lambda **_kwargs: _Result())
     monkeypatch.setattr(ev, "persist_response_evidence", lambda *a, **k: None)
 
-    client = BzzoiroTennisClient(limiter)
+    client = BzzoiroClient(limiter)
     monkeypatch.setattr(client, "api_key", "test-key", raising=False)
     # Keyword-only, and NOT wrapped in a bare except: a swallowed TypeError
     # here made this test pass against a call that never happened.
@@ -273,7 +280,7 @@ def test_a_402_response_does_not_reconcile_the_counter_from_its_headers(tmp_path
     )
     assert result is not None
 
-    snapshot = limiter.usage_snapshot("bzzoiro-tennis")
+    snapshot = limiter.usage_snapshot("bzzoiro")
     assert snapshot["used"] < 100, (
         "the 402's ratelimit header was believed as a spend tally: "
         f"count is {snapshot['used']}"
@@ -284,12 +291,12 @@ def test_a_402_response_does_not_reconcile_the_counter_from_its_headers(tmp_path
 
 def test_an_entitlement_fault_stops_the_run_from_asking_again(limiter):
     """A 402 consumes no quota, so nothing else would ever stop the loop."""
-    assert limiter.can_request("bzzoiro-tennis", 1) is True
+    assert limiter.can_request("bzzoiro", 1) is True
 
-    limiter.note_entitlement_fault("bzzoiro-tennis", "HTTP 402: Sports Addon required")
+    limiter.note_entitlement_fault("bzzoiro", "HTTP 402: Sports Addon required")
 
-    assert limiter.provider_says_exhausted("bzzoiro-tennis") is True
-    assert limiter.can_request("bzzoiro-tennis", 1) is False
+    assert limiter.provider_says_exhausted("bzzoiro") is True
+    assert limiter.can_request("bzzoiro", 1) is False
     limiter.clear_provider_exhausted()
 
 

@@ -26,7 +26,6 @@ PROVIDER_NAMES = Literal[
     # (sports.bzzoiro.com/tennis/api/v2), with its own resource model and its own
     # 100-a-day quota bucket, so it is its own provider and its own counter.
     # The first tennis source with native player ids rather than name matching.
-    "bzzoiro-tennis",
     "sportdb",
     "api-football",
     "understat",
@@ -896,27 +895,13 @@ class ModelPrediction(StrictBaseModel):
     model_confidence: float | None = None
     created_at: str | None = None
 
-    # --- tennis (bzzoiro-tennis /predictions/), added 2026-08-30 -------------
-    #
-    # One contract for both sports rather than two, because every consumer of
-    # this object -- the artifact, the signal function, the analyst -- would
-    # otherwise need a branch on sport to read a field that means the same
-    # thing. Football fixtures leave these null and tennis leaves the block
-    # above null; nothing is ever populated for the wrong sport.
-    #
-    # ``prob_games_over_215`` and ``prob_games_over_225`` land on two of the
-    # four ``total_games`` lines this pipeline prices, and ``prob_sets_over_25``
-    # is the whole ``total_sets`` market. 19.5 and 23.5 get nothing: the model
-    # does not publish them, and 20.5 is carried only because it arrives free --
-    # no row is priced at that line, and it is never interpolated onto one.
-    prob_games_over_205: float | None = None
-    prob_games_over_215: float | None = None
-    prob_games_over_225: float | None = None
-    prob_sets_over_25: float | None = None
-    expected_total_games: float | None = None
-    expected_total_sets: float | None = None
-    prob_player_one_wins: float | None = None
-    prob_player_two_wins: float | None = None
+    # A tennis block lived here between 2026-08-30 and 2026-09-02
+    # (prob_games_over_*, prob_sets_over_25, expected_total_*,
+    # prob_player_*_wins). It was filled by exactly one provider, bzzoiro's
+    # tennis product, and was removed with it: MARKET_CONTEXT is football-only
+    # now, so every one of those fields could only ever have been None. A
+    # contract field no producer can fill is a promise the artifact keeps
+    # making and never keeps.
 
 
 class EventMarketContext(StrictBaseModel):

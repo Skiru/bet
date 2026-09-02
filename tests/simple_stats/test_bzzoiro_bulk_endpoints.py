@@ -15,13 +15,11 @@ drive these tests and each one silently loses data if it regresses:
 import pytest
 
 from bet.api_clients.bzzoiro import BzzoiroClient
-from bet.api_clients.bzzoiro_tennis import BzzoiroTennisClient
 from bet.api_clients.rate_limiter import RateLimiter
 from bet.integration.source_result import SourceOperationResult, SourceResultStatus
 from bet.simple_stats import providers
 from bet.simple_stats.contracts import ModelPrediction
 from bet.simple_stats.market_context import (
-    MODEL_TENNIS_FIELDS,
     SIGNAL_MARKETS,
     _model_probability,
 )
@@ -117,28 +115,6 @@ EVENT_PLAYER_STATS = {
         },
     ],
 }
-
-TENNIS_PREDICTIONS = {
-    "count": 1,
-    "results": [
-        {
-            "id": 77,
-            "match": {"id": 44426, "match_date": "2026-08-31T11:00:00Z"},
-            "prob_player1_wins": 63.2,
-            "prob_player2_wins": 36.8,
-            "predicted_winner": "A Player",
-            "confidence": 63.2,
-            "expected_total_games": 22.4,
-            "expected_total_sets": 2.4,
-            "prob_over_20_5_games": 71.0,
-            "prob_over_21_5_games": 58.0,
-            "prob_over_22_5_games": 44.0,
-            "prob_over_2_5_sets": 41.0,
-            "prob_player1_wins_first_set": 60.1,
-        }
-    ],
-}
-
 
 def _client(monkeypatch, tmp_path, payloads, cls=BzzoiroClient, provider="bzzoiro"):
     import json as _json
@@ -306,101 +282,15 @@ def test_event_player_stats_normalise_to_pipeline_names(monkeypatch, tmp_path):
     assert len(result.value["players"]) == 2
 
 
-# --- tennis predictions ---------------------------------------------------
+def test_tennis_is_out_of_market_context_scope_entirely():
+    """The property that replaced "tennis has a model but no prices".
 
-
-def test_tennis_predictions_map_onto_the_lines_the_sheet_prices(monkeypatch, tmp_path):
-    """21.5 and 22.5 games, and 2.5 sets -- the model's fields, our lines."""
-    client, calls = _client(
-        monkeypatch, tmp_path, {"/predictions/": TENNIS_PREDICTIONS},
-        cls=BzzoiroTennisClient, provider="bzzoiro-tennis",
-    )
-    result = client.get_predictions_list_result(date="2026-08-31")
-
-    assert calls[0][1]["date_to"] == "2026-09-01", "same datetime bound as football"
-    parsed = result.value["predictions"]["44426"]
-    # Constructible as the shared contract: any unmapped key would raise here.
-    prediction = ModelPrediction(**parsed)
-    assert prediction.prob_games_over_215 == pytest.approx(0.58)
-    assert prediction.prob_games_over_225 == pytest.approx(0.44)
-    assert prediction.prob_sets_over_25 == pytest.approx(0.41)
-    assert prediction.expected_total_games == 22.4
-    # Football's block stays empty on a tennis fixture.
-    assert prediction.prob_corners_over_95 is None
-
-
-def test_tennis_model_never_interpolates_onto_an_unpublished_line(monkeypatch, tmp_path):
-    """``total_games`` is priced at 19.5 and 23.5 too; the model serves neither."""
-    prediction = ModelPrediction(prob_games_over_215=0.58, prob_games_over_225=0.44)
-
-    assert _model_probability(prediction, 21.5, "OVER", "total_games") == pytest.approx(0.58)
-    assert _model_probability(prediction, 19.5, "OVER", "total_games") is None
-    assert _model_probability(prediction, 23.5, "OVER", "total_games") is None
-    # UNDER is the complement of the same published line, never a new one.
-    assert _model_probability(prediction, 22.5, "UNDER", "total_games") == pytest.approx(0.56)
-
-
-@pytest.mark.parametrize(
-    "stub_status",
-    ["raises", "garbage_payload", "rate_limited"],
-)
-def test_a_broken_tennis_product_costs_a_column_not_the_run(monkeypatch, stub_status):
-    """The guard for the one path that could not be verified against the live
-    API before it shipped.
-
-    ``bzzoiro-tennis`` was at 0/100 on the day this landed, so the parser was
-    written against the published OpenAPI schema rather than a captured
-    response. If the wire shape differs from that schema tomorrow, the failure
-    must be a data gap on the tennis rows and nothing else -- MARKET_CONTEXT is
-    excluded from the run verdict, and the football half of the same artifact is
-    built by a different code path.
+    Between 2026-08-30 and 2026-09-02 tennis markets sat in ``SIGNAL_MARKETS``
+    so a tennis row would carry the bzzoiro model's probability under a
+    ``NO_MARKET_DATA`` verdict. That provider is gone, so there is no tennis
+    model and no tennis price -- and a market this stage cannot say anything
+    about must return nothing rather than a verdict that implies it looked.
     """
-    from bet.simple_stats import market_context as mc
-    from bet.simple_stats.contracts import EventListV1, EventRecord
-
-    event = EventRecord(
-        event_id="t1", sport="tennis", competition="Test (atp_250)",
-        player_one="A", player_two="B", start_time="2026-08-31T10:00:00+00:00",
-        source_ids={"bzzoiro-tennis": "44426"},
-        identity_confidence="FUZZY_MATCHED", status="ACTIVE",
-    )
-    event_list = EventListV1(
-        run_id="r", generated_at="x", date="2026-08-31",
-        sports=["tennis"], events=[event],
-    )
-
-    class _Stub:
-        def get_predictions_list_result(self, **_kwargs):
-            if stub_status == "raises":
-                raise RuntimeError("provider exploded")
-            if stub_status == "rate_limited":
-                return SourceOperationResult(
-                    status=SourceResultStatus.RATE_LIMITED,
-                    provider="bzzoiro-tennis", operation="x", error_code="quota",
-                )
-            return SourceOperationResult(
-                status=SourceResultStatus.SUCCESS, value={"nonsense": True},
-                provider="bzzoiro-tennis", operation="x",
-            )
-
-    monkeypatch.setattr(mc, "get_client", lambda *a, **k: _Stub())
-    contexts, _calls = mc._collect_tennis_predictions(event_list, RateLimiter())
-
-    assert len(contexts) == 1
-    assert contexts[0].predictions is None
-    assert contexts[0].data_gaps, "a failure must be reported, not swallowed silently"
-
-
-def test_tennis_markets_are_in_scope_but_cannot_reach_a_verdict():
-    """The safety property behind giving tennis a model and no prices.
-
-    ``market_signal_for_row`` needs both a model and a market probability to
-    reach CONFIRMS, and this stage never fetches tennis odds. So a tennis row
-    reports the model number and is structurally incapable of promoting a tier
-    -- tennis gets a second opinion without inheriting football's promotion
-    rule.
-    """
-    assert "total_games" in SIGNAL_MARKETS
-    assert "total_sets" in SIGNAL_MARKETS
-    assert set(MODEL_TENNIS_FIELDS["total_games"]) == {21.5, 22.5}
-    assert set(MODEL_TENNIS_FIELDS["total_sets"]) == {2.5}
+    assert "total_games" not in SIGNAL_MARKETS
+    assert "total_sets" not in SIGNAL_MARKETS
+    assert set(SIGNAL_MARKETS) == {"corners_total", "goals_total"}

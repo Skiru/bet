@@ -689,16 +689,16 @@ Its credential is `BZZORIO_KEY` while its quota override is `BET_LIMIT_BZZOIRO` 
 the provider spells its key differently from its own domain, and both spellings
 are load-bearing.
 
-**`bzzoiro-tennis` is the same account, the same key, and still capped.** The
-tennis product answers `ratelimit-policy: "tennis";q=100;w=86400` — checked again
-*after* the PRO upgrade, which changed nothing there. Separate bucket
-server-side, so a tennis call costs nothing against football and vice versa. At
-~16 calls per fixture that is about six enriched tennis matches a day, which is
-why the tennis discovery adapter drops UTR and ITF outright rather than letting
-them compete for the budget. The two products are separate provider keys
-precisely so their counters stay separate: one key would have let football's
-uncapped traffic mask the tennis ceiling until a run hit HTTP 429 with the
-budget already spent.
+**`bzzoiro-tennis` was removed from the pipeline on 2026-09-02** and is kept
+here only as the record of why. It was the same account and the same key behind
+a separate bucket that answered `ratelimit-policy: "tennis";q=100;w=86400` —
+unchanged by the PRO upgrade. At ~16 calls a fixture that is about six enriched
+tennis matches a day, so it could never cover a slate; and from 2026-09-01 it
+answered `402 addon_required` and covered none. On its last run it contributed
+zero observations to 38 tennis fixtures.
+
+Tennis is now served by `tennis-abstract` and `espn-tennis`, both keyless and
+neither metered. There is no tennis quota to check before a run.
 
 ## Provider quotas — check and reset
 
@@ -710,7 +710,7 @@ python3 scripts/simple/reset_provider_quota.py --status
 provider                 used   limit   left  override w .env
 api-football              101     100      0  BET_LIMIT_API_FOOTBALL
 highlightly               130     100      0  BET_LIMIT_HIGHLIGHTLY
-bzzoiro-tennis             42     100     58  BET_LIMIT_BZZOIRO_TENNIS
+bzzoiro                  1204     inf    inf  BET_LIMIT_BZZOIRO
 ```
 
 **After rotating a key**, the counter in `betting/data/.api_usage/` is stale: it
@@ -779,8 +779,23 @@ preflight reports the same numbers as `provider_quota` events before it starts.
 ## Known limitations (2026-08-25, tennis section revised 2026-08-28)
 
 - **Tennis tops out at `PARTIAL`.** `READY` needs 2+ providers on 3 priority
-  metrics; only `tennis-abstract` supplies all three (`espn-tennis` covers only
-  `total_games`/`total_sets`). This is a data limit, not a code one.
+  metrics; only `tennis-abstract` supplies all three (`espn-tennis` covers
+  `total_games`/`total_sets` and nothing else, by design -- see below). This is
+  a data limit, not a code one.
+- **The two tennis providers are complementary, not ranked** (2026-09-02).
+  `tennis-abstract` holds the serve vocabulary, the surface and a full career;
+  `espn-tennis` holds only games and sets, but reads them off the published set
+  score and is the only one carrying a tournament id, a season and a round, so
+  it is what lets a tennis sample be scoped at all. Neither is primary, and
+  `PRIMARY_PROVIDER_BY_SPORT` has no tennis entry on purpose.
+- **A tennis `AGREE` on `total_games` means something again.** Until 2026-09-02
+  `tennis-abstract` derived total games from `service_games + return_games`,
+  which are *service* games -- a tie-break game has no server and appears in
+  neither -- so it ran exactly one game low per 7-6 set, on 98.37% of the
+  tie-break rows in its own cache. That sat inside the 1.0 agreement tolerance,
+  so `espn-tennis`, which transcribes the score exactly, certified the shift as
+  agreement. Both providers now derive games and sets from the score
+  (`api_clients/tennis_score.py`).
 - **`understat` always produces a `data_gap`** — unbuildable dependency.
   Expected, not a failure.
 - **`sackmann` is gone and is no longer asserted.** Removed from

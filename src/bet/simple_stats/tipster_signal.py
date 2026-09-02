@@ -35,6 +35,7 @@ visible in the artifact rather than buried in an aggregate.
 """
 from __future__ import annotations
 
+import re
 from collections import Counter
 from datetime import datetime, timedelta, timezone
 
@@ -180,13 +181,94 @@ def _pick_ref(pick: TipsterPick, claim: MarketClaim) -> TipsterPickRef:
     )
 
 
-def _public_lean(picks: list[TipsterPick]) -> dict[str, int]:
+# A bare 1X2 selection, which is the whole of a Typersi ``type`` field.
+_BARE_OUTCOME_LEAN = {
+    "1": "HOME",
+    "2": "AWAY",
+    "x": "DRAW",
+    "1x": "DC",
+    "x2": "DC",
+    "12": "DC",
+    "1x2": "DC",
+}
+
+# Market prefixes that name a side and mean "this side". A handicap is included
+# deliberately: it is not a total and can never become one, but it is a stated
+# read on which way the fixture goes, which is exactly what the lean reports.
+_SIDED_LEAN_MARKETS = re.compile(
+    r"^(?:full[-\s]?time\s+result|match\s+result|1x2|asian\s+handicap|handicap|to\s+win"
+    r"|draw\s+no\s+bet|double\s+chance)\b",
+    re.I,
+)
+
+_BTTS_LEAN = re.compile(r"both\s+team", re.I)
+
+
+def _claim_lean(pick: TipsterPick, home: str, away: str) -> str | None:
+    """The fixture-outcome direction a non-total pick states, or None.
+
+    Why this exists at all: on the 2026-09-02 slate 91 picks were classified
+    ``outcome_market_not_a_total`` and 25 ``handicap_not_a_total``, and every
+    one of them then vanished. That is right for the *countable* tally -- a 1X2
+    or a handicap says nothing about whether a total clears its line, and
+    counting one toward corners is the error this module was built to prevent.
+    But the picks were not vanishing into the countable tally, they were
+    vanishing entirely, because the pick-level ``direction`` these sources
+    publish is ``OTHER`` for the very markets that carry the most opinion.
+
+    So the reading is recovered from the claim text and reported in
+    ``public_lean``, which is a separate field, is never added to agree/oppose,
+    and cannot reach ``p_low``. The tipster who says "Full-Time Result Millwall"
+    is telling the operator something; they are just not telling them about
+    corners.
+    """
+    raw = (pick.market or "").strip()
+    if not raw:
+        return None
+    bare = _BARE_OUTCOME_LEAN.get(raw.casefold().replace(" ", ""))
+    if bare:
+        return bare
+    if _BTTS_LEAN.search(raw):
+        return "BTTS_NO" if re.search(r"\bno\b|\bnie\b", raw, re.I) else "BTTS_YES"
+    if not _SIDED_LEAN_MARKETS.match(raw):
+        return None
+    # Which side the claim names. Scored with the fixture matcher so "St. Gallen"
+    # reaches "FC St. Gallen", and required to be unambiguous: a claim naming
+    # both sides equally well identifies neither.
+    home_hit = max((side_score(token, home) for token in _name_candidates(raw)), default=0)
+    away_hit = max((side_score(token, away) for token in _name_candidates(raw)), default=0)
+    if max(home_hit, away_hit) < MATCH_THRESHOLD or home_hit == away_hit:
+        return None
+    return "HOME" if home_hit > away_hit else "AWAY"
+
+
+# The trailing line of a handicap ("+0.25", "-1,5", "0.0") is not part of the
+# team name, and neither is the market prefix that _SIDED_LEAN_MARKETS matched.
+_LEAN_NOISE = re.compile(
+    r"^(?:full[-\s]?time\s+result|match\s+result|1x2|asian\s+handicap|handicap|to\s+win"
+    r"|draw\s+no\s+bet|double\s+chance)\b|[+-]?\d+(?:[.,]\d+)?\s*$",
+    re.I,
+)
+
+
+def _name_candidates(raw: str) -> list[str]:
+    stripped = _LEAN_NOISE.sub(" ", _LEAN_NOISE.sub(" ", raw)).strip(" -–—:")
+    return [stripped] if stripped else []
+
+
+def _public_lean(picks: list[TipsterPick], home: str, away: str) -> dict[str, int]:
     """Tally of outcome-market directions for one fixture."""
-    lean = Counter(
-        pick.direction
-        for pick in picks
-        if pick.direction in _LEAN_DIRECTIONS and not pick.is_combo
-    )
+    lean: Counter[str] = Counter()
+    for pick in picks:
+        if pick.is_combo:
+            continue
+        if pick.direction in _LEAN_DIRECTIONS:
+            lean[pick.direction] += 1
+            continue
+        if pick.direction == "OTHER":
+            derived = _claim_lean(pick, home, away)
+            if derived:
+                lean[derived] += 1
     return dict(sorted(lean.items(), key=lambda item: (-item[1], item[0])))
 
 
@@ -247,7 +329,7 @@ def build_tipster_signal(
                 match_quality=quality,  # type: ignore[arg-type]
                 match_score=score,
                 picks=[_pick_ref(pick, claim) for pick, claim in entries],
-                public_lean=_public_lean([pick for pick, _ in entries]),
+                public_lean=_public_lean([pick for pick, _ in entries], home, away),
             )
         )
     signals.sort(key=lambda s: (-len(s.picks), s.event_id))
