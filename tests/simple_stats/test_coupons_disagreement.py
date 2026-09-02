@@ -14,6 +14,16 @@ tie priced off best-of-three data. It was ranked first *because* it was wrong.
 So the gate here is a demotion and never a deletion. The file cannot tell an
 edge from a broken sample and must not pretend to; what it can do is stop
 presenting the second as the first, at rank one.
+
+**What the gate measures changed after 2026-09-01 settled.** It compared
+``p_low`` to the devigged price, and that comparison is unusable: ``p_low`` is a
+lower bound with a 5-10% tier margin stacked on it downstream, so the same
+inequality that admits a row *forces* the gap above +0.08 for a LEAN and +0.13
+for a strong one, whatever the sample holds. Six of that day's seven admitted
+singles sat between +0.10 and +0.14 -- under the 0.15 threshold meant to catch
+them -- and six of the seven lost. The gate now reads ``p_central``, the same
+probability with no bound and no margin in it, whose run-wide median against
+devigged Superbet is -0.000. See ``MAX_MARKET_DISAGREEMENT``.
 """
 from __future__ import annotations
 
@@ -43,6 +53,11 @@ def _row(**overrides) -> StatsSheetRow:
     kwargs = dict(
         event_id="evt-1", sport="football", market="corners_total", line=9.5,
         direction="UNDER", hits=9, sample_size=12, hit_rate=0.75, p_low=0.60,
+        # The gate reads p_central, so the fixture has to carry one. 0.80
+        # beside a floor of 0.60 is the ordinary relationship between the two:
+        # the sample's own estimate, and what is left of it after Wilson and
+        # the count model have both charged it for being twelve observations.
+        p_central=0.80,
         mean=9.1, median=9.0, sources=["bzzoiro", "espn-football"],
         cross_provider_agreement="AGREE", confidence="HIGH", data_quality="READY",
     )
@@ -110,7 +125,7 @@ def test_the_disagreement_is_measured_against_a_devigged_price():
         superbet_offer=_offer(_pair("corners_total", 9.5, under=2.50, over=1.55)),
     )
     single = coupons.singles[0]
-    assert single.market_disagreement == pytest.approx(0.60 - 0.3828, abs=1e-3)
+    assert single.market_disagreement == pytest.approx(0.80 - 0.3828, abs=1e-3)
     assert single.needs_review is True
 
 
@@ -137,10 +152,11 @@ def test_without_an_offer_nothing_is_flagged():
 
 
 def test_sitting_below_the_market_is_never_flagged():
-    """``p_low`` is a lower bound. Being under the book's number is the normal,
-    healthy case and the gate is deliberately one-sided."""
+    """Being under the book's number is the normal, healthy case and the gate
+    is deliberately one-sided. 1.40/3.10 devigs to 0.689 for the UNDER, above
+    this row's own 0.62 estimate."""
     coupons = build_coupons(
-        _sheet(_row(p_low=0.55)),
+        _sheet(_row(p_low=0.55, p_central=0.62)),
         _events(_event()),
         superbet_offer=_offer(_pair("corners_total", 9.5, under=1.40, over=3.10)),
     )
@@ -157,15 +173,18 @@ def test_a_row_the_market_contradicts_loses_the_top_of_the_file():
     disagreement led the file on surplus alone."""
     coupons = build_coupons(
         _sheet(
-            _row(market="corners_total", line=9.5, p_low=0.60),
-            _row(market="cards_total", line=4.5, p_low=0.60),
+            _row(market="corners_total", line=9.5, p_low=0.60, p_central=0.80),
+            _row(market="cards_total", line=4.5, p_low=0.60, p_central=0.70),
         ),
         _events(_event()),
         superbet_offer=_offer(
-            # devigged 0.383 -- 0.217 above our floor, past the threshold
+            # devigged 0.383 -- 0.417 under our own estimate, past the threshold
             _pair("corners_total", 9.5, under=2.50, over=1.55),
-            # devigged 0.500 -- 0.100 above our floor, inside it
-            _pair("cards_total", 4.5, under=1.90, over=1.90),
+            # devigged 0.548 -- 0.152 under it, inside the threshold, and 1.90
+            # still clears the 1.833 this row's floor demands. Both rows are
+            # bettable on price; only one of them is a bet the book has not
+            # already priced against us.
+            _pair("cards_total", 4.5, under=1.90, over=2.30),
         ),
     )
     assert [s.market for s in coupons.singles] == ["cards_total", "corners_total"]
@@ -199,14 +218,14 @@ def test_a_flagged_row_says_so_in_its_own_caveats_and_in_the_header():
 def test_the_threshold_is_the_published_constant():
     """Just inside and just outside, so the constant is what decides and not a
     number written twice."""
-    # devig of 1.90/1.90 is exactly 0.50.
+    # devig of 1.90/1.90 is exactly 0.50, so p_central is the only variable.
     inside = build_coupons(
-        _sheet(_row(p_low=0.50 + MAX_MARKET_DISAGREEMENT - 0.01)),
+        _sheet(_row(p_central=0.50 + MAX_MARKET_DISAGREEMENT - 0.01)),
         _events(_event()),
         superbet_offer=_offer(_pair("corners_total", 9.5, under=1.90, over=1.90)),
     )
     outside = build_coupons(
-        _sheet(_row(p_low=0.50 + MAX_MARKET_DISAGREEMENT + 0.01)),
+        _sheet(_row(p_central=0.50 + MAX_MARKET_DISAGREEMENT + 0.01)),
         _events(_event()),
         superbet_offer=_offer(_pair("corners_total", 9.5, under=1.90, over=1.90)),
     )

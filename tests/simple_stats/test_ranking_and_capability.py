@@ -14,6 +14,7 @@ from bet.simple_stats.analyze import (
     _day_key,
     compute_hit_rate,
     wilson_lower_bound,
+    corroborated_matches,
 )
 from bet.simple_stats.contracts import ProviderValue
 
@@ -102,7 +103,11 @@ class TestDayKey:
                 observed_at="2026-08-25T12:00:00Z",
             ),
         ]
-        assert _cross_provider_agreement("corners_total", observations) == "AGREE"
+        # Asserted on the corroboration count, not on AGREE: the bug being
+        # closed is the date bucketing, and one corroborated match is below
+        # MIN_CORROBORATED_MATCHES for reasons that have nothing to do with
+        # date formats.
+        assert corroborated_matches("corners_total", observations) == 1
 
     def test_a_real_disagreement_still_surfaces(self):
         observations = [

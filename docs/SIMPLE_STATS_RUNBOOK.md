@@ -131,9 +131,34 @@ is also stamped into `analysis_raw_data.safety_input_json` and
 
 The output artifact is the readable deliverable:
 `${DATE}_event_dossiers_stats_sheet.json`, sorted by `p_low` desc. Rows carry
-`hits/sample_size`, `mean`, `median`, `sources`, `cross_provider_agreement`,
-`confidence` and `data_quality`. There is no price, no EV and no `bettable`
-field — by design (plan §1). Pick a line by hand in Superbet Bet Builder.
+`hits/sample_size`, `mean`, `median`, `dispersion`, `p_central`, `sources`,
+`cross_provider_agreement`, `confidence` and `data_quality`. There is no price,
+no EV and no `bettable` field — by design (plan §1). Pick a line by hand in
+Superbet Bet Builder.
+
+**`p_low` is two instruments, combined with `min`** (2026-09-02). Wilson prices
+how few trials there were; `analyze.count_model_bound` prices how close the
+line sits to what those trials measured, by fitting the sample's own count
+distribution with its variance floored at its mean and then pushing that mean
+95% against the bet. The row is only as confident as the weaker of the two, so
+the pair can never manufacture certainty neither holds alone — replaying the
+frozen fixture moved 251 rows and every one of them **down**.
+
+Wilson alone was the 2026-09-01 defect. On a sample that has not missed once it
+depends on `n` and nothing else, so every line above the sample's maximum
+carried the identical number: Sheffield United's five corner observations
+`{2,4,3,2,3}` scored 0.5655085 at 4.5, 5.5, 6.5 **and** 7.5. `min_acceptable_odds`
+is a tier margin over `1/p_low`, so it was constant down the ladder too, and the
+only rung whose price could clear it was the one the book priced longest. The
+sheet was reading Superbet's risk premium for a line near the middle of the
+distribution as its own surplus. Seven singles went out that way; six lost, one
+was void, none won. See `tests/simple_stats/test_regression_2026_09_01_losses.py`.
+
+`p_central` is the same probability with no bound and no margin in it — the
+sheet's actual opinion, for comparing against a devigged bookmaker price on
+equal terms. It is never a ranking key and never a floor. `dispersion` is the
+sample's floored standard deviation, carried so any check that compares this
+sample to something else has a scale to compare *in*.
 
 ANALYZE also writes `${DATE}_event_dossiers_stats_sheet_top.json` — the same
 rows filtered to `p_low >= 0.50`, the coupon's own floor. It exists because
@@ -336,6 +361,38 @@ realistically pay, so the row is unplaceable rather than merely weak.
 **Bet Builder** slips are the per-match drafts, 2–4 legs, ranked by their
 **weakest** leg — a slip settles on every leg, so averaging would let three
 strong legs carry a fourth nobody should be betting.
+
+**Two gates decide whether a single may lead the file** (2026-09-02). Both
+demote to the bottom of the file with a reason; neither deletes, because
+neither can tell an edge from a broken sample and must not pretend to.
+
+* `MAX_MARKET_DISAGREEMENT` (0.25) compares `p_central` to Superbet's devigged
+  price at the same rung. It used to compare `p_low`, which cannot work: the
+  VALUE inequality `price >= margin/p_low` devigs to a *forced* gap of +0.08 to
+  +0.13, so every bettable row disagreed with the book by at least that much
+  whatever its sample held. Any threshold above the forced band is a no-op and
+  any threshold below it is a blanket ban on ever outbidding the book. Against
+  `p_central` the run-wide median gap is −0.000 and 0.25 is p95.
+* `MAX_LADDER_SIGMA` (1.25) compares the sample's mean to the median implied by
+  the book's **whole** devigged ladder, in the sample's own standard
+  deviations. This is the check the pipeline could always have run and never
+  did: it already downloads every rung and read them one at a time. On
+  2026-09-01 it contradicted the losing samples outright — Sheffield corners
+  mean 2.80 against a ladder median of 5.76 (z −1.77, match returned 5),
+  Birmingham shots 8.20 against 13.18 (z −1.74, returned 16). A sample that
+  disagrees with the book about *where* a market sits is not describing that
+  fixture; a sample that agrees about the centre and differs about the tail is
+  what a real edge looks like, and passes.
+
+  In sigma and **not** as a ratio: `mean/ladder_median` fired on 53% of
+  `goals_for` samples and 0% of `corners_total`, because a 0.3-goal gap is a
+  third of a half-time total and a thirtieth of a shots total. Normalised by
+  `row.dispersion` it fires on 3.1% of samples, evenly across markets.
+
+  The ladder is read from the **offer**, never from the sheet: `select_lines`
+  trims an offer-driven ladder to the rungs nearest the sample's own median, so
+  a sample far from the book's centre — the defect being hunted — is exactly
+  the one whose sheet rows cover least of the ladder.
 
 Low-line UNDERs (`<= 1.5`) are pushed to the bottom of the no-market-reference
 section rather than dropped: a `player_cards UNDER 0.5` at 10/10 lands near

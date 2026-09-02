@@ -56,7 +56,21 @@ FIRST_HALF_GOAL_SHARE = 0.447
 # football fixture, and clamping is honest where extrapolating is not.
 _LAMBDA_MIN = 0.15
 _LAMBDA_MAX = 4.5
-_SCORE_CEILING = 12  # goals per side; P(more) is ~1e-9 at the top of the grid
+# Goals per side the scoreline grid enumerates, inclusive.
+#
+# It was 12 with a comment claiming the tail beyond it was ~1e-9, and at the
+# 1.5-goal rates most fixtures fit that is true. At the top of the fitted band
+# it is not: P(X >= 12) is 2.4e-3 for a Poisson(4.5), so a 4.5/4.5 grid summed
+# to 0.9952 rather than 1. That deficit went straight into ``fit_match_lambdas``,
+# whose error term compares the grid's home/draw/away against devigged targets
+# that sum to exactly 1 -- so the fit was charged half a percent for being at
+# the top of the range and pulled toward lower rates there.
+#
+# 26 makes the claim true where it was made: P(X >= 26) at lambda 4.5 is 3.2e-12.
+# The grid is O(n^2), but ``_score_grid`` now builds each side's pmf once
+# instead of calling ``poisson_pmf`` -- with its own ``math.factorial`` -- inside
+# the inner loop, which more than pays for the larger n.
+_SCORE_CEILING = 26
 
 
 def implied_probability(price: float) -> float:
@@ -88,10 +102,49 @@ def remove_vig(*prices: float) -> tuple[float, ...]:
 def poisson_pmf(k: int, lam: float) -> float:
     """P(exactly k) for a Poisson rate. Local so this module has no dependency
     beyond the standard library -- it is imported by a report path that must not
-    fail because an optional wheel is missing."""
+    fail because an optional wheel is missing.
+
+    Computed in log space. The direct form, ``exp(-lam) * lam**k /
+    factorial(k)``, raises ``OverflowError`` from k=200 up: ``lam**k`` leaves
+    float range and ``factorial(k)`` becomes an int too large to convert, so
+    the two overflows never get the chance to cancel. Nothing in this module
+    calls it past k=27 today, which is exactly why it was worth fixing rather
+    than documenting -- the next caller to sum a tail would have hit a crash,
+    not a wrong number.
+
+    ``lgamma(k+1)`` is ``log(k!)`` for non-negative integers, and the whole
+    expression stays in a range floats hold for every k.
+    """
     if lam <= 0:
         return 1.0 if k == 0 else 0.0
-    return math.exp(-lam) * lam**k / math.factorial(k)
+    if k < 0:
+        return 0.0
+    return math.exp(-lam + k * math.log(lam) - math.lgamma(k + 1))
+
+
+def _truncated_pmf(lam: float) -> list[float]:
+    """A Poisson pmf, cut where the rest of it stops mattering.
+
+    ``_SCORE_CEILING`` is sized for the top of the fitted band (lambda 4.5),
+    where the tail only becomes negligible around 26 goals. Enumerating 26 for
+    a 1.2-goal side as well would make the grid five times the area it needs to
+    be, and ``fit_match_lambdas`` evaluates it thousands of times per fixture.
+
+    So each side is cut at its own tail instead: the first length whose omitted
+    mass is under 1e-13, capped at ``_SCORE_CEILING``. That is the accuracy of
+    the full ceiling at roughly the cost of the old one, and the cut is a
+    property of the rate rather than a constant anybody has to keep in step
+    with ``_LAMBDA_MAX``.
+    """
+    pmf: list[float] = []
+    cumulative = 0.0
+    for k in range(_SCORE_CEILING + 1):
+        p = poisson_pmf(k, lam)
+        pmf.append(p)
+        cumulative += p
+        if 1.0 - cumulative < 1e-13:
+            break
+    return pmf
 
 
 def _score_grid(
@@ -104,12 +157,19 @@ def _score_grid(
     anchored on the observed 1X2 *and* over/under prices, so the bias lands in
     the fitted rates rather than in the answers taken from them.
     """
+    # Each side's pmf once, not once per cell: the inner loop used to call
+    # poisson_pmf -- and through it math.factorial -- on every one of the
+    # grid's cells, recomputing the away side's whole distribution for each
+    # home score.
+    pmf_home = _truncated_pmf(lam_home)
+    pmf_away = _truncated_pmf(lam_away)
     home = draw = away = 0.0
-    totals = [0.0] * (2 * _SCORE_CEILING)
-    for i in range(_SCORE_CEILING):
-        p_i = poisson_pmf(i, lam_home)
-        for j in range(_SCORE_CEILING):
-            p = p_i * poisson_pmf(j, lam_away)
+    totals = [0.0] * (len(pmf_home) + len(pmf_away) - 1)
+    for i, p_i in enumerate(pmf_home):
+        if p_i == 0.0:
+            continue
+        for j, p_j in enumerate(pmf_away):
+            p = p_i * p_j
             if i > j:
                 home += p
             elif i == j:

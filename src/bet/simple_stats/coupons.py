@@ -36,6 +36,7 @@ from pathlib import Path
 from pydantic import Field
 
 from bet.simple_stats.bet_builder_draft import (
+    TIER_MARGIN,
     AnalystVeto,
     BetBuilderDraft,
     Tier,
@@ -171,11 +172,84 @@ MIN_SINGLE_P_LOW = 0.50
 # tie priced off best-of-three data, and it was ranked first precisely because
 # it disagreed most.
 #
-# 0.15 is set where it separates that day's rows: the ten rows the "worth its
-# price" gate admitted ran from +0.04 to +0.19 against devigged Superbet, and
-# every one above +0.15 -- Sheffield United corners, Al-Ahli shots, the tennis
-# leg -- is a row this audit found an independent reason to doubt.
-MAX_MARKET_DISAGREEMENT = 0.15
+# 0.25, and the number changed meaning before it changed value -- see
+# ``disagreement``, which now measures ``p_central`` rather than ``p_low``.
+#
+# Against ``p_low`` no threshold could work, and 2026-09-01 is the arithmetic
+# proof rather than the anecdote. VALUE means ``price >= margin/p_low``, which
+# devigs to ``p_low - implied >= p_low*(1 - 1/(margin*overround))`` -- +0.081 for
+# a LEAN at p_low 0.50, +0.130 at 0.80. Every VALUE row therefore disagreed with
+# the book by at least that much *by construction*, whatever its sample held. A
+# threshold above the band (0.15, which is what shipped) is a no-op; one below
+# it (0.08, which is where the losses appear to point) is a blanket ban on ever
+# outbidding the book. There is no third setting. The gate was measuring our own
+# conservatism.
+#
+# Against ``p_central`` it measures the disagreement itself, and the run-wide
+# distribution says so: over that day's 3928 two-sided rows the median gap is
+# -0.000 -- the sheet and the devigged book agree, on average, which is the
+# calibration check the old number could never have passed. p75 is +0.081, p90
+# +0.173, p95 +0.239.
+#
+# 0.25 is that p95, chosen from the distribution and not from the casualties.
+# What it does to the casualties is the check, not the input: the seven singles
+# that day's file admitted came out at +0.504, +0.487, +0.418, +0.357, +0.316,
+# +0.263 and +0.129, and the eight it rejected at +0.256 or less. So 0.25 flags
+# six of the seven losers and three rejected rows that were already unbettable
+# on price -- and the seventh, Lincoln, is caught upstream by
+# ``count_model_bound`` instead, which is the right place for it: at ladder
+# ratio 1.135 it agreed with the book about where the market sat and was simply
+# priced too short.
+#
+# False positives here are cheap by design. The gate demotes and never deletes
+# (see ``over_disagreement``), so flagging a good row costs it its rank; missing
+# a bad one costs a stake.
+MAX_MARKET_DISAGREEMENT = 0.25
+
+# How far the sample's own centre may sit from the centre the book's ladder
+# implies before the sample stops being a description of this fixture --
+# measured in the sample's own standard deviations.
+#
+# This is the check 2026-09-01 needed and did not have. The pipeline downloads
+# Superbet's whole ladder and reads it only one rung at a time, to ask "is this
+# price above my threshold". Read *whole*, the ladder is a devigged
+# distribution, and it contradicted the losing samples outright:
+#
+#     Sheffield United corners   mean  2.80  ladder median  5.76   z -1.77  ->  5
+#     Birmingham shots           mean  8.20  ladder median 13.18   z -1.74  -> 16
+#     Preston shots on target    mean  2.00  ladder median  3.88   z -1.33  ->  4
+#     Torino/Monza corners       mean  6.33  ladder median  8.60   z -0.90  -> 16
+#     Lincoln shots on target    mean  9.60  ladder median  8.46   z +0.37  ->  3
+#
+# The last column is what the match returned. In the four losing UNDERs the
+# book's median was the better estimate and our sample was the one betting
+# against it. No internal statistic can catch that: those samples are
+# self-consistent, tight and unanimous. They are simply not measuring the
+# quantity being priced -- venue, competition and five observations of it will
+# do that.
+#
+# **In standard deviations and not as a ratio.** The first version of this gate
+# compared ``mean/ladder_median`` against a 0.75-1.35 band, and that is the
+# wrong shape: it fired on 29.6% of the day's 382 comparable samples, but
+# unevenly -- 53% of ``goals_for`` and 0% of ``corners_total``, because a
+# 0.3-goal gap is a third of a half-time total and a thirtieth of a shots
+# total. It was measuring the size of the mean, not the size of the
+# disagreement. Divided by ``row.dispersion`` the median |z| is 0.13-0.58 in
+# every market on the board, so one threshold means the same thing everywhere.
+#
+# 1.25 sits near p97 of that distribution (p50 0.267, p95 0.954, p99 1.738) and
+# fires on 3.1% of samples. It takes Sheffield, Birmingham and Preston.
+# Torino and Lincoln are left to ``count_model_bound``, which is the right
+# layer for them: Lincoln at z +0.37 *agreed* with the book about where the
+# market sat and was simply priced too short, and a gate that flagged it would
+# be punishing the sample for being correct.
+MAX_LADDER_SIGMA = 1.25
+
+# A ladder has to have at least two devigged rungs straddling even money
+# before it implies a median at all. One rung gives a probability, not a
+# location; a ladder entirely on one side of 0.5 puts the median outside the
+# range the book posted, where interpolating it would be invention.
+_LADDER_MIN_RUNGS = 2
 
 
 class CouponSingle(StrictBaseModel):
@@ -194,6 +268,12 @@ class CouponSingle(StrictBaseModel):
     subject: str | None = None
     tier: str
     p_low: float
+    # The sheet's own estimate with no bound and no margin in it, carried so
+    # ``market_disagreement`` can be checked by hand: the gap is exactly this
+    # minus the devigged Superbet price at the same rung. Without it the
+    # operator reads a gap he cannot reconstruct, which is how the old
+    # p_low-based version of that number went four days unquestioned.
+    p_central: float | None = None
     hit_rate: float
     hits: int
     sample_size: int
@@ -241,6 +321,19 @@ class CouponSingle(StrictBaseModel):
     # Positive is not automatically good. Past MAX_MARKET_DISAGREEMENT it is
     # the reason the row is *not* at the top of the file.
     market_disagreement: float | None = None
+    # ``(mean - ladder_median) / dispersion``: how far the sample's own centre
+    # sits from the centre the book's whole devigged ladder implies, in the
+    # sample's own standard deviations. 0.0 is agreement about where this
+    # market sits, and the sign says which way we lean. The disagreement that
+    # matters is here rather than in ``market_disagreement``, which compares
+    # one rung's price. Reported even when inside the band, because a reader
+    # checking a row needs to see the number that cleared it, not only the
+    # ones that did not.
+    #
+    # None when the book posted fewer than two two-sided rungs for the sample,
+    # or a ladder that never crosses even money -- then no median can be read
+    # and the gate is inert for that row.
+    ladder_sigma: float | None = None
     # True when ``market_disagreement`` exceeded the threshold. Such a row is
     # kept and ranked last rather than dropped: "we and the book are far apart
     # here" is information the operator should have, and deleting it would hide
@@ -315,14 +408,52 @@ def _has_market_reference(row: StatsSheetRow) -> bool:
     )
 
 
-def _edge(row: StatsSheetRow) -> float:
-    """p_low minus the market's own implied probability for this exact row.
+def required_price(row: StatsSheetRow, tier: str) -> float:
+    """``min_acceptable_odds`` for one row, in exactly one place.
 
-    Positive means the model's floor sits above what the market prices in --
-    the read the market has not caught up to. Never called on a row without a
-    market reference; see ``_has_market_reference``.
+    The arithmetic is ``1/p_low`` times the tier margin, rounded to four
+    decimals -- and it used to be written out three separate times inside
+    ``build_coupons``: once in the ``require_superbet_value`` probe, once in the
+    body that fills ``CouponSingle.min_acceptable_odds``, and once in
+    ``_superbet_surplus`` for the ranking. Three copies of the number the
+    operator actually acts on, one of which decides the ordering and another of
+    which is printed. They agreed; nothing made them agree.
     """
-    return row.p_low - row.market_signal.market_implied_probability
+    return round((1.0 / row.p_low) * TIER_MARGIN[tier], 4)
+
+
+def _edge(row: StatsSheetRow) -> float:
+    """This row's own probability minus the market's, for this exact row.
+
+    Measured on ``p_central`` and not ``p_low``, for the same reason
+    ``disagreement`` is (see its docstring). ``market_implied_probability`` is
+    a *devigged* number -- a central estimate -- and ``p_low`` is a lower
+    bound, so subtracting one from the other compared two different kinds of
+    quantity and called the remainder an edge. It is the ranking key for the
+    whole second group of singles and it is printed in the coupon file as
+    "Przewaga", so the mismatch reached the operator twice over: Torino/Monza's
+    corners went out on 2026-09-01 labelled +9.7pp when this row's actual
+    disagreement with the devigged market was +31.6pp.
+
+    Understating it is not the safe direction. The number is read as "how much
+    of an edge is here", and a floor-versus-centre subtraction makes a large
+    disagreement look like a small one -- which is the reading that gets a
+    broken sample staked.
+
+    Ranking by it descending is legitimate *because* it is now comparable and
+    bounded: ``over_disagreement`` removes everything past
+    ``MAX_MARKET_DISAGREEMENT`` first, and inside that band the run-wide median
+    gap between ``p_central`` and the devigged price is -0.000, so the sheet is
+    not systematically on either side of the market. Ranking an *unbounded*
+    disagreement descending is what put six losers at the top of that day's
+    file.
+
+    Falls back to ``p_low`` on a row written before ``p_central`` existed,
+    which reproduces the old number rather than inventing one. Never called on
+    a row without a market reference; see ``_has_market_reference``.
+    """
+    ours = row.p_central if row.p_central is not None else row.p_low
+    return ours - row.market_signal.market_implied_probability
 
 
 def _caveats(row: StatsSheetRow) -> list[str]:
@@ -336,14 +467,19 @@ def _caveats(row: StatsSheetRow) -> list[str]:
     if row.sample_size < 8:
         notes.append(f"mała próba (n={row.sample_size})")
     if row.hits >= row.sample_size and row.sample_size > 0:
-        # No miss in the sample, so the Wilson bound is a function of n alone
-        # and is identical on every line above the sample's maximum. The sheet
-        # therefore cannot rank the rungs of this ladder against each other --
-        # only the price can, and the operator is the one holding it.
+        # No miss in the sample, so the *Wilson* half of p_low is a function of
+        # n alone. It used to say that p_low was therefore identical on every
+        # line above the sample's maximum and that only the price could rank
+        # the rungs -- which was true, was the 2026-09-01 defect, and is no
+        # longer true: ``count_model_bound`` caps Wilson with the line's own
+        # distance from the sample, so the rungs are ordered again. What
+        # survives is the narrower and still important warning: a sample with
+        # no miss reports no observed failure rate, so everything separating
+        # these rungs is now model rather than measurement.
         notes.append(
-            f"brak pudła w próbie ({row.hits}/{row.sample_size}) — p_low wynika "
-            "tu wyłącznie z n i jest identyczne na każdej wyższej linii tego "
-            "rynku; wybór szczebla rozstrzyga cena, nie ten arkusz"
+            f"brak pudła w próbie ({row.hits}/{row.sample_size}) — próba nie "
+            "pokazuje ani jednej porażki, więc szczeble tego rynku rozdziela "
+            "rozkład dopasowany do próby, nie zmierzony odsetek trafień"
         )
     if is_trivial_under(row):
         notes.append("niska linia UNDER — łatwa do trafienia i zwykle wyceniana ~1.05")
@@ -606,34 +742,176 @@ def build_coupons(
         return (1.0 / prices[0]) / overround
 
     def disagreement(row: StatsSheetRow) -> float | None:
-        """How far this row's floor sits above the operator's own book."""
+        """How far this row's own opinion sits above the operator's book.
+
+        Measured against ``p_central`` and not ``p_low``. The floor is a lower
+        bound and ``min_acceptable_odds`` stacks a 5-10% tier margin on top of
+        it, so ``p_low - implied`` is dominated by our own conservatism: it is
+        pinned above +0.08 for *every* row that clears its price, whatever the
+        sample says. A gate on that number can be a no-op or a blanket ban and
+        nothing in between, which is how 2026-09-01 shipped with the threshold
+        at 0.15 -- above six of its seven losers -- and looked calibrated.
+
+        ``p_central`` carries no margin and no bound, so the difference is a
+        disagreement about the outcome and nothing else. Rows written before
+        the field existed fall back to ``p_low``, which reproduces the old
+        number exactly rather than inventing one.
+        """
         implied = superbet_implied(row)
-        return None if implied is None else round(row.p_low - implied, 4)
+        if implied is None:
+            return None
+        ours = row.p_central if row.p_central is not None else row.p_low
+        return round(ours - implied, 4)
+
+    # Every line **the book posted** for one sample, taken from the offer and
+    # deliberately not from the sheet.
+    #
+    # The sheet is the wrong source and would make the check unreliable in
+    # exactly the cases it is for: ``select_lines`` trims an offer-driven
+    # ladder to ``MAX_OFFERED_LINES_PER_SAMPLE`` rungs closest to the sample's
+    # own median, so a sample sitting far from the book's centre -- the defect
+    # being hunted -- is the one whose sheet rows cover least of the ladder.
+    # Reading the sheet would have let the gate go quietly inert on the worst
+    # rows and left no trace that it had.
+    #
+    # Keyed on the offer's own spelling of a player, which is what
+    # ``lookup_line`` resolves ours to; team names are ours already.
+    ladder_lines: dict[tuple, set[float]] = {}
+    for event_offer in (superbet_offer.events if superbet_offer else []):
+        if not event_offer.event_id:
+            continue
+        for offered in event_offer.lines:
+            ladder_lines.setdefault(
+                (event_offer.event_id, offered.market, offered.team_name,
+                 offered.player_name),
+                set(),
+            ).add(offered.line)
+
+    def _rungs_for(row: StatsSheetRow) -> set[float]:
+        """Every line the book posted for this row's sample.
+
+        A player row has to be looked up under *their* spelling: the alias map
+        is ours-to-theirs, and the offer is filed under theirs.
+        """
+        their_name = row.player_name
+        if their_name is not None:
+            their_name = player_aliases.get(row.event_id, {}).get(their_name, their_name)
+        return ladder_lines.get(
+            (row.event_id, row.market, row.team_name, their_name), set()
+        )
+
+    _ladder_median_cache: dict[tuple, float | None] = {}
+
+    def ladder_median(row: StatsSheetRow) -> float | None:
+        """The median of the distribution Superbet's whole ladder implies.
+
+        Each rung with both sides posted devigs to ``P(X < line)`` exactly as
+        ``superbet_implied`` does for one line. Together they are a CDF sampled
+        at the book's own half-points, and the median is where it crosses 0.5,
+        linearly interpolated between the two rungs that straddle it.
+
+        Interpolated and not fitted: a two-parameter fit would put a shape
+        assumption between the operator and a number he is being asked to bet
+        against, and the crossing point needs no shape. Linear interpolation
+        over a half-point step is accurate to well inside the band it feeds.
+
+        Returns None when the book posted too little to locate a median --
+        fewer than two two-sided rungs, or a ladder that never crosses 0.5.
+        None disables the check, on the same principle as ``superbet_implied``:
+        not being able to read the book is not evidence against the sample.
+        """
+        key = (row.event_id, row.market, row.team_name, row.player_name)
+        if key in _ladder_median_cache:
+            return _ladder_median_cache[key]
+        cdf: dict[float, float] = {}
+        for line in sorted(_rungs_for(row)):
+            prices: list[float] = []
+            for direction in ("UNDER", "OVER"):
+                availability, exact, _, _ = lookup_line(
+                    superbet_events.get(row.event_id),
+                    market=row.market,
+                    line=line,
+                    direction=direction,
+                    team_name=row.team_name,
+                    player_name=row.player_name,
+                    player_aliases=player_aliases.get(row.event_id, {}),
+                )
+                if availability != "OFFERED" or exact is None or exact.price <= 1.0:
+                    break
+                prices.append(exact.price)
+            if len(prices) == 2:
+                overround = sum(1.0 / price for price in prices)
+                if overround > 0:
+                    cdf[line] = (1.0 / prices[0]) / overround
+        result: float | None = None
+        if len(cdf) >= _LADDER_MIN_RUNGS:
+            rungs = sorted(cdf)
+            for lower, upper in zip(rungs, rungs[1:]):
+                below, above = cdf[lower], cdf[upper]
+                if below < 0.5 <= above and above > below:
+                    result = lower + (0.5 - below) / (above - below) * (upper - lower)
+                    break
+        _ladder_median_cache[key] = result
+        return result
+
+    def ladder_sigma(row: StatsSheetRow) -> float | None:
+        """``(sample mean - ladder median) / dispersion``, signed.
+
+        Signed rather than absolute because the direction is the diagnosis: a
+        negative z is a sample that thinks this market runs colder than the
+        book does, which is what every one of 2026-09-01's losing UNDERs was.
+        """
+        centre = ladder_median(row)
+        if centre is None or row.mean is None or not row.dispersion:
+            return None
+        return round((row.mean - centre) / row.dispersion, 4)
+
+    def off_ladder(row: StatsSheetRow) -> bool:
+        """Whether the sample and the book disagree about *where* the
+        distribution is, as opposed to how heavy its tail is.
+
+        Only the first disagreement is disqualifying. A sample that agrees
+        with the book about the centre and differs about the tail is the shape
+        a real edge has; a sample whose centre is nearly two of its own
+        standard deviations from the book's is describing another fixture,
+        another venue or another competition, and its tail is not evidence
+        about anything.
+        """
+        sigma = ladder_sigma(row)
+        return sigma is not None and abs(sigma) > MAX_LADDER_SIGMA
 
     def over_disagreement(row: StatsSheetRow) -> bool:
-        """Whether the gap is wide enough *and* means anything for this line.
+        """Whether this row disagrees with the operator's own book too much to
+        lead the file -- on the price of its line, or on where its market sits.
 
-        The second half is not a refinement, it is a correction. When a row
-        has not missed once, the Wilson bound depends only on ``n`` -- so every
-        line above the sample's maximum carries the **same** ``p_low``, to the
-        last decimal place. Sheffield United's corners on 2026-09-01 read
-        0.565508505247919 at 4.5, 5.5, 6.5 and 7.5 alike, off a sample whose
-        highest value was 4.
+        **The saturation exemption is gone, and it is why 2026-09-01 lost.**
+        It read: a row that has not missed once carries a ``p_low`` that
+        depends only on ``n``, identical at every line above the sample's
+        maximum -- Sheffield United's corners scored 0.565508505247919 at 4.5,
+        5.5, 6.5 and 7.5 alike off a sample whose highest value was 4 -- so
+        ``p_low - market`` tracked the price and nothing else, and the gate
+        would have fired hardest on whichever rung paid best. All of that was
+        true. The conclusion drawn from it was to stop gating those rows.
 
-        For such a row ``p_low - market`` is not a disagreement about the line.
-        ``p_low`` is constant, so the difference tracks the price and nothing
-        else, and the gate would fire hardest on whichever rung pays best --
-        removing the most valuable line in the group for being valuable. That
-        is exactly backwards, and it is what happened: corners 4.5 at 2.70 was
-        demoted while 5.5 at 1.97, the same five observations one rung up, was
-        promoted in its place.
+        What it should have been was to stop ``p_low`` being constant, because
+        the constancy was the defect and the gate was the alarm. Exempting the
+        saturated rows disabled the alarm on precisely the rows that had it:
+        five of the seven singles that day were saturated, every one of them
+        cleared the gate, and every one of them lost.
 
-        So a saturated row is not flagged. It is labelled instead (see
-        ``_caveats``), because what the operator needs there is not a demotion
-        but the fact that the sheet cannot tell these lines apart.
+        ``p_low`` is now line-aware -- ``analyze.count_model_bound`` caps
+        Wilson with a bound that reads the line's distance from the sample -- so
+        a saturated row no longer carries the same number down the ladder and
+        the gap means what the gate always assumed it meant. The exemption has
+        nothing left to correct for.
+
+        The ladder check is the second half, and it is independent. A row can
+        sit within ``MAX_MARKET_DISAGREEMENT`` on its own rung and still be
+        built on a sample whose centre is nowhere near the book's; four of that
+        day's six losers were exactly that.
         """
-        if row.hits >= row.sample_size:
-            return False
+        if off_ladder(row):
+            return True
         gap = disagreement(row)
         return gap is not None and gap > MAX_MARKET_DISAGREEMENT
 
@@ -751,9 +1029,7 @@ def build_coupons(
     def _append_singles(ordered: list[tuple[StatsSheetRow, str]]) -> None:
         for row, tier in ordered:
             if require_superbet_value:
-                probe = superbet_for(
-                    row, round((1.0 / row.p_low) * {"CALL": 1.05, "LEAN": 1.10}[tier], 4)
-                )
+                probe = superbet_for(row, required_price(row, tier))
                 if probe.get("superbet_verdict") != "VALUE":
                     exclude("superbet_not_value")
                     continue
@@ -772,8 +1048,7 @@ def build_coupons(
                 exclude("over_max_singles")
                 continue
             fair = 1.0 / row.p_low
-            margin = {"CALL": 1.05, "LEAN": 1.10}[tier]
-            minimum = round(fair * margin, 4)
+            minimum = required_price(row, tier)
             singles.append(
                 CouponSingle(
                     rank=len(singles) + 1,
@@ -789,6 +1064,7 @@ def build_coupons(
                     subject=_subject(row),
                     tier=tier,
                     p_low=row.p_low,
+                    p_central=row.p_central,
                     hit_rate=row.hit_rate,
                     hits=row.hits,
                     sample_size=row.sample_size,
@@ -805,10 +1081,19 @@ def build_coupons(
                         [
                             "rynek wycenia to znacznie niżej niż my — najpierw "
                             "sprawdź próbkę, potem kurs"
-                        ] if over_disagreement(row) else []
+                        ] if over_disagreement(row) and not off_ladder(row) else []
+                    ) + (
+                        [
+                            "próbka opisuje inny środek rozkładu niż cała "
+                            f"drabinka Superbetu (średnia {row.mean:.2f} vs "
+                            f"mediana rynku {ladder_median(row):.2f}, "
+                            f"{ladder_sigma(row):+.2f}σ) — to nie jest spór o "
+                            "ogon, to spór o to, gdzie ten rynek leży"
+                        ] if off_ladder(row) else []
                     ),
                     edge=round(_edge(row), 4) if _has_market_reference(row) else None,
                     market_disagreement=disagreement(row),
+                    ladder_sigma=ladder_sigma(row),
                     needs_review=over_disagreement(row),
                     **superbet_for(row, minimum),
                 )
@@ -829,7 +1114,7 @@ def build_coupons(
     # budget, spent in this order.
     def _superbet_surplus(pair: tuple[StatsSheetRow, str]) -> float | None:
         row, tier = pair
-        info = superbet_for(row, round((1.0 / row.p_low) * {"CALL": 1.05, "LEAN": 1.10}[tier], 4))
+        info = superbet_for(row, required_price(row, tier))
         return info.get("superbet_surplus") if info.get("superbet_verdict") == "VALUE" else None
 
     # The disagreement gate, and it is a *demotion*, not an exclusion.

@@ -605,10 +605,43 @@ class StatsSheetRow(StrictBaseModel):
     # penalises thin samples on its own, which is why it -- and never
     # hit_rate -- orders the sheet: 4/4 lands near 0.51, below a 9/12 at 0.58.
     p_low: float
+    # The same probability with no conservatism in it: the count model read at
+    # the sample's own centre, or the raw hit rate on a market no count model
+    # is fitted to. Never a ranking key and never a floor -- it exists so the
+    # sheet can be compared to a bookmaker's devigged price on equal terms.
+    #
+    # ``p_low`` cannot do that job. It is a lower bound with a tier margin
+    # stacked on top of it downstream, so "our number minus the book's" is
+    # dominated by our own conservatism: on 2026-09-01 every row that cleared
+    # the price gate sat 8-13 points above devigged Superbet *by construction*,
+    # whatever its sample said, and the gate meant to catch a broken sample
+    # could not tell one from a good one. Defaults to ``p_low`` so a sheet
+    # written before this field existed still validates.
+    p_central: float | None = None
     mean: float
     median: float
+    # The sample's standard deviation, floored at sqrt(mean) because a count
+    # process cannot be tighter than Poisson and a short sample routinely
+    # looks it -- Torino/Monza's six scoped corner observations on 2026-09-01
+    # were {6,6,6,6,7,7}, variance 0.27 against a mean of 6.33, and the match
+    # returned 16.
+    #
+    # It is on the row so that "this sample disagrees with the book" can be
+    # asked in units of the sample's own spread rather than as a ratio. The
+    # first version of that check used mean/ladder_median and fired on 29.6%
+    # of one day's samples -- 53% of goals_for against 0% of corners_total,
+    # entirely because a 0.3-goal gap is a third of a half-time total and a
+    # thirtieth of a shots total. Normalised here it fires on 3.1%, evenly
+    # across markets. 0.0 on a percentage market, which has no count model.
+    dispersion: float = 0.0
     sources: list[str] = Field(default_factory=list)
     cross_provider_agreement: Literal["AGREE", "DISAGREE", "SINGLE_SOURCE", "NOT_APPLICABLE"]
+    # How many distinct matches in this sample a second provider also reported.
+    # Reported because ``cross_provider_agreement`` is a word and this is the
+    # evidence behind it: "AGREE" used to be granted on a single corroborated
+    # match out of twenty-three, and nothing on the row said so. See
+    # ``analyze.MIN_CORROBORATED_MATCHES``.
+    corroborated_matches: int = 0
     confidence: Literal["HIGH", "MEDIUM", "LOW"]
     data_quality: Literal["READY", "PARTIAL", "BLOCKED"]
     # Optional and always last: a sheet produced without a tipster run is a

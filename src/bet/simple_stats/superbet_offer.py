@@ -66,7 +66,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from bet.discovery.team_aliases import resolve_team_alias
-from bet.simple_stats.bet_builder_draft import tier_for_row
+from bet.simple_stats.bet_builder_draft import TIER_MARGIN, tier_for_row
 from bet.simple_stats.contracts import (
     EventListV1,
     EventRecord,
@@ -85,7 +85,14 @@ from bet.utils import normalize_team_name
 # Same constants the coupon uses. Imported rather than restated so a threshold
 # can never drift between the two files: a Superbet verdict that disagrees with
 # the coupon's own min_acceptable_odds is worse than no verdict.
-TIER_MARGINS = {"CALL": 1.05, "LEAN": 1.10}
+# Re-exported, never redefined. The margins are one policy and they were
+# written out in six places -- twice as a named constant and three times as an
+# inline literal inside coupons.py alone -- so a change to CALL's 1.05 would
+# have left the coupon file internally inconsistent: the price reported on a
+# single, the price its VALUE verdict was decided against, and the price its
+# ranking probe used all came from different copies. All six were identical
+# when this was collapsed; that is luck, not a guarantee.
+TIER_MARGINS = TIER_MARGIN
 UNBETTABLE_TIERS = frozenset({"WEAK", "DROP"})
 
 # Football fixtures are scheduled to the minute; tennis is scheduled by court

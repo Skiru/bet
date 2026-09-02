@@ -5,6 +5,7 @@ See docs/PIPELINE_SIMPLIFICATION_PLAN.md section 2 (Krok 2).
 from __future__ import annotations
 
 import json
+import math
 import statistics
 import threading
 from collections.abc import Mapping
@@ -223,6 +224,145 @@ def wilson_lower_bound(hits: int, sample_size: int, z: float = 1.96) -> float:
     centre = p + z2 / (2 * sample_size)
     margin = z * ((p * (1 - p) / sample_size + z2 / (4 * sample_size * sample_size)) ** 0.5)
     return max(0.0, (centre - margin) / denominator)
+
+
+# Markets whose value is a count of discrete events, so a distribution can be
+# fitted to a sample of them. Everything else -- possession, expected goals,
+# percentages -- is continuous or bounded and gets no model bound.
+_COUNT_MARKETS_EXCLUDED = frozenset({*PERCENTAGE_METRICS, "expected_goals_total", "possession"})
+
+
+def _sample_dispersion(values: list[float]) -> float:
+    """Variance to use for a count sample, never below the Poisson floor.
+
+    A count process has variance at least equal to its mean; corners, shots and
+    double faults are all overdispersed relative to that in reality. A *sample*
+    can nonetheless come out far tighter than its own mean by chance or because
+    the provider is serving a smoothed figure -- Torino/Monza's six scoped
+    corner observations on 2026-09-01 were {6,6,6,6,7,7}, variance 0.27 against
+    a mean of 6.33, and the match returned 16. Trusting that variance would
+    hand the row a near-certainty it has not earned, so the mean is the floor.
+    """
+    mean = statistics.fmean(values)
+    observed = statistics.variance(values) if len(values) > 1 else 0.0
+    return max(observed, mean)
+
+
+def _winning_boundary(line: float, direction: str) -> float:
+    """The half-integer a count must clear for this bet to settle as a win.
+
+    For the half lines this pipeline mostly prices it is the line itself, and
+    this function is the identity. It exists for the whole-number lines
+    ``compute_hit_rate`` already anticipates ("tennis totals are not [all .5],
+    which is where this bites"): a value exactly on such a line is a **push**,
+    which is not a win for either side, and a continuous approximation has no
+    atom there to leave out. Reading Phi at the line itself would hand half the
+    push mass to the OVER and half to the UNDER, inflating both -- exactly the
+    direction that flatters a bet, and invisible because the two would still
+    sum to 1.
+
+    UNDER 21.0 wins on 20 or fewer, so its boundary is 20.5. OVER 21.0 wins on
+    22 or more, so its boundary is 21.5. At 21.5 both come back to 21.5 and
+    nothing changes. Verified against ``compute_hit_rate``'s own push rule in
+    ``test_computation_invariants.py`` rather than asserted here.
+    """
+    if direction == "UNDER":
+        return math.ceil(line) - 0.5
+    return math.floor(line) + 0.5
+
+
+def count_model_central(values: list[float], line: float, direction: str) -> float:
+    """P(bet wins) at the sample's own centre, with no conservatism added.
+
+    The companion to ``count_model_bound`` and deliberately not a bound: this
+    is the sheet's *opinion*, the number to put next to the book's when asking
+    whether the two of us actually disagree.
+
+    ``p_low`` cannot answer that question, and 2026-09-01 is the proof. It is a
+    lower bound and ``min_acceptable_odds`` stacks a further 5-10% tier margin
+    on top of it, so "the price beats my floor by the margin" devigs to "I am
+    at least 8-13 points above the book" -- for *every* VALUE row, whatever the
+    sample says. A gate on that gap can only be a no-op (above ~0.13) or a
+    blanket ban (at or below ~0.09); it cannot discriminate, because most of
+    what it measures is our own conservatism rather than the book's view.
+
+    Measured against this instead, the gap means what it says. Sheffield
+    United's corners on 2026-09-01 put P(UNDER 4.5) at 0.845 from a sample
+    centred on 2.80; Superbet's devigged ladder said 0.341. That is a 50-point
+    disagreement about a single outcome, and no threshold has to be tuned to
+    see that one of the two is broken.
+    """
+    if not values:
+        return 0.0
+    mean = statistics.fmean(values)
+    spread = _sample_dispersion(values) ** 0.5
+    boundary = _winning_boundary(line, direction)
+    if spread <= 0:
+        inside = boundary > mean if direction == "UNDER" else boundary < mean
+        return 1.0 if inside else 0.0
+    z = (boundary - mean) / spread
+    if direction == "OVER":
+        z = -z
+    return _standard_normal_cdf(z)
+
+
+def count_model_bound(values: list[float], line: float, direction: str) -> float:
+    """A line-aware lower bound on P(bet wins), fitted to the sample itself.
+
+    This exists because ``wilson_lower_bound`` cannot see the line. For a
+    sample that has not missed once, Wilson reads ``hits/n = 1`` and returns
+    the same number for *every* line above the sample's maximum: Sheffield
+    United's five corner observations {2,4,3,2,3} scored 0.5655085 at 4.5, 5.5,
+    6.5 and 7.5 alike on 2026-09-01. ``min_acceptable_odds`` is 1/p_low times a
+    tier margin, so it was constant down the ladder too, and the only rung
+    whose price cleared it was the one the book priced longest -- 4.5 at 2.70,
+    where the book's own devigged ladder implied 34%. The pipeline was not
+    finding value on that rung, it was reading the book's risk premium for a
+    line near the middle of the distribution as surplus. The match returned 5.
+
+    So the sample is read as a count distribution instead of a coin. The mean
+    is estimated from the observations, the variance floored at the mean (see
+    ``_sample_dispersion``), and the mean is then pushed 95% of the way against
+    the bet -- upward for an UNDER, downward for an OVER -- to charge the row
+    for how few observations fixed it. The resulting probability *falls* as the
+    line approaches the sample's centre, which is the whole point.
+
+    A normal approximation to the count, not an exact negative binomial: these
+    means are between 2 and 25 where the approximation holds well enough, and a
+    closed form is auditable from the artifact with a calculator. The
+    half-point continuity correction is unnecessary because every line this
+    pipeline prices is already a half.
+
+    Returns 1.0 for an empty sample so the caller's ``min`` is a no-op rather
+    than a veto -- no observations is Wilson's problem to price, not this
+    function's.
+    """
+    if not values:
+        return 1.0
+    n = len(values)
+    mean = statistics.fmean(values)
+    variance = _sample_dispersion(values)
+    # Standard error of the mean, from the floored variance.
+    se = (variance / n) ** 0.5
+    # 1.96 matches wilson_lower_bound's z: both are the same 95% claim.
+    if direction == "UNDER":
+        centre = mean + 1.96 * se
+    else:
+        centre = max(mean - 1.96 * se, 0.0)
+    spread = variance ** 0.5
+    boundary = _winning_boundary(line, direction)
+    if spread <= 0:
+        inside = boundary > centre if direction == "UNDER" else boundary < centre
+        return 1.0 if inside else 0.0
+    z = (boundary - centre) / spread
+    if direction == "OVER":
+        z = -z
+    return _standard_normal_cdf(z)
+
+
+def _standard_normal_cdf(z: float) -> float:
+    """Phi(z), via the error function in the stdlib -- no scipy dependency."""
+    return 0.5 * (1.0 + math.erf(z / (2.0 ** 0.5)))
 
 
 def _all_values(obs) -> list[ProviderValue]:
@@ -463,6 +603,48 @@ def _sample_is_best_of_five(dossier: EventDossierV1) -> bool:
     )
 
 
+# How many *matches* in a sample a second provider has to have reported before
+# the sample counts as corroborated.
+#
+# One is not enough, and it used to be. ``AGREE`` was returned when any single
+# cluster held two providers, and downstream ``tier_for_row`` reads AGREE as
+# "this sample is corroborated" and hands it CALL -- the top tier, with the
+# thinner 1.05 price margin. On 2026-09-01 nineteen samples took AGREE on
+# exactly one corroborated match, one of them a tennis ``total_games`` sample
+# where espn-tennis overlapped tennis-abstract on 1 match out of 23.
+#
+# The concentration is the tell: sixteen of those nineteen were ``total_games``
+# and three were ``red_cards_total``. Both are metrics where agreement is
+# nearly free -- most matches have no red card at all, and the tolerance is
+# ``max - min > 1``, so 0 against 1 also passes. A lone agreement on a metric
+# whose modal value is zero is not evidence that a provider is reliable.
+#
+# Two is the same argument this pipeline already makes about sample size,
+# applied to corroboration itself: one trial is not a rate. It reclassifies
+# 6.9% of that day's AGREE samples to SINGLE_SOURCE, which caps them at LEAN
+# rather than removing them.
+MIN_CORROBORATED_MATCHES = 2
+
+
+def corroborated_matches(metric: str, observations: list[ProviderValue]) -> int:
+    """How many distinct matches in this sample a second provider also reported.
+
+    Counted the same way ``_cross_provider_agreement`` clusters, so the two can
+    never disagree about what a corroborated match is.
+    """
+    by_day: dict[str, list[ProviderValue]] = {}
+    for pv in observations:
+        by_day.setdefault(_day_key(pv.match_date), []).append(pv)
+    count = 0
+    for day, day_observations in by_day.items():
+        if not day:
+            continue
+        for cluster in _cluster_by_opponent(day_observations):
+            if len({pv.provider for pv in cluster}) >= 2:
+                count += 1
+    return count
+
+
 def _cross_provider_agreement(metric: str, observations: list[ProviderValue]) -> str:
     """Classify whether providers agree on the same historical match.
 
@@ -483,6 +665,7 @@ def _cross_provider_agreement(metric: str, observations: list[ProviderValue]) ->
     threshold = 5.0 if metric in PERCENTAGE_METRICS else 1.0
     saw_single = False
     saw_multi = False
+    multi_matches = 0
     for day, day_observations in by_day.items():
         if not day:
             # No usable date: cannot tell which match this belongs to, so it
@@ -495,13 +678,23 @@ def _cross_provider_agreement(metric: str, observations: list[ProviderValue]) ->
                 saw_single = True
                 continue
             saw_multi = True
+            multi_matches += 1
             values = [pv.value for pv in cluster]
             if max(values) - min(values) > threshold:
                 return "DISAGREE"
 
-    if saw_multi:
+    # ``saw_multi`` alone used to be enough. It is now the *count* that decides,
+    # for the reason in MIN_CORROBORATED_MATCHES: one corroborated match out of
+    # twenty-three bought the whole sample its top tier.
+    #
+    # Note the asymmetry that is deliberately kept: DISAGREE still returns on
+    # the first conflicting cluster above, because a single provider conflict is
+    # a reason to distrust the sample, while a single provider agreement is not
+    # a reason to trust it. The permissive direction is the one that needed a
+    # floor.
+    if saw_multi and multi_matches >= MIN_CORROBORATED_MATCHES:
         return "AGREE"
-    if saw_single:
+    if saw_single or saw_multi:
         return "SINGLE_SOURCE"
     return "NOT_APPLICABLE"
 
@@ -793,11 +986,22 @@ def _rows_for_sample(
     # trial. ``independent`` is built by the caller, which still knows which
     # bucket each observation came from; see ``_one_per_day``.
     agreement = _cross_provider_agreement(canonical, observations)
+    corroborated = corroborated_matches(canonical, observations)
     values = [pv.value for pv in independent]
     if not values:
         return []
     mean = statistics.fmean(values)
     median = statistics.median(values)
+    # The spread the count model actually uses: the sample's own standard
+    # deviation with the Poisson floor already applied. Reported on the row
+    # because every downstream check that has to compare this sample to
+    # something else needs a scale to compare *in*, and a difference of "0.3"
+    # means nothing until you know whether the metric is half-time goals or
+    # total shots. Zero on a percentage market, where no count model is fitted.
+    dispersion = (
+        0.0 if canonical in _COUNT_MARKETS_EXCLUDED
+        else _sample_dispersion(values) ** 0.5
+    )
 
     rows: list[StatsSheetRow] = []
     # Trimming happens here, not at the call site, because it is measured
@@ -811,6 +1015,21 @@ def _rows_for_sample(
             hits, sample_size, pushes = compute_hit_rate(values, float(line), direction)
             if sample_size == 0:
                 continue
+            # Two instruments, and the row is only as strong as the weaker.
+            # Wilson prices how few trials there were; the count model prices
+            # how close the line sits to what those trials actually measured.
+            # Neither subsumes the other: Wilson alone cannot tell 4.5 from 7.5
+            # on a clean sweep, and the model alone would let a two-observation
+            # sample claim a tight distribution. ``min`` never lets a row be
+            # more confident than either says, which is the only combination
+            # that cannot manufacture certainty out of the pair.
+            empirical = wilson_lower_bound(hits, sample_size)
+            if canonical in _COUNT_MARKETS_EXCLUDED:
+                p_low = empirical
+                p_central = hits / sample_size
+            else:
+                p_low = min(empirical, count_model_bound(values, float(line), direction))
+                p_central = count_model_central(values, float(line), direction)
             row = StatsSheetRow(
                 event_id=dossier.event_id,
                 sport=dossier.sport,
@@ -825,11 +1044,14 @@ def _rows_for_sample(
                 sample_size=sample_size,
                 pushes=pushes,
                 hit_rate=hits / sample_size,
-                p_low=wilson_lower_bound(hits, sample_size),
+                p_low=p_low,
+                p_central=p_central,
+                dispersion=dispersion,
                 mean=mean,
                 median=median,
                 sources=sources,
                 cross_provider_agreement=agreement,
+                corroborated_matches=corroborated,
                 confidence=_confidence(agreement, sample_size),
                 data_quality=dossier.readiness,
                 sample_excluded=dict(sorted((sample_excluded or {}).items())),

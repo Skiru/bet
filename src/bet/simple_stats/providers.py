@@ -530,6 +530,49 @@ def _combine_stats(provider_key: str, stats: dict, aliases: dict[str, str]) -> d
 # put median 0.0 on rows the market priced around 10.
 _ZERO_IMPOSSIBLE_MARKETS = frozenset({"fouls_total", "fouls_for"})
 
+# Counted-play metrics: a finished football match produces some of each. Goals,
+# cards and red cards are deliberately **not** here -- zero of any of those is
+# an ordinary result, and it is precisely a real 0-0 that let the old all-values
+# test through (see ``_is_absent_not_zero``).
+_PLAY_METRICS = frozenset(
+    {
+        "shots_total",
+        "shots_on_target_total",
+        "shots_off_target_total",
+        "corners_total",
+        "fouls_total",
+        "offsides_total",
+        "shots_for",
+        "shots_on_target_for",
+        "corners_for",
+        "fouls_for",
+        "offsides_for",
+    }
+)
+
+# Orderings no real match can violate: you cannot score more goals than you put
+# on target, and you cannot put more on target than you took shots.
+#
+# This is arithmetic, not a judgement about what is rare, which is what makes it
+# a safe filter. The payload that provoked it -- highlightly on match
+# 1328313068, in the 2026-09-01 dossier -- reported **six goals with zero shots
+# and zero shots on target**, and passed every existing gate: not all its values
+# were zero (it had goals and cards), and it carried no fouls key for
+# ``_ZERO_IMPOSSIBLE_MARKETS`` to catch. bzzoiro produced one of the same shape
+# on 2026-08-31, so this is a class of upstream fault rather than one provider's
+# quirk.
+#
+# ``_ORDERING_TOLERANCE`` of 1 is for own goals: some feeds do not attribute an
+# own goal to the scoring side as a shot on target, so goals can legitimately
+# exceed shots on target by one. Two is not an accounting convention.
+_IMPOSSIBLE_ORDERINGS = (
+    ("goals_total", "shots_on_target_total"),
+    ("shots_on_target_total", "shots_total"),
+    ("goals_for", "shots_on_target_for"),
+    ("shots_on_target_for", "shots_for"),
+)
+_ORDERING_TOLERANCE = 1.0
+
 # Every provider that serves tennis, including the id-addressed one -- the
 # retirement test is about the sport, not about how the fixture was looked up.
 _TENNIS_PROVIDERS = frozenset(
@@ -560,6 +603,19 @@ def _is_absent_not_zero(combined: dict[str, float], provider_key: str = "") -> b
             return True
         return len(combined) >= 2 and all(value == 0.0 for value in combined.values())
     if any(combined.get(market) == 0.0 for market in _ZERO_IMPOSSIBLE_MARKETS):
+        return True
+    # Internally impossible: goals it cannot have scored, or shots on target it
+    # cannot have taken. See _IMPOSSIBLE_ORDERINGS.
+    for greater, lesser in _IMPOSSIBLE_ORDERINGS:
+        big, small = combined.get(greater), combined.get(lesser)
+        if big is not None and small is not None and big > small + _ORDERING_TOLERANCE:
+            return True
+    # Every *counted-play* metric present is zero. Restricted to those, rather
+    # than to every value in the payload, because a real 0-0 draw with absent
+    # shot data satisfied "all values are zero" only by accident -- add one card
+    # to the same payload and it passed.
+    play = [combined[market] for market in combined if market in _PLAY_METRICS]
+    if len(play) >= 2 and all(value == 0.0 for value in play):
         return True
     return len(combined) >= 2 and all(value == 0.0 for value in combined.values())
 

@@ -6,7 +6,10 @@ from bet.simple_stats.analyze import (
     _cross_provider_agreement,
     analyze_dossier,
     compute_hit_rate,
+    corroborated_matches,
+    count_model_bound,
     limit_rows_per_event,
+    wilson_lower_bound,
 )
 from bet.simple_stats.contracts import EventDossierV1, MetricObservation, ProviderValue, StatsSheetRow
 
@@ -245,7 +248,13 @@ def test_agreement_survives_differing_opponent_spellings():
             opponent="Ulsan Hyundai FC", value=9.0, observed_at="2026-08-25T00:00:00+00:00",
         ),
     ]
-    assert _cross_provider_agreement("corners_total", observations) == "AGREE"
+    # The mechanism under test is the clustering, so it is asserted directly:
+    # these two rows are one corroborated match, not two single-source ones.
+    # ``_cross_provider_agreement`` needs MIN_CORROBORATED_MATCHES of them
+    # before it will say AGREE, and that threshold is a separate claim tested
+    # in test_regression_2026_09_01_losses.py -- asserting it here would make
+    # this test fail for a reason that has nothing to do with spelling.
+    assert corroborated_matches("corners_total", observations) == 1
 
 
 def test_same_day_different_matches_are_not_conflated():
@@ -480,7 +489,11 @@ def test_two_providers_on_the_same_match_both_survive_dedup():
     )
     values = _all_values(obs)
     assert {v.provider for v in values} == {"sportdb", "espn-football"}
-    assert _cross_provider_agreement("corners_total", values) == "AGREE"
+    # The claim is that dedup did not throw one of the two providers away, so
+    # it is asserted on the corroboration count rather than on the AGREE
+    # verdict: one corroborated match is below MIN_CORROBORATED_MATCHES, and
+    # that threshold is a different claim from this one.
+    assert corroborated_matches("corners_total", values) == 1
 
 
 def test_observations_without_a_match_id_are_never_collapsed():
@@ -559,7 +572,18 @@ def test_corroborated_match_is_one_trial_not_two():
     assert (solo_row.hits, solo_row.sample_size) == (6, 8)
     assert (both_row.hits, both_row.sample_size) == (6, 8)
     assert both_row.p_low == solo_row.p_low
-    assert round(solo_row.p_low, 3) == 0.409  # not 0.505
+    # The claim is about the *trial count*, so it is asserted on the instrument
+    # that reads trial counts. Sixteen trials would have bought 0.505 here and
+    # eight buy 0.409, and the dedup is what keeps it at eight.
+    assert round(wilson_lower_bound(6, 8), 3) == 0.409
+    assert round(wilson_lower_bound(12, 16), 3) == 0.505
+    # The row itself lands lower than either, because ``p_low`` is also capped
+    # by how close 9.5 sits to this sample -- mean 9.875, barely a third of a
+    # corner clear of the line. Both instruments are asserted rather than only
+    # the smaller: a regression that dropped the Wilson half would otherwise
+    # pass here unnoticed.
+    assert round(solo_row.p_low, 3) == 0.283
+    assert solo_row.p_low < wilson_lower_bound(6, 8)
 
 
 def test_corroboration_still_reaches_the_agreement_check_and_sources():

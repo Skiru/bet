@@ -160,7 +160,32 @@ def _season_form_flag(row: StatsSheetRow, dossier: EventDossierV1) -> ContextFla
     bucket = observation.team_a_l10 if side == "home" else observation.team_b_l10
     if not bucket:
         return None
-    actual_per_game = statistics.fmean(pv.value for pv in bucket)
+    # Scoped and collapsed exactly as the row's own statistics are, and for the
+    # same reasons -- this used to read the raw dossier bucket, which is neither.
+    #
+    # Two faults, measured over the 2026-09-01 dossier: 78 of the team-side
+    # buckets gave a different mean once scoped, by a median of 0.30 goals a
+    # game and up to 1.70. One read 2.40/game raw against 1.00 scoped, off ten
+    # pre-season friendlies and four previous-season matches. And a match three
+    # providers report counted three times, because ``_one_per_day`` had not
+    # run.
+    #
+    # It is wrong in both directions, so "conservative" is not a defence: 39 of
+    # the 78 came out too high, which fires ARGUES_AGAINST on a team that is not
+    # overperforming and steps a good row's tier down, and 39 came out too low,
+    # which is a real regression warning this flag exists to raise and did not.
+    #
+    # Imported inside the function because ``analyze`` imports this module at
+    # module scope; a top-level import back would be a cycle.
+    from bet.simple_stats.analyze import _one_per_day, scope_values
+
+    scoped, _ = scope_values(list(bucket))
+    if not scoped:
+        return None
+    independent = _one_per_day(scoped, dossier.sport)
+    if not independent:
+        return None
+    actual_per_game = statistics.fmean(pv.value for pv in independent)
     xgf_per_game = form.xgf / form.xg_games
     gap = actual_per_game - xgf_per_game
     if gap < _MIN_XG_GAP_PER_GAME:

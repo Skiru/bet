@@ -10,7 +10,7 @@ from pathlib import Path
 
 import bet.simple_stats.enrich as enrich_module
 from bet.simple_stats import providers
-from bet.simple_stats.analyze import _cross_provider_agreement
+from bet.simple_stats.analyze import _cross_provider_agreement, corroborated_matches
 from bet.simple_stats.contracts import EventListV1, EventRecord, ProviderValue
 from bet.simple_stats.enrich import _compute_readiness, enrich_events
 from bet.simple_stats.providers import FetchOutcome
@@ -49,7 +49,14 @@ def test_three_providers_populate_same_metric():
     ]
 
     assert {o.provider for o in observations} == {"espn-football", "highlightly", "sportdb"}
-    assert _cross_provider_agreement("corners_total", observations) == "AGREE"
+    # Three providers, but still one corroborated *match* -- and the unit
+    # MIN_CORROBORATED_MATCHES counts is matches, because the question it
+    # answers is how much of the sample a second source has actually verified.
+    # One match out of a ten-match sample is 10% verified whether two providers
+    # cover it or five. So the claim here is asserted where it lives: they
+    # clustered into one match rather than three single-source ones.
+    assert corroborated_matches("corners_total", observations) == 1
+    assert _cross_provider_agreement("corners_total", observations) == "SINGLE_SOURCE"
 
 
 def test_disagreement_not_silently_averaged():
