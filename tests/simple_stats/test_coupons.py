@@ -337,11 +337,7 @@ def test_a_downgrade_steps_the_tier_down_once_without_touching_p_low():
 
 
 def test_a_downgrade_that_reaches_weak_is_excluded_like_any_other_weak_row():
-    # AGREE at n=6, because SINGLE_SOURCE at that depth is WEAK on its own
-    # merits since 2026-09-02 -- and a test about the DOWNGRADE action must
-    # start from a row the tier itself lets through, or it proves nothing
-    # about the action.
-    row = _row(p_low=0.90, cross_provider_agreement="AGREE", sample_size=6)
+    row = _row(p_low=0.90, cross_provider_agreement="SINGLE_SOURCE", sample_size=6)
     assert build_coupons(_sheet(row), _events(_event())).singles[0].tier == "LEAN"
 
     coupons = build_coupons(

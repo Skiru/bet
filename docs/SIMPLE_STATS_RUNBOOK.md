@@ -468,21 +468,63 @@ filtered to `CALL`/`LEAN` rows at `p_low >= 0.50`. Below that threshold the
 fair odds pass 2.00 and the required price exceeds what these markets
 realistically pay, so the row is unplaceable rather than merely weak.
 
-**`n` of 5–7 with nothing corroborating it is `WEAK` as of 2026-09-02**, and
-`WEAK` does not reach the coupon. `bet-analyst.md`'s tier table had no rule for
-that combination — above `WEAK`'s stated "n 3-4", below both of `LEAN`'s
-conditions — and `tier_for_row` resolved the gap the permissive way. That is
-what admitted the three largest losses of 2026-09-01 (Sheffield corners,
-Preston shots on target, Birmingham shots: all `n=5` `SINGLE_SOURCE`).
-Measured before changing it, on that slate: the file stays the same size (15
-singles, 8 slips), the only single it removed was already
-`PRICED_BELOW_THRESHOLD`, and distinct bettable reads drop 224 → 160 against a
-15-slot budget — a 10× cushion, so it binds the *supply* of candidates and not
-the output. `excluded.tier_weak` jumps 5,090 → 23,917, which is the same fact
-counted from the other side.
-**Bet Builder** slips are the per-match drafts, 2–4 legs, ranked by their
-**weakest** leg — a slip settles on every leg, so averaging would let three
-strong legs carry a fourth nobody should be betting.
+**`n` of 5–7 with nothing corroborating it is `LEAN`, on evidence.**
+`bet-analyst.md`'s tier table has no row for that combination — above `WEAK`'s
+stated "n 3-4", below both of `LEAN`'s conditions. It was tightened to `WEAK`
+on 2026-09-02, because the three largest losses of 2026-09-01 were all `n=5`
+`SINGLE_SOURCE`, and **reverted the same day after backtesting it**: settled
+against real results over 2026-08-28…2026-09-01, the rows the tightening
+removed won **84.4% of 77 settled bets against a claimed `p_low` of 0.592**,
+and the whole-file hit rate moved 85.7% → 85.9% (81.4% → 81.8% in the
+0.50–0.70 band). It removed 34 candidate rows to move the hit rate by four
+tenths of a point, and supply is this pipeline's binding constraint. Three
+losses in a category that wins 84% is what 84% looks like — twelve is the
+expected number of losses in 77 such rows. What removes those three rows is
+`shrunk_centre`, which puts all three below the floor on its own (0.201, 0.116,
+0.222 against 0.50).
+
+## Backtesting — the only thing that can contradict the sheet
+
+```bash
+# what the file actually did, settled against real results
+python3 scripts/simple/backtest_slate.py --date 2026-09-01 --recorded --show-rows
+
+# today's code over the same frozen artifacts, and the controlled comparison
+python3 scripts/simple/backtest_slate.py --date 2026-08-31 --date 2026-09-01 \
+    --rebuilt --recorded-sheet --max-singles 400 --calibrate
+```
+
+`p_low` claims to be a *lower bound* on a row's win probability and nothing
+checked that claim until 2026-09-02. Every fixture under `runs/` has been
+played, so the claim is checkable over hundreds of rows instead of the seven
+slips that were read by hand.
+
+- **RECORDED** is the coupon file the pipeline wrote that day — not a
+  reconstruction, so nothing depends on faithfully un-fixing a fix.
+- **RECORDED_SHEET** is today's *selection* over that day's sheet, and
+  **REBUILT** is today's selection over today's sheet. Paired, they isolate the
+  sheet's arithmetic with every gate held constant.
+- `--max-singles 400` emits the whole candidate set rather than the ranked 15,
+  which is what a calibration measurement needs.
+
+Actuals come from bzzoiro only (`/events/{id}/stats/` plus the score) and are
+cached in `runs/_backtest_actuals.json`, so re-running after a code change
+costs no requests. **That caps coverage at bzzoiro's own ~50 fixtures a day**,
+which is roughly 45% of emitted rows; highlightly could settle more and is
+deliberately not used, because its quota is the binding constraint on the *live*
+run. Tennis is not settled at all.
+
+Result as of 2026-09-02, over 683/750 settled candidate rows on five slates:
+hit rate 82.1% → 85.9%, and every calibration bucket passes `realised >=
+claimed` on both sides. The paired reading is the one that matters, since a row
+in both configurations settles identically: **in the 0.50–0.70 band the rows
+today's code drops won 66.7% and the rows it adds won 90.7%**, and that holds
+within each market (`corners_for` 41.7% → 95.0%, `cards_for` 65.4% → 83.3%).
+
+**`p_low` is systematically conservative and this is where to see it**: every
+bucket realises 0.11–0.29 above its own claim. That is the correct direction for
+a lower bound, and it is also why so few rows clear their required price — the
+next real gain is in `p_central`, not in more caution.
 
 **Two gates decide whether a single may lead the file** (2026-09-02). Both
 demote to the bottom of the file with a reason; neither deletes, because

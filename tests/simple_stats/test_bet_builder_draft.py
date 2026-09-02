@@ -111,12 +111,11 @@ def test_every_football_market_is_in_the_correlated_family():
         (8, "AGREE", "CALL"),
         (12, "SINGLE_SOURCE", "LEAN"),
         (6, "AGREE", "LEAN"),
-        # n 5-7 with nothing corroborating it: WEAK since 2026-09-02. The
-        # table had no rule for it and this function used to answer LEAN,
-        # which reaches the coupon -- see
-        # test_a_thin_uncorroborated_sample_is_weak_not_lean.
-        (6, "SINGLE_SOURCE", "WEAK"),
-        (6, "DISAGREE", "WEAK"),
+        # n 5-7 with nothing corroborating it: the gap in the table, answered
+        # LEAN on evidence -- see
+        # test_the_thin_uncorroborated_category_is_not_a_losing_one.
+        (6, "SINGLE_SOURCE", "LEAN"),
+        (6, "DISAGREE", "LEAN"),
         (4, "AGREE", "WEAK"),
         (2, "AGREE", "DROP"),
     ],
@@ -188,7 +187,7 @@ def test_multiple_arguing_flags_still_step_down_only_once():
 
 
 def test_a_supporting_flag_never_promotes_and_never_downgrades():
-    row = _row(sample_size=6, cross_provider_agreement="AGREE")
+    row = _row(sample_size=6, cross_provider_agreement="SINGLE_SOURCE")
     assert tier_for_row(row) == "LEAN"
     flagged = row.model_copy(update={"context_flags": [_flag(direction="SUPPORTS")]})
     assert tier_for_row(flagged) == "LEAN"

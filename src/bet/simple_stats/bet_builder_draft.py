@@ -239,8 +239,8 @@ def tier_for_row(row: StatsSheetRow) -> Tier:
     """The evidence tier from ``bet-analyst.md``'s table, plus its two ceilings.
 
     | CALL | n>=8, AGREE          |
-    | LEAN | n>=8 single-source, or n>=5 AGREE |
-    | WEAK | n 3-4, or n 5-7 with nothing corroborating it |
+    | LEAN | n>=8 single-source, or n>=5 AGREE, or n 5-7 uncorroborated |
+    | WEAK | n 3-4                |
     | DROP | data_quality BLOCKED or n<3 |
 
     Ceilings, both structural rather than about the numbers: a row nothing
@@ -248,20 +248,33 @@ def tier_for_row(row: StatsSheetRow) -> Tier:
     drawn from a predicted XI is capped at LEAN because the sample is fine and
     the premise -- that he starts -- is a guess.
 
-    The WEAK row's second clause is the 2026-09-02 tightening. The table as
-    written had no rule for an ``n`` of 5-7 that nothing corroborates: it is
-    above WEAK's stated "n 3-4" and below both of LEAN's conditions, and this
-    function used to resolve the gap permissively, toward LEAN. LEAN reaches
-    the coupon and WEAK does not, and that resolution is what admitted the
-    three largest losses of 2026-09-01 -- Sheffield United corners, Preston
-    shots on target and Birmingham shots, all n=5 SINGLE_SOURCE.
+    LEAN's third clause is the gap in ``bet-analyst.md``'s table, resolved on
+    evidence 2026-09-02. An ``n`` of 5-7 that nothing corroborates matches none
+    of the table's stated conditions -- above WEAK's "n 3-4", below both of
+    LEAN's -- and this function had always answered LEAN by accident of how the
+    branches fell.
 
-    Measured before changing it, on the 2026-09-01 slate: the file stays the
-    same size (15 singles, 8 slips), distinct bettable reads drop 248 -> 169,
-    and the only two singles it removed were already
-    ``PRICED_BELOW_THRESHOLD``. It binds the *supply* of candidates, not the
-    output, because ``max_singles`` is 15 against 169 -- an 11x cushion, and
-    ~2.5x on the thinnest slate on record.
+    It was tightened to WEAK, and then **reverted after backtesting it**, which
+    is the only reason this docstring is long. The case for tightening was that
+    the three largest losses of 2026-09-01 were all n=5 SINGLE_SOURCE
+    (Sheffield United corners, Preston shots on target, Birmingham shots). The
+    case against is the category's own record: settled against real results
+    over four slates (2026-08-28 to 2026-09-01), the rows the tightening
+    removes won **84.4% of 77 settled bets against a claimed p_low of 0.592**,
+    and at each row's own required price they would have returned +56.9% flat.
+    Three losses in a category that wins 84% is what 84% looks like -- the
+    expected number of losses in 77 such rows is twelve.
+
+    Whole-file effect of the tightening, same measurement: hit rate 85.7% ->
+    85.9%, and 81.4% -> 81.8% in the 0.50-0.70 band where rows are actually
+    priced. It removed 34 candidate rows to move the hit rate by four tenths of
+    a point, and supply is this pipeline's binding constraint, not precision.
+
+    What actually removes those three rows is the arithmetic, not the tier:
+    ``shrunk_centre`` puts all three below ``MIN_SINGLE_P_LOW`` on its own
+    (0.263, 0.175, 0.320 against a floor of 0.50), so they never become
+    candidates. See scripts/simple/backtest_slate.py, and
+    ``test_the_thin_uncorroborated_category_is_not_a_losing_one``.
     """
     if row.data_quality == "BLOCKED" or row.sample_size < 3:
         return "DROP"
@@ -274,13 +287,13 @@ def tier_for_row(row: StatsSheetRow) -> Tier:
     elif row.sample_size >= 8 or corroborated:
         tier = "LEAN"
     else:
-        # n of 5-7 with nothing corroborating it. Five observations from one
-        # provider is not a fifth tier of evidence between WEAK and LEAN; it
-        # is WEAK with a longer number, and the table's own reason for
-        # refusing WEAK a minimum price ("a threshold computed off four
-        # observations reads as precision that is not there") does not stop
-        # applying at five.
-        tier = "WEAK"
+        # n of 5-7 with nothing corroborating it: LEAN, on purpose and on
+        # evidence rather than by accident. Backtested against real results
+        # this category wins 84.4% of 77 settled bets on a claimed 0.592 --
+        # see the docstring. The Wilson bound already prices the thinness of
+        # five trials; refusing the row on top of that is charging twice for
+        # it.
+        tier = "LEAN"
 
     if row.cross_provider_agreement in ("SINGLE_SOURCE", "DISAGREE"):
         tier = "LEAN" if tier == "CALL" else tier

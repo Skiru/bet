@@ -924,18 +924,19 @@ no combined price, no stake sizing, no placement.
 |---|---|---|
 | `CALL` | `n>=8`, `AGREE`, and both sides contributed | The lean is real. State it plainly, with min odds |
 | `LEAN` | `n>=8` single-source, or `n>=5` `AGREE`, or any row where one side is empty | Direction worth knowing. Min odds, explicitly caveated |
-| `WEAK` | `n` 3-4, or `n` 5-7 with nothing corroborating it | Give the direction and the raw fraction. **No minimum odds** -- a threshold computed off four observations reads as precision that is not there |
+| `WEAK` | `n` 3-4 | Give the direction and the raw fraction. **No minimum odds** -- a threshold computed off four observations reads as precision that is not there |
 | `DROP` | `data_quality=BLOCKED` or `n<3` | Exclude, and report how many you excluded and why |
 
-The `WEAK` row's second clause was added 2026-09-02. As first written the
-table had no rule at all for an `n` of 5-7 that nothing corroborates -- above
-`WEAK`'s stated 3-4, below both of `LEAN`'s conditions -- and
-`bet_builder_draft.tier_for_row` resolved the gap toward `LEAN`, which reaches
-the coupon. That is what admitted the three largest losses of 2026-09-01
-(Sheffield United corners, Preston shots on target, Birmingham shots: all
-`n=5` `SINGLE_SOURCE`). Five observations from one provider is not a fifth tier
-between `WEAK` and `LEAN`; it is `WEAK` with a longer number, and this row's
-own reason for refusing a minimum price does not stop applying at five.
+The table as written has no row for an `n` of 5-7 that nothing corroborates --
+above `WEAK`'s stated 3-4, below both of `LEAN`'s conditions.
+`bet_builder_draft.tier_for_row` answers **`LEAN`** there, and that is now a
+decision rather than an accident: the category was tightened to `WEAK` on
+2026-09-02 (the three largest losses of 2026-09-01 were all `n=5`
+`SINGLE_SOURCE`) and reverted the same day after backtesting it. Settled
+against real results over four slates, the rows the tightening removed won
+84.4% of 77 settled bets against a claimed `p_low` of 0.592. Three losses in a
+category that wins 84% is what 84% looks like. Read `LEAN` off the row and
+caveat the thin sample; do not re-derive the tier from `n` alone.
 
 Two extra ceilings, both structural rather than about the numbers:
 

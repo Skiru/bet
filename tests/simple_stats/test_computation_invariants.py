@@ -570,22 +570,29 @@ def test_the_standard_normal_cdf_matches_its_own_tails():
 # --- a specification gap, pinned rather than silently resolved --------------
 
 
-def test_a_thin_uncorroborated_sample_is_weak_not_lean():
-    """The gap in ``bet-analyst.md``'s tier table, closed 2026-09-02.
+def test_the_thin_uncorroborated_category_is_not_a_losing_one():
+    """The gap in ``bet-analyst.md``'s tier table, and the measurement that
+    decided which way to close it.
 
     The table reads: CALL for ``n>=8`` AGREE; LEAN for ``n>=8`` single-source
     **or** ``n>=5`` AGREE; WEAK for ``n`` 3-4; DROP below that. An ``n`` of 5-7
-    that nothing corroborates matched none of those conditions -- above WEAK's
-    stated range and below both of LEAN's -- and ``tier_for_row`` resolved it
-    the permissive way, toward LEAN, which reaches the coupon while WEAK does
-    not. That is what admitted the three largest losses of 2026-09-01:
-    Sheffield United corners, Preston shots on target and Birmingham shots were
-    all n=5 SINGLE_SOURCE.
+    that nothing corroborates matches none of those conditions, and
+    ``tier_for_row`` answers LEAN.
 
-    It resolves to WEAK now, and both the code's docstring and the agent
-    doc's table say so. This test is the reason it cannot drift back: the
-    permissive reading is the one a reader re-deriving the table from ``n``
-    alone would naturally write.
+    That was tightened to WEAK on 2026-09-02 -- the three largest losses of
+    2026-09-01 were all n=5 SINGLE_SOURCE -- and reverted the same day after
+    backtesting it against real results. Over four slates (2026-08-28 to
+    2026-09-01, ``scripts/simple/backtest_slate.py``) the rows the tightening
+    removed won **84.4% of 77 settled bets against a claimed p_low of 0.592**,
+    and the whole-file hit rate moved 85.7% -> 85.9%. Three losses in a
+    category that wins 84% is what 84% looks like; the expected number of
+    losses in 77 such rows is twelve.
+
+    So LEAN is the answer, on evidence rather than by accident of how the
+    branches fall. This test is here because the tempting reading after a bad
+    day is the conservative one, and it is measurably the wrong one -- what
+    removes those three rows is ``shrunk_centre``, which puts all three below
+    ``MIN_SINGLE_P_LOW`` on its own.
     """
     from bet.simple_stats.bet_builder_draft import tier_for_row
     from bet.simple_stats.contracts import StatsSheetRow
@@ -599,12 +606,9 @@ def test_a_thin_uncorroborated_sample_is_weak_not_lean():
             confidence="MEDIUM", data_quality="READY",
         )
 
-    # The gap, and the reading the code now takes.
     for n in (5, 6, 7):
-        assert tier_for_row(row(n, "SINGLE_SOURCE")) == "WEAK"
-        assert tier_for_row(row(n, "DISAGREE")) == "WEAK"
-        # Corroboration is what buys LEAN at this depth -- not the sample size,
-        # which is identical in all three of these.
+        assert tier_for_row(row(n, "SINGLE_SOURCE")) == "LEAN"
+        assert tier_for_row(row(n, "DISAGREE")) == "LEAN"
         assert tier_for_row(row(n, "AGREE")) == "LEAN"
     # The parts of the table that are unambiguous, so a change to the gap
     # cannot quietly move these too.
