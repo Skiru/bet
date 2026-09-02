@@ -221,9 +221,34 @@ class HighlightlyDiscoveryAdapter(AbstractSourceAdapter):
             return []
 
         headers = self._client._build_headers()
+        limiter = self._client.rate_limiter
         events: list[DiscoveredEvent] = []
         for page in range(_HIGHLIGHTLY_MAX_PAGES):
             offset = page * _HIGHLIGHTLY_PAGE_SIZE
+            # This adapter calls ``requests.get`` directly rather than through
+            # the client (the client's own discover_matches_result is scoped to
+            # one leagueId/season, which is the whole reason this exists), and
+            # until 2026-09-02 that meant three things the request path does
+            # for free were simply not happening here:
+            #
+            #   * the daily quota was not *checked*, so a run with nothing left
+            #     still fired five pages and collected five 429s;
+            #   * the calls were not *recorded*, so ENRICH's budget decisions
+            #     were made against a count up to five requests optimistic;
+            #   * the response's own ``x-ratelimit-day-remaining`` was parsed
+            #     nowhere, so the one authoritative number on the page was read
+            #     and discarded.
+            #
+            # That matters more for this provider than for any other: it drives
+            # discovery, so its exhaustion shrinks the slate by about 77% rather
+            # than merely costing corroboration, and the counter drifting
+            # optimistic is exactly how a run finds that out halfway through.
+            if not limiter.can_request(self.name, 1):
+                self._record_error(
+                    f"daily quota exhausted before page offset={offset} "
+                    f"({limiter.get_remaining(self.name)} left)"
+                )
+                break
             try:
                 resp = requests.get(
                     f"{self._client.base_url}/matches",
@@ -231,6 +256,14 @@ class HighlightlyDiscoveryAdapter(AbstractSourceAdapter):
                     headers=headers,
                     timeout=25,
                 )
+                limiter.record_request(self.name, "discover_matches", 1)
+                # Reconciled from the provider's own answer, one-way (it can
+                # only raise our count) -- see RateLimiter.
+                # reconcile_from_provider. Done before raise_for_status, because
+                # a 429 is the response that carries this header most usefully.
+                quota = self._client._extract_quota_metadata(dict(resp.headers))
+                if quota:
+                    limiter.reconcile_from_provider(self.name, quota)
                 resp.raise_for_status()
                 rows = resp.json().get("data") or []
             except (requests.RequestException, ValueError) as exc:
