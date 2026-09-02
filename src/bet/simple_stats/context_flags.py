@@ -209,7 +209,52 @@ _FLAG_RULES: tuple[Callable[[StatsSheetRow, EventDossierV1], ContextFlag | None]
     _season_form_flag,
 )
 
-# Deliberately NOT a sixth rule here yet: fixture_context.round_name and
+# Deliberately NOT a rule here, and this one was written, measured and then
+# deleted rather than never tried: a team's own home/away split.
+#
+# ``ProviderValue.venue`` exists as of 2026-09-02 and every football provider
+# fills it, so the rule was easy to write -- fire ARGUES_AGAINST when the
+# team's record at *this* venue argues the row down. Two shapes were measured
+# against the 2026-09-01 slate before either shipped, and both failed:
+#
+# 1. "the venue-matched mean sits on the other side of the line", the shape
+#    ``_referee_flag`` uses. Venue assigned by coin flip so that any firing is
+#    subsample noise by construction: it fired on 49% of the per-team rows that
+#    reached its minimum sample size, across five independent shuffles. A sheet
+#    row's line is chosen near its own sample's median
+#    (``offered_lines.select_lines``), so which side a random half-sample lands
+#    on is close to a toss-up. On the rows that can actually become bets
+#    (``p_low >= 0.50``, tier CALL or LEAN, offered by Superbet) it fired on 0
+#    of 20, because those have their line far from the centre by construction.
+#    A coin flip where it did not matter and inert where it did.
+#
+# 2. "relocate the centre to the venue subsample and see whether the row still
+#    clears the singles floor". Sharper -- 0.7% null firing against 1.1% on
+#    real venue data -- but the real fires turned out to be an artifact of
+#    *shrinkage strength*, not of venue: a 4-observation venue subsample is
+#    shrunk 71% toward the market prior against the pooled sample's 44%, so the
+#    relocated centre sits nearer the prior whichever way the venue record
+#    points. Nine of the thirteen real fires were rows whose venue mean was on
+#    the *helpful* side.
+#
+# What settled it. Real home/away was resolved for 191 teams over both slates
+# (1,852 match-venue pairs from bzzoiro's own fixture listings) and joined back
+# onto the frozen dossiers. Over 358 per-team samples with at least three
+# matches at each venue, the gap between a team's home mean and its away mean
+# was a median of 0.52 of the sample's own standard deviation, above one sigma
+# on 20.9%; the coin-flip null over the same samples gave 0.40-0.53 and
+# 10.6-18.9%. **A single team's home/away split is indistinguishable from
+# noise at these depths** -- 3 to 5 matches a venue cannot measure an effect of
+# a third of a goal.
+#
+# Home advantage is emphatically real; it is only measurable pooled across
+# teams, where it is worth +2.59 shots and -0.52 cards a game at z of 8 and -7.
+# So it lives in ``config/market_priors.json`` as a per-venue shrinkage target
+# read by ``analyze.shrunk_centre``, which is a change to the price and not a
+# tier lever -- and there is nothing left here for a flag to add. See
+# tests/simple_stats/test_venue_split.py for the whole measurement.
+#
+# Also deliberately not a rule: fixture_context.round_name and
 # .group_name (bzzoiro's own free-text labels for cup rounds/group stages)
 # are plumbed all the way to the dossier, but every fixture checked live on
 # 2026-08-31 -- including league fixtures across ten competitions -- came

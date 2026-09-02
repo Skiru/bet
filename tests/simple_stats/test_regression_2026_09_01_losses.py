@@ -280,9 +280,40 @@ def _sheffield_coupons(**row_overrides):
     )
 
 
+# The tier tightening of 2026-09-02 removes this row before any gate below can
+# see it: n=5 with nothing corroborating it is WEAK now, and WEAK does not
+# reach the coupon. That is the right outcome for this row and the wrong
+# fixture for a test *about a gate* -- it would make every assertion here
+# vacuously true, which is the exact failure mode
+# ``test_agreeing_with_the_ladder_is_not_penalised`` was caught in once
+# already (0 singles, so nothing was being asserted).
+#
+# So the gate tests raise the depth to 8 and change nothing else. Everything
+# these gates read is about *location* -- ``mean``, ``dispersion``,
+# ``p_central`` -- and those stay the day's real figures. The tier is asserted
+# separately, on the untouched row, in
+# ``test_the_tier_removes_this_row_before_any_gate_has_to``.
+_DEEP = {"hits": 8, "sample_size": 8}
+
+
+def test_the_tier_removes_this_row_before_any_gate_has_to():
+    """The 2026-09-02 tightening, on the row that motivated it.
+
+    #1, #2 and #4 -- the three largest losses of that day -- were all n=5
+    SINGLE_SOURCE, a combination ``bet-analyst.md``'s table has no row for and
+    ``tier_for_row`` used to resolve toward LEAN. The ladder gate catches this
+    particular row as well, and did so before this change; the point of
+    asserting the tier too is that it does not depend on Superbet having
+    posted a readable ladder, which on a thin slate is not a given.
+    """
+    coupons = _sheffield_coupons()
+    assert coupons.singles == []
+    assert coupons.excluded.get("tier_weak") == 6  # one per rung
+
+
 def test_the_ladder_median_is_read_and_reported():
     """The number the pipeline already had on disk and never looked at."""
-    single = _sheffield_coupons().singles[0]
+    single = _sheffield_coupons(**_DEEP).singles[0]
     # (2.80 - 5.76) / 1.673.
     assert single.ladder_sigma == pytest.approx(-1.77, abs=0.02)
 
@@ -296,7 +327,7 @@ def test_a_sample_that_disagrees_with_the_whole_ladder_loses_the_top():
     edge would live; it is a disagreement about which distribution is being
     priced, and on 2026-09-01 the book was right.
     """
-    single = _sheffield_coupons().singles[0]
+    single = _sheffield_coupons(**_DEEP).singles[0]
     assert single.needs_review is True
     assert abs(single.ladder_sigma) > MAX_LADDER_SIGMA
     assert any("drabinka" in c for c in single.caveats)
@@ -307,7 +338,7 @@ def test_the_ladder_gate_is_inert_when_the_book_posted_too_little():
     book is not evidence against the sample -- the same rule
     ``superbet_implied`` already follows for a one-sided market."""
     coupons = build_coupons(
-        _sheet(_row(line=4.5)),
+        _sheet(_row(line=4.5, **_DEEP)),
         _events(),
         superbet_offer=_offer(_rung(4.5, under=2.70, over=1.40)),
     )
@@ -398,7 +429,7 @@ def test_a_saturated_row_is_no_longer_exempt_from_the_disagreement_gate():
     wrong conclusion from it. The constancy was the defect; the gate was the
     alarm. ``p_low`` is line-aware now, so there is nothing left to exempt.
     """
-    single = _sheffield_coupons().singles[0]
+    single = _sheffield_coupons(**_DEEP).singles[0]
     assert single.hits >= single.sample_size  # saturated, as it was that day
     assert single.needs_review is True
 

@@ -41,7 +41,12 @@
     },
     "cards_2h_for": {
       "mean": 1.294,
-      "observations": 731
+      "observations": 731,
+      "home": 1.121,
+      "away": 1.4787,
+      "observations_home": 372,
+      "observations_away": 376,
+      "venue_z": -4.45
     },
     "cards_2h_total": {
       "mean": 2.626,
@@ -49,7 +54,12 @@
     },
     "cards_for": {
       "mean": 1.855,
-      "observations": 1110
+      "observations": 1110,
+      "home": 1.5958,
+      "away": 2.1121,
+      "observations_home": 574,
+      "observations_away": 553,
+      "venue_z": -6.73
     },
     "cards_total": {
       "mean": 3.722,
@@ -57,7 +67,12 @@
     },
     "corners_1h_for": {
       "mean": 2.259,
-      "observations": 762
+      "observations": 762,
+      "home": 2.561,
+      "away": 1.9415,
+      "observations_home": 385,
+      "observations_away": 393,
+      "venue_z": 5.11
     },
     "corners_1h_total": {
       "mean": 4.594,
@@ -65,7 +80,12 @@
     },
     "corners_2h_for": {
       "mean": 2.513,
-      "observations": 762
+      "observations": 762,
+      "home": 2.7714,
+      "away": 2.2519,
+      "observations_home": 385,
+      "observations_away": 393,
+      "venue_z": 3.88
     },
     "corners_2h_total": {
       "mean": 5.058,
@@ -73,7 +93,12 @@
     },
     "corners_for": {
       "mean": 4.738,
-      "observations": 1132
+      "observations": 1132,
+      "home": 5.2491,
+      "away": 4.1986,
+      "observations_home": 586,
+      "observations_away": 564,
+      "venue_z": 6.76
     },
     "corners_total": {
       "mean": 9.556,
@@ -109,7 +134,12 @@
     },
     "goals_1h_for": {
       "mean": 0.631,
-      "observations": 1313
+      "observations": 1313,
+      "home": 0.7177,
+      "away": 0.5381,
+      "observations_home": 673,
+      "observations_away": 656,
+      "venue_z": 4.03
     },
     "goals_1h_total": {
       "mean": 1.243,
@@ -129,7 +159,12 @@
     },
     "goals_for": {
       "mean": 1.422,
-      "observations": 1345
+      "observations": 1345,
+      "home": 1.5756,
+      "away": 1.267,
+      "observations_home": 655,
+      "observations_away": 633,
+      "venue_z": 4.49
     },
     "goals_total": {
       "mean": 2.733,
@@ -165,7 +200,12 @@
     },
     "shots_1h_for": {
       "mean": 6.161,
-      "observations": 762
+      "observations": 762,
+      "home": 6.8987,
+      "away": 5.3995,
+      "observations_home": 385,
+      "observations_away": 393,
+      "venue_z": 6.97
     },
     "shots_1h_total": {
       "mean": 12.194,
@@ -173,7 +213,12 @@
     },
     "shots_2h_for": {
       "mean": 7.123,
-      "observations": 762
+      "observations": 762,
+      "home": 7.6364,
+      "away": 6.5929,
+      "observations_home": 385,
+      "observations_away": 393,
+      "venue_z": 4.02
     },
     "shots_2h_total": {
       "mean": 14.055,
@@ -181,7 +226,12 @@
     },
     "shots_for": {
       "mean": 12.89,
-      "observations": 1007
+      "observations": 1007,
+      "home": 14.1765,
+      "away": 11.5859,
+      "observations_home": 510,
+      "observations_away": 512,
+      "venue_z": 8.15
     },
     "shots_off_target_1h_total": {
       "mean": 5.025,
@@ -197,7 +247,12 @@
     },
     "shots_on_target_1h_for": {
       "mean": 1.979,
-      "observations": 762
+      "observations": 762,
+      "home": 2.2416,
+      "away": 1.7176,
+      "observations_home": 385,
+      "observations_away": 393,
+      "venue_z": 4.72
     },
     "shots_on_target_1h_total": {
       "mean": 3.957,
@@ -205,7 +260,12 @@
     },
     "shots_on_target_2h_for": {
       "mean": 2.369,
-      "observations": 762
+      "observations": 762,
+      "home": 2.6364,
+      "away": 2.117,
+      "observations_home": 385,
+      "observations_away": 393,
+      "venue_z": 4.32
     },
     "shots_on_target_2h_total": {
       "mean": 4.588,
@@ -213,7 +273,12 @@
     },
     "shots_on_target_for": {
       "mean": 4.373,
-      "observations": 1039
+      "observations": 1039,
+      "home": 4.9298,
+      "away": 3.8065,
+      "observations_home": 527,
+      "observations_away": 527,
+      "venue_z": 7.63
     },
     "shots_on_target_total": {
       "mean": 8.657,
@@ -231,5 +296,9 @@
       "mean": 2.399,
       "observations": 989
     }
-  }
+  },
+  "_venue_priors": "Thirteen of these markets carry a `home`/`away` pair beside `mean`. shrunk_centre uses the one matching the side the team plays tonight, and falls back to `mean` for every market and every row without one -- a match total has no venue of its own (every match has one home side and one away side), and a player prop's history carries no venue at all.",
+  "_venue_why": "Measured 2026-09-02 over both slates, joining bzzoiro's own fixture listings back onto the frozen dossiers (1,852 match-venue pairs across 191 teams) so every historical observation could be labelled home or away. Pooled over all teams the effect is large and textbook-shaped: shots_for +2.59 a game at home (z=+8.2), shots_on_target_for +1.12 (z=+7.6), corners_for +1.05 (z=+6.8), goals_for +0.31 (z=+4.5) -- and cards_for -0.52, the opposite sign (z=-6.7), which is the referee home bias and is the strongest evidence this is a real effect rather than a fitting artifact. fouls_for and offsides_for show no effect at all (z=-0.6 and +1.3) and correctly get no venue prior. Every market kept here has |z|>=3, at least 120 observations a side, and the same sign on both slates measured separately.",
+  "_venue_why_not_per_team": "The obvious use of venue -- split a team's own sample into its home and away matches -- was measured first and rejected. Over 358 per-team samples with at least three matches at each venue, the gap between a team's home mean and its away mean was a median of 0.52 of the sample's own standard deviation and above one sigma on 20.9% of them; assigning the same observations a venue by coin flip produced a median of 0.40-0.53 and 10.6-18.9% above one sigma. The real split is indistinguishable from noise, because 3-to-5 matches a venue is not enough to measure a 1-goal-in-3 effect. Home advantage is real; it is only measurable when pooled across teams, which is what this file does.",
+  "_venue_limits": "Football only -- tennis has no home side, and providers._venue_or_none refuses to record one for a draw slot. Two slates, same as `mean`. The offsets are league-blind: one number for the Championship and the Ekstraklasa alike, which is the same simplification `mean` already makes. And the sample itself is still venue-blind -- only the shrinkage *target* moves -- so a team with 8 away matches and 2 home ones playing at home is pulled toward the home prior without its own observations being re-centred. Adjusting each observation to tonight's venue is the stronger form and is not done here: it would rewrite row.mean, row.dispersion and hit_rate, which are the evidence a reader checks the row against."
 }

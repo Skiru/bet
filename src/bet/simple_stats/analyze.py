@@ -109,27 +109,57 @@ def tennis_match_format(competition: str | None) -> str | None:
     return cache.get(competition or "")
 
 
-def market_priors() -> dict[str, float]:
-    """``{canonical metric: prior mean}`` from ``config/market_priors.json``.
+def _load_market_priors() -> tuple[dict[str, float], dict[tuple[str, str], float]]:
+    """``config/market_priors.json``, read once, as (pooled, per-venue).
 
-    A metric absent from the file is absent from this dict, and
+    A metric absent from the file is absent from both dicts, and
     ``shrunk_centre`` then leaves its sample alone. That is the pre-2026-09-02
     behaviour and never an error -- the same "unknown is not degraded" rule
-    ``scope_values`` and the entitlement paths already follow.
+    ``scope_values`` and the entitlement paths already follow. A metric with a
+    pooled ``mean`` and no ``home``/``away`` pair keeps the pooled prior at
+    every venue, which is the case for every match total, every player market,
+    every tennis market, and the football ``*_for`` markets where the venue
+    effect was measured and found absent (``fouls_for`` z=-0.6,
+    ``offsides_for`` z=+1.3).
+    """
+    raw = _load_json(_MARKET_PRIORS_PATH).get("priors", {})
+    priors: dict[str, float] = {}
+    by_venue: dict[tuple[str, str], float] = {}
+    for market, block in raw.items():
+        if market.startswith("_") or not isinstance(block, dict):
+            continue
+        mean = block.get("mean")
+        if isinstance(mean, (int, float)) and mean > 0:
+            priors[market] = float(mean)
+        for venue in ("home", "away"):
+            value = block.get(venue)
+            if isinstance(value, (int, float)) and value > 0:
+                by_venue[(market, venue)] = float(value)
+    return priors, by_venue
+
+
+def market_priors() -> dict[str, float]:
+    """``{canonical metric: prior mean}``, pooled over both venues."""
+    global _MARKET_PRIORS_CACHE
+    with _CONFIG_LOCK:
+        if _MARKET_PRIORS_CACHE is None:
+            _MARKET_PRIORS_CACHE = _load_market_priors()
+        return _MARKET_PRIORS_CACHE[0]
+
+
+def venue_market_priors() -> dict[tuple[str, str], float]:
+    """``{(canonical metric, "home"|"away"): prior mean}``.
+
+    Only the football ``*_for`` markets where the split was measured at
+    ``|z| >= 3`` over both slates with the same sign on each, and at least 120
+    observations a side. ``config/market_priors.json`` carries the full
+    reasoning and the rejected alternative.
     """
     global _MARKET_PRIORS_CACHE
     with _CONFIG_LOCK:
         if _MARKET_PRIORS_CACHE is None:
-            raw = _load_json(_MARKET_PRIORS_PATH).get("priors", {})
-            priors: dict[str, float] = {}
-            for market, block in raw.items():
-                if market.startswith("_") or not isinstance(block, dict):
-                    continue
-                mean = block.get("mean")
-                if isinstance(mean, (int, float)) and mean > 0:
-                    priors[market] = float(mean)
-            _MARKET_PRIORS_CACHE = priors
-        return _MARKET_PRIORS_CACHE
+            _MARKET_PRIORS_CACHE = _load_market_priors()
+        return _MARKET_PRIORS_CACHE[1]
 
 
 # How many notional prior observations a sample is weighed against, as
@@ -162,8 +192,30 @@ def market_priors() -> dict[str, float]:
 SHRINKAGE_K = 10.0
 
 
-def shrunk_centre(values: list[float], market: str) -> float:
+def shrunk_centre(values: list[float], market: str, venue: str | None = None) -> float:
     """The sample's centre, pulled toward its market's prior by ``n/(n+k)``.
+
+    ``venue`` is which side the subject plays on in *tonight's* fixture, and it
+    changes only which prior is the target: a home ``corners_for`` row is
+    pulled toward 5.25 rather than toward the pooled 4.74, because that is what
+    the market averages at home. Measured over both slates by labelling every
+    historical observation home or away from bzzoiro's own fixture listings
+    (1,852 match-venue pairs, 191 teams): ``shots_for`` +2.59 a game at home
+    (z=+8.2), ``shots_on_target_for`` +1.12 (z=+7.6), ``corners_for`` +1.05
+    (z=+6.8), ``goals_for`` +0.31 (z=+4.5), and ``cards_for`` **-0.52**
+    (z=-6.7) -- the referee home bias, and the opposite sign is what says this
+    is an effect and not a fit. ``fouls_for`` and ``offsides_for`` show none
+    (z=-0.6, +1.3) and get no venue prior at all.
+
+    Only the *target* moves. The sample stays venue-blind, so a team with eight
+    away matches and two at home is still pulled toward the home prior without
+    its own observations being re-centred. That is deliberate: re-centring each
+    observation would rewrite ``row.mean``, ``row.dispersion`` and
+    ``hit_rate``, which are the evidence a reader checks the row against.
+
+    ``venue=None``, or a market with no measured split, uses the pooled prior.
+    A match total always does: every match has one home side and one away side,
+    so the total has no venue of its own.
 
     This is the number ``count_model_central`` and ``count_model_bound`` price
     from. Three things deliberately do **not** use it:
@@ -187,7 +239,11 @@ def shrunk_centre(values: list[float], market: str) -> float:
     if not values:
         return 0.0
     mean = statistics.fmean(values)
-    prior = market_priors().get(market)
+    prior = None
+    if venue is not None:
+        prior = venue_market_priors().get((market, venue))
+    if prior is None:
+        prior = market_priors().get(market)
     if prior is None:
         return mean
     n = float(len(values))
@@ -1066,6 +1122,7 @@ def _rows_for_sample(
     lineup_status: str | None = None,
     line_limit: int | None = None,
     sample_excluded: dict[str, int] | None = None,
+    venue: str | None = None,
 ) -> list[StatsSheetRow]:
     """Every (line x direction) row for one sample of one metric.
 
@@ -1106,7 +1163,7 @@ def _rows_for_sample(
     # ``shrunk_centre`` for why the diagnostic must not move with the price.
     centre = (
         None if canonical in _COUNT_MARKETS_EXCLUDED
-        else shrunk_centre(values, canonical)
+        else shrunk_centre(values, canonical, venue)
     )
 
     rows: list[StatsSheetRow] = []
@@ -1274,9 +1331,16 @@ def _team_total_rows(
         obs = dossier.metrics.get(canonical)
         if obs is None:
             continue
-        for raw_bucket, team_name in (
-            (obs.team_a_l10, dossier.team_a_name),
-            (obs.team_b_l10, dossier.team_b_name),
+        # ``venue`` is which side this team plays on *tonight*, not which side
+        # its historical observations were on: football's team_a is always home
+        # and team_b always away (``enrich._side_names``), and it selects the
+        # shrinkage target only -- see ``shrunk_centre``. Tennis reaches this
+        # loop too and passes a venue that no tennis market has a prior for, so
+        # it falls back to the pooled one; naming the side there would be
+        # meaningless rather than wrong.
+        for raw_bucket, team_name, venue in (
+            (obs.team_a_l10, dossier.team_a_name, "home"),
+            (obs.team_b_l10, dossier.team_b_name, "away"),
         ):
             if not raw_bucket or not team_name:
                 continue
@@ -1302,6 +1366,7 @@ def _team_total_rows(
                     independent=_one_per_day(bucket, dossier.sport),
                     team_name=team_name,
                     sample_excluded=sample_excluded,
+                    venue=venue if dossier.sport == "football" else None,
                 )
             )
     return rows

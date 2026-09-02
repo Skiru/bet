@@ -572,7 +572,9 @@ step, only when all four hold**:
 
 1. `row.market in ("corners_total", "goals_total")`;
 2. `verdict == "CONFIRMS"`;
-3. the row already clears `WEAK` on its own merits (`n >= 5`);
+3. the row already clears `WEAK` on its own merits -- read its tier, do not
+   re-derive it from `n`, because "clears `WEAK`" now depends on
+   `cross_provider_agreement` as well as on `n` (see the tier table);
 4. **both** `model_probability` and `market_implied_probability` are populated.
 
 No other market. No other tier jump. No promotion from `WEAK`. A single agreeing
@@ -922,8 +924,18 @@ no combined price, no stake sizing, no placement.
 |---|---|---|
 | `CALL` | `n>=8`, `AGREE`, and both sides contributed | The lean is real. State it plainly, with min odds |
 | `LEAN` | `n>=8` single-source, or `n>=5` `AGREE`, or any row where one side is empty | Direction worth knowing. Min odds, explicitly caveated |
-| `WEAK` | `n` 3-4 | Give the direction and the raw fraction. **No minimum odds** -- a threshold computed off four observations reads as precision that is not there |
+| `WEAK` | `n` 3-4, or `n` 5-7 with nothing corroborating it | Give the direction and the raw fraction. **No minimum odds** -- a threshold computed off four observations reads as precision that is not there |
 | `DROP` | `data_quality=BLOCKED` or `n<3` | Exclude, and report how many you excluded and why |
+
+The `WEAK` row's second clause was added 2026-09-02. As first written the
+table had no rule at all for an `n` of 5-7 that nothing corroborates -- above
+`WEAK`'s stated 3-4, below both of `LEAN`'s conditions -- and
+`bet_builder_draft.tier_for_row` resolved the gap toward `LEAN`, which reaches
+the coupon. That is what admitted the three largest losses of 2026-09-01
+(Sheffield United corners, Preston shots on target, Birmingham shots: all
+`n=5` `SINGLE_SOURCE`). Five observations from one provider is not a fifth tier
+between `WEAK` and `LEAN`; it is `WEAK` with a longer number, and this row's
+own reason for refusing a minimum price does not stop applying at five.
 
 Two extra ceilings, both structural rather than about the numbers:
 

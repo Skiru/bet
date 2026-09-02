@@ -634,6 +634,29 @@ def _id_or_none(raw: Any) -> str | None:
     return text or None
 
 
+# Providers whose "which side" answer means a *venue*. The tennis ones are
+# excluded on purpose: ``_side_of`` and ``_bzzoiro_tennis_side_of`` there
+# resolve which participant slot a player occupied in the draw, which is not a
+# venue -- neither player is at home at a neutral tournament. Recording slot
+# one as "home" would be the same class of invented fact as the ordering
+# violations ``_is_absent_not_zero`` refuses.
+_VENUE_BEARING_PROVIDERS = frozenset(PROVIDERS_BY_SPORT["football"]) | frozenset(
+    NATIVE_ID_PROVIDERS_BY_SPORT["football"]
+)
+
+
+def _venue_or_none(provider: str, side: str | None) -> str | None:
+    """``side`` as a venue, or None when it is not one.
+
+    One gate rather than a check at each of the six call sites that have a
+    side to hand: a provider added to the tennis list later must not start
+    emitting venues because somebody forgot the distinction.
+    """
+    if side not in ("home", "away"):
+        return None
+    return side if provider in _VENUE_BEARING_PROVIDERS else None
+
+
 def _make_values(
     provider: str,
     match_id: Any,
@@ -643,6 +666,7 @@ def _make_values(
     *,
     competition_id: Any = None,
     season_id: Any = None,
+    side: str | None = None,
 ) -> dict[str, ProviderValue]:
     """One ProviderValue per canonical metric in ``combined``.
 
@@ -652,12 +676,19 @@ def _make_values(
     whether a competition belongs in a sample is ANALYZE's job (see
     ``scope_values``), and doing it at ingest would bake one run's judgement
     into the dossier with no way to audit it afterwards.
+
+    ``side`` is which side of that historical match the team whose bucket this
+    is played on -- the same value the call site already computed to split the
+    match's stats between the two teams. It becomes ``ProviderValue.venue``
+    only for a football provider (see ``_venue_or_none``); everything else
+    records None, which downstream reads as "not stated" and never as "away".
     """
     if not _is_recent(match_date):
         return {}
     observed_at = _now_iso()
     competition = _id_or_none(competition_id)
     season = _id_or_none(season_id)
+    venue = _venue_or_none(provider, side)
     return {
         name: ProviderValue(
             provider=provider,
@@ -668,6 +699,7 @@ def _make_values(
             observed_at=observed_at,
             competition_id=competition,
             season_id=season,
+            venue=venue,
         )
         for name, val in combined.items()
     }
@@ -1488,11 +1520,16 @@ def _fetch_l10_generic(
         # fixture row carries a final score at all -- api-football's does
         # not, and the two tennis providers' "score" means games/sets, not
         # goals.
+        # Hoisted out of the espn-football branch below, which is where this
+        # lookup used to live: which side the team played on is what splits
+        # that match's goals *and* what ``ProviderValue.venue`` records, and
+        # the second use is not football-score-specific. ``_venue_or_none``
+        # discards it for the tennis providers that share this function.
+        side = _side_of(fx, team_id)
         if provider_key == "espn-football":
             home_goals, away_goals = _parse_espn_score(_field(fx, "score"))
             if home_goals is not None and away_goals is not None:
                 combined["goals_total"] = home_goals + away_goals
-                side = _side_of(fx, team_id)
                 if side is not None:
                     combined["goals_for"] = home_goals if side == "home" else away_goals
                     combined["goals_against"] = away_goals if side == "home" else home_goals
@@ -1500,6 +1537,7 @@ def _fetch_l10_generic(
             provider_key, fixture_id, _field(fx, "date", "kickoff", default=""), str(opponent or "unknown"), combined,
             competition_id=_field(fx, "competition_provider_id", "league_id", "league"),
             season_id=_field(fx, "season", "season_id"),
+            side=side,
         ).items():
             outcome.add(name, value)
     return outcome
@@ -1550,6 +1588,11 @@ def _fetch_h2h_generic(
                 f"(retirement, walkover, or every stat 0); recorded as absent"
             )
             continue
+        # No ``side``, so no venue. An H2H value carries no marker for which
+        # of the two teams it belongs to -- which is exactly why
+        # ``_team_total_rows`` refuses to read this bucket for a per-team row
+        # at all -- and a venue attributed to the wrong side is worse than an
+        # absent one.
         for name, value in _make_values(
             provider_key, fixture_id, _field(meeting, "date", "kickoff", default=""), team_two, combined,
             competition_id=_field(meeting, "competition_provider_id", "league_id", "league"),
@@ -1594,8 +1637,18 @@ def fetch_understat_l10(team_name: str, competition: str, rate_limiter: RateLimi
         home_team = getattr(m, "home_team", "") or ""
         away_team = getattr(m, "away_team", "") or ""
         opponent = away_team if home_team == team_name else home_team
+        # Name-matched rather than id-matched, because understat's rows carry
+        # names only. A row naming neither side leaves the venue unstated
+        # instead of defaulting to away.
+        if home_team and home_team == team_name:
+            side = "home"
+        elif away_team and away_team == team_name:
+            side = "away"
+        else:
+            side = None
         for name, value in _make_values(
-            "understat", getattr(m, "fixture_id", ""), getattr(m, "date", ""), opponent, combined
+            "understat", getattr(m, "fixture_id", ""), getattr(m, "date", ""), opponent, combined,
+            side=side,
         ).items():
             outcome.add(name, value)
     return outcome
@@ -1782,6 +1835,12 @@ def fetch_highlightly_history(
 
         opponent = away_name if home_id == str(team_id) else home_name
         match_date = str(match.get("date") or match.get("kickoff") or "")
+        # `home_away` is the listing's own answer and only the l10 shape
+        # carries it (`_normalize_h2h_row` does not), so an h2h row leaves the
+        # venue unstated -- the same rule the goals split below already
+        # followed, now named once and reused rather than re-read.
+        listed_side = match.get("home_away") if mode != "h2h" else None
+        side = listed_side if listed_side in ("home", "away") else None
 
         # Goals ride on the listing row itself -- `_normalize_match_row` already
         # parses `score` -- so they are emitted before the run-budget check and
@@ -1793,7 +1852,6 @@ def fetch_highlightly_history(
         home_goals, away_goals = score.get("home"), score.get("away")
         if home_goals is not None and away_goals is not None:
             goal_values = {"goals_total": float(home_goals) + float(away_goals)}
-            side = match.get("home_away")
             if side is not None:
                 goal_values["goals_for"] = float(home_goals if side == "home" else away_goals)
                 goal_values["goals_against"] = float(away_goals if side == "home" else home_goals)
@@ -1801,6 +1859,7 @@ def fetch_highlightly_history(
                 "highlightly", match_id, match_date, opponent or "unknown", goal_values,
                 competition_id=match.get("competition_provider_id"),
                 season_id=match.get("season"),
+                side=side,
             ).items():
                 outcome.add(name, value)
 
@@ -1820,6 +1879,7 @@ def fetch_highlightly_history(
             "highlightly", match_id, match_date, opponent or "unknown", combined,
             competition_id=match.get("competition_provider_id"),
             season_id=match.get("season"),
+            side=side,
         ).items():
             outcome.add(name, value)
     return outcome
@@ -2145,6 +2205,7 @@ def fetch_bzzoiro_history(
                 "bzzoiro", match_id, match_date, opponent or "unknown", goal_values,
                 competition_id=match.get("competition_provider_id"),
                 season_id=match.get("season"),
+                side=side,
             ).items():
                 outcome.add(name, value)
 
@@ -2171,6 +2232,7 @@ def fetch_bzzoiro_history(
             "bzzoiro", match_id, match_date, opponent or "unknown", combined,
             competition_id=match.get("competition_provider_id"),
             season_id=match.get("season"),
+            side=side,
         ).items():
             outcome.add(name, value)
 
@@ -2302,6 +2364,14 @@ def fetch_bzzoiro_player_history(
         card_parts = [raw_metrics[key] for key in _BZZOIRO_PLAYER_CARD_KEYS if key in raw_metrics]
         if card_parts:
             metrics[_BZZOIRO_PLAYER_CARDS_METRIC] = float(sum(card_parts))
+        # No ``side``: player props are out of this field's scope on purpose.
+        # ``match_context`` is keyed by match id and merged across *both* of
+        # tonight's teams, so the venue stored against an id would be whichever
+        # team's pass wrote it last -- already true of ``opponent``, and
+        # tolerable there because a wrong opponent name is inert. A wrong
+        # venue would not be: the only consumer is a per-team rule
+        # (``context_flags._venue_flag``), which reads team buckets and never
+        # this one.
         for name, value in _make_values(
             "bzzoiro", match_id, match_date, opponent or "unknown", metrics
         ).items():
@@ -3189,6 +3259,9 @@ def fetch_sportdb_match(
     if not combined:
         outcome.data_gaps.append(f"sportdb: no recognized stats for match {match_id}")
         return outcome
+    # No ``side``: this path is handed one match id and an opponent name by
+    # its caller and never sees a fixture row, so which side is which is not
+    # knowable here. Venue stays None, which reads as "not stated".
     for name, value in _make_values(
         "sportdb", match_id, match_date or _now_iso(), opponent_name, combined
     ).items():

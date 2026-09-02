@@ -203,6 +203,56 @@ Three things deliberately **do not** move with it:
 `row.mean` shows how much of a row's price is its own sample and how much is
 the market-wide average standing in for observations it does not have.
 
+**The prior is venue-specific for thirteen football `*_for` markets**
+(2026-09-02). A per-team row shrinks toward the prior for the side that team
+plays *tonight*: `corners_for` at home targets 5.25 rather than the pooled
+4.74, away 4.20. `ProviderValue.venue` records home/away for every football
+provider that knows it, which is what made the measurement possible at all —
+before that the field was computed to split each historical match's stats
+between the two teams and then dropped.
+
+Measured over both slates by labelling every historical observation from
+bzzoiro's own fixture listings (1,852 match-venue pairs, 191 teams):
+
+| market | home − away | z |
+|---|---|---|
+| `shots_for` | +2.59 | +8.15 |
+| `shots_on_target_for` | +1.12 | +7.63 |
+| `corners_for` | +1.05 | +6.76 |
+| `cards_for` | **−0.52** | −6.73 |
+| `goals_for` | +0.31 | +4.49 |
+| `fouls_for` | −0.14 | −0.56 |
+| `offsides_for` | +0.11 | +1.25 |
+
+`cards_for` is the row that matters: it is the *opposite* sign — the referee
+home bias — and a fitting artifact would not have produced it. `fouls_for` and
+`offsides_for` show nothing and correctly get no venue prior. The bar for
+keeping one: `|z| >= 3`, at least 120 observations a side, and the same sign on
+each slate measured separately. Only the shrinkage *target* moves; the sample
+stays venue-blind, so `row.mean`, `row.dispersion` and `hit_rate` — the
+evidence a reader checks the row against — are byte-identical. On the frozen
+fixture 168 rows change and nothing but `p_low`/`p_central`/`shrunk_mean` moves
+on any of them.
+
+Effect on the 2026-09-01 losers, all three of which were home per-team UNDERs:
+Sheffield corners 0.263 → 0.201, Preston shots on target 0.175 → 0.116,
+Birmingham shots 0.320 → 0.222. All three were already below the floor after
+shrinkage, so the file for that day is unchanged; the correction matters for a
+row sitting nearer the boundary.
+
+**The per-team split was measured and rejected**, which is worth knowing before
+proposing it. Pricing a home row off that team's *own* home matches sounds
+strictly better and is not: over 358 per-team samples with at least three
+matches at each venue, the gap between a team's home mean and its away mean was
+a median of 0.52 of the sample's own standard deviation and above one sigma on
+20.9%, while assigning the same observations a venue by coin flip gave
+0.40–0.53 and 10.6–18.9%. A single team's split is indistinguishable from noise
+at these depths — three to five matches a venue cannot measure a third of a
+goal. Home advantage is real; it is measurable only pooled across teams, which
+is what the priors do. Two `context_flags` shapes built on the per-team split
+were written, measured and deleted; `tests/simple_stats/test_venue_split.py`
+and `context_flags.py`'s own comment block carry both results.
+
 **What was measured and rejected**, so it is not re-proposed: the naive additive
 estimator for match totals (`mean(A_for) + mean(B_for)`) is *worse* than the
 pooled sample — median error 0.864 against 0.444, winning only 34% of the time,
@@ -362,6 +412,11 @@ or more unavailable players against that side's own `shots_for`/
 `shots_*`, and a team scoring well above its own season xG (`xg_games >= 5`)
 arguing against its `goals_for` OVER continuing at that rate.
 
+There is deliberately no venue rule here. See the shrinkage section above:
+a single team's home/away split cannot be told from a coin flip at these
+sample depths, so home advantage is applied to the *price* through a
+venue-specific prior and not to the tier.
+
 **Any `ARGUES_AGAINST` flag steps the row's tier down exactly one level**
 (`CALL`->`LEAN`->`WEAK`, never further, never touching `p_low`) — this is now
 enforced in `bet_builder_draft.tier_for_row`, the same ceiling that already
@@ -412,6 +467,19 @@ market-per-fixture (four lines of one market are one read, not four bets),
 filtered to `CALL`/`LEAN` rows at `p_low >= 0.50`. Below that threshold the
 fair odds pass 2.00 and the required price exceeds what these markets
 realistically pay, so the row is unplaceable rather than merely weak.
+
+**`n` of 5–7 with nothing corroborating it is `WEAK` as of 2026-09-02**, and
+`WEAK` does not reach the coupon. `bet-analyst.md`'s tier table had no rule for
+that combination — above `WEAK`'s stated "n 3-4", below both of `LEAN`'s
+conditions — and `tier_for_row` resolved the gap the permissive way. That is
+what admitted the three largest losses of 2026-09-01 (Sheffield corners,
+Preston shots on target, Birmingham shots: all `n=5` `SINGLE_SOURCE`).
+Measured before changing it, on that slate: the file stays the same size (15
+singles, 8 slips), the only single it removed was already
+`PRICED_BELOW_THRESHOLD`, and distinct bettable reads drop 224 → 160 against a
+15-slot budget — a 10× cushion, so it binds the *supply* of candidates and not
+the output. `excluded.tier_weak` jumps 5,090 → 23,917, which is the same fact
+counted from the other side.
 **Bet Builder** slips are the per-match drafts, 2–4 legs, ranked by their
 **weakest** leg — a slip settles on every leg, so averaging would let three
 strong legs carry a fourth nobody should be betting.

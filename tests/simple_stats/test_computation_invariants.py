@@ -570,23 +570,22 @@ def test_the_standard_normal_cdf_matches_its_own_tails():
 # --- a specification gap, pinned rather than silently resolved --------------
 
 
-def test_the_tier_table_has_no_rule_for_a_thin_uncorroborated_sample():
-    """Not a bug fix -- a hole named, so the next reader does not have to
-    rediscover it.
+def test_a_thin_uncorroborated_sample_is_weak_not_lean():
+    """The gap in ``bet-analyst.md``'s tier table, closed 2026-09-02.
 
-    ``.claude/agents/bet-analyst.md`` is the authority, and its table reads:
-    CALL for ``n>=8`` AGREE; LEAN for ``n>=8`` single-source **or** ``n>=5``
-    AGREE; WEAK for ``n`` 3-4; DROP below that. An ``n`` of 5-7 that nothing
-    corroborates matches none of those conditions: it is above WEAK's stated
-    range and below both of LEAN's.
+    The table reads: CALL for ``n>=8`` AGREE; LEAN for ``n>=8`` single-source
+    **or** ``n>=5`` AGREE; WEAK for ``n`` 3-4; DROP below that. An ``n`` of 5-7
+    that nothing corroborates matched none of those conditions -- above WEAK's
+    stated range and below both of LEAN's -- and ``tier_for_row`` resolved it
+    the permissive way, toward LEAN, which reaches the coupon while WEAK does
+    not. That is what admitted the three largest losses of 2026-09-01:
+    Sheffield United corners, Preston shots on target and Birmingham shots were
+    all n=5 SINGLE_SOURCE.
 
-    ``tier_for_row`` resolves the gap toward LEAN, which is the permissive
-    reading, and LEAN reaches the coupon while WEAK does not. That resolution
-    admitted the three largest losses of 2026-09-01 -- Sheffield United corners,
-    Preston shots on target and Birmingham shots were all n=5 SINGLE_SOURCE.
-    They are caught now by the ladder gate rather than by the tier, so this is
-    a policy question and not an open defect; it is pinned here so that
-    changing it is a decision somebody makes on purpose.
+    It resolves to WEAK now, and both the code's docstring and the agent
+    doc's table say so. This test is the reason it cannot drift back: the
+    permissive reading is the one a reader re-deriving the table from ``n``
+    alone would naturally write.
     """
     from bet.simple_stats.bet_builder_draft import tier_for_row
     from bet.simple_stats.contracts import StatsSheetRow
@@ -600,12 +599,17 @@ def test_the_tier_table_has_no_rule_for_a_thin_uncorroborated_sample():
             confidence="MEDIUM", data_quality="READY",
         )
 
-    # The gap, and the reading the code takes.
+    # The gap, and the reading the code now takes.
     for n in (5, 6, 7):
-        assert tier_for_row(row(n, "SINGLE_SOURCE")) == "LEAN"
+        assert tier_for_row(row(n, "SINGLE_SOURCE")) == "WEAK"
+        assert tier_for_row(row(n, "DISAGREE")) == "WEAK"
+        # Corroboration is what buys LEAN at this depth -- not the sample size,
+        # which is identical in all three of these.
+        assert tier_for_row(row(n, "AGREE")) == "LEAN"
     # The parts of the table that are unambiguous, so a change to the gap
     # cannot quietly move these too.
     assert tier_for_row(row(4, "SINGLE_SOURCE")) == "WEAK"
+    assert tier_for_row(row(4, "AGREE")) == "WEAK"
     assert tier_for_row(row(2, "AGREE")) == "DROP"
     assert tier_for_row(row(12, "AGREE")) == "CALL"
     assert tier_for_row(row(12, "SINGLE_SOURCE")) == "LEAN"
@@ -908,7 +912,12 @@ def test_the_ladder_gate_reads_the_raw_mean_and_not_the_shrunk_one():
 
     values = [2.0, 4.0, 3.0, 2.0, 3.0]
     raw = statistics.fmean(values)
-    centre = shrunk_centre(values, "corners_for")
+    # Sheffield United is team_a and therefore tonight's home side, so the
+    # price shrinks toward the *home* corners prior (5.25) rather than the
+    # pooled one (4.74). The gate below still reads row.mean, and that is
+    # exactly the claim under test -- moving the shrinkage target must not
+    # move the diagnostic.
+    centre = shrunk_centre(values, "corners_for", "home")
     ladder_median, spread = 5.76, _sample_dispersion(values) ** 0.5
     assert abs((raw - ladder_median) / spread) > 1.25       # the raw mean is caught
     assert abs((centre - ladder_median) / spread) < 1.25    # the shrunk one is not

@@ -240,13 +240,28 @@ def tier_for_row(row: StatsSheetRow) -> Tier:
 
     | CALL | n>=8, AGREE          |
     | LEAN | n>=8 single-source, or n>=5 AGREE |
-    | WEAK | n 3-4                |
+    | WEAK | n 3-4, or n 5-7 with nothing corroborating it |
     | DROP | data_quality BLOCKED or n<3 |
 
     Ceilings, both structural rather than about the numbers: a row nothing
     corroborates can never be CALL however large its sample, and a player prop
     drawn from a predicted XI is capped at LEAN because the sample is fine and
     the premise -- that he starts -- is a guess.
+
+    The WEAK row's second clause is the 2026-09-02 tightening. The table as
+    written had no rule for an ``n`` of 5-7 that nothing corroborates: it is
+    above WEAK's stated "n 3-4" and below both of LEAN's conditions, and this
+    function used to resolve the gap permissively, toward LEAN. LEAN reaches
+    the coupon and WEAK does not, and that resolution is what admitted the
+    three largest losses of 2026-09-01 -- Sheffield United corners, Preston
+    shots on target and Birmingham shots, all n=5 SINGLE_SOURCE.
+
+    Measured before changing it, on the 2026-09-01 slate: the file stays the
+    same size (15 singles, 8 slips), distinct bettable reads drop 248 -> 169,
+    and the only two singles it removed were already
+    ``PRICED_BELOW_THRESHOLD``. It binds the *supply* of candidates, not the
+    output, because ``max_singles`` is 15 against 169 -- an 11x cushion, and
+    ~2.5x on the thinnest slate on record.
     """
     if row.data_quality == "BLOCKED" or row.sample_size < 3:
         return "DROP"
@@ -259,8 +274,13 @@ def tier_for_row(row: StatsSheetRow) -> Tier:
     elif row.sample_size >= 8 or corroborated:
         tier = "LEAN"
     else:
-        # n of 5-7, uncorroborated: a direction worth knowing, not a call.
-        tier = "LEAN"
+        # n of 5-7 with nothing corroborating it. Five observations from one
+        # provider is not a fifth tier of evidence between WEAK and LEAN; it
+        # is WEAK with a longer number, and the table's own reason for
+        # refusing WEAK a minimum price ("a threshold computed off four
+        # observations reads as precision that is not there") does not stop
+        # applying at five.
+        tier = "WEAK"
 
     if row.cross_provider_agreement in ("SINGLE_SOURCE", "DISAGREE"):
         tier = "LEAN" if tier == "CALL" else tier

@@ -314,6 +314,33 @@ class ProviderValue(StrictBaseModel):
     # entitlement and competition-tier paths already follow.
     competition_id: str | None = None
     season_id: str | None = None
+    # Whether *the team this observation belongs to* was at home or away in
+    # that historical match. Carried, never interpreted here -- the same rule
+    # ``competition_id`` above follows.
+    #
+    # Why it exists: all three per-team losses of 2026-09-01 were bets on the
+    # home side of tonight's fixture, priced off a sample that mixed that
+    # team's home and away matches at equal weight. Sheffield United's five
+    # corner observations, Preston's five shots on target and Birmingham's
+    # five shots each pooled both venues, and the pooled mean is the only
+    # number the sheet had. Home/away was on every provider's fixture row all
+    # along -- ``_side_of``, ``home_away``, ``home_team.provider_team_id`` --
+    # and was used to split *that match's* stats between the two sides, then
+    # dropped rather than recorded.
+    #
+    # Football only, and set only where the provider says which side the team
+    # was. Tennis leaves it None on purpose: ``_side_of`` there answers which
+    # participant slot a player occupied in the draw, and calling slot one
+    # "home" would invent a fact -- neither player is at home at a neutral
+    # tournament. H2H observations leave it None too, for the reason
+    # ``_team_total_rows`` already gives for refusing to read that bucket at
+    # all: an H2H value has no marker for which side it belongs to, so it has
+    # no venue either.
+    #
+    # None means "not stated", never "away". An observation with None is
+    # dropped from neither sample; it is simply absent from the venue split,
+    # which then fails its own minimum-size check and stays silent.
+    venue: Literal["home", "away"] | None = None
 
 
 class MetricObservation(StrictBaseModel):
