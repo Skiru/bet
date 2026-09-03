@@ -9,7 +9,8 @@ import math
 import statistics
 import threading
 from collections.abc import Mapping
-from datetime import datetime, timezone
+from typing import NamedTuple
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 from bet.stats.market_ranking import player_prop_lines, standard_market_lines
@@ -22,7 +23,11 @@ from bet.simple_stats.providers import (
     tennis_match_format_for_competition,
     tennis_surface_for_competition,
 )
-from bet.simple_stats.context_flags import context_flags_for_row
+from bet.simple_stats.context_flags import (
+    context_flags_for_row,
+    lean_ceilings_for_row,
+    referee_card_points_per_match,
+)
 from bet.simple_stats.offered_lines import (
     MAX_OFFERED_LINES_PER_SAMPLE,
     OfferedLines,
@@ -305,6 +310,12 @@ def reset_scope_caches() -> None:
 # match total both sides contributed to, and one team's own contribution.
 _MARKET_STAT_TO_CANONICAL = {
     "corners": "corners_total",
+    # "Cards Total" prices booking points, not yellows -- see
+    # ``providers.card_points``. ``yellow_cards`` stays mapped because the
+    # dossier still carries ``cards_total`` for every provider that has only
+    # yellows, and a market for it may exist again; nothing in
+    # STANDARD_MARKET_LINES points at it today.
+    "cards_points": "cards_points_total",
     "yellow_cards": "cards_total",
     "fouls": "fouls_total",
     "shots_on_target": "shots_on_target_total",
@@ -326,6 +337,7 @@ _MARKET_STAT_TO_CANONICAL = {
 # /events/{id}/stats/ is what populates the "_for" metrics they read.
 _TEAM_MARKET_STAT_TO_CANONICAL = {
     "corners": "corners_for",
+    "cards_points": "cards_points_for",
     "yellow_cards": "cards_for",
     "fouls": "fouls_for",
     "shots_on_target": "shots_on_target_for",
@@ -385,6 +397,70 @@ def compute_hit_rate(values: list[float], line: float, direction: str) -> tuple[
             hits += 1
 
     return hits, len(values) - pushes, pushes
+
+
+CONFLICT_RESOLVED_ADVERSE = "CONFLICT_RESOLVED_ADVERSE"
+CONFLICT_ON_LINE = "CONFLICT_ON_LINE"
+
+
+class HitCount(NamedTuple):
+    hits: int
+    sample_size: int
+    pushes: int
+    # Conflicted matches whose providers straddled this line -- one said hit,
+    # another said miss -- and which therefore settle nothing.
+    conflicts_on_line: int
+    # Conflicted matches resolved away from the priced side.
+    conflicts_resolved_adverse: int
+
+
+def count_hits(
+    observations: list[ProviderValue], line: float, direction: str
+) -> HitCount:
+    """``compute_hit_rate`` over observations that may carry a provider conflict.
+
+    Two rules, and they are the whole of Phase 6's first half.
+
+    **Resolve adverse to the priced side.** A match two providers reported
+    differently enters the sample as the value that argues *against* the row --
+    the maximum for an UNDER, the minimum for an OVER. Not because the higher
+    or lower number is more likely right, but because a conflict is a statement
+    that we do not know, and a sample that resolves every "do not know" in the
+    direction it is being sold is not evidence. The old rule -- ``median_low``,
+    which over a pair keeps the smaller -- resolved every conflict toward the
+    UNDER, and every card row on the 2026-09-03 slate is an UNDER.
+
+    **A conflict that straddles the line settles nothing.** When one provider's
+    figure is a hit and the other's is a miss, the match is neither, and
+    counting it as the adverse one would charge the sample for a disagreement
+    twice: once by dropping n, once by dropping the rate. It leaves the sample,
+    which is visible in ``sample_size``, and is counted so the row can say so.
+    """
+    hits = pushes = on_line = adverse = 0
+    settled = 0
+    for pv in observations:
+        low, high = pv.conflict_low, pv.conflict_high
+        if low is not None and high is not None and low < line < high:
+            on_line += 1
+            continue
+        if low is not None and high is not None:
+            value = high if direction == "UNDER" else low
+            # Counted whichever way it fell. The flag says "a provider conflict
+            # entered this sample and was resolved against you", and that is
+            # true of the OVER side too even though the minimum happens to be
+            # what ``median_low`` would also have kept.
+            adverse += 1
+        else:
+            value = pv.value
+        if value == line:
+            pushes += 1
+            continue
+        settled += 1
+        if direction == "OVER" and value > line:
+            hits += 1
+        elif direction == "UNDER" and value < line:
+            hits += 1
+    return HitCount(hits, settled, pushes, on_line, adverse)
 
 
 def wilson_lower_bound(hits: int, sample_size: int, z: float = 1.96) -> float:
@@ -929,15 +1005,74 @@ def _scope_observation(
     def surviving(bucket: list[ProviderValue]) -> list[ProviderValue]:
         return [pv for pv in bucket if (pv.provider, pv.match_id, pv.value) in survivors]
 
+    h2h, stale = _drop_stale_h2h(surviving(obs.h2h), pooled)
+    if stale:
+        dropped["STALE_H2H"] = dropped.get("STALE_H2H", 0) + stale
+
     return (
         MetricObservation(
             canonical_name=obs.canonical_name,
             team_a_l10=surviving(obs.team_a_l10),
             team_b_l10=surviving(obs.team_b_l10),
-            h2h=surviving(obs.h2h),
+            h2h=h2h,
         ),
         dropped,
     )
+
+
+# How old a head-to-head meeting may be before it stops describing these two
+# sides. Fifteen months, which is a whole season plus the part of the next one
+# in which the same squads are still recognisable.
+#
+# It exists because ``STALE_SEASON`` structurally cannot fire here: that rule
+# keys on ``competition_id``/``season_id``, and the h2h route reads
+# ``head_to_head.recent_matches`` off the fixture, which carries neither. So on
+# the 2026-09-03 slate a 15-month-old meeting sat in a "current" sample with no
+# rule able to see it -- the Grenal's own 2025-04-20 meeting among them.
+#
+# Measured against the sample's *newest* observation rather than against the
+# fixture's kickoff, for the same reason ``STALE_SEASON`` reads the newest
+# observation to decide what "current" means: the dossier carries no date of
+# its own, and the newest l10 match is within days of the fixture by
+# construction.
+#
+# H2H only. The l10 buckets are already bounded by the provider window and by
+# the season rule, and applying a flat age cutoff to them would silently
+# re-open the argument those rules settled.
+_MAX_H2H_AGE_DAYS = 456
+
+
+def _drop_stale_h2h(
+    h2h: list[ProviderValue], pooled: list[ProviderValue]
+) -> tuple[list[ProviderValue], int]:
+    """H2H meetings inside the age cutoff, and how many were removed."""
+    if not h2h:
+        return h2h, 0
+    dates = [_parse_day(pv.match_date) for pv in pooled]
+    newest = max((d for d in dates if d is not None), default=None)
+    if newest is None:
+        return h2h, 0
+    cutoff = newest - timedelta(days=_MAX_H2H_AGE_DAYS)
+    kept = []
+    removed = 0
+    for pv in h2h:
+        day = _parse_day(pv.match_date)
+        # An undated meeting is kept: no date is not evidence of age, and the
+        # same "unknown is not degraded" rule the competition and surface
+        # filters follow.
+        if day is not None and day < cutoff:
+            removed += 1
+            continue
+        kept.append(pv)
+    return kept, removed
+
+
+def _parse_day(raw: str) -> date | None:
+    text = (raw or "")[:10]
+    try:
+        return date.fromisoformat(text)
+    except ValueError:
+        return None
 
 
 # Tennis markets whose value scales with how long the match is allowed to run.
@@ -1033,6 +1168,22 @@ def _market_has_a_best_of_five_sample(
 # rather than removing them.
 MIN_CORROBORATED_MATCHES = 2
 
+# What share of a sample a second provider has to have seen before "AGREE" is
+# a description of the sample rather than of two matches in it.
+#
+# ``MIN_CORROBORATED_MATCHES`` above is a floor on the *count* and it is not
+# enough on a big sample. On the 2026-09-03 Grenal, AGREE meant 3 of 20 matches
+# corroborated -- the field that says so, ``corroborated_matches``, was already
+# on the row and the label ignored it -- while ``tier_for_row`` reads AGREE as
+# "this sample is corroborated" and hands out CALL. Three matches in twenty is
+# not a second measurement of the sample; it is a second measurement of three
+# matches.
+#
+# A half, which is the point at which "corroborated" stops being a claim about
+# a minority of the evidence. Below it the sample is ``PARTIAL_AGREE`` and the
+# coupon prints the share rather than the word.
+MIN_CORROBORATED_SHARE = 0.5
+
 
 def corroborated_matches(metric: str, observations: list[ProviderValue]) -> int:
     """How many distinct matches in this sample a second provider also reported.
@@ -1053,7 +1204,9 @@ def corroborated_matches(metric: str, observations: list[ProviderValue]) -> int:
     return count
 
 
-def _cross_provider_agreement(metric: str, observations: list[ProviderValue]) -> str:
+def _cross_provider_agreement(
+    metric: str, observations: list[ProviderValue], sample_size: int | None = None
+) -> str:
     """Classify whether providers agree on the same historical match.
 
     Providers spell opponents differently ("Ulsan Hyundai FC" vs "Ulsan HD",
@@ -1101,6 +1254,13 @@ def _cross_provider_agreement(metric: str, observations: list[ProviderValue]) ->
     # a reason to trust it. The permissive direction is the one that needed a
     # floor.
     if saw_multi and multi_matches >= MIN_CORROBORATED_MATCHES:
+        # ``AGREE`` is a claim about the *sample*, so it needs a share and not
+        # only a count -- see MIN_CORROBORATED_SHARE. ``sample_size`` is the
+        # priced sample's own size (one observation per match); absent, the
+        # count rule alone decides, which is the pre-2026-09-03 behaviour and
+        # the right answer for a caller that cannot say how big the sample was.
+        if sample_size and multi_matches / sample_size < MIN_CORROBORATED_SHARE:
+            return "PARTIAL_AGREE"
         return "AGREE"
     if saw_single or saw_multi:
         return "SINGLE_SOURCE"
@@ -1131,9 +1291,27 @@ def _representative(group: list[ProviderValue]) -> ProviderValue:
     manufactured value exactly on a whole-number line, where it would push and
     silently leave the sample. Order-independent, and deterministic when several
     observations share the median value.
+
+    **The disagreement survives the collapse.** When the group holds more than
+    one value the range is recorded on the representative
+    (``conflict_low``/``conflict_high``) so the hit count can resolve it against
+    the direction being priced, rather than inheriting whichever way
+    ``median_low`` happened to fall. Over a pair -- which is what a conflict
+    almost always is -- ``median_low`` keeps the *smaller* value, and that
+    favours every UNDER on every conflicted match.
+
+    ``mean``, ``median`` and ``dispersion`` still read this representative's own
+    ``value``, unchanged: they are the evidence a reader checks the row
+    against, and they must not differ between the OVER and UNDER rows of one
+    line.
     """
-    consensus = statistics.median_low([pv.value for pv in group])
-    return next(pv for pv in group if pv.value == consensus)
+    values = [pv.value for pv in group]
+    consensus = statistics.median_low(values)
+    chosen = next(pv for pv in group if pv.value == consensus)
+    low, high = min(values), max(values)
+    if low == high:
+        return chosen
+    return chosen.model_copy(update={"conflict_low": low, "conflict_high": high})
 
 
 def _tennis_match_key(pv: ProviderValue) -> str:
@@ -1350,16 +1528,138 @@ def _independent_match_sample(
     return independent
 
 
-def _confidence(agreement: str, sample_size: int) -> str:
-    """Explicit 1->2->3 evaluation order (section 2): DISAGREE or a thin
-    sample is LOW regardless of anything else; AGREE/SINGLE_SOURCE/
-    NOT_APPLICABLE all get the same treatment past that point, since none of
-    them is itself a quality problem."""
+# How many observations each *side* of a match-total sample needs before the
+# total is a description of the fixture rather than of one participant.
+#
+# ``sample_size`` alone cannot answer it. A match total pools both teams' last
+# tens and their h2h, so an n of 14 can be 3 from one side and 11 from the
+# other -- and the 3 is the binding constraint on anything the fixture does
+# jointly. On the 2026-09-03 slate 3+11 and 4+4 both read HIGH, which is the
+# word this sheet uses for "settled".
+#
+# Five and two, and five rather than the three the handoff note proposed.
+#
+# Three does not catch the case the note itself named. Neom-Al-Khaleej and
+# Al-Fayha-Al-Kholood both carry 4 observations a side on ``cards_points_total``
+# -- the note's own "4+4 reads as settled" -- and ``min(4, 4) >= 3`` reads HIGH.
+# Five is not a number chosen to catch them either: it is the number ENRICH
+# already uses for the same question. ``data_quality == "READY"`` means the
+# primary provider served **at least five matches a side** on all three
+# priority metrics (``enrich._compute_readiness``), and that is the condition
+# ``tier_for_row`` hands CALL out on. A sheet whose word for "settled" and
+# whose tier for "settled" disagreed about how many matches a side that takes
+# would be two rules wearing one name.
+#
+# Two for MEDIUM, which is the floor below which one side is a single trial.
+_MIN_SIDE_FOR_HIGH = 5
+_MIN_SIDE_FOR_MEDIUM = 2
+
+ONE_SIDED_SAMPLE = "ONE_SIDED_SAMPLE"
+
+
+def _adverse_values(observations: list[ProviderValue], direction: str) -> list[float]:
+    """The sample as numbers, with every provider conflict resolved against
+    the side being priced -- the maximum for an UNDER, the minimum for an OVER.
+
+    Identical to ``[pv.value for pv in observations]`` on any sample with no
+    conflict, which is the overwhelming majority: on the 2026-09-03 slate
+    20,961 of 21,925 rows were SINGLE_SOURCE.
+    """
+    out: list[float] = []
+    for pv in observations:
+        low, high = pv.conflict_low, pv.conflict_high
+        if low is None or high is None:
+            out.append(pv.value)
+        else:
+            out.append(high if direction == "UNDER" else low)
+    return out
+
+
+def _confidence(
+    agreement: str, sample_size: int, side_sizes: tuple[int, int] | None = None
+) -> tuple[str, str | None]:
+    """``(confidence, why not higher)``. Explicit 1->2->3 evaluation order
+    (section 2): DISAGREE or a thin sample is LOW regardless of anything else;
+    AGREE/SINGLE_SOURCE/NOT_APPLICABLE all get the same treatment past that
+    point, since none of them is itself a quality problem.
+
+    ``side_sizes`` is ``(n_a, n_b)`` for a match total, and None for every
+    sample that has only one side to count -- a per-team row and a player prop
+    are one participant's history by construction, and asking them for a second
+    side would cap every one of them at LOW.
+    """
     if agreement == "DISAGREE" or sample_size < 5:
-        return "LOW"
+        return "LOW", None
+    weakest = min(side_sizes) if side_sizes else None
+    if weakest is not None and weakest < _MIN_SIDE_FOR_MEDIUM:
+        return "LOW", ONE_SIDED_SAMPLE
     if sample_size >= 8:
-        return "HIGH"
-    return "MEDIUM"
+        if weakest is not None and weakest < _MIN_SIDE_FOR_HIGH:
+            return "MEDIUM", ONE_SIDED_SAMPLE
+        return "HIGH", None
+    return "MEDIUM", None
+
+
+# --- the referee ------------------------------------------------------------
+#
+# The one input to a card line that neither club's history says anything about.
+# Measured live 2026-08-30 inside one league: Peter Bankes averages 4.15 yellows
+# a match, Michael Oliver 3.10 -- a third of the spread in a cards line, decided
+# by a man neither team's last ten mentions.
+#
+# It enters the *centre* the count model prices from and nothing else, on the
+# same rule ``shrunk_centre`` follows: ``row.mean``, ``row.median``,
+# ``row.dispersion``, ``hits`` and ``sample_size`` all stay the sample's own,
+# because they are the evidence a reader checks the row against.
+#
+# Match totals only. A referee's average describes a whole match, and halving
+# it for a per-team line would invent a number the provider never gave --
+# the same restriction ``_referee_flag`` already applies.
+#
+# **The weight is the handoff note's and is not measured.** ``m / (m + 20)``
+# puts a 20-match official at half the centre and a 60-match one at three
+# quarters, which is a strong claim about a prior nobody has backtested here.
+# It is written as one named constant so the measurement, when it happens, has
+# exactly one number to move. The floor of 15 matches is the note's too, and it
+# is above ``context_flags._MIN_REFEREE_MATCHES`` (8) on purpose: an average
+# good enough to *flag* a row is not good enough to move its price.
+_MIN_REFEREE_MATCHES_FOR_BLEND = 15
+_REFEREE_BLEND_K = 20.0
+
+_CARD_TOTAL_MARKETS = frozenset({"cards_points_total", "cards_total"})
+
+
+def _blend_referee(
+    centre: float | None,
+    canonical: str,
+    team_name: str | None,
+    dossier: EventDossierV1,
+) -> tuple[float | None, str | None]:
+    """``(centre, what was blended in)`` for a card match total.
+
+    Returns the centre unchanged, and None, for every other market and for
+    every referee below the sample floor.
+    """
+    if centre is None or team_name is not None or canonical not in _CARD_TOTAL_MARKETS:
+        return centre, None
+    referee = dossier.referee
+    if referee is None or (referee.matches or 0) < _MIN_REFEREE_MATCHES_FOR_BLEND:
+        return centre, None
+    rate = (
+        referee_card_points_per_match(referee)
+        if canonical == "cards_points_total"
+        else referee.avg_yellow_per_match
+    )
+    if rate is None:
+        return centre, None
+    matches = float(referee.matches or 0)
+    weight = matches / (matches + _REFEREE_BLEND_K)
+    blended = (1.0 - weight) * centre + weight * rate
+    note = (
+        f"{referee.name or referee.provider_referee_id} averages {rate:.2f}/match "
+        f"over {referee.matches} matches, blended at w={weight:.2f}"
+    )
+    return blended, note
 
 
 def _rows_for_sample(
@@ -1378,6 +1678,7 @@ def _rows_for_sample(
     sample_excluded: dict[str, int] | None = None,
     venue: str | None = None,
     centre_override: float | None = None,
+    side_sizes: tuple[int, int] | None = None,
 ) -> list[StatsSheetRow]:
     """Every (line x direction) row for one sample of one metric.
 
@@ -1396,13 +1697,22 @@ def _rows_for_sample(
     # because that corroboration is evidence the value is right, not a second
     # trial. ``independent`` is built by the caller, which still knows which
     # bucket each observation came from; see ``_one_per_day``.
-    agreement = _cross_provider_agreement(canonical, observations)
     corroborated = corroborated_matches(canonical, observations)
+    agreement = _cross_provider_agreement(canonical, observations, len(independent))
+    # Counted over the sample that was actually priced, not over every
+    # observation: a caveat on a duplicate report that ``_one_per_day``
+    # discarded is a caveat on nothing.
+    observation_flags: dict[str, int] = {}
+    for pv in independent:
+        if pv.quality_flag:
+            observation_flags[pv.quality_flag] = observation_flags.get(pv.quality_flag, 0) + 1
+    observation_flags = dict(sorted(observation_flags.items()))
     values = [pv.value for pv in independent]
     if not values:
         return []
     mean = statistics.fmean(values)
     median = statistics.median(values)
+    sample_mode = min(statistics.multimode(values)) if values else None
     # The spread the count model actually uses: the sample's own standard
     # deviation with the Poisson floor already applied. Reported on the row
     # because every downstream check that has to compare this sample to
@@ -1421,11 +1731,29 @@ def _rows_for_sample(
     # pooled mean outright rather than being averaged with it: the pooled mean
     # targets a different quantity, so blending the two would only halve the
     # error instead of removing it.
-    centre = (
-        None if canonical in _COUNT_MARKETS_EXCLUDED
-        else centre_override if centre_override is not None
-        else shrunk_centre(values, canonical, venue)
-    )
+    #
+    # Computed per direction, because a provider conflict is resolved against
+    # the side being priced (see ``count_hits``) and the centre is a *pricing*
+    # quantity. A conflicted match entering the centre as 6 rather than 8 pulls
+    # the centre down, which flatters every UNDER -- and every card row on the
+    # 2026-09-03 slate is an UNDER. ``mean``, ``median`` and ``dispersion``
+    # stay direction-neutral: they are the evidence a reader checks the row
+    # against, and ``dispersion`` additionally feeds ``coupons.ladder_sigma``,
+    # which must stay a question about the data and not about the bet.
+    centres: dict[str, float | None] = {}
+    centre_notes: dict[str, str | None] = {}
+    for _direction in ("OVER", "UNDER"):
+        if canonical in _COUNT_MARKETS_EXCLUDED:
+            _centre = None
+        elif centre_override is not None:
+            _centre = centre_override
+        else:
+            _centre = shrunk_centre(
+                _adverse_values(independent, _direction), canonical, venue
+            )
+        centres[_direction], centre_notes[_direction] = _blend_referee(
+            _centre, canonical, team_name, dossier
+        )
 
     rows: list[StatsSheetRow] = []
     # Trimming happens here, not at the call site, because it is measured
@@ -1441,9 +1769,16 @@ def _rows_for_sample(
             # is priced both ways exactly as before.
             if offered_sides is not None and float(line) not in offered_sides[direction]:
                 continue
-            hits, sample_size, pushes = compute_hit_rate(values, float(line), direction)
+            counted = count_hits(independent, float(line), direction)
+            hits, sample_size, pushes = counted.hits, counted.sample_size, counted.pushes
             if sample_size == 0:
                 continue
+            row_flags = dict(observation_flags)
+            if counted.conflicts_resolved_adverse:
+                row_flags[CONFLICT_RESOLVED_ADVERSE] = counted.conflicts_resolved_adverse
+            row_excluded = dict(sorted((sample_excluded or {}).items()))
+            if counted.conflicts_on_line:
+                row_excluded[CONFLICT_ON_LINE] = counted.conflicts_on_line
             # Two instruments, and the row is only as strong as the weaker.
             # Wilson prices how few trials there were; the count model prices
             # how close the line sits to what those trials actually measured.
@@ -1452,17 +1787,23 @@ def _rows_for_sample(
             # sample claim a tight distribution. ``min`` never lets a row be
             # more confident than either says, which is the only combination
             # that cannot manufacture certainty out of the pair.
+            confidence, confidence_reason = _confidence(
+                agreement, sample_size, side_sizes
+            )
             empirical = wilson_lower_bound(hits, sample_size)
+            centre = centres[direction]
+            referee_note = centre_notes[direction]
             if canonical in _COUNT_MARKETS_EXCLUDED:
                 p_low = empirical
                 p_central = hits / sample_size
             else:
+                directed = _adverse_values(independent, direction)
                 p_low = min(
                     empirical,
-                    count_model_bound(values, float(line), direction, centre),
+                    count_model_bound(directed, float(line), direction, centre),
                 )
                 p_central = count_model_central(
-                    values, float(line), direction, centre
+                    directed, float(line), direction, centre
                 )
             row = StatsSheetRow(
                 event_id=dossier.event_id,
@@ -1482,24 +1823,95 @@ def _rows_for_sample(
                 p_central=p_central,
                 dispersion=dispersion,
                 shrunk_mean=centre,
+                centre_note=referee_note,
                 venue=venue,
                 mean=mean,
                 median=median,
+                mode=sample_mode,
+                sample_min=min(values) if values else None,
+                sample_max=max(values) if values else None,
                 sources=sources,
                 cross_provider_agreement=agreement,
                 corroborated_matches=corroborated,
-                confidence=_confidence(agreement, sample_size),
+                confidence=confidence,
+                confidence_reason=confidence_reason,
                 data_quality=dossier.readiness,
-                sample_excluded=dict(sorted((sample_excluded or {}).items())),
+                sample_excluded=dict(sorted(row_excluded.items())),
+                observation_flags=dict(sorted(row_flags.items())),
             )
             # Context flags read the row's own market/line/direction, so they
             # can only be computed once the row exists; StatsSheetRow is
             # frozen, so the flagged version is a copy, not a mutation.
             flags = context_flags_for_row(row, dossier)
+            ceilings = lean_ceilings_for_row(row, dossier)
+            update: dict = {}
             if flags:
-                row = row.model_copy(update={"context_flags": flags})
+                update["context_flags"] = flags
+            if ceilings:
+                update["lean_ceiling_reasons"] = sorted(set(ceilings))
+            if update:
+                row = row.model_copy(update=update)
             rows.append(row)
-    return rows
+    return _mark_model_separated_rungs(rows)
+
+
+# Ladders where one rung's numbers differ from its neighbour's without a single
+# observation between them.
+#
+# ``count_model_bound`` fixed the 2026-09-01 defect where ``p_low`` was
+# *identical* down a ladder above the sample's maximum, and in doing so created
+# a quieter one: the rungs are now ordered, but on a sample that never produced
+# a value between 7.5 and 8.5 the ordering is the fitted distribution's opinion
+# and not a measurement. On the 2026-09-03 slate Tagger's 7.5/8.5/9.5 rungs had
+# identical hit counts and three different bars.
+#
+# Such a row is not deleted -- the model is the best available answer for a line
+# the sample straddles -- but it cannot be a CALL, because CALL means the
+# evidence settles it and here the evidence is silent about the difference
+# between this rung and the next.
+#
+# Detected on ``(hits, sample_size)`` rather than by scanning the values for a
+# gap, because they are the same test: two rungs of one direction with the same
+# hit count are the two rungs no observation separates.
+RUNG_SEPARATED_BY_MODEL = "RUNG_SEPARATED_BY_MODEL"
+
+
+def _mark_model_separated_rungs(rows: list[StatsSheetRow]) -> list[StatsSheetRow]:
+    """Cap at LEAN every rung a neighbour matches on hits but not on ``p_low``.
+
+    Operates on one sample's rows, which is the only scope where "the next
+    rung" means anything: the same market at a different line for the same
+    subject, drawn from the same observations.
+    """
+    by_direction: dict[str, list[int]] = {}
+    for index, row in enumerate(rows):
+        by_direction.setdefault(row.direction, []).append(index)
+
+    separated: set[int] = set()
+    for indices in by_direction.values():
+        ordered = sorted(indices, key=lambda i: rows[i].line)
+        for left, right in zip(ordered, ordered[1:]):
+            a, b = rows[left], rows[right]
+            if (a.hits, a.sample_size) != (b.hits, b.sample_size):
+                continue
+            if a.p_low == b.p_low and a.p_central == b.p_central:
+                # Genuinely indistinguishable rows. Nothing is being claimed
+                # about the difference between them, so nothing is capped.
+                continue
+            separated.add(left)
+            separated.add(right)
+
+    if not separated:
+        return rows
+    return [
+        row.model_copy(update={
+            "lean_ceiling_reasons": sorted(
+                {*row.lean_ceiling_reasons, RUNG_SEPARATED_BY_MODEL}
+            )
+        })
+        if index in separated else row
+        for index, row in enumerate(rows)
+    ]
 
 
 def _resolve_lines(
@@ -1664,6 +2076,21 @@ def _format_scope_for(canonical: str, match_format: str | None) -> str | None:
     return None
 
 
+def _side_sizes(obs, sport: str) -> tuple[int, int]:
+    """How many independent observations each participant contributes.
+
+    Collapsed per bucket the same way the pooled sample is, so the two numbers
+    add up to something comparable to ``sample_size`` -- the h2h bucket is
+    deliberately not counted on either side, because a meeting between these
+    two describes both of them and attributing it to one would flatter the
+    thinner side, which is the exact thing this measures.
+    """
+    return (
+        len(_one_per_day(list(obs.team_a_l10), sport)),
+        len(_one_per_day(list(obs.team_b_l10), sport)),
+    )
+
+
 def _match_total_rows(
     dossier: EventDossierV1,
     offered: OfferedLines | None = None,
@@ -1711,6 +2138,7 @@ def _match_total_rows(
                 ),
                 sample_excluded=sample_excluded,
                 centre_override=framed_centre,
+                side_sizes=_side_sizes(obs, dossier.sport),
             )
         )
     return rows

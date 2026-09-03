@@ -68,6 +68,12 @@ COUNT_METRICS = frozenset(
         "offsides_total",
         "offsides_for",
         "red_cards_total",
+        # Booking points: yellows + 2 x straight reds + 1 extra for a second
+        # yellow, which is what Superbet's "Liczba kartek" settles. Same
+        # counting-events tolerance as the yellow-only metrics beside them --
+        # the two feeds behind it differ by at most one point per untyped red.
+        "cards_points_total",
+        "cards_points_for",
         # Faza 3: half-time splits, derived from the fixture's own
         # home_score_ht/away_score_ht rather than /stats/.
         "goals_1h_total",
@@ -161,6 +167,25 @@ class FixtureContext(StrictBaseModel):
     round_name: str | None = None
     group_name: str | None = None
     previous_leg_event_id: str | None = None
+    # The first leg's score, **mapped onto tonight's home and away sides**.
+    #
+    # Mapped at discovery, where the two fixtures' team ids are both in hand,
+    # because the sides swap between legs and a raw pair here would be read the
+    # wrong way round exactly half the time. None when there is no first leg,
+    # or when its score could not be read.
+    #
+    # Why it is worth a request: a level tie going into the second leg is not
+    # the same match as either side's last ten, and it is the one piece of
+    # stakes context that changes an UNDER on cards or fouls. On 2026-09-03 the
+    # biggest derby of the day was the second leg of a 0-0 quarter-final and
+    # nothing in the pipeline knew.
+    previous_leg_goals_home: int | None = None
+    previous_leg_goals_away: int | None = None
+    # The provider's own ids for tonight's two sides, carried so a rule can pin
+    # a *pair* of clubs rather than a spelling. ``EventRecord.provider_team_ids``
+    # has them, and the dossier does not carry the event record.
+    home_team_id: str | None = None
+    away_team_id: str | None = None
 
 
 class RefereeProfile(StrictBaseModel):
@@ -275,6 +300,17 @@ class EventRecord(StrictBaseModel):
     fixture_context: FixtureContext | None = None
 
 
+# Sources whose exhaustion shrinks the *slate* rather than only costing
+# corroboration.
+#
+# ``highlightly`` is the one that matters: it drives discovery breadth, so
+# running out of quota removes about 77% of the day's fixtures (memory note
+# ``highlightly-drives-discovery``). On 2026-09-03 it was 101/100 before the
+# run started, 20,961 of 21,925 rows came out SINGLE_SOURCE, and DISCOVER
+# reported OK.
+SLATE_CRITICAL_SOURCES = frozenset({"highlightly"})
+
+
 class EventListV1(StrictBaseModel):
     """DISCOVER artifact: a list of events for a given date."""
 
@@ -285,6 +321,14 @@ class EventListV1(StrictBaseModel):
     date: str
     sports: list[Sport] = Field(default_factory=list)
     events: list[EventRecord] = Field(default_factory=list)
+    # Per-source diagnostics, lifted off the adapters so the step's summary can
+    # act on them rather than only log them. Empty is the healthy state.
+    source_errors: dict[str, list[str]] = Field(default_factory=dict)
+    # Reasons this slate is smaller than the day actually is. Non-empty means
+    # the run must not be read as a survey of what was available -- see
+    # ``SLATE_CRITICAL_SOURCES``. Defaulted empty so an EVENT_LIST written
+    # before 2026-09-03 still validates and still reads as healthy.
+    degraded_reasons: list[str] = Field(default_factory=list)
 
 
 class ProviderValue(StrictBaseModel):
@@ -394,6 +438,32 @@ class ProviderValue(StrictBaseModel):
     # recognise: mislabelling a slam TOUR would silently delete real
     # best-of-five observations, which is worse than admitting ignorance.
     match_level: str | None = None
+    # Why this observation is less than certain, in one word, or None when
+    # nothing is wrong with it. Set today only by the card-points metrics,
+    # where the value depends on a second endpoint that can be incomplete:
+    # ``RED_TYPE_UNKNOWN`` (reds counted but not typed, so each is charged as
+    # a straight red), ``RED_COUNT_CONFLICT`` (the two feeds disagree on how
+    # many reds there were and the larger count was taken).
+    #
+    # Carried, never interpreted here, on the same rule ``competition_id`` and
+    # ``surface`` follow. ANALYZE counts the flags per sample and prints them
+    # on the row; nothing computes a statistic from them, and an observation
+    # carrying one is never dropped -- an observation that *could not* be
+    # computed at all never reaches this class.
+    quality_flag: str | None = None
+    # When two providers reported this one match differently, the lowest and
+    # highest value any of them gave. Both None -- the common case -- means
+    # every provider that saw the match agreed, or only one did.
+    #
+    # Set on the *representative* observation ``analyze._representative``
+    # keeps, so the disagreement survives the collapse instead of being
+    # silently resolved by a median. What the collapse used to do was keep the
+    # lower value (median_low over a pair keeps the smaller), which favours
+    # every UNDER on every conflicted match: on 2026-09-03 Náutico's 6-against-8
+    # and América's 8-against-4 both entered their samples as the smaller
+    # number, and every card row on the slate is an UNDER.
+    conflict_low: float | None = None
+    conflict_high: float | None = None
 
 
 class MetricObservation(StrictBaseModel):
@@ -653,6 +723,15 @@ class SuperbetColumn(StrictBaseModel):
     nearest_offered_price: float | None = None
     # Superbet's own fixture id, so a disputed price can be re-fetched.
     superbet_event_id: str | None = None
+    # The book's own probability for this exact outcome, overround removed
+    # against the opposite side of the same rung. None when the book posted
+    # only one side.
+    #
+    # On the sheet as well as on the comparison row because the offer file is
+    # the scarce input in this whole pipeline -- it is refetched every run and
+    # cannot be reconstructed afterwards -- and a sheet that carries it can be
+    # re-priced against a different ``k`` months later without it.
+    implied_probability: float | None = None
 
 class StatsSheetRow(StrictBaseModel):
     """One row of STATS_SHEET_V1: event x market x line x direction."""
@@ -700,6 +779,19 @@ class StatsSheetRow(StrictBaseModel):
     p_central: float | None = None
     mean: float
     median: float
+    # The sample's most common value, its smallest and its largest.
+    #
+    # On the row because the rung scorer needs them and re-deriving them from
+    # the dossier at coupon time would mean re-applying ``scope_values`` and
+    # the per-day collapse -- two chances to price a rung against a different
+    # sample from the one that produced its hit count.
+    #
+    # ``mode`` is the lowest of the tied modes, which is the same
+    # ``statistics.multimode`` tie-break ``_representative`` uses for a
+    # different reason: pick a value that occurred, deterministically.
+    mode: float | None = None
+    sample_min: float | None = None
+    sample_max: float | None = None
     # The sample's standard deviation, floored at sqrt(mean) because a count
     # process cannot be tighter than Poisson and a short sample routinely
     # looks it -- Torino/Monza's six scoped corner observations on 2026-09-01
@@ -727,6 +819,12 @@ class StatsSheetRow(StrictBaseModel):
     # None on a percentage market, which has no count model fitted. Equal to
     # ``mean`` when the market has no pinned prior.
     shrunk_mean: float | None = None
+    # What moved ``shrunk_mean`` away from ``mean`` beyond the market prior,
+    # in words. Set today only by the referee blend on card match totals, which
+    # is the one adjustment that brings in a number from outside the sample
+    # entirely -- so a reader who sees a centre 0.8 cards above the sample's own
+    # mean can find out why without re-deriving it.
+    centre_note: str | None = None
     # Which side of *tonight's* fixture this row's subject plays, when that
     # selects the shrinkage target. Football per-team rows only: a match total
     # has no venue of its own, and no tennis or player market has a measured
@@ -738,7 +836,13 @@ class StatsSheetRow(StrictBaseModel):
     # differ by a full corner on ``corners_for``.
     venue: Literal["home", "away"] | None = None
     sources: list[str] = Field(default_factory=list)
-    cross_provider_agreement: Literal["AGREE", "DISAGREE", "SINGLE_SOURCE", "NOT_APPLICABLE"]
+    # ``PARTIAL_AGREE`` added 2026-09-03: a second provider saw some of this
+    # sample but under half of it. It used to read AGREE, and ``tier_for_row``
+    # reads AGREE as "corroborated" and hands out CALL -- on the 2026-09-03
+    # Grenal that word covered 3 corroborated matches out of 20.
+    cross_provider_agreement: Literal[
+        "AGREE", "PARTIAL_AGREE", "DISAGREE", "SINGLE_SOURCE", "NOT_APPLICABLE"
+    ]
     # How many distinct matches in this sample a second provider also reported.
     # Reported because ``cross_provider_agreement`` is a word and this is the
     # evidence behind it: "AGREE" used to be granted on a single corroborated
@@ -746,6 +850,12 @@ class StatsSheetRow(StrictBaseModel):
     # ``analyze.MIN_CORROBORATED_MATCHES``.
     corroborated_matches: int = 0
     confidence: Literal["HIGH", "MEDIUM", "LOW"]
+    # Why ``confidence`` is not HIGH, when the reason is not simply the total.
+    # ``ONE_SIDED_SAMPLE`` means the observations are there but nearly all of
+    # them describe one of the two participants -- an n of 14 built from 3 and
+    # 11 is not the settled sample the total suggests. None when the total
+    # alone explains the tier.
+    confidence_reason: str | None = None
     data_quality: Literal["READY", "PARTIAL", "BLOCKED"]
     # Optional and always last: a sheet produced without a tipster run is a
     # valid sheet, and every field above it is computed with no knowledge that
@@ -774,6 +884,23 @@ class StatsSheetRow(StrictBaseModel):
     # about tonight. A sample that was silently cut is not more auditable than
     # one that was silently padded.
     sample_excluded: dict[str, int] = Field(default_factory=dict)
+    # Structural reasons this row may not be a CALL, however large its sample.
+    #
+    # A *ceiling*, not a step down. ``context_flags``' ARGUES_AGAINST steps a
+    # tier once and can therefore take a LEAN to WEAK; these say "this row is
+    # at best a lean" and leave a row that was already weaker alone. The
+    # difference matters because several of them fire together on the same
+    # fixture -- a derby, in a knockout second leg, with no referee named --
+    # and three reasons to doubt a fixture do not make it three tiers worse.
+    #
+    # Set by ANALYZE, read by ``bet_builder_draft.tier_for_row``, printed in
+    # the coupon's caveats. Never touches ``p_low`` or ``p_central``.
+    lean_ceiling_reasons: list[str] = Field(default_factory=list)
+    # ``{reason: count}`` for observations in this row's sample that carry a
+    # ``ProviderValue.quality_flag`` -- an observation that was *used* but is
+    # less than certain, as opposed to ``sample_excluded``'s observations that
+    # were removed. Today only the card-points metrics populate it.
+    observation_flags: dict[str, int] = Field(default_factory=dict)
 
 
 class ResultMarketConsensus(StrictBaseModel):
@@ -1329,6 +1456,35 @@ class SuperbetOfferV1(StrictBaseModel):
     # PARTIAL.
     events_matched_by_id: int = 0
     identity_bridge: dict[str, Any] = Field(default_factory=dict)
+    # Every fixture on the board, in a sport this pipeline reads, that did not
+    # join to one of our events. Identity only; see ``SuperbetBoardEvent``.
+    #
+    # Bounded by the sports filter, which is what keeps it small: the
+    # 2026-09-03 board carried 4,041 events in window and 3,402 of them were
+    # esports, simulated football and sports with no reader here.
+    unmatched_events: list[SuperbetBoardEvent] = Field(default_factory=list)
+
+
+class SuperbetBoardEvent(StrictBaseModel):
+    """One fixture Superbet listed and this pipeline did not price.
+
+    Identity only -- no lines, because lines cost one request per fixture and
+    the whole point of recording these is that they were *not* worth one.
+
+    They used to be counted and discarded (``events_unmatched``), which made
+    the single most important question about a betting day unanswerable from
+    the artifact: how much of what the operator can actually bet on does this
+    pipeline reach, and what is in the way. On 2026-09-03 the answer turned out
+    to be 24 of 150 offered football fixtures, and the obstacle was not the
+    matcher -- see ``resolve_board_to_reference`` -- but that is not something
+    anybody could have read off the file.
+    """
+
+    superbet_event_id: str
+    match_name: str = ""
+    sport: str = ""
+    kickoff: str = ""
+    betradar_id: str | None = None
 
 
 class SuperbetComparisonRow(StrictBaseModel):
@@ -1371,6 +1527,20 @@ class SuperbetComparisonRow(StrictBaseModel):
     # rather than probability because that is what the operator compares
     # against on the screen.
     odds_surplus: float | None = None
+    # Superbet's own probability for this exact outcome, overround removed
+    # against the opposite side of the same rung.
+    #
+    # Recorded on every two-sided row, whatever the verdict, because it is the
+    # scarce input: the offer file is refetched every run and cannot be
+    # reconstructed afterwards, and this is the number the bar now shrinks
+    # toward (``bet_builder_draft.bar_components``) and the number the ladder
+    # centre is read from. Before 2026-09-03 it was computed inside
+    # ``build_coupons``, used for one threshold, and thrown away.
+    #
+    # None when the book posted only one side of the line. That is common on
+    # one-way markets and it disables the market prior for the row rather than
+    # defaulting it: we cannot shrink toward a price we cannot read.
+    superbet_implied_probability: float | None = None
 
 
 class SuperbetComparisonV1(StrictBaseModel):

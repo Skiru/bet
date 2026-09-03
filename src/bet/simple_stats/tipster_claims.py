@@ -49,6 +49,7 @@ CANONICAL_MARKETS = frozenset(
     {
         "goals_total", "goals_1h_total", "goals_2h_total", "goals_for",
         "corners_total", "corners_for",
+        "cards_points_total", "cards_points_for",
         "cards_total", "cards_for", "red_cards_total",
         "fouls_total", "fouls_for",
         "shots_total", "shots_for",

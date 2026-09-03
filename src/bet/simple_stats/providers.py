@@ -160,6 +160,21 @@ def corroborators_for(sport: str) -> tuple[str, ...]:
 # than pending: passes, crosses, tackles, interceptions, clearances and saves
 # have no line in STANDARD_MARKET_LINES, so aliasing them would add a column to
 # every dossier that no row ever reads.
+# ``possession`` is deliberately absent from every alias table below, and was
+# removed from all of them on 2026-09-03.
+#
+# It is a percentage, and every football provider here reports it per side --
+# so ``_combined_from_dict_stats``, which sums the two sides because that is
+# what a match total is for a *count*, produced 100.0. Measured on the
+# 2026-09-03 slate: 522 of 530 possession observations were exactly 100.0 and
+# the other 8 were 0.0, from all three providers. It was a constant wearing a
+# number, and a constant is not data.
+#
+# No market reads it (there is no possession line in STANDARD_MARKET_LINES), so
+# nothing is unpriced by this; what goes away is a column in every dossier that
+# said the same thing about every fixture. Restoring it needs a per-side
+# reading that does not go through the summing combiner, which is a different
+# change from adding a key back to a table.
 _ESPN_FOOTBALL_ALIASES = {
     "corners": "corners_total",
     "yellow_cards": "cards_total",
@@ -169,14 +184,12 @@ _ESPN_FOOTBALL_ALIASES = {
     "blocked_shots": "blocked_shots_total",
     "fouls": "fouls_total",
     "offsides": "offsides_total",
-    "possession": "possession",
 }
 _API_FOOTBALL_ALIASES = {
     "corners": "corners_total",
     "yellow_cards": "cards_total",
     "shots": "shots_total",
     "shots_on_target": "shots_on_target_total",
-    "possession": "possession",
 }
 _HIGHLIGHTLY_NORMALIZED_ALIASES = {
     "corners": "corners_total",
@@ -187,7 +200,6 @@ _HIGHLIGHTLY_NORMALIZED_ALIASES = {
     "blocked_shots": "blocked_shots_total",
     "fouls": "fouls_total",
     "offsides": "offsides_total",
-    "possession": "possession",
     "expected_goals": "expected_goals_total",
 }
 _HIGHLIGHTLY_DISPLAY_NAME_ALIASES = {
@@ -195,7 +207,6 @@ _HIGHLIGHTLY_DISPLAY_NAME_ALIASES = {
     "Yellow cards": "cards_total",
     "Shots on target": "shots_on_target_total",
     "Fouls": "fouls_total",
-    "Possession": "possession",
     "Expected Goals": "expected_goals_total",
 }
 # Bzzoiro is the only provider whose stats survive into the dossier *unsummed*,
@@ -214,7 +225,6 @@ _BZZOIRO_TOTAL_ALIASES = {
     "blocked_shots": "blocked_shots_total",
     "fouls": "fouls_total",
     "offsides": "offsides_total",
-    "possession": "possession",
 }
 # The per-team table is deliberately shorter: it covers exactly the stats that
 # have a team market in STANDARD_MARKET_LINES. A "_for" metric nobody can
@@ -298,8 +308,6 @@ _SPORTDB_STATNAME_ALIASES = {
     "Shots": "shots_total",
     "Shots on target": "shots_on_target_total",
     "Fouls": "fouls_total",
-    "Ball Possession": "possession",
-    "Ball possession": "possession",
 }
 _UNDERSTAT_ALIASES = {
     "xG": "expected_goals_total",
@@ -643,6 +651,35 @@ def _combine_stats(provider_key: str, stats: dict, aliases: dict[str, str]) -> d
     if provider_key in _FLAT_STAT_PROVIDERS:
         return _flat_from_dict_stats(stats, aliases)
     return _combined_from_dict_stats(stats, aliases)
+
+
+def _add_untyped_card_points(combined: dict[str, float]) -> str | None:
+    """``cards_points_total`` for a provider that reports reds but not their type.
+
+    espn-football and highlightly both publish ``yellow_cards`` and
+    ``red_cards`` and neither says whether a red was straight or a second
+    yellow, so each red is charged the straight-red 2 points. That overstates a
+    second-yellow dismissal by exactly one point -- adverse to UNDER, which is
+    the side the 2026-09-03 audit found overstated -- and the returned flag
+    puts the caveat on the observation.
+
+    Emitted so these providers can *corroborate* bzzoiro on the metric the
+    market settles rather than only on yellows. The gap between the two
+    readings is at most one point per second yellow, which is inside
+    ``COUNT_METRICS``' tolerance, so a match with one such dismissal still
+    reads AGREE while a genuine transcription error still reads DISAGREE.
+
+    Nothing is emitted when ``red_cards_total`` is absent: this provider then
+    cannot distinguish no red from no red *figure*, and a card-points value two
+    points light is worse than one fewer observation. Returns None when nothing
+    was added.
+    """
+    yellows = combined.get("cards_total")
+    reds = combined.get("red_cards_total")
+    if yellows is None or reds is None:
+        return None
+    combined[CARDS_POINTS_TOTAL] = yellows + _STRAIGHT_RED_POINTS * reds
+    return CARD_FLAG_RED_TYPE_UNKNOWN
 
 
 # A finished football match cannot have zero fouls, and cannot have zero of
@@ -1093,6 +1130,7 @@ def _make_values(
     surface: Any = None,
     match_level: Any = None,
     max_age_days: int | None = None,
+    quality_flags: dict[str, str] | None = None,
 ) -> dict[str, ProviderValue]:
     """One ProviderValue per canonical metric in ``combined``.
 
@@ -1108,6 +1146,10 @@ def _make_values(
     match's stats between the two teams. It becomes ``ProviderValue.venue``
     only for a football provider (see ``_venue_or_none``); everything else
     records None, which downstream reads as "not stated" and never as "away".
+
+    ``quality_flags`` is ``{canonical_name: reason}`` and is carried onto the
+    matching observation only -- a card-points caveat must not appear on the
+    same match's corners.
     """
     if not _is_recent(match_date, max_age_days):
         return {}
@@ -1130,6 +1172,7 @@ def _make_values(
             venue=venue,
             surface=surface_name,
             match_level=level,
+            quality_flag=(quality_flags or {}).get(name) or None,
         )
         for name, val in combined.items()
     }
@@ -1985,6 +2028,7 @@ def _fetch_l10_generic(
                 if side is not None:
                     combined["goals_for"] = home_goals if side == "home" else away_goals
                     combined["goals_against"] = away_goals if side == "home" else home_goals
+        card_flag = _add_untyped_card_points(combined)
         for name, value in _make_values(
             provider_key, fixture_id, _field(fx, "date", "kickoff", default=""), str(opponent or "unknown"), combined,
             competition_id=_field(fx, "competition_provider_id", "league_id", "league"),
@@ -2001,6 +2045,7 @@ def _fetch_l10_generic(
             # for the football providers that share this function.
             match_level=_row_match_level(provider_key, stats_dict, fx),
             max_age_days=max_age_days,
+            quality_flags={CARDS_POINTS_TOTAL: card_flag} if card_flag else None,
         ).items():
             outcome.add(name, value)
     return outcome
@@ -2057,6 +2102,7 @@ def _fetch_h2h_generic(
                 f"(retirement, walkover, or every stat 0); recorded as absent"
             )
             continue
+        card_flag = _add_untyped_card_points(combined)
         # No ``side``, so no venue. An H2H value carries no marker for which
         # of the two teams it belongs to -- which is exactly why
         # ``_team_total_rows`` refuses to read this bucket for a per-team row
@@ -2075,6 +2121,7 @@ def _fetch_h2h_generic(
             # a past meeting in a best-of-three tour event says nothing about
             # how long tonight's best-of-five tie runs, whichever side it was.
             match_level=_row_match_level(provider_key, stats_dict, meeting),
+            quality_flags={CARDS_POINTS_TOTAL: card_flag} if card_flag else None,
         ).items():
             outcome.add(name, value)
     return outcome
@@ -2227,10 +2274,9 @@ def _highlightly_match_totals(
     if any(p is not None for p in parts):
         combined["shots_total"] = sum(p for p in parts if p is not None)
 
-    # Possession arrives as a 0..1 ratio here but as 0..100 points from ESPN /
-    # SportDB; rescale so cross_provider_agreement compares like with like.
-    if "possession" in combined and combined["possession"] <= 1.5:
-        combined["possession"] *= 100.0
+    # Booking points, charged as if every red were straight -- this provider
+    # does not type them. See ``_add_untyped_card_points``.
+    _add_untyped_card_points(combined)
 
     with _HIGHLIGHTLY_STATS_LOCK:
         _HIGHLIGHTLY_STATS_CACHE[match_id] = (combined, None)
@@ -2358,6 +2404,11 @@ def fetch_highlightly_history(
             competition_id=match.get("competition_provider_id"),
             season_id=match.get("season"),
             side=side,
+            quality_flags=(
+                {CARDS_POINTS_TOTAL: CARD_FLAG_RED_TYPE_UNKNOWN}
+                if CARDS_POINTS_TOTAL in combined
+                else None
+            ),
         ).items():
             outcome.add(name, value)
     return outcome
@@ -2372,8 +2423,16 @@ _BZZOIRO_HISTORY_WINDOW_DAYS = 500
 
 # event_id -> ({"home": {canonical_for: value}, "away": {...},
 #               "total": {canonical_total: value}}, gap)
-_BZZOIRO_STATS_CACHE: dict[str, tuple[dict[str, dict[str, float]], str | None]] = {}
+_BZZOIRO_STATS_CACHE: dict[
+    str, tuple[dict[str, dict[str, float]], str | None, dict[str, str]]
+] = {}
 _BZZOIRO_STATS_LOCK = threading.Lock()
+# ``/events/{id}/incidents/`` card counts, keyed the same way and for the same
+# reason. None is a cached answer -- "this feed could not be read for this
+# fixture" -- so a fixture whose incidents 404 is not re-requested once per
+# bucket.
+_BZZOIRO_INCIDENTS_CACHE: dict[str, dict[str, dict[str, int]] | None] = {}
+_BZZOIRO_INCIDENTS_LOCK = threading.Lock()
 
 # (team_id, date_from, date_to, last_n) -> the team's newest finished fixtures.
 # Separate from the stats cache because it caches the *listing*, and the listing
@@ -2383,6 +2442,19 @@ _BZZOIRO_STATS_LOCK = threading.Lock()
 # metrics already paid for the same team, in the same window, in the same run.
 _BZZOIRO_FIXTURES_CACHE: dict[tuple[str, str, str, int], list[dict]] = {}
 _BZZOIRO_FIXTURES_LOCK = threading.Lock()
+
+
+def reset_bzzoiro_incidents_cache() -> None:
+    """Forget cached card-type breakdowns. For tests, and for a long-lived
+    process that must not answer tomorrow from today's payloads."""
+    with _BZZOIRO_INCIDENTS_LOCK:
+        _BZZOIRO_INCIDENTS_CACHE.clear()
+
+
+def reset_bzzoiro_stats_cache() -> None:
+    """Forget cached per-match statistics. For tests only."""
+    with _BZZOIRO_STATS_LOCK:
+        _BZZOIRO_STATS_CACHE.clear()
 
 
 def reset_bzzoiro_fixtures_cache() -> None:
@@ -2396,15 +2468,230 @@ def reset_bzzoiro_fixtures_cache() -> None:
 _BZZOIRO_NO_STATS = "__bzzoiro_no_published_stats__"
 
 
+# --- booking points -------------------------------------------------------
+#
+# What Superbet's "Liczba kartek" settles, and what ``cards_total`` is not.
+#
+# Every provider in this roster reports ``yellow_cards``, and every one of them
+# was aliased onto ``cards_total``/``cards_for``. Superbet's card market is not
+# a count of yellows: a yellow is 1, a straight red is 2, and a player sent off
+# for a second yellow is 3 in total (his first yellow, then the dismissal). The
+# 2026-09-03 audit found the gap on Grêmio-Internacional, where the sheet
+# printed the last three meetings as 7, 7 and 4 -- 8.5 UNDER at 20/20 -- while
+# in the quantity the book settles they are 10, 9 and 4, two of the three OVER.
+#
+# The three tell-tale numbers, verified live 2026-09-03 against bzzoiro's own
+# two endpoints (events 2606, 7099, 587786):
+#
+#     date        yellows  reds              cards_total  cards_points_total
+#     2025-09-21  7        1 straight + 1 2Y  7           10
+#     2026-04-11  7        1 straight         7            9
+#     2026-08-27  4        none               4            4
+#
+# ``cards_total`` is kept, unchanged, for every provider that has only yellows
+# and for any future yellow-only market. What changed is which metric the
+# market maps to; see ``superbet_offer.MATCH_MARKET_NAMES``.
+CARDS_POINTS_TOTAL = "cards_points_total"
+CARDS_POINTS_FOR = "cards_points_for"
+
+# A second yellow is worth 1 *more* than the two yellows already counted, not 3
+# on its own: both of a dismissed player's yellows appear in ``yellow_cards``
+# (bzzoiro counts the ``yellowRed`` incident as a yellow as well as a red --
+# event 2606, home side, 4 plain yellows + 1 yellowRed reported as 5), so the
+# pair is already worth 2 before the red is charged.
+_SECOND_YELLOW_EXTRA_POINTS = 1.0
+_STRAIGHT_RED_POINTS = 2.0
+
+# Why the observation is dropped rather than scored as if there were no red.
+#
+# ``red_cards`` is absent from ``/events/{id}/stats/`` on a match with no red
+# card -- the client rejects the provider's ``null`` rather than reading it as
+# zero -- so "no red figure" and "no red" are the same payload. Measured over
+# 80 historical fixtures on 2026-09-03: 51 carried no ``red_cards`` field and
+# the incidents feed confirmed zero reds in all 51. That makes the inference
+# *usually* right, which is exactly the shape of the bug in memory note
+# ``a-zero-that-means-unknown``: the 1-in-80 fixture where it is wrong is a
+# fixture where every UNDER is priced two points light. So when the type split
+# cannot be established at all, the match leaves the card-points sample.
+CARD_FLAG_REDS_UNKNOWN = "REDS_UNKNOWN"
+# Reds counted but not typed: charged as straight reds, which overstates a
+# second-yellow dismissal by one point. Adverse to UNDER, which is the side the
+# audit found overstated, and the flag says so on the row.
+CARD_FLAG_RED_TYPE_UNKNOWN = "RED_TYPE_UNKNOWN"
+# The two feeds disagree about how many reds there were. Both undercount and
+# neither was ever seen to invent a card (measured 2026-09-03: incidents listed
+# fewer player cards than ``/stats/`` on 4 of 80 fixtures, ``/stats/`` reported
+# 0 reds against an incident red on 1 of 80), so the larger count is taken --
+# not as a directional thumb, but because omission is the observed failure mode
+# in both directions and invention is not.
+CARD_FLAG_RED_COUNT_CONFLICT = "RED_COUNT_CONFLICT"
+
+
+def card_points(
+    yellows: float | None,
+    reds: float | None,
+    incidents: dict[str, int] | None,
+) -> tuple[float | None, str | None]:
+    """One side's booking points, and how sure of them we are.
+
+    ``(None, reason)`` when the quantity cannot be established: the caller must
+    then emit no card-points observation for that match rather than emitting a
+    smaller number, because a match dropped from a sample is visible in ``n``
+    and a match scored two points light is not.
+
+    ``incidents`` is ``{"yellow": n, "red": n, "yellow_red": n}`` for this side,
+    from ``BzzoiroClient.get_incidents_result``, or None when that feed could
+    not be read.
+    """
+    if incidents is None:
+        if yellows is None or reds is None:
+            return None, CARD_FLAG_REDS_UNKNOWN
+        return (
+            yellows + _STRAIGHT_RED_POINTS * reds,
+            CARD_FLAG_RED_TYPE_UNKNOWN,
+        )
+
+    second_yellows = float(incidents.get("yellow_red", 0))
+    yellow_events = float(incidents.get("yellow", 0)) + second_yellows
+    red_events = float(incidents.get("red", 0)) + second_yellows
+    counted_yellows = max(yellows or 0.0, yellow_events)
+    counted_reds = max(reds or 0.0, red_events)
+    straight_reds = max(0.0, counted_reds - second_yellows)
+    points = (
+        counted_yellows
+        + _STRAIGHT_RED_POINTS * straight_reds
+        + _SECOND_YELLOW_EXTRA_POINTS * second_yellows
+    )
+    conflict = (reds is not None and reds != red_events) or (
+        yellows is not None and yellows != yellow_events
+    )
+    return points, CARD_FLAG_RED_COUNT_CONFLICT if conflict else None
+
+
+def _bzzoiro_card_incidents(
+    client: Any, event_id: str, run_budget: RunBudget | None
+) -> dict[str, dict[str, int]] | None:
+    """``{"home": {...}, "away": {...}}`` card counts by type, or None.
+
+    Cached per event_id on the same argument ``_BZZOIRO_STATS_CACHE`` is: one
+    historical fixture is reached from up to three buckets in one run.
+
+    A budget-exhausted run gets None and falls back to ``RED_TYPE_UNKNOWN``
+    rather than losing the observation -- the budget is a spend limit, and
+    deleting evidence because of one is a worse trade than pricing a
+    second-yellow one point high.
+    """
+    with _BZZOIRO_INCIDENTS_LOCK:
+        if event_id in _BZZOIRO_INCIDENTS_CACHE:
+            return _BZZOIRO_INCIDENTS_CACHE[event_id]
+
+    cards: dict[str, dict[str, int]] | None = None
+    if run_budget is None or run_budget.try_consume("bzzoiro"):
+        try:
+            result = client.get_incidents_result(event_id)
+        except Exception:  # noqa: BLE001 - a missing breakdown is a flag, not a crash
+            result = None
+        if (
+            result is not None
+            and result.status == SourceResultStatus.SUCCESS
+            and isinstance(result.value, dict)
+        ):
+            raw = result.value.get("cards")
+            if isinstance(raw, dict) and "home" in raw and "away" in raw:
+                cards = {
+                    side: {
+                        key: int(raw[side].get(key, 0))
+                        for key in ("yellow", "red", "yellow_red")
+                    }
+                    for side in ("home", "away")
+                }
+
+    with _BZZOIRO_INCIDENTS_LOCK:
+        _BZZOIRO_INCIDENTS_CACHE[event_id] = cards
+    return cards
+
+
+def _apply_card_points(
+    client: Any,
+    event_id: str,
+    raw_cards: dict[str, dict[str, float]],
+    per_side: dict[str, dict[str, float]],
+    totals: dict[str, float],
+    run_budget: RunBudget | None,
+) -> dict[str, str]:
+    """Add ``cards_points_for``/``cards_points_total`` in place; return the flags.
+
+    The incidents request is skipped entirely on a match this provider
+    published no card figures for -- there is nothing to break down, and paying
+    a request per statless friendly to learn that would double the cost of the
+    cheapest matches in the sample.
+
+    The match total is the sum of the two sides and is emitted **only** when
+    both sides resolved. A total built from one side's points and the other
+    side's silence is a smaller number than the match produced, which is the
+    exact failure this metric exists to remove.
+    """
+    has_cards = any(
+        "yellow_cards" in raw_cards[side] or "red_cards" in raw_cards[side]
+        for side in ("home", "away")
+    )
+    if not has_cards:
+        return {}
+
+    incidents = _bzzoiro_card_incidents(client, event_id, run_budget)
+    flags: dict[str, str] = {}
+    points_by_side: dict[str, float] = {}
+    for side in ("home", "away"):
+        points, flag = card_points(
+            raw_cards[side].get("yellow_cards"),
+            raw_cards[side].get("red_cards"),
+            (incidents or {}).get(side),
+        )
+        if flag:
+            flags[side] = flag
+        if points is None:
+            continue
+        points_by_side[side] = points
+        per_side[side][CARDS_POINTS_FOR] = points
+
+    if len(points_by_side) == 2:
+        totals[CARDS_POINTS_TOTAL] = points_by_side["home"] + points_by_side["away"]
+        # The total carries the weaker of the two sides' caveats: a match where
+        # one side's reds were untyped is an untyped total.
+        weaker = [flags[side] for side in ("home", "away") if side in flags]
+        if weaker:
+            flags["total"] = (
+                CARD_FLAG_RED_COUNT_CONFLICT
+                if CARD_FLAG_RED_COUNT_CONFLICT in weaker
+                else weaker[0]
+            )
+    else:
+        # The total is absent, and the flag must name the side that made it
+        # absent -- not the other side's milder caveat.
+        unresolved = [
+            flags[side]
+            for side in ("home", "away")
+            if side not in points_by_side and side in flags
+        ]
+        flags["total"] = unresolved[0] if unresolved else CARD_FLAG_REDS_UNKNOWN
+    return flags
+
+
 def _bzzoiro_match_stats(
-    client: Any, event_id: str
-) -> tuple[dict[str, dict[str, float]], str | None]:
+    client: Any, event_id: str, run_budget: RunBudget | None = None
+) -> tuple[dict[str, dict[str, float]], str | None, dict[str, str]]:
     """One historical match's stats, per side *and* summed.
 
-    Returns ``({"home": ..., "away": ..., "total": ...}, gap)``. Both readings
-    come out of one request because they come out of one payload: this provider
-    reports the two sides separately, so the match total is a sum this function
-    performs rather than the only figure available.
+    Returns ``({"home": ..., "away": ..., "total": ...}, gap, card_flags)``. The
+    first two readings come out of one request because they come out of one
+    payload: this provider reports the two sides separately, so the match total
+    is a sum this function performs rather than the only figure available.
+
+    ``card_flags`` is ``{"home"|"away"|"total": reason}`` for the card-points
+    metrics only, and is empty when the breakdown was established cleanly. It
+    is a third return value rather than a fourth key in the stats dict because
+    ``settle.actual_value`` indexes that dict by side and metric name, and a
+    key holding strings instead of floats there is a landmine.
 
     Cached per event_id for the same reason Highlightly's is: a league fixture
     the two sides already played appears in team A's last ten, in team B's last
@@ -2429,11 +2716,16 @@ def _bzzoiro_match_stats(
             else f"bzzoiro: {getattr(result.status, 'value', result.status)} for event {event_id}"
         )
         with _BZZOIRO_STATS_LOCK:
-            _BZZOIRO_STATS_CACHE[event_id] = ({}, gap)
-        return {}, gap
+            _BZZOIRO_STATS_CACHE[event_id] = ({}, gap, {})
+        return {}, gap, {}
 
     per_side: dict[str, dict[str, float]] = {"home": {}, "away": {}}
     totals: dict[str, float] = {}
+    # The raw per-side card counts, kept beside the aliased metrics rather than
+    # read back out of them: ``red_cards`` has no ``*_for`` alias (no per-team
+    # red-card market has a line), so after aliasing there is no per-side red
+    # figure left to compute booking points from.
+    raw_cards: dict[str, dict[str, float]] = {"home": {}, "away": {}}
     for row in result.value.get("statistics", []):
         normalized = row.get("normalized_metric_name") or ""
         side = row.get("side")
@@ -2441,6 +2733,9 @@ def _bzzoiro_match_stats(
             value = float(row.get("value"))
         except (TypeError, ValueError):
             continue
+
+        if normalized in ("yellow_cards", "red_cards") and side in raw_cards:
+            raw_cards[side][normalized] = raw_cards[side].get(normalized, 0.0) + value
 
         total_name = _BZZOIRO_TOTAL_ALIASES.get(normalized)
         if total_name is not None:
@@ -2457,10 +2752,17 @@ def _bzzoiro_match_stats(
             if half_for_name is not None and side in per_side:
                 per_side[side][half_for_name] = per_side[side].get(half_for_name, 0.0) + value
 
+    # Booking points. Computed here rather than in an alias table because no
+    # alias can express it: the arithmetic needs the *type* of each red, which
+    # lives in a different endpoint (see ``_bzzoiro_card_points``).
+    card_flags = _apply_card_points(
+        client, event_id, raw_cards, per_side, totals, run_budget
+    )
+
     stats = {"home": per_side["home"], "away": per_side["away"], "total": totals}
     with _BZZOIRO_STATS_LOCK:
-        _BZZOIRO_STATS_CACHE[event_id] = (stats, None)
-    return stats, None
+        _BZZOIRO_STATS_CACHE[event_id] = (stats, None, card_flags)
+    return stats, None, card_flags
 
 
 def _bzzoiro_window(as_of_date: str) -> tuple[str, str]:
@@ -2691,7 +2993,7 @@ def fetch_bzzoiro_history(
             outcome.data_gaps.append("bzzoiro: run budget exhausted mid-history")
             break
         try:
-            stats, gap = _bzzoiro_match_stats(client, match_id)
+            stats, gap, card_flags = _bzzoiro_match_stats(client, match_id, run_budget)
         except Exception as exc:  # noqa: BLE001
             outcome.data_gaps.append(f"bzzoiro: event {match_id} stats error: {exc}")
             continue
@@ -2706,11 +3008,25 @@ def fetch_bzzoiro_history(
         combined = dict(stats.get("total") or {})
         if side is not None:
             combined.update(stats.get(side) or {})
+        # The card-points flag is per side, and which side's flag applies
+        # depends on which metric is being stamped -- ``cards_points_for`` is
+        # this team's own, ``cards_points_total`` needs both sides clean.
+        quality = {}
+        if card_flags:
+            if side is not None and card_flags.get(side):
+                quality[CARDS_POINTS_FOR] = card_flags[side]
+            if card_flags.get("total"):
+                quality[CARDS_POINTS_TOTAL] = card_flags["total"]
+            elif card_flags.get("home") or card_flags.get("away"):
+                quality[CARDS_POINTS_TOTAL] = (
+                    card_flags.get("home") or card_flags.get("away") or ""
+                )
         for name, value in _make_values(
             "bzzoiro", match_id, match_date, opponent or "unknown", combined,
             competition_id=match.get("competition_provider_id"),
             season_id=match.get("season"),
             side=side,
+            quality_flags=quality,
         ).items():
             outcome.add(name, value)
 

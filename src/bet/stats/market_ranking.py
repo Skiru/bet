@@ -164,7 +164,13 @@ STANDARD_MARKET_LINES: dict[str, list[dict]] = {
         # Superbet's own screenshots showed on 2026-08-30 (7.5 total corners,
         # 6.5 team corners/shots-on-target were all outside the old grid).
         {"market": "Corners Total", "lines": [6.5, 7.5, 8.5, 9.5, 10.5, 11.5, 12.5], "stat": "corners", "is_combined": True},
-        {"market": "Cards Total", "lines": [3.5, 4.5, 5.5], "stat": "yellow_cards", "is_combined": True},
+        # ``cards_points``, not ``yellow_cards``. Superbet's "Liczba kartek"
+        # settles a straight red as 2 and a second-yellow dismissal as 3, so a
+        # yellow-only sample prices a smaller quantity than the one that pays
+        # (see providers.card_points). The lines widen with the quantity: the
+        # old 3.5/4.5/5.5 grid was built for yellows, and the 2026-09-03
+        # Grêmio-Internacional offer posted a 7.5 pivot.
+        {"market": "Cards Total", "lines": [3.5, 4.5, 5.5, 6.5, 7.5, 8.5], "stat": "cards_points", "is_combined": True},
         {"market": "Fouls Total", "lines": [20.5, 22.5, 24.5], "stat": "fouls", "is_combined": True},
         {"market": "Shots on Target", "lines": [4.5, 5.5, 6.5, 7.5], "stat": "shots_on_target", "is_combined": True},
         # shots_total is already collected (PRIORITY_METRICS["football"]) and
@@ -195,7 +201,7 @@ STANDARD_MARKET_LINES: dict[str, list[dict]] = {
         # combined ones, so a lopsided fixture still has a line near its mean.
         {"market": "Team Corners", "lines": [2.5, 3.5, 4.5, 5.5, 6.5, 7.5], "stat": "corners", "is_combined": False},
         {"market": "Team Fouls", "lines": [8.5, 10.5, 12.5], "stat": "fouls", "is_combined": False},
-        {"market": "Team Cards", "lines": [1.5, 2.5, 3.5], "stat": "yellow_cards", "is_combined": False},
+        {"market": "Team Cards", "lines": [1.5, 2.5, 3.5, 4.5], "stat": "cards_points", "is_combined": False},
         {"market": "Team Shots on Target", "lines": [1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5], "stat": "shots_on_target", "is_combined": False},
         {"market": "Team Shots", "lines": [9.5, 11.5, 13.5], "stat": "shots", "is_combined": False},
         {"market": "Team Goals", "lines": [0.5, 1.5, 2.5], "stat": "goals", "is_combined": False},
@@ -523,15 +529,23 @@ PLAYER_PROP_LINES: dict[str, list[dict]] = {
 # The exact football STANDARD_MARKET_LINES entry before Faza 1-2 widened the
 # corners/shots-on-target grids and added Shots Total, Goals Total's 0.5/4.5
 # ends, the half-time goals markets, and Total/Team Offsides and Red Cards.
+#
+# The two card markets are the one deliberate departure from "exact". This
+# profile freezes which *markets and lines* shipped before the plan, not which
+# quantity a market settles on, and pointing "Cards Total" at yellows was never
+# a profile choice -- it was the 2026-09-03 defect. Reproducing it here would
+# keep a way to run a betting day that prices "Liczba kartek" against a number
+# the book does not settle, which is the one thing this profile must not be
+# able to do. The lines stay legacy; only the stat moves.
 _STANDARD_MARKET_LINES_LEGACY_FOOTBALL: list[dict] = [
     {"market": "Corners Total", "lines": [8.5, 9.5, 10.5, 11.5], "stat": "corners", "is_combined": True},
-    {"market": "Cards Total", "lines": [3.5, 4.5, 5.5], "stat": "yellow_cards", "is_combined": True},
+    {"market": "Cards Total", "lines": [3.5, 4.5, 5.5], "stat": "cards_points", "is_combined": True},
     {"market": "Fouls Total", "lines": [20.5, 22.5, 24.5], "stat": "fouls", "is_combined": True},
     {"market": "Shots on Target", "lines": [4.5, 5.5, 6.5, 7.5], "stat": "shots_on_target", "is_combined": True},
     {"market": "Goals Total", "lines": [1.5, 2.5, 3.5], "stat": "goals", "is_combined": True},
     {"market": "Team Corners", "lines": [3.5, 4.5, 5.5], "stat": "corners", "is_combined": False},
     {"market": "Team Fouls", "lines": [8.5, 10.5, 12.5], "stat": "fouls", "is_combined": False},
-    {"market": "Team Cards", "lines": [1.5, 2.5, 3.5], "stat": "yellow_cards", "is_combined": False},
+    {"market": "Team Cards", "lines": [1.5, 2.5, 3.5], "stat": "cards_points", "is_combined": False},
     {"market": "Team Shots on Target", "lines": [2.5, 3.5, 4.5, 5.5], "stat": "shots_on_target", "is_combined": False},
     {"market": "Team Shots", "lines": [9.5, 11.5, 13.5], "stat": "shots", "is_combined": False},
 ]

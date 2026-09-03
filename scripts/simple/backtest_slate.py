@@ -162,7 +162,7 @@ def _fetch_one(client, bzz_id: str) -> tuple[dict, list[str]]:
     if not finished:
         return {}, [f"{bzz_id}: not full-time (match_status={status or 'unknown'})"]
     try:
-        stats, gap = _bzzoiro_match_stats(client, bzz_id)
+        stats, gap, _card_flags = _bzzoiro_match_stats(client, bzz_id)
     except Exception as exc:  # noqa: BLE001 - one fixture must not abort a slate
         return {}, [f"{bzz_id}: stats error: {exc}"]
     if gap:
@@ -193,6 +193,26 @@ def _fetch_one(client, bzz_id: str) -> tuple[dict, list[str]]:
     return actuals, gaps
 
 
+def _cache_entry_is_current(entry: dict) -> bool:
+    """Whether a cached actuals blob was built by the current metric set.
+
+    The cache is on disk forever and is keyed only by fixture id, so a metric
+    added after an entry was written answers NO_DATA for that fixture until the
+    entry is refetched -- silently, and only for the older half of the slates,
+    which is the shape of bias a backtest can least afford.
+
+    ``cards_points_total`` is the discriminator today: every entry written
+    before 2026-09-03 has ``cards_total`` and cannot have it. A fixture that
+    genuinely published no card statistics has neither and is not refetched.
+    """
+    total = entry.get("total")
+    if not isinstance(total, dict):
+        return True
+    if "cards_total" in total and "cards_points_total" not in total:
+        return False
+    return True
+
+
 def fetch_actuals(
     events: EventListV1, cache: dict, *, workers: int = 8
 ) -> tuple[dict[str, dict], list[str]]:
@@ -214,7 +234,7 @@ def fetch_actuals(
             gaps.append(f"{event.home_team} v {event.away_team}: no bzzoiro id")
             continue
         cached = cache.get(str(bzz_id))
-        if cached is not None:
+        if cached is not None and _cache_entry_is_current(cached):
             resolved[event.event_id] = cached
             continue
         todo.append((event.event_id, str(bzz_id)))
@@ -355,6 +375,7 @@ def coupons_from_sheet(
     *,
     max_singles: int = 15,
     bar_basis: str = "p_low",
+    shrink_k: float | None = None,
 ) -> CouponSet:
     """``build_coupons`` over a sheet, with the day's own offer and vetoes.
 
@@ -374,11 +395,16 @@ def coupons_from_sheet(
         max_singles=max_singles,
         not_before=None,
         bar_basis=bar_basis,
+        shrink_k=shrink_k,
     )
 
 
 def rebuilt_coupons(
-    date: str, *, max_singles: int = 15, bar_basis: str = "p_low"
+    date: str,
+    *,
+    max_singles: int = 15,
+    bar_basis: str = "p_low",
+    shrink_k: float | None = None,
 ) -> CouponSet | None:
     sheet = rebuild(date)
     if sheet is None:
@@ -386,12 +412,17 @@ def rebuilt_coupons(
     paths = _run_paths(date)
     events = EventListV1.model_validate_json(paths["events"].read_text(encoding="utf-8"))
     return coupons_from_sheet(
-        date, sheet, events, max_singles=max_singles, bar_basis=bar_basis
+        date, sheet, events, max_singles=max_singles, bar_basis=bar_basis,
+        shrink_k=shrink_k,
     )
 
 
 def recorded_sheet_coupons(
-    date: str, *, max_singles: int = 15, bar_basis: str = "p_low"
+    date: str,
+    *,
+    max_singles: int = 15,
+    bar_basis: str = "p_low",
+    shrink_k: float | None = None,
 ) -> CouponSet | None:
     """Today's selection over the sheet the pipeline wrote that day.
 
@@ -406,7 +437,8 @@ def recorded_sheet_coupons(
     sheet = StatsSheetV1.model_validate_json(paths["sheet"].read_text(encoding="utf-8"))
     events = EventListV1.model_validate_json(paths["events"].read_text(encoding="utf-8"))
     return coupons_from_sheet(
-        date, sheet, events, max_singles=max_singles, bar_basis=bar_basis
+        date, sheet, events, max_singles=max_singles, bar_basis=bar_basis,
+        shrink_k=shrink_k,
     )
 
 
@@ -442,6 +474,7 @@ def settle_singles(
         if event is None or actuals is None:
             out.append(
                 {
+                    "event_id": single.event_id,
                     "market": single.market, "line": single.line,
                     "direction": single.direction, "subject": single.subject,
                     "p_low": single.p_low, "tier": single.tier,
@@ -457,6 +490,13 @@ def settle_singles(
         )
         out.append(
             {
+                # Carried so a bootstrap can resample *fixtures* rather than
+                # rows. Twenty rows off one match are not twenty trials -- they
+                # are one match read twenty ways -- and an interval that
+                # resamples them independently is narrower than the evidence.
+                # Every clustered interval quoted in ``tier_for_row`` is built
+                # this way; until now this artifact could not reproduce one.
+                "event_id": single.event_id,
                 "match": f"{event.home_team} v {event.away_team}",
                 "market": single.market, "line": single.line,
                 "direction": single.direction, "subject": single.subject,
@@ -633,6 +673,15 @@ def main() -> int:
              "p_central is the arm bet_builder_draft.BAR_BASES exists to "
              "paper-trade and, until this flag, could not be settled at all.",
     )
+    parser.add_argument(
+        "--shrink-k", dest="shrink_k", type=float, default=None,
+        help="Override the market prior's k for every row (Phase 3, "
+             "docs/PLAN_EDGE_INTEGRITY_2026-09-03.md). None uses each market's "
+             "own value -- 10 for football totals, 20 for the length-dependent "
+             "tennis markets. **0 disables the prior**, which is the "
+             "pre-2026-09-03 arm. This is how the arms are compared; the value "
+             "shipped is not meant to be picked by eye.",
+    )
     parser.add_argument("--cache", default=str(DEFAULT_CACHE), help="Actuals cache (JSON)")
     parser.add_argument("--output", default=None, help="Write the full record set here")
     parser.add_argument("--show-rows", action="store_true", help="Print every settled row")
@@ -672,10 +721,12 @@ def main() -> int:
         loaders = {
             "recorded": lambda d: load_recorded(d),
             "rebuilt": lambda d: rebuilt_coupons(
-                d, max_singles=budget, bar_basis=args.bar_basis
+                d, max_singles=budget, bar_basis=args.bar_basis,
+                shrink_k=args.shrink_k,
             ),
             "recorded_sheet": lambda d: recorded_sheet_coupons(
-                d, max_singles=budget, bar_basis=args.bar_basis
+                d, max_singles=budget, bar_basis=args.bar_basis,
+                shrink_k=args.shrink_k,
             ),
         }
         wanted = [w for w in ("recorded", "rebuilt", "recorded_sheet")

@@ -501,15 +501,12 @@ def test_a_slip_with_a_leg_worth_its_price_outranks_a_more_certain_one_without()
         *_slip_fixture_rows("evt-2", 0.75, 0.75),
     )
     events = _events(_event(), _event(event_id="evt-2", home="Girona", away="Osasuna"))
-    # The prices that are not "value" still have to be above their legs' fair
-    # odds, or ``draft_legs`` drops them for lowering the slip's expectation
-    # and there is no second leg left to rank (2026-09-03). They sit in the
-    # narrow band this test is actually about: on the screen, real, below the
-    # bar. These rows tier CALL, so the margin is 1.05 and the bands are
-    # p_low 0.55 -> fair 1.818, bar 1.909; 0.60 -> 1.667/1.750;
-    # 0.75 -> 1.333/1.400.
+    # Every leg must clear its own bar as of 2026-09-03, so a slip with two
+    # legs has two legs worth their price and a slip with one has none. That
+    # is what separates these two fixtures here: evt-1 is priced generously
+    # enough for both its legs to survive, evt-2 at 1.37 for neither.
     offer = _two_event_offer(
-        [_line(price=2.60), _line(market="cards_total", line=4.5, price=1.71)],
+        [_line(price=2.60), _line(market="cards_total", line=4.5, price=2.40)],
         [_line(price=1.37), _line(market="cards_total", line=4.5, price=1.37)],
     )
 
@@ -524,20 +521,33 @@ def test_a_slip_with_a_leg_worth_its_price_outranks_a_more_certain_one_without()
         if leg.superbet_price is not None
         and leg.superbet_price >= leg.min_acceptable_odds
     ]
-    assert len(priced) == 1
-    assert priced[0].market == "corners_total"
+    assert len(priced) == len(kept.draft.legs) >= 2
 
 
-def test_between_two_slips_with_no_value_the_weakest_leg_still_decides():
-    """The old ordering is untouched inside a group -- only the groups are new."""
+def test_a_slip_needs_two_legs_that_clear_their_bars_or_it_is_not_a_slip():
+    """Changed 2026-09-03. There is no longer a "slips with no value" group.
+
+    This test used to assert the ordering *between* two slips neither of which
+    had a leg worth its price, on the reasoning that the old weakest-leg order
+    survived inside each group. That group no longer exists: a leg below its
+    own bar is refused, so a fixture whose legs are all below their bars
+    contributes no slip at all.
+
+    Which is the honest outcome. A slip is placed as one unit, so a leg the
+    operator would decline on its own cannot be declined once it is inside one
+    -- it just lowers the slip's expectation. On 2026-09-03 six of the day's
+    25 legs were kept below their own minimum "as context", in slips presented
+    as coupons to go and place.
+
+    Between slips that *do* have value, the weakest leg still decides, and
+    ``test_a_slip_with_a_leg_worth_its_price_outranks_a_more_certain_one_without``
+    above is where that is exercised.
+    """
     sheet = _sheet(
         *_slip_fixture_rows("evt-1", 0.55, 0.60),
         *_slip_fixture_rows("evt-2", 0.75, 0.75),
     )
     events = _events(_event(), _event(event_id="evt-2", home="Girona", away="Osasuna"))
-    # "No value" means below each leg's bar, not below its fair odds -- a leg
-    # priced under fair odds subtracts from the slip and is excluded outright,
-    # which would leave nothing here to order. See the note above.
     nothing_priced = _two_event_offer(
         [_line(price=1.86), _line(market="cards_total", line=4.5, price=1.71)],
         [_line(price=1.37), _line(market="cards_total", line=4.5, price=1.37)],
@@ -545,4 +555,4 @@ def test_between_two_slips_with_no_value_the_weakest_leg_still_decides():
 
     coupons = build_coupons(sheet, events, superbet_offer=nothing_priced, max_slips=2)
 
-    assert [s.event_id for s in coupons.slips] == ["evt-2", "evt-1"]
+    assert coupons.slips == []

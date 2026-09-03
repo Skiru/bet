@@ -110,7 +110,7 @@ def test_fold_maps_l_with_stroke_rather_than_deleting_it():
     [
         ("Liczba goli", ("goals_total", None)),
         ("Liczba rzutów rożnych", ("corners_total", None)),
-        ("Liczba kartek", ("cards_total", None)),
+        ("Liczba kartek", ("cards_points_total", None)),
         ("Liczba celnych strzałów", ("shots_on_target_total", None)),
         ("Liczba strzałów", ("shots_total", None)),
         ("Liczba spalonych", ("offsides_total", None)),
@@ -119,7 +119,7 @@ def test_fold_maps_l_with_stroke_rather_than_deleting_it():
         ("Liczba podwójnych błędów", ("double_faults_total", None)),
         ("Liczba gemów", ("total_games", None)),
         ("Liczba setów", ("total_sets", None)),
-        ("Remo - liczba kartek", ("cards_for", "remo")),
+        ("Remo - liczba kartek", ("cards_points_for", "remo")),
         ("Liczba celnych strzałów - Remo", ("shots_on_target_for", "remo")),
         ("Liczba strzałów Remo", ("shots_for", "remo")),
         ("Spalone - Remo", ("offsides_for", "remo")),
@@ -167,7 +167,7 @@ def test_a_red_card_market_is_not_filed_as_a_booking_market():
     straight red at a yellow-card line, which is a bet nobody would take
     knowingly."""
     assert classify_market("Liczba czerwonych kartek Remo") == ("red_cards_for", "remo")
-    assert classify_market("Remo - liczba kartek") == ("cards_for", "remo")
+    assert classify_market("Remo - liczba kartek") == ("cards_points_for", "remo")
 
 
 def test_woodwork_is_not_shots_on_target():
@@ -244,7 +244,7 @@ def test_normalize_lines_extracts_match_and_team_totals():
     assert got == {
         ("corners_total", 8.5, "OVER", None): 1.40,
         ("corners_total", 8.5, "UNDER", None): 2.70,
-        ("cards_for", 2.5, "UNDER", "Remo"): 1.38,
+        ("cards_points_for", 2.5, "UNDER", "Remo"): 1.38,
     }
 
 
@@ -289,7 +289,7 @@ def test_best_price_wins_and_active_beats_blocked():
     prices = {(line.market, line.status): line.price for line in lines}
     assert prices[("goals_total", "active")] == 1.68
     # The blocked 9.99 must never outrank the takeable 1.85 on price alone.
-    assert prices[("cards_total", "active")] == 1.85
+    assert prices[("cards_points_total", "active")] == 1.85
 
 
 def test_price_of_one_or_below_is_not_a_price():
@@ -1066,14 +1066,14 @@ def test_real_payload_maps_the_markets_the_sheet_prices():
     lines, unmapped = normalize_lines(raw, team_names=("Remo", "Coritiba"))
     markets = {line.market for line in lines}
     assert {
-        "goals_total", "corners_total", "cards_total", "shots_on_target_total",
+        "goals_total", "corners_total", "cards_points_total", "shots_on_target_total",
         "shots_total", "offsides_total", "fouls_total",
     } <= markets
     # Both sides get their own per-team rows, not just the one Superbet spells
     # the way we do.
     per_team = {(line.market, line.team_name) for line in lines if line.team_name}
-    assert ("cards_for", "Remo") in per_team
-    assert ("cards_for", "Coritiba") in per_team
+    assert ("cards_points_for", "Remo") in per_team
+    assert ("cards_points_for", "Coritiba") in per_team
     # And the traps stay out.
     assert not any("obramowanie" in line.source_market_name.lower() for line in lines)
     assert not any(";" in line.source_market_name for line in lines)

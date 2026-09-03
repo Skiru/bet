@@ -69,7 +69,7 @@ from __future__ import annotations
 
 import math
 from collections.abc import Callable, Iterable
-from typing import Literal
+from typing import Literal, NamedTuple
 
 from bet.simple_stats.contracts import StatsSheetRow, StatsSheetV1
 from bet.simple_stats.providers import PRIMARY_PROVIDER_BY_SPORT
@@ -129,6 +129,31 @@ class AnalystVeto(StrictBaseModel):
     direction: Literal["OVER", "UNDER"] | None = None
     action: Literal["VETO", "DOWNGRADE"]
     reason: str
+    # *What kind* of objection this is, added 2026-09-03. ``reason`` is prose
+    # for the operator; this is the part the pipeline can act on.
+    #
+    # DOWNGRADE used to mean one thing -- step the tier down once, which raises
+    # the margin from 1.05 to 1.10 -- and under a ``p_central`` bar that is a 5%
+    # move on the price. On 2026-09-03 the Grenal's ``fouls_total`` and both
+    # ``fouls_for`` rows were downgraded with the reason "conditional on this
+    # match the record is 1/3, not 19/21" and printed as value anyway. A 5%
+    # margin is not an answer to "this sample is not measuring this fixture";
+    # it is the answer to "this sample is fine and something else is uncertain".
+    #
+    # What each class does lives in ``coupons.build_coupons`` (see
+    # ``VETO_CLASS_ZERO_WEIGHT`` and ``VETO_CLASS_DOUBLE_K``), not here: this
+    # class is the analyst's vocabulary and must stay readable as such.
+    #
+    # Defaults to OTHER so a vetoes file written before this field existed
+    # still validates and still behaves exactly as it did.
+    reason_class: Literal[
+        "SAMPLE_NOT_REPRESENTATIVE",
+        "LINE_ON_MODE",
+        "MISSING_REFEREE",
+        "ESTIMAND_WRONG",
+        "DATA_CONFLICT",
+        "OTHER",
+    ] = "OTHER"
 
 
 class VetoIndex:
@@ -146,11 +171,24 @@ class VetoIndex:
     the analyst had struck.
     """
 
-    __slots__ = ("_by_key",)
+    __slots__ = ("_by_key", "ignored")
 
     def __init__(self, vetoes: Iterable[AnalystVeto] | None = None) -> None:
         self._by_key: dict[tuple[str, str, float | None, str | None], AnalystVeto] = {}
+        # Entries this index refuses to resolve, kept so the coupon header can
+        # say a decision was written down and not applied. Silently dropping
+        # one would be worse than either applying or refusing it.
+        self.ignored: list[tuple[AnalystVeto, str]] = []
         for veto in vetoes or ():
+            if veto.reason_class == "LINE_ON_MODE" and veto.line is None:
+                # "The line sits on the sample's mode" is a statement about one
+                # rung. Written market-wide it would strike every rung of a
+                # market on a fault that by construction belongs to one of
+                # them, which is the opposite of what a per-line class is for.
+                self.ignored.append(
+                    (veto, "LINE_ON_MODE without a line names no rung")
+                )
+                continue
             self._by_key.setdefault(
                 (veto.event_id, veto.market, veto.line, veto.direction), veto
             )
@@ -176,6 +214,18 @@ class VetoIndex:
 # marginal, never all the way to DROP, which is reserved for a sample too thin
 # to mean anything at all.
 _STEP_DOWN: dict[Tier, Tier] = {"CALL": "LEAN", "LEAN": "WEAK"}
+
+
+def cap_tier_at_lean(tier: Tier) -> Tier:
+    """A ceiling, not a step: CALL becomes LEAN and nothing else moves.
+
+    Distinct from ``step_tier_down`` because several structural caps fire on
+    one fixture at once -- a derby, in a knockout second leg, with no referee
+    named -- and three reasons to doubt a fixture do not make it three tiers
+    worse. Stepping per reason would have taken the Grenal's card rows from
+    CALL to DROP on evidence that says "at best a lean".
+    """
+    return "LEAN" if tier == "CALL" else tier
 
 
 def step_tier_down(tier: Tier) -> Tier:
@@ -243,7 +293,198 @@ TIER_MARGIN: dict[str, float] = {"CALL": 1.05, "LEAN": 1.10}
 BAR_BASES: tuple[str, ...] = ("p_central", "p_low")
 
 
-def bar_probability(row: StatsSheetRow, basis: str = "p_low") -> float:
+# The two caps on the bar's *input*, and why the bar needed them at all.
+#
+# ``p_central`` is the count model read at the sample's own centre. On a sample
+# with no miss the model is fitted to values that never crossed the line, so
+# the tail it reports is a property of the fit and not of anything observed:
+# Potapova's 5/5 aces sample, mean 1.4, returned p_central 0.962 at 3.5 UNDER
+# and demanded a minimum price of 1.14. Her 2026 season average is 3.25 and she
+# had hit 10 aces in round one. Every 5/5 tennis row on the 2026-09-03 slate
+# passed its bar that way.
+#
+# **Neither cap touches ``p_central`` itself.** It stays on the row exactly as
+# computed, because it is the number the calibration reporting is measured on
+# and moving it would make the next measurement uninterpretable. What moves is
+# the number the bar divides into 1.
+#
+# 1. **Zero misses: Laplace.** ``(hits + 1) / (n + 2)`` is the posterior mean
+#    of a Bernoulli rate under a uniform prior -- the standard answer to "the
+#    sample says 5 out of 5, what rate is that". At 5/5 it is 0.857, at 8/8
+#    0.900, at 20/20 0.955. It is not conservative in the Wilson sense; it is
+#    simply the largest rate a clean sweep is evidence for, and it is *below*
+#    what a fitted tail will claim on any line the sample never approached.
+#    Applied as a cap and not a replacement, so a sample whose model already
+#    says less than Laplace keeps the smaller number.
+#
+# 2. **n < 8: the bar falls back to ``p_low``.** Eight is the threshold this
+#    pipeline already uses for a settled sample (``_confidence``, and CALL's
+#    own n>=8). Below it the count model is being asked to describe a
+#    distribution from fewer trials than it has effective parameters, and the
+#    honest statement of a thin sample is its lower bound. This is the cap that
+#    does the work on the audited rows: it takes Potapova's bar from 1.14 to
+#    1/0.5655 x 1.10 = 1.945.
+#
+# The two are not alternatives and are not ordered -- the bar takes the
+# smallest of everything that applies, which is the only combination that
+# cannot be argued into a looser threshold by adding a rule.
+BAR_ZERO_MISS_N = 8
+
+BAR_REASON_LAPLACE = "ZERO_MISS_LAPLACE_CAP"
+BAR_REASON_SMALL_SAMPLE = "SMALL_SAMPLE_P_LOW"
+
+
+def laplace_rate(hits: int, sample_size: int) -> float | None:
+    """``(hits + 1) / (n + 2)``, or None on an empty sample."""
+    if sample_size <= 0:
+        return None
+    return (hits + 1) / (sample_size + 2)
+
+
+def bar_input(row: StatsSheetRow, basis: str = "p_low") -> tuple[float, str | None]:
+    """``(probability, why it was capped)`` for the *sample* side of the bar.
+
+    The reason is None when nothing capped the basis, and is carried through to
+    the coupon so the operator can see why a minimum moved rather than only
+    that it did.
+
+    This is the sample's own claim after the two caps and before the market
+    prior; ``bar_components`` is what actually feeds ``required_odds``.
+    """
+    if basis == "p_central" and row.p_central is not None:
+        chosen, reason = row.p_central, None
+    else:
+        # ``p_low`` is already the tighter bar and already the honest statement
+        # of a thin sample, so neither cap can improve on it and neither is
+        # reported against it.
+        return row.p_low, None
+
+    if row.sample_size > 0 and row.hits >= row.sample_size:
+        cap = laplace_rate(row.hits, row.sample_size)
+        if cap is not None and cap < chosen:
+            chosen, reason = cap, BAR_REASON_LAPLACE
+    if row.sample_size < BAR_ZERO_MISS_N and row.p_low < chosen:
+        chosen, reason = row.p_low, BAR_REASON_SMALL_SAMPLE
+    return chosen, reason
+
+
+# --- the market prior ------------------------------------------------------
+#
+# For every row the 2026-09-03 audit read, the devigged Superbet pivot was
+# available and disagreed with us by 20 to 50 points: cards at a 7.5 pivot
+# against a sample median of 5.5, fouls 36.5 against 27.4, aces 3.5 against
+# 1.4. Nothing in the pipeline used it as evidence. ``MAX_MARKET_DISAGREEMENT``
+# annotated the gap, ``MAX_LADDER_SIGMA`` demoted on it, and both are
+# thresholds on a number that was never allowed into the arithmetic.
+#
+# Genuine value *is* a disagreement, so the gate cannot simply grow teeth --
+# that trade was made and reversed on 2026-09-02, and it cost the file its one
+# real row. What can change is the weight: a two-sided price is a forecast made
+# by somebody with more data than five matches, and a five-observation sample
+# should not be allowed to overrule it outright.
+#
+#     w = n / (n + k)        p_shrunk = w * p_bar + (1 - w) * p_mkt
+#
+# The same shape as ``analyze.shrunk_centre``, one level up: that one shrinks
+# the sample's *centre* toward a market-wide average, this one shrinks the
+# sample's *probability* toward this fixture's own posted price. At k = 10 a
+# 5-observation sample keeps a third of its own opinion and a 20-observation
+# one two thirds.
+#
+# k is per market family and the two starting values are the handoff note's:
+# 10 for football totals, 20 for the tennis markets whose value scales with how
+# long the match runs. The tennis number is higher because that is where the
+# sample is least likely to be measuring the right quantity -- a best-of-three
+# aces sample against a best-of-five tie is the standing example, and the
+# 2026-09-03 slate's four worst rows were all in this family.
+#
+# **These are starting values, not measured ones.** See
+# docs/PLAN_EDGE_INTEGRITY_2026-09-03.md for the arm comparison; k is chosen
+# from ROI intervals over the slates that have a ``superbet_offer.json``, and
+# until that measurement covers more than a handful of slates the numbers here
+# are a prior on a prior.
+DEFAULT_SHRINK_K = 10.0
+
+_TENNIS_LENGTH_DEPENDENT_SHRINK_K = 20.0
+_LENGTH_DEPENDENT_TENNIS_MARKETS = frozenset(
+    {
+        "total_sets", "total_games", "games_won",
+        "aces_total", "aces_for",
+        "double_faults_total", "double_faults_for",
+        "breaks_total",
+    }
+)
+
+
+def shrink_k_for_market(market: str) -> float:
+    """How many observations this market's own price is worth."""
+    if market in _LENGTH_DEPENDENT_TENNIS_MARKETS:
+        return _TENNIS_LENGTH_DEPENDENT_SHRINK_K
+    return DEFAULT_SHRINK_K
+
+
+class BarComponents(NamedTuple):
+    """Everything that went into one row's minimum price.
+
+    Printed in full on the coupon row, because a bar the operator cannot
+    reconstruct is a number he has to take on trust -- and this one has four
+    moving parts where it used to have one.
+    """
+
+    probability: float
+    # The sample's own claim after the two caps, before the market prior.
+    p_bar: float
+    # Which cap bound ``p_bar``, or None.
+    reason: str | None
+    # The book's own devigged probability for this exact outcome, or None when
+    # it posted only one side of the line.
+    p_market: float | None
+    # ``n / (n + k)``: how much of the answer is the sample's. None when there
+    # is no market probability to shrink toward.
+    weight: float | None
+
+
+def bar_components(
+    row: StatsSheetRow,
+    basis: str = "p_low",
+    *,
+    market_probability: float | None = None,
+    shrink_k: float | None = None,
+    force_weight: float | None = None,
+) -> BarComponents:
+    """The bar's input, decomposed.
+
+    ``market_probability`` None leaves the row priced on its sample alone,
+    which is the pre-2026-09-03 behaviour and the only honest answer for a
+    one-way market: we cannot shrink toward a price we cannot read.
+
+    ``force_weight`` overrides ``n / (n + k)``. It exists for the analyst's own
+    verdicts (see ``AnalystVeto.reason_class``): a sample the analyst has
+    declared uninformative is worth zero observations, whatever ``n`` says, and
+    that is a judgement no formula on ``n`` can express.
+    """
+    p_bar, reason = bar_input(row, basis)
+    if market_probability is None or not 0.0 < market_probability < 1.0:
+        return BarComponents(p_bar, p_bar, reason, None, None)
+
+    if force_weight is not None:
+        weight = min(1.0, max(0.0, force_weight))
+    else:
+        k = shrink_k_for_market(row.market) if shrink_k is None else shrink_k
+        n = float(row.sample_size)
+        weight = 1.0 if k <= 0 else n / (n + k)
+    probability = weight * p_bar + (1.0 - weight) * market_probability
+    return BarComponents(probability, p_bar, reason, market_probability, weight)
+
+
+def bar_probability(
+    row: StatsSheetRow,
+    basis: str = "p_low",
+    *,
+    market_probability: float | None = None,
+    shrink_k: float | None = None,
+    force_weight: float | None = None,
+) -> float:
     """The probability ``required_odds`` divides into 1.
 
     An unrecognised basis falls back to ``p_low`` rather than raising: the bar
@@ -253,12 +494,24 @@ def bar_probability(row: StatsSheetRow, basis: str = "p_low") -> float:
     sheets the ``p_central`` arm exists to paper-trade over; ``p_low`` is the
     tighter bar, so the fallback fails closed, not open.
     """
-    if basis == "p_central" and row.p_central is not None:
-        return row.p_central
-    return row.p_low
+    return bar_components(
+        row,
+        basis,
+        market_probability=market_probability,
+        shrink_k=shrink_k,
+        force_weight=force_weight,
+    ).probability
 
 
-def required_odds(row: StatsSheetRow, tier: str, *, basis: str = "p_low") -> float:
+def required_odds(
+    row: StatsSheetRow,
+    tier: str,
+    *,
+    basis: str = "p_low",
+    market_probability: float | None = None,
+    shrink_k: float | None = None,
+    force_weight: float | None = None,
+) -> float:
     """``min_acceptable_odds`` for one row -- the single implementation.
 
     It had been written out three times even after the 2026-09-02 sweep that
@@ -267,7 +520,16 @@ def required_odds(row: StatsSheetRow, tier: str, *, basis: str = "p_low") -> flo
     All three agreed; nothing made them agree, and one of them decides the
     ranking while another is the number printed for the operator to act on.
     """
-    return round((1.0 / bar_probability(row, basis)) * TIER_MARGIN[tier], 4)
+    probability = bar_probability(
+        row,
+        basis,
+        market_probability=market_probability,
+        shrink_k=shrink_k,
+        force_weight=force_weight,
+    )
+    if probability <= 0:
+        return float("inf")
+    return round((1.0 / probability) * TIER_MARGIN[tier], 4)
 
 # Markets whose outcomes in a single football match move together. Any two legs
 # drawn from here are positively correlated, which is most of what anyone would
@@ -275,6 +537,7 @@ def required_odds(row: StatsSheetRow, tier: str, *, basis: str = "p_low") -> flo
 _CORRELATED_FOOTBALL_FAMILY = frozenset(
     {
         "corners_total", "corners_for",
+        "cards_points_total", "cards_points_for",
         "cards_total", "cards_for",
         "fouls_total", "fouls_for",
         "shots_total", "shots_for",
@@ -297,6 +560,7 @@ _COMPONENT_OF_TOTAL = {
     "goals_1h_total": "goals_total",
     "goals_2h_total": "goals_total",
     "corners_for": "corners_total",
+    "cards_points_for": "cards_points_total",
     "cards_for": "cards_total",
     "fouls_for": "fouls_total",
     "shots_for": "shots_total",
@@ -328,6 +592,116 @@ CORRELATION_LAMBDA_NESTED = 1.045
 # 10,716 pairs, and 0.999-1.007 in every probability band. It is kept as a
 # number rather than rounded to 1.0 so that the file states what was measured.
 CORRELATION_LAMBDA_FLAT = 1.006
+
+
+# --- mechanism families ----------------------------------------------------
+#
+# One leg per *market* is not one leg per bet. "Cards under 8.5" and "fouls
+# under 36.5" in one fixture are two readings of one thing -- how rough the
+# referee lets the match get -- and a slip built from both is a single bet
+# sold twice, priced as though it were two.
+#
+# The families are the mechanisms, not the markets:
+#
+#   discipline  cards and fouls; a foul-heavy match is a card-heavy match, and
+#               ``correlation_lambda`` already measures them landing together
+#   attacking   corners, shots, shots on target, offsides; all produced by the
+#               same territorial pressure
+#   scoring     goals, in the match and in either half
+#   length      the tennis markets that grow with how long the match runs --
+#               sets, games, aces, double faults, breaks
+#
+# Player props keep their own family per market: two props on two different
+# players are two different people's afternoons, and collapsing them would
+# refuse the one kind of same-match pair that really is close to independent.
+#
+# What this replaced was ``one leg per (market, subject)``, which let
+# 2026-09-03's Grenal slip take cards *and* fouls, and take
+# ``cards_for`` Internacional alongside ``cards_points_total`` -- three legs
+# and one mechanism.
+MECHANISM_FAMILIES: dict[str, str] = {
+    "cards_points_total": "discipline",
+    "cards_points_for": "discipline",
+    "cards_total": "discipline",
+    "cards_for": "discipline",
+    "red_cards_total": "discipline",
+    "fouls_total": "discipline",
+    "fouls_for": "discipline",
+    "corners_total": "attacking",
+    "corners_for": "attacking",
+    "shots_total": "attacking",
+    "shots_for": "attacking",
+    "shots_on_target_total": "attacking",
+    "shots_on_target_for": "attacking",
+    "offsides_total": "attacking",
+    "offsides_for": "attacking",
+    "goals_total": "scoring",
+    "goals_for": "scoring",
+    "goals_1h_total": "scoring",
+    "goals_2h_total": "scoring",
+    "total_sets": "length",
+    "total_games": "length",
+    "games_won": "length",
+    "aces_total": "length",
+    "aces_for": "length",
+    "double_faults_total": "length",
+    "double_faults_for": "length",
+    "breaks_total": "length",
+}
+
+
+def mechanism_family(row_or_leg) -> str:
+    """Which mechanism this leg is a reading of.
+
+    A player prop is its own family per (market, player): two props on two
+    different people are the closest thing a same-match slip has to independent
+    legs, and folding them together would delete the pairs worth having.
+    """
+    market = row_or_leg.market
+    family = MECHANISM_FAMILIES.get(market)
+    if family is not None:
+        return family
+    return f"{market}:{getattr(row_or_leg, 'player_name', None) or ''}"
+
+
+def implies(
+    first: tuple[str, float, str], second: tuple[str, float, str]
+) -> bool:
+    """Whether ``first`` makes ``second`` nearly certain.
+
+    Two shapes, and both put a leg on a slip that is being paid for twice.
+
+    **The same market at two rungs.** "Under 3.5" implies "under 4.5"; "over
+    5.5" implies "over 4.5". Superbet will not accept both anyway, and
+    ``duplicate_market`` already refuses them -- this states the arithmetic so
+    the nesting rule below can share it.
+
+    **A part inside its whole, same direction.** "Internacional under 3.5
+    cards" and "match under 8.5 cards" are not two bets: the first is most of
+    the second. On 2026-09-03 the Grenal slip carried Internacional <=3 and
+    Grêmio <=5 alongside the match total <=8, which is one bet written three
+    times and priced as three.
+
+    Deliberately weaker than ``_legs_conflict``: that one refuses pairs that
+    cannot both happen, this one refuses pairs that nearly always do.
+    """
+    market_a, line_a, direction_a = first
+    market_b, line_b, direction_b = second
+    if direction_a != direction_b:
+        return False
+    if market_a == market_b:
+        return (
+            line_a <= line_b if direction_a == "UNDER" else line_a >= line_b
+        )
+    # A part inside its whole. Only the direction in which the implication runs
+    # -- a team being under its line says something about the match being under
+    # its own only when the team's line is at least as large as... nothing
+    # arithmetically guaranteed, in fact. What is true is that the two are
+    # readings of one quantity, and the family rule above already refuses the
+    # pair; this catches the case where they are the *same* quantity split.
+    return _COMPONENT_OF_TOTAL.get(market_a) == market_b or (
+        _COMPONENT_OF_TOTAL.get(market_b) == market_a
+    )
 
 
 def _is_nested(market_a: str, market_b: str) -> bool:
@@ -468,6 +842,94 @@ class BetBuilderDraft(StrictBaseModel):
     correlation_risk: Literal["HIGH", "LOW", "NOT_APPLICABLE"] = "NOT_APPLICABLE"
     correlation_note: str = ""
     excluded: dict[str, int] = Field(default_factory=dict)
+    # docs/SUPERBET_BET_BUILDER_METHOD_v3.md §44, computed. None on a draft
+    # with fewer than two legs, which is not a builder.
+    builder_score: float | None = None
+    builder_score_parts: dict[str, float] = Field(default_factory=dict)
+    # Set when §44 refused the slip. The legs stay on the draft so the refusal
+    # is auditable; nothing downstream reads a draft with this set.
+    builder_score_refused: bool = False
+
+
+# --- the builder score (docs/SUPERBET_BET_BUILDER_METHOD_v3.md §44) --------
+#
+# The method document gives the weights and names the five terms; it does not
+# define them numerically. What follows is this repo's definition of each, and
+# the definitions are the part to argue with:
+#
+#   weakest leg   the smallest of the legs' bar probabilities. §44's first and
+#                 largest term, for the same reason ``weakest_leg_p_low`` ranks
+#                 slips: a slip settles on every leg, so it is worth the leg you
+#                 are least sure about.
+#   mean leg      the arithmetic mean of the same probabilities.
+#   correlation   1.0 when ``correlation_risk`` is LOW or NOT_APPLICABLE, 0.4
+#                 when it is HIGH. A score, so higher is better and more
+#                 correlated is worse.
+#   robustness    distinct mechanism families over legs. One mechanism means
+#                 every leg wins or loses together, whatever the markets are
+#                 called. Always 1.0 now that ``draft_legs`` refuses a second
+#                 leg from one family -- kept because ``builder_score`` is
+#                 callable on legs somebody else assembled.
+#   data quality  the mean over legs of ``min(1, n/12)``, docked to 0.5 for any
+#                 leg two providers actively contradict. Twelve because that is
+#                 comfortably past the n>=8 this pipeline already treats as a
+#                 settled sample.
+#
+# The document's three penalties: the contradiction penalty is not a penalty
+# here but a refusal (``jointly_impossible`` and ``nested_leg`` remove the leg
+# before it reaches a slip, which is §40 enforced rather than scored), and the
+# source-conflict penalty is folded into ``data quality`` above. The tail-risk
+# penalty is not implemented -- it needs a scenario model this pipeline does
+# not have, and inventing one to fill a term would be worse than a term short.
+# So the score is capped by what is missing, never inflated by it.
+#
+# 0.60 is the method document's own refusal threshold. On the five terms above
+# it is roughly "every leg near 0.7, uncorrelated, well sampled" -- which is
+# what a slip worth placing looks like.
+BUILDER_SCORE_MIN = 0.60
+
+_BUILDER_WEIGHTS = {
+    "weakest_leg": 0.40,
+    "mean_leg": 0.25,
+    "correlation": 0.15,
+    "robustness": 0.10,
+    "data_quality": 0.10,
+}
+
+
+def builder_score(
+    legs: list[BetBuilderLeg],
+    *,
+    correlation_risk: str = "NOT_APPLICABLE",
+    bar_basis: str = "p_low",
+) -> tuple[float | None, dict[str, float]]:
+    """``(score, its five parts)``. ``(None, {})`` on fewer than two legs."""
+    if len(legs) < 2:
+        return None, {}
+
+    def leg_probability(leg: BetBuilderLeg) -> float:
+        if bar_basis == "p_central" and leg.p_central is not None:
+            return leg.p_central
+        return leg.p_low
+
+    probabilities = [leg_probability(leg) for leg in legs]
+    families = {mechanism_family(leg) for leg in legs}
+    quality = []
+    for leg in legs:
+        own = min(1.0, leg.sample_size / 12.0)
+        if any("providers disagree" in note for note in leg.caveats):
+            own = min(own, 0.5)
+        quality.append(own)
+
+    parts = {
+        "weakest_leg": min(probabilities),
+        "mean_leg": sum(probabilities) / len(probabilities),
+        "correlation": 0.4 if correlation_risk == "HIGH" else 1.0,
+        "robustness": len(families) / len(legs),
+        "data_quality": sum(quality) / len(quality),
+    }
+    score = sum(_BUILDER_WEIGHTS[name] * value for name, value in parts.items())
+    return round(score, 4), {name: round(value, 4) for name, value in parts.items()}
 
 
 def tier_for_row(row: StatsSheetRow) -> Tier:
@@ -585,6 +1047,11 @@ def tier_for_row(row: StatsSheetRow) -> Tier:
     # having two reasons to doubt it than for having one.
     if any(flag.direction == "ARGUES_AGAINST" for flag in row.context_flags):
         tier = step_tier_down(tier)
+    # Structural ceilings ANALYZE attached: see
+    # ``StatsSheetRow.lean_ceiling_reasons``. Applied last and as a cap, so a
+    # fixture with three of them is not three tiers worse than one with one.
+    if row.lean_ceiling_reasons:
+        tier = cap_tier_at_lean(tier)
     return tier
 
 
@@ -592,6 +1059,11 @@ def _caveats(row: StatsSheetRow) -> list[str]:
     notes: list[str] = []
     if row.cross_provider_agreement == "SINGLE_SOURCE":
         notes.append("single-source: nothing corroborates this row")
+    if row.cross_provider_agreement == "PARTIAL_AGREE":
+        notes.append(
+            f"partially corroborated: {row.corroborated_matches}/{row.sample_size} "
+            "matches seen by a second provider"
+        )
     if row.cross_provider_agreement == "DISAGREE":
         notes.append("providers disagree and were never averaged")
     if row.player_id and (row.lineup_status or "") != "confirmed":
@@ -765,10 +1237,13 @@ def draft_legs(
     )
     eligible = value + rest
 
-    # One leg per market: two lines of the same market in one slip are the same
-    # read twice, and Superbet will not accept both anyway.
+    # One leg per market, and since 2026-09-03 one leg per *mechanism*: two
+    # lines of the same market in one slip are the same read twice, and two
+    # markets driven by the same thing are the same bet sold twice. See
+    # MECHANISM_FAMILIES.
     legs: list[BetBuilderLeg] = []
     markets_used: set[str] = set()
+    families_used: set[str] = set()
     for row, tier in eligible:
         if len(legs) >= max_legs:
             exclude("over_max_legs")
@@ -777,6 +1252,7 @@ def draft_legs(
         if key in markets_used:
             exclude("duplicate_market")
             continue
+        family = mechanism_family(row)
         if any(
             _legs_conflict(
                 (row.market, row.line, row.direction),
@@ -785,6 +1261,22 @@ def draft_legs(
             for leg in legs
         ):
             exclude("jointly_impossible")
+            continue
+        if any(
+            implies((row.market, row.line, row.direction),
+                    (leg.market, leg.line, leg.direction))
+            or implies((leg.market, leg.line, leg.direction),
+                       (row.market, row.line, row.direction))
+            for leg in legs
+        ):
+            exclude("nested_leg")
+            continue
+        # Last of the three structural refusals, so the sharpest diagnosis
+        # wins: a pair that cannot both happen is reported as impossible, a
+        # pair where one implies the other as nested, and only what is left
+        # over as two readings of one mechanism.
+        if family in families_used:
+            exclude("duplicate_mechanism_family")
             continue
         fair_odds = 1.0 / row.p_low
         minimum, availability, price = priced[id(row)]
@@ -829,6 +1321,7 @@ def draft_legs(
                 continue
 
         markets_used.add(key)
+        families_used.add(family)
         legs.append(
             BetBuilderLeg(
                 event_id=row.event_id,
@@ -927,6 +1420,12 @@ def draft_legs(
                 product *= price  # type: ignore[operator]
             separately = round(product, 4)
 
+    # §44, last: it reads the finished slip, including its correlation verdict.
+    score, parts = builder_score(legs, correlation_risk=risk, bar_basis=bar_basis)
+    refused = score is not None and score < BUILDER_SCORE_MIN
+    if refused:
+        excluded["builder_score_below_minimum"] = 1
+
     return BetBuilderDraft(
         event_id=event_id,
         legs=legs,
@@ -937,4 +1436,7 @@ def draft_legs(
         correlation_risk=risk,  # type: ignore[arg-type]
         correlation_note=note,
         excluded=dict(sorted(excluded.items())),
+        builder_score=score,
+        builder_score_parts=parts,
+        builder_score_refused=refused,
     )

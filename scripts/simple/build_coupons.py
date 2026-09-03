@@ -56,6 +56,19 @@ def _kickoff(iso: str) -> str:
     return iso[11:16] if len(iso) >= 16 else ""
 
 
+def agreement_cell(s) -> str:
+    """The "Zgodność" cell: the label, and the share behind it.
+
+    ``AGREE`` used to be printed alone and meant anything from 2 corroborated
+    matches out of 23 to 23 out of 23. The share is the evidence for the word,
+    it is already on the row (``corroborated_matches``), and one column can
+    hold both.
+    """
+    if s.cross_provider_agreement in ("AGREE", "PARTIAL_AGREE") and s.sample_size:
+        return f"{s.cross_provider_agreement} {s.corroborated_matches}/{s.sample_size}"
+    return s.cross_provider_agreement
+
+
 def _singles_row(s, *, edge: str | None = None) -> str:
     """One markdown table row for a single. ``edge`` prepends an extra column
     when given, so the two singles sections (Faza 5c) share one row format."""
@@ -74,7 +87,7 @@ def _singles_row(s, *, edge: str | None = None) -> str:
     edge_cell = f"| {edge} " if edge is not None else ""
     return (
         f"| {s.rank} {edge_cell}| {s.p_low * 100:.1f}% | {s.match} | {market} | {s.direction} "
-        f"| {s.hits}/{s.sample_size} | {s.sample_size} | {s.cross_provider_agreement} "
+        f"| {s.hits}/{s.sample_size} | {s.sample_size} | {agreement_cell(s)} "
         f"| {mkt} | {s.tipster or 'brak'} | **{s.min_acceptable_odds:.2f}** "
         f"| {superbet_cell(s)} | {s.tier} |"
     )
@@ -113,7 +126,100 @@ def superbet_cell(s) -> str:
     return f"{s.superbet_price:.2f}"
 
 
-def render_markdown(coupons: CouponSet) -> str:
+# The gates added on 2026-09-03, with what each one is, in the header's own
+# words. Keyed by the reason string ``build_coupons`` counts under.
+#
+# Printed because a file that is thinner than yesterday's is either a quiet day
+# or a new gate, and the operator cannot tell which from a row count. Every one
+# of these removes rows that used to reach him.
+_NEW_GATE_LABELS: dict[str, str] = {
+    "rung_not_chosen": "inny szczebel tej samej drabinki wygrał punktację",
+    "builder_score_below_minimum": "kupon BB poniżej progu §44 (0.60)",
+    "duplicate_market_for_event": "ten sam rynek tego samego meczu",
+    "tier_weak": "tier WEAK (m.in. sufit LEAN → krok w dół)",
+    "tier_drop": "tier DROP",
+    "analyst_veto": "weto analityka",
+    "p_low_below_threshold": "p_low poniżej progu",
+    "superbet_not_value": "cena Superbetu poniżej minimum",
+    "kickoff_passed": "mecz już się rozpoczął",
+    "over_max_singles": "poza limitem singli",
+    "competition_youth_or_friendly": "rozgrywki młodzieżowe/towarzyskie",
+    "ambiguous_player_name": "dwóch zawodników o tym samym nazwisku",
+    "p_low_not_positive": "p_low = 0",
+}
+
+
+def _render_bar_basis(a, coupons: CouponSet) -> None:
+    """What the minimum prices in this file were computed from.
+
+    Three numbers decide every ``Min. kurs`` cell -- the basis, the caps on it,
+    and the market prior's ``k`` -- and before 2026-09-03 none of them was in
+    the file. The same 5/5 sample produces a 1.14 minimum or a 1.95 one
+    depending on them, so a reader who cannot see them cannot check a single
+    row.
+    """
+    bases = {s.bar_basis for s in coupons.singles if s.bar_basis}
+    if not bases:
+        return
+    ks = sorted({s.shrink_k for s in coupons.singles if s.shrink_k is not None})
+    reasons: dict[str, int] = {}
+    for single in coupons.singles:
+        if single.bar_basis_reason:
+            reasons[single.bar_basis_reason] = reasons.get(single.bar_basis_reason, 0) + 1
+    shrunk = sum(1 for s in coupons.singles if s.sample_weight is not None)
+
+    a(
+        "**Podstawa progu:** "
+        + "/".join(sorted(bases))
+        + (f" · k rynkowe: {', '.join(f'{k:g}' for k in ks)}" if ks else "")
+        + f" · z priorem rynku: {shrunk}/{len(coupons.singles)}"
+    )
+    if reasons:
+        a(
+            "**Ograniczenia podstawy:** "
+            + ", ".join(f"{name} ×{count}" for name, count in sorted(reasons.items()))
+        )
+    a(
+        "> `p_shrunk = w·p_bar + (1−w)·p_mkt`, `w = n/(n+k)`. `p_bar` to własne "
+        "zdanie próby po dwóch ograniczeniach (Laplace przy zerowym pudle, "
+        "`p_low` przy n<8), `p_mkt` to odwigowana cena Superbetu na tym samym "
+        "szczeblu. Minimalny kurs = margines tieru / `p_shrunk`."
+    )
+    a("")
+    removed = {
+        reason: count
+        for reason, count in sorted(coupons.excluded.items())
+        if reason in _NEW_GATE_LABELS and count
+    }
+    if removed:
+        a("**Bramki, które usunęły wiersze:**")
+        a("")
+        for reason, count in removed.items():
+            a(f"- `{reason}` ×{count} — {_NEW_GATE_LABELS[reason]}")
+        a("")
+
+
+def _render_funnel(a, funnel: dict) -> None:
+    """Offered → in window → resolved → enriched → priced → above bar.
+
+    The one table that says whether a thin file is a thin day or a narrow
+    entry to it. Measured on 2026-09-03: Superbet's board carried 4,041 events
+    in window, of which 150 were football and 489 tennis; bzzoiro -- the
+    provider of record, and the only source of a per-team sample -- carried 29
+    football fixtures in the same window. The ceiling is that 29.
+    """
+    a("**Lej podaży:**")
+    a("")
+    a("| etap | liczba |")
+    a("|------|-------:|")
+    for label, value in funnel.items():
+        if value is None:
+            continue
+        a(f"| {label} | {value} |")
+    a("")
+
+
+def render_markdown(coupons: CouponSet, funnel: dict | None = None) -> str:
     """The operator's file. Polish, because that is who reads it."""
     out: list[str] = []
     a = out.append
@@ -127,6 +233,9 @@ def render_markdown(coupons: CouponSet) -> str:
         f"**{len(coupons.singles)} singli**, **{len(coupons.slips)} kuponów BB**"
     )
     a("")
+    _render_bar_basis(a, coupons)
+    if funnel:
+        _render_funnel(a, funnel)
     for note in coupons.notes:
         a(f"> {note}")
         a(">")
@@ -416,6 +525,81 @@ def _render_tipster_consensus(a, consensus) -> None:
         a("")
 
 
+def _refresh_offer(previous, event_list, path: Path):
+    """Re-collect the Superbet board, keeping the previous offer on any failure.
+
+    Refetching and *failing* would be the worst outcome available: the coupon
+    would go out with no Superbet column at all because the network blinked,
+    which is strictly less information than an offer an hour old. So a failed
+    refresh is a note and the old artifact stands.
+
+    Written back to disk deliberately. The next reader of this day -- a
+    backtest, a slip audit, an operator asking why a price moved -- must see
+    the prices the coupon was built from, not the ones it replaced.
+    """
+    from bet.simple_stats.superbet_offer import collect_superbet_offer
+
+    try:
+        fresh = collect_superbet_offer(event_list)
+    except Exception as exc:  # noqa: BLE001 - a dead offer host is not a dead coupon
+        print(
+            json.dumps({"warning": f"offer refresh failed, keeping {path}: {exc}"}),
+            file=sys.stderr,
+        )
+        return previous
+    if not fresh.events:
+        print(
+            json.dumps({"warning": f"offer refresh returned no events, keeping {path}"}),
+            file=sys.stderr,
+        )
+        return previous
+    write_json_atomic(path, fresh.model_dump(mode="json"))
+    print(
+        json.dumps({
+            "offer_refreshed": str(path),
+            "events_matched": fresh.events_matched,
+            "requests_made": fresh.requests_made,
+            "previous_generated_at": previous.generated_at,
+            "generated_at": fresh.generated_at,
+        }),
+        file=sys.stderr,
+    )
+    return fresh
+
+
+def _funnel(offer, sheet, coupons) -> dict[str, int | None]:
+    """Offered -> in window -> resolved -> enriched -> priced -> above bar.
+
+    Every number comes from an artifact this script already loaded, so it costs
+    nothing and cannot drift from the file it is printed in.
+
+    ``w naszych sportach`` needs ``SuperbetOfferV1.unmatched_events``, which
+    only exists on offers collected from 2026-09-03. On an older artifact it
+    reads None and the row is omitted rather than guessed -- the count is
+    there (``events_unmatched``) but the sports filter is not, and reporting a
+    board of 3,200 esports rows as "our sports" would make the funnel say the
+    opposite of the truth.
+    """
+    if offer is None:
+        return {}
+    ours = None
+    if offer.unmatched_events:
+        ours = len(offer.events) + len(offer.unmatched_events)
+    priced = sum(
+        1 for row in sheet.rows
+        if row.superbet is not None and row.superbet.price is not None
+    )
+    worth_it = sum(1 for s in coupons.singles if s.superbet_verdict == "VALUE")
+    return {
+        "na tablicy Superbetu (wszystkie sporty)": offer.events_on_offer,
+        "w oknie i w naszych sportach": ours,
+        "dopasowane do naszych meczów": offer.events_matched,
+        "wzbogacone (mecze z wierszami)": len({row.event_id for row in sheet.rows}),
+        "wiersze z ceną na ekranie": priced,
+        "single powyżej progu": worth_it,
+    }
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
@@ -482,6 +666,20 @@ def main() -> None:
         "above their minimum acceptable odds are ranked first; rows it does not "
         "carry are kept and labelled, never dropped. Missing file is the "
         "pre-Superbet behaviour exactly, not an error.",
+    )
+    parser.add_argument(
+        "--refresh-offer",
+        action="store_true",
+        help=(
+            "Re-fetch the Superbet board before pricing, and overwrite the "
+            "offer artifact with it. About one request per matched fixture "
+            "plus one for the board -- roughly 110 on a normal slate, against "
+            "no metered quota. Worth it because this file is read minutes "
+            "after it is written and the offer behind it can be hours old: on "
+            "2026-09-02 a stale offer reported 52 VALUE rows against the 82 "
+            "the live board actually had. Off by default so a re-run of a past "
+            "day stays reproducible."
+        ),
     )
     parser.add_argument(
         "--tipster-signal",
@@ -573,6 +771,11 @@ def main() -> None:
         print(json.dumps({"error": f"superbet offer not found: {superbet_path}"}), file=sys.stderr)
         sys.exit(2)
 
+    if args.refresh_offer:
+        if superbet_offer is None:
+            parser.error("--refresh-offer needs an offer to refresh; pass --superbet-offer or --date")
+        superbet_offer = _refresh_offer(superbet_offer, event_list, superbet_path)
+
     sheet = StatsSheetV1.model_validate_json(sheet_path.read_text(encoding="utf-8"))
     kwargs = dict(
         max_singles=args.max_singles, max_slips=args.max_slips, max_legs=args.max_legs,
@@ -594,6 +797,7 @@ def main() -> None:
     else:
         kwargs["not_before"] = datetime.now(timezone.utc)
     coupons = build_coupons(sheet, event_list, **kwargs)
+    funnel = _funnel(superbet_offer, sheet, coupons)
 
     # Attached *after* the build, deliberately. ``build_coupons`` never receives
     # it, so the appendix cannot reach ranking, tiering, the veto index or the
@@ -645,7 +849,7 @@ def main() -> None:
         (run_dir or Path.cwd()) / f"{date}_kupony.md"
     )
     md_path.parent.mkdir(parents=True, exist_ok=True)
-    md_path.write_text(render_markdown(coupons), encoding="utf-8")
+    md_path.write_text(render_markdown(coupons, funnel=funnel), encoding="utf-8")
     write_json_atomic(md_path.parent / f"{date}_coupons.json", coupons.model_dump(mode="json"))
 
     print(

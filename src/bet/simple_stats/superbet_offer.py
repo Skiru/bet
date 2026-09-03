@@ -63,6 +63,7 @@ import re
 import unicodedata
 from collections.abc import Iterable, Mapping
 from datetime import UTC, datetime, timedelta
+from statistics import NormalDist
 from typing import Any
 
 from bet.discovery.team_aliases import resolve_team_alias
@@ -73,6 +74,7 @@ from bet.simple_stats.contracts import (
     StatsSheetRow,
     StatsSheetV1,
     SuperbetColumn,
+    SuperbetBoardEvent,
     SuperbetComparisonRow,
     SuperbetComparisonV1,
     SuperbetEventOffer,
@@ -134,7 +136,14 @@ MATCH_MARKET_NAMES: dict[str, str] = {
     # football, match totals
     "liczba goli": "goals_total",
     "liczba rzutow roznych": "corners_total",
-    "liczba kartek": "cards_total",
+    # Booking points, not yellows. Superbet settles this market with a
+    # straight red as 2 and a second-yellow dismissal as 3, and our
+    # ``cards_total`` is every provider's ``yellow_cards`` -- so pointing this
+    # name at it priced a smaller quantity than the one that pays. Found
+    # 2026-09-03 on Grêmio-Internacional, where the last three meetings read
+    # 7/7/4 in yellows and 10/9/4 in the quantity this market settles.
+    # ``cards_total`` is still collected and still has no market name.
+    "liczba kartek": "cards_points_total",
     "liczba celnych strzalow": "shots_on_target_total",
     "liczba strzalow": "shots_total",
     "liczba spalonych": "offsides_total",
@@ -189,7 +198,7 @@ PLAYER_YES_NO_MARKETS: dict[str, tuple[str, float]] = {
 # explicitly rather than guessed at.
 TEAM_MARKET_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"^(?P<team>.+?) - liczba rzutow roznych$"), "corners_for"),
-    (re.compile(r"^(?P<team>.+?) - liczba kartek$"), "cards_for"),
+    (re.compile(r"^(?P<team>.+?) - liczba kartek$"), "cards_points_for"),
     (re.compile(r"^(?P<team>.+?) - liczba goli$"), "goals_for"),
     (re.compile(r"^liczba celnych strzalow - (?P<team>.+?)$"), "shots_on_target_for"),
     (re.compile(r"^liczba strzalow (?P<team>.+?)$"), "shots_for"),
@@ -1032,16 +1041,32 @@ def build_event_offer(
 # --- comparison ------------------------------------------------------------
 
 
-def min_acceptable_odds(row: StatsSheetRow, tier: str, *, basis: str = "p_low") -> float | None:
-    """1/p_low x tier margin, or None when the row is not bettable at all.
+def min_acceptable_odds(
+    row: StatsSheetRow,
+    tier: str,
+    *,
+    basis: str = "p_low",
+    market_probability: float | None = None,
+) -> float | None:
+    """1/p x tier margin, or None when the row is not bettable at all.
 
     Returns None rather than a very large number for ``p_low == 0``: a row that
     never hit has no minimum price, it has no bet, and printing 1/0 as "inf"
     invites somebody to compare a real price against it.
+
+    ``market_probability`` is the book's own devigged number for this outcome
+    and is passed by the comparison, which has the offer in hand. It must be:
+    this function's whole contract is that it computes the number the coupon
+    computes, and since 2026-09-03 that number depends on the market prior.
+    Omitting it here would have made the comparison artifact report VALUE on
+    rows the coupon then declined -- two thresholds, one of them printed for
+    the operator.
     """
     if tier in UNBETTABLE_TIERS or row.p_low <= 0:
         return None
-    return required_odds(row, tier, basis=basis)
+    return required_odds(
+        row, tier, basis=basis, market_probability=market_probability
+    )
 
 
 def _nearest(
@@ -1060,6 +1085,7 @@ def compare_sheet_to_offer(
     *,
     min_p_low: float = 0.0,
     generated_at: str | None = None,
+    bar_basis: str = "p_central",
 ) -> SuperbetComparisonV1:
     """Judge every stats-sheet row against the operator's own book.
 
@@ -1072,6 +1098,16 @@ def compare_sheet_to_offer(
     Pure, and takes ``generated_at`` as an argument for the same reason
     ``build_coupons`` takes ``not_before``: an artifact that stamps itself from
     the clock cannot be diffed against a rerun.
+
+    ``bar_basis`` defaults to ``p_central``, which is what ``build_coupons``
+    ships with. It used to default to ``p_low`` here while the coupon used
+    ``p_central``, so the two artifacts disagreed about what a row's minimum
+    price was -- and this module's own contract is that they must not
+    (``min_acceptable_odds``: "a threshold that disagrees with the coupon's is
+    worse than no threshold"). Harmless while the difference was only
+    conservatism; not harmless once the market prior went on top of it, which
+    left this artifact demanding a p_low bar *and* a market prior and reporting
+    1 VALUE against the coupon's 7.
     """
     events = {e.event_id: e for e in (event_list.events if event_list else [])}
     offers = {o.event_id: o for o in offer.events if o.event_id}
@@ -1102,7 +1138,19 @@ def compare_sheet_to_offer(
         if row.p_low < min_p_low:
             continue
         tier = tier_for_row(row)
-        minimum = min_acceptable_odds(row, tier)
+        event_offer_for_bar = offers.get(row.event_id)
+        implied = devigged_probability(
+            event_offer_for_bar,
+            market=row.market,
+            line=row.line,
+            direction=row.direction,
+            team_name=row.team_name,
+            player_name=row.player_name,
+            player_aliases=aliases.get(row.event_id, {}),
+        )
+        minimum = min_acceptable_odds(
+            row, tier, basis=bar_basis, market_probability=implied
+        )
         if minimum is None:
             continue
         considered += 1
@@ -1132,6 +1180,9 @@ def compare_sheet_to_offer(
             median=row.median,
             tier=tier,
             min_acceptable_odds=minimum,
+            superbet_implied_probability=(
+                round(implied, 4) if implied is not None else None
+            ),
         )
 
         availability, exact, near_line, near_price = lookup_line(
@@ -1429,7 +1480,97 @@ def collect_superbet_offer(
         identity_bridge=(
             identity_bridge.as_metrics() if hasattr(identity_bridge, "as_metrics") else {}
         ),
+        unmatched_events=[board_event(raw) for raw in unmatched if sport_of(raw)],
     )
+
+
+def board_event(raw: dict[str, Any]) -> SuperbetBoardEvent:
+    """One raw by-date row reduced to identity. No lines, no request."""
+    return SuperbetBoardEvent(
+        superbet_event_id=str(raw.get("eventId") or ""),
+        match_name=str(raw.get("matchName") or ""),
+        sport=sport_of(raw) or "",
+        kickoff=str(raw.get("utcDate") or ""),
+        betradar_id=(str(raw["betradarId"]) if raw.get("betradarId") else None),
+    )
+
+
+def resolve_board_to_reference(
+    board: Iterable[SuperbetBoardEvent],
+    reference: Iterable[tuple[str, str, str, str]],
+    *,
+    sport: str = "football",
+    tolerance_minutes: float = 10.0,
+) -> tuple[dict[str, str], list[SuperbetBoardEvent], list[str]]:
+    """Join the operator's board to the provider of record, fixture by fixture.
+
+    ``reference`` is ``(fixture_id, home, away, kickoff_iso)`` -- bzzoiro's own
+    listing for the window, which the discovery adapter already pages and which
+    costs no extra request. Returns
+    ``(board_event_id -> fixture_id, unresolved board events, unclaimed fixture ids)``.
+
+    Names plus a ten-minute clock, exactly as ``match_offer_events`` joins the
+    other direction, and with the same one-to-one requirement: a fixture id is
+    claimed once. Exact normalised names win over the tolerant comparison, and
+    within each the nearest kickoff wins.
+
+    **What this measured on 2026-09-03, and why it is a report rather than a
+    slate expander.** The handoff note's premise was that Superbet's board is
+    large and our entry to it is narrow -- 3,691 events against 108 matched --
+    and asked for 60% of offered football to resolve to a bzzoiro id. Measured:
+    of 4,041 board events in window, 150 are football and 489 tennis; the other
+    3,402 are esports, simulated football and sports with no reader here.
+    bzzoiro carries **29** football fixtures in that window. This function
+    claims 24 of them, 83% of what exists -- and 24 of 150 offered, 16%.
+
+    So the ceiling is the provider of record's league coverage on a Wednesday,
+    not the join: bzzoiro listed 153 fixtures on Saturday 2026-08-30 and 28 on
+    Wednesday 2026-09-03. No amount of matching reaches a fixture the reference
+    provider has never heard of, and pricing one off a book that has no history
+    for it is not the alternative. What this does deliver is the number: the
+    funnel below is the difference between "the sheet is thin today" and "the
+    sheet is as wide as the reference provider was".
+    """
+    from bet.api_clients.superbet import split_match_name
+
+    candidates: list[tuple[str, tuple[str, ...], datetime | None]] = []
+    for fixture_id, home, away, kickoff in reference:
+        candidates.append((fixture_id, _side_key((home, away)), _parse_kickoff(kickoff)))
+
+    resolved: dict[str, str] = {}
+    claimed: set[str] = set()
+    unresolved: list[SuperbetBoardEvent] = []
+    for event in board:
+        if event.sport != sport:
+            continue
+        theirs = _parse_kickoff(event.kickoff)
+        home, away = split_match_name(event.match_name)
+        key = _side_key((home, away))
+        best: tuple[tuple[int, float], str] | None = None
+        for fixture_id, their_key, their_kickoff in candidates:
+            if fixture_id in claimed or theirs is None or their_kickoff is None:
+                continue
+            delta = abs((their_kickoff - theirs).total_seconds()) / 60.0
+            if delta > tolerance_minutes:
+                continue
+            exact = key == their_key
+            if not exact and not (
+                len(key) == len(their_key) == 2
+                and sides_compatible(key[0], their_key[0])
+                and sides_compatible(key[1], their_key[1])
+            ):
+                continue
+            score = (0 if exact else 1, delta)
+            if best is None or score < best[0]:
+                best = (score, fixture_id)
+        if best is None:
+            unresolved.append(event)
+            continue
+        claimed.add(best[1])
+        resolved[event.superbet_event_id] = best[1]
+
+    unclaimed = [fixture_id for fixture_id, _, _ in candidates if fixture_id not in claimed]
+    return resolved, unresolved, unclaimed
 
 
 def player_alias_index(
@@ -1531,6 +1672,152 @@ def lookup_line(
     return ("OFFERED", exact, None, None)
 
 
+# --- what the book itself thinks ------------------------------------------
+#
+# Every function below reads the *pair* of prices at one rung and divides the
+# overround out. ``1/price`` alone is not a probability: on these markets the
+# overround runs 8-9%, so using it would understate every disagreement by about
+# that much, in the direction that lets a bad row through a gate. Two prices
+# give the pair's overround exactly, and dividing it out is arithmetic rather
+# than an assumption.
+#
+# This lives here, next to ``lookup_line``, because three callers need the same
+# number: the SUPERBET comparison artifact (which records it), ``build_coupons``
+# (which shrinks toward it), and the ladder check (which locates the book's
+# centre from it). Three implementations of "what does the book think" would
+# drift within a week, and the one that decides a bar is the one that matters.
+
+
+def devigged_probability(
+    event_offer: SuperbetEventOffer | None,
+    *,
+    market: str,
+    line: float,
+    direction: str,
+    team_name: str | None,
+    player_name: str | None = None,
+    player_aliases: Mapping[str, str] | None = None,
+) -> float | None:
+    """The book's own probability for this exact outcome, margin removed.
+
+    Both sides of the line, or nothing. None when the opposite side is not
+    posted, which is common on one-way markets -- and None must disable
+    whatever reads it rather than defaulting: we cannot say the book disagrees
+    with us if we cannot read what it thinks.
+    """
+    opposite = "UNDER" if direction == "OVER" else "OVER"
+    prices: list[float] = []
+    for side in (direction, opposite):
+        availability, exact, _, _ = lookup_line(
+            event_offer,
+            market=market,
+            line=line,
+            direction=side,
+            team_name=team_name,
+            player_name=player_name,
+            player_aliases=player_aliases,
+        )
+        if availability != "OFFERED" or exact is None or exact.price <= 1.0:
+            return None
+        prices.append(exact.price)
+    overround = sum(1.0 / price for price in prices)
+    if overround <= 0:
+        return None
+    return (1.0 / prices[0]) / overround
+
+
+def devigged_ladder(
+    event_offer: SuperbetEventOffer | None,
+    *,
+    market: str,
+    team_name: str | None,
+    player_name: str | None = None,
+    player_aliases: Mapping[str, str] | None = None,
+) -> dict[float, float]:
+    """``{line: P(X < line)}`` over every two-sided rung the book posted.
+
+    A CDF sampled at the book's own half-points. Rungs posted on one side only
+    are absent rather than guessed at.
+    """
+    if event_offer is None:
+        return {}
+    their_name = player_name
+    if their_name is not None and player_aliases is not None:
+        their_name = player_aliases.get(their_name, their_name)
+    scope_team = None if market in PLAYER_SCOPE_MARKETS else team_name
+    rungs = {
+        offered.line
+        for offered in event_offer.lines
+        if offered.market == market
+        and offered.team_name == scope_team
+        and offered.player_name == their_name
+    }
+    cdf: dict[float, float] = {}
+    for line in sorted(rungs):
+        under = devigged_probability(
+            event_offer,
+            market=market,
+            line=line,
+            direction="UNDER",
+            team_name=team_name,
+            player_name=player_name,
+            player_aliases=player_aliases,
+        )
+        if under is not None:
+            cdf[line] = under
+    return cdf
+
+
+def ladder_centre(cdf: Mapping[float, float], *, dispersion: float | None = None) -> float | None:
+    """Where the book puts this market's centre, in the market's own units.
+
+    Two paths, and the second is the one added on 2026-09-03.
+
+    **Two or more rungs straddling even money: interpolate.** The devigged
+    ladder is a CDF and the median is where it crosses 0.5, found linearly
+    between the two rungs that bracket it. Interpolated and not fitted: a
+    two-parameter fit would put a shape assumption between the operator and a
+    number he is being asked to bet against, and a crossing point needs no
+    shape.
+
+    **One rung, or a ladder that never crosses 0.5: read the pivot.** This used
+    to return None, and on the 2026-09-03 slate that left ``ladder_sigma`` null
+    on 9 of 15 singles -- the check went inert on exactly the thin, single-rung
+    markets where a five-observation sample is most likely to be overruling a
+    real price. One rung does locate a centre once the sample's own spread is
+    known: ``P(X < L) = p`` means ``(L - mu) / sigma = Phi^-1(p)``, so
+    ``mu = L - Phi^-1(p) * sigma``.
+
+    That second path *does* assume a shape, and says so: it borrows the normal
+    quantile and the sample's own dispersion. It is used only to locate a
+    centre for the scale-free comparison in ``coupons.ladder_sigma``, never to
+    price anything, and it was checked against the interpolated answer where
+    both exist -- the Grenal's ``cards_total`` ladder gives -0.878 interpolated
+    and -0.868 from its 7.5 pivot alone.
+
+    ``dispersion`` is required for the single-rung path and ignored by the
+    interpolated one. None, zero, or a pivot at exactly even money leaves the
+    single-rung path unable to answer, and it returns None rather than a guess.
+    """
+    if not cdf:
+        return None
+    rungs = sorted(cdf)
+    for lower, upper in zip(rungs, rungs[1:]):
+        below, above = cdf[lower], cdf[upper]
+        if below < 0.5 <= above and above > below:
+            return lower + (0.5 - below) / (above - below) * (upper - lower)
+    if not dispersion:
+        return None
+    # The rung nearest even money carries the most information about where the
+    # centre is: a pivot at 0.99 pins the centre only loosely and puts all the
+    # weight on the normal tail being the right shape.
+    pivot = min(rungs, key=lambda line: (abs(cdf[line] - 0.5), line))
+    probability = cdf[pivot]
+    if not 0.0 < probability < 1.0:
+        return None
+    return pivot - NormalDist().inv_cdf(probability) * dispersion
+
+
 def attach_superbet_column(
     stats_sheet: StatsSheetV1,
     offer: SuperbetOfferV1,
@@ -1565,6 +1852,15 @@ def attach_superbet_column(
             player_name=row.player_name,
             player_aliases=aliases.get(row.event_id, {}),
         )
+        implied = devigged_probability(
+            event_offer,
+            market=row.market,
+            line=row.line,
+            direction=row.direction,
+            team_name=row.team_name,
+            player_name=row.player_name,
+            player_aliases=aliases.get(row.event_id, {}),
+        )
         rows.append(
             row.model_copy(
                 update={
@@ -1576,6 +1872,9 @@ def attach_superbet_column(
                         nearest_offered_line=near_line,
                         nearest_offered_price=near_price,
                         superbet_event_id=event_offer.superbet_event_id if event_offer else None,
+                        implied_probability=(
+                            round(implied, 4) if implied is not None else None
+                        ),
                     )
                 }
             )

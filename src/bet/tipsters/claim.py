@@ -48,7 +48,13 @@ from .normalization import collapse_ws, normalize_key
 # cannot be mapped onto one of these can never be compared to a stats-sheet row.
 CanonicalMarket = Literal[
     "corners_total",
-    "cards_total",
+    # A Polish tipster's "kartki" is Superbet's "Liczba kartek", which settles
+    # a red as two -- the same market the sheet now prices as
+    # ``cards_points_total``. Naming it ``cards_total`` here left every card
+    # claim pointing at a metric the sheet no longer has a row for, so the
+    # column would have read NO_COVERAGE on the one market tipsters mention
+    # most.
+    "cards_points_total",
     "shots_total",
     "shots_on_target_total",
     "fouls_total",
@@ -72,7 +78,7 @@ ClaimDirection = Literal["OVER", "UNDER", "OTHER"]
 # unit most likely to appear incidentally in a sentence about anything else.
 _UNIT_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
     ("corners_total", re.compile(r"\b(?:corners?|rzut\w*\s+ro[żz]n\w*|ro[żz]n\w*|ck)\b", re.I)),
-    ("cards_total", re.compile(r"\b(?:cards?|bookings?|kart\w*|[żz][óo][łl]t\w*|czerwon\w*)\b", re.I)),
+    ("cards_points_total", re.compile(r"\b(?:cards?|bookings?|kart\w*|[żz][óo][łl]t\w*|czerwon\w*)\b", re.I)),
     (
         "shots_on_target_total",
         re.compile(r"\b(?:shots?\s+on\s+target|sot|strza[łl]\w*\s+(?:na|w)\s+(?:cel|bramk\w*)|celn\w*\s+strza[łl]\w*)\b", re.I),
@@ -400,7 +406,7 @@ def _detect_scope(text: str, home: str, away: str) -> tuple[Scope, tuple[str, ..
 # line, a direction and a subject the sheet also has a row for.
 _TEAM_MARKET = {
     "corners_total": "corners_for",
-    "cards_total": "cards_for",
+    "cards_points_total": "cards_points_for",
     "shots_total": "shots_for",
     "shots_on_target_total": "shots_on_target_for",
     "fouls_total": "fouls_for",
@@ -410,7 +416,7 @@ _TEAM_MARKET = {
 _PLAYER_MARKET = {
     "shots_total": "player_total_shots",
     "shots_on_target_total": "player_shots_on_target",
-    "cards_total": "player_cards",
+    "cards_points_total": "player_cards",
     "fouls_total": "player_fouls",
     "offsides_total": "player_offsides",
     "player_tackles": "player_tackles",
