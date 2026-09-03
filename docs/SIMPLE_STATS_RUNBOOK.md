@@ -435,6 +435,18 @@ Writes `runs/$DATE/${DATE}_kupony.md` (the file you open) and
 `${DATE}_coupons.json`. No network, no DB, no quota — re-run it as often as you
 like. `/run-day` calls it automatically; this is the manual form.
 
+**`/rebuild-coupon <date>` is the agent form of just this last mile** (added
+2026-09-03). It resolves the day, decides `--include-started` from whether any
+fixture is still ahead of kickoff, probes the stored offer with
+`renormalise_offer_markets.py --dry-run` and re-files it only if something is
+filed under an old market name, checks the sheet's *content* for the
+fingerprints current code leaves (`cards_points_total` present, `cards_total`
+and `possession` absent, `mode` on every row) and re-runs ANALYZE offline if
+they are missing, preserves the previous file under
+`runs/<date>/_pre_rebuild_<HHMM>/`, then diffs the two coupon sets row by row.
+It refuses to touch DISCOVER or ENRICH: use it when code changed, the analyst
+produced vetoes, or the offer went stale — not to fill out a thin day.
+
 **The header states what every `Min. kurs` in the file was computed from**
 (2026-09-03). Three numbers decide it and none of them used to be printed:
 
