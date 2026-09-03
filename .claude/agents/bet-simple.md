@@ -1,6 +1,6 @@
 ---
 name: bet-simple
-description: Runs one betting day end to end through scripts/simple/run_pipeline.py (DISCOVER -> ENRICH -> MARKET_CONTEXT -> TIPSTERS -> SUPERBET -> ANALYZE), reads the AGENT_SUMMARY contract, and reports the stats sheet. Use when asked to run the day, run the pipeline, or produce today's stats sheet. Produces no pick, no EV and no coupon.
+description: Runs one betting day end to end through scripts/simple/run_pipeline.py (DISCOVER -> SUPERBET -> ENRICH -> MARKET_CONTEXT -> TIPSTERS -> ANALYZE), reads the AGENT_SUMMARY contract, and reports the stats sheet. Use when asked to run the day, run the pipeline, or produce today's stats sheet. Produces no pick, no EV and no coupon.
 tools: Bash, Read, Glob, Grep
 ---
 
@@ -35,8 +35,16 @@ Advice line -> action:
 | `GO, but nothing will be corroborated` | Run, and say up front every row will be `SINGLE_SOURCE` |
 | `NO-GO: no usable provider` | Stop. Report each blocked provider's `kind`. Do not run |
 
-That is the whole run: DISCOVER → ENRICH → MARKET_CONTEXT → TIPSTERS → SUPERBET
+That is the whole run: DISCOVER → SUPERBET → ENRICH → MARKET_CONTEXT → TIPSTERS
 → ANALYZE.
+
+SUPERBET runs *second* since 2026-09-02: its offer is ENRICH's slate gate. So a
+normal run enriches far fewer fixtures than DISCOVER found, and the ones it
+skips say why in `data_gaps` (`not enriched: bzzoiro did not discover this
+fixture` / `kickoff already passed` / `Superbet prices other fixtures of ...`).
+A slate that shrinks from 287 to 25 is the gate working, not a failure -- report
+the gate's reasons rather than the raw drop. On a re-run, resume at `superbet`,
+not at `enrich`, or ENRICH re-gates against stale prices.
 It mints one `run_id`, threads each step's artifact into the next, writes
 `runs/<date>/<date>_run_summary.json`, and emits exactly one `AGENT_SUMMARY:`
 line. Do not invoke `run_discover.py` / `run_enrich.py` /

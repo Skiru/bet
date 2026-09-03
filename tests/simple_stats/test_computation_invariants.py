@@ -616,8 +616,18 @@ def test_the_thin_uncorroborated_category_is_not_a_losing_one():
     assert tier_for_row(row(4, "AGREE")) == "WEAK"
     assert tier_for_row(row(2, "AGREE")) == "DROP"
     assert tier_for_row(row(12, "AGREE")) == "CALL"
-    assert tier_for_row(row(12, "SINGLE_SOURCE")) == "LEAN"
     assert tier_for_row(row(12, "DISAGREE")) == "LEAN"
+    # data_quality is READY above, so n>=8 single-source is CALL since
+    # 2026-09-02: corroboration stopped being the CALL condition and the
+    # primary's own completeness took its place. The thin-sample gap this test
+    # exists for is unaffected -- 5-7 is still LEAN however it is corroborated.
+    assert tier_for_row(row(12, "SINGLE_SOURCE")) == "CALL"
+    assert (
+        tier_for_row(
+            row(12, "SINGLE_SOURCE").model_copy(update={"data_quality": "PARTIAL"})
+        )
+        == "LEAN"
+    )
 
 
 def test_p_low_never_exceeds_p_central():

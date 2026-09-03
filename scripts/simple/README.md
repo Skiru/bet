@@ -10,7 +10,9 @@ python3 scripts/simple/run_pipeline.py -v            # run it
 
 | Script | Role |
 |---|---|
-| `run_pipeline.py` | **Start here.** DISCOVER → ENRICH → MARKET_CONTEXT → TIPSTERS → SUPERBET → ANALYZE under one `run_id`. Also `--preflight`. |
+| `run_pipeline.py` | **Start here.** DISCOVER → SUPERBET → ENRICH → MARKET_CONTEXT → TIPSTERS → ANALYZE under one `run_id`. Also `--preflight`. |
+
+SUPERBET precedes ENRICH: its offer is the slate gate (`enrich.SlateGate`), which keeps the provider budget off fixtures bzzoiro never discovered, fixtures already under way, and fixtures Superbet does not price in a competition where it prices others.
 | `run_discover.py` | Step 1 alone — event universe for a date |
 | `run_enrich.py` | Step 2 alone — provider observations per event |
 | `run_tipsters.py` | Optional step — public tipster picks per event (`--skip-tipsters` to omit) |

@@ -1136,6 +1136,7 @@ def summarize_offer(offer: SuperbetOfferV1) -> dict[str, Any]:
         "events_unmatched": offer.events_unmatched,
         "our_events_without_offer": len(offer.our_events_without_offer),
         "our_events_kicked_off": len(offer.our_events_kicked_off),
+        "events_capped": offer.events_capped,
         "fuzzy_kickoff_matches": len(fuzzy),
         "max_kickoff_delta_minutes": max(
             (e.kickoff_delta_minutes or 0.0 for e in offer.events), default=0.0
@@ -1214,10 +1215,12 @@ def collect_superbet_offer(
     events_by_id = {e.event_id: e for e in event_list.events}
 
     ordered = sorted(by_event.items(), key=lambda item: events_by_id[item[0]].start_time)
+    capped = 0
     if max_events is not None:
         skipped = ordered[max_events:]
         ordered = ordered[:max_events]
         if skipped:
+            capped = len(skipped)
             gaps.append(f"capped at {max_events} fixtures; {len(skipped)} matched fixtures not priced")
             without_offer = without_offer + [event_id for event_id, _ in skipped]
 
@@ -1268,6 +1271,7 @@ def collect_superbet_offer(
         events_unmatched=len(unmatched),
         our_events_without_offer=missing,
         our_events_kicked_off=kicked_off,
+        events_capped=capped,
         events=offers,
         data_gaps=gaps,
         events_matched_by_id=sum(1 for offer in offers if offer.match_quality == "ID_MATCHED"),

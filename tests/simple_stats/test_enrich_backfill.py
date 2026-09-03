@@ -139,3 +139,70 @@ def test_player_observations_count_towards_the_improvement_test(run_enrich):
     merged, improved = run_enrich._merge_dossiers(prior, fresh)
     assert improved == 1
     assert merged.dossiers[0].player_metrics
+
+
+def test_a_backfill_does_not_retry_what_the_slate_gate_refused(tmp_path, monkeypatch):
+    """A gated fixture is excluded, not incomplete.
+
+    Two reasons it must not be retried. It would spend the pass on events the
+    gate refuses again -- and the documented backfill command carries no
+    ``--superbet-offer``, so the "Superbet does not price this" rule is not in
+    force on that pass and a fixture dropped for having no price would be
+    enriched after all. The cap is the opposite case and stays retryable: a
+    fixture the first pass could not afford is exactly what a backfill is for.
+    """
+    import json
+    import subprocess
+    import sys
+
+    from bet.simple_stats.contracts import EventDossierV1
+
+    prior = {
+        "run_id": "RID-1",
+        "date": "2026-09-03",
+        "generated_at": "2026-09-03T06:00:00+00:00",
+        "dossiers": [
+            EventDossierV1(
+                event_id="gated", sport="football", metrics={}, readiness="BLOCKED",
+                data_gaps=["not enriched: bzzoiro did not discover this fixture, so ..."],
+            ).model_dump(mode="json"),
+            EventDossierV1(
+                event_id="capped", sport="football", metrics={}, readiness="BLOCKED",
+                data_gaps=["not enriched: run capped at 5 events"],
+            ).model_dump(mode="json"),
+            EventDossierV1(
+                event_id="thin", sport="football", metrics={}, readiness="PARTIAL",
+                data_gaps=["espn-football: no recent matches for 'X'"],
+            ).model_dump(mode="json"),
+        ],
+    }
+    prior_path = tmp_path / "2026-09-03_event_dossiers.json"
+    prior_path.write_text(json.dumps(prior), encoding="utf-8")
+
+    events = []
+    for event_id in ("gated", "capped", "thin"):
+        events.append({
+            "event_id": event_id, "sport": "football", "competition": "Serie A",
+            "home_team": "A", "away_team": "B",
+            "start_time": "2999-01-01T18:00:00+00:00",
+            "identity_confidence": "CONFIRMED", "status": "ACTIVE",
+        })
+    list_path = tmp_path / "2026-09-03_event_list.json"
+    list_path.write_text(json.dumps({
+        "run_id": "RID-1", "generated_at": "x", "date": "2026-09-03",
+        "sports": ["football"], "events": events,
+    }), encoding="utf-8")
+
+    result = subprocess.run(
+        [sys.executable, "scripts/simple/run_enrich.py",
+         "--event-list", str(list_path), "--output-dir", str(tmp_path),
+         "--backfill-from", str(prior_path), "--max-events", "10",
+         "--skip-preflight", "--no-slate-gate", "--db-path", str(tmp_path / "x.db")],
+        capture_output=True, text=True,
+    )
+    scope = next(
+        line for line in result.stdout.splitlines() if "backfill_scope" in line
+    )
+    assert "gate_refused_not_retried=1" in scope
+    # "capped" and "thin" remain retryable; only the gate refusal is dropped.
+    assert "incomplete_before=2" in scope

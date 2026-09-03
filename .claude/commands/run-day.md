@@ -171,7 +171,36 @@ overridden to 20000 in `RUN_BUDGET_OVERRIDES`, and the one provider it binds --
 `highlightly` -- has a real daily ceiling of exactly 100. Raising the flag buys
 nothing there; the daily quota binds first. Leave it alone.
 
-DISCOVER → ENRICH → MARKET_CONTEXT → TIPSTERS → SUPERBET → ANALYZE, one `run_id`.
+DISCOVER → SUPERBET → ENRICH → MARKET_CONTEXT → TIPSTERS → ANALYZE, one `run_id`.
+
+**SUPERBET runs second, and that is what makes the slate honest.** It moved
+ahead of ENRICH on 2026-09-02 because ENRICH is the step that spends the
+provider budget and it had no way to know which fixtures were on the board.
+Measured on that day's run: of 325 dossiers, **113 were already past kickoff**
+when ENRICH ran and **155 had no Superbet offer** -- about 82% of the slate was
+enriched at full cost and could never reach a coupon.
+
+ENRICH now reads the offer as a *slate gate* (`enrich.SlateGate`) and refuses
+three kinds of fixture, each for a stated reason that lands in the dossier's
+`data_gaps` as `not enriched: ...`:
+
+1. **bzzoiro never discovered it.** The primary provider is addressed by native
+   id, so a fixture it did not find has 6 metrics available instead of 55.
+2. **Kickoff has passed.** Not backable pre-match. Not enforced when the run's
+   date is in the past, so a backfill still works.
+3. **Superbet prices the competition but not this fixture.** Only when it priced
+   *other* fixtures of the same competition that day -- when it matched none of
+   them, the silence is more likely our name join than the book, and the fixture
+   is kept.
+
+Expect a much smaller slate and a much higher READY share. On 2026-09-02 the
+gate takes football from 287 fixtures to 25, and none of the survivors is
+BLOCKED. `--no-slate-gate` on `run_enrich.py` turns it off for a backfill.
+
+**Re-running a day: resume at `superbet`, not at `enrich`.** The offer is a
+snapshot, and it is now an ENRICH input -- resuming at ENRICH re-gates the run
+against prices from the first pass. `--start-at superbet` refreshes the board
+and then re-enriches against it. It still requires an explicit `--max-events`.
 
 **SUPERBET (added 2026-08-31) is the step that decides whether any of this is
 bettable.** One public HTTP request for the day plus one per matched fixture,
@@ -224,7 +253,26 @@ it is worse than its absence.
 
 ## Step 3 — Backfill once, then re-analyse
 
-Read `enrich_metrics.by_readiness`. If any event is `BLOCKED` or `PARTIAL`, run
+Read `enrich_metrics.by_readiness` **together with `slate_gate_drops`**. Since
+2026-09-02 a large `BLOCKED` count is the normal, healthy shape of a gated run:
+every fixture the slate gate refused is carried through as a BLOCKED dossier
+with its reason. Subtract them before deciding anything —
+
+```
+BLOCKED worth backfilling = by_readiness.BLOCKED - sum(slate_gate_drops)
+```
+
+— and `slate_gate_drops.capped` is the only one of those four that a backfill
+can help with. The backfill itself already knows this: it skips gate refusals
+and reports `gate_refused_not_retried`, so running it when there is nothing to
+retry costs a process start and no provider calls.
+
+Also read the `bettable fixture dropped for want of a bzzoiro id` warnings.
+Those are fixtures Superbet prices, in a competition bzzoiro covers, that
+bzzoiro's `/events/` did not return — real bets the run chose not to make,
+typically 0–4 a day. They are not fixable from here; report them.
+
+If anything is left `BLOCKED` or `PARTIAL` after that subtraction, run
 **exactly one** backfill pass:
 
 ```bash

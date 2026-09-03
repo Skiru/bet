@@ -159,30 +159,65 @@ def test_every_football_market_is_in_the_correlated_family():
 
 
 @pytest.mark.parametrize(
-    "sample_size,agreement,expected",
+    "sample_size,agreement,quality,expected",
     [
-        (12, "AGREE", "CALL"),
-        (8, "AGREE", "CALL"),
-        (12, "SINGLE_SOURCE", "LEAN"),
-        (6, "AGREE", "LEAN"),
+        (12, "AGREE", "READY", "CALL"),
+        (8, "AGREE", "READY", "CALL"),
+        # Since 2026-09-02 a complete primary sample reaches CALL on its own:
+        # requiring AGREE made the top tier a property of espn-football's
+        # league map, and corroboration predicts +0.4pp [-2.3, +3.4].
+        (12, "SINGLE_SOURCE", "READY", "CALL"),
+        # ...and an incomplete one does not, however large n grows.
+        (12, "SINGLE_SOURCE", "PARTIAL", "LEAN"),
+        # AGREE still reaches CALL where the primary's sample is thin: two
+        # providers on the same match is its own kind of complete.
+        (12, "AGREE", "PARTIAL", "CALL"),
+        (12, "DISAGREE", "READY", "LEAN"),
+        (6, "AGREE", "READY", "LEAN"),
         # n 5-7 with nothing corroborating it: the gap in the table, answered
         # LEAN on evidence -- see
         # test_the_thin_uncorroborated_category_is_not_a_losing_one.
-        (6, "SINGLE_SOURCE", "LEAN"),
-        (6, "DISAGREE", "LEAN"),
-        (4, "AGREE", "WEAK"),
-        (2, "AGREE", "DROP"),
+        (6, "SINGLE_SOURCE", "READY", "LEAN"),
+        (6, "DISAGREE", "READY", "LEAN"),
+        (4, "AGREE", "READY", "WEAK"),
+        (2, "AGREE", "READY", "DROP"),
     ],
 )
-def test_the_tier_table_is_implemented_not_free_handed(sample_size, agreement, expected):
-    assert tier_for_row(_row(sample_size=sample_size, cross_provider_agreement=agreement)) == expected
+def test_the_tier_table_is_implemented_not_free_handed(
+    sample_size, agreement, quality, expected
+):
+    assert tier_for_row(
+        _row(
+            sample_size=sample_size,
+            cross_provider_agreement=agreement,
+            data_quality=quality,
+        )
+    ) == expected
 
 
-def test_a_single_source_row_can_never_be_a_call():
-    """Structural, not about the numbers: only bzzoiro keeps the two sides apart
-    or serves player history, so those rows are single-source by construction
-    however large n grows. Nothing corroborates them."""
-    assert tier_for_row(_row(sample_size=40, cross_provider_agreement="SINGLE_SOURCE")) == "LEAN"
+def test_a_single_source_row_reaches_call_only_on_a_complete_primary_sample():
+    """The ceiling that replaced "single-source can never be CALL".
+
+    Only bzzoiro keeps the two sides apart or serves player history, so those
+    rows are single-source by construction however large n grows -- which under
+    the old rule capped the pipeline's richest markets at LEAN forever. What
+    stands in for corroboration is the primary's own completeness: settled over
+    5 slates, n>=8 + READY wins 82.5% against the old rule's 82.4% on twice the
+    rows, while the n>=8 rows with an incomplete sample win 81.1%.
+    """
+    complete = _row(sample_size=40, cross_provider_agreement="SINGLE_SOURCE")
+    assert tier_for_row(complete) == "CALL"
+    assert tier_for_row(complete.model_copy(update={"data_quality": "PARTIAL"})) == "LEAN"
+
+
+def test_a_tennis_row_still_needs_a_second_provider_for_call():
+    """The new ceiling is football-only, because that is where it was measured:
+    backtest_slate settles football alone. Tennis has no primary provider, so
+    its READY still means "two providers agreed" and CALL still asks for it."""
+    row = _row(sport="tennis", market="total_games", line=21.5,
+               cross_provider_agreement="SINGLE_SOURCE", data_quality="READY")
+    assert tier_for_row(row) == "LEAN"
+    assert tier_for_row(row.model_copy(update={"cross_provider_agreement": "AGREE"})) == "CALL"
 
 
 def test_a_predicted_xi_prop_is_capped_at_lean():
@@ -265,8 +300,12 @@ def test_a_lean_needs_more_headroom_than_a_call():
     """A LEAN carries a structural caveat a CALL does not, so the same fair odds
     must clear a higher bar before it is worth taking."""
     call = draft_legs(_sheet(_row(p_low=0.50)), "evt-1").legs[0]
+    # PARTIAL rather than SINGLE_SOURCE: what separates the tiers since
+    # 2026-09-02 is whether the primary's sample is complete, not whether a
+    # corroborator happened to cover the competition.
     lean = draft_legs(
-        _sheet(_row(p_low=0.50, cross_provider_agreement="SINGLE_SOURCE")), "evt-1"
+        _sheet(_row(p_low=0.50, data_quality="PARTIAL",
+                    cross_provider_agreement="SINGLE_SOURCE")), "evt-1"
     ).legs[0]
     assert call.fair_odds == lean.fair_odds
     assert lean.min_acceptable_odds > call.min_acceptable_odds

@@ -32,7 +32,11 @@ from agent_output import AgentOutput, add_agent_args  # noqa: E402
 from bet.db.connection import get_db  # noqa: E402
 from bet.simple_stats.analyze import analyze_dossiers, limit_rows_per_event  # noqa: E402
 from bet.simple_stats.offered_lines import OfferedLines  # noqa: E402
-from bet.simple_stats.artifact_io import sha256_file, write_json_atomic  # noqa: E402
+from bet.simple_stats.artifact_io import (  # noqa: E402
+    load_market_context,
+    sha256_file,
+    write_json_atomic,
+)
 from bet.simple_stats.contracts import (  # noqa: E402
     EventDossierListV1,
     EventListV1,
@@ -223,7 +227,16 @@ def main() -> None:
         context_path = Path(args.market_context)
         context = None
         try:
-            context = MarketContextV1.model_validate_json(context_path.read_text(encoding="utf-8"))
+            context, dropped_fields = load_market_context(context_path)
+            if dropped_fields:
+                # Named, not swallowed: the column still attaches, minus fields
+                # this schema has forgotten.
+                out.warning(
+                    f"market context carries {len(dropped_fields)} prediction field(s) this "
+                    f"schema no longer has, ignored: {', '.join(dropped_fields)}",
+                    path=str(context_path),
+                )
+                market_metrics["market_context_dropped_fields"] = dropped_fields
         except (OSError, ValueError) as exc:
             out.warning(
                 f"market context unusable, continuing without the column: {exc}",

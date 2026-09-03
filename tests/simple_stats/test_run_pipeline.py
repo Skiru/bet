@@ -83,7 +83,19 @@ def out_dir(tmp_path):
     return d
 
 
-ALL_STEPS = ["discover", "enrich", "market_context", "tipsters", "superbet", "analyze"]
+# SUPERBET runs second, not fifth: ENRICH gates the slate on its offer, so the
+# board has to exist before the expensive step chooses what to spend on.
+def _load_pipeline():
+    """The pipeline module, imported by path (scripts/ is not a package)."""
+    spec = importlib.util.spec_from_file_location(
+        "run_pipeline_under_test", PIPELINE
+    )
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+ALL_STEPS = ["discover", "superbet", "enrich", "market_context", "tipsters", "analyze"]
 
 # The comparison-only SUPERBET pass, which runs after ANALYZE and is not a
 # member of STEPS -- it takes no argument, is not addressable by --stop-after,
@@ -357,7 +369,7 @@ def test_skip_tipsters_omits_the_step_entirely(tmp_path, out_dir):
     )
     assert code == 0
     assert summary["metrics"]["steps_run"] == [
-        "discover", "enrich", "market_context", "superbet", "analyze", COMPARISON
+        "discover", "superbet", "enrich", "market_context", "analyze", COMPARISON
     ]
     assert summary["metrics"]["tipster_signal"] is None
 
@@ -387,7 +399,7 @@ def test_skip_market_context_omits_the_step_entirely(tmp_path, out_dir):
     )
     assert code == 0
     assert summary["metrics"]["steps_run"] == [
-        "discover", "enrich", "tipsters", "superbet", "analyze", COMPARISON
+        "discover", "superbet", "enrich", "tipsters", "analyze", COMPARISON
     ]
     assert summary["metrics"]["market_context"] is None
 
@@ -418,6 +430,65 @@ def test_player_props_is_forwarded_to_enrich_only_when_passed(tmp_path, out_dir)
     )
     argv_with = next(line for line in stdout_with.splitlines() if line.startswith("ARGV:"))
     assert "--player-props" in argv_with
+
+
+def test_superbet_runs_before_enrich_and_hands_it_the_board(tmp_path, out_dir):
+    """The ordering that makes the slate gate possible.
+
+    ENRICH is the step that spends the provider budget, and until 2026-09-02 it
+    ran before the only stage that knows which fixtures the operator can
+    actually bet. Measured that day: 113 of 325 dossiers were already past
+    kickoff and 155 had no Superbet offer, all enriched at full cost. The offer
+    is now an ENRICH input, so this asserts both halves -- the order, and that
+    the artifact is actually forwarded.
+    """
+    stubs = _all_ok_stubs(tmp_path, out_dir)
+    echo = tmp_path / "e_echo_offer.py"
+    echo.write_text(
+        "import json, sys\n"
+        "print('ARGV:' + json.dumps(sys.argv[1:]))\n"
+        "from pathlib import Path\n"
+        f"Path({str(out_dir / '2026-08-25_event_dossiers.json')!r}).write_text('{{}}')\n"
+        "print('AGENT_SUMMARY:' + json.dumps({'step': 'stub', 'verdict': 'OK',"
+        " 'metrics': {'run_id': 'RID-1'}, 'issues': [], 'counts': {'errors': 0, 'warnings': 0}}))\n",
+        encoding="utf-8",
+    )
+    stubs["enrich"] = str(echo)
+    _, summary, stdout = _run(tmp_path, stubs, "--date", "2026-08-25", "--output-dir", str(out_dir))
+
+    steps = summary["metrics"]["steps_run"]
+    assert steps.index("superbet") < steps.index("enrich")
+    argv = json.loads(
+        next(line for line in stdout.splitlines() if line.startswith("ARGV:"))[len("ARGV:"):]
+    )
+    assert "--superbet-offer" in argv
+    assert argv[argv.index("--superbet-offer") + 1].endswith("2026-08-25_superbet_offer.json")
+
+
+def test_enrich_is_not_handed_an_offer_that_was_never_written(tmp_path, out_dir):
+    """A skipped SUPERBET must leave the gate with its first two rules.
+
+    Handing ENRICH a path to a file nobody wrote would be worse than handing it
+    nothing: an empty board reads as "Superbet prices nothing today", which the
+    third gate rule would apply to the whole slate.
+    """
+    stubs = _all_ok_stubs(tmp_path, out_dir)
+    echo = tmp_path / "e_echo_no_offer.py"
+    echo.write_text(
+        "import json, sys\n"
+        "print('ARGV:' + json.dumps(sys.argv[1:]))\n"
+        "from pathlib import Path\n"
+        f"Path({str(out_dir / '2026-08-25_event_dossiers.json')!r}).write_text('{{}}')\n"
+        "print('AGENT_SUMMARY:' + json.dumps({'step': 'stub', 'verdict': 'OK',"
+        " 'metrics': {'run_id': 'RID-1'}, 'issues': [], 'counts': {'errors': 0, 'warnings': 0}}))\n",
+        encoding="utf-8",
+    )
+    stubs["enrich"] = str(echo)
+    _, _, stdout = _run(
+        tmp_path, stubs, "--date", "2026-08-25", "--output-dir", str(out_dir), "--skip-superbet",
+    )
+    argv_line = next(line for line in stdout.splitlines() if line.startswith("ARGV:"))
+    assert "--superbet-offer" not in argv_line
 
 
 def test_analyze_is_handed_the_market_context_only_when_it_exists(tmp_path, out_dir):
@@ -625,3 +696,51 @@ def test_the_comparison_is_skipped_when_there_is_no_offer_to_compare_against(
     assert COMPARISON not in summary["metrics"]["steps_run"]
     assert "value_rows" not in summary["metrics"]
 
+
+
+# --- the morning GO / NO-GO line ------------------------------------------
+
+
+def _advice(coverage, recommended, max_events=250, verdict="OK"):
+    return _load_pipeline().preflight_advice(verdict, coverage, recommended, max_events)
+
+
+def test_a_primary_that_reaches_nothing_is_a_no_go_not_a_reassurance():
+    """The failure this architecture made possible.
+
+    Since ENRICH gates the slate on the provider of record, a football coverage
+    of 0 means every fixture will be refused and the run will spend a full
+    ENRICH to produce an empty sheet. It used to fall into the same branch as
+    "coverage is unlimited" and printed "GO, bzzoiro alone reaches READY and
+    CALL" -- at the exact moment bzzoiro reached nothing.
+    """
+    verdict, advice = _advice({"football": 0}, 0)
+    assert verdict == "PRECONDITION_FAILED"
+    assert "NO-GO" in advice and "football" in advice
+
+
+def test_one_dead_sport_does_not_stop_a_run_the_other_can_still_fill():
+    verdict, advice = _advice({"football": 0, "tennis": 40}, 0)
+    assert verdict == "PARTIAL"
+    assert "GO for the rest" in advice and "football" in advice
+
+
+def test_unlimited_coverage_is_a_clean_go():
+    """``recommended_max_events`` is None when nothing bounds the run. That is
+    the healthy answer and must not read like a warning."""
+    verdict, advice = _advice({"football": None, "tennis": None}, None)
+    assert verdict == "OK"
+    assert advice.startswith("GO:")
+    assert "nothing will be corroborated" not in advice
+
+
+def test_a_thin_quota_recommends_the_number_it_can_actually_serve():
+    verdict, advice = _advice({"football": 12}, 12, max_events=250)
+    assert verdict == "PARTIAL"
+    assert "--max-events 12" in advice
+
+
+def test_no_usable_provider_outranks_every_coverage_reading():
+    verdict, advice = _advice({"football": 40}, 40, verdict="PRECONDITION_FAILED")
+    assert verdict == "PRECONDITION_FAILED"
+    assert "no usable provider" in advice

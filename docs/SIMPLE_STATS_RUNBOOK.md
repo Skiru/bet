@@ -1,4 +1,4 @@
-# Runbook: simple_stats pipeline (DISCOVER → ENRICH → MARKET_CONTEXT → TIPSTERS → ANALYZE)
+# Runbook: simple_stats pipeline (DISCOVER → SUPERBET → ENRICH → MARKET_CONTEXT → TIPSTERS → ANALYZE)
 
 Implements `docs/PIPELINE_SIMPLIFICATION_PLAN.md`. Read section 13 of that
 document for what was verified live and which of its earlier assumptions no

@@ -13,7 +13,13 @@ from bet.simple_stats.preflight import (
 )
 
 
-def _event(sport="football", status="ACTIVE", event_id=None, competition="Premier League"):
+def _event(
+    sport="football",
+    status="ACTIVE",
+    event_id=None,
+    competition="Premier League",
+    bzzoiro=False,
+):
     kwargs = dict(
         event_id=event_id or f"evt-{sport}-{status}",
         sport=sport,
@@ -26,6 +32,13 @@ def _event(sport="football", status="ACTIVE", event_id=None, competition="Premie
         kwargs.update(player_one="P1", player_two="P2")
     else:
         kwargs.update(home_team="A", away_team="B")
+    # Football capability is now bzzoiro's reach, and bzzoiro is addressed by
+    # native id: a fixture it can serve is one discovery captured ids for.
+    if bzzoiro:
+        kwargs.update(
+            source_ids={"bzzoiro": f"m-{event_id or sport}"},
+            provider_team_ids={"bzzoiro": {"home": "1", "away": "2"}},
+        )
     return EventRecord(**kwargs)
 
 
@@ -102,38 +115,45 @@ def test_dead_providers_are_distinguished_from_exhausted_ones(tmp_path):
             assert kinds[provider] == "upstream_unavailable"
 
 
-def test_coverage_reports_two_provider_reach_not_the_most_generous_one(tmp_path):
-    """readiness=READY and cross_provider_agreement both need 2+ providers, so
-    the recommendation tracks the *second* best quota. Reporting the best one
-    would promise hundreds of events off an unlimited ESPN while the only
-    provider that could corroborate it runs dry after a handful.
+def test_coverage_tracks_the_primary_not_the_most_generous_provider(tmp_path):
+    """Football coverage is bzzoiro's reach, and no other provider stands in.
+
+    This asserted the *second* best provider's quota until 2026-09-02, on the
+    premise that READY needed two providers. It no longer does: readiness is
+    measured on the primary's own sample and the slate gate refuses fixtures
+    the primary never discovered, so a corroborator's quota cannot make one
+    more event readable. Under the old rule this run planned for ESPN's league
+    map -- 114 events against a bzzoiro-covered slate of 52 on 2026-09-02.
     """
-    # Exactly one generous provider (ESPN) and one thin one (Highlightly); the
-    # rest exhausted, so Highlightly is the only thing that can corroborate ESPN.
+    # ESPN unlimited, bzzoiro thin. Under the old rule ESPN's 10000/25 = 400
+    # and bzzoiro's 60/30 = 2 would both be in play and the second-best would
+    # be reported; now only bzzoiro's is.
     limiter = _limiter(
         tmp_path,
-        {
-            "espn-football": 10_000,
-            "highlightly": 70,
-            "api-football": 1,
-            "understat": 1,
-            "bzzoiro": 1,
-        },
+        {"espn-football": 10_000, "highlightly": 10_000, "bzzoiro": 60},
     )
-    limiter.record_request("api-football", "/x", 1)
-    limiter.record_request("understat", "/x", 1)
-    limiter.record_request("bzzoiro", "/x", 1)
-
-    # Three fixtures, so quota is the binding constraint rather than the size
-    # of the slate: coverage can never exceed the events actually on it.
-    slate = _list(*(_event(event_id=f"evt-{i}") for i in range(3)))
+    slate = _list(*(_event(event_id=f"evt-{i}", bzzoiro=True) for i in range(3)))
     result = enrich_preflight(slate, limiter, planned_events=40)
-    assert sorted(result["usable_providers"]) == ["espn-football", "highlightly"]
+    assert "bzzoiro" in result["usable_providers"]
 
-    # ESPN alone covers 10000/25 = 400 events, but Highlightly's 70/35 = 2 is
-    # what bounds two-provider coverage, and 2 is what must be reported.
     assert result["coverage_by_sport"]["football"] == 2
     assert result["recommended_max_events"] == 2
+
+
+def test_an_exhausted_primary_means_no_coverage_however_healthy_the_rest(tmp_path):
+    """The failure the old rule could not express. ESPN and highlightly with
+    quota to spare report a run worth starting; between them they hold 20 of
+    bzzoiro's 55 metrics and can make no fixture READY."""
+    limiter = _limiter(
+        tmp_path,
+        {"espn-football": 10_000, "highlightly": 10_000, "bzzoiro": 1},
+    )
+    limiter.record_request("bzzoiro", "/x", 1)
+    slate = _list(*(_event(event_id=f"evt-{i}", bzzoiro=True) for i in range(3)))
+    result = enrich_preflight(slate, limiter, planned_events=40)
+    assert "espn-football" in result["usable_providers"]
+    assert "bzzoiro" not in result["usable_providers"]
+    assert result["coverage_by_sport"]["football"] == 0
 
 
 def test_coverage_is_bounded_by_what_a_provider_can_actually_serve(tmp_path):
@@ -309,8 +329,19 @@ def test_preflight_for_sports_and_enrich_preflight_agree(monkeypatch, tmp_path):
         "bet.simple_stats.preflight.has_credentials", lambda p: (True, "X_KEY")
     )
     event_list = _list(_event("football"))
+    # Handed the same capability information, or they are answering different
+    # questions rather than disagreeing: preflight_for_sports runs *before*
+    # discovery, so it cannot know that bzzoiro found none of today's fixtures
+    # -- and since 2026-09-02 that is exactly what bounds football coverage.
+    from bet.simple_stats.preflight import _capability_caps
+
     from_events = enrich_preflight(event_list, limiter, planned_events=10)
-    from_sports = preflight_for_sports(["football"], limiter, planned_events=10)
+    from_sports = preflight_for_sports(
+        ["football"],
+        limiter,
+        planned_events=10,
+        capability_caps=_capability_caps(event_list, limiter),
+    )
     assert from_events["usable_providers"] == from_sports["usable_providers"]
     assert from_events["coverage_by_sport"] == from_sports["coverage_by_sport"]
     assert from_events["recommended_max_events"] == from_sports["recommended_max_events"]

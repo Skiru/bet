@@ -40,6 +40,7 @@ for entry in (scripts_path, src_path):
 
 from agent_output import AgentOutput, add_agent_args  # noqa: E402
 
+from bet.simple_stats.providers import PRIMARY_PROVIDER_BY_SPORT  # noqa: E402
 from bet.simple_stats.run_context import new_run_id  # noqa: E402
 
 # MARKET_CONTEXT and TIPSTERS both sit between ENRICH and ANALYZE: each needs
@@ -59,7 +60,86 @@ from bet.simple_stats.run_context import new_run_id  # noqa: E402
 # until this step existed the pipeline could not tell "priced too short"
 # from "not on the screen at all" -- and on the 2026-08-31 night slate the
 # second was true of eight of fifteen singles.
-STEPS = ("discover", "enrich", "market_context", "tipsters", "superbet", "analyze")
+#
+# SUPERBET moved ahead of ENRICH on 2026-09-02, and that is the one ordering
+# constraint in this list that is about money rather than about inputs. It
+# still only needs the event list, so nothing forced it to run last; running it
+# last meant the expensive step could not know which fixtures were on the board.
+# Measured on 2026-09-02: of 325 dossiers, 113 were already past kickoff when
+# ENRICH ran and 155 had no Superbet offer -- ~82% of the slate was enriched at
+# full provider cost and could never reach a coupon. Ahead of ENRICH the same
+# artifact becomes the slate gate (enrich.SlateGate).
+#
+# It stays optional. When it fails or is skipped the gate keeps its first two
+# rules and simply does not apply the third, which is the pre-2026-09-02
+# behaviour minus the fixtures no provider of record covers.
+STEPS = ("discover", "superbet", "enrich", "market_context", "tipsters", "analyze")
+
+# SUPERBET's fixture cap, deliberately not ``--max-events``.
+#
+# The two caps bound different things. ``--max-events`` bounds *provider quota*:
+# a fixture costs ENRICH several dozen metered calls. SUPERBET's bounds a public,
+# unmetered endpoint at one request per matched fixture, and its own help text
+# calls it "a guard against a runaway loop, not a quota".
+#
+# Sharing them was harmless while SUPERBET ran last. It stopped being harmless
+# the moment ENRICH started reading the offer as a slate gate: a fixture the
+# book prices but SUPERBET never fetched lines for is indistinguishable, in the
+# artifact, from one the book declines to price. Measured on the live
+# 2026-09-03 run with ``--max-events 30``: **9 priced fixtures read as
+# unpriced**, against 1 genuine absence when the offer was collected uncapped.
+#
+# High enough never to bind on a real slate (the widest recorded day matched
+# 170), low enough to stop a runaway.
+SUPERBET_OFFER_CAP = 400
+
+
+def preflight_advice(
+    verdict: str,
+    coverage: dict[str, int | None],
+    recommended: int | None,
+    max_events: int,
+) -> tuple[str, str]:
+    """The morning GO / NO-GO line, and the verdict that goes with it.
+
+    Pure, and separate from the printing, because three genuinely different
+    situations used to share one branch -- all three made
+    ``recommended_max_events`` falsy:
+
+    * coverage ``None``   -- nothing bounds the run. The healthy answer.
+    * coverage ``0``      -- the provider of record reaches none of today's
+                             fixtures, so the slate gate will refuse all of
+                             them. The run would spend a full ENRICH to produce
+                             an empty sheet.
+    * ``recommended == 0``-- the same thing, arrived at from the other side.
+
+    The middle one is the failure this architecture made possible, and it was
+    getting the most reassuring wording of the three: "GO, bzzoiro alone reaches
+    READY and CALL", printed at the exact moment bzzoiro reached nothing.
+    """
+    if verdict == "PRECONDITION_FAILED":
+        return "PRECONDITION_FAILED", "NO-GO: no usable provider. Fix the blocked ones above."
+
+    zero = sorted(sport for sport, cover in coverage.items() if cover == 0)
+    if zero and len(zero) == len(coverage):
+        return "PRECONDITION_FAILED", (
+            f"NO-GO: {', '.join(zero)} -- the provider of record reaches none of "
+            f"today's fixtures, so the slate gate will refuse all of them and the "
+            f"run would produce an empty sheet at full cost."
+        )
+    if zero:
+        return "PARTIAL", (
+            f"GO for the rest, but {', '.join(zero)} will produce nothing: the provider "
+            f"of record reaches none of today's fixtures there."
+        )
+    if recommended is None:
+        return "OK", "GO: no provider bounds the run -- every sport's coverage is unlimited."
+    if recommended < max_events:
+        return "PARTIAL", (
+            f"GO with --max-events {recommended} "
+            f"(quota corroborates {recommended}, not the {max_events} planned)."
+        )
+    return "OK", f"GO: quota corroborates all {max_events} planned events."
 OPTIONAL_STEPS = frozenset({"market_context", "tipsters", "superbet"})
 
 # Indirection so tests can substitute stub steps: the wrapper's job is
@@ -185,7 +265,17 @@ def _preflight_only(sports: list[str], args) -> None:
         print()
         for sport in sports:
             cover = coverage.get(sport)
-            print(f"  {sport:10} two-provider coverage: {'unlimited' if cover is None else cover} events")
+            # Named for what it now measures. For a sport with a primary
+            # provider this is that provider's own reach (football: bzzoiro),
+            # because readiness is measured on its sample and the slate gate
+            # refuses fixtures it never discovered. For a sport without one
+            # (tennis) it is still what two providers can jointly reach.
+            basis = (
+                f"{PRIMARY_PROVIDER_BY_SPORT[sport]} coverage"
+                if sport in PRIMARY_PROVIDER_BY_SPORT
+                else "two-provider coverage"
+            )
+            print(f"  {sport:10} {basis}: {'unlimited' if cover is None else cover} events")
 
     for block in result["blocked"]:
         out.warning(f"{block['provider']}: {block['reason']}", kind=block["kind"])
@@ -193,20 +283,9 @@ def _preflight_only(sports: list[str], args) -> None:
     # 'Can run' and 'worth running' are different questions. One provider is
     # enough to produce an artifact, but nothing in it will be corroborated, and
     # corroboration is the only reason this pipeline exists.
-    if result["verdict"] == "PRECONDITION_FAILED":
-        verdict, advice = "PRECONDITION_FAILED", "NO-GO: no usable provider. Fix the blocked ones above."
-    elif not recommended:
-        verdict, advice = "PARTIAL", (
-            "GO, but nothing will be corroborated: only one provider covers a sport, "
-            "so every row lands at SINGLE_SOURCE / confidence=LOW."
-        )
-    elif recommended < args.max_events:
-        verdict, advice = "PARTIAL", (
-            f"GO with --max-events {recommended} "
-            f"(quota corroborates {recommended}, not the {args.max_events} planned)."
-        )
-    else:
-        verdict, advice = "OK", f"GO: quota corroborates all {args.max_events} planned events."
+    verdict, advice = preflight_advice(
+        result["verdict"], coverage, recommended, args.max_events
+    )
 
     print(f"\n{advice}")
     # This entrypoint runs before DISCOVER, so it has no slate and cannot know
@@ -219,8 +298,11 @@ def _preflight_only(sports: list[str], args) -> None:
     capability_note = None
     if "football" in sports:
         capability_note = (
-            "coverage above counts quota only -- ESPN's league reach is unknown "
-            "until DISCOVER names the competitions, so corroboration may be lower"
+            "coverage above counts quota only -- how many fixtures bzzoiro actually "
+            "discovers is unknown until DISCOVER runs, and since 2026-09-02 that is "
+            "the slate: ENRICH refuses a football fixture the primary never found. "
+            "Expect the enriched slate to be a fraction of what DISCOVER reports "
+            "(287 -> 49 on 2026-09-02), and read ENRICH's slate_gate_drops for why"
         )
         out.warning(capability_note, pipeline_step="simple_stats:PREFLIGHT")
 
@@ -396,6 +478,12 @@ def main() -> None:
                 "--provider-call-budget", str(args.provider_call_budget),
                 *common,
             ]
+            # Absent unless SUPERBET actually wrote one, exactly as ANALYZE
+            # treats it: a skipped or failed offer step leaves the gate with
+            # its first two rules rather than an empty board it would read as
+            # "Superbet prices nothing today".
+            if superbet_offer.exists():
+                argv += ["--superbet-offer", str(superbet_offer)]
             if args.skip_preflight:
                 argv.append("--skip-preflight")
             if args.player_props:
@@ -450,7 +538,8 @@ def main() -> None:
             argv = [
                 STEP_SCRIPTS["superbet"],
                 "--event-list", str(event_list),
-                "--max-events", str(args.max_events),
+                # SUPERBET_OFFER_CAP, never args.max_events -- see the constant.
+                "--max-events", str(max(args.max_events, SUPERBET_OFFER_CAP)),
                 "--oddspapi-bridge", args.oddspapi_bridge,
                 *common,
             ]
@@ -518,6 +607,14 @@ def main() -> None:
             "metrics": metrics,
         }
 
+        # SUPERBET reports its artifact as ``offer_path``: it writes two
+        # (the offer and, later, the comparison) and neither is "the output".
+        # Read by name, because ENRICH now gates the slate on this file and
+        # falling back to the filename convention would hand it an artifact
+        # this run never wrote.
+        if name == "superbet" and metrics.get("offer_path"):
+            superbet_offer = Path(metrics["offer_path"])
+
         produced = metrics.get("output_path")
         if produced:
             if name == "discover":
@@ -529,9 +626,9 @@ def main() -> None:
             elif name == "tipsters":
                 tipster_signal = Path(produced)
             elif name == "analyze":
-                # By name, not by elimination: SUPERBET sits between TIPSTERS
-                # and ANALYZE, and a catch-all here would adopt any
-                # ``output_path`` it ever grows as the day's stats sheet.
+                # By name, not by elimination: a catch-all here would adopt any
+                # ``output_path`` another step ever grows as the day's stats
+                # sheet.
                 stats_sheet = produced
 
         # SUPERBET's comparison, re-run against the sheet that actually shipped.

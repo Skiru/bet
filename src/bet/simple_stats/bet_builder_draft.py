@@ -40,6 +40,7 @@ from collections.abc import Callable, Iterable
 from typing import Literal
 
 from bet.simple_stats.contracts import StatsSheetRow, StatsSheetV1
+from bet.simple_stats.providers import PRIMARY_PROVIDER_BY_SPORT
 from bet.strict_model import StrictBaseModel
 from pydantic import Field
 
@@ -341,15 +342,53 @@ class BetBuilderDraft(StrictBaseModel):
 def tier_for_row(row: StatsSheetRow) -> Tier:
     """The evidence tier from ``bet-analyst.md``'s table, plus its two ceilings.
 
-    | CALL | n>=8, AGREE          |
-    | LEAN | n>=8 single-source, or n>=5 AGREE, or n 5-7 uncorroborated |
+    | CALL | n>=8, and either the primary's sample is complete or a second provider agrees |
+    | LEAN | n>=8 incomplete and uncorroborated, or n>=5 AGREE, or n 5-7 uncorroborated |
     | WEAK | n 3-4                |
     | DROP | data_quality BLOCKED or n<3 |
 
-    Ceilings, both structural rather than about the numbers: a row nothing
-    corroborates can never be CALL however large its sample, and a player prop
-    drawn from a predicted XI is capped at LEAN because the sample is fine and
-    the premise -- that he starts -- is a guess.
+    **CALL used to require AGREE, and that requirement was measured and
+    removed on 2026-09-02.** It had a consequence nobody chose: for football,
+    AGREE means espn-football also knew the fixture, so the top tier was
+    reachable only inside one corroborator's league map -- and that corroborator
+    serves 6 of bzzoiro's 55 metrics and agrees with it exactly on 92-98% of
+    the (match, metric) points where both report. It was not a second
+    measurement; it was a second transcription, used as a gate.
+
+    Settled against real results over five slates (5,174 rows from 312
+    fixtures, p_low >= 0.50), corroboration predicts nothing:
+
+        AGREE - SINGLE_SOURCE = +0.4pp, 95% CI [-2.3, +3.4] (clustered by
+        fixture; 37.6% of resamples negative).
+
+    What replaces it is the question AGREE was standing in for -- is this
+    sample actually complete -- answered by the provider of record instead of
+    by a third party's coverage. ``data_quality == "READY"`` means the primary
+    served at least five matches a side on all three priority metrics
+    (enrich._compute_readiness). Same measurement, same rows:
+
+        n>=8 + READY, not DISAGREE   2,507 rows over 172 fixtures, 82.5%
+        n>=8 + AGREE (the old rule)  1,184 rows over 193 fixtures, 82.4%
+        difference +0.1pp, 95% CI [-2.4, +2.5]
+
+    Twice the supply at the same hit rate, and supply is this pipeline's
+    binding constraint. The rows the new rule leaves at LEAN -- n>=8 with an
+    incomplete primary sample -- win 81.1%, so the discrimination runs the
+    right way round.
+
+    Restricted to sports with a primary provider, because that is where it was
+    measured: the backtest settles football only (tennis markets settle from an
+    endpoint it does not read), and for tennis READY still means "two providers
+    agreed", which is the old condition under a different name.
+
+    Ceilings, both structural rather than about the numbers: a row two providers
+    actively contradict can never be CALL, and a player prop drawn from a
+    predicted XI is capped at LEAN because the sample is fine and the premise --
+    that he starts -- is a guess.
+
+    DISAGREE keeps its demotion on weaker evidence than the above, deliberately:
+    -6.0pp against SINGLE_SOURCE, 95% CI [-17.5, +4.3], 86% of resamples
+    negative. That is a lean, not a proof, and it is the cautious direction.
 
     LEAN's third clause is the gap in ``bet-analyst.md``'s table, resolved on
     evidence 2026-09-02. An ``n`` of 5-7 that nothing corroborates matches none
@@ -385,7 +424,11 @@ def tier_for_row(row: StatsSheetRow) -> Tier:
         return "WEAK"
 
     corroborated = row.cross_provider_agreement == "AGREE"
-    if row.sample_size >= 8 and corroborated:
+    # The primary provider served a complete sample for this fixture. Only
+    # meaningful where there *is* a primary: for tennis, READY is still the old
+    # two-provider condition and this reduces to ``corroborated``.
+    complete = row.data_quality == "READY" and row.sport in PRIMARY_PROVIDER_BY_SPORT
+    if row.sample_size >= 8 and (complete or corroborated):
         tier: Tier = "CALL"
     elif row.sample_size >= 8 or corroborated:
         tier = "LEAN"
@@ -398,7 +441,10 @@ def tier_for_row(row: StatsSheetRow) -> Tier:
         # it.
         tier = "LEAN"
 
-    if row.cross_provider_agreement in ("SINGLE_SOURCE", "DISAGREE"):
+    # SINGLE_SOURCE no longer demotes: see the docstring. A row nothing
+    # corroborates is not a worse row, it is a row in a competition the
+    # corroborator does not cover.
+    if row.cross_provider_agreement == "DISAGREE":
         tier = "LEAN" if tier == "CALL" else tier
     if row.player_id and (row.lineup_status or "") != "confirmed":
         tier = "LEAN" if tier == "CALL" else tier

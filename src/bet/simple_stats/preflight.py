@@ -13,7 +13,11 @@ from bet.api_clients.env import ENV_PATH, get_env, limit_env_var
 from bet.api_clients.rate_limiter import RateLimiter
 
 from bet.simple_stats.contracts import EventListV1
-from bet.simple_stats.providers import NATIVE_ID_PROVIDERS_BY_SPORT, PROVIDERS_BY_SPORT
+from bet.simple_stats.providers import (
+    NATIVE_ID_PROVIDERS_BY_SPORT,
+    PRIMARY_PROVIDER_BY_SPORT,
+    PROVIDERS_BY_SPORT,
+)
 
 # Providers known to have no usable data source at all, independent of quota:
 # sackmann's GitHub repo returns 404 and the understat package will not build.
@@ -308,7 +312,7 @@ def preflight_for_sports(
     by_quota = {q["provider"]: q for q in quotas}
     caps = capability_caps or {}
     coverage_by_sport = {
-        sport: _two_provider_coverage(sport, usable, by_quota, caps.get(sport, {}))
+        sport: _slate_coverage(sport, usable, by_quota, caps.get(sport, {}))
         for sport in sports
     }
     finite = [c for c in coverage_by_sport.values() if c is not None]
@@ -381,7 +385,18 @@ def _football_capability(
         league = get_espn_league_for_competition(competition)
         if league and _espn_league_has_team_directory("football", league, rate_limiter):
             servable += 1
-    return {"espn-football": servable}
+    # bzzoiro's capability needs no probe at all: it is addressed by native id,
+    # so a fixture it can serve is exactly a fixture it discovered, and
+    # discovery already recorded that. This is the number that bounds a
+    # readable slate -- espn-football's is the corroborator's reach, which is
+    # worth reporting and is not what the run size should be planned against.
+    covered = sum(
+        1
+        for event in football_events
+        if getattr(event, "provider_team_ids", {}).get("bzzoiro")
+        and getattr(event, "source_ids", {}).get("bzzoiro")
+    )
+    return {"espn-football": servable, "bzzoiro": covered}
 
 
 def _tennis_capability(
@@ -421,28 +436,52 @@ def _tennis_capability(
     return counts
 
 
-def _two_provider_coverage(
+def _slate_coverage(
     sport: str,
     usable: list[str],
     by_quota: dict[str, dict],
     capability_caps: dict[str, int] | None = None,
 ) -> int | None:
-    """How many events of ``sport`` can still be seen by *two* providers.
+    """How many events of ``sport`` this run can produce a readable dossier for.
 
-    Two is the number that matters: readiness=READY needs 2+ independent
-    providers per priority metric, and cross_provider_agreement needs 2 to say
-    anything at all. Reporting the single most generous provider's coverage
-    instead would promise 400 events off an unlimited ESPN quota while the only
-    provider that could corroborate it runs dry after 7.
+    For a sport with a primary provider (PRIMARY_PROVIDER_BY_SPORT) that is the
+    primary's own coverage, bounded by both what it can afford and what it can
+    reach. Nothing else can stand in for it: since 2026-09-02 readiness is
+    measured on the primary's sample, the slate gate refuses fixtures it never
+    discovered, and a corroborator does not make a fixture readable -- it makes
+    a readable one checked.
+
+    This used to be ``_two_provider_coverage`` and reported the *second* best
+    provider's reach, on the premise that READY needed two providers. It did,
+    and the consequence was that football's planned run size was a measurement
+    of espn-football's league map: on 2026-09-02 it advertised 114 against a
+    bzzoiro-covered slate of 52, and ``recommended_max_events`` of 29 was
+    derived from a provider contributing six metrics out of fifty-five.
+
+    Sports with no primary keep the two-provider rule, and there the original
+    reasoning still holds exactly: with no source of record, a second provider
+    is the only check there is, so the run can only plan for what two of them
+    can jointly reach.
 
     ``capability_caps`` bounds a provider by what it can serve rather than what
     it can afford; an unlimited provider that reaches none of today's leagues
-    contributes 0, not infinity.
-
-    Returns None when at least two of this sport's providers are unlimited *and*
-    uncapped.
+    contributes 0, not infinity. Returns None when the answer is unbounded.
     """
     capability_caps = capability_caps or {}
+
+    def reach(provider: str) -> float:
+        covers = affordable_events(by_quota[provider])
+        affordable = float("inf") if covers is None else covers
+        cap = capability_caps.get(provider)
+        return affordable if cap is None else min(affordable, cap)
+
+    primary = PRIMARY_PROVIDER_BY_SPORT.get(sport)
+    if primary is not None:
+        if primary not in usable:
+            return 0
+        covered = reach(primary)
+        return None if covered == float("inf") else int(covered)
+
     sport_providers = [
         p
         for p in (*PROVIDERS_BY_SPORT.get(sport, ()), *NATIVE_ID_PROVIDERS_BY_SPORT.get(sport, ()))
@@ -451,12 +490,7 @@ def _two_provider_coverage(
     if len(sport_providers) < 2:
         return 0
 
-    coverages = []
-    for provider in sport_providers:
-        covers = affordable_events(by_quota[provider])
-        affordable = float("inf") if covers is None else covers
-        cap = capability_caps.get(provider)
-        coverages.append(affordable if cap is None else min(affordable, cap))
+    coverages = [reach(provider) for provider in sport_providers]
     coverages.sort(reverse=True)
     second = coverages[1]
     return None if second == float("inf") else int(second)

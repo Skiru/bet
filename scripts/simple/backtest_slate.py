@@ -47,7 +47,7 @@ for entry in (str(ROOT), str(ROOT / "src"), str(ROOT / "scripts")):
 from bet.api_clients import get_client  # noqa: E402
 from bet.api_clients.rate_limiter import RateLimiter  # noqa: E402
 from bet.simple_stats.analyze import analyze_dossiers  # noqa: E402
-from bet.simple_stats.artifact_io import write_json_atomic  # noqa: E402
+from bet.simple_stats.artifact_io import load_market_context, write_json_atomic  # noqa: E402
 from bet.simple_stats.contracts import (  # noqa: E402
     EventDossierListV1,
     EventListV1,
@@ -300,12 +300,7 @@ def rebuild(date: str) -> StatsSheetV1 | None:
     # rebuild without it selects a different fifteen and the comparison would
     # be measuring the missing artifact.
     if paths["market"].exists():
-        sheet = attach_market_context_column(
-            sheet,
-            MarketContextV1.model_validate_json(
-                paths["market"].read_text(encoding="utf-8")
-            ),
-        )
+        sheet = attach_market_context_column(sheet, _load_recorded_market_context(paths["market"]))
     if paths["tipsters"].exists():
         sheet = attach_tipster_column(
             sheet,
@@ -316,6 +311,25 @@ def rebuild(date: str) -> StatsSheetV1 | None:
     if offer is not None:
         sheet = attach_superbet_column(sheet, offer)
     return sheet
+
+
+def _load_recorded_market_context(path: Path) -> MarketContextV1:
+    """Recorded artifacts are historical documents; the live schema moves on.
+
+    Skipping the artifact instead is not an option -- see the caller's comment.
+    ``coupons._has_market_reference`` reads ``market_signal`` and it decides
+    which of the file's two sections a row lands in, so a rebuild without this
+    column selects a different fifteen singles and the comparison would be
+    measuring the missing artifact.
+    """
+    context, dropped = load_market_context(path)
+    if dropped:
+        print(
+            f"  note: {path.name} carries {len(dropped)} prediction field(s) this "
+            f"schema no longer has, dropped for the replay: {', '.join(dropped)}",
+            file=sys.stderr,
+        )
+    return context
 
 
 def _vetoes_for(date: str) -> list[AnalystVeto] | None:

@@ -524,8 +524,11 @@ def test_minimum_odds_carries_the_tier_margin_over_fair_odds():
 
 def test_a_lean_needs_more_headroom_than_a_call_at_the_same_p_low():
     call = build_coupons(_sheet(_row(p_low=0.60)), _events(_event())).singles[0]
+    # An incomplete primary sample is what makes a LEAN now; a missing
+    # corroborator is not (see bet_builder_draft.tier_for_row).
     lean = build_coupons(
-        _sheet(_row(p_low=0.60, cross_provider_agreement="SINGLE_SOURCE")), _events(_event())
+        _sheet(_row(p_low=0.60, data_quality="PARTIAL",
+                    cross_provider_agreement="SINGLE_SOURCE")), _events(_event())
     ).singles[0]
     assert call.fair_odds == lean.fair_odds
     assert lean.min_acceptable_odds > call.min_acceptable_odds

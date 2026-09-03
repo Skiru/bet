@@ -5,6 +5,8 @@ and a ±2h kickoff window for temporal matching.
 """
 
 import logging
+import re
+import unicodedata
 from collections import defaultdict
 from datetime import datetime
 
@@ -17,6 +19,60 @@ from .team_aliases import resolve_team_alias
 from .models import DiscoveredEvent, MergedFixture, SourceRef
 
 logger = logging.getLogger(__name__)
+
+
+# One side must be this close before the pair is read as "the same club".
+_SAME_CLUB_SCORE = 95.0
+# ...and the other side this close, so a first team and its reserves playing
+# different opponents can never pair up on the strength of one name. Measured
+# across six recorded slates: below 60 the pairs stop being spellings and start
+# being two feeds disagreeing about who the opponent is -- "Volos v Aris"
+# against "Volos v Iraklis", "Shanghai SIPG" with two different opponents at
+# one kickoff. Those are contradictions in the data, not duplicates, and
+# merging them would pick one arbitrarily.
+_OTHER_SIDE_FLOOR = 60.0
+
+
+# Words ``normalize_team_name`` strips that distinguish two real clubs rather
+# than spelling one club two ways. It removes "United", "City", "II", "B",
+# "Reserves" and the age/gender markers, so *after* normalization "Manchester
+# United" and "Manchester City" are both "manchester" and score 100, as do
+# "Widzew Lodz" and "Widzew II Lodz". Any rule that concludes "same club" from
+# a high normalized score has to ask this question separately.
+#
+# Deliberately not the whole strip list: "Athletic", "FC", "CD" and the rest
+# genuinely are two spellings of one club ("Charlton Athletic" / "Charlton"),
+# which is the case this exists to keep merging.
+_DISTINGUISHING_TOKENS = frozenset({
+    "united", "utd", "city",
+    "ii", "iii", "b", "reserve", "reserves", "youth", "junior", "juniors",
+    "w", "women", "u17", "u18", "u19", "u20", "u21", "u23",
+})
+
+
+def _distinguishing_tokens(raw_name: str) -> frozenset[str]:
+    """The distinguishing words present in a name, before club-form stripping."""
+    folded = (
+        unicodedata.normalize("NFKD", raw_name or "")
+        .encode("ascii", "ignore")
+        .decode("ascii")
+        .lower()
+    )
+    return frozenset(
+        token for token in re.split(r"[^a-z0-9]+", folded) if token in _DISTINGUISHING_TOKENS
+    )
+
+
+def _same_club(raw_left: str, raw_right: str, normalized_score: float) -> bool:
+    """Whether two spellings name the same club, for the one-side rule below.
+
+    A high score on the normalized names is necessary and not sufficient: the
+    normalizer removes exactly the words that separate a first team from its
+    reserves, and one Manchester club from the other.
+    """
+    return normalized_score >= _SAME_CLUB_SCORE and _distinguishing_tokens(
+        raw_left
+    ) == _distinguishing_tokens(raw_right)
 
 
 def _tokens_contained(a: str, b: str) -> bool:
@@ -204,6 +260,61 @@ class DeduplicationEngine:
             if event.kickoff == fixture.kickoff and (
                 _tokens_contained(ev_home, cand_home)
                 and _tokens_contained(ev_away, cand_away)
+            ):
+                score = float(self.fuzzy_threshold)
+                if score > best_score:
+                    best_score = score
+                    best_match = fixture
+                continue
+
+            # Third chance: one side is unmistakably the same club and the
+            # kickoff is identical to the second. **A club cannot play two
+            # matches at the same instant**, so the other side must be the same
+            # fixture spelled differently -- and the exonyms and
+            # half-translations that produce this shape are beyond any matcher
+            # and beyond a hand-kept alias table: "FC Copenhagen"/"FC
+            # Kobenhavn" scores 63, "Heart of Midlothian"/"Hearts" 26,
+            # "Diriyah Club"/"Al Diriyah" 82, "Stade Lavallois"/"Laval" 26.
+            #
+            # Note what is *not* required: that the two feeds agree on the
+            # competition. They routinely do not -- 'Puchar Polski' against
+            # 'Cup', 'Belgium First Div' against 'Pro League', 'Superliga'
+            # against 'Liga I' -- and requiring it (the first version of this
+            # rule did) threw away two thirds of the recovery, including
+            # Hibernian - Heart of Midlothian, which one feed files under
+            # 'Scottish Premiership' and the other under 'Premiership -
+            # Scotland'. The physical fact the rule rests on does not care what
+            # either feed calls the competition.
+            #
+            # Measured over six recorded slates (2026-08-28 .. 2026-09-03) it
+            # merges **38 pairs and every one of them is a genuine duplicate**
+            # -- LASK/LASK Linz, Genk/KRC Genk, Nancy/Dunkerque, Voluntari/
+            # Otelul, Znicz Pruszkow, Shanghai Shenhua, Accrington Stanley,
+            # West Bromwich Albion, Atletico Mineiro, Al Diriyah, FC Kobenhavn.
+            # No false positive at any point.
+            #
+            # Two guards carry the safety. ``_same_club`` refuses a pair whose
+            # names differ by a word the normalizer strips but that separates
+            # two real clubs (United/City, II, Reserves, Women) -- without it
+            # "Manchester United" and "Manchester City" both read "manchester"
+            # and score 100. ``_OTHER_SIDE_FLOOR`` refuses a pair whose
+            # opponents are unrelated, which is what a feed defaulting an
+            # unknown kickoff to midnight would otherwise produce.
+            #
+            # It became urgent rather than merely useful on 2026-09-02, when
+            # ENRICH started gating the slate: an unmerged pair used to be a
+            # fixture appearing twice, and is now a fixture **deleted twice** --
+            # one copy carries the bzzoiro id and no Superbet price, the other
+            # the price and no id, so the gate refuses both halves. FC
+            # Copenhagen - Nordsjaelland, Al Diriyah - Al-Qadsiah and Hibernian
+            # - Hearts were all lost that way on the live 2026-09-03 slate.
+            if (
+                event.kickoff == fixture.kickoff
+                and (
+                    _same_club(event.home_team, fixture.home_team, home_score)
+                    or _same_club(event.away_team, fixture.away_team, away_score)
+                )
+                and min(home_score, away_score) >= _OTHER_SIDE_FLOOR
             ):
                 score = float(self.fuzzy_threshold)
                 if score > best_score:

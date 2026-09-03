@@ -30,7 +30,7 @@ for entry in (str(ROOT), str(ROOT / "src"), str(ROOT / "scripts")):
     if entry not in sys.path:
         sys.path.insert(0, entry)
 
-from bet.simple_stats.artifact_io import write_json_atomic  # noqa: E402
+from bet.simple_stats.artifact_io import load_market_context, write_json_atomic  # noqa: E402
 from bet.simple_stats.contracts import (  # noqa: E402
     EventListV1,
     MarketContextV1,
@@ -409,9 +409,13 @@ def main() -> None:
     )
     market_context = None
     if market_context_path and market_context_path.exists():
-        market_context = MarketContextV1.model_validate_json(
-            market_context_path.read_text(encoding="utf-8")
-        )
+        market_context, dropped_fields = load_market_context(market_context_path)
+        if dropped_fields:
+            print(
+                f"note: {market_context_path.name} carries {len(dropped_fields)} prediction "
+                f"field(s) this schema no longer has, ignored: {', '.join(dropped_fields)}",
+                file=sys.stderr,
+            )
 
     superbet_path = Path(args.superbet_offer) if args.superbet_offer else (
         run_dir / f"{args.date}_superbet_offer.json" if run_dir else None

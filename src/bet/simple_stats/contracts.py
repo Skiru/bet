@@ -1131,6 +1131,17 @@ class SuperbetOfferV1(StrictBaseModel):
     # from the book. Separated because "the book dropped it because it started"
     # and "our matcher failed" are different problems and only one is ours.
     our_events_kicked_off: list[str] = Field(default_factory=list)
+    # Fixtures Superbet *did* match but whose lines were never fetched, because
+    # ``max_events`` cut the list short. They land in
+    # ``our_events_without_offer`` alongside genuine absences and are
+    # indistinguishable there -- which stopped being a reporting nuisance and
+    # became a correctness problem on 2026-09-02, when ENRICH started reading
+    # this artifact as a slate gate. A truncated board cannot tell a fixture
+    # the book declines to price from one nobody asked about, so
+    # ``enrich.build_slate_gate`` switches that rule off entirely when this is
+    # non-zero. Measured on the live 2026-09-03 slate: a cap of 30 made 9
+    # priced fixtures read as unpriced.
+    events_capped: int = 0
     events: list[SuperbetEventOffer] = Field(default_factory=list)
     data_gaps: list[str] = Field(default_factory=list)
     # How many fixtures were named by a Betradar id rather than by comparing

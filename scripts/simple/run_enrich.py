@@ -32,8 +32,18 @@ from agent_output import AgentOutput, add_agent_args  # noqa: E402
 
 from bet.api_clients.rate_limiter import RateLimiter  # noqa: E402
 from bet.simple_stats.artifact_io import sha256_file, write_json_atomic  # noqa: E402
-from bet.simple_stats.contracts import EventDossierListV1, EventListV1  # noqa: E402
-from bet.simple_stats.enrich import enrich_events  # noqa: E402
+from bet.simple_stats.contracts import (  # noqa: E402
+    EventDossierListV1,
+    EventListV1,
+    SuperbetOfferV1,
+)
+from bet.simple_stats.enrich import (  # noqa: E402
+    SlateGate,
+    build_slate_gate,
+    enrich_events,
+    gate_drop_kind,
+)
+from bet.simple_stats.providers import PRIMARY_PROVIDER_BY_SPORT  # noqa: E402
 from bet.simple_stats.persistence import default_db_path, persist_pipeline_run  # noqa: E402
 from bet.simple_stats.preflight import enrich_preflight  # noqa: E402
 from bet.simple_stats.providers import espn_competition_coverage  # noqa: E402
@@ -77,6 +87,22 @@ def main() -> None:
              "under highlightly's 100 it could not.",
     )
     parser.add_argument(
+        "--superbet-offer",
+        default=None,
+        help="Path to the SUPERBET_OFFER_V1 artifact for this day. Turns on the "
+             "third slate-gate rule: a fixture Superbet does not price, in a "
+             "competition where it prices others, is not enriched. Without it "
+             "the gate still applies its first two rules (the primary provider "
+             "discovered the fixture; kickoff has not passed).",
+    )
+    parser.add_argument(
+        "--no-slate-gate",
+        action="store_true",
+        help="Enrich every ACTIVE event, including ones no provider of record "
+             "covers and ones already under way. For backfills and replays; a "
+             "normal run wants the gate.",
+    )
+    parser.add_argument(
         "--skip-preflight",
         action="store_true",
         help="Run even if no provider has quota left (produces an all-gaps artifact)",
@@ -106,10 +132,25 @@ def main() -> None:
             )
             out.summary(verdict="FAILED", metrics={"total_dossiers": 0, "run_id": run_id})
             sys.exit(2)
+        # A fixture the slate gate refused is not incomplete, it is excluded --
+        # retrying it spends the pass on events the gate will refuse again, and
+        # (worse) on a backfill run without ``--superbet-offer`` the third rule
+        # is not in force, so a fixture dropped for having no price would be
+        # enriched after all. A fixture the *cap* skipped is a different matter
+        # and is exactly what a backfill is for, so "capped" is retried.
+        gate_refused = {
+            dossier.event_id
+            for dossier in prior.dossiers
+            if any(
+                (kind := gate_drop_kind(gap)) is not None and kind != "capped"
+                for gap in dossier.data_gaps
+            )
+        }
         incomplete = {
             dossier.event_id
             for dossier in prior.dossiers
             if dossier.readiness in ("BLOCKED", "PARTIAL")
+            and dossier.event_id not in gate_refused
         }
         # BLOCKED_IDENTITY events are dropped rather than retried: their problem
         # is that two sources disagree about what fixture this is, which no
@@ -132,6 +173,7 @@ def main() -> None:
             run_id=run_id,
             prior_artifact=str(args.backfill_from),
             incomplete_before=len(incomplete),
+            gate_refused_not_retried=len(gate_refused),
             retryable_events=len(event_list.events),
         )
 
@@ -183,6 +225,51 @@ def main() -> None:
         coverage_by_sport=preflight["coverage_by_sport"],
     )
 
+    # ── Slate gate ───────────────────────────────────────────────────
+    gate: SlateGate | None = None
+    if not args.no_slate_gate:
+        offer: SuperbetOfferV1 | None = None
+        if args.superbet_offer:
+            offer_path = Path(args.superbet_offer)
+            if offer_path.exists():
+                try:
+                    offer = SuperbetOfferV1.model_validate_json(
+                        offer_path.read_text(encoding="utf-8")
+                    )
+                except (OSError, ValueError) as exc:
+                    # Fail towards the permissive gate, never towards an empty
+                    # slate. An unreadable board is not evidence that the book
+                    # prices nothing, and this is the step that spends the
+                    # provider budget -- crashing here costs the whole run.
+                    out.warning(
+                        f"superbet offer unusable, gating without it: {exc}",
+                        path=str(offer_path),
+                    )
+                    offer = None
+                if offer is not None and offer.date and event_list.date and offer.date != event_list.date:
+                    # Gating today's slate on yesterday's board would drop
+                    # every fixture that is not a repeat, silently.
+                    out.warning(
+                        f"superbet offer is for {offer.date}, not {event_list.date}: "
+                        "ignoring it for the slate gate",
+                    )
+                    offer = None
+            else:
+                out.warning(f"superbet offer not found, gating without it: {offer_path}")
+        # A run over a past date is a backfill or a re-analysis, and there every
+        # fixture has started. Enforcing kickoff would empty the slate rather
+        # than protect it.
+        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        enforce_kickoff = not event_list.date or event_list.date >= today
+        gate = build_slate_gate(event_list, offer, enforce_kickoff=enforce_kickoff)
+        out.event(
+            "slate_gate",
+            have_offer=gate.have_offer,
+            enforce_kickoff=enforce_kickoff,
+            priced_events=len(gate.priced_event_ids),
+            priced_competitions=len(gate.priced_competitions),
+        )
+
     # ── Enrich ───────────────────────────────────────────────────────
     try:
         dossier_list = enrich_events(
@@ -191,6 +278,7 @@ def main() -> None:
             max_events=args.max_events,
             provider_call_budget=args.provider_call_budget,
             player_props=args.player_props,
+            slate_gate=gate,
         )
     except Exception as exc:
         traceback.print_exc(file=sys.stderr)
@@ -212,6 +300,45 @@ def main() -> None:
     write_json_atomic(output_path, dossier_list.model_dump(mode="json"))
     digest = sha256_file(output_path)
     out.event("artifact_written", path=str(output_path), sha256=digest, dossiers=len(dossier_list.dossiers))
+
+    # What the gate refused, and what that cost. A slate that shrinks silently
+    # is the thing the gate must never become: 3-6 fixtures a day sit in a
+    # competition bzzoiro covers and are priced by Superbet, and bzzoiro's
+    # /events/ simply did not return them (measured 2026-09-01/02). Those are
+    # real bets the run is choosing not to make, so they are named, not counted.
+    gate_drops: dict[str, int] = {}
+    for dossier in dossier_list.dossiers:
+        for gap in dossier.data_gaps:
+            kind = gate_drop_kind(gap)
+            if kind:
+                gate_drops[kind] = gate_drops.get(kind, 0) + 1
+    if gate_drops:
+        out.event("slate_gate_drops", **gate_drops)
+    if gate is not None and gate.have_offer:
+        covered = {
+            e.competition
+            for e in event_list.events
+            if e.sport in PRIMARY_PROVIDER_BY_SPORT
+            and e.source_ids.get(PRIMARY_PROVIDER_BY_SPORT[e.sport])
+        }
+        missed = [
+            e
+            for e in event_list.events
+            if e.status == "ACTIVE"
+            and e.sport in PRIMARY_PROVIDER_BY_SPORT
+            and not e.source_ids.get(PRIMARY_PROVIDER_BY_SPORT[e.sport])
+            and e.competition in covered
+            and e.event_id in gate.priced_event_ids
+        ]
+        for event in missed:
+            out.warning(
+                f"bettable fixture dropped for want of a {PRIMARY_PROVIDER_BY_SPORT[event.sport]} "
+                f"id: {event.home_team} v {event.away_team} ({event.competition}) is priced by "
+                f"Superbet and the provider covers this competition, but discovery captured no id",
+                event_id=event.event_id,
+            )
+        if missed:
+            out.event("primary_discovery_misses", count=len(missed))
 
     by_readiness = {"READY": 0, "PARTIAL": 0, "BLOCKED": 0}
     providers_seen: dict[str, int] = {}
@@ -250,7 +377,12 @@ def main() -> None:
         "backfill_improved_dossiers": merged_count if prior is not None else None,
         "planned_events": planned,
         "recommended_max_events": preflight["recommended_max_events"],
-        "two_provider_coverage_by_sport": preflight["coverage_by_sport"],
+        # Renamed from "two_provider_coverage_by_sport" on 2026-09-03. For a
+        # sport with a primary provider it has not counted two providers since
+        # readiness stopped requiring them: it is the primary's own reach, which
+        # is what bounds a readable slate.
+        "slate_coverage_by_sport": preflight["coverage_by_sport"],
+        "slate_gate_drops": gate_drops,
         # Drift signal for the ESPN competition table. It is exact-match, so an
         # unenumerated feed spelling costs a provider silently; measured once
         # on 2026-08-28 and invisible in every run since. Named here, with the

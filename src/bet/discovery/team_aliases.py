@@ -66,6 +66,24 @@ TEAM_ALIASES: dict[str, set[str]] = {
     "Sporting CP": {"Sporting Lisbon", "Sporting Lisboa"},
     "Nautico": {"Nautico PE", "Nautico Recife"},
     "Erzurumspor FK": {"Erzurum BB", "Erzurum Buyuksehir Belediyesi"},
+    # Added 2026-09-03. Each was found as a *split pair* in the recorded
+    # slates -- one fixture, one kickoff to the second, one side of it matching
+    # exactly -- and each scores far below any threshold a matcher may safely
+    # use: "Hearts"/"Heart of Midlothian" 40, "QPR"/"Queens Park Rangers" 18,
+    # "Wolves"/"Wolverhampton Wanderers" 53, "Lyon"/"Olympique Lyonnais" 36,
+    # "Brest"/"Stade Brestois" 53. All five are club nicknames or full legal
+    # names, which is this table's stated case; none is a qualifier, which is
+    # the case it must not grow to hold.
+    #
+    # Hearts is the one that forced the question: on the live 2026-09-03 slate
+    # Hibernian - Hearts arrived from two feeds as two fixtures, one carrying
+    # the bzzoiro id and the other the Superbet price, and since ENRICH gates
+    # the slate that deletes the Edinburgh derby rather than duplicating it.
+    "Heart of Midlothian": {"Hearts"},
+    "Queens Park Rangers": {"QPR"},
+    "Wolverhampton Wanderers": {"Wolves"},
+    "Olympique Lyonnais": {"Lyon"},
+    "Stade Brestois": {"Brest"},
 }
 
 # Reverse index, built once. A rendering listed under two canonical clubs is a

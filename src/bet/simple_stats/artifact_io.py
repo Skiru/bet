@@ -47,3 +47,50 @@ def sha256_file(path: Path) -> str:
         for chunk in iter(lambda: f.read(8192), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def load_market_context(path: Path) -> tuple["MarketContextV1", list[str]]:
+    """Read a MARKET_CONTEXT_V1 artifact this repo's schema may have moved on from.
+
+    Returns the context and the names of any prediction fields dropped to make
+    it readable.
+
+    ``StrictBaseModel`` forbids unknown fields, which is right for a live run
+    and wrong for reading one back. On 2026-09-02 bzzoiro-tennis was removed and
+    ``ModelPrediction`` lost its seven tennis fields; every
+    ``market_context.json`` already on disk became unreadable that instant, and
+    the three readers failed three different ways:
+
+    * ``backtest_slate.py`` -- crashed, taking the only instrument that settles
+      this repo's arguments against real results with it;
+    * ``build_coupons.py`` -- crashed, at the last step before the operator gets
+      output;
+    * ``run_analyze.py`` -- caught it and continued *without the market column*,
+      which is the quietest of the three and not the safest.
+
+    Re-running a finished day is normal here, so a schema change must not turn
+    yesterday's artifacts into rubble. Strict first, so a current-shaped file is
+    validated exactly as everywhere else; only on failure are unknown prediction
+    fields dropped, and they are returned so the caller can say so out loud. A
+    field the schema has forgotten is not one a coupon should quietly use.
+    """
+    from bet.simple_stats.contracts import MarketContextV1, ModelPrediction
+
+    raw_text = Path(path).read_text(encoding="utf-8")
+    try:
+        return MarketContextV1.model_validate_json(raw_text), []
+    except ValueError:
+        pass
+
+    known = set(ModelPrediction.model_fields)
+    raw = json.loads(raw_text)
+    dropped: set[str] = set()
+    for event in raw.get("events") or []:
+        predictions = event.get("predictions")
+        if not isinstance(predictions, dict):
+            continue
+        dropped |= set(predictions) - known
+        event["predictions"] = {k: v for k, v in predictions.items() if k in known}
+    # Still strict about everything else: this widens the door for fields the
+    # schema *used* to have, not for an artifact that is simply wrong.
+    return MarketContextV1.model_validate(raw), sorted(dropped)

@@ -22,7 +22,7 @@
     "season_scope": "current",
     "source_operation_status": "SUCCESS"
   },
-  "proof_id": "bdddb8ff8f89b84bb1ad29718278920e802477a372e4412f60ced04bfa8c7236",
+  "proof_id": "9dfc36033e8cc08d56486388be01cd6a03a0dd672fe03eb6ead64fbc66e701ee",
   "replay_verification": "PASS",
   "standings_proof": {
     "accepted_count": 20,
@@ -33,7 +33,7 @@
     "env_key_sha256_prefix": "1dc511be",
     "env_key_source": ".env",
     "mode": "shadow",
-    "normalized_payload_sha256": "60b9dde077f44b5d659e0ce2948e96488bb754ea9a4e6640a549b81f25d5698d",
+    "normalized_payload_sha256": "aedf0eb0081deede279f3e45ba61270e1787e54b682d94cf73e4f6ee104f5240",
     "params": null,
     "parser_version": "football-data-org-standings-v1",
     "provider": "football-data",
