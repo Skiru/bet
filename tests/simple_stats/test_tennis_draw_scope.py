@@ -33,11 +33,13 @@ from bet.simple_stats.analyze import (
     _TENNIS_LENGTH_DEPENDENT_MARKETS,
     _format_scope_for,
     analyze_dossier,
+    best_of_five_suppression_report,
     scope_values,
     suppressed_markets_for,
     tennis_match_format,
 )
 from bet.simple_stats.contracts import (
+    EventDossierListV1,
     EventDossierV1,
     MetricObservation,
     ProviderValue,
@@ -443,6 +445,81 @@ class TestEveryLengthDependentTennisMarketIsCovered:
         assert canonical <= _TENNIS_LENGTH_DEPENDENT_MARKETS, sorted(
             canonical - _TENNIS_LENGTH_DEPENDENT_MARKETS
         )
+
+
+class TestTheSuppressionSaysWhy:
+    """A suppressed market emits no row, and a row is the only place
+    ``sample_excluded`` is reported -- so the largest deletion this stage
+    performs was unobservable, and its silence read as "priced it, not worth
+    it". On 2026-09-02 and -03 that silence was the entire men's slate.
+    """
+
+    @staticmethod
+    def _list(*dossiers: EventDossierV1) -> EventDossierListV1:
+        return EventDossierListV1(
+            run_id="r", date="2026-09-03", generated_at="2026-09-03T00:00:00+00:00",
+            dossiers=list(dossiers),
+        )
+
+    @staticmethod
+    def _tennis(event_id: str, *levels: str | None) -> EventDossierV1:
+        return EventDossierV1(
+            event_id=event_id, sport="tennis", readiness="READY", data_gaps=[],
+            team_a_name="A", team_b_name="B",
+            metrics={
+                "total_sets": MetricObservation(
+                    canonical_name="total_sets",
+                    team_a_l10=[
+                        _pv(3.0, match_level=lv, match_id=f"{event_id}-{i}",
+                            surface="Hard", opponent=f"o{i}")
+                        for i, lv in enumerate(levels)
+                    ],
+                ),
+            },
+        )
+
+    def test_an_unstated_draw_is_reported_as_needing_enrich(self) -> None:
+        """The actionable half. An unstated draw means the dossier predates
+        ProviderValue.match_level, and the field is written at ingest -- so
+        ANALYZE cannot recover it however often it is re-run."""
+        report = best_of_five_suppression_report(
+            self._list(self._tennis("e1", None, None)),
+            {"e1": "ATP US Open"},
+        )
+        assert report["fixtures"] == 1
+        assert report["markets"] == 1
+        assert report["by_reason"] == {"MATCH_FORMAT_UNKNOWN": 2}
+        assert report["fixtures_mostly_unknown_draw"] == 1
+
+    def test_a_genuinely_best_of_three_sample_is_not_reported_as_a_gap(self) -> None:
+        """Nothing to fix here: the sample was fetched and is tour tennis."""
+        report = best_of_five_suppression_report(
+            self._list(self._tennis("e1", TOUR, TOUR, TOUR)),
+            {"e1": "ATP US Open"},
+        )
+        assert report["by_reason"] == {"MATCH_FORMAT_MISMATCH": 3}
+        assert report["fixtures_mostly_unknown_draw"] == 0
+
+    def test_a_fixture_that_kept_its_markets_is_not_in_the_report(self) -> None:
+        report = best_of_five_suppression_report(
+            self._list(self._tennis("e1", SLAM, SLAM)),
+            {"e1": "ATP US Open"},
+        )
+        assert report == {
+            "fixtures": 0, "markets": 0, "by_reason": {},
+            "fixtures_mostly_unknown_draw": 0,
+        }
+
+    def test_the_womens_draw_and_football_never_appear(self) -> None:
+        wta = self._tennis("e1", TOUR, TOUR)
+        football = EventDossierV1(
+            event_id="e2", sport="football", readiness="READY", data_gaps=[],
+            metrics={},
+        )
+        report = best_of_five_suppression_report(
+            self._list(wta, football), {"e1": "WTA US Open", "e2": "Championship"},
+        )
+        assert report["markets"] == 0
 
 
 class TestTheFormatTableIsReadOnce:

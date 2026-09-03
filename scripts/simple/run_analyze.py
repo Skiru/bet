@@ -30,7 +30,11 @@ if scripts_path not in sys.path:
 from agent_output import AgentOutput, add_agent_args  # noqa: E402
 
 from bet.db.connection import get_db  # noqa: E402
-from bet.simple_stats.analyze import analyze_dossiers, limit_rows_per_event  # noqa: E402
+from bet.simple_stats.analyze import (  # noqa: E402
+    analyze_dossiers,
+    best_of_five_suppression_report,
+    limit_rows_per_event,
+)
 from bet.simple_stats.offered_lines import OfferedLines  # noqa: E402
 from bet.simple_stats.artifact_io import (  # noqa: E402
     load_market_context,
@@ -209,6 +213,24 @@ def main() -> None:
         _record(args, run_id, betting_date, "FAILED", {"error": str(exc)}, started_at, str(exc))
         out.summary(verdict="FAILED", metrics={"total_rows": 0, "run_id": run_id})
         sys.exit(2)
+
+    # Said out loud, because a suppressed market emits no row and a row is the
+    # only place ``sample_excluded`` is reported -- so the largest deletion
+    # this stage performs was invisible, and its silence read as "priced it,
+    # not worth it". ``fixtures_mostly_unknown_draw`` is the actionable half:
+    # it means the dossier predates ProviderValue.match_level and ENRICH has
+    # to run again, because ANALYZE cannot recover a field written at ingest.
+    bo5_report = best_of_five_suppression_report(dossier_list, competitions)
+    if bo5_report["markets"]:
+        out.event("best_of_five_markets_suppressed", **bo5_report)
+        if bo5_report["fixtures_mostly_unknown_draw"]:
+            out.warning(
+                f"{bo5_report['fixtures_mostly_unknown_draw']} best-of-five "
+                "fixtures have no stated draw on any observation, so every "
+                "length-dependent market is suppressed. The draw is recorded "
+                "at ingest -- re-run ENRICH for these, ANALYZE cannot recover "
+                "it."
+            )
 
     if args.max_rows_per_event is not None:
         pre_cap = len(stats_sheet.rows)
@@ -442,6 +464,7 @@ def main() -> None:
         "top_rows": len(top_rows),
         "persisted": persisted,
         "persist_error": persist_error,
+        "best_of_five_suppressed": bo5_report,
         **market_metrics,
         **tipster_metrics,
         **superbet_metrics,

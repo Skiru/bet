@@ -2013,6 +2013,75 @@ def analyze_dossiers(
     )
 
 
+def best_of_five_suppression_report(
+    dossier_list: EventDossierListV1,
+    competitions: Mapping[str, str] | None = None,
+) -> dict:
+    """Why the length-dependent tennis markets are missing, when they are.
+
+    A suppressed market emits no row, and a row is the only place
+    ``sample_excluded`` is reported -- so the reasons for the largest deletion
+    this pipeline performs were, until now, unobservable. The operator saw
+    silence, and silence reads as "priced it, not worth it" rather than "never
+    looked". That is the same fault the result-market work fixed on the other
+    side of the sheet, and it is worth more here: on 2026-09-02 and -03 it hid
+    the entire men's slate.
+
+    It also distinguishes the two ways a fixture can come back empty, which
+    call for opposite responses:
+
+    * ``MATCH_FORMAT_UNKNOWN`` dominating means the dossier predates
+      ``ProviderValue.match_level`` -- the draw was never recorded, so every
+      observation is unplaceable. Re-run ENRICH; ANALYZE alone cannot recover
+      it, because the field is written at ingest.
+    * ``MATCH_FORMAT_MISMATCH`` dominating means the sample was fetched and is
+      genuinely best-of-three. Nothing to fix; that fixture has no Grand Slam
+      history inside the observation window.
+
+    Counted per (fixture, market) pair, with the observation-level reasons
+    pooled, because that is the grain the decision is taken at.
+    """
+    lookup = competitions or {}
+    reasons: dict[str, int] = {}
+    pairs = 0
+    fixtures: set[str] = set()
+    unknown_dominated = 0
+    for dossier in dossier_list.dossiers:
+        if dossier.sport != "tennis":
+            continue
+        competition = lookup.get(dossier.event_id)
+        suppressed = suppressed_markets_for(dossier, competition)
+        if not suppressed:
+            continue
+        surface = tennis_surface(competition)
+        match_format = tennis_match_format(competition)
+        fixture_reasons: dict[str, int] = {}
+        for market in sorted(suppressed):
+            obs = dossier.metrics.get(market)
+            if obs is None:
+                continue
+            pairs += 1
+            fixtures.add(dossier.event_id)
+            _, dropped = scope_values(
+                [*obs.team_a_l10, *obs.team_b_l10, *obs.h2h],
+                surface=surface,
+                match_format=_format_scope_for(market, match_format),
+            )
+            for reason, count in dropped.items():
+                reasons[reason] = reasons.get(reason, 0) + count
+                fixture_reasons[reason] = fixture_reasons.get(reason, 0) + count
+        if fixture_reasons and max(fixture_reasons, key=fixture_reasons.get) == (
+            "MATCH_FORMAT_UNKNOWN"
+        ):
+            unknown_dominated += 1
+    return {
+        "fixtures": len(fixtures),
+        "markets": pairs,
+        "by_reason": dict(sorted(reasons.items())),
+        "fixtures_mostly_unknown_draw": unknown_dominated,
+    }
+
+
 def limit_rows_per_event(rows: list[StatsSheetRow], max_per_event: int | None) -> list[StatsSheetRow]:
     """Cap how many rows one event contributes to the sheet (Faza 2 sizing).
 
