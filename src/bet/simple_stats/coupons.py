@@ -7,13 +7,19 @@ cannot be audited, reproduced, or caught when it slips by a decimal place.
 
 What it does **not** do, and cannot be made to
 ----------------------------------------------
-* **No combined price.** ``BetBuilderDraft.combined_price`` is typed ``None``,
-  and nothing here computes one. Corners, cards, fouls and shots in one match
-  are strongly positively correlated -- a foul-heavy match is a card-heavy
-  match -- so the product of the legs understates the slip's real probability,
-  in the direction that flatters the bet. Superbet's own price already accounts
-  for the correlation; a number computed here would not, and would read as a
-  second opinion confirming the first.
+* **No combined price.** ``BetBuilderDraft.combined_price`` is still typed
+  ``None``: no endpoint serves Superbet's Bet Builder price, and it cannot be
+  derived from the legs because the book's combination margin is not
+  observable from them. The operator reads it off the screen.
+
+  What *is* computed, since 2026-09-03, is the **bar** for that price --
+  ``min_acceptable_combined_odds``. The reason it could not be computed before
+  was a claim about correlation that has since been measured and did not hold:
+  over 12,555 same-fixture leg pairs settled against real results, legs land
+  together 1.009x as often as independence implies (95% CI [1.005, 1.013]),
+  and 1.006x for non-nested markets. See ``bet_builder_draft`` for the table.
+  A coefficient that small is a coefficient, not a reason to refuse the
+  arithmetic.
 * **No stake.** Not a size, not a fraction of a bankroll, not a Kelly figure.
 * **No EV.** EV needs a price, and the only real price is on the operator's own
   screen.
@@ -26,6 +32,14 @@ The one number that ranks everything
 ``p_low`` -- the Wilson lower bound already on every row. Never ``hit_rate``:
 4/4 is a hit rate of 1.00 and a ``p_low`` of 0.51, which is the whole point of
 using it. Nothing in this module recomputes it; it is read from the artifact.
+
+**Ranking and the price bar are two different questions, and since 2026-09-03
+they are answered by two different numbers.** ``p_low`` still orders the file:
+between two rows it is the honest statement of which is better evidenced, and
+a lower bound is the right tool for that. It is the wrong tool for dividing
+into 1 to get a price, because it is wrong by +16 to +22pp in one direction on
+every row -- so ``bar_basis`` now defaults to ``p_central``, which measures
+-0.000 against realised results. See ``bet_builder_draft.BAR_BASES``.
 """
 from __future__ import annotations
 
@@ -699,7 +713,7 @@ def build_coupons(
     market_context: MarketContextV1 | None = None,
     superbet_offer: SuperbetOfferV1 | None = None,
     require_superbet_value: bool = False,
-    bar_basis: str = "p_low",
+    bar_basis: str = "p_central",
 ) -> CouponSet:
     """Turn a finished stats sheet into the day's singles and slips.
 

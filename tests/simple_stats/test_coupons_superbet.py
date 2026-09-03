@@ -501,9 +501,16 @@ def test_a_slip_with_a_leg_worth_its_price_outranks_a_more_certain_one_without()
         *_slip_fixture_rows("evt-2", 0.75, 0.75),
     )
     events = _events(_event(), _event(event_id="evt-2", home="Girona", away="Osasuna"))
+    # The prices that are not "value" still have to be above their legs' fair
+    # odds, or ``draft_legs`` drops them for lowering the slip's expectation
+    # and there is no second leg left to rank (2026-09-03). They sit in the
+    # narrow band this test is actually about: on the screen, real, below the
+    # bar. These rows tier CALL, so the margin is 1.05 and the bands are
+    # p_low 0.55 -> fair 1.818, bar 1.909; 0.60 -> 1.667/1.750;
+    # 0.75 -> 1.333/1.400.
     offer = _two_event_offer(
-        [_line(price=2.60), _line(market="cards_total", line=4.5, price=1.02)],
-        [_line(price=1.02), _line(market="cards_total", line=4.5, price=1.02)],
+        [_line(price=2.60), _line(market="cards_total", line=4.5, price=1.71)],
+        [_line(price=1.37), _line(market="cards_total", line=4.5, price=1.37)],
     )
 
     coupons = build_coupons(sheet, events, superbet_offer=offer, max_slips=1)
@@ -528,9 +535,12 @@ def test_between_two_slips_with_no_value_the_weakest_leg_still_decides():
         *_slip_fixture_rows("evt-2", 0.75, 0.75),
     )
     events = _events(_event(), _event(event_id="evt-2", home="Girona", away="Osasuna"))
+    # "No value" means below each leg's bar, not below its fair odds -- a leg
+    # priced under fair odds subtracts from the slip and is excluded outright,
+    # which would leave nothing here to order. See the note above.
     nothing_priced = _two_event_offer(
-        [_line(price=1.02), _line(market="cards_total", line=4.5, price=1.02)],
-        [_line(price=1.02), _line(market="cards_total", line=4.5, price=1.02)],
+        [_line(price=1.86), _line(market="cards_total", line=4.5, price=1.71)],
+        [_line(price=1.37), _line(market="cards_total", line=4.5, price=1.37)],
     )
 
     coupons = build_coupons(sheet, events, superbet_offer=nothing_priced, max_slips=2)

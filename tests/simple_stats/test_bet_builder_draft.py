@@ -10,6 +10,8 @@ import pytest
 from pydantic import ValidationError
 
 from bet.simple_stats.bet_builder_draft import (
+    CORRELATION_LAMBDA_FLAT,
+    CORRELATION_LAMBDA_NESTED,
     TIER_MARGIN,
     BetBuilderDraft,
     draft_legs,
@@ -490,3 +492,164 @@ def test_the_market_verdict_is_reported_but_changes_no_threshold():
     assert with_signal.fair_odds == without.fair_odds
     assert with_signal.min_acceptable_odds == without.min_acceptable_odds
     assert with_signal.tier == without.tier
+
+
+# --- the slip's own bar (2026-09-03) --------------------------------------
+#
+# The combined bar exists because the correlation that justified refusing it
+# was measured and came back at 1.009 (95% CI [1.005, 1.013]) over 12,555
+# same-fixture leg pairs settled against real results. These tests pin the
+# arithmetic that replaced the refusal.
+
+
+def _priced(prices):
+    """A ``price_for`` that answers OFFERED at ``prices[market]``."""
+    return lambda row: ("OFFERED", prices.get(row.market))
+
+
+def test_the_combined_bar_is_the_margin_over_the_joint_probability():
+    """``margin / (product x lambda)``, and nothing else.
+
+    Written out here rather than trusted to the implementation because it is
+    the number an operator compares a real Bet Builder price against.
+    """
+    sheet = _sheet(
+        _row(market="corners_total", p_low=0.60, p_central=0.80),
+        _row(market="cards_total", line=4.5, p_low=0.60, p_central=0.75),
+    )
+    draft = draft_legs(
+        sheet, "evt-1",
+        price_for=_priced({"corners_total": 2.00, "cards_total": 2.00}),
+    )
+
+    assert len(draft.legs) == 2
+    # Neither market is inside the other, so the flat lambda applies.
+    assert draft.correlation_lambda == CORRELATION_LAMBDA_FLAT
+    expected_joint = 0.80 * 0.75 * CORRELATION_LAMBDA_FLAT
+    assert draft.joint_probability == pytest.approx(expected_joint, abs=1e-6)
+    # CALL rows, so the margin is 1.05 -- the weakest leg's, charged once.
+    assert draft.min_acceptable_combined_odds == pytest.approx(
+        TIER_MARGIN["CALL"] / expected_joint, abs=1e-4
+    )
+
+
+def test_the_slip_margin_is_charged_once_and_not_per_leg():
+    """Four legs do not carry four margins.
+
+    The margin covers a calibration error in the estimator, which is a property
+    of the estimator and not of how many times it was called. Compounding it
+    would demand 1.05^4 = 1.22 of headroom from a four-leg slip and is the same
+    mistake ``p_low`` already made once by being multiplied.
+    """
+    sheet = _sheet(
+        _row(market="corners_total", p_low=0.60, p_central=0.90),
+        _row(market="cards_total", line=4.5, p_low=0.60, p_central=0.90),
+        _row(market="fouls_total", line=20.5, p_low=0.60, p_central=0.90),
+        _row(market="shots_total", line=22.5, p_low=0.60, p_central=0.90),
+    )
+    draft = draft_legs(sheet, "evt-1", price_for=_priced(dict.fromkeys(
+        ("corners_total", "cards_total", "fouls_total", "shots_total"), 2.00
+    )))
+
+    assert len(draft.legs) == 4
+    implied_margin = draft.min_acceptable_combined_odds * draft.joint_probability
+    assert implied_margin == pytest.approx(TIER_MARGIN["CALL"], abs=1e-3)
+
+
+def test_nested_legs_in_the_same_direction_get_the_larger_measured_lambda():
+    """1.045 over 1,326 pairs, and only where one leg is inside the other.
+
+    ``goals_for`` is counted within ``goals_total``: the same goal settles both.
+    That is the one place the correlation story survived measurement.
+    """
+    sheet = _sheet(
+        _row(market="goals_total", line=2.5, direction="UNDER", p_low=0.60, p_central=0.80),
+        _row(market="goals_for", line=1.5, direction="UNDER", team_name="Valencia",
+             p_low=0.60, p_central=0.80),
+    )
+    draft = draft_legs(
+        sheet, "evt-1",
+        price_for=_priced({"goals_total": 2.00, "goals_for": 2.00}),
+    )
+
+    assert len(draft.legs) == 2
+    assert draft.correlation_lambda == CORRELATION_LAMBDA_NESTED
+
+
+def test_the_joint_probability_never_exceeds_the_weakest_leg():
+    """A slip cannot win more often than its least likely leg does.
+
+    With a high lambda and two near-certain legs the raw product times lambda
+    can exceed ``min(p)``, which is arithmetic rather than evidence.
+    """
+    sheet = _sheet(
+        _row(market="goals_total", line=2.5, direction="UNDER", p_low=0.60, p_central=0.99),
+        _row(market="goals_for", line=1.5, direction="UNDER", team_name="Valencia",
+             p_low=0.60, p_central=0.99),
+    )
+    draft = draft_legs(
+        sheet, "evt-1",
+        price_for=_priced({"goals_total": 2.00, "goals_for": 2.00}),
+    )
+
+    assert draft.joint_probability <= 0.99
+
+
+def test_a_leg_priced_below_its_fair_odds_is_refused_because_it_lowers_the_slip():
+    """Parlay arithmetic: adding a leg multiplies expected value by
+    ``price x p``. Below fair odds that is less than one, so the leg subtracts
+    from a slip it appears to strengthen.
+
+    The 2026-09-03 file took ``player_total_shots 0.5 OVER`` at 1.04 against
+    fair odds of 1.15 as a fourth leg, lowering the slip's expectation by 10%
+    in exchange for looking like a fuller coupon.
+    """
+    sheet = _sheet(
+        _row(market="corners_total", p_low=0.60, p_central=0.80),
+        # fair odds 1/0.90 = 1.111; offered 1.05, so it destroys value.
+        _row(market="cards_total", line=4.5, p_low=0.60, p_central=0.90),
+    )
+    draft = draft_legs(
+        sheet, "evt-1",
+        price_for=_priced({"corners_total": 2.00, "cards_total": 1.05}),
+    )
+
+    assert [leg.market for leg in draft.legs] == ["corners_total"]
+    assert draft.excluded["leg_would_lower_slip_value"] == 1
+    # One leg is not a slip, so there is nothing to price.
+    assert draft.min_acceptable_combined_odds is None
+
+
+def test_legs_that_miss_the_bar_are_ranked_by_how_far_they_miss_it():
+    """Not by ``p_low``, which sorts near-tautologies above every real read.
+
+    On a normal day nothing clears its bar and every leg lands in this group.
+    Ranking it on ``p_low`` is what filled the 2026-09-03 slips with legs
+    priced 1.002-1.16 while the same fixtures had legs at 1.28 on the singles
+    list.
+    """
+    # LEAN rows, so the margin is 1.10 and each leg's window between its fair
+    # odds and its bar is wide enough to price inside. Both legs are on the
+    # screen, both above fair odds, both below their own bar -- the group this
+    # ranking governs.
+    lean = dict(cross_provider_agreement="SINGLE_SOURCE", data_quality="PARTIAL")
+    sheet = _sheet(
+        # The near-tautology: highest p_low in the fixture, priced at almost
+        # nothing. fair 1.053, bar 1.158, offered 1.08 -> ratio 0.93.
+        _row(market="goals_1h_total", line=3.5, direction="UNDER",
+             p_low=0.90, p_central=0.95, **lean),
+        # The real read: lowest p_low, but the price nearly reaches its bar.
+        # fair 1.667, bar 1.833, offered 1.80 -> ratio 0.98.
+        _row(market="corners_total", p_low=0.50, p_central=0.60, **lean),
+    )
+    draft = draft_legs(sheet, "evt-1", price_for=_priced({
+        "goals_1h_total": 1.08, "corners_total": 1.80,
+    }))
+
+    assert [leg.tier for leg in draft.legs] == ["LEAN", "LEAN"]
+    # Neither leg clears its bar, so both are ranked by ratio -- and the order
+    # is the reverse of what p_low alone would have given.
+    assert all(
+        leg.superbet_price < leg.min_acceptable_odds for leg in draft.legs
+    )
+    assert [leg.market for leg in draft.legs] == ["corners_total", "goals_1h_total"]

@@ -3,18 +3,50 @@
 What this is not
 ----------------
 It is not a price. There is no bet-builder endpoint anywhere in bzzoiro's API,
-and there is no arithmetic here or elsewhere that turns four leg prices into a
-combined one. ``BetBuilderDraft.combined_price`` is typed ``None`` on the
-contract itself rather than merely defaulted to it, so nothing downstream can
-populate it even by mistake. The operator reads the combined price off their own
-Superbet screen; this produces the legs and the thresholds to check it against.
+and no arithmetic here turns four leg prices into the one Superbet will show.
+``BetBuilderDraft.combined_price`` is typed ``None`` on the contract itself
+rather than merely defaulted to it, so nothing downstream can populate it even
+by mistake. The operator reads the combined price off their own screen.
 
-That is not caution for its own sake. Corners, cards, fouls and shots in one
-match are strongly positively correlated -- a foul-heavy match is a card-heavy
-match -- so the product of the leg probabilities is not the parlay probability,
-and it is wrong in the direction that flatters the bet. A bookmaker's own Bet
-Builder price already accounts for that; a number computed here would not, and
-would read as a second opinion confirming the first.
+What it *is*, since 2026-09-03, is a **bar** for that price:
+``min_acceptable_combined_odds``. Same conditional shape every threshold in
+this pipeline has -- "worth taking if the screen shows at least X" -- applied
+to the slip instead of the leg. Without it a slip had no acceptance test at
+all, and the file said so in a sentence that read as a refusal to help.
+
+The correlation this module was built around was measured, and it is not there
+--------------------------------------------------------------------------
+The paragraph that used to sit here asserted that corners, cards, fouls and
+shots in one match are "strongly positively correlated", so the product of the
+leg probabilities understates the parlay's, in the direction that flatters the
+bet. That was never measured. It has been now, against real results:
+2,669 settled candidate rows over 356 fixtures and five slates, every
+same-fixture pair of them (12,555 pairs), asking how often two legs land
+*together* versus how often independence says they should.
+
+    lambda = P(A and B) / (P(A) x P(B))
+
+    all pairs                             12,555   1.009  95% CI [1.005, 1.013]
+    non-nested markets                    10,716   1.006
+    nested part-vs-whole, same direction   1,326   1.045
+    nested part-vs-whole, opposite         513     0.978
+
+Flat across every probability band (1.007 / 0.999 / 1.000 for pair minima of
+0.50-0.60, 0.60-0.70, 0.70-0.80). **Same-match legs are independent to within
+measurement error.**
+
+That is not a contradiction of the underlying intuition, it is a fact about
+where the lines sit. The *counts* really do move together -- a foul-heavy match
+really is a card-heavy match. But a leg is not a count, it is a threshold
+crossing, and these thresholds are chosen far out in the loose tail (the
+settled marginals here are 0.81-0.88). Correlation in levels barely propagates
+to co-crossing when both thresholds are already comfortably clear. It survives
+only where one leg's outcome is arithmetically inside the other's -- a team's
+goals within the match's, a half within the ninety -- and there it is worth
+4.5%, not the large discount the old note asked the operator to apply.
+
+So the product is used, corrected by the measured lambda, and the bar is
+printed. See ``CORRELATION_LAMBDA_NESTED``.
 
 Why it is code and not prose
 ----------------------------
@@ -160,8 +192,8 @@ def step_tier_down(tier: Tier) -> Tier:
 # fair odds is a losing bet at the true probability.
 TIER_MARGIN: dict[str, float] = {"CALL": 1.05, "LEAN": 1.10}
 
-# Which probability the price bar is derived from. ``p_low`` is the shipped
-# default and the only one this repo has ever staked money on.
+# Which probability the price bar is derived from. ``p_central`` is the shipped
+# default since 2026-09-03; ``p_low`` was, and is kept for comparison.
 #
 # Measured 2026-09-02 by settling 5,036 candidate rows over 282 fixtures and
 # four slates: mean claimed ``p_low`` 0.613 against a realised win rate of
@@ -173,21 +205,42 @@ TIER_MARGIN: dict[str, float] = {"CALL": 1.05, "LEAN": 1.10}
 # is 1.45-1.52 rather than the 1.05-1.10 the margin advertises. On the
 # 2026-09-02 slate that banned every one of 341 priced football rows.
 #
-# It is NOT the default, on purpose. The same measurement could not show that
-# betting the looser bar makes money: the whole settled-and-priced population
-# returned 0.980 per unit, and a ``p_central x 1.05`` arm returned 1.079 with a
-# 95% interval of [0.948, 1.227] that flips sign between the only two slates
-# with real prices (0.835 against 1.221). Worse, ``p_central`` is calibrated on
-# the population as a whole (-0.004) but overstates by 4.4pp on exactly the
-# subset a price gate selects -- the book's price is information about where our
-# sample is wrong -- which is the job the tier margin does and the reason not to
-# touch ``TIER_MARGIN`` itself.
+# **It became the default on 2026-09-03, and the reason is what ``p_low`` does
+# to the bar rather than what ``p_central`` promises.**
 #
-# So this exists to be paper-traded, not staked: log what it would have
-# selected, settle it the next morning, and revisit when several slates of
-# ``superbet_offer.json`` have accumulated. 40 fixtures cannot tell 1.08 from
-# 1.00.
-BAR_BASES: tuple[str, ...] = ("p_low", "p_central")
+# The understatement was re-measured independently, on 2,669 settled candidate
+# rows over 356 fixtures, and it is not a constant to be shrugged at:
+#
+#     p_low band   n      claimed   realised   error
+#     0.50-0.60    1,229  0.563     0.784      +22.1pp
+#     0.60-0.70    761    0.644     0.862      +21.8pp
+#     0.70-0.80    597    0.730     0.894      +16.4pp
+#
+# Because the bar is ``(1/p) x margin``, a +22pp understatement at p~0.56
+# inflates the demanded price by 0.784/0.563 = 1.39 *before* the tier margin is
+# applied. The gate advertises 5-10% of headroom and demands 45-53%. Nothing
+# chose that number and no measurement supports it; it is an artifact of
+# dividing by a lower bound.
+#
+# What it costs is the whole file. On the 2026-09-03 slate 5 of 15 singles
+# cleared the bar on ``p_low`` and 7 on ``p_central`` -- and the ten it
+# rejected were priced 1.20-1.55 against p_central of 0.75-0.82, which is to
+# say they were positive expectation and were refused for being cheap. The
+# operator's complaint that the file is thin is this arithmetic, restated.
+#
+# The caution the old note recorded still stands and is not repealed: the
+# settled-and-priced population returned 0.980 per unit, and a
+# ``p_central x 1.05`` arm returned 1.079 on a 95% interval of [0.948, 1.227]
+# that flips sign between the only two slates with real prices. That interval
+# is why ``TIER_MARGIN`` is untouched -- ``p_central`` overstates by ~4.4pp on
+# exactly the subset a price gate selects, and the margin is what pays for it.
+# It is not a reason to keep dividing by a number that is wrong by 22pp in the
+# same direction on every row, every market and every slate.
+#
+# ``p_low`` remains selectable and remains the honest thing to compare against;
+# ``scripts/simple/backtest_slate.py`` still defaults to it so its baseline
+# keeps meaning what it meant.
+BAR_BASES: tuple[str, ...] = ("p_central", "p_low")
 
 
 def bar_probability(row: StatsSheetRow, basis: str = "p_low") -> float:
@@ -255,6 +308,58 @@ _COMPONENT_OF_TOTAL = {
 }
 
 
+# How much more often two legs in one match land *together* than independence
+# says they should -- measured, not assumed. See the module docstring for the
+# table and the sample.
+#
+# These are the two numbers that make ``min_acceptable_combined_odds``
+# computable at all. The module refused to compute a combined anything for as
+# long as the correlation was a story rather than a measurement; once it is a
+# measurement it is just a coefficient.
+#
+# NESTED applies when any pair of legs is arithmetically inside another in the
+# same direction -- a team's goals within the match's, a half within the
+# ninety. 1.045 over 1,326 such pairs. Applied to the whole slip when any one
+# pair qualifies, which overstates the uplift slightly for a four-leg slip with
+# one nested pair: that is the cautious direction, since a higher lambda lowers
+# the bar.
+CORRELATION_LAMBDA_NESTED = 1.045
+# FLAT applies to everything else: separate markets in one fixture. 1.006 over
+# 10,716 pairs, and 0.999-1.007 in every probability band. It is kept as a
+# number rather than rounded to 1.0 so that the file states what was measured.
+CORRELATION_LAMBDA_FLAT = 1.006
+
+
+def _is_nested(market_a: str, market_b: str) -> bool:
+    """Whether one market counts a part of what the other counts.
+
+    Both directions, plus the sibling case -- two halves of the same match are
+    each inside the same total and move together for the same reason.
+    """
+    whole_a = _COMPONENT_OF_TOTAL.get(market_a)
+    whole_b = _COMPONENT_OF_TOTAL.get(market_b)
+    if whole_a == market_b or whole_b == market_a:
+        return True
+    return whole_a is not None and whole_a == whole_b
+
+
+def correlation_lambda(legs: list["BetBuilderLeg"]) -> float:
+    """The measured joint-hit uplift for this particular set of legs.
+
+    ``CORRELATION_LAMBDA_NESTED`` as soon as *any* same-direction nested pair is
+    present, ``CORRELATION_LAMBDA_FLAT`` otherwise. Opposite-direction nested
+    pairs measured 0.978 -- below independence -- and are not credited: they are
+    already handled by ``_legs_conflict``, which refuses the ones that cannot
+    both win, and crediting an uplift below 1.0 would lower a bar on the
+    strength of a negative result.
+    """
+    for i, a in enumerate(legs):
+        for b in legs[i + 1:]:
+            if a.direction == b.direction and _is_nested(a.market, b.market):
+                return CORRELATION_LAMBDA_NESTED
+    return CORRELATION_LAMBDA_FLAT
+
+
 def _legs_conflict(
     a: tuple[str, float, str], b: tuple[str, float, str]
 ) -> bool:
@@ -306,6 +411,13 @@ class BetBuilderLeg(StrictBaseModel):
     player_name: str | None = None
     tier: Tier
     p_low: float
+    # The sheet's own centre, carried so a slip's joint probability can be
+    # built from the same basis its legs' bars are. Before 2026-09-03 only
+    # ``p_low`` reached a leg, and multiplying four lower bounds compounds a
+    # +22pp per-leg understatement into a bar no slip could ever clear -- the
+    # 2026-09-03 file wanted 2.6-3.8 from slips whose legs multiplied to
+    # 1.07-1.81. None on sheets recorded before 2026-09-02.
+    p_central: float | None = None
     hit_rate: float
     sample_size: int
     fair_odds: float
@@ -330,10 +442,29 @@ class BetBuilderDraft(StrictBaseModel):
 
     event_id: str
     legs: list[BetBuilderLeg] = Field(default_factory=list)
-    # Typed None, not defaulted to None. There is no value this may ever hold:
-    # multiplying leg prices is wrong for correlated legs, and no endpoint
-    # serves a real one. The operator reads it off their own screen.
+    # Still typed None, and for the reason that survived the measurement: no
+    # endpoint serves Superbet's Bet Builder price and nothing here can derive
+    # it, because the book's own combination margin is not observable from the
+    # leg prices. The bar below is what this module can honestly produce.
     combined_price: None = None
+    # What every leg landing is worth, on the same basis as the legs' own bars,
+    # corrected by the measured joint-hit uplift. None when any leg lacks the
+    # basis probability -- an incomplete product is not a probability, and
+    # silently dropping a leg from it would understate the bar.
+    joint_probability: float | None = None
+    # Which of the two measured lambdas was applied, so the number is auditable
+    # from the artifact rather than only from this file.
+    correlation_lambda: float | None = None
+    # The minimum combined price that justifies the slip: margin / joint.
+    # Compare it against the Bet Builder price on the operator's screen. This
+    # is a threshold, never a prediction of what that screen will say.
+    min_acceptable_combined_odds: float | None = None
+    # What these same legs would pay placed as separate singles -- the product
+    # of their Superbet prices. Not the slip's price and never labelled as one:
+    # it is the alternative the slip is competing against, and the gap between
+    # it and the screen's Bet Builder price is what the book charges to combine
+    # them. None unless every leg is priced.
+    legs_priced_separately: float | None = None
     correlation_risk: Literal["HIGH", "LOW", "NOT_APPLICABLE"] = "NOT_APPLICABLE"
     correlation_note: str = ""
     excluded: dict[str, int] = Field(default_factory=dict)
@@ -482,7 +613,7 @@ def draft_legs(
     min_p_low: float = 0.0,
     price_for: Callable[[StatsSheetRow], tuple[str | None, float | None]] | None = None,
     require_value: bool = False,
-    bar_basis: str = "p_low",
+    bar_basis: str = "p_central",
 ) -> BetBuilderDraft:
     """Draft up to ``max_legs`` legs for one fixture, best-evidenced first.
 
@@ -581,6 +712,20 @@ def draft_legs(
     # dropped as ``over_max_legs``. A leg that cannot be worth its price is not
     # better evidence than one that is; it is a more certain way to be paid
     # nothing.
+    def _price_ratio(pair: tuple[StatsSheetRow, Tier]) -> float | None:
+        """How close this leg's price comes to its own bar, as a ratio.
+
+        ``>= 1.0`` is exactly ``_surplus``'s condition, restated so the same
+        quantity can also rank the legs that miss it. Scale-free on purpose: a
+        surplus of -0.30 means something different against a bar of 1.25 than
+        against one of 2.05, and the second group is where every rejected leg
+        lives.
+        """
+        minimum, availability, price = priced[id(pair[0])]
+        if availability != "OFFERED" or price is None or minimum <= 0:
+            return None
+        return price / minimum
+
     value = [pair for pair in eligible if _surplus(pair) is not None]
     value_ids = {id(pair[0]) for pair in value}
     rest = [pair for pair in eligible if id(pair[0]) not in value_ids]
@@ -589,11 +734,33 @@ def draft_legs(
             -(_surplus(pair) or 0.0), -pair[0].p_low, pair[0].market, pair[0].line
         )
     )
-    # Trivial UNDERs sort last, never first. Same key the singles list uses, and
-    # applied to the same group: the one with no Superbet value to rank on.
+    # **The legs that miss the bar are ranked by how far they miss it, not by
+    # p_low.** Ranking them on p_low was the same defect the ``value`` group
+    # above was fixed for on 2026-09-01, left standing in the group that
+    # actually fills the slips: on a normal day nothing clears its bar, every
+    # leg lands here, and p_low then sorts a 1.008-priced near-tautology above
+    # every real read in the fixture.
+    #
+    # It is not a theoretical ordering. The 2026-09-03 file shipped eight
+    # slips, six of them built entirely from legs priced 1.002-1.16 whose
+    # products came to 1.07-1.34 -- while the same fixtures had legs on the
+    # singles list at 1.28 and 1.23. Hibernian-Hearts drafted four legs
+    # multiplying to 1.07 and left ``corners_total 7.5 OVER`` at 1.28 and
+    # ``goals_total 1.5 OVER`` at 1.23 out of the slip. A slip that cannot pay
+    # is not a safer slip.
+    #
+    # Legs with no price keep the old key and sort after the priced ones: an
+    # unpriced leg has no ratio, and guessing one would rank it on nothing. The
+    # trivial-UNDER demotion stays for exactly that group, which is the only
+    # one that can still be led by a tautology.
     rest.sort(
         key=lambda pair: (
-            is_trivial_under(pair[0]), -pair[0].p_low, pair[0].market, pair[0].line
+            _price_ratio(pair) is None,
+            -(_price_ratio(pair) or 0.0),
+            is_trivial_under(pair[0]),
+            -pair[0].p_low,
+            pair[0].market,
+            pair[0].line,
         )
     )
     eligible = value + rest
@@ -636,6 +803,30 @@ def draft_legs(
             # when the caller asked for a file of nothing but takeable bets.
             exclude("superbet_priced_below_threshold")
             continue
+        # **A leg only joins a slip if it makes the slip better.**
+        #
+        # This is parlay arithmetic and not a preference. Adding a leg
+        # multiplies the slip's payout by ``price`` and its probability by
+        # ``p``, so it multiplies expected value by ``price x p``. Below fair
+        # odds -- ``price < 1/p`` -- that product is less than one and the leg
+        # *subtracts* from a slip it appears to strengthen.
+        #
+        # ``max_legs`` used to be a quota that got filled. On 2026-09-03 the
+        # Diriyah-Al-Qadsiah slip took ``player_total_shots 0.5 OVER`` at 1.04
+        # against fair odds of 1.15 as its fourth leg, lowering the slip's
+        # expectation by 10% in exchange for looking like a fuller coupon.
+        # Three legs that each pay for themselves beat four that do not.
+        #
+        # Against fair odds, with no tier margin in it, deliberately: the
+        # margin is charged once at the slip level in
+        # ``min_acceptable_combined_odds``. Charging it per leg as well would
+        # compound the same conservatism four times, which is the mistake this
+        # file has already made once with ``p_low``.
+        if price is not None:
+            fair = 1.0 / bar_probability(row, basis=bar_basis)
+            if price <= fair:
+                exclude("leg_would_lower_slip_value")
+                continue
 
         markets_used.add(key)
         legs.append(
@@ -648,6 +839,7 @@ def draft_legs(
                 player_name=row.player_name,
                 tier=tier,
                 p_low=row.p_low,
+                p_central=row.p_central,
                 hit_rate=row.hit_rate,
                 sample_size=row.sample_size,
                 fair_odds=round(fair_odds, 4),
@@ -692,9 +884,56 @@ def draft_legs(
         risk = "NOT_APPLICABLE"
         note = ""
 
+    # --- the slip's own bar -------------------------------------------
+    #
+    # ``margin / (product of leg probabilities x measured lambda)``. Every term
+    # is the same one the legs' own bars use, so a slip and its legs can never
+    # disagree about what basis they were priced on.
+    #
+    # The margin is the *weakest* leg's, not the product of the legs' margins.
+    # Compounding them charges for the same conservatism once per leg -- a
+    # four-leg slip of LEANs would carry 1.10^4 = 1.46 of margin, which is a
+    # bar no book pays -- and the margin exists to cover a calibration error in
+    # the estimator, which is a property of the estimator and not of how many
+    # times it was called. The weakest leg's tier is the slip's tier for the
+    # same reason ``weakest_leg_p_low`` ranks it.
+    joint: float | None = None
+    lam: float | None = None
+    combined_bar: float | None = None
+    separately: float | None = None
+    if len(legs) >= 2:
+        lam = correlation_lambda(legs)
+        basis_ps = [
+            leg.p_central if (bar_basis == "p_central" and leg.p_central is not None)
+            else leg.p_low
+            for leg in legs
+        ]
+        if all(p > 0 for p in basis_ps):
+            product = 1.0
+            for value in basis_ps:
+                product *= value
+            # Capped at the weakest leg. A positive lambda may not push the
+            # joint above the probability of the single least likely leg: the
+            # slip cannot win more often than its weakest leg does, and an
+            # uplift that says otherwise is arithmetic, not evidence.
+            joint = min(product * lam, min(basis_ps))
+            margin = max(TIER_MARGIN[leg.tier] for leg in legs)
+            combined_bar = round(margin / joint, 4)
+            joint = round(joint, 6)
+        prices = [leg.superbet_price for leg in legs]
+        if all(price is not None for price in prices):
+            product = 1.0
+            for price in prices:
+                product *= price  # type: ignore[operator]
+            separately = round(product, 4)
+
     return BetBuilderDraft(
         event_id=event_id,
         legs=legs,
+        joint_probability=joint,
+        correlation_lambda=lam,
+        min_acceptable_combined_odds=combined_bar,
+        legs_priced_separately=separately,
         correlation_risk=risk,  # type: ignore[arg-type]
         correlation_note=note,
         excluded=dict(sorted(excluded.items())),

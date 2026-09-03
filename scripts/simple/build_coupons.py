@@ -287,7 +287,34 @@ def render_markdown(coupons: CouponSet) -> str:
                     "meczu nigdy nie są w pełni niezależne."
                 )
             a("")
-            a("**Kurs łączny: odczytaj z ekranu Superbetu.** Nie jest tu liczony.")
+            d = slip.draft
+            if d.min_acceptable_combined_odds is not None:
+                a(
+                    f"**Minimalny kurs łączny: {d.min_acceptable_combined_odds:.2f}** "
+                    f"— porównaj z kursem Bet Buildera na ekranie Superbetu. "
+                    f"Powyżej tej liczby kupon jest wart postawienia, poniżej nie."
+                )
+                a("")
+                a(
+                    f"Liczone jako margines / (iloczyn prawdopodobieństw nóg × λ), "
+                    f"gdzie λ = **{d.correlation_lambda:.3f}** — zmierzona, nie założona: "
+                    f"na 12 555 par nóg z tego samego meczu, rozliczonych na prawdziwych "
+                    f"wynikach, nogi wchodzą razem {d.correlation_lambda:.3f}× częściej niż "
+                    f"wynikałoby z niezależności. Łączne prawdopodobieństwo kuponu: "
+                    f"**{(d.joint_probability or 0) * 100:.1f}%**."
+                )
+                a("")
+            if d.legs_priced_separately is not None:
+                a(
+                    f"Te same nogi postawione **osobno** dałyby "
+                    f"{d.legs_priced_separately:.2f}. To nie jest kurs tego kuponu — to "
+                    f"alternatywa, z którą kupon konkuruje. Różnica między tą liczbą a "
+                    f"kursem Bet Buildera na ekranie to marża, którą bukmacher bierze za "
+                    f"połączenie nóg; przy λ tak bliskim jedności nie ma korelacji, która "
+                    f"by ją uzasadniała."
+                )
+                a("")
+            a("**Kurs łączny sam w sobie nie jest tu liczony** — odczytaj go z ekranu.")
             a("")
 
     _render_tipster_consensus(a, coupons.tipster_consensus)
@@ -403,16 +430,16 @@ def main() -> None:
     parser.add_argument("--min-p-low", type=float, default=None)
     parser.add_argument(
         "--bar",
-        choices=("p_low", "p_central"),
-        default="p_low",
+        choices=("p_central", "p_low"),
+        default="p_central",
         help=(
-            "Which probability min_acceptable_odds is derived from. Default p_low, "
-            "the only basis this repo has staked. p_central is calibrated (claimed "
-            "0.849 vs realised 0.848 over 5,036 settled rows) where p_low understates "
-            "by 23.5pp, but the looser bar was NOT shown to make money -- the settled "
-            "priced population returned 0.980/unit and a p_central x 1.05 arm returned "
-            "1.079 [0.948, 1.227], flipping sign between the only two slates with real "
-            "prices. Paper-trade it; do not stake it on that evidence."
+            "Which probability min_acceptable_odds is derived from. Default "
+            "p_central (2026-09-03), which measures -0.000 against realised "
+            "results over 5,036 settled rows. p_low understates by +16 to "
+            "+22pp depending on band, and because the bar is (1/p) x margin "
+            "that inflates the demanded price by ~1.39 before the tier margin "
+            "-- a gate advertising 10%% of headroom and demanding 50%%. Pass "
+            "p_low to reproduce a file built before the switch, or to compare."
         ),
     )
     parser.add_argument(
