@@ -222,29 +222,42 @@ def test_a_sheet_built_from_pre_scope_dossiers_is_unchanged():
 # --- best-of-five tennis ----------------------------------------------------
 
 
-def _tennis_dossier(*set_counts: float) -> EventDossierV1:
+def _tennis_dossier(
+    *set_counts: float, levels: tuple[str | None, ...] = ()
+) -> EventDossierV1:
+    """A two-metric tennis dossier whose observations run ``set_counts``.
+
+    ``levels`` states which draw each observation belonged to, positionally,
+    and defaults to none of them stating anything -- which is what every
+    provider said before ``ProviderValue.match_level`` existed, and therefore
+    the right default for the tests that pin what happens when nobody knows.
+    """
+    draws = list(levels) + [None] * (len(set_counts) - len(levels))
+
+    def bucket(base: float, prefix: str) -> list[ProviderValue]:
+        return [
+            _pv(base + i if prefix == "g" else v, f"2026-08-{i + 1:02d}",
+                match_id=f"{prefix}{i}", competition_id=None, season_id=None)
+            .model_copy(update={"match_level": draws[i]})
+            for i, v in enumerate(set_counts)
+        ]
+
     return EventDossierV1(
         event_id="evt-t", sport="tennis", readiness="READY", data_gaps=[],
         team_a_name="Alex Molcan", team_b_name="Benjamin Bonzi",
         metrics={
             "total_sets": MetricObservation(
-                canonical_name="total_sets",
-                team_a_l10=[
-                    _pv(v, f"2026-08-{i + 1:02d}", match_id=f"s{i}",
-                        competition_id=None, season_id=None)
-                    for i, v in enumerate(set_counts)
-                ],
+                canonical_name="total_sets", team_a_l10=bucket(0.0, "s"),
             ),
             "total_games": MetricObservation(
-                canonical_name="total_games",
-                team_a_l10=[
-                    _pv(20.0 + i, f"2026-08-{i + 1:02d}", match_id=f"g{i}",
-                        competition_id=None, season_id=None)
-                    for i in range(len(set_counts))
-                ],
+                canonical_name="total_games", team_a_l10=bucket(20.0, "g"),
             ),
         },
     )
+
+
+SLAM = "GRAND_SLAM"
+TOUR = "TOUR"
 
 
 def test_the_format_map_pins_the_men_and_women_draws_separately():
@@ -263,10 +276,50 @@ def test_a_best_of_three_sample_emits_no_length_rows_for_a_best_of_five_tie():
     assert suppressed_markets_for(dossier, "ATP US Open")
 
 
-def test_a_sample_containing_a_five_set_match_is_left_alone():
+def test_a_five_set_match_is_no_longer_what_stands_the_gate_down():
+    """Match length used to be the whole of the evidence, and it is not
+    evidence of a draw: this sample ran to four and five sets and still states
+    nothing about which tournament it was played at, so the length-dependent
+    markets stay suppressed. What used to pass here now needs ``levels``."""
     dossier = _tennis_dossier(2.0, 3.0, 5.0, 4.0, 3.0)
+    assert suppressed_markets_for(dossier, "ATP US Open")
+    assert {
+        r.market for r in analyze_dossier(dossier, competition="ATP US Open")
+    } == set()
+
+
+def test_a_grand_slam_sample_keeps_every_length_dependent_market():
+    dossier = _tennis_dossier(3.0, 4.0, 5.0, levels=(SLAM, SLAM, SLAM))
+    assert suppressed_markets_for(dossier, "ATP US Open") == frozenset()
+    assert {
+        r.market for r in analyze_dossier(dossier, competition="ATP US Open")
+    } == {"total_sets", "total_games"}
+
+
+def test_straight_set_grand_slam_wins_are_a_best_of_five_sample():
+    """The false negative that took the whole of ATP off the 2026-09-03 sheet.
+    Taylor Fritz's six 2026 Grand Slam wins all came in straight sets, so the
+    old "four sets or longer" share scored him zero out of six and suppressed a
+    sample that was 100% best-of-five. A best-of-five won 3-0 and a
+    best-of-three won 2-1 are both three sets; only the draw distinguishes
+    them."""
+    dossier = _tennis_dossier(*(3.0,) * 6, levels=(SLAM,) * 6)
+    assert suppressed_markets_for(dossier, "ATP US Open") == frozenset()
+
+
+def test_a_mixed_sample_keeps_the_slams_and_drops_the_tour_matches():
+    """The whole point of moving the rule from the market to the observation:
+    the sample holds both kinds, and the 2026-09-03 slate is mostly the second
+    kind. Suppressing the market threw the first kind away with it."""
+    dossier = _tennis_dossier(
+        2.0, 2.0, 3.0, 4.0, 5.0, levels=(TOUR, TOUR, TOUR, SLAM, SLAM),
+    )
+    assert suppressed_markets_for(dossier, "ATP US Open") == frozenset()
     rows = analyze_dossier(dossier, competition="ATP US Open")
-    assert {r.market for r in rows} == {"total_sets", "total_games"}
+    assert rows, "a scoped best-of-five sample must still produce rows"
+    for row in rows:
+        assert row.sample_size == 2, row.market
+        assert row.sample_excluded == {"MATCH_FORMAT_MISMATCH": 3}
 
 
 def test_one_long_match_in_ten_does_not_stand_the_gate_down():
@@ -276,17 +329,23 @@ def test_one_long_match_in_ten_does_not_stand_the_gate_down():
     against Superbet's best-of-five ladder."""
     dossier = _tennis_dossier(2.0, 2.0, 2.0, 2.0, 2.0, 3.0, 3.0, 3.0, 3.0, 4.0)
     assert suppressed_markets_for(dossier, "ATP US Open")
-    assert {r.market for r in analyze_dossier(dossier, competition="ATP US Open")} == set()
-
-
-def test_a_third_of_the_sample_running_long_is_a_best_of_five_sample():
-    """The other side of the same threshold: a player whose recent matches
-    really are best-of-five keeps every length-dependent market."""
-    dossier = _tennis_dossier(2.0, 3.0, 4.0, 3.0, 5.0, 2.0)
-    assert suppressed_markets_for(dossier, "ATP US Open") == frozenset()
     assert {
         r.market for r in analyze_dossier(dossier, competition="ATP US Open")
-    } == {"total_sets", "total_games"}
+    } == set()
+
+
+def test_an_unstated_draw_is_dropped_and_counted_as_unknown():
+    """The one place this module drops an observation for saying nothing, and
+    it is counted under its own reason so it is never mistaken for a match that
+    was measurably a different game."""
+    dossier = _tennis_dossier(3.0, 4.0, 2.0, levels=(SLAM, None, TOUR))
+    rows = analyze_dossier(dossier, competition="ATP US Open")
+    assert rows
+    for row in rows:
+        assert row.sample_size == 1, row.market
+        assert row.sample_excluded == {
+            "MATCH_FORMAT_UNKNOWN": 1, "MATCH_FORMAT_MISMATCH": 1,
+        }
 
 
 def test_the_gate_judges_the_sample_the_rows_are_priced_from():
@@ -301,18 +360,44 @@ def test_the_gate_judges_the_sample_the_rows_are_priced_from():
         bucket[6:] = [pv.model_copy(update={"surface": "Grass"}) for pv in bucket[6:]]
         bucket[:6] = [pv.model_copy(update={"surface": "Hard"}) for pv in bucket[:6]]
     assert suppressed_markets_for(dossier, "ATP US Open")
-    assert {r.market for r in analyze_dossier(dossier, competition="ATP US Open")} == set()
+    assert {
+        r.market for r in analyze_dossier(dossier, competition="ATP US Open")
+    } == set()
 
 
-def test_best_of_five_evidence_on_the_fixture_s_own_surface_still_stands_the_gate_down():
-    """The converse: when the long matches survive the surface rule, they are
-    the sample and the gate must leave it alone."""
-    dossier = _tennis_dossier(4.0, 5.0, 4.0, 4.0, 2.0, 2.0, 3.0, 2.0, 3.0, 2.0)
+def test_best_of_five_evidence_on_the_fixtures_own_surface_stands_the_gate_down():
+    """The converse: when the Grand Slam matches survive the surface rule, they
+    are the sample and the gate must leave it alone. Both rules apply and they
+    are not the same rule -- these four are hard-court slams and the six that
+    go are a grass slam and five hard-court tour matches."""
+    dossier = _tennis_dossier(
+        4.0, 5.0, 4.0, 4.0, 3.0, 2.0, 3.0, 2.0, 3.0, 2.0,
+        levels=(SLAM, SLAM, SLAM, SLAM, SLAM, TOUR, TOUR, TOUR, TOUR, TOUR),
+    )
     for obs in dossier.metrics.values():
         bucket = obs.team_a_l10
         bucket[:4] = [pv.model_copy(update={"surface": "Hard"}) for pv in bucket[:4]]
-        bucket[4:] = [pv.model_copy(update={"surface": "Grass"}) for pv in bucket[4:]]
+        bucket[4:5] = [pv.model_copy(update={"surface": "Grass"}) for pv in bucket[4:5]]
+        bucket[5:] = [pv.model_copy(update={"surface": "Hard"}) for pv in bucket[5:]]
     assert suppressed_markets_for(dossier, "ATP US Open") == frozenset()
+    for row in analyze_dossier(dossier, competition="ATP US Open"):
+        assert row.sample_size == 4, row.market
+        assert row.sample_excluded == {
+            "SURFACE_MISMATCH": 1, "MATCH_FORMAT_MISMATCH": 5,
+        }
+
+
+def test_a_grass_tour_match_is_counted_once_and_as_the_surface_mismatch():
+    """The drop counts are reported to the operator, so they must partition.
+    A match that fails both rules is the surface objection they can check
+    against the tournament name in front of them."""
+    dossier = _tennis_dossier(3.0, 2.0, levels=(SLAM, TOUR))
+    for obs in dossier.metrics.values():
+        bucket = obs.team_a_l10
+        bucket[0] = bucket[0].model_copy(update={"surface": "Hard"})
+        bucket[1] = bucket[1].model_copy(update={"surface": "Grass"})
+    for row in analyze_dossier(dossier, competition="ATP US Open"):
+        assert row.sample_excluded == {"SURFACE_MISMATCH": 1}
 
 
 def test_the_women_s_draw_at_the_same_tournament_is_untouched():

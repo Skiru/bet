@@ -363,6 +363,37 @@ class ProviderValue(StrictBaseModel):
     # above: an observation with None is never dropped, and a fixture whose own
     # surface cannot be established filters nothing.
     surface: str | None = None
+    # Which *draw* this historical match belonged to: ``"GRAND_SLAM"``,
+    # ``"TOUR"`` or None. Tennis only.
+    #
+    # Deliberately the draw and not the format. Men's Grand Slam main-draw
+    # singles is the whole of best-of-five in professional tennis today, so
+    # GRAND_SLAM means best-of-five in an ATP sample and best-of-three in a WTA
+    # one -- and this field is set at ingest, where the *fixture* being priced
+    # is not the thing being described. Recording "BO5" here would make every
+    # WTA slam observation a lie. ``scope_values`` does the interpreting, on
+    # the same "carried, never interpreted here" rule ``competition_id``
+    # follows, and it has the fixture's own pinned format to interpret against.
+    #
+    # Why it exists: it is the discriminator the BO5 gate never had. Before it,
+    # ``analyze._sample_is_best_of_five`` had to guess the draw from match
+    # length -- four-or-more sets is proof of best-of-five -- and a share
+    # threshold on that guess cannot distinguish a best-of-five won 3-0 from a
+    # best-of-three won 2-1. Measured on the 2026-09-03 ATP slate: 225 of 474
+    # ``total_sets`` observations were exactly three sets and therefore
+    # unreadable either way, all 15 fixtures scored under the ⅓ threshold, and
+    # the whole of ATP was suppressed -- including Fritz, whose six 2026 Grand
+    # Slam wins all came in straight sets and scored zero.
+    #
+    # tennis-abstract has carried it as ``level`` on all 78,750 cached rows
+    # ("G" = Grand Slam) and espn-tennis names the tournament, which the same
+    # ``config/tennis_match_format.json`` pin resolves. Both were dropped on
+    # the floor here, exactly as ``surf`` and ``league_id`` were before them.
+    #
+    # None means "not stated" and is never inferred from a name we do not
+    # recognise: mislabelling a slam TOUR would silently delete real
+    # best-of-five observations, which is worse than admitting ignorance.
+    match_level: str | None = None
 
 
 class MetricObservation(StrictBaseModel):

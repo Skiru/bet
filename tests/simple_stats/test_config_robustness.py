@@ -26,18 +26,28 @@ import statistics
 import pytest
 
 import bet.simple_stats.analyze as analyze
+import bet.simple_stats.providers as providers
 
 SAMPLE = [2.0, 4.0, 3.0, 2.0, 3.0]
 
 
 @pytest.fixture
 def corrupt(tmp_path, monkeypatch):
-    """Point a config path at ``text`` for one test, caches cleared both ways."""
+    """Point a config path at ``text`` for one test, caches cleared both ways.
+
+    The attribute is looked up on whichever module owns the path. Two of these
+    tables are read in ``providers.py`` -- the surface map and, since
+    2026-09-03, the format map -- precisely so that ANALYZE and the ingest side
+    cannot disagree about a tournament name; ``analyze.reset_scope_caches``
+    already resets both caches, so the only thing that moved is where the
+    constant lives.
+    """
 
     def _write(attr: str, text: str) -> None:
         path = tmp_path / f"{attr}.json"
         path.write_text(text, encoding="utf-8")
-        monkeypatch.setattr(analyze, attr, path)
+        owner = analyze if hasattr(analyze, attr) else providers
+        monkeypatch.setattr(owner, attr, path)
         analyze.reset_scope_caches()
 
     analyze.reset_scope_caches()
@@ -141,7 +151,7 @@ def test_a_broken_tennis_format_file_leaves_the_gate_inert(corrupt, document):
     """None, not BO3. Guessing best-of-three from a name is how the sheet came
     to price a men's Grand Slam off a best-of-three sample in the first place,
     and a crash here would take the whole football slate down with it."""
-    corrupt("_TENNIS_FORMAT_PATH", document)
+    corrupt("_TENNIS_FORMAT_MAP_PATH", document)
     assert analyze.tennis_match_format("ATP US Open") is None
     assert analyze.tennis_match_format(None) is None
 
