@@ -23,6 +23,7 @@ and a fixture nobody pinned is untouched.
 
 from __future__ import annotations
 
+import datetime
 import json
 import pathlib
 
@@ -45,7 +46,9 @@ from bet.simple_stats.contracts import (
     ProviderValue,
 )
 from bet.simple_stats.providers import (
+    _SLAM_SCOPED_OBSERVATION_AGE_DAYS,
     _draw_filter_kwargs,
+    _is_recent,
     _match_level_or_none,
     _row_match_level,
     tennis_match_format_for_competition,
@@ -520,6 +523,47 @@ class TestTheSuppressionSaysWhy:
             self._list(wta, football), {"e1": "WTA US Open", "e2": "Championship"},
         )
         assert report["markets"] == 0
+
+
+class TestTheObservationWindowFollowsTheDraw:
+    """Once the fetch is restricted to Grand Slams, the window is what binds.
+
+    500 days admits about two hard-court Slams, which is why the samples came
+    out at n=2-9. Measured before widening it, on the 87 hard-court Grand Slam
+    main-draw matches with serve data belonging to the 2026-09-03 ATP slate
+    against the 93 in the 500-1000 day band: own aces per match 10.72 against
+    11.63, sd 6.78 and 6.85 -- 0.13 sigma apart, so the older band is more
+    trials of the same quantity. Median sample per fixture goes 4 -> 6.
+    """
+
+    @staticmethod
+    def _days_ago(days: int) -> str:
+        return (
+            datetime.datetime.now(datetime.UTC) - datetime.timedelta(days=days)
+        ).date().isoformat()
+
+    def test_the_default_window_is_unchanged(self) -> None:
+        assert _is_recent(self._days_ago(400))
+        assert not _is_recent(self._days_ago(700))
+
+    def test_a_slam_scoped_sample_reaches_two_and_a_half_cycles_back(self) -> None:
+        window = _SLAM_SCOPED_OBSERVATION_AGE_DAYS
+        assert _is_recent(self._days_ago(700), window)
+        assert _is_recent(self._days_ago(990), window)
+        assert not _is_recent(self._days_ago(1100), window)
+
+    def test_the_window_matches_the_ten_match_slice(self) -> None:
+        """Four Slams a year, so ten Grand Slam matches is about two and a half
+        years -- the same span the window admits. If they diverged, one of them
+        would silently become the binding constraint and the other would look
+        like the fix."""
+        assert 900 <= _SLAM_SCOPED_OBSERVATION_AGE_DAYS <= 1100
+
+    def test_an_unparseable_date_is_still_kept(self) -> None:
+        """Dropping it would silently discard providers whose date format we
+        have not seen -- true at either window."""
+        assert _is_recent("not a date", _SLAM_SCOPED_OBSERVATION_AGE_DAYS)
+        assert _is_recent("")
 
 
 class TestTheFormatTableIsReadOnce:

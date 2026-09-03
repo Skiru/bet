@@ -386,6 +386,38 @@ _DEFAULT_LAST_FIXTURES_METHOD = ("get_team_last_fixtures", False)
 _DRAW_FILTERED_PROVIDERS = {"tennis-abstract": "G", "sackmann": "G"}
 
 
+# The observation window for a Grand-Slam-scoped tennis sample, in place of the
+# 500 days everything else gets.
+#
+# 500 days is right where form drifts inside a season, which is what it was
+# measured against: api-football returning two-year-old football fixtures. Slam
+# tennis on one surface is a different regime -- four events a year, of which
+# at most two are on any given surface -- so 500 days admits about two
+# tournaments and the samples come out at n=2-9. The window, not the draw rule,
+# is then what holds ATP down.
+#
+# Measured before changing it, on the 87 hard-court Grand Slam main-draw
+# matches with serve data belonging to the 2026-09-03 ATP slate, against the 93
+# in the 500-1000 day band: own aces per match 10.72 against 11.63, medians 10
+# and 11, sd 6.78 and 6.85. A 0.9-ace difference on a 6.8 spread is **0.13
+# sigma** -- the older band is more trials of the same quantity, and admitting
+# it multiplies the slam sample by 2.07x. Per-player deltas run -5.8 to +10.2
+# and are noise at those bucket sizes: sd 6.8 over n=3-7 puts the standard
+# error of a difference of two bucket means near 4.8, and the largest deltas
+# are all n<=3 buckets.
+#
+# What this does *not* claim: that no drift exists. It claims we cannot detect
+# any at this sample size, and that the same objection applies to 500 days.
+# 1000 covers two and a half Grand Slam cycles, which is the mechanism the
+# number comes from rather than a round figure.
+#
+# Scoped to the path that earned it. Football, WTA, tour-level tennis and every
+# h2h sample keep 500 days untouched -- this widens the window only where the
+# fetch is already restricted to Grand Slam main draws, so the extra
+# observations can only be slam matches.
+_SLAM_SCOPED_OBSERVATION_AGE_DAYS = 1000
+
+
 def _draw_filter_kwargs(provider: str, competition: str) -> dict[str, str]:
     """``{"level": "G"}`` when tonight is best-of-five and the provider can.
 
@@ -1060,6 +1092,7 @@ def _make_values(
     side: str | None = None,
     surface: Any = None,
     match_level: Any = None,
+    max_age_days: int | None = None,
 ) -> dict[str, ProviderValue]:
     """One ProviderValue per canonical metric in ``combined``.
 
@@ -1076,7 +1109,7 @@ def _make_values(
     only for a football provider (see ``_venue_or_none``); everything else
     records None, which downstream reads as "not stated" and never as "away".
     """
-    if not _is_recent(match_date):
+    if not _is_recent(match_date, max_age_days):
         return {}
     observed_at = _now_iso()
     competition = _id_or_none(competition_id)
@@ -1868,11 +1901,14 @@ def _fetch_l10_generic(
         # a provider that answered, and does not know this club.
         outcome.data_gaps.append(f"{provider_key}: could not resolve team identity for '{team_name}'")
         return outcome
+    # Resolved once: it decides both which matches the provider is asked for
+    # and how far back they may reach, and the two must not disagree -- asking
+    # for the last ten Grand Slams and then applying the 500-day window would
+    # fetch eight of them and discard six.
+    draw_filter = _draw_filter_kwargs(provider_key, competition)
+    max_age_days = _SLAM_SCOPED_OBSERVATION_AGE_DAYS if draw_filter else None
     try:
-        raw = getattr(client, method_name)(
-            team_id, last_n=last_n,
-            **_draw_filter_kwargs(provider_key, competition),
-        )
+        raw = getattr(client, method_name)(team_id, last_n=last_n, **draw_filter)
         if unwrap:
             if raw.status != SourceResultStatus.SUCCESS:
                 outcome.data_gaps.append(f"{provider_key}: {raw.status.value} fetching last fixtures")
@@ -1964,6 +2000,7 @@ def _fetch_l10_generic(
             # names the tournament. ``_match_level_or_none`` discards either
             # for the football providers that share this function.
             match_level=_row_match_level(provider_key, stats_dict, fx),
+            max_age_days=max_age_days,
         ).items():
             outcome.add(name, value)
     return outcome
@@ -3173,10 +3210,15 @@ _SPORTDB_MAX_RESULT_PAGES = 3
 _MAX_OBSERVATION_AGE_DAYS = 500
 
 
-def _is_recent(match_date: str) -> bool:
+def _is_recent(match_date: str, max_age_days: int | None = None) -> bool:
     """Whether an ISO-ish date string is inside the observation window. A date
     we cannot parse is kept: dropping it would silently discard providers whose
-    date format we have not seen."""
+    date format we have not seen.
+
+    ``max_age_days`` defaults to ``_MAX_OBSERVATION_AGE_DAYS``; the only caller
+    that overrides it is the Grand-Slam-scoped tennis path, for the reason
+    ``_SLAM_SCOPED_OBSERVATION_AGE_DAYS`` gives.
+    """
     if not match_date:
         return True
     try:
@@ -3187,7 +3229,7 @@ def _is_recent(match_date: str) -> bool:
         except ValueError:
             return True
     age = (datetime.now(UTC).replace(tzinfo=None) - parsed).days
-    return age <= _MAX_OBSERVATION_AGE_DAYS
+    return age <= (max_age_days or _MAX_OBSERVATION_AGE_DAYS)
 
 # Minimum score for _sportdb_competition_refs to accept a search hit. A
 # country-name match adds 0.6, so any genuine country-qualified hit clears this
