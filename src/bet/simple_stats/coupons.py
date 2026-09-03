@@ -1481,7 +1481,11 @@ def build_coupons(
             + ", ".join(f"{count}× {reason}" for reason, count in sorted(scoped.items()))
             + ". Sparing przedsezonowy i mecz z poprzedniego sezonu nie są próbą "
             "dzisiejszych rozgrywek; do 2026-09-01 liczyły się na równi z meczem "
-            "ligowym i podnosiły p_low."
+            "ligowym i podnosiły p_low. MATCH_FORMAT_MISMATCH to mecz do dwóch "
+            "wygranych setów w próbce meczu do trzech, a MATCH_FORMAT_UNKNOWN — "
+            "mecz, o którym dostawca nie powiedział, z jakiej drabinki pochodzi; "
+            "oba dotyczą wyłącznie rynków zależnych od długości meczu (gemy, "
+            "sety, asy, podwójne błędy) w meczach ATP."
         )
     slip_legs = [leg for slip in slips for leg in slip.draft.legs]
     if slip_legs:

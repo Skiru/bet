@@ -252,9 +252,54 @@ class TennisAbstractClient(BaseAPIClient):
         """
         return f"ta_{player_name}_{match.get('date', '')}_{match.get('opp', '')}"
 
-    def get_team_last_fixtures(self, team_id: str, last_n: int = 10) -> list[NormalizedFixture]:
-        """Fetch last N matches for a player from Tennis Abstract."""
-        matches = self._fetch_player_matches(team_id)
+    # Grand Slam qualifying is best-of-three and carries the same ``level`` as
+    # the main draw; only the round separates them. "QF" is a quarter-final and
+    # must not match, so the pattern is Q followed by a digit.
+    _QUALIFYING_ROUND = re.compile(r"^\s*q\d", re.IGNORECASE)
+
+    @classmethod
+    def _of_level(cls, matches: list[dict], level: str | None) -> list[dict]:
+        """The player's matches from one draw, newest first, or all of them.
+
+        ``level`` is the site's own column: "G" is Grand Slam. Asking for it
+        excludes qualifying, because qualifying at a Slam is best-of-three and
+        the only caller that asks is a best-of-five fixture -- measured while
+        reading the sample this built, where four of six selected matches for
+        Blockx-Trungelliti were Q1/Q2/Q3.
+
+        Filtering here rather than after slicing is the whole point -- the last
+        ten matches of an ATP player in September are Cincinnati,
+        Winston-Salem and the odd Challenger, so "the last ten, of which keep
+        the slams" yields nothing to price a five-set tie from. Measured on the
+        2026-09-03 slate: the fifteen men's dossiers held 170 aces
+        observations, **none** of them from a Grand Slam, while the same
+        players' caches held 51 to 201 Grand Slam matches each.
+
+        It costs no requests. ``_fetch_player_matches`` returns the player's
+        whole career off one cached scrape (1,055 rows for Struff), so this
+        chooses which of them to read and fetches nothing extra. The 500-day
+        window ``providers._is_recent`` enforces on the way out still applies,
+        which bounds it at roughly the last four to six Slams.
+        """
+        if not level:
+            return matches
+        wanted = level.upper()
+        return [
+            m for m in matches
+            if str(m.get("level") or "").strip().upper() == wanted
+            and not (wanted == "G" and cls._QUALIFYING_ROUND.match(str(m.get("round") or "")))
+        ]
+
+    def get_team_last_fixtures(
+        self, team_id: str, last_n: int = 10, level: str | None = None
+    ) -> list[NormalizedFixture]:
+        """Fetch last N matches for a player from Tennis Abstract.
+
+        ``level`` restricts them to one draw before the slice; see
+        ``_of_level``. Callers that do not pass it get exactly the behaviour
+        they had before it existed.
+        """
+        matches = self._of_level(self._fetch_player_matches(team_id), level)
         if not matches:
             return []
 
@@ -282,12 +327,17 @@ class TennisAbstractClient(BaseAPIClient):
         )
         return fixtures
 
-    def get_fixture_stats_for_player(self, player_name: str, last_n: int = 10) -> list[NormalizedMatchStats]:
+    def get_fixture_stats_for_player(
+        self, player_name: str, last_n: int = 10, level: str | None = None
+    ) -> list[NormalizedMatchStats]:
         """Convenience: fetch player matches and return NormalizedMatchStats directly.
 
-        This is the primary method used by the enrichment pipeline.
+        This is the primary method used by the enrichment pipeline. ``level``
+        means what it means in ``get_team_last_fixtures``, and is accepted here
+        so the two entry points cannot disagree about which matches a
+        best-of-five fixture may be priced from.
         """
-        matches = self._fetch_player_matches(player_name)
+        matches = self._of_level(self._fetch_player_matches(player_name), level)
         if not matches:
             return []
 
@@ -568,6 +618,13 @@ class TennisAbstractClient(BaseAPIClient):
             "service_games": games or 0,
             "return_games": ogames or 0,
             "surface": match.get("surf", ""),
+            # Which draw the match belonged to -- "G" is the Grand Slam main
+            # draw, and men's Grand Slam main-draw singles is the whole of
+            # best-of-five in professional tennis. Parsed into column 3 since
+            # this client existed and never exposed, so every consumer of a
+            # men's sample had to guess best-of-five from set counts; see
+            # ProviderValue.match_level for what that guess cost.
+            "level": match.get("level", ""),
             "round": match.get("round", ""),
             "result": match.get("wl", ""),
             "opponent_rank": self._safe_int(match.get("orank")) or 0,

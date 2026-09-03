@@ -367,6 +367,38 @@ _LAST_FIXTURES_METHOD: dict[str, tuple[str, bool]] = {
 }
 _DEFAULT_LAST_FIXTURES_METHOD = ("get_team_last_fixtures", False)
 
+# Providers whose last-fixtures call can be restricted to one draw, and the
+# code they name the Grand Slam main draw with.
+#
+# Only tennis-abstract, and only because its cache is the player's whole
+# career off a single scrape -- choosing which of those matches to read costs
+# no requests. espn-tennis is deliberately absent: its route is per season and
+# already returns the year, so its Grand Slam rows are in the sample without
+# asking, and asking would cost calls it has no cheap answer for.
+#
+# Why it is needed at all: the draw rule in ``scope_values`` can only keep
+# observations that reached the dossier, and a chronological last-ten reaches
+# almost none. An ATP player's last ten matches in September are Cincinnati,
+# Winston-Salem and Challengers; on the 2026-09-03 slate the fifteen men's
+# dossiers held 170 aces observations and not one came from a Grand Slam,
+# while those same players' caches held between 51 and 201 Slam matches each.
+# Scoping without this is a correct filter over a sample that cannot answer.
+_DRAW_FILTERED_PROVIDERS = {"tennis-abstract": "G", "sackmann": "G"}
+
+
+def _draw_filter_kwargs(provider: str, competition: str) -> dict[str, str]:
+    """``{"level": "G"}`` when tonight is best-of-five and the provider can.
+
+    Empty for every other provider and every other competition, so the
+    last-fixtures call is byte-for-byte the one it was before this existed.
+    """
+    level = _DRAW_FILTERED_PROVIDERS.get(provider)
+    if not level:
+        return {}
+    if tennis_match_format_for_competition(competition) != "BO5":
+        return {}
+    return {"level": level}
+
 # H2H is only wired for providers whose get_h2h returns a flat, normalized
 # meeting shape ({"id"/"fixture_id", "date", ...}). api-football's get_h2h
 # returns raw provider payload items nested under "fixture", which this
@@ -820,6 +852,171 @@ def reset_tennis_surface_cache() -> None:
         _TENNIS_SURFACE_MAP_CACHE = None
 
 
+# Providers whose historical rows say which draw a match belonged to, and how.
+#
+# ``tennis-abstract`` states it per match (``level``, "G" for Grand Slam) on
+# all 78,750 of its cached rows. ``espn-tennis`` does not state it -- but it
+# names the *tournament*, and a draw is a property of a tournament, so its rows
+# go through the same pin ANALYZE reads the fixture's own format from.
+#
+# The reason both are listed and neither is trusted alone is the surface rule's
+# lesson, one file up: a filter that can only ever fire on one of two providers
+# does not merely lose information, it reweights the sample toward the other.
+_MATCH_LEVEL_BEARING_PROVIDERS = frozenset(
+    {"tennis-abstract", "sackmann", "espn-tennis"}
+)
+
+# Providers whose rows name the tournament rather than the draw, and are
+# therefore resolved through ``config/tennis_match_format.json``.
+_COMPETITION_LEVELLED_PROVIDERS = frozenset({"espn-tennis"})
+
+# tennis-abstract's ``level`` column, mapped onto the two draw classes that
+# matter. "G" is the Grand Slam main draw; M (Masters), A (ATP/WTA tour), C
+# (Challenger), S (satellite), F (tour finals) and the ITF prize-money tiers
+# 25/15 are all best-of-three events today.
+#
+# D (Davis Cup) and O (Olympics) are deliberately absent, and absent means
+# None. Both were best-of-five within living memory -- Davis Cup rubbers until
+# 2018, the Olympic men's final until 2012 -- and a code we will not commit to
+# must read as "not stated", never as a draw that happens to differ from
+# tonight's. Inside the 500-day observation window this costs nothing; it is
+# here so that widening that window cannot quietly turn a wrong assertion into
+# deleted observations.
+_KNOWN_MATCH_LEVELS = {
+    "g": "GRAND_SLAM",
+    "gq": "GRAND_SLAM_QUALIFYING",
+    "m": "TOUR",
+    "a": "TOUR",
+    "c": "TOUR",
+    "s": "TOUR",
+    "f": "TOUR",
+    "25": "TOUR",
+    "15": "TOUR",
+}
+
+# Grand Slam *qualifying* is best-of-three -- at all four tournaments, on both
+# tours -- and tennis-abstract files it under the same ``level`` "G" as the
+# main draw. Only the round column separates them.
+#
+# Found by reading the sample the fetch filter built rather than the code: four
+# of the six matches it selected for Blockx-Trungelliti were Q1/Q2/Q3, and two
+# of four for Svajda-Gea. Left in, they would have been the same defect this
+# whole change exists to remove -- best-of-three counts priced against a
+# best-of-five ladder -- arriving by a new route and wearing the label
+# GRAND_SLAM.
+#
+# "QF" is a quarter-final and must not match: the pattern is Q followed by a
+# digit, and ESPN spells the same thing out in words.
+_QUALIFYING_ROUND = re.compile(r"^\s*(?:q\d|qual)", re.IGNORECASE)
+
+_TENNIS_FORMAT_MAP_PATH = (
+    Path(__file__).resolve().parents[3] / "config" / "tennis_match_format.json"
+)
+_TENNIS_FORMAT_MAP_CACHE: dict[str, str] | None = None
+_TENNIS_FORMAT_MAP_LOCK = threading.Lock()
+
+
+def tennis_match_format_for_competition(competition: str | None) -> str | None:
+    """``"BO5"``, ``"BO3"``, or None when the name is unpinned.
+
+    One table, one loader, two callers -- the arrangement
+    ``tennis_surface_for_competition`` already documents and for the same
+    reason. ANALYZE asks it what format tonight's fixture is played to, and
+    this module asks whether a historical ESPN row was a Grand Slam match; the
+    two answers meet inside ``scope_values``, so they have to come from one
+    read of one file.
+
+    None is not a guess and never becomes one. An unpinned tournament gates
+    nothing, exactly as it did before the config existed.
+    """
+    global _TENNIS_FORMAT_MAP_CACHE
+    with _TENNIS_FORMAT_MAP_LOCK:
+        cache = _TENNIS_FORMAT_MAP_CACHE
+    if cache is None:
+        try:
+            document = json.loads(_TENNIS_FORMAT_MAP_PATH.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            document = {}
+        formats = document.get("formats") if isinstance(document, dict) else {}
+        if not isinstance(formats, dict):
+            formats = {}
+        cache = {str(name): str(value) for name, value in formats.items()}
+        with _TENNIS_FORMAT_MAP_LOCK:
+            if _TENNIS_FORMAT_MAP_CACHE is None:
+                _TENNIS_FORMAT_MAP_CACHE = cache
+            cache = _TENNIS_FORMAT_MAP_CACHE
+    return cache.get(competition or "")
+
+
+def reset_tennis_match_format_cache() -> None:
+    """Forget the cached format table. For tests only."""
+    global _TENNIS_FORMAT_MAP_CACHE
+    with _TENNIS_FORMAT_MAP_LOCK:
+        _TENNIS_FORMAT_MAP_CACHE = None
+
+
+def _match_level_or_none(provider: str, level: Any) -> str | None:
+    """``ProviderValue.match_level`` for one observation, or None.
+
+    Mirrors ``_surface_or_none``: the caller passes whatever its provider said
+    and this decides whether the field may be set at all. A football provider
+    passing something truthy still records None -- a football "draw class" is
+    a fact nobody measured.
+    """
+    if provider not in _MATCH_LEVEL_BEARING_PROVIDERS:
+        return None
+    if not isinstance(level, str):
+        return None
+    return _KNOWN_MATCH_LEVELS.get(level.strip().lower())
+
+
+def _row_match_level(provider: str, stats: dict, fixture: Any) -> Any:
+    """What a provider row says about its draw, however it says it.
+
+    Two spellings of one fact, kept together so no caller has to know which
+    provider it holds: the row's own ``level`` code where there is one, and
+    otherwise the tournament the row names.
+
+    Grand Slam *qualifying* is best-of-three and tennis-abstract files it under
+    the same ``level`` as the main draw, so the round is read too and those rows
+    come back as their own class -- see ``_QUALIFYING_ROUND``.
+
+    A tournament pinned in ``config/tennis_match_format.json`` is a Grand Slam
+    -- every one of its ten entries is, by that file's own ``_scope``, because
+    men's Grand Slam main-draw singles is the whole of best-of-five in the
+    professional game and the WTA halves are listed only so that a checked
+    competition is distinguishable from an unchecked one.
+    ``test_every_pinned_name_is_a_grand_slam`` is where that inference breaks
+    if a best-of-three event is ever added to the table.
+
+    An unpinned name returns None and is *not* read as a tour event, even
+    though ESPN spells its four slams exactly as the table pins them (verified
+    2026-09-03 against the cached fixture rows, which carry names like "ATP US
+    Open" beside "ATP National Bank Open presented by Rogers"). Asserting
+    "tour" from a name we do not recognise would make a slam we failed to spell
+    into deleted best-of-five observations, and deleting real observations is
+    worse than admitting we cannot place them: unknown still leaves the sample,
+    but it leaves under a reason that says so, and ``_share_within_a_match``
+    can still recover it from tennis-abstract's ``level`` for the same match.
+    """
+    round_name = stats.get("round") if isinstance(stats, dict) else None
+    if round_name is None:
+        round_name = _field(fixture, "round", "round_name", default="")
+    qualifying = bool(_QUALIFYING_ROUND.match(str(round_name or "")))
+
+    stated = stats.get("level") if isinstance(stats, dict) else None
+    if stated:
+        if str(stated).strip().upper() == "G" and qualifying:
+            return "GQ"
+        return stated
+    if provider not in _COMPETITION_LEVELLED_PROVIDERS:
+        return None
+    name = _field(fixture, "competition_name", default="")
+    if tennis_match_format_for_competition(name) is None:
+        return None
+    return "GQ" if qualifying else "G"
+
+
 def _surface_or_none(provider: str, surface: Any) -> str | None:
     """``ProviderValue.surface`` for one observation, or None.
 
@@ -862,6 +1059,7 @@ def _make_values(
     season_id: Any = None,
     side: str | None = None,
     surface: Any = None,
+    match_level: Any = None,
 ) -> dict[str, ProviderValue]:
     """One ProviderValue per canonical metric in ``combined``.
 
@@ -885,6 +1083,7 @@ def _make_values(
     season = _id_or_none(season_id)
     venue = _venue_or_none(provider, side)
     surface_name = _surface_or_none(provider, surface)
+    level = _match_level_or_none(provider, match_level)
     return {
         name: ProviderValue(
             provider=provider,
@@ -897,6 +1096,7 @@ def _make_values(
             season_id=season,
             venue=venue,
             surface=surface_name,
+            match_level=level,
         )
         for name, val in combined.items()
     }
@@ -1669,7 +1869,10 @@ def _fetch_l10_generic(
         outcome.data_gaps.append(f"{provider_key}: could not resolve team identity for '{team_name}'")
         return outcome
     try:
-        raw = getattr(client, method_name)(team_id, last_n=last_n)
+        raw = getattr(client, method_name)(
+            team_id, last_n=last_n,
+            **_draw_filter_kwargs(provider_key, competition),
+        )
         if unwrap:
             if raw.status != SourceResultStatus.SUCCESS:
                 outcome.data_gaps.append(f"{provider_key}: {raw.status.value} fetching last fixtures")
@@ -1756,6 +1959,11 @@ def _fetch_l10_generic(
             # resolved through the surface table. ``_surface_or_none`` discards
             # either for the football providers that share this function.
             surface=_row_surface(provider_key, stats_dict, fx),
+            # Same two-spellings arrangement as ``surface`` directly above:
+            # tennis-abstract states the draw on the stats row, espn-tennis
+            # names the tournament. ``_match_level_or_none`` discards either
+            # for the football providers that share this function.
+            match_level=_row_match_level(provider_key, stats_dict, fx),
         ).items():
             outcome.add(name, value)
     return outcome
@@ -1826,6 +2034,10 @@ def _fetch_h2h_generic(
             # clay is no more a trial of tonight's hard court than one of
             # either player's own clay matches would be.
             surface=_row_surface(provider_key, stats_dict, meeting),
+            # And the draw is a property of the meeting for the same reason:
+            # a past meeting in a best-of-three tour event says nothing about
+            # how long tonight's best-of-five tie runs, whichever side it was.
+            match_level=_row_match_level(provider_key, stats_dict, meeting),
         ).items():
             outcome.add(name, value)
     return outcome

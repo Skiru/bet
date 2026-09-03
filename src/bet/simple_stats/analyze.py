@@ -17,7 +17,9 @@ from bet.stats.market_ranking import player_prop_lines, standard_market_lines
 from bet.simple_stats.providers import (
     _normalize_team_name,
     _team_matches,
+    reset_tennis_match_format_cache,
     reset_tennis_surface_cache,
+    tennis_match_format_for_competition,
     tennis_surface_for_competition,
 )
 from bet.simple_stats.context_flags import context_flags_for_row
@@ -39,11 +41,9 @@ from bet.simple_stats.contracts import (
 
 _CONFIG_DIR = Path(__file__).resolve().parents[3] / "config"
 _OBSERVATION_SCOPE_PATH = _CONFIG_DIR / "observation_scope.json"
-_TENNIS_FORMAT_PATH = _CONFIG_DIR / "tennis_match_format.json"
 _MARKET_PRIORS_PATH = _CONFIG_DIR / "market_priors.json"
 _CONFIG_LOCK = threading.Lock()
 _OBSERVATION_SCOPE_CACHE: dict[str, dict[str, str]] | None = None
-_TENNIS_FORMAT_CACHE: dict[str, str] | None = None
 _MARKET_PRIORS_CACHE: dict[str, float] | None = None
 
 
@@ -92,30 +92,20 @@ def observation_scope() -> dict[str, dict[str, str]]:
 def tennis_match_format(competition: str | None) -> str | None:
     """``"BO5"``, ``"BO3"`` or None when this competition is not pinned.
 
+    Delegates to ``providers.tennis_match_format_for_competition`` rather than
+    reading the config a second time -- the move ``tennis_surface`` below made
+    first, for the reason it gives. Both sides of the draw comparison meet in
+    ``scope_values``: the fixture's format, resolved here, and a historical
+    ESPN row's tournament, resolved in ``providers.py``. Two loaders of one
+    table is how the two come to disagree about a name and delete every
+    observation that was in fact a match.
+
     None is deliberately not BO3. Guessing best-of-three from a name is how the
     sheet came to price a men's Grand Slam off a best-of-three sample in the
     first place; an unpinned competition gates nothing and is emitted exactly
     as it was before this file existed.
     """
-    global _TENNIS_FORMAT_CACHE
-    with _CONFIG_LOCK:
-        cache = _TENNIS_FORMAT_CACHE
-    if cache is None:
-        formats = _load_json(_TENNIS_FORMAT_PATH).get("formats") or {}
-        # The guard used to sit *inside* the comprehension, which evaluated
-        # ``formats.items()`` first and then tested a constant per item -- so a
-        # ``"formats"`` key holding anything but an object raised
-        # AttributeError and aborted ANALYZE. Same class as the market-priors
-        # loader above, and the same rule: a malformed config must leave this
-        # gate inert, not stop the run.
-        if not isinstance(formats, dict):
-            formats = {}
-        cache = {str(name): str(value) for name, value in formats.items()}
-        with _CONFIG_LOCK:
-            if _TENNIS_FORMAT_CACHE is None:
-                _TENNIS_FORMAT_CACHE = cache
-            cache = _TENNIS_FORMAT_CACHE
-    return cache.get(competition or "")
+    return tennis_match_format_for_competition(competition)
 
 
 def tennis_surface(competition: str | None) -> str | None:
@@ -299,15 +289,15 @@ def shrunk_centre(values: list[float], market: str, venue: str | None = None) ->
 def reset_scope_caches() -> None:
     """Forget every cached config document. For tests only.
 
-    The surface table now lives in ``providers.py`` -- one table for both sides
-    of the surface comparison -- so its cache is reset there.
+    The surface and format tables now live in ``providers.py`` -- one table for
+    both sides of each comparison -- so their caches are reset there.
     """
-    global _OBSERVATION_SCOPE_CACHE, _TENNIS_FORMAT_CACHE, _MARKET_PRIORS_CACHE
+    global _OBSERVATION_SCOPE_CACHE, _MARKET_PRIORS_CACHE
     with _CONFIG_LOCK:
         _OBSERVATION_SCOPE_CACHE = None
-        _TENNIS_FORMAT_CACHE = None
         _MARKET_PRIORS_CACHE = None
     reset_tennis_surface_cache()
+    reset_tennis_match_format_cache()
 
 # STANDARD_MARKET_LINES' "stat" field uses the pre-existing (non-"_total")
 # taxonomy; MetricObservation keys use our canonical names (section 5). Two
@@ -676,11 +666,14 @@ def _season_sort_key(pv: ProviderValue) -> tuple[str, str]:
 
 
 def scope_values(
-    values: list[ProviderValue], *, surface: str | None = None
+    values: list[ProviderValue],
+    *,
+    surface: str | None = None,
+    match_format: str | None = None,
 ) -> tuple[list[ProviderValue], dict[str, int]]:
     """The observations that may enter a sample, and what was removed.
 
-    Three rules, counted separately because they answer different objections
+    Four rules, counted separately because they answer different objections
     and a reader of the sheet needs to know which one fired.
 
     **Out-of-scope competition** (``config/observation_scope.json``). A
@@ -708,17 +701,54 @@ def scope_values(
     ``tennis_surface(competition)`` and the observation's from
     ``ProviderValue.surface``, and if either is None nothing is dropped.
 
-    An observation missing either id is kept and counted against neither rule.
-    Not knowing which competition a match belonged to is not evidence that it
-    belonged to the wrong one, and dropping it would quietly delete every
-    provider that does not publish league ids.
+    **Wrong draw**, best-of-five fixtures only. A best-of-three match is not a
+    trial of a men's Grand Slam tie: ``total_games``, ``total_sets``, aces and
+    double faults all scale with how long the match is allowed to run, and
+    "under 3.5 sets, 15 from 15" measured over best-of-three is not a read, it
+    is the definition of best-of-three. Until 2026-09-03 this was handled a
+    market at a time -- ``suppressed_markets_for`` deleted every length-
+    dependent row whenever it could not prove the sample was best-of-five --
+    and the whole of ATP came off the sheet, all 21 fixtures on 2026-09-02 and
+    all 15 on 2026-09-03, dossiers fully enriched and every row discarded.
+    Suppressing the market was the wrong instrument: the objection is to
+    *observations*, and the sample holds both kinds. So the tour matches leave
+    and the Grand Slam matches stay, exactly as the surface rule already treats
+    a grass match in a hard-court sample.
+
+    This rule is the one place where an observation that states nothing is
+    dropped rather than kept, and the asymmetry is deliberate. For a surface or
+    a competition, unknown is genuinely two-sided -- the match might have been
+    on either. For a draw against a best-of-five fixture it is not: four of a
+    men's roughly sixty-five events a year are best-of-five, so an unstated
+    draw is best-of-three with near-certainty, and the artefact it produces is
+    not a slightly wrong number but a tautology priced against Superbet's
+    best-of-five ladder (games 30.5-46.5, sets 3.5/4.5). That is the failure
+    that put 78 of 82 bettable rows on one sheet and reached the operator as a
+    Bet Builder. ``MATCH_FORMAT_UNKNOWN`` is counted separately from
+    ``MATCH_FORMAT_MISMATCH`` so the two are never confused for each other:
+    the first is a provider we have not taught to say, the second is a match
+    that was measurably a different game.
+
+    Only the best-of-five direction is implemented. A fixture pinned BO3 drops
+    nothing here, because ``config/tennis_match_format.json`` pins only Grand
+    Slams and a Grand Slam observation in a *women's* sample is best-of-three
+    too -- the draw is the same, the format is not. The day a men's
+    best-of-three event is pinned, this rule needs to know the sample's tour to
+    go the other way; espn-tennis already states it per row (``tour``) and
+    tennis-abstract per player route.
+
+    An observation missing a competition id or a surface is kept and counted
+    against neither of those rules. Not knowing which competition a match
+    belonged to is not evidence that it belonged to the wrong one, and dropping
+    it would quietly delete every provider that does not publish league ids.
 
     Returns ``(kept, {reason: count})``. Order is preserved, so every caller
     downstream -- ``_dedup``, ``_one_per_day``, ``_cross_provider_agreement`` --
     sees the sample it would have seen had the removed matches never been
     fetched.
     """
-    values = _share_surface_within_a_match(values)
+    values = _share_within_a_match(values, "surface")
+    values = _share_within_a_match(values, "match_level")
     scope = observation_scope()
     kept: list[ProviderValue] = []
     dropped: dict[str, int] = {}
@@ -755,24 +785,46 @@ def scope_values(
         if target is not None and pv.season_id and pv.season_id != target:
             drop("STALE_SEASON")
             continue
-        # Surface last, so a row dropped for being last season is not also
-        # counted as a surface mismatch -- the counts are reported to the
+        # Surface after season, so a row dropped for being last season is not
+        # also counted as a surface mismatch -- the counts are reported to the
         # operator and must partition, not overlap.
         if surface is not None and pv.surface is not None and pv.surface != surface:
             drop("SURFACE_MISMATCH")
             continue
+        # Draw last, on the same partition rule: a grass tour match against a
+        # hard-court best-of-five tie is counted once, as the surface mismatch
+        # it also is, because that is the objection the operator can check
+        # against the tournament name in front of them.
+        if match_format == "BO5":
+            if pv.match_level is None:
+                drop("MATCH_FORMAT_UNKNOWN")
+                continue
+            if pv.match_level != "GRAND_SLAM":
+                drop("MATCH_FORMAT_MISMATCH")
+                continue
         kept.append(pv)
     return kept, dropped
 
 
-def _share_surface_within_a_match(values: list[ProviderValue]) -> list[ProviderValue]:
-    """Let a match's surface reach the rows of that match that do not state it.
+def _share_within_a_match(
+    values: list[ProviderValue], field: str
+) -> list[ProviderValue]:
+    """Let a match's own properties reach the rows of that match that omit them.
 
-    The surface rule needs both sides known, so a provider that never states one
-    is not merely uninformative -- it is **immune**. Until 2026-09-02
-    espn-tennis was exactly that, and the filter that removed 145 of
-    tennis-abstract's 522 ``total_games`` observations removed 0 of ESPN's 478,
-    quietly reweighting the sample toward one provider.
+    ``field`` is ``"surface"`` or ``"match_level"``: both are properties of a
+    *match*, both are stated by tennis-abstract and not by espn-tennis, and
+    both are compared against the fixture's pin inside ``scope_values``. One
+    helper rather than two, because a second copy would be a second place for
+    the unanimity rule below to be got wrong.
+
+    A rule that needs both sides known cannot fire on a provider that never
+    states one, so such a provider is not merely uninformative -- it is
+    **immune**. Until 2026-09-02 espn-tennis was exactly that for surface, and
+    the filter that removed 145 of tennis-abstract's 522 ``total_games``
+    observations removed 0 of ESPN's 478, quietly reweighting the sample toward
+    one provider. The draw rule would repeat it exactly: ESPN's own cache
+    spells its tournaments "ATP National Bank Open presented by Rogers", so
+    the format pin resolves its Grand Slam rows and leaves the rest unstated.
 
     Giving ESPN rows a surface from their tournament closed most of that and not
     all of it: the surface table pins ten Grand Slam names, and on the deeper
@@ -788,18 +840,28 @@ def _share_surface_within_a_match(values: list[ProviderValue]) -> list[ProviderV
 
     So nothing is joined by name. Both providers describe the *same matches*,
     identified the way tennis is already identified everywhere else in this
-    module -- by opponent, through ``_team_matches`` -- and a surface is a
-    property of a match, not of a row. A group where the rows that do state a
-    surface all state the same one hands it to the rows that state none.
+    module -- by opponent, through ``_team_matches`` -- and a surface, like a
+    draw, is a property of a match and not of a row. A group where the rows
+    that do state the field all state the same value hands it to the rows that
+    state none.
 
     Unanimity is required, and it is what makes repeat meetings safe: two
     matches against one opponent on different surfaces put both into one group,
     the group disagrees, and every row in it keeps whatever it already had.
-    Nothing is ever overwritten and no surface is ever invented -- the only
-    values that move are ones a provider observed about a match in this sample.
+    Nothing is ever overwritten and no value is ever invented -- the only ones
+    that move are ones a provider observed about a match in this sample.
+
+    The residual, unchanged by the draw rule joining this helper and worth
+    naming: a group is opponent-wide, not match-wide, so when only *one* of two
+    meetings with the same opponent is stated, the other inherits it. The
+    obvious tightening -- add the date to the key -- does not work here,
+    because tennis-abstract stamps every round of a tournament with the
+    tournament's start date (all six of Struff's 2026 Wimbledon rows read
+    2026-06-29) while ESPN stamps the match, so the two providers would stop
+    grouping altogether and the immunity above would come straight back.
     """
-    unknown = [pv for pv in values if pv.surface is None]
-    if not unknown or all(pv.surface is None for pv in values):
+    unknown = [pv for pv in values if getattr(pv, field) is None]
+    if not unknown or all(getattr(pv, field) is None for pv in values):
         return values
 
     groups: list[tuple[str, list[ProviderValue]]] = []
@@ -816,18 +878,20 @@ def _share_surface_within_a_match(values: list[ProviderValue]) -> list[ProviderV
 
     resolved: dict[int, str] = {}
     for _key, members in groups:
-        stated = {pv.surface for pv in members if pv.surface is not None}
+        stated = {
+            value for pv in members if (value := getattr(pv, field)) is not None
+        }
         if len(stated) != 1:
             continue
         only = stated.pop()
         for pv in members:
-            if pv.surface is None:
+            if getattr(pv, field) is None:
                 resolved[id(pv)] = only
     if not resolved:
         return values
 
     return [
-        pv.model_copy(update={"surface": resolved[id(pv)]})
+        pv.model_copy(update={field: resolved[id(pv)]})
         if id(pv) in resolved
         else pv
         for pv in values
@@ -835,7 +899,10 @@ def _share_surface_within_a_match(values: list[ProviderValue]) -> list[ProviderV
 
 
 def _scope_observation(
-    obs: MetricObservation, *, surface: str | None = None
+    obs: MetricObservation,
+    *,
+    surface: str | None = None,
+    match_format: str | None = None,
 ) -> tuple[MetricObservation, dict[str, int]]:
     """``scope_values`` over all three buckets of one metric, as one decision.
 
@@ -849,9 +916,14 @@ def _scope_observation(
     is entirely grass would declare grass current and keep everything, which
     is exactly the 2026-09-02 defect -- so it is passed in from
     ``tennis_surface(competition)`` or left None.
+
+    ``match_format`` is the fixture's own pinned format, and cannot be inferred
+    from the observations for a sharper version of the same reason: a
+    best-of-three sample asked to describe itself says best-of-three and keeps
+    everything, which is the defect this argument exists to close.
     """
     pooled = [*obs.team_a_l10, *obs.team_b_l10, *obs.h2h]
-    kept, dropped = scope_values(pooled, surface=surface)
+    kept, dropped = scope_values(pooled, surface=surface, match_format=match_format)
     survivors = {(pv.provider, pv.match_id, pv.value) for pv in kept}
 
     def surviving(bucket: list[ProviderValue]) -> list[ProviderValue]:
@@ -882,65 +954,53 @@ _TENNIS_LENGTH_DEPENDENT_MARKETS = frozenset(
 )
 
 # A best-of-five match can run to four or five sets; a best-of-three cannot.
+# Kept as the *check* on the draw rule rather than as the rule itself: no
+# scoped best-of-five sample may contain a two-set match unless somebody
+# retired, so this is the arithmetic that would catch a bad ``level`` mapping.
 _BO5_MIN_SETS = 4.0
-
-# What share of a sample has to be four sets or longer before the sample is a
-# description of best-of-five tennis.
-#
-# This was ``any()`` -- one four-set match stood the gate down -- and that
-# inference is wrong at n=1. Measured on the 2026-09-02 ATP US Open slate: of
-# 21 ties, 10 were suppressed and 11 were not, and those 11 stood down on
-# samples of 1/10, 1/11, 1/13, 1/14, 2/10, 2/12, 2/16 and 2/19 long matches.
-# A sample that is 85-90% best-of-three still measures best-of-three, so
-# ``total_games`` / ``total_sets`` / ``aces_total`` / ``double_faults_total``
-# were measured over at most three sets and then priced against Superbet's
-# best-of-five ladder (games 30.5-39.5, sets 3.5/4.5). 78 of the day's 82
-# bettable rows were that one artifact, and the analyst removed them by hand
-# in 94 vetoes.
-#
-# A third, because that is roughly where the two populations separate rather
-# than a number picked for its roundness. A genuine best-of-five sample is
-# mostly best-of-five: a player whose last ten are Grand Slam matches runs
-# 40-70% four-or-five-set, while the observed false stand-downs above top out
-# at 2/10 = 20%. Every one of the 21 ties on that slate suppresses at this
-# threshold; a player who has actually been playing five-set tennis still
-# clears it comfortably.
-#
-# Deliberately *not* also requiring a minimum sample size. The share is the
-# claim, and a small sample that is entirely four-set matches is the best
-# evidence available that this is best-of-five tennis -- while a small sample
-# that is not gets suppressed, which is the safe direction.
-_BO5_MIN_LONG_MATCH_SHARE = 1.0 / 3.0
 
 
 def _sample_is_best_of_five(
-    dossier: EventDossierV1, *, surface: str | None = None
+    dossier: EventDossierV1,
+    *,
+    surface: str | None = None,
+    match_format: str | None = None,
 ) -> bool:
-    """Whether this fixture's own sample is *drawn from* best-of-five tennis.
+    """Whether this fixture has any best-of-five sample left to price from.
 
-    Read off ``total_sets`` -- the one metric that states match length directly
-    -- rather than inferred from game counts, which a long best-of-three can
-    fake. No observation of it at all answers False: a sample that cannot show
-    a four-set match is not a sample of best-of-five tennis.
+    Now a question about the *draw*, answered from ``ProviderValue.match_level``
+    by ``scope_values``, and no longer a guess from match length. What it
+    replaced was a share threshold on "four sets or longer", and that quantity
+    cannot answer the question asked of it: a best-of-five won 3-0 and a
+    best-of-three won 2-1 are both three sets. On the 2026-09-03 ATP slate 225
+    of 474 ``total_sets`` observations were exactly three and therefore mute,
+    every one of the 15 fixtures scored under the threshold, and ATP came off
+    the sheet in its entirety -- Taylor Fritz included, whose six 2026 Grand
+    Slam wins all came in straight sets and scored zero.
 
-    The share is measured on the sample as ``scope_values`` admits it -- same
-    surface, same competition pins, same season rule -- because that is the
+    Measured on the sample as ``scope_values`` admits it -- same surface, same
+    competition pins, same season rule, same draw rule -- because that is the
     sample the rows are priced from. Judged on the raw sample instead, four
-    grass BO5 matches can stand the gate down while the surface rule deletes
-    exactly those four from pricing, and the surviving hard-court BO3 sample
-    meets the BO5 ladder unguarded -- the 2026-09-02 artifact reintroduced.
+    grass Grand Slam matches can stand the gate down while the surface rule
+    deletes exactly those four from pricing, and the surviving hard-court tour
+    sample meets the best-of-five ladder unguarded: the 2026-09-02 artefact
+    reintroduced.
+
+    ``total_sets`` is still the metric read, because it is the one that states
+    match length directly and every tennis dossier carries it. An empty
+    survivor list answers False and the length-dependent markets stay
+    suppressed -- the safe direction, and the one this pipeline has taken on
+    every unprovable tennis claim since 2026-09-01.
     """
     obs = dossier.metrics.get("total_sets")
     if obs is None:
         return False
     kept, _ = scope_values(
-        [*obs.team_a_l10, *obs.team_b_l10, *obs.h2h], surface=surface
+        [*obs.team_a_l10, *obs.team_b_l10, *obs.h2h],
+        surface=surface,
+        match_format=match_format,
     )
-    values = [pv.value for pv in kept]
-    if not values:
-        return False
-    long_matches = sum(1 for value in values if value >= _BO5_MIN_SETS)
-    return long_matches / len(values) >= _BO5_MIN_LONG_MATCH_SHARE
+    return bool(kept)
 
 
 # How many *matches* in a sample a second provider has to have reported before
@@ -1472,12 +1532,34 @@ def _resolve_lines(
     return (list(static), None, None)
 
 
+def _format_scope_for(canonical: str, match_format: str | None) -> str | None:
+    """The fixture's format, but only for the markets it can object to.
+
+    The draw rule exists because a market's *value scales with match length*,
+    so it has no business shrinking a sample for one that does not.
+    ``first_serve_pct``, ``break_points_saved_pct`` and the other rates are
+    the same quantity in a best-of-three tour match as in a five-set tie, and
+    a player's tour season is where nearly all of their observations live: on
+    the 2026-09-03 ATP slate, scoping those to Grand Slams as well would have
+    taken samples of 29-37 matches down to single digits to no purpose.
+
+    So the two halves of the tennis draw rule are addressed to the same set,
+    ``_TENNIS_LENGTH_DEPENDENT_MARKETS`` -- the markets ``suppressed_markets_for``
+    withholds when there is no best-of-five sample, and the markets whose
+    sample this scopes when there is one.
+    """
+    if canonical in _TENNIS_LENGTH_DEPENDENT_MARKETS:
+        return match_format
+    return None
+
+
 def _match_total_rows(
     dossier: EventDossierV1,
     offered: OfferedLines | None = None,
     *,
     suppressed_markets: frozenset[str] = frozenset(),
     surface: str | None = None,
+    match_format: str | None = None,
 ) -> list[StatsSheetRow]:
     rows: list[StatsSheetRow] = []
     for market_def in standard_market_lines().get(dossier.sport, []):
@@ -1489,7 +1571,10 @@ def _match_total_rows(
         obs = dossier.metrics.get(canonical)
         if obs is None:
             continue
-        obs, sample_excluded = _scope_observation(obs, surface=surface)
+        obs, sample_excluded = _scope_observation(
+            obs, surface=surface,
+            match_format=_format_scope_for(canonical, match_format),
+        )
         lines, limit, offered_sides = _resolve_lines(
             offered, event_id=dossier.event_id, market=canonical,
             static=market_def["lines"],
@@ -1517,6 +1602,7 @@ def _team_total_rows(
     *,
     suppressed_markets: frozenset[str] = frozenset(),
     surface: str | None = None,
+    match_format: str | None = None,
 ) -> list[StatsSheetRow]:
     """Per-team rows: one team's own contribution, not the match total.
 
@@ -1562,7 +1648,10 @@ def _team_total_rows(
             # two sides are never merged here (see the docstring) and must not
             # be merged by the scope filter either -- one side's cup run would
             # otherwise decide what counts as current for the other.
-            bucket, sample_excluded = scope_values(raw_bucket, surface=surface)
+            bucket, sample_excluded = scope_values(
+                raw_bucket, surface=surface,
+                match_format=_format_scope_for(canonical, match_format),
+            )
             if not bucket:
                 continue
             lines, limit, offered_sides = _resolve_lines(
@@ -1609,6 +1698,7 @@ def _player_prop_rows(
     *,
     suppressed_markets: frozenset[str] = frozenset(),
     surface: str | None = None,
+    match_format: str | None = None,
 ) -> list[StatsSheetRow]:
     """Per-player rows from ``dossier.player_metrics``.
 
@@ -1633,7 +1723,10 @@ def _player_prop_rows(
         if canonical in suppressed_markets:
             continue
         for observation in by_stat.get(canonical, []):
-            l10, sample_excluded = scope_values(observation.l10, surface=surface)
+            l10, sample_excluded = scope_values(
+                observation.l10, surface=surface,
+                match_format=_format_scope_for(canonical, match_format),
+            )
             if not l10:
                 continue
             lines, limit, offered_sides = _resolve_lines(
@@ -1678,17 +1771,26 @@ def suppressed_markets_for(
     and the one that slipped past reached the operator as a Bet Builder.
     A measurement of a tautology is not weak evidence; it is not evidence.
 
-    Both halves must be known for the gate to fire. An unpinned competition
-    (``tennis_match_format`` returns None) suppresses nothing, and a sample a
-    third of which ran to four sets or longer is a best-of-five sample and is
-    left entirely alone -- see ``_BO5_MIN_LONG_MATCH_SHARE`` for why a *share*
-    and not a single observation.
+    What changed on 2026-09-03 is *when* it fires, not what it does. The
+    best-of-three observations are now removed from the sample by
+    ``scope_values``, so this function no longer asks "is the sample mostly
+    best-of-five" -- a question the data could not answer -- but "is there any
+    best-of-five sample left". Fixtures whose Grand Slam history is empty or
+    unfetched still suppress, and that is the honest answer for them; the
+    fifteen ATP ties that suppressed on a full nine-metric dossier were not.
+
+    Both halves must still be known for the gate to fire. An unpinned
+    competition (``tennis_match_format`` returns None) suppresses nothing and
+    scopes nothing.
     """
     if dossier.sport != "tennis":
         return frozenset()
-    if tennis_match_format(competition) != "BO5":
+    match_format = tennis_match_format(competition)
+    if match_format != "BO5":
         return frozenset()
-    if _sample_is_best_of_five(dossier, surface=tennis_surface(competition)):
+    if _sample_is_best_of_five(
+        dossier, surface=tennis_surface(competition), match_format=match_format
+    ):
         return frozenset()
     return _TENNIS_LENGTH_DEPENDENT_MARKETS
 
@@ -1724,13 +1826,17 @@ def analyze_dossier(
     if dossier.readiness == "BLOCKED":
         return []
     suppressed = suppressed_markets_for(dossier, competition)
-    # Football never pins a surface, so this is None for every football
-    # fixture and the surface rule inside ``scope_values`` stays inert there.
+    # Football never pins a surface or a format, so both are None for every
+    # football fixture and both rules inside ``scope_values`` stay inert there.
     surface = tennis_surface(competition) if dossier.sport == "tennis" else None
+    match_format = (
+        tennis_match_format(competition) if dossier.sport == "tennis" else None
+    )
+    scoping = {"surface": surface, "match_format": match_format}
     return [
-        *_match_total_rows(dossier, offered, suppressed_markets=suppressed, surface=surface),
-        *_team_total_rows(dossier, offered, suppressed_markets=suppressed, surface=surface),
-        *_player_prop_rows(dossier, offered, suppressed_markets=suppressed, surface=surface),
+        *_match_total_rows(dossier, offered, suppressed_markets=suppressed, **scoping),
+        *_team_total_rows(dossier, offered, suppressed_markets=suppressed, **scoping),
+        *_player_prop_rows(dossier, offered, suppressed_markets=suppressed, **scoping),
     ]
 
 
