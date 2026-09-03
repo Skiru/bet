@@ -45,8 +45,8 @@ class TestPolishCornersRegression:
         assert market_family(text) == "corners"
 
     def test_polish_cards_still_work(self):
-        assert classify_claim("powyżej 4,5 kartek").market == "cards_total"
-        assert classify_claim("Powyżej 3,5 kartki").market == "cards_total"
+        assert classify_claim("powyżej 4,5 kartek").market == "cards_points_total"
+        assert classify_claim("Powyżej 3,5 kartki").market == "cards_points_total"
 
 
 class TestDirectionFromClaimOnly:
@@ -94,7 +94,7 @@ class TestScopeDecidesWhichRowAClaimCanCorroborate:
     def test_team_named_mid_claim_still_scopes_to_that_team(self):
         claim = classify_claim("(Kartki) Suma Hapoel Beer Sheva - powyżej 2", "Sabah FK", "Hapoel Beer Sheva")
         assert claim.scope == "TEAM"
-        assert claim.market == "cards_for"
+        assert claim.market == "cards_points_for"
         assert claim.subjects == ("Hapoel Beer Sheva",)
 
     def test_a_claim_with_no_unit_names_no_market(self):

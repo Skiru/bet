@@ -155,12 +155,17 @@ def test_a_vetoed_row_never_becomes_a_bet_builder_leg():
 
 
 def test_a_slip_survives_a_veto_that_leaves_two_legs_standing():
-    """A veto removes a leg; it does not silently delete the whole draft."""
+    """A veto removes a leg; it does not silently delete the whole draft.
+
+    Three mechanisms, not three markets: cards and fouls are one mechanism as
+    of 2026-09-03, so a sheet of corners/cards/fouls now yields two legs before
+    any veto and one after. Goals stands in for the third.
+    """
     coupons = build_coupons(
         _sheet(
             _row(market="corners_total", line=9.5, direction="UNDER"),
             _row(market="cards_total", line=4.5, direction="UNDER"),
-            _row(market="fouls_total", line=20.5, direction="OVER"),
+            _row(market="goals_total", line=2.5, direction="OVER"),
         ),
         _events(_event()),
         vetoes=[
@@ -172,7 +177,7 @@ def test_a_slip_survives_a_veto_that_leaves_two_legs_standing():
     )
     assert len(coupons.slips) == 1
     assert {leg.market for leg in coupons.slips[0].draft.legs} == {
-        "cards_total", "fouls_total"
+        "cards_total", "goals_total"
     }
 
 
@@ -327,10 +332,50 @@ def test_a_leg_below_min_p_low_is_excluded_like_a_single():
 
 
 def test_min_p_low_is_the_same_number_for_both_sections():
+    """One threshold, both sections, checked on the threshold itself.
+
+    Asserted on the *exclusion reason* rather than on whether a slip comes out,
+    because since 2026-09-03 a slip has a second gate: §44's builder score,
+    which refuses two correlated legs at 0.51 each (0.5915 against a floor of
+    0.60). Asserting "a slip exists at 0.51" would be asserting that the §44
+    floor is somewhere below 0.5915, which is not what this test is about and
+    would silently pin an unrelated constant.
+    """
     just_under = _two_row_sheet(p_low=MIN_SINGLE_P_LOW - 0.01)
     just_over = _two_row_sheet(p_low=MIN_SINGLE_P_LOW + 0.01)
-    assert build_coupons(just_under, _events(_event())).slips == []
-    assert build_coupons(just_over, _events(_event())).slips != []
+
+    below = draft_legs(just_under, "evt-1", min_p_low=MIN_SINGLE_P_LOW)
+    assert below.legs == []
+    assert below.excluded["p_low_below_threshold"] == 2
+
+    above = draft_legs(just_over, "evt-1", min_p_low=MIN_SINGLE_P_LOW)
+    assert len(above.legs) == 2
+    assert "p_low_below_threshold" not in above.excluded
+
+    # And the singles side agrees about the same number.
+    assert build_coupons(just_under, _events(_event())).singles == []
+    assert build_coupons(just_over, _events(_event())).singles != []
+
+
+def test_the_builder_score_refuses_a_slip_of_two_correlated_coin_flips():
+    """docs/SUPERBET_BET_BUILDER_METHOD_v3.md §44, computed rather than quoted.
+
+    Two legs at 0.51 in one match, both from the correlated football family:
+    weakest 0.51, mean 0.51, correlation 0.4 because they land together,
+    robustness and data quality full. 0.5915 against the document's own 0.60
+    floor -- so the draft keeps its legs and its score, and no coupon is built
+    from it.
+    """
+    sheet = _two_row_sheet(p_low=MIN_SINGLE_P_LOW + 0.01)
+    draft = draft_legs(sheet, "evt-1", min_p_low=MIN_SINGLE_P_LOW)
+    assert draft.builder_score == pytest.approx(0.5915, abs=1e-4)
+    assert draft.builder_score_refused is True
+    assert draft.builder_score_parts["correlation"] == 0.4
+    assert draft.builder_score_parts["robustness"] == 1.0
+
+    coupons = build_coupons(sheet, _events(_event()))
+    assert coupons.slips == []
+    assert coupons.excluded["builder_score_below_minimum"] == 1
 
 
 # --- the operator's own book reaches the legs -------------------------------
@@ -445,10 +490,17 @@ def test_the_demotion_is_the_same_rule_the_singles_use():
 # --- tennis legs are not independent ----------------------------------------
 
 
-def test_two_length_dependent_tennis_legs_are_flagged_as_correlated():
-    """Shipped as ``correlation_risk: LOW`` on 2026-09-01. A match that ends in
-    three sets is a short match, so "under 34.5 games" and "under 3.5 sets" are
-    close to the same bet twice."""
+def test_two_length_dependent_tennis_legs_can_no_longer_share_a_slip():
+    """Shipped as ``correlation_risk: LOW`` on 2026-09-01 -- a match that ends
+    in three sets is a short match, so "under 34.5 games" and "under 3.5 sets"
+    are close to the same bet twice.
+
+    Flagged HIGH from 2026-09-01 and **refused** from 2026-09-03: the tennis
+    length markets are one mechanism family, so the second of them never
+    becomes a leg. The HIGH branch is kept in ``draft_legs`` as a defence for
+    any future caller that assembles legs itself, and is unreachable through
+    this path.
+    """
     slip = draft_legs(
         _sheet(
             _row(sport="tennis", market="total_games", line=34.5, direction="UNDER"),
@@ -456,5 +508,6 @@ def test_two_length_dependent_tennis_legs_are_flagged_as_correlated():
         ),
         "evt-1",
     )
-    assert slip.correlation_risk == "HIGH"
-    assert "how long the match runs" in slip.correlation_note
+    assert len(slip.legs) == 1
+    assert slip.excluded["duplicate_mechanism_family"] == 1
+    assert slip.correlation_risk == "NOT_APPLICABLE"

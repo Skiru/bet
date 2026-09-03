@@ -1,4 +1,6 @@
 """Tests for bet.simple_stats.analyze: hit-rate STATS_SHEET_V1 rows."""
+import pytest
+
 from bet.stats.market_ranking import STANDARD_MARKET_LINES
 
 from bet.simple_stats.analyze import (
@@ -606,15 +608,75 @@ def test_corroboration_still_reaches_the_agreement_check_and_sources():
 def test_disagreeing_providers_contribute_one_reported_value():
     """When providers disagree the representative is one of the values they
     actually reported -- never their average, which would invent a figure no
-    provider stands behind and could land a synthetic push on a whole line."""
+    provider stands behind and could land a synthetic push on a whole line.
+
+    Read on a line the disagreement does not straddle. On one it does, the
+    observation settles nothing at all -- see the two tests below.
+    """
     observations = [
         _pv("bzzoiro", 9.0, "2026-02-01", opponent="Real Betis", match_id="bz1"),
         _pv("espn-football", 10.0, "2026-02-01", opponent="Betis", match_id="es1"),
     ]
-    row = _corners_row(_corners_dossier(observations))
+    row = _corners_row(_corners_dossier(observations), line=6.5)
 
     assert row.sample_size == 1
     assert row.mean in (9.0, 10.0)
+
+
+def test_a_conflict_that_straddles_the_line_settles_nothing():
+    """9 against 10 at a 9.5 line: one provider says OVER, the other says UNDER.
+
+    Counting it either way charges the sample for a disagreement twice -- once
+    on the rate, once on nothing -- so it leaves the sample, which shows up in
+    ``sample_size`` and is named in ``sample_excluded``. With one observation
+    that empties the sample and the row disappears, which is the correct answer
+    to "what does this evidence say about 9.5": nothing.
+    """
+    observations = [
+        _pv("bzzoiro", 9.0, "2026-02-01", opponent="Real Betis", match_id="bz1"),
+        _pv("espn-football", 10.0, "2026-02-01", opponent="Betis", match_id="es1"),
+        _pv("bzzoiro", 4.0, "2026-02-08", opponent="Cadiz", match_id="bz2"),
+    ]
+    row = _corners_row(_corners_dossier(observations), line=9.5, direction="OVER")
+    assert row.sample_size == 1
+    assert row.sample_excluded["CONFLICT_ON_LINE"] == 1
+
+
+def test_a_conflict_resolves_against_the_side_being_priced():
+    """6 against 8 on one match, plus a clean 4, read at 8.5.
+
+    The disagreement does not straddle 8.5, so both readings are hits and the
+    hit *count* cannot differ -- by construction, a conflict that would change
+    the count is a conflict that straddles the line, and that one leaves the
+    sample entirely. What the adverse rule changes here is the centre the count
+    model prices from: the 8 enters it for the UNDER and the 6 for the OVER,
+    where before ``median_low`` put the 6 into both.
+
+    That is not cosmetic. The centre is what ``p_central`` is read off, and
+    ``p_central`` is the bar's basis -- so a conflicted match entering as the
+    smaller number lowered the bar on every UNDER of that market. It is also
+    why ``mean`` stays put: the two rows describe one sample and a reader has
+    to be able to check them against one set of evidence.
+    """
+    observations = [
+        _pv("bzzoiro", 6.0, "2026-02-01", opponent="Real Betis", match_id="bz1"),
+        _pv("espn-football", 8.0, "2026-02-01", opponent="Betis", match_id="es1"),
+        _pv("bzzoiro", 4.0, "2026-02-08", opponent="Cadiz", match_id="bz2"),
+    ]
+    dossier = _corners_dossier(observations)
+    under = _corners_row(dossier, line=8.5, direction="UNDER")
+    over = _corners_row(dossier, line=8.5, direction="OVER")
+
+    assert under.sample_size == over.sample_size == 2
+    assert under.hits == 2 and over.hits == 0
+    assert under.observation_flags["CONFLICT_RESOLVED_ADVERSE"] == 1
+    assert over.observation_flags["CONFLICT_RESOLVED_ADVERSE"] == 1
+
+    # The centre moved apart; the evidence did not.
+    assert under.shrunk_mean > over.shrunk_mean
+    assert under.mean == over.mean
+    assert under.median == over.median
+    assert under.dispersion == over.dispersion
 
 
 def test_same_day_in_one_bucket_is_one_match_however_the_opponent_is_spelled():

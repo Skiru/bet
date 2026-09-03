@@ -61,6 +61,22 @@
       "observations_away": 553,
       "venue_z": -6.73
     },
+    "cards_points_for": {
+      "mean": 2.0723,
+      "observations": 249,
+      "_measured_over": [
+        "2026-09-03"
+      ],
+      "_note": "One slate, and deliberately **no venue pair**. The split is there and has the right sign -- home 1.8409 over 132 observations against away 2.3333 over 117, z=-2.55, the referee home bias that cards_for shows at -0.52 a game over 1,110 observations -- but 117 is below the 120-per-side floor this file's own venue rule requires (test_venue_split.py), and a pair pinned under its floor is a number nobody measured. Pin it once a second slate has been enriched; until then shrunk_centre falls back to the pooled mean, which is the documented behaviour and not an error."
+    },
+    "cards_points_total": {
+      "mean": 4.3754,
+      "observations": 293,
+      "_measured_over": [
+        "2026-09-03"
+      ],
+      "_note": "One slate, not two: this metric did not exist before 2026-09-03, so there is no earlier dossier carrying it. Above the 120-observation floor and the first thing to re-measure once a second slate has been enriched. The same slate's cards_total pooled to 3.9418, so the points metric runs about 0.43 higher -- which is the straight reds and second yellows the yellow-only metric never counted."
+    },
     "cards_total": {
       "mean": 3.722,
       "observations": 1326

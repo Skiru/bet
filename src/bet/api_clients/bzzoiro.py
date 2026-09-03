@@ -49,6 +49,7 @@ TEAM_FIXTURES_PARSER_VERSION = "bzzoiro-team-fixtures-v1"
 STATISTICS_PARSER_VERSION = "bzzoiro-statistics-v1"
 PLAYER_STATS_PARSER_VERSION = "bzzoiro-player-stats-v1"
 LINEUPS_PARSER_VERSION = "bzzoiro-lineups-v1"
+INCIDENTS_PARSER_VERSION = "bzzoiro-incidents-v1"
 ODDS_PARSER_VERSION = "bzzoiro-odds-v1"
 CONSENSUS_ODDS_PARSER_VERSION = "bzzoiro-consensus-odds-v1"
 ODDS_COMPARISON_PARSER_VERSION = "bzzoiro-odds-comparison-v1"
@@ -76,6 +77,21 @@ UNAVAILABLE_STATUSES = frozenset({"injured", "suspended", "doubtful"})
 # Contrast PROVIDER_NAMES, which is a closed Literal validated against directly:
 # a provider name is a human's config-time decision, so an unlisted one is a
 # mistake worth failing on. A market code belongs to the live API.
+# ``incidents[].card_type`` -> the counter it increments. ``"yellowRed"`` is the
+# *second* yellow of a dismissal, which is why it has its own bucket rather
+# than being folded into either of the other two: the first yellow is already a
+# separate ``"yellow"`` incident, and the pair together is worth 3 booking
+# points where a straight red is worth 2.
+#
+# A closed table for the same reason MARKET_NAME_MAP is one: a fourth card type
+# the provider adds tomorrow lands in ``unknown_card_types`` as a diagnostic
+# rather than being silently counted as a yellow.
+_CARD_TYPES: dict[str, str] = {
+    "yellow": "yellow",
+    "red": "red",
+    "yellowRed": "yellow_red",
+}
+
 MARKET_NAME_MAP: dict[str, str] = {
     "1x2": "1x2",
     "btts": "btts",
@@ -769,6 +785,101 @@ class BzzoiroClient(EvidenceRequestMixin, BaseAPIClient):
                 "rejected_count": rejected_count,
             },
             forced_status=None if appearances else SourceResultStatus.VALID_EMPTY,
+        )
+
+    def get_incidents_result(
+        self, event_id: str | int
+    ) -> SourceOperationResult[dict[str, Any]]:
+        """``/events/{id}/incidents/`` reduced to the card breakdown per side.
+
+        This endpoint exists in the roster for exactly one reason: it is the
+        only feed that says *what kind* of red a red was. ``/events/{id}/stats/``
+        publishes ``yellow_cards`` and ``red_cards`` per side and nothing more,
+        and those two numbers cannot be turned into the quantity Superbet's
+        "Liczba kartek" settles -- yellow 1, straight red 2, a player dismissed
+        for a second yellow 3 in total. A second-yellow dismissal appears in
+        *both* of the stats figures (verified live on event 2606, Internacional
+        2-3 Grêmio, 2025-09-21: A. Bernabei's 33' yellow and 90' ``yellowRed``
+        are one yellow each in ``yellow_cards`` **and** the side's one
+        ``red_cards``), so "yellows + 2 x reds" charges it 4 points where the
+        book charges 3, and "yellows + reds" charges it 3 where a straight red
+        would be 2. Only the type split resolves it.
+
+        Three properties of this payload were measured over 80 historical
+        fixtures on 2026-09-03 and are what the parsing below is shaped around:
+
+        * ``card_type`` is one of ``"yellow"``, ``"red"`` and ``"yellowRed"``,
+          the last being the *second* yellow of a dismissal -- its first yellow
+          is a separate earlier incident.
+        * ``is_manager`` marks a card shown to a coach. ``/stats/`` excludes
+          those (event 2606 again: Mano Menezes' yellow is absent from the away
+          side's ``yellow_cards``), so they are excluded here too -- the point
+          of this endpoint is to agree with the settlement, and Superbet's card
+          markets count cards shown to players.
+        * The feed is **incomplete on some fixtures**: on 4 of those 80 it
+          listed fewer player cards than ``/stats/`` counted (event 223971:
+          three yellows in the stats, none in the incidents). It undercounts and
+          was never seen to invent a card, which is why the caller takes the
+          larger of the two counts rather than preferring this one.
+
+        Returns counts, not incidents. Everything else in the payload -- goals,
+        substitutions, VAR, shot sequences -- is real and has no market in this
+        pipeline, and a fetch function that returned it all would put a 20 KB
+        blob per historical match into the dossier for one integer.
+        """
+        result = self._request_with_evidence(
+            endpoint=f"/events/{event_id}/incidents/",
+            params={},
+            operation="match_incidents",
+            source_event_id=str(event_id),
+        )
+        if result.status is not SourceResultStatus.SUCCESS:
+            return result
+        payload = result.value
+        if not isinstance(payload, dict):
+            return self._schema_error(result, "payload_not_object")
+        incidents = payload.get("incidents")
+        if not isinstance(incidents, list):
+            return self._schema_error(result, "incidents_not_list")
+
+        cards = {
+            side: {"yellow": 0, "red": 0, "yellow_red": 0}
+            for side in ("home", "away")
+        }
+        manager_cards = 0
+        unknown_card_types: list[str] = []
+        for incident in incidents:
+            if not isinstance(incident, dict) or incident.get("type") != "card":
+                continue
+            if incident.get("is_manager"):
+                manager_cards += 1
+                continue
+            side = "home" if incident.get("is_home") else "away"
+            raw_type = str(incident.get("card_type") or "")
+            key = _CARD_TYPES.get(raw_type)
+            if key is None:
+                if raw_type not in unknown_card_types:
+                    unknown_card_types.append(raw_type)
+                continue
+            cards[side][key] += 1
+
+        return self._bundle_result(
+            result=result,
+            parser_version=INCIDENTS_PARSER_VERSION,
+            operation_name="match_incidents",
+            source_event_refs=namespaced_source_refs(self.api_name, [str(event_id)]),
+            value={
+                "provider_match_id": str(event_id),
+                "cards": cards,
+                "manager_cards": manager_cards,
+                "incident_count": len(incidents),
+                "unknown_card_types": unknown_card_types,
+            },
+            parser_diagnostics={
+                "incident_count": len(incidents),
+                "manager_cards": manager_cards,
+                "unknown_card_types": unknown_card_types,
+            },
         )
 
     def get_lineups_result(

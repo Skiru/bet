@@ -115,7 +115,36 @@ def main() -> None:
     metrics["persisted"] = persisted
     metrics["persist_error"] = persist_error
 
-    verdict = "OK" if (persisted and not blocked) else "PARTIAL"
+    # A slate a quota cut short is not an OK slate.
+    #
+    # ``highlightly`` drives discovery breadth rather than corroboration, so
+    # running out of its quota removes about 77% of the day's fixtures. On
+    # 2026-09-03 it was already 101/100 when the run started, the slate came
+    # out at 165 fixtures against a Superbet offer of 3,691 events, and this
+    # step reported OK -- so nothing downstream, and no operator reading the
+    # summary, had any reason to wait for the quota to reset.
+    #
+    # PARTIAL and not a new verdict word: the repo's agent contract accepts
+    # OK/PARTIAL/FAILED/NO_BET/PRECONDITION_FAILED and nothing else, so the
+    # cause travels in ``issues`` and ``metrics`` exactly as BLOCK_NO_EVENTS
+    # already does. The handoff note asked for "DEGRADED"; a verdict a
+    # monitoring agent does not recognise is worse than a PARTIAL it does.
+    metrics["degraded_reasons"] = list(result.degraded_reasons)
+    metrics["source_errors"] = {k: len(v) for k, v in result.source_errors.items()}
+    for reason in result.degraded_reasons:
+        out.error(
+            f"SLATE_DEGRADED: {reason}. This slate is a fraction of the day. "
+            "Wait for the quota to reset, or accept espn-football as the only "
+            "corroborator (docs/SIMPLE_STATS_RUNBOOK.md).",
+            recoverable=True,
+            date=args.date,
+        )
+
+    verdict = (
+        "OK"
+        if (persisted and not blocked and not result.degraded_reasons)
+        else "PARTIAL"
+    )
     _record(args, run_id, verdict, metrics, started_at, persist_error)
     out.summary(verdict=verdict, metrics=metrics)
     sys.exit(0 if verdict == "OK" else 1)

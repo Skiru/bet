@@ -103,6 +103,15 @@ def main() -> None:
              "normal run wants the gate.",
     )
     parser.add_argument(
+        "--now",
+        default=None,
+        help=(
+            "Pin the clock the kickoff rules read (ISO 8601). For re-running a "
+            "day and diffing it against its own earlier output; never use it on "
+            "a live run."
+        ),
+    )
+    parser.add_argument(
         "--skip-preflight",
         action="store_true",
         help="Run even if no provider has quota left (produces an all-gaps artifact)",

@@ -182,7 +182,14 @@ def test_the_frozen_fixture_replays_clean_under_legacy_profile_too(diff_mod):
     assert diff == {"added": [], "removed": [], "changed": []}
     # Faza 2 alone added 288 rows over this same frozen fixture (see
     # docs/PLAN_BOGATE_STATYSTYKI.md's own log); legacy must not carry them.
-    assert len(current.rows) == 618
+    #
+    # 618 until 2026-09-03, when "Cards Total"/"Team Cards" were repointed from
+    # yellows to booking points in *both* profiles. This dossier was recorded
+    # before ``cards_points_*`` existed, so it carries no evidence for the
+    # market and 108 card rows correctly stop being priced. That is the change
+    # working: a card row with no card-points observation behind it is a row
+    # priced against a quantity the book does not settle.
+    assert len(current.rows) == 510
 
 
 def test_legacy_profile_produces_a_strict_subset_of_v2_markets(diff_mod):

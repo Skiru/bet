@@ -870,6 +870,7 @@ def enrich_events(
     provider_call_budget: int = 100,
     player_props: bool = False,
     slate_gate: SlateGate | None = None,
+    now: datetime | None = None,
 ) -> EventDossierListV1:
     """Enrich every ACTIVE event in ``event_list`` with raw statistics from
     every applicable provider. BLOCKED_IDENTITY events are carried through as
@@ -887,6 +888,14 @@ def enrich_events(
     surface that is only worth reading once a lineup exists -- which, for a
     fixture more than a few hours out, it does not.
 
+    ``now`` is the clock the kickoff rules read, and it is an argument for the
+    same reason ``build_coupons``'s ``not_before`` and
+    ``compare_sheet_to_offer``'s ``generated_at`` are: a step that reads
+    ``datetime.now()`` internally cannot be re-run and diffed against its own
+    earlier output. Re-running a day hours later otherwise drops every fixture
+    that kicked off in between, and the diff then mixes a code change with the
+    clock. Defaults to now, so a live run is unchanged.
+
     ``slate_gate`` decides which ACTIVE events are worth spending calls on at
     all; see :class:`SlateGate`. Passing None enriches everything, which is what
     a backfill or a replay of a finished day wants. It is not the same thing as
@@ -897,7 +906,7 @@ def enrich_events(
     rate_limiter = rate_limiter or RateLimiter()
     run_budget = RunBudget(limit=provider_call_budget)
     active_events = [e for e in event_list.events if e.status == "ACTIVE"]
-    now = datetime.now(timezone.utc)
+    now = now or datetime.now(timezone.utc)
 
     # Gate before cap, never after. The cap ranks what is left, so gating
     # second would let fixtures nobody can bet consume slots and then be

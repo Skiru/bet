@@ -232,14 +232,17 @@ def _events() -> EventListV1:
     )
 
 
-def _rung(line: float, *, under: float, over: float, market="corners_for",
+def _rung(line: float, *, under: float, over: float | None, market="corners_for",
           team="Sheffield United"):
+    """One rung. ``over=None`` posts the UNDER side only, which is what a
+    one-way market looks like and is the case that leaves every devigged read
+    of the book inert."""
     common = dict(market=market, line=line, source_market_name=market,
                   source_outcome_name="x", team_name=team)
-    return [
-        SuperbetLine(direction="UNDER", price=under, **common),
-        SuperbetLine(direction="OVER", price=over, **common),
-    ]
+    lines = [SuperbetLine(direction="UNDER", price=under, **common)]
+    if over is not None:
+        lines.append(SuperbetLine(direction="OVER", price=over, **common))
+    return lines
 
 
 def _offer(*groups) -> SuperbetOfferV1:
@@ -379,19 +382,50 @@ def test_an_all_zeros_sample_cannot_hide_from_the_gate_behind_its_own_dispersion
     assert any("drabinka" in c for c in single.caveats)
 
 
-def test_the_ladder_gate_is_inert_when_the_book_posted_too_little():
-    """One rung is a probability, not a location. Not being able to read the
-    book is not evidence against the sample -- the same rule
-    ``superbet_implied`` already follows for a one-sided market."""
+def test_one_rung_now_locates_the_book_and_catches_this_loser():
+    """Changed on 2026-09-03, and Sheffield United is the proof it was wrong.
+
+    This used to assert ``ladder_sigma is None`` on the reasoning that one rung
+    is a probability and not a location. It is a location once the sample's own
+    spread is known: ``P(X < 4.5) = 0.341`` devigged means the book's centre
+    sits 0.41 standard deviations *above* 4.5, and our sample mean is 2.80 --
+    -1.42 sigma, past ``MAX_LADDER_SIGMA``, on a row that lost.
+
+    On the 2026-09-03 slate the old rule left ``ladder_sigma`` null on 9 of 15
+    singles, and those nine were disproportionately the thin single-rung
+    markets where a five-observation sample is most likely to be overruling a
+    real price. Being unable to read a *two-sided* price is still not evidence
+    against the sample; being unwilling to read one is different.
+    """
     coupons = build_coupons(
         _sheet(_row(line=4.5)),
         _events(),
         superbet_offer=_offer(_rung(4.5, under=2.70, over=1.40)),
     )
     single = coupons.singles[0]
-    assert single.ladder_sigma is None
-    # 0.5655 - 0.341 = +0.224, so the *price* gate still fires on its own.
+    assert single.ladder_sigma == pytest.approx(-1.4244, abs=1e-3)
+    assert abs(single.ladder_sigma) > MAX_LADDER_SIGMA
+    # And it agrees with the interpolated answer the full six-rung ladder gives
+    # for the same sample, which is the check that the single-rung path is
+    # reading the same book.
+    full = build_coupons(
+        _sheet(_row(line=4.5)), _events(), superbet_offer=_offer(*SHEFFIELD_LADDER)
+    )
+    assert full.singles[0].ladder_sigma == pytest.approx(single.ladder_sigma, abs=0.4)
     assert single.needs_review is True
+
+
+def test_a_one_sided_rung_still_leaves_the_gate_inert():
+    """A rung the book posts on one side only carries no devigged probability,
+    so there is nothing to locate a centre from. That rule is unchanged."""
+    coupons = build_coupons(
+        _sheet(_row(line=4.5)),
+        _events(),
+        superbet_offer=_offer(_rung(4.5, under=2.70, over=None)),
+    )
+    single = coupons.singles[0]
+    assert single.ladder_sigma is None
+    assert single.market_disagreement is None
 
 
 def test_agreeing_with_the_ladder_is_not_penalised():
@@ -399,15 +433,24 @@ def test_agreeing_with_the_ladder_is_not_penalised():
 
     Same six-rung ladder, but one row on it: UNDER 5.5, from a sample centred
     at 5.7 where the book centres the market at 5.76 -- 0.03 of a standard
-    deviation apart. Superbet pays 1.97 and
-    the row's floor of 0.60 demands 1.833, so it is a bet -- and it stays one.
-    Its own estimate of 0.55 sits 0.08 above the rung's devigged 0.468, well
-    inside the threshold.
+    deviation apart. That is the property this test exists for, and it holds:
+    the ladder gate does not fire, the row is not demoted, and it carries no
+    ladder caveat.
 
     What disqualified #1 was the *location* of its sample, not the fact that it
     outbid the book. A row that agrees about location has to be allowed to
     disagree about price, or the fix reduces to "never outbid Superbet", which
     is the same as not producing a sheet at all.
+
+    **The price this row has to beat changed on 2026-09-03** and the two
+    assertions at the end record it. The market prior shrinks a 12-observation
+    sample halfway toward the book's own devigged number (w = 12/22 = 0.545),
+    so an edge of 0.55 against 0.468 becomes 0.513 against 0.468 -- and the
+    LEAN margin of 10% no longer fits inside what is left. In relative terms
+    the bar is now "beat the devigged price by 0.10/w", which at this n is
+    18.3%; this row beats it by 17.5% and misses by half a point. A larger edge
+    on the same sample still clears, which is the second half of the test: the
+    prior charges for thinness, it does not ban disagreement.
     """
     coupons = build_coupons(
         _sheet(_row(line=5.5, mean=5.7, median=6.0, hits=9, sample_size=12,
@@ -422,9 +465,20 @@ def test_agreeing_with_the_ladder_is_not_penalised():
     assert single.ladder_sigma == pytest.approx(-0.03, abs=0.03)
     assert abs(single.ladder_sigma) <= MAX_LADDER_SIGMA
     assert single.market_disagreement == pytest.approx(0.082, abs=0.01)
-    assert single.superbet_verdict == "VALUE"
     assert single.needs_review is False
     assert not any("drabinka" in c for c in single.caveats)
+    assert single.market_probability == pytest.approx(0.468, abs=0.01)
+    assert single.sample_weight == pytest.approx(12 / 22, abs=1e-4)
+    assert single.superbet_verdict == "PRICED_BELOW_THRESHOLD"
+
+    bigger_edge = build_coupons(
+        _sheet(_row(line=5.5, mean=5.7, median=6.0, hits=9, sample_size=12,
+                    hit_rate=0.75, p_low=0.60, p_central=0.62,
+                    dispersion=5.7 ** 0.5)),
+        _events(),
+        superbet_offer=_offer(*SHEFFIELD_LADDER),
+    )
+    assert bigger_edge.singles[0].superbet_verdict == "VALUE"
 
 
 def test_the_ladder_gate_is_measured_in_sigma_and_not_as_a_ratio():

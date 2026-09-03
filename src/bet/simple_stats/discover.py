@@ -25,7 +25,12 @@ from bet.discovery.sources.odds_api import BASE_URL as ODDS_API_BASE_URL
 from bet.discovery.sources.odds_api import OddsAPIAdapter
 from bet.integration.source_result import SourceResultStatus
 
-from bet.simple_stats.contracts import EventListV1, EventRecord, FixtureContext
+from bet.simple_stats.contracts import (
+    SLATE_CRITICAL_SOURCES,
+    EventListV1,
+    EventRecord,
+    FixtureContext,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -395,6 +400,10 @@ class BzzoiroDiscoveryAdapter(AbstractSourceAdapter):
     def __init__(self, rate_limiter: RateLimiter):
         self._client = BzzoiroClient(rate_limiter=rate_limiter)
         self._league_names: dict[str, str] | None = None
+        # First-leg scores, by first-leg event id. Both legs of a tie can
+        # appear on one day's listing in a compressed cup round, and a
+        # None entry is a cached answer too.
+        self._previous_leg_cache: dict[str, tuple[str, str, int, int] | None] = {}
         super().__init__()
 
     def is_available(self) -> bool:
@@ -424,6 +433,75 @@ class BzzoiroDiscoveryAdapter(AbstractSourceAdapter):
                     "events will carry their numeric league id as competition"
                 )
         return self._league_names.get(league_id, "")
+
+    def _previous_leg_score(
+        self, row: dict, home_id: str, away_id: str
+    ) -> dict[str, int | None]:
+        """The first leg's score, mapped onto *tonight's* sides.
+
+        One request per two-legged tie and none for anything else -- a slate
+        has a handful of these. Cached per first-leg id because both legs of a
+        tie can appear on one day's listing in a compressed cup round.
+
+        The mapping is done here and not downstream because this is where both
+        fixtures' team ids are in hand. The sides swap between legs, so a raw
+        home/away pair carried forward would be read the wrong way round
+        exactly half the time -- and the whole point of the field is to say
+        which side is chasing.
+
+        Any failure answers ``{}``: no first-leg score is the same state as no
+        first leg, and a cup tie whose earlier leg cannot be read must not stop
+        the fixture being discovered.
+        """
+        previous = row.get("previous_leg_event_id")
+        if not previous:
+            return {}
+        key = str(previous)
+        if key not in self._previous_leg_cache:
+            self._previous_leg_cache[key] = self._fetch_previous_leg(key)
+        leg = self._previous_leg_cache[key]
+        if leg is None:
+            return {}
+        leg_home_id, leg_away_id, leg_home, leg_away = leg
+        if leg_home_id == home_id and leg_away_id == away_id:
+            return {
+                "previous_leg_goals_home": leg_home,
+                "previous_leg_goals_away": leg_away,
+            }
+        if leg_home_id == away_id and leg_away_id == home_id:
+            return {
+                "previous_leg_goals_home": leg_away,
+                "previous_leg_goals_away": leg_home,
+            }
+        # The provider points at a fixture between different teams. That is not
+        # a first leg however it is labelled, and guessing an orientation for it
+        # would attach another tie's score to this one.
+        return {}
+
+    def _fetch_previous_leg(
+        self, event_id: str
+    ) -> tuple[str, str, int, int] | None:
+        try:
+            result = self._client.get_event_result(event_id)
+        except Exception:  # noqa: BLE001 - a missing first leg is context, not a failure
+            return None
+        if result.status not in (
+            SourceResultStatus.SUCCESS,
+            SourceResultStatus.VALID_EMPTY,
+        ):
+            return None
+        event = (result.value or {}).get("event") or {}
+        score = event.get("score") or {}
+        home = (event.get("home_team") or {}).get("provider_team_id")
+        away = (event.get("away_team") or {}).get("provider_team_id")
+        if home is None or away is None:
+            return None
+        if score.get("home") is None or score.get("away") is None:
+            return None
+        try:
+            return (str(home), str(away), int(score["home"]), int(score["away"]))
+        except (TypeError, ValueError):
+            return None
 
     def _fetch_events_impl(self, date: str, sport: str) -> list[DiscoveredEvent]:
         if sport != "football":
@@ -489,6 +567,25 @@ class BzzoiroDiscoveryAdapter(AbstractSourceAdapter):
                             "is_neutral_ground": row.get("is_neutral_ground"),
                             "travel_distance_km": row.get("travel_distance_km"),
                             "weather": row.get("weather"),
+                            # Stakes. These three were on every ``/events/``
+                            # row all along -- ``_normalize_event_row`` has
+                            # parsed them since 2026-08-31 -- and this dict was
+                            # where they stopped: ``_to_event_record`` reads
+                            # ``raw.get("round_name")`` and got None on 165 of
+                            # 165 fixtures because nothing ever put it here.
+                            # Verified live 2026-09-03: the listing answers
+                            # ``"round_name": "Quarterfinals"`` and
+                            # ``"previous_leg_event_id": 587786`` for the
+                            # Grêmio-Internacional fixture whose dossier said
+                            # null to both.
+                            "round_name": row.get("round_name"),
+                            "group_name": row.get("group_name"),
+                            "previous_leg_event_id": row.get("previous_leg_event_id"),
+                            **self._previous_leg_score(
+                                row,
+                                str(home["provider_team_id"]),
+                                str(away["provider_team_id"]),
+                            ),
                         },
                     )
                 )
@@ -637,7 +734,15 @@ def _to_event_record(fixture: MergedFixture) -> EventRecord:
                 weather=raw.get("weather"),
                 round_name=raw.get("round_name"),
                 group_name=raw.get("group_name"),
-                previous_leg_event_id=raw.get("previous_leg_event_id"),
+                previous_leg_event_id=(
+                    str(raw["previous_leg_event_id"])
+                    if raw.get("previous_leg_event_id") is not None
+                    else None
+                ),
+                previous_leg_goals_home=raw.get("previous_leg_goals_home"),
+                previous_leg_goals_away=raw.get("previous_leg_goals_away"),
+                home_team_id=str(raw.get("home_team_id") or "") or None,
+                away_team_id=str(raw.get("away_team_id") or "") or None,
             )
 
     record_kwargs = dict(
@@ -694,6 +799,9 @@ def discover_events(
         BzzoiroDiscoveryAdapter(rate_limiter),
     ]
     events_by_source = _fetch_all_sources(sources, date, sports)
+    source_errors = {
+        src.name: list(src.last_errors) for src in sources if src.last_errors
+    }
     _canonicalize_competition_names(events_by_source)
     blocked_records, filtered = _detect_ambiguous(events_by_source)
 
@@ -707,4 +815,23 @@ def discover_events(
         date=date,
         sports=sports,
         events=active_records + blocked_records,
+        source_errors=source_errors,
+        degraded_reasons=_degraded_reasons(source_errors),
     )
+
+
+def _degraded_reasons(source_errors: dict[str, list[str]]) -> list[str]:
+    """Why this slate is smaller than the day, if it is.
+
+    Only quota exhaustion on a slate-critical source counts. A source that
+    404s one page or times out once has cost corroboration, which is a
+    different and much smaller problem than a source that stops producing
+    fixtures -- and a "degraded" label that fires on both is a label nobody
+    reads.
+    """
+    reasons: list[str] = []
+    for name in sorted(SLATE_CRITICAL_SOURCES):
+        for message in source_errors.get(name, []):
+            if "quota exhausted" in message:
+                reasons.append(f"{name}: {message}")
+    return reasons

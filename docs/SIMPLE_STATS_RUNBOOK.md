@@ -435,6 +435,26 @@ Writes `runs/$DATE/${DATE}_kupony.md` (the file you open) and
 `${DATE}_coupons.json`. No network, no DB, no quota — re-run it as often as you
 like. `/run-day` calls it automatically; this is the manual form.
 
+**The header states what every `Min. kurs` in the file was computed from**
+(2026-09-03). Three numbers decide it and none of them used to be printed:
+
+- **the basis** — `p_central` by default, capped by Laplace `(hits+1)/(n+2)` on
+  a zero-miss sample and by `p_low` at `n < 8`, with the count of each cap;
+- **`k`**, the market prior's weight, 10 for football totals and 20 for the
+  tennis markets that grow with match length. The bar is
+  `margin / (w·p_bar + (1−w)·p_mkt)` with `w = n/(n+k)`, so it asks you to beat
+  the devigged Superbet price by `(margin − 1)/w` — 50% relative at n=5, k=20;
+  15% at n=20, k=10;
+- **every gate's row count**, so a file thinner than yesterday's can be read as
+  a quiet day or as a gate rather than guessed at.
+
+Under them sits the **supply funnel** — board → in window and in our sports →
+matched → enriched → priced → above bar. Read it before concluding the day is
+thin: on 2026-09-03 Superbet's board carried 4,041 events in window, of which
+150 were football, while bzzoiro — the provider of record — carried 29 football
+fixtures in the same window. The ceiling is bzzoiro's midweek league coverage,
+not the matcher, which claimed 24 of those 29.
+
 **The header warns if "Football Unlimited" was ever anything but entitled
 during the run** (3bis.6): `--market-context` is read for exactly one thing —
 whether any event's `comparison_entitlement` came back other than
@@ -443,6 +463,24 @@ because a lapsed entitlement removes both the market price *and* the model
 probability for goals and corners at once, and with them the edge ranking
 above. A missing `--market-context` file is silent, same as a missing
 `--vetoes` file — the default healthy (unknown) state, not an error.
+
+**Card markets settle on booking points, not yellows** (2026-09-03).
+`cards_points_total` / `cards_points_for` = yellows + 2 × straight reds + 1 per
+second-yellow dismissal, which is what Superbet's "Liczba kartek" pays. The
+yellow-only `cards_total` / `cards_for` are still collected and no longer have a
+market. Read `punkty kartkowe` in the file as a points count, not a card count:
+a 7.5 line is not seven yellows.
+
+Two consequences for a re-run of a day whose artifacts predate the change:
+
+- the offer file files its card ladders under the old names, so run
+  `python3 scripts/simple/renormalise_offer_markets.py --offer runs/$DATE/${DATE}_superbet_offer.json`
+  first, or every card row reads "brak rynku";
+- the event list has null `round_name` / `previous_leg_event_id`, so run
+  `python3 scripts/simple/backfill_fixture_context.py --event-list runs/$DATE/${DATE}_event_list.json`
+  before ENRICH. Neither script re-runs DISCOVER and neither can change which
+  fixtures the day has, which is what makes them safe on a slate you cannot
+  rediscover.
 
 **`BET_MARKETS_PROFILE=legacy` is the rollback switch for the whole market/line
 grid** (3bis.1), read fresh by `bet.stats.market_ranking.standard_market_lines()`/
@@ -590,13 +628,27 @@ empty vetoes file is the default healthy state, not an error.
 ```bash
 python3 scripts/simple/bet_builder_draft.py \
   --stats-sheet runs/$DATE/${DATE}_event_dossiers_stats_sheet.json \
+  --offer runs/$DATE/${DATE}_superbet_offer.json \
   --event-id <event_id> [--max-legs 4]
 ```
 
-Stateless — reads one artifact, prints JSON, writes nothing, calls nothing. It
-selects `CALL`/`LEAN` rows only (never `WEAK`), one per market, ranked by
-`p_low`, and gives each leg `fair_odds = 1/p_low` and a `min_acceptable_odds`
-carrying the tier's margin.
+Stateless — reads two artifacts, prints JSON, writes nothing, calls nothing.
+
+**`--offer` is required as of 2026-09-03.** Without it the availability gate
+never ran, so this CLI could draft a slip containing a leg the book does not
+carry — and a slip is placed as one unit, so such a leg does not make the slip
+worse, it makes the slip impossible.
+
+It selects `CALL`/`LEAN` rows only (never `WEAK`), gives each leg
+`fair_odds = 1/p_low` and a `min_acceptable_odds` carrying the tier's margin,
+and applies four refusals in this order: a pair that cannot both happen
+(`jointly_impossible`), a leg that nearly guarantees another (`nested_leg` — a
+team's cards inside the match's), a second reading of one **mechanism**
+(`duplicate_mechanism_family` — cards and fouls are one mechanism, corners and
+shots another, goals a third, the tennis length markets a fourth), and a leg
+whose price is below its own bar. Finally the slip is scored against
+§44 of `docs/SUPERBET_BET_BUILDER_METHOD_v3.md` and refused below 0.60; the
+score and its five parts stay on the draft either way.
 
 **It prints no combined price and its contract types that field `None` so it
 cannot hold one.** There is no bet-builder endpoint in any provider here, and the
@@ -622,6 +674,9 @@ more legs come from that family — which is almost any same-match multi.
 | `--run-id` (discover) | minted | Reuse an existing run id, e.g. when re-running DISCOVER inside an already-identified run. |
 | `-v` / `--verbose` (all) | off | Stream JSON-line events for a monitoring agent. |
 | `--stop-on-error` (all) | off | Exit on the first non-recoverable error instead of log-and-continue. |
+| `--now` (enrich) | now | Pin the clock the kickoff rules read, ISO 8601. **Re-runs only.** Re-running a day at 11:30 that first ran at 09:49 drops every fixture that kicked off in between — 22 of 165 on 2026-09-03 — and a diff of the two sheets then mixes the code change with the clock. Never on a live run: a pinned clock would enrich matches already in progress. |
+| `--refresh-offer` (build_coupons) | off | Re-fetch the Superbet board before pricing and overwrite the offer artifact. ~110 requests, no metered quota. The coupon is read minutes after it is written and the offer behind it can be hours old; on 2026-09-02 a stale offer reported 52 VALUE rows against the 82 the live board had. Off by default so a re-run of a past day stays reproducible. |
+| `--shrink-k` (backtest_slate) | per market | Override the market prior's `k` for every row. `0` disables the prior (the pre-2026-09-03 arm). This is how the arms are compared — see the `k` table in `docs/PLAN_EDGE_INTEGRITY_2026-09-03.md`. |
 
 Events are enriched best-corroborated-first (identity `CONFIRMED` and native
 provider ids present), so a capped run spends its budget where READY is
@@ -743,11 +798,42 @@ preflight reports the same numbers as `provider_quota` events before it starts.
 ## Reading the result
 
 - `cross_provider_agreement=AGREE` — 2+ providers reported the same historical
-  match within tolerance (±1 for counts, ±5pp for percentages). This is the
-  signal to trust.
+  match within tolerance (±1 for counts, ±5pp for percentages), **on at least
+  half the sample**. This is the signal to trust.
+- `PARTIAL_AGREE` — a second provider saw some of the sample and under half of
+  it. Added 2026-09-03 because the word "AGREE" was covering 3 corroborated
+  matches out of 20 on the Grenal's card rows while `tier_for_row` read it as
+  "corroborated" and handed out CALL. The coupon prints the share beside the
+  label; read the share.
 - `DISAGREE` — providers conflict. Both values stay in the dossier and are
   never averaged; `confidence` drops to `LOW`. Look at the dossier before using
-  the row.
+  the row. A conflict on one match no longer resolves quietly toward the
+  smaller value: where the two readings straddle a line the observation leaves
+  that row's sample (`CONFLICT_ON_LINE` in `sample_excluded`), and otherwise the
+  value adverse to the priced side is the one the centre is built from
+  (`CONFLICT_RESOLVED_ADVERSE` in `observation_flags`).
+- `confidence` on a **match total** now needs both participants: HIGH requires
+  at least five observations a side — the same "five matches a side" ENRICH
+  already means by `data_quality=READY` — and MEDIUM at least two. A total of 14
+  built from 3 and 11 reads MEDIUM with `confidence_reason=ONE_SIDED_SAMPLE`.
+  Per-team rows and player props have one side by construction and are not
+  capped for it.
+- `lean_ceiling_reasons` — structural reasons a row may not be CALL, however
+  large its sample: `DERBY` (the provider's own flag *or* under 25 km apart —
+  bzzoiro answered `is_local_derby: false` for a 11 km Grenal),
+  `KNOCKOUT_SECOND_LEG` (a two-legged tie still level or within a goal),
+  `MISSING_REFEREE` (a card market with no official assigned),
+  `NO_REFERENCE_SOURCE` (tennis, until a tennis primary is entitled), and
+  `RUNG_SEPARATED_BY_MODEL` (the neighbouring rung has the same hit count, so
+  what separates the two is the fitted distribution and not an observation).
+  They cap; they do not stack.
+- `DISCOVER` verdict `PARTIAL` with `SLATE_DEGRADED` in its issues means a
+  slate-critical source ran out of quota mid-slate. Today that is `highlightly`,
+  which drives discovery *breadth* rather than corroboration, so its exhaustion
+  removes about 77% of the day's fixtures. Wait for the quota to reset, or
+  accept `espn-football` as the only corroborator for the day and read the
+  slate as a fraction of it — but do not read the sheet as a survey of what was
+  available.
 - `SINGLE_SOURCE` — only one provider covered those matches. Common and not an
   error, but nothing corroborates it.
 - `sample_size` counts matches, not observations. Both sides' last-10 and the

@@ -58,7 +58,11 @@ from bet.simple_stats.bet_builder_draft import (
     BetBuilderDraft,
     Tier,
     VetoIndex,
+    BarComponents,
+    bar_components,
+    bar_input,
     draft_legs,
+    shrink_k_for_market,
     is_trivial_under,
     step_tier_down,
     tier_for_row,
@@ -71,7 +75,13 @@ from bet.simple_stats.contracts import (
     StatsSheetV1,
     SuperbetOfferV1,
 )
-from bet.simple_stats.superbet_offer import lookup_line, player_alias_index
+from bet.simple_stats.superbet_offer import (
+    devigged_ladder,
+    devigged_probability,
+    ladder_centre,
+    lookup_line,
+    player_alias_index,
+)
 from bet.simple_stats.tipster_consensus import TipsterConsensus
 from bet.strict_model import StrictBaseModel
 from bet.utils import normalize_team_name
@@ -135,7 +145,13 @@ def competition_tier(competition: str) -> str | None:
 # per-team family.
 MARKET_LABELS: dict[str, str] = {
     "corners_total": "rożne (mecz)",
-    "cards_total": "kartki (mecz)",
+    # "punkty kartkowe" and not "kartki": the label has to say that the number
+    # is not a count of cards, or the operator reads a 7.5 line as seven
+    # yellows. Superbet's own market is called "Liczba kartek" and settles a
+    # red as two, which is the confusion this wording exists to break.
+    "cards_points_total": "punkty kartkowe (mecz)",
+    "cards_points_for": "punkty kartkowe (drużyna)",
+    "cards_total": "żółte kartki (mecz)",
     "fouls_total": "faule (mecz)",
     "shots_on_target_total": "strzały celne (mecz)",
     "shots_total": "strzały (mecz)",
@@ -143,7 +159,7 @@ MARKET_LABELS: dict[str, str] = {
     "goals_1h_total": "gole (1. połowa)",
     "goals_2h_total": "gole (2. połowa)",
     "corners_for": "rożne drużyny",
-    "cards_for": "kartki drużyny",
+    "cards_for": "żółte kartki drużyny",
     "fouls_for": "faule drużyny",
     "shots_on_target_for": "strzały celne drużyny",
     "shots_for": "strzały drużyny",
@@ -281,6 +297,70 @@ _LADDER_MIN_RUNGS = 2
 # enough that no real sample reaches it (2026-09-01's worst was under 2σ).
 _LADDER_SIGMA_SATURATED = 99.0
 
+# Which analyst verdicts change the *weight* the sample gets, rather than the
+# margin on top of it. See ``AnalystVeto.reason_class``.
+#
+# A DOWNGRADE used to mean "one tier step", worth 5% on the price. These two
+# classes are not statements about how much headroom a row needs: they say the
+# sample is not evidence about this fixture. So the sample's weight goes to
+# zero and the row is priced on the book's own devigged number plus the tier
+# margin -- which it will almost never beat, because a book does not sell its
+# own price at a 10% markup. That is the intended outcome: a row whose evidence
+# has been declared uninformative survives only if the operator is being
+# offered a price the market itself disagrees with.
+#
+# Note what this is *not*: it is not a veto. A VETO removes the row. These
+# leave it in the file, ranked and annotated, priced off the only number left
+# standing. The 2026-09-03 Grenal fouls rows are the case -- three of them,
+# downgraded with "conditional on this match the record is 1/3, not 19/21",
+# printed as value at 1.78-1.92.
+VETO_CLASS_ZERO_WEIGHT = frozenset({"SAMPLE_NOT_REPRESENTATIVE", "ESTIMAND_WRONG"})
+
+# How a fixture's several rungs of one market are told apart, and why they
+# needed telling apart at all.
+#
+# A fixture contributes one single per (market, subject). Which rung it
+# contributes used to be decided by the ranking sort -- price surplus, then
+# p_low -- and on 2026-09-03 that picked Grêmio-Internacional's cards 7.5 over
+# its 8.5. The 8.5 row was 20/20 with the sample's own maximum *below* the
+# line; the 7.5 sat on the sample's mode, which is the single worst place to
+# put a line. The 8.5 was recorded as ``duplicate_market_for_event``.
+#
+# The score is expected value at the book's own price -- ``p x price - 1`` --
+# with two penalties, both in the same units so they can be read against it.
+#
+# **A line on the mode is the least informative rung of a ladder.** The mode is
+# where the count process piles up, so a half-point either side of it is where
+# a small sample's hit rate moves most and means least. One unit, because these
+# are counts and the neighbouring integer is the nearest place the sample can
+# actually land.
+#
+# **A sample that has crossed the line has shown it can.** For an UNDER, a
+# sample maximum above the line is a demonstrated failure at that rung; for an
+# OVER it is a minimum below it. The plan's wording names only the maximum;
+# the mirror is written out because a one-sided penalty would push every OVER
+# toward the rung its sample has already failed.
+#
+# 0.05 each, in EV. Unmeasured -- there is no settled ladder-choice experiment
+# to set them from -- and deliberately small enough that a 20-point EV gap
+# still wins on EV. They break ties between rungs a price cannot separate,
+# which is the job.
+RUNG_PENALTY_LINE_ON_MODE = 0.05
+RUNG_PENALTY_SAMPLE_CROSSES_LINE = 0.05
+
+# Verdicts that halve the sample's weight rather than deleting it, by doubling
+# k. A card market with no referee assigned is not measuring nothing -- the two
+# clubs' own histories are real -- it is missing the one input with no
+# corroborating provider at all, and a referee is worth about a third of the
+# spread in a cards line (Bankes 4.15 yellows a match against Oliver's 3.10,
+# measured 2026-08-30 in one league).
+VETO_CLASS_DOUBLE_K = frozenset({"MISSING_REFEREE"})
+
+# The structural ceiling that also doubles k, for the same reason: ANALYZE sets
+# it when the fixture has no ``referee_id`` at all, which is the same fault the
+# analyst would write down by hand.
+CEILING_DOUBLE_K = frozenset({"MISSING_REFEREE"})
+
 
 class CouponSingle(StrictBaseModel):
     """One standalone bet, with the price that would justify it."""
@@ -321,8 +401,44 @@ class CouponSingle(StrictBaseModel):
     hits: int
     sample_size: int
     cross_provider_agreement: str
+    # The evidence behind the word. ``AGREE`` used to be printed alone and
+    # covered anything from 2 corroborated matches out of 23 to 23 out of 23.
+    corroborated_matches: int = 0
     fair_odds: float
     min_acceptable_odds: float
+    # Which probability ``min_acceptable_odds`` was computed from, and what
+    # capped it. ``bar_basis`` is the run's setting ("p_central" or "p_low");
+    # ``bar_basis_reason`` is None when nothing capped it, and otherwise names
+    # the cap -- ZERO_MISS_LAPLACE_CAP or SMALL_SAMPLE_P_LOW.
+    #
+    # Printed because the minimum is the number the operator acts on and a
+    # minimum that moved for a reason he cannot see is a number he has to take
+    # on trust. On 2026-09-03 the same 5/5 sample produced a 1.14 bar and a
+    # 1.95 bar depending on this field alone.
+    bar_basis: str = "p_low"
+    bar_basis_reason: str | None = None
+    # Which probability the *bar* actually divided into 1, after the caps and
+    # the market prior. Not the same as ``p_central`` or ``p_low``: on a shrunk
+    # row it is neither, and on a row with no readable market price it is
+    # ``bar_sample_probability``.
+    bar_probability: float | None = None
+    # The sample's own claim after the caps and before the market prior. The
+    # gap between this and ``bar_probability`` is how much of the bar is the
+    # book's opinion rather than ours.
+    bar_sample_probability: float | None = None
+    # Superbet's own devigged probability for this exact outcome. None when the
+    # book posted only one side of the line, which is also when no shrinkage
+    # happened. Same number as ``SuperbetComparisonRow.superbet_implied_probability``.
+    market_probability: float | None = None
+    # ``n / (n + k)``: how much of ``bar_probability`` is the sample's. 0.0
+    # means the analyst declared the sample uninformative
+    # (``AnalystVeto.reason_class``), not that the sample is empty.
+    sample_weight: float | None = None
+    # The ``k`` this market family uses, printed so ``w`` can be checked
+    # against ``n``. Note this is the *market's* k before any doubling a
+    # missing referee or an analyst class applied; ``sample_weight`` is the
+    # number that was actually used.
+    shrink_k: float | None = None
     market_verdict: str | None = None
     market_price: float | None = None
     market_bookmaker: str | None = None
@@ -382,6 +498,20 @@ class CouponSingle(StrictBaseModel):
     # here" is information the operator should have, and deleting it would hide
     # the one class of row most worth a second look.
     needs_review: bool = False
+    # The rung the scorer ranked second for this same (fixture, market,
+    # subject), printed under the single as "alternatywny szczebel".
+    #
+    # Printed because the choice between two rungs of one ladder is the part of
+    # this file an operator is most likely to disagree with, and before it he
+    # could not see that a choice had been made -- the other rung was silently
+    # counted as ``duplicate_market_for_event``.
+    alternative_line: float | None = None
+    alternative_direction: str | None = None
+    alternative_price: float | None = None
+    alternative_min_acceptable_odds: float | None = None
+    # ``p x price - 1`` after penalties, for this rung and for the runner-up.
+    rung_score: float | None = None
+    alternative_rung_score: float | None = None
 
 
 class CouponSlip(StrictBaseModel):
@@ -509,18 +639,37 @@ def _has_market_reference(row: StatsSheetRow) -> bool:
     )
 
 
-def required_price(row: StatsSheetRow, tier: str, *, basis: str = "p_low") -> float:
+def required_price(
+    row: StatsSheetRow,
+    tier: str,
+    *,
+    basis: str = "p_low",
+    market_probability: float | None = None,
+    shrink_k: float | None = None,
+    force_weight: float | None = None,
+) -> float:
     """``min_acceptable_odds`` for one row, in exactly one place.
 
-    The arithmetic is ``1/p_low`` times the tier margin, rounded to four
-    decimals -- and it used to be written out three separate times inside
+    The arithmetic is ``1/p`` times the tier margin, rounded to four decimals --
+    and it used to be written out three separate times inside
     ``build_coupons``: once in the ``require_superbet_value`` probe, once in the
     body that fills ``CouponSingle.min_acceptable_odds``, and once in
     ``_superbet_surplus`` for the ranking. Three copies of the number the
     operator actually acts on, one of which decides the ordering and another of
     which is printed. They agreed; nothing made them agree.
+
+    ``p`` is no longer just ``p_low`` or ``p_central``: see
+    ``bet_builder_draft.bar_components`` for the two caps and the market prior
+    that sit between the sheet and this number.
     """
-    return required_odds(row, tier, basis=basis)
+    return required_odds(
+        row,
+        tier,
+        basis=basis,
+        market_probability=market_probability,
+        shrink_k=shrink_k,
+        force_weight=force_weight,
+    )
 
 
 def _edge(row: StatsSheetRow) -> float:
@@ -561,6 +710,11 @@ def _caveats(row: StatsSheetRow) -> list[str]:
     notes: list[str] = []
     if row.cross_provider_agreement == "SINGLE_SOURCE":
         notes.append("jedno źródło — nic tego nie potwierdza")
+    if row.cross_provider_agreement == "PARTIAL_AGREE":
+        notes.append(
+            f"drugie źródło widziało tylko {row.corroborated_matches}/"
+            f"{row.sample_size} meczów tej próby — to nie jest potwierdzona próba"
+        )
     if row.cross_provider_agreement == "DISAGREE":
         notes.append("providerzy się nie zgadzają — wartości nieuśrednione")
     if row.player_id and (row.lineup_status or "") != "confirmed":
@@ -584,7 +738,64 @@ def _caveats(row: StatsSheetRow) -> list[str]:
         )
     if is_trivial_under(row):
         notes.append("niska linia UNDER — łatwa do trafienia i zwykle wyceniana ~1.05")
+    for reason in row.lean_ceiling_reasons:
+        notes.append(_LEAN_CEILING_TEXT.get(reason, f"ograniczenie do LEAN: {reason}"))
+    for reason, count in (row.observation_flags or {}).items():
+        notes.append(
+            _OBSERVATION_FLAG_TEXT.get(reason, f"{reason} w {count} obserwacjach")
+            .format(count=count)
+        )
     return notes
+
+
+# Why a row cannot be a CALL, in the coupon file's own words. Keyed by the
+# codes ANALYZE writes into ``StatsSheetRow.lean_ceiling_reasons``.
+_LEAN_CEILING_TEXT: dict[str, str] = {
+    "RUNG_SEPARATED_BY_MODEL": (
+        "sąsiedni szczebel ma identyczną liczbę trafień — to, co je rozdziela, "
+        "to rozkład dopasowany do próby, nie obserwacja"
+    ),
+    "KNOCKOUT_SECOND_LEG": (
+        "rewanż dwumeczu przy wyrównanym dwumeczu — ten mecz nie musi wyglądać "
+        "jak żaden z próby"
+    ),
+    "DERBY": "derby — kartki i faule zachowują się inaczej niż w próbie",
+    "MISSING_REFEREE": "brak przypisanego sędziego — rynek kartek bez sędziego to zgadywanka",
+    "NO_REFERENCE_SOURCE": (
+        "brak dostawcy referencyjnego dla tego sportu (bzzoiro-tennis = HTTP 402) "
+        "— żaden wiersz tenisowy nie może być CALL"
+    ),
+}
+
+# Caveats about observations that were *used* but are less than certain --
+# ``sample_excluded`` covers the ones that were removed instead.
+_OBSERVATION_FLAG_TEXT: dict[str, str] = {
+    "RED_TYPE_UNKNOWN": (
+        "w {count} obserwacjach nie dało się ustalić rodzaju czerwonej kartki — "
+        "każda policzona jako bezpośrednia (2 pkt), co zawyża drugą żółtą o 1 pkt"
+    ),
+    "RED_COUNT_CONFLICT": (
+        "w {count} obserwacjach dwa źródła podały różną liczbę czerwonych — "
+        "wzięta większa"
+    ),
+}
+
+
+def _veto_class_effect(veto: AnalystVeto) -> str:
+    """What the class did to the arithmetic, in the header's own words.
+
+    The tier step is printed already and is the smaller half of the effect: the
+    classes that matter change the sample's *weight*, and a header that showed
+    only "CALL→LEAN" would understate a downgrade that took the sample out of
+    the price entirely.
+    """
+    if veto.action != "DOWNGRADE":
+        return ""
+    if veto.reason_class in VETO_CLASS_ZERO_WEIGHT:
+        return ", waga próby = 0 (cena wyłącznie z rynku)"
+    if veto.reason_class in VETO_CLASS_DOUBLE_K:
+        return ", k podwojone (próba waży o połowę mniej)"
+    return ""
 
 
 def _veto_scope(veto: AnalystVeto) -> str:
@@ -714,6 +925,7 @@ def build_coupons(
     superbet_offer: SuperbetOfferV1 | None = None,
     require_superbet_value: bool = False,
     bar_basis: str = "p_central",
+    shrink_k: float | None = None,
 ) -> CouponSet:
     """Turn a finished stats sheet into the day's singles and slips.
 
@@ -746,6 +958,12 @@ def build_coupons(
     print on a day like 2026-08-31, and dropping those rows would delete it.
     Absent, every superbet_* field stays None and the file is byte-identical
     to the pre-Superbet one.
+
+    ``shrink_k`` overrides the per-market ``k`` in the market prior for every
+    row, which is what the backtest's arm comparison varies. None uses each
+    market's own value (``bet_builder_draft.shrink_k_for_market``), and a run
+    that does not pass it behaves exactly as the day's coupon did. ``0``
+    disables the prior outright, which is the pre-2026-09-03 arm.
 
     ``require_superbet_value`` narrows the file to only what the book will
     actually pay for. Off by default and deliberately so: on a normal day it
@@ -805,43 +1023,36 @@ def build_coupons(
             "superbet_nearest_price": near_price,
         }
 
+    _implied_cache: dict[tuple, float | None] = {}
+
     def superbet_implied(row: StatsSheetRow) -> float | None:
         """Superbet's own probability for this outcome, margin removed.
 
-        Both sides of the line, or nothing. ``1/price`` alone is not the book's
-        probability -- it carries the whole overround, which on these markets
-        runs 8-9% -- and using it would understate every disagreement by about
-        that much, in the direction that lets a bad row through the gate below.
-        Two prices give the pair's overround exactly, and dividing it out is
-        arithmetic rather than an assumption.
+        One implementation, in ``superbet_offer.devigged_probability``: the
+        SUPERBET comparison artifact records the same number and the bar now
+        shrinks toward it, so a second copy here would be a second answer to
+        the question that decides a minimum price.
 
         Returns None when the opposite side is not posted, which is common on
-        one-way markets. None disables the disagreement gate for that row: we
-        cannot say the book disagrees with us if we cannot read what it thinks.
+        one-way markets. None disables the disagreement gate *and* the market
+        prior for that row: we cannot say the book disagrees with us, or move
+        toward it, if we cannot read what it thinks.
         """
         if superbet_offer is None:
             return None
-        event_offer = superbet_events.get(row.event_id)
-        aliases = player_aliases.get(row.event_id, {})
-        opposite = "UNDER" if row.direction == "OVER" else "OVER"
-        prices: list[float] = []
-        for direction in (row.direction, opposite):
-            availability, exact, _, _ = lookup_line(
-                event_offer,
+        key = (row.event_id, row.market, row.line, row.direction,
+               row.team_name, row.player_name)
+        if key not in _implied_cache:
+            _implied_cache[key] = devigged_probability(
+                superbet_events.get(row.event_id),
                 market=row.market,
                 line=row.line,
-                direction=direction,
+                direction=row.direction,
                 team_name=row.team_name,
                 player_name=row.player_name,
-                player_aliases=aliases,
+                player_aliases=player_aliases.get(row.event_id, {}),
             )
-            if availability != "OFFERED" or exact is None or exact.price <= 1.0:
-                return None
-            prices.append(exact.price)
-        overround = sum(1.0 / price for price in prices)
-        if overround <= 0:
-            return None
-        return (1.0 / prices[0]) / overround
+        return _implied_cache[key]
 
     def disagreement(row: StatsSheetRow) -> float | None:
         """How far this row's own opinion sits above the operator's book.
@@ -865,8 +1076,8 @@ def build_coupons(
         ours = row.p_central if row.p_central is not None else row.p_low
         return round(ours - implied, 4)
 
-    # Every line **the book posted** for one sample, taken from the offer and
-    # deliberately not from the sheet.
+    # Where the book puts this market's centre, from the offer and deliberately
+    # not from the sheet.
     #
     # The sheet is the wrong source and would make the check unreliable in
     # exactly the cases it is for: ``select_lines`` trims an offer-driven
@@ -875,85 +1086,33 @@ def build_coupons(
     # being hunted -- is the one whose sheet rows cover least of the ladder.
     # Reading the sheet would have let the gate go quietly inert on the worst
     # rows and left no trace that it had.
-    #
-    # Keyed on the offer's own spelling of a player, which is what
-    # ``lookup_line`` resolves ours to; team names are ours already.
-    ladder_lines: dict[tuple, set[float]] = {}
-    for event_offer in (superbet_offer.events if superbet_offer else []):
-        if not event_offer.event_id:
-            continue
-        for offered in event_offer.lines:
-            ladder_lines.setdefault(
-                (event_offer.event_id, offered.market, offered.team_name,
-                 offered.player_name),
-                set(),
-            ).add(offered.line)
-
-    def _rungs_for(row: StatsSheetRow) -> set[float]:
-        """Every line the book posted for this row's sample.
-
-        A player row has to be looked up under *their* spelling: the alias map
-        is ours-to-theirs, and the offer is filed under theirs.
-        """
-        their_name = row.player_name
-        if their_name is not None:
-            their_name = player_aliases.get(row.event_id, {}).get(their_name, their_name)
-        return ladder_lines.get(
-            (row.event_id, row.market, row.team_name, their_name), set()
-        )
-
-    _ladder_median_cache: dict[tuple, float | None] = {}
+    _ladder_centre_cache: dict[tuple, float | None] = {}
 
     def ladder_median(row: StatsSheetRow) -> float | None:
-        """The median of the distribution Superbet's whole ladder implies.
+        """The centre Superbet's own devigged ladder implies for this sample.
 
-        Each rung with both sides posted devigs to ``P(X < line)`` exactly as
-        ``superbet_implied`` does for one line. Together they are a CDF sampled
-        at the book's own half-points, and the median is where it crosses 0.5,
-        linearly interpolated between the two rungs that straddle it.
+        Two or more two-sided rungs give it by interpolation; a single rung
+        gives it from the pivot and the sample's own spread. Both live in
+        ``superbet_offer.ladder_centre`` -- see its docstring for why the second
+        path was added and what it assumes.
 
-        Interpolated and not fitted: a two-parameter fit would put a shape
-        assumption between the operator and a number he is being asked to bet
-        against, and the crossing point needs no shape. Linear interpolation
-        over a half-point step is accurate to well inside the band it feeds.
-
-        Returns None when the book posted too little to locate a median --
-        fewer than two two-sided rungs, or a ladder that never crosses 0.5.
-        None disables the check, on the same principle as ``superbet_implied``:
-        not being able to read the book is not evidence against the sample.
+        Keyed on the sample, not the row, so every rung of one market shares
+        one answer. ``dispersion`` is part of the key because it feeds the
+        single-rung path.
         """
-        key = (row.event_id, row.market, row.team_name, row.player_name)
-        if key in _ladder_median_cache:
-            return _ladder_median_cache[key]
-        cdf: dict[float, float] = {}
-        for line in sorted(_rungs_for(row)):
-            prices: list[float] = []
-            for direction in ("UNDER", "OVER"):
-                availability, exact, _, _ = lookup_line(
-                    superbet_events.get(row.event_id),
-                    market=row.market,
-                    line=line,
-                    direction=direction,
-                    team_name=row.team_name,
-                    player_name=row.player_name,
-                    player_aliases=player_aliases.get(row.event_id, {}),
-                )
-                if availability != "OFFERED" or exact is None or exact.price <= 1.0:
-                    break
-                prices.append(exact.price)
-            if len(prices) == 2:
-                overround = sum(1.0 / price for price in prices)
-                if overround > 0:
-                    cdf[line] = (1.0 / prices[0]) / overround
-        result: float | None = None
-        if len(cdf) >= _LADDER_MIN_RUNGS:
-            rungs = sorted(cdf)
-            for lower, upper in zip(rungs, rungs[1:]):
-                below, above = cdf[lower], cdf[upper]
-                if below < 0.5 <= above and above > below:
-                    result = lower + (0.5 - below) / (above - below) * (upper - lower)
-                    break
-        _ladder_median_cache[key] = result
+        key = (row.event_id, row.market, row.team_name, row.player_name,
+               row.dispersion)
+        if key in _ladder_centre_cache:
+            return _ladder_centre_cache[key]
+        cdf = devigged_ladder(
+            superbet_events.get(row.event_id),
+            market=row.market,
+            team_name=row.team_name,
+            player_name=row.player_name,
+            player_aliases=player_aliases.get(row.event_id, {}),
+        ) if superbet_offer is not None else {}
+        result = ladder_centre(cdf, dispersion=row.dispersion)
+        _ladder_centre_cache[key] = result
         return result
 
     def ladder_sigma(row: StatsSheetRow) -> float | None:
@@ -1048,6 +1207,45 @@ def build_coupons(
         reported_vetoes.add(key)
         applied_vetoes.append(note)
 
+    for ignored, why in veto_index.ignored:
+        applied_vetoes.append(
+            f"POMINIĘTE WETO: {_veto_scope(ignored)} "
+            f"({ignored.event_id[:12]}) — {why}; {ignored.reason}"
+        )
+
+    def bar_for(row: StatsSheetRow, tier: str) -> tuple[float, BarComponents]:
+        """``(min_acceptable_odds, the parts it was built from)`` for one row.
+
+        One place, called by the ranking, by the ``require_superbet_value``
+        probe and by the body that fills ``CouponSingle`` -- the same
+        collapse ``required_price`` was created for, now that the bar has four
+        moving parts instead of one and three copies would drift on any of
+        them.
+        """
+        market_probability = superbet_implied(row)
+        k = shrink_k_for_market(row.market) if shrink_k is None else shrink_k
+        force_weight: float | None = None
+
+        veto = veto_index.for_row(row)
+        if veto is not None and veto.action == "DOWNGRADE":
+            if veto.reason_class in VETO_CLASS_ZERO_WEIGHT:
+                force_weight = 0.0
+            elif veto.reason_class in VETO_CLASS_DOUBLE_K:
+                k *= 2.0
+        if set(row.lean_ceiling_reasons) & CEILING_DOUBLE_K:
+            k *= 2.0
+
+        components = bar_components(
+            row,
+            bar_basis,
+            market_probability=market_probability,
+            shrink_k=k,
+            force_weight=force_weight,
+        )
+        if components.probability <= 0:
+            return float("inf"), components
+        return round((1.0 / components.probability) * TIER_MARGIN[tier], 4), components
+
     def identity(event_id: str) -> tuple[str, str, str]:
         event = events.get(event_id)
         if event is None:
@@ -1133,8 +1331,9 @@ def build_coupons(
             new_tier = step_tier_down(tier)
             note_veto_once(
                 veto,
-                f"DOWNGRADE analityka: {_veto_scope(veto)} "
-                f"({row.event_id[:12]}) {tier}→{new_tier} — {veto.reason}",
+                f"DOWNGRADE analityka [{veto.reason_class}]: {_veto_scope(veto)} "
+                f"({row.event_id[:12]}) {tier}→{new_tier}"
+                f"{_veto_class_effect(veto)} — {veto.reason}",
             )
             tier = new_tier
         if tier in ("WEAK", "DROP"):
@@ -1144,7 +1343,7 @@ def build_coupons(
             exclude("analyst_veto")
             note_veto_once(
                 veto,
-                f"WETO analityka: {_veto_scope(veto)} "
+                f"WETO analityka [{veto.reason_class}]: {_veto_scope(veto)} "
                 f"({row.event_id[:12]}) — {veto.reason}",
             )
             continue
@@ -1168,19 +1367,83 @@ def build_coupons(
     # with a strong corners read cannot occupy six rows of the file at four
     # different lines -- they are the same read, and only the best line of it is
     # a distinct bet.
+    #
+    # *Which* line is now scored rather than left to the sort order; see
+    # RUNG_PENALTY_LINE_ON_MODE.
     seen: set[tuple[tuple, str, str | None]] = set()
     singles: list[CouponSingle] = []
+
+    def rung_score(row: StatsSheetRow, tier: str) -> float | None:
+        """Expected value at the book's own price, penalised for a bad rung.
+
+        None when the book does not price this rung: a line the operator cannot
+        take has no expected value, and scoring it against the sheet alone
+        would let an unbettable rung win the slot.
+        """
+        minimum, bar = bar_for(row, tier)
+        price = superbet_for(row, minimum).get("superbet_price")
+        if not isinstance(price, (int, float)):
+            return None
+        score = bar.probability * float(price) - 1.0
+        if row.mode is not None and abs(row.line - row.mode) <= 1.0:
+            score -= RUNG_PENALTY_LINE_ON_MODE
+        crossed = (
+            row.sample_max is not None and row.sample_max > row.line
+            if row.direction == "UNDER"
+            else row.sample_min is not None and row.sample_min < row.line
+        )
+        if crossed:
+            score -= RUNG_PENALTY_SAMPLE_CROSSES_LINE
+        return score
+
+    def _alternative_fields(entry) -> dict[str, object]:
+        if entry is None:
+            return {}
+        score, other, other_tier = entry
+        minimum = bar_for(other, other_tier)[0]
+        return {
+            "alternative_line": other.line,
+            "alternative_direction": other.direction,
+            "alternative_price": superbet_for(other, minimum).get("superbet_price"),
+            "alternative_min_acceptable_odds": minimum,
+            "alternative_rung_score": round(score, 4),
+        }
+
+    def _rung_key(row: StatsSheetRow) -> tuple:
+        return (fixture_key(row.event_id), row.market, _subject_key(row))
+
+    # Scored once, before any ranking, so every list below sees the same
+    # winner and the loser is excluded for the right reason.
+    scored_by_key: dict[tuple, list[tuple[float, StatsSheetRow, str]]] = {}
+    for _row, _tier in candidates:
+        _score = rung_score(_row, _tier)
+        if _score is None:
+            continue
+        scored_by_key.setdefault(_rung_key(_row), []).append((_score, _row, _tier))
+    chosen_rung: dict[tuple, str] = {}
+    runner_up: dict[tuple, tuple[float, StatsSheetRow, str]] = {}
+    for _key, _rungs in scored_by_key.items():
+        _rungs.sort(key=lambda item: (-item[0], item[1].line, item[1].direction))
+        chosen_rung[_key] = f"{_rungs[0][1].line}:{_rungs[0][1].direction}"
+        if len(_rungs) > 1:
+            runner_up[_key] = _rungs[1]
 
     def _append_singles(ordered: list[tuple[StatsSheetRow, str]]) -> None:
         for row, tier in ordered:
             if require_superbet_value:
-                probe = superbet_for(row, required_price(row, tier, basis=bar_basis))
+                probe = superbet_for(row, bar_for(row, tier)[0])
                 if probe.get("superbet_verdict") != "VALUE":
                     exclude("superbet_not_value")
                     continue
-            key = (fixture_key(row.event_id), row.market, _subject_key(row))
+            key = _rung_key(row)
             if key in seen:
                 exclude("duplicate_market_for_event")
+                continue
+            # A priced ladder picks its rung by score, not by whichever one the
+            # sort happened to reach first.
+            wanted = chosen_rung.get(key)
+            if wanted is not None and wanted != f"{row.line}:{row.direction}":
+                exclude("rung_not_chosen")
                 continue
             seen.add(key)
             match, competition, kickoff = identity(row.event_id)
@@ -1198,7 +1461,7 @@ def build_coupons(
                 exclude("p_low_not_positive")
                 continue
             fair = 1.0 / row.p_low
-            minimum = required_price(row, tier, basis=bar_basis)
+            minimum, bar = bar_for(row, tier)
             singles.append(
                 CouponSingle(
                     rank=len(singles) + 1,
@@ -1221,8 +1484,22 @@ def build_coupons(
                     hits=row.hits,
                     sample_size=row.sample_size,
                     cross_provider_agreement=row.cross_provider_agreement,
+                    corroborated_matches=row.corroborated_matches,
                     fair_odds=round(fair, 4),
                     min_acceptable_odds=minimum,
+                    bar_basis=bar_basis,
+                    bar_basis_reason=bar.reason,
+                    bar_probability=round(bar.probability, 4),
+                    bar_sample_probability=round(bar.p_bar, 4),
+                    market_probability=(
+                        round(bar.p_market, 4) if bar.p_market is not None else None
+                    ),
+                    sample_weight=(
+                        round(bar.weight, 4) if bar.weight is not None else None
+                    ),
+                    shrink_k=(
+                        shrink_k_for_market(row.market) if shrink_k is None else shrink_k
+                    ),
                     market_verdict=row.market_signal.verdict if row.market_signal else None,
                     market_price=row.market_signal.market_price if row.market_signal else None,
                     market_bookmaker=(
@@ -1242,6 +1519,11 @@ def build_coupons(
                             f"{ladder_sigma(row):+.2f}σ) — to nie jest spór o "
                             "ogon, to spór o to, gdzie ten rynek leży"
                         ] if off_ladder(row) else []
+                    ),
+                    **_alternative_fields(runner_up.get(key)),
+                    rung_score=(
+                        round(scored, 4)
+                        if (scored := rung_score(row, tier)) is not None else None
                     ),
                     edge=round(_edge(row), 4) if _has_market_reference(row) else None,
                     market_disagreement=disagreement(row),
@@ -1266,7 +1548,7 @@ def build_coupons(
     # budget, spent in this order.
     def _superbet_surplus(pair: tuple[StatsSheetRow, str]) -> float | None:
         row, tier = pair
-        info = superbet_for(row, required_price(row, tier, basis=bar_basis))
+        info = superbet_for(row, bar_for(row, tier)[0])
         return info.get("superbet_surplus") if info.get("superbet_verdict") == "VALUE" else None
 
     # The ladder gate, and it is a *demotion*, not an exclusion.
@@ -1378,12 +1660,27 @@ def build_coupons(
             vetoes=veto_index,
             min_p_low=min_p_low,
             price_for=leg_price if superbet_offer is not None else None,
-            require_value=require_superbet_value,
+            # **Always**, from 2026-09-03, and not only when the caller asked
+            # for a value-only file.
+            #
+            # A single below its bar is information: the row is printed,
+            # labelled, and the operator can see the price is wrong. A *leg*
+            # below its bar is not: a slip is placed as one unit, so the leg
+            # cannot be read separately and cannot be declined separately -- it
+            # simply lowers the slip's expectation while making the coupon look
+            # fuller. On 2026-09-03, 6 of 25 legs were kept below their own
+            # minimum "as context".
+            require_value=superbet_offer is not None,
             bar_basis=bar_basis,
         )
         # A one-leg "slip" is a single wearing a different hat, and printing it
         # in both sections would double-count the same read.
         if len(draft.legs) < 2:
+            continue
+        # docs/SUPERBET_BET_BUILDER_METHOD_v3.md §44. The draft is kept on the
+        # record with its score and its parts; it just does not become a coupon.
+        if draft.builder_score_refused:
+            exclude("builder_score_below_minimum")
             continue
         match, competition, kickoff = identity(event_id)
         if _kickoff_passed(kickoff, not_before):

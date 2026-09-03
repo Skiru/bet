@@ -14,6 +14,8 @@ from bet.simple_stats.bet_builder_draft import (
     CORRELATION_LAMBDA_NESTED,
     TIER_MARGIN,
     BetBuilderDraft,
+    BetBuilderLeg,
+    correlation_lambda,
     draft_legs,
     tier_for_row,
 )
@@ -117,10 +119,16 @@ def test_an_integer_pair_that_can_at_best_push_is_still_impossible():
     assert draft.excluded.get("jointly_impossible") == 1
 
 
-def test_a_compatible_component_pair_is_left_alone():
-    """The guard must not swallow the ordinary correlated slip: a team OVER
-    that fits under the match UNDER is bettable, and flagging it would turn
-    the conflict check into a ban on same-family legs."""
+def test_a_compatible_component_pair_is_not_impossible_but_is_one_mechanism():
+    """A team OVER that fits under the match UNDER is arithmetically fine, and
+    the impossibility guard must not claim otherwise -- that distinction is
+    what keeps ``jointly_impossible`` meaning what it says.
+
+    It is still refused, as of 2026-09-03, and by the right rule: both legs are
+    readings of the same mechanism (goals), so the slip would be pricing one
+    bet as two. The two refusals are kept separate because they are different
+    findings and only one of them is about arithmetic.
+    """
     draft = draft_legs(
         _sheet(
             _row(market="goals_total", line=3.5, direction="UNDER", p_low=0.60),
@@ -129,8 +137,9 @@ def test_a_compatible_component_pair_is_left_alone():
         ),
         "evt-1",
     )
-    assert len(draft.legs) == 2
+    assert len(draft.legs) == 1
     assert "jointly_impossible" not in draft.excluded
+    assert draft.excluded["duplicate_mechanism_family"] == 1
 
 
 def test_every_football_market_is_in_the_correlated_family():
@@ -329,17 +338,39 @@ def test_weak_rows_are_excluded_and_counted_never_priced():
 
 
 def test_legs_are_ranked_by_the_sheets_own_ranking():
+    """One leg per mechanism, so the three markets here are three mechanisms:
+    corners (attacking), goals (scoring), cards (discipline). Ranked on p_low
+    with no price in play."""
     draft = draft_legs(
         _sheet(
             _row(market="cards_total", line=4.5, p_low=0.44),
+            _row(market="corners_total", p_low=0.61),
+            _row(market="goals_total", line=2.5, p_low=0.52),
+        ),
+        "evt-1",
+    )
+    assert [leg.market for leg in draft.legs] == [
+        "corners_total", "goals_total", "cards_total"
+    ]
+
+
+def test_two_readings_of_one_mechanism_cannot_both_be_legs():
+    """Corners and shots on target are the same territorial pressure, and a
+    slip built from both is one bet sold twice and priced as two.
+
+    This is what "one leg per market" allowed and "one leg per mechanism" does
+    not -- see MECHANISM_FAMILIES. The 2026-09-03 Grenal slip took cards *and*
+    fouls *and* a per-team card line: three legs, one mechanism.
+    """
+    draft = draft_legs(
+        _sheet(
             _row(market="corners_total", p_low=0.61),
             _row(market="shots_on_target_total", line=6.5, p_low=0.52),
         ),
         "evt-1",
     )
-    assert [leg.market for leg in draft.legs] == [
-        "corners_total", "shots_on_target_total", "cards_total"
-    ]
+    assert [leg.market for leg in draft.legs] == ["corners_total"]
+    assert draft.excluded["duplicate_mechanism_family"] == 1
 
 
 def test_a_leg_that_beats_its_price_outranks_a_more_certain_one_that_does_not():
@@ -450,11 +481,19 @@ def test_the_same_market_is_never_drafted_twice():
 
 
 def test_max_legs_is_honoured_and_the_overflow_counted():
+    # Five distinct *mechanisms*, three slots. Distinct mechanisms rather than
+    # distinct markets, because since 2026-09-03 the second reading of one
+    # mechanism never reaches the cap -- it is refused before it, and this test
+    # is about the cap.
     rows = [
-        _row(market=m, line=4.5, p_low=0.6 - i / 100)
-        for i, m in enumerate(
-            ["corners_total", "cards_total", "fouls_total", "shots_total", "shots_on_target_total"]
-        )
+        _row(market=m, line=line, p_low=0.6 - i / 100)
+        for i, (m, line) in enumerate([
+            ("corners_total", 4.5),
+            ("cards_total", 4.5),
+            ("goals_total", 2.5),
+            ("player_total_shots", 1.5),
+            ("player_shots_on_target", 0.5),
+        ])
     ]
     draft = draft_legs(_sheet(*rows), "evt-1", max_legs=3)
     assert len(draft.legs) == 3
@@ -544,11 +583,11 @@ def test_the_slip_margin_is_charged_once_and_not_per_leg():
     sheet = _sheet(
         _row(market="corners_total", p_low=0.60, p_central=0.90),
         _row(market="cards_total", line=4.5, p_low=0.60, p_central=0.90),
-        _row(market="fouls_total", line=20.5, p_low=0.60, p_central=0.90),
-        _row(market="shots_total", line=22.5, p_low=0.60, p_central=0.90),
+        _row(market="goals_total", line=2.5, p_low=0.60, p_central=0.90),
+        _row(market="player_total_shots", line=1.5, p_low=0.60, p_central=0.90),
     )
     draft = draft_legs(sheet, "evt-1", price_for=_priced(dict.fromkeys(
-        ("corners_total", "cards_total", "fouls_total", "shots_total"), 2.00
+        ("corners_total", "cards_total", "goals_total", "player_total_shots"), 2.00
     )))
 
     assert len(draft.legs) == 4
@@ -556,11 +595,18 @@ def test_the_slip_margin_is_charged_once_and_not_per_leg():
     assert implied_margin == pytest.approx(TIER_MARGIN["CALL"], abs=1e-3)
 
 
-def test_nested_legs_in_the_same_direction_get_the_larger_measured_lambda():
-    """1.045 over 1,326 pairs, and only where one leg is inside the other.
+def test_a_nested_pair_is_now_refused_rather_than_priced_at_a_higher_lambda():
+    """Changed 2026-09-03: a part inside its whole is not a second leg.
 
-    ``goals_for`` is counted within ``goals_total``: the same goal settles both.
-    That is the one place the correlation story survived measurement.
+    ``goals_for`` is counted within ``goals_total`` -- the same goal settles
+    both -- and until now that pair was accepted with the larger measured
+    lambda (1.045 over 1,326 pairs). Accepting it prices one bet as two: on
+    2026-09-03 the Grenal slip carried Internacional <=3 cards and Grêmio <=5
+    alongside the match total <=8.
+
+    ``CORRELATION_LAMBDA_NESTED`` stays in the module -- it is a recorded
+    measurement and ``correlation_lambda`` is a public function -- but no slip
+    ``draft_legs`` builds can reach it any more.
     """
     sheet = _sheet(
         _row(market="goals_total", line=2.5, direction="UNDER", p_low=0.60, p_central=0.80),
@@ -572,8 +618,20 @@ def test_nested_legs_in_the_same_direction_get_the_larger_measured_lambda():
         price_for=_priced({"goals_total": 2.00, "goals_for": 2.00}),
     )
 
-    assert len(draft.legs) == 2
-    assert draft.correlation_lambda == CORRELATION_LAMBDA_NESTED
+    assert len(draft.legs) == 1
+    assert draft.excluded["nested_leg"] == 1
+    assert correlation_lambda([
+        BetBuilderLeg(
+            event_id="evt-1", market="goals_total", line=2.5, direction="UNDER",
+            tier="CALL", p_low=0.60, hit_rate=0.8, sample_size=10,
+            fair_odds=1.67, min_acceptable_odds=1.75,
+        ),
+        BetBuilderLeg(
+            event_id="evt-1", market="goals_for", line=1.5, direction="UNDER",
+            team_name="Valencia", tier="CALL", p_low=0.60, hit_rate=0.8,
+            sample_size=10, fair_odds=1.67, min_acceptable_odds=1.75,
+        ),
+    ]) == CORRELATION_LAMBDA_NESTED
 
 
 def test_the_joint_probability_never_exceeds_the_weakest_leg():
@@ -584,14 +642,15 @@ def test_the_joint_probability_never_exceeds_the_weakest_leg():
     """
     sheet = _sheet(
         _row(market="goals_total", line=2.5, direction="UNDER", p_low=0.60, p_central=0.99),
-        _row(market="goals_for", line=1.5, direction="UNDER", team_name="Valencia",
+        _row(market="corners_total", line=9.5, direction="UNDER",
              p_low=0.60, p_central=0.99),
     )
     draft = draft_legs(
         sheet, "evt-1",
-        price_for=_priced({"goals_total": 2.00, "goals_for": 2.00}),
+        price_for=_priced({"goals_total": 2.00, "corners_total": 2.00}),
     )
 
+    assert draft.joint_probability is not None
     assert draft.joint_probability <= 0.99
 
 
