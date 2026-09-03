@@ -1309,6 +1309,7 @@ def _rows_for_sample(
     offered_sides: dict[str, frozenset[float]] | None = None,
     sample_excluded: dict[str, int] | None = None,
     venue: str | None = None,
+    centre_override: float | None = None,
 ) -> list[StatsSheetRow]:
     """Every (line x direction) row for one sample of one metric.
 
@@ -1347,8 +1348,14 @@ def _rows_for_sample(
     # The centre the count model prices from, and the only place shrinkage
     # enters. mean/median/dispersion above stay the sample's own; see
     # ``shrunk_centre`` for why the diagnostic must not move with the price.
+    # ``centre_override`` is the estimand-framed centre for a tennis match
+    # total -- see ``_framed_tennis_total_centre``. It replaces the shrunk
+    # pooled mean outright rather than being averaged with it: the pooled mean
+    # targets a different quantity, so blending the two would only halve the
+    # error instead of removing it.
     centre = (
         None if canonical in _COUNT_MARKETS_EXCLUDED
+        else centre_override if centre_override is not None
         else shrunk_centre(values, canonical, venue)
     )
 
@@ -1472,6 +1479,90 @@ def _resolve_lines(
     return (list(static), None, None)
 
 
+# Which per-participant metric a tennis match total is the sum of.
+#
+# Only tennis, and only these three, because only here is the identity exact:
+# a match's aces are the two players' aces and nothing else. ``total_sets`` has
+# no per-player counterpart collected, so it keeps the pooled centre and stays
+# exposed to the frame error below -- named here rather than left to be
+# rediscovered.
+_TENNIS_TOTAL_COMPONENT = {
+    "aces_total": "aces_for",
+    "double_faults_total": "double_faults_for",
+    "total_games": "games_won",
+}
+
+
+def _framed_tennis_total_centre(
+    dossier: EventDossierV1, canonical: str, surface: str | None
+) -> float | None:
+    """The centre a tennis match total should be priced from: the two players'
+    own rates summed, not the pooled sample's mean.
+
+    ``_independent_match_sample`` pools ``team_a_l10 + team_b_l10 + h2h``, and
+    a tennis ``*_total`` observation is *that* player's count plus whoever she
+    happened to face (``providers.py`` defines ``aces_total`` as
+    ``aces + opponent_aces``). So the pooled sample measures these two players
+    plus a draw of third parties who are not on court, and the estimand -- the
+    quantity Superbet prices -- is only the first part.
+
+    On 2026-09-03 that shipped the day's rank-one single. Oliynykova-Eala
+    ``aces_total`` 1.5 OVER read ``p_low`` 0.705 off a sample whose mean was
+    5.23; the two players' own hard-court rates are 1.00 and 1.25, so the
+    quantity being priced was **2.25**. The sample's right tail -- a 12 and an
+    18 -- was Alycia Parks's and Qinwen Zheng's serving. Neither was playing.
+    The tell was on the same sheet: our own ``aces_for`` rows for that fixture
+    read ``p_low`` 0.353 and 0.306 and never became candidates, so the sheet
+    contradicted itself and the pooled framing won.
+
+    Summing the two per-participant centres also removes a second, independent
+    error. The pooled route consults ``market_priors`` for ``aces_total``
+    (8.066), which was measured over two ATP-heavy slates -- ATP averages 13.42
+    a match against WTA's 5.74 -- and shrinkage pulled a WTA best-of-three
+    centre *up* to 6.46, above its own sample mean. The per-participant
+    markets carry no pinned prior, so the summed centre is unshrunk and
+    tour-clean. A per-tour prior would let shrinkage back in and is the
+    follow-up; mixing tours is worse than not shrinking.
+
+    Returns ``(centre, suppress)``.
+
+    ``(None, False)`` means there is nothing to frame from -- another sport, or
+    a market with no per-participant counterpart collected -- and the caller
+    keeps the pooled centre.
+
+    ``(None, True)`` means the component exists but **one participant has no
+    scoped observation at all**, and the market must not be priced. Falling
+    back to the pooled centre there is the trap: the pooled sample is *most*
+    wrong precisely when a side is unobserved, because then it consists
+    entirely of the other player and her opponents. That is not hypothetical --
+    it is Badosa-Gauff ``double_faults_total`` on this same slate, where
+    ``SURFACE_MISMATCH`` removed all nine of Badosa's clay matches and the
+    surviving n=9 was Coco Gauff alone (mean 6.5556 x 9 = 59 = the sum of
+    Gauff's own nine values), while the row went on describing a two-player
+    total. The first version of this function returned None there and let the
+    pooled centre back in, which fixed the headline case and left its twin.
+    """
+    if dossier.sport != "tennis":
+        return None, False
+    component = _TENNIS_TOTAL_COMPONENT.get(canonical)
+    if component is None:
+        return None, False
+    obs = dossier.metrics.get(component)
+    if obs is None:
+        return None, False
+    scoped, _ = _scope_observation(obs, surface=surface)
+    centres: list[float] = []
+    # Own buckets only. The h2h bucket of a per-participant metric does not
+    # record which side the value belongs to, so it cannot be attributed and
+    # is left out -- the same reason ``_team_total_rows`` never reads it.
+    for bucket in (scoped.team_a_l10, scoped.team_b_l10):
+        collapsed = _one_per_day(bucket, dossier.sport)
+        if not collapsed:
+            return None, True
+        centres.append(statistics.fmean(pv.value for pv in collapsed))
+    return sum(centres), False
+
+
 def _match_total_rows(
     dossier: EventDossierV1,
     offered: OfferedLines | None = None,
@@ -1488,6 +1579,14 @@ def _match_total_rows(
             continue
         obs = dossier.metrics.get(canonical)
         if obs is None:
+            continue
+        framed_centre, one_sided = _framed_tennis_total_centre(
+            dossier, canonical, surface
+        )
+        # A tennis total one of whose participants is unobserved is not a
+        # thinner row, it is a row about somebody else. Dropped rather than
+        # priced off the pooled sample; see ``_framed_tennis_total_centre``.
+        if one_sided:
             continue
         obs, sample_excluded = _scope_observation(obs, surface=surface)
         lines, limit, offered_sides = _resolve_lines(
@@ -1506,6 +1605,7 @@ def _match_total_rows(
                     obs, dossier.team_a_name, dossier.team_b_name, dossier.sport
                 ),
                 sample_excluded=sample_excluded,
+                centre_override=framed_centre,
             )
         )
     return rows

@@ -58,6 +58,7 @@ from bet.simple_stats.contracts import (
     SuperbetOfferV1,
 )
 from bet.simple_stats.superbet_offer import lookup_line, player_alias_index
+from bet.simple_stats.tipster_consensus import TipsterConsensus
 from bet.strict_model import StrictBaseModel
 from bet.utils import normalize_team_name
 
@@ -403,6 +404,11 @@ class CouponSet(StrictBaseModel):
     not_before: str | None = None
     excluded: dict[str, int] = Field(default_factory=dict)
     notes: list[str] = Field(default_factory=list)
+    # What the tipster community picked repeatedly, as an appendix. Typed as a
+    # separate model that carries no probability and no price, and nothing in
+    # this module reads it -- it cannot reach ranking, tiering or the value
+    # test. See ``tipster_consensus``. None means the artifact was not passed.
+    tipster_consensus: TipsterConsensus | None = None
 
 
 def _now_iso() -> str:

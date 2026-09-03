@@ -36,6 +36,7 @@ from bet.simple_stats.contracts import (  # noqa: E402
     MarketContextV1,
     StatsSheetV1,
     SuperbetOfferV1,
+    TipsterSignalV1,
 )
 from bet.simple_stats.bet_builder_draft import (  # noqa: E402
     _CORRELATED_FOOTBALL_FAMILY,
@@ -47,6 +48,8 @@ from bet.simple_stats.coupons import (  # noqa: E402
     build_coupons,
     market_label,
 )
+from bet.simple_stats.tipster_claims import TipsterClaimsV1  # noqa: E402
+from bet.simple_stats.tipster_consensus import build_consensus  # noqa: E402
 
 
 def _kickoff(iso: str) -> str:
@@ -287,12 +290,103 @@ def render_markdown(coupons: CouponSet) -> str:
             a("**Kurs łączny: odczytaj z ekranu Superbetu.** Nie jest tu liczony.")
             a("")
 
+    _render_tipster_consensus(a, coupons.tipster_consensus)
+
     a("---")
     a("")
     a("Bez kursu łącznego, bez EV, bez stawki — celowo. Każdy kurs sprawdzasz sam;")
     a("typ poniżej minimalnego kursu nie jest typem.")
     a("")
     return "\n".join(out)
+
+
+def _render_tipster_consensus(a, consensus) -> None:
+    """The appendix: what the crowd repeated, on a market we do not price.
+
+    Last in the file, after the singles and the slips, because it is context
+    and not a recommendation -- there is no `p_low` behind any of it and no
+    minimum odds, and the text says so twice rather than once.
+    """
+    if consensus is None:
+        return
+
+    a("---")
+    a("")
+    a("## Zdanie typerów (inny rynek — nie nasze totale)")
+    a("")
+    a(
+        f"> **To nie są typy z tego arkusza.** Typerzy obstawiają 1X2, BTTS i kombinacje; "
+        f"ten pipeline wycenia totale (rożne, kartki, faule, strzały, gole). Jednego nie "
+        f"przelicza się na drugie, więc **nie ma tu `p_low`, nie ma minimalnego kursu i nie "
+        f"ma progu wartości** — jest liczba osób, które postawiły to samo."
+    )
+    a(">")
+    a(
+        f"> Pokrycie: **{consensus.picks_ingested} typów** pobranych, "
+        f"{consensus.picks_matched} dopasowanych do meczu, "
+        f"**{consensus.countable_claims} policzalnych** dla naszych rynków. "
+        f"{consensus.events_covered} meczów ruszonych, z tego "
+        f"{consensus.events_with_one_pick} przez jedną osobę — dlatego ta sekcja jest krótka."
+    )
+    if consensus.sources_blocked:
+        a(">")
+        a(f"> Źródła niedostępne: {', '.join(consensus.sources_blocked)}")
+    a("")
+
+    if consensus.rows:
+        a(f"### Powtarzające się typy ({len(consensus.rows)})")
+        a("")
+        a("| Typerów | Mecz | Co obstawiają | Kurs u nich | Na naszym kuponie | Dopasowanie | Kto |")
+        a("|---|---|---|---|---|---|---|")
+        for row in consensus.rows:
+            odds = f"{row.odds_seen:.2f}" if row.odds_seen is not None else "—"
+            on = "**tak**" if row.on_coupon else "nie"
+            a(
+                f"| **{row.tipster_count}×** | {row.match} | {row.direction_label} | "
+                f"{odds} | {on} | {row.match_quality or '—'} | "
+                f"{', '.join(row.tipsters)} |"
+            )
+        a("")
+        a(
+            "*Dopasowanie* `FUZZY` znaczy, że mecz skojarzono po nazwie, nie po id — "
+            "sprawdź, czy to ten sam mecz, zanim cokolwiek z tego użyjesz."
+        )
+        a("")
+    else:
+        a("### Powtarzające się typy")
+        a("")
+        a(
+            "Brak — żaden mecz nie zebrał dwóch typerów po tej samej stronie. "
+            "To normalna odpowiedź o dniu, nie brak danych."
+        )
+        a("")
+
+    if consensus.coupon_fixtures:
+        a(f"### Typerzy o meczach z naszego kuponu ({len(consensus.coupon_fixtures)})")
+        a("")
+        a(
+            "Pojedyncze typy też, bo pytanie jest inne niż wyżej: nie „co się powtarza\", "
+            "ale „czy ktokolwiek patrzył na mecz, który zamierzam obstawić\". "
+            "Treść typu **dosłownie** — w kombinacjach tylko tam przeżywają poszczególne nogi."
+        )
+        a("")
+        for fixture in consensus.coupon_fixtures:
+            a(f"**{fixture.match}** · dopasowanie {fixture.match_quality or '—'}")
+            a("")
+            for pick in fixture.picks:
+                a(f"- {pick}")
+            a("")
+
+    if consensus.unusable_by_reason:
+        detail = ", ".join(
+            f"{count}× {reason}" for reason, count in consensus.unusable_by_reason.items()
+        )
+        a(
+            f"**Nieczytelne dla tej sekcji:** {consensus.unusable_picks} typów — {detail}. "
+            "Nie zgaduję ich: „powyżej\" bez linii to nie jest typ, a „Tabilo\" bez "
+            "wskazanego zawodnika nie mówi, kto ma wygrać."
+        )
+        a("")
 
 
 def main() -> None:
@@ -361,6 +455,26 @@ def main() -> None:
         "above their minimum acceptable odds are ranked first; rows it does not "
         "carry are kept and labelled, never dropped. Missing file is the "
         "pre-Superbet behaviour exactly, not an error.",
+    )
+    parser.add_argument(
+        "--tipster-signal",
+        default=None,
+        help="Path to <date>_tipster_signal.json from run_tipsters.py. Adds the "
+        "closing appendix: which fixtures two or more tipsters picked the same "
+        "way, plus every pick on a fixture that reached this coupon. It is a "
+        "different market from the totals priced above -- 1X2, BTTS, combos -- "
+        "so it carries no p_low, no minimum odds and no value test, and it "
+        "never touches ranking or tiering. Missing file simply omits the "
+        "section.",
+    )
+    parser.add_argument(
+        "--tipster-claims",
+        default=None,
+        help="Path to <date>_tipster_claims.json from save_tipster_claims.py -- "
+        "the `tipster-reader` agent's validated readings of the raw pick text. "
+        "Where it has a reading, it replaces the regex path, which cannot read "
+        "shorthand like `o2,5` or `1(Superzprzewage)`. Counting stays in code "
+        "either way. Missing file falls back to the rules exactly.",
     )
     parser.add_argument(
         "--require-superbet-value", action="store_true",
@@ -453,6 +567,51 @@ def main() -> None:
     else:
         kwargs["not_before"] = datetime.now(timezone.utc)
     coupons = build_coupons(sheet, event_list, **kwargs)
+
+    # Attached *after* the build, deliberately. ``build_coupons`` never receives
+    # it, so the appendix cannot reach ranking, tiering, the veto index or the
+    # value test even by accident -- the boundary is enforced by call order, not
+    # only by convention.
+    tipster_path = Path(args.tipster_signal) if args.tipster_signal else (
+        run_dir / f"{args.date}_tipster_signal.json" if run_dir else None
+    )
+    claims_path = Path(args.tipster_claims) if args.tipster_claims else (
+        run_dir / f"{args.date}_tipster_claims.json" if run_dir else None
+    )
+    claims = None
+    if claims_path and claims_path.exists():
+        claims = TipsterClaimsV1.model_validate_json(
+            claims_path.read_text(encoding="utf-8")
+        )
+    elif args.tipster_claims:
+        print(
+            json.dumps({"error": f"tipster claims not found: {claims_path}"}),
+            file=sys.stderr,
+        )
+        sys.exit(2)
+
+    if tipster_path and tipster_path.exists():
+        signal = TipsterSignalV1.model_validate_json(
+            tipster_path.read_text(encoding="utf-8")
+        )
+        coupons = coupons.model_copy(
+            update={
+                "tipster_consensus": build_consensus(
+                    signal,
+                    frozenset(
+                        [s.event_id for s in coupons.singles]
+                        + [s.event_id for s in coupons.slips]
+                    ),
+                    claims=claims,
+                )
+            }
+        )
+    elif args.tipster_signal:
+        print(
+            json.dumps({"error": f"tipster signal not found: {tipster_path}"}),
+            file=sys.stderr,
+        )
+        sys.exit(2)
 
     date = coupons.date or args.date or "unknown"
     md_path = Path(args.output) if args.output else (

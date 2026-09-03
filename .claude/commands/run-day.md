@@ -631,14 +631,72 @@ offer alone. MARKET_CONTEXT now says so
 — read `tennis_model_unavailable` off its `AGENT_SUMMARY` and quote it under
 *Czego zabrakło*. An empty list means the column was genuinely consulted.
 
+## Step 5bis — Read the tipsters — agent `tipster-reader`
+
+Free, no quota, one agent call. Skip it and the coupon's *Typerzy* column keeps
+reading `brak` on almost every row.
+
+TIPSTERS collects far more than it delivers, because it only keeps a pick it can
+**count** -- a total with a readable line and direction. Measured 2026-09-03:
+**55 picks ingested, 39 matched to a fixture, 2 countable.** The other 37 were
+1X2, BTTS or inseparable combos: a different market, not a broken one. And of
+the 2 it did count, one was wrong -- `MANTOVA POWYŻEJ 9.5 STRZAŁÓW` came through
+as `player_total_shots` with `subjects: ["STRZAŁÓW"]`, the Polish word for
+"shots" read as a player's name, `countable: true`.
+
+`tipster-reader` reads the raw claim text and says what each pick means, in a
+closed vocabulary. **It translates and nothing else** -- it never counts,
+never scores a tipster, never emits a probability or a price. The arithmetic is
+`src/bet/simple_stats/tipster_consensus.py`, in ordinary deterministic code, so
+two runs over one day cannot disagree about how many people picked a side.
+
+Hand it the signal path and save what it returns:
+
+```bash
+python3 scripts/simple/save_tipster_claims.py --date <resolved> \
+  --readings /tmp/readings.json     # or '-' for stdin
+```
+
+**The agent has no Write tool and the script trusts nothing it says.** Every
+reading must name a pick TIPSTERS actually collected, with the claim
+**byte-identical**, and must use the closed market/direction vocabulary --
+`bet.simple_stats.tipster_claims` rejects a paraphrased claim, an invented
+tipster, a hallucinated market, a subject who is not playing, and a total with
+no line. Rejections are counted per reading and reported; nothing is repaired,
+because a repaired reading is one nobody wrote and nobody can check.
+
+Read `parser_disagreements` off the `AGENT_SUMMARY`. It was **23 of 39** on
+2026-09-03, which is why the step exists; near zero would mean the agent buys
+nothing and the regex fallback is enough.
+
+Measured effect that day, agent versus regex alone: unreadable picks **12 → 2**,
+one *false* consensus removed (`1. połowa lub mecz: X lub X` had been labelled
+a plain `DRAW`, but it is "draw at half-time **or** at full-time" -- strictly
+wider), and one true consensus added that no regex could see (`Tabilo` and
+`Wygra Tabilo` both resolving to Alejandro Tabilo from the fixture's own names).
+
+Exit 1 means some readings were rejected -- note it and carry on; the section
+degrades, it does not break. If the agent was not run at all, Step 6 falls back
+to the regex path exactly as before.
+
 ## Step 6 — Build the coupons file
 
 ```bash
 python3 scripts/simple/build_coupons.py --date <resolved> \
   --vetoes runs/<date>/<date>_analyst_vetoes.json \
   --market-context runs/<date>/<date>_market_context.json \
-  --superbet-offer runs/<date>/<date>_superbet_offer.json
+  --superbet-offer runs/<date>/<date>_superbet_offer.json \
+  --tipster-signal runs/<date>/<date>_tipster_signal.json \
+  --tipster-claims runs/<date>/<date>_tipster_claims.json
 ```
+
+`--tipster-signal` and `--tipster-claims` add the closing *Zdanie typerów*
+appendix: which fixtures two or more tipsters picked the same way, and every
+pick on a fixture that reached the coupon, quoted verbatim. It is a **different
+market** from the totals above it, so it carries no `p_low`, no minimum odds and
+no value test, and `coupons.py` never receives it -- the boundary is enforced by
+call order in `build_coupons.py`, not only by convention. Both flags resolve
+from `--date`; a missing claims file falls back to the regex path.
 
 `--superbet-offer` adds the **Superbet** column to both tables and re-ranks the
 singles: a row the operator's own book prices at or above its
